@@ -195,9 +195,10 @@ the listener heard past appears in neither part. A part that is empty is left ou
 and a record with neither part renders the plain line.
 
 Each queued utterance retains its own `turn_id` and `event_name` through its
-playback boundary. The line names the utterance whose outcome was recorded,
-even when another turn has opened. A failed call retains the failing client
-turn's identity. The persisted record carries an optional `turn_id`; a record
+playback boundary. On interruption, each later queued utterance of another turn
+is reported interrupted without a split, before the cut utterance's report
+carrying everything still owed. The line names the cut utterance. A failed call
+retains the failing client turn's identity. The persisted record carries an optional `turn_id`; a record
 without it still loads.
 
 Only the backend's own turn writes the value. The thinking filler phrases and the

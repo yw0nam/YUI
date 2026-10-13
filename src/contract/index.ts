@@ -47,3 +47,5 @@ export type {
   WakeCause,
   WindowRect,
 } from "./types";
+
+export { BACKEND_EVENT_NAME } from "./types";

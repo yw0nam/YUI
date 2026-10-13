@@ -44,7 +44,7 @@ The client renders what arrives and judges nothing. Everything the backend must 
 | `tool_call` wait, body action | 15 s on the client, 20 s on the backend adapter |
 | `tool_call` wait, query | 2 s on the client, 7 s on the backend adapter |
 | `tool_result.result` | The text frame size |
-| `playback` frame size | 256 KiB |
+| `playback` frame size | The text frame size |
 | `playback.spoken`, `playback.unspoken` | 50 Unicode code points each |
 
 The backend cuts `title` and `summary` to their limits, counting Unicode code points.
@@ -175,7 +175,7 @@ The user pressed stop. `turn_ids` are the turns the client just stopped — ever
 | `spoken` | Optional. The last 50 Unicode code points heard from an interrupted reply |
 | `unspoken` | Optional. The first 50 Unicode code points still owed from an interrupted reply |
 
-The client sends one frame per saved playback record, after `ready` and only while connected. Each queued utterance retains its own turn identity through completion or interruption. A failed call names the client turn that failed. A persisted record without `turn_id` sends no frame. Records saved while disconnected are not replayed on reconnect; the next turn's `previous:` line carries an interrupted or failed outcome. A complete outcome is stored and omitted from that line.
+The client sends one frame per saved playback record, after `ready` and only while connected. Each queued utterance retains its own turn identity through completion. On interruption, each later queued utterance of another turn is reported interrupted without a split, before the cut utterance's report carrying everything still owed. A failed call names the client turn that failed. A persisted record without `turn_id` sends no frame. Records saved while disconnected are not replayed on reconnect; the next turn's `previous:` line carries an interrupted or failed outcome. A complete outcome is stored and omitted from that line.
 
 ## Replies
 

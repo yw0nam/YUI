@@ -64,7 +64,6 @@ export function wirePushTransport(deps: {
   const renderTurn = createRenderTurn({
     turnOutput: deps.turnOutput,
     pushTurns: deps.pushTurns,
-    identity: deps.pushTurns.identity,
     appendTurnRecord: deps.appendTurnRecord,
     appendTranscript: deps.appendTranscript,
     reportSpokeText: (turnId, spoke) => {

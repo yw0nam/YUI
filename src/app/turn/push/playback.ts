@@ -3,10 +3,10 @@ import type { PushSocket } from "../../../io/chat/push/push-socket";
 
 export function wirePlayback(deps: {
   previousTurn: Pick<PreviousTurnSlot, "subscribe">;
-  socket: Pick<PushSocket, "getState" | "sendPlayback">;
+  socket: Pick<PushSocket, "sendPlayback">;
 }): () => void {
   return deps.previousTurn.subscribe((record) => {
-    if (!record.turn_id || deps.socket.getState().kind !== "ready") return;
+    if (!record.turn_id) return;
     deps.socket.sendPlayback({
       type: "playback",
       turn_id: record.turn_id,

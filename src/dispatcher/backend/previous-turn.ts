@@ -1,4 +1,9 @@
-import type { PreviousTurn, TurnEnded, UtteranceIdentity } from "../../contract";
+import {
+  BACKEND_EVENT_NAME,
+  type PreviousTurn,
+  type TurnEnded,
+  type UtteranceIdentity,
+} from "../../contract";
 import type { SpokenSplit } from "../../io/voice/tts/tts-pipeline";
 import {
   isPlainObject,
@@ -11,6 +16,7 @@ import type { TurnFailure } from "./backend-caller";
 const STORAGE_KEY = "yui.previous-turn";
 const ENDED_VALUES: readonly string[] = ["complete", "interrupted", "failed"];
 const SPLIT_CHARS = 50;
+// not_configured and superseded_by_user say nothing about a failed attempt to speak.
 const RECORDED_FAILURES: ReadonlySet<TurnFailure> = new Set([
   "network_drop",
   "network_stall",
@@ -31,6 +37,7 @@ export interface PreviousTurnSlot {
     identity: UtteranceIdentity,
   ): void;
   callFailed(turn: Turn, reason: TurnFailure): void;
+  // Complete remains stored; the context builder decides which outcomes render.
   get(): PreviousTurn | undefined;
   subscribe(cb: (record: PreviousTurn) => void): () => void;
 }
@@ -51,6 +58,7 @@ function parse(loaded: unknown): PreviousTurn | undefined {
   };
 }
 
+// Code-point slices keep characters outside the basic plane whole.
 function cutParts(split: SpokenSplit | undefined): Pick<PreviousTurn, "spoken" | "unspoken"> {
   const spoken = Array.from(split?.spoken ?? "")
     .slice(-SPLIT_CHARS)
@@ -78,7 +86,7 @@ export function createPreviousTurn(deps: PreviousTurnDeps = {}): PreviousTurnSlo
 
   return {
     utteranceStart(identity) {
-      if (identity.event_name !== "backend") lastClientStartedId = identity.turn_id;
+      if (identity.event_name !== BACKEND_EVENT_NAME) lastClientStartedId = identity.turn_id;
     },
     utteranceEnd(ended, split, identity) {
       save(identity, ended, split);

@@ -10,10 +10,13 @@
  * it.
  */
 
-import type { UtteranceIdentity } from "../../contract";
+import { BACKEND_EVENT_NAME, type UtteranceIdentity } from "../../contract";
 import { createLogger } from "../../logger";
 
 const log = createLogger("push-turn");
+
+// The transcript holds 200 items; retaining 200 turn identities bounds late-render history.
+const RECENT_TURN_IDENTITY_LIMIT = 200;
 
 /** Hooks a wait on a turn runs as its frames arrive. */
 export interface TurnEndHooks {
@@ -27,7 +30,7 @@ export interface TurnEndHooks {
 
 export interface PushTurns {
   /** The client sent this turn on the socket. */
-  opened(turnId: string, eventName?: string): void;
+  opened(turnId: string, eventName: string): void;
   identity(turnId: string): UtteranceIdentity;
   /** A render of this turn was accepted for playback. */
   rendered(turnId: string): void;
@@ -87,11 +90,15 @@ export function createPushTurns(): PushTurns {
 
   return {
     opened(turnId, eventName) {
-      if (eventName) eventNames.set(turnId, eventName);
+      eventNames.set(turnId, eventName);
+      if (eventNames.size > RECENT_TURN_IDENTITY_LIMIT) {
+        const oldest = eventNames.keys().next().value;
+        if (oldest !== undefined) eventNames.delete(oldest);
+      }
       live.add(turnId);
     },
     identity(turnId) {
-      return { turn_id: turnId, event_name: eventNames.get(turnId) ?? "backend" };
+      return { turn_id: turnId, event_name: eventNames.get(turnId) ?? BACKEND_EVENT_NAME };
     },
     rendered(turnId) {
       live.add(turnId);
