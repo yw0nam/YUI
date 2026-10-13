@@ -164,9 +164,10 @@ tools: look.screen=on
 
 The line names the switch state only. The switch gates the tool's execution, read at the moment
 the call runs, so a state line the request outlives can still end in a refusal. The line is
-omitted when the window declares no switchable tool: the pet window under Tauri declares
-`look.screen`, and the phone window and the browser build declare none. Tool ids carry the same
-sanitization as the other sampled fields.
+omitted when the turn declares no switchable tool: the pet window under Tauri declares
+`look.screen`; the phone window and the browser build declare none; and on Responses with
+`broker_base_url` set the client declares no tools. Tool ids carry the same sanitization as the
+other sampled fields.
 
 ### `previous`
 
