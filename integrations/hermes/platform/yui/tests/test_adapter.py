@@ -1146,13 +1146,31 @@ async def test_a_turn_joined_to_a_failed_one_ends_behind_its_error_frame(client,
     assert await recv(ws) == {"type": "turn_end", "turn_id": "778"}
 
 
-async def test_a_notice_between_the_failure_and_its_line_carries_no_error_text(client, adapter):
+@pytest.mark.parametrize("marker", [NOTICE_MARKER, "_interim_send"])
+async def test_a_notice_or_interim_before_the_failure_line_leaves_the_turn_waiting_for_it(
+    client, adapter, marker
+):
     ws = await ready(client, accepts=["error"])
     failed = user_turn(adapter, "777")
     await adapter.on_processing_start(failed)
     await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
-    await adapter.send(CHAT, "Still working on it.", metadata={NOTICE_MARKER: True})
+    await adapter.send(CHAT, "Still working on it.", metadata={marker: True})
+    await adapter.send(CHAT, "Sorry, that one broke.")
+    assert await recv(ws) == {"type": "error", "turn_id": "777", "message": "Sorry, that one broke."}
     assert await recv(ws) == {"type": "turn_end", "turn_id": "777"}
+
+
+async def test_a_failure_while_the_client_is_away_holds_an_error_frame_for_it(client, adapter):
+    ws = await ready(client, accepts=["error"])
+    await ws.close()
+    await wait_for(lambda: not state.is_connected(CHAT))
+    failed = user_turn(adapter, "777")
+    await adapter.on_processing_start(failed)
+    await adapter.on_processing_complete(failed, ProcessingOutcome.FAILURE)
+    await adapter.send(CHAT, "Sorry, that one broke.")
+    back = await ready(client, accepts=["error"])
+    assert await recv(back) == {"type": "error", "turn_id": "777", "message": "Sorry, that one broke."}
+    assert await recv(back) == {"type": "turn_end", "turn_id": "777"}
 
 
 async def test_a_reply_sent_while_a_failed_turn_waits_for_its_line_still_renders(client, adapter):
