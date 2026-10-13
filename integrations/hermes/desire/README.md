@@ -21,7 +21,8 @@ it.
 ## State
 
 State lives in `DESIRE_STATE_DIR` when set. Otherwise it resolves to `desire/` under the Hermes profile
-directory the turn or job runs in.
+directory the turn or job runs in. When `HERMES_PROFILE` is set and `~/.hermes/profiles/$HERMES_PROFILE/desire/`
+exists as a different directory, the plugin logs one warning naming both paths.
 
 The state directory contains:
 

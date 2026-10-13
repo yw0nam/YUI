@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 from datetime import datetime, timedelta
@@ -9,6 +10,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 KST = ZoneInfo("Asia/Seoul")
+logger = logging.getLogger(__name__)
 DEFAULT_SIGNALS_URL = "http://127.0.0.1:8770/signals"
 
 
@@ -109,4 +111,28 @@ def resolve_state_dir() -> Path:
     configured = _setting("DESIRE_STATE_DIR")
     if configured:
         return Path(configured).expanduser()
-    return profile_root() / "desire"
+    state_dir = profile_root() / "desire"
+    _report_left_behind(state_dir)
+    return state_dir
+
+
+_left_behind_reported = False
+
+
+def _report_left_behind(state_dir: Path) -> None:
+    """Warn once when the v0.4.0 default state directory exists and is not the one in use."""
+
+    global _left_behind_reported
+    profile = (_setting("HERMES_PROFILE") or "").strip()
+    if _left_behind_reported or not profile:
+        return
+    left = Path.home() / ".hermes" / "profiles" / profile / "desire"
+    if left == state_dir or not left.is_dir():
+        return
+    _left_behind_reported = True
+    logger.warning(
+        "DESIRE_STATE_DIR is not set: state is read from %s, and %s is left unread. "
+        "Set DESIRE_STATE_DIR to keep using it.",
+        state_dir,
+        left,
+    )

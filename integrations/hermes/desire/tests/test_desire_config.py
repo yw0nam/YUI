@@ -71,10 +71,11 @@ def test_a_left_behind_v040_state_dir_is_named_once(monkeypatch, tmp_path, caplo
         assert desire_config.resolve_state_dir() == tmp_path / "elsewhere" / "desire"
         desire_config.resolve_state_dir()
 
-    assert [record.getMessage() for record in caplog.records] == [
+    expected = (
         f"DESIRE_STATE_DIR is not set: state is read from {tmp_path / 'elsewhere' / 'desire'}, "
         f"and {left} is left unread. Set DESIRE_STATE_DIR to keep using it."
-    ]
+    )
+    assert [record.getMessage() for record in caplog.records] == [expected]
 
 
 def test_the_v040_state_dir_in_use_raises_no_warning(monkeypatch, tmp_path, caplog):
