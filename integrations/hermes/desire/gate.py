@@ -10,22 +10,17 @@ from pathlib import Path
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 
-if __package__:
-    from . import desire_config, desire_events, desire_outbox, desire_state, desire_store
-else:
-    import desire_config
-    import desire_events
-    import desire_outbox
-    import desire_state
-    import desire_store
+import desire_config
+import desire_events
+import desire_outbox
+import desire_state
+import desire_store
 
 PROBE_TIMEOUT = 2
 GH_TIMEOUT = 60
 BATCH_INTERVAL = timedelta(hours=6)
 BATCH_LIMIT = 3
 NOTE_INTERVAL = timedelta(hours=6)
-WAKE_UNREAD_EVENTS = desire_config.WAKE_UNREAD_EVENTS
-WAKE_HELD_NOTES = desire_config.WAKE_HELD_NOTES
 NO_WAKE_LINE = '{"wakeAgent": false}'
 SOURCE_OF = {"pr": "pr", "issue": "issue"}
 DELIVERED = {"pr": "pull request {url} was merged", "issue": "issue {url} was closed"}
@@ -409,7 +404,7 @@ def _unread_events_lines(state_dir: Path, gate_state: dict, now: datetime) -> li
 
     unread = desire_events.unread_event_ids(state_dir)
     batch = gate_state["batch"]
-    wake = [f"{WAKE_UNREAD_EVENTS} ({len(unread)})"]
+    wake = [f"{desire_config.WAKE_UNREAD_EVENTS} ({len(unread)})"]
     if not unread:
         gate_state["batch"] = {"ids": [], "presented_at": []}
         return []
@@ -446,7 +441,7 @@ def _held_notes_lines(
     if not due:
         return []
     gate_state["notes_presented_at"] = now.isoformat()
-    return [f"{WAKE_HELD_NOTES} ({len(eligible)})"]
+    return [f"{desire_config.WAKE_HELD_NOTES} ({len(eligible)})"]
 
 
 def run(now: datetime) -> str:

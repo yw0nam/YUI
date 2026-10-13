@@ -140,8 +140,8 @@ def test_gate_refuses_to_run_without_its_identity(state_dir, monkeypatch, capsys
 
 
 def test_the_wake_line_prefixes_are_the_byte_exact_contract():
-    assert gate.WAKE_UNREAD_EVENTS == "desire gate: unread events"
-    assert gate.WAKE_HELD_NOTES == "desire gate: held notes"
+    assert desire_config.WAKE_UNREAD_EVENTS == "desire gate: unread events"
+    assert desire_config.WAKE_HELD_NOTES == "desire gate: held notes"
 
 
 def test_no_case_holds_prints_only_the_no_wake_line(state_dir, at, capsys):
