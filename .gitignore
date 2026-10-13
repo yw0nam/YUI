@@ -42,3 +42,5 @@ resources/references/
 
 # Witness activity log (machine-local observation records)
 witness/
+
+map.base.js

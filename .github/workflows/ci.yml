@@ -25,6 +25,7 @@ jobs:
       - run: pnpm build # tsc typecheck + vite build
       - run: pnpm typecheck:test # tsc typecheck (test files included)
       - run: pnpm test # vitest run
+      - run: pnpm map:check # architecture map matches the tree
       - run: pnpm docs:build # vitepress build + dead-link check
 
   lint:

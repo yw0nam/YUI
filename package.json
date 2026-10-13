@@ -18,7 +18,9 @@
     "docs:preview": "vitepress preview docs",
     "lint": "biome check",
     "lint:fix": "biome check --write",
-    "format": "biome format --write"
+    "format": "biome format --write",
+    "map:check": "node scripts/ci/architecture-map.mjs",
+    "map:base": "node scripts/architecture-map-base.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.16",
