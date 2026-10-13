@@ -1415,3 +1415,45 @@ def test_a_filed_event_reaches_the_block_on_the_next_turn_not_inside_the_cached_
     assert cached == first
     assert "recent:" not in cached
     assert f'recent:\n- 08-25 "issue {ISSUE} was closed"\nwaiting for my reading: 1 event\n' in fresh
+
+
+def test_a_repository_keeps_its_cursor_still_while_another_repository_holds_its_kind_unbootstrapped(
+    state_dir, at, tmp_path, state_helpers
+):
+    _, _, read_json, _ = state_helpers
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    git_repo(workspace, "YUI", "https://github.com/owner/YUI.git")
+    git_repo(workspace, "memory_layer", "https://github.com/owner/memory_layer.git")
+    other_failing = (("pr", "owner/memory_layer"),)
+    t0 = at("2026-08-25T12:00:00+09:00")
+    page = {"owner/YUI": [comment(4, 1, "reviewer", "2026-08-25T03:30:00Z", path="pull")]}
+
+    run_gate(state_dir, t0, workspace_root=workspace, run_gh=gh_runner({}, other_failing))
+
+    assert read_json(state_dir / "artefacts.json")["comments_since"] == {}
+    record = read_json(state_dir / "artefacts.json")
+    record["comments_from"] = record["comments_since"] = {"owner/YUI": t0.isoformat()}
+    (state_dir / "artefacts.json").write_text(json.dumps(record), encoding="utf-8")
+    payloads = {("pr", "owner/YUI"): [open_pull()]}
+
+    run_gate(
+        state_dir,
+        t0 + timedelta(hours=1),
+        workspace_root=workspace,
+        run_gh=gh_runner(payloads, other_failing, comments=page),
+    )
+
+    assert monitor_events(state_dir) == []
+    assert cursor(state_dir) == t0.isoformat()
+    calls = []
+
+    run_gate(
+        state_dir,
+        t0 + timedelta(hours=2),
+        workspace_root=workspace,
+        run_gh=gh_runner(payloads, comments=page, calls=calls),
+    )
+
+    assert "since=2026-08-25T02:59:00Z" in comment_calls(calls)[0][1]
+    assert monitor_events(state_dir) == [(f"reviewer commented on {PULL}", f"{PULL}#issuecomment-1")]
