@@ -24,14 +24,17 @@ where `<abs>` is the YUI checkout on this host; `act.py --help` prints the comma
 
 ## What the record holds
 
-An **event** is a fact: something that was observed. "The user commented on issue 1500." "I read the
-push-transport document." The monitor files events from GitHub (an issue you opened was closed, a pull request you
-opened was merged, someone commented on one of them); you file everything else yourself. A fact holds only what was
-observed. How it looked to you goes in the reading.
+An **event** is a fact: something that was observed. "The user commented on issue 1500." "The push-transport
+document says a frame carries one utterance." The gate files events from GitHub (an issue you opened was closed,
+someone commented on it, and a pull request of yours merged when you have one); you file everything else yourself.
+A fact holds only what was observed, and what a source told you is an observation; the act of writing a record is
+none. How it looked to you goes in the reading.
 
 A **reading** is how you took an event, in your words, of any length. A monitor event starts without one and waits
 for yours; an event you file yourself carries its reading from the start. A later reading of the same event is
-added on top; the latest is the one shown in the block, and every earlier one stays in `readings.jsonl`.
+added on top; the latest is the one shown in the block, and every earlier one stays in `readings.jsonl`. After a
+reading you may ask yourself one question, does this change anything I want, and "no" is a complete answer; "yes"
+goes into `wants.md` with the event id.
 
 A **judgment** is a name plus what it is toward, `user`, `self` or `world`, plus the word you choose for it now:
 `faint`, `some`, `strong`, or `very strong`. The names live in `$DESIRE_STATE_DIR/feelings.json`, the one list the

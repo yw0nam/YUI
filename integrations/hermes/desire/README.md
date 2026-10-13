@@ -10,12 +10,17 @@ The integration is a self-contained Python 3.10+ uv project. Runtime code uses o
 
 ## What a backend needs
 
-1. A scheduler that runs a script before an agent job and skips the agent when the script's last stdout line is
-   `{"wakeAgent": false}` or its stdout is empty (Hermes: a cron job with `--script`).
-2. A hook that adds text to each model request (Hermes: the `llm_request` middleware).
-3. A shell the agent can run the helper in, with the profile's `DESIRE_*` values exported.
+1. A scheduler that runs a script before an agent job, skips the agent when the script's last stdout line is
+   `{"wakeAgent": false}` or its stdout is empty, and otherwise puts the script's stdout into the request text of
+   the run it starts (Hermes: a cron job with `--script`).
+2. A hook that adds text to each model request and sees a turn identifier that stays the same across the requests
+   of one run, and the platform name of the turn (Hermes: the `llm_request` middleware with `turn_id` and
+   `platform`).
+3. A shell the agent can run the helper in, with the `DESIRE_*` values exported.
 4. A state directory that persists between turns.
-5. A long-term memory the agent can read, for the weekly reflection.
+5. Skills the agent loads by name.
+6. Delivery of a job's final response to a chat channel, with `[SILENT]` suppressed.
+7. A long-term memory the agent can read and write, for the kickoff, the tick and the weekly reflection.
 
 ## Identity
 
@@ -23,8 +28,8 @@ The integration is a self-contained Python 3.10+ uv project. Runtime code uses o
 branch prefix `<agent>/`, the issue marker `<!-- from-<agent> -->`, the issue label `from-<agent>`, the
 signal source `<agent>-desire`, and the cron job names `<agent>-desire-tick`, `<agent>-desire-reflection`, and
 `<agent>-desire-report`. `DESIRE_CHAT_PLATFORMS` names the channels the user speaks to the agent on. Both are
-required and have no default: the gate and the helper stop with an error naming the missing variable, and the
-middleware injects nothing and logs one. The desire block opens with the line `agent: <agent>` so the prompts can
+required and have no default: without `DESIRE_AGENT_NAME` the gate and the helper stop with an error naming it,
+and without either the middleware injects nothing and logs one. The desire block opens with the line `agent: <agent>` so the prompts can
 refer to it.
 
 ## State
@@ -83,7 +88,7 @@ JSON state writes are atomic and all state mutations and JSONL appends are lock-
 are renamed with a `.corrupt-<timestamp>` suffix and bootstrapped again. JSONL files are decoded line by line, and
 a line that is not a JSON object is skipped; the gate removes malformed outbox lines and records the count in the
 audit log. Timestamps are timezone-aware and stored in Asia/Seoul time. A leftover `monitor.json`, `ticks.jsonl` or
-`cursor.json` from an earlier version is deleted on the first run.
+`cursor.json` is deleted on the first run.
 
 ## The desire block
 
@@ -108,7 +113,8 @@ pent-up (1):
 </desire_state>
 ```
 
-Every line after `agent:` is omitted when it has nothing to show. One `toward` line per object, in the order
+`last interaction:` and `signal transport:` are always present (`signal transport: unknown` before the first
+record); every other line after `agent:` is omitted when it has nothing to show. One `toward` line per object, in the order
 user, self, world, lists every present judgment sorted by name with the day it was written. `how I am:` is
 `how.md` flattened to one line. `recent:` lists the three newest events with their latest reading, facts and
 readings quoted as data (newlines collapsed, `"` turned into `'`, cut at 300 characters). `waiting for my reading:`
@@ -177,8 +183,8 @@ added to the workspace later does not file one event per already-closed issue. A
 
 ## Install
 
-The install procedure is also packaged as a Hermes skill at `skills/yui-desire-install/SKILL.md`. Registering the
-`skills/` directory in the profile `config.yaml` makes the agent able to run the install itself:
+The step-by-step procedure is the Hermes skill `skills/yui-desire-install/SKILL.md`; registering the `skills/`
+directory in the profile `config.yaml` lets the agent run it itself:
 
 ```yaml
 skills:
@@ -186,38 +192,22 @@ skills:
     - <abs>/integrations/hermes/desire/skills
 ```
 
-On the Hermes host, clone the YUI repository and link the plugin directory into the Hermes plugin directory:
-
-```bash
-ln -s <abs>/integrations/hermes/desire ~/.hermes/plugins/yui-desire
-hermes -p <profile> plugins enable yui-desire
-```
-
-Set the plugin's settings in the profile `.env` (`~/.hermes/profiles/<profile>/.env`):
+The plugin directory is linked into the Hermes plugin directory and enabled on the profile. The profile `.env`
+(`~/.hermes/profiles/<profile>/.env`) carries the settings:
 
 ```
 DESIRE_AGENT_NAME=<agent>
 DESIRE_STATE_DIR=<home>/.hermes/profiles/<profile>/desire
+YUI_SIGNALS_URL=http://127.0.0.1:8770/signals
 DESIRE_CHAT_PLATFORMS=<the Hermes chat platforms the user speaks to the agent on>
 ```
 
 `DESIRE_AGENT_NAME` and `DESIRE_CHAT_PLATFORMS` are required; `DESIRE_STATE_DIR` is optional when the default
 profile path is appropriate. The plugin reads these settings per profile, so a gateway that serves several
-profiles from one process gives each profile its own values.
-
-The helper and the gate run in a subprocess, and Hermes forwards a profile `.env` value to a subprocess only for
-the names the profile's `config.yaml` lists under `terminal.env_passthrough`:
-
-```yaml
-terminal:
-  env_passthrough:
-    - DESIRE_AGENT_NAME
-    - DESIRE_STATE_DIR
-    - YUI_SIGNALS_URL
-```
-
-The shell commands below read `$DESIRE_AGENT_NAME`, `$DESIRE_STATE_DIR`, and `$YUI_SIGNALS_URL`; load them with
-`set -a; . ~/.hermes/profiles/<profile>/.env; set +a`.
+profiles from one process gives each profile its own values. The helper and the gate run in a subprocess, and
+Hermes forwards a profile `.env` value to a subprocess only for the names the profile's `config.yaml` lists under
+`terminal.env_passthrough`: `DESIRE_AGENT_NAME`, `DESIRE_STATE_DIR`, `YUI_SIGNALS_URL`, and `GH_TOKEN` when the
+gate's `gh` is to use a token from the profile rather than the gateway user's own `gh` login.
 
 `DESIRE_CHAT_PLATFORMS` is a comma-separated list of Hermes platform names (`telegram`, `discord`, `slack`, …); a
 turn Hermes attributes to one of them counts as the user speaking even when it carries no `<client_context>`.
@@ -227,49 +217,14 @@ turn Hermes attributes to one of them counts as the user speaking even when it c
 requires an app restart. When Hermes runs on a remote host, such as when it reaches YUI through an SSH reverse
 tunnel, `YUI_SIGNALS_URL` must be set to the tunnel endpoint.
 
-The gate reads GitHub with `gh`, so the gateway user's `gh` must be authenticated; `gh auth status` from that user's
-shell shows it. On a gateway that serves several profiles, a `GH_TOKEN` in the profile `.env` reaches the gate only
-when `env_passthrough` lists it.
-
-A profile's pre-run scripts live under `~/.hermes/profiles/<profile>/scripts/`, and Hermes resolves symlinks before
-checking that a script stays inside that directory, so a symlink into the YUI checkout is rejected. Install the gate
-as a real file that execs `gate.py` by absolute path:
-
-```bash
-printf '#!/bin/sh\nexec python3 <abs>/integrations/hermes/desire/gate.py\n' \
-  > ~/.hermes/profiles/<profile>/scripts/$DESIRE_AGENT_NAME-desire-gate.sh
-chmod +x ~/.hermes/profiles/<profile>/scripts/$DESIRE_AGENT_NAME-desire-gate.sh
-```
-
-`scripts/desire-gate.sh` in the checkout is self-locating and serves direct execution from the repository.
-
-Create the tick, weekly reflection, and daily report jobs with these commands, where `<target>` is a delivery
-target Hermes accepts for a channel the profile is connected to, such as `telegram:<chat_id>` for a DM listed in
-`~/.hermes/profiles/<profile>/channel_directory.json`:
-
-```bash
-hermes -p <profile> cron create "every 10m" --name "$DESIRE_AGENT_NAME-desire-tick" \
-  --script "$DESIRE_AGENT_NAME-desire-gate.sh" \
-  --deliver <target> \
-  "Follow the instructions in <abs>/integrations/hermes/desire/prompts/tick.md. The configured environment is DESIRE_STATE_DIR=$DESIRE_STATE_DIR and YUI_SIGNALS_URL=$YUI_SIGNALS_URL, on Hermes profile <profile>."
-hermes -p <profile> cron create "0 23 * * 0" --name "$DESIRE_AGENT_NAME-desire-reflection" \
-  "Follow the instructions in <abs>/integrations/hermes/desire/prompts/reflection.md. The configured environment is DESIRE_STATE_DIR=$DESIRE_STATE_DIR and YUI_SIGNALS_URL=$YUI_SIGNALS_URL, on Hermes profile <profile>."
-hermes -p <profile> cron create "0 21 * * *" --name "$DESIRE_AGENT_NAME-desire-report" \
-  --deliver <target> \
-  "Follow the instructions in <abs>/integrations/hermes/desire/prompts/report.md. The configured environment is DESIRE_STATE_DIR=$DESIRE_STATE_DIR and YUI_SIGNALS_URL=$YUI_SIGNALS_URL, on Hermes profile <profile>."
-```
-
-A profile whose tick job was created with `--monitor-script` is moved to the gate with one command, after the gate
-wrapper above exists:
-
-```bash
-hermes -p <profile> cron edit "$DESIRE_AGENT_NAME-desire-tick" \
-  --script "$DESIRE_AGENT_NAME-desire-gate.sh" --monitor-script ""
-```
-
-The old monitor wrapper under `~/.hermes/scripts/` can then be deleted. `wants.md`, `audit.jsonl`,
-`outbox.jsonl`, `budget.json`, `transport.json` and `artefacts.json` carry over; `drives.json` keeps its stamps;
-the gate deletes `monitor.json`, `ticks.jsonl` and `cursor.json` on its first run; the logs start empty.
+The gate runs as the tick job's pre-run script (`hermes cron create … --script <wrapper>`), from a real file under
+`~/.hermes/profiles/<profile>/scripts/` that execs `gate.py` by absolute path; `scripts/desire-gate.sh` in the
+checkout is self-locating and serves direct execution from the repository. The tick runs every ten minutes, the
+reflection weekly, the report daily; each job's prompt names its file under `prompts/` and the two environment
+values. A tick job created with `--monitor-script` is moved to the gate with `hermes cron edit <job> --script
+<wrapper> --monitor-script ""`. `wants.md`, `audit.jsonl`, `outbox.jsonl`, `budget.json`, `transport.json` and
+`artefacts.json` carry over; `drives.json` keeps its stamps; the gate deletes `monitor.json`, `ticks.jsonl` and
+`cursor.json` on its first run; the logs start empty.
 
 ## The helper
 

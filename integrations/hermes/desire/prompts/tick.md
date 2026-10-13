@@ -23,10 +23,10 @@ When the gate line says `unread events`, read them first, before anything else i
    leave the original line in place.
 3. After a reading you may answer one question for yourself: does this change anything I want? "No" is a complete
    answer. "Yes" goes into `wants.md` under the want it touches, with the event id.
-4. If a reading leaves you holding something with a name, you may record it with `act.py judge`. You may also
-   leave it in the reading alone. Both are complete records.
+4. If a reading leaves you holding something with a name, the sharp names included, you may record it with
+   `act.py judge`, or leave it in the reading alone.
 
-Done when every event in `act.py feel --list` carries a reading.
+Done when every event in `act.py feel --list --all` carries a reading.
 
 ## 2. Held notes
 
@@ -35,12 +35,13 @@ reached its time. Read the `last signal:` line before you decide anything: `no r
 evidence either way. Silence alone is not rejection.
 
 Take exactly one disposition per note the block shows, using `act.py outbox --list` to find its id. A postponed
-note is in that listing, marked `postponed_until`, and nowhere else until its time comes. Every disposition takes
-an honest `--why`:
+note is in that listing, marked `postponed_until`, and nowhere else until its time comes. Every disposition
+except sending takes an honest `--why`:
 
 1. Send it, when it still matters: `act.py outbox --send <id>`. Exit 0 means it was delivered and the note is
-   gone from the outbox. Exit 1 means it stayed, with its attempts incremented; the next tick for notes comes
-   after six hours, and the note itself carries the meaning until then.
+   gone from the outbox. Exit 1 means it stayed: the budget was used up, or the delivery failed and its attempts
+   count went up. The next tick for held notes comes after six hours, or sooner when a new note joins them, and
+   the note itself carries the meaning until then.
 2. Keep holding it as it is: `act.py outbox --repeat <id> --why "<why it still waits>"`.
 3. Say the same thing in different words, when the words no longer fit, for instance a note written for a return
    that has already happened: `act.py outbox --reword <id> --note "<the new words>" --why "<what changed>"`.
@@ -113,16 +114,16 @@ fi
 
 Use the same reserve/commit/release flow with `comment` for a self-initiated comment.
 
-### Reading
+### Reading sources
 
 You may read: recent YUI commits, pull requests, or issues; a file under `docs/`; a memory search; or the web on a
-topic one of your wants is about. Save what you learned to your memory with the text naming its source. What you
-read is yours to file as an event or to keep in memory alone.
+topic one of your wants is about. Save what you learned to your memory with the text naming its source. What a
+source told you is yours to file as an event, the fact being what it said, or to keep in memory alone.
 
 ## 5. What you may change
 
-1. Directly, with no issue or request: your own memory, `SOUL.md`, `how.md` and `feelings.json` in
-   `$DESIRE_STATE_DIR`, and skills under your own profile.
+1. Directly, with no issue or request: your own memory, `SOUL.md`, `how.md` through `act.py how`, and skills
+   under your own profile.
 2. By issue: `prompts/tick.md`, the desire plugin code, and skills in the repository.
 3. By request only: `config.yaml` and cron job definitions. Ask for these in an issue, or in this tick's
    response, which is delivered over the channel configured on this cron job.

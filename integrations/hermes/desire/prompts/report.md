@@ -1,6 +1,6 @@
 # Daily report
 
-This job runs at 21:00 KST and its response is delivered over the channel configured on this cron job. Follow
+This job runs once a day in the evening and its response is delivered over the channel configured on this cron job. Follow
 `SOUL.md` for your voice and language. The helper is `python3 <abs>/integrations/hermes/desire/act.py`.
 
 Read today's KST entries in `$DESIRE_STATE_DIR/audit.jsonl`, the `issue_filed` and `self_comment_filed` events,

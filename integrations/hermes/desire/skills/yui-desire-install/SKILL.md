@@ -59,8 +59,8 @@ YUI_SIGNALS_URL=http://127.0.0.1:8770/signals
 DESIRE_CHAT_PLATFORMS=<the chat platforms the user speaks to the agent on>
 ```
 
-`DESIRE_AGENT_NAME` and `DESIRE_CHAT_PLATFORMS` are required: without one of them, the gate and the helper stop
-with an error naming the missing variable and the middleware injects nothing. `DESIRE_STATE_DIR` is optional:
+`DESIRE_AGENT_NAME` and `DESIRE_CHAT_PLATFORMS` are required: without `DESIRE_AGENT_NAME` the gate and the helper
+stop with an error naming it, and without either the middleware injects nothing. `DESIRE_STATE_DIR` is optional:
 without it, state lives in `desire/` under the profile directory. The plugin reads these settings per profile, so
 a gateway that serves several profiles from one process gives each profile its own values.
 
@@ -83,7 +83,7 @@ turn from one of them counts as the user speaking even when it carries no `<clie
 through an SSH reverse tunnel, use the tunnel endpoint instead of port 8770. Check: `grep DESIRE_STATE_DIR` on the
 `.env` file prints the line.
 
-## 4. Gate script (real file, not a symlink)
+## 4. Gate script (a real file)
 
 A profile's pre-run scripts live under `~/.hermes/profiles/<profile>/scripts/`. Hermes resolves symlinks before
 checking that a script stays under that directory, so a symlink into the checkout is rejected as an escape. Write

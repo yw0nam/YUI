@@ -32,4 +32,4 @@ reflection is bookkeeping and counts as no progress on any want.
 ⑤ Save to memory. When you closed a want, save a 1–3 sentence episode about it. Save one first-person reflection
 episode for the week. Without a memory system, skip both silently.
 
-⑥ Answer exactly `[SILENT]`. This reflection ran on a schedule; speaking has its own occasions.
+⑥ Answer exactly `[SILENT]`.
