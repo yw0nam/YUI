@@ -327,6 +327,8 @@ def _record_comments(record: dict, observed: dict, now: datetime) -> list[tuple[
     """Move each repository's comment stamps in ``record`` and return the comments to file."""
 
     login = observed["login"]
+    # A kind dropped this run left artefacts unrecorded, so no repository may move past their comments.
+    recorded = all(observed[kind] is not None for kind in desire_store.ARTEFACT_KINDS)
     seen = {
         _artefact_key(_ARTEFACT_URL, url)
         for kind in desire_store.ARTEFACT_KINDS
@@ -334,8 +336,9 @@ def _record_comments(record: dict, observed: dict, now: datetime) -> list[tuple[
     }
     filing = []
     for repo, answer in observed["comments"].items():
+        answered = recorded and answer["answered"]
         if repo not in record["comments_from"] or repo not in record["comments_since"]:
-            if login is not None and answer["answered"]:
+            if login is not None and answered:
                 record["comments_from"][repo] = record["comments_since"][repo] = now.isoformat()
             continue
         if answer["entries"] is None:
@@ -357,7 +360,7 @@ def _record_comments(record: dict, observed: dict, now: datetime) -> list[tuple[
             key = _artefact_key(_ISSUE_API_URL, entry.get("issue_url"))
             if created >= start and key is not None and key in seen and author != login:
                 filing.append((f"{author} commented on {url.split('#', 1)[0]}", url))
-        if answer["answered"] and latest > cursor:
+        if answered and latest > cursor:
             record["comments_since"][repo] = latest.isoformat()
     return filing
 
