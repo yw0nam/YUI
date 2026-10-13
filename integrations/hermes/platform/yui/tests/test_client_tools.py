@@ -291,3 +291,27 @@ async def test_screen_tool_result_images_reach_the_handler_inline(monkeypatch, i
         else "screenshot of display 1"
     )
     assert result == expected
+
+
+@pytest.mark.parametrize("raw, text", [(42, "42"), (None, ""), ({"a": 1}, "{'a': 1}")])
+async def test_a_non_string_result_reaches_the_model_as_text(monkeypatch, raw, text):
+    made = made_adapter(monkeypatch, answers=False)
+    handler.set_sink(made)
+    STUB_ENV["HERMES_SESSION_CHAT_ID"] = CHAT
+
+    async def answer(chat_id, frame):
+        await made._on_frame(
+            chat_id,
+            {
+                "type": "tool_result",
+                "id": frame["id"],
+                "turn_id": frame["turn_id"],
+                "result": raw,
+                "images": ["data:image/jpeg;base64,YQ=="],
+            },
+        )
+        return True
+
+    monkeypatch.setattr(made, "_send_frame", answer)
+    result = await asyncio.to_thread(handler.handle("look"), {"at": "screen"})
+    assert result["content"][0] == {"type": "text", "text": text}

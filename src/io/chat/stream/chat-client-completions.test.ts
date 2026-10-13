@@ -1000,7 +1000,11 @@ it("image results keep adjacent tool texts before a trailing user image message"
     }),
   );
   expect(ccCreateMock.mock.calls[1]?.[0].messages.slice(-3)).toEqual([
-    { role: "tool", tool_call_id: "screen_call", content: "screenshot of display 0" },
+    {
+      role: "tool",
+      tool_call_id: "screen_call",
+      content: "screenshot of display 0. The image follows in the next user message.",
+    },
     { role: "tool", tool_call_id: "text_call", content: "42" },
     { role: "user", content: [{ type: "image_url", image_url: { url: image } }] },
   ]);

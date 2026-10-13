@@ -160,23 +160,40 @@ describe("look — schema and execute", () => {
 });
 
 describe("look — screen requests", () => {
+  const bounds = (x: number, y: number, width: number, height: number, scaleFactor: number) => ({
+    position: { x, y },
+    size: { width, height },
+    workArea: { position: { x, y }, size: { width, height } },
+    scaleFactor,
+  });
+  // The layout tao reports on macOS: a 2x built-in and a 1x external at logical x 1512, whose
+  // physical rects overlap (0..3024 and 1512..3432).
+  const MAC_MONITORS = [bounds(0, 0, 3024, 1964, 2), bounds(1512, 0, 1920, 1080, 1)];
+  // Physical rects as Windows reports them: the 1.5x second display starts where the first ends.
+  const WINDOWS_MONITORS = [bounds(0, 0, 3840, 2160, 2), bounds(3840, 0, 2880, 1620, 1.5)];
+  const pet = (x: number, y: number, width: number, height: number, scale: number) => ({
+    outerPosition: async () => ({ x, y }),
+    outerSize: async () => ({ width, height }),
+    scaleFactor: async () => scale,
+  });
+
   function screenTool(
     allowRequests = true,
     capture = vi.fn(
       async (): Promise<ScreenCapture | null> => ({ data_url: "data:image/jpeg;base64,YQ==" }),
     ),
     available = true,
+    layout: {
+      window?: ReturnType<typeof pet>;
+      monitors?: ReturnType<typeof bounds>[];
+      pointsAreLogical?: boolean;
+    } = {},
   ) {
-    const bounds = (x: number, y: number, width: number, height: number, scaleFactor: number) => ({
-      position: { x, y },
-      size: { width, height },
-      workArea: { position: { x, y }, size: { width, height } },
-      scaleFactor,
-    });
     const ports = {
       allowRequests: () => allowRequests,
-      getWindow: () => ({ outerPosition: async () => ({ x: -600, y: 200 }) }),
-      listMonitors: async () => [bounds(0, 0, 2000, 1200, 2), bounds(-1200, 0, 1200, 800, 1)],
+      getWindow: () => layout.window ?? pet(1600, 100, 300, 400, 1),
+      listMonitors: async () => layout.monitors ?? MAC_MONITORS,
+      pointsAreLogical: layout.pointsAreLogical ?? true,
       capturer: { capture: vi.fn(), captureAt: capture },
     };
     const tool = createAvatarTools(() => (available ? executor() : null), ports).find(
@@ -191,22 +208,59 @@ describe("look — screen requests", () => {
     expect(capture).not.toHaveBeenCalled();
   });
 
-  it("screen without monitor captures the pet point and names its body_action display", async () => {
+  it("screen without monitor captures the centre of a window on the overlapping external display", async () => {
     const { tool, capture } = screenTool();
     await expect(tool.execute({ at: "screen" })).resolves.toEqual({
       text: "screenshot of display 1",
       images: ["data:image/jpeg;base64,YQ=="],
     });
-    expect(capture).toHaveBeenCalledWith({ x: -600, y: 200 });
+    expect(capture).toHaveBeenCalledWith({ x: 1750, y: 300 });
   });
 
-  it("screen with monitor captures its logical centre and names that index", async () => {
-    const { tool, capture } = screenTool();
-    await expect(tool.execute({ at: "screen", monitor: 0 })).resolves.toEqual({
+  it("screen without monitor divides a built-in window centre by the window scale", async () => {
+    const { tool, capture } = screenTool(true, undefined, true, {
+      window: pet(1000, 200, 600, 800, 2),
+    });
+    await expect(tool.execute({ at: "screen" })).resolves.toMatchObject({
       text: "screenshot of display 0",
+    });
+    expect(capture).toHaveBeenCalledWith({ x: 650, y: 300 });
+  });
+
+  it("screen follows the window centre when the corner lies on the other display", async () => {
+    const { tool, capture } = screenTool(true, undefined, true, {
+      window: pet(1450, 100, 300, 400, 1),
+    });
+    await expect(tool.execute({ at: "screen" })).resolves.toMatchObject({
+      text: "screenshot of display 1",
+    });
+    expect(capture).toHaveBeenCalledWith({ x: 1600, y: 300 });
+  });
+
+  it.each([
+    [0, { x: 756, y: 491 }],
+    [1, { x: 2472, y: 540 }],
+  ])("screen with monitor %i captures that display's logical centre and names it", async (monitor, point) => {
+    const { tool, capture } = screenTool();
+    await expect(tool.execute({ at: "screen", monitor })).resolves.toEqual({
+      text: `screenshot of display ${monitor}`,
       images: ["data:image/jpeg;base64,YQ=="],
     });
-    expect(capture).toHaveBeenCalledWith({ x: 500, y: 300 });
+    expect(capture).toHaveBeenCalledWith(point);
+  });
+
+  it("screen passes physical points unchanged when points are not logical", async () => {
+    const { tool, capture } = screenTool(true, undefined, true, {
+      monitors: WINDOWS_MONITORS,
+      window: pet(4000, 100, 450, 600, 1.5),
+      pointsAreLogical: false,
+    });
+    await expect(tool.execute({ at: "screen" })).resolves.toMatchObject({
+      text: "screenshot of display 1",
+    });
+    expect(capture).toHaveBeenCalledWith({ x: 4225, y: 400 });
+    await tool.execute({ at: "screen", monitor: 1 });
+    expect(capture).toHaveBeenLastCalledWith({ x: 5280, y: 810 });
   });
 
   it.each([

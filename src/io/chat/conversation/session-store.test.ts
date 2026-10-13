@@ -368,4 +368,26 @@ describe("createSessionStore — pending tool outputs", () => {
     expect(adapter.loadOutputs()).toEqual([]);
     delete (globalThis as any).localStorage;
   });
+
+  it("the localStorage adapter keeps list outputs of well-formed parts and drops the rest", () => {
+    const text = { type: "input_text", text: "screenshot of display 0" };
+    const image = { type: "input_image", image_url: "data:image/jpeg;base64,YQ==", detail: "auto" };
+    const good = { type: "function_call_output", call_id: "call_2", output: [text, image] };
+    const badPart = {
+      type: "function_call_output",
+      call_id: "call_3",
+      output: [text, { type: "input_image" }],
+    };
+    const notAList = { type: "function_call_output", call_id: "call_4", output: { text: "x" } };
+    const data = new Map<string, string>([
+      ["yui.session.tool_outputs", JSON.stringify([OUT, good, badPart, notAList])],
+    ]);
+    (globalThis as any).localStorage = {
+      getItem: (k: string) => data.get(k) ?? null,
+      setItem: (k: string, v: string) => void data.set(k, v),
+      removeItem: (k: string) => void data.delete(k),
+    };
+    expect(localStorageSessionStorage("yui.session").loadOutputs()).toEqual([OUT, good]);
+    delete (globalThis as any).localStorage;
+  });
 });
