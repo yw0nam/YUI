@@ -7,8 +7,20 @@ function fixture() {
   return {
     title: "fixture",
     cover: ["src"],
-    layers: [{ id: "core", label: "core" }],
-    nodes: [{ id: "core", layer: "core", label: "core", role: "Owns sources.", paths: ["src"] }],
+    zones: [{ id: "logic", title: "Logic", note: "Runs the turn." }],
+    modules: [
+      {
+        id: "core",
+        label: "Core",
+        kind: "module",
+        zone: "logic",
+        col: 0,
+        row: 0,
+        desc: "Owns sources.",
+      },
+    ],
+    links: [{ from: "core", to: "core", label: "data" }],
+    nodes: [{ id: "core", module: "core", label: "core", role: "Owns sources.", paths: ["src"] }],
     edges: [
       {
         id: "edge",
@@ -24,7 +36,7 @@ function fixture() {
       {
         id: "flow",
         title: "flow",
-        steps: [{ edges: ["edge"], text: "Call", transport: "request" }],
+        steps: [{ from: "core", to: "core", label: "Call", edges: ["edge"], transport: "request" }],
       },
     ],
     windows: {
@@ -118,11 +130,46 @@ describe("architecture map", () => {
       "references: flow edge missing does not exist",
     ],
     [
-      "missing layer",
+      "missing module",
       (map) => {
-        map.nodes[0].layer = "missing";
+        map.nodes[0].module = "missing";
       },
-      "references: core layer missing does not exist",
+      "references: core module missing does not exist",
+    ],
+    [
+      "missing zone",
+      (map) => {
+        map.modules[0].zone = "missing";
+      },
+      "references: core zone missing does not exist",
+    ],
+    [
+      "missing link target",
+      (map) => {
+        map.links[0].to = "missing";
+      },
+      "references: link core to missing has no module",
+    ],
+    [
+      "missing step module",
+      (map) => {
+        map.flows[0].steps[0].to = "missing";
+      },
+      "references: flow step 1 to missing has no module",
+    ],
+    [
+      "duplicate module id",
+      (map) => {
+        map.modules.push({ ...map.modules[0] });
+      },
+      "references: duplicate module id core",
+    ],
+    [
+      "invalid module kind",
+      (map) => {
+        map.modules[0].kind = "invalid";
+      },
+      "enums: core kind invalid is invalid",
     ],
     [
       "duplicate node id",
