@@ -31,6 +31,10 @@ mod voice_import;
 #[cfg(desktop)]
 mod passthrough;
 
+// Dedicated Chrome the `browser` client tool drives over CDP.
+#[cfg(desktop)]
+mod browser;
+
 // Loopback HTTP ingress — receives agent lifecycle signals, re-emits as Tauri events.
 mod agent_ingress;
 
