@@ -109,7 +109,13 @@
   background: var(--yui-edge-strong);
 }
 
-/* A long server message stays on one line and ends in an ellipsis. */
+/* A server message widens the pill to the window's width less its gutters; what still does not fit
+   ends in an ellipsis. */
+.yui-status[data-message] {
+  width: max-content;
+  max-width: calc(100% - 1.5rem);
+}
+
 .yui-status__label {
   min-width: 0;
   overflow: hidden;

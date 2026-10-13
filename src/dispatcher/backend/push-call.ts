@@ -68,6 +68,8 @@ export function createPushCall(deps: PushCallDeps, log: Logger): PushCall {
   ): Promise<TurnOutcome> {
     const turnId = String(turn.id);
     let failure: { message: string } | undefined;
+    // Set when the turn ended through its turn_end after an error frame, so no wait warning applies.
+    let reported = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let unsubscribe: (() => void) | undefined;
     let onAbort: (() => void) | undefined;
@@ -125,6 +127,7 @@ export function createPushCall(deps: PushCallDeps, log: Logger): PushCall {
         (turnEnd ?? new Promise<"cut">(() => {})).then((end): TurnOutcome => {
           if (end !== "ended") return "superseded_by_user";
           if (failure === undefined) return "ok";
+          reported = true;
           if (failure.message.trim() !== "") onErrorDetail?.(failure);
           return "network_drop";
         }),
@@ -138,7 +141,7 @@ export function createPushCall(deps: PushCallDeps, log: Logger): PushCall {
         );
       }
       const outcome = await Promise.race(ends);
-      if (failure === undefined && (outcome === "network_stall" || outcome === "network_drop")) {
+      if (!reported && (outcome === "network_stall" || outcome === "network_drop")) {
         log.warn(outcome, { stage: "push_wait", event_name: eventName, turn_id: turnId });
       }
       return outcome;

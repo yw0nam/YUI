@@ -131,7 +131,7 @@ export function wirePushTransport(deps: {
         return;
       }
       deps.pushTurns.failed(frame.turn_id, frame.message);
-      deps.log.info("push.error", { turn_id: frame.turn_id });
+      deps.log.info("push.error", { turn_id: frame.turn_id, message: frame.message });
     }),
     deps.pushTurns.onCut((turnId) => renderTurn.drop(turnId)),
     deps.socket.onDelegations((items) => {
