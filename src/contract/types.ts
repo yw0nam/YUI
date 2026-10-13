@@ -132,6 +132,8 @@ export interface ToolStatus {
   state: "idle" | "running" | "done" | "failed" | "error";
   /** function_call name. */
   tool_id?: string;
+  /** The action a client-run tool's call names, shown beside the tool in the status pill. */
+  action?: string;
 }
 
 /**

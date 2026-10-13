@@ -15,8 +15,8 @@ import { getToolLabel } from "./tool-labels";
 import type { VoiceInputStatus, VoiceInputStatusSnapshot } from "./voice-input-status";
 
 export interface ToolStatus {
-  /** Show the running tool segment for tool_id (label from tool-labels lookup, humanized if unmapped). */
-  showTool(toolId: string): void;
+  /** Show the running tool segment for tool_id and its action (label from tool-labels lookup, humanized if unmapped). */
+  showTool(toolId: string, action?: string): void;
   /** Turn the running segment to done (check) or failed, then clear it after the hold. Ignored if none. */
   finishTool(failed?: boolean): void;
   /** Clear the tool segment immediately. */
@@ -200,10 +200,10 @@ export function createStatusPill({
     }
   }
 
-  function showTool(toolId: string): void {
+  function showTool(toolId: string, action?: string): void {
     if (disposed) return;
     clearToolHold();
-    tool = { state: "running", label: getToolLabel(toolId) };
+    tool = { state: "running", label: getToolLabel(toolId, action) };
     render();
   }
 

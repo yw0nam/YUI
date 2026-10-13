@@ -1,8 +1,8 @@
 /**
  * Tool-id → display label lookup.
  *
- * Delegates to the i18n dictionary (tool.<id> keys, English in every locale).
- * Unmapped tool ids are humanized from the id itself; empty ids fall back to a
+ * Delegates to the i18n dictionary (tool.<id> and tool.<id>.<action> keys, English in every
+ * locale). Unmapped tool ids are humanized from the id itself; empty ids fall back to a
  * generic "Working…" label.
  */
 
@@ -11,13 +11,18 @@ import { t } from "../i18n";
 const FALLBACK = "Working…";
 
 /**
- * Returns the display label for a given tool id. Tool labels are English in
- * every locale, so the i18n lookup resolves the same value regardless.
+ * Returns the display label for a given tool id, or for its action when that has a label of its
+ * own. Tool labels are English in every locale, so the i18n lookup resolves the same value regardless.
  * Unmapped ids are humanized (snake_case → "Title case…", an mcp__<server>__<tool>
  * id by its tool name alone); empty/separator-only ids fall back to the generic label.
  */
-export function getToolLabel(toolId: string): string {
+export function getToolLabel(toolId: string, action?: string): string {
   if (!toolId) return FALLBACK;
+  if (action) {
+    const actionKey = `tool.${toolId}.${action}`;
+    const label = t(actionKey);
+    if (label !== actionKey) return label;
+  }
   const key = `tool.${toolId}`;
   const value = t(key);
   if (value !== key) return value;

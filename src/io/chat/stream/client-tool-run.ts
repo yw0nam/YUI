@@ -5,11 +5,7 @@
  */
 
 import type { ExpressArgs } from "../../../contract";
-import {
-  type ClientToolRegistry,
-  type ClientToolResult,
-  toolResultText,
-} from "../tools/client-tools";
+import { type ClientToolRegistry, type ClientToolResult, toolFailed } from "../tools/client-tools";
 import { executeClientTool } from "../tools/execute";
 import type { ChatStreamEvent } from "./chat-client";
 import { isExpressTool, parseToolArgs } from "./stream-helpers";
@@ -65,21 +61,18 @@ export async function* runClientCall(
   }
   if (!tool) return outcome;
 
-  if (!express_call) yield { type: "tool_status", status: { state: "running", tool_id: name } };
+  const action = tool.statusAction?.(parsed.args);
+  if (!express_call)
+    yield { type: "tool_status", status: { state: "running", tool_id: name, action } };
   const result = await executeClientTool(tool, parsed.args, signal);
   if (!express_call)
     yield {
       type: "tool_status",
-      status: {
-        state: (tool.failed ?? isErrorResult)(toolResultText(result)) ? "failed" : "done",
-        tool_id: name,
-      },
+      status: { state: toolFailed(tool, result) ? "failed" : "done", tool_id: name, action },
     };
   outcome.run = { result, oneWay: tool.oneWay === true };
   return outcome;
 }
-
-const isErrorResult = (result: string): boolean => result.startsWith("error:");
 
 /**
  * Whether the executed calls are answered back. A tool that answers a question always is; cue-only

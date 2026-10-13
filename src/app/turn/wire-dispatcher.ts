@@ -137,7 +137,7 @@ export function wireDispatcher(deps: {
   } = deps;
 
   const applyToolStatus = (status: ToolStatus): void => {
-    if (status.state === "running") surfaces.showTool(status.tool_id ?? "");
+    if (status.state === "running") surfaces.showTool(status.tool_id ?? "", status.action);
     else if (status.state === "done" || status.state === "failed")
       surfaces.finishTool(status.state === "failed");
     else surfaces.hideTool();

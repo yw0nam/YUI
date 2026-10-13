@@ -28,7 +28,9 @@ import type { Logger } from "../../../logger";
  * Routes an open push socket into the client: a `render` frame plays as a turn and closes the
  * live reasoning cycle, a `speech` frame plays into the utterance its turn's `render` closes, a
  * `reasoning` frame appends to the cycle, a `tool_status` frame names the tool to the chip and to
- * the turn's own waiter, an `error` frame hands its text to the turn's waiter, a `turn_end` frame's
+ * the turn's own waiter unless the client shows that tool's status from its own run, a
+ * `tool_call` runs with a signal that its turn's cut, the socket leaving `ready`, a reset, or
+ * disposal aborts, an `error` frame hands its text to the turn's waiter, a `turn_end` frame's
  * usage feeds the session readout, and a `delegations` frame replaces the tracked list. The socket
  * is created and connected by the host, which owns its lifetime.
  */
@@ -83,6 +85,8 @@ export function wirePushTransport(deps: {
     send: (frame) => deps.socket.sendToolResult(frame),
     execute: executeClientTool,
     getMaxTurnBytes: deps.socket.getMaxTurnBytes,
+    onStatus: (callId, state, toolId, action) =>
+      deps.turnFeed.toolStatus(`push:call:${callId}`, state, toolId, action),
     log: deps.log,
   });
   const unsubscribes = [
@@ -104,6 +108,15 @@ export function wirePushTransport(deps: {
       deps.turnFeed.ended(`push:turn:${frame.turn_id}`);
     }),
     deps.socket.onToolStatus((frame) => {
+      // A tool the client runs and shows itself takes its status from that run alone.
+      if (deps.tools.get(frame.tool_id)?.localStatus) {
+        deps.log.debug("push.tool_status", {
+          turn_id: frame.turn_id,
+          tool_id: frame.tool_id,
+          dropped: "client_status",
+        });
+        return;
+      }
       // A cut turn's frames never play, so the chip never lights for one.
       if (deps.pushTurns.isCut(frame.turn_id)) {
         deps.log.debug("push.tool_status", {

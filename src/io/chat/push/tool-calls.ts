@@ -4,8 +4,8 @@
  * It refuses what the client cannot run (an undeclared name, a turn the user stopped), drops
  * duplicates, and runs the rest one at a time in arrival order, each answered with a
  * `tool_result` on the same id and turn id. Each held call carries a signal that abort() aborts.
- * The status pill takes its tool state from the backend's `tool_status` frames; this consumer
- * emits none of its own.
+ * The status pill takes its tool state from the backend's `tool_status` frames, except for a tool
+ * that shows its own: this consumer reports that tool's running and terminal state by call id.
  */
 
 import type { Logger } from "../../../logger";
@@ -13,6 +13,7 @@ import {
   type ClientTool,
   type ClientToolRegistry,
   type ClientToolResult,
+  toolFailed,
   toolResultText,
 } from "../tools/client-tools";
 import type { ToolCallFrame, ToolResultFrame } from "./push-frames";
@@ -39,6 +40,13 @@ export interface PushToolCallsDeps {
     signal?: AbortSignal,
   ): Promise<ClientToolResult>;
   getMaxTurnBytes(): number | undefined;
+  /** The state of a call whose tool shows its own status, keyed by the call id. */
+  onStatus?(
+    callId: string,
+    state: "running" | "done" | "failed",
+    toolId: string,
+    action?: string,
+  ): void;
   log: Logger;
 }
 
@@ -71,7 +79,12 @@ export function createPushToolCalls(deps: PushToolCallsDeps): PushToolCalls {
         answer(frame, "error: turn stopped");
         return;
       }
-      await answerResult(frame, await deps.execute(tool, frame.arguments, signal));
+      const action = tool.localStatus ? tool.statusAction?.(frame.arguments) : undefined;
+      if (tool.localStatus) deps.onStatus?.(frame.id, "running", frame.name, action);
+      const result = await deps.execute(tool, frame.arguments, signal);
+      if (tool.localStatus)
+        deps.onStatus?.(frame.id, toolFailed(tool, result) ? "failed" : "done", frame.name, action);
+      await answerResult(frame, result);
     } finally {
       held.delete(frame.id);
     }

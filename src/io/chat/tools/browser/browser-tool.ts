@@ -119,5 +119,7 @@ export function createBrowserTool(deps: {
     waitMs: 32_000,
     timeoutResult: (args) => `unknown: ${String(args.action)} may have run; read before retrying`,
     failed: (result) => !result.startsWith(SNAPSHOT_LINE),
+    statusAction: (args) => (isAction(args.action) ? args.action : undefined),
+    localStatus: true,
   };
 }
