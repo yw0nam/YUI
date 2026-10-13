@@ -237,6 +237,16 @@ describe("look — screen requests", () => {
     expect(capture).toHaveBeenCalledWith({ x: 1600, y: 300 });
   });
 
+  it("screen rounds a half-pixel centre to whole coordinates", async () => {
+    const { tool, capture } = screenTool(true, undefined, true, {
+      window: pet(1600, 100, 301, 401, 1),
+    });
+    await expect(tool.execute({ at: "screen" })).resolves.toMatchObject({
+      text: "screenshot of display 1",
+    });
+    expect(capture).toHaveBeenCalledWith({ x: 1751, y: 301 });
+  });
+
   it.each([
     [0, { x: 756, y: 491 }],
     [1, { x: 2472, y: 540 }],
