@@ -439,9 +439,7 @@ def _judge(args, now):
 
 
 def _judge_list(state_dir):
-    held = desire_judgments.present(state_dir)
-    for name, toward in sorted(held, key=lambda pair: (desire_judgments.TOWARDS.index(pair[1]), pair[0])):
-        judgment = held[(name, toward)]
+    for (name, toward), judgment in desire_judgments.ordered(desire_judgments.present(state_dir)):
         day = desire_config.parse_timestamp(judgment["at"]).strftime("%Y-%m-%d")
         why = f" — {desire_render.sanitize_note(judgment['why'])}" if judgment["why"] is not None else ""
         print(f"{desire_render.sanitize_note(name)} toward {toward}: {judgment['level']} ({day}){why}")

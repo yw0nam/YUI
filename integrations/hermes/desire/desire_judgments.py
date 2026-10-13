@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import os
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 from pathlib import Path
 
@@ -109,6 +109,12 @@ def present(state_dir: Path) -> dict[tuple[str, str], dict]:
         for pair, line in _latest(state_dir).items()
         if line["level"] is not None
     }
+
+
+def ordered(held: Mapping[tuple[str, str], dict]) -> list[tuple[tuple[str, str], dict]]:
+    """Return the judgments by toward in the order of ``TOWARDS``, then by name."""
+
+    return sorted(held.items(), key=lambda item: (TOWARDS.index(item[0][1]), item[0][0]))
 
 
 def grounds(state_dir: Path, name: str, toward: str) -> list[dict]:

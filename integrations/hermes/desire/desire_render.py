@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping, Sequence
 from datetime import datetime
+from itertools import groupby
 
 if __package__:
     from . import desire_config, desire_events, desire_judgments
@@ -77,11 +78,9 @@ def _judgment_lines(judgments: Mapping[tuple[str, str], dict], how: str) -> list
     """Render one line per toward that holds a judgment, then the how-I-am line when it has text."""
 
     lines = []
-    for toward in desire_judgments.TOWARDS:
-        names = sorted(name for name, held_toward in judgments if held_toward == toward)
-        if names:
-            shown = " | ".join(_judgment(name, judgments[(name, toward)]) for name in names)
-            lines.append(f"toward {toward}: {shown}")
+    for toward, group in groupby(desire_judgments.ordered(judgments), key=lambda item: item[0][1]):
+        shown = " | ".join(_judgment(name, held) for (name, _), held in group)
+        lines.append(f"toward {toward}: {shown}")
     how = sanitize_note(how, limit=desire_judgments.HOW_LIMIT)
     if how.strip():
         lines.append(f"how I am: {how}")
