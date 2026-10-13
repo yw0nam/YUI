@@ -15,7 +15,7 @@ import { createLogger } from "../../logger";
 
 const log = createLogger("push-turn");
 
-// The transcript holds 200 items; retaining 200 turn identities bounds late-render history.
+// Keeps event names for the 200 most recent client turns a late render can still name.
 const RECENT_TURN_IDENTITY_LIMIT = 200;
 
 /** Hooks a wait on a turn runs as its frames arrive. */

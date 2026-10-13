@@ -186,9 +186,11 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
     open = null;
     queued.length = 0;
     if (!identity) return false;
+    const reported = new Set([identity.turn_id]);
     for (const next of later) {
-      if (next.turn_id !== identity.turn_id)
-        options.onUtteranceEnd?.("interrupted", undefined, next);
+      if (reported.has(next.turn_id)) continue;
+      reported.add(next.turn_id);
+      options.onUtteranceEnd?.("interrupted", undefined, next);
     }
     options.onUtteranceEnd?.("interrupted", split, identity);
     return true;

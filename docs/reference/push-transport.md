@@ -180,7 +180,7 @@ The user pressed stop. `turn_ids` are the turns the client just stopped — ever
 | `spoken` | Optional. The last 50 Unicode code points heard from an interrupted reply |
 | `unspoken` | Optional. The first 50 Unicode code points still owed from an interrupted reply |
 
-The client sends one frame per saved playback record, after `ready` and only while connected. Each queued utterance retains its own turn identity through completion. On interruption, each later queued utterance of another turn is reported interrupted without a split, before the cut utterance's report carrying everything still owed. A failed call names the client turn that failed. A persisted record without `turn_id` sends no frame. Records saved while disconnected are not replayed on reconnect; the next turn's `previous:` line carries an interrupted or failed outcome. A complete outcome is stored and omitted from that line.
+The client sends one frame per saved playback record, after `ready` and only while connected. Each queued utterance retains its own turn identity through completion. On interruption, each later queued turn is reported interrupted without a split, before the cut utterance's report carrying everything still owed. A failed call names the client turn that failed. A persisted record without `turn_id` sends no frame. Records saved while disconnected are not replayed on reconnect; the next turn's `previous:` line carries an interrupted or failed outcome. A complete outcome is stored and omitted from that line.
 
 ## Replies
 
