@@ -1514,3 +1514,27 @@ def test_a_comment_by_a_bot_files_nothing(state_dir, at, tmp_path):
     derive(state_dir, t0 + timedelta(hours=1), tmp_path, payloads=payloads, comments={"owner/YUI": [bot]})
 
     assert monitor_events(state_dir) == []
+
+
+@pytest.mark.parametrize("field", ["html_url", "issue_url", "user.login", "created_at", "updated_at"])
+def test_a_comment_entry_missing_a_field_is_skipped_on_its_own(state_dir, at, tmp_path, field):
+    t0 = at("2026-08-25T12:00:00+09:00")
+    payloads = {("issue", "owner/YUI"): [open_issue()]}
+    derive(state_dir, t0, tmp_path, payloads=payloads)
+    broken = comment(9, 1, "reviewer", "2026-08-25T03:30:00Z")
+    if field == "user.login":
+        del broken["user"]["login"]
+    else:
+        del broken[field]
+    whole = comment(9, 2, "reviewer", "2026-08-25T03:40:00Z")
+
+    derive(
+        state_dir,
+        t0 + timedelta(hours=1),
+        tmp_path,
+        payloads=payloads,
+        comments={"owner/YUI": [broken, whole]},
+    )
+
+    assert monitor_events(state_dir) == [(f"reviewer commented on {ISSUE}", f"{ISSUE}#issuecomment-2")]
+    assert audited(state_dir, "derive_failed") == []
