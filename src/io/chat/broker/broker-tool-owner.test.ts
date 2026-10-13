@@ -36,4 +36,9 @@ describe("clientToolsUnlessBrokered", () => {
     const eff = endpoints({ chat_api: "chat_completions", broker_base_url: "http://b/mcp" });
     expect(clientToolsUnlessBrokered(eff, registry)).toBe(registry);
   });
+
+  it("keeps the client's tools on push whatever the broker setting", () => {
+    const eff = endpoints({ chat_api: "push", broker_base_url: "http://b/mcp" });
+    expect(clientToolsUnlessBrokered(eff, registry)).toBe(registry);
+  });
 });
