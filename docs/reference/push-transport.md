@@ -94,11 +94,11 @@ The client reconnects with the delay schedule in the limits table on every close
 |---|---|
 | `key` | The chat API key. It travels in this frame because the browser WebSocket API carries only the URL |
 | `chat_id` | The conversation the backend keeps state under. Generated once per installation, stored in settings, reused on every connection |
-| `accepts` | The frame type names the client reads beyond the base set: `ready`, `render`, `speech`, `turn_end`, `tool_status`, `tool_call`, `reasoning` and `delegations`. This client sends `["error"]`. Absent means the base set only. A backend sends a client no frame type outside the base set and its `accepts`, and reads a value that is not a list of strings as absent |
+| `accepts` | The frame type names the client reads beyond the base set: `ready`, `render`, `speech`, `turn_end`, `tool_status`, `tool_call`, `reasoning` and `delegations`. This client sends `["error"]`. Absent means the base set only. A backend sends a client no frame type outside the base set and its `accepts`, and reads a value that is not a list of strings as absent. The latest `hello` of the chat decides, including for frames the backend holds while the client is away |
 | `vocabulary` | What the client renders right now. `emotion_text_mode` is `"free"` or `"enum"`; `emotion_text_map` is the tag table used in `enum` mode |
 | `tools` | The function schemas the client declares on this connection, in the OpenAI function-tool shape. Absent when the client declares none. Fixed for the connection |
 
-A backend that predates `accepts` ignores the field, sends no `error` frame and renders its failure line. A client that predates it sends no `accepts` and gets that rendered failure line.
+A backend that does not read `accepts` sends no `error` frame and renders its failure line. A client that sends no `accepts` gets the rendered failure line.
 
 ### `ready` (backend → client)
 
