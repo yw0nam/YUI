@@ -51,3 +51,10 @@ windows = { version = "0.61", features = ["Win32_UI_Input_KeyboardAndMouse", "Wi
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", features = ["NSWindow", "NSResponder", "NSScreen"] }
 objc2-foundation = { version = "0.3", features = ["NSGeometry"] }
+
+# The screenshot resize and JPEG encode run in these two crates.
+[profile.dev.package.app]
+opt-level = 1
+
+[profile.dev.package.image]
+opt-level = 3
