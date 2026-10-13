@@ -53,6 +53,7 @@ function harness(over: Partial<Parameters<typeof createPushToolCalls>[0]> = {}) 
       return true;
     }),
     execute: (tool: ClientTool, args: Record<string, unknown>) => tool.execute(args),
+    getMaxTurnBytes: () => undefined,
     log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } as Logger,
     ...over,
   };

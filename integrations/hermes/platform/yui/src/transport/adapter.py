@@ -597,7 +597,7 @@ class YuiAdapter(BasePlatformAdapter):
         if not call_id:
             logger.debug("yui: tool_result without an id chat=%s", chat_id)
             return
-        if not pending.resolve(chat_id, call_id, frame.get("result") or "", frame.get("images")):
+        if not pending.resolve(chat_id, call_id, str(frame.get("result") or ""), frame.get("images")):
             logger.debug("yui: tool_result for an unknown call chat=%s id=%s", chat_id, call_id)
 
     def send_tool_call(self, chat_id: str, frame: dict) -> bool:

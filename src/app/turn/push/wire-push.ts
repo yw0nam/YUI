@@ -41,7 +41,7 @@ export function wirePushTransport(deps: {
     onReasoning(cb: (frame: ReasoningFrame) => void): () => void;
     onState(cb: (state: PushSocketState) => void): () => void;
     sendToolResult(frame: ToolResultFrame): boolean;
-    getMaxTurnBytes?(): number | undefined;
+    getMaxTurnBytes(): number | undefined;
   };
   /** The tools the client declared on this connection; a call for any other name is refused. */
   tools: ClientToolRegistry;

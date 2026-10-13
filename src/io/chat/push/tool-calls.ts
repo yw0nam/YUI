@@ -31,7 +31,7 @@ export interface PushToolCallsDeps {
   send(frame: ToolResultFrame): boolean;
   /** The bounded execute shared with the request transports. */
   execute(tool: ClientTool, args: Record<string, unknown>): Promise<ClientToolResult>;
-  getMaxTurnBytes?(): number | undefined;
+  getMaxTurnBytes(): number | undefined;
   log: Logger;
 }
 
@@ -54,7 +54,7 @@ export function createPushToolCalls(deps: PushToolCallsDeps): PushToolCalls {
       answer(frame, toolResultText(result));
       return;
     }
-    send(frame, await imageToolResult(frame, result, deps.getMaxTurnBytes?.()));
+    send(frame, await imageToolResult(frame, result, deps.getMaxTurnBytes()));
   }
 
   async function run(frame: ToolCallFrame, tool: ClientTool): Promise<void> {

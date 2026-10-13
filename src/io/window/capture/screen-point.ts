@@ -1,14 +1,9 @@
-import { monitorAt, type ScreenMonitor } from "../geometry/screen-geometry";
-
 export interface ScreenPoint {
   x: number;
   y: number;
 }
 
-export function physicalToLogicalScreenPoint(
-  point: ScreenPoint,
-  monitors: ScreenMonitor[],
-): ScreenPoint | null {
-  const monitor = monitorAt(monitors, point.x, point.y);
-  return monitor ? { x: point.x / monitor.scaleFactor, y: point.y / monitor.scaleFactor } : null;
+/** The logical point for a physical one, over the scale of the display or window it belongs to. */
+export function physicalToLogicalScreenPoint(point: ScreenPoint, scaleFactor: number): ScreenPoint {
+  return { x: point.x / scaleFactor, y: point.y / scaleFactor };
 }

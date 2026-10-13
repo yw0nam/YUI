@@ -7,3 +7,8 @@ export function isTauri(): boolean {
 export function isMacOS(): boolean {
   return /Mac/.test(navigator.platform || navigator.userAgent);
 }
+
+/** Whether the webview runs on Windows. */
+export function isWindows(): boolean {
+  return /Win/.test(navigator.platform || navigator.userAgent);
+}

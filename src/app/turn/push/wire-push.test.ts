@@ -87,6 +87,7 @@ function fakeSocket() {
       };
     },
     sendToolResult: vi.fn((_frame: ToolResultFrame) => true),
+    getMaxTurnBytes: () => undefined,
     pushToolCall(frame: ToolCallFrame): void {
       toolCallCb?.(frame);
     },

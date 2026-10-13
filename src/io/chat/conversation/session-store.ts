@@ -44,7 +44,15 @@ function coerceOutputs(v: unknown): ToolOutputItem[] {
     (o): o is ToolOutputItem =>
       o?.type === "function_call_output" &&
       typeof o.call_id === "string" &&
-      (typeof o.output === "string" || Array.isArray(o.output)),
+      (typeof o.output === "string" || (Array.isArray(o.output) && o.output.every(isOutputPart))),
+  );
+}
+
+function isOutputPart(part: unknown): boolean {
+  const p = part as { type?: unknown; text?: unknown; image_url?: unknown } | null;
+  return (
+    (p?.type === "input_text" && typeof p.text === "string") ||
+    (p?.type === "input_image" && typeof p.image_url === "string")
   );
 }
 
