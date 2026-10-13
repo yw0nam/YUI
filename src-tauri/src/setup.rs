@@ -20,6 +20,11 @@ pub fn run(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         voice_import::sweep_stale_import_artifacts(&dir.join("references"));
     }
 
+    #[cfg(desktop)]
+    app.manage(crate::browser::BrowserShell::new(
+        app.path().app_data_dir().ok(),
+    ));
+
     // Start OS event polling loop (emits `os_event` IPC to webview).
     os_event_watcher::start(app.handle());
     #[cfg(desktop)]

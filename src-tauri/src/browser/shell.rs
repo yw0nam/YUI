@@ -1,3 +1,129 @@
+//! The browser shell: one operation at a time behind the execution mutex, cancellable through the gate.
+
+use super::args::{parse, Request};
+use super::gate::{Gate, Instant, Op};
+use super::lifecycle::launch;
+use super::outcome::{setup_failed, CANCELLED, SETUP_FAILED};
+use super::session::Running;
+use serde_json::Value;
+use std::path::PathBuf;
+use std::sync::{Mutex, MutexGuard};
+use std::time::Duration;
+
+/// The tail of a call's deadline kept for cleanup after its work stops.
+const CLEANUP_RESERVE: Duration = Duration::from_secs(2);
+
+fn epoch_ms() -> u64 {
+    u64::try_from(crate::os_event_watcher::epoch_ms()).unwrap_or_default()
+}
+
+/// The work deadline of a call that must settle by `deadline_at` (epoch ms).
+fn work_deadline(deadline_at: u64) -> Instant {
+    let remaining = Duration::from_millis(deadline_at.saturating_sub(epoch_ms()));
+    Instant::now() + remaining.saturating_sub(CLEANUP_RESERVE)
+}
+
+/// What the execution mutex guards: the owned browser, if any.
+struct Owner {
+    root: Option<PathBuf>,
+    running: Option<Running>,
+    sessions: u64,
+}
+
+impl Owner {
+    async fn stop_running(&mut self, graceful: bool) {
+        if let Some(running) = self.running.take() {
+            running.shutdown(graceful).await;
+        }
+    }
+
+    async fn run(&mut self, op: &mut Op, request: Request) -> String {
+        if self.running.as_ref().is_some_and(Running::is_closed) {
+            self.stop_running(false).await;
+        }
+        if self.running.is_none() {
+            let Some(root) = &self.root else {
+                return setup_failed("app_data_dir");
+            };
+            let launched = match launch(op, root).await {
+                Ok(launched) => launched,
+                Err(out) => return out,
+            };
+            self.sessions += 1;
+            match Running::start(op, launched, self.sessions).await {
+                Ok(running) => self.running = Some(running),
+                Err(out) => return out,
+            }
+        }
+        let Some(running) = self.running.as_mut() else {
+            return SETUP_FAILED.to_string();
+        };
+        op.watch(running.closed());
+        let out = running.act(op, request).await;
+        if running.is_closed() {
+            self.stop_running(false).await;
+        }
+        out
+    }
+}
+
+/// The browser tool's native state, managed by Tauri.
+pub struct BrowserShell {
+    gate: Mutex<Gate>,
+    owner: tokio::sync::Mutex<Owner>,
+}
+
+impl BrowserShell {
+    /// `app_data_dir` holds the dedicated profile; without it every run answers setup failed.
+    pub fn new(app_data_dir: Option<PathBuf>) -> Self {
+        Self {
+            gate: Mutex::new(Gate::default()),
+            owner: tokio::sync::Mutex::new(Owner {
+                root: app_data_dir,
+                running: None,
+                sessions: 0,
+            }),
+        }
+    }
+
+    fn gate(&self) -> MutexGuard<'_, Gate> {
+        self.gate.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    pub fn generation(&self) -> u64 {
+        self.gate().generation()
+    }
+
+    pub fn cancel(&self) -> u64 {
+        self.gate().cancel()
+    }
+
+    /// Runs one tool call of generation `gen` and answers the tool result string.
+    pub async fn run(&self, gen: u64, deadline_at: u64, action: &str, args: &Value) -> String {
+        let request = match parse(action, args, cfg!(target_os = "macos")) {
+            Ok(request) => request,
+            Err(out) => return out,
+        };
+        let deadline = work_deadline(deadline_at);
+        let Ok(mut owner) = tokio::time::timeout_at(deadline, self.owner.lock()).await else {
+            return CANCELLED.to_string();
+        };
+        let Some(token) = self.gate().admit(gen) else {
+            return CANCELLED.to_string();
+        };
+        let mut op = Op::new(request.action(), token, deadline);
+        let out = owner.run(&mut op, request).await;
+        self.gate().finish();
+        out
+    }
+
+    /// Cancels the call in flight, then closes, kills and reaps the owned browser.
+    pub async fn stop(&self) {
+        self.cancel();
+        self.owner.lock().await.stop_running(true).await;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

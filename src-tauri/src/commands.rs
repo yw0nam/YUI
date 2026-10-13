@@ -26,5 +26,13 @@ pub fn handler() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         crate::agent_ingress::avatar_rpc::avatar_rpc_response,
         crate::turn_log::append_turn_record,
         crate::window_frame::set_frame_logical,
+        #[cfg(desktop)]
+        crate::browser::browser_generation,
+        #[cfg(desktop)]
+        crate::browser::browser_cancel,
+        #[cfg(desktop)]
+        crate::browser::browser_run,
+        #[cfg(desktop)]
+        crate::browser::browser_stop,
     ]
 }

@@ -1,3 +1,92 @@
+//! The `browser` tool's argument checks, answered with the tool's own error strings.
+
+use super::keys::{chord, KeyEvent};
+use super::outcome::{invalid, missing};
+use serde_json::Value;
+
+/// A ref named against the snapshot that produced it.
+pub struct Target {
+    pub page_id: String,
+    pub revision: u64,
+    pub r#ref: String,
+}
+
+pub enum Request {
+    Open { url: String },
+    Read,
+    Click { target: Target },
+    Type { target: Target, text: String },
+    PressKey { events: Vec<KeyEvent> },
+}
+
+impl Request {
+    pub fn action(&self) -> &'static str {
+        match self {
+            Request::Open { .. } => "open",
+            Request::Read => "read",
+            Request::Click { .. } => "click",
+            Request::Type { .. } => "type",
+            Request::PressKey { .. } => "press_key",
+        }
+    }
+}
+
+fn field<'a>(args: &'a Value, name: &str) -> Result<&'a Value, String> {
+    match args.get(name) {
+        None | Some(Value::Null) => Err(missing(name)),
+        Some(v) => Ok(v),
+    }
+}
+
+fn string(args: &Value, name: &str) -> Result<String, String> {
+    field(args, name)?
+        .as_str()
+        .map(str::to_string)
+        .ok_or_else(|| invalid(name))
+}
+
+fn target(args: &Value) -> Result<Target, String> {
+    let page_id = string(args, "page_id")?;
+    let revision = field(args, "revision")?
+        .as_u64()
+        .ok_or_else(|| invalid("revision"))?;
+    let r#ref = string(args, "ref")?;
+    Ok(Target {
+        page_id,
+        revision,
+        r#ref,
+    })
+}
+
+fn web_url(raw: String) -> Result<String, String> {
+    match url::Url::parse(&raw) {
+        Ok(u) if matches!(u.scheme(), "http" | "https") && u.has_host() => Ok(raw),
+        _ => Err(invalid("url")),
+    }
+}
+
+/// Parses one call; `mac` resolves `ControlOrMeta`.
+pub fn parse(action: &str, args: &Value, mac: bool) -> Result<Request, String> {
+    match action {
+        "open" => Ok(Request::Open {
+            url: web_url(string(args, "url")?)?,
+        }),
+        "read" => Ok(Request::Read),
+        "click" => Ok(Request::Click {
+            target: target(args)?,
+        }),
+        "type" => Ok(Request::Type {
+            target: target(args)?,
+            text: string(args, "text")?,
+        }),
+        "press_key" => Ok(Request::PressKey {
+            events: chord(&string(args, "key")?, mac).ok_or_else(|| invalid("key"))?,
+        }),
+        "" => Err(missing("action")),
+        _ => Err(invalid("action")),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
