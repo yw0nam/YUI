@@ -80,17 +80,22 @@ is the map of the client. Open `index.html` beside it from disk to view it.
   the exchanges behind it.
 - The window graph lists the windows and the channels each sends to another.
 
-A change that adds or removes a module, a part, or an exchange, or changes
-what crosses an exchange, follows these steps. A change inside one part skips
-them.
+Every change is presented on the map before its code is written. A change
+inside one part is presented as that, in one line, and skips steps 2 to 4. A
+change that adds or removes a module, a part, or an exchange, or changes what
+crosses an exchange, follows all four.
 
 1. Read the map and name the module and part the change goes into and the
-   modules it touches.
-2. Agree the new and changed exchanges in the issue's **Architecture map**
-   section.
+   modules and parts it touches.
+2. Present each exchange the change adds, changes, or removes, with the state
+   of those modules and exchanges before and after, and agree it in the
+   issue's **Architecture map** section. The form is free: a table, a list, a
+   before and after sketch, or the viewer.
 3. Edit `map.js` in the worktree, run `pnpm map:base`, and open the viewer's
    **Compare with main** view to confirm the difference is the agreed one.
-4. Ship the `map.js` change in the same PR as the code.
+4. Ship the `map.js` change in the same PR as the code. A PR whose code
+   changes a module, a part, or an exchange is complete only when `map.js`
+   states the shipped result.
 
 `pnpm map:check` fails when:
 
