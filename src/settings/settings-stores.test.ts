@@ -51,6 +51,7 @@ describe("createSettingsStores", () => {
       "idleMotionSettings",
       "expressMotionSettings",
       "bedSceneSettings",
+      "browserSettings",
     ]);
   });
 
@@ -73,6 +74,7 @@ describe("createSettingsStores", () => {
     ["bubblePersistSettings", "yui.bubble-persist", false, true],
     ["presenceSettings", "yui.presence", 180000, 200000],
     ["pacerGapSettings", "yui.proactive-pacer-gap", 600000, 0],
+    ["browserSettings", "yui.browser", false, true],
   ] as const)("binds %s to %s with default %s", (storeName, key, defaultValue, nextValue) => {
     localStorage.clear();
     const store = createSettingsStores()[storeName] as FlagSettingsStore | ClampedIntSettingsStore;
@@ -120,6 +122,12 @@ describe("createSettingsStores", () => {
 
     expect(broadcastStores).toContain(stores.gazeSettings);
     expect(broadcastStores).toContain(stores.cameraSettings);
+  });
+
+  it("broadcasts the browser switch so the settings window's toggle reaches the pet window", () => {
+    const stores = createSettingsStores();
+
+    expect(broadcastSyncStores(stores)).toContain(stores.browserSettings);
   });
 
   it("broadcasts the express-motion selection so both windows curate the same vocabulary", () => {
