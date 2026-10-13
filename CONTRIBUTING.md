@@ -64,28 +64,36 @@ and removed in v0.6.0) — see
 [`docs/agent-guide/architecture/map.js`](docs/agent-guide/architecture/map.js)
 is the map of the client. Open `index.html` beside it from disk to view it.
 
-- A node is a feature folder of `src/` or a module of `src-tauri/src`, with a
-  one-sentence role. Backend agents, Mods, and outside services are external
-  nodes that carry only the shape of the exchange.
-- An edge names what crosses between two nodes as the code spells it, its kind
-  (call, callback, Tauri event, Tauri command, HTTP, WebSocket frame,
-  localStorage, cross-window bridge), the transport it belongs to (shared,
-  request, push), and the wiring file that connects the two ends.
-- A flow is a numbered list of steps over those edges.
+- A module is one box of the overview: a named part of the client with a
+  one-line description, placed in one of four groups (user I/O, core logic,
+  outside communication, shared state and wiring). The user, backend agents,
+  and outside services are boxes outside the groups.
+- A part is a feature folder of `src/` or a module of `src-tauri/src` that
+  belongs to one module. Every source folder is a part of some module.
+- An exchange names what crosses between two parts as the code spells it, its
+  kind (call, callback, Tauri event, Tauri command, HTTP, WebSocket frame,
+  localStorage, cross-window bridge, user action), the transport it belongs to
+  (shared, request, push), and the wiring file that connects the two ends.
+- A link is a main path between two modules, drawn as a labelled line. The
+  viewer lists every exchange of a module when the module is selected.
+- A flow is a numbered sequence of steps between modules, each step naming
+  the exchanges behind it.
 
-A change that adds or removes a node or an edge, or changes what crosses an
-edge, follows these steps. A change inside one node skips them.
+A change that adds or removes a module, a part, or an exchange, or changes
+what crosses an exchange, follows these steps. A change inside one part skips
+them.
 
-1. Read the map and name the node the change goes into and the nodes it
-   touches.
-2. Agree the new and changed edges in the issue's **Architecture map** section.
+1. Read the map and name the module and part the change goes into and the
+   modules it touches.
+2. Agree the new and changed exchanges in the issue's **Architecture map**
+   section.
 3. Edit `map.js` in the worktree, run `pnpm map:base`, and open the viewer's
-   Compare view to confirm the difference is the agreed one.
+   **Compare with main** view to confirm the difference is the agreed one.
 4. Ship the `map.js` change in the same PR as the code.
 
-`pnpm map:check` fails when a node's path or an edge's wiring file does not
-exist, when a source folder belongs to no node, or when an edge or a flow step
-names a missing id. CI runs it in the `web` job.
+`pnpm map:check` fails when a part's path or an exchange's wiring file does
+not exist, when a source folder belongs to no part, or when a part, a link,
+or a flow step names a missing id. CI runs it in the `web` job.
 
 ## Code rules
 

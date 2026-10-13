@@ -664,6 +664,6 @@ YUI/
       yui-daily-briefing/            # Backend-agnostic skill: scheduled producers write dated markdown briefings (scripts/briefing.py) that the backend agent speaks on first activity
   docs/                              # Design source of truth
     agent-guide/architecture/        # Architecture map of the client
-      map.js                         # Nodes, edges, and flows of src/ and src-tauri/src
+      map.js                         # Modules, their parts, exchanges, and flows of src/ and src-tauri/src
       index.html                     # Viewer that draws a map data file when opened from disk
 ```
