@@ -162,10 +162,6 @@ The on/off state of every switchable in-app tool the window declares, rendered e
 tools: look.screen=on
 ```
 
-```text
-tools: look.screen=off, browser=on
-```
-
 The line names the switch state only. The switch gates the tool's execution, read at the moment
 the call runs, so a state line the request outlives can still end in a refusal. The line is
 omitted when the window declares no switchable tool: the pet window under Tauri declares
