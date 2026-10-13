@@ -1502,3 +1502,15 @@ def test_workspace_repos_drops_an_origin_whose_owner_or_name_is_not_a_slug(tmp_p
     git_repo(workspace, "dots", "https://github.com/owner/...git")
 
     assert gate.workspace_repos(workspace) == ["owner/YUI"]
+
+
+def test_a_comment_by_a_bot_files_nothing(state_dir, at, tmp_path):
+    t0 = at("2026-08-25T12:00:00+09:00")
+    payloads = {("issue", "owner/YUI"): [open_issue()]}
+    derive(state_dir, t0, tmp_path, payloads=payloads)
+    bot = comment(9, 1, "github-actions[bot]", "2026-08-25T03:30:00Z")
+    bot["user"]["type"] = "Bot"
+
+    derive(state_dir, t0 + timedelta(hours=1), tmp_path, payloads=payloads, comments={"owner/YUI": [bot]})
+
+    assert monitor_events(state_dir) == []
