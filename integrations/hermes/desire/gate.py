@@ -262,34 +262,38 @@ def _normalize_gate_state(value: object) -> dict:
     }
 
 
-def _unread_events_lines(state_dir: Path, state: dict, now: datetime) -> list[str]:
+def _unread_events_lines(state_dir: Path, gate_state: dict, now: datetime) -> list[str]:
+    """Decide wake case 1 and advance the batch record in ``gate_state``."""
+
     unread = desire_events.unread_event_ids(state_dir)
-    batch = state["batch"]
+    batch = gate_state["batch"]
+    wake = [f"{WAKE_UNREAD_EVENTS} ({len(unread)})"]
     if not unread:
-        state["batch"] = {"ids": [], "presented_at": []}
+        gate_state["batch"] = {"ids": [], "presented_at": []}
         return []
     if any(event_id not in batch["ids"] for event_id in unread):
-        state["batch"] = {"ids": list(unread), "presented_at": [now.isoformat()]}
-        return [f"{WAKE_UNREAD_EVENTS} ({len(unread)})"]
+        gate_state["batch"] = {"ids": list(unread), "presented_at": [now.isoformat()]}
+        return wake
     batch["ids"] = unread
     presented = batch["presented_at"]
-    if not presented:
-        presented.append(now.isoformat())
-    elif len(presented) >= BATCH_LIMIT or now - desire_config.parse_timestamp(presented[-1]) < BATCH_INTERVAL:
+    if presented and (
+        len(presented) >= BATCH_LIMIT or now - desire_config.parse_timestamp(presented[-1]) < BATCH_INTERVAL
+    ):
         return []
-    else:
-        presented.append(now.isoformat())
-    return [f"{WAKE_UNREAD_EVENTS} ({len(unread)})"]
+    presented.append(now.isoformat())
+    return wake
 
 
 def _held_notes_lines(
-    state_dir: Path, budget: dict, transport: dict, state: dict, now: datetime
+    state_dir: Path, budget: dict, transport: dict, gate_state: dict, now: datetime
 ) -> list[str]:
+    """Decide wake case 2 and advance the note stamp in ``gate_state``."""
+
     eligible = desire_outbox.visible_outbox(desire_store.read_jsonl(state_dir / "outbox.jsonl"), now)
     budget_left = desire_state.CAPS["signals"] - budget["signals"] > 0
     if not eligible or transport["state"] != "up" or not budget_left:
         return []
-    stamp = state["notes_presented_at"]
+    stamp = gate_state["notes_presented_at"]
     if stamp is None:
         due = True
     else:
@@ -299,7 +303,7 @@ def _held_notes_lines(
         )
     if not due:
         return []
-    state["notes_presented_at"] = now.isoformat()
+    gate_state["notes_presented_at"] = now.isoformat()
     return [f"{WAKE_HELD_NOTES} ({len(eligible)})"]
 
 
@@ -351,11 +355,7 @@ def run(now: datetime) -> str:
         record_artefacts(state_dir, now, observed)
 
         path = state_dir / "gate.json"
-        gate_state = desire_store.load_json(path, _default_gate_state, now)
-        try:
-            gate_state = _normalize_gate_state(gate_state)
-        except (KeyError, TypeError, ValueError):
-            gate_state = desire_store._recover_invalid_json_locked(path, _default_gate_state, now)
+        gate_state = desire_store.load_normalized_json(path, _default_gate_state, _normalize_gate_state, now)
         lines = _unread_events_lines(state_dir, gate_state, now)
         lines.extend(_held_notes_lines(state_dir, budget, transport, gate_state, now))
         desire_store.write_json_atomic(path, gate_state)

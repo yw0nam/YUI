@@ -15,6 +15,16 @@ _EVENT_ID = re.compile(r"^e-[0-9a-f]{6}$")
 _READING_ID = re.compile(r"^r-[0-9a-f]{6}$")
 
 
+def _stamped(line: dict) -> bool:
+    """Report whether the line carries a parseable ``at`` timestamp."""
+
+    try:
+        desire_config.parse_timestamp(line["at"])
+    except (KeyError, TypeError, ValueError):
+        return False
+    return True
+
+
 def _event_id_of(line: dict) -> str | None:
     """Return the id when the line is a valid event, else ``None``."""
 
@@ -24,11 +34,7 @@ def _event_id_of(line: dict) -> str | None:
     if line.get("source") not in ("agent", "monitor"):
         return None
     fact = line.get("fact")
-    if not isinstance(fact, str) or not fact:
-        return None
-    try:
-        desire_config.parse_timestamp(line["at"])
-    except (KeyError, TypeError, ValueError):
+    if not isinstance(fact, str) or not fact or not _stamped(line):
         return None
     return event_id
 
@@ -38,11 +44,7 @@ def _retracts_of(line: dict) -> str | None:
 
     if not isinstance(line.get("retracts"), str) or not isinstance(line.get("why"), str):
         return None
-    try:
-        desire_config.parse_timestamp(line["at"])
-    except (KeyError, TypeError, ValueError):
-        return None
-    return line["retracts"]
+    return line["retracts"] if _stamped(line) else None
 
 
 def _event_id_read_by(line: dict) -> str | None:
@@ -53,11 +55,7 @@ def _event_id_read_by(line: dict) -> str | None:
         return None
     if not isinstance(line.get("event_id"), str) or not isinstance(line.get("text"), str):
         return None
-    try:
-        desire_config.parse_timestamp(line["at"])
-    except (KeyError, TypeError, ValueError):
-        return None
-    return line["event_id"]
+    return line["event_id"] if _stamped(line) else None
 
 
 def unread_event_ids(state_dir: Path) -> list[str]:

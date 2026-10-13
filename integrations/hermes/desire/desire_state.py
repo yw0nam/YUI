@@ -61,16 +61,9 @@ def bootstrap_locked(state_dir: Path, now: datetime) -> dict[str, dict]:
         ("cursor.json", lambda: _default_cursor(now), _normalize_cursor),
     )
     for filename, default, normalizer in definitions:
-        path = state_dir / filename
-        value = desire_store.load_json(path, default, now)
-        try:
-            normalized = normalizer(value)
-        except (KeyError, TypeError, ValueError):
-            normalized = desire_store._recover_invalid_json_locked(path, default, now)
-        if normalized != value:
-            desire_store.write_json_atomic(path, normalized)
-        loaded[filename.removesuffix(".json")] = normalized
-    # The monitor's files have no reader left; a leftover is deleted rather than read.
+        loaded[filename.removesuffix(".json")] = desire_store.load_normalized_json(
+            state_dir / filename, default, normalizer, now
+        )
     for name in ("monitor.json", "ticks.jsonl"):
         (state_dir / name).unlink(missing_ok=True)
     for name in ("outbox.jsonl", "audit.jsonl"):

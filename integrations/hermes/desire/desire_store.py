@@ -96,11 +96,11 @@ def _read_jsonl_locked(path: Path) -> tuple[list[dict], int]:
         return [], 0
     values: list[dict] = []
     dropped = 0
-    for line in path.read_text(encoding="utf-8").split("\n"):
-        if not line.strip():
+    for raw in path.read_bytes().split(b"\n"):
+        if not raw.strip():
             continue
         try:
-            value = json.loads(line)
+            value = json.loads(raw.decode("utf-8"))
         except (json.JSONDecodeError, UnicodeError):
             dropped += 1
             continue
@@ -235,6 +235,22 @@ def load_json(path: Path, default: object, now: datetime) -> object:
             return json.loads(path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, UnicodeError, OSError):
             return _recover_invalid_json_locked(path, default, now)
+
+
+def load_normalized_json(path: Path, default, normalizer, now: datetime) -> object:
+    """Load a JSON state file, normalize it, and quarantine it when it does not normalize.
+
+    The caller holds ``state_lock``. A file whose normalized form differs is rewritten.
+    """
+
+    value = load_json(path, default, now)
+    try:
+        normalized = normalizer(value)
+    except (KeyError, TypeError, ValueError):
+        normalized = _recover_invalid_json_locked(path, default, now)
+    if normalized != value:
+        write_json_atomic(path, normalized)
+    return normalized
 
 
 def _recover_invalid_json_locked(path: Path, default: object, now: datetime) -> object:
