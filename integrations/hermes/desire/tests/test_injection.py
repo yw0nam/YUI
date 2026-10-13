@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 from conftest import AGENT_NAME
 
+import desire_judgments
 import desire_state
 import desire_store
 
@@ -1119,7 +1120,7 @@ def test_each_new_client_context_block_appends_one_turn_audit_event(
     desire_plugin._inject(request=copy.deepcopy(request), now=now + timedelta(minutes=20))
 
     assert audit_events(state_dir, "turn") == [
-        {"at": now.isoformat(), "event": "turn", "trigger": "proactive", "platform": "none"}
+        {"at": now.isoformat(), "event": "turn", "trigger": "proactive", "platform": "none", "gate": False}
     ]
 
     desire_plugin._inject(request=request_with(context("trigger: user message")), now=now)
@@ -1214,3 +1215,114 @@ def test_canonical_block_with_event_lines_is_idempotent(desire_plugin):
     assert not desire_plugin._already_injected(
         text.replace("to record how you took something: act.py feel --help\n", "")
     )
+
+
+def test_canonical_block_with_toward_and_how_lines_is_idempotent(desire_plugin):
+    text = (
+        "hello\n\n<desire_state>\n"
+        f"agent: {AGENT_NAME}\n"
+        "toward user: closeness strong (09-20) | sense of choosing very strong (10-08)\n"
+        "toward world: curiosity some (09-28)\n"
+        "how I am: tired | but here\n"
+        "recent:\n"
+        '- 08-23 "a" — "b"\n'
+        "to record how you took something: act.py feel --help\n"
+        "last interaction: 2026-08-25 12:00 (0h ago)\n"
+        "signal transport: unknown\n"
+        "</desire_state>"
+    )
+
+    assert desire_plugin._already_injected(text)
+    assert desire_plugin._already_injected(text.replace("how I am: tired | but here\n", ""))
+    assert not desire_plugin._already_injected(text.replace("toward world", "toward others"))
+    assert not desire_plugin._already_injected(
+        text.replace("toward world: curiosity some (09-28)\n", "").replace(
+            "toward user", "toward world: curiosity some (09-28)\ntoward user"
+        )
+    )
+
+
+SCRIPT_INTRO = "The following data was collected by a pre-run script. Use it as context for your analysis."
+NUDGE = "Your previous response was empty. Please continue."
+
+
+def script_run(*stdout, prompt="Read what happened and record how you took it."):
+    """Build the cron prompt the way Hermes prepends a pre-run script's stdout."""
+    body = "\n".join(stdout)
+    return f"## Script Output\n{SCRIPT_INTRO}\n\n```\n{body}\n```\n\n{prompt}"
+
+
+@pytest.fixture
+def judged(state_dir, at, state_helpers):
+    now = at("2026-10-08T12:00:00+09:00")
+    seed_drives(state_dir, now, state_helpers)
+    desire_judgments.judge(state_dir, "trust", "user", "some", [], None, now - timedelta(days=7))
+    desire_judgments.judge(state_dir, "tiredness", "self", "faint", [], None, now)
+    desire_judgments.write_how(state_dir, "steady")
+    return now
+
+
+def toward(block):
+    return [line for line in block.split("\n") if line.startswith("toward ")]
+
+
+def gate_flags(state_dir):
+    return [event["gate"] for event in audit_events(state_dir, "turn")]
+
+
+def test_a_run_started_for_unread_events_leaves_out_the_toward_lines(desire_plugin, state_dir, judged):
+    wake = script_run("desire gate: unread events (2)")
+
+    started = appended_block(
+        desire_plugin._inject(request=request_with(wake), now=judged, turn_id="turn-1", session_id="cron-a")
+    )
+    nudged = appended_block(
+        desire_plugin._inject(request=request_with(NUDGE), now=judged, turn_id="turn-1", session_id="cron-b")
+    )
+    chat = appended_block(
+        desire_plugin._inject(request=request_with("hello"), now=judged, turn_id="turn-2", session_id="chat")
+    )
+
+    assert toward(started) == toward(nudged) == []
+    assert "how I am: steady" in started.split("\n")
+    assert toward(chat) == ["toward user: trust some (10-01)", "toward self: tiredness faint (10-08)"]
+    assert gate_flags(state_dir) == [True, True, False]
+    for block in (started, chat):
+        assert desire_plugin._already_injected("hello\n\n" + block)
+
+
+def test_a_held_notes_wake_alone_keeps_the_toward_lines(desire_plugin, state_dir, judged):
+    wake = script_run("desire gate: held notes (1)")
+
+    block = appended_block(desire_plugin._inject(request=request_with(wake), now=judged, turn_id="turn-1"))
+
+    assert len(toward(block)) == 2
+    assert gate_flags(state_dir) == [False]
+
+
+def test_the_same_text_with_different_provenance_gets_its_own_block_and_turn_audit(
+    desire_plugin, state_dir, judged
+):
+    desire_plugin._inject(
+        request=request_with(script_run("desire gate: unread events (1)")), now=judged, turn_id="g"
+    )
+
+    in_run = appended_block(desire_plugin._inject(request=request_with(NUDGE), now=judged, turn_id="g"))
+    outside = appended_block(desire_plugin._inject(request=request_with(NUDGE), now=judged, turn_id="c"))
+    unnamed = appended_block(desire_plugin._inject(request=request_with(NUDGE), now=judged))
+
+    assert in_run != outside == unnamed
+    assert toward(in_run) == []
+    assert gate_flags(state_dir) == [True, True, False]
+
+
+def test_the_33rd_remembered_turn_evicts_the_first(desire_plugin, state_dir, judged):
+    wake = request_with(script_run("desire gate: unread events (1)"))
+    for index in range(33):
+        desire_plugin._inject(request=copy.deepcopy(wake), now=judged, turn_id=f"turn-{index}")
+
+    first = appended_block(desire_plugin._inject(request=request_with(NUDGE), now=judged, turn_id="turn-0"))
+    second = appended_block(desire_plugin._inject(request=request_with(NUDGE), now=judged, turn_id="turn-1"))
+
+    assert len(toward(first)) == 2
+    assert toward(second) == []
