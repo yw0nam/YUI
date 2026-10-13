@@ -76,7 +76,7 @@ describe("body_action — schema", () => {
   });
 
   it("reports a passing wait as the bare word timeout", () => {
-    expect(tool.timeoutResult).toBe("timeout");
+    expect(tool.timeoutResult?.({})).toBe("timeout");
   });
 });
 

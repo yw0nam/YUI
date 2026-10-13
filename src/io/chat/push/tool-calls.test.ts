@@ -18,7 +18,7 @@ vi.mock("./fit-turn-images", () => ({ fitTurnImages: vi.fn(async (images: string
 
 function tool(
   name: string,
-  execute: (args: Record<string, unknown>) => Promise<string>,
+  execute: (args: Record<string, unknown>, signal?: AbortSignal) => Promise<string>,
 ): ClientTool {
   return {
     name,
@@ -52,7 +52,8 @@ function harness(over: Partial<Parameters<typeof createPushToolCalls>[0]> = {}) 
       sent.push(frame);
       return true;
     }),
-    execute: (tool: ClientTool, args: Record<string, unknown>) => tool.execute(args),
+    execute: (tool: ClientTool, args: Record<string, unknown>, signal?: AbortSignal) =>
+      tool.execute(args, signal),
     getMaxTurnBytes: () => undefined,
     log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } as Logger,
     ...over,
@@ -280,5 +281,41 @@ describe("push image results", () => {
     expect(h.sent).toEqual([
       { type: "tool_result", id: "c1", turn_id: "t", result: "error: result too large" },
     ]);
+  });
+});
+
+describe("createPushToolCalls — abort", () => {
+  it("aborts the signal of each held call of a named turn, running or queued", async () => {
+    const signals = new Map<string, AbortSignal>();
+    const untilAborted = (args: Record<string, unknown>, signal?: AbortSignal) => {
+      signals.set(String(args.id), signal!);
+      if (signal?.aborted) return Promise.resolve("cancelled: nothing ran");
+      return new Promise<string>((resolve) =>
+        signal?.addEventListener("abort", () => resolve("cancelled: nothing ran")),
+      );
+    };
+    const h = harness({ tools: createClientToolRegistry([tool("browser", untilAborted)]) });
+    const frame = (id: string, turnId: string): ToolCallFrame => ({
+      type: "tool_call",
+      id,
+      turn_id: turnId,
+      name: "browser",
+      arguments: { id },
+    });
+    h.calls.handle(frame("c1", "t1"));
+    h.calls.handle(frame("c2", "t1"));
+    h.calls.handle(frame("c3", "t2"));
+    await flush();
+
+    h.calls.abort(["t1"]);
+    await flush();
+    expect(signals.get("c1")?.aborted).toBe(true);
+    expect(signals.get("c2")?.aborted).toBe(true);
+    expect(signals.get("c3")?.aborted).toBe(false);
+
+    h.calls.abort();
+    await flush();
+    expect(signals.get("c3")?.aborted).toBe(true);
+    expect(h.sent.map((sent) => (sent as { id: string }).id)).toEqual(["c1", "c2", "c3"]);
   });
 });

@@ -11,6 +11,7 @@ import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
 import { createAvatarTools } from "./avatar";
+import { createBrowserTool } from "./browser/browser-tool";
 import { type ClientTool, createClientToolRegistry, createClientTools } from "./client-tools";
 import { createGenerateExpressTool } from "./express";
 
@@ -209,12 +210,13 @@ describe("docs/reference/client-tools.md catalog", () => {
     // The catalog is the table above the first section heading.
     const catalog = doc.slice(0, doc.indexOf("\n## "));
     const rows = new Set([...catalog.matchAll(/^\| `([^`]+)` \|/gm)].map((m) => m[1]));
-    const names = createClientTools(
-      vocab(),
-      createAvatarTools(() => null),
-    ).map((tool) => tool.name);
+    const browser = { run: vi.fn(), cancel: vi.fn(), stop: vi.fn() };
+    const names = createClientTools(vocab(), [
+      ...createAvatarTools(() => null),
+      createBrowserTool({ shell: browser, enabled: () => false }),
+    ]).map((tool) => tool.name);
 
-    expect(names).toEqual(["generate_express", "body_action", "look"]);
+    expect(names).toEqual(["generate_express", "body_action", "look", "browser"]);
     expect(names.filter((name) => !rows.has(name))).toEqual([]);
   });
 });

@@ -33,9 +33,10 @@ async function collect(
   tools: ClientToolRegistry | undefined,
   name: string,
   argsJson: string,
+  signal?: AbortSignal,
 ): Promise<ChatStreamEvent[]> {
   const events: ChatStreamEvent[] = [];
-  const gen = runClientCall(tools, name, argsJson);
+  const gen = runClientCall(tools, name, argsJson, signal);
   for (let next = await gen.next(); !next.done; next = await gen.next()) events.push(next.value);
   await gen.next();
   return events;
@@ -43,6 +44,25 @@ async function collect(
 
 const statusesOf = (events: ChatStreamEvent[]) =>
   events.flatMap((e) => (e.type === "tool_status" ? [e.status.state] : []));
+
+describe("runClientCall — the request's signal", () => {
+  it("aborts the running tool's signal when the request is aborted", async () => {
+    const request = new AbortController();
+    let seen: AbortSignal | undefined;
+    const registry = createClientToolRegistry([
+      tool({
+        execute: (_args, signal) => {
+          seen = signal;
+          request.abort();
+          return Promise.resolve("ok");
+        },
+      }),
+    ]);
+    await collect(registry, "body_action", "{}", request.signal);
+
+    expect(seen?.aborted).toBe(true);
+  });
+});
 
 describe("runClientCall — tool_status state", () => {
   it("reports failed instead of done when a body action does not answer ok", async () => {

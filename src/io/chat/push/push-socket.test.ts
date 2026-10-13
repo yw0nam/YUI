@@ -716,6 +716,21 @@ describe("createPushSocket — outbound frames", () => {
     expect(FakeSocket.last().frames().at(-1)).toEqual({ type: "reset" });
   });
 
+  it("tells its reset listeners once a reset frame goes out, and not for a refused one", async () => {
+    socket = build();
+    const onReset = vi.fn();
+    socket.onReset(onReset);
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    socket.sendReset();
+    expect(onReset).not.toHaveBeenCalled();
+
+    FakeSocket.last().accept();
+    FakeSocket.last().push({ type: "ready", chat_id: "yui-3f9a2c1d" });
+    socket.sendReset();
+    expect(onReset).toHaveBeenCalledTimes(1);
+  });
+
   it("sends a stop frame with the stopped turn ids once ready and refuses one before", async () => {
     socket = build();
     socket.connect();
