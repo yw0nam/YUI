@@ -531,7 +531,7 @@ describe("wirePushTransport — error frames", () => {
   it("hands the frame's message to the turn's waiter, which still ends on the turn_end", async () => {
     wire();
     const onError = vi.fn();
-    pushTurns.opened("7");
+    pushTurns.opened("7", "user.text_submitted");
     const ended = pushTurns.awaitTurnEnd("7", { onError });
 
     socket.pushError({ type: "error", turn_id: "7", message: "rate limit reached" });
@@ -548,7 +548,7 @@ describe("wirePushTransport — error frames", () => {
   it("leaves another turn's waiter alone", () => {
     wire();
     const onError = vi.fn();
-    pushTurns.opened("7");
+    pushTurns.opened("7", "user.text_submitted");
     void pushTurns.awaitTurnEnd("7", { onError });
 
     socket.pushError({ type: "error", turn_id: "hermes-1", message: "boom" });
@@ -559,7 +559,7 @@ describe("wirePushTransport — error frames", () => {
   it("drops the frame of a turn the user stopped", () => {
     wire();
     const onError = vi.fn();
-    pushTurns.opened("7");
+    pushTurns.opened("7", "user.text_submitted");
     void pushTurns.awaitTurnEnd("7", { onError });
     pushTurns.cut();
 
