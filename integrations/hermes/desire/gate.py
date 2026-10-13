@@ -24,8 +24,8 @@ GH_TIMEOUT = 60
 BATCH_INTERVAL = timedelta(hours=6)
 BATCH_LIMIT = 3
 NOTE_INTERVAL = timedelta(hours=6)
-WAKE_UNREAD_EVENTS = "desire gate: unread events"
-WAKE_HELD_NOTES = "desire gate: held notes"
+WAKE_UNREAD_EVENTS = desire_config.WAKE_UNREAD_EVENTS
+WAKE_HELD_NOTES = desire_config.WAKE_HELD_NOTES
 NO_WAKE_LINE = '{"wakeAgent": false}'
 SOURCE_OF = {"pr": "pr", "issue": "issue"}
 DELIVERED = {"pr": "pull request {url} was merged", "issue": "issue {url} was closed"}

@@ -23,7 +23,6 @@ from . import (
     desire_render,
     desire_state,
     desire_store,
-    gate,
 )
 
 logger = logging.getLogger(__name__)
@@ -52,7 +51,7 @@ _TOWARD_LINE = re.compile(
     rf"(?:{'|'.join(desire_judgments.LEVELS)}) \(\d{{2}}-\d{{2}}\)"
 )
 _HOW_LINE = re.compile(r"how I am: .+")
-_GATE_WAKE = re.compile(rf"^{re.escape(gate.WAKE_UNREAD_EVENTS)} \(\d+\)$", re.MULTILINE)
+_GATE_WAKE = re.compile(rf"^{re.escape(desire_config.WAKE_UNREAD_EVENTS)} \(\d+\)$", re.MULTILINE)
 _GATE_TURNS_KEPT = 32
 _CACHE_TTL = timedelta(minutes=10)
 _STATE_FILES = (

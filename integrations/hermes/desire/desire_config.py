@@ -12,6 +12,9 @@ from zoneinfo import ZoneInfo
 KST = ZoneInfo("Asia/Seoul")
 logger = logging.getLogger(__name__)
 DEFAULT_SIGNALS_URL = "http://127.0.0.1:8770/signals"
+# The gate prints these to wake the agent; the middleware reads the first back from the request.
+WAKE_UNREAD_EVENTS = "desire gate: unread events"
+WAKE_HELD_NOTES = "desire gate: held notes"
 
 
 def normalize_now(value: datetime) -> datetime:
