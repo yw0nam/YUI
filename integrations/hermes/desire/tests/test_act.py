@@ -951,6 +951,8 @@ def test_feel_reads_an_existing_event_and_refuses_an_unknown_or_retracted_one(st
         (["feel", "--event", "e-000001", "--text", "y", "--source-ref", "r"], None),
         (["feel", "--all"], None),
         (["feel", "--list", "--text", "y"], None),
+        (["feel", "--unread"], None),
+        (["feel", "--list", "--unread", "--all"], None),
         (["feel"], None),
         (["feel", "--fact", "x", "--text", "   "], "empty --text"),
         (["feel", "--fact", " ", "--text", "y"], "empty --fact"),
@@ -1088,6 +1090,37 @@ def test_judge_usage_errors_exit_two_and_write_nothing(state_dir, at, argv):
     assert exit_code(argv, at("2026-10-08T12:00:00+09:00")) == 2
 
     assert not (state_dir / "judgments.jsonl").exists()
+
+
+def test_feel_list_unread_prints_every_event_without_a_reading(state_dir, at, state_helpers, capsys):
+    _, write_jsonl, _, _ = state_helpers
+    now = at("2026-08-25T12:00:00+09:00")
+    write_jsonl(
+        state_dir / "events.jsonl",
+        [
+            {
+                "id": f"e-{index:06x}",
+                "at": (now - timedelta(hours=30 - index)).isoformat(),
+                "fact": f"fact {index}",
+                "source": "monitor",
+            }
+            for index in range(25)
+        ]
+        + [{"retracts": "e-000003", "at": now.isoformat(), "why": "not mine"}],
+    )
+    write_jsonl(
+        state_dir / "readings.jsonl",
+        [
+            {"id": f"r-{index:06x}", "event_id": f"e-{index:06x}", "at": now.isoformat(), "text": "noted"}
+            for index in range(3)
+        ],
+    )
+
+    assert act.main(["feel", "--list", "--unread"], now=now) == 0
+
+    lines = capsys.readouterr().out.splitlines()
+    assert [line.split()[0] for line in lines] == [f"e-{index:06x}" for index in range(4, 25)]
+    assert lines[0] == "e-000004 2026-08-24 10:00 [monitor] fact 4 — (no reading)"
 
 
 def test_judge_list_prints_every_present_judgment_by_toward_then_name(state_dir, at, capsys):

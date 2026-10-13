@@ -1,4 +1,5 @@
 import json
+import shutil
 import socket
 import threading
 from datetime import timedelta
@@ -14,7 +15,6 @@ import desire_store
 import gate
 
 BRANCH = f"{AGENT_NAME}/"
-LOGIN = "testagent-bot"
 MARKER = f"<!-- from-{AGENT_NAME} -->"
 NO_WAKE = '{"wakeAgent": false}\n'
 
@@ -69,17 +69,13 @@ def git_repo(workspace: Path, name: str, origin: str | None) -> Path:
 
 def gh_runner(payloads: dict, failing: tuple = (), views: dict | None = None, comments=None, calls=None):
     """Answer `gh <kind> list` from a `(command, repo)` table, `gh <kind> view` from a url table,
-    and `gh api` from the agent login and a per-repository comments table."""
+    and `gh api` from a per-repository comments table, recording each argv with its cwd in ``calls``."""
 
-    def run(args: list[str]) -> str:
+    def run(args: list[str], cwd=None) -> str:
         if calls is not None:
-            calls.append(args)
+            calls.append((args, cwd))
         command = args[0]
         if command == "api":
-            if args[1] == "user":
-                if "login" in failing:
-                    raise RuntimeError("gh: HTTP 401")
-                return f"{LOGIN}\n"
             repo = args[1].removeprefix("repos/").split("/issues/comments")[0]
             if "comments" in failing or ("comments", repo) in failing:
                 raise RuntimeError("gh: HTTP 502")
@@ -714,7 +710,7 @@ def test_sources_are_read_before_the_gate_takes_the_state_lock(state_dir, at, is
     git_repo(workspace, "YUI", "https://github.com/owner/YUI.git")
     acquired = []
 
-    def probe_lock(args):
+    def probe_lock(args, cwd=None):
         def take():
             with desire_store.state_lock(state_dir):
                 acquired.append(args[0] if args[0] != "api" else args[1].split("?")[0])
@@ -723,14 +719,14 @@ def test_sources_are_read_before_the_gate_takes_the_state_lock(state_dir, at, is
         worker.start()
         worker.join(timeout=5)
         assert not worker.is_alive(), "the gate held the state lock while reading a source"
-        return LOGIN if args[:2] == ["api", "user"] else "[]" if args[0] != "api" else ""
+        return "[]" if args[0] != "api" else ""
 
     monkeypatch.setattr(gate, "run_gh", probe_lock)
 
     gate.run(now)
     gate.run(now + timedelta(minutes=5))
 
-    assert acquired == ["user", "pr", "issue", "user", "pr", "issue", "repos/owner/YUI/issues/comments"]
+    assert acquired == ["pr", "issue", "pr", "issue", "repos/owner/YUI/issues/comments"]
 
 
 def test_gate_run_derives_from_the_profile_and_stays_silent_when_a_source_fails(
@@ -743,14 +739,14 @@ def test_gate_run_derives_from_the_profile_and_stays_silent_when_a_source_fails(
     workspace.mkdir(parents=True)
     git_repo(workspace, "YUI", "https://github.com/owner/YUI.git")
 
-    def failing_gh(args):
+    def failing_gh(args, cwd=None):
         raise RuntimeError("gh: could not authenticate")
 
     monkeypatch.setattr(gate, "run_gh", failing_gh)
 
     assert gate.run(now) == NO_WAKE
 
-    assert [event["source"] for event in audited(state_dir, "derive_failed")] == ["login", "pr", "issue"]
+    assert [event["source"] for event in audited(state_dir, "derive_failed")] == ["pr", "issue"]
     assert read_json(state_dir / "artefacts.json")["seen"] == {"pr": [], "issue": []}
 
 
@@ -764,11 +760,14 @@ def test_workspace_repos_reads_github_origins_only(tmp_path):
     (workspace / "cron_results").mkdir()
     (workspace / "notes.md").write_text("loose file", encoding="utf-8")
 
-    assert gate.workspace_repos(workspace) == ["owner/YUI", "owner/memory_layer"]
+    assert gate.workspace_repos(workspace) == {
+        "owner/YUI": workspace / "YUI",
+        "owner/memory_layer": workspace / "memory_layer",
+    }
 
 
 def test_workspace_repos_tolerates_a_missing_workspace(tmp_path):
-    assert gate.workspace_repos(tmp_path / "absent") == []
+    assert gate.workspace_repos(tmp_path / "absent") == {}
 
 
 def test_expires_items_at_48h_and_audits(state_dir, at, state_helpers):
@@ -1110,11 +1109,12 @@ def open_pull(url=PULL, merged_at=None):
     return {"url": url, "headRefName": f"{BRANCH}x", "mergedAt": merged_at}
 
 
-def comment(number, comment_id, login, created, updated=None, *, path="issues"):
+def comment(number, comment_id, author, created, updated=None, *, path="issues", body="looks good"):
     return {
         "html_url": f"https://github.com/owner/YUI/{path}/{number}#issuecomment-{comment_id}",
         "issue_url": f"https://api.github.com/repos/owner/YUI/issues/{number}",
-        "user": {"login": login},
+        "user": {"login": author, "type": "User"},
+        "body": body,
         "created_at": created,
         "updated_at": updated or created,
     }
@@ -1125,7 +1125,7 @@ def monitor_events(state_dir):
 
 
 def comment_calls(calls):
-    return [args for args in calls if args[0] == "api" and args[1] != "user"]
+    return [args for args, _ in calls if args[0] == "api"]
 
 
 def cursor(state_dir):
@@ -1179,7 +1179,7 @@ def test_a_comment_by_someone_else_on_a_seen_artefact_files_one_event(state_dir,
     derive(state_dir, t0, tmp_path, payloads=payloads)
     page = [
         comment(9, 1, "reviewer", "2026-08-25T03:30:00Z"),
-        comment(9, 2, LOGIN, "2026-08-25T03:31:00Z"),
+        comment(9, 2, "owner", "2026-08-25T03:31:00Z", body=f"{MARKER}\nOn it."),
         comment(77, 3, "reviewer", "2026-08-25T03:32:00Z"),
         comment(4, 4, "reviewer", "2026-08-25T03:33:00Z", path="pull"),
     ]
@@ -1249,27 +1249,6 @@ def test_a_failing_comments_call_audits_and_keeps_the_cursor(state_dir, at, tmp_
     assert cursor(state_dir) == t0.isoformat()
 
 
-def test_a_failing_login_call_skips_comments_and_keeps_the_cursors(state_dir, at, tmp_path):
-    t0 = at("2026-08-25T12:00:00+09:00")
-    derive(state_dir, t0, tmp_path, payloads={("issue", "owner/YUI"): [open_issue()]})
-    calls = []
-    page = [comment(9, 1, "reviewer", "2026-08-25T03:30:00Z", "2026-08-25T05:00:00Z")]
-
-    derive(
-        state_dir,
-        t0 + timedelta(hours=3),
-        tmp_path,
-        failing=("login",),
-        calls=calls,
-        comments={"owner/YUI": page},
-    )
-
-    assert comment_calls(calls) == []
-    assert [event["source"] for event in audited(state_dir, "derive_failed")] == ["login"]
-    assert cursor(state_dir) == t0.isoformat()
-    assert monitor_events(state_dir) == []
-
-
 def test_a_failing_issue_source_keeps_the_cursor_although_comments_were_returned(state_dir, at, tmp_path):
     t0 = at("2026-08-25T12:00:00+09:00")
     derive(state_dir, t0, tmp_path)
@@ -1283,9 +1262,12 @@ def test_a_failing_issue_source_keeps_the_cursor_although_comments_were_returned
 def test_a_two_page_reply_is_read_whole_and_moves_the_cursor_though_nothing_is_filed(state_dir, at, tmp_path):
     t0 = at("2026-08-25T12:00:00+09:00")
     derive(state_dir, t0, tmp_path, payloads={("issue", "owner/YUI"): [open_issue()]})
-    first_page = [comment(9, index, LOGIN, f"2026-08-25T03:{index:02d}:00Z") for index in range(10, 15)]
+    mine = f"{MARKER}\nworking on it"
+    first_page = [
+        comment(9, index, "owner", f"2026-08-25T03:{index:02d}:00Z", body=mine) for index in range(10, 15)
+    ]
     second_page = [
-        comment(9, 20, LOGIN, "2026-08-25T03:30:00Z", "2026-08-25T06:00:00Z"),
+        comment(9, 20, "owner", "2026-08-25T03:30:00Z", "2026-08-25T06:00:00Z", body=mine),
         {"html_url": f"{ISSUE}#issuecomment-21", "created_at": "2026-08-25T03:31:00Z", "updated_at": "nope"},
         {**comment(9, 22, "reviewer", "2026-08-25T03:32:00Z"), "user": None},
     ]
@@ -1342,10 +1324,10 @@ def test_the_creation_stamp_decides_and_an_edit_brings_back_a_missed_comment(sta
     assert monitor_events(state_dir) == [(f"reviewer commented on {ISSUE}", f"{ISSUE}#issuecomment-2")]
 
 
-def test_a_repository_bootstraps_its_cursor_only_when_login_and_both_sources_answer(state_dir, at, tmp_path):
+def test_a_repository_bootstraps_its_cursor_only_when_both_sources_answer(state_dir, at, tmp_path):
     t0 = at("2026-08-25T12:00:00+09:00")
 
-    for failing in (("login",), ("pr",), ("issue",)):
+    for failing in (("pr",), ("issue",)):
         derive(state_dir, t0, tmp_path, failing=failing)
         assert cursor(state_dir) is None
 
@@ -1501,7 +1483,7 @@ def test_workspace_repos_drops_an_origin_whose_owner_or_name_is_not_a_slug(tmp_p
     git_repo(workspace, "parent", "https://github.com/../YUI.git")
     git_repo(workspace, "dots", "https://github.com/owner/...git")
 
-    assert gate.workspace_repos(workspace) == ["owner/YUI"]
+    assert gate.workspace_repos(workspace) == {"owner/YUI": workspace / "YUI"}
 
 
 def test_a_comment_by_a_bot_files_nothing(state_dir, at, tmp_path):
@@ -1538,3 +1520,108 @@ def test_a_comment_entry_missing_a_field_is_skipped_on_its_own(state_dir, at, tm
 
     assert monitor_events(state_dir) == [(f"reviewer commented on {ISSUE}", f"{ISSUE}#issuecomment-2")]
     assert audited(state_dir, "derive_failed") == []
+
+
+def test_a_comment_carrying_the_marker_is_the_agent_s_whichever_account_posted_it(state_dir, at, tmp_path):
+    t0 = at("2026-08-25T12:00:00+09:00")
+    payloads = {("issue", "owner/YUI"): [open_issue()]}
+    derive(state_dir, t0, tmp_path, payloads=payloads)
+    page = [
+        comment(9, 1, "owner", "2026-08-25T03:30:00Z", body=f"{MARKER}\nI opened a follow-up."),
+        comment(9, 2, "owner", "2026-08-25T03:31:00Z", body="Thanks, merging after lunch."),
+    ]
+
+    derive(state_dir, t0 + timedelta(hours=1), tmp_path, payloads=payloads, comments={"owner/YUI": page})
+
+    assert monitor_events(state_dir) == [(f"owner commented on {ISSUE}", f"{ISSUE}#issuecomment-2")]
+
+
+def test_the_gate_reads_github_without_asking_who_gh_acts_as(state_dir, at, tmp_path):
+    t0 = at("2026-08-25T12:00:00+09:00")
+    payloads = {("issue", "owner/YUI"): [open_issue()], ("pr", "owner/YUI"): [open_pull()]}
+    page = {"owner/YUI": [comment(9, 1, "reviewer", "2026-08-25T03:30:00Z", "2026-08-25T05:00:00Z")]}
+    calls = []
+
+    derive(state_dir, t0, tmp_path, payloads=payloads, calls=calls)
+    assert cursor(state_dir) == t0.isoformat()
+    derive(state_dir, t0 + timedelta(hours=3), tmp_path, payloads=payloads, comments=page, calls=calls)
+
+    assert desire_config.parse_timestamp(cursor(state_dir)) == at("2026-08-25T05:00:00+00:00")
+    assert monitor_events(state_dir) == [(f"reviewer commented on {ISSUE}", f"{ISSUE}#issuecomment-1")]
+    assert [args for args, _ in calls if args[:2] == ["api", "user"]] == []
+    lists = [args for args, _ in calls if args[1] == "list"]
+    assert len(lists) == 4
+    for args in lists:
+        assert "--author" not in args
+        assert args[args.index("--state") + 1] == "all"
+        assert args[args.index("--limit") + 1] == "100"
+
+
+def test_every_gh_call_for_a_repository_runs_inside_its_first_workspace_clone(state_dir, at, tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    first = git_repo(workspace, "YUI", "https://github.com/owner/YUI.git")
+    git_repo(workspace, "YUI-clone", "https://github.com/owner/YUI.git")
+    memory = git_repo(workspace, "memory_layer", "https://github.com/owner/memory_layer.git")
+    payloads = {
+        ("pr", "owner/YUI"): [open_pull()],
+        ("issue", "owner/memory_layer"): [open_issue("https://github.com/owner/memory_layer/issues/3")],
+    }
+    t0 = at("2026-08-25T12:00:00+09:00")
+    calls = []
+
+    run_gate(state_dir, t0, workspace_root=workspace, run_gh=gh_runner(payloads, calls=calls))
+    run_gate(
+        state_dir, t0 + timedelta(hours=1), workspace_root=workspace, run_gh=gh_runner(payloads, calls=calls)
+    )
+
+    def repo_of(args):
+        if args[0] == "api":
+            return args[1].removeprefix("repos/").split("/issues/")[0]
+        if args[1] == "view":
+            return "/".join(args[2].split("/")[3:5])
+        return args[args.index("--repo") + 1]
+
+    assert {("api",) if args[0] == "api" else tuple(args[:2]) for args, _ in calls} == {
+        ("pr", "list"),
+        ("issue", "list"),
+        ("api",),
+        ("pr", "view"),
+        ("issue", "view"),
+    }
+    assert {(repo_of(args), cwd) for args, cwd in calls} == {
+        ("owner/YUI", first),
+        ("owner/memory_layer", memory),
+    }
+
+
+def test_a_view_of_an_artefact_whose_repository_left_the_workspace_runs_without_a_cwd(
+    state_dir, at, tmp_path
+):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    git_repo(workspace, "YUI", "https://github.com/owner/YUI.git")
+    gone = git_repo(workspace, "memory_layer", "https://github.com/owner/memory_layer.git")
+    url = "https://github.com/owner/memory_layer/pull/2"
+    t0 = at("2026-08-25T12:00:00+09:00")
+    run_gate(
+        state_dir,
+        t0,
+        workspace_root=workspace,
+        run_gh=gh_runner({("pr", "owner/memory_layer"): [open_pull(url)]}),
+    )
+    shutil.rmtree(gone)
+    calls = []
+
+    run_gate(
+        state_dir,
+        t0 + timedelta(hours=1),
+        workspace_root=workspace,
+        run_gh=gh_runner(
+            {}, views={url: {"state": "MERGED", "mergedAt": "2026-08-25T03:00:00Z"}}, calls=calls
+        ),
+    )
+
+    assert [(args, cwd) for args, cwd in calls if args[1] == "view"] == [
+        (["pr", "view", url, "--json", "state,mergedAt"], None)
+    ]
