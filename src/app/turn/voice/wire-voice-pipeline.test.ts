@@ -991,7 +991,7 @@ describe("wireVoicePipeline", () => {
     onSpeechActive();
     expect(mocks.speechPlayback.interrupt).not.toHaveBeenCalled();
 
-    state.voice.turnOutput.delta("여기 있어.");
+    state.voice.turnOutput.delta("여기 있어.", { turn_id: "7", event_name: "user.text_submitted" });
     state.voice.turnOutput.end();
     onSpeechActive();
     expect(mocks.speechPlayback.interrupt).toHaveBeenCalledWith({ muteCurrentTurn: true });
@@ -1013,7 +1013,7 @@ describe("wireVoicePipeline", () => {
     const onSpeechActive = (mocks.captured.sttVad as SttVadOptions).onSpeechActive!;
 
     state.setBargeIn(true);
-    state.voice.turnOutput.delta("여기 있어.");
+    state.voice.turnOutput.delta("여기 있어.", { turn_id: "7", event_name: "user.text_submitted" });
     state.voice.turnOutput.end();
     onSpeechActive();
 
@@ -1030,7 +1030,7 @@ describe("wireVoicePipeline", () => {
     onSpeechActive();
     expect(state.onBargeIn).not.toHaveBeenCalled();
 
-    state.voice.turnOutput.delta("여기 있어.");
+    state.voice.turnOutput.delta("여기 있어.", { turn_id: "7", event_name: "user.text_submitted" });
     state.voice.turnOutput.end();
     onSpeechActive();
     expect(state.onBargeIn).toHaveBeenCalledOnce();
@@ -1043,7 +1043,7 @@ describe("wireVoicePipeline", () => {
 
     state.setBargeIn(true);
     state.voice.turnOutput.thinkingStart(1);
-    state.voice.turnOutput.delta("여기 있어.");
+    state.voice.turnOutput.delta("여기 있어.", { turn_id: "7", event_name: "user.text_submitted" });
     state.voice.turnOutput.end();
     onSpeechActive();
 

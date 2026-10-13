@@ -1,9 +1,4 @@
-/**
- * previous-turn.test.ts — the one-slot record of how the last turn with backend speech ended.
- *
- * Storage and clock are injected; the speaking turn is whatever the injected currentTurn returns
- * at utteranceStart, matching the dispatcher's turnLog.current() at the first backend delta.
- */
+// Playback reports identity directly; storage and clock are injected.
 
 import { describe, expect, it } from "vitest";
 import type { PreviousTurn } from "../../contract";
@@ -37,38 +32,51 @@ function turnOf(id: number, event_name: string): Turn {
   return { id, trigger };
 }
 
+function identityOf(turn: Turn) {
+  return { turn_id: String(turn.id), event_name: turn.trigger.event_name };
+}
+
 function makeSlot(current: Turn | null, initial: unknown = null) {
   const storage = memoryStorage(initial);
   const slot = createPreviousTurn({
-    currentTurn: () => current,
     storage,
     now: () => NOW,
   });
-  return { slot, storage };
+  return { slot, storage, identity: identityOf(current ?? turnOf(0, "backend")) };
 }
 
 describe("createPreviousTurn — an utterance that opened and closed", () => {
   it("saves complete for the turn that was speaking", () => {
     const turn = turnOf(1, "user.text_submitted");
-    const { slot, storage } = makeSlot(turn);
+    const { slot, storage, identity } = makeSlot(turn);
 
-    slot.utteranceStart();
-    slot.utteranceEnd("complete");
+    slot.utteranceStart(identity);
+    slot.utteranceEnd("complete", undefined, identity);
 
     expect(storage.saved).toEqual([
-      { event_name: "user.text_submitted", ended: "complete", ts: NOW },
+      { turn_id: identity.turn_id, event_name: "user.text_submitted", ended: "complete", ts: NOW },
     ]);
-    expect(slot.get()).toEqual({ event_name: "user.text_submitted", ended: "complete", ts: NOW });
+    expect(slot.get()).toEqual({
+      turn_id: identity.turn_id,
+      event_name: "user.text_submitted",
+      ended: "complete",
+      ts: NOW,
+    });
   });
 
   it("saves interrupted when the utterance was cut", () => {
-    const { slot, storage } = makeSlot(turnOf(2, "time_milestone.first_activity"));
+    const { slot, storage, identity } = makeSlot(turnOf(2, "time_milestone.first_activity"));
 
-    slot.utteranceStart();
-    slot.utteranceEnd("interrupted");
+    slot.utteranceStart(identity);
+    slot.utteranceEnd("interrupted", undefined, identity);
 
     expect(storage.saved).toEqual([
-      { event_name: "time_milestone.first_activity", ended: "interrupted", ts: NOW },
+      {
+        turn_id: identity.turn_id,
+        event_name: "time_milestone.first_activity",
+        ended: "interrupted",
+        ts: NOW,
+      },
     ]);
   });
 });
@@ -85,7 +93,9 @@ describe("createPreviousTurn — a call that failed before any speech", () => {
 
     slot.callFailed(turn, reason);
 
-    expect(storage.saved).toEqual([{ event_name: "agent.done", ended: "failed", ts: NOW }]);
+    expect(storage.saved).toEqual([
+      { turn_id: "3", event_name: "agent.done", ended: "failed", ts: NOW },
+    ]);
   });
 
   it.each(["not_configured", "superseded_by_user"] as const)("saves nothing for %s", (reason) => {
@@ -104,67 +114,56 @@ describe("createPreviousTurn — a failure after the turn already spoke", () => 
     const spoken = turnOf(5, "user.text_submitted");
     const later = turnOf(6, "proactive.tap_bored");
     const storage = memoryStorage();
-    let current: Turn = spoken;
+    const identity = identityOf(spoken);
     const slot = createPreviousTurn({
-      currentTurn: () => current,
       storage,
       now: () => NOW,
     });
 
-    slot.utteranceStart();
-    slot.utteranceEnd("interrupted");
+    slot.utteranceStart(identity);
+    slot.utteranceEnd("interrupted", undefined, identity);
+    slot.utteranceStart({ turn_id: "hermes-1", event_name: "backend" });
     slot.callFailed(spoken, "network_stall");
 
     expect(slot.get()).toEqual({
+      turn_id: identity.turn_id,
       event_name: "user.text_submitted",
       ended: "interrupted",
       ts: NOW,
     });
 
-    current = later;
     slot.callFailed(later, "network_drop");
 
-    expect(slot.get()).toEqual({ event_name: "proactive.tap_bored", ended: "failed", ts: NOW });
+    expect(slot.get()).toEqual({
+      turn_id: "6",
+      event_name: "proactive.tap_bored",
+      ended: "failed",
+      ts: NOW,
+    });
   });
 });
 
 describe("createPreviousTurn — the speaking turn is fixed at the start", () => {
   it("saves the turn that was current at utteranceStart, not the one current at the end", () => {
     const storage = memoryStorage();
-    let current = turnOf(9, "time_milestone.first_activity");
+    const identity = identityOf(turnOf(9, "time_milestone.first_activity"));
     const slot = createPreviousTurn({
-      currentTurn: () => current,
       storage,
       now: () => NOW,
     });
 
-    slot.utteranceStart();
-    current = turnOf(10, "user.text_submitted");
-    slot.utteranceEnd("interrupted");
+    slot.utteranceStart(identity);
+    slot.utteranceStart(identityOf(turnOf(10, "user.text_submitted")));
+    slot.utteranceEnd("interrupted", undefined, identity);
 
     expect(storage.saved).toEqual([
-      { event_name: "time_milestone.first_activity", ended: "interrupted", ts: NOW },
+      {
+        turn_id: identity.turn_id,
+        event_name: "time_milestone.first_activity",
+        ended: "interrupted",
+        ts: NOW,
+      },
     ]);
-  });
-});
-
-describe("createPreviousTurn — nothing to record", () => {
-  it("an utteranceEnd with no utteranceStart saves nothing", () => {
-    const { slot, storage } = makeSlot(turnOf(7, "user.text_submitted"));
-
-    slot.utteranceEnd("complete");
-
-    expect(storage.saved).toEqual([]);
-  });
-
-  it("an utteranceStart with no current turn saves nothing, and neither does its end", () => {
-    const { slot, storage } = makeSlot(null);
-
-    slot.utteranceStart();
-    slot.utteranceEnd("complete");
-
-    expect(storage.saved).toEqual([]);
-    expect(slot.get()).toBeUndefined();
   });
 });
 
@@ -192,16 +191,21 @@ describe("createPreviousTurn — the stored value at creation", () => {
 
 describe("createPreviousTurn — what the user heard of a cut-off reply", () => {
   it("keeps the last 50 characters spoken and the first 50 still owed", () => {
-    const { slot, storage } = makeSlot(turnOf(11, "user.text_submitted"));
+    const { slot, storage, identity } = makeSlot(turnOf(11, "user.text_submitted"));
 
-    slot.utteranceStart();
-    slot.utteranceEnd("interrupted", {
-      spoken: `${"x".repeat(60)}END`,
-      unspoken: `START${"y".repeat(60)}`,
-    });
+    slot.utteranceStart(identity);
+    slot.utteranceEnd(
+      "interrupted",
+      {
+        spoken: `${"x".repeat(60)}END`,
+        unspoken: `START${"y".repeat(60)}`,
+      },
+      identity,
+    );
 
     expect(storage.saved).toEqual([
       {
+        turn_id: identity.turn_id,
         event_name: "user.text_submitted",
         ended: "interrupted",
         ts: NOW,
@@ -212,13 +216,17 @@ describe("createPreviousTurn — what the user heard of a cut-off reply", () => 
   });
 
   it("cuts on whole characters, so one outside the basic plane never lands halved", () => {
-    const { slot, storage } = makeSlot(turnOf(17, "user.text_submitted"));
+    const { slot, storage, identity } = makeSlot(turnOf(17, "user.text_submitted"));
 
-    slot.utteranceStart();
-    slot.utteranceEnd("interrupted", {
-      spoken: `\u{1F600}${"b".repeat(49)}`,
-      unspoken: `${"a".repeat(49)}\u{1F600}${"c".repeat(10)}`,
-    });
+    slot.utteranceStart(identity);
+    slot.utteranceEnd(
+      "interrupted",
+      {
+        spoken: `\u{1F600}${"b".repeat(49)}`,
+        unspoken: `${"a".repeat(49)}\u{1F600}${"c".repeat(10)}`,
+      },
+      identity,
+    );
 
     expect(storage.saved.at(-1)).toMatchObject({
       spoken: `\u{1F600}${"b".repeat(49)}`,
@@ -227,36 +235,42 @@ describe("createPreviousTurn — what the user heard of a cut-off reply", () => 
   });
 
   it("stores neither part for a completed utterance", () => {
-    const { slot, storage } = makeSlot(turnOf(12, "user.text_submitted"));
+    const { slot, storage, identity } = makeSlot(turnOf(12, "user.text_submitted"));
 
-    slot.utteranceStart();
-    slot.utteranceEnd("complete", { spoken: "all of it", unspoken: "" });
+    slot.utteranceStart(identity);
+    slot.utteranceEnd("complete", { spoken: "all of it", unspoken: "" }, identity);
 
     expect(storage.saved).toEqual([
-      { event_name: "user.text_submitted", ended: "complete", ts: NOW },
+      { turn_id: identity.turn_id, event_name: "user.text_submitted", ended: "complete", ts: NOW },
     ]);
   });
 
   it("stores neither part when both halves are empty", () => {
-    const { slot, storage } = makeSlot(turnOf(13, "user.text_submitted"));
+    const { slot, storage, identity } = makeSlot(turnOf(13, "user.text_submitted"));
 
-    slot.utteranceStart();
-    slot.utteranceEnd("interrupted", { spoken: "", unspoken: "" });
+    slot.utteranceStart(identity);
+    slot.utteranceEnd("interrupted", { spoken: "", unspoken: "" }, identity);
 
     expect(storage.saved).toEqual([
-      { event_name: "user.text_submitted", ended: "interrupted", ts: NOW },
+      {
+        turn_id: identity.turn_id,
+        event_name: "user.text_submitted",
+        ended: "interrupted",
+        ts: NOW,
+      },
     ]);
   });
 
   it("records the interruption of the second utterance after the first completed", () => {
-    const { slot, storage } = makeSlot(turnOf(14, "push.render"));
+    const { slot, storage, identity } = makeSlot(turnOf(14, "push.render"));
 
-    slot.utteranceStart();
-    slot.utteranceStart();
-    slot.utteranceEnd("complete");
-    slot.utteranceEnd("interrupted", { spoken: "heard this", unspoken: "owed this" });
+    slot.utteranceStart(identity);
+    slot.utteranceStart(identity);
+    slot.utteranceEnd("complete", undefined, identity);
+    slot.utteranceEnd("interrupted", { spoken: "heard this", unspoken: "owed this" }, identity);
 
     expect(storage.saved.at(-1)).toEqual({
+      turn_id: identity.turn_id,
       event_name: "push.render",
       ended: "interrupted",
       ts: NOW,
@@ -265,21 +279,20 @@ describe("createPreviousTurn — what the user heard of a cut-off reply", () => 
     });
   });
 
-  it("names the utterance opened most recently when two overlap", () => {
+  it("names the explicitly reported utterance when two overlap", () => {
     const storage = memoryStorage();
-    let current = turnOf(15, "user.text_submitted");
+    const identity = identityOf(turnOf(15, "user.text_submitted"));
     const slot = createPreviousTurn({
-      currentTurn: () => current,
       storage,
       now: () => NOW,
     });
 
-    slot.utteranceStart();
-    current = turnOf(16, "push.render");
-    slot.utteranceStart();
-    slot.utteranceEnd("interrupted", { spoken: "heard this", unspoken: "owed this" });
+    slot.utteranceStart(identity);
+    const next = identityOf(turnOf(16, "backend"));
+    slot.utteranceStart(next);
+    slot.utteranceEnd("interrupted", { spoken: "heard this", unspoken: "owed this" }, next);
 
-    expect(storage.saved.at(-1)).toMatchObject({ event_name: "push.render" });
+    expect(storage.saved.at(-1)).toMatchObject({ event_name: "backend", turn_id: "16" });
   });
 });
 

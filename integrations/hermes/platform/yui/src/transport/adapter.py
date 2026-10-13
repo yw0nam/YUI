@@ -36,6 +36,7 @@ from ..speech import speech
 from ..tools import handler, pending, registry
 from ..turns import state
 from .frames import MAX_FRAME_BYTES, MAX_TURN_BYTES, encoded, fit_frame
+from .playback import handle_playback
 from .turn_images import cache_turn_images
 
 logger = logging.getLogger(__name__)
@@ -297,6 +298,8 @@ class YuiAdapter(BasePlatformAdapter):
         kind = frame.get("type")
         if kind == "turn":
             await self._on_turn(chat_id, frame)
+        elif kind == "playback":
+            await handle_playback(frame, self._source(chat_id), self.handle_message)
         elif kind == "vocabulary":
             self._publish_vocabulary(chat_id, frame.get("vocabulary"))
         elif kind == "reset":

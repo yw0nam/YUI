@@ -61,7 +61,7 @@ beforeEach(() => {
       sentIds.push(frame.turn_id);
       return true;
     },
-    onPushTurnSent: (turnId) => pushTurns.opened(turnId),
+    onPushTurnSent: pushTurns.opened,
     onPushTurnCut: () => pushTurns.cut(),
     pushTurns,
     onPushSocketNotReady: () => () => {},

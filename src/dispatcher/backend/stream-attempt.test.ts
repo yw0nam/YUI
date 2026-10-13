@@ -33,7 +33,10 @@ describe("createStreamAttempt", () => {
       status: 404,
       streamedAny: true,
     });
-    expect(turnOutput.delta).toHaveBeenCalledWith("hello");
+    expect(turnOutput.delta).toHaveBeenCalledWith("hello", {
+      turn_id: "1",
+      event_name: "user.text_submitted",
+    });
     expect(turnOutput.abort).toHaveBeenCalledTimes(1);
   });
 });

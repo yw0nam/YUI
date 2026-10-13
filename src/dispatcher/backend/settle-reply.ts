@@ -80,7 +80,10 @@ export function createReplySettler(deps: SettleDeps, log: Logger): ReplySettler 
       log.debug("speech", { text: envelope.speech_text });
     } else if (envelope.speech_text?.trim() && !silentToken) {
       // Legacy fallback: backend that only provides completed without delta.
-      deps.turnOutput?.speak(envelope.speech_text);
+      deps.turnOutput?.speak(envelope.speech_text, {
+        turn_id: String(args.turnId),
+        event_name: args.getEventName(),
+      });
       log.debug("speech", { text: envelope.speech_text });
     } else {
       log.info("empty_speech", { trigger: args.getEventName() });

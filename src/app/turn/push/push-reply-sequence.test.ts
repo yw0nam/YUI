@@ -109,8 +109,8 @@ function setup() {
     thinkingEnd: () => {
       if (!speechPlayback.holdMotion(false)) renderer.playMotion(null);
     },
-    delta: (text) => speechPlayback.onSpeechDelta(text),
-    speak: (text) => speechPlayback.onSpeech(text),
+    delta: (text, identity) => speechPlayback.onSpeechDelta(text, identity),
+    speak: (text, identity) => speechPlayback.onSpeech(text, identity),
     end: () => speechPlayback.onSpeechEnd(),
     abort: () => speechPlayback.abort(),
     cue: (args) => speechPlayback.setCue(args),

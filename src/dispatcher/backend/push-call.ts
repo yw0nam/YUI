@@ -20,7 +20,7 @@ export interface PushCallDeps extends TurnRecordingDeps {
   /** The byte room the backend's stated turn size leaves for the frame's images. */
   pushImageRoom?: (frame: PushTurnFrame) => number | undefined;
   /** The socket accepted this turn's frame. */
-  onPushTurnSent?: (turnId: string) => void;
+  onPushTurnSent?: (turnId: string, eventName: string) => void;
   /** Push turn store — the call waits on it for the turn_end that closes its turn. */
   pushTurns?: Pick<PushTurns, "awaitTurnEnd" | "abandon">;
   /** Speech lifecycle port — the voice pipeline implements it. */
@@ -169,7 +169,7 @@ export function createPushCall(deps: PushCallDeps, log: Logger): PushCall {
       log.warn("network_drop", { stage: "push", event_name: env.event_name });
       return "network_drop";
     }
-    deps.onPushTurnSent?.(String(turn.id));
+    deps.onPushTurnSent?.(String(turn.id), env.event_name);
     // The reply speaks from its own render frame, so this call never speaks.
     log.info("push_turn", { event_name: env.event_name, turn_id: String(turn.id) });
     // The reply arrives on its own later and is appended there; this half is the user's.

@@ -139,7 +139,7 @@ describe("filler scheduling after a barge-in", () => {
     onSpeechActive();
 
     // The muted turn completes on the non-streaming path, which still ends thinking-window speech.
-    voice.turnOutput.speak("こんにちは");
+    voice.turnOutput.speak("こんにちは", { turn_id: "7", event_name: "user.text_submitted" });
     await drainTimers(20);
 
     expect(mocks.sink.play).toHaveBeenCalledTimes(1);

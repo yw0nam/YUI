@@ -25,6 +25,7 @@ import type {
 import type { PushSocketState } from "../../../io/chat/push/push-socket";
 import { type ClientTool, createClientToolRegistry } from "../../../io/chat/tools/client-tools";
 
+import { wirePlayback } from "./playback";
 import { wirePushMode, wirePushTransport, wireStopButton } from "./wire-push";
 
 function fakeSocket() {
@@ -168,9 +169,8 @@ function wire(
   tools: readonly ClientTool[] = [],
   previousTurn?: { subscribe(cb: (record: PreviousTurn) => void): () => void },
 ) {
-  return wirePushTransport({
+  const disposeTransport = wirePushTransport({
     socket,
-    previousTurn,
     tools: createClientToolRegistry(tools),
     turnOutput,
     pushTurns,
@@ -182,6 +182,11 @@ function wire(
     reportSpokeText: (turnId, spoke) => turnLog.setSpokeText(turnId, spoke),
     log,
   });
+  const disposePlayback = previousTurn ? wirePlayback({ socket, previousTurn }) : () => {};
+  return () => {
+    disposePlayback();
+    disposeTransport();
+  };
 }
 
 beforeEach(() => {
@@ -206,16 +211,25 @@ describe("wirePushTransport", () => {
 
     expect(turnOutput.cueWithSpeech).toHaveBeenCalledWith({ emotion_id: "happy" });
     // The trailing newline is the segment boundary render-turn closes each segment with.
-    expect(turnOutput.delta).toHaveBeenCalledWith("All green.\n");
+    expect(turnOutput.delta).toHaveBeenCalledWith("All green.\n", {
+      turn_id: "7",
+      event_name: "backend",
+    });
     expect(records).toHaveLength(1);
   });
 
   it("marks the turn the render belongs to as having spoken text", () => {
     const turn = turnLog.begin(userEnv());
+    pushTurns.opened(String(turn.id), turn.trigger.event_name);
     wire();
+    socket.pushTurnEnd({ type: "turn_end", turn_id: String(turn.id) });
     socket.pushRender({ ...RENDER, turn_id: String(turn.id) });
 
     expect(turnLog.didSpeakText()).toBe(true);
+    expect(turnOutput.delta).toHaveBeenCalledWith("All green.\n", {
+      turn_id: String(turn.id),
+      event_name: turn.trigger.event_name,
+    });
   });
 
   it("leaves the turn's flag alone for a render whose id names no ledger turn", () => {
@@ -560,8 +574,14 @@ describe("wirePushTransport — speech frames", () => {
     socket.pushSpeech(SPEECH);
     socket.pushSpeech({ ...SPEECH, segments: [{ speech: "Every one." }] });
 
-    expect(turnOutput.delta).toHaveBeenCalledWith("All green.\n");
-    expect(turnOutput.delta).toHaveBeenCalledWith("Every one.\n");
+    expect(turnOutput.delta).toHaveBeenCalledWith("All green.\n", {
+      turn_id: "7",
+      event_name: "backend",
+    });
+    expect(turnOutput.delta).toHaveBeenCalledWith("Every one.\n", {
+      turn_id: "7",
+      event_name: "backend",
+    });
     expect(turnOutput.end).not.toHaveBeenCalled();
 
     socket.pushRender({ ...RENDER, segments: [] });

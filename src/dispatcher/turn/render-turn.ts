@@ -24,7 +24,7 @@
  * the barge-in mute.
  */
 
-import type { ExpressArgs } from "../../contract";
+import type { ExpressArgs, UtteranceIdentity } from "../../contract";
 import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
 import type { RenderFrame, RenderSegment, SpeechFrame } from "../../io/chat/push/push-frames";
 import { buildRenderRecord, type RenderRecord } from "../../io/chat/record/turn-record-log";
@@ -38,6 +38,7 @@ const baseLog = createLogger("render-turn");
 
 export interface RenderTurnDeps {
   turnOutput: TurnOutput;
+  identity?: (turnId: string) => UtteranceIdentity;
   /** Which push turns the user stopped — a frame of one of them never plays. */
   pushTurns: Pick<PushTurns, "rendered" | "isCut" | "cutCount">;
   /** Conversation transcript — the reply half of a push turn lands here. */
@@ -116,7 +117,10 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
         if (Object.keys(cue).length > 0) deps.turnOutput.cueWithSpeech(cue);
         // The newline is a sentence boundary to the segmenter, so a segment that ends without a
         // terminator still closes here instead of running into the next segment and its cue.
-        deps.turnOutput.delta(`${speech}\n`);
+        deps.turnOutput.delta(
+          `${speech}\n`,
+          deps.identity?.(turnId) ?? { turn_id: turnId, event_name: "backend" },
+        );
         said.push(speech.trim());
         spokeText = true;
         continue;

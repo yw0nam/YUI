@@ -1,5 +1,5 @@
 import type { AppConfig } from "../../../config/load";
-import type { EndpointsConfig } from "../../../contract";
+import type { EndpointsConfig, UtteranceIdentity } from "../../../contract";
 import type { TurnFailure } from "../../../dispatcher/backend/backend-caller";
 import type { TurnLog } from "../../../dispatcher/turn/turn";
 import type { TurnOutput } from "../../../dispatcher/turn/turn-output";
@@ -53,9 +53,13 @@ interface VoicePipelineDeps {
   voiceInputStatus: Pick<VoiceInputStatus, "set">;
   onVoiceSegment: (text: string) => void;
   /** A backend utterance opened. */
-  onUtteranceStart: () => void;
-  /** The backend utterance opened by the last onUtteranceStart closed. */
-  onUtteranceEnd: (ended: "complete" | "interrupted", split?: SpokenSplit) => void;
+  onUtteranceStart: (identity: UtteranceIdentity) => void;
+  /** The reported identity names the utterance that closes. */
+  onUtteranceEnd: (
+    ended: "complete" | "interrupted",
+    split: SpokenSplit | undefined,
+    identity: UtteranceIdentity,
+  ) => void;
   /** The user talked over the reply — the renders still to come for it are dropped. */
   onBargeIn?: () => void;
   /** A sustained user utterance began, barge-in or not. */
@@ -250,8 +254,8 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     hasFiller,
     thinkingStart: onThinkingStart,
     thinkingEnd: onThinkingEnd,
-    delta: (text) => speechPlayback.onSpeechDelta(text),
-    speak: (text) => speechPlayback.onSpeech(text),
+    delta: (text, identity) => speechPlayback.onSpeechDelta(text, identity),
+    speak: (text, identity) => speechPlayback.onSpeech(text, identity),
     end: () => speechPlayback.onSpeechEnd(),
     abort: () => speechPlayback.abort(),
     cue: (args) => speechPlayback.setCue(args),

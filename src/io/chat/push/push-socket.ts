@@ -11,6 +11,7 @@ import type { ClientToolDefinition } from "../tools/client-tools";
 import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
 import {
   type DelegationItem,
+  type PlaybackFrame,
   type PushTurnFrame,
   type ReadyFrame,
   type ReasoningFrame,
@@ -84,6 +85,7 @@ export interface PushSocket {
   sendStop(turnIds: string[]): boolean;
   /** True when the frame went out; false when the socket is not ready or the frame is too large. */
   sendToolResult(frame: ToolResultFrame): boolean;
+  sendPlayback(frame: PlaybackFrame): boolean;
   /** Sends the current vocabulary when it differs from the one the backend last received. */
   sendVocabulary(): void;
   onRender(cb: (frame: RenderFrame) => void): () => void;
@@ -524,6 +526,11 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
     sendToolResult(frame): boolean {
       if (!ready) return false;
       return sendFrame(frame as unknown as Record<string, unknown>);
+    },
+
+    sendPlayback(frame): boolean {
+      if (!ready) return false;
+      return sendFrame({ ...frame });
     },
 
     sendVocabulary: syncVocabulary,

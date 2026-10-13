@@ -239,7 +239,10 @@ describe("wireTurnVoice", () => {
     });
     s.handle.quotedTurn.admitted(turn);
 
-    s.deps.onUtteranceStart();
+    const identity = { turn_id: String(turn.id), event_name: turn.trigger.event_name };
+    s.deps.onUtteranceStart(identity);
+    s.deps.onUtteranceEnd("complete", undefined, identity);
+    expect(s.handle.previousTurn.get()).toMatchObject({ ...identity, ended: "complete" });
     s.handle.quotedTurn.failed(turn);
 
     expect(s.surfaces.settleQuote).toHaveBeenCalledTimes(1);

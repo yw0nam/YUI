@@ -97,7 +97,7 @@ export function wireTurnVoice(deps: {
   const voiceInput = wireVoiceInput({ voiceInputStatus, voicePersistence, voiceHost });
   register(voiceInput.dispose);
   const turnLog = createTurnLog();
-  const previousTurn = createPreviousTurn({ currentTurn: () => turnLog.current() });
+  const previousTurn = createPreviousTurn();
   const quotedTurn = createQuotedTurn({ surfaces, turnLog });
   register(quotedTurn.dispose);
   // Voice creation precedes the walker, so the stroll query stays late-bound across that cycle.
@@ -122,8 +122,8 @@ export function wireTurnVoice(deps: {
       submitVoice(text);
       proactiveSourceRef?.noteInteraction();
     },
-    onUtteranceStart: () => {
-      previousTurn.utteranceStart();
+    onUtteranceStart: (identity) => {
+      previousTurn.utteranceStart(identity);
       quotedTurn.utteranceStart();
     },
     onUtteranceEnd: previousTurn.utteranceEnd,
