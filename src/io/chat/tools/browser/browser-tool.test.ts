@@ -6,6 +6,8 @@
  * wait passes answers that the action may have run, and its signal cancels the shell call.
  */
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BrowserShell } from "../../../browser/browser-shell";
 import { createClientToolRegistry } from "../client-tools";
@@ -66,11 +68,24 @@ describe("browser tool", () => {
     );
   });
 
-  it("reads as failed for any result that is not a snapshot", () => {
+  it("reads as failed for an error, a cancel or an unknown, and not for a completed action", () => {
     const tool = createBrowserTool({ shell: shell(), enabled: () => true });
     expect(tool.failed?.(SNAPSHOT)).toBe(false);
+    expect(tool.failed?.("done; snapshot unavailable; read again")).toBe(false);
+    expect(tool.failed?.("error: stale ref, read again")).toBe(true);
     expect(tool.failed?.("cancelled: nothing ran")).toBe(true);
     expect(tool.failed?.("unknown: click may have run; read before retrying")).toBe(true);
+  });
+
+  it("reads a snapshot behind the first line client-tools.md documents as succeeded", () => {
+    const doc = readFileSync(
+      resolve(__dirname, "../../../../../docs/reference/client-tools.md"),
+      "utf8",
+    );
+    const firstLine = /```\n(Untrusted page content[^\n]*)\n\{"page_id"/.exec(doc)?.[1];
+    expect(firstLine).toBe(SNAPSHOT.split("\n")[0]);
+    const tool = createBrowserTool({ shell: shell(), enabled: () => true });
+    expect(tool.failed?.(`${firstLine}\n{}`)).toBe(false);
   });
 
   it("answers unknown when its 32 s wait passes and aborts the shell call", async () => {

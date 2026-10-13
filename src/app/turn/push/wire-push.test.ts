@@ -644,7 +644,7 @@ describe("wirePushTransport — tool calls", () => {
     expect(signal?.aborted).toBe(true);
   });
 
-  it("shows a client-run tool's status from its own run, ignoring the backend's for it", async () => {
+  it("shows a client-run tool's status from its own run; the backend's still counts as a frame", async () => {
     let finish: ((result: string) => void) | undefined;
     const browser: ClientTool = {
       ...look,
@@ -657,8 +657,8 @@ describe("wirePushTransport — tool calls", () => {
         }),
     };
     pushTurns.opened("7", "user.text_submitted");
-    const waiter = vi.fn();
-    void pushTurns.awaitTurnEnd("7", { onToolStatus: waiter });
+    const onFrame = vi.fn();
+    void pushTurns.awaitTurnEnd("7", { onFrame });
     wire(turnFeed, [browser]);
     socket.pushToolCall({ ...frame("c1", "7"), name: "browser", arguments: { action: "read" } });
     await vi.waitFor(() => expect(finish).toBeDefined());
@@ -667,7 +667,7 @@ describe("wirePushTransport — tool calls", () => {
     expect(toolStatusSink.mock.calls).toEqual([
       [{ state: "running", tool_id: "browser", action: "read" }],
     ]);
-    expect(waiter).not.toHaveBeenCalled();
+    expect(onFrame).toHaveBeenCalledTimes(1);
 
     finish?.("Untrusted page content from the browser.\n{}");
     await vi.waitFor(() =>

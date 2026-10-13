@@ -315,3 +315,7 @@ async def test_a_non_string_result_reaches_the_model_as_text(monkeypatch, raw, t
     monkeypatch.setattr(made, "_send_frame", answer)
     result = await asyncio.to_thread(handler.handle("look"), {"at": "screen"})
     assert result["content"][0] == {"type": "text", "text": text}
+
+
+def test_the_browser_wait_outlasts_the_clients_32_s_settlement():
+    assert handler.WAITS_S["browser"] > 32.0
