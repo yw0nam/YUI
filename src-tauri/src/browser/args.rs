@@ -58,9 +58,10 @@ fn target(args: &Value) -> Result<Target, String> {
     })
 }
 
+/// The serialization of a valid http or https URL, the exact URL Chrome navigates to.
 fn web_url(raw: String) -> Result<String, String> {
     match url::Url::parse(&raw) {
-        Ok(u) if matches!(u.scheme(), "http" | "https") && u.has_host() => Ok(raw),
+        Ok(u) if matches!(u.scheme(), "http" | "https") && u.has_host() => Ok(u.into()),
         _ => Err(invalid("url")),
     }
 }

@@ -48,31 +48,21 @@ impl ProfileLock {
 pub enum Verdict {
     /// Left by a dead process on this host; the records may be removed.
     Stale,
-    Owned,
     InUse,
 }
 
 /// Judges a SingletonLock target, `<hostname>-<pid>`.
-pub fn singleton_verdict(
-    target: &str,
-    this_host: &str,
-    owned: Option<u32>,
-    alive: impl Fn(u32) -> bool,
-) -> Verdict {
+pub fn singleton_verdict(target: &str, this_host: &str, alive: impl Fn(u32) -> bool) -> Verdict {
     let Some((host, pid)) = target.rsplit_once('-') else {
         return Verdict::InUse;
     };
     let Ok(pid) = pid.parse::<u32>() else {
         return Verdict::InUse;
     };
-    if host != this_host || pid == 0 {
+    if host != this_host || pid == 0 || alive(pid) {
         Verdict::InUse
-    } else if !alive(pid) {
-        Verdict::Stale
-    } else if owned == Some(pid) {
-        Verdict::Owned
     } else {
-        Verdict::InUse
+        Verdict::Stale
     }
 }
 
@@ -119,7 +109,7 @@ fn clear_singleton(profile: &Path) -> Result<(), String> {
         .ok()
         .and_then(|t| t.to_str().map(str::to_string));
     let verdict = match (target, this_host()) {
-        (Some(target), Some(host)) => singleton_verdict(&target, &host, None, pid_alive),
+        (Some(target), Some(host)) => singleton_verdict(&target, &host, pid_alive),
         _ => Verdict::InUse,
     };
     if verdict != Verdict::Stale {
@@ -231,6 +221,9 @@ fn read_port_file(path: &Path) -> Option<String> {
 
 /// Takes the profile lock, clears stale singleton records and spawns Chrome on the dedicated profile.
 pub async fn launch(op: &Op, root: &Path) -> Result<Launched, String> {
+    if let Some(halt) = op.halt_now() {
+        return Err(op.halted(halt));
+    }
     let profile = prepare_profile(root)?;
     let lock = ProfileLock::acquire(&root.join(LOCK_FILE))?;
     clear_singleton(&profile)?;

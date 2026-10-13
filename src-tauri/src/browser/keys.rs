@@ -157,6 +157,22 @@ pub fn chord(name: &str, mac: bool) -> Option<Vec<KeyEvent>> {
     Some(events)
 }
 
+/// The key-ups for a chord cut after its first `completed` events succeeded: every key whose key-down was
+/// sent or in flight and whose key-up did not complete, released in reverse order.
+pub fn releases(events: &[KeyEvent], completed: usize) -> Vec<KeyEvent> {
+    let mut held: Vec<&KeyEvent> = Vec::new();
+    for (i, event) in events.iter().enumerate().take(completed + 1) {
+        match event.phase {
+            Phase::Down => held.push(event),
+            Phase::Up if i < completed => {
+                held.retain(|d| d.code != event.code || d.key != event.key)
+            }
+            Phase::Up => {}
+        }
+    }
+    held.iter().rev().map(|d| d.release()).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

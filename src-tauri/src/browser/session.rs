@@ -2,7 +2,7 @@
 
 use super::args::{Request, Target};
 use super::gate::{Halt, Instant, Op};
-use super::keys::{KeyEvent, Phase};
+use super::keys::{releases, KeyEvent};
 use super::lifecycle::{Launched, OwnedChild, ProfileLock};
 use super::outcome::{
     setup_failed, unknown, untrusted, DONE_NO_SNAPSHOT, PAGE_CHANGED, SETUP_FAILED, STALE_REF,
@@ -82,6 +82,11 @@ fn stale(fail: Fail) -> Fail {
         Fail::Halt(halt) => Fail::Halt(halt),
         _ => Fail::Stale,
     }
+}
+
+/// Whether a click cut after its first `completed` steps (move, press, release) may have left the button down.
+fn mouse_pressed(completed: usize) -> bool {
+    completed >= 1
 }
 
 /// A failure after the effect started.
@@ -346,21 +351,19 @@ impl Tab {
             Err(_) => return STALE_REF.to_string(),
         };
         op.effect();
-        let mut pressed = false;
-        for kind in [
+        let steps = [
             DispatchMouseEventType::MouseMoved,
             DispatchMouseEventType::MousePressed,
             DispatchMouseEventType::MouseReleased,
-        ] {
-            let is_press = kind == DispatchMouseEventType::MousePressed;
+        ];
+        for (completed, kind) in steps.into_iter().enumerate() {
             if let Err(fail) = call(op, &self.page, Self::mouse(kind, x, y)).await {
-                if pressed {
+                if mouse_pressed(completed) {
                     let release = Self::mouse(DispatchMouseEventType::MouseReleased, x, y);
                     let _ = tokio::time::timeout(RELEASE_BOUND, self.page.execute(release)).await;
                 }
                 return interrupted(op, fail);
             }
-            pressed = is_press;
         }
         self.settle(op, None, ACTION_SETTLE, revision).await
     }
@@ -401,7 +404,10 @@ impl Tab {
         let steps = async {
             let focus = FocusParams::builder().backend_node_id(id).build();
             call(shared, &self.page, focus).await?;
-            call(shared, &self.page, select).await?;
+            let selected = call(shared, &self.page, select).await?;
+            if selected.exception_details.is_some() {
+                return Err(Fail::Cdp);
+            }
             if !text.is_empty() {
                 call(shared, &self.page, InsertTextParams::new(text)).await?;
             }
@@ -416,18 +422,13 @@ impl Tab {
     async fn press_key(&self, op: &mut Op, events: &[KeyEvent], revision: &mut u64) -> String {
         lock(&self.refs).clear();
         op.effect();
-        let mut held: Vec<&KeyEvent> = Vec::new();
-        for event in events {
+        for (completed, event) in events.iter().enumerate() {
             if let Err(fail) = call(op, &self.page, event.params()).await {
-                for down in held.iter().rev() {
-                    let release = down.release().params();
-                    let _ = tokio::time::timeout(RELEASE_BOUND, self.page.execute(release)).await;
+                for up in releases(events, completed) {
+                    let _ =
+                        tokio::time::timeout(RELEASE_BOUND, self.page.execute(up.params())).await;
                 }
                 return interrupted(op, fail);
-            }
-            match event.phase {
-                Phase::Down => held.push(event),
-                Phase::Up => held.retain(|d| d.code != event.code || d.key != event.key),
             }
         }
         self.settle(op, None, ACTION_SETTLE, revision).await
@@ -508,15 +509,18 @@ impl Running {
         self.closed.is_cancelled()
     }
 
-    /// Closes the browser within a bound when `graceful`, then kills and reaps the owned process and releases the profile lock.
+    /// Closes the browser within a bound when `graceful`, waits for its exit only after a clean close, then kills
+    /// and reaps the owned process and releases the profile lock.
     pub async fn shutdown(mut self, graceful: bool) {
         if let Some(tab) = self.tab.take() {
             tab.watcher.abort();
         }
-        let graceful = graceful && !self.closed.is_cancelled();
-        if graceful {
-            let _ = tokio::time::timeout(CLOSE_BOUND, self.browser.close()).await;
-        }
+        let graceful = graceful
+            && !self.closed.is_cancelled()
+            && matches!(
+                tokio::time::timeout(CLOSE_BOUND, self.browser.close()).await,
+                Ok(Ok(_))
+            );
         let grace = if graceful { EXIT_GRACE } else { Duration::ZERO };
         let pid = self.child.pid();
         self.child.stop(grace).await;

@@ -87,6 +87,21 @@ impl Op {
     }
 
     /// Runs `fut` until it finishes, the operation is cancelled, its deadline passes or the browser closes.
+    /// Why the operation must stop before its next step, if it must.
+    pub fn halt_now(&self) -> Option<Halt> {
+        if self.token.is_cancelled() || Instant::now() >= self.deadline {
+            Some(Halt::Cancelled)
+        } else if self
+            .closed
+            .as_ref()
+            .is_some_and(CancellationToken::is_cancelled)
+        {
+            Some(Halt::Closed)
+        } else {
+            None
+        }
+    }
+
     pub async fn guard<F: Future>(&self, fut: F) -> Result<F::Output, Halt> {
         let closed = async {
             match &self.closed {
