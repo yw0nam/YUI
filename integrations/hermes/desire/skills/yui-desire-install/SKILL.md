@@ -1,7 +1,7 @@
 ---
 name: yui-desire-install
-description: "Install, update, or verify the yui-desire plugin (the agent's desire system) on this Hermes host: plugin link, env, monitor script, workspace clones, tick, reflection and report crons, kickoff."
-version: 0.1.0
+description: "Install, update, move from the monitor to the gate, or verify the yui-desire plugin (the agent's desire system) on this Hermes host: plugin link, env, gate script, workspace clones, tick, reflection and report crons, kickoff."
+version: 0.2.0
 author: yw0nam
 platforms: [linux, macos]
 prerequisites:
@@ -14,17 +14,19 @@ metadata:
 # yui-desire install
 
 Installs the desire system that lives in the YUI repository at `integrations/hermes/desire/`.
-Run every step in order; each step ends with a check. Never copy the plugin out of the checkout —
+Run every step in order; each step ends with a check. Never copy the plugin out of the checkout:
 the plugin directory and prompts are read from the repository, so `git pull` updates them in place.
 
 Replace `$YUI` below with the absolute path of the YUI checkout, `<profile>` with the Hermes profile name, and
-`<agent>` with the agent's own slug — one short lowercase word, the name every desire convention derives from.
+`<agent>` with the agent's own slug, one short lowercase word, the name every desire convention derives from.
 Every `hermes` command takes `-p <profile>`; without it the CLI acts on the global `~/.hermes` store.
 
 ## When to use
 
 - First-time install of the desire system for this profile.
-- After `git pull` in the YUI checkout, to confirm nothing on the host went stale (steps 5–9 only).
+- After `git pull` in the YUI checkout, to confirm nothing on the host went stale (steps 4–9).
+- A profile whose tick job still runs the monitor script (`Monitor:` in `hermes cron list`): step 4 and the
+  "Moving from the monitor" part of step 6.
 - When the tick cron stops running or `<desire_state>` stops appearing in requests (step 8).
 
 ## 1. Checkout
@@ -57,14 +59,14 @@ YUI_SIGNALS_URL=http://127.0.0.1:8770/signals
 DESIRE_CHAT_PLATFORMS=<the chat platforms the user speaks to the agent on>
 ```
 
-`DESIRE_AGENT_NAME` and `DESIRE_CHAT_PLATFORMS` are required: without one of them, the
-monitor and the helper stop with an error naming the missing variable and the middleware injects nothing.
-`DESIRE_STATE_DIR` is optional: without it, state lives in `desire/` under the profile directory. The plugin
-reads these settings per profile, so a gateway that serves several profiles from one process gives each profile
-its own values.
+`DESIRE_AGENT_NAME` and `DESIRE_CHAT_PLATFORMS` are required: without one of them, the gate and the helper stop
+with an error naming the missing variable and the middleware injects nothing. `DESIRE_STATE_DIR` is optional:
+without it, state lives in `desire/` under the profile directory. The plugin reads these settings per profile, so
+a gateway that serves several profiles from one process gives each profile its own values.
 
-The helper runs in the agent's terminal, and Hermes forwards a profile `.env` value to a terminal command only
-for the names the profile's `config.yaml` lists under `terminal.env_passthrough`. Add the three the helper reads:
+The helper runs in the agent's terminal and the gate runs as a cron subprocess; Hermes forwards a profile `.env`
+value to either only for the names the profile's `config.yaml` lists under `terminal.env_passthrough`. Add the
+three they read:
 
 ```yaml
 terminal:
@@ -81,41 +83,43 @@ turn from one of them counts as the user speaking even when it carries no `<clie
 through an SSH reverse tunnel, use the tunnel endpoint instead of port 8770. Check: `grep DESIRE_STATE_DIR` on the
 `.env` file prints the line.
 
-## 4. Monitor script (real file, not a symlink)
+## 4. Gate script (real file, not a symlink)
 
-Hermes resolves symlinks before checking that a monitor script stays under `~/.hermes/scripts/`; a symlink into
-the checkout is rejected as an escape. Write a real file that execs the repository script by absolute path:
+A profile's pre-run scripts live under `~/.hermes/profiles/<profile>/scripts/`. Hermes resolves symlinks before
+checking that a script stays under that directory, so a symlink into the checkout is rejected as an escape. Write
+a real file that execs the repository script by absolute path:
 
 ```bash
-printf '#!/bin/sh\nexec python3 %s/integrations/hermes/desire/decay_monitor.py\n' "$YUI" \
-  > ~/.hermes/scripts/<agent>-desire-monitor.sh
-chmod +x ~/.hermes/scripts/<agent>-desire-monitor.sh
-~/.hermes/scripts/<agent>-desire-monitor.sh
+mkdir -p ~/.hermes/profiles/<profile>/scripts
+printf '#!/bin/sh\nexec python3 %s/integrations/hermes/desire/gate.py\n' "$YUI" \
+  > ~/.hermes/profiles/<profile>/scripts/<agent>-desire-gate.sh
+chmod +x ~/.hermes/profiles/<profile>/scripts/<agent>-desire-gate.sh
+set -a; . ~/.hermes/profiles/<profile>/.env; set +a
+~/.hermes/profiles/<profile>/scripts/<agent>-desire-gate.sh
 ```
 
-Check: the last command prints one summary line (for example
-`social:low curiosity:mid accomplishment:mid outbox:0 transport:up budget:3/3sig 2/2iss 1/1cmt 0/0pr day:2026-09-01 rises:0 starved:0/0/0`).
-The monitor checks transport with an HTTP GET to `YUI_SIGNALS_URL`; any HTTP response counts as up. The
-monitor's fail-safe fallback prints the same shape with `transport:down`, so a `down` line proves nothing on its
-own. The real check is the state directory it bootstraps:
+Check: the last command prints `{"wakeAgent": false}` (nothing waits on a fresh state) and
 
 ```bash
 ls "$DESIRE_STATE_DIR"
 ```
 
-must list `drives.json`, `budget.json`, `cursor.json`, `monitor.json`, `transport.json`, `artefacts.json`,
-`outbox.jsonl`, `audit.jsonl`, `ticks.jsonl`, and `state.lock`. If it is
-empty or missing, the monitor could not write there — fix `DESIRE_STATE_DIR` before continuing.
+lists `drives.json`, `budget.json`, `transport.json`, `artefacts.json`, `gate.json`, `feelings.json`,
+`outbox.jsonl`, `audit.jsonl`, and `state.lock`. If it is empty or missing, the gate could not write there; fix
+`DESIRE_STATE_DIR` before continuing. `grep gate_error "$DESIRE_STATE_DIR/audit.jsonl"` finds nothing.
 
-That first run bootstraps `artefacts.json` from the pull requests, issues, and skills that already exist, marking
-them as seen without dosing any drive: `grep drive_satisfied "$DESIRE_STATE_DIR/audit.jsonl"` finds nothing new,
-unless a `learned` was reported before the tick. Only artefacts that appear after it are scored.
+That first run records the pull requests and issues that already exist as seen without filing an event; only what
+changes after it becomes an event. A profile that ran the monitor before keeps `wants.md`, `audit.jsonl`,
+`outbox.jsonl`, `budget.json`, `transport.json` and `artefacts.json`; `drives.json` keeps its stamps; the gate
+deletes `monitor.json`, `ticks.jsonl` and `cursor.json`; `events.jsonl`, `readings.jsonl` and `judgments.jsonl`
+start empty.
 
 ## 5. Workspace clones
 
-The agent works in every repository cloned under the profile workspace, and the monitor derives its `progressed`
-and `shipped` events from each of them. Clone the repositories the user wants the agent to work in, and create the
-`from-<agent>` label in each one the user's own GitHub account owns:
+The agent works in every repository cloned under the profile workspace, and the gate reads each of them for the
+agent's issues and pull requests, their closing and merging, and comments by others on them. Clone the
+repositories the user wants the agent to work in, and create the `from-<agent>` label in each one the user's own
+GitHub account owns:
 
 ```bash
 gh auth status
@@ -127,7 +131,9 @@ gh label create from-<agent> --repo <owner>/<repo>
 
 Check: `gh auth status` reports a logged-in account with `repo` scope, every clone exists in the workspace, and
 `gh label list --repo <owner>/<repo>` shows `from-<agent>` for each repository that account owns. A label that
-already exists makes `gh label create` exit non-zero; that is fine.
+already exists makes `gh label create` exit non-zero; that is fine. The gate runs `gh` as the gateway user, so
+that user's `gh auth status` is the one that counts; on a gateway serving several profiles, a `GH_TOKEN` in the
+profile `.env` reaches the gate only when `env_passthrough` lists it.
 
 ## 6. Cron jobs
 
@@ -141,7 +147,7 @@ python3 -c "import json,os;d=json.load(open(os.path.expanduser('~/.hermes/profil
 
 ```bash
 hermes -p <profile> cron create "every 10m" --name <agent>-desire-tick \
-  --monitor-script <agent>-desire-monitor.sh \
+  --script <agent>-desire-gate.sh \
   --deliver <target> \
   "Follow the instructions in $YUI/integrations/hermes/desire/prompts/tick.md. The configured environment is DESIRE_STATE_DIR=<state_dir> and YUI_SIGNALS_URL=<signals_url>, on Hermes profile <profile>."
 hermes -p <profile> cron create "0 23 * * 0" --name <agent>-desire-reflection \
@@ -154,26 +160,33 @@ hermes -p <profile> cron create "0 21 * * *" --name <agent>-desire-report \
 The job prompt is the file reference followed by the two values from step 3 and the profile name, nothing else;
 the prompt file is the only place the job's behaviour is written.
 
-A job that already exists keeps its own schedule and delivery target. Read its id from the job list and set them
-on it:
+Moving from the monitor: a tick job created with `--monitor-script` keeps its schedule and delivery target and
+takes the gate with one command. Read its id from the job list:
 
 ```bash
 hermes -p <profile> cron list
+hermes -p <profile> cron edit <job_id> --script <agent>-desire-gate.sh --monitor-script ""
+rm -f ~/.hermes/scripts/<agent>-desire-monitor.sh
+```
+
+A job that already exists also keeps its own schedule and delivery target when those need changing:
+
+```bash
 hermes -p <profile> cron edit <job_id> --schedule "every 10m"
 hermes -p <profile> cron edit <job_id> --deliver <target>
 ```
 
 The schedule keeps the `every` prefix: a bare `10m` runs the job once, ten minutes later.
 
-The tick only wakes a turn when the monitor's one-line summary changes; an unchanged summary suppresses the run.
-Check: `hermes -p <profile> cron list` shows the three jobs, the tick one with
-`Monitor: <agent>-desire-monitor.sh`, and the tick and report ones with `Deliver: <target>`.
+The tick wakes a turn only when the gate prints a wake line: events wait for the agent's reading, or a held note
+can be delivered. Check: `hermes -p <profile> cron list` shows the three jobs, the tick one with
+`Script: <agent>-desire-gate.sh` and no `Monitor:`, and the tick and report ones with `Deliver: <target>`.
 Without `-p`, `hermes cron list` reads the global store and does not show profile jobs. After the first
 10 minutes, the tick job's `last_status` in `~/.hermes/profiles/<profile>/cron/jobs.json` is `ok`.
 
 ## 7. Kickoff (once)
 
-Read `$YUI/integrations/hermes/desire/prompts/kickoff.md` and follow it: write 3–5 initial wants into
+Read `$YUI/integrations/hermes/desire/prompts/kickoff.md` and follow it: write the initial wants into
 `$DESIRE_STATE_DIR/wants.md` without speaking to the user.
 
 Check: `wants.md` exists and lists the wants.
@@ -189,12 +202,12 @@ yui-desire llm_request plugin=yui-desire/0.1.0 outcome=injected reason=None inte
 
 `outcome=skipped reason=…` explains why a request was left alone; `outcome=error reason=<ExceptionClass>` means the
 plugin failed open.
-The line never contains the desire block, drive levels, want text, or user content.
+The line never contains the desire block, want text, or user content.
 
 ## 9. Gateway restart (plugin code changed)
 
 The gateway process imports the middleware, so a pull that touches `__init__.py` or any `desire_*.py` module takes effect
-only after a restart. Prompts, the monitor script, and `act.py` run as subprocesses and need none. The restart ends
+only after a restart. Prompts, the gate script, and `act.py` run as subprocesses and need none. The restart ends
 every running turn, including the one that issues it, so answer first and issue it detached:
 
 ```bash
@@ -209,13 +222,11 @@ as an environment variable of the process that runs the gateway, the traceback f
 
 ## Helper commands
 
-`python3 $YUI/integrations/hermes/desire/act.py --help` lists the actions the prompts use: `signal`, `issue`,
-`comment`, `pr`, `report`, `satisfy`, `feedback`, `outbox`. Daily caps, reset at KST midnight: three signals, two
-issues, one self-initiated comment, zero pull requests (the agent opens none), and the four satisfaction events
-(`learned` 6, `progressed` 6, `shipped` 4, `praised` 4 — see the README's Action budgets table for their drive
-doses). `satisfy` accepts `learned` and `praised`; the monitor derives the other two. `report --note` carries the
-daily report to YUI and has no budget; `report --skills` prints the load counts of the skills the agent made and
-sends nothing.
+`python3 $YUI/integrations/hermes/desire/act.py --help` lists the actions the prompts use: `feel`, `correct`,
+`retract`, `judge`, `how`, `signal`, `issue`, `comment`, `pr`, `report`, `outbox`. Daily caps, reset at KST
+midnight: three signals, two issues, one self-initiated comment, zero pull requests (the agent opens none).
+`report --note` carries the daily report to YUI and has no budget. The `yui-desire` skill beside this one is the
+agent-facing description of the recording commands.
 
 ## Tests (optional, needs uv)
 
