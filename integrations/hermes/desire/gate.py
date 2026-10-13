@@ -10,11 +10,14 @@ from pathlib import Path
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 
-import desire_config
-import desire_events
-import desire_outbox
-import desire_state
-import desire_store
+if __package__:
+    from . import desire_config, desire_events, desire_outbox, desire_state, desire_store
+else:
+    import desire_config
+    import desire_events
+    import desire_outbox
+    import desire_state
+    import desire_store
 
 PROBE_TIMEOUT = 2
 GH_TIMEOUT = 60
