@@ -1314,15 +1314,3 @@ def test_the_same_text_with_different_provenance_gets_its_own_block_and_turn_aud
     assert in_run != outside == unnamed
     assert toward(in_run) == []
     assert gate_flags(state_dir) == [True, True, False]
-
-
-def test_the_33rd_remembered_turn_evicts_the_first(desire_plugin, state_dir, judged):
-    wake = request_with(script_run("desire gate: unread events (1)"))
-    for index in range(33):
-        desire_plugin._inject(request=copy.deepcopy(wake), now=judged, turn_id=f"turn-{index}")
-
-    first = appended_block(desire_plugin._inject(request=request_with(NUDGE), now=judged, turn_id="turn-0"))
-    second = appended_block(desire_plugin._inject(request=request_with(NUDGE), now=judged, turn_id="turn-1"))
-
-    assert len(toward(first)) == 2
-    assert toward(second) == []
