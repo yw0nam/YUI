@@ -53,12 +53,14 @@ def default_registry() -> dict:
 
 
 def normalize_registry(value: object) -> dict:
+    """Return a valid registry as it was read, so a hand-edited file is never rewritten."""
+
     if not isinstance(value, dict) or not isinstance(value.get("names"), list):
         raise TypeError("feelings registry must be an object with a names list")
     names = value["names"]
     if not all(isinstance(name, str) and name for name in names) or len(set(names)) != len(names):
         raise ValueError("feeling names must be non-empty distinct text")
-    return {"names": list(names)}
+    return value
 
 
 def registry(state_dir: Path) -> list[str]:
