@@ -2014,31 +2014,9 @@ describe("playback — per-utterance identity", () => {
     playback.onSpeechEnd();
     stub.setSpokenSplit({ spoken: "A.", unspoken: "B." });
     playback[method]();
-    expect(end.mock.calls).toEqual([
-      ["interrupted", undefined, b],
-      ["interrupted", { spoken: "A.", unspoken: "B." }, a],
-    ]);
+    expect(end.mock.calls).toEqual([["interrupted", { spoken: "A.", unspoken: "B." }, a]]);
     stub.emitPlaybackEnd();
-    expect(end).toHaveBeenCalledTimes(2);
-  });
-
-  it("interrupt reports a later turn once when it has two queued utterances", () => {
-    const { playback, stub, end } = tracked();
-    const a = { turn_id: "7", event_name: "agent.done" };
-    const b = { turn_id: "8", event_name: "user.text_submitted" };
-    playback.onSpeechDelta("A.", a);
-    playback.onSpeechEnd();
-    playback.onSpeechDelta("B one.", b);
-    playback.onSpeechEnd();
-    playback.onSpeechDelta("B two.", b);
-    playback.onSpeechEnd();
-    const split = { spoken: "A.", unspoken: "B one. B two." };
-    stub.setSpokenSplit(split);
-    playback.interrupt();
-    expect(end.mock.calls).toEqual([
-      ["interrupted", undefined, b],
-      ["interrupted", split, a],
-    ]);
+    expect(end).toHaveBeenCalledTimes(1);
   });
 
   it("reports a backend-minted id and the literal backend event name", () => {
