@@ -4,12 +4,13 @@ import type { ClientToolRegistry } from "../tools/client-tools";
 
 /**
  * On Responses, a configured broker means the backend owns generate_express, so the client declares
- * no tools and answers nothing. Chat Completions never reaches the broker's backend tool.
+ * no tools and answers nothing. Chat Completions and push keep the client's tools.
  */
 export function clientToolsUnlessBrokered(
   endpoints: EndpointsConfig,
   tools: ClientToolRegistry,
 ): ClientToolRegistry | undefined {
   const brokered = (endpoints.broker_base_url ?? "").trim() !== "";
-  return brokered && endpoints.chat_api !== "chat_completions" ? undefined : tools;
+  const responses = endpoints.chat_api === undefined || endpoints.chat_api === "responses";
+  return brokered && responses ? undefined : tools;
 }
