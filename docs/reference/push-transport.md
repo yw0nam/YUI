@@ -14,7 +14,7 @@ The client renders what arrives and judges nothing. Everything the backend must 
 | Images the user attaches | `image_url` parts | `input_image` parts | In `turn.images`, after the screenshot, when the backend states `max_turn_bytes`; otherwise None |
 | Client-declared tools and their results ([client-tools.md](client-tools.md)) | `tools[]` on every request | `tools[]` on every request while `broker_base_url` is unset | `tool_call` for a tool the client declared in `hello.tools`, answered with `tool_result`. Cues arrive in `render` and `speech` segments |
 | Server error text on a failed user turn | Status and server text of an HTTP error on the request, 401 and 403 excepted. Status and server text of an error raised while reading the stream when it carries a status; generic text otherwise | Status and server text of an HTTP error, 401 and 403 excepted. Status and server text of an error raised while reading the stream when it carries a status; generic text otherwise. Generic text for an `error`, `response.failed` or `response.incomplete` event | Generic text |
-| Token usage readout | Usage chunk of each request | `usage` of `response.completed` | None |
+| Token usage readout | Usage chunk of each request | `usage` of `response.completed` | `usage` of the `turn_end` frame |
 | Model, `reasoning_effort` and instructions sent with the turn | All three | All three | None |
 | Reasoning display | `reasoning_content` and `reasoning` deltas | Reasoning and reasoning-summary deltas | `reasoning` frames and the `render` frame's `reasoning` |
 | Tool progress status | `done` for a tool the backend runs | `running` and `done` | `tool_status` frames |
@@ -241,8 +241,13 @@ The backend cuts `speech` frames from its reply while it is still writing it, an
 ### `turn_end` (backend → client)
 
 ```json
-{ "type": "turn_end", "turn_id": "1789365854947" }
+{ "type": "turn_end", "turn_id": "1789365854947", "usage": { "input_tokens": 1200, "output_tokens": 80, "total_tokens": 1280 } }
 ```
+
+| Field | Value |
+|---|---|
+| `turn_id` | The turn the frame closes |
+| `usage` | Optional. The token usage of the turn's last LLM call, not a sum over the turn: `input_tokens`, `output_tokens` and `total_tokens`, all numbers, the same figures the request transports' usage readout takes. The client shows `total_tokens` beside the context window size. Absent when the backend has no usage for the turn. A `usage` that does not carry all three as numbers is read as absent, and the frame still ends the turn |
 
 Sent once per turn after its last `render`; a turn with no `render` sends it alone. It releases the running state the `turn` frame set. A backend that holds renders for a client that is away holds `turn_end` behind them, in the same order. A turn the backend interrupts to run a later turn on the same chat gets its `turn_end` after the later turn's frames. A turn whose text the backend takes into a turn already running on the same chat ends when that turn ends. A turn may get its `turn_end` before any of its renders; a `render` naming a turn the client has already closed still plays. A turn that fails gets its `turn_end` after the backend's failure line renders, or before the next turn's frames when no failure line comes. A `turn_end` for a turn the client does not hold is ignored.
 

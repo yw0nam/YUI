@@ -1,6 +1,6 @@
 import type { AppConfig } from "../../config/load";
 import type { ConfigStore } from "../../config/store";
-import type { EndpointsConfig } from "../../contract";
+import type { EndpointsConfig, Usage } from "../../contract";
 import type { EventBus } from "../../dispatcher/core/event-bus";
 import type { Guardrails, GuardrailsConfig } from "../../dispatcher/core/guardrails";
 import type { ProactivePacer } from "../../dispatcher/core/proactive-pacer";
@@ -156,6 +156,13 @@ export async function wireTurnCore(
   // The scene taking the body ends a thinking bridge already running, so no filler speaks on the bed.
   if (bedSceneHold) register(bedSceneHold.onTake(voice.endThinking));
 
+  // One consumer for both transports, so the readout means the same on either.
+  const onUsage = (usage: Usage): void =>
+    sessionDiagnostics.setUsage(
+      usage.total_tokens,
+      getEndpoints().chat_model_context_window ?? null,
+    );
+
   const turnWiring = wireDispatcher({
     bus,
     renderer,
@@ -167,7 +174,7 @@ export async function wireTurnCore(
     getSecret: (name) => config.secrets.get(name),
     getFetch: () => selectFetch(),
     sessionStore,
-    sessionDiagnostics,
+    onUsage,
     chatHistoryStore,
     contextHistory,
     agentSettings: settings.agentSettings,
@@ -254,6 +261,7 @@ export async function wireTurnCore(
             appendTurnRecord: (record) => appendRecord(record),
             appendTranscript: (entry) => chatHistoryStore.append(entry),
             reportSpokeText: (turnId, spoke) => turnLog.setSpokeText(turnId, spoke),
+            onUsage,
             log,
           }),
         );

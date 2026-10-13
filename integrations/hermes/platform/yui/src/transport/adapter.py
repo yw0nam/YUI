@@ -28,7 +28,7 @@ from gateway.config import Platform
 from gateway.platforms.base import BasePlatformAdapter, SendResult
 from gateway.platforms.event import MessageEvent, MessageType, ProcessingOutcome
 
-from ..activity import delegations, reasoning, reports, tool_status
+from ..activity import delegations, reasoning, reports, tool_status, usage
 from ..express import tools
 from ..express.gate import Vocabulary
 from ..express.segments import build_segments, place_matched
@@ -64,6 +64,11 @@ _WINDOWS_PATH_RE = re.compile(r"(?<!\S)[A-Za-z]:\\(?:(?!\s[A-Za-z]:\\)[^\r\n])*"
 
 def _mint_turn_id() -> str:
     return f"hermes-{next(_TURN_IDS)}"
+
+
+def _turn_end(turn_id: str, token_usage: dict[str, int] | None) -> dict:
+    """The frame that closes a turn, with the usage of its last LLM call when there is one."""
+    return {"type": "turn_end", "turn_id": turn_id, **({"usage": token_usage} if token_usage else {})}
 
 
 def _fits(frame: dict, size: int) -> bool:
@@ -832,8 +837,9 @@ class YuiAdapter(BasePlatformAdapter):
         stream = self._speaker.stream(chat_id)
         async with stream.lock:
             stream.close()
+            token_usage = usage.take(chat_id)
             for turn_id in state.close_turns(chat_id):
-                await self._send_render(chat_id, {"type": "turn_end", "turn_id": turn_id})
+                await self._send_render(chat_id, _turn_end(turn_id, token_usage))
 
     async def on_processing_start(self, event: MessageEvent) -> None:
         """The turn opens here: the gateway serialises this per session, admission does not."""
@@ -888,5 +894,6 @@ class YuiAdapter(BasePlatformAdapter):
                     frame = self._render(addressed, [{"cues": cues, "speech": ""}])
                     await self._send_render(chat_id, frame)
                     ended = ended or [frame["turn_id"]]
+            token_usage = usage.take(chat_id)
             for ended_id in ended:
-                await self._send_render(chat_id, {"type": "turn_end", "turn_id": ended_id})
+                await self._send_render(chat_id, _turn_end(ended_id, token_usage))

@@ -1,7 +1,7 @@
 /** Wires the turn feed, the backend caller, guardrails, the pacer and the dispatcher. */
 import type { AppConfig } from "../../config/load";
 import { CHAT_API_KEY_SECRET } from "../../config/secrets";
-import type { EndpointsConfig, FrontmostState, ToolStatus } from "../../contract";
+import type { EndpointsConfig, FrontmostState, ToolStatus, Usage } from "../../contract";
 import { createBackendCaller } from "../../dispatcher/backend/backend-caller";
 import type { PreviousTurnSlot } from "../../dispatcher/backend/previous-turn";
 import type { EventBus } from "../../dispatcher/core/event-bus";
@@ -64,7 +64,8 @@ export function wireDispatcher(deps: {
   getSecret: (name: string) => Promise<string | undefined>;
   getFetch: () => Promise<typeof globalThis.fetch | undefined>;
   sessionStore: ConversationStores["sessionStore"];
-  sessionDiagnostics: ConversationStores["sessionDiagnostics"];
+  /** The session readout's usage consumer, shared with the push transport. */
+  onUsage: (usage: Usage) => void;
   chatHistoryStore: ConversationStores["chatHistoryStore"];
   contextHistory: ConversationStores["contextHistory"];
   agentSettings: SettingsStores["agentSettings"];
@@ -109,7 +110,7 @@ export function wireDispatcher(deps: {
     getSecret,
     getFetch,
     sessionStore,
-    sessionDiagnostics,
+    onUsage,
     chatHistoryStore,
     contextHistory,
     agentSettings,
@@ -158,12 +159,7 @@ export function wireDispatcher(deps: {
     onResponseIdInvalid: () => sessionStore.clear(),
     onChainReset: () => showChainResetNotice({ surfaces, t }),
     transcript: chatHistoryStore,
-    onUsage: (usage) => {
-      sessionDiagnostics.setUsage(
-        usage.total_tokens,
-        getEndpoints().chat_model_context_window ?? null,
-      );
-    },
+    onUsage,
     turnOutput: voice.turnOutput,
     reportSpokeText: (turnId, spoke) => turnLog.setSpokeText(turnId, spoke),
     turnFeed,

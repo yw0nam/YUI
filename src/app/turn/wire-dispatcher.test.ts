@@ -68,7 +68,7 @@ describe("wireDispatcher", () => {
       getSecret: () => Promise.resolve(undefined),
       getFetch: () => Promise.resolve(undefined),
       sessionStore: {} as never,
-      sessionDiagnostics: {} as never,
+      onUsage: () => {},
       chatHistoryStore: {} as never,
       contextHistory: {} as never,
       agentSettings: {} as never,
