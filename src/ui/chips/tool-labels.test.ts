@@ -21,6 +21,20 @@ describe("getToolLabel (default English)", () => {
     expect(getToolLabel("browser")).toBe("Browsing…");
   });
 
+  it.each([
+    ["open", "Opening page…"],
+    ["read", "Reading page…"],
+    ["click", "Clicking…"],
+    ["type", "Typing…"],
+    ["press_key", "Pressing key…"],
+  ])("labels the browser's %s action %s", (action, label) => {
+    expect(getToolLabel("browser", action)).toBe(label);
+  });
+
+  it("labels an action it has no label for by the tool", () => {
+    expect(getToolLabel("browser", "scroll")).toBe("Browsing…");
+  });
+
   it("returns English label for terminal", () => {
     expect(getToolLabel("terminal")).toBe("Running…");
   });

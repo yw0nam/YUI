@@ -319,3 +319,32 @@ describe("createPushToolCalls — abort", () => {
     expect(h.sent.map((sent) => (sent as { id: string }).id)).toEqual(["c1", "c2", "c3"]);
   });
 });
+
+describe("createPushToolCalls — local status", () => {
+  it("reports running and the terminal state of a tool that shows its own status, by call id", async () => {
+    const onStatus = vi.fn();
+    const browser: ClientTool = {
+      ...tool("browser", async () => "error: browser is off"),
+      localStatus: true,
+      statusAction: (args) => String(args.action),
+    };
+    const h = harness({
+      tools: createClientToolRegistry([browser, tool("look", async () => "{}")]),
+      onStatus,
+    });
+    h.calls.handle({
+      type: "tool_call",
+      id: "c1",
+      turn_id: "t",
+      name: "browser",
+      arguments: { action: "open" },
+    });
+    h.calls.handle(call("c2", "t", "look"));
+    await flush();
+
+    expect(onStatus.mock.calls).toEqual([
+      ["c1", "running", "browser", "open"],
+      ["c1", "failed", "browser", "open"],
+    ]);
+  });
+});

@@ -386,6 +386,13 @@ describe("status pill — tool running", () => {
     expect(p.sep().hidden).toBe(true);
   });
 
+  it("labels a running tool by the action it names", () => {
+    const p = setup();
+    p.pill.showTool("browser", "click");
+
+    expect(p.label().textContent).toBe("Clicking…");
+  });
+
   it("overrides the voice label while the mic keeps showing the voice state", () => {
     const p = setup();
     p.voice.set("error", "not_configured");

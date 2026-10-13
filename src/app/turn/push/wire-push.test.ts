@@ -644,6 +644,67 @@ describe("wirePushTransport — tool calls", () => {
     expect(signal?.aborted).toBe(true);
   });
 
+  it("shows a client-run tool's status from its own run, ignoring the backend's for it", async () => {
+    let finish: ((result: string) => void) | undefined;
+    const browser: ClientTool = {
+      ...look,
+      name: "browser",
+      localStatus: true,
+      statusAction: (args) => String(args.action),
+      execute: () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    };
+    pushTurns.opened("7", "user.text_submitted");
+    const waiter = vi.fn();
+    void pushTurns.awaitTurnEnd("7", { onToolStatus: waiter });
+    wire(turnFeed, [browser]);
+    socket.pushToolCall({ ...frame("c1", "7"), name: "browser", arguments: { action: "read" } });
+    await vi.waitFor(() => expect(finish).toBeDefined());
+    socket.pushToolStatus({ type: "tool_status", turn_id: "7", state: "done", tool_id: "browser" });
+
+    expect(toolStatusSink.mock.calls).toEqual([
+      [{ state: "running", tool_id: "browser", action: "read" }],
+    ]);
+    expect(waiter).not.toHaveBeenCalled();
+
+    finish?.("Untrusted page content from the browser.\n{}");
+    await vi.waitFor(() =>
+      expect(toolStatusSink).toHaveBeenLastCalledWith({
+        state: "done",
+        tool_id: "browser",
+        action: "read",
+      }),
+    );
+  });
+
+  it("a client-run call's terminal state leaves a newer running chip alone", async () => {
+    let finish: ((result: string) => void) | undefined;
+    const browser: ClientTool = {
+      ...look,
+      name: "browser",
+      localStatus: true,
+      execute: () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    };
+    wire(turnFeed, [browser]);
+    socket.pushToolCall({ ...frame("c1", "7"), name: "browser", arguments: { action: "read" } });
+    await vi.waitFor(() => expect(finish).toBeDefined());
+    socket.pushToolStatus({
+      type: "tool_status",
+      turn_id: "7",
+      state: "running",
+      tool_id: "read_file",
+    });
+    finish?.("cancelled: nothing ran");
+    await vi.waitFor(() => expect(socket.sendToolResult).toHaveBeenCalled());
+
+    expect(toolStatusSink).toHaveBeenLastCalledWith({ state: "running", tool_id: "read_file" });
+  });
+
   it("refuses a tool_call of a turn the user cut", () => {
     wire(turnFeed, [look]);
     pushTurns.opened("9", "user.text_submitted");
