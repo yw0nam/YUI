@@ -31,7 +31,6 @@ def test_bootstrap_creates_all_defaults(state_dir, at, state_helpers):
         "prs": 0,
         "pending": {},
     }
-    assert read_json(state_dir / "cursor.json") == {"last_feedback_check_at": now.isoformat()}
     assert (state_dir / "outbox.jsonl").read_bytes() == b""
     assert (state_dir / "audit.jsonl").read_bytes() == b""
     assert not (state_dir / "monitor.json").exists()
