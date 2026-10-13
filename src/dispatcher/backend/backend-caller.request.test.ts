@@ -14,7 +14,10 @@ import {
   createChatHistoryStore,
 } from "../../io/chat/conversation/chat-history-store";
 import { createAvatarTools } from "../../io/chat/tools/avatar";
-import { createClientToolRegistry } from "../../io/chat/tools/client-tools";
+import {
+  type ClientToolDefinition,
+  createClientToolRegistry,
+} from "../../io/chat/tools/client-tools";
 import type { Logger } from "../../logger";
 import type { BusEnvelope } from "../core/event-bus";
 import {
@@ -1241,7 +1244,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
             getWindow: () => null,
             listMonitors: async () => [],
             pointsAreLogical: true,
-            capturer: { capture: vi.fn(), captureAt: vi.fn() },
+            capturer: { captureAt: vi.fn() },
           }),
         ),
     });
@@ -1252,9 +1255,9 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
 
     const [, , firstOpts] = script.spy.mock.calls[0];
     const [, , secondOpts] = script.spy.mock.calls[1];
-    const firstTools = firstOpts?.tools.definitions();
+    const firstTools = firstOpts?.tools.definitions() as ClientToolDefinition[] | undefined;
     expect(firstTools).toEqual(secondOpts?.tools.definitions());
-    expect(firstTools.map((d) => d.function.name)).toContain("look");
+    expect(firstTools?.map((d) => d.function.name)).toContain("look");
   });
 });
 

@@ -337,6 +337,8 @@ export interface ClientContext {
   };
   /** Populated on every turn; `standing` is the free-state posture. */
   body_state?: BodyState;
+  /** The switchable in-app tools the window declares, in declaration order, switch state read this turn. */
+  tool_switches?: { id: string; on: boolean }[];
   /** Present only when the last turn that tried to speak ended `interrupted` or `failed`. */
   previous?: PreviousTurn;
   trigger: TriggerMeta;

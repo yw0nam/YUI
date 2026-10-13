@@ -16,6 +16,8 @@ interface ContextProviders {
   getBodyState?: () => BodyState | undefined;
   getFrontmost?: () => FrontmostState | undefined;
   getPrevious?: () => PreviousTurn | undefined;
+  /** The switchable tools the window declares, with the switch state read at this turn. */
+  getToolSwitches?: () => ClientContext["tool_switches"];
   /** True once, for the user turn whose message woke the character on the bed. */
   takeMessageWake?: () => boolean;
 }
@@ -308,15 +310,27 @@ export async function buildContext(
 
   return {
     ctx,
-    clientContext: buildClientContext(
-      ctx,
-      env,
-      providers.getBodyState?.(),
-      providers.getFrontmost?.(),
-      providers.getPrevious?.(),
-      triggerKind(env.event_name) === "user" && providers.takeMessageWake?.() === true,
+    clientContext: withToolSwitches(
+      buildClientContext(
+        ctx,
+        env,
+        providers.getBodyState?.(),
+        providers.getFrontmost?.(),
+        providers.getPrevious?.(),
+        triggerKind(env.event_name) === "user" && providers.takeMessageWake?.() === true,
+      ),
+      providers.getToolSwitches?.(),
     ),
   };
+}
+
+/** Attaches the switch list when the window declares a switchable tool. */
+function withToolSwitches(
+  clientContext: ClientContext,
+  toolSwitches: ClientContext["tool_switches"],
+): ClientContext {
+  if (!toolSwitches || toolSwitches.length === 0) return clientContext;
+  return { ...clientContext, tool_switches: toolSwitches };
 }
 
 export function imageDataUrlsOf(ctx: InputContext): string[] {

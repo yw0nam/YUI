@@ -25,6 +25,7 @@ import {
   createClientToolRegistry,
   createClientTools,
 } from "../../io/chat/tools/client-tools";
+import { toolSwitches } from "../../io/chat/tools/tool-switches";
 import type { ExpressVocabulary } from "../../io/chat/vocabulary/express-vocabulary";
 import type { ScreenCapturer } from "../../io/window/capture/screen-source-provider";
 import { buildScreenshotBlock } from "../../io/window/capture/screenshot-context";
@@ -172,6 +173,8 @@ export function wireDispatcher(deps: {
     getBodyState: () => dispatcher.getBodyState(),
     getFrontmost,
     getPrevious: previousTurn.get,
+    getToolSwitches: () =>
+      toolSwitches(avatarTools ?? [], () => screenshotSettings.get().allowRequests),
     takeMessageWake,
     isBodyHeld,
     contextHistory,

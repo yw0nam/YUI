@@ -796,7 +796,7 @@ describe("createPushSocket — outbound frames", () => {
         getWindow: () => null,
         listMonitors: async () => [],
         pointsAreLogical: true,
-        capturer: { capture: vi.fn(), captureAt: vi.fn() },
+        capturer: { captureAt: vi.fn() },
       }).map((tool) => tool.definition);
 
     await connected({ tools });
@@ -809,9 +809,9 @@ describe("createPushSocket — outbound frames", () => {
 
     expect(first).toMatchObject({ type: "hello" });
     expect(second.tools).toEqual(first.tools);
-    expect((second.tools as Array<{ function: { name: string } }>).map((d) => d.function.name)).toContain(
-      "look",
-    );
+    expect(
+      (second.tools as Array<{ function: { name: string } }>).map((d) => d.function.name),
+    ).toContain("look");
   });
 
   it("drops an outbound frame over the size cap instead of sending it", async () => {

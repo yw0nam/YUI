@@ -1342,7 +1342,7 @@ globalThis.YUI_MAP =
       "id": "context-settings",
       "from": "settings",
       "to": "dispatcher/backend",
-      "carries": "agent and screenshot settings read per turn",
+      "carries": "agent, screenshot and tool-switch settings read per turn",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/wire-dispatcher.ts"

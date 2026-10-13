@@ -24,6 +24,7 @@
 
 import type {
   BodyState,
+  ClientContext,
   EndpointsConfig,
   FrontmostState,
   InputContext,
@@ -101,6 +102,8 @@ interface BackendCallerDeps extends PushCallDeps, SettleDeps, StreamAttemptDeps 
   getFrontmost?: () => FrontmostState | undefined;
   /** Previous-turn slot lookup — read after the pre-turn interrupt, so a superseded turn is already recorded. */
   getPrevious?: () => PreviousTurn | undefined;
+  /** Switch state of the tools the window declares — read per turn for the client_context line. */
+  getToolSwitches?: () => ClientContext["tool_switches"];
   /** True once, for the user turn whose message woke the character on the bed. */
   takeMessageWake?: () => boolean;
   /** True while a scene holds the body, which would drop a thinking motion and still speak its filler. Absent means free. */
@@ -214,6 +217,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         getBodyState: deps.getBodyState,
         getFrontmost: deps.getFrontmost,
         getPrevious: deps.getPrevious,
+        getToolSwitches: deps.getToolSwitches,
         takeMessageWake: deps.takeMessageWake,
         onScreenshotError: (error) => log.warn("screenshot.failed", { error: String(error) }),
       });

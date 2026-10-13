@@ -65,6 +65,12 @@ function renderBody(bodyState: ClientContext["body_state"], nowMs: number): stri
   return `body: ${bodyState.posture.state}${on} (for ${mins}min)`;
 }
 
+function renderToolSwitches(switches: ClientContext["tool_switches"]): string | undefined {
+  if (!switches || switches.length === 0) return undefined;
+  const entries = switches.map((entry) => `${oneLine(entry.id)}=${entry.on ? "on" : "off"}`);
+  return `tools: ${entries.join(", ")}`;
+}
+
 function renderPrevious(previous: ClientContext["previous"], nowMs: number): string | undefined {
   if (!previous) return undefined;
   const spoken = previous.spoken ? ` spoken: "${oneLine(previous.spoken)}"` : "";
@@ -166,6 +172,9 @@ export function renderClientContext(clientContext: ClientContext, nowMs: number)
 
   const body = renderBody(clientContext.body_state, nowMs);
   if (body) lines.push(body);
+
+  const tools = renderToolSwitches(clientContext.tool_switches);
+  if (tools) lines.push(tools);
 
   const previous = renderPrevious(clientContext.previous, nowMs);
   if (previous) lines.push(previous);
