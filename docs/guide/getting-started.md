@@ -81,6 +81,10 @@ Pick by who keeps the conversation history. With Chat Completions the client sen
 
 On Responses against a server that keeps no responses, every turn after the first answers 404 for the stored `previous_response_id`. The client retries once without the id, the conversation context starts over, and the speech bubble shows a notice that it was reset; choose Chat Completions for such a server.
 
+### What the connection remembers
+
+With Chat Completions the client sends the session transcript every turn, trimmed to `chat_model_context_window`. With Responses the server keeps the history. Conversation history is no long-term memory. Long-term memory comes from a backend agent with its own memory, or from an external memory setup added to the backend.
+
 ### Option A — Chat Completions mode (`"chat_api": "chat_completions"`, shipped default)
 
 Any tool-calling OpenAI-compatible `/v1/chat/completions` endpoint drives expression on its own: the client declares `generate_express` with the emotion/motion/voice vocabulary baked into the tool schema, runs the call locally, returns the result, and keeps the conversation transcript client-side (no `previous_response_id`), trimmed to `chat_model_context_window`.
