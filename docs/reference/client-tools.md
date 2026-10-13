@@ -103,7 +103,7 @@ Responses sends a new request whose `input` is the original input items, then an
 {"type":"response.output_text.delta","delta":"It is 42."}
 ```
 
-An image result carries its `text` in the Chat Completions tool message, followed by one image-only user message after all tool messages of that round, with `image_url` parts. Responses carries an array in `function_call_output.output`: an `input_text` part followed by `input_image` parts with `image_url` and `detail: "auto"`; string results keep string output. Push carries the text in `tool_result.result` and the data URLs in `tool_result.images`.
+An image result carries its `text` in the Chat Completions tool message, with the note that the image follows in the next user message. One image-only user message with `image_url` parts follows all tool messages of that round. Responses carries an array in `function_call_output.output`: an `input_text` part followed by `input_image` parts with `image_url` and `detail: "auto"`; string results keep string output. Push carries the text in `tool_result.result` and the data URLs in `tool_result.images`.
 
 ### Calls left unanswered on Responses
 
