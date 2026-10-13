@@ -286,7 +286,6 @@ def record_artefacts(state_dir, now, observed: dict) -> None:
         for kind in desire_store.ARTEFACT_KINDS:
             if observed[kind] is None:
                 continue
-            bootstrapped = kind in record["bootstrapped"]
             for ref, delivered_at in observed[kind]:
                 if not isinstance(ref, str) or not ref:
                     _derive_failed(state_dir, now, SOURCE_OF[kind], None, f"malformed ref: {ref!r}")
@@ -296,7 +295,7 @@ def record_artefacts(state_dir, now, observed: dict) -> None:
                     record["seen"][kind].append(ref)
                 if delivered_at and ref not in record["shipped"]:
                     record["shipped"].append(ref)
-                    if bootstrapped:
+                    if _known_repository(record, ref):
                         filing.append((DELIVERED[kind].format(url=ref), ref))
             record["bootstrapped"] = sorted({*record["bootstrapped"], kind})
         filing.extend(_record_comments(record, observed, now))
@@ -307,6 +306,13 @@ def record_artefacts(state_dir, now, observed: dict) -> None:
                 filed.add(ref)
                 desire_events.file_event(state_dir, fact, "monitor", ref, now)
         desire_store.write_json_atomic(state_dir / "artefacts.json", record)
+
+
+def _known_repository(record: dict, url: str) -> bool:
+    """Report whether the artefact's repository answered a run before this one."""
+
+    key = _artefact_key(_ARTEFACT_URL, url)
+    return key is not None and _comment_cursor(record, key[0]) is not None
 
 
 def _github_stamp(value: object) -> datetime | None:
