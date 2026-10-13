@@ -7,6 +7,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Logger } from "../../../logger";
+import { createAvatarTools } from "../tools/avatar";
 import type { PushTurnFrame, ReasoningFrame, RenderFrame } from "./push-frames";
 import {
   createPushSocket,
@@ -783,6 +784,34 @@ describe("createPushSocket — outbound frames", () => {
       type: "hello",
       vocabulary: { ...VOCAB, emotion_ids: ["neutral"] },
     });
+  });
+
+  // The declared set is identical in every switch state: the switch gates execution, not the
+  // declaration, so hello.tools reads the same after the switch flips.
+  it("carries hello.tools unchanged after the screenshot switch flips between connections", async () => {
+    let allowRequests = true;
+    const tools = () =>
+      createAvatarTools(() => null, {
+        allowRequests: () => allowRequests,
+        getWindow: () => null,
+        listMonitors: async () => [],
+        pointsAreLogical: true,
+        capturer: { capture: vi.fn(), captureAt: vi.fn() },
+      }).map((tool) => tool.definition);
+
+    await connected({ tools });
+    const first = FakeSocket.last().frames()[0];
+    allowRequests = false;
+    FakeSocket.last().drop();
+    await vi.advanceTimersByTimeAsync(1_000);
+    FakeSocket.last().accept();
+    const second = FakeSocket.last().frames()[0];
+
+    expect(first).toMatchObject({ type: "hello" });
+    expect(second.tools).toEqual(first.tools);
+    expect((second.tools as Array<{ function: { name: string } }>).map((d) => d.function.name)).toContain(
+      "look",
+    );
   });
 
   it("drops an outbound frame over the size cap instead of sending it", async () => {

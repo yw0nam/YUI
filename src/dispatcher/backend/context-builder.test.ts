@@ -115,6 +115,28 @@ describe("context builder", () => {
   });
 });
 
+describe("context builder — tool switches", () => {
+  it("carries the switch list from the provider, read again every turn", async () => {
+    let allowRequests = true;
+    const read = () => [{ id: "look.screen", on: allowRequests }];
+
+    const first = await buildContext(ENV, { getToolSwitches: read });
+    expect(first.clientContext.tool_switches).toEqual([{ id: "look.screen", on: true }]);
+
+    allowRequests = false;
+    const second = await buildContext(ENV, { getToolSwitches: read });
+    expect(second.clientContext.tool_switches).toEqual([{ id: "look.screen", on: false }]);
+  });
+
+  it("omits the field when the provider returns an empty list or is absent", async () => {
+    const empty = await buildContext(ENV, { getToolSwitches: () => [] });
+    expect("tool_switches" in empty.clientContext).toBe(false);
+
+    const absent = await buildContext(ENV, {});
+    expect("tool_switches" in absent.clientContext).toBe(false);
+  });
+});
+
 describe("buildClientContext — cue forwarding", () => {
   const CTX: InputContext = { env: { timestamp: "2026-07-31T14:22:33+09:00", timezone: "UTC" } };
 

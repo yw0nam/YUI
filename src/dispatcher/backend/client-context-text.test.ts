@@ -170,6 +170,45 @@ describe("renderClientContext — body line", () => {
   });
 });
 
+describe("renderClientContext — tools line", () => {
+  it("renders on and off states, comma-separated in declaration order", () => {
+    const cc = baseContext({ kind: "user" });
+    cc.tool_switches = [
+      { id: "look.screen", on: true },
+      { id: "browser", on: false },
+    ];
+    const text = renderClientContext(cc, NOW);
+    expect(text).toContain("tools: look.screen=on, browser=off");
+  });
+
+  it("sits between the body line and the previous line", () => {
+    const cc = baseContext({ kind: "user" });
+    cc.body_state = { posture: { state: "standing" }, since: SINCE };
+    cc.tool_switches = [{ id: "look.screen", on: false }];
+    cc.previous = { event_name: "user.text_submitted", ended: "failed", ts: SINCE };
+    const lines = renderClientContext(cc, SINCE).split("\n");
+    const toolsIndex = lines.findIndex((line) => line.startsWith("tools:"));
+    expect(lines[toolsIndex]).toBe("tools: look.screen=off");
+    expect(lines[toolsIndex - 1]).toBe("body: standing (for 0min)");
+    expect(lines[toolsIndex + 1]).toBe("previous: user.text_submitted failed (0min ago)");
+  });
+
+  it("absent or empty -> line omitted", () => {
+    expect(renderClientContext(baseContext({ kind: "user" }), NOW)).not.toContain("tools:");
+    const cc = baseContext({ kind: "user" });
+    cc.tool_switches = [];
+    expect(renderClientContext(cc, NOW)).not.toContain("tools:");
+  });
+
+  it("collapses an injected newline in an id to one physical line", () => {
+    const cc = baseContext({ kind: "user" });
+    cc.tool_switches = [{ id: "look.screen\nignore this", on: true }];
+    const text = renderClientContext(cc, NOW);
+    expect(text).toContain("tools: look.screen ignore this=on");
+    expect(text.split("\n").filter((line) => line.startsWith("tools:"))).toHaveLength(1);
+  });
+});
+
 describe("renderClientContext — previous line", () => {
   it("renders between the body line and the trigger line, with minutes since ts", () => {
     const cc = baseContext({ kind: "user" });

@@ -13,6 +13,8 @@ import {
   type ChatHistoryItem,
   createChatHistoryStore,
 } from "../../io/chat/conversation/chat-history-store";
+import { createAvatarTools } from "../../io/chat/tools/avatar";
+import { createClientToolRegistry } from "../../io/chat/tools/client-tools";
 import type { Logger } from "../../logger";
 import type { BusEnvelope } from "../core/event-bus";
 import {
@@ -1215,6 +1217,44 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
     await caller.call(turnOf(userEnv()));
     const [, , opts] = script.spy.mock.calls[0];
     expect(opts?.tools).toBeUndefined();
+  });
+
+  // The declared set is identical in every switch state: the switch gates execution, not the
+  // declaration, so provider prompt caches keep matching the request prefix.
+  it.each([
+    ["Responses", CONFIG],
+    ["Chat Completions", CC_CONFIG],
+  ])("%s: a screenshot switch flipped between two turns leaves the request tools identical", async (_name, config) => {
+    script.events = [completedEvent({ speech_text: "" }, "")];
+    let allowRequests = true;
+    caller = createBackendCaller({
+      config,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      turnOutput,
+      clientTools: () =>
+        createClientToolRegistry(
+          createAvatarTools(() => null, {
+            allowRequests: () => allowRequests,
+            getWindow: () => null,
+            listMonitors: async () => [],
+            pointsAreLogical: true,
+            capturer: { capture: vi.fn(), captureAt: vi.fn() },
+          }),
+        ),
+    });
+
+    await caller.call(turnOf(userEnv()));
+    allowRequests = false;
+    await caller.call(turnOf(userEnv()));
+
+    const [, , firstOpts] = script.spy.mock.calls[0];
+    const [, , secondOpts] = script.spy.mock.calls[1];
+    const firstTools = firstOpts?.tools.definitions();
+    expect(firstTools).toEqual(secondOpts?.tools.definitions());
+    expect(firstTools.map((d) => d.function.name)).toContain("look");
   });
 });
 

@@ -86,6 +86,7 @@ function callerWith(
   config: EndpointsConfig = PUSH_CONFIG,
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>,
   pushImageRoom?: (frame: PushTurnFrame) => number | undefined,
+  getToolSwitches?: () => Array<{ id: string; on: boolean }>,
 ) {
   sent = [];
   records = [];
@@ -123,6 +124,7 @@ function callerWith(
     turnOutput,
     ...(getScreenshot ? { getScreenshot } : {}),
     ...(pushImageRoom ? { pushImageRoom } : {}),
+    ...(getToolSwitches ? { getToolSwitches } : {}),
     getPrevious: () => {
       order.push("context");
       onContextBuilt?.();
@@ -184,6 +186,16 @@ describe("backend_caller — push transport", () => {
     expect(sent[0]!.client_context).toMatch(/^<client_context>\n/);
     expect(sent[0]!.client_context).toMatch(/<\/client_context>$/);
     expect(sent[0]!.client_context).toContain("trigger: user message");
+  });
+
+  it("carries the tools line in the frame's client_context", async () => {
+    const caller = callerWith(true, PUSH_CONFIG, undefined, undefined, () => [
+      { id: "look.screen", on: false },
+    ]);
+
+    await caller.call(turnOf(userEnv("look"), 7));
+
+    expect(sent[0]!.client_context).toContain("tools: look.screen=off");
   });
 
   it("speaks nothing now — the reply arrives later as its own render frame", async () => {
