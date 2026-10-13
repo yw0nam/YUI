@@ -36,6 +36,7 @@ from ..speech import speech
 from ..tools import handler, pending, registry
 from ..turns import state
 from .frames import MAX_FRAME_BYTES, MAX_TURN_BYTES, encoded, fit_frame, inbound_frame_cap
+from .playback import PlaybackNotices
 from .turn_images import cache_turn_images
 
 logger = logging.getLogger(__name__)
@@ -168,6 +169,7 @@ class YuiAdapter(BasePlatformAdapter):
         self._reasoning = reasoning.Coalescer(self._send_reasoning)
         self._speaker = speech.Speaker(self._send_speech, self._as_sent)
         self._sends: set[asyncio.Task] = set()
+        self._playback = PlaybackNotices()
 
     @property
     def name(self) -> str:
@@ -323,6 +325,8 @@ class YuiAdapter(BasePlatformAdapter):
         kind = frame.get("type")
         if kind == "turn":
             await self._on_turn(chat_id, frame)
+        elif kind == "playback":
+            await self._playback.handle(frame, self._source(chat_id), self.handle_message)
         elif kind == "vocabulary":
             self._publish_vocabulary(chat_id, frame.get("vocabulary"))
         elif kind == "reset":
@@ -868,7 +872,10 @@ class YuiAdapter(BasePlatformAdapter):
         async with stream.lock:
             stream.close()
             token_usage = usage.take(chat_id)
-            for turn_id in state.close_turns(chat_id):
+            turn_ids = state.close_turns(chat_id)
+            if message:
+                self._playback.record_closed(chat_id, turn_ids)
+            for turn_id in turn_ids:
                 if message:
                     await self._send_render(
                         chat_id, {"type": "error", "turn_id": turn_id, "message": message}

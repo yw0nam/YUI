@@ -186,7 +186,7 @@ export function wireDispatcher(deps: {
     pushTurn: (frame) => pushSocket?.sendTurn(frame) ?? false,
     pushImageRoom: (frame) => pushSocket?.imageRoom(frame),
     onPushTurnCut: () => pushTurns.cut(),
-    onPushTurnSent: (turnId) => pushTurns.opened(turnId),
+    onPushTurnSent: pushTurns.opened,
     pushTurns,
     onPushSocketNotReady: (cb) =>
       pushSocket?.onState((state) => {

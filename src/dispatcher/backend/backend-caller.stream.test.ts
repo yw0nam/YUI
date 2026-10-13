@@ -75,7 +75,10 @@ describe("backend_caller — B4 speech gate (speech_text only)", () => {
     const res = await caller.call(turnOf(userEnv()));
     expect(res).toBe("ok");
     expect(applyDirective).toHaveBeenCalledWith(env);
-    expect(turnOutput.speak).toHaveBeenCalledWith("응 듣고 있어");
+    expect(turnOutput.speak).toHaveBeenCalledWith("응 듣고 있어", {
+      turn_id: "1",
+      event_name: "user.text_submitted",
+    });
   });
 
   it("empty speech_text → no speech, but render channels still applied (silence = empty text)", async () => {
@@ -473,7 +476,10 @@ describe("backend_caller — per-beat cue application (pipeline ownership)", () 
     const res = await caller.call(turnOf(userEnv()));
     expect(res).toBe("ok");
     expect(turnOutput.cue).toHaveBeenCalledWith({ emotion_text: "(whisper)" });
-    expect(turnOutput.speak).toHaveBeenCalledWith("안녕");
+    expect(turnOutput.speak).toHaveBeenCalledWith("안녕", {
+      turn_id: "1",
+      event_name: "user.text_submitted",
+    });
     expect(order).toEqual([`cue:${JSON.stringify({ emotion_text: "(whisper)" })}`, "speech"]);
   });
 
@@ -661,7 +667,10 @@ describe("backend_caller — TTFT thinking lifecycle", () => {
 
       expect(turnOutput.thinkingStart).not.toHaveBeenCalled();
       expect(turnOutput.thinkingEnd).not.toHaveBeenCalled();
-      expect(turnOutput.delta).toHaveBeenCalledWith("hello");
+      expect(turnOutput.delta).toHaveBeenCalledWith("hello", {
+        turn_id: "1",
+        event_name: env.event_name,
+      });
     }
   });
 

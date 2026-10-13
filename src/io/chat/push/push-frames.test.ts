@@ -2,8 +2,13 @@
  * push-frames.test.ts — the fault checks name the field that makes a frame unreadable, in order.
  */
 
-import { describe, expect, it } from "vitest";
-import { renderFrameFault, speechFrameFault, toolCallFrameFault } from "./push-frames";
+import { describe, expect, expectTypeOf, it } from "vitest";
+import {
+  type PlaybackFrame,
+  renderFrameFault,
+  speechFrameFault,
+  toolCallFrameFault,
+} from "./push-frames";
 
 describe("push frame fault checks", () => {
   it("renderFrameFault names source when segments are readable but source is not a string", () => {
@@ -32,4 +37,12 @@ it("toolCallFrameFault names the first unreadable field among id, turn_id, name 
   expect(
     toolCallFrameFault({ id: "c", turn_id: "t", name: "look", arguments: { at: "body" } }),
   ).toBeNull();
+});
+
+it("playback frame carries only a failed turn id", () => {
+  expectTypeOf<PlaybackFrame>().toEqualTypeOf<{
+    type: "playback";
+    turn_id: string;
+    ended: "failed";
+  }>();
 });

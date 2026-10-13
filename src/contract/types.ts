@@ -301,8 +301,16 @@ export interface TriggerMeta {
 /** How the last turn that tried to speak ended. */
 export type TurnEnded = "complete" | "interrupted" | "failed";
 
+export const BACKEND_EVENT_NAME = "backend";
+
+export interface UtteranceIdentity {
+  turn_id: string;
+  event_name: string;
+}
+
 /** The last turn that tried to speak, as the client remembers it. */
 export interface PreviousTurn {
+  turn_id?: string;
   event_name: string;
   ended: TurnEnded;
   ts: number;

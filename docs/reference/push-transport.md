@@ -45,6 +45,7 @@ The client renders what arrives and judges nothing. Everything the backend must 
 | `tool_call` wait, query | 2 s on the client, 7 s on the backend adapter |
 | Text-only `tool_result` frame size | 256 KiB |
 | `tool_result` frame size with a non-empty list of image data URLs | `max_turn_bytes` from `ready`, or 256 KiB when absent |
+| `playback` frame size | The text frame size |
 | `error.message` | The text frame size |
 
 The backend cuts `title` and `summary` to their limits, counting Unicode code points.
@@ -166,6 +167,19 @@ The backend starts a new conversation under the same `chat_id`. Long-term memory
 ```
 
 The user pressed stop. `turn_ids` are the turns the client just stopped — every turn that was outstanding on the chat at that moment. The backend stops generating for those of them that are still running and sends each its `turn_end`; an id it no longer holds is ignored, and a turn that is not named — one the backend started after the client's stop — keeps running. A backend that cannot stop the named turns without also stopping an unnamed one ignores the frame. A backend that ignores `stop` stays correct: the client drops the stopped turns' frames until their `turn_end`, as it does without it. Whether stopping a turn also ends work that turn delegated is the backend's decision; a delegation it ends is reported through `delegations`. Sent only while the socket is `ready`.
+
+### `playback` (client → backend)
+
+```json
+{ "type": "playback", "turn_id": "1789365854947", "ended": "failed" }
+```
+
+| Field | Value |
+|---|---|
+| `turn_id` | The client turn whose call failed |
+| `ended` | `"failed"` |
+
+The client sends one frame per saved failed record with a `turn_id`, after `ready` and only while connected. Records saved while disconnected are not replayed on reconnect; the next turn's `previous:` line carries the failed outcome. Interruption and completion are stored in the previous-turn record only. On interruption the `previous:` line names the cut utterance, carrying everything still owed. A complete outcome is omitted from the line.
 
 ## Replies
 

@@ -15,8 +15,8 @@ describe("createPushTurns", () => {
   it("cut marks every turn outstanding at that moment", () => {
     const turns = createPushTurns();
 
-    turns.opened("A");
-    turns.opened("B");
+    turns.opened("A", "user.text_submitted");
+    turns.opened("B", "user.text_submitted");
     turns.rendered("A");
     turns.rendered("B");
     turns.cut();
@@ -28,11 +28,11 @@ describe("createPushTurns", () => {
   it("cut returns the ids it swept", () => {
     const turns = createPushTurns();
 
-    turns.opened("A");
-    turns.opened("B");
+    turns.opened("A", "user.text_submitted");
+    turns.opened("B", "user.text_submitted");
     turns.rendered("A");
     const swept = turns.cut();
-    turns.opened("C");
+    turns.opened("C", "user.text_submitted");
 
     expect(swept).toEqual(["A", "B"]);
   });
@@ -40,10 +40,10 @@ describe("createPushTurns", () => {
   it("a turn opened after the cut starts clean", () => {
     const turns = createPushTurns();
 
-    turns.opened("A");
-    turns.opened("B");
+    turns.opened("A", "user.text_submitted");
+    turns.opened("B", "user.text_submitted");
     turns.cut();
-    turns.opened("C");
+    turns.opened("C", "user.text_submitted");
 
     expect(turns.isCut("A")).toBe(true);
     expect(turns.isCut("B")).toBe(true);
@@ -53,9 +53,9 @@ describe("createPushTurns", () => {
   it("a later opened never un-cuts an earlier turn", () => {
     const turns = createPushTurns();
 
-    turns.opened("A");
+    turns.opened("A", "user.text_submitted");
     turns.cut();
-    turns.opened("C");
+    turns.opened("C", "user.text_submitted");
     turns.rendered("A");
 
     expect(turns.isCut("A")).toBe(true);
@@ -73,7 +73,7 @@ describe("createPushTurns", () => {
   it("a turn nobody stopped is not cut", () => {
     const turns = createPushTurns();
 
-    turns.opened("A");
+    turns.opened("A", "user.text_submitted");
 
     expect(turns.isCut("A")).toBe(false);
   });
@@ -85,7 +85,7 @@ describe("onCut", () => {
     const heard: string[] = [];
     turns.onCut((turnId) => heard.push(turnId));
 
-    turns.opened("A");
+    turns.opened("A", "user.text_submitted");
     turns.rendered("hermes-1");
     turns.cut();
     heard.push("returned");
@@ -98,7 +98,7 @@ describe("onCut", () => {
     const heard: string[] = [];
     turns.onCut((turnId) => heard.push(turnId));
 
-    turns.opened("A");
+    turns.opened("A", "user.text_submitted");
     turns.cut();
     turns.cut();
 
@@ -111,7 +111,7 @@ describe("onCut", () => {
     const off = turns.onCut((turnId) => heard.push(turnId));
     off();
 
-    turns.opened("A");
+    turns.opened("A", "user.text_submitted");
     turns.cut();
 
     expect(heard).toEqual([]);
@@ -126,8 +126,8 @@ describe("onCut", () => {
     });
     turns.onCut((turnId) => heard.push(turnId));
 
-    turns.opened("A");
-    turns.opened("B");
+    turns.opened("A", "user.text_submitted");
+    turns.opened("B", "user.text_submitted");
     const b = turns.awaitTurnEnd("B");
 
     expect(() => turns.cut()).not.toThrow();
@@ -141,7 +141,7 @@ describe("ended", () => {
   it("removes a cut turn's id from the stopped set", () => {
     const turns = createPushTurns();
 
-    turns.opened("A");
+    turns.opened("A", "user.text_submitted");
     turns.cut();
     expect(turns.isCut("A")).toBe(true);
 
@@ -153,7 +153,7 @@ describe("ended", () => {
   it("removes a live turn so the cut that follows sweeps nothing", () => {
     const turns = createPushTurns();
 
-    turns.opened("A");
+    turns.opened("A", "user.text_submitted");
     turns.rendered("A");
     turns.ended("A");
     turns.cut();
@@ -165,7 +165,7 @@ describe("ended", () => {
   it("changes nothing for an id nobody holds", () => {
     const turns = createPushTurns();
 
-    turns.opened("A");
+    turns.opened("A", "user.text_submitted");
 
     expect(() => turns.ended("X")).not.toThrow();
     expect(turns.isCut("A")).toBe(false);
@@ -191,7 +191,7 @@ describe("awaitTurnEnd", () => {
   it("stays open across renders until the backend ends the turn", async () => {
     const turns = createPushTurns();
 
-    turns.opened("A");
+    turns.opened("A", "user.text_submitted");
     const wait = watch(turns.awaitTurnEnd("A"));
     turns.rendered("A");
     turns.rendered("A");
@@ -202,8 +202,8 @@ describe("awaitTurnEnd", () => {
   it("another turn's frames leave it open", async () => {
     const turns = createPushTurns();
 
-    turns.opened("A");
-    turns.opened("B");
+    turns.opened("A", "user.text_submitted");
+    turns.opened("B", "user.text_submitted");
     const wait = watch(turns.awaitTurnEnd("A"));
     turns.rendered("B");
     turns.ended("B");
@@ -214,7 +214,7 @@ describe("awaitTurnEnd", () => {
   it("resolves ended when the backend closes the turn", async () => {
     const turns = createPushTurns();
 
-    turns.opened("A");
+    turns.opened("A", "user.text_submitted");
     const wait = turns.awaitTurnEnd("A");
     turns.ended("A");
 
@@ -224,8 +224,8 @@ describe("awaitTurnEnd", () => {
   it("resolves cut for every turn the cut sweeps", async () => {
     const turns = createPushTurns();
 
-    turns.opened("A");
-    turns.opened("B");
+    turns.opened("A", "user.text_submitted");
+    turns.opened("B", "user.text_submitted");
     const a = turns.awaitTurnEnd("A");
     const b = turns.awaitTurnEnd("B");
     turns.cut();
@@ -238,7 +238,7 @@ describe("awaitTurnEnd", () => {
     const turns = createPushTurns();
     const firsts: string[] = [];
 
-    turns.opened("A");
+    turns.opened("A", "user.text_submitted");
     void turns.awaitTurnEnd("A", { onFirstRender: () => firsts.push("first") });
     turns.rendered("A");
     turns.rendered("A");
@@ -250,7 +250,7 @@ describe("awaitTurnEnd", () => {
     const turns = createPushTurns();
     const frames: string[] = [];
 
-    turns.opened("A");
+    turns.opened("A", "user.text_submitted");
     void turns.awaitTurnEnd("A", { onFrame: () => frames.push("frame") });
     turns.rendered("A");
     turns.rendered("A");
@@ -263,7 +263,7 @@ describe("awaitTurnEnd", () => {
     const turns = createPushTurns();
     const order: string[] = [];
 
-    turns.opened("A");
+    turns.opened("A", "user.text_submitted");
     void turns.awaitTurnEnd("A", { onFirstRender: () => order.push("hook") });
     turns.rendered("A");
     order.push("returned");
@@ -274,7 +274,7 @@ describe("awaitTurnEnd", () => {
   it("a throwing hook leaves the render going and the wait open", async () => {
     const turns = createPushTurns();
 
-    turns.opened("A");
+    turns.opened("A", "user.text_submitted");
     const wait = watch(
       turns.awaitTurnEnd("A", {
         onFirstRender: () => {
@@ -293,7 +293,7 @@ describe("awaitTurnEnd", () => {
     const turns = createPushTurns();
     const settled: string[] = [];
 
-    turns.opened("A");
+    turns.opened("A", "user.text_submitted");
     const wait = watch(turns.awaitTurnEnd("A", { onFirstRender: () => settled.push("A") }));
     turns.abandon("A");
     turns.rendered("A");
@@ -309,7 +309,7 @@ describe("toolStatus", () => {
     const turns = createPushTurns();
     const order: string[] = [];
 
-    turns.opened("A");
+    turns.opened("A", "user.text_submitted");
     void turns.awaitTurnEnd("A", {
       onFrame: () => order.push("frame"),
       onToolStatus: (state, toolId) => order.push(`tool ${state} ${toolId}`),
@@ -345,5 +345,18 @@ describe("a turn id the backend remembers across a restart", () => {
     const thisSession = String(createTurnLog().begin(userEnv()).id);
 
     expect(turns.isCut(thisSession)).toBe(false);
+  });
+});
+
+describe("recent push identity", () => {
+  it("keeps recent ended identities and evicts the oldest past 200 turns", () => {
+    const turns = createPushTurns();
+    for (let i = 0; i < 201; i++) {
+      turns.opened(String(i), "agent.done");
+      turns.ended(String(i));
+    }
+    expect(turns.identity("0")).toEqual({ turn_id: "0", event_name: "backend" });
+    expect(turns.identity("1")).toEqual({ turn_id: "1", event_name: "agent.done" });
+    expect(turns.identity("200")).toEqual({ turn_id: "200", event_name: "agent.done" });
   });
 });

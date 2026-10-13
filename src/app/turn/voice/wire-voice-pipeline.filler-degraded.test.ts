@@ -121,7 +121,7 @@ function setup(customPool: FillerPool): VoicePipeline {
 // Speaks one whole utterance while the server is up, leaving its audio in the cache.
 async function warm(voice: VoicePipeline, text: string, segments: number): Promise<void> {
   const before = plays();
-  voice.speechPlayback.onSpeech(text);
+  voice.speechPlayback.onSpeech(text, { turn_id: "7", event_name: "user.text_submitted" });
   await vi.waitFor(() => expect(plays()).toBe(before + segments));
 }
 

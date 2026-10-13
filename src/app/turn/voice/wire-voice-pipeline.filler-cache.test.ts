@@ -112,7 +112,7 @@ function setup(
 // Speaks one whole utterance and waits until every sentence it splits into has reached the sink.
 async function speak(voice: VoicePipeline, text: string, segments: number): Promise<void> {
   const before = mocks.sink.play.mock.calls.length;
-  voice.speechPlayback.onSpeech(text);
+  voice.speechPlayback.onSpeech(text, { turn_id: "7", event_name: "user.text_submitted" });
   await vi.waitFor(() => expect(mocks.sink.play.mock.calls.length).toBe(before + segments));
 }
 

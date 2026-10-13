@@ -102,13 +102,13 @@ describe("TurnOutput — backend-caller → tts-pipeline ordering", () => {
       thinkingEnd: () => {
         order.push("thinkingEnd");
       },
-      delta: (text) => {
+      delta: (text, identity) => {
         order.push(`delta:${text}`);
-        speechPlayback.onSpeechDelta(text);
+        speechPlayback.onSpeechDelta(text, identity);
       },
-      speak: (text) => {
+      speak: (text, identity) => {
         order.push("speak");
-        speechPlayback.onSpeech(text);
+        speechPlayback.onSpeech(text, identity);
       },
       end: () => {
         order.push("end");

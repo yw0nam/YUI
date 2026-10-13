@@ -186,7 +186,7 @@ describe("createSpeechPlayback — emotion eases back to neutral when playback e
       isStrolling: () => false,
     });
 
-    sp.onSpeech("Text with no audio.");
+    sp.onSpeech("Text with no audio.", { turn_id: "7", event_name: "user.text_submitted" });
     // the emotion must NOT revert mid-utterance — only when playback ends.
     expect(renderer.easeEmotionToNeutral).not.toHaveBeenCalled();
     stub.emitPlaybackEnd();
@@ -225,7 +225,7 @@ describe("createSpeechPlayback — emotion eases to neutral on abnormal end, not
       isStrolling: () => false,
     });
 
-    sp.onSpeechDelta("Hello");
+    sp.onSpeechDelta("Hello", { turn_id: "7", event_name: "user.text_submitted" });
     stub.emitAmplitude(0.4);
     expect(renderer.easeEmotionToNeutral).not.toHaveBeenCalled();
     sp.abort();
@@ -244,7 +244,7 @@ describe("createSpeechPlayback — emotion eases to neutral on abnormal end, not
       isStrolling: () => false,
     });
 
-    sp.onSpeechDelta("Hello");
+    sp.onSpeechDelta("Hello", { turn_id: "7", event_name: "user.text_submitted" });
     stub.emitAmplitude(0.4);
     expect(renderer.easeEmotionToNeutral).not.toHaveBeenCalled();
     sp.interrupt();
@@ -279,7 +279,7 @@ describe("createSpeechPlayback — emotion eases to neutral on abnormal end, not
       isStrolling: () => false,
     });
 
-    sp.onSpeechDelta("Hello");
+    sp.onSpeechDelta("Hello", { turn_id: "7", event_name: "user.text_submitted" });
     stub.setOutstandingWork(true);
     sp.interrupt();
     expect(renderer.easeEmotionToNeutral).not.toHaveBeenCalled();
@@ -299,7 +299,7 @@ describe("createSpeechPlayback — bubble defers until playback ends", () => {
       isStrolling: () => false,
     });
 
-    sp.onSpeech("Hello there.");
+    sp.onSpeech("Hello there.", { turn_id: "7", event_name: "user.text_submitted" });
     expect(surfaces.beginSpeech).toHaveBeenCalledTimes(1);
     expect(surfaces.pushSpeech).toHaveBeenCalledWith("Hello there.");
     expect(surfaces.endSpeech).toHaveBeenCalledWith({ defer: true });
@@ -322,7 +322,7 @@ describe("createSpeechPlayback — bubble defers until playback ends", () => {
       isStrolling: () => false,
     });
 
-    sp.onSpeech("Spoken.");
+    sp.onSpeech("Spoken.", { turn_id: "7", event_name: "user.text_submitted" });
     expect(surfaces.finishSpeech).not.toHaveBeenCalled();
 
     stub.emitPlaybackEnd();
@@ -342,7 +342,7 @@ describe("createSpeechPlayback — bubble defers until playback ends", () => {
       isStrolling: () => false,
     });
 
-    sp.onSpeech("Text with no audio.");
+    sp.onSpeech("Text with no audio.", { turn_id: "7", event_name: "user.text_submitted" });
     // pipeline still fires onPlaybackEnd after draining an empty/failed queue.
     stub.emitPlaybackEnd();
     expect(surfaces.finishSpeech).toHaveBeenCalledTimes(1);
@@ -365,7 +365,7 @@ describe("createSpeechPlayback — reportAudioOwed (#279, #529)", () => {
     });
 
     stub.setOutstandingWork(true);
-    sp.onSpeechDelta("Hello");
+    sp.onSpeechDelta("Hello", { turn_id: "7", event_name: "user.text_submitted" });
 
     expect(reportAudioOwed).toHaveBeenCalledWith(true);
   });
@@ -404,7 +404,7 @@ describe("createSpeechPlayback — reportAudioOwed (#279, #529)", () => {
     });
 
     multi.instances[0]!.hasOutstandingWork.mockReturnValue(true);
-    sp.onSpeechDelta("Hello");
+    sp.onSpeechDelta("Hello", { turn_id: "7", event_name: "user.text_submitted" });
     expect(reportAudioOwed).toHaveBeenLastCalledWith(true);
 
     sp.interrupt();
@@ -427,7 +427,7 @@ describe("createSpeechPlayback — reportAudioOwed (#279, #529)", () => {
     });
 
     stub.setOutstandingWork(true);
-    sp.onSpeechDelta("Hello");
+    sp.onSpeechDelta("Hello", { turn_id: "7", event_name: "user.text_submitted" });
     expect(reportAudioOwed).toHaveBeenLastCalledWith(true);
 
     sp.abort();
@@ -463,9 +463,9 @@ describe("createSpeechPlayback — onSpeechDelta streams text into bubble + pipe
       isStrolling: () => false,
     });
 
-    sp.onSpeechDelta("Hello");
-    sp.onSpeechDelta(" there");
-    sp.onSpeechDelta(".");
+    sp.onSpeechDelta("Hello", { turn_id: "7", event_name: "user.text_submitted" });
+    sp.onSpeechDelta(" there", { turn_id: "7", event_name: "user.text_submitted" });
+    sp.onSpeechDelta(".", { turn_id: "7", event_name: "user.text_submitted" });
     // begin fires only on the first delta of the run.
     expect(surfaces.beginSpeech).toHaveBeenCalledTimes(1);
   });
@@ -482,9 +482,9 @@ describe("createSpeechPlayback — onSpeechDelta streams text into bubble + pipe
       isStrolling: () => false,
     });
 
-    sp.onSpeechDelta("a");
-    sp.onSpeechDelta("b");
-    sp.onSpeechDelta("c");
+    sp.onSpeechDelta("a", { turn_id: "7", event_name: "user.text_submitted" });
+    sp.onSpeechDelta("b", { turn_id: "7", event_name: "user.text_submitted" });
+    sp.onSpeechDelta("c", { turn_id: "7", event_name: "user.text_submitted" });
     expect(surfaces.pushSpeech.mock.calls.map((c) => c[0])).toEqual(["a", "b", "c"]);
     expect(stub.calls.pushTextDelta).toEqual(["a", "b", "c"]);
     // streaming deltas must NOT flush/finish mid-run.
@@ -506,7 +506,7 @@ describe("createSpeechPlayback — onSpeechEnd finalizes a run", () => {
       isStrolling: () => false,
     });
 
-    sp.onSpeechDelta("Hello.");
+    sp.onSpeechDelta("Hello.", { turn_id: "7", event_name: "user.text_submitted" });
     sp.onSpeechEnd();
     expect(surfaces.endSpeech).toHaveBeenCalledWith({ defer: true });
     expect(stub.calls.ended).toBe(1);
@@ -952,9 +952,9 @@ describe("createSpeechPlayback — interrupt swaps the pipeline and releases the
       isStrolling: () => false,
     });
 
-    sp.onSpeechDelta("old");
+    sp.onSpeechDelta("old", { turn_id: "7", event_name: "user.text_submitted" });
     sp.interrupt();
-    sp.onSpeechDelta("new");
+    sp.onSpeechDelta("new", { turn_id: "7", event_name: "user.text_submitted" });
 
     // first instance only saw the pre-interrupt delta.
     expect(multi.instances[0].pushTextDelta.mock.calls.map((c) => c[0])).toEqual(["old"]);
@@ -976,7 +976,7 @@ describe("createSpeechPlayback — interrupt swaps the pipeline and releases the
       isStrolling: () => false,
     });
 
-    sp.onSpeechDelta("old");
+    sp.onSpeechDelta("old", { turn_id: "7", event_name: "user.text_submitted" });
     sp.interrupt();
     sp.onSpeechEnd();
     // the fresh pipeline never received an end (no delta since interrupt).
@@ -997,7 +997,7 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
     });
 
     sp.interrupt({ muteCurrentTurn: true });
-    sp.onSpeechDelta("late");
+    sp.onSpeechDelta("late", { turn_id: "7", event_name: "user.text_submitted" });
 
     expect(surfaces.pushSpeech).toHaveBeenCalledWith("late");
     expect(multi.instances[1].pushTextDelta).not.toHaveBeenCalled();
@@ -1015,7 +1015,7 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
     });
 
     sp.interrupt({ muteCurrentTurn: true });
-    sp.onSpeechDelta("late");
+    sp.onSpeechDelta("late", { turn_id: "7", event_name: "user.text_submitted" });
     sp.onSpeechEnd();
 
     expect(surfaces.endSpeech).toHaveBeenCalledWith({ defer: true });
@@ -1034,7 +1034,7 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
 
     sp.interrupt({ muteCurrentTurn: true });
     sp.interrupt();
-    sp.onSpeechDelta("next");
+    sp.onSpeechDelta("next", { turn_id: "7", event_name: "user.text_submitted" });
 
     expect(multi.instances[2].pushTextDelta).toHaveBeenCalledWith("next", true);
   });
@@ -1050,9 +1050,9 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
     });
 
     sp.interrupt({ muteCurrentTurn: true });
-    sp.onSpeechDelta("late");
+    sp.onSpeechDelta("late", { turn_id: "7", event_name: "user.text_submitted" });
     sp.onSpeechEnd();
-    sp.onSpeech("filler");
+    sp.onSpeech("filler", { turn_id: "7", event_name: "user.text_submitted" });
 
     expect(multi.instances[1].pushTextDelta).toHaveBeenCalledWith("filler", true);
   });
@@ -1070,10 +1070,10 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
     sp.interrupt({ muteCurrentTurn: true });
     sp.holdMotion(true);
     sp.setCue({ emotion_id: "happy", motion_id: "dance" });
-    sp.onSpeechDelta("late");
+    sp.onSpeechDelta("late", { turn_id: "7", event_name: "user.text_submitted" });
     sp.onSpeechEnd();
     sp.holdMotion(false);
-    sp.onSpeech("filler");
+    sp.onSpeech("filler", { turn_id: "7", event_name: "user.text_submitted" });
 
     expect(multi.instances[1].setCue).not.toHaveBeenCalled();
     expect(multi.instances[1].pushTextDelta).toHaveBeenCalledWith("filler", true);
@@ -1090,7 +1090,7 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
     });
 
     sp.interrupt();
-    sp.onSpeechDelta("next");
+    sp.onSpeechDelta("next", { turn_id: "7", event_name: "user.text_submitted" });
 
     expect(multi.instances[1].pushTextDelta).toHaveBeenCalledWith("next", true);
   });
@@ -1107,7 +1107,7 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
 
     sp.interrupt({ muteCurrentTurn: true });
     sp.onSpeechEnd();
-    sp.onSpeech("filler");
+    sp.onSpeech("filler", { turn_id: "7", event_name: "user.text_submitted" });
 
     expect(multi.instances[1].pushTextDelta).toHaveBeenCalledWith("filler", true);
   });
@@ -1149,7 +1149,7 @@ describe("createSpeechPlayback — abort tears down without rebuilding", () => {
       isStrolling: () => false,
     });
 
-    sp.onSpeechDelta("partial");
+    sp.onSpeechDelta("partial", { turn_id: "7", event_name: "user.text_submitted" });
     sp.abort();
     expect(surfaces.endSpeech).toHaveBeenCalledWith();
     expect(stub.calls.disposed).toBe(1);
@@ -1350,7 +1350,7 @@ describe("createSpeechPlayback — onSpeech is sugar over delta+end", () => {
       isStrolling: () => false,
     });
 
-    sp.onSpeech("Whole thing.");
+    sp.onSpeech("Whole thing.", { turn_id: "7", event_name: "user.text_submitted" });
     expect(surfaces.beginSpeech).toHaveBeenCalledTimes(1);
     expect(surfaces.pushSpeech).toHaveBeenCalledWith("Whole thing.");
     expect(stub.calls.pushTextDelta).toEqual(["Whole thing."]);
@@ -1374,7 +1374,7 @@ describe("createSpeechPlayback — emoji sanitization in delta", () => {
     });
 
     // trailing emoji is held in carry and discarded when the run ends (flush on onSpeechEnd).
-    sp.onSpeechDelta("잘 왔어 ✨");
+    sp.onSpeechDelta("잘 왔어 ✨", { turn_id: "7", event_name: "user.text_submitted" });
     // the stripper holds back trailing emoji-class run, so both sinks see the clean prefix.
     expect(surfaces.pushSpeech).toHaveBeenCalledWith("잘 왔어 ");
     expect(stub.calls.pushTextDelta).toEqual(["잘 왔어 "]);
@@ -1392,7 +1392,7 @@ describe("createSpeechPlayback — emoji sanitization in delta", () => {
       isStrolling: () => false,
     });
 
-    sp.onSpeechDelta("hello world");
+    sp.onSpeechDelta("hello world", { turn_id: "7", event_name: "user.text_submitted" });
     expect(surfaces.pushSpeech).toHaveBeenCalledWith("hello world");
     expect(stub.calls.pushTextDelta).toEqual(["hello world"]);
   });
@@ -1411,7 +1411,10 @@ describe("createSpeechPlayback — markdown links in delta", () => {
       isStrolling: () => false,
     });
 
-    sp.onSpeechDelta("Docs: [Example](https://example.com) 확인해봐");
+    sp.onSpeechDelta("Docs: [Example](https://example.com) 확인해봐", {
+      turn_id: "7",
+      event_name: "user.text_submitted",
+    });
     // the bubble renders markdown itself, so it gets the raw text.
     expect(surfaces.pushSpeech).toHaveBeenCalledWith(
       "Docs: [Example](https://example.com) 확인해봐",
@@ -1431,8 +1434,11 @@ describe("createSpeechPlayback — markdown links in delta", () => {
       isStrolling: () => false,
     });
 
-    sp.onSpeechDelta("봐 [Exa");
-    sp.onSpeechDelta("mple](https://example.com/a) 끝");
+    sp.onSpeechDelta("봐 [Exa", { turn_id: "7", event_name: "user.text_submitted" });
+    sp.onSpeechDelta("mple](https://example.com/a) 끝", {
+      turn_id: "7",
+      event_name: "user.text_submitted",
+    });
     expect(stub.calls.pushTextDelta).toEqual(["봐 ", "Example 끝"]);
     expect(surfaces.pushSpeech.mock.calls.map((c) => c[0])).toEqual([
       "봐 [Exa",
@@ -1452,7 +1458,7 @@ describe("createSpeechPlayback — markdown links in delta", () => {
       isStrolling: () => false,
     });
 
-    sp.onSpeechDelta("[abc");
+    sp.onSpeechDelta("[abc", { turn_id: "7", event_name: "user.text_submitted" });
     expect(stub.calls.pushTextDelta).toEqual([""]);
     sp.onSpeechEnd();
     expect(stub.calls.pushTextDelta).toEqual(["", "[abc"]);
@@ -1471,9 +1477,9 @@ describe("createSpeechPlayback — markdown links in delta", () => {
       isStrolling: () => false,
     });
 
-    sp.onSpeechDelta("[abc");
+    sp.onSpeechDelta("[abc", { turn_id: "7", event_name: "user.text_submitted" });
     sp.interrupt();
-    sp.onSpeechDelta("z");
+    sp.onSpeechDelta("z", { turn_id: "7", event_name: "user.text_submitted" });
     const newPipelineCalls = multi.instances[1].pushTextDelta.mock.calls.map((c) => c[0]);
     expect(newPipelineCalls).toEqual(["z"]);
   });
@@ -1591,11 +1597,11 @@ describe("createSpeechPlayback — stripper carry reset on interrupt/abort", () 
     });
 
     // push a delta ending in a trailing emoji-class run — stripper holds it in carry.
-    sp.onSpeechDelta("hello ✨");
+    sp.onSpeechDelta("hello ✨", { turn_id: "7", event_name: "user.text_submitted" });
     // interrupt clears carry via stripper.reset().
     sp.interrupt();
     // new turn: plain delta must arrive at the new pipeline with no stale emoji prepended.
-    sp.onSpeechDelta("new turn");
+    sp.onSpeechDelta("new turn", { turn_id: "7", event_name: "user.text_submitted" });
     const newPipelineCalls = multi.instances[1].pushTextDelta.mock.calls.map((c) => c[0]);
     expect(newPipelineCalls).toEqual(["new turn"]);
     // surfaces also receives only the clean new-turn text (no stale emoji prefix).
@@ -1620,11 +1626,11 @@ describe("createSpeechPlayback — stripper carry reset on interrupt/abort", () 
     });
 
     // push a delta ending in a trailing emoji-class run — stripper holds it in carry.
-    sp.onSpeechDelta("bye ✨");
+    sp.onSpeechDelta("bye ✨", { turn_id: "7", event_name: "user.text_submitted" });
     // abort clears carry via stripper.reset(); no new pipeline is built.
     sp.abort();
     // after abort, a fresh run (new turn from outside) must not see stale carry.
-    sp.onSpeechDelta("clean start");
+    sp.onSpeechDelta("clean start", { turn_id: "7", event_name: "user.text_submitted" });
     // only one pipeline instance (abort does not rebuild).
     const pipelineCalls = multi.instances[0].pushTextDelta.mock.calls.map((c) => c[0]);
     // first call was "bye " (trailing emoji held), last call is "clean start" with no emoji leak.
@@ -1657,32 +1663,39 @@ describe("createSpeechPlayback — backend utterance tracking", () => {
   it("the first backend delta opens the utterance once; a second delta does not reopen it", () => {
     const { sp, onUtteranceStart } = trackedPlayback();
 
-    sp.onSpeechDelta("hel");
+    sp.onSpeechDelta("hel", { turn_id: "7", event_name: "user.text_submitted" });
     expect(onUtteranceStart).toHaveBeenCalledTimes(1);
 
-    sp.onSpeechDelta("lo");
+    sp.onSpeechDelta("lo", { turn_id: "7", event_name: "user.text_submitted" });
     expect(onUtteranceStart).toHaveBeenCalledTimes(1);
   });
 
   it("a played-out utterance ends complete when its boundary fires", () => {
     const { sp, stub, onUtteranceEnd } = trackedPlayback();
 
-    sp.onSpeechDelta("hello");
+    sp.onSpeechDelta("hello", { turn_id: "7", event_name: "user.text_submitted" });
     sp.onSpeechEnd();
     expect(onUtteranceEnd).not.toHaveBeenCalled();
 
     stub.emitPlaybackEnd();
     expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
-    expect(onUtteranceEnd).toHaveBeenCalledWith("complete");
+    expect(onUtteranceEnd).toHaveBeenCalledWith("complete", undefined, {
+      turn_id: "7",
+      event_name: "user.text_submitted",
+    });
   });
 
   it("interrupt mid-utterance ends it interrupted, and a second interrupt adds nothing", () => {
     const { sp, onUtteranceEnd } = trackedPlayback();
 
-    sp.onSpeechDelta("hello");
+    sp.onSpeechDelta("hello", { turn_id: "7", event_name: "user.text_submitted" });
     sp.interrupt();
     expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
-    expect(onUtteranceEnd).toHaveBeenCalledWith("interrupted", { spoken: "", unspoken: "" });
+    expect(onUtteranceEnd).toHaveBeenCalledWith(
+      "interrupted",
+      { spoken: "", unspoken: "" },
+      { turn_id: "7", event_name: "user.text_submitted" },
+    );
 
     sp.interrupt();
     expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
@@ -1691,32 +1704,44 @@ describe("createSpeechPlayback — backend utterance tracking", () => {
   it("abort mid-utterance ends it interrupted", () => {
     const { sp, onUtteranceEnd } = trackedPlayback();
 
-    sp.onSpeechDelta("hello");
+    sp.onSpeechDelta("hello", { turn_id: "7", event_name: "user.text_submitted" });
     sp.abort();
     expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
-    expect(onUtteranceEnd).toHaveBeenCalledWith("interrupted", { spoken: "", unspoken: "" });
+    expect(onUtteranceEnd).toHaveBeenCalledWith(
+      "interrupted",
+      { spoken: "", unspoken: "" },
+      { turn_id: "7", event_name: "user.text_submitted" },
+    );
   });
 
   it("interrupt before a queued boundary fires ends the utterance interrupted", () => {
     const { sp, onUtteranceEnd } = trackedPlayback();
 
-    sp.onSpeechDelta("hello");
+    sp.onSpeechDelta("hello", { turn_id: "7", event_name: "user.text_submitted" });
     sp.onSpeechEnd();
     sp.interrupt();
 
     expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
-    expect(onUtteranceEnd).toHaveBeenCalledWith("interrupted", { spoken: "", unspoken: "" });
+    expect(onUtteranceEnd).toHaveBeenCalledWith(
+      "interrupted",
+      { spoken: "", unspoken: "" },
+      { turn_id: "7", event_name: "user.text_submitted" },
+    );
   });
 
   it("a barge-in interrupt ends the utterance and leaves the muted remainder untracked", () => {
     const { sp, stub, onUtteranceStart, onUtteranceEnd } = trackedPlayback();
 
-    sp.onSpeechDelta("hello");
+    sp.onSpeechDelta("hello", { turn_id: "7", event_name: "user.text_submitted" });
     sp.interrupt({ muteCurrentTurn: true });
     expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
-    expect(onUtteranceEnd).toHaveBeenCalledWith("interrupted", { spoken: "", unspoken: "" });
+    expect(onUtteranceEnd).toHaveBeenCalledWith(
+      "interrupted",
+      { spoken: "", unspoken: "" },
+      { turn_id: "7", event_name: "user.text_submitted" },
+    );
 
-    sp.onSpeechDelta("still arriving");
+    sp.onSpeechDelta("still arriving", { turn_id: "7", event_name: "user.text_submitted" });
     expect(onUtteranceStart).toHaveBeenCalledTimes(1);
 
     sp.onSpeechEnd();
@@ -1733,7 +1758,7 @@ describe("createSpeechPlayback — backend utterance tracking", () => {
     expect(onUtteranceEnd).not.toHaveBeenCalled();
 
     sp.speakAside("조금만 더");
-    sp.onSpeechDelta("답이야");
+    sp.onSpeechDelta("답이야", { turn_id: "7", event_name: "user.text_submitted" });
     sp.onSpeechEnd();
     expect(onUtteranceStart).toHaveBeenCalledTimes(1);
 
@@ -1742,7 +1767,10 @@ describe("createSpeechPlayback — backend utterance tracking", () => {
 
     stub.emitPlaybackEnd();
     expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
-    expect(onUtteranceEnd).toHaveBeenCalledWith("complete");
+    expect(onUtteranceEnd).toHaveBeenCalledWith("complete", undefined, {
+      turn_id: "7",
+      event_name: "user.text_submitted",
+    });
   });
 
   it("a routine pre-turn interrupt with nothing tracked reports nothing", () => {
@@ -1758,12 +1786,16 @@ describe("createSpeechPlayback — backend utterance tracking", () => {
     const { sp, onUtteranceEnd } = trackedPlayback();
 
     sp.speakAside("잠깐만");
-    sp.onSpeechDelta("답이야");
+    sp.onSpeechDelta("답이야", { turn_id: "7", event_name: "user.text_submitted" });
     sp.onSpeechEnd();
     sp.abort();
 
     expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
-    expect(onUtteranceEnd).toHaveBeenCalledWith("interrupted", { spoken: "", unspoken: "" });
+    expect(onUtteranceEnd).toHaveBeenCalledWith(
+      "interrupted",
+      { spoken: "", unspoken: "" },
+      { turn_id: "7", event_name: "user.text_submitted" },
+    );
   });
 
   it("a pipeline that fires its boundary inside end() still ends the utterance complete", () => {
@@ -1785,11 +1817,14 @@ describe("createSpeechPlayback — backend utterance tracking", () => {
       onUtteranceEnd,
     });
 
-    sp.onSpeechDelta("hello");
+    sp.onSpeechDelta("hello", { turn_id: "7", event_name: "user.text_submitted" });
     sp.onSpeechEnd();
 
     expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
-    expect(onUtteranceEnd).toHaveBeenCalledWith("complete");
+    expect(onUtteranceEnd).toHaveBeenCalledWith("complete", undefined, {
+      turn_id: "7",
+      event_name: "user.text_submitted",
+    });
   });
 
   it("backend speech arriving after a barge-in reports start then interrupted, once", () => {
@@ -1797,13 +1832,16 @@ describe("createSpeechPlayback — backend utterance tracking", () => {
 
     // Barge-in landed while only the filler was speaking, before any backend delta.
     sp.interrupt({ muteCurrentTurn: true });
-    sp.onSpeechDelta("the answer");
+    sp.onSpeechDelta("the answer", { turn_id: "7", event_name: "user.text_submitted" });
 
     expect(onUtteranceStart).toHaveBeenCalledTimes(1);
     expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
-    expect(onUtteranceEnd).toHaveBeenCalledWith("interrupted");
+    expect(onUtteranceEnd).toHaveBeenCalledWith("interrupted", undefined, {
+      turn_id: "7",
+      event_name: "user.text_submitted",
+    });
 
-    sp.onSpeechDelta(" keeps arriving");
+    sp.onSpeechDelta(" keeps arriving", { turn_id: "7", event_name: "user.text_submitted" });
     sp.onSpeechEnd();
     stub.emitPlaybackEnd();
 
@@ -1824,11 +1862,14 @@ describe("createSpeechPlayback — backend utterance tracking", () => {
       onUtteranceEnd,
     });
 
-    sp.onSpeech("hi");
+    sp.onSpeech("hi", { turn_id: "7", event_name: "user.text_submitted" });
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(onUtteranceEnd).toHaveBeenCalledTimes(1);
-    expect(onUtteranceEnd).toHaveBeenCalledWith("complete");
+    expect(onUtteranceEnd).toHaveBeenCalledWith("complete", undefined, {
+      turn_id: "7",
+      event_name: "user.text_submitted",
+    });
   });
 });
 
@@ -1852,37 +1893,54 @@ describe("createSpeechPlayback — what the user heard of a cut-off reply", () =
     const { sp, stub, onUtteranceEnd } = trackedPlayback();
     stub.setSpokenSplit({ spoken: "heard this.", unspoken: "never heard this." });
 
-    sp.onSpeechDelta("heard this. never heard this.");
+    sp.onSpeechDelta("heard this. never heard this.", {
+      turn_id: "7",
+      event_name: "user.text_submitted",
+    });
     sp.interrupt();
 
-    expect(onUtteranceEnd).toHaveBeenCalledWith("interrupted", {
-      spoken: "heard this.",
-      unspoken: "never heard this.",
-    });
+    expect(onUtteranceEnd).toHaveBeenCalledWith(
+      "interrupted",
+      {
+        spoken: "heard this.",
+        unspoken: "never heard this.",
+      },
+      { turn_id: "7", event_name: "user.text_submitted" },
+    );
   });
 
   it("abort reports the split as it stood before the pipeline was disposed", () => {
     const { sp, stub, onUtteranceEnd } = trackedPlayback();
     stub.setSpokenSplit({ spoken: "heard this.", unspoken: "never heard this." });
 
-    sp.onSpeechDelta("heard this. never heard this.");
+    sp.onSpeechDelta("heard this. never heard this.", {
+      turn_id: "7",
+      event_name: "user.text_submitted",
+    });
     sp.abort();
 
-    expect(onUtteranceEnd).toHaveBeenCalledWith("interrupted", {
-      spoken: "heard this.",
-      unspoken: "never heard this.",
-    });
+    expect(onUtteranceEnd).toHaveBeenCalledWith(
+      "interrupted",
+      {
+        spoken: "heard this.",
+        unspoken: "never heard this.",
+      },
+      { turn_id: "7", event_name: "user.text_submitted" },
+    );
   });
 
   it("a completed utterance reports no split", () => {
     const { sp, stub, onUtteranceEnd } = trackedPlayback();
     stub.setSpokenSplit({ spoken: "all of it.", unspoken: "" });
 
-    sp.onSpeechDelta("all of it.");
+    sp.onSpeechDelta("all of it.", { turn_id: "7", event_name: "user.text_submitted" });
     sp.onSpeechEnd();
     stub.emitPlaybackEnd();
 
-    expect(onUtteranceEnd).toHaveBeenCalledWith("complete");
+    expect(onUtteranceEnd).toHaveBeenCalledWith("complete", undefined, {
+      turn_id: "7",
+      event_name: "user.text_submitted",
+    });
   });
 
   it("releaseMute lets the reply after a barge-in reach the pipeline again", () => {
@@ -1897,7 +1955,7 @@ describe("createSpeechPlayback — what the user heard of a cut-off reply", () =
 
     sp.interrupt({ muteCurrentTurn: true });
     sp.releaseMute();
-    sp.onSpeechDelta("the answer");
+    sp.onSpeechDelta("the answer", { turn_id: "7", event_name: "user.text_submitted" });
 
     expect(multi.instances[1].pushTextDelta).toHaveBeenCalledWith("the answer", true);
   });
@@ -1908,5 +1966,66 @@ describe("createSpeechPlayback — what the user heard of a cut-off reply", () =
     expect(sp.hasOutstandingSpeech()).toBe(false);
     stub.setOutstandingWork(true);
     expect(sp.hasOutstandingSpeech()).toBe(true);
+  });
+});
+
+describe("playback — per-utterance identity", () => {
+  function tracked() {
+    const stub = stubPipelineFactory();
+    const start = vi.fn();
+    const end = vi.fn();
+    const playback = createSpeechPlayback({
+      renderer: spyRenderer(),
+      surfaces: spySurfaces(),
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+      isStrolling: () => false,
+      onUtteranceStart: start,
+      onUtteranceEnd: end,
+    });
+    return { stub, playback, start, end };
+  }
+
+  it("reports A identity at its boundary while B is queued", () => {
+    const { playback, stub, start, end } = tracked();
+    const a = { turn_id: "7", event_name: "agent.done" };
+    const b = { turn_id: "8", event_name: "user.text_submitted" };
+    playback.onSpeechDelta("A.", a);
+    playback.onSpeechEnd();
+    playback.onSpeechDelta("B.", b);
+    playback.onSpeechEnd();
+    stub.emitPlaybackEnd();
+    expect(end).toHaveBeenNthCalledWith(1, "complete", undefined, a);
+    stub.emitPlaybackEnd();
+    expect(end).toHaveBeenNthCalledWith(2, "complete", undefined, b);
+    expect(start.mock.calls).toEqual([[a], [b]]);
+  });
+
+  it.each([
+    "interrupt",
+    "abort",
+  ] as const)("%s retains the cut utterance identity with B queued", (method) => {
+    const { playback, stub, end } = tracked();
+    const a = { turn_id: "7", event_name: "agent.done" };
+    const b = { turn_id: "8", event_name: "user.text_submitted" };
+    playback.onSpeechDelta("A.", a);
+    playback.onSpeechEnd();
+    playback.onSpeechDelta("B.", b);
+    playback.onSpeechEnd();
+    stub.setSpokenSplit({ spoken: "A.", unspoken: "B." });
+    playback[method]();
+    expect(end.mock.calls).toEqual([["interrupted", { spoken: "A.", unspoken: "B." }, a]]);
+    stub.emitPlaybackEnd();
+    expect(end).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports a backend-minted id and the literal backend event name", () => {
+    const { playback, stub, start, end } = tracked();
+    const identity = { turn_id: "hermes-1", event_name: "backend" };
+    playback.onSpeechDelta("A report.", identity);
+    playback.onSpeechEnd();
+    stub.emitPlaybackEnd();
+    expect(start).toHaveBeenCalledWith(identity);
+    expect(end).toHaveBeenCalledWith("complete", undefined, identity);
   });
 });

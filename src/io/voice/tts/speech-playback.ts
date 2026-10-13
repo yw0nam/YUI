@@ -13,7 +13,7 @@
  * interrupt() disposes the current pipeline and builds a new one, releasing any held bubble immediately (non-defer).
  */
 
-import type { ControlEnvelope, EmotionId, ExpressArgs } from "../../../contract";
+import type { ControlEnvelope, EmotionId, ExpressArgs, UtteranceIdentity } from "../../../contract";
 import { createEmojiStripper } from "./strip-emoji";
 import { createLinkStripper } from "./strip-links";
 import {
@@ -69,10 +69,12 @@ export interface SpeechPlaybackOptions {
   /** Called after stopMouth/finishSpeech/easeEmotionToNeutral on each playback-end. */
   onPlaybackEnd?: () => void;
   /** A backend utterance opened. Client-side phrases (speakAside) never report. */
-  onUtteranceStart?: () => void;
-  /** A backend utterance closed: "complete" when a start reaches its playback boundary, or one
-   *  "interrupted" folding every queued utterance, with what was heard and what was still owed. */
-  onUtteranceEnd?: (ended: "complete" | "interrupted", split?: SpokenSplit) => void;
+  onUtteranceStart?: (identity: UtteranceIdentity) => void;
+  onUtteranceEnd?: (
+    ended: "complete" | "interrupted",
+    split: SpokenSplit | undefined,
+    identity: UtteranceIdentity,
+  ) => void;
   /** Reports whether the pipeline still owes audio. Called after every state change that can flip it. */
   reportAudioOwed?: (owed: boolean) => void;
   /** An ambient stroll is moving the window — a cue-less beat leaves the walk clip alone. */
@@ -81,11 +83,11 @@ export interface SpeechPlaybackOptions {
 
 export interface SpeechPlayback {
   /** One speech-text unit (streaming token): accumulate into the bubble + drive TTS playback. Opens the bubble on the first token. */
-  onSpeechDelta(delta: string): void;
+  onSpeechDelta(delta: string, identity: UtteranceIdentity): void;
   /** Speech end: defer the bubble dwell + flush the pipeline. no-op if there were no deltas. */
   onSpeechEnd(): void;
   /** One speech-text unit (whole): sugar for onSpeechDelta + onSpeechEnd. */
-  onSpeech(text: string): void;
+  onSpeech(text: string, identity: UtteranceIdentity): void;
   /** One client-side phrase (thinking filler, failure): spoken like onSpeech, never tracked as backend speech. */
   speakAside(text: string): void;
   /**
@@ -127,10 +129,10 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
   // Real audio reached the speakers during the current utterance; cleared on playback-end/interrupt/abort.
   let heardAudio = false;
   let muted = false;
-  // The utterance between its first delta and end(); `tracked` marks backend speech.
-  let open: { tracked: boolean } | null = null;
+  // An identity marks backend speech; client-side phrases carry none.
+  let open: { identity?: UtteranceIdentity } | null = null;
   // One entry per end() whose playback boundary has not fired yet — mirrors the pipeline's boundary queue.
-  const queued: boolean[] = [];
+  const queued: Array<{ identity?: UtteranceIdentity }> = [];
   // The current mute window already reported its cut-off backend utterance. Clears with `muted`.
   let mutedReported = false;
   // Callbacks waiting for the next playback-end boundary — drained and cleared each time it fires.
@@ -161,7 +163,8 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
         // When speech ends, the expression also slowly returns to neutral — so the previous emotion isn't trapped forever.
         renderer.easeEmotionToNeutral(EMOTION_REVERT_MS);
         heardAudio = false;
-        if (queued.shift() === true) options.onUtteranceEnd?.("complete");
+        const identity = queued.shift()?.identity;
+        if (identity) options.onUtteranceEnd?.("complete", undefined, identity);
         options.onPlaybackEnd?.();
         reportAudioOwed();
         const callbacks = drainedCallbacks;
@@ -175,14 +178,13 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
   const stripper = createEmojiStripper();
   const links = createLinkStripper();
 
-  // Reports the tracked utterance the caller is about to cut, then drops the whole queue —
-  // the disposed pipeline never fires the boundaries it held.
+  // The disposed pipeline never fires the boundaries it held, so the queue drops with the cut report.
   function closeTracked(split: SpokenSplit): boolean {
-    const tracked = open?.tracked === true || queued.includes(true);
+    const identity = queued.find((utterance) => utterance.identity)?.identity ?? open?.identity;
     open = null;
     queued.length = 0;
-    if (tracked) options.onUtteranceEnd?.("interrupted", split);
-    return tracked;
+    if (identity) options.onUtteranceEnd?.("interrupted", split, identity);
+    return identity !== undefined;
   }
 
   // Single call site for the reporting expression — every state change that can flip it calls this.
@@ -190,30 +192,31 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
     options.reportAudioOwed?.(pipeline.hasOutstandingWork());
   }
 
-  function delta(text: string, tracked: boolean): void {
+  function delta(text: string, identity?: UtteranceIdentity): void {
     const clean = stripper.push(text);
     if (open === null) {
       surfaces.beginSpeech();
       // A muted remainder still shows in the bubble, and stays out of the record.
-      open = { tracked: tracked && !muted };
-      if (open.tracked) {
-        options.onUtteranceStart?.();
-      } else if (tracked && !mutedReported) {
+      open = { identity: !muted && identity ? { ...identity } : undefined };
+      if (open.identity) {
+        options.onUtteranceStart?.(open.identity);
+      } else if (identity && !mutedReported) {
         // The barge-in landed before the answer began: the user talked over all of it.
         mutedReported = true;
-        options.onUtteranceStart?.();
-        options.onUtteranceEnd?.("interrupted");
+        const snapshot = { ...identity };
+        options.onUtteranceStart?.(snapshot);
+        options.onUtteranceEnd?.("interrupted", undefined, snapshot);
       }
     }
     surfaces.pushSpeech(clean);
-    if (!muted) pipeline.pushTextDelta(links.push(clean), tracked);
+    if (!muted) pipeline.pushTextDelta(links.push(clean), identity !== undefined);
     reportAudioOwed();
   }
 
   function end(): void {
     // a held-back `[…` that never became a link is still spoken.
     const tail = links.flush();
-    if (tail) pipeline.pushTextDelta(tail, open?.tracked === true);
+    if (tail) pipeline.pushTextDelta(tail, open?.identity !== undefined);
     muted = false;
     mutedReported = false;
     if (open === null) return;
@@ -222,25 +225,25 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
     // Keep the bubble until playback ends — onPlaybackEnd releases it via finishSpeech.
     surfaces.endSpeech({ defer: true });
     // Queued before end(), which fires the boundary inline when nothing was submitted.
-    queued.push(open.tracked);
+    queued.push(open);
     open = null;
     pipeline.end();
     reportAudioOwed();
   }
 
   return {
-    onSpeechDelta(text) {
-      delta(text, true);
+    onSpeechDelta(text, identity) {
+      delta(text, identity);
     },
     onSpeechEnd() {
       end();
     },
-    onSpeech(text) {
-      delta(text, true);
+    onSpeech(text, identity) {
+      delta(text, identity);
       end();
     },
     speakAside(text) {
-      delta(text, false);
+      delta(text);
       end();
     },
     setCue(cue, options) {

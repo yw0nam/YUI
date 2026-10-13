@@ -27,6 +27,7 @@ import {
 } from "../settings/wire-avatar";
 import type { BedSceneHold } from "../stage/bed-scene-hold";
 import { wireBroker } from "./broker/wire-broker";
+import { wirePlayback } from "./push/playback";
 import { wirePushTransport, wireStopButton } from "./push/wire-push";
 import { wireVocabulary } from "./vocabulary/wire-vocabulary";
 import { type VoiceHost, type VoicePersistence, wireTurnVoice } from "./voice/wire-voice";
@@ -247,6 +248,7 @@ export async function wireTurnCore(
         ).dispose,
       );
       if (pushSocket) {
+        register(wirePlayback({ socket: pushSocket, previousTurn }));
         register(
           wirePushTransport({
             socket: pushSocket,

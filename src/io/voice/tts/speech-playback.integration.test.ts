@@ -86,7 +86,7 @@ describe("speech-playback integration (real pipeline + real sink)", () => {
       isStrolling: () => false,
     });
 
-    sp.onSpeech("Hello.");
+    sp.onSpeech("Hello.", { turn_id: "7", event_name: "user.text_submitted" });
     expect(surfaces.endSpeech).toHaveBeenCalledWith({ defer: true });
     expect(surfaces.finishSpeech).not.toHaveBeenCalled();
 
@@ -146,7 +146,7 @@ describe("speech-playback integration (real pipeline + real sink)", () => {
       isStrolling: () => false,
     });
 
-    sp.onSpeech("Hello.");
+    sp.onSpeech("Hello.", { turn_id: "7", event_name: "user.text_submitted" });
     // Stream is done and audio is owed, but no frame has played — still speaking.
     expect(owed).toBe(true);
 
@@ -186,7 +186,7 @@ describe("speech-playback integration (real pipeline + real sink)", () => {
     });
 
     sp.interrupt({ muteCurrentTurn: true });
-    sp.onSpeechDelta("late");
+    sp.onSpeechDelta("late", { turn_id: "7", event_name: "user.text_submitted" });
     sp.onSpeechEnd();
     await tick();
 

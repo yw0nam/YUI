@@ -111,7 +111,10 @@ export function createStreamAttempt(
             // A bare [SILENT] token stays held in the filter — only real speech reaches the bubble.
             const speech = silenceFilter.push(ev.text);
             if (speech) {
-              deps.turnOutput?.delta(speech);
+              deps.turnOutput?.delta(speech, {
+                turn_id: String(turn.id),
+                event_name: turn.trigger.event_name,
+              });
               streamedAny = true;
             }
             break;
@@ -209,7 +212,10 @@ export function createStreamAttempt(
     // (dropped) or a partial prefix cut short (spoken as-is).
     const rest = silenceFilter.flush();
     if (rest) {
-      deps.turnOutput?.delta(rest);
+      deps.turnOutput?.delta(rest, {
+        turn_id: String(turn.id),
+        event_name: turn.trigger.event_name,
+      });
       streamedAny = true;
     }
 

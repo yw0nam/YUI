@@ -146,9 +146,9 @@ function callerWith(
       cuts++;
       pushTurns.cut();
     },
-    onPushTurnSent: (turnId) => {
+    onPushTurnSent: (turnId, eventName) => {
       sentIds.push(turnId);
-      pushTurns.opened(turnId);
+      pushTurns.opened(turnId, eventName);
     },
     pushTurns: {
       awaitTurnEnd: (turnId, hooks) => pushTurns.awaitTurnEnd(turnId, hooks),

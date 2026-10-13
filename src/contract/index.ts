@@ -43,6 +43,9 @@ export type {
   TtsProviderName,
   TurnEnded,
   Usage,
+  UtteranceIdentity,
   WakeCause,
   WindowRect,
 } from "./types";
+
+export { BACKEND_EVENT_NAME } from "./types";

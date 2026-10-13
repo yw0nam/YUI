@@ -1460,3 +1460,31 @@ describe("push socket image result cap", () => {
     ).toBe(false);
   });
 });
+
+describe("push socket — playback", () => {
+  const frame = {
+    type: "playback" as const,
+    turn_id: "hermes-1",
+    ended: "failed" as const,
+  };
+
+  it("sendPlayback sends the exact frame after ready", async () => {
+    await connected();
+    expect(socket.sendPlayback(frame)).toBe(true);
+    expect(FakeSocket.last().frames().at(-1)).toEqual(frame);
+  });
+
+  it("sendPlayback sends nothing before ready or after disconnect", async () => {
+    socket = build();
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    const ws = FakeSocket.last();
+    ws.accept();
+    expect(socket.sendPlayback(frame)).toBe(false);
+    expect(ws.frames().map((f) => f.type)).toEqual(["hello"]);
+    ws.push({ type: "ready", chat_id: "yui-3f9a2c1d" });
+    ws.drop();
+    expect(socket.sendPlayback(frame)).toBe(false);
+    expect(ws.frames().map((f) => f.type)).toEqual(["hello"]);
+  });
+});

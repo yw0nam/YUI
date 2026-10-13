@@ -39,7 +39,7 @@ const baseLog = createLogger("render-turn");
 export interface RenderTurnDeps {
   turnOutput: TurnOutput;
   /** Which push turns the user stopped — a frame of one of them never plays. */
-  pushTurns: Pick<PushTurns, "rendered" | "isCut" | "cutCount">;
+  pushTurns: Pick<PushTurns, "rendered" | "isCut" | "cutCount" | "identity">;
   /** Conversation transcript — the reply half of a push turn lands here. */
   appendTranscript?: (entry: ChatHistoryEntry) => void;
   appendTurnRecord?: (record: RenderRecord) => void;
@@ -116,7 +116,7 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
         if (Object.keys(cue).length > 0) deps.turnOutput.cueWithSpeech(cue);
         // The newline is a sentence boundary to the segmenter, so a segment that ends without a
         // terminator still closes here instead of running into the next segment and its cue.
-        deps.turnOutput.delta(`${speech}\n`);
+        deps.turnOutput.delta(`${speech}\n`, deps.pushTurns.identity(turnId));
         said.push(speech.trim());
         spokeText = true;
         continue;

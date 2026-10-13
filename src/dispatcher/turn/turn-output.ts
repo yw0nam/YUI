@@ -1,4 +1,4 @@
-import type { ExpressArgs, ToolStatus } from "../../contract";
+import type { ExpressArgs, ToolStatus, UtteranceIdentity } from "../../contract";
 
 /**
  * Speech lifecycle port between the backend caller and the voice pipeline.
@@ -9,8 +9,8 @@ import type { ExpressArgs, ToolStatus } from "../../contract";
  * - `thinkingStart`/`thinkingEnd` carry the same turn id, so an overtaken turn's late
  *   `thinkingEnd` is ignored by the implementation.
  * - `thinkingEnd` fires exactly once per turn that started thinking, on every exit path.
- * - `delta(text)` streams speech; the first one ends thinking.
- * - `end()` closes a streamed utterance; `speak(text)` is the whole-utterance fallback for a
+ * - `delta(text, identity)` streams speech; the first one ends thinking.
+ * - `end()` closes a streamed utterance; `speak(text, identity)` is the whole-utterance fallback for a
  *   delta-less backend. Exactly one of the two per successful speaking turn — never both.
  * - `abort()` replaces `end()` when the stream died after at least one `delta`. Only the streaming
  *   chat modes abort; push closes every utterance with `end()`.
@@ -37,8 +37,8 @@ export interface TurnOutput {
   hasFiller(): boolean;
   thinkingStart(turnId: number): void;
   thinkingEnd(turnId: number): void;
-  delta(text: string): void;
-  speak(text: string): void;
+  delta(text: string, identity: UtteranceIdentity): void;
+  speak(text: string, identity: UtteranceIdentity): void;
   end(): void;
   abort(): void;
   cue(args: ExpressArgs): void;

@@ -163,7 +163,9 @@ previous: time_milestone.first_activity interrupted (12min ago)
 previous: user.text_submitted failed (3min ago)
 ```
 
-The label is that turn's raw `event_name`, the vocabulary the event bus uses, so it
+The label is the utterance's snapshotted `event_name`. A turn the backend starts
+without a client request uses the literal `backend`. A client turn uses its raw
+`event_name`, the vocabulary the event bus uses, so it
 reads `time_milestone.first_activity` where a `trigger:` headline for the same turn
 reads `milestone first_activity`. The duration is minutes since the client recorded
 the outcome. The client stores one of three values and renders two of them:
@@ -194,13 +196,20 @@ whose synthesis failed belongs to it only when playback never reached past it; o
 the listener heard past appears in neither part. A part that is empty is left out,
 and a record with neither part renders the plain line.
 
-When two replies overlap, the line names the turn whose utterance opened most
-recently.
+Each queued utterance retains its own `turn_id` and `event_name` through its
+playback boundary. On interruption the line names the cut utterance, carrying
+everything still owed. A failed call
+retains the failing client turn's identity. The persisted record carries an optional `turn_id`; a record
+without it still loads.
 
 Only the backend's own turn writes the value. The thinking filler phrases and the
 client's failure phrases leave it as it was, and so does a turn the backend answers
 with silence on a call that succeeds. The value lives in `localStorage` under
 `yui.previous-turn`, so it survives a restart of the app.
+
+Push sends a `playback` frame only for a failed record with a `turn_id`, after
+`ready` and while connected. Interruption and completion are stored only in this
+record; the line carries interruption and omits completion.
 
 The client records the outcome and renders it. What to make of a cut-off or missing
 reply is the backend's judgment.
