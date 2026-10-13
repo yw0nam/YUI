@@ -9,12 +9,14 @@
   handled.
 - Turns the `turn` frame into a gateway message: the rendered `client_context` block, a blank
   line, then the user's utterance.
-- Accepts `playback` outcomes after `ready`. An `interrupted` or `failed` outcome
-  starts one gateway message with a one-line playback notice naming the turn and
-  any spoken or unspoken slices, `internal=True`, `reply_expected=False` and
-  `allow_gateway_control=False`, from the same direct-message source as a client turn.
-  A `complete` outcome writes one log line and starts no message. Playback notices
-  use no held-report queue; they arrive over the connected socket.
+- Accepts `playback` frames with `ended: "failed"` after `ready`. A failed frame
+  for a turn the adapter closed with an `error` frame writes one log line and
+  starts no gateway message. A failed frame for another turn starts one gateway
+  message with a one-line notice naming the turn, `internal=True`,
+  `reply_expected=False` and `allow_gateway_control=False`, from the same
+  direct-message source as a client turn. Other outcomes are malformed frames
+  and are dropped with a warning. Playback notices use no held-report queue;
+  they arrive over the connected socket.
 - Registers `generate_express`, whose enums are the emotion ids, motion ids and voice-tone tags
   the client published. The model calls it once per reply, listing every cue in speaking order
   and naming the sentence each one belongs before. Hermes defers the tool behind its tool search:

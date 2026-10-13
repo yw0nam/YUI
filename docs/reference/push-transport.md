@@ -45,7 +45,6 @@ The client renders what arrives and judges nothing. Everything the backend must 
 | `tool_call` wait, query | 2 s on the client, 7 s on the backend adapter |
 | `tool_result.result` | The text frame size |
 | `playback` frame size | The text frame size |
-| `playback.spoken`, `playback.unspoken` | 50 Unicode code points each |
 | `error.message` | The text frame size |
 
 The backend cuts `title` and `summary` to their limits, counting Unicode code points.
@@ -170,17 +169,15 @@ The user pressed stop. `turn_ids` are the turns the client just stopped — ever
 ### `playback` (client → backend)
 
 ```json
-{ "type": "playback", "turn_id": "1789365854947", "ended": "interrupted", "spoken": "Three logs are left.", "unspoken": "Two are from yesterday." }
+{ "type": "playback", "turn_id": "1789365854947", "ended": "failed" }
 ```
 
 | Field | Value |
 |---|---|
-| `turn_id` | The turn whose speech or call ended: the client-sent `turn` id, or the backend-minted id on its `render` or `speech` frame |
-| `ended` | `"complete"`, `"interrupted"`, or `"failed"` |
-| `spoken` | Optional. The last 50 Unicode code points heard from an interrupted reply |
-| `unspoken` | Optional. The first 50 Unicode code points still owed from an interrupted reply |
+| `turn_id` | The client turn whose call failed |
+| `ended` | `"failed"` |
 
-The client sends one frame per saved playback record, after `ready` and only while connected. Each queued utterance retains its own turn identity through completion. On interruption, each later queued turn is reported interrupted without a split, before the cut utterance's report carrying everything still owed. A failed call names the client turn that failed. A persisted record without `turn_id` sends no frame. Records saved while disconnected are not replayed on reconnect; the next turn's `previous:` line carries an interrupted or failed outcome. A complete outcome is stored and omitted from that line.
+The client sends one frame per saved failed record with a `turn_id`, after `ready` and only while connected. Records saved while disconnected are not replayed on reconnect; the next turn's `previous:` line carries the failed outcome. Interruption and completion are stored in the previous-turn record only. The `previous:` line carries an interrupted outcome and omits a complete outcome. Playback frames carry no spoken or unspoken slices.
 
 ## Replies
 

@@ -206,6 +206,10 @@ client's failure phrases leave it as it was, and so does a turn the backend answ
 with silence on a call that succeeds. The value lives in `localStorage` under
 `yui.previous-turn`, so it survives a restart of the app.
 
+Push sends a `playback` frame only for a failed record with a `turn_id`, after
+`ready` and while connected. Interruption and completion are stored only in this
+record; the line carries interruption and omits completion.
+
 The client records the outcome and renders it. What to make of a cut-off or missing
 reply is the backend's judgment.
 
