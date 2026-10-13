@@ -6,7 +6,6 @@ import pytest
 from conftest import AGENT_NAME
 
 import act
-import desire_drives
 import desire_state
 import desire_store
 
@@ -75,81 +74,6 @@ def test_action_and_monitor_share_budget_caps():
         "self_comments": 1,
         "prs": 0,
     }
-
-
-def test_satisfy_prints_event_and_reward(state_dir, at, capsys):
-    result = act.main(
-        ["satisfy", "praised", "--ref", "he said the fix reads well"],
-        now=at("2026-08-25T12:00:00+09:00"),
-    )
-
-    captured = capsys.readouterr()
-    assert result == 0
-    assert captured.out == "satisfied praised reward=0.0959\n"
-    assert captured.err == ""
-
-
-def test_satisfy_learned_lowers_curiosity_by_its_dose(state_dir, at, state_helpers, capsys):
-    _, _, read_json, _ = state_helpers
-    now = at("2026-08-25T12:00:00+09:00")
-    before = desire_drives.default_drives(now)["curiosity"]["level"]
-
-    result = act.main(["satisfy", "learned", "--ref", "https://github.com/x/y/commit/abc"], now=now)
-
-    captured = capsys.readouterr()
-    assert result == 0
-    assert captured.out.startswith("satisfied learned reward=")
-    assert captured.err == ""
-    curiosity = read_json(state_dir / "drives.json")["curiosity"]["level"]
-    assert curiosity == before - desire_drives.EVENT_DOSES["learned"]["curiosity"]
-
-
-def test_satisfy_learned_refuses_a_source_reported_twice(state_dir, at, capsys):
-    now = at("2026-08-25T12:00:00+09:00")
-    ref = "https://github.com/x/y/commit/abc"
-    assert act.main(["satisfy", "learned", "--ref", ref], now=now) == 0
-    capsys.readouterr()
-
-    assert act.main(["satisfy", "learned", "--ref", ref], now=now) == 1
-
-    captured = capsys.readouterr()
-    assert captured.out == ""
-    assert captured.err == f"already reported: {ref}\n"
-
-
-def test_satisfy_learned_refuses_a_source_past_the_daily_cap(state_dir, at, capsys):
-    now = at("2026-08-25T12:00:00+09:00")
-    for index in range(6):
-        assert act.main(["satisfy", "learned", "--ref", f"source {index}"], now=now) == 0
-    capsys.readouterr()
-
-    assert act.main(["satisfy", "learned", "--ref", "one more source"], now=now) == 1
-
-    captured = capsys.readouterr()
-    assert captured.out == ""
-    assert captured.err == "over budget: learned daily cap is 6\n"
-
-
-@pytest.mark.parametrize("event", ["progressed", "shipped"])
-def test_satisfy_refuses_the_events_the_monitor_derives(state_dir, at, event, capsys):
-    with pytest.raises(SystemExit) as failure:
-        act.main(["satisfy", event, "--ref", "self-reported"], now=at("2026-08-25T12:00:00+09:00"))
-
-    assert failure.value.code == 2
-    assert "invalid choice" in capsys.readouterr().err
-
-
-def test_satisfy_cap_exits_one_with_clear_refusal(state_dir, at, capsys):
-    now = at("2026-08-25T12:00:00+09:00")
-    for index in range(4):
-        assert act.main(["satisfy", "praised", "--ref", f"praise {index}"], now=now) == 0
-    capsys.readouterr()
-
-    assert act.main(["satisfy", "praised", "--ref", "one more"], now=now) == 1
-
-    captured = capsys.readouterr()
-    assert captured.out == ""
-    assert captured.err == "over budget: praised daily cap is 4\n"
 
 
 def test_signal_defaults_to_yui_agent_ingress_port(state_dir, at, monkeypatch):
@@ -524,10 +448,9 @@ def test_report_posts_its_own_kind_without_touching_the_signal_budget(state_dir,
         "issues": 0,
         "self_comments": 0,
         "prs": 0,
-        "events": {},
         "pending": {},
     }
-    assert read_json(state_dir / "monitor.json")["rises"] == 0
+    assert not (state_dir / "monitor.json").exists()
     assert (state_dir / "outbox.jsonl").read_bytes() == b""
     sent = read_jsonl(state_dir / "audit.jsonl")[-1]
     assert (sent["event"], sent["note"]) == ("report_sent", "one pull request today")

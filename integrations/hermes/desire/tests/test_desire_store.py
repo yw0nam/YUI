@@ -122,18 +122,20 @@ def test_read_artefacts_reports_absent_state_and_normalizes_a_partial_record(sta
     write_json(
         state_dir / "artefacts.json",
         {
+            "bootstrapped": ["pr", "skill"],
             "seen": {"pr": ["u"]},
             "unreported": ["bad", {"kind": "pr"}],
             "skill_first_seen": {"a": 1, "b": "t"},
+            "learned": ["kept once"],
         },
     )
     record = desire_store.read_artefacts(state_dir)
-    assert record["seen"] == {"pr": ["u"], "issue": [], "skill": []}
-    assert record["skill_first_seen"] == {"b": "t"}
-    assert record["bootstrapped"] == []
-    assert record["shipped"] == []
-    assert record["learned"] == []
-    assert record["unreported"] == [{"kind": "pr"}]
+    assert record == {
+        "bootstrapped_at": None,
+        "bootstrapped": ["pr"],
+        "seen": {"pr": ["u"], "issue": []},
+        "shipped": [],
+    }
 
     write_json(state_dir / "artefacts.json", ["not an object"])
     assert desire_store.read_artefacts(state_dir) is None
@@ -141,9 +143,6 @@ def test_read_artefacts_reports_absent_state_and_normalizes_a_partial_record(sta
     assert desire_store.default_artefacts(now) == {
         "bootstrapped_at": now.isoformat(),
         "bootstrapped": [],
-        "seen": {"pr": [], "issue": [], "skill": []},
-        "skill_first_seen": {},
+        "seen": {"pr": [], "issue": []},
         "shipped": [],
-        "learned": [],
-        "unreported": [],
     }

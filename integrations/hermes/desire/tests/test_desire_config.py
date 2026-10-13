@@ -118,10 +118,3 @@ def test_inside_hermes_settings_come_from_the_profile_scope_and_home(monkeypatch
 
     scope["DESIRE_STATE_DIR"] = str(tmp_path / "state")
     assert scoped.resolve_state_dir() == tmp_path / "state"
-
-
-def test_wake_day_rolls_at_nine_kst(at):
-    assert desire_config.wake_day(at("2026-08-25T08:59:59+09:00")) == "2026-08-24"
-    assert desire_config.wake_day(at("2026-08-25T09:00:00+09:00")) == "2026-08-25"
-    assert desire_config.wake_day(at("2026-08-25T23:59:59+09:00")) == "2026-08-25"
-    assert desire_config.wake_day(at("2026-08-26T00:30:00+09:00")) == "2026-08-25"

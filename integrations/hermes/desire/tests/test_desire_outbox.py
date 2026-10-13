@@ -1,8 +1,6 @@
 import json
 from datetime import timedelta
 
-import pytest
-
 import desire_outbox
 
 
@@ -68,21 +66,6 @@ def test_release_outbox_item_preserves_bytes_of_untouched_lines(state_dir):
     assert desire_outbox.release_outbox_item(path, "b") is True
 
     assert path.read_bytes() == malformed_crlf + b"\n" + invalid_utf8 + b"\n"
-
-
-@pytest.mark.parametrize(
-    ("age", "expected"),
-    [
-        (timedelta(0), "fresh"),
-        (timedelta(hours=5, minutes=59, seconds=59), "fresh"),
-        (timedelta(hours=6), "heavy"),
-        (timedelta(hours=17, minutes=59, seconds=59), "heavy"),
-        (timedelta(hours=18), "bursting"),
-    ],
-)
-def test_pent_up_stage_boundaries(at, age, expected):
-    now = at("2026-08-25T12:00:00+09:00")
-    assert desire_outbox.pent_up_stage(now - age, now) == expected
 
 
 def test_valid_outbox_item_accepts_a_not_before_string_only(at):
