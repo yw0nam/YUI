@@ -2014,9 +2014,12 @@ describe("playback — per-utterance identity", () => {
     playback.onSpeechEnd();
     stub.setSpokenSplit({ spoken: "A.", unspoken: "B." });
     playback[method]();
-    expect(end).toHaveBeenCalledWith("interrupted", { spoken: "A.", unspoken: "B." }, a);
+    expect(end.mock.calls).toEqual([
+      ["interrupted", undefined, b],
+      ["interrupted", { spoken: "A.", unspoken: "B." }, a],
+    ]);
     stub.emitPlaybackEnd();
-    expect(end).toHaveBeenCalledTimes(1);
+    expect(end).toHaveBeenCalledTimes(2);
   });
 
   it("reports a backend-minted id and the literal backend event name", () => {

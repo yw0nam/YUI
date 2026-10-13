@@ -305,7 +305,7 @@ describe("render_turn — segment order", () => {
 
 describe("render_turn — a turn the user stopped", () => {
   function cutSeven(): void {
-    pushTurns.opened("7");
+    pushTurns.opened("7", "user.text_submitted");
     pushTurns.cut();
   }
 
@@ -342,17 +342,17 @@ describe("render_turn — a turn the user stopped", () => {
   });
 
   it("plays a frame of a turn the user never stopped", () => {
-    pushTurns.opened("7");
-    pushTurns.opened("8");
+    pushTurns.opened("7", "user.text_submitted");
+    pushTurns.opened("8", "user.text_submitted");
     pushTurns.cut();
-    pushTurns.opened("9");
+    pushTurns.opened("9", "user.text_submitted");
     turn().render(frame([{ speech: "Here it is." }], { turn_id: "9" }));
 
     expect(pipeline.spoken).toEqual([{ text: "Here it is.", cue: null }]);
   });
 
   it("plays a frame of a turn the backend already ended", () => {
-    pushTurns.opened("7");
+    pushTurns.opened("7", "user.text_submitted");
     pushTurns.ended("7");
     turn().render(frame([{ speech: "Here it is." }]));
 
@@ -581,7 +581,7 @@ describe("render_turn — a reply streamed as speech frames", () => {
   it("brings the thinking bridge down on the first speech frame, once for the whole turn", () => {
     const onFirstRender = vi.fn();
     const onFrame = vi.fn();
-    pushTurns.opened("7");
+    pushTurns.opened("7", "user.text_submitted");
     void pushTurns.awaitTurnEnd("7", { onFirstRender, onFrame });
     const r = turn();
 
@@ -738,7 +738,7 @@ describe("render_turn — a streamed reply the user stopped", () => {
   });
 
   function streamThenCut(r: ReturnType<typeof turn>): void {
-    pushTurns.opened("7");
+    pushTurns.opened("7", "user.text_submitted");
     r.stream(speech([{ speech: "All green." }]));
     pushTurns.cut();
     r.drop("7");

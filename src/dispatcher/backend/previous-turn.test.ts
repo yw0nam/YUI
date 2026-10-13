@@ -36,19 +36,20 @@ function identityOf(turn: Turn) {
   return { turn_id: String(turn.id), event_name: turn.trigger.event_name };
 }
 
-function makeSlot(current: Turn | null, initial: unknown = null) {
+function makeSlot(initial: unknown = null) {
   const storage = memoryStorage(initial);
   const slot = createPreviousTurn({
     storage,
     now: () => NOW,
   });
-  return { slot, storage, identity: identityOf(current ?? turnOf(0, "backend")) };
+  return { slot, storage };
 }
 
 describe("createPreviousTurn — an utterance that opened and closed", () => {
   it("saves complete for the turn that was speaking", () => {
     const turn = turnOf(1, "user.text_submitted");
-    const { slot, storage, identity } = makeSlot(turn);
+    const identity = identityOf(turn);
+    const { slot, storage } = makeSlot();
 
     slot.utteranceStart(identity);
     slot.utteranceEnd("complete", undefined, identity);
@@ -65,7 +66,8 @@ describe("createPreviousTurn — an utterance that opened and closed", () => {
   });
 
   it("saves interrupted when the utterance was cut", () => {
-    const { slot, storage, identity } = makeSlot(turnOf(2, "time_milestone.first_activity"));
+    const identity = identityOf(turnOf(2, "time_milestone.first_activity"));
+    const { slot, storage } = makeSlot();
 
     slot.utteranceStart(identity);
     slot.utteranceEnd("interrupted", undefined, identity);
@@ -89,7 +91,7 @@ describe("createPreviousTurn — a call that failed before any speech", () => {
     "parse_error",
   ] as const)("saves failed for %s", (reason) => {
     const turn = turnOf(3, "agent.done");
-    const { slot, storage } = makeSlot(turn);
+    const { slot, storage } = makeSlot();
 
     slot.callFailed(turn, reason);
 
@@ -100,7 +102,7 @@ describe("createPreviousTurn — a call that failed before any speech", () => {
 
   it.each(["not_configured", "superseded_by_user"] as const)("saves nothing for %s", (reason) => {
     const turn = turnOf(4, "user.text_submitted");
-    const { slot, storage } = makeSlot(turn);
+    const { slot, storage } = makeSlot();
 
     slot.callFailed(turn, reason);
 
@@ -170,7 +172,7 @@ describe("createPreviousTurn — the speaking turn is fixed at the start", () =>
 describe("createPreviousTurn — the stored value at creation", () => {
   it("keeps a well-formed stored record", () => {
     const stored = { event_name: "user.text_submitted", ended: "failed", ts: NOW - 60_000 };
-    const { slot } = makeSlot(null, stored);
+    const { slot } = makeSlot(stored);
 
     expect(slot.get()).toEqual(stored);
   });
@@ -183,7 +185,7 @@ describe("createPreviousTurn — the stored value at creation", () => {
     ["a string", "user.text_submitted"],
     ["null", null],
   ])("ignores %s", (_label, stored) => {
-    const { slot } = makeSlot(null, stored);
+    const { slot } = makeSlot(stored);
 
     expect(slot.get()).toBeUndefined();
   });
@@ -191,7 +193,8 @@ describe("createPreviousTurn — the stored value at creation", () => {
 
 describe("createPreviousTurn — what the user heard of a cut-off reply", () => {
   it("keeps the last 50 characters spoken and the first 50 still owed", () => {
-    const { slot, storage, identity } = makeSlot(turnOf(11, "user.text_submitted"));
+    const identity = identityOf(turnOf(11, "user.text_submitted"));
+    const { slot, storage } = makeSlot();
 
     slot.utteranceStart(identity);
     slot.utteranceEnd(
@@ -216,7 +219,8 @@ describe("createPreviousTurn — what the user heard of a cut-off reply", () => 
   });
 
   it("cuts on whole characters, so one outside the basic plane never lands halved", () => {
-    const { slot, storage, identity } = makeSlot(turnOf(17, "user.text_submitted"));
+    const identity = identityOf(turnOf(17, "user.text_submitted"));
+    const { slot, storage } = makeSlot();
 
     slot.utteranceStart(identity);
     slot.utteranceEnd(
@@ -235,7 +239,8 @@ describe("createPreviousTurn — what the user heard of a cut-off reply", () => 
   });
 
   it("stores neither part for a completed utterance", () => {
-    const { slot, storage, identity } = makeSlot(turnOf(12, "user.text_submitted"));
+    const identity = identityOf(turnOf(12, "user.text_submitted"));
+    const { slot, storage } = makeSlot();
 
     slot.utteranceStart(identity);
     slot.utteranceEnd("complete", { spoken: "all of it", unspoken: "" }, identity);
@@ -246,7 +251,8 @@ describe("createPreviousTurn — what the user heard of a cut-off reply", () => 
   });
 
   it("stores neither part when both halves are empty", () => {
-    const { slot, storage, identity } = makeSlot(turnOf(13, "user.text_submitted"));
+    const identity = identityOf(turnOf(13, "user.text_submitted"));
+    const { slot, storage } = makeSlot();
 
     slot.utteranceStart(identity);
     slot.utteranceEnd("interrupted", { spoken: "", unspoken: "" }, identity);
@@ -262,7 +268,8 @@ describe("createPreviousTurn — what the user heard of a cut-off reply", () => 
   });
 
   it("records the interruption of the second utterance after the first completed", () => {
-    const { slot, storage, identity } = makeSlot(turnOf(14, "push.render"));
+    const identity = identityOf(turnOf(14, "push.render"));
+    const { slot, storage } = makeSlot();
 
     slot.utteranceStart(identity);
     slot.utteranceStart(identity);
@@ -305,13 +312,13 @@ describe("createPreviousTurn — the stored split at creation", () => {
       spoken: "heard this",
       unspoken: "owed this",
     };
-    const { slot } = makeSlot(null, stored);
+    const { slot } = makeSlot(stored);
 
     expect(slot.get()).toEqual(stored);
   });
 
   it("drops a part that is not a string", () => {
-    const { slot } = makeSlot(null, {
+    const { slot } = makeSlot({
       event_name: "user.text_submitted",
       ended: "interrupted",
       ts: NOW,
@@ -330,7 +337,7 @@ describe("createPreviousTurn — the stored split at creation", () => {
 
 describe("playback records — utterance identity", () => {
   it("retains A identity when B opens before A completes", () => {
-    const { slot, storage } = makeSlot(turnOf(99, "user.text_submitted"));
+    const { slot, storage } = makeSlot();
     const a = { turn_id: "7", event_name: "agent.done" };
     const b = { turn_id: "8", event_name: "user.text_submitted" };
     slot.utteranceStart(a);
@@ -339,11 +346,8 @@ describe("playback records — utterance identity", () => {
     expect(storage.saved).toEqual([{ ...a, ended: "complete", ts: NOW }]);
   });
 
-  it.each([
-    null,
-    turnOf(99, "user.text_submitted"),
-  ])("records backend identity independently of the dispatcher turn %j", (current) => {
-    const { slot } = makeSlot(current);
+  it("records explicit backend utterance identity", () => {
+    const { slot } = makeSlot();
     const identity = { turn_id: "hermes-1", event_name: "backend" };
     slot.utteranceStart(identity);
     slot.utteranceEnd("interrupted", { spoken: "heard", unspoken: "owed" }, identity);
@@ -357,7 +361,7 @@ describe("playback records — utterance identity", () => {
   });
 
   it("records the exact failing client turn id", () => {
-    const { slot } = makeSlot(turnOf(8, "user.text_submitted"));
+    const { slot } = makeSlot();
     slot.callFailed(turnOf(7, "agent.done"), "network_drop");
     expect(slot.get()).toEqual({
       turn_id: "7",
@@ -376,16 +380,16 @@ describe("playback records — utterance identity", () => {
       spoken: "😀".repeat(50),
       unspoken: "🌙".repeat(50),
     };
-    expect(makeSlot(null, record).slot.get()).toEqual(record);
+    expect(makeSlot(record).slot.get()).toEqual(record);
   });
 
   it("loads a legacy record without turn_id", () => {
     const record = { event_name: "agent.done", ended: "failed", ts: NOW };
-    expect(makeSlot(null, record).slot.get()).toEqual(record);
+    expect(makeSlot(record).slot.get()).toEqual(record);
   });
 
   it("notifies complete, interrupted and failed saves and stops after unsubscribe", () => {
-    const { slot } = makeSlot(turnOf(7, "agent.done"));
+    const { slot } = makeSlot();
     const records: PreviousTurn[] = [];
     const off = slot.subscribe((record) => records.push(record));
     const identity = { turn_id: "7", event_name: "agent.done" };

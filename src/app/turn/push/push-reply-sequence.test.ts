@@ -156,7 +156,7 @@ function setup() {
     cue: (args: ExpressArgs): void => turnOutput.cue(args),
     /** Sends a turn the way the backend call does, bridge and all, and waits for its end. */
     openTurn: (turnId: string): void => {
-      pushTurns.opened(turnId);
+      pushTurns.opened(turnId, "user.text_submitted");
       turnOutput.thinkingStart(1);
       // call()'s finally ends the bridge however the wait settles; onFirstRender is the render half.
       void pushTurns.awaitTurnEnd(turnId, { onFirstRender: endThinking }).then(endThinking);
@@ -173,7 +173,7 @@ function setup() {
 describe("a reply the backend starts on its own, after the user stopped the last one", () => {
   it("is spoken after a barge-in, and the stopped turn's next render is dropped", async () => {
     const seq = setup();
-    seq.pushTurns.opened("1");
+    seq.pushTurns.opened("1", "user.text_submitted");
     seq.renderTurn.render(frame("Let me look.", "1"));
     seq.synth.deliver(0);
     await vi.waitFor(() => expect(seq.played).toEqual(["play:0"]));
@@ -191,7 +191,7 @@ describe("a reply the backend starts on its own, after the user stopped the last
 
   it("is spoken after the stop button, and the stopped turn's next render is dropped", async () => {
     const seq = setup();
-    seq.pushTurns.opened("2");
+    seq.pushTurns.opened("2", "user.text_submitted");
     seq.renderTurn.render(frame("Long answer.", "2"));
     seq.synth.deliver(0);
     await vi.waitFor(() => expect(seq.played).toEqual(["play:0"]));

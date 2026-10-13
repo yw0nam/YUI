@@ -2227,3 +2227,22 @@ async def test_silent_internal_playback_completion_sends_only_turn_end(client, a
     assert turn_id.startswith("hermes-")
     await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
     assert await recv(ws) == {"type": "turn_end", "turn_id": turn_id}
+
+
+@pytest.mark.parametrize(
+    "frame",
+    [
+        {"type": "playback", "ended": "interrupted"},
+        {"type": "playback", "turn_id": "7", "ended": "unknown"},
+    ],
+)
+async def test_malformed_playback_warns_without_an_event(frame, client, adapter, monkeypatch, caplog):
+    from unittest.mock import AsyncMock
+
+    await ready(client)
+    handle = AsyncMock()
+    monkeypatch.setattr(adapter, "handle_message", handle)
+    with caplog.at_level(logging.WARNING):
+        await adapter._on_frame(CHAT, frame)
+    handle.assert_not_awaited()
+    assert "malformed playback frame" in caplog.text
