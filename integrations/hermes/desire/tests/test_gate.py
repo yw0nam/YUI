@@ -1491,3 +1491,14 @@ def test_a_repository_added_later_records_its_closed_issues_silently_on_its_firs
 
     url = still_open["url"]
     assert monitor_events(state_dir) == [(f"issue {url} was closed", url)]
+
+
+def test_workspace_repos_drops_an_origin_whose_owner_or_name_is_not_a_slug(tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    git_repo(workspace, "YUI", "https://github.com/owner/YUI.git")
+    git_repo(workspace, "query", "git@github.com:o/n?x=1.git")
+    git_repo(workspace, "parent", "https://github.com/../YUI.git")
+    git_repo(workspace, "dots", "https://github.com/owner/...git")
+
+    assert gate.workspace_repos(workspace) == ["owner/YUI"]
