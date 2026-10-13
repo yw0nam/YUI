@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 
 import desire_config
 import desire_events
+import desire_judgments
 import desire_outbox
 import desire_render
 import desire_state
@@ -303,16 +304,22 @@ _FEEL_MODES = {
     "fact": ({"fact", "text"}, {"source_ref"}),
     "event": ({"event", "text"}, set()),
     "list": ({"list"}, {"all"}),
+    "grounds": ({"grounds", "toward"}, set()),
 }
 _FEEL_USAGE = (
     "feel --fact TEXT --text TEXT [--source-ref TEXT] | feel --event ID --text TEXT | feel --list [--all]"
+    " | feel --grounds NAME --toward TOWARD"
 )
 
 
 def _feel_mode(args):
     """Name the one mode the given options form, or ``None`` for any other combination."""
 
-    given = {name for name in ("fact", "text", "source_ref", "event") if getattr(args, name) is not None}
+    given = {
+        name
+        for name in ("fact", "text", "source_ref", "event", "grounds", "toward")
+        if getattr(args, name) is not None
+    }
     given |= {name for name in ("list", "all") if getattr(args, name)}
     return next(
         (mode for mode, (needed, allowed) in _FEEL_MODES.items() if needed <= given <= needed | allowed),
@@ -342,6 +349,8 @@ def _feel(args, now):
     state_dir = desire_config.resolve_state_dir()
     if mode == "list":
         return _feel_list(state_dir, args.all)
+    if mode == "grounds":
+        return _feel_grounds(state_dir, args.grounds.strip(), args.toward)
     if mode == "fact":
         event_id, reading_id = desire_events.file_event_with_reading(
             state_dir, args.fact, args.text, args.source_ref, now
@@ -360,15 +369,91 @@ def _feel(args, now):
     return 0
 
 
+def _event_line(event):
+    stamp = desire_config.parse_timestamp(event["at"]).strftime("%Y-%m-%d %H:%M")
+    fact = desire_render.sanitize_note(event["fact"])
+    reading = desire_render.sanitize_note(event["reading"]["text"]) if event["reading"] else "(no reading)"
+    return f"{event['id']} {stamp} [{event['source']}] {fact} — {reading}"
+
+
 def _feel_list(state_dir, show_all):
     events = desire_events.chronological(desire_events.events_view(state_dir))
     for event in events if show_all else events[-20:]:
-        stamp = desire_config.parse_timestamp(event["at"]).strftime("%Y-%m-%d %H:%M")
-        fact = desire_render.sanitize_note(event["fact"])
-        reading = (
-            desire_render.sanitize_note(event["reading"]["text"]) if event["reading"] else "(no reading)"
-        )
-        print(f"{event['id']} {stamp} [{event['source']}] {fact} — {reading}")
+        print(_event_line(event))
+    return 0
+
+
+def _feel_grounds(state_dir, name, toward):
+    if (name, toward) not in desire_judgments.present(state_dir):
+        print("no judgment")
+        return 0
+    events = desire_judgments.grounds(state_dir, name, toward)
+    for event in events:
+        print(_event_line(event))
+    if not events:
+        print("no events linked")
+    return 0
+
+
+_JUDGE_USAGE = (
+    "judge NAME --toward TOWARD --level LEVEL [--event ID ...] [--why TEXT]"
+    " | judge NAME --toward TOWARD --put-down [--why TEXT] | judge --list"
+)
+
+
+def _judge_shape(args):
+    """Name the one shape the given arguments form, or ``None`` for any other combination."""
+
+    if args.list:
+        plain = args.name is None and args.toward is None and args.level is None and not args.put_down
+        return "list" if plain and args.event is None and args.why is None else None
+    if args.name is None or args.toward is None or (args.level is not None) == args.put_down:
+        return None
+    if args.put_down:
+        return "put-down" if args.event is None else None
+    return "level"
+
+
+def _judge(args, now):
+    shape = _judge_shape(args)
+    if shape is None:
+        print(f"usage: {_JUDGE_USAGE}", file=sys.stderr)
+        return 2
+    state_dir = desire_config.resolve_state_dir()
+    if shape == "list":
+        return _judge_list(state_dir)
+    try:
+        desire_judgments.judge(state_dir, args.name, args.toward, args.level, args.event or [], args.why, now)
+    except (desire_events.UnknownEventError, desire_events.RetractedEventError) as error:
+        print(str(error), file=sys.stderr)
+        return 3
+    except ValueError as error:
+        print(str(error), file=sys.stderr)
+        return 1
+    name = args.name.strip()
+    if shape == "put-down":
+        print(f"put down {name} toward {args.toward}")
+    else:
+        print(f"judged {name} toward {args.toward}: {args.level}")
+    return 0
+
+
+def _judge_list(state_dir):
+    held = desire_judgments.present(state_dir)
+    for name, toward in sorted(held, key=lambda pair: (desire_judgments.TOWARDS.index(pair[1]), pair[0])):
+        judgment = held[(name, toward)]
+        day = desire_config.parse_timestamp(judgment["at"]).strftime("%Y-%m-%d")
+        why = f" — {desire_render.sanitize_note(judgment['why'])}" if judgment["why"] is not None else ""
+        print(f"{desire_render.sanitize_note(name)} toward {toward}: {judgment['level']} ({day}){why}")
+    return 0
+
+
+def _how(text):
+    try:
+        desire_judgments.write_how(desire_config.resolve_state_dir(), text)
+    except ValueError as error:
+        print(str(error), file=sys.stderr)
+        return 1
     return 0
 
 
@@ -429,6 +514,22 @@ def _parser():
     feel.add_argument("--event", metavar="ID", help="an existing event to add your reading to")
     feel.add_argument("--list", action="store_true", help="print the twenty most recent events")
     feel.add_argument("--all", action="store_true", help="with --list, print every event")
+    feel.add_argument("--grounds", metavar="NAME", help="print the events behind a present judgment")
+    feel.add_argument("--toward", choices=desire_judgments.TOWARDS, help="with --grounds, what it is toward")
+
+    judge = commands.add_parser(
+        "judge", description="Hold, change or put down a judgment on a named feeling.", usage=_JUDGE_USAGE
+    )
+    judge.add_argument("name", nargs="?", help="a registered feeling name, quoted when it has spaces")
+    judge.add_argument("--toward", choices=desire_judgments.TOWARDS)
+    judge.add_argument("--level", choices=desire_judgments.LEVELS)
+    judge.add_argument("--put-down", action="store_true", help="end the present judgment")
+    judge.add_argument("--event", action="append", metavar="ID", help="an event behind it; may repeat")
+    judge.add_argument("--why")
+    judge.add_argument("--list", action="store_true", help="print every present judgment")
+
+    how = commands.add_parser("how", description="Write how you are right now, at most 500 characters.")
+    how.add_argument("text")
 
     correct = commands.add_parser("correct", description="Correct the fact of an event.")
     correct.add_argument("event_id", metavar="ID")
@@ -486,6 +587,10 @@ def _run(argv, now, opener):
         return _correct(args.event_id, args.fact, now)
     if args.command == "retract":
         return _retract(args.event_id, args.why, now)
+    if args.command == "judge":
+        return _judge(args, now)
+    if args.command == "how":
+        return _how(args.text)
     if args.list:
         return _outbox_list(now)
     if args.send is not None:
