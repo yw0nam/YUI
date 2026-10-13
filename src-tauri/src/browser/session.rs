@@ -599,3 +599,15 @@ impl Running {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_cut_click_releases_the_button_once_the_press_was_sent() {
+        assert!(!mouse_pressed(0));
+        assert!(mouse_pressed(1));
+        assert!(mouse_pressed(2));
+    }
+}

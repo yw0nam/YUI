@@ -118,6 +118,14 @@ mod tests {
     }
 
     #[test]
+    fn open_navigates_to_the_url_it_validated() {
+        let Request::Open { url } = open("HTTPS://Example.COM/a b").unwrap() else {
+            panic!("not an open request");
+        };
+        assert_eq!(url, "https://example.com/a%20b");
+    }
+
+    #[test]
     fn press_key_rejects_an_unknown_key_name() {
         assert!(parse("press_key", &json!({ "key": "Enter" }), false).is_ok());
         assert_eq!(

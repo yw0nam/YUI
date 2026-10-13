@@ -280,33 +280,30 @@ pub async fn launch(op: &Op, root: &Path) -> Result<Launched, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::browser::gate::Instant;
 
     #[test]
     fn singleton_lock_of_a_dead_process_on_this_host_is_stale() {
         let dead = |_| false;
         let alive = |_| true;
         assert_eq!(
-            singleton_verdict("my-host-4242", "my-host", None, dead),
+            singleton_verdict("my-host-4242", "my-host", dead),
             Verdict::Stale
         );
         assert_eq!(
-            singleton_verdict("my-host-4242", "my-host", None, alive),
+            singleton_verdict("my-host-4242", "my-host", alive),
             Verdict::InUse
         );
         assert_eq!(
-            singleton_verdict("my-host-4242", "my-host", Some(4242), alive),
-            Verdict::Owned
-        );
-        assert_eq!(
-            singleton_verdict("other-4242", "my-host", None, dead),
+            singleton_verdict("other-4242", "my-host", dead),
             Verdict::InUse
         );
         assert_eq!(
-            singleton_verdict("garbage", "my-host", None, dead),
+            singleton_verdict("garbage", "my-host", dead),
             Verdict::InUse
         );
         assert_eq!(
-            singleton_verdict("my-host-x1", "my-host", None, dead),
+            singleton_verdict("my-host-x1", "my-host", dead),
             Verdict::InUse
         );
     }
@@ -324,9 +321,44 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// Serializes the lock-release test with process spawns: a child between fork and exec shares the lock.
+    static SPAWNS: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+    #[test]
+    fn a_released_profile_lock_can_be_taken_again() {
+        let _serial = SPAWNS.blocking_lock();
+        let dir = std::env::temp_dir().join(format!("yui-browser-relock-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("browser-profile.lock");
+        drop(ProfileLock::acquire(&path).unwrap());
+        assert!(ProfileLock::acquire(&path).is_ok());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn a_cancelled_or_expired_call_launches_nothing() {
+        let root = std::env::temp_dir().join(format!("yui-browser-early-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let token = CancellationToken::new();
+        token.cancel();
+        let far = Instant::now() + Duration::from_secs(60);
+        let cancelled = Op::new("open", token, far);
+        assert_eq!(
+            launch(&cancelled, &root).await.err().unwrap(),
+            "cancelled: nothing ran"
+        );
+        let expired = Op::new("open", CancellationToken::new(), Instant::now());
+        assert_eq!(
+            launch(&expired, &root).await.err().unwrap(),
+            "cancelled: nothing ran"
+        );
+        assert!(!root.exists());
+    }
+
     #[cfg(unix)]
     #[tokio::test]
     async fn stop_reaps_the_owned_process_and_leaves_others_running() {
+        let _serial = SPAWNS.lock().await;
         let mut stand_in = tokio::process::Command::new("sleep");
         stand_in.arg("60");
         let owned = OwnedChild::spawn(stand_in).unwrap();

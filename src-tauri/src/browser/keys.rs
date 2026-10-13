@@ -216,6 +216,20 @@ mod tests {
     }
 
     #[test]
+    fn a_cut_chord_releases_every_key_whose_down_was_sent() {
+        let events = chord("Control+A", false).unwrap();
+        let keys = |completed| {
+            let ups = releases(&events, completed);
+            assert!(ups.iter().all(|e| e.phase == Phase::Up && e.modifiers == 0));
+            ups.into_iter().map(|e| e.key).collect::<Vec<_>>()
+        };
+        assert_eq!(keys(0), ["Control"]);
+        assert_eq!(keys(1), ["A", "Control"]);
+        assert_eq!(keys(2), ["A", "Control"]);
+        assert_eq!(keys(3), ["Control"]);
+    }
+
+    #[test]
     fn an_unknown_key_name_has_no_events() {
         assert!(chord("Foo", false).is_none());
         assert!(chord("Control+Foo", false).is_none());
