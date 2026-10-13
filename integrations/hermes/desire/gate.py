@@ -369,6 +369,8 @@ def _record_comments(record: dict, observed: dict, now: datetime) -> list[tuple[
             url = entry.get("html_url")
             if created is None or not isinstance(author, str) or not isinstance(url, str):
                 continue
+            if user.get("type") == "Bot":
+                continue
             key = _artefact_key(_ISSUE_API_URL, entry.get("issue_url"))
             if created >= start and key is not None and key in seen and author != login:
                 filing.append((f"{author} commented on {url.split('#', 1)[0]}", url))
