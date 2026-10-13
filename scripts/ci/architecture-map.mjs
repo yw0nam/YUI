@@ -13,7 +13,9 @@ const KINDS = [
   "websocket",
   "storage",
   "bridge",
+  "user",
 ];
+const MODULE_KINDS = ["module", "shell", "external", "person"];
 const TRANSPORTS = ["shared", "request", "push"];
 const inside = (path, root) => path === root || path.startsWith(`${root}/`);
 
@@ -79,6 +81,7 @@ export function checkMap(map, files) {
     }
   }
   for (const [label, items] of [
+    ["module", map.modules],
     ["node", map.nodes],
     ["edge", map.edges],
     ["flow", map.flows],
@@ -91,10 +94,23 @@ export function checkMap(map, files) {
   }
   const nodeIds = new Set(map.nodes.map((node) => node.id));
   const edgeIds = new Set(map.edges.map((edge) => edge.id));
-  const layerIds = new Set(map.layers.map((layer) => layer.id));
+  const moduleIds = new Set(map.modules.map((module) => module.id));
+  const zoneIds = new Set(map.zones.map((zone) => zone.id));
   for (const node of map.nodes) {
-    if (!layerIds.has(node.layer))
-      problems.push(`references: ${node.id} layer ${node.layer} does not exist`);
+    if (!moduleIds.has(node.module))
+      problems.push(`references: ${node.id} module ${node.module} does not exist`);
+  }
+  for (const module of map.modules) {
+    if (module.zone !== undefined && !zoneIds.has(module.zone))
+      problems.push(`references: ${module.id} zone ${module.zone} does not exist`);
+    if (!MODULE_KINDS.includes(module.kind))
+      problems.push(`enums: ${module.id} kind ${module.kind} is invalid`);
+  }
+  for (const link of map.links) {
+    for (const end of ["from", "to"]) {
+      if (!moduleIds.has(link[end]))
+        problems.push(`references: link ${link.from} ${end} ${link[end]} has no module`);
+    }
   }
   for (const [edges, ids, noun] of [
     [map.edges, nodeIds, "node"],
@@ -117,6 +133,12 @@ export function checkMap(map, files) {
   }
   for (const flow of map.flows) {
     for (const [index, step] of flow.steps.entries()) {
+      for (const end of ["from", "to"]) {
+        if (step[end] !== undefined && !moduleIds.has(step[end]))
+          problems.push(
+            `references: ${flow.id} step ${index + 1} ${end} ${step[end]} has no module`,
+          );
+      }
       for (const id of step.edges) {
         if (!edgeIds.has(id)) problems.push(`references: ${flow.id} edge ${id} does not exist`);
       }

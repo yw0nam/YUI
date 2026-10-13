@@ -5,883 +5,1219 @@ globalThis.YUI_MAP =
     "src",
     "src-tauri/src"
   ],
-  "layers": [
+  "zones": [
     {
-      "id": "external",
-      "label": "external"
+      "id": "io",
+      "title": "User I/O",
+      "note": "touch, screen, and voice"
+    },
+    {
+      "id": "logic",
+      "title": "Core logic",
+      "note": "fires candidates and runs the turn; the backend decides what to say"
+    },
+    {
+      "id": "outside",
+      "title": "Outside communication",
+      "note": "doors to the OS and network"
+    },
+    {
+      "id": "shared",
+      "title": "Shared state and wiring",
+      "note": "read, mirrored, or used to connect the modules above; no lines drawn"
+    }
+  ],
+  "modules": [
+    {
+      "id": "user",
+      "label": "User",
+      "kind": "person",
+      "col": 0,
+      "row": 0,
+      "desc": "Types or speaks, touches and drags the character, changes settings. Sees the character and the bubble, hears the voice."
+    },
+    {
+      "id": "senders",
+      "label": "Outside senders",
+      "kind": "external",
+      "col": 5,
+      "row": 0,
+      "desc": "Mods/avatar, coding-agent hooks, signal producers"
     },
     {
       "id": "shell",
-      "label": "src-tauri"
+      "label": "Rust shell",
+      "kind": "shell",
+      "col": 4,
+      "row": 0,
+      "desc": "OS polling, loopback HTTP listener, window control, screen capture, logs",
+      "zone": "outside"
     },
     {
-      "id": "contract",
-      "label": "contract"
+      "id": "window",
+      "label": "Window I/O",
+      "kind": "module",
+      "col": 1,
+      "row": 0,
+      "desc": "Pointer gestures, click-through, OS event seam, window geometry",
+      "zone": "io"
     },
     {
-      "id": "base",
-      "label": "tauri-env · logger"
-    },
-    {
-      "id": "config",
-      "label": "config"
-    },
-    {
-      "id": "renderer",
-      "label": "renderer"
-    },
-    {
-      "id": "settings",
-      "label": "settings"
-    },
-    {
-      "id": "io",
-      "label": "io"
-    },
-    {
-      "id": "dispatcher",
-      "label": "dispatcher"
+      "id": "sources",
+      "label": "Firing sources",
+      "kind": "module",
+      "col": 2,
+      "row": 0,
+      "desc": "Idle-tick, inbox, gesture, and wake sources that raise speech candidates",
+      "zone": "logic"
     },
     {
       "id": "ambient",
-      "label": "ambient"
+      "label": "Ambient",
+      "kind": "module",
+      "col": 2,
+      "row": 2,
+      "desc": "Liveliness, locomotion, and the bed scene, independent of the backend",
+      "zone": "logic"
     },
     {
-      "id": "ui",
-      "label": "ui"
+      "id": "input",
+      "label": "Input",
+      "kind": "module",
+      "col": 1,
+      "row": 1,
+      "desc": "Composer text and images, voice capture and STT",
+      "zone": "io"
     },
     {
-      "id": "app",
-      "label": "app"
+      "id": "dispatcher",
+      "label": "Dispatcher",
+      "kind": "module",
+      "col": 2,
+      "row": 1,
+      "desc": "Event bus, tier classification, guardrails, pacer, tier-1 reactions",
+      "zone": "logic"
     },
     {
-      "id": "windows",
-      "label": "windows"
+      "id": "backend-call",
+      "label": "Backend call",
+      "kind": "module",
+      "col": 3,
+      "row": 1,
+      "desc": "Client context, the call on the selected transport, reply settling, turn record",
+      "zone": "logic"
+    },
+    {
+      "id": "transport",
+      "label": "Transport",
+      "kind": "module",
+      "col": 4,
+      "row": 1,
+      "desc": "Request streaming loops and the push WebSocket",
+      "zone": "outside"
+    },
+    {
+      "id": "backend",
+      "label": "Backend agent",
+      "kind": "external",
+      "col": 5,
+      "row": 1,
+      "desc": "Judges whether and what to speak; Expression Broker"
+    },
+    {
+      "id": "display",
+      "label": "Display",
+      "kind": "module",
+      "col": 1,
+      "row": 2,
+      "desc": "Speech bubble, status pill, delegation chip, notices",
+      "zone": "io"
+    },
+    {
+      "id": "speech",
+      "label": "Speech output",
+      "kind": "module",
+      "col": 1,
+      "row": 3,
+      "desc": "Sentence TTS, in-order playback, filler, speaker catalogue",
+      "zone": "io"
+    },
+    {
+      "id": "turn",
+      "label": "Turn state and output",
+      "kind": "module",
+      "col": 3,
+      "row": 2,
+      "desc": "Turn ledger, TurnOutput and TurnFeed ports, push reply player",
+      "zone": "logic"
+    },
+    {
+      "id": "tools",
+      "label": "Client tools",
+      "kind": "module",
+      "col": 3,
+      "row": 0,
+      "desc": "generate_express, body_action, look, avatar executor, vocabulary",
+      "zone": "logic"
+    },
+    {
+      "id": "voice-svc",
+      "label": "Voice services",
+      "kind": "external",
+      "col": 5,
+      "row": 3,
+      "desc": "STT and TTS HTTP endpoints"
+    },
+    {
+      "id": "renderer",
+      "label": "Renderer",
+      "kind": "module",
+      "col": 1,
+      "row": 4,
+      "desc": "three.js scene, VRM, emotion, mouth, motion, camera, hit-test",
+      "zone": "io"
+    },
+    {
+      "id": "settings",
+      "label": "Settings and config",
+      "kind": "module",
+      "col": 2,
+      "row": 4,
+      "desc": "Persisted settings stores, configs/*.json, quick controls, asset selection",
+      "zone": "shared"
+    },
+    {
+      "id": "conversation",
+      "label": "Conversation stores",
+      "kind": "module",
+      "col": 3,
+      "row": 4,
+      "desc": "Transcript, response-id session, context history, turn-record log",
+      "zone": "shared"
+    },
+    {
+      "id": "bridge",
+      "label": "Cross-window bridge",
+      "kind": "module",
+      "col": 4,
+      "row": 4,
+      "desc": "Settings signal, message-window surfaces, push state and delegation mirrors",
+      "zone": "shared"
+    },
+    {
+      "id": "wiring",
+      "label": "Wiring and base",
+      "kind": "module",
+      "col": 5,
+      "row": 4,
+      "desc": "src/app and the window entries wire modules by callbacks; contract types, logger",
+      "zone": "shared"
+    }
+  ],
+  "links": [
+    {
+      "from": "user",
+      "to": "window",
+      "label": "taps, pats, drags",
+      "fromPort": [
+        1,
+        0.06
+      ],
+      "toPort": [
+        0,
+        0.5
+      ]
+    },
+    {
+      "from": "user",
+      "to": "input",
+      "label": "text, images, voice",
+      "fromPort": [
+        1,
+        0.28
+      ],
+      "toPort": [
+        0,
+        0.5
+      ]
+    },
+    {
+      "from": "display",
+      "to": "user",
+      "label": "bubble, status",
+      "fromPort": [
+        0,
+        0.5
+      ],
+      "toPort": [
+        1,
+        0.5
+      ]
+    },
+    {
+      "from": "speech",
+      "to": "user",
+      "label": "voice",
+      "fromPort": [
+        0,
+        0.5
+      ],
+      "toPort": [
+        1,
+        0.72
+      ]
+    },
+    {
+      "from": "renderer",
+      "to": "user",
+      "label": "face, mouth, motion",
+      "fromPort": [
+        0,
+        0.5
+      ],
+      "toPort": [
+        1,
+        0.94
+      ]
+    },
+    {
+      "from": "window",
+      "to": "sources",
+      "label": "idle samples, gestures"
+    },
+    {
+      "from": "input",
+      "to": "dispatcher",
+      "label": "user text or voice envelope"
+    },
+    {
+      "from": "sources",
+      "to": "dispatcher",
+      "label": "candidate envelopes"
+    },
+    {
+      "from": "ambient",
+      "to": "dispatcher",
+      "label": "avatar.* events"
+    },
+    {
+      "from": "dispatcher",
+      "to": "backend-call",
+      "label": "tier-2 turn to call"
+    },
+    {
+      "from": "backend-call",
+      "to": "transport",
+      "label": "request or turn frame"
+    },
+    {
+      "from": "transport",
+      "to": "backend-call",
+      "label": "stream events"
+    },
+    {
+      "from": "transport",
+      "to": "backend",
+      "label": "HTTP stream, WebSocket frames"
+    },
+    {
+      "from": "backend",
+      "to": "transport",
+      "label": "reply frames"
+    },
+    {
+      "from": "backend-call",
+      "to": "turn",
+      "label": "TurnOutput, TurnFeed"
+    },
+    {
+      "from": "transport",
+      "to": "turn",
+      "label": "push reply frames"
+    },
+    {
+      "from": "transport",
+      "to": "tools",
+      "label": "tool call to run"
+    },
+    {
+      "from": "turn",
+      "to": "speech",
+      "label": "deltas, cues, thinking"
+    },
+    {
+      "from": "speech",
+      "to": "display",
+      "label": "bubble text"
+    },
+    {
+      "from": "speech",
+      "to": "renderer",
+      "label": "cue per sentence, mouth amplitude"
+    },
+    {
+      "from": "display",
+      "to": "input",
+      "label": "submit, stop"
+    },
+    {
+      "from": "speech",
+      "to": "voice-svc",
+      "label": "synthesis request"
+    },
+    {
+      "from": "senders",
+      "to": "shell",
+      "label": "agent events, signals, avatar commands"
+    },
+    {
+      "from": "shell",
+      "to": "tools",
+      "label": "agent, signal, avatar-rpc events"
+    },
+    {
+      "from": "tools",
+      "to": "sources",
+      "label": "agent and signal events"
+    },
+    {
+      "from": "shell",
+      "to": "window",
+      "label": "os_event every 5 s, drop release, tray",
+      "arc": true
     }
   ],
   "nodes": [
     {
-      "id": "backend-request",
-      "layer": "external",
-      "label": "backend (request)",
-      "external": true,
+      "id": "user",
+      "module": "user",
+      "label": "user",
+      "role": "The person at the desktop or the phone.",
       "paths": [],
-      "role": "The backend agent on a request transport: one HTTP streaming call per turn, Responses or Chat Completions."
+      "external": true
+    },
+    {
+      "id": "backend-request",
+      "module": "backend",
+      "label": "backend (request)",
+      "role": "The backend agent on a request transport: one HTTP streaming call per turn, Responses or Chat Completions.",
+      "paths": [],
+      "external": true
     },
     {
       "id": "backend-push",
-      "layer": "external",
+      "module": "backend",
       "label": "backend (push)",
-      "external": true,
+      "role": "The backend agent on the push transport: one WebSocket that carries turns in and replies out, and holds the conversation under a chat id.",
       "paths": [],
-      "role": "The backend agent on the push transport: one WebSocket that carries turns in and replies out, and holds the conversation under a chat id."
+      "external": true
     },
     {
       "id": "stt-service",
-      "layer": "external",
+      "module": "voice-svc",
       "label": "STT service",
-      "external": true,
+      "role": "The speech-to-text HTTP endpoint that turns a voice segment into text.",
       "paths": [],
-      "role": "The speech-to-text HTTP endpoint that turns a voice segment into text."
+      "external": true
     },
     {
       "id": "tts-service",
-      "layer": "external",
+      "module": "voice-svc",
       "label": "TTS service",
-      "external": true,
+      "role": "The speech synthesis HTTP endpoint and its voices API.",
       "paths": [],
-      "role": "The speech synthesis HTTP endpoint and its voices API."
+      "external": true
     },
     {
       "id": "expression-broker",
-      "layer": "external",
+      "module": "backend",
       "label": "Expression Broker",
-      "external": true,
+      "role": "The MCP server the client publishes its express vocabulary to.",
       "paths": [],
-      "role": "The MCP server the client publishes its express vocabulary to."
+      "external": true
     },
     {
       "id": "mods-avatar",
-      "layer": "external",
+      "module": "senders",
       "label": "Mods/avatar",
-      "external": true,
+      "role": "The MCP server that reads body state and sends body commands over the loopback avatar endpoints.",
       "paths": [],
-      "role": "The MCP server that reads body state and sends body commands over the loopback avatar endpoints."
+      "external": true
     },
     {
       "id": "agent-hooks",
-      "layer": "external",
+      "module": "senders",
       "label": "coding-agent hooks",
-      "external": true,
+      "role": "Lifecycle hooks of external coding agents that post done and needs-input events.",
       "paths": [],
-      "role": "Lifecycle hooks of external coding agents that post done and needs-input events."
+      "external": true
     },
     {
       "id": "signal-producers",
-      "layer": "external",
+      "module": "senders",
       "label": "signal producers",
-      "external": true,
+      "role": "Outside producers that post signals for the character to speak about.",
       "paths": [],
-      "role": "Outside producers that post signals for the character to speak about."
+      "external": true
     },
     {
       "id": "shell/core",
-      "layer": "shell",
+      "module": "shell",
       "label": "shell core",
+      "role": "Builds the Tauri app: plugins, startup work, and the IPC command table.",
       "paths": [
         "src-tauri/src/main.rs",
         "src-tauri/src/lib.rs",
         "src-tauri/src/plugins.rs",
         "src-tauri/src/setup.rs",
         "src-tauri/src/commands.rs"
-      ],
-      "role": "Builds the Tauri app: plugins, startup work, and the IPC command table."
+      ]
     },
     {
       "id": "shell/os-event-watcher",
-      "layer": "shell",
+      "module": "shell",
       "label": "os_event_watcher",
+      "role": "Polls OS idle time and the frontmost window, lists windows, probes the drag release, and writes the witness log.",
       "paths": [
         "src-tauri/src/os_event_watcher"
-      ],
-      "role": "Polls OS idle time and the frontmost window, lists windows, probes the drag release, and writes the witness log."
+      ]
     },
     {
       "id": "shell/agent-ingress",
-      "layer": "shell",
+      "module": "shell",
       "label": "agent_ingress",
+      "role": "Loopback HTTP listener for agent events, signals, and the avatar RPC round trip.",
       "paths": [
         "src-tauri/src/agent_ingress"
-      ],
-      "role": "Loopback HTTP listener for agent events, signals, and the avatar RPC round trip."
+      ]
     },
     {
       "id": "shell/screenshot",
-      "layer": "shell",
+      "module": "shell",
       "label": "screenshot",
+      "role": "Enumerates screen sources and captures a display off the main thread.",
       "paths": [
         "src-tauri/src/screenshot.rs"
-      ],
-      "role": "Enumerates screen sources and captures a display off the main thread."
+      ]
     },
     {
       "id": "shell/window",
-      "layer": "shell",
+      "module": "shell",
       "label": "window control",
+      "role": "OS-native window drag, logical window frames, and the click-through toggle.",
       "paths": [
         "src-tauri/src/drag.rs",
         "src-tauri/src/window_frame.rs",
         "src-tauri/src/passthrough.rs"
-      ],
-      "role": "OS-native window drag, logical window frames, and the click-through toggle."
+      ]
     },
     {
       "id": "shell/logs",
-      "layer": "shell",
+      "module": "shell",
       "label": "logs",
+      "role": "The app log sink with date rotation and the turn-record JSONL file.",
       "paths": [
         "src-tauri/src/app_log.rs",
         "src-tauri/src/log_rotation.rs",
         "src-tauri/src/turn_log.rs"
-      ],
-      "role": "The app log sink with date rotation and the turn-record JSONL file."
+      ]
     },
     {
       "id": "shell/tray",
-      "layer": "shell",
+      "module": "shell",
       "label": "tray",
+      "role": "System tray menu with its show, hide, settings, and quit actions.",
       "paths": [
         "src-tauri/src/tray.rs"
-      ],
-      "role": "System tray menu with its show, hide, settings, and quit actions."
+      ]
     },
     {
       "id": "shell/imports",
-      "layer": "shell",
+      "module": "shell",
       "label": "asset imports",
+      "role": "Native copy of user-picked VRM, voice clip, and stage image files into app data.",
       "paths": [
         "src-tauri/src/import_fs.rs",
         "src-tauri/src/vrm_import.rs",
         "src-tauri/src/voice_import.rs",
         "src-tauri/src/stage_image.rs"
-      ],
-      "role": "Native copy of user-picked VRM, voice clip, and stage image files into app data."
+      ]
     },
     {
       "id": "contract",
-      "layer": "contract",
+      "module": "wiring",
       "label": "contract",
+      "role": "TypeScript types of the wire schema between YUI and the backend.",
       "paths": [
         "src/contract"
-      ],
-      "role": "TypeScript types of the wire schema between YUI and the backend."
+      ]
     },
     {
       "id": "tauri-env",
-      "layer": "base",
+      "module": "wiring",
       "label": "tauri-env",
+      "role": "Detects whether the page runs inside the Tauri runtime.",
       "paths": [
         "src/tauri-env.ts"
-      ],
-      "role": "Detects whether the page runs inside the Tauri runtime."
+      ]
     },
     {
       "id": "logger",
-      "layer": "base",
+      "module": "wiring",
       "label": "logger",
+      "role": "Namespaced frontend logger with a runtime level.",
       "paths": [
         "src/logger.ts"
-      ],
-      "role": "Namespaced frontend logger with a runtime level."
+      ]
     },
     {
       "id": "config",
-      "layer": "config",
+      "module": "settings",
       "label": "config",
+      "role": "Loads and validates configs/*.json, holds the reactive snapshot with hot reload, and names the secrets.",
       "paths": [
         "src/config"
-      ],
-      "role": "Loads and validates configs/*.json, holds the reactive snapshot with hot reload, and names the secrets."
+      ]
     },
     {
       "id": "renderer",
-      "layer": "renderer",
+      "module": "renderer",
       "label": "renderer core",
+      "role": "The three.js scene and frame loop, VRM load and hot swap, and the routing of a control envelope into emotion and motion.",
       "paths": [
         "src/renderer"
-      ],
-      "role": "The three.js scene and frame loop, VRM load and hot swap, and the routing of a control envelope into emotion and motion."
+      ]
     },
     {
       "id": "renderer/camera",
-      "layer": "renderer",
+      "module": "renderer",
       "label": "camera",
+      "role": "Fit-to-bounds framing, zoom, orbit, and the travel view window.",
       "paths": [
         "src/renderer/camera"
-      ],
-      "role": "Fit-to-bounds framing, zoom, orbit, and the travel view window."
+      ]
     },
     {
       "id": "renderer/expression",
-      "layer": "renderer",
+      "module": "renderer",
       "label": "expression",
+      "role": "Emotion crossfade, amplitude lip sync, and cursor gaze on the face.",
       "paths": [
         "src/renderer/expression"
-      ],
-      "role": "Emotion crossfade, amplitude lip sync, and cursor gaze on the face."
+      ]
     },
     {
       "id": "renderer/motion",
-      "layer": "renderer",
+      "module": "renderer",
       "label": "motion",
+      "role": "Clip cache, motion scheduling and playback, holds, and root yaw.",
       "paths": [
         "src/renderer/motion"
-      ],
-      "role": "Clip cache, motion scheduling and playback, holds, and root yaw."
+      ]
     },
     {
       "id": "renderer/geometry",
-      "layer": "renderer",
+      "module": "renderer",
       "label": "geometry",
+      "role": "Silhouette hit-testing, tap regions, and read-only screen probes of the model.",
       "paths": [
         "src/renderer/geometry"
-      ],
-      "role": "Silhouette hit-testing, tap regions, and read-only screen probes of the model."
+      ]
     },
     {
       "id": "renderer/props",
-      "layer": "renderer",
+      "module": "renderer",
       "label": "props",
+      "role": "Furniture drawn in the character's scene.",
       "paths": [
         "src/renderer/props"
-      ],
-      "role": "Furniture drawn in the character's scene."
+      ]
     },
     {
       "id": "settings",
-      "layer": "settings",
+      "module": "settings",
       "label": "settings",
+      "role": "Persisted user settings, one localStorage-backed store per setting.",
       "paths": [
         "src/settings"
-      ],
-      "role": "Persisted user settings, one localStorage-backed store per setting."
+      ]
     },
     {
       "id": "io/chat/stream",
-      "layer": "io",
+      "module": "transport",
       "label": "chat stream",
+      "role": "Request-transport streaming loops that turn a Responses or Chat Completions stream into chat stream events, with the client tool round trips.",
       "paths": [
         "src/io/chat/stream"
-      ],
-      "role": "Request-transport streaming loops that turn a Responses or Chat Completions stream into chat stream events, with the client tool round trips."
+      ]
     },
     {
       "id": "io/chat/push",
-      "layer": "io",
+      "module": "transport",
       "label": "push socket",
+      "role": "The push transport's WebSocket, its frame shapes, and the queue that answers tool_call frames.",
       "paths": [
         "src/io/chat/push"
-      ],
-      "role": "The push transport's WebSocket, its frame shapes, and the queue that answers tool_call frames."
+      ]
     },
     {
       "id": "io/chat/tools",
-      "layer": "io",
+      "module": "tools",
       "label": "client tools",
+      "role": "The tools the client declares to the backend and runs itself: generate_express, body_action, look.",
       "paths": [
         "src/io/chat/tools"
-      ],
-      "role": "The tools the client declares to the backend and runs itself: generate_express, body_action, look."
+      ]
     },
     {
       "id": "io/chat/vocabulary",
-      "layer": "io",
+      "module": "tools",
       "label": "express vocabulary",
+      "role": "Derives the emotion, motion, and voice-tone ids the agent may cue with.",
       "paths": [
         "src/io/chat/vocabulary"
-      ],
-      "role": "Derives the emotion, motion, and voice-tone ids the agent may cue with."
+      ]
     },
     {
       "id": "io/chat/broker",
-      "layer": "io",
+      "module": "tools",
       "label": "broker client",
+      "role": "Write-only Expression Broker client and its URL override reconciler.",
       "paths": [
         "src/io/chat/broker"
-      ],
-      "role": "Write-only Expression Broker client and its URL override reconciler."
+      ]
     },
     {
       "id": "io/chat/conversation",
-      "layer": "io",
+      "module": "conversation",
       "label": "conversation stores",
+      "role": "Transcript, context history, response-id session, and session diagnostics.",
       "paths": [
         "src/io/chat/conversation"
-      ],
-      "role": "Transcript, context history, response-id session, and session diagnostics."
+      ]
     },
     {
       "id": "io/chat/record",
-      "layer": "io",
+      "module": "conversation",
       "label": "turn record",
+      "role": "Appends one JSONL record per completed turn or skipped fire.",
       "paths": [
         "src/io/chat/record"
-      ],
-      "role": "Appends one JSONL record per completed turn or skipped fire."
+      ]
     },
     {
       "id": "io/chat/models",
-      "layer": "io",
+      "module": "transport",
       "label": "model list",
+      "role": "Reads the model list of a chat endpoint.",
       "paths": [
         "src/io/chat/models"
-      ],
-      "role": "Reads the model list of a chat endpoint."
+      ]
     },
     {
       "id": "io/chat/secrets",
-      "layer": "io",
+      "module": "transport",
       "label": "secret provider",
+      "role": "Resolves each secret from its runtime store, then the build-time fallback.",
       "paths": [
         "src/io/chat/secret-provider.ts"
-      ],
-      "role": "Resolves each secret from its runtime store, then the build-time fallback."
+      ]
     },
     {
       "id": "io/voice/stt",
-      "layer": "io",
+      "module": "input",
       "label": "voice input",
+      "role": "Microphone capture, VAD segmentation, and the STT upload of each segment.",
       "paths": [
         "src/io/voice"
-      ],
-      "role": "Microphone capture, VAD segmentation, and the STT upload of each segment."
+      ]
     },
     {
       "id": "io/voice/tts",
-      "layer": "io",
+      "module": "speech",
       "label": "speech output",
+      "role": "Sentence segmentation, synthesis, in-order playback, and the glue to the mouth and the bubble.",
       "paths": [
         "src/io/voice/tts"
-      ],
-      "role": "Sentence segmentation, synthesis, in-order playback, and the glue to the mouth and the bubble."
+      ]
     },
     {
       "id": "io/voice/filler",
-      "layer": "io",
+      "module": "speech",
       "label": "filler",
+      "role": "Filler phrases spoken while a turn is thinking, and the failure lines.",
       "paths": [
         "src/io/voice/filler"
-      ],
-      "role": "Filler phrases spoken while a turn is thinking, and the failure lines."
+      ]
     },
     {
       "id": "io/voice/voices",
-      "layer": "io",
+      "module": "speech",
       "label": "voices",
+      "role": "The speaker catalogue: selection, the voices API per provider, and voice import.",
       "paths": [
         "src/io/voice/voices"
-      ],
-      "role": "The speaker catalogue: selection, the voices API per provider, and voice import."
+      ]
     },
     {
       "id": "io/window/os-events",
-      "layer": "io",
+      "module": "window",
       "label": "os events",
+      "role": "The os_event listen seam, the frontmost-window tracker, and the own-origin fetch rule.",
       "paths": [
         "src/io/window"
-      ],
-      "role": "The os_event listen seam, the frontmost-window tracker, and the own-origin fetch rule."
+      ]
     },
     {
       "id": "io/window/capture",
-      "layer": "io",
+      "module": "tools",
       "label": "screen capture",
+      "role": "Screen enumeration and screenshot capture through the shell.",
       "paths": [
         "src/io/window/capture"
-      ],
-      "role": "Screen enumeration and screenshot capture through the shell."
+      ]
     },
     {
       "id": "io/window/geometry",
-      "layer": "io",
+      "module": "window",
       "label": "window geometry",
+      "role": "Monitor and floor math, the travel and stationary frames, and keep-on-screen.",
       "paths": [
         "src/io/window/geometry"
-      ],
-      "role": "Monitor and floor math, the travel and stationary frames, and keep-on-screen."
+      ]
     },
     {
       "id": "io/window/openers",
-      "layer": "io",
+      "module": "window",
       "label": "window openers",
+      "role": "Opens and places the message, settings, and devtools windows.",
       "paths": [
         "src/io/window/openers"
-      ],
-      "role": "Opens and places the message, settings, and devtools windows."
+      ]
     },
     {
       "id": "io/window/pet",
-      "layer": "io",
+      "module": "window",
       "label": "pet window",
+      "role": "The pet window's pointer gestures, click-through hit-test, gaze cursor, peek state, and summon hotkey.",
       "paths": [
         "src/io/window/pet"
-      ],
-      "role": "The pet window's pointer gestures, click-through hit-test, gaze cursor, peek state, and summon hotkey."
+      ]
     },
     {
       "id": "io/bridge/core",
-      "layer": "io",
+      "module": "bridge",
       "label": "bridge core",
+      "role": "The cross-window bus transport and the owner and mirror pattern built on it.",
       "paths": [
         "src/io/bridge/core"
-      ],
-      "role": "The cross-window bus transport and the owner and mirror pattern built on it."
+      ]
     },
     {
       "id": "io/bridge/settings",
-      "layer": "io",
+      "module": "bridge",
       "label": "settings bridge",
+      "role": "Typed cross-window settings bus.",
       "paths": [
         "src/io/bridge/settings-bridge.ts"
-      ],
-      "role": "Typed cross-window settings bus."
+      ]
     },
     {
       "id": "io/bridge/message",
-      "layer": "io",
+      "module": "bridge",
       "label": "message bridge",
+      "role": "The bus between the pet window and the message window, and the message window's surfaces as a remote half.",
       "paths": [
         "src/io/bridge/message"
-      ],
-      "role": "The bus between the pet window and the message window, and the message window's surfaces as a remote half."
+      ]
     },
     {
       "id": "io/bridge/delegations",
-      "layer": "io",
+      "module": "bridge",
       "label": "delegations",
+      "role": "The backend's background-work list: live store, persisted history, and its mirror.",
       "paths": [
         "src/io/bridge/delegations"
-      ],
-      "role": "The backend's background-work list: live store, persisted history, and its mirror."
+      ]
     },
     {
       "id": "io/bridge/reasoning",
-      "layer": "io",
+      "module": "bridge",
       "label": "reasoning",
+      "role": "The backend's reasoning text as the current turn writes it, and its mirror.",
       "paths": [
         "src/io/bridge/reasoning"
-      ],
-      "role": "The backend's reasoning text as the current turn writes it, and its mirror."
+      ]
     },
     {
       "id": "io/bridge/push",
-      "layer": "io",
+      "module": "bridge",
       "label": "push state bridge",
+      "role": "Push socket state published to the windows that do not own the socket.",
       "paths": [
         "src/io/bridge/push"
-      ],
-      "role": "Push socket state published to the windows that do not own the socket."
+      ]
     },
     {
       "id": "io/bridge/inbox",
-      "layer": "io",
+      "module": "tools",
       "label": "inbox",
+      "role": "Subscriptions to the shell's agent, signals, and avatar RPC channels, and the avatar executor that answers body commands.",
       "paths": [
         "src/io/bridge/inbox"
-      ],
-      "role": "Subscriptions to the shell's agent, signals, and avatar RPC channels, and the avatar executor that answers body commands."
+      ]
     },
     {
       "id": "io/assets",
-      "layer": "io",
+      "module": "settings",
       "label": "assets",
+      "role": "VRM selection and import, and the phone stage background.",
       "paths": [
         "src/io/assets"
-      ],
-      "role": "VRM selection and import, and the phone stage background."
+      ]
     },
     {
       "id": "io/guide",
-      "layer": "io",
+      "module": "settings",
       "label": "guide docs",
+      "role": "The bundled guide docs handed to the backend on an Ask press.",
       "paths": [
         "src/io/guide"
-      ],
-      "role": "The bundled guide docs handed to the backend on an Ask press."
+      ]
     },
     {
       "id": "io/image",
-      "layer": "io",
+      "module": "transport",
       "label": "image encode",
+      "role": "JPEG encoding of images sent to the backend.",
       "paths": [
         "src/io/image"
-      ],
-      "role": "JPEG encoding of images sent to the backend."
+      ]
     },
     {
       "id": "io/lifecycle",
-      "layer": "io",
+      "module": "window",
       "label": "page lifecycle",
+      "role": "The Android back-button claim and page visibility.",
       "paths": [
         "src/io/lifecycle"
-      ],
-      "role": "The Android back-button claim and page visibility."
+      ]
     },
     {
       "id": "io/stage",
-      "layer": "io",
+      "module": "input",
       "label": "stage pointer",
+      "role": "Press travel and the touch gesture recognizer every stage surface shares.",
       "paths": [
         "src/io/stage"
-      ],
-      "role": "Press travel and the touch gesture recognizer every stage surface shares."
+      ]
     },
     {
       "id": "dispatcher",
-      "layer": "dispatcher",
+      "module": "dispatcher",
       "label": "dispatcher",
+      "role": "The router: pumps the bus, classifies each envelope, and runs one backend call at a time.",
       "paths": [
         "src/dispatcher"
-      ],
-      "role": "The router: pumps the bus, classifies each envelope, and runs one backend call at a time."
+      ]
     },
     {
       "id": "dispatcher/core",
-      "layer": "dispatcher",
+      "module": "dispatcher",
       "label": "bus and gates",
+      "role": "The event bus, tier classification, guardrails, and the proactive pacer.",
       "paths": [
         "src/dispatcher/core"
-      ],
-      "role": "The event bus, tier classification, guardrails, and the proactive pacer."
+      ]
     },
     {
       "id": "dispatcher/tier1",
-      "layer": "dispatcher",
+      "module": "dispatcher",
       "label": "tier 1",
+      "role": "Local reactions that need no backend: directives, the posture ledger, and pin targets.",
       "paths": [
         "src/dispatcher/tier1"
-      ],
-      "role": "Local reactions that need no backend: directives, the posture ledger, and pin targets."
+      ]
     },
     {
       "id": "dispatcher/turn",
-      "layer": "dispatcher",
+      "module": "turn",
       "label": "turn",
+      "role": "The turn ledger, the TurnOutput and TurnFeed ports, push-turn ids, and the player of push reply frames.",
       "paths": [
         "src/dispatcher/turn"
-      ],
-      "role": "The turn ledger, the TurnOutput and TurnFeed ports, push-turn ids, and the player of push reply frames."
+      ]
     },
     {
       "id": "dispatcher/backend",
-      "layer": "dispatcher",
+      "module": "backend-call",
       "label": "backend call",
+      "role": "Builds the client context, sends a tier-2 event on the selected transport, settles the reply, and records the turn.",
       "paths": [
         "src/dispatcher/backend"
-      ],
-      "role": "Builds the client context, sends a tier-2 event on the selected transport, settles the reply, and records the turn."
+      ]
     },
     {
       "id": "dispatcher/sources/user-input",
-      "layer": "dispatcher",
+      "module": "input",
       "label": "user input source",
+      "role": "Turns typed text and STT results into bus envelopes.",
       "paths": [
         "src/dispatcher/sources"
-      ],
-      "role": "Turns typed text and STT results into bus envelopes."
+      ]
     },
     {
       "id": "dispatcher/sources/idle-tick",
-      "layer": "dispatcher",
+      "module": "sources",
       "label": "idle-tick sources",
+      "role": "Proactive, schedule, milestone, and screen firing sources driven by the OS idle tick.",
       "paths": [
         "src/dispatcher/sources/idle-tick"
-      ],
-      "role": "Proactive, schedule, milestone, and screen firing sources driven by the OS idle tick."
+      ]
     },
     {
       "id": "dispatcher/sources/inbox",
-      "layer": "dispatcher",
+      "module": "sources",
       "label": "inbox sources",
+      "role": "Agent-lifecycle and signals firing sources with presence-gated buffering.",
       "paths": [
         "src/dispatcher/sources/inbox"
-      ],
-      "role": "Agent-lifecycle and signals firing sources with presence-gated buffering."
+      ]
     },
     {
       "id": "dispatcher/sources/gesture",
-      "layer": "dispatcher",
+      "module": "sources",
       "label": "gesture sources",
+      "role": "Tap, drag-hold, and window-drop firing sources, with the perch watch and placement.",
       "paths": [
         "src/dispatcher/sources/gesture"
-      ],
-      "role": "Tap, drag-hold, and window-drop firing sources, with the perch watch and placement."
+      ]
     },
     {
       "id": "dispatcher/sources/wake",
-      "layer": "dispatcher",
+      "module": "sources",
       "label": "wake source",
+      "role": "Fires the wake candidate as she gets out of bed.",
       "paths": [
         "src/dispatcher/sources/wake"
-      ],
-      "role": "Fires the wake candidate as she gets out of bed."
+      ]
     },
     {
       "id": "ambient/liveliness",
-      "layer": "ambient",
+      "module": "ambient",
       "label": "liveliness",
+      "role": "Blink, idle sway, breath, and look-around, independent of the backend.",
       "paths": [
         "src/ambient/liveliness"
-      ],
-      "role": "Blink, idle sway, breath, and look-around, independent of the backend."
+      ]
     },
     {
       "id": "ambient/locomotion",
-      "layer": "ambient",
+      "module": "ambient",
       "label": "locomotion",
+      "role": "Movement loops over the real window: stroll, perch, climb, jump, fall, and sit transitions.",
       "paths": [
         "src/ambient/locomotion"
-      ],
-      "role": "Movement loops over the real window: stroll, perch, climb, jump, fall, and sit transitions."
+      ]
     },
     {
       "id": "ambient/bed-scene",
-      "layer": "ambient",
+      "module": "ambient",
       "label": "bed scene",
+      "role": "Asleep on a bed at launch or on command, the wake, and the exit.",
       "paths": [
         "src/ambient/bed-scene"
-      ],
-      "role": "Asleep on a bed at launch or on command, the wake, and the exit."
+      ]
     },
     {
       "id": "ui/surfaces",
-      "layer": "ui",
+      "module": "display",
       "label": "surfaces",
+      "role": "The speech bubble and text input as one system, and the router between the pet window and the message window.",
       "paths": [
         "src/ui/surfaces"
-      ],
-      "role": "The speech bubble and text input as one system, and the router between the pet window and the message window."
+      ]
     },
     {
       "id": "ui/input",
-      "layer": "ui",
+      "module": "input",
       "label": "text input",
+      "role": "The composer: submit, stop, mic button, and image attachments.",
       "paths": [
         "src/ui/input"
-      ],
-      "role": "The composer: submit, stop, mic button, and image attachments."
+      ]
     },
     {
       "id": "ui/message",
-      "layer": "ui",
+      "module": "display",
       "label": "bubble and plate",
+      "role": "The speech bubble, the quoted user line, the reasoning disclosure, and the message-window plate.",
       "paths": [
         "src/ui/message"
-      ],
-      "role": "The speech bubble, the quoted user line, the reasoning disclosure, and the message-window plate."
+      ]
     },
     {
       "id": "ui/chips",
-      "layer": "ui",
+      "module": "display",
       "label": "chips",
+      "role": "The status pill, the delegation chip, and the voice-input status model.",
       "paths": [
         "src/ui/chips"
-      ],
-      "role": "The status pill, the delegation chip, and the voice-input status model."
+      ]
     },
     {
       "id": "ui/notices",
-      "layer": "ui",
+      "module": "display",
       "label": "notices",
+      "role": "One-off and error notices.",
       "paths": [
         "src/ui/notices"
-      ],
-      "role": "One-off and error notices."
+      ]
     },
     {
       "id": "ui/quick-controls",
-      "layer": "ui",
+      "module": "settings",
       "label": "quick controls",
+      "role": "The settings panel, shown as a popover in the pet window and as the whole settings window.",
       "paths": [
         "src/ui/quick-controls"
-      ],
-      "role": "The settings panel, shown as a popover in the pet window and as the whole settings window."
+      ]
     },
     {
       "id": "ui/phone",
-      "layer": "ui",
+      "module": "display",
       "label": "phone ui",
+      "role": "Phone-window layout, settings sheet, and stage backdrop.",
       "paths": [
         "src/ui/phone"
-      ],
-      "role": "Phone-window layout, settings sheet, and stage backdrop."
+      ]
     },
     {
       "id": "ui/devtools",
-      "layer": "ui",
+      "module": "settings",
       "label": "devtools ui",
+      "role": "Developer Tools views: context inspector, advanced settings, motion preview.",
       "paths": [
         "src/ui/devtools"
-      ],
-      "role": "Developer Tools views: context inspector, advanced settings, motion preview."
+      ]
     },
     {
       "id": "ui/i18n",
-      "layer": "ui",
+      "module": "settings",
       "label": "i18n",
+      "role": "The persisted locale and its string catalogs.",
       "paths": [
         "src/ui/i18n.ts",
         "src/ui/i18n"
-      ],
-      "role": "The persisted locale and its string catalogs."
+      ]
     },
     {
       "id": "app/bootstrap",
-      "layer": "app",
+      "module": "wiring",
       "label": "pet bootstrap",
+      "role": "The pet window's config-derived composition root and the shared teardown bag.",
       "paths": [
         "src/app"
-      ],
-      "role": "The pet window's config-derived composition root and the shared teardown bag."
+      ]
     },
     {
       "id": "app/turn",
-      "layer": "app",
+      "module": "wiring",
       "label": "turn wiring",
+      "role": "Connects voice, dispatcher, sources, vocabulary, broker, and the push transport into the chat turn.",
       "paths": [
         "src/app/turn"
-      ],
-      "role": "Connects voice, dispatcher, sources, vocabulary, broker, and the push transport into the chat turn."
+      ]
     },
     {
       "id": "app/stage",
-      "layer": "app",
+      "module": "wiring",
       "label": "stage wiring",
+      "role": "Binds the renderer, gestures, locomotion, the bed scene, and the window sources to the pet stage.",
       "paths": [
         "src/app/stage"
-      ],
-      "role": "Binds the renderer, gestures, locomotion, the bed scene, and the window sources to the pet stage."
+      ]
     },
     {
       "id": "app/cross-window",
-      "layer": "app",
+      "module": "wiring",
       "label": "cross-window wiring",
+      "role": "Per-window settings sync over the bridge and storage events.",
       "paths": [
         "src/app/cross-window"
-      ],
-      "role": "Per-window settings sync over the bridge and storage events."
+      ]
     },
     {
       "id": "app/settings",
-      "layer": "app",
+      "module": "wiring",
       "label": "settings wiring",
+      "role": "Store bags, the config store with its live merges and reload, and avatar selection.",
       "paths": [
         "src/app/settings"
-      ],
-      "role": "Store bags, the config store with its live merges and reload, and avatar selection."
+      ]
     },
     {
       "id": "app/controls",
-      "layer": "app",
+      "module": "wiring",
       "label": "controls wiring",
+      "role": "The pet window's quick-controls panel, context menu, and guide requests.",
       "paths": [
         "src/app/controls"
-      ],
-      "role": "The pet window's quick-controls panel, context menu, and guide requests."
+      ]
     },
     {
       "id": "app/message",
-      "layer": "app",
+      "module": "wiring",
       "label": "message-window wiring",
+      "role": "Draws surface ops from the pet window and binds the message window's drag, focus, and resize.",
       "paths": [
         "src/app/message"
-      ],
-      "role": "Draws surface ops from the pet window and binds the message window's drag, focus, and resize."
+      ]
     },
     {
       "id": "app/settings-window",
-      "layer": "app",
+      "module": "wiring",
       "label": "settings-window wiring",
+      "role": "Composes the settings window and mirrors the voice toggle.",
       "paths": [
         "src/app/settings-window"
-      ],
-      "role": "Composes the settings window and mirrors the voice toggle."
+      ]
     },
     {
       "id": "app/phone",
-      "layer": "app",
+      "module": "wiring",
       "label": "phone wiring",
+      "role": "The phone window's turn core, settings view, stage, top row, and voice controller.",
       "paths": [
         "src/app/phone"
-      ],
-      "role": "The phone window's turn core, settings view, stage, top row, and voice controller."
+      ]
     },
     {
       "id": "app/voice",
-      "layer": "app",
+      "module": "wiring",
       "label": "voice fix",
+      "role": "The desktop pill's setup-needed tap.",
       "paths": [
         "src/app/voice"
-      ],
-      "role": "The desktop pill's setup-needed tap."
+      ]
     },
     {
       "id": "app/dev",
-      "layer": "app",
+      "module": "wiring",
       "label": "dev globals",
+      "role": "DEV-only console handles.",
       "paths": [
         "src/app/dev"
-      ],
-      "role": "DEV-only console handles."
+      ]
     },
     {
       "id": "windows",
-      "layer": "windows",
+      "module": "wiring",
       "label": "window entries",
+      "role": "One entry file per window, loaded by the matching HTML file.",
       "paths": [
         "src/windows"
-      ],
-      "role": "One entry file per window, loaded by the matching HTML file."
+      ]
     }
   ],
   "edges": [
@@ -2311,6 +2647,70 @@ globalThis.YUI_MAP =
       "kind": "call",
       "transport": "shared",
       "wiring": "src/ui/surfaces/wire.ts"
+    },
+    {
+      "id": "user-input",
+      "from": "user",
+      "to": "ui/input",
+      "carries": "typed text, attached images, the send and stop button",
+      "kind": "user",
+      "transport": "shared"
+    },
+    {
+      "id": "user-voice",
+      "from": "user",
+      "to": "io/voice/stt",
+      "carries": "microphone audio",
+      "kind": "user",
+      "transport": "shared"
+    },
+    {
+      "id": "user-window",
+      "from": "user",
+      "to": "io/window/pet",
+      "carries": "taps, pats, drags, and drops on the character; Shift-drag orbit; Ctrl-wheel resize",
+      "kind": "user",
+      "transport": "shared"
+    },
+    {
+      "id": "user-settings",
+      "from": "user",
+      "to": "ui/quick-controls",
+      "carries": "quick-controls and settings-window edits",
+      "kind": "user",
+      "transport": "shared"
+    },
+    {
+      "id": "bubble-user",
+      "from": "ui/message",
+      "to": "user",
+      "carries": "speech bubble text, the quoted user line, reasoning",
+      "kind": "user",
+      "transport": "shared"
+    },
+    {
+      "id": "chips-user",
+      "from": "ui/chips",
+      "to": "user",
+      "carries": "status pill, delegation chip",
+      "kind": "user",
+      "transport": "shared"
+    },
+    {
+      "id": "voice-user",
+      "from": "io/voice/tts",
+      "to": "user",
+      "carries": "synthesized voice and filler phrases",
+      "kind": "user",
+      "transport": "shared"
+    },
+    {
+      "id": "character-user",
+      "from": "renderer",
+      "to": "user",
+      "carries": "the character on screen: expression, mouth, motion",
+      "kind": "user",
+      "transport": "shared"
     }
   ],
   "flows": [
@@ -2319,156 +2719,274 @@ globalThis.YUI_MAP =
       "title": "A user turn",
       "steps": [
         {
+          "from": "user",
+          "label": "types text or speaks",
+          "edges": [
+            "user-input",
+            "user-voice",
+            "stt-http"
+          ],
+          "to": "input"
+        },
+        {
+          "from": "input",
+          "label": "user.text_submitted or user.voice_segment_ready",
           "edges": [
             "input-submit",
-            "surfaces-submit"
-          ],
-          "text": "The composer submits text and images to the user input source."
-        },
-        {
-          "edges": [
-            "stt-http",
-            "stt-submit"
-          ],
-          "text": "A voice segment goes to the STT service and its transcript enters the same source."
-        },
-        {
-          "edges": [
+            "surfaces-submit",
+            "stt-submit",
             "user-input-bus"
           ],
-          "text": "The source pushes a user envelope onto the event bus."
+          "to": "dispatcher"
         },
         {
+          "from": "dispatcher",
+          "label": "A user turn aborts the call in flight, classifies as tier 2, and opens in the ledger",
           "edges": [
             "bus-dispatcher",
-            "user-supersede"
-          ],
-          "text": "The pump pops it. A user turn aborts the call in flight and drops pending ones, and the envelope classifies as tier 2."
+            "user-supersede",
+            "dispatcher-ledger"
+          ]
         },
         {
+          "from": "dispatcher",
+          "label": "quote the user, send button becomes stop",
           "edges": [
-            "dispatcher-ledger",
             "ledger-quote",
             "dispatcher-busy"
           ],
-          "text": "The dispatcher opens the turn in the ledger, the bubble quotes the user, and the send button becomes stop."
+          "to": "display"
         },
         {
+          "from": "dispatcher",
+          "label": "backendCaller.call(turn)",
           "edges": [
-            "dispatcher-backend",
-            "backend-output",
-            "output-filler"
+            "dispatcher-backend"
           ],
-          "text": "The backend caller interrupts the previous speech and starts thinking, which starts the filler loop."
+          "to": "backend-call"
         },
         {
+          "from": "backend-call",
+          "label": "interrupt previous speech, thinkingStart",
+          "edges": [
+            "backend-output"
+          ],
+          "to": "turn"
+        },
+        {
+          "from": "turn",
+          "label": "filler loop starts",
+          "edges": [
+            "output-filler",
+            "filler-speech"
+          ],
+          "to": "speech"
+        },
+        {
+          "from": "backend-call",
+          "label": "Builds the client context: posture, frontmost app, screenshot, settings, previous turn",
           "edges": [
             "context-posture",
             "context-frontmost",
             "context-screenshot",
             "context-settings",
             "context-endpoints"
-          ],
-          "text": "The caller builds the client context from posture, the frontmost app, a screenshot, settings, and the previous turn."
+          ]
         },
         {
+          "from": "backend-call",
+          "label": "stream(request) with tool schemas and conversation state",
           "edges": [
             "vocabulary-tools",
             "tools-backend",
             "conversation-backend",
-            "backend-stream",
+            "backend-stream"
+          ],
+          "to": "transport",
+          "transport": "request"
+        },
+        {
+          "from": "transport",
+          "label": "Responses or Chat Completions streaming request",
+          "edges": [
             "stream-http"
           ],
-          "text": "The caller adds the tool schemas and the conversation state and streams the request over HTTP.",
+          "to": "backend",
           "transport": "request"
         },
         {
+          "from": "backend",
+          "label": "stream chunks",
           "edges": [
-            "stream-events",
-            "backend-feed",
-            "feed-surfaces",
-            "feed-tool",
-            "feed-reasoning"
+            "stream-http"
           ],
-          "text": "Stream events come back: speech deltas and cues go to TurnOutput, tool status and reasoning to TurnFeed.",
+          "to": "transport",
           "transport": "request"
         },
         {
+          "from": "transport",
+          "label": "ChatStreamEvent: speech_delta, express, tool_status, reasoning, usage",
+          "edges": [
+            "stream-events"
+          ],
+          "to": "backend-call",
+          "transport": "request"
+        },
+        {
+          "from": "backend-call",
+          "label": "TurnOutput delta and cue; TurnFeed tool status and reasoning",
+          "edges": [
+            "backend-output",
+            "backend-feed"
+          ],
+          "to": "turn",
+          "transport": "request"
+        },
+        {
+          "from": "backend-call",
+          "label": "pushTurn(turn frame)",
           "edges": [
             "backend-push-send",
-            "backend-push-wait",
+            "backend-push-wait"
+          ],
+          "to": "transport",
+          "transport": "push"
+        },
+        {
+          "from": "transport",
+          "label": "turn frame",
+          "edges": [
             "push-ws"
           ],
-          "text": "The caller sends one turn frame on the push socket and waits for its turn_end.",
+          "to": "backend",
           "transport": "push"
         },
         {
+          "from": "backend",
+          "label": "speech, render, tool_status, reasoning, turn_end frames",
           "edges": [
-            "push-ws-in",
+            "push-ws-in"
+          ],
+          "to": "transport",
+          "transport": "push"
+        },
+        {
+          "from": "transport",
+          "label": "render-turn plays speech and render frames; TurnFeed tool status and reasoning",
+          "edges": [
             "push-render",
             "push-feed",
-            "render-output",
-            "feed-surfaces",
-            "feed-tool",
-            "feed-reasoning"
+            "render-output"
           ],
-          "text": "Reply frames arrive on the socket: speech and render frames play through render-turn into TurnOutput, tool_status and reasoning go to TurnFeed.",
+          "to": "turn",
           "transport": "push"
         },
         {
+          "from": "turn",
+          "label": "TurnOutput: delta, cue, end",
           "edges": [
-            "output-speech",
-            "tts-http"
+            "output-speech"
           ],
-          "text": "Speech playback segments the text into sentences and synthesizes each one."
+          "to": "speech"
         },
         {
+          "from": "turn",
+          "label": "tool status on the pill, reasoning",
+          "edges": [
+            "feed-surfaces",
+            "feed-tool",
+            "feed-reasoning",
+            "reasoning-bubble"
+          ],
+          "to": "display"
+        },
+        {
+          "from": "speech",
+          "label": "Segments sentences and synthesizes each one through the TTS service",
+          "edges": [
+            "tts-http"
+          ]
+        },
+        {
+          "from": "speech",
+          "label": "beginSpeech, pushSpeech, endSpeech",
           "edges": [
             "speech-bubble",
-            "surfaces-bubble",
+            "surfaces-bubble"
+          ],
+          "to": "display"
+        },
+        {
+          "from": "speech",
+          "label": "applyDirective per sentence, setMouthOpen by amplitude",
+          "edges": [
             "speech-renderer",
             "renderer-expression",
             "renderer-motion"
           ],
-          "text": "Each sentence writes the bubble, applies its cue to the renderer, and drives the mouth by amplitude."
+          "to": "renderer"
         },
         {
+          "from": "display",
+          "label": "reads the bubble",
           "edges": [
-            "settle-renderer"
+            "bubble-user",
+            "chips-user"
           ],
-          "text": "When no cue was streamed with speech, the settled envelope is applied to the renderer directly.",
-          "transport": "request"
+          "to": "user"
         },
         {
+          "from": "speech",
+          "label": "hears the voice",
+          "edges": [
+            "voice-user"
+          ],
+          "to": "user"
+        },
+        {
+          "from": "renderer",
+          "label": "sees the expression and the mouth move",
+          "edges": [
+            "character-user"
+          ],
+          "to": "user"
+        },
+        {
+          "from": "backend-call",
+          "label": "Records the turn: transcript, context history, turn-record log",
           "edges": [
             "backend-record",
             "backend-turn-record",
-            "record-shell"
-          ],
-          "text": "The caller records the turn into the transcript, the context history, and the turn-record log."
-        },
-        {
-          "edges": [
+            "record-shell",
             "render-conversation",
             "render-record",
             "push-usage"
-          ],
-          "text": "The rendered reply is recorded as the assistant entry, and turn_end carries the usage.",
-          "transport": "push"
+          ]
         },
         {
+          "from": "speech",
+          "label": "audio owed cleared: the turn is over",
           "edges": [
-            "speech-ledger",
+            "speech-ledger"
+          ],
+          "to": "turn"
+        },
+        {
+          "from": "speech",
+          "label": "how the utterance ended, kept for the next turn",
+          "edges": [
             "speech-previous"
           ],
-          "text": "Playback end clears audio owed in the ledger and stores how the utterance ended for the next turn's previous: line."
+          "to": "backend-call"
         },
         {
+          "from": "backend-call",
+          "label": "playback frame for a turn that failed before speaking",
           "edges": [
             "previous-playback",
             "push-ws"
           ],
-          "text": "A turn that failed before its utterance started is reported on a playback frame.",
+          "to": "transport",
           "transport": "push"
         }
       ]
@@ -2478,42 +2996,101 @@ globalThis.YUI_MAP =
       "title": "A backend-started turn",
       "steps": [
         {
+          "from": "backend",
+          "label": "speech or render frame with a turn id the client never opened",
           "edges": [
             "push-ws-in"
           ],
-          "text": "A speech or render frame arrives with a turn id the client never opened.",
+          "to": "transport",
           "transport": "push"
         },
         {
+          "from": "transport",
+          "label": "render-turn takes it under the backend event name",
           "edges": [
             "push-render"
           ],
-          "text": "render-turn takes it under the backend event name. The bus, the gates, the ledger, and the context builder take no part.",
+          "to": "turn",
           "transport": "push"
         },
         {
+          "from": "turn",
+          "label": "The bus, the gates, the ledger, and the context builder take no part",
+          "edges": [],
+          "transport": "push"
+        },
+        {
+          "from": "turn",
+          "label": "TurnOutput: cueWithSpeech, delta, end, queued behind current speech",
           "edges": [
             "render-output",
-            "output-speech",
+            "output-speech"
+          ],
+          "to": "speech",
+          "transport": "push"
+        },
+        {
+          "from": "speech",
+          "label": "Segments sentences and synthesizes each one through the TTS service",
+          "edges": [
             "tts-http"
           ],
-          "text": "It plays through TurnOutput behind any speech already queued.",
           "transport": "push"
         },
         {
+          "from": "speech",
+          "label": "beginSpeech, pushSpeech, endSpeech",
           "edges": [
             "speech-bubble",
-            "speech-renderer"
+            "surfaces-bubble"
           ],
-          "text": "Speech playback writes the bubble and drives the renderer as for any turn.",
+          "to": "display",
           "transport": "push"
         },
         {
+          "from": "speech",
+          "label": "applyDirective per sentence, setMouthOpen by amplitude",
+          "edges": [
+            "speech-renderer"
+          ],
+          "to": "renderer",
+          "transport": "push"
+        },
+        {
+          "from": "display",
+          "label": "reads the bubble",
+          "edges": [
+            "bubble-user"
+          ],
+          "to": "user",
+          "transport": "push"
+        },
+        {
+          "from": "speech",
+          "label": "hears the voice",
+          "edges": [
+            "voice-user"
+          ],
+          "to": "user",
+          "transport": "push"
+        },
+        {
+          "from": "renderer",
+          "label": "sees the expression and the mouth move",
+          "edges": [
+            "character-user"
+          ],
+          "to": "user",
+          "transport": "push"
+        },
+        {
+          "from": "turn",
+          "label": "assistant transcript entry, render record",
           "edges": [
             "render-conversation",
             "render-record"
           ],
-          "text": "The reply is recorded as an assistant transcript entry and a render record.",
+          "to": "conversation",
           "transport": "push"
         }
       ]
@@ -2523,85 +3100,136 @@ globalThis.YUI_MAP =
       "title": "A tool call and an avatar command",
       "steps": [
         {
-          "edges": [
-            "vocabulary-derive",
-            "vocabulary-settings"
-          ],
-          "text": "The express vocabulary is derived from the config and the express-motion selection."
-        },
-        {
+          "from": "tools",
+          "label": "tool schemas rebuilt from the vocabulary for the turn",
           "edges": [
             "vocabulary-tools",
             "tools-backend"
           ],
-          "text": "On a request transport the tool schemas are rebuilt from the vocabulary for each turn.",
+          "to": "backend-call",
           "transport": "request"
         },
         {
+          "from": "tools",
+          "label": "hello.tools and hello.vocabulary; expression arrives as cues on reply segments",
           "edges": [
-            "vocabulary-push",
             "tools-push",
-            "push-ws"
+            "vocabulary-push"
           ],
-          "text": "On push the vocabulary and the avatar tools travel in hello, and expression arrives as cues on reply segments.",
+          "to": "transport",
           "transport": "push"
         },
         {
+          "from": "backend",
+          "label": "function call in the stream, or a tool_call frame",
           "edges": [
-            "stream-events",
-            "stream-tools"
+            "stream-http",
+            "push-ws-in"
           ],
-          "text": "A function call in the stream runs the client tool and its result goes back within the same request loop.",
-          "transport": "request"
+          "to": "transport"
         },
         {
+          "from": "transport",
+          "label": "executeClientTool(tool, args)",
           "edges": [
-            "push-ws-in",
-            "push-tools",
-            "push-image",
-            "push-ws"
+            "stream-tools",
+            "push-tools"
           ],
-          "text": "A tool_call frame is queued, run, and answered with a tool_result frame fitted to the turn size.",
-          "transport": "push"
+          "to": "tools"
         },
         {
+          "from": "tools",
+          "label": "body_action and look reach the avatar executor",
           "edges": [
             "tools-executor"
-          ],
-          "text": "body_action and look reach the avatar executor."
+          ]
         },
         {
+          "from": "tools",
+          "label": "look at screen: capture_screen_at",
           "edges": [
             "tools-capture",
             "capture-shell"
           ],
-          "text": "look at screen captures the display under a point through the shell."
+          "to": "shell"
         },
         {
+          "from": "senders",
+          "label": "GET /avatar/state, POST /avatar/command",
           "edges": [
-            "mods-ingress",
+            "mods-ingress"
+          ],
+          "to": "shell"
+        },
+        {
+          "from": "shell",
+          "label": "avatar-rpc event, answered on avatar_rpc_response",
+          "edges": [
             "ingress-inbox",
             "inbox-rpc-response"
           ],
-          "text": "The same executor answers the loopback avatar endpoints: the shell emits avatar-rpc and waits for avatar_rpc_response."
+          "to": "tools"
         },
         {
+          "from": "tools",
+          "label": "cancel the movers; bed lieDown, getUp",
           "edges": [
             "executor-locomotion",
-            "executor-perch",
-            "executor-bed",
-            "executor-posture"
+            "executor-bed"
           ],
-          "text": "A command cancels the ambient movers, then places her on a window, moves the window, or uses the bed."
+          "to": "ambient"
         },
         {
+          "from": "tools",
+          "label": "perch.placeOn, perch.release",
           "edges": [
-            "gesture-bus",
+            "executor-perch"
+          ],
+          "to": "sources"
+        },
+        {
+          "from": "sources",
+          "label": "user.window_sit_drop or user.peek_drop, without the gesture cue",
+          "edges": [
+            "gesture-bus"
+          ],
+          "to": "dispatcher"
+        },
+        {
+          "from": "dispatcher",
+          "label": "tier 1: posture directive, perch or peek pin",
+          "edges": [
             "dispatcher-tier1",
-            "tier1-renderer",
+            "tier1-renderer"
+          ],
+          "to": "renderer"
+        },
+        {
+          "from": "dispatcher",
+          "label": "peek.enter(), peek.exit()",
+          "edges": [
             "tier1-peek"
           ],
-          "text": "Placement pushes the sit or peek drop envelope without its gesture cue, and tier 1 renders the posture."
+          "to": "window"
+        },
+        {
+          "from": "tools",
+          "label": "ClientToolResult as function_call_output or a tool_result frame",
+          "edges": [
+            "stream-tools",
+            "push-tools",
+            "push-image"
+          ],
+          "to": "transport"
+        },
+        {
+          "from": "transport",
+          "label": "tool result",
+          "edges": [
+            "stream-http",
+            "push-ws"
+          ],
+          "to": "backend"
         }
       ]
     },
@@ -2610,44 +3238,103 @@ globalThis.YUI_MAP =
       "title": "Stop",
       "steps": [
         {
+          "from": "user",
+          "label": "presses stop",
           "edges": [
-            "input-submit",
+            "user-input"
+          ],
+          "to": "input"
+        },
+        {
+          "from": "input",
+          "label": "stop handler",
+          "edges": [
+            "input-submit"
+          ],
+          "to": "display"
+        },
+        {
+          "from": "display",
+          "label": "stopTurn: dispatcher.cancel()",
+          "edges": [
             "stop-dispatcher"
           ],
-          "text": "The stop button cancels the call in flight and drops pending ones."
+          "to": "dispatcher"
         },
         {
-          "edges": [
-            "stop-push-turns"
-          ],
-          "text": "Open push turn ids move to stopped, so their later frames drop."
-        },
-        {
-          "edges": [
-            "stop-speech"
-          ],
-          "text": "Speech playback is interrupted and the cut utterance is stored for the next turn."
-        },
-        {
-          "edges": [
-            "stop-push",
-            "push-ws"
-          ],
-          "text": "The cut turn ids go to the backend on a stop frame.",
-          "transport": "push"
-        },
-        {
+          "from": "dispatcher",
+          "label": "abort the call in flight, drop pending",
           "edges": [
             "user-supersede"
           ],
-          "text": "A new user turn reaches the same end through the dispatcher: it aborts the call in flight before its own call starts."
+          "to": "backend-call"
         },
         {
+          "from": "display",
+          "label": "pushTurns.cut(): open push turn ids move to stopped",
           "edges": [
-            "barge-in-speech",
+            "stop-push-turns"
+          ],
+          "to": "turn",
+          "transport": "push"
+        },
+        {
+          "from": "display",
+          "label": "speechPlayback.interrupt()",
+          "edges": [
+            "stop-speech"
+          ],
+          "to": "speech"
+        },
+        {
+          "from": "speech",
+          "label": "utterance ended interrupted, with the spoken split",
+          "edges": [
+            "speech-previous"
+          ],
+          "to": "backend-call"
+        },
+        {
+          "from": "display",
+          "label": "sendStop(turnIds)",
+          "edges": [
+            "stop-push"
+          ],
+          "to": "transport",
+          "transport": "push"
+        },
+        {
+          "from": "transport",
+          "label": "stop frame",
+          "edges": [
+            "push-ws"
+          ],
+          "to": "backend",
+          "transport": "push"
+        },
+        {
+          "from": "dispatcher",
+          "label": "A new user turn reaches the same end: it aborts the call in flight before its own call starts",
+          "edges": [
+            "user-supersede"
+          ]
+        },
+        {
+          "from": "input",
+          "label": "barge-in: speech into the microphone interrupts playback",
+          "edges": [
+            "barge-in-speech"
+          ],
+          "to": "speech"
+        },
+        {
+          "from": "input",
+          "label": "barge-in cuts push turns",
+          "edges": [
             "barge-in-push"
           ],
-          "text": "Speech into the microphone while she is speaking interrupts playback and cuts push turns."
+          "to": "turn",
+          "transport": "push"
         }
       ]
     },
@@ -2656,83 +3343,148 @@ globalThis.YUI_MAP =
       "title": "Firing and classification of a speech candidate",
       "steps": [
         {
+          "from": "shell",
+          "label": "os_event: idle time and frontmost app, every 5 s",
           "edges": [
-            "os-event",
+            "os-event"
+          ],
+          "to": "window"
+        },
+        {
+          "from": "window",
+          "label": "idle and frontmost samples",
+          "edges": [
             "os-idle-tick",
             "os-presence"
           ],
-          "text": "The shell emits an idle and frontmost sample every 5 s, and the idle-tick and inbox sources read it."
+          "to": "sources"
         },
         {
+          "from": "sources",
+          "label": "Proactive, schedule, milestone, and screen sources fire from the sample and their settings",
           "edges": [
-            "settings-idle-tick",
-            "idle-tick-bus"
-          ],
-          "text": "Proactive, schedule, milestone, and screen sources fire from that sample and their settings."
+            "settings-idle-tick"
+          ]
         },
         {
+          "from": "senders",
+          "label": "POST /agent-event, POST /signals",
           "edges": [
             "hooks-ingress",
-            "signals-ingress",
-            "ingress-inbox",
+            "signals-ingress"
+          ],
+          "to": "shell"
+        },
+        {
+          "from": "shell",
+          "label": "agent-inbox and signals-inbox events",
+          "edges": [
+            "ingress-inbox"
+          ],
+          "to": "tools"
+        },
+        {
+          "from": "tools",
+          "label": "agent and signal events",
+          "edges": [
             "inbox-sources",
             "settings-inbox"
           ],
-          "text": "Agent events and signals arrive on the loopback listener and reach the inbox sources."
+          "to": "sources"
         },
         {
+          "from": "dispatcher",
+          "label": "pacer gap and busy state hold inbox delivery",
           "edges": [
-            "pacer-inbox",
-            "inbox-bus",
-            "signals-drain",
-            "signals-drain-wake"
+            "pacer-inbox"
           ],
-          "text": "Inbox sources deliver while she is present and the pipeline is free, and buffered signals ride the milestone and wake envelopes."
+          "to": "sources"
         },
         {
+          "from": "user",
+          "label": "taps, pats, drags",
+          "edges": [
+            "user-window"
+          ],
+          "to": "window"
+        },
+        {
+          "from": "window",
+          "label": "click, pat, and drag callbacks",
           "edges": [
             "pet-gestures",
-            "tap-renderer",
-            "gesture-bus",
-            "pet-drag-bus"
+            "tap-renderer"
           ],
-          "text": "Taps, pats, drags, and window drops become envelopes from the gesture sources."
+          "to": "sources"
         },
         {
+          "from": "ambient",
+          "label": "waking from the bed fires the wake source",
           "edges": [
-            "locomotion-bus",
-            "bed-bus",
-            "bed-wake",
+            "bed-wake"
+          ],
+          "to": "sources"
+        },
+        {
+          "from": "sources",
+          "label": "candidate envelopes on the bus",
+          "edges": [
+            "idle-tick-bus",
+            "inbox-bus",
+            "gesture-bus",
             "wake-bus"
           ],
-          "text": "Ambient movement and the bed scene push their own events, and waking fires the wake candidate."
+          "to": "dispatcher"
         },
         {
+          "from": "ambient",
+          "label": "avatar.* movement events",
+          "edges": [
+            "locomotion-bus",
+            "bed-bus"
+          ],
+          "to": "dispatcher"
+        },
+        {
+          "from": "window",
+          "label": "user.drag_start, user.drag_end",
+          "edges": [
+            "pet-drag-bus"
+          ],
+          "to": "dispatcher"
+        },
+        {
+          "from": "dispatcher",
+          "label": "Classifies each envelope as tier 1 or tier 2; tier 2 passes the pacer gap and the guardrails",
           "edges": [
             "bus-dispatcher"
-          ],
-          "text": "The dispatcher classifies each envelope. Tier 2 passes the pacer gap for paced sources and the guardrails."
+          ]
         },
         {
+          "from": "dispatcher",
+          "label": "tier 1: local directive, posture, pins",
           "edges": [
             "dispatcher-tier1",
-            "tier1-renderer",
-            "tier1-peek"
+            "tier1-renderer"
           ],
-          "text": "Tier 1 renders locally: a directive to the renderer, the posture ledger, and the peek state."
+          "to": "renderer"
         },
         {
+          "from": "dispatcher",
+          "label": "tier 2: the backend judges whether and what to speak",
           "edges": [
             "dispatcher-backend"
           ],
-          "text": "Tier 2 becomes a backend call, where the backend judges whether and what to speak."
+          "to": "backend-call"
         },
         {
+          "from": "sources",
+          "label": "skip record of a screen fire the pacer held",
           "edges": [
             "screen-skip-record",
             "record-shell"
           ],
-          "text": "A screen fire the pacer held is written as a skip record."
+          "to": "conversation"
         }
       ]
     },
@@ -2741,58 +3493,129 @@ globalThis.YUI_MAP =
       "title": "Settings propagation",
       "steps": [
         {
+          "from": "user",
+          "label": "edits a control",
           "edges": [
-            "controls-settings"
+            "user-settings"
           ],
-          "text": "A control commits to its store, which saves to localStorage."
+          "to": "settings"
         },
         {
+          "from": "settings",
+          "label": "The store commits and saves to localStorage",
+          "edges": [
+            "controls-settings"
+          ]
+        },
+        {
+          "from": "settings",
+          "label": "settings-changed signal after 200 ms",
           "edges": [
             "settings-broadcast"
           ],
-          "text": "The store notifies and, after 200 ms, the window emits the settings-changed signal."
+          "to": "bridge"
         },
         {
+          "from": "bridge",
+          "label": "each other window reloads its stores from localStorage",
           "edges": [
             "settings-reload"
           ],
-          "text": "Each other window reloads its own store instances from localStorage."
+          "to": "settings"
         },
         {
+          "from": "settings",
+          "label": "subscribed: endpoint or key change reopens the push socket",
           "edges": [
-            "settings-push",
-            "settings-guardrails",
-            "settings-pacer",
-            "settings-camera",
-            "settings-idle-motion",
-            "vocabulary-settings"
+            "settings-push"
           ],
-          "text": "Subscribed consumers apply the change at once: push socket, guardrails and pacer, camera, idle motions, vocabulary."
+          "to": "transport",
+          "transport": "push"
         },
         {
+          "from": "settings",
+          "label": "subscribed: guardrail caps, pacer gap",
+          "edges": [
+            "settings-guardrails",
+            "settings-pacer"
+          ],
+          "to": "dispatcher"
+        },
+        {
+          "from": "settings",
+          "label": "subscribed: camera, idle motions",
+          "edges": [
+            "settings-camera",
+            "settings-idle-motion"
+          ],
+          "to": "renderer"
+        },
+        {
+          "from": "settings",
+          "label": "subscribed: express-motion selection announces the vocabulary",
+          "edges": [
+            "vocabulary-settings",
+            "vocabulary-derive"
+          ],
+          "to": "tools"
+        },
+        {
+          "from": "settings",
+          "label": "read per turn: endpoints, agent and screenshot settings",
           "edges": [
             "context-settings",
-            "context-endpoints",
-            "settings-speech",
-            "settings-stt",
+            "context-endpoints"
+          ],
+          "to": "backend-call"
+        },
+        {
+          "from": "settings",
+          "label": "read per utterance: TTS switch, speaker, lip-sync gain",
+          "edges": [
+            "settings-speech"
+          ],
+          "to": "speech"
+        },
+        {
+          "from": "settings",
+          "label": "read per segment: VAD silence, barge-in",
+          "edges": [
+            "settings-stt"
+          ],
+          "to": "input"
+        },
+        {
+          "from": "settings",
+          "label": "read per tick: cue lists, thresholds",
+          "edges": [
             "settings-idle-tick",
             "settings-inbox"
           ],
-          "text": "Read-at-use consumers see it on their next turn, utterance, segment, or tick."
+          "to": "sources"
         },
         {
+          "from": "settings",
+          "label": "read once at boot: agent ingress switch and port",
           "edges": [
             "ingress-start"
           ],
-          "text": "The agent ingress port and switch are read once at boot."
+          "to": "shell"
         },
         {
+          "from": "settings",
+          "label": "config hot reload: emotion registry, motions, avatar",
           "edges": [
-            "config-renderer",
-            "config-guardrails",
-            "vocabulary-derive"
+            "config-renderer"
           ],
-          "text": "A config file edit reaches the renderer, guardrails, and vocabulary through hot reload, which polls in dev builds."
+          "to": "renderer"
+        },
+        {
+          "from": "settings",
+          "label": "config hot reload: guardrails",
+          "edges": [
+            "config-guardrails"
+          ],
+          "to": "dispatcher"
         }
       ]
     }
