@@ -1,4 +1,4 @@
-"""Outbox item rules and the pent-up stage of a held note."""
+"""Outbox item rules."""
 
 from __future__ import annotations
 
@@ -14,8 +14,6 @@ else:
     import desire_store
 
 OUTBOX_EXPIRY = timedelta(hours=48)
-PENT_UP_HEAVY = timedelta(hours=6)
-PENT_UP_BURSTING = timedelta(hours=18)
 
 
 def stamp_outbox(path: Path, item_ids: tuple[str, ...], now: datetime) -> None:
@@ -151,12 +149,3 @@ def visible_outbox(items: list[dict], now: datetime) -> list[dict]:
         for item in active_outbox(items, now)
         if item.get("not_before") is None or desire_config.parse_timestamp(item["not_before"]) <= now
     ]
-
-
-def pent_up_stage(created_at: datetime, now: datetime) -> str:
-    waited = desire_config.normalize_now(now) - desire_config.normalize_now(created_at)
-    if waited >= PENT_UP_BURSTING:
-        return "bursting"
-    if waited >= PENT_UP_HEAVY:
-        return "heavy"
-    return "fresh"

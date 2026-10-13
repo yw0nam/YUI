@@ -829,11 +829,7 @@ def test_version_matches_plugin_yaml(desire_plugin):
 
 
 def test_block_without_the_interaction_line_is_not_treated_as_injected(desire_plugin):
-    text = (
-        "hello\n\n<desire_state>\n"
-        f"agent: {AGENT_NAME}\n"
-        "</desire_state>"
-    )
+    text = f"hello\n\n<desire_state>\nagent: {AGENT_NAME}\n</desire_state>"
 
     assert not desire_plugin._already_injected(text)
 

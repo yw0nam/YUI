@@ -17,7 +17,6 @@ import desire_outbox
 import desire_render
 import desire_state
 import desire_store
-import skill_usage
 
 KST = ZoneInfo("Asia/Seoul")
 CAPS = desire_state.CAPS
@@ -155,21 +154,6 @@ def _report(note, now, opener):
         _audit(state_dir, now, "report_failed", reason=failure, note=note)
     print(f"report delivery failed: {failure}", file=sys.stderr)
     return 1
-
-
-def _report_skills(now):
-    """Print the load counts of the skills the agent made, once a day at report time."""
-
-    state_dir = desire_config.resolve_state_dir()
-    with desire_store.state_lock(state_dir):
-        record = desire_store.read_artefacts(state_dir) or desire_store.default_artefacts(now)
-
-    # The database scan runs outside the lock, so a turn never waits on it.
-    text, failure = skill_usage.section(now, first_seen=record["skill_first_seen"])
-    if failure is not None:
-        _audit(state_dir, now, "report_skills_failed", reason=failure)
-    print(text)
-    return 0
 
 
 def _outbox_send(item_id, now, opener):
@@ -341,9 +325,7 @@ def _parser():
     signal.add_argument("--note", required=True)
 
     report = commands.add_parser("report")
-    report_group = report.add_mutually_exclusive_group(required=True)
-    report_group.add_argument("--note")
-    report_group.add_argument("--skills", action="store_true")
+    report.add_argument("--note", required=True)
 
     for name in RESERVATIONS:
         action = commands.add_parser(name)
@@ -352,10 +334,6 @@ def _parser():
         group.add_argument("--commit", metavar="ID")
         group.add_argument("--release", metavar="ID")
         action.add_argument("--url")
-
-    satisfy = commands.add_parser("satisfy")
-    satisfy.add_argument("event", choices=["learned", "praised"])
-    satisfy.add_argument("--ref", required=True)
 
     feedback = commands.add_parser("feedback")
     feedback_group = feedback.add_mutually_exclusive_group(required=True)
@@ -392,7 +370,7 @@ def _run(argv, now, opener):
     if args.command == "signal":
         return _signal(args.note, now, opener)
     if args.command == "report":
-        return _report_skills(now) if args.skills else _report(args.note, now, opener)
+        return _report(args.note, now, opener)
     if args.command in RESERVATIONS:
         if args.reserve:
             operation, reservation_id = "reserve", None
@@ -404,14 +382,6 @@ def _run(argv, now, opener):
         else:
             operation, reservation_id = "release", args.release
         return _reservation_action(args.command, operation, reservation_id, args.url, now)
-    if args.command == "satisfy":
-        try:
-            reward = desire_state.satisfy(args.event, args.ref, now)
-        except ValueError as error:
-            print(str(error), file=sys.stderr)
-            return 1
-        print(f"satisfied {args.event} reward={reward:.4f}")
-        return 0
     if args.command == "feedback":
         return _feedback("get" if args.get else "set", args.set, now)
     if args.list:
