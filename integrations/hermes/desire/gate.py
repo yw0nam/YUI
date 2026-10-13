@@ -65,11 +65,11 @@ def _github_slug(origin: str) -> str | None:
     parts = (match["owner"], match["name"])
     if any(_SLUG_PART.fullmatch(part) is None or part in (".", "..") for part in parts):
         return None
-    return "/".join(parts)
+    return "/".join(parts).lower()
 
 
 def workspace_repos(workspace_root: Path) -> dict[str, Path]:
-    """Map each `owner/name` cloned from GitHub to the first workspace directory that clones it."""
+    """Map each lower-cased `owner/name` cloned from GitHub to the first workspace directory cloning it."""
 
     repos: dict[str, Path] = {}
     try:
@@ -89,8 +89,15 @@ def workspace_repos(workspace_root: Path) -> dict[str, Path]:
     return dict(sorted(repos.items()))
 
 
+def _opens_with_marker(body: object, marker: str) -> bool:
+    """Report whether the first non-empty line of an issue or comment body is exactly the marker."""
+
+    lines = (line.strip() for line in body.splitlines()) if isinstance(body, str) else ()
+    return next((line for line in lines if line), None) == marker
+
+
 def repo_pull_requests(repo: str, run_gh) -> list[dict]:
-    """Return the repository's own pull requests opened from a branch carrying the agent prefix."""
+    """Return the pull requests opened from a branch of the repository itself carrying the agent prefix."""
 
     payload = run_gh(
         [
@@ -103,19 +110,21 @@ def repo_pull_requests(repo: str, run_gh) -> list[dict]:
             "--limit",
             "100",
             "--json",
-            "number,url,headRefName,state,mergedAt",
+            "number,url,headRefName,isCrossRepository,state,mergedAt",
         ]
     )
     prefix = desire_config.branch_prefix()
     return [
         pull
         for pull in json.loads(payload)
-        if isinstance(pull, dict) and str(pull.get("headRefName", "")).startswith(prefix)
+        if isinstance(pull, dict)
+        and pull.get("isCrossRepository") is False
+        and str(pull.get("headRefName", "")).startswith(prefix)
     ]
 
 
 def repo_issues(repo: str, run_gh) -> list[dict]:
-    """Return the repository's own issues whose body carries the agent's issue marker."""
+    """Return the repository's issues whose body opens with the agent's issue marker."""
 
     payload = run_gh(
         [
@@ -135,7 +144,7 @@ def repo_issues(repo: str, run_gh) -> list[dict]:
     return [
         issue
         for issue in json.loads(payload)
-        if isinstance(issue, dict) and marker in str(issue.get("body", ""))
+        if isinstance(issue, dict) and _opens_with_marker(issue.get("body"), marker)
     ]
 
 
@@ -182,18 +191,11 @@ def _read_source(state_dir, now, source, repo, read, ref=None):
         return None
 
 
-def artefact_delivery(kind: str, url: str, run_gh, repos: dict[str, Path]) -> object:
-    """Return when this pull request merged or this issue closed, or ``None`` while it is open.
-
-    The view runs inside the workspace clone of the URL's repository, matched without regard to case, and in
-    the gate's own directory when no clone of it is left.
-    """
+def artefact_delivery(kind: str, url: str, run_gh) -> object:
+    """Return when this pull request merged or this issue closed, or ``None`` while it is open."""
 
     field = "mergedAt" if kind == "pr" else "closedAt"
-    key = _artefact_key(_ARTEFACT_URL, url)
-    clones = {slug.lower(): clone for slug, clone in repos.items()}
-    cwd = clones.get(key[0].lower()) if key is not None else None
-    return json.loads(run_gh([kind, "view", url, "--json", f"state,{field}"], cwd=cwd)).get(field)
+    return json.loads(run_gh([kind, "view", url, "--json", f"state,{field}"])).get(field)
 
 
 def collect_artefacts(state_dir, now, *, workspace_root, run_gh) -> dict:
@@ -237,12 +239,15 @@ def collect_artefacts(state_dir, now, *, workspace_root, run_gh) -> dict:
         }
     for kind in ("pr", "issue"):
         for url in _undelivered(record, kind):
+            key = _artefact_key(_ARTEFACT_URL, url)
+            # A repository that has no clone in the workspace is viewed from the gate's own directory.
+            gh = functools.partial(run_gh, cwd=repos.get(key[0]) if key is not None else None)
             delivered = _read_source(
                 state_dir,
                 now,
                 kind,
                 None,
-                lambda name=kind, target=url: artefact_delivery(name, target, run_gh, repos),
+                lambda name=kind, target=url, gh=gh: artefact_delivery(name, target, gh),
                 url,
             )
             if delivered is not None and observed[kind] is not None:
@@ -329,14 +334,7 @@ def _github_stamp(value: object) -> datetime | None:
 
 def _artefact_key(pattern: re.Pattern, url: object) -> tuple[str, str] | None:
     match = pattern.fullmatch(url) if isinstance(url, str) else None
-    return (match["repo"], match["number"]) if match is not None else None
-
-
-def _opens_with_marker(body: object, marker: str) -> bool:
-    """Report whether the first non-empty line of a comment body, stripped, is exactly the marker."""
-
-    lines = (line.strip() for line in body.splitlines()) if isinstance(body, str) else ()
-    return next((line for line in lines if line), None) == marker
+    return (match["repo"].lower(), match["number"]) if match is not None else None
 
 
 def _record_comments(record: dict, observed: dict, now: datetime) -> list[tuple[str, str]]:
