@@ -103,11 +103,13 @@ def _chat_of(event: MessageEvent) -> str:
     return str(getattr(getattr(event, "source", None), "chat_id", "") or "")
 
 
+def _is_interim(meta: dict) -> bool:
+    return any(meta.get(marker) for marker in INTERIM_MARKERS)
+
+
 def _failure_line(content: str, meta: dict) -> str:
     """The failure line the gateway sends bare, as one line; empty for a reply, a notice or an interim."""
-    if meta.get("notify") or meta.get(NOTICE_MARKER):
-        return ""
-    if any(meta.get(marker) for marker in INTERIM_MARKERS):
+    if meta.get("notify") or meta.get(NOTICE_MARKER) or _is_interim(meta):
         return ""
     return " ".join(content.split())
 
@@ -150,6 +152,8 @@ class YuiAdapter(BasePlatformAdapter):
         self.port = int(extra.get("port") or DEFAULT_PORT)
         self._key = str(extra.get("key") or os.getenv("YUI_PLATFORM_KEY") or "")
         self._sockets: dict[str, web.WebSocketResponse] = {}
+        # The frame types each chat's client last said it reads beyond the base set.
+        self._accepts: dict[str, frozenset[str]] = {}
         self._loop: asyncio.AbstractEventLoop | None = None
         self._runner: web.AppRunner | None = None
         self._confirmations: set[asyncio.Task] = set()
@@ -288,6 +292,9 @@ class YuiAdapter(BasePlatformAdapter):
         self._adopt_home_channel(chat_id)
         self._publish_vocabulary(chat_id, frame.get("vocabulary"))
         registry.declare(frame.get("tools"), chat_id)
+        accepts = frame.get("accepts")
+        listed = isinstance(accepts, list) and all(isinstance(name, str) for name in accepts)
+        self._accepts[chat_id] = frozenset(accepts) if listed else frozenset()
         await self._send_frame(
             chat_id, {"type": "ready", "chat_id": chat_id, "max_turn_bytes": MAX_TURN_BYTES}
         )
@@ -705,11 +712,12 @@ class YuiAdapter(BasePlatformAdapter):
         reply_to: str | None = None,
         metadata: dict | None = None,
     ) -> SendResult:
-        """Render a reply, then end the failed turns that were waiting for it; their failure line is
-        reported to the client as an `error` frame and not rendered."""
+        """Render a reply, then end the failed turns that were waiting for it. A client that accepts
+        `error` gets their failure line as an `error` frame instead of a render."""
         meta = metadata or {}
-        closing = state.is_closing(chat_id) and not state.is_muted(chat_id)
-        message = _failure_line(content, meta) if closing else ""
+        reports_errors = "error" in self._accepts.get(chat_id, ())
+        waiting = state.is_closing(chat_id) and not state.is_muted(chat_id)
+        message = _failure_line(content, meta) if reports_errors and waiting else ""
         if message:
             await self._close_failed(chat_id, message)
             return SendResult(success=True, message_id=_message_id())
@@ -723,7 +731,7 @@ class YuiAdapter(BasePlatformAdapter):
             logger.info("yui: gateway notice not spoken chat=%s", chat_id)
             return SendResult(success=True, message_id=_message_id())
         content = _strip_windows_local_files(content)
-        if not content.strip() or any(meta.get(marker) for marker in INTERIM_MARKERS):
+        if not content.strip() or _is_interim(meta):
             logger.debug("yui: nothing to render for this send chat=%s", chat_id)
             return SendResult(success=True, message_id=_message_id())
         if state.take_muted(chat_id):
@@ -844,8 +852,8 @@ class YuiAdapter(BasePlatformAdapter):
         return {"name": "YUI", "type": "dm", "chat_id": chat_id}
 
     async def _close_failed(self, chat_id: str, message: str = "") -> None:
-        """A failed turn ends behind the failure line the gateway writes after it; the client gets
-        that line as the turn's `error` frame and nothing renders it."""
+        """A failed turn ends behind the failure line the gateway writes after it; a message is that
+        line sent as the turn's `error` frame."""
         if not state.take_closing(chat_id):
             return
         stream = self._speaker.stream(chat_id)
