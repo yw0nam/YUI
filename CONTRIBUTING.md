@@ -64,12 +64,12 @@ and removed in v0.6.0) — see
 [`docs/agent-guide/architecture/map.js`](docs/agent-guide/architecture/map.js)
 is the map of the client. Open `index.html` beside it from disk to view it.
 
-- A module is one box of the overview: a named part of the client with a
-  one-line description, placed in one of four groups (user I/O, core logic,
-  outside communication, shared state and wiring). The user, backend agents,
-  and outside services are boxes outside the groups.
-- A part is a feature folder of `src/` or a module of `src-tauri/src` that
-  belongs to one module. Every source folder is a part of some module.
+- A module is one box of the overview: a named unit of the client with a
+  one-line description. Each module of the client sits in one of four groups
+  (user I/O, core logic, outside communication, shared state and wiring). The
+  user, backend agents, and outside services are boxes outside the groups.
+- A part is a folder or file of `src/` or `src-tauri/src` that belongs to one
+  module. Every `.ts` and `.rs` source file is inside the path of some part.
 - An exchange names what crosses between two parts as the code spells it, its
   kind (call, callback, Tauri event, Tauri command, HTTP, WebSocket frame,
   localStorage, cross-window bridge, user action), the transport it belongs to
@@ -78,6 +78,7 @@ is the map of the client. Open `index.html` beside it from disk to view it.
   viewer lists every exchange of a module when the module is selected.
 - A flow is a numbered sequence of steps between modules, each step naming
   the exchanges behind it.
+- The window graph lists the windows and the channels each sends to another.
 
 A change that adds or removes a module, a part, or an exchange, or changes
 what crosses an exchange, follows these steps. A change inside one part skips
@@ -91,9 +92,17 @@ them.
    **Compare with main** view to confirm the difference is the agreed one.
 4. Ship the `map.js` change in the same PR as the code.
 
-`pnpm map:check` fails when a part's path or an exchange's wiring file does
-not exist, when a source folder belongs to no part, or when a part, a link,
-or a flow step names a missing id. CI runs it in the `web` job.
+`pnpm map:check` fails when:
+
+- a part's path or an exchange's wiring file does not exist;
+- a `.ts` or `.rs` source file is inside no part's path, or a folder sits
+  beside the folders of other parts and belongs to none;
+- a part, a link, an exchange, or a flow step names a missing id, or an id is
+  used twice;
+- a link has no exchange in its direction, or a flow step cites an exchange
+  outside its two modules or of the other transport.
+
+CI runs it in the `web` job.
 
 ## Code rules
 

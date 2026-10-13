@@ -99,7 +99,6 @@ svg text { fill: var(--text); font: 12px system-ui, -apple-system, "Segoe UI", s
 <main><div id="stage"></div><aside id="panel"></aside></main>
 <script>
 const NS = "http://www.w3.org/2000/svg";
-const mapPath = new URLSearchParams(location.search).get("map") || "map.js";
 const state = { view: "overview", flow: "", sel: "", step: -1, transport: "all", compare: false };
 let DATA, BASE, mod, nodeModule, pairs;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -108,7 +107,7 @@ function html(parent, x, y, w, h, inner) { const f = el("foreignObject", { x, y,
 function marker(defs, id, color) { const m = el("marker", { id, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 9, markerHeight: 9, orient: "auto-start-reverse", markerUnits: "userSpaceOnUse" }, defs); el("path", { d: "M0 0L10 5L0 10z", fill: color }, m); }
 function load(src, done) { const s = document.createElement("script"); s.src = src; s.onload = () => done(true); s.onerror = () => done(false); document.head.append(s); }
 const zoneVar = id => `--z${DATA.zones.findIndex(z => z.id === id) % 4}`;
-const tagOf = t => t && t !== "shared" ? ` <span class="tag ${t}">${t}</span>` : "";
+const tagOf = t => t === "request" || t === "push" ? ` <span class="tag ${t}">${t}</span>` : "";
 function edgeRow(e, names) {
   const ends = names ? `<b>${esc(names[e.from])} → ${esc(names[e.to])}</b>` : "";
   return `<div style="margin-top:6px">${ends}<div><code>${esc(e.carries)}</code></div><div class="meta">${esc(e.kind)}${tagOf(e.transport)}${e.wiring ? ` · wired in <code>${esc(e.wiring)}</code>` : ""}</div></div>`;
@@ -134,7 +133,7 @@ function related(id) {
 function overview(stage) {
   const pos = place(), cols = Math.max(...DATA.modules.map(m => m.col)), rows = Math.max(...DATA.modules.map(m => m.row));
   const w = X0 * 2 + cols * CW + BW + 16, h = Y0 + rows * RH + BH + 30, diff = state.compare ? difference() : null;
-  const svg = el("svg", { viewBox: `0 0 ${w} ${h}`, width: "100%", style: `max-width:${w}px;min-width:${Math.round(w * .78)}px`, role: "img", "aria-label": "Core modules and the main paths between them" }, stage);
+  const svg = el("svg", { viewBox: `0 0 ${w} ${h}`, width: "100%", style: `max-width:${w}px;min-width:${Math.round(w * .78)}px`, role: "group", "aria-label": "Core modules and the main paths between them" }, stage);
   const defs = el("defs", {}, svg); marker(defs, "ah", "var(--muted)"); marker(defs, "ah-on", "var(--accent)");
   for (const z of DATA.zones) {
     const ps = DATA.modules.filter(m => m.zone === z.id).map(m => pos[m.id]); if (!ps.length) continue;
@@ -168,7 +167,7 @@ function overview(stage) {
   for (const m of DATA.modules) {
     const p = pos[m.id], r = rel[m.id], mark = diff && diff.moduleMark[m.id];
     const cls = ["box", m.kind, state.sel === m.id ? "sel" : "", r ? "rel-" + r : "", state.sel && state.sel !== m.id && !r ? "dim" : ""].join(" ");
-    const g = el("g", { class: cls, tabindex: 0, role: "button", "aria-label": m.label }, svg);
+    const g = el("g", { class: cls, tabindex: 0, role: "button", "aria-label": m.label, "aria-pressed": state.sel === m.id }, svg);
     el("rect", { x: p.x, y: p.y, width: p.w, height: p.h, rx: 10 }, g);
     el("text", { x: p.x + 12, y: p.y + 21, class: "name" }, g).textContent = (mark ? mark + " " : "") + m.label;
     el("text", { x: p.x + p.w - 10, y: p.y + 20, class: "kind", "text-anchor": "end" }, g).textContent = m.kind === "module" ? "" : m.kind === "shell" ? "Rust" : m.kind;
@@ -194,10 +193,12 @@ function overviewPanel(panel) {
     panel.innerHTML = `<h2>Core modules</h2><p>A line is a main path of data and its label says what crosses. Select a module to see what it is made of and everything it exchanges with the others.</p><h3>Groups</h3>${DATA.zones.map(z => `<div class="row"><b style="color:var(${zoneVar(z.id)})">${esc(z.title)}</b><div class="meta">${esc(z.note)}</div></div>`).join("")}`;
     return;
   }
-  const m = mod[state.sel], parts = DATA.nodes.filter(n => n.module === m.id && n.paths.length);
+  const m = mod[state.sel], parts = DATA.nodes.filter(n => n.module === m.id && n.paths.length), names = Object.fromEntries(DATA.nodes.map(n => [n.id, n.label]));
+  const claims = DATA.nodes.flatMap(n => n.paths), shared = x => claims.some(c => c.startsWith(x + "/")) ? " <span class=\"meta\">files outside the folders of other parts</span>" : "";
+  const within = DATA.edges.filter(e => nodeModule[e.from] === m.id && nodeModule[e.to] === m.id);
   panel.innerHTML = `<h2>${esc(m.label)}</h2><p>${esc(m.desc)}</p>
-  <h3>Made of</h3>${parts.map(p => `<details class="row"><summary><b>${esc(p.label)}</b></summary><div class="meta" style="margin-top:4px">${esc(p.role)}</div>${p.paths.map(x => `<div><code>${esc(x)}</code></div>`).join("")}</details>`).join("") || "<p>Outside the repo.</p>"}
-  <h3>Sends to</h3>${exchangeRows(m.id, "out")}<h3>Receives from</h3>${exchangeRows(m.id, "in")}`;
+  <h3>Made of</h3>${parts.map(p => `<details class="row"><summary><b>${esc(p.label)}</b></summary><div class="meta" style="margin-top:4px">${esc(p.role)}</div>${p.paths.map(x => `<div><code>${esc(x)}</code>${shared(x)}</div>`).join("")}</details>`).join("") || "<p>Outside the repo.</p>"}
+  <h3>Sends to</h3>${exchangeRows(m.id, "out")}<h3>Receives from</h3>${exchangeRows(m.id, "in")}${within.length ? `<h3>Between its parts</h3><details class="row"><summary><b>${within.length} exchange${within.length > 1 ? "s" : ""}</b></summary>${within.map(e => edgeRow(e, names)).join("")}</details>` : ""}`;
 }
 
 // ---------- flow (sequence) ----------
@@ -214,7 +215,7 @@ function flow(stage) {
   let y = HEAD + 26; const rows = [];
   for (const s of steps) { const rh = s.to ? 42 : 64; rows.push({ s, y, rh }); y += rh; }
   const w = GX + P.length * LW + 20, h = y + 20;
-  const svg = el("svg", { viewBox: `0 0 ${w} ${h}`, width: "100%", style: `max-width:${w}px;min-width:${Math.round(w * .8)}px`, role: "img", "aria-label": currentFlow().title }, stage);
+  const svg = el("svg", { viewBox: `0 0 ${w} ${h}`, width: "100%", style: `max-width:${w}px;min-width:${Math.round(w * .8)}px`, role: "group", "aria-label": currentFlow().title }, stage);
   const defs = el("defs", {}, svg); marker(defs, "m", "var(--text)"); marker(defs, "m-request", "var(--req)"); marker(defs, "m-push", "var(--push)");
   for (let i = 0; i < rows.length;) {
     const t = rows[i].s.transport; if (!t || state.transport !== "all") { i++; continue; }
@@ -241,7 +242,7 @@ function flow(stage) {
     const sel = state.step === n, t = s.transport || "";
     el("text", { class: "num", x: 20, y: y + (s.to ? 22 : 27), "text-anchor": "end" }, svg).textContent = n + 1;
     const pick = () => { state.step = sel ? -1 : n; render(); };
-    const g = el("g", { class: `msg ${s.to ? "" : "note "}${t}${sel ? " sel" : ""}`, tabindex: 0, role: "button", "aria-label": `Step ${n + 1}: ${s.label}` }, svg);
+    const g = el("g", { class: `msg ${s.to ? "" : "note "}${t}${sel ? " sel" : ""}`, tabindex: 0, role: "button", "aria-label": `Step ${n + 1}: ${s.label}`, "aria-pressed": sel }, svg);
     g.addEventListener("click", pick); g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
     if (!s.to) {
       const nw = 300, nx = Math.max(34, Math.min(w - nw - 12, x(s.from) - 20));
@@ -260,17 +261,17 @@ function flow(stage) {
 }
 function flowPanel(panel) {
   const steps = visibleSteps(), s = steps[state.step], f = currentFlow();
-  if (!s) { panel.innerHTML = `<h2>${esc(f.title)}</h2><p>Read top to bottom. An arrow is something crossing from one module to another. A grey note is work inside one module.</p><p>${steps.length} steps. A coloured frame holds the steps that exist on one transport only. Select a step, or press the down arrow, for the calls behind it.</p>`; return; }
+  if (!s) { panel.innerHTML = `<h2>${esc(f.title)}</h2><p>Read top to bottom. An arrow is something crossing from one module to another. A grey note is what one module does at that point.</p><p>${steps.length} steps. A coloured frame holds the steps that exist on one transport only. Select a step, or press the down arrow, for the calls behind it.</p>`; return; }
   const names = Object.fromEntries(DATA.nodes.map(n => [n.id, n.label])), byId = Object.fromEntries(DATA.edges.map(e => [e.id, e]));
   panel.innerHTML = `<h2>Step ${state.step + 1} of ${steps.length}</h2><p><b style="color:var(--text)">${esc(mod[s.from].label)}${s.to ? " → " + esc(mod[s.to].label) : ""}</b>${tagOf(s.transport)}</p><p>${esc(s.label)}</p>
-  <h3>In the code</h3>${s.edges.map(id => `<div class="row" style="padding-top:2px">${edgeRow(byId[id], names)}</div>`).join("") || "<p>No call crosses a module here.</p>"}`;
+  <h3>In the code</h3>${s.edges.filter(id => state.transport === "all" || byId[id].transport === "shared" || byId[id].transport === state.transport).map(id => `<div class="row" style="padding-top:2px">${edgeRow(byId[id], names)}</div>`).join("") || "<p>No call crosses a module here.</p>"}`;
 }
 
 // ---------- windows ----------
 function windowsView(stage) {
   const W = DATA.windows, centre = W.nodes[0], ring = W.nodes.slice(1), cx = 560, cy = 300, pos = { [centre.id]: [cx, cy] };
   ring.forEach((n, i) => { const a = -Math.PI / 2 + i * 2 * Math.PI / ring.length; pos[n.id] = [cx + Math.cos(a) * 380, cy + Math.sin(a) * 220]; });
-  const svg = el("svg", { viewBox: "0 0 1120 600", width: "100%", style: "max-width:1120px;min-width:860px", role: "img", "aria-label": "Windows and the channels between them" }, stage);
+  const svg = el("svg", { viewBox: "0 0 1120 600", width: "100%", style: "max-width:1120px;min-width:860px", role: "group", "aria-label": "Windows and the channels between them" }, stage);
   const defs = el("defs", {}, svg); marker(defs, "ah", "var(--muted)"); marker(defs, "ah-on", "var(--accent)");
   const groups = {}; for (const e of W.edges) (groups[e.from + ">" + e.to] ||= []).push(e);
   for (const key in groups) {
@@ -282,7 +283,7 @@ function windowsView(stage) {
     el("circle", { cx: (x1 + x2) / 2 + nx * 2, cy: (y1 + y2) / 2 + ny * 2, r: 11, fill: "var(--bg)", stroke: on ? "var(--accent)" : "var(--muted)" }, g);
     el("text", { x: (x1 + x2) / 2 + nx * 2, y: (y1 + y2) / 2 + ny * 2 + 4, "text-anchor": "middle", class: "count" }, g).textContent = groups[key].length;
     const pick = () => { state.sel = state.sel === key ? "" : key; render(); };
-    g.addEventListener("click", pick); g.addEventListener("keydown", e => { if (e.key === "Enter") pick(); });
+    g.addEventListener("click", pick); g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
   }
   for (const n of W.nodes) {
     const [x, y] = pos[n.id], g = el("g", { class: "box" + (state.sel === n.id ? " sel" : ""), tabindex: 0, role: "button", "aria-label": n.label }, svg);
@@ -304,9 +305,11 @@ function windowsPanel(panel) {
 
 // ---------- compare ----------
 function difference() {
-  const kinds = { modules: m => m.id, nodes: n => n.id, edges: e => e.id, links: l => l.from + ">" + l.to, flows: f => f.id }, out = { moduleMark: {}, lists: {} };
-  for (const k in kinds) {
-    const now = new Map((DATA[k] || []).map(x => [kinds[k](x), x])), was = new Map((BASE[k] || []).map(x => [kinds[k](x), x]));
+  const key = { groups: z => z.id, modules: m => m.id, links: l => l.from + ">" + l.to, parts: n => n.id, exchanges: e => e.id, flows: f => f.id, windows: n => n.id, channels: e => e.id };
+  const pick = d => ({ groups: d.zones, modules: d.modules, links: d.links, parts: d.nodes, exchanges: d.edges, flows: d.flows, windows: d.windows.nodes, channels: d.windows.edges });
+  const out = { moduleMark: {}, lists: {} }, cur = pick(DATA), old = pick(BASE), baseModule = Object.fromEntries(BASE.nodes.map(n => [n.id, n.module]));
+  for (const k in key) {
+    const now = new Map(cur[k].map(x => [key[k](x), x])), was = new Map(old[k].map(x => [key[k](x), x]));
     out.lists[k] = {
       added: [...now.keys()].filter(i => !was.has(i)), removed: [...was.keys()].filter(i => !now.has(i)),
       changed: [...now.keys()].filter(i => was.has(i) && JSON.stringify(now.get(i)) !== JSON.stringify(was.get(i))).map(i => ({ id: i, fields: Object.keys({ ...now.get(i), ...was.get(i) }).filter(f => JSON.stringify(now.get(i)[f]) !== JSON.stringify(was.get(i)[f])).map(f => ({ f, was: was.get(i)[f], now: now.get(i)[f] })) })),
@@ -314,8 +317,9 @@ function difference() {
   }
   const touch = (id, mark) => { if (id && out.moduleMark[id] !== "+") out.moduleMark[id] = mark; };
   out.lists.modules.added.forEach(i => touch(i, "+")); out.lists.modules.changed.forEach(c => touch(c.id, "~"));
-  for (const c of [...out.lists.nodes.added, ...out.lists.nodes.changed.map(c => c.id)]) touch(nodeModule[c], "~");
-  for (const i of [...out.lists.edges.added, ...out.lists.edges.changed.map(c => c.id)]) { const e = DATA.edges.find(x => x.id === i); touch(nodeModule[e.from], "~"); touch(nodeModule[e.to], "~"); }
+  const every = l => [...l.added, ...l.removed, ...l.changed.map(c => c.id)];
+  for (const i of every(out.lists.parts)) { touch(nodeModule[i], "~"); touch(baseModule[i], "~"); }
+  for (const i of every(out.lists.exchanges)) for (const e of [DATA.edges.find(x => x.id === i), BASE.edges.find(x => x.id === i)]) if (e) { touch(nodeModule[e.from] || baseModule[e.from], "~"); touch(nodeModule[e.to] || baseModule[e.to], "~"); }
   return out;
 }
 function differencePanel() {
@@ -330,15 +334,17 @@ function differencePanel() {
 
 // ---------- shell ----------
 function render() {
-  const stage = document.getElementById("stage"), panel = document.getElementById("panel"); stage.textContent = "";
+  const stage = document.getElementById("stage"), panel = document.getElementById("panel"), focused = stage.contains(document.activeElement) ? document.activeElement.getAttribute("aria-label") : null;
+  stage.textContent = "";
   const seg = (id, items, key) => { const e = document.getElementById(id); e.innerHTML = items.map(([v, l]) => `<button data-v="${v}" aria-pressed="${String(state[key]) === String(v)}">${l}</button>`).join(""); return e; };
   seg("views", [["overview", "Overview"], ["flow", "Flows"], ...(DATA.windows ? [["windows", "Windows"]] : [])], "view");
   const flows = document.getElementById("flows"); flows.hidden = state.view !== "flow";
-  flows.innerHTML = DATA.flows.map(f => `<option value="${f.id}"${f.id === currentFlow().id ? " selected" : ""}>${esc(f.title)}</option>`).join("");
+  flows.innerHTML = DATA.flows.map(f => `<option value="${esc(f.id)}"${f.id === currentFlow().id ? " selected" : ""}>${esc(f.title)}</option>`).join("");
   seg("transports", [["all", "Both transports"], ["request", "Request"], ["push", "Push"]], "transport").hidden = state.view !== "flow";
   seg("compare", [[true, "Compare with main"]], "compare").hidden = !BASE || state.view !== "overview";
   document.getElementById("sub").textContent = state.view === "overview" ? "Core modules and the main paths between them" : state.view === "flow" ? `Flow · ${currentFlow().title}` : "Windows and the channels between them";
   if (state.view === "flow") { flow(stage); flowPanel(panel); panel.scrollTop = 0; } else if (state.view === "windows") { windowsView(stage); windowsPanel(panel); } else { overview(stage); overviewPanel(panel); }
+  if (focused) [...stage.querySelectorAll("[aria-label]")].find(e => e.getAttribute("aria-label") === focused)?.focus();
   const hash = new URLSearchParams(); for (const k of ["view", "flow", "sel", "transport"]) if (state[k] && state[k] !== "all" && state[k] !== "overview") hash.set(k, state[k]);
   if (state.step >= 0) hash.set("step", state.step); if (state.compare) hash.set("compare", "1");
   try { history.replaceState(null, "", "#" + hash); } catch { /* file:// without history support */ }
@@ -350,7 +356,8 @@ function start() {
   document.getElementById("title").textContent = DATA.title + " architecture"; document.title = DATA.title + " architecture";
   const h = new URLSearchParams(location.hash.slice(1));
   state.view = ["flow", "windows"].includes(h.get("view")) ? h.get("view") : "overview"; state.flow = h.get("flow") || ""; state.sel = h.get("sel") || "";
-  state.step = h.has("step") ? Number(h.get("step")) : -1; state.transport = ["request", "push"].includes(h.get("transport")) ? h.get("transport") : "all"; state.compare = !!BASE && h.get("compare") === "1";
+  if (state.view === "overview" ? !mod[state.sel] : state.view === "flow") state.sel = "";
+  state.step = /^\d+$/.test(h.get("step") || "") ? Number(h.get("step")) : -1; state.transport = ["request", "push"].includes(h.get("transport")) ? h.get("transport") : "all"; state.compare = !!BASE && h.get("compare") === "1";
   document.getElementById("views").addEventListener("click", e => { const v = e.target.dataset.v; if (v) { state.view = v; state.sel = ""; state.step = -1; render(); } });
   document.getElementById("flows").addEventListener("change", e => { state.flow = e.target.value; state.step = -1; render(); });
   document.getElementById("transports").addEventListener("click", e => { const v = e.target.dataset.v; if (v) { state.transport = v; state.step = -1; render(); } });
@@ -361,9 +368,9 @@ function start() {
   });
   render();
 }
-load(mapPath, ok => {
-  if (!ok || !globalThis.YUI_MAP) { document.getElementById("stage").textContent = `Could not load ${mapPath}.`; return; }
-  load(mapPath.replace(/\.js$/, ".base.js"), start);
+load("map.js", ok => {
+  if (!ok || !globalThis.YUI_MAP) { document.getElementById("stage").textContent = "Could not load map.js."; return; }
+  load("map.base.js", start);
 });
 </script>
 </body>

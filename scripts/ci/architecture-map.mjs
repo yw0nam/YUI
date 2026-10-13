@@ -1,9 +1,10 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, relative, resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-export const DEFAULT_MAP = "docs/agent-guide/architecture/map.js";
+export const MAP = "docs/agent-guide/architecture/map.js";
+export const COVER = ["src", "src-tauri/src"];
 const KINDS = [
   "call",
   "callback",
@@ -15,9 +16,37 @@ const KINDS = [
   "bridge",
   "user",
 ];
-const MODULE_KINDS = ["module", "shell", "external", "person"];
 const TRANSPORTS = ["shared", "request", "push"];
+const MODULE_KINDS = ["module", "shell", "external", "person"];
+const SHAPE = {
+  zones: { id: "string", title: "string", note: "string" },
+  modules: {
+    id: "string",
+    label: "string",
+    kind: "string",
+    desc: "string",
+    col: "number",
+    row: "number",
+  },
+  links: { from: "string", to: "string", label: "string" },
+  nodes: { id: "string", module: "string", label: "string", role: "string", paths: "array" },
+  edges: {
+    id: "string",
+    from: "string",
+    to: "string",
+    carries: "string",
+    kind: "string",
+    transport: "string",
+  },
+  flows: { id: "string", title: "string", steps: "array" },
+};
+const WINDOW_SHAPE = {
+  nodes: { id: "string", label: "string", role: "string" },
+  edges: { id: "string", from: "string", to: "string", carries: "string", kind: "string" },
+};
+const STEP_SHAPE = { from: "string", label: "string", edges: "array" };
 const inside = (path, root) => path === root || path.startsWith(`${root}/`);
+const typeOf = (value) => (Array.isArray(value) ? "array" : typeof value);
 
 export function parseMap(text) {
   const newline = text.indexOf("\n");
@@ -31,8 +60,40 @@ export function parseMap(text) {
   }
 }
 
-export function checkMap(map, files) {
+function shapeProblems(map) {
+  if (typeOf(map) !== "object" || map === null) return ["shape: the map is not an object"];
   const problems = [];
+  const list = (owner, key, shape, name) => {
+    if (!Array.isArray(owner[key])) {
+      problems.push(`shape: ${name} is not a list`);
+      return;
+    }
+    for (const [index, item] of owner[key].entries()) {
+      for (const [field, type] of Object.entries(shape)) {
+        if (typeOf(item?.[field]) !== type)
+          problems.push(`shape: ${name} ${item?.id ?? index + 1} ${field} is not a ${type}`);
+      }
+    }
+  };
+  for (const [key, shape] of Object.entries(SHAPE)) list(map, key, shape, key);
+  if (typeOf(map.windows) !== "object" || map.windows === null)
+    problems.push("shape: windows is not an object");
+  else
+    for (const [key, shape] of Object.entries(WINDOW_SHAPE))
+      list(map.windows, key, shape, `windows ${key}`);
+  for (const flow of Array.isArray(map.flows) ? map.flows : []) {
+    if (Array.isArray(flow?.steps)) list(flow, "steps", STEP_SHAPE, `${flow.id} steps`);
+  }
+  for (const link of Array.isArray(map.links) ? map.links : []) {
+    if ((link?.fromPort === undefined) !== (link?.toPort === undefined))
+      problems.push(`shape: link ${link.from} ${link.to} has one port of two`);
+  }
+  return problems;
+}
+
+export function checkMap(map, files) {
+  const problems = shapeProblems(map);
+  if (problems.length) return problems;
   const entries = new Map(files.map((file) => [file.path, file]));
   const exists = (path) => entries.has(path) || files.some((file) => inside(file.path, path));
   const claims = map.nodes.flatMap((node) => node.paths);
@@ -45,57 +106,54 @@ export function checkMap(map, files) {
   const sources = files.filter(
     (file) =>
       !file.directory &&
-      file.size > 0 &&
-      map.cover.some((root) => inside(file.path, root)) &&
-      /\.(ts|rs|py)$/.test(file.path) &&
-      !/\.(test|d)\.ts$/.test(file.path) &&
-      !file.path.split("/").at(-1).includes("test-helpers") &&
-      !/(^|\/)(tests|__pycache__)(\/|$)/.test(file.path),
+      COVER.some((root) => inside(file.path, root)) &&
+      /\.(ts|rs)$/.test(file.path) &&
+      !/\.(test|d)\.ts$/.test(file.path),
   );
   const children = new Map();
+  const climb = (start) => {
+    let child = start;
+    for (let parent = dirname(child); child !== "."; child = parent, parent = dirname(child)) {
+      if (!COVER.some((root) => inside(parent, root))) break;
+      if (!children.has(parent)) children.set(parent, new Set());
+      children.get(parent).add(child);
+    }
+  };
   for (const { path } of sources) {
     if (!claims.some((claim) => inside(path, claim)))
-      problems.push(`coverage: ${path} has no node`);
-    let child = dirname(path);
-    for (let parent = dirname(child); child !== "."; child = parent, parent = dirname(child)) {
-      if (!map.cover.some((root) => inside(parent, root))) break;
-      if (!children.has(parent)) children.set(parent, new Set());
-      children.get(parent).add(child);
-    }
+      problems.push(`coverage: ${path} has no part`);
+    climb(dirname(path));
   }
-  for (const path of claims) {
-    let child = entries.get(path)?.directory ? path : dirname(path);
-    for (let parent = dirname(child); child !== "."; child = parent, parent = dirname(child)) {
-      if (!map.cover.some((root) => inside(parent, root))) break;
-      if (!children.has(parent)) children.set(parent, new Set());
-      children.get(parent).add(child);
-    }
-  }
+  for (const path of claims) climb(entries.get(path)?.directory ? path : dirname(path));
   const claimed = (directory) => claims.some((path) => inside(path, directory));
   for (const directories of children.values()) {
     if ([...directories].some(claimed)) {
       for (const directory of directories) {
         if (!claimed(directory) && sources.some((file) => inside(file.path, directory)))
-          problems.push(`coverage: ${directory} has no node`);
+          problems.push(`coverage: ${directory} has no part`);
       }
     }
   }
-  for (const [label, items] of [
-    ["module", map.modules],
-    ["node", map.nodes],
-    ["edge", map.edges],
-    ["flow", map.flows],
+  for (const [label, ids] of [
+    ["zone", map.zones.map((zone) => zone.id)],
+    ["module", map.modules.map((module) => module.id)],
+    ["link", map.links.map((link) => `${link.from} ${link.to}`)],
+    ["part", map.nodes.map((node) => node.id)],
+    ["exchange", map.edges.map((edge) => edge.id)],
+    ["flow", map.flows.map((flow) => flow.id)],
+    ["window", map.windows.nodes.map((node) => node.id)],
+    ["channel", map.windows.edges.map((edge) => edge.id)],
   ]) {
-    const ids = new Set();
-    for (const { id } of items) {
-      if (ids.has(id)) problems.push(`references: duplicate ${label} id ${id}`);
-      ids.add(id);
+    const seen = new Set();
+    for (const id of ids) {
+      if (seen.has(id)) problems.push(`references: duplicate ${label} ${id}`);
+      seen.add(id);
     }
   }
-  const nodeIds = new Set(map.nodes.map((node) => node.id));
-  const edgeIds = new Set(map.edges.map((edge) => edge.id));
   const moduleIds = new Set(map.modules.map((module) => module.id));
   const zoneIds = new Set(map.zones.map((zone) => zone.id));
+  const partModule = new Map(map.nodes.map((node) => [node.id, node.module]));
+  const exchanges = new Map(map.edges.map((edge) => [edge.id, edge]));
   for (const node of map.nodes) {
     if (!moduleIds.has(node.module))
       problems.push(`references: ${node.id} module ${node.module} does not exist`);
@@ -105,16 +163,12 @@ export function checkMap(map, files) {
       problems.push(`references: ${module.id} zone ${module.zone} does not exist`);
     if (!MODULE_KINDS.includes(module.kind))
       problems.push(`enums: ${module.id} kind ${module.kind} is invalid`);
-  }
-  for (const link of map.links) {
-    for (const end of ["from", "to"]) {
-      if (!moduleIds.has(link[end]))
-        problems.push(`references: link ${link.from} ${end} ${link[end]} has no module`);
-    }
+    if (!map.nodes.some((node) => node.module === module.id))
+      problems.push(`references: module ${module.id} has no part`);
   }
   for (const [edges, ids, noun] of [
-    [map.edges, nodeIds, "node"],
-    [map.windows?.edges ?? [], new Set(map.windows?.nodes.map((node) => node.id)), "window"],
+    [map.edges, partModule, "part"],
+    [map.windows.edges, new Set(map.windows.nodes.map((node) => node.id)), "window"],
   ]) {
     for (const edge of edges) {
       for (const end of ["from", "to"]) {
@@ -126,24 +180,48 @@ export function checkMap(map, files) {
     }
   }
   for (const edge of map.edges) {
-    if (edge.wiring && (!entries.has(edge.wiring) || entries.get(edge.wiring).directory))
+    if (
+      edge.wiring !== undefined &&
+      (!entries.has(edge.wiring) || entries.get(edge.wiring).directory)
+    )
       problems.push(`wiring: ${edge.id} ${edge.wiring} is not a file`);
     if (!TRANSPORTS.includes(edge.transport))
       problems.push(`enums: ${edge.id} transport ${edge.transport} is invalid`);
   }
+  const ends = (edge) => [partModule.get(edge.from), partModule.get(edge.to)];
+  for (const link of map.links) {
+    for (const end of ["from", "to"]) {
+      if (!moduleIds.has(link[end]))
+        problems.push(`references: link ${link.from} ${end} ${link[end]} has no module`);
+    }
+    if (!map.edges.some((edge) => ends(edge)[0] === link.from && ends(edge)[1] === link.to))
+      problems.push(`links: ${link.from} ${link.to} has no exchange`);
+  }
   for (const flow of map.flows) {
     for (const [index, step] of flow.steps.entries()) {
+      const name = `${flow.id} step ${index + 1}`;
       for (const end of ["from", "to"]) {
         if (step[end] !== undefined && !moduleIds.has(step[end]))
-          problems.push(
-            `references: ${flow.id} step ${index + 1} ${end} ${step[end]} has no module`,
-          );
-      }
-      for (const id of step.edges) {
-        if (!edgeIds.has(id)) problems.push(`references: ${flow.id} edge ${id} does not exist`);
+          problems.push(`references: ${name} ${end} ${step[end]} has no module`);
       }
       if (step.transport !== undefined && !["request", "push"].includes(step.transport))
-        problems.push(`enums: ${flow.id} step ${index + 1} transport ${step.transport} is invalid`);
+        problems.push(`enums: ${name} transport ${step.transport} is invalid`);
+      for (const id of step.edges) {
+        const edge = exchanges.get(id);
+        if (!edge) {
+          problems.push(`references: ${name} exchange ${id} does not exist`);
+          continue;
+        }
+        const [a, b] = ends(edge);
+        const own = [step.from, step.to];
+        const fits =
+          step.to === undefined
+            ? own.includes(a) || own.includes(b)
+            : own.includes(a) && own.includes(b);
+        if (!fits) problems.push(`flows: ${name} cites ${id}, which is outside its modules`);
+        if (step.transport !== undefined && ![step.transport, "shared"].includes(edge.transport))
+          problems.push(`flows: ${name} cites ${id}, which is ${edge.transport} only`);
+      }
     }
   }
   return problems;
@@ -159,31 +237,27 @@ export function listFiles(map, root = ROOT) {
     } catch {
       return;
     }
-    files.set(path, { path, directory: stat.isDirectory(), size: stat.size });
+    files.set(path, { path, directory: stat.isDirectory() });
     if (stat.isDirectory()) {
       for (const name of readdirSync(resolve(root, path))) visit(`${path}/${name}`);
     }
   }
+  const strings = (list, pick) =>
+    (Array.isArray(list) ? list : []).flatMap(pick).filter((path) => typeof path === "string");
   for (const path of [
-    ...map.cover,
-    ...map.nodes.flatMap((node) => node.paths),
-    ...map.edges.flatMap((edge) => (edge.wiring ? [edge.wiring] : [])),
+    ...COVER,
+    ...strings(map?.nodes, (node) => node?.paths ?? []),
+    ...strings(map?.edges, (edge) => edge?.wiring ?? []),
   ])
     visit(path);
   return [...files.values()];
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const paths = process.argv.slice(2);
-  for (const path of paths.length ? paths : [DEFAULT_MAP]) {
-    try {
-      const parsed = parseMap(readFileSync(resolve(ROOT, path), "utf8"));
-      const problems = parsed.map ? checkMap(parsed.map, listFiles(parsed.map)) : parsed.problems;
-      for (const problem of problems) console.error(problem);
-      if (problems.length) process.exitCode = 1;
-    } catch (error) {
-      console.error(`parsing: ${relative(ROOT, resolve(ROOT, path))} ${error.message}`);
-      process.exitCode = 1;
-    }
-  }
+  const parsed = parseMap(readFileSync(resolve(ROOT, MAP), "utf8"));
+  const problems = parsed.problems.length
+    ? parsed.problems
+    : checkMap(parsed.map, listFiles(parsed.map));
+  for (const problem of problems) console.error(problem);
+  if (problems.length) process.exitCode = 1;
 }

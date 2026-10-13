@@ -1,10 +1,6 @@
 globalThis.YUI_MAP =
 {
   "title": "YUI client",
-  "cover": [
-    "src",
-    "src-tauri/src"
-  ],
   "zones": [
     {
       "id": "io",
@@ -1923,7 +1919,7 @@ globalThis.YUI_MAP =
       "id": "os-event",
       "from": "shell/os-event-watcher",
       "to": "io/window/os-events",
-      "carries": "os_event {os_idle_tick: os_idle_ms, frontmost_app, frontmost_title} every 5 s",
+      "carries": "os_event {event_name: \"os_idle_tick\", ts, data: {os_idle_ms, frontmost_app, frontmost_title}} every 5 s",
       "kind": "tauri-event",
       "transport": "shared"
     },
@@ -2147,11 +2143,12 @@ globalThis.YUI_MAP =
     },
     {
       "id": "frame-shell",
-      "from": "io/window/geometry",
+      "from": "ambient/locomotion",
       "to": "shell/window",
-      "carries": "set_frame_logical {x, y, width, height}",
+      "carries": "set_frame_logical {x, y, width, height} for the travel and stationary frames",
       "kind": "tauri-command",
-      "transport": "shared"
+      "transport": "shared",
+      "wiring": "src/ambient/locomotion/travel/wire-travel-frame.ts"
     },
     {
       "id": "locomotion-bus",
@@ -2186,7 +2183,7 @@ globalThis.YUI_MAP =
       "carries": "adoptSit, armedSit, suspendSit, resumeSit, abandonSit, release",
       "kind": "callback",
       "transport": "shared",
-      "wiring": "src/app/stage/wire-locomotion.ts"
+      "wiring": "src/app/stage/wire-window-sources.ts"
     },
     {
       "id": "dispatcher-walk",
@@ -2516,7 +2513,7 @@ globalThis.YUI_MAP =
       "to": "dispatcher/turn",
       "carries": "stopTurn: pushTurns.cut()",
       "kind": "callback",
-      "transport": "shared",
+      "transport": "push",
       "wiring": "src/app/turn/turn-core.ts"
     },
     {
@@ -2634,7 +2631,7 @@ globalThis.YUI_MAP =
       "id": "remote-surfaces",
       "from": "io/bridge/message",
       "to": "ui/surfaces",
-      "carries": "MessageControlOp on yui://message-control: submit, stop, dock, open-settings, ready",
+      "carries": "MessageControlOp on yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/ui/surfaces/wire.ts"
@@ -2723,8 +2720,7 @@ globalThis.YUI_MAP =
           "label": "types text or speaks",
           "edges": [
             "user-input",
-            "user-voice",
-            "stt-http"
+            "user-voice"
           ],
           "to": "input"
         },
@@ -2732,9 +2728,6 @@ globalThis.YUI_MAP =
           "from": "input",
           "label": "user.text_submitted or user.voice_segment_ready",
           "edges": [
-            "input-submit",
-            "surfaces-submit",
-            "stt-submit",
             "user-input-bus"
           ],
           "to": "dispatcher"
@@ -2750,10 +2743,17 @@ globalThis.YUI_MAP =
         },
         {
           "from": "dispatcher",
-          "label": "quote the user, send button becomes stop",
+          "label": "send button becomes stop",
           "edges": [
-            "ledger-quote",
             "dispatcher-busy"
+          ],
+          "to": "display"
+        },
+        {
+          "from": "turn",
+          "label": "quote the user",
+          "edges": [
+            "ledger-quote"
           ],
           "to": "display"
         },
@@ -2777,8 +2777,7 @@ globalThis.YUI_MAP =
           "from": "turn",
           "label": "filler loop starts",
           "edges": [
-            "output-filler",
-            "filler-speech"
+            "output-filler"
           ],
           "to": "speech"
         },
@@ -2797,9 +2796,6 @@ globalThis.YUI_MAP =
           "from": "backend-call",
           "label": "stream(request) with tool schemas and conversation state",
           "edges": [
-            "vocabulary-tools",
-            "tools-backend",
-            "conversation-backend",
             "backend-stream"
           ],
           "to": "transport",
@@ -2846,10 +2842,18 @@ globalThis.YUI_MAP =
           "from": "backend-call",
           "label": "pushTurn(turn frame)",
           "edges": [
-            "backend-push-send",
-            "backend-push-wait"
+            "backend-push-send"
           ],
           "to": "transport",
+          "transport": "push"
+        },
+        {
+          "from": "backend-call",
+          "label": "pushTurns.opened, awaitTurnEnd",
+          "edges": [
+            "backend-push-wait"
+          ],
+          "to": "turn",
           "transport": "push"
         },
         {
@@ -2875,8 +2879,7 @@ globalThis.YUI_MAP =
           "label": "render-turn plays speech and render frames; TurnFeed tool status and reasoning",
           "edges": [
             "push-render",
-            "push-feed",
-            "render-output"
+            "push-feed"
           ],
           "to": "turn",
           "transport": "push"
@@ -2893,10 +2896,7 @@ globalThis.YUI_MAP =
           "from": "turn",
           "label": "tool status on the pill, reasoning",
           "edges": [
-            "feed-surfaces",
-            "feed-tool",
-            "feed-reasoning",
-            "reasoning-bubble"
+            "feed-surfaces"
           ],
           "to": "display"
         },
@@ -2911,8 +2911,7 @@ globalThis.YUI_MAP =
           "from": "speech",
           "label": "beginSpeech, pushSpeech, endSpeech",
           "edges": [
-            "speech-bubble",
-            "surfaces-bubble"
+            "speech-bubble"
           ],
           "to": "display"
         },
@@ -2920,9 +2919,7 @@ globalThis.YUI_MAP =
           "from": "speech",
           "label": "applyDirective per sentence, setMouthOpen by amplitude",
           "edges": [
-            "speech-renderer",
-            "renderer-expression",
-            "renderer-motion"
+            "speech-renderer"
           ],
           "to": "renderer"
         },
@@ -2956,12 +2953,18 @@ globalThis.YUI_MAP =
           "label": "Records the turn: transcript, context history, turn-record log",
           "edges": [
             "backend-record",
-            "backend-turn-record",
-            "record-shell",
-            "render-conversation",
-            "render-record",
-            "push-usage"
+            "backend-turn-record"
           ]
+        },
+        {
+          "from": "turn",
+          "label": "assistant transcript entry and render record of a rendered reply",
+          "edges": [
+            "render-conversation",
+            "render-record"
+          ],
+          "to": "conversation",
+          "transport": "push"
         },
         {
           "from": "speech",
@@ -2983,8 +2986,7 @@ globalThis.YUI_MAP =
           "from": "backend-call",
           "label": "playback frame for a turn that failed before speaking",
           "edges": [
-            "previous-playback",
-            "push-ws"
+            "previous-playback"
           ],
           "to": "transport",
           "transport": "push"
@@ -3041,8 +3043,7 @@ globalThis.YUI_MAP =
           "from": "speech",
           "label": "beginSpeech, pushSpeech, endSpeech",
           "edges": [
-            "speech-bubble",
-            "surfaces-bubble"
+            "speech-bubble"
           ],
           "to": "display",
           "transport": "push"
@@ -3103,7 +3104,6 @@ globalThis.YUI_MAP =
           "from": "tools",
           "label": "tool schemas rebuilt from the vocabulary for the turn",
           "edges": [
-            "vocabulary-tools",
             "tools-backend"
           ],
           "to": "backend-call",
@@ -3387,8 +3387,7 @@ globalThis.YUI_MAP =
           "from": "tools",
           "label": "agent and signal events",
           "edges": [
-            "inbox-sources",
-            "settings-inbox"
+            "inbox-sources"
           ],
           "to": "sources"
         },
@@ -3412,8 +3411,7 @@ globalThis.YUI_MAP =
           "from": "window",
           "label": "click, pat, and drag callbacks",
           "edges": [
-            "pet-gestures",
-            "tap-renderer"
+            "pet-gestures"
           ],
           "to": "sources"
         },
@@ -3481,8 +3479,7 @@ globalThis.YUI_MAP =
           "from": "sources",
           "label": "skip record of a screen fire the pacer held",
           "edges": [
-            "screen-skip-record",
-            "record-shell"
+            "screen-skip-record"
           ],
           "to": "conversation"
         }
@@ -3765,7 +3762,7 @@ globalThis.YUI_MAP =
         "id": "message-control",
         "from": "message",
         "to": "pet",
-        "carries": "yui://message-control: submit, stop, input-open, dock, open-settings, ready",
+        "carries": "yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready",
         "kind": "bridge"
       }
     ]
