@@ -389,8 +389,9 @@ def _feel_list(state_dir, show_all):
 def _feel_unread(state_dir):
     view, unread = desire_events.events_view_and_unread(state_dir)
     unread = set(unread)
-    for event in desire_events.chronological(event for event in view if event["id"] in unread):
-        print(_event_line(event))
+    for event in view:
+        if event["id"] in unread:
+            print(_event_line(event))
     return 0
 
 
