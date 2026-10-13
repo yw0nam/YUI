@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 import subprocess
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib import error as urllib_error
 from urllib import request as urllib_request
@@ -25,9 +25,13 @@ WAKE_UNREAD_EVENTS = "desire gate: unread events"
 WAKE_HELD_NOTES = "desire gate: held notes"
 NO_WAKE_LINE = '{"wakeAgent": false}'
 SOURCE_OF = {"pr": "pr", "issue": "issue"}
+DELIVERED = {"pr": "pull request {url} was merged", "issue": "issue {url} was closed"}
+COMMENT_OVERLAP = timedelta(seconds=60)
 _ORIGIN_SECTION = re.compile(r'^\[remote "origin"\]\n(.*?)(?=^\[|\Z)', re.MULTILINE | re.DOTALL)
 _ORIGIN_URL = re.compile(r"^\s*url\s*=\s*(\S+)", re.MULTILINE)
 _GITHUB_SLUG = re.compile(r"(?:^|[@/.])github\.com[:/](?P<owner>[^/]+)/(?P<name>[^/]+?)(?:\.git)?/?$")
+_ARTEFACT_URL = re.compile(r"^https://github\.com/(?P<repo>[^/]+/[^/]+)/(?:issues|pull)/(?P<number>\d+)$")
+_ISSUE_API_URL = re.compile(r"^https://api\.github\.com/repos/(?P<repo>[^/]+/[^/]+)/issues/(?P<number>\d+)$")
 
 
 def probe_transport() -> bool:
@@ -132,6 +136,33 @@ def repo_issues(repo: str, run_gh) -> list[dict]:
     ]
 
 
+def agent_login(run_gh) -> str:
+    """Return the login the `gh` credentials act as."""
+
+    login = run_gh(["api", "user", "--jq", ".login"]).strip()
+    if not login:
+        raise ValueError("gh returned an empty login")
+    return login
+
+
+def repo_comments(repo: str, since: datetime, run_gh) -> list[dict]:
+    """Return every issue and pull-request conversation comment updated after ``since`` less the overlap."""
+
+    stamp = (since - COMMENT_OVERLAP).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    payload = run_gh(
+        ["api", f"repos/{repo}/issues/comments?since={stamp}&per_page=100", "--paginate", "--jq", ".[]"]
+    )
+    entries = []
+    for raw in payload.splitlines():
+        try:
+            entry = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(entry, dict):
+            entries.append(entry)
+    return entries
+
+
 def _derive_failed(state_dir: Path, now: datetime, source: str, repo: str | None, message: str, ref=None):
     named = {"ref": ref} if ref is not None else {}
     desire_store.append_jsonl(
@@ -179,11 +210,29 @@ def collect_artefacts(state_dir, now, *, workspace_root, run_gh) -> dict:
     record = desire_store.read_artefacts(state_dir)
     bootstrapped = set(record["bootstrapped"]) if record else set()
     observed = {kind: [] for kind in desire_store.ARTEFACT_KINDS}
-    for repo in workspace_repos(workspace_root):
+    repos = workspace_repos(workspace_root)
+    login = _read_source(state_dir, now, "login", None, lambda: agent_login(run_gh)) if repos else None
+    observed["login"] = login
+    observed["comments"] = {}
+    for repo in repos:
         pulls = _read_source(state_dir, now, "pr", repo, lambda name=repo: repo_pull_requests(name, run_gh))
         observed["pr"] = _extend(observed["pr"], pulls, "url", "mergedAt", "pr" in bootstrapped)
         issues = _read_source(state_dir, now, "issue", repo, lambda name=repo: repo_issues(name, run_gh))
         observed["issue"] = _extend(observed["issue"], issues, "url", "closedAt", "issue" in bootstrapped)
+        since = _comment_cursor(record, repo)
+        entries = None
+        if login is not None and since is not None:
+            entries = _read_source(
+                state_dir,
+                now,
+                "comments",
+                repo,
+                lambda name=repo, start=since: repo_comments(name, start, run_gh),
+            )
+        observed["comments"][repo] = {
+            "answered": pulls is not None and issues is not None,
+            "entries": entries,
+        }
     for kind in ("pr", "issue"):
         for url in _undelivered(record, kind):
             delivered = _read_source(
@@ -197,6 +246,14 @@ def collect_artefacts(state_dir, now, *, workspace_root, run_gh) -> dict:
             if delivered is not None and observed[kind] is not None:
                 observed[kind].append((url, delivered))
     return observed
+
+
+def _comment_cursor(record: dict | None, repo: str) -> datetime | None:
+    """Return where the repository's next comments query starts, or ``None`` before its bootstrap."""
+
+    if record is None or repo not in record["comments_from"] or repo not in record["comments_since"]:
+        return None
+    return desire_config.parse_timestamp(record["comments_since"][repo])
 
 
 def _undelivered(record: dict | None, kind: str) -> list[str]:
@@ -219,15 +276,17 @@ def _extend(collected, items, ref_field: str, delivered_field: str, bootstrapped
 
 
 def record_artefacts(state_dir, now, observed: dict) -> None:
-    """Record every collected artefact's first sight and delivery under the lock."""
+    """Record every collected artefact's first sight and delivery under the lock, and file what is new."""
 
     now = desire_config.normalize_now(now)
     state_dir = Path(state_dir)
     with desire_store.state_lock(state_dir):
         record = desire_store.read_artefacts(state_dir) or desire_store.default_artefacts(now)
+        filing = []
         for kind in desire_store.ARTEFACT_KINDS:
             if observed[kind] is None:
                 continue
+            bootstrapped = kind in record["bootstrapped"]
             for ref, delivered_at in observed[kind]:
                 if not isinstance(ref, str) or not ref:
                     _derive_failed(state_dir, now, SOURCE_OF[kind], None, f"malformed ref: {ref!r}")
@@ -237,8 +296,70 @@ def record_artefacts(state_dir, now, observed: dict) -> None:
                     record["seen"][kind].append(ref)
                 if delivered_at and ref not in record["shipped"]:
                     record["shipped"].append(ref)
+                    if bootstrapped:
+                        filing.append((DELIVERED[kind].format(url=ref), ref))
             record["bootstrapped"] = sorted({*record["bootstrapped"], kind})
+        filing.extend(_record_comments(record, observed, now))
+        # Events precede the record, so a crash between them leaves refs the next run finds filed.
+        filed = desire_events.monitor_refs(state_dir)
+        for fact, ref in filing:
+            if ref not in filed:
+                filed.add(ref)
+                desire_events.file_event(state_dir, fact, "monitor", ref, now)
         desire_store.write_json_atomic(state_dir / "artefacts.json", record)
+
+
+def _github_stamp(value: object) -> datetime | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        return desire_config.parse_timestamp(value[:-1] + "+00:00" if value.endswith("Z") else value)
+    except ValueError:
+        return None
+
+
+def _artefact_key(pattern: re.Pattern, url: object) -> tuple[str, str] | None:
+    match = pattern.fullmatch(url) if isinstance(url, str) else None
+    return (match["repo"], match["number"]) if match is not None else None
+
+
+def _record_comments(record: dict, observed: dict, now: datetime) -> list[tuple[str, str]]:
+    """Move each repository's comment stamps in ``record`` and return the comments to file."""
+
+    login = observed["login"]
+    seen = {
+        _artefact_key(_ARTEFACT_URL, url)
+        for kind in desire_store.ARTEFACT_KINDS
+        for url in record["seen"][kind]
+    }
+    filing = []
+    for repo, answer in observed["comments"].items():
+        if repo not in record["comments_from"] or repo not in record["comments_since"]:
+            if login is not None and answer["answered"]:
+                record["comments_from"][repo] = record["comments_since"][repo] = now.isoformat()
+            continue
+        if answer["entries"] is None:
+            continue
+        start = desire_config.parse_timestamp(record["comments_from"][repo])
+        cursor = desire_config.parse_timestamp(record["comments_since"][repo])
+        latest = cursor
+        for entry in answer["entries"]:
+            updated = _github_stamp(entry.get("updated_at"))
+            if updated is None:
+                continue
+            latest = max(latest, updated)
+            created = _github_stamp(entry.get("created_at"))
+            user = entry.get("user")
+            author = user.get("login") if isinstance(user, dict) else None
+            url = entry.get("html_url")
+            if created is None or not isinstance(author, str) or not isinstance(url, str):
+                continue
+            key = _artefact_key(_ISSUE_API_URL, entry.get("issue_url"))
+            if created >= start and key is not None and key in seen and author != login:
+                filing.append((f"{author} commented on {url.split('#', 1)[0]}", url))
+        if answer["answered"] and latest > cursor:
+            record["comments_since"][repo] = latest.isoformat()
+    return filing
 
 
 def _default_gate_state() -> dict:

@@ -192,6 +192,8 @@ def default_artefacts(now: datetime) -> dict:
         "bootstrapped": [],
         "seen": {kind: [] for kind in ARTEFACT_KINDS},
         "shipped": [],
+        "comments_from": {},
+        "comments_since": {},
     }
 
 
@@ -210,6 +212,8 @@ def read_artefacts(state_dir: Path) -> dict | None:
         "bootstrapped": [kind for kind in _text_list(value.get("bootstrapped")) if kind in ARTEFACT_KINDS],
         "seen": {kind: _text_list(seen.get(kind)) for kind in ARTEFACT_KINDS},
         "shipped": _text_list(value.get("shipped")),
+        "comments_from": _stamps(value.get("comments_from")),
+        "comments_since": _stamps(value.get("comments_since")),
     }
 
 
@@ -219,6 +223,21 @@ def _list(value: object) -> list:
 
 def _text_list(value: object) -> list[str]:
     return [item for item in _list(value) if isinstance(item, str)]
+
+
+def _stamps(value: object) -> dict[str, str]:
+    """Keep the entries of a repository-to-timestamp map whose stamp parses."""
+
+    if not isinstance(value, dict):
+        return {}
+    kept = {}
+    for repo, stamp in value.items():
+        try:
+            desire_config.parse_timestamp(stamp)
+        except (TypeError, ValueError):
+            continue
+        kept[repo] = stamp
+    return kept
 
 
 def load_json(path: Path, default: object, now: datetime) -> object:
