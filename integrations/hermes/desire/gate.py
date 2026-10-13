@@ -1,4 +1,4 @@
-"""Persist desire drive decay/growth, derive satisfaction events, emit the hash-gated summary."""
+"""Pre-run gate for the Hermes cron job: state bookkeeping, then the two wake cases."""
 
 from __future__ import annotations
 
@@ -11,16 +11,20 @@ from urllib import error as urllib_error
 from urllib import request as urllib_request
 
 import desire_config
-import desire_drives
+import desire_events
 import desire_outbox
 import desire_state
 import desire_store
 
 PROBE_TIMEOUT = 2
 GH_TIMEOUT = 60
-SATURATION_STEP = timedelta(hours=3)
-FIRST_SIGHT = {"pr": "progressed", "issue": "progressed", "skill": "progressed"}
-SOURCE_OF = {"pr": "pr", "issue": "issue", "skill": "skill"}
+BATCH_INTERVAL = timedelta(hours=6)
+BATCH_LIMIT = 3
+NOTE_INTERVAL = timedelta(hours=6)
+WAKE_UNREAD_EVENTS = "desire gate: unread events"
+WAKE_HELD_NOTES = "desire gate: held notes"
+NO_WAKE_LINE = '{"wakeAgent": false}'
+SOURCE_OF = {"pr": "pr", "issue": "issue"}
 _ORIGIN_SECTION = re.compile(r'^\[remote "origin"\]\n(.*?)(?=^\[|\Z)', re.MULTILINE | re.DOTALL)
 _ORIGIN_URL = re.compile(r"^\s*url\s*=\s*(\S+)", re.MULTILINE)
 _GITHUB_SLUG = re.compile(r"(?:^|[@/.])github\.com[:/](?P<owner>[^/]+)/(?P<name>[^/]+?)(?:\.git)?/?$")
@@ -128,15 +132,6 @@ def repo_issues(repo: str, run_gh) -> list[dict]:
     ]
 
 
-def profile_skills(skills_root: Path) -> list[str]:
-    """Return every skill directory under the profile, by its path relative to the skills root."""
-
-    skills_root = Path(skills_root)
-    if not skills_root.is_dir():
-        return []
-    return sorted(str(path.parent.relative_to(skills_root)) for path in skills_root.rglob("SKILL.md"))
-
-
 def _derive_failed(state_dir: Path, now: datetime, source: str, repo: str | None, message: str, ref=None):
     named = {"ref": ref} if ref is not None else {}
     desire_store.append_jsonl(
@@ -169,8 +164,8 @@ def artefact_delivery(kind: str, url: str, run_gh) -> object:
     return json.loads(run_gh([kind, "view", url, "--json", f"state,{field}"])).get(field)
 
 
-def collect_artefacts(state_dir, now, *, workspace_root, skills_root, run_gh) -> dict:
-    """Read the three sources outside the state lock, so no `gh` call blocks a turn.
+def collect_artefacts(state_dir, now, *, workspace_root, run_gh) -> dict:
+    """Read both sources outside the state lock, so no `gh` call blocks a turn.
 
     Each kind maps to its ``(ref, delivered_at)`` pairs, or to ``None`` when the source did not
     answer at all. While a kind is still unbootstrapped one failing repository drops the whole kind,
@@ -201,8 +196,6 @@ def collect_artefacts(state_dir, now, *, workspace_root, skills_root, run_gh) ->
             )
             if delivered is not None and observed[kind] is not None:
                 observed[kind].append((url, delivered))
-    skills = _read_source(state_dir, now, "skill", None, lambda: profile_skills(skills_root))
-    observed["skill"] = None if skills is None else [(relative, None) for relative in skills]
     return observed
 
 
@@ -225,30 +218,13 @@ def _extend(collected, items, ref_field: str, delivered_field: str, bootstrapped
     return collected + [(item.get(ref_field), item.get(delivered_field)) for item in items]
 
 
-def _states_of(record: dict, kind: str, ref: str, delivered_at: object) -> list[tuple[str, str, str]]:
-    """Name the events an artefact owes: its first sight, then its delivery."""
-
-    events = []
-    if ref not in record["seen"][kind]:
-        events.append((FIRST_SIGHT[kind], kind, ref))
-    if delivered_at and ref not in record["shipped"]:
-        events.append(("shipped", kind, ref))
-    return events
-
-
-def score_artefacts(state_dir, now, observed: dict) -> None:
-    """Dose every collected artefact that has not been counted yet, and record what was scored.
-
-    A source is scored only from the tick after its first answer, so an artefact that already
-    existed is recorded as seen rather than dosed however late that source starts answering.
-    """
+def record_artefacts(state_dir, now, observed: dict) -> None:
+    """Record every collected artefact's first sight and delivery under the lock."""
 
     now = desire_config.normalize_now(now)
     state_dir = Path(state_dir)
     with desire_store.state_lock(state_dir):
         record = desire_store.read_artefacts(state_dir) or desire_store.default_artefacts(now)
-        scored = set(record["bootstrapped"])
-        candidates = []
         for kind in desire_store.ARTEFACT_KINDS:
             if observed[kind] is None:
                 continue
@@ -256,45 +232,80 @@ def score_artefacts(state_dir, now, observed: dict) -> None:
                 if not isinstance(ref, str) or not ref:
                     _derive_failed(state_dir, now, SOURCE_OF[kind], None, f"malformed ref: {ref!r}")
                     continue
-                # One artefact can arrive from more than one source call in a tick; it owes one dose.
-                for candidate in _states_of(record, kind, ref, delivered_at):
-                    if candidate not in candidates:
-                        candidates.append(candidate)
-            record["bootstrapped"] = sorted({*record["bootstrapped"], kind})
-
-        try:
-            for event, kind, ref in candidates:
-                if event == "shipped":
-                    record["shipped"].append(ref)
-                else:
+                # One artefact can arrive from more than one source call in a run; it is recorded once.
+                if ref not in record["seen"][kind]:
                     record["seen"][kind].append(ref)
-                    if kind == "skill" and kind in scored:
-                        record["skill_first_seen"][ref] = now.isoformat()
-                if kind not in scored:
-                    continue
-                try:
-                    desire_state.satisfy(event, ref, now, kind=kind, state_dir=state_dir)
-                except ValueError:
-                    continue
-                record["unreported"].append({"event": event, "kind": kind, "ref": ref, "at": now.isoformat()})
-        finally:
-            # `satisfy` records reported sources in the same file, so those come from a fresh read
-            # rather than from the snapshot this scoring pass started with.
-            fresh = desire_store.read_artefacts(state_dir)
-            if fresh is not None:
-                record["learned"] = fresh["learned"]
-            desire_store.write_json_atomic(state_dir / "artefacts.json", record)
+                if delivered_at and ref not in record["shipped"]:
+                    record["shipped"].append(ref)
+            record["bootstrapped"] = sorted({*record["bootstrapped"], kind})
+        desire_store.write_json_atomic(state_dir / "artefacts.json", record)
 
 
-def _starved(since: str | None, now: datetime) -> int:
-    """Count the whole saturation steps a drive has stood at its ceiling."""
+def _default_gate_state() -> dict:
+    return {"batch": {"ids": [], "presented_at": []}, "notes_presented_at": None}
 
-    if since is None:
-        return 0
-    return max(0, (now - desire_config.parse_timestamp(since)) // SATURATION_STEP)
+
+def _normalize_gate_state(value: object) -> dict:
+    if not isinstance(value, dict):
+        raise TypeError("gate state must be an object")
+    batch = value["batch"]
+    if not isinstance(batch, dict):
+        raise TypeError("gate batch must be an object")
+    ids = batch["ids"]
+    if not isinstance(ids, list) or any(not isinstance(item, str) for item in ids):
+        raise ValueError("batch ids must be a list of text")
+    presented = [desire_config.parse_timestamp(stamp).isoformat() for stamp in batch["presented_at"]]
+    notes = value["notes_presented_at"]
+    return {
+        "batch": {"ids": list(ids), "presented_at": presented},
+        "notes_presented_at": None if notes is None else desire_config.parse_timestamp(notes).isoformat(),
+    }
+
+
+def _unread_events_lines(state_dir: Path, state: dict, now: datetime) -> list[str]:
+    unread = desire_events.unread_event_ids(state_dir)
+    batch = state["batch"]
+    if not unread:
+        state["batch"] = {"ids": [], "presented_at": []}
+        return []
+    if any(event_id not in batch["ids"] for event_id in unread):
+        state["batch"] = {"ids": list(unread), "presented_at": [now.isoformat()]}
+        return [f"{WAKE_UNREAD_EVENTS} ({len(unread)})"]
+    batch["ids"] = unread
+    presented = batch["presented_at"]
+    if not presented:
+        presented.append(now.isoformat())
+    elif len(presented) >= BATCH_LIMIT or now - desire_config.parse_timestamp(presented[-1]) < BATCH_INTERVAL:
+        return []
+    else:
+        presented.append(now.isoformat())
+    return [f"{WAKE_UNREAD_EVENTS} ({len(unread)})"]
+
+
+def _held_notes_lines(
+    state_dir: Path, budget: dict, transport: dict, state: dict, now: datetime
+) -> list[str]:
+    eligible = desire_outbox.visible_outbox(desire_store.read_jsonl(state_dir / "outbox.jsonl"), now)
+    budget_left = desire_state.CAPS["signals"] - budget["signals"] > 0
+    if not eligible or transport["state"] != "up" or not budget_left:
+        return []
+    stamp = state["notes_presented_at"]
+    if stamp is None:
+        due = True
+    else:
+        presented = desire_config.parse_timestamp(stamp)
+        due = now - presented >= NOTE_INTERVAL or any(
+            desire_config.parse_timestamp(item["created_at"]) > presented for item in eligible
+        )
+    if not due:
+        return []
+    state["notes_presented_at"] = now.isoformat()
+    return [f"{WAKE_HELD_NOTES} ({len(eligible)})"]
 
 
 def run(now: datetime) -> str:
+    """Do the bookkeeping, then return the exact stdout the wake decision calls for."""
+
     now = desire_config.normalize_now(now)
     profile = desire_config.profile_root()
     reachable = probe_transport()
@@ -302,37 +313,10 @@ def run(now: datetime) -> str:
         desire_config.resolve_state_dir(),
         now,
         workspace_root=profile / "workspace",
-        skills_root=profile / "skills",
         run_gh=run_gh,
     )
     with desire_store.state_lock() as state_dir:
         state = desire_state.bootstrap_locked(state_dir, now)
-
-        drives = state["drives"]
-        levels = desire_drives.drive_levels(drives, now)
-        for name in ("curiosity", "accomplishment"):
-            drives[name] = {"level": levels[name], "anchor_at": now.isoformat()}
-        desire_store.write_json_atomic(state_dir / "drives.json", drives)
-
-        # A fallen bucket keeps its latched token, so a drive the agent just satisfied does not
-        # wake the next tick; a rise re-snapshots every token and counts.
-        monitor = state["monitor"]
-        natural = {name: desire_drives.bucket(levels[name]) for name in desire_drives.DRIVES}
-        rises = monitor["rises"] + sum(
-            desire_drives.BUCKETS.index(natural[name]) > desire_drives.BUCKETS.index(monitor["natural"][name])
-            for name in desire_drives.DRIVES
-        )
-        latched = dict(natural) if rises > monitor["rises"] else monitor["latched"]
-        # A drive pinned at the ceiling keeps its stamp, so its own starved count climbs every step.
-        saturated = {
-            name: (monitor["saturated_since"][name] or now.isoformat()) if levels[name] >= 100 else None
-            for name in desire_drives.DRIVES
-        }
-        starved = {name: _starved(since, now) for name, since in saturated.items()}
-        desire_store.write_json_atomic(
-            state_dir / "monitor.json",
-            {"latched": latched, "natural": natural, "rises": rises, "saturated_since": saturated},
-        )
 
         budget = desire_state.normalize_budget(state["budget"], now)
         cutoff = now.date() - timedelta(days=7)
@@ -364,73 +348,49 @@ def run(now: datetime) -> str:
             )
 
         transport = desire_store.record_transport(state_dir, reachable, now)
-        visible = desire_outbox.visible_outbox(active, now)
-        outbox_summary = str(len(visible))
-        if visible:
-            oldest = min(desire_config.parse_timestamp(item["created_at"]) for item in visible)
-            outbox_summary += f"/{desire_outbox.pent_up_stage(oldest, now)}"
+        record_artefacts(state_dir, now, observed)
 
+        path = state_dir / "gate.json"
+        gate_state = desire_store.load_json(path, _default_gate_state, now)
+        try:
+            gate_state = _normalize_gate_state(gate_state)
+        except (KeyError, TypeError, ValueError):
+            gate_state = desire_store._recover_invalid_json_locked(path, _default_gate_state, now)
+        lines = _unread_events_lines(state_dir, gate_state, now)
+        lines.extend(_held_notes_lines(state_dir, budget, transport, gate_state, now))
+        desire_store.write_json_atomic(path, gate_state)
+
+        if not lines:
+            return f"{NO_WAKE_LINE}\n"
+        return "".join(f"{line}\n" for line in lines)
+
+
+def _record_gate_error(error: Exception) -> None:
+    try:
         desire_store.append_jsonl(
-            state_dir / "ticks.jsonl",
+            desire_config.resolve_state_dir() / "audit.jsonl",
             {
-                "at": now.isoformat(),
-                "social": round(levels["social"], 1),
-                "curiosity": round(levels["curiosity"], 1),
-                "accomplishment": round(levels["accomplishment"], 1),
-                "transport": transport["state"],
-                "outbox": len(visible),
-                "last_interaction_at": drives["last_interaction_at"],
+                "at": datetime.now(desire_config.KST).isoformat(),
+                "event": "gate_error",
+                "error": f"{type(error).__name__}: {error}",
             },
         )
-
-        score_artefacts(state_dir, now, observed)
-
-        return (
-            f"social:{latched['social']} "
-            f"curiosity:{latched['curiosity']} "
-            f"accomplishment:{latched['accomplishment']} "
-            f"outbox:{outbox_summary} "
-            f"transport:{transport['state']} "
-            f"budget:{_budget_tokens(budget)} "
-            f"day:{desire_config.wake_day(now)} "
-            f"rises:{rises} "
-            f"starved:{starved['social']}/{starved['curiosity']}/{starved['accomplishment']}\n"
-        )
-
-
-def _budget_tokens(used: dict) -> str:
-    """Format each cap as remaining over its daily total."""
-
-    caps = desire_state.CAPS
-    units = (("signals", "sig"), ("issues", "iss"), ("self_comments", "cmt"), ("prs", "pr"))
-    return " ".join(f"{max(0, caps[key] - used.get(key, 0))}/{caps[key]}{unit}" for key, unit in units)
-
-
-def _fallback_summary() -> str:
-    """Name the wake day so a sustained failure still wakes the tick once a day."""
-
-    try:
-        day = desire_config.wake_day(datetime.now(desire_config.KST))
-    except Exception:  # noqa: BLE001 - an unreadable clock still owes the cron a summary
-        day = "unknown"
-    return (
-        "social:low curiosity:mid accomplishment:mid outbox:0 transport:down "
-        f"budget:{_budget_tokens({})} day:{day} rises:0 starved:0/0/0\n"
-    )
+    except Exception:  # noqa: BLE001, S110 - the audit write is best effort; the no-wake line still prints
+        pass
 
 
 def main() -> None:
-    # A missing identity is a misconfiguration the fail-safe summary must not hide.
+    # A missing identity is a misconfiguration the fail-safe line must not hide.
     try:
         desire_config.agent_name()
     except desire_config.ConfigurationError as error:
         raise SystemExit(str(error)) from error
     try:
-        now = datetime.now(desire_config.KST)
-        summary = run(now)
-    except Exception:  # noqa: BLE001 - the hash-gated cron must always receive a valid summary
-        summary = _fallback_summary()
-    print(summary, end="")
+        output = run(datetime.now(desire_config.KST))
+    except Exception as error:  # noqa: BLE001 - a non-zero exit would run the agent with an error block
+        _record_gate_error(error)
+        output = f"{NO_WAKE_LINE}\n"
+    print(output, end="")
 
 
 if __name__ == "__main__":

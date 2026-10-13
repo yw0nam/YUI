@@ -177,18 +177,14 @@ def test_a_held_note_wakes_again_after_six_hours_and_on_a_newer_note(
     assert gate.run(t0) == "desire gate: held notes (1)\n"
     assert gate.run(t0 + timedelta(minutes=1)) == NO_WAKE
     assert gate.run(t0 + timedelta(hours=6)) == "desire gate: held notes (1)\n"
-    assert read_json(state_dir / "gate.json")["notes_presented_at"] == (
-        t0 + timedelta(hours=6)
-    ).isoformat()
+    assert read_json(state_dir / "gate.json")["notes_presented_at"] == (t0 + timedelta(hours=6)).isoformat()
 
     write_jsonl(state_dir / "outbox.jsonl", [held_note("one", t0), held_note("two", t0 + timedelta(hours=7))])
 
     assert gate.run(t0 + timedelta(hours=7, minutes=1)) == "desire gate: held notes (2)\n"
 
 
-def test_five_unread_events_wake_once_then_every_six_hours_at_most_three_times(
-    state_dir, at, state_helpers
-):
+def test_five_unread_events_wake_once_then_every_six_hours_at_most_three_times(state_dir, at, state_helpers):
     _, write_jsonl, read_json, _ = state_helpers
     t0 = at("2026-08-25T12:00:00+09:00")
     write_jsonl(
@@ -231,7 +227,13 @@ def test_a_new_event_starts_a_fresh_batch_with_one_presentation_stamp(state_dir,
     gate.run(t0)
     gate.run(t0 + timedelta(hours=6))
     gate.run(t0 + timedelta(hours=12))
-    gate.run(t0 + timedelta(hours=18))
+
+    lines += [
+        reading_line("r-000001", "e-000000", t0 + timedelta(hours=18)),
+        reading_line("r-000002", "e-000001", t0 + timedelta(hours=18)),
+    ]
+    write_jsonl(state_dir / "events.jsonl", lines)
+    assert gate.run(t0 + timedelta(hours=18)) == NO_WAKE
 
     lines.append(event_line("e-000005", t0 + timedelta(hours=19), "fact 5"))
     write_jsonl(state_dir / "events.jsonl", lines)
@@ -267,9 +269,7 @@ def test_both_cases_wake_on_one_run_with_unread_events_first(state_dir, at, stat
     assert gate.run(now) == "desire gate: unread events (1)\ndesire gate: held notes (1)\n"
 
 
-def test_an_internal_error_prints_the_no_wake_line_and_audits_gate_error(
-    state_dir, at, capsys, monkeypatch
-):
+def test_an_internal_error_prints_the_no_wake_line_and_audits_gate_error(state_dir, at, capsys, monkeypatch):
     gate.run(at("2026-08-25T12:00:00+09:00"))
     before = (state_dir / "gate.json").read_bytes()
 
@@ -310,9 +310,7 @@ def test_the_first_run_deletes_the_monitor_leftovers(state_dir, at):
     assert not (state_dir / "ticks.jsonl").exists()
 
 
-def test_an_installed_drives_file_with_level_objects_is_rewritten_to_the_stamps(
-    state_dir, at, state_helpers
-):
+def test_an_installed_drives_file_with_level_objects_is_rewritten_to_the_stamps(state_dir, at, state_helpers):
     write_json, _, read_json, _ = state_helpers
     now = at("2026-08-25T12:00:00+09:00")
     interaction = (now - timedelta(hours=3)).isoformat()
