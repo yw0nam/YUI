@@ -253,3 +253,14 @@ def test_an_agent_event_and_its_reading_are_appended_under_one_lock(state_dir, a
     desire_events.file_event_with_reading(state_dir, "fact", "reading", None, now)
 
     assert ["events.jsonl", "readings.jsonl"] in holds
+
+
+def test_a_retracted_event_refuses_a_reading_or_correction_by_its_own_error(state_dir, at):
+    now = at("2026-08-25T12:00:00+09:00")
+    event_id = desire_events.file_event(state_dir, "fact", "monitor", None, now)
+    desire_events.retract(state_dir, event_id, "wrong", now)
+
+    with pytest.raises(desire_events.RetractedEventError):
+        desire_events.file_reading(state_dir, event_id, "text", now)
+    with pytest.raises(desire_events.RetractedEventError):
+        desire_events.correct(state_dir, event_id, "fact", now)

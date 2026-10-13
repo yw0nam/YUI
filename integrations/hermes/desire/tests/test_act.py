@@ -938,7 +938,9 @@ def test_feel_reads_an_existing_event_and_refuses_an_unknown_or_retracted_one(st
     assert event["reading"]["text"] == "relieved"
 
     assert act.main(["feel", "--event", "e-999999", "--text", "x"], now=now) == 3
+    assert capsys.readouterr().err == "unknown event\n"
     assert act.main(["feel", "--event", retracted, "--text", "x"], now=now) == 3
+    assert capsys.readouterr().err == f"event {retracted} is retracted\n"
 
 
 @pytest.mark.parametrize(

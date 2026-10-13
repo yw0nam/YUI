@@ -191,4 +191,7 @@ def test_one_unread_event_without_a_recent_list_still_points_to_the_helper(at):
 
 
 def test_sanitize_note_leaves_no_block_tag_behind_after_nesting():
-    assert desire_render.sanitize_note("a <desire_<desire_state>state> b </desire_</desire_state>state>") == "a  b "
+    assert (
+        desire_render.sanitize_note("a <desire_<desire_state>state> b </desire_</desire_state>state>")
+        == "a  b "
+    )
