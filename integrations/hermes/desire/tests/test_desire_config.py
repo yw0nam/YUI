@@ -58,6 +58,40 @@ def test_state_dir_defaults_to_the_hermes_home(monkeypatch, tmp_path):
     assert desire_config.resolve_state_dir() == tmp_path / ".hermes" / "desire"
 
 
+def test_a_left_behind_v040_state_dir_is_named_once(monkeypatch, tmp_path, caplog):
+    left = tmp_path / ".hermes" / "profiles" / "old" / "desire"
+    left.mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("HERMES_PROFILE", "old")
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path / "elsewhere"))
+    monkeypatch.delenv("DESIRE_STATE_DIR", raising=False)
+    monkeypatch.setattr(desire_config, "_left_behind_reported", False, raising=False)
+
+    with caplog.at_level("WARNING"):
+        assert desire_config.resolve_state_dir() == tmp_path / "elsewhere" / "desire"
+        desire_config.resolve_state_dir()
+
+    assert [record.getMessage() for record in caplog.records] == [
+        f"DESIRE_STATE_DIR is not set: state is read from {tmp_path / 'elsewhere' / 'desire'}, "
+        f"and {left} is left unread. Set DESIRE_STATE_DIR to keep using it."
+    ]
+
+
+def test_the_v040_state_dir_in_use_raises_no_warning(monkeypatch, tmp_path, caplog):
+    home = tmp_path / ".hermes" / "profiles" / "old"
+    (home / "desire").mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("HERMES_PROFILE", "old")
+    monkeypatch.setenv("HERMES_HOME", str(home))
+    monkeypatch.delenv("DESIRE_STATE_DIR", raising=False)
+    monkeypatch.setattr(desire_config, "_left_behind_reported", False, raising=False)
+
+    with caplog.at_level("WARNING"):
+        assert desire_config.resolve_state_dir() == home / "desire"
+
+    assert caplog.records == []
+
+
 def test_inside_hermes_settings_come_from_the_profile_scope_and_home(monkeypatch, tmp_path):
     scope = {
         "DESIRE_AGENT_NAME": "scoped",
