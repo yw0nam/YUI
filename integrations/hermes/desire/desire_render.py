@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from datetime import datetime
 
 if __package__:
-    from . import desire_config
+    from . import desire_config, desire_events
 else:
     import desire_config
+    import desire_events
 
 
+RECENT_LIMIT = 3
 EVENTS_POINTER = "to record how you took something: act.py feel --help"
 
 
@@ -46,11 +49,11 @@ def _quoted(text: object) -> str:
     return '"' + sanitize_note(text).replace('"', "'") + '"'
 
 
-def _event_lines(events: list[dict], unread: int) -> list[str]:
-    """Render the three most recent events, the unread count, and the helper pointer when either shows."""
+def _event_lines(events: Sequence[dict], unread: int) -> list[str]:
+    """Render the most recent events, the unread count, and the helper pointer when either shows."""
 
     lines = []
-    recent = sorted(events, key=lambda event: desire_config.parse_timestamp(event["at"]))[-3:]
+    recent = desire_events.chronological(events)[-RECENT_LIMIT:]
     if recent:
         lines.append("recent:")
     for event in recent:
@@ -73,7 +76,7 @@ def serialize_desire_block(
     returned_hours: int | None = None,
     last_signal_at: str | None = None,
     last_signal_answered_at: str | None = None,
-    events: list[dict] = (),
+    events: Sequence[dict] = (),
     unread: int = 0,
 ) -> str:
     now = desire_config.normalize_now(now)

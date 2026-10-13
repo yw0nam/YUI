@@ -125,7 +125,9 @@ def _after_event_lines(lines, index):
     start = index
     if lines[index] == "recent:":
         index += 1
-        while index - start <= 3 and _RECENT_LINE.fullmatch(lines[index]) is not None:
+        while (
+            index - start <= desire_render.RECENT_LIMIT and _RECENT_LINE.fullmatch(lines[index]) is not None
+        ):
             index += 1
         if index == start + 1:
             return None
@@ -225,6 +227,12 @@ def _rewrite(kwargs, event):
     text_hash = hashlib.sha256(original_text.encode("utf-8")).hexdigest()
     cache_key = (str(state_dir.resolve()), text_hash)
 
+    cached = _turn_cache
+    cache_hit = cached is not None and cached["key"] == cache_key and now - cached["last_hit"] <= _CACHE_TTL
+    event["cache_hit"] = cache_hit
+    new_turn = cached is None or cached["key"] != cache_key
+
+    events, unread = [], []
     initialized = (state_dir / "state.lock").exists() or any(
         (state_dir / name).exists() for name in _STATE_FILES
     )
@@ -233,14 +241,12 @@ def _rewrite(kwargs, event):
             drives = desire_drives.read_drives_snapshot(state_dir, now)
             outbox = desire_store.read_jsonl(state_dir / "outbox.jsonl")
             transport = desire_store.read_transport(state_dir)
-            events = desire_events.events_view(state_dir)
-            unread = len(desire_events.unread_event_ids(state_dir))
+            if not cache_hit:
+                events, unread = desire_events.events_view_and_unread(state_dir)
     else:
         drives = desire_drives.default_drives(now)
         outbox = []
         transport = None
-        events = []
-        unread = 0
 
     staged_drives = copy.deepcopy(drives)
     trigger = _trigger_kind(original_text)
@@ -262,16 +268,18 @@ def _rewrite(kwargs, event):
         if _answers_signal(drives):
             staged_drives["last_signal_answered_at"] = now.isoformat()
 
-    cached = _turn_cache
-    cache_hit = cached is not None and cached["key"] == cache_key and now - cached["last_hit"] <= _CACHE_TTL
-    event["cache_hit"] = cache_hit
-    new_turn = cached is None or cached["key"] != cache_key
     if cache_hit:
         block = cached["block"]
         included_ids = cached["included_ids"]
     else:
         block, included_ids = _build_desire_block(
-            staged_drives, outbox, transport, now, returned_hours=returned_hours, events=events, unread=unread
+            staged_drives,
+            outbox,
+            transport,
+            now,
+            returned_hours=returned_hours,
+            events=events,
+            unread=len(unread),
         )
 
     rewritten = copy.deepcopy(request)

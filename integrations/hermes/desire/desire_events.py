@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import secrets
+from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
 
@@ -118,10 +119,11 @@ def _source_ref(line: dict) -> str | None:
     return ref if isinstance(ref, str) else None
 
 
-def events_view(state_dir: Path) -> list[dict]:
-    """Return the events that are not retracted, in file order, as they are shown."""
+def events_view_and_unread(state_dir: Path) -> tuple[list[dict], list[str]]:
+    """Return, from one read of both logs, the shown events and the unread event ids, both in file order."""
 
-    return [
+    log = _read_log(state_dir)
+    view = [
         {
             "id": event_id,
             "at": entry["line"]["at"],
@@ -132,19 +134,31 @@ def events_view(state_dir: Path) -> list[dict]:
             if entry["reading"] is None
             else {key: entry["reading"][key] for key in ("id", "at", "text")},
         }
-        for event_id, entry in _read_log(state_dir).items()
+        for event_id, entry in log.items()
         if not entry["retracted"]
     ]
+    unread = [
+        event_id for event_id, entry in log.items() if not entry["retracted"] and entry["reading"] is None
+    ]
+    return view, unread
+
+
+def events_view(state_dir: Path) -> list[dict]:
+    """Return the events that are not retracted, in file order, as they are shown."""
+
+    return events_view_and_unread(state_dir)[0]
 
 
 def unread_event_ids(state_dir: Path) -> list[str]:
     """Return the ids of valid events that no valid retraction or reading names, in file order."""
 
-    return [
-        event_id
-        for event_id, entry in _read_log(state_dir).items()
-        if not entry["retracted"] and entry["reading"] is None
-    ]
+    return events_view_and_unread(state_dir)[1]
+
+
+def chronological(view: Iterable[dict]) -> list[dict]:
+    """Order shown events by their time, keeping file order between equal times."""
+
+    return sorted(view, key=lambda event: desire_config.parse_timestamp(event["at"]))
 
 
 def monitor_refs(state_dir: Path) -> set[str]:

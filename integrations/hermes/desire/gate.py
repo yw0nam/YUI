@@ -306,11 +306,12 @@ def record_artefacts(state_dir, now, observed: dict) -> None:
             record["bootstrapped"] = sorted({*record["bootstrapped"], kind})
         filing.extend(_record_comments(record, observed, now))
         # Events precede the record, so a crash between them leaves refs the next run finds filed.
-        filed = desire_events.monitor_refs(state_dir)
-        for fact, ref in filing:
-            if ref not in filed:
-                filed.add(ref)
-                desire_events.file_event(state_dir, fact, "monitor", ref, now)
+        if filing:
+            filed = desire_events.monitor_refs(state_dir)
+            for fact, ref in filing:
+                if ref not in filed:
+                    filed.add(ref)
+                    desire_events.file_event(state_dir, fact, "monitor", ref, now)
         desire_store.write_json_atomic(state_dir / "artefacts.json", record)
 
 
@@ -349,14 +350,14 @@ def _record_comments(record: dict, observed: dict, now: datetime) -> list[tuple[
     filing = []
     for repo, answer in observed["comments"].items():
         answered = recorded and answer["answered"]
-        if repo not in record["comments_from"] or repo not in record["comments_since"]:
+        cursor = _comment_cursor(record, repo)
+        if cursor is None:
             if login is not None and answered:
                 record["comments_from"][repo] = record["comments_since"][repo] = now.isoformat()
             continue
         if answer["entries"] is None:
             continue
         start = desire_config.parse_timestamp(record["comments_from"][repo])
-        cursor = desire_config.parse_timestamp(record["comments_since"][repo])
         latest = cursor
         for entry in answer["entries"]:
             updated = _github_stamp(entry.get("updated_at"))

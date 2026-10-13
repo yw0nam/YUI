@@ -361,9 +361,7 @@ def _feel(args, now):
 
 
 def _feel_list(state_dir, show_all):
-    events = sorted(
-        desire_events.events_view(state_dir), key=lambda event: desire_config.parse_timestamp(event["at"])
-    )
+    events = desire_events.chronological(desire_events.events_view(state_dir))
     for event in events if show_all else events[-20:]:
         stamp = desire_config.parse_timestamp(event["at"]).strftime("%Y-%m-%d %H:%M")
         fact = desire_render.sanitize_note(event["fact"])
