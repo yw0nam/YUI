@@ -1092,35 +1092,24 @@ def test_judge_usage_errors_exit_two_and_write_nothing(state_dir, at, argv):
     assert not (state_dir / "judgments.jsonl").exists()
 
 
-def test_feel_list_unread_prints_every_event_without_a_reading(state_dir, at, state_helpers, capsys):
-    _, write_jsonl, _, _ = state_helpers
+def test_feel_list_unread_prints_every_event_without_a_reading_in_file_order(state_dir, at, capsys):
     now = at("2026-08-25T12:00:00+09:00")
-    write_jsonl(
-        state_dir / "events.jsonl",
-        [
-            {
-                "id": f"e-{index:06x}",
-                "at": (now - timedelta(hours=30 - index)).isoformat(),
-                "fact": f"fact {index}",
-                "source": "monitor",
-            }
-            for index in range(25)
-        ]
-        + [{"retracts": "e-000003", "at": now.isoformat(), "why": "not mine"}],
-    )
-    write_jsonl(
-        state_dir / "readings.jsonl",
-        [
-            {"id": f"r-{index:06x}", "event_id": f"e-{index:06x}", "at": now.isoformat(), "text": "noted"}
-            for index in range(3)
-        ],
-    )
+    assert act.main(["feel", "--list", "--unread"], now=now) == 0
+    assert capsys.readouterr().out == ""
+    ids = [
+        desire_events.file_event(state_dir, f"fact {index}", "monitor", None, now - timedelta(minutes=index))
+        for index in range(25)
+    ]
+    for event_id in ids[:3]:
+        desire_events.file_reading(state_dir, event_id, "noted", now)
+    desire_events.retract(state_dir, ids[3], "not mine", now)
+    desire_events.correct(state_dir, ids[4], "fact 4, corrected", now)
 
     assert act.main(["feel", "--list", "--unread"], now=now) == 0
 
     lines = capsys.readouterr().out.splitlines()
-    assert [line.split()[0] for line in lines] == [f"e-{index:06x}" for index in range(4, 25)]
-    assert lines[0] == "e-000004 2026-08-24 10:00 [monitor] fact 4 — (no reading)"
+    assert [line.split()[0] for line in lines] == ids[4:]
+    assert lines[0] == f"{ids[4]} 2026-08-25 11:56 [monitor] fact 4, corrected — (no reading)"
 
 
 def test_judge_list_prints_every_present_judgment_by_toward_then_name(state_dir, at, capsys):

@@ -1490,12 +1490,13 @@ def test_a_comment_by_a_bot_files_nothing(state_dir, at, tmp_path):
     t0 = at("2026-08-25T12:00:00+09:00")
     payloads = {("issue", "owner/YUI"): [open_issue()]}
     derive(state_dir, t0, tmp_path, payloads=payloads)
-    bot = comment(9, 1, "github-actions[bot]", "2026-08-25T03:30:00Z")
+    bot = comment(9, 1, "github-actions[bot]", "2026-08-25T03:30:00Z", "2026-08-25T05:00:00Z")
     bot["user"]["type"] = "Bot"
 
     derive(state_dir, t0 + timedelta(hours=1), tmp_path, payloads=payloads, comments={"owner/YUI": [bot]})
 
     assert monitor_events(state_dir) == []
+    assert desire_config.parse_timestamp(cursor(state_dir)) == at("2026-08-25T05:00:00+00:00")
 
 
 @pytest.mark.parametrize("field", ["html_url", "issue_url", "user.login", "created_at", "updated_at"])
@@ -1522,18 +1523,25 @@ def test_a_comment_entry_missing_a_field_is_skipped_on_its_own(state_dir, at, tm
     assert audited(state_dir, "derive_failed") == []
 
 
-def test_a_comment_carrying_the_marker_is_the_agent_s_whichever_account_posted_it(state_dir, at, tmp_path):
+def test_only_a_marker_on_the_first_line_makes_a_comment_the_agent_s_whichever_account_posted_it(
+    state_dir, at, tmp_path
+):
     t0 = at("2026-08-25T12:00:00+09:00")
     payloads = {("issue", "owner/YUI"): [open_issue()]}
     derive(state_dir, t0, tmp_path, payloads=payloads)
     page = [
-        comment(9, 1, "owner", "2026-08-25T03:30:00Z", body=f"{MARKER}\nI opened a follow-up."),
+        comment(9, 1, "owner", "2026-08-25T03:30:00Z", body=f"\n  {MARKER}  \nI opened a follow-up."),
         comment(9, 2, "owner", "2026-08-25T03:31:00Z", body="Thanks, merging after lunch."),
+        comment(9, 3, "owner", "2026-08-25T03:32:00Z", body=f"> {MARKER}\nWhy this marker?"),
+        comment(9, 4, "owner", "2026-08-25T03:33:00Z", body=f"See below.\n{MARKER}"),
+        comment(9, 5, "owner", "2026-08-25T03:34:00Z", body=None),
     ]
 
     derive(state_dir, t0 + timedelta(hours=1), tmp_path, payloads=payloads, comments={"owner/YUI": page})
 
-    assert monitor_events(state_dir) == [(f"owner commented on {ISSUE}", f"{ISSUE}#issuecomment-2")]
+    assert monitor_events(state_dir) == [
+        (f"owner commented on {ISSUE}", f"{ISSUE}#issuecomment-{number}") for number in (2, 3, 4, 5)
+    ]
 
 
 def test_the_gate_reads_github_without_asking_who_gh_acts_as(state_dir, at, tmp_path):
@@ -1562,10 +1570,10 @@ def test_every_gh_call_for_a_repository_runs_inside_its_first_workspace_clone(st
     workspace.mkdir()
     first = git_repo(workspace, "YUI", "https://github.com/owner/YUI.git")
     git_repo(workspace, "YUI-clone", "https://github.com/owner/YUI.git")
-    memory = git_repo(workspace, "memory_layer", "https://github.com/owner/memory_layer.git")
+    memory = git_repo(workspace, "memory_layer", "https://github.com/Owner/Memory_Layer.git")
     payloads = {
         ("pr", "owner/YUI"): [open_pull()],
-        ("issue", "owner/memory_layer"): [open_issue("https://github.com/owner/memory_layer/issues/3")],
+        ("issue", "Owner/Memory_Layer"): [open_issue("https://github.com/owner/memory_layer/issues/3")],
     }
     t0 = at("2026-08-25T12:00:00+09:00")
     calls = []
@@ -1589,8 +1597,8 @@ def test_every_gh_call_for_a_repository_runs_inside_its_first_workspace_clone(st
         ("pr", "view"),
         ("issue", "view"),
     }
-    assert {(repo_of(args), cwd) for args, cwd in calls} == {
-        ("owner/YUI", first),
+    assert {(repo_of(args).lower(), cwd) for args, cwd in calls} == {
+        ("owner/yui", first),
         ("owner/memory_layer", memory),
     }
 
