@@ -8,6 +8,7 @@ import type { DelegationsStore } from "../../../io/bridge/delegations/delegation
 import type { ChatHistoryEntry } from "../../../io/chat/conversation/chat-history-store";
 import type {
   DelegationItem,
+  ErrorFrame,
   ReasoningFrame,
   RenderFrame,
   SpeechFrame,
@@ -27,7 +28,8 @@ import type { Logger } from "../../../logger";
  * Routes an open push socket into the client: a `render` frame plays as a turn and closes the
  * live reasoning cycle, a `speech` frame plays into the utterance its turn's `render` closes, a
  * `reasoning` frame appends to the cycle, a `tool_status` frame names the tool to the chip and to
- * the turn's own waiter, a `turn_end` frame's usage feeds the session readout, and a `delegations` frame replaces the tracked list. The socket itself
+ * the turn's own waiter, an `error` frame hands its text to the turn's waiter, a `turn_end` frame's
+ * usage feeds the session readout, and a `delegations` frame replaces the tracked list. The socket
  * is created and connected by the host, which owns its lifetime.
  */
 export function wirePushTransport(deps: {
@@ -36,6 +38,7 @@ export function wirePushTransport(deps: {
     onSpeech(cb: (frame: SpeechFrame) => void): () => void;
     onTurnEnd(cb: (frame: TurnEndFrame) => void): () => void;
     onToolStatus(cb: (frame: ToolStatusFrame) => void): () => void;
+    onError(cb: (frame: ErrorFrame) => void): () => void;
     onToolCall(cb: (frame: ToolCallFrame) => void): () => void;
     onDelegations(cb: (items: DelegationItem[]) => void): () => void;
     onReasoning(cb: (frame: ReasoningFrame) => void): () => void;
@@ -116,6 +119,19 @@ export function wirePushTransport(deps: {
         state: frame.state,
         tool_id: frame.tool_id,
       });
+    }),
+    deps.socket.onError((frame) => {
+      // A cut turn's frames never play, so its failure never shows.
+      if (deps.pushTurns.isCut(frame.turn_id)) {
+        deps.log.debug("push.error", {
+          turn_id: frame.turn_id,
+          dropped: "cut_turn",
+          stopped_count: deps.pushTurns.cutCount(),
+        });
+        return;
+      }
+      deps.pushTurns.failed(frame.turn_id, frame.message);
+      deps.log.info("push.error", { turn_id: frame.turn_id, message: frame.message });
     }),
     deps.pushTurns.onCut((turnId) => renderTurn.drop(turnId)),
     deps.socket.onDelegations((items) => {

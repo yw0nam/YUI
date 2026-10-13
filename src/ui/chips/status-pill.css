@@ -109,6 +109,19 @@
   background: var(--yui-edge-strong);
 }
 
+/* A server message widens the pill to the window's width less its gutters; what still does not fit
+   ends in an ellipsis. */
+.yui-status[data-message] {
+  width: max-content;
+  max-width: calc(100% - 1.5rem);
+}
+
+.yui-status__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .yui-status__dot {
   flex: none;
   width: 0.45rem;

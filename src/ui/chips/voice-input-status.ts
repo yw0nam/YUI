@@ -3,12 +3,14 @@ import type { VoiceInputState } from "../../io/voice/stt-vad";
 export interface VoiceInputStatusSnapshot {
   state: VoiceInputState;
   detail: string;
+  /** The server's own failure text on an error state; absent otherwise. */
+  message?: string;
   visible: boolean;
 }
 
 export interface VoiceInputStatus {
   get(): VoiceInputStatusSnapshot;
-  set(state: VoiceInputState, detail?: string): void;
+  set(state: VoiceInputState, detail?: string, message?: string): void;
   subscribe(listener: (snapshot: VoiceInputStatusSnapshot) => void): () => void;
   dispose(): void;
 }
@@ -55,10 +57,17 @@ export function createVoiceInputStatus(): VoiceInputStatus {
       return clone(snapshot);
     },
 
-    set(state, detail) {
+    set(state, detail, message) {
       const next = clone(STATE_COPY[state]);
       if (detail !== undefined) next.detail = detail;
-      if (snapshot.state === next.state && snapshot.detail === next.detail) return;
+      if (message !== undefined) next.message = message;
+      if (
+        snapshot.state === next.state &&
+        snapshot.detail === next.detail &&
+        snapshot.message === next.message
+      ) {
+        return;
+      }
       snapshot = next;
       notify();
     },

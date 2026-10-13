@@ -44,6 +44,13 @@ export interface TurnEndFrame {
   usage?: Usage;
 }
 
+/** The turn failed; the backend's own failure text, sent before the turn's `turn_end`. */
+export interface ErrorFrame {
+  type: "error";
+  turn_id: string;
+  message: string;
+}
+
 /** The backend names the tool a turn is using; `running` when the call starts, `done` when it returns, `failed` when it failed. */
 export interface ToolStatusFrame {
   type: "tool_status";

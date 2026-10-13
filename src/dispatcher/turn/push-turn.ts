@@ -26,6 +26,8 @@ export interface TurnEndHooks {
   onFrame?: () => void;
   /** The backend named the tool the turn is using. */
   onToolStatus?: (state: "running" | "done" | "failed", toolId: string) => void;
+  /** The backend said the turn failed and sent its failure text. */
+  onError?: (message: string) => void;
 }
 
 export interface PushTurns {
@@ -47,6 +49,8 @@ export interface PushTurns {
   ended(turnId: string): void;
   /** A tool_status frame of this turn arrived; it counts as a frame of the turn. */
   toolStatus(turnId: string, state: "running" | "done" | "failed", toolId: string): void;
+  /** An error frame of this turn arrived; it counts as a frame of the turn. */
+  failed(turnId: string, message: string): void;
   /**
    * Resolves when the turn ends or is cut; its renders keep the wait open. One shot.
    * `onFrame` runs on every frame of the turn, `onFirstRender` only on the first one, both
@@ -147,6 +151,12 @@ export function createPushTurns(): PushTurns {
       if (!waiter) return;
       runHook(turnId, waiter.hooks.onFrame);
       runHook(turnId, () => waiter.hooks.onToolStatus?.(state, toolId));
+    },
+    failed(turnId, message) {
+      const waiter = waiting.get(turnId);
+      if (!waiter) return;
+      runHook(turnId, waiter.hooks.onFrame);
+      runHook(turnId, () => waiter.hooks.onError?.(message));
     },
     awaitTurnEnd(turnId, hooks = {}) {
       return new Promise((resolve) => waiting.set(turnId, { resolve, hooks, rendered: false }));

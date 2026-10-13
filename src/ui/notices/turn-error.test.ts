@@ -89,6 +89,20 @@ describe("turnErrorMessage — server error detail", () => {
     ).toBe("500 internal server error");
   });
 
+  it("renders the message alone when the detail carries no status", () => {
+    expect(turnErrorMessage("network_drop", { message: "rate limit reached" })).toBe(
+      "rate limit reached",
+    );
+  });
+
+  it("collapses and cuts a message with no status to one line of at most 200 chars", () => {
+    const message = `${"x".repeat(100)}\n${"y".repeat(200)}`;
+    const rendered = turnErrorMessage("network_drop", { message });
+    expect(rendered).not.toContain("\n");
+    expect(rendered!.length).toBe(200);
+    expect(rendered!.endsWith("…")).toBe(true);
+  });
+
   it("collapses newlines and cuts a 300-char message to one line of at most 200 chars ending with …", () => {
     const message = Array.from({ length: 300 }, (_, i) => (i % 25 === 24 ? "\n" : "x")).join("");
     const rendered = turnErrorMessage("network_drop", { status: 500, message });

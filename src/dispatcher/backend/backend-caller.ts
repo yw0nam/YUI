@@ -51,7 +51,7 @@ import { createPushCall, type PushCallDeps } from "./push-call";
 import { encodeInput } from "./request-input";
 import { createReplySettler, type SettleDeps } from "./settle-reply";
 import { type AttemptResult, createStreamAttempt, type StreamAttemptDeps } from "./stream-attempt";
-import type { TurnOutcome } from "./turn-outcome";
+import type { TurnErrorDetail, TurnOutcome } from "./turn-outcome";
 import { recordSentTurn } from "./turn-recording";
 
 const baseLog = createLogger("backend-caller");
@@ -81,10 +81,7 @@ export function isChatConfigured(cfg: Pick<EndpointsConfig, "chat_base_url">): b
   return Boolean(cfg.chat_base_url);
 }
 
-export type { TurnFailure, TurnOutcome } from "./turn-outcome";
-
-/** Server-side HTTP error detail for a failed turn — bare body message, no wrapper. */
-export type TurnErrorDetail = { status: number; message: string };
+export type { TurnErrorDetail, TurnFailure, TurnOutcome } from "./turn-outcome";
 
 /** Adds the streaming path's own deps to the sets the push path and the reply settle declare, so each field is declared once. */
 interface BackendCallerDeps extends PushCallDeps, SettleDeps, StreamAttemptDeps {
@@ -135,7 +132,7 @@ export interface BackendCaller {
    * Execute B1–B5 for one admitted turn. In-flight aborted if externalSignal aborts.
    * Never throws — failures expressed as a TurnOutcome failure value (dispatcher branches).
    * A stream error carrying an HTTP status invokes onErrorDetail with {status, bare server
-   * message} before the failure outcome resolves.
+   * message}, and a push turn's error frame with {message}, before the failure outcome resolves.
    */
   call(
     turn: Turn,
@@ -226,6 +223,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
 
       if (isPush) {
         return await pushCall.send({
+          onErrorDetail,
           turn,
           env,
           ctx,

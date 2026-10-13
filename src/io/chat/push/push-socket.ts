@@ -12,6 +12,7 @@ import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
 import {
   type DelegationItem,
   type PlaybackFrame,
+  type ErrorFrame,
   type PushTurnFrame,
   type ReadyFrame,
   type ReasoningFrame,
@@ -28,6 +29,9 @@ import {
 } from "./push-frames";
 
 const baseLog = createLogger("push-socket");
+
+/** The frame types read beyond the base set, as `hello.accepts` names them. */
+const ACCEPTED_FRAMES: readonly string[] = ["error"];
 
 /** Text frame size cap, either direction. */
 export const PUSH_FRAME_MAX_BYTES = 256 * 1024;
@@ -93,6 +97,7 @@ export interface PushSocket {
   onSpeech(cb: (frame: SpeechFrame) => void): () => void;
   onTurnEnd(cb: (frame: TurnEndFrame) => void): () => void;
   onToolStatus(cb: (frame: ToolStatusFrame) => void): () => void;
+  onError(cb: (frame: ErrorFrame) => void): () => void;
   onToolCall(cb: (frame: ToolCallFrame) => void): () => void;
   onDelegations(cb: (items: DelegationItem[]) => void): () => void;
   onReasoning(cb: (frame: ReasoningFrame) => void): () => void;
@@ -128,6 +133,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
   const speechSubs = new Set<(frame: SpeechFrame) => void>();
   const turnEndSubs = new Set<(frame: TurnEndFrame) => void>();
   const toolStatusSubs = new Set<(frame: ToolStatusFrame) => void>();
+  const errorSubs = new Set<(frame: ErrorFrame) => void>();
   const toolCallSubs = new Set<(frame: ToolCallFrame) => void>();
   const delegationSubs = new Set<(items: DelegationItem[]) => void>();
   const reasoningSubs = new Set<(frame: ReasoningFrame) => void>();
@@ -264,6 +270,20 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
         dispatch(turnEndSubs, turnEnd);
         return;
       }
+      case "error": {
+        const field =
+          typeof frame.turn_id !== "string"
+            ? "turn_id"
+            : typeof frame.message !== "string"
+              ? "message"
+              : null;
+        if (field !== null) {
+          log.warn("frame_malformed", { type: "error", field });
+          return;
+        }
+        dispatch(errorSubs, frame as unknown as ErrorFrame);
+        return;
+      }
       case "tool_status": {
         const field =
           typeof frame.turn_id !== "string"
@@ -378,6 +398,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
         type: "hello",
         key: key ?? "",
         chat_id: deps.chatId(),
+        accepts: ACCEPTED_FRAMES,
         vocabulary,
       };
       const tools = deps.tools();
@@ -541,6 +562,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
     onSpeech: (cb) => subscribe(speechSubs, cb),
     onTurnEnd: (cb) => subscribe(turnEndSubs, cb),
     onToolStatus: (cb) => subscribe(toolStatusSubs, cb),
+    onError: (cb) => subscribe(errorSubs, cb),
     onToolCall: (cb) => subscribe(toolCallSubs, cb),
     onDelegations: (cb) => subscribe(delegationSubs, cb),
     onReasoning: (cb) => subscribe(reasoningSubs, cb),

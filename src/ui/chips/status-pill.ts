@@ -44,6 +44,7 @@ const TOOL_DONE_HOLD_MS = 1500;
 
 function voiceLabelOf(snapshot: VoiceInputStatusSnapshot, fixable: boolean): string {
   if (fixable) return t("voice.error.not_configured");
+  if (snapshot.state === "error" && snapshot.message) return snapshot.message;
   if (snapshot.state === "error" && isMicErrorCode(snapshot.detail)) {
     return t(`voice.error.${snapshot.detail}`);
   }
@@ -147,6 +148,9 @@ export function createStatusPill({
     sepEl.hidden = !segment || !(captureOn || snapshot.visible);
 
     // The fix link only exists while the voice owns the segment.
+    const messaged = !tool && !fixable && snapshot.state === "error" && Boolean(snapshot.message);
+    if (messaged) el.dataset.message = "true";
+    else delete el.dataset.message;
     const fixShown = fixable && !tool;
     if (fixShown) el.dataset.fix = "settings";
     else delete el.dataset.fix;

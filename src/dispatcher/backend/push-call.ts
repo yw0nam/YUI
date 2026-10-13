@@ -10,7 +10,7 @@ import type { TurnOutput } from "../turn/turn-output";
 import { type buildContext, imageDataUrlsOf } from "./context-builder";
 import { PRE_SPEECH_TIMEOUT_MS } from "./idle-watchdog";
 import { contextBlock } from "./request-input";
-import type { TurnOutcome } from "./turn-outcome";
+import type { TurnErrorDetail, TurnOutcome } from "./turn-outcome";
 import { recordSentTurn, type TurnRecordingDeps } from "./turn-recording";
 
 /** The subset of `createBackendCaller`'s deps the push path reads. */
@@ -38,6 +38,8 @@ export interface PushCallArgs {
   startSessionToken: string | undefined;
   endThinking: () => void;
   externalSignal?: AbortSignal;
+  /** Receives the backend's failure text when the turn ends on a failure it described. */
+  onErrorDetail?: (detail: TurnErrorDetail) => void;
 }
 
 export interface PushCall {
@@ -62,8 +64,12 @@ export function createPushCall(deps: PushCallDeps, log: Logger): PushCall {
     eventName: string,
     endThinking: () => void,
     externalSignal?: AbortSignal,
+    onErrorDetail?: (detail: TurnErrorDetail) => void,
   ): Promise<TurnOutcome> {
     const turnId = String(turn.id);
+    let failure: { message: string } | undefined;
+    // Set when the turn ended through its turn_end after an error frame, so no wait warning applies.
+    let reported = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let unsubscribe: (() => void) | undefined;
     let onAbort: (() => void) | undefined;
@@ -113,11 +119,18 @@ export function createPushCall(deps: PushCallDeps, log: Logger): PushCall {
           endThinking();
         },
         onToolStatus: (state, toolId) => deps.turnOutput?.toolStatus(turn.id, state, toolId),
+        onError: (message) => {
+          failure = { message };
+        },
       });
       ends.push(
-        (turnEnd ?? new Promise<"cut">(() => {})).then((end) =>
-          end === "ended" ? "ok" : "superseded_by_user",
-        ),
+        (turnEnd ?? new Promise<"cut">(() => {})).then((end): TurnOutcome => {
+          if (end !== "ended") return "superseded_by_user";
+          if (failure === undefined) return "ok";
+          reported = true;
+          if (failure.message.trim() !== "") onErrorDetail?.(failure);
+          return "network_drop";
+        }),
       );
       if (externalSignal) {
         ends.push(
@@ -128,7 +141,7 @@ export function createPushCall(deps: PushCallDeps, log: Logger): PushCall {
         );
       }
       const outcome = await Promise.race(ends);
-      if (outcome === "network_stall" || outcome === "network_drop") {
+      if (!reported && (outcome === "network_stall" || outcome === "network_drop")) {
         log.warn(outcome, { stage: "push_wait", event_name: eventName, turn_id: turnId });
       }
       return outcome;
@@ -149,6 +162,7 @@ export function createPushCall(deps: PushCallDeps, log: Logger): PushCall {
     startSessionToken,
     endThinking,
     externalSignal,
+    onErrorDetail,
   }: PushCallArgs): Promise<TurnOutcome> {
     if (externalSignal?.aborted) return "superseded_by_user";
     // The screenshot first, then the attachments — the order the backend reads them in.
@@ -182,7 +196,7 @@ export function createPushCall(deps: PushCallDeps, log: Logger): PushCall {
       userHalfOnly: true,
     });
     if (externalSignal?.aborted) return "superseded_by_user";
-    return await awaitPushReply(turn, env.event_name, endThinking, externalSignal);
+    return await awaitPushReply(turn, env.event_name, endThinking, externalSignal, onErrorDetail);
   }
 
   return { send };

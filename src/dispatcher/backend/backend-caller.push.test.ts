@@ -21,7 +21,7 @@ import { CONFIG, makeLogger, makeTurnOutput, touchEnv, turnOf, userEnv } from ".
 import { createPushTurns } from "../turn/push-turn";
 import { createRenderTurn } from "../turn/render-turn";
 import { createTurnFeed } from "../turn/turn-feed";
-import { createBackendCaller, type TurnOutcome } from "./backend-caller";
+import { createBackendCaller, type TurnErrorDetail, type TurnOutcome } from "./backend-caller";
 import { PRE_SPEECH_TIMEOUT_MS } from "./idle-watchdog";
 
 vi.mock("../../io/chat/push/fit-turn-images", () => ({ fitTurnImages: vi.fn() }));
@@ -450,6 +450,83 @@ describe("backend_caller — push transport, the turn stays open", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     expect(turn.settled()).toBe("ok");
+  });
+
+  it("settles network_drop with the error frame's message on the turn's turn_end", async () => {
+    const caller = callerWith(true);
+    const details: TurnErrorDetail[] = [];
+    const turn = running(caller.call(turnOf(userEnv(), 7), undefined, (d) => details.push(d)));
+    await vi.advanceTimersByTimeAsync(0);
+
+    pushTurns.failed("7", "rate limit reached");
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(turn.settled()).toBeNull();
+
+    pushTurns.ended("7");
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(turn.settled()).toBe("network_drop");
+    expect(details).toEqual([{ message: "rate limit reached" }]);
+    expect(logger.warn).not.toHaveBeenCalledWith("network_drop", expect.anything());
+  });
+
+  it("still logs the dropped socket when it leaves ready after the error frame, before the turn_end", async () => {
+    const caller = callerWith(true);
+    const details: TurnErrorDetail[] = [];
+    const turn = running(caller.call(turnOf(userEnv(), 7), undefined, (d) => details.push(d)));
+    await vi.advanceTimersByTimeAsync(0);
+
+    pushTurns.failed("7", "rate limit reached");
+    socket.leaveReady();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(turn.settled()).toBe("network_drop");
+    expect(details).toEqual([]);
+    expect(logger.warn).toHaveBeenCalledWith(
+      "network_drop",
+      expect.objectContaining({ stage: "push_wait", turn_id: "7" }),
+    );
+  });
+
+  it("still logs the stall when the frame wait passes after the error frame, before the turn_end", async () => {
+    const caller = callerWith(true);
+    const turn = running(caller.call(turnOf(userEnv(), 7)));
+    await vi.advanceTimersByTimeAsync(0);
+
+    pushTurns.failed("7", "rate limit reached");
+    await vi.advanceTimersByTimeAsync(PRE_SPEECH_TIMEOUT_MS);
+
+    expect(turn.settled()).toBe("network_stall");
+    expect(logger.warn).toHaveBeenCalledWith(
+      "network_stall",
+      expect.objectContaining({ stage: "push_wait", turn_id: "7" }),
+    );
+  });
+
+  it("settles network_drop without a detail when the error frame's message is blank", async () => {
+    const caller = callerWith(true);
+    const details: TurnErrorDetail[] = [];
+    const turn = running(caller.call(turnOf(userEnv(), 7), undefined, (d) => details.push(d)));
+    await vi.advanceTimersByTimeAsync(0);
+
+    pushTurns.failed("7", "  ");
+    pushTurns.ended("7");
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(turn.settled()).toBe("network_drop");
+    expect(details).toEqual([]);
+  });
+
+  it("re-arms the frame wait on an error frame", async () => {
+    const caller = callerWith(true);
+    const turn = running(caller.call(turnOf(userEnv(), 7)));
+    await vi.advanceTimersByTimeAsync(PRE_SPEECH_TIMEOUT_MS - 1);
+
+    pushTurns.failed("7", "boom");
+    await vi.advanceTimersByTimeAsync(PRE_SPEECH_TIMEOUT_MS - 1);
+
+    expect(turn.settled()).toBeNull();
   });
 
   it("restarts the frame wait on every frame of the turn", async () => {

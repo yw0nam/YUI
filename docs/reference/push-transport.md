@@ -13,7 +13,7 @@ The client renders what arrives and judges nothing. Everything the backend must 
 | Screenshot of the turn | `screenshot:` line and an `image_url` part | `screenshot:` line and an `input_image` part | `screenshot:` line, plus the pixels in `turn.images` when the backend states `max_turn_bytes` |
 | Images the user attaches | `image_url` parts | `input_image` parts | In `turn.images`, after the screenshot, when the backend states `max_turn_bytes`; otherwise None |
 | Client-declared tools and their results ([client-tools.md](client-tools.md)) | `tools[]` on every request | `tools[]` on every request while `broker_base_url` is unset | `tool_call` for a tool the client declared in `hello.tools`, answered with `tool_result`. Cues arrive in `render` and `speech` segments |
-| Server error text on a failed user turn | Status and server text of an HTTP error on the request, 401 and 403 excepted. Status and server text of an error raised while reading the stream when it carries a status; generic text otherwise | Status and server text of an HTTP error, 401 and 403 excepted. Status and server text of an error raised while reading the stream when it carries a status; generic text otherwise. Generic text for an `error`, `response.failed` or `response.incomplete` event | Generic text |
+| Server error text on a failed user turn | Status and server text of an HTTP error on the request, 401 and 403 excepted. Status and server text of an error raised while reading the stream when it carries a status; generic text otherwise | Status and server text of an HTTP error, 401 and 403 excepted. Status and server text of an error raised while reading the stream when it carries a status; generic text otherwise. Generic text for an `error`, `response.failed` or `response.incomplete` event | The `message` of the `error` frame the turn got before its `turn_end`, with no status; generic text without one, which is also what a backend that does not send `error` frames gives |
 | Token usage readout | Usage chunk of each request | `usage` of `response.completed` | `usage` of the `turn_end` frame |
 | Model, `reasoning_effort` and instructions sent with the turn | All three | All three | None |
 | Reasoning display | `reasoning_content` and `reasoning` deltas | Reasoning and reasoning-summary deltas | `reasoning` frames and the `render` frame's `reasoning` |
@@ -46,6 +46,7 @@ The client renders what arrives and judges nothing. Everything the backend must 
 | `tool_result.result` | The text frame size |
 | `playback` frame size | The text frame size |
 | `playback.spoken`, `playback.unspoken` | 50 Unicode code points each |
+| `error.message` | The text frame size |
 
 The backend cuts `title` and `summary` to their limits, counting Unicode code points.
 
@@ -64,6 +65,7 @@ The client reconnects with the delay schedule in the limits table on every close
   "type": "hello",
   "key": "<chat API key>",
   "chat_id": "yui-3f9a2c1d",
+  "accepts": ["error"],
   "vocabulary": {
     "emotion_ids": ["neutral", "happy", "sad"],
     "motion_ids": ["idle", "happy"],
@@ -94,8 +96,11 @@ The client reconnects with the delay schedule in the limits table on every close
 |---|---|
 | `key` | The chat API key. It travels in this frame because the browser WebSocket API carries only the URL |
 | `chat_id` | The conversation the backend keeps state under. Generated once per installation, stored in settings, reused on every connection |
+| `accepts` | The frame type names the client reads beyond the base set: `ready`, `render`, `speech`, `turn_end`, `tool_status`, `tool_call`, `reasoning` and `delegations`. This client sends `["error"]`. Absent means the base set only. A backend sends a client no frame type outside the base set and its `accepts`, and reads a value that is not a list of strings as absent. The latest `hello` of the chat decides, including for frames the backend holds while the client is away |
 | `vocabulary` | What the client renders right now. `emotion_text_mode` is `"free"` or `"enum"`; `emotion_text_map` is the tag table used in `enum` mode |
 | `tools` | The function schemas the client declares on this connection, in the OpenAI function-tool shape. Absent when the client declares none. Fixed for the connection |
+
+A backend that does not read `accepts` sends no `error` frame and renders its failure line. A client that sends no `accepts` gets the rendered failure line.
 
 ### `ready` (backend → client)
 
@@ -249,7 +254,20 @@ The backend cuts `speech` frames from its reply while it is still writing it, an
 | `turn_id` | The turn the frame closes |
 | `usage` | Optional. The token usage of the turn's last LLM call, not a sum over the turn: `input_tokens`, `output_tokens` and `total_tokens`, all numbers, the same figures the request transports' usage readout takes. The client shows `total_tokens` beside the context window size. Absent when the backend has no usage for the turn. A `usage` that does not carry all three as numbers is read as absent, and the frame still ends the turn |
 
-Sent once per turn after its last `render`; a turn with no `render` sends it alone. It releases the running state the `turn` frame set. A backend that holds renders for a client that is away holds `turn_end` behind them, in the same order. A turn the backend interrupts to run a later turn on the same chat gets its `turn_end` after the later turn's frames. A turn whose text the backend takes into a turn already running on the same chat ends when that turn ends. A turn may get its `turn_end` before any of its renders; a `render` naming a turn the client has already closed still plays. A turn that fails gets its `turn_end` after the backend's failure line renders, or before the next turn's frames when no failure line comes. A `turn_end` for a turn the client does not hold is ignored.
+Sent once per turn after its last `render`; a turn with no `render` sends it alone. It releases the running state the `turn` frame set. A backend that holds renders for a client that is away holds `turn_end` behind them, in the same order. A turn the backend interrupts to run a later turn on the same chat gets its `turn_end` after the later turn's frames. A turn whose text the backend takes into a turn already running on the same chat ends when that turn ends. A turn may get its `turn_end` before any of its renders; a `render` naming a turn the client has already closed still plays. A turn that fails gets its `turn_end` after its `error` frame, or after the backend's failure line renders when the client did not list `error` in `accepts`, or before the next turn's frames when the backend has no failure text. A `turn_end` for a turn the client does not hold is ignored.
+
+### `error` (backend → client)
+
+```json
+{ "type": "error", "turn_id": "1789365854947", "message": "Provider returned 429: rate limit reached" }
+```
+
+| Field | Value |
+|---|---|
+| `turn_id` | The failed turn: the `turn` the client sent, or the id the backend minted |
+| `message` | The backend's own failure text, one line |
+
+Sent only to a client whose `hello` lists `error` in `accepts`, when a turn fails, before that turn's `turn_end`. The backend renders no failure line for that client. The `turn_end` still closes the turn. A turn that gets an `error` frame ends as failed on its `turn_end`: the client speaks its failure line, and shows `message` where it shows the server text of a failed request, as one line cut at 200 characters with no status in front. A turn the user typed shows it in the input's error line, and a turn the user spoke shows it in the status pill. The frame counts as a frame of the turn for the frame wait. An `error` frame for a turn the client did not send shows nothing, and one for a turn the user stopped is dropped.
 
 ### `tool_status` (backend → client)
 
@@ -367,4 +385,4 @@ The client keeps the latest list; a `done` item leaves the chip 30 minutes after
 
 ## Logging
 
-A `turn` sent over the socket writes a turn record with `spoke_text: false`. A `render` writes a `push.render` record with `source`, `turn_id`, the segment count, whether any speech played, and whether speech was still owed when the frame arrived. A `render` dropped for a stopped turn is logged as a `render` line with `dropped: "cut_turn"` and `stopped_count`, how many stopped turns are still waiting for their `turn_end`. A `speech` frame writes `push.speech` to the app log with `turn_id` and the segment count; one dropped for a stopped turn also carries `dropped: "cut_turn"` and `stopped_count`. Before the turn's first `render`, a frame wait that reaches the limit writes `network_stall` with `stage: push_wait`, and a wait the socket leaving `ready` ended writes `network_drop` with the same stage. After the first `render`, both carry `stage: push_turn_end`, and the turn counts as delivered. A `turn_end` writes `push.turn_end` to the app log with `turn_id`. A `stop` that went out writes `push.stop` with the number of turns it named. A `tool_status` frame writes `push.tool_status` with `turn_id`, `state` and `tool_id`; one dropped for a stopped turn carries `dropped: "cut_turn"` and `stopped_count` instead. A frame over the size limit is never sent and is dropped unread on arrival; either case writes `frame_oversize` with `direction`. The app log carries `ws_open`, `ws_ready`, `ws_close` with the close code, and `ws_reconnect` with the delay.
+A `turn` sent over the socket writes a turn record with `spoke_text: false`. A `render` writes a `push.render` record with `source`, `turn_id`, the segment count, whether any speech played, and whether speech was still owed when the frame arrived. A `render` dropped for a stopped turn is logged as a `render` line with `dropped: "cut_turn"` and `stopped_count`, how many stopped turns are still waiting for their `turn_end`. A `speech` frame writes `push.speech` to the app log with `turn_id` and the segment count; one dropped for a stopped turn also carries `dropped: "cut_turn"` and `stopped_count`. Before the turn's first `render`, a frame wait that reaches the limit writes `network_stall` with `stage: push_wait`, and a wait the socket leaving `ready` ended writes `network_drop` with the same stage. After the first `render`, both carry `stage: push_turn_end`, and the turn counts as delivered. A `turn_end` writes `push.turn_end` to the app log with `turn_id`. An `error` frame writes `push.error` with `turn_id` and `message`; one dropped for a stopped turn carries `dropped: "cut_turn"` and `stopped_count` instead. A turn that ends on its `turn_end` after an `error` frame writes no `network_drop` line. A `stop` that went out writes `push.stop` with the number of turns it named. A `tool_status` frame writes `push.tool_status` with `turn_id`, `state` and `tool_id`; one dropped for a stopped turn carries `dropped: "cut_turn"` and `stopped_count` instead. A frame over the size limit is never sent and is dropped unread on arrival; either case writes `frame_oversize` with `direction`. The app log carries `ws_open`, `ws_ready`, `ws_close` with the close code, and `ws_reconnect` with the delay.
