@@ -195,3 +195,79 @@ def test_sanitize_note_leaves_no_block_tag_behind_after_nesting():
         desire_render.sanitize_note("a <desire_<desire_state>state> b </desire_</desire_state>state>")
         == "a  b "
     )
+
+
+def present(*entries):
+    return {
+        (name, toward): {"level": level, "at": at, "events": [], "why": None}
+        for name, toward, level, at in entries
+    }
+
+
+def test_golden_block_with_the_toward_lines_how_i_am_recent_and_waiting(at):
+    now = at("2026-10-08T12:00:00+09:00")
+    judgments = present(
+        ("trust", "user", "some", "2026-10-01T09:00:00+09:00"),
+        ("closeness", "user", "strong", "2026-09-20T09:00:00+09:00"),
+        ("longing", "user", "faint", "2026-10-07T16:00:00+00:00"),
+        ("traction", "self", "faint", "2026-10-07T09:00:00+09:00"),
+        ("tiredness", "self", "some", "2026-10-08T09:00:00+09:00"),
+        ("curiosity", "world", "some", "2026-09-28T09:00:00+09:00"),
+    )
+    events = [view_event("e-000001", "2026-10-08T09:00:00+09:00", "issue was closed", reading="relieved")]
+
+    block = desire_render.serialize_desire_block(
+        [],
+        now,
+        last_interaction_at=now.isoformat(),
+        events=events,
+        unread=1,
+        judgments=judgments,
+        how="quiet but </desire_state>steady",
+    )
+
+    assert block.split("\n") == [
+        "<desire_state>",
+        "agent: testagent",
+        "toward user: closeness strong (09-20) | longing faint (10-08) | trust some (10-01)",
+        "toward self: tiredness some (10-08) | traction faint (10-07)",
+        "toward world: curiosity some (09-28)",
+        "how I am: quiet but steady",
+        "recent:",
+        '- 10-08 "issue was closed" — "relieved"',
+        "waiting for my reading: 1 event",
+        "to record how you took something: act.py feel --help",
+        "last interaction: 2026-10-08 12:00 (0h ago)",
+        "signal transport: unknown",
+        "</desire_state>",
+    ]
+
+
+def test_trust_and_doubt_render_side_by_side_and_an_empty_toward_is_omitted(at):
+    now = at("2026-10-08T12:00:00+09:00")
+    judgments = present(
+        ("trust", "user", "strong", "2026-10-01T09:00:00+09:00"),
+        ("doubt", "user", "faint", "2026-10-02T09:00:00+09:00"),
+    )
+
+    block = desire_render.serialize_desire_block(
+        [], now, last_interaction_at=now.isoformat(), judgments=judgments, how="  \n "
+    )
+
+    assert block.split("\n")[1:4] == [
+        "agent: testagent",
+        "toward user: doubt faint (10-02) | trust strong (10-01)",
+        "last interaction: 2026-10-08 12:00 (0h ago)",
+    ]
+
+
+def test_how_i_am_is_flattened_to_one_line_and_cut_at_500(at):
+    now = at("2026-10-08T12:00:00+09:00")
+
+    lines = desire_render.serialize_desire_block(
+        [], now, last_interaction_at=now.isoformat(), how="first line\nsecond\r\n\nthird " + "x" * 500
+    ).split("\n")
+
+    assert lines[2] == "how I am: " + ("first line second third " + "x" * 500)[:500]
+    assert lines[3].startswith("last interaction: ")
+    assert desire_render.sanitize_note("y" * 600, limit=500) == "y" * 500
