@@ -5,87 +5,119 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Architecture map</title>
 <style>
+@font-face { font-family: "Pretendard JP Variable"; src: url("../../../public/fonts/PretendardJPVariable.woff2") format("woff2"); font-weight: 400 600; font-display: swap; }
 :root {
-  --bg: #f6f7f9; --surface: #ffffff; --raised: #eef1f5; --line: #d5dae2; --text: #1b2330; --muted: #5d6878;
-  --accent: #2b5fd9; --accent-soft: #e3ebff; --ext: #f3efe6; --ext-line: #c9bfa6; --shell: #eaf4ee; --shell-line: #a9cbb6;
-  --req: #b45309; --req-soft: #fdf1df; --push: #0f766e; --push-soft: #dff5f1; --in: #0f766e; --out: #b45309;
-  --add: #177245; --del: #b42318; --chg: #a8590b;
-  --z0: #2b5fd9; --z0-bg: #eaf0ff; --z1: #a8590b; --z1-bg: #fdf3e3; --z2: #177245; --z2-bg: #e6f5ec; --z3: #6b45b8; --z3-bg: #f1ebfb;
+  color-scheme: light dark;
+  --sans: "Pretendard JP Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --bg: oklch(0.972 0.004 80); --surface: oklch(0.995 0.003 80); --raised: oklch(0.935 0.006 80);
+  --line: oklch(0.22 0.01 70 / 0.13); --line-strong: oklch(0.22 0.01 70 / 0.34);
+  --text: oklch(0.22 0.01 70); --dim: oklch(0.38 0.012 70); --muted: oklch(0.5 0.012 70);
+  --accent: oklch(0.55 0.13 65); --accent-soft: oklch(0.55 0.13 65 / 0.45); --accent-faint: oklch(0.55 0.13 65 / 0.12);
+  --request: oklch(0.5 0.1 200); --push: oklch(0.5 0.16 340); --add: oklch(0.5 0.13 150); --del: oklch(0.53 0.17 30);
+  --zl: 0.47; --zc: 0.1; --zf: 7%; --zs: 32%; --h0: 245; --h1: 25; --h2: 140; --h3: 295;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #14181f; --surface: #1c222c; --raised: #252d39; --line: #364152; --text: #e8ecf2; --muted: #9aa6b6;
-    --accent: #8fb0ff; --accent-soft: #23335c; --ext: #2a2620; --ext-line: #6f6449; --shell: #1d2a24; --shell-line: #47705a;
-    --req: #f0b46a; --req-soft: #33291a; --push: #5fd0c2; --push-soft: #17302d; --in: #5fd0c2; --out: #f0b46a;
-    --add: #6fd39c; --del: #ff8a80; --chg: #f0b46a;
-    --z0: #8fb0ff; --z0-bg: #1a2440; --z1: #f0b46a; --z1-bg: #2b2317; --z2: #6fd39c; --z2-bg: #162a20; --z3: #b89cf0; --z3-bg: #231c33;
+    --bg: oklch(0.165 0.008 70); --surface: oklch(0.25 0.01 70); --raised: oklch(0.3 0.011 70);
+    --line: oklch(0.97 0.01 80 / 0.18); --line-strong: oklch(0.97 0.01 80 / 0.4);
+    --text: oklch(0.96 0.012 80); --dim: oklch(0.86 0.014 78); --muted: oklch(0.74 0.014 74);
+    --accent: oklch(0.8 0.13 75); --accent-soft: oklch(0.8 0.13 75 / 0.45); --accent-faint: oklch(0.8 0.13 75 / 0.14);
+    --request: oklch(0.8 0.09 200); --push: oklch(0.8 0.11 340); --add: oklch(0.82 0.14 150); --del: oklch(0.77 0.11 35);
+    --zl: 0.84; --zc: 0.1; --zf: 13%; --zs: 55%;
   }
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { height: 100%; margin: 0; }
-body { background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; display: grid; grid-template-rows: auto 1fr; }
-header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 12px 20px; border-bottom: 1px solid var(--line); background: var(--surface); }
-h1 { font-size: 16px; margin: 0; }
-h1 small { display: block; font-weight: 400; font-size: 12px; color: var(--muted); }
-.seg { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-.seg button { font: inherit; color: var(--text); background: var(--surface); border: 0; border-right: 1px solid var(--line); padding: 6px 14px; cursor: pointer; }
-.seg button:last-child { border-right: 0; }
-button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-select { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; max-width: 360px; }
-button:focus-visible, select:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; min-height: 0; }
-#stage { overflow: auto; padding: 16px 20px 28px; }
-#panel { border-left: 1px solid var(--line); background: var(--surface); overflow: auto; padding: 18px 20px; }
-#panel h2 { font-size: 15px; margin: 0 0 4px; }
-#panel h3 { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 18px 0 6px; }
-#panel p { margin: 0 0 8px; color: var(--muted); }
-.row { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; background: var(--bg); }
+body { background: var(--bg); color: var(--text); font: 14px/1.5 var(--sans); display: grid; grid-template-rows: auto 1fr; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; padding: 12px 24px; border-bottom: 1px solid var(--line); }
+h1 { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; margin: 0 8px 0 0; }
+h1 small { display: block; font-weight: 400; font-size: 12px; letter-spacing: 0; color: var(--muted); }
+.seg { display: flex; gap: 2px; padding: 2px; border-radius: 10px; background: var(--raised); }
+.seg button { font: inherit; font-size: 13px; color: var(--dim); background: none; border: 0; border-radius: 8px; padding: 5px 14px; cursor: pointer; transition: color .14s, background-color .14s; }
+.seg button:hover { color: var(--text); }
+.seg button:active { transform: scale(.98); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); font-weight: 600; }
+select { font: inherit; font-size: 13px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; max-width: 360px; }
+button:focus-visible, select:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent-soft); outline-offset: 2px; }
+main { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 380px; min-height: 0; }
+#stage { overflow: auto; padding: 20px 24px 64px; cursor: grab; }
+#stage svg { user-select: none; -webkit-user-select: none; }
+#panel { border-left: 1px solid var(--line); overflow: auto; padding: 20px 20px 28px; }
+#panel h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.015em; line-height: 1.25; margin: 0 0 6px; }
+#panel h3 { font-size: 13px; font-weight: 600; margin: 22px 0 8px; }
+#panel p { margin: 0 0 8px; color: var(--dim); }
+.group { background: var(--surface); border-radius: 12px; overflow: hidden; }
+.row { padding: 9px 12px; }
+.row + .row { border-top: 1px solid var(--line); }
 .row b { font-weight: 600; }
-code { font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-word; }
+.ex { margin-top: 10px; }
+.row > .ex:first-child { margin-top: 0; }
+code { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-word; }
+.ex > code { display: block; margin: 2px 0; }
 .meta { color: var(--muted); font-size: 12px; }
-details > summary { cursor: pointer; list-style: none; }
-details > summary::-webkit-details-marker { display: none; }
-details > summary::after { content: " ▸"; color: var(--muted); }
-details[open] > summary::after { content: " ▾"; }
-.tag { display: inline-block; font-size: 11px; border-radius: 99px; padding: 0 7px; border: 1px solid currentColor; }
-.tag.request { color: var(--req); } .tag.push { color: var(--push); }
-.added { color: var(--add); } .removed { color: var(--del); } .changed { color: var(--chg); }
-.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); margin: 10px 0 0; }
-.sw { display: inline-block; width: 14px; height: 10px; border-radius: 3px; border: 1px solid; vertical-align: -1px; margin-right: 5px; }
+summary { display: flex; align-items: baseline; gap: 6px; cursor: pointer; list-style: none; border-radius: 6px; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: ""; flex: none; align-self: center; margin-left: auto; width: 6px; height: 6px; border: solid var(--muted); border-width: 0 1.5px 1.5px 0; transform: rotate(-45deg); transition: transform .14s; }
+details[open] > summary::after { transform: rotate(45deg); }
+.tag { display: inline-block; font-size: 11px; font-weight: 500; border-radius: 999px; padding: 0 7px; margin-left: 4px; }
+.tag.request { color: var(--request); background: color-mix(in oklch, var(--request) 14%, transparent); }
+.tag.push { color: var(--push); background: color-mix(in oklch, var(--push) 14%, transparent); }
+.added { color: var(--add); } .removed { color: var(--del); } .changed { color: var(--dim); }
+.legend { max-width: 78ch; font-size: 12px; color: var(--muted); margin: 14px 0 0; }
+.zone, .zc { --z: oklch(var(--zl) var(--zc) var(--h)); }
+.zc { color: var(--z); }
 svg { display: block; }
-svg text { fill: var(--text); font: 12px system-ui, -apple-system, "Segoe UI", sans-serif; }
-.box rect { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
-.box.external rect { fill: var(--ext); stroke: var(--ext-line); stroke-dasharray: 5 3; }
-.box.shell rect { fill: var(--shell); stroke: var(--shell-line); }
-.box.person rect { fill: var(--accent-soft); stroke: var(--accent); }
+svg text { fill: var(--text); font: 12px var(--sans); }
 .box { cursor: pointer; }
-.box .name { font-weight: 650; font-size: 13.5px; }
-.box .kind { fill: var(--muted); font-size: 10.5px; }
-.box .desc { color: var(--muted); font: 11px/1.3 system-ui, sans-serif; }
-.box.sel rect { stroke: var(--accent); stroke-width: 2.4; stroke-dasharray: none; }
-.box.rel-in rect { stroke: var(--in); stroke-width: 2; stroke-dasharray: none; }
-.box.rel-out rect { stroke: var(--out); stroke-width: 2; stroke-dasharray: none; }
-.box.rel-both rect { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 3 2; }
-.dim { opacity: .28; }
-.link path { stroke: var(--muted); stroke-width: 1.4; fill: none; }
-.link.on path { stroke: var(--accent); stroke-width: 2.2; }
-.lbl { font: 11px/1.25 system-ui, sans-serif; color: var(--text); background: var(--bg); border-radius: 4px; padding: 1px 4px; text-align: center; display: inline-block; }
-.zone rect { stroke-width: 1.2; }
-.zone .zt { font-size: 12.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-.life { stroke: var(--line); stroke-dasharray: 4 4; }
+.box rect { fill: var(--surface); stroke: var(--line); stroke-width: 1; transition: stroke .14s; }
+.box:hover rect { stroke: var(--line-strong); }
+.box.external rect { fill: none; stroke: var(--line-strong); stroke-dasharray: 4 3; }
+.box.person rect { fill: var(--raised); }
+.box .name { font-weight: 600; font-size: 14px; }
+.box .kind { fill: var(--muted); font-size: 11px; }
+.box .rel { fill: var(--dim); font-size: 11px; font-weight: 600; }
+.box .desc { color: var(--dim); font: 12px/1.3 var(--sans); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.box.sel rect { fill: var(--surface); stroke: var(--accent); stroke-width: 2; stroke-dasharray: none; }
+.dim { opacity: .3; }
+.link path { stroke: var(--dim); stroke-width: 1.4; fill: none; }
+.link.on path { stroke: var(--accent); stroke-width: 2; }
+.lbl { font: 11.5px/1.25 var(--sans); color: var(--text); background: var(--bg); border-radius: 4px; padding: 1px 4px; text-align: center; display: inline-block; }
+.link.on .lbl { color: var(--text); }
+.zone rect { fill: color-mix(in oklch, var(--z) var(--zf), transparent); stroke: color-mix(in oklch, var(--z) var(--zs), transparent); }
+.zone .zt { fill: var(--z); font-size: 13.5px; font-weight: 600; }
+.zone .zbar { fill: var(--z); stroke: none; }
+.zone .zn { font: 11.5px/1.2 var(--sans); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.life { stroke: var(--line-strong); stroke-dasharray: 2 5; }
 .msg { cursor: pointer; }
-.msg path { stroke: var(--text); stroke-width: 1.4; fill: none; }
+.msg path { stroke: var(--dim); stroke-width: 1.4; fill: none; }
+.msg circle { fill: var(--dim); }
 .msg text { paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; }
-.msg.request path { stroke: var(--req); } .msg.push path { stroke: var(--push); }
-.msg.sel path { stroke-width: 2.8; } .msg.sel text { font-weight: 650; }
-.num { fill: var(--muted); font-size: 11px; }
-.note rect { fill: var(--raised); stroke: var(--line); }
-.note div { font: 11.5px/1.3 system-ui, sans-serif; color: var(--text); padding: 5px 8px; }
-.frame rect { fill: var(--req-soft); stroke: var(--req); stroke-dasharray: 5 3; opacity: .9; }
-.frame.push rect { fill: var(--push-soft); stroke: var(--push); }
-.frame text { font-size: 11px; font-weight: 650; fill: var(--req); } .frame.push text { fill: var(--push); }
-.count { font-size: 11px; font-weight: 700; }
+.msg.request path { stroke: var(--request); } .msg.request circle { fill: var(--request); }
+.msg.push path { stroke: var(--push); } .msg.push circle { fill: var(--push); }
+.msg.sel path { stroke-width: 2.2; } .msg.sel text { font-weight: 600; stroke: none; }
+.msg .band { fill: var(--accent-faint); }
+.num { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.note rect { fill: var(--raised); stroke: none; }
+.note.sel rect { stroke: var(--accent); stroke-width: 2; }
+.note div { font: 11.5px/1.35 var(--sans); color: var(--text); padding: 5px 10px; }
+.frame { --t: var(--request); }
+.frame.push { --t: var(--push); }
+.frame rect { fill: color-mix(in oklch, var(--t) 8%, transparent); stroke: color-mix(in oklch, var(--t) 40%, transparent); }
+.frame text { font-size: 11px; font-weight: 600; fill: var(--t); }
+.msg .badge { fill: var(--bg); stroke: var(--muted); }
+.link.on .badge { stroke: var(--accent); }
+.msg .count { font-size: 11px; font-weight: 600; stroke: none; }
+#zoom { position: absolute; left: 24px; bottom: 16px; box-shadow: 0 8px 32px oklch(0.12 0.02 70 / 0.25); }
+#zoom button { padding: 5px 11px; font-variant-numeric: tabular-nums; }
+@keyframes enter { from { opacity: 0; transform: translateY(6px); } }
+@keyframes fade { from { opacity: 1; } }
+@keyframes travel { to { stroke-dashoffset: -14; } }
+#stage svg.enter { animation: enter .28s cubic-bezier(0.22, 1, 0.36, 1); }
+#panel > * { animation: enter .22s cubic-bezier(0.22, 1, 0.36, 1) both; }
+svg.fresh .dim { animation: fade .25s; }
+.link.on path, .msg.sel path { stroke-dasharray: 8 6; animation: travel .7s linear infinite; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
 <body>
@@ -96,21 +128,24 @@ svg text { fill: var(--text); font: 12px system-ui, -apple-system, "Segoe UI", s
   <div class="seg" id="transports" hidden></div>
   <div class="seg" id="compare" hidden></div>
 </header>
-<main><div id="stage"></div><aside id="panel"></aside></main>
+<main><div id="stage"></div><aside id="panel"></aside>
+  <div class="seg" id="zoom"><button data-z="out" aria-label="Zoom out">−</button><button data-z="fit" id="zlabel" aria-label="Fit to width"></button><button data-z="in" aria-label="Zoom in">+</button></div>
+</main>
 <script>
 const NS = "http://www.w3.org/2000/svg";
-const state = { view: "overview", flow: "", sel: "", step: -1, transport: "all", compare: false };
+const state = { view: "overview", flow: "", sel: "", step: -1, transport: "all", compare: false, zoom: null };
 let DATA, BASE, mod, nodeModule, pairs;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 function el(tag, attrs = {}, parent) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.append(e); return e; }
 function html(parent, x, y, w, h, inner) { const f = el("foreignObject", { x, y, width: w, height: h }, parent); f.innerHTML = `<div xmlns="http://www.w3.org/1999/xhtml">${inner}</div>`; return f; }
 function marker(defs, id, color) { const m = el("marker", { id, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 9, markerHeight: 9, orient: "auto-start-reverse", markerUnits: "userSpaceOnUse" }, defs); el("path", { d: "M0 0L10 5L0 10z", fill: color }, m); }
 function load(src, done) { const s = document.createElement("script"); s.src = src; s.onload = () => done(true); s.onerror = () => done(false); document.head.append(s); }
-const zoneVar = id => `--z${DATA.zones.findIndex(z => z.id === id) % 4}`;
+const hue = id => `--h:var(--h${DATA.zones.findIndex(z => z.id === id) % 4})`;
+const group = rows => `<div class="group">${rows}</div>`;
 const tagOf = t => t === "request" || t === "push" ? ` <span class="tag ${t}">${t}</span>` : "";
 function edgeRow(e, names) {
   const ends = names ? `<b>${esc(names[e.from])} → ${esc(names[e.to])}</b>` : "";
-  return `<div style="margin-top:6px">${ends}<div><code>${esc(e.carries)}</code></div><div class="meta">${esc(e.kind)}${tagOf(e.transport)}${e.wiring ? ` · wired in <code>${esc(e.wiring)}</code>` : ""}</div></div>`;
+  return `<div class="ex">${ends}<code>${esc(e.carries)}</code><div class="meta">${esc(e.kind)}${tagOf(e.transport)}</div>${e.wiring ? `<div class="meta">wired in <code>${esc(e.wiring)}</code></div>` : ""}</div>`;
 }
 
 // ---------- overview ----------
@@ -133,15 +168,15 @@ function related(id) {
 function overview(stage) {
   const pos = place(), cols = Math.max(...DATA.modules.map(m => m.col)), rows = Math.max(...DATA.modules.map(m => m.row));
   const w = X0 * 2 + cols * CW + BW + 16, h = Y0 + rows * RH + BH + 30, diff = state.compare ? difference() : null;
-  const svg = el("svg", { viewBox: `0 0 ${w} ${h}`, width: "100%", style: `max-width:${w}px;min-width:${Math.round(w * .78)}px`, role: "group", "aria-label": "Core modules and the main paths between them" }, stage);
-  const defs = el("defs", {}, svg); marker(defs, "ah", "var(--muted)"); marker(defs, "ah-on", "var(--accent)");
+  const svg = el("svg", { viewBox: `0 0 ${w} ${h}`, role: "group", "aria-label": "Core modules and the main paths between them" }, stage);
+  const defs = el("defs", {}, svg); marker(defs, "ah", "var(--dim)"); marker(defs, "ah-on", "var(--accent)");
   for (const z of DATA.zones) {
     const ps = DATA.modules.filter(m => m.zone === z.id).map(m => pos[m.id]); if (!ps.length) continue;
     const x = Math.min(...ps.map(p => p.x)) - ZP, y = Math.min(...ps.map(p => p.y)) - ZT, x2 = Math.max(...ps.map(p => p.x + p.w)) + ZP, y2 = Math.max(...ps.map(p => p.y + p.h)) + ZP;
-    const g = el("g", { class: "zone" }, svg);
-    el("rect", { x, y, width: x2 - x, height: y2 - y, rx: 14, fill: `var(${zoneVar(z.id)}-bg)`, stroke: `var(${zoneVar(z.id)})` }, g);
-    const t = el("text", { x: x + 12, y: y + 17, class: "zt" }, g); t.textContent = z.title; t.style.fill = `var(${zoneVar(z.id)})`;
-    html(g, x + 12, y + 20, x2 - x - 20, 18, `<div style="font:11px/1.2 system-ui,sans-serif;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(z.note)}</div>`);
+    const g = el("g", { class: "zone", style: hue(z.id) }, svg);
+    el("rect", { x, y, width: x2 - x, height: y2 - y, rx: 14 }, g);
+    el("text", { x: x + 12, y: y + 18, class: "zt" }, g).textContent = z.title;
+    html(g, x + 12, y + 21, x2 - x - 20, 18, `<div class="zn">${esc(z.note)}</div>`);
   }
   const rel = state.sel ? related(state.sel) : {};
   const twoWay = new Set(DATA.links.filter(l => DATA.links.some(o => o.from === l.to && o.to === l.from)).map(l => l.from + ">" + l.to));
@@ -154,7 +189,7 @@ function overview(stage) {
     const g = el("g", { class: "link" + (on ? " on" : "") + (state.sel && !on ? " dim" : "") }, svg), end = `url(#${on ? "ah-on" : "ah"})`;
     const label = (x, y, bw, bh, align, justify) => html(g, x, y, bw, bh, `<div style="display:flex;height:${bh}px;align-items:${align};justify-content:${justify}"><span class="lbl">${esc(l.label)}</span></div>`);
     if (l.arc) {
-      const ax = a.x + a.w / 2, bx = b.x + b.w / 2, top = Y0 - ZT - 26, s = bx < ax ? -1 : 1;
+      const ax = a.x + a.w * .85, bx = b.x + b.w * .85, top = Y0 - ZT - 26, s = bx < ax ? -1 : 1;
       el("path", { d: `M${ax} ${a.y - ZT}V${top + 12}Q${ax} ${top} ${ax + 12 * s} ${top}H${bx - 12 * s}Q${bx} ${top} ${bx} ${top + 12}V${b.y - 2}`, "marker-end": end }, g);
       label((ax + bx) / 2 - 150, top - 12, 300, 24, "center", "center"); continue;
     }
@@ -171,34 +206,35 @@ function overview(stage) {
     el("rect", { x: p.x, y: p.y, width: p.w, height: p.h, rx: 10 }, g);
     el("text", { x: p.x + 12, y: p.y + 21, class: "name" }, g).textContent = (mark ? mark + " " : "") + m.label;
     el("text", { x: p.x + p.w - 10, y: p.y + 20, class: "kind", "text-anchor": "end" }, g).textContent = m.kind === "module" ? "" : m.kind === "shell" ? "Rust" : m.kind;
-    html(g, p.x + 12, p.y + 28, p.w - 22, BH - 32 - (r ? 12 : 0), `<div class="desc" style="max-height:${BH - 32 - (r ? 12 : 0)}px;overflow:hidden">${esc(m.desc)}</div>`);
-    if (r) { const k = el("text", { x: p.x + p.w - 10, y: p.y + BH - 8, class: "kind", "text-anchor": "end" }, g); k.textContent = { in: "sends to selection ▸", out: "◂ receives from selection", both: "◂ both ways ▸" }[r]; k.style.fill = `var(--${r === "both" ? "accent" : r})`; k.style.fontWeight = 700; }
+    html(g, p.x + 12, p.y + 28, p.w - 22, p.h - 34, `<div class="desc" style="-webkit-line-clamp:${r ? 2 : m.kind === "person" ? 12 : 3}">${esc(m.desc)}</div>`);
+    if (r) el("text", { x: p.x + p.w - 10, y: p.y + BH - 8, class: "rel", "text-anchor": "end" }, g).textContent = { in: "sends to selection", out: "receives from selection", both: "both ways" }[r];
     const pick = () => { state.sel = state.sel === m.id ? "" : m.id; render(); };
     g.addEventListener("click", pick); g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
   }
-  const lg = document.createElement("div"); lg.className = "legend";
-  lg.innerHTML = `<span><i class="sw" style="background:var(--surface);border-color:var(--line)"></i>module</span><span><i class="sw" style="background:var(--shell);border-color:var(--shell-line)"></i>Rust (src-tauri)</span><span><i class="sw" style="background:var(--ext);border-color:var(--ext-line);border-style:dashed"></i>outside the repo</span><span><i class="sw" style="background:var(--accent-soft);border-color:var(--accent)"></i>person</span><span>Tinted areas group modules by role.</span><span>→ what crosses, in the direction it travels. Lines are the main paths; select a module for every exchange.</span>`;
+  const lg = document.createElement("p"); lg.className = "legend";
+  lg.textContent = "A tinted area groups modules by role. A dashed box sits outside the repo. A line is a main path, labelled with what crosses in the direction of the arrow. Select a module for every exchange.";
   stage.append(lg);
 }
 function exchangeRows(id, dir) {
   const names = Object.fromEntries(DATA.nodes.map(n => [n.id, n.label]));
-  return Object.keys(pairs).filter(k => k.split(">")[dir === "out" ? 0 : 1] === id).map(k => {
+  const rows = Object.keys(pairs).filter(k => k.split(">")[dir === "out" ? 0 : 1] === id).map(k => {
     const other = k.split(">")[dir === "out" ? 1 : 0], items = pairs[k];
-    return `<details class="row"><summary><b>${dir === "out" ? "→" : "←"} ${esc(mod[other].label)}</b> <span class="meta">${items.length} exchange${items.length > 1 ? "s" : ""}</span></summary>${items.map(e => edgeRow(e, names)).join("")}</details>`;
-  }).join("") || `<p>None.</p>`;
+    return `<details class="row"><summary><span class="meta">${dir === "out" ? "→" : "←"}</span><b>${esc(mod[other].label)}</b><span class="meta">${items.length} exchange${items.length > 1 ? "s" : ""}</span></summary>${items.map(e => edgeRow(e, names)).join("")}</details>`;
+  }).join("");
+  return rows ? group(rows) : "<p>None.</p>";
 }
 function overviewPanel(panel) {
   if (state.compare) { panel.innerHTML = differencePanel(); return; }
   if (!state.sel) {
-    panel.innerHTML = `<h2>Core modules</h2><p>A line is a main path of data and its label says what crosses. Select a module to see what it is made of and everything it exchanges with the others.</p><h3>Groups</h3>${DATA.zones.map(z => `<div class="row"><b style="color:var(${zoneVar(z.id)})">${esc(z.title)}</b><div class="meta">${esc(z.note)}</div></div>`).join("")}`;
+    panel.innerHTML = `<h2>Core modules</h2><p>A line is a main path of data and its label says what crosses. Select a module to see what it is made of and everything it exchanges with the others.</p><h3>Groups</h3>${group(DATA.zones.map(z => `<div class="row"><b class="zc" style="${hue(z.id)}">${esc(z.title)}</b><div class="meta">${esc(z.note)}</div></div>`).join(""))}`;
     return;
   }
   const m = mod[state.sel], parts = DATA.nodes.filter(n => n.module === m.id && n.paths.length), names = Object.fromEntries(DATA.nodes.map(n => [n.id, n.label]));
   const claims = DATA.nodes.flatMap(n => n.paths), shared = x => claims.some(c => c.startsWith(x + "/")) ? " <span class=\"meta\">files outside the folders of other parts</span>" : "";
   const within = DATA.edges.filter(e => nodeModule[e.from] === m.id && nodeModule[e.to] === m.id);
   panel.innerHTML = `<h2>${esc(m.label)}</h2><p>${esc(m.desc)}</p>
-  <h3>Made of</h3>${parts.map(p => `<details class="row"><summary><b>${esc(p.label)}</b></summary><div class="meta" style="margin-top:4px">${esc(p.role)}</div>${p.paths.map(x => `<div><code>${esc(x)}</code>${shared(x)}</div>`).join("")}</details>`).join("") || "<p>Outside the repo.</p>"}
-  <h3>Sends to</h3>${exchangeRows(m.id, "out")}<h3>Receives from</h3>${exchangeRows(m.id, "in")}${within.length ? `<h3>Between its parts</h3><details class="row"><summary><b>${within.length} exchange${within.length > 1 ? "s" : ""}</b></summary>${within.map(e => edgeRow(e, names)).join("")}</details>` : ""}`;
+  <h3>Made of</h3>${parts.length ? group(parts.map(p => `<details class="row"><summary><b>${esc(p.label)}</b></summary><div class="meta" style="margin-top:4px">${esc(p.role)}</div>${p.paths.map(x => `<div><code>${esc(x)}</code>${shared(x)}</div>`).join("")}</details>`).join("")) : "<p>Outside the repo.</p>"}
+  <h3>Sends to</h3>${exchangeRows(m.id, "out")}<h3>Receives from</h3>${exchangeRows(m.id, "in")}${within.length ? `<h3>Between its parts</h3>${group(`<details class="row"><summary><b>${within.length} exchange${within.length > 1 ? "s" : ""}</b></summary>${within.map(e => edgeRow(e, names)).join("")}</details>`)}` : ""}`;
 }
 
 // ---------- flow (sequence) ----------
@@ -215,13 +251,13 @@ function flow(stage) {
   let y = HEAD + 26; const rows = [];
   for (const s of steps) { const rh = s.to ? 42 : 64; rows.push({ s, y, rh }); y += rh; }
   const w = GX + P.length * LW + 20, h = y + 20;
-  const svg = el("svg", { viewBox: `0 0 ${w} ${h}`, width: "100%", style: `max-width:${w}px;min-width:${Math.round(w * .8)}px`, role: "group", "aria-label": currentFlow().title }, stage);
-  const defs = el("defs", {}, svg); marker(defs, "m", "var(--text)"); marker(defs, "m-request", "var(--req)"); marker(defs, "m-push", "var(--push)");
+  const svg = el("svg", { viewBox: `0 0 ${w} ${h}`, role: "group", "aria-label": currentFlow().title }, stage);
+  const defs = el("defs", {}, svg); marker(defs, "m", "var(--dim)"); marker(defs, "m-request", "var(--request)"); marker(defs, "m-push", "var(--push)");
   for (let i = 0; i < rows.length;) {
     const t = rows[i].s.transport; if (!t || state.transport !== "all") { i++; continue; }
     let j = i; while (j + 1 < rows.length && rows[j + 1].s.transport === t) j++;
     const g = el("g", { class: "frame " + t }, svg);
-    el("rect", { x: 30, y: rows[i].y - 14, width: w - 40, height: rows[j].y + rows[j].rh - rows[i].y + 4, rx: 8 }, g);
+    el("rect", { x: 30, y: rows[i].y - 14, width: w - 40, height: rows[j].y + rows[j].rh - rows[i].y + 4, rx: 10 }, g);
     el("text", { x: w - 18, y: rows[i].y, "text-anchor": "end" }, g).textContent = `${t} transport only`;
     i = j + 1;
   }
@@ -229,14 +265,14 @@ function flow(stage) {
     const m = mod[id];
     el("line", { class: "life", x1: x(id), y1: HEAD, x2: x(id), y2: h - 10 }, svg);
     const g = el("g", { class: "box " + m.kind, style: "cursor:default" }, svg);
-    el("rect", { x: x(id) - 62, y: 30, width: 124, height: HEAD - 36, rx: 8 }, g);
-    html(g, x(id) - 58, 32, 116, HEAD - 40, `<div style="display:flex;height:${HEAD - 40}px;align-items:center;justify-content:center;text-align:center;font:650 12px/1.2 system-ui,sans-serif;color:var(--text)">${esc(m.label)}</div>`);
+    el("rect", { x: x(id) - 62, y: 30, width: 124, height: HEAD - 36, rx: 10 }, g);
+    html(g, x(id) - 58, 32, 116, HEAD - 40, `<div style="display:flex;height:${HEAD - 40}px;align-items:center;justify-content:center;text-align:center;font:600 12px/1.2 var(--sans);color:var(--text)">${esc(m.label)}</div>`);
   }
   for (const z of DATA.zones) {
     const ids = P.filter(id => mod[id].zone === z.id); if (!ids.length) continue;
-    const xa = x(ids[0]) - 64, xb = x(ids[ids.length - 1]) + 64, g = el("g", { class: "zone" }, svg);
-    el("rect", { x: xa, y: 6, width: xb - xa, height: 18, rx: 5, fill: `var(${zoneVar(z.id)}-bg)`, stroke: `var(${zoneVar(z.id)})` }, g);
-    html(g, xa + 4, 7, xb - xa - 8, 16, `<div style="font:700 10.5px/16px system-ui,sans-serif;letter-spacing:.04em;text-transform:uppercase;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(${zoneVar(z.id)})">${esc(z.title)}</div>`);
+    const xa = x(ids[0]) - 62, xb = x(ids[ids.length - 1]) + 62, g = el("g", { class: "zone", style: hue(z.id) }, svg);
+    el("rect", { class: "zbar", x: xa, y: 21, width: xb - xa, height: 2, rx: 1 }, g);
+    html(g, xa, 3, xb - xa, 16, `<div class="zc" title="${esc(z.title)}" style="font:600 11px/16px var(--sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(z.title)}</div>`);
   }
   rows.forEach(({ s, y, rh }, n) => {
     const sel = state.step === n, t = s.transport || "";
@@ -246,14 +282,15 @@ function flow(stage) {
     g.addEventListener("click", pick); g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
     if (!s.to) {
       const nw = 300, nx = Math.max(34, Math.min(w - nw - 12, x(s.from) - 20));
-      el("rect", { x: nx, y: y - 4, width: nw, height: rh - 10, rx: 6, ...(sel ? { style: "stroke:var(--accent);stroke-width:2" } : {}) }, g);
-      el("circle", { cx: x(s.from), cy: y + (rh - 10) / 2 - 4, r: 4, fill: "var(--text)" }, g);
+      el("rect", { x: nx, y: y - 4, width: nw, height: rh - 10, rx: 8 }, g);
+      el("circle", { cx: x(s.from), cy: y + (rh - 10) / 2 - 4, r: 3.2 }, g);
       html(g, nx, y - 4, nw, rh - 10, `<div style="display:flex;align-items:center;height:${rh - 10}px;padding-left:${x(s.from) - nx > 10 ? x(s.from) - nx + 12 : 8}px">${esc(s.label)}</div>`);
       return;
     }
     const x1 = x(s.from), x2 = x(s.to), ly = y + 18, left = Math.min(x1, x2), right = Math.max(x1, x2);
+    if (sel) el("rect", { class: "band", x: 30, y: y - 6, width: w - 40, height: 34, rx: 8 }, g);
     el("path", { d: `M${x1} ${ly}L${x2 + (x2 > x1 ? -2 : 2)} ${ly}`, "marker-end": `url(#m${t ? "-" + t : ""})` }, g);
-    el("circle", { cx: x1, cy: ly, r: 3.2, fill: t ? `var(--${t === "request" ? "req" : "push"})` : "var(--text)" }, g);
+    el("circle", { cx: x1, cy: ly, r: 3.2 }, g);
     const tw = s.label.length * 6.3, fits = tw < right - left - 12, over = left + 8 + tw > w - 8;
     el("text", { x: fits ? (x1 + x2) / 2 : over ? w - 10 : left + 8, y: ly - 7, "text-anchor": fits ? "middle" : over ? "end" : "start" }, g).textContent = s.label;
     el("rect", { x: left, y: y - 2, width: right - left, height: 30, fill: "transparent" }, g);
@@ -263,15 +300,16 @@ function flowPanel(panel) {
   const steps = visibleSteps(), s = steps[state.step], f = currentFlow();
   if (!s) { panel.innerHTML = `<h2>${esc(f.title)}</h2><p>Read top to bottom. An arrow is something crossing from one module to another. A grey note is what one module does at that point.</p><p>${steps.length} steps. A coloured frame holds the steps that exist on one transport only. Select a step, or press the down arrow, for the calls behind it.</p>`; return; }
   const names = Object.fromEntries(DATA.nodes.map(n => [n.id, n.label])), byId = Object.fromEntries(DATA.edges.map(e => [e.id, e]));
+  const cited = s.edges.filter(id => state.transport === "all" || byId[id].transport === "shared" || byId[id].transport === state.transport);
   panel.innerHTML = `<h2>Step ${state.step + 1} of ${steps.length}</h2><p><b style="color:var(--text)">${esc(mod[s.from].label)}${s.to ? " → " + esc(mod[s.to].label) : ""}</b>${tagOf(s.transport)}</p><p>${esc(s.label)}</p>
-  <h3>In the code</h3>${s.edges.filter(id => state.transport === "all" || byId[id].transport === "shared" || byId[id].transport === state.transport).map(id => `<div class="row" style="padding-top:2px">${edgeRow(byId[id], names)}</div>`).join("") || "<p>No call crosses a module here.</p>"}`;
+  <h3>In the code</h3>${cited.length ? group(cited.map(id => `<div class="row">${edgeRow(byId[id], names)}</div>`).join("")) : "<p>No call crosses a module here.</p>"}`;
 }
 
 // ---------- windows ----------
 function windowsView(stage) {
   const W = DATA.windows, centre = W.nodes[0], ring = W.nodes.slice(1), cx = 560, cy = 300, pos = { [centre.id]: [cx, cy] };
   ring.forEach((n, i) => { const a = -Math.PI / 2 + i * 2 * Math.PI / ring.length; pos[n.id] = [cx + Math.cos(a) * 380, cy + Math.sin(a) * 220]; });
-  const svg = el("svg", { viewBox: "0 0 1120 600", width: "100%", style: "max-width:1120px;min-width:860px", role: "group", "aria-label": "Windows and the channels between them" }, stage);
+  const svg = el("svg", { viewBox: "0 0 1120 600", role: "group", "aria-label": "Windows and the channels between them" }, stage);
   const defs = el("defs", {}, svg); marker(defs, "ah", "var(--muted)"); marker(defs, "ah-on", "var(--accent)");
   const groups = {}; for (const e of W.edges) (groups[e.from + ">" + e.to] ||= []).push(e);
   for (const key in groups) {
@@ -280,7 +318,7 @@ function windowsView(stage) {
     const x1 = ax + ux * r * 1.3 + nx * o, y1 = ay + uy * r * .7 + ny * o, x2 = bx - ux * r * 1.3 + nx * o, y2 = by - uy * r * .7 + ny * o;
     const g = el("g", { class: "link msg" + (on ? " on" : "") + (state.sel && !on ? " dim" : ""), tabindex: 0, role: "button", "aria-label": `${f} to ${t}` }, svg);
     el("path", { d: `M${x1} ${y1}L${x2} ${y2}`, "marker-end": `url(#${on ? "ah-on" : "ah"})` }, g);
-    el("circle", { cx: (x1 + x2) / 2 + nx * 2, cy: (y1 + y2) / 2 + ny * 2, r: 11, fill: "var(--bg)", stroke: on ? "var(--accent)" : "var(--muted)" }, g);
+    el("circle", { class: "badge", cx: (x1 + x2) / 2 + nx * 2, cy: (y1 + y2) / 2 + ny * 2, r: 11 }, g);
     el("text", { x: (x1 + x2) / 2 + nx * 2, y: (y1 + y2) / 2 + ny * 2 + 4, "text-anchor": "middle", class: "count" }, g).textContent = groups[key].length;
     const pick = () => { state.sel = state.sel === key ? "" : key; render(); };
     g.addEventListener("click", pick); g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
@@ -289,7 +327,7 @@ function windowsView(stage) {
     const [x, y] = pos[n.id], g = el("g", { class: "box" + (state.sel === n.id ? " sel" : ""), tabindex: 0, role: "button", "aria-label": n.label }, svg);
     el("rect", { x: x - 86, y: y - 40, width: 172, height: 80, rx: 10 }, g);
     el("text", { x: x - 74, y: y - 18, class: "name" }, g).textContent = n.label;
-    html(g, x - 74, y - 12, 150, 50, `<div class="desc" style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${esc(n.role)}</div>`);
+    html(g, x - 74, y - 12, 150, 50, `<div class="desc">${esc(n.role)}</div>`);
     const pick = () => { state.sel = state.sel === n.id ? "" : n.id; render(); };
     g.addEventListener("click", pick); g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
   }
@@ -297,7 +335,7 @@ function windowsView(stage) {
 }
 function windowsPanel(panel) {
   const W = DATA.windows, name = Object.fromEntries(W.nodes.map(n => [n.id, n.label])), node = W.nodes.find(n => n.id === state.sel);
-  const list = es => es.map(e => `<div class="row"><b>${esc(name[e.from])} → ${esc(name[e.to])}</b><div><code>${esc(e.carries)}</code></div></div>`).join("") || "<p>None.</p>";
+  const list = es => es.length ? group(es.map(e => `<div class="row"><b>${esc(name[e.from])} → ${esc(name[e.to])}</b><div><code>${esc(e.carries)}</code></div></div>`).join("")) : "<p>None.</p>";
   if (node) panel.innerHTML = `<h2>${esc(node.label)}</h2><p>${esc(node.role)}</p><h3>Sends</h3>${list(W.edges.filter(e => e.from === node.id))}<h3>Receives</h3>${list(W.edges.filter(e => e.to === node.id))}`;
   else if (state.sel.includes(">")) { const [f, t] = state.sel.split(">"); panel.innerHTML = `<h2>${esc(name[f])} → ${esc(name[t])}</h2>${list(W.edges.filter(e => e.from === f && e.to === t))}`; }
   else panel.innerHTML = `<h2>Windows</h2><p>${esc(name[W.nodes[0].id])} owns the state the other windows mirror. Every channel is a cross-window event; settings values travel through localStorage and the channel carries only the signal to reload.</p>`;
@@ -327,14 +365,26 @@ function differencePanel() {
   const total = Object.values(d).reduce((n, l) => n + l.added.length + l.removed.length + l.changed.length, 0);
   const section = k => {
     const l = d[k]; if (!l.added.length && !l.removed.length && !l.changed.length) return "";
-    return `<h3>${k}</h3>${l.added.map(i => `<div class="row added">+ <code>${esc(i)}</code></div>`).join("")}${l.removed.map(i => `<div class="row removed">− <code>${esc(i)}</code></div>`).join("")}${l.changed.map(c => `<details class="row changed"><summary>~ <code>${esc(c.id)}</code></summary>${c.fields.map(x => `<div class="meta" style="margin-top:6px">${esc(x.f)}</div><div class="removed">− ${show(x.was)}</div><div class="added">+ ${show(x.now)}</div>`).join("")}</details>`).join("")}`;
+    return `<h3>${k[0].toUpperCase() + k.slice(1)}</h3>${group(`${l.added.map(i => `<div class="row added">+ <code>${esc(i)}</code></div>`).join("")}${l.removed.map(i => `<div class="row removed">− <code>${esc(i)}</code></div>`).join("")}${l.changed.map(c => `<details class="row changed"><summary>~ <code>${esc(c.id)}</code></summary>${c.fields.map(x => `<div class="meta" style="margin-top:6px">${esc(x.f)}</div><div class="removed">− ${show(x.was)}</div><div class="added">+ ${show(x.now)}</div>`).join("")}</details>`).join("")}`)}`;
   };
   return `<h2>Compared with origin/main</h2><p>${total ? `${total} difference${total > 1 ? "s" : ""}. Modules that gained or changed a part or an exchange carry a ~ mark, new modules a + mark.` : "No difference."}</p>${Object.keys(d).map(section).join("")}`;
 }
 
 // ---------- shell ----------
+const fitZoom = svg => Math.min(1, (document.getElementById("stage").clientWidth - 48) / svg.viewBox.baseVal.width);
+const currentZoom = () => state.zoom ?? fitZoom(document.querySelector("#stage svg"));
+function zoomTo(zoom, cx, cy) {
+  const stage = document.getElementById("stage"), svg = stage.querySelector("svg"), before = svg.getBoundingClientRect();
+  state.zoom = zoom === null ? null : Math.max(.4, Math.min(3, zoom));
+  svg.style.width = svg.viewBox.baseVal.width * currentZoom() + "px";
+  const after = svg.getBoundingClientRect();
+  if (cx !== undefined && before.width) { stage.scrollLeft += (cx - before.left) / before.width * (after.width - before.width); stage.scrollTop += (cy - before.top) / before.height * (after.height - before.height); }
+  document.getElementById("zlabel").textContent = Math.round(currentZoom() * 100) + "%";
+}
+let shown = {};
 function render() {
   const stage = document.getElementById("stage"), panel = document.getElementById("panel"), focused = stage.contains(document.activeElement) ? document.activeElement.getAttribute("aria-label") : null;
+  const key = state.view + state.flow + state.transport, same = shown.key === key, scroll = [stage.scrollLeft, stage.scrollTop];
   stage.textContent = "";
   const seg = (id, items, key) => { const e = document.getElementById(id); e.innerHTML = items.map(([v, l]) => `<button data-v="${v}" aria-pressed="${String(state[key]) === String(v)}">${l}</button>`).join(""); return e; };
   seg("views", [["overview", "Overview"], ["flow", "Flows"], ...(DATA.windows ? [["windows", "Windows"]] : [])], "view");
@@ -342,8 +392,13 @@ function render() {
   flows.innerHTML = DATA.flows.map(f => `<option value="${esc(f.id)}"${f.id === currentFlow().id ? " selected" : ""}>${esc(f.title)}</option>`).join("");
   seg("transports", [["all", "Both transports"], ["request", "Request"], ["push", "Push"]], "transport").hidden = state.view !== "flow";
   seg("compare", [[true, "Compare with main"]], "compare").hidden = !BASE || state.view !== "overview";
-  document.getElementById("sub").textContent = state.view === "overview" ? "Core modules and the main paths between them" : state.view === "flow" ? `Flow · ${currentFlow().title}` : "Windows and the channels between them";
+  document.getElementById("sub").textContent = state.view === "overview" ? "Core modules and the main paths between them" : state.view === "flow" ? "One event, step by step through the modules" : "Windows and the channels between them";
   if (state.view === "flow") { flow(stage); flowPanel(panel); panel.scrollTop = 0; } else if (state.view === "windows") { windowsView(stage); windowsPanel(panel); } else { overview(stage); overviewPanel(panel); }
+  const svg = stage.querySelector("svg"); zoomTo(state.zoom);
+  if (same) [stage.scrollLeft, stage.scrollTop] = scroll; else svg.classList.add("enter");
+  if (same && !shown.sel && state.sel) svg.classList.add("fresh");
+  shown = { key, sel: state.sel };
+  stage.querySelector(".msg.sel")?.scrollIntoView({ block: "nearest" });
   if (focused) [...stage.querySelectorAll("[aria-label]")].find(e => e.getAttribute("aria-label") === focused)?.focus();
   const hash = new URLSearchParams(); for (const k of ["view", "flow", "sel", "transport"]) if (state[k] && state[k] !== "all" && state[k] !== "overview") hash.set(k, state[k]);
   if (state.step >= 0) hash.set("step", state.step); if (state.compare) hash.set("compare", "1");
@@ -358,7 +413,7 @@ function start() {
   state.view = ["flow", "windows"].includes(h.get("view")) ? h.get("view") : "overview"; state.flow = h.get("flow") || ""; state.sel = h.get("sel") || "";
   if (state.view === "overview" ? !mod[state.sel] : state.view === "flow") state.sel = "";
   state.step = /^\d+$/.test(h.get("step") || "") ? Number(h.get("step")) : -1; state.transport = ["request", "push"].includes(h.get("transport")) ? h.get("transport") : "all"; state.compare = !!BASE && h.get("compare") === "1";
-  document.getElementById("views").addEventListener("click", e => { const v = e.target.dataset.v; if (v) { state.view = v; state.sel = ""; state.step = -1; render(); } });
+  document.getElementById("views").addEventListener("click", e => { const v = e.target.dataset.v; if (v) { state.view = v; state.sel = ""; state.step = -1; state.zoom = null; render(); } });
   document.getElementById("flows").addEventListener("change", e => { state.flow = e.target.value; state.step = -1; render(); });
   document.getElementById("transports").addEventListener("click", e => { const v = e.target.dataset.v; if (v) { state.transport = v; state.step = -1; render(); } });
   document.getElementById("compare").addEventListener("click", () => { state.compare = !state.compare; state.sel = ""; render(); });
@@ -366,6 +421,16 @@ function start() {
     if (e.key === "Escape") { state.sel = ""; state.step = -1; render(); }
     if (state.view === "flow" && (e.key === "ArrowDown" || e.key === "ArrowUp") && e.target.tagName !== "SELECT") { e.preventDefault(); state.step = Math.max(0, Math.min(visibleSteps().length - 1, state.step + (e.key === "ArrowDown" ? 1 : -1))); render(); }
   });
+  const stage = document.getElementById("stage"), centre = () => { const r = stage.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
+  document.getElementById("zoom").addEventListener("click", e => { const z = e.target.dataset.z; if (z === "fit") zoomTo(null); else if (z) zoomTo(currentZoom() * (z === "in" ? 1.2 : 1 / 1.2), ...centre()); });
+  stage.addEventListener("wheel", e => { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); zoomTo(currentZoom() * Math.exp(-e.deltaY * .01), e.clientX, e.clientY); }, { passive: false });
+  stage.addEventListener("pointerdown", e => {
+    if (e.button || e.target.closest("[role=button]")) return;
+    const x = e.clientX, y = e.clientY, left = stage.scrollLeft, top = stage.scrollTop, move = m => { stage.scrollLeft = left - (m.clientX - x); stage.scrollTop = top - (m.clientY - y); };
+    const end = () => { stage.removeEventListener("pointermove", move); stage.removeEventListener("pointerup", end); stage.removeEventListener("pointercancel", end); };
+    stage.setPointerCapture(e.pointerId); stage.addEventListener("pointermove", move); stage.addEventListener("pointerup", end); stage.addEventListener("pointercancel", end);
+  });
+  addEventListener("resize", () => zoomTo(state.zoom));
   render();
 }
 load("map.js", ok => {
