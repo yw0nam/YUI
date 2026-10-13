@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import json
 import re
 import subprocess
@@ -46,10 +47,12 @@ def probe_transport() -> bool:
         return False
 
 
-def run_gh(args: list[str]) -> str:
-    """Run one `gh` command and return its stdout, raising on any failure."""
+def run_gh(args: list[str], cwd: Path | None = None) -> str:
+    """Run one `gh` command in ``cwd`` and return its stdout, raising on any failure."""
 
-    result = subprocess.run(["gh", *args], capture_output=True, text=True, timeout=GH_TIMEOUT, check=False)
+    result = subprocess.run(
+        ["gh", *args], capture_output=True, text=True, timeout=GH_TIMEOUT, check=False, cwd=cwd
+    )
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or f"gh exited {result.returncode}")
     return result.stdout
@@ -65,14 +68,14 @@ def _github_slug(origin: str) -> str | None:
     return "/".join(parts)
 
 
-def workspace_repos(workspace_root: Path) -> list[str]:
-    """Return each `owner/name` once, however many workspace directories clone it from GitHub."""
+def workspace_repos(workspace_root: Path) -> dict[str, Path]:
+    """Map each `owner/name` cloned from GitHub to the first workspace directory that clones it."""
 
-    repos = set()
+    repos: dict[str, Path] = {}
     try:
         entries = sorted(entry for entry in Path(workspace_root).iterdir() if entry.is_dir())
     except OSError:
-        return []
+        return {}
     for entry in entries:
         try:
             config = (entry / ".git" / "config").read_text(encoding="utf-8")
@@ -82,8 +85,8 @@ def workspace_repos(workspace_root: Path) -> list[str]:
         origin = _ORIGIN_URL.search(section.group(1)) if section is not None else None
         slug = _github_slug(origin.group(1)) if origin is not None else None
         if slug is not None:
-            repos.add(slug)
-    return sorted(repos)
+            repos.setdefault(slug, entry)
+    return dict(sorted(repos.items()))
 
 
 def repo_pull_requests(repo: str, run_gh) -> list[dict]:
@@ -95,8 +98,6 @@ def repo_pull_requests(repo: str, run_gh) -> list[dict]:
             "list",
             "--repo",
             repo,
-            "--author",
-            "@me",
             "--state",
             "all",
             "--limit",
@@ -122,8 +123,6 @@ def repo_issues(repo: str, run_gh) -> list[dict]:
             "list",
             "--repo",
             repo,
-            "--author",
-            "@me",
             "--state",
             "all",
             "--limit",
@@ -138,15 +137,6 @@ def repo_issues(repo: str, run_gh) -> list[dict]:
         for issue in json.loads(payload)
         if isinstance(issue, dict) and marker in str(issue.get("body", ""))
     ]
-
-
-def agent_login(run_gh) -> str:
-    """Return the login the `gh` credentials act as."""
-
-    login = run_gh(["api", "user", "--jq", ".login"]).strip()
-    if not login:
-        raise ValueError("gh returned an empty login")
-    return login
 
 
 def repo_comments(repo: str, since: datetime, run_gh) -> list[dict]:
@@ -215,23 +205,24 @@ def collect_artefacts(state_dir, now, *, workspace_root, run_gh) -> dict:
     bootstrapped = set(record["bootstrapped"]) if record else set()
     observed = {kind: [] for kind in desire_store.ARTEFACT_KINDS}
     repos = workspace_repos(workspace_root)
-    login = _read_source(state_dir, now, "login", None, lambda: agent_login(run_gh)) if repos else None
-    observed["login"] = login
     observed["comments"] = {}
-    for repo in repos:
-        pulls = _read_source(state_dir, now, "pr", repo, lambda name=repo: repo_pull_requests(name, run_gh))
+    for repo, clone in repos.items():
+        gh = functools.partial(run_gh, cwd=clone)
+        pulls = _read_source(
+            state_dir, now, "pr", repo, lambda name=repo, gh=gh: repo_pull_requests(name, gh)
+        )
         observed["pr"] = _extend(observed["pr"], pulls, "url", "mergedAt", "pr" in bootstrapped)
-        issues = _read_source(state_dir, now, "issue", repo, lambda name=repo: repo_issues(name, run_gh))
+        issues = _read_source(state_dir, now, "issue", repo, lambda name=repo, gh=gh: repo_issues(name, gh))
         observed["issue"] = _extend(observed["issue"], issues, "url", "closedAt", "issue" in bootstrapped)
         since = _comment_cursor(record, repo)
         entries = None
-        if login is not None and since is not None:
+        if since is not None:
             entries = _read_source(
                 state_dir,
                 now,
                 "comments",
                 repo,
-                lambda name=repo, start=since: repo_comments(name, start, run_gh),
+                lambda name=repo, start=since, gh=gh: repo_comments(name, start, gh),
             )
         observed["comments"][repo] = {
             "answered": pulls is not None and issues is not None,
@@ -239,12 +230,14 @@ def collect_artefacts(state_dir, now, *, workspace_root, run_gh) -> dict:
         }
     for kind in ("pr", "issue"):
         for url in _undelivered(record, kind):
+            key = _artefact_key(_ARTEFACT_URL, url)
+            gh = functools.partial(run_gh, cwd=repos.get(key[0]) if key is not None else None)
             delivered = _read_source(
                 state_dir,
                 now,
                 kind,
                 None,
-                lambda name=kind, target=url: artefact_delivery(name, target, run_gh),
+                lambda name=kind, target=url, gh=gh: artefact_delivery(name, target, gh),
                 url,
             )
             if delivered is not None and observed[kind] is not None:
@@ -337,7 +330,7 @@ def _artefact_key(pattern: re.Pattern, url: object) -> tuple[str, str] | None:
 def _record_comments(record: dict, observed: dict, now: datetime) -> list[tuple[str, str]]:
     """Move each repository's comment stamps in ``record`` and return the comments to file."""
 
-    login = observed["login"]
+    marker = desire_config.issue_marker()
     # A kind dropped this run left artefacts unrecorded, so no repository may move past their comments.
     recorded = all(observed[kind] is not None for kind in desire_store.ARTEFACT_KINDS)
     seen = {
@@ -350,7 +343,7 @@ def _record_comments(record: dict, observed: dict, now: datetime) -> list[tuple[
         answered = recorded and answer["answered"]
         cursor = _comment_cursor(record, repo)
         if cursor is None:
-            if login is not None and answered:
+            if answered:
                 record["comments_from"][repo] = record["comments_since"][repo] = now.isoformat()
             continue
         if answer["entries"] is None:
@@ -368,10 +361,11 @@ def _record_comments(record: dict, observed: dict, now: datetime) -> list[tuple[
             url = entry.get("html_url")
             if created is None or not isinstance(author, str) or not isinstance(url, str):
                 continue
-            if user.get("type") == "Bot":
+            # The agent's comments carry the marker, whichever account posts them.
+            if user.get("type") == "Bot" or marker in str(entry.get("body", "")):
                 continue
             key = _artefact_key(_ISSUE_API_URL, entry.get("issue_url"))
-            if created >= start and key is not None and key in seen and author != login:
+            if created >= start and key is not None and key in seen:
                 filing.append((f"{author} commented on {url.split('#', 1)[0]}", url))
         if answered and latest > cursor:
             record["comments_since"][repo] = latest.isoformat()
