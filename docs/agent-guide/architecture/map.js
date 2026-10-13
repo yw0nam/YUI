@@ -497,6 +497,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "shell/browser",
+      "module": "shell",
+      "label": "browser",
+      "role": "Launches and owns a dedicated-profile Chrome over loopback CDP, runs one browser action at a time under a generation and a deadline, keeps the current ref table, and stops only the Chrome it started.",
+      "paths": [
+        "src-tauri/src/browser"
+      ]
+    },
+    {
       "id": "shell/window",
       "module": "shell",
       "label": "window control",
@@ -1839,6 +1848,14 @@ globalThis.YUI_MAP =
       "from": "io/window/capture",
       "to": "shell/screenshot",
       "carries": "list_screen_sources, capture_screen, capture_screen_at",
+      "kind": "tauri-command",
+      "transport": "shared"
+    },
+    {
+      "id": "browser-shell",
+      "from": "io/browser",
+      "to": "shell/browser",
+      "carries": "browser_generation, browser_cancel, browser_run {gen, deadlineAt, action, args}, browser_stop",
       "kind": "tauri-command",
       "transport": "shared"
     },
