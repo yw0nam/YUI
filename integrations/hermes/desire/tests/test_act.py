@@ -1041,3 +1041,100 @@ def test_feel_list_shows_the_twenty_most_recent_unless_all(state_dir, at, state_
 
     assert [line.split()[0] for line in shown] == [f"e-{index:06x}" for index in range(5, 25)]
     assert len(every) == 25
+
+
+def test_judge_prints_what_it_recorded_and_refuses_with_its_exit_codes(state_dir, at, capsys):
+    now = at("2026-10-08T12:00:00+09:00")
+    event_id = desire_events.file_event(state_dir, "issue was closed", "monitor", "url", now)
+    gone = desire_events.file_event(state_dir, "wrong", "monitor", "other", now)
+    desire_events.retract(state_dir, gone, "not mine", now)
+
+    argv = ["judge", "sense of choosing", "--toward", "self", "--level", "very strong", "--event", event_id]
+    assert act.main([*argv, "--why", "I picked it"], now=now) == 0
+    assert capsys.readouterr().out == "judged sense of choosing toward self: very strong\n"
+    assert act.main(["judge", "sense of choosing", "--toward", "self", "--put-down"], now=now) == 0
+    assert capsys.readouterr().out == "put down sense of choosing toward self\n"
+
+    assert act.main(["judge", "warmth", "--toward", "user", "--level", "some"], now=now) == 1
+    assert "known names:\ncloseness\ntrust\n" in capsys.readouterr().err
+    assert act.main(["judge", "trust", "--toward", "user", "--put-down"], now=now) == 1
+    assert "no judgment to put down" in capsys.readouterr().err
+    for unusable in ("e-999999", gone):
+        assert (
+            act.main(["judge", "trust", "--toward", "user", "--level", "some", "--event", unusable], now=now)
+            == 3
+        )
+    assert [line["level"] for line in desire_store.read_jsonl(state_dir / "judgments.jsonl")] == [
+        "very strong",
+        None,
+    ]
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["judge", "trust", "--toward", "user", "--level", "3"],
+        ["judge", "trust", "--toward", "user", "--level", "some", "--put-down"],
+        ["judge", "trust", "--toward", "user", "--put-down", "--event", "e-000001"],
+        ["judge", "trust", "--level", "some"],
+        ["judge", "trust", "--toward", "user"],
+        ["judge", "trust", "--list"],
+        ["judge", "--list", "--toward", "user"],
+        ["judge", "trust", "--toward", "others", "--level", "some"],
+        ["judge"],
+    ],
+)
+def test_judge_usage_errors_exit_two_and_write_nothing(state_dir, at, argv):
+    assert exit_code(argv, at("2026-10-08T12:00:00+09:00")) == 2
+
+    assert not (state_dir / "judgments.jsonl").exists()
+
+
+def test_judge_list_prints_every_present_judgment_by_toward_then_name(state_dir, at, capsys):
+    now = at("2026-10-08T12:00:00+09:00")
+    act.main(["judge", "trust", "--toward", "world", "--level", "faint"], now=now)
+    act.main(["judge", "trust", "--toward", "user", "--level", "some", "--why", "she\nkept it"], now=now)
+    act.main(["judge", "doubt", "--toward", "user", "--level", "faint"], now=now - timedelta(days=3))
+    act.main(["judge", "tiredness", "--toward", "self", "--level", "strong"], now=now)
+    act.main(["judge", "tiredness", "--toward", "self", "--put-down"], now=now)
+    act.main(["judge", "pride", "--toward", "self", "--level", "some"], now=at("2026-10-08T23:30:00+00:00"))
+    capsys.readouterr()
+
+    assert act.main(["judge", "--list"], now=now) == 0
+
+    assert capsys.readouterr().out.splitlines() == [
+        "doubt toward user: faint (2026-10-05)",
+        "trust toward user: some (2026-10-08) — she kept it",
+        "pride toward self: some (2026-10-09)",
+        "trust toward world: faint (2026-10-08)",
+    ]
+
+
+def test_feel_grounds_prints_the_linked_events_in_the_list_format(state_dir, at, capsys):
+    now = at("2026-10-08T12:00:00+09:00")
+    event_id = desire_events.file_event(state_dir, "pull request was merged", "monitor", "url", now)
+    desire_events.file_reading(state_dir, event_id, "proud", now)
+    act.main(["judge", "pride", "--toward", "self", "--level", "some", "--event", event_id], now=now)
+    act.main(["judge", "trust", "--toward", "user", "--level", "some"], now=now)
+    capsys.readouterr()
+
+    assert act.main(["feel", "--grounds", "pride", "--toward", "self"], now=now) == 0
+    assert (
+        capsys.readouterr().out == f"{event_id} 2026-10-08 12:00 [monitor] pull request was merged — proud\n"
+    )
+    assert act.main(["feel", "--grounds", "trust", "--toward", "user"], now=now) == 0
+    assert capsys.readouterr().out == "no events linked\n"
+    assert act.main(["feel", "--grounds", "pride", "--toward", "world"], now=now) == 0
+    assert capsys.readouterr().out == "no judgment\n"
+    assert exit_code(["feel", "--grounds", "pride"], now) == 2
+    assert exit_code(["feel", "--grounds", "pride", "--toward", "self", "--list"], now) == 2
+
+
+def test_how_writes_up_to_500_characters_and_refuses_more(state_dir, at, capsys):
+    now = at("2026-10-08T12:00:00+09:00")
+
+    assert act.main(["how", "tired\nbut here"], now=now) == 0
+    assert (state_dir / "how.md").read_text(encoding="utf-8") == "tired\nbut here"
+    assert act.main(["how", "x" * 501], now=now) == 1
+    assert capsys.readouterr().err == "too long: 501 characters (limit 500)\n"
+    assert (state_dir / "how.md").read_text(encoding="utf-8") == "tired\nbut here"
