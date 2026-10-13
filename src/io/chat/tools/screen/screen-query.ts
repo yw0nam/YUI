@@ -50,7 +50,9 @@ export async function queryScreen(
     const { point: physical, scale } = chosen
       ? centre(chosen.position, chosen.size, chosen.scaleFactor)
       : centre(await win!.outerPosition(), await win!.outerSize(), await win!.scaleFactor());
-    const point = ports.pointsAreLogical ? physicalToLogicalScreenPoint(physical, scale) : physical;
+    const exact = ports.pointsAreLogical ? physicalToLogicalScreenPoint(physical, scale) : physical;
+    // The capture command takes integer coordinates; an odd extent puts the centre on a half pixel.
+    const point = { x: Math.round(exact.x), y: Math.round(exact.y) };
     const holder =
       chosen ?? (ports.pointsAreLogical ? monitorAtLogical : monitorAt)(monitors, point.x, point.y);
     const capture = holder && (await ports.capturer.captureAt(point));
