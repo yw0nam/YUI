@@ -130,7 +130,13 @@ mod tests {
     #[test]
     fn tray_icon_is_monochrome_for_macos_templating() {
         let icon = tray_icon().expect("tray.png decodes");
-        let opaque: Vec<_> = icon.rgba().chunks_exact(4).filter(|p| p[3] > 0).collect();
+        let opaque: Vec<_> = icon
+            .rgba()
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .filter(|p| p[3] > 0)
+            .collect();
         assert!(!opaque.is_empty(), "icon must have opaque pixels");
         assert!(
             opaque.iter().all(|p| p[0] == p[1] && p[1] == p[2]),
