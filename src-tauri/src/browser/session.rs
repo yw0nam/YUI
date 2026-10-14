@@ -614,4 +614,18 @@ mod tests {
         assert!(mouse_pressed(1));
         assert!(mouse_pressed(2));
     }
+
+    #[test]
+    fn the_controlled_page_emulates_focus() {
+        use chromiumoxide::types::Method;
+        let command = focus_emulation();
+        assert_eq!(
+            command.identifier().as_ref(),
+            "Emulation.setFocusEmulationEnabled"
+        );
+        assert_eq!(
+            serde_json::to_value(&command).unwrap(),
+            serde_json::json!({ "enabled": true })
+        );
+    }
 }
