@@ -18,6 +18,7 @@ use chromiumoxide::cdp::browser_protocol::dom::{
     BackendNodeId, DescribeNodeParams, FocusParams, GetContentQuadsParams, ResolveNodeParams,
     ScrollIntoViewIfNeededParams,
 };
+use chromiumoxide::cdp::browser_protocol::emulation::SetFocusEmulationEnabledParams;
 use chromiumoxide::cdp::browser_protocol::input::{
     DispatchMouseEventParams, DispatchMouseEventType, InsertTextParams, MouseButton,
 };
@@ -82,6 +83,11 @@ fn stale(fail: Fail) -> Fail {
         Fail::Halt(halt) => Fail::Halt(halt),
         _ => Fail::Stale,
     }
+}
+
+/// Keeps the page focused and visible to itself, so input reaches it while its window is covered.
+fn focus_emulation() -> SetFocusEmulationEnabledParams {
+    SetFocusEmulationEnabledParams::new(true)
 }
 
 /// Whether a click cut after its first `completed` steps (move, press, release) may have left the button down.
@@ -538,6 +544,9 @@ impl Running {
         }
         let page = op
             .guard(self.browser.new_page("about:blank"))
+            .await?
+            .map_err(|_| Fail::Cdp)?;
+        op.guard(page.execute(focus_emulation()))
             .await?
             .map_err(|_| Fail::Cdp)?;
         let navigated = op
