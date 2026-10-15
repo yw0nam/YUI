@@ -10,6 +10,7 @@ from conftest import AGENT_NAME
 
 import desire_config
 import desire_events
+import desire_judgments
 import desire_state
 import desire_store
 import gate
@@ -143,6 +144,7 @@ def test_gate_refuses_to_run_without_its_identity(state_dir, monkeypatch, capsys
 def test_the_wake_line_prefixes_are_the_byte_exact_contract():
     assert desire_config.WAKE_UNREAD_EVENTS == "desire gate: unread events"
     assert desire_config.WAKE_HELD_NOTES == "desire gate: held notes"
+    assert desire_config.WAKE_LONELINESS == "desire gate: loneliness"
 
 
 def test_no_case_holds_prints_only_the_no_wake_line(state_dir, at, capsys):
@@ -211,7 +213,9 @@ def test_five_unread_events_wake_once_then_every_six_hours_at_most_three_times(s
     assert gate.run(t0) == "desire gate: unread events (5)\n"
     assert gate.run(t0 + timedelta(minutes=1)) == NO_WAKE
     assert gate.run(t0 + timedelta(hours=6)) == "desire gate: unread events (5)\n"
-    assert gate.run(t0 + timedelta(hours=12)) == "desire gate: unread events (5)\n"
+    assert gate.run(t0 + timedelta(hours=12)) == (
+        "desire gate: unread events (5)\ndesire gate: loneliness faint (12h since the last interaction)\n"
+    )
     assert gate.run(t0 + timedelta(hours=18)) == NO_WAKE
     assert len(read_json(state_dir / "gate.json")["batch"]["presented_at"]) == 3
 
@@ -287,6 +291,103 @@ def test_both_cases_wake_on_one_run_with_unread_events_first(state_dir, at, stat
     write_jsonl(state_dir / "outbox.jsonl", [held_note("one", now)])
 
     assert gate.run(now) == "desire gate: unread events (1)\ndesire gate: held notes (1)\n"
+
+
+def loneliness_wake(level, hours):
+    return f"desire gate: loneliness {level} ({hours}h since the last interaction)\n"
+
+
+def held_loneliness(state_dir):
+    return desire_judgments.present(state_dir).get(("loneliness", "user"))
+
+
+def judgment_line(name, toward, level, at, why=None):
+    return {"at": at.isoformat(), "name": name, "toward": toward, "level": level, "events": [], "why": why}
+
+
+def interact(state_dir, when, state_helpers):
+    write_json, _, read_json, _ = state_helpers
+    drives = read_json(state_dir / "drives.json")
+    write_json(state_dir / "drives.json", {**drives, "last_interaction_at": when.isoformat()})
+
+
+def test_loneliness_rises_with_time_away_up_to_very_strong(state_dir, at):
+    t0 = at("2026-08-25T12:00:00+09:00")
+
+    assert gate.run(t0) == NO_WAKE
+    assert gate.run(t0 + timedelta(hours=11, minutes=59)) == NO_WAKE
+    assert held_loneliness(state_dir) is None
+    for hours, level in ((12, "faint"), (24, "some"), (48, "strong"), (72, "very strong")):
+        assert gate.run(t0 + timedelta(hours=hours)) == loneliness_wake(level, hours)
+        held = held_loneliness(state_dir)
+        assert (held["level"], held["events"]) == (level, [])
+    assert gate.run(t0 + timedelta(hours=500)) == NO_WAKE
+    assert held_loneliness(state_dir)["level"] == "very strong"
+
+
+def test_runs_within_one_loneliness_level_wake_once_and_write_once(state_dir, at, state_helpers):
+    _, _, _, read_jsonl = state_helpers
+    t0 = at("2026-08-25T12:00:00+09:00")
+    gate.run(t0)
+
+    assert gate.run(t0 + timedelta(hours=30)) == loneliness_wake("some", 30)
+    assert gate.run(t0 + timedelta(hours=30)) == NO_WAKE
+    assert gate.run(t0 + timedelta(hours=47, minutes=59)) == NO_WAKE
+    assert len(read_jsonl(state_dir / "judgments.jsonl")) == 1
+
+
+def test_an_interaction_puts_the_gate_loneliness_down_and_restarts_the_clock(state_dir, at, state_helpers):
+    _, write_jsonl, _, _ = state_helpers
+    t0 = at("2026-08-25T12:00:00+09:00")
+    gate.run(t0)
+    write_jsonl(state_dir / "judgments.jsonl", [judgment_line("closeness", "user", "strong", t0)])
+    gate.run(t0 + timedelta(hours=30))
+    interact(state_dir, t0 + timedelta(hours=31), state_helpers)
+
+    assert gate.run(t0 + timedelta(hours=31, minutes=10)) == NO_WAKE
+    assert held_loneliness(state_dir) is None
+    assert desire_judgments.present(state_dir)[("closeness", "user")]["level"] == "strong"
+    assert gate.run(t0 + timedelta(hours=43)) == loneliness_wake("faint", 12)
+
+
+def test_the_agents_own_loneliness_is_never_lowered_or_put_down_by_the_gate(state_dir, at, state_helpers):
+    _, write_jsonl, _, _ = state_helpers
+    t0 = at("2026-08-25T12:00:00+09:00")
+    gate.run(t0)
+    write_jsonl(state_dir / "judgments.jsonl", [judgment_line("loneliness", "user", "strong", t0)])
+
+    assert gate.run(t0 + timedelta(hours=24)) == NO_WAKE
+    assert held_loneliness(state_dir)["level"] == "strong"
+    interact(state_dir, t0 + timedelta(hours=25), state_helpers)
+    gate.run(t0 + timedelta(hours=25, minutes=10))
+    assert held_loneliness(state_dir)["at"] == t0.isoformat()
+
+
+def test_silence_leaves_every_other_judgment_and_the_event_log_untouched(state_dir, at, state_helpers):
+    _, write_jsonl, _, read_jsonl = state_helpers
+    t0 = at("2026-08-25T12:00:00+09:00")
+    gate.run(t0)
+    others = [judgment_line(name, "user", "some", t0) for name in ("trust", "doubt", "hurt")]
+    write_jsonl(state_dir / "judgments.jsonl", others)
+    before = desire_judgments.present(state_dir)
+
+    for hours in range(0, 101, 6):
+        gate.run(t0 + timedelta(hours=hours))
+
+    after = desire_judgments.present(state_dir)
+    assert {pair: after[pair] for pair in before} == before
+    assert desire_events.events_view(state_dir) == []
+    assert {line["name"] for line in read_jsonl(state_dir / "judgments.jsonl")[3:]} == {"loneliness"}
+
+
+def test_a_registry_without_loneliness_wakes_nobody_for_time_away(state_dir, at, state_helpers):
+    write_json, _, _, _ = state_helpers
+    t0 = at("2026-08-25T12:00:00+09:00")
+    gate.run(t0)
+    write_json(state_dir / "feelings.json", {"names": ["closeness"]})
+
+    assert gate.run(t0 + timedelta(hours=24)) == NO_WAKE
+    assert held_loneliness(state_dir) is None
 
 
 def test_an_internal_error_prints_the_no_wake_line_and_audits_gate_error(state_dir, at, capsys, monkeypatch):
@@ -1147,6 +1248,7 @@ def test_an_invalid_gate_state_is_quarantined_and_rebuilt(state_dir, at, state_h
     assert read_json(state_dir / "gate.json") == {
         "batch": {"ids": [], "presented_at": []},
         "notes_presented_at": None,
+        "loneliness": None,
     }
     assert len(list(state_dir.glob("gate.json.corrupt-*"))) == 1
     assert [
