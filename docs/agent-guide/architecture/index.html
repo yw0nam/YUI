@@ -230,11 +230,11 @@ function overviewPanel(panel) {
     panel.innerHTML = `<h2>Core modules</h2><p>A line is a main path of data and its label says what crosses. Select a module to see what it is made of and everything it exchanges with the others.</p><h3>Groups</h3>${group(DATA.zones.map(z => `<div class="row"><b class="zc" style="${hue(z.id)}">${esc(z.title)}</b><div class="meta">${esc(z.note)}</div></div>`).join(""))}`;
     return;
   }
-  const m = mod[state.sel], parts = DATA.nodes.filter(n => n.module === m.id && (n.paths.length || n.map)), names = Object.fromEntries(DATA.nodes.map(n => [n.id, n.label]));
+  const m = mod[state.sel], parts = DATA.nodes.filter(n => n.module === m.id && n.paths.length), maps = DATA.nodes.filter(n => n.module === m.id && n.map), names = Object.fromEntries(DATA.nodes.map(n => [n.id, n.label]));
   const claims = DATA.nodes.flatMap(n => n.paths), shared = x => claims.some(c => c.startsWith(x + "/")) ? " <span class=\"meta\">files outside the folders of other parts</span>" : "";
   const within = DATA.edges.filter(e => nodeModule[e.from] === m.id && nodeModule[e.to] === m.id);
   panel.innerHTML = `<h2>${esc(m.label)}</h2><p>${esc(m.desc)}</p>
-  <h3>Made of</h3>${parts.length ? group(parts.map(p => `<details class="row"><summary><b>${esc(p.label)}</b></summary><div class="meta" style="margin-top:4px">${esc(p.role)}</div>${p.paths.map(x => `<div><code>${esc(x)}</code>${shared(x)}</div>`).join("")}${p.map ? `<div><a href="?map=${encodeURIComponent(p.map)}">Open its map</a></div>` : ""}</details>`).join("")) : "<p>Outside the repo.</p>"}
+  <h3>Made of</h3>${parts.length ? group(parts.map(p => `<details class="row"><summary><b>${esc(p.label)}</b></summary><div class="meta" style="margin-top:4px">${esc(p.role)}</div>${p.paths.map(x => `<div><code>${esc(x)}</code>${shared(x)}</div>`).join("")}</details>`).join("")) : "<p>Outside the repo.</p>"}${maps.map(p => `<p><a href="?map=${encodeURIComponent(p.map)}">Open the map of ${esc(p.label)}</a></p>`).join("")}
   <h3>Sends to</h3>${exchangeRows(m.id, "out")}<h3>Receives from</h3>${exchangeRows(m.id, "in")}${within.length ? `<h3>Between its parts</h3>${group(`<details class="row"><summary><b>${within.length} exchange${within.length > 1 ? "s" : ""}</b></summary>${within.map(e => edgeRow(e, names)).join("")}</details>`)}` : ""}`;
 }
 

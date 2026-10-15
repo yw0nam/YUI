@@ -7,6 +7,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 export const MAPS = [
   {
     file: "docs/agent-guide/architecture/map.js",
+    windows: true,
     cover: ["src", "src-tauri/src"],
     source: /\.(ts|rs)$/,
     skip: /\.(test|d)\.ts$/,
@@ -74,7 +75,7 @@ export function parseMap(text) {
   }
 }
 
-function shapeProblems(map) {
+function shapeProblems(map, scope) {
   if (typeOf(map) !== "object" || map === null) return ["shape: the map is not an object"];
   const problems = [];
   const list = (owner, key, shape, name) => {
@@ -90,9 +91,10 @@ function shapeProblems(map) {
     }
   };
   for (const [key, shape] of Object.entries(SHAPE)) list(map, key, shape, key);
-  if (map.windows !== undefined && (typeOf(map.windows) !== "object" || map.windows === null))
+  const windows = scope.windows || map.windows !== undefined;
+  if (windows && (typeOf(map.windows) !== "object" || map.windows === null))
     problems.push("shape: windows is not an object");
-  else if (map.windows !== undefined)
+  else if (windows)
     for (const [key, shape] of Object.entries(WINDOW_SHAPE))
       list(map.windows, key, shape, `windows ${key}`);
   for (const flow of Array.isArray(map.flows) ? map.flows : []) {
@@ -106,7 +108,7 @@ function shapeProblems(map) {
 }
 
 export function checkMap(map, files, scope = MAPS[0]) {
-  const problems = shapeProblems(map);
+  const problems = shapeProblems(map, scope);
   if (problems.length) return problems;
   const windows = map.windows ?? { nodes: [], edges: [] };
   const entries = new Map(files.map((file) => [file.path, file]));

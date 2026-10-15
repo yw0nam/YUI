@@ -68,10 +68,16 @@ describe("architecture map", () => {
   it("accepts a valid map", () => {
     expect(checkMap(fixture(), files)).toEqual([]);
   });
-  it("accepts a map without windows", () => {
+  it("accepts a map without windows when its scope has no window graph", () => {
     const map = fixture();
     Reflect.deleteProperty(map, "windows");
-    expect(checkMap(map, files)).toEqual([]);
+    const scope = {
+      file: "plugin/docs/map.js",
+      cover: ["src"],
+      source: /\.(ts|rs)$/,
+      skip: /\.test\.ts$/,
+    };
+    expect(checkMap(map, files, scope)).toEqual([]);
   });
   it("accepts a part that links to another map file", () => {
     const map = fixture();
@@ -108,6 +114,13 @@ describe("architecture map", () => {
         Reflect.deleteProperty(map, "flows");
       },
       "shape: flows is not a list",
+    ],
+    [
+      "a client map without windows",
+      (map) => {
+        Reflect.deleteProperty(map, "windows");
+      },
+      "shape: windows is not an object",
     ],
     [
       "a step without its sending module",

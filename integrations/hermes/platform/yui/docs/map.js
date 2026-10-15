@@ -1208,14 +1208,6 @@ globalThis.YUI_MAP =
         },
         {
           "from": "adapter",
-          "label": "open_turn under the client's turn_id",
-          "edges": [
-            "adapter-state"
-          ],
-          "to": "turns"
-        },
-        {
-          "from": "adapter",
           "label": "The chat's stream begins",
           "edges": [
             "adapter-speaker"
@@ -1229,6 +1221,14 @@ globalThis.YUI_MAP =
             "adapter-reasoning"
           ],
           "to": "activity"
+        },
+        {
+          "from": "adapter",
+          "label": "open_turn under the client's turn_id",
+          "edges": [
+            "adapter-state"
+          ],
+          "to": "turns"
         },
         {
           "from": "adapter",
