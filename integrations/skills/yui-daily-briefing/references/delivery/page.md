@@ -34,7 +34,7 @@ This runs after step 8, with the spool holding briefings and the producers sched
    their sections go into the page's "Projects" zone.
 3. Ask the user: "In which order should the sections appear on the page?" Write down the
    general producers in that order. Every day's page keeps this order; a producer scheduled
-   later goes after the last one.
+   later is added at the end of the list and to the render job's instruction (point 7).
 4. Ask the user for the repository that receives the briefings, as the opening of
    § Install in `references/delivery/link.md` does: an empty one, with no README, license,
    or `.gitignore`. For the page it may be public, since the site that serves it is public
@@ -119,7 +119,7 @@ Done when: `page-check` for today prints nothing and exits 0.
 | `date`, per language | The weekday and date heading, and the line with the ISO date and the time the page was prepared, inside `<time datetime>` | Never |
 | `summary`, per language | One or two short paragraphs across all sections | Never |
 | `contents` | One row per producer, in the order of the sections, the personal producers after the "Projects" label: the producer's name, a status word for a source that reads `stale`, `failed` or `disabled`, and its item count, linking to its section | Never |
-| `producers` | One section per general producer, in the order of § Install point 3; a producer absent from that list follows them, by source name. A section holds the source name and item count, the file's `summary` line, an `intro:<source>` slot per language, and the items, 6 shown and the rest folded under `<details>`; a producer with no items shows "No items this run." | Never |
+| `producers` | One section per general producer, in the order of § Install point 3. A section holds the source name and item count, the file's `summary` line, an `intro:<source>` slot per language, and the items, 6 shown and the rest folded under `<details>`; a producer with no items shows "No items this run." | Never |
 | `personal` | One section per personal producer, in the user's order, built like a general section with its own `intro:<source>` slots | When the user named no personal producer |
 | `notices` | One row per source whose `status` is other than `ok`: the status word, `<producer> › <source>`, "Last success" with `last_ok`, and `run_url` as the "Run record" link; "No success on record" without `last_ok` | When every source reads `ok` |
 | `days` | The link to the previous day that has a page, `../../../../../reports/<YYYY>/<MM>/<Wn>/<DD>/` | On the first day |
