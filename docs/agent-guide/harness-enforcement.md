@@ -9,6 +9,7 @@ Mandatory rules have an enforcement point — the gate, not memory, is the sourc
 | Conventional, English PR titles | `pr-title` CI job |
 | Format + lint | `lint` CI job (`pnpm lint`, Biome) |
 | No raw `console.*` in `src/` | `lint` CI job (Biome `noConsole`) |
+| No committed `.skip` or `.only` in a test | `lint` CI job (Biome `noSkippedTests`, `noFocusedTests`) |
 | `src/` layer order: a layer imports only from the layers to its left (`AGENTS.md` § Engineering principles) | `lint` CI job (Biome `noRestrictedImports` `patterns`, one `overrides` entry per layer in `biome.json`; `*.test.ts` and `*test-helpers*.ts` are exempt) |
 | The client and plugin architecture maps name existing paths, map files and wiring files, every source file (`.ts` and `.rs` for the client, `.py` for the plugin) is inside a part of a module, their ids resolve, and their links and flow steps match their exchanges (`CONTRIBUTING.md` § Architecture map) | `web` CI job (`pnpm map:check`, `scripts/ci/architecture-map.mjs`) |
 | Rust format + clippy + test | `rust` CI job; on pull requests, `dorny/paths-filter` runs `cargo fmt --check`, `cargo clippy -D warnings`, and `cargo test` when `src-tauri/**` or `.github/workflows/ci.yml` changes, otherwise the job reports green without the heavy steps |

@@ -42,6 +42,7 @@
         "noExplicitAny": "off",
         "noAssignInExpressions": "off",
         "noConsole": "error",
+        "noFocusedTests": "error",
         "noSkippedTests": "error"
       },
       "complexity": {
