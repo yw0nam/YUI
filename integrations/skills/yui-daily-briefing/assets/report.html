@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex">
+<!-- slot: title --><!-- fill: <title>Briefing · YYYY-MM-DD</title> --><!-- /slot -->
+<style id="lang-rule">body [lang]:not([lang="en"]) { display: none !important; }</style>
+<link rel="stylesheet" href="../../../../../src/style.css">
+<script src="../../../../../src/lang.js"></script>
+</head>
+<body>
+<div class="page">
+
+  <aside class="rail">
+
+  <header class="masthead">
+    <div class="masthead-top">
+      <p class="label"><span lang="en">Daily briefing</span><span lang="ko">오늘의 브리핑</span></p>
+      <label class="lang-switch">
+        <select id="lang-select" aria-label="Language">
+          <!-- slot: languages -->
+          <!-- fill: one <option> per page language, en first -->
+          <!-- /slot -->
+        </select>
+      </label>
+    </div>
+    <!-- slot: date lang=en -->
+    <!-- fill: weekday and date heading and the prepared-at line -->
+    <!-- /slot -->
+  </header>
+
+  <nav class="contents" aria-label="Contents">
+    <!-- slot: contents -->
+    <!-- fill: one row per producer; personal producers after the Your work label -->
+    <!-- /slot -->
+  </nav>
+
+  <section class="health" aria-labelledby="attention">
+    <h2 id="attention"><span lang="en">Needs attention</span><span lang="ko">확인이 필요한 소스</span></h2>
+    <div class="notices">
+      <!-- slot: notices -->
+      <!-- fill: one row per source whose status is not ok, or nothing -->
+      <!-- /slot -->
+    </div>
+  </section>
+
+  </aside>
+
+  <section class="lead" aria-label="Summary">
+    <!-- slot: summary lang=en -->
+    <!-- fill: the day's summary across every section -->
+    <!-- /slot -->
+  </section>
+
+  <main>
+    <div class="zone">
+      <!-- slot: producers -->
+      <!-- fill: one section per general producer, each with its intro slots and items -->
+      <!-- /slot -->
+    </div>
+
+    <div class="zone">
+      <h2 class="zone-title"><span lang="en">Your work</span><span lang="ko">내 작업</span></h2>
+      <!-- slot: personal -->
+      <!-- fill: one section per personal producer, or nothing -->
+      <!-- /slot -->
+    </div>
+
+  </main>
+
+  <nav class="days" aria-label="Other days">
+    <!-- slot: days -->
+    <!-- fill: the previous day's link, or nothing on the first day -->
+    <!-- /slot -->
+    <a class="all" href="../../../../../"><span class="day-date"><span lang="en">All days</span><span lang="ko">모든 날</span></span></a>
+    <a class="next" href="#" hidden><span class="day-label"><span lang="en">Next day</span><span lang="ko">다음 날</span></span><span class="day-date"></span></a>
+    <p class="next-none" hidden><span lang="en">No next day yet</span><span lang="ko">아직 다음 날이 없습니다</span></p>
+  </nav>
+
+</div>
+<script>
+  // The earliest of the next seven days that has a page; producers can skip days.
+  (function () {
+    var stamp = document.querySelector(".masthead time[datetime]");
+    var next = document.querySelector(".days .next");
+    var none = document.querySelector(".days .next-none");
+    if (!stamp || !next || !none) return;
+    var start = Date.parse(stamp.getAttribute("datetime").slice(0, 10) + "T00:00:00Z");
+    function folder(day) {
+      var week = Math.floor((Number(day.slice(8, 10)) - 1) / 7) + 1;
+      return "../../../../../reports/" + day.slice(0, 4) + "/" + day.slice(5, 7) + "/W" + week + "/" + day.slice(8, 10) + "/";
+    }
+    var days = [1, 2, 3, 4, 5, 6, 7].map(function (n) { return new Date(start + n * 864e5).toISOString().slice(0, 10); });
+    Promise.all(days.map(function (day) {
+      return fetch(folder(day), { method: "HEAD" }).then(function (r) { return r.ok ? day : null; }, function () { return null; });
+    })).then(function (found) {
+      var day = found.filter(Boolean)[0];
+      if (!day) { none.hidden = false; return; }
+      next.href = folder(day);
+      next.querySelector(".day-date").textContent = day;
+      next.hidden = false;
+    });
+  })();
+</script>
+</body>
+</html>

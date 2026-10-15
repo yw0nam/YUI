@@ -20,6 +20,8 @@ const ROOT = resolve(__dirname, "..");
 const SKILL_DIR = join(ROOT, "integrations/skills/yui-daily-briefing");
 const SCRIPT = join(SKILL_DIR, "scripts/briefing.py");
 const GATHER = JSON.parse(readFileSync(join(SKILL_DIR, "assets/fixtures/gather.json"), "utf8"));
+const TEMPLATE = readFileSync(join(SKILL_DIR, "assets/report.html"), "utf8");
+const FILLED = readFileSync(join(SKILL_DIR, "assets/fixtures/report-filled.html"), "utf8");
 const BRIEFING = /^reports\/\d{4}\/\d{2}\/W[1-5]\/\d{2}\/[^/]+$/;
 const LOCAL_ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/;
 
@@ -434,6 +436,30 @@ describe("briefing.py publish", () => {
     expect(git(origin, ["rev-list", "--count", "main"])).toBe("1\n");
   });
 
+  it("pushes the day pages with the board and the shared page assets once a day has a page", () => {
+    const origin = join(tempDir(), "origin.git");
+    expect(spawnSync("git", ["init", "-q", "--bare", "-b", "main", origin]).status).toBe(0);
+    const spool = repo(tempDir());
+    git(spool, ["remote", "add", "origin", origin]);
+    expect(writeOn(spool, "2026-10-02", "news", GATHER).status).toBe(0);
+    seed(spool, "reports/2026/10/W1/02/index.html", FILLED);
+    seed(spool, "reports/2026/10/W1/02/draft.html", "not a page\n");
+    seed(spool, "src/style.css", "stale copy\n");
+    seed(spool, "README.md", "the user's\n");
+
+    expect(run(spool, ["publish"])).toEqual({ status: 0, stdout: "", stderr: "" });
+    expect(git(origin, ["ls-tree", "-r", "--name-only", "main"]).split("\n")).toEqual([
+      "index.html",
+      "reports/2026/10/W1/02/index.html",
+      "reports/2026/10/W1/02/news.md",
+      "src/lang.js",
+      "src/style.css",
+      "",
+    ]);
+    expect(read(spool, "src/style.css")).toBe(readFileSync(join(SKILL_DIR, "assets/src/style.css"), "utf8"));
+    expect(read(spool, "index.html")).toContain('href="reports/2026/10/W1/02/"');
+  });
+
   it("exits 2 on a spool that is not its own git work tree or has no remote", () => {
     const plain = tempDir();
     const nested = join(repo(tempDir()), "spool");
@@ -544,5 +570,83 @@ describe("briefing.py migrate", () => {
     expect(result.stderr.trim().split("\n")).toHaveLength(1);
     expect(read(spool, "2026-09-30/papers.md")).toBe("old\n");
     expect(read(spool, "reports/2026/10/W1/01/news.md")).toBe("new\n");
+  });
+});
+
+describe("briefing.py board", () => {
+  it("lists every day newest first with each producer's item count and its stale or failed flag", () => {
+    const spool = tempDir();
+    const quiet = { sources: [{ name: "wire", status: "ok" }], refs: GATHER.refs.slice(0, 1) };
+    expect(writeOn(spool, "2026-09-30", "news", quiet).status).toBe(0);
+    expect(writeOn(spool, "2026-10-02", "papers", quiet).status).toBe(0);
+    expect(writeOn(spool, "2026-10-02", "news", GATHER).status).toBe(0);
+    expect(writeOn(spool, "2026-10-02", "markets", "{").status).toBe(1);
+    seed(spool, "reports/2026/10/W1/02/index.html", FILLED);
+
+    expect(run(spool, ["board"])).toEqual({ status: 0, stdout: "", stderr: "" });
+    const board = read(spool, "index.html");
+    const rows = board.split('<li class="day">').slice(1);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toContain('<a class="day-link" href="reports/2026/10/W1/02/">');
+    expect(rows[0]).toContain('<span class="day-iso">2026-10-02</span>');
+    expect(rows[0]).toContain('<span lang="en">Fri</span><span lang="ko">금</span>');
+    expect(rows[0]).toContain(
+      '<li class="flag-failed"><span class="p-name">markets</span> <span class="p-count">0</span></li>',
+    );
+    expect(rows[0]).toContain(
+      '<li class="flag-stale"><span class="p-name">news</span> <span class="p-count">2</span></li>',
+    );
+    expect(rows[0]).toContain('<li><span class="p-name">papers</span> <span class="p-count">1</span></li>');
+    expect(rows[0]).toContain('class="status status-failed"');
+    expect(rows[1]).toContain('<span class="day-iso">2026-09-30</span>');
+    // A day without a page is listed with no link.
+    expect(rows[1]).not.toContain("<a ");
+    expect(rows[1]).not.toContain("status-");
+
+    expect(run(spool, ["board"]).status).toBe(0);
+    expect(read(spool, "index.html")).toBe(board);
+  });
+});
+
+describe("briefing.py page-check", () => {
+  const PAGE = "reports/2026/10/W1/02/index.html";
+
+  function check(page: string | null): Result {
+    const spool = tempDir();
+    if (page !== null) seed(spool, PAGE, page);
+    return run(spool, ["page-check", "2026-10-02"]);
+  }
+
+  function failure(page: string | null): string {
+    const result = check(page);
+    expect(result.status).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(result.stderr.trim().split("\n")).toHaveLength(1);
+    return result.stderr.trim();
+  }
+
+  it("passes a page whose every required slot is filled in every language it offers", () => {
+    expect(check(FILLED)).toEqual({ status: 0, stdout: "", stderr: "" });
+    const quiet = FILLED.replace(
+      /<!-- slot: notices -->[\s\S]*?<!-- \/slot -->/,
+      "<!-- slot: notices --><!-- /slot -->",
+    );
+    expect(check(quiet).status).toBe(0);
+  });
+
+  it("names the first slot still holding the template's marker, or missing, or a missing page", () => {
+    expect(failure(TEMPLATE)).toMatch(/\btitle\b/);
+    expect(
+      failure(FILLED.replace(/<!-- slot: summary lang=ko -->[\s\S]*?<!-- \/slot -->/, "")),
+    ).toMatch(/summary lang=ko/);
+    expect(
+      failure(
+        FILLED.replace(
+          /(<!-- slot: intro:papers lang=ko -->)[\s\S]*?(<!-- \/slot -->)/,
+          "$1<!-- fill -->$2",
+        ),
+      ),
+    ).toMatch(/intro:papers lang=ko/);
+    expect(failure(null)).toContain(PAGE);
   });
 });

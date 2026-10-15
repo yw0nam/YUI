@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex">
+<!-- slot: title --><title>Briefing · 2026-10-02</title><!-- /slot -->
+<style id="lang-rule">body [lang]:not([lang="en"]) { display: none !important; }</style>
+<link rel="stylesheet" href="../../../../../src/style.css">
+<script src="../../../../../src/lang.js"></script>
+</head>
+<body>
+<div class="page">
+
+  <aside class="rail">
+
+  <header class="masthead">
+    <div class="masthead-top">
+      <p class="label"><span lang="en">Daily briefing</span><span lang="ko">오늘의 브리핑</span></p>
+      <label class="lang-switch">
+        <select id="lang-select" aria-label="Language">
+          <!-- slot: languages -->
+          <option value="en">EN</option>
+          <option value="ko">KO</option>
+          <!-- /slot -->
+        </select>
+      </label>
+    </div>
+    <!-- slot: date lang=en -->
+    <div lang="en">
+      <h1>Friday, October 2</h1>
+      <p class="dateline"><time datetime="2026-10-02T08:20:03+02:00"><span>2026-10-02</span> <span>· prepared at 08:20</span></time></p>
+    </div>
+    <!-- /slot -->
+    <!-- slot: date lang=ko -->
+    <div lang="ko">
+      <h1>10월 2일 금요일</h1>
+      <p class="dateline"><time datetime="2026-10-02T08:20:03+02:00"><span>2026-10-02</span> <span>· 08:20 작성</span></time></p>
+    </div>
+    <!-- /slot -->
+  </header>
+
+  <nav class="contents" aria-label="Contents">
+    <!-- slot: contents -->
+    <ol>
+      <li><a href="#papers"><span class="toc-name">papers</span><span class="status status-failed"><span lang="en">failed</span><span lang="ko">실패</span></span><span class="toc-count">8</span></a></li>
+      <li><a href="#world-news"><span class="toc-name">world-news</span><span class="status status-stale"><span lang="en">stale</span><span lang="ko">지연</span></span><span class="toc-count">2</span></a></li>
+      <li><a href="#markets"><span class="toc-name">markets</span><span class="status status-failed"><span lang="en">failed</span><span lang="ko">실패</span></span><span class="toc-count">0</span></a></li>
+    </ol>
+    <p class="toc-zone"><span lang="en">Your work</span><span lang="ko">내 작업</span></p>
+    <ol>
+      <li><a href="#my-project"><span class="toc-name">my-project</span><span class="toc-count">7</span></a></li>
+    </ol>
+    <!-- /slot -->
+  </nav>
+
+  <section class="health" aria-labelledby="attention">
+    <h2 id="attention"><span lang="en">Needs attention</span><span lang="ko">확인이 필요한 소스</span></h2>
+    <div class="notices">
+      <!-- slot: notices -->
+      <div class="notice">
+        <p class="notice-head"><span class="status status-failed"><span lang="en">Failed</span><span lang="ko">실패</span></span><span class="source-name"><span class="source-producer">papers</span> example-reviews</span></p>
+        <p class="notice-detail"><span lang="en">Last success</span><span lang="ko">마지막 성공</span> <time datetime="2026-10-01T05:30:40Z">10-01 07:30</time> · <a href="https://scheduler.example.com/runs/240"><span lang="en">Run record</span><span lang="ko">실행 기록</span></a></p>
+      </div>
+      <div class="notice">
+        <p class="notice-head"><span class="status status-stale"><span lang="en">Stale</span><span lang="ko">지연</span></span><span class="source-name"><span class="source-producer">world-news</span> example-feed</span></p>
+        <p class="notice-detail"><span lang="en">Last success</span><span lang="ko">마지막 성공</span> <time datetime="2026-09-28T22:10:00Z">09-29 00:10</time> · <a href="https://scheduler.example.com/runs/231"><span lang="en">Run record</span><span lang="ko">실행 기록</span></a></p>
+      </div>
+      <div class="notice">
+        <p class="notice-head"><span class="status status-failed"><span lang="en">Failed</span><span lang="ko">실패</span></span><span class="source-name">markets</span></p>
+        <p class="notice-detail"><span lang="en">No success on record</span><span lang="ko">성공 기록 없음</span></p>
+      </div>
+      <!-- /slot -->
+    </div>
+  </section>
+
+  </aside>
+
+  <section class="lead" aria-label="Summary">
+    <!-- slot: summary lang=en -->
+    <div lang="en">
+      <p>Voice input shipped overnight in your project, and one review is waiting on you: the settings migration, requested this morning. Two of the eight new papers sit close to that work, a lip-sync model small enough for a laptop GPU and a study on when an assistant should speak first.</p>
+      <p>The news is quiet apart from rates rising again. Three feeds need a look: the reviews feed and the markets run failed this morning, and example-feed has said nothing since Tuesday night.</p>
+    </div>
+    <!-- /slot -->
+    <!-- slot: summary lang=ko -->
+    <div lang="ko">
+      <p>밤사이 프로젝트에 음성 입력이 배포되었고, 오늘 아침 요청된 설정 마이그레이션 검토 한 건이 기다리고 있습니다. 새 논문 여덟 편 중 두 편이 이 작업과 가깝습니다. 노트북 GPU에서 돌아가는 립싱크 모델과, 비서가 언제 먼저 말을 걸어야 하는지 다룬 연구입니다.</p>
+      <p>뉴스는 금리가 다시 올랐다는 소식 하나입니다. 소스 세 곳을 확인해 주세요. 리뷰 피드와 시장 실행이 오늘 아침 실패했고, example-feed는 화요일 밤 이후 소식이 없습니다.</p>
+    </div>
+    <!-- /slot -->
+  </section>
+
+  <main>
+    <div class="zone">
+      <!-- slot: producers -->
+      <section class="producer" aria-labelledby="papers">
+        <h2 class="producer-head" id="papers">papers <span class="count">8</span></h2>
+        <p class="producer-summary">Papers: 8 new from 1 of 2 feeds</p>
+        <!-- slot: intro:papers lang=en -->
+        <p class="intro" lang="en">Start with the <a href="#papers-3">lip-sync model</a>: 12M parameters and real time on a laptop GPU, which is the budget the character already runs in. The <a href="#papers-4">study on when an assistant should speak first</a> came without an excerpt, so its abstract is worth a minute. The rest is background reading.</p>
+        <!-- /slot -->
+        <!-- slot: intro:papers lang=ko -->
+        <p class="intro" lang="ko"><a href="#papers-3">립싱크 모델</a>부터 보세요. 파라미터 1,200만 개로 노트북 GPU에서 실시간으로 돌아가니, 지금 캐릭터가 쓰는 연산 범위 안에 들어옵니다. <a href="#papers-4">비서가 언제 먼저 말을 걸어야 하는지 다룬 연구</a>는 요약 없이 들어왔으니 초록을 직접 읽어 볼 만합니다. 나머지는 참고용입니다.</p>
+        <!-- /slot -->
+        <ol class="items">
+          <li class="item" id="papers-1"><div>
+            <a class="item-title" href="https://papers.example.com/abs/2609.01234">Diffusion policies for dexterous manipulation</a>
+            <p class="item-meta">paper · papers.example.com · <time datetime="2026-10-02T05:24:26Z">07:24</time></p>
+            <p class="item-excerpt">A diffusion policy trained on 40 hours of teleoperation reaches 81% success on in-hand reorientation, up from 52% for the strongest behaviour-cloning baseline.</p>
+          </div></li>
+          <li class="item" id="papers-2"><div>
+            <a class="item-title" href="https://papers.example.com/abs/2609.01377">Sparse attention at million-token context without retrieval</a>
+            <p class="item-meta">paper · papers.example.com · <time datetime="2026-10-02T04:58:03Z">06:58</time></p>
+            <p class="item-excerpt">Block-sparse attention with learned routing keeps perplexity within 0.3 of dense attention at one million tokens while cutting memory by a factor of nine.</p>
+          </div></li>
+          <li class="item" id="papers-3"><div>
+            <a class="item-title" href="https://papers.example.com/abs/2609.01402">Lip-sync from phonemes: a small model that runs on a laptop GPU</a>
+            <p class="item-meta">paper · papers.example.com · <time datetime="2026-10-02T03:11:47Z">05:11</time></p>
+            <p class="item-excerpt">A 12M-parameter model maps phoneme timings to viseme weights in real time.</p>
+          </div></li>
+          <li class="item" id="papers-4"><div>
+            <a class="item-title" href="https://papers.example.com/abs/2609.01519">Evaluating proactive assistants: when should an agent speak first?</a>
+            <p class="item-meta">paper · papers.example.com · <time datetime="2026-10-01T22:40:10Z">00:40</time></p>
+          </div></li>
+          <li class="item" id="papers-5"><div>
+            <a class="item-title" href="https://papers.example.com/abs/2609.01588">Retargeting motion capture to stylised avatars with contact constraints</a>
+            <p class="item-meta">paper · papers.example.com · <time datetime="2026-10-01T21:02:55Z">10-01 23:02</time></p>
+            <p class="item-excerpt">Foot and hand contacts are preserved through an inverse-kinematics pass after neural retargeting.</p>
+          </div></li>
+          <li class="item" id="papers-6"><div>
+            <a class="item-title" href="https://papers.example.com/abs/2609.01630">Speech emotion transfer across languages with shared prosody tokens</a>
+            <p class="item-meta">paper · papers.example.com · <time datetime="2026-10-01T19:18:31Z">10-01 21:18</time></p>
+            <p class="item-excerpt">Prosody tokens learned on Korean and Japanese transfer to English with a 0.4 MOS drop.</p>
+          </div></li>
+        </ol>
+        <details class="more">
+          <summary><span>2<span lang="en">&nbsp;more</span><span lang="ko">개 더 보기</span></span></summary>
+          <ol class="items" style="--start: 6">
+            <li class="item" id="papers-7"><div>
+              <a class="item-title" href="https://papers.example.com/abs/2609.01702">A benchmark for long-horizon desktop agents</a>
+              <p class="item-meta">paper · papers.example.com · <time datetime="2026-10-01T17:45:09Z">10-01 19:45</time></p>
+              <p class="item-excerpt">212 tasks across mail, calendar, and file management, scored by end state.</p>
+            </div></li>
+            <li class="item" id="papers-8"><div>
+              <a class="item-title" href="https://papers.example.com/abs/2609.01799">Memory consolidation for conversational agents</a>
+              <p class="item-meta">paper · papers.example.com · <time datetime="2026-10-01T16:30:00Z">10-01 18:30</time></p>
+              <p class="item-excerpt">Nightly summarisation of the day's turns into durable notes halves contradictions in week-long dialogues.</p>
+            </div></li>
+          </ol>
+        </details>
+      </section>
+
+      <section class="producer" aria-labelledby="world-news">
+        <h2 class="producer-head" id="world-news">world-news <span class="count">2</span></h2>
+        <p class="producer-summary">World news roundup: 2 items from 2 live feeds</p>
+        <!-- slot: intro:world-news lang=en -->
+        <p class="intro" lang="en">One story to read: <a href="#world-news-1">rates rose again</a>, and buyers keep paying more. The second item is the diffusion-policy paper already listed under papers. Only one of the two feeds answered, so this section may be missing stories.</p>
+        <!-- /slot -->
+        <!-- slot: intro:world-news lang=ko -->
+        <p class="intro" lang="ko">읽을 기사는 <a href="#world-news-1">금리가 다시 올랐다는 소식</a> 하나입니다. 주택 구매자의 부담이 계속 커지고 있습니다. 두 번째 항목은 papers에 이미 있는 확산 정책 논문입니다. 피드 두 곳 중 한 곳만 응답했으니 빠진 소식이 있을 수 있습니다.</p>
+        <!-- /slot -->
+        <ol class="items">
+          <li class="item" id="world-news-1"><div>
+            <a class="item-title" href="https://news.example.com/story_(rates)">Rates [update] rise again</a>
+            <p class="item-meta">news · news.example.com · <time datetime="2026-10-01T19:41:01Z">10-01 21:41</time></p>
+            <p class="item-excerpt">Homebuilders and prospective buyers continue to face higher costs.</p>
+          </div></li>
+          <li class="item" id="world-news-2"><div>
+            <a class="item-title" href="https://papers.example.com/abs/2609.01234">Diffusion policies for dexterous manipulation</a>
+            <p class="item-meta">paper · papers.example.com · <time datetime="2026-10-01T05:24:26Z">10-01 07:24</time></p>
+          </div></li>
+        </ol>
+      </section>
+
+      <section class="producer" aria-labelledby="markets">
+        <h2 class="producer-head" id="markets">markets <span class="count">0</span></h2>
+        <p class="producer-summary">markets run failed: JSONDecodeError: Expecting value: line 2 column 1 (char 36)</p>
+        <!-- slot: intro:markets lang=en -->
+        <p class="intro" lang="en">No market figures this morning: the gather script handed over input the helper could not read, so the run stopped before any source was asked. Yesterday's numbers are the latest you have. The script needs a fix before tomorrow's run, or markets will be missing again.</p>
+        <!-- /slot -->
+        <!-- slot: intro:markets lang=ko -->
+        <p class="intro" lang="ko">오늘 아침에는 시장 수치가 없습니다. 수집 스크립트가 넘긴 입력을 도우미가 읽지 못해, 소스를 하나도 조회하기 전에 실행이 멈췄습니다. 지금 볼 수 있는 최신 수치는 어제 것입니다. 내일 실행 전에 스크립트를 고치지 않으면 시장 항목은 내일도 빠집니다.</p>
+        <!-- /slot -->
+        <p class="empty"><span lang="en">No items this run.</span><span lang="ko">이번 실행에는 항목이 없습니다.</span></p>
+      </section>
+      <!-- /slot -->
+    </div>
+
+    <div class="zone">
+      <h2 class="zone-title"><span lang="en">Your work</span><span lang="ko">내 작업</span></h2>
+      <!-- slot: personal -->
+      <section class="producer" aria-labelledby="my-project">
+        <h3 class="producer-head" id="my-project">my-project <span class="count">7</span></h3>
+        <p class="producer-summary">my-project: 7 updates</p>
+        <!-- slot: intro:my-project lang=en -->
+        <p class="intro" lang="en"><a href="#my-project-2">Voice input shipped as v0.9.0</a>. Both pull requests behind it merged overnight and closed the three issues it was meant to fix. One thing waits on you: <a href="#my-project-1">the review of the settings migration</a>, requested at 08:05. It rewrites every user's stored settings on first launch, so it is worth reading before the next release.</p>
+        <!-- /slot -->
+        <!-- slot: intro:my-project lang=ko -->
+        <p class="intro" lang="ko"><a href="#my-project-2">음성 입력이 v0.9.0으로 배포되었습니다</a>. 이 기능을 이루는 풀 리퀘스트 두 건이 밤사이 병합되었고, 관련 이슈 세 건이 닫혔습니다. 직접 처리할 일은 하나입니다. 08:05에 요청된 <a href="#my-project-1">설정 마이그레이션 검토</a>입니다. 모든 사용자의 저장된 설정을 첫 실행에서 다시 쓰는 변경이라, 다음 릴리스 전에 읽어 두는 편이 좋습니다.</p>
+        <!-- /slot -->
+        <ol class="items">
+          <li class="item" id="my-project-1"><div>
+            <a class="item-title" href="https://git.example.com/example/my-project/pull/418">Review requested: Move stored settings to schema v3</a>
+            <p class="item-meta">review_request · git.example.com · <time datetime="2026-10-02T06:05:11Z">08:05</time></p>
+            <p class="item-excerpt">14 files changed; the migration runs once on first launch and rewrites the stored settings file.</p>
+          </div></li>
+          <li class="item" id="my-project-2"><div>
+            <a class="item-title" href="https://git.example.com/example/my-project/releases/tag/v0.9.0">v0.9.0: Voice input</a>
+            <p class="item-meta">release · git.example.com · <time datetime="2026-10-02T05:58:45Z">07:58</time></p>
+            <p class="item-excerpt">Push-to-talk and streaming transcription, on by default for new installs.</p>
+          </div></li>
+          <li class="item" id="my-project-3"><div>
+            <a class="item-title" href="https://git.example.com/example/my-project/pull/415">Add a push-to-talk hotkey</a>
+            <p class="item-meta">pull_request · git.example.com · <time datetime="2026-10-02T05:52:30Z">07:52</time></p>
+            <p class="item-excerpt">Merged.</p>
+          </div></li>
+          <li class="item" id="my-project-4"><div>
+            <a class="item-title" href="https://git.example.com/example/my-project/issues/402">Voice input drops the first syllable</a>
+            <p class="item-meta">issue · git.example.com · <time datetime="2026-10-02T05:51:58Z">07:51</time></p>
+            <p class="item-excerpt">Closed: the recorder now keeps 300 ms of audio from before the hotkey press.</p>
+          </div></li>
+          <li class="item" id="my-project-5"><div>
+            <a class="item-title" href="https://git.example.com/example/my-project/pull/411">Stream transcription into the composer</a>
+            <p class="item-meta">pull_request · git.example.com · <time datetime="2026-10-01T23:40:12Z">01:40</time></p>
+            <p class="item-excerpt">Merged. Partial transcripts appear while you speak and settle when you stop.</p>
+          </div></li>
+          <li class="item" id="my-project-6"><div>
+            <a class="item-title" href="https://git.example.com/example/my-project/issues/397">Microphone permission prompt appears twice on first launch</a>
+            <p class="item-meta">issue · git.example.com · <time datetime="2026-10-01T23:38:40Z">01:38</time></p>
+            <p class="item-excerpt">Closed.</p>
+          </div></li>
+        </ol>
+        <details class="more">
+          <summary><span>1<span lang="en">&nbsp;more</span><span lang="ko">개 더 보기</span></span></summary>
+          <ol class="items" style="--start: 6">
+            <li class="item" id="my-project-7"><div>
+              <a class="item-title" href="https://git.example.com/example/my-project/issues/391">Composer loses focus after a spoken turn</a>
+              <p class="item-meta">issue · git.example.com · <time datetime="2026-10-01T21:05:09Z">10-01 23:05</time></p>
+              <p class="item-excerpt">Closed.</p>
+            </div></li>
+          </ol>
+        </details>
+      </section>
+      <!-- /slot -->
+    </div>
+
+  </main>
+
+  <nav class="days" aria-label="Other days">
+    <!-- slot: days -->
+    <a class="prev" href="../../../../../reports/2026/10/W1/01/"><span class="day-label"><span lang="en">Previous day</span><span lang="ko">이전 날</span></span><span class="day-date">2026-10-01</span></a>
+    <!-- /slot -->
+    <a class="all" href="../../../../../"><span class="day-date"><span lang="en">All days</span><span lang="ko">모든 날</span></span></a>
+    <a class="next" href="#" hidden><span class="day-label"><span lang="en">Next day</span><span lang="ko">다음 날</span></span><span class="day-date"></span></a>
+    <p class="next-none" hidden><span lang="en">No next day yet</span><span lang="ko">아직 다음 날이 없습니다</span></p>
+  </nav>
+
+</div>
+<script>
+  // The earliest of the next seven days that has a page; producers can skip days.
+  (function () {
+    var stamp = document.querySelector(".masthead time[datetime]");
+    var next = document.querySelector(".days .next");
+    var none = document.querySelector(".days .next-none");
+    if (!stamp || !next || !none) return;
+    var start = Date.parse(stamp.getAttribute("datetime").slice(0, 10) + "T00:00:00Z");
+    function folder(day) {
+      var week = Math.floor((Number(day.slice(8, 10)) - 1) / 7) + 1;
+      return "../../../../../reports/" + day.slice(0, 4) + "/" + day.slice(5, 7) + "/W" + week + "/" + day.slice(8, 10) + "/";
+    }
+    var days = [1, 2, 3, 4, 5, 6, 7].map(function (n) { return new Date(start + n * 864e5).toISOString().slice(0, 10); });
+    Promise.all(days.map(function (day) {
+      return fetch(folder(day), { method: "HEAD" }).then(function (r) { return r.ok ? day : null; }, function () { return null; });
+    })).then(function (found) {
+      var day = found.filter(Boolean)[0];
+      if (!day) { none.hidden = false; return; }
+      next.href = folder(day);
+      next.querySelector(".day-date").textContent = day;
+      next.hidden = false;
+    });
+  })();
+</script>
+</body>
+</html>
