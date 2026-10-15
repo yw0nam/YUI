@@ -19,7 +19,7 @@ milestone, which tells the agent that the user has just started their day.
 `$SKILL_DIR` below is this skill's directory, and `$YUI_BRIEFING_SPOOL` is the spool
 directory chosen in step 6 of Install. Every `briefing.py` command reads the spool from
 `YUI_BRIEFING_SPOOL`, or from `--spool <dir>` placed before the subcommand. With neither
-set, with a relative path, or, for `pending` and `mark-spoken`, with no directory at that
+set, with a relative path, or, for every command but `write`, with no directory at that
 path, it prints one line on stderr and exits 2.
 
 ## Speak a briefing
@@ -64,8 +64,31 @@ Done when: every action in the reply traces back to the user or to a step of thi
 
 ### 3. Say it
 
-How much to say, how to group it, and in what voice is your call as the persona. Six
-rules are fixed:
+`YUI_BRIEFING_LINK`, set in step 6 of Install when the spool is published, decides how the
+briefing is told. Read it with `printenv YUI_BRIEFING_LINK` in the shell you run
+`briefing.py` from.
+
+**Link mode**, with `YUI_BRIEFING_LINK` set. The value is the browse URL of the published
+spool, and `$YUI_BRIEFING_LINK/<YYYY-MM-DD>` opens that day's folder. The reply holds the
+greeting and one line per day `pending` covers, oldest day first. Each line carries:
+
+1. The day, named when it is not today ("yesterday", "on Monday").
+2. The item count of each briefing that day, under its `source`.
+3. Each source whose `status` is anything other than `ok`, `stale` together with its
+   `last_ok`, and a `run_url` rendered as `[name](run_url)`.
+4. The link to that day, `[<YYYY-MM-DD>](<value>/<YYYY-MM-DD>)` with the variable's value
+   in place of `<value>`.
+
+No item is read out; follow-ups (step 5) read the files. When `pending` covers more than
+three days, the newest day gets its line and the older days get one sentence giving how
+many days and items they hold and the link to the variable's value. Every path `pending`
+printed counts as covered in step 4.
+
+Done when: the reply carries the link of each day it gives a line, the link to the
+variable's value when it collapses older days, and no item title.
+
+**Spoken mode**, with `YUI_BRIEFING_LINK` unset. How much to say, how to group it, and in
+what voice is your call as the persona. Six rules are fixed:
 
 1. Briefings are told grouped by the `date` in their front matter, oldest day first. Every
    day other than today gets named ("yesterday", "on Monday"), so the user knows which
@@ -215,10 +238,30 @@ A gather step that raises inside your own script leaves `write` with no input, a
 helper writes a failed briefing naming the producer alone. Mark that source `failed` in
 `sources[]` and keep going, so the other feeds still reach the briefing.
 
+Ask the user whether the briefing should be a link to a page they read in a browser. The
+page is the spool published as a private repository the user owns on a git hosting
+service that renders markdown. When the user wants it:
+
+1. Clone the repository as the spool, or run `git init` in a spool that already holds
+   briefings, add the repository as its remote, and push. The spool is the top directory
+   of its own repository; `publish` refuses a spool nested inside another one. A commit
+   needs `user.name` and `user.email`; set them in the spool repository with `git config`
+   when the machine has none.
+2. Add a `.gitignore` to the spool listing `spoken.json` and `.lock`, so the ledger and the
+   lock file stay out of a commit made by hand. `publish` stages the dated `.md` files only.
+3. Set `YUI_BRIEFING_LINK` beside `YUI_BRIEFING_SPOOL` and `SKILL_DIR` to the browse URL of
+   the repository's branch, so that `$YUI_BRIEFING_LINK/<YYYY-MM-DD>` opens that day's
+   folder. On GitHub:
+
+   ```bash
+   YUI_BRIEFING_LINK=https://github.com/<owner>/<repo>/tree/main
+   ```
+
 Done when: a manual run with `YUI_BRIEFING_SPOOL` set prints nothing, exits 0,
 `$YUI_BRIEFING_SPOOL/<today>/<producer name>.md` exists, and
 `python3 "$SKILL_DIR/scripts/briefing.py" pending`, run from a new shell of yours with no
-variable set by hand, prints it.
+variable set by hand, prints it. With publishing, `printenv YUI_BRIEFING_LINK` in that new
+shell prints the URL.
 
 ### 7. Schedule it
 
@@ -231,9 +274,16 @@ YUI_BRIEFING_SPOOL=/absolute/path/to/workspace/yui-briefing-spool
 TZ=Europe/Berlin
 0 7 * * * /absolute/path/to/news-gather.py | python3 "$SKILL_DIR/scripts/briefing.py" write --source news
 0 7 * * 1 /absolute/path/to/repos-gather.py | python3 "$SKILL_DIR/scripts/briefing.py" write --source repos
+30 7 * * * python3 "$SKILL_DIR/scripts/briefing.py" publish
 ```
 
-One line per producer, each with its own `--source`. The `TZ=` line is there only when
+One line per producer, each with its own `--source`. A published spool adds the `publish`
+line after the producers, in the same schedule with the same variables, so one commit a
+day carries that day's briefings. Cron starts every line of one minute at once, so the
+`publish` line runs later than the producers' time by more than the slowest producer takes
+in its manual run. The push runs unattended and needs a credential that asks for nothing:
+settle it with the user, such as `gh auth setup-git` for an HTTPS remote on GitHub or a
+deploy key with write access for an SSH remote. The `TZ=` line is there only when
 step 4 found the machine's time zone differs from the user's. Cron sets the variables
 without expanding `$` or `~` inside them, so they hold absolute paths; `$SKILL_DIR` in the
 command lines expands, since cron runs them through `sh`. Cron's `PATH` holds
@@ -247,7 +297,9 @@ The helper prints nothing on success and a one-line reason on stderr otherwise, 
 scheduler that mails or messages output stays quiet on good mornings.
 
 Done when: a manual run of each producer line, with the variables set, leaves
-`$YUI_BRIEFING_SPOOL/<today>/<producer name>.md`.
+`$YUI_BRIEFING_SPOOL/<today>/<producer name>.md`. With publishing, a manual run of the
+`publish` line, as the scheduler's user, exits 0 and the user opens
+`$YUI_BRIEFING_LINK/<today>` and sees those files.
 
 ### 8. Watch one morning
 
@@ -279,6 +331,9 @@ An agent that already runs briefing producers checks its schedule against steps 
    of it. A schedule whose producers run at different times moves them all to the earliest
    of those times. A comment in the schedule that no longer matches it is updated or
    removed.
+7. A published spool has one `briefing.py publish` entry per schedule, running after its
+   producers as in step 7, and the environment your own shell commands run in holds
+   `YUI_BRIEFING_LINK`, as in step 6. A spool without a remote has neither.
 
 A spool's dated folders can hold `.json` and `.sent.json` files. `pending` reads only
 `.md` files, so they stay out of every briefing. A `.json` file without `.sent` in its name

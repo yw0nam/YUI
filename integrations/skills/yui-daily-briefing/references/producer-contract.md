@@ -3,7 +3,8 @@
 A producer of the daily briefing gathers its sources once per scheduled run and pipes one
 JSON object into `scripts/briefing.py write`. The helper writes one markdown file per run
 into a dated spool on the backend agent's machine. The agent lists the unspoken files with
-`briefing.py pending`, speaks them, and records them with `briefing.py mark-spoken`. This
+`briefing.py pending`, speaks them, and records them with `briefing.py mark-spoken`. A spool kept as a git
+repository is pushed to its remote with `briefing.py publish`. This
 file states the input, the file the helper writes, the ledger, and the helper's commands.
 
 ## Gather input
@@ -114,19 +115,20 @@ the same OS user as the agent.
 
 | Flag | Default |
 |---|---|
-| `--spool <dir>` | `$YUI_BRIEFING_SPOOL`; required when that variable is unset or empty. An absolute path; `pending` and `mark-spoken` need the directory to exist, `write` creates it. It goes before the subcommand |
+| `--spool <dir>` | `$YUI_BRIEFING_SPOOL`; required when that variable is unset or empty. An absolute path; `pending`, `mark-spoken`, and `publish` need the directory to exist, `write` creates it. It goes before the subcommand |
 
 | Command | Does |
 |---|---|
 | `write --source <name>` | Reads the gather input on stdin and writes the briefing file. `<name>` is 1 to 40 letters, digits, `_`, or `-` |
 | `pending` | Prints every `<YYYY-MM-DD>/<file>.md` file missing from the ledger, oldest day first, then by file name, each under a line `=== <path relative to the spool> ===`, with bytes that are not UTF-8 shown as U+FFFD. Prints nothing when every file is spoken |
 | `mark-spoken PATH...` | Records each path in the ledger. Each path reads `<YYYY-MM-DD>/<file>.md`, exactly as `pending` prints it, and names an existing file |
+| `publish` | Stages every `<YYYY-MM-DD>/<file>.md` file in the spool's git repository, commits them with the local date (`2026-10-02`) as the message when that changes the tree, and pushes the current branch to the first remote `git remote` lists. `spoken.json`, the lock file, and every other file stay unstaged. The spool is the top directory of its own git work tree |
 
 | Exit | Output | Meaning |
 |---|---|---|
-| 0 | none from `write` and `mark-spoken`; the briefings from `pending` | Done |
-| 1 | the reason on stderr | `write` read malformed input; the error path below applies |
-| 2 | the reason on stderr | No spool (`set YUI_BRIEFING_SPOOL or pass --spool`), a relative spool path, a missing spool directory for `pending` or `mark-spoken`, a `--source` outside the rule, a `mark-spoken` path that is absolute, holds `..`, or names no briefing in the spool (nothing is recorded), or an unknown flag |
+| 0 | none from `write`, `mark-spoken`, and `publish`; the briefings from `pending` | Done |
+| 1 | the reason on stderr | `write` read malformed input, and the error path below applies; or a `publish` step (`git add`, `git commit`, `git push`) failed, with git's last line of output |
+| 2 | the reason on stderr | No spool (`set YUI_BRIEFING_SPOOL or pass --spool`), a relative spool path, a missing spool directory for `pending`, `mark-spoken`, or `publish`, a `publish` spool that is not the top of a git work tree or has no remote, no `git` on `PATH`, a `--source` outside the rule, a `mark-spoken` path that is absolute, holds `..`, or names no briefing in the spool (nothing is recorded), or an unknown flag |
 
 ## Run time
 
