@@ -78,6 +78,8 @@ describe("yui-daily-briefing skill files", () => {
     expect(text).toContain('| python3 "$SKILL_DIR/scripts/briefing.py" write --source ');
     expect(text).toContain('python3 "$SKILL_DIR/scripts/briefing.py" pending');
     expect(text).toContain('python3 "$SKILL_DIR/scripts/briefing.py" mark-spoken');
+    expect(text).toContain('python3 "$SKILL_DIR/scripts/briefing.py" publish');
+    expect(text).toContain("YUI_BRIEFING_LINK=");
   });
 
   it("the producer contract states the file format, the ledger, and the subcommands", () => {
@@ -88,6 +90,7 @@ describe("yui-daily-briefing skill files", () => {
       "write",
       "pending",
       "mark-spoken",
+      "publish",
       "run_url",
     ]) {
       expect(text).toContain(term);

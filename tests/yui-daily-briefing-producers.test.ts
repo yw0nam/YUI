@@ -336,3 +336,59 @@ describe("briefing.py pending and mark-spoken", () => {
     expect(Object.keys(JSON.parse(read(spool, "spoken.json")))).toEqual(["2026-10-01/news.md"]);
   });
 });
+
+describe("briefing.py publish", () => {
+  function git(dir: string, args: string[]): string {
+    const result = spawnSync("git", ["-C", dir, ...args], { encoding: "utf8" });
+    expect(result.status, result.stderr).toBe(0);
+    return result.stdout;
+  }
+
+  function repo(dir: string): string {
+    mkdirSync(dir, { recursive: true });
+    git(dir, ["init", "-q", "-b", "main"]);
+    git(dir, ["config", "user.name", "YUI Test"]);
+    git(dir, ["config", "user.email", "yui@example.com"]);
+    git(dir, ["config", "commit.gpgsign", "false"]);
+    return dir;
+  }
+
+  it("pushes the dated briefings and nothing else, and makes no commit when nothing changed", () => {
+    const origin = join(tempDir(), "origin.git");
+    expect(spawnSync("git", ["init", "-q", "--bare", "-b", "main", origin]).status).toBe(0);
+    const spool = repo(tempDir());
+    git(spool, ["remote", "add", "origin", origin]);
+    expect(write(spool, "news", GATHER).status).toBe(0);
+    const [path] = spoolFiles(spool);
+    expect(run(spool, ["mark-spoken", path]).status).toBe(0);
+    seed(spool, "notes.txt", "private\n");
+
+    expect(run(spool, ["publish"])).toEqual({ status: 0, stdout: "", stderr: "" });
+    expect(git(origin, ["ls-tree", "-r", "--name-only", "main"])).toBe(`${path}\n`);
+    expect(git(origin, ["log", "--format=%s", "main"])).toBe(`${path.split("/")[0]}\n`);
+
+    expect(run(spool, ["publish"])).toEqual({ status: 0, stdout: "", stderr: "" });
+    expect(git(origin, ["rev-list", "--count", "main"])).toBe("1\n");
+  });
+
+  it("exits 2 on a spool that is not its own git work tree or has no remote", () => {
+    const plain = tempDir();
+    const nested = join(repo(tempDir()), "spool");
+    const lone = repo(tempDir());
+    for (const spool of [plain, nested, lone]) {
+      expect(write(spool, "news", GATHER).status).toBe(0);
+      const result = run(spool, ["publish"]);
+      expect(result.status).toBe(2);
+      expect(result.stderr.trim().split("\n")).toHaveLength(1);
+    }
+  });
+
+  it("exits 1 with one stderr line when the push fails", () => {
+    const spool = repo(tempDir());
+    git(spool, ["remote", "add", "origin", join(tempDir(), "absent.git")]);
+    expect(write(spool, "news", GATHER).status).toBe(0);
+    const result = run(spool, ["publish"]);
+    expect(result.status).toBe(1);
+    expect(result.stderr.trim().split("\n")).toHaveLength(1);
+  });
+});
