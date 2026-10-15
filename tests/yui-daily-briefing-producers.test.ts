@@ -6,6 +6,7 @@ import {
   readdirSync,
   readFileSync,
   renameSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -464,6 +465,20 @@ describe("briefing.py publish", () => {
     expect(read(spool, "index.html")).toContain('href="reports/2026/10/W1/02/"');
   });
 
+  it("exits 2 and writes nothing outside the spool when its src/ leads out of it", () => {
+    const spool = repo(tempDir());
+    git(spool, ["remote", "add", "origin", join(tempDir(), "absent.git")]);
+    expect(writeOn(spool, "2026-10-02", "news", GATHER).status).toBe(0);
+    seed(spool, "reports/2026/10/W1/02/index.html", FILLED);
+    const outside = tempDir();
+    symlinkSync(outside, join(spool, "src"), "junction");
+
+    const result = run(spool, ["publish"]);
+    expect(result.status).toBe(2);
+    expect(result.stderr.trim().split("\n")).toHaveLength(1);
+    expect(readdirSync(outside)).toEqual([]);
+  });
+
   it("exits 2 on a spool that is not its own git work tree or has no remote", () => {
     const plain = tempDir();
     const nested = join(repo(tempDir()), "spool");
@@ -653,6 +668,49 @@ describe("briefing.py page-check", () => {
         ),
       ),
     ).toMatch(/intro:papers lang=ko/);
+    expect(
+      failure(
+        FILLED.replace(
+          /(<!-- slot: intro:papers lang=ko -->)[\s\S]*?(<!-- \/slot -->)/,
+          '$1<p class="intro" lang="ko"><!-- fill --></p>$2',
+        ),
+      ),
+    ).toMatch(/unfilled slot: intro:papers lang=ko/);
     expect(failure(null)).toContain(PAGE);
+  });
+
+  it("exits 2 when the languages slot names no language", () => {
+    const bare = FILLED.replace(
+      /(<!-- slot: languages -->)[\s\S]*?(<!-- \/slot -->)/,
+      "$1<option>EN</option>$2",
+    );
+    expect(failure(bare)).toContain("languages slot names no language");
+  });
+
+  it("checks the intros of every producer section, whatever else its class list holds", () => {
+    const wide = FILLED.replace(
+      '<section class="producer" aria-labelledby="papers">',
+      '<section class="producer wide" aria-labelledby="papers">',
+    ).replace(/<!-- slot: intro:papers lang=ko -->[\s\S]*?<!-- \/slot -->/, "");
+    expect(failure(wide)).toMatch(/intro:papers lang=ko/);
+    const unnamed = FILLED.replace(
+      '<section class="producer" aria-labelledby="markets">',
+      '<section class="producer">',
+    );
+    expect(failure(unnamed)).toContain("aria-labelledby");
+  });
+
+  it("exits 2 when a slot holds a script, an event handler, or a javascript: link", () => {
+    for (const injected of [
+      "<script>alert(1)</script>",
+      '<img src="x" onerror="alert(1)">',
+      '<a href="javascript:alert(1)">x</a>',
+    ]) {
+      const page = FILLED.replace(
+        "<!-- slot: summary lang=en -->",
+        `<!-- slot: summary lang=en -->${injected}`,
+      );
+      expect(failure(page)).toMatch(/summary lang=en/);
+    }
   });
 });
