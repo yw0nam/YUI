@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Keeps daily briefings as dated markdown files and records which ones the agent has spoken."""
+"""Keeps daily briefings as dated markdown files, records which ones the agent has spoken, and publishes them."""
 import argparse
 import datetime
 import errno
@@ -7,6 +7,7 @@ import glob
 import json
 import os
 import re
+import subprocess
 import sys
 import unicodedata
 import urllib.parse
@@ -184,13 +185,17 @@ def write(spool, source):
     return 0
 
 
+def briefings(spool):
+    paths = (spool_relative(path, spool) for path in sorted(glob.glob(os.path.join(spool, "????-??-??", "*.md"))))
+    return [path for path in paths if BRIEFING_PATH.fullmatch(path)]
+
+
 def pending(spool):
     spoken = load_ledger(spool, set_aside=False)
-    for path in sorted(glob.glob(os.path.join(spool, "????-??-??", "*.md"))):
-        relative = spool_relative(path, spool)
-        if relative in spoken or not BRIEFING_PATH.fullmatch(relative):
+    for relative in briefings(spool):
+        if relative in spoken:
             continue
-        with open(path, encoding="utf-8", errors="replace") as file:
+        with open(os.path.join(spool, relative), encoding="utf-8", errors="replace") as file:
             print(f"=== {relative} ===\n{file.read()}")
     return 0
 
@@ -208,6 +213,43 @@ def mark_spoken(spool, paths):
     return 0
 
 
+def git(spool, *args):
+    return subprocess.run(["git", "-C", spool, *args], capture_output=True, encoding="utf-8", errors="replace")
+
+
+def git_failed(result):
+    lines = (result.stderr + result.stdout).strip().splitlines()
+    print(f"git {result.args[3]} failed: {lines[-1] if lines else f'exit {result.returncode}'}", file=sys.stderr)
+    return 1
+
+
+def publish(spool):
+    try:
+        top = git(spool, "rev-parse", "--show-toplevel")
+    except FileNotFoundError:
+        print("git is not on PATH", file=sys.stderr)
+        return 2
+    # A spool nested in another work tree would commit and push that repository.
+    if top.returncode != 0 or not os.path.samefile(top.stdout.strip(), spool):
+        print(f"the spool is not the top of a git work tree: {spool}", file=sys.stderr)
+        return 2
+    remotes = git(spool, "remote").stdout.split()
+    if not remotes:
+        print(f"the spool repository has no remote: {spool}", file=sys.stderr)
+        return 2
+    paths = briefings(spool)
+    if paths:
+        added = git(spool, "add", "--", *paths)
+        if added.returncode != 0:
+            return git_failed(added)
+    if git(spool, "diff", "--cached", "--quiet").returncode != 0:
+        committed = git(spool, "commit", "--quiet", "-m", datetime.date.today().isoformat())
+        if committed.returncode != 0:
+            return git_failed(committed)
+    pushed = git(spool, "push", "--quiet", remotes[0], "HEAD")
+    return git_failed(pushed) if pushed.returncode != 0 else 0
+
+
 def main():
     if os.name == "nt" and hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", newline="\n")
@@ -220,6 +262,7 @@ def main():
     commands.add_parser("pending", help="print every briefing not yet spoken")
     mark_parser = commands.add_parser("mark-spoken", help="record briefings as spoken")
     mark_parser.add_argument("paths", nargs="+", metavar="PATH", help="path relative to the spool, as pending prints it")
+    commands.add_parser("publish", help="commit the dated briefings and push them to the spool's git remote")
     args = parser.parse_args()
     spool = args.spool
     if not spool:
@@ -238,6 +281,8 @@ def main():
         return write(spool, args.source)
     if args.command == "pending":
         return pending(spool)
+    if args.command == "publish":
+        return publish(spool)
     return mark_spoken(spool, args.paths)
 
 
