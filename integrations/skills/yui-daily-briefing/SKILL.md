@@ -171,12 +171,16 @@ Done when: every source has a window or a reason to differ.
 
 ### 6. Ask how the briefing arrives
 
-Ask the user: "Spoken in full, or a greeting with a link to the published report?" Each
-answer has its own file, whose § Install runs after step 8:
+Ask the user: "Spoken in full, a greeting with a link to the published report, or a
+greeting with a link to a web page for the day?" Each answer has its own file, whose
+§ Install runs after step 8:
 
 1. Spoken in full: `references/delivery/spoken.md`.
 2. A greeting with a link to the spool, published as a private repository on a git
    hosting service that renders markdown: `references/delivery/link.md`.
+3. A greeting with a link to a web page for the day, which you write from the day's
+   briefings and static hosting of the published spool serves:
+   `references/delivery/page.md`.
 
 Done when: the user has chosen one, and you hold its file for after step 8.
 

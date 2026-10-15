@@ -446,9 +446,11 @@ describe("briefing.py publish", () => {
     seed(spool, "reports/2026/10/W1/02/draft.html", "not a page\n");
     seed(spool, "src/style.css", "stale copy\n");
     seed(spool, "README.md", "the user's\n");
+    seed(spool, ".nojekyll", "");
 
     expect(run(spool, ["publish"])).toEqual({ status: 0, stdout: "", stderr: "" });
     expect(git(origin, ["ls-tree", "-r", "--name-only", "main"]).split("\n")).toEqual([
+      ".nojekyll",
       "index.html",
       "reports/2026/10/W1/02/index.html",
       "reports/2026/10/W1/02/news.md",
@@ -456,7 +458,9 @@ describe("briefing.py publish", () => {
       "src/style.css",
       "",
     ]);
-    expect(read(spool, "src/style.css")).toBe(readFileSync(join(SKILL_DIR, "assets/src/style.css"), "utf8"));
+    expect(read(spool, "src/style.css")).toBe(
+      readFileSync(join(SKILL_DIR, "assets/src/style.css"), "utf8"),
+    );
     expect(read(spool, "index.html")).toContain('href="reports/2026/10/W1/02/"');
   });
 
@@ -596,7 +600,9 @@ describe("briefing.py board", () => {
     expect(rows[0]).toContain(
       '<li class="flag-stale"><span class="p-name">news</span> <span class="p-count">2</span></li>',
     );
-    expect(rows[0]).toContain('<li><span class="p-name">papers</span> <span class="p-count">1</span></li>');
+    expect(rows[0]).toContain(
+      '<li><span class="p-name">papers</span> <span class="p-count">1</span></li>',
+    );
     expect(rows[0]).toContain('class="status status-failed"');
     expect(rows[1]).toContain('<span class="day-iso">2026-09-30</span>');
     // A day without a page is listed with no link.

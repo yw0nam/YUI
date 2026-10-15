@@ -4,7 +4,8 @@ A producer of the daily briefing gathers its sources once per scheduled run and 
 JSON object into `scripts/briefing.py write`. The helper writes one markdown file per run
 into a day folder of the spool on the backend agent's machine. The agent lists the unspoken files with
 `briefing.py pending`, speaks them, and records them with `briefing.py mark-spoken`. A spool kept as a git
-repository is pushed to its remote with `briefing.py publish`. This
+repository is pushed to its remote with `briefing.py publish`, together with the day pages,
+the board that lists them (`briefing.py board`), and the shared page assets. This
 file states the input, the file the helper writes, the ledger, and the helper's commands.
 
 ## Gather input
@@ -124,14 +125,16 @@ the same OS user as the agent.
 | `write --source <name>` | Reads the gather input on stdin and writes the briefing file. `<name>` is 1 to 40 letters, digits, `_`, or `-` |
 | `pending` | Prints every `reports/<YYYY>/<MM>/<Wn>/<DD>/<file>.md` file missing from the ledger, oldest day first, then by file name, each under a line `=== <path relative to the spool> ===`, with bytes that are not UTF-8 shown as U+FFFD. Prints nothing when every file is spoken |
 | `mark-spoken PATH...` | Records each path in the ledger. Each path reads `reports/<YYYY>/<MM>/<Wn>/<DD>/<file>.md`, exactly as `pending` prints it, and names an existing file |
-| `publish` | Stages every `reports/<YYYY>/<MM>/<Wn>/<DD>/<file>.md` file and the spool's `.gitignore` in the spool's git repository, commits them with the local date (`2026-10-02`) as the message when that changes the tree, and pushes the current branch to the first remote `git remote` lists. The commit holds those files only: `spoken.json`, the lock file, a `README.md`, and any other file, staged by hand or not, stay out of it. The spool is the top directory of its own git work tree |
+| `publish` | Stages every `reports/<YYYY>/<MM>/<Wn>/<DD>/<file>.md` file and the spool's `.gitignore` and `.nojekyll` in the spool's git repository. Once a day folder holds an `index.html` page, it also copies the skill's `assets/src/` files into the spool's `src/` where they are missing or differ, writes the board as `board` does, and stages every page, `index.html`, and the `src/` files. It commits them with the local date (`2026-10-02`) as the message when that changes the tree, and pushes the current branch to the first remote `git remote` lists. The commit holds those files only: `spoken.json`, the lock file, a `README.md`, and any other file, staged by hand or not, stay out of it. The spool is the top directory of its own git work tree |
+| `board` | Writes `index.html` at the spool root from `assets/board.html`: one row per day folder, newest first, with the date and weekday, each source's item count from its latest briefing of the day, a dot on a source whose briefing lists a `stale` or `failed` source, and the day's `Failed` and `Stale` words. A day whose folder holds an `index.html` page links to it. The same spool always yields the same file |
+| `page-check YYYY-MM-DD` | Reads that day's `index.html` page and checks its slots, the `<!-- slot: NAME [lang=CODE] -->…<!-- /slot -->` pairs of `assets/report.html`. The page languages are the `<option value>` codes of the `languages` slot. `title`, `languages`, `contents`, `producers`, a `date` and a `summary` per language, and an `intro:<source>` per language for every section in `producers` and `personal` hold text outside HTML comments; `personal`, `notices`, and `days` may be empty |
 | `migrate` | Moves every file of each `<YYYY-MM-DD>/` folder at the spool root into its day folder under `reports/`, removes the emptied folders, and rewrites the moved paths in `spoken.json`. In a spool that is the top of its own git work tree, tracked files move with `git mv` and one commit records the moves, so `git log --follow` reaches their earlier commits. A spool with no such folder is left as it is, so a second run changes nothing |
 
 | Exit | Output | Meaning |
 |---|---|---|
-| 0 | none from `write`, `mark-spoken`, `publish`, and `migrate`; the briefings from `pending` | Done |
+| 0 | none from `write`, `mark-spoken`, `publish`, `migrate`, `board`, and `page-check`; the briefings from `pending` | Done |
 | 1 | the reason on stderr | `write` read malformed input, and the error path below applies; or a `publish` or `migrate` step (`git add`, `git mv`, `git commit`, `git push`) failed, with git's first `fatal:` or `error:` line |
-| 2 | the reason on stderr | No spool (`set YUI_BRIEFING_SPOOL or pass --spool`), a relative spool path, a missing spool directory for `pending`, `mark-spoken`, `publish`, or `migrate`, a `migrate` that finds a file already at one of the new paths (nothing is moved), a `publish` spool that is not the top of a git work tree or has no remote, no `git` on `PATH`, a `--source` outside the rule, a `mark-spoken` path that is absolute, holds `..`, or names no briefing in the spool (nothing is recorded), or an unknown flag |
+| 2 | the reason on stderr | No spool (`set YUI_BRIEFING_SPOOL or pass --spool`), a relative spool path, a missing spool directory for `pending`, `mark-spoken`, `publish`, or `migrate`, a `migrate` that finds a file already at one of the new paths (nothing is moved), a `page-check` date with no page or a page whose first missing or unfilled slot the line names, a `publish` spool that is not the top of a git work tree or has no remote, no `git` on `PATH`, a `--source` outside the rule, a `mark-spoken` path that is absolute, holds `..`, or names no briefing in the spool (nothing is recorded), or an unknown flag |
 
 ## Run time
 
