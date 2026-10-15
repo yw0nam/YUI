@@ -127,7 +127,7 @@ the same OS user as the agent.
 | Exit | Output | Meaning |
 |---|---|---|
 | 0 | none from `write`, `mark-spoken`, and `publish`; the briefings from `pending` | Done |
-| 1 | the reason on stderr | `write` read malformed input, and the error path below applies; or a `publish` step (`git add`, `git commit`, `git push`) failed, with git's last line of output |
+| 1 | the reason on stderr | `write` read malformed input, and the error path below applies; or a `publish` step (`git add`, `git commit`, `git push`) failed, with git's first `fatal:` or `error:` line |
 | 2 | the reason on stderr | No spool (`set YUI_BRIEFING_SPOOL or pass --spool`), a relative spool path, a missing spool directory for `pending`, `mark-spoken`, or `publish`, a `publish` spool that is not the top of a git work tree or has no remote, no `git` on `PATH`, a `--source` outside the rule, a `mark-spoken` path that is absolute, holds `..`, or names no briefing in the spool (nothing is recorded), or an unknown flag |
 
 ## Run time
