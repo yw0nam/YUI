@@ -133,6 +133,8 @@ describe("wireTravelFrame", () => {
     });
 
     await expect(handle.abort()).resolves.toBeUndefined();
+    // Settle the wiring here so its createTravelFrame call does not land in the next test.
+    await handle.ready;
   });
 
   it("resolves ready even when disposed before the dynamic imports settle", async () => {
