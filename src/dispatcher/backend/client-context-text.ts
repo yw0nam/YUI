@@ -5,7 +5,7 @@
  * model, not machine-parseable.
  */
 
-import type { ClientContext, TriggerMeta, WakeCause } from "../../contract";
+import type { ClientContext, TriggerMeta, TurnEnded, WakeCause } from "../../contract";
 import { renderGuideBlock } from "../../io/guide/guide-docs";
 
 /** Collapses embedded newlines/whitespace runs to a single space and strips any
@@ -47,66 +47,95 @@ function renderScreenshot(screenshot: ClientContext["screenshot"]): string | und
   const source = screenshot.source;
   if (source.kind === "monitor") {
     const label = source.label ? ` (${oneLine(source.label)})` : "";
-    return `screenshot: monitor ${source.index}${label}`;
+    return `screenshot source: monitor ${source.index}${label}`;
   }
   if (source.kind === "browser_tab") {
     const url = source.url ? ` (${oneLine(source.url)})` : "";
-    return `screenshot: browser_tab ${oneLine(source.browser)} — "${oneLine(source.tab_title)}"${url}`;
+    return `screenshot source: browser_tab ${oneLine(source.browser)} — "${oneLine(source.tab_title)}"${url}`;
   }
-  return `screenshot: window ${oneLine(source.app)} — "${oneLine(source.window_title)}"`;
+  return `screenshot source: window ${oneLine(source.app)} — "${oneLine(source.window_title)}"`;
 }
 
-function renderBody(bodyState: ClientContext["body_state"], nowMs: number): string | undefined {
+function renderBody(
+  bodyState: ClientContext["body_state"],
+  waking: boolean,
+  nowMs: number,
+): string | undefined {
   if (!bodyState) return undefined;
   const perchedOn = bodyState.posture.perched_on;
   const onLabel = perchedOn?.app ?? perchedOn?.window_title;
   const on = onLabel ? ` on ${oneLine(onLabel)}` : "";
+  const gettingUp = waking ? ", getting up now" : "";
   const mins = minutesSince(bodyState.since, nowMs);
-  return `body: ${bodyState.posture.state}${on} (for ${mins}min)`;
+  return `body: ${bodyState.posture.state}${on}${gettingUp} (for ${mins}min)`;
 }
 
 function renderToolSwitches(switches: ClientContext["tool_switches"]): string | undefined {
   if (!switches || switches.length === 0) return undefined;
   const entries = switches.map((entry) => `${oneLine(entry.id)}=${entry.on ? "on" : "off"}`);
-  return `tools: ${entries.join(", ")}`;
+  return `tool switches: ${entries.join(", ")}`;
 }
+
+const PREVIOUS_ENDED: Record<TurnEnded, string> = {
+  complete: "finished speaking",
+  interrupted: "was cut off mid-speech",
+  failed: "failed before speaking",
+};
 
 function renderPrevious(previous: ClientContext["previous"], nowMs: number): string | undefined {
   if (!previous) return undefined;
-  const spoken = previous.spoken ? ` spoken: "${oneLine(previous.spoken)}"` : "";
-  const unspoken = previous.unspoken ? ` unspoken: "${oneLine(previous.unspoken)}"` : "";
-  const heard = spoken || unspoken ? `,${spoken}${unspoken}` : "";
+  const parts = [
+    previous.spoken ? `already spoken: "${oneLine(previous.spoken)}"` : "",
+    previous.unspoken ? `never spoken: "${oneLine(previous.unspoken)}"` : "",
+  ].filter(Boolean);
+  const heard = parts.map((part) => `, ${part}`).join("");
   // The event bus's own name for the turn, which the trigger headline rewords.
-  return `previous: ${oneLine(previous.event_name)} ${previous.ended} (${minutesSince(previous.ts, nowMs)}min ago)${heard}`;
+  return `previous turn: the reply to ${oneLine(previous.event_name)} ${PREVIOUS_ENDED[previous.ended]} (${minutesSince(previous.ts, nowMs)}min ago)${heard}`;
 }
 
-const WAKE_UNTIL: Record<WakeCause, string> = {
+function renderRecentSwitches(recent: NonNullable<TriggerMeta["screen"]>["recent"]): string[] {
+  if (!recent || recent.length === 0) return [];
+  const steps: string[] = [];
+  recent.forEach((entry, index) => {
+    const from = oneLine(entry.from_app);
+    const previousTo = index > 0 ? oneLine(recent[index - 1]!.to_app) : undefined;
+    if (previousTo !== undefined && previousTo !== from) steps.push(previousTo);
+    steps.push(`${from} (${entry.dwell_min}min)`);
+  });
+  steps.push(oneLine(recent[recent.length - 1]!.to_app));
+  return [`recent switches: ${steps.join(" then ")}`];
+}
+
+const WOKEN_BY: Record<WakeCause, string> = {
   click: "the user's click",
   timeout: "the wake timeout",
   message: "this message",
 };
 
+const AGENT_DETAIL = "agent detail (quoted from the coding agent):";
+
 function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
   const lines: string[] = [];
   const idleClause =
-    trigger.idle_elapsed_min != null ? ` (user idle ${trigger.idle_elapsed_min}min)` : "";
+    trigger.idle_elapsed_min != null
+      ? ` (the user has been idle for ${trigger.idle_elapsed_min}min)`
+      : "";
 
   if (trigger.screen) {
     const s = trigger.screen;
     const left =
       s.from_app && s.from_dwell_min != null
-        ? `, left ${oneLine(s.from_app)} after ${s.from_dwell_min}min`
+        ? `left ${oneLine(s.from_app)} after ${s.from_dwell_min}min and `
         : "";
-    lines.push(`trigger: screen ${s.transition}${left}, in current app ${s.dwell_min}min`);
-    if (s.recent && s.recent.length > 0) {
-      const path = s.recent
-        .map((e) => `${oneLine(e.from_app)} ${e.dwell_min}min -> ${oneLine(e.to_app)}`)
-        .join(", ");
-      lines.push(`recent: ${path}`);
-    }
+    lines.push(
+      `trigger: screen ${s.transition}; the user ${left}has been in the frontmost app for ${s.dwell_min}min`,
+    );
+    lines.push(...renderRecentSwitches(s.recent));
   } else if (trigger.cue) {
-    lines.push(`trigger: ${trigger.kind} "${oneLine(trigger.cue.label)}"${idleClause}`);
-    if (trigger.cue.context) lines.push(`cue note: ${oneLine(trigger.cue.context)}`);
+    lines.push(`trigger: ${trigger.kind} cue "${oneLine(trigger.cue.label)}"${idleClause}`);
+    if (trigger.cue.context) {
+      lines.push(`cue note (the user's own intent for this cue): ${oneLine(trigger.cue.context)}`);
+    }
   } else if (trigger.agent) {
     const a = trigger.agent;
     const status = a.status ? ` (${a.status})` : "";
@@ -114,11 +143,11 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
     lines.push(
       `trigger: agent ${oneLine(a.tool)} ${a.phase}${status}, project "${oneLine(a.project)}"${ago}`,
     );
-    if (a.summary) lines.push(`agent note: ${oneLine(a.summary)}`);
-    if (a.detail) lines.push(`agent detail: ${oneLine(a.detail)}`);
+    if (a.summary) lines.push(`agent note (the coding agent's summary): ${oneLine(a.summary)}`);
+    if (a.detail) lines.push(`${AGENT_DETAIL} ${oneLine(a.detail)}`);
   } else if (trigger.agent_catchup) {
     const ac = trigger.agent_catchup;
-    lines.push(`trigger: agent catchup (${ac.count} events)`);
+    lines.push(`trigger: agent catchup (${ac.count} event${ac.count === 1 ? "" : "s"})`);
     for (const item of ac.items) {
       const status = item.status ? ` (${item.status})` : "";
       const summary = item.summary ? ` - "${oneLine(item.summary)}"` : "";
@@ -126,11 +155,11 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
       lines.push(
         `agent event: ${oneLine(item.tool)} ${item.phase}${status}, project "${oneLine(item.project)}"${summary}${ago}`,
       );
-      if (item.detail) lines.push(`agent detail: ${oneLine(item.detail)}`);
+      if (item.detail) lines.push(`${AGENT_DETAIL} ${oneLine(item.detail)}`);
     }
   } else if (trigger.milestone) {
     const m = trigger.milestone;
-    lines.push(`trigger: milestone ${oneLine(m.name)} (${oneLine(m.local_time)})`);
+    lines.push(`trigger: milestone ${oneLine(m.name)} (fired at ${oneLine(m.local_time)})`);
   } else if (trigger.wake && trigger.kind !== "user") {
     lines.push("trigger: wake");
   } else if (trigger.kind === "user") {
@@ -144,7 +173,11 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
     lines.push(`trigger: ${trigger.kind}${idleClause}`);
   }
 
-  if (trigger.wake) lines.push(`wake: asleep on the bed until ${WAKE_UNTIL[trigger.wake.cause]}`);
+  if (trigger.wake) {
+    lines.push(
+      `wake: the character just woke from the bed, woken by ${WOKEN_BY[trigger.wake.cause]}`,
+    );
+  }
 
   if (trigger.signals) {
     for (const group of trigger.signals) {
@@ -170,7 +203,7 @@ export function renderClientContext(clientContext: ClientContext, nowMs: number)
   const screenshot = renderScreenshot(clientContext.screenshot);
   if (screenshot) lines.push(screenshot);
 
-  const body = renderBody(clientContext.body_state, nowMs);
+  const body = renderBody(clientContext.body_state, Boolean(clientContext.trigger.wake), nowMs);
   if (body) lines.push(body);
 
   const tools = renderToolSwitches(clientContext.tool_switches);
