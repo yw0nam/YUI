@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // wire-walk reaches io/chat/stream/chat-client through dispatcher/backend/backend-caller; keep it mocked.
-const { selectFetch } = vi.hoisted(() => ({ selectFetch: vi.fn().mockResolvedValue(undefined) }));
+const { selectFetch } = vi.hoisted(() => ({ selectFetch: vi.fn(async () => undefined) }));
 vi.mock("../../../io/chat/stream/chat-client", () => ({ selectFetch }));
 
 const { createWalker, walkerStub } = vi.hoisted(() => {

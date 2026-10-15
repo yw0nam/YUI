@@ -10,7 +10,7 @@ const { brokerClient, createBrokerClient, createReconciler, selectFetch } = vi.h
   return {
     brokerClient,
     createBrokerClient: vi.fn(() => brokerClient),
-    createReconciler: vi.fn(() => ({ onChange: vi.fn().mockResolvedValue(undefined) })),
+    createReconciler: vi.fn(() => ({ onChange: vi.fn(async () => undefined) })),
     selectFetch: vi.fn(async () => undefined),
   };
 });

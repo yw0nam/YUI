@@ -23,9 +23,9 @@ const mocks = vi.hoisted(() => {
   );
   const captured: Record<string, unknown> = {};
   const sttVad = {
-    start: vi.fn().mockResolvedValue(undefined),
+    start: vi.fn(async () => undefined),
     stop: vi.fn(),
-    dispose: vi.fn().mockResolvedValue(undefined),
+    dispose: vi.fn(async () => undefined),
   };
   return {
     sink,

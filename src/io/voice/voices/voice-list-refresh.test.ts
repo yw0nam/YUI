@@ -2,11 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SpeakerOption } from "./speaker-selection";
 
 const { listVoices, listFishVoices, selectFetch } = vi.hoisted(() => ({
-  listVoices: vi.fn<(o: unknown) => Promise<string[] | null>>().mockResolvedValue([]),
-  listFishVoices: vi
-    .fn<(o: unknown) => Promise<Array<{ id: string; label?: string }> | null>>()
-    .mockResolvedValue([]),
-  selectFetch: vi.fn().mockResolvedValue(undefined),
+  listVoices: vi.fn<(o: unknown) => Promise<string[] | null>>(async () => []),
+  listFishVoices: vi.fn<(o: unknown) => Promise<Array<{ id: string; label?: string }> | null>>(
+    async () => [],
+  ),
+  selectFetch: vi.fn(async () => undefined),
 }));
 vi.mock("./tts-voices", () => ({ listVoices, upsertVoice: vi.fn(), deleteVoice: vi.fn() }));
 vi.mock("./fish-voices", () => ({

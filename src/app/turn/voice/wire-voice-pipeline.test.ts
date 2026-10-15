@@ -32,9 +32,9 @@ const mocks = vi.hoisted(() => {
     stop: vi.fn(),
   };
   const sttVad = {
-    start: vi.fn().mockResolvedValue(undefined),
+    start: vi.fn(async () => undefined),
     stop: vi.fn(),
-    dispose: vi.fn().mockResolvedValue(undefined),
+    dispose: vi.fn(async () => undefined),
   };
   const sink = { play: vi.fn(), stop: vi.fn() };
   const ttsSkip = Symbol("TTS_SKIP");
@@ -74,10 +74,10 @@ const mocks = vi.hoisted(() => {
       captured.audioSink = options;
       return sink;
     }),
-    selectFetch: vi.fn().mockResolvedValue(fetchImpl),
+    selectFetch: vi.fn(async () => fetchImpl),
     // Voice-import-flow fakes, used only by the cross-window re-import test below — drives the
     // settings-window side with the real commitVoiceImport instead of hand-writing its effects.
-    upsertVoice: vi.fn().mockResolvedValue(undefined),
+    upsertVoice: vi.fn(async () => undefined),
     copyVoiceFile: vi.fn(),
     renameUserVoice: vi.fn(),
   };
@@ -103,7 +103,7 @@ vi.mock("../../../io/chat/stream/chat-client", () => ({ selectFetch: mocks.selec
 vi.mock("../../../io/voice/voices/voice-import", () => ({
   copyVoiceFile: mocks.copyVoiceFile,
   pickVoiceFile: vi.fn(),
-  removeUserVoice: vi.fn().mockResolvedValue(undefined),
+  removeUserVoice: vi.fn(async () => undefined),
   renameUserVoice: mocks.renameUserVoice,
   fileStemFromPath: (path: string) => path,
 }));

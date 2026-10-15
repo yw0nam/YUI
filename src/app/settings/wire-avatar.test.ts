@@ -1,23 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // chat-client fake: wireSpeakerSelection's fetch selection never hits the network.
-const { selectFetch } = vi.hoisted(() => ({ selectFetch: vi.fn().mockResolvedValue(undefined) }));
+const { selectFetch } = vi.hoisted(() => ({ selectFetch: vi.fn(async () => undefined) }));
 vi.mock("../../io/chat/stream/chat-client", () => ({ selectFetch }));
 
 // Voices-API fakes — wireSpeakerSelection's refreshVoiceList exercises listVoices;
 // commitVoiceImport and refreshSpeaker (tests below) exercise upsertVoice directly.
 const { deleteVoice, listVoices, upsertVoice } = vi.hoisted(() => ({
-  deleteVoice: vi.fn().mockResolvedValue(undefined),
-  listVoices: vi.fn().mockResolvedValue([]),
-  upsertVoice: vi.fn().mockResolvedValue(undefined),
+  deleteVoice: vi.fn(async () => undefined),
+  listVoices: vi.fn(async (_opts: unknown): Promise<string[] | null> => []),
+  upsertVoice: vi.fn(async (_opts: unknown): Promise<string | undefined> => undefined),
 }));
 
 vi.mock("../../io/voice/voices/tts-voices", () => ({ deleteVoice, listVoices, upsertVoice }));
 
 const { deleteFishVoice, listFishVoices, upsertFishVoice } = vi.hoisted(() => ({
-  deleteFishVoice: vi.fn().mockResolvedValue(undefined),
-  listFishVoices: vi.fn().mockResolvedValue([]),
-  upsertFishVoice: vi.fn().mockResolvedValue("model_9"),
+  deleteFishVoice: vi.fn(async () => undefined),
+  listFishVoices: vi.fn(
+    async (_opts: {
+      getApiKey: () => Promise<string | undefined>;
+    }): Promise<Array<{ id: string; label?: string }> | null> => [],
+  ),
+  upsertFishVoice: vi.fn(async () => "model_9"),
 }));
 
 vi.mock("../../io/voice/voices/fish-voices", () => ({
@@ -41,7 +45,7 @@ const { pickVoiceFile, copyVoiceFile, removeOrphanImport, removeUserVoiceMock } 
     removeOrphanImport: vi.fn(async (id: string, remove: (id: string) => Promise<void>) => {
       await remove(id);
     }),
-    removeUserVoiceMock: vi.fn().mockResolvedValue(undefined),
+    removeUserVoiceMock: vi.fn(async () => undefined),
   }),
 );
 vi.mock("../../io/voice/voices/voice-import", () => ({

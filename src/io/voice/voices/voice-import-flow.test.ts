@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { listVoices, upsertVoice, listFishVoices, upsertFishVoice } = vi.hoisted(() => ({
-  listVoices: vi.fn().mockResolvedValue([]),
-  upsertVoice: vi.fn().mockResolvedValue(undefined),
-  listFishVoices: vi.fn().mockResolvedValue([]),
-  upsertFishVoice: vi.fn().mockResolvedValue(undefined),
+  listVoices: vi.fn(async (_opts: unknown): Promise<string[] | null> => []),
+  upsertVoice: vi.fn(async (_opts: unknown): Promise<string | undefined> => undefined),
+  listFishVoices: vi.fn(async () => []),
+  upsertFishVoice: vi.fn(async (_opts: unknown): Promise<string | undefined> => undefined),
 }));
 vi.mock("./tts-voices", () => ({ listVoices, upsertVoice, deleteVoice: vi.fn() }));
 vi.mock("./fish-voices", () => ({
@@ -13,7 +13,7 @@ vi.mock("./fish-voices", () => ({
   deleteFishVoice: vi.fn(),
 }));
 
-const { selectFetch } = vi.hoisted(() => ({ selectFetch: vi.fn().mockResolvedValue(undefined) }));
+const { selectFetch } = vi.hoisted(() => ({ selectFetch: vi.fn(async () => undefined) }));
 vi.mock("../../chat/stream/chat-client", () => ({ selectFetch }));
 
 const { copyVoiceFile, pickVoiceFile, removeOrphanImport, removeUserVoice, renameUserVoice } =
@@ -24,7 +24,7 @@ const { copyVoiceFile, pickVoiceFile, removeOrphanImport, removeUserVoice, renam
     removeOrphanImport: vi.fn(async (id: string, remove: (id: string) => Promise<void>) => {
       await remove(id);
     }),
-    removeUserVoice: vi.fn().mockResolvedValue(undefined),
+    removeUserVoice: vi.fn(async () => undefined),
   }));
 vi.mock("../../assets/user-asset-import", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../assets/user-asset-import")>()),

@@ -6,7 +6,7 @@ const { deriveExpressVocabulary } = vi.hoisted(() => ({
 vi.mock("../../../io/chat/vocabulary/express-vocabulary", () => ({ deriveExpressVocabulary }));
 
 vi.mock("../../../config/emotion-text", () => ({
-  loadEmotionTextTable: vi.fn().mockResolvedValue(null),
+  loadEmotionTextTable: vi.fn(async () => null),
 }));
 
 import { loadEmotionTextTable } from "../../../config/emotion-text";
