@@ -383,12 +383,13 @@ describe("briefing.py publish", () => {
     }
   });
 
-  it("exits 1 with one stderr line when the push fails", () => {
+  it("exits 1 with git's fatal line when the push fails", () => {
     const spool = repo(tempDir());
     git(spool, ["remote", "add", "origin", join(tempDir(), "absent.git")]);
     expect(write(spool, "news", GATHER).status).toBe(0);
     const result = run(spool, ["publish"]);
     expect(result.status).toBe(1);
     expect(result.stderr.trim().split("\n")).toHaveLength(1);
+    expect(result.stderr).toMatch(/^git push failed: fatal: /);
   });
 });
