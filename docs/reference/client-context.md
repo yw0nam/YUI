@@ -1,10 +1,9 @@
 # Client Context ↔ Backend Agent
 
 This is **not a wire schema** — `client_context` is prompt text riding inside the
-turn's user message, written as prose for the backend model. The Hermes desire middleware
-(`integrations/hermes/desire`) reads the word after `trigger:` on the headline and the
-whole `trigger: user message` line with its idle clause, so the `trigger: <kind>` shape and
-that line stay stable. It applies to all three chat protocols YUI supports
+turn's user message, written as prose for the backend model. A backend integration in this
+repository reads the word after `trigger:` on the headline and the whole `trigger: user message`
+line with its idle clause, so those shapes stay stable. It applies to all three chat protocols YUI supports
 (`chat_api` in `configs/endpoints.json`: Responses, Chat Completions, and push). The sections below describe Responses mode;
 Chat Completions mode carries the same rendered lines in a messages array — see
 [CC mode transport](#cc-mode-transport-chat-completions) at the end of this doc. On

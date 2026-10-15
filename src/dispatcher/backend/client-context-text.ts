@@ -1,8 +1,8 @@
 /**
  * Renders a ClientContext into the compact `key: value` plain-line prompt block sent to the
- * backend. The block is prose for the model inside the user message. The Hermes desire middleware
- * reads the word after `trigger:` on the headline and the whole `trigger: user message` line with
- * its idle clause, so the `trigger: <kind>` shape and that line stay stable.
+ * backend. The block is prose for the model inside the user message. A backend integration in
+ * this repository reads the word after `trigger:` on the headline and the whole
+ * `trigger: user message` line with its idle clause, so those shapes stay stable.
  */
 
 import type { ClientContext, TriggerMeta, TurnEnded, WakeCause } from "../../contract";
