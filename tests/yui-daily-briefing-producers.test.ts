@@ -362,6 +362,7 @@ describe("briefing.py publish", () => {
     const [path] = spoolFiles(spool);
     expect(run(spool, ["mark-spoken", path]).status).toBe(0);
     seed(spool, "notes.txt", "private\n");
+    git(spool, ["add", "notes.txt"]);
 
     expect(run(spool, ["publish"])).toEqual({ status: 0, stdout: "", stderr: "" });
     expect(git(origin, ["ls-tree", "-r", "--name-only", "main"])).toBe(`${path}\n`);
