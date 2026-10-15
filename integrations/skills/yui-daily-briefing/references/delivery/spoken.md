@@ -25,12 +25,12 @@ rules are fixed:
 5. When `pending` covers more than three days, the newest day is told in full. Each older
    day gets its date and its item count only, with an offer to read it. Every listed path
    still counts as covered in Speak step 4.
-6. When the context carries a `previous:` line reading `interrupted` and the transcript
-   holds a briefing you were telling, say in one clause that it was cut off. Read
+6. When the context carries a `previous turn:` line reading `cut off mid-speech` and the
+   transcript holds a briefing you were telling, say in one clause that it was cut off. Read
    `$YUI_BRIEFING_SPOOL/<path>` directly for the paths of that earlier turn, without
-   running `pending` or `mark-spoken` again. The line's `spoken:` and `unspoken:` text
-   (see `docs/reference/client-context.md` in the YUI checkout) shows where the user
-   stopped hearing; pick up from there.
+   running `pending` or `mark-spoken` again. The line's `already spoken:` and
+   `never spoken:` text (see `docs/reference/client-context.md` in the YUI checkout) shows
+   where the user stopped hearing; pick up from there.
 
 Done when: each mentioned item carries exactly one link and each day other than today is
 named.

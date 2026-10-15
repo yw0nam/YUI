@@ -13,7 +13,7 @@ The tools the client exposes to the backend model.
 
 `look` declaration is independent of both screenshot settings. The phone window and browser build declare no `look`, so a push call there answers `error: unknown tool`. A declared `look` whose executor is not yet available answers `error: unsupported`.
 
-Every switchable in-app tool is declared in every switch state: the declared set (`tools[]` on Chat Completions and Responses, `hello.tools` on push) is identical whether the switch is on or off, so provider prompt caches keep matching the request prefix. The switch is read when a call executes, so a tool whose switch went off after the request went out still refuses the call; `look at: screen` answers `error: screen capture is off`, and `browser` answers `error: browser is off`. Each turn's client context carries one `tools:` line stating the on/off state of every switchable tool the window declares ([client-context.md](client-context.md)).
+Every switchable in-app tool is declared in every switch state: the declared set (`tools[]` on Chat Completions and Responses, `hello.tools` on push) is identical whether the switch is on or off, so provider prompt caches keep matching the request prefix. The switch is read when a call executes, so a tool whose switch went off after the request went out still refuses the call; `look at: screen` answers `error: screen capture is off`, and `browser` answers `error: browser is off`. Each turn's client context carries one `tool switches:` line stating the on/off state of every switchable tool the window declares ([client-context.md](client-context.md)).
 
 ## Declaration per transport
 
