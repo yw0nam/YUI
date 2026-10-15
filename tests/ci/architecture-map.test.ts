@@ -11,7 +11,14 @@ function fixture() {
     ],
     links: [{ from: "a", to: "b", label: "data" }] as Array<Record<string, unknown>>,
     nodes: [
-      { id: "a/part", module: "a", label: "a part", role: "Sends.", paths: ["src/a"] },
+      { id: "a/part", module: "a", label: "a part", role: "Sends.", paths: ["src/a"] } as {
+        id: string;
+        module: string;
+        label: string;
+        role: string;
+        paths: string[];
+        map?: string;
+      },
       { id: "b/part", module: "b", label: "b part", role: "Receives.", paths: ["src/b"] },
     ],
     edges: [
@@ -60,6 +67,31 @@ describe("architecture map", () => {
   });
   it("accepts a valid map", () => {
     expect(checkMap(fixture(), files)).toEqual([]);
+  });
+  it("accepts a map without windows", () => {
+    const map = fixture();
+    Reflect.deleteProperty(map, "windows");
+    expect(checkMap(map, files)).toEqual([]);
+  });
+  it("accepts a part that links to another map file", () => {
+    const map = fixture();
+    map.nodes[0].map = "src/a/wire.ts";
+    expect(checkMap(map, files)).toEqual([]);
+  });
+  it("checks coverage against the roots and source files of the map's scope", () => {
+    const map = fixture();
+    map.nodes[0].paths = ["plugin/src/a.py"];
+    map.nodes[1].paths = ["plugin/__init__.py"];
+    map.edges[0].wiring = "plugin/__init__.py";
+    const scope = { cover: ["plugin/src"], source: /\.py$/, skip: /(^|\/)__init__\.py$/ };
+    const plugin = [
+      { path: "plugin/__init__.py", directory: false },
+      { path: "plugin/src", directory: true },
+      { path: "plugin/src/__init__.py", directory: false },
+      { path: "plugin/src/a.py", directory: false },
+      { path: "plugin/src/b.py", directory: false },
+    ];
+    expect(checkMap(map, plugin, scope)).toEqual(["coverage: plugin/src/b.py has no part"]);
   });
   it("reports a map that is not an object", () => {
     expect(checkMap(null, files)).toEqual(["shape: the map is not an object"]);
@@ -177,6 +209,13 @@ describe("architecture map", () => {
         map.flows[0].steps[0].transport = "request";
       },
       "flows: flow step 1 cites edge, which is push only",
+    ],
+    [
+      "a part map that is not a file",
+      (map) => {
+        map.nodes[0].map = "src/a";
+      },
+      "map: a/part src/a is not a file",
     ],
     [
       "a wiring path that is not a file",
