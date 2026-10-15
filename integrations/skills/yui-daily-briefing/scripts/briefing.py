@@ -243,10 +243,11 @@ def publish(spool):
         added = git(spool, "add", "--", *paths)
         if added.returncode != 0:
             return git_failed(added)
-    if git(spool, "diff", "--cached", "--quiet").returncode != 0:
-        committed = git(spool, "commit", "--quiet", "-m", datetime.date.today().isoformat())
-        if committed.returncode != 0:
-            return git_failed(committed)
+        # Pathspecs keep anything else in the index out of the commit.
+        if git(spool, "diff", "--cached", "--quiet", "--", *paths).returncode != 0:
+            committed = git(spool, "commit", "--quiet", "-m", datetime.date.today().isoformat(), "--", *paths)
+            if committed.returncode != 0:
+                return git_failed(committed)
     pushed = git(spool, "push", "--quiet", remotes[0], "HEAD")
     return git_failed(pushed) if pushed.returncode != 0 else 0
 

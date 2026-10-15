@@ -122,7 +122,7 @@ the same OS user as the agent.
 | `write --source <name>` | Reads the gather input on stdin and writes the briefing file. `<name>` is 1 to 40 letters, digits, `_`, or `-` |
 | `pending` | Prints every `<YYYY-MM-DD>/<file>.md` file missing from the ledger, oldest day first, then by file name, each under a line `=== <path relative to the spool> ===`, with bytes that are not UTF-8 shown as U+FFFD. Prints nothing when every file is spoken |
 | `mark-spoken PATH...` | Records each path in the ledger. Each path reads `<YYYY-MM-DD>/<file>.md`, exactly as `pending` prints it, and names an existing file |
-| `publish` | Stages every `<YYYY-MM-DD>/<file>.md` file in the spool's git repository, commits them with the local date (`2026-10-02`) as the message when that changes the tree, and pushes the current branch to the first remote `git remote` lists. `spoken.json`, the lock file, and every other file stay unstaged. The spool is the top directory of its own git work tree |
+| `publish` | Stages every `<YYYY-MM-DD>/<file>.md` file in the spool's git repository, commits them with the local date (`2026-10-02`) as the message when that changes the tree, and pushes the current branch to the first remote `git remote` lists. The commit holds those files only: `spoken.json`, the lock file, and any other file, staged by hand or not, stay out of it. The spool is the top directory of its own git work tree |
 
 | Exit | Output | Meaning |
 |---|---|---|
