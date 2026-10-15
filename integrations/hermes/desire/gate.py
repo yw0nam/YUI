@@ -503,12 +503,11 @@ def _loneliness_lines(
     if record is not None and rank(level) <= rank(record["level"]):
         return []
     record = gate_state["loneliness"] = {"since": last_interaction_at, "level": level, "written_at": None}
-    if held is not None and rank(held["level"]) >= rank(level):
-        return []
     hours = int(away.total_seconds() // 3600)
     reason = f"{hours}h since the last interaction"
-    desire_judgments.judge(state_dir, *LONELINESS, level, [], reason, now)
-    record["written_at"] = now.isoformat()
+    if held is None or rank(held["level"]) < rank(level):
+        desire_judgments.judge(state_dir, *LONELINESS, level, [], reason, now)
+        record["written_at"] = now.isoformat()
     return [f"{desire_config.WAKE_LONELINESS} {level} ({reason})"]
 
 

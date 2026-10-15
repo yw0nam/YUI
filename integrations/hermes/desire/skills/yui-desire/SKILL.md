@@ -57,11 +57,11 @@ carry them. `feel --grounds` shows the events behind a judgment.
 1. The logs are append-only. A correction and a retraction are new lines that name the event; the original line
    stays in `events.jsonl` as written. The block and `feel --list` show the corrected fact, and leave a retracted
    event out; the file keeps the whole history.
-2. A level is the word you chose that day. Nothing compares it with another day or another name, and nothing adds
-   two judgments together. One name moves with time: the gate raises `loneliness` toward `user` as time passes
-   since the user last spoke to you, never above `very strong` and never below a level you wrote, and puts its
-   own judgment down once the user speaks again.
-3. A judgment changes nothing else: no wake, no signal, no want, no other judgment.
+2. A level is the word you chose that day. Nothing compares a level you wrote with another day's or another
+   name's, and nothing adds two judgments together. One name moves with time: the gate raises `loneliness`
+   toward `user` as time passes since the user last spoke to you, up to `very strong`, never lowers a level you
+   wrote, wakes you at each new level, and puts its own judgment down once the user speaks again.
+3. A judgment you write changes nothing else: no wake, no signal, no want, no other judgment.
 4. Time spent away, a slow reply, silence, an unreachable app, and the fact that you wrote a record are not
    events. Transport state stays a technical record: it is never a felt event and enters no judgment.
 

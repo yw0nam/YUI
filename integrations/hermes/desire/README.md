@@ -171,11 +171,10 @@ Case 3, a new loneliness level. Every run, whatever else holds, the gate reads `
 | 72 and more | `very strong` |
 
 `very strong` is the upper bound. A level higher than the one `gate.json` records for the same interaction time
-is a new level: the gate records it and, when it is above the present judgment's level or no judgment is
-present, appends a judgment with that level, no events, and `why` `<n>h since the last interaction`, and wakes
-the agent. A new level the present judgment already reaches is recorded with no judgment and no wake, and a run
-at a recorded level changes nothing, so one absence wakes the agent at most four times. A judgment the agent
-wrote is never lowered.
+is a new level: the gate records it, wakes the agent, and appends a judgment with that level, no events, and
+`why` `<n>h since the last interaction` when no judgment is present or the present one is lower. A run at a
+recorded level changes nothing, so one absence wakes the agent at most four times. A judgment the agent wrote at
+the new level or higher stays as written.
 
 When `last_interaction_at` moves, the first gate run after it puts the judgment down with `why` `the user came
 back`, provided the present judgment is still the one the gate wrote, and clears the record; the levels then

@@ -356,7 +356,8 @@ def test_the_agents_own_loneliness_is_never_lowered_or_put_down_by_the_gate(stat
     gate.run(t0)
     write_jsonl(state_dir / "judgments.jsonl", [judgment_line("loneliness", "user", "strong", t0)])
 
-    assert gate.run(t0 + timedelta(hours=24)) == NO_WAKE
+    assert gate.run(t0 + timedelta(hours=24)) == loneliness_wake("some", 24)
+    assert gate.run(t0 + timedelta(hours=25)) == NO_WAKE
     assert held_loneliness(state_dir)["level"] == "strong"
     interact(state_dir, t0 + timedelta(hours=25), state_helpers)
     gate.run(t0 + timedelta(hours=25, minutes=10))
