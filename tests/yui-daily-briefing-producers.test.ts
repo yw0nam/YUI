@@ -96,7 +96,7 @@ function writeOn(spool: string, day: string, source: string, input: unknown): Re
   ].join("\n");
   const result = spawnSync(
     PYTHON,
-    ["-c", frozen, SCRIPT, day, "--spool", spool, "write", "--source", source],
+    ["-B", "-c", frozen, SCRIPT, day, "--spool", spool, "write", "--source", source],
     { input: typeof input === "string" ? input : JSON.stringify(input), encoding: "utf8" },
   );
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };

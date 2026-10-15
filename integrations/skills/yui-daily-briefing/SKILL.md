@@ -78,7 +78,7 @@ After composing the briefing and before giving the final answer, record every pa
 covered, exactly as `pending` printed it:
 
 ```bash
-python3 "$SKILL_DIR/scripts/briefing.py" mark-spoken 2026-10-02/world-news.md 2026-10-02/papers.md
+python3 "$SKILL_DIR/scripts/briefing.py" mark-spoken reports/2026/10/W1/02/world-news.md reports/2026/10/W1/02/papers.md
 ```
 
 The helper keeps the record in `$YUI_BRIEFING_SPOOL/spoken.json`. Only the helper writes
@@ -91,7 +91,8 @@ Done when: the command exits 0 and `pending` omits those paths.
 
 A follow-up ("tell me more about the second one", "what papers came in last week?",
 "그거 열어줘") is answered by reading the dated files directly:
-`$YUI_BRIEFING_SPOOL/<YYYY-MM-DD>/<source>.md`. Quote the excerpt when it carries text and
+`$YUI_BRIEFING_SPOOL/reports/<YYYY>/<MM>/<Wn>/<DD>/<source>.md`, where `<Wn>` is the week of
+the month (`W1` for days 1 to 7, up to `W5` for days 29 to 31). Quote the excerpt when it carries text and
 include the item's link. Stay inside what the files hold.
 
 Done when: the answer contains the item's url.
@@ -199,7 +200,8 @@ gather.py | python3 "$SKILL_DIR/scripts/briefing.py" write --source <producer na
 ```
 
 `write` reads `{"summary": ..., "sources": [...], "refs": [...]}` on stdin, applies every
-cap in the contract, and writes `$YUI_BRIEFING_SPOOL/<YYYY-MM-DD>/<producer name>.md`.
+cap in the contract, and writes `<producer name>.md` into today's day folder,
+`$YUI_BRIEFING_SPOOL/reports/<YYYY>/<MM>/<Wn>/<DD>/`.
 A second run on the same day replaces the producer's unspoken briefing. Once every
 briefing of that producer and day is spoken, the run writes
 `<producer name>.<HHMMSSffffff>.md` beside them, stamped to the microsecond, so a spoken
@@ -210,7 +212,7 @@ helper writes a failed briefing naming the producer alone. Mark that source `fai
 `sources[]` and keep going, so the other feeds still reach the briefing.
 
 Done when: a manual run with `YUI_BRIEFING_SPOOL` set prints nothing, exits 0,
-`$YUI_BRIEFING_SPOOL/<today>/<producer name>.md` exists, and
+`<producer name>.md` exists in today's day folder under `$YUI_BRIEFING_SPOOL/reports/`, and
 `python3 "$SKILL_DIR/scripts/briefing.py" pending`, run from a new shell of yours with no
 variable set by hand, prints it.
 
@@ -241,7 +243,7 @@ The helper prints nothing on success and a one-line reason on stderr otherwise, 
 scheduler that mails or messages output stays quiet on good mornings.
 
 Done when: a manual run of each producer line, with the variables set, leaves
-`$YUI_BRIEFING_SPOOL/<today>/<producer name>.md`.
+`<producer name>.md` in today's day folder under `$YUI_BRIEFING_SPOOL/reports/`.
 
 ### 9. Watch one morning
 
@@ -278,8 +280,12 @@ and 8. List the scheduler's entries (`crontab -l` on cron) and confirm each poin
 7. The delivery matches the answer of step 6, confirmed through § Check of that answer's
    file in `references/delivery/`. Ask the question of step 6 again when the user wants
    to switch, then work through § Install of the new answer's file.
+8. The spool holds no `<YYYY-MM-DD>/` folder at its root. A spool that does is moved
+   under `reports/` once, while no producer or `publish` runs:
+   `python3 "$SKILL_DIR/scripts/briefing.py" migrate`. On a spool kept as a git
+   repository, `publish` then pushes the move.
 
-A spool's dated folders can hold `.json` and `.sent.json` files. `pending` reads only
+A spool's day folders can hold `.json` and `.sent.json` files. `pending` reads only
 `.md` files, so they stay out of every briefing. A `.json` file without `.sent` in its name
 was never delivered. Tell the user they can stay as an archive or be deleted.
 

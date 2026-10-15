@@ -31,8 +31,8 @@ order:
 3. Settle with the user a push credential that asks for nothing, since the scheduler
    pushes unattended: a git credential helper for an HTTPS remote (`gh auth setup-git`
    when the host is GitHub), or a deploy key with write access for an SSH remote.
-4. Make the first commit and push with `publish` itself. The commit holds the dated `.md`
-   files only, and the push sends the current branch:
+4. Make the first commit and push with `publish` itself. The commit holds the `.md` files
+   under `reports/` and the `.gitignore` only, and the push sends the current branch:
 
    ```bash
    python3 "$SKILL_DIR/scripts/briefing.py" publish
@@ -60,19 +60,21 @@ order:
 
 Done when: a manual run of the `publish` line, as the scheduler's user, prints nothing and
 exits 0; `printenv YUI_BRIEFING_LINK` in a new shell of yours prints the URL; and the user
-opens `$YUI_BRIEFING_LINK/<today>` and sees today's files.
+opens `$YUI_BRIEFING_LINK/<day folder>/` for today and sees today's files.
 
 ## Speak
 
-`$YUI_BRIEFING_LINK/<YYYY-MM-DD>` opens that day's folder. The reply holds the greeting and
+A day's folder is `reports/<YYYY>/<MM>/<Wn>/<DD>`, the folder of the paths `pending` prints,
+and `$YUI_BRIEFING_LINK/<day folder>/` opens it. The reply holds the greeting and
 one line per day `pending` covers, oldest day first. Each line carries:
 
 1. The day, named when it is other than today ("yesterday", "on Monday").
 2. The item count of each briefing that day, under its `source`.
 3. Each source whose `status` is anything other than `ok`, `stale` together with its
    `last_ok`, and a `run_url` rendered as `[name](run_url)`.
-4. The link to that day, `[<YYYY-MM-DD>](<value>/<YYYY-MM-DD>)` with the variable's value
-   in place of `<value>`.
+4. The link to that day, `[<YYYY-MM-DD>](<value>/<day folder>/)` with the variable's
+   value in place of `<value>`, for example
+   `[2026-10-15](<value>/reports/2026/10/W3/15/)`.
 
 Items stay on the page; follow-ups (Speak step 5) read the files. When `pending` covers
 more than three days, the newest day gets its line and the older days get one sentence
@@ -89,7 +91,8 @@ set up again as in § Install:
 
 1. The spool is the top directory of its own git repository with a remote, and its
    `.gitignore` lists `spoken.json` and `.lock`.
-2. `git -C "$YUI_BRIEFING_SPOOL" ls-files` lists dated `.md` files only. Any other tracked
+2. `git -C "$YUI_BRIEFING_SPOOL" ls-files` lists the `.gitignore` and `.md` files under
+   `reports/` only. Any other tracked
    file leaves the repository through `git rm --cached` and a commit the user makes.
 3. Each schedule has one `briefing.py publish` entry, later than its producers by more
    than the slowest producer's run.

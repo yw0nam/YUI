@@ -2,7 +2,7 @@
 
 A producer of the daily briefing gathers its sources once per scheduled run and pipes one
 JSON object into `scripts/briefing.py write`. The helper writes one markdown file per run
-into a dated spool on the backend agent's machine. The agent lists the unspoken files with
+into a day folder of the spool on the backend agent's machine. The agent lists the unspoken files with
 `briefing.py pending`, speaks them, and records them with `briefing.py mark-spoken`. A spool kept as a git
 repository is pushed to its remote with `briefing.py publish`. This
 file states the input, the file the helper writes, the ledger, and the helper's commands.
@@ -58,9 +58,11 @@ outside the rule keeps its other fields.
 
 ## Briefing file
 
-`write` names the file `<spool>/<YYYY-MM-DD>/<source>.md`, dated by the local day (the
-job's `TZ`) at the moment stdin closes, and writes it through a temporary file and a
-rename:
+`write` names the file `<spool>/reports/<YYYY>/<MM>/<Wn>/<DD>/<source>.md`, in the day
+folder of the local day (the job's `TZ`) at the moment stdin closes, and writes it through
+a temporary file and a rename. `<Wn>` is the week of the month: `W1` holds days 1 to 7,
+`W2` 8 to 14, `W3` 15 to 21, `W4` 22 to 28, and `W5` 29 to 31, so 2026-10-15 lands in
+`reports/2026/10/W3/15/`:
 
 ```markdown
 ---
@@ -97,8 +99,8 @@ briefing files.
 ## Ledger
 
 `<spool>/spoken.json` is a JSON object that maps each spoken file's path, relative to the
-spool (`2026-10-02/world-news.md`), to the local ISO-8601 time `mark-spoken` recorded it.
-`write` and `mark-spoken` hold an exclusive lock on `<spool>/.lock` while they read and
+spool (`reports/2026/10/W1/02/world-news.md`), to the local ISO-8601 time `mark-spoken`
+recorded it. `write`, `mark-spoken`, and `migrate` hold an exclusive lock on `<spool>/.lock` while they read and
 write it, and the ledger is written through a temporary file and a rename. `pending`
 reads it unlocked. `mark-spoken` renames an unreadable ledger `spoken.json.bad` with one
 line on stderr and reads it as empty. `write` and `pending` read an unreadable ledger as
@@ -115,20 +117,21 @@ the same OS user as the agent.
 
 | Flag | Default |
 |---|---|
-| `--spool <dir>` | `$YUI_BRIEFING_SPOOL`; required when that variable is unset or empty. An absolute path; `pending`, `mark-spoken`, and `publish` need the directory to exist, `write` creates it. It goes before the subcommand |
+| `--spool <dir>` | `$YUI_BRIEFING_SPOOL`; required when that variable is unset or empty. An absolute path; `pending`, `mark-spoken`, `publish`, and `migrate` need the directory to exist, `write` creates it. It goes before the subcommand |
 
 | Command | Does |
 |---|---|
 | `write --source <name>` | Reads the gather input on stdin and writes the briefing file. `<name>` is 1 to 40 letters, digits, `_`, or `-` |
-| `pending` | Prints every `<YYYY-MM-DD>/<file>.md` file missing from the ledger, oldest day first, then by file name, each under a line `=== <path relative to the spool> ===`, with bytes that are not UTF-8 shown as U+FFFD. Prints nothing when every file is spoken |
-| `mark-spoken PATH...` | Records each path in the ledger. Each path reads `<YYYY-MM-DD>/<file>.md`, exactly as `pending` prints it, and names an existing file |
-| `publish` | Stages every `<YYYY-MM-DD>/<file>.md` file in the spool's git repository, commits them with the local date (`2026-10-02`) as the message when that changes the tree, and pushes the current branch to the first remote `git remote` lists. The commit holds those files only: `spoken.json`, the lock file, and any other file, staged by hand or not, stay out of it. The spool is the top directory of its own git work tree |
+| `pending` | Prints every `reports/<YYYY>/<MM>/<Wn>/<DD>/<file>.md` file missing from the ledger, oldest day first, then by file name, each under a line `=== <path relative to the spool> ===`, with bytes that are not UTF-8 shown as U+FFFD. Prints nothing when every file is spoken |
+| `mark-spoken PATH...` | Records each path in the ledger. Each path reads `reports/<YYYY>/<MM>/<Wn>/<DD>/<file>.md`, exactly as `pending` prints it, and names an existing file |
+| `publish` | Stages every `reports/<YYYY>/<MM>/<Wn>/<DD>/<file>.md` file and the spool's `.gitignore` in the spool's git repository, commits them with the local date (`2026-10-02`) as the message when that changes the tree, and pushes the current branch to the first remote `git remote` lists. The commit holds those files only: `spoken.json`, the lock file, a `README.md`, and any other file, staged by hand or not, stay out of it. The spool is the top directory of its own git work tree |
+| `migrate` | Moves every file of each `<YYYY-MM-DD>/` folder at the spool root into its day folder under `reports/`, removes the emptied folders, and rewrites the moved paths in `spoken.json`. In a spool that is the top of its own git work tree, tracked files move with `git mv` and one commit records the moves, so `git log --follow` reaches their earlier commits. A spool with no such folder is left as it is, so a second run changes nothing |
 
 | Exit | Output | Meaning |
 |---|---|---|
-| 0 | none from `write`, `mark-spoken`, and `publish`; the briefings from `pending` | Done |
-| 1 | the reason on stderr | `write` read malformed input, and the error path below applies; or a `publish` step (`git add`, `git commit`, `git push`) failed, with git's first `fatal:` or `error:` line |
-| 2 | the reason on stderr | No spool (`set YUI_BRIEFING_SPOOL or pass --spool`), a relative spool path, a missing spool directory for `pending`, `mark-spoken`, or `publish`, a `publish` spool that is not the top of a git work tree or has no remote, no `git` on `PATH`, a `--source` outside the rule, a `mark-spoken` path that is absolute, holds `..`, or names no briefing in the spool (nothing is recorded), or an unknown flag |
+| 0 | none from `write`, `mark-spoken`, `publish`, and `migrate`; the briefings from `pending` | Done |
+| 1 | the reason on stderr | `write` read malformed input, and the error path below applies; or a `publish` or `migrate` step (`git add`, `git mv`, `git commit`, `git push`) failed, with git's first `fatal:` or `error:` line |
+| 2 | the reason on stderr | No spool (`set YUI_BRIEFING_SPOOL or pass --spool`), a relative spool path, a missing spool directory for `pending`, `mark-spoken`, `publish`, or `migrate`, a `migrate` that finds a file already at one of the new paths (nothing is moved), a `publish` spool that is not the top of a git work tree or has no remote, no `git` on `PATH`, a `--source` outside the rule, a `mark-spoken` path that is absolute, holds `..`, or names no briefing in the spool (nothing is recorded), or an unknown flag |
 
 ## Run time
 
