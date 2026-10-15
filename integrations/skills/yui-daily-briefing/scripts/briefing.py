@@ -218,8 +218,9 @@ def git(spool, *args):
 
 
 def git_failed(result):
-    lines = (result.stderr + result.stdout).strip().splitlines()
-    print(f"git {result.args[3]} failed: {lines[-1] if lines else f'exit {result.returncode}'}", file=sys.stderr)
+    lines = (result.stderr + result.stdout).strip().splitlines() or [f"exit {result.returncode}"]
+    reason = next((line for line in lines if line.startswith(("fatal:", "error:"))), lines[0])
+    print(f"git {result.args[3]} failed: {reason}", file=sys.stderr)
     return 1
 
 
