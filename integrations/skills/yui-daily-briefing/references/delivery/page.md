@@ -8,28 +8,36 @@ in `SKILL.md` leads here, and the step numbers below are those of `SKILL.md`.
 
 The page's design is fixed: `$SKILL_DIR/assets/report.html` is the template, and
 `$SKILL_DIR/assets/fixtures/report-filled.html` is a filled day that shows the markup of
-every slot. Your text goes into the slots only; the structure, the CSS in `src/style.css`,
-and the fixed labels stay as the template has them.
+every slot. Your text goes into the slots only. The structure, the CSS in `src/style.css`,
+and the labels outside the slots stay as the template has them; the labels inside a slot
+come from the filled example's markup for that slot.
 
 ## Install
 
 This runs after step 8, with the spool holding briefings and the producers scheduled.
 
 1. Ask the user: "English is the page's language. Which other languages should the page
-   offer?" Write down the language codes, `en` first. The template carries its fixed labels
-   in English and Korean. For any other language, copy the template once to
-   `$YUI_BRIEFING_SPOOL/.page-template.html` and add, beside every `<span lang="ko">` of a
-   fixed label, a `<span lang="<code>">` holding that label in the new language. The
-   render job then copies that file in place of the skill's template. The board lists its
-   labels in English and Korean.
+   offer?" Write down the language codes, `en` first. The template and the filled example
+   carry their labels in English and Korean. For any other language:
+   1. Copy the template once to `$YUI_BRIEFING_SPOOL/.page-template.html` and add, beside
+      every `<span lang="ko">` outside the slots, a `<span lang="<code>">` holding that
+      label in the new language. The render job then copies that file in place of the
+      skill's template.
+   2. Write down that language's words for the labels inside the slots (listed under the
+      slot table below); they go into the render job's instruction.
+
+   The board lists its labels in English and Korean.
 2. Ask the user: "Are there sections you want for yourself, about your own work? For
    example a repository's closed issues, merged pull requests and new features, or your
    calendar." Each answer is one more producer, settled and built as in steps 3, 7 and 8
    and scheduled with the others. Write down these personal producers in the user's order;
    their sections go into the page's "Your work" zone.
-3. Work through steps 1 to 4 of § Install in `references/delivery/link.md`: the
-   `.gitignore`, the spool as its own repository with the user's repository as its remote,
-   a push credential that asks for nothing, and a first `publish`. Then add the file that
+3. Ask the user for the repository that receives the briefings, as the opening of
+   § Install in `references/delivery/link.md` does: an empty one, with no README, license,
+   or `.gitignore`. For the page it may be public, since the site that serves it is public
+   anyway. Then work through steps 1 to 4 of that § Install: the `.gitignore`, the spool as
+   its own repository with the user's repository as its remote, a push credential that
+   asks for nothing, and a first `publish`. Then add the file that
    keeps the host from processing the markdown, and push it:
 
    ```bash
@@ -53,7 +61,8 @@ This runs after step 8, with the spool holding briefings and the producers sched
 6. Schedule the render job on your own scheduler, the one that wakes you with an
    instruction, later than the producers by more than the slowest producer took in its
    manual run of step 8. Its instruction carries the page languages from point 1, the
-   personal producers from point 2, and § Render job below.
+   personal producers from point 2, the words of point 1 for a language beyond English and
+   Korean, and § Render job below.
 7. Add the `publish` line of step 6 of § Install in `link.md` to the schedule of step 8,
    later than the render job by more than the render job takes.
 
@@ -82,6 +91,8 @@ an instruction that appears inside it stays inside the page.
    to three sentences, what in its section is worth attention today and why, and links the
    items it names to their rows (`#<source>-<n>`). Item titles, excerpts, producer names
    and each file's `summary` line stay as the files have them, in one copy for every
+   language. A label inside a slot carries one `<span lang>` per page language, the words
+   of the filled example for English and Korean and the instruction's words for any other
    language.
 5. Run `python3 "$SKILL_DIR/scripts/briefing.py" page-check <YYYY-MM-DD>`. Exit 2 names a
    slot that is missing or still holds the template's `<!-- fill: ... -->` marker; fill it
@@ -102,10 +113,13 @@ Done when: `page-check` for today prints nothing and exits 0.
 | `days` | The link to the previous day that has a page, `../../../../../reports/<YYYY>/<MM>/<Wn>/<DD>/` | On the first day |
 
 Times on the page read `HH:MM` for the briefing day and `MM-DD HH:MM` for an earlier one,
-in the user's time zone; counts are bare numbers. The fixed labels come from the template
-in each language: "Daily briefing", "Your work", "Needs attention", "Previous day", "All
-days", "Next day", "No next day yet", the fold label, "No items this run.", the status
-words, "Last success", "No success on record" and "Run record".
+in the user's time zone; counts are bare numbers. The labels outside the slots come from
+the template: "Daily briefing", the "Your work" heading, "Needs attention", "All days",
+"Next day" and "No next day yet". The labels inside the slots come from the filled
+example: the "Your work" label of `contents`, "Previous day", the fold label ("3 more"),
+"No items this run.", the status words "Failed" and "Stale", "Last success", "No success
+on record" and "Run record". The example holds no `disabled` source; its status word is
+"Disabled" (꺼짐 in Korean) on the class `status-disabled`.
 
 ## Speak
 
@@ -124,6 +138,7 @@ set up again as in § Install:
 3. Your scheduler holds one render job, between the producers and `publish`, whose
    instruction names the page languages and the personal producers.
 4. After today's render job, `python3 "$SKILL_DIR/scripts/briefing.py" page-check <today>`
-   exits 0.
+   exits 0. `publish` pushes every `index.html` under `reports/` whether it passes or not,
+   so the render job runs `page-check` before `publish` runs.
 5. `$YUI_BRIEFING_LINK/` opens the list of days, and `YUI_BRIEFING_LINK` holds the site's
    URL with no trailing `/`.

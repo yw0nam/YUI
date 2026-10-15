@@ -4,6 +4,7 @@ import argparse
 import datetime
 import errno
 import glob
+import html as markup
 import json
 import os
 import re
@@ -32,6 +33,7 @@ ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets"
 WEEKDAYS = (("Mon", "월"), ("Tue", "화"), ("Wed", "수"), ("Thu", "목"), ("Fri", "금"), ("Sat", "토"), ("Sun", "일"))
 FLAGS = {"failed": ("Failed", "실패"), "stale": ("Stale", "지연")}
 SLOT = re.compile(r"<!-- slot: (\S+?)(?: lang=([\w-]+))? -->|<!-- /slot -->")
+UNSAFE = re.compile(r"<script|\son[a-z]+\s*=|javascript:", re.I)
 BRIEFING_PATH = re.compile(r"reports/\d{4}/\d{2}/W[1-5]/\d{2}/[^./\\][^/\\]*\.md")
 OLD_DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 
@@ -230,7 +232,7 @@ def board_row(spool, folder, paths, has_page):
         flags.update(statuses & set(FLAGS))
         count = len(re.findall(r"^\d+\. \[", text, re.M))
         css = f' class="flag-{flag}"' if flag else ""
-        producers.append(f'        <li{css}><span class="p-name">{source}</span> <span class="p-count">{count}</span></li>')
+        producers.append(f'        <li{css}><span class="p-name">{markup.escape(source)}</span> <span class="p-count">{count}</span></li>')
     en, ko = WEEKDAYS[date.weekday()]
     label = f'<span class="day-iso">{date}</span><span class="day-week"><span lang="en">{en}</span><span lang="ko">{ko}</span></span>'
     link = f'<a class="day-link" href="{folder}/">{label}</a>' if has_page else f'<span class="day-link">{label}</span>'
@@ -265,6 +267,10 @@ def slots(html):
     return found
 
 
+def has_text(body):
+    return bool(re.sub(r"<[^>]*>", "", re.sub(r"<!--.*?-->", "", body, flags=re.S)).strip())
+
+
 def page_check(spool, date):
     try:
         day = datetime.date.fromisoformat(date)
@@ -279,22 +285,36 @@ def page_check(spool, date):
         print(f"no page at {page}", file=sys.stderr)
         return 2
     found = slots(html)
-    filled = lambda body: bool(re.sub(r"<!--.*?-->", "", body, flags=re.S).strip())
+    for name, lang, body in found:
+        if UNSAFE.search(body):
+            label = name + (f" lang={lang}" if lang else "")
+            print(f"a script, an event handler, or a javascript: link in slot: {label} in {page}", file=sys.stderr)
+            return 2
 
     def first(name, lang=None):
         return next((body for slot, slot_lang, body in found if slot == name and slot_lang == lang), None)
 
-    languages = re.findall(r'<option value="([\w-]+)"', first("languages") or "")
     required = [("title", None), ("languages", None)]
+    languages = re.findall(r'<option\b[^>]*\bvalue="([\w-]+)"', first("languages") or "")
+    if first("languages") is not None and has_text(first("languages")) and not languages:
+        print(f"the languages slot names no language in {page}", file=sys.stderr)
+        return 2
     required += [(name, lang) for name in ("date", "summary") for lang in languages or ["en"]]
     required += [("contents", None), ("producers", None)]
-    sections = re.findall(r'<section class="producer"[^>]*aria-labelledby="([^"]+)"',
-                          (first("producers") or "") + (first("personal") or ""))
-    required += [(f"intro:{section}", lang) for section in sections for lang in languages]
+    sections = re.findall(r"<section\b[^>]*>", (first("producers") or "") + (first("personal") or ""))
+    for section in sections:
+        classes = re.search(r'\bclass="([^"]*)"', section)
+        if not classes or "producer" not in classes.group(1).split():
+            continue
+        named = re.search(r'\baria-labelledby="([^"]+)"', section)
+        if not named:
+            print(f"a producer section without aria-labelledby in {page}: {section}", file=sys.stderr)
+            return 2
+        required += [(f"intro:{named.group(1)}", lang) for lang in languages]
     for name, lang in required:
         label = name + (f" lang={lang}" if lang else "")
         body = first(name, lang)
-        if body is None or not filled(body):
+        if body is None or not has_text(body):
             print(f"{'missing' if body is None else 'unfilled'} slot: {label} in {page}", file=sys.stderr)
             return 2
     return 0
@@ -359,6 +379,10 @@ def publish(spool):
     pages = day_pages(spool)
     if pages:
         # The day pages link the shared assets and the board at the repository root.
+        folder = os.path.join(spool, "src")
+        if os.path.islink(folder) or not os.path.realpath(folder).startswith(os.path.realpath(spool) + os.sep):
+            print(f"the spool's src/ leads out of the spool: {folder}", file=sys.stderr)
+            return 2
         shared = []
         for name in sorted(os.listdir(os.path.join(ASSETS, "src"))):
             with open(os.path.join(ASSETS, "src", name), encoding="utf-8") as file:
