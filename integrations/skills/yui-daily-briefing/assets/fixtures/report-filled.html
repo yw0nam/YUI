@@ -48,7 +48,7 @@
       <li><a href="#world-news"><span class="toc-name">world-news</span><span class="status status-stale"><span lang="en">stale</span><span lang="ko">지연</span></span><span class="toc-count">2</span></a></li>
       <li><a href="#markets"><span class="toc-name">markets</span><span class="status status-failed"><span lang="en">failed</span><span lang="ko">실패</span></span><span class="toc-count">0</span></a></li>
     </ol>
-    <p class="toc-zone"><span lang="en">Your work</span><span lang="ko">내 작업</span></p>
+    <p class="toc-zone"><span lang="en">Projects</span><span lang="ko">프로젝트</span></p>
     <ol>
       <li><a href="#my-project"><span class="toc-name">my-project</span><span class="toc-count">7</span></a></li>
     </ol>
@@ -80,14 +80,14 @@
   <section class="lead" aria-label="Summary">
     <!-- slot: summary lang=en -->
     <div lang="en">
-      <p>Voice input shipped overnight in your project, and one review is waiting on you: the settings migration, requested this morning. Two of the eight new papers sit close to that work, a lip-sync model small enough for a laptop GPU and a study on when an assistant should speak first.</p>
+      <p>Voice input shipped overnight in the project, and one review awaits the maintainer: the settings migration, requested this morning. Two of the eight new papers sit close to that work, a lip-sync model small enough for a laptop GPU and a study on when an assistant should speak first.</p>
       <p>The news is quiet apart from rates rising again. Three feeds need a look: the reviews feed and the markets run failed this morning, and example-feed has said nothing since Tuesday night.</p>
     </div>
     <!-- /slot -->
     <!-- slot: summary lang=ko -->
     <div lang="ko">
       <p>밤사이 프로젝트에 음성 입력이 배포되었고, 오늘 아침 요청된 설정 마이그레이션 검토 한 건이 기다리고 있습니다. 새 논문 여덟 편 중 두 편이 이 작업과 가깝습니다. 노트북 GPU에서 돌아가는 립싱크 모델과, 비서가 언제 먼저 말을 걸어야 하는지 다룬 연구입니다.</p>
-      <p>뉴스는 금리가 다시 올랐다는 소식 하나입니다. 소스 세 곳을 확인해 주세요. 리뷰 피드와 시장 실행이 오늘 아침 실패했고, example-feed는 화요일 밤 이후 소식이 없습니다.</p>
+      <p>뉴스는 금리가 다시 올랐다는 소식 하나입니다. 소스 세 곳의 확인이 필요합니다. 리뷰 피드와 시장 실행이 오늘 아침 실패했고, example-feed는 화요일 밤 이후 소식이 없습니다.</p>
     </div>
     <!-- /slot -->
   </section>
@@ -102,7 +102,7 @@
         <p class="intro" lang="en">Start with the <a href="#papers-3">lip-sync model</a>: 12M parameters and real time on a laptop GPU, which is the budget the character already runs in. The <a href="#papers-4">study on when an assistant should speak first</a> came without an excerpt, so its abstract is worth a minute. The rest is background reading.</p>
         <!-- /slot -->
         <!-- slot: intro:papers lang=ko -->
-        <p class="intro" lang="ko"><a href="#papers-3">립싱크 모델</a>부터 보세요. 파라미터 1,200만 개로 노트북 GPU에서 실시간으로 돌아가니, 지금 캐릭터가 쓰는 연산 범위 안에 들어옵니다. <a href="#papers-4">비서가 언제 먼저 말을 걸어야 하는지 다룬 연구</a>는 요약 없이 들어왔으니 초록을 직접 읽어 볼 만합니다. 나머지는 참고용입니다.</p>
+        <p class="intro" lang="ko"><a href="#papers-3">립싱크 모델</a>이 먼저입니다. 파라미터 1,200만 개로 노트북 GPU에서 실시간으로 돌아가니, 지금 캐릭터가 쓰는 연산 범위 안에 들어옵니다. <a href="#papers-4">비서가 언제 먼저 말을 걸어야 하는지 다룬 연구</a>는 요약 없이 들어왔으니 초록을 직접 읽어 볼 만합니다. 나머지는 참고용입니다.</p>
         <!-- /slot -->
         <ol class="items">
           <li class="item" id="papers-1"><div>
@@ -178,7 +178,7 @@
         <h2 class="producer-head" id="markets">markets <span class="count">0</span></h2>
         <p class="producer-summary">markets run failed: JSONDecodeError: Expecting value: line 2 column 1 (char 36)</p>
         <!-- slot: intro:markets lang=en -->
-        <p class="intro" lang="en">No market figures this morning: the gather script handed over input the helper could not read, so the run stopped before any source was asked. Yesterday's numbers are the latest you have. The script needs a fix before tomorrow's run, or markets will be missing again.</p>
+        <p class="intro" lang="en">No market figures this morning: the gather script handed over input the helper could not read, so the run stopped before any source was asked. Yesterday's numbers are the latest available. The script needs a fix before tomorrow's run, or markets will be missing again.</p>
         <!-- /slot -->
         <!-- slot: intro:markets lang=ko -->
         <p class="intro" lang="ko">오늘 아침에는 시장 수치가 없습니다. 수집 스크립트가 넘긴 입력을 도우미가 읽지 못해, 소스를 하나도 조회하기 전에 실행이 멈췄습니다. 지금 볼 수 있는 최신 수치는 어제 것입니다. 내일 실행 전에 스크립트를 고치지 않으면 시장 항목은 내일도 빠집니다.</p>
@@ -189,13 +189,13 @@
     </div>
 
     <div class="zone">
-      <h2 class="zone-title"><span lang="en">Your work</span><span lang="ko">내 작업</span></h2>
+      <h2 class="zone-title"><span lang="en">Projects</span><span lang="ko">프로젝트</span></h2>
       <!-- slot: personal -->
       <section class="producer" aria-labelledby="my-project">
         <h3 class="producer-head" id="my-project">my-project <span class="count">7</span></h3>
         <p class="producer-summary">my-project: 7 updates</p>
         <!-- slot: intro:my-project lang=en -->
-        <p class="intro" lang="en"><a href="#my-project-2">Voice input shipped as v0.9.0</a>. Both pull requests behind it merged overnight and closed the three issues it was meant to fix. One thing waits on you: <a href="#my-project-1">the review of the settings migration</a>, requested at 08:05. It rewrites every user's stored settings on first launch, so it is worth reading before the next release.</p>
+        <p class="intro" lang="en"><a href="#my-project-2">Voice input shipped as v0.9.0</a>. Both pull requests behind it merged overnight and closed the three issues it was meant to fix. One item awaits the maintainer: <a href="#my-project-1">the review of the settings migration</a>, requested at 08:05. It rewrites every user's stored settings on first launch, so it is worth reading before the next release.</p>
         <!-- /slot -->
         <!-- slot: intro:my-project lang=ko -->
         <p class="intro" lang="ko"><a href="#my-project-2">음성 입력이 v0.9.0으로 배포되었습니다</a>. 이 기능을 이루는 풀 리퀘스트 두 건이 밤사이 병합되었고, 관련 이슈 세 건이 닫혔습니다. 직접 처리할 일은 하나입니다. 08:05에 요청된 <a href="#my-project-1">설정 마이그레이션 검토</a>입니다. 모든 사용자의 저장된 설정을 첫 실행에서 다시 쓰는 변경이라, 다음 릴리스 전에 읽어 두는 편이 좋습니다.</p>

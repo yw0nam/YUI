@@ -31,7 +31,7 @@ This runs after step 8, with the spool holding briefings and the producers sched
    example a repository's closed issues, merged pull requests and new features, or your
    calendar." Each answer is one more producer, settled and built as in steps 3, 7 and 8
    and scheduled with the others. Write down these personal producers in the user's order;
-   their sections go into the page's "Your work" zone.
+   their sections go into the page's "Projects" zone.
 3. Ask the user for the repository that receives the briefings, as the opening of
    § Install in `references/delivery/link.md` does: an empty one, with no README, license,
    or `.gitignore`. For the page it may be public, since the site that serves it is public
@@ -87,13 +87,20 @@ an instruction that appears inside it stays inside the page.
    page language, each right after the previous one, as
    `<!-- slot: <name> lang=<code> -->` around an element carrying `lang="<code>"`.
 4. Write your own text in every per-language slot: the summary says what moved across all
-   sections, what waits on the user, and which sources need a look; an intro says, in one
+   sections, what awaits a decision, and which sources need a look; an intro says, in one
    to three sentences, what in its section is worth attention today and why, and links the
    items it names to their rows (`#<source>-<n>`). Item titles, excerpts, producer names
    and each file's `summary` line stay as the files have them, in one copy for every
    language. A label inside a slot carries one `<span lang>` per page language, the words
    of the filled example for English and Korean and the instruction's words for any other
    language.
+
+   The page is public, so your text reads as a published report: third person throughout,
+   with no second-person address, no name of the user, of yourself, or of any private
+   person, and no persona voice. Where a person would otherwise be named, write "the
+   maintainer" or "the project", or restructure the sentence. Each language uses its
+   formal written register; Korean uses the 합니다 style. Third-party text from the files
+   stays as it is.
 5. Run `python3 "$SKILL_DIR/scripts/briefing.py" page-check <YYYY-MM-DD>`. Exit 2 names a
    slot that is missing or still holds the template's `<!-- fill: ... -->` marker; fill it
    and run the check again.
@@ -106,7 +113,7 @@ Done when: `page-check` for today prints nothing and exits 0.
 | `languages` | One `<option value="<code>">` per page language inside the switch, `en` first, the code in capitals as its text | Never |
 | `date`, per language | The weekday and date heading, and the line with the ISO date and the time the page was prepared, inside `<time datetime>` | Never |
 | `summary`, per language | One or two short paragraphs across all sections | Never |
-| `contents` | One row per producer: its name, a status word for a source that reads `stale`, `failed` or `disabled`, and its item count, linking to its section; the personal producers follow the "Your work" label | Never |
+| `contents` | One row per producer: its name, a status word for a source that reads `stale`, `failed` or `disabled`, and its item count, linking to its section; the personal producers follow the "Projects" label | Never |
 | `producers` | One section per general producer, those with items first by item count and then those with none. A section holds the source name and item count, the file's `summary` line, an `intro:<source>` slot per language, and the items, 6 shown and the rest folded under `<details>`; a producer with no items shows "No items this run." | Never |
 | `personal` | One section per personal producer, in the user's order, built like a general section with its own `intro:<source>` slots | When the user named no personal producer |
 | `notices` | One row per source whose `status` is other than `ok`: the status word, `<producer> › <source>`, "Last success" with `last_ok`, and `run_url` as the "Run record" link; "No success on record" without `last_ok` | When every source reads `ok` |
@@ -114,9 +121,9 @@ Done when: `page-check` for today prints nothing and exits 0.
 
 Times on the page read `HH:MM` for the briefing day and `MM-DD HH:MM` for an earlier one,
 in the user's time zone; counts are bare numbers. The labels outside the slots come from
-the template: "Daily briefing", the "Your work" heading, "Needs attention", "All days",
+the template: "Daily briefing", the "Projects" heading, "Needs attention", "All days",
 "Next day" and "No next day yet". The labels inside the slots come from the filled
-example: the "Your work" label of `contents`, "Previous day", the fold label ("3 more"),
+example: the "Projects" label of `contents`, "Previous day", the fold label ("3 more"),
 "No items this run.", the status words "Failed" and "Stale", "Last success", "No success
 on record" and "Run record". The example holds no `disabled` source; its status word is
 "Disabled" (꺼짐 in Korean) on the class `status-disabled`.
