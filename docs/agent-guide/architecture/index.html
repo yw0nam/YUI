@@ -51,6 +51,7 @@ main { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 
 .row { padding: 9px 12px; }
 .row + .row { border-top: 1px solid var(--line); }
 .row b { font-weight: 600; }
+#panel a { color: var(--accent); }
 .ex { margin-top: 10px; }
 .row > .ex:first-child { margin-top: 0; }
 code { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-word; }
@@ -229,11 +230,11 @@ function overviewPanel(panel) {
     panel.innerHTML = `<h2>Core modules</h2><p>A line is a main path of data and its label says what crosses. Select a module to see what it is made of and everything it exchanges with the others.</p><h3>Groups</h3>${group(DATA.zones.map(z => `<div class="row"><b class="zc" style="${hue(z.id)}">${esc(z.title)}</b><div class="meta">${esc(z.note)}</div></div>`).join(""))}`;
     return;
   }
-  const m = mod[state.sel], parts = DATA.nodes.filter(n => n.module === m.id && n.paths.length), names = Object.fromEntries(DATA.nodes.map(n => [n.id, n.label]));
+  const m = mod[state.sel], parts = DATA.nodes.filter(n => n.module === m.id && (n.paths.length || n.map)), names = Object.fromEntries(DATA.nodes.map(n => [n.id, n.label]));
   const claims = DATA.nodes.flatMap(n => n.paths), shared = x => claims.some(c => c.startsWith(x + "/")) ? " <span class=\"meta\">files outside the folders of other parts</span>" : "";
   const within = DATA.edges.filter(e => nodeModule[e.from] === m.id && nodeModule[e.to] === m.id);
   panel.innerHTML = `<h2>${esc(m.label)}</h2><p>${esc(m.desc)}</p>
-  <h3>Made of</h3>${parts.length ? group(parts.map(p => `<details class="row"><summary><b>${esc(p.label)}</b></summary><div class="meta" style="margin-top:4px">${esc(p.role)}</div>${p.paths.map(x => `<div><code>${esc(x)}</code>${shared(x)}</div>`).join("")}</details>`).join("")) : "<p>Outside the repo.</p>"}
+  <h3>Made of</h3>${parts.length ? group(parts.map(p => `<details class="row"><summary><b>${esc(p.label)}</b></summary><div class="meta" style="margin-top:4px">${esc(p.role)}</div>${p.paths.map(x => `<div><code>${esc(x)}</code>${shared(x)}</div>`).join("")}${p.map ? `<div><a href="?map=${encodeURIComponent(p.map)}">Open its map</a></div>` : ""}</details>`).join("")) : "<p>Outside the repo.</p>"}
   <h3>Sends to</h3>${exchangeRows(m.id, "out")}<h3>Receives from</h3>${exchangeRows(m.id, "in")}${within.length ? `<h3>Between its parts</h3>${group(`<details class="row"><summary><b>${within.length} exchange${within.length > 1 ? "s" : ""}</b></summary>${within.map(e => edgeRow(e, names)).join("")}</details>`)}` : ""}`;
 }
 
@@ -390,7 +391,7 @@ function render() {
   seg("views", [["overview", "Overview"], ["flow", "Flows"], ...(DATA.windows ? [["windows", "Windows"]] : [])], "view");
   const flows = document.getElementById("flows"); flows.hidden = state.view !== "flow";
   flows.innerHTML = DATA.flows.map(f => `<option value="${esc(f.id)}"${f.id === currentFlow().id ? " selected" : ""}>${esc(f.title)}</option>`).join("");
-  seg("transports", [["all", "Both transports"], ["request", "Request"], ["push", "Push"]], "transport").hidden = state.view !== "flow";
+  seg("transports", [["all", "Both transports"], ["request", "Request"], ["push", "Push"]], "transport").hidden = state.view !== "flow" || !DATA.edges.some(e => e.transport === "request");
   seg("compare", [[true, "Compare with main"]], "compare").hidden = !BASE || state.view !== "overview";
   document.getElementById("sub").textContent = state.view === "overview" ? "Core modules and the main paths between them" : state.view === "flow" ? "One event, step by step through the modules" : "Windows and the channels between them";
   if (state.view === "flow") { flow(stage); flowPanel(panel); panel.scrollTop = 0; } else if (state.view === "windows") { windowsView(stage); windowsPanel(panel); } else { overview(stage); overviewPanel(panel); }
@@ -433,9 +434,11 @@ function start() {
   addEventListener("resize", () => zoomTo(state.zoom));
   render();
 }
-load("map.js", ok => {
-  if (!ok || !globalThis.YUI_MAP) { document.getElementById("stage").textContent = "Could not load map.js."; return; }
-  load("map.base.js", start);
+// ?map= names another map file by its path from the repo root; it has no Compare view.
+const other = new URLSearchParams(location.search).get("map"), src = other ? "../../../" + other : "map.js";
+load(src, ok => {
+  if (!ok || !globalThis.YUI_MAP) { document.getElementById("stage").textContent = `Could not load ${src}.`; return; }
+  if (other) start(); else load("map.base.js", start);
 });
 </script>
 </body>

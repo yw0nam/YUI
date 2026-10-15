@@ -406,7 +406,8 @@ globalThis.YUI_MAP =
       "label": "backend (push)",
       "role": "The backend agent on the push transport: one WebSocket that carries turns in and replies out, and holds the conversation under a chat id.",
       "paths": [],
-      "external": true
+      "external": true,
+      "map": "integrations/hermes/platform/yui/docs/map.js"
     },
     {
       "id": "stt-service",

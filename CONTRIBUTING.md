@@ -64,6 +64,18 @@ and removed in v0.6.0) — see
 [`docs/agent-guide/architecture/map.js`](docs/agent-guide/architecture/map.js)
 is the map of the client. Open `index.html` beside it from disk to view it.
 
+[`integrations/hermes/platform/yui/docs/map.js`](integrations/hermes/platform/yui/docs/map.js)
+is the map of the Hermes push-transport plugin, in the same format. Its parts
+are files of the plugin, and every `.py` file under its `src/` but
+`__init__.py` is inside the path of some part. The client and the Hermes
+gateway are its two outside boxes, and it has no window graph. The viewer
+opens it as `index.html?map=integrations/hermes/platform/yui/docs/map.js`:
+`?map=` takes the path of a map file from the repo root, and a map opened
+that way has no Compare view. A part with a `map` field links to the map at
+that path; the client map's push backend links to the plugin map. A change to
+the plugin follows the steps below against the plugin map; step 3's
+`pnpm map:base` and Compare view cover the client map only.
+
 - A module is one box of the overview: a named unit of the client with a
   one-line description. Each module of the client sits in one of four groups
   (user I/O, core logic, outside communication, shared state and wiring). The
@@ -99,9 +111,11 @@ crosses an exchange, follows all four.
 
 `pnpm map:check` fails when:
 
-- a part's path or an exchange's wiring file does not exist;
-- a `.ts` or `.rs` source file is inside no part's path, or a folder sits
-  beside the folders of other parts and belongs to none;
+- a part's path, a part's map file, or an exchange's wiring file does not
+  exist;
+- a source file is inside no part's path, or a folder sits beside the folders
+  of other parts and belongs to none. Source files are `.ts` and `.rs` files
+  for the client map and `.py` files for the plugin map;
 - a part, a link, an exchange, or a flow step names a missing id, or an id is
   used twice;
 - a link has no exchange in its direction, or a flow step cites an exchange

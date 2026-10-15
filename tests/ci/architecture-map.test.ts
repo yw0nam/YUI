@@ -83,7 +83,12 @@ describe("architecture map", () => {
     map.nodes[0].paths = ["plugin/src/a.py"];
     map.nodes[1].paths = ["plugin/__init__.py"];
     map.edges[0].wiring = "plugin/__init__.py";
-    const scope = { cover: ["plugin/src"], source: /\.py$/, skip: /(^|\/)__init__\.py$/ };
+    const scope = {
+      file: "plugin/docs/map.js",
+      cover: ["plugin/src"],
+      source: /\.py$/,
+      skip: /(^|\/)__init__\.py$/,
+    };
     const plugin = [
       { path: "plugin/__init__.py", directory: false },
       { path: "plugin/src", directory: true },

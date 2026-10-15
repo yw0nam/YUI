@@ -3,8 +3,22 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-export const MAP = "docs/agent-guide/architecture/map.js";
-export const COVER = ["src", "src-tauri/src"];
+// Each map, the roots whose source files its parts must cover, and which files count as source.
+export const MAPS = [
+  {
+    file: "docs/agent-guide/architecture/map.js",
+    cover: ["src", "src-tauri/src"],
+    source: /\.(ts|rs)$/,
+    skip: /\.(test|d)\.ts$/,
+  },
+  {
+    file: "integrations/hermes/platform/yui/docs/map.js",
+    cover: ["integrations/hermes/platform/yui/src"],
+    source: /\.py$/,
+    skip: /(^|\/)__init__\.py$/,
+  },
+];
+export const MAP = MAPS[0].file;
 const KINDS = [
   "call",
   "callback",
@@ -76,9 +90,9 @@ function shapeProblems(map) {
     }
   };
   for (const [key, shape] of Object.entries(SHAPE)) list(map, key, shape, key);
-  if (typeOf(map.windows) !== "object" || map.windows === null)
+  if (map.windows !== undefined && (typeOf(map.windows) !== "object" || map.windows === null))
     problems.push("shape: windows is not an object");
-  else
+  else if (map.windows !== undefined)
     for (const [key, shape] of Object.entries(WINDOW_SHAPE))
       list(map.windows, key, shape, `windows ${key}`);
   for (const flow of Array.isArray(map.flows) ? map.flows : []) {
@@ -91,9 +105,10 @@ function shapeProblems(map) {
   return problems;
 }
 
-export function checkMap(map, files) {
+export function checkMap(map, files, scope = MAPS[0]) {
   const problems = shapeProblems(map);
   if (problems.length) return problems;
+  const windows = map.windows ?? { nodes: [], edges: [] };
   const entries = new Map(files.map((file) => [file.path, file]));
   const exists = (path) => entries.has(path) || files.some((file) => inside(file.path, path));
   const claims = map.nodes.flatMap((node) => node.paths);
@@ -106,15 +121,15 @@ export function checkMap(map, files) {
   const sources = files.filter(
     (file) =>
       !file.directory &&
-      COVER.some((root) => inside(file.path, root)) &&
-      /\.(ts|rs)$/.test(file.path) &&
-      !/\.(test|d)\.ts$/.test(file.path),
+      scope.cover.some((root) => inside(file.path, root)) &&
+      scope.source.test(file.path) &&
+      !scope.skip.test(file.path),
   );
   const children = new Map();
   const climb = (start) => {
     let child = start;
     for (let parent = dirname(child); child !== "."; child = parent, parent = dirname(child)) {
-      if (!COVER.some((root) => inside(parent, root))) break;
+      if (!scope.cover.some((root) => inside(parent, root))) break;
       if (!children.has(parent)) children.set(parent, new Set());
       children.get(parent).add(child);
     }
@@ -141,8 +156,8 @@ export function checkMap(map, files) {
     ["part", map.nodes.map((node) => node.id)],
     ["exchange", map.edges.map((edge) => edge.id)],
     ["flow", map.flows.map((flow) => flow.id)],
-    ["window", map.windows.nodes.map((node) => node.id)],
-    ["channel", map.windows.edges.map((edge) => edge.id)],
+    ["window", windows.nodes.map((node) => node.id)],
+    ["channel", windows.edges.map((edge) => edge.id)],
   ]) {
     const seen = new Set();
     for (const id of ids) {
@@ -157,6 +172,8 @@ export function checkMap(map, files) {
   for (const node of map.nodes) {
     if (!moduleIds.has(node.module))
       problems.push(`references: ${node.id} module ${node.module} does not exist`);
+    if (node.map !== undefined && (!entries.has(node.map) || entries.get(node.map).directory))
+      problems.push(`map: ${node.id} ${node.map} is not a file`);
   }
   for (const module of map.modules) {
     if (module.zone !== undefined && !zoneIds.has(module.zone))
@@ -168,7 +185,7 @@ export function checkMap(map, files) {
   }
   for (const [edges, ids, noun] of [
     [map.edges, partModule, "part"],
-    [map.windows.edges, new Set(map.windows.nodes.map((node) => node.id)), "window"],
+    [windows.edges, new Set(windows.nodes.map((node) => node.id)), "window"],
   ]) {
     for (const edge of edges) {
       for (const end of ["from", "to"]) {
@@ -227,7 +244,7 @@ export function checkMap(map, files) {
   return problems;
 }
 
-export function listFiles(map, root = ROOT) {
+export function listFiles(map, scope = MAPS[0], root = ROOT) {
   const files = new Map();
   function visit(path) {
     if (files.has(path)) return;
@@ -245,8 +262,8 @@ export function listFiles(map, root = ROOT) {
   const strings = (list, pick) =>
     (Array.isArray(list) ? list : []).flatMap(pick).filter((path) => typeof path === "string");
   for (const path of [
-    ...COVER,
-    ...strings(map?.nodes, (node) => node?.paths ?? []),
+    ...scope.cover,
+    ...strings(map?.nodes, (node) => [...(node?.paths ?? []), node?.map]),
     ...strings(map?.edges, (edge) => edge?.wiring ?? []),
   ])
     visit(path);
@@ -254,10 +271,12 @@ export function listFiles(map, root = ROOT) {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const parsed = parseMap(readFileSync(resolve(ROOT, MAP), "utf8"));
-  const problems = parsed.problems.length
-    ? parsed.problems
-    : checkMap(parsed.map, listFiles(parsed.map));
-  for (const problem of problems) console.error(problem);
-  if (problems.length) process.exitCode = 1;
+  for (const scope of MAPS) {
+    const parsed = parseMap(readFileSync(resolve(ROOT, scope.file), "utf8"));
+    const problems = parsed.problems.length
+      ? parsed.problems
+      : checkMap(parsed.map, listFiles(parsed.map, scope), scope);
+    for (const problem of problems) console.error(`${scope.file}: ${problem}`);
+    if (problems.length) process.exitCode = 1;
+  }
 }

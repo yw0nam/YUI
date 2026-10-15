@@ -22,7 +22,7 @@ YUI/
   phone.html                         # Phone-window Vite entry, the Android window
   vite.config.ts                     # Dev port YUI_DEV_PORT|1420, strictPort, host 127.0.0.1, backend proxy plugin
   biome.json                         # Format and lint config (curated rule set)
-  scripts/                           # Dev launchers (dev-port.mjs, tauri-dev.mjs for tauri:dev and android:dev, dev-auto.mjs) and their shared package-manager.mjs helper, dev-backend-proxy.mjs, release.sh, worktree-setup.sh, ci/test-guard.sh, architecture-map-base.mjs (writes the map of origin/main beside the data file for the viewer's Compare view), ci/architecture-map.mjs (checks the architecture map against the tree)
+  scripts/                           # Dev launchers (dev-port.mjs, tauri-dev.mjs for tauri:dev and android:dev, dev-auto.mjs) and their shared package-manager.mjs helper, dev-backend-proxy.mjs, release.sh, worktree-setup.sh, ci/test-guard.sh, architecture-map-base.mjs (writes the map of origin/main beside the data file for the viewer's Compare view), ci/architecture-map.mjs (checks the client and plugin architecture maps against the tree)
   configs/                           # Runtime-loaded config (no hardcoding)
     endpoints.json                   # chat/stt/tts/broker base urls + chat_instructions, chat_api, chat_model_context_window + stt_model/tts_provider/tts_model/tts_speaker/tts_max_inflight; the shipped configs/endpoints.json omits the url and speaker keys, and the settings panel overrides per device
     emotion_registry.json            # emotion id -> vrm_expression + fallback

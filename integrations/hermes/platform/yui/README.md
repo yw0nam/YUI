@@ -27,3 +27,6 @@ hint and the readiness probes, beside `plugin.yaml` and the uv project files.
 - [Install](docs/install.md) — linking the plugin in, the config blocks that enable it, and
   reaching it from outside the machine.
 - [Development](docs/development.md) — the test and lint commands, and the live smoke test.
+- [Architecture map](docs/map.js) — the plugin's modules, the calls and frames between them, and
+  the flows of a turn. Open `docs/agent-guide/architecture/index.html?map=integrations/hermes/platform/yui/docs/map.js`
+  from the repo root to view it.
