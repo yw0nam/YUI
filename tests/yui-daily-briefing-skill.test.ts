@@ -139,7 +139,11 @@ describe("yui-daily-briefing skill files", () => {
   it("the filled example reads as a published report, with no second-person address", () => {
     expect(readText(PAGE)).toContain("third person throughout");
     const filled = readText(FILLED);
-    const slots = [...filled.matchAll(/<!-- slot: (?:summary|intro:\S+) lang=(\w+) -->([\s\S]*?)<!-- \/slot -->/g)];
+    const slots = [
+      ...filled.matchAll(
+        /<!-- slot: (?:summary|intro:\S+) lang=(\w+) -->([\s\S]*?)<!-- \/slot -->/g,
+      ),
+    ];
     expect(slots.length).toBeGreaterThan(0);
     for (const [, lang, body] of slots) {
       const prose = body.replace(/<[^>]+>/g, " ");
