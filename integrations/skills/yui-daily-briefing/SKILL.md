@@ -9,7 +9,9 @@ license: PolyForm-Noncommercial-1.0.0
 One skill with two entry points. A turn that calls for the briefing takes the **Speak**
 section. A user who wants a briefing set up or changed takes the **Install** section.
 Both rest on the file format and the helper in `references/producer-contract.md`; read it
-before building or judging a producer.
+before building or judging a producer. Each answer to "how the briefing arrives" (Install
+step 6) keeps its setup, its way of speaking, and its checks in one file under
+`references/delivery/`.
 
 The skill needs a backend agent that runs shell commands and reads files on its own
 machine. Scheduled producers on that machine write one markdown file per run into a dated
@@ -64,53 +66,11 @@ Done when: every action in the reply traces back to the user or to a step of thi
 
 ### 3. Say it
 
-`YUI_BRIEFING_LINK` follows the delivery the user chose in step 6 of Install, and decides
-how the briefing is told. Read it with `printenv YUI_BRIEFING_LINK` in the shell you run
-`briefing.py` from.
+Run `printenv YUI_BRIEFING_LINK` in the shell you run `briefing.py` from. When it prints a
+URL, follow § Speak of `references/delivery/link.md`. When it prints nothing, follow
+§ Speak of `references/delivery/spoken.md`.
 
-**Link mode**, with `YUI_BRIEFING_LINK` set. The value is the browse URL of the published
-spool, and `$YUI_BRIEFING_LINK/<YYYY-MM-DD>` opens that day's folder. The reply holds the
-greeting and one line per day `pending` covers, oldest day first. Each line carries:
-
-1. The day, named when it is not today ("yesterday", "on Monday").
-2. The item count of each briefing that day, under its `source`.
-3. Each source whose `status` is anything other than `ok`, `stale` together with its
-   `last_ok`, and a `run_url` rendered as `[name](run_url)`.
-4. The link to that day, `[<YYYY-MM-DD>](<value>/<YYYY-MM-DD>)` with the variable's value
-   in place of `<value>`.
-
-No item is read out; follow-ups (step 5) read the files. When `pending` covers more than
-three days, the newest day gets its line and the older days get one sentence giving how
-many days and items they hold and the link to the variable's value. Every path `pending`
-printed counts as covered in step 4.
-
-Done when: the reply carries the link of each day it gives a line, the link to the
-variable's value when it collapses older days, and no item title.
-
-**Spoken mode**, with `YUI_BRIEFING_LINK` unset. How much to say, how to group it, and in
-what voice is your call as the persona. Six rules are fixed:
-
-1. Briefings are told grouped by the `date` in their front matter, oldest day first. Every
-   day other than today gets named ("yesterday", "on Monday"), so the user knows which
-   morning an item belongs to.
-2. A source whose `status` is anything other than `ok` gets named ahead of the first item,
-   `stale` together with its `last_ok`, and a `run_url` rendered as `[name](run_url)`.
-3. Every item you mention carries its link, `[title](url)`, so the user can open it from
-   the speech bubble. Items you leave out get a count ("and 4 more").
-4. A briefing with no items whose sources all read `ok` adds nothing to say. It still
-   counts as covered in step 4.
-5. When `pending` covers more than three days, the newest day is told in full. Each older
-   day gets its date and its item count only, with an offer to read it. Every listed path
-   still counts as covered in step 4.
-6. When the context carries a `previous:` line reading `interrupted` and the transcript
-   holds a briefing you were telling, say in one clause that it was cut off. Read
-   `$YUI_BRIEFING_SPOOL/<path>` directly for the paths of that earlier turn, without
-   running `pending` or `mark-spoken` again. The line's `spoken:` and `unspoken:` text
-   (see `docs/reference/client-context.md` in the YUI checkout) shows where the user
-   stopped hearing; pick up from there.
-
-Done when: each mentioned item carries exactly one link and each day other than today is
-named.
+Done when: the Done when of that file's § Speak holds.
 
 ### 4. Mark it spoken
 
@@ -210,16 +170,14 @@ Done when: every source has a window or a reason to differ.
 
 ### 6. Ask how the briefing arrives
 
-Ask the user: "Spoken in full, or a greeting with a link to the published report?"
+Ask the user: "Spoken in full, or a greeting with a link to the published report?" Each
+answer has its own file, whose § Install runs after step 8:
 
-1. Spoken in full. Your reply tells the items, as the Speak section's spoken mode states.
-   Steps 7 and 8 set up nothing more.
-2. A greeting with a link. The spool is published as a private repository the user owns
-   on a git hosting service that renders markdown, and your reply gives one line and one
-   link per day, as the Speak section's link mode states. Step 7 makes the spool that
-   repository and sets `YUI_BRIEFING_LINK`; step 8 schedules `publish`.
+1. Spoken in full: `references/delivery/spoken.md`.
+2. A greeting with a link to the spool, published as a private repository on a git
+   hosting service that renders markdown: `references/delivery/link.md`.
 
-Done when: the user has chosen one.
+Done when: the user has chosen one, and you hold its file for after step 8.
 
 ### 7. Build the producer
 
@@ -251,30 +209,10 @@ A gather step that raises inside your own script leaves `write` with no input, a
 helper writes a failed briefing naming the producer alone. Mark that source `failed` in
 `sources[]` and keep going, so the other feeds still reach the briefing.
 
-When the user chose the link in step 6, ask which repository receives the briefings, then:
-
-1. Clone the repository as the spool, or run `git init` in a spool that already holds
-   briefings, add the repository as its remote, and push. The spool is the top directory
-   of its own repository; `publish` refuses a spool nested inside another one. A commit
-   needs `user.name` and `user.email`; set them in the spool repository with `git config`
-   when the machine has none.
-2. Add a `.gitignore` to the spool listing `spoken.json` and `.lock`, so the ledger and the
-   lock file stay out of a commit made by hand. `publish` stages the dated `.md` files only.
-3. Set `YUI_BRIEFING_LINK` beside `YUI_BRIEFING_SPOOL` and `SKILL_DIR` to the browse URL of
-   the repository's branch, so that `$YUI_BRIEFING_LINK/<YYYY-MM-DD>` opens that day's
-   folder. The URL follows the hosting service's own browse path, for example:
-
-   ```bash
-   YUI_BRIEFING_LINK=https://<git host>/<owner>/<repo>/tree/main
-   ```
-
-Spoken in full leaves `YUI_BRIEFING_LINK` unset.
-
 Done when: a manual run with `YUI_BRIEFING_SPOOL` set prints nothing, exits 0,
 `$YUI_BRIEFING_SPOOL/<today>/<producer name>.md` exists, and
 `python3 "$SKILL_DIR/scripts/briefing.py" pending`, run from a new shell of yours with no
-variable set by hand, prints it. For the link, `printenv YUI_BRIEFING_LINK` in that new
-shell prints the URL.
+variable set by hand, prints it.
 
 ### 8. Schedule it
 
@@ -287,17 +225,9 @@ YUI_BRIEFING_SPOOL=/absolute/path/to/workspace/yui-briefing-spool
 TZ=Europe/Berlin
 0 7 * * * /absolute/path/to/news-gather.py | python3 "$SKILL_DIR/scripts/briefing.py" write --source news
 0 7 * * 1 /absolute/path/to/repos-gather.py | python3 "$SKILL_DIR/scripts/briefing.py" write --source repos
-30 7 * * * python3 "$SKILL_DIR/scripts/briefing.py" publish
 ```
 
-One line per producer, each with its own `--source`. The `publish` line is there only when
-the user chose the link in step 6. It follows the producers in the same schedule with the
-same variables, so one commit a day carries that day's briefings. Cron starts every line
-of one minute at once, so the `publish` line runs later than the producers' time by more
-than the slowest producer takes in its manual run. The push runs unattended and needs a
-credential that asks for nothing: settle it with the user, such as a git credential
-helper (`gh auth setup-git` when the host is GitHub) for an HTTPS remote or a deploy key
-with write access for an SSH remote. The `TZ=` line is there only when
+One line per producer, each with its own `--source`. The `TZ=` line is there only when
 step 4 found the machine's time zone differs from the user's. Cron sets the variables
 without expanding `$` or `~` inside them, so they hold absolute paths; `$SKILL_DIR` in the
 command lines expands, since cron runs them through `sh`. Cron's `PATH` holds
@@ -311,11 +241,11 @@ The helper prints nothing on success and a one-line reason on stderr otherwise, 
 scheduler that mails or messages output stays quiet on good mornings.
 
 Done when: a manual run of each producer line, with the variables set, leaves
-`$YUI_BRIEFING_SPOOL/<today>/<producer name>.md`. For the link, a manual run of the
-`publish` line, as the scheduler's user, exits 0 and the user opens
-`$YUI_BRIEFING_LINK/<today>` and sees those files.
+`$YUI_BRIEFING_SPOOL/<today>/<producer name>.md`.
 
 ### 9. Watch one morning
+
+Start once § Install of the delivery file chosen in step 6 meets its Done when.
 
 Done when, the following morning: the `first_activity` turn speaks the briefing with its
 links, and `$YUI_BRIEFING_SPOOL/spoken.json` records every path of that day.
@@ -345,11 +275,9 @@ and 8. List the scheduler's entries (`crontab -l` on cron) and confirm each poin
    of it. A schedule whose producers run at different times moves them all to the earliest
    of those times. A comment in the schedule that no longer matches it is updated or
    removed.
-7. The delivery matches the user's choice in step 6; ask the question of step 6 again when
-   the user wants to switch. The link has one `briefing.py publish` entry per schedule,
-   running after its producers as in step 8, a spool set up as in step 7, and
-   `YUI_BRIEFING_LINK` in the environment your own shell commands run in. Spoken in full
-   has neither the entry nor the variable.
+7. The delivery matches the answer of step 6, confirmed through § Check of that answer's
+   file in `references/delivery/`. Ask the question of step 6 again when the user wants
+   to switch, then work through § Install of the new answer's file.
 
 A spool's dated folders can hold `.json` and `.sent.json` files. `pending` reads only
 `.md` files, so they stay out of every briefing. A `.json` file without `.sent` in its name
