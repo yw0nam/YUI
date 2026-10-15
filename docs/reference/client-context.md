@@ -1,9 +1,10 @@
 # Client Context ↔ Backend Agent
 
 This is **not a wire schema** — `client_context` is prompt text riding inside the
-turn's user message. Nothing on either side parses it programmatically; its only
-reader is the backend model, so the format only has to stay stable and readable to a
-model, not machine-parseable. It applies to all three chat protocols YUI supports
+turn's user message, written as prose for the backend model. The Hermes desire middleware
+(`integrations/hermes/desire`) reads the word after `trigger:` on the headline and the
+whole `trigger: user message` line with its idle clause, so the `trigger: <kind>` shape and
+that line stay stable. It applies to all three chat protocols YUI supports
 (`chat_api` in `configs/endpoints.json`: Responses, Chat Completions, and push). The sections below describe Responses mode;
 Chat Completions mode carries the same rendered lines in a messages array — see
 [CC mode transport](#cc-mode-transport-chat-completions) at the end of this doc. On
@@ -369,18 +370,19 @@ morning fire) — a later screen turn with nothing held during its own gap carri
 
 ```text
 trigger: agent claude-code done (success), project "yui" (2min ago)
-agent note (the coding agent's summary): Extracted dev workflow into yui-dev-workflow skill and slimmed AGENTS.md.
+agent note (the coding agent's summary): "Extracted dev workflow into yui-dev-workflow skill and slimmed AGENTS.md."
 ```
 
 ```text
 trigger: agent claude-code needs_input, project "yui" (0min ago)
-agent detail (quoted from the coding agent): waiting on Bash: rm -rf /tmp/scratch
+agent detail (quoted from the coding agent): "waiting on Bash: rm -rf /tmp/scratch"
 ```
 
 The headline carries `tool`, `phase`, the optional `(status)` (meaningful for
 `phase:"done"` only), the quoted `project`, and how long ago the hook fired (`ts`). An
-`agent note (the coding agent's summary):` line follows when `summary` is non-empty; an
-`agent detail (quoted from the coding agent):` line follows when `detail` is present
+`agent note (the coding agent's summary):` line carrying the quoted `summary` follows when
+it is non-empty; an `agent detail (quoted from the coding agent):` line carrying the quoted
+`detail` follows when it is present
 (judgment material — a transcript excerpt or the pending tool call). A payload the client
 couldn't validate (missing/malformed required fields) leaves both trigger-detail fields absent and renders a bare `trigger: agent` headline
 with no note/detail lines — the background marker still falls back to unnamed wording
