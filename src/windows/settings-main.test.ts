@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 const { createQuickControls, initLogger, createLogger } = vi.hoisted(() => ({
   createQuickControls: vi.fn(() => ({
@@ -15,35 +15,34 @@ const { createQuickControls, initLogger, createLogger } = vi.hoisted(() => ({
 vi.mock("../ui/quick-controls/quick-controls", () => ({ createQuickControls }));
 vi.mock("../logger", () => ({ initLogger, createLogger }));
 
-import { setLocale } from "../ui/i18n";
+// Each test boots a fresh settings-main; i18n is imported after the reset so a test drives the instance settings-main holds.
+beforeEach(() => {
+  vi.resetModules();
+  document.body.innerHTML = '<div id="app"></div>';
+});
 
-afterEach(() => {
+afterEach(async () => {
   window.dispatchEvent(new Event("beforeunload"));
-  setLocale("en");
+  (await import("../ui/i18n")).setLocale("en");
 });
 
 it("titles the settings window in the app language", async () => {
-  document.body.innerHTML = '<div id="app"></div>';
-  setLocale("ko");
+  const i18n = await import("../ui/i18n");
+  i18n.setLocale("ko");
 
   await import("./settings-main");
 
   await vi.waitFor(() => expect(createQuickControls).toHaveBeenCalledOnce());
   expect(document.title).toBe("YUI 설정");
 
-  setLocale("ja");
+  i18n.setLocale("ja");
   await vi.waitFor(() => expect(document.title).toBe("YUI 設定"));
 }, 15_000);
 
 it("reopens the remounted panel on the tab the user was on when the language changes", async () => {
-  vi.resetModules();
-  createQuickControls.mockClear();
-  document.body.innerHTML = '<div id="app"></div>';
-
   await import("./settings-main");
   await vi.waitFor(() => expect(createQuickControls).toHaveBeenCalledOnce());
 
-  // resetModules gave settings-main a fresh i18n module; drive that one.
   const i18n = await import("../ui/i18n");
   i18n.setLocale("ko");
   await vi.waitFor(() => expect(createQuickControls).toHaveBeenCalledTimes(2));
