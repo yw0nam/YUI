@@ -1,8 +1,8 @@
 /**
  * Renders a ClientContext into the compact `key: value` plain-line prompt block sent to the
- * backend (replaces the JSON-serialized form). This is prompt text inside the user message —
- * nothing parses it programmatically, so the shape only needs to stay stable and readable to a
- * model, not machine-parseable.
+ * backend. The block is prose for the model inside the user message. The Hermes desire middleware
+ * reads the word after `trigger:` on the headline and the whole `trigger: user message` line with
+ * its idle clause, so the `trigger: <kind>` shape and that line stay stable.
  */
 
 import type { ClientContext, TriggerMeta, TurnEnded, WakeCause } from "../../contract";
@@ -112,7 +112,9 @@ const WOKEN_BY: Record<WakeCause, string> = {
   message: "this message",
 };
 
-const AGENT_DETAIL = "agent detail (quoted from the coding agent):";
+function agentDetail(detail: string): string {
+  return `agent detail (quoted from the coding agent): "${oneLine(detail)}"`;
+}
 
 function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
   const lines: string[] = [];
@@ -143,8 +145,8 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
     lines.push(
       `trigger: agent ${oneLine(a.tool)} ${a.phase}${status}, project "${oneLine(a.project)}"${ago}`,
     );
-    if (a.summary) lines.push(`agent note (the coding agent's summary): ${oneLine(a.summary)}`);
-    if (a.detail) lines.push(`${AGENT_DETAIL} ${oneLine(a.detail)}`);
+    if (a.summary) lines.push(`agent note (the coding agent's summary): "${oneLine(a.summary)}"`);
+    if (a.detail) lines.push(agentDetail(a.detail));
   } else if (trigger.agent_catchup) {
     const ac = trigger.agent_catchup;
     lines.push(`trigger: agent catchup (${ac.count} event${ac.count === 1 ? "" : "s"})`);
@@ -155,7 +157,7 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
       lines.push(
         `agent event: ${oneLine(item.tool)} ${item.phase}${status}, project "${oneLine(item.project)}"${summary}${ago}`,
       );
-      if (item.detail) lines.push(`${AGENT_DETAIL} ${oneLine(item.detail)}`);
+      if (item.detail) lines.push(agentDetail(item.detail));
     }
   } else if (trigger.milestone) {
     const m = trigger.milestone;

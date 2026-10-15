@@ -509,7 +509,7 @@ describe("renderClientContext — trigger: agent (single event)", () => {
     expect(text).toContain('trigger: agent claude-code done (success), project "yui" (2min ago)');
     const lines = text.split("\n");
     expect(lines).toContain(
-      "agent note (the coding agent's summary): Extracted dev workflow into a skill.",
+      'agent note (the coding agent\'s summary): "Extracted dev workflow into a skill."',
     );
   });
 
@@ -534,7 +534,7 @@ describe("renderClientContext — trigger: agent (single event)", () => {
     expect(text).not.toContain("(error)");
     const lines = text.split("\n");
     expect(lines).toContain(
-      "agent detail (quoted from the coding agent): waiting on Bash: rm -rf /tmp/x",
+      'agent detail (quoted from the coding agent): "waiting on Bash: rm -rf /tmp/x"',
     );
     // empty summary -> no "agent note" line
     expect(text).not.toContain("agent note");
@@ -853,7 +853,7 @@ describe("renderClientContext — exhaustiveness", () => {
       },
       [
         'trigger: agent claude-code done (success), project "yui"',
-        "agent note (the coding agent's summary): s",
+        'agent note (the coding agent\'s summary): "s"',
       ],
     ],
     [

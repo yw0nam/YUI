@@ -490,7 +490,7 @@ describe("backend_caller — agent trigger forwarding", () => {
       /^trigger: agent claude-code done \(success\), project "my-widget" \(\d+min ago\)$/m,
     );
     expect(text).toContain(
-      "agent note (the coding agent's summary): Implemented the gizmo feature",
+      'agent note (the coding agent\'s summary): "Implemented the gizmo feature"',
     );
     expect(text).not.toContain("agent catchup");
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
@@ -624,7 +624,7 @@ describe("backend_caller — agent trigger forwarding", () => {
       /^trigger: agent claude-code needs_input, project "my-widget" \(\d+min ago\)$/m,
     );
     expect(text).toContain(
-      "agent detail (quoted from the coding agent): waiting on Bash: rm -rf /tmp/x",
+      'agent detail (quoted from the coding agent): "waiting on Bash: rm -rf /tmp/x"',
     );
     expect(text).not.toContain("agent note");
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
