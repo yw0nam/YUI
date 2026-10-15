@@ -2,7 +2,7 @@
 
 `yui-desire` is the Hermes-side desire system for an autonomous agent. Its `llm_request` middleware injects a
 `<desire_state>` block into the newest user message of every request; a pre-run gate script does the state
-bookkeeping on a schedule and wakes a Hermes cron turn in two cases; a helper records what happened to the agent,
+bookkeeping on a schedule and wakes a Hermes cron turn in three cases; a helper records what happened to the agent,
 how it took it, and what it holds. Wants, judgment, and speech decisions remain in Hermes; YUI receives desire
 speech through its existing `/signals` ingress.
 
@@ -49,8 +49,9 @@ The state directory contains:
   in its words. The latest reading of an event is the one shown. An event the gate filed starts without one.
 - `judgments.jsonl`, append-only. `{"at", "name", "toward": "user"|"self"|"world", "level": "faint"|"some"|
   "strong"|"very strong"|null, "events": [<event id>, ...], "why"}`. The latest line for a `(name, toward)` is
-  the present judgment; a line with `level: null` puts the pair down and carries no events. No code compares two
-  levels, combines two judgments, or moves a judgment with time.
+  the present judgment; a line with `level: null` puts the pair down and carries no events. The gate moves one
+  judgment with time, loneliness toward the user (case 3 under The gate); no code combines two judgments or moves
+  any other judgment.
 - `feelings.json`, the registry of names: `{"names": [...]}`. A fresh install seeds 26 names (closeness, trust,
   doubt, longing, ease, expectation, hope, curiosity, absorption, traction, pride, sense of choosing, surprise,
   amusement, loneliness, hurt, disappointment, frustration, wavering, tiredness, wariness, anger, jealousy,
@@ -79,8 +80,10 @@ The state directory contains:
   `comments_from` (per repository, the fixed stamp from which comments count) and `comments_since` (per
   repository, the moving cursor of the last comment update read).
 - `gate.json`, the gate's presentation record: `batch` (`ids`, the unread events presented together, and
-  `presented_at`, the times they were presented) and `notes_presented_at` (the last time held notes woke the
-  agent).
+  `presented_at`, the times they were presented), `notes_presented_at` (the last time held notes woke the
+  agent), and `loneliness`, `null` until a loneliness level is reached, then `since` (the interaction time the
+  levels count from), `level` (the highest level reached since then), and `written_at` (when the gate last wrote
+  the judgment, or `null`).
 - `audit.jsonl`, append-only action and recovery events. Fresh state is empty.
 - `state.lock`, the process lock used for state transactions.
 
@@ -143,9 +146,10 @@ monitor events, decides whether to wake the agent, writes `gate.json` last, and 
 
 Stdout is one of:
 
-- `{"wakeAgent": false}`, when neither case holds or the run raised internally (the error is audited as
+- `{"wakeAgent": false}`, when no case holds or the run raised internally (the error is audited as
   `gate_error`);
-- `desire gate: unread events (<n>)` and/or `desire gate: held notes (<n>)`.
+- one line per case that holds, in this order: `desire gate: unread events (<n>)`, `desire gate: held notes
+  (<n>)`, `desire gate: loneliness <level> (<n>h since the last interaction)`.
 
 Case 1, events without a reading. All of them form one batch. The batch wakes the agent when it is new, then again
 after six hours, at most three times in total; after that the events stay listed under `waiting for my reading`
@@ -155,6 +159,30 @@ event neither wakes the agent nor resets the count.
 Case 2, a held note that can be delivered: the transport is `up`, a signal is left in today's budget, and the
 note's `not_before` has passed. Held notes wake the agent again only after six hours, except that a note created
 after the last such wake wakes it at once.
+
+Case 3, a new loneliness level. Every run, whatever else holds, the gate reads `last_interaction_at` from
+`drives.json` and maps the time since it to a level of `loneliness` toward `user`:
+
+| Hours since the last interaction | Level |
+| --- | --- |
+| 12 to 24 | `faint` |
+| 24 to 48 | `some` |
+| 48 to 72 | `strong` |
+| 72 and more | `very strong` |
+
+`very strong` is the upper bound. A level higher than the one `gate.json` records for the same interaction time
+is a new level: the gate records it and, when it is above the present judgment's level or no judgment is
+present, appends a judgment with that level, no events, and `why` `<n>h since the last interaction`, and wakes
+the agent. A new level the present judgment already reaches is recorded with no judgment and no wake, and a run
+at a recorded level changes nothing, so one absence wakes the agent at most four times. A judgment the agent
+wrote is never lowered.
+
+When `last_interaction_at` moves, the first gate run after it puts the judgment down with `why` `the user came
+back`, provided the present judgment is still the one the gate wrote, and clears the record; the levels then
+count from the new interaction time. The gate writes no level while the registry lacks `loneliness`.
+
+Time away files no event and moves no other judgment. The wake carries the level and the hours; whether to reach
+out is the agent's, through `act.py signal`, under the daily budget, the transport state, and the outbox.
 
 The one non-zero exit is a missing or invalid `DESIRE_AGENT_NAME`, so the misconfiguration reaches the operator through the
 scheduler's error block.
