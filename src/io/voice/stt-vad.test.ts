@@ -23,9 +23,9 @@ let triggerSpeechEnd: ((audio: Float32Array) => Promise<void>) | null = null;
 let triggerSpeechRealStart: (() => void) | null = null;
 
 const mockMicVadInstance = {
-  start: vi.fn().mockResolvedValue(undefined),
-  pause: vi.fn().mockResolvedValue(undefined),
-  destroy: vi.fn().mockResolvedValue(undefined),
+  start: vi.fn(async (): Promise<void> => {}),
+  pause: vi.fn(async (): Promise<void> => {}),
+  destroy: vi.fn(async (): Promise<void> => {}),
 };
 
 vi.mock("@ricky0123/vad-web", () => ({
