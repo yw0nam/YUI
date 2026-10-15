@@ -279,17 +279,24 @@ def old_days(spool):
     return days
 
 
+def new_path(path):
+    day, _, rest = path.partition("/")
+    try:
+        return f"{day_folder(datetime.date.fromisoformat(day))}/{rest}" if OLD_DAY.fullmatch(day) and rest else path
+    except ValueError:
+        return path
+
+
 def migrate(spool):
     with lock(spool):
         moves = [(f"{name}/{file}", f"{day_folder(date)}/{file}")
                  for name, date in old_days(spool) for file in sorted(os.listdir(os.path.join(spool, name)))]
-        if not moves:
-            return 0
         for _, new in moves:
             if os.path.lexists(os.path.join(spool, new)):
                 print(f"a file already sits at {new}; nothing was moved", file=sys.stderr)
                 return 2
-        tracked = set(git(spool, "ls-files", "-z").stdout.split("\0")) if own_work_tree(spool) else set()
+        work_tree = own_work_tree(spool)
+        tracked = set(git(spool, "ls-files", "-z").stdout.split("\0")) if work_tree else set()
         for old, new in moves:
             os.makedirs(os.path.dirname(os.path.join(spool, new)), exist_ok=True)
             # git mv records the move as a rename, so `git log --follow` crosses it.
@@ -300,14 +307,15 @@ def migrate(spool):
                 return git_failed(moved)
         for name, _ in old_days(spool):
             os.rmdir(os.path.join(spool, name))
-        ledger = load_ledger(spool, set_aside=True)
-        renamed = dict(moves)
-        if any(path in renamed for path in ledger):
-            ledger = {renamed.get(path, path): stamp for path, stamp in ledger.items()}
+        # Every old-form key is rewritten, so a run cut short by a git failure is healed by the next one.
+        ledger = load_ledger(spool, set_aside=False)
+        if any(new_path(path) != path for path in ledger):
+            ledger = {new_path(path): stamp for path, stamp in ledger.items()}
             write_file(os.path.join(spool, LEDGER), json.dumps(ledger, ensure_ascii=False, indent=1) + "\n")
-        paths = [path for move in moves if move[0] in tracked for path in move]
-        if paths:
-            committed = git(spool, "commit", "--quiet", "-m", "Move briefings into reports/", "--", *paths)
+        old_in_head = [name for name in git(spool, "ls-tree", "--name-only", "HEAD").stdout.split("\n")
+                       if OLD_DAY.fullmatch(name)] if work_tree else []
+        if old_in_head:
+            committed = git(spool, "commit", "--quiet", "-m", "Move briefings into reports/", "--", *old_in_head, "reports")
             if committed.returncode != 0:
                 return git_failed(committed)
     return 0

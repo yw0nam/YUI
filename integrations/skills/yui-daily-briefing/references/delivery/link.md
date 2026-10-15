@@ -91,9 +91,9 @@ set up again as in § Install:
 
 1. The spool is the top directory of its own git repository with a remote, and its
    `.gitignore` lists `spoken.json` and `.lock`.
-2. `git -C "$YUI_BRIEFING_SPOOL" ls-files` lists the `.gitignore` and `.md` files under
-   `reports/` only. Any other tracked
-   file leaves the repository through `git rm --cached` and a commit the user makes.
+2. `git -C "$YUI_BRIEFING_SPOOL" ls-files` lists the `.gitignore`, a `README.md` when the
+   user keeps one, and `.md` files under `reports/` only. Any other tracked file leaves the
+   repository through `git rm --cached` and a commit the user makes.
 3. Each schedule has one `briefing.py publish` entry, later than its producers by more
    than the slowest producer's run.
 4. The environment your own shell commands run in holds `YUI_BRIEFING_LINK`, ending in the

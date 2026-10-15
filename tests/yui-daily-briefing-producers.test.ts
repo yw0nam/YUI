@@ -516,6 +516,24 @@ describe("briefing.py migrate", () => {
     expect(git(spool, ["rev-list", "--count", "HEAD"])).toBe(commits);
   });
 
+  it("completes a run cut short after some moves: the rest moves, the ledger heals, one commit records it", () => {
+    const spool = oldSpool();
+    mkdirSync(join(spool, "reports/2026/09/W5/30"), { recursive: true });
+    git(spool, ["mv", "2026-09-30/papers.md", "reports/2026/09/W5/30/papers.md"]);
+
+    expect(run(spool, ["migrate"])).toEqual({ status: 0, stdout: "", stderr: "" });
+    expect(Object.keys(JSON.parse(read(spool, "spoken.json")))).toEqual([
+      "reports/2026/09/W5/30/papers.md",
+      "reports/2026/10/W1/01/news.md",
+    ]);
+    expect(git(spool, ["ls-tree", "-r", "--name-only", "HEAD"])).toBe(
+      "reports/2026/09/W5/30/papers.md\nreports/2026/10/W1/01/news.md\nreports/2026/10/W3/15/news.md\n",
+    );
+    expect(
+      git(spool, ["log", "--follow", "--format=%s", "--", "reports/2026/09/W5/30/papers.md"]),
+    ).toMatch(/\nold layout\n$/);
+  });
+
   it("exits 2 and moves nothing when a file already sits at a new path", () => {
     const spool = tempDir();
     seed(spool, "2026-09-30/papers.md", "old\n");

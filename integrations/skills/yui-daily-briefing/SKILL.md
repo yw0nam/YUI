@@ -289,5 +289,5 @@ A spool's day folders can hold `.json` and `.sent.json` files. `pending` reads o
 `.md` files, so they stay out of every briefing. A `.json` file without `.sent` in its name
 was never delivered. Tell the user they can stay as an archive or be deleted.
 
-Rewrite every entry that fails a point to the shape in step 8, then work through the Done
+Rewrite every entry that fails points 1 to 7 to the shape in step 8, then work through the Done
 when of step 8.
