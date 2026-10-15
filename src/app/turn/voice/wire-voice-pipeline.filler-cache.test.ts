@@ -6,7 +6,7 @@
  * the speech path therefore breaks this test instead of silently disabling the cache.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
   const sink = { play: vi.fn(async () => {}), stop: vi.fn() };
@@ -117,10 +117,6 @@ async function speak(voice: VoicePipeline, text: string, segments: number): Prom
 }
 
 describe("filler audio cache membership", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   afterEach(() => {
     for (const voice of wired.splice(0)) voice.dispose();
   });
@@ -177,10 +173,6 @@ describe("filler audio cache membership", () => {
 });
 
 describe("filler audio cache invalidation", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   afterEach(() => {
     for (const voice of wired.splice(0)) voice.dispose();
   });

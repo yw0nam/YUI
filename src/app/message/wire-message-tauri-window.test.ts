@@ -24,7 +24,6 @@ vi.mock("../../io/window/geometry/keep-on-screen", () => ({
 import { focusWindow, startDragging, wireTauriWindow } from "./wire-message-tauri-window";
 
 beforeEach(() => {
-  vi.clearAllMocks();
   win.onMoved.mockResolvedValue(win.unlistenMoved);
   vi.stubGlobal(
     "ResizeObserver",

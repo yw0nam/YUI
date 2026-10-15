@@ -40,8 +40,6 @@ function errorResponse(status: number, body?: unknown): Response {
 }
 
 beforeEach(() => {
-  noopLog.info.mockClear();
-  noopLog.warn.mockClear();
   fetchReferenceClip.mockReset().mockResolvedValue(new Blob(["clip"]));
 });
 

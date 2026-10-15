@@ -152,8 +152,6 @@ describe("createSettingsBroadcast", () => {
 });
 
 describe("wireSettingsReload", () => {
-  beforeEach(() => vi.clearAllMocks());
-
   const setup = (vrmUrls: { before: string; after: string }) => {
     let hook = (): void => {};
     const speakerSelection = { reloadFromStorage: vi.fn() };

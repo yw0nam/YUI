@@ -1,6 +1,6 @@
 // Inside Tauri, one bridge's emits reach Tauri one at a time, in send order.
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const { log, tauriEmit } = vi.hoisted(() => ({
   log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -29,10 +29,6 @@ function deferred(): {
 const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
 describe("createBridgeCore — Tauri transport", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it("starts the next Tauri emit only after the previous one resolves", async () => {
     const first = deferred();
     tauriEmit.mockReturnValueOnce(first.promise);

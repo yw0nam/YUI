@@ -5,7 +5,7 @@
  * assertions count the synth requests the wiring actually puts on the network per thinking window.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
   const sink = { play: vi.fn(async () => {}), stop: vi.fn() };
@@ -107,10 +107,6 @@ function setup(): VoicePipeline {
 }
 
 describe("filler scheduling after a synth failure", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   afterEach(() => {
     for (const voice of wired.splice(0)) voice.dispose();
   });

@@ -12,7 +12,7 @@
  * follows the app language.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const { WebviewWindow, setTitle } = vi.hoisted(() => ({
   // A class, not an arrow: the production code reaches this mock through `new`.
@@ -87,10 +87,6 @@ describe("openSettingsWindow", () => {
 
 describe("titleSettingsWindow", () => {
   const globals = globalThis as { __TAURI_INTERNALS__?: unknown };
-
-  beforeEach(() => {
-    setTitle.mockClear();
-  });
 
   afterEach(() => {
     delete globals.__TAURI_INTERNALS__;

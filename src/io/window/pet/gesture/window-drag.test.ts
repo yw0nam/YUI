@@ -35,10 +35,6 @@ import { initDrag, invokeDragWindow } from "./window-drag";
 
 const mockInvoke = invoke as ReturnType<typeof vi.fn>;
 
-beforeEach(() => {
-  vi.clearAllMocks();
-});
-
 // ─── invokeDragWindow ────────────────────────────────────────────────────────
 
 describe("invokeDragWindow", () => {

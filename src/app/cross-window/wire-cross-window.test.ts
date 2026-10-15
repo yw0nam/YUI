@@ -53,16 +53,6 @@ import { wireCrossWindowSync, wireDevtoolsSync, wireSettingsWindowSync } from ".
 const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} } as never;
 
 describe("wireCrossWindowSync", () => {
-  beforeEach(() => {
-    fakeBridge.onMouthPreview.mockClear();
-    fakeBridge.onVoiceSet.mockClear();
-    fakeBridge.emitVoiceState.mockClear();
-    fakeBridge.dispose.mockClear();
-    createSettingsBridge.mockClear();
-    wireStorageSync.mockClear();
-    wireStorageSyncDispose.mockClear();
-  });
-
   const makeDeps = () => {
     const renderer = { setMouthOpen: vi.fn(), stopMouth: vi.fn() };
     const voiceInputStatus = createVoiceInputStatus();
@@ -178,11 +168,6 @@ describe("wireCrossWindowSync", () => {
 });
 
 describe("wireSettingsWindowSync", () => {
-  beforeEach(() => {
-    createSettingsBridge.mockClear();
-    wireStorageSync.mockClear();
-  });
-
   const makeDeps = () => ({
     stores: createSettingsStores(),
     conversation: createConversationStores(),

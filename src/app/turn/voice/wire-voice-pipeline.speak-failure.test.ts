@@ -115,7 +115,6 @@ function settingsOf(customPool: FillerPool): FillerSettings {
 }
 
 describe("speakFailure", () => {
-  beforeEach(() => vi.clearAllMocks());
   afterEach(() => {
     for (const voice of wired.splice(0)) voice.dispose();
   });
@@ -172,7 +171,6 @@ describe("prewarmFailureLines", () => {
   // Real timers would make every one of these wait out the ~2s debounce for real; fake timers let
   // the debounce itself be pinned precisely and cheaply.
   beforeEach(() => {
-    vi.clearAllMocks();
     vi.useFakeTimers();
   });
   afterEach(() => {

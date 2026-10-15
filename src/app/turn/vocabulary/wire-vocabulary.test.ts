@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const { deriveExpressVocabulary } = vi.hoisted(() => ({
   deriveExpressVocabulary: vi.fn(() => ({ derived: true })),
@@ -16,11 +16,6 @@ const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => 
 const CFG = { emotionRegistry: {}, motions: {}, endpoints: {} } as never;
 
 describe("wireVocabulary", () => {
-  beforeEach(() => {
-    deriveExpressVocabulary.mockClear();
-    vi.mocked(loadEmotionTextTable).mockClear();
-  });
-
   const flush = async (): Promise<void> => {
     await Promise.resolve();
     await Promise.resolve();

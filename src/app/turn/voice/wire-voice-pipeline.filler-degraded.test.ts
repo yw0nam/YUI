@@ -127,7 +127,6 @@ async function warm(voice: VoicePipeline, text: string, segments: number): Promi
 
 describe("filler scheduling after a synth failure with a warm cache", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     mocks.state.serverDown = false;
   });
 

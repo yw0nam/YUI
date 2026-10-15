@@ -6,7 +6,7 @@
  * speakers after the user started talking.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
   // Never resolves — the filler stays mid-playback for the whole test.
@@ -117,10 +117,6 @@ function setup(): { voice: VoicePipeline; turnLog: ReturnType<typeof createTurnL
 }
 
 describe("filler scheduling after a barge-in", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   afterEach(() => {
     for (const voice of wired.splice(0)) voice.dispose();
   });

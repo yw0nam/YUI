@@ -285,7 +285,6 @@ function fillerOptions(): FillerLoopDeps {
 
 describe("wireVoicePipeline", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     mocks.speech.outstanding = false;
     for (const key of Object.keys(mocks.captured)) delete mocks.captured[key];
     mocks.selectFetch.mockResolvedValue(mocks.fetchImpl);

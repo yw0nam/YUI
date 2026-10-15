@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 // Broker fakes for wireBroker: a single captured client so tests can assert publish/start/dispose.
 const { brokerClient, createBrokerClient, createReconciler, selectFetch } = vi.hoisted(() => {
@@ -27,13 +27,6 @@ import { wireBroker } from "./wire-broker";
 const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} } as never;
 
 describe("wireBroker", () => {
-  beforeEach(() => {
-    brokerClient.publish.mockClear();
-    brokerClient.start.mockClear();
-    brokerClient.dispose.mockClear();
-    createBrokerClient.mockClear();
-  });
-
   // wireBroker fires publish().then(start) fire-and-forget — drain the microtask queue to observe it.
   const flush = async (): Promise<void> => {
     await Promise.resolve();
