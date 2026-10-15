@@ -20,7 +20,7 @@ const ROOT = resolve(__dirname, "..");
 const SKILL_DIR = join(ROOT, "integrations/skills/yui-daily-briefing");
 const SCRIPT = join(SKILL_DIR, "scripts/briefing.py");
 const GATHER = JSON.parse(readFileSync(join(SKILL_DIR, "assets/fixtures/gather.json"), "utf8"));
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const BRIEFING = /^reports\/\d{4}\/\d{2}\/W[1-5]\/\d{2}\/[^/]+$/;
 const LOCAL_ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/;
 
 type Result = { status: number | null; stdout: string; stderr: string };
@@ -78,12 +78,47 @@ function write(spool: string, source: string, input: unknown): Result {
   return run(spool, ["write", "--source", source], stdin);
 }
 
+// Runs `write` with the helper's clock stopped at 08:00 local time on the given day.
+function writeOn(spool: string, day: string, source: string, input: unknown): Result {
+  const frozen = [
+    "import datetime, importlib.util, sys, types",
+    "spec = importlib.util.spec_from_file_location('briefing', sys.argv[1])",
+    "module = importlib.util.module_from_spec(spec)",
+    "spec.loader.exec_module(module)",
+    "year, month, day = map(int, sys.argv[2].split('-'))",
+    "class Frozen(datetime.datetime):",
+    "    @classmethod",
+    "    def now(cls, tz=None):",
+    "        return datetime.datetime(year, month, day, 8).astimezone()",
+    "module.datetime = types.SimpleNamespace(datetime=Frozen, date=datetime.date)",
+    "sys.argv = ['briefing.py', *sys.argv[3:]]",
+    "sys.exit(module.main())",
+  ].join("\n");
+  const result = spawnSync(
+    PYTHON,
+    ["-c", frozen, SCRIPT, day, "--spool", spool, "write", "--source", source],
+    { input: typeof input === "string" ? input : JSON.stringify(input), encoding: "utf8" },
+  );
+  return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+}
+
+function filesUnder(root: string, dir = ""): string[] {
+  if (!existsSync(join(root, dir))) return [];
+  return readdirSync(join(root, dir), { withFileTypes: true }).flatMap((entry) => {
+    const path = dir ? `${dir}/${entry.name}` : entry.name;
+    return entry.isDirectory() ? filesUnder(root, path) : [path];
+  });
+}
+
 function spoolFiles(spool: string): string[] {
-  if (!existsSync(spool)) return [];
-  return readdirSync(spool)
-    .filter((day) => DAY.test(day))
-    .flatMap((day) => readdirSync(join(spool, day)).map((name) => `${day}/${name}`))
+  return filesUnder(spool, "reports")
+    .filter((path) => BRIEFING.test(path))
     .sort();
+}
+
+function dayOf(path: string): string {
+  const [, year, month, , day] = path.split("/");
+  return `${year}-${month}-${day}`;
 }
 
 function read(spool: string, path: string): string {
@@ -140,8 +175,8 @@ describe("briefing.py write", () => {
     expect(write(spool, "news", input)).toEqual({ status: 0, stdout: "", stderr: "" });
 
     const [path] = spoolFiles(spool);
-    expect(path).toMatch(/^\d{4}-\d{2}-\d{2}\/news\.md$/);
-    const day = path.split("/")[0];
+    expect(path).toMatch(/^reports\/\d{4}\/\d{2}\/W[1-5]\/\d{2}\/news\.md$/);
+    const day = dayOf(path);
     const text = read(spool, path);
     const [, frontMatter] = text.split("---\n");
     const lines = frontMatter.trimEnd().split("\n");
@@ -170,6 +205,21 @@ describe("briefing.py write", () => {
     expect(write(tempDir(), "../x", GATHER).status).toBe(2);
   });
 
+  it("names the day folder by year, month, and week of the month", () => {
+    const spool = tempDir();
+    for (const day of ["2026-10-01", "2026-10-07", "2026-10-08", "2026-10-29", "2026-10-31"]) {
+      expect(writeOn(spool, day, "news", GATHER)).toEqual({ status: 0, stdout: "", stderr: "" });
+    }
+    expect(spoolFiles(spool)).toEqual([
+      "reports/2026/10/W1/01/news.md",
+      "reports/2026/10/W1/07/news.md",
+      "reports/2026/10/W2/08/news.md",
+      "reports/2026/10/W5/29/news.md",
+      "reports/2026/10/W5/31/news.md",
+    ]);
+    expect(read(spool, "reports/2026/10/W5/31/news.md")).toContain('date: "2026-10-31"');
+  });
+
   it("renders a title holding brackets and a url holding parentheses as a working link", () => {
     const spool = tempDir();
     write(spool, "news", GATHER);
@@ -189,7 +239,7 @@ describe("briefing.py write", () => {
 
     const [rerun, original] = spoolFiles(spool);
     expect(original).toBe(path);
-    expect(rerun).toMatch(/^\d{4}-\d{2}-\d{2}\/news\.\d{12}\.md$/);
+    expect(rerun).toMatch(/^reports\/\d{4}\/\d{2}\/W[1-5]\/\d{2}\/news\.\d{12}\.md$/);
     expect(read(spool, path)).toBe(spoken);
     expect(read(spool, rerun)).toContain('summary: "second run"');
     // Later runs, in any second, replace or keep that unspoken rerun.
@@ -256,16 +306,17 @@ describe("briefing.py write", () => {
 describe("briefing.py pending and mark-spoken", () => {
   function seeded(): string {
     const spool = tempDir();
-    seed(spool, "2026-09-30/papers.md", "papers\n");
-    seed(spool, "2026-10-01/news.md", "news\n");
-    seed(spool, "2026-10-01/arxiv.md", "arxiv\n");
-    seed(spool, "2026-09-29/news.sent.json", "{}");
-    seed(spool, "abcd-ef-gh/news.md", "not a day\n");
-    seed(spool, "2026-10-01/zz.md", Buffer.from([0x7a, 0xff, 0x0a]));
+    seed(spool, "reports/2026/09/W5/30/papers.md", "papers\n");
+    seed(spool, "reports/2026/10/W1/01/news.md", "news\n");
+    seed(spool, "reports/2026/10/W1/01/arxiv.md", "arxiv\n");
+    seed(spool, "reports/2026/09/W5/29/news.sent.json", "{}");
+    seed(spool, "reports/abcd/10/W1/01/news.md", "not a day\n");
+    seed(spool, "2026-10-01/old.md", "not migrated\n");
+    seed(spool, "reports/2026/10/W1/01/zz.md", Buffer.from([0x7a, 0xff, 0x0a]));
     seed(
       spool,
       "spoken.json",
-      JSON.stringify({ "2026-09-30/papers.md": "2026-09-30T08:00:00+02:00" }),
+      JSON.stringify({ "reports/2026/09/W5/30/papers.md": "2026-09-30T08:00:00+02:00" }),
     );
     return spool;
   }
@@ -275,10 +326,14 @@ describe("briefing.py pending and mark-spoken", () => {
     expect(run(spool, ["pending"])).toEqual({
       status: 0,
       stdout:
-        "=== 2026-10-01/arxiv.md ===\narxiv\n\n=== 2026-10-01/news.md ===\nnews\n\n=== 2026-10-01/zz.md ===\nz�\n\n",
+        "=== reports/2026/10/W1/01/arxiv.md ===\narxiv\n\n=== reports/2026/10/W1/01/news.md ===\nnews\n\n=== reports/2026/10/W1/01/zz.md ===\nz�\n\n",
       stderr: "",
     });
-    const all = ["2026-10-01/arxiv.md", "2026-10-01/news.md", "2026-10-01/zz.md"];
+    const all = [
+      "reports/2026/10/W1/01/arxiv.md",
+      "reports/2026/10/W1/01/news.md",
+      "reports/2026/10/W1/01/zz.md",
+    ];
     expect(run(spool, ["mark-spoken", ...all]).status).toBe(0);
     expect(run(spool, ["pending"]).stdout).toBe("");
   });
@@ -296,7 +351,7 @@ describe("briefing.py pending and mark-spoken", () => {
   it("exits 2 on a relative spool path, and on a missing spool when reading it", () => {
     expect(run("relative/spool", ["pending"]).status).toBe(2);
     const absent = join(tempDir(), "absent");
-    for (const args of [["pending"], ["mark-spoken", "2026-10-01/news.md"]]) {
+    for (const args of [["pending"], ["mark-spoken", "reports/2026/10/W1/01/news.md"]]) {
       const result = run(absent, args);
       expect(result.status).toBe(2);
       expect(result.stderr.trim().split("\n")).toHaveLength(1);
@@ -305,18 +360,22 @@ describe("briefing.py pending and mark-spoken", () => {
 
   it("records each path with a local timestamp and rejects a path outside the spool's briefings", () => {
     const spool = seeded();
-    expect(run(spool, ["mark-spoken", "2026-10-01/news.md"]).status).toBe(0);
+    expect(run(spool, ["mark-spoken", "reports/2026/10/W1/01/news.md"]).status).toBe(0);
     const ledger = JSON.parse(read(spool, "spoken.json"));
-    expect(Object.keys(ledger)).toEqual(["2026-09-30/papers.md", "2026-10-01/news.md"]);
-    expect(ledger["2026-10-01/news.md"]).toMatch(LOCAL_ISO);
+    expect(Object.keys(ledger)).toEqual([
+      "reports/2026/09/W5/30/papers.md",
+      "reports/2026/10/W1/01/news.md",
+    ]);
+    expect(ledger["reports/2026/10/W1/01/news.md"]).toMatch(LOCAL_ISO);
 
     const before = read(spool, "spoken.json");
     for (const bad of [
-      "../2026-10-01/news.md",
-      join(spool, "2026-10-01/arxiv.md"),
-      "2026-10-01/gone.md",
+      "../reports/2026/10/W1/01/news.md",
+      join(spool, "reports/2026/10/W1/01/arxiv.md"),
+      "reports/2026/10/W1/01/gone.md",
+      "2026-10-01/old.md",
     ]) {
-      const result = run(spool, ["mark-spoken", "2026-10-01/arxiv.md", bad]);
+      const result = run(spool, ["mark-spoken", "reports/2026/10/W1/01/arxiv.md", bad]);
       expect(result.status).toBe(2);
       expect(result.stderr.trim().split("\n")).toHaveLength(1);
       expect(read(spool, "spoken.json")).toBe(before);
@@ -329,31 +388,33 @@ describe("briefing.py pending and mark-spoken", () => {
     expect(write(spool, "news", GATHER).status).toBe(0);
     expect(read(spool, "spoken.json")).toBe("{");
     expect(existsSync(join(spool, "spoken.json.bad"))).toBe(false);
-    const result = run(spool, ["mark-spoken", "2026-10-01/news.md"]);
+    const result = run(spool, ["mark-spoken", "reports/2026/10/W1/01/news.md"]);
     expect(result.status).toBe(0);
     expect(result.stderr.trim().split("\n")).toHaveLength(1);
     expect(read(spool, "spoken.json.bad")).toBe("{");
-    expect(Object.keys(JSON.parse(read(spool, "spoken.json")))).toEqual(["2026-10-01/news.md"]);
+    expect(Object.keys(JSON.parse(read(spool, "spoken.json")))).toEqual([
+      "reports/2026/10/W1/01/news.md",
+    ]);
   });
 });
 
+function git(dir: string, args: string[]): string {
+  const result = spawnSync("git", ["-C", dir, ...args], { encoding: "utf8" });
+  expect(result.status, result.stderr).toBe(0);
+  return result.stdout;
+}
+
+function repo(dir: string): string {
+  mkdirSync(dir, { recursive: true });
+  git(dir, ["init", "-q", "-b", "main"]);
+  git(dir, ["config", "user.name", "YUI Test"]);
+  git(dir, ["config", "user.email", "yui@example.com"]);
+  git(dir, ["config", "commit.gpgsign", "false"]);
+  return dir;
+}
+
 describe("briefing.py publish", () => {
-  function git(dir: string, args: string[]): string {
-    const result = spawnSync("git", ["-C", dir, ...args], { encoding: "utf8" });
-    expect(result.status, result.stderr).toBe(0);
-    return result.stdout;
-  }
-
-  function repo(dir: string): string {
-    mkdirSync(dir, { recursive: true });
-    git(dir, ["init", "-q", "-b", "main"]);
-    git(dir, ["config", "user.name", "YUI Test"]);
-    git(dir, ["config", "user.email", "yui@example.com"]);
-    git(dir, ["config", "commit.gpgsign", "false"]);
-    return dir;
-  }
-
-  it("pushes the dated briefings and nothing else, and makes no commit when nothing changed", () => {
+  it("pushes the briefings and the .gitignore and nothing else, and makes no commit when nothing changed", () => {
     const origin = join(tempDir(), "origin.git");
     expect(spawnSync("git", ["init", "-q", "--bare", "-b", "main", origin]).status).toBe(0);
     const spool = repo(tempDir());
@@ -361,12 +422,13 @@ describe("briefing.py publish", () => {
     expect(write(spool, "news", GATHER).status).toBe(0);
     const [path] = spoolFiles(spool);
     expect(run(spool, ["mark-spoken", path]).status).toBe(0);
+    seed(spool, ".gitignore", "spoken.json\n.lock\n");
     seed(spool, "notes.txt", "private\n");
     git(spool, ["add", "notes.txt"]);
 
     expect(run(spool, ["publish"])).toEqual({ status: 0, stdout: "", stderr: "" });
-    expect(git(origin, ["ls-tree", "-r", "--name-only", "main"])).toBe(`${path}\n`);
-    expect(git(origin, ["log", "--format=%s", "main"])).toBe(`${path.split("/")[0]}\n`);
+    expect(git(origin, ["ls-tree", "-r", "--name-only", "main"])).toBe(`.gitignore\n${path}\n`);
+    expect(git(origin, ["log", "--format=%s", "main"])).toBe(`${dayOf(path)}\n`);
 
     expect(run(spool, ["publish"])).toEqual({ status: 0, stdout: "", stderr: "" });
     expect(git(origin, ["rev-list", "--count", "main"])).toBe("1\n");
@@ -392,5 +454,77 @@ describe("briefing.py publish", () => {
     expect(result.status).toBe(1);
     expect(result.stderr.trim().split("\n")).toHaveLength(1);
     expect(result.stderr).toMatch(/^git push failed: fatal: /);
+  });
+});
+
+describe("briefing.py migrate", () => {
+  const STAMP = "2026-10-01T08:00:00+02:00";
+
+  function oldSpool(): string {
+    const spool = repo(tempDir());
+    seed(spool, "2026-09-30/papers.md", "papers\n");
+    seed(spool, "2026-10-01/news.md", "news\n");
+    seed(spool, "2026-10-15/news.md", "news on the 15th\n");
+    git(spool, ["add", "2026-09-30", "2026-10-01", "2026-10-15"]);
+    git(spool, ["commit", "-q", "-m", "old layout"]);
+    seed(spool, "2026-10-15/arxiv.md", "not published yet\n");
+    seed(
+      spool,
+      "spoken.json",
+      JSON.stringify({ "2026-09-30/papers.md": STAMP, "2026-10-01/news.md": STAMP }),
+    );
+    return spool;
+  }
+
+  function workFiles(spool: string): string[] {
+    return filesUnder(spool)
+      .filter((path) => !path.startsWith(".git/"))
+      .sort();
+  }
+
+  it("moves old day folders under reports/, rewrites the ledger, keeps history, and changes nothing on a second run", () => {
+    const spool = oldSpool();
+    expect(run(spool, ["migrate"])).toEqual({ status: 0, stdout: "", stderr: "" });
+
+    expect(workFiles(spool)).toEqual([
+      ".lock",
+      "reports/2026/09/W5/30/papers.md",
+      "reports/2026/10/W1/01/news.md",
+      "reports/2026/10/W3/15/arxiv.md",
+      "reports/2026/10/W3/15/news.md",
+      "spoken.json",
+    ]);
+    expect(JSON.parse(read(spool, "spoken.json"))).toEqual({
+      "reports/2026/09/W5/30/papers.md": STAMP,
+      "reports/2026/10/W1/01/news.md": STAMP,
+    });
+    expect(git(spool, ["ls-files"])).toBe(
+      "reports/2026/09/W5/30/papers.md\nreports/2026/10/W1/01/news.md\nreports/2026/10/W3/15/news.md\n",
+    );
+    expect(
+      git(spool, ["log", "--follow", "--format=%s", "--", "reports/2026/10/W1/01/news.md"]),
+    ).toMatch(/\nold layout\n$/);
+    expect(run(spool, ["pending"]).stdout).toBe(
+      "=== reports/2026/10/W3/15/arxiv.md ===\nnot published yet\n\n=== reports/2026/10/W3/15/news.md ===\nnews on the 15th\n\n",
+    );
+
+    const commits = git(spool, ["rev-list", "--count", "HEAD"]);
+    const ledger = read(spool, "spoken.json");
+    expect(run(spool, ["migrate"])).toEqual({ status: 0, stdout: "", stderr: "" });
+    expect(workFiles(spool)).toHaveLength(6);
+    expect(read(spool, "spoken.json")).toBe(ledger);
+    expect(git(spool, ["rev-list", "--count", "HEAD"])).toBe(commits);
+  });
+
+  it("exits 2 and moves nothing when a file already sits at a new path", () => {
+    const spool = tempDir();
+    seed(spool, "2026-09-30/papers.md", "old\n");
+    seed(spool, "2026-10-01/news.md", "old\n");
+    seed(spool, "reports/2026/10/W1/01/news.md", "new\n");
+    const result = run(spool, ["migrate"]);
+    expect(result.status).toBe(2);
+    expect(result.stderr.trim().split("\n")).toHaveLength(1);
+    expect(read(spool, "2026-09-30/papers.md")).toBe("old\n");
+    expect(read(spool, "reports/2026/10/W1/01/news.md")).toBe("new\n");
   });
 });
