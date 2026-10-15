@@ -243,13 +243,6 @@ describe("wireSettingsWindowSync", () => {
 describe("wireDevtoolsSync", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    fakeBridge.onSettingsChanged.mockClear();
-    fakeBridge.emitSettingsChanged.mockClear();
-    fakeBridge.dispose.mockClear();
-    createSettingsBridge.mockClear();
-    wireStorageSync.mockClear();
-    wireStorageSyncDispose.mockClear();
-    vi.mocked(reloadLocaleFromStorage).mockClear();
   });
 
   afterEach(() => {

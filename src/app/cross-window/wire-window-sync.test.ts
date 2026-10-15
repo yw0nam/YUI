@@ -52,7 +52,6 @@ const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => 
 describe("createSettingsBroadcast", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    unsubscribeLocale.mockClear();
   });
   afterEach(() => vi.useRealTimers());
 
@@ -193,13 +192,6 @@ describe("wireSettingsReload", () => {
 describe("wireWindowSync", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    fakeBridge.onSettingsChanged.mockClear();
-    fakeBridge.emitSettingsChanged.mockClear();
-    fakeBridge.dispose.mockClear();
-    createSettingsBridge.mockClear();
-    wireStorageSync.mockClear();
-    wireStorageSyncDispose.mockClear();
-    vi.mocked(reloadLocaleFromStorage).mockClear();
   });
 
   afterEach(() => {
