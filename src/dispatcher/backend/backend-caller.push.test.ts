@@ -195,7 +195,7 @@ describe("backend_caller — push transport", () => {
 
     await caller.call(turnOf(userEnv("look"), 7));
 
-    expect(sent[0]!.client_context).toContain("tools: look.screen=off");
+    expect(sent[0]!.client_context).toContain("tool switches: look.screen=off");
   });
 
   it("speaks nothing now — the reply arrives later as its own render frame", async () => {

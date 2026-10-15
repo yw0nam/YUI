@@ -454,10 +454,10 @@ describe("cue turn — complete client_context text at a fixed clock", () => {
       [
         "time: 2026-07-31T09:30:00+09:00 (Asia/Seoul)",
         'frontmost: Google Chrome — "Inbox" (for 4min)',
-        "screenshot: monitor 0",
+        "screenshot source: monitor 0",
         "body: sitting on Cursor (for 12min)",
-        'trigger: schedule "morning call"',
-        "cue note: say good morning",
+        'trigger: schedule cue "morning call"',
+        "cue note (the user's own intent for this cue): say good morning",
       ].join("\n"),
     );
 
@@ -476,10 +476,10 @@ describe("cue turn — complete client_context text at a fixed clock", () => {
       [
         "time: 2026-07-31T09:30:00+09:00 (Asia/Seoul)",
         'frontmost: Google Chrome — "Inbox" (for 4min)',
-        "screenshot: monitor 0",
+        "screenshot source: monitor 0",
         "body: sitting on Cursor (for 12min)",
-        'trigger: proactive "check in" (user idle 21min)',
-        "cue note: ask how it is going",
+        'trigger: proactive cue "check in" (the user has been idle for 21min)',
+        "cue note (the user's own intent for this cue): ask how it is going",
       ].join("\n"),
     );
   });

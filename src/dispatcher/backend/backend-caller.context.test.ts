@@ -435,7 +435,7 @@ describe("backend_caller — flat client_context envelope", () => {
     expect(text).not.toContain("input_context");
     expect(text).not.toContain("dispatcher_state");
     // trigger line carries kind + idle_elapsed_min = round(3_900_000 / 60000) = 65
-    expect(text).toContain("trigger: proactive (user idle 65min)");
+    expect(text).toContain("trigger: proactive (the user has been idle for 65min)");
     // no raw event_name/source/seq_id anywhere in the block
     expect(text).not.toContain("event_name");
     expect(text).not.toContain("seq_id");
@@ -449,7 +449,7 @@ describe("backend_caller — flat client_context envelope", () => {
     const [, request] = script.spy.mock.calls[0];
     const text = clientContextOf(request.input);
     expect(text).toContain("trigger: user message");
-    expect(text).not.toMatch(/\(user idle /);
+    expect(text).not.toMatch(/the user has been idle/);
     // first line is "time: <timestamp> (<timezone>)"
     expect(text.split("\n")[0]).toMatch(/^time: \S+ \(\S+\)$/);
     // NO user text in the client_context block
@@ -471,7 +471,7 @@ describe("backend_caller — flat client_context envelope", () => {
     const [, request] = script.spy.mock.calls[0];
     const text = clientContextOf(request.input);
     expect(text).toContain("trigger: schedule");
-    expect(text).not.toMatch(/\(user idle /);
+    expect(text).not.toMatch(/the user has been idle/);
   });
 
   it("(c2) first_activity milestone envelope → trigger headline + the day-start marker", async () => {
@@ -485,7 +485,9 @@ describe("backend_caller — flat client_context envelope", () => {
     };
     await caller.call(turnOf(env));
     const [, request] = script.spy.mock.calls[0];
-    expect(clientContextOf(request.input)).toContain("trigger: milestone first_activity (08:12)");
+    expect(clientContextOf(request.input)).toContain(
+      "trigger: milestone first_activity (fired at 08:12)",
+    );
     expect(userMessageContentOf(request.input)).toContain("(I've just started my day)");
   });
 
@@ -609,7 +611,9 @@ describe("backend_caller — previous-turn line", () => {
     const [, request] = script.spy.mock.calls[0];
     const items = request.input as Array<{ role: string; content: string }>;
     const text = clientContextTextOf(items.find((m) => m.role === "user")!.content);
-    expect(text).toContain("previous: user.text_submitted interrupted (0min ago)");
+    expect(text).toContain(
+      "previous turn: the reply to user.text_submitted was cut off mid-speech (0min ago)",
+    );
   });
 
   it("renders no previous line when the slot is empty", async () => {
@@ -665,7 +669,7 @@ describe("backend_caller — wake", () => {
     await woke.call(turnOf(userEnv("good morning")));
     const [, request] = script.spy.mock.calls[0];
     expect(clientContextTextOf(userItemOf(request.input))).toContain(
-      "trigger: user message\nwake: asleep on the bed until this message",
+      "trigger: user message\nwake: the character just woke from the bed, woken by this message",
     );
   });
 });

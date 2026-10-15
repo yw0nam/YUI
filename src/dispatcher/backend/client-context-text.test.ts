@@ -71,15 +71,15 @@ describe("renderClientContext — screenshot line", () => {
       source: { kind: "monitor", index: 0, label: "Built-in Retina Display" },
     };
     const text = renderClientContext(cc, NOW);
-    expect(text).toContain("screenshot: monitor 0 (Built-in Retina Display)");
+    expect(text).toContain("screenshot source: monitor 0 (Built-in Retina Display)");
   });
 
   it("monitor source without label", () => {
     const cc = baseContext({ kind: "user" });
     cc.screenshot = { enabled: true, source: { kind: "monitor", index: 1 } };
     const text = renderClientContext(cc, NOW);
-    expect(text).toContain("screenshot: monitor 1");
-    expect(text).not.toMatch(/screenshot: monitor 1 \(/);
+    expect(text).toContain("screenshot source: monitor 1");
+    expect(text).not.toMatch(/screenshot source: monitor 1 \(/);
   });
 
   it("browser_tab source with url", () => {
@@ -89,7 +89,7 @@ describe("renderClientContext — screenshot line", () => {
       source: { kind: "browser_tab", browser: "Chrome", tab_title: "GitHub", url: "github.com" },
     };
     const text = renderClientContext(cc, NOW);
-    expect(text).toContain('screenshot: browser_tab Chrome — "GitHub" (github.com)');
+    expect(text).toContain('screenshot source: browser_tab Chrome — "GitHub" (github.com)');
   });
 
   it("window source", () => {
@@ -99,19 +99,19 @@ describe("renderClientContext — screenshot line", () => {
       source: { kind: "window", app: "Cursor", window_title: "contract.md" },
     };
     const text = renderClientContext(cc, NOW);
-    expect(text).toContain('screenshot: window Cursor — "contract.md"');
+    expect(text).toContain('screenshot source: window Cursor — "contract.md"');
   });
 
   it("enabled:false -> line omitted", () => {
     const cc = baseContext({ kind: "user" });
     cc.screenshot = { enabled: false, source: { kind: "monitor", index: 0 } };
     const text = renderClientContext(cc, NOW);
-    expect(text).not.toContain("screenshot:");
+    expect(text).not.toContain("screenshot source:");
   });
 
   it("absent entirely -> line omitted", () => {
     const text = renderClientContext(baseContext({ kind: "user" }), NOW);
-    expect(text).not.toContain("screenshot:");
+    expect(text).not.toContain("screenshot source:");
   });
 });
 
@@ -170,7 +170,7 @@ describe("renderClientContext — body line", () => {
   });
 });
 
-describe("renderClientContext — tools line", () => {
+describe("renderClientContext — tool switches line", () => {
   it("renders on and off states, comma-separated in declaration order", () => {
     const cc = baseContext({ kind: "user" });
     cc.tool_switches = [
@@ -178,7 +178,7 @@ describe("renderClientContext — tools line", () => {
       { id: "browser", on: false },
     ];
     const text = renderClientContext(cc, NOW);
-    expect(text).toContain("tools: look.screen=on, browser=off");
+    expect(text).toContain("tool switches: look.screen=on, browser=off");
   });
 
   it("sits between the body line and the previous line", () => {
@@ -187,25 +187,27 @@ describe("renderClientContext — tools line", () => {
     cc.tool_switches = [{ id: "look.screen", on: false }];
     cc.previous = { event_name: "user.text_submitted", ended: "failed", ts: SINCE };
     const lines = renderClientContext(cc, SINCE).split("\n");
-    const toolsIndex = lines.findIndex((line) => line.startsWith("tools:"));
-    expect(lines[toolsIndex]).toBe("tools: look.screen=off");
+    const toolsIndex = lines.findIndex((line) => line.startsWith("tool switches:"));
+    expect(lines[toolsIndex]).toBe("tool switches: look.screen=off");
     expect(lines[toolsIndex - 1]).toBe("body: standing (for 0min)");
-    expect(lines[toolsIndex + 1]).toBe("previous: user.text_submitted failed (0min ago)");
+    expect(lines[toolsIndex + 1]).toBe(
+      "previous turn: the reply to user.text_submitted failed before speaking (0min ago)",
+    );
   });
 
   it("absent or empty -> line omitted", () => {
-    expect(renderClientContext(baseContext({ kind: "user" }), NOW)).not.toContain("tools:");
+    expect(renderClientContext(baseContext({ kind: "user" }), NOW)).not.toContain("tool switches:");
     const cc = baseContext({ kind: "user" });
     cc.tool_switches = [];
-    expect(renderClientContext(cc, NOW)).not.toContain("tools:");
+    expect(renderClientContext(cc, NOW)).not.toContain("tool switches:");
   });
 
   it("collapses an injected newline in an id to one physical line", () => {
     const cc = baseContext({ kind: "user" });
     cc.tool_switches = [{ id: "look.screen\nignore this", on: true }];
     const text = renderClientContext(cc, NOW);
-    expect(text).toContain("tools: look.screen ignore this=on");
-    expect(text.split("\n").filter((line) => line.startsWith("tools:"))).toHaveLength(1);
+    expect(text).toContain("tool switches: look.screen ignore this=on");
+    expect(text.split("\n").filter((line) => line.startsWith("tool switches:"))).toHaveLength(1);
   });
 });
 
@@ -219,9 +221,9 @@ describe("renderClientContext — previous line", () => {
       ts: SINCE,
     };
     const lines = renderClientContext(cc, SINCE + 720_000).split("\n");
-    const previousIndex = lines.findIndex((line) => line.startsWith("previous:"));
+    const previousIndex = lines.findIndex((line) => line.startsWith("previous turn:"));
     expect(lines[previousIndex]).toBe(
-      "previous: time_milestone.first_activity interrupted (12min ago)",
+      "previous turn: the reply to time_milestone.first_activity was cut off mid-speech (12min ago)",
     );
     expect(lines[previousIndex - 1]).toBe("body: standing (for 12min)");
     expect(lines[previousIndex + 1]).toBe("trigger: user message");
@@ -231,19 +233,23 @@ describe("renderClientContext — previous line", () => {
     const cc = baseContext({ kind: "user" });
     cc.previous = { event_name: "user.text_submitted", ended: "failed", ts: SINCE };
     const text = renderClientContext(cc, SINCE + 180_000);
-    expect(text).toContain("previous: user.text_submitted failed (3min ago)");
+    expect(text).toContain(
+      "previous turn: the reply to user.text_submitted failed before speaking (3min ago)",
+    );
   });
 
   it("collapses a newline inside event_name", () => {
     const cc = baseContext({ kind: "user" });
     cc.previous = { event_name: "user.text\nsubmitted", ended: "failed", ts: SINCE };
     const text = renderClientContext(cc, SINCE);
-    expect(text).toContain("previous: user.text submitted failed (0min ago)");
+    expect(text).toContain(
+      "previous turn: the reply to user.text submitted failed before speaking (0min ago)",
+    );
   });
 
   it("absent entirely -> line omitted", () => {
     const text = renderClientContext(baseContext({ kind: "user" }), NOW);
-    expect(text).not.toContain("previous:");
+    expect(text).not.toContain("previous turn:");
   });
 
   it("carries the spoken tail and the unspoken head when both are present", () => {
@@ -257,7 +263,7 @@ describe("renderClientContext — previous line", () => {
     };
     const text = renderClientContext(cc, SINCE);
     expect(text).toContain(
-      'previous: user.text_submitted interrupted (0min ago), spoken: "ログは三つ残ってるよ。" unspoken: "そのうち二つは昨日の"',
+      'previous turn: the reply to user.text_submitted was cut off mid-speech (0min ago), already spoken: "ログは三つ残ってるよ。", never spoken: "そのうち二つは昨日の"',
     );
   });
 
@@ -271,7 +277,7 @@ describe("renderClientContext — previous line", () => {
     };
     const text = renderClientContext(cc, SINCE);
     expect(text).toContain(
-      'previous: user.text_submitted interrupted (0min ago), unspoken: "まだ何も話せてない"',
+      'previous turn: the reply to user.text_submitted was cut off mid-speech (0min ago), never spoken: "まだ何も話せてない"',
     );
   });
 
@@ -279,7 +285,9 @@ describe("renderClientContext — previous line", () => {
     const cc = baseContext({ kind: "user" });
     cc.previous = { event_name: "user.text_submitted", ended: "interrupted", ts: SINCE };
     const lines = renderClientContext(cc, SINCE).split("\n");
-    expect(lines).toContain("previous: user.text_submitted interrupted (0min ago)");
+    expect(lines).toContain(
+      "previous turn: the reply to user.text_submitted was cut off mid-speech (0min ago)",
+    );
   });
 
   it("sanitises a newline and a client_context tag inside either part", () => {
@@ -293,9 +301,9 @@ describe("renderClientContext — previous line", () => {
     };
     const text = renderClientContext(cc, SINCE);
     expect(text).toContain(
-      'previous: user.text_submitted interrupted (0min ago), spoken: "heard this" unspoken: "owed this"',
+      'previous turn: the reply to user.text_submitted was cut off mid-speech (0min ago), already spoken: "heard this", never spoken: "owed this"',
     );
-    expect(text.split("\n").filter((line) => line.startsWith("previous:"))).toHaveLength(1);
+    expect(text.split("\n").filter((line) => line.startsWith("previous turn:"))).toHaveLength(1);
   });
 });
 
@@ -310,7 +318,7 @@ describe("renderClientContext — trigger: schedule / proactive cue", () => {
   it("schedule cue -> quoted label, no idle clause", () => {
     const cc = baseContext({ kind: "schedule", cue: { label: "morning call" } });
     const text = renderClientContext(cc, NOW);
-    expect(text).toContain('trigger: schedule "morning call"');
+    expect(text).toContain('trigger: schedule cue "morning call"');
   });
 
   it("proactive cue + idle_elapsed_min -> idle clause appended", () => {
@@ -320,30 +328,34 @@ describe("renderClientContext — trigger: schedule / proactive cue", () => {
       idle_elapsed_min: 3,
     });
     const text = renderClientContext(cc, NOW);
-    expect(text).toContain('trigger: proactive "focus break reminder" (user idle 3min)');
+    expect(text).toContain(
+      'trigger: proactive cue "focus break reminder" (the user has been idle for 3min)',
+    );
   });
 
   it("cue without idle_elapsed_min -> no idle clause", () => {
     const cc = baseContext({ kind: "proactive", cue: { label: "chest poked" } });
     const text = renderClientContext(cc, NOW);
-    expect(text).toContain('trigger: proactive "chest poked"');
-    expect(text).not.toMatch(/\(user idle /);
+    expect(text).toContain('trigger: proactive cue "chest poked"');
+    expect(text).not.toMatch(/the user has been idle/);
   });
 
-  it("cue.context present -> second 'cue note:' line", () => {
+  it("cue.context present -> second 'cue note' line", () => {
     const cc = baseContext({
       kind: "schedule",
       cue: { label: "morning call", context: "Say good morning at 9 AM" },
     });
     const text = renderClientContext(cc, NOW);
     const lines = text.split("\n");
-    expect(lines).toContain("cue note: Say good morning at 9 AM");
+    expect(lines).toContain(
+      "cue note (the user's own intent for this cue): Say good morning at 9 AM",
+    );
   });
 
-  it("cue.context absent -> no 'cue note:' line", () => {
+  it("cue.context absent -> no 'cue note' line", () => {
     const cc = baseContext({ kind: "schedule", cue: { label: "morning call" } });
     const text = renderClientContext(cc, NOW);
-    expect(text).not.toContain("cue note:");
+    expect(text).not.toContain("cue note");
   });
 });
 
@@ -351,7 +363,7 @@ describe("renderClientContext — trigger: idle_elapsed_min without a cue", () =
   it("proactive kind with idle_elapsed_min but no cue -> idle clause on the bare trigger line", () => {
     const cc = baseContext({ kind: "proactive", idle_elapsed_min: 65 });
     const text = renderClientContext(cc, NOW);
-    expect(text).toContain("trigger: proactive (user idle 65min)");
+    expect(text).toContain("trigger: proactive (the user has been idle for 65min)");
   });
 });
 
@@ -403,7 +415,7 @@ describe("renderClientContext — trigger: screen", () => {
     });
     const text = renderClientContext(cc, NOW);
     expect(text).toContain(
-      "trigger: screen app_switched, left Cursor after 1min, in current app 0min",
+      "trigger: screen app_switched; the user left Cursor after 1min and has been in the frontmost app for 0min",
     );
   });
 
@@ -413,7 +425,9 @@ describe("renderClientContext — trigger: screen", () => {
       screen: { transition: "long_session", dwell_min: 45 },
     });
     const text = renderClientContext(cc, NOW);
-    expect(text).toContain("trigger: screen long_session, in current app 45min");
+    expect(text).toContain(
+      "trigger: screen long_session; the user has been in the frontmost app for 45min",
+    );
     expect(text).not.toContain("left");
   });
 
@@ -423,12 +437,14 @@ describe("renderClientContext — trigger: screen", () => {
       screen: { transition: "app_switched", from_app: "Cursor", dwell_min: 5 },
     });
     const text = renderClientContext(cc, NOW);
-    expect(text).toContain("trigger: screen app_switched, in current app 5min");
+    expect(text).toContain(
+      "trigger: screen app_switched; the user has been in the frontmost app for 5min",
+    );
     expect(text).not.toContain("left");
     expect(text).not.toContain("0min");
   });
 
-  it("a non-empty recent buffer renders one 'recent:' line in the documented format", () => {
+  it("a non-empty recent buffer renders one 'recent switches:' chain, each shared app once", () => {
     const cc = baseContext({
       kind: "proactive",
       screen: {
@@ -442,9 +458,27 @@ describe("renderClientContext — trigger: screen", () => {
     });
     const text = renderClientContext(cc, NOW);
     const lines = text.split("\n");
-    expect(lines.filter((l) => l.startsWith("recent:"))).toEqual([
-      "recent: Cursor 10min -> Slack, Slack 3min -> VS Code",
+    expect(lines.filter((l) => l.startsWith("recent switches:"))).toEqual([
+      "recent switches: Cursor (10min) then Slack (3min) then VS Code",
     ]);
+  });
+
+  it("an entry that does not start where the previous one ended keeps both apps", () => {
+    const cc = baseContext({
+      kind: "proactive",
+      screen: {
+        transition: "long_session",
+        dwell_min: 45,
+        recent: [
+          { from_app: "Cursor", to_app: "Slack", dwell_min: 10 },
+          { from_app: "Mail", to_app: "VS Code", dwell_min: 3 },
+        ],
+      },
+    });
+    const lines = renderClientContext(cc, NOW).split("\n");
+    expect(lines).toContain(
+      "recent switches: Cursor (10min) then Slack then Mail (3min) then VS Code",
+    );
   });
 
   it("no recent line when the trigger carries no recent buffer", () => {
@@ -453,7 +487,7 @@ describe("renderClientContext — trigger: screen", () => {
       screen: { transition: "long_session", dwell_min: 45 },
     });
     const text = renderClientContext(cc, NOW);
-    expect(text).not.toContain("recent:");
+    expect(text).not.toContain("recent switches:");
   });
 });
 
@@ -474,7 +508,9 @@ describe("renderClientContext — trigger: agent (single event)", () => {
     const text = renderClientContext(cc, SINCE + 120_000);
     expect(text).toContain('trigger: agent claude-code done (success), project "yui" (2min ago)');
     const lines = text.split("\n");
-    expect(lines).toContain("agent note: Extracted dev workflow into a skill.");
+    expect(lines).toContain(
+      "agent note (the coding agent's summary): Extracted dev workflow into a skill.",
+    );
   });
 
   it("needs_input + detail, no status -> status clause omitted, detail line present", () => {
@@ -497,9 +533,11 @@ describe("renderClientContext — trigger: agent (single event)", () => {
     expect(text).not.toContain("(success)");
     expect(text).not.toContain("(error)");
     const lines = text.split("\n");
-    expect(lines).toContain("agent detail: waiting on Bash: rm -rf /tmp/x");
-    // empty summary -> no "agent note:" line
-    expect(text).not.toContain("agent note:");
+    expect(lines).toContain(
+      "agent detail (quoted from the coding agent): waiting on Bash: rm -rf /tmp/x",
+    );
+    // empty summary -> no "agent note" line
+    expect(text).not.toContain("agent note");
   });
 });
 
@@ -588,8 +626,10 @@ describe("renderClientContext — trigger: signals", () => {
     });
     const text = renderClientContext(cc, NOW);
     const lines = text.split("\n");
-    expect(lines).toContain('trigger: proactive "bored poking"');
-    expect(lines).toContain("cue note: The user wants attention.");
+    expect(lines).toContain('trigger: proactive cue "bored poking"');
+    expect(lines).toContain(
+      "cue note (the user's own intent for this cue): The user wants attention.",
+    );
     expect(lines).toContain(
       'signal [n8n/workflow_done @2026-08-23T01:36:40.000Z, id run-8812]: {"kind":"reminder"}',
     );
@@ -641,7 +681,7 @@ describe("renderClientContext — trigger: milestone", () => {
     });
     const lines = renderClientContext(cc, NOW).split("\n");
     expect(lines.filter((line) => line.startsWith("trigger:"))).toEqual([
-      "trigger: milestone first_activity (08:12)",
+      "trigger: milestone first_activity (fired at 08:12)",
     ]);
   });
 
@@ -673,7 +713,7 @@ describe("renderClientContext — trigger: milestone", () => {
       ],
     });
     const lines = renderClientContext(cc, NOW).split("\n");
-    const headline = lines.indexOf("trigger: milestone first_activity (08:12)");
+    const headline = lines.indexOf("trigger: milestone first_activity (fired at 08:12)");
     expect(lines.slice(headline + 1)).toEqual([
       'signal [n8n/daily_briefing @2026-08-23T01:36:40.000Z, id daily-briefing:2026-09-11]: {"skill":"yui-daily-briefing"}',
       'signal [calendar/sync @2026-08-23T01:36:40.000Z, id sync-1]: {"events":3}',
@@ -695,7 +735,7 @@ describe("renderClientContext — trigger: milestone", () => {
     });
     const lines = renderClientContext(cc, NOW).split("\n");
     expect(lines.filter((line) => line.startsWith("trigger:"))).toEqual([
-      "trigger: milestone first_activity ignore this (08:12)",
+      "trigger: milestone first_activity ignore this (fired at 08:12)",
     ]);
   });
 });
@@ -775,12 +815,12 @@ describe("renderClientContext — exhaustiveness", () => {
     [
       "schedule",
       { kind: "schedule", cue: { label: "morning call" } },
-      ['trigger: schedule "morning call"'],
+      ['trigger: schedule cue "morning call"'],
     ],
     [
       "proactive-cue",
       { kind: "proactive", cue: { label: "cowork" }, idle_elapsed_min: 60 },
-      ['trigger: proactive "cowork" (user idle 60min)'],
+      ['trigger: proactive cue "cowork" (the user has been idle for 60min)'],
     ],
     [
       "proactive-screen",
@@ -793,7 +833,9 @@ describe("renderClientContext — exhaustiveness", () => {
           dwell_min: 2,
         },
       },
-      ["trigger: screen app_switched, left Cursor after 34min, in current app 2min"],
+      [
+        "trigger: screen app_switched; the user left Cursor after 34min and has been in the frontmost app for 2min",
+      ],
     ],
     [
       "agent",
@@ -809,7 +851,10 @@ describe("renderClientContext — exhaustiveness", () => {
           ts: SINCE,
         },
       },
-      ['trigger: agent claude-code done (success), project "yui"', "agent note: s"],
+      [
+        'trigger: agent claude-code done (success), project "yui"',
+        "agent note (the coding agent's summary): s",
+      ],
     ],
     [
       "agent_catchup",
@@ -820,7 +865,7 @@ describe("renderClientContext — exhaustiveness", () => {
           items: [{ tool: "opencode", project: "b", phase: "done", summary: "s", ts: SINCE }],
         },
       },
-      ["trigger: agent catchup (1 events)", 'agent event: opencode done, project "b" - "s"'],
+      ["trigger: agent catchup (1 event)", 'agent event: opencode done, project "b" - "s"'],
     ],
     [
       "signals",
@@ -838,7 +883,7 @@ describe("renderClientContext — exhaustiveness", () => {
         signals: [{ envelope: SIGNAL_ENVELOPE, items: [{ a: 1 }] }],
       },
       [
-        "trigger: milestone first_activity (08:12)",
+        "trigger: milestone first_activity (fired at 08:12)",
         'signal [n8n/workflow_done @2026-08-23T01:36:40.000Z, id run-8812]: {"a":1}',
       ],
     ],
@@ -861,7 +906,7 @@ describe("renderClientContext — exhaustiveness", () => {
     expect(text.split("\n")[0]).toMatch(/^time: /);
     // shared fixture fields render regardless of trigger kind (NOW is 10min after SINCE)
     expect(text).toContain("frontmost: App (for 10min)");
-    expect(text).toContain("screenshot: monitor 0");
+    expect(text).toContain("screenshot source: monitor 0");
     expect(text).toContain("body: peeking (for 10min)");
     for (const substring of expectedSubstrings) {
       expect(text).toContain(substring);
@@ -899,11 +944,11 @@ describe("renderClientContext — wake", () => {
   it("renders a click wake and a timeout wake under a wake headline", () => {
     expect(trigger(baseContext({ kind: "proactive", wake: { cause: "click" } }))).toEqual([
       "trigger: wake",
-      "wake: asleep on the bed until the user's click",
+      "wake: the character just woke from the bed, woken by the user's click",
     ]);
     expect(trigger(baseContext({ kind: "proactive", wake: { cause: "timeout" } }))).toEqual([
       "trigger: wake",
-      "wake: asleep on the bed until the wake timeout",
+      "wake: the character just woke from the bed, woken by the wake timeout",
     ]);
   });
 
@@ -926,16 +971,24 @@ describe("renderClientContext — wake", () => {
       ],
     });
     expect(trigger(cc)).toEqual([
-      "trigger: milestone first_activity (08:12)",
-      "wake: asleep on the bed until the user's click",
+      "trigger: milestone first_activity (fired at 08:12)",
+      "wake: the character just woke from the bed, woken by the user's click",
       'signal [calendar/reminder @2026-09-11T22:30:00.000Z, id reminder-118]: {"title":"standup","at":"09:30"}',
     ]);
   });
 
-  it("states under a user message that the message woke her", () => {
+  it("states under a user message that the message woke the character", () => {
     expect(trigger(baseContext({ kind: "user", wake: { cause: "message" } }))).toEqual([
       "trigger: user message",
-      "wake: asleep on the bed until this message",
+      "wake: the character just woke from the bed, woken by this message",
     ]);
+  });
+
+  it("says on the body line that the character is getting up", () => {
+    const cc = baseContext({ kind: "proactive", wake: { cause: "click" } });
+    cc.body_state = { posture: { state: "lying" }, since: SINCE };
+    expect(renderClientContext(cc, SINCE + 720_000)).toContain(
+      "body: lying, getting up now (for 12min)",
+    );
   });
 });

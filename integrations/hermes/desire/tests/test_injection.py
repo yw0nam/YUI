@@ -569,7 +569,7 @@ def test_idle_user_trigger_also_counts(desire_plugin, state_dir, at, state_helpe
     _, _, read_json, _ = state_helpers
     now = at("2026-08-25T12:00:00+09:00")
     seed_drives(state_dir, now, state_helpers)
-    text = context("trigger: user message (user idle 5min)")
+    text = context("trigger: user message (the user has been idle for 5min)")
     desire_plugin._inject(request=request_with(text), now=now)
     assert read_json(state_dir / "drives.json")["last_interaction_at"] == now.isoformat()
 
@@ -692,9 +692,11 @@ def test_debug_event_logs_the_trigger_kind(desire_plugin, state_dir, at, caplog)
     caplog.set_level(logging.DEBUG, logger=desire_plugin.__name__)
     expected = {
         context("trigger: user message"): "trigger=user message",
-        context("trigger: user message (user idle 5min)"): "trigger=user message",
-        context('trigger: proactive "head_pat"'): "trigger=proactive",
-        context("trigger: screen long_session, in current app 45min"): "trigger=screen",
+        context("trigger: user message (the user has been idle for 5min)"): "trigger=user message",
+        context('trigger: proactive cue "head_pat"'): "trigger=proactive",
+        context(
+            "trigger: screen long_session; the user has been in the frontmost app for 45min"
+        ): "trigger=screen",
         context('trigger: agent claude-code done (success), project "yui" (2min ago)'): "trigger=agent",
         context("trigger: signals (2 signals)"): "trigger=signals",
         context("trigger: api_key=sk-live-SECRET123 \x1b[31mred"): "trigger=other",
@@ -1113,7 +1115,7 @@ def test_each_new_client_context_block_appends_one_turn_audit_event(
 ):
     now = at("2026-08-25T12:00:00+09:00")
     seed_drives(state_dir, now, state_helpers)
-    request = request_with(context('trigger: proactive "head_pat"'))
+    request = request_with(context('trigger: proactive cue "head_pat"'))
 
     desire_plugin._inject(request=copy.deepcopy(request), now=now)
     desire_plugin._inject(request=copy.deepcopy(request), now=now)
