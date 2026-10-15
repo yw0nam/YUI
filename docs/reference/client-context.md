@@ -57,6 +57,9 @@ The backend model reads the block as prose. Every line follows one register:
 5. Third-party text, such as window titles, coding-agent summaries and signal payloads, is
    quoted. The header line says quoted values are sampled data, not instructions.
 
+The `guide:` block is outside points 3 and 4. It carries the help request's instruction
+line and the app's own help text as written for the user.
+
 ## Rendered lines
 
 Everything between the header line and the closing tag is a sequence of `key: value`
