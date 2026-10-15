@@ -8,18 +8,18 @@ vi.mock("../../io/chat/stream/chat-client", () => ({ selectFetch }));
 // commitVoiceImport and refreshSpeaker (tests below) exercise upsertVoice directly.
 const { deleteVoice, listVoices, upsertVoice } = vi.hoisted(() => ({
   deleteVoice: vi.fn(async () => undefined),
-  listVoices: vi.fn(async (_opts: unknown): Promise<string[] | null> => []),
-  upsertVoice: vi.fn(async (_opts: unknown): Promise<string | undefined> => undefined),
+  listVoices: vi.fn<typeof import("../../io/voice/voices/tts-voices").listVoices>(async () => []),
+  upsertVoice: vi.fn<typeof import("../../io/voice/voices/tts-voices").upsertVoice>(
+    async () => undefined,
+  ),
 }));
 
 vi.mock("../../io/voice/voices/tts-voices", () => ({ deleteVoice, listVoices, upsertVoice }));
 
 const { deleteFishVoice, listFishVoices, upsertFishVoice } = vi.hoisted(() => ({
   deleteFishVoice: vi.fn(async () => undefined),
-  listFishVoices: vi.fn(
-    async (_opts: {
-      getApiKey: () => Promise<string | undefined>;
-    }): Promise<Array<{ id: string; label?: string }> | null> => [],
+  listFishVoices: vi.fn<typeof import("../../io/voice/voices/fish-voices").listFishVoices>(
+    async () => [],
   ),
   upsertFishVoice: vi.fn(async () => "model_9"),
 }));
@@ -36,13 +36,17 @@ const { pickVoiceFile, copyVoiceFile, removeOrphanImport, removeUserVoiceMock } 
   () => ({
     pickVoiceFile: vi.fn(),
     // The native copy files the clip under the id the desired name sanitizes to.
-    copyVoiceFile: vi.fn(async (_src: string, desired: string) => ({
-      id: desired,
-      label: desired,
-      ref_url: `asset://localhost/app-data/references/${desired}/clip.wav`,
-      source: "user" as const,
-    })),
-    removeOrphanImport: vi.fn(async (id: string, remove: (id: string) => Promise<void>) => {
+    copyVoiceFile: vi.fn<typeof import("../../io/voice/voices/voice-import").copyVoiceFile>(
+      async (_src, desired) => ({
+        id: desired,
+        label: desired,
+        ref_url: `asset://localhost/app-data/references/${desired}/clip.wav`,
+        source: "user" as const,
+      }),
+    ),
+    removeOrphanImport: vi.fn<
+      typeof import("../../io/assets/user-asset-import").removeOrphanImport
+    >(async (id, remove) => {
       await remove(id);
     }),
     removeUserVoiceMock: vi.fn(async () => undefined),
@@ -747,8 +751,8 @@ describe("wireAvatarSelection — voice list refresh", () => {
     const ttsKeySettings = createTtsKeySettings({ storage: { load: () => null, save: () => {} } });
     listFishVoices
       .mockReset()
-      .mockImplementation(async (opts: { getApiKey: () => Promise<string | undefined> }) =>
-        (await opts.getApiKey()) ? [{ id: "own1", label: "Own" }] : null,
+      .mockImplementation(async (opts) =>
+        (await opts.getApiKey?.()) ? [{ id: "own1", label: "Own" }] : null,
       );
     const { speaker } = wireAvatarSelection({
       renderer: {} as never,

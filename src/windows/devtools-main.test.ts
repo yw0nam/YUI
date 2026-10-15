@@ -7,7 +7,7 @@ const { wireDevtoolsSync, createConfigStore, initLogger, createLogger, log } = v
   return {
     wireDevtoolsSync: vi.fn(() => ({ reload: vi.fn(), dispose: vi.fn() })),
     createConfigStore: vi.fn(() => ({
-      load: vi.fn().mockResolvedValue({ endpoints: { chat_model_context_window: 1 } }),
+      load: vi.fn(async () => ({ endpoints: { chat_model_context_window: 1 } })),
     })),
     initLogger: vi.fn(async () => undefined),
     createLogger: vi.fn(() => log),

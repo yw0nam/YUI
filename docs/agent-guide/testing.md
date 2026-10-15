@@ -26,6 +26,6 @@ Read before writing or changing a test. These rules cover what review judges; li
 ## Mocks and outside services
 
 10. A YUI module a test replaces is passed in through a `deps` argument where the code takes one. `vi.mock` covers modules a test cannot pass in: `@tauri-apps/*`, `openai`, browser audio, WebGL.
-11. A `vi.mock` factory of a YUI module is typed against the real module: `vi.mocked(...)` on the imported binding, or `importOriginal<typeof import("...")>()` for a partial mock.
+11. A `vi.mock` factory of a YUI module is typed against the real module: `vi.mocked(...)` on the imported binding, `vi.fn<typeof import("...").name>(impl)` for a mock built in `vi.hoisted`, or `importOriginal<typeof import("...")>()` for a partial mock.
 12. A test that reaches a real service is a `*.live.test.ts` file gated by `YUI_LIVE=1` and the service's key. CI skips it.
 13. A mock's default behaviour is given in `vi.fn(impl)` or set in `beforeEach`. The config's `mockReset` runs before each test and erases an implementation or return value set on a mock at module level, including inside `vi.hoisted` and `vi.mock` factories.

@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { listVoices, upsertVoice, listFishVoices, upsertFishVoice } = vi.hoisted(() => ({
-  listVoices: vi.fn(async (_opts: unknown): Promise<string[] | null> => []),
-  upsertVoice: vi.fn(async (_opts: unknown): Promise<string | undefined> => undefined),
+  listVoices: vi.fn<typeof import("./tts-voices").listVoices>(async () => []),
+  upsertVoice: vi.fn<typeof import("./tts-voices").upsertVoice>(async () => undefined),
   listFishVoices: vi.fn(async () => []),
-  upsertFishVoice: vi.fn(async (_opts: unknown): Promise<string | undefined> => undefined),
+  upsertFishVoice: vi.fn<
+    (
+      ...args: Parameters<typeof import("./fish-voices").upsertFishVoice>
+    ) => Promise<string | undefined>
+  >(async () => undefined),
 }));
 vi.mock("./tts-voices", () => ({ listVoices, upsertVoice, deleteVoice: vi.fn() }));
 vi.mock("./fish-voices", () => ({
@@ -21,9 +25,11 @@ const { copyVoiceFile, pickVoiceFile, removeOrphanImport, removeUserVoice, renam
     copyVoiceFile: vi.fn(),
     renameUserVoice: vi.fn(),
     pickVoiceFile: vi.fn(),
-    removeOrphanImport: vi.fn(async (id: string, remove: (id: string) => Promise<void>) => {
-      await remove(id);
-    }),
+    removeOrphanImport: vi.fn<typeof import("../../assets/user-asset-import").removeOrphanImport>(
+      async (id, remove) => {
+        await remove(id);
+      },
+    ),
     removeUserVoice: vi.fn(async () => undefined),
   }));
 vi.mock("../../assets/user-asset-import", async (importOriginal) => ({
