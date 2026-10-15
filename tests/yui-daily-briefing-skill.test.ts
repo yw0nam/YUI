@@ -9,6 +9,8 @@ const SKILL_BODY = `${SKILL_DIR}/SKILL.md`;
 const CONTRACT = `${SKILL_DIR}/references/producer-contract.md`;
 const SCRIPT = `${SKILL_DIR}/scripts/briefing.py`;
 const GATHER = `${SKILL_DIR}/assets/fixtures/gather.json`;
+const SPOKEN = `${SKILL_DIR}/references/delivery/spoken.md`;
+const LINK = `${SKILL_DIR}/references/delivery/link.md`;
 
 function readText(relativePath: string): string {
   return readFileSync(join(ROOT, relativePath), "utf8");
@@ -57,7 +59,7 @@ describe("yui-daily-briefing skill files", () => {
       ].join("|"),
       "i",
     );
-    for (const name of [SKILL_BODY, CONTRACT, SCRIPT, GATHER]) {
+    for (const name of [SKILL_BODY, CONTRACT, SCRIPT, GATHER, SPOKEN, LINK]) {
       const text = readText(name);
       expect(`${name}: ${text.match(PRIVATE)?.[0] ?? "clean"}`).toBe(`${name}: clean`);
     }
@@ -78,6 +80,12 @@ describe("yui-daily-briefing skill files", () => {
     expect(text).toContain('| python3 "$SKILL_DIR/scripts/briefing.py" write --source ');
     expect(text).toContain('python3 "$SKILL_DIR/scripts/briefing.py" pending');
     expect(text).toContain('python3 "$SKILL_DIR/scripts/briefing.py" mark-spoken');
+    expect(text).toContain("references/delivery/spoken.md");
+    expect(text).toContain("references/delivery/link.md");
+  });
+
+  it("the link delivery publishes the spool and sets the link", () => {
+    const text = readText(LINK);
     expect(text).toContain('python3 "$SKILL_DIR/scripts/briefing.py" publish');
     expect(text).toContain("YUI_BRIEFING_LINK=");
   });
