@@ -679,6 +679,14 @@ describe("briefing.py page-check", () => {
     expect(failure(null)).toContain(PAGE);
   });
 
+  it("exits 2 when a slot escapes an entity twice", () => {
+    const doubled = FILLED.replace(
+      /(<!-- slot: intro:papers lang=en -->)([\s\S]*?)(<!-- \/slot -->)/,
+      '$1$2<a href="https://example.com/?a=1&amp;amp;b=2">twice</a>$3',
+    );
+    expect(failure(doubled)).toMatch(/escaped twice.*intro:papers lang=en/);
+  });
+
   it("exits 2 when the languages slot names no language", () => {
     const bare = FILLED.replace(
       /(<!-- slot: languages -->)[\s\S]*?(<!-- \/slot -->)/,
