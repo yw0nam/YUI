@@ -13,6 +13,7 @@ from urllib import request as urllib_request
 
 import desire_config
 import desire_events
+import desire_judgments
 import desire_outbox
 import desire_state
 import desire_store
@@ -22,6 +23,14 @@ GH_TIMEOUT = 60
 BATCH_INTERVAL = timedelta(hours=6)
 BATCH_LIMIT = 3
 NOTE_INTERVAL = timedelta(hours=6)
+LONELINESS = ("loneliness", "user")
+# Time since the last interaction at which each level begins; the last row is the upper bound.
+LONELINESS_AFTER = (
+    (timedelta(hours=12), "faint"),
+    (timedelta(hours=24), "some"),
+    (timedelta(hours=48), "strong"),
+    (timedelta(hours=72), "very strong"),
+)
 NO_WAKE_LINE = '{"wakeAgent": false}'
 SOURCE_OF = {"pr": "pr", "issue": "issue"}
 DELIVERED = {"pr": "pull request {url} was merged", "issue": "issue {url} was closed"}
@@ -383,7 +392,20 @@ def _record_comments(record: dict, observed: dict, now: datetime) -> list[tuple[
 
 
 def _default_gate_state() -> dict:
-    return {"batch": {"ids": [], "presented_at": []}, "notes_presented_at": None}
+    return {"batch": {"ids": [], "presented_at": []}, "notes_presented_at": None, "loneliness": None}
+
+
+def _normalize_loneliness(value: object) -> dict | None:
+    if value is None:
+        return None
+    if not isinstance(value, dict) or value["level"] not in desire_judgments.LEVELS:
+        raise ValueError("loneliness record must name a level")
+    written = value["written_at"]
+    return {
+        "since": desire_config.parse_timestamp(value["since"]).isoformat(),
+        "level": value["level"],
+        "written_at": None if written is None else desire_config.parse_timestamp(written).isoformat(),
+    }
 
 
 def _normalize_gate_state(value: object) -> dict:
@@ -400,6 +422,7 @@ def _normalize_gate_state(value: object) -> dict:
     return {
         "batch": {"ids": list(ids), "presented_at": presented},
         "notes_presented_at": None if notes is None else desire_config.parse_timestamp(notes).isoformat(),
+        "loneliness": _normalize_loneliness(value.get("loneliness")),
     }
 
 
@@ -446,6 +469,47 @@ def _held_notes_lines(
         return []
     gate_state["notes_presented_at"] = now.isoformat()
     return [f"{desire_config.WAKE_HELD_NOTES} ({len(eligible)})"]
+
+
+def loneliness_level(away: timedelta) -> str | None:
+    """Return the loneliness level that this much time since the last interaction reaches."""
+
+    reached = [level for after, level in LONELINESS_AFTER if away >= after]
+    return reached[-1] if reached else None
+
+
+def _loneliness_lines(
+    state_dir: Path, last_interaction_at: str, gate_state: dict, now: datetime
+) -> list[str]:
+    """Move loneliness toward the user with time away and decide wake case 3.
+
+    ``gate_state["loneliness"]`` holds the interaction time the levels count from, the highest level
+    reached since it, and when the gate last wrote the judgment.
+    """
+
+    record = gate_state["loneliness"]
+    held = desire_judgments.present(state_dir).get(LONELINESS)
+    if record is not None and record["since"] != last_interaction_at:
+        # An interaction puts down the judgment only while it is still the one the gate wrote.
+        if held is not None and held["at"] == record["written_at"]:
+            desire_judgments.judge(state_dir, *LONELINESS, None, [], "the user came back", now)
+            held = None
+        record = gate_state["loneliness"] = None
+    away = now - desire_config.parse_timestamp(last_interaction_at)
+    level = loneliness_level(away)
+    if level is None or LONELINESS[0] not in desire_judgments.registry(state_dir):
+        return []
+    rank = desire_judgments.LEVELS.index
+    if record is not None and rank(level) <= rank(record["level"]):
+        return []
+    record = gate_state["loneliness"] = {"since": last_interaction_at, "level": level, "written_at": None}
+    if held is not None and rank(held["level"]) >= rank(level):
+        return []
+    hours = int(away.total_seconds() // 3600)
+    reason = f"{hours}h since the last interaction"
+    desire_judgments.judge(state_dir, *LONELINESS, level, [], reason, now)
+    record["written_at"] = now.isoformat()
+    return [f"{desire_config.WAKE_LONELINESS} {level} ({reason})"]
 
 
 def run(now: datetime) -> str:
@@ -499,6 +563,7 @@ def run(now: datetime) -> str:
         gate_state = desire_store.load_normalized_json(path, _default_gate_state, _normalize_gate_state, now)
         lines = _unread_events_lines(state_dir, gate_state, now)
         lines.extend(_held_notes_lines(state_dir, budget, transport, gate_state, now))
+        lines.extend(_loneliness_lines(state_dir, state["drives"]["last_interaction_at"], gate_state, now))
         desire_store.write_json_atomic(path, gate_state)
 
         if not lines:
