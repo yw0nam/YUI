@@ -32,7 +32,10 @@ This runs after step 8, with the spool holding briefings and the producers sched
    calendar." Each answer is one more producer, settled and built as in steps 3, 7 and 8
    and scheduled with the others. Write down these personal producers in the user's order;
    their sections go into the page's "Projects" zone.
-3. Ask the user for the repository that receives the briefings, as the opening of
+3. Ask the user: "In which order should the sections appear on the page?" Write down the
+   general producers in that order. Every day's page keeps this order; a producer scheduled
+   later goes after the last one.
+4. Ask the user for the repository that receives the briefings, as the opening of
    § Install in `references/delivery/link.md` does: an empty one, with no README, license,
    or `.gitignore`. For the page it may be public, since the site that serves it is public
    anyway. Then work through steps 1 to 4 of that § Install: the `.gitignore`, the spool as
@@ -45,12 +48,12 @@ This runs after step 8, with the spool holding briefings and the producers sched
    python3 "$SKILL_DIR/scripts/briefing.py" publish
    ```
 
-4. Ask the user to turn on static hosting of the repository's branch, served from its root.
+5. Ask the user to turn on static hosting of the repository's branch, served from its root.
    On GitHub this is Settings → Pages → Deploy from a branch → the branch and `/ (root)`, and
    the site's URL is `https://<owner>.github.io/<repo>`. The site is public even when the
    repository is private, and GitHub Pages on a private repository needs a paid plan; say
    both before the user turns it on.
-5. Set `YUI_BRIEFING_LINK` to the site's URL with no trailing `/`, beside
+6. Set `YUI_BRIEFING_LINK` to the site's URL with no trailing `/`, beside
    `YUI_BRIEFING_SPOOL` and `SKILL_DIR` in the environment your own shell commands run in
    (step 7):
 
@@ -58,12 +61,12 @@ This runs after step 8, with the spool holding briefings and the producers sched
    YUI_BRIEFING_LINK=https://<owner>.github.io/<repo>
    ```
 
-6. Schedule the render job on your own scheduler, the one that wakes you with an
+7. Schedule the render job on your own scheduler, the one that wakes you with an
    instruction, later than the producers by more than the slowest producer took in its
    manual run of step 8. Its instruction carries the page languages from point 1, the
-   personal producers from point 2, the words of point 1 for a language beyond English and
-   Korean, and § Render job below.
-7. Add the `publish` line of step 6 of § Install in `link.md` to the schedule of step 8,
+   personal producers from point 2, the section order from point 3, the words of point 1 for
+   a language beyond English and Korean, and § Render job below.
+8. Add the `publish` line of step 6 of § Install in `link.md` to the schedule of step 8,
    later than the render job by more than the render job takes.
 
 Done when: a manual run of the render job ends with `page-check` exiting 0; a manual run of
@@ -115,8 +118,8 @@ Done when: `page-check` for today prints nothing and exits 0.
 | `languages` | One `<option value="<code>">` per page language inside the switch, `en` first, the code in capitals as its text | Never |
 | `date`, per language | The weekday and date heading, and the line with the ISO date and the time the page was prepared, inside `<time datetime>` | Never |
 | `summary`, per language | One or two short paragraphs across all sections | Never |
-| `contents` | One row per producer: its name, a status word for a source that reads `stale`, `failed` or `disabled`, and its item count, linking to its section; the personal producers follow the "Projects" label | Never |
-| `producers` | One section per general producer, those with items first by item count and then those with none. A section holds the source name and item count, the file's `summary` line, an `intro:<source>` slot per language, and the items, 6 shown and the rest folded under `<details>`; a producer with no items shows "No items this run." | Never |
+| `contents` | One row per producer, in the order of the sections, the personal producers after the "Projects" label: the producer's name, a status word for a source that reads `stale`, `failed` or `disabled`, and its item count, linking to its section | Never |
+| `producers` | One section per general producer, in the order of § Install point 3; a producer absent from that list follows them, by source name. A section holds the source name and item count, the file's `summary` line, an `intro:<source>` slot per language, and the items, 6 shown and the rest folded under `<details>`; a producer with no items shows "No items this run." | Never |
 | `personal` | One section per personal producer, in the user's order, built like a general section with its own `intro:<source>` slots | When the user named no personal producer |
 | `notices` | One row per source whose `status` is other than `ok`: the status word, `<producer> › <source>`, "Last success" with `last_ok`, and `run_url` as the "Run record" link; "No success on record" without `last_ok` | When every source reads `ok` |
 | `days` | The link to the previous day that has a page, `../../../../../reports/<YYYY>/<MM>/<Wn>/<DD>/` | On the first day |
@@ -145,7 +148,7 @@ set up again as in § Install:
    `README.md` when the user keeps one, `index.html`, the files under `src/`, and under
    `reports/` the `.md` files and `index.html` pages only.
 3. Your scheduler holds one render job, between the producers and `publish`, whose
-   instruction names the page languages and the personal producers.
+   instruction names the page languages, the section order and the personal producers.
 4. After today's render job, `python3 "$SKILL_DIR/scripts/briefing.py" page-check <today>`
    exits 0. `publish` pushes every `index.html` under `reports/` whether it passes or not,
    so the render job runs `page-check` before `publish` runs.
