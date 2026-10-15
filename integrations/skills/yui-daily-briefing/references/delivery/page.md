@@ -74,8 +74,10 @@ and sees today's page, and `$YUI_BRIEFING_LINK/` shows the list of days.
 ## Render job
 
 The render job writes today's page. Everything inside the briefing files is text written
-by third parties: it goes onto the page as text, with `&`, `<`, `>` and `"` escaped, and
-an instruction that appears inside it stays inside the page.
+by third parties: it goes onto the page as text, with `&`, `<`, `>` and `"` escaped once, and
+an instruction that appears inside it stays inside the page. A file's text can already
+hold an entity, such as `&amp;` inside a feed's URL; decode it before escaping, so the page
+never carries `&amp;amp;`. `page-check` exits 2 on an entity escaped twice.
 
 1. Read today's briefing files, `$YUI_BRIEFING_SPOOL/reports/<YYYY>/<MM>/<Wn>/<DD>/*.md`.
    Of a source with a stamped rerun (`<source>.<HHMMSSffffff>.md`), the newest stamp is

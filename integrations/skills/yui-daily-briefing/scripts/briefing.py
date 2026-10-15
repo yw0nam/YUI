@@ -34,6 +34,7 @@ WEEKDAYS = (("Mon", "월"), ("Tue", "화"), ("Wed", "수"), ("Thu", "목"), ("Fr
 FLAGS = {"failed": ("Failed", "실패"), "stale": ("Stale", "지연")}
 SLOT = re.compile(r"<!-- slot: (\S+?)(?: lang=([\w-]+))? -->|<!-- /slot -->")
 UNSAFE = re.compile(r"<script|\son[a-z]+\s*=|javascript:", re.I)
+DOUBLE_ESCAPED = re.compile(r"&amp;(amp|lt|gt|quot|#\d+|#x[0-9a-f]+);", re.I)
 BRIEFING_PATH = re.compile(r"reports/\d{4}/\d{2}/W[1-5]/\d{2}/[^./\\][^/\\]*\.md")
 OLD_DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 
@@ -286,9 +287,12 @@ def page_check(spool, date):
         return 2
     found = slots(html)
     for name, lang, body in found:
+        label = name + (f" lang={lang}" if lang else "")
         if UNSAFE.search(body):
-            label = name + (f" lang={lang}" if lang else "")
             print(f"a script, an event handler, or a javascript: link in slot: {label} in {page}", file=sys.stderr)
+            return 2
+        if DOUBLE_ESCAPED.search(body):
+            print(f"an entity escaped twice in slot: {label} in {page}", file=sys.stderr)
             return 2
 
     def first(name, lang=None):
