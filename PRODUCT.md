@@ -14,7 +14,7 @@ Job-to-be-done: a companion that is alive beside you. A character you can talk t
 
 ## Product Purpose
 
-Embodied frontend (head) for the selected backend (brain). Renders a VRM character as a desktop pet, senses input (text · voice · screen), speaks via TTS + lipsync, displays chat and a status pill (capture · voice · running tool), and *fires* proactive triggers — but **all judgment is delegated to the backend** (`firing ≠ judgment`).
+Embodied frontend (body) for the selected backend (brain). Renders a VRM character as a desktop pet, senses input (text · voice · screen), speaks via TTS + lipsync, displays chat and a status pill (capture · voice · running tool), and *fires* proactive triggers — but **all judgment is delegated to the backend** (`firing ≠ judgment`).
 
 Success looks like: **the UI stays out of the way and the character feels alive.** The user is not *operating* a chat app — they are *with* a character.
 

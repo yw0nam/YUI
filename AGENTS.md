@@ -1,6 +1,6 @@
 # YUI — Agent Guide
 
-> **YUI = embodied frontend (head) for the selected backend (brain).** VRM character rendering + desktop-pet behavior + I/O surfaces only. The brain (judgment · persona · agent loop) is **delegated to the backend**. This file orients you to the project; read it before touching any code.
+> **YUI = embodied frontend (body) for the selected backend (brain).** VRM character rendering + desktop-pet behavior + I/O surfaces only. The brain (judgment · persona · agent loop) is **delegated to the backend**. This file orients you to the project; read it before touching any code.
 
 ## Core Principle: firing ≠ judgment
 
