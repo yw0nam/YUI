@@ -37,7 +37,7 @@ You need a Mac with Apple Silicon or a Windows x64 PC, a coding agent (Claude Co
 2. Ask the agent to start her (`pnpm tauri dev`), or run that yourself in the YUI folder. The first start takes a few minutes, then she appears on your screen.
 3. Press `/` (or `Cmd/Ctrl+Shift+Y`) and say hello.
 
-To talk by voice, also set up speech recognition and a voice in **Settings → Connection** (right-click her to open Settings). You can change the chat model there too. OpenAI, Ollama, LM Studio, and Groq connect through Chat Completions, which needs a model that supports tool calling: for example `gpt-5-mini` on OpenAI, `qwen3` on Ollama, or `llama-3.3-70b-versatile` on Groq.
+To talk by voice, also set up speech recognition and a voice in **Settings → Connection** (right-click her to open Settings). You can change the chat model there too. OpenAI, Ollama, LM Studio, and Groq use the Chat Completions format, which needs a model with tool-calling support: for example `gpt-5-mini` on OpenAI, `qwen3` on Ollama, or `llama-3.3-70b-versatile` on Groq.
 
 ## What she does
 
@@ -63,7 +63,7 @@ She greets you at set times, checks in after you have been idle, and, if you tur
 
 ## How it works
 
-YUI is the body; the model or agent you plug in is the brain. YUI notices moments worth reacting to (you sending a message, going idle, switching apps) and hands them to the brain, which decides whether and what to say. YUI then gives that answer a face, a voice, and a gesture.
+YUI is the body; the model or agent you plug in is the brain. YUI notices what happens (you sending a message, going idle, switching apps) and passes it to the brain, which decides whether and what to say. YUI then gives that answer a face, a voice, and a gesture.
 
 ## Bring your own brain
 

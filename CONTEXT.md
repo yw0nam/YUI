@@ -56,13 +56,13 @@ The placeholder user-content text on turns with no real user utterance.
 The per-turn JSON block of environment + trigger state the client injects ahead of the utterance.
 
 **Expression Broker**:
-The MCP where the head publishes its renderable emotion/motion/emotion_text vocabulary; the brain reads it to know what it can cue.
+The MCP where the body publishes its renderable emotion/motion/emotion_text vocabulary; the brain reads it to know what it can cue.
 _Avoid_: bare "broker", message broker
 
 ### Presence & body
 
 **Posture**:
-The character's current physical state: `standing`, `sitting`, `peeking`, `dragging`, `walking`, or `climbing`. Sent to the brain as context.
+The character's current physical state: `standing`, `sitting`, `peeking`, `dragging`, `walking`, or `climbing`. Sent to the brain as context on the `body:` line.
 _Avoid_: state, pose, stance
 
 **Perch**:
