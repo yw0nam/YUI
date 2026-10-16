@@ -18,7 +18,7 @@
 </div>
 
 - **She lives on your desktop.** A VRM character of your choice stands on top of your windows, follows the cursor with her eyes, and walks, sits, and jumps between them.
-- **You pick her mind.** Plug in a local model, a hosted API, or your own agent. Her smarts and personality come from what you connect.
+- **You choose her brain.** A local model, a hosted API, or your own agent: whatever you plug in thinks for her, so her smarts and personality are up to you.
 - **She speaks first, with restraint.** She greets you, checks in when you go quiet, and notices what you are doing, then stays silent when there is nothing worth saying.
 
 *Named after [Yui from* Sword Art Online*](https://swordartonline.fandom.com/wiki/Yui): an AI who stopped being a program and became someone you come home to.*
@@ -51,7 +51,7 @@ She perches on a window top, peeks around a side edge, strolls the floor and win
 
 <img src="docs/public/yui-feature-cues.jpg" alt="YUI laughing with a hand over her mouth and her eyes closed in a happy expression, above a speech bubble that reads: The build passed. Want me to open the pull request for review?" width="360">
 
-The AI you connect picks an expression, a gesture, and a tone of voice for each reply, so she laughs, sulks, or gets embarrassed instead of only printing text. Her mouth moves with her speech, and she reacts when you tap or pat her.
+Her brain picks an expression, a gesture, and a tone of voice for each reply, so she laughs, sulks, or gets embarrassed instead of only printing text. Her mouth moves with her speech, and she reacts when you tap or pat her.
 
 ### She speaks first, with restraint
 
@@ -63,7 +63,7 @@ She greets you at set times, checks in after you have been idle, and, if you tur
 
 ## How it works
 
-YUI is the body; the AI you connect is the mind. YUI notices moments worth reacting to (you sending a message, going idle, switching apps) and hands them to the AI, which decides whether and what to say. YUI then gives that answer a face, a voice, and a gesture.
+YUI is the body; the model or agent you plug in is the brain. YUI notices moments worth reacting to (you sending a message, going idle, switching apps) and hands them to the brain, which decides whether and what to say. YUI then gives that answer a face, a voice, and a gesture.
 
 ## Bring your own brain
 
