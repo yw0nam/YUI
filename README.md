@@ -6,118 +6,75 @@
 
 *Not a chatbot in a tab. A character who is actually there — standing on your window, watching the cursor, talking when she has something to say.*
 
-![CI](https://github.com/yw0nam/YUI/actions/workflows/ci.yml/badge.svg)
-![Tauri v2](https://img.shields.io/badge/Tauri-v2-24C8DB?logo=tauri&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
-![three.js](https://img.shields.io/badge/three.js-000000?logo=three.js&logoColor=white)
 [![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-blue)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-yw0nam.github.io%2FYUI-8A63D2)](https://yw0nam.github.io/YUI/)
+[![Discussions](https://img.shields.io/github/discussions/yw0nam/YUI?logo=github)](https://github.com/yw0nam/YUI/discussions)
+[![CI](https://github.com/yw0nam/YUI/actions/workflows/ci.yml/badge.svg)](https://github.com/yw0nam/YUI/actions/workflows/ci.yml)
 
-English | [日本語](README.ja.md)
+[Quickstart](#quickstart) · [Demo video](https://youtu.be/dIOQdoAp0GE) · [Docs](https://yw0nam.github.io/YUI/) · [Discussions](https://github.com/yw0nam/YUI/discussions) · [日本語](README.ja.md)
 
-<a href="https://youtu.be/dIOQdoAp0GE"><img src="docs/public/yui-hero.gif" alt="YUI — a VRM character standing over a browser window as a transparent, always-on-top overlay: her head and eyes follow the mouse cursor, then she answers a typed question about what is on screen in a speech bubble" width="820">
-
-</a>
-
-[▶ Watch the full demo](https://youtu.be/dIOQdoAp0GE)
+<a href="https://youtu.be/dIOQdoAp0GE"><img src="docs/public/yui-hero.gif" alt="YUI — a VRM character standing over a browser window as a transparent, always-on-top overlay: her head and eyes follow the mouse cursor, then she answers a typed question about what is on screen in a speech bubble" width="820"></a>
 
 </div>
 
-## Why this exists
+- **She lives on your desktop.** A VRM character of your choice stands on top of your windows, follows the cursor with her eyes, and walks, sits, and jumps between them.
+- **You pick her mind.** Plug in a local model, a hosted API, or your own agent. She is as smart and as *yours* as what you connect.
+- **She speaks first, with restraint.** She greets you, checks in when you go quiet, and notices what you are doing, then stays silent when there is nothing worth saying.
 
-The name is not an accident. YUI is named after
-[Yui from *Sword Art Online*](https://swordartonline.fandom.com/wiki/Yui) — an
-AI who stopped being a program and became someone Kirito and Asuna came home
-to. That is the destination of this repo: a companion who lives *with* you on
-your desktop, with a body, a voice, moods, and a mind of her own — not an
-assistant you summon and dismiss.
-
-Everything here serves that one goal:
-
-- **She has a body.** A VRM model you choose — any character, any look — rendered
-in a transparent overlay on top of whatever you are doing.
-- **She lives on the desktop, not in a window.** She perches on the top edge of
-your browser, follows the mouse with her eyes, breathes, blinks, sways, and
-moves out of the way when you need the screen.
-- **She has a voice and a face.** Speech in, speech out, and emotion/motion cues
-that make her react instead of just answer.
-- **She has a mind, and you pick it.** YUI ships no embedded model. Bring any
-OpenAI-compatible backend — a full agent like
-[Hermes](https://github.com/nousresearch/hermes-agent) or a bare model
-endpoint — and she is exactly as smart, as opinionated, and as *yours* as what
-you plug in.
-
-The character owns the screen; chrome stays out of the way and only appears when
-there is something to show, then steps back. *Invisible by default, warm when
-present.*
-
-## Requirements
-
-| Need | Detail |
-| --- | --- |
-| Desktop | macOS on Apple Silicon, or Windows x64 |
-| Chat backend | An OpenAI or Groq API key, a running [Ollama](https://ollama.com) or [LM Studio](https://lmstudio.ai), or your own agent on the Responses API or the push WebSocket |
-| Chat model | Tool calling in the default Chat Completions mode, since YUI always declares its `generate_express` tool (`src/io/chat/tools/client-tools.ts`): [`gpt-5-mini`](https://platform.openai.com/docs/models/gpt-5-mini) on OpenAI, [`qwen3`](https://ollama.com/library/qwen3) on Ollama (pull it first with `ollama pull qwen3`), [`llama-3.3-70b-versatile`](https://console.groq.com/docs/tool-use) on Groq |
-| Voice | Optional: a TTS and an STT provider from [Supported providers](#supported-providers) |
-| Building from source | Git, pnpm with Node, Rust, and the Xcode Command Line Tools on macOS or the MSVC build tools and WebView2 on Windows; the [install guide](docs/guide/install.md) sets them up |
+*Named after [Yui from* Sword Art Online*](https://swordartonline.fandom.com/wiki/Yui): an AI who stopped being a program and became someone you come home to.*
 
 ## Quickstart
 
-Paste this into any coding agent (Claude Code, Codex, OpenCode, Cursor):
+You need a Mac with Apple Silicon or a Windows x64 PC, a coding agent (Claude Code, Codex, OpenCode, Cursor), and a chat model: an OpenAI or Groq API key, or [Ollama](https://ollama.com) or [LM Studio](https://lmstudio.ai) running locally.
 
-```text
-Install https://github.com/yw0nam/YUI following https://raw.githubusercontent.com/yw0nam/YUI/main/docs/guide/install.md
-```
+1. Paste this into your coding agent:
 
-The agent installs the toolchain, clones the repo, wires the backend you name, and hands you `pnpm tauri dev`.
+   ```text
+   Install https://github.com/yw0nam/YUI following https://raw.githubusercontent.com/yw0nam/YUI/main/docs/guide/install.md
+   ```
 
-No agent at hand? Grab the macOS (Apple Silicon) `.dmg` or the Windows x64 installer from the [latest release](https://github.com/yw0nam/YUI/releases/latest). The builds are unsigned: open the app once, and when macOS blocks it, allow it under **System Settings → Privacy & Security → Open Anyway**.
+   It installs the tools, connects the chat model you name, and checks that the model works with YUI.
+2. Start her with `pnpm tauri dev` in the folder the agent set up. The first start takes a few minutes, then she appears on your screen.
+3. Press `/` (or `Cmd/Ctrl+Shift+Y`) and say hello.
 
-**First chat:**
+To change the model later, right-click her and open **Settings → Connection**. The model has to support tool calling: for example `gpt-5-mini` on OpenAI, `qwen3` on Ollama, or `llama-3.3-70b-versatile` on Groq.
 
-1. Right-click the character to open Settings, and switch to the **Connection** tab (plug icon).
-2. In the Chat section, pick a **Provider** preset: OpenAI, Ollama, LM Studio, or Groq. The preset fills in the endpoint URL.
-3. Fill in **Chat model** with a tool-calling model (see [Requirements](#requirements)), and **Chat API key** for OpenAI or Groq.
-4. Close the panel, press `/` (or `Cmd/Ctrl+Shift+Y`) to open the text input, and send a message.
-
-## Features
+## What she does
 
 ### She lives on your windows
 
 <img src="docs/public/yui-locomotion.gif" alt="YUI walking along the bottom of the screen, climbing the side of the screen, jumping onto a window top and sitting on its edge, and falling to the floor after being dropped in mid-air" width="720">
 
-She perches on a window top, peeks around a side edge, strolls the floor and window
-tops, and jumps between windows. Dropped in mid-air, she falls to the first surface
-below and lands. Climbing a window side or a screen edge onto the monitor above is
-in development and carries that label in the app.
+She perches on a window top, peeks around a side edge, strolls the floor and window tops, and jumps between windows. Drop her in mid-air and she falls to the first surface below and lands.
 
-### Any backend, embodied through structured cues
+### She reacts with her face, body, and voice
 
 <img src="docs/public/yui-feature-cues.jpg" alt="YUI laughing with a hand over her mouth and her eyes closed in a happy expression, above a speech bubble that reads: The build passed. Want me to open the pull request for review?" width="360">
 
-YUI talks to an OpenAI-compatible Chat Completions endpoint, a Responses API agent,
-or a backend on the push WebSocket. Emotion, motion, voice tag, and caption arrive
-as `generate_express` cues beside the reply text.
+Your backend picks an expression, a gesture, and a tone of voice for each reply, so she laughs, sulks, or gets embarrassed instead of only printing text. Her mouth moves with her speech, and she reacts when you tap or pat her.
 
 ### She speaks first, with restraint
 
 <img src="docs/public/yui-feature-proactive.png" alt="The Proactive settings tab: screen watch, loop reactions after 5, 10, and 30 minutes of inactivity, scheduled greetings at 09:00, 12:00, 18:00, and 23:00, a 10-minute proactive gap, and hourly limits of 24 cues and 40 self-started turns" width="400">
 
-Scheduled greetings, idle check-ins, screen-watch cues, the first activity of the
-day, and external `/signals` each open a turn. Debounce, hourly
-caps, and a quiet gap after each turn pace them, and the backend answers any cue
-with silence when it chooses.
+She greets you at set times, checks in after you have been idle, and can notice when you switch apps. Hourly limits and a quiet gap keep her from talking too much, and she says nothing when nothing is worth saying.
 
-Everything else, from lipsync and touch reactions to Mods and the witness log, is in the [feature list](docs/guide/features.md).
+**And more:** voice chat you can interrupt, image attachments, a chat history, English, Japanese, and Korean UI, and tools your agent can use on your computer. See the [full feature list](docs/guide/features.md).
 
-## Supported providers
+## Bring your own brain
 
-The Connection tab in Settings selects each provider. The
-[wiring guide](docs/guide/getting-started.md) covers the setup. To request a
-provider the tables leave out, open a
-[feature issue](https://github.com/yw0nam/YUI/issues/new?template=feature_task.md)
-or send a PR.
+YUI ships no model of its own. Pick each provider in **Settings → Connection**.
 
-### Chat
+| | Providers |
+| --- | --- |
+| Chat | OpenAI · Ollama · LM Studio · Groq · [Hermes Agent](integrations/hermes/README.md) · any OpenAI-compatible endpoint |
+| Voice (TTS) | [Irodori](https://github.com/Aratako/Irodori-TTS-Server) (Japanese) · OpenAI · [Fish Audio](https://fish.audio/) |
+| Speech recognition | Any OpenAI-compatible transcription endpoint · Groq |
+
+<details>
+<summary>Provider details</summary>
+
+#### Chat
 
 | Provider | Protocol (`chat_api`) | Hosting | Example model |
 | --- | --- | --- | --- |
@@ -128,7 +85,7 @@ or send a PR.
 | [Hermes Agent](integrations/hermes/README.md) | `push`, `responses` | Self-hosted | The model the agent runs |
 | Custom endpoint | `chat_completions`, `responses`, `push` | Any server that speaks the protocol | Tool-calling model on `chat_completions` |
 
-### TTS
+#### TTS
 
 | Provider | Hosting | Default model | Voices |
 | --- | --- | --- | --- |
@@ -136,48 +93,52 @@ or send a PR.
 | OpenAI | Hosted, API key | `gpt-4o-mini-tts` | 13 built-in voices |
 | [Fish Audio](https://fish.audio/) | Hosted, API key | `s2.1-pro-free` | Your account's voice models, imported clips, and any library voice id |
 
-### STT
+#### STT
 
 | Provider | Hosting | Setup |
 | --- | --- | --- |
 | Any OpenAI-compatible transcription endpoint (`/audio/transcriptions`) | Local or hosted | `stt_base_url` |
 | Groq | Hosted, API key | `stt_base_url` and `stt_model`, for example `whisper-large-v3-turbo` |
 
+The [wiring guide](docs/guide/getting-started.md) covers each setup. Missing a provider? Ask in [Discussions](https://github.com/yw0nam/YUI/discussions) or send a PR.
+
+</details>
+
 ## How it works
 
-YUI is the body; the backend is the mind. The client never decides *what* to
-say — it renders whatever text arrives, and silence is just empty text. What the
-client does is notice moments worth reacting to (you typing, going idle, an app
-coming to focus) and hand them to the agent, which decides whether and how to
-respond.
+YUI is the body; your backend is the mind. YUI notices moments worth reacting to (you typing, going idle, switching apps) and hands them to the backend, which decides whether and what to say. YUI then gives that answer a face, a voice, and a gesture.
 
 ## Known limitations
 
-- Official builds target macOS on Apple Silicon and Windows x64; Intel Macs and Linux are not officially supported.
-- Release builds are unsigned, so macOS asks you to allow the app once (see [Quickstart](#quickstart)).
-- Climbing up window sides and onto the monitor above carries an in-development label in the app.
+- Supported on macOS with Apple Silicon and Windows x64. Intel Macs and Linux are not officially supported.
+- The installers on the Releases page are early and unsigned; installing with a coding agent is the supported path.
+- Climbing up window sides and onto the monitor above is marked as in development in the app.
 - Irodori TTS speaks Japanese only.
 
 ## Documentation
 
-- [Feature list](docs/guide/features.md)
-- [Controls](docs/guide/controls.md): keyboard, mouse, and tray
-- [What she can do](docs/guide/capabilities.md)
-- [Install with a coding agent](docs/guide/install.md)
-- [Install and wiring guide](docs/guide/getting-started.md): chat backend, Expression Broker (deprecated, removed in v0.6.0), TTS, STT, your own VRM
-- [Build, run, and logs](docs/agent-guide/build-run.md)
-- [Project structure and stack](docs/agent-guide/project-structure.md)
-- [`generate_express` cue contract](docs/reference/client-context.md)
-- [`AGENTS.md`](AGENTS.md): orientation for coding agents working on this repo
-- [`CONTEXT.md`](CONTEXT.md): glossary — the canonical vocabulary (head / brain, firing, express cues)
-- [`CONTRIBUTING.md`](CONTRIBUTING.md)
+**Using YUI**
 
-## Support
+- [Feature list](docs/guide/features.md) · [Controls](docs/guide/controls.md) · [What she can do](docs/guide/capabilities.md)
+- [Install with a coding agent](docs/guide/install.md) · [Wiring guide](docs/guide/getting-started.md): chat, voice, your own VRM
 
-- Bugs and feature requests: [open an issue](https://github.com/yw0nam/YUI/issues/new/choose) from the bug or feature template.
-- How YUI is meant to behave: [`PRODUCT.md`](PRODUCT.md) and the [documentation](#documentation).
+**Developing YUI**
+
+- [Build, run, and logs](docs/agent-guide/build-run.md) · [Project structure](docs/agent-guide/project-structure.md) · [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- [`AGENTS.md`](AGENTS.md) for coding agents · [`CONTEXT.md`](CONTEXT.md) glossary · [Backend contract](docs/reference/client-context.md)
+
+## Community
+
+- Questions, ideas, and show-and-tell: [GitHub Discussions](https://github.com/yw0nam/YUI/discussions)
+- Bugs and feature requests: [open an issue](https://github.com/yw0nam/YUI/issues/new/choose)
+- If YUI made your desktop a little warmer, a ⭐ helps others find her.
 
 ## Credits
+
+Motions come from [Mate Engine](https://github.com/shinyflvre/Mate-Engine) by Shiny, necocoya's [EmoteSet_Free_v130](https://booth.pm/ja/items/1065089), and [Mixamo](https://www.mixamo.com/). The default character is **Sendagaya Shino** by [pixiv Inc.](https://vroid.pixiv.help/hc/en-us/articles/360013482714), converted to VRM 1.0 by [Coatie](https://hub.vroid.com/en/characters/4593660874193246717).
+
+<details>
+<summary>Full asset credits and terms</summary>
 
 The motion assets (`public/motions/*.vrma`) come from three sources.
 
@@ -206,6 +167,8 @@ Project, CC0), converted to VRM 1.0 by
 license requires attribution — see
 [`resources/vrms/Sendagaya_Shino.PROVENANCE.md`](resources/vrms/Sendagaya_Shino.PROVENANCE.md)
 for the full notice.
+
+</details>
 
 ## License
 
