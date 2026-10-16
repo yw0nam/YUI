@@ -50,6 +50,16 @@ The character owns the screen; chrome stays out of the way and only appears when
 there is something to show, then steps back. *Invisible by default, warm when
 present.*
 
+## Requirements
+
+| Need | Detail |
+| --- | --- |
+| Desktop | macOS on Apple Silicon, or Windows x64 |
+| Chat backend | An OpenAI or Groq API key, a running [Ollama](https://ollama.com) or [LM Studio](https://lmstudio.ai), or your own agent on the Responses API or the push WebSocket |
+| Chat model | Tool calling in the default Chat Completions mode, since YUI always declares its `generate_express` tool (`src/io/chat/tools/client-tools.ts`): [`gpt-5-mini`](https://platform.openai.com/docs/models/gpt-5-mini) on OpenAI, [`qwen3`](https://ollama.com/library/qwen3) on Ollama (pull it first with `ollama pull qwen3`), [`llama-3.3-70b-versatile`](https://console.groq.com/docs/tool-use) on Groq |
+| Voice | Optional: a TTS and an STT provider from [Supported providers](#supported-providers) |
+| Building from source | Git, pnpm with Node, Rust, and the Xcode Command Line Tools on macOS or the MSVC build tools and WebView2 on Windows; the [install guide](docs/guide/install.md) sets them up |
+
 ## Quickstart
 
 Paste this into any coding agent (Claude Code, Codex, OpenCode, Cursor):
@@ -60,11 +70,14 @@ Install https://github.com/yw0nam/YUI following https://raw.githubusercontent.co
 
 The agent installs the toolchain, clones the repo, wires the backend you name, and hands you `pnpm tauri dev`.
 
-No agent at hand? Grab the macOS (Apple Silicon) `.dmg` or the Windows x64 installer from the [latest release](https://github.com/yw0nam/YUI/releases/latest). The builds are unsigned: open the app once, and when macOS blocks it, allow it under **System Settings → Privacy & Security → Open Anyway**. Official builds target macOS on Apple Silicon and Windows x64; Intel Macs and Linux are not officially supported.
+No agent at hand? Grab the macOS (Apple Silicon) `.dmg` or the Windows x64 installer from the [latest release](https://github.com/yw0nam/YUI/releases/latest). The builds are unsigned: open the app once, and when macOS blocks it, allow it under **System Settings → Privacy & Security → Open Anyway**.
 
-**First chat:** right-click the character to open Settings, switch to the **Connection** tab (plug icon), and pick a **Provider** preset in the Chat section, fill in **Chat model** (and **Chat API key** for OpenAI or Groq), close the panel, press `/` (or `Cmd/Ctrl+Shift+Y`) to open the text input, and send a message.
-The preset — OpenAI, Ollama, LM Studio, or Groq — autofills the endpoint URL; the prerequisite is a running [Ollama](https://ollama.com) or [LM Studio](https://lmstudio.ai), or an OpenAI or Groq API key.
-The default Chat Completions mode needs a model with tool calling, since YUI always declares its `generate_express` tool (`src/io/chat/tools/client-tools.ts`): [`gpt-5-mini`](https://platform.openai.com/docs/models/gpt-5-mini) on OpenAI, [`qwen3`](https://ollama.com/library/qwen3) on Ollama (pull it first with `ollama pull qwen3`), [`llama-3.3-70b-versatile`](https://console.groq.com/docs/tool-use) on Groq.
+**First chat:**
+
+1. Right-click the character to open Settings, and switch to the **Connection** tab (plug icon).
+2. In the Chat section, pick a **Provider** preset: OpenAI, Ollama, LM Studio, or Groq. The preset fills in the endpoint URL.
+3. Fill in **Chat model** with a tool-calling model (see [Requirements](#requirements)), and **Chat API key** for OpenAI or Groq.
+4. Close the panel, press `/` (or `Cmd/Ctrl+Shift+Y`) to open the text input, and send a message.
 
 ## Features
 
@@ -138,6 +151,13 @@ client does is notice moments worth reacting to (you typing, going idle, an app
 coming to focus) and hand them to the agent, which decides whether and how to
 respond.
 
+## Known limitations
+
+- Official builds target macOS on Apple Silicon and Windows x64; Intel Macs and Linux are not officially supported.
+- Release builds are unsigned, so macOS asks you to allow the app once (see [Quickstart](#quickstart)).
+- Climbing up window sides and onto the monitor above carries an in-development label in the app.
+- Irodori TTS speaks Japanese only.
+
 ## Documentation
 
 - [Feature list](docs/guide/features.md)
@@ -151,6 +171,11 @@ respond.
 - [`AGENTS.md`](AGENTS.md): orientation for coding agents working on this repo
 - [`CONTEXT.md`](CONTEXT.md): glossary — the canonical vocabulary (head / brain, firing, express cues)
 - [`CONTRIBUTING.md`](CONTRIBUTING.md)
+
+## Support
+
+- Bugs and feature requests: [open an issue](https://github.com/yw0nam/YUI/issues/new/choose) from the bug or feature template.
+- How YUI is meant to behave: [`PRODUCT.md`](PRODUCT.md) and the [documentation](#documentation).
 
 ## Credits
 

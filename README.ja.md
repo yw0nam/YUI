@@ -48,6 +48,16 @@
 画面の主役はキャラクターです。UIは邪魔にならないよう控えていて、見せるものが
 あるときだけ現れ、終わればまた下がります。*ふだんは見えず、現れるときは温かく。*
 
+## 動作要件
+
+| 項目 | 内容 |
+| --- | --- |
+| デスクトップ | Apple Silicon搭載のmacOS、またはWindows x64 |
+| チャットバックエンド | OpenAIかGroqのAPIキー、起動中の[Ollama](https://ollama.com)か[LM Studio](https://lmstudio.ai)、またはResponses APIかプッシュWebSocketで動く自前のエージェント |
+| チャットモデル | 既定のChat Completionsモードではツール呼び出し(tool calling)に対応したモデルが必要です。YUIは常に `generate_express` ツールを宣言するためです(`src/io/chat/tools/client-tools.ts`)。OpenAIなら[`gpt-5-mini`](https://platform.openai.com/docs/models/gpt-5-mini)、Ollamaなら[`qwen3`](https://ollama.com/library/qwen3)(先に `ollama pull qwen3` で取得してください)、Groqなら[`llama-3.3-70b-versatile`](https://console.groq.com/docs/tool-use) |
+| 音声 | 任意。[対応プロバイダー](#対応プロバイダー)のTTSとSTT |
+| ソースからのビルド | Git、pnpm(Node)、Rust、macOSではXcode Command Line Tools、WindowsではMSVCビルドツールとWebView2。[インストールガイド](docs/guide/install.md)で準備できます |
+
 ## クイックスタート
 
 次の文を、お使いのコーディングエージェント(Claude Code、Codex、OpenCode、Cursor)に貼り付けてください。
@@ -58,11 +68,14 @@ Install https://github.com/yw0nam/YUI following https://raw.githubusercontent.co
 
 エージェントがツールチェーンをインストールし、リポジトリをクローンし、指定したバックエンドを接続して、`pnpm tauri dev` を実行できる状態にしてくれます。
 
-エージェントが手元にない場合は、[最新リリース](https://github.com/yw0nam/YUI/releases/latest)からmacOS(Apple Silicon)用の `.dmg`、またはWindows x64用インストーラーを入手してください。ビルドは署名されていません。アプリを一度開き、macOSにブロックされたら **システム設定 → プライバシーとセキュリティ → このまま開く** で許可してください。公式ビルドの対象はApple Silicon搭載のmacOSとWindows x64です。Intel MacとLinuxは公式にはサポートしていません。
+エージェントが手元にない場合は、[最新リリース](https://github.com/yw0nam/YUI/releases/latest)からmacOS(Apple Silicon)用の `.dmg`、またはWindows x64用インストーラーを入手してください。ビルドは署名されていません。アプリを一度開き、macOSにブロックされたら **システム設定 → プライバシーとセキュリティ → このまま開く** で許可してください。
 
-**はじめての会話:** キャラクターを右クリックして設定を開き、**接続** タブ(プラグのアイコン)に切り替え、チャットセクションで **プロバイダー** のプリセットを選び、**チャットモデル** を入力します(OpenAIまたはGroqの場合は **チャット API キー** も入力します)。パネルを閉じ、`/`(または `Cmd/Ctrl+Shift+Y`)を押してテキスト入力を開き、メッセージを送信してください。
-プリセットはOpenAI、Ollama、LM Studio、Groqの4つで、エンドポイントURLが自動で入力されます。前提として、[Ollama](https://ollama.com)か[LM Studio](https://lmstudio.ai)が起動していること、またはOpenAIかGroqのAPIキーが必要です。
-既定のChat Completionsモードでは、ツール呼び出し(tool calling)に対応したモデルが必要です。YUIは常に `generate_express` ツールを宣言するためです(`src/io/chat/tools/client-tools.ts`)。OpenAIなら[`gpt-5-mini`](https://platform.openai.com/docs/models/gpt-5-mini)、Ollamaなら[`qwen3`](https://ollama.com/library/qwen3)(先に `ollama pull qwen3` で取得してください)、Groqなら[`llama-3.3-70b-versatile`](https://console.groq.com/docs/tool-use)が使えます。
+**はじめての会話:**
+
+1. キャラクターを右クリックして設定を開き、**接続** タブ(プラグのアイコン)に切り替えます。
+2. チャットセクションで **プロバイダー** のプリセット(OpenAI、Ollama、LM Studio、Groq)を選びます。エンドポイントURLは自動で入力されます。
+3. **チャットモデル** にツール呼び出し対応のモデル([動作要件](#動作要件)を参照)を入力し、OpenAIまたはGroqの場合は **チャット API キー** も入力します。
+4. パネルを閉じ、`/`(または `Cmd/Ctrl+Shift+Y`)を押してテキスト入力を開き、メッセージを送信してください。
 
 ## 機能
 
@@ -136,6 +149,13 @@ YUIは体で、バックエンドは心です。クライアントが*何を*話
 操作が止まった、アプリがフォーカスされた)に気づいてエージェントに渡すことで、
 応えるかどうか、どう応えるかはエージェントが決めます。
 
+## 既知の制限
+
+- 公式ビルドの対象はApple Silicon搭載のmacOSとWindows x64です。Intel MacとLinuxは公式にはサポートしていません。
+- リリースビルドは署名されていないため、macOSでは初回に許可が必要です([クイックスタート](#クイックスタート)を参照)。
+- ウィンドウの側面や上のモニターへのよじ登りは、アプリ内で開発中と表示されます。
+- Irodori TTSは日本語のみ話します。
+
 ## ドキュメント
 
 - [機能一覧](docs/guide/features.md)
@@ -149,6 +169,11 @@ YUIは体で、バックエンドは心です。クライアントが*何を*話
 - [`AGENTS.md`](AGENTS.md): このリポジトリで作業するコーディングエージェント向けの案内
 - [`CONTEXT.md`](CONTEXT.md): 用語集。正式な用語(head / brain、firing、express cues)
 - [`CONTRIBUTING.md`](CONTRIBUTING.md)
+
+## サポート
+
+- バグ報告や機能要望: バグまたは機能のテンプレートから[Issueを作成](https://github.com/yw0nam/YUI/issues/new/choose)してください。
+- YUIが本来どう振る舞うか: [`PRODUCT.md`](PRODUCT.md)と[ドキュメント](#ドキュメント)を参照してください。
 
 ## クレジット
 
