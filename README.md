@@ -18,7 +18,7 @@
 </div>
 
 - **She lives on your desktop.** A VRM character of your choice stands on top of your windows, follows the cursor with her eyes, and walks, sits, and jumps between them.
-- **You pick her mind.** Plug in a local model, a hosted API, or your own agent. She is as smart and as *yours* as what you connect.
+- **You pick her mind.** Plug in a local model, a hosted API, or your own agent. Her smarts and personality come from what you connect.
 - **She speaks first, with restraint.** She greets you, checks in when you go quiet, and notices what you are doing, then stays silent when there is nothing worth saying.
 
 *Named after [Yui from* Sword Art Online*](https://swordartonline.fandom.com/wiki/Yui): an AI who stopped being a program and became someone you come home to.*
@@ -33,11 +33,11 @@ You need a Mac with Apple Silicon or a Windows x64 PC, a coding agent (Claude Co
    Install https://github.com/yw0nam/YUI following https://raw.githubusercontent.com/yw0nam/YUI/main/docs/guide/install.md
    ```
 
-   It installs the tools, connects the chat model you name, and checks that the model works with YUI.
-2. Start her with `pnpm tauri dev` in the folder the agent set up. The first start takes a few minutes, then she appears on your screen.
+   It installs what YUI needs, connects your chat model, and checks that it works, asking you only for what it cannot find, such as an API key.
+2. Ask the agent to start her (`pnpm tauri dev`), or run that yourself in the YUI folder. The first start takes a few minutes, then she appears on your screen.
 3. Press `/` (or `Cmd/Ctrl+Shift+Y`) and say hello.
 
-To change the model later, right-click her and open **Settings → Connection**. The model has to support tool calling: for example `gpt-5-mini` on OpenAI, `qwen3` on Ollama, or `llama-3.3-70b-versatile` on Groq.
+To talk by voice, also set up speech recognition and a voice in **Settings → Connection** (right-click her to open Settings). You can change the chat model there too. OpenAI, Ollama, LM Studio, and Groq connect through Chat Completions, which needs a model that supports tool calling: for example `gpt-5-mini` on OpenAI, `qwen3` on Ollama, or `llama-3.3-70b-versatile` on Groq.
 
 ## What she does
 
@@ -51,15 +51,19 @@ She perches on a window top, peeks around a side edge, strolls the floor and win
 
 <img src="docs/public/yui-feature-cues.jpg" alt="YUI laughing with a hand over her mouth and her eyes closed in a happy expression, above a speech bubble that reads: The build passed. Want me to open the pull request for review?" width="360">
 
-Your backend picks an expression, a gesture, and a tone of voice for each reply, so she laughs, sulks, or gets embarrassed instead of only printing text. Her mouth moves with her speech, and she reacts when you tap or pat her.
+The AI you connect picks an expression, a gesture, and a tone of voice for each reply, so she laughs, sulks, or gets embarrassed instead of only printing text. Her mouth moves with her speech, and she reacts when you tap or pat her.
 
 ### She speaks first, with restraint
 
 <img src="docs/public/yui-feature-proactive.png" alt="The Proactive settings tab: screen watch, loop reactions after 5, 10, and 30 minutes of inactivity, scheduled greetings at 09:00, 12:00, 18:00, and 23:00, a 10-minute proactive gap, and hourly limits of 24 cues and 40 self-started turns" width="400">
 
-She greets you at set times, checks in after you have been idle, and can notice when you switch apps. Hourly limits and a quiet gap keep her from talking too much, and she says nothing when nothing is worth saying.
+She greets you at set times, checks in after you have been idle, and, if you turn it on, notices when you switch apps. You set how often she may speak up on her own, and she says nothing when nothing is worth saying.
 
-**And more:** voice chat you can interrupt, image attachments, a chat history, English, Japanese, and Korean UI, and tools your agent can use on your computer. See the [full feature list](docs/guide/features.md).
+**And more:** your own VRM model, voice chat you can interrupt, image attachments, a chat history, English, Japanese, and Korean UI, and tools your agent can use on your computer. See the [full feature list](docs/guide/features.md).
+
+## How it works
+
+YUI is the body; the AI you connect is the mind. YUI notices moments worth reacting to (you sending a message, going idle, switching apps) and hands them to the AI, which decides whether and what to say. YUI then gives that answer a face, a voice, and a gesture.
 
 ## Bring your own brain
 
@@ -100,18 +104,14 @@ YUI ships no model of its own. Pick each provider in **Settings → Connection**
 | Any OpenAI-compatible transcription endpoint (`/audio/transcriptions`) | Local or hosted | `stt_base_url` |
 | Groq | Hosted, API key | `stt_base_url` and `stt_model`, for example `whisper-large-v3-turbo` |
 
-The [wiring guide](docs/guide/getting-started.md) covers each setup. Missing a provider? Ask in [Discussions](https://github.com/yw0nam/YUI/discussions) or send a PR.
+The [connection guide](docs/guide/getting-started.md) covers each setup. Missing a provider? Ask in [Discussions](https://github.com/yw0nam/YUI/discussions) or send a PR.
 
 </details>
-
-## How it works
-
-YUI is the body; your backend is the mind. YUI notices moments worth reacting to (you typing, going idle, switching apps) and hands them to the backend, which decides whether and what to say. YUI then gives that answer a face, a voice, and a gesture.
 
 ## Known limitations
 
 - Supported on macOS with Apple Silicon and Windows x64. Intel Macs and Linux are not officially supported.
-- The installers on the Releases page are early and unsigned; installing with a coding agent is the supported path.
+- Installing with a coding agent is the only supported path for now; the installers on the Releases page are early and unsigned.
 - Climbing up window sides and onto the monitor above is marked as in development in the app.
 - Irodori TTS speaks Japanese only.
 
@@ -120,7 +120,7 @@ YUI is the body; your backend is the mind. YUI notices moments worth reacting to
 **Using YUI**
 
 - [Feature list](docs/guide/features.md) · [Controls](docs/guide/controls.md) · [What she can do](docs/guide/capabilities.md)
-- [Install with a coding agent](docs/guide/install.md) · [Wiring guide](docs/guide/getting-started.md): chat, voice, your own VRM
+- [Install with a coding agent](docs/guide/install.md) · [Connection guide](docs/guide/getting-started.md): chat, voice, your own VRM
 
 **Developing YUI**
 
