@@ -7,6 +7,12 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const { log } = vi.hoisted(() => ({
+  log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+}));
+vi.mock("../../../logger", () => ({ createLogger: () => log }));
+
 import type { ClientTool } from "./client-tools";
 import { executeClientTool } from "./execute";
 
@@ -133,4 +139,38 @@ describe("executeClientTool", () => {
 it("passes an image result through unchanged", async () => {
   const result = { text: "screenshot of display 0", images: ["data:image/jpeg;base64,YQ=="] };
   await expect(executeClientTool(tool({ execute: async () => result }), {})).resolves.toBe(result);
+});
+
+it.each([
+  { settle: "resolve", value: "ok", fields: { ok: true, kind: "text", size: 2 } },
+  { settle: "resolve", value: '{"a":1}', fields: { ok: true, kind: "json", size: 7 } },
+  { settle: "reject", value: "no window", fields: { ok: false, kind: "error", size: 16 } },
+])("logs tool_result with its shape and never its text ($fields.kind)", async ({
+  settle,
+  value,
+  fields,
+}) => {
+  const pending = executeClientTool(
+    tool({
+      execute: () =>
+        new Promise<string>((resolve, reject) =>
+          setTimeout(
+            () => (settle === "resolve" ? resolve(value) : reject(new Error(value))),
+            1500,
+          ),
+        ),
+    }),
+    {},
+    undefined,
+    "call_1",
+  );
+  await vi.advanceTimersByTimeAsync(1500);
+  await pending;
+
+  expect(log.info).toHaveBeenCalledWith("tool_result", {
+    name: "slow_tool",
+    call_id: "call_1",
+    duration_ms: 1500,
+    ...fields,
+  });
 });

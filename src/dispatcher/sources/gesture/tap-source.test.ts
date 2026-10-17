@@ -1,4 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
+
+const { log } = vi.hoisted(() => ({
+  log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+}));
+vi.mock("../../../logger", () => ({ createLogger: () => log }));
+
 import type { TapConfig } from "../../../config/validators/avatar/types";
 import type { SignalGroup } from "../../../contract";
 import type { BusEnvelope, EventBus } from "../../core/event-bus";
@@ -92,6 +98,20 @@ describe("createTapSource", () => {
         ts: 1_000,
       },
     ]);
+  });
+
+  it.each([
+    { points: null, pos: { x: 12, y: 34 }, region: null },
+    { points: bothRegionsPoints(), pos: { x: 52, y: 61 }, region: "chest" },
+  ])("logs tap with the pointer and the region it landed on ($region)", ({
+    points,
+    pos,
+    region,
+  }) => {
+    const { source } = harness(points);
+    source.handleClick(pos);
+
+    expect(log.debug).toHaveBeenCalledWith("tap", { x: pos.x, y: pos.y, region });
   });
 
   it("maps a region hit to its configured motion", () => {

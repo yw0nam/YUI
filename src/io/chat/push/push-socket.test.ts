@@ -235,6 +235,26 @@ describe("createPushSocket — handshake", () => {
 
     expect(seen).toEqual([{ kind: "connecting" }, { kind: "ready", chat_id: "yui-3f9a2c1d" }]);
   });
+
+  it("logs ws_state with the state's own fields once per transition", async () => {
+    await connected();
+    FakeSocket.last().drop(1006);
+    await vi.advanceTimersByTimeAsync(1_000);
+    FakeSocket.last().accept();
+    FakeSocket.last().drop(4401);
+
+    const states = vi
+      .mocked(logger.info)
+      .mock.calls.filter(([event]) => event === "ws_state")
+      .map(([, fields]) => fields);
+    expect(states).toEqual([
+      { kind: "connecting" },
+      { kind: "ready", chat_id: "yui-3f9a2c1d" },
+      { kind: "reconnecting", delay_ms: 1_000 },
+      { kind: "connecting" },
+      { kind: "failed", code: 4401 },
+    ]);
+  });
 });
 
 describe("createPushSocket — reconnect", () => {

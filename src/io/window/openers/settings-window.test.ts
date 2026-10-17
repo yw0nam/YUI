@@ -14,7 +14,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { WebviewWindow, setTitle } = vi.hoisted(() => ({
+const { WebviewWindow, setTitle, log } = vi.hoisted(() => ({
   // A class, not an arrow: the production code reaches this mock through `new`.
   WebviewWindow: Object.assign(
     vi.fn(
@@ -25,10 +25,12 @@ const { WebviewWindow, setTitle } = vi.hoisted(() => ({
     { getByLabel: vi.fn(async () => null) },
   ),
   setTitle: vi.fn(async () => {}),
+  log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
 vi.mock("@tauri-apps/api/webviewWindow", () => ({ WebviewWindow }));
 vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow: () => ({ setTitle }) }));
+vi.mock("../../../logger", () => ({ createLogger: () => log }));
 
 import {
   createSettingsWindowOpener,
@@ -75,6 +77,26 @@ describe("openSettingsWindow", () => {
         "settings",
         expect.objectContaining({ title: "YUI Settings" }),
       );
+    } finally {
+      delete globals.__TAURI_INTERNALS__;
+    }
+  });
+
+  it("logs settings_window_closed when the created window is destroyed, not before", async () => {
+    const globals = globalThis as { __TAURI_INTERNALS__?: unknown };
+    globals.__TAURI_INTERNALS__ = {};
+    try {
+      createSettingsWindowOpener()();
+      await vi.waitFor(() => expect(WebviewWindow).toHaveBeenCalledOnce());
+      const win = vi.mocked(WebviewWindow).mock.instances[0] as unknown as {
+        once: ReturnType<typeof vi.fn>;
+      };
+      const destroyed = win.once.mock.calls.find(([event]) => event === "tauri://destroyed");
+      expect(log.info).not.toHaveBeenCalledWith("settings_window_closed", expect.anything());
+
+      destroyed?.[1]();
+
+      expect(log.info).toHaveBeenCalledWith("settings_window_closed", { label: "settings" });
     } finally {
       delete globals.__TAURI_INTERNALS__;
     }
