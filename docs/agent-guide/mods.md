@@ -6,7 +6,7 @@ Mods are standalone MCP servers under `Mods/`, independent of the app runtime (o
 
 To add a mod `<name>`:
 
-1. `Mods/<name>/` — `pyproject.toml` (deps + `[project.scripts]` entry + dev `pytest`/`ruff` + `[tool.ruff] line-length = 110`), `uv.lock` (`uv lock`), `.python-version`, the `<package>/` source, and `tests/` (failing test first). `uv.lock` is required: CI runs `uv sync --frozen` in every folder that tracks a `pyproject.toml`.
+1. `Mods/<name>/` — `pyproject.toml` (deps + `[project.scripts]` entry + dev `pytest`/`ruff` + `[tool.ruff] line-length = 110`), `uv.lock` (`uv lock`), `.python-version`, the `<package>/` source, and `tests/` (failing test first; what a test must prove: `docs/agent-guide/testing.md` § What a test is for). `uv.lock` is required: CI runs `uv sync --frozen` in every folder that tracks a `pyproject.toml`.
 2. Containerized? Add a `Dockerfile` in the mod folder (build context = the folder) and a service in `Mods/docker-compose.yml`. Host-native instead (needs the Mac GUI, like `desktop-control`)? Document it and skip Docker.
 3. Reachable through the router? Add one line to `UPSTREAMS` in `Mods/router/router/server.py` (`"<name>": "http://127.0.0.1:<port>"`) plus a `resolve` test.
 4. `Mods/<name>/README.md` (run / safety / tools / test) and a row in the `Mods/README.md` index.

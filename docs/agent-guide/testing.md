@@ -2,6 +2,16 @@
 
 Read before writing or changing a test. These rules cover what review judges; lint and CI check the rest.
 
+## What a test is for
+
+A test earns its place by what its failure means: a behaviour a user sees, a contract in `docs/reference/` or `src/contract/`, a config schema in `configs/`, a wire frame, or an exported function's documented result is broken. A test whose failure means none of these is noise and is not written.
+
+Not tested: a constant's value, a library's or the platform's behaviour, a call on an internal helper, a call on a collaborator that no caller can observe, and a fact a sibling block already asserts. A collaborator call is a result when the collaborator is the module's door to the outside: a port passed in through `deps` whose call reaches the OS, the network, the DOM, audio, or storage.
+
+The same setup with another input is a row in the sibling's `it.each` table, not a new block. A file's block count is not a measure of coverage.
+
+The rules below apply to Rust (`#[test]` under `src-tauri/`) and Python (`pytest` under `Mods/` and `integrations/`) the same way; the Vitest names map to their counterparts.
+
 ## Placement and names
 
 1. A test sits beside the code it pins, and its file name starts with that source file's name: `x.test.ts`, or `x.<behaviour>.test.ts` when the tests of `x.ts` are split by behaviour. A test that pins a feature folder through its public entry takes the folder's feature name (`qc-vrm-section.test.ts`).
@@ -16,12 +26,12 @@ Read before writing or changing a test. These rules cover what review judges; li
 
 ## Red before green
 
-7. For new behaviour, the `test:` commit fails when run on its own, before the `feat:` or `fix:` commit. A bug fix's test fails without the fix.
+7. For new behaviour, the `test:` commit fails when run on its own, before the `feat:` or `fix:` commit. A bug fix that ships a test shows that test failing without the fix; `CONTRIBUTING.md` § Tests accompany behavior says which fixes ship one.
 8. A test added to behaviour that already works is shown failing: change the production line its path takes in a throwaway worktree, watch the test fail, restore the line. The PR body names that line.
 
 ## Existing tests
 
-9. An existing test is never deleted, skipped, or loosened to turn a run green. When behaviour changes on purpose, the PR summary lists each changed assertion and its reason. Adding a test is always allowed.
+9. An existing test is never deleted, skipped, or loosened to turn a run green. When behaviour changes on purpose, the PR summary lists each changed assertion and its reason. A test that meets § What a test is for may always be written. A block that does not meet it is deleted in a PR that touches its file, and the PR summary lists each deleted block with the rule it fails.
 
 ## Mocks and outside services
 
