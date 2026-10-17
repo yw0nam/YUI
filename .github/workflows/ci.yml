@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Runs on every pull request: web and lint are required checks of the main ruleset, and a skipped required check blocks the merge.
+  # web and lint run on every pull request: they are required checks of the main ruleset, and a workflow-level path filter would leave them pending.
   web:
     name: web (tsc + vitest)
     runs-on: ubuntu-latest

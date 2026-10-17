@@ -19,7 +19,7 @@ Claude Code hooks under `.claude/` are gitignored, so they gate only a checkout 
 | Windows-only Rust sources compile | `rust-windows` CI job (`cargo check` on a Windows runner, gated by the same `paths-filter` as `rust`) |
 | Python command path and briefing producers run on Windows | `web-windows-python` CI job (the Python command path and the briefing producer tests on a Windows runner, with `YUI_PYTHON` unset and then set; gated by `paths-filter` on `integrations/skills/yui-daily-briefing/**`, the test files it runs, and `.github/workflows/ci.yml`) |
 | Docs are current-state | local hook `.claude/hooks/posttool-edit-guard.sh` blocks a list of change-narrative words written into `*.md` through Write/Edit (it fails open and is not exhaustive); the same hook adds a reminder when `configs/motions.json` changes |
-| `.env.local` is not read by the agent | local hooks deny the Read tool (`.claude/hooks/pretool-read-guard.sh`) and shell reads (`.claude/hooks/pretool-bash-guard.sh`) of `.env.local` |
+| Restricted `.env.local` reads | local hooks deny the Read tool on `.env.local` (`.claude/hooks/pretool-read-guard.sh`) and the shell-read command patterns `.claude/hooks/pretool-bash-guard.sh` recognises; both fail open |
 | Purchased motions are read-only for the agent | local hooks `.claude/hooks/pretool-write-guard.sh` and `.claude/hooks/pretool-bash-guard.sh`; `YUI_ALLOW_MOTIONS=1` bypasses for human-approved curation; rules in `public/purchased_motions/AGENTS.md` |
 | Runtime verification of UI/DOM/runtime change | PR template Runtime-evidence section |
 | Worktree runtime assets | local hook `.claude/hooks/worktree-create.sh` runs `scripts/worktree-setup.sh` for worktrees Claude Code creates; a worktree made by hand runs the script by hand |

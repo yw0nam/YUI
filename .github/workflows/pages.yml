@@ -3,8 +3,8 @@ name: Pages
 on:
   push:
     branches: [main]
-    # The site is built from docs/; the dependency files and this workflow are its other inputs.
-    paths: ["docs/**", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/workflows/pages.yml"]
+    # The site is built from docs/; the dependency files, the root tsconfig Vite reads, and this workflow are its other inputs.
+    paths: ["docs/**", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "tsconfig.json", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 # Allow one concurrent deploy; don't cancel an in-progress run mid-publish.

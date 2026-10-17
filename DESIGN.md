@@ -48,7 +48,7 @@ rounded:
   group: "12px"
   control: "8px"
   pill: "999px"
-# No spacing group: the CSS names no spacing token and follows no scale (314 values, 37% on a 4 px grid); component padding is literal.
+# No spacing group: no spacing custom property exists in the src/ CSS, and component padding is written as literal values.
 components:
   speech-bubble:
     backgroundColor: "{colors.scrim}"
