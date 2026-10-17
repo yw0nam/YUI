@@ -19,6 +19,7 @@ import { wireHelpGuide } from "../app/controls/wire-help-guide";
 import { wirePetControls } from "../app/controls/wire-pet-controls";
 import { wireCrossWindowSync } from "../app/cross-window/wire-cross-window";
 import { wireSettingsReload } from "../app/cross-window/wire-window-sync";
+import { wireCspViolationLog } from "../app/csp-violation";
 import { wireDevGlobals } from "../app/dev/wire-dev-globals";
 import { createDisposers } from "../app/disposers";
 import { createWindowStores } from "../app/settings/window-stores";
@@ -74,6 +75,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
   if (import.meta.env.DEV) {
     import.meta.hot?.dispose(dispose);
   }
+  register(wireCspViolationLog());
 
   // Root (positioning context) > stage (drag) + overlay (surfaces).
   // Stage = drag, overlay = pointer passthrough (input only exception).
