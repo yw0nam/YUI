@@ -17,3 +17,12 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
     let builder = builder.plugin(tauri_plugin_global_shortcut::Builder::new().build());
     builder
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    #[allow(clippy::assertions_on_constants)]
+    fn default_build_leaves_out_the_webdriver_server() {
+        assert!(!cfg!(feature = "verify"));
+    }
+}
