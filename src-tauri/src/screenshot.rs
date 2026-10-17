@@ -122,6 +122,18 @@ pub fn encode_capture(
 
 // ─── Tauri commands ───────────────────────────────────────────────────────────
 
+/// Logs a finished capture with the monitor id xcap reports and the captured size.
+fn log_screen_captured(monitor: &xcap::Monitor, raw: &ImageBuffer<Rgba<u8>, Vec<u8>>) {
+    let id = monitor
+        .id()
+        .map_or_else(|_| "unknown".to_string(), |id| id.to_string());
+    log::debug!(
+        "screen_captured monitor={id} width={} height={}",
+        raw.width(),
+        raw.height()
+    );
+}
+
 /// Return info for all available displays.
 ///
 /// The enumeration order is stable within a single process lifetime and is used
@@ -161,6 +173,7 @@ pub async fn capture_screen(index: u32, max_edge: u32) -> Result<CaptureDto, Str
             log::error!("screen_capture_failed monitor={index} error={e}");
             e.to_string()
         })?;
+        log_screen_captured(&monitor, &raw);
 
         encode_capture(raw, max_edge)
     })
@@ -183,6 +196,7 @@ pub async fn capture_screen_at(x: i32, y: i32, max_edge: u32) -> Result<CaptureD
             log::error!("screen_capture_failed x={x} y={y} error={e}");
             e.to_string()
         })?;
+        log_screen_captured(&monitor, &raw);
         encode_capture(raw, max_edge)
     })
     .await
