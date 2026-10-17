@@ -124,14 +124,15 @@ pub fn encode_capture(
 
 /// Logs a finished capture with the monitor id xcap reports and the captured size.
 fn log_screen_captured(monitor: &xcap::Monitor, raw: &ImageBuffer<Rgba<u8>, Vec<u8>>) {
-    let id = monitor
-        .id()
-        .map_or_else(|_| "unknown".to_string(), |id| id.to_string());
     log::debug!(
-        "screen_captured monitor={id} width={} height={}",
-        raw.width(),
-        raw.height()
+        "{}",
+        screen_captured_line(monitor.id().ok(), raw.width(), raw.height())
     );
+}
+
+fn screen_captured_line(monitor_id: Option<u32>, width: u32, height: u32) -> String {
+    let monitor = monitor_id.map_or_else(|| "unknown".to_string(), |id| id.to_string());
+    format!("screen_captured monitor={monitor} width={width} height={height}")
 }
 
 /// Return info for all available displays.
