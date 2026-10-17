@@ -212,6 +212,20 @@ pub async fn capture_screen_at(x: i32, y: i32, max_edge: u32) -> Result<CaptureD
 mod tests {
     use super::*;
 
+    // ── screen_captured_line ──
+
+    #[test]
+    fn screen_captured_line_names_the_monitor_id_or_unknown() {
+        assert_eq!(
+            screen_captured_line(Some(69732928), 3024, 1964),
+            "screen_captured monitor=69732928 width=3024 height=1964"
+        );
+        assert_eq!(
+            screen_captured_line(None, 800, 600),
+            "screen_captured monitor=unknown width=800 height=600"
+        );
+    }
+
     // ── build_screen_source ──
 
     #[test]
