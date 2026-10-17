@@ -31,7 +31,7 @@ The purpose and assertion principles apply to TypeScript, Rust (`#[test]` under 
 
 ## Existing tests
 
-9. An existing test is never deleted, skipped, or loosened to turn a run green. When behaviour changes on purpose, the PR summary lists each changed assertion and its reason. A test that meets § What a test is for may always be written. A PR that touches a test file repairs or folds its blocks so each distinct behaviour or contract keeps one assertion, and deletes a block that pins neither; a failing assertion is never removed in place of fixing the behaviour or revising its contract on purpose. The PR summary lists each deleted block with its reason.
+9. An existing test is never deleted, skipped, or loosened to turn a run green. When behaviour changes on purpose, the PR summary lists each changed assertion and its reason. A test that meets § What a test is for may always be written. A PR that touches a test file repairs or folds its blocks while preserving coverage of every distinct behaviour and contract, and deletes a block that pins neither; a failing assertion is never removed in place of fixing the behaviour or revising its contract on purpose. The PR summary lists each deleted block with its reason.
 
 ## Mocks and outside services
 
