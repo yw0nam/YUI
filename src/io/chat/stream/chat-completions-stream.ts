@@ -73,12 +73,13 @@ export async function* streamChatCompletions(
       yield { type: "tool_status", status: { state: "done", tool_id: item.name } };
       return;
     }
-    const outcome = yield* runClientCall(tools, item.name, item.argsJson, request.signal, item.id);
+    const id = item.id ?? `call_${seq++}`;
+    const outcome = yield* runClientCall(tools, item.name, item.argsJson, request.signal, id);
     if (outcome?.cue) express = outcome.cue;
     if (!outcome?.run) return;
     executed.push({
       call: {
-        id: item.id ?? `call_${seq++}`,
+        id,
         type: "function",
         function: { name: item.name, arguments: item.argsJson },
       },

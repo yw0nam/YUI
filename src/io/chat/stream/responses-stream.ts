@@ -156,13 +156,13 @@ export async function* streamResponses(
     argsJson: string,
   ): AsyncGenerator<ChatStreamEvent> {
     if (handled.has(key)) return;
-    const outcome = yield* runClientCall(tools, name, argsJson, request.signal, callIds.get(key));
+    const call_id = callIds.get(key) ?? `call_${seq++}`;
+    const outcome = yield* runClientCall(tools, name, argsJson, request.signal, call_id);
     if (!outcome) return;
     // Marked handled even when the arguments did not parse: a later event for the key does not retry.
     handled.add(key);
     if (outcome.cue) express = outcome.cue;
     if (!outcome.run) return;
-    const call_id = callIds.get(key) ?? `call_${seq++}`;
     const call: ResponseInputItem = { type: "function_call", call_id, name, arguments: argsJson };
     replay.push(call);
     executed.push({
