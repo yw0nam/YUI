@@ -172,6 +172,10 @@ describe("configs/motions.json", () => {
     expect(m[lower].priority).toBeLessThan(m[higher].priority);
   });
 
+  it("keeps thinking on the ignore policy, so a lower-ranked clip cannot take the TTFT filler", () => {
+    expect(m.thinking.interrupt_policy).toBe("ignore");
+  });
+
   it("locks the root vertically on the climb clips and the seat transitions alone", () => {
     const locked = Object.entries(m)
       .filter(([, e]: [string, any]) => e.root_lock_y === true)
