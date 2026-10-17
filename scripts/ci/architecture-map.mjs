@@ -233,6 +233,7 @@ export function checkMap(map, files, scope = MAPS[0]) {
         }
         const [a, b] = ends(edge);
         const own = [step.from, step.to];
+        // Either direction fits: a reply (stream chunks, a tool result) travels back over the request's exchange, so a step from the responder cites the same edge.
         const fits =
           step.to === undefined
             ? own.includes(a) || own.includes(b)

@@ -3,11 +3,13 @@ import { withBase } from 'vitepress'
 import { onMounted, ref } from 'vue'
 
 const heroVideo = ref<HTMLVideoElement | null>(null)
+const locoVideo = ref<HTMLVideoElement | null>(null)
 
-// The hero loop starts from script, so a reduced-motion reader keeps the still poster.
+// The video loops start from script, so a reduced-motion reader keeps the still posters.
 onMounted(() => {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
   heroVideo.value?.play()
+  locoVideo.value?.play()
 })
 </script>
 
@@ -68,12 +70,16 @@ onMounted(() => {
         </p>
         <div class="feat-wide">
           <figure class="media">
-            <img
-              :src="withBase('/yui-locomotion.gif')"
-              alt="YUI walking along the bottom of the screen, climbing a side edge, and sitting on a window top"
+            <video
+              ref="locoVideo"
+              :src="withBase('/yui-locomotion.mp4')"
+              :poster="withBase('/yui-locomotion-poster.jpg')"
+              aria-label="YUI walking along the bottom of the screen, climbing a side edge, and sitting on a window top"
               width="720"
-              height="465"
-              loading="lazy"
+              height="464"
+              muted
+              loop
+              playsinline
             />
           </figure>
         </div>

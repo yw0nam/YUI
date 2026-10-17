@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Architecture map</title>
 <style>
+/* The app's own font, read from disk: the viewer opens from file://. */
 @font-face { font-family: "Pretendard JP Variable"; src: url("../../../public/fonts/PretendardJPVariable.woff2") format("woff2"); font-weight: 400 600; font-display: swap; }
 :root {
   color-scheme: light dark;
@@ -16,6 +17,7 @@
   --request: oklch(0.5 0.1 200); --push: oklch(0.5 0.16 340); --add: oklch(0.5 0.13 150); --del: oklch(0.53 0.17 30);
   --zl: 0.47; --zc: 0.1; --zf: 7%; --zs: 32%; --h0: 245; --h1: 25; --h2: 140; --h3: 295;
 }
+/* Colors follow prefers-color-scheme; the viewer has no theme toggle. */
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: oklch(0.165 0.008 70); --surface: oklch(0.25 0.01 70); --raised: oklch(0.3 0.011 70);
@@ -40,6 +42,7 @@ h1 small { display: block; font-weight: 400; font-size: 12px; letter-spacing: 0;
 .seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); font-weight: 600; }
 select { font: inherit; font-size: 13px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; max-width: 360px; }
 button:focus-visible, select:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent-soft); outline-offset: 2px; }
+/* Desktop layout with a fixed 380 px panel: a developer tool opened beside the code. */
 main { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 380px; min-height: 0; }
 #stage { overflow: auto; padding: 20px 24px 64px; cursor: grab; }
 #stage svg { user-select: none; -webkit-user-select: none; }
@@ -124,6 +127,7 @@ svg.fresh .dim { animation: fade .25s; }
 <body>
 <header>
   <h1><span id="title">Architecture map</span><small id="sub"></small></h1>
+  <!-- No text search: the flow select and the transport filter are the navigation; modules are picked on the drawing. -->
   <div class="seg" id="views"></div>
   <select id="flows" aria-label="Flow" hidden></select>
   <div class="seg" id="transports" hidden></div>
@@ -142,6 +146,7 @@ function html(parent, x, y, w, h, inner) { const f = el("foreignObject", { x, y,
 function marker(defs, id, color) { const m = el("marker", { id, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 9, markerHeight: 9, orient: "auto-start-reverse", markerUnits: "userSpaceOnUse" }, defs); el("path", { d: "M0 0L10 5L0 10z", fill: color }, m); }
 function load(src, done) { const s = document.createElement("script"); s.src = src; s.onload = () => done(true); s.onerror = () => done(false); document.head.append(s); }
 const hue = id => `--h:var(--h${DATA.zones.findIndex(z => z.id === id) % 4})`;
+const repoUrl = x => `https://github.com/yw0nam/YUI/${/\.[^/]+$/.test(x) ? "blob" : "tree"}/main/${x.split("/").map(encodeURIComponent).join("/")}`;
 const group = rows => `<div class="group">${rows}</div>`;
 const tagOf = t => t === "request" || t === "push" ? ` <span class="tag ${t}">${t}</span>` : "";
 function edgeRow(e, names) {
@@ -234,7 +239,7 @@ function overviewPanel(panel) {
   const claims = DATA.nodes.flatMap(n => n.paths), shared = x => claims.some(c => c.startsWith(x + "/")) ? " <span class=\"meta\">files outside the folders of other parts</span>" : "";
   const within = DATA.edges.filter(e => nodeModule[e.from] === m.id && nodeModule[e.to] === m.id);
   panel.innerHTML = `<h2>${esc(m.label)}</h2><p>${esc(m.desc)}</p>
-  <h3>Made of</h3>${parts.length ? group(parts.map(p => `<details class="row"><summary><b>${esc(p.label)}</b></summary><div class="meta" style="margin-top:4px">${esc(p.role)}</div>${p.paths.map(x => `<div><code>${esc(x)}</code>${shared(x)}</div>`).join("")}</details>`).join("")) : "<p>Outside the repo.</p>"}${maps.map(p => `<p><a href="?map=${encodeURIComponent(p.map)}">Open the map of ${esc(p.label)}</a></p>`).join("")}
+  <h3>Made of</h3>${parts.length ? group(parts.map(p => `<details class="row"><summary><b>${esc(p.label)}</b></summary><div class="meta" style="margin-top:4px">${esc(p.role)}</div>${p.paths.map(x => `<div><a href="${esc(repoUrl(x))}" target="_blank" rel="noopener"><code>${esc(x)}</code></a>${shared(x)}</div>`).join("")}</details>`).join("")) : "<p>Outside the repo.</p>"}${maps.map(p => `<p><a href="?map=${encodeURIComponent(p.map)}">Open the map of ${esc(p.label)}</a></p>`).join("")}
   <h3>Sends to</h3>${exchangeRows(m.id, "out")}<h3>Receives from</h3>${exchangeRows(m.id, "in")}${within.length ? `<h3>Between its parts</h3>${group(`<details class="row"><summary><b>${within.length} exchange${within.length > 1 ? "s" : ""}</b></summary>${within.map(e => edgeRow(e, names)).join("")}</details>`)}` : ""}`;
 }
 
@@ -343,6 +348,7 @@ function windowsPanel(panel) {
 }
 
 // ---------- compare ----------
+// BASE is map.base.js, written by pnpm map:base from origin/main, which carries windows.
 function difference() {
   const key = { groups: z => z.id, modules: m => m.id, links: l => l.from + ">" + l.to, parts: n => n.id, exchanges: e => e.id, flows: f => f.id, windows: n => n.id, channels: e => e.id };
   const pick = d => ({ groups: d.zones, modules: d.modules, links: d.links, parts: d.nodes, exchanges: d.edges, flows: d.flows, windows: d.windows.nodes, channels: d.windows.edges });
@@ -372,7 +378,7 @@ function differencePanel() {
 }
 
 // ---------- shell ----------
-const fitZoom = svg => Math.min(1, (document.getElementById("stage").clientWidth - 48) / svg.viewBox.baseVal.width);
+const fitZoom = svg => Math.max(.4, Math.min(1, (document.getElementById("stage").clientWidth - 48) / svg.viewBox.baseVal.width));
 const currentZoom = () => state.zoom ?? fitZoom(document.querySelector("#stage svg"));
 function zoomTo(zoom, cx, cy) {
   const stage = document.getElementById("stage"), svg = stage.querySelector("svg"), before = svg.getBoundingClientRect();

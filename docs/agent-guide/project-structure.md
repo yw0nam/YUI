@@ -297,6 +297,8 @@ YUI/
       capture/                       # Screen watching and screenshots
         screen-settings.ts           # User-editable screen-watch thresholds
         screenshot-settings.ts       # Screenshot enabled state and source
+      browser/                       # The browser tool's on/off flag
+        browser-settings.ts          # Whether the browser tool may drive the app's own Chrome, off by default
       avatar/                        # Camera, motion, and lip-sync
         bed-scene-settings.ts        # Launch bed scene on/off and its wake timeout
         camera-settings.ts           # Camera zoom and orbit viewpoint
@@ -343,6 +345,9 @@ YUI/
           session-diagnostics.ts       # Used tokens and context window for the settings window
         record/                        # The turn-record JSONL log
           turn-record-log.ts           # Appends one JSONL record per completed turn or skipped fire
+      browser/                         # The browser tool's adapter to the Rust shell
+        browser-shell.ts               # Forwards a browser action to the Rust shell under its acceptance generation, and cancels accepted calls
+        browser-switch.ts              # Stops the owned Chrome each time the browser switch turns off
       voice/
         deadline.ts                    # Per-request deadline and the body-read race that settle a stalled fetch
         stt-vad.ts                     # Voice input pipeline: VAD segmentation then STT upload
@@ -441,6 +446,8 @@ YUI/
           stage-image-import.ts        # Stage background import: OS picker, native copy, decode check, and the store switch
       guide/                           # The bundled guide docs handed to the backend on an Ask press
         guide-docs.ts                  # The guide docs bundled with the app and the guide: block of the client context
+      image/                           # The bitmap → JPEG data URL encode the image paths share
+        jpeg-encode.ts                 # Draws a bitmap onto a canvas and returns its JPEG data URL
       lifecycle/                       # Page-lifecycle seams: the Android back gesture and page visibility
         back-button.ts                 # Android back-button claim: the open surface that should swallow the gesture holds it
         page-visibility.ts             # Page visibility as a suspension port: hidden means nothing background should run

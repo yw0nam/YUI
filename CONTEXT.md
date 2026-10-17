@@ -56,7 +56,7 @@ The placeholder user-content text on turns with no real user utterance.
 The per-turn JSON block of environment + trigger state the client injects ahead of the utterance.
 
 **Expression Broker**:
-The MCP where the body publishes its renderable emotion/motion/emotion_text vocabulary; the brain reads it to know what it can cue.
+The MCP where the body publishes its renderable emotion/motion/emotion_text vocabulary; the brain reads it to know what it can cue. Deprecated: removed in v0.6.0. Use client-declared tools.
 _Avoid_: bare "broker", message broker
 
 ### Presence & body

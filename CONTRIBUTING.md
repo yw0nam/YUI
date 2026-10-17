@@ -48,8 +48,9 @@ and removed in v0.6.0) — see
   genuinely test-free changes (docs, config); it takes effect on the next
   `test-guard` run, so re-run the job after labelling.
 - **English on the tracker.** Issues, issue comments, and PR titles/bodies are
-  written in English (chat in any language). The `pr-title` CI job enforces
-  English for PR titles.
+  written in English (chat in any language). The `pr-title` CI job checks the
+  conventional type and that the subject is printable ASCII; English is the
+  convention for the rest of the tracker.
 - **UI: review existing → propose → mock → implement.** Read the existing
   `src/ui/` screens plus [`DESIGN.md`](DESIGN.md) and [`PRODUCT.md`](PRODUCT.md)
   before any UI work; propose the text structure, get confirmation, build a

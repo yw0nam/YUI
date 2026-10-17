@@ -1,10 +1,10 @@
 [package]
 name = "app"
 version = "0.4.0"
-description = "A Tauri App"
-authors = ["you"]
-license = ""
-repository = ""
+description = "YUI desktop companion: VRM character window and desktop-pet shell"
+authors = ["YoungWoo Nam"]
+license = "PolyForm-Noncommercial-1.0.0"
+repository = "https://github.com/yw0nam/YUI"
 edition = "2021"
 rust-version = "1.89"
 
@@ -62,6 +62,7 @@ objc2 = "0.6"
 objc2-app-kit = { version = "0.3", features = ["NSWindow", "NSResponder", "NSScreen"] }
 objc2-foundation = { version = "0.3", features = ["NSGeometry"] }
 
+# Release builds use Cargo's default profile; LTO and strip are unmeasured for this app, so nothing is tuned.
 # The screenshot resize and JPEG encode run in these two crates.
 [profile.dev.package.app]
 opt-level = 1

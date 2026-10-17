@@ -48,6 +48,7 @@ rounded:
   group: "12px"
   control: "8px"
   pill: "999px"
+# No spacing group: the CSS names no spacing token and follows no scale (314 values, 37% on a 4 px grid); component padding is literal.
 components:
   speech-bubble:
     backgroundColor: "{colors.scrim}"
@@ -217,3 +218,4 @@ The backend's delegated work as rows (`chips/delegation-rows.css`), shared by th
 - **Don't** use colored side-stripe borders (an accent or status color line >1px on one edge), gradient text (`background-clip: text`), identical card grids, or modal-first patterns.
 - **Don't** put uppercase or letter-spaced eyebrow labels, per-row bordered cards, or dashed add buttons in the settings panel.
 - **Don't** use amber as a fill: warmth is a point, not a plane (the 10% Warmth Rule). The one fill is the count badge on the folded delegation chip, a 1rem dot sized as a point so a pending count stays visible over any desktop.
+- **Don't** import decorative asset packs (3D icons, hand-drawn illustrations) or spring/bounce motion presets; icons are inline line glyphs (the Two-Stroke Rule) and motion is ease-out only.

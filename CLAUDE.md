@@ -8,8 +8,8 @@ Issues live in GitHub Issues (`gh` CLI), opened from the `.github/ISSUE_TEMPLATE
 
 ### Triage labels
 
-Default label vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+Default label vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ui`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
 
 ### Domain docs
 
-Single-context: root `CONTEXT.md` glossary, created lazily. When naming a domain concept, use the term as `CONTEXT.md` defines it and avoid the synonyms it lists.
+Single-context: root `CONTEXT.md` glossary. When naming a domain concept, use the term as `CONTEXT.md` defines it and avoid the synonyms it lists.

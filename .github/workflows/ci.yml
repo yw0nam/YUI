@@ -11,6 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Runs on every pull request: web and lint are required checks of the main ruleset, and a skipped required check blocks the merge.
   web:
     name: web (tsc + vitest)
     runs-on: ubuntu-latest
@@ -23,7 +24,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build # tsc typecheck + vite build
-      - run: pnpm typecheck:test # tsc typecheck (test files included)
+      - run: pnpm typecheck:test # tsc over tsconfig.test.json, which includes src/ so fixtures type-check against the real sources
       - run: pnpm test # vitest run
       - run: pnpm map:check # architecture map matches the tree
       - run: pnpm docs:build # vitepress build + dead-link check
@@ -148,6 +149,7 @@ jobs:
             rust:
               - 'src-tauri/**'
               - '.github/workflows/ci.yml'
+      # 28 s of this job on main (run 38855786059); no apt cache.
       # Tauri v2 Linux build dependencies (official prerequisites, Ubuntu 24.04).
       - name: Install Tauri system deps
         if: github.event_name != 'pull_request' || steps.chg.outputs.rust == 'true'
@@ -198,6 +200,7 @@ jobs:
       - run: cargo check --manifest-path src-tauri/Cargo.toml --all-targets --locked
         if: github.event_name != 'pull_request' || steps.chg.outputs.rust == 'true'
 
+  # Runs unfiltered: 42 s on main (run 38855786059) and not a required check.
   mods:
     name: mods (uv + pytest)
     runs-on: ubuntu-latest
