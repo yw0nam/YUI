@@ -13,7 +13,7 @@ const { log } = vi.hoisted(() => ({
 }));
 vi.mock("../../../logger", () => ({ createLogger: () => log }));
 
-import type { ClientTool } from "./client-tools";
+import type { ClientTool, ClientToolResult } from "./client-tools";
 import { executeClientTool } from "./execute";
 
 function tool(over: Partial<ClientTool> = {}): ClientTool {
@@ -145,6 +145,11 @@ it.each([
   { settle: "resolve", value: "ok", fields: { ok: true, kind: "text", size: 2 } },
   { settle: "resolve", value: '{"a":1}', fields: { ok: true, kind: "json", size: 7 } },
   { settle: "reject", value: "no window", fields: { ok: false, kind: "error", size: 16 } },
+  {
+    settle: "resolve",
+    value: { text: "screenshot of display 0", images: ["data:image/jpeg;base64,YQ=="] },
+    fields: { ok: true, kind: "text", size: 23 },
+  },
 ])("logs tool_result with its shape and never its text ($fields.kind)", async ({
   settle,
   value,
@@ -153,9 +158,9 @@ it.each([
   const pending = executeClientTool(
     tool({
       execute: () =>
-        new Promise<string>((resolve, reject) =>
+        new Promise<ClientToolResult>((resolve, reject) =>
           setTimeout(
-            () => (settle === "resolve" ? resolve(value) : reject(new Error(value))),
+            () => (settle === "resolve" ? resolve(value) : reject(new Error(String(value)))),
             1500,
           ),
         ),
