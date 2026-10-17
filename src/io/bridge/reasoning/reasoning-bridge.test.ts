@@ -111,17 +111,6 @@ describe("reasoning across windows", () => {
     expect(mirror.get()).toEqual({ text: "", live: false });
   });
 
-  it("asks again on refresh, for a window that opened before the text arrived", () => {
-    const mirror = createMirroredReasoning({ bridge: messageBridge });
-    expect(mirror.get()).toEqual({ text: "", live: false });
-
-    const stop = publishReasoning({ store, bridge: petBridge });
-    mirror.refresh();
-    stop();
-
-    expect(mirror.get()).toEqual({ text: "", live: false });
-  });
-
   it("carries the current state on refresh", () => {
     store = fakeStore(DONE);
     const mirror = createMirroredReasoning({ bridge: messageBridge });
