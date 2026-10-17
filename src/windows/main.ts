@@ -310,6 +310,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     if (import.meta.env.DEV) {
       configWatch.startDev();
     }
+    log.info("bootstrap_ready");
   } catch (err) {
     if (isDisposed()) return { dispose };
     log.error("config_or_vrm_load_failed", { error: String(err) });
