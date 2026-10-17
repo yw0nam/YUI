@@ -12,6 +12,15 @@ pub fn run(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
 
     let (log_dir, log_offset) = app_log::init(app)?;
     app.manage(turn_log::TurnRecordLog::new(log_dir, log_offset));
+    // Warn level so a release log also shows that the WebDriver eval server is open.
+    #[cfg(all(feature = "verify", desktop))]
+    log::warn!(
+        "verify_webdriver_enabled port={}",
+        std::env::var(tauri_plugin_wdio_webdriver::PORT_ENV_VAR)
+            .ok()
+            .and_then(|s| s.parse::<u16>().ok())
+            .unwrap_or(tauri_plugin_wdio_webdriver::DEFAULT_PORT)
+    );
 
     // Discard any `.{id}.import-tmp` left by a process death mid-import, before the voice
     // picker can read the references dir. Best-effort: an unresolvable app-data dir must not
