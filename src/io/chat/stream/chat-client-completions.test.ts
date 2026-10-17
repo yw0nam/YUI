@@ -17,6 +17,11 @@ import type { EndpointsConfig } from "../../../contract";
 import { type ClientTool, createClientToolRegistry } from "../tools/client-tools";
 import { type ChatRequest, type ChatStreamEvent, streamChat } from "./chat-client";
 
+const { log } = vi.hoisted(() => ({
+  log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+}));
+vi.mock("../../../logger", () => ({ createLogger: () => log }));
+
 // ── openai SDK mock — chat.completions.create only (Responses branch untouched) ──
 const ccCreateMock = vi.fn();
 vi.mock("openai", () => ({
@@ -723,7 +728,7 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
     expect(events.at(-1)).toMatchObject({ envelope: { speech_text: speech } });
   });
 
-  it("gives an id-less tool call a synthesized tool_call_id shared by both messages", async () => {
+  it("gives an id-less tool call a synthesized tool_call_id shared by both messages and its log line", async () => {
     const registry = createClientToolRegistry([oneWayStub("generate_express")]);
     ccCreateMock
       .mockResolvedValueOnce(
@@ -751,6 +756,10 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
     const appended = ccCreateMock.mock.calls[1][0].messages.slice(-2);
     expect(appended[0].tool_calls[0].id).toBe(appended[1].tool_call_id);
     expect(appended[1].tool_call_id).toBeTruthy();
+    expect(log.info).toHaveBeenCalledWith(
+      "tool_result",
+      expect.objectContaining({ call_id: appended[1].tool_call_id }),
+    );
   });
 
   it("keeps synthesized ids unique across round trips", async () => {
