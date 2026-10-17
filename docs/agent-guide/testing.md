@@ -6,11 +6,11 @@ Read before writing or changing a test. These rules cover what review judges; li
 
 A test earns its place by what its failure means: a behaviour a user sees, a contract in `docs/reference/` or `src/contract/`, a config schema in `configs/`, a wire frame, or an exported function's documented result is broken. A test whose failure means none of these is noise and is not written.
 
-Not tested: a constant's value, a library's or the platform's behaviour, a call on an internal helper, a call on a collaborator that no caller can observe, and a fact a sibling block already asserts. A collaborator call is a result when the collaborator is the module's door to the outside: a port passed in through `deps` whose call reaches the OS, the network, the DOM, audio, or storage.
+Not tested: an implementation constant's value in isolation (a value that is itself a documented contract is a contract), a library's or the platform's behaviour, a call on an internal helper, a call on a collaborator that no caller can observe, and a fact a sibling block already asserts. A collaborator call is observable when it crosses the module's external boundary: OS, network, DOM, audio, or storage I/O; a port passed in through `deps` is one way that boundary is exposed.
 
 The same setup with another input is a row in the sibling's `it.each` table, not a new block. A file's block count is not a measure of coverage.
 
-The rules below apply to Rust (`#[test]` under `src-tauri/`) and Python (`pytest` under `Mods/` and `integrations/`) the same way; the Vitest names map to their counterparts.
+The purpose and assertion principles apply to TypeScript, Rust (`#[test]` under `src-tauri/`), and Python (`pytest` under `Mods/` and `integrations/`) alike. Each language keeps its own test layout, parameterisation, mocking, and live-service conventions; the Vitest-specific rules below apply only to Vitest.
 
 ## Placement and names
 
@@ -31,7 +31,7 @@ The rules below apply to Rust (`#[test]` under `src-tauri/`) and Python (`pytest
 
 ## Existing tests
 
-9. An existing test is never deleted, skipped, or loosened to turn a run green. When behaviour changes on purpose, the PR summary lists each changed assertion and its reason. A test that meets § What a test is for may always be written. A block that does not meet it is deleted in a PR that touches its file, and the PR summary lists each deleted block with the rule it fails.
+9. An existing test is never deleted, skipped, or loosened to turn a run green. When behaviour changes on purpose, the PR summary lists each changed assertion and its reason. A test that meets § What a test is for may always be written. A PR that touches a test file repairs or folds its blocks so each distinct behaviour or contract keeps one assertion, and deletes a block that pins neither; a failing assertion is never removed in place of fixing the behaviour or revising its contract on purpose. The PR summary lists each deleted block with its reason.
 
 ## Mocks and outside services
 
