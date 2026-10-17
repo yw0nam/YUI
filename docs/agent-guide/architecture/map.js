@@ -364,7 +364,7 @@ globalThis.YUI_MAP =
     {
       "from": "senders",
       "to": "shell",
-      "label": "agent events, signals, avatar commands"
+      "label": "agent events, signals, avatar commands, WebDriver session (verify feature)"
     },
     {
       "from": "shell",
@@ -454,6 +454,14 @@ globalThis.YUI_MAP =
       "module": "senders",
       "label": "signal producers",
       "role": "Outside producers that post signals for the character to speak about.",
+      "paths": [],
+      "external": true
+    },
+    {
+      "id": "verifier",
+      "module": "senders",
+      "label": "verification driver",
+      "role": "A WebdriverIO session that drives a bundle built with the `verify` feature over `127.0.0.1:4445`.",
       "paths": [],
       "external": true
     },
