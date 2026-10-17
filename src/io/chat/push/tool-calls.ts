@@ -38,6 +38,7 @@ export interface PushToolCallsDeps {
     tool: ClientTool,
     args: Record<string, unknown>,
     signal?: AbortSignal,
+    callId?: string,
   ): Promise<ClientToolResult>;
   getMaxTurnBytes(): number | undefined;
   /** The state of a call whose tool shows its own status, keyed by the call id. */
@@ -81,7 +82,7 @@ export function createPushToolCalls(deps: PushToolCallsDeps): PushToolCalls {
       }
       const action = tool.localStatus ? tool.statusAction?.(frame.arguments) : undefined;
       if (tool.localStatus) deps.onStatus?.(frame.id, "running", frame.name, action);
-      const result = await deps.execute(tool, frame.arguments, signal);
+      const result = await deps.execute(tool, frame.arguments, signal, frame.id);
       if (tool.localStatus)
         deps.onStatus?.(frame.id, toolFailed(tool, result) ? "failed" : "done", frame.name, action);
       await answerResult(frame, result);

@@ -164,6 +164,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
   function setState(next: PushSocketState): void {
     if (JSON.stringify(state) === JSON.stringify(next)) return;
     state = next;
+    log.info("ws_state", next);
     for (const cb of stateSubs) cb(next);
   }
 

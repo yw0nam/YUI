@@ -1,6 +1,9 @@
 /** The one bounded execute the request transports' runClientCall and the push consumer both call. */
 
-import type { ClientTool, ClientToolResult } from "./client-tools";
+import { createLogger } from "../../../logger";
+import { type ClientTool, type ClientToolResult, toolFailed, toolResultText } from "./client-tools";
+
+const log = createLogger("execute");
 
 /**
  * Runs the call bounded by the tool's own wait. A wait that passes resolves the tool's timeout
@@ -8,6 +11,27 @@ import type { ClientTool, ClientToolResult } from "./client-tools";
  * execution's signal aborts when the wait passes or the caller's signal aborts.
  */
 export async function executeClientTool(
+  tool: ClientTool,
+  args: Record<string, unknown>,
+  signal?: AbortSignal,
+  callId?: string,
+): Promise<ClientToolResult> {
+  const started = Date.now();
+  const result = await boundedExecute(tool, args, signal);
+  const text = toolResultText(result);
+  const ok = !toolFailed(tool, result);
+  log.info("tool_result", {
+    name: tool.name,
+    call_id: callId,
+    ok,
+    duration_ms: Date.now() - started,
+    kind: ok ? textKind(text) : "error",
+    size: text.length,
+  });
+  return result;
+}
+
+async function boundedExecute(
   tool: ClientTool,
   args: Record<string, unknown>,
   signal?: AbortSignal,
@@ -33,6 +57,15 @@ export async function executeClientTool(
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener("abort", abort);
+  }
+}
+
+function textKind(text: string): "json" | "text" {
+  try {
+    const value: unknown = JSON.parse(text);
+    return typeof value === "object" && value !== null ? "json" : "text";
+  } catch {
+    return "text";
   }
 }
 

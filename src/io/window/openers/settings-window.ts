@@ -62,6 +62,9 @@ async function openTauriSettingsWindow(): Promise<void> {
     win.once("tauri://error", (e) =>
       log.error("settings_window_create_error", { error: String(e) }),
     );
+    win.once("tauri://destroyed", () =>
+      log.info("settings_window_closed", { label: SETTINGS_LABEL }),
+    );
   } catch (err) {
     log.error("settings_window_open_failed", { error: String(err) });
   }
