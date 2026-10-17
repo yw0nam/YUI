@@ -38,7 +38,7 @@ globalThis.YUI_MAP =
       "kind": "external",
       "col": 5,
       "row": 0,
-      "desc": "Mods/avatar, coding-agent hooks, signal producers"
+      "desc": "Mods/avatar, coding-agent hooks, signal producers, the verification driver"
     },
     {
       "id": "shell",
