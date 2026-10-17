@@ -54,6 +54,7 @@ describe("configs/avatar.json", () => {
   const emotions = read("configs/emotion_registry.json");
 
   it("points the default vrm_url at a VRM shipped under resources/", () => {
+    expect(a.vrm_url).toMatch(/^\/vrms\/.+\.vrm$/);
     expect(existsSync(resolve(process.cwd(), "resources", a.vrm_url.replace(/^\//, "")))).toBe(
       true,
     );
@@ -77,8 +78,17 @@ describe("configs/avatar.json", () => {
   });
 
   it("declares no gaze key the validator does not read", () => {
-    const validated = validateAvatar("configs/avatar.json", a).gaze;
-    expect(Object.keys(a.gaze).sort()).toEqual(Object.keys(validated).sort());
+    expect(Object.keys(a.gaze).sort()).toEqual([
+      "deadDeg",
+      "disengageDeg",
+      "eyeMaxDeg",
+      "headEngageDeg",
+      "headNeckSplit",
+      "maxHeadPitch",
+      "maxHeadYaw",
+      "sensitivity",
+      "smooth",
+    ]);
   });
 
   it("ships built-in touch/gesture cues as label-only (context is persona judgment, not client data)", () => {
@@ -117,10 +127,36 @@ describe("configs/motions.json", () => {
     ["sit_down", "oneshot", false],
     ["stand_up", "oneshot", false],
     ["jump", "oneshot", false],
-  ])("registers %s, which the client plays by id, as kind %s with loop %s", (id, kind, loop) => {
+    ["thinking", "state", true],
+    ["head_pat", "reactive", true],
+    ["bed_lie", "oneshot", false],
+    ["bed_sleep", "oneshot", true],
+    ["bed_wake", "oneshot", false],
+  ])("registers %s, a clip the client plays, as kind %s with loop %s", (id, kind, loop) => {
     expect(m[id], id).toBeDefined();
     expect(m[id].kind).toBe(kind);
     expect(m[id].loop).toBe(loop);
+  });
+
+  it.each([
+    "calm",
+    "dance",
+    "embarrassed",
+    "happy",
+    "idle_lively",
+    "laugh",
+    "sheepish",
+    "sulk",
+  ])("registers the agent-selectable %s as a oneshot that ends by itself", (id) => {
+    expect(m[id], id).toBeDefined();
+    expect(m[id].kind).toBe("oneshot");
+    expect(m[id].loop).toBe(false);
+  });
+
+  it("ships dance and idle_lively as variant pools", () => {
+    for (const id of ["dance", "idle_lively"]) {
+      expect(m[id].variants?.length, `${id}.variants`).toBeGreaterThanOrEqual(2);
+    }
   });
 
   it("keeps idle's baseline clip inside its own variant pool, so the selection cannot empty it", () => {
