@@ -1,6 +1,6 @@
 # factorio
 
-Bridges the Factorio game to the backend agent. It polls the [coop-agent game mod](https://github.com/yw0nam/YUI-factorio-game-mod) over RCON, caches game events, and posts a `live` signal to the YUI client when a wake-kind event happens. Runs **host-native** — RCON is a loopback console on the machine running Factorio.
+Bridges the Factorio game to the backend agent. It polls the [coop-agent game mod](game-mod/) over RCON, caches game events, and posts a `live` signal to the YUI client when a wake-kind event happens. Runs **host-native** — RCON is a loopback console on the machine running Factorio.
 
 ## Run
 
@@ -31,7 +31,7 @@ uv run factorio-mcp --transport http --host 127.0.0.1 --port 9003
 | `signals_url` | `http://127.0.0.1:8770/signals` | The YUI client's loopback signals ingress. |
 | `wake.kinds` | `chat`, `job_done`, `job_failed`, `body_died`, `body_damaged`, `research_finished`, `rocket_launched`, `player_died`, `attack_started`, `attack_ended` | Event kinds that ring the doorbell. Every other kind only enters the cache. |
 | `wake.coalesce_ms` | `2000` | Quiet period after the first wake event before one doorbell is posted. |
-| `outcome_log` | `outcome.jsonl` beside `config.toml` | JSONL record per polled event, doorbell post, and tool call. |
+| `outcome_log` | `outcome.jsonl` beside `config.toml` | JSONL log. Each line's `type` is `event`, `tool`, `doorbell`, `history_gap`, `session_reset`, or `backend_lag`. |
 
 The Mod polls `events_since` every second. The cache holds the newest 5000 events. A rollback, a history gap, and a map change each recover the cursors; the next doorbell carries `reset: true`. See [the Mods reference](../../docs/reference/mods.md#factorio) for the full behaviour.
 
@@ -57,7 +57,7 @@ Reach the Mod from the remote agent through the [router](../router/) (`http://lo
 | `factorio_say(text)` | Say one line in game chat as the host character |
 | `factorio_ping(pos, text)` | Ping a map position with a text label |
 
-A game-mod refusal raises a tool error carrying the game's error code and message, such as `too_large`, `rate_limited`, or `history_gap`.
+A game-mod refusal raises a tool error carrying the game's error code and message, such as `too_large`, `rate_limited`, or `history_gap`. An `id_conflict` reply raises a tool error and is never re-sent under a new id.
 
 ## Test
 
