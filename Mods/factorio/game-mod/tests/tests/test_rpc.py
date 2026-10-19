@@ -26,11 +26,11 @@ OPS.say = function(_deps, args)
 end
 OPS.ping = function(_deps, _args)
   OPS.calls = OPS.calls + 1
-  error("the machine broke\\nwith a traceback")
+  error("the machine broke\\nwith a traceback", 0)
 end
 OPS.boom = function(_deps, _args)
   OPS.calls = OPS.calls + 1
-  error("the machine broke\\nwith a traceback")
+  error("the machine broke\\nwith a traceback", 0)
 end
 OPS.big = function(_deps, args)
   return string.rep("a", args.size)
@@ -140,12 +140,15 @@ def test_write_op_stores_refused_replies(lua, rpc):
     assert lua.globals().OPS.calls == 1
 
 
-def test_write_op_that_raises_reruns_on_retry(lua, rpc):
+def test_write_op_that_raises_replays_its_op_error(lua, rpc):
     request = req("ping", id_="p1")
     dispatch(lua, rpc, request)
     dispatch(lua, rpc, request)
-    assert lua.globals().OPS.calls == 2
-    assert last_printed(lua)["e"] == "op_error"
+    assert (
+        dispatch(lua, rpc, request)
+        == [{"v": 1, "id": "p1", "ok": False, "e": "op_error", "m": "the machine broke"}] * 3
+    )
+    assert lua.globals().OPS.calls == 1
 
 
 def test_same_id_with_different_args_is_id_conflict(lua, rpc):
@@ -167,31 +170,24 @@ def test_memory_keeps_the_last_256_replies(lua, rpc):
     for i in range(257):
         dispatch(lua, rpc, req("say", {"text": str(i)}, id_=f"id-{i}"))
 
-    assert len(list(lua.globals().DEPS.storage.rpc_memory[MAP_ID].values())) == 256
-
+    dispatch(lua, rpc, req("say", {"text": "1"}, id_="id-1"))
+    assert lua.globals().OPS.calls == 257  # id-1 is still stored and replays
     dispatch(lua, rpc, req("say", {"text": "0"}, id_="id-0"))
-    assert last_printed(lua) == {"v": 1, "id": "id-0", "ok": True, "r": {"said": "0"}}
+    assert lua.globals().OPS.calls == 258  # id-0 was the oldest and runs again
 
 
 def test_memory_buckets_exist_only_for_this_map(lua, rpc):
     dispatch(lua, rpc, req("say", {"text": "hi"}, id_="w1", map_id="other-map"))
-    assert last_printed(lua)["e"] == "stale_session"
-    assert len(list(lua.globals().DEPS.storage.rpc_memory.values())) == 0
+    dispatch(lua, rpc, req("echo", {"text": "hi"}, id_="w2"))
+    assert list(lua.globals().DEPS.storage.rpc_memory.keys()) == []
 
-    dispatch(lua, rpc, req("say", {"text": "hi"}, id_="w2"))
+    dispatch(lua, rpc, req("say", {"text": "hi"}, id_="w3"))
     assert list(lua.globals().DEPS.storage.rpc_memory.keys()) == [MAP_ID]
 
 
 def test_op_error_carries_first_line(lua, rpc):
     dispatch(lua, rpc, req("boom", id_="b1"))
-    reply = last_printed(lua)
-    assert reply["v"] == 1
-    assert reply["id"] == "b1"
-    assert reply["ok"] is False
-    assert reply["e"] == "op_error"
-    # m keeps the first line of the Lua error, including the source prefix
-    assert "\n" not in reply["m"]
-    assert reply["m"].endswith("the machine broke")
+    assert last_printed(lua) == {"v": 1, "id": "b1", "ok": False, "e": "op_error", "m": "the machine broke"}
 
 
 def test_reply_at_exactly_65536_bytes_is_ok_and_65537_is_too_large(lua, rpc):
@@ -212,6 +208,10 @@ def test_reply_at_exactly_65536_bytes_is_ok_and_65537_is_too_large(lua, rpc):
     assert reply["ok"] is True
 
     reply, _ = big_reply(size_for_65536 + 1)
-    assert reply["ok"] is False
-    assert reply["e"] == "too_large"
-    assert reply["r"] == {"bytes": 65537}
+    assert reply == {
+        "v": 1,
+        "id": f"big-{size_for_65536 + 1:09d}",
+        "ok": False,
+        "e": "too_large",
+        "r": {"bytes": 65537},
+    }

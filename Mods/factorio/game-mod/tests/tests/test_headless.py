@@ -1,5 +1,4 @@
 import json
-import math
 import os
 import shutil
 import socket
@@ -54,6 +53,8 @@ class Headless:
             key, _, value = line.partition("=")
             self.info[key] = value
         self.connect()
+        # the first Lua command on a map only disables achievements and runs nothing
+        self.command("/silent-command")
 
     def start_saved(self, save_path):
         tcp_port, udp_port = free_udp_port(), free_udp_port()
@@ -105,6 +106,22 @@ class Headless:
     def command(self, text):
         return self.rcon.command(text)
 
+    def save(self, name, deadline_s=30):
+        self.command(f"/save {name}")
+        log = self.workdir / "logs" / "server.log"
+        deadline = time.monotonic() + deadline_s
+        while time.monotonic() < deadline:
+            if (
+                "Saving finished"
+                in log.read_text().partition(f"Saving game as {self.workdir / 'saves' / name}")[2]
+            ):
+                return self.workdir / "saves" / f"{name}.zip"
+            time.sleep(0.25)
+        raise AssertionError(f"{name} was never saved")
+
+    def research(self, name):
+        self.command(f"/silent-command game.forces.player.technologies['{name}'].researched = true")
+
     def wait_head(self, map_id, want, deadline_s=30):
         deadline = time.monotonic() + deadline_s
         while time.monotonic() < deadline:
@@ -126,54 +143,54 @@ def server(request):
     headless.stop()
 
 
+def research_event(name):
+    return {"kind": "research_finished", "data": {"name": name}}
+
+
+def without_ticks(events):
+    return [{"kind": e["kind"], "data": e["data"]} for e in events]
+
+
 def test_status_events_since_say_round_trip(server):
     # the tick-0 snapshot summary is the deterministic first event of a fresh map
-    assert server.wait_head(MAP_ID, 1) == {
-        "map_id": MAP_ID,
-        "head_seq": 1,
-        "events": [SUMMARY_EVENT],
-    }
+    assert server.wait_head(MAP_ID, 1) == {"map_id": MAP_ID, "head_seq": 1, "events": [SUMMARY_EVENT]}
 
     status = server.rpc(v=1, id="it-1", op="status", args={})
-    assert status["v"] == 1
-    assert status["ok"] is True
-    body = status["r"]
-    assert body["mod_version"] == "0.1.0"
-    assert body["map_id"] == MAP_ID
-    assert body["seq"] == 1
-    assert isinstance(body["tick"], int)
-    assert body.get("host") is None  # headless: no players (absent means null)
+    # tick follows the wall clock; a headless server has no host player, so host is absent
+    assert status == {
+        "v": 1,
+        "id": "it-1",
+        "ok": True,
+        "r": {"mod_version": "0.1.0", "map_id": MAP_ID, "seq": 1, "tick": status["r"]["tick"]},
+    }
 
-    said = server.rpc(v=1, id="it-3", op="say", args={"text": "hello"}, map_id=MAP_ID)
-    assert said == {"v": 1, "id": "it-3", "ok": True, "r": {}}
+    said = server.rpc(v=1, id="it-2", op="say", args={"text": "hello"}, map_id=MAP_ID)
+    assert said == {"v": 1, "id": "it-2", "ok": True, "r": {}}
 
-    # say prints to chat but raises no event kind; the ring stays at head_seq 1
-    events = server.rpc(v=1, id="it-4", op="events_since", args={"seq": 0}, map_id=MAP_ID)
+    # say raises no event kind, so the ring stays at head_seq 1
+    events = server.rpc(v=1, id="it-3", op="events_since", args={"seq": 0}, map_id=MAP_ID)
     assert events == {
         "v": 1,
-        "id": "it-4",
+        "id": "it-3",
         "ok": True,
         "r": {"map_id": MAP_ID, "head_seq": 1, "events": [SUMMARY_EVENT]},
     }
 
-    # a wrong map_id is refused on the real server too
-    stale = server.rpc(v=1, id="it-5", op="say", args={"text": "hi"}, map_id="nope")
+    stale = server.rpc(v=1, id="it-4", op="say", args={"text": "hi"}, map_id="nope")
     assert stale == {
         "v": 1,
-        "id": "it-5",
+        "id": "it-4",
         "ok": False,
         "e": "stale_session",
         "m": "map_id does not match this map",
     }
 
 
-def test_repeated_id_replays_and_conflicting_args_fail(server):
-    request = {"v": 1, "id": "it-idem", "op": "status", "args": {}}
-    first = server.rpc(**request)
-    second = server.rpc(**request)
-    assert first == second
+def test_repeated_write_id_replays_and_conflicting_args_fail(server):
+    request = {"v": 1, "id": "it-idem", "op": "say", "args": {"text": "once"}, "map_id": MAP_ID}
+    assert server.rpc(**request) == server.rpc(**request) == {"v": 1, "id": "it-idem", "ok": True, "r": {}}
 
-    conflict = server.rpc(v=1, id="it-idem", op="status", args={"x": 1})
+    conflict = server.rpc(**{**request, "args": {"text": "twice"}})
     assert conflict == {
         "v": 1,
         "id": "it-idem",
@@ -183,69 +200,78 @@ def test_repeated_id_replays_and_conflicting_args_fail(server):
     }
 
 
-def test_find_and_inspect_round_trip_a_built_chest(server):
-    out = server.command(
-        "/silent-command local s = game.surfaces[1] "
-        "local p = game.forces.player.get_spawn_position(s) "
-        "local c = s.create_entity{name = 'wooden-chest', position = p, force = 'player'} "
-        "c.insert{name = 'iron-plate', count = 5} "
-        "rcon.print(helpers.table_to_json({unit_number = c.unit_number, x = c.position.x, y = c.position.y}))"
+def test_find_then_inspect_a_chest_and_an_assembler(server):
+    built = json.loads(
+        server.command(
+            "/silent-command local s = game.surfaces[1] "
+            "local p = game.forces.player.get_spawn_position(s) "
+            "local c = s.create_entity{name = 'wooden-chest', position = p, force = 'player'} "
+            "c.insert{name = 'iron-plate', count = 5} "
+            "local a = s.create_entity{name = 'assembling-machine-1', position = {p.x + 6, p.y}, force = 'player'} "
+            "a.set_recipe('iron-gear-wheel') "
+            "a.insert{name = 'iron-plate', count = 4} "
+            "rcon.print(helpers.table_to_json({chest = c.unit_number, assembler = a.unit_number}))"
+        )
     )
-    chest = json.loads(out)
-
-    area = {
-        "left_top": {"x": chest["x"] - 8, "y": chest["y"] - 8},
-        "right_bottom": {"x": chest["x"] + 8, "y": chest["y"] + 8},
+    area = {"left_top": {"x": -8, "y": -8}, "right_bottom": {"x": 8, "y": 8}}
+    chest = {
+        "unit_number": built["chest"],
+        "name": "wooden-chest",
+        "type": "container",
+        "position": {"x": 0.5, "y": 0.5},
+        "gps": "[gps=0,0]",
     }
+    assembler = {
+        "unit_number": built["assembler"],
+        "name": "assembling-machine-1",
+        "type": "assembling-machine",
+        "position": {"x": 6.5, "y": 0.5},
+        "gps": "[gps=6,0]",
+    }
+
     found = server.rpc(v=1, id="f1", op="find", args={"area": area, "name": "wooden-chest"}, map_id=MAP_ID)
-    assert found["ok"] is True
-    assert found["r"] == [
-        {
-            "unit_number": chest["unit_number"],
-            "name": "wooden-chest",
-            "type": "container",
-            "position": {"x": chest["x"], "y": chest["y"]},
-            "gps": f"[gps={math.floor(chest['x'])},{math.floor(chest['y'])}]",
-            "owner": "player",
-        }
+    assert found == {"v": 1, "id": "f1", "ok": True, "r": [{**chest, "owner": "player"}]}
+    found = server.rpc(
+        v=1, id="f2", op="find", args={"area": area, "type": "assembling-machine"}, map_id=MAP_ID
+    )
+    assert found == {"v": 1, "id": "f2", "ok": True, "r": [{**assembler, "owner": "player"}]}
+
+    inspected = server.rpc(v=1, id="i1", op="inspect", args={"unit_number": built["chest"]}, map_id=MAP_ID)
+    assert inspected["r"] == {
+        **chest,
+        "inventories": {"chest": [{"name": "iron-plate", "count": 5, "quality": "normal"}]},
+        "fluids": {},
+        "status": "normal",
+    }
+    inspected = server.rpc(
+        v=1, id="i2", op="inspect", args={"unit_number": built["assembler"]}, map_id=MAP_ID
+    )
+    assert inspected["r"] == {
+        **assembler,
+        "inventories": {"crafter_input": [{"name": "iron-plate", "count": 4, "quality": "normal"}]},
+        "fluids": {},
+        "recipe": {"name": "iron-gear-wheel"},
+        "status": "no_power",
+    }
+
+
+def test_a_save_reload_returns_the_head_seq_of_the_save(server):
+    # say raises no event, so research completions move the ring around the save
+    server.research("automation")
+    server.research("logistics")
+    saved = server.wait_head(MAP_ID, 3)
+    assert without_ticks(saved["events"]) == [
+        {"kind": "snapshot_summary", "data": SUMMARY_EVENT["data"]},
+        research_event("automation"),
+        research_event("logistics"),
     ]
 
-    inspected = server.rpc(
-        v=1, id="f2", op="inspect", args={"unit_number": chest["unit_number"]}, map_id=MAP_ID
-    )
-    assert inspected["ok"] is True
-    assert inspected["r"]["inventories"] == {
-        "chest": [{"name": "iron-plate", "count": 5, "quality": "normal"}]
-    }
-    assert "recipe" not in inspected["r"]  # a chest has no recipe (absent means null)
-
-
-def test_save_reload_keeps_map_id_and_the_ring(server):
-    server.wait_head(MAP_ID, 1)
-    assert server.rpc(v=1, id="r-s1", op="say", args={"text": "persist one"}, map_id=MAP_ID)["ok"] is True
-    assert server.rpc(v=1, id="r-s2", op="say", args={"text": "persist two"}, map_id=MAP_ID)["ok"] is True
-
-    server.command("/save reload-test")
-    save_path = server.workdir / "saves" / "reload-test.zip"
-    deadline = time.monotonic() + 30
-    while not save_path.exists():
-        assert time.monotonic() < deadline, "the /save never produced the file"
-        time.sleep(0.25)
+    save_path = server.save("probe-reload")
+    server.research("gun-turret")
+    assert server.wait_head(MAP_ID, 4)["head_seq"] == 4
 
     server.stop()
     server.start_saved(save_path)
 
-    status = server.rpc(v=1, id="r-1", op="status", args={})
-    assert status["r"]["map_id"] == MAP_ID
-    assert status["r"]["seq"] == 1
-
-    assert server.rpc(v=1, id="r-s3", op="say", args={"text": "after reload"}, map_id=MAP_ID)["ok"] is True
-
-    # the third say raises no event: the ring after reload is exactly the saved one
-    events = server.rpc(v=1, id="r-2", op="events_since", args={"seq": 0}, map_id=MAP_ID)
-    assert events == {
-        "v": 1,
-        "id": "r-2",
-        "ok": True,
-        "r": {"map_id": MAP_ID, "head_seq": 1, "events": [SUMMARY_EVENT]},
-    }
+    reloaded = server.rpc(v=1, id="r-1", op="events_since", args={"seq": 0}, map_id=MAP_ID)
+    assert reloaded == {"v": 1, "id": "r-1", "ok": True, "r": saved}

@@ -52,22 +52,15 @@ def test_read_limit_returns_the_oldest_matching_events(lua, ring):
     assert [e["seq"] for e in body["events"]] == [1, 2]
 
 
-def test_ring_holds_2000_events_and_reports_the_oldest(lua, ring):
+def test_ring_keeps_the_last_2000_and_a_gap_opens_behind_oldest_minus_one(lua, ring):
     r = ring.new()
     for i in range(1, 2002):
         ring.push(r, i, "chat", lua.table(text=str(i)))
 
-    read = ring.read(r, 1, None)
-    assert read["head_seq"] == 2001
-    assert read["oldest_seq"] == 2
-    assert read_json(lua, read)["events"][0]["seq"] == 2
-
-
-@pytest.mark.parametrize(("since", "gap"), [(1, False), (0, True)])
-def test_gap_opens_when_since_is_behind_oldest_minus_one(lua, ring, since, gap):
-    r = ring.new()
-    for i in range(1, 2002):
-        ring.push(r, i, "chat", lua.table(text=str(i)))
-
-    # the ring's oldest seq is 2, so since == oldest - 1 is readable, older is a gap
-    assert ring.read(r, since, None)["gap"] is gap
+    assert read_json(lua, ring.read(r, 1, 1)) == {
+        "events": [{"seq": 2, "tick": 2, "kind": "chat", "data": {"text": "2"}}],
+        "head_seq": 2001,
+        "oldest_seq": 2,
+        "gap": False,
+    }
+    assert ring.read(r, 0, 1)["gap"] is True
