@@ -3,10 +3,14 @@
 import asyncio
 import json
 
+from fake_rcon import FakeRconServer
+
 from factorio.events.cache import Session
 from factorio.events.poll import Poller
 from factorio.outcome_log import OutcomeLog
-from factorio.rpc import RpcError
+from factorio.rcon.client import RconClient
+from factorio.recovery import MapRecovery
+from factorio.rpc import RpcClient, RpcError
 
 CLOCK_S = 1_700_000_000.5
 TS = "2023-11-14T22:13:20.500+00:00"
@@ -28,7 +32,7 @@ class FakeRecovery:
     def __init__(self):
         self.calls = []
 
-    async def run(self, status):
+    async def run(self, status, *_):
         self.calls.append(status)
 
 
@@ -172,3 +176,49 @@ def test_backend_lag_is_logged_when_an_unread_event_is_dropped(tmp_path):
     assert [record for record in records(log_path) if record["type"] == "backend_lag"] == [
         {"ts": TS, "type": "backend_lag", "dropped": 1}
     ]
+
+
+def test_a_poll_and_a_tool_on_the_same_map_change_recover_once(tmp_path):
+    statuses = [40, 42]
+
+    def handler(command, count):
+        request = json.loads(command.removeprefix("/coop-rpc "))
+        head = {"v": 1, "id": request["id"]}
+        if request["op"] == "status":
+            return json.dumps({**head, "ok": True, "r": {"map_id": "map-b", "seq": statuses.pop(0)}})
+        if request["map_id"] != "map-b":
+            return json.dumps({**head, "ok": False, "e": "stale_session", "m": "map_id does not match"})
+        if request["op"] == "events_since":
+            events = [event(seq) for seq in range(request["args"]["seq"] + 1, 43)]
+            return json.dumps(
+                {**head, "ok": True, "r": {"map_id": "map-b", "head_seq": 42, "events": events}}
+            )
+        return json.dumps({**head, "ok": True, "r": {}})
+
+    log_path = tmp_path / "outcome.jsonl"
+
+    async def case():
+        server = await FakeRconServer(handler=handler).start()
+        try:
+            session = Session()
+            session.map_id = "map-a"
+            log = OutcomeLog(log_path, clock=lambda: CLOCK_S)
+            doorbell = FakeDoorbell()
+            recovery = MapRecovery(session, doorbell, log)
+            rcon = RconClient("127.0.0.1", server.port, "secret", timeout=1.0)
+            rpc = RpcClient(rcon, session, recovery.run)
+            poller = Poller(rpc, session, doorbell, recovery, log)
+            failures = await asyncio.gather(
+                rpc.call("say", {"text": "hi"}), poller.poll_once(), return_exceptions=True
+            )
+            await poller.poll_once()
+            return [failure.code for failure in failures], session.read(None, 200)["events"]
+        finally:
+            await server.close()
+
+    codes, events = asyncio.run(case())
+    assert codes == ["stale_session", "stale_session"]
+    assert [record for record in records(log_path) if record["type"] == "session_reset"] == [
+        {"ts": TS, "type": "session_reset", "cause": "map_change", "poll_cursor": 40, "backend_cursor": 40}
+    ]
+    assert [e["seq"] for e in events] == [41, 42]

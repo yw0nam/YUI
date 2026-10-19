@@ -174,6 +174,52 @@ def test_unread_wake_events_post_once_more_after_five_minutes(tmp_path):
     asyncio.run(case())
 
 
+def ranges(recorder) -> list[tuple[int, int]]:
+    return [
+        (body["signals"][0]["pending_from_seq"], body["signals"][0]["pending_to_seq"])
+        for body in recorder.bodies
+    ]
+
+
+def test_a_range_first_posted_by_a_failed_reposts_retry_is_reposted_once(tmp_path):
+    recorder = Recorder([200, 500, 200, 200])
+    bell, feed, _session, client = make_bell(tmp_path, recorder)
+
+    async def case():
+        feed.add(event(1, "job_done"))
+        bell.notify(event(1, "job_done"), now=0.0)
+        await bell.step(2.0)
+        await bell.step(302.0)
+        feed.add(event(2, "job_done"))
+        bell.notify(event(2, "job_done"), now=303.0)
+        await bell.step(307.0)
+        await bell.step(606.9)
+        await bell.step(607.0)
+        await bell.step(907.1)
+        await client.aclose()
+
+    asyncio.run(case())
+    assert ranges(recorder) == [(1, 1), (1, 1), (1, 2), (1, 2)]
+
+
+def test_a_range_the_backend_already_read_posts_nothing(tmp_path):
+    recorder = Recorder([200])
+    bell, feed, session, client = make_bell(tmp_path, recorder)
+
+    async def case():
+        feed.add(event(1, "job_done"))
+        bell.notify(event(1, "job_done"), now=0.0)
+        session.read(None, 200)
+        await bell.step(2.0)
+        feed.add(event(2, "job_failed"))
+        bell.notify(event(2, "job_failed"), now=10.0)
+        await bell.step(12.0)
+        await client.aclose()
+
+    asyncio.run(case())
+    assert ranges(recorder) == [(2, 2)]
+
+
 def test_reset_is_sent_once_after_recovery(tmp_path):
     recorder = Recorder([200, 200])
     bell, feed, _session, client = make_bell(tmp_path, recorder)

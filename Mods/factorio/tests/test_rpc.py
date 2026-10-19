@@ -79,7 +79,7 @@ def test_stale_session_runs_the_recovery_and_does_not_rerun_the_op():
             return reply(request, ok=False, e="stale_session")
         return reply(request, r={"said": True})
 
-    async def on_reset(status):
+    async def on_reset(status, *_):
         recovered.append(status)
 
     async def body(rpc, session):
@@ -94,22 +94,30 @@ def test_stale_session_runs_the_recovery_and_does_not_rerun_the_op():
     assert [status["map_id"] for status in recovered] == ["map-b"]
 
 
-def test_id_conflict_resends_with_a_new_id():
+def test_an_id_conflict_on_a_replay_raises_and_sends_nothing_more():
     requests = []
 
     def handler(command, count):
         request = parse(command)
         requests.append(request)
+        if request["op"] == "status":
+            return reply(request, r={"map_id": "map-a", "seq": 0})
         if len([item for item in requests if item["op"] == "say"]) == 1:
-            return reply(request, ok=False, e="id_conflict")
-        return reply(request, r={"said": True})
+            return CLOSE
+        return reply(request, ok=False, e="id_conflict", m="id already used with different arguments")
 
     async def body(rpc, session):
-        return await rpc.call("say", {"text": "hi"})
+        session.map_id = "map-a"
+        with pytest.raises(RpcError) as raised:
+            await rpc.call("say", {"text": "hi"})
+        return raised.value.code, raised.value.message
 
-    assert asyncio.run(with_server(handler, body)) == {"said": True}
+    assert asyncio.run(with_server(handler, body)) == (
+        "id_conflict",
+        "id already used with different arguments",
+    )
     says = [request for request in requests if request["op"] == "say"]
-    assert says[0]["id"] != says[1]["id"]
+    assert [request["id"] for request in says] == [says[0]["id"], says[0]["id"]]
 
 
 def test_an_unknown_outcome_reconciles_and_resends_the_identical_id():
@@ -143,7 +151,7 @@ def test_an_unknown_outcome_after_a_map_change_recovers_and_raises():
             return reply(request, r={"map_id": "map-b", "seq": 40})
         return CLOSE
 
-    async def on_reset(status):
+    async def on_reset(status, *_):
         recovered.append(status)
 
     async def body(rpc, session):
@@ -205,3 +213,29 @@ def test_a_reply_that_is_not_one_json_object_raises_a_protocol_error(raw):
 
     with pytest.raises(RpcProtocolError, match="not one JSON object"):
         asyncio.run(with_server(lambda command, count: raw, body))
+
+
+@pytest.mark.parametrize(
+    ("fields", "error", "code", "message"),
+    [
+        (
+            {"id": None, "ok": False, "e": "bad_request", "m": "parameter must be one JSON object"},
+            RpcError,
+            "bad_request",
+            "parameter must be one JSON object",
+        ),
+        ({"ok": False}, RpcProtocolError, "bad_reply", "the error reply carries no error code"),
+    ],
+)
+def test_a_null_id_error_reply_raises_the_game_error_and_a_reply_without_a_code_is_a_protocol_error(
+    fields, error, code, message
+):
+    def handler(command, count):
+        return json.dumps({"v": 1, "id": parse(command)["id"], **fields})
+
+    async def body(rpc, session):
+        await rpc.call("snapshot", {})
+
+    with pytest.raises(RpcError) as raised:
+        asyncio.run(with_server(handler, body))
+    assert (type(raised.value), raised.value.code, raised.value.message) == (error, code, message)
