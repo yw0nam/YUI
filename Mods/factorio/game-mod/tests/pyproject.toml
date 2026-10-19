@@ -1,0 +1,20 @@
+[project]
+name = "factorio-game-mod-tests"
+version = "0.1.0"
+description = "Tests for the Factorio game mod (coop-agent): lupa units + headless RCON integration"
+requires-python = ">=3.12"
+dependencies = [
+    "lupa>=2.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
