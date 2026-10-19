@@ -28,10 +28,6 @@ class RconUnavailable(RconError):
     code = "rcon_unavailable"
 
 
-class RconProtocolError(RconError):
-    code = "rcon_protocol"
-
-
 class Backoff:
     """Reconnect delays: 1, 2, 4, 8, 16, 30, 30, ... seconds."""
 

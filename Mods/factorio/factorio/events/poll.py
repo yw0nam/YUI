@@ -4,7 +4,8 @@ import asyncio
 
 from loguru import logger
 
-from factorio.events.cache import PAGE_LIMIT, EventCache, Session
+from factorio.events.cache import PAGE_LIMIT, Session
+from factorio.recovery import MapRecovery
 from factorio.rpc import RpcClient, RpcError, RpcUnavailable
 
 INTERVAL_S = 1.0
@@ -15,19 +16,17 @@ class Poller:
         self,
         rpc: RpcClient,
         session: Session,
-        cache: EventCache,
         doorbell,
+        recovery: MapRecovery,
         log,
         interval: float = INTERVAL_S,
-        page_limit: int = PAGE_LIMIT,
     ):
         self.rpc = rpc
         self.session = session
-        self.cache = cache
         self.doorbell = doorbell
+        self.recovery = recovery
         self.log = log
         self.interval = interval
-        self.page_limit = page_limit
 
     async def run(self) -> None:
         while True:
@@ -53,22 +52,28 @@ class Poller:
             previous_cursor = self.session.poll_cursor
             try:
                 page = await self.rpc.call(
-                    "events_since", {"seq": self.session.poll_cursor, "limit": self.page_limit}
+                    "events_since", {"seq": self.session.poll_cursor, "limit": PAGE_LIMIT}
                 )
             except RpcError as err:
                 if err.code == "history_gap":
                     oldest = int((err.result or {}).get("oldest_seq", 0))
                     self.session.on_history_gap(oldest)
+                    self.log.history_gap(oldest_seq=oldest)
                     logger.bind(oldest_seq=oldest, poll_cursor=self.session.poll_cursor).info("history_gap")
                     continue
                 raise
 
-            result = self.session.on_page(page, self.cache)
+            result = self.session.on_page(page)
             if result.outcome == "map_change":
-                await self._recover_map()
+                await self.recovery.run(await self.rpc.status())
                 return
             if result.outcome == "rollback":
                 self.doorbell.mark_reset()
+                self.log.session_reset(
+                    cause="rollback",
+                    poll_cursor=self.session.poll_cursor,
+                    backend_cursor=self.session.backend_cursor,
+                )
                 logger.bind(
                     poll_cursor=self.session.poll_cursor,
                     backend_cursor=self.session.backend_cursor,
@@ -76,30 +81,22 @@ class Poller:
                 return
 
             self._log_lag(result.dropped)
-            events = page.get("events", [])
+            events = page.get("events") or []
             for event in events:
                 self.log.event(event)
                 self.doorbell.notify(event)
-            if len(events) < self.page_limit or self.session.poll_cursor == previous_cursor:
+            if len(events) < PAGE_LIMIT or self.session.poll_cursor == previous_cursor:
                 return
 
     async def _sync_status(self) -> None:
         status = await self.rpc.status()
-        self.session.on_map_change(status, self.cache)
+        self.session.on_map_change(status)
         logger.bind(map_id=self.session.map_id, seq=self.session.poll_cursor).info("session_started")
-
-    async def _recover_map(self) -> None:
-        await self.recover_session(await self.rpc.status())
-
-    async def recover_session(self, status: dict) -> None:
-        """Adopt a map change from `status` and flag the next doorbell."""
-        self.session.on_map_change(status, self.cache)
-        self.doorbell.mark_reset()
-        logger.bind(map_id=self.session.map_id, seq=self.session.poll_cursor).info("session_reset")
 
     def _log_lag(self, dropped: tuple[int, ...]) -> None:
         unread = [seq for seq in dropped if seq > self.session.backend_cursor]
         if unread:
+            self.log.backend_lag(dropped=len(dropped))
             logger.bind(
                 dropped=len(dropped),
                 oldest_unread=min(unread),

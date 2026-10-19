@@ -51,7 +51,7 @@ Reach the Mod from the remote agent through the [router](../router/) (`http://lo
 | `factorio_status()` | Game mod version, map id, newest event sequence, tick, and host state |
 | `factorio_events(since_seq=None, limit=200)` | Cached events after `since_seq` (exclusive). Defaults to the unread cursor; a value above it is clamped down, a value below it re-reads. Returns `{events, next_seq, more}` |
 | `factorio_snapshot(sections=None)` | State snapshot of the factory; omit `sections` for every section |
-| `factorio_find(query, kind=None, limit=20)` | Find entities by name, optionally limited to one type |
+| `factorio_find(area=None, around=None, name=None, type=None, limit=50)` | Find entities by name, type, area, or near the host player |
 | `factorio_inspect(unit_number)` | Read one entity by its unit number |
 | `factorio_recipe(name)` | Read one recipe by name |
 | `factorio_say(text)` | Say one line in game chat as the host character |

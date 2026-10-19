@@ -2,6 +2,7 @@
 
 from collections import OrderedDict
 from dataclasses import dataclass
+from typing import Literal
 
 DEFAULT_CAPACITY = 5000
 PAGE_LIMIT = 200  # the most the game mod returns per events_since call
@@ -54,26 +55,23 @@ class EventCache:
     def newest_seq(self) -> int | None:
         return next(reversed(self._events), None)
 
-    @property
-    def oldest_seq(self) -> int | None:
-        return next(iter(self._events), None)
-
 
 @dataclass(frozen=True)
 class PageResult:
-    outcome: str
+    outcome: Literal["ok", "rollback", "map_change"]
     dropped: tuple[int, ...] = ()
 
 
 class Session:
-    """The poll cursor, the backend read cursor, and the current map id."""
+    """The poll cursor, the backend read cursor, the current map id, and its cache."""
 
-    def __init__(self):
+    def __init__(self, cache: EventCache):
+        self.cache = cache
         self.map_id: str | None = None
         self.poll_cursor = 0
         self.backend_cursor = 0
 
-    def on_page(self, page: dict, cache: EventCache) -> PageResult:
+    def on_page(self, page: dict) -> PageResult:
         map_id = page.get("map_id")
         if self.map_id is not None and map_id != self.map_id:
             return PageResult("map_change")
@@ -83,27 +81,28 @@ class Session:
         if head_seq < self.poll_cursor:
             self.poll_cursor = head_seq
             self.backend_cursor = min(self.backend_cursor, head_seq)
-            cache.drop_above(head_seq)
+            self.cache.drop_above(head_seq)
             return PageResult("rollback")
         dropped: tuple[int, ...] = ()
-        for event in page.get("events", []):
-            dropped += cache.add(event)
-        self.poll_cursor = max(self.poll_cursor, head_seq)
+        events = page.get("events") or []
+        for event in events:
+            dropped += self.cache.add(event)
+        if events:
+            self.poll_cursor = max(self.poll_cursor, int(events[-1]["seq"]))
         return PageResult("ok", dropped)
 
     def on_history_gap(self, oldest_seq: int) -> None:
         self.poll_cursor = max(0, oldest_seq - 1)
 
-    def on_map_change(self, status: dict, cache: EventCache | None = None) -> None:
+    def on_map_change(self, status: dict) -> None:
         self.map_id = status["map_id"]
         self.poll_cursor = int(status["seq"])
         self.backend_cursor = self.poll_cursor
-        if cache is not None:
-            cache.clear()
+        self.cache.clear()
 
-    def read(self, cache: EventCache, since_seq: int | None, limit: int) -> dict:
+    def read(self, since_seq: int | None, limit: int) -> dict:
         base = self.backend_cursor if since_seq is None else min(since_seq, self.backend_cursor)
-        events = cache.page_after(base, limit)
+        events = self.cache.page_after(base, limit)
         next_seq = int(events[-1]["seq"]) if events else base
         self.backend_cursor = max(self.backend_cursor, next_seq)
-        return {"events": events, "next_seq": next_seq, "more": cache.has_after(next_seq)}
+        return {"events": events, "next_seq": next_seq, "more": self.cache.has_after(next_seq)}

@@ -108,13 +108,13 @@ Bridges the Factorio game to the agent through the coop-agent game mod, which an
 | `factorio_status()` | Game mod version, map id, newest event sequence, tick, and host state |
 | `factorio_events(since_seq=None, limit=200)` | Cached events after `since_seq` (exclusive). `None` starts at the unread cursor; a value above it is clamped down, a value below it re-reads. Returns `{events, next_seq, more}` with a contiguous page of at most 200 |
 | `factorio_snapshot(sections=None)` | State snapshot of the factory; omit `sections` for every section |
-| `factorio_find(query, kind=None, limit=20)` | Find entities by name, optionally limited to one entity type |
+| `factorio_find(area=None, around=None, name=None, type=None, limit=50)` | Find entities by name, type, area, or near the host player |
 | `factorio_inspect(unit_number)` | Read one entity by its unit number |
 | `factorio_recipe(name)` | Read one recipe by name |
 | `factorio_say(text)` | Say one line in game chat as the host character |
 | `factorio_ping(pos, text)` | Ping a map position with a text label |
 
-The Mod polls `events_since{seq, limit: 200}` every second, looping until a page comes back short. Every event enters a 5000-event cache and the JSONL outcome log at `outcome_log`. An event whose kind is in `wake.kinds` rings the doorbell: after `wake.coalesce_ms`, the Mod posts one group to `signals_url` with `delivery: "live"`, `source: "factorio"`, and `event_type: "game.wake"`. The group carries `pending_from_seq` (the oldest event the agent has not read), `pending_to_seq` (the newest cached event), and `reset`; its `note` is the newest unread chat line verbatim, otherwise the unread wake kinds. One post is in flight at a time. A non-2xx response backs off from 5 s to 300 s and retries the same range; unread wake events post once more 300 s after the last 2xx.
+The Mod polls `events_since{seq, limit: 200}` every second, looping until a page comes back short. Every event enters a 5000-event cache and the JSONL outcome log at `outcome_log`. An event whose kind is in `wake.kinds` rings the doorbell: after `wake.coalesce_ms`, the Mod posts one group to `signals_url` with `delivery: "live"`, `source: "factorio"`, and `event_type: "game.wake"`. The group carries `pending_from_seq` (the oldest event the agent has not read), `pending_to_seq` (the newest cached event), and `reset`; its `note` is the newest unread chat line verbatim, otherwise the unread wake kinds. One post is in flight at a time. A non-2xx response backs off from 5 s to 300 s and retries the same range; unread wake events post once more 300 s after the last 2xx, once per unread range.
 
 A `history_gap` reply rewinds the poll cursor to `oldest_seq - 1`. A rollback on the same map (`head_seq` below the poll cursor) rewinds both cursors and drops cached events above `head_seq`. A different map id, or `stale_session` from any op, makes the Mod call `status`, adopt the new map, move both cursors to `status.seq`, and clear the cache. The last two set `reset: true` on the next doorbell. Otherwise both cursors only move forward.
 

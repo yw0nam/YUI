@@ -1,4 +1,4 @@
-"""Append one JSON line per polled event, doorbell post, and tool call."""
+"""Append one JSON line per polled event, doorbell post, recovery, and tool call."""
 
 import hashlib
 import json
@@ -20,16 +20,41 @@ class OutcomeLog:
     def event(self, event: dict) -> None:
         self.write({"type": "event", "event": event})
 
-    def doorbell(self, *, status: int | None, pending_from_seq: int, pending_to_seq: int, reset: bool):
+    def doorbell(
+        self,
+        *,
+        status: int | None,
+        pending_from_seq: int,
+        pending_to_seq: int,
+        reset: bool,
+        error: str | None = None,
+    ) -> None:
+        record = {
+            "type": "doorbell",
+            "status": status,
+            "pending_from_seq": pending_from_seq,
+            "pending_to_seq": pending_to_seq,
+            "reset": reset,
+        }
+        if error is not None:
+            record["error"] = error
+        self.write(record)
+
+    def history_gap(self, *, oldest_seq: int) -> None:
+        self.write({"type": "history_gap", "oldest_seq": oldest_seq})
+
+    def session_reset(self, *, cause: str, poll_cursor: int, backend_cursor: int) -> None:
         self.write(
             {
-                "type": "doorbell",
-                "status": status,
-                "pending_from_seq": pending_from_seq,
-                "pending_to_seq": pending_to_seq,
-                "reset": reset,
+                "type": "session_reset",
+                "cause": cause,
+                "poll_cursor": poll_cursor,
+                "backend_cursor": backend_cursor,
             }
         )
+
+    def backend_lag(self, *, dropped: int) -> None:
+        self.write({"type": "backend_lag", "dropped": dropped})
 
     def tool(self, *, tool: str, args: dict, ok: bool, error: str | None = None) -> None:
         record = {

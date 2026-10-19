@@ -442,6 +442,14 @@ globalThis.YUI_MAP =
       "external": true
     },
     {
+      "id": "mods-factorio",
+      "module": "senders",
+      "label": "Mods/factorio",
+      "role": "The MCP server that polls the Factorio game mod over RCON and posts live game signals to the loopback ingress.",
+      "paths": [],
+      "external": true
+    },
+    {
       "id": "agent-hooks",
       "module": "senders",
       "label": "coding-agent hooks",
@@ -1897,6 +1905,14 @@ globalThis.YUI_MAP =
       "from": "signal-producers",
       "to": "shell/agent-ingress",
       "carries": "POST /signals {signals, envelope}",
+      "kind": "http",
+      "transport": "shared"
+    },
+    {
+      "id": "factorio-ingress",
+      "from": "mods-factorio",
+      "to": "shell/agent-ingress",
+      "carries": "POST /signals {signals, envelope delivery:\"live\"}",
       "kind": "http",
       "transport": "shared"
     },
@@ -3442,7 +3458,8 @@ globalThis.YUI_MAP =
           "label": "POST /agent-event, POST /signals",
           "edges": [
             "hooks-ingress",
-            "signals-ingress"
+            "signals-ingress",
+            "factorio-ingress"
           ],
           "to": "shell"
         },

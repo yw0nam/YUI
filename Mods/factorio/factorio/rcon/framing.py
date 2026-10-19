@@ -10,7 +10,6 @@ from dataclasses import dataclass
 
 AUTH = 3
 EXEC = 2
-RESPONSE = 0
 
 MAX_PAYLOAD = 64 * 1024 * 1024
 
