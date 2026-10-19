@@ -202,6 +202,29 @@ def test_a_range_first_posted_by_a_failed_reposts_retry_is_reposted_once(tmp_pat
     assert ranges(recorder) == [(1, 1), (1, 1), (1, 2), (1, 2)]
 
 
+def test_a_reset_clears_the_repost_mark_so_a_new_range_ending_at_the_same_seq_reposts_once(tmp_path):
+    recorder = Recorder([200])
+    bell, feed, session, client = make_bell(tmp_path, recorder)
+
+    async def case():
+        feed.add(event(1, "job_done"))
+        bell.notify(event(1, "job_done"), now=0.0)
+        await bell.step(2.0)
+        await bell.step(302.0)
+        bell.mark_reset()
+        session.on_map_change({"map_id": "map-a", "seq": 0})
+        feed.add(event(1, "job_done"))
+        bell.notify(event(1, "job_done"), now=303.0)
+        await bell.step(305.0)
+        await bell.step(604.9)
+        await bell.step(605.0)
+        await bell.step(905.1)
+        await client.aclose()
+
+    asyncio.run(case())
+    assert ranges(recorder) == [(1, 1), (1, 1), (1, 1), (1, 1)]
+
+
 def test_a_range_the_backend_already_read_posts_nothing(tmp_path):
     recorder = Recorder([200])
     bell, feed, session, client = make_bell(tmp_path, recorder)
