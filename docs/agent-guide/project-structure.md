@@ -657,6 +657,7 @@ YUI/
     avatar/                          # Avatar body-state and movement Mod
     browser-cdp/                     # Browser CDP Mod
     desktop-control/                 # macOS screen and app-control Mod
+    factorio/                        # Factorio RCON poll, event cache, and live signals Mod
     shell-sandbox/                   # Sandboxed shell Mod
     router/                          # Shared Mod router
     docker-compose.yml               # Container orchestration for Mods

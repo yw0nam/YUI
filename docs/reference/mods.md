@@ -14,6 +14,7 @@ Each mod is a **self-contained `uv` project** in `Mods/<mod>/` with its own `pyp
 | [desktop-control](https://github.com/yw0nam/YUI/blob/main/Mods/desktop-control/README.md) | 9000 | host-native | See the screen, read the day's activity log, and open/close apps on the macOS host |
 | [shell-sandbox](https://github.com/yw0nam/YUI/blob/main/Mods/shell-sandbox/README.md) | 9001 | container | Unrestricted shell over a bind-mounted host directory |
 | [avatar](https://github.com/yw0nam/YUI/blob/main/Mods/avatar/README.md) | 9002 | host-native | Query the avatar's own body state and move it with semantic verbs |
+| [factorio](https://github.com/yw0nam/YUI/blob/main/Mods/factorio/README.md) | 9003 | host-native | Poll the Factorio game mod over RCON, cache game events, and post live wake signals |
 
 Not a mod, but lives here: [browser-cdp](https://github.com/yw0nam/YUI/blob/main/Mods/browser-cdp/README.md) exposes no MCP tools — it bridges the remote agent's own Playwright MCP to your local Mac browser over CDP.
 
@@ -36,7 +37,7 @@ One HTTP front door that path-routes to every mod, so a single SSH reverse tunne
 http://host:8080/<prefix>/mcp  ->  127.0.0.1:<mod port>/mcp
 ```
 
-It runs host-native as a thin proxy — MCP's Streamable HTTP transport is SSE, so responses stream through unbuffered. The routing table is the `UPSTREAMS` dict in `router/router/server.py`; its keys are the route prefixes: `desktop` (desktop-control), `shell` (shell-sandbox), and `avatar`. An unregistered prefix returns **404**; a registered-but-unreachable mod returns **502**. A request whose `Host` is not a loopback name returns **421** and one with a non-loopback `Origin` returns **403**, both before any mod is contacted. `GET /_mods` lists the registered mods so a client can discover them without reading the code.
+It runs host-native as a thin proxy — MCP's Streamable HTTP transport is SSE, so responses stream through unbuffered. The routing table is the `UPSTREAMS` dict in `router/router/server.py`; its keys are the route prefixes: `desktop` (desktop-control), `shell` (shell-sandbox), `avatar`, and `factorio`. An unregistered prefix returns **404**; a registered-but-unreachable mod returns **502**. A request whose `Host` is not a loopback name returns **421** and one with a non-loopback `Origin` returns **403**, both before any mod is contacted. `GET /_mods` lists the registered mods so a client can discover them without reading the code.
 
 ## desktop-control
 
@@ -97,6 +98,27 @@ Movement only — expression stays on the `generate_express` stream and screen c
 `sit_on_window` walks the app's windows front-to-back and takes the first whose top edge is not covered, so a Stage Manager thumbnail sitting in front of the real window does not shadow it. `blocked` means every one of them was covered.
 
 The user always outranks the agent: a drag aborts a running gesture and blocks new ones until it ends.
+
+## factorio
+
+Bridges the Factorio game to the agent through the coop-agent game mod, which answers `/coop-rpc <json>` over RCON. Runs **host-native** — RCON is a loopback console on the machine running the game. The RCON host, port, and password are read from Factorio's own `config.ini` (`local-rcon-socket`, `local-rcon-password`); the Mod never writes that file. The config path is `config_ini` in `Mods/factorio/config.toml`, and `FACTORIO_CONFIG_TOML` overrides the config file path.
+
+| Tool | Description |
+|---|---|
+| `factorio_status()` | Game mod version, map id, newest event sequence, tick, and host state |
+| `factorio_events(since_seq=None, limit=200)` | Cached events after `since_seq` (exclusive). `None` starts at the unread cursor; a value above it is clamped down, a value below it re-reads. Returns `{events, next_seq, more}` with a contiguous page of at most 200 |
+| `factorio_snapshot(sections=None)` | State snapshot of the factory; omit `sections` for every section |
+| `factorio_find(query, kind=None, limit=20)` | Find entities by name, optionally limited to one entity type |
+| `factorio_inspect(unit_number)` | Read one entity by its unit number |
+| `factorio_recipe(name)` | Read one recipe by name |
+| `factorio_say(text)` | Say one line in game chat as the host character |
+| `factorio_ping(pos, text)` | Ping a map position with a text label |
+
+The Mod polls `events_since{seq, limit: 200}` every second, looping until a page comes back short. Every event enters a 5000-event cache and the JSONL outcome log at `outcome_log`. An event whose kind is in `wake.kinds` rings the doorbell: after `wake.coalesce_ms`, the Mod posts one group to `signals_url` with `delivery: "live"`, `source: "factorio"`, and `event_type: "game.wake"`. The group carries `pending_from_seq` (the oldest event the agent has not read), `pending_to_seq` (the newest cached event), and `reset`; its `note` is the newest unread chat line verbatim, otherwise the unread wake kinds. One post is in flight at a time. A non-2xx response backs off from 5 s to 300 s and retries the same range; unread wake events post once more 300 s after the last 2xx.
+
+A `history_gap` reply rewinds the poll cursor to `oldest_seq - 1`. A rollback on the same map (`head_seq` below the poll cursor) rewinds both cursors and drops cached events above `head_seq`. A different map id, or `stale_session` from any op, makes the Mod call `status`, adopt the new map, move both cursors to `status.seq`, and clear the cache. The last two set `reset: true` on the next doorbell. Otherwise both cursors only move forward.
+
+The safety boundary is the game's own RCON configuration: the Mod reads it and touches nothing else. It holds no game logic and cannot edit the game's files or settings. The MCP server binds `127.0.0.1:9003` and has no transport auth, so reach it over the SSH reverse tunnel or through the [router](#router). The tools can speak in game chat and place map pings.
 
 ## browser-cdp
 

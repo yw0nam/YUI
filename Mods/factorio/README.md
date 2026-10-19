@@ -1,0 +1,68 @@
+# factorio
+
+Bridges the Factorio game to the backend agent. It polls the [coop-agent game mod](https://github.com/yw0nam/YUI-factorio-game-mod) over RCON, caches game events, and posts a `live` signal to the YUI client when a wake-kind event happens. Runs **host-native** — RCON is a loopback console on the machine running Factorio.
+
+## Run
+
+Factorio must run with RCON enabled in the game's own `config.ini`:
+
+```ini
+[other]
+local-rcon-socket=127.0.0.1:27015
+local-rcon-password=<a password you choose>
+```
+
+The Mod only reads those two keys. It never writes `config.ini`.
+
+```bash
+cd Mods/factorio
+cp config.toml.example config.toml
+uv sync
+uv run factorio-mcp --transport http --host 127.0.0.1 --port 9003
+```
+
+`FACTORIO_CONFIG_TOML` points the Mod at another config file. Without it, the Mod reads `Mods/factorio/config.toml`; when that file is absent, it uses the defaults below and the standard macOS `config.ini` path.
+
+## Config
+
+| Key | Default | Meaning |
+|---|---|---|
+| `config_ini` | `~/Library/Application Support/factorio/config/config.ini` | Factorio's own config file. RCON host, port, and password come from it. |
+| `signals_url` | `http://127.0.0.1:8770/signals` | The YUI client's loopback signals ingress. |
+| `wake.kinds` | `chat`, `job_done`, `job_failed`, `body_died`, `body_damaged`, `research_finished`, `rocket_launched`, `player_died`, `attack_started`, `attack_ended` | Event kinds that ring the doorbell. Every other kind only enters the cache. |
+| `wake.coalesce_ms` | `2000` | Quiet period after the first wake event before one doorbell is posted. |
+| `outcome_log` | `outcome.jsonl` beside `config.toml` | JSONL record per polled event, doorbell post, and tool call. |
+
+The Mod polls `events_since` every second. The cache holds the newest 5000 events. A rollback, a history gap, and a map change each recover the cursors; the next doorbell carries `reset: true`. See [the Mods reference](../../docs/reference/mods.md#factorio) for the full behaviour.
+
+## Safety boundary (operator responsibility)
+
+- **RCON credentials come from the game's own `config.ini`.** The Mod reads `local-rcon-socket` and `local-rcon-password` and never edits the file.
+- **Loopback only.** RCON stays on `127.0.0.1`, and the MCP server binds `127.0.0.1:9003`. There is no transport auth: any local process that reaches the port can call the tools.
+- **The game is the authority.** The Mod reports what the game mod says and sends the agent's `say` and `ping` calls. It holds no game logic.
+- **The tools can speak in game chat and place map pings.** They cannot touch the filesystem, launch processes, or change game settings.
+
+Reach the Mod from the remote agent through the [router](../router/) (`http://localhost:8080/factorio/mcp`) or an SSH reverse tunnel to port `9003`.
+
+## Tools
+
+| Tool | Description |
+|---|---|
+| `factorio_status()` | Game mod version, map id, newest event sequence, tick, and host state |
+| `factorio_events(since_seq=None, limit=200)` | Cached events after `since_seq` (exclusive). Defaults to the unread cursor; a value above it is clamped down, a value below it re-reads. Returns `{events, next_seq, more}` |
+| `factorio_snapshot(sections=None)` | State snapshot of the factory; omit `sections` for every section |
+| `factorio_find(query, kind=None, limit=20)` | Find entities by name, optionally limited to one type |
+| `factorio_inspect(unit_number)` | Read one entity by its unit number |
+| `factorio_recipe(name)` | Read one recipe by name |
+| `factorio_say(text)` | Say one line in game chat as the host character |
+| `factorio_ping(pos, text)` | Ping a map position with a text label |
+
+A game-mod refusal raises a tool error carrying the game's error code and message, such as `too_large`, `rate_limited`, or `history_gap`.
+
+## Test
+
+```bash
+cd Mods/factorio && uv run pytest
+```
+
+The tests run against a fake loopback RCON server and a fake signals endpoint. No Factorio install is needed.

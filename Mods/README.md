@@ -6,7 +6,7 @@ Each mod is a self-contained `uv` project in its own folder (`Mods/<mod>/`), wit
 
 ## Mods
 
-[router](router/), [desktop-control](desktop-control/), [shell-sandbox](shell-sandbox/), and [avatar](avatar/) — see the [Mods reference](../docs/reference/mods.md) for what each one does and its port. [browser-cdp](browser-cdp/) is not a mod, and exposes no MCP tools — it bridges the remote agent's own Playwright MCP to your local Mac browser over CDP (use it instead of adding a redundant browser mod). Each mod's own README covers its run, safety boundary, tools, and tests.
+[router](router/), [desktop-control](desktop-control/), [shell-sandbox](shell-sandbox/), [avatar](avatar/), and [factorio](factorio/) — see the [Mods reference](../docs/reference/mods.md) for what each one does and its port. [browser-cdp](browser-cdp/) is not a mod, and exposes no MCP tools — it bridges the remote agent's own Playwright MCP to your local Mac browser over CDP (use it instead of adding a redundant browser mod). Each mod's own README covers its run, safety boundary, tools, and tests.
 
 ## Exposure
 

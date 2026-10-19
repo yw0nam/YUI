@@ -23,6 +23,7 @@ UPSTREAMS = {
     "desktop": "http://127.0.0.1:9000",
     "shell":   "http://127.0.0.1:9001",
     "avatar":  "http://127.0.0.1:9002",
+    "factorio": "http://127.0.0.1:9003",
 }
 ```
 
@@ -39,6 +40,7 @@ The router splits the path as `<mod>/<rest>` and forwards to `UPSTREAMS[<mod>]/<
 | `http://localhost:8080/desktop/mcp` | `http://127.0.0.1:9000/mcp` |
 | `http://localhost:8080/shell/mcp` | `http://127.0.0.1:9001/mcp` |
 | `http://localhost:8080/avatar/mcp` | `http://127.0.0.1:9002/mcp` |
+| `http://localhost:8080/factorio/mcp` | `http://127.0.0.1:9003/mcp` |
 
 An unregistered prefix returns **404**; a registered-but-unreachable mod returns **502**. A request whose `Host` is not a loopback name (`127.0.0.1`, `localhost`, `::1`) returns **421** and one whose `Origin` is not a loopback name returns **403**, both before any mod is contacted.
 
@@ -48,7 +50,8 @@ An unregistered prefix returns **404**; a registered-but-unreachable mod returns
 [
   { "mod_name": "desktop", "endpoint": "http://localhost:8080/desktop/mcp", "upstream": "http://127.0.0.1:9000" },
   { "mod_name": "shell",   "endpoint": "http://localhost:8080/shell/mcp",   "upstream": "http://127.0.0.1:9001" },
-  { "mod_name": "avatar",  "endpoint": "http://localhost:8080/avatar/mcp",  "upstream": "http://127.0.0.1:9002" }
+  { "mod_name": "avatar",  "endpoint": "http://localhost:8080/avatar/mcp",  "upstream": "http://127.0.0.1:9002" },
+  { "mod_name": "factorio", "endpoint": "http://localhost:8080/factorio/mcp", "upstream": "http://127.0.0.1:9003" }
 ]
 ```
 
