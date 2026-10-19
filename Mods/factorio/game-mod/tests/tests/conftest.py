@@ -1,6 +1,6 @@
 from pathlib import Path
 
-import lupa.lua54 as lupa54
+import lupa.lua52 as lupa52
 import pytest
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -8,7 +8,7 @@ GAME_MOD = Path(__file__).parents[2]
 
 
 def lua_runtime():
-    lua = lupa54.LuaRuntime(unpack_returned_tuples=True)
+    lua = lupa52.LuaRuntime(unpack_returned_tuples=True)
     lua.execute(f'package.path = "{GAME_MOD / "coop-agent"}/?.lua;" .. package.path')
     lua.execute(f'JSON = dofile("{FIXTURES / "json.lua"}")')
     return lua

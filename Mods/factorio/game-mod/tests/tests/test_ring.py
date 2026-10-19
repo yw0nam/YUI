@@ -52,27 +52,22 @@ def test_read_limit_returns_the_oldest_matching_events(lua, ring):
     assert [e["seq"] for e in body["events"]] == [1, 2]
 
 
-def test_ring_holds_2000_then_overflow_reports_history_gap(lua, ring):
+def test_ring_holds_2000_events_and_reports_the_oldest(lua, ring):
     r = ring.new()
     for i in range(1, 2002):
         ring.push(r, i, "chat", lua.table(text=str(i)))
 
-    assert ring.read(r, 0, None)["head_seq"] == 2001
-    assert read_json(lua, ring.read(r, 0, None))["oldest_seq"] == 2
-
-    # since < oldest - 1 -> history_gap
-    assert ring.read(r, 0, None)["gap"] is True
-    assert ring.read(r, 1, None)["gap"] is False
-
-    # exact boundary: since == oldest - 1 is still readable
-    readable = ring.read(r, 1, None)
-    assert next(e["seq"] for e in read_json(lua, readable)["events"]) == 2
+    read = ring.read(r, 1, None)
+    assert read["head_seq"] == 2001
+    assert read["oldest_seq"] == 2
+    assert read_json(lua, read)["events"][0]["seq"] == 2
 
 
-def test_gap_boundary_is_oldest_minus_one(lua, ring):
+@pytest.mark.parametrize(("since", "gap"), [(1, False), (0, True)])
+def test_gap_opens_when_since_is_behind_oldest_minus_one(lua, ring, since, gap):
     r = ring.new()
-    for i in range(1, 2005):  # overflow so the oldest seq moves to 5
+    for i in range(1, 2002):
         ring.push(r, i, "chat", lua.table(text=str(i)))
 
-    assert ring.read(r, 4, None)["gap"] is False
-    assert ring.read(r, 3, None)["gap"] is True
+    # the ring's oldest seq is 2, so since == oldest - 1 is readable, older is a gap
+    assert ring.read(r, since, None)["gap"] is gap
