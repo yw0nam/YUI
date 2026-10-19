@@ -1,5 +1,4 @@
--- The mining probe: sets mining_state on the body against an iron-ore entity
--- and samples character_mining_progress and the inventory for 600 ticks.
+-- The mining probe: mining_state against iron ore, sampling mining progress and the inventory for 600 ticks.
 
 local spawn = require("scripts.probes.spawn")
 
@@ -7,11 +6,6 @@ local DURATION_TICKS = 600
 local SAMPLE_ITEM = "iron-ore"
 
 local M = {}
-
-local function inventory_count(body, item)
-  local inventory = body.get_inventory(defines.inventory.character_main)
-  return inventory and inventory.get_item_count(item) or 0
-end
 
 local function find_or_place_ore(surface, body)
   local pos = body.position
@@ -40,25 +34,21 @@ function M.start(storage)
     state = "running",
     start_tick = game.tick,
     ore_position = { x = pos.x, y = pos.y },
-    initial_count = inventory_count(body, SAMPLE_ITEM),
+    initial_count = spawn.inventory_count(body, SAMPLE_ITEM),
     series = {},
   }
 end
 
 function M.tick(storage)
   local state = storage.probe.mining
-  local body = storage.probe.body
-  if not (state and body and body.valid) then
-    if state then
-      state.state = "done"
-    end
+  local body = spawn.body(state)
+  if not body then
     return
   end
-  local inventory = body.get_inventory(defines.inventory.character_main)
   state.series[#state.series + 1] = {
     tick = game.tick - state.start_tick,
     progress = body.character_mining_progress,
-    count = inventory and inventory.get_item_count(SAMPLE_ITEM) or 0,
+    count = spawn.inventory_count(body, SAMPLE_ITEM),
   }
   -- re-select in case the engine cleared the mining target
   if game.tick % 60 == 0 then
@@ -72,11 +62,11 @@ end
 
 function M.result(storage)
   local state = storage.probe.mining
-  local body = storage.probe.body
+  local body = spawn.body(nil)
   local final_count = state.initial_count
   local selected = nil
-  if body and body.valid then
-    final_count = inventory_count(body, SAMPLE_ITEM)
+  if body then
+    final_count = spawn.inventory_count(body, SAMPLE_ITEM)
     selected = body.selected and body.selected.name or nil
   end
   return {

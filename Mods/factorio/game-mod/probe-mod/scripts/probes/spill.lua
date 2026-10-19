@@ -1,5 +1,4 @@
--- The spill probe: coal on the ground with enable_looted=true, reporting each
--- item entity's stack count and to_be_looted flag.
+-- The spill probe: coal spilled with enable_looted=true, reporting each item entity's count and to_be_looted.
 
 local spawn = require("scripts.probes.spawn")
 

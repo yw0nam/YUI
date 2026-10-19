@@ -1,6 +1,4 @@
--- The revive probe: a wooden-chest ghost next to the body, the item in the
--- body's inventory, then revive{raise_revive=true} — what it returns and
--- whether the item was consumed.
+-- The revive probe: revive{raise_revive=true} on a wooden-chest ghost while the body holds a chest.
 
 local spawn = require("scripts.probes.spawn")
 

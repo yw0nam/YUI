@@ -1,6 +1,4 @@
--- The baseline probe: hand-mining ticks per item for the four ores, a tree
--- and a rock, using the mining probe's method (mining_state + a selected
--- target), one target at a time.
+-- The baseline probe: hand-mining ticks per item for four ores, a tree and a rock, one target at a time.
 
 local spawn = require("scripts.probes.spawn")
 
@@ -17,23 +15,15 @@ local TARGETS = {
 
 local M = {}
 
-local function inventory_count(body, item)
-  local inventory = body.get_inventory(defines.inventory.character_main)
-  return inventory and inventory.get_item_count(item) or 0
-end
-
 local function place_target(storage, target)
   local body = storage.probe.body
   local pos = body.position
   local place = body.surface.find_non_colliding_position(target.resource, { x = pos.x + 2, y = pos.y }, 8, 1)
     or { x = pos.x + 2, y = pos.y }
-  local entity
   if target.amount then
-    entity = body.surface.create_entity { name = target.resource, position = place, amount = target.amount }
-  else
-    entity = body.surface.create_entity { name = target.resource, position = place }
+    return body.surface.create_entity { name = target.resource, position = place, amount = target.amount }
   end
-  return entity
+  return body.surface.create_entity { name = target.resource, position = place }
 end
 
 local function begin_target(storage, state)
@@ -53,7 +43,7 @@ local function begin_target(storage, state)
     item = target.item,
     position = { x = pos.x, y = pos.y },
     start_tick = game.tick,
-    count_at_start = inventory_count(body, target.item),
+    count_at_start = spawn.inventory_count(body, target.item),
   }
 end
 
@@ -79,11 +69,8 @@ end
 
 function M.tick(storage)
   local state = storage.probe.baseline
-  local body = storage.probe.body
-  if not (state and body and body.valid) then
-    if state then
-      state.state = "done"
-    end
+  local body = spawn.body(state)
+  if not body then
     return
   end
   if not state.target then
@@ -92,12 +79,10 @@ function M.tick(storage)
       return
     end
     begin_target(storage, state)
-    if not state.target then
-      return -- placement failed; the next tick moves on
-    end
+    return
   end
 
-  local count = inventory_count(body, state.target.item)
+  local count = spawn.inventory_count(body, state.target.item)
   if count > state.target.count_at_start then
     finish_target(storage, state, { ticks = game.tick - state.target.start_tick })
   elseif game.tick - state.target.start_tick >= MAX_TICKS_PER_TARGET then

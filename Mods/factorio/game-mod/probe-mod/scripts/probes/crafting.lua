@@ -1,5 +1,4 @@
--- The crafting probe: one iron-gear-wheel by hand, sampling the crafting
--- queue for 600 ticks.
+-- The crafting probe: one iron-gear-wheel by hand, sampling the crafting queue for 600 ticks.
 
 local spawn = require("scripts.probes.spawn")
 
@@ -10,35 +9,27 @@ local PRODUCT_ITEM = "iron-gear-wheel"
 
 local M = {}
 
-local function inventory(body)
-  return body.get_inventory(defines.inventory.character_main)
-end
-
 function M.start(storage)
   local body = spawn.make_body(storage)
-  local inventory = inventory(body)
+  local inventory = body.get_inventory(defines.inventory.character_main)
   inventory.insert { name = INGREDIENT_ITEM, count = 10 }
   local queued = body.begin_crafting { count = 1, recipe = RECIPE }
   return {
     state = "running",
     start_tick = game.tick,
     queued = queued,
-    initial_count = inventory.get_item_count(PRODUCT_ITEM),
+    initial_count = spawn.inventory_count(body, PRODUCT_ITEM),
     series = {},
   }
 end
 
 function M.tick(storage)
   local state = storage.probe.crafting
-  local body = storage.probe.body
-  if not (state and body and body.valid) then
-    if state then
-      state.state = "done"
-    end
+  local body = spawn.body(state)
+  if not body then
     return
   end
-  local inventory = inventory(body)
-  local gear = inventory.get_item_count(PRODUCT_ITEM)
+  local gear = spawn.inventory_count(body, PRODUCT_ITEM)
   if gear > state.initial_count and not state.ticks_to_craft then
     state.ticks_to_craft = game.tick - state.start_tick
   end
@@ -54,10 +45,10 @@ end
 
 function M.result(storage)
   local state = storage.probe.crafting
-  local body = storage.probe.body
+  local body = spawn.body(nil)
   local crafted = state.initial_count
-  if body and body.valid then
-    crafted = inventory(body).get_item_count(PRODUCT_ITEM)
+  if body then
+    crafted = spawn.inventory_count(body, PRODUCT_ITEM)
   end
   return {
     probe = "crafting",
