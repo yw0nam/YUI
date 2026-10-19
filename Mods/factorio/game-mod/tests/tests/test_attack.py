@@ -3,13 +3,14 @@ import json
 import pytest
 from conftest import load_module
 
-# LuaForce methods take dot calls, so get_friend receives only the other force
+# LuaForce methods take dot calls, so is_enemy receives only the other force
 STUB = """
 FORCES = {
-  player  = { name = "player",  get_friend = function(other) return other.name == "allied" end },
-  enemy   = { name = "enemy" },
-  neutral = { name = "neutral" },
-  allied  = { name = "allied" },
+  player    = { name = "player", is_enemy = function(other) return other.name == "enemy" end },
+  enemy     = { name = "enemy" },
+  neutral   = { name = "neutral" },
+  allied    = { name = "allied" },
+  ceasefire = { name = "ceasefire" },
 }
 PUSHED = {}
 COUNTED = {}
@@ -75,6 +76,7 @@ def sweep(lua, attack, tick):
         ("player", "player", None, False),  # friendly fire
         ("player", "allied", None, False),  # allies are friends
         ("player", "neutral", None, False),  # the neutral force never attacks
+        ("player", "ceasefire", None, False),  # a cease-fire force is no enemy
         ("player", None, None, False),  # no attacker named
     ],
 )

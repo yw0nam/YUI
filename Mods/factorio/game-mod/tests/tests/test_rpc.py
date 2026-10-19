@@ -79,7 +79,9 @@ def last_printed(lua):
 
 def test_not_console_refuses_player_calls_and_runs_nothing(lua, rpc):
     replies = dispatch(lua, rpc, req("echo", {"text": "hi"}, id_="a1"), player_index=1)
-    assert replies == [{"v": 1, "id": "a1", "ok": False, "e": "not_console"}]
+    assert replies == [
+        {"v": 1, "id": "a1", "ok": False, "e": "not_console", "m": "coop-rpc answers the server console only"}
+    ]
     assert lua.globals().CALLS == 0
 
 
@@ -213,5 +215,6 @@ def test_reply_at_exactly_65536_bytes_is_ok_and_65537_is_too_large(lua, rpc):
         "id": f"big-{size_for_65536 + 1:09d}",
         "ok": False,
         "e": "too_large",
+        "m": "reply is 65537 bytes, over the 65536-byte cap",
         "r": {"bytes": 65537},
     }

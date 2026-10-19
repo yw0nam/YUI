@@ -3,11 +3,11 @@ import json
 import pytest
 from conftest import load_module
 
-KOREAN_70 = "나무위키" * 17 + "한글"  # 70 characters, 210 UTF-8 bytes
-ASCII_200 = "a" * 200
-ASCII_201 = "a" * 201
-KOREAN_201 = "한" * 201
-TOO_LONG = "say: text must be 1 to 200 characters of valid UTF-8"
+HANGUL_70_CHARS_IN_210_BYTES = "나무위키" * 17 + "한글"
+ASCII_AT_LIMIT = "a" * 200
+ASCII_OVER_LIMIT = "a" * 201
+HANGUL_OVER_LIMIT = "한" * 201
+BAD_TEXT = "text must be a non-empty string of valid UTF-8"
 
 STUB = """
 PRINTED = {}
@@ -34,13 +34,8 @@ def rpc(lua):
 
 
 def send(lua, rpc, text, id_="t1"):
-    rpc.dispatch(
-        json.dumps(
-            {"v": 1, "id": id_, "op": "say", "args": {"text": text}, "map_id": "m"}, ensure_ascii=False
-        ),
-        None,
-        lua.globals().DEPS,
-    )
+    request = {"v": 1, "id": id_, "op": "say", "args": {"text": text}, "map_id": "m"}
+    rpc.dispatch(json.dumps(request, ensure_ascii=False), None, lua.globals().DEPS)
 
 
 def last_reply(lua):
@@ -51,17 +46,25 @@ def said(lua):
     return list(lua.globals().SAID.values())
 
 
-@pytest.mark.parametrize("text", [KOREAN_70, ASCII_200])
+@pytest.mark.parametrize("text", [HANGUL_70_CHARS_IN_210_BYTES, ASCII_AT_LIMIT])
 def test_say_speaks_up_to_200_characters_with_the_body_name(lua, rpc, text):
     send(lua, rpc, text)
     assert said(lua) == ["Buddy: " + text]
 
 
-@pytest.mark.parametrize("text", [ASCII_201, KOREAN_201, ""])
-def test_say_refuses_text_outside_1_to_200_characters(lua, rpc, text):
+@pytest.mark.parametrize(
+    ("text", "error", "message"),
+    [
+        (ASCII_OVER_LIMIT, "too_long", "text is 201 characters, over the 200-character limit"),
+        (HANGUL_OVER_LIMIT, "too_long", "text is 201 characters, over the 200-character limit"),
+        ("", "bad_request", BAD_TEXT),
+        (7, "bad_request", BAD_TEXT),
+    ],
+)
+def test_say_refuses_text_it_cannot_speak(lua, rpc, text, error, message):
     send(lua, rpc, text)
     assert said(lua) == []
-    assert last_reply(lua)["m"].endswith(TOO_LONG)
+    assert last_reply(lua) == {"v": 1, "id": "t1", "ok": False, "e": error, "m": message}
 
 
 def test_say_refuses_bytes_that_are_not_utf8(lua, rpc):
@@ -70,7 +73,7 @@ def test_say_refuses_bytes_that_are_not_utf8(lua, rpc):
         r"""RPC.dispatch('{"v":1,"id":"bad","op":"say","args":{"text":"\255\254"},"map_id":"m"}', nil, DEPS)"""
     )
     assert said(lua) == []
-    assert last_reply(lua)["m"].endswith(TOO_LONG)
+    assert last_reply(lua) == {"v": 1, "id": "bad", "ok": False, "e": "bad_request", "m": BAD_TEXT}
 
 
 def test_say_answers_rate_limited_after_6_lines_in_60_s(lua, rpc):

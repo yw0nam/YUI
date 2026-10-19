@@ -121,12 +121,14 @@ def test_status_events_since_say_round_trip(server):
     assert server.wait_head(MAP_ID, 1) == {"map_id": MAP_ID, "head_seq": 1, "events": [SUMMARY_EVENT]}
 
     status = server.rpc(v=1, id="it-1", op="status", args={})
-    # tick follows the wall clock; a headless server has no host player, so host is absent
+    tick = status["r"].pop("tick")  # follows the wall clock
+    assert isinstance(tick, int) and tick >= 0
+    # a headless server has no host player, so host is absent
     assert status == {
         "v": 1,
         "id": "it-1",
         "ok": True,
-        "r": {"mod_version": "0.1.0", "map_id": MAP_ID, "seq": 1, "tick": status["r"]["tick"]},
+        "r": {"mod_version": "0.1.0", "map_id": MAP_ID, "seq": 1},
     }
 
     said = server.rpc(v=1, id="it-2", op="say", args={"text": "hello"}, map_id=MAP_ID)
@@ -218,6 +220,90 @@ def test_find_then_inspect_a_chest_and_an_assembler(server):
         "recipe": {"name": "iron-gear-wheel"},
         "status": "no_power",
     }
+
+
+def test_snapshot_reports_power_in_watts_and_the_research_queue(server):
+    server.command(
+        "/silent-command local s = game.surfaces[1] "
+        "local e = s.create_entity{name = 'electric-energy-interface', position = {20, 20}, force = 'player'} "
+        "e.power_production = 1000 e.power_usage = 0 e.electric_buffer_size = 100000 "
+        "s.create_entity{name = 'medium-electric-pole', position = {22, 20}, force = 'player'} "
+        "s.create_entity{name = 'radar', position = {25, 20}, force = 'player'}"
+    )
+    time.sleep(2)
+    server.command("/silent-command game.tick_paused = true")
+    # the game's own per-tick joules for the network, read at the same paused tick
+    flow = json.loads(
+        server.command(
+            "/silent-command local pole = game.surfaces[1].find_entities_filtered{name = 'medium-electric-pole'}[1] "
+            "local st, p = pole.electric_network_statistics, defines.flow_precision_index.one_minute "
+            "local out, inp = 0, 0 "
+            "for n in pairs(st.output_counts) do "
+            "out = out + st.get_flow_count{name = n, category = 'output', precision_index = p} end "
+            "for n in pairs(st.input_counts) do "
+            "inp = inp + st.get_flow_count{name = n, category = 'input', precision_index = p} end "
+            "rcon.print(helpers.table_to_json({id = pole.electric_network_id, out = out, inp = inp}))"
+        )
+    )
+    snapshot = server.rpc(
+        v=1, id="sn", op="snapshot", args={"sections": ["power", "research"]}, map_id=MAP_ID
+    )
+    server.command("/silent-command game.tick_paused = false")
+
+    assert flow["out"] > 0
+    assert snapshot == {
+        "v": 1,
+        "id": "sn",
+        "ok": True,
+        "r": {
+            "power": [
+                {
+                    "id": flow["id"],
+                    "production": pytest.approx(flow["out"] * 60),
+                    "consumption": pytest.approx(flow["inp"] * 60),
+                }
+            ],
+            "research": {"queue": {}},
+        },
+    }
+
+
+def test_recipe_lists_parts_and_machines(server):
+    recipe = server.rpc(v=1, id="rc", op="recipe", args={"name": "iron-gear-wheel"}, map_id=MAP_ID)
+    assert recipe == {
+        "v": 1,
+        "id": "rc",
+        "ok": True,
+        "r": {
+            "name": "iron-gear-wheel",
+            "category": "crafting",
+            "energy": 0.5,
+            "ingredients": [{"name": "iron-plate", "type": "item", "amount": 2}],
+            "products": [{"name": "iron-gear-wheel", "type": "item", "amount": 1, "probability": 1}],
+            "machines": [
+                {"name": "assembling-machine-1", "crafting_speed": 0.5},
+                {"name": "assembling-machine-2", "crafting_speed": 0.75},
+                {"name": "assembling-machine-3", "crafting_speed": 1.25},
+                {"name": "character", "crafting_speed": 1},
+            ],
+        },
+    }
+
+
+def test_ping_places_a_chart_tag(server):
+    pinged = server.rpc(
+        v=1, id="pg", op="ping", args={"pos": {"x": 10, "y": -5}, "text": "look here"}, map_id=MAP_ID
+    )
+    # chart tag numbers start at 0 on a fresh map
+    assert pinged == {"v": 1, "id": "pg", "ok": True, "r": {"tag_id": 0}}
+
+    tags = server.command(
+        "/silent-command local out = {} "
+        "for _, t in ipairs(game.forces.player.find_chart_tags(game.surfaces[1])) do "
+        "out[#out + 1] = {tag_number = t.tag_number, text = t.text, x = t.position.x, y = t.position.y} end "
+        "rcon.print(helpers.table_to_json(out))"
+    )
+    assert json.loads(tags) == [{"tag_number": 0, "text": "look here", "x": 10, "y": -5}]
 
 
 def test_a_save_reload_returns_the_head_seq_of_the_save(server):
