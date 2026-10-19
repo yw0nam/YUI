@@ -57,6 +57,7 @@ class Doorbell:
 
     def mark_reset(self) -> None:
         self._reset_generation += 1
+        self._reposted_to_seq = None
 
     async def step(self, now: float) -> None:
         if self._in_flight:
