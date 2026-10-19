@@ -3,8 +3,11 @@
 import asyncio
 from contextlib import asynccontextmanager
 
+from factorio.doorbell import Doorbell
+from factorio.events.poll import Poller
 
-def build(poller, doorbell):
+
+def build(poller: Poller, doorbell: Doorbell):
     @asynccontextmanager
     async def lifespan(_server):
         tasks = [asyncio.create_task(poller.run()), asyncio.create_task(doorbell.run())]

@@ -84,10 +84,11 @@ def main() -> None:
     rpc, session, log, poller, doorbell = _runtime(config)
     mcp = build_mcp(rpc=rpc, session=session, log=log, poller=poller, doorbell=doorbell)
 
-    logger.info(
-        f"[setup] rcon {config.rcon_host}:{config.rcon_port}, signals {config.signals_url}, "
-        f"outcome log {config.outcome_log}"
-    )
+    logger.bind(
+        rcon=f"{config.rcon_host}:{config.rcon_port}",
+        signals_url=config.signals_url,
+        outcome_log=config.outcome_log,
+    ).info("setup")
 
     kwargs: dict[str, Any] = {"transport": args.transport}
     if args.transport != "stdio":

@@ -4,7 +4,10 @@ import asyncio
 
 from loguru import logger
 
+from factorio.config import POLL_RETRY_DELAY_S
+from factorio.doorbell import Doorbell
 from factorio.events.cache import PAGE_LIMIT, Session
+from factorio.outcome_log import OutcomeLog
 from factorio.recovery import MapRecovery, record_reset
 from factorio.rpc import RpcClient, RpcError, RpcUnavailable
 
@@ -16,9 +19,9 @@ class Poller:
         self,
         rpc: RpcClient,
         session: Session,
-        doorbell,
+        doorbell: Doorbell,
         recovery: MapRecovery,
-        log,
+        log: OutcomeLog,
         interval: float = INTERVAL_S,
     ):
         self.rpc = rpc
@@ -34,14 +37,14 @@ class Poller:
             try:
                 await self.poll_once()
             except RpcUnavailable as err:
-                delay = self.rpc.retry_delay()
+                delay = POLL_RETRY_DELAY_S
                 logger.bind(code=err.code, delay=delay).warning("poll_unavailable")
             except RpcError as err:
                 logger.bind(code=err.code).warning("poll_rejected")
             except asyncio.CancelledError:
                 raise
             except Exception:  # noqa: BLE001 — one bad page must not stop the poll loop
-                delay = 5.0
+                delay = POLL_RETRY_DELAY_S
                 logger.exception("poll_failed")
             await asyncio.sleep(delay)
 

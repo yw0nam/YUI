@@ -2,18 +2,22 @@
 
 import hashlib
 import json
+import time
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 
 class OutcomeLog:
-    def __init__(self, path: str | Path):
+    def __init__(self, path: str | Path, clock: Callable[[], float] = time.time):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._clock = clock
 
     def write(self, record: dict[str, Any]) -> None:
-        stamped = {"ts": datetime.now(UTC).isoformat(timespec="milliseconds"), **record}
+        ts = datetime.fromtimestamp(self._clock(), UTC).isoformat(timespec="milliseconds")
+        stamped = {"ts": ts, **record}
         with self.path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(stamped, ensure_ascii=False) + "\n")
 

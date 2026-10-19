@@ -8,6 +8,12 @@ from fastmcp.exceptions import ToolError
 from factorio.events.cache import PAGE_LIMIT
 from factorio.tools.deps import ToolDeps
 
+EVENTS_DESCRIPTION = f"""Read cached game events after a sequence number.
+
+`since_seq` is exclusive. The default is the unread cursor. A value above the
+cursor is clamped to it. A value below it re-reads older cached events. Returns
+at most {PAGE_LIMIT} events, `next_seq`, and whether more remain."""
+
 
 def register(mcp: FastMCP, deps: ToolDeps) -> None:
     @mcp.tool
@@ -15,14 +21,8 @@ def register(mcp: FastMCP, deps: ToolDeps) -> None:
         """Report the game mod version, map id, newest event sequence, tick, and host state."""
         return await deps.execute("factorio_status", "status", {})
 
-    @mcp.tool
+    @mcp.tool(description=EVENTS_DESCRIPTION)
     async def factorio_events(since_seq: int | None = None, limit: int = PAGE_LIMIT) -> dict[str, Any]:
-        """Read cached game events after a sequence number.
-
-        `since_seq` is exclusive. The default is the unread cursor. A value above the
-        cursor is clamped to it. A value below it re-reads older cached events. Returns
-        at most 200 events, `next_seq`, and whether more remain.
-        """
         if limit < 1:
             raise ToolError("factorio_events: limit must be at least 1.")
         limit = min(limit, PAGE_LIMIT)

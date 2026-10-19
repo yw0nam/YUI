@@ -7,9 +7,9 @@ from fastmcp.exceptions import ToolError
 
 from factorio.events.cache import Session
 from factorio.outcome_log import OutcomeLog
-from factorio.rpc import RpcClient, RpcError
+from factorio.rpc import GameErrorCode, RpcClient, RpcError
 
-REASONS = {
+REASONS: dict[GameErrorCode, str] = {
     "not_console": "no player console is open in the game.",
     "bad_request": "the game mod rejected the request shape.",
     "unknown_op": "the game mod does not know this operation.",
@@ -22,6 +22,7 @@ REASONS = {
     "history_gap": "the requested event range is no longer in the game mod's history.",
     "unknown_outcome": "the game mod did not answer; the call may or may not have run.",
     "rcon_auth": "RCON rejected the password from the game's config.ini.",
+    "bad_reply": "the RCON reply is not one /coop-rpc reply.",
 }
 
 

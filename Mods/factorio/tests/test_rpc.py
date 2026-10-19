@@ -191,7 +191,7 @@ def test_an_unknown_outcome_stops_after_the_budget():
             await rpc.call("say", {"text": "hi"})
         return raised.value.code
 
-    code = asyncio.run(with_server(handler, body, clock=lambda: now[0], sleep=sleep, unknown_budget_s=60.0))
+    code = asyncio.run(with_server(handler, body, clock=lambda: now[0], sleep=sleep))
     assert code == "unknown_outcome"
     assert now[0] >= 60.0
 

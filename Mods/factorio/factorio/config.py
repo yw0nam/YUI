@@ -4,12 +4,15 @@ import os
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 CONFIG_PATH_ENV = "FACTORIO_CONFIG_TOML"
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[1] / "config.toml"
 DEFAULT_CONFIG_INI = "~/Library/Application Support/factorio/config/config.ini"
 DEFAULT_SIGNALS_URL = "http://127.0.0.1:8770/signals"
 DEFAULT_COALESCE_MS = 2000
+DOORBELL_TIMEOUT_S = 10.0
+POLL_RETRY_DELAY_S = 5.0
 DEFAULT_WAKE_KINDS = (
     "chat",
     "job_done",
@@ -24,11 +27,14 @@ DEFAULT_WAKE_KINDS = (
 )
 
 
+ConfigErrorCode = Literal["rcon_not_configured"]
+
+
 class ConfigError(RuntimeError):
     """The Mod cannot build its RCON target from the files it was given."""
 
-    def __init__(self, code: str, message: str = ""):
-        super().__init__(message or code)
+    def __init__(self, code: ConfigErrorCode, message: str):
+        super().__init__(message)
         self.code = code
         self.message = message
 

@@ -5,21 +5,37 @@ import json
 import time
 import uuid
 from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Any, Literal
 
 from loguru import logger
 
 from factorio.events.cache import Session
-from factorio.rcon.client import RconError, RconTimeout, RconUnavailable
+from factorio.rcon.client import RconClient, RconError, RconTimeout, RconUnavailable
 
 UNKNOWN_OUTCOME_S = 60.0
 MAX_ID_CONFLICTS = 3
+
+GameErrorCode = Literal[
+    "not_console",
+    "bad_request",
+    "unknown_op",
+    "stale_session",
+    "id_conflict",
+    "too_large",
+    "too_long",
+    "op_error",
+    "rate_limited",
+    "history_gap",
+    "unknown_outcome",
+    "rcon_auth",
+    "bad_reply",
+]
 
 
 class RpcError(RuntimeError):
     """The game mod answered with `ok: false`."""
 
-    def __init__(self, code: str, message: str = "", result: Any = None):
+    def __init__(self, code: GameErrorCode, message: str = "", result: Any = None):
         super().__init__(message or code)
         self.code = code
         self.message = message
@@ -39,18 +55,16 @@ class RpcClient:
 
     def __init__(
         self,
-        rcon,
+        rcon: RconClient,
         session: Session,
         on_session_reset: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
         *,
-        unknown_budget_s: float = UNKNOWN_OUTCOME_S,
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ):
         self._rcon = rcon
         self._session = session
         self._on_session_reset = on_session_reset
-        self._unknown_budget_s = unknown_budget_s
         self._clock = clock
         self._sleep = sleep
 
@@ -59,14 +73,14 @@ class RpcClient:
         result = await self._call(
             "status",
             {},
-            self._clock() + self._unknown_budget_s if deadline is None else deadline,
+            self._clock() + UNKNOWN_OUTCOME_S if deadline is None else deadline,
         )
         if isinstance(result, dict):
             self._session.map_id = result.get("map_id")
         return result
 
     async def call(self, op: str, args: dict[str, Any] | None = None) -> Any:
-        return await self._call(op, args or {}, self._clock() + self._unknown_budget_s)
+        return await self._call(op, args or {}, self._clock() + UNKNOWN_OUTCOME_S)
 
     async def _call(self, op: str, args: dict[str, Any], deadline: float) -> Any:
         request_id = str(uuid.uuid4())
@@ -100,20 +114,12 @@ class RpcClient:
                 status = await self.status(deadline)
                 if self._on_session_reset is not None:
                     await self._on_session_reset(status)
-                raise RpcError(code, message, result)
             raise RpcError(code, message, result)
-
-    def retry_delay(self) -> float:
-        """Next reconnect delay, doubling up to the 30 s cap."""
-        return self._rcon.backoff.next_delay()
 
     async def _reconcile(self, request: dict[str, Any], err: RconError, deadline: float) -> None:
         """Wait out the reconnect backoff, then confirm the map before a replay."""
         logger.bind(op=request["op"], request_id=request["id"]).warning("rpc_unknown_outcome")
-        if self._clock() >= deadline:
-            raise RpcUnavailable("unknown_outcome", err.message) from err
-        delay = min(self.retry_delay(), max(deadline - self._clock(), 0.0))
-        await self._sleep(delay)
+        await self._sleep(min(self._rcon.backoff.next_delay(), max(deadline - self._clock(), 0.0)))
         if self._clock() >= deadline:
             raise RpcUnavailable("unknown_outcome", err.message) from err
         if "map_id" in request:

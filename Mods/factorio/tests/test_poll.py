@@ -52,9 +52,6 @@ class FakeRpc:
             raise page
         return page
 
-    def retry_delay(self):
-        return 1.0
-
 
 def page(map_id: str, head: int, events: list[dict]) -> dict:
     return {"map_id": map_id, "head_seq": head, "events": events}

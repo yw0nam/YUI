@@ -8,7 +8,9 @@ from typing import Any
 import httpx
 from loguru import logger
 
+from factorio.config import DOORBELL_TIMEOUT_S
 from factorio.events.cache import Session
+from factorio.outcome_log import OutcomeLog
 
 REPOST_AFTER_S = 300.0
 RETRY_START_S = 5.0
@@ -24,7 +26,7 @@ class Doorbell:
         url: str,
         kinds: tuple[str, ...],
         session: Session,
-        log,
+        log: OutcomeLog,
         *,
         coalesce_ms: int,
         client: httpx.AsyncClient | None = None,
@@ -35,7 +37,7 @@ class Doorbell:
         self._session = session
         self._log = log
         self._coalesce_s = coalesce_ms / 1000
-        self._client = client or httpx.AsyncClient(timeout=10.0)
+        self._client = client or httpx.AsyncClient(timeout=DOORBELL_TIMEOUT_S)
         self._owns_client = client is None
         self._clock = clock
         self._dirty_at: float | None = None
