@@ -1,6 +1,6 @@
 -- The say op: the body speaks one chat line, at most 6 per 60 s, counted in characters.
 
-local utf8 = require("scripts.utf8")
+local text_check = require("scripts.text")
 
 local WINDOW_TICKS = 3600
 local MAX_SENDS = 6
@@ -10,10 +10,9 @@ local M = {}
 
 --- deps.chat prints one chat line; deps.body_name prefixes it.
 function M.op(deps, args)
-  local text = args.text
-  local chars = type(text) == "string" and utf8.len(text) or nil
-  if not chars or chars == 0 or chars > MAX_CHARS then
-    error("say: text must be 1 to " .. MAX_CHARS .. " characters of valid UTF-8")
+  local refusal = text_check.refusal(args.text, MAX_CHARS)
+  if refusal then
+    return refusal
   end
 
   local now = deps.tick
@@ -29,7 +28,7 @@ function M.op(deps, args)
   recent[#recent + 1] = now
   deps.storage.say_ticks = recent
 
-  deps.chat(deps.body_name .. ": " .. text)
+  deps.chat(deps.body_name .. ": " .. args.text)
   return {}
 end
 

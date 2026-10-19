@@ -16,11 +16,11 @@ end
 function M.op(_deps, args)
   local name = args.name
   if type(name) ~= "string" then
-    error("recipe: name must be a string")
+    error("recipe: name must be a string", 0)
   end
   local proto = prototypes.recipe[name]
   if not proto then
-    error("recipe: no recipe named " .. name)
+    error("recipe: no recipe named " .. name, 0)
   end
 
   local ingredients, products = {}, {}

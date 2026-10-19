@@ -2,6 +2,7 @@
 
 local area = require("scripts.area")
 local gps = require("scripts.gps")
+local host = require("scripts.host")
 local surface_of = require("scripts.surface")
 local unit_index = require("scripts.unit_index")
 
@@ -15,25 +16,25 @@ local function area_of(args)
   if type(args.area) == "table" then
     local left_top, right_bottom = args.area.left_top, args.area.right_bottom
     if type(left_top) ~= "table" or type(right_bottom) ~= "table" then
-      error("find: area needs left_top and right_bottom positions")
+      error("find: area needs left_top and right_bottom positions", 0)
     end
     if type(left_top.x) ~= "number" or type(left_top.y) ~= "number"
       or type(right_bottom.x) ~= "number" or type(right_bottom.y) ~= "number" then
-      error("find: area corners need numeric x and y")
+      error("find: area corners need numeric x and y", 0)
     end
     if right_bottom.x - left_top.x > MAX_AREA_TILES or right_bottom.y - left_top.y > MAX_AREA_TILES then
-      error("find: area is larger than 64x64 tiles")
+      error("find: area is larger than 64x64 tiles", 0)
     end
     return { left_top = { x = left_top.x, y = left_top.y }, right_bottom = { x = right_bottom.x, y = right_bottom.y } }
   end
   if args.around == "player" then
-    local host = game.players[1]
-    if not host then
-      error('find: around="player" but there is no player')
+    local player = host.get()
+    if not player then
+      error('find: around="player" but no host is connected', 0)
     end
-    return area.around(host.position)
+    return area.around(player.position)
   end
-  error('find: give area or around="player"')
+  error('find: give area or around="player"', 0)
 end
 
 function M.op(_deps, args)

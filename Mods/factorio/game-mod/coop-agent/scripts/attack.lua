@@ -19,14 +19,10 @@ local function key(cell)
   return cell.surface .. ";" .. cell.x .. ";" .. cell.y
 end
 
-local function hostile(player_force, force)
-  return force ~= player_force and force.name ~= "neutral" and not player_force.get_friend(force)
-end
-
 -- The event's force names the attacker; the cause's force stands in when it is absent.
 local function defender_hit(player_force, ev)
   local attacker = ev.attacker_force or ev.cause_force
-  return ev.entity_force == player_force and attacker ~= nil and hostile(player_force, attacker)
+  return ev.entity_force == player_force and attacker ~= nil and player_force.is_enemy(attacker)
 end
 
 --- deps: {storage, tick, player_force, count_cell(cell), push(kind, data)}
@@ -83,7 +79,7 @@ local function count_cell(cell)
   }) do
     if entity.force == player_force then
       defenders = defenders + 1
-    elseif hostile(player_force, entity.force) then
+    elseif player_force.is_enemy(entity.force) then
       enemies = enemies + 1
     end
   end

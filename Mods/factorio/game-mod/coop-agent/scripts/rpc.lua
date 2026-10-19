@@ -68,7 +68,8 @@ end
 local function finish(deps, id, payload)
   local ok, json = pcall(envelope, deps, id, payload)
   if ok and #json > MAX_REPLY_BYTES then
-    ok, json = pcall(envelope, deps, id, { ok = false, e = "too_large", r = { bytes = #json } })
+    local m = "reply is " .. #json .. " bytes, over the " .. MAX_REPLY_BYTES .. "-byte cap"
+    ok, json = pcall(envelope, deps, id, { ok = false, e = "too_large", m = m, r = { bytes = #json } })
   end
   if not ok then
     json = '{"v":1,"id":null,"ok":false,"e":"op_error","m":"reply could not be encoded"}'
@@ -86,7 +87,7 @@ function M.dispatch(parameter, player_index, deps)
   end
 
   if player_index then
-    finish(deps, id, { ok = false, e = "not_console" })
+    finish(deps, id, { ok = false, e = "not_console", m = "coop-rpc answers the server console only" })
     return
   end
   if not parsed_ok or type(req) ~= "table" then

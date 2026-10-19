@@ -1,5 +1,7 @@
 -- The status op: what a session needs to bootstrap; needs no map_id.
 
+local host = require("scripts.host")
+
 local M = {}
 
 function M.op(deps)
@@ -9,10 +11,10 @@ function M.op(deps)
     seq = deps.storage.events.head_seq,
     tick = deps.tick,
   }
-  local host = game.players[1]
-  if host then
-    local pos = host.position
-    out.host = { name = host.name, connected = host.connected, position = { x = pos.x, y = pos.y } }
+  local player = host.get()
+  if player then
+    local pos = player.position
+    out.host = { name = player.name, connected = player.connected, position = { x = pos.x, y = pos.y } }
   end
   return out
 end

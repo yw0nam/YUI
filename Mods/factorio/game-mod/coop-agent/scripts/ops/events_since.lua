@@ -6,10 +6,10 @@ local M = {}
 
 function M.op(deps, args)
   if args.seq ~= nil and type(args.seq) ~= "number" then
-    error("events_since: seq must be a number")
+    error("events_since: seq must be a number", 0)
   end
   if args.limit ~= nil and type(args.limit) ~= "number" then
-    error("events_since: limit must be a number")
+    error("events_since: limit must be a number", 0)
   end
   local read = ring.read(deps.storage.events, args.seq or 0, args.limit)
   if read.gap then

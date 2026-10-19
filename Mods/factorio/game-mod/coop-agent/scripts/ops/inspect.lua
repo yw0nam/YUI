@@ -31,11 +31,11 @@ end
 function M.op(_deps, args)
   local unit_number = args.unit_number
   if type(unit_number) ~= "number" then
-    error("inspect: unit_number must be a number")
+    error("inspect: unit_number must be a number", 0)
   end
   local entity = unit_index.get(unit_number) or game.get_entity_by_unit_number(unit_number)
   if not (entity and entity.valid) then
-    error("inspect: no entity with unit_number " .. unit_number)
+    error("inspect: no entity with unit_number " .. unit_number, 0)
   end
   unit_index.add(entity)
 

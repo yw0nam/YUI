@@ -1,20 +1,17 @@
 -- Thin event handlers: read the game event and push a plain-data kind onto the ring.
 
+local host = require("scripts.host")
 local store = require("scripts.storage")
 local snapshot = require("scripts.ops.snapshot")
 
 local M = {}
 
---- Chat fires only for an admin's own console lines; commands raise on_console_command instead.
+--- Only the host's chat lines count; commands raise on_console_command instead.
 function M.on_console_chat(e)
-  if not e.player_index then
-    return
+  local player = host.get()
+  if player and e.player_index == player.index then
+    store.push("chat", { player = player.name, text = e.message })
   end
-  local player = game.get_player(e.player_index)
-  if not (player and player.admin) then
-    return
-  end
-  store.push("chat", { player = player.name, text = e.message })
 end
 
 function M.on_player_joined(e)

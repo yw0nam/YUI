@@ -12,6 +12,8 @@ local SCIENCE_PACKS = {
   "space-science-pack",
 }
 
+local TICKS_PER_SECOND = 60
+
 local M = {}
 
 local function flow_sum(stats, category, precision)
@@ -31,10 +33,11 @@ local function electric_networks(surface, precision)
     if pole.valid and id and not seen[id] then
       seen[id] = true
       local stats = pole.electric_network_statistics
+      -- electric flows are joules per tick
       networks[#networks + 1] = {
         id = id,
-        production = flow_sum(stats, "output", precision),
-        consumption = flow_sum(stats, "input", precision),
+        production = flow_sum(stats, "output", precision) * TICKS_PER_SECOND,
+        consumption = flow_sum(stats, "input", precision) * TICKS_PER_SECOND,
       }
     end
   end
@@ -44,6 +47,7 @@ local function electric_networks(surface, precision)
   return networks
 end
 
+--- Science packs consumed per minute: an item flow's output is its consumption.
 local function science(force, surface, precision)
   local stats = force.get_item_production_statistics(surface)
   local packs = {}

@@ -3,7 +3,7 @@
 local area = require("scripts.area")
 local gps = require("scripts.gps")
 local surface_of = require("scripts.surface")
-local utf8 = require("scripts.utf8")
+local text_check = require("scripts.text")
 
 local PING_TTL_TICKS = 36000
 local MAX_CHARS = 60
@@ -13,12 +13,12 @@ local M = {}
 function M.op(deps, args)
   local pos = args.pos
   if type(pos) ~= "table" or type(pos.x) ~= "number" or type(pos.y) ~= "number" then
-    error("ping: pos must be {x, y}")
+    error("ping: pos must be {x, y}", 0)
   end
   local text = args.text
-  local chars = type(text) == "string" and utf8.len(text) or nil
-  if not chars or chars == 0 or chars > MAX_CHARS then
-    error("ping: text must be 1 to " .. MAX_CHARS .. " characters of valid UTF-8")
+  local refusal = text_check.refusal(text, MAX_CHARS)
+  if refusal then
+    return refusal
   end
 
   local surface = surface_of.get()
@@ -26,7 +26,7 @@ function M.op(deps, args)
   force.chart(surface, area.around(pos))
   local tag = force.add_chart_tag(surface, { position = { x = pos.x, y = pos.y }, text = text })
   if not tag then
-    error("ping: the position does not accept a chart tag")
+    error("ping: the position does not accept a chart tag", 0)
   end
   deps.storage.pings[tag.tag_number] = { tag = tag, expire_tick = deps.tick + PING_TTL_TICKS }
 
