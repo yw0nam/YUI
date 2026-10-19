@@ -70,13 +70,10 @@ class Doorbell:
             if now - self._dirty_at >= self._coalesce_s:
                 await self._post(now, repost=False)
             return
-        if (
-            self._last_ok_at is not None
-            and now - self._last_ok_at >= REPOST_AFTER_S
-            and self._session.newest_seq != self._reposted_to_seq
-            and self._session.unread_wake_events(self._kinds)
-        ):
-            await self._post(now, repost=True)
+        if self._last_ok_at is not None and now - self._last_ok_at >= REPOST_AFTER_S:
+            unread = self._session.unread_wake_events(self._kinds)
+            if unread and unread[-1]["seq"] != self._reposted_to_seq:
+                await self._post(now, repost=True)
 
     async def run(self) -> None:
         while True:
@@ -108,14 +105,15 @@ class Doorbell:
         except httpx.HTTPError as err:
             self._fail(now, dirty, body, status=None, error=type(err).__name__)
             return
-        self._in_flight = False
+        finally:
+            self._in_flight = False
         if 200 <= response.status_code < 300:
             self._last_ok_at = now
             self._retry_at = None
             self._retry_s = RETRY_START_S
             self._cleared_generation = max(self._cleared_generation, generation)
             if repost:
-                self._reposted_to_seq = body["signals"][0]["pending_to_seq"]
+                self._reposted_to_seq = unread[-1]["seq"]
             self._record(status=response.status_code, body=body)
             logger.bind(status=response.status_code, pending=body["signals"][0]).info("doorbell_posted")
         else:
@@ -130,7 +128,6 @@ class Doorbell:
         status: int | None,
         error: str | None,
     ) -> None:
-        self._in_flight = False
         if self._dirty_at is None:
             self._dirty_at = dirty
         self._retry_at = now + self._retry_s
