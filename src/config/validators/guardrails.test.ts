@@ -14,6 +14,7 @@ function baseRaw(overrides: Record<string, unknown> = {}): Record<string, unknow
     rate_limit: {
       window_ms: 3600000,
       tier2_max: 12,
+      live_max: 120,
       overall_max: 26,
       cooldown_ms: 300000,
     },
@@ -129,11 +130,33 @@ describe("validateGuardrails — rate_limit", () => {
         rate_limit: {
           window_ms: 3600000,
           tier2_max: -1,
+          live_max: 120,
           overall_max: 26,
           cooldown_ms: 300000,
         },
       }),
       "rate_limit.tier2_max must be a finite number >= 0",
+    );
+  });
+
+  it("rejects a missing live_max", () => {
+    const raw = baseRaw();
+    delete (raw.rate_limit as Record<string, unknown>).live_max;
+    expectIssue(raw, "rate_limit.live_max must be a finite number >= 0");
+  });
+
+  it("rejects a negative live_max", () => {
+    expectIssue(
+      baseRaw({
+        rate_limit: {
+          window_ms: 3600000,
+          tier2_max: 12,
+          live_max: -1,
+          overall_max: 26,
+          cooldown_ms: 300000,
+        },
+      }),
+      "rate_limit.live_max must be a finite number >= 0",
     );
   });
 

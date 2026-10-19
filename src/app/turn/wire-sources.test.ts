@@ -2,13 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Capture the deps each source factory is created with, and record start() calls.
 // vi.hoisted so the shared state exists before the hoisted vi.mock factories run.
-const { created, started, drainQueue, makeSource } = vi.hoisted(() => {
+const { created, calls, started, drainQueue, makeSource } = vi.hoisted(() => {
   const created: Record<string, unknown> = {};
+  // Every deps object each factory received — a factory called once per instance appends here.
+  const calls: Record<string, unknown[]> = {};
   const started: string[] = [];
   // Groups a test posts to the signals source before a drain — emptied by drain(), as the real one does.
   const drainQueue: unknown[] = [];
   const makeSource = (name: string) => (deps: unknown) => {
     created[name] = deps;
+    (calls[name] ??= []).push(deps);
     return {
       start: async () => {
         started.push(name);
@@ -20,7 +23,7 @@ const { created, started, drainQueue, makeSource } = vi.hoisted(() => {
       latch: () => {},
     };
   };
-  return { created, started, drainQueue, makeSource };
+  return { created, calls, started, drainQueue, makeSource };
 });
 
 vi.mock("../../dispatcher/sources/idle-tick/proactive-source", () => ({
@@ -53,6 +56,7 @@ import { wireDispatcherSources } from "./wire-sources";
 describe("wireDispatcherSources", () => {
   beforeEach(() => {
     for (const k of Object.keys(created)) delete created[k];
+    for (const k of Object.keys(calls)) delete calls[k];
     started.length = 0;
     drainQueue.length = 0;
   });
@@ -327,5 +331,28 @@ describe("wireDispatcherSources", () => {
     unsubscribe();
     pacer.setHolding(true);
     expect(edges).toEqual([true, false]);
+  });
+
+  it("hands the signals source the raw busy predicate for its live instance beside the paced one", () => {
+    const pacer = fakePacer(false);
+    wireWithPacer(pacer);
+
+    expect(calls.signals).toHaveLength(1);
+    const source = created.signals as {
+      isPipelineBusy: () => boolean;
+      isLivePipelineBusy: () => boolean;
+      subscribeLivePipelineBusy: (cb: (busy: boolean) => void) => () => void;
+    };
+    const edges: boolean[] = [];
+    source.subscribeLivePipelineBusy((busy) => edges.push(busy));
+
+    pacer.setHolding(true);
+    // The paced predicate reads the hold as busy; the raw one the live instance takes does not.
+    expect(source.isPipelineBusy()).toBe(true);
+    expect(source.isLivePipelineBusy()).toBe(false);
+    expect(edges).toEqual([]);
+
+    pacer.setHolding(false);
+    expect(source.isLivePipelineBusy()).toBe(false);
   });
 });
