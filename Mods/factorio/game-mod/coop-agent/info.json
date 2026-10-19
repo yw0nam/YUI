@@ -1,0 +1,9 @@
+{
+  "name": "coop-agent",
+  "version": "0.1.0",
+  "title": "Co-op Agent",
+  "description": "Co-play observation and RPC transport for a remote agent: an event ring, read ops and talk ops over one RCON command.",
+  "author": "coop-agent maintainers",
+  "factorio_version": "2.0",
+  "dependencies": ["base >= 2.0.77"]
+}
