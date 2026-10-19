@@ -140,25 +140,23 @@ describe("validateGuardrails — rate_limit", () => {
     );
   });
 
-  it("rejects a missing live_max", () => {
-    const raw = baseRaw();
-    delete (raw.rate_limit as Record<string, unknown>).live_max;
-    expectIssue(raw, "rate_limit.live_max must be a finite number >= 0");
-  });
-
-  it("rejects a negative live_max", () => {
-    expectIssue(
-      baseRaw({
-        rate_limit: {
-          window_ms: 3600000,
-          tier2_max: 12,
-          live_max: -1,
-          overall_max: 26,
-          cooldown_ms: 300000,
-        },
-      }),
-      "rate_limit.live_max must be a finite number >= 0",
-    );
+  it.each([
+    [
+      "missing",
+      (raw: Record<string, unknown>) => {
+        delete (raw.rate_limit as Record<string, unknown>).live_max;
+        return raw;
+      },
+    ],
+    [
+      "negative",
+      (raw: Record<string, unknown>) => {
+        (raw.rate_limit as Record<string, unknown>).live_max = -1;
+        return raw;
+      },
+    ],
+  ])("rejects a %s live_max", (_name, mutate) => {
+    expectIssue(mutate(baseRaw()), "rate_limit.live_max must be a finite number >= 0");
   });
 
   it("accumulates one issue per malformed block at once", () => {

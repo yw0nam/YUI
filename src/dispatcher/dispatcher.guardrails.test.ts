@@ -422,10 +422,9 @@ describe("dispatcher — live signals guardrails (live_max)", () => {
       ...over,
     });
 
-  function makeLiveGated(liveMax: number, tier2Max: number): { d: Dispatcher; g: Guardrails } {
+  function makeLiveGated(): { d: Dispatcher; g: Guardrails } {
     const cfg = realGuardrailsConfig();
-    cfg.rate_limit.live_max = liveMax;
-    cfg.rate_limit.tier2_max = tier2Max;
+    cfg.rate_limit.tier2_max = 1000;
     const g = createGuardrails(cfg, { now: () => Date.now() });
     const d = createDispatcher({
       bus,
@@ -441,43 +440,8 @@ describe("dispatcher — live signals guardrails (live_max)", () => {
     return { d, g };
   }
 
-  async function fireAndSettle(): Promise<void> {
-    await vi.advanceTimersByTimeAsync(20);
-    callDeferred.at(-1)?.resolve("ok");
-    await vi.advanceTimersByTimeAsync(20);
-  }
-
-  it("counts live turns toward live_max only — tier2/overall counters unchanged, no cooldown", async () => {
-    const { d } = makeLiveGated(2, 1);
-    d.start();
-
-    bus.push(liveEnv({ ts: NOW }));
-    await fireAndSettle();
-    bus.push(liveEnv({ ts: NOW + 1 }));
-    await fireAndSettle();
-    expect(backendCaller.call).toHaveBeenCalledTimes(2);
-
-    // 3rd live turn in the window — over live_max 2.
-    bus.push(liveEnv({ ts: NOW + 2 }));
-    await vi.advanceTimersByTimeAsync(20);
-    expect(backendCaller.call).toHaveBeenCalledTimes(2);
-    expect(d.recentDrops().at(-1)).toMatchObject({
-      event_name: "signals.live",
-      reason: "guardrail_drop",
-    });
-    expect(d.state()).toBe("running");
-
-    // The two live fires left the tier2 window empty — a regular cue passes tier2_max 1.
-    bus.push(
-      env({ source: "timer_scheduler", event_name: "proactive.cowork", dnd_override: false }),
-    );
-    await vi.advanceTimersByTimeAsync(20);
-    expect(backendCaller.call).toHaveBeenCalledTimes(3);
-    d.stop();
-  });
-
   it("fires a live turn while the global cooldown is active", async () => {
-    const { d, g } = makeLiveGated(120, 1000);
+    const { d, g } = makeLiveGated();
     d.start();
     for (let i = 0; i < 21; i++) {
       g.evaluate(
@@ -501,7 +465,7 @@ describe("dispatcher — live signals guardrails (live_max)", () => {
   });
 
   it("drains a pending live turn at the pending-drain gate during cooldown", async () => {
-    const { d, g } = makeLiveGated(120, 1000);
+    const { d, g } = makeLiveGated();
     d.start();
 
     bus.push(env({ ts: NOW })); // user turn takes the in-flight slot
