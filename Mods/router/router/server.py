@@ -22,6 +22,7 @@ UPSTREAMS = {
     "desktop": "http://127.0.0.1:9000",
     "shell": "http://127.0.0.1:9001",
     "avatar": "http://127.0.0.1:9002",
+    "factorio": "http://127.0.0.1:9003",
 }
 
 # hop-by-hop / length headers: the server re-derives these, forwarding them double-encodes.

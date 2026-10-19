@@ -1,0 +1,26 @@
+# Path to Factorio's own config.ini. The Mod reads RCON host, port, and password
+# from local-rcon-socket and local-rcon-password in that file. It never writes it.
+config_ini = "~/Library/Application Support/factorio/config/config.ini"
+
+# The YUI client's loopback signals ingress.
+signals_url = "http://127.0.0.1:8770/signals"
+
+[wake]
+# Event kinds that notify the backend. Every other kind only enters the cache.
+kinds = [
+  "chat",
+  "job_done",
+  "job_failed",
+  "body_died",
+  "body_damaged",
+  "research_finished",
+  "rocket_launched",
+  "player_died",
+  "attack_started",
+  "attack_ended",
+]
+# Quiet period after the first wake event before one doorbell is posted.
+coalesce_ms = 2000
+
+# JSONL record per polled event, doorbell post, and tool call. Relative to this file.
+outcome_log = "outcome.jsonl"
