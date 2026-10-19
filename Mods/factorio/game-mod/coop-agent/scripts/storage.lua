@@ -10,7 +10,7 @@ function M.ensure()
   storage.attacks = storage.attacks or {}
   storage.say_ticks = storage.say_ticks or {}
   storage.pings = storage.pings or {}
-  storage.unit_index = storage.unit_index or {}
+  storage.unit_index = storage.unit_index or { map = {}, order = {} }
 end
 
 function M.push(kind, data)

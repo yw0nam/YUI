@@ -2,6 +2,7 @@
 
 local gps = require("scripts.gps")
 local surface_of = require("scripts.surface")
+local unit_index = require("scripts.unit_index")
 
 local MAX_AREA_TILES = 64
 local DEFAULT_LIMIT = 100
@@ -38,7 +39,7 @@ local function area_of(args)
   error('find: give area or around="player"')
 end
 
-function M.op(deps, args)
+function M.op(_deps, args)
   local area = area_of(args)
   local limit = math.min(type(args.limit) == "number" and args.limit or DEFAULT_LIMIT, MAX_LIMIT)
   if limit < 1 then
@@ -52,8 +53,7 @@ function M.op(deps, args)
   if args.type ~= nil then
     filter.type = args.type
   end
-  local surface = surface_of.get()
-  local entities = surface.find_entities_filtered(filter)
+  local entities = surface_of.get().find_entities_filtered(filter)
   table.sort(entities, function(a, b)
     if a.name ~= b.name then
       return a.name < b.name
@@ -76,7 +76,7 @@ function M.op(deps, args)
       owner = entity.force.name == "player" and "player" or "unknown",
     }
     if entity.unit_number then
-      deps.storage.unit_index[entity.unit_number] = { surface = surface.name, x = pos.x, y = pos.y }
+      unit_index.add(entity)
     end
   end
   return out

@@ -2,6 +2,7 @@
 
 local gps = require("scripts.gps")
 local surface_of = require("scripts.surface")
+local utf8 = require("scripts.utf8")
 
 local PING_TTL_TICKS = 36000
 local MAX_CHARS = 60
@@ -14,8 +15,9 @@ function M.op(deps, args)
     error("ping: pos must be {x, y}")
   end
   local text = args.text
-  if type(text) ~= "string" or #text == 0 or #text > MAX_CHARS then
-    error("ping: text must be a string of 1 to " .. MAX_CHARS .. " characters")
+  local chars = type(text) == "string" and utf8.len(text) or nil
+  if not chars or chars == 0 or chars > MAX_CHARS then
+    error("ping: text must be 1 to " .. MAX_CHARS .. " characters of valid UTF-8")
   end
 
   local surface = surface_of.get()

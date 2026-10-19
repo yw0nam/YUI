@@ -2,6 +2,8 @@
 
 local MAX_REPLY_BYTES = 65536
 local MEMORY_SIZE = 256
+-- Write ops replay their stored reply on retry; read ops re-run.
+local WRITE_OPS = { say = true, ping = true }
 
 local OPS = {
   status = require("scripts.ops.status").op,
@@ -22,8 +24,12 @@ local function runtime_deps()
     from_json = helpers.json_to_table,
     to_json = helpers.table_to_json,
     print = rcon.print,
+    say = function(line)
+      game.print(line)
+    end,
     storage = storage,
     tick = game.tick,
+    body_name = settings.global["coop-agent-body-name"].value,
     ops = OPS,
   }
 end
@@ -73,7 +79,7 @@ local function finish(deps, id, payload)
   return json
 end
 
---- deps: {from_json, to_json, print, storage, tick, ops}
+--- deps: {from_json, to_json, print, say, storage, tick, body_name, ops}
 function M.dispatch(parameter, player_index, deps)
   local id = nil
   local parsed_ok, req = pcall(deps.from_json, parameter or "")
@@ -101,18 +107,20 @@ function M.dispatch(parameter, player_index, deps)
   end
   local args = type(req.args) == "table" and req.args or {}
 
-  local map_key = req.map_id or deps.storage.map_id
-  local memory = deps.storage.rpc_memory[map_key] or {}
-  deps.storage.rpc_memory[map_key] = memory
-  local hash = payload_hash(op_name, deps.to_json(args))
-  for _, entry in ipairs(memory) do
-    if entry.id == id then
-      if entry.hash == hash then
-        deps.print(entry.reply)
-      else
-        finish(deps, id, { ok = false, e = "id_conflict", m = "id already used with different arguments" })
+  local memory, hash = nil, nil
+  if WRITE_OPS[op_name] then
+    memory = deps.storage.rpc_memory[deps.storage.map_id] or {}
+    deps.storage.rpc_memory[deps.storage.map_id] = memory
+    hash = payload_hash(op_name, deps.to_json(args))
+    for _, entry in ipairs(memory) do
+      if entry.id == id then
+        if entry.hash == hash then
+          deps.print(entry.reply)
+        else
+          finish(deps, id, { ok = false, e = "id_conflict", m = "id already used with different arguments" })
+        end
+        return
       end
-      return
     end
   end
 
@@ -126,7 +134,7 @@ function M.dispatch(parameter, player_index, deps)
     payload = { ok = true, r = result }
   end
   local json = finish(deps, id, payload)
-  if ran_ok and payload.ok and id then
+  if memory and id then
     memory[#memory + 1] = { id = id, hash = hash, reply = json }
     while #memory > MEMORY_SIZE do
       table.remove(memory, 1)

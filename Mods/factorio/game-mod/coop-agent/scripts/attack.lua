@@ -19,32 +19,41 @@ local function key(cell)
   return cell.surface .. ";" .. cell.x .. ";" .. cell.y
 end
 
---- deps: {storage, tick, count_cell(surface, cell) -> {enemies, defenders}, push(kind, data)}
+local function hostile(player_force, force)
+  return force ~= player_force and force.name ~= "neutral" and not player_force.get_friend(force)
+end
+
+-- The event's force names the attacker; the cause's force stands in when it is absent.
+local function defender_hit(player_force, ev)
+  local attacker = ev.attacker_force or ev.cause_force
+  return ev.entity_force == player_force and attacker ~= nil and hostile(player_force, attacker)
+end
+
+--- deps: {storage, tick, player_force, count_cell(cell), push(kind, data)}
 function M.on_damaged(deps, ev)
-  local attacks = deps.storage.attacks
+  if not defender_hit(deps.player_force, ev) then
+    return
+  end
   local cell = cell_of(ev.surface, ev.position)
-  local open = attacks[key(cell)]
+  local open = deps.storage.attacks[key(cell)]
   if open then
     open.last_tick = deps.tick
     return
   end
-  local counts = deps.count_cell(cell.surface, cell)
-  attacks[key(cell)] = { cell = cell, opened_tick = deps.tick, last_tick = deps.tick, losses = {} }
+  local counts = deps.count_cell(cell)
+  deps.storage.attacks[key(cell)] = { cell = cell, opened_tick = deps.tick, last_tick = deps.tick, losses = {} }
   deps.push("attack_started", { cell = cell, enemies = counts.enemies, defenders = counts.defenders })
 end
 
---- Deaths only count towards a cell that has an open attack.
 function M.on_died(deps, ev)
-  local cell = cell_of(ev.surface, ev.position)
-  local open = deps.storage.attacks[key(cell)]
-  if open then
+  local open = deps.storage.attacks[key(cell_of(ev.surface, ev.position))]
+  if open and defender_hit(deps.player_force, ev) then
     open.losses[ev.name] = (open.losses[ev.name] or 0) + 1
   end
 end
 
---- Close every cell quiet for QUIET_TICKS; losses leave sorted by name.
 function M.sweep(deps, now)
-  for key, open in pairs(deps.storage.attacks) do
+  for cell_key, open in pairs(deps.storage.attacks) do
     if now - open.last_tick >= QUIET_TICKS then
       local losses = {}
       for name, count in pairs(open.losses) do
@@ -54,70 +63,74 @@ function M.sweep(deps, now)
         return a.name < b.name
       end)
       deps.push("attack_ended", { cell = open.cell, duration_s = (now - open.opened_tick) / 60, losses = losses })
-      deps.storage.attacks[key] = nil
+      deps.storage.attacks[cell_key] = nil
     end
   end
 end
 
-local function hostile(player_force, force)
-  return force ~= player_force and force.name ~= "neutral" and not player_force.get_friend(force)
+local function count_cell(cell)
+  local surface = game.get_surface(cell.surface)
+  if not surface then
+    return { enemies = 0, defenders = 0 }
+  end
+  local player_force = game.forces.player
+  local enemies, defenders = 0, 0
+  for _, entity in ipairs(surface.find_entities_filtered {
+    area = {
+      left_top = { x = cell.x, y = cell.y },
+      right_bottom = { x = cell.x + CELL_TILES, y = cell.y + CELL_TILES },
+    },
+  }) do
+    if entity.force == player_force then
+      defenders = defenders + 1
+    elseif hostile(player_force, entity.force) then
+      enemies = enemies + 1
+    end
+  end
+  return { enemies = enemies, defenders = defenders }
 end
 
-local function production_deps()
+local function game_deps()
   return {
     storage = storage,
     tick = game.tick,
-    count_cell = function(surface_name, cell)
-      local surface = game.get_surface(surface_name)
-      if not (surface and surface.valid) then
-        return { enemies = 0, defenders = 0 }
-      end
-      local player_force = game.forces.player
-      local enemies, defenders = 0, 0
-      for _, entity in ipairs(surface.find_entities_filtered {
-        area = {
-          left_top = { x = cell.x, y = cell.y },
-          right_bottom = { x = cell.x + CELL_TILES, y = cell.y + CELL_TILES },
-        },
-      }) do
-        if entity.valid and entity.force then
-          if entity.force == player_force then
-            defenders = defenders + 1
-          elseif hostile(player_force, entity.force) then
-            enemies = enemies + 1
-          end
-        end
-      end
-      return { enemies = enemies, defenders = defenders }
-    end,
+    player_force = game.forces.player,
+    count_cell = count_cell,
     push = store.push,
   }
 end
 
-local function defender_damage(e)
-  local entity, cause = e.entity, e.cause
-  if not (entity and entity.valid and cause and cause.valid) then
-    return false
+local function hit_of(e)
+  local entity = e.entity
+  if not entity.valid then
+    return nil
   end
-  local player_force = game.forces.player
-  return entity.force == player_force and hostile(player_force, cause.force)
+  return {
+    surface = entity.surface.name,
+    position = entity.position,
+    name = entity.name,
+    entity_force = entity.force,
+    attacker_force = e.force,
+    cause_force = e.cause and e.cause.valid and e.cause.force or nil,
+  }
 end
 
 function M.on_damaged_event(e)
-  if defender_damage(e) then
-    M.on_damaged(production_deps(), { surface = e.entity.surface.name, position = e.entity.position })
+  local hit = hit_of(e)
+  if hit then
+    M.on_damaged(game_deps(), hit)
   end
 end
 
 function M.on_died_event(e)
-  local entity = e.entity
-  if entity.valid then
-    M.on_died(production_deps(), { surface = entity.surface.name, position = entity.position, name = entity.name })
+  local hit = hit_of(e)
+  if hit then
+    M.on_died(game_deps(), hit)
   end
 end
 
 function M.sweep_tick()
-  M.sweep(production_deps(), game.tick)
+  M.sweep(game_deps(), game.tick)
 end
 
 return M
