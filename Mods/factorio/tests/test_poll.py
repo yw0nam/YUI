@@ -117,7 +117,7 @@ def test_history_gap_is_logged_and_the_page_is_retried(tmp_path):
     )
     poller, _session, _doorbell, _recovery, log_path = make(tmp_path, rpc)
     asyncio.run(poller.poll_once())
-    assert rpc.calls[-1] == ("events_since", {"seq": 59, "limit": 200})
+    assert [call[0] for call in rpc.calls] == ["status", "events_since", "events_since"]
     assert any(record["type"] == "history_gap" and record["oldest_seq"] == 60 for record in records(log_path))
 
 

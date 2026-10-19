@@ -134,12 +134,13 @@ def test_an_unknown_outcome_reconciles_and_resends_the_identical_id():
         request = parse(command)
         requests.append(request)
         if request["op"] == "status":
-            return reply(request, r={"map_id": None, "seq": 0})
+            return reply(request, r={"map_id": "map-a", "seq": 0})
         if len([item for item in requests if item["op"] == "say"]) == 1:
             return CLOSE
         return reply(request, r={"said": True})
 
     async def body(rpc, server):
+        rpc.map_id = "map-a"
         return await rpc.call("say", {"text": "hi"})
 
     assert asyncio.run(with_server(handler, body)) == {"said": True}
