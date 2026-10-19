@@ -14,7 +14,8 @@ the agent does with them is the backend's business.
 - `coop-agent/` — the mod, loadable as a folder. `control.lua` is wiring only;
   every concern lives under `scripts/` (`rpc` framing, `ring` event storage,
   `storage` tables and the event push, `events` handlers, `attack` cell
-  grouping, `unit_index`, `map_id`, one file per op under `scripts/ops/`).
+  grouping, `host`, `unit_index`, `text` checks, `map_id`, one file per op
+  under `scripts/ops/`).
   Pure modules take their dependencies (`storage`, `game.tick`, `rcon.print`,
   `helpers.table_to_json`/`json_to_table`) through an injected `deps` table.
 - `probe-mod/` — dev-only, never shipped. One command, `/coop-probe <name>`,
@@ -23,15 +24,16 @@ the agent does with them is the backend's business.
   re-runs it.
 - `tests/` — a uv project: lupa units for the pure modules, plus
   `tests/test_headless.py` which drives a real headless server over RCON.
-- `scripts/headless.sh` — creates a fresh save with an isolated `--mod-directory`
-  (symlinks to the mod folders) and starts the server with RCON on 127.0.0.1.
+- `scripts/headless.sh` — creates a fresh save (or takes `--save <path>`) with
+  an isolated `--mod-directory` (symlinks to the mod folders) and starts the
+  server with RCON on 127.0.0.1.
   The game config lives inside the given workdir; the owner's real game data
   (`~/Library/Application Support/factorio/`) is never touched.
 
 ## Run
 
 ```bash
-FACTORIO_BIN="/path/to/factorio" bash scripts/headless.sh [--probe] <workdir>
+FACTORIO_BIN="/path/to/factorio" bash scripts/headless.sh [--probe] [--save <path>] <workdir>
 # prints save=, port=, password=, pid=, then ready when RCON answers
 ```
 
@@ -43,15 +45,19 @@ Talk to the server over RCON with one command:
 
 Exactly one JSON reply comes back per call:
 `{"v":1,"id":...,"ok":true,"r":...}` or
-`{"v":1,"id":...,"ok":false,"e":"<code>","m":...}`. The envelope `id` is a
-string or explicit `null`. Factorio's JSON encoder cannot emit `null` or an
+`{"v":1,"id":...,"ok":false,"e":"<code>","m":"<message>"}`; `m` is a string
+on every error reply. The envelope `id` is a string or explicit `null`. Factorio's JSON encoder cannot emit `null` or an
 empty array, so consumers read two shapes accordingly:
 
 - `{}` is an empty list for `events`, `power`, `research.queue`,
   `ingredients`, `products`, `machines`, `losses`, a `find` result, and an
   empty map for `inventories`, `fluids` and `science.*.packs`.
-- An absent key is null for `host`, `recipe`, `status`, `research.current`
-  and a `find` entry's `unit_number`.
+- An absent key is null for `host`, `recipe`, `status`, `research.current`,
+  a `find` entry's `unit_number`, and a recipe part's `amount`, `amount_min`,
+  `amount_max` and `probability`, which depend on the part's type.
+
+The host is the connected admin with the lowest player index; `status.host`,
+`find{around:"player"}` and `chat` events all mean that player.
 
 Any call with a non-nil `player_index` (a player's console) is refused with
 `e:"not_console"` and runs nothing. `status` needs no `map_id`; every other op
@@ -68,22 +74,23 @@ Replies over 65536 bytes are replaced with `e:"too_large"` and `r.bytes`.
 | --- | --- | --- |
 | `status` | — | `{mod_version, map_id, seq, tick, host\|null}` |
 | `events_since` | `seq`, `limit` (≤ 200, default 200) | `{map_id, head_seq, events}`; a seq behind the ring answers `e:"history_gap"`, `r:{oldest_seq}` |
-| `snapshot` | `sections`? (power, science, research, evolution, pollution) | power per electric network, science per minute over 1 and 10 min, research and queue, evolution, pollution total |
+| `snapshot` | `sections`? (power, science, research, evolution, pollution) | production and consumption per electric network in W (one-minute average), science packs consumed per minute over 1 and 10 min, research and queue, evolution, pollution total |
 | `find` | `area` (≤ 64×64) or `around:"player"`, `name`/`type`?, `limit`? (≤ 200, default 100) | `[{unit_number, name, type, position, gps, owner}]`; seen unit numbers are indexed for `inspect` |
 | `inspect` | `unit_number` | status, recipe (crafting machines), `inventories` as `{<inventory name>: get_contents()}` with one entry per non-empty inventory, fluids; the entity resolves through the last 4096 units `find` and `inspect` returned |
 | `recipe` | `name` | ingredients, products, energy, machines that can craft it |
-| `say` | `text` (≤ 200 UTF-8 characters) | `{}`; prefixed with the body name from the `coop-agent-body-name` setting, at most 6 per 60 s else `e:"rate_limited"` |
-| `ping` | `pos {x,y}`, `text` (≤ 60 UTF-8 characters) | `{tag_id}`; a chart tag that a sweep destroys after 10 min, plus a `[gps]` chat line |
+| `say` | `text` (≤ 200 UTF-8 characters; else `e:"too_long"`, and `e:"bad_request"` for a non-string, empty or invalid text) | `{}`; prefixed with the body name from the `coop-agent-body-name` setting, at most 6 per 60 s else `e:"rate_limited"` |
+| `ping` | `pos {x,y}`, `text` (≤ 60 UTF-8 characters, refused like `say`'s) | `{tag_id}`; a chart tag that a sweep destroys after 10 min, plus a `[gps]` chat line |
 
 Event kinds on the ring of 2000 (`{seq, tick, kind, data}`, monotonic seq per
-map): `chat{player, text}` — admin console lines only, never commands —
+map): `chat{player, text}` — the host's chat lines only, never commands —
 `player_joined{player}`, `player_left{player}`, `player_died{player}`,
 `research_finished{name}`, `rocket_launched{}`, `attack_started{cell, enemies,
 defenders}`, `attack_ended{cell, duration_s, losses:[{name,count}]}` and
 `snapshot_summary` every 3600 ticks. Attack grouping keys damage by surface
 and 64-tile cell: a hit counts when a player-force entity takes damage from a
-hostile force (the event's `force`, else the cause's force), and `losses`
-counts player-force entities a hostile force killed. A cell closes 600 ticks
+force the player force `is_enemy` with (the event's `force`, else the
+cause's force; never neutral or cease-fire forces), and `losses` counts
+player-force entities such a force killed. A cell closes 600 ticks
 after its last damage.
 
 All mutable state lives in `storage`; the unit index drops units with invalid
@@ -115,12 +122,14 @@ uv run ruff format --check . && uv run ruff check .
 The lupa units pin the RPC framing, idempotency, the ring, attack grouping,
 `say`/`ping` limits, the unit index and the chat filter. The headless suite
 pins, on a seed-42 map: `status` → `events_since` → `say`, write-op replay and
-`id_conflict`, `find` → `inspect` on a chest and an assembler, and a save
-reload that answers the saved `head_seq` after a later event.
+`id_conflict`, `find` → `inspect` on a chest and an assembler, `snapshot`
+power in W and the research queue, `recipe` for iron-gear-wheel, `ping` with
+its chart tag, and a save reload that answers the saved `head_seq` after a
+later event.
 
 ### Checked on the owner's GUI game
 
 A headless server has no player, so chat is checked by hand: with the mod
-loaded, the host (an admin) types `hello` in chat and `events_since` returns
+loaded, the host types `hello` in chat and `events_since` returns
 `{"seq":<n>,"tick":<t>,"kind":"chat","data":{"player":"<host name>","text":"hello"}}`;
 typing `/help` adds no event.
