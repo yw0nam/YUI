@@ -68,6 +68,7 @@ class Session:
     def __init__(self):
         self._cache = EventCache()
         self.map_id: str | None = None
+        self.generation = 0  # counts adopted maps; a caller compares it across its request
         self.poll_cursor = 0
         self.backend_cursor = 0
 
@@ -92,6 +93,7 @@ class Session:
         self.poll_cursor = max(0, oldest_seq - 1)
 
     def on_map_change(self, status: dict) -> None:
+        self.generation += 1
         self.poll_cursor = int(status["seq"])
         self.backend_cursor = self.poll_cursor
         self._cache.clear()

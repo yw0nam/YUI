@@ -44,10 +44,9 @@ class Doorbell:
         self._retry_at: float | None = None
         self._retry_s = RETRY_START_S
         self._last_ok_at: float | None = None
+        self._reposted_to_seq: int | None = None
         self._reset_generation = 0
         self._cleared_generation = 0
-        self._reposted = False
-        self._retrying_repost = False
         self._in_flight = False
 
     def notify(self, event: dict, now: float | None = None) -> None:
@@ -64,17 +63,17 @@ class Doorbell:
             return
         if self._retry_at is not None:
             if now >= self._retry_at:
-                await self._post(now, repost=self._retrying_repost)
+                await self._post(now, repost=False)
             return
         if self._dirty_at is not None:
             if now - self._dirty_at >= self._coalesce_s:
                 await self._post(now, repost=False)
             return
         if (
-            not self._reposted
-            and self._last_ok_at is not None
+            self._last_ok_at is not None
             and now - self._last_ok_at >= REPOST_AFTER_S
-            and self._unread_wake_events()
+            and self._session.newest_seq != self._reposted_to_seq
+            and self._session.unread_wake_events(self._kinds)
         ):
             await self._post(now, repost=True)
 
@@ -93,15 +92,20 @@ class Doorbell:
             await self._client.aclose()
 
     async def _post(self, now: float, repost: bool) -> None:
+        unread = self._session.unread_wake_events(self._kinds)
+        if not unread:
+            self._dirty_at = None
+            self._retry_at = None
+            return
         generation = self._reset_generation
-        body = self._build(generation)
+        body = self._build(generation, unread)
         self._in_flight = True
         dirty = self._dirty_at
         self._dirty_at = None
         try:
             response = await self._client.post(self._url, json=body)
         except httpx.HTTPError as err:
-            self._fail(now, dirty, body, status=None, error=type(err).__name__, repost=repost)
+            self._fail(now, dirty, body, status=None, error=type(err).__name__)
             return
         self._in_flight = False
         if 200 <= response.status_code < 300:
@@ -109,11 +113,12 @@ class Doorbell:
             self._retry_at = None
             self._retry_s = RETRY_START_S
             self._cleared_generation = max(self._cleared_generation, generation)
-            self._reposted = repost
+            if repost:
+                self._reposted_to_seq = body["signals"][0]["pending_to_seq"]
             self._record(status=response.status_code, body=body)
             logger.bind(status=response.status_code, pending=body["signals"][0]).info("doorbell_posted")
         else:
-            self._fail(now, dirty, body, status=response.status_code, error=None, repost=repost)
+            self._fail(now, dirty, body, status=response.status_code, error=None)
 
     def _fail(
         self,
@@ -123,22 +128,20 @@ class Doorbell:
         *,
         status: int | None,
         error: str | None,
-        repost: bool,
     ) -> None:
         self._in_flight = False
         if self._dirty_at is None:
             self._dirty_at = dirty
         self._retry_at = now + self._retry_s
         self._retry_s = min(self._retry_s * 2, RETRY_CAP_S)
-        self._retrying_repost = repost
         reason = f"HTTP {status}" if status is not None else error
         logger.bind(reason=reason, retry_in=self._retry_s).warning("doorbell_post_failed")
         self._record(status=status, body=body, error=error)
 
-    def _build(self, generation: int) -> dict[str, Any]:
+    def _build(self, generation: int, unread: list[dict]) -> dict[str, Any]:
         note = None
         kinds: list[str] = []
-        for event in self._session.unread_wake_events(self._kinds):
+        for event in unread:
             text = _chat_text(event)
             if text is not None:
                 note = text
@@ -150,7 +153,7 @@ class Doorbell:
                     "kind": "factorio",
                     "note": note if note is not None else ", ".join(kinds),
                     "pending_from_seq": self._session.backend_cursor + 1,
-                    "pending_to_seq": self._pending_to_seq(),
+                    "pending_to_seq": self._session.newest_seq,
                     "reset": generation > self._cleared_generation,
                 }
             ],
@@ -162,13 +165,6 @@ class Doorbell:
                 "occurred_at": int(self._clock() * 1000),
             },
         }
-
-    def _pending_to_seq(self) -> int:
-        newest = self._session.newest_seq
-        return self._session.backend_cursor if newest is None else newest
-
-    def _unread_wake_events(self) -> bool:
-        return bool(self._session.unread_wake_events(self._kinds))
 
     def _record(self, *, status: int | None, body: dict[str, Any], error: str | None = None) -> None:
         signal = body["signals"][0]

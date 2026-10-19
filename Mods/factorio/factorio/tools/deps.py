@@ -14,7 +14,7 @@ REASONS: dict[GameErrorCode, str] = {
     "bad_request": "the game mod rejected the request shape.",
     "unknown_op": "the game mod does not know this operation.",
     "stale_session": "the game map changed during the call.",
-    "id_conflict": "the game mod saw the same request id twice.",
+    "id_conflict": "the request id already ran a write with different arguments.",
     "too_large": "the reply is too large for RCON.",
     "too_long": "the text is longer than the game mod accepts.",
     "op_error": "the game mod reported an operation error.",

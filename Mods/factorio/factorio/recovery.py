@@ -31,6 +31,9 @@ class MapRecovery:
         self._doorbell = doorbell
         self._log = log
 
-    async def run(self, status: dict) -> None:
+    async def run(self, status: dict, generation: int) -> None:
+        """Adopt `status`, unless a recovery since `generation` already adopted its map."""
+        if self._session.generation != generation and self._session.map_id == status.get("map_id"):
+            return
         self._session.on_map_change(status)
         record_reset(self._session, self._doorbell, self._log, "map_change")

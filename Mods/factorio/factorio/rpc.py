@@ -13,7 +13,6 @@ from factorio.events.cache import Session
 from factorio.rcon.client import RconClient, RconError, RconTimeout, RconUnavailable
 
 UNKNOWN_OUTCOME_S = 60.0
-MAX_ID_CONFLICTS = 3
 
 GameErrorCode = Literal[
     "not_console",
@@ -57,7 +56,7 @@ class RpcClient:
         self,
         rcon: RconClient,
         session: Session,
-        on_session_reset: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
+        on_session_reset: Callable[[dict[str, Any], int], Awaitable[None]] | None = None,
         *,
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
@@ -83,40 +82,33 @@ class RpcClient:
         return await self._call(op, args or {}, self._clock() + UNKNOWN_OUTCOME_S)
 
     async def _call(self, op: str, args: dict[str, Any], deadline: float) -> Any:
-        request_id = str(uuid.uuid4())
-        conflicts = 0
-        request = self._build(op, args, request_id)
+        generation = self._session.generation
+        request = self._build(op, args)
         while True:
             try:
                 raw = await self._rcon.command(_command(request))
             except (RconTimeout, RconUnavailable) as err:
-                await self._reconcile(request, err, deadline)
+                await self._reconcile(request, err, deadline, generation)
                 continue
             except RconError as err:
                 raise RpcUnavailable(err.code, err.message) from err
 
-            reply = _parse(raw, request_id)
+            reply = _parse(raw, request["id"])
             if reply.get("ok") is True:
                 return reply.get("r")
 
-            code = str(reply.get("e", "unknown_op"))
-            message = str(reply.get("m", "") or "")
-            result = reply.get("r")
+            code = reply["e"]
             if code == "id_conflict":
-                conflicts += 1
-                logger.bind(op=op, request_id=request_id).warning("rpc_id_conflict")
-                if conflicts >= MAX_ID_CONFLICTS:
-                    raise RpcError(code, message, result)
-                request_id = str(uuid.uuid4())
-                request = self._build(op, args, request_id)
-                continue
+                logger.bind(op=op, request_id=request["id"]).error("rpc_id_conflict")
             if code == "stale_session" and op != "status":
                 status = await self.status(deadline)
                 if self._on_session_reset is not None:
-                    await self._on_session_reset(status)
-            raise RpcError(code, message, result)
+                    await self._on_session_reset(status, generation)
+            raise RpcError(code, str(reply.get("m") or ""), reply.get("r"))
 
-    async def _reconcile(self, request: dict[str, Any], err: RconError, deadline: float) -> None:
+    async def _reconcile(
+        self, request: dict[str, Any], err: RconError, deadline: float, generation: int
+    ) -> None:
         """Wait out the reconnect backoff, then confirm the map before a replay."""
         logger.bind(op=request["op"], request_id=request["id"]).warning("rpc_unknown_outcome")
         await self._sleep(min(self._rcon.backoff.next_delay(), max(deadline - self._clock(), 0.0)))
@@ -126,14 +118,14 @@ class RpcClient:
             status = await self.status(deadline)
             if status.get("map_id") != request["map_id"]:
                 if self._on_session_reset is not None:
-                    await self._on_session_reset(status)
+                    await self._on_session_reset(status, generation)
                 raise RpcUnavailable(
                     "unknown_outcome", "the map changed before the reply was confirmed"
                 ) from err
         logger.bind(op=request["op"], request_id=request["id"]).warning("rpc_replay")
 
-    def _build(self, op: str, args: dict[str, Any], request_id: str) -> dict[str, Any]:
-        request = {"v": 1, "id": request_id, "op": op, "args": args}
+    def _build(self, op: str, args: dict[str, Any]) -> dict[str, Any]:
+        request = {"v": 1, "id": str(uuid.uuid4()), "op": op, "args": args}
         if op != "status":
             request["map_id"] = self._session.map_id
         return request
@@ -156,8 +148,11 @@ def _parse(raw: str, request_id: str) -> dict[str, Any]:
         raise _bad_reply(text, "the reply is not one JSON object")
     if reply.get("v") != 1:
         raise _bad_reply(text, "the reply has no version 1")
-    if reply.get("id") != request_id:
+    # the game mod answers id null only when it could not parse the request
+    if reply.get("id") != request_id and not (reply.get("id") is None and reply.get("ok") is False):
         raise _bad_reply(text, "the reply id does not match the request id")
+    if reply.get("ok") is not True and not isinstance(reply.get("e"), str):
+        raise _bad_reply(text, "the error reply carries no error code")
     return reply
 
 

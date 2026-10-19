@@ -53,6 +53,7 @@ class Poller:
             await self._sync_status()
         while True:
             previous_cursor = self.session.poll_cursor
+            generation = self.session.generation
             try:
                 page = await self.rpc.call(
                     "events_since", {"seq": self.session.poll_cursor, "limit": PAGE_LIMIT}
@@ -68,7 +69,7 @@ class Poller:
 
             result = self.session.on_page(page)
             if result.outcome == "map_change":
-                await self.recovery.run(await self.rpc.status())
+                await self.recovery.run(await self.rpc.status(), generation)
                 return
             if result.outcome == "rollback":
                 record_reset(self.session, self.doorbell, self.log, "rollback")
