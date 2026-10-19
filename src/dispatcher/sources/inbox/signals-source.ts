@@ -109,18 +109,43 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
       log.warn("envelope_invalid", { dropped_items: raw.signals.length });
       return undefined;
     }
-    const item = { group: { envelope, items: raw.signals }, delivery: envelope.delivery };
-    return item.delivery === "live" ? undefined : item;
+    return { group: { envelope, items: raw.signals }, delivery: envelope.delivery };
   }
 
-  /** Live core's parse — silent, the envelope warnings belong to parse above. */
-  function parseLive(raw: SignalsBatch): RoutedGroup | undefined {
-    if (!Array.isArray((raw as unknown as { signals?: unknown })?.signals)) return undefined;
-    const envelope = (raw as SignalsBatch).envelope;
-    if (!validEnvelope(envelope)) return undefined;
-    return envelope.delivery === "live"
-      ? { group: { envelope, items: raw.signals }, delivery: envelope.delivery }
-      : undefined;
+  // One inbox subscription feeds both cores: each arrival is parsed once, then routed by
+  // delivery class to the one core whose accept matches. The subscription lives while any
+  // core holds a sink and is released when the last one lets go (restart re-subscribes).
+  type InboxSink = { accept: (item: RoutedGroup) => boolean; sink: (item: RoutedGroup) => void };
+  const sinks: InboxSink[] = [];
+  let unlistenInbox: (() => void) | undefined;
+
+  function handleArrival(raw: SignalsBatch): void {
+    // A disabled source drops arrivals before envelope validation (no warning) — the core's
+    // own isEnabled gate only sees valid groups.
+    if (!deps.isEnabled()) return;
+    const item = parse(raw);
+    if (item === undefined) return;
+    for (const { accept, sink } of sinks) {
+      if (accept(item)) sink(item);
+    }
+  }
+
+  function inboxFor(accept: (item: RoutedGroup) => boolean) {
+    return (cb: (item: RoutedGroup) => void): (() => void) => {
+      const entry: InboxSink = { accept, sink: cb };
+      sinks.push(entry);
+      if (unlistenInbox === undefined) {
+        unlistenInbox = (deps.onInbox ?? onSignalsInbox)(handleArrival, { listen: deps.listen });
+      }
+      return () => {
+        const at = sinks.indexOf(entry);
+        if (at >= 0) sinks.splice(at, 1);
+        if (sinks.length === 0 && unlistenInbox !== undefined) {
+          unlistenInbox();
+          unlistenInbox = undefined;
+        }
+      };
+    };
   }
 
   function buildLive(item: RoutedGroup): InboxFiring {
@@ -158,29 +183,23 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     return { event_name: "signals.catchup", payload: { signals: groupsInArrivalOrder() } };
   }
 
-  function groupsInLiveArrivalOrder(): SignalGroup[] {
-    return [...liveBuffer]
-      .sort((left, right) => left.sequence - right.sequence)
-      .map(({ group }) => group);
-  }
-
   function drain(): SignalGroup[] {
     const groups = groupsInArrivalOrder();
     clearBuffers();
     return groups;
   }
 
-  const liveCore = createBufferedInboxSource<SignalsBatch, RoutedGroup>({
+  const liveCore = createBufferedInboxSource<RoutedGroup, RoutedGroup>({
     bus: deps.bus,
     present_max_idle_ms: deps.present_max_idle_ms,
     isEnabled: deps.isEnabled,
-    onInbox: deps.onInbox ?? onSignalsInbox,
+    onInbox: inboxFor((item) => item.delivery === "live"),
     listen: deps.listen,
     now: deps.now,
     isPipelineBusy: deps.isLivePipelineBusy,
     subscribePipelineBusy: deps.subscribeLivePipelineBusy,
     log,
-    parse: parseLive,
+    parse: (item) => item,
     buildLive: buildLiveDelivery,
     busSource: "live_signal_source",
     bufferAdd: (item) => appendCapped(liveBuffer, item.group),
@@ -188,23 +207,24 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     bufferClear: () => {
       liveBuffer.length = 0;
     },
+    // appendCapped appends in arrival order — the buffer needs no sort.
     buildCatchup: () => ({
       event_name: "signals.live_catchup",
-      payload: { signals: groupsInLiveArrivalOrder() },
+      payload: { signals: liveBuffer.map(({ group }) => group) },
     }),
   });
 
-  const core = createBufferedInboxSource<SignalsBatch, RoutedGroup>({
+  const core = createBufferedInboxSource<RoutedGroup, RoutedGroup>({
     bus: deps.bus,
     present_max_idle_ms: deps.present_max_idle_ms,
     isEnabled: deps.isEnabled,
-    onInbox: deps.onInbox ?? onSignalsInbox,
+    onInbox: inboxFor((item) => item.delivery !== "live"),
     listen: deps.listen,
     now: deps.now,
     isPipelineBusy: deps.isPipelineBusy,
     subscribePipelineBusy: deps.subscribePipelineBusy,
     log,
-    parse,
+    parse: (item) => item,
     buildLive,
     shouldBuffer: (item) => item.delivery === "batched",
     bufferAdd,

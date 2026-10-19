@@ -74,7 +74,6 @@ export function createGuardrails(
       if (liveWindow.length >= config.rate_limit.live_max) {
         return { pass: false, reason: "guardrail_drop" };
       }
-      lastFire.set(env.source, now());
       liveWindow.push(now());
       return { pass: true };
     }

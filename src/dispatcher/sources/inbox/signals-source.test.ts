@@ -47,18 +47,12 @@ function fakeListen(): { listen: OsEventListen; emit: (p: OsEventPayload) => voi
 type OnInboxFn = (cb: (p: SignalsBatch) => void, deps?: { listen?: OsEventListen }) => () => void;
 
 function fakeInbox(): { onInbox: OnInboxFn; emit: (p: SignalsBatch) => void } {
-  // Same broadcast semantics — one subscription per core.
-  const handlers = new Set<(p: SignalsBatch) => void>();
+  let handler: ((p: SignalsBatch) => void) | undefined;
   const onInbox: OnInboxFn = vi.fn((cb) => {
-    handlers.add(cb);
+    handler = cb;
     return vi.fn();
   });
-  return {
-    onInbox,
-    emit: (p) => {
-      for (const cb of handlers) cb(p);
-    },
-  };
+  return { onInbox, emit: (p) => handler?.(p) };
 }
 
 function idleTick(os_idle_ms: number | null, ts = 0): OsEventPayload {
@@ -495,7 +489,7 @@ describe("signals_source — global pacer composed into the busy predicate (#689
     return { pushed, emitIdle, emitInbox, pacer, src };
   }
 
-  it("buffers a live arrival while the pacer holds, though the pipeline itself is idle", async () => {
+  it("buffers an arrival while the pacer holds, though the pipeline itself is idle", async () => {
     const s = startPaced();
     await s.src.start();
 
@@ -542,7 +536,7 @@ describe("signals_source — live delivery class", () => {
   const LIVE_ENVELOPE = { ...ENVELOPE, delivery: "live" as const, event_id: "run-live-1" };
 
   /** Wires one source the way wire-sources.ts does: paced busy for the non-live core, raw for live. */
-  function setupLive(pacerHolding: boolean) {
+  function setupLiveDelivery(pacerHolding: boolean) {
     const { bus, pushed } = fakeBus();
     const { listen, emit: emitIdle } = fakeListen();
     const { onInbox, emit: emitInbox } = fakeInbox();
@@ -569,37 +563,41 @@ describe("signals_source — live delivery class", () => {
     return { src, pushed, emitIdle, emitInbox, pipelineBusy };
   }
 
-  it("a live envelope validates and fires at once as signals.live under live_signal_source while the pacer holds and the pipeline is idle", async () => {
-    const s = setupLive(true);
+  const liveArrival = [{ envelope: LIVE_ENVELOPE, items: [{ id: 1 }] }];
+
+  it.each([
+    {
+      delivery: "live",
+      title:
+        "a live-delivery envelope validates and fires at once as signals.live under live_signal_source",
+      fired: [{ source: "live_signal_source", event_name: "signals.live", signals: liveArrival }],
+    },
+    {
+      delivery: "immediate",
+      title:
+        "an immediate-delivery group in the same state stays buffered — the pacer still holds the non-live core",
+      fired: [],
+    },
+  ])("$title", async ({ delivery, fired }) => {
+    const s = setupLiveDelivery(true);
     await s.src.start();
 
     s.emitIdle(idleTick(LOW_IDLE)); // present, pipeline idle, pacer holding
-    s.emitInbox(batch([{ id: 1 }], 1000, LIVE_ENVELOPE));
+    s.emitInbox(batch([{ id: 1 }], 1000, { ...LIVE_ENVELOPE, delivery } as never));
 
-    expect(s.pushed).toHaveLength(1);
-    expect(s.pushed[0].source).toBe("live_signal_source");
-    expect(s.pushed[0].event_name).toBe("signals.live");
-    expect(s.pushed[0].payload).toEqual({
-      signals: [{ envelope: LIVE_ENVELOPE, items: [{ id: 1 }] }],
-    });
-
-    s.src.stop();
-  });
-
-  it("an immediate group in the same state stays buffered — the pacer still holds the non-live core", async () => {
-    const s = setupLive(true);
-    await s.src.start();
-
-    s.emitIdle(idleTick(LOW_IDLE));
-    s.emitInbox(batch([{ id: 1 }], 1000));
-
-    expect(s.pushed).toHaveLength(0);
+    expect(
+      s.pushed.map((e) => ({
+        source: e.source,
+        event_name: e.event_name,
+        signals: (e.payload as { signals: unknown[] }).signals,
+      })),
+    ).toEqual(fired);
 
     s.src.stop();
   });
 
-  it("three live groups during a busy pipeline fire as one signals.live_catchup on the busy→idle edge, while the buffered immediate group fires its own signals.catchup", async () => {
-    const s = setupLive(false);
+  it("three live-delivery groups during a busy pipeline fire as one signals.live_catchup on the busy→idle edge, while the buffered immediate group fires its own signals.catchup", async () => {
+    const s = setupLiveDelivery(false);
     await s.src.start();
 
     s.emitIdle(idleTick(LOW_IDLE)); // present
@@ -632,8 +630,8 @@ describe("signals_source — live delivery class", () => {
     s.src.stop();
   });
 
-  it("drain returns non-live groups only and leaves the live group to its own catch-up", async () => {
-    const s = setupLive(false);
+  it("drain returns non-live groups only and leaves a live-delivery group to its own catch-up", async () => {
+    const s = setupLiveDelivery(false);
     await s.src.start();
 
     s.emitIdle(idleTick(HIGH_IDLE)); // away
@@ -642,7 +640,7 @@ describe("signals_source — live delivery class", () => {
 
     expect(s.src.drain()).toEqual([{ envelope: ENVELOPE, items: [{ id: 2 }] }]);
 
-    // the live group survives the drain and fires on its own return-to-present edge
+    // the live-delivery group survives the drain and fires on its own return-to-present edge
     s.emitIdle(idleTick(LOW_IDLE));
     expect(s.pushed.map((e) => e.event_name)).toEqual(["signals.live_catchup"]);
     expect(s.pushed[0].source).toBe("live_signal_source");
@@ -690,8 +688,7 @@ describe("signals_source — lifecycle (spec §8)", () => {
     });
     await expect(src.start()).resolves.toBeUndefined();
     await expect(src.start()).resolves.toBeUndefined();
-    // One subscription per core (non-live + live), and a second start() adds none.
-    expect(vi.mocked(onInbox)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(onInbox)).toHaveBeenCalledTimes(1);
 
     src.stop();
   });
@@ -938,8 +935,7 @@ describe("signals_source — delivery envelopes", () => {
     await s.src.start();
     await s.src.start();
     s.emitIdle(idleTick(LOW_IDLE));
-    // Two cores, one subscription each; the restart added no extra ones.
-    expect(vi.mocked(s.onInbox)).toHaveBeenCalledTimes(4);
+    expect(vi.mocked(s.onInbox)).toHaveBeenCalledTimes(2);
     await vi.advanceTimersByTimeAsync(300_000);
     expect(s.pushed.map((e) => e.event_name)).toEqual(["signals.batch"]);
   });
