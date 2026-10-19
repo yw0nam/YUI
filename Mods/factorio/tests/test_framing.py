@@ -25,7 +25,7 @@ def test_reads_a_70000_byte_reply_exactly():
 
     async def case():
         reader = asyncio.StreamReader()
-        reader.feed_data(framing.encode(3, framing.RESPONSE, body))
+        reader.feed_data(framing.encode(3, 0, body))
         reader.feed_eof()
         return await framing.read_packet(reader)
 
@@ -34,20 +34,18 @@ def test_reads_a_70000_byte_reply_exactly():
     assert packet.body == body
 
 
-def test_a_closed_stream_raises_a_framing_error():
+@pytest.mark.parametrize(
+    "chunks",
+    [
+        [],
+        [framing.encode(3, 0, b"abcdef")[:8]],
+    ],
+)
+def test_a_closed_or_truncated_stream_raises_a_framing_error(chunks):
     async def case():
         reader = asyncio.StreamReader()
-        reader.feed_eof()
-        await framing.read_packet(reader)
-
-    with pytest.raises(framing.FramingError, match="closed"):
-        asyncio.run(case())
-
-
-def test_a_truncated_body_raises_a_framing_error():
-    async def case():
-        reader = asyncio.StreamReader()
-        reader.feed_data(framing.encode(3, framing.RESPONSE, b"abcdef")[:8])
+        for chunk in chunks:
+            reader.feed_data(chunk)
         reader.feed_eof()
         await framing.read_packet(reader)
 

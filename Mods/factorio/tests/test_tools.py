@@ -3,12 +3,14 @@
 import asyncio
 
 import pytest
+from fastmcp import Client, FastMCP
 from fastmcp.exceptions import ToolError
 
 from factorio.events.cache import EventCache, Session
 from factorio.outcome_log import OutcomeLog
 from factorio.rpc import RpcError
 from factorio.tools import read, talk
+from factorio.tools.deps import ToolDeps
 
 
 class FakeRpc:
@@ -24,50 +26,76 @@ class FakeRpc:
         return self.reply
 
 
-def configure(tmp_path, rpc):
-    read.configure(rpc=rpc, session=Session(), cache=EventCache(), log=OutcomeLog(tmp_path / "outcome.jsonl"))
-    talk.configure(rpc=rpc, log=OutcomeLog(tmp_path / "outcome.jsonl"))
-    return rpc
+def configured(tmp_path, rpc):
+    mcp = FastMCP(name="test")
+    deps = ToolDeps(rpc=rpc, session=Session(EventCache()), log=OutcomeLog(tmp_path / "outcome.jsonl"))
+    read.register(mcp, deps)
+    talk.register(mcp, deps)
+    return mcp
 
 
-def test_read_tools_map_to_one_op(tmp_path):
-    rpc = configure(tmp_path, FakeRpc())
-    asyncio.run(read.factorio_status())
-    asyncio.run(read.factorio_snapshot())
-    asyncio.run(read.factorio_snapshot(["power"]))
-    asyncio.run(read.factorio_find("iron-plate", kind="item", limit=5))
-    asyncio.run(read.factorio_inspect(42))
-    asyncio.run(read.factorio_recipe("iron-gear-wheel"))
-    assert rpc.calls == [
-        ("status", {}),
-        ("snapshot", {}),
-        ("snapshot", {"sections": ["power"]}),
-        ("find", {"query": "iron-plate", "kind": "item", "limit": 5}),
-        ("inspect", {"unit_number": 42}),
-        ("recipe", {"name": "iron-gear-wheel"}),
-    ]
+def call(mcp, tool_name, **kwargs):
+    async def case():
+        async with Client(mcp) as client:
+            return (await client.call_tool(tool_name, kwargs)).data
+
+    return asyncio.run(case())
 
 
-def test_find_omits_an_absent_kind(tmp_path):
-    rpc = configure(tmp_path, FakeRpc())
-    asyncio.run(read.factorio_find("iron-plate"))
-    assert rpc.calls == [("find", {"query": "iron-plate", "limit": 20})]
-
-
-def test_talk_tools_map_to_one_op(tmp_path):
-    rpc = configure(tmp_path, FakeRpc())
-    asyncio.run(talk.factorio_say("hello there"))
-    asyncio.run(talk.factorio_ping({"x": 1.5, "y": 2.5}, "look here"))
-    assert rpc.calls == [
-        ("say", {"text": "hello there"}),
-        ("ping", {"pos": {"x": 1.5, "y": 2.5}, "text": "look here"}),
-    ]
+@pytest.mark.parametrize(
+    ("tool", "kwargs", "op", "args"),
+    [
+        ("factorio_status", {}, "status", {}),
+        ("factorio_snapshot", {}, "snapshot", {}),
+        ("factorio_snapshot", {"sections": ["power"]}, "snapshot", {"sections": ["power"]}),
+        ("factorio_find", {}, "find", {"limit": 50}),
+        (
+            "factorio_find",
+            {"name": "iron-plate", "type": "item", "limit": 5},
+            "find",
+            {"name": "iron-plate", "type": "item", "limit": 5},
+        ),
+        (
+            "factorio_find",
+            {
+                "area": {"x1": 0.0, "y1": 0.0, "x2": 10.0, "y2": 10.0},
+                "around": "player",
+                "limit": 7,
+            },
+            "find",
+            {
+                "area": {"x1": 0.0, "y1": 0.0, "x2": 10.0, "y2": 10.0},
+                "around": "player",
+                "limit": 7,
+            },
+        ),
+        ("factorio_inspect", {"unit_number": 42}, "inspect", {"unit_number": 42}),
+        ("factorio_recipe", {"name": "iron-gear-wheel"}, "recipe", {"name": "iron-gear-wheel"}),
+        ("factorio_say", {"text": "hello there"}, "say", {"text": "hello there"}),
+        (
+            "factorio_ping",
+            {"pos": {"x": 1.5, "y": 2.5}, "text": "look here"},
+            "ping",
+            {"pos": {"x": 1.5, "y": 2.5}, "text": "look here"},
+        ),
+    ],
+)
+def test_each_tool_maps_to_one_op(tmp_path, tool, kwargs, op, args):
+    rpc = FakeRpc()
+    assert call(configured(tmp_path, rpc), tool, **kwargs) == {"ok": True}
+    assert rpc.calls == [(op, args)]
 
 
 def test_a_game_error_becomes_a_tool_error_with_code_and_message(tmp_path):
-    configure(tmp_path, FakeRpc(error=RpcError("too_large", "reply is too large")))
+    mcp = configured(tmp_path, FakeRpc(error=RpcError("too_large", "reply is too large")))
     with pytest.raises(ToolError, match="too_large — reply is too large"):
-        asyncio.run(talk.factorio_say("hello"))
+        call(mcp, "factorio_say", text="hello")
+
+
+def test_an_error_without_a_message_uses_the_reason(tmp_path):
+    mcp = configured(tmp_path, FakeRpc(error=RpcError("too_long")))
+    with pytest.raises(ToolError, match="too_long — the text is longer than the game mod accepts."):
+        call(mcp, "factorio_say", text="hello")
 
 
 class FakeBackground:
@@ -83,17 +111,25 @@ class FakeBackground:
         self.closed = True
 
 
-def test_the_server_runs_the_poller_and_doorbell_for_the_connection_lifetime(tmp_path):
-    from fastmcp import Client
-
+def server_with_fakes(tmp_path):
     from factorio import server
 
-    rpc = configure(tmp_path, FakeRpc())
+    return server.build_mcp(
+        rpc=FakeRpc(),
+        session=Session(EventCache()),
+        log=OutcomeLog(tmp_path / "o.jsonl"),
+        poller=FakeBackground(),
+        doorbell=FakeBackground(),
+    )
+
+
+def test_the_server_runs_the_poller_and_doorbell_for_the_connection_lifetime(tmp_path):
+    from factorio import server
+
     poller, doorbell = FakeBackground(), FakeBackground()
     mcp = server.build_mcp(
-        rpc=rpc,
-        session=Session(),
-        cache=EventCache(),
+        rpc=FakeRpc(),
+        session=Session(EventCache()),
         log=OutcomeLog(tmp_path / "o.jsonl"),
         poller=poller,
         doorbell=doorbell,
@@ -109,13 +145,7 @@ def test_the_server_runs_the_poller_and_doorbell_for_the_connection_lifetime(tmp
 
 
 def test_the_mod_registers_all_eight_tools(tmp_path):
-    from factorio import server
-
-    rpc = configure(tmp_path, FakeRpc())
-    mcp = server.build_mcp(
-        rpc=rpc, session=Session(), cache=EventCache(), log=OutcomeLog(tmp_path / "o.jsonl")
-    )
-    names = {tool.name for tool in asyncio.run(mcp.list_tools())}
+    names = {tool.name for tool in asyncio.run(server_with_fakes(tmp_path).list_tools())}
     assert names == {
         "factorio_status",
         "factorio_events",

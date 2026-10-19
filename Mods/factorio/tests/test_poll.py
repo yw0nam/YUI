@@ -1,6 +1,9 @@
-"""The poll loop drives the cursor, logs events, and keeps the three recoveries apart."""
+"""The poll loop pages, rings the doorbell, and hands recovery to its modules."""
 
 import asyncio
+import json
+
+import pytest
 
 from factorio.events.cache import EventCache, Session
 from factorio.events.poll import Poller
@@ -18,6 +21,14 @@ class FakeDoorbell:
 
     def mark_reset(self):
         self.resets += 1
+
+
+class FakeRecovery:
+    def __init__(self):
+        self.calls = []
+
+    async def run(self, status):
+        self.calls.append(status)
 
 
 class FakeRpc:
@@ -53,46 +64,50 @@ def event(seq: int, kind: str = "tick") -> dict:
     return {"seq": seq, "tick": seq * 60, "kind": kind, "data": {}}
 
 
-def make(tmp_path, rpc):
-    session = Session()
-    cache = EventCache()
+def make(tmp_path, rpc, capacity: int = 5000):
+    session = Session(EventCache(capacity=capacity))
     doorbell = FakeDoorbell()
+    recovery = FakeRecovery()
+    log_path = tmp_path / "outcome.jsonl"
     poller = Poller(
         rpc,
         session,
-        cache,
         doorbell,
-        OutcomeLog(tmp_path / "outcome.jsonl"),
+        recovery,
+        OutcomeLog(log_path),
         interval=0.0,
     )
-    return poller, session, cache, doorbell
+    return poller, session, doorbell, recovery, log_path
 
 
-def test_a_poll_page_advances_the_cursor_and_notifies_the_doorbell(tmp_path):
+def records(path):
+    return [json.loads(line) for line in path.read_text().splitlines()]
+
+
+def test_a_poll_page_logs_and_notifies_the_doorbell(tmp_path):
     rpc = FakeRpc(
         [
             {"map_id": "map-a", "seq": 0, "mod_version": "0.1.0", "tick": 0, "host": {}},
             page("map-a", 2, [event(1, "chat"), event(2, "job_done")]),
         ]
     )
-    poller, session, cache, doorbell = make(tmp_path, rpc)
+    poller, _session, doorbell, _recovery, log_path = make(tmp_path, rpc)
     asyncio.run(poller.poll_once())
-    assert (session.map_id, session.poll_cursor, session.backend_cursor) == ("map-a", 2, 0)
-    assert [e["seq"] for e in cache.events_after(0)] == [1, 2]
+    assert [call[0] for call in rpc.calls] == ["status", "events_since"]
     assert [e["kind"] for e in doorbell.events] == ["chat", "job_done"]
+    assert [record["event"]["seq"] for record in records(log_path) if record["type"] == "event"] == [1, 2]
 
 
 def test_the_loop_keeps_polling_while_a_page_is_full(tmp_path):
     first = page("map-a", 200, [event(seq) for seq in range(1, 201)])
     second = page("map-a", 205, [event(seq) for seq in range(201, 206)])
     rpc = FakeRpc([{"map_id": "map-a", "seq": 0}, first, second])
-    poller, session, _cache, _doorbell = make(tmp_path, rpc)
+    poller, _session, _doorbell, _recovery, _log = make(tmp_path, rpc)
     asyncio.run(poller.poll_once())
-    assert session.poll_cursor == 205
     assert [call[0] for call in rpc.calls] == ["status", "events_since", "events_since"]
 
 
-def test_history_gap_rewinds_to_oldest_seq_minus_one(tmp_path):
+def test_history_gap_is_logged_and_the_page_is_retried(tmp_path):
     rpc = FakeRpc(
         [
             {"map_id": "map-a", "seq": 100},
@@ -100,27 +115,36 @@ def test_history_gap_rewinds_to_oldest_seq_minus_one(tmp_path):
             page("map-a", 61, [event(60), event(61)]),
         ]
     )
-    poller, session, cache, _doorbell = make(tmp_path, rpc)
+    poller, _session, _doorbell, _recovery, log_path = make(tmp_path, rpc)
     asyncio.run(poller.poll_once())
-    assert session.poll_cursor == 61
-    assert [e["seq"] for e in cache.events_after(0)] == [60, 61]
+    assert rpc.calls[-1] == ("events_since", {"seq": 59, "limit": 200})
+    assert any(record["type"] == "history_gap" and record["oldest_seq"] == 60 for record in records(log_path))
 
 
-def test_a_rollback_resets_the_session_and_marks_the_doorbell(tmp_path):
+def test_a_rollback_marks_the_doorbell_and_logs_the_cause(tmp_path):
     rpc = FakeRpc(
         [
             {"map_id": "map-a", "seq": 100},
             page("map-a", 95, [event(95)]),
         ]
     )
-    poller, session, _cache, doorbell = make(tmp_path, rpc)
+    poller, session, doorbell, _recovery, log_path = make(tmp_path, rpc)
     session.backend_cursor = 98
     asyncio.run(poller.poll_once())
-    assert (session.poll_cursor, session.backend_cursor) == (95, 95)
     assert doorbell.resets == 1
+    reset = [record for record in records(log_path) if record["type"] == "session_reset"]
+    assert reset == [
+        {
+            "ts": reset[0]["ts"],
+            "type": "session_reset",
+            "cause": "rollback",
+            "poll_cursor": 95,
+            "backend_cursor": 95,
+        }
+    ]
 
 
-def test_a_new_map_id_calls_status_and_clears_the_cache(tmp_path):
+def test_a_new_map_id_calls_status_and_the_recovery(tmp_path):
     rpc = FakeRpc(
         [
             {"map_id": "map-a", "seq": 10},
@@ -128,10 +152,34 @@ def test_a_new_map_id_calls_status_and_clears_the_cache(tmp_path):
             {"map_id": "map-b", "seq": 3},
         ]
     )
-    poller, session, cache, doorbell = make(tmp_path, rpc)
-    cache.add(event(11))
+    poller, _session, _doorbell, recovery, _log = make(tmp_path, rpc)
     asyncio.run(poller.poll_once())
-    assert (session.map_id, session.poll_cursor, session.backend_cursor) == ("map-b", 3, 3)
-    assert cache.events_after(0) == []
-    assert doorbell.resets == 1
     assert [call[0] for call in rpc.calls] == ["status", "events_since", "status"]
+    assert recovery.calls == [{"map_id": "map-b", "seq": 3}]
+
+
+def test_backend_lag_is_logged_when_an_unread_event_is_dropped(tmp_path):
+    rpc = FakeRpc(
+        [
+            {"map_id": "map-a", "seq": 0},
+            page("map-a", 3, [event(1), event(2), event(3)]),
+        ]
+    )
+    poller, _session, _doorbell, _recovery, log_path = make(tmp_path, rpc, capacity=2)
+    asyncio.run(poller.poll_once())
+    assert any(record["type"] == "backend_lag" and record["dropped"] == 1 for record in records(log_path))
+
+
+@pytest.mark.parametrize(
+    "status",
+    [
+        {"map_id": "map-a", "seq": 0, "host": {"name": "Ada"}},
+        {"map_id": "map-a", "seq": 0},
+    ],
+)
+def test_a_status_with_or_without_a_host_starts_the_poll(tmp_path, status):
+    rpc = FakeRpc([status, page("map-a", 1, [event(1)])])
+    poller, session, doorbell, _recovery, _log = make(tmp_path, rpc)
+    asyncio.run(poller.poll_once())
+    assert session.map_id == "map-a"
+    assert [e["seq"] for e in doorbell.events] == [1]

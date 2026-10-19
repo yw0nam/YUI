@@ -7,7 +7,7 @@ import pytest
 from fake_rcon import CLOSE, FakeRconServer
 
 from factorio.rcon.client import RconClient
-from factorio.rpc import RpcClient, RpcError, RpcProtocolError
+from factorio.rpc import RpcClient, RpcError, RpcProtocolError, RpcUnavailable
 
 
 def parse(command: str) -> dict:
@@ -25,10 +25,15 @@ def reply(request: dict, *, ok: bool = True, r=None, e=None, m=None) -> str:
     return json.dumps(body)
 
 
+async def no_sleep(_delay: float) -> None:
+    return None
+
+
 async def with_server(handler, body, **kwargs):
     server = await FakeRconServer(handler=handler).start()
     try:
         rcon = RconClient("127.0.0.1", server.port, "secret", timeout=1.0)
+        kwargs.setdefault("sleep", no_sleep)
         return await body(RpcClient(rcon, **kwargs), server)
     finally:
         await server.close()
@@ -59,7 +64,24 @@ def test_status_omits_map_id_and_the_next_call_carries_it():
     assert requests[1]["args"] == {"text": "hi"}
 
 
-def test_stale_session_runs_the_recovery_hook_and_resends_the_same_id():
+@pytest.mark.parametrize(
+    ("result", "host"),
+    [
+        ({"map_id": "map-a", "seq": 5, "host": {"name": "Ada"}}, {"name": "Ada"}),
+        ({"map_id": "map-a", "seq": 5}, None),
+    ],
+)
+def test_status_reads_an_absent_key_as_none(result, host):
+    def handler(command, count):
+        return reply(parse(command), r=result)
+
+    async def body(rpc, server):
+        return await rpc.status()
+
+    assert asyncio.run(with_server(handler, body)).get("host") == host
+
+
+def test_stale_session_runs_the_recovery_and_does_not_rerun_the_op():
     requests = []
     recovered = []
 
@@ -77,13 +99,13 @@ def test_stale_session_runs_the_recovery_hook_and_resends_the_same_id():
 
     async def body(rpc, server):
         rpc.map_id = "map-a"
-        return await rpc.call("say", {"text": "hi"})
+        with pytest.raises(RpcError) as raised:
+            await rpc.call("say", {"text": "hi"})
+        return raised.value.code
 
-    assert asyncio.run(with_server(handler, body, on_session_reset=on_reset)) == {"said": True}
+    assert asyncio.run(with_server(handler, body, on_session_reset=on_reset)) == "stale_session"
     says = [request for request in requests if request["op"] == "say"]
-    assert len(says) == 2
-    assert says[0]["id"] == says[1]["id"]
-    assert says[1]["map_id"] == "map-b"
+    assert len(says) == 1
     assert [status["map_id"] for status in recovered] == ["map-b"]
 
 
@@ -93,7 +115,7 @@ def test_id_conflict_resends_with_a_new_id():
     def handler(command, count):
         request = parse(command)
         requests.append(request)
-        if len(requests) == 1:
+        if len([item for item in requests if item["op"] == "say"]) == 1:
             return reply(request, ok=False, e="id_conflict")
         return reply(request, r={"said": True})
 
@@ -101,24 +123,74 @@ def test_id_conflict_resends_with_a_new_id():
         return await rpc.call("say", {"text": "hi"})
 
     assert asyncio.run(with_server(handler, body)) == {"said": True}
-    assert requests[0]["id"] != requests[1]["id"]
+    says = [request for request in requests if request["op"] == "say"]
+    assert says[0]["id"] != says[1]["id"]
 
 
-def test_an_unknown_outcome_resends_the_identical_id():
+def test_an_unknown_outcome_reconciles_and_resends_the_identical_id():
     requests = []
 
     def handler(command, count):
-        requests.append(parse(command))
-        if count == 0:
+        request = parse(command)
+        requests.append(request)
+        if request["op"] == "status":
+            return reply(request, r={"map_id": None, "seq": 0})
+        if len([item for item in requests if item["op"] == "say"]) == 1:
             return CLOSE
-        return reply(requests[-1], r={"said": True})
+        return reply(request, r={"said": True})
 
     async def body(rpc, server):
         return await rpc.call("say", {"text": "hi"})
 
     assert asyncio.run(with_server(handler, body)) == {"said": True}
-    assert len(requests) == 2
-    assert requests[0]["id"] == requests[1]["id"]
+    says = [request for request in requests if request["op"] == "say"]
+    assert [request["id"] for request in says] == [says[0]["id"], says[0]["id"]]
+    assert [request["args"] for request in says] == [{"text": "hi"}, {"text": "hi"}]
+
+
+def test_an_unknown_outcome_after_a_map_change_recovers_and_raises():
+    recovered = []
+
+    def handler(command, count):
+        request = parse(command)
+        if request["op"] == "status":
+            return reply(request, r={"map_id": "map-b", "seq": 40})
+        return CLOSE
+
+    async def on_reset(status):
+        recovered.append(status)
+
+    async def body(rpc, server):
+        rpc.map_id = "map-a"
+        with pytest.raises(RpcUnavailable) as raised:
+            await rpc.call("say", {"text": "hi"})
+        return raised.value.code
+
+    assert asyncio.run(with_server(handler, body, on_session_reset=on_reset)) == "unknown_outcome"
+    assert [status["map_id"] for status in recovered] == ["map-b"]
+
+
+def test_an_unknown_outcome_stops_after_the_budget():
+    now = [0.0]
+
+    async def sleep(delay: float) -> None:
+        now[0] += delay
+
+    def handler(command, count):
+        request = parse(command)
+        if request["op"] == "status":
+            return reply(request, r={"map_id": "map-a", "seq": 0})
+        return CLOSE
+
+    async def body(rpc, server):
+        rpc.map_id = "map-a"
+        with pytest.raises(RpcUnavailable) as raised:
+            await rpc.call("say", {"text": "hi"})
+        return raised.value.code
+
+    code = asyncio.run(with_server(handler, body, clock=lambda: now[0], sleep=sleep, unknown_budget_s=60.0))
+    assert code == "unknown_outcome"
+    assert now[0] >= 60.0
 
 
 def test_an_error_reply_raises_the_error_code_and_message():
@@ -133,9 +205,17 @@ def test_an_error_reply_raises_the_error_code_and_message():
     assert (raised.value.code, raised.value.message) == ("too_large", "reply over 64 KiB")
 
 
-def test_a_non_json_reply_raises_a_protocol_error():
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "this is not json",
+        '["v", 1]',
+        '{"v": 1, "id": "x"} trailing',
+    ],
+)
+def test_a_reply_that_is_not_one_json_object_raises_a_protocol_error(raw):
     async def body(rpc, server):
         await rpc.call("status", {})
 
-    with pytest.raises(RpcProtocolError, match="not JSON"):
-        asyncio.run(with_server(lambda command, count: "this is not json", body))
+    with pytest.raises(RpcProtocolError, match="not one JSON object"):
+        asyncio.run(with_server(lambda command, count: raw, body))

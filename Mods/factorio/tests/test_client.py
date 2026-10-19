@@ -1,16 +1,11 @@
-"""RCON client: one connection, a lock per call, a 5 s timeout, and reconnect backoff."""
+"""RCON client: one connection, a lock per call, a per-call timeout, and reconnect backoff."""
 
 import asyncio
-import time
 
 import pytest
 from fake_rcon import CLOSE, FakeRconServer
 
 from factorio.rcon.client import Backoff, RconAuthError, RconClient, RconTimeout, RconUnavailable
-
-
-def test_default_call_timeout_is_five_seconds():
-    assert RconClient("127.0.0.1", 1, "pw").timeout == 5.0
 
 
 def test_auth_failure_raises_a_named_error():
@@ -24,20 +19,6 @@ def test_auth_failure_raises_a_named_error():
             await server.close()
 
     asyncio.run(case())
-
-
-def test_reads_a_70000_byte_reply_from_the_server():
-    body = b"x" * 70000
-
-    async def case():
-        server = await FakeRconServer(handler=lambda command, count: body.decode()).start()
-        try:
-            client = RconClient("127.0.0.1", server.port, "secret", timeout=1.0)
-            return await client.command("anything")
-        finally:
-            await server.close()
-
-    assert asyncio.run(case()) == body.decode()
 
 
 def test_a_tool_call_waits_for_the_running_poll():
@@ -60,23 +41,26 @@ def test_a_tool_call_waits_for_the_running_poll():
     assert asyncio.run(case()) == ["events_since", "say"]
 
 
-def test_a_call_that_exceeds_the_timeout_raises():
+def test_a_call_that_exceeds_the_timeout_raises_before_the_reply():
+    order = []
+
     async def case():
         async def handler(command, count):
+            order.append("handler_started")
             await asyncio.sleep(5)
+            order.append("handler_finished")
             return "late"
 
         server = await FakeRconServer(handler=handler).start()
         try:
             client = RconClient("127.0.0.1", server.port, "secret", timeout=0.05)
-            started = time.monotonic()
             with pytest.raises(RconTimeout):
                 await client.command("events_since")
-            return time.monotonic() - started
         finally:
             await server.close()
 
-    assert asyncio.run(case()) < 1.0
+    asyncio.run(case())
+    assert order == ["handler_started"]
 
 
 def test_a_lost_connection_raises_unavailable_and_the_next_call_reconnects():

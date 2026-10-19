@@ -30,7 +30,18 @@ def test_reads_rcon_from_the_game_config_and_applies_defaults(tmp_path):
     assert (config.rcon_host, config.rcon_port, config.rcon_password) == ("127.0.0.1", 27015, "secret")
     assert config.signals_url == "http://127.0.0.1:8770/signals"
     assert config.coalesce_ms == 2000
-    assert config.wake_kinds[0] == "chat"
+    assert config.wake_kinds == (
+        "chat",
+        "job_done",
+        "job_failed",
+        "body_died",
+        "body_damaged",
+        "research_finished",
+        "rocket_launched",
+        "player_died",
+        "attack_started",
+        "attack_ended",
+    )
     assert config.outcome_log == str(tmp_path / "outcome.jsonl")
 
 
