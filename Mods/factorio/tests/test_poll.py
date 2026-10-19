@@ -222,3 +222,25 @@ def test_a_poll_and_a_tool_on_the_same_map_change_recover_once(tmp_path):
         {"ts": TS, "type": "session_reset", "cause": "map_change", "poll_cursor": 40, "backend_cursor": 40}
     ]
     assert [e["seq"] for e in events] == [41, 42]
+
+
+def test_a_request_spanning_two_map_changes_still_adopts_the_last_map(tmp_path):
+    session = Session()
+    session.map_id = "map-a"
+    session.on_map_change({"map_id": "map-a", "seq": 0})
+    log_path = tmp_path / "outcome.jsonl"
+    recovery = MapRecovery(session, FakeDoorbell(), OutcomeLog(log_path, clock=lambda: CLOCK_S))
+    caller_generation = session.generation
+
+    async def case():
+        session.map_id = "map-b"
+        await recovery.run({"map_id": "map-b", "seq": 10}, caller_generation)
+        session.map_id = "map-c"
+        await recovery.run({"map_id": "map-c", "seq": 20}, caller_generation)
+
+    asyncio.run(case())
+    assert (session.poll_cursor, session.backend_cursor) == (20, 20)
+    assert [record["poll_cursor"] for record in records(log_path) if record["type"] == "session_reset"] == [
+        10,
+        20,
+    ]

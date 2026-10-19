@@ -225,6 +225,57 @@ def test_a_reset_clears_the_repost_mark_so_a_new_range_ending_at_the_same_seq_re
     assert ranges(recorder) == [(1, 1), (1, 1), (1, 1), (1, 1)]
 
 
+def test_a_non_wake_event_after_a_repost_does_not_repost_again(tmp_path):
+    recorder = Recorder([200])
+    bell, feed, _session, client = make_bell(tmp_path, recorder)
+
+    async def case():
+        feed.add(event(1, "job_done"))
+        bell.notify(event(1, "job_done"), now=0.0)
+        await bell.step(2.0)
+        await bell.step(302.0)
+        feed.add(event(2, "snapshot_summary"))
+        bell.notify(event(2, "snapshot_summary"), now=303.0)
+        await bell.step(602.1)
+        await client.aclose()
+
+    asyncio.run(case())
+    assert ranges(recorder) == [(1, 1), (1, 1)]
+
+
+class RaiseOnce:
+    """Raises a non-httpx error on the first request, then answers 200."""
+
+    def __init__(self):
+        self.bodies: list[dict] = []
+        self.calls = 0
+
+    async def __call__(self, request: httpx.Request) -> httpx.Response:
+        self.calls += 1
+        if self.calls == 1:
+            raise RuntimeError("boom")
+        self.bodies.append(json.loads(request.content))
+        return httpx.Response(200, json={})
+
+
+def test_a_post_that_raises_a_non_http_error_leaves_the_doorbell_able_to_post(tmp_path):
+    recorder = RaiseOnce()
+    bell, feed, _session, client = make_bell(tmp_path, recorder)
+
+    async def case():
+        feed.add(event(1, "job_done"))
+        bell.notify(event(1, "job_done"), now=0.0)
+        with pytest.raises(RuntimeError, match="boom"):
+            await bell.step(2.0)
+        feed.add(event(2, "job_done"))
+        bell.notify(event(2, "job_done"), now=3.0)
+        await bell.step(5.0)
+        await client.aclose()
+
+    asyncio.run(case())
+    assert ranges(recorder) == [(1, 2)]
+
+
 def test_a_range_the_backend_already_read_posts_nothing(tmp_path):
     recorder = Recorder([200])
     bell, feed, session, client = make_bell(tmp_path, recorder)
