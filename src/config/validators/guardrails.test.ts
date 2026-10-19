@@ -54,7 +54,7 @@ describe("validateGuardrails — happy path", () => {
         user_input_source: 0,
         screen_watcher: 0,
       },
-      rate_limit: { window_ms: 0, tier2_max: 0, overall_max: 0, cooldown_ms: 0 },
+      rate_limit: { window_ms: 0, tier2_max: 0, live_max: 0, overall_max: 0, cooldown_ms: 0 },
     });
     const out = validateGuardrails(FILE, raw);
     expect(out).toEqual(raw);
@@ -69,6 +69,7 @@ describe("validateGuardrails — a file that still holds tier3_max", () => {
         window_ms: 3600000,
         tier2_max: 12,
         tier3_max: 2,
+        live_max: 120,
         overall_max: 26,
         cooldown_ms: 300000,
       },

@@ -19,6 +19,7 @@ export const RATE_LIMIT_MAX = 999;
 /** Editable rolling-window caps. 0 = no override. */
 export interface RateLimitOverrides {
   tier2_max: number;
+  live_max: number;
   overall_max: number;
 }
 
@@ -29,7 +30,7 @@ export type GuardrailsStorage = PersistedStorage<RateLimitOverrides>;
  * without an entry here fails to typecheck rather than silently losing its merge branch, its
  * setter, and its UI row.
  */
-const EMPTY: RateLimitOverrides = { tier2_max: 0, overall_max: 0 };
+const EMPTY: RateLimitOverrides = { tier2_max: 0, live_max: 0, overall_max: 0 };
 
 const KEYS = Object.keys(EMPTY) as (keyof RateLimitOverrides)[];
 

@@ -30,23 +30,35 @@ function fakeBus(): { bus: Pick<EventBus, "push">; pushed: BusEnvelope[] } {
 }
 
 function fakeListen(): { listen: OsEventListen; emit: (p: OsEventPayload) => void } {
-  let handler: ((e: { payload: OsEventPayload }) => void) | undefined;
+  // The channel broadcasts — every subscriber gets each payload (the source holds two cores).
+  const handlers = new Set<(e: { payload: OsEventPayload }) => void>();
   const listen: OsEventListen = vi.fn(async (_event, h) => {
-    handler = h;
+    handlers.add(h);
     return vi.fn();
   });
-  return { listen, emit: (payload) => handler?.({ payload }) };
+  return {
+    listen,
+    emit: (payload) => {
+      for (const h of handlers) h({ payload });
+    },
+  };
 }
 
 type OnInboxFn = (cb: (p: SignalsBatch) => void, deps?: { listen?: OsEventListen }) => () => void;
 
 function fakeInbox(): { onInbox: OnInboxFn; emit: (p: SignalsBatch) => void } {
-  let handler: ((p: SignalsBatch) => void) | undefined;
+  // Same broadcast semantics — one subscription per core.
+  const handlers = new Set<(p: SignalsBatch) => void>();
   const onInbox: OnInboxFn = vi.fn((cb) => {
-    handler = cb;
+    handlers.add(cb);
     return vi.fn();
   });
-  return { onInbox, emit: (p) => handler?.(p) };
+  return {
+    onInbox,
+    emit: (p) => {
+      for (const cb of handlers) cb(p);
+    },
+  };
 }
 
 function idleTick(os_idle_ms: number | null, ts = 0): OsEventPayload {
@@ -325,16 +337,19 @@ function fakePipelineBusy(initialBusy: boolean): {
   setBusy: (busy: boolean) => void;
 } {
   let current = initialBusy;
-  let cb: ((busy: boolean) => void) | undefined;
+  // The edge broadcasts — both cores subscribe (paced and raw).
+  const subscribers = new Set<(busy: boolean) => void>();
   return {
     isPipelineBusy: () => current,
     subscribePipelineBusy: vi.fn((c: (busy: boolean) => void) => {
-      cb = c;
-      return vi.fn();
+      subscribers.add(c);
+      return () => {
+        subscribers.delete(c);
+      };
     }),
     setBusy: (busy: boolean) => {
       current = busy;
-      cb?.(busy);
+      for (const cb of subscribers) cb(busy);
     },
   };
 }
@@ -675,7 +690,8 @@ describe("signals_source — lifecycle (spec §8)", () => {
     });
     await expect(src.start()).resolves.toBeUndefined();
     await expect(src.start()).resolves.toBeUndefined();
-    expect(vi.mocked(onInbox)).toHaveBeenCalledTimes(1);
+    // One subscription per core (non-live + live), and a second start() adds none.
+    expect(vi.mocked(onInbox)).toHaveBeenCalledTimes(2);
 
     src.stop();
   });
@@ -922,7 +938,8 @@ describe("signals_source — delivery envelopes", () => {
     await s.src.start();
     await s.src.start();
     s.emitIdle(idleTick(LOW_IDLE));
-    expect(vi.mocked(s.onInbox)).toHaveBeenCalledTimes(2);
+    // Two cores, one subscription each; the restart added no extra ones.
+    expect(vi.mocked(s.onInbox)).toHaveBeenCalledTimes(4);
     await vi.advanceTimersByTimeAsync(300_000);
     expect(s.pushed.map((e) => e.event_name)).toEqual(["signals.batch"]);
   });

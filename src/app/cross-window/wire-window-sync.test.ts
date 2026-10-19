@@ -426,6 +426,7 @@ describe("wireGuardrailsOverrides", () => {
       rate_limit: {
         window_ms: 3_600_000,
         tier2_max: 2,
+        live_max: 120,
         overall_max: 100,
         cooldown_ms: 300_000,
       },

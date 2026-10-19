@@ -48,7 +48,7 @@ const emptyEndpointOverrides = {
   chat_api: "",
   tts_provider: "",
 };
-const emptyGuardrailOverrides = { tier2_max: 0, overall_max: 0 };
+const emptyGuardrailOverrides = { tier2_max: 0, live_max: 0, overall_max: 0 };
 
 beforeEach(() => {
   vi.stubEnv("VITE_YUI_CHAT_KEY", "");

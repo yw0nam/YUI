@@ -16,7 +16,12 @@
 export interface BusEnvelope {
   /** Assigned by bus (monotonic). May be empty at push time. */
   seq_id?: number;
-  source: "timer_scheduler" | "os_event_watcher" | "user_input_source" | "screen_watcher";
+  source:
+    | "timer_scheduler"
+    | "os_event_watcher"
+    | "user_input_source"
+    | "screen_watcher"
+    | "live_signal_source";
   /** event_name. ex: "time_milestone.morning". */
   event_name: string;
   /** client epoch ms. */
@@ -73,6 +78,7 @@ const VALID_SOURCES = new Set<BusEnvelope["source"]>([
   "os_event_watcher",
   "user_input_source",
   "screen_watcher",
+  "live_signal_source",
 ]);
 
 interface QueueItem {

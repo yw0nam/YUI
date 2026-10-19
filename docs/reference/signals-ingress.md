@@ -26,7 +26,7 @@ interpreting their meaning.
 |---|---|
 | `source` | Non-empty string identifying the producer |
 | `event_type` | Non-empty string identifying the producer-defined event type |
-| `delivery` | Exactly `"immediate"` or `"batched"` |
+| `delivery` | Exactly `"immediate"`, `"batched"`, or `"live"` |
 | `event_id` | Non-empty opaque string; duplicate values remain separate groups |
 | `occurred_at` | Finite epoch-millisecond number in the inclusive range `-8.64e15` through `8.64e15`, representable as an ISO-8601 date |
 
@@ -34,6 +34,14 @@ interpreting their meaning.
 
 An `immediate` group fires at once while the user is present and the pipeline is idle.
 Otherwise it waits in the away buffer.
+
+A `live` group marks an activity the user started and is waiting on. It fires at once while
+the user is present and the pipeline is idle, and the proactive quiet gap does not hold it.
+Otherwise it waits in its own buffer; on the busy-to-idle or away-to-present edge, the
+buffered live groups fire together as one live catch-up turn. Live groups never share a
+catch-up turn with `immediate` or `batched` groups, and the drains below carry non-live
+groups only — a buffered live group keeps waiting for its own edge. User-started activities
+use `live`; unrequested background chatter uses `immediate` or `batched`.
 
 A `batched` group always waits in the batch buffer. The first group starts a five-minute
 delivery interval. At the interval boundary, all pending batched groups fire together
@@ -50,10 +58,14 @@ a batched group's deadline therefore includes it in that catch-up.
 Three client-fired turns also drain the buffers and carry the groups themselves: a
 `proactive.tap_bored` turn, the `time_milestone.first_activity` turn, and a
 `proactive.wake` turn that carries the day's first activity. Each takes every pending
-group in arrival order, and a drain empties the away buffer and the batch buffer
+non-live group in arrival order, and a drain empties the away buffer and the batch buffer
 together.
 
 Each buffer retains at most five groups and drops its oldest group on overflow.
+
+Live turns are capped by their own hourly rate limit, `rate_limit.live_max` (default 120).
+They do not count toward the tier-2 or overall caps, and the cooldown the overall cap
+starts does not hold them.
 
 ## Validation
 

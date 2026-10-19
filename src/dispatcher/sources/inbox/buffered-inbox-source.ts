@@ -24,7 +24,7 @@
 import type { OsEventListen, OsEventPayload } from "../../../io/window/tauri-listen";
 import { subscribeOsEvent } from "../../../io/window/tauri-listen";
 import type { Logger } from "../../../logger";
-import type { EventBus } from "../../core/event-bus";
+import type { BusEnvelope, EventBus } from "../../core/event-bus";
 
 /** { event_name, payload } — the core fills in the shared envelope fields. */
 export interface InboxFiring {
@@ -51,6 +51,8 @@ interface BufferedInboxSourceConfig<TRaw, TItem = TRaw> {
   log: Logger;
   /** Validate/narrow a raw inbox arrival. Return undefined to drop it as malformed (caller logs). */
   parse: (raw: TRaw) => TItem | undefined;
+  /** Bus source stamped on every firing. Defaults to timer_scheduler. */
+  busSource?: BusEnvelope["source"];
   /** Build the firing for a present-and-idle arrival. */
   buildLive: (item: TItem) => InboxFiring;
   /** Force selected valid arrivals into the source-owned buffer even while eligible. */
@@ -93,7 +95,7 @@ export function createBufferedInboxSource<TRaw, TItem = TRaw>(
 
   function fire(firing: InboxFiring): void {
     bus.push({
-      source: "timer_scheduler",
+      source: config.busSource ?? "timer_scheduler",
       event_name: firing.event_name,
       ts: now(),
       payload: firing.payload,

@@ -1896,7 +1896,7 @@ globalThis.YUI_MAP =
       "id": "signals-ingress",
       "from": "signal-producers",
       "to": "shell/agent-ingress",
-      "carries": "POST /signals {signals, envelope}",
+      "carries": "POST /signals {signals, envelope.delivery: immediate|batched|live}",
       "kind": "http",
       "transport": "shared"
     },
@@ -2074,7 +2074,7 @@ globalThis.YUI_MAP =
       "id": "inbox-bus",
       "from": "dispatcher/sources/inbox",
       "to": "dispatcher/core",
-      "carries": "bus.push: agent.done, agent.needs_input, agent.catchup, signals.push, signals.batch, signals.catchup",
+      "carries": "bus.push: agent.done, agent.needs_input, agent.catchup, signals.push, signals.batch, signals.catchup, signals.live, signals.live_catchup",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/turn/wire-sources.ts"
@@ -2120,6 +2120,15 @@ globalThis.YUI_MAP =
       "from": "dispatcher/core",
       "to": "dispatcher/sources/inbox",
       "carries": "composePacedPipelineBusy: pacer gap and dispatcher busy hold delivery",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-sources.ts"
+    },
+    {
+      "id": "busy-inbox-live",
+      "from": "dispatcher/core",
+      "to": "dispatcher/sources/inbox",
+      "carries": "raw dispatcher busy state for the live inbox instance (no pacer)",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/wire-sources.ts"
@@ -3466,7 +3475,8 @@ globalThis.YUI_MAP =
           "from": "dispatcher",
           "label": "pacer gap and busy state hold inbox delivery",
           "edges": [
-            "pacer-inbox"
+            "pacer-inbox",
+            "busy-inbox-live"
           ],
           "to": "sources"
         },

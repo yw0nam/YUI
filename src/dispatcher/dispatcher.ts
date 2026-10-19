@@ -381,10 +381,12 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
   /**
    * Whether one deferred item can now start as the next call (used to decide slot replacement right after a call completes).
    * During degraded, only user turns (dnd_override) drain — everything else is a drop target (handled in the finally above).
+   * During cooldown, only live signals drain — live_max caps them, the overall cooldown does not hold them.
    */
   function canDrain(): boolean {
     if (pending.length === 0) return false;
     if (state === "running") return true;
+    if (state === "cooldown") return pending[0]?.source === "live_signal_source";
     if (state === "degraded") return pending[0]?.dnd_override === true;
     return false;
   }

@@ -22,6 +22,8 @@ export interface GuardrailsConfig {
     window_ms: number;
     /** tier2 cap. */
     tier2_max: number;
+    /** live signals cap — counts live-delivery turns only; the overall cooldown does not hold them. */
+    live_max: number;
     /** overall cap on backend calls — entering cooldown when exceeded. */
     overall_max: number;
     /** cooldown duration (ms) after overall is exceeded. */
@@ -62,7 +64,7 @@ export function validateGuardrails(file: string, raw: unknown): GuardrailsConfig
 
   // rate_limit
   const rawRate = raw.rate_limit;
-  const rate_limit = { window_ms: 0, tier2_max: 0, overall_max: 0, cooldown_ms: 0 };
+  const rate_limit = { window_ms: 0, tier2_max: 0, live_max: 0, overall_max: 0, cooldown_ms: 0 };
   if (!isObject(rawRate)) {
     issues.push(`rate_limit must be an object (got: ${JSON.stringify(rawRate)})`);
   } else {

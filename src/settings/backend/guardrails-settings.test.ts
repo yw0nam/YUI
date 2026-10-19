@@ -107,7 +107,7 @@ describe("guardrails settings — store shape", () => {
   it("reloadFromStorage adopts another window's edit", () => {
     const storage = inMemoryStorage();
     const store = createGuardrailsSettings({ storage });
-    storage.save({ tier2_max: 18, overall_max: 0 });
+    storage.save({ tier2_max: 18, live_max: 0, overall_max: 0 });
     store.reloadFromStorage();
     expect(store.get().tier2_max).toBe(18);
   });
@@ -172,8 +172,9 @@ describe("guardrails settings — store over config", () => {
 
   it("never mutates the config it layers onto", () => {
     const base = baseConfig();
-    mergeGuardrails(base, { tier2_max: 30, overall_max: 60 });
+    mergeGuardrails(base, { tier2_max: 30, live_max: 90, overall_max: 60 });
     expect(base.rate_limit.tier2_max).toBe(24);
+    expect(base.rate_limit.live_max).toBe(120);
     expect(base.rate_limit.overall_max).toBe(40);
   });
 });

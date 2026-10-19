@@ -250,13 +250,13 @@ describe("guardrails — live signals cap (live_max)", () => {
     }
     g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })); // enters cooldown
     expect(g.cooldownActive()).toBe(true);
-    expect(
-      g.evaluate(env({ source: "live_signal_source", event_name: "signals.live" })).pass,
-    ).toBe(true);
+    expect(g.evaluate(env({ source: "live_signal_source", event_name: "signals.live" })).pass).toBe(
+      true,
+    );
     expect(g.cooldownActive()).toBe(true);
-    expect(
-      g.evaluate(env({ source: "live_signal_source", event_name: "signals.live" })).pass,
-    ).toBe(false);
+    expect(g.evaluate(env({ source: "live_signal_source", event_name: "signals.live" })).pass).toBe(
+      false,
+    );
   });
 });
 

@@ -517,6 +517,8 @@ const ja: Record<string, string> = {
   "reactions.rate_tier2_sub": "アイドル・自発・スケジュール・エージェントの合計",
   "reactions.rate_overall_label": "1時間あたりの自発ターン合計",
   "reactions.rate_overall_sub": "超えるとクールダウンの間すべて止まります",
+  "reactions.rate_live_label": "1時間あたりのライブ活動ターン",
+  "reactions.rate_live_sub": "あなたが始めたアクティビティのシグナル。クールダウンでは止まりません",
   "reactions.rate_hint_text":
     "ユイが1時間に自分から話しかけられる回数の上限です。あなたから話しかけた分は数えません。",
 

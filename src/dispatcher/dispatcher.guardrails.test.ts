@@ -468,7 +468,9 @@ describe("dispatcher — live signals guardrails (live_max)", () => {
     expect(d.state()).toBe("running");
 
     // The two live fires left the tier2 window empty — a regular cue passes tier2_max 1.
-    bus.push(env({ source: "timer_scheduler", event_name: "proactive.cowork", dnd_override: false }));
+    bus.push(
+      env({ source: "timer_scheduler", event_name: "proactive.cowork", dnd_override: false }),
+    );
     await vi.advanceTimersByTimeAsync(20);
     expect(backendCaller.call).toHaveBeenCalledTimes(3);
     d.stop();
@@ -479,7 +481,12 @@ describe("dispatcher — live signals guardrails (live_max)", () => {
     d.start();
     for (let i = 0; i < 21; i++) {
       g.evaluate(
-        env({ source: "user_input_source", event_name: "user.text_submitted", ts: NOW + i, dnd_override: false }),
+        env({
+          source: "user_input_source",
+          event_name: "user.text_submitted",
+          ts: NOW + i,
+          dnd_override: false,
+        }),
       );
     }
     expect(g.cooldownActive()).toBe(true);
@@ -503,7 +510,12 @@ describe("dispatcher — live signals guardrails (live_max)", () => {
 
     for (let i = 0; i < 21; i++) {
       g.evaluate(
-        env({ source: "user_input_source", event_name: "user.text_submitted", ts: NOW + i, dnd_override: false }),
+        env({
+          source: "user_input_source",
+          event_name: "user.text_submitted",
+          ts: NOW + i,
+          dnd_override: false,
+        }),
       );
     }
     await vi.advanceTimersByTimeAsync(20);
