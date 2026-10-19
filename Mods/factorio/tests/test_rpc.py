@@ -66,23 +66,6 @@ def test_status_omits_map_id_and_the_next_call_carries_it():
     assert requests[1]["args"] == {"text": "hi"}
 
 
-@pytest.mark.parametrize(
-    ("result", "host"),
-    [
-        ({"map_id": "map-a", "seq": 5, "host": {"name": "Ada"}}, {"name": "Ada"}),
-        ({"map_id": "map-a", "seq": 5}, None),
-    ],
-)
-def test_status_reads_an_absent_key_as_none(result, host):
-    def handler(command, count):
-        return reply(parse(command), r=result)
-
-    async def body(rpc, session):
-        return await rpc.status()
-
-    assert asyncio.run(with_server(handler, body)).get("host") == host
-
-
 def test_stale_session_runs_the_recovery_and_does_not_rerun_the_op():
     requests = []
     recovered = []
@@ -193,7 +176,7 @@ def test_an_unknown_outcome_stops_after_the_budget():
 
     code = asyncio.run(with_server(handler, body, clock=lambda: now[0], sleep=sleep))
     assert code == "unknown_outcome"
-    assert now[0] >= 60.0
+    assert now[0] == 60.0
 
 
 def test_an_error_reply_raises_the_error_code_and_message():

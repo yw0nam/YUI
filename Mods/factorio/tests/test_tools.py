@@ -114,18 +114,6 @@ class FakeBackground:
 def server_with_fakes(tmp_path):
     from factorio import server
 
-    return server.build_mcp(
-        rpc=FakeRpc(),
-        session=Session(),
-        log=OutcomeLog(tmp_path / "o.jsonl"),
-        poller=FakeBackground(),
-        doorbell=FakeBackground(),
-    )
-
-
-def test_the_server_runs_the_poller_and_doorbell_for_the_connection_lifetime(tmp_path):
-    from factorio import server
-
     poller, doorbell = FakeBackground(), FakeBackground()
     mcp = server.build_mcp(
         rpc=FakeRpc(),
@@ -134,6 +122,11 @@ def test_the_server_runs_the_poller_and_doorbell_for_the_connection_lifetime(tmp
         poller=poller,
         doorbell=doorbell,
     )
+    return mcp, poller, doorbell
+
+
+def test_the_server_runs_the_poller_and_doorbell_for_the_connection_lifetime(tmp_path):
+    mcp, poller, doorbell = server_with_fakes(tmp_path)
 
     async def case():
         async with Client(mcp) as client:
@@ -145,7 +138,8 @@ def test_the_server_runs_the_poller_and_doorbell_for_the_connection_lifetime(tmp
 
 
 def test_the_mod_registers_all_eight_tools(tmp_path):
-    names = {tool.name for tool in asyncio.run(server_with_fakes(tmp_path).list_tools())}
+    mcp, _poller, _doorbell = server_with_fakes(tmp_path)
+    names = {tool.name for tool in asyncio.run(mcp.list_tools())}
     assert names == {
         "factorio_status",
         "factorio_events",

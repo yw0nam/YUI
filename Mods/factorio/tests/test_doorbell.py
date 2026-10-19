@@ -125,7 +125,6 @@ def test_a_wake_event_during_a_pending_post_waits_for_its_200(tmp_path):
 
     asyncio.run(case())
     assert [body["signals"][0]["pending_to_seq"] for body in recorder.bodies] == [1, 2]
-    assert len(recorder.bodies) == 2
 
 
 def test_a_500_then_a_200_posts_the_cumulative_range(tmp_path):

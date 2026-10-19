@@ -42,6 +42,7 @@ def call(mcp, **kwargs):
         (5, 3, {"since_seq": 999}, [4, 5], 5, False, 5),
         (250, 250, {"since_seq": 100}, list(range(101, 251)), 250, False, 250),
         (250, 0, {"limit": 500}, list(range(1, 201)), 200, True, 200),
+        (250, 200, {}, list(range(201, 251)), 250, False, 250),
     ],
 )
 def test_the_since_and_limit_clamps(
@@ -53,15 +54,3 @@ def test_the_since_and_limit_clamps(
     assert [e["seq"] for e in result["events"]] == expected_seqs
     assert (result["next_seq"], result["more"]) == (expected_next, expected_more)
     assert session.backend_cursor == expected_cursor
-
-
-def test_a_page_of_200_reports_more_and_moves_the_cursor(tmp_path):
-    mcp, session = configured(tmp_path)
-    first = call(mcp)
-    assert len(first["events"]) == 200
-    assert (first["next_seq"], first["more"]) == (200, True)
-    assert session.backend_cursor == 200
-    second = call(mcp)
-    assert len(second["events"]) == 50
-    assert (second["next_seq"], second["more"]) == (250, False)
-    assert session.backend_cursor == 250

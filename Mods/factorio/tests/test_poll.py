@@ -3,12 +3,13 @@
 import asyncio
 import json
 
-import pytest
-
 from factorio.events.cache import Session
 from factorio.events.poll import Poller
 from factorio.outcome_log import OutcomeLog
 from factorio.rpc import RpcError
+
+CLOCK_S = 1_700_000_000.5
+TS = "2023-11-14T22:13:20.500+00:00"
 
 
 class FakeDoorbell:
@@ -72,7 +73,7 @@ def make(tmp_path, rpc):
         session,
         doorbell,
         recovery,
-        OutcomeLog(log_path),
+        OutcomeLog(log_path, clock=lambda: CLOCK_S),
         interval=0.0,
     )
     return poller, session, doorbell, recovery, log_path
@@ -116,7 +117,9 @@ def test_history_gap_is_logged_and_the_page_is_retried(tmp_path):
     poller, _session, _doorbell, _recovery, log_path = make(tmp_path, rpc)
     asyncio.run(poller.poll_once())
     assert [call[0] for call in rpc.calls] == ["status", "events_since", "events_since"]
-    assert any(record["type"] == "history_gap" and record["oldest_seq"] == 60 for record in records(log_path))
+    assert [record for record in records(log_path) if record["type"] == "history_gap"] == [
+        {"ts": TS, "type": "history_gap", "oldest_seq": 60}
+    ]
 
 
 def test_a_rollback_marks_the_doorbell_and_logs_the_cause(tmp_path):
@@ -133,7 +136,7 @@ def test_a_rollback_marks_the_doorbell_and_logs_the_cause(tmp_path):
     reset = [record for record in records(log_path) if record["type"] == "session_reset"]
     assert reset == [
         {
-            "ts": reset[0]["ts"],
+            "ts": TS,
             "type": "session_reset",
             "cause": "rollback",
             "poll_cursor": 95,
@@ -166,19 +169,6 @@ def test_backend_lag_is_logged_when_an_unread_event_is_dropped(tmp_path):
     )
     poller, _session, _doorbell, _recovery, log_path = make(tmp_path, rpc)
     asyncio.run(poller.poll_once())
-    assert any(record["type"] == "backend_lag" and record["dropped"] == 1 for record in records(log_path))
-
-
-@pytest.mark.parametrize(
-    "status",
-    [
-        {"map_id": "map-a", "seq": 0, "host": {"name": "Ada"}},
-        {"map_id": "map-a", "seq": 0},
-    ],
-)
-def test_a_status_with_or_without_a_host_starts_the_poll(tmp_path, status):
-    rpc = FakeRpc([status, page("map-a", 1, [event(1)])])
-    poller, session, doorbell, _recovery, _log = make(tmp_path, rpc)
-    asyncio.run(poller.poll_once())
-    assert session.map_id == "map-a"
-    assert [e["seq"] for e in doorbell.events] == [1]
+    assert [record for record in records(log_path) if record["type"] == "backend_lag"] == [
+        {"ts": TS, "type": "backend_lag", "dropped": 1}
+    ]

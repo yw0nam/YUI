@@ -9,14 +9,14 @@ from factorio.rcon import framing
 
 def test_encode_decode_round_trip():
     packet = framing.decode(framing.encode(7, framing.EXEC, b"hello")[4:])
-    assert (packet.id, packet.type, packet.body) == (7, framing.EXEC, b"hello")
+    assert (packet.id, packet.type, packet.body) == (7, 2, b"hello")
 
 
 def test_header_is_two_little_endian_int32s_after_the_length():
     raw = framing.encode(7, framing.AUTH, b"pw")
     assert raw[:4] == (10 + 2).to_bytes(4, "little", signed=True)
     assert raw[4:8] == (7).to_bytes(4, "little", signed=True)
-    assert raw[8:12] == (framing.AUTH).to_bytes(4, "little", signed=True)
+    assert raw[8:12] == (3).to_bytes(4, "little", signed=True)
     assert raw[12:] == b"pw\x00\x00"
 
 
