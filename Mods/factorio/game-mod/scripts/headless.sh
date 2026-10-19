@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
-# Create a fresh Factorio save with only the coop-agent mod and start a headless
-# server with RCON bound to 127.0.0.1. Prints key=value lines; the caller kills
-# the printed pid. The game's config lives inside <workdir>, so the owner's real
-# game data is never touched.
-#
-# Usage: headless.sh [--bin PATH] [--probe] [--port PORT] <workdir>
+# Creates a fresh save inside <workdir>, starts a headless server with RCON on 127.0.0.1, and prints key=value lines.
 set -euo pipefail
 
 BIN="${FACTORIO_BIN:-}"
@@ -27,14 +22,12 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mkdir -p "$WORKDIR/saves" "$WORKDIR/mods" "$WORKDIR/logs"
 WORKDIR="$(cd "$WORKDIR" && pwd)"
 ln -sfn "$HERE/coop-agent" "$WORKDIR/mods/coop-agent"
-# the symlink name must match the mod's info.json name
+# a mod folder's name must match its info.json name
 if [[ "$PROBE" == "1" ]]; then
   ln -sfn "$HERE/probe-mod" "$WORKDIR/mods/coop-probe"
 fi
 
-# --config needs an existing file; redirect write-data into the workdir so the
-# owner's real game data is never touched. auto_pause=false keeps the sim
-# running with no players connected, which the multi-tick probes need.
+# write-data inside the workdir keeps the owner's real game data untouched
 CONFIG="$WORKDIR/config.ini"
 [[ -f "$CONFIG" ]] || printf '[path]\nwrite-data=%s\n' "$WORKDIR" > "$CONFIG"
 SETTINGS="$WORKDIR/server-settings.json"

@@ -1,5 +1,7 @@
--- The ping op: a chart tag the agent placed, expired by the on_nth_tick(600)
--- sweep 10 minutes later, plus a [gps] chat line.
+-- The ping op: a chart tag swept away ten minutes later, plus a [gps] chat line.
+
+local gps = require("scripts.gps")
+local surface_of = require("scripts.surface")
 
 local PING_TTL_TICKS = 36000
 local MAX_CHARS = 60
@@ -16,7 +18,7 @@ function M.op(deps, args)
     error("ping: text must be a string of 1 to " .. MAX_CHARS .. " characters")
   end
 
-  local surface = game.get_surface("nauvis") or game.surfaces[1]
+  local surface = surface_of.get()
   local force = game.forces.player
   force.chart(surface, {
     left_top = { x = pos.x - 32, y = pos.y - 32 },
@@ -28,7 +30,7 @@ function M.op(deps, args)
   end
   deps.storage.pings[tag.tag_number] = { tag = tag, expire_tick = deps.tick + PING_TTL_TICKS }
 
-  game.print(string.format("[gps=%d,%d] %s", pos.x, pos.y, text))
+  game.print(gps.tag(pos.x, pos.y) .. " " .. text)
   return { tag_id = tag.tag_number }
 end
 

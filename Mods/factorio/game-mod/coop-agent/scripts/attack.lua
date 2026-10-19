@@ -1,13 +1,13 @@
--- Attack grouping: damage on a 64-tile cell opens one attack, quiet 600 ticks
--- close it. The pure core takes injected deps (storage, tick, count_cell,
--- push); the *_event/_tick wrappers build them from the game.
+-- Attack grouping: hostile damage on a 64-tile cell opens one attack, 600 quiet ticks close it.
+
+local store = require("scripts.storage")
 
 local CELL_TILES = 64
 local QUIET_TICKS = 600
 
 local M = {}
 
-function M.cell_of(surface_name, pos)
+local function cell_of(surface_name, pos)
   return {
     surface = surface_name,
     x = math.floor(pos.x / CELL_TILES) * CELL_TILES,
@@ -15,28 +15,28 @@ function M.cell_of(surface_name, pos)
   }
 end
 
-function M.key(cell)
+local function key(cell)
   return cell.surface .. ";" .. cell.x .. ";" .. cell.y
 end
 
 --- deps: {storage, tick, count_cell(surface, cell) -> {enemies, defenders}, push(kind, data)}
 function M.on_damaged(deps, ev)
   local attacks = deps.storage.attacks
-  local cell = M.cell_of(ev.surface, ev.position)
-  local open = attacks[M.key(cell)]
+  local cell = cell_of(ev.surface, ev.position)
+  local open = attacks[key(cell)]
   if open then
     open.last_tick = deps.tick
     return
   end
   local counts = deps.count_cell(cell.surface, cell)
-  attacks[M.key(cell)] = { cell = cell, opened_tick = deps.tick, last_tick = deps.tick, losses = {} }
+  attacks[key(cell)] = { cell = cell, opened_tick = deps.tick, last_tick = deps.tick, losses = {} }
   deps.push("attack_started", { cell = cell, enemies = counts.enemies, defenders = counts.defenders })
 end
 
 --- Deaths only count towards a cell that has an open attack.
 function M.on_died(deps, ev)
-  local cell = M.cell_of(ev.surface, ev.position)
-  local open = deps.storage.attacks[M.key(cell)]
+  local cell = cell_of(ev.surface, ev.position)
+  local open = deps.storage.attacks[key(cell)]
   if open then
     open.losses[ev.name] = (open.losses[ev.name] or 0) + 1
   end
@@ -59,13 +59,8 @@ function M.sweep(deps, now)
   end
 end
 
--- Game-facing wrappers. A defender hit counts when a valid hostile cause
--- damages a player-force entity.
-
-local ring = require("scripts.ring")
-
-local function push(kind, data)
-  ring.push(storage.events, game.tick, kind, data)
+local function hostile(player_force, force)
+  return force ~= player_force and force.name ~= "neutral" and not player_force.get_friend(force)
 end
 
 local function production_deps()
@@ -88,14 +83,14 @@ local function production_deps()
         if entity.valid and entity.force then
           if entity.force == player_force then
             defenders = defenders + 1
-          elseif entity.force.name ~= "neutral" and not player_force.get_friend(entity.force) then
+          elseif hostile(player_force, entity.force) then
             enemies = enemies + 1
           end
         end
       end
       return { enemies = enemies, defenders = defenders }
     end,
-    push = push,
+    push = store.push,
   }
 end
 
@@ -105,13 +100,7 @@ local function defender_damage(e)
     return false
   end
   local player_force = game.forces.player
-  if entity.force ~= player_force then
-    return false
-  end
-  if cause.force == entity.force or cause.force.name == "neutral" then
-    return false
-  end
-  return not player_force.get_friend(cause.force)
+  return entity.force == player_force and hostile(player_force, cause.force)
 end
 
 function M.on_damaged_event(e)

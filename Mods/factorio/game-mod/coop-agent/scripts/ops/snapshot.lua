@@ -1,7 +1,6 @@
--- The snapshot op: power per electric network, science per minute, research,
--- evolution, pollution. `summary()` is the compact event form pushed every
--- 3600 ticks. Numbers are the game's flow-statistic units (joules per tick
--- for power, items per minute window for science).
+-- The snapshot op and its compact summary form.
+
+local surface_of = require("scripts.surface")
 
 local SCIENCE_PACKS = {
   "automation-science-pack",
@@ -77,7 +76,7 @@ local function evolution(surface)
 end
 
 function M.summary()
-  local surface = game.get_surface("nauvis") or game.surfaces[1]
+  local surface = surface_of.get()
   local force = game.forces.player
   local precision = defines.flow_precision_index.one_minute
   local production, consumption = 0, 0
@@ -93,7 +92,7 @@ function M.summary()
   }
 end
 
-function M.op(deps, args)
+function M.op(_deps, args)
   local wanted = {}
   if type(args.sections) == "table" then
     for _, section in ipairs(args.sections) do
@@ -104,7 +103,7 @@ function M.op(deps, args)
     return next(wanted) == nil or wanted[name]
   end
 
-  local surface = game.get_surface("nauvis") or game.surfaces[1]
+  local surface = surface_of.get()
   local force = game.forces.player
   local out = {}
   if wanted_section("power") then

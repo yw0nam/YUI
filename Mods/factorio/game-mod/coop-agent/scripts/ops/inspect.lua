@@ -1,6 +1,6 @@
--- The inspect op: one entity by unit_number, re-resolved around its last
--- indexed position (from find). game.get_entity_by_unit_number covers only
--- prototypes flagged for it, so the index carries the rest.
+-- The inspect op: one entity by unit_number, re-resolved around its last indexed position.
+
+local gps = require("scripts.gps")
 
 local RESOLVE_RADIUS = 16
 
@@ -61,9 +61,8 @@ function M.op(deps, args)
     name = entity.name,
     type = entity.type,
     position = { x = pos.x, y = pos.y },
-    gps = string.format("[gps=%d,%d]", pos.x, pos.y),
+    gps = gps.tag(pos.x, pos.y),
     status = status_name(entity.status),
-    recipe = nil,
     inventories = {},
     fluids = entity.get_fluid_contents(),
   }

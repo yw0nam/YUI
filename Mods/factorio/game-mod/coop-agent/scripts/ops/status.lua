@@ -5,10 +5,9 @@ local M = {}
 function M.op(deps)
   local out = {
     mod_version = script.active_mods["coop-agent"],
-    map_id = deps.map_id(),
+    map_id = deps.storage.map_id,
     seq = deps.storage.events.head_seq,
     tick = deps.tick,
-    host = nil,
   }
   local host = game.players[1]
   if host then

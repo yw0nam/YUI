@@ -1,6 +1,4 @@
--- The event ring. Pure: takes the ring table and explicit arguments, so tests
--- drive it without the game. The ring keeps the last 2000 events and a head
--- seq that starts at 1 per map and only grows.
+-- The event ring: the last 2000 events, monotonic seq per map; pure, driven by tests without the game.
 
 local RING_SIZE = 2000
 local DEFAULT_LIMIT = 200
@@ -22,8 +20,7 @@ function M.push(ring, tick, kind, data)
   return ring.head_seq
 end
 
---- Events with seq > since_seq, the oldest `limit` of them. `gap` is true when
---- since_seq sits before the ring's memory, i.e. events were lost for the reader.
+--- The oldest `limit` events after since_seq; gap is true when events after since_seq were dropped.
 function M.read(ring, since_seq, limit)
   if limit == nil then
     limit = DEFAULT_LIMIT

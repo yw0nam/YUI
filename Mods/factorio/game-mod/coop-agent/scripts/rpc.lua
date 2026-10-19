@@ -1,8 +1,4 @@
--- The /coop-rpc framing. `dispatch` is pure: every game touch (helpers JSON,
--- rcon.print, storage, game.tick, the ops table) arrives through `deps`, so
--- tests drive it without the game. Exactly one `deps.print` per call, always
--- {"v":1,"id":...} + the payload; replies over 65536 bytes are replaced with
--- e:"too_large".
+-- The /coop-rpc framing: pure dispatch over injected deps, one JSON reply per call, capped at 64 KiB.
 
 local MAX_REPLY_BYTES = 65536
 local MEMORY_SIZE = 256
@@ -15,7 +11,7 @@ local OPS = {
   recipe = require("scripts.ops.recipe").op,
   say = require("scripts.ops.say").op,
   ping = require("scripts.ops.ping").op,
-  events_since = require("scripts.events").events_since,
+  events_since = require("scripts.ops.events_since").op,
 }
 
 local M = {}
@@ -28,9 +24,6 @@ local function runtime_deps()
     print = rcon.print,
     storage = storage,
     tick = game.tick,
-    map_id = function()
-      return storage.map_id
-    end,
     ops = OPS,
   }
 end
@@ -44,8 +37,7 @@ local function first_line(text)
   return tostring(text):match("^[^\n]*")
 end
 
---- Cheap deterministic string hash (djb2 mod 2^31-1). Written without bitwise
---- operators so it behaves identically on every Lua the game or the tests run.
+--- djb2 mod 2^31-1 without bitwise operators, so Lua 5.2 and the tests agree.
 local function payload_hash(op_name, args_json)
   local hash = 5381
   local text = op_name .. "|" .. args_json
@@ -56,7 +48,7 @@ local function payload_hash(op_name, args_json)
 end
 
 local function encode_id(deps, id)
-  -- table_to_json takes tables only; encode {id} and strip the array brackets
+  -- table_to_json takes tables only, so encode {id} and strip the brackets
   return id and string.sub(deps.to_json({ id }), 2, -2) or "null"
 end
 
@@ -65,8 +57,7 @@ local function envelope(deps, id, payload)
   if not encoded then
     payload_json = deps.to_json({ ok = false, e = "op_error", m = "reply is not plain data: " .. first_line(payload_json) })
   end
-  -- payload_json starts with '{'; the envelope head replaces it so a nil id
-  -- still prints as an explicit null.
+  -- the envelope head replaces payload_json's '{' so a nil id prints as null
   return '{"v":1,"id":' .. encode_id(deps, id) .. "," .. string.sub(payload_json, 2)
 end
 
@@ -82,12 +73,7 @@ local function finish(deps, id, payload)
   return json
 end
 
-local function op_error(payload)
-  -- An op answers a protocol-level refusal by returning this shape.
-  return { ok = false, e = payload.e, m = payload.m, r = payload.r }
-end
-
---- deps: {from_json, to_json, print, storage, tick, map_id = fn, ops}
+--- deps: {from_json, to_json, print, storage, tick, ops}
 function M.dispatch(parameter, player_index, deps)
   local id = nil
   local parsed_ok, req = pcall(deps.from_json, parameter or "")
@@ -109,29 +95,24 @@ function M.dispatch(parameter, player_index, deps)
     finish(deps, id, { ok = false, e = "unknown_op", m = first_line(op_name) })
     return
   end
-  if op_name ~= "status" and req.map_id ~= deps.map_id() then
+  if op_name ~= "status" and req.map_id ~= deps.storage.map_id then
     finish(deps, id, { ok = false, e = "stale_session", m = "map_id does not match this map" })
     return
   end
   local args = type(req.args) == "table" and req.args or {}
 
-  local map_key = req.map_id or deps.map_id()
-  local memory = deps.storage.rpc_memory[map_key]
-  if not memory then
-    memory = {}
-    deps.storage.rpc_memory[map_key] = memory
-  end
+  local map_key = req.map_id or deps.storage.map_id
+  local memory = deps.storage.rpc_memory[map_key] or {}
+  deps.storage.rpc_memory[map_key] = memory
   local hash = payload_hash(op_name, deps.to_json(args))
-  if id then
-    for _, entry in ipairs(memory) do
-      if entry.id == id then
-        if entry.hash == hash then
-          deps.print(entry.reply)
-        else
-          finish(deps, id, { ok = false, e = "id_conflict", m = "id already used with different arguments" })
-        end
-        return
+  for _, entry in ipairs(memory) do
+    if entry.id == id then
+      if entry.hash == hash then
+        deps.print(entry.reply)
+      else
+        finish(deps, id, { ok = false, e = "id_conflict", m = "id already used with different arguments" })
       end
+      return
     end
   end
 
@@ -140,7 +121,7 @@ function M.dispatch(parameter, player_index, deps)
   if not ran_ok then
     payload = { ok = false, e = "op_error", m = first_line(result) }
   elseif type(result) == "table" and result.ok == false then
-    payload = op_error(result)
+    payload = { ok = false, e = result.e, m = result.m, r = result.r }
   else
     payload = { ok = true, r = result }
   end

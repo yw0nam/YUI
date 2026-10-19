@@ -1,5 +1,7 @@
--- The find op: entities in a bounded area (or around the host player), with
--- unit numbers indexed so inspect can re-resolve them later.
+-- The find op: entities in a bounded area (or around the host player), indexed for inspect.
+
+local gps = require("scripts.gps")
+local surface_of = require("scripts.surface")
 
 local MAX_AREA_TILES = 64
 local DEFAULT_LIMIT = 100
@@ -36,10 +38,6 @@ local function area_of(args)
   error('find: give area or around="player"')
 end
 
-local function surface_of()
-  return game.get_surface("nauvis") or game.surfaces[1]
-end
-
 function M.op(deps, args)
   local area = area_of(args)
   local limit = math.min(type(args.limit) == "number" and args.limit or DEFAULT_LIMIT, MAX_LIMIT)
@@ -54,7 +52,7 @@ function M.op(deps, args)
   if args.type ~= nil then
     filter.type = args.type
   end
-  local surface = surface_of()
+  local surface = surface_of.get()
   local entities = surface.find_entities_filtered(filter)
   table.sort(entities, function(a, b)
     if a.name ~= b.name then
@@ -74,7 +72,7 @@ function M.op(deps, args)
       name = entity.name,
       type = entity.type,
       position = { x = pos.x, y = pos.y },
-      gps = string.format("[gps=%d,%d]", pos.x, pos.y),
+      gps = gps.tag(pos.x, pos.y),
       owner = entity.force.name == "player" and "player" or "unknown",
     }
     if entity.unit_number then
