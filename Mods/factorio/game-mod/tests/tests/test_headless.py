@@ -11,7 +11,7 @@ from rcon import wait_for_rcon
 GAME_MOD = Path(__file__).parents[2]
 HEADLESS = GAME_MOD / "scripts" / "headless.sh"
 # deterministic: --map-gen-seed 42 and on_init at tick 0 always produce this id
-MAP_ID = "0-22719105"
+MAP_ID = "42-0"
 SUMMARY_EVENT = {
     "seq": 1,
     "tick": 0,

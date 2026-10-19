@@ -96,8 +96,9 @@ after its last damage.
 All mutable state lives in `storage`; the unit index drops units with invalid
 entities every 3600 ticks. `on_load` rebuilds nothing; handlers and
 `on_nth_tick` are registered at the `control.lua` root. No `os`, no wall
-clock, no unseeded random — the map id uses `game.create_random_generator`
-seeded from the map seed plus the init tick, once at `on_init`.
+clock, no unseeded random — the map id is the surface seed and the init tick
+(`<seed>-<tick>`), made once at `on_init`. `game.create_random_generator(seed)`
+is not used: on 2.0.77 its first draw is the same for every seed.
 
 ## Safety
 
