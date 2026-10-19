@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from factorio.events.cache import EventCache, Session
+from factorio.events.cache import Session
 from factorio.events.poll import Poller
 from factorio.outcome_log import OutcomeLog
 from factorio.rpc import RpcError
@@ -35,14 +35,14 @@ class FakeRpc:
     def __init__(self, pages):
         self.pages = list(pages)
         self.calls = []
-        self.map_id = None
+        self.session = None
 
     async def status(self):
         self.calls.append(("status", {}))
         reply = self.pages.pop(0)
         if isinstance(reply, Exception):
             raise reply
-        self.map_id = reply["map_id"]
+        self.session.map_id = reply["map_id"]
         return reply
 
     async def call(self, op, args):
@@ -64,8 +64,9 @@ def event(seq: int, kind: str = "tick") -> dict:
     return {"seq": seq, "tick": seq * 60, "kind": kind, "data": {}}
 
 
-def make(tmp_path, rpc, capacity: int = 5000):
-    session = Session(EventCache(capacity=capacity))
+def make(tmp_path, rpc):
+    session = Session()
+    rpc.session = session
     doorbell = FakeDoorbell()
     recovery = FakeRecovery()
     log_path = tmp_path / "outcome.jsonl"
@@ -162,10 +163,11 @@ def test_backend_lag_is_logged_when_an_unread_event_is_dropped(tmp_path):
     rpc = FakeRpc(
         [
             {"map_id": "map-a", "seq": 0},
-            page("map-a", 3, [event(1), event(2), event(3)]),
+            page("map-a", 5001, [event(seq) for seq in range(1, 5002)]),
+            page("map-a", 5001, []),
         ]
     )
-    poller, _session, _doorbell, _recovery, log_path = make(tmp_path, rpc, capacity=2)
+    poller, _session, _doorbell, _recovery, log_path = make(tmp_path, rpc)
     asyncio.run(poller.poll_once())
     assert any(record["type"] == "backend_lag" and record["dropped"] == 1 for record in records(log_path))
 

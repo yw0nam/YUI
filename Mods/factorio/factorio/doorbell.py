@@ -134,16 +134,14 @@ class Doorbell:
         self._record(status=status, body=body, error=error)
 
     def _build(self, generation: int) -> dict[str, Any]:
-        unread = self._session.cache.events_after(self._session.backend_cursor)
         note = None
         kinds: list[str] = []
-        for event in unread:
+        for event in self._session.unread_wake_events(self._kinds):
             text = _chat_text(event)
             if text is not None:
                 note = text
-            kind = event.get("kind")
-            if kind in self._kinds and kind not in kinds:
-                kinds.append(kind)
+            if event["kind"] not in kinds:
+                kinds.append(event["kind"])
         return {
             "signals": [
                 {
@@ -164,14 +162,11 @@ class Doorbell:
         }
 
     def _pending_to_seq(self) -> int:
-        newest = self._session.cache.newest_seq
+        newest = self._session.newest_seq
         return self._session.backend_cursor if newest is None else newest
 
     def _unread_wake_events(self) -> bool:
-        return any(
-            event.get("kind") in self._kinds
-            for event in self._session.cache.events_after(self._session.backend_cursor)
-        )
+        return bool(self._session.unread_wake_events(self._kinds))
 
     def _record(self, *, status: int | None, body: dict[str, Any], error: str | None = None) -> None:
         signal = body["signals"][0]

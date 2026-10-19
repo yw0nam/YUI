@@ -7,7 +7,7 @@ import httpx
 import pytest
 
 from factorio.doorbell import Doorbell
-from factorio.events.cache import EventCache, Session
+from factorio.events.cache import Session
 from factorio.outcome_log import OutcomeLog
 
 WAKE_KINDS = ("chat", "job_done", "job_failed")
@@ -46,7 +46,8 @@ class Raise:
 
 
 def make_bell(tmp_path, recorder, kinds: tuple[str, ...] = WAKE_KINDS):
-    session = Session(EventCache())
+    session = Session()
+    session.map_id = "map-a"
     session.on_map_change({"map_id": "map-a", "seq": 0})
     client = httpx.AsyncClient(transport=httpx.MockTransport(recorder))
     bell = Doorbell(
@@ -58,7 +59,17 @@ def make_bell(tmp_path, recorder, kinds: tuple[str, ...] = WAKE_KINDS):
         client=client,
         clock=lambda: CLOCK_MS / 1000,
     )
-    return bell, session.cache, session, client
+    return bell, Feed(session), session, client
+
+
+class Feed:
+    """Adds polled events to the session the way the poller does."""
+
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, item: dict) -> None:
+        self.session.on_page({"map_id": "map-a", "head_seq": item["seq"], "events": [item]})
 
 
 def records(tmp_path):
@@ -68,14 +79,14 @@ def records(tmp_path):
 
 def test_two_wake_events_inside_the_coalesce_window_post_once(tmp_path):
     recorder = Recorder([200])
-    bell, cache, _session, client = make_bell(tmp_path, recorder)
+    bell, feed, _session, client = make_bell(tmp_path, recorder)
 
     async def case():
-        cache.add(event(1, "chat", "hello"))
+        feed.add(event(1, "chat", "hello"))
         bell.notify(event(1, "chat", "hello"), now=0.0)
         await bell.step(1.9)
         assert recorder.bodies == []
-        cache.add(event(2, "job_done"))
+        feed.add(event(2, "job_done"))
         bell.notify(event(2, "job_done"), now=1.0)
         await bell.step(2.0)
         await client.aclose()
@@ -96,14 +107,14 @@ def test_two_wake_events_inside_the_coalesce_window_post_once(tmp_path):
 def test_a_wake_event_during_a_pending_post_waits_for_its_200(tmp_path):
     gate = asyncio.Event()
     recorder = Recorder([200, 200], gate=gate)
-    bell, cache, _session, client = make_bell(tmp_path, recorder)
+    bell, feed, _session, client = make_bell(tmp_path, recorder)
 
     async def case():
-        cache.add(event(1, "chat", "hello"))
+        feed.add(event(1, "chat", "hello"))
         bell.notify(event(1, "chat", "hello"), now=0.0)
         pending = asyncio.create_task(bell.step(2.0))
         await recorder.started.wait()
-        cache.add(event(2, "job_done"))
+        feed.add(event(2, "job_done"))
         bell.notify(event(2, "job_done"), now=2.0)
         await bell.step(2.1)
         assert len(recorder.bodies) == 1
@@ -119,14 +130,14 @@ def test_a_wake_event_during_a_pending_post_waits_for_its_200(tmp_path):
 
 def test_a_500_then_a_200_posts_the_cumulative_range(tmp_path):
     recorder = Recorder([500, 200])
-    bell, cache, _session, client = make_bell(tmp_path, recorder)
+    bell, feed, _session, client = make_bell(tmp_path, recorder)
 
     async def case():
-        cache.add(event(1, "chat", "hello"))
+        feed.add(event(1, "chat", "hello"))
         bell.notify(event(1, "chat", "hello"), now=0.0)
         await bell.step(2.0)
         assert len(recorder.bodies) == 1
-        cache.add(event(2, "job_done"))
+        feed.add(event(2, "job_done"))
         bell.notify(event(2, "job_done"), now=2.5)
         await bell.step(6.9)
         assert len(recorder.bodies) == 1
@@ -142,10 +153,10 @@ def test_a_500_then_a_200_posts_the_cumulative_range(tmp_path):
 
 def test_unread_wake_events_post_once_more_after_five_minutes(tmp_path):
     recorder = Recorder([200])
-    bell, cache, _session, client = make_bell(tmp_path, recorder)
+    bell, feed, _session, client = make_bell(tmp_path, recorder)
 
     async def case():
-        cache.add(event(1, "job_done"))
+        feed.add(event(1, "job_done"))
         bell.notify(event(1, "job_done"), now=0.0)
         await bell.step(2.0)
         await bell.step(301.9)
@@ -153,7 +164,7 @@ def test_unread_wake_events_post_once_more_after_five_minutes(tmp_path):
         await bell.step(302.0)
         await bell.step(602.5)
         assert len(recorder.bodies) == 2
-        cache.add(event(2, "job_done"))
+        feed.add(event(2, "job_done"))
         bell.notify(event(2, "job_done"), now=603.0)
         await bell.step(605.1)
         assert len(recorder.bodies) == 3
@@ -166,14 +177,14 @@ def test_unread_wake_events_post_once_more_after_five_minutes(tmp_path):
 
 def test_reset_is_sent_once_after_recovery(tmp_path):
     recorder = Recorder([200, 200])
-    bell, cache, _session, client = make_bell(tmp_path, recorder)
+    bell, feed, _session, client = make_bell(tmp_path, recorder)
 
     async def case():
         bell.mark_reset()
-        cache.add(event(1, "job_done"))
+        feed.add(event(1, "job_done"))
         bell.notify(event(1, "job_done"), now=0.0)
         await bell.step(2.0)
-        cache.add(event(2, "job_done"))
+        feed.add(event(2, "job_done"))
         bell.notify(event(2, "job_done"), now=2.1)
         await bell.step(4.2)
         await client.aclose()
@@ -185,15 +196,15 @@ def test_reset_is_sent_once_after_recovery(tmp_path):
 def test_a_recovery_during_a_pending_post_sets_reset_on_the_next_post(tmp_path):
     gate = asyncio.Event()
     recorder = Recorder([200, 200], gate=gate)
-    bell, cache, _session, client = make_bell(tmp_path, recorder)
+    bell, feed, _session, client = make_bell(tmp_path, recorder)
 
     async def case():
-        cache.add(event(1, "job_done"))
+        feed.add(event(1, "job_done"))
         bell.notify(event(1, "job_done"), now=0.0)
         pending = asyncio.create_task(bell.step(2.0))
         await recorder.started.wait()
         bell.mark_reset()
-        cache.add(event(2, "job_done"))
+        feed.add(event(2, "job_done"))
         bell.notify(event(2, "job_done"), now=2.1)
         gate.set()
         await pending
@@ -216,11 +227,11 @@ def test_a_recovery_during_a_pending_post_sets_reset_on_the_next_post(tmp_path):
 )
 def test_note_is_the_newest_unread_chat_text_or_the_unread_wake_kinds(tmp_path, events, note):
     recorder = Recorder([200])
-    bell, cache, _session, client = make_bell(tmp_path, recorder)
+    bell, feed, _session, client = make_bell(tmp_path, recorder)
 
     async def case():
         for item in events:
-            cache.add(item)
+            feed.add(item)
         bell.notify(events[-1], now=0.0)
         await bell.step(2.0)
         await client.aclose()
@@ -231,10 +242,10 @@ def test_note_is_the_newest_unread_chat_text_or_the_unread_wake_kinds(tmp_path, 
 
 def test_a_kind_outside_the_wake_list_never_posts(tmp_path):
     recorder = Recorder([200])
-    bell, cache, _session, client = make_bell(tmp_path, recorder)
+    bell, feed, _session, client = make_bell(tmp_path, recorder)
 
     async def case():
-        cache.add(event(1, "tick"))
+        feed.add(event(1, "tick"))
         bell.notify(event(1, "tick"), now=0.0)
         await bell.step(30.0)
         await client.aclose()
@@ -251,10 +262,10 @@ def test_a_kind_outside_the_wake_list_never_posts(tmp_path):
     ],
 )
 def test_a_failed_post_records_the_http_status_or_the_exception_class(tmp_path, recorder, status, error):
-    bell, cache, _session, client = make_bell(tmp_path, recorder)
+    bell, feed, _session, client = make_bell(tmp_path, recorder)
 
     async def case():
-        cache.add(event(1, "job_done"))
+        feed.add(event(1, "job_done"))
         bell.notify(event(1, "job_done"), now=0.0)
         await bell.step(2.0)
         await client.aclose()

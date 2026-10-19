@@ -15,7 +15,7 @@ from loguru import logger
 from factorio import lifespan
 from factorio.config import Config, ConfigError, load_config
 from factorio.doorbell import Doorbell
-from factorio.events.cache import EventCache, Session
+from factorio.events.cache import Session
 from factorio.events.poll import Poller
 from factorio.outcome_log import OutcomeLog
 from factorio.rcon.client import RconClient
@@ -50,7 +50,7 @@ def build_mcp(
 def _runtime(config: Config) -> tuple[RpcClient, Session, OutcomeLog, Poller, Doorbell]:
     log = OutcomeLog(config.outcome_log)
     rcon = RconClient(config.rcon_host, config.rcon_port, config.rcon_password)
-    session = Session(EventCache())
+    session = Session()
     doorbell = Doorbell(
         config.signals_url,
         config.wake_kinds,
@@ -59,7 +59,7 @@ def _runtime(config: Config) -> tuple[RpcClient, Session, OutcomeLog, Poller, Do
         coalesce_ms=config.coalesce_ms,
     )
     recovery = MapRecovery(session, doorbell, log)
-    rpc = RpcClient(rcon, recovery.run)
+    rpc = RpcClient(rcon, session, recovery.run)
     poller = Poller(rpc, session, doorbell, recovery, log)
     return rpc, session, log, poller, doorbell
 

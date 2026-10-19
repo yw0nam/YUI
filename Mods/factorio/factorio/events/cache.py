@@ -65,28 +65,25 @@ class PageResult:
 class Session:
     """The poll cursor, the backend read cursor, the current map id, and its cache."""
 
-    def __init__(self, cache: EventCache):
-        self.cache = cache
+    def __init__(self):
+        self._cache = EventCache()
         self.map_id: str | None = None
         self.poll_cursor = 0
         self.backend_cursor = 0
 
     def on_page(self, page: dict) -> PageResult:
-        map_id = page.get("map_id")
-        if self.map_id is not None and map_id != self.map_id:
+        if page.get("map_id") != self.map_id:
             return PageResult("map_change")
-        if self.map_id is None:
-            self.map_id = map_id
         head_seq = int(page["head_seq"])
         if head_seq < self.poll_cursor:
             self.poll_cursor = head_seq
             self.backend_cursor = min(self.backend_cursor, head_seq)
-            self.cache.drop_above(head_seq)
+            self._cache.drop_above(head_seq)
             return PageResult("rollback")
         dropped: tuple[int, ...] = ()
         events = page.get("events") or []
         for event in events:
-            dropped += self.cache.add(event)
+            dropped += self._cache.add(event)
         if events:
             self.poll_cursor = max(self.poll_cursor, int(events[-1]["seq"]))
         return PageResult("ok", dropped)
@@ -95,14 +92,22 @@ class Session:
         self.poll_cursor = max(0, oldest_seq - 1)
 
     def on_map_change(self, status: dict) -> None:
-        self.map_id = status["map_id"]
         self.poll_cursor = int(status["seq"])
         self.backend_cursor = self.poll_cursor
-        self.cache.clear()
+        self._cache.clear()
+
+    def unread_wake_events(self, kinds: set[str]) -> list[dict]:
+        return [
+            event for event in self._cache.events_after(self.backend_cursor) if event.get("kind") in kinds
+        ]
+
+    @property
+    def newest_seq(self) -> int | None:
+        return self._cache.newest_seq
 
     def read(self, since_seq: int | None, limit: int) -> dict:
         base = self.backend_cursor if since_seq is None else min(since_seq, self.backend_cursor)
-        events = self.cache.page_after(base, limit)
+        events = self._cache.page_after(base, limit)
         next_seq = int(events[-1]["seq"]) if events else base
         self.backend_cursor = max(self.backend_cursor, next_seq)
-        return {"events": events, "next_seq": next_seq, "more": self.cache.has_after(next_seq)}
+        return {"events": events, "next_seq": next_seq, "more": self._cache.has_after(next_seq)}

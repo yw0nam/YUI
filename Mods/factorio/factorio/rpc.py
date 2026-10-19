@@ -9,6 +9,7 @@ from typing import Any
 
 from loguru import logger
 
+from factorio.events.cache import Session
 from factorio.rcon.client import RconError, RconTimeout, RconUnavailable
 
 UNKNOWN_OUTCOME_S = 60.0
@@ -34,11 +35,12 @@ class RpcUnavailable(RpcError):
 
 
 class RpcClient:
-    """Send ops to the game mod and keep the current map id."""
+    """Send ops to the game mod with the session's map id."""
 
     def __init__(
         self,
         rcon,
+        session: Session,
         on_session_reset: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
         *,
         unknown_budget_s: float = UNKNOWN_OUTCOME_S,
@@ -46,11 +48,11 @@ class RpcClient:
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ):
         self._rcon = rcon
+        self._session = session
         self._on_session_reset = on_session_reset
         self._unknown_budget_s = unknown_budget_s
         self._clock = clock
         self._sleep = sleep
-        self.map_id: str | None = None
 
     async def status(self, deadline: float | None = None) -> dict[str, Any]:
         """Call `status`, which carries no map id, and adopt the map it reports."""
@@ -60,7 +62,7 @@ class RpcClient:
             self._clock() + self._unknown_budget_s if deadline is None else deadline,
         )
         if isinstance(result, dict):
-            self.map_id = result.get("map_id")
+            self._session.map_id = result.get("map_id")
         return result
 
     async def call(self, op: str, args: dict[str, Any] | None = None) -> Any:
@@ -127,7 +129,7 @@ class RpcClient:
     def _build(self, op: str, args: dict[str, Any], request_id: str) -> dict[str, Any]:
         request = {"v": 1, "id": request_id, "op": op, "args": args}
         if op != "status":
-            request["map_id"] = self.map_id
+            request["map_id"] = self._session.map_id
         return request
 
 

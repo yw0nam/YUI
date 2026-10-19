@@ -5,7 +5,7 @@ import asyncio
 from loguru import logger
 
 from factorio.events.cache import PAGE_LIMIT, Session
-from factorio.recovery import MapRecovery
+from factorio.recovery import MapRecovery, record_reset
 from factorio.rpc import RpcClient, RpcError, RpcUnavailable
 
 INTERVAL_S = 1.0
@@ -68,16 +68,7 @@ class Poller:
                 await self.recovery.run(await self.rpc.status())
                 return
             if result.outcome == "rollback":
-                self.doorbell.mark_reset()
-                self.log.session_reset(
-                    cause="rollback",
-                    poll_cursor=self.session.poll_cursor,
-                    backend_cursor=self.session.backend_cursor,
-                )
-                logger.bind(
-                    poll_cursor=self.session.poll_cursor,
-                    backend_cursor=self.session.backend_cursor,
-                ).info("session_reset")
+                record_reset(self.session, self.doorbell, self.log, "rollback")
                 return
 
             self._log_lag(result.dropped)

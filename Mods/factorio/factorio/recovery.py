@@ -1,10 +1,26 @@
-"""Map-change recovery shared by a stale session and an observed map change."""
+"""Session resets: the shared recorder and the map-change recovery."""
+
+from typing import Literal
 
 from loguru import logger
 
 from factorio.doorbell import Doorbell
 from factorio.events.cache import Session
 from factorio.outcome_log import OutcomeLog
+
+
+def record_reset(
+    session: Session, doorbell: Doorbell, log: OutcomeLog, cause: Literal["rollback", "map_change"]
+) -> None:
+    """Flag the next doorbell, then record the reset with its cause and both cursors."""
+    doorbell.mark_reset()
+    log.session_reset(cause=cause, poll_cursor=session.poll_cursor, backend_cursor=session.backend_cursor)
+    logger.bind(
+        cause=cause,
+        map_id=session.map_id,
+        poll_cursor=session.poll_cursor,
+        backend_cursor=session.backend_cursor,
+    ).info("session_reset")
 
 
 class MapRecovery:
@@ -17,10 +33,4 @@ class MapRecovery:
 
     async def run(self, status: dict) -> None:
         self._session.on_map_change(status)
-        self._doorbell.mark_reset()
-        self._log.session_reset(
-            cause="map_change",
-            poll_cursor=self._session.poll_cursor,
-            backend_cursor=self._session.backend_cursor,
-        )
-        logger.bind(map_id=self._session.map_id, seq=self._session.poll_cursor).info("session_reset")
+        record_reset(self._session, self._doorbell, self._log, "map_change")

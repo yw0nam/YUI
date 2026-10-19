@@ -5,7 +5,7 @@ import asyncio
 import pytest
 from fastmcp import Client, FastMCP
 
-from factorio.events.cache import EventCache, Session
+from factorio.events.cache import Session
 from factorio.outcome_log import OutcomeLog
 from factorio.tools import read
 from factorio.tools.deps import ToolDeps
@@ -16,11 +16,12 @@ def event(seq: int) -> dict:
 
 
 def configured(tmp_path, count: int = 250):
-    cache = EventCache()
-    session = Session(cache)
+    session = Session()
+    session.map_id = "map-a"
     session.on_map_change({"map_id": "map-a", "seq": 0})
-    for seq in range(1, count + 1):
-        cache.add(event(seq))
+    session.on_page(
+        {"map_id": "map-a", "head_seq": count, "events": [event(seq) for seq in range(1, count + 1)]}
+    )
     mcp = FastMCP(name="test")
     read.register(mcp, ToolDeps(rpc=None, session=session, log=OutcomeLog(tmp_path / "outcome.jsonl")))
     return mcp, session

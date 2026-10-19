@@ -6,6 +6,7 @@ import json
 import pytest
 from fake_rcon import CLOSE, FakeRconServer
 
+from factorio.events.cache import Session
 from factorio.rcon.client import RconClient
 from factorio.rpc import RpcClient, RpcError, RpcProtocolError, RpcUnavailable
 
@@ -34,7 +35,8 @@ async def with_server(handler, body, **kwargs):
     try:
         rcon = RconClient("127.0.0.1", server.port, "secret", timeout=1.0)
         kwargs.setdefault("sleep", no_sleep)
-        return await body(RpcClient(rcon, **kwargs), server)
+        session = Session()
+        return await body(RpcClient(rcon, session, **kwargs), session)
     finally:
         await server.close()
 
@@ -51,7 +53,7 @@ def test_status_omits_map_id_and_the_next_call_carries_it():
             )
         return reply(request, r={"ok": True})
 
-    async def body(rpc, server):
+    async def body(rpc, session):
         status = await rpc.status()
         await rpc.call("say", {"text": "hi"})
         return status
@@ -75,7 +77,7 @@ def test_status_reads_an_absent_key_as_none(result, host):
     def handler(command, count):
         return reply(parse(command), r=result)
 
-    async def body(rpc, server):
+    async def body(rpc, session):
         return await rpc.status()
 
     assert asyncio.run(with_server(handler, body)).get("host") == host
@@ -97,8 +99,8 @@ def test_stale_session_runs_the_recovery_and_does_not_rerun_the_op():
     async def on_reset(status):
         recovered.append(status)
 
-    async def body(rpc, server):
-        rpc.map_id = "map-a"
+    async def body(rpc, session):
+        session.map_id = "map-a"
         with pytest.raises(RpcError) as raised:
             await rpc.call("say", {"text": "hi"})
         return raised.value.code
@@ -119,7 +121,7 @@ def test_id_conflict_resends_with_a_new_id():
             return reply(request, ok=False, e="id_conflict")
         return reply(request, r={"said": True})
 
-    async def body(rpc, server):
+    async def body(rpc, session):
         return await rpc.call("say", {"text": "hi"})
 
     assert asyncio.run(with_server(handler, body)) == {"said": True}
@@ -139,8 +141,8 @@ def test_an_unknown_outcome_reconciles_and_resends_the_identical_id():
             return CLOSE
         return reply(request, r={"said": True})
 
-    async def body(rpc, server):
-        rpc.map_id = "map-a"
+    async def body(rpc, session):
+        session.map_id = "map-a"
         return await rpc.call("say", {"text": "hi"})
 
     assert asyncio.run(with_server(handler, body)) == {"said": True}
@@ -161,8 +163,8 @@ def test_an_unknown_outcome_after_a_map_change_recovers_and_raises():
     async def on_reset(status):
         recovered.append(status)
 
-    async def body(rpc, server):
-        rpc.map_id = "map-a"
+    async def body(rpc, session):
+        session.map_id = "map-a"
         with pytest.raises(RpcUnavailable) as raised:
             await rpc.call("say", {"text": "hi"})
         return raised.value.code
@@ -183,8 +185,8 @@ def test_an_unknown_outcome_stops_after_the_budget():
             return reply(request, r={"map_id": "map-a", "seq": 0})
         return CLOSE
 
-    async def body(rpc, server):
-        rpc.map_id = "map-a"
+    async def body(rpc, session):
+        session.map_id = "map-a"
         with pytest.raises(RpcUnavailable) as raised:
             await rpc.call("say", {"text": "hi"})
         return raised.value.code
@@ -198,7 +200,7 @@ def test_an_error_reply_raises_the_error_code_and_message():
     def handler(command, count):
         return reply(parse(command), ok=False, e="too_large", m="reply over 64 KiB")
 
-    async def body(rpc, server):
+    async def body(rpc, session):
         await rpc.call("snapshot", {})
 
     with pytest.raises(RpcError) as raised:
@@ -215,7 +217,7 @@ def test_an_error_reply_raises_the_error_code_and_message():
     ],
 )
 def test_a_reply_that_is_not_one_json_object_raises_a_protocol_error(raw):
-    async def body(rpc, server):
+    async def body(rpc, session):
         await rpc.call("status", {})
 
     with pytest.raises(RpcProtocolError, match="not one JSON object"):

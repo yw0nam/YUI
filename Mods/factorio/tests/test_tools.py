@@ -6,7 +6,7 @@ import pytest
 from fastmcp import Client, FastMCP
 from fastmcp.exceptions import ToolError
 
-from factorio.events.cache import EventCache, Session
+from factorio.events.cache import Session
 from factorio.outcome_log import OutcomeLog
 from factorio.rpc import RpcError
 from factorio.tools import read, talk
@@ -28,7 +28,7 @@ class FakeRpc:
 
 def configured(tmp_path, rpc):
     mcp = FastMCP(name="test")
-    deps = ToolDeps(rpc=rpc, session=Session(EventCache()), log=OutcomeLog(tmp_path / "outcome.jsonl"))
+    deps = ToolDeps(rpc=rpc, session=Session(), log=OutcomeLog(tmp_path / "outcome.jsonl"))
     read.register(mcp, deps)
     talk.register(mcp, deps)
     return mcp
@@ -116,7 +116,7 @@ def server_with_fakes(tmp_path):
 
     return server.build_mcp(
         rpc=FakeRpc(),
-        session=Session(EventCache()),
+        session=Session(),
         log=OutcomeLog(tmp_path / "o.jsonl"),
         poller=FakeBackground(),
         doorbell=FakeBackground(),
@@ -129,7 +129,7 @@ def test_the_server_runs_the_poller_and_doorbell_for_the_connection_lifetime(tmp
     poller, doorbell = FakeBackground(), FakeBackground()
     mcp = server.build_mcp(
         rpc=FakeRpc(),
-        session=Session(EventCache()),
+        session=Session(),
         log=OutcomeLog(tmp_path / "o.jsonl"),
         poller=poller,
         doorbell=doorbell,
