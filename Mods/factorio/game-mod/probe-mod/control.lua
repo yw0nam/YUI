@@ -12,7 +12,6 @@ local probes = {
   baseline = require("scripts.probes.baseline"),
   revive = require("scripts.probes.revive"),
   spill = require("scripts.probes.spill"),
-  achievements = require("scripts.probes.achievements"),
 }
 
 local function probe_names()
