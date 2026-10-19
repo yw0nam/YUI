@@ -1,7 +1,6 @@
 import json
 import os
 import shutil
-import socket
 import subprocess
 import time
 from pathlib import Path
@@ -21,14 +20,6 @@ SUMMARY_EVENT = {
 }
 
 
-def free_udp_port():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(("127.0.0.1", 0))
-    port = sock.getsockname()[1]
-    sock.close()
-    return port
-
-
 class Headless:
     """The headless server under test: launch, restart from a save, stop."""
 
@@ -38,52 +29,26 @@ class Headless:
         self.info = {}
         self.rcon = None
 
-    def launch_fresh(self):
-        if self.workdir.exists():
-            shutil.rmtree(self.workdir)
+    def launch(self, *args):
         proc = subprocess.run(
-            ["bash", str(HEADLESS), "--bin", self.bin_path, str(self.workdir)],
+            ["bash", str(HEADLESS), "--bin", self.bin_path, *args, str(self.workdir)],
             capture_output=True,
             text=True,
             timeout=300,
             check=True,
         )
-        self.info = {}
-        for line in proc.stdout.splitlines():
-            key, _, value = line.partition("=")
-            self.info[key] = value
+        self.info = dict(line.split("=", 1) for line in proc.stdout.splitlines() if "=" in line)
         self.connect()
+
+    def launch_fresh(self):
+        if self.workdir.exists():
+            shutil.rmtree(self.workdir)
+        self.launch()
         # the first Lua command on a map only disables achievements and runs nothing
         self.command("/silent-command")
 
     def start_saved(self, save_path):
-        tcp_port, udp_port = free_udp_port(), free_udp_port()
-        self.info["port"] = str(tcp_port)
-        self.proc = subprocess.Popen(
-            [
-                self.bin_path,
-                "--config",
-                str(self.workdir / "config.ini"),
-                "--start-server",
-                str(save_path),
-                "--server-settings",
-                str(self.workdir / "server-settings.json"),
-                "--mod-directory",
-                str(self.workdir / "mods"),
-                "--bind",
-                f"127.0.0.1:{udp_port}",
-                "--rcon-bind",
-                f"127.0.0.1:{tcp_port}",
-                "--rcon-password",
-                "pw-reload",
-            ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            stdin=subprocess.DEVNULL,
-        )
-        self.info["pid"] = str(self.proc.pid)
-        self.info["password"] = "pw-reload"
-        self.connect()
+        self.launch("--save", str(save_path))
 
     def connect(self):
         self.rcon = wait_for_rcon("127.0.0.1", int(self.info["port"]), self.info["password"])

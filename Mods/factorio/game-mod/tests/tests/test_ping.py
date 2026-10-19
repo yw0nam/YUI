@@ -13,7 +13,7 @@ DEPS = {
   from_json = JSON.decode,
   to_json = JSON.encode,
   print = function(text) PRINTED[#PRINTED + 1] = text end,
-  ops = { ping = require("scripts.ops.ping").op },
+  ops = { ping = { fn = require("scripts.ops.ping").op, write = true } },
 }
 """
 

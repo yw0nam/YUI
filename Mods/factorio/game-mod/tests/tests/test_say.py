@@ -19,8 +19,8 @@ DEPS = {
   from_json = JSON.decode,
   to_json = JSON.encode,
   print = function(text) PRINTED[#PRINTED + 1] = text end,
-  say = function(line) SAID[#SAID + 1] = line end,
-  ops = { say = require("scripts.ops.say").op },
+  chat = function(line) SAID[#SAID + 1] = line end,
+  ops = { say = { fn = require("scripts.ops.say").op, write = true } },
 }
 """
 

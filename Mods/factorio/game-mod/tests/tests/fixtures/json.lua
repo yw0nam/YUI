@@ -1,6 +1,4 @@
--- Minimal JSON encoder/decoder standing in for helpers.table_to_json/json_to_table in lupa
--- tests. Handles plain tables (objects and arrays), strings, numbers, booleans. Decoded
--- null becomes nil.
+-- A plain-table JSON codec standing in for helpers.table_to_json/json_to_table under lupa.
 local M = {}
 
 local function escape_char(c)

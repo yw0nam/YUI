@@ -2,18 +2,16 @@
 
 local MAX_REPLY_BYTES = 65536
 local MEMORY_SIZE = 256
--- Write ops replay their stored reply on retry; read ops re-run.
-local WRITE_OPS = { say = true, ping = true }
-
+-- write ops replay their stored reply on retry; read ops re-run
 local OPS = {
-  status = require("scripts.ops.status").op,
-  snapshot = require("scripts.ops.snapshot").op,
-  find = require("scripts.ops.find").op,
-  inspect = require("scripts.ops.inspect").op,
-  recipe = require("scripts.ops.recipe").op,
-  say = require("scripts.ops.say").op,
-  ping = require("scripts.ops.ping").op,
-  events_since = require("scripts.ops.events_since").op,
+  status = { fn = require("scripts.ops.status").op },
+  snapshot = { fn = require("scripts.ops.snapshot").op },
+  find = { fn = require("scripts.ops.find").op },
+  inspect = { fn = require("scripts.ops.inspect").op },
+  recipe = { fn = require("scripts.ops.recipe").op },
+  events_since = { fn = require("scripts.ops.events_since").op },
+  say = { fn = require("scripts.ops.say").op, write = true },
+  ping = { fn = require("scripts.ops.ping").op, write = true },
 }
 
 local M = {}
@@ -24,7 +22,7 @@ local function runtime_deps()
     from_json = helpers.json_to_table,
     to_json = helpers.table_to_json,
     print = rcon.print,
-    say = function(line)
+    chat = function(line)
       game.print(line)
     end,
     storage = storage,
@@ -79,7 +77,7 @@ local function finish(deps, id, payload)
   return json
 end
 
---- deps: {from_json, to_json, print, say, storage, tick, body_name, ops}
+--- deps: {from_json, to_json, print, chat, storage, tick, body_name, ops = {name = {fn, write?}}}
 function M.dispatch(parameter, player_index, deps)
   local id = nil
   local parsed_ok, req = pcall(deps.from_json, parameter or "")
@@ -108,7 +106,7 @@ function M.dispatch(parameter, player_index, deps)
   local args = type(req.args) == "table" and req.args or {}
 
   local memory, hash = nil, nil
-  if WRITE_OPS[op_name] then
+  if op.write then
     memory = deps.storage.rpc_memory[deps.storage.map_id] or {}
     deps.storage.rpc_memory[deps.storage.map_id] = memory
     hash = payload_hash(op_name, deps.to_json(args))
@@ -124,7 +122,7 @@ function M.dispatch(parameter, player_index, deps)
     end
   end
 
-  local ran_ok, result = pcall(op, deps, args)
+  local ran_ok, result = pcall(op.fn, deps, args)
   local payload
   if not ran_ok then
     payload = { ok = false, e = "op_error", m = first_line(result) }

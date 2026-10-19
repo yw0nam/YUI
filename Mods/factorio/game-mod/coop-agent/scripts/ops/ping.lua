@@ -1,5 +1,6 @@
 -- The ping op: a chart tag swept away ten minutes later, plus a [gps] chat line.
 
+local area = require("scripts.area")
 local gps = require("scripts.gps")
 local surface_of = require("scripts.surface")
 local utf8 = require("scripts.utf8")
@@ -22,17 +23,14 @@ function M.op(deps, args)
 
   local surface = surface_of.get()
   local force = game.forces.player
-  force.chart(surface, {
-    left_top = { x = pos.x - 32, y = pos.y - 32 },
-    right_bottom = { x = pos.x + 32, y = pos.y + 32 },
-  })
+  force.chart(surface, area.around(pos))
   local tag = force.add_chart_tag(surface, { position = { x = pos.x, y = pos.y }, text = text })
   if not tag then
     error("ping: the position does not accept a chart tag")
   end
   deps.storage.pings[tag.tag_number] = { tag = tag, expire_tick = deps.tick + PING_TTL_TICKS }
 
-  game.print(gps.tag(pos.x, pos.y) .. " " .. text)
+  deps.chat(gps.tag(pos.x, pos.y) .. " " .. text)
   return { tag_id = tag.tag_number }
 end
 

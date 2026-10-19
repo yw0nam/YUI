@@ -8,7 +8,7 @@ local MAX_CHARS = 200
 
 local M = {}
 
---- deps.say prints one chat line; deps.body_name prefixes it.
+--- deps.chat prints one chat line; deps.body_name prefixes it.
 function M.op(deps, args)
   local text = args.text
   local chars = type(text) == "string" and utf8.len(text) or nil
@@ -29,7 +29,7 @@ function M.op(deps, args)
   recent[#recent + 1] = now
   deps.storage.say_ticks = recent
 
-  deps.say(deps.body_name .. ": " .. text)
+  deps.chat(deps.body_name .. ": " .. text)
   return {}
 end
 

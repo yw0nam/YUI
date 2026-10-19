@@ -1,18 +1,16 @@
 -- The revive probe: revive{raise_revive=true} on a wooden-chest ghost while the body holds a chest.
 
-local spawn = require("scripts.probes.spawn")
+local probe_body = require("scripts.body")
 
 local M = {}
 
 function M.start(storage)
-  local body = spawn.make_body(storage)
+  local body = probe_body.make(storage)
   local inventory = body.get_inventory(defines.inventory.character_main)
   inventory.insert { name = "wooden-chest", count = 1 }
   local before = inventory.get_item_count("wooden-chest")
 
-  local pos = body.position
-  local place = body.surface.find_non_colliding_position("wooden-chest", { x = pos.x + 2, y = pos.y }, 8, 1)
-    or { x = pos.x + 2, y = pos.y }
+  local place = probe_body.spot(body, "wooden-chest", 2)
   local ghost = body.surface.create_entity {
     name = "entity-ghost",
     inner_name = "wooden-chest",
@@ -47,7 +45,7 @@ end
 
 function M.result(storage)
   local state = storage.probe.revive
-  state.result = state.result or {
+  return {
     probe = "revive",
     state = state.state,
     inventory_before = state.inventory_before,
@@ -57,7 +55,6 @@ function M.result(storage)
     revive_returned_collisions = state.revive_returned_collisions,
     error = state.error,
   }
-  return state.result
 end
 
 return M

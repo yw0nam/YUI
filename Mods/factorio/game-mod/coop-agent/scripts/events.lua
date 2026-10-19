@@ -37,7 +37,6 @@ function M.on_rocket_launched(_e)
   store.push("rocket_launched", {})
 end
 
---- Every 3600 ticks: the snapshot op's compact summary as an event.
 function M.summary_tick()
   store.push("snapshot_summary", snapshot.summary())
 end

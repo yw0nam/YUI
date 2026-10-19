@@ -1,6 +1,6 @@
 -- The baseline probe: hand-mining ticks per item for four ores, a tree and a rock, one target at a time.
 
-local spawn = require("scripts.probes.spawn")
+local probe_body = require("scripts.body")
 
 local MAX_TICKS_PER_TARGET = 1800
 
@@ -17,9 +17,7 @@ local M = {}
 
 local function place_target(storage, target)
   local body = storage.probe.body
-  local pos = body.position
-  local place = body.surface.find_non_colliding_position(target.resource, { x = pos.x + 2, y = pos.y }, 8, 1)
-    or { x = pos.x + 2, y = pos.y }
+  local place = probe_body.spot(body, target.resource, 2)
   if target.amount then
     return body.surface.create_entity { name = target.resource, position = place, amount = target.amount }
   end
@@ -43,7 +41,7 @@ local function begin_target(storage, state)
     item = target.item,
     position = { x = pos.x, y = pos.y },
     start_tick = game.tick,
-    count_at_start = spawn.inventory_count(body, target.item),
+    count_at_start = probe_body.inventory_count(body, target.item),
   }
 end
 
@@ -63,13 +61,13 @@ local function finish_target(storage, state, record)
 end
 
 function M.start(storage)
-  spawn.make_body(storage)
+  probe_body.make(storage)
   return { state = "running", index = 1, results = {}, target = nil }
 end
 
 function M.tick(storage)
   local state = storage.probe.baseline
-  local body = spawn.body(state)
+  local body = probe_body.get(state)
   if not body then
     return
   end
@@ -82,7 +80,7 @@ function M.tick(storage)
     return
   end
 
-  local count = spawn.inventory_count(body, state.target.item)
+  local count = probe_body.inventory_count(body, state.target.item)
   if count > state.target.count_at_start then
     finish_target(storage, state, { ticks = game.tick - state.target.start_tick })
   elseif game.tick - state.target.start_tick >= MAX_TICKS_PER_TARGET then

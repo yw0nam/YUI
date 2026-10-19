@@ -1,22 +1,24 @@
 #!/usr/bin/env bash
-# Creates a fresh save inside <workdir>, starts a headless server with RCON on 127.0.0.1, and prints key=value lines.
+# Starts a headless server with RCON on 127.0.0.1 from a fresh save in <workdir> or from --save, and prints key=value lines.
 set -euo pipefail
 
 BIN="${FACTORIO_BIN:-}"
 PROBE=0
 PORT=""
+SAVE=""
 WORKDIR=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --bin) BIN="$2"; shift 2 ;;
     --probe) PROBE=1; shift ;;
     --port) PORT="$2"; shift 2 ;;
+    --save) SAVE="$2"; shift 2 ;;
     -*) echo "unknown option: $1" >&2; exit 2 ;;
     *) WORKDIR="$1"; shift ;;
   esac
 done
 [[ -n "$BIN" ]] || { echo "no Factorio binary: pass --bin or set FACTORIO_BIN" >&2; exit 2; }
-[[ -n "$WORKDIR" ]] || { echo "usage: headless.sh [--bin PATH] [--probe] [--port PORT] <workdir>" >&2; exit 2; }
+[[ -n "$WORKDIR" ]] || { echo "usage: headless.sh [--bin PATH] [--probe] [--port PORT] [--save PATH] <workdir>" >&2; exit 2; }
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mkdir -p "$WORKDIR/saves" "$WORKDIR/mods" "$WORKDIR/logs"
@@ -45,12 +47,14 @@ with open(path, "w") as handle:
 PY
 fi
 
-SAVE="$WORKDIR/saves/probe.zip"
 PORT="${PORT:-$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1]); s.close()')}"
 PASSWORD="pw$RANDOM$RANDOM"
 
-"$BIN" --config "$CONFIG" --create "$SAVE" --mod-directory "$WORKDIR/mods" \
-  --map-gen-seed 42 >"$WORKDIR/logs/create.log" 2>&1
+if [[ -z "$SAVE" ]]; then
+  SAVE="$WORKDIR/saves/probe.zip"
+  "$BIN" --config "$CONFIG" --create "$SAVE" --mod-directory "$WORKDIR/mods" \
+    --map-gen-seed 42 >"$WORKDIR/logs/create.log" 2>&1
+fi
 
 GAME_PORT="$(python3 -c 'import socket; s=socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.bind(("127.0.0.1",0)); print(s.getsockname()[1]); s.close()')"
 "$BIN" --config "$CONFIG" --start-server "$SAVE" --server-settings "$SETTINGS" --mod-directory "$WORKDIR/mods" \

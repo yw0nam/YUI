@@ -1,5 +1,6 @@
 -- The find op: entities in a bounded area (or around the host player), indexed for inspect.
 
+local area = require("scripts.area")
 local gps = require("scripts.gps")
 local surface_of = require("scripts.surface")
 local unit_index = require("scripts.unit_index")
@@ -30,11 +31,7 @@ local function area_of(args)
     if not host then
       error('find: around="player" but there is no player')
     end
-    local pos = host.position
-    return {
-      left_top = { x = pos.x - 32, y = pos.y - 32 },
-      right_bottom = { x = pos.x + 32, y = pos.y + 32 },
-    }
+    return area.around(host.position)
   end
   error('find: give area or around="player"')
 end

@@ -1,14 +1,12 @@
 -- The spill probe: coal spilled with enable_looted=true, reporting each item entity's count and to_be_looted.
 
-local spawn = require("scripts.probes.spawn")
+local probe_body = require("scripts.body")
 
 local M = {}
 
 function M.start(storage)
-  local body = spawn.make_body(storage)
-  local pos = body.position
-  local place = body.surface.find_non_colliding_position("item-on-ground", { x = pos.x - 2, y = pos.y }, 8, 1)
-    or { x = pos.x - 2, y = pos.y }
+  local body = probe_body.make(storage)
+  local place = probe_body.spot(body, "item-on-ground", -2)
   local spilled = body.surface.spill_item_stack {
     position = place,
     stack = { name = "coal", count = 20 },
@@ -30,9 +28,7 @@ end
 
 function M.result(storage)
   local state = storage.probe.spill
-  state.result = state.result
-    or { probe = "spill", state = state.state, entities = state.entities, error = state.error }
-  return state.result
+  return { probe = "spill", state = state.state, entities = state.entities, error = state.error }
 end
 
 return M

@@ -5,36 +5,37 @@ from conftest import load_module
 
 MAP_ID = "42-1234"
 
-# OPS.say and OPS.ping are the write ops (rpc memoizes them); the rest re-run.
+# say and ping are the write ops (rpc memoizes them); the rest re-run
 STUB_OPS = """
-OPS = {}
-OPS.calls = 0
-OPS.echo = function(_deps, args)
-  OPS.calls = OPS.calls + 1
-  return { said = args.text }
-end
-OPS.status = function(_deps, _args)
-  OPS.calls = OPS.calls + 1
-  return { ok_status = true }
-end
-OPS.say = function(_deps, args)
-  OPS.calls = OPS.calls + 1
-  if args.refuse then
-    return { ok = false, e = "rate_limited", m = "slow down" }
-  end
-  return { said = args.text }
-end
-OPS.ping = function(_deps, _args)
-  OPS.calls = OPS.calls + 1
-  error("the machine broke\\nwith a traceback", 0)
-end
-OPS.boom = function(_deps, _args)
-  OPS.calls = OPS.calls + 1
-  error("the machine broke\\nwith a traceback", 0)
-end
-OPS.big = function(_deps, args)
-  return string.rep("a", args.size)
-end
+CALLS = 0
+OPS = {
+  echo = { fn = function(_deps, args)
+    CALLS = CALLS + 1
+    return { said = args.text }
+  end },
+  status = { fn = function(_deps, _args)
+    CALLS = CALLS + 1
+    return { ok_status = true }
+  end },
+  say = { write = true, fn = function(_deps, args)
+    CALLS = CALLS + 1
+    if args.refuse then
+      return { ok = false, e = "rate_limited", m = "slow down" }
+    end
+    return { said = args.text }
+  end },
+  ping = { write = true, fn = function(_deps, _args)
+    CALLS = CALLS + 1
+    error("the machine broke\\nwith a traceback", 0)
+  end },
+  boom = { fn = function(_deps, _args)
+    CALLS = CALLS + 1
+    error("the machine broke\\nwith a traceback", 0)
+  end },
+  big = { fn = function(_deps, args)
+    return string.rep("a", args.size)
+  end },
+}
 """
 
 
@@ -79,7 +80,7 @@ def last_printed(lua):
 def test_not_console_refuses_player_calls_and_runs_nothing(lua, rpc):
     replies = dispatch(lua, rpc, req("echo", {"text": "hi"}, id_="a1"), player_index=1)
     assert replies == [{"v": 1, "id": "a1", "ok": False, "e": "not_console"}]
-    assert lua.globals().OPS.calls == 0
+    assert lua.globals().CALLS == 0
 
 
 def test_bad_request_on_unparsable_json(lua, rpc):
@@ -115,7 +116,7 @@ def test_read_ops_rerun_on_retry(lua, rpc):
     request = req("echo", {"text": "hi"}, id_="a1")
     dispatch(lua, rpc, request)
     dispatch(lua, rpc, request)
-    assert lua.globals().OPS.calls == 2
+    assert lua.globals().CALLS == 2
 
 
 def test_write_op_replays_the_stored_reply(lua, rpc):
@@ -126,7 +127,7 @@ def test_write_op_replays_the_stored_reply(lua, rpc):
     second = last_printed(lua)
 
     assert first == second == {"v": 1, "id": "a1", "ok": True, "r": {"said": "hi"}}
-    assert lua.globals().OPS.calls == 1
+    assert lua.globals().CALLS == 1
 
 
 def test_write_op_stores_refused_replies(lua, rpc):
@@ -137,7 +138,7 @@ def test_write_op_stores_refused_replies(lua, rpc):
     second = last_printed(lua)
 
     assert first == second == {"v": 1, "id": "a1", "ok": False, "e": "rate_limited", "m": "slow down"}
-    assert lua.globals().OPS.calls == 1
+    assert lua.globals().CALLS == 1
 
 
 def test_write_op_that_raises_replays_its_op_error(lua, rpc):
@@ -148,7 +149,7 @@ def test_write_op_that_raises_replays_its_op_error(lua, rpc):
         dispatch(lua, rpc, request)
         == [{"v": 1, "id": "p1", "ok": False, "e": "op_error", "m": "the machine broke"}] * 3
     )
-    assert lua.globals().OPS.calls == 1
+    assert lua.globals().CALLS == 1
 
 
 def test_same_id_with_different_args_is_id_conflict(lua, rpc):
@@ -163,7 +164,7 @@ def test_same_id_with_different_args_is_id_conflict(lua, rpc):
         "e": "id_conflict",
         "m": "id already used with different arguments",
     }
-    assert lua.globals().OPS.calls == 1
+    assert lua.globals().CALLS == 1
 
 
 def test_memory_keeps_the_last_256_replies(lua, rpc):
@@ -171,9 +172,9 @@ def test_memory_keeps_the_last_256_replies(lua, rpc):
         dispatch(lua, rpc, req("say", {"text": str(i)}, id_=f"id-{i}"))
 
     dispatch(lua, rpc, req("say", {"text": "1"}, id_="id-1"))
-    assert lua.globals().OPS.calls == 257  # id-1 is still stored and replays
+    assert lua.globals().CALLS == 257  # id-1 is still stored and replays
     dispatch(lua, rpc, req("say", {"text": "0"}, id_="id-0"))
-    assert lua.globals().OPS.calls == 258  # id-0 was the oldest and runs again
+    assert lua.globals().CALLS == 258  # id-0 was the oldest and runs again
 
 
 def test_memory_buckets_exist_only_for_this_map(lua, rpc):
@@ -192,8 +193,7 @@ def test_op_error_carries_first_line(lua, rpc):
 
 def test_reply_at_exactly_65536_bytes_is_ok_and_65537_is_too_large(lua, rpc):
     def big_reply(size):
-        # zero-padded ids: every probe gets a fresh id of constant length, so
-        # the envelope overhead measured once applies to every probe
+        # zero-padded ids keep the envelope overhead the same for every size
         dispatch(lua, rpc, req("big", {"size": size}, id_=f"big-{size:09d}"))
         printed = lua.globals().PRINTED
         text = printed[len(list(printed.values()))]
