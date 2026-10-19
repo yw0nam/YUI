@@ -20,6 +20,9 @@ class TestResolve:
     def test_avatar_is_registered(self):
         assert server.resolve("avatar/mcp") == ("http://127.0.0.1:9002", "mcp")
 
+    def test_factorio_is_registered(self):
+        assert server.resolve("factorio/mcp") == ("http://127.0.0.1:9003", "mcp")
+
     def test_unknown_mod_returns_none(self):
         assert server.resolve("nope/mcp") is None
 
