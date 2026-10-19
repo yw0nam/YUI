@@ -30,12 +30,18 @@ function fakeBus(): { bus: Pick<EventBus, "push">; pushed: BusEnvelope[] } {
 }
 
 function fakeListen(): { listen: OsEventListen; emit: (p: OsEventPayload) => void } {
-  let handler: ((e: { payload: OsEventPayload }) => void) | undefined;
+  // The channel broadcasts — every subscriber gets each payload (the source holds two cores).
+  const handlers = new Set<(e: { payload: OsEventPayload }) => void>();
   const listen: OsEventListen = vi.fn(async (_event, h) => {
-    handler = h;
+    handlers.add(h);
     return vi.fn();
   });
-  return { listen, emit: (payload) => handler?.({ payload }) };
+  return {
+    listen,
+    emit: (payload) => {
+      for (const h of handlers) h({ payload });
+    },
+  };
 }
 
 type OnInboxFn = (cb: (p: SignalsBatch) => void, deps?: { listen?: OsEventListen }) => () => void;
@@ -325,16 +331,19 @@ function fakePipelineBusy(initialBusy: boolean): {
   setBusy: (busy: boolean) => void;
 } {
   let current = initialBusy;
-  let cb: ((busy: boolean) => void) | undefined;
+  // The edge broadcasts — both cores subscribe (paced and raw).
+  const subscribers = new Set<(busy: boolean) => void>();
   return {
     isPipelineBusy: () => current,
     subscribePipelineBusy: vi.fn((c: (busy: boolean) => void) => {
-      cb = c;
-      return vi.fn();
+      subscribers.add(c);
+      return () => {
+        subscribers.delete(c);
+      };
     }),
     setBusy: (busy: boolean) => {
       current = busy;
-      cb?.(busy);
+      for (const cb of subscribers) cb(busy);
     },
   };
 }
@@ -480,7 +489,7 @@ describe("signals_source — global pacer composed into the busy predicate (#689
     return { pushed, emitIdle, emitInbox, pacer, src };
   }
 
-  it("buffers a live arrival while the pacer holds, though the pipeline itself is idle", async () => {
+  it("buffers an arrival while the pacer holds, though the pipeline itself is idle", async () => {
     const s = startPaced();
     await s.src.start();
 
@@ -519,6 +528,123 @@ describe("signals_source — global pacer composed into the busy predicate (#689
     s.pacer.setHolding(false);
 
     expect(s.pushed).toHaveLength(0);
+    s.src.stop();
+  });
+});
+
+describe("signals_source — live delivery class", () => {
+  const LIVE_ENVELOPE = { ...ENVELOPE, delivery: "live" as const, event_id: "run-live-1" };
+
+  /** Wires one source the way wire-sources.ts does: paced busy for the non-live core, raw for live. */
+  function setupLiveDelivery(pacerHolding: boolean) {
+    const { bus, pushed } = fakeBus();
+    const { listen, emit: emitIdle } = fakeListen();
+    const { onInbox, emit: emitInbox } = fakeInbox();
+    const pipelineBusy = fakePipelineBusy(false);
+    const pacer = fakePacer(pacerHolding);
+    const paced = composePacedPipelineBusy({
+      pipelineBusy: {
+        isBusy: pipelineBusy.isPipelineBusy,
+        subscribe: pipelineBusy.subscribePipelineBusy,
+      },
+      pacer,
+    });
+    const src = createSignalsSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => true,
+      onInbox,
+      listen,
+      isPipelineBusy: paced.isBusy,
+      subscribePipelineBusy: paced.subscribe,
+      isLivePipelineBusy: pipelineBusy.isPipelineBusy,
+      subscribeLivePipelineBusy: pipelineBusy.subscribePipelineBusy,
+    });
+    return { src, pushed, emitIdle, emitInbox, pipelineBusy };
+  }
+
+  const liveArrival = [{ envelope: LIVE_ENVELOPE, items: [{ id: 1 }] }];
+
+  it.each([
+    {
+      delivery: "live",
+      title:
+        "a live-delivery envelope validates and fires at once as signals.live under live_signal_source",
+      fired: [{ source: "live_signal_source", event_name: "signals.live", signals: liveArrival }],
+    },
+    {
+      delivery: "immediate",
+      title:
+        "an immediate-delivery group in the same state stays buffered — the pacer still holds the non-live core",
+      fired: [],
+    },
+  ])("$title", async ({ delivery, fired }) => {
+    const s = setupLiveDelivery(true);
+    await s.src.start();
+
+    s.emitIdle(idleTick(LOW_IDLE)); // present, pipeline idle, pacer holding
+    s.emitInbox(batch([{ id: 1 }], 1000, { ...LIVE_ENVELOPE, delivery } as never));
+
+    expect(
+      s.pushed.map((e) => ({
+        source: e.source,
+        event_name: e.event_name,
+        signals: (e.payload as { signals: unknown[] }).signals,
+      })),
+    ).toEqual(fired);
+
+    s.src.stop();
+  });
+
+  it("three live-delivery groups during a busy pipeline fire as one signals.live_catchup on the busy→idle edge, while the buffered immediate group fires its own signals.catchup", async () => {
+    const s = setupLiveDelivery(false);
+    await s.src.start();
+
+    s.emitIdle(idleTick(LOW_IDLE)); // present
+    s.pipelineBusy.setBusy(true); // raw busy — both instances buffer
+    for (const id of [1, 2, 3]) {
+      s.emitInbox(batch([{ id }], id, { ...LIVE_ENVELOPE, event_id: `run-live-${id}` }));
+    }
+    s.emitInbox(batch([{ id: 9 }], 9)); // immediate — buffered by the paced busy state
+    expect(s.pushed).toHaveLength(0);
+
+    s.pipelineBusy.setBusy(false); // raw busy→idle edge reaches both instances
+
+    expect(s.pushed.map((e) => e.event_name).sort()).toEqual([
+      "signals.catchup",
+      "signals.live_catchup",
+    ]);
+    const liveCatchup = s.pushed.find((e) => e.event_name === "signals.live_catchup")!;
+    expect(liveCatchup.source).toBe("live_signal_source");
+    expect(
+      (liveCatchup.payload as { signals: Array<{ items: Array<{ id: number }> }> }).signals.map(
+        (g) => g.items[0].id,
+      ),
+    ).toEqual([1, 2, 3]);
+    const catchup = s.pushed.find((e) => e.event_name === "signals.catchup")!;
+    expect(catchup.source).toBe("timer_scheduler");
+    expect(catchup.payload).toEqual({
+      signals: [{ envelope: ENVELOPE, items: [{ id: 9 }] }],
+    });
+
+    s.src.stop();
+  });
+
+  it("drain returns non-live groups only and leaves a live-delivery group to its own catch-up", async () => {
+    const s = setupLiveDelivery(false);
+    await s.src.start();
+
+    s.emitIdle(idleTick(HIGH_IDLE)); // away
+    s.emitInbox(batch([{ id: 1 }], 1000, LIVE_ENVELOPE));
+    s.emitInbox(batch([{ id: 2 }], 2000));
+
+    expect(s.src.drain()).toEqual([{ envelope: ENVELOPE, items: [{ id: 2 }] }]);
+
+    // the live-delivery group survives the drain and fires on its own return-to-present edge
+    s.emitIdle(idleTick(LOW_IDLE));
+    expect(s.pushed.map((e) => e.event_name)).toEqual(["signals.live_catchup"]);
+    expect(s.pushed[0].source).toBe("live_signal_source");
+
     s.src.stop();
   });
 });

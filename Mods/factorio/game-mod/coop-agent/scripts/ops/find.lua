@@ -1,0 +1,83 @@
+-- The find op: entities in a bounded area (or around the host player), indexed for inspect.
+
+local area = require("scripts.area")
+local gps = require("scripts.gps")
+local host = require("scripts.host")
+local surface_of = require("scripts.surface")
+local unit_index = require("scripts.unit_index")
+
+local MAX_AREA_TILES = 64
+local DEFAULT_LIMIT = 100
+local MAX_LIMIT = 200
+
+local M = {}
+
+local function area_of(args)
+  if type(args.area) == "table" then
+    local left_top, right_bottom = args.area.left_top, args.area.right_bottom
+    if type(left_top) ~= "table" or type(right_bottom) ~= "table" then
+      error("find: area needs left_top and right_bottom positions", 0)
+    end
+    if type(left_top.x) ~= "number" or type(left_top.y) ~= "number"
+      or type(right_bottom.x) ~= "number" or type(right_bottom.y) ~= "number" then
+      error("find: area corners need numeric x and y", 0)
+    end
+    if right_bottom.x - left_top.x > MAX_AREA_TILES or right_bottom.y - left_top.y > MAX_AREA_TILES then
+      error("find: area is larger than 64x64 tiles", 0)
+    end
+    return { left_top = { x = left_top.x, y = left_top.y }, right_bottom = { x = right_bottom.x, y = right_bottom.y } }
+  end
+  if args.around == "player" then
+    local player = host.get()
+    if not player then
+      error('find: around="player" but no host is connected', 0)
+    end
+    return area.around(player.position)
+  end
+  error('find: give area or around="player"', 0)
+end
+
+function M.op(_deps, args)
+  local area = area_of(args)
+  local limit = math.min(type(args.limit) == "number" and args.limit or DEFAULT_LIMIT, MAX_LIMIT)
+  if limit < 1 then
+    limit = 1
+  end
+
+  local filter = { area = area }
+  if args.name ~= nil then
+    filter.name = args.name
+  end
+  if args.type ~= nil then
+    filter.type = args.type
+  end
+  local entities = surface_of.get().find_entities_filtered(filter)
+  table.sort(entities, function(a, b)
+    if a.name ~= b.name then
+      return a.name < b.name
+    end
+    return (a.unit_number or 0) < (b.unit_number or 0)
+  end)
+
+  local out = {}
+  for _, entity in ipairs(entities) do
+    if #out >= limit then
+      break
+    end
+    local pos = entity.position
+    out[#out + 1] = {
+      unit_number = entity.unit_number,
+      name = entity.name,
+      type = entity.type,
+      position = { x = pos.x, y = pos.y },
+      gps = gps.tag(pos.x, pos.y),
+      owner = entity.force.name == "player" and "player" or "unknown",
+    }
+    if entity.unit_number then
+      unit_index.add(entity)
+    end
+  end
+  return out
+end
+
+return M

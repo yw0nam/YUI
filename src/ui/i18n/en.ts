@@ -516,6 +516,8 @@ const en: Record<string, string> = {
   "reactions.rate_tier2_sub": "Idle, proactive, schedule, and agent cues together",
   "reactions.rate_overall_label": "Total self-started turns per hour",
   "reactions.rate_overall_sub": "Crossing it holds every cue for a cooldown",
+  "reactions.rate_live_label": "Live activity turns per hour",
+  "reactions.rate_live_sub": "Signals from an activity you started; the cooldown never holds them",
   "reactions.rate_hint_text":
     "Ceiling on how many times YUI may speak up on her own in an hour. Turns you start are never counted.",
 

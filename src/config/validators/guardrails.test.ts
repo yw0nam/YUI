@@ -14,6 +14,7 @@ function baseRaw(overrides: Record<string, unknown> = {}): Record<string, unknow
     rate_limit: {
       window_ms: 3600000,
       tier2_max: 12,
+      live_max: 120,
       overall_max: 26,
       cooldown_ms: 300000,
     },
@@ -53,7 +54,7 @@ describe("validateGuardrails — happy path", () => {
         user_input_source: 0,
         screen_watcher: 0,
       },
-      rate_limit: { window_ms: 0, tier2_max: 0, overall_max: 0, cooldown_ms: 0 },
+      rate_limit: { window_ms: 0, tier2_max: 0, live_max: 0, overall_max: 0, cooldown_ms: 0 },
     });
     const out = validateGuardrails(FILE, raw);
     expect(out).toEqual(raw);
@@ -68,6 +69,7 @@ describe("validateGuardrails — a file that still holds tier3_max", () => {
         window_ms: 3600000,
         tier2_max: 12,
         tier3_max: 2,
+        live_max: 120,
         overall_max: 26,
         cooldown_ms: 300000,
       },
@@ -129,12 +131,32 @@ describe("validateGuardrails — rate_limit", () => {
         rate_limit: {
           window_ms: 3600000,
           tier2_max: -1,
+          live_max: 120,
           overall_max: 26,
           cooldown_ms: 300000,
         },
       }),
       "rate_limit.tier2_max must be a finite number >= 0",
     );
+  });
+
+  it.each([
+    [
+      "missing",
+      (raw: Record<string, unknown>) => {
+        delete (raw.rate_limit as Record<string, unknown>).live_max;
+        return raw;
+      },
+    ],
+    [
+      "negative",
+      (raw: Record<string, unknown>) => {
+        (raw.rate_limit as Record<string, unknown>).live_max = -1;
+        return raw;
+      },
+    ],
+  ])("rejects a %s live_max", (_name, mutate) => {
+    expectIssue(mutate(baseRaw()), "rate_limit.live_max must be a finite number >= 0");
   });
 
   it("accumulates one issue per malformed block at once", () => {

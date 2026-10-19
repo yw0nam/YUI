@@ -328,4 +328,23 @@ describe("wireDispatcherSources", () => {
     pacer.setHolding(true);
     expect(edges).toEqual([true, false]);
   });
+
+  it("hands the signals source the raw busy predicate for its live instance beside the paced one", () => {
+    const pacer = fakePacer(false);
+    wireWithPacer(pacer);
+
+    const source = created.signals as {
+      isPipelineBusy: () => boolean;
+      isLivePipelineBusy: () => boolean;
+      subscribeLivePipelineBusy: (cb: (busy: boolean) => void) => () => void;
+    };
+    const edges: boolean[] = [];
+    source.subscribeLivePipelineBusy((busy) => edges.push(busy));
+
+    pacer.setHolding(true);
+    // The paced predicate reads the hold as busy; the raw one the live instance takes does not.
+    expect(source.isPipelineBusy()).toBe(true);
+    expect(source.isLivePipelineBusy()).toBe(false);
+    expect(edges).toEqual([]);
+  });
 });

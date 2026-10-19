@@ -407,10 +407,10 @@ describe("wireWindowSync", () => {
 
 describe("wireGuardrailsOverrides", () => {
   const inMemoryStorage = () => {
-    let value: { tier2_max: number; overall_max: number } | null = null;
+    let value: { tier2_max: number; live_max: number; overall_max: number } | null = null;
     return {
       load: () => (value ? { ...value } : null),
-      save: (s: { tier2_max: number; overall_max: number }) => {
+      save: (s: { tier2_max: number; live_max: number; overall_max: number }) => {
         value = { ...s };
       },
     };
@@ -426,6 +426,7 @@ describe("wireGuardrailsOverrides", () => {
       rate_limit: {
         window_ms: 3_600_000,
         tier2_max: 2,
+        live_max: 120,
         overall_max: 100,
         cooldown_ms: 300_000,
       },

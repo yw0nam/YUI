@@ -8,6 +8,9 @@
  *  - Debounce: per source window. If now() − lastFire[source] < window, drop.
  *  - Rate-limit: tier-2 rolling window. Slots consumed on fire (=pass), no refund.
  *               If overall_max exceeded, set cooldownUntil (entry/exit transition owned by dispatcher).
+ *  - Live signals (live_signal_source): capped by rate_limit.live_max alone — outside the
+ *               cooldown and the tier2/overall windows, since a live turn is an activity the
+ *               user started and is waiting on.
  *
  * Evaluation functions are pure (return verdict only) — don't mutate dispatcher state, no dispatcher reference.
  * Time read only via injected now() (bare Date.now() forbidden).
@@ -48,9 +51,10 @@ export function createGuardrails(
   // debounce: last pass time per source.
   const lastFire = new Map<Source, number>();
 
-  // rate-limit: tier 2 + overall rolling window (pass times epoch ms).
+  // rate-limit: tier 2 + overall + live rolling windows (pass times epoch ms).
   const tier2Window: number[] = [];
   const overallWindow: number[] = [];
+  const liveWindow: number[] = [];
   let cooldownUntil = 0;
 
   /** Remove items from rolling window that are before now() − window_ms. */
@@ -63,19 +67,30 @@ export function createGuardrails(
     // 1) dnd_override: top-level short-circuit. Don't increment any counter/debounce.
     if (env.dnd_override === true) return { pass: true };
 
-    // 2) cooldown: if entered cooldown is still valid, drop.
+    // 2) live signals: live_max is their only cap — the overall cooldown never holds them,
+    //    and they consume no tier2/overall slot.
+    if (env.source === "live_signal_source") {
+      prune(liveWindow);
+      if (liveWindow.length >= config.rate_limit.live_max) {
+        return { pass: false, reason: "guardrail_drop" };
+      }
+      liveWindow.push(now());
+      return { pass: true };
+    }
+
+    // 3) cooldown: if entered cooldown is still valid, drop.
     if (now() < cooldownUntil) {
       return { pass: false, reason: "guardrail_drop" };
     }
 
-    // 3) debounce: per source window. timer_scheduler is N/A (own 1x) → window 0 (no debounce).
+    // 4) debounce: per source window. timer_scheduler is N/A (own 1x) → window 0 (no debounce).
     const window = (config.debounce_ms as Record<Source, number>)[env.source] ?? 0;
     const last = lastFire.get(env.source);
     if (window > 0 && last !== undefined && now() - last < window) {
       return { pass: false, reason: "guardrail_drop" };
     }
 
-    // 4) rate-limit: prune tier window then cap, then overall cap.
+    // 5) rate-limit: prune tier window then cap, then overall cap.
     prune(tier2Window);
     prune(overallWindow);
     if (tier2Window.length >= config.rate_limit.tier2_max) {
@@ -86,7 +101,7 @@ export function createGuardrails(
       return { pass: false, reason: "guardrail_drop" };
     }
 
-    // 5) pass: consume slot at fire time (no refund).
+    // 6) pass: consume slot at fire time (no refund).
     lastFire.set(env.source, now());
     tier2Window.push(now());
     overallWindow.push(now());

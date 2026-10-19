@@ -1,0 +1,49 @@
+-- The ping op: a chart tag swept away ten minutes later, plus a [gps] chat line.
+
+local area = require("scripts.area")
+local gps = require("scripts.gps")
+local surface_of = require("scripts.surface")
+local text_check = require("scripts.text")
+
+local PING_TTL_TICKS = 36000
+local MAX_CHARS = 60
+
+local M = {}
+
+function M.op(deps, args)
+  local pos = args.pos
+  if type(pos) ~= "table" or type(pos.x) ~= "number" or type(pos.y) ~= "number" then
+    error("ping: pos must be {x, y}", 0)
+  end
+  local text = args.text
+  local refusal = text_check.refusal(text, MAX_CHARS)
+  if refusal then
+    return refusal
+  end
+
+  local surface = surface_of.get()
+  local force = game.forces.player
+  force.chart(surface, area.around(pos))
+  local tag = force.add_chart_tag(surface, { position = { x = pos.x, y = pos.y }, text = text })
+  if not tag then
+    error("ping: the position does not accept a chart tag", 0)
+  end
+  deps.storage.pings[tag.tag_number] = { tag = tag, expire_tick = deps.tick + PING_TTL_TICKS }
+
+  deps.chat(gps.tag(pos.x, pos.y) .. " " .. text)
+  return { tag_id = tag.tag_number }
+end
+
+function M.sweep_tick()
+  local now = game.tick
+  for tag_number, entry in pairs(storage.pings) do
+    if not entry.tag.valid then
+      storage.pings[tag_number] = nil
+    elseif now >= entry.expire_tick then
+      entry.tag.destroy()
+      storage.pings[tag_number] = nil
+    end
+  end
+end
+
+return M

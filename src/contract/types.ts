@@ -236,7 +236,8 @@ export type SignalItem = Record<string, unknown>;
 export type SignalEnvelope = {
   source: string;
   event_type: string;
-  delivery: "immediate" | "batched";
+  /** immediate: fire at once when eligible; batched: wait for the interval; live: user-started activity, skips the proactive pacer. */
+  delivery: "immediate" | "batched" | "live";
   event_id: string;
   occurred_at: number;
 };
