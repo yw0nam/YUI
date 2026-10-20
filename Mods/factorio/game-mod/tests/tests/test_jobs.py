@@ -85,15 +85,16 @@ def test_a_timeout_fails_the_job_cancels_the_rest_and_wakes_once(world):
 
 
 @pytest.mark.parametrize(
-    ("disturb", "reason", "before"),
+    ("disturb", "reason", "before", "walking"),
     [
-        ("require('scripts.body').stop(DEPS)", "stopped", [{"kind": "stopped"}]),
-        ("HOST = nil", "stopped", []),
-        ("BODY.valid = false", "body_dead", []),
-        ("CHEST.valid = false", "target_gone", []),
+        ("require('scripts.body').stop(DEPS)", "stopped", [{"kind": "stopped"}], False),
+        ("HOST = nil", "stopped", [], False),
+        # an invalid entity is never written to, so the fake keeps its last walking state
+        ("BODY.valid = false", "body_dead", [], True),
+        ("CHEST.valid = false", "target_gone", [], False),
     ],
 )
-def test_the_gate_and_a_lost_target_end_the_walk_at_once(lua, world, disturb, reason, before):
+def test_the_gate_and_a_lost_target_end_the_walk_at_once(lua, world, disturb, reason, before, walking):
     lua.execute(
         "CHEST = { valid = true, unit_number = 99, name = 'wooden-chest', position = { x = 3, y = 0 } } "
         "require('scripts.unit_index').add(CHEST)"
@@ -109,9 +110,7 @@ def test_the_gate_and_a_lost_target_end_the_walk_at_once(lua, world, disturb, re
     failed = {"kind": "job_failed", "data": {"id": 1, "kind": "walk_to", "reason": reason}}
     assert events(world) == [*before, failed]
     assert states(world) == [(1, "failed", reason), (2, "cancelled", "cancelled")]
-    # a dead body's entity is invalid and has no walking state to read
-    if world.BODY.valid:
-        assert world.BODY.walking_state.walking is False
+    assert world.BODY.walking_state.walking is walking
 
 
 def test_a_stop_before_any_job_started_cancels_the_queue_without_job_failed(lua, world):
@@ -211,8 +210,8 @@ def test_cancel_all_while_walking_halts_the_body_at_once_and_emits_nothing(lua, 
         ),
         (
             "jobs_enqueue",
-            {"jobs": [WAIT_1, {"kind": "walk_to", "args": {"pos": {"x": 1, "y": 2}, "radius": "far"}}]},
-            "jobs[1].args.radius: number expected",
+            {"jobs": [{"kind": "walk_to", "args": {"pos": {"x": 1, "y": 2}, "radius": "far"}}]},
+            "jobs[0].args.radius: number expected",
         ),
         (
             "jobs_enqueue",
@@ -238,8 +237,13 @@ def test_cancel_all_while_walking_halts_the_body_at_once_and_emits_nothing(lua, 
         ("jobs_cancel", {"id": 5}, "id: no queued or running job 5"),
     ],
 )
-def test_a_bad_request_names_the_field_and_queues_nothing(world, op, args, message):
+def test_a_bad_request_names_the_field(world, op, args, message):
     assert rpc(world, op, args) == {"v": 1, "id": "t", "ok": False, "e": "bad_request", "m": message}
+
+
+def test_one_bad_job_queues_none_of_its_call(world):
+    bad = {"kind": "wait", "args": {"ticks": "soon"}}
+    assert enqueue(world, WAIT_1, bad)["m"] == "jobs[1].args.ticks: number expected"
     assert states(world) == []
 
 
