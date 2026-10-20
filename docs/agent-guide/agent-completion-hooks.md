@@ -6,10 +6,14 @@ When a coding agent (Claude Code, opencode, or any compatible tool) finishes a t
 
 The examples below use the default port `8770`. Substitute the port you configured in Settings → Proactive → Watchers if you changed it.
 
+Without a prefix, `/agent-event` reaches the main window's character. `/presets/<id>/agent-event` reaches the character bound to preset `<id>` and no other window; YUI's preset list copies that URL. The [route table](../reference/signals-ingress.md#routes) holds every path, the status codes, and the id grammar.
+
 ```
 POST http://127.0.0.1:8770/agent-event
 Content-Type: application/json
 ```
+
+The snippets below post to `/agent-event` and so wake the default character. Replace that URL with the character's URL copied from YUI's preset list to wake another character.
 
 **Body shape:**
 

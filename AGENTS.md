@@ -56,6 +56,7 @@ Read these when the trigger applies; they are not loaded by default.
 - **Agent desire system (Hermes-side)** → `integrations/hermes/desire/README.md`
 - **Connecting Hermes Agent as the backend (Responses mode, dev proxy, auth)** → `integrations/hermes/README.md`
 - **Setting up or speaking the daily briefing (any backend agent)** → `integrations/skills/yui-daily-briefing/SKILL.md`
+- **Waking one YUI character from a backend agent or producer** → `integrations/skills/yui-wake-character/SKILL.md`
 - **Runtime evidence for a yui platform plugin change (live Hermes gateway, throwaway profile)** → `integrations/hermes/platform/yui/skills/yui-platform-smoke-test/SKILL.md`
 - **IO or backend work (chat/STT/TTS/Expression Broker)** → `docs/agent-guide/backend-integration.md`
 - **Wiring an external coding-agent's lifecycle hooks** → `docs/agent-guide/agent-completion-hooks.md`
@@ -64,7 +65,7 @@ Read these when the trigger applies; they are not loaded by default.
 - **Any UI or visual work** → `docs/agent-guide/design-context.md` (+ `PRODUCT.md`, `DESIGN.md`)
 - **`generate_express` Express cue contract, or the `client_context` prompt-text format sent to the backend** → `docs/reference/client-context.md`
 - **Adding or changing a tool the client exposes to the backend, or checking what each chat transport carries** → `docs/reference/client-tools.md`, `docs/reference/push-transport.md`
-- **`POST /signals` envelope, buffering, and delivery rules** → `docs/reference/signals-ingress.md`
+- **`POST /signals` envelope, buffering, and delivery rules, and the `/presets/<id>/` routes** → `docs/reference/signals-ingress.md`
 - **Push transport (`chat_api: "push"`) frames, reconnect, and limits** → `docs/reference/push-transport.md`
 - **Motion catalog** → `docs/reference/motions.md`
 - **TTS emotion_text vocabulary** → `docs/reference/tts-emotion/`

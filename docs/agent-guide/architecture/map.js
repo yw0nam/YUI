@@ -499,7 +499,7 @@ globalThis.YUI_MAP =
       "id": "shell/agent-ingress",
       "module": "shell",
       "label": "agent_ingress",
-      "role": "Loopback HTTP listener for agent events, signals, and the avatar RPC round trip.",
+      "role": "Loopback HTTP listener for agent events, signals, and the avatar RPC round trip; routes `/presets/<id>/…` to the window bound to that preset.",
       "paths": [
         "src-tauri/src/agent_ingress"
       ]
@@ -893,7 +893,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/inbox",
       "module": "tools",
       "label": "inbox",
-      "role": "Subscriptions to the shell's agent, signals, and avatar RPC channels, and the avatar executor that answers body commands.",
+      "role": "Subscriptions to the shell's agent, signals, and avatar RPC channels, and the avatar executor that answers body commands addressed to its window.",
       "paths": [
         "src/io/bridge/inbox"
       ]
@@ -1109,7 +1109,7 @@ globalThis.YUI_MAP =
       "id": "ui/quick-controls",
       "module": "settings",
       "label": "quick controls",
-      "role": "The settings panel, shown as a popover in the pet window and as the whole settings window.",
+      "role": "The settings panel, shown as a popover in the pet window and as the whole settings window; the preset manage row's copy button copies a character's ingress URL and the Reactions URL line shows this window's.",
       "paths": [
         "src/ui/quick-controls"
       ]
@@ -1905,7 +1905,7 @@ globalThis.YUI_MAP =
       "id": "hooks-ingress",
       "from": "agent-hooks",
       "to": "shell/agent-ingress",
-      "carries": "POST /agent-event {tool, project, phase, summary, …}",
+      "carries": "POST /agent-event {tool, project, phase, summary, …}, or the same path under /presets/<id>/",
       "kind": "http",
       "transport": "shared"
     },
@@ -1913,7 +1913,7 @@ globalThis.YUI_MAP =
       "id": "signals-ingress",
       "from": "signal-producers",
       "to": "shell/agent-ingress",
-      "carries": "POST /signals {signals, envelope.delivery: immediate|batched|live}",
+      "carries": "POST /signals {signals, envelope.delivery: immediate|batched|live}, or the same path under /presets/<id>/",
       "kind": "http",
       "transport": "shared"
     },
@@ -1929,7 +1929,7 @@ globalThis.YUI_MAP =
       "id": "mods-ingress",
       "from": "mods-avatar",
       "to": "shell/agent-ingress",
-      "carries": "GET /avatar/state, GET /avatar/perch-targets, POST /avatar/command; JSON answer",
+      "carries": "GET /avatar/state, GET /avatar/perch-targets, POST /avatar/command; JSON answer, or the same paths under /presets/<id>/ answered by that window",
       "kind": "http",
       "transport": "shared"
     },
@@ -1937,7 +1937,7 @@ globalThis.YUI_MAP =
       "id": "ingress-inbox",
       "from": "shell/agent-ingress",
       "to": "io/bridge/inbox",
-      "carries": "agent-inbox, signals-inbox, avatar-rpc, ingress-dead; delivered to the main webview only, each inbox listens with its own window's label",
+      "carries": "targeted emit_to per window — bare routes → main, /presets/<id>/ → pet-<id>; agent-inbox, signals-inbox, avatar-rpc, ingress-dead; each inbox listens with its own window's label",
       "kind": "tauri-event",
       "transport": "shared"
     },
@@ -1945,7 +1945,7 @@ globalThis.YUI_MAP =
       "id": "inbox-rpc-response",
       "from": "io/bridge/inbox",
       "to": "shell/agent-ingress",
-      "carries": "avatar_rpc_response {id, result}",
+      "carries": "avatar_rpc_response {id, result}; accepted only from the window the request was emitted to",
       "kind": "tauri-command",
       "transport": "shared"
     },
@@ -1957,6 +1957,15 @@ globalThis.YUI_MAP =
       "kind": "tauri-command",
       "transport": "shared",
       "wiring": "src/app/stage/wire-window-sources.ts"
+    },
+    {
+      "id": "preset-state-sync",
+      "from": "settings",
+      "to": "shell/agent-ingress",
+      "carries": "sync_preset_ids {ids}: the registry's preset ids, so a prefixed route tells a closed window (503) from an unknown id (404); main only, a bound window is refused",
+      "kind": "tauri-command",
+      "transport": "shared",
+      "wiring": "src/app/pet-windows/wire-preset-state-sync.ts"
     },
     {
       "id": "inbox-sources",
@@ -3810,6 +3819,11 @@ globalThis.YUI_MAP =
         "id": "phone",
         "label": "phone",
         "role": "The Android window. It runs the same turn core on the push transport alone, with no avatar tools and no screen capture, and opens no bridge."
+      },
+      {
+        "id": "ingress",
+        "label": "agent ingress",
+        "role": "The loopback HTTP listener in the main process, one port for every window: it chooses the recipient by path."
       }
     ],
     "edges": [
@@ -4155,6 +4169,20 @@ globalThis.YUI_MAP =
         "to": "pet-<id>",
         "carries": "yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready",
         "kind": "bridge"
+      },
+      {
+        "id": "ingress-inbox-pet",
+        "from": "ingress",
+        "to": "pet",
+        "carries": "bare /signals, /agent-event and /avatar/* → agent-inbox, signals-inbox, avatar-rpc, ingress-dead",
+        "kind": "tauri-event"
+      },
+      {
+        "id": "ingress-inbox-pet-bound",
+        "from": "ingress",
+        "to": "pet-<id>",
+        "carries": "/presets/<id>/signals, /presets/<id>/agent-event and /presets/<id>/avatar/* → agent-inbox, signals-inbox, avatar-rpc, to the window bound to <id> and no other",
+        "kind": "tauri-event"
       }
     ]
   }

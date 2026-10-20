@@ -54,9 +54,9 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 | Screen watch | Cues on a switch to another app after 10 minutes in the previous one, and on every 45 minutes in one app, off by default (`configs/screen.json`) |
 | First activity of the day | Cue on the first activity of each local day |
 | Guardrails | Per-source debounce, hourly caps of 24 cues and 40 self-started turns (`configs/guardrails.json`), and a 10-minute default quiet gap after each turn |
-| Loopback ingress | Local listener on port 8770 for coding-agent hooks, `/signals`, and the `avatar` Mod, active while the Agent notifications switch in the Proactive tab is on (off by default, applied at next launch) |
+| Loopback ingress | Local listener on port 8770 for coding-agent hooks, `/signals`, and the `avatar` Mod, active while the Agent notifications switch in the Proactive tab is on (off by default, applied at next launch); the bare paths serve the main window and `/presets/<id>/` paths serve the pet window bound to that preset |
 | Coding-agent hooks | `POST /agent-event` for finished tasks and input requests from coding agents ([hooks guide](https://github.com/yw0nam/YUI/blob/main/docs/agent-guide/agent-completion-hooks.md)) |
-| Signals ingress | `POST /signals` for batches of external signals ([envelope](../reference/signals-ingress.md)) |
+| Signals ingress | `POST /signals` for batches of external signals ([envelope](../reference/signals-ingress.md)); to wake one character, turn Agent notifications on, open that character's window, copy its URL from its row in the preset list, and give the URL to the producer |
 | Daily briefing | Skill for a backend agent that runs scheduled producers on its own machine and speaks their dated briefings on the first activity of the day or on request, with the Scheduled greeting switch on ([skill](https://github.com/yw0nam/YUI/blob/main/integrations/skills/yui-daily-briefing/SKILL.md)) |
 | Witness log | Local JSONL of app switches and idle periods, kept for 14 days ([format](../reference/witness-log.md)) |
 | Workflows | Saved endpoints fired from a button in the Proactive tab |

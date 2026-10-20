@@ -88,6 +88,7 @@ YUI/
         companion-windows.ts         # The settings and message windows a bound pet window opens: its close sequence, the wait for them, and the owner watcher
         wire-pet-windows-sync.ts     # The open list in every window: a local edit out over yui://pet-windows-changed, a remote one reloaded from storage
         wire-pet-windows-reconcile.ts # Main's reconcile: prunes the list and live keys, then opens each wanted preset that has no window
+        wire-preset-state-sync.ts    # Main publishes the registry's preset ids to the shell, so a prefixed ingress route can tell a closed window from an unknown id
         wire-bound-window.ts         # A bound pet window's live key, its companions closed first, and its store teardown and close when its preset leaves the list
         close-if-orphan.ts           # Closes a bound window whose preset is no longer in the registry
       message/                       # The message window's wiring
@@ -444,11 +445,12 @@ YUI/
           reasoning-bridge.ts          # Reasoning text as seen from a window that does not own the push socket
         push/                          # Push socket state mirrored to windows that do not own it
           push-socket-bridge.ts        # Push socket state as seen from a window that does not own it
-        inbox/                         # The Tauri inbox seam and the channels read through it
+        inbox/                         # The Tauri inbox seam, the channels read through it, and the preset ids the shell routes by
           avatar-rpc.ts                # Webview end of the loopback avatar RPC surface
-          avatar-executor.ts           # Answers the bridged avatar RPCs from live client state
+          avatar-executor.ts           # Answers the avatar RPCs addressed to its own window from live client state
           agent-inbox.ts               # Subscribes to the Rust agent-inbox event channel
           signals-inbox.ts             # Subscribes to the Rust signals-inbox event channel
+          preset-state.ts              # sync_preset_ids: the registry's preset ids published to the shell for ingress routing
           create-inbox.ts              # Generic Tauri event-channel subscription seam
       assets/
         vrm-import.ts                  # VRM import: OS picker, native copy, avatar-option registration
@@ -657,8 +659,9 @@ YUI/
       passthrough.rs                 # Click-through toggle over the transparent overlay
       screenshot.rs                  # Screen-source enumeration and off-thread display capture
       agent_ingress/
-        mod.rs                       # Loopback HTTP listener for agent hooks, signals, and the avatar RPC surface
+        mod.rs                       # Loopback HTTP listener for agent hooks, signals, and the avatar RPC surface, routed to main or the pet window a /presets/<id>/ path names
         payload.rs                   # Request parsing, size caps, and event payload types
+        route.rs                     # Path parsing into a route family and a target window: bare paths to main, /presets/<id>/ to pet-<id>
         avatar_rpc.rs                # Avatar RPC bridge between HTTP requests and the webview
       turn_log.rs                    # Appends one opaque JSON line per turn record
       log_rotation.rs                # Calendar-date log rotation with a retention window
@@ -692,6 +695,7 @@ YUI/
         yui/src/tools/               # The client-declared tools: registration from hello.tools, the blocking handler, and the per-chat pending calls
     skills/
       yui-daily-briefing/            # Backend-agnostic skill: scheduled producers write dated markdown briefings (scripts/briefing.py) that the backend agent speaks on first activity
+      yui-wake-character/            # Backend-agnostic skill: wake one character through its preset ingress URL and act on 200, 404, and 503
   docs/                              # Design source of truth
     agent-guide/architecture/        # Architecture map of the client
       map.js                         # Modules, their parts, exchanges, and flows of src/ and src-tauri/src

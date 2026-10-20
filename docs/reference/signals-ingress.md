@@ -20,6 +20,25 @@ The request body contains a `signals` array and a delivery envelope:
 Signal items are arbitrary opaque JSON values. The client transports and renders them without
 interpreting their meaning.
 
+## Routes
+
+One listener on one port serves every window. The path chooses the recipient.
+
+| Path | Recipient |
+|---|---|
+| `/signals`, `/agent-event` | `main`: the main window's character, whichever preset is active |
+| `/avatar/state`, `/avatar/perch-targets`, `/avatar/command` | `main` |
+| `/presets/<id>/signals`, `/presets/<id>/agent-event` | `pet-<id>`: the pet window bound to preset `<id>`, and no other window |
+| `/presets/<id>/avatar/state`, `/presets/<id>/avatar/perch-targets`, `/presets/<id>/avatar/command` | `pet-<id>`; that window answers the request |
+| any other path under `/presets/`, including a route name outside the five above | none: HTTP 404 |
+| a preset id that exists while its pet window is closed | none: HTTP 503 |
+
+`<id>` is one path segment of ASCII letters, digits, `_` and `-`. The prefix itself, an id
+with no route after it, an empty id, and an id with any other byte all receive 404.
+
+The listener is loopback-only and carries no authentication, so a local caller can tell which
+preset ids exist by the 404 and 503 replies. The ids are opaque keys, not secrets.
+
 ## Envelope fields
 
 | Field | Valid value |
@@ -69,21 +88,28 @@ starts does not hold them.
 
 ## Preset switch
 
-The ingress belongs to the device, not to a preset. A group that arrives after the user
+The bare routes belong to `main`. A group that arrives on `/signals` after the user
 switches presets becomes a turn of the newly active preset's backend, whichever backend the
-producer had in mind. The buffers live in the pet window's memory, so a switch, which
-reloads that window, drops every group still buffered.
+producer had in mind. A route under `/presets/<id>/` belongs to that preset's window: its
+group becomes a turn of that preset's backend, which stays bound to `<id>` across a switch of
+the active preset.
+
+Each pet window holds its own buffers, so a switch, which reloads `main`, drops every group
+still buffered there and leaves a bound window's buffers untouched.
 
 ## Validation
 
 The HTTP ingress requires `POST /signals`, valid JSON, a `signals` array, and a
-non-null `envelope`. A request with another method on `/signals` receives HTTP 405.
+non-null `envelope`. A request with another method on `/signals` or
+`/presets/<id>/signals` receives HTTP 405.
 Invalid JSON, a missing `signals` array, a missing `envelope`, or an explicit
 `"envelope": null` receives HTTP 400. A request whose `envelope` is any other JSON
-value receives HTTP 200.
+value receives HTTP 200. A request under `/presets/` whose id no preset has, or whose path
+after the id is none of the five routes, receives HTTP 404. A request for a preset id that
+exists while its pet window is not open receives HTTP 503; it is never passed to `main`.
 
 HTTP 200 means that the ingress accepted the wire shape and attempted to emit the
-batch to the client. It does not confirm receipt or delivery. A non-null envelope is
+batch to its target window. It does not confirm receipt or delivery. A non-null envelope is
 forwarded unchanged and stamped with server time.
 
 While signals are enabled, a group whose envelope is not an object or fails the field

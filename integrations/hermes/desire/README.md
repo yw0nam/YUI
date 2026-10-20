@@ -251,10 +251,12 @@ shim's directory first in the wrapper (`PATH=<dir>:$PATH` before `exec`).
 `DESIRE_CHAT_PLATFORMS` is a comma-separated list of Hermes platform names (`telegram`, `discord`, `slack`, …); a
 turn Hermes attributes to one of them counts as the user speaking even when it carries no `<client_context>`.
 
-`YUI_SIGNALS_URL` defaults to `http://127.0.0.1:8770/signals`, which assumes Hermes and YUI share a host. The
-`/signals` ingress listens only while Settings → Proactive → Agent notifications is on in YUI, and toggling it
-requires an app restart. When Hermes runs on a remote host, such as when it reaches YUI through an SSH reverse
-tunnel, `YUI_SIGNALS_URL` must be set to the tunnel endpoint.
+`YUI_SIGNALS_URL` defaults to `http://127.0.0.1:8770/signals`, which assumes Hermes and YUI share a host. The value
+is the character's URL copied from YUI's preset list: the default wakes the main window's character, and
+`http://127.0.0.1:<port>/presets/<id>/signals` wakes the character bound to preset `<id>`; the route table in
+`docs/reference/signals-ingress.md` is the reference. The `/signals` ingress listens only while Settings → Proactive
+→ Agent notifications is on in YUI, and toggling it requires an app restart. When Hermes runs on a remote host, such
+as when it reaches YUI through an SSH reverse tunnel, `YUI_SIGNALS_URL` must be set to the tunnel endpoint.
 
 The gate runs as the tick job's pre-run script (`hermes cron create … --script <wrapper>`), from a real file under
 `~/.hermes/profiles/<profile>/scripts/` that execs `gate.py` by absolute path; `scripts/desire-gate.sh` in the
