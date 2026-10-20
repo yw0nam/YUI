@@ -88,14 +88,15 @@ export function wireDevtoolsSync(deps: {
   conversation: ConversationStores;
   log: Logger;
 }): {
+  bridge: SettingsBridge;
   reload: () => void;
   dispose: () => void;
 } {
-  const { reload, dispose } = wireWindowSync({
+  const { bridge, reload, dispose } = wireWindowSync({
     stores: deps.stores,
     windowKind: "devtools",
     ...conversationSyncStores(deps.conversation),
     log: deps.log,
   });
-  return { reload, dispose };
+  return { bridge, reload, dispose };
 }

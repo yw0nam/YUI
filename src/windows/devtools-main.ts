@@ -3,9 +3,11 @@ import "../ui/quick-controls/quick-controls.css";
 import "../ui/devtools/devtools.css";
 import { wireDevtoolsSync } from "../app/cross-window/wire-cross-window";
 import { createConversationStores } from "../app/settings/conversation-stores";
+import { wirePresetSwitch } from "../app/settings/wire-preset";
 import { createConfigStore } from "../config/store";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
+import { createPresetRegistry } from "../settings/preset/preset-registry";
 import { createSettingsStores } from "../settings/settings-stores";
 import { createDevtoolsShell } from "../ui/devtools/shell";
 import { createLocaleRebuilder } from "../ui/devtools/shell-rebuild";
@@ -47,13 +49,22 @@ async function bootstrap(): Promise<void> {
   };
   const rebuilder = createLocaleRebuilder({ mount, build: buildShell, log });
   const unsubscribeLocale = subscribeLocale(rebuilder.rebuild);
-  const { reload, dispose: disposeSync } = wireDevtoolsSync({
+  const {
+    bridge,
+    reload,
+    dispose: disposeSync,
+  } = wireDevtoolsSync({
     stores: settingsStores,
     conversation: conversationStores,
     log,
   });
+  // The pet window reloads into another preset; this window reloads with it.
+  const presetRegistry = createPresetRegistry();
+  const disposePresetSwitch = wirePresetSwitch({ registry: presetRegistry, bridge });
   window.addEventListener("focus", reload);
   window.addEventListener("beforeunload", () => {
+    disposePresetSwitch();
+    presetRegistry.dispose();
     // Keeps the bridge alive until disposeSync flushes any pending broadcast.
     rebuilder.dispose();
     disposeSync();
