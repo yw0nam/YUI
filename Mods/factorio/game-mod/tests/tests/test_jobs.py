@@ -210,29 +210,17 @@ def test_cancel_all_while_walking_halts_the_body_at_once_and_emits_nothing(lua, 
         ),
         (
             "jobs_enqueue",
-            {"jobs": [{"kind": "deliver", "args": {"item": 1, "count": 1}}]},
-            "jobs[0].args.item: string expected",
+            {"jobs": [{"kind": "deliver", "args": {"item": "iron-plate", "count": 1}}]},
+            "jobs[0].args.item: a known item name expected",
         ),
-        (
-            "jobs_enqueue",
-            {"jobs": [{"kind": "deliver", "args": {"item": "coal"}}]},
-            "jobs[0].args.count: number expected",
-        ),
-        (
-            "jobs_enqueue",
-            {"jobs": [{"kind": "deliver", "args": {"item": "coal", "count": 1.5}}]},
-            "jobs[0].args.count: integer expected",
-        ),
-        (
-            "jobs_enqueue",
-            {"jobs": [{"kind": "deliver", "args": {"item": "coal", "count": 0}}]},
-            "jobs[0].args.count: 1 to 1000 expected",
-        ),
-        (
-            "jobs_enqueue",
-            {"jobs": [{"kind": "deliver", "args": {"item": "coal", "count": 1001}}]},
-            "jobs[0].args.count: 1 to 1000 expected",
-        ),
+        *[
+            (
+                "jobs_enqueue",
+                {"jobs": [{"kind": "deliver", "args": {"item": "coal", "count": count}}]},
+                "jobs[0].args.count: integer 1 to 1000 expected",
+            )
+            for count in (0, 1001, 1.5, "five")
+        ],
         (
             "jobs_enqueue",
             {"jobs": [{"kind": "walk_to", "args": {"pos": {"x": 1, "y": 2}, "radius": "far"}}]},

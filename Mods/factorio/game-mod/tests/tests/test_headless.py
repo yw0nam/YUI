@@ -766,14 +766,6 @@ def clear_ground(server):
     )
 
 
-def clear_body_coal(server):
-    """Earlier scenes leave the body holding coal it picked up while walking; a scene starts at zero."""
-    server.command(
-        "/silent-command __coop-agent__ "
-        "storage.body.entity.get_inventory(defines.inventory.character_main).remove{name = 'coal', count = 100000}"
-    )
-
-
 def ground_coal(server):
     return json.loads(server.command(GROUND_COAL))
 
@@ -781,72 +773,54 @@ def ground_coal(server):
 def body_coal(server):
     return int(
         server.command(
-            "/silent-command __coop-agent__ rcon.print("
-            "storage.body.entity.get_inventory(defines.inventory.character_main).get_item_count('coal'))"
+            "/silent-command __coop-agent__ rcon.print(storage.body.entity.get_item_count('coal'))"
         )
     )
 
 
-def deliver_job(server, id_, count):
-    return enqueued_id(server, id_, {"kind": "deliver", "args": {"item": "coal", "count": count}})
+def host_coal(server):
+    """The dev host is a probe fake with no inventory; a real host's coal would be counted here."""
+    return 0
 
 
-def idle_seq(server):
-    """Waits for an empty job queue and returns the event seq then; deliver scenes start drained."""
-    return wait_status(server, lambda s: s["queue"]["length"] == 0)["seq"]
+def deliver(item, count):
+    return {"kind": "deliver", "args": {"item": item, "count": count}}
 
 
-def job_events_at_speed(server, seq, count):
-    server.command("/silent-command game.speed = 10")
-    try:
-        return wait_events(server, seq, count)
-    finally:
-        server.command("/silent-command game.speed = 1")
+def test_mine_then_deliver_spills_at_the_host_and_the_body_does_not_re_pick(server):
+    status = field(server, COAL_PATCH)
+    (done, idle), _ = run_job(server, status["seq"], "deliver-mine", mine("coal", 20), 2)
+    assert done["kind"] == "job_done"
 
-
-def test_deliver_spills_the_coal_at_the_dev_host_for_looting(server):
-    field(server, "")
-    # the body walks the cleared field from 60 tiles east, so the spill lands out of its pickup range
-    server.command(
-        "/silent-command game.surfaces[1].find_entities_filtered{type = 'character'}[1]"
-        ".teleport({x = 60, y = 200})"
-    )
+    # the body teleports beside the dev host: the worst case for picking its own spill back up
+    server.command("/silent-command __coop-agent__ storage.body.entity.teleport({x = 0, y = 197})")
     clear_ground(server)
-    clear_body_coal(server)
-    server.command(f"/silent-command {CHARACTERS}[1].insert{{name = 'coal', count = 20}}")
-    # the dev host holds nothing, so conservation is body + ground
-    assert (body_coal(server), len(ground_coal(server))) == (20, 0)
-    seq = idle_seq(server)
-    job_id = deliver_job(server, "deliver-1", 20)
-
-    done, idle = job_events_at_speed(server, seq, 2)
+    assert (body_coal(server), host_coal(server), len(ground_coal(server))) == (20, 0, 0)
+    (done, idle), _ = run_job(server, idle["seq"], "deliver-job", deliver("coal", 20), 2)
     assert without_ticks([done, idle]) == [
-        {"kind": "job_done", "data": {"id": job_id, "kind": "deliver"}},
-        {"kind": "queue_idle", "data": {"last_job_id": job_id}},
+        {"kind": "job_done", "data": {"id": done["id"], "kind": "deliver"}},
+        {"kind": "queue_idle", "data": {"last_job_id": done["id"]}},
     ]
 
+    wait_status(server, lambda s: s["tick"] >= done["tick"] + 60)
     ground = ground_coal(server)
-    assert sorted(item["count"] for item in ground) == [1] * 20
+    assert body_coal(server) == 0
+    assert len(ground) == 20
     assert all(item["looted"] for item in ground)
     assert all(math.dist((item["x"], item["y"]), (0, 200)) <= 3 for item in ground)
-    assert body_coal(server) == 0
-    assert body_coal(server) + sum(item["count"] for item in ground) == 20
+    assert body_coal(server) + sum(item["count"] for item in ground) + host_coal(server) == 20
+    assert host_coal(server) == 0
 
 
 def test_deliver_with_fewer_coal_than_asked_fails_no_item_and_keeps_the_body_s_coal(server):
-    field(server, "")
-    clear_ground(server)
-    clear_body_coal(server)
-    server.command(f"/silent-command {CHARACTERS}[1].insert{{name = 'coal', count = 3}}")
-    seq = idle_seq(server)
-    job_id = deliver_job(server, "deliver-2", 5)
-
-    (failed,) = job_events_at_speed(server, seq, 1)
+    status = field(server, "")
+    server.command("/silent-command __coop-agent__ storage.body.entity.insert{name = 'coal', count = 3}")
+    (failed,), _ = run_job(server, status["seq"], "deliver-noitem", deliver("coal", 5), 1)
     assert without_ticks([failed]) == [
         {
             "kind": "job_failed",
             "data": {
-                "id": job_id,
+                "id": failed["id"],
                 "kind": "deliver",
                 "reason": "no_item",
                 "item": "coal",

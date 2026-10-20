@@ -8,9 +8,9 @@ SETUP = """
 HOST.position = { x = 6, y = 0 }
 HOST.surface = SURFACE
 BODY.main = { coal = 20 }
-function BODY.get_inventory(_index)
+function BODY.get_item_count(name) return BODY.main[name] or 0 end
+function BODY.get_main_inventory()
   return {
-    get_item_count = function(name) return BODY.main[name] or 0 end,
     remove = function(spec)
       local held = BODY.main[spec.name] or 0
       local taken = math.min(held, spec.count)
@@ -19,16 +19,11 @@ function BODY.get_inventory(_index)
     end,
   }
 end
-function BODY.insert(spec)
-  BODY.main[spec.name] = (BODY.main[spec.name] or 0) + spec.count
-  return spec.count
-end
 SPILLED = {}
-SPILL_COUNT = nil
 SURFACE.spill_item_stack = function(spec)
   SPILLED[#SPILLED + 1] = spec
   local out = {}
-  for _ = 1, SPILL_COUNT or spec.stack.count do
+  for _ = 1, spec.stack.count do
     out[#out + 1] = { name = "item-on-ground", to_be_looted = true, stack = { count = 1 } }
   end
   return out
@@ -68,18 +63,18 @@ def spilled(world):
     return out
 
 
-def answer_east(lua, world):
-    world.answer(lua.table_from([lua.table_from([6, 0])]), False)
+def answer(lua, world, x):
+    world.answer(lua.table_from([lua.table_from([x, 0])]), False)
 
 
-def walk_to_the_host(lua, world):
+def walk_to_the_host(lua, world, host_x=6):
     enqueue(world, DELIVER)
     run(world, 1)
-    answer_east(lua, world)
+    answer(lua, world, host_x)
     run(world, 30)
 
 
-def test_deliver_walks_to_the_host_spills_every_item_and_ends_done(lua, deliver_world):
+def test_deliver_spills_on_the_hosts_far_side_steps_back_and_ends_done(lua, deliver_world):
     walk_to_the_host(lua, deliver_world)
 
     assert events(deliver_world) == [
@@ -88,14 +83,15 @@ def test_deliver_walks_to_the_host_spills_every_item_and_ends_done(lua, deliver_
     ]
     assert spilled(deliver_world) == [
         {
-            "position": {"x": 6.0, "y": 0.0},
+            "position": {"x": 7.5, "y": 0.0},
             "stack": {"name": "coal", "count": 20},
             "enable_looted": True,
             "allow_belts": False,
         }
     ]
+    assert dict(deliver_world.REQUESTS[2].goal) == {"x": 0.0, "y": 0.0}
     assert deliver_world.BODY.main.coal == 0
-    assert abs(deliver_world.BODY.position.x - 6) <= 3
+    assert 0.85 <= deliver_world.BODY.position.x <= 1.01
     assert deliver_world.BODY.walking_state.walking is False
     assert deliver_world.LABEL.text == "Buddy · Standing by"
     assert states(deliver_world) == [(1, "done", None)]
@@ -107,32 +103,63 @@ def test_the_status_line_holds_the_item_while_walking(lua, deliver_world):
     assert deliver_world.LABEL.text == "Buddy · Holding: coal 20"
 
 
-def test_a_partial_spill_returns_the_rest_and_ends_target_full(lua, deliver_world):
-    lua.execute("SPILL_COUNT = 12")
+def test_done_waits_for_the_step_backs_180_ticks(lua, deliver_world):
     walk_to_the_host(lua, deliver_world)
+    answer(lua, deliver_world, 0)
+    lua.execute("BLOCKED[12] = true")  # west: the step back cannot move
+
+    run(deliver_world, 160)
+    assert events(deliver_world) == []
+    run(deliver_world, 30)
+    assert events(deliver_world) == [
+        {"kind": "job_done", "data": {"id": 1, "kind": "deliver"}},
+        {"kind": "queue_idle", "data": {"last_job_id": 1}},
+    ]
+    assert states(deliver_world) == [(1, "done", None)]
+
+
+def test_a_host_moved_past_three_tiles_re_aims_before_spilling(lua, deliver_world):
+    enqueue(deliver_world, DELIVER)
+    run(deliver_world, 1)
+    answer(lua, deliver_world, 6)
+    lua.execute("HOST.position = { x = 20, y = 0 }")
+    run(deliver_world, 25)
+    answer(lua, deliver_world, 20)
+    run(deliver_world, 120)
+
+    assert events(deliver_world) == [
+        {"kind": "job_done", "data": {"id": 1, "kind": "deliver"}},
+        {"kind": "queue_idle", "data": {"last_job_id": 1}},
+    ]
+    assert dict(deliver_world.REQUESTS[2].goal) == {"x": 20.0, "y": 0.0}
+    assert spilled(deliver_world)[0]["position"] == {"x": 21.5, "y": 0.0}
+    assert 14.05 <= deliver_world.BODY.position.x <= 15.01
+
+
+def test_fewer_items_at_the_start_fail_no_item_before_any_walk(lua, deliver_world):
+    lua.execute("BODY.main = { coal = 3 }")
+    enqueue(deliver_world, DELIVER)
+    run(deliver_world, 1)
 
     assert events(deliver_world) == [
         {
             "kind": "job_failed",
-            "data": {
-                "id": 1,
-                "kind": "deliver",
-                "reason": "target_full",
-                "removed": 20,
-                "spilled": 12,
-                "returned": 8,
-            },
+            "data": {"id": 1, "kind": "deliver", "reason": "no_item", "item": "coal", "count": 20, "held": 3},
         }
     ]
-    assert deliver_world.BODY.main.coal == 8
-    assert records(deliver_world)[0]["progress"] == {"removed": 20, "spilled": 12, "returned": 8}
+    assert len(deliver_world.REQUESTS) == 0
+    assert spilled(deliver_world) == []
+    assert deliver_world.BODY.main.coal == 3
     assert deliver_world.LABEL.text == "Buddy · Standing by"
-    assert states(deliver_world) == [(1, "failed", "target_full")]
+    assert states(deliver_world) == [(1, "failed", "no_item")]
 
 
-def test_fewer_items_than_asked_fail_no_item_and_remove_nothing(lua, deliver_world):
+def test_fewer_items_at_the_spill_fail_no_item_and_remove_nothing(lua, deliver_world):
+    enqueue(deliver_world, DELIVER)
+    run(deliver_world, 1)
+    answer(lua, deliver_world, 6)
     lua.execute("BODY.main = { coal = 3 }")
-    walk_to_the_host(lua, deliver_world)
+    run(deliver_world, 30)
 
     assert events(deliver_world) == [
         {
@@ -142,7 +169,6 @@ def test_fewer_items_than_asked_fail_no_item_and_remove_nothing(lua, deliver_wor
     ]
     assert spilled(deliver_world) == []
     assert deliver_world.BODY.main.coal == 3
-    assert records(deliver_world)[0]["progress"] == {"item": "coal", "count": 20, "held": 3}
     assert states(deliver_world) == [(1, "failed", "no_item")]
 
 

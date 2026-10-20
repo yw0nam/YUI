@@ -1,6 +1,5 @@
 -- A fake world for the job, walker and mine units: one body on a surface that holds mineable entities and records path requests.
 
-defines = { inventory = { character_main = 1 } }
 storage = { map_id = "m" }
 require("scripts.storage").ensure()
 
@@ -118,6 +117,7 @@ DEPS = {
   to_json = JSON.encode,
   print = function(text) PRINTED[#PRINTED + 1] = text end,
   entity_prototypes = PROTOTYPES,
+  item_prototypes = { coal = {} },
   force = { manual_mining_speed_modifier = 0 },
 }
 
