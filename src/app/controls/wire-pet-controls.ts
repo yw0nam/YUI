@@ -211,8 +211,8 @@ export function wirePetControls(deps: {
       idleMotionSettings,
       expressMotionSettings,
       bedSceneSettings,
-      // The browser tool exists only in the pet window under Tauri.
-      browserSettings: isTauri() ? browserSettings : undefined,
+      // The browser tool exists only in the main pet window under Tauri.
+      browserSettings: deps.boundId == null && isTauri() ? browserSettings : undefined,
       onPopOut: () => openSettings(),
       showVoiceInput: deps.boundId == null,
       onMessage: () => surfaces.summonInput(),

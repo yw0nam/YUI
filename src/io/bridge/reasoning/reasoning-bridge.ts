@@ -1,11 +1,4 @@
-/**
- * reasoning-bridge — the reasoning text seen from a window that does not own the push socket.
- *
- * One socket exists, in the pet window, and the reasoning deltas land in that window's store.
- * The popped-out message window runs in its own webview, so the pet window publishes the state
- * over the cross-window bridge and a freshly opened window asks for the current state at once.
- * The whole state crosses on every change, so a missed event cannot corrupt the text.
- */
+/** Each pet window owns one socket; its companions mirror reasoning over preset-scoped channels. */
 
 import { createStateMirror, publishState } from "../core/state-mirror";
 import type { SettingsBridge } from "../settings-bridge";

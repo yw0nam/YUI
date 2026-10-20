@@ -8,13 +8,10 @@
 
 import "../styles.css";
 import { createDisposers } from "../app/disposers";
-import { wireCompanionWindow } from "../app/pet-windows/companion-window";
+import { bootCompanion } from "../app/pet-windows/companion-window";
 import { wireSettingsWindow } from "../app/settings-window/wire-settings-window";
-import { closePetWindow } from "../io/window/openers/pet-window";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
-import { readBoundPresetId } from "../settings/preset/bound-preset";
-import { createPresetRegistry } from "../settings/preset/preset-registry";
 
 const log = createLogger("settings-bootstrap");
 
@@ -27,21 +24,9 @@ async function bootstrap(): Promise<void> {
   }
 
   const lifecycle = createDisposers();
-  const boundId = readBoundPresetId();
-  if (boundId !== null) {
-    const registry = createPresetRegistry();
-    lifecycle.register(registry.dispose);
-    const companion = await wireCompanionWindow({
-      label: `settings-${boundId}`,
-      boundId,
-      registry,
-      disposeWindow: lifecycle.dispose,
-      close: closePetWindow,
-      log,
-    });
-    if (!companion.alive) return;
-  }
-  await wireSettingsWindow({ app, lifecycle });
+  const companion = await bootCompanion("settings", lifecycle, log);
+  if (!companion.alive) return;
+  await wireSettingsWindow({ app, lifecycle, presetRegistry: companion.registry });
 }
 
 void bootstrap().catch((error) => {

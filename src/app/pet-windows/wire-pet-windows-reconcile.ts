@@ -5,6 +5,7 @@ import {
   clearStaleLiveKeys,
   isWindowLive,
   type PetWindows,
+  windowLabel,
 } from "../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
 
@@ -42,14 +43,14 @@ export function wirePetWindowsReconcile(deps: {
           if (disposed) break;
           try {
             if (existing === null) {
-              if (!isWindowLive(`pet-${id}`)) await deps.opener.open(id);
+              if (!isWindowLive(windowLabel("pet", id))) await deps.opener.open(id);
               continue;
             }
-            if (!existing.includes(`pet-${id}`)) {
+            if (!existing.includes(windowLabel("pet", id))) {
               await deps.opener.open(id);
               continue;
             }
-            if (isWindowLive(`pet-${id}`) || waiting.has(id)) continue;
+            if (isWindowLive(windowLabel("pet", id)) || waiting.has(id)) continue;
             const off = await deps.opener.onDestroyed(id, () => {
               waiting.get(id)?.();
               waiting.delete(id);
@@ -61,7 +62,7 @@ export function wirePetWindowsReconcile(deps: {
             }
             waiting.set(id, off);
             const after = await deps.opener.existing();
-            if (after !== null && !after.includes(`pet-${id}`)) {
+            if (after !== null && !after.includes(windowLabel("pet", id))) {
               off();
               waiting.delete(id);
               request();

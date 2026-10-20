@@ -1,13 +1,7 @@
-/**
- * Settings pop-out window opener + cross-window settings sync.
- *
- * openSettingsWindow branches on injected env for Tauri/browser paths only (pure, testable).
- * createSettingsWindowOpener wires the real implementation — Tauri: WebviewWindow("settings"),
- * else: window.open. WebviewWindow dynamic-imported only within Tauri branch so vitest/browser
- * do not load the module.
- */
+/** Settings opens the main or bound companion window and shares storage change notifications. */
 
 import { createLogger } from "../../../logger";
+import { windowLabel } from "../../../settings/preset/pet-windows";
 import { isTauri } from "../../../tauri-env";
 
 const log = createLogger("settings-window");
@@ -35,7 +29,7 @@ export function openSettingsWindow(env: SettingsWindowEnv): void {
 
 /** If already open, focus and show; else create new. No step throws. */
 async function openTauriSettingsWindow(boundId?: string | null): Promise<void> {
-  const label = boundId == null ? SETTINGS_LABEL : `settings-${boundId}`;
+  const label = boundId == null ? SETTINGS_LABEL : windowLabel("settings", boundId);
   const url =
     boundId == null ? SETTINGS_URL : `${SETTINGS_URL}?preset=${encodeURIComponent(boundId)}`;
   try {
@@ -77,7 +71,7 @@ function openBrowserSettingsWindow(boundId?: string | null): void {
       boundId == null
         ? `/${SETTINGS_URL}`
         : `/${SETTINGS_URL}?preset=${encodeURIComponent(boundId)}`,
-      boundId == null ? "yui-settings" : `yui-settings-${boundId}`,
+      boundId == null ? "yui-settings" : `yui-${windowLabel("settings", boundId)}`,
       "width=480,height=660",
     );
   } catch (err) {

@@ -12,14 +12,13 @@ import "../ui/message/message-window.css";
 import { createDisposers } from "../app/disposers";
 import { wireMessageSurfaceOps } from "../app/message/wire-message-surface-ops";
 import { startDragging, wireTauriWindow } from "../app/message/wire-message-tauri-window";
-import { wireCompanionWindow } from "../app/pet-windows/companion-window";
+import { bootCompanion } from "../app/pet-windows/companion-window";
 import { wirePresetSwitch } from "../app/settings/wire-preset";
 import { createMirroredDelegations } from "../io/bridge/delegations/delegations-bridge";
 import { createMessageBridge } from "../io/bridge/message/message-bridge";
 import { createMirroredPushSocket } from "../io/bridge/push/push-socket-bridge";
 import { createMirroredReasoning } from "../io/bridge/reasoning/reasoning-bridge";
 import { createSettingsBridge } from "../io/bridge/settings-bridge";
-import { closePetWindow } from "../io/window/openers/pet-window";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
 import {
@@ -31,8 +30,6 @@ import {
   localStorageMessageWindowStorage,
 } from "../settings/panels/message-window-settings";
 import { createFlagSettings, localStorageStore } from "../settings/persisted-store";
-import { readBoundPresetId } from "../settings/preset/bound-preset";
-import { createPresetRegistry } from "../settings/preset/preset-registry";
 import { isTauri } from "../tauri-env";
 import { createDelegationChip } from "../ui/chips/delegation-chip";
 import { reloadFromStorage as reloadLocale } from "../ui/i18n";
@@ -51,20 +48,12 @@ async function bootstrap(): Promise<void> {
   }
 
   const disposers = createDisposers();
-  const boundId = readBoundPresetId();
-  const presetRegistry = createPresetRegistry();
-  disposers.register(presetRegistry.dispose);
-  if (boundId !== null) {
-    const companion = await wireCompanionWindow({
-      label: `message-${boundId}`,
-      boundId,
-      registry: presetRegistry,
-      disposeWindow: disposers.dispose,
-      close: closePetWindow,
-      log,
-    });
-    if (!companion.alive) return;
-  }
+  const {
+    boundId,
+    registry: presetRegistry,
+    alive,
+  } = await bootCompanion("message", disposers, log);
+  if (!alive) return;
   const messageWindowSettings = createMessageWindowSettings({
     storage: localStorageMessageWindowStorage(),
   });

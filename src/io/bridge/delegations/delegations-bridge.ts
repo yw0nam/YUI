@@ -1,11 +1,4 @@
-/**
- * delegations-bridge — the delegations list seen from a window that does not own the push socket.
- *
- * One socket exists, in the pet window, and its `delegations` frames land in that window's store.
- * The settings window runs in its own webview, so the pet window publishes the list over the
- * cross-window bridge and a freshly opened settings window asks for the current list at once.
- * A second socket is never opened: the conversation is one conversation.
- */
+/** Each pet window owns one socket; its companions mirror delegations over preset-scoped channels. */
 
 import type { DelegationItem } from "../../chat/push/push-frames";
 import { createStateMirror, publishState } from "../core/state-mirror";

@@ -3,12 +3,16 @@ import { createPersistedStore, localStorageStore, type PersistedStorage } from "
 
 export const PET_WINDOWS_KEY = "yui.windows";
 export const LIVE_KEY_PREFIX = "yui.live-window.";
+export type PresetWindowKind = "pet" | "settings" | "message";
+export const windowLabel = (kind: PresetWindowKind, id: string): string => `${kind}-${id}`;
 export const liveKey = (label: string): string => `${LIVE_KEY_PREFIX}${label}`;
 export function isWindowLive(label: string): boolean {
   return globalThis.localStorage?.getItem(liveKey(label)) === "1";
 }
 export function isPetWindowLive(id: string): boolean {
-  return ["pet", "settings", "message"].some((kind) => isWindowLive(`${kind}-${id}`));
+  return (["pet", "settings", "message"] as const).some((kind) =>
+    isWindowLive(windowLabel(kind, id)),
+  );
 }
 export function setWindowLive(label: string): void {
   globalThis.localStorage?.setItem(liveKey(label), "1");

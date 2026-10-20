@@ -51,7 +51,7 @@ export function wireMessageSurfaces(deps: {
     store: deps.messageWindowSettings,
     remote,
     window: createMessageWindowController(deps.messageWindowSettings, deps.boundId),
-    listenTrayToggle,
+    listenTrayToggle: deps.boundId == null ? listenTrayToggle : undefined,
     getMode,
   });
   deps.register(() => messageBridge.dispose());

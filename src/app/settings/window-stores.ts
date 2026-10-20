@@ -7,14 +7,12 @@ import { createConversationStores } from "./conversation-stores";
 /** The settings and conversation store bags a window owns, each store's teardown registered. */
 export function createWindowStores(
   register: (dispose: () => void) => void,
-  presets?: { petWindows: PetWindows; presetRegistry: PresetRegistry },
+  presets?: { petWindows?: PetWindows; presetRegistry?: PresetRegistry },
 ) {
   const petWindows = presets?.petWindows ?? createPetWindows();
   const presetRegistry = presets?.presetRegistry ?? createPresetRegistry();
-  if (!presets) {
-    register(petWindows.dispose);
-    register(presetRegistry.dispose);
-  }
+  if (!presets?.petWindows) register(petWindows.dispose);
+  if (!presets?.presetRegistry) register(presetRegistry.dispose);
   const settingsStores = createSettingsStores({ locale: getLocale() });
   // Every store in a bag shares the same lifecycle, so teardown iterates the bag itself:
   // a store added to either factory is disposed without touching these loops.

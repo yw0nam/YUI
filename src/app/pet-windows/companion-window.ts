@@ -1,9 +1,24 @@
 /** A companion holds its own deletion guard until its writable stores finish teardown. */
+import { watchOwner } from "../../io/window/openers/companion-windows";
+import {
+  closeCurrentWindow,
+  listenCurrentWindowCloseRequested,
+} from "../../io/window/openers/current-window";
 import type { Logger } from "../../logger";
-import { clearWindowLive, setWindowLive } from "../../settings/preset/pet-windows";
-import type { PresetRegistry } from "../../settings/preset/preset-registry";
+import { readBoundPresetId } from "../../settings/preset/bound-preset";
+import {
+  clearWindowLive,
+  isWindowLive,
+  setWindowLive,
+  windowLabel,
+} from "../../settings/preset/pet-windows";
+import { createPresetRegistry, type PresetRegistry } from "../../settings/preset/preset-registry";
+import { isTauri } from "../../tauri-env";
+import type { Disposers } from "../disposers";
 import { closeIfOrphan } from "./close-if-orphan";
-import { watchOwner } from "./companion-windows";
+
+const COMPANION_CLOSE_WAIT_MS = 1000;
+const COMPANION_POLL_MS = 50;
 
 export async function wireCompanionWindow(deps: {
   label: string;
@@ -16,6 +31,7 @@ export async function wireCompanionWindow(deps: {
   let disposed = false;
   let live = false;
   let offOwner = () => {};
+  let offClose = () => {};
   const dispose = () => {
     if (disposed) return;
     disposed = true;
@@ -25,6 +41,7 @@ export async function wireCompanionWindow(deps: {
     } finally {
       if (live) clearWindowLive(deps.label);
       offOwner();
+      offClose();
     }
   };
   const close = async () => {
@@ -62,8 +79,45 @@ export async function wireCompanionWindow(deps: {
     offOwner();
     return role;
   }
+  offClose = await listenCurrentWindowCloseRequested(dispose);
+  if (disposed) {
+    offClose();
+    return role;
+  }
   setWindowLive(deps.label);
   live = true;
-  window.addEventListener("beforeunload", dispose);
+  if (!isTauri()) window.addEventListener("beforeunload", dispose);
   return role;
+}
+
+export async function bootCompanion(
+  kind: "settings" | "message",
+  lifecycle: Disposers,
+  log: Logger,
+) {
+  const boundId = readBoundPresetId();
+  const registry = createPresetRegistry();
+  lifecycle.register(registry.dispose);
+  const companion =
+    boundId === null
+      ? null
+      : await wireCompanionWindow({
+          label: windowLabel(kind, boundId),
+          boundId,
+          registry,
+          disposeWindow: lifecycle.dispose,
+          close: closeCurrentWindow,
+          log,
+        });
+  return { boundId, registry, alive: companion?.alive ?? !lifecycle.isDisposed() };
+}
+
+export async function waitForCompanions(id: string, log: Logger): Promise<void> {
+  const live = () =>
+    (["settings", "message"] as const).some((kind) => isWindowLive(windowLabel(kind, id)));
+  for (let elapsed = 0; elapsed < COMPANION_CLOSE_WAIT_MS; elapsed += COMPANION_POLL_MS) {
+    if (!live()) return;
+    await new Promise<void>((resolve) => setTimeout(resolve, COMPANION_POLL_MS));
+  }
+  if (live()) log.warn("companion_close_timeout", { preset: id });
 }

@@ -1,12 +1,14 @@
 import type { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type { BackgroundThrottlingPolicy } from "@tauri-apps/api/window";
 import { createLogger } from "../../../logger";
+import { windowLabel } from "../../../settings/preset/pet-windows";
 import { isTauri } from "../../../tauri-env";
 
 const log = createLogger("pet-window");
 const WINDOW_CREATE_TIMEOUT_MS = 10_000;
 export interface PetWindowOpener {
   open(id: string): Promise<void>;
+  /** Returns native pet, settings, and message companion labels, or null in the browser. */
   existing(): Promise<string[] | null>;
   onDestroyed(id: string, cb: () => void): Promise<() => void>;
 }
@@ -59,9 +61,9 @@ export function createPetWindowOpener(): PetWindowOpener {
           isTauri: isTauri(),
           createTauriWindow: async () => {
             const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-            if (await WebviewWindow.getByLabel(`pet-${id}`)) return;
+            if (await WebviewWindow.getByLabel(windowLabel("pet", id))) return;
             // Window options mirror src-tauri/tauri.conf.json app.windows[0].
-            const win = new WebviewWindow(`pet-${id}`, {
+            const win = new WebviewWindow(windowLabel("pet", id), {
               url: `index.html?preset=${encodeURIComponent(id)}`,
               title: "YUI",
               width: 400,
@@ -77,7 +79,7 @@ export function createPetWindowOpener(): PetWindowOpener {
           },
           // The dev build opens a tab; this runs after an await, so a popup blocker may drop it.
           openBrowserWindow: () => {
-            window.open(`/?preset=${encodeURIComponent(id)}`, `yui-pet-${id}`);
+            window.open(`/?preset=${encodeURIComponent(id)}`, `yui-${windowLabel("pet", id)}`);
           },
         });
         log.info("pet_window_open", { preset: id });
@@ -96,14 +98,9 @@ export function createPetWindowOpener(): PetWindowOpener {
     async onDestroyed(id, cb) {
       if (!isTauri()) return () => {};
       const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-      const win = await WebviewWindow.getByLabel(`pet-${id}`);
+      const win = await WebviewWindow.getByLabel(windowLabel("pet", id));
       return win ? win.once("tauri://destroyed", cb) : () => {};
     },
   };
 }
-export async function closePetWindow(): Promise<void> {
-  if (isTauri()) {
-    const { getCurrentWindow } = await import("@tauri-apps/api/window");
-    await getCurrentWindow().close();
-  } else window.close();
-}
+export { closeCurrentWindow as closePetWindow } from "./current-window";

@@ -9,6 +9,7 @@
 
 import { createLogger } from "../../../logger";
 import type { MessageWindowSettingsStore } from "../../../settings/panels/message-window-settings";
+import { windowLabel } from "../../../settings/preset/pet-windows";
 import { isTauri } from "../../../tauri-env";
 import {
   clampToWorkArea,
@@ -102,7 +103,9 @@ async function tauriMessageWindow(boundId?: string | null): Promise<{
   hide(): Promise<void>;
 } | null> {
   const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-  return WebviewWindow.getByLabel(boundId == null ? MESSAGE_WINDOW_LABEL : `message-${boundId}`);
+  return WebviewWindow.getByLabel(
+    boundId == null ? MESSAGE_WINDOW_LABEL : windowLabel("message", boundId),
+  );
 }
 
 async function resolveTauriPosition(
@@ -135,23 +138,26 @@ async function createTauriMessageWindow(
   boundId?: string | null,
 ): Promise<void> {
   const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-  const win = new WebviewWindow(boundId == null ? MESSAGE_WINDOW_LABEL : `message-${boundId}`, {
-    url:
-      boundId == null
-        ? MESSAGE_WINDOW_URL
-        : `${MESSAGE_WINDOW_URL}?preset=${encodeURIComponent(boundId)}`,
-    title: MESSAGE_WINDOW_TITLE,
-    width: MESSAGE_WINDOW_WIDTH,
-    height: MESSAGE_WINDOW_HANDLE_HEIGHT,
-    resizable: false,
-    decorations: false,
-    transparent: true,
-    shadow: false,
-    alwaysOnTop: true,
-    skipTaskbar: true,
-    focus: false,
-    ...(position ? { x: position.x, y: position.y } : {}),
-  });
+  const win = new WebviewWindow(
+    boundId == null ? MESSAGE_WINDOW_LABEL : windowLabel("message", boundId),
+    {
+      url:
+        boundId == null
+          ? MESSAGE_WINDOW_URL
+          : `${MESSAGE_WINDOW_URL}?preset=${encodeURIComponent(boundId)}`,
+      title: MESSAGE_WINDOW_TITLE,
+      width: MESSAGE_WINDOW_WIDTH,
+      height: MESSAGE_WINDOW_HANDLE_HEIGHT,
+      resizable: false,
+      decorations: false,
+      transparent: true,
+      shadow: false,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      focus: false,
+      ...(position ? { x: position.x, y: position.y } : {}),
+    },
+  );
   void win.once("tauri://error", (event) =>
     log.error("message_window_create_error", { error: String(event) }),
   );
