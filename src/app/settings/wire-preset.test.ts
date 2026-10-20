@@ -106,7 +106,10 @@ describe("wirePresetSwitch", () => {
 
   it("keeps running and picks up the list when another window edits presets without switching", () => {
     const registry = wire();
-    writeFromOtherWindow({ active: "default", list: [...LIST, { id: "bbbb0002", name: "perlica" }] });
+    writeFromOtherWindow({
+      active: "default",
+      list: [...LIST, { id: "bbbb0002", name: "perlica" }],
+    });
 
     remote({ active: "default" });
 

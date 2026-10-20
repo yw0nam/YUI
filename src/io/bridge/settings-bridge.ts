@@ -78,8 +78,8 @@ export interface SettingsBridge {
   /** A window with no input source of its own asking the pet window to submit a guide request. */
   emitHelpGuide(request: HelpGuideRequest): void;
   onHelpGuide(cb: (request: HelpGuideRequest) => void): () => void;
-  /** The preset a window just activated; every other window reloads into it. */
-  emitPresetChanged(change: PresetChange): void;
+  /** The active preset after a window edited the registry; a window booted on another one reloads. Settles once sent. */
+  emitPresetChanged(change: PresetChange): Promise<void>;
   onPresetChanged(cb: (change: PresetChange) => void): () => void;
   dispose(): void;
 }
@@ -180,7 +180,7 @@ export function createSettingsBridge(
       });
     },
     emitPresetChanged(change) {
-      safeEmit(CH_PRESET_CHANGED, change);
+      return safeEmit(CH_PRESET_CHANGED, change);
     },
     onPresetChanged(cb) {
       return on<unknown>(CH_PRESET_CHANGED, (change) => {

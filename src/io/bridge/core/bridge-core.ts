@@ -17,7 +17,8 @@ const log = createLogger("settings-bridge");
 export type WindowKind = "pet" | "settings" | "devtools" | "message";
 
 export interface BridgeTransport {
-  emit(name: string, payload?: unknown): void;
+  /** A transport that sends asynchronously returns the send's promise; it never rejects. */
+  emit(name: string, payload?: unknown): void | Promise<void>;
   /** Returns a disposer that detaches this listener. */
   listen(name: string, cb: (payload: unknown) => void): () => void;
 }
@@ -33,6 +34,7 @@ function createTauriTransport(): BridgeTransport {
         .then(() => eventMod)
         .then((m) => m.emit(name, payload))
         .catch((err) => log.warn("tauri_emit_failed", { error: String(err) }));
+      return sending;
     },
     listen(name, cb) {
       let unlisten: (() => void) | null = null;
@@ -117,7 +119,8 @@ function newSrcId(): string {
 
 /** Envelope + self-filter + listener bookkeeping, shared by every cross-window bus. */
 interface BridgeCore {
-  emit(name: string, payload?: unknown): void;
+  /** Settles once the transport has sent the message, or at once for a synchronous transport. */
+  emit(name: string, payload?: unknown): Promise<void>;
   on<T>(name: string, cb: (payload: T, from: WindowKind) => void): () => void;
   dispose(): void;
 }
@@ -131,9 +134,9 @@ export function createBridgeCore(
   const srcId = newSrcId();
 
   return {
-    emit(name, payload) {
+    async emit(name, payload) {
       try {
-        t.emit(name, { __src: srcId, __kind: windowKind, payload } satisfies BridgeEnvelope);
+        await t.emit(name, { __src: srcId, __kind: windowKind, payload } satisfies BridgeEnvelope);
       } catch (err) {
         log.warn("emit_failed", { error: String(err) });
       }
