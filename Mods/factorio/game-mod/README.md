@@ -263,6 +263,7 @@ the job's start. A successful `jobs_enqueue` lifts the stop latch.
 | `no_path` | the 6th path request failed |
 | `stuck` | 600 ticks without movement on a route |
 | `target_gone` | the `walk_to` entity no longer exists; no `mine` target within 64 tiles, the named `entity` no longer exists, or a second `mine` target disappeared |
+| `no_item` | the body holds fewer than `count` of `item`, checked at the `deliver` start and again at the spill |
 | `not_permitted` | the named `mine` `entity` is not an allowed target that yields `name` |
 | `unreachable` | the named `mine` `entity` is more than 64 tiles from the body |
 | `unsupported` | the named `mine` `entity` needs a fluid to mine; also a job kind whose start set no `timeout_ticks` |
