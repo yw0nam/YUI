@@ -556,8 +556,12 @@ def test_walk_to_reaches_a_furnace_enclosure_through_its_one_gap(server):
     state = body_state(server)
     assert math.dist((state["x"], state["y"]), (0, -100)) <= 2
     assert state["walking"] is False
-    # idle takes over 100 tiles from the host, beyond the leash, and waits
-    assert labels(server) == ["Buddy · Waiting for dev-host"]
+    # idle takes over 100 tiles from the host, beyond the leash, and waits; the label lands within its 10-tick check
+    wait_for(
+        lambda: labels(server),
+        lambda texts: texts == ["Buddy · Waiting for dev-host"],
+        "the waiting label",
+    )
 
 
 def test_walk_to_into_a_closed_ring_fails_no_path_after_the_retries(server):

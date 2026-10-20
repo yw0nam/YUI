@@ -45,7 +45,10 @@ function M.follow_step(deps)
   end
   if state.leashed and not (state.retry_tick ~= nil and deps.tick < state.retry_tick) then
     state.leashed = nil
-    body.set_status(deps, status_line.STANDING_BY)
+    -- only demote the label when it still shows the leash's own text; a job's end status may have replaced it
+    if deps.storage.body.status == "Waiting for " .. player.name then
+      body.set_status(deps, status_line.STANDING_BY)
+    end
   end
   if deps.storage.walker and dist <= FOLLOW_NEAR then
     state.failures = nil
