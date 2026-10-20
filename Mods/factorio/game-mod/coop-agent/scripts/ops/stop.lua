@@ -4,8 +4,8 @@ local body = require("scripts.body")
 
 local M = {}
 
-function M.op()
-  body.stop(body.game_deps())
+function M.op(deps)
+  body.stop(deps)
   return {}
 end
 

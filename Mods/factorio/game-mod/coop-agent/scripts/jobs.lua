@@ -1,6 +1,7 @@
 -- The job queue and its runner: FIFO, one job at a time, every tick behind the body's execution gate.
 
 local body = require("scripts.body")
+local check = require("scripts.jobs.check")
 local walker = require("scripts.walker")
 
 local MAX_JOBS = 16
@@ -113,7 +114,7 @@ end
 function M.enqueue(deps, specs)
   local queue = deps.storage.jobs
   if queue.active + #specs > MAX_JOBS then
-    return { ok = false, e = "bad_request", m = "jobs: the queue holds at most " .. MAX_JOBS .. " jobs" }
+    return check.bad_request("jobs: the queue holds at most " .. MAX_JOBS .. " jobs")
   end
   -- a stop since the last tick still ends the queue it halted
   if queue.active > 0 then
@@ -161,7 +162,7 @@ end
 
 function M.tick_event()
   if storage.jobs.active > 0 then
-    M.tick(walker.game_deps())
+    M.tick(body.game_deps())
   end
 end
 

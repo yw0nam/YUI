@@ -1,5 +1,4 @@
--- The one path walker every movement uses: pathfinder route, walked by walking_state, never by teleport.
--- Optional deps hooks: on_path(path) and on_segment(from, to) return nil to accept or a reason code to reject.
+-- The one path walker: a pathfinder route walked by walking_state; deps.on_path(path), deps.on_segment(from, to) may return a reject reason.
 
 local body = require("scripts.body")
 
@@ -23,6 +22,10 @@ local DIRECTIONS = {
 }
 
 local M = {}
+
+local function point(p)
+  return { x = p.x, y = p.y }
+end
 
 function M.distance(a, b)
   local dx, dy = a.x - b.x, a.y - b.y
@@ -68,11 +71,11 @@ end
 --- Starts a walk to within radius of target, replacing any walk under way.
 function M.go(deps, target, radius)
   deps.storage.walker = {
-    target = { x = target.x, y = target.y },
+    target = point(target),
     radius = radius,
     failures = 0,
     retry_tick = deps.tick,
-    still = 0,
+    still_ticks = 0,
   }
 end
 
@@ -95,34 +98,33 @@ function M.on_path_finished(deps, e)
   end
   walker.request_id = nil
   if e.path then
-    walker.failed = deps.on_path and deps.on_path(e.path)
+    walker.fail_reason = deps.on_path and deps.on_path(e.path)
     local path = {}
     for i, waypoint in ipairs(e.path) do
-      path[i] = { x = waypoint.position.x, y = waypoint.position.y }
+      path[i] = point(waypoint.position)
     end
     walker.path, walker.index, walker.segment = path, 1, nil
     return
   end
   walker.failures = walker.failures + 1
   if walker.failures >= MAX_FAILURES then
-    walker.failed = "no_path"
+    walker.fail_reason = "no_path"
   else
     walker.retry_tick = deps.tick + RETRY_TICKS
   end
 end
 
--- Counts still ticks on a path; true when it takes over the tick: a re-path from 2 tiles back at 150, a step back at 600.
--- The heading is set on a path's first tick, before any still tick counts.
+-- Counts still ticks on a path (heading set on its first tick); true when a re-path (150) or a step back (600) takes the tick.
 local function unstick(deps, walker, entity, pos)
   local moved = not walker.last or M.distance(pos, walker.last) >= MOVED_TILES
-  walker.still = moved and 0 or walker.still + 1
-  walker.last = { x = pos.x, y = pos.y }
-  if walker.still >= STUCK_TICKS then
+  walker.still_ticks = moved and 0 or walker.still_ticks + 1
+  walker.last = point(pos)
+  if walker.still_ticks >= STUCK_TICKS then
     walker.back = { from = walker.last, until_tick = deps.tick + STEP_BACK_TICKS }
     walk(deps, entity, { x = -walker.heading.x, y = -walker.heading.y })
     return true
   end
-  if walker.still == STALL_TICKS then
+  if walker.still_ticks == STALL_TICKS then
     request(walker, entity, behind(pos, walker.heading))
     return true
   end
@@ -137,8 +139,8 @@ function M.tick(deps)
     return nil
   end
   local pos = entity.position
-  if walker.failed then
-    return finish(deps, walker.failed)
+  if walker.fail_reason then
+    return finish(deps, walker.fail_reason)
   end
   if M.distance(pos, walker.target) <= walker.radius then
     return finish(deps, "arrived")
@@ -151,7 +153,7 @@ function M.tick(deps)
   end
   if not walker.path then
     if not walker.request_id and deps.tick >= walker.retry_tick then
-      request(walker, entity, { x = pos.x, y = pos.y })
+      request(walker, entity, point(pos))
     end
     return nil
   end
@@ -178,15 +180,8 @@ function M.tick(deps)
   return nil
 end
 
---- The body's game deps plus the walking directions.
-function M.game_deps()
-  local deps = body.game_deps()
-  deps.direction = defines.direction
-  return deps
-end
-
 function M.on_path_finished_event(e)
-  M.on_path_finished(M.game_deps(), e)
+  M.on_path_finished(body.game_deps(), e)
 end
 
 return M

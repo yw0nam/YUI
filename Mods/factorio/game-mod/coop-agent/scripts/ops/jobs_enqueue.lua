@@ -18,10 +18,6 @@ local KIND_NAMES = kind_names()
 
 local M = {}
 
-local function refusal(message)
-  return { ok = false, e = "bad_request", m = message }
-end
-
 --- nil for a valid spec, else "jobs[<zero-based index>].<field>: <what was expected>".
 local function invalid(index, spec)
   local at = "jobs[" .. (index - 1) .. "]"
@@ -51,12 +47,12 @@ end
 function M.op(deps, args)
   local specs = args.jobs
   if type(specs) ~= "table" or #specs < 1 or #specs > MAX_PER_CALL then
-    return refusal("jobs: 1 to " .. MAX_PER_CALL .. " jobs expected")
+    return check.bad_request("jobs: 1 to " .. MAX_PER_CALL .. " jobs expected")
   end
   for index, spec in ipairs(specs) do
     local message = invalid(index, spec)
     if message then
-      return refusal(message)
+      return check.bad_request(message)
     end
   end
   return jobs.enqueue(deps, specs)

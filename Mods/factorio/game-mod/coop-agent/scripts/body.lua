@@ -140,6 +140,7 @@ function M.game_deps()
     entity_prototypes = prototypes.entity,
     force = game.forces.player,
     starter_items = character.freeplay_items,
+    direction = defines.direction,
   }
 end
 

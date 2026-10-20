@@ -39,6 +39,7 @@ local function runtime_deps()
     host = host.get,
     push = store.push,
     draw_text = rendering.draw_text,
+    direction = defines.direction,
     ops = M.OPS,
   }
 end
@@ -89,8 +90,7 @@ local function finish(deps, id, payload)
   return json
 end
 
---- deps: {from_json, to_json, print, chat, storage, tick, body_name, host(), push(kind, data), draw_text(spec),
----        ops = {name = {fn, write?}}}
+--- deps: {from_json, to_json, print, chat, storage, tick, body_name, host(), push, draw_text, direction, ops}
 function M.dispatch(parameter, player_index, deps)
   local id = nil
   local parsed_ok, req = pcall(deps.from_json, parameter or "")
