@@ -91,9 +91,8 @@ def test_a_stall_repaths_once_from_2_tiles_back_and_600_still_ticks_step_back_an
     assert len(world.REQUESTS) == 2
 
 
-@pytest.mark.parametrize("hook", ["on_path", "on_segment"])
-def test_a_hook_that_rejects_fails_the_walk_with_its_reason(lua, world, hook):
-    lua.execute(f'DEPS.{hook} = function() return "threat" end')
+def test_a_route_hook_that_rejects_fails_the_walk_with_its_reason(lua, world):
+    lua.execute('DEPS.on_path = function() return "threat" end')
     go(lua, world, 10, 0)
     until_request(world)
     answer(lua, world, [[10, 0]])

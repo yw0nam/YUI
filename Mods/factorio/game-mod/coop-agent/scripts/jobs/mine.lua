@@ -161,6 +161,9 @@ local function replace(deps, job, state, entity)
   if not target then
     return "target_gone"
   end
+  if enemies.near(deps, entity.surface, target.position) then
+    return "threat"
+  end
   choose(deps, job, state, target)
   return nil
 end

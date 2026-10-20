@@ -160,7 +160,7 @@ prototype applies from the next spawn.
 | `coop-agent-body-prototype` | string | `character` |
 | `coop-agent-body-color` | `orange`, `red`, `yellow`, `green`, `cyan`, `blue`, `purple`, `white` | `orange` |
 | `coop-agent-idle-start` | string (`follow`, `stay`) | `follow` |
-| `coop-agent-safe-radius` | int, tiles (see § Threat) | `48` |
+| `coop-agent-safe-radius` | int, tiles, 16 to 128 (see § Threat) | `48` |
 
 ## Idle
 
@@ -275,48 +275,64 @@ the job's start. A successful `jobs_enqueue` lifts the stop latch.
 | `unsupported` | the named `mine` `entity` needs a fluid to mine; also a job kind whose start set no `timeout_ticks` |
 | `target_full` | `mine`: the body has no room for `name`; `deliver`: the spill fell short, with `{removed, spilled}` in the failure detail |
 | `timeout` | `timeout_ticks` elapsed since the job's start |
-| `threat` | an enemy is within the safe radius of the `walk_to` or `mine` target at the job's start, or of the job's route; also on jobs the body check or enemy damage cancelled (see § Threat) |
+| `threat` | an enemy is within the safe radius of the `walk_to` or `mine` target at the job's start or of a replacement `mine` target, or near the job's route; also on the running job when the body check or enemy damage ends the queue, and on the queued jobs it cancels (see § Threat) |
 | `stopped` | the stop latch is on or no host is connected; also on jobs cancelled before any started |
 | `body_dead` | there is no live body; also on jobs cancelled before any started |
 | `cancelled` | `jobs_cancel`, or an earlier job of the queue failed |
 
 ## Threat
 
-An enemy is a military entity of a force the player force `is_enemy` with,
-found with `find_nearest_enemy`. The safe radius is the
-`coop-agent-safe-radius` setting, 48 tiles by default. The body never attacks.
+An enemy is a military entity of a force the player force `is_enemy` with.
+The safe radius is the `coop-agent-safe-radius` setting: 48 tiles by default,
+16 to 128. The body never attacks.
 
 - **Target.** A `walk_to` or `mine` whose target lies within the safe radius
-  of an enemy fails `threat` at its start, before the body moves.
+  of an enemy fails `threat` at its start, before the body moves; so does a
+  `mine` whose replacement target does.
 - **Route.** Every route the pathfinder returns is sampled every 8 tiles, both
-  ends included, and an enemy within the safe radius + 4 of a sample rejects
-  it: a job fails `threat`, a follow step stops (see § Idle), and a `stay`
-  walk ends where the body stands.
+  ends included, and an enemy within the safe radius + 4 of a sample
+  (`find_nearest_enemy`) rejects it. A retreat's route is checked by the
+  segment rule below instead.
+- **Look-ahead.** Every 60 ticks every walk checks its next 16 tiles: a job's
+  walk, a follow step and a `stay` walk against enemies within the safe
+  radius + 4 of the route, a retreat by the segment rule. One
+  `find_entities_filtered` for the forces the player force `is_enemy` with
+  covers the whole look-ahead.
+- **A rejected walk.** A job fails `threat`; a follow step stops, the status
+  line reads `Waiting for <host>` and the next step waits 600 ticks (see §
+  Idle); a `stay` walk ends where the body stands.
 - **Body check.** Every 60 ticks while the execution gate passes, an enemy
-  within the safe radius of the body cancels every queued and running job
-  with `threat` and raises a retreat. The first check of a threat fires
-  `body_threat{distance}`, in whole tiles.
+  within the safe radius of the body ends the queue: a running job fails
+  `threat` with one `job_failed`, the queued jobs are cancelled with reason
+  `threat`, and no `job_failed` fires when no job runs. A retreat follows. The
+  first sighting of a threat fires `body_threat{distance}`, in whole tiles,
+  also when damage raised the alarm first.
 - **Damage.** Damage to the body from a force the player force `is_enemy`
   with fires `body_damaged{health}`, the health left, at most once per 300
-  ticks; each one cancels every job with `threat` and raises a retreat while
-  the execution gate passes.
-- **Retreat.** Not a job. The body walks toward the host's position and ends
-  within 5 tiles of it, or stands where it is when an enemy is within the
-  safe radius of the host or the host is on another surface. A retreat walks
-  a route segment only when, for every enemy within the safe radius + 4 of
-  the segment's start, the segment comes no closer to that enemy than its
-  start does; the next 16 tiles are checked when the route arrives and every
-  60 ticks after. A rejected segment, a failed route, arrival or a shut
-  execution gate ends the retreat where the body stands. The status line
-  reads `Retreating` while it walks, then `Standing by`.
+  ticks; each one ends the queue the same way and raises a retreat while the
+  execution gate passes.
+- **Retreat.** Not a job. The body walks toward the host and ends within 5
+  tiles of it, or stands where it is when an enemy is within the safe radius
+  of the host or the host is on another surface. A body check that finds the
+  host more than 5 tiles from the retreat's goal aims the retreat at the host
+  again. The segment rule: a retreat walks a segment only when, for every
+  enemy within the safe radius + 4 of the segment's start, the segment comes
+  no closer to that enemy than its start does; it is checked when the route
+  arrives and by the look-ahead. A rejected route leaves the body standing,
+  still `Retreating`, and the route is requested again 300 ticks later.
+  Arrival, a failed route or a shut execution gate ends the retreat where the
+  body stands. The status line reads `Retreating` until the retreat ends,
+  then `Standing by`.
 - **Quiet.** While a threat holds the body, the queue starts no job and idle
   does nothing; jobs queued meanwhile wait. The threat ends at the first body
   check 600 ticks or more after the retreat ended; an enemy seen before that
-  cancels the queue and raises a retreat again.
+  ends the queue and raises a retreat again. Idle then starts afresh: a
+  `stay` body walks back to its position once.
 
-While no retreat walks, the threat costs one flag check per tick;
+While no retreat walks, the threat costs one flag check per tick; the job
+runner still builds its deps each tick while a threat holds queued jobs.
 `find_nearest_enemy` runs at the 60-tick body check, at a `walk_to` or `mine`
-start and when a route arrives.
+start or target replacement and when a route arrives.
 
 ## Safety
 
@@ -363,7 +379,7 @@ stop latch, the respawn timer, the status-line text and the body colors, and,
 over a fake world (`tests/fixtures/world.lua`), the job queue's transitions,
 events, reason codes, validation messages, cap, failure detail and idle
 cost, the walker's path
-request, retries, resolution steps, stale results, stuck handling and hooks,
+request, retries, resolution steps, stale results, stuck handling and route hook,
 and idle: the mode switch with its `idle_changed` and `status.idle`, the leash
 with its status line, the latch clearing, the gate and the enqueue handover,
 and `idle_set` validation, and the `mine` job's target rule, reach, fluid ores, inventory-delta end,
@@ -371,13 +387,18 @@ timed fallback, `target_full`, one replaced target, dropped state and
 default timeout, the runner's refusal of a start that sets no
 `timeout_ticks`, and the deliver job's walk to the host, far-side spill,
 step back, `no_item` at start and at the spill, and enqueue validation
-against the item prototypes, and threat safety: a route sampled every 8
-tiles with both ends, a route whose midpoint passes 40 tiles from a biter
-refused and the same route taken without it, the `walk_to` and `mine` target
-check, the point-to-segment rule, the body check's `threat` cancels with one
-`body_threat`, a retreat to within 5 tiles of the host or a stop in place, the
-600 quiet ticks before the queue and idle follow resume, `body_damaged` at
-most once per 300 ticks, and a follow step that refuses a route into an
+against the item prototypes, and threat safety: a route whose midpoint passes 40 tiles from a biter, or
+that only a sample's safe radius + 4 reaches, refused and the same route
+taken without it, the `walk_to`, `mine` and replacement `mine` target check,
+the point-to-segment rule, the body check's failed running job and
+`threat`-cancelled queue with one `body_threat`, also after damage raised
+the alarm, a retreat to within 5 tiles of the host or a stop in place, a
+rejected retreat route that keeps `Retreating` and retries every 300 ticks,
+the retreat following a host that moved, the look-ahead stopping a job and a
+follow step when an enemy moves onto the route, the 600 quiet ticks before
+the queue and idle follow resume and their restart on a new sighting, the
+stay walk back after a retreat, `body_damaged` at most once per 300 ticks
+and with the gate shut, and a follow step that refuses a route into an
 enemy's safe radius. The
 headless suite runs with `--probe` and pins, on a seed-42 map: `status` →
 `events_since` → `say`, write-op replay and
@@ -406,9 +427,9 @@ after `job_done`, and body, ground and host conservation holds; and
 `deliver` with fewer coal than asked fails `no_item` with the body still
 holding them; and threat: `mine{coal, 10}` with a `small-biter` 30 tiles
 from the patch fails `threat` at its start and the body stays put, a biter
-20 tiles from the standing body fires `body_threat` within 60 ticks, cancels
-every queued job with `threat` and the body retreats to within 5 tiles of
-the dev host, and a biter commanded to attack the body fires one
+20 tiles from the standing body fires `body_threat` within 60 ticks, fails
+the running job `threat` with one `job_failed`, cancels the queued ones with
+`threat` and the body retreats to within 5 tiles of the dev host, and a biter commanded to attack the body fires one
 `body_damaged` within 300 ticks. Every scene body starts empty.
 
 On 2.0.77, reading `count_as_rock_for_filtered_deconstruction` on a prototype

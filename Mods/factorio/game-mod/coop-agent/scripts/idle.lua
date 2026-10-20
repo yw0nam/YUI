@@ -81,6 +81,12 @@ function M.follow_step(deps, label)
   return result
 end
 
+--- Drops the follow state and the stay arrival: idle's next tick starts its mode afresh.
+function M.restart(deps)
+  M.reset_follow(deps)
+  deps.storage.idle.arrived = nil
+end
+
 local function stay_step(deps)
   local state = deps.storage.idle
   if state.arrived or state.pos == nil then
@@ -123,12 +129,10 @@ local function reset(deps)
   if not hold.idle(deps.storage) then
     walker.cancel(deps) -- idle owns the walk only while the queue is empty and no threat holds the body
   end
-  local state = deps.storage.idle
-  if state.leashed then
+  if deps.storage.idle.leashed then
     body.set_status(deps, status_line.STANDING_BY)
   end
-  M.reset_follow(deps)
-  state.arrived = nil
+  M.restart(deps)
 end
 
 --- Sets the mode and stay position; takes the walk, resets the label, lifts the latch, rings on a change.

@@ -80,21 +80,35 @@ local function segment_distance(p, a, b)
   return walker.distance(p, { x = a.x + dx * t, y = a.y + dy * t })
 end
 
---- True when a segment of the route's next 16 tiles, from pos through points[index] onward, comes closer to an
---- enemy within the safe radius + 4 of the segment's start than that start is.
-function M.ahead_closer(deps, surface, pos, points, index)
+-- True when hit(enemy position, segment, reach) holds for an enemy and a segment of the route's next 16 tiles,
+-- from pos through points[index] onward; one query covers every segment.
+local function ahead(deps, surface, pos, points, index, hit)
   local reach = deps.safe_radius + MARGIN_TILES
   local found = enemies_around(deps, surface, pos, reach + AHEAD_TILES)
   for _, segment in ipairs(segments(pos, points, index)) do
     for _, enemy in ipairs(found) do
-      local at = enemy.position
-      local from_start = walker.distance(at, segment.a)
-      if from_start <= reach and segment_distance(at, segment.a, segment.b) < from_start then
+      if hit(enemy.position, segment, reach) then
         return true
       end
     end
   end
   return false
+end
+
+--- True when the route's next 16 tiles pass within the safe radius + 4 of an enemy.
+function M.ahead_near(deps, surface, pos, points, index)
+  return ahead(deps, surface, pos, points, index, function(at, segment, reach)
+    return segment_distance(at, segment.a, segment.b) <= reach
+  end)
+end
+
+--- True when a segment of the route's next 16 tiles comes closer to an enemy within the safe radius + 4 of the
+--- segment's start than that start is.
+function M.ahead_closer(deps, surface, pos, points, index)
+  return ahead(deps, surface, pos, points, index, function(at, segment, reach)
+    local from_start = walker.distance(at, segment.a)
+    return from_start <= reach and segment_distance(at, segment.a, segment.b) < from_start
+  end)
 end
 
 return M

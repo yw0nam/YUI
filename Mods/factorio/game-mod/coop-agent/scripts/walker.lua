@@ -1,4 +1,4 @@
--- The one path walker: a pathfinder route walked by walking_state; deps.on_path(path), deps.on_segment(from, to) may return a reject reason.
+-- The one path walker: a pathfinder route walked by walking_state; deps.on_path(path) may return a reject reason.
 
 local body = require("scripts.body")
 
@@ -86,6 +86,11 @@ function M.route(deps)
     return walker.path, walker.index
   end
   return nil
+end
+
+--- Ends the walk under way with reason on its next tick, as a rejected route would.
+function M.reject(deps, reason)
+  deps.storage.walker.fail_reason = reason
 end
 
 --- True while a walk is under way.
@@ -181,10 +186,6 @@ function M.tick(deps)
   local goal = walker.path[walker.index] or walker.target
   if walker.segment ~= walker.index then
     walker.segment = walker.index
-    local rejected = deps.on_segment and deps.on_segment(pos, goal)
-    if rejected then
-      return finish(deps, rejected)
-    end
     walker.aim_tick = nil
   end
   if not walker.aim_tick or deps.tick - walker.aim_tick >= AIM_TICKS then

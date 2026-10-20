@@ -60,9 +60,10 @@ local function cancel_where(deps, id, reason)
   return found
 end
 
-local function fail(deps, job, reason, detail)
+-- The job fails with reason and the queued jobs are cancelled with rest_reason (default "cancelled").
+local function fail(deps, job, reason, detail, rest_reason)
   close(deps, job, "failed", reason)
-  cancel_where(deps, nil, "cancelled")
+  cancel_where(deps, nil, rest_reason or "cancelled")
   local data = {}
   for key, value in pairs(detail or {}) do
     data[key] = value
@@ -174,10 +175,22 @@ function M.enqueue(deps, specs)
   return { ids = ids }
 end
 
---- Cancels the active job with this id, or every active job when id is nil, with reason (default "cancelled");
---- false when none had the id.
-function M.cancel(deps, id, reason)
-  return cancel_where(deps, id, reason or "cancelled")
+--- Cancels the active job with this id, or every active job when id is nil; false when none had the id.
+function M.cancel(deps, id)
+  return cancel_where(deps, id, "cancelled")
+end
+
+--- Ends the queue for reason: a running job fails with it and one job_failed, the queued jobs are cancelled with it.
+function M.abort(deps, reason)
+  if deps.storage.jobs.active == 0 then
+    return
+  end
+  local job = current(deps.storage.jobs.list)
+  if job.state == "running" then
+    fail(deps, job, reason, nil, reason)
+  else
+    cancel_where(deps, nil, reason)
+  end
 end
 
 --- The status part: active job count and the running job.
