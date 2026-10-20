@@ -1,24 +1,17 @@
 /** A companion holds its own deletion guard until its writable stores finish teardown. */
-import { watchOwner } from "../../io/window/openers/companion-windows";
+
 import {
-  closeCurrentWindow,
+  destroyCurrentWindow,
   listenCurrentWindowCloseRequested,
-} from "../../io/window/openers/current-window";
+} from "../../io/window/current-window";
+import { watchOwner } from "../../io/window/openers/companion-windows";
 import type { Logger } from "../../logger";
 import { readBoundPresetId } from "../../settings/preset/bound-preset";
-import {
-  clearWindowLive,
-  isWindowLive,
-  setWindowLive,
-  windowLabel,
-} from "../../settings/preset/pet-windows";
+import { clearWindowLive, setWindowLive, windowLabel } from "../../settings/preset/pet-windows";
 import { createPresetRegistry, type PresetRegistry } from "../../settings/preset/preset-registry";
 import { isTauri } from "../../tauri-env";
 import type { Disposers } from "../disposers";
 import { closeIfOrphan } from "./close-if-orphan";
-
-const COMPANION_CLOSE_WAIT_MS = 1000;
-const COMPANION_POLL_MS = 50;
 
 export async function wireCompanionWindow(deps: {
   label: string;
@@ -79,7 +72,13 @@ export async function wireCompanionWindow(deps: {
     offOwner();
     return role;
   }
-  offClose = await listenCurrentWindowCloseRequested(dispose);
+  offClose = await listenCurrentWindowCloseRequested(() => {
+    try {
+      dispose();
+    } catch (error) {
+      deps.log.warn("companion_dispose_failed", { preset: deps.boundId, error: String(error) });
+    }
+  });
   if (disposed) {
     offClose();
     return role;
@@ -106,18 +105,8 @@ export async function bootCompanion(
           boundId,
           registry,
           disposeWindow: lifecycle.dispose,
-          close: closeCurrentWindow,
+          close: destroyCurrentWindow,
           log,
         });
   return { boundId, registry, alive: companion?.alive ?? !lifecycle.isDisposed() };
-}
-
-export async function waitForCompanions(id: string, log: Logger): Promise<void> {
-  const live = () =>
-    (["settings", "message"] as const).some((kind) => isWindowLive(windowLabel(kind, id)));
-  for (let elapsed = 0; elapsed < COMPANION_CLOSE_WAIT_MS; elapsed += COMPANION_POLL_MS) {
-    if (!live()) return;
-    await new Promise<void>((resolve) => setTimeout(resolve, COMPANION_POLL_MS));
-  }
-  if (live()) log.warn("companion_close_timeout", { preset: id });
 }

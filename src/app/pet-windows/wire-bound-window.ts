@@ -4,12 +4,15 @@ import { closeCompanions } from "../../io/window/openers/companion-windows";
 import type { Logger } from "../../logger";
 import {
   clearWindowLive,
+  isWindowLive,
   type PetWindows,
   setWindowLive,
   windowLabel,
 } from "../../settings/preset/pet-windows";
 import { isTauri } from "../../tauri-env";
-import { waitForCompanions } from "./companion-window";
+
+const COMPANION_CLOSE_WAIT_MS = 1000;
+const COMPANION_POLL_MS = 50;
 
 export function wireBoundWindow(deps: {
   boundId: string;
@@ -71,4 +74,14 @@ export function wireBoundWindow(deps: {
     clearWindowLive(windowLabel("pet", deps.boundId));
     if (browser) window.removeEventListener("pagehide", onPageHide);
   };
+}
+
+async function waitForCompanions(id: string, log: Logger): Promise<void> {
+  const live = () =>
+    (["settings", "message"] as const).some((kind) => isWindowLive(windowLabel(kind, id)));
+  for (let elapsed = 0; elapsed < COMPANION_CLOSE_WAIT_MS; elapsed += COMPANION_POLL_MS) {
+    if (!live()) return;
+    await new Promise<void>((resolve) => setTimeout(resolve, COMPANION_POLL_MS));
+  }
+  if (live()) log.warn("companion_close_timeout", { preset: id });
 }
