@@ -17,8 +17,8 @@ the body alive. What the agent does with them is the backend's business.
   `storage` tables and the event push, `events` handlers, `attack` cell
   grouping, `host`, `unit_index`, `text` checks, `map_id`, `body` with its
   parts under `scripts/body/`, the `jobs` queue with one file per job kind
-  under `scripts/jobs/`, the path `walker`, one file per op under
-  `scripts/ops/`).
+  under `scripts/jobs/`, the path `walker`, the `idle` modes, one file per op
+  under `scripts/ops/`).
   `data.lua` holds the stop hotkey; `settings.lua` the mod settings.
   Pure modules take their dependencies (`storage`, `game.tick`, `rcon.print`,
   `helpers.table_to_json`/`json_to_table`) through an injected `deps` table.
@@ -59,7 +59,7 @@ empty array, so consumers read two shapes accordingly:
 - An absent key is null for `host`, `recipe`, `status`, `research.current`,
   a `find` entry's `unit_number`, a recipe part's `amount`, `amount_min`,
   `amount_max` and `probability`, which depend on the part's type,
-  `status.queue.running`, and a job record's `progress`, `reason` and
+  `status.queue.running`, `status.idle`'s `pos`, and a job record's `progress`, `reason` and
   `started_tick`, and a queued `mine` record's `timeout_ticks`.
 
 The host is the connected admin with the lowest player index; `status.host`,
@@ -68,7 +68,8 @@ The host is the connected admin with the lowest player index; `status.host`,
 Any call with a non-nil `player_index` (a player's console) is refused with
 `e:"not_console"` and runs nothing. `status` needs no `map_id`; every other op
 must carry the `map_id` from the last `status` or gets `e:"stale_session"`.
-The write ops (`say`, `ping`, `stop`, `jobs_enqueue`, `jobs_cancel`) remember every reply of theirs that ran,
+The write ops (`say`, `ping`, `stop`, `jobs_enqueue`, `jobs_cancel`,
+`idle_set`) remember every reply of theirs that ran,
 refusals and `op_error` included, for the last 256 ids of the map: the same
 `id` with the same arguments replays the stored reply, and the same `id` with
 different arguments gets `e:"id_conflict"`. Read ops re-run on a retry.
@@ -78,7 +79,7 @@ Replies over 65536 bytes are replaced with `e:"too_large"` and `r.bytes`.
 
 | op | args | result |
 | --- | --- | --- |
-| `status` | — | `{mod_version, map_id, seq, tick, host\|null, body, stopped, queue}`; `body` is `{alive:false}`, or `{alive:true, position, health, inventory:[{name, count}]}` with the main inventory's top 10 by count (ties by name); `queue` is `{length, running\|null: {id, kind, progress}}` with `length` the queued and running jobs |
+| `status` | — | `{mod_version, map_id, seq, tick, host\|null, body, stopped, queue, idle}`; `body` is `{alive:false}`, or `{alive:true, position, health, inventory:[{name, count}]}` with the main inventory's top 10 by count (ties by name); `queue` is `{length, running\|null: {id, kind, progress}}` with `length` the queued and running jobs; `idle` is `{mode, pos}` with `pos` the position a due stay walk aims at |
 | `events_since` | `seq`, `limit` (≤ 200, default 200) | `{map_id, head_seq, events}`; a seq behind the ring answers `e:"history_gap"`, `r:{oldest_seq}` |
 | `snapshot` | `sections`? (power, science, research, evolution, pollution) | production and consumption per electric network in W (one-minute average), science packs consumed per minute over 1 and 10 min, research and queue, evolution, pollution total |
 | `find` | `area` (≤ 64×64) or `around:"player"`, `name`/`type`?, `limit`? (≤ 200, default 100) | `[{unit_number, name, type, position, gps, owner}]`; seen unit numbers are indexed for `inspect` |
@@ -90,6 +91,7 @@ Replies over 65536 bytes are replaced with `e:"too_large"` and `r.bytes`.
 | `jobs` | — | every job record the queue holds, oldest first (see § Jobs) |
 | `jobs_enqueue` | `jobs: [{kind, args, timeout_ticks?}]` (1 to 8) | `{ids}`, one per job in order; every job of the call is queued or none is (see § Jobs) |
 | `jobs_cancel` | `id` or `all: true` | `{}`; cancels that queued or running job, or every one; an `id` with no queued or running job answers `e:"bad_request"` |
+| `idle_set` | `mode` (`follow` or `stay`), `pos {x, y}`? | `{}`; sets the idle mode, lifts the stop latch and rings `idle_changed`; `stay` without `pos` stands at the body's position; a refusal answers `e:"bad_request"` naming the field (see § Idle) |
 
 Event kinds on the ring of 2000 (`{seq, tick, kind, data}`, monotonic seq per
 map): `chat{player, text}` — the host's chat lines only, never commands —
@@ -97,8 +99,9 @@ map): `chat{player, text}` — the host's chat lines only, never commands —
 `research_finished{name}`, `rocket_launched{}`, `attack_started{cell, enemies,
 defenders}`, `attack_ended{cell, duration_s, losses:[{name,count}]}`,
 `snapshot_summary` every 3600 ticks, the body's `body_died{}`,
-`body_respawned{}` and `stopped{}`, and the queue's `job_done{id, kind}`,
-`job_failed{id, kind, reason}` and `queue_idle{last_job_id}`. Attack grouping keys damage by surface
+`body_respawned{}` and `stopped{}`, the queue's `job_done{id, kind}`,
+`job_failed{id, kind, reason}` and `queue_idle{last_job_id}`, and idle's
+`idle_changed{mode}`. Attack grouping keys damage by surface
 and 64-tile cell: a hit counts when a player-force entity takes damage from a
 force the player force `is_enemy` with (the event's `force`, else the
 cause's force; never neutral or cease-fire forces), and `losses` counts
@@ -152,6 +155,20 @@ applies from the next spawn.
 | `coop-agent-body-enabled` | bool | `false` |
 | `coop-agent-body-prototype` | string | `character` |
 | `coop-agent-body-color` | `orange`, `red`, `yellow`, `green`, `cyan`, `blue`, `purple`, `white` | `orange` |
+| `coop-agent-idle-start` | string (`follow`, `stay`) | `follow` |
+
+## Idle
+
+While no job is queued or running and the execution gate passes, the body idles
+in `storage.idle`'s mode; it starts in the `coop-agent-idle-start` mode and
+`idle_set` changes it. `follow` keeps the body 10 to 15 tiles from the host
+with repeated short walker steps through the one walker: beyond 15 tiles a step
+starts and ends within 10 tiles of the host, and a failed step rests 30 ticks.
+Beyond a 64-tile leash the body stops and the status line reads `Waiting for
+<host>`; back inside the leash it resumes. `stay` walks to its position once —
+`idle_set{stay}` without `pos` takes the body's position — then stands until
+told otherwise. An enqueue takes the walk from idle, and idle never pre-empts
+a running job or runs while the stop latch is on.
 
 ## Jobs
 
@@ -173,6 +190,7 @@ the job's start. A successful `jobs_enqueue` lifts the stop latch.
 | --- | --- | --- | --- | --- |
 | `walk_to` | `pos {x, y}` or `entity` (a `unit_number` that `find` or `inspect` returned), `radius` > 0 | the body is within `radius` of the position, or of the entity's position at the job's start | 3600 | `{distance}` in whole tiles to the target |
 | `wait` | `ticks` > 0 | `ticks` have elapsed | its `ticks` | `{elapsed}` ticks |
+| `follow` | `ticks` > 0 | `ticks` have elapsed, walking toward the host like the idle mode | its `ticks` | `{elapsed}` ticks |
 | `mine` | `name` (an item), `count` (integer 1 to 1000), `entity`? (a `unit_number` that `find` or `inspect` returned) | the body holds `count` more `name` than at the job's start | 3600 + `count` × the first target's mining ticks × 3, at most 36000, set when the job starts | `{gained, count, path}`, `path` `native` or `timed` |
 | `deliver` | `item`, `count` (an integer, 1 to 1000) | the body walked to within 3 tiles of the host — stepping out to the 3-tile ring first when it stands closer than 2.5 tiles — and `count` of `item` lie spilled on the host's far side as `item-on-ground` flagged `to_be_looted`, and the body stepped back to 6 tiles from the host, or the step-back's 180 ticks ended, or its walk failed | 3600 | — |
 
@@ -293,7 +311,9 @@ over a fake world (`tests/fixtures/world.lua`), the job queue's transitions,
 events, reason codes, validation messages, cap, failure detail and idle
 cost, the walker's path
 request, retries, resolution steps, stale results, stuck handling and hooks,
-and the `mine` job's target rule, reach, fluid ores, inventory-delta end,
+and idle: the mode switch with its `idle_changed` and `status.idle`, the leash
+with its status line, the latch clearing, the gate and the enqueue handover,
+and `idle_set` validation, and the `mine` job's target rule, reach, fluid ores, inventory-delta end,
 timed fallback, `target_full`, one replaced target, dropped state and
 default timeout, the runner's refusal of a start that sets no
 `timeout_ticks`, and the deliver job's walk to the host, far-side spill,
@@ -310,8 +330,12 @@ the corpse and an empty respawn 1800 ticks later, and removal when disabled;
 and the jobs: a `walk_to` 100 tiles north into a stone-furnace enclosure
 whose one way in is a 2-tile gap, a `walk_to` into a closed furnace ring that
 ends `no_path`,
-`jobs_cancel{all}` and `stop` while walking, `jobs_enqueue` replay and
-`id_conflict`; and on a cleared field around a dev host at (0, 200): `mine`
+`jobs_cancel{all}` and `stop` while walking, and `jobs_enqueue` replay and
+`id_conflict`; and idle: a host moved 40 tiles is followed back within 15
+tiles in 600 ticks, a host moved 80 tiles leashes the body under
+`Buddy · Waiting for dev-host`, `idle_set{stay, pos}` walks once and then
+ignores the host, and `idle_set{follow}` lifts the stop latch; and on a
+cleared field around a dev host at (0, 200): `mine`
 50 coal natively in 50 × 121 ticks within 10 %, 10 wood from three trees,
 5 stone from a huge rock, a host furnace refused while unmarked, and a
 farther marked furnace mined while the nearer unmarked one stays, and

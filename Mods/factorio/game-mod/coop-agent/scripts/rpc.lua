@@ -22,6 +22,7 @@ M.OPS = {
   stop = { fn = require("scripts.ops.stop").op, write = true },
   jobs_enqueue = { fn = require("scripts.ops.jobs_enqueue").op, write = true },
   jobs_cancel = { fn = require("scripts.ops.jobs_cancel").op, write = true },
+  idle_set = { fn = require("scripts.ops.idle_set").op, write = true },
 }
 
 --- The game-facing deps for one dispatch; built per call since game.tick moves.

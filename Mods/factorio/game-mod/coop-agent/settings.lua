@@ -28,4 +28,12 @@ data:extend({
     allowed_values = { "orange", "red", "yellow", "green", "cyan", "blue", "purple", "white" },
     order = "d",
   },
+  {
+    type = "string-setting",
+    name = "coop-agent-idle-start",
+    setting_type = "runtime-global",
+    default_value = "follow",
+    allowed_values = { "follow", "stay" },
+    order = "e",
+  },
 })

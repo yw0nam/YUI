@@ -556,7 +556,8 @@ def test_walk_to_reaches_a_furnace_enclosure_through_its_one_gap(server):
     state = body_state(server)
     assert math.dist((state["x"], state["y"]), (0, -100)) <= 2
     assert state["walking"] is False
-    assert labels(server) == ["Buddy · Standing by"]
+    # idle takes over 100 tiles from the host and waits inside the leash
+    assert labels(server) == ["Buddy · Waiting for dev-host"]
 
 
 def test_walk_to_into_a_closed_ring_fails_no_path_after_the_retries(server):
@@ -835,6 +836,23 @@ def idle_set(server, id_, args):
     return server.rpc(v=1, id=id_, op="idle_set", args=args, map_id=MAP_ID)
 
 
+def bring_body_home(server):
+    """Parks the body within 3 tiles of the origin; a follow beyond the leash waits, a walk_to does not."""
+    enqueue(server, f"home-{time.monotonic_ns()}", walk_to(0, 0, 3))
+    server.command("/silent-command game.speed = 10")
+    try:
+        wait_status(
+            server,
+            lambda s: (
+                s["queue"]["length"] == 0
+                and math.dist((s["body"]["position"]["x"], s["body"]["position"]["y"]), (0, 0)) <= 3
+            ),
+            deadline_s=120,
+        )
+    finally:
+        server.command("/silent-command game.speed = 1")
+
+
 def wait_position(server, done, what, deadline_s=120):
     return wait_for(
         lambda: server.rpc(v=1, id="pos", op="status", args={})["r"],
@@ -846,6 +864,7 @@ def wait_position(server, done, what, deadline_s=120):
 
 def test_idle_follow_brings_the_body_within_15_tiles_of_a_moved_host(server):
     body_ready(server)
+    bring_body_home(server)
     assert idle_set(server, "idle-1", {"mode": "follow"}) == {"v": 1, "id": "idle-1", "ok": True, "r": {}}
     before = server.rpc(v=1, id="idle-s0", op="status", args={})["r"]["tick"]
     assert json.loads(server.command("/coop-probe host 40 0")) == {"ok": True, "host": {"x": 40, "y": 0}}
@@ -863,6 +882,7 @@ def test_idle_follow_brings_the_body_within_15_tiles_of_a_moved_host(server):
 def test_beyond_the_leash_the_body_stops_and_asks_for_the_host(server):
     body_ready(server)
     idle_set(server, "idle-2", {"mode": "follow"})
+    bring_body_home(server)
     wait_position(
         server, lambda p: math.dist((p["x"], p["y"]), (0, 0)) <= 15, "the body back within 15 of the origin"
     )

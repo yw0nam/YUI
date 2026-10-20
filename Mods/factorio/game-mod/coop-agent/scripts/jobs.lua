@@ -2,6 +2,7 @@
 
 local body = require("scripts.body")
 local check = require("scripts.jobs.check")
+local idle = require("scripts.idle")
 local walker = require("scripts.walker")
 
 local MAX_JOBS = 16
@@ -10,10 +11,11 @@ local IDLE_STATUS = "Standing by"
 local M = {}
 
 M.KINDS = {
+  deliver = require("scripts.jobs.deliver"),
+  follow = require("scripts.jobs.follow"),
   mine = require("scripts.jobs.mine"),
   walk_to = require("scripts.jobs.walk_to"),
   wait = require("scripts.jobs.wait"),
-  deliver = require("scripts.jobs.deliver"),
 }
 
 local function active(job)
@@ -124,9 +126,11 @@ function M.enqueue(deps, specs)
   if queue.active + #specs > MAX_JOBS then
     return check.bad_request("jobs: the queue holds at most " .. MAX_JOBS .. " jobs")
   end
-  -- a stop since the last tick still ends the queue it halted
+  -- a stop since the last tick still ends the queue it halted; an empty queue takes the body from idle
   if queue.active > 0 then
     gate(deps)
+  else
+    idle.release(deps)
   end
   local list = queue.list
   local i = 1
