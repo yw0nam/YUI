@@ -1,5 +1,6 @@
 -- A fake world for the job, walker and mine units: one body on a surface that holds mineable entities and records path requests.
 
+defines = { inventory = { character_main = 1 } }
 storage = { map_id = "m" }
 require("scripts.storage").ensure()
 
