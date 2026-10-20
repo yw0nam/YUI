@@ -1,45 +1,15 @@
-"""The eight tools map to one op each, and game errors surface as tool errors."""
+"""Every tool maps to one op, and game errors surface as tool errors."""
 
 import asyncio
 
 import pytest
-from fastmcp import Client, FastMCP
+from conftest import FakeRpc, call, configured
+from fastmcp import Client
 from fastmcp.exceptions import ToolError
 
 from factorio.events.cache import Session
 from factorio.outcome_log import OutcomeLog
 from factorio.rpc import RpcError
-from factorio.tools import read, talk
-from factorio.tools.deps import ToolDeps
-
-
-class FakeRpc:
-    def __init__(self, reply=None, error=None):
-        self.reply = {"ok": True} if reply is None else reply
-        self.error = error
-        self.calls = []
-
-    async def call(self, op, args):
-        self.calls.append((op, args))
-        if self.error is not None:
-            raise self.error
-        return self.reply
-
-
-def configured(tmp_path, rpc):
-    mcp = FastMCP(name="test")
-    deps = ToolDeps(rpc=rpc, session=Session(), log=OutcomeLog(tmp_path / "outcome.jsonl"))
-    read.register(mcp, deps)
-    talk.register(mcp, deps)
-    return mcp
-
-
-def call(mcp, tool_name, **kwargs):
-    async def case():
-        async with Client(mcp) as client:
-            return (await client.call_tool(tool_name, kwargs)).data
-
-    return asyncio.run(case())
 
 
 @pytest.mark.parametrize(
@@ -78,6 +48,29 @@ def call(mcp, tool_name, **kwargs):
             "ping",
             {"pos": {"x": 1.5, "y": 2.5}, "text": "look here"},
         ),
+        ("factorio_jobs", {}, "jobs", {}),
+        (
+            "factorio_jobs_enqueue",
+            {"jobs": [{"kind": "walk_to", "args": {"pos": {"x": 0.0, "y": 0.0}, "radius": 2}}]},
+            "jobs_enqueue",
+            {"jobs": [{"kind": "walk_to", "args": {"pos": {"x": 0.0, "y": 0.0}, "radius": 2}}]},
+        ),
+        (
+            "factorio_jobs_enqueue",
+            {"jobs": [{"kind": "wait", "args": {"ticks": 30}, "timeout_ticks": 60}]},
+            "jobs_enqueue",
+            {"jobs": [{"kind": "wait", "args": {"ticks": 30}, "timeout_ticks": 60}]},
+        ),
+        ("factorio_jobs_cancel", {"id": 3}, "jobs_cancel", {"id": 3}),
+        ("factorio_jobs_cancel", {"id": "all"}, "jobs_cancel", {"all": True}),
+        ("factorio_idle", {"mode": "follow"}, "idle_set", {"mode": "follow"}),
+        (
+            "factorio_idle",
+            {"mode": "stay", "pos": {"x": 1.0, "y": 2.0}},
+            "idle_set",
+            {"mode": "stay", "pos": {"x": 1.0, "y": 2.0}},
+        ),
+        ("factorio_stop", {}, "stop", {}),
     ],
 )
 def test_each_tool_maps_to_one_op(tmp_path, tool, kwargs, op, args):

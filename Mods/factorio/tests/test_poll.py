@@ -32,7 +32,7 @@ class FakeRecovery:
     def __init__(self):
         self.calls = []
 
-    async def run(self, _rpc, status, *_):
+    async def run(self, status, *_):
         self.calls.append(status)
 
 
@@ -131,18 +131,14 @@ def test_a_rollback_marks_the_doorbell_and_logs_the_cause(tmp_path):
         [
             {"map_id": "map-a", "seq": 100},
             page("map-a", 95, [event(95)]),
-            [
-                {"id": 1, "state": "queued"},
-                {"id": 2, "state": "running"},
-                {"id": 3, "state": "done"},
-            ],
+            {"map_id": "map-a", "seq": 95, "queue": {"length": 2}},
         ]
     )
     poller, session, doorbell, _recovery, log_path = make(tmp_path, rpc)
     session.backend_cursor = 98
     asyncio.run(poller.poll_once())
     assert doorbell.resets == 1
-    assert [call[0] for call in rpc.calls] == ["status", "events_since", "jobs"]
+    assert [call[0] for call in rpc.calls] == ["status", "events_since", "status"]
     reset = [record for record in records(log_path) if record["type"] == "session_reset"]
     assert reset == [
         {
@@ -192,7 +188,13 @@ def test_a_poll_and_a_tool_on_the_same_map_change_recover_once(tmp_path):
         request = json.loads(command.removeprefix("/coop-rpc "))
         head = {"v": 1, "id": request["id"]}
         if request["op"] == "status":
-            return json.dumps({**head, "ok": True, "r": {"map_id": "map-b", "seq": statuses.pop(0)}})
+            return json.dumps(
+                {
+                    **head,
+                    "ok": True,
+                    "r": {"map_id": "map-b", "seq": statuses.pop(0), "queue": {"length": 2}},
+                }
+            )
         if request["map_id"] != "map-b":
             return json.dumps({**head, "ok": False, "e": "stale_session", "m": "map_id does not match"})
         if request["op"] == "events_since":
@@ -200,8 +202,6 @@ def test_a_poll_and_a_tool_on_the_same_map_change_recover_once(tmp_path):
             return json.dumps(
                 {**head, "ok": True, "r": {"map_id": "map-b", "head_seq": 42, "events": events}}
             )
-        if request["op"] == "jobs":
-            return json.dumps({**head, "ok": True, "r": [{"id": 1, "state": "queued"}]})
         return json.dumps({**head, "ok": True, "r": {}})
 
     log_path = tmp_path / "outcome.jsonl"
@@ -234,7 +234,7 @@ def test_a_poll_and_a_tool_on_the_same_map_change_recover_once(tmp_path):
             "cause": "map_change",
             "poll_cursor": 40,
             "backend_cursor": 40,
-            "queue_length": 1,
+            "queue_length": 2,
         }
     ]
     assert [e["seq"] for e in events] == [41, 42]
@@ -245,20 +245,14 @@ def test_a_request_spanning_two_map_changes_still_adopts_the_last_map(tmp_path):
     session.map_id = "map-a"
     session.on_map_change({"map_id": "map-a", "seq": 0})
     log_path = tmp_path / "outcome.jsonl"
-
-    class FakeJobsRpc:
-        async def call(self, op, args):
-            assert (op, args) == ("jobs", {})
-            return [{"id": 1, "state": "running"}]
-
     recovery = MapRecovery(session, FakeDoorbell(), OutcomeLog(log_path, clock=lambda: CLOCK_S))
     caller_generation = session.generation
 
     async def case():
         session.map_id = "map-b"
-        await recovery.run(FakeJobsRpc(), {"map_id": "map-b", "seq": 10}, caller_generation)
+        await recovery.run({"map_id": "map-b", "seq": 10}, caller_generation)
         session.map_id = "map-c"
-        await recovery.run(FakeJobsRpc(), {"map_id": "map-c", "seq": 20}, caller_generation)
+        await recovery.run({"map_id": "map-c", "seq": 20}, caller_generation)
 
     asyncio.run(case())
     assert (session.poll_cursor, session.backend_cursor) == (20, 20)
@@ -266,4 +260,4 @@ def test_a_request_spanning_two_map_changes_still_adopts_the_last_map(tmp_path):
         (record["poll_cursor"], record["queue_length"])
         for record in records(log_path)
         if record["type"] == "session_reset"
-    ] == [(10, 1), (20, 1)]
+    ] == [(10, None), (20, None)]

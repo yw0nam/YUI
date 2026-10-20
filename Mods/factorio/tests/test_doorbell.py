@@ -6,7 +6,6 @@ import json
 import httpx
 import pytest
 
-from factorio.config import DEFAULT_WAKE_KINDS
 from factorio.doorbell import Doorbell
 from factorio.events.cache import Session
 from factorio.outcome_log import OutcomeLog
@@ -374,26 +373,24 @@ def test_a_kind_outside_the_wake_list_never_posts(tmp_path):
     assert recorder.bodies == []
 
 
-@pytest.mark.parametrize(
-    ("kind", "posts"),
-    [
-        ("stopped", True),
-        ("queue_idle", True),
-        ("job_done", False),
-    ],
-)
-def test_the_default_wake_set_rings_for_stopped_and_queue_idle_only(tmp_path, kind, posts):
+def test_stopped_and_queue_idle_ring_the_doorbell_but_job_done_does_not(tmp_path):
+    kinds = ("chat", "queue_idle", "job_failed", "stopped", "body_died", "player_died", "rocket_launched")
     recorder = Recorder([200])
-    bell, feed, _session, client = make_bell(tmp_path, recorder, kinds=DEFAULT_WAKE_KINDS)
+    bell, feed, _session, client = make_bell(tmp_path, recorder, kinds=kinds)
 
     async def case():
-        feed.add(event(1, kind))
-        bell.notify(event(1, kind), now=0.0)
+        feed.add(event(1, "stopped"))
+        bell.notify(event(1, "stopped"), now=0.0)
+        feed.add(event(2, "queue_idle"))
+        bell.notify(event(2, "queue_idle"), now=0.0)
         await bell.step(2.0)
+        feed.add(event(3, "job_done"))
+        bell.notify(event(3, "job_done"), now=3.0)
+        await bell.step(5.0)
         await client.aclose()
 
     asyncio.run(case())
-    assert len(recorder.bodies) == (1 if posts else 0)
+    assert [body["signals"][0]["note"] for body in recorder.bodies] == ["stopped, queue_idle"]
 
 
 @pytest.mark.parametrize(

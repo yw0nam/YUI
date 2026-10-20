@@ -4,30 +4,12 @@ import asyncio
 import json
 
 import pytest
+from conftest import no_sleep, parse, reply
 from fake_rcon import CLOSE, FakeRconServer
 
 from factorio.events.cache import Session
 from factorio.rcon.client import RconClient
 from factorio.rpc import RpcClient, RpcError, RpcProtocolError, RpcUnavailable
-
-
-def parse(command: str) -> dict:
-    return json.loads(command.removeprefix("/coop-rpc "))
-
-
-def reply(request: dict, *, ok: bool = True, r=None, e=None, m=None) -> str:
-    body = {"v": 1, "id": request["id"], "ok": ok}
-    if ok:
-        body["r"] = r
-    else:
-        body["e"] = e
-        if m is not None:
-            body["m"] = m
-    return json.dumps(body)
-
-
-async def no_sleep(_delay: float) -> None:
-    return None
 
 
 async def with_server(handler, body, **kwargs):
@@ -79,7 +61,7 @@ def test_stale_session_runs_the_recovery_and_does_not_rerun_the_op():
             return reply(request, ok=False, e="stale_session")
         return reply(request, r={"said": True})
 
-    async def on_reset(_rpc, status, *_):
+    async def on_reset(status, *_):
         recovered.append(status)
 
     async def body(rpc, session):
@@ -151,7 +133,7 @@ def test_an_unknown_outcome_after_a_map_change_recovers_and_raises():
             return reply(request, r={"map_id": "map-b", "seq": 40})
         return CLOSE
 
-    async def on_reset(_rpc, status, *_):
+    async def on_reset(status, *_):
         recovered.append(status)
 
     async def body(rpc, session):
