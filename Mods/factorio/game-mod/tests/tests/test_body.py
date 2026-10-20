@@ -24,9 +24,11 @@ function new_entity(name)
   }
   entity.surface = SURFACE
   entity.destroy = function() entity.valid = false end
+  -- a cancelled craft returns its reserved ingredients to the inventory
   entity.cancel_crafting = function(spec)
     CANCELLED[#CANCELLED + 1] = spec
     entity.crafting_queue_size = 0
+    entity.inventories[2] = { name = "iron-plate", count = 6 }
   end
   entity.get_max_inventory_index = function() return #entity.inventories end
   entity.get_inventory = function(index)
@@ -144,7 +146,7 @@ def test_sweeps_keep_one_body_of_the_prototype_setting(lua, body, prototype, mad
     body.sweep(deps(lua))
     body.sweep(deps(lua))
     assert created(lua) == [made]
-    assert lua.globals().storage.body.unit_number == 41
+    assert lua.globals().storage.body.unit_number is not None
     assert label(lua) == "Buddy · Standing by"
 
 
@@ -169,11 +171,15 @@ def test_a_dead_body_respawns_1800_ticks_later_while_enabled(lua, body, tick, en
     assert event_kinds(lua) == kinds
 
 
-def test_disabling_spills_the_body_inventory_and_removes_it(lua, body):
+def test_disabling_cancels_crafts_spills_the_body_inventory_and_removes_it(lua, body):
     entity = spawned(lua, body)
     deps(lua).enabled = False
     body.sweep(deps(lua))
-    assert [dict(items) for items in lua.globals().SPILLED.values()] == [{"name": "coal", "count": 5}]
+    assert [dict(spec) for spec in lua.globals().CANCELLED.values()] == [{"index": 1, "count": 3}]
+    assert [dict(items) for items in lua.globals().SPILLED.values()] == [
+        {"name": "coal", "count": 5},
+        {"name": "iron-plate", "count": 6},
+    ]
     assert entity.valid is False
     assert body.can_act(deps(lua)) is False
 

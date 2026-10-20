@@ -383,7 +383,7 @@ def test_body_spawns_beside_the_dev_host_with_the_starter_kit(server):
     enabled_tick, status = body_ready(server)
     assert status["tick"] - enabled_tick <= 60
     position = status["body"].pop("position")
-    assert math.dist((position["x"], position["y"]), (0, 0)) <= 8
+    assert math.dist((position["x"], position["y"]), (0, 0)) <= 3
     assert status["body"] == {"alive": True, "health": 250, "inventory": KIT_MAIN}
     assert status["host"] == {"name": "dev-host", "connected": True, "position": {"x": 0, "y": 0}}
     assert labels(server) == ["Buddy · Standing by"]
