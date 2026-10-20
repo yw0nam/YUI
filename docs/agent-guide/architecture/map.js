@@ -445,7 +445,7 @@ globalThis.YUI_MAP =
       "id": "mods-factorio",
       "module": "senders",
       "label": "Mods/factorio",
-      "role": "The MCP server that polls the Factorio game mod over RCON and posts live game signals to the loopback ingress.",
+      "role": "The MCP server that polls the Factorio game mod over RCON, posts live game signals to the loopback ingress, and calls status, events, snapshot, find, inspect, recipe, say, ping, jobs, jobs_enqueue, jobs_cancel, idle, and stop.",
       "paths": [],
       "external": true
     },

@@ -7,17 +7,19 @@ signals_url = "http://127.0.0.1:8770/signals"
 
 [wake]
 # Event kinds that notify the backend. Every other kind only enters the cache.
+# The default is chat, queue_idle, job_failed, stopped, body_died, player_died,
+# rocket_launched. These opt-in kinds stay cached and do not wake unless listed
+# here: job_done, research_finished, attack_started, attack_ended, body_damaged,
+# body_threat, body_respawned, idle_changed, player_joined, player_left,
+# snapshot_summary.
 kinds = [
   "chat",
-  "job_done",
+  "queue_idle",
   "job_failed",
+  "stopped",
   "body_died",
-  "body_damaged",
-  "research_finished",
-  "rocket_launched",
   "player_died",
-  "attack_started",
-  "attack_ended",
+  "rocket_launched",
 ]
 # Quiet period after the first wake event before one doorbell is posted.
 coalesce_ms = 2000

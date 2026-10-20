@@ -47,13 +47,16 @@ class OutcomeLog:
     def history_gap(self, *, oldest_seq: int) -> None:
         self.write({"type": "history_gap", "oldest_seq": oldest_seq})
 
-    def session_reset(self, *, cause: str, poll_cursor: int, backend_cursor: int) -> None:
+    def session_reset(
+        self, *, cause: str, poll_cursor: int, backend_cursor: int, queue_length: int | None
+    ) -> None:
         self.write(
             {
                 "type": "session_reset",
                 "cause": cause,
                 "poll_cursor": poll_cursor,
                 "backend_cursor": backend_cursor,
+                "queue_length": queue_length,
             }
         )
 

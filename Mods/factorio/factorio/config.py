@@ -15,15 +15,12 @@ DOORBELL_TIMEOUT_S = 10.0
 POLL_RETRY_DELAY_S = 5.0
 DEFAULT_WAKE_KINDS = (
     "chat",
-    "job_done",
+    "queue_idle",
     "job_failed",
+    "stopped",
     "body_died",
-    "body_damaged",
-    "research_finished",
-    "rocket_launched",
     "player_died",
-    "attack_started",
-    "attack_ended",
+    "rocket_launched",
 )
 
 

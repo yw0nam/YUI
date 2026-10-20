@@ -31,7 +31,7 @@ uv run factorio-mcp --transport http --host 127.0.0.1 --port 9003
 |---|---|---|
 | `config_ini` | `~/Library/Application Support/factorio/config/config.ini` | Factorio's own config file. RCON host, port, and password come from it. |
 | `signals_url` | `http://127.0.0.1:8770/signals` | The YUI client's loopback signals ingress. |
-| `wake.kinds` | `chat`, `job_done`, `job_failed`, `body_died`, `body_damaged`, `research_finished`, `rocket_launched`, `player_died`, `attack_started`, `attack_ended` | Event kinds that ring the doorbell. Every other kind only enters the cache. |
+| `wake.kinds` | `chat`, `queue_idle`, `job_failed`, `stopped`, `body_died`, `player_died`, `rocket_launched` | Event kinds that ring the doorbell. Every other kind only enters the cache. Add an opt-in kind to wake on it: `job_done`, `research_finished`, `attack_started`, `attack_ended`, `body_damaged`, `body_threat`, `body_respawned`, `idle_changed`, `player_joined`, `player_left`, `snapshot_summary`. |
 | `wake.coalesce_ms` | `2000` | Quiet period after the first wake event before one doorbell is posted. |
 | `outcome_log` | `outcome.jsonl` beside `config.toml` | JSONL log. Each line's `type` is `event`, `tool`, `doorbell`, `history_gap`, `session_reset`, or `backend_lag`. |
 
@@ -58,6 +58,11 @@ Reach the Mod from the remote agent through the [router](../router/) (`http://lo
 | `factorio_recipe(name)` | Read one recipe by name |
 | `factorio_say(text)` | Say one line in game chat under the body's name |
 | `factorio_ping(pos, text)` | Ping a map position with a text label |
+| `factorio_jobs()` | Every job record the game mod holds, oldest first |
+| `factorio_jobs_enqueue(jobs)` | Queue 1 to 8 jobs; returns the assigned ids |
+| `factorio_jobs_cancel(id)` | Cancel one job by id, or every job with `all` |
+| `factorio_idle(mode, pos=None)` | Set the idle mode `follow` or `stay`; `stay` takes an optional position |
+| `factorio_stop()` | Stop the body's walking, mining, and crafting |
 
 A game-mod refusal raises a tool error carrying the game's error code and message, such as `too_large`, `rate_limited`, or `history_gap`. An `id_conflict` reply raises a tool error and is never re-sent under a new id.
 

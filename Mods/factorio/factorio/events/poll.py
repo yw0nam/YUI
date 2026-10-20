@@ -69,10 +69,10 @@ class Poller:
 
             result = self.session.on_page(page)
             if result.outcome == "map_change":
-                await self.recovery.run(await self.rpc.status(), generation)
+                await self.recovery.run(self.rpc, await self.rpc.status(), generation)
                 return
             if result.outcome == "rollback":
-                record_reset(self.session, self.doorbell, self.log, "rollback")
+                await record_reset(self.rpc, self.session, self.doorbell, self.log, "rollback")
                 return
 
             self._log_lag(result.dropped)

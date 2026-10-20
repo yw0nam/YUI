@@ -21,14 +21,15 @@ from factorio.outcome_log import OutcomeLog
 from factorio.rcon.client import RconClient
 from factorio.recovery import MapRecovery
 from factorio.rpc import RpcClient
-from factorio.tools import read, talk
+from factorio.tools import body, read, talk
 from factorio.tools.deps import ToolDeps
 
 INSTRUCTIONS = (
     "The Factorio game on this machine, through the coop-agent game mod. Read status and "
     "cached events, then snapshot, find, inspect, and recipe for game state. Say and ping "
-    "put words and map markers into the game. Events arrive from the game on their own; the "
-    "Mod posts a live signal when a wake-kind event happens."
+    "put words and map markers into the game. Jobs, idle mode, and stop drive the body. "
+    "Events arrive from the game on their own; the Mod posts a live signal when a "
+    "wake-kind event happens."
 )
 
 
@@ -44,6 +45,7 @@ def build_mcp(
     deps = ToolDeps(rpc=rpc, session=session, log=log)
     read.register(mcp, deps)
     talk.register(mcp, deps)
+    body.register(mcp, deps)
     return mcp
 
 

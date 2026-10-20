@@ -20,6 +20,8 @@ REASONS: dict[GameErrorCode, str] = {
     "op_error": "the game mod reported an operation error.",
     "rate_limited": "the game mod is rate limiting calls.",
     "history_gap": "the requested event range is no longer in the game mod's history.",
+    "unsupported": "the game mod does not support this operation or job.",
+    "not_permitted": "the game mod does not permit this operation or target.",
     "unknown_outcome": "the game mod did not answer; the call may or may not have run.",
     "rcon_auth": "RCON rejected the password from the game's config.ini.",
     "bad_reply": "the RCON reply is not one /coop-rpc reply.",
