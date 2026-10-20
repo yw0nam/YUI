@@ -144,8 +144,6 @@ applies from the next spawn.
 | `coop-agent-body-enabled` | bool | `false` |
 | `coop-agent-body-prototype` | string | `character` |
 | `coop-agent-body-color` | `orange`, `red`, `yellow`, `green`, `cyan`, `blue`, `purple`, `white` | `orange` |
-| `coop-agent-idle-start` | `follow`, `stay` | `follow` |
-| `coop-agent-safe-radius` | int (tiles) | `48` |
 
 ## Safety
 
