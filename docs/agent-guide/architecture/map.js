@@ -1937,7 +1937,7 @@ globalThis.YUI_MAP =
       "id": "ingress-inbox",
       "from": "shell/agent-ingress",
       "to": "io/bridge/inbox",
-      "carries": "agent-inbox, signals-inbox, avatar-rpc, ingress-dead",
+      "carries": "agent-inbox, signals-inbox, avatar-rpc, ingress-dead; delivered to the main webview only, each inbox listens with its own window's label",
       "kind": "tauri-event",
       "transport": "shared"
     },
