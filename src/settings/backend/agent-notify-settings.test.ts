@@ -189,3 +189,12 @@ describe("createAgentNotifySettings — malformed/throwing storage", () => {
     expect(store.get()).toEqual({ enabled: false, port: 8770 });
   });
 });
+
+
+describe("ingressUrl", () => {
+  it("formats bare and preset URLs with the stored port", async () => {
+    const { ingressUrl } = await import("./agent-notify-settings");
+    expect(ingressUrl(8770, null)).toBe("http://127.0.0.1:8770/signals");
+    expect(ingressUrl(9000, "abc12345")).toBe("http://127.0.0.1:9000/presets/abc12345/signals");
+  });
+});

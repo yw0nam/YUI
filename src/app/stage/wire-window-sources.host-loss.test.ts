@@ -122,7 +122,7 @@ describe("host loss reaches the faller", () => {
   it.each([
     true,
     false,
-  ])("only main starts ingress and subscribes to avatar RPCs (bound: %s)", async (bound) => {
+  ])("every pet subscribes to avatar RPCs and only main starts ingress (bound: %s)", async (bound) => {
     vi.stubGlobal("__TAURI_INTERNALS__", {});
     createWindowDropSource.mockClear();
     const subscribe = vi.fn();
@@ -162,8 +162,8 @@ describe("host loss reaches the faller", () => {
     });
     await vi.waitFor(() => expect(createWindowDropSource).toHaveBeenCalled());
 
-    expect(createAvatarExecutor).toHaveBeenCalledTimes(bound ? 0 : 1);
-    expect(subscribe).toHaveBeenCalledTimes(bound ? 0 : 1);
+    expect(createAvatarExecutor).toHaveBeenCalledTimes(1);
+    expect(subscribe).toHaveBeenCalledTimes(1);
     expect(
       vi.mocked(invoke).mock.calls.filter(([cmd]) => cmd === "start_agent_ingress"),
     ).toHaveLength(bound ? 0 : 1);

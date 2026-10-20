@@ -2,6 +2,7 @@
 // Preset strip, manage popover, and per-tab scope line, through the panel mount.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createAgentNotifySettings } from "../../../settings/backend/agent-notify-settings";
 import {
   clearWindowLive,
   createPetWindows,
@@ -66,6 +67,32 @@ describe("createQuickControls — presets", () => {
     qc.open();
     return petWindows;
   }
+
+  it("refreshes open ingress controls when device settings change", () => {
+    qc.dispose();
+    const agentNotifySettings = createAgentNotifySettings();
+    const writeText = vi.fn(async () => {});
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    try {
+      qc = createQuickControls({
+        ...defaultQcArgs(mount),
+        presetRegistry: registry,
+        agentNotifySettings,
+      });
+      qc.open();
+      openManage();
+      expect(qc.el.querySelector(".yui-preset-row__url")).toBeNull();
+      agentNotifySettings.setEnabled(true);
+      expect(rowOf("perlica").querySelector(".yui-preset-row__url")).not.toBeNull();
+      agentNotifySettings.setPort(9100);
+      rowOf("perlica").querySelector<HTMLButtonElement>(".yui-preset-row__url")!.click();
+      expect(writeText).toHaveBeenCalledWith("http://127.0.0.1:9100/presets/bbbb0002/signals");
+      agentNotifySettings.setEnabled(false);
+      expect(qc.el.querySelector(".yui-preset-row__url")).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 
   it("opens windows and refreshes controls after the live key clears", () => {
     const petWindows = rebuild();

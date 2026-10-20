@@ -61,6 +61,17 @@ describe("createQuickControls — reactions section", () => {
     });
   }
 
+  it.each([null, "abc12345"])("shows this window's ingress URL (%s) and updates the stored port", (boundId) => {
+    const agentNotifySettings = createAgentNotifySettings();
+    const qc = buildQc({ agentNotifySettings, boundId });
+    qc.open();
+    const suffix = boundId ? `/presets/${boundId}/signals` : "/signals";
+    expect(qc.el.querySelector("#yui-ingress-url")?.textContent).toBe(`http://127.0.0.1:8770${suffix}`);
+    agentNotifySettings.setPort(9100);
+    expect(qc.el.querySelector("#yui-ingress-url")?.textContent).toBe(`http://127.0.0.1:9100${suffix}`);
+    qc.dispose();
+  });
+
   it("renders #yui-agent-port that reflects agentNotifySettings.port on open", () => {
     const agentNotifySettings = createAgentNotifySettings();
     const qc = buildQc({ agentNotifySettings });

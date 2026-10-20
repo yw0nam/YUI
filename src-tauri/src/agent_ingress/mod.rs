@@ -24,6 +24,7 @@ use tauri::{AppHandle, Emitter};
 pub(crate) mod avatar_rpc;
 mod guard;
 mod payload;
+mod route;
 
 // ─── Emit helper ──────────────────────────────────────────────────────────────
 
@@ -228,6 +229,21 @@ pub fn start_agent_ingress(app: tauri::AppHandle, port: u16) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sync_ids_refuses_foreign_callers_and_invalid_ids() {
+        let state = PresetIds::default();
+        assert!(state.replace("pet-a", vec!["a".into()]).is_err());
+        assert!(state.replace("main", vec![String::new()]).is_err());
+        assert!(state.0.lock().unwrap().is_empty());
+        state.replace("main", vec!["a".into()]).unwrap();
+        state.replace("main", vec!["b".into()]).unwrap();
+        assert_eq!(*state.0.lock().unwrap(), std::collections::HashSet::from(["b".into()]));
+    }
+    #[test]
+    fn refused_requests_never_dispatch() {
+        assert_eq!(route_after_guard(Some(403), || panic!("must not dispatch")).unwrap_err(), 403);
+    }
 
     // ── Bind retry ────────────────────────────────────────────────────────────
 

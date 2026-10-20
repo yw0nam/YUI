@@ -136,6 +136,16 @@ pub(super) fn spawn_avatar_request(
 mod tests {
     use super::*;
 
+    #[test]
+    fn foreign_response_leaves_request_for_its_target() {
+        let id = next_rpc_id();
+        let rx = register_pending(&id, "pet-a");
+        assert!(!resolve_pending(&id, "main", serde_json::Value::Null));
+        assert!(rx.try_recv().is_err());
+        assert!(resolve_pending(&id, "pet-a", serde_json::json!({"ok":true})));
+        assert_eq!(rx.recv().unwrap()["ok"], true);
+    }
+
     // ── Pending map ───────────────────────────────────────────────────────────
 
     #[test]
@@ -148,29 +158,29 @@ mod tests {
     #[test]
     fn resolve_pending_delivers_result_to_waiter() {
         let id = next_rpc_id();
-        let rx = register_pending(&id);
-        assert!(resolve_pending(&id, serde_json::json!({"ok": true})));
+        let rx = register_pending(&id, "main");
+        assert!(resolve_pending(&id, "main", serde_json::json!({"ok": true})));
         let got = rx.recv_timeout(std::time::Duration::from_secs(1)).unwrap();
         assert_eq!(got["ok"], true);
     }
 
     #[test]
     fn resolve_pending_unknown_id_returns_false() {
-        assert!(!resolve_pending("no-such-id", serde_json::Value::Null));
+        assert!(!resolve_pending("no-such-id", "main", serde_json::Value::Null));
     }
 
     #[test]
     fn resolve_pending_after_drop_returns_false() {
         let id = next_rpc_id();
-        let _rx = register_pending(&id);
+        let _rx = register_pending(&id, "main");
         drop_pending(&id);
-        assert!(!resolve_pending(&id, serde_json::Value::Null));
+        assert!(!resolve_pending(&id, "main", serde_json::Value::Null));
     }
 
     #[test]
     fn pending_receiver_times_out_when_unanswered() {
         let id = next_rpc_id();
-        let rx = register_pending(&id);
+        let rx = register_pending(&id, "main");
         assert!(rx
             .recv_timeout(std::time::Duration::from_millis(20))
             .is_err());
