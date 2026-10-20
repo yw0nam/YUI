@@ -123,7 +123,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     // The stage is wired after the turn core, so the tools read the executor late-bound:
     // null until wireLocomotion has run.
     let locomotion: ReturnType<typeof wireLocomotion> | null = null;
-    const browserShell = isTauri() ? createBrowserShell() : null;
+    const browserShell = !phase1.bound && isTauri() ? createBrowserShell() : null;
     if (browserShell) register(stopBrowserWhenOff(settings.browserSettings, browserShell));
     const avatarTools = browserShell
       ? [

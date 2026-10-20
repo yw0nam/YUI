@@ -364,7 +364,7 @@ export function createQuickControls({
     isWindow,
     hasSession,
     switchRows: TOGGLE_SPECS,
-    showPopOut: boundId == null,
+    showPopOut: !!onPopOut,
     showScreen: !!screenSettings && !!screenKnobSettings,
     showPresence: !!presenceSettings,
     showPacerGap: !!pacerGapSettings,

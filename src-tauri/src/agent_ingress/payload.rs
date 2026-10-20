@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-pub const INGRESS_WINDOW: &str = "main";
 pub const AGENT_INBOX_CHANNEL: &str = "agent-inbox";
 pub const SIGNALS_INBOX_CHANNEL: &str = "signals-inbox";
 pub const AVATAR_RPC_CHANNEL: &str = "avatar-rpc";

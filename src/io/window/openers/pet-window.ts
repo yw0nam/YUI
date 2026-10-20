@@ -43,7 +43,9 @@ function waitForCreation(win: Pick<WebviewWindow, "once">): Promise<void> {
           if (settled) off();
           else unlisteners.push(off);
         })
-        .catch(settle);
+        .catch((error) =>
+          settle(new Error("pet window listener registration failed", { cause: error })),
+        );
     };
     listen("tauri://created");
     listen("tauri://error");

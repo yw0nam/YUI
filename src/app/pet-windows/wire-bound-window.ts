@@ -44,9 +44,14 @@ export function wireBoundWindow(deps: {
         clearTimeout(timer);
       }
       if (browser) window.removeEventListener("pagehide", onPageHide);
-      deps.disposeSync();
-      deps.log.info("pet_window_close", { preset: deps.boundId });
-      await deps.close();
+      try {
+        deps.disposeSync();
+      } catch (error) {
+        deps.log.warn("pet_window_dispose_failed", { preset: deps.boundId, error: String(error) });
+      } finally {
+        deps.log.info("pet_window_close", { preset: deps.boundId });
+        await deps.close();
+      }
     })().catch((error) =>
       deps.log.error("pet_window_close_failed", { preset: deps.boundId, error: String(error) }),
     );

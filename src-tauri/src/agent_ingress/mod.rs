@@ -14,7 +14,7 @@ use avatar_rpc::spawn_avatar_request;
 use payload::{
     cap_detail, cap_summary, parse_avatar_request, parse_request, parse_signals_request,
     rejected_level, AgentEventPayload, SignalsPayload, AGENT_INBOX_CHANNEL, BODY_CEILING_BYTES,
-    INGRESS_DEAD_CHANNEL, INGRESS_WINDOW, SIGNALS_INBOX_CHANNEL,
+    INGRESS_DEAD_CHANNEL, SIGNALS_INBOX_CHANNEL,
 };
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
@@ -174,6 +174,8 @@ fn claim_and_bind(
     }
     Some(result)
 }
+
+const INGRESS_WINDOW: &str = "main";
 
 /// Spawns the loopback HTTP listener on the given port.
 ///

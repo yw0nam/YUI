@@ -31,7 +31,13 @@ export function createPetWindowRole(deps: {
       boundId: deps.boundId,
       registry: presetRegistry,
       close: () => {
-        void close();
+        const failed = (error: unknown) =>
+          deps.log.error("pet_window_close_failed", { preset: deps.boundId, error: String(error) });
+        try {
+          void Promise.resolve(close()).catch(failed);
+        } catch (error) {
+          failed(error);
+        }
       },
       log: deps.log,
     })

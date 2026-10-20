@@ -1,4 +1,4 @@
-/** Preset edits cross the bridge; main reloads on activation, while bound windows only reread the list. */
+/** Every unbound window reloads on activation; a bound window only rereads the list. */
 
 import type { SettingsBridge } from "../../io/bridge/settings-bridge";
 import { PRESETS_KEY } from "../../settings/preset/active-preset";
