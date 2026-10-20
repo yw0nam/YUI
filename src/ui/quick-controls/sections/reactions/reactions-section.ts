@@ -54,6 +54,7 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
     isOpen,
   } = deps;
 
+  const ingressUrlText = el.querySelector("#yui-ingress-url");
   const agentPortInput = el.querySelector<HTMLInputElement>("#yui-agent-port");
   const presenceInput = el.querySelector<HTMLInputElement>("#yui-presence");
   const pacerGapInput = el.querySelector<HTMLInputElement>("#yui-pacer-gap");
@@ -66,8 +67,8 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
   function reflectAgentNotify(): void {
     if (!agentNotifySettings) return;
     if (agentPortInput) agentPortInput.value = String(agentNotifySettings.get().port);
-    const url = el.querySelector("#yui-ingress-url");
-    if (url) url.textContent = ingressUrl(agentNotifySettings.get().port, deps.boundId ?? null);
+    if (ingressUrlText)
+      ingressUrlText.textContent = ingressUrl(agentNotifySettings.get().port, deps.boundId ?? null);
   }
 
   function reflectPresence(): void {

@@ -93,7 +93,7 @@ export function createPresetManage(deps: {
       row.querySelector(".yui-preset-row__acts")!.append(button);
     }
     const url = deps.presetUrl?.(entry.id);
-    if (url) {
+    if (entry.id !== active && url) {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "yui-preset-row__url";

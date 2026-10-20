@@ -55,6 +55,8 @@ export function localStorageAgentNotifyStorage(key = "yui.agentNotify"): AgentNo
   return localStorageStore<AgentNotifySettings>(key);
 }
 
+const INGRESS_HOST = "127.0.0.1";
+
 export function ingressUrl(port: number, id: string | null): string {
-  return `http://127.0.0.1:${port}${id === null ? "" : `/presets/${id}`}/signals`;
+  return `http://${INGRESS_HOST}:${port}${id === null ? "" : `/presets/${id}`}/signals`;
 }

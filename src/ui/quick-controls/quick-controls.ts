@@ -4,7 +4,6 @@
  * variant: "popover" (default, docked in pet window + draggable) | "window" (separate OS window, full fill).
  */
 
-import { ingressUrl } from "../../settings/backend/agent-notify-settings";
 import "./quick-controls.css";
 import "./controls.css";
 import type { AvatarOption } from "../../config/validators/avatar/types";
@@ -430,13 +429,9 @@ export function createQuickControls({
         log,
         petWindows,
         boundId,
-        presetUrl: (id) =>
-          agentNotifySettings?.get().enabled
-            ? ingressUrl(agentNotifySettings.get().port, id)
-            : null,
+        agentNotifySettings,
       })
     : null;
-  const offIngressUrl = agentNotifySettings?.subscribe(() => presetStrip?.reflect());
   const hintTooltip = createHintTooltip({ root: el });
 
   // After dispose, prevent in-flight refresh from repainting/timering on destroyed DOM.
@@ -706,7 +701,6 @@ export function createQuickControls({
     unbindHelp?.();
     popover.dispose();
     tabRail.dispose();
-    offIngressUrl?.();
     presetStrip?.dispose();
     el.remove();
     scrimEl.remove();

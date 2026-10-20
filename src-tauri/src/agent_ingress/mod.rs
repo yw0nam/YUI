@@ -1,7 +1,7 @@
 //! Loopback HTTP ingress — receives lifecycle signals from external coding-agent
 //! hooks (task done, or the agent needs the user's input) and opaque `signals`
 //! batches from the remote n8n workflow, then re-emits both as Tauri events into
-//! the frontend dispatcher.
+//! the frontend dispatcher; `/presets/<id>/` delivers to `pet-<id>`.
 //!
 //! Also serves the avatar RPC surface (`/avatar/*`): body state, perch targets, and
 //! semantic movement commands. Those live in the webview, so each request is bridged
@@ -29,25 +29,28 @@ mod guard;
 mod payload;
 mod route;
 
+/// Preset ids main publishes for distinguishing closed windows from unknown presets.
 #[derive(Default)]
 pub struct PresetIds(Mutex<HashSet<String>>);
 impl PresetIds {
     fn replace(&self, label: &str, ids: Vec<String>) -> Result<(), String> {
-        if label != "main" {
-            log::warn!("preset_state_sync_refused label={label}");
+        if label != INGRESS_WINDOW {
+            log::warn!("preset_ids_sync_refused reason=foreign_window label={label}");
             return Err("only main may sync preset ids".into());
         }
         if ids.iter().any(String::is_empty) {
+            log::warn!("preset_ids_sync_refused reason=empty_id");
             return Err("preset ids must not be empty".into());
         }
         let ids: HashSet<_> = ids.into_iter().collect();
         let count = ids.len();
         *self.0.lock().map_err(|e| e.to_string())? = ids;
-        log::debug!("preset_state_synced count={count}");
+        log::debug!("preset_ids_synced count={count}");
         Ok(())
     }
 }
 
+/// Replaces the known preset ids after verifying the invoking window is main.
 #[tauri::command]
 pub fn sync_preset_ids(
     window: tauri::Window,
@@ -55,16 +58,6 @@ pub fn sync_preset_ids(
     ids: Vec<String>,
 ) -> Result<(), String> {
     state.replace(window.label(), ids)
-}
-
-fn route_after_guard<T>(
-    refused: Option<u16>,
-    dispatch: impl FnOnce() -> Result<T, u16>,
-) -> Result<T, u16> {
-    match refused {
-        Some(code) => Err(code),
-        None => dispatch(),
-    }
 }
 
 // ─── Emit helper ──────────────────────────────────────────────────────────────
@@ -106,33 +99,44 @@ fn read_body(request: &mut tiny_http::Request) -> Option<String> {
     String::from_utf8(body_vec).ok()
 }
 
+fn route_request(
+    request: &mut tiny_http::Request,
+    is_known: impl Fn(&str) -> Result<bool, u16>,
+    window_exists: impl Fn(&str) -> bool,
+) -> Result<Dispatch, u16> {
+    let method = request.method().to_string();
+    let url = request.url().to_string();
+    if let Some(code) = guard::refuse(request.headers()) {
+        log::warn!("agent_ingress_refused code={code} method={method} url={url}");
+        return Err(code);
+    }
+    let body = read_body(request).ok_or_else(|| {
+        log::warn!("agent_ingress_body_read_failed url={url}");
+        400u16
+    })?;
+    dispatch(&method, &url, &body, is_known, window_exists)
+}
+
 fn handle_request(app: &AppHandle, mut request: tiny_http::Request) {
     let method = request.method().to_string();
     let url = request.url().to_string();
-
-    let refused = guard::refuse(request.headers());
-    let result = route_after_guard(refused, || {
-        let body = read_body(&mut request).ok_or_else(|| {
-            log::warn!("agent_ingress_body_read_failed url={url}");
-            400u16
-        })?;
-        let ids = app
-            .state::<PresetIds>()
-            .0
-            .lock()
-            .map_err(|_| 503u16)?
-            .clone();
-        dispatch(&method, &url, &body, &ids, |label| {
-            app.get_webview_window(label).is_some()
-        })
-    });
+    let result = route_request(
+        &mut request,
+        |id| {
+            Ok(app
+                .state::<PresetIds>()
+                .0
+                .lock()
+                .map_err(|_| 503u16)?
+                .contains(id))
+        },
+        |label| app.get_webview_window(label).is_some(),
+    );
     let Dispatch { label, kind } = match result {
         Ok(route) => route,
         Err(code) => {
             let _ = request.respond(tiny_http::Response::from_string("").with_status_code(code));
-            if refused.is_some() {
-                log::warn!("agent_ingress_refused code={code} method={method} url={url}");
-            } else {
+            if code != 421 && code != 403 {
                 log::log!(
                     rejected_level(code),
                     "agent_ingress_rejected code={code} method={method} url={url}"
@@ -271,8 +275,17 @@ mod tests {
             .with_method(tiny_http::Method::Post)
             .with_path("/presets/x/signals")
             .with_header(tiny_http::Header::from_bytes("Host", "evil.example:8770").unwrap())
-            .with_body(r#"{"signals":[],"envelope":{}}"#).into();
-        assert_eq!(route_request(&mut request, || panic!("must not read registry"), |_| panic!("must not check windows")).unwrap_err(),421);
+            .with_body(r#"{"signals":[],"envelope":{}}"#)
+            .into();
+        assert_eq!(
+            route_request(
+                &mut request,
+                |_| panic!("must not read registry"),
+                |_| panic!("must not check windows")
+            )
+            .unwrap_err(),
+            421
+        );
     }
     #[test]
     fn loopback_request_reaches_window_check_without_reading_registry() {
@@ -280,11 +293,21 @@ mod tests {
             .with_method(tiny_http::Method::Post)
             .with_path("/presets/x/signals")
             .with_header(tiny_http::Header::from_bytes("Host", "127.0.0.1:8770").unwrap())
-            .with_body(r#"{"signals":[],"envelope":{}}"#).into();
+            .with_body(r#"{"signals":[],"envelope":{}}"#)
+            .into();
         let checked = std::cell::Cell::new(false);
-        let routed = route_request(&mut request, || panic!("existing windows need no registry"), |label| { assert_eq!(label,"pet-x"); checked.set(true); true }).unwrap();
+        let routed = route_request(
+            &mut request,
+            |_| panic!("existing windows need no registry"),
+            |label| {
+                assert_eq!(label, "pet-x");
+                checked.set(true);
+                true
+            },
+        )
+        .unwrap();
         assert!(checked.get());
-        assert_eq!(routed.label,"pet-x");
+        assert_eq!(routed.label, "pet-x");
     }
 
     // ── Bind retry ────────────────────────────────────────────────────────────

@@ -13,7 +13,7 @@ import { closeIfOrphan } from "./close-if-orphan";
 import { wireBoundWindow } from "./wire-bound-window";
 import { wirePetWindowsReconcile } from "./wire-pet-windows-reconcile";
 import { wirePetWindowsSync } from "./wire-pet-windows-sync";
-import { wirePresetStateSync } from "./wire-preset-state-sync";
+import { wirePresetIdsSync } from "./wire-preset-ids-sync";
 
 export function createPetWindowRole(deps: {
   boundId: string | null;
@@ -65,7 +65,7 @@ export function createPetWindowRole(deps: {
       }),
     );
   } else {
-    lifecycle.register(wirePresetStateSync({ registry: presetRegistry, log: deps.log }));
+    lifecycle.register(wirePresetIdsSync({ registry: presetRegistry, log: deps.log }));
     lifecycle.register(
       wirePetWindowsReconcile({
         petWindows,

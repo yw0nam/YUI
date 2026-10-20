@@ -285,7 +285,8 @@
   cursor: default;
 }
 
-.yui-preset-row__url-text {
+.yui-preset-row__url-text,
+.yui-quick__ingress-url {
   user-select: text;
   overflow-wrap: anywhere;
   font: inherit;

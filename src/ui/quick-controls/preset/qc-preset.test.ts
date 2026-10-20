@@ -13,9 +13,9 @@ import {
   type PresetRegistry,
 } from "../../../settings/preset/preset-registry";
 import { setLocale } from "../../i18n";
-import { createPresetStrip, presetStripHtml } from "./preset-strip";
 import { createQuickControls } from "../quick-controls";
 import { defaultQcArgs } from "../test-helpers";
+import { createPresetStrip, presetStripHtml } from "./preset-strip";
 
 describe("createQuickControls — presets", () => {
   let mount: HTMLElement;
@@ -75,11 +75,14 @@ describe("createQuickControls — presets", () => {
     const off = vi.fn();
     vi.spyOn(agentNotifySettings, "subscribe").mockImplementation((cb) => {
       const unsubscribe = subscribe(cb);
-      return () => { off(); unsubscribe(); };
+      return () => {
+        off();
+        unsubscribe();
+      };
     });
     const root = document.createElement("div");
     root.innerHTML = `${presetStripHtml()}<div class="yui-quick__cols"></div>`;
-    const log = { debug:vi.fn(),info:vi.fn(),warn:vi.fn(),error:vi.fn() };
+    const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
     const strip = createPresetStrip({ root, registry, log, agentNotifySettings });
     root.querySelector<HTMLButtonElement>(".yui-preset__manage")!.click();
     expect(root.querySelector(".yui-preset-row__url")).toBeNull();

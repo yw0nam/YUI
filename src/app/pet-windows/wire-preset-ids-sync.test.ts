@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from "vitest";
 import { createPresetRegistry } from "../../settings/preset/preset-registry";
-import { wirePresetStateSync } from "./wire-preset-state-sync";
+import { wirePresetIdsSync } from "./wire-preset-ids-sync";
 
 it("syncs at boot, on local and remote changes, logs failure and disposes", async () => {
   localStorage.clear();
   const registry = createPresetRegistry({ newId: () => "abcd1234" });
   const sync = vi.fn(async (_ids: string[]) => "refused");
   const log = { warn: vi.fn() };
-  const off = wirePresetStateSync({ registry, sync, log });
+  const off = wirePresetIdsSync({ registry, sync, log });
   expect(sync).toHaveBeenLastCalledWith(["default"]);
   registry.create("other");
   expect(sync).toHaveBeenLastCalledWith(["default", "abcd1234"]);

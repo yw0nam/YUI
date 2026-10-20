@@ -6,6 +6,10 @@
 
 import "./preset.css";
 import type { Logger } from "../../../logger";
+import {
+  type createAgentNotifySettings,
+  ingressUrl,
+} from "../../../settings/backend/agent-notify-settings";
 import type { PresetState } from "../../../settings/preset/active-preset";
 import { isPetWindowLive, type PetWindows } from "../../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../../settings/preset/preset-registry";
@@ -31,7 +35,6 @@ export function presetStripHtml(): string {
 export interface PresetStrip {
   /** Closes the manage popover — the panel closed. */
   close(): void;
-  reflect(): void;
   dispose(): void;
 }
 
@@ -46,7 +49,7 @@ export function createPresetStrip(deps: {
   log: Logger;
   petWindows?: PetWindows;
   boundId?: string | null;
-  presetUrl?: (id: string) => string | null;
+  agentNotifySettings?: ReturnType<typeof createAgentNotifySettings>;
 }): PresetStrip {
   const { root, registry, log, petWindows, boundId = null } = deps;
   const stripEl = root.querySelector<HTMLDivElement>(".yui-preset")!;
@@ -70,7 +73,10 @@ export function createPresetStrip(deps: {
     log,
     petWindows,
     boundId,
-    presetUrl: deps.presetUrl,
+    presetUrl: (id) => {
+      const settings = deps.agentNotifySettings?.get();
+      return settings?.enabled ? ingressUrl(settings.port, id) : null;
+    },
   });
   let switching = false;
 
@@ -167,15 +173,16 @@ export function createPresetStrip(deps: {
   popEl.addEventListener("keydown", handlePopKeydown);
   const unsubscribe = registry.subscribe(render);
   const offWindows = petWindows?.subscribe(render);
+  const offIngressUrl = deps.agentNotifySettings?.subscribe(render);
   render();
 
   return {
     close: () => closeManage(false),
-    reflect: render,
     dispose(): void {
       closeManage(false);
       unsubscribe();
       offWindows?.();
+      offIngressUrl?.();
       select.removeEventListener("change", handleChange);
       manageBtn.removeEventListener("click", handleManageClick);
       popEl.removeEventListener("keydown", handlePopKeydown);

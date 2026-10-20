@@ -51,10 +51,14 @@ fn resolve_pending(id: &str, label: &str, result: serde_json::Value) -> bool {
         }
         Err(_) => None,
     };
-    match sender {
+    let delivered = match sender {
         Some(tx) => tx.send(result).is_ok(),
         None => false,
+    };
+    if !delivered {
+        log::debug!("avatar_rpc_response_unclaimed id={id}");
     }
+    delivered
 }
 
 /// Emits the request into the webview and blocks until it answers or the deadline
@@ -87,9 +91,7 @@ fn avatar_rpc(app: &AppHandle, label: &str, route: AvatarRoute) -> Result<serde_
 /// Answers an `avatar-rpc` request by id. Called by the webview executor.
 #[tauri::command]
 pub fn avatar_rpc_response(window: tauri::Window, id: String, result: serde_json::Value) {
-    if !resolve_pending(&id, window.label(), result) {
-        log::debug!("avatar_rpc_response_unclaimed id={id}");
-    }
+    resolve_pending(&id, window.label(), result);
 }
 
 /// Answers the HTTP request with the bridge outcome — the JSON body, or a bare status.
@@ -148,6 +150,8 @@ pub(super) fn spawn_avatar_request(
 mod tests {
     use super::*;
 
+    // ── Pending map ───────────────────────────────────────────────────────────
+
     #[test]
     fn foreign_response_leaves_request_for_its_target() {
         let id = next_rpc_id();
@@ -161,8 +165,6 @@ mod tests {
         ));
         assert_eq!(rx.recv().unwrap()["ok"], true);
     }
-
-    // ── Pending map ───────────────────────────────────────────────────────────
 
     #[test]
     fn next_rpc_id_is_unique() {

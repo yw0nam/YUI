@@ -98,7 +98,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
                   max: 65535,
                   hintKey: "reactions.restart_hint",
                 }) +
-                `<div class="yui-stack yui-input-row"><span class="yui-input-row__label">${t("reactions.url_label")}</span><span class="yui-row__sub">${t("reactions.url_sub")}</span><code id="yui-ingress-url" class="yui-preset-row__url-text"></code><span class="yui-row__sub">${t("reactions.restart_hint")}</span></div>`
+                `<div class="yui-stack yui-input-row"><span class="yui-input-row__label">${t("reactions.url_label")}</span><span class="yui-row__sub">${t("reactions.url_sub")}</span><code id="yui-ingress-url" class="yui-quick__ingress-url"></code><span class="yui-row__sub">${t("reactions.restart_hint")}</span></div>`
               : ""
           }`,
       )

@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import { syncPresetIds } from "./preset-state";
+import { syncPresetIds } from "./preset-ids";
 
 it("syncs ids and reports failures without throwing", async () => {
   const invoke = vi.fn(async () => undefined);
