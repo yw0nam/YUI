@@ -10,7 +10,7 @@ from factorio.events.poll import Poller
 from factorio.outcome_log import OutcomeLog
 from factorio.rcon.client import RconClient
 from factorio.recovery import MapRecovery
-from factorio.rpc import RpcClient, RpcError
+from factorio.rpc import RpcClient, RpcError, RpcUnavailable
 
 CLOCK_S = 1_700_000_000.5
 TS = "2023-11-14T22:13:20.500+00:00"
@@ -148,6 +148,32 @@ def test_a_rollback_marks_the_doorbell_and_logs_the_cause(tmp_path):
             "poll_cursor": 95,
             "backend_cursor": 95,
             "queue_length": 2,
+        }
+    ]
+
+
+def test_a_rollback_whose_status_fails_still_records_the_reset(tmp_path):
+    rpc = FakeRpc(
+        [
+            {"map_id": "map-a", "seq": 100},
+            page("map-a", 95, [event(95)]),
+            RpcUnavailable("unknown_outcome", "the game mod did not answer"),
+        ]
+    )
+    poller, session, doorbell, _recovery, log_path = make(tmp_path, rpc)
+    session.backend_cursor = 98
+    asyncio.run(poller.poll_once())
+    assert doorbell.resets == 1
+    assert [call[0] for call in rpc.calls] == ["status", "events_since", "status"]
+    reset = [record for record in records(log_path) if record["type"] == "session_reset"]
+    assert reset == [
+        {
+            "ts": TS,
+            "type": "session_reset",
+            "cause": "rollback",
+            "poll_cursor": 95,
+            "backend_cursor": 95,
+            "queue_length": None,
         }
     ]
 
