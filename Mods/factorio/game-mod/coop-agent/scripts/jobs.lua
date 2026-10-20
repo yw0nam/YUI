@@ -29,12 +29,13 @@ local function current(list)
   return nil
 end
 
--- Every end of an active job; a running job's end halts the body and sets the status line, standing by by default.
+-- Every end of an active job; a running job's end drops its kind_state, halts the body and sets the status line.
 local function close(deps, job, state, reason, status)
   local was_running = job.state == "running"
   job.state, job.reason = state, reason
   deps.storage.jobs.active = deps.storage.jobs.active - 1
   if was_running then
+    deps.storage.jobs.kind_state = nil
     walker.cancel(deps)
     body.halt(deps)
     body.set_status(deps, status or IDLE_STATUS)
@@ -98,6 +99,9 @@ function M.tick(deps)
   if job.state == "queued" then
     job.state, job.started_tick = "running", deps.tick
     local reason, detail = kind.start(deps, job)
+    if not (reason or job.timeout_ticks) then
+      reason, detail = "unsupported", { message = job.kind .. " set no timeout_ticks at its start" }
+    end
     if reason then
       fail(deps, job, reason, detail)
       return
@@ -141,7 +145,7 @@ function M.enqueue(deps, specs)
       id = id,
       kind = spec.kind,
       args = spec.args,
-      -- a kind without default_timeout sets it when the job starts
+      -- a kind without default_timeout sets it in its start
       timeout_ticks = spec.timeout_ticks or default_timeout and default_timeout(spec.args),
       state = "queued",
     }

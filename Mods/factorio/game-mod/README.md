@@ -173,7 +173,7 @@ the job's start. A successful `jobs_enqueue` lifts the stop latch.
 | --- | --- | --- | --- | --- |
 | `walk_to` | `pos {x, y}` or `entity` (a `unit_number` that `find` or `inspect` returned), `radius` > 0 | the body is within `radius` of the position, or of the entity's position at the job's start | 3600 | `{distance}` in whole tiles to the target |
 | `wait` | `ticks` > 0 | `ticks` have elapsed | its `ticks` | `{elapsed}` ticks |
-| `mine` | `name` (an item), `count` (integer 1 to 1000), `entity`? (a `unit_number` that `find` or `inspect` returned) | the body holds `count` more `name` than at the job's start | `count` × the first target's mining ticks × 3, at most 36000, set when the job starts | `{gained, count, path}`, `path` `native` or `timed` |
+| `mine` | `name` (an item), `count` (integer 1 to 1000), `entity`? (a `unit_number` that `find` or `inspect` returned) | the body holds `count` more `name` than at the job's start | 3600 + `count` × the first target's mining ticks × 3, at most 36000, set when the job starts | `{gained, count, path}`, `path` `native` or `timed` |
 
 - **Ends.** A job that ends `done` fires `job_done`; when nothing is queued
   after it, `queue_idle` follows. A job that ends `failed` fires one
@@ -205,9 +205,12 @@ the job's start. A successful `jobs_enqueue` lifts the stop latch.
   tiles back and end the job.
 - **Mining.** A `mine` target is the nearest entity within 64 tiles of the
   body whose mining products include the item `name` and that is a
-  resource, a tree, a rock (`count_as_rock_for_filtered_deconstruction`) or
-  marked for deconstruction; any other entity, such as one the host built,
-  is never a target. With `entity`, that entity is the first target. The
+  resource, a tree, a rock (a `simple-entity` whose prototype has
+  `count_as_rock_for_filtered_deconstruction`) or marked for deconstruction;
+  any other entity, such as one the host built, is never a target, and
+  neither is a resource whose `required_fluid` is set, such as uranium ore.
+  With `entity`, that entity is the first target and must be within the same
+  64 tiles. The
   body walks to within its resource reach of the target, selects the target
   itself (never another entity at its position, such as a building on an
   ore tile) and mines it by setting `mining_state`. Every 30 ticks the job
@@ -218,7 +221,9 @@ the job's start. A successful `jobs_enqueue` lifts the stop latch.
   fresh map. No mining progress and no gain for twice the target's mining
   ticks switch the job to the `timed` path for the rest of its run: native
   mining stops and the body calls `mine_entity` on the target once every
-  mining ticks. A target used up by the body's own mining gives way to the
+  mining ticks. On a resource each call takes one unit of the tile's
+  `amount` and returns `false` while the tile remains, so the gain is read
+  from the inventory, never from the return value. A target used up by the body's own mining gives way to the
   next nearest; a target that disappears with no gain from it is replaced
   once, and the second such loss ends the job `target_gone`.
 
@@ -228,6 +233,8 @@ the job's start. A successful `jobs_enqueue` lifts the stop latch.
 | `stuck` | 600 ticks without movement on a route |
 | `target_gone` | the `walk_to` entity no longer exists; no `mine` target within 64 tiles, the named `entity` no longer exists, or a second `mine` target disappeared |
 | `not_permitted` | the named `mine` `entity` is not an allowed target that yields `name` |
+| `unreachable` | the named `mine` `entity` is more than 64 tiles from the body |
+| `unsupported` | the named `mine` `entity` needs a fluid to mine; also a job kind whose start set no `timeout_ticks` |
 | `target_full` | the body has no room for `name` |
 | `timeout` | `timeout_ticks` elapsed since the job's start |
 | `stopped` | the stop latch is on or no host is connected; also on jobs cancelled before any started |
@@ -279,8 +286,10 @@ over a fake world (`tests/fixtures/world.lua`), the job queue's transitions,
 events, reason codes, validation messages, cap, failure detail and idle
 cost, the walker's path
 request, retries, resolution steps, stale results, stuck handling and hooks,
-and the `mine` job's target rule, inventory-delta end, timed fallback,
-`target_full`, one replaced target and default timeout. The
+and the `mine` job's target rule, reach, fluid ores, inventory-delta end,
+timed fallback, `target_full`, one replaced target, dropped state and
+default timeout, and the runner's refusal of a start that sets no
+`timeout_ticks`. The
 headless suite runs with `--probe` and pins, on a seed-42 map: `status` → `events_since` → `say`, write-op replay and
 `id_conflict`, `find` → `inspect` on a chest and an assembler, `snapshot`
 power in W and the research queue, `recipe` for iron-gear-wheel, `ping` with
@@ -294,8 +303,13 @@ ends `no_path`,
 `jobs_cancel{all}` and `stop` while walking, `jobs_enqueue` replay and
 `id_conflict`; and on a cleared field around a dev host at (0, 200): `mine`
 50 coal natively in 50 × 121 ticks within 10 %, 10 wood from three trees,
-5 stone from a huge rock, a host furnace refused until it is marked for
-deconstruction, and `target_full` with a full inventory.
+5 stone from a huge rock, a host furnace refused while unmarked, and a
+farther marked furnace mined while the nearer unmarked one stays, and
+`target_full` with a full inventory. Every scene body starts empty.
+
+On 2.0.77, reading `count_as_rock_for_filtered_deconstruction` on a prototype
+that is not a `simple-entity` returns `nil` without an error; the job still
+reads it on `simple-entity` prototypes only.
 
 ### Checked on the owner's GUI game
 

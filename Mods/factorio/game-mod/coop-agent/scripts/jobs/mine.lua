@@ -9,6 +9,7 @@ local CHECK_TICKS = 30
 local MAX_COUNT = 1000
 local STALL_FACTOR = 2
 local TIMEOUT_FACTOR = 3
+local WALK_ALLOWANCE_TICKS = 3600
 local MAX_TIMEOUT_TICKS = 36000
 
 local M = {}
@@ -43,8 +44,13 @@ local function allowed(entity)
   local kind = entity.type
   return kind == "resource"
     or kind == "tree"
-    or entity.prototype.count_as_rock_for_filtered_deconstruction == true
+    or kind == "simple-entity" and entity.prototype.count_as_rock_for_filtered_deconstruction
     or entity.to_be_deconstructed()
+end
+
+-- a resource such as uranium ore that only a drill fed with a fluid mines
+local function needs_fluid(entity)
+  return entity.prototype.mineable_properties.required_fluid ~= nil
 end
 
 local function sources(deps, name)
@@ -66,7 +72,7 @@ local function nearest(entity, names)
   local found = entity.surface.find_entities_filtered { position = pos, radius = SEARCH_RADIUS, name = names }
   for _, candidate in ipairs(found) do
     local distance = walker.distance(pos, candidate.position)
-    if (not best_distance or distance < best_distance) and allowed(candidate) then
+    if (not best_distance or distance < best_distance) and allowed(candidate) and not needs_fluid(candidate) then
       best, best_distance = candidate, distance
     end
   end
@@ -108,6 +114,12 @@ function M.start(deps, job)
     if not target then
       return "target_gone"
     end
+    if walker.distance(entity.position, target.position) > SEARCH_RADIUS then
+      return "unreachable"
+    end
+    if needs_fluid(target) then
+      return "unsupported"
+    end
     if not (allowed(target) and yields(target.prototype, args.name)) then
       return "not_permitted"
     end
@@ -118,10 +130,11 @@ function M.start(deps, job)
     end
   end
   local state = { names = names, before = entity.get_item_count(args.name), lost = false, next_check = deps.tick }
-  deps.storage.mine = state
+  deps.storage.jobs.kind_state = state
   job.progress = { gained = 0, count = args.count, path = "native" }
   choose(deps, job, state, target)
-  job.timeout_ticks = job.timeout_ticks or math.min(args.count * state.ticks * TIMEOUT_FACTOR, MAX_TIMEOUT_TICKS)
+  local timeout = WALK_ALLOWANCE_TICKS + args.count * state.ticks * TIMEOUT_FACTOR
+  job.timeout_ticks = job.timeout_ticks or math.min(timeout, MAX_TIMEOUT_TICKS)
   body.set_status(deps, status(job))
   return nil
 end
@@ -181,7 +194,7 @@ local function check(deps, job, state)
 end
 
 function M.tick(deps, job)
-  local state = deps.storage.mine
+  local state = deps.storage.jobs.kind_state
   if state.walking then
     local result = walker.tick(deps)
     if result == "arrived" then
