@@ -2,20 +2,44 @@
 
 import { afterEach, expect, it, vi } from "vitest";
 
-const { wireDevtoolsSync, createConfigStore, initLogger, createLogger, log } = vi.hoisted(() => {
-  const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
-  return {
-    wireDevtoolsSync: vi.fn(() => ({ reload: vi.fn(), dispose: vi.fn() })),
-    createConfigStore: vi.fn(() => ({
-      load: vi.fn(async () => ({ endpoints: { chat_model_context_window: 1 } })),
-    })),
-    initLogger: vi.fn(async () => undefined),
-    createLogger: vi.fn(() => log),
-    log,
-  };
-});
+const { wireDevtoolsSync, createConfigStore, initLogger, createLogger, log, presetRemote } =
+  vi.hoisted(() => {
+    const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
+    // What the pet window's preset-changed message reaches through the window's settings bridge.
+    const presetRemote: { send: (change: { active: string }) => void } = { send: () => {} };
+    return {
+      wireDevtoolsSync: vi.fn(() => ({
+        reload: vi.fn(),
+        dispose: vi.fn(),
+        bridge: {
+          emitPresetChanged: async () => {},
+          onPresetChanged: (cb: (change: { active: string }) => void) => {
+            presetRemote.send = cb;
+            return () => {};
+          },
+        },
+      })),
+      presetRemote,
+      createConfigStore: vi.fn(() => ({
+        load: vi.fn(async () => ({ endpoints: { chat_model_context_window: 1 } })),
+      })),
+      initLogger: vi.fn(async () => undefined),
+      createLogger: vi.fn(() => log),
+      log,
+    };
+  });
 
 vi.mock("../app/cross-window/wire-cross-window", () => ({ wireDevtoolsSync }));
+// The real switch with its reload observed: jsdom cannot navigate.
+const { reload } = vi.hoisted(() => ({ reload: vi.fn() }));
+vi.mock("../app/settings/wire-preset", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../app/settings/wire-preset")>();
+  return {
+    wirePresetSwitch: vi.fn<typeof actual.wirePresetSwitch>((deps) =>
+      actual.wirePresetSwitch({ ...deps, reload }),
+    ),
+  };
+});
 vi.mock("../config/store", () => ({ createConfigStore }));
 vi.mock("../logger", () => ({ initLogger, createLogger }));
 const { mountMotionPreview, motionPreviewState } = vi.hoisted(() => {
@@ -91,6 +115,21 @@ async function bootFresh() {
   await vi.waitFor(() => expect(document.querySelector(".devtools-nav")).not.toBeNull());
   return setLocale;
 }
+
+it("reloads when the pet window's preset switch arrives over the settings bridge", async () => {
+  const list = [
+    { id: "default", name: "default" },
+    { id: "aaaa0001", name: "natsume" },
+  ];
+  localStorage.setItem("yui.presets", JSON.stringify({ active: "default", list }));
+  await bootFresh();
+
+  localStorage.setItem("yui.presets", JSON.stringify({ active: "aaaa0001", list }));
+  presetRemote.send({ active: "aaaa0001" });
+
+  expect(reload).toHaveBeenCalledOnce();
+  localStorage.removeItem("yui.presets");
+});
 
 it("passes both store bags and their devtools stores through bootstrap by identity", async () => {
   await bootFresh();

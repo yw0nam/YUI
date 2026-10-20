@@ -16,6 +16,16 @@ vi.mock("../ui/surfaces/surfaces.css", () => ({}));
 vi.mock("../ui/tokens.css", () => ({}));
 vi.mock("../ui/chips/delegation-chip.css", () => ({}));
 vi.mock("../ui/chips/delegation-rows.css", () => ({}));
+// The real switch with its reload observed: jsdom cannot navigate.
+const { reload } = vi.hoisted(() => ({ reload: vi.fn() }));
+vi.mock("../app/settings/wire-preset", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../app/settings/wire-preset")>();
+  return {
+    wirePresetSwitch: vi.fn<typeof actual.wirePresetSwitch>((deps) =>
+      actual.wirePresetSwitch({ ...deps, reload }),
+    ),
+  };
+});
 
 import { createMessageBridge, type MessageControlOp } from "../io/bridge/message/message-bridge";
 import type { ReasoningState } from "../io/bridge/reasoning/reasoning-store";
@@ -214,4 +224,18 @@ it("draws the quote op and restores a sent message into the summoned input", asy
     expect(document.querySelector<HTMLTextAreaElement>(".yui-input__field")!.value).toBe("hi"),
   );
   petMessageBridge.dispose();
+});
+
+it("reloads when the pet window's preset switch arrives over the settings bridge", async () => {
+  const list = [
+    { id: "default", name: "default" },
+    { id: "aaaa0001", name: "natsume" },
+  ];
+  localStorage.setItem("yui.presets", JSON.stringify({ active: "default", list }));
+  await boot();
+
+  localStorage.setItem("yui.presets", JSON.stringify({ active: "aaaa0001", list }));
+  await petBridge.emitPresetChanged({ active: "aaaa0001" });
+
+  await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce());
 });
