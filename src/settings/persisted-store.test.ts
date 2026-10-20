@@ -95,6 +95,35 @@ describe("localStorageStore", () => {
     expect(() => s.save({ n: 1 })).not.toThrow();
     vi.unstubAllGlobals();
   });
+
+  it.each([
+    ["a per-preset key", "yui.endpoints", "yui.ab12cd34.endpoints"],
+    ["a device-wide key", "yui.vrm.user", "yui.vrm.user"],
+  ])("built while a preset is active, %s reads and writes %s as %s", (_label, key, stored) => {
+    const map = new Map<string, string>([
+      [
+        "yui.presets",
+        JSON.stringify({
+          active: "ab12cd34",
+          list: [
+            { id: "default", name: "default" },
+            { id: "ab12cd34", name: "perlica" },
+          ],
+        }),
+      ],
+      [stored, JSON.stringify({ n: 3 })],
+    ]);
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => map.get(k) ?? null,
+      setItem: (k: string, v: string) => map.set(k, v),
+    });
+    const s = localStorageStore<Box>(key);
+
+    expect(s.load()).toEqual({ n: 3 });
+    s.save({ n: 9 });
+    expect(map.get(stored)).toBe('{"n":9}');
+    vi.unstubAllGlobals();
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

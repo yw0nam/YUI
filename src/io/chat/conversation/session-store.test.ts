@@ -295,6 +295,38 @@ describe("localStorageSessionStorage", () => {
     delete (globalThis as any).localStorage;
   });
 
+  it("built while a preset is active, writes the id and its tool outputs under that preset", () => {
+    const fakeStore: Record<string, string> = {
+      "yui.presets": JSON.stringify({
+        active: "ab12cd34",
+        list: [
+          { id: "default", name: "default" },
+          { id: "ab12cd34", name: "perlica" },
+        ],
+      }),
+    };
+    (globalThis as any).localStorage = {
+      getItem: (k: string) => fakeStore[k] ?? null,
+      setItem: (k: string, v: string) => {
+        fakeStore[k] = v;
+      },
+      removeItem: (k: string) => {
+        delete fakeStore[k];
+      },
+    };
+
+    localStorageSessionStorage().save("resp_b", [
+      { type: "function_call_output", call_id: "c1", output: "ok" },
+    ]);
+    expect(Object.keys(fakeStore).sort()).toEqual([
+      "yui.ab12cd34.previous_response_id",
+      "yui.ab12cd34.previous_response_id.tool_outputs",
+      "yui.presets",
+    ]);
+
+    delete (globalThis as any).localStorage;
+  });
+
   it("custom key is used when provided", () => {
     const written: Array<[string, string]> = [];
     (globalThis as any).localStorage = {

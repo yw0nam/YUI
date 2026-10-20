@@ -640,6 +640,30 @@ describe("localStorageOverrideStorage", () => {
     vi.unstubAllGlobals();
   });
 
+  it("built while a preset is active, keeps the VRM selection under that preset", () => {
+    const store = new Map<string, string>([
+      [
+        "yui.presets",
+        JSON.stringify({
+          active: "ab12cd34",
+          list: [
+            { id: "default", name: "default" },
+            { id: "ab12cd34", name: "perlica" },
+          ],
+        }),
+      ],
+    ]);
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => store.set(k, v),
+      removeItem: (k: string) => store.delete(k),
+    });
+    localStorageOverrideStorage("yui.vrm").save("carlotta");
+    expect(store.get("yui.ab12cd34.vrm")).toBe("carlotta");
+    expect(store.has("yui.vrm")).toBe(false);
+    vi.unstubAllGlobals();
+  });
+
   it("uses the requested key and tolerates unavailable or throwing storage", () => {
     const setItem = vi.fn();
     vi.stubGlobal("localStorage", { getItem: vi.fn(), setItem, removeItem: vi.fn() });
