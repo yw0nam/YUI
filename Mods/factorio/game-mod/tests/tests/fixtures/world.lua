@@ -19,8 +19,8 @@ BLOCKED = {}
 ENTITIES, INVENTORY, MINED = {}, {}, {}
 -- FULL: the body takes no item; NATIVE = false: mining_state makes no progress
 FULL, NATIVE = false, true
--- military units on the plane, and every find_nearest_enemy call as {x, y, max_distance}
-ENEMIES, ENEMY_QUERIES = {}, {}
+-- military units on the plane
+ENEMIES = {}
 
 local function mineable(mining_time, products)
   return { minable = true, mining_time = mining_time, products = products }
@@ -88,7 +88,6 @@ SURFACE = {
     return #REQUESTS
   end,
   find_nearest_enemy = function(spec)
-    ENEMY_QUERIES[#ENEMY_QUERIES + 1] = { spec.position.x, spec.position.y, spec.max_distance }
     local best, best_d2 = nil, nil
     for _, unit in ipairs(within(spec.position, spec.max_distance)) do
       local dx, dy = unit.position.x - spec.position.x, unit.position.y - spec.position.y

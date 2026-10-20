@@ -204,6 +204,17 @@ def test_a_rejected_retreat_route_stands_keeps_retreating_and_retries_every_300_
     assert body_at(world) == (0, 0)
 
 
+def test_a_retreat_retry_stands_in_place_when_an_enemy_now_stands_near_the_host(lua, world):
+    threaten(lua, world, 20)
+    answer(lua, world, [5, 0], [-40, 0])  # its first segment heads toward the enemy
+    game(world, 1)
+    lua.execute("enemy(-40, 30)")  # 30 tiles from the host, 50 from the body
+    game(world, 340)
+    assert len(world.REQUESTS) == 1
+    assert label(world) == "Buddy · Standing by"
+    assert body_at(world) == (0, 0)
+
+
 def test_the_retreat_follows_a_host_that_moved_more_than_5_tiles(lua, world):
     threaten(lua, world, 20)
     answer(lua, world, [-40, 0])
