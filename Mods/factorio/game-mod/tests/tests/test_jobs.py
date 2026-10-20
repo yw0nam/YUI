@@ -114,6 +114,53 @@ def test_the_gate_and_a_lost_target_end_the_walk_at_once(lua, world, disturb, re
         assert world.BODY.walking_state.walking is False
 
 
+def test_a_stop_before_any_job_started_cancels_the_queue_without_job_failed(lua, world):
+    enqueue(world, WAIT_1, WALK_EAST)
+    lua.execute("require('scripts.body').stop(DEPS)")
+    run(world, 1)
+    assert events(world) == [{"kind": "stopped"}]
+    assert states(world) == [(1, "cancelled", "stopped"), (2, "cancelled", "stopped")]
+
+
+def test_a_refused_enqueue_after_a_stop_pushes_no_job_failed(lua, world):
+    enqueue(world, *[WAIT_1] * 8, id_="a")
+    enqueue(world, *[WAIT_1] * 8, id_="b")
+    run(world, 1)
+    lua.execute("require('scripts.body').stop(DEPS)")
+    assert enqueue(world, WAIT_1, id_="c")["e"] == "bad_request"
+    assert events(world) == [{"kind": "stopped"}]
+
+
+@pytest.mark.parametrize("phase", ["start", "tick"])
+def test_a_kind_failure_detail_joins_the_job_failed_data(lua, world, phase):
+    lua.execute(
+        "JOBS.KINDS.fake = { validate = function() return nil end, default_timeout = function() return 10 end, "
+        "start = function() end, tick = function() end } "
+        f"JOBS.KINDS.fake.{phase} = function() return 'no_item', {{ item = 'coal', count = 5 }} end"
+    )
+    enqueue(world, {"kind": "fake", "args": {"n": 1}})
+    run(world, 1)
+    assert events(world) == [
+        {
+            "kind": "job_failed",
+            "data": {"id": 1, "kind": "fake", "reason": "no_item", "item": "coal", "count": 5},
+        }
+    ]
+
+
+def test_an_idle_runner_reads_no_job_record(lua, world):
+    enqueue(world, WAIT_1)
+    run(world, 3)
+    lua.execute(
+        "READS = 0 "
+        "for i, job in ipairs(storage.jobs.list) do "
+        "storage.jobs.list[i] = setmetatable({}, { __index = function(_, key) READS = READS + 1 return job[key] end }) "
+        "end"
+    )
+    run(world, 5)
+    assert world.READS == 0
+
+
 def test_an_enqueue_after_a_stop_in_the_same_tick_still_cancels_the_old_queue_and_lifts_the_latch(lua, world):
     enqueue(world, WALK_EAST, id_="a")
     run(world, 1)
@@ -130,14 +177,21 @@ def test_an_enqueue_after_a_stop_in_the_same_tick_still_cancels_the_old_queue_an
     ]
 
 
-def test_cancel_all_while_walking_stops_at_once_and_emits_nothing(lua, world):
+def test_cancel_all_while_walking_halts_the_body_at_once_and_emits_nothing(lua, world):
     enqueue(world, WALK_EAST, WAIT_1)
     run(world, 1)
     answer_east(lua, world)
     run(world, 2)
+    lua.execute(
+        "CANCELLED = {} BODY.mining_state = { mining = true } "
+        "BODY.crafting_queue_size = 1 BODY.crafting_queue = { { count = 2 } } "
+        "BODY.cancel_crafting = function(spec) CANCELLED[#CANCELLED + 1] = spec BODY.crafting_queue_size = 0 end"
+    )
 
     assert rpc(world, "jobs_cancel", {"all": True}, "c")["ok"] is True
     assert world.BODY.walking_state.walking is False
+    assert world.BODY.mining_state.mining is False
+    assert [dict(spec) for spec in world.CANCELLED.values()] == [{"index": 1, "count": 2}]
     run(world, 2)
     assert world.BODY.walking_state.walking is False
     assert events(world) == []
