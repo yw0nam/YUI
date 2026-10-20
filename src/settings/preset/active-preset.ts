@@ -3,6 +3,7 @@
  * from persisted-store, which reads the active preset through here when it builds an adapter.
  */
 
+import { readBoundPresetId } from "./bound-preset";
 import { DEFAULT_PRESET_ID, resolveStorageKey } from "./preset-keys";
 
 /** Device-wide key holding the registry. */
@@ -50,7 +51,11 @@ export function readActivePresetId(): string {
   }
 }
 
-/** The key `key` is stored under for the preset active now. */
+/** The key `key` is stored under for this window's bound or active preset. */
 export function resolvePresetKey(key: string): string {
-  return resolveStorageKey(key, readActivePresetId());
+  return resolveStorageKey(key, presetIdForWindow());
+}
+
+export function presetIdForWindow(): string {
+  return readBoundPresetId() ?? readActivePresetId();
 }

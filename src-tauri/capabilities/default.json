@@ -3,10 +3,12 @@
   "identifier": "default",
   "description": "enables the default permissions",
   "windows": [
-    "main"
+    "main",
+    "pet-*"
   ],
   "permissions": [
     "core:default",
+    "core:window:allow-close",
     "core:window:allow-set-size",
     "core:window:allow-set-position",
     "core:window:allow-show",
@@ -21,10 +23,18 @@
     {
       "identifier": "opener:allow-open-url",
       "allow": [
-        { "url": "http://*" },
-        { "url": "https://*" },
-        { "url": "mailto:*" },
-        { "url": "tel:*" }
+        {
+          "url": "http://*"
+        },
+        {
+          "url": "https://*"
+        },
+        {
+          "url": "mailto:*"
+        },
+        {
+          "url": "tel:*"
+        }
       ]
     }
   ]

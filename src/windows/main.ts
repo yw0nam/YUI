@@ -22,6 +22,10 @@ import { wireSettingsReload } from "../app/cross-window/wire-window-sync";
 import { wireCspViolationLog } from "../app/csp-violation";
 import { wireDevGlobals } from "../app/dev/wire-dev-globals";
 import { createDisposers } from "../app/disposers";
+import { closeIfOrphan } from "../app/pet-windows/close-if-orphan";
+import { wireBoundWindow } from "../app/pet-windows/wire-bound-window";
+import { wirePetWindowsReconcile } from "../app/pet-windows/wire-pet-windows-reconcile";
+import { wirePetWindowsSync } from "../app/pet-windows/wire-pet-windows-sync";
 import { createWindowStores } from "../app/settings/window-stores";
 import { wireAvatarSelection } from "../app/settings/wire-avatar";
 import { createPetConfig, wireConfigReload, wireConfigWatch } from "../app/settings/wire-config";
@@ -39,14 +43,18 @@ import { createVoiceFix } from "../app/voice/voice-fix";
 import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/secrets";
 import { createEventBus } from "../dispatcher/core/event-bus";
 import { createUserInputSource } from "../dispatcher/sources/user-input-source";
+import { createSettingsBridge } from "../io/bridge/settings-bridge";
 import {
   resolveScreenCapturer,
   resolveScreenSourceProvider,
 } from "../io/window/capture/tauri-screen";
 import { createDevtoolsWindowOpener } from "../io/window/openers/devtools-window";
+import { closePetWindow, createPetWindowOpener } from "../io/window/openers/pet-window";
 import { createSettingsWindowOpener } from "../io/window/openers/settings-window";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
+import { readBoundPresetId } from "../settings/preset/bound-preset";
+import { createPresetRegistry } from "../settings/preset/preset-registry";
 import { createStatusPill } from "../ui/chips/status-pill";
 import { createVoiceInputStatus } from "../ui/chips/voice-input-status";
 import { showBootError } from "../ui/notices/boot-error";
@@ -60,8 +68,24 @@ interface BootstrapHandle {
 }
 
 async function bootstrap(): Promise<BootstrapHandle> {
+  const boundId = readBoundPresetId();
+  const bound = boundId !== null;
   excludeOwnOriginFromCorsFetch();
   await initLogger();
+  const bootRegistry = createPresetRegistry();
+  const orphan = closeIfOrphan({
+    boundId,
+    registry: bootRegistry,
+    close: () => {
+      void closePetWindow();
+    },
+    log,
+  });
+  bootRegistry.dispose();
+  if (orphan) return { dispose: () => {} };
+  const lifecycle = createDisposers();
+  const lifecycleBridge = createSettingsBridge(undefined, { windowKind: "pet" });
+  lifecycle.register(() => lifecycleBridge.dispose());
   const app = document.querySelector<HTMLDivElement>("#app");
   if (!app) {
     throw new Error("#app mount point not found");
@@ -74,7 +98,10 @@ async function bootstrap(): Promise<BootstrapHandle> {
   const disposers = createDisposers();
   const { register, dispose, isDisposed } = disposers;
   if (import.meta.env.DEV) {
-    import.meta.hot?.dispose(dispose);
+    import.meta.hot?.dispose(() => {
+      dispose();
+      lifecycle.dispose();
+    });
   }
   register(wireCspViolationLog());
 
@@ -89,7 +116,36 @@ async function bootstrap(): Promise<BootstrapHandle> {
   const root = app.querySelector<HTMLDivElement>(".yui-root")!;
   const stage = root.querySelector<HTMLDivElement>(".yui-stage")!;
 
-  const { settingsStores, conversationStores, presetRegistry } = createWindowStores(register);
+  const { settingsStores, conversationStores, presetRegistry, petWindows } = createWindowStores(
+    register,
+    lifecycle.register,
+  );
+  lifecycle.register(wirePetWindowsSync({ petWindows, bridge: lifecycleBridge }));
+  if (boundId !== null) {
+    let offBound = () => {};
+    offBound = wireBoundWindow({
+      boundId,
+      petWindows,
+      bridge: lifecycleBridge,
+      disposeStores: dispose,
+      disposeSync: () => {
+        offBound();
+        lifecycle.dispose();
+      },
+      close: closePetWindow,
+      log,
+    });
+    if (isDisposed()) return { dispose };
+  } else {
+    register(
+      wirePetWindowsReconcile({
+        petWindows,
+        registry: presetRegistry,
+        opener: createPetWindowOpener(),
+        log,
+      }),
+    );
+  }
   const petConfig = createPetConfig({ ...settingsStores, log });
   const config = petConfig.config;
   const bedSceneHold = createBedSceneHold();
@@ -115,6 +171,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
   register(() => statusPill.dispose());
 
   const { surfaces, local, remote, getMode } = wireMessageSurfaces({
+    bound,
     mount: root,
     tool: statusPill,
     bubblePersistSettings: settingsStores.bubblePersistSettings,
@@ -143,6 +200,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     bridge: windowBridge,
     dispose: disposeCrossWindowSync,
   } = wireCrossWindowSync({
+    bound,
     renderer,
     voiceInputStatus,
     stores: settingsStores,
@@ -176,11 +234,12 @@ async function bootstrap(): Promise<BootstrapHandle> {
     getChatKey: () => config.secrets.get(CHAT_API_KEY_SECRET),
     register,
   });
-  publishPushStores(push, windowBridge, register);
+  publishPushStores(push, windowBridge, register, bound);
   // A preset switch stops the turn and speech the way the stop button does, then reloads.
   register(
     wirePresetSwitch({
       registry: presetRegistry,
+      boundId,
       bridge: windowBridge,
       onBeforeReload: push.stopTurn,
     }),
@@ -207,6 +266,8 @@ async function bootstrap(): Promise<BootstrapHandle> {
     pushSocket: push.pushSocket,
     stopTurn: push.stopTurn,
     presetRegistry,
+    petWindows,
+    boundId,
     voiceInputStatus,
     screenSourceProvider,
     surfaces,
@@ -230,6 +291,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     if (isDisposed()) return { dispose };
     surfaces.setAttachmentLimits(cfg.guardrails.attachments);
     const configured = await createConfiguredBootstrap(cfg, {
+      bound,
       config,
       renderer,
       ambient,

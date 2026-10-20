@@ -1,0 +1,72 @@
+import { createPersistedStore, localStorageStore, type PersistedStorage } from "../persisted-store";
+
+export const PET_WINDOWS_KEY = "yui.windows";
+export const LIVE_KEY_PREFIX = "yui.pet-window.";
+export const liveKey = (id: string): string => `${LIVE_KEY_PREFIX}${id}`;
+export function isPetWindowLive(id: string): boolean {
+  return globalThis.localStorage?.getItem(liveKey(id)) === "1";
+}
+export function setPetWindowLive(id: string): void {
+  globalThis.localStorage?.setItem(liveKey(id), "1");
+}
+export function clearPetWindowLive(id: string): void {
+  globalThis.localStorage?.removeItem(liveKey(id));
+}
+function parse(v: unknown): { open: string[] } | null {
+  if (!v || typeof v !== "object" || !Array.isArray((v as { open?: unknown }).open)) return null;
+  return {
+    open: [
+      ...new Set(
+        (v as { open: unknown[] }).open.filter(
+          (id): id is string => typeof id === "string" && !!id,
+        ),
+      ),
+    ],
+  };
+}
+export function readOpenPetWindowIds(): string[] {
+  try {
+    return (
+      parse(JSON.parse(globalThis.localStorage?.getItem(PET_WINDOWS_KEY) ?? "null"))?.open ?? []
+    );
+  } catch {
+    return [];
+  }
+}
+export function createPetWindows(deps?: { storage?: PersistedStorage<{ open: string[] }> }) {
+  const core = createPersistedStore({
+    storage: deps?.storage ?? localStorageStore<{ open: string[] }>(PET_WINDOWS_KEY),
+    defaults: { open: [] as string[] },
+    parse,
+    equals: (a, b) => JSON.stringify(a) === JSON.stringify(b),
+    clone: (v) => ({ open: [...v.open] }),
+  });
+  const subscribers = new Set<(ids: string[]) => void>();
+  const notify = () => {
+    for (const cb of subscribers) cb([...core.get().open]);
+  };
+  core.subscribe(notify);
+  function edit(fn: (ids: string[]) => string[]): void {
+    core.reloadFromStorage();
+    core.commit({ open: fn(core.get().open) });
+  }
+  return {
+    get: () => core.get().open,
+    open: (id: string) => edit((ids) => (id && !ids.includes(id) ? [...ids, id] : ids)),
+    close: (id: string) => edit((ids) => ids.filter((v) => v !== id)),
+    prune: (listed: string[]) => edit((ids) => ids.filter((id) => listed.includes(id))),
+    reloadFromStorage: core.reloadFromStorage,
+    invalidate: notify,
+    subscribe: (cb: (ids: string[]) => void) => {
+      subscribers.add(cb);
+      return () => {
+        subscribers.delete(cb);
+      };
+    },
+    dispose: () => {
+      subscribers.clear();
+      core.dispose();
+    },
+  };
+}
+export type PetWindows = ReturnType<typeof createPetWindows>;

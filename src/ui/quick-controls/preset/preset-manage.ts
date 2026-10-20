@@ -5,6 +5,7 @@
 
 import type { Logger } from "../../../logger";
 import type { PresetEntry, PresetState } from "../../../settings/preset/active-preset";
+import { isPetWindowLive, type PetWindows } from "../../../settings/preset/pet-windows";
 import { DEFAULT_PRESET_ID } from "../../../settings/preset/preset-keys";
 import type { PresetRegistry } from "../../../settings/preset/preset-registry";
 import { t } from "../../i18n";
@@ -28,8 +29,11 @@ export function createPresetManage(deps: {
   el: HTMLElement;
   registry: Registry;
   log: Logger;
+  petWindows?: PetWindows;
+  boundId?: string | null;
+  windowsUi?: boolean;
 }): PresetManage {
-  const { el, registry, log } = deps;
+  const { el, registry, log, petWindows, boundId, windowsUi = false } = deps;
   let renamingId: string | null = null;
   let confirmId: string | null = null;
   let naming = false;
@@ -46,7 +50,14 @@ export function createPresetManage(deps: {
     const row = document.createElement("div");
     row.className = "yui-preset-row";
     row.dataset.presetId = entry.id;
-    const removable = entry.id !== DEFAULT_PRESET_ID && entry.id !== active;
+    const desired = petWindows?.get().includes(entry.id) ?? false;
+    const live = isPetWindowLive(entry.id);
+    const removable =
+      entry.id !== DEFAULT_PRESET_ID &&
+      entry.id !== active &&
+      entry.id !== boundId &&
+      !desired &&
+      !live;
     row.innerHTML = `
           <span class="yui-preset-row__name"></span>${entry.id === active ? `<span class="yui-preset-row__badge">${t("preset.in_use")}</span>` : ""}
           <span class="yui-preset-row__acts">
@@ -70,6 +81,17 @@ export function createPresetManage(deps: {
       focusSel = ".yui-preset-row__confirm .yui-pill:not(.yui-pill--go)";
       render();
     });
+    if (windowsUi && petWindows && entry.id !== active && entry.id !== boundId) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "yui-preset-row__window";
+      button.textContent = t(desired || live ? "preset.close_window" : "preset.open_window");
+      button.disabled = live && !desired;
+      button.addEventListener("click", () =>
+        desired ? petWindows.close(entry.id) : petWindows.open(entry.id),
+      );
+      row.querySelector(".yui-preset-row__acts")!.append(button);
+    }
     return row;
   }
 

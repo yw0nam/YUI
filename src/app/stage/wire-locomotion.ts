@@ -46,6 +46,7 @@ export function createSitLossFall(deps: {
 }
 
 export function wireLocomotion(deps: {
+  bound?: boolean;
   bus: EventBus;
   renderer: Renderer;
   getConfig: () => AppConfig;
@@ -167,6 +168,7 @@ export function wireLocomotion(deps: {
   register(faller.dispose);
 
   const windowSources = wireWindowSources({
+    bound: deps.bound,
     bus,
     renderer,
     peekActive: () => peekActive(),

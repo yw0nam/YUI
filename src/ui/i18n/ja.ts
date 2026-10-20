@@ -173,6 +173,9 @@ const ja: Record<string, string> = {
   "tabs.general": "一般",
 
   // preset strip, manage popover, and the scope line above each tab title
+  "preset.open_window": "ウィンドウを開く",
+  "preset.close_window": "ウィンドウを閉じる",
+  "preset.in_window": "{name} · ウィンドウで表示中",
   "preset.label": "プリセット",
   "preset.manage": "プリセットを管理",
   "preset.in_use": "使用中",

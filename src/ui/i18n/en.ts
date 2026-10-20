@@ -171,6 +171,9 @@ const en: Record<string, string> = {
   "tabs.general": "General",
 
   // preset strip, manage popover, and the scope line above each tab title
+  "preset.open_window": "Open window",
+  "preset.close_window": "Close window",
+  "preset.in_window": "{name} · open as a window",
   "preset.label": "Preset",
   "preset.manage": "Manage presets",
   "preset.in_use": "In use",

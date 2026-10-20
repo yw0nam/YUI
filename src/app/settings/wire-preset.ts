@@ -15,6 +15,7 @@ export function wirePresetSwitch(deps: {
   registry: Pick<PresetRegistry, "get" | "subscribe" | "reloadFromStorage">;
   bridge: Pick<SettingsBridge, "emitPresetChanged" | "onPresetChanged">;
   /** Runs once before the reload; the pet window stops its turn and speech here. */
+  boundId?: string | null;
   onBeforeReload?: () => void;
   reload?: () => void;
 }): () => void {
@@ -26,7 +27,7 @@ export function wirePresetSwitch(deps: {
 
   // `sent` is this window's own switch message: the page unloading before it leaves would lose it.
   function follow(sent?: Promise<void>): void {
-    if (switching) return;
+    if (switching || deps.boundId != null) return;
     switching = true;
     onBeforeReload?.();
     if (!sent) {

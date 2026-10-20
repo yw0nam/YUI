@@ -26,6 +26,7 @@ const CH_DELEGATIONS_ASK = "yui://delegations-ask";
 const CH_REASONING = "yui://reasoning";
 const CH_REASONING_ASK = "yui://reasoning-ask";
 const CH_HELP_GUIDE = "yui://help-guide";
+const CH_PET_WINDOWS_CHANGED = "yui://pet-windows-changed";
 const CH_PRESET_CHANGED = "yui://preset-changed";
 
 interface VoiceStateSnapshot {
@@ -81,6 +82,8 @@ export interface SettingsBridge {
   /** The active preset after a window edited the registry; a window booted on another one reloads. Settles once sent. */
   emitPresetChanged(change: PresetChange): Promise<void>;
   onPresetChanged(cb: (change: PresetChange) => void): () => void;
+  emitPetWindowsChanged(): Promise<void>;
+  onPetWindowsChanged(cb: () => void): () => void;
   dispose(): void;
 }
 
@@ -187,6 +190,12 @@ export function createSettingsBridge(
         const active = (change as Partial<PresetChange> | null)?.active;
         if (typeof active === "string" && active) cb({ active });
       });
+    },
+    emitPetWindowsChanged() {
+      return safeEmit(CH_PET_WINDOWS_CHANGED);
+    },
+    onPetWindowsChanged(cb) {
+      return on(CH_PET_WINDOWS_CHANGED, () => cb());
     },
     dispose: core.dispose,
   };

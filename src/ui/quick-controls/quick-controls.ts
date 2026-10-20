@@ -50,6 +50,7 @@ import type { createProactiveSettings } from "../../settings/cues/proactive-sett
 import type { createScheduleSettings } from "../../settings/cues/schedule-settings";
 import type { MessageWindowSettingsStore } from "../../settings/panels/message-window-settings";
 import type { ClampedIntSettingsStore, FlagSettingsStore } from "../../settings/persisted-store";
+import type { PetWindows } from "../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import type { createFillerSettings } from "../../settings/voice/filler-settings";
 import type { createVadSettings } from "../../settings/voice/vad-settings";
@@ -236,6 +237,9 @@ interface QuickControlsOptions {
   browserSettings?: FlagSettingsStore;
   /** Preset list and active preset. If absent, the preset strip and the tab scope lines won't render. */
   presetRegistry?: PresetRegistry;
+  petWindows?: PetWindows;
+  boundId?: string | null;
+  windowsUi?: boolean;
 }
 
 interface QuickControls {
@@ -322,6 +326,9 @@ export function createQuickControls({
   bedSceneSettings,
   browserSettings,
   presetRegistry,
+  petWindows,
+  boundId,
+  windowsUi,
 }: QuickControlsOptions): QuickControls {
   const isWindow = variant === "window";
   // Context-occupancy readout renders only in the settings window, when both stores are injected.
@@ -414,7 +421,7 @@ export function createQuickControls({
   if (historyTab) el.querySelector("#yui-panel-hist")!.append(historyTab.el);
   const workflows = createWorkflowsSection({ root: el, store: workflowSettings, log });
   const presetStrip = presetRegistry
-    ? createPresetStrip({ root: el, registry: presetRegistry, log })
+    ? createPresetStrip({ root: el, registry: presetRegistry, log, petWindows, boundId, windowsUi })
     : null;
   const hintTooltip = createHintTooltip({ root: el });
 

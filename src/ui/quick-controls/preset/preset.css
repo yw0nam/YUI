@@ -250,3 +250,34 @@
     animation: none;
   }
 }
+
+.yui-preset__bound {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--yui-fs-body);
+  color: var(--yui-text);
+}
+.yui-preset-row__window {
+  font: inherit;
+  color: var(--yui-text-dim);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.yui-preset-row__window:hover:not(:disabled),
+.yui-preset-row__window:focus-visible {
+  color: var(--yui-text);
+  background: var(--yui-selected);
+}
+.yui-preset-row__window:focus-visible {
+  outline: 2px solid var(--yui-accent-soft);
+  border-radius: var(--yui-radius-control);
+}
+.yui-preset-row__window:disabled {
+  opacity: 0.45;
+  cursor: default;
+}

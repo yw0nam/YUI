@@ -7,10 +7,13 @@
 import "./preset.css";
 import type { Logger } from "../../../logger";
 import type { PresetState } from "../../../settings/preset/active-preset";
+import { isPetWindowLive, type PetWindows } from "../../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../../settings/preset/preset-registry";
 import { t } from "../../i18n";
 import { createPresetManage } from "./preset-manage";
 import { presetScopeText } from "./preset-scope";
+
+const PET_WINDOWS_UI = false;
 
 const DOTS_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/></svg>`;
 
@@ -42,15 +45,25 @@ export function createPresetStrip(deps: {
   root: HTMLElement;
   registry: Pick<PresetRegistry, "get" | "subscribe" | "activate" | "create" | "rename" | "remove">;
   log: Logger;
+  petWindows?: PetWindows;
+  boundId?: string | null;
+  windowsUi?: boolean;
 }): PresetStrip {
-  const { root, registry, log } = deps;
+  const { root, registry, log, petWindows, boundId = null, windowsUi = PET_WINDOWS_UI } = deps;
   const stripEl = root.querySelector<HTMLDivElement>(".yui-preset")!;
   const select = stripEl.querySelector<HTMLSelectElement>(".yui-preset__select")!;
+  let boundName: HTMLSpanElement | null = null;
+  if (boundId !== null) {
+    boundName = document.createElement("span");
+    boundName.className = "yui-preset__bound";
+    select.replaceWith(boundName);
+    stripEl.querySelector("label")!.removeAttribute("for");
+  }
   const manageBtn = stripEl.querySelector<HTMLButtonElement>(".yui-preset__manage")!;
   const stateEl = stripEl.querySelector<HTMLParagraphElement>(".yui-preset__state")!;
   const popEl = stripEl.querySelector<HTMLDivElement>(".yui-preset-pop")!;
   const colsEl = root.querySelector<HTMLDivElement>(".yui-quick__cols")!;
-  const manage = createPresetManage({ el: popEl, registry, log });
+  const manage = createPresetManage({ el: popEl, registry, log, petWindows, boundId, windowsUi });
   let switching = false;
 
   function render(): void {
@@ -58,10 +71,25 @@ export function createPresetStrip(deps: {
     if (switching) return;
     const state = registry.get();
     select.replaceChildren(
-      ...state.list.map((e) => new Option(e.name, e.id, false, e.id === state.active)),
+      ...state.list.map((e) => {
+        const open = petWindows?.get().includes(e.id) || isPetWindowLive(e.id);
+        const option = new Option(
+          open ? t("preset.in_window", { name: e.name }) : e.name,
+          e.id,
+          false,
+          e.id === state.active,
+        );
+        option.disabled = !!open;
+        return option;
+      }),
     );
+    const name =
+      boundId === null
+        ? activeName(state)
+        : (state.list.find((e) => e.id === boundId)?.name ?? boundId);
+    if (boundName) boundName.textContent = name;
     for (const line of root.querySelectorAll<HTMLElement>("[data-scope-tab]")) {
-      line.textContent = presetScopeText(line.dataset.scopeTab!, activeName(state));
+      line.textContent = presetScopeText(line.dataset.scopeTab!, name);
     }
     if (!popEl.hidden) manage.render();
   }
@@ -69,6 +97,11 @@ export function createPresetStrip(deps: {
   function handleChange(): void {
     const target = registry.get().list.find((e) => e.id === select.value);
     if (!target || target.id === registry.get().active) return;
+    if (boundId !== null) return;
+    if (!registry.activate(target.id)) {
+      render();
+      return;
+    }
     closeManage(false);
     switching = true;
     stripEl.classList.add("is-busy");
@@ -81,7 +114,6 @@ export function createPresetStrip(deps: {
     colsEl.classList.add("is-busy");
     colsEl.setAttribute("inert", "");
     log.info("preset_switch", { preset: target.id });
-    registry.activate(target.id);
   }
 
   function openManage(): void {
@@ -126,6 +158,7 @@ export function createPresetStrip(deps: {
   manageBtn.addEventListener("click", handleManageClick);
   popEl.addEventListener("keydown", handlePopKeydown);
   const unsubscribe = registry.subscribe(render);
+  const offWindows = petWindows?.subscribe(render);
   render();
 
   return {
@@ -133,6 +166,7 @@ export function createPresetStrip(deps: {
     dispose(): void {
       closeManage(false);
       unsubscribe();
+      offWindows?.();
       select.removeEventListener("change", handleChange);
       manageBtn.removeEventListener("click", handleManageClick);
       popEl.removeEventListener("keydown", handlePopKeydown);

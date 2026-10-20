@@ -13,6 +13,7 @@ import { wireWindowSync } from "./wire-window-sync";
  * once those selections exist.
  */
 export function wireCrossWindowSync(deps: {
+  bound?: boolean;
   renderer: Pick<Renderer, "setMouthOpen" | "stopMouth">;
   voiceInputStatus: VoiceInputStatus;
   stores: SettingsStores;
@@ -32,6 +33,13 @@ export function wireCrossWindowSync(deps: {
     ...conversationSyncStores(conversation),
     log,
   });
+  if (deps.bound)
+    return {
+      broadcastSettings: core.broadcastSettings,
+      onRemoteChange: core.onRemoteChange,
+      bridge: core.bridge,
+      dispose: core.dispose,
+    };
   // Mouth preview (separate window → this window VRM): gain slider drag moves actual mouth.
   core.bridge.onMouthPreview((mouthOpen) => {
     if (mouthOpen == null) renderer.stopMouth();

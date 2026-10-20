@@ -35,6 +35,7 @@ const log = createLogger("bootstrap");
 
 /** The pet window's own handles, on top of what the chat turn reads. */
 interface Phase1Handles extends TurnCorePhase1 {
+  bound?: boolean;
   ambient: Tier1Engine;
   screenCapturer: ScreenCapturer;
   root: HTMLElement;
@@ -210,6 +211,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     wireGaze({ renderer, gazeSettings, register });
 
     locomotion = wireLocomotion({
+      bound: phase1.bound,
       bus,
       renderer,
       getConfig: () => config.get(),
@@ -250,6 +252,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     ensureActive();
 
     const summonHotkey = wireSummonHotkey({
+      bound: phase1.bound,
       surfaces,
       bus,
       peek: {

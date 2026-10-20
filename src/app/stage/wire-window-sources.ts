@@ -30,6 +30,7 @@ import { isTauri } from "../../tauri-env";
  * forwards user-drag interruption once the asynchronous Tauri executor is ready.
  */
 export function wireWindowSources(deps: {
+  bound?: boolean;
   bus: EventBus;
   renderer: Renderer;
   peekActive: () => boolean;
@@ -126,7 +127,7 @@ export function wireWindowSources(deps: {
     const { invoke } = await import("@tauri-apps/api/core");
     // Only bind loopback ingress when watcher on. Restart-to-apply:
     // toggling enable/port takes effect on next launch (no live rebind).
-    if (agentNotifySettings.get().enabled) {
+    if (!deps.bound && agentNotifySettings.get().enabled) {
       void invoke("start_agent_ingress", { port: agentNotifySettings.get().port }).catch((e) =>
         log.warn("start_agent_ingress_failed", { error: String(e) }),
       );

@@ -171,6 +171,9 @@ const ko: Record<string, string> = {
   "tabs.general": "일반",
 
   // preset strip, manage popover, and the scope line above each tab title
+  "preset.open_window": "창 열기",
+  "preset.close_window": "창 닫기",
+  "preset.in_window": "{name} · 창으로 열림",
   "preset.label": "프리셋",
   "preset.manage": "프리셋 관리",
   "preset.in_use": "사용 중",

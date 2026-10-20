@@ -87,6 +87,7 @@ export async function wirePeek(deps: {
  * stable while the asynchronous Tauri implementation initializes.
  */
 export function wireSummonHotkey(deps: {
+  bound?: boolean;
   surfaces: Pick<Surfaces, "summonInput">;
   bus: EventBus;
   peek: { active(): boolean; exit(): Promise<void> };
@@ -110,7 +111,7 @@ export function wireSummonHotkey(deps: {
       await summonHotkey?.dispose();
     },
   };
-  if (!isTauri()) return handle;
+  if (deps.bound || !isTauri()) return handle;
   void (async () => {
     const { register, unregister, unregisterAll } = await import(
       "@tauri-apps/plugin-global-shortcut"
