@@ -2407,7 +2407,7 @@ globalThis.YUI_MAP =
       "id": "controls-settings",
       "from": "ui/quick-controls",
       "to": "settings",
-      "carries": "store commit → localStorage yui.*",
+      "carries": "store commit → localStorage yui.*, or yui.<preset-id>.* for a per-preset key",
       "kind": "storage",
       "transport": "shared"
     },
@@ -2424,10 +2424,19 @@ globalThis.YUI_MAP =
       "id": "settings-reload",
       "from": "io/bridge/settings",
       "to": "settings",
-      "carries": "yui://settings-changed → reloadFromStorage on every broadcast store",
+      "carries": "yui://settings-changed → reloadFromStorage on every broadcast store; the preset registry is not one, its storage event reloads the window instead",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/cross-window/wire-window-sync.ts"
+    },
+    {
+      "id": "preset-stop",
+      "from": "settings",
+      "to": "dispatcher/turn",
+      "carries": "active preset change → stopTurn() before the pet window reloads",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/settings/wire-preset.ts"
     },
     {
       "id": "settings-guardrails",

@@ -67,6 +67,13 @@ Live turns are capped by their own hourly rate limit, `rate_limit.live_max` (def
 They do not count toward the tier-2 or overall caps, and the cooldown the overall cap
 starts does not hold them.
 
+## Preset switch
+
+The ingress belongs to the device, not to a preset. A group that arrives after the user
+switches presets becomes a turn of the newly active preset's backend, whichever backend the
+producer had in mind. The buffers live in the pet window's memory, so a switch, which
+reloads that window, drops every group still buffered.
+
 ## Validation
 
 The HTTP ingress requires `POST /signals`, valid JSON, a `signals` array, and a

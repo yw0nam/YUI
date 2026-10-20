@@ -77,10 +77,11 @@ YUI/
         config-defaults.ts           # The quick-controls getters over the bundled config, shared by the pet and settings windows
         conversation-stores.ts       # Constructs the four shared io/chat conversation stores each window owns and disposes
         dev-key-fallback.ts          # The VITE_YUI_*_KEY build-time key values, read in dev builds only
-        window-stores.ts             # Creates the settings and conversation store bags of the pet and phone windows and registers each store's teardown
+        window-stores.ts             # Creates the settings and conversation store bags and the preset registry of the pet, settings, and phone windows and registers each store's teardown
         wire-avatar.ts               # VRM and speaker selection stores, their swap and import flows, the voice-list refresh on override commits, and the avatar config applied at boot
         wire-config.ts               # The config store over the bundled configs, the runtime key stores, the live endpoint/guardrail merges, and the reload/watch wiring
         wire-cue-locale-sync.ts      # Reseeds untouched built-in cues when the display language changes
+        wire-preset.ts               # Reloads a window when the active preset changes, after the pet window stops its turn
       message/                       # The message window's wiring
         wire-message-surface-ops.ts  # Draws each surface op from the pet window onto the surfaces and the plate
         wire-message-tauri-window.ts # Window focus, the OS drag, the content-height resize, and the moved-position record
@@ -310,6 +311,10 @@ YUI/
         filler-settings.ts           # Filler phrase pools and behaviour flags
         vad-settings.ts              # VAD silence window
         voice-mode.ts                # The phone's mic mode: tap to toggle or keep listening
+      preset/                        # Presets: which keys belong to one, the active one, and the registry
+        preset-keys.ts               # The per-preset key list and where a key lives under a given preset
+        active-preset.ts             # The registry's stored shape and the synchronous active-preset read the storage adapters resolve keys through
+        preset-registry.ts           # Preset list and active preset under yui.presets: create, rename, remove, activate
       panels/                        # Panel and window state
         delegation-chip-settings.ts  # Per-device fold state of the delegation chip
         message-window-settings.ts   # Message-window mode and last outer position
@@ -561,6 +566,11 @@ YUI/
           delegation-sync.ts         # Minute refresh timer that follows the running delegated items
         header/                      # Popover header bar buttons
           header-buttons.ts          # Pop-out, message, devtools and close buttons with their listeners
+        preset/                      # Preset strip above the tab rail
+          preset-strip.ts            # Active-preset picker, the switching state, and the tab scope lines it fills
+          preset-manage.ts           # Manage popover: rows with inline rename and delete confirm, and the new-preset field
+          preset-scope.ts            # Scope line text: the preset a tab edits, or that its settings are shared
+          preset.css                 # Strip, manage popover, and scope line styles
         history/                     # History tab and its session accordion section
           history-tab.ts             # The History tab the desktop panel and the phone settings view share, with its start-fresh row
           history-section.ts         # History tab session accordion over the persisted transcript

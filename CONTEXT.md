@@ -92,3 +92,7 @@ A standalone MCP server the brain uses (avatar, browser-cdp, desktop-control, sh
 **Tunable**:
 A numeric or enum knob the client reads at boot (peek distances, jump gravity, gaze curve, attachment caps). Its one home is `configs/*.json`; the validator requires the section and the consuming module reads the validated value.
 _Avoid_: default constant, fallback value, code-side default
+
+**Preset**:
+A named bundle of per-character client state: the backend connection and chat id, the TTS voice, the conversation history, the VRM selection, and the filler phrases. One preset is active at a time; the built-in default preset keeps the unprefixed storage keys. Everything else is device-wide and shared by every preset.
+_Avoid_: profile, character

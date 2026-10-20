@@ -23,6 +23,7 @@ The chat model row is not part of this mode — the plugin picks the model. The 
 - Responses mode: the Hermes API server does not pass request tools to the model, so the client's declared `generate_express` does not reach it. Install the Expression Broker MCP into Hermes so it can read the published vocabulary and call the broker's `generate_express`; `broker_base_url` is deprecated and is removed in v0.6.0, so use push mode for expression on Hermes.
 - Push mode: the platform plugin takes the vocabulary from the client and carries `generate_express` itself. `platform_toolsets.yui` gives the platform every enabled MCP server until it names some, so name the MCP servers the character uses there, or add `no_mcp`, to keep the Expression Broker off the platform, as the plugin's [Enable](platform/yui/docs/install.md#enable) section describes.
 - Create a Hermes profile, add `docs/reference/client-context.md` to that profile's context, and instruct it to remember the contract.
+- Two client presets that talk to two personas need one Hermes profile, one port, and one key per persona; each preset's chat server URL and key point at its own profile.
 - The [daily briefing skill](../skills/yui-daily-briefing/SKILL.md) reads `SKILL_DIR`, `YUI_BRIEFING_SPOOL`, and `YUI_BRIEFING_LINK` from the environment its shell commands run in. On Hermes, set them in the profile's `.env` and list the three names under `terminal.env_passthrough` in the profile's `config.yaml`.
 
 ## Pointers
