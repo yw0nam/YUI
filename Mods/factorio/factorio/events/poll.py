@@ -72,7 +72,12 @@ class Poller:
                 await self.recovery.run(await self.rpc.status(), generation)
                 return
             if result.outcome == "rollback":
-                record_reset(self.session, self.doorbell, self.log, "rollback", await self.rpc.status())
+                try:
+                    status = await self.rpc.status()
+                except RpcError as err:
+                    logger.bind(code=err.code).warning("rollback_status_unavailable")
+                    status = {}
+                record_reset(self.session, self.doorbell, self.log, "rollback", status)
                 return
 
             self._log_lag(result.dropped)
