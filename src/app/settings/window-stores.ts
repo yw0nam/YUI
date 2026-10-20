@@ -1,3 +1,4 @@
+import { createPresetRegistry } from "../../settings/preset/preset-registry";
 import { createSettingsStores } from "../../settings/settings-stores";
 import { getLocale } from "../../ui/i18n";
 import { createConversationStores } from "./conversation-stores";
@@ -14,5 +15,8 @@ export function createWindowStores(register: (dispose: () => void) => void) {
   for (const store of Object.values(conversationStores)) {
     register(() => store.dispose());
   }
-  return { settingsStores, conversationStores };
+  // Outside the bags: the registry never broadcasts; a switch reloads the window instead.
+  const presetRegistry = createPresetRegistry();
+  register(() => presetRegistry.dispose());
+  return { settingsStores, conversationStores, presetRegistry };
 }

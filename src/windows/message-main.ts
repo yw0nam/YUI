@@ -12,6 +12,7 @@ import "../ui/message/message-window.css";
 import { createDisposers } from "../app/disposers";
 import { wireMessageSurfaceOps } from "../app/message/wire-message-surface-ops";
 import { startDragging, wireTauriWindow } from "../app/message/wire-message-tauri-window";
+import { wirePresetSwitch } from "../app/settings/wire-preset";
 import { createMirroredDelegations } from "../io/bridge/delegations/delegations-bridge";
 import { createMessageBridge } from "../io/bridge/message/message-bridge";
 import { createMirroredPushSocket } from "../io/bridge/push/push-socket-bridge";
@@ -28,6 +29,7 @@ import {
   localStorageMessageWindowStorage,
 } from "../settings/panels/message-window-settings";
 import { createFlagSettings, localStorageStore } from "../settings/persisted-store";
+import { createPresetRegistry } from "../settings/preset/preset-registry";
 import { isTauri } from "../tauri-env";
 import { createDelegationChip } from "../ui/chips/delegation-chip";
 import { reloadFromStorage as reloadLocale } from "../ui/i18n";
@@ -51,6 +53,10 @@ async function bootstrap(): Promise<void> {
   const bubblePersistSettings = createFlagSettings(false, {
     storage: localStorageStore("yui.bubble-persist"),
   });
+
+  // The pet window reloads into another preset; this window reloads with it.
+  const presetRegistry = createPresetRegistry();
+  const disposePresetSwitch = wirePresetSwitch({ registry: presetRegistry });
 
   const bridge = createMessageBridge(undefined, { windowKind: "message" });
   const settingsBridge = createSettingsBridge(undefined, { windowKind: "message" });
@@ -120,6 +126,8 @@ async function bootstrap(): Promise<void> {
 
   // The bag drains LIFO, so these register in the reverse of the order they run.
   const disposers = createDisposers();
+  disposers.register(() => presetRegistry.dispose());
+  disposers.register(disposePresetSwitch);
   disposers.register(() => bubblePersistSettings.dispose());
   disposers.register(() => messageWindowSettings.dispose());
   disposers.register(() => settingsBridge.dispose());

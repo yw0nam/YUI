@@ -25,6 +25,7 @@ import { devKeyFallback } from "../settings/dev-key-fallback";
 import { createWindowStores } from "../settings/window-stores";
 import { createEffectiveEndpoints, wireSpeakerSelection } from "../settings/wire-avatar";
 import { wireCueLocaleSync } from "../settings/wire-cue-locale-sync";
+import { wirePresetSwitch } from "../settings/wire-preset";
 import { wireVoiceMirror } from "./wire-voice-mirror";
 
 const log = createLogger("settings-bootstrap");
@@ -34,7 +35,7 @@ export async function wireSettingsWindow(deps: { app: HTMLElement }): Promise<vo
   const { app } = deps;
   const { register, dispose } = createDisposers();
 
-  const { settingsStores, conversationStores } = createWindowStores(register);
+  const { settingsStores, conversationStores, presetRegistry } = createWindowStores(register);
   const {
     screenshotSettings,
     idleThrottleSettings,
@@ -256,6 +257,7 @@ export async function wireSettingsWindow(deps: { app: HTMLElement }): Promise<vo
       transcript: chatHistoryStore,
       bubblePersistSettings,
       messageWindowSettings,
+      presetRegistry,
     });
   };
 
@@ -280,7 +282,11 @@ export async function wireSettingsWindow(deps: { app: HTMLElement }): Promise<vo
   // VRM selection also signaled cross-window → pet window receives and hot-swaps renderer (backup for Tauri storage event instability).
   vrmSelection.subscribe(broadcastSettings);
 
+  // The pet window stops the turn on the same switch; this window only follows it.
+  const disposePresetSwitch = wirePresetSwitch({ registry: presetRegistry });
+
   // Drains LIFO, so registered in reverse of the teardown order.
+  register(disposePresetSwitch);
   register(() => voiceInputStatus.dispose());
   register(() => speakerSelection.dispose());
   register(() => vrmSelection.dispose());

@@ -14,6 +14,7 @@ import type { ScreenSourceProvider } from "../../io/window/capture/screen-source
 import { toScreenMonitor } from "../../io/window/geometry/screen-geometry";
 import { createVisibleViewport } from "../../io/window/geometry/visible-viewport";
 import type { Renderer } from "../../renderer";
+import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import type { SettingsStores } from "../../settings/settings-stores";
 import { isTauri } from "../../tauri-env";
 import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
@@ -59,6 +60,7 @@ export function wirePetControls(deps: {
   >;
   pushSocket: Pick<PushSocket, "getState" | "onState" | "sendReset" | "reconnectNow">;
   stopTurn: () => void;
+  presetRegistry: PresetRegistry;
   voiceInputStatus: VoiceInputStatus;
   screenSourceProvider: ScreenSourceProvider;
   surfaces: Pick<Surfaces, "summonInput">;
@@ -80,6 +82,7 @@ export function wirePetControls(deps: {
     speaker,
     pushSocket,
     stopTurn,
+    presetRegistry,
     voiceInputStatus,
     screenSourceProvider,
     surfaces,
@@ -211,6 +214,7 @@ export function wirePetControls(deps: {
       onMessage: () => surfaces.summonInput(),
       onGuide,
       visibleViewport,
+      presetRegistry,
     });
   // Re-mounted on locale change (see i18n subscriber below); consumers read the live binding.
   let quickControls = buildQuickControls();

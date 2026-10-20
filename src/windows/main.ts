@@ -25,6 +25,7 @@ import { createDisposers } from "../app/disposers";
 import { createWindowStores } from "../app/settings/window-stores";
 import { wireAvatarSelection } from "../app/settings/wire-avatar";
 import { createPetConfig, wireConfigReload, wireConfigWatch } from "../app/settings/wire-config";
+import { wirePresetSwitch } from "../app/settings/wire-preset";
 import { createBedSceneHold } from "../app/stage/bed-scene-hold";
 import { createStageRenderer } from "../app/stage/stage-renderer";
 import { wireInputAnchor } from "../app/stage/wire-pet-stage";
@@ -88,7 +89,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
   const root = app.querySelector<HTMLDivElement>(".yui-root")!;
   const stage = root.querySelector<HTMLDivElement>(".yui-stage")!;
 
-  const { settingsStores, conversationStores } = createWindowStores(register);
+  const { settingsStores, conversationStores, presetRegistry } = createWindowStores(register);
   const petConfig = createPetConfig({ ...settingsStores, log });
   const config = petConfig.config;
   const bedSceneHold = createBedSceneHold();
@@ -176,6 +177,8 @@ async function bootstrap(): Promise<BootstrapHandle> {
     register,
   });
   publishPushStores(push, windowBridge, register);
+  // A preset switch stops the turn and speech the way the stop button does, then reloads.
+  register(wirePresetSwitch({ registry: presetRegistry, onBeforeReload: push.stopTurn }));
 
   // The bus and input source come first: the settings panel submits its help requests through them.
   // The bus is safe to create before config load: it only queues until the dispatcher starts popping.
@@ -197,6 +200,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     speaker,
     pushSocket: push.pushSocket,
     stopTurn: push.stopTurn,
+    presetRegistry,
     voiceInputStatus,
     screenSourceProvider,
     surfaces,
