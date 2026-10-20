@@ -2424,7 +2424,7 @@ globalThis.YUI_MAP =
       "id": "settings-reload",
       "from": "io/bridge/settings",
       "to": "settings",
-      "carries": "yui://settings-changed → reloadFromStorage on every broadcast store; the preset registry is not one, its storage event reloads the window instead",
+      "carries": "yui://settings-changed → reloadFromStorage on every broadcast store; the preset registry is not one: it rides yui://preset-changed, with its storage event as the fallback",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/cross-window/wire-window-sync.ts"
@@ -2433,7 +2433,7 @@ globalThis.YUI_MAP =
       "id": "preset-changed",
       "from": "settings",
       "to": "io/bridge/settings",
-      "carries": "active preset id → yui://preset-changed; the receiving window reloads",
+      "carries": "registry edit → yui://preset-changed {active}; the receiving window rereads the registry and reloads when the active preset changed",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/settings/wire-preset.ts"
@@ -3795,6 +3795,48 @@ globalThis.YUI_MAP =
         "from": "pet",
         "to": "message",
         "carries": "yui://settings-changed: reload locale, bubble persistence, mirrors",
+        "kind": "bridge"
+      },
+      {
+        "id": "preset-changed-settings",
+        "from": "settings",
+        "to": "pet",
+        "carries": "yui://preset-changed {active}: reread the registry; another active preset stops the turn and reloads",
+        "kind": "bridge"
+      },
+      {
+        "id": "preset-changed-pet",
+        "from": "pet",
+        "to": "settings",
+        "carries": "yui://preset-changed {active}: reread the registry; another active preset reloads",
+        "kind": "bridge"
+      },
+      {
+        "id": "preset-changed-pet-message",
+        "from": "pet",
+        "to": "message",
+        "carries": "yui://preset-changed {active}: another active preset reloads",
+        "kind": "bridge"
+      },
+      {
+        "id": "preset-changed-settings-message",
+        "from": "settings",
+        "to": "message",
+        "carries": "yui://preset-changed {active}: another active preset reloads",
+        "kind": "bridge"
+      },
+      {
+        "id": "preset-changed-pet-devtools",
+        "from": "pet",
+        "to": "devtools",
+        "carries": "yui://preset-changed {active}: another active preset reloads",
+        "kind": "bridge"
+      },
+      {
+        "id": "preset-changed-settings-devtools",
+        "from": "settings",
+        "to": "devtools",
+        "carries": "yui://preset-changed {active}: another active preset reloads",
         "kind": "bridge"
       },
       {

@@ -91,9 +91,9 @@ export function createPresetManage(deps: {
       e.preventDefault();
       // Esc cancels the rename only; the popover and the panel stay open.
       e.stopPropagation();
-      if (e.key === "Enter") {
-        const next = input.value.trim();
-        if (next !== entry.name && !registry.rename(entry.id, next)) {
+      const next = input.value.trim();
+      if (e.key === "Enter" && next !== entry.name) {
+        if (!registry.rename(entry.id, next)) {
           row.classList.add("is-invalid");
           input.setAttribute("aria-invalid", "true");
           return;
