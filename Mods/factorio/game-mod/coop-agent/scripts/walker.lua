@@ -1,0 +1,200 @@
+-- The one path walker every movement uses: pathfinder route, walked by walking_state, never by teleport.
+-- Optional deps hooks: on_path(path) and on_segment(from, to) return nil to accept or a reason code to reject.
+
+local body = require("scripts.body")
+
+local PATH_RADIUS = 2
+local RETRY_TICKS = 30
+local MAX_FAILURES = 6
+local AIM_TICKS = 5
+local WAYPOINT_TILES = 0.5
+local STALL_TICKS = 150
+local STUCK_TICKS = 600
+local STEP_TILES = 2
+local STEP_BACK_TICKS = 60
+local MOVED_TILES = 0.01
+-- tan(22.5°): beyond it a component counts, splitting the circle into the 8 walking directions
+local SLOPE = 0.4142
+
+local DIRECTIONS = {
+  [-1] = { [-1] = "northwest", [0] = "north", [1] = "northeast" },
+  [0] = { [-1] = "west", [1] = "east" },
+  [1] = { [-1] = "southwest", [0] = "south", [1] = "southeast" },
+}
+
+local M = {}
+
+function M.distance(a, b)
+  local dx, dy = a.x - b.x, a.y - b.y
+  return math.sqrt(dx * dx + dy * dy)
+end
+
+local function component(d, other)
+  local bound = SLOPE * math.abs(other)
+  return d > bound and 1 or d < -bound and -1 or 0
+end
+
+local function heading_to(from, to)
+  local dx, dy = to.x - from.x, to.y - from.y
+  return { x = component(dx, dy), y = component(dy, dx) }
+end
+
+local function walk(deps, entity, heading)
+  entity.walking_state = { walking = true, direction = deps.direction[DIRECTIONS[heading.y][heading.x]] }
+end
+
+local function halt(entity)
+  entity.walking_state = { walking = false, direction = entity.walking_state.direction }
+end
+
+local function behind(pos, heading)
+  local scale = STEP_TILES / math.sqrt(heading.x * heading.x + heading.y * heading.y)
+  return { x = pos.x - heading.x * scale, y = pos.y - heading.y * scale }
+end
+
+local function request(walker, entity, start)
+  local modifier = walker.failures >= 4 and 2 or walker.failures >= 2 and 1 or 0
+  walker.path = nil
+  walker.request_id = entity.surface.request_path {
+    bounding_box = entity.prototype.collision_box,
+    collision_mask = entity.prototype.collision_mask,
+    start = start,
+    goal = walker.target,
+    force = entity.force,
+    radius = PATH_RADIUS,
+    can_open_gates = true,
+    entity_to_ignore = entity,
+    pathfind_flags = { cache = false },
+    path_resolution_modifier = modifier,
+  }
+end
+
+--- Starts a walk to within radius of target, replacing any walk under way.
+function M.go(deps, target, radius)
+  deps.storage.walker = {
+    target = { x = target.x, y = target.y },
+    radius = radius,
+    failures = 0,
+    retry_tick = deps.tick,
+    still = 0,
+  }
+end
+
+--- Drops the walk and halts the body.
+function M.cancel(deps)
+  deps.storage.walker = nil
+  local entity = body.entity(deps)
+  if entity then
+    halt(entity)
+  end
+end
+
+local function finish(deps, result)
+  M.cancel(deps)
+  return result
+end
+
+--- The pathfinder's answer; a result for any other request id is stale and dropped.
+function M.on_path_finished(deps, e)
+  local walker = deps.storage.walker
+  if not (walker and e.id == walker.request_id) then
+    return
+  end
+  walker.request_id = nil
+  if e.path then
+    walker.failed = deps.on_path and deps.on_path(e.path)
+    local path = {}
+    for i, waypoint in ipairs(e.path) do
+      path[i] = { x = waypoint.position.x, y = waypoint.position.y }
+    end
+    walker.path, walker.index, walker.segment = path, 1, nil
+    return
+  end
+  walker.failures = walker.failures + 1
+  if walker.failures >= MAX_FAILURES then
+    walker.failed = "no_path"
+  else
+    walker.retry_tick = deps.tick + RETRY_TICKS
+  end
+end
+
+-- Counts still ticks on a path; true when it takes over the tick: a re-path from 2 tiles back at 150, a step back at 600.
+-- The heading is set on a path's first tick, before any still tick counts.
+local function unstick(deps, walker, entity, pos)
+  local moved = not walker.last or M.distance(pos, walker.last) >= MOVED_TILES
+  walker.still = moved and 0 or walker.still + 1
+  walker.last = { x = pos.x, y = pos.y }
+  if walker.still >= STUCK_TICKS then
+    walker.back = { from = walker.last, until_tick = deps.tick + STEP_BACK_TICKS }
+    walk(deps, entity, { x = -walker.heading.x, y = -walker.heading.y })
+    return true
+  end
+  if walker.still == STALL_TICKS then
+    request(walker, entity, behind(pos, walker.heading))
+    halt(entity)
+    return true
+  end
+  return false
+end
+
+--- One tick of the walk: nil while under way, "arrived" within radius of the target, else a failure reason.
+function M.tick(deps)
+  local walker = deps.storage.walker
+  local entity = body.entity(deps)
+  if not (walker and entity) then
+    return nil
+  end
+  local pos = entity.position
+  if walker.failed then
+    return finish(deps, walker.failed)
+  end
+  if M.distance(pos, walker.target) <= walker.radius then
+    return finish(deps, "arrived")
+  end
+  if walker.back then
+    if M.distance(pos, walker.back.from) >= STEP_TILES or deps.tick >= walker.back.until_tick then
+      return finish(deps, "stuck")
+    end
+    return nil
+  end
+  if not walker.path then
+    if not walker.request_id and deps.tick >= walker.retry_tick then
+      request(walker, entity, { x = pos.x, y = pos.y })
+    end
+    return nil
+  end
+  if unstick(deps, walker, entity, pos) then
+    return nil
+  end
+  while walker.path[walker.index] and M.distance(pos, walker.path[walker.index]) <= WAYPOINT_TILES do
+    walker.index = walker.index + 1
+  end
+  local goal = walker.path[walker.index] or walker.target
+  if walker.segment ~= walker.index then
+    walker.segment = walker.index
+    local rejected = deps.on_segment and deps.on_segment(pos, goal)
+    if rejected then
+      return finish(deps, rejected)
+    end
+    walker.aim_tick = nil
+  end
+  if not walker.aim_tick or deps.tick - walker.aim_tick >= AIM_TICKS then
+    walker.aim_tick = deps.tick
+    walker.heading = heading_to(pos, goal)
+    walk(deps, entity, walker.heading)
+  end
+  return nil
+end
+
+--- The body's game deps plus the walking directions.
+function M.game_deps()
+  local deps = body.game_deps()
+  deps.direction = defines.direction
+  return deps
+end
+
+function M.on_path_finished_event(e)
+  M.on_path_finished(M.game_deps(), e)
+end
+
+return M

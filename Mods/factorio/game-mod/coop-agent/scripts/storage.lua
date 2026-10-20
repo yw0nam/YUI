@@ -12,6 +12,7 @@ function M.ensure()
   storage.pings = storage.pings or {}
   storage.unit_index = storage.unit_index or { map = {}, order = {} }
   storage.body = storage.body or { stopped = false, status = "Standing by" }
+  storage.jobs = storage.jobs or { next_id = 1, list = {} }
 end
 
 function M.push(kind, data)

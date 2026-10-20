@@ -3,6 +3,7 @@
 local body = require("scripts.body")
 local body_summary = require("scripts.body.summary")
 local host = require("scripts.host")
+local jobs = require("scripts.jobs")
 
 local M = {}
 
@@ -14,6 +15,7 @@ function M.op(deps)
     tick = deps.tick,
     body = body_summary.of(body.entity(deps)),
     stopped = deps.storage.body.stopped,
+    queue = jobs.summary(deps.storage),
   }
   local player = host.get()
   if player then

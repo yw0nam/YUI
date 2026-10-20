@@ -1,21 +1,28 @@
 -- The /coop-rpc framing: pure dispatch over injected deps, one JSON reply per call, capped at 64 KiB.
 
+local host = require("scripts.host")
+local store = require("scripts.storage")
+
 local MAX_REPLY_BYTES = 65536
 local MEMORY_SIZE = 256
+
+local M = {}
+
 -- write ops replay their stored reply on retry; read ops re-run
-local OPS = {
+M.OPS = {
   status = { fn = require("scripts.ops.status").op },
   snapshot = { fn = require("scripts.ops.snapshot").op },
   find = { fn = require("scripts.ops.find").op },
   inspect = { fn = require("scripts.ops.inspect").op },
   recipe = { fn = require("scripts.ops.recipe").op },
   events_since = { fn = require("scripts.ops.events_since").op },
+  jobs = { fn = require("scripts.ops.jobs").op },
   say = { fn = require("scripts.ops.say").op, write = true },
   ping = { fn = require("scripts.ops.ping").op, write = true },
   stop = { fn = require("scripts.ops.stop").op, write = true },
+  jobs_enqueue = { fn = require("scripts.ops.jobs_enqueue").op, write = true },
+  jobs_cancel = { fn = require("scripts.ops.jobs_cancel").op, write = true },
 }
-
-local M = {}
 
 --- The game-facing deps for one dispatch; built per call since game.tick moves.
 local function runtime_deps()
@@ -29,7 +36,10 @@ local function runtime_deps()
     storage = storage,
     tick = game.tick,
     body_name = settings.global["coop-agent-body-name"].value,
-    ops = OPS,
+    host = host.get,
+    push = store.push,
+    draw_text = rendering.draw_text,
+    ops = M.OPS,
   }
 end
 
@@ -79,7 +89,8 @@ local function finish(deps, id, payload)
   return json
 end
 
---- deps: {from_json, to_json, print, chat, storage, tick, body_name, ops = {name = {fn, write?}}}
+--- deps: {from_json, to_json, print, chat, storage, tick, body_name, host(), push(kind, data), draw_text(spec),
+---        ops = {name = {fn, write?}}}
 function M.dispatch(parameter, player_index, deps)
   local id = nil
   local parsed_ok, req = pcall(deps.from_json, parameter or "")
