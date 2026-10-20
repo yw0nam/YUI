@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 import time
+from itertools import pairwise
 from pathlib import Path
 
 import pytest
@@ -130,7 +131,7 @@ def test_status_events_since_say_round_trip(server):
         "id": "it-1",
         "ok": True,
         "r": {
-            "mod_version": "0.1.5",
+            "mod_version": "0.1.6",
             "map_id": MAP_ID,
             "seq": 1,
             "body": {"alive": False},
@@ -650,14 +651,17 @@ def mine(name, count, **extra):
     return {"kind": "mine", "args": {"name": name, "count": count, **extra}}
 
 
-def field(server, scene):
-    """A fresh empty body beside the dev host at (0, 200) on the cleared field with the scene's entities."""
+def field(server, scene, host_y=200):
+    """A fresh empty body beside the dev host at (0, host_y) on the cleared field with the scene's entities."""
     set_body_enabled(server, False)
     wait_status(server, lambda s: not s["body"]["alive"])
     # an earlier spawn may or may not have handed out the starter kit; no body of a scene gets it
     server.command("/silent-command __coop-agent__ storage.body.kit_given = true")
     server.command(FIELD + scene)
-    assert json.loads(server.command("/coop-probe host 0 200")) == {"ok": True, "host": {"x": 0, "y": 200}}
+    assert json.loads(server.command(f"/coop-probe host 0 {host_y}")) == {
+        "ok": True,
+        "host": {"x": 0, "y": host_y},
+    }
     set_body_enabled(server, True)
     return wait_status(server, lambda s: s["body"]["alive"])
 
@@ -941,3 +945,87 @@ def test_stop_latches_until_an_idle_set_follow_clears_it(server):
     assert server.rpc(v=1, id="idle-s2", op="status", args={})["r"]["stopped"] is True
     assert idle_set(server, "idle-4", {"mode": "follow"}) == {"v": 1, "id": "idle-4", "ok": True, "r": {}}
     assert server.rpc(v=1, id="idle-s3", op="status", args={})["r"]["stopped"] is False
+
+
+# a frozen biter: it runs faster than the body, and the scene pins the body's retreat, not a chase
+SPAWN_FROZEN_BITER = (
+    "/silent-command local u = game.surfaces[1].create_entity{{name = 'small-biter', position = {{{x}, {y}}}, "
+    "force = 'enemy'}} u.disabled_by_script = true rcon.print(game.tick)"
+)
+
+
+def kinds(server, seq, kind):
+    return [e for e in body_events(server, seq) if e["kind"] == kind]
+
+
+def test_mine_beside_a_biter_fails_threat_at_the_start_and_the_body_stays(server):
+    # the body stands 48 tiles south of the patch and 80 from the biter, which is 30 tiles north of the patch
+    status = field(
+        server,
+        COAL_PATCH + " s.create_entity{name = 'small-biter', position = {0, 168}, force = 'enemy'}",
+        250,
+    )
+    (failed,), record = run_job(server, status["seq"], "mine-threat", mine("coal", 10))
+    assert without_ticks([failed]) == [
+        {"kind": "job_failed", "data": {"id": record["id"], "kind": "mine", "reason": "threat"}}
+    ]
+    after = server.rpc(v=1, id="mine-threat-s", op="status", args={})["r"]
+    assert after["body"]["position"] == status["body"]["position"]
+
+
+def test_a_biter_20_tiles_from_the_standing_body_cancels_the_queue_and_the_body_retreats_to_the_host(server):
+    # the body stands 30 to 34 tiles from the dev host, so the biter 20 tiles further east is at least 50 from it
+    seq = field(server, "")["seq"]
+    assert idle_set(server, "threat-stay", {"mode": "stay", "pos": {"x": 32, "y": 200}})["ok"] is True
+    server.command("/silent-command game.speed = 10")
+    try:
+        wait_for(
+            lambda: body_state(server),
+            lambda state: not state["walking"] and math.dist((state["x"], state["y"]), (32, 200)) <= 2,
+            "the body standing at 32,200",
+        )
+    finally:
+        server.command("/silent-command game.speed = 1")
+    ids = enqueue(
+        server, "threat-q", *[{"kind": "wait", "args": {"ticks": ticks}} for ticks in (6000, 60, 60)]
+    )
+    ids = ids["r"]["ids"]
+    wait_status(server, lambda s: "running" in s["queue"])
+    standing = body_state(server)
+    spawned = int(server.command(SPAWN_FROZEN_BITER.format(x=standing["x"] + 20, y=standing["y"])))
+
+    (threat,) = wait_for(lambda: kinds(server, seq, "body_threat"), len, "body_threat")
+    assert threat["tick"] - spawned <= 60
+    # the biter closes in on the body until the check
+    assert 0 < threat["data"]["distance"] <= 20
+    records = jobs_by_id(server)
+    assert [(records[i]["state"], records[i]["reason"]) for i in ids] == [("cancelled", "threat")] * 3
+    server.command("/silent-command game.speed = 10")
+    try:
+        state = wait_for(
+            lambda: body_state(server),
+            lambda state: not state["walking"] and math.dist((state["x"], state["y"]), (0, 200)) <= 5,
+            "the body within 5 tiles of the dev host",
+        )
+    finally:
+        server.command("/silent-command game.speed = 1")
+    assert math.dist((state["x"], state["y"]), (0, 200)) <= 5
+
+
+def test_a_biter_attack_rings_body_damaged_once_within_300_ticks(server):
+    seq = field(server, "")["seq"]
+    server.command(
+        "/silent-command __coop-agent__ local b = storage.body.entity "
+        "local u = b.surface.create_entity{name = 'small-biter', position = {b.position.x + 3, b.position.y}, "
+        "force = 'enemy'} u.commandable.set_command{type = defines.command.attack, target = b}"
+    )
+    server.command("/silent-command game.speed = 10")
+    try:
+        (first, *_) = wait_for(lambda: kinds(server, seq, "body_damaged"), len, "body_damaged")
+        wait_status(server, lambda s: s["tick"] >= first["tick"] + 600)
+    finally:
+        server.command("/silent-command game.speed = 1")
+    damaged = kinds(server, seq, "body_damaged")
+    assert [e for e in damaged if e["tick"] < first["tick"] + 300] == [first]
+    assert all(b["tick"] - a["tick"] >= 300 for a, b in pairwise(damaged))
+    assert 0 < first["data"]["health"] < 250

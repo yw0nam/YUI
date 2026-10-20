@@ -1,4 +1,5 @@
--- A fake world for the job, walker and mine units: one body on a surface that holds mineable entities and records path requests.
+-- A fake world for the job, walker, mine and threat units: one body on a surface that holds mineable entities and
+-- enemies and records path requests.
 
 -- the status op reads these game globals
 script = { active_mods = { ["coop-agent"] = "test" } }
@@ -18,6 +19,8 @@ BLOCKED = {}
 ENTITIES, INVENTORY, MINED = {}, {}, {}
 -- FULL: the body takes no item; NATIVE = false: mining_state makes no progress
 FULL, NATIVE = false, true
+-- military units on the plane, and every find_nearest_enemy call as {x, y, max_distance}
+ENEMIES, ENEMY_QUERIES = {}, {}
 
 local function mineable(mining_time, products)
   return { minable = true, mining_time = mining_time, products = products }
@@ -50,6 +53,24 @@ function place(name, x, y, marked)
   return entity
 end
 
+--- A military unit of force (default "enemy") at (x, y).
+function enemy(x, y, force)
+  local unit = { valid = true, position = { x = x, y = y }, force = force or "enemy" }
+  ENEMIES[#ENEMIES + 1] = unit
+  return unit
+end
+
+local function within(pos, radius)
+  local out = {}
+  for _, unit in ipairs(ENEMIES) do
+    local dx, dy = unit.position.x - pos.x, unit.position.y - pos.y
+    if unit.valid and dx * dx + dy * dy <= radius * radius then
+      out[#out + 1] = unit
+    end
+  end
+  return out
+end
+
 -- a resource never runs out; anything else is gone once mined
 local function give(entity)
   for _, product in ipairs(entity.prototype.mineable_properties.products) do
@@ -66,7 +87,21 @@ SURFACE = {
     spec.tick = DEPS.tick
     return #REQUESTS
   end,
+  find_nearest_enemy = function(spec)
+    ENEMY_QUERIES[#ENEMY_QUERIES + 1] = { spec.position.x, spec.position.y, spec.max_distance }
+    local best, best_d2 = nil, nil
+    for _, unit in ipairs(within(spec.position, spec.max_distance)) do
+      local dx, dy = unit.position.x - spec.position.x, unit.position.y - spec.position.y
+      if DEPS.force.is_enemy(unit.force) and (not best_d2 or dx * dx + dy * dy < best_d2) then
+        best, best_d2 = unit, dx * dx + dy * dy
+      end
+    end
+    return best
+  end,
   find_entities_filtered = function(filter)
+    if filter.is_military_target then
+      return within(filter.position, filter.radius)
+    end
     local names, out = {}, {}
     for _, name in ipairs(filter.name) do
       names[name] = true
@@ -131,7 +166,8 @@ DEPS = {
   print = function(text) PRINTED[#PRINTED + 1] = text end,
   entity_prototypes = PROTOTYPES,
   item_prototypes = { coal = {} },
-  force = { manual_mining_speed_modifier = 0 },
+  force = { manual_mining_speed_modifier = 0, is_enemy = function(force) return force == "enemy" end },
+  safe_radius = 48,
 }
 
 WALKER = require("scripts.walker")
