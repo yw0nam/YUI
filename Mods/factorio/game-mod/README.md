@@ -60,7 +60,7 @@ empty array, so consumers read two shapes accordingly:
   a `find` entry's `unit_number`, a recipe part's `amount`, `amount_min`,
   `amount_max` and `probability`, which depend on the part's type,
   `status.queue.running`, and a job record's `progress`, `reason` and
-  `started_tick`.
+  `started_tick`, and a queued `mine` record's `timeout_ticks`.
 
 The host is the connected admin with the lowest player index; `status.host`,
 `find{around:"player"}` and `chat` events all mean that player.
@@ -173,16 +173,18 @@ the job's start. A successful `jobs_enqueue` lifts the stop latch.
 | --- | --- | --- | --- | --- |
 | `walk_to` | `pos {x, y}` or `entity` (a `unit_number` that `find` or `inspect` returned), `radius` > 0 | the body is within `radius` of the position, or of the entity's position at the job's start | 3600 | `{distance}` in whole tiles to the target |
 | `wait` | `ticks` > 0 | `ticks` have elapsed | its `ticks` | `{elapsed}` ticks |
+| `mine` | `name` (an item), `count` (integer 1 to 1000), `entity`? (a `unit_number` that `find` or `inspect` returned) | the body holds `count` more `name` than at the job's start | `count` × the first target's mining ticks × 3, at most 36000, set when the job starts | `{gained, count, path}`, `path` `native` or `timed` |
 
 - **Ends.** A job that ends `done` fires `job_done`; when nothing is queued
   after it, `queue_idle` follows. A job that ends `failed` fires one
   `job_failed` and cancels every queued job (`reason:"cancelled"`); no
   `queue_idle` follows. `job_failed` carries `{id, kind, reason}` plus the
-  fields of its kind's failure detail (`walk_to` and `wait` add none).
+  fields of its kind's failure detail (`walk_to`, `wait` and `mine` add none).
   `jobs_cancel` fires no event. Whenever a running job ends, the body stops
-  walking, mining and crafting and the status line returns to `Standing by`;
-  while a `walk_to` runs it reads `Walking to <x,y>` or
-  `Walking to <entity name>`.
+  walking, mining and crafting and the status line returns to `Standing by`,
+  or reads `Holding: <item> <n>` with the body's count after a `mine` ends
+  `done`; while a `walk_to` runs it reads `Walking to <x,y>` or
+  `Walking to <entity name>`, while a `mine` runs `Mining <item> <gained>/<count>`.
 - **Gate.** While a job is queued or running, the runner checks the
   execution gate every tick; with none it does one counter check. A shut
   gate halts the body at once. Its reason is `body_dead` when there is no
@@ -201,12 +203,32 @@ the job's start. A successful `jobs_enqueue` lifts the stop latch.
   failure ends the job. 150 ticks without movement on a route make one new
   request from 2 tiles back along the heading; 600 make the body step 2
   tiles back and end the job.
+- **Mining.** A `mine` target is the nearest entity within 64 tiles of the
+  body whose mining products include the item `name` and that is a
+  resource, a tree, a rock (`count_as_rock_for_filtered_deconstruction`) or
+  marked for deconstruction; any other entity, such as one the host built,
+  is never a target. With `entity`, that entity is the first target. The
+  body walks to within its resource reach of the target, selects the target
+  itself (never another entity at its position, such as a building on an
+  ore tile) and mines it by setting `mining_state`. Every 30 ticks the job
+  reads the body's count of `name`, its mining progress and its free space.
+  A target's mining ticks are `mining_time / (character mining_speed × (1 +
+  character_mining_speed_modifier + force manual_mining_speed_modifier)) ×
+  60`, rounded: 120 for coal, 66 for `tree-01`, 360 for `huge-rock` on a
+  fresh map. No mining progress and no gain for twice the target's mining
+  ticks switch the job to the `timed` path for the rest of its run: native
+  mining stops and the body calls `mine_entity` on the target once every
+  mining ticks. A target used up by the body's own mining gives way to the
+  next nearest; a target that disappears with no gain from it is replaced
+  once, and the second such loss ends the job `target_gone`.
 
 | reason | meaning |
 | --- | --- |
 | `no_path` | the 6th path request failed |
 | `stuck` | 600 ticks without movement on a route |
-| `target_gone` | the `walk_to` entity no longer exists |
+| `target_gone` | the `walk_to` entity no longer exists; no `mine` target within 64 tiles, the named `entity` no longer exists, or a second `mine` target disappeared |
+| `not_permitted` | the named `mine` `entity` is not an allowed target that yields `name` |
+| `target_full` | the body has no room for `name` |
 | `timeout` | `timeout_ticks` elapsed since the job's start |
 | `stopped` | the stop latch is on or no host is connected; also on jobs cancelled before any started |
 | `body_dead` | there is no live body; also on jobs cancelled before any started |
@@ -214,9 +236,10 @@ the job's start. A successful `jobs_enqueue` lifts the stop latch.
 
 ## Safety
 
-- The mod reads the map, speaks and walks the body when told to. It builds
-  nothing and destroys nothing; the one entity it spawns is the body, and
-  only while the body setting is on.
+- The mod reads the map, speaks, and walks the body and mines with it when
+  told to. It builds nothing; the one entity it spawns is the body, and only
+  while the body setting is on. The body mines only resources, trees, rocks
+  and entities marked for deconstruction.
 - `/coop-rpc` refuses every call that did not come from the console (RCON or
   the server console); a player cannot run ops or forge replies.
 - Replies are capped at 64 KiB, so no op can flood an RCON client.
@@ -254,8 +277,10 @@ The lupa units pin the RPC framing, idempotency, the ring, attack grouping,
 stop latch, the respawn timer, the status-line text and the body colors, and,
 over a fake world (`tests/fixtures/world.lua`), the job queue's transitions,
 events, reason codes, validation messages, cap, failure detail and idle
-cost, and the walker's path
-request, retries, resolution steps, stale results, stuck handling and hooks. The
+cost, the walker's path
+request, retries, resolution steps, stale results, stuck handling and hooks,
+and the `mine` job's target rule, inventory-delta end, timed fallback,
+`target_full`, one replaced target and default timeout. The
 headless suite runs with `--probe` and pins, on a seed-42 map: `status` → `events_since` → `say`, write-op replay and
 `id_conflict`, `find` → `inspect` on a chest and an assembler, `snapshot`
 power in W and the research queue, `recipe` for iron-gear-wheel, `ping` with
@@ -266,8 +291,11 @@ the corpse and an empty respawn 1800 ticks later, and removal when disabled;
 and the jobs: a `walk_to` 100 tiles north into a stone-furnace enclosure
 whose one way in is a 2-tile gap, a `walk_to` into a closed furnace ring that
 ends `no_path`,
-`jobs_cancel{all}` and `stop` while walking, and `jobs_enqueue` replay and
-`id_conflict`.
+`jobs_cancel{all}` and `stop` while walking, `jobs_enqueue` replay and
+`id_conflict`; and on a cleared field around a dev host at (0, 200): `mine`
+50 coal natively in 50 × 121 ticks within 10 %, 10 wood from three trees,
+5 stone from a huge rock, a host furnace refused until it is marked for
+deconstruction, and `target_full` with a full inventory.
 
 ### Checked on the owner's GUI game
 

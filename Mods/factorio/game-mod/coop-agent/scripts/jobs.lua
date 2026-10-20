@@ -10,6 +10,7 @@ local IDLE_STATUS = "Standing by"
 local M = {}
 
 M.KINDS = {
+  mine = require("scripts.jobs.mine"),
   walk_to = require("scripts.jobs.walk_to"),
   wait = require("scripts.jobs.wait"),
 }
@@ -28,15 +29,15 @@ local function current(list)
   return nil
 end
 
--- Every end of an active job; a running job's end halts the body and returns the status line to standing by.
-local function close(deps, job, state, reason)
+-- Every end of an active job; a running job's end halts the body and sets the status line, standing by by default.
+local function close(deps, job, state, reason, status)
   local was_running = job.state == "running"
   job.state, job.reason = state, reason
   deps.storage.jobs.active = deps.storage.jobs.active - 1
   if was_running then
     walker.cancel(deps)
     body.halt(deps)
-    body.set_status(deps, IDLE_STATUS)
+    body.set_status(deps, status or IDLE_STATUS)
   end
 end
 
@@ -64,7 +65,8 @@ local function fail(deps, job, reason, detail)
 end
 
 local function done(deps, job)
-  close(deps, job, "done")
+  local done_status = M.KINDS[job.kind].done_status
+  close(deps, job, "done", nil, done_status and done_status(deps, job))
   deps.push("job_done", { id = job.id, kind = job.kind })
   if deps.storage.jobs.active == 0 then
     deps.push("queue_idle", { last_job_id = job.id })
@@ -132,13 +134,15 @@ function M.enqueue(deps, specs)
   end
   local ids = {}
   for _, spec in ipairs(specs) do
+    local default_timeout = M.KINDS[spec.kind].default_timeout
     local id = queue.next_id
     queue.next_id = id + 1
     list[#list + 1] = {
       id = id,
       kind = spec.kind,
       args = spec.args,
-      timeout_ticks = spec.timeout_ticks or M.KINDS[spec.kind].default_timeout(spec.args),
+      -- a kind without default_timeout sets it when the job starts
+      timeout_ticks = spec.timeout_ticks or default_timeout and default_timeout(spec.args),
       state = "queued",
     }
     ids[#ids + 1] = id
