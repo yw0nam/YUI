@@ -50,6 +50,7 @@ The agent reads these steps aloud or pastes them. The agent never edits `config.
    ```
 
    Add `http://localhost:8080/factorio/mcp` as a tool source. The router already carries the `factorio` route to port 9003.
+8. Install this skill where your backend reads skills, and give the platform that serves YUI the right to read skills. The backend's own integration notes under `integrations/` name the folder and the setting.
 
 The Mod reads `local-rcon-socket` and `local-rcon-password` from `config.ini`. It never writes that file.
 

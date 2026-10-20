@@ -64,7 +64,8 @@ display:
 `gateway.standalone` lets this profile run a gateway of its own; without it a Hermes that serves
 every profile from one host gateway refuses step 5. `yui` is the only toolset the model needs to
 place cues, and `no_mcp` keeps an Expression Broker out of the turn. The broker is deprecated and
-is removed in v0.6.0.
+is removed in v0.6.0. A profile meant to use skills adds the `skills` toolset to
+`platform_toolsets.yui`.
 
 Check: `grep -A6 '^platforms:' ~/.hermes/profiles/<profile>/config.yaml` prints the `yui` block
 with `<port>`.
