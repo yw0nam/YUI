@@ -96,3 +96,7 @@ _Avoid_: default constant, fallback value, code-side default
 **Preset**:
 A named bundle of per-character client state: the backend connection and chat id, the TTS voice, the conversation history, the VRM selection, and the filler phrases. One preset is active at a time; the built-in default preset keeps the unprefixed storage keys. Everything else is device-wide and shared by every preset.
 _Avoid_: profile, character (for this bundle)
+
+**Bound pet window**:
+A pet window opened for one preset by label `pet-<id>` and URL query `preset=<id>`. Its per-preset keys resolve under that preset (`yui.<id>.*`; the built-in default keeps the unprefixed keys) and it keeps the preset while `main`, the window without the query, follows the active one. `yui.windows` is the device-wide list of ids the user wants open, and each bound window holds its live key `yui.pet-window.<id>` from boot until it closes; the registry refuses to remove or activate a preset that is listed or live.
+_Avoid_: secondary window, companion window, extra window, sub-window

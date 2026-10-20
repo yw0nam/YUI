@@ -82,6 +82,11 @@ YUI/
         wire-config.ts               # The config store over the bundled configs, the runtime key stores, the live endpoint/guardrail merges, and the reload/watch wiring
         wire-cue-locale-sync.ts      # Reseeds untouched built-in cues when the display language changes
         wire-preset.ts               # Sends a preset switch over the settings bridge and reloads each window into it, after the pet window stops its turn
+      pet-windows/                   # Windows bound to one preset: the shared open list and their lifecycle
+        wire-pet-windows-sync.ts     # The open list in every window: a local edit out over yui://pet-windows-changed, a remote one reloaded from storage
+        wire-pet-windows-reconcile.ts # Main's reconcile: prunes the list and live keys, then opens each wanted preset that has no window
+        wire-bound-window.ts         # A bound window's live key, and its store teardown and close when its preset leaves the list
+        close-if-orphan.ts           # Closes a bound window whose preset is no longer in the registry
       message/                       # The message window's wiring
         wire-message-surface-ops.ts  # Draws each surface op from the pet window onto the surfaces and the plate
         wire-message-tauri-window.ts # Window focus, the OS drag, the content-height resize, and the moved-position record
@@ -311,10 +316,12 @@ YUI/
         filler-settings.ts           # Filler phrase pools and behaviour flags
         vad-settings.ts              # VAD silence window
         voice-mode.ts                # The phone's mic mode: tap to toggle or keep listening
-      preset/                        # Presets: which keys belong to one, the active one, and the registry
+      preset/                        # Presets: which keys belong to one, the active one, the registry, and the windows bound to one
         preset-keys.ts               # The per-preset key list and where a key lives under a given preset
-        active-preset.ts             # The registry's stored shape and the synchronous active-preset read the storage adapters resolve keys through
+        active-preset.ts             # The registry's stored shape and the id a window resolves its keys under: the preset query, else the active preset
+        bound-preset.ts              # The preset query that binds a window to one preset
         preset-registry.ts           # Preset list and active preset under yui.presets: create, rename, remove, activate
+        pet-windows.ts               # The desired open set under yui.windows and the live key each bound window holds
       panels/                        # Panel and window state
         delegation-chip-settings.ts  # Per-device fold state of the delegation chip
         message-window-settings.ts   # Message-window mode and last outer position
@@ -400,11 +407,12 @@ YUI/
           stationary-frame.ts          # Widens the real window around a character that stays where she is
           perch.ts                     # Perch values, perch-target and placement types, and the host-edge span shared by the drop source, avatar RPC and locomotion
           visible-viewport.ts          # Cached height of the pet window part above the work-area bottom
-        openers/                       # Openers and placement of the message, settings, and devtools windows
+        openers/                       # Openers and placement of the message, settings, devtools, and pet windows
           settings-window.ts           # Settings window opener and cross-window settings sync
           devtools-window.ts           # Developer Tools window opener
           message-window.ts            # Message-window opener and its placement rule
           message-window-mode.ts       # Keeps the message window in step with the stored mode and the dock request
+          pet-window.ts                # Bound pet window opener: creates pet-<id>, lists the ones that exist, and closes the current window
         pet/                           # The pet window's own gestures, hit-test, gaze cursor, and peek
           window-statics.ts            # Cached window origin and scale factors for the global-cursor poll loops
           cursor-tracker.ts            # Forwards the OS cursor position to the gaze apply layer

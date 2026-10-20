@@ -659,7 +659,7 @@ globalThis.YUI_MAP =
       "id": "settings",
       "module": "settings",
       "label": "settings",
-      "role": "Persisted user settings, one localStorage-backed store per setting.",
+      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live.",
       "paths": [
         "src/settings"
       ]
@@ -821,7 +821,7 @@ globalThis.YUI_MAP =
       "id": "io/window/openers",
       "module": "window",
       "label": "window openers",
-      "role": "Opens and places the message, settings, and devtools windows.",
+      "role": "Opens and places the message, settings, devtools, and bound pet windows.",
       "paths": [
         "src/io/window/openers"
       ]
@@ -848,7 +848,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/settings",
       "module": "bridge",
       "label": "settings bridge",
-      "role": "Typed cross-window settings bus.",
+      "role": "Typed cross-window settings bus, including the payload-less yui://pet-windows-changed notification.",
       "paths": [
         "src/io/bridge/settings-bridge.ts"
       ]
@@ -1185,6 +1185,15 @@ globalThis.YUI_MAP =
       "role": "Store bags, the config store with its live merges and reload, and avatar selection.",
       "paths": [
         "src/app/settings"
+      ]
+    },
+    {
+      "id": "app/pet-windows",
+      "module": "wiring",
+      "label": "bound pet windows",
+      "role": "The open-window list kept in step across windows, main's reconcile and open, the live key a bound window holds until it closes itself, and the orphan close.",
+      "paths": [
+        "src/app/pet-windows"
       ]
     },
     {
@@ -1944,7 +1953,7 @@ globalThis.YUI_MAP =
       "id": "ingress-start",
       "from": "settings",
       "to": "shell/agent-ingress",
-      "carries": "start_agent_ingress {port} at boot when agent notifications are on",
+      "carries": "start_agent_ingress {port} at boot when agent notifications are on; main only, a bound window starts no ingress",
       "kind": "tauri-command",
       "transport": "shared",
       "wiring": "src/app/stage/wire-window-sources.ts"
@@ -2373,7 +2382,7 @@ globalThis.YUI_MAP =
       "id": "tray-pet",
       "from": "shell/tray",
       "to": "io/window/pet",
-      "carries": "tray_toggle → peek exit",
+      "carries": "tray_toggle → peek exit; the summon hotkey from the same wiring registers in main only",
       "kind": "tauri-event",
       "transport": "shared",
       "wiring": "src/app/stage/wire-summon.ts"
@@ -2407,7 +2416,7 @@ globalThis.YUI_MAP =
       "id": "controls-settings",
       "from": "ui/quick-controls",
       "to": "settings",
-      "carries": "store commit → localStorage yui.*, or yui.<preset-id>.* for a per-preset key",
+      "carries": "store commit → localStorage yui.*, or yui.<preset-id>.* for a per-preset key; the preset strip writes yui.windows, and activate returns false while a preset is open or live",
       "kind": "storage",
       "transport": "shared"
     },
@@ -2433,7 +2442,7 @@ globalThis.YUI_MAP =
       "id": "preset-changed",
       "from": "settings",
       "to": "io/bridge/settings",
-      "carries": "registry edit → yui://preset-changed {active}; the receiving window rereads the registry and reloads when the active preset changed",
+      "carries": "registry edit → yui://preset-changed {active}; the receiving window rereads the registry and reloads when the active preset changed; a bound window rereads and keeps its preset instead",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/settings/wire-preset.ts"
@@ -2442,10 +2451,37 @@ globalThis.YUI_MAP =
       "id": "preset-stop",
       "from": "settings",
       "to": "dispatcher/turn",
-      "carries": "active preset change → stopTurn() before the pet window reloads",
+      "carries": "active preset change → stopTurn() before the pet window reloads; main only, a bound window neither follows the active preset nor reloads",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/settings/wire-preset.ts"
+    },
+    {
+      "id": "pet-windows-changed",
+      "from": "settings",
+      "to": "io/bridge/settings",
+      "carries": "open-list edit → yui://pet-windows-changed, no payload; the receiving window reloads yui.windows and the live keys from storage and sends nothing back",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/pet-windows/wire-pet-windows-sync.ts"
+    },
+    {
+      "id": "pet-windows-reconcile",
+      "from": "settings",
+      "to": "io/window/openers",
+      "carries": "main only: yui.windows and the live keys → prune against the registry and the windows that exist, then open each wanted preset that has no window",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/pet-windows/wire-pet-windows-reconcile.ts"
+    },
+    {
+      "id": "bound-window-close",
+      "from": "settings",
+      "to": "io/window/openers",
+      "carries": "bound window only: its id leaves yui.windows → dispose its stores, clear the live key, emit the change, and close",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/pet-windows/wire-bound-window.ts"
     },
     {
       "id": "settings-guardrails",
@@ -3741,6 +3777,11 @@ globalThis.YUI_MAP =
         "role": "Runs the turn core and owns the renderer, the push socket, the delegations and reasoning stores, and the real voice state."
       },
       {
+        "id": "pet-<id>",
+        "label": "pet-<id>",
+        "role": "A bound pet window, index.html?preset=<id>: one preset's stores and local surfaces; it publishes no push state and takes none of main's global resources."
+      },
+      {
         "id": "settings",
         "label": "settings",
         "role": "The quick-controls panel as a window, over its own store instances and mirrors of the pet window's push state and delegations."
@@ -3801,14 +3842,70 @@ globalThis.YUI_MAP =
         "id": "preset-changed-settings",
         "from": "settings",
         "to": "pet",
-        "carries": "yui://preset-changed {active}: reread the registry; another active preset stops the turn and reloads",
+        "carries": "yui://preset-changed {active}: reread the registry; another active preset stops the turn and reloads; a bound pet window keeps its preset and does not reload",
         "kind": "bridge"
       },
       {
         "id": "preset-changed-pet",
         "from": "pet",
         "to": "settings",
-        "carries": "yui://preset-changed {active}: reread the registry; another active preset reloads",
+        "carries": "yui://preset-changed {active}: reread the registry; another active preset reloads; a bound pet window emits it too and never reloads on it",
+        "kind": "bridge"
+      },
+      {
+        "id": "preset-changed-settings-bound",
+        "from": "settings",
+        "to": "pet-<id>",
+        "carries": "yui://preset-changed {active}: reread the registry; no reload",
+        "kind": "bridge"
+      },
+      {
+        "id": "preset-changed-pet-bound",
+        "from": "pet",
+        "to": "pet-<id>",
+        "carries": "yui://preset-changed {active}: reread the registry; no reload",
+        "kind": "bridge"
+      },
+      {
+        "id": "pet-windows-changed-settings",
+        "from": "settings",
+        "to": "pet",
+        "carries": "yui://pet-windows-changed: reload yui.windows and the live keys",
+        "kind": "bridge"
+      },
+      {
+        "id": "pet-windows-changed-pet",
+        "from": "pet",
+        "to": "settings",
+        "carries": "yui://pet-windows-changed",
+        "kind": "bridge"
+      },
+      {
+        "id": "pet-windows-changed-settings-bound",
+        "from": "settings",
+        "to": "pet-<id>",
+        "carries": "yui://pet-windows-changed: reload yui.windows and the live keys",
+        "kind": "bridge"
+      },
+      {
+        "id": "pet-windows-changed-bound-settings",
+        "from": "pet-<id>",
+        "to": "settings",
+        "carries": "yui://pet-windows-changed",
+        "kind": "bridge"
+      },
+      {
+        "id": "pet-windows-changed-pet-bound",
+        "from": "pet",
+        "to": "pet-<id>",
+        "carries": "yui://pet-windows-changed: reload yui.windows and the live keys",
+        "kind": "bridge"
+      },
+      {
+        "id": "pet-windows-changed-bound-pet",
+        "from": "pet-<id>",
+        "to": "pet",
+        "carries": "yui://pet-windows-changed",
         "kind": "bridge"
       },
       {
@@ -3843,14 +3940,14 @@ globalThis.YUI_MAP =
         "id": "mouth-preview",
         "from": "settings",
         "to": "pet",
-        "carries": "yui://mouth-preview: number or null",
+        "carries": "yui://mouth-preview: number or null; main only, a bound window takes no mouth preview",
         "kind": "bridge"
       },
       {
         "id": "voice-set",
         "from": "settings",
         "to": "pet",
-        "carries": "yui://voice-set: boolean",
+        "carries": "yui://voice-set: boolean; main only, a bound window has no voice toggle",
         "kind": "bridge"
       },
       {
@@ -3871,14 +3968,14 @@ globalThis.YUI_MAP =
         "id": "push-state-settings",
         "from": "pet",
         "to": "settings",
-        "carries": "yui://push-state, answered on yui://push-state-ask",
+        "carries": "yui://push-state, answered on yui://push-state-ask; from main only, a bound window publishes no push state",
         "kind": "bridge"
       },
       {
         "id": "push-state-message",
         "from": "pet",
         "to": "message",
-        "carries": "yui://push-state, answered on yui://push-state-ask",
+        "carries": "yui://push-state, answered on yui://push-state-ask; from main only, a bound window publishes no push state",
         "kind": "bridge"
       },
       {
