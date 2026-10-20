@@ -15,7 +15,7 @@ import { createSurfaces, type Surfaces } from "./surfaces";
 import { createSurfacesRouter } from "./surfaces-router";
 
 export function wireMessageSurfaces(deps: {
-  bound?: boolean;
+  boundId?: string | null;
   mount: HTMLElement;
   tool: ToolStatus;
   bubblePersistSettings: Pick<SettingsStores["bubblePersistSettings"], "get">;
@@ -34,13 +34,8 @@ export function wireMessageSurfaces(deps: {
     mount: deps.mount,
     tool: deps.tool,
     keepBubbleUntilDismissed: () => deps.bubblePersistSettings.get().enabled,
-    onPop:
-      !deps.bound && isTauri() ? () => deps.messageWindowSettings.setMode("popped") : undefined,
+    onPop: isTauri() ? () => deps.messageWindowSettings.setMode("popped") : undefined,
   });
-  if (deps.bound) {
-    deps.register(() => local.dispose());
-    return { surfaces: local, local, remote: null, getMode: () => "docked" };
-  }
   const messageBridge = createMessageBridge(undefined, { windowKind: "pet" });
   const remote = createRemoteSurfaces(messageBridge);
   // A stale popped mode must not strand speech in a window the browser build cannot open.
@@ -55,7 +50,7 @@ export function wireMessageSurfaces(deps: {
   const disposeMessageWindowMode = wireMessageWindowMode({
     store: deps.messageWindowSettings,
     remote,
-    window: createMessageWindowController(deps.messageWindowSettings),
+    window: createMessageWindowController(deps.messageWindowSettings, deps.boundId),
     listenTrayToggle,
     getMode,
   });

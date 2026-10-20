@@ -125,7 +125,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
   register(() => statusPill.dispose());
 
   const { surfaces, local, remote, getMode } = wireMessageSurfaces({
-    bound,
+    boundId,
     mount: root,
     tool: statusPill,
     bubblePersistSettings: settingsStores.bubblePersistSettings,
@@ -144,7 +144,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
   const screenCapturer = resolveScreenCapturer();
   // Pop-out: Tauri uses separate WebviewWindow("settings"), otherwise browser window. Wire storage events
   // bidirectionally so main window edits are reflected here and vice versa.
-  const openSettings = createSettingsWindowOpener();
+  const openSettings = createSettingsWindowOpener(boundId);
   const openDevtools = createDevtoolsWindowOpener();
   // Cross-window settings sync is wired before VRM/speaker selection so those stores can broadcast
   // through the returned callback; the reload half is wired after those selections exist.

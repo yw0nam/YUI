@@ -13,8 +13,6 @@ import { t } from "../../i18n";
 import { createPresetManage } from "./preset-manage";
 import { presetScopeText } from "./preset-scope";
 
-const PET_WINDOWS_UI = false;
-
 const DOTS_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/></svg>`;
 
 export function presetStripHtml(): string {
@@ -47,9 +45,8 @@ export function createPresetStrip(deps: {
   log: Logger;
   petWindows?: PetWindows;
   boundId?: string | null;
-  windowsUi?: boolean;
 }): PresetStrip {
-  const { root, registry, log, petWindows, boundId = null, windowsUi = PET_WINDOWS_UI } = deps;
+  const { root, registry, log, petWindows, boundId = null } = deps;
   const stripEl = root.querySelector<HTMLDivElement>(".yui-preset")!;
   const select = stripEl.querySelector<HTMLSelectElement>(".yui-preset__select")!;
   let boundName: HTMLSpanElement | null = null;
@@ -65,7 +62,7 @@ export function createPresetStrip(deps: {
   const stateEl = stripEl.querySelector<HTMLParagraphElement>(".yui-preset__state")!;
   const popEl = stripEl.querySelector<HTMLDivElement>(".yui-preset-pop")!;
   const colsEl = root.querySelector<HTMLDivElement>(".yui-quick__cols")!;
-  const manage = createPresetManage({ el: popEl, registry, log, petWindows, boundId, windowsUi });
+  const manage = createPresetManage({ el: popEl, registry, log, petWindows, boundId });
   let switching = false;
 
   function render(): void {

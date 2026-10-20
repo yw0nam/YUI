@@ -33,27 +33,22 @@ export function wireCrossWindowSync(deps: {
     ...conversationSyncStores(conversation),
     log,
   });
-  if (deps.bound)
-    return {
-      broadcastSettings: core.broadcastSettings,
-      onRemoteChange: core.onRemoteChange,
-      bridge: core.bridge,
-      dispose: core.dispose,
-    };
   // Mouth preview (separate window → this window VRM): gain slider drag moves actual mouth.
   core.bridge.onMouthPreview((mouthOpen) => {
     if (mouthOpen == null) renderer.stopMouth();
     else renderer.setMouthOpen(mouthOpen);
   });
   // Voice toggle (separate window → this window STT): existing voiceInputStatus subscription starts/stops sttVad.
-  core.bridge.onVoiceSet((on) => {
-    log.info("voice_toggle_received", { on, source: "settings_window" });
-    voiceInputStatus.set(on ? "listening" : "idle");
-  });
+  if (!deps.bound)
+    core.bridge.onVoiceSet((on) => {
+      log.info("voice_toggle_received", { on, source: "settings_window" });
+      voiceInputStatus.set(on ? "listening" : "idle");
+    });
   // Voice state (this window → separate window): separate window indicator reflects actual STT state.
-  voiceInputStatus.subscribe((snapshot) => {
-    core.bridge.emitVoiceState({ state: snapshot.state });
-  });
+  if (!deps.bound)
+    voiceInputStatus.subscribe((snapshot) => {
+      core.bridge.emitVoiceState({ state: snapshot.state });
+    });
   return {
     broadcastSettings: core.broadcastSettings,
     onRemoteChange: core.onRemoteChange,

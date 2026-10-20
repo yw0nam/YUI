@@ -18,6 +18,7 @@ export const PRESET_COPIED_KEYS: readonly string[] = [
 /** Every key a preset owns: its settings, its chat id, and its conversation. */
 export const PRESET_KEYS: readonly string[] = [
   ...PRESET_COPIED_KEYS,
+  "yui.message-window",
   "yui.chat-id",
   "yui.chat_transcript",
   "yui.previous_response_id",

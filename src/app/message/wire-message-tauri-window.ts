@@ -33,6 +33,7 @@ export async function startDragging(): Promise<void> {
 export async function wireTauriWindow(
   root: HTMLElement,
   messageWindowSettings: Pick<MessageWindowSettingsStore, "setPosition">,
+  isDisposed: () => boolean = () => false,
 ): Promise<() => void> {
   const { availableMonitors, getCurrentWindow } = await import("@tauri-apps/api/window");
   const { LogicalSize, PhysicalPosition } = await import("@tauri-apps/api/dpi");
@@ -49,9 +50,9 @@ export async function wireTauriWindow(
   });
   observer.observe(root);
 
-  const unlistenMoved = await win.onMoved(({ payload }) =>
-    messageWindowSettings.setPosition(payload.x, payload.y),
-  );
+  const unlistenMoved = await win.onMoved(({ payload }) => {
+    if (!isDisposed()) messageWindowSettings.setPosition(payload.x, payload.y);
+  });
 
   const keepOnScreen = await attachKeepOnScreen(
     {

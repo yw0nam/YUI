@@ -213,7 +213,8 @@ export function wirePetControls(deps: {
       bedSceneSettings,
       // The browser tool exists only in the pet window under Tauri.
       browserSettings: isTauri() ? browserSettings : undefined,
-      onPopOut: deps.boundId == null ? () => openSettings() : undefined,
+      onPopOut: () => openSettings(),
+      showVoiceInput: deps.boundId == null,
       onMessage: () => surfaces.summonInput(),
       onGuide,
       visibleViewport,

@@ -10,7 +10,10 @@
  * so both setters merge over what storage holds rather than over their own copy.
  */
 
-import { createPersistedStore, localStorageStore, type PersistedStorage } from "../persisted-store";
+import { createPersistedStore, type PersistedStorage } from "../persisted-store";
+
+import { readBoundPresetId } from "../preset/bound-preset";
+import { resolveStorageKey } from "../preset/preset-keys";
 
 export type MessageWindowMode = "docked" | "popped";
 
@@ -71,6 +74,25 @@ export function createMessageWindowSettings(opts?: { storage?: MessageWindowStor
 export type MessageWindowSettingsStore = ReturnType<typeof createMessageWindowSettings>;
 
 /** localStorage-based MessageWindowStorage adapter. */
-export function localStorageMessageWindowStorage(key = "yui.message-window"): MessageWindowStorage {
-  return localStorageStore<MessageWindowSettings>(key);
+export function localStorageMessageWindowStorage(
+  key = resolveStorageKey("yui.message-window", readBoundPresetId() ?? "default"),
+): MessageWindowStorage {
+  return {
+    load() {
+      try {
+        return JSON.parse(
+          globalThis.localStorage?.getItem(key) ?? "null",
+        ) as MessageWindowSettings | null;
+      } catch {
+        return null;
+      }
+    },
+    save(value) {
+      try {
+        globalThis.localStorage?.setItem(key, JSON.stringify(value));
+      } catch {
+        /* Storage can be unavailable. */
+      }
+    },
+  };
 }

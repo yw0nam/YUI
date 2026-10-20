@@ -15,11 +15,12 @@ import { wireVoiceListAutoRefresh } from "../../io/voice/voices/voice-list-refre
 import { resolveScreenSourceProvider } from "../../io/window/capture/tauri-screen";
 import { closeSettingsWindow, titleSettingsWindow } from "../../io/window/openers/settings-window";
 import { createLogger } from "../../logger";
+import { readBoundPresetId } from "../../settings/preset/bound-preset";
 import { createVoiceInputStatus } from "../../ui/chips/voice-input-status";
 import { subscribe as subscribeLocale, t } from "../../ui/i18n";
 import { createQuickControls } from "../../ui/quick-controls/quick-controls";
 import { wireSettingsWindowSync } from "../cross-window/wire-cross-window";
-import { createDisposers } from "../disposers";
+import { createDisposers, type Disposers } from "../disposers";
 import { wirePetWindowsSync } from "../pet-windows/wire-pet-windows-sync";
 import { quickControlsConfigDefaults } from "../settings/config-defaults";
 import { devKeyFallback } from "../settings/dev-key-fallback";
@@ -32,9 +33,13 @@ import { wireVoiceMirror } from "./wire-voice-mirror";
 const log = createLogger("settings-bootstrap");
 
 /** Wires the settings window into `app`: stores, cross-window sync, and the re-mounting quick controls. */
-export async function wireSettingsWindow(deps: { app: HTMLElement }): Promise<void> {
+export async function wireSettingsWindow(deps: {
+  app: HTMLElement;
+  lifecycle?: Disposers;
+}): Promise<void> {
   const { app } = deps;
-  const { register, dispose } = createDisposers();
+  const { register, dispose } = deps.lifecycle ?? createDisposers();
+  const boundId = readBoundPresetId();
 
   const { settingsStores, conversationStores, presetRegistry, petWindows } =
     createWindowStores(register);
@@ -91,6 +96,8 @@ export async function wireSettingsWindow(deps: { app: HTMLElement }): Promise<vo
   } catch (err) {
     log.warn("config_load_failed", { error: String(err) });
   }
+
+  if (deps.lifecycle?.isDisposed()) return;
 
   // VRM selection store + swap. This window has no renderer, so store-only commit.
   // Main window hot-swaps actual VRM via storage reload.
@@ -261,6 +268,8 @@ export async function wireSettingsWindow(deps: { app: HTMLElement }): Promise<vo
       messageWindowSettings,
       presetRegistry,
       petWindows,
+      boundId,
+      showVoiceInput: boundId === null,
     });
   };
 
@@ -273,6 +282,7 @@ export async function wireSettingsWindow(deps: { app: HTMLElement }): Promise<vo
   const unsubscribeCueSync = wireCueLocaleSync(settingsStores);
   const unsubscribeLocale = subscribeLocale(() => {
     queueMicrotask(() => {
+      if (deps.lifecycle?.isDisposed()) return;
       const tab = quickControls.selectedTab();
       quickControls.dispose();
       quickControls = buildQuickControls();
@@ -280,13 +290,14 @@ export async function wireSettingsWindow(deps: { app: HTMLElement }): Promise<vo
     });
   });
 
-  const disposeVoiceMirror = wireVoiceMirror({ voiceInputStatus, bridge });
+  const disposeVoiceMirror =
+    boundId === null ? wireVoiceMirror({ voiceInputStatus, bridge }) : () => {};
 
   // VRM selection also signaled cross-window → pet window receives and hot-swaps renderer (backup for Tauri storage event instability).
   vrmSelection.subscribe(broadcastSettings);
 
   // The pet window stops the turn on the same switch; this window only follows it.
-  const disposePresetSwitch = wirePresetSwitch({ registry: presetRegistry, bridge });
+  const disposePresetSwitch = wirePresetSwitch({ registry: presetRegistry, bridge, boundId });
 
   // Drains LIFO, so registered in reverse of the teardown order.
   register(wirePetWindowsSync({ petWindows, bridge }));

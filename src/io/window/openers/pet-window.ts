@@ -90,8 +90,8 @@ export function createPetWindowOpener(): PetWindowOpener {
       if (!isTauri()) return null;
       const { getAllWebviewWindows } = await import("@tauri-apps/api/webviewWindow");
       return (await getAllWebviewWindows())
-        .filter((w) => w.label.startsWith("pet-"))
-        .map((w) => w.label.slice(4));
+        .filter((w) => /^(pet|settings|message)-/.test(w.label))
+        .map((w) => w.label);
     },
     async onDestroyed(id, cb) {
       if (!isTauri()) return () => {};

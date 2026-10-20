@@ -22,7 +22,7 @@ export function wireHelpGuide(deps: {
     deps.userInput.submitGuide(guide, text);
     noteInteraction();
   };
-  if (!deps.bound) deps.register(deps.bridge.onHelpGuide(({ guide, text }) => ask(guide, text)));
+  deps.register(deps.bridge.onHelpGuide(({ guide, text }) => ask(guide, text)));
   return {
     ask,
     bindInteraction: (fn) => {

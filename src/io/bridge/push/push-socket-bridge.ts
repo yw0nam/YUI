@@ -1,9 +1,7 @@
 /**
  * push-socket-bridge — the push socket seen from a window that does not own it.
  *
- * One socket exists, in the pet window. The settings window runs in its own webview, so it reads
- * the socket's state and asks for a reset over the same cross-window bridge the voice controls use.
- * A second socket is never opened: the conversation is one conversation.
+ * One socket lives in each pet window; its companions mirror it through preset-scoped channels.
  */
 
 import { createLogger } from "../../../logger";

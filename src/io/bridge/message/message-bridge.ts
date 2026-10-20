@@ -67,17 +67,25 @@ export function createMessageBridge(
       core.emit(CH_MESSAGE_SURFACE, op);
     },
     onSurface(cb) {
-      return core.on<MessageSurfaceOp>(CH_MESSAGE_SURFACE, (op) => {
-        if (op && typeof op.op === "string") cb(op);
-      });
+      return core.on<MessageSurfaceOp>(
+        CH_MESSAGE_SURFACE,
+        (op) => {
+          if (op && typeof op.op === "string") cb(op);
+        },
+        { scoped: true },
+      );
     },
     emitControl(op) {
       core.emit(CH_MESSAGE_CONTROL, op);
     },
     onControl(cb) {
-      return core.on<MessageControlOp>(CH_MESSAGE_CONTROL, (op) => {
-        if (op && typeof op.op === "string") cb(op);
-      });
+      return core.on<MessageControlOp>(
+        CH_MESSAGE_CONTROL,
+        (op) => {
+          if (op && typeof op.op === "string") cb(op);
+        },
+        { scoped: true },
+      );
     },
     dispose: core.dispose,
   };

@@ -41,6 +41,7 @@ type Vocabulary = Awaited<ReturnType<typeof wireVocabulary>>;
 
 /** The handles a window that hosts the chat turn built before its config loaded. */
 export interface TurnCorePhase1 {
+  bound?: boolean;
   config: ConfigStore;
   renderer: Renderer;
   surfaces: Surfaces;
@@ -138,6 +139,7 @@ export async function wireTurnCore(
     surfaces,
     voiceInputStatus,
     voicePersistence: deps.voicePersistence,
+    bound: phase1.bound,
     voiceHost: deps.voiceHost,
     ttsSettings: settings.ttsSettings,
     lipsyncSettings: settings.lipsyncSettings,
@@ -201,8 +203,10 @@ export async function wireTurnCore(
   });
   const { dispatcher, guardrails, pacer, turnFeed } = turnWiring;
 
-  const sttVad = await voice.createSttEngine();
-  voiceInput.setStt(sttVad);
+  if (!phase1.bound) {
+    const sttVad = await voice.createSttEngine();
+    voiceInput.setStt(sttVad);
+  }
   ensureActive();
   applyAvatarConfig({
     cfg,

@@ -93,7 +93,8 @@ export function createSettingsBridge(
 ): SettingsBridge {
   const core = createBridgeCore(transport, opts.windowKind);
   const safeEmit = core.emit;
-  const on = core.on;
+  const shared = new Set([CH_SETTINGS_CHANGED, CH_PRESET_CHANGED, CH_PET_WINDOWS_CHANGED]);
+  const on: typeof core.on = (name, cb) => core.on(name, cb, { scoped: !shared.has(name) });
 
   return {
     emitSettingsChanged() {

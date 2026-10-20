@@ -59,7 +59,7 @@ export function createVoiceInputSection(deps: VoiceInputSectionDeps): VoiceInput
 
   function reflectVoiceStatus(snapshot: VoiceInputStatusSnapshot): void {
     const on = snapshot.state !== "idle";
-    voiceSwitchBtn.setAttribute("aria-checked", String(on));
+    voiceSwitchBtn?.setAttribute("aria-checked", String(on));
     el.classList.toggle("is-voice-on", on);
   }
 
@@ -90,7 +90,7 @@ export function createVoiceInputSection(deps: VoiceInputSectionDeps): VoiceInput
     }
   });
 
-  voiceSwitchBtn.addEventListener("click", handleVoiceSwitchClick);
+  voiceSwitchBtn?.addEventListener("click", handleVoiceSwitchClick);
 
   return {
     reflect(): void {
@@ -100,7 +100,7 @@ export function createVoiceInputSection(deps: VoiceInputSectionDeps): VoiceInput
     dispose(): void {
       unsubscribeVoice();
       unsubscribeVad();
-      voiceSwitchBtn.removeEventListener("click", handleVoiceSwitchClick);
+      voiceSwitchBtn?.removeEventListener("click", handleVoiceSwitchClick);
       disposeVadSlider();
     },
   };

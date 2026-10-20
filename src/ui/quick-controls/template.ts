@@ -40,6 +40,7 @@ function hintDotHtml(textKey: string): string {
 interface PanelHtmlOptions {
   isWindow: boolean;
   showPopOut?: boolean;
+  showVoiceInput?: boolean;
   /** Whether the window-only context-occupancy readout renders. */
   hasSession: boolean;
   switchRows: readonly SwitchRow[];
@@ -66,6 +67,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
   const {
     isWindow,
     showPopOut,
+    showVoiceInput = true,
     hasSession,
     switchRows,
     showScreen,
@@ -354,7 +356,9 @@ ${panelOpenHtml("input")}
         </div>${showBrowser ? browserSectionHtml() : ""}
         <div class="yui-sec">
           <div class="yui-group">
-            <div class="yui-row">
+            ${
+              showVoiceInput
+                ? `<div class="yui-row">
               <div class="yui-row__main">
                 <span class="yui-row__label">
                   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -368,7 +372,9 @@ ${panelOpenHtml("input")}
                 <span class="yui-row__sub">${t("voice_input.sub")}</span>
               </div>
               <button class="yui-switch yui-voice-switch" type="button" role="switch" aria-checked="false" aria-label="${t("voice_input.label")}"></button>
-            </div>${switchRowsHtml("input")}
+            </div>`
+                : ""
+            }${switchRowsHtml("input")}
             <div class="yui-gain">
               <div class="yui-gain__head">
                 <span class="yui-gain__label">${t("voice_input.silence_label")}</span>

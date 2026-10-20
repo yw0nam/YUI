@@ -31,9 +31,8 @@ export function createPresetManage(deps: {
   log: Logger;
   petWindows?: PetWindows;
   boundId?: string | null;
-  windowsUi?: boolean;
 }): PresetManage {
-  const { el, registry, log, petWindows, boundId, windowsUi = false } = deps;
+  const { el, registry, log, petWindows, boundId } = deps;
   let renamingId: string | null = null;
   let confirmId: string | null = null;
   let naming = false;
@@ -81,7 +80,7 @@ export function createPresetManage(deps: {
       focusSel = ".yui-preset-row__confirm .yui-pill:not(.yui-pill--go)";
       render();
     });
-    if (windowsUi && petWindows && entry.id !== active && entry.id !== boundId) {
+    if (petWindows && entry.id !== active && entry.id !== boundId) {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "yui-preset-row__window";

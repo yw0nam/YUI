@@ -239,7 +239,7 @@ interface QuickControlsOptions {
   presetRegistry?: PresetRegistry;
   petWindows?: PetWindows;
   boundId?: string | null;
-  windowsUi?: boolean;
+  showVoiceInput?: boolean;
 }
 
 interface QuickControls {
@@ -328,7 +328,7 @@ export function createQuickControls({
   presetRegistry,
   petWindows,
   boundId,
-  windowsUi,
+  showVoiceInput = true,
 }: QuickControlsOptions): QuickControls {
   const isWindow = variant === "window";
   // Context-occupancy readout renders only in the settings window, when both stores are injected.
@@ -365,6 +365,7 @@ export function createQuickControls({
     hasSession,
     switchRows: TOGGLE_SPECS,
     showPopOut: !!onPopOut,
+    showVoiceInput,
     showScreen: !!screenSettings && !!screenKnobSettings,
     showPresence: !!presenceSettings,
     showPacerGap: !!pacerGapSettings,
@@ -422,7 +423,7 @@ export function createQuickControls({
   if (historyTab) el.querySelector("#yui-panel-hist")!.append(historyTab.el);
   const workflows = createWorkflowsSection({ root: el, store: workflowSettings, log });
   const presetStrip = presetRegistry
-    ? createPresetStrip({ root: el, registry: presetRegistry, log, petWindows, boundId, windowsUi })
+    ? createPresetStrip({ root: el, registry: presetRegistry, log, petWindows, boundId })
     : null;
   const hintTooltip = createHintTooltip({ root: el });
 

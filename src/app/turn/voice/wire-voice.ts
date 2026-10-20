@@ -32,6 +32,7 @@ export interface VoiceHost {
 }
 
 export function wireTurnVoice(deps: {
+  bound?: boolean;
   renderer: Renderer;
   surfaces: Pick<
     Surfaces,
@@ -94,7 +95,12 @@ export function wireTurnVoice(deps: {
   // Voice creation precedes sources, so interaction notes stay late-bound across that cycle.
   let proactiveSourceRef: { noteInteraction(ts?: number): void } | null = null;
 
-  const voiceInput = wireVoiceInput({ voiceInputStatus, voicePersistence, voiceHost });
+  const voiceInput = wireVoiceInput({
+    voiceInputStatus,
+    voicePersistence,
+    voiceHost,
+    bound: deps.bound,
+  });
   register(voiceInput.dispose);
   const turnLog = createTurnLog();
   const previousTurn = createPreviousTurn();
@@ -157,6 +163,7 @@ export function wireTurnVoice(deps: {
  * the lifecycle.
  */
 export function wireVoiceInput(deps: {
+  bound?: boolean;
   voiceInputStatus: VoiceInputStatus;
   voicePersistence?: VoicePersistence;
   voiceHost?: VoiceHost;
@@ -165,6 +172,7 @@ export function wireVoiceInput(deps: {
   dispose: () => void;
 } {
   const { voiceInputStatus, voicePersistence, voiceHost } = deps;
+  if (deps.bound) return { setStt: () => {}, dispose: () => {} };
   let sttVad: SttVad | null = null;
   let ready = false;
   let startRequested = false;

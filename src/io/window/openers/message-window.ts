@@ -97,12 +97,12 @@ export async function openMessageWindow(env: MessageWindowEnv): Promise<void> {
   await env.create(await env.resolvePosition());
 }
 
-async function tauriMessageWindow(): Promise<{
+async function tauriMessageWindow(boundId?: string | null): Promise<{
   show(): Promise<void>;
   hide(): Promise<void>;
 } | null> {
   const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-  return WebviewWindow.getByLabel(MESSAGE_WINDOW_LABEL);
+  return WebviewWindow.getByLabel(boundId == null ? MESSAGE_WINDOW_LABEL : `message-${boundId}`);
 }
 
 async function resolveTauriPosition(
@@ -130,10 +130,16 @@ async function resolveTauriPosition(
   return { x: physical.x / scale, y: physical.y / scale };
 }
 
-async function createTauriMessageWindow(position: { x: number; y: number } | null): Promise<void> {
+async function createTauriMessageWindow(
+  position: { x: number; y: number } | null,
+  boundId?: string | null,
+): Promise<void> {
   const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-  const win = new WebviewWindow(MESSAGE_WINDOW_LABEL, {
-    url: MESSAGE_WINDOW_URL,
+  const win = new WebviewWindow(boundId == null ? MESSAGE_WINDOW_LABEL : `message-${boundId}`, {
+    url:
+      boundId == null
+        ? MESSAGE_WINDOW_URL
+        : `${MESSAGE_WINDOW_URL}?preset=${encodeURIComponent(boundId)}`,
     title: MESSAGE_WINDOW_TITLE,
     width: MESSAGE_WINDOW_WIDTH,
     height: MESSAGE_WINDOW_HANDLE_HEIGHT,
@@ -177,6 +183,7 @@ export function listenTrayToggle(cb: (visible: boolean) => void): () => void {
  */
 export function createMessageWindowController(
   store: Pick<MessageWindowSettingsStore, "get" | "setMode">,
+  boundId?: string | null,
 ): {
   open(): void;
   hide(): void;
@@ -192,8 +199,8 @@ export function createMessageWindowController(
         try {
           await openMessageWindow({
             isTauri: isTauri(),
-            getExisting: tauriMessageWindow,
-            create: createTauriMessageWindow,
+            getExisting: () => tauriMessageWindow(boundId),
+            create: (position) => createTauriMessageWindow(position, boundId),
             resolvePosition: () => resolveTauriPosition(store),
           });
         } catch (error) {
@@ -207,7 +214,7 @@ export function createMessageWindowController(
       if (!isTauri()) return;
       queue(async () => {
         try {
-          await (await tauriMessageWindow())?.hide();
+          await (await tauriMessageWindow(boundId))?.hide();
         } catch (error) {
           log.warn("message_window_hide_failed", { error: String(error) });
         }

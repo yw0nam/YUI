@@ -10,6 +10,7 @@
  */
 
 import { createLogger } from "../../../logger";
+import { presetIdForWindow } from "../../../settings/preset/active-preset";
 import { isTauri } from "../../../tauri-env";
 
 const log = createLogger("settings-bridge");
@@ -107,6 +108,7 @@ function selectTransport(): BridgeTransport {
  * global emit self-delivery); `__kind` names the sending window so receivers can attribute the change.
  */
 interface BridgeEnvelope {
+  __preset: string;
   __src: string;
   __kind: WindowKind;
   payload: unknown;
@@ -121,7 +123,11 @@ function newSrcId(): string {
 interface BridgeCore {
   /** Settles once the transport has sent the message, or at once for a synchronous transport. */
   emit(name: string, payload?: unknown): Promise<void>;
-  on<T>(name: string, cb: (payload: T, from: WindowKind) => void): () => void;
+  on<T>(
+    name: string,
+    cb: (payload: T, from: WindowKind) => void,
+    opts?: { scoped?: boolean },
+  ): () => void;
   dispose(): void;
 }
 
@@ -132,17 +138,23 @@ export function createBridgeCore(
   const t = transport ?? selectTransport();
   const disposers = new Set<() => void>();
   const srcId = newSrcId();
+  const presetId = presetIdForWindow();
 
   return {
     async emit(name, payload) {
       try {
-        await t.emit(name, { __src: srcId, __kind: windowKind, payload } satisfies BridgeEnvelope);
+        await t.emit(name, {
+          __preset: presetId,
+          __src: srcId,
+          __kind: windowKind,
+          payload,
+        } satisfies BridgeEnvelope);
       } catch (err) {
         log.warn("emit_failed", { error: String(err) });
       }
     },
 
-    on(name, cb) {
+    on(name, cb, opts) {
       let off = (): void => {};
       try {
         off = t.listen(name, (raw) => {
@@ -150,6 +162,7 @@ export function createBridgeCore(
           const env = raw as Partial<BridgeEnvelope> | undefined;
           if (!env || typeof env.__src !== "string" || typeof env.__kind !== "string") return;
           if (env.__src === srcId) return;
+          if (opts?.scoped && env.__preset !== presetId) return;
           cb(env.payload as never, env.__kind);
         });
       } catch (err) {
