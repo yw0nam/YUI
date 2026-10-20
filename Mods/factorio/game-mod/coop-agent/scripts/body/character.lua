@@ -29,8 +29,16 @@ function M.beside(deps, host)
   return entity
 end
 
---- Spills every inventory at the body's feet, flagged for looting, then destroys the body.
+--- Cancels every queued craft; cancelling returns the reserved ingredients to the inventory.
+function M.cancel_crafts(entity)
+  while entity.crafting_queue_size > 0 do
+    entity.cancel_crafting { index = 1, count = entity.crafting_queue[1].count }
+  end
+end
+
+--- Cancels the crafts, spills every inventory at the body's feet flagged for looting, then destroys the body.
 function M.remove(entity)
+  M.cancel_crafts(entity)
   for index = 1, entity.get_max_inventory_index() do
     local inventory = entity.get_inventory(index)
     if inventory and not inventory.is_empty() then

@@ -58,9 +58,7 @@ function M.stop(deps)
   if entity then
     entity.walking_state = { walking = false, direction = entity.walking_state.direction }
     entity.mining_state = { mining = false }
-    while entity.crafting_queue_size > 0 do
-      entity.cancel_crafting { index = 1, count = entity.crafting_queue[1].count }
-    end
+    character.cancel_crafts(entity)
   end
   if not deps.storage.body.stopped then
     deps.storage.body.stopped = true
@@ -151,7 +149,10 @@ function M.on_console_chat_event(e)
 end
 
 function M.on_entity_died_event(e)
-  M.on_entity_died(M.game_deps(), e)
+  -- most deaths are not the body's; skip building deps for them
+  if storage.body.entity and e.entity == storage.body.entity then
+    M.on_entity_died(M.game_deps(), e)
+  end
 end
 
 function M.on_setting_changed_event(e)
