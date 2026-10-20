@@ -26,10 +26,11 @@ describe("wirePresetSwitch", () => {
     vi.useRealTimers();
   });
 
-  function wire() {
+  function wire(boundId?: string) {
     const registry = createPresetRegistry({ newId: () => "bbbb0002" });
     dispose = wirePresetSwitch({
       registry,
+      boundId,
       bridge: {
         emitPresetChanged: (p) => {
           calls.push(`emit ${p.active}`);
@@ -47,6 +48,16 @@ describe("wirePresetSwitch", () => {
     });
     return registry;
   }
+
+  it("bound windows emit edits and reread remote edits without reloading", () => {
+    const registry = wire("aaaa0001");
+    registry.activate("aaaa0001");
+    expect(calls).toEqual(["emit aaaa0001"]);
+    writeFromOtherWindow({ active: "default", list: LIST });
+    remote({ active: "default" });
+    expect(registry.get().active).toBe("default");
+    expect(calls).toEqual(["emit aaaa0001"]);
+  });
 
   // Another window commits the registry; only what it sends next decides how this one hears it.
   function writeFromOtherWindow(value: { active: string; list: { id: string; name: string }[] }) {

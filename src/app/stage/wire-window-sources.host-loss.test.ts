@@ -31,7 +31,7 @@ vi.mock("../../io/bridge/inbox/avatar-rpc", () => ({
   onAvatarRpc: () => () => {},
   respondAvatarRpc: () => {},
 }));
-vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => {}) }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn(async () => () => {}) }));
 vi.mock("@tauri-apps/api/window", () => ({
   availableMonitors: vi.fn(async () => []),
@@ -43,6 +43,7 @@ vi.mock("@tauri-apps/api/dpi", () => ({
   PhysicalPosition: class {},
 }));
 
+import { invoke } from "@tauri-apps/api/core";
 import { wirePercher } from "../../ambient/locomotion/perch/wire-perch";
 import { wireWindowSources } from "./wire-window-sources";
 
@@ -82,18 +83,22 @@ describe("host loss reaches the faller", () => {
     expect(faller.drop).toHaveBeenCalledTimes(1);
   });
 
-  it("drops the character when the armed sit's host window is lost", async () => {
+  it.each([
+    true,
+    false,
+  ])("routes host loss and only main starts ingress (bound: %s)", async (bound) => {
     vi.stubGlobal("__TAURI_INTERNALS__", {});
     createWindowDropSource.mockClear();
     const faller = { drop: vi.fn() };
 
     wireWindowSources({
+      bound,
       bus: { push: () => {} } as never,
       renderer: {} as never,
       peekActive: () => false,
       getPeekConfig: () => ({}) as never,
       getGestureCues: () => ({}) as never,
-      agentNotifySettings: { get: () => ({ enabled: false }) } as never,
+      agentNotifySettings: { get: () => ({ enabled: true, port: 9000 }) } as never,
       getPosture: () => ({}) as never,
       getVrm: () => null,
       noteAvatarMoved: () => {},
@@ -116,6 +121,9 @@ describe("host loss reaches the faller", () => {
     createWindowDropSource.mock.calls[0][0].onSitLost();
 
     expect(faller.drop).toHaveBeenCalledTimes(1);
+    expect(
+      vi.mocked(invoke).mock.calls.filter(([cmd]) => cmd === "start_agent_ingress"),
+    ).toHaveLength(bound ? 0 : 1);
   });
 
   it("hands the avatar executor the relocate fall callback", async () => {

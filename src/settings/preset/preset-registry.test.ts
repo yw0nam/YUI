@@ -183,3 +183,15 @@ describe("createPresetRegistry", () => {
     ]);
   });
 });
+
+it.each(["open", "live"])("refuses removing or activating a %s preset", (mode) => {
+  seedPresets("default", [{ id: "aaaa0001", name: "natsume" }]);
+  map.set("yui.aaaa0001.endpoints", "{}");
+  if (mode === "open") map.set("yui.windows", JSON.stringify({ open: ["aaaa0001"] }));
+  else map.set("yui.pet-window.aaaa0001", "1");
+  const registry = createPresetRegistry();
+  expect(registry.remove("aaaa0001")).toBe(false);
+  expect(registry.activate("aaaa0001")).toBe(false);
+  expect(map.get("yui.aaaa0001.endpoints")).toBe("{}");
+  expect(registry.get().active).toBe("default");
+});
