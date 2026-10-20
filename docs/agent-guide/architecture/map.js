@@ -821,7 +821,7 @@ globalThis.YUI_MAP =
       "id": "io/window/openers",
       "module": "window",
       "label": "window openers",
-      "role": "Opens and places the message, settings, devtools, and pet windows, and a bound pet window's settings-<id> and message-<id> by its preset id.",
+      "role": "Opens and places the message, settings, devtools, and pet windows, and a bound pet window's settings-<id> and message-<id> by its preset id; closes those companions and watches their owner window.",
       "paths": [
         "src/io/window/openers"
       ]

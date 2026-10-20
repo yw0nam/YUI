@@ -84,8 +84,7 @@ YUI/
         wire-preset.ts               # Sends a preset switch over the settings bridge and reloads each unbound window into it, after the pet window stops its turn; a bound window only rereads the list
       pet-windows/                   # Windows bound to one preset: the shared open list, their lifecycle, and the windows each one opens
         pet-window-role.ts           # The entry main composes: the registry and open list a window owns, the orphan check, and main's reconcile or a bound window's self-close
-        companion-window.ts          # A companion window's own live key and store teardown, held until its owner window is gone
-        companion-windows.ts         # The settings and message windows a bound pet window opens: its close sequence, the wait for them, and the owner watcher
+        companion-window.ts          # A companion window's boot: the orphan and owner checks, its own live key, and its teardown on a close request; the pet window's wait for its companions
         wire-pet-windows-sync.ts     # The open list in every window: a local edit out over yui://pet-windows-changed, a remote one reloaded from storage
         wire-pet-windows-reconcile.ts # Main's reconcile: prunes the list and live keys, then opens each wanted preset that has no window
         wire-preset-state-sync.ts    # Main publishes the registry's preset ids to the shell, so a prefixed ingress route can tell a closed window from an unknown id
@@ -416,7 +415,9 @@ YUI/
           devtools-window.ts           # Developer Tools window opener
           message-window.ts            # Message-window opener, message-<id> for a bound id, and its placement rule
           message-window-mode.ts       # Keeps the message window in step with the stored mode and the dock request
-          pet-window.ts                # Bound pet window opener: creates pet-<id>, lists the ones that exist, and closes the current window
+          pet-window.ts                # Bound pet window opener: creates pet-<id> and lists the windows that exist
+          companion-windows.ts         # Closes a bound pet window's settings-<id> and message-<id>, and watches a companion's owner window
+          current-window.ts            # Closes the current window and listens for its close request
         pet/                           # The pet window's own gestures, hit-test, gaze cursor, and peek
           window-statics.ts            # Cached window origin and scale factors for the global-cursor poll loops
           cursor-tracker.ts            # Forwards the OS cursor position to the gaze apply layer
