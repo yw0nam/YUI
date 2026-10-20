@@ -2,7 +2,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { createSettingsBridge } from "../../io/bridge/settings-bridge";
 import { createLogger } from "../../logger";
-import { isPetWindowLive } from "../../settings/preset/pet-windows";
+import { isPresetWindowLive } from "../../settings/preset/pet-windows";
 import { createPetWindowRole } from "./pet-window-role";
 
 beforeEach(() => {
@@ -59,7 +59,7 @@ it("owns bound synchronization until application stores stop", async () => {
   const role = createPetWindowRole({
     boundId: "a",
     disposeWindow: () => {
-      expect(isPetWindowLive("a")).toBe(true);
+      expect(isPresetWindowLive("a")).toBe(true);
       calls.push("stores");
     },
     bridge: bus,
@@ -71,7 +71,7 @@ it("owns bound synchronization until application stores stop", async () => {
   })!;
   role.petWindows.close("a");
   await vi.waitFor(() => expect(calls).toEqual(["stores", "close"]));
-  expect(isPetWindowLive("a")).toBe(false);
+  expect(isPresetWindowLive("a")).toBe(false);
   expect(emit).toHaveBeenNthCalledWith(1);
   expect(emit).toHaveBeenNthCalledWith(2);
   expect(emit).toHaveBeenCalledTimes(2);

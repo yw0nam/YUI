@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createLogger } from "../../logger";
-import { createPetWindows, isPetWindowLive } from "../../settings/preset/pet-windows";
+import { createPetWindows, isPresetWindowLive } from "../../settings/preset/pet-windows";
 import { wireBoundWindow } from "./wire-bound-window";
 
 beforeEach(() => localStorage.clear());
@@ -22,7 +22,7 @@ it.each([
     petWindows,
     bridge: {
       emitPetWindowsChanged: () => {
-        expect(isPetWindowLive("a")).toBe(false);
+        expect(isPresetWindowLive("a")).toBe(false);
         calls.push("emit");
         return new Promise<void>((r) => {
           sent = r;
@@ -40,7 +40,7 @@ it.each([
     log: createLogger("test"),
   });
   if (initiallyOpen) {
-    expect(isPetWindowLive("a")).toBe(true);
+    expect(isPresetWindowLive("a")).toBe(true);
     petWindows.close("other");
     expect(calls).toEqual([]);
     petWindows.close("a");
@@ -83,7 +83,7 @@ it.each([true, false])("clears live state on pagehide only in browser (Tauri: %s
     log: createLogger("test"),
   });
   window.dispatchEvent(new Event("pagehide"));
-  expect(isPetWindowLive("a")).toBe(tauri);
+  expect(isPresetWindowLive("a")).toBe(tauri);
   off();
 });
 

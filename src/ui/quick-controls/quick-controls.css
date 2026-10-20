@@ -498,3 +498,11 @@
     transform: none;
   }
 }
+
+/* The ingress URL line under the listener port */
+.yui-quick__ingress-url {
+  user-select: text;
+  overflow-wrap: anywhere;
+  font: inherit;
+  font-size: var(--yui-fs-sub);
+}

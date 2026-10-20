@@ -9,7 +9,7 @@ export const liveKey = (label: string): string => `${LIVE_KEY_PREFIX}${label}`;
 export function isWindowLive(label: string): boolean {
   return globalThis.localStorage?.getItem(liveKey(label)) === "1";
 }
-export function isPetWindowLive(id: string): boolean {
+export function isPresetWindowLive(id: string): boolean {
   return (["pet", "settings", "message"] as const).some((kind) =>
     isWindowLive(windowLabel(kind, id)),
   );

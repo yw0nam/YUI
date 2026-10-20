@@ -1,10 +1,7 @@
 /** The pet role owns preset stores and lifecycle synchronization through application teardown. */
 import { createSettingsBridge, type SettingsBridge } from "../../io/bridge/settings-bridge";
-import {
-  closePetWindow,
-  createPetWindowOpener,
-  type PetWindowOpener,
-} from "../../io/window/openers/pet-window";
+import { closeCurrentWindow } from "../../io/window/current-window";
+import { createPetWindowOpener, type PetWindowOpener } from "../../io/window/openers/pet-window";
 import type { Logger } from "../../logger";
 import { createPetWindows } from "../../settings/preset/pet-windows";
 import { createPresetRegistry } from "../../settings/preset/preset-registry";
@@ -26,7 +23,7 @@ export function createPetWindowRole(deps: {
   const lifecycle = createDisposers();
   const presetRegistry = createPresetRegistry();
   lifecycle.register(presetRegistry.dispose);
-  const close = deps.close ?? closePetWindow;
+  const close = deps.close ?? closeCurrentWindow;
   if (
     closeIfOrphan({
       boundId: deps.boundId,

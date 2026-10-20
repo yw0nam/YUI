@@ -12,7 +12,7 @@ import {
   type PresetState,
   parsePresetState,
 } from "./active-preset";
-import { isPetWindowLive, readOpenPetWindowIds } from "./pet-windows";
+import { isPresetWindowLive, readOpenPetWindowIds } from "./pet-windows";
 import {
   DEFAULT_PRESET_ID,
   PRESET_COPIED_KEYS,
@@ -95,7 +95,7 @@ export function createPresetRegistry(deps?: {
         id === active ||
         !list.some((e) => e.id === id) ||
         readOpenPetWindowIds().includes(id) ||
-        isPetWindowLive(id)
+        isPresetWindowLive(id)
       )
         return false;
       try {
@@ -113,7 +113,7 @@ export function createPresetRegistry(deps?: {
       if (
         !list.some((e) => e.id === id) ||
         readOpenPetWindowIds().includes(id) ||
-        isPetWindowLive(id)
+        isPresetWindowLive(id)
       )
         return false;
       core.commit({ active: id, list });

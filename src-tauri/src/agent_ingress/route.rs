@@ -8,7 +8,7 @@ use super::INGRESS_WINDOW;
 use crate::os_event_watcher::epoch_ms;
 
 /// Builds the shared pet-window label for one preset id.
-pub(super) fn pet_label(id: &str) -> String {
+fn pet_label(id: &str) -> String {
     format!("pet-{id}")
 }
 
@@ -183,7 +183,7 @@ mod tests {
             panic!("expected agent event")
         };
         assert!(payload.summary.ends_with("[truncated]"));
-        assert!(payload.summary.len() < 9000);
+        assert_eq!(payload.summary.len(), 8192 + "…[truncated]".len());
     }
     #[test]
     fn rejects_malformed_routes_and_payloads() {

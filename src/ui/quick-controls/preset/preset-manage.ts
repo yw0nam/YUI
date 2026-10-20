@@ -5,7 +5,7 @@
 
 import type { Logger } from "../../../logger";
 import type { PresetEntry, PresetState } from "../../../settings/preset/active-preset";
-import { isPetWindowLive, type PetWindows } from "../../../settings/preset/pet-windows";
+import { isPresetWindowLive, type PetWindows } from "../../../settings/preset/pet-windows";
 import { DEFAULT_PRESET_ID } from "../../../settings/preset/preset-keys";
 import type { PresetRegistry } from "../../../settings/preset/preset-registry";
 import { t } from "../../i18n";
@@ -51,7 +51,7 @@ export function createPresetManage(deps: {
     row.className = "yui-preset-row";
     row.dataset.presetId = entry.id;
     const desired = petWindows?.get().includes(entry.id) ?? false;
-    const live = isPetWindowLive(entry.id);
+    const live = isPresetWindowLive(entry.id);
     const removable =
       entry.id !== DEFAULT_PRESET_ID &&
       entry.id !== active &&

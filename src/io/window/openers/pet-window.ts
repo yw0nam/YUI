@@ -103,4 +103,3 @@ export function createPetWindowOpener(): PetWindowOpener {
     },
   };
 }
-export { closeCurrentWindow as closePetWindow } from "./current-window";

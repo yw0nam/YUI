@@ -11,7 +11,7 @@ import {
   ingressUrl,
 } from "../../../settings/backend/agent-notify-settings";
 import type { PresetState } from "../../../settings/preset/active-preset";
-import { isPetWindowLive, type PetWindows } from "../../../settings/preset/pet-windows";
+import { isPresetWindowLive, type PetWindows } from "../../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../../settings/preset/preset-registry";
 import { t } from "../../i18n";
 import { createPresetManage } from "./preset-manage";
@@ -86,7 +86,7 @@ export function createPresetStrip(deps: {
     const state = registry.get();
     select.replaceChildren(
       ...state.list.map((e) => {
-        const open = petWindows?.get().includes(e.id) || isPetWindowLive(e.id);
+        const open = petWindows?.get().includes(e.id) || isPresetWindowLive(e.id);
         const option = new Option(
           open ? t("preset.in_window", { name: e.name }) : e.name,
           e.id,
