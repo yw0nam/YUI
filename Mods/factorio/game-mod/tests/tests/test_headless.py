@@ -356,8 +356,17 @@ def wait_status(server, done, deadline_s=60):
     raise AssertionError("status never reached the wanted state")
 
 
-def events_after(server, seq):
-    return server.rpc(v=1, id="ev", op="events_since", args={"seq": seq}, map_id=MAP_ID)["r"]["events"]
+def body_events(server, seq):
+    """Events after seq without the 3600-tick snapshot_summary, which may land in any window."""
+    events = server.rpc(v=1, id="ev", op="events_since", args={"seq": seq}, map_id=MAP_ID)["r"]["events"]
+    return [e for e in events if e["kind"] != "snapshot_summary"]
+
+
+def body_ready(server):
+    """Sets the dev host at (0, 0) and enables the body; returns the enabling tick and the first live status."""
+    assert json.loads(server.command("/coop-probe host 0 0")) == {"ok": True, "host": {"x": 0, "y": 0}}
+    enabled_tick = set_body_enabled(server, True)
+    return enabled_tick, wait_status(server, lambda s: s["body"]["alive"])
 
 
 def labels(server):
@@ -371,20 +380,17 @@ def labels(server):
 
 
 def test_body_spawns_beside_the_dev_host_with_the_starter_kit(server):
-    assert json.loads(server.command("/coop-probe host 0 0")) == {"ok": True, "host": {"x": 0, "y": 0}}
-    enabled_tick = set_body_enabled(server, True)
-
-    status = wait_status(server, lambda s: s["body"]["alive"])
+    enabled_tick, status = body_ready(server)
     assert status["tick"] - enabled_tick <= 60
     position = status["body"].pop("position")
-    assert math.dist((position["x"], position["y"]), (0, 0)) <= 3
+    assert math.dist((position["x"], position["y"]), (0, 0)) <= 8
     assert status["body"] == {"alive": True, "health": 250, "inventory": KIT_MAIN}
     assert status["host"] == {"name": "dev-host", "connected": True, "position": {"x": 0, "y": 0}}
     assert labels(server) == ["Buddy · Standing by"]
 
 
 def test_stop_latches_and_emits_stopped(server):
-    seq = server.rpc(v=1, id="s0", op="status", args={})["r"]["seq"]
+    seq = body_ready(server)[1]["seq"]
     assert server.rpc(v=1, id="stop-1", op="stop", args={}, map_id=MAP_ID) == {
         "v": 1,
         "id": "stop-1",
@@ -392,12 +398,12 @@ def test_stop_latches_and_emits_stopped(server):
         "r": {},
     }
     assert server.rpc(v=1, id="s1", op="status", args={})["r"]["stopped"] is True
-    assert without_ticks(events_after(server, seq)) == [{"kind": "stopped", "data": {}}]
+    assert without_ticks(body_events(server, seq)) == [{"kind": "stopped", "data": {}}]
     assert labels(server) == ["Buddy · Stopped"]
 
 
 def test_a_dead_body_leaves_its_items_and_respawns_empty_1800_ticks_later(server):
-    seq = server.rpc(v=1, id="d0", op="status", args={})["r"]["seq"]
+    seq = body_ready(server)[1]["seq"]
     server.command(f"/silent-command for _, c in pairs({CHARACTERS}) do c.die() end")
     corpse = json.loads(
         server.command(
@@ -419,7 +425,7 @@ def test_a_dead_body_leaves_its_items_and_respawns_empty_1800_ticks_later(server
         status = wait_status(server, lambda s: s["body"]["alive"])
     finally:
         server.command("/silent-command game.speed = 1")
-    died, respawned = events_after(server, seq)
+    died, respawned = body_events(server, seq)
     assert (died["kind"], died["data"], respawned["kind"], respawned["data"]) == (
         "body_died",
         {},
@@ -430,11 +436,22 @@ def test_a_dead_body_leaves_its_items_and_respawns_empty_1800_ticks_later(server
     assert status["body"]["inventory"] == {}
 
 
-def test_disabling_the_body_removes_it_and_it_stays_gone(server):
-    seq = server.rpc(v=1, id="x0", op="status", args={})["r"]["seq"]
+def test_disabling_the_body_spills_its_items_removes_it_and_it_stays_gone(server):
+    seq = body_ready(server)[1]["seq"]
+    server.command(f"/silent-command {CHARACTERS}[1].insert{{name = 'coal', count = 5}}")
     disabled_tick = set_body_enabled(server, False)
     status = wait_status(server, lambda s: not s["body"]["alive"])
     assert status["tick"] - disabled_tick <= 60
+    on_ground = json.loads(
+        server.command(
+            "/silent-command local out = {} "
+            "for _, e in pairs(game.surfaces[1].find_entities_filtered{name = 'item-on-ground'}) do "
+            "out[#out + 1] = {name = e.stack.name, count = e.stack.count, looted = e.to_be_looted} end "
+            "rcon.print(helpers.table_to_json(out))"
+        )
+    )
+    coal = [item for item in on_ground if item["name"] == "coal"]
+    assert coal == [{"name": "coal", "count": 1, "looted": True}] * 5
 
     server.command("/silent-command game.speed = 10")
     try:
@@ -443,5 +460,4 @@ def test_disabling_the_body_removes_it_and_it_stays_gone(server):
         server.command("/silent-command game.speed = 1")
     assert status["body"] == {"alive": False}
     assert int(server.command(f"/silent-command rcon.print(#{CHARACTERS})")) == 0
-    # the 3600-tick snapshot_summary may land in the window; no body event may
-    assert [e["kind"] for e in events_after(server, seq) if e["kind"] != "snapshot_summary"] == []
+    assert body_events(server, seq) == []

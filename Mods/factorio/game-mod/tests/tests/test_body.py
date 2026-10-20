@@ -1,38 +1,71 @@
 import json
 
 import pytest
-from conftest import load_module
-
-HOST = "{ index = 1, name = 'host', admin = true }"
+from conftest import GAME_MOD, load_module
 
 STUB = """
 storage = {}
 require("scripts.storage").ensure()
-BODIES = {}
-game = { tick = 100, connected_players = {}, get_entity_by_unit_number = function(n) return BODIES[n] end }
+CREATED, SPILLED, CANCELLED = {}, {}, {}
+LABEL = nil
+NEXT_UNIT = 40
+
+function new_entity(name)
+  NEXT_UNIT = NEXT_UNIT + 1
+  local entity = {
+    valid = true,
+    name = name,
+    unit_number = NEXT_UNIT,
+    position = { x = 1, y = 0 },
+    color = nil,
+    walking_state = { walking = true, direction = 2 },
+    mining_state = { mining = true, position = { x = 3, y = 4 } },
+    crafting_queue = { { index = 1, recipe = "iron-gear-wheel", count = 3 } },
+    crafting_queue_size = 1,
+    inventories = { { name = "coal", count = 5 } },
+  }
+  entity.surface = SURFACE
+  entity.destroy = function() entity.valid = false end
+  entity.cancel_crafting = function(spec)
+    CANCELLED[#CANCELLED + 1] = spec
+    entity.crafting_queue_size = 0
+  end
+  entity.get_max_inventory_index = function() return #entity.inventories end
+  entity.get_inventory = function(index)
+    local items = entity.inventories[index]
+    return { is_empty = function() return items == nil end, items = items }
+  end
+  return entity
+end
+
+SURFACE = {
+  find_non_colliding_position = function(_name, center) return { x = center.x + 1, y = center.y } end,
+  create_entity = function(spec)
+    CREATED[#CREATED + 1] = spec.name
+    return new_entity(spec.name)
+  end,
+  spill_inventory = function(spec) SPILLED[#SPILLED + 1] = spec.inventory.items end,
+}
+HOST = { index = 1, name = "host", admin = true, position = { x = 0, y = 0 }, surface = SURFACE }
+game = {
+  tick = 100,
+  connected_players = { HOST },
+  forces = { player = "player" },
+  -- a prototype without the get-by-unit-number flag: the lookup never finds the body
+  get_entity_by_unit_number = function(_n) return nil end,
+}
+prototypes = { entity = { character = { type = "character" }, ["odd-character"] = { type = "character" } } }
 remote = { interfaces = {} }
 settings = { global = {
   ["coop-agent-body-enabled"] = { value = true },
   ["coop-agent-body-name"] = { value = "Buddy" },
+  ["coop-agent-body-prototype"] = { value = "character" },
+  ["coop-agent-body-color"] = { value = "orange" },
 } }
-defines = { direction = { north = 0 } }
-LABEL = nil
 rendering = { draw_text = function(spec)
   LABEL = { valid = true, text = spec.text }
   return LABEL
 end }
-"""
-
-LIVE_BODY = """
-BODIES[7] = {
-  valid = true,
-  surface = "nauvis",
-  color = { r = 1, g = 1, b = 1, a = 0.5 },
-  walking_state = { walking = true, direction = 2 },
-  mining_state = { mining = true, position = { x = 3, y = 4 } },
-  crafting_queue_size = 0,
-}
-storage.body.unit_number = 7
 """
 
 
@@ -43,91 +76,142 @@ def body(lua):
     return module
 
 
+def spawned(lua, body):
+    """A body made by a sweep with the host connected."""
+    body.sweep()
+    return lua.globals().storage.body.entity
+
+
 def event_kinds(lua):
     return [e["kind"] for e in json.loads(lua.globals().JSON.encode(lua.globals().storage.events["items"]))]
 
 
+def created(lua):
+    return list(lua.globals().CREATED.values())
+
+
+def label(lua):
+    return lua.globals().LABEL.text
+
+
 @pytest.mark.parametrize(
-    ("alive", "stopped", "host", "expected"),
+    ("alive", "host", "expected"),
     [
-        (True, False, True, True),
-        (False, False, True, False),
-        (True, True, True, False),
-        (True, False, False, False),
+        (True, True, True),
+        (False, True, False),
+        (True, False, False),
     ],
 )
-def test_can_act_needs_a_live_body_no_stop_latch_and_a_host(lua, body, alive, stopped, host, expected):
+def test_can_act_needs_a_live_body_and_a_host(lua, body, alive, host, expected):
     if alive:
-        lua.execute(LIVE_BODY)
-    lua.globals().storage.body.stopped = stopped
-    if host:
-        lua.execute(f"game.connected_players = {{ {HOST} }}")
+        spawned(lua, body)
+    if not host:
+        lua.execute("game.connected_players = {}")
     assert body.can_act() is expected
 
 
-def test_stop_latches_until_the_latch_is_cleared(lua, body):
-    lua.execute(LIVE_BODY)
-    lua.execute(f"game.connected_players = {{ {HOST} }}")
+def test_stop_halts_the_body_and_latches_once_until_cleared(lua, body):
+    entity = spawned(lua, body)
 
     body.stop()
-    entity = lua.globals().BODIES[7]
+    body.stop()
     assert body.can_act() is False
-    assert lua.globals().storage.body.stopped is True
     assert event_kinds(lua) == ["stopped"]
     assert entity.walking_state.walking is False
     assert entity.mining_state.mining is False
-    assert lua.globals().LABEL.text == "Buddy · Stopped"
+    assert [dict(spec) for spec in lua.globals().CANCELLED.values()] == [{"index": 1, "count": 3}]
+    assert label(lua) == "Buddy · Stopped"
 
     body.clear_latch()
     assert body.can_act() is True
-    assert lua.globals().LABEL.text == "Buddy · Standing by"
+    assert label(lua) == "Buddy · Standing by"
 
 
 @pytest.mark.parametrize(
-    ("died_tick", "tick", "enabled", "due"),
+    ("prototype", "made"),
     [
-        (100, 1899, True, False),
-        (100, 1900, True, True),
-        (100, 1900, False, False),
-        (None, 5000, True, False),
+        ("odd-character", "odd-character"),
+        ("no-such-thing", "character"),
     ],
 )
-def test_respawn_is_due_1800_ticks_after_death_while_the_body_is_enabled(
-    lua, body, died_tick, tick, enabled, due
-):
-    lua.globals().storage.body.died_tick = died_tick
+def test_sweeps_keep_one_body_of_the_prototype_setting(lua, body, prototype, made):
+    lua.globals().settings["global"]["coop-agent-body-prototype"].value = prototype
+    body.sweep()
+    body.sweep()
+    assert created(lua) == [made]
+    assert lua.globals().storage.body.unit_number == 41
+    assert label(lua) == "Buddy · Standing by"
+
+
+@pytest.mark.parametrize(
+    ("tick", "enabled", "made", "kinds"),
+    [
+        (1899, True, [], ["body_died"]),
+        (1900, True, ["character"], ["body_died", "body_respawned"]),
+        (1900, False, [], ["body_died"]),
+    ],
+)
+def test_a_dead_body_respawns_1800_ticks_later_while_enabled(lua, body, tick, enabled, made, kinds):
+    entity = spawned(lua, body)
+    lua.execute("CREATED = {}")
+    body.on_entity_died(lua.table(entity=entity, tick=100))
+    entity.valid = False
+
+    lua.globals().game.tick = tick
     lua.globals().settings["global"]["coop-agent-body-enabled"].value = enabled
-    assert body.respawn_due(tick) is due
+    body.sweep()
+    assert created(lua) == made
+    assert event_kinds(lua) == kinds
+
+
+def test_disabling_spills_the_body_inventory_and_removes_it(lua, body):
+    entity = spawned(lua, body)
+    lua.globals().settings["global"]["coop-agent-body-enabled"].value = False
+    body.sweep()
+    assert [dict(items) for items in lua.globals().SPILLED.values()] == [{"name": "coal", "count": 5}]
+    assert entity.valid is False
+    assert body.can_act() is False
 
 
 @pytest.mark.parametrize(
-    ("view", "text"),
+    ("stopped", "host", "status", "text"),
     [
-        ({"status": "Standing by"}, "Buddy · Standing by"),
-        ({"status": "Mining iron-ore 3/50"}, "Buddy · Mining iron-ore 3/50"),
-        ({"status": "Standing by", "stopped": True}, "Buddy · Stopped"),
-        ({"status": "Standing by", "stopped": True, "waiting_for": "host"}, "Buddy · Waiting for host"),
-        ({"status": "Standing by", "stopped": True, "waiting_for": "host", "ack": True}, "Buddy · …"),
+        (False, True, "Mining iron-ore 3/50", "Buddy · Mining iron-ore 3/50"),
+        (True, True, "Standing by", "Buddy · Stopped"),
+        (False, False, "Standing by", "Buddy · Waiting for host"),
+        (True, False, "Standing by", "Buddy · Stopped"),
     ],
 )
-def test_status_line_shows_the_name_and_the_strongest_state(lua, view, text):
-    status_line = load_module(lua, "scripts.body.status_line")
-    assert status_line.text("Buddy", lua.table_from(view)) == text
+def test_the_label_shows_the_strongest_state(lua, body, stopped, host, status, text):
+    spawned(lua, body)
+    lua.globals().storage.body.stopped = stopped
+    body.set_status(status)
+    if not host:
+        lua.execute("game.connected_players = {}")
+    body.sweep()
+    assert label(lua) == text
 
 
-@pytest.mark.parametrize(
-    ("name", "color"),
-    [
-        ("orange", {"r": 0.869, "g": 0.5, "b": 0.130, "a": 0.5}),
-        ("red", {"r": 0.815, "g": 0.024, "b": 0.0, "a": 0.5}),
-        ("yellow", {"r": 0.835, "g": 0.666, "b": 0.077, "a": 0.5}),
-        ("green", {"r": 0.093, "g": 0.768, "b": 0.172, "a": 0.5}),
-        ("cyan", {"r": 0.275, "g": 0.755, "b": 0.712, "a": 0.5}),
-        ("blue", {"r": 0.155, "g": 0.540, "b": 0.898, "a": 0.5}),
-        ("purple", {"r": 0.485, "g": 0.111, "b": 0.659, "a": 0.5}),
-        ("white", {"r": 0.8, "g": 0.8, "b": 0.8, "a": 0.5}),
-    ],
-)
-def test_each_body_color_setting_names_the_game_player_color(lua, name, color):
+def test_a_host_chat_line_shows_an_ellipsis_for_180_ticks(lua, body):
+    spawned(lua, body)
+    lua.globals().game.tick = 1000
+    body.on_console_chat(lua.table(player_index=1))
+    assert label(lua) == "Buddy · …"
+
+    lua.globals().game.tick = 1179
+    body.sweep()
+    assert label(lua) == "Buddy · …"
+    lua.globals().game.tick = 1180
+    body.sweep()
+    assert label(lua) == "Buddy · Standing by"
+
+
+def test_every_body_color_setting_value_maps_to_a_color(lua):
+    lua.execute("SETTINGS = {} data = { extend = function(_, list) SETTINGS = list end }")
+    lua.execute(f'dofile("{GAME_MOD / "coop-agent" / "settings.lua"}")')
     colors = load_module(lua, "scripts.body.color")
-    assert dict(colors.of(name)) == color
+    allowed = next(
+        s for s in lua.globals().SETTINGS.values() if s.name == "coop-agent-body-color"
+    ).allowed_values
+    missing = [name for name in allowed.values() if lua.eval("type")(colors.of(name)) != "table"]
+    assert missing == []
