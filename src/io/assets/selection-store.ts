@@ -4,6 +4,8 @@
  * and resolves the active option. It does not perform any renderer/registry work.
  */
 
+import { resolvePresetKey } from "../../settings/preset/active-preset";
+
 /** The override is the stored id string, or null (no override). */
 export interface SelectionOverrideStorage {
   load(): string | null;
@@ -273,7 +275,8 @@ export function createSelectionStore<T extends SelectionOption>(opts: {
 }
 
 /** localStorage-based SelectionOverrideStorage adapter; gracefully ignored when localStorage is unavailable. */
-export function localStorageOverrideStorage(key: string): SelectionOverrideStorage {
+export function localStorageOverrideStorage(storageKey: string): SelectionOverrideStorage {
+  const key = resolvePresetKey(storageKey);
   return {
     load() {
       try {

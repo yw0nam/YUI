@@ -10,13 +10,19 @@
  * reject it.
  */
 
+import { resolvePresetKey } from "./preset/active-preset";
+
 export interface PersistedStorage<T> {
   load(): T | null;
   save(s: T): void;
 }
 
-/** localStorage-backed adapter. Gracefully no-ops where localStorage is absent. */
-export function localStorageStore<T>(key: string): PersistedStorage<T> {
+/**
+ * localStorage-backed adapter. Gracefully no-ops where localStorage is absent. A per-preset key
+ * resolves to the active preset's copy once, when the adapter is built.
+ */
+export function localStorageStore<T>(storageKey: string): PersistedStorage<T> {
+  const key = resolvePresetKey(storageKey);
   return {
     load() {
       try {

@@ -6,6 +6,7 @@
  */
 
 import { createPersistedStore, type PersistedStorage } from "../../../settings/persisted-store";
+import { resolvePresetKey } from "../../../settings/preset/active-preset";
 import type { ToolOutputItem } from "../stream/chat-client";
 
 export interface SessionStorage {
@@ -98,7 +99,10 @@ export function createSessionStore(storage?: SessionStorage) {
 }
 
 /** localStorage-backed SessionStorage adapter. Gracefully ignored where localStorage is unavailable. */
-export function localStorageSessionStorage(key = "yui.previous_response_id"): SessionStorage {
+export function localStorageSessionStorage(
+  storageKey = "yui.previous_response_id",
+): SessionStorage {
+  const key = resolvePresetKey(storageKey);
   const outputsKey = `${key}.tool_outputs`;
   return {
     loadOutputs() {
