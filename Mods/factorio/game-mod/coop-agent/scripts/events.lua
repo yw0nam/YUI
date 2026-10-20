@@ -1,5 +1,6 @@
 -- Thin event handlers: read the game event and push a plain-data kind onto the ring.
 
+local body = require("scripts.body")
 local host = require("scripts.host")
 local store = require("scripts.storage")
 local snapshot = require("scripts.ops.snapshot")
@@ -11,6 +12,7 @@ function M.on_console_chat(e)
   local player = host.get()
   if player and e.player_index == player.index then
     store.push("chat", { player = player.name, text = e.message })
+    body.acknowledge_chat()
   end
 end
 

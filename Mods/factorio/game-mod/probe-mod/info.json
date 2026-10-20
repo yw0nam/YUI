@@ -2,7 +2,7 @@
   "name": "coop-probe",
   "version": "0.1.0",
   "title": "Co-op Probe",
-  "description": "Dev-only probes for the co-op agent: playerless character mining, crafting, hand-mining, revive and spill facts, read over RCON. Never ship this.",
+  "description": "Dev-only probes for the co-op agent: playerless character mining, crafting, hand-mining, revive and spill facts, read over RCON, and a fake host position for headless tests. Never ship this.",
   "author": "coop-agent maintainers",
   "factorio_version": "2.0",
   "dependencies": ["base >= 2.0.77"]

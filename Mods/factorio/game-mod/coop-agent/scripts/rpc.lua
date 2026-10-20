@@ -12,6 +12,7 @@ local OPS = {
   events_since = { fn = require("scripts.ops.events_since").op },
   say = { fn = require("scripts.ops.say").op, write = true },
   ping = { fn = require("scripts.ops.ping").op, write = true },
+  stop = { fn = require("scripts.ops.stop").op, write = true },
 }
 
 local M = {}

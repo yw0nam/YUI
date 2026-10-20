@@ -1,5 +1,6 @@
 -- The /coop-probe command handler: start, report, clear when done.
 
+local dev_host = require("scripts.dev_host")
 local probes = require("scripts.probes")
 
 local M = {}
@@ -19,6 +20,11 @@ function M.handle(cmd)
     return
   end
   local name = cmd.parameter and cmd.parameter:match("^%s*(.-)%s*$") or ""
+  local host_args = name:match("^host%s+(.*)$")
+  if host_args then
+    rcon.print(helpers.table_to_json(dev_host.command(host_args)))
+    return
+  end
   local probe = probes[name]
   if not probe then
     rcon.print(helpers.table_to_json({ ok = false, e = "unknown_probe", m = "probes: " .. names() }))

@@ -11,6 +11,7 @@ function M.ensure()
   storage.say_ticks = storage.say_ticks or {}
   storage.pings = storage.pings or {}
   storage.unit_index = storage.unit_index or { map = {}, order = {} }
+  storage.body = storage.body or { stopped = false, status = "Standing by" }
 end
 
 function M.push(kind, data)

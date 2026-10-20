@@ -5,7 +5,9 @@ from conftest import load_module
 
 # connected_players is not ordered by index; the host is the admin with the lowest one
 STUB = """
-storage = { events = require("scripts.ring").new() }
+storage = {}
+require("scripts.storage").ensure()
+remote = { interfaces = {} }
 game = {
   tick = 7,
   connected_players = {
