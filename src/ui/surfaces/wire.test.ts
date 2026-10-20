@@ -70,6 +70,7 @@ describe("wireMessageSurfaces", () => {
     expect(result.surfaces).toBe(surfaces);
     expect(result.remote).toBe(remote);
     expect(createMessageWindowController).toHaveBeenCalledWith(messageWindowSettings, "a");
+    expect(wireMessageWindowMode.mock.calls[0]![0].listenTrayToggle).toBeUndefined();
   });
   it("pins the effective mode to docked where there is no second window", () => {
     const { result } = setup("popped");
@@ -83,6 +84,7 @@ describe("wireMessageSurfaces", () => {
     expect(result.local).toBe(local);
     expect(result.remote).toBe(remote);
     expect(result.surfaces).toBe(surfaces);
+    expect(wireMessageWindowMode.mock.calls[0]![0].listenTrayToggle).toBe(listenTrayToggle);
   });
 
   it("registers the bridge, the router, then the window-mode teardown", () => {

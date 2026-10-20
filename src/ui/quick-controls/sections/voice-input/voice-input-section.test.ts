@@ -206,16 +206,16 @@ describe("createQuickControls — voice silence slider", () => {
     expect(qc.el.querySelector(".yui-setting-grid")).toBeNull();
     qc.dispose();
   });
-});
 
-it("retains a working silence slider without a voice switch", () => {
-  const args = defaultQcArgs(document.body);
-  const qc = createQuickControls({ ...args, showVoiceInput: false });
-  qc.open();
-  expect(qc.el.querySelector(".yui-voice-switch")).toBeNull();
-  const slider = qc.el.querySelector<HTMLInputElement>(".yui-vad__slider")!;
-  slider.value = "2000";
-  slider.dispatchEvent(new Event("input", { bubbles: true }));
-  expect(args.vad.get().silenceMs).toBe(2000);
-  qc.dispose();
+  it("retains a working silence slider without a voice switch", () => {
+    const args = defaultQcArgs(document.body);
+    const qc = createQuickControls({ ...args, showVoiceInput: false });
+    qc.open();
+    expect(qc.el.querySelector(".yui-voice-switch")).toBeNull();
+    const slider = qc.el.querySelector<HTMLInputElement>(".yui-vad__slider")!;
+    slider.value = "2000";
+    slider.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(args.vad.get().silenceMs).toBe(2000);
+    qc.dispose();
+  });
 });

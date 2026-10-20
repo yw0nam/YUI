@@ -124,6 +124,32 @@ describe("createMessageBridge", () => {
     pet.emitSurface({ op: "begin" });
     expect(cb).not.toHaveBeenCalled();
   });
+
+  it.each(["control", "surface"] as const)("isolates message %s by preset", (channel) => {
+    const t = createFakeTransport();
+    history.replaceState(null, "", "/?preset=a");
+    const a = createMessageBridge(t, { windowKind: "pet" });
+    history.replaceState(null, "", "/?preset=b");
+    const b = createMessageBridge(t, { windowKind: "pet" });
+    const sender = createMessageBridge(t, { windowKind: "message" });
+    const ca = vi.fn(),
+      cb = vi.fn();
+    if (channel === "control") {
+      a.onControl(ca);
+      b.onControl(cb);
+      sender.emitControl({ op: "stop" });
+    } else {
+      a.onSurface(ca);
+      b.onSurface(cb);
+      sender.emitSurface({ op: "begin" });
+    }
+    expect(ca).not.toHaveBeenCalled();
+    expect(cb).toHaveBeenCalledTimes(1);
+    a.dispose();
+    b.dispose();
+    sender.dispose();
+    history.replaceState(null, "", "/");
+  });
 });
 
 describe("createRemoteSurfaces — the pet-side adapter", () => {
@@ -272,30 +298,4 @@ describe("createRemoteSurfaces — the pet-side adapter", () => {
     message.emitControl({ op: "open-settings" });
     expect(onOpenSettings).toHaveBeenCalledTimes(1);
   });
-});
-
-it.each(["control", "surface"] as const)("isolates message %s by preset", (channel) => {
-  const t = createFakeTransport();
-  history.replaceState(null, "", "/?preset=a");
-  const a = createMessageBridge(t, { windowKind: "pet" });
-  history.replaceState(null, "", "/?preset=b");
-  const b = createMessageBridge(t, { windowKind: "pet" });
-  const sender = createMessageBridge(t, { windowKind: "message" });
-  const ca = vi.fn(),
-    cb = vi.fn();
-  if (channel === "control") {
-    a.onControl(ca);
-    b.onControl(cb);
-    sender.emitControl({ op: "stop" });
-  } else {
-    a.onSurface(ca);
-    b.onSurface(cb);
-    sender.emitSurface({ op: "begin" });
-  }
-  expect(ca).not.toHaveBeenCalled();
-  expect(cb).toHaveBeenCalledTimes(1);
-  a.dispose();
-  b.dispose();
-  sender.dispose();
-  history.replaceState(null, "", "/");
 });

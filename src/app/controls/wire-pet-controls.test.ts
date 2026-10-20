@@ -96,17 +96,25 @@ describe("wirePetControls", () => {
     null,
     "a",
   ])("opens settings and keeps voice ownership across remount (bound: %s)", async (boundId) => {
+    vi.stubGlobal("__TAURI_INTERNALS__", { metadata: { currentWindow: { label: "main" } } });
     const wired = makeDeps(boundId);
     try {
       const options = createQuickControls.mock.calls[0][0];
       options.onPopOut();
       expect(wired.deps.openSettings).toHaveBeenCalledTimes(1);
       expect(options.showVoiceInput).toBe(boundId === null);
+      expect(options.browserSettings).toBe(
+        boundId === null ? wired.stores.browserSettings : undefined,
+      );
       localeSubscribers[0]!();
       await Promise.resolve();
       expect(createQuickControls.mock.calls.at(-1)![0].showVoiceInput).toBe(boundId === null);
+      expect(createQuickControls.mock.calls.at(-1)![0].browserSettings).toBe(
+        boundId === null ? wired.stores.browserSettings : undefined,
+      );
     } finally {
       teardownDeps(wired);
+      vi.unstubAllGlobals();
     }
   });
 

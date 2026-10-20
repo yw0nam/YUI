@@ -47,6 +47,7 @@ describe("createPresetRegistry", () => {
       "speaker",
       "vrm",
       "filler",
+      "message-window",
       "chat-id",
       "chat_transcript",
       "previous_response_id",
