@@ -20,6 +20,7 @@ import {
   TAB_ICON_TALK,
 } from "./constants";
 import { escapeAttr, numRowHtml, secHeadHtml } from "./markup";
+import { presetStripHtml } from "./preset/preset-strip";
 import { browserSectionHtml } from "./sections/browser/browser-section";
 import { helpSectionHtml } from "./sections/help/help-section";
 import type { SwitchRow } from "./switch-row";
@@ -56,6 +57,8 @@ interface PanelHtmlOptions {
   showHistory: boolean;
   /** Whether the browser-use switch renders — true when the browser store is injected. */
   showBrowser?: boolean;
+  /** Whether the preset strip and each tab's scope line render — true when the registry is injected. */
+  showPreset?: boolean;
 }
 
 export function buildPanelHtml(o: PanelHtmlOptions): string {
@@ -72,6 +75,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     showMessage,
     showHistory,
     showBrowser,
+    showPreset,
   } = o;
   const visibleSwitchRows = switchRows.filter((row) => row.isVisible);
 
@@ -275,10 +279,11 @@ ${RATE_LIMIT_FIELDS.map((f) =>
   // A narrow panel keeps the label; the icon-only rail drops it with the tooltip.
   const tabHtml = (id: string, icon: string, opts?: { tipKey?: string }): string =>
     tabButtonHtml(id, icon, { selected: id === "talk", tipKey: opts?.tipKey });
-  const panelOpenHtml = (id: string): string => tabPanelOpenHtml(id, { hidden: id !== "talk" });
+  const panelOpenHtml = (id: string): string =>
+    tabPanelOpenHtml(id, { hidden: id !== "talk", scope: showPreset });
 
   return `
-    ${headerHtml}
+    ${headerHtml}${showPreset ? presetStripHtml() : ""}
     <div class="yui-quick__cols">
       <div class="yui-tabs" role="tablist" aria-label="${t("panel.tablist_label")}" aria-orientation="vertical">${tabHtml("conn", TAB_ICON_CONN)}${tabHtml("talk", TAB_ICON_TALK)}${tabHtml("char", TAB_ICON_CHAR)}${tabHtml("input", TAB_ICON_INPUT)}${tabHtml("react", TAB_ICON_REACT, { tipKey: "tabs.react_hint" })}${showHistory ? tabHtml("hist", TAB_ICON_HIST) : ""}${tabHtml("general", TAB_ICON_GENERAL)}
       </div>

@@ -2,7 +2,10 @@
 // Preset strip, manage popover, and per-tab scope line, through the panel mount.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createPresetRegistry, type PresetRegistry } from "../../../settings/preset/preset-registry";
+import {
+  createPresetRegistry,
+  type PresetRegistry,
+} from "../../../settings/preset/preset-registry";
 import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
 import { defaultQcArgs } from "../test-helpers";
@@ -79,7 +82,7 @@ describe("createQuickControls — presets", () => {
 
     expect(registry.get().active).toBe("bbbb0002");
     expect($(".yui-preset__state").textContent).toBe("Switching to perlica…");
-    expect($<HTMLElement>(".yui-quick__cols").inert).toBe(true);
+    expect($(".yui-quick__cols").hasAttribute("inert")).toBe(true);
   });
 
   it("offers delete on neither the default nor the active preset", () => {
@@ -106,7 +109,9 @@ describe("createQuickControls — presets", () => {
 
     typeInto(input, "natsume", "Enter");
     expect(field.classList.contains("is-invalid")).toBe(true);
-    expect(field.querySelector(".yui-input-row__error")?.textContent).toBe("natsume already exists");
+    expect(field.querySelector(".yui-input-row__error")?.textContent).toBe(
+      "natsume already exists",
+    );
     expect(registry.get().list).toHaveLength(3);
 
     typeInto(input, "kanna", "Enter");

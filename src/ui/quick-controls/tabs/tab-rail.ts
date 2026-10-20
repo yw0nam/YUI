@@ -49,11 +49,22 @@ export function tabButtonHtml(
         </button>`;
 }
 
-/** A tabpanel's opening tag pair: the panel div plus its in-panel title. */
-export function tabPanelOpenHtml(id: string, opts: { hidden?: boolean } = {}): string {
-  const { hidden = true } = opts;
+/**
+ * A tabpanel's opening tag pair: the panel div plus its in-panel title. `scope` adds the empty
+ * scope line above the title, which the preset strip fills.
+ */
+export function tabPanelOpenHtml(
+  id: string,
+  opts: { hidden?: boolean; scope?: boolean } = {},
+): string {
+  const { hidden = true, scope = false } = opts;
   return `
-      <div class="yui-tabpanel" role="tabpanel" id="yui-panel-${id}" aria-labelledby="yui-tab-${id}" tabindex="0"${hidden ? " hidden" : ""}>
+      <div class="yui-tabpanel" role="tabpanel" id="yui-panel-${id}" aria-labelledby="yui-tab-${id}" tabindex="0"${hidden ? " hidden" : ""}>${
+        scope
+          ? `
+        <p class="yui-tabpanel__scope" data-scope-tab="${id}"></p>`
+          : ""
+      }
         <h1 class="yui-tabpanel__title">${t(`tabs.${id}`)}</h1>`;
 }
 

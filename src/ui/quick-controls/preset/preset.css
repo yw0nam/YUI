@@ -1,0 +1,252 @@
+/* ── Preset strip — under the drag bar, spanning rail and body; the one place the preset is picked ── */
+.yui-preset {
+  position: relative;
+  flex: 0 0 auto;
+  padding: 0.5rem 0.55rem 0.5rem 0.7rem;
+  border-bottom: 1px solid var(--yui-edge);
+}
+
+/* window variant: the strip, not the columns, sits below the native macOS titlebar (28px). */
+.yui-quick--window .yui-preset {
+  padding-top: calc(28px + 0.5rem);
+}
+
+.yui-quick--window .yui-preset + .yui-quick__cols {
+  padding-top: 0;
+}
+
+.yui-preset__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.yui-preset__label {
+  flex: none;
+  font-size: var(--yui-fs-sub);
+  font-weight: 500;
+  color: var(--yui-text-mute);
+}
+
+.yui-preset__select {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yui-preset__manage.is-pressed {
+  background: var(--yui-selected);
+  color: var(--yui-text);
+}
+
+.yui-preset__manage:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Switching — the field holds the target name in Ash; one waiting line under it. */
+.yui-preset.is-busy .yui-preset__select {
+  color: var(--yui-text-dim);
+  cursor: default;
+}
+
+.yui-preset.is-busy .yui-preset__select:hover {
+  border-color: transparent;
+}
+
+.yui-preset__state {
+  margin: 0.4rem 0 0.05rem 0.1rem;
+}
+
+.yui-quick__cols.is-busy {
+  opacity: 0.4;
+  pointer-events: none;
+  transition: opacity var(--yui-dur-fast) var(--yui-ease);
+}
+
+/* Manage popover — anchored under the dots button; Esc and an outside press close it, focus returns. */
+.yui-preset-pop {
+  position: absolute;
+  top: calc(100% - 0.25rem);
+  right: 0.55rem;
+  z-index: 3;
+  box-sizing: border-box;
+  width: min(19rem, calc(100% - 1.1rem));
+  padding: 0.375rem;
+  border: 1px solid var(--yui-edge-strong);
+  border-radius: var(--yui-radius-group);
+  background: var(--yui-panel-bg);
+  box-shadow: var(--yui-float);
+  animation: yui-preset-in var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-preset-pop[hidden] {
+  display: none;
+}
+
+@keyframes yui-preset-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Preset row — the VRM row's name, badge and ghost rename/delete, without the radio tick. */
+.yui-preset-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-sizing: border-box;
+  min-height: 2.5rem;
+  padding: 0.375rem 0.5rem 0.375rem 0.875rem;
+}
+
+.yui-preset-row__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--yui-fs-body);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yui-preset-row__badge {
+  flex: none;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--yui-edge);
+  border-radius: var(--yui-radius-pill);
+  font-size: var(--yui-fs-caption);
+  color: var(--yui-text-dim);
+  white-space: nowrap;
+}
+
+.yui-preset-row__acts {
+  display: flex;
+  flex: none;
+  gap: 0.125rem;
+}
+
+.yui-preset-row__rename,
+.yui-preset-row__remove {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--yui-radius-control);
+  background: transparent;
+  color: var(--yui-text-mute);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    background var(--yui-dur-fast) var(--yui-ease),
+    color var(--yui-dur-fast) var(--yui-ease),
+    opacity var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-preset-row:hover .yui-preset-row__acts > *,
+.yui-preset-row:focus-within .yui-preset-row__acts > * {
+  opacity: 0.7;
+}
+
+.yui-preset-row__rename:hover {
+  opacity: 1;
+  background: var(--yui-accent-faint);
+  color: var(--yui-accent);
+}
+
+.yui-preset-row__remove:hover {
+  opacity: 1;
+  background: var(--yui-danger-faint);
+  color: var(--yui-danger);
+}
+
+.yui-preset-row__rename:focus-visible,
+.yui-preset-row__remove:focus-visible {
+  outline: none;
+  opacity: 1;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+.yui-preset-row__remove:focus-visible {
+  box-shadow: 0 0 0 2px var(--yui-danger-soft);
+}
+
+.yui-preset-row__rename svg,
+.yui-preset-row__remove svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+/* Rename — the row becomes its field, the VRM rename hint beside it. */
+.yui-preset-row.is-renaming {
+  padding-left: 0.5rem;
+}
+
+.yui-preset-row.is-renaming .yui-input-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.yui-preset-row__hint {
+  flex: 0 0 auto;
+  font-size: var(--yui-fs-caption);
+  color: var(--yui-text-mute);
+  white-space: nowrap;
+}
+
+.yui-preset-row__hint kbd {
+  font-family: inherit;
+  font-weight: 600;
+  color: var(--yui-text-dim);
+}
+
+/* Delete — the session section's two-step confirm, in the row's place. */
+.yui-preset-row__confirm {
+  flex-wrap: wrap;
+  row-gap: 0.4rem;
+}
+
+.yui-preset-row__confirm .yui-confirm__btns {
+  display: flex;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+/* New preset — a stacked field row that replaces the add row while naming. */
+.yui-input-row.yui-preset-new .yui-input-wrap {
+  display: block;
+}
+
+.yui-preset-new .yui-input-row__error {
+  margin-top: 0.375rem;
+}
+
+.yui-preset-new .yui-preset-row__hint {
+  display: block;
+  margin-top: 0.375rem;
+}
+
+/* One line naming the preset a tab edits, or that its settings are shared, above the tab title. */
+.yui-tabpanel__scope {
+  margin: 0 0 -1.4rem;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.4;
+  color: var(--yui-text-mute);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-quick__cols.is-busy,
+  .yui-preset-row__rename,
+  .yui-preset-row__remove {
+    transition: none;
+  }
+  .yui-preset-pop {
+    animation: none;
+  }
+}

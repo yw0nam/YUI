@@ -50,6 +50,7 @@ import type { createProactiveSettings } from "../../settings/cues/proactive-sett
 import type { createScheduleSettings } from "../../settings/cues/schedule-settings";
 import type { MessageWindowSettingsStore } from "../../settings/panels/message-window-settings";
 import type { ClampedIntSettingsStore, FlagSettingsStore } from "../../settings/persisted-store";
+import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import type { createFillerSettings } from "../../settings/voice/filler-settings";
 import type { createVadSettings } from "../../settings/voice/vad-settings";
 import type { VoiceInputStatus } from "../chips/voice-input-status";
@@ -62,6 +63,7 @@ import { createHeaderButtons } from "./header/header-buttons";
 import { createHintTooltip } from "./hint-tooltip";
 import { createHistoryTab } from "./history/history-tab";
 import { createPopover } from "./popover";
+import { createPresetStrip } from "./preset/preset-strip";
 import { createAgentSection } from "./sections/agent/agent-section";
 import { createBrowserSection } from "./sections/browser/browser-section";
 import { createFillerSection } from "./sections/filler/filler-section";
@@ -232,6 +234,8 @@ interface QuickControlsOptions {
   bedSceneSettings?: BedSceneSettingsStore;
   /** Browser-use on/off store. If absent, that section won't render. */
   browserSettings?: FlagSettingsStore;
+  /** Preset list and active preset. If absent, the preset strip and the tab scope lines won't render. */
+  presetRegistry?: PresetRegistry;
 }
 
 interface QuickControls {
@@ -317,6 +321,7 @@ export function createQuickControls({
   getExpressMotions,
   bedSceneSettings,
   browserSettings,
+  presetRegistry,
 }: QuickControlsOptions): QuickControls {
   const isWindow = variant === "window";
   // Context-occupancy readout renders only in the settings window, when both stores are injected.
@@ -361,6 +366,7 @@ export function createQuickControls({
     showMessage: !!onMessage,
     showHistory: !!transcript,
     showBrowser: !!browserSettings,
+    showPreset: !!presetRegistry,
   });
 
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
@@ -407,6 +413,9 @@ export function createQuickControls({
     : null;
   if (historyTab) el.querySelector("#yui-panel-hist")!.append(historyTab.el);
   const workflows = createWorkflowsSection({ root: el, store: workflowSettings, log });
+  const presetStrip = presetRegistry
+    ? createPresetStrip({ root: el, registry: presetRegistry, log })
+    : null;
   const hintTooltip = createHintTooltip({ root: el });
 
   // After dispose, prevent in-flight refresh from repainting/timering on destroyed DOM.
@@ -501,6 +510,7 @@ export function createQuickControls({
       speakerList.stopAudition();
       connectionTab.commit();
       connectionTab.close();
+      presetStrip?.close();
     },
   });
 
@@ -674,6 +684,7 @@ export function createQuickControls({
     unbindHelp?.();
     popover.dispose();
     tabRail.dispose();
+    presetStrip?.dispose();
     el.remove();
     scrimEl.remove();
   }
