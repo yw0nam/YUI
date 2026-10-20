@@ -2,6 +2,7 @@
 
 local body = require("scripts.body")
 local check = require("scripts.jobs.check")
+local enemies = require("scripts.threat.enemies")
 local holding = require("scripts.jobs.holding")
 local unit_index = require("scripts.unit_index")
 local walker = require("scripts.walker")
@@ -129,6 +130,9 @@ function M.start(deps, job)
     if not target then
       return "target_gone"
     end
+  end
+  if enemies.near(deps, entity.surface, target.position) then
+    return "threat"
   end
   local state = {
     names = names,

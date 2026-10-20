@@ -2,6 +2,7 @@
 
 local body = require("scripts.body")
 local check = require("scripts.jobs.check")
+local enemies = require("scripts.threat.enemies")
 local unit_index = require("scripts.unit_index")
 local walker = require("scripts.walker")
 
@@ -44,6 +45,9 @@ function M.start(deps, job)
   local pos, name = target(job.args)
   if not pos then
     return "target_gone"
+  end
+  if enemies.near(deps, body.entity(deps).surface, pos) then
+    return "threat"
   end
   body.set_status(deps, "Walking to " .. name)
   walker.go(deps, pos, job.args.radius)

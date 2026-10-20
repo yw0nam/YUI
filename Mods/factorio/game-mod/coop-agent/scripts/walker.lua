@@ -79,6 +79,15 @@ function M.go(deps, target, radius)
   }
 end
 
+--- The route's points and the index of the one walked toward; nil before a route arrived.
+function M.route(deps)
+  local walker = deps.storage.walker
+  if walker and walker.path then
+    return walker.path, walker.index
+  end
+  return nil
+end
+
 --- True while a walk is under way.
 function M.walking(deps)
   return deps.storage.walker ~= nil
@@ -103,12 +112,12 @@ function M.on_path_finished(deps, e)
   end
   walker.request_id = nil
   if e.path then
-    walker.fail_reason = deps.on_path and deps.on_path(e.path)
     local path = {}
     for i, waypoint in ipairs(e.path) do
       path[i] = point(waypoint.position)
     end
     walker.path, walker.index, walker.segment = path, 1, nil
+    walker.fail_reason = deps.on_path and deps.on_path(path)
     return
   end
   walker.failures = walker.failures + 1
@@ -184,10 +193,6 @@ function M.tick(deps)
     walk(deps, entity, walker.heading)
   end
   return nil
-end
-
-function M.on_path_finished_event(e)
-  M.on_path_finished(body.game_deps(), e)
 end
 
 return M

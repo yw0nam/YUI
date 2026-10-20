@@ -15,6 +15,7 @@ function M.ensure()
   storage.body = storage.body or { stopped = false, status = status_line.STANDING_BY }
   storage.jobs = storage.jobs or { next_id = 1, active = 0, list = {} }
   storage.idle = storage.idle or {}
+  storage.threat = storage.threat or {}
 end
 
 function M.push(kind, data)

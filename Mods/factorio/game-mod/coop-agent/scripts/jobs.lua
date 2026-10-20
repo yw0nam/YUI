@@ -103,7 +103,8 @@ end
 
 --- One runner tick: start the next job or advance the running one, then check its timeout.
 function M.tick(deps)
-  if deps.storage.jobs.active == 0 or not gate(deps) then
+  -- a threat holds the queue until its quiet period ends
+  if deps.storage.jobs.active == 0 or not gate(deps) or deps.storage.threat.active then
     return
   end
   local job = current(deps.storage.jobs.list)
@@ -135,10 +136,11 @@ function M.enqueue(deps, specs)
   if queue.active + #specs > MAX_JOBS then
     return check.bad_request("jobs: the queue holds at most " .. MAX_JOBS .. " jobs")
   end
-  -- a stop since the last tick still ends the queue it halted; an empty queue takes the walk and follow state from idle
+  -- a stop since the last tick still ends the queue it halted; an empty queue takes the walk and follow state from idle,
+  -- never from a retreat
   if queue.active > 0 then
     gate(deps)
-  else
+  elseif not deps.storage.threat.active then
     walker.cancel(deps)
     idle.reset_follow(deps)
   end
@@ -171,9 +173,10 @@ function M.enqueue(deps, specs)
   return { ids = ids }
 end
 
---- Cancels the active job with this id, or every active job when id is nil; false when none had the id.
-function M.cancel(deps, id)
-  return cancel_where(deps, id, "cancelled")
+--- Cancels the active job with this id, or every active job when id is nil, with reason (default "cancelled");
+--- false when none had the id.
+function M.cancel(deps, id, reason)
+  return cancel_where(deps, id, reason or "cancelled")
 end
 
 --- The status part: active job count and the running job.

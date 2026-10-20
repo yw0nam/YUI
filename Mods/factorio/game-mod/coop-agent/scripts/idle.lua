@@ -34,7 +34,8 @@ function M.reset_follow(deps)
 end
 
 --- One follow step, shared by the idle mode and the follow job: start a short walk toward the host
--- when too far, wait beyond the leash, show label back inside it. Returns the walker's failure, never "arrived".
+-- when too far, wait beyond the leash or after a route past an enemy, show label back inside it.
+-- Returns the walker's failure, never "arrived".
 function M.follow_step(deps, label)
   local entity = body.entity(deps)
   local player = deps.host()
@@ -68,8 +69,8 @@ function M.follow_step(deps, label)
   end
   if result then
     state.failures = (state.failures or 0) + 1
-    if state.failures >= STEP_FAILURES then
-      -- the host cannot be reached inside the leash: wait a while and say so
+    if result == "threat" or state.failures >= STEP_FAILURES then
+      -- an enemy on the way, or the host cannot be reached inside the leash: wait a while and say so
       state.failures, state.retry_tick, state.leashed = nil, deps.tick + UNREACHABLE_TICKS, true
       body.set_status(deps, "Waiting for " .. player.name)
     else
@@ -100,11 +101,11 @@ end
 
 M.MODES = { follow = follow_idle, stay = stay_step }
 
---- One idle tick behind the gate; a gate that shut mid-step takes the walk away at once.
+--- One idle tick behind the gate and outside a threat; a gate that shut mid-step takes the walk away at once.
 --- deps: {storage, tick, start_mode, body_name, host(), direction, draw_text}
 function M.tick(deps)
   local state = deps.storage.idle
-  if deps.storage.jobs.active > 0 then
+  if deps.storage.jobs.active > 0 or deps.storage.threat.active then
     return
   end
   if not body.can_act(deps) then
@@ -118,8 +119,8 @@ end
 
 -- A new mode starts afresh: takes the walk, drops the follow state and the stay arrival, resets a leash's label.
 local function reset(deps)
-  if deps.storage.jobs.active == 0 then
-    walker.cancel(deps) -- idle owns the walk only while the queue is empty
+  if deps.storage.jobs.active == 0 and not deps.storage.threat.active then
+    walker.cancel(deps) -- idle owns the walk only while the queue is empty and no threat holds the body
   end
   local state = deps.storage.idle
   if state.leashed then
@@ -170,7 +171,7 @@ end
 
 --- The per-tick entry: due checks run without deps; the deps are built only for a due tick.
 function M.tick_event()
-  if storage.jobs.active > 0 then
+  if storage.jobs.active > 0 or storage.threat.active then
     return
   end
   local state = storage.idle

@@ -149,6 +149,7 @@ function M.game_deps()
     force = game.forces.player,
     starter_items = character.freeplay_items,
     direction = defines.direction,
+    safe_radius = global["coop-agent-safe-radius"].value,
   }
 end
 
