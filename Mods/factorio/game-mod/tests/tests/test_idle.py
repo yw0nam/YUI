@@ -2,7 +2,7 @@ import json
 import math
 
 import pytest
-from conftest import FIXTURES
+from conftest import FIXTURES, run
 
 EAST = 4
 
@@ -31,11 +31,6 @@ def events(world):
     return out
 
 
-def ring_events(world):
-    body = rpc(world, "events_since", {"seq": 0}, "ring")["r"]
-    return [{"kind": event["kind"], "data": event["data"]} for event in body["events"]]
-
-
 def label(world):
     return world.LABEL.text
 
@@ -51,6 +46,24 @@ def idle_ticks(world, n):
 
 def answer_path(lua, world, x):
     world.answer(lua.table_from([lua.table_from([x, 0])]), False)
+
+
+def fail_step(world):
+    """Answers the pending request and its five retries with no path; the step fails on the next tick."""
+    world.answer(None, False)
+    for _retry in range(5):
+        world.step_until_request(world.IDLE.tick)
+        world.answer(None, False)
+    idle_ticks(world, 1)
+
+
+def change_start_setting(lua, world):
+    world.DEPS.start_mode = "stay"
+    world.IDLE.on_setting_changed(world.DEPS, lua.table(setting="coop-agent-idle-start"))
+
+
+def idle_set_stay(lua, world):
+    assert rpc(world, "idle_set", {"mode": "stay", "pos": {"x": 1, "y": 0}}, "s")["ok"] is True
 
 
 def test_idle_set_pushes_idle_changed_only_when_the_mode_or_stay_pos_changes(world):
@@ -193,11 +206,14 @@ def test_a_shut_gate_takes_the_idle_walk_away_at_once(lua, world, disturb, resto
     assert len(world.REQUESTS) == 2  # a fresh step, never the old path
 
 
-def test_leaving_the_leash_by_idle_set_resets_the_label(lua, world):
+@pytest.mark.parametrize("switch", [idle_set_stay, change_start_setting])
+def test_leaving_the_leash_by_a_mode_change_resets_the_label(lua, world, switch):
     host_at(world, 80, 0)
     idle_ticks(world, 2)
     assert label(world) == "Buddy · Waiting for host"
-    assert rpc(world, "idle_set", {"mode": "stay", "pos": {"x": 1, "y": 0}}, "s")["ok"] is True
+    switch(lua, world)
+    assert label(world) == "Buddy · Standing by"
+    idle_ticks(world, 50)
     assert label(world) == "Buddy · Standing by"
 
 
@@ -210,18 +226,81 @@ def test_the_start_setting_drives_the_mode(world):
 
 
 def test_a_setting_change_moves_the_mode_and_rings_while_no_idle_set_is_in_force(lua, world):
-    lua.execute("settings = { global = { ['coop-agent-idle-start'] = { value = 'stay' } } }")
-    world.DEPS.start_mode = "stay"
-    world.IDLE.on_setting_changed_event(lua.table(setting="coop-agent-idle-start"))
-    assert ring_events(world) == [{"kind": "idle_changed", "data": {"mode": "stay"}}]
+    change_start_setting(lua, world)
+    assert events(world) == [{"kind": "idle_changed", "data": {"mode": "stay"}}]
     assert status(world)["idle"] == {"mode": "stay"}
     idle_ticks(world, 3)
     assert len(world.REQUESTS) == 0  # the new start mode applies at once
 
     assert rpc(world, "idle_set", {"mode": "follow"}, "pin")["ok"] is True
-    world.IDLE.on_setting_changed_event(lua.table(setting="coop-agent-idle-start"))
-    assert ring_events(world) == [{"kind": "idle_changed", "data": {"mode": "stay"}}]
+    change_start_setting(lua, world)
+    assert events(world) == [
+        {"kind": "idle_changed", "data": {"mode": "stay"}},
+        {"kind": "idle_changed", "data": {"mode": "follow"}},
+    ]
     assert status(world)["idle"] == {"mode": "follow"}
+
+
+def test_a_setting_change_during_a_follow_step_takes_the_walk_away(lua, world):
+    host_at(world, 20, 0)
+    idle_ticks(world, 2)
+    answer_path(lua, world, 20)
+    idle_ticks(world, 2)
+    assert world.BODY.walking_state.walking is True
+
+    change_start_setting(lua, world)
+    assert world.BODY.walking_state.walking is False
+    idle_ticks(world, 100)
+    assert world.BODY.walking_state.walking is False
+    assert world.BODY.position.x == pytest.approx(0.3)
+
+
+@pytest.mark.parametrize(
+    "start_x", [20, 80]
+)  # the job starts inside the leash, or while idle already waits beyond it
+def test_a_follow_job_waits_beyond_the_leash_and_follows_again_inside_it(lua, world, start_x):
+    host_at(world, start_x, 0)
+    idle_ticks(world, 2)
+    assert (
+        rpc(world, "jobs_enqueue", {"jobs": [{"kind": "follow", "args": {"ticks": 60}}]}, "f")["ok"] is True
+    )
+    host_at(world, 80, 0)
+    run(world, 2)
+    assert label(world) == "Buddy · Waiting for host"
+
+    host_at(world, 20, 0)
+    run(world, 2)
+    assert label(world) == "Buddy · Following host"
+
+
+def test_a_follow_job_that_ends_beyond_the_leash_hands_idle_the_waiting_label(world):
+    host_at(world, 80, 0)
+    assert rpc(world, "jobs_enqueue", {"jobs": [{"kind": "follow", "args": {"ticks": 5}}]}, "f")["ok"] is True
+    run(world, 6)
+    assert world.storage.jobs.active == 0
+    assert label(world) == "Buddy · Standing by"
+    idle_ticks(world, 1)
+    assert label(world) == "Buddy · Waiting for host"
+
+
+def test_an_arrived_step_resets_the_count_of_consecutive_failures(lua, world):
+    host_at(world, 40, 0)
+    idle_ticks(world, 1)
+    fail_step(world)
+    world.step_until_request(world.IDLE.tick)
+    answer_path(lua, world, 40)
+    host_at(world, 40, 30)  # the step arrives within 10 tiles of its target, 31 tiles from the host
+    idle_ticks(world, 300)
+    assert len(world.REQUESTS) == 8  # the arrival started the next step
+
+    fail_step(world)
+    world.step_until_request(world.IDLE.tick)
+    fail_step(world)
+    idle_ticks(world, 30)
+    assert len(world.REQUESTS) == 20  # two consecutive failures rest 30 ticks, not the 600-tick wait
+
+    fail_step(world)
+    assert label(world) == "Buddy · Waiting for host"
 
 
 def test_idle_set_clears_the_stop_latch(lua, world):
