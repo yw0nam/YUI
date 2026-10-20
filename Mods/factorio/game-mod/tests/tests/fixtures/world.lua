@@ -1,5 +1,4 @@
--- A fake world for the job and walker units: one body on an open plane, a surface that records path requests
--- and holds mineable entities.
+-- A fake world for the job, walker and mine units: one body on a surface that holds mineable entities and records path requests.
 
 storage = { map_id = "m" }
 require("scripts.storage").ensure()

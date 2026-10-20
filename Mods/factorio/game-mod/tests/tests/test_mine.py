@@ -1,19 +1,5 @@
-import json
-
 import pytest
-from conftest import FIXTURES
-
-
-@pytest.fixture
-def world(lua):
-    lua.execute(f'dofile("{FIXTURES / "world.lua"}")')
-    return lua.globals()
-
-
-def rpc(world, op, args, id_="t"):
-    request = {"v": 1, "id": id_, "op": op, "args": args, "map_id": "m"}
-    world.RPC.dispatch(json.dumps(request), None, world.DEPS)
-    return json.loads(list(world.PRINTED.values())[-1])
+from conftest import events, rpc, run
 
 
 def mine(world, timeout_ticks=None, **args):
@@ -21,18 +7,6 @@ def mine(world, timeout_ticks=None, **args):
     if timeout_ticks is not None:
         job["timeout_ticks"] = timeout_ticks
     assert rpc(world, "jobs_enqueue", {"jobs": [job]})["ok"] is True
-
-
-def run(world, n):
-    world.step(n, world.JOBS.tick)
-
-
-def events(world):
-    out = []
-    for event in world.EVENTS.values():
-        data = json.loads(world.JSON.encode(event.data))
-        out.append({"kind": event.kind, "data": data} if data else {"kind": event.kind})
-    return out
 
 
 def job(world):

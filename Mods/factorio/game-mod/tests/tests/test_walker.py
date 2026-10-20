@@ -1,13 +1,6 @@
 import pytest
-from conftest import FIXTURES
 
 EAST = 4
-
-
-@pytest.fixture
-def world(lua):
-    lua.execute(f'dofile("{FIXTURES / "world.lua"}")')
-    return lua.globals()
 
 
 def go(lua, world, x, y, radius=1):
