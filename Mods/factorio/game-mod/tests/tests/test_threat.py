@@ -9,7 +9,7 @@ def world(lua, world):
     # the walker hooks on DEPS, and one game tick as control.lua wires it: the 60-tick sweep, then the runner,
     # idle and the retreat
     lua.execute(
-        "THREAT = require('scripts.threat') THREAT.guard(DEPS) "
+        "THREAT = require('scripts.threat') THREAT.with_route_checks(DEPS) "
         "function GAME_TICK(deps) "
         "if deps.tick % 60 == 0 then THREAT.sweep(deps) end "
         "JOBS.tick(deps) IDLE.tick(deps) THREAT.tick(deps) "
@@ -101,21 +101,21 @@ def test_a_target_within_the_safe_radius_of_an_enemy_fails_threat_at_the_start(l
 
 
 @pytest.mark.parametrize(
-    ("layout", "to", "rejected"),
+    ("layout", "to", "closer"),
     [
-        ("enemy(0, -10)", (0, 5), None),  # straight away: the start stays the nearest point
-        ("enemy(0, -10)", (5, 0), None),  # across: the start stays the nearest point
-        ("enemy(0, -10)", (0, -5), "threat"),  # straight toward
-        ("enemy(0, -10)", (5, -1), "threat"),  # slightly toward
-        ("enemy(0, -60)", (0, -5), None),  # beyond the safe radius + 4 of the start
-        ("enemy(0, -10, 'neutral')", (0, -5), None),  # not an enemy force
+        ("enemy(0, -10)", (0, 5), False),  # straight away: the start stays the nearest point
+        ("enemy(0, -10)", (5, 0), False),  # across: the start stays the nearest point
+        ("enemy(0, -10)", (0, -5), True),  # straight toward
+        ("enemy(0, -10)", (5, -1), True),  # slightly toward
+        ("enemy(0, -60)", (0, -5), False),  # beyond the safe radius + 4 of the start
+        ("enemy(0, -10, 'neutral')", (0, -5), False),  # not an enemy force
     ],
 )
-def test_a_segment_is_rejected_only_when_it_comes_closer_to_a_known_enemy(lua, world, layout, to, rejected):
+def test_a_segment_counts_only_when_it_comes_closer_to_a_known_enemy(lua, world, layout, to, closer):
     lua.execute(layout)
     enemies = lua.eval("require('scripts.threat.enemies')")
-    start = lua.table(x=0, y=0)
-    assert enemies.on_segment(world.DEPS, world.SURFACE, start, lua.table(x=to[0], y=to[1])) == rejected
+    route = lua.table_from([lua.table(x=to[0], y=to[1])])
+    assert enemies.ahead_closer(world.DEPS, world.SURFACE, lua.table(x=0, y=0), route, 1) is closer
 
 
 def test_the_body_check_cancels_every_job_with_threat_and_rings_body_threat_once(lua, world):

@@ -1,5 +1,6 @@
 -- Attack grouping: hostile damage on a 64-tile cell opens one attack, 600 quiet ticks close it.
 
+local hostile = require("scripts.hostile")
 local store = require("scripts.storage")
 
 local CELL_TILES = 64
@@ -19,10 +20,8 @@ local function key(cell)
   return cell.surface .. ";" .. cell.x .. ";" .. cell.y
 end
 
--- The event's force names the attacker; the cause's force stands in when it is absent.
 local function defender_hit(player_force, ev)
-  local attacker = ev.attacker_force or ev.cause_force
-  return ev.entity_force == player_force and attacker ~= nil and player_force.is_enemy(attacker)
+  return ev.entity_force == player_force and hostile.is_enemy(player_force, ev.attacker_force, ev.cause_force)
 end
 
 --- deps: {storage, tick, player_force, count_cell(cell), push(kind, data)}
@@ -107,7 +106,7 @@ local function hit_of(e)
     name = entity.name,
     entity_force = entity.force,
     attacker_force = e.force,
-    cause_force = e.cause and e.cause.valid and e.cause.force or nil,
+    cause_force = hostile.cause_force(e),
   }
 end
 

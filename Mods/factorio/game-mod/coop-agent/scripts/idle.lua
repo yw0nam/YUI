@@ -1,6 +1,7 @@
 -- Idle modes: follow the host or stand at one position, only while the queue is empty and the gate passes.
 
 local body = require("scripts.body")
+local hold = require("scripts.hold")
 local host = require("scripts.host")
 local status_line = require("scripts.body.status_line")
 local store = require("scripts.storage")
@@ -105,7 +106,7 @@ M.MODES = { follow = follow_idle, stay = stay_step }
 --- deps: {storage, tick, start_mode, body_name, host(), direction, draw_text}
 function M.tick(deps)
   local state = deps.storage.idle
-  if deps.storage.jobs.active > 0 or deps.storage.threat.active then
+  if hold.idle(deps.storage) then
     return
   end
   if not body.can_act(deps) then
@@ -119,7 +120,7 @@ end
 
 -- A new mode starts afresh: takes the walk, drops the follow state and the stay arrival, resets a leash's label.
 local function reset(deps)
-  if deps.storage.jobs.active == 0 and not deps.storage.threat.active then
+  if not hold.idle(deps.storage) then
     walker.cancel(deps) -- idle owns the walk only while the queue is empty and no threat holds the body
   end
   local state = deps.storage.idle
@@ -171,7 +172,7 @@ end
 
 --- The per-tick entry: due checks run without deps; the deps are built only for a due tick.
 function M.tick_event()
-  if storage.jobs.active > 0 or storage.threat.active then
+  if hold.idle(storage) then
     return
   end
   local state = storage.idle

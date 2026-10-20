@@ -1,4 +1,4 @@
--- Enemies near a point, along a route and beside a segment: military entities of a force the body's force is_enemy with.
+-- Enemies near a point, along a route and ahead on it: military entities of a force the body's force is_enemy with.
 
 local walker = require("scripts.walker")
 
@@ -34,15 +34,43 @@ local function samples(points)
   return out
 end
 
---- "threat" when an enemy stands within the safe radius + 4 of a sample of the route, else nil.
+--- True when an enemy stands within the safe radius + 4 of a sample of the route.
 function M.on_route(deps, surface, points)
   local radius = deps.safe_radius + MARGIN_TILES
   for _, pos in ipairs(samples(points)) do
     if surface.find_nearest_enemy { position = pos, max_distance = radius, force = deps.force } then
-      return "threat"
+      return true
     end
   end
-  return nil
+  return false
+end
+
+-- Military entities of the forces the body's force is_enemy with, within radius of pos. deps: {force, forces}
+local function enemies_around(deps, surface, pos, radius)
+  local forces = {}
+  for _, force in pairs(deps.forces) do
+    if deps.force.is_enemy(force) then
+      forces[#forces + 1] = force
+    end
+  end
+  if #forces == 0 then
+    return {}
+  end
+  return surface.find_entities_filtered { position = pos, radius = radius, force = forces, is_military_target = true }
+end
+
+-- The route's segments from pos through points[index] onward, until 16 tiles are covered.
+local function segments(pos, points, index)
+  local out, walked = {}, 0
+  for i = index, #points do
+    if walked >= AHEAD_TILES then
+      break
+    end
+    out[#out + 1] = { a = pos, b = points[i] }
+    walked = walked + walker.distance(pos, points[i])
+    pos = points[i]
+  end
+  return out
 end
 
 local function segment_distance(p, a, b)
@@ -52,37 +80,21 @@ local function segment_distance(p, a, b)
   return walker.distance(p, { x = a.x + dx * t, y = a.y + dy * t })
 end
 
---- "threat" when the segment from a to b comes closer to an enemy within the safe radius + 4 of a than a is, else nil.
-function M.on_segment(deps, surface, a, b)
-  local found = surface.find_entities_filtered {
-    position = a,
-    radius = deps.safe_radius + MARGIN_TILES,
-    is_military_target = true,
-  }
-  for _, enemy in ipairs(found) do
-    local pos = enemy.position
-    if deps.force.is_enemy(enemy.force) and segment_distance(pos, a, b) < walker.distance(pos, a) then
-      return "threat"
+--- True when a segment of the route's next 16 tiles, from pos through points[index] onward, comes closer to an
+--- enemy within the safe radius + 4 of the segment's start than that start is.
+function M.ahead_closer(deps, surface, pos, points, index)
+  local reach = deps.safe_radius + MARGIN_TILES
+  local found = enemies_around(deps, surface, pos, reach + AHEAD_TILES)
+  for _, segment in ipairs(segments(pos, points, index)) do
+    for _, enemy in ipairs(found) do
+      local at = enemy.position
+      local from_start = walker.distance(at, segment.a)
+      if from_start <= reach and segment_distance(at, segment.a, segment.b) < from_start then
+        return true
+      end
     end
   end
-  return nil
-end
-
---- The segment rule over the next 16 tiles of a route: from pos to points[index], then on along the points.
-function M.ahead(deps, surface, pos, points, index)
-  local walked = 0
-  for i = index, #points do
-    if walked >= AHEAD_TILES then
-      break
-    end
-    local rejected = M.on_segment(deps, surface, pos, points[i])
-    if rejected then
-      return rejected
-    end
-    walked = walked + walker.distance(pos, points[i])
-    pos = points[i]
-  end
-  return nil
+  return false
 end
 
 return M

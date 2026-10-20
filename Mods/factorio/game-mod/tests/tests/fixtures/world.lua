@@ -100,7 +100,16 @@ SURFACE = {
   end,
   find_entities_filtered = function(filter)
     if filter.is_military_target then
-      return within(filter.position, filter.radius)
+      local forces, out = {}, {}
+      for _, force in ipairs(filter.force) do
+        forces[force] = true
+      end
+      for _, unit in ipairs(within(filter.position, filter.radius)) do
+        if forces[unit.force] then
+          out[#out + 1] = unit
+        end
+      end
+      return out
     end
     local names, out = {}, {}
     for _, name in ipairs(filter.name) do
@@ -168,6 +177,7 @@ DEPS = {
   item_prototypes = { coal = {} },
   force = { manual_mining_speed_modifier = 0, is_enemy = function(force) return force == "enemy" end },
   safe_radius = 48,
+  forces = { "player", "enemy", "neutral" },
 }
 
 WALKER = require("scripts.walker")

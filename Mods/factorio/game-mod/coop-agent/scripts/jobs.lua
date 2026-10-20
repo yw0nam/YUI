@@ -2,6 +2,7 @@
 
 local body = require("scripts.body")
 local check = require("scripts.jobs.check")
+local hold = require("scripts.hold")
 local idle = require("scripts.idle")
 local status_line = require("scripts.body.status_line")
 local walker = require("scripts.walker")
@@ -104,7 +105,7 @@ end
 --- One runner tick: start the next job or advance the running one, then check its timeout.
 function M.tick(deps)
   -- a threat holds the queue until its quiet period ends
-  if deps.storage.jobs.active == 0 or not gate(deps) or deps.storage.threat.active then
+  if deps.storage.jobs.active == 0 or not gate(deps) or hold.threat(deps.storage) then
     return
   end
   local job = current(deps.storage.jobs.list)
@@ -140,7 +141,7 @@ function M.enqueue(deps, specs)
   -- never from a retreat
   if queue.active > 0 then
     gate(deps)
-  elseif not deps.storage.threat.active then
+  elseif not hold.threat(deps.storage) then
     walker.cancel(deps)
     idle.reset_follow(deps)
   end
