@@ -16,9 +16,7 @@ function M.get()
           index = 0,
           connected = true,
           position = pos,
-          physical_position = pos,
           surface = surface_of.get(),
-          physical_surface = surface_of.get(),
         }
       or nil
   end
@@ -28,7 +26,16 @@ function M.get()
       host = player
     end
   end
+  -- the plain table carries the physical position and surface: where the character stands, not the remote view
   return host
+      and {
+        name = host.name,
+        index = host.index,
+        connected = host.connected,
+        position = host.physical_position,
+        surface = host.physical_surface,
+      }
+    or nil
 end
 
 --- The host when a chat event is the host's line, else nil.

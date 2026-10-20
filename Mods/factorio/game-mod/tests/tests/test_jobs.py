@@ -37,10 +37,7 @@ def test_walk_to_walks_the_path_ends_done_and_the_queue_goes_idle(lua, world):
 
 
 def test_a_follow_job_walks_toward_the_host_and_ends_done_at_its_ticks(lua, world):
-    lua.execute(
-        "HOST = { name = 'host', position = { x = 20, y = 0 }, physical_surface = SURFACE } "
-        "HOST.physical_position = HOST.position"
-    )
+    lua.execute("HOST = { name = 'host', position = { x = 20, y = 0 }, surface = SURFACE }")
     assert enqueue(world, {"kind": "follow", "args": {"ticks": 40}}) == {
         "v": 1,
         "id": "t",
@@ -63,10 +60,7 @@ def test_a_follow_job_walks_toward_the_host_and_ends_done_at_its_ticks(lua, worl
 
 
 def test_a_follow_job_ends_done_at_its_ticks_even_beyond_the_leash(lua, world):
-    lua.execute(
-        "HOST = { name = 'host', position = { x = 100, y = 0 }, physical_surface = SURFACE } "
-        "HOST.physical_position = HOST.position"
-    )
+    lua.execute("HOST = { name = 'host', position = { x = 100, y = 0 }, surface = SURFACE }")
     assert enqueue(world, {"kind": "follow", "args": {"ticks": 20}}) == {
         "v": 1,
         "id": "t",

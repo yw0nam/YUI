@@ -33,9 +33,8 @@ function M.follow_step(deps)
   local entity = body.entity(deps)
   local player = deps.host()
   local state = deps.storage.idle
-  -- the physical position follows a host riding a vehicle; another surface is as good as beyond the leash
-  local dist = player.physical_surface == entity.surface and walker.distance(entity.position, player.physical_position)
-    or LEASH + 1
+  -- host.get already reports the physical self; another surface is as good as beyond the leash
+  local dist = player.surface == entity.surface and walker.distance(entity.position, player.position) or LEASH + 1
   if dist > LEASH then
     if not state.leashed then
       state.leashed = true
@@ -54,7 +53,7 @@ function M.follow_step(deps)
     return nil
   end
   if not deps.storage.walker and dist > FOLLOW_FAR and deps.tick >= (state.retry_tick or 0) then
-    walker.go(deps, player.physical_position, FOLLOW_NEAR)
+    walker.go(deps, player.position, FOLLOW_NEAR)
   end
   local result = walker.tick(deps)
   if result == "arrived" then

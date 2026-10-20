@@ -119,7 +119,7 @@ def test_a_step_ends_at_once_when_the_host_comes_within_reach(lua, world):
 
 def test_a_host_on_another_surface_counts_as_beyond_the_leash(lua, world):
     host_at(world, 20, 0)
-    lua.execute("HOST.physical_surface = {}")
+    lua.execute("HOST.surface = {}")
     idle_ticks(world, 2)
     assert len(world.REQUESTS) == 0
     assert world.BODY.walking_state.walking is False
@@ -171,10 +171,7 @@ def test_three_failed_steps_wait_600_ticks_and_ask_for_the_host(lua, world):
     [
         (
             "HOST = nil",
-            (
-                "HOST = { name = 'host' } HOST.position = { x = 40, y = 0 } "
-                "HOST.physical_position = HOST.position HOST.physical_surface = SURFACE"
-            ),
+            "HOST = { name = 'host' } HOST.position = { x = 40, y = 0 } HOST.surface = SURFACE",
         ),
         ("BODY.valid = false", "BODY.valid = true"),
     ],
