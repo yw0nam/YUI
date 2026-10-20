@@ -164,7 +164,7 @@ oldest first, and a `jobs_enqueue` that would put more than 16 jobs in
 `queued` or `running` answers `e:"bad_request"`.
 
 `jobs_enqueue` is the one validator of kinds and args. A refused call queues
-nothing and answers `e:"bad_request"` with `m` naming the job by its
+nothing, ends no job and answers `e:"bad_request"` with `m` naming the job by its
 zero-based index and the field, such as `jobs[1].args.radius: number
 expected`. `timeout_ticks`, when given, is a positive number; it counts from
 the job's start. A successful `jobs_enqueue` lifts the stop latch.
@@ -177,19 +177,25 @@ the job's start. A successful `jobs_enqueue` lifts the stop latch.
 - **Ends.** A job that ends `done` fires `job_done`; when nothing is queued
   after it, `queue_idle` follows. A job that ends `failed` fires one
   `job_failed` and cancels every queued job (`reason:"cancelled"`); no
-  `queue_idle` follows. `jobs_cancel` fires no event. Whenever a running job
-  ends, the body stops walking and mining and the status line returns to
-  `Standing by`; while a `walk_to` runs it reads `Walking to <x,y>` or
+  `queue_idle` follows. `job_failed` carries `{id, kind, reason}` plus the
+  fields of its kind's failure detail (`walk_to` and `wait` add none).
+  `jobs_cancel` fires no event. Whenever a running job ends, the body stops
+  walking, mining and crafting and the status line returns to `Standing by`;
+  while a `walk_to` runs it reads `Walking to <x,y>` or
   `Walking to <entity name>`.
-- **Gate.** The runner checks the execution gate on every tick it acts. A
-  shut gate halts the body at once and fails the current job with
-  `body_dead` when there is no live body, else `stopped` (the stop latch, or
-  no host connected). A `jobs_enqueue` arriving after a stop in the same tick
-  still fails the queue that stop halted.
-- **Walking.** `walk_to` asks the game's pathfinder for a route with the
-  body's collision box and mask, ignoring the body itself, with gates
-  openable, and walks it waypoint by waypoint by setting the body's walking
-  direction, re-aimed every 5 ticks. The body never teleports. A failed path
+- **Gate.** While a job is queued or running, the runner checks the
+  execution gate every tick; with none it does one counter check. A shut
+  gate halts the body at once. Its reason is `body_dead` when there is no
+  live body, else `stopped` (the stop latch, or no host connected). A
+  running job fails with that reason and the rest are cancelled as above;
+  when no job has started, every queued job is cancelled with that reason
+  and no `job_failed` fires. A `jobs_enqueue` accepted after a stop in the
+  same tick still ends the queue that stop halted.
+- **Walking.** `walk_to` sends the game's pathfinder one request with the
+  body prototype's collision box and mask, the body as the entity to
+  ignore, `radius = 2`, gates openable and `pathfind_flags = {cache =
+  false}`, and walks the route waypoint by waypoint by setting the body's
+  walking direction, re-aimed every 5 ticks. The body never teleports. A failed path
   request (no path, or the pathfinder busy) is retried 30 ticks later, on a
   finer grid from the 2nd failure and finer again from the 4th; the 6th
   failure ends the job. 150 ticks without movement on a route make one new
@@ -202,8 +208,8 @@ the job's start. A successful `jobs_enqueue` lifts the stop latch.
 | `stuck` | 600 ticks without movement on a route |
 | `target_gone` | the `walk_to` entity no longer exists |
 | `timeout` | `timeout_ticks` elapsed since the job's start |
-| `stopped` | the stop latch is on or no host is connected |
-| `body_dead` | there is no live body |
+| `stopped` | the stop latch is on or no host is connected; also on jobs cancelled before any started |
+| `body_dead` | there is no live body; also on jobs cancelled before any started |
 | `cancelled` | `jobs_cancel`, or an earlier job of the queue failed |
 
 ## Safety
@@ -247,7 +253,8 @@ The lupa units pin the RPC framing, idempotency, the ring, attack grouping,
 `say`/`ping` limits, the unit index, the chat filter, the execution gate, the
 stop latch, the respawn timer, the status-line text and the body colors, and,
 over a fake world (`tests/fixtures/world.lua`), the job queue's transitions,
-events, reason codes, validation messages and cap, and the walker's path
+events, reason codes, validation messages, cap, failure detail and idle
+cost, and the walker's path
 request, retries, resolution steps, stale results, stuck handling and hooks. The
 headless suite runs with `--probe` and pins, on a seed-42 map: `status` → `events_since` → `say`, write-op replay and
 `id_conflict`, `find` → `inspect` on a chest and an assembler, `snapshot`
@@ -256,8 +263,9 @@ its chart tag, a save reload that answers the saved `head_seq` after a
 later event, the body: spawned within 60 ticks and 3 tiles of the dev host
 with the starter kit, `stop` with its event and label, death with the items in
 the corpse and an empty respawn 1800 ticks later, and removal when disabled;
-and the jobs: a `walk_to` 100 tiles north across a stone-furnace wall with one
-gap, a `walk_to` into a closed furnace ring that ends `no_path`,
+and the jobs: a `walk_to` 100 tiles north into a stone-furnace enclosure
+whose one way in is a 2-tile gap, a `walk_to` into a closed furnace ring that
+ends `no_path`,
 `jobs_cancel{all}` and `stop` while walking, and `jobs_enqueue` replay and
 `id_conflict`.
 
