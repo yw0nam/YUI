@@ -17,8 +17,8 @@ function M.text(name, view)
   return name .. " · " .. state
 end
 
---- holder keeps the LuaRenderObject in storage as holder.label.
-function M.show(entity, holder, text)
+--- holder keeps the LuaRenderObject in storage as holder.label; draw_text is rendering.draw_text.
+function M.show(draw_text, entity, holder, text)
   local label = holder.label
   if label and label.valid then
     if label.text ~= text then
@@ -26,7 +26,7 @@ function M.show(entity, holder, text)
     end
     return
   end
-  holder.label = rendering.draw_text {
+  holder.label = draw_text {
     text = text,
     surface = entity.surface,
     target = { entity = entity, offset = { 0, -2.5 } },

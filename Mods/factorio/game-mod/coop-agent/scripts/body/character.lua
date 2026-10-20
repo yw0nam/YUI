@@ -6,26 +6,25 @@ local SEARCH_RADIUS = 8
 
 local M = {}
 
-local function prototype_name()
-  local name = settings.global["coop-agent-body-prototype"].value
-  local proto = prototypes.entity[name]
-  return proto and proto.type == "character" and name or "character"
+local function prototype_name(deps)
+  local proto = deps.entity_prototypes[deps.prototype]
+  return proto and proto.type == "character" and deps.prototype or "character"
 end
 
-function M.paint(entity)
-  entity.color = color.of(settings.global["coop-agent-body-color"].value)
+function M.paint(deps, entity)
+  entity.color = color.of(deps.color)
 end
 
 --- A new character on a free spot beside the host, or nil when none is free.
-function M.beside(host)
-  local name = prototype_name()
+function M.beside(deps, host)
+  local name = prototype_name(deps)
   local pos = host.surface.find_non_colliding_position(name, host.position, SEARCH_RADIUS, 0.5)
   if not pos then
     return nil
   end
-  local entity = host.surface.create_entity { name = name, position = pos, force = game.forces.player }
+  local entity = host.surface.create_entity { name = name, position = pos, force = deps.force }
   if entity then
-    M.paint(entity)
+    M.paint(deps, entity)
   end
   return entity
 end
@@ -46,13 +45,17 @@ function M.remove(entity)
   entity.destroy()
 end
 
---- The freeplay scenario's starter items; nothing when freeplay is not running.
-function M.give_kit(entity)
+--- The freeplay scenario's starter items as {name = count}, or nil when freeplay is not running.
+function M.freeplay_items()
   local freeplay = remote.interfaces["freeplay"]
-  if not (freeplay and freeplay.get_created_items) then
-    return
+  if freeplay and freeplay.get_created_items then
+    return remote.call("freeplay", "get_created_items")
   end
-  for name, count in pairs(remote.call("freeplay", "get_created_items")) do
+  return nil
+end
+
+function M.give_kit(deps, entity)
+  for name, count in pairs(deps.starter_items() or {}) do
     entity.insert { name = name, count = count }
   end
 end

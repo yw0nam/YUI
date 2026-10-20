@@ -12,7 +12,7 @@ function M.op(deps)
     map_id = deps.storage.map_id,
     seq = deps.storage.events.head_seq,
     tick = deps.tick,
-    body = body_summary.of(body.entity()),
+    body = body_summary.of(body.entity(deps)),
     stopped = deps.storage.body.stopped,
   }
   local player = host.get()

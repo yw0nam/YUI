@@ -1,5 +1,3 @@
-import json
-
 import pytest
 from conftest import GAME_MOD, load_module
 
@@ -46,26 +44,25 @@ SURFACE = {
   end,
   spill_inventory = function(spec) SPILLED[#SPILLED + 1] = spec.inventory.items end,
 }
-HOST = { index = 1, name = "host", admin = true, position = { x = 0, y = 0 }, surface = SURFACE }
-game = {
+HOST = { index = 1, name = "host", position = { x = 0, y = 0 }, surface = SURFACE }
+EVENTS = {}
+DEPS = {
+  storage = storage,
   tick = 100,
-  connected_players = { HOST },
-  forces = { player = "player" },
-  -- a prototype without the get-by-unit-number flag: the lookup never finds the body
-  get_entity_by_unit_number = function(_n) return nil end,
+  enabled = true,
+  body_name = "Buddy",
+  prototype = "character",
+  color = "orange",
+  host = function() return HOST end,
+  push = function(kind, _data) EVENTS[#EVENTS + 1] = kind end,
+  draw_text = function(spec)
+    LABEL = { valid = true, text = spec.text }
+    return LABEL
+  end,
+  entity_prototypes = { character = { type = "character" }, ["odd-character"] = { type = "character" } },
+  force = "player",
+  starter_items = function() return nil end,
 }
-prototypes = { entity = { character = { type = "character" }, ["odd-character"] = { type = "character" } } }
-remote = { interfaces = {} }
-settings = { global = {
-  ["coop-agent-body-enabled"] = { value = true },
-  ["coop-agent-body-name"] = { value = "Buddy" },
-  ["coop-agent-body-prototype"] = { value = "character" },
-  ["coop-agent-body-color"] = { value = "orange" },
-} }
-rendering = { draw_text = function(spec)
-  LABEL = { valid = true, text = spec.text }
-  return LABEL
-end }
 """
 
 
@@ -76,14 +73,22 @@ def body(lua):
     return module
 
 
+def deps(lua):
+    return lua.globals().DEPS
+
+
 def spawned(lua, body):
     """A body made by a sweep with the host connected."""
-    body.sweep()
+    body.sweep(deps(lua))
     return lua.globals().storage.body.entity
 
 
+def no_host(lua):
+    lua.execute("DEPS.host = function() return nil end")
+
+
 def event_kinds(lua):
-    return [e["kind"] for e in json.loads(lua.globals().JSON.encode(lua.globals().storage.events["items"]))]
+    return list(lua.globals().EVENTS.values())
 
 
 def created(lua):
@@ -106,24 +111,24 @@ def test_can_act_needs_a_live_body_and_a_host(lua, body, alive, host, expected):
     if alive:
         spawned(lua, body)
     if not host:
-        lua.execute("game.connected_players = {}")
-    assert body.can_act() is expected
+        no_host(lua)
+    assert body.can_act(deps(lua)) is expected
 
 
 def test_stop_halts_the_body_and_latches_once_until_cleared(lua, body):
     entity = spawned(lua, body)
 
-    body.stop()
-    body.stop()
-    assert body.can_act() is False
+    body.stop(deps(lua))
+    body.stop(deps(lua))
+    assert body.can_act(deps(lua)) is False
     assert event_kinds(lua) == ["stopped"]
     assert entity.walking_state.walking is False
     assert entity.mining_state.mining is False
     assert [dict(spec) for spec in lua.globals().CANCELLED.values()] == [{"index": 1, "count": 3}]
     assert label(lua) == "Buddy · Stopped"
 
-    body.clear_latch()
-    assert body.can_act() is True
+    body.clear_latch(deps(lua))
+    assert body.can_act(deps(lua)) is True
     assert label(lua) == "Buddy · Standing by"
 
 
@@ -135,9 +140,9 @@ def test_stop_halts_the_body_and_latches_once_until_cleared(lua, body):
     ],
 )
 def test_sweeps_keep_one_body_of_the_prototype_setting(lua, body, prototype, made):
-    lua.globals().settings["global"]["coop-agent-body-prototype"].value = prototype
-    body.sweep()
-    body.sweep()
+    deps(lua).prototype = prototype
+    body.sweep(deps(lua))
+    body.sweep(deps(lua))
     assert created(lua) == [made]
     assert lua.globals().storage.body.unit_number == 41
     assert label(lua) == "Buddy · Standing by"
@@ -154,23 +159,23 @@ def test_sweeps_keep_one_body_of_the_prototype_setting(lua, body, prototype, mad
 def test_a_dead_body_respawns_1800_ticks_later_while_enabled(lua, body, tick, enabled, made, kinds):
     entity = spawned(lua, body)
     lua.execute("CREATED = {}")
-    body.on_entity_died(lua.table(entity=entity, tick=100))
+    body.on_entity_died(deps(lua), lua.table(entity=entity, tick=100))
     entity.valid = False
 
-    lua.globals().game.tick = tick
-    lua.globals().settings["global"]["coop-agent-body-enabled"].value = enabled
-    body.sweep()
+    deps(lua).tick = tick
+    deps(lua).enabled = enabled
+    body.sweep(deps(lua))
     assert created(lua) == made
     assert event_kinds(lua) == kinds
 
 
 def test_disabling_spills_the_body_inventory_and_removes_it(lua, body):
     entity = spawned(lua, body)
-    lua.globals().settings["global"]["coop-agent-body-enabled"].value = False
-    body.sweep()
+    deps(lua).enabled = False
+    body.sweep(deps(lua))
     assert [dict(items) for items in lua.globals().SPILLED.values()] == [{"name": "coal", "count": 5}]
     assert entity.valid is False
-    assert body.can_act() is False
+    assert body.can_act(deps(lua)) is False
 
 
 @pytest.mark.parametrize(
@@ -185,24 +190,24 @@ def test_disabling_spills_the_body_inventory_and_removes_it(lua, body):
 def test_the_label_shows_the_strongest_state(lua, body, stopped, host, status, text):
     spawned(lua, body)
     lua.globals().storage.body.stopped = stopped
-    body.set_status(status)
+    body.set_status(deps(lua), status)
     if not host:
-        lua.execute("game.connected_players = {}")
-    body.sweep()
+        no_host(lua)
+    body.sweep(deps(lua))
     assert label(lua) == text
 
 
 def test_a_host_chat_line_shows_an_ellipsis_for_180_ticks(lua, body):
     spawned(lua, body)
-    lua.globals().game.tick = 1000
-    body.on_console_chat(lua.table(player_index=1))
+    deps(lua).tick = 1000
+    body.acknowledge_chat(deps(lua))
     assert label(lua) == "Buddy · …"
 
-    lua.globals().game.tick = 1179
-    body.sweep()
+    deps(lua).tick = 1179
+    body.sweep(deps(lua))
     assert label(lua) == "Buddy · …"
-    lua.globals().game.tick = 1180
-    body.sweep()
+    deps(lua).tick = 1180
+    body.sweep(deps(lua))
     assert label(lua) == "Buddy · Standing by"
 
 

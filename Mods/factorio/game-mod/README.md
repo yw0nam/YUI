@@ -125,14 +125,14 @@ change, spawns it, respawns it, or removes it.
 - **Stop.** The hotkey `coop-agent-stop` (default `CONTROL + SHIFT + Y`, any
   player) and the `stop` op clear the body's walking, mining and crafting
   queue on every call; the first one latches `status.stopped` and fires
-  `stopped`. `body.clear_latch()` lifts the latch.
-- **Execution gate.** `body.can_act()` is true for a live body, the latch off,
-  and a connected host.
+  `stopped`. `body.clear_latch(deps)` lifts the latch.
+- **Execution gate.** `body.can_act(deps)` is true for a live body, the latch
+  off, and a connected host. `body.game_deps()` builds the live `deps`.
 - **Status line.** One text above the body, `<body name> · <state>`. The state
   is `…` for 180 ticks after a host chat line, rounded up to the next
   60-tick sweep; else `Stopped` while latched; else `Waiting for <host>`
-  while no host is connected; else the text set through `body.set_status(text)`,
-  `Standing by` at first. The render object lives in `storage.body.label`;
+  while no host is connected; else the text set through
+  `body.set_status(deps, text)`, `Standing by` at first. The render object lives in `storage.body.label`;
   only its text is rewritten when the line changes.
 
 Changes to coop-agent's color, name and enabled settings apply at once; a new prototype
