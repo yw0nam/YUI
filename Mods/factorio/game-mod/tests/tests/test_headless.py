@@ -130,7 +130,7 @@ def test_status_events_since_say_round_trip(server):
         "id": "it-1",
         "ok": True,
         "r": {
-            "mod_version": "0.1.2",
+            "mod_version": "0.1.3",
             "map_id": MAP_ID,
             "seq": 1,
             "body": {"alive": False},
@@ -620,3 +620,124 @@ def test_a_repeated_jobs_enqueue_replays_and_other_args_conflict(server):
         "e": "id_conflict",
         "m": "id already used with different arguments",
     }
+
+
+# a cleared field around the dev host at (0, 200) for the mine scenes: nothing within 72 tiles but what a scene
+# places, no water
+FIELD = (
+    "/silent-command local s = game.surfaces[1] local box = {{-72, 128}, {72, 272}} "
+    "s.request_to_generate_chunks({0, 200}, 3) s.force_generate_chunk_requests() "
+    "for _, e in pairs(s.find_entities_filtered{area = box}) do e.destroy() end "
+    "local tiles = {} "
+    "for _, t in pairs(s.find_tiles_filtered{area = box, collision_mask = 'water_tile'}) do "
+    "tiles[#tiles + 1] = {name = 'grass-1', position = t.position} end "
+    "s.set_tiles(tiles) "
+)
+COAL_PATCH = (
+    "for x = -2, 2 do for y = 198, 202 do "
+    "s.create_entity{name = 'coal', position = {x, y}, amount = 1000} end end"
+)
+BODY_ITEMS = "/silent-command __coop-agent__ rcon.print(storage.body.entity.get_item_count('{}'))"
+
+
+def mine(name, count, **extra):
+    return {"kind": "mine", "args": {"name": name, "count": count, **extra}}
+
+
+def field(server, scene):
+    """A fresh empty body beside the dev host at (0, 200) on the cleared field with the scene's entities."""
+    set_body_enabled(server, False)
+    wait_status(server, lambda s: not s["body"]["alive"])
+    server.command(FIELD + scene)
+    assert json.loads(server.command("/coop-probe host 0 200")) == {"ok": True, "host": {"x": 0, "y": 200}}
+    set_body_enabled(server, True)
+    return wait_status(server, lambda s: s["body"]["alive"])
+
+
+def run_job(server, seq, id_, job, count=1):
+    """Enqueues one job, runs the game at 10x until its events land, and returns them with the job record."""
+    job_id = enqueued_id(server, id_, job)
+    server.command("/silent-command game.speed = 10")
+    try:
+        ends = wait_events(server, seq, count)
+    finally:
+        server.command("/silent-command game.speed = 1")
+    return ends, jobs_by_id(server)[job_id]
+
+
+def test_mine_50_coal_natively_in_50_mining_times(server):
+    status = field(server, COAL_PATCH)
+    (done, idle), record = run_job(server, status["seq"], "mine-coal", mine("coal", 50), 2)
+    assert without_ticks([done, idle]) == [
+        {"kind": "job_done", "data": {"id": record["id"], "kind": "mine"}},
+        {"kind": "queue_idle", "data": {"last_job_id": record["id"]}},
+    ]
+    assert record["progress"] == {"gained": 50, "count": 50, "path": "native"}
+    # the body spawns on the patch, so no walking: 50 x 121 ticks, within 10 %
+    assert 5445 <= done["tick"] - record["started_tick"] <= 6655
+    assert int(server.command(BODY_ITEMS.format("coal"))) == 50
+    assert labels(server) == ["Buddy · Holding: coal 50"]
+
+
+@pytest.mark.parametrize(
+    ("scene", "name", "count", "held"),
+    [
+        (
+            "for _, y in ipairs({197, 200, 203}) do s.create_entity{name = 'tree-01', position = {6, y}} end",
+            "wood",
+            10,
+            (12, 12),
+        ),
+        # a huge rock yields 24 to 50 stone
+        ("s.create_entity{name = 'huge-rock', position = {0, 206}}", "stone", 5, (24, 50)),
+    ],
+)
+def test_mine_wood_from_trees_and_stone_from_a_rock(server, scene, name, count, held):
+    status = field(server, scene)
+    (done, _idle), record = run_job(server, status["seq"], f"mine-{name}", mine(name, count), 2)
+    assert done["kind"] == "job_done"
+    items = int(server.command(BODY_ITEMS.format(name)))
+    assert held[0] <= items <= held[1]
+    assert record["progress"] == {"gained": items, "count": count, "path": "native"}
+
+
+def test_a_host_furnace_is_mined_only_once_marked_for_deconstruction(server):
+    status = field(server, "s.create_entity{name = 'stone-furnace', position = {3, 200}, force = 'player'}")
+    area = {"left_top": {"x": -8, "y": 192}, "right_bottom": {"x": 8, "y": 208}}
+    (furnace,) = server.rpc(
+        v=1, id="ff", op="find", args={"area": area, "name": "stone-furnace"}, map_id=MAP_ID
+    )["r"]
+    unit = furnace["unit_number"]
+
+    (gone,), _ = run_job(server, status["seq"], "mine-f1", mine("stone-furnace", 1))
+    (refused,), _ = run_job(server, gone["seq"], "mine-f2", mine("stone-furnace", 1, entity=unit))
+    assert [(e["kind"], e["data"]["reason"]) for e in (gone, refused)] == [
+        ("job_failed", "target_gone"),
+        ("job_failed", "not_permitted"),
+    ]
+    assert int(server.command(BODY_ITEMS.format("stone-furnace"))) == 0
+
+    marked = server.command(
+        "/silent-command rcon.print(game.surfaces[1].find_entities_filtered{name = 'stone-furnace', "
+        "area = {{-8, 192}, {8, 208}}}[1].order_deconstruction('player'))"
+    )
+    assert json.loads(marked) is True
+    (done, _idle), _ = run_job(server, refused["seq"], "mine-f3", mine("stone-furnace", 1), 2)
+    assert done["kind"] == "job_done"
+    assert int(server.command(BODY_ITEMS.format("stone-furnace"))) == 1
+    assert (
+        server.rpc(v=1, id="ff2", op="find", args={"area": area, "name": "stone-furnace"}, map_id=MAP_ID)["r"]
+        == {}
+    )
+
+
+def test_mine_with_a_full_inventory_fails_target_full(server):
+    status = field(server, COAL_PATCH)
+    server.command(
+        "/silent-command __coop-agent__ storage.body.entity.insert{name = 'iron-chest', count = 10000}"
+    )
+    (failed,), record = run_job(server, status["seq"], "mine-full", mine("coal", 1))
+    assert without_ticks([failed]) == [
+        {"kind": "job_failed", "data": {"id": record["id"], "kind": "mine", "reason": "target_full"}}
+    ]
+    assert record["progress"] == {"gained": 0, "count": 1, "path": "native"}

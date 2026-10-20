@@ -1,4 +1,5 @@
--- A fake world for the job and walker units: one body on an open plane, a surface that records path requests.
+-- A fake world for the job and walker units: one body on an open plane, a surface that records path requests
+-- and holds mineable entities.
 
 storage = { map_id = "m" }
 require("scripts.storage").ensure()
@@ -8,11 +9,68 @@ LABEL = nil
 -- walking directions the fake plane refuses to move in, by defines.direction value
 BLOCKED = {}
 
+-- mineable entities on the plane, the body's item counts, and the ticks mine_entity ran
+ENTITIES, INVENTORY, MINED = {}, {}, {}
+-- FULL: the body takes no item; NATIVE = false: mining_state makes no progress
+FULL, NATIVE = false, true
+
+local function mineable(mining_time, products)
+  return { minable = true, mining_time = mining_time, products = products }
+end
+
+local function item(name, amount)
+  return { type = "item", name = name, amount = amount }
+end
+
+PROTOTYPES = {
+  coal = { type = "resource", mineable_properties = mineable(1, { item("coal", 1) }) },
+  ["tree-01"] = { type = "tree", mineable_properties = mineable(0.55, { item("wood", 4) }) },
+  ["huge-rock"] = {
+    type = "simple-entity",
+    count_as_rock_for_filtered_deconstruction = true,
+    mineable_properties = mineable(3, { item("stone", 24), item("coal", 24) }),
+  },
+  ["stone-furnace"] = { type = "furnace", mineable_properties = mineable(0.2, { item("stone-furnace", 1) }) },
+}
+
+--- A mineable entity at (x, y); a furnace gets a unit number, marked sets its deconstruction mark.
+function place(name, x, y, marked)
+  local proto = PROTOTYPES[name]
+  local entity = { valid = true, name = name, type = proto.type, prototype = proto, position = { x = x, y = y } }
+  entity.unit_number = proto.type == "furnace" and 100 + #ENTITIES or nil
+  entity.to_be_deconstructed = function() return marked == true end
+  ENTITIES[#ENTITIES + 1] = entity
+  return entity
+end
+
+-- a resource never runs out; anything else is gone once mined
+local function give(entity)
+  for _, product in ipairs(entity.prototype.mineable_properties.products) do
+    INVENTORY[product.name] = (INVENTORY[product.name] or 0) + product.amount
+  end
+  if entity.type ~= "resource" then
+    entity.valid = false
+  end
+end
+
 SURFACE = {
   request_path = function(spec)
     REQUESTS[#REQUESTS + 1] = spec
     spec.tick = DEPS.tick
     return #REQUESTS
+  end,
+  find_entities_filtered = function(filter)
+    local names, out = {}, {}
+    for _, name in ipairs(filter.name) do
+      names[name] = true
+    end
+    for _, entity in ipairs(ENTITIES) do
+      local dx, dy = entity.position.x - filter.position.x, entity.position.y - filter.position.y
+      if entity.valid and names[entity.name] and dx * dx + dy * dy <= filter.radius * filter.radius then
+        out[#out + 1] = entity
+      end
+    end
+    return out
   end,
 }
 BODY = {
@@ -25,7 +83,20 @@ BODY = {
   crafting_queue_size = 0,
   surface = SURFACE,
   force = "player",
-  prototype = { collision_box = "box", collision_mask = "mask" },
+  prototype = { collision_box = "box", collision_mask = "mask", mining_speed = 0.5 },
+  resource_reach_distance = 2.7,
+  character_mining_speed_modifier = 0,
+  character_mining_progress = 0,
+  get_item_count = function(name) return INVENTORY[name] or 0 end,
+  can_insert = function() return not FULL end,
+  mine_entity = function(entity)
+    MINED[#MINED + 1] = DEPS.tick
+    if FULL then
+      return false
+    end
+    give(entity)
+    return true
+  end,
 }
 storage.body.entity = BODY
 HOST = { name = "host" }
@@ -44,6 +115,8 @@ DEPS = {
   from_json = JSON.decode,
   to_json = JSON.encode,
   print = function(text) PRINTED[#PRINTED + 1] = text end,
+  entity_prototypes = PROTOTYPES,
+  force = { manual_mining_speed_modifier = 0 },
 }
 
 WALKER = require("scripts.walker")
@@ -66,12 +139,29 @@ local function move()
   BODY.position = { x = BODY.position.x + v[1] * scale, y = BODY.position.y + v[2] * scale }
 end
 
---- Up to n game ticks: act(DEPS) runs, then the body walks 0.15 tiles; stops at act's first non-nil result.
+-- native mining: the selected entity yields once mining_time / 0.5 seconds of mining have passed
+local spent = 0
+local function mine()
+  local target = BODY.selected
+  if not (NATIVE and not FULL and BODY.valid and BODY.mining_state.mining and target and target.valid) then
+    return
+  end
+  local ticks = target.prototype.mineable_properties.mining_time / 0.5 * 60
+  spent = spent + 1
+  if spent >= ticks then
+    spent = 0
+    give(target)
+  end
+  BODY.character_mining_progress = spent / ticks
+end
+
+--- Up to n game ticks: act(DEPS) runs, then the body walks 0.15 tiles and mines; stops at act's first non-nil result.
 function step(n, act)
   for _ = 1, n do
     DEPS.tick = DEPS.tick + 1
     local result = act(DEPS)
     move()
+    mine()
     if result ~= nil then
       return result, DEPS.tick
     end

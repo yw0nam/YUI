@@ -206,7 +206,7 @@ def test_cancel_all_while_walking_halts_the_body_at_once_and_emits_nothing(lua, 
         (
             "jobs_enqueue",
             {"jobs": [{"kind": "dig", "args": {}}]},
-            "jobs[0].kind: one of wait, walk_to expected",
+            "jobs[0].kind: one of mine, wait, walk_to expected",
         ),
         (
             "jobs_enqueue",
@@ -232,6 +232,24 @@ def test_cancel_all_while_walking_halts_the_body_at_once_and_emits_nothing(lua, 
             "jobs_enqueue",
             {"jobs": [{**WAIT_1, "timeout_ticks": "soon"}]},
             "jobs[0].timeout_ticks: number expected",
+        ),
+        (
+            "jobs_enqueue",
+            {"jobs": [{"kind": "mine", "args": {"count": 5}}]},
+            "jobs[0].args.name: string expected",
+        ),
+        *[
+            (
+                "jobs_enqueue",
+                {"jobs": [{"kind": "mine", "args": {"name": "coal", "count": count}}]},
+                "jobs[0].args.count: integer 1 to 1000 expected",
+            )
+            for count in (0, 1001, 2.5, "five")
+        ],
+        (
+            "jobs_enqueue",
+            {"jobs": [{"kind": "mine", "args": {"name": "coal", "count": 5, "entity": "furnace"}}]},
+            "jobs[0].args.entity: unit_number expected",
         ),
         ("jobs_cancel", {}, "id or all expected"),
         ("jobs_cancel", {"id": 5}, "id: no queued or running job 5"),
