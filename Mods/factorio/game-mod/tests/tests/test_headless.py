@@ -556,7 +556,7 @@ def test_walk_to_reaches_a_furnace_enclosure_through_its_one_gap(server):
     state = body_state(server)
     assert math.dist((state["x"], state["y"]), (0, -100)) <= 2
     assert state["walking"] is False
-    # idle takes over 100 tiles from the host and waits inside the leash
+    # idle takes over 100 tiles from the host, beyond the leash, and waits
     assert labels(server) == ["Buddy · Waiting for dev-host"]
 
 
@@ -927,7 +927,11 @@ def test_idle_set_stay_walks_once_and_ignores_the_host(server):
     finally:
         server.command("/silent-command game.speed = 1")
     assert without_ticks([changed]) == [{"kind": "idle_changed", "data": {"mode": "stay"}}]
-    assert server.rpc(v=1, id="stay-s", op="status", args={})["r"]["idle"] == {"mode": "stay"}
+    # status.idle keeps the stay position after the walk arrived
+    assert server.rpc(v=1, id="stay-s", op="status", args={})["r"]["idle"] == {
+        "mode": "stay",
+        "pos": {"x": -10, "y": 0},
+    }
 
     assert json.loads(server.command("/coop-probe host 40 40")) == {"ok": True, "host": {"x": 40, "y": 40}}
     before = server.rpc(v=1, id="stay-p1", op="status", args={})["r"]

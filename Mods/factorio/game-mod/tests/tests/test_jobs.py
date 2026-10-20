@@ -37,7 +37,10 @@ def test_walk_to_walks_the_path_ends_done_and_the_queue_goes_idle(lua, world):
 
 
 def test_a_follow_job_walks_toward_the_host_and_ends_done_at_its_ticks(lua, world):
-    lua.execute("HOST = { name = 'host', position = { x = 20, y = 0 } }")
+    lua.execute(
+        "HOST = { name = 'host', position = { x = 20, y = 0 }, physical_surface = SURFACE } "
+        "HOST.physical_position = HOST.position"
+    )
     assert enqueue(world, {"kind": "follow", "args": {"ticks": 40}}) == {
         "v": 1,
         "id": "t",
@@ -57,6 +60,27 @@ def test_a_follow_job_walks_toward_the_host_and_ends_done_at_its_ticks(lua, worl
     assert states(world) == [(1, "done", None)]
     assert world.BODY.walking_state.walking is False
     assert math.dist((world.BODY.position.x, world.BODY.position.y), (20, 0)) <= 15
+
+
+def test_a_follow_job_ends_done_at_its_ticks_even_beyond_the_leash(lua, world):
+    lua.execute(
+        "HOST = { name = 'host', position = { x = 100, y = 0 }, physical_surface = SURFACE } "
+        "HOST.physical_position = HOST.position"
+    )
+    assert enqueue(world, {"kind": "follow", "args": {"ticks": 20}}) == {
+        "v": 1,
+        "id": "t",
+        "ok": True,
+        "r": {"ids": [1]},
+    }
+    run(world, 20)
+    assert events(world) == [
+        {"kind": "job_done", "data": {"id": 1, "kind": "follow"}},
+        {"kind": "queue_idle", "data": {"last_job_id": 1}},
+    ]
+    assert states(world) == [(1, "done", None)]
+    assert len(world.REQUESTS) == 0  # beyond the leash the job waits instead of walking
+    assert world.BODY.walking_state.walking is False
 
 
 def test_queue_idle_follows_only_the_last_done_job(world):
@@ -330,6 +354,12 @@ def test_the_17th_queued_job_is_refused_and_finished_jobs_make_room(world):
         ),
         # a re-run would answer bad_request: job 1 is no longer queued
         ("jobs_cancel", {"id": 1}, {"all": True}, [(1, "cancelled", "cancelled")]),
+        (
+            "idle_set",
+            {"mode": "stay", "pos": {"x": 1, "y": 2}},
+            {"mode": "stay", "pos": {"x": 3, "y": 4}},
+            [(1, "queued", None)],
+        ),
     ],
 )
 def test_a_repeated_write_replays_its_reply_and_other_args_conflict(world, op, args, other, after):

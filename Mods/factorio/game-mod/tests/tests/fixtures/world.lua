@@ -111,6 +111,9 @@ function BODY.get_inventory(_index)
 end
 storage.body.entity = BODY
 HOST = { name = "host" }
+HOST.position = { x = 0, y = 0 }
+HOST.physical_position = HOST.position
+HOST.physical_surface = SURFACE
 
 DEPS = {
   storage = storage,
