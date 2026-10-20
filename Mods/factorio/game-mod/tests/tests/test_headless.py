@@ -792,8 +792,8 @@ def test_mine_then_deliver_spills_at_the_host_and_the_body_does_not_re_pick(serv
     (done, idle), _ = run_job(server, status["seq"], "deliver-mine", mine("coal", 20), 2)
     assert done["kind"] == "job_done"
 
-    # the body teleports 2 tiles beside the dev host: the worst case the spill distance must survive
-    server.command("/silent-command __coop-agent__ storage.body.entity.teleport({x = 0, y = 198})")
+    # the body teleports 1 tile beside the dev host: the re-pick case that measured 5 of 20 taken back
+    server.command("/silent-command __coop-agent__ storage.body.entity.teleport({x = 0, y = 199})")
     clear_ground(server)
     assert (body_coal(server), host_coal(server), len(ground_coal(server))) == (20, 0, 0)
     (done, idle), record = run_job(server, idle["seq"], "deliver-job", deliver("coal", 20), 2)
