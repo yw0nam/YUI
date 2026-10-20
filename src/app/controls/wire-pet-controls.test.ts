@@ -94,12 +94,15 @@ describe("wirePetControls", () => {
 
   it.each([null, "a"])("only main offers settings pop-out (bound id: %s)", (boundId) => {
     const wired = makeDeps(boundId);
-    const options = createQuickControls.mock.calls[0][0];
-    if (boundId === null) {
-      options.onPopOut();
-      expect(wired.deps.openSettings).toHaveBeenCalledTimes(1);
-    } else expect(options.onPopOut).toBeUndefined();
-    teardownDeps(wired);
+    try {
+      const options = createQuickControls.mock.calls[0][0];
+      if (boundId === null) {
+        options.onPopOut();
+        expect(wired.deps.openSettings).toHaveBeenCalledTimes(1);
+      } else expect(options.onPopOut).toBeUndefined();
+    } finally {
+      teardownDeps(wired);
+    }
   });
 
   it("registers the four teardowns in the baseline boot order", () => {

@@ -55,6 +55,7 @@ it("owns bound synchronization until application stores stop", async () => {
   const bus = bridge(),
     calls: string[] = [];
   const emit = vi.spyOn(bus, "emitPetWindowsChanged");
+  const disposed = vi.spyOn(bus, "dispose");
   const role = createPetWindowRole({
     boundId: "a",
     disposeWindow: () => {
@@ -63,6 +64,7 @@ it("owns bound synchronization until application stores stop", async () => {
     },
     bridge: bus,
     close: () => {
+      expect(disposed).toHaveBeenCalledExactlyOnceWith();
       calls.push("close");
     },
     log: createLogger("test"),
@@ -70,5 +72,27 @@ it("owns bound synchronization until application stores stop", async () => {
   role.petWindows.close("a");
   await vi.waitFor(() => expect(calls).toEqual(["stores", "close"]));
   expect(isPetWindowLive("a")).toBe(false);
-  expect(emit).toHaveBeenCalled();
+  expect(emit).toHaveBeenNthCalledWith(1);
+  expect(emit).toHaveBeenNthCalledWith(2);
+  expect(emit).toHaveBeenCalledTimes(2);
+});
+
+it("logs a rejected orphan close", async () => {
+  const log = createLogger("test"),
+    error = vi.spyOn(log, "error");
+  createPetWindowRole({
+    boundId: "missing",
+    disposeWindow: () => {},
+    bridge: bridge(),
+    close: async () => {
+      throw Error("native close");
+    },
+    log,
+  });
+  await vi.waitFor(() =>
+    expect(error).toHaveBeenCalledWith("pet_window_close_failed", {
+      preset: "missing",
+      error: "Error: native close",
+    }),
+  );
 });

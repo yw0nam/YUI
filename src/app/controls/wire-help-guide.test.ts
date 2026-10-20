@@ -38,7 +38,7 @@ function setup(bound = false) {
 }
 
 describe("wireHelpGuide", () => {
-  it("keeps bound help local and registers no companion listener", () => {
+  it("keeps bound help local and registers no settings-window help listener", () => {
     const { settingsBridge, userInput, disposers, ask } = setup(true);
     expect(disposers).toHaveLength(0);
     settingsBridge.emitHelpGuide({ guide: "controls", text: "main help" });

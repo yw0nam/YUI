@@ -67,10 +67,7 @@ describe("wireCrossWindowSync", () => {
     for (const store of Object.values(deps.conversation)) store.dispose();
   };
 
-  it.each([
-    true,
-    false,
-  ])("only main handles companion voice and mouth commands (bound: %s)", (bound) => {
+  it.each([true, false])("only main registers voice and mouth listeners (bound: %s)", (bound) => {
     const deps = makeDeps();
     const wired = wireCrossWindowSync({ ...deps, bound });
     expect(fakeBridge.onMouthPreview).toHaveBeenCalledTimes(bound ? 0 : 1);

@@ -86,3 +86,25 @@ it.each([true, false])("clears live state on pagehide only in browser (Tauri: %s
   expect(isPetWindowLive("a")).toBe(tauri);
   off();
 });
+
+it("still closes when lifecycle cleanup throws", async () => {
+  const close = vi.fn(),
+    log = createLogger("test"),
+    warn = vi.spyOn(log, "warn");
+  wireBoundWindow({
+    boundId: "a",
+    petWindows: createPetWindows(),
+    bridge: { emitPetWindowsChanged: async () => {} },
+    disposeStores: () => {},
+    disposeSync: () => {
+      throw Error("sync teardown");
+    },
+    close,
+    log,
+  });
+  await vi.waitFor(() => expect(close).toHaveBeenCalledExactlyOnceWith());
+  expect(warn).toHaveBeenCalledWith("pet_window_dispose_failed", {
+    preset: "a",
+    error: "Error: sync teardown",
+  });
+});

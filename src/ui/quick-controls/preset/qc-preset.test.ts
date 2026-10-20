@@ -55,8 +55,10 @@ describe("createQuickControls — presets", () => {
   function rebuild(windowsUi: boolean, boundId: string | null = null) {
     qc.dispose();
     const petWindows = createPetWindows();
+    const args = defaultQcArgs(mount);
     qc = createQuickControls({
-      ...defaultQcArgs(mount),
+      ...args,
+      onPopOut: boundId === null ? args.onPopOut : undefined,
       presetRegistry: registry,
       petWindows,
       windowsUi,

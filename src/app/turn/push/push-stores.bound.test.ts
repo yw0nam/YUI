@@ -2,7 +2,7 @@ import { expect, it, vi } from "vitest";
 import { createSettingsBridge } from "../../../io/bridge/settings-bridge";
 import { publishPushStores } from "./push-stores";
 
-it.each([true, false])("only main publishes companion push stores (bound: %s)", (bound) => {
+it.each([true, false])("only main publishes settings-window push state (bound: %s)", (bound) => {
   const bridge = createSettingsBridge(
     { emit: () => {}, listen: () => () => {} },
     { windowKind: "pet" },

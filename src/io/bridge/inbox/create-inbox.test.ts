@@ -8,7 +8,7 @@
  *  - cancellation during subscription cleans up the eventual listener
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OsEventListen } from "../../window/tauri-listen";
 import { createInbox } from "./create-inbox";
 
@@ -17,6 +17,28 @@ vi.mock("../../window/tauri-listen", () => ({
     throw new Error("resolver unavailable");
   }),
 }));
+
+const windowState = vi.hoisted(() => ({ label: "main" }));
+vi.mock("@tauri-apps/api/webviewWindow", () => ({
+  getCurrentWebviewWindow: () => ({ label: windowState.label }),
+}));
+afterEach(() => vi.unstubAllGlobals());
+
+it.each([
+  "main",
+  "pet-aaaa0001",
+])("subscribes only to the current webview target: %s", async (label) => {
+  vi.stubGlobal("__TAURI_INTERNALS__", {});
+  windowState.label = label;
+  const listen = vi.fn(async () => () => {});
+  const off = createInbox<TestPayload>("agent-inbox")(vi.fn(), { listen });
+  await vi.waitFor(() =>
+    expect(listen).toHaveBeenCalledExactlyOnceWith("agent-inbox", expect.any(Function), {
+      target: { kind: "WebviewWindow", label },
+    }),
+  );
+  off();
+});
 
 interface TestPayload {
   value: string;

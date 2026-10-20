@@ -11,7 +11,7 @@ const { getAllWebviewWindows, getByLabel, create, once, outcome, unlistenCreated
     getByLabel: vi.fn<
       (...args: unknown[]) => Promise<{ once: (...args: unknown[]) => Promise<() => void> } | null>
     >(async () => null),
-    outcome: { value: "created" as "created" | "error" | "timeout" },
+    outcome: { value: "created" as "created" | "error" | "timeout" | "listen-rejection" },
     unlistenCreated: vi.fn(),
     unlistenError: vi.fn(),
     create: vi.fn(),
@@ -25,6 +25,7 @@ vi.mock("@tauri-apps/api/webviewWindow", () => ({
       create(label, options);
     }
     async once(name: string, cb: (e?: { payload: string }) => void) {
+      if (outcome.value === "listen-rejection") throw undefined;
       if (name === "tauri://created" && outcome.value === "created") cb();
       if (name === "tauri://error" && outcome.value === "error") cb({ payload: "create error" });
       return name === "tauri://created" ? unlistenCreated : unlistenError;
@@ -91,4 +92,12 @@ it.each([
   await result;
   expect(unlistenCreated).toHaveBeenCalledTimes(1);
   expect(unlistenError).toHaveBeenCalledTimes(1);
+});
+
+it("rejects a falsy listener-registration failure", async () => {
+  vi.stubGlobal("__TAURI_INTERNALS__", {});
+  outcome.value = "listen-rejection";
+  await expect(createPetWindowOpener().open("a")).rejects.toThrow(
+    "pet window listener registration failed",
+  );
 });
