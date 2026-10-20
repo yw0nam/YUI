@@ -41,6 +41,12 @@ export function createPresetRegistry(deps?: {
   const kv = (): Pick<Storage, "getItem" | "setItem" | "removeItem"> | undefined =>
     globalThis.localStorage;
 
+  // Another window may have committed since this one last read; every edit starts from storage.
+  function latest(): PresetState {
+    core.reloadFromStorage();
+    return core.current();
+  }
+
   function nameFree(name: string, exceptId?: string): boolean {
     return !core.current().list.some((e) => e.id !== exceptId && e.name === name);
   }
@@ -51,8 +57,8 @@ export function createPresetRegistry(deps?: {
     /** Adds a preset seeded with the active preset's settings. Null when the name is empty or taken. */
     create(name: string): string | null {
       const trimmed = name.trim();
+      const { active, list } = latest();
       if (!trimmed || !nameFree(trimmed)) return null;
-      const { active, list } = core.current();
       let id = newId();
       while (id === DEFAULT_PRESET_ID || list.some((e) => e.id === id)) id = randomId();
       try {
@@ -71,7 +77,7 @@ export function createPresetRegistry(deps?: {
     /** False when the id is unknown or the name is empty or taken. */
     rename(id: string, name: string): boolean {
       const trimmed = name.trim();
-      const { active, list } = core.current();
+      const { active, list } = latest();
       if (!trimmed || !list.some((e) => e.id === id) || !nameFree(trimmed, id)) return false;
       core.commit({
         active,
@@ -82,7 +88,7 @@ export function createPresetRegistry(deps?: {
 
     /** Deletes a preset and its keys. The default preset and the active one are kept. */
     remove(id: string): boolean {
-      const { active, list } = core.current();
+      const { active, list } = latest();
       if (id === DEFAULT_PRESET_ID || id === active || !list.some((e) => e.id === id)) return false;
       try {
         for (const key of PRESET_KEYS) kv()?.removeItem(resolveStorageKey(key, id));
@@ -95,7 +101,7 @@ export function createPresetRegistry(deps?: {
 
     /** Makes a listed preset the active one. */
     activate(id: string): void {
-      const { list } = core.current();
+      const { list } = latest();
       if (!list.some((e) => e.id === id)) return;
       core.commit({ active: id, list });
     },
