@@ -1959,13 +1959,13 @@ globalThis.YUI_MAP =
       "wiring": "src/app/stage/wire-window-sources.ts"
     },
     {
-      "id": "preset-state-sync",
+      "id": "preset-ids-sync",
       "from": "settings",
       "to": "shell/agent-ingress",
       "carries": "sync_preset_ids {ids}: the registry's preset ids, so a prefixed route tells a closed window (503) from an unknown id (404); main only, a bound window is refused",
       "kind": "tauri-command",
       "transport": "shared",
-      "wiring": "src/app/pet-windows/wire-preset-state-sync.ts"
+      "wiring": "src/app/pet-windows/wire-preset-ids-sync.ts"
     },
     {
       "id": "inbox-sources",

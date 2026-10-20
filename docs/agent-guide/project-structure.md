@@ -87,7 +87,7 @@ YUI/
         companion-window.ts          # A companion window's boot: the orphan and owner checks, its own live key, and its teardown on a close request; the pet window's wait for its companions
         wire-pet-windows-sync.ts     # The open list in every window: a local edit out over yui://pet-windows-changed, a remote one reloaded from storage
         wire-pet-windows-reconcile.ts # Main's reconcile: prunes the list and live keys, then opens each wanted preset that has no window
-        wire-preset-state-sync.ts    # Main publishes the registry's preset ids to the shell, so a prefixed ingress route can tell a closed window from an unknown id
+        wire-preset-ids-sync.ts      # Main publishes the registry's preset ids to the shell, so a prefixed ingress route can tell a closed window from an unknown id
         wire-bound-window.ts         # A bound pet window's live key, its companions closed first, and its store teardown and close when its preset leaves the list
         close-if-orphan.ts           # Closes a bound window whose preset is no longer in the registry
       message/                       # The message window's wiring
@@ -451,7 +451,7 @@ YUI/
           avatar-executor.ts           # Answers the avatar RPCs addressed to its own window from live client state
           agent-inbox.ts               # Subscribes to the Rust agent-inbox event channel
           signals-inbox.ts             # Subscribes to the Rust signals-inbox event channel
-          preset-state.ts              # sync_preset_ids: the registry's preset ids published to the shell for ingress routing
+          preset-ids.ts                # sync_preset_ids: the registry's preset ids published to the shell for ingress routing
           create-inbox.ts              # Generic Tauri event-channel subscription seam
       assets/
         vrm-import.ts                  # VRM import: OS picker, native copy, avatar-option registration
