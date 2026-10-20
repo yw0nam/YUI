@@ -13,6 +13,7 @@ import {
   type PresetRegistry,
 } from "../../../settings/preset/preset-registry";
 import { setLocale } from "../../i18n";
+import { createPresetStrip, presetStripHtml } from "./preset-strip";
 import { createQuickControls } from "../quick-controls";
 import { defaultQcArgs } from "../test-helpers";
 
@@ -67,6 +68,26 @@ describe("createQuickControls — presets", () => {
     qc.open();
     return petWindows;
   }
+
+  it("the strip owns its ingress settings subscription and releases it", () => {
+    const agentNotifySettings = createAgentNotifySettings();
+    const subscribe = agentNotifySettings.subscribe;
+    const off = vi.fn();
+    vi.spyOn(agentNotifySettings, "subscribe").mockImplementation((cb) => {
+      const unsubscribe = subscribe(cb);
+      return () => { off(); unsubscribe(); };
+    });
+    const root = document.createElement("div");
+    root.innerHTML = `${presetStripHtml()}<div class="yui-quick__cols"></div>`;
+    const log = { debug:vi.fn(),info:vi.fn(),warn:vi.fn(),error:vi.fn() };
+    const strip = createPresetStrip({ root, registry, log, agentNotifySettings });
+    root.querySelector<HTMLButtonElement>(".yui-preset__manage")!.click();
+    expect(root.querySelector(".yui-preset-row__url")).toBeNull();
+    agentNotifySettings.setEnabled(true);
+    expect(root.querySelector('[data-preset-id="bbbb0002"] .yui-preset-row__url')).not.toBeNull();
+    strip.dispose();
+    expect(off).toHaveBeenCalledTimes(1);
+  });
 
   it("refreshes open ingress controls when device settings change", () => {
     qc.dispose();

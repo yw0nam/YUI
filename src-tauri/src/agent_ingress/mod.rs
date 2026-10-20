@@ -266,11 +266,25 @@ mod tests {
         );
     }
     #[test]
-    fn refused_requests_never_dispatch() {
-        assert_eq!(
-            route_after_guard::<()>(Some(403), || panic!("must not dispatch")).unwrap_err(),
-            403
-        );
+    fn refused_request_never_reads_registry_or_checks_windows() {
+        let mut request = tiny_http::TestRequest::new()
+            .with_method(tiny_http::Method::Post)
+            .with_path("/presets/x/signals")
+            .with_header(tiny_http::Header::from_bytes("Host", "evil.example:8770").unwrap())
+            .with_body(r#"{"signals":[],"envelope":{}}"#).into();
+        assert_eq!(route_request(&mut request, || panic!("must not read registry"), |_| panic!("must not check windows")).unwrap_err(),421);
+    }
+    #[test]
+    fn loopback_request_reaches_window_check_without_reading_registry() {
+        let mut request = tiny_http::TestRequest::new()
+            .with_method(tiny_http::Method::Post)
+            .with_path("/presets/x/signals")
+            .with_header(tiny_http::Header::from_bytes("Host", "127.0.0.1:8770").unwrap())
+            .with_body(r#"{"signals":[],"envelope":{}}"#).into();
+        let checked = std::cell::Cell::new(false);
+        let routed = route_request(&mut request, || panic!("existing windows need no registry"), |label| { assert_eq!(label,"pet-x"); checked.set(true); true }).unwrap();
+        assert!(checked.get());
+        assert_eq!(routed.label,"pet-x");
     }
 
     // ── Bind retry ────────────────────────────────────────────────────────────

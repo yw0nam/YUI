@@ -156,6 +156,14 @@ mod tests {
         }
     }
     #[test]
+    fn prefixed_agent_event_caps_summary() {
+        let body = serde_json::json!({"tool":"test", "project":"test", "cwd":"/tmp", "phase":"done", "summary":"a".repeat(9000), "ts":0}).to_string();
+        let route = parse_route("POST", "/presets/x/agent-event", &body).unwrap();
+        let RouteKind::AgentEvent(payload) = route.kind else { panic!("expected agent event") };
+        assert!(payload.summary.ends_with("[truncated]"));
+        assert!(payload.summary.len() < 9000);
+    }
+    #[test]
     fn rejects_malformed_routes_and_payloads() {
         for path in [
             "/presets",
