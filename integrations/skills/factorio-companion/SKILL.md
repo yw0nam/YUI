@@ -6,7 +6,7 @@ license: PolyForm-Noncommercial-1.0.0
 
 # factorio-companion
 
-YUI drives one body inside the owner's Factorio game. The owner hosts the game and chats with you. This skill calls them the owner. The body walks, follows, mines, and delivers.
+YUI drives one body inside the owner's Factorio game. The owner hosts the game and chats with you. This skill calls them the owner. The body walks, follows, mines, and delivers. The game mod and its tools call the owner the host.
 
 The game mod runs a job. It never decides what to do next. You plan, queue jobs, and speak.
 
@@ -32,7 +32,7 @@ The agent reads these steps aloud or pastes them. The agent never edits `config.
    ```
 
 3. Save the file. Start Factorio and host the save from Multiplayer → Host. RCON applies when the owner launches a multiplayer server from the menu, as the `config.ini` comment states.
-4. Switch the game mod setting `body enabled` on in Factorio's mod settings. The change applies at once.
+4. Switch on the game mod setting Body enabled in Factorio's mod settings. The change applies at once.
 5. Switch on YUI Settings → Proactive → Watchers → Agent notifications. Start YUI again. The setting applies at the next launch.
 6. Start the Mod:
 
@@ -70,7 +70,7 @@ The group carries `pending_from_seq`, `pending_to_seq`, `note`, and `reset`.
 Read the events in this order:
 
 1. Call `factorio_events` with `since_seq` equal to `pending_from_seq - 1`. The tool reads after `since_seq`, so this call includes the oldest unread event.
-2. Read the page. When `more` is true, call `factorio_events` again with `since_seq` equal to the `seq` of the last event in the page.
+2. Read the page. When `more` is true, call `factorio_events` again with `since_seq` equal to `next_seq`.
 3. Stop when `more` is false.
 
 Read the page before you plan, even when `note` already shows the chat text. The note holds one line. The page holds the events around it.
@@ -91,7 +91,7 @@ Read the page before you plan, even when `note` already shows the chat text. The
 | `rocket_launched` | none | A rocket launches. | default |
 | `attack_started` | `{cell, enemies, defenders}` | Enemies attack one map cell. | opt-in |
 | `attack_ended` | `{cell, duration_s, losses}` | That attack ends. `losses` is a list of `{name, count}`. | opt-in |
-| `snapshot_summary` | none | The game writes its periodic summary, one every 3600 ticks. | opt-in |
+| `snapshot_summary` | `{power, science, evolution, pollution}` | The game writes its periodic summary, once every 3600 ticks. | opt-in |
 | `body_died` | none | The body dies. Its items stay in the corpse. | default |
 | `body_respawned` | none | The body is back after death. | opt-in |
 | `stopped` | none | The stop latch is on. | default |
@@ -106,7 +106,7 @@ The default wake kinds are `chat`, `queue_idle`, `job_failed`, `stopped`, `body_
 
 Every kind enters the cache. Read a cached kind with `factorio_events` on the next wake.
 
-A `job_failed` from `deliver` also carries `no_item {item, count, held}` or `target_full {removed, spilled}`.
+A `job_failed` with reason `no_item` also carries `item`, `count`, and `held`. A `deliver` failure with reason `target_full` also carries `removed` and `spilled`.
 
 ## 4. The game, in plain words
 
@@ -116,8 +116,9 @@ The early loop:
 
 1. The owner mines coal, iron ore, copper ore, and stone by hand.
 2. Stone furnaces smelt ore into plates. Coal is the fuel.
-3. Iron plates and copper plates make gears, circuits, belts, inserters, and drills.
-4. Drills and belts then replace hand mining.
+3. Iron plates and copper plates feed the assemblers.
+4. Assemblers turn plates into gears, circuits, belts, inserters, and drills.
+5. Drills and belts then replace hand mining.
 
 Never state a recipe amount, a mining time, or a machine speed from memory. Read it with `factorio_recipe`, `factorio_inspect`, or `factorio_snapshot`.
 
@@ -145,7 +146,7 @@ Never state a recipe amount, a mining time, or a machine speed from memory. Read
 
 | Tool | Use |
 |---|---|
-| `factorio_status()` | Read the mod version, map id, newest event sequence, tick, host state, and body state. |
+| `factorio_status()` | Read the game mod version, map id, newest event sequence, tick, host state, and body state. |
 | `factorio_events(since_seq=None, limit=200)` | Read the cached events after `since_seq`, up to 200 per page. |
 | `factorio_snapshot(sections=None)` | Read the factory state for power, science, research, evolution, and pollution. |
 | `factorio_find(area=None, around=None, name=None, type=None, limit=50)` | Find entities by name, type, area, or near the owner. |
@@ -175,7 +176,7 @@ A `bad_request` error carries the game mod's message naming the job index and th
 
 A `mine` target is a resource, a tree, a rock, or an entity that the owner marked for deconstruction. A host-built entity is never a target unless the owner marked it for deconstruction. A resource that needs a fluid is never a target.
 
-`deliver` leaves the pile on the ground on the far side of the owner. The pile carries the `to_be_looted` flag. The body then steps back 6 tiles from the owner. A `deliver` with fewer than `count` of `item` fails at its start with `no_item`.
+`deliver` leaves the pile on the ground on the far side of the owner. The pile carries the `to_be_looted` flag. The body then steps back to 6 tiles from the owner. A `deliver` with fewer than `count` of `item` fails at its start with `no_item`.
 
 A job that ends `done` fires `job_done`. When nothing is queued after it, `queue_idle` follows.
 
@@ -212,17 +213,18 @@ A job that ends `done` fires `job_done`. When nothing is queued after it, `queue
 - `factorio_idle(mode: "follow")` follows the owner. `factorio_idle(mode: "stay")` stands at the body's position, or walks once to the position given in `pos`.
 - The follow keeps the body 10 to 15 tiles from the owner. Beyond a 64-tile leash the body stops and the status line reads `Waiting for <host>`.
 - After three failed follow steps the body waits 600 ticks. The status line reads `Waiting for <host>`.
-- The `idle start` setting applies at once.
+- While no `factorio_idle` call is in force, a change of the Idle start mode setting changes the idle mode at once. The change does not lift the stop latch.
 - `factorio_stop()` stops the body at once and latches it stopped. The first stop fires `stopped`.
 - A new job or `factorio_idle` lifts the stop latch.
 - Idle never runs while the stop latch is on or a threat holds the body.
+- Idle runs only while no job is queued or running. When `factorio_jobs` shows a queued or running job, call `factorio_jobs_cancel` with id `"all"` before `factorio_idle`.
 - An enemy within the safe radius of the body empties the queue: the running job fails `threat`, and the queued jobs are cancelled with `threat`. No `queue_idle` follows. The first sighting fires `body_threat`.
 - The body retreats toward the owner and ends within 5 tiles of them.
 - `body_damaged` fires at most once per 300 ticks. Each one empties the queue the same way.
 - `body_threat` and `body_damaged` are opt-in for the wake. Read both on the next wake before you queue again.
 - While a threat holds the body, the queue starts no job and idle does nothing. Jobs queued meanwhile wait.
 - Jobs and idle resume only after 600 quiet ticks from the end of the retreat. A new sighting before that ends the queue again.
-- The safe radius is the `coop-agent-safe-radius` setting, 48 tiles by default.
+- The Safe radius setting (`coop-agent-safe-radius`) is 48 tiles by default.
 
 ## 6. Planning templates
 
@@ -232,34 +234,34 @@ The rows below answer a request in game chat. That answer goes to game chat and 
 
 | The owner says | Jobs or tools | Say, when, and where |
 |---|---|---|
-| "bring me 50 coal" | `factorio_jobs_enqueue` with `{kind: "mine", args: {name: "coal", count: 50}}`, then `{kind: "deliver", args: {item: "coal", count: 50}}` | On `queue_idle`: game chat and desktop. "The coal is on the ground behind you." |
-| "get some wood" | `{kind: "mine", args: {name: "wood", count: 50}}`, then `{kind: "deliver", args: {item: "wood", count: 50}}` | On `queue_idle`: game chat and desktop. "The wood is on the ground behind you." |
-| "follow me" | `factorio_idle(mode: "follow")` | At once: game chat and desktop. "Following." |
-| "stay here" | `factorio_idle(mode: "stay")` | At once: game chat and desktop. "Staying here." |
-| "come back" | `factorio_idle(mode: "follow")` | At once: game chat and desktop. "Coming back." |
-| "wait here" | `factorio_idle(mode: "stay")` | At once: game chat and desktop. "Waiting here." |
+| "bring me 50 coal" | `factorio_jobs_enqueue` with `{kind: "mine", args: {name: "coal", count: 50}}`, then `{kind: "deliver", args: {item: "coal", count: 50}}` | On `queue_idle`: game chat and desktop. "The coal is on the ground beside you." |
+| "get some wood" | `{kind: "mine", args: {name: "wood", count: 50}}`, then `{kind: "deliver", args: {item: "wood", count: 50}}` | On `queue_idle`: game chat and desktop. "The wood is on the ground beside you." |
+| "follow me" | `factorio_jobs_cancel(id: "all")` when a job runs, then `factorio_idle(mode: "follow")` | At once: game chat and desktop. "Following." |
+| "stay here" | `factorio_jobs_cancel(id: "all")` when a job runs, then `factorio_idle(mode: "stay")` | At once: game chat and desktop. "Staying here." |
+| "come back" | `factorio_jobs_cancel(id: "all")` when a job runs, then `factorio_idle(mode: "follow")` | At once: game chat and desktop. "Coming back." |
+| "wait here" | `factorio_jobs_cancel(id: "all")` when a job runs, then `factorio_idle(mode: "stay")` | At once: game chat and desktop. "Waiting here." |
 | "stop" | `factorio_stop()` | At once: game chat and desktop. "Stopped." |
 | "what is my power situation" | `factorio_snapshot(sections: ["power"])` | At once: game chat and desktop, with the numbers the tool returns. |
 | "where is the nearest iron" | `factorio_find(around: "player", name: "iron-ore")`, then `factorio_ping` on the hit nearest the owner | At once: game chat and desktop. Give the distance from `status.host.position` to the hit. When the call returns no hit, say so. |
-| "mine stone until I say stop" | `{kind: "mine", args: {name: "stone", count: 50}}`. On each `queue_idle`, enqueue the next batch. | On the first `queue_idle`: game chat and desktop. "Starting on stone." Then silence until the owner speaks. |
-| "come here" | `factorio_status()`, then `{kind: "walk_to", args: {pos: status.host.position, radius: 2}}` | On `queue_idle`: game chat and desktop. "Here." |
+| "mine stone until I say stop" | `{kind: "mine", args: {name: "stone", count: 50}}`. On each `queue_idle`, enqueue the next batch. | At once: game chat and desktop. "Starting on stone." Then silence until the owner speaks. |
+| "come here" | `factorio_status()`, then `factorio_find(around: "player", type: "character")`, then `factorio_ping(pos, text)` on the owner's position, then `{kind: "walk_to", args: {pos: status.host.position, radius: 2}}` | On `queue_idle`: game chat and desktop. "Here." |
 | "how do I make a gear" | `factorio_recipe(name: "iron-gear-wheel")` | At once: game chat and desktop, from the recipe data. |
 
-A job list that ends in `deliver` holds the item the `mine` job produces. A `no_item` failure carries `{item, count, held}`. Queue a `deliver` for the held count, or mine first.
+In a `mine` then `deliver` list, `deliver.item` is `mine.name` and `deliver.count` is `mine.count`.
 
 ### When a job fails
 
 | Code | Next step |
 |---|---|
-| `no_path` | Re-plan once with another target. Then ask the owner to move closer. |
-| `stuck` | Re-plan once with a shorter walk. Then ask the owner. |
+| `no_path` | Re-plan once with another target. Then ask the owner to move closer. Ask in the channel of the request. |
+| `stuck` | Re-plan once with a shorter walk. Then ask the owner. Ask in the channel of the request. |
 | `target_gone` | Re-plan once with the next target `factorio_find` returns. |
 | `no_item` | Read `held` from the failure detail. Deliver that count, or mine first. |
 | `not_permitted` | Stop. Tell the owner what the body cannot take. |
-| `unreachable` | Ask the owner to walk closer, or pick another target. |
+| `unreachable` | Ask the owner to walk closer, or pick another target. Ask in the channel of the request. |
 | `unsupported` | Tell the owner the body cannot do that. Stop the plan. |
 | `target_full` | Tell the owner. Stop the plan. |
-| `timeout` | Report the job. Ask the owner before you queue it again. |
+| `timeout` | Report the job. Ask the owner before you queue it again. Ask in the channel of the request. |
 | `threat` | Stop. Do not queue a job that walks back into the threat. Tell the owner. |
 | `stopped` | Stop. Say nothing. |
 | `body_dead` | Report once. Queue no job until `factorio_status` shows the body alive. |
@@ -270,18 +272,17 @@ A job list that ends in `deliver` holds the item the `mine` job produces. A `no_
 - A request in game chat gets one `factorio_say` line in game chat and the same answer on the desktop. The line speaks under the body's name.
 - A request through another channel gets the desktop answer alone.
 - Keep each `factorio_say` call at or below 200 characters, and send at most 6 calls each minute.
-- Answer `[SILENT]` for a wake the owner did not ask about, unless the body dies, a job fails, the owner's character dies, or a rocket launches.
+- Answer `[SILENT]` for a wake the owner did not ask about, unless the body dies, a job fails for a reason other than `stopped`, the owner's character dies, or a rocket launches.
 - Never narrate every `job_done`. Silence on a finished job is the normal answer.
 - Report a `job_failed` once. Say the reason in the owner's words: "I could not reach the coal", not `no_path`.
 - Speak a number only when a tool returns it.
-- Do not ask a question with `factorio_say`. Ask it on the desktop.
 - Answer in the owner's language. Game item names stay in English.
 
 ## 8. Boundaries
 
 - The body mines only resources, trees, rocks, and entities the owner marked for deconstruction.
 - It never mines a host-built entity without a mark, and never a resource that needs a fluid.
-- It never touches the host's inventory or corpse, never changes game speed, never teleports.
+- It never touches the owner's inventory and never teleports.
 - The body never attacks. Near an enemy it retreats to the owner.
 - The tools cannot edit game files or game settings.
 - The MCP server binds `127.0.0.1:9003` and has no transport auth. Any local process that reaches the port can call the tools.

@@ -36,6 +36,7 @@ A failed job reports one of these reason codes:
 - `unsupported`: the named `mine` entity needs a fluid to mine, or a job kind set no `timeout_ticks` at its start.
 - `target_full`: `mine`: the body has no room for `name`. `deliver`: the spill fell short. The detail is `{removed, spilled}`.
 - `timeout`: `timeout_ticks` elapsed since the job start.
+- `threat`: an enemy is within the safe radius of the `walk_to` or `mine` target at the job's start or of a replacement `mine` target, or near the job's route; also on the running job when the body check or enemy damage ends the queue, and on the queued jobs it cancels.
 - `stopped`: the stop latch is on or no host is connected; also on jobs cancelled before any started.
 - `body_dead`: there is no live body; also on jobs cancelled before any started.
 - `cancelled`: a cancel, or an earlier job of the queue failed."""
