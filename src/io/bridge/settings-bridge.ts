@@ -26,6 +26,7 @@ const CH_DELEGATIONS_ASK = "yui://delegations-ask";
 const CH_REASONING = "yui://reasoning";
 const CH_REASONING_ASK = "yui://reasoning-ask";
 const CH_HELP_GUIDE = "yui://help-guide";
+const CH_PRESET_CHANGED = "yui://preset-changed";
 
 interface VoiceStateSnapshot {
   state: VoiceInputState;
@@ -35,6 +36,10 @@ interface VoiceStateSnapshot {
 export interface HelpGuideRequest {
   guide: GuideKey;
   text: string;
+}
+
+export interface PresetChange {
+  active: string;
 }
 
 export interface SettingsBridge {
@@ -73,6 +78,9 @@ export interface SettingsBridge {
   /** A window with no input source of its own asking the pet window to submit a guide request. */
   emitHelpGuide(request: HelpGuideRequest): void;
   onHelpGuide(cb: (request: HelpGuideRequest) => void): () => void;
+  /** The preset a window just activated; every other window reloads into it. */
+  emitPresetChanged(change: PresetChange): void;
+  onPresetChanged(cb: (change: PresetChange) => void): () => void;
   dispose(): void;
 }
 
@@ -169,6 +177,15 @@ export function createSettingsBridge(
       return on<unknown>(CH_HELP_GUIDE, (request) => {
         const r = (request ?? {}) as Partial<HelpGuideRequest>;
         if (isGuideKey(r.guide) && typeof r.text === "string") cb({ guide: r.guide, text: r.text });
+      });
+    },
+    emitPresetChanged(change) {
+      safeEmit(CH_PRESET_CHANGED, change);
+    },
+    onPresetChanged(cb) {
+      return on<unknown>(CH_PRESET_CHANGED, (change) => {
+        const active = (change as Partial<PresetChange> | null)?.active;
+        if (typeof active === "string" && active) cb({ active });
       });
     },
     dispose: core.dispose,

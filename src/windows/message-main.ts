@@ -54,12 +54,15 @@ async function bootstrap(): Promise<void> {
     storage: localStorageStore("yui.bubble-persist"),
   });
 
-  // The pet window reloads into another preset; this window reloads with it.
-  const presetRegistry = createPresetRegistry();
-  const disposePresetSwitch = wirePresetSwitch({ registry: presetRegistry });
-
   const bridge = createMessageBridge(undefined, { windowKind: "message" });
   const settingsBridge = createSettingsBridge(undefined, { windowKind: "message" });
+
+  // The pet window reloads into another preset; this window reloads with it.
+  const presetRegistry = createPresetRegistry();
+  const disposePresetSwitch = wirePresetSwitch({
+    registry: presetRegistry,
+    bridge: settingsBridge,
+  });
 
   // The socket lives in the pet window; this one mirrors its state, its delegations list and its reasoning.
   const pushSocket = createMirroredPushSocket({ bridge: settingsBridge });

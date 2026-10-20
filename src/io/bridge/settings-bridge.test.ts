@@ -247,19 +247,21 @@ describe("createSettingsBridge", () => {
     expect(cb).toHaveBeenCalledWith({ active: "aaaa0001" });
   });
 
-  it.each([[null], [{}], [{ active: 7 }], [{ active: "" }]])(
-    "ignores a preset-changed payload %j without an active id",
-    (payload) => {
-      const t = createFakeTransport();
-      const b = createSettingsBridge(t, { windowKind: "pet" });
-      const cb = vi.fn();
-      b.onPresetChanged(cb);
+  it.each([
+    [null],
+    [{}],
+    [{ active: 7 }],
+    [{ active: "" }],
+  ])("ignores a preset-changed payload %j without an active id", (payload) => {
+    const t = createFakeTransport();
+    const b = createSettingsBridge(t, { windowKind: "pet" });
+    const cb = vi.fn();
+    b.onPresetChanged(cb);
 
-      t.emit("yui://preset-changed", { __src: "other", __kind: "settings", payload });
+    t.emit("yui://preset-changed", { __src: "other", __kind: "settings", payload });
 
-      expect(cb).not.toHaveBeenCalled();
-    },
-  );
+    expect(cb).not.toHaveBeenCalled();
+  });
 
   it("stops reasoning delivery on the per-listener disposer and on dispose()", () => {
     const t = createFakeTransport();

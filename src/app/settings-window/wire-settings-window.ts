@@ -283,7 +283,7 @@ export async function wireSettingsWindow(deps: { app: HTMLElement }): Promise<vo
   vrmSelection.subscribe(broadcastSettings);
 
   // The pet window stops the turn on the same switch; this window only follows it.
-  const disposePresetSwitch = wirePresetSwitch({ registry: presetRegistry });
+  const disposePresetSwitch = wirePresetSwitch({ registry: presetRegistry, bridge });
 
   // Drains LIFO, so registered in reverse of the teardown order.
   register(disposePresetSwitch);

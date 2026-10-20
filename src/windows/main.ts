@@ -178,7 +178,13 @@ async function bootstrap(): Promise<BootstrapHandle> {
   });
   publishPushStores(push, windowBridge, register);
   // A preset switch stops the turn and speech the way the stop button does, then reloads.
-  register(wirePresetSwitch({ registry: presetRegistry, onBeforeReload: push.stopTurn }));
+  register(
+    wirePresetSwitch({
+      registry: presetRegistry,
+      bridge: windowBridge,
+      onBeforeReload: push.stopTurn,
+    }),
+  );
 
   // The bus and input source come first: the settings panel submits its help requests through them.
   // The bus is safe to create before config load: it only queues until the dispatcher starts popping.

@@ -2430,6 +2430,15 @@ globalThis.YUI_MAP =
       "wiring": "src/app/cross-window/wire-window-sync.ts"
     },
     {
+      "id": "preset-changed",
+      "from": "settings",
+      "to": "io/bridge/settings",
+      "carries": "active preset id → yui://preset-changed; the receiving window reloads",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/settings/wire-preset.ts"
+    },
+    {
       "id": "preset-stop",
       "from": "settings",
       "to": "dispatcher/turn",
