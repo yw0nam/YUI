@@ -37,7 +37,7 @@ end)
 script.on_event(defines.events.on_runtime_mod_setting_changed, body.on_setting_changed_event)
 script.on_event("coop-agent-stop", body.stop_input)
 script.on_event(defines.events.on_script_path_request_finished, walker.on_path_finished_event)
--- the runner returns at once while no job is active
+-- one counter check per tick while no job is queued or running
 script.on_event(defines.events.on_tick, jobs.tick_event)
 
 script.on_nth_tick(60, function()

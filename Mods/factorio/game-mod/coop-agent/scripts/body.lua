@@ -52,14 +52,19 @@ function M.clear_latch(deps)
   refresh(deps)
 end
 
---- The hotkey and the stop op: halt walking, mining and crafting; the first stop latches and emits stopped.
-function M.stop(deps)
+--- Halts the live body's walking, mining and crafting.
+function M.halt(deps)
   local entity = M.entity(deps)
   if entity then
     entity.walking_state = { walking = false, direction = entity.walking_state.direction }
     entity.mining_state = { mining = false }
     character.cancel_crafts(entity)
   end
+end
+
+--- The hotkey and the stop op: halt the body; the first stop latches and emits stopped.
+function M.stop(deps)
+  M.halt(deps)
   if not deps.storage.body.stopped then
     deps.storage.body.stopped = true
     deps.push("stopped", {})

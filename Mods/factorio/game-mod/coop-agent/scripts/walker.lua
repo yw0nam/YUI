@@ -43,10 +43,6 @@ local function walk(deps, entity, heading)
   entity.walking_state = { walking = true, direction = deps.direction[DIRECTIONS[heading.y][heading.x]] }
 end
 
-local function halt(entity)
-  entity.walking_state = { walking = false, direction = entity.walking_state.direction }
-end
-
 local function behind(pos, heading)
   local scale = STEP_TILES / math.sqrt(heading.x * heading.x + heading.y * heading.y)
   return { x = pos.x - heading.x * scale, y = pos.y - heading.y * scale }
@@ -83,10 +79,7 @@ end
 --- Drops the walk and halts the body.
 function M.cancel(deps)
   deps.storage.walker = nil
-  local entity = body.entity(deps)
-  if entity then
-    halt(entity)
-  end
+  body.halt(deps)
 end
 
 local function finish(deps, result)
@@ -131,7 +124,6 @@ local function unstick(deps, walker, entity, pos)
   end
   if walker.still == STALL_TICKS then
     request(walker, entity, behind(pos, walker.heading))
-    halt(entity)
     return true
   end
   return false
