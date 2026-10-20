@@ -285,7 +285,12 @@
   cursor: default;
 }
 
-.yui-preset-row__url-text,
+.yui-preset-row__url-text {
+  user-select: text;
+  overflow-wrap: anywhere;
+  font: inherit;
+  font-size: var(--yui-fs-sub);
+}
 .yui-preset-row:has(.yui-preset-row__url-text) {
   flex-wrap: wrap;
 }

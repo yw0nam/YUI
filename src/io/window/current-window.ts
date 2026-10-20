@@ -15,10 +15,12 @@ export async function destroyCurrentWindow(): Promise<void> {
   } else window.close();
 }
 
-export async function listenCurrentWindowCloseRequested(dispose: () => void): Promise<() => void> {
+export async function listenCurrentWindowCloseRequested(
+  onRequest: () => void,
+): Promise<() => void> {
   if (!isTauri()) return () => {};
   const { getCurrentWindow } = await import("@tauri-apps/api/window");
   return getCurrentWindow().onCloseRequested(async () => {
-    dispose();
+    onRequest();
   });
 }
