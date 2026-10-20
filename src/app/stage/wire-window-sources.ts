@@ -178,30 +178,28 @@ export function wireWindowSources(deps: {
     // lives and the movement happens. Perch gestures go through the drop source's
     // placement so they share the drag flow's geometry, arming and envelopes.
     const { availableMonitors } = await import("@tauri-apps/api/window");
-    if (!deps.bound) {
-      avatarExecutor = createAvatarExecutor({
-        subscribe: (cb) => onAvatarRpc(cb),
-        respond: (id, result) => void respondAvatarRpc(id, result),
-        perch: windowDropSource,
-        getWindow: () => {
-          const win = getCurrentWindow();
-          return {
-            outerPosition: () => win.outerPosition(),
-            outerSize: () => win.outerSize(),
-            scaleFactor: () => win.scaleFactor(),
-            setPositionLogical: (x, y) => win.setPosition(new LogicalPosition(x, y)),
-          };
-        },
-        listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
-        getFeetOffsetPx: () => renderer.getCharacterAnchor()?.y ?? null,
-        getPosture,
-        getVrm,
-        noteAvatarMoved,
-        noteAgentMove,
-        onRelocated,
-        bed: deps.bed,
-      });
-    }
+    avatarExecutor = createAvatarExecutor({
+      subscribe: (cb) => onAvatarRpc(cb),
+      respond: (id, result) => void respondAvatarRpc(id, result),
+      perch: windowDropSource,
+      getWindow: () => {
+        const win = getCurrentWindow();
+        return {
+          outerPosition: () => win.outerPosition(),
+          outerSize: () => win.outerSize(),
+          scaleFactor: () => win.scaleFactor(),
+          setPositionLogical: (x, y) => win.setPosition(new LogicalPosition(x, y)),
+        };
+      },
+      listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
+      getFeetOffsetPx: () => renderer.getCharacterAnchor()?.y ?? null,
+      getPosture,
+      getVrm,
+      noteAvatarMoved,
+      noteAgentMove,
+      onRelocated,
+      bed: deps.bed,
+    });
     if (disposed) {
       windowDropSource.stop();
       return;

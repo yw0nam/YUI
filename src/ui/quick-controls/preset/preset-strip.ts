@@ -31,6 +31,7 @@ export function presetStripHtml(): string {
 export interface PresetStrip {
   /** Closes the manage popover — the panel closed. */
   close(): void;
+  reflect(): void;
   dispose(): void;
 }
 
@@ -45,6 +46,7 @@ export function createPresetStrip(deps: {
   log: Logger;
   petWindows?: PetWindows;
   boundId?: string | null;
+  presetUrl?: (id: string) => string | null;
 }): PresetStrip {
   const { root, registry, log, petWindows, boundId = null } = deps;
   const stripEl = root.querySelector<HTMLDivElement>(".yui-preset")!;
@@ -62,7 +64,14 @@ export function createPresetStrip(deps: {
   const stateEl = stripEl.querySelector<HTMLParagraphElement>(".yui-preset__state")!;
   const popEl = stripEl.querySelector<HTMLDivElement>(".yui-preset-pop")!;
   const colsEl = root.querySelector<HTMLDivElement>(".yui-quick__cols")!;
-  const manage = createPresetManage({ el: popEl, registry, log, petWindows, boundId });
+  const manage = createPresetManage({
+    el: popEl,
+    registry,
+    log,
+    petWindows,
+    boundId,
+    presetUrl: deps.presetUrl,
+  });
   let switching = false;
 
   function render(): void {
@@ -162,6 +171,7 @@ export function createPresetStrip(deps: {
 
   return {
     close: () => closeManage(false),
+    reflect: render,
     dispose(): void {
       closeManage(false);
       unsubscribe();

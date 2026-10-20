@@ -10,6 +10,8 @@ pub fn run(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         window_frame::allow_unconstrained_frame(&main)?;
     }
 
+    app.manage(crate::agent_ingress::PresetIds::default());
+
     let (log_dir, log_offset) = app_log::init(app)?;
     app.manage(turn_log::TurnRecordLog::new(log_dir, log_offset));
     // Warn level so a release log also shows that the WebDriver eval server is open.

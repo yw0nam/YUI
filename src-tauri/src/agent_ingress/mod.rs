@@ -9,34 +9,75 @@
 //!
 //! Binds loopback only; no auth (single-user desktop).
 
-use crate::os_event_watcher::epoch_ms;
 use avatar_rpc::spawn_avatar_request;
 use payload::{
-    cap_detail, cap_summary, parse_avatar_request, parse_request, parse_signals_request,
     rejected_level, AgentEventPayload, SignalsPayload, AGENT_INBOX_CHANNEL, BODY_CEILING_BYTES,
     INGRESS_DEAD_CHANNEL, SIGNALS_INBOX_CHANNEL,
 };
-use std::sync::atomic::{AtomicBool, Ordering};
+use route::{dispatch, Dispatch, RouteKind};
+use std::collections::HashSet;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Mutex,
+};
 use std::thread;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 pub(crate) mod avatar_rpc;
 mod guard;
 mod payload;
 mod route;
 
+#[derive(Default)]
+pub struct PresetIds(Mutex<HashSet<String>>);
+impl PresetIds {
+    fn replace(&self, label: &str, ids: Vec<String>) -> Result<(), String> {
+        if label != "main" {
+            log::warn!("preset_state_sync_refused label={label}");
+            return Err("only main may sync preset ids".into());
+        }
+        if ids.iter().any(String::is_empty) {
+            return Err("preset ids must not be empty".into());
+        }
+        let ids: HashSet<_> = ids.into_iter().collect();
+        let count = ids.len();
+        *self.0.lock().map_err(|e| e.to_string())? = ids;
+        log::debug!("preset_state_synced count={count}");
+        Ok(())
+    }
+}
+
+#[tauri::command]
+pub fn sync_preset_ids(
+    window: tauri::Window,
+    state: State<'_, PresetIds>,
+    ids: Vec<String>,
+) -> Result<(), String> {
+    state.replace(window.label(), ids)
+}
+
+fn route_after_guard<T>(
+    refused: Option<u16>,
+    dispatch: impl FnOnce() -> Result<T, u16>,
+) -> Result<T, u16> {
+    match refused {
+        Some(code) => Err(code),
+        None => dispatch(),
+    }
+}
+
 // ─── Emit helper ──────────────────────────────────────────────────────────────
 
-fn emit_agent_event(app: &AppHandle, payload: AgentEventPayload) {
-    let result = app.emit_to(INGRESS_WINDOW, AGENT_INBOX_CHANNEL, payload);
+fn emit_agent_event(app: &AppHandle, label: &str, payload: AgentEventPayload) {
+    let result = app.emit_to(label, AGENT_INBOX_CHANNEL, payload);
     if let Err(e) = &result {
         log::warn!("agent_ingress_emit_failed error={e}");
     }
 }
 
-fn emit_signals_event(app: &AppHandle, payload: SignalsPayload) {
-    let result = app.emit_to(INGRESS_WINDOW, SIGNALS_INBOX_CHANNEL, payload);
+fn emit_signals_event(app: &AppHandle, label: &str, payload: SignalsPayload) {
+    let result = app.emit_to(label, SIGNALS_INBOX_CHANNEL, payload);
     if let Err(e) = &result {
         log::warn!("agent_ingress_signals_emit_failed error={e}");
     }
@@ -69,65 +110,46 @@ fn handle_request(app: &AppHandle, mut request: tiny_http::Request) {
     let method = request.method().to_string();
     let url = request.url().to_string();
 
-    if let Some(code) = guard::refuse(request.headers()) {
-        let _ = request.respond(tiny_http::Response::from_string("").with_status_code(code));
-        log::warn!("agent_ingress_refused code={code} method={method} url={url}");
-        return;
-    }
-
-    let body = match read_body(&mut request) {
-        Some(b) => b,
-        None => {
-            let _ = request.respond(tiny_http::Response::from_string("").with_status_code(400u16));
+    let refused = guard::refuse(request.headers());
+    let result = route_after_guard(refused, || {
+        let body = read_body(&mut request).ok_or_else(|| {
             log::warn!("agent_ingress_body_read_failed url={url}");
-            return;
-        }
-    };
-
-    let path_only = url.split('?').next().unwrap_or(&url);
-    if path_only.starts_with("/avatar/") {
-        match parse_avatar_request(&method, &url, &body) {
-            Ok(route) => spawn_avatar_request(app, route, request),
-            Err(code) => {
-                let _ =
-                    request.respond(tiny_http::Response::from_string("").with_status_code(code));
+            400u16
+        })?;
+        let ids = app
+            .state::<PresetIds>()
+            .0
+            .lock()
+            .map_err(|_| 503u16)?
+            .clone();
+        dispatch(&method, &url, &body, &ids, |label| {
+            app.get_webview_window(label).is_some()
+        })
+    });
+    let Dispatch { label, kind } = match result {
+        Ok(route) => route,
+        Err(code) => {
+            let _ = request.respond(tiny_http::Response::from_string("").with_status_code(code));
+            if refused.is_some() {
+                log::warn!("agent_ingress_refused code={code} method={method} url={url}");
+            } else {
                 log::log!(
                     rejected_level(code),
                     "agent_ingress_rejected code={code} method={method} url={url}"
                 );
             }
+            return;
         }
-        return;
-    }
-    let result = match path_only {
-        "/agent-event" => parse_request(&method, &url, &body).map(|payload| {
-            let payload = cap_detail(cap_summary(payload));
-            emit_agent_event(app, payload);
-        }),
-        "/signals" => parse_signals_request(&method, &url, &body).and_then(|request| {
-            let payload = SignalsPayload {
-                signals: request.signals,
-                envelope: request.envelope.ok_or(400u16)?,
-                ts: epoch_ms(),
-            };
-            emit_signals_event(app, payload);
-            Ok(())
-        }),
-        _ => Err(400),
     };
-
-    match result {
-        Ok(()) => {
-            let _ = request.respond(tiny_http::Response::from_string("").with_status_code(200u16));
+    match kind {
+        RouteKind::Avatar(route) => {
+            spawn_avatar_request(app, &label, route, request);
+            return;
         }
-        Err(code) => {
-            let _ = request.respond(tiny_http::Response::from_string("").with_status_code(code));
-            log::log!(
-                rejected_level(code),
-                "agent_ingress_rejected code={code} method={method} url={url}"
-            );
-        }
+        RouteKind::AgentEvent(payload) => emit_agent_event(app, &label, payload),
+        RouteKind::Signals(payload) => emit_signals_event(app, &label, payload),
     }
+    let _ = request.respond(tiny_http::Response::from_string("").with_status_code(200u16));
 }
 
 // ─── Background listener ──────────────────────────────────────────────────────
@@ -176,7 +198,7 @@ fn claim_and_bind(
     Some(result)
 }
 
-/// The webview that owns the ingress; every ingress event is delivered to it alone.
+/// Main owns the bare routes and ingress lifecycle notifications.
 const INGRESS_WINDOW: &str = "main";
 
 /// Spawns the loopback HTTP listener on the given port.
@@ -238,11 +260,17 @@ mod tests {
         assert!(state.0.lock().unwrap().is_empty());
         state.replace("main", vec!["a".into()]).unwrap();
         state.replace("main", vec!["b".into()]).unwrap();
-        assert_eq!(*state.0.lock().unwrap(), std::collections::HashSet::from(["b".into()]));
+        assert_eq!(
+            *state.0.lock().unwrap(),
+            std::collections::HashSet::from(["b".into()])
+        );
     }
     #[test]
     fn refused_requests_never_dispatch() {
-        assert_eq!(route_after_guard(Some(403), || panic!("must not dispatch")).unwrap_err(), 403);
+        assert_eq!(
+            route_after_guard::<()>(Some(403), || panic!("must not dispatch")).unwrap_err(),
+            403
+        );
     }
 
     // ── Bind retry ────────────────────────────────────────────────────────────

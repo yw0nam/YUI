@@ -4,6 +4,7 @@
  * This module owns inputs, handlers, subscriptions, redraws, teardown.
  */
 import type { createAgentNotifySettings } from "../../../../settings/backend/agent-notify-settings";
+import { ingressUrl } from "../../../../settings/backend/agent-notify-settings";
 import type {
   GuardrailsSettingsStore,
   RateLimitOverrides,
@@ -15,6 +16,7 @@ import { RATE_LIMIT_FIELDS } from "../../constants";
 type AgentNotifySettingsStore = ReturnType<typeof createAgentNotifySettings>;
 
 interface ReactionsSectionDeps {
+  boundId?: string | null;
   /** Panel root (el) — query the agent-port, presence, pacer-gap, and cap inputs here. */
   root: HTMLElement;
   /** Agent notification settings — the agent-port row's store. Absent when the section isn't rendered. */
@@ -64,6 +66,8 @@ export function createReactionsSection(deps: ReactionsSectionDeps): ReactionsSec
   function reflectAgentNotify(): void {
     if (!agentNotifySettings) return;
     if (agentPortInput) agentPortInput.value = String(agentNotifySettings.get().port);
+    const url = el.querySelector("#yui-ingress-url");
+    if (url) url.textContent = ingressUrl(agentNotifySettings.get().port, deps.boundId ?? null);
   }
 
   function reflectPresence(): void {

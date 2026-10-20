@@ -190,7 +190,6 @@ describe("createAgentNotifySettings — malformed/throwing storage", () => {
   });
 });
 
-
 describe("ingressUrl", () => {
   it("formats bare and preset URLs with the stored port", async () => {
     const { ingressUrl } = await import("./agent-notify-settings");

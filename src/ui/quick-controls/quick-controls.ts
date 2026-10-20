@@ -4,6 +4,7 @@
  * variant: "popover" (default, docked in pet window + draggable) | "window" (separate OS window, full fill).
  */
 
+import { ingressUrl } from "../../settings/backend/agent-notify-settings";
 import "./quick-controls.css";
 import "./controls.css";
 import type { AvatarOption } from "../../config/validators/avatar/types";
@@ -423,8 +424,19 @@ export function createQuickControls({
   if (historyTab) el.querySelector("#yui-panel-hist")!.append(historyTab.el);
   const workflows = createWorkflowsSection({ root: el, store: workflowSettings, log });
   const presetStrip = presetRegistry
-    ? createPresetStrip({ root: el, registry: presetRegistry, log, petWindows, boundId })
+    ? createPresetStrip({
+        root: el,
+        registry: presetRegistry,
+        log,
+        petWindows,
+        boundId,
+        presetUrl: (id) =>
+          agentNotifySettings?.get().enabled
+            ? ingressUrl(agentNotifySettings.get().port, id)
+            : null,
+      })
     : null;
+  const offIngressUrl = agentNotifySettings?.subscribe(() => presetStrip?.reflect());
   const hintTooltip = createHintTooltip({ root: el });
 
   // After dispose, prevent in-flight refresh from repainting/timering on destroyed DOM.
@@ -538,6 +550,7 @@ export function createQuickControls({
 
   // ── Reactions section (agent port · presence · pacer gap · rate-limit caps) ──
   const reactions = createReactionsSection({
+    boundId,
     root: el,
     agentNotifySettings,
     presenceSettings,
@@ -693,6 +706,7 @@ export function createQuickControls({
     unbindHelp?.();
     popover.dispose();
     tabRail.dispose();
+    offIngressUrl?.();
     presetStrip?.dispose();
     el.remove();
     scrimEl.remove();

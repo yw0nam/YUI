@@ -131,7 +131,8 @@
 }
 
 .yui-preset-row__rename,
-.yui-preset-row__remove {
+.yui-preset-row__remove,
+.yui-preset-row__url {
   display: grid;
   place-items: center;
   width: 1.5rem;
@@ -154,7 +155,8 @@
   opacity: 0.7;
 }
 
-.yui-preset-row__rename:hover {
+.yui-preset-row__rename:hover,
+.yui-preset-row__url:hover {
   opacity: 1;
   background: var(--yui-accent-faint);
   color: var(--yui-accent);
@@ -167,7 +169,8 @@
 }
 
 .yui-preset-row__rename:focus-visible,
-.yui-preset-row__remove:focus-visible {
+.yui-preset-row__remove:focus-visible,
+.yui-preset-row__url:focus-visible {
   outline: none;
   opacity: 1;
   box-shadow: 0 0 0 2px var(--yui-accent-soft);
@@ -280,4 +283,22 @@
 .yui-preset-row__window:disabled {
   opacity: 0.45;
   cursor: default;
+}
+
+.yui-preset-row__url-text {
+  user-select: text;
+  overflow-wrap: anywhere;
+  font: inherit;
+  font-size: var(--yui-fs-sub);
+}
+.yui-preset-row:has(.yui-preset-row__url-text) {
+  flex-wrap: wrap;
+}
+.yui-preset-row > .yui-preset-row__url-text {
+  flex-basis: 100%;
+}
+
+.yui-preset-row__url svg {
+  width: 0.875rem;
+  height: 0.875rem;
 }

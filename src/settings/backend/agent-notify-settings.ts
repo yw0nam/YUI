@@ -54,3 +54,7 @@ export function createAgentNotifySettings(opts?: { storage?: AgentNotifyStorage 
 export function localStorageAgentNotifyStorage(key = "yui.agentNotify"): AgentNotifyStorage {
   return localStorageStore<AgentNotifySettings>(key);
 }
+
+export function ingressUrl(port: number, id: string | null): string {
+  return `http://127.0.0.1:${port}${id === null ? "" : `/presets/${id}`}/signals`;
+}

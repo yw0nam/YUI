@@ -23,6 +23,7 @@ pub fn handler() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         #[cfg(desktop)]
         crate::passthrough::set_click_through,
         crate::agent_ingress::start_agent_ingress,
+        crate::agent_ingress::sync_preset_ids,
         crate::agent_ingress::avatar_rpc::avatar_rpc_response,
         crate::turn_log::append_turn_record,
         crate::window_frame::set_frame_logical,

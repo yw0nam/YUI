@@ -31,6 +31,7 @@ export function createPresetManage(deps: {
   log: Logger;
   petWindows?: PetWindows;
   boundId?: string | null;
+  presetUrl?: (id: string) => string | null;
 }): PresetManage {
   const { el, registry, log, petWindows, boundId } = deps;
   let renamingId: string | null = null;
@@ -89,6 +90,36 @@ export function createPresetManage(deps: {
       button.addEventListener("click", () =>
         desired ? petWindows.close(entry.id) : petWindows.open(entry.id),
       );
+      row.querySelector(".yui-preset-row__acts")!.append(button);
+    }
+    const url = deps.presetUrl?.(entry.id);
+    if (url) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "yui-preset-row__url";
+      button.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>`;
+      button.setAttribute("aria-label", t("preset.copy_url", { name: entry.name }));
+      button.title = t("reactions.restart_hint");
+      button.addEventListener("click", () => {
+        const failed = (error: unknown) => {
+          log.warn("ingress_url_copy_failed", { error: String(error) });
+          if (!row.querySelector(".yui-preset-row__url-text")) {
+            const text = document.createElement("code");
+            text.className = "yui-preset-row__url-text";
+            text.textContent = url;
+            row.append(text);
+          }
+        };
+        try {
+          if (!navigator.clipboard?.writeText) {
+            failed("Clipboard API unavailable");
+            return;
+          }
+          void navigator.clipboard.writeText(url).catch(failed);
+        } catch (error) {
+          failed(error);
+        }
+      });
       row.querySelector(".yui-preset-row__acts")!.append(button);
     }
     return row;
