@@ -52,11 +52,19 @@ function M.clear_latch(deps)
   refresh(deps)
 end
 
---- Halts the live body's walking, mining and crafting.
-function M.halt(deps)
+--- Stops the live body's walking only.
+function M.stop_walking(deps)
   local entity = M.entity(deps)
   if entity then
     entity.walking_state = { walking = false, direction = entity.walking_state.direction }
+  end
+end
+
+--- Halts the live body's walking, mining and crafting.
+function M.halt(deps)
+  M.stop_walking(deps)
+  local entity = M.entity(deps)
+  if entity then
     entity.mining_state = { mining = false }
     character.cancel_crafts(entity)
   end

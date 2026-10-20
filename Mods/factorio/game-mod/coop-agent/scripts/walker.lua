@@ -79,10 +79,10 @@ function M.go(deps, target, radius)
   }
 end
 
---- Drops the walk and halts the body.
+--- Drops the walk and stops the body walking.
 function M.cancel(deps)
   deps.storage.walker = nil
-  body.halt(deps)
+  body.stop_walking(deps)
 end
 
 local function finish(deps, result)
@@ -126,6 +126,7 @@ local function unstick(deps, walker, entity, pos)
   end
   if walker.still_ticks == STALL_TICKS then
     request(walker, entity, behind(pos, walker.heading))
+    body.stop_walking(deps)
     return true
   end
   return false

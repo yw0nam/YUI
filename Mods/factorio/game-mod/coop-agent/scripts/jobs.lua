@@ -35,6 +35,7 @@ local function close(deps, job, state, reason)
   deps.storage.jobs.active = deps.storage.jobs.active - 1
   if was_running then
     walker.cancel(deps)
+    body.halt(deps)
     body.set_status(deps, IDLE_STATUS)
   end
 end
