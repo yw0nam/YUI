@@ -25,8 +25,6 @@ GameErrorCode = Literal[
     "op_error",
     "rate_limited",
     "history_gap",
-    "unsupported",
-    "not_permitted",
     "unknown_outcome",
     "rcon_auth",
     "bad_reply",
@@ -58,7 +56,7 @@ class RpcClient:
         self,
         rcon: RconClient,
         session: Session,
-        on_session_reset: Callable[["RpcClient", dict[str, Any], int], Awaitable[None]] | None = None,
+        on_session_reset: Callable[[dict[str, Any], int], Awaitable[None]] | None = None,
         *,
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
@@ -105,7 +103,7 @@ class RpcClient:
             if code == "stale_session" and op != "status":
                 status = await self.status(deadline)
                 if self._on_session_reset is not None:
-                    await self._on_session_reset(self, status, generation)
+                    await self._on_session_reset(status, generation)
             raise RpcError(code, str(reply.get("m") or ""), reply.get("r"))
 
     async def _reconcile(
@@ -120,7 +118,7 @@ class RpcClient:
             status = await self.status(deadline)
             if status.get("map_id") != request["map_id"]:
                 if self._on_session_reset is not None:
-                    await self._on_session_reset(self, status, generation)
+                    await self._on_session_reset(status, generation)
                 raise RpcUnavailable(
                     "unknown_outcome", "the map changed before the reply was confirmed"
                 ) from err
