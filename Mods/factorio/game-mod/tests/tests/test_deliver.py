@@ -8,9 +8,10 @@ SETUP = """
 HOST.position = { x = 6, y = 0 }
 HOST.surface = SURFACE
 BODY.main = { coal = 20 }
-function BODY.get_item_count(name) return BODY.main[name] or 0 end
+function BODY.get_item_count(name) return (BODY.main[name] or 0) + (BODY.extra and BODY.extra[name] or 0) end
 function BODY.get_main_inventory()
   return {
+    get_item_count = function(name) return BODY.main[name] or 0 end,
     remove = function(spec)
       local held = BODY.main[spec.name] or 0
       local taken = math.min(held, spec.count)
@@ -65,6 +66,10 @@ def spilled(world):
 
 def answer(lua, world, x):
     world.answer(lua.table_from([lua.table_from([x, 0])]), False)
+
+
+def fail_walk(lua, world):
+    world.answer(False, False)
 
 
 def walk_to_the_spill(lua, world):
@@ -145,6 +150,45 @@ def test_a_body_at_2_8_tiles_spills_at_once(lua, deliver_world):
     ]
     assert dict(deliver_world.REQUESTS[1].goal) == {"x": -3.2, "y": 0.0}
     assert spilled(deliver_world)[0]["position"] == {"x": 4.3, "y": 0.0}
+
+
+def test_a_failed_step_out_does_not_spill(lua, deliver_world):
+    lua.execute("HOST.position = { x = 1, y = 0 }")
+    enqueue(deliver_world, DELIVER)
+    for _ in range(4):
+        run(deliver_world, 31)
+        fail_walk(lua, deliver_world)
+    run(deliver_world, 30)
+
+    assert events(deliver_world) == [
+        {"kind": "job_failed", "data": {"id": 1, "kind": "deliver", "reason": "stuck"}}
+    ]
+    assert len(deliver_world.REQUESTS) == 3
+    assert spilled(deliver_world) == []
+    assert deliver_world.BODY.main.coal == 20
+    assert states(deliver_world) == [(1, "failed", "stuck")]
+
+
+def test_held_outside_the_main_inventory_does_not_count(lua, deliver_world):
+    lua.execute("BODY.extra = { coal = 5 }")
+    enqueue(deliver_world, {"kind": "deliver", "args": {"item": "coal", "count": 22}})
+    run(deliver_world, 1)
+
+    assert events(deliver_world) == [
+        {
+            "kind": "job_failed",
+            "data": {
+                "id": 1,
+                "kind": "deliver",
+                "reason": "no_item",
+                "item": "coal",
+                "count": 22,
+                "held": 20,
+            },
+        }
+    ]
+    assert spilled(deliver_world) == []
+    assert states(deliver_world) == [(1, "failed", "no_item")]
 
 
 def test_the_status_line_holds_the_item_while_walking(lua, deliver_world):
