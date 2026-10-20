@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -31,7 +32,7 @@ class Headless:
 
     def launch(self, *args):
         proc = subprocess.run(
-            ["bash", str(HEADLESS), "--bin", self.bin_path, *args, str(self.workdir)],
+            ["bash", str(HEADLESS), "--bin", self.bin_path, "--probe", *args, str(self.workdir)],
             capture_output=True,
             text=True,
             timeout=300,
@@ -123,12 +124,12 @@ def test_status_events_since_say_round_trip(server):
     status = server.rpc(v=1, id="it-1", op="status", args={})
     tick = status["r"].pop("tick")  # follows the wall clock
     assert isinstance(tick, int) and tick >= 0
-    # a headless server has no host player, so host is absent
+    # a headless server has no host player and the dev host is unset, so host is absent
     assert status == {
         "v": 1,
         "id": "it-1",
         "ok": True,
-        "r": {"mod_version": "0.1.0", "map_id": MAP_ID, "seq": 1},
+        "r": {"mod_version": "0.1.1", "map_id": MAP_ID, "seq": 1, "body": {"alive": False}, "stopped": False},
     }
 
     said = server.rpc(v=1, id="it-2", op="say", args={"text": "hello"}, map_id=MAP_ID)
@@ -326,3 +327,121 @@ def test_a_save_reload_returns_the_head_seq_of_the_save(server):
 
     reloaded = server.rpc(v=1, id="r-1", op="events_since", args={"seq": 0}, map_id=MAP_ID)
     assert reloaded == {"v": 1, "id": "r-1", "ok": True, "r": saved}
+
+
+BODY_ENABLED = "settings.global['coop-agent-body-enabled']"
+CHARACTERS = "game.surfaces[1].find_entities_filtered{type = 'character'}"
+# freeplay's starter items that land in the main inventory; the pistol and ammo take their own slots
+KIT_MAIN = [
+    {"name": "iron-plate", "count": 8},
+    {"name": "burner-mining-drill", "count": 1},
+    {"name": "stone-furnace", "count": 1},
+    {"name": "wood", "count": 1},
+]
+
+
+def set_body_enabled(server, value):
+    """Writes the setting from coop-agent's own Lua state (only the owning mod may) and returns the tick."""
+    code = f"{BODY_ENABLED} = {{value = {str(value).lower()}}} rcon.print(game.tick)"
+    return int(server.command(f"/silent-command __coop-agent__ {code}"))
+
+
+def wait_status(server, done, deadline_s=60):
+    deadline = time.monotonic() + deadline_s
+    while time.monotonic() < deadline:
+        status = server.rpc(v=1, id="poll", op="status", args={})["r"]
+        if done(status):
+            return status
+        time.sleep(0.05)
+    raise AssertionError("status never reached the wanted state")
+
+
+def events_after(server, seq):
+    return server.rpc(v=1, id="ev", op="events_since", args={"seq": seq}, map_id=MAP_ID)["r"]["events"]
+
+
+def labels(server):
+    return json.loads(
+        server.command(
+            "/silent-command local out = {} "
+            "for _, o in ipairs(rendering.get_all_objects('coop-agent')) do out[#out + 1] = o.text end "
+            "rcon.print(helpers.table_to_json(out))"
+        )
+    )
+
+
+def test_body_spawns_beside_the_dev_host_with_the_starter_kit(server):
+    assert json.loads(server.command("/coop-probe host 0 0")) == {"ok": True, "host": {"x": 0, "y": 0}}
+    enabled_tick = set_body_enabled(server, True)
+
+    status = wait_status(server, lambda s: s["body"]["alive"])
+    assert status["tick"] - enabled_tick <= 60
+    position = status["body"].pop("position")
+    assert math.dist((position["x"], position["y"]), (0, 0)) <= 3
+    assert status["body"] == {"alive": True, "health": 250, "inventory": KIT_MAIN}
+    assert status["host"] == {"name": "dev-host", "connected": True, "position": {"x": 0, "y": 0}}
+    assert labels(server) == ["Buddy · Standing by"]
+
+
+def test_stop_latches_and_emits_stopped(server):
+    seq = server.rpc(v=1, id="s0", op="status", args={})["r"]["seq"]
+    assert server.rpc(v=1, id="stop-1", op="stop", args={}, map_id=MAP_ID) == {
+        "v": 1,
+        "id": "stop-1",
+        "ok": True,
+        "r": {},
+    }
+    assert server.rpc(v=1, id="s1", op="status", args={})["r"]["stopped"] is True
+    assert without_ticks(events_after(server, seq)) == [{"kind": "stopped", "data": {}}]
+    assert labels(server) == ["Buddy · Stopped"]
+
+
+def test_a_dead_body_leaves_its_items_and_respawns_empty_1800_ticks_later(server):
+    seq = server.rpc(v=1, id="d0", op="status", args={})["r"]["seq"]
+    server.command(f"/silent-command for _, c in pairs({CHARACTERS}) do c.die() end")
+    corpse = json.loads(
+        server.command(
+            "/silent-command local c = game.surfaces[1].find_entities_filtered{type = 'character-corpse'}[1] "
+            "rcon.print(helpers.table_to_json(c.get_inventory(defines.inventory.character_corpse).get_contents()))"
+        )
+    )
+    assert sorted((item["name"], item["count"]) for item in corpse) == [
+        ("burner-mining-drill", 1),
+        ("firearm-magazine", 10),
+        ("iron-plate", 8),
+        ("pistol", 1),
+        ("stone-furnace", 1),
+        ("wood", 1),
+    ]
+
+    server.command("/silent-command game.speed = 10")
+    try:
+        status = wait_status(server, lambda s: s["body"]["alive"])
+    finally:
+        server.command("/silent-command game.speed = 1")
+    died, respawned = events_after(server, seq)
+    assert (died["kind"], died["data"], respawned["kind"], respawned["data"]) == (
+        "body_died",
+        {},
+        "body_respawned",
+        {},
+    )
+    assert 1800 <= respawned["tick"] - died["tick"] < 1860
+    assert status["body"]["inventory"] == {}
+
+
+def test_disabling_the_body_removes_it_and_it_stays_gone(server):
+    seq = server.rpc(v=1, id="x0", op="status", args={})["r"]["seq"]
+    disabled_tick = set_body_enabled(server, False)
+    status = wait_status(server, lambda s: not s["body"]["alive"])
+    assert status["tick"] - disabled_tick <= 60
+
+    server.command("/silent-command game.speed = 10")
+    try:
+        status = wait_status(server, lambda s: s["tick"] >= disabled_tick + 1900)
+    finally:
+        server.command("/silent-command game.speed = 1")
+    assert status["body"] == {"alive": False}
+    assert int(server.command(f"/silent-command rcon.print(#{CHARACTERS})")) == 0
+    # the 3600-tick snapshot_summary may land in the window; no body event may
+    assert [e["kind"] for e in events_after(server, seq) if e["kind"] != "snapshot_summary"] == []
