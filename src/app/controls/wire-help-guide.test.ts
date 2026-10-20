@@ -38,13 +38,13 @@ function setup(bound = false) {
 }
 
 describe("wireHelpGuide", () => {
-  it("keeps bound help local and registers no settings-window help listener", () => {
+  it("serves bound settings help as well as local help", () => {
     const { settingsBridge, userInput, disposers, ask } = setup(true);
-    expect(disposers).toHaveLength(0);
+    expect(disposers).toHaveLength(1);
     settingsBridge.emitHelpGuide({ guide: "controls", text: "main help" });
-    expect(userInput.submitGuide).toHaveBeenCalledTimes(0);
+    expect(userInput.submitGuide).toHaveBeenCalledTimes(1);
     ask("controls", "local help");
-    expect(userInput.submitGuide).toHaveBeenCalledExactlyOnceWith("controls", "local help");
+    expect(userInput.submitGuide).toHaveBeenLastCalledWith("controls", "local help");
   });
   it("a press in the settings window reaches the pet window and submits there with the text it sent", () => {
     const { settingsBridge, userInput } = setup();

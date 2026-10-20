@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { resolveStorageKey } from "./preset-keys";
+import { PRESET_COPIED_KEYS, resolveStorageKey } from "./preset-keys";
 
 describe("resolveStorageKey", () => {
   it.each([
+    ["yui.message-window", "yui.ab12cd34.message-window"],
     ["yui.endpoints", "yui.ab12cd34.endpoints"],
     ["yui.chat-key", "yui.ab12cd34.chat-key"],
     ["yui.chat-id", "yui.ab12cd34.chat-id"],
@@ -40,4 +41,8 @@ describe("resolveStorageKey", () => {
   it("leaves every key unchanged under the default preset", () => {
     expect(resolveStorageKey("yui.endpoints", "default")).toBe("yui.endpoints");
   });
+});
+
+it("does not copy message placement and mode into a new preset", () => {
+  expect(PRESET_COPIED_KEYS).not.toContain("yui.message-window");
 });

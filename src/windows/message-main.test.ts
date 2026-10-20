@@ -239,3 +239,25 @@ it("reloads when the pet window's preset switch arrives over the settings bridge
 
   await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce());
 });
+
+it("keeps a bound message window on its preset after a foreign activation", async () => {
+  history.replaceState(null, "", "/?preset=a");
+  const list = [
+    { id: "default", name: "Default" },
+    { id: "a", name: "A" },
+    { id: "b", name: "B" },
+  ];
+  localStorage.setItem("yui.presets", JSON.stringify({ active: "default", list }));
+  try {
+    await boot();
+    const { wirePresetSwitch } = await import("../app/settings/wire-preset");
+    expect(wirePresetSwitch).toHaveBeenCalledWith(expect.objectContaining({ boundId: "a" }));
+    localStorage.setItem("yui.presets", JSON.stringify({ active: "b", list }));
+    await petBridge.emitPresetChanged({ active: "b" });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(reload).not.toHaveBeenCalled();
+  } finally {
+    window.dispatchEvent(new Event("beforeunload"));
+    history.replaceState(null, "", "/");
+  }
+});

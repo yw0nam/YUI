@@ -7,6 +7,8 @@ const { getAllWebviewWindows, getByLabel, create, once, outcome, unlistenCreated
       { label: "main" },
       { label: "pet-a" },
       { label: "settings" },
+      { label: "settings-a" },
+      { label: "message-a" },
     ]),
     getByLabel: vi.fn<
       (...args: unknown[]) => Promise<{ once: (...args: unknown[]) => Promise<() => void> } | null>
@@ -42,7 +44,7 @@ afterEach(() => {
 it("lists pet labels and tolerates a window gone before listener registration", async () => {
   vi.stubGlobal("__TAURI_INTERNALS__", {});
   const opener = createPetWindowOpener();
-  expect(await opener.existing()).toEqual(["a"]);
+  expect(await opener.existing()).toEqual(["pet-a", "settings-a", "message-a"]);
   const cb = vi.fn();
   const off = await opener.onDestroyed("missing", cb);
   off();

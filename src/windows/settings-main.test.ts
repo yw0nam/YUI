@@ -3,10 +3,15 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 const { createQuickControls, initLogger, createLogger } = vi.hoisted(() => ({
-  createQuickControls: vi.fn(() => ({
+  createQuickControls: vi.fn<
+    typeof import("../ui/quick-controls/quick-controls").createQuickControls
+  >(() => ({
+    el: {} as HTMLElement,
+    close: vi.fn(),
+    isOpen: vi.fn(() => true),
     open: vi.fn(),
     dispose: vi.fn(),
-    selectedTab: vi.fn(() => "general"),
+    selectedTab: vi.fn(() => "general" as const),
   })),
   initLogger: vi.fn(async () => {}),
   createLogger: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
@@ -78,3 +83,43 @@ it("reloads when the pet window's preset switch arrives over the settings bridge
   pet.dispose();
   localStorage.removeItem("yui.presets");
 }, 15_000);
+
+it("keeps bound controls pinned and hides voice input across locale remounts", async () => {
+  history.replaceState(null, "", "/?preset=a");
+  localStorage.setItem(
+    "yui.presets",
+    JSON.stringify({
+      active: "default",
+      list: [
+        { id: "default", name: "Default" },
+        { id: "a", name: "A" },
+      ],
+    }),
+  );
+  try {
+    const mirror = vi.spyOn(
+      await import("../app/settings-window/wire-voice-mirror"),
+      "wireVoiceMirror",
+    );
+    await import("./settings-main");
+    await vi.waitFor(() => expect(createQuickControls).toHaveBeenCalledOnce());
+    expect(mirror).not.toHaveBeenCalled();
+    expect(createQuickControls.mock.calls[0]![0]).toMatchObject({
+      boundId: "a",
+      showVoiceInput: false,
+    });
+    const { wirePresetSwitch } = await import("../app/settings/wire-preset");
+    expect(wirePresetSwitch).toHaveBeenCalledWith(expect.objectContaining({ boundId: "a" }));
+    const i18n = await import("../ui/i18n");
+    i18n.setLocale("ja");
+    await vi.waitFor(() => expect(createQuickControls).toHaveBeenCalledTimes(2));
+    expect(createQuickControls.mock.calls[1]![0]).toMatchObject({
+      boundId: "a",
+      showVoiceInput: false,
+    });
+  } finally {
+    window.dispatchEvent(new Event("beforeunload"));
+    history.replaceState(null, "", "/");
+    localStorage.clear();
+  }
+}, 15000);

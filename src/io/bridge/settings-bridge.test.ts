@@ -281,3 +281,33 @@ describe("createSettingsBridge", () => {
     expect(ask).not.toHaveBeenCalled();
   });
 });
+
+it.each([
+  ["onSettingsChanged", undefined, false],
+  ["onPresetChanged", { active: "b" }, false],
+  ["onPetWindowsChanged", undefined, false],
+  ["onMouthPreview", 0.3, true],
+  ["onVoiceSet", true, true],
+  ["onVoiceState", { state: "idle" }, true],
+  ["onPushState", { kind: "disconnected" }, true],
+  ["onPushStateAsk", undefined, true],
+  ["onPushReset", undefined, true],
+  ["onPushReconnect", undefined, true],
+  ["onDelegations", [], true],
+  ["onDelegationsAsk", undefined, true],
+  ["onReasoning", { text: "x", live: true }, true],
+  ["onReasoningAsk", undefined, true],
+  ["onHelpGuide", { guide: "controls", text: "help" }, true],
+] as const)("%s uses its declared preset scope", (method, payload, scoped) => {
+  history.replaceState(null, "", "/?preset=a");
+  const t = createFakeTransport();
+  const bridge = createSettingsBridge(t, { windowKind: "pet" });
+  const cb = vi.fn();
+  bridge[method](cb);
+  const name = [...t.listeners.keys()][0]!;
+  for (const tag of ["b", undefined, "a"])
+    t.emit(name, { __src: "other", __kind: "settings", __preset: tag, payload });
+  expect(cb).toHaveBeenCalledTimes(scoped ? 1 : 3);
+  bridge.dispose();
+  history.replaceState(null, "", "/");
+});

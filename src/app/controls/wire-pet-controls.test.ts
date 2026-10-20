@@ -92,14 +92,19 @@ describe("wirePetControls", () => {
     for (const store of Object.values(wired.deps.conversation)) store.dispose();
   }
 
-  it.each([null, "a"])("only main offers settings pop-out (bound id: %s)", (boundId) => {
+  it.each([
+    null,
+    "a",
+  ])("opens settings and keeps voice ownership across remount (bound: %s)", async (boundId) => {
     const wired = makeDeps(boundId);
     try {
       const options = createQuickControls.mock.calls[0][0];
-      if (boundId === null) {
-        options.onPopOut();
-        expect(wired.deps.openSettings).toHaveBeenCalledTimes(1);
-      } else expect(options.onPopOut).toBeUndefined();
+      options.onPopOut();
+      expect(wired.deps.openSettings).toHaveBeenCalledTimes(1);
+      expect(options.showVoiceInput).toBe(boundId === null);
+      localeSubscribers[0]!();
+      await Promise.resolve();
+      expect(createQuickControls.mock.calls.at(-1)![0].showVoiceInput).toBe(boundId === null);
     } finally {
       teardownDeps(wired);
     }

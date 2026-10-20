@@ -116,6 +116,7 @@ describe("createPresetRegistry", () => {
       { id: "aaaa0001", name: "natsume" },
       { id: "bbbb0002", name: "perlica" },
     ]);
+    map.set("yui.aaaa0001.message-window", '{"mode":"popped"}');
     map.set("yui.aaaa0001.endpoints", "{}");
     map.set("yui.aaaa0001.chat_transcript", "[]");
     map.set("yui.aaaa0001.previous_response_id", "resp_1");
@@ -184,11 +185,16 @@ describe("createPresetRegistry", () => {
   });
 });
 
-it.each(["open", "live"])("refuses removing or activating a %s preset", (mode) => {
+it.each([
+  "open",
+  "pet",
+  "settings",
+  "message",
+])("refuses removing or activating a %s preset", (mode) => {
   seedPresets("default", [{ id: "aaaa0001", name: "natsume" }]);
   map.set("yui.aaaa0001.endpoints", "{}");
   if (mode === "open") map.set("yui.windows", JSON.stringify({ open: ["aaaa0001"] }));
-  else map.set("yui.pet-window.aaaa0001", "1");
+  else map.set(`yui.live-window.${mode}-aaaa0001`, "1");
   const registry = createPresetRegistry();
   expect(registry.remove("aaaa0001")).toBe(false);
   expect(registry.activate("aaaa0001")).toBe(false);

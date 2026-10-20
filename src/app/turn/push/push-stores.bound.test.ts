@@ -2,7 +2,7 @@ import { expect, it, vi } from "vitest";
 import { createSettingsBridge } from "../../../io/bridge/settings-bridge";
 import { publishPushStores } from "./push-stores";
 
-it.each([true, false])("only main publishes settings-window push state (bound: %s)", (bound) => {
+it.each([true, false])("every pet publishes settings-window push state (bound: %s)", (bound) => {
   const bridge = createSettingsBridge(
     { emit: () => {}, listen: () => () => {} },
     { windowKind: "pet" },
@@ -16,7 +16,7 @@ it.each([true, false])("only main publishes settings-window push state (bound: %
     reasoning: { get: () => ({}), subscribe },
   } as unknown as Parameters<typeof publishPushStores>[0];
   publishPushStores(stores, bridge, () => {}, { bound });
-  expect(onReset).toHaveBeenCalledTimes(bound ? 0 : 1);
-  expect(onAsk).toHaveBeenCalledTimes(bound ? 0 : 1);
+  expect(onReset).toHaveBeenCalledTimes(1);
+  expect(onAsk).toHaveBeenCalledTimes(1);
   bridge.dispose();
 });

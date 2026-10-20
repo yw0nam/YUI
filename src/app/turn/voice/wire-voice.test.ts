@@ -19,6 +19,18 @@ describe("wireVoiceInput", () => {
   // start() runs fire-and-forget out of the subscribe/setStt callbacks — drain a microtask to observe it.
   const flush = (): Promise<void> => Promise.resolve();
 
+  it("never captures or changes persisted intent when bound", async () => {
+    const voiceInputStatus = createVoiceInputStatus();
+    const stt = makeSttVad();
+    const persistence = makePersistence(true);
+    const input = wireVoiceInput({ voiceInputStatus, voicePersistence: persistence, bound: true });
+    input.setStt(stt as never);
+    voiceInputStatus.set("listening");
+    await flush();
+    expect(stt.start).not.toHaveBeenCalled();
+    expect(persistence.set).not.toHaveBeenCalled();
+    input.dispose();
+  });
   it("auto-resumes on setStt when the persistence port says on", async () => {
     const voiceInputStatus = createVoiceInputStatus();
     const sttVad = makeSttVad();

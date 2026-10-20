@@ -177,3 +177,24 @@ describe("wireStorageSync", () => {
     dispose();
   });
 });
+
+it("creates and reuses the bound settings singleton", async () => {
+  vi.stubGlobal("__TAURI_INTERNALS__", {});
+  try {
+    createSettingsWindowOpener("a")();
+    await vi.waitFor(() =>
+      expect(WebviewWindow).toHaveBeenCalledWith(
+        "settings-a",
+        expect.objectContaining({ url: "settings.html?preset=a" }),
+      ),
+    );
+    const show = vi.fn(async () => {}),
+      setFocus = vi.fn(async () => {});
+    WebviewWindow.getByLabel.mockResolvedValue({ show, setFocus } as never);
+    createSettingsWindowOpener("a")();
+    await vi.waitFor(() => expect(setFocus).toHaveBeenCalledTimes(1));
+    expect(WebviewWindow).toHaveBeenCalledTimes(1);
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});

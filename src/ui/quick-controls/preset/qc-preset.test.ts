@@ -3,9 +3,9 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  clearPetWindowLive,
+  clearWindowLive,
   createPetWindows,
-  setPetWindowLive,
+  setWindowLive,
 } from "../../../settings/preset/pet-windows";
 import {
   createPresetRegistry,
@@ -52,16 +52,15 @@ describe("createQuickControls — presets", () => {
     mount.remove();
   });
 
-  function rebuild(windowsUi: boolean, boundId: string | null = null) {
+  function rebuild(boundId: string | null = null) {
     qc.dispose();
     const petWindows = createPetWindows();
     const args = defaultQcArgs(mount);
     qc = createQuickControls({
       ...args,
-      onPopOut: boundId === null ? args.onPopOut : undefined,
+      onPopOut: args.onPopOut,
       presetRegistry: registry,
       petWindows,
-      windowsUi,
       boundId,
     });
     qc.open();
@@ -69,7 +68,7 @@ describe("createQuickControls — presets", () => {
   }
 
   it("opens windows and refreshes controls after the live key clears", () => {
-    const petWindows = rebuild(true);
+    const petWindows = rebuild();
     openManage();
     rowOf("perlica").querySelector<HTMLButtonElement>(".yui-preset-row__window")!.click();
     expect(JSON.parse(localStorage.getItem("yui.windows")!)).toEqual({ open: ["bbbb0002"] });
@@ -80,24 +79,24 @@ describe("createQuickControls — presets", () => {
     expect(option().disabled).toBe(true);
     expect(option().textContent).toBe("perlica · open as a window");
     expect(rowOf("perlica").querySelector(".yui-preset-row__remove")).toBeNull();
-    setPetWindowLive("bbbb0002");
+    setWindowLive("pet-bbbb0002");
     petWindows.close("bbbb0002");
     expect(option().disabled).toBe(true);
-    clearPetWindowLive("bbbb0002");
+    clearWindowLive("pet-bbbb0002");
     petWindows.invalidate();
     expect(option().disabled).toBe(false);
     expect(rowOf("perlica").querySelector(".yui-preset-row__remove")).not.toBeNull();
   });
-  it("hides the window actions by default", () => {
-    rebuild(false);
+  it("shows window actions without a feature flag", () => {
+    rebuild();
     openManage();
-    expect(qc.el.querySelector(".yui-preset-row__window")).toBeNull();
+    expect(qc.el.querySelectorAll(".yui-preset-row__window")).toHaveLength(2);
   });
   it("shows the bound name and protects that row", () => {
-    rebuild(true, "bbbb0002");
+    rebuild("bbbb0002");
     openManage();
     expect(qc.el.querySelector(".yui-preset__select")).toBeNull();
-    expect(qc.el.querySelector(".yui-iconbtn--popout")).toBeNull();
+    expect(qc.el.querySelectorAll(".yui-iconbtn--popout")).toHaveLength(1);
     expect(qc.el.querySelector(".yui-preset__bound")!.getAttribute("aria-label")).toBe("Preset");
     expect(qc.el.querySelector(".yui-preset__bound")!.textContent).toBe("perlica");
     expect(rowOf("perlica").querySelector(".yui-preset-row__remove")).toBeNull();
@@ -106,8 +105,8 @@ describe("createQuickControls — presets", () => {
     expect(qc.el.querySelector(".yui-preset__bound")!.textContent).toBe("Perlica");
   });
   it("leaves controls enabled when activation is refused", () => {
-    rebuild(true);
-    setPetWindowLive("bbbb0002");
+    rebuild();
+    setWindowLive("pet-bbbb0002");
     const select = $<HTMLSelectElement>(".yui-preset__select");
     select.value = "bbbb0002";
     select.dispatchEvent(new Event("change"));

@@ -54,7 +54,7 @@ function setup(mode: MessageWindowMode, bound = false) {
   const messageWindowSettings = fakeMessageWindowSettings(mode);
   const register = vi.fn();
   const result = wireMessageSurfaces({
-    bound,
+    boundId: bound ? "a" : null,
     mount: {} as HTMLElement,
     tool: { showTool: vi.fn(), finishTool: vi.fn(), hideTool: vi.fn() },
     bubblePersistSettings: { get: () => ({ enabled: false }) },
@@ -65,14 +65,11 @@ function setup(mode: MessageWindowMode, bound = false) {
 }
 
 describe("wireMessageSurfaces", () => {
-  it("keeps bound surfaces local without creating a bridge or window controller", () => {
-    const { result, local } = setup("popped", true);
-    expect(result.surfaces).toBe(local);
-    expect(result.remote).toBeNull();
-    expect(result.getMode()).toBe("docked");
-    expect(createMessageBridge).not.toHaveBeenCalled();
-    expect(createMessageWindowController).not.toHaveBeenCalled();
-    expect(createSurfaces.mock.calls[0][0].onPop).toBeUndefined();
+  it("builds the bound remote half and targets its companion", () => {
+    const { result, remote, surfaces, messageWindowSettings } = setup("popped", true);
+    expect(result.surfaces).toBe(surfaces);
+    expect(result.remote).toBe(remote);
+    expect(createMessageWindowController).toHaveBeenCalledWith(messageWindowSettings, "a");
   });
   it("pins the effective mode to docked where there is no second window", () => {
     const { result } = setup("popped");

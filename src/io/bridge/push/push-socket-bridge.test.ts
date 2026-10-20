@@ -198,3 +198,35 @@ describe("push socket across windows", () => {
     expect(mirror.getState()).toEqual({ kind: "disconnected" });
   });
 });
+
+it("isolates push owners and their mirrors by preset", () => {
+  const t = createFakeTransport();
+  history.replaceState(null, "", "/?preset=a");
+  const a = createSettingsBridge(t, { windowKind: "pet" });
+  const sa = fakeSocket({ kind: "disconnected" });
+  const offA = publishPushSocket({ socket: sa, stopTurn: () => {}, bridge: a });
+  const askA = vi.spyOn(sa, "getState");
+  history.replaceState(null, "", "/?preset=b");
+  const b = createSettingsBridge(t, { windowKind: "pet" });
+  const sb = fakeSocket({ kind: "connecting" });
+  const offB = publishPushSocket({ socket: sb, stopTurn: () => {}, bridge: b });
+  const mirrorB = createMirroredPushSocket({
+    bridge: createSettingsBridge(t, { windowKind: "settings" }),
+  });
+  sa.set({ kind: "disconnected" });
+  expect(mirrorB.getState()).toEqual({ kind: "connecting" });
+  expect(askA).not.toHaveBeenCalled();
+  history.replaceState(null, "", "/?preset=a");
+  const mirrorA = createMirroredPushSocket({
+    bridge: createSettingsBridge(t, { windowKind: "settings" }),
+  });
+  expect(askA).toHaveBeenCalledTimes(1);
+  expect(mirrorA.getState()).toEqual({ kind: "disconnected" });
+  offA();
+  offB();
+  a.dispose();
+  b.dispose();
+  mirrorA.dispose();
+  mirrorB.dispose();
+  history.replaceState(null, "", "/");
+});

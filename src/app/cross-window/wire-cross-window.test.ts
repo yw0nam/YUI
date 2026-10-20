@@ -15,7 +15,7 @@ const { fakeBridge, createSettingsBridge } = vi.hoisted(() => {
     emitSettingsChanged: vi.fn(),
     onSettingsChanged: vi.fn(() => vi.fn()),
     emitMouthPreview: vi.fn(),
-    onMouthPreview: vi.fn(),
+    onMouthPreview: vi.fn<(_cb: (value: number | null) => void) => void>(),
     emitVoiceSet: vi.fn(),
     onVoiceSet: vi.fn(),
     emitVoiceState: vi.fn(),
@@ -67,10 +67,17 @@ describe("wireCrossWindowSync", () => {
     for (const store of Object.values(deps.conversation)) store.dispose();
   };
 
-  it.each([true, false])("only main registers voice and mouth listeners (bound: %s)", (bound) => {
+  it.each([
+    true,
+    false,
+  ])("every pet registers mouth preview while only main registers voice (bound: %s)", (bound) => {
     const deps = makeDeps();
     const wired = wireCrossWindowSync({ ...deps, bound });
-    expect(fakeBridge.onMouthPreview).toHaveBeenCalledTimes(bound ? 0 : 1);
+    expect(fakeBridge.onMouthPreview).toHaveBeenCalledTimes(1);
+    fakeBridge.onMouthPreview.mock.calls[0]![0](0.5);
+    expect(deps.renderer.setMouthOpen).toHaveBeenCalledWith(0.5);
+    fakeBridge.onMouthPreview.mock.calls[0]![0](null);
+    expect(deps.renderer.stopMouth).toHaveBeenCalledTimes(1);
     expect(fakeBridge.onVoiceSet).toHaveBeenCalledTimes(bound ? 0 : 1);
     expect(fakeBridge.onSettingsChanged).toHaveBeenCalledTimes(1);
     wired.dispose();

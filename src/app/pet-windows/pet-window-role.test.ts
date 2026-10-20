@@ -30,7 +30,7 @@ it("closes an orphan before constructing window stores", () => {
   ).toBeNull();
   expect(close).toHaveBeenCalledTimes(1);
   expect(off).toHaveBeenCalledTimes(1);
-  expect(localStorage.getItem("yui.pet-window.missing")).toBeNull();
+  expect(localStorage.getItem("yui.live-window.pet-missing")).toBeNull();
 });
 it.each([false, true])("disposes lifecycle even if application teardown throws: %s", (throwing) => {
   const bus = bridge(),

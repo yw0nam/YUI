@@ -4,7 +4,7 @@ import { createLogger } from "../../logger";
 import {
   createPetWindows,
   isPetWindowLive,
-  setPetWindowLive,
+  setWindowLive,
 } from "../../settings/preset/pet-windows";
 import { wirePetWindowsReconcile } from "./wire-pet-windows-reconcile";
 
@@ -22,7 +22,7 @@ it.each([[], null])("prunes intent with known or unknown native windows: %j", as
   const petWindows = createPetWindows();
   petWindows.open("a");
   petWindows.open("orphan");
-  setPetWindowLive("stale");
+  setWindowLive("pet-stale");
   const open = vi.fn(async () => {});
   const off = wirePetWindowsReconcile({
     petWindows,
@@ -45,7 +45,7 @@ it.each(["event", "registration race"])("reopens after destruction: %s", async (
     petWindows,
     registry,
     opener: {
-      existing: async () => (exists ? ["a"] : []),
+      existing: async () => (exists ? ["pet-a"] : []),
       open,
       onDestroyed: async (_id, cb) => {
         destroyed = cb;

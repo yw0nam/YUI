@@ -8,9 +8,11 @@ const { dispatcher, dispatcherDeps, endThinking, pushTurns, speechPlayback } = v
   speechPlayback: { interrupt: vi.fn() },
 }));
 
+const { createSttEngine } = vi.hoisted(() => ({ createSttEngine: vi.fn(async () => ({})) }));
+
 vi.mock("./voice/wire-voice", () => ({
   wireTurnVoice: () => ({
-    voice: { speechPlayback, endThinking, createSttEngine: async () => ({}) },
+    voice: { speechPlayback, endThinking, createSttEngine },
     voiceInput: { setStt: () => {} },
     voiceErrorDwell: { show: () => {} },
     pushTurns,
@@ -92,4 +94,9 @@ describe("wireTurnCore", () => {
     bedSceneHold.take();
     expect(endThinking).toHaveBeenCalledOnce();
   });
+});
+
+it("does not create an STT engine in a bound pet", async () => {
+  await wire({ bound: true }).core;
+  expect(createSttEngine).not.toHaveBeenCalled();
 });

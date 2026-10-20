@@ -45,12 +45,20 @@ it("focuses and drags the current window, and swallows a failure", async () => {
   expect(warn).toHaveBeenCalledWith("message_window_focus_failed", { error: "Error: denied" });
 });
 
-it("records the window's moved position and unlistens on dispose", async () => {
+it.each([
+  false,
+  true,
+])("records position only while its owning window is active (disposed: %s)", async (disposed) => {
   const setPosition = vi.fn();
-  const dispose = await wireTauriWindow(document.createElement("div"), { setPosition });
+  const dispose = await wireTauriWindow(
+    document.createElement("div"),
+    { setPosition },
+    () => disposed,
+  );
 
   win.onMoved.mock.calls[0]![0]({ payload: { x: 10, y: 20 } });
-  expect(setPosition).toHaveBeenCalledWith(10, 20);
+  if (disposed) expect(setPosition).not.toHaveBeenCalled();
+  else expect(setPosition).toHaveBeenCalledWith(10, 20);
 
   dispose();
   expect(win.unlistenMoved).toHaveBeenCalledOnce();
