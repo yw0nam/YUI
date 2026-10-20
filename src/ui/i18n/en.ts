@@ -189,7 +189,6 @@ const en: Record<string, string> = {
   "preset.taken": "{name} already exists",
   "preset.switching": "Switching to {name}…",
   "preset.scope_tab": "{name} · {tab}",
-  "preset.scope_conn": "{name} · Chat and TTS are per preset, STT is shared",
   "preset.scope_char": "{name} · Only the VRM selection is per preset",
   "preset.scope_shared": "Shared by every preset",
 

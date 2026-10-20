@@ -69,7 +69,7 @@ describe("createQuickControls — presets", () => {
     ]);
     const scope = (tab: string): string | null | undefined =>
       qc.el.querySelector(`#yui-panel-${tab} .yui-tabpanel__scope`)?.textContent;
-    expect(scope("conn")).toBe("natsume · Chat and TTS are per preset, STT is shared");
+    expect(scope("conn")).toBe("natsume · Connection");
     expect(scope("talk")).toBe("natsume · Talk");
     expect(scope("char")).toBe("natsume · Only the VRM selection is per preset");
     expect(scope("general")).toBe("Shared by every preset");

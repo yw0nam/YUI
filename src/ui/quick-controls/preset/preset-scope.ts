@@ -3,7 +3,7 @@ import type { QuickControlsTab } from "../constants";
 
 // Tabs whose settings belong to a preset; every other tab edits device-wide settings.
 const SCOPE_KEY: Partial<Record<QuickControlsTab, string>> = {
-  conn: "preset.scope_conn",
+  conn: "preset.scope_tab",
   talk: "preset.scope_tab",
   char: "preset.scope_char",
   hist: "preset.scope_tab",

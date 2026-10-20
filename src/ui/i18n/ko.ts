@@ -189,7 +189,6 @@ const ko: Record<string, string> = {
   "preset.taken": "이미 있는 이름이에요",
   "preset.switching": "{name} 프리셋으로 바꾸는 중…",
   "preset.scope_tab": "{name} · {tab}",
-  "preset.scope_conn": "{name} · 채팅과 TTS는 프리셋별, STT는 공유",
   "preset.scope_char": "{name} · VRM 선택만 프리셋별",
   "preset.scope_shared": "모든 프리셋이 함께 쓰는 설정",
 

@@ -191,7 +191,6 @@ const ja: Record<string, string> = {
   "preset.taken": "{name}はすでにあります",
   "preset.switching": "{name}に切り替え中…",
   "preset.scope_tab": "{name} · {tab}",
-  "preset.scope_conn": "{name} · チャットとTTSはプリセットごと、STTは共有",
   "preset.scope_char": "{name} · VRMの選択だけがプリセットごと",
   "preset.scope_shared": "すべてのプリセットで共通の設定",
 
