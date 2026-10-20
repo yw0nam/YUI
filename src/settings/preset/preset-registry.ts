@@ -7,12 +7,17 @@
 import { createPersistedStore, localStorageStore, type PersistedStorage } from "../persisted-store";
 import {
   DEFAULT_PRESET,
+  PRESETS_KEY,
   type PresetEntry,
   type PresetState,
-  PRESETS_KEY,
   parsePresetState,
 } from "./active-preset";
-import { DEFAULT_PRESET_ID, PRESET_COPIED_KEYS, PRESET_KEYS, resolveStorageKey } from "./preset-keys";
+import {
+  DEFAULT_PRESET_ID,
+  PRESET_COPIED_KEYS,
+  PRESET_KEYS,
+  resolveStorageKey,
+} from "./preset-keys";
 
 function randomId(): string {
   const [n] = crypto.getRandomValues(new Uint32Array(1));
@@ -53,7 +58,8 @@ export function createPresetRegistry(deps?: {
       try {
         for (const key of PRESET_COPIED_KEYS) {
           const value = kv()?.getItem(resolveStorageKey(key, active));
-          if (value !== null && value !== undefined) kv()?.setItem(resolveStorageKey(key, id), value);
+          if (value !== null && value !== undefined)
+            kv()?.setItem(resolveStorageKey(key, id), value);
         }
       } catch {
         // The preset starts from defaults where storage is unavailable

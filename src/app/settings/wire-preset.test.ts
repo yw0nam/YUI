@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createPresetRegistry } from "../../settings/preset/preset-registry";
 import { wirePresetSwitch } from "./wire-preset";
 

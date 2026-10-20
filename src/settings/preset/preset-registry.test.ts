@@ -33,58 +33,55 @@ describe("createPresetRegistry", () => {
   it.each([
     ["default", "yui."],
     ["aaaa0001", "yui.aaaa0001."],
-  ])(
-    "create copies the settings of the active preset %s and none of its conversation",
-    (active, prefix) => {
-      seedPresets(active, [
+  ])("create copies the settings of the active preset %s and none of its conversation", (active, prefix) => {
+    seedPresets(active, [
+      { id: "default", name: "default" },
+      { id: "aaaa0001", name: "natsume" },
+    ]);
+    for (const rest of [
+      "endpoints",
+      "chat-key",
+      "agent",
+      "tts",
+      "tts-key",
+      "speaker",
+      "vrm",
+      "filler",
+      "chat-id",
+      "chat_transcript",
+      "previous_response_id",
+      "context-history",
+      "session_diagnostics",
+      "previous-turn",
+    ]) {
+      map.set(`${prefix}${rest}`, `${rest}-value`);
+    }
+    map.set("yui.vrm.user", "[]");
+    const registry = createPresetRegistry({ newId: () => "bbbb0002" });
+
+    expect(registry.create("perlica")).toBe("bbbb0002");
+
+    const copied = [...map.keys()].filter((k) => k.startsWith("yui.bbbb0002.")).sort();
+    expect(copied).toEqual([
+      "yui.bbbb0002.agent",
+      "yui.bbbb0002.chat-key",
+      "yui.bbbb0002.endpoints",
+      "yui.bbbb0002.filler",
+      "yui.bbbb0002.speaker",
+      "yui.bbbb0002.tts",
+      "yui.bbbb0002.tts-key",
+      "yui.bbbb0002.vrm",
+    ]);
+    expect(map.get("yui.bbbb0002.endpoints")).toBe("endpoints-value");
+    expect(registry.get()).toEqual({
+      active,
+      list: [
         { id: "default", name: "default" },
         { id: "aaaa0001", name: "natsume" },
-      ]);
-      for (const rest of [
-        "endpoints",
-        "chat-key",
-        "agent",
-        "tts",
-        "tts-key",
-        "speaker",
-        "vrm",
-        "filler",
-        "chat-id",
-        "chat_transcript",
-        "previous_response_id",
-        "context-history",
-        "session_diagnostics",
-        "previous-turn",
-      ]) {
-        map.set(`${prefix}${rest}`, `${rest}-value`);
-      }
-      map.set("yui.vrm.user", "[]");
-      const registry = createPresetRegistry({ newId: () => "bbbb0002" });
-
-      expect(registry.create("perlica")).toBe("bbbb0002");
-
-      const copied = [...map.keys()].filter((k) => k.startsWith("yui.bbbb0002.")).sort();
-      expect(copied).toEqual([
-        "yui.bbbb0002.agent",
-        "yui.bbbb0002.chat-key",
-        "yui.bbbb0002.endpoints",
-        "yui.bbbb0002.filler",
-        "yui.bbbb0002.speaker",
-        "yui.bbbb0002.tts",
-        "yui.bbbb0002.tts-key",
-        "yui.bbbb0002.vrm",
-      ]);
-      expect(map.get("yui.bbbb0002.endpoints")).toBe("endpoints-value");
-      expect(registry.get()).toEqual({
-        active,
-        list: [
-          { id: "default", name: "default" },
-          { id: "aaaa0001", name: "natsume" },
-          { id: "bbbb0002", name: "perlica" },
-        ],
-      });
-    },
-  );
+        { id: "bbbb0002", name: "perlica" },
+      ],
+    });
+  });
 
   it.each(["default", "natsume", "   "])("create refuses the name %j", (name) => {
     seedPresets("default", [
