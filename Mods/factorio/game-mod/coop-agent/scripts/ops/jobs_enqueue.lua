@@ -19,7 +19,7 @@ local KIND_NAMES = kind_names()
 local M = {}
 
 --- nil for a valid spec, else "jobs[<zero-based index>].<field>: <what was expected>".
-local function invalid(index, spec)
+local function invalid(deps, index, spec)
   local at = "jobs[" .. (index - 1) .. "]"
   if type(spec) ~= "table" then
     return at .. ": object expected"
@@ -37,7 +37,7 @@ local function invalid(index, spec)
   if type(spec.args) ~= "table" then
     return at .. ".args: object expected"
   end
-  local field, expected = kind.validate(spec.args)
+  local field, expected = kind.validate(spec.args, deps)
   if expected then
     return at .. ".args" .. (field and "." .. field or "") .. ": " .. expected
   end
@@ -50,7 +50,7 @@ function M.op(deps, args)
     return check.bad_request("jobs: 1 to " .. MAX_PER_CALL .. " jobs expected")
   end
   for index, spec in ipairs(specs) do
-    local message = invalid(index, spec)
+    local message = invalid(deps, index, spec)
     if message then
       return check.bad_request(message)
     end

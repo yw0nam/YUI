@@ -1,12 +1,13 @@
 -- The mine job: mine the nearest allowed entity that yields an item until the body holds count more of it.
 
 local body = require("scripts.body")
+local check = require("scripts.jobs.check")
+local holding = require("scripts.jobs.holding")
 local unit_index = require("scripts.unit_index")
 local walker = require("scripts.walker")
 
 local SEARCH_RADIUS = 64
 local CHECK_TICKS = 30
-local MAX_COUNT = 1000
 local STALL_FACTOR = 2
 local TIMEOUT_FACTOR = 3
 local WALK_ALLOWANCE_TICKS = 3600
@@ -19,9 +20,9 @@ function M.validate(args)
   if type(args.name) ~= "string" then
     return "name", "string expected"
   end
-  local count = args.count
-  if type(count) ~= "number" or count ~= math.floor(count) or count < 1 or count > MAX_COUNT then
-    return "count", "integer 1 to " .. MAX_COUNT .. " expected"
+  local expected = check.count(args.count)
+  if expected then
+    return "count", expected
   end
   if args.entity ~= nil and type(args.entity) ~= "number" then
     return "entity", "unit_number expected"
@@ -222,7 +223,7 @@ end
 
 --- The status line after the job is done.
 function M.done_status(deps, job)
-  return string.format("Holding: %s %d", job.args.name, body.entity(deps).get_item_count(job.args.name))
+  return holding.status(deps, job.args.name)
 end
 
 return M

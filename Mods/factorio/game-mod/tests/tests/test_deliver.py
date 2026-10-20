@@ -67,11 +67,18 @@ def answer(lua, world, x):
     world.answer(lua.table_from([lua.table_from([x, 0])]), False)
 
 
-def walk_to_the_host(lua, world, host_x=6):
+def walk_to_the_spill(lua, world):
+    """Arrival, spill and the step-back request; the step-back path stays unanswered."""
     enqueue(world, DELIVER)
     run(world, 1)
-    answer(lua, world, host_x)
+    answer(lua, world, 6)
     run(world, 30)
+
+
+def walk_to_the_host(lua, world):
+    walk_to_the_spill(lua, world)
+    answer(lua, world, 0)
+    run(world, 20)
 
 
 def test_deliver_spills_on_the_hosts_far_side_steps_back_and_ends_done(lua, deliver_world):
@@ -104,7 +111,7 @@ def test_the_status_line_holds_the_item_while_walking(lua, deliver_world):
 
 
 def test_done_waits_for_the_step_backs_180_ticks(lua, deliver_world):
-    walk_to_the_host(lua, deliver_world)
+    walk_to_the_spill(lua, deliver_world)
     answer(lua, deliver_world, 0)
     lua.execute("BLOCKED[12] = true")  # west: the step back cannot move
 
@@ -126,6 +133,8 @@ def test_a_host_moved_past_three_tiles_re_aims_before_spilling(lua, deliver_worl
     run(deliver_world, 25)
     answer(lua, deliver_world, 20)
     run(deliver_world, 120)
+    answer(lua, deliver_world, 14)
+    run(deliver_world, 20)
 
     assert events(deliver_world) == [
         {"kind": "job_done", "data": {"id": 1, "kind": "deliver"}},

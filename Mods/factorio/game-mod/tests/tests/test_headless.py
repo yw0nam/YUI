@@ -792,14 +792,14 @@ def test_mine_then_deliver_spills_at_the_host_and_the_body_does_not_re_pick(serv
     (done, idle), _ = run_job(server, status["seq"], "deliver-mine", mine("coal", 20), 2)
     assert done["kind"] == "job_done"
 
-    # the body teleports beside the dev host: the worst case for picking its own spill back up
-    server.command("/silent-command __coop-agent__ storage.body.entity.teleport({x = 0, y = 197})")
+    # the body teleports 2 tiles beside the dev host: the worst case the spill distance must survive
+    server.command("/silent-command __coop-agent__ storage.body.entity.teleport({x = 0, y = 198})")
     clear_ground(server)
     assert (body_coal(server), host_coal(server), len(ground_coal(server))) == (20, 0, 0)
-    (done, idle), _ = run_job(server, idle["seq"], "deliver-job", deliver("coal", 20), 2)
+    (done, idle), record = run_job(server, idle["seq"], "deliver-job", deliver("coal", 20), 2)
     assert without_ticks([done, idle]) == [
-        {"kind": "job_done", "data": {"id": done["id"], "kind": "deliver"}},
-        {"kind": "queue_idle", "data": {"last_job_id": done["id"]}},
+        {"kind": "job_done", "data": {"id": record["id"], "kind": "deliver"}},
+        {"kind": "queue_idle", "data": {"last_job_id": record["id"]}},
     ]
 
     wait_status(server, lambda s: s["tick"] >= done["tick"] + 60)
@@ -815,12 +815,12 @@ def test_mine_then_deliver_spills_at_the_host_and_the_body_does_not_re_pick(serv
 def test_deliver_with_fewer_coal_than_asked_fails_no_item_and_keeps_the_body_s_coal(server):
     status = field(server, "")
     server.command("/silent-command __coop-agent__ storage.body.entity.insert{name = 'coal', count = 3}")
-    (failed,), _ = run_job(server, status["seq"], "deliver-noitem", deliver("coal", 5), 1)
+    (failed,), record = run_job(server, status["seq"], "deliver-noitem", deliver("coal", 5), 1)
     assert without_ticks([failed]) == [
         {
             "kind": "job_failed",
             "data": {
-                "id": failed["id"],
+                "id": record["id"],
                 "kind": "deliver",
                 "reason": "no_item",
                 "item": "coal",

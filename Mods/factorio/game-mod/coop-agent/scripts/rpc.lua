@@ -40,6 +40,7 @@ local function runtime_deps()
     push = store.push,
     draw_text = rendering.draw_text,
     direction = defines.direction,
+    item_prototypes = prototypes.item,
     ops = M.OPS,
   }
 end
