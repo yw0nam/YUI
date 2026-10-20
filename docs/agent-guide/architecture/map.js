@@ -821,7 +821,7 @@ globalThis.YUI_MAP =
       "id": "io/window/openers",
       "module": "window",
       "label": "window openers",
-      "role": "Opens and places the message, settings, devtools, and bound pet windows.",
+      "role": "Opens and places the message, settings, devtools, and pet windows, and a bound pet window's settings-<id> and message-<id> by its preset id.",
       "paths": [
         "src/io/window/openers"
       ]
@@ -839,7 +839,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/core",
       "module": "bridge",
       "label": "bridge core",
-      "role": "The cross-window bus transport and the owner and mirror pattern built on it.",
+      "role": "The cross-window bus transport, the envelope that stamps the sender's preset and scopes delivery to it, and the owner and mirror pattern built on it.",
       "paths": [
         "src/io/bridge/core"
       ]
@@ -848,7 +848,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/settings",
       "module": "bridge",
       "label": "settings bridge",
-      "role": "Typed cross-window settings bus, including the payload-less yui://pet-windows-changed notification.",
+      "role": "Typed cross-window settings bus: its channels scoped to the sender's preset, and the unscoped settings-changed, preset-changed and pet-windows-changed.",
       "paths": [
         "src/io/bridge/settings-bridge.ts"
       ]
@@ -857,7 +857,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/message",
       "module": "bridge",
       "label": "message bridge",
-      "role": "The bus between the pet window and the message window, and the message window's surfaces as a remote half.",
+      "role": "The preset-scoped bus between a pet window and its message window, and the message window's surfaces as a remote half.",
       "paths": [
         "src/io/bridge/message"
       ]
@@ -1191,7 +1191,7 @@ globalThis.YUI_MAP =
       "id": "app/pet-windows",
       "module": "wiring",
       "label": "bound pet windows",
-      "role": "The open-window list kept in step across windows, main's reconcile and open, the live key a bound window holds until it closes itself, and the orphan close.",
+      "role": "The open-window list kept in step across windows, main's reconcile and open, the live key each window holds until it closes, the companions a bound pet window opens, and the orphan close.",
       "paths": [
         "src/app/pet-windows"
       ]
@@ -1218,7 +1218,7 @@ globalThis.YUI_MAP =
       "id": "app/settings-window",
       "module": "wiring",
       "label": "settings-window wiring",
-      "role": "Composes the settings window and mirrors the voice toggle.",
+      "role": "Composes the settings window over its preset's stores and mirrors the voice toggle in main only.",
       "paths": [
         "src/app/settings-window"
       ]
@@ -2391,7 +2391,7 @@ globalThis.YUI_MAP =
       "id": "tray-message",
       "from": "shell/tray",
       "to": "io/window/openers",
-      "carries": "tray_toggle → hide or reopen the message window",
+      "carries": "tray_toggle → hide or reopen main's message window",
       "kind": "tauri-event",
       "transport": "shared"
     },
@@ -2478,7 +2478,7 @@ globalThis.YUI_MAP =
       "id": "bound-window-close",
       "from": "settings",
       "to": "io/window/openers",
-      "carries": "bound window only: its id leaves yui.windows → dispose its stores, clear the live key, emit the change, and close",
+      "carries": "bound window only: its id leaves yui.windows → close its companions, dispose its stores, clear the live key, emit the change, and close",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/pet-windows/wire-bound-window.ts"
@@ -2714,7 +2714,7 @@ globalThis.YUI_MAP =
       "id": "push-publish",
       "from": "io/chat/push",
       "to": "io/bridge/push",
-      "carries": "publishPushSocket: PushSocketState",
+      "carries": "publishPushSocket: PushSocketState, scoped to the sender's preset",
       "kind": "callback",
       "transport": "push",
       "wiring": "src/app/turn/push/push-stores.ts"
@@ -2723,7 +2723,7 @@ globalThis.YUI_MAP =
       "id": "push-requests",
       "from": "io/bridge/push",
       "to": "io/chat/push",
-      "carries": "yui://push-reset → stopTurn and sendReset; yui://push-reconnect → reconnectNow",
+      "carries": "yui://push-reset → stopTurn and sendReset; yui://push-reconnect → reconnectNow; scoped to the sender's preset",
       "kind": "bridge",
       "transport": "push",
       "wiring": "src/app/turn/push/push-stores.ts"
@@ -2772,7 +2772,7 @@ globalThis.YUI_MAP =
       "id": "surfaces-remote",
       "from": "ui/surfaces",
       "to": "io/bridge/message",
-      "carries": "RemoteSurfaces: MessageSurfaceOp on yui://message-surface",
+      "carries": "RemoteSurfaces: MessageSurfaceOp on yui://message-surface, scoped to the sender's preset",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/ui/surfaces/wire.ts"
@@ -2781,7 +2781,7 @@ globalThis.YUI_MAP =
       "id": "remote-surfaces",
       "from": "io/bridge/message",
       "to": "ui/surfaces",
-      "carries": "MessageControlOp on yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready",
+      "carries": "MessageControlOp on yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; scoped to the sender's preset",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/ui/surfaces/wire.ts"
@@ -3779,7 +3779,7 @@ globalThis.YUI_MAP =
       {
         "id": "pet-<id>",
         "label": "pet-<id>",
-        "role": "A bound pet window, index.html?preset=<id>: one preset's stores and local surfaces; it publishes no push state and takes none of main's global resources."
+        "role": "A bound pet window, index.html?preset=<id>: one preset's stores, local surfaces, push socket, and delegations, which opens settings-<id> and message-<id> and keeps none of main's global resources."
       },
       {
         "id": "settings",
@@ -3787,9 +3787,19 @@ globalThis.YUI_MAP =
         "role": "The quick-controls panel as a window, over its own store instances and mirrors of the pet window's push state and delegations."
       },
       {
+        "id": "settings-<id>",
+        "label": "settings-<id>",
+        "role": "The settings window of one bound pet window, settings.html?preset=<id>: the same panel over that preset's stores and mirrors of pet-<id>'s push state and delegations, with no voice switch."
+      },
+      {
         "id": "message",
         "label": "message",
         "role": "The speech bubble, text input, and plate popped out of the pet window, drawn from surface ops."
+      },
+      {
+        "id": "message-<id>",
+        "label": "message-<id>",
+        "role": "The message window of one bound pet window, message.html?preset=<id>: the same bubble, input, and plate, drawn from pet-<id>'s surface ops."
       },
       {
         "id": "devtools",
@@ -3839,6 +3849,27 @@ globalThis.YUI_MAP =
         "kind": "bridge"
       },
       {
+        "id": "settings-changed-settings-companion",
+        "from": "settings-<id>",
+        "to": "pet-<id>",
+        "carries": "yui://settings-changed: reload stores from localStorage",
+        "kind": "bridge"
+      },
+      {
+        "id": "settings-changed-pet-companion",
+        "from": "pet-<id>",
+        "to": "settings-<id>",
+        "carries": "yui://settings-changed",
+        "kind": "bridge"
+      },
+      {
+        "id": "settings-changed-message-companion",
+        "from": "pet-<id>",
+        "to": "message-<id>",
+        "carries": "yui://settings-changed: reload locale, bubble persistence, mirrors",
+        "kind": "bridge"
+      },
+      {
         "id": "preset-changed-settings",
         "from": "settings",
         "to": "pet",
@@ -3863,6 +3894,27 @@ globalThis.YUI_MAP =
         "id": "preset-changed-pet-bound",
         "from": "pet",
         "to": "pet-<id>",
+        "carries": "yui://preset-changed {active}: reread the registry; no reload",
+        "kind": "bridge"
+      },
+      {
+        "id": "preset-changed-settings-pet-companion",
+        "from": "settings-<id>",
+        "to": "pet-<id>",
+        "carries": "yui://preset-changed {active}: reread the registry; no reload",
+        "kind": "bridge"
+      },
+      {
+        "id": "preset-changed-pet-settings-companion",
+        "from": "pet-<id>",
+        "to": "settings-<id>",
+        "carries": "yui://preset-changed {active}: reread the registry; no reload",
+        "kind": "bridge"
+      },
+      {
+        "id": "preset-changed-pet-message-companion",
+        "from": "pet-<id>",
+        "to": "message-<id>",
         "carries": "yui://preset-changed {active}: reread the registry; no reload",
         "kind": "bridge"
       },
@@ -3909,6 +3961,20 @@ globalThis.YUI_MAP =
         "kind": "bridge"
       },
       {
+        "id": "pet-windows-changed-settings-companion",
+        "from": "settings-<id>",
+        "to": "pet-<id>",
+        "carries": "yui://pet-windows-changed: reload yui.windows and the live keys",
+        "kind": "bridge"
+      },
+      {
+        "id": "pet-windows-changed-pet-companion",
+        "from": "pet-<id>",
+        "to": "settings-<id>",
+        "carries": "yui://pet-windows-changed",
+        "kind": "bridge"
+      },
+      {
         "id": "preset-changed-pet-message",
         "from": "pet",
         "to": "message",
@@ -3940,21 +4006,28 @@ globalThis.YUI_MAP =
         "id": "mouth-preview",
         "from": "settings",
         "to": "pet",
-        "carries": "yui://mouth-preview: number or null; main only, a bound window takes no mouth preview",
+        "carries": "yui://mouth-preview: number or null; filtered by preset id",
+        "kind": "bridge"
+      },
+      {
+        "id": "mouth-preview-companion",
+        "from": "settings-<id>",
+        "to": "pet-<id>",
+        "carries": "yui://mouth-preview: number or null; filtered by preset id",
         "kind": "bridge"
       },
       {
         "id": "voice-set",
         "from": "settings",
         "to": "pet",
-        "carries": "yui://voice-set: boolean; main only, a bound window has no voice toggle",
+        "carries": "yui://voice-set: boolean; main only, since a bound pet window has no voice toggle; filtered by preset id",
         "kind": "bridge"
       },
       {
         "id": "voice-state",
         "from": "pet",
         "to": "settings",
-        "carries": "yui://voice-state: {state}",
+        "carries": "yui://voice-state: {state}; main only, since a bound pet window has no capture; filtered by preset id",
         "kind": "bridge"
       },
       {
@@ -3965,30 +4038,65 @@ globalThis.YUI_MAP =
         "kind": "bridge"
       },
       {
+        "id": "help-guide-companion",
+        "from": "settings-<id>",
+        "to": "pet-<id>",
+        "carries": "yui://help-guide: {guide, text}",
+        "kind": "bridge"
+      },
+      {
         "id": "push-state-settings",
         "from": "pet",
         "to": "settings",
-        "carries": "yui://push-state, answered on yui://push-state-ask; from main only, a bound window publishes no push state",
+        "carries": "yui://push-state, answered on yui://push-state-ask; filtered by preset id",
+        "kind": "bridge"
+      },
+      {
+        "id": "push-state-settings-companion",
+        "from": "pet-<id>",
+        "to": "settings-<id>",
+        "carries": "yui://push-state, answered on yui://push-state-ask; filtered by preset id",
         "kind": "bridge"
       },
       {
         "id": "push-state-message",
         "from": "pet",
         "to": "message",
-        "carries": "yui://push-state, answered on yui://push-state-ask; from main only, a bound window publishes no push state",
+        "carries": "yui://push-state, answered on yui://push-state-ask; filtered by preset id",
+        "kind": "bridge"
+      },
+      {
+        "id": "push-state-message-companion",
+        "from": "pet-<id>",
+        "to": "message-<id>",
+        "carries": "yui://push-state, answered on yui://push-state-ask; filtered by preset id",
         "kind": "bridge"
       },
       {
         "id": "push-reset",
         "from": "settings",
         "to": "pet",
-        "carries": "yui://push-reset, yui://push-reconnect",
+        "carries": "yui://push-reset, yui://push-reconnect; filtered by preset id",
+        "kind": "bridge"
+      },
+      {
+        "id": "push-reset-companion",
+        "from": "settings-<id>",
+        "to": "pet-<id>",
+        "carries": "yui://push-reset, yui://push-reconnect; filtered by preset id",
         "kind": "bridge"
       },
       {
         "id": "delegations-settings",
         "from": "pet",
         "to": "settings",
+        "carries": "yui://delegations, answered on yui://delegations-ask",
+        "kind": "bridge"
+      },
+      {
+        "id": "delegations-settings-companion",
+        "from": "pet-<id>",
+        "to": "settings-<id>",
         "carries": "yui://delegations, answered on yui://delegations-ask",
         "kind": "bridge"
       },
@@ -4000,9 +4108,23 @@ globalThis.YUI_MAP =
         "kind": "bridge"
       },
       {
+        "id": "delegations-message-companion",
+        "from": "pet-<id>",
+        "to": "message-<id>",
+        "carries": "yui://delegations, answered on yui://delegations-ask",
+        "kind": "bridge"
+      },
+      {
         "id": "reasoning-message",
         "from": "pet",
         "to": "message",
+        "carries": "yui://reasoning, answered on yui://reasoning-ask",
+        "kind": "bridge"
+      },
+      {
+        "id": "reasoning-message-companion",
+        "from": "pet-<id>",
+        "to": "message-<id>",
         "carries": "yui://reasoning, answered on yui://reasoning-ask",
         "kind": "bridge"
       },
@@ -4014,9 +4136,23 @@ globalThis.YUI_MAP =
         "kind": "bridge"
       },
       {
+        "id": "message-surface-companion",
+        "from": "pet-<id>",
+        "to": "message-<id>",
+        "carries": "yui://message-surface: MessageSurfaceOp",
+        "kind": "bridge"
+      },
+      {
         "id": "message-control",
         "from": "message",
         "to": "pet",
+        "carries": "yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready",
+        "kind": "bridge"
+      },
+      {
+        "id": "message-control-companion",
+        "from": "message-<id>",
+        "to": "pet-<id>",
         "carries": "yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready",
         "kind": "bridge"
       }

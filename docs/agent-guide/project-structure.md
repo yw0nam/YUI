@@ -51,7 +51,7 @@ YUI/
           wire-push.ts               # Push socket frames into turns, the stop button, and the push mode chip
           push-stores.ts             # The push socket, its chat id, and the delegations and reasoning stores its frames feed
         voice/                       # Voice input and speech playback wiring
-          wire-voice.ts              # The voice-input and turn-voice wiring
+          wire-voice.ts              # The voice-input and turn-voice wiring; a bound window builds no capture
           wire-voice-pipeline.ts     # Wires filler, TTS, and speech playback to the turn lifecycle
       stage/                         # What is bound to the pet window's stage and overlay
         stage-renderer.ts            # The renderer on the stage with its persisted camera and idle throttle, plus Tier 1 liveliness, for the pet and phone windows
@@ -82,18 +82,20 @@ YUI/
         wire-config.ts               # The config store over the bundled configs, the runtime key stores, the live endpoint/guardrail merges, and the reload/watch wiring
         wire-cue-locale-sync.ts      # Reseeds untouched built-in cues when the display language changes
         wire-preset.ts               # Sends a preset switch over the settings bridge and reloads each unbound window into it, after the pet window stops its turn; a bound window only rereads the list
-      pet-windows/                   # Windows bound to one preset: the shared open list and their lifecycle
+      pet-windows/                   # Windows bound to one preset: the shared open list, their lifecycle, and the windows each one opens
         pet-window-role.ts           # The entry main composes: the registry and open list a window owns, the orphan check, and main's reconcile or a bound window's self-close
+        companion-window.ts          # A companion window's own live key and store teardown, held until its owner window is gone
+        companion-windows.ts         # The settings and message windows a bound pet window opens: its close sequence, the wait for them, and the owner watcher
         wire-pet-windows-sync.ts     # The open list in every window: a local edit out over yui://pet-windows-changed, a remote one reloaded from storage
         wire-pet-windows-reconcile.ts # Main's reconcile: prunes the list and live keys, then opens each wanted preset that has no window
-        wire-bound-window.ts         # A bound window's live key, and its store teardown and close when its preset leaves the list
+        wire-bound-window.ts         # A bound pet window's live key, its companions closed first, and its store teardown and close when its preset leaves the list
         close-if-orphan.ts           # Closes a bound window whose preset is no longer in the registry
       message/                       # The message window's wiring
         wire-message-surface-ops.ts  # Draws each surface op from the pet window onto the surfaces and the plate
         wire-message-tauri-window.ts # Window focus, the OS drag, the content-height resize, and the moved-position record
       settings-window/               # The settings window's wiring
-        wire-settings-window.ts      # Stores, config, cross-window sync, and the quick controls remounted on locale change
-        wire-voice-mirror.ts         # Mirrors the voice toggle to the pet window and the pet window's voice state back
+        wire-settings-window.ts      # Stores, config, cross-window sync, and the quick controls remounted on locale change, bound to the query's preset when it names one
+        wire-voice-mirror.ts         # Mirrors the voice toggle to the pet window and the pet window's voice state back; main only
       voice/                         # Desktop voice wiring
         voice-fix.ts                 # The desktop pill's setup-needed tap: open Connection, then back to listening
       phone/                         # The phone window's config-derived half
@@ -114,9 +116,9 @@ YUI/
     tauri-env.ts                     # Tauri runtime detection
     windows/                         # One entry file per window, loaded by the matching HTML file
       main.ts                        # Pet window: config load, renderer, dispatcher, and the I/O graph
-      settings-main.ts               # Settings window: mounts the settings window wiring
+      settings-main.ts               # Settings window: mounts the settings window wiring, with the companion guard when the query binds a preset
       devtools-main.ts               # Developer Tools window
-      message-main.ts                # Message window
+      message-main.ts                # Message window: the bubble, input, and plate, with the companion guard when the query binds a preset
       phone-main.ts                  # Phone window: stage, persistent composer, and push chat
     styles.css                       # Pet-window base stylesheet
     vite-env.d.ts                    # Vite client types and build-time env declarations
@@ -322,10 +324,10 @@ YUI/
         active-preset.ts             # The registry's stored shape and the id a window resolves its keys under: the preset query, else the active preset
         bound-preset.ts              # The preset query that binds a window to one preset
         preset-registry.ts           # Preset list and active preset under yui.presets: create, rename, remove, activate
-        pet-windows.ts               # The desired open set under yui.windows and the live key each bound window holds
+        pet-windows.ts               # The desired open set under yui.windows and the live key each window holds under yui.live-window.<label>
       panels/                        # Panel and window state
         delegation-chip-settings.ts  # Per-device fold state of the delegation chip
-        message-window-settings.ts   # Message-window mode and last outer position
+        message-window-settings.ts   # Message-window mode and last outer position under the window's preset key
     io/                              # I/O layer: chat, voice, window and OS seams
       chat/
         secret-provider.ts             # Resolves each secret from its runtime store, then the build-time fallback
@@ -408,10 +410,10 @@ YUI/
           stationary-frame.ts          # Widens the real window around a character that stays where she is
           perch.ts                     # Perch values, perch-target and placement types, and the host-edge span shared by the drop source, avatar RPC and locomotion
           visible-viewport.ts          # Cached height of the pet window part above the work-area bottom
-        openers/                       # Openers and placement of the message, settings, devtools, and pet windows
-          settings-window.ts           # Settings window opener and cross-window settings sync
+        openers/                       # Openers and placement of the message, settings, devtools, and pet windows, the first two bound to a pet window's preset
+          settings-window.ts           # Settings window opener, settings-<id> for a bound id, and cross-window settings sync
           devtools-window.ts           # Developer Tools window opener
-          message-window.ts            # Message-window opener and its placement rule
+          message-window.ts            # Message-window opener, message-<id> for a bound id, and its placement rule
           message-window-mode.ts       # Keeps the message window in step with the stored mode and the dock request
           pet-window.ts                # Bound pet window opener: creates pet-<id>, lists the ones that exist, and closes the current window
         pet/                           # The pet window's own gestures, hit-test, gaze cursor, and peek
@@ -471,7 +473,7 @@ YUI/
       surfaces/                      # Speech-bubble and text-input host surface
         surfaces.ts                  # Mounts the speech bubble and text input as one system, forwarding tool status
         surfaces-router.ts           # One Surfaces handle over the pet window and the message window
-        wire.ts                      # Local surfaces plus the message-window bridge, routed by the stored window mode
+        wire.ts                      # Local surfaces plus the message-window bridge, routed by the stored window mode and scoped to the window's preset
         summon-key.ts                # Binds the focused window's "/" key to open the text input
         anchor.ts                    # Pure mapping from the on-screen feet to the input's bottom offset
         reflect-unless-editing.ts    # Writes a store value onto an input unless the user is editing it
@@ -577,7 +579,7 @@ YUI/
           header-buttons.ts          # Pop-out, message, devtools and close buttons with their listeners
         preset/                      # Preset strip above the tab rail
           preset-strip.ts            # Active-preset picker, the switching state, and the tab scope lines it fills
-          preset-manage.ts           # Manage popover: rows with inline rename and delete confirm, and the new-preset field
+          preset-manage.ts           # Manage popover: rows with inline rename, delete confirm and the open or close window row, and the new-preset field
           preset-scope.ts            # Scope line text: the preset a tab edits, or that its settings are shared
           preset.css                 # Strip, manage popover, and scope line styles
         history/                     # History tab and its session accordion section
@@ -605,7 +607,7 @@ YUI/
             workflows-section.ts     # Workflow entry list editing
             workflows-section.css    # Workflows section styles
           voice-input/               # Voice input switch and silence slider
-            voice-input-section.ts   # Voice switch, VAD slider binding, their subscriptions and redraw
+            voice-input-section.ts   # Voice switch, VAD slider binding, their subscriptions and redraw; the switch row is absent when the panel hides it
           filler/                    # Thinking-filler section
             filler-section.ts        # Language segment and phrase-pool textareas, with their store subscription and reflect
             filler-tool-lines.ts     # Textarea round-trip for the filler pool's tool tier

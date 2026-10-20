@@ -1,6 +1,6 @@
 # Push transport
 
-`chat_api: "push"` connects the client to the backend over one WebSocket. The client sends turns on it and the backend sends finished replies on it. The connection stays open, so a reply arrives without a request, including a report on work the backend finished on its own.
+`chat_api: "push"` connects each pet window to the backend over its own WebSocket. The client sends turns on it and the backend sends finished replies on it. The connection stays open, so a reply arrives without a request, including a report on work the backend finished on its own. A settings or message window runs no socket of its own: it mirrors the socket of the pet window of its own preset, as `main` does for the active preset.
 
 Push is an optional extension for backends that can deliver without a request. Request-scoped features behave the same over the request transports — the Responses API, and Chat Completions where its wire carries the data — so a backend that does not speak push loses none of them.
 
