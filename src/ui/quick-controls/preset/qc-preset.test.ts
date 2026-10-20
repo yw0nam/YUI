@@ -85,6 +85,37 @@ describe("createQuickControls — presets", () => {
     expect($(".yui-quick__cols").hasAttribute("inert")).toBe(true);
   });
 
+  // Esc hands focus back to the dots button; an outside press leaves it on the control pressed.
+  it.each([
+    [
+      "Escape",
+      () => {
+        $(".yui-preset-pop button")!.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+        );
+      },
+      ".yui-preset__manage",
+    ],
+    [
+      "a press outside it",
+      () => {
+        const tab = $<HTMLButtonElement>("#yui-tab-conn");
+        tab.focus();
+        tab.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      },
+      "#yui-tab-conn",
+    ],
+  ])("closes the manage popover on %s", (_label, act, focusSel) => {
+    openManage();
+
+    act();
+
+    expect($<HTMLElement>(".yui-preset-pop").hidden).toBe(true);
+    expect($(".yui-preset__manage").getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe($(focusSel));
+    expect(qc.isOpen()).toBe(true);
+  });
+
   it("offers delete on neither the default nor the active preset", () => {
     openManage();
 
