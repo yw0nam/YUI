@@ -174,7 +174,7 @@ the job's start. A successful `jobs_enqueue` lifts the stop latch.
 | `walk_to` | `pos {x, y}` or `entity` (a `unit_number` that `find` or `inspect` returned), `radius` > 0 | the body is within `radius` of the position, or of the entity's position at the job's start | 3600 | `{distance}` in whole tiles to the target |
 | `wait` | `ticks` > 0 | `ticks` have elapsed | its `ticks` | `{elapsed}` ticks |
 | `mine` | `name` (an item), `count` (integer 1 to 1000), `entity`? (a `unit_number` that `find` or `inspect` returned) | the body holds `count` more `name` than at the job's start | 3600 + `count` × the first target's mining ticks × 3, at most 36000, set when the job starts | `{gained, count, path}`, `path` `native` or `timed` |
-| `deliver` | `item`, `count` (an integer, 1 to 1000) | the body walked to within 3 tiles of the host and `count` of `item` lie spilled on the host's far side as `item-on-ground` flagged `to_be_looted`, and the body has stepped back to 6 tiles from the host | 3600 | — |
+| `deliver` | `item`, `count` (an integer, 1 to 1000) | the body walked to within 3 tiles of the host — stepping out to the 3-tile ring first when it stands closer than 2.5 tiles — and `count` of `item` lie spilled on the host's far side as `item-on-ground` flagged `to_be_looted`, and the body has stepped back to 6 tiles from the host | 3600 | — |
 
 - **Ends.** A job that ends `done` fires `job_done`; when nothing is queued
   after it, `queue_idle` follows. A job that ends `failed` fires one
