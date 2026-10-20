@@ -1,8 +1,14 @@
 /* ── Connection tab — per-service sections (chat · STT · TTS · broker), rows from quick-controls.css ── */
 
-/* State text at a section title's right. */
+/* State text at a section title's right. The title keeps its width; the hint wraps in a narrow panel. */
+.yui-sec__head:has(> .yui-endpoints__hint) > .yui-sec__title {
+  flex: 1 0 auto;
+}
+
 .yui-endpoints__hint {
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
+  text-align: right;
   font-size: var(--yui-fs-sub);
   font-weight: 500;
   color: var(--yui-text-dim);
