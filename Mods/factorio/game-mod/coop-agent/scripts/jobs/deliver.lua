@@ -35,9 +35,12 @@ function M.default_timeout()
   return TIMEOUT_TICKS
 end
 
---- The unit vector from b to a.
+--- The unit vector from b to a; the same spot points east.
 local function unit(a, b)
   local dx, dy = a.x - b.x, a.y - b.y
+  if dx == 0 and dy == 0 then
+    return { x = 1, y = 0 }
+  end
   local d = math.sqrt(dx * dx + dy * dy)
   return { x = dx / d, y = dy / d }
 end
@@ -53,7 +56,7 @@ end
 
 function M.start(deps, job)
   local entity = body.entity(deps)
-  local held = entity.get_item_count(job.args.item)
+  local held = entity.get_main_inventory().get_item_count(job.args.item)
   if held < job.args.count then
     return "no_item", { item = job.args.item, count = job.args.count, held = held }
   end
@@ -68,7 +71,7 @@ end
 local function unload(deps, job, host)
   local entity = body.entity(deps)
   local item, count = job.args.item, job.args.count
-  local held = entity.get_item_count(item)
+  local held = entity.get_main_inventory().get_item_count(item)
   if held < count then
     return "no_item", { item = item, count = count, held = held }
   end
@@ -100,12 +103,17 @@ local function next_step(deps, host, then_spill)
 end
 
 --- The auxiliary walk's end: the step out spills (the no_item re-check included), the step back ends the job.
-local function finish_step(deps, job)
+--- A step out that ended without clearing the spill radius fails the job and leaves the inventory untouched.
+local function finish_step(deps, job, outcome)
   local state = deps.storage.jobs.kind_state
   if not state.step.spill then
     return "done"
   end
   local host = deps.host()
+  local entity = body.entity(deps)
+  if outcome ~= "arrived" and walker.distance(entity.position, host.position) < SPILL_RADIUS then
+    return outcome == "deadline" and "stuck" or outcome
+  end
   local reason, detail = unload(deps, job, host)
   if reason then
     return reason, detail
@@ -119,13 +127,13 @@ function M.tick(deps, job)
   local result = walker.tick(deps)
   if result == nil then
     if state.step and deps.tick >= state.step.until_tick then
-      return finish_step(deps, job)
+      return finish_step(deps, job, "deadline")
     end
     return nil
   end
   -- the auxiliary walk ending, arrived or not, spills or ends the job
   if state.step then
-    return finish_step(deps, job)
+    return finish_step(deps, job, result)
   end
   if result ~= "arrived" then
     return result
