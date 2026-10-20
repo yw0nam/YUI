@@ -31,7 +31,7 @@ uv run factorio-mcp --transport http --host 127.0.0.1 --port 9003
 |---|---|---|
 | `config_ini` | `~/Library/Application Support/factorio/config/config.ini` | Factorio's own config file. RCON host, port, and password come from it. |
 | `signals_url` | `http://127.0.0.1:8770/signals` | The YUI client's loopback signals ingress. |
-| `wake.kinds` | `chat`, `queue_idle`, `job_failed`, `stopped`, `body_died`, `player_died`, `rocket_launched` | Event kinds that ring the doorbell. Every other kind only enters the cache. Add an opt-in kind to wake on it: `job_done`, `research_finished`, `attack_started`, `attack_ended`, `body_respawned`, `idle_changed`, `player_joined`, `player_left`, `snapshot_summary`. |
+| `wake.kinds` | `chat`, `queue_idle`, `job_failed`, `stopped`, `body_died`, `player_died`, `rocket_launched` | Event kinds that ring the doorbell. Every other kind only enters the cache. Add an opt-in kind to wake on it: `job_done`, `research_finished`, `attack_started`, `attack_ended`, `body_respawned`, `idle_changed`, `player_joined`, `player_left`, `snapshot_summary`, `body_threat` (an enemy came within the body's safe radius), `body_damaged` (an enemy damaged the body). |
 | `wake.coalesce_ms` | `2000` | Quiet period after the first wake event before one doorbell is posted. |
 | `outcome_log` | `outcome.jsonl` beside `config.toml` | JSONL log. Each line's `type` is `event`, `tool`, `doorbell`, `history_gap`, `session_reset`, or `backend_lag`. |
 

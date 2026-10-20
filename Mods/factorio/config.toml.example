@@ -9,7 +9,8 @@ signals_url = "http://127.0.0.1:8770/signals"
 # Event kinds that notify the backend. Every other kind only enters the cache.
 # These opt-in kinds stay cached and do not wake unless listed here: job_done,
 # research_finished, attack_started, attack_ended, body_respawned, idle_changed,
-# player_joined, player_left, snapshot_summary.
+# player_joined, player_left, snapshot_summary, body_threat (an enemy came within the body's safe radius),
+# body_damaged (an enemy damaged the body).
 kinds = [
   "chat",
   "queue_idle",
