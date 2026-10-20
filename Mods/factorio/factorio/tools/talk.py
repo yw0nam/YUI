@@ -10,7 +10,7 @@ from factorio.tools.deps import ToolDeps
 def register(mcp: FastMCP, deps: ToolDeps) -> None:
     @mcp.tool
     async def factorio_say(text: str) -> Any:
-        """Say one line in game chat as the host character."""
+        """Say one line in game chat under the body's name."""
         return await deps.execute("factorio_say", "say", {"text": text})
 
     @mcp.tool

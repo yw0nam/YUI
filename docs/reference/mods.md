@@ -111,7 +111,7 @@ Bridges the Factorio game to the agent through the coop-agent game mod, which an
 | `factorio_find(area=None, around=None, name=None, type=None, limit=50)` | Find entities by name, type, area, or near the host player |
 | `factorio_inspect(unit_number)` | Read one entity by its unit number |
 | `factorio_recipe(name)` | Read one recipe by name |
-| `factorio_say(text)` | Say one line in game chat as the host character |
+| `factorio_say(text)` | Say one line in game chat under the body's name |
 | `factorio_ping(pos, text)` | Ping a map position with a text label |
 
 The Mod polls `events_since{seq, limit: 200}` every second, looping until a page comes back short. Every event enters a 5000-event cache and the JSONL outcome log at `outcome_log`. An event whose kind is in `wake.kinds` rings the doorbell: after `wake.coalesce_ms`, the Mod posts one group to `signals_url` with `delivery: "live"`, `source: "factorio"`, and `event_type: "game.wake"`. The group carries `pending_from_seq` (the oldest event the agent has not read), `pending_to_seq` (the newest cached event), and `reset`; its `note` is the newest unread chat line verbatim, otherwise the unread wake kinds. One post is in flight at a time. A non-2xx response backs off from 5 s to 300 s and retries the same range; unread wake events post once more 300 s after the last 2xx, once per unread range. When the agent has read every wake event by the time a post is due, nothing is posted.
