@@ -37,13 +37,14 @@ beforeEach(() => {
 });
 
 describe("wirePetControls", () => {
-  function makeDeps() {
+  function makeDeps(boundId: string | null = null) {
     const stores: SettingsStores = createSettingsStores();
     const conversation = createConversationStores();
     const registered: Array<() => void> = [];
     const stage = document.createElement("div");
     const removeEventListener = vi.spyOn(stage, "removeEventListener");
     const deps = {
+      boundId,
       root: document.createElement("div"),
       stage,
       stores,
@@ -90,6 +91,16 @@ describe("wirePetControls", () => {
     for (const store of Object.values(wired.stores)) store.dispose();
     for (const store of Object.values(wired.deps.conversation)) store.dispose();
   }
+
+  it.each([null, "a"])("only main offers settings pop-out (bound id: %s)", (boundId) => {
+    const wired = makeDeps(boundId);
+    const options = createQuickControls.mock.calls[0][0];
+    if (boundId === null) {
+      options.onPopOut();
+      expect(wired.deps.openSettings).toHaveBeenCalledTimes(1);
+    } else expect(options.onPopOut).toBeUndefined();
+    teardownDeps(wired);
+  });
 
   it("registers the four teardowns in the baseline boot order", () => {
     const wired = makeDeps();

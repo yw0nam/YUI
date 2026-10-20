@@ -2,6 +2,7 @@
 import { beforeEach, expect, it } from "vitest";
 import {
   clearPetWindowLive,
+  clearStaleLiveKeys,
   createPetWindows,
   isPetWindowLive,
   readOpenPetWindowIds,
@@ -40,4 +41,16 @@ it("keeps independent live keys", () => {
   clearPetWindowLive("a");
   expect(isPetWindowLive("a")).toBe(false);
   expect(isPetWindowLive("b")).toBe(true);
+});
+
+it("clears only stale live keys while iteration remains stable", () => {
+  setPetWindowLive("gone-a");
+  setPetWindowLive("gone-b");
+  setPetWindowLive("present");
+  localStorage.setItem("yui.windows", JSON.stringify({ open: ["present"] }));
+  clearStaleLiveKeys(["present"]);
+  expect(isPetWindowLive("gone-a")).toBe(false);
+  expect(isPetWindowLive("gone-b")).toBe(false);
+  expect(isPetWindowLive("present")).toBe(true);
+  expect(readOpenPetWindowIds()).toEqual(["present"]);
 });

@@ -22,13 +22,14 @@ function createFakeTransport(): BridgeTransport {
   };
 }
 
-function setup() {
+function setup(bound = false) {
   const transport = createFakeTransport();
   const petBridge = createSettingsBridge(transport, { windowKind: "pet" });
   const settingsBridge = createSettingsBridge(transport, { windowKind: "settings" });
   const userInput = { submitGuide: vi.fn() };
   const disposers: Array<() => void> = [];
   const { ask, bindInteraction } = wireHelpGuide({
+    bound,
     userInput,
     bridge: petBridge,
     register: (fn) => disposers.push(fn),
@@ -37,6 +38,14 @@ function setup() {
 }
 
 describe("wireHelpGuide", () => {
+  it("keeps bound help local and registers no companion listener", () => {
+    const { settingsBridge, userInput, disposers, ask } = setup(true);
+    expect(disposers).toHaveLength(0);
+    settingsBridge.emitHelpGuide({ guide: "controls", text: "main help" });
+    expect(userInput.submitGuide).toHaveBeenCalledTimes(0);
+    ask("controls", "local help");
+    expect(userInput.submitGuide).toHaveBeenCalledExactlyOnceWith("controls", "local help");
+  });
   it("a press in the settings window reaches the pet window and submits there with the text it sent", () => {
     const { settingsBridge, userInput } = setup();
 

@@ -15,7 +15,7 @@ it.each([true, false])("only main publishes companion push stores (bound: %s)", 
     delegations: { get: () => [], subscribe },
     reasoning: { get: () => ({}), subscribe },
   } as unknown as Parameters<typeof publishPushStores>[0];
-  publishPushStores(stores, bridge, () => {}, bound);
+  publishPushStores(stores, bridge, () => {}, { bound });
   expect(onReset).toHaveBeenCalledTimes(bound ? 0 : 1);
   expect(onAsk).toHaveBeenCalledTimes(bound ? 0 : 1);
   bridge.dispose();

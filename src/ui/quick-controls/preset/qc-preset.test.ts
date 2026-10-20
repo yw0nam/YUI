@@ -95,6 +95,8 @@ describe("createQuickControls — presets", () => {
     rebuild(true, "bbbb0002");
     openManage();
     expect(qc.el.querySelector(".yui-preset__select")).toBeNull();
+    expect(qc.el.querySelector(".yui-iconbtn--popout")).toBeNull();
+    expect(qc.el.querySelector(".yui-preset__bound")!.getAttribute("aria-label")).toBe("Preset");
     expect(qc.el.querySelector(".yui-preset__bound")!.textContent).toBe("perlica");
     expect(rowOf("perlica").querySelector(".yui-preset-row__remove")).toBeNull();
     expect(rowOf("perlica").querySelector(".yui-preset-row__window")).toBeNull();

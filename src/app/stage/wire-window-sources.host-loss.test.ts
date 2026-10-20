@@ -83,22 +83,18 @@ describe("host loss reaches the faller", () => {
     expect(faller.drop).toHaveBeenCalledTimes(1);
   });
 
-  it.each([
-    true,
-    false,
-  ])("routes host loss and only main starts ingress (bound: %s)", async (bound) => {
+  it("drops the character when the armed sit's host window is lost", async () => {
     vi.stubGlobal("__TAURI_INTERNALS__", {});
     createWindowDropSource.mockClear();
     const faller = { drop: vi.fn() };
 
     wireWindowSources({
-      bound,
       bus: { push: () => {} } as never,
       renderer: {} as never,
       peekActive: () => false,
       getPeekConfig: () => ({}) as never,
       getGestureCues: () => ({}) as never,
-      agentNotifySettings: { get: () => ({ enabled: true, port: 9000 }) } as never,
+      agentNotifySettings: { get: () => ({ enabled: false }) } as never,
       getPosture: () => ({}) as never,
       getVrm: () => null,
       noteAvatarMoved: () => {},
@@ -121,6 +117,53 @@ describe("host loss reaches the faller", () => {
     createWindowDropSource.mock.calls[0][0].onSitLost();
 
     expect(faller.drop).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    true,
+    false,
+  ])("only main starts ingress and subscribes to avatar RPCs (bound: %s)", async (bound) => {
+    vi.stubGlobal("__TAURI_INTERNALS__", {});
+    createWindowDropSource.mockClear();
+    const subscribe = vi.fn();
+    createAvatarExecutor.mockImplementation((deps) => ({
+      start: () => {
+        subscribe();
+        (deps.subscribe as (cb: () => void) => void)(() => {});
+      },
+      stop: () => {},
+      noteUserDrag: () => {},
+    }));
+
+    wireWindowSources({
+      bound,
+      bus: { push: () => {} } as never,
+      renderer: {} as never,
+      peekActive: () => false,
+      getPeekConfig: () => ({}) as never,
+      getGestureCues: () => ({}) as never,
+      agentNotifySettings: { get: () => ({ enabled: true, port: 9000 }) } as never,
+      getPosture: () => ({}) as never,
+      getVrm: () => null,
+      noteAvatarMoved: () => {},
+      noteAgentMove: () => {},
+      onDragMiss: () => {},
+      onSitLost: () => {},
+      onRelocated: async () => {},
+      sitDown: async () => "done" as const,
+      isHeld: () => false,
+      bed: {
+        phase: () => "off",
+        lieDown: async () => ({ ok: true }),
+        getUp: () => {},
+        interrupt: () => {},
+      },
+      log: noopLog,
+    });
+    await vi.waitFor(() => expect(createWindowDropSource).toHaveBeenCalled());
+
+    expect(createAvatarExecutor).toHaveBeenCalledTimes(bound ? 0 : 1);
+    expect(subscribe).toHaveBeenCalledTimes(bound ? 0 : 1);
     expect(
       vi.mocked(invoke).mock.calls.filter(([cmd]) => cmd === "start_agent_ingress"),
     ).toHaveLength(bound ? 0 : 1);

@@ -1,11 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, expect, it, vi } from "vitest";
 import { createLogger } from "../../logger";
-import {
-  createPetWindows,
-  isPetWindowLive,
-  setPetWindowLive,
-} from "../../settings/preset/pet-windows";
+import { createPetWindows } from "../../settings/preset/pet-windows";
 import { wirePetWindowsReconcile } from "./wire-pet-windows-reconcile";
 
 beforeEach(() => localStorage.clear());
@@ -18,11 +14,10 @@ const registry = {
     ],
   }),
 };
-it.each([[], null])("prunes intent and only known stale live keys: %j", async (existing) => {
+it.each([[], null])("prunes intent with known or unknown native windows: %j", async (existing) => {
   const petWindows = createPetWindows();
   petWindows.open("a");
   petWindows.open("orphan");
-  setPetWindowLive("stale");
   const open = vi.fn(async () => {});
   const off = wirePetWindowsReconcile({
     petWindows,
@@ -32,7 +27,6 @@ it.each([[], null])("prunes intent and only known stale live keys: %j", async (e
   });
   await vi.waitFor(() => expect(open).toHaveBeenCalledWith("a"));
   expect(petWindows.get()).toEqual(["a"]);
-  expect(isPetWindowLive("stale")).toBe(existing === null);
   off();
 });
 it.each(["event", "registration race"])("reopens after destruction: %s", async (mode) => {

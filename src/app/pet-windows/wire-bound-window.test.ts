@@ -5,7 +5,10 @@ import { createPetWindows, isPetWindowLive } from "../../settings/preset/pet-win
 import { wireBoundWindow } from "./wire-bound-window";
 
 beforeEach(() => localStorage.clear());
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 it.each([
   true,
   false,
@@ -64,4 +67,22 @@ it("bounds the final emit at 250 ms", async () => {
   expect(close).toHaveBeenCalledTimes(0);
   await vi.advanceTimersByTimeAsync(1);
   expect(close).toHaveBeenCalledTimes(1);
+});
+
+it.each([true, false])("clears live state on pagehide only in browser (Tauri: %s)", (tauri) => {
+  if (tauri) vi.stubGlobal("__TAURI_INTERNALS__", {});
+  const petWindows = createPetWindows();
+  petWindows.open("a");
+  const off = wireBoundWindow({
+    boundId: "a",
+    petWindows,
+    bridge: { emitPetWindowsChanged: async () => {} },
+    disposeStores: () => {},
+    disposeSync: () => {},
+    close: () => {},
+    log: createLogger("test"),
+  });
+  window.dispatchEvent(new Event("pagehide"));
+  expect(isPetWindowLive("a")).toBe(tauri);
+  off();
 });
