@@ -79,6 +79,11 @@ function M.go(deps, target, radius)
   }
 end
 
+--- True while a walk is under way.
+function M.walking(deps)
+  return deps.storage.walker ~= nil
+end
+
 --- Drops the walk and stops the body walking.
 function M.cancel(deps)
   deps.storage.walker = nil

@@ -91,8 +91,8 @@ end
 
 local function choose(deps, job, state, target)
   local entity = body.entity(deps)
-  state.target, state.ticks = target, mining_ticks(deps, entity, target)
-  state.target_gained, state.walking, state.due = job.progress.gained, true, nil
+  state.target, state.cycle_ticks = target, mining_ticks(deps, entity, target)
+  state.target_gained, state.next_cycle_tick = job.progress.gained, nil
   walker.go(deps, target.position, entity.resource_reach_distance)
 end
 
@@ -129,11 +129,16 @@ function M.start(deps, job)
       return "target_gone"
     end
   end
-  local state = { names = names, before = entity.get_item_count(args.name), lost = false, next_check = deps.tick }
+  local state = {
+    names = names,
+    before = entity.get_item_count(args.name),
+    replaced_once = false,
+    next_check = deps.tick,
+  }
   deps.storage.jobs.kind_state = state
   job.progress = { gained = 0, count = args.count, path = "native" }
   choose(deps, job, state, target)
-  local timeout = WALK_ALLOWANCE_TICKS + args.count * state.ticks * TIMEOUT_FACTOR
+  local timeout = WALK_ALLOWANCE_TICKS + args.count * state.cycle_ticks * TIMEOUT_FACTOR
   job.timeout_ticks = job.timeout_ticks or math.min(timeout, MAX_TIMEOUT_TICKS)
   body.set_status(deps, status(job))
   return nil
@@ -142,10 +147,10 @@ end
 -- A lost target: used up when it yielded since chosen, else removed by another actor, which is allowed once.
 local function replace(deps, job, state, entity)
   if job.progress.gained == state.target_gained then
-    if state.lost then
+    if state.replaced_once then
       return "target_gone"
     end
-    state.lost = true
+    state.replaced_once = true
   end
   local target = nearest(entity, state.names)
   if not target then
@@ -173,20 +178,20 @@ local function check(deps, job, state)
   if not state.target.valid then
     return replace(deps, job, state, entity)
   end
-  if state.walking then
+  if walker.walking(deps) then
     return nil
   end
   if progress.path == "timed" then
-    state.due = state.due or deps.tick + state.ticks
+    state.next_cycle_tick = state.next_cycle_tick or deps.tick + state.cycle_ticks
     return nil
   end
   if entity.character_mining_progress ~= state.mining_progress then
     state.mining_progress, state.still_since = entity.character_mining_progress, deps.tick
   end
-  if deps.tick - state.still_since >= STALL_FACTOR * state.ticks then
+  if deps.tick - state.still_since >= STALL_FACTOR * state.cycle_ticks then
     progress.path = "timed"
     entity.mining_state = { mining = false }
-    state.due = deps.tick + state.ticks
+    state.next_cycle_tick = deps.tick + state.cycle_ticks
   else
     aim(entity, state.target)
   end
@@ -195,18 +200,18 @@ end
 
 function M.tick(deps, job)
   local state = deps.storage.jobs.kind_state
-  if state.walking then
+  if walker.walking(deps) then
     local result = walker.tick(deps)
     if result == "arrived" then
-      state.walking, state.still_since, state.next_check = false, deps.tick, deps.tick
+      state.still_since, state.next_check = deps.tick, deps.tick
     elseif result then
       return result
     end
-  elseif state.due and deps.tick >= state.due then
+  elseif state.next_cycle_tick and deps.tick >= state.next_cycle_tick then
     if state.target.valid then
       body.entity(deps).mine_entity(state.target)
     end
-    state.due = deps.tick + state.ticks
+    state.next_cycle_tick = deps.tick + state.cycle_ticks
   end
   if deps.tick < state.next_check then
     return nil
