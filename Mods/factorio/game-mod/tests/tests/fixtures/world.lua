@@ -30,7 +30,9 @@ PROTOTYPES = {
     mineable_properties = mineable(3, { item("stone", 24), item("coal", 24) }),
   },
   ["stone-furnace"] = { type = "furnace", mineable_properties = mineable(0.2, { item("stone-furnace", 1) }) },
+  ["uranium-ore"] = { type = "resource", mineable_properties = mineable(2, { item("uranium-ore", 1) }) },
 }
+PROTOTYPES["uranium-ore"].mineable_properties.required_fluid = "sulfuric-acid"
 
 --- A mineable entity at (x, y); a furnace gets a unit number, marked sets its deconstruction mark.
 function place(name, x, y, marked)

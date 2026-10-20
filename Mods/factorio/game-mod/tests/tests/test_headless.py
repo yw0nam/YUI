@@ -648,6 +648,8 @@ def field(server, scene):
     """A fresh empty body beside the dev host at (0, 200) on the cleared field with the scene's entities."""
     set_body_enabled(server, False)
     wait_status(server, lambda s: not s["body"]["alive"])
+    # an earlier spawn may or may not have handed out the starter kit; no body of a scene gets it
+    server.command("/silent-command __coop-agent__ storage.body.kit_given = true")
     server.command(FIELD + scene)
     assert json.loads(server.command("/coop-probe host 0 200")) == {"ok": True, "host": {"x": 0, "y": 200}}
     set_body_enabled(server, True)
@@ -702,33 +704,38 @@ def test_mine_wood_from_trees_and_stone_from_a_rock(server, scene, name, count, 
 
 
 def test_a_host_furnace_is_mined_only_once_marked_for_deconstruction(server):
-    status = field(server, "s.create_entity{name = 'stone-furnace', position = {3, 200}, force = 'player'}")
+    status = field(
+        server,
+        "for _, x in ipairs({3, 6}) do "
+        "s.create_entity{name = 'stone-furnace', position = {x, 200}, force = 'player'} end",
+    )
     area = {"left_top": {"x": -8, "y": 192}, "right_bottom": {"x": 8, "y": 208}}
-    (furnace,) = server.rpc(
-        v=1, id="ff", op="find", args={"area": area, "name": "stone-furnace"}, map_id=MAP_ID
-    )["r"]
-    unit = furnace["unit_number"]
 
+    def furnaces():
+        found = server.rpc(
+            v=1, id="ff", op="find", args={"area": area, "name": "stone-furnace"}, map_id=MAP_ID
+        )
+        return {entry["position"]["x"]: entry["unit_number"] for entry in found["r"]}
+
+    near = furnaces()[3]
     (gone,), _ = run_job(server, status["seq"], "mine-f1", mine("stone-furnace", 1))
-    (refused,), _ = run_job(server, gone["seq"], "mine-f2", mine("stone-furnace", 1, entity=unit))
+    (refused,), _ = run_job(server, gone["seq"], "mine-f2", mine("stone-furnace", 1, entity=near))
     assert [(e["kind"], e["data"]["reason"]) for e in (gone, refused)] == [
         ("job_failed", "target_gone"),
         ("job_failed", "not_permitted"),
     ]
     assert int(server.command(BODY_ITEMS.format("stone-furnace"))) == 0
 
+    # the nearer furnace stays unmarked, the farther one is marked
     marked = server.command(
-        "/silent-command rcon.print(game.surfaces[1].find_entities_filtered{name = 'stone-furnace', "
-        "area = {{-8, 192}, {8, 208}}}[1].order_deconstruction('player'))"
+        "/silent-command rcon.print(game.surfaces[1].find_entity('stone-furnace', {6, 200})"
+        ".order_deconstruction('player'))"
     )
     assert json.loads(marked) is True
     (done, _idle), _ = run_job(server, refused["seq"], "mine-f3", mine("stone-furnace", 1), 2)
     assert done["kind"] == "job_done"
     assert int(server.command(BODY_ITEMS.format("stone-furnace"))) == 1
-    assert (
-        server.rpc(v=1, id="ff2", op="find", args={"area": area, "name": "stone-furnace"}, map_id=MAP_ID)["r"]
-        == {}
-    )
+    assert furnaces() == {3: near}
 
 
 def test_mine_with_a_full_inventory_fails_target_full(server):

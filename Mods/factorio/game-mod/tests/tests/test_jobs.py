@@ -121,6 +121,27 @@ def test_a_kind_failure_detail_joins_the_job_failed_data(lua, world, phase):
     ]
 
 
+def test_a_kind_that_sets_no_timeout_by_its_start_fails_unsupported(lua, world):
+    lua.execute(
+        "JOBS.KINDS.fake = { validate = function() return nil end, "
+        "start = function() end, tick = function() end }"
+    )
+    enqueue(world, {"kind": "fake", "args": {"n": 1}}, WAIT_1)
+    run(world, 1)
+    assert events(world) == [
+        {
+            "kind": "job_failed",
+            "data": {
+                "id": 1,
+                "kind": "fake",
+                "reason": "unsupported",
+                "message": "fake set no timeout_ticks at its start",
+            },
+        }
+    ]
+    assert states(world) == [(1, "failed", "unsupported"), (2, "cancelled", "cancelled")]
+
+
 def test_an_idle_runner_reads_no_job_record(lua, world):
     enqueue(world, WAIT_1)
     run(world, 3)
