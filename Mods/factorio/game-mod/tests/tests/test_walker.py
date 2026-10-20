@@ -89,6 +89,7 @@ def test_a_stall_repaths_once_from_2_tiles_back_and_600_still_ticks_step_back_an
 
     assert until_request(world) == 152
     assert dict(world.REQUESTS[2].start) == {"x": -2, "y": 0}
+    assert world.BODY.walking_state.walking is False
     answer(lua, world, [[10, 0]])
 
     assert walk(world, 1000) == ("stuck", 616)
@@ -105,3 +106,20 @@ def test_a_hook_that_rejects_fails_the_walk_with_its_reason(lua, world, hook):
     answer(lua, world, [[10, 0]])
     assert walk(world, 5) == ("threat", 2)
     assert world.BODY.walking_state.walking is False
+
+
+def test_cancel_stops_walking_and_leaves_mining_and_crafts(lua, world):
+    go(lua, world, 10, 0)
+    until_request(world)
+    answer(lua, world, [[10, 0]])
+    walk(world, 2)
+    lua.execute(
+        "CANCELLED = {} BODY.mining_state = { mining = true } "
+        "BODY.crafting_queue_size = 1 BODY.crafting_queue = { { count = 2 } } "
+        "BODY.cancel_crafting = function(spec) CANCELLED[#CANCELLED + 1] = spec BODY.crafting_queue_size = 0 end"
+    )
+
+    world.WALKER.cancel(world.DEPS)
+    assert world.BODY.walking_state.walking is False
+    assert world.BODY.mining_state.mining is True
+    assert list(world.CANCELLED.values()) == []
