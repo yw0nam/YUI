@@ -7,7 +7,12 @@ const { getByLabel, destroyed, selfClose } = vi.hoisted(() => ({
   selfClose: vi.fn(),
 }));
 vi.mock("@tauri-apps/api/webviewWindow", () => ({ WebviewWindow: { getByLabel } }));
-const native = vi.hoisted(() => ({ listen: vi.fn(), destroy: vi.fn(), off: vi.fn() }));
+const native = vi.hoisted(() => ({
+  listen: vi.fn(),
+  destroy: vi.fn(),
+  close: vi.fn(),
+  off: vi.fn(),
+}));
 vi.mock("@tauri-apps/api/window", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@tauri-apps/api/window")>();
   return {
@@ -21,17 +26,21 @@ vi.mock("@tauri-apps/api/window", async (importOriginal) => {
 
 import { createLogger } from "../../logger";
 import { createPresetRegistry } from "../../settings/preset/preset-registry";
-import { wireCompanionWindow } from "./companion-window";
+import { createDisposers } from "../disposers";
+import { bootCompanion, wireCompanionWindow } from "./companion-window";
 
 beforeEach(() => {
   localStorage.clear();
   native.listen.mockResolvedValue(native.off);
+  native.close.mockResolvedValue(undefined);
+  native.destroy.mockResolvedValue(undefined);
   vi.stubGlobal("__TAURI_INTERNALS__", {});
   getByLabel.mockImplementation(async () => ({ once: destroyed }));
   destroyed.mockImplementation(async () => () => {});
 });
 afterEach(() => {
   vi.unstubAllGlobals();
+  history.replaceState(null, "", "/");
 });
 it("holds its own guard through store teardown, then clears before close", async () => {
   localStorage.setItem(
@@ -68,8 +77,13 @@ it("holds its own guard through store teardown, then clears before close", async
   expect(registry.remove("a")).toBe(true);
 });
 
-it("tears down and clears its live key before the native close request destroys the webview", async () => {
+it.each([
+  false,
+  true,
+])("clears its key and destroys after native close even when teardown throws: %s", async (throwing) => {
   const calls: string[] = [];
+  const log = createLogger("test");
+  const warn = vi.spyOn(log, "warn");
   const role = await wireCompanionWindow({
     label: "settings-a",
     boundId: "a",
@@ -77,9 +91,10 @@ it("tears down and clears its live key before the native close request destroys 
     disposeWindow: () => {
       expect(localStorage.getItem("yui.live-window.settings-a")).toBe("1");
       calls.push("stores");
+      if (throwing) throw Error("teardown failed");
     },
     close: selfClose,
-    log: createLogger("test"),
+    log,
   });
   expect(role.alive).toBe(true);
   expect(native.listen).toHaveBeenCalledWith("tauri://close-requested", expect.any(Function));
@@ -90,6 +105,12 @@ it("tears down and clears its live key before the native close request destroys 
   await native.listen.mock.calls[0]![1]({ id: 1, event: "tauri://close-requested", payload: null });
   expect(calls).toEqual(["stores", "destroy"]);
   expect(native.off).toHaveBeenCalledTimes(1);
+  if (throwing)
+    expect(warn).toHaveBeenCalledWith("companion_dispose_failed", {
+      preset: "a",
+      error: "Error: teardown failed",
+    });
+  else expect(warn).not.toHaveBeenCalled();
 });
 it("closes an unlisted preset before creating a live key or observing its owner", async () => {
   const disposeWindow = vi.fn();
@@ -105,4 +126,27 @@ it("closes an unlisted preset before creating a live key or observing its owner"
   expect(selfClose).toHaveBeenCalledTimes(1);
   expect(localStorage.length).toBe(0);
   expect(getByLabel).not.toHaveBeenCalled();
+});
+
+it("destroys itself when its owner ends while listener removal is still pending", async () => {
+  history.replaceState(null, "", "/?preset=a");
+  localStorage.setItem(
+    "yui.presets",
+    JSON.stringify({
+      active: "default",
+      list: [
+        { id: "default", name: "Default" },
+        { id: "a", name: "A" },
+      ],
+    }),
+  );
+  native.off.mockImplementation(() => new Promise<void>(() => {}));
+  const lifecycle = createDisposers();
+  const role = await bootCompanion("settings", lifecycle, createLogger("test"));
+  expect(role.alive).toBe(true);
+  destroyed.mock.calls[0]![1]();
+  await vi.waitFor(() => expect(native.destroy).toHaveBeenCalledTimes(1));
+  expect(native.close).not.toHaveBeenCalled();
+  expect(localStorage.getItem("yui.live-window.settings-a")).toBeNull();
+  expect(lifecycle.isDisposed()).toBe(true);
 });
