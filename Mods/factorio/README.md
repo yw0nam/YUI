@@ -2,6 +2,8 @@
 
 Bridges the Factorio game to the backend agent. It polls the [coop-agent game mod](game-mod/) over RCON, caches game events, and posts a `live` signal to the YUI client when a wake-kind event happens. Runs **host-native** — RCON is a loopback console on the machine running Factorio.
 
+The backend agent's companion skill for this Mod is [`integrations/skills/factorio-companion/SKILL.md`](../../integrations/skills/factorio-companion/SKILL.md).
+
 ## Run
 
 Factorio must run with RCON enabled in the game's own `config.ini`:
