@@ -959,10 +959,11 @@ def kinds(server, seq, kind):
 
 
 def test_mine_beside_a_biter_fails_threat_at_the_start_and_the_body_stays(server):
-    # the body stands 48 tiles south of the patch and 80 from the biter, which is 30 tiles north of the patch
+    # the body stands 48 tiles south of the patch and 80 from the frozen biter, 30 tiles north of the patch
     status = field(
         server,
-        COAL_PATCH + " s.create_entity{name = 'small-biter', position = {0, 168}, force = 'enemy'}",
+        COAL_PATCH
+        + " s.create_entity{name = 'small-biter', position = {0, 168}, force = 'enemy'}.disabled_by_script = true",
         250,
     )
     (failed,), record = run_job(server, status["seq"], "mine-threat", mine("coal", 10))
@@ -973,7 +974,7 @@ def test_mine_beside_a_biter_fails_threat_at_the_start_and_the_body_stays(server
     assert after["body"]["position"] == status["body"]["position"]
 
 
-def test_a_biter_20_tiles_from_the_standing_body_cancels_the_queue_and_the_body_retreats_to_the_host(server):
+def test_a_biter_20_tiles_from_the_standing_body_ends_the_queue_and_the_body_retreats_to_the_host(server):
     # the body stands 30 to 34 tiles from the dev host, so the biter 20 tiles further east is at least 50 from it
     seq = field(server, "")["seq"]
     assert idle_set(server, "threat-stay", {"mode": "stay", "pos": {"x": 32, "y": 200}})["ok"] is True
@@ -996,10 +997,17 @@ def test_a_biter_20_tiles_from_the_standing_body_cancels_the_queue_and_the_body_
 
     (threat,) = wait_for(lambda: kinds(server, seq, "body_threat"), len, "body_threat")
     assert threat["tick"] - spawned <= 60
-    # the biter closes in on the body until the check
-    assert 0 < threat["data"]["distance"] <= 20
+    # the frozen biter stays where it spawned, 20 tiles from the standing body
+    assert threat["data"]["distance"] == 20
     records = jobs_by_id(server)
-    assert [(records[i]["state"], records[i]["reason"]) for i in ids] == [("cancelled", "threat")] * 3
+    assert [(records[i]["state"], records[i]["reason"]) for i in ids] == [
+        ("failed", "threat"),
+        ("cancelled", "threat"),
+        ("cancelled", "threat"),
+    ]
+    assert without_ticks(kinds(server, seq, "job_failed")) == [
+        {"kind": "job_failed", "data": {"id": ids[0], "kind": "wait", "reason": "threat"}}
+    ]
     server.command("/silent-command game.speed = 10")
     try:
         state = wait_for(
