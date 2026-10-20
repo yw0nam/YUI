@@ -164,4 +164,22 @@ describe("createPresetRegistry", () => {
 
     expect(JSON.parse(map.get("yui.presets")!).active).toBe("aaaa0001");
   });
+
+  it("keeps a preset another window created when this window edits from an older list", () => {
+    seedPresets("default", [
+      { id: "default", name: "default" },
+      { id: "aaaa0001", name: "natsume" },
+    ]);
+    const settingsWindow = createPresetRegistry({ newId: () => "bbbb0002" });
+    const petWindow = createPresetRegistry();
+
+    settingsWindow.create("perlica");
+    petWindow.rename("aaaa0001", "natsu");
+
+    expect(JSON.parse(map.get("yui.presets")!).list).toEqual([
+      { id: "default", name: "default" },
+      { id: "aaaa0001", name: "natsu" },
+      { id: "bbbb0002", name: "perlica" },
+    ]);
+  });
 });
