@@ -143,12 +143,12 @@ change, spawns it, respawns it, or removes it.
   is `…` for 180 ticks after a host chat line, rounded up to the next
   60-tick sweep; else `Stopped` while latched; else `Waiting for <host>`
   while no host is connected; else the text set through
-  `body.set_status(deps, text)` — `Following <host>` while a follow job runs —
+  `body.set_status(deps, text)` — `Following <host>` while a follow job runs inside the leash —
   `Standing by` at first. The render object lives in `storage.body.label`;
   only its text is rewritten when the line changes.
 
-Changes to coop-agent's color, name and enabled settings apply at once; a new prototype
-applies from the next spawn.
+Changes to coop-agent's color, name, enabled and idle start settings apply at once; a new
+prototype applies from the next spawn.
 
 | setting (runtime-global) | type | default |
 | --- | --- | --- |
@@ -162,11 +162,16 @@ applies from the next spawn.
 
 While no job is queued or running and the execution gate passes, the body idles
 in `storage.idle`'s mode; it starts in the `coop-agent-idle-start` mode and
-`idle_set` changes it. `follow` keeps the body 10 to 15 tiles from the host
-with repeated short walker steps through the one walker: beyond 15 tiles a step
-starts and ends within 10 tiles of the host, and a failed step rests 30 ticks.
-Beyond a 64-tile leash the body stops and the status line reads `Waiting for
-<host>`; back inside the leash it resumes. `stay` walks to its position once —
+`idle_set` changes it. While no `idle_set` is in force, a change of the setting
+moves the mode at once like an `idle_set` does, without lifting the stop latch.
+`follow` keeps the body 10 to 15 tiles from the host with repeated short walker
+steps through the one walker: beyond 15 tiles a step starts and ends within 10
+tiles of the host, and a failed step rests 30 ticks. After three consecutive
+failed steps the follow waits 600 ticks before its next step and the status line
+reads `Waiting for <host>`. Beyond a 64-tile leash the body stops and the status
+line reads `Waiting for <host>`; back inside the leash it resumes. A `follow`
+job steps the same way, but one failed walker step fails the job with the
+walker's reason. `stay` walks to its position once —
 `idle_set{stay}` without `pos` takes the body's position — then stands until
 told otherwise. An enqueue takes the walk from idle, and idle never pre-empts
 a running job or runs while the stop latch is on.

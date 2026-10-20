@@ -27,9 +27,15 @@ local function same_position(a, b)
   return a ~= nil and b ~= nil and a.x == b.x and a.y == b.y
 end
 
---- One follow step, shared by the idle mode and the follow job: start a short walk toward the
--- host when too far, wait beyond the leash. Returns the walker's failure, never "arrived".
-function M.follow_step(deps)
+--- Drops the follow step's leash, failure count and wait; a new owner of the step starts afresh.
+function M.reset_follow(deps)
+  local state = deps.storage.idle
+  state.leashed, state.failures, state.retry_tick = nil, nil, nil
+end
+
+--- One follow step, shared by the idle mode and the follow job: start a short walk toward the host
+-- when too far, wait beyond the leash, show label back inside it. Returns the walker's failure, never "arrived".
+function M.follow_step(deps, label)
   local entity = body.entity(deps)
   local player = deps.host()
   local state = deps.storage.idle
@@ -45,10 +51,7 @@ function M.follow_step(deps)
   end
   if state.leashed and not (state.retry_tick ~= nil and deps.tick < state.retry_tick) then
     state.leashed = nil
-    -- only demote the label when it still shows the leash's own text; a job's end status may have replaced it
-    if deps.storage.body.status == "Waiting for " .. player.name then
-      body.set_status(deps, status_line.STANDING_BY)
-    end
+    body.set_status(deps, label)
   end
   if deps.storage.walker and dist <= FOLLOW_NEAR then
     state.failures = nil
@@ -60,6 +63,7 @@ function M.follow_step(deps)
   end
   local result = walker.tick(deps)
   if result == "arrived" then
+    state.failures = nil
     return nil
   end
   if result then
@@ -90,7 +94,11 @@ local function stay_step(deps)
   end
 end
 
-M.MODES = { follow = M.follow_step, stay = stay_step }
+local function follow_idle(deps)
+  M.follow_step(deps, status_line.STANDING_BY)
+end
+
+M.MODES = { follow = follow_idle, stay = stay_step }
 
 --- One idle tick behind the gate; a gate that shut mid-step takes the walk away at once.
 --- deps: {storage, tick, start_mode, body_name, host(), direction, draw_text}
@@ -108,32 +116,56 @@ function M.tick(deps)
   M.MODES[state.mode or deps.start_mode](deps)
 end
 
---- Sets the mode and stay position; takes the walk, resets the label, lifts the latch, rings on a change.
-function M.set(deps, mode, pos)
+-- A new mode starts afresh: takes the walk, drops the follow state and the stay arrival, resets a leash's label.
+local function reset(deps)
   if deps.storage.jobs.active == 0 then
     walker.cancel(deps) -- idle owns the walk only while the queue is empty
   end
   local state = deps.storage.idle
-  local previous = state.mode or deps.start_mode
-  local changed = previous ~= mode or (mode == "stay" and not same_position(state.pos, pos))
-  local leashed = state.leashed
-  state.mode, state.pos = mode, pos
-  state.leashed, state.arrived, state.failures, state.retry_tick = nil, nil, nil, nil
-  if leashed then
+  if state.leashed then
     body.set_status(deps, status_line.STANDING_BY)
   end
+  M.reset_follow(deps)
+  state.arrived = nil
+end
+
+--- Sets the mode and stay position; takes the walk, resets the label, lifts the latch, rings on a change.
+function M.set(deps, mode, pos)
+  local state = deps.storage.idle
+  local previous = state.mode or deps.start_mode
+  local changed = previous ~= mode or (mode == "stay" and not same_position(state.pos, pos))
+  state.mode, state.pos = mode, pos
+  reset(deps)
   body.clear_latch(deps)
   if changed then
     deps.push("idle_changed", { mode = mode })
   end
 end
 
---- The start setting changed: an explicit idle_set stands; otherwise the mode moves with it.
-function M.on_setting_changed_event(e)
-  if e.setting ~= "coop-agent-idle-start" or storage.idle.mode ~= nil then
+--- The start setting changed: an explicit idle_set stands; otherwise the mode moves with it like an idle_set.
+function M.on_setting_changed(deps, e)
+  if e.setting ~= "coop-agent-idle-start" or deps.storage.idle.mode ~= nil then
     return
   end
-  store.push("idle_changed", { mode = settings.global["coop-agent-idle-start"].value })
+  reset(deps)
+  deps.push("idle_changed", { mode = deps.start_mode })
+end
+
+local function game_deps()
+  return {
+    storage = storage,
+    tick = game.tick,
+    body_name = settings.global["coop-agent-body-name"].value,
+    start_mode = settings.global["coop-agent-idle-start"].value,
+    host = host.get,
+    push = store.push,
+    direction = defines.direction,
+    draw_text = rendering.draw_text,
+  }
+end
+
+function M.on_setting_changed_event(e)
+  M.on_setting_changed(game_deps(), e)
 end
 
 --- The per-tick entry: due checks run without deps; the deps are built only for a due tick.
@@ -155,15 +187,7 @@ function M.tick_event()
       return -- inside the band: the follow distance check runs on every 10th tick
     end
   end
-  M.tick({
-    storage = storage,
-    tick = game.tick,
-    body_name = settings.global["coop-agent-body-name"].value,
-    start_mode = settings.global["coop-agent-idle-start"].value,
-    host = host.get,
-    direction = defines.direction,
-    draw_text = rendering.draw_text,
-  })
+  M.tick(game_deps())
 end
 
 return M

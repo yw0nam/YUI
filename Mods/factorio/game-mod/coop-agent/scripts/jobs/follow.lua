@@ -9,8 +9,12 @@ local M = {}
 M.validate = wait.validate
 M.default_timeout = wait.default_timeout
 
+local function following(deps)
+  return "Following " .. deps.host().name
+end
+
 function M.start(deps)
-  body.set_status(deps, "Following " .. deps.host().name)
+  body.set_status(deps, following(deps))
 end
 
 function M.tick(deps, job)
@@ -19,7 +23,7 @@ function M.tick(deps, job)
   if elapsed >= job.args.ticks then
     return "done"
   end
-  return idle.follow_step(deps)
+  return idle.follow_step(deps, following(deps))
 end
 
 return M

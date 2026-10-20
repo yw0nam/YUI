@@ -2,6 +2,7 @@
 
 local body = require("scripts.body")
 local check = require("scripts.jobs.check")
+local idle = require("scripts.idle")
 local status_line = require("scripts.body.status_line")
 local walker = require("scripts.walker")
 
@@ -31,13 +32,15 @@ local function current(list)
   return nil
 end
 
--- Every end of an active job; a running job's end drops its kind_state, halts the body and sets the status line.
+-- Every end of an active job; a running job's end drops its kind_state and the follow state,
+-- halts the body and sets the status line.
 local function close(deps, job, state, reason, status)
   local was_running = job.state == "running"
   job.state, job.reason = state, reason
   deps.storage.jobs.active = deps.storage.jobs.active - 1
   if was_running then
     deps.storage.jobs.kind_state = nil
+    idle.reset_follow(deps)
     walker.cancel(deps)
     body.halt(deps)
     body.set_status(deps, status or status_line.STANDING_BY)
@@ -132,11 +135,12 @@ function M.enqueue(deps, specs)
   if queue.active + #specs > MAX_JOBS then
     return check.bad_request("jobs: the queue holds at most " .. MAX_JOBS .. " jobs")
   end
-  -- a stop since the last tick still ends the queue it halted; an empty queue takes the walk from idle
+  -- a stop since the last tick still ends the queue it halted; an empty queue takes the walk and follow state from idle
   if queue.active > 0 then
     gate(deps)
   else
     walker.cancel(deps)
+    idle.reset_follow(deps)
   end
   local list = queue.list
   local i = 1
