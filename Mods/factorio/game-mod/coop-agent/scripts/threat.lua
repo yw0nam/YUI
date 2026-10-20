@@ -112,8 +112,8 @@ function M.sweep(deps)
   end
 end
 
---- One retreat tick: a rejected route stands and retries 300 ticks later; a shut gate or any other end of the walk
---- ends the retreat.
+--- One retreat tick: a rejected route stands and retries 300 ticks later, toward the host or in place when an
+--- enemy is now within the safe radius of the host; a shut gate or any other end of the walk ends the retreat.
 function M.tick(deps)
   local state = deps.storage.threat
   if not state.retreating then
@@ -124,10 +124,13 @@ function M.tick(deps)
     return
   end
   if not walker.walking(deps) then
-    if deps.tick < state.retry_tick then
+    if deps.tick < (state.retry_tick or 0) then
       return
     end
-    walker.go(deps, state.goal, RETREAT_RADIUS)
+    retreat(deps)
+    if not state.retreating then
+      return
+    end
   end
   local result = walker.tick(deps)
   if result == "threat" then
@@ -166,7 +169,7 @@ end
 function M.tick_event()
   local state = storage.threat
   -- a rejected retreat route waits for its retry without building deps
-  if state.retreating and (storage.walker or game.tick >= state.retry_tick) then
+  if state.retreating and (storage.walker or game.tick >= (state.retry_tick or 0)) then
     M.tick(game_deps())
   end
 end

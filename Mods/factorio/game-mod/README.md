@@ -319,7 +319,9 @@ The safe radius is the `coop-agent-safe-radius` setting: 48 tiles by default,
   enemy within the safe radius + 4 of the segment's start, the segment comes
   no closer to that enemy than its start does; it is checked when the route
   arrives and by the look-ahead. A rejected route leaves the body standing,
-  still `Retreating`, and the route is requested again 300 ticks later.
+  still `Retreating`, and 300 ticks later the retreat starts again: toward
+  the host, or standing where it is when an enemy is now within the safe
+  radius of the host.
   Arrival, a failed route or a shut execution gate ends the retreat where the
   body stands. The status line reads `Retreating` until the retreat ends,
   then `Standing by`.
@@ -332,7 +334,8 @@ The safe radius is the `coop-agent-safe-radius` setting: 48 tiles by default,
 While no retreat walks, the threat costs one flag check per tick; the job
 runner still builds its deps each tick while a threat holds queued jobs.
 `find_nearest_enemy` runs at the 60-tick body check, at a `walk_to` or `mine`
-start or target replacement and when a route arrives.
+start or target replacement, when a route arrives, and at the host-refuge
+check whenever a retreat starts, re-aims or retries.
 
 ## Safety
 
