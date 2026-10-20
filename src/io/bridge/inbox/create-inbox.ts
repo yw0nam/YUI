@@ -33,7 +33,7 @@ export function createInbox<T>(
           options = { target: { kind: "WebviewWindow", label: getCurrentWebviewWindow().label } };
         }
       } catch (err) {
-        log.debug("listen_resolve_failed", { degrade: true, error: String(err) });
+        log.warn("listen_resolve_failed", { degrade: true, error: String(err) });
         return;
       }
       if (!listen) {

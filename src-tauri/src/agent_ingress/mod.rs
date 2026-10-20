@@ -175,6 +175,7 @@ fn claim_and_bind(
     Some(result)
 }
 
+/// The webview that owns the ingress; every ingress event is delivered to it alone.
 const INGRESS_WINDOW: &str = "main";
 
 /// Spawns the loopback HTTP listener on the given port.
