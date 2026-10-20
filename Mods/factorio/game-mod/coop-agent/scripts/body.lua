@@ -16,8 +16,7 @@ end
 
 --- The live body entity, or nil.
 function M.entity()
-  local unit_number = storage.body.unit_number
-  local entity = unit_number and game.get_entity_by_unit_number(unit_number)
+  local entity = storage.body.entity
   return entity and entity.valid and entity or nil
 end
 
@@ -45,19 +44,19 @@ local function refresh()
   status_line.show(entity, state, text)
 end
 
---- The job runner's state text for the status line, e.g. "Walking to <target>".
+--- Replaces the state text of the status line.
 function M.set_status(text)
   storage.body.status = text
   refresh()
 end
 
---- A new job or idle_set lifts the stop latch.
+--- Lifts the stop latch.
 function M.clear_latch()
   storage.body.stopped = false
   refresh()
 end
 
---- The hotkey and the stop op: halt walking, mining and crafting, latch Stopped, emit stopped.
+--- The hotkey and the stop op: halt walking, mining and crafting; the first stop latches and emits stopped.
 function M.stop()
   local entity = M.entity()
   if entity then
@@ -67,46 +66,53 @@ function M.stop()
       entity.cancel_crafting { index = 1, count = entity.crafting_queue[1].count }
     end
   end
-  storage.body.stopped = true
-  store.push("stopped", {})
+  if not storage.body.stopped then
+    storage.body.stopped = true
+    store.push("stopped", {})
+  end
   refresh()
 end
 
 --- A host chat line shows "…" for 180 ticks.
-function M.acknowledge_chat()
-  storage.body.ack_until = game.tick + ACK_TICKS
-  refresh()
+function M.on_console_chat(e)
+  if host.of_chat(e) then
+    storage.body.ack_until = game.tick + ACK_TICKS
+    refresh()
+  end
 end
 
-function M.respawn_due(tick)
+local function respawn_due(tick)
   local died_tick = storage.body.died_tick
-  return enabled() and died_tick ~= nil and tick - died_tick >= RESPAWN_TICKS
+  return died_tick ~= nil and tick - died_tick >= RESPAWN_TICKS
 end
 
 function M.on_entity_died(e)
   local state = storage.body
-  if state.unit_number and e.entity.unit_number == state.unit_number then
+  if state.entity and e.entity == state.entity then
+    state.entity = nil
     state.unit_number = nil
     state.died_tick = e.tick
     store.push("body_died", {})
   end
 end
 
---- Every 60 ticks and on a setting change: remove a disabled body, spawn or respawn beside the host, redraw.
+--- Every 60 ticks and on a coop-agent setting change: remove a disabled body, spawn or respawn beside the host, redraw.
 function M.sweep()
   local state = storage.body
   local entity = M.entity()
   if not enabled() then
     if entity then
-      entity.destroy()
+      character.remove(entity)
     end
+    state.entity = nil
     state.unit_number = nil
     return
   end
   local player = host.get()
-  if not entity and player and (state.died_tick == nil or M.respawn_due(game.tick)) then
+  if not entity and player and (state.died_tick == nil or respawn_due(game.tick)) then
     entity = character.beside(player)
     if entity then
+      state.entity = entity
       state.unit_number = entity.unit_number
       if not state.kit_given then
         character.give_kit(entity)
@@ -121,7 +127,10 @@ function M.sweep()
   refresh()
 end
 
-function M.on_setting_changed()
+function M.on_setting_changed(e)
+  if string.find(e.setting, "coop-agent-", 1, true) ~= 1 then
+    return
+  end
   local entity = M.entity()
   if entity then
     character.paint(entity)

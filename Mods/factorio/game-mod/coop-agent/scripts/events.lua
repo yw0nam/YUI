@@ -1,6 +1,5 @@
 -- Thin event handlers: read the game event and push a plain-data kind onto the ring.
 
-local body = require("scripts.body")
 local host = require("scripts.host")
 local store = require("scripts.storage")
 local snapshot = require("scripts.ops.snapshot")
@@ -9,10 +8,9 @@ local M = {}
 
 --- Only the host's chat lines count; commands raise on_console_command instead.
 function M.on_console_chat(e)
-  local player = host.get()
-  if player and e.player_index == player.index then
+  local player = host.of_chat(e)
+  if player then
     store.push("chat", { player = player.name, text = e.message })
-    body.acknowledge_chat()
   end
 end
 

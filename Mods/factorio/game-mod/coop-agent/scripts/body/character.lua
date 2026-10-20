@@ -30,6 +30,22 @@ function M.beside(host)
   return entity
 end
 
+--- Spills every inventory at the body's feet, flagged for looting, then destroys the body.
+function M.remove(entity)
+  for index = 1, entity.get_max_inventory_index() do
+    local inventory = entity.get_inventory(index)
+    if inventory and not inventory.is_empty() then
+      entity.surface.spill_inventory {
+        position = entity.position,
+        inventory = inventory,
+        enable_looted = true,
+        allow_belts = false,
+      }
+    end
+  end
+  entity.destroy()
+end
+
 --- The freeplay scenario's starter items; nothing when freeplay is not running.
 function M.give_kit(entity)
   local freeplay = remote.interfaces["freeplay"]

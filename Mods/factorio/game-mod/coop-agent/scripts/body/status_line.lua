@@ -4,15 +4,15 @@ local WHITE = { r = 1, g = 1, b = 1 }
 
 local M = {}
 
---- view: {status, stopped?, waiting_for?, ack?}; the chat acknowledgement outranks waiting, waiting outranks the stop latch.
+--- view: {status, stopped?, waiting_for?, ack?}; the chat acknowledgement outranks the stop latch, the latch outranks waiting.
 function M.text(name, view)
   local state = view.status
   if view.ack then
     state = "…"
-  elseif view.waiting_for then
-    state = "Waiting for " .. view.waiting_for
   elseif view.stopped then
     state = "Stopped"
+  elseif view.waiting_for then
+    state = "Waiting for " .. view.waiting_for
   end
   return name .. " · " .. state
 end

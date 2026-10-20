@@ -18,7 +18,10 @@ end)
 
 script.on_configuration_changed(store.ensure)
 
-script.on_event(defines.events.on_console_chat, events.on_console_chat)
+script.on_event(defines.events.on_console_chat, function(e)
+  events.on_console_chat(e)
+  body.on_console_chat(e)
+end)
 script.on_event(defines.events.on_player_joined_game, events.on_player_joined)
 script.on_event(defines.events.on_player_left_game, events.on_player_left)
 script.on_event(defines.events.on_player_died, events.on_player_died)

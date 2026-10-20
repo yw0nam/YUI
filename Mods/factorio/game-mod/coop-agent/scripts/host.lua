@@ -21,4 +21,10 @@ function M.get()
   return host
 end
 
+--- The host when a chat event is the host's line, else nil.
+function M.of_chat(e)
+  local player = M.get()
+  return player and e.player_index == player.index and player or nil
+end
+
 return M

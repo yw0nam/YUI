@@ -107,8 +107,8 @@ is not used: on 2.0.77 its first draw is the same for every seed.
 ## Body
 
 With `coop-agent-body-enabled` on and a host connected, the mod keeps one
-playerless character beside the host; its `unit_number` is
-`storage.body.unit_number`. A sweep every 60 ticks, and every runtime setting
+playerless character beside the host; the entity is `storage.body.entity` and
+its `unit_number` is `storage.body.unit_number`. A sweep every 60 ticks, and every runtime setting
 change, spawns it, respawns it, or removes it.
 
 - **Spawn.** On a free spot within 8 tiles of the host, as the
@@ -119,22 +119,23 @@ change, spawns it, respawns it, or removes it.
 - **Death.** Items stay in the character corpse; `body_died` fires. 1800 ticks
   later, while the body is enabled and the host is connected, a new body with
   an empty inventory spawns beside the host and `body_respawned` fires.
-- **Disable.** Turning the setting off destroys the live body, items included,
-  at once; no respawn follows while it stays off.
+- **Disable.** Turning the setting off spills every inventory of the live body
+  at its feet as `item-on-ground` flagged `to_be_looted`, then removes the
+  body; no respawn follows while it stays off.
 - **Stop.** The hotkey `coop-agent-stop` (default `CONTROL + SHIFT + Y`, any
   player) and the `stop` op clear the body's walking, mining and crafting
-  queue, latch `status.stopped`, and fire `stopped`. `body.clear_latch()`
-  lifts the latch.
+  queue on every call; the first one latches `status.stopped` and fires
+  `stopped`. `body.clear_latch()` lifts the latch.
 - **Execution gate.** `body.can_act()` is true for a live body, the latch off,
   and a connected host.
 - **Status line.** One text above the body, `<body name> · <state>`. The state
   is `…` for 180 ticks after a host chat line, rounded up to the next
-  60-tick sweep; else `Waiting for <host>` while no host is connected; else
-  `Stopped` while latched; else the text set through `body.set_status(text)`,
+  60-tick sweep; else `Stopped` while latched; else `Waiting for <host>`
+  while no host is connected; else the text set through `body.set_status(text)`,
   `Standing by` at first. The render object lives in `storage.body.label`;
   only its text is rewritten when the line changes.
 
-Changes to the color, name and enabled settings apply at once; a new prototype
+Changes to coop-agent's color, name and enabled settings apply at once; a new prototype
 applies from the next spawn.
 
 | setting (runtime-global) | type | default |
