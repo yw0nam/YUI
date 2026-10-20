@@ -3,8 +3,7 @@
   "identifier": "desktop",
   "description": "main-window permissions for plugins that exist only on desktop",
   "windows": [
-    "main",
-    "pet-*"
+    "main"
   ],
   "platforms": [
     "linux",

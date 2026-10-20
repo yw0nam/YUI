@@ -1,3 +1,4 @@
+/** Window intent and live-key notifications reread storage without echoing remote changes. */
 import type { SettingsBridge } from "../../io/bridge/settings-bridge";
 import {
   LIVE_KEY_PREFIX,

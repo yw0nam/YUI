@@ -56,6 +56,8 @@ export function createPresetStrip(deps: {
   if (boundId !== null) {
     boundName = document.createElement("span");
     boundName.className = "yui-preset__bound";
+    boundName.setAttribute("role", "group");
+    boundName.setAttribute("aria-label", t("preset.label"));
     select.replaceWith(boundName);
     stripEl.querySelector("label")!.removeAttribute("for");
   }

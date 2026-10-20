@@ -87,7 +87,7 @@ export function createPresetRegistry(deps?: {
       return true;
     },
 
-    /** Deletes a preset and its keys. The default preset and the active one are kept. */
+    /** Deletes a preset and its keys; refuses default, active, desired-open, and live presets. */
     remove(id: string): boolean {
       const { active, list } = latest();
       if (
@@ -107,7 +107,7 @@ export function createPresetRegistry(deps?: {
       return true;
     },
 
-    /** Makes a listed preset the active one. */
+    /** Returns true after activating a listed preset; returns false for unknown, desired-open, or live ids. */
     activate(id: string): boolean {
       const { list } = latest();
       if (

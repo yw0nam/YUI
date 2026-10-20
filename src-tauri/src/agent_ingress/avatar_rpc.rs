@@ -1,4 +1,4 @@
-use super::payload::{AvatarRoute, AvatarRpcRequest, AVATAR_RPC_CHANNEL};
+use super::payload::{AvatarRoute, AvatarRpcRequest, AVATAR_RPC_CHANNEL, INGRESS_WINDOW};
 use crate::os_event_watcher::epoch_ms;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -58,7 +58,7 @@ fn avatar_rpc(app: &AppHandle, route: AvatarRoute) -> Result<serde_json::Value, 
         method: method.to_string(),
         params,
     };
-    if let Err(e) = app.emit(AVATAR_RPC_CHANNEL, payload) {
+    if let Err(e) = app.emit_to(INGRESS_WINDOW, AVATAR_RPC_CHANNEL, payload) {
         drop_pending(&id);
         log::warn!("avatar_rpc_emit_failed method={method} error={e}");
         return Err(503);

@@ -39,6 +39,7 @@ function hintDotHtml(textKey: string): string {
 /** Initial flags/states the panel HTML needs — computed by the entry where the stores live. */
 interface PanelHtmlOptions {
   isWindow: boolean;
+  showPopOut?: boolean;
   /** Whether the window-only context-occupancy readout renders. */
   hasSession: boolean;
   switchRows: readonly SwitchRow[];
@@ -64,6 +65,7 @@ interface PanelHtmlOptions {
 export function buildPanelHtml(o: PanelHtmlOptions): string {
   const {
     isWindow,
+    showPopOut,
     hasSession,
     switchRows,
     showScreen,
@@ -251,13 +253,18 @@ ${RATE_LIMIT_FIELDS.map((f) =>
       </span>
       <span class="yui-quick__title" title="${t("panel.drag_hint")}">${t("panel.title")}</span>
       <span class="yui-quick__bar-actions">
+        ${
+          showPopOut !== false
+            ? `
         <button class="yui-iconbtn yui-iconbtn--popout" type="button" aria-label="${t("panel.pop_out")}" data-tip="${t("panel.pop_out")}">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M14 5h5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M19 5l-7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M18 13v4a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-        </button>
+        </button>`
+            : ""
+        }
         ${
           showMessage
             ? `

@@ -1,3 +1,4 @@
+/** Application stores stop before the live key clears, so preset deletion waits for their last write. */
 import type { SettingsBridge } from "../../io/bridge/settings-bridge";
 import type { Logger } from "../../logger";
 import {
@@ -5,6 +6,7 @@ import {
   type PetWindows,
   setPetWindowLive,
 } from "../../settings/preset/pet-windows";
+import { isTauri } from "../../tauri-env";
 
 export function wireBoundWindow(deps: {
   boundId: string;
@@ -15,6 +17,9 @@ export function wireBoundWindow(deps: {
   close: () => void | Promise<void>;
   log: Logger;
 }): () => void {
+  const onPageHide = () => clearPetWindowLive(deps.boundId);
+  const browser = !isTauri();
+  if (browser) window.addEventListener("pagehide", onPageHide);
   let closing = false;
   setPetWindowLive(deps.boundId);
   const evaluate = () => {
@@ -38,6 +43,7 @@ export function wireBoundWindow(deps: {
       } finally {
         clearTimeout(timer);
       }
+      if (browser) window.removeEventListener("pagehide", onPageHide);
       deps.disposeSync();
       deps.log.info("pet_window_close", { preset: deps.boundId });
       await deps.close();
@@ -47,5 +53,8 @@ export function wireBoundWindow(deps: {
   };
   const off = deps.petWindows.subscribe(evaluate);
   evaluate();
-  return off;
+  return () => {
+    off();
+    if (browser) window.removeEventListener("pagehide", onPageHide);
+  };
 }

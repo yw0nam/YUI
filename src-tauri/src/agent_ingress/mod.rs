@@ -14,7 +14,7 @@ use avatar_rpc::spawn_avatar_request;
 use payload::{
     cap_detail, cap_summary, parse_avatar_request, parse_request, parse_signals_request,
     rejected_level, AgentEventPayload, SignalsPayload, AGENT_INBOX_CHANNEL, BODY_CEILING_BYTES,
-    INGRESS_DEAD_CHANNEL, SIGNALS_INBOX_CHANNEL,
+    INGRESS_DEAD_CHANNEL, INGRESS_WINDOW, SIGNALS_INBOX_CHANNEL,
 };
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
@@ -28,14 +28,14 @@ mod payload;
 // ─── Emit helper ──────────────────────────────────────────────────────────────
 
 fn emit_agent_event(app: &AppHandle, payload: AgentEventPayload) {
-    let result = app.emit(AGENT_INBOX_CHANNEL, payload);
+    let result = app.emit_to(INGRESS_WINDOW, AGENT_INBOX_CHANNEL, payload);
     if let Err(e) = &result {
         log::warn!("agent_ingress_emit_failed error={e}");
     }
 }
 
 fn emit_signals_event(app: &AppHandle, payload: SignalsPayload) {
-    let result = app.emit(SIGNALS_INBOX_CHANNEL, payload);
+    let result = app.emit_to(INGRESS_WINDOW, SIGNALS_INBOX_CHANNEL, payload);
     if let Err(e) = &result {
         log::warn!("agent_ingress_signals_emit_failed error={e}");
     }
@@ -195,9 +195,11 @@ pub fn start(app: &AppHandle, port: u16) {
                     Some(Err(e)) => {
                         log::warn!("agent_ingress_bind_failed port={port} error={e}");
                         // Reaches the page that is loaded when the retries end; a reload inside that window misses it.
-                        if let Err(e) =
-                            app.emit(INGRESS_DEAD_CHANNEL, serde_json::json!({ "port": port }))
-                        {
+                        if let Err(e) = app.emit_to(
+                            INGRESS_WINDOW,
+                            INGRESS_DEAD_CHANNEL,
+                            serde_json::json!({ "port": port }),
+                        ) {
                             log::warn!("agent_ingress_dead_emit_failed error={e}");
                         }
                         return;

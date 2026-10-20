@@ -96,9 +96,9 @@ export function publishPushStores(
     Parameters<typeof publishDelegations>[0]["bridge"] &
     Parameters<typeof publishReasoning>[0]["bridge"],
   register: (fn: () => void) => void,
-  bound = false,
+  deps: { bound?: boolean } = {},
 ): void {
-  if (bound) return;
+  if (deps.bound) return;
   // The settings window has no socket of its own: it reads this one and asks it to reset.
   register(publishPushSocket({ socket: stores.pushSocket, stopTurn: stores.stopTurn, bridge }));
   // The delegations list rides the same bridge; a fresh settings window asks for the current list.

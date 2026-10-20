@@ -22,10 +22,7 @@ import { wireSettingsReload } from "../app/cross-window/wire-window-sync";
 import { wireCspViolationLog } from "../app/csp-violation";
 import { wireDevGlobals } from "../app/dev/wire-dev-globals";
 import { createDisposers } from "../app/disposers";
-import { closeIfOrphan } from "../app/pet-windows/close-if-orphan";
-import { wireBoundWindow } from "../app/pet-windows/wire-bound-window";
-import { wirePetWindowsReconcile } from "../app/pet-windows/wire-pet-windows-reconcile";
-import { wirePetWindowsSync } from "../app/pet-windows/wire-pet-windows-sync";
+import { createPetWindowRole } from "../app/pet-windows/pet-window-role";
 import { createWindowStores } from "../app/settings/window-stores";
 import { wireAvatarSelection } from "../app/settings/wire-avatar";
 import { createPetConfig, wireConfigReload, wireConfigWatch } from "../app/settings/wire-config";
@@ -43,18 +40,15 @@ import { createVoiceFix } from "../app/voice/voice-fix";
 import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/secrets";
 import { createEventBus } from "../dispatcher/core/event-bus";
 import { createUserInputSource } from "../dispatcher/sources/user-input-source";
-import { createSettingsBridge } from "../io/bridge/settings-bridge";
 import {
   resolveScreenCapturer,
   resolveScreenSourceProvider,
 } from "../io/window/capture/tauri-screen";
 import { createDevtoolsWindowOpener } from "../io/window/openers/devtools-window";
-import { closePetWindow, createPetWindowOpener } from "../io/window/openers/pet-window";
 import { createSettingsWindowOpener } from "../io/window/openers/settings-window";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
 import { readBoundPresetId } from "../settings/preset/bound-preset";
-import { createPresetRegistry } from "../settings/preset/preset-registry";
 import { createStatusPill } from "../ui/chips/status-pill";
 import { createVoiceInputStatus } from "../ui/chips/voice-input-status";
 import { showBootError } from "../ui/notices/boot-error";
@@ -72,20 +66,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
   const bound = boundId !== null;
   excludeOwnOriginFromCorsFetch();
   await initLogger();
-  const bootRegistry = createPresetRegistry();
-  const orphan = closeIfOrphan({
-    boundId,
-    registry: bootRegistry,
-    close: () => {
-      void closePetWindow();
-    },
-    log,
-  });
-  bootRegistry.dispose();
-  if (orphan) return { dispose: () => {} };
-  const lifecycle = createDisposers();
-  const lifecycleBridge = createSettingsBridge(undefined, { windowKind: "pet" });
-  lifecycle.register(() => lifecycleBridge.dispose());
   const app = document.querySelector<HTMLDivElement>("#app");
   if (!app) {
     throw new Error("#app mount point not found");
@@ -96,12 +76,12 @@ async function bootstrap(): Promise<BootstrapHandle> {
   // (reverse of registration) — a single hot.dispose() registration for the whole module, so
   // a later resource can never silently displace an earlier one's teardown.
   const disposers = createDisposers();
-  const { register, dispose, isDisposed } = disposers;
+  const { register, dispose: disposeWindow, isDisposed } = disposers;
+  const role = createPetWindowRole({ boundId, disposeWindow, log });
+  if (!role || isDisposed()) return { dispose: disposeWindow };
+  const { dispose } = role;
   if (import.meta.env.DEV) {
-    import.meta.hot?.dispose(() => {
-      dispose();
-      lifecycle.dispose();
-    });
+    import.meta.hot?.dispose(dispose);
   }
   register(wireCspViolationLog());
 
@@ -118,34 +98,8 @@ async function bootstrap(): Promise<BootstrapHandle> {
 
   const { settingsStores, conversationStores, presetRegistry, petWindows } = createWindowStores(
     register,
-    lifecycle.register,
+    role,
   );
-  lifecycle.register(wirePetWindowsSync({ petWindows, bridge: lifecycleBridge }));
-  if (boundId !== null) {
-    let offBound = () => {};
-    offBound = wireBoundWindow({
-      boundId,
-      petWindows,
-      bridge: lifecycleBridge,
-      disposeStores: dispose,
-      disposeSync: () => {
-        offBound();
-        lifecycle.dispose();
-      },
-      close: closePetWindow,
-      log,
-    });
-    if (isDisposed()) return { dispose };
-  } else {
-    register(
-      wirePetWindowsReconcile({
-        petWindows,
-        registry: presetRegistry,
-        opener: createPetWindowOpener(),
-        log,
-      }),
-    );
-  }
   const petConfig = createPetConfig({ ...settingsStores, log });
   const config = petConfig.config;
   const bedSceneHold = createBedSceneHold();
@@ -234,7 +188,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     getChatKey: () => config.secrets.get(CHAT_API_KEY_SECRET),
     register,
   });
-  publishPushStores(push, windowBridge, register, bound);
+  publishPushStores(push, windowBridge, register, { bound });
   // A preset switch stops the turn and speech the way the stop button does, then reloads.
   register(
     wirePresetSwitch({
@@ -251,7 +205,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     onDrop: (env, reason) => log.info("drop", { event_name: env.event_name, reason }),
   });
   const userInput = createUserInputSource(bus);
-  const help = wireHelpGuide({ userInput, bridge: windowBridge, register });
+  const help = wireHelpGuide({ userInput, bridge: windowBridge, register, bound });
 
   const controls = wirePetControls({
     root,

@@ -1,9 +1,9 @@
+/** Main reconciles desired pet windows in serialized, coalesced runs. */
 import type { PetWindowOpener } from "../../io/window/openers/pet-window";
 import type { Logger } from "../../logger";
 import {
-  clearPetWindowLive,
+  clearStaleLiveKeys,
   isPetWindowLive,
-  LIVE_KEY_PREFIX,
   type PetWindows,
 } from "../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
@@ -34,13 +34,7 @@ export function wirePetWindowsReconcile(deps: {
           boot = false;
           deps.petWindows.prune(deps.registry.get().list.map((p) => p.id));
           if (existing !== null) {
-            const storage = globalThis.localStorage;
-            for (const key of Object.keys(storage ?? {}))
-              if (
-                key.startsWith(LIVE_KEY_PREFIX) &&
-                !existing.includes(key.slice(LIVE_KEY_PREFIX.length))
-              )
-                clearPetWindowLive(key.slice(LIVE_KEY_PREFIX.length));
+            clearStaleLiveKeys(existing);
             deps.petWindows.invalidate();
           }
         }

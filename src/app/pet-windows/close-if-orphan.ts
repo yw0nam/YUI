@@ -1,3 +1,4 @@
+/** An unlisted bound preset closes before application stores are built. */
 import type { Logger } from "../../logger";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
 export function closeIfOrphan(deps: {

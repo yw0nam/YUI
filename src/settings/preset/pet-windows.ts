@@ -1,3 +1,4 @@
+/** Desired pet windows and per-window live keys keep preset edits behind running-window guards. */
 import { createPersistedStore, localStorageStore, type PersistedStorage } from "../persisted-store";
 
 export const PET_WINDOWS_KEY = "yui.windows";
@@ -11,6 +12,18 @@ export function setPetWindowLive(id: string): void {
 }
 export function clearPetWindowLive(id: string): void {
   globalThis.localStorage?.removeItem(liveKey(id));
+}
+export function clearStaleLiveKeys(existingIds: string[]): void {
+  const storage = globalThis.localStorage;
+  if (!storage) return;
+  for (let i = storage.length - 1; i >= 0; i--) {
+    const key = storage.key(i);
+    if (
+      key?.startsWith(LIVE_KEY_PREFIX) &&
+      !existingIds.includes(key.slice(LIVE_KEY_PREFIX.length))
+    )
+      storage.removeItem(key);
+  }
 }
 function parse(v: unknown): { open: string[] } | null {
   if (!v || typeof v !== "object" || !Array.isArray((v as { open?: unknown }).open)) return null;

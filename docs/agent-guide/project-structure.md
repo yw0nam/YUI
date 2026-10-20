@@ -83,6 +83,7 @@ YUI/
         wire-cue-locale-sync.ts      # Reseeds untouched built-in cues when the display language changes
         wire-preset.ts               # Sends a preset switch over the settings bridge and reloads each window into it, after the pet window stops its turn
       pet-windows/                   # Windows bound to one preset: the shared open list and their lifecycle
+        pet-window-role.ts           # The entry main composes: the registry and open list a window owns, the orphan check, and main's reconcile or a bound window's self-close
         wire-pet-windows-sync.ts     # The open list in every window: a local edit out over yui://pet-windows-changed, a remote one reloaded from storage
         wire-pet-windows-reconcile.ts # Main's reconcile: prunes the list and live keys, then opens each wanted preset that has no window
         wire-bound-window.ts         # A bound window's live key, and its store teardown and close when its preset leaves the list
