@@ -17,7 +17,7 @@ function M.op(deps)
     body = body_summary.of(body.entity(deps)),
     stopped = deps.storage.body.stopped,
     queue = jobs.summary(deps.storage),
-    idle = idle.summary(deps.storage),
+    idle = idle.summary(deps),
   }
   local player = host.get()
   if player then

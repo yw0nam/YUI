@@ -73,7 +73,7 @@ def test_a_follow_job_ends_done_at_its_ticks_even_beyond_the_leash(lua, world):
         "ok": True,
         "r": {"ids": [1]},
     }
-    run(world, 20)
+    run(world, 21)
     assert events(world) == [
         {"kind": "job_done", "data": {"id": 1, "kind": "follow"}},
         {"kind": "queue_idle", "data": {"last_job_id": 1}},

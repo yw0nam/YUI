@@ -37,6 +37,7 @@ local function runtime_deps()
     storage = storage,
     tick = game.tick,
     body_name = settings.global["coop-agent-body-name"].value,
+    start_mode = settings.global["coop-agent-idle-start"].value,
     host = host.get,
     push = store.push,
     draw_text = rendering.draw_text,

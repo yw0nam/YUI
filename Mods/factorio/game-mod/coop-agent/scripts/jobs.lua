@@ -2,7 +2,6 @@
 
 local body = require("scripts.body")
 local check = require("scripts.jobs.check")
-local idle = require("scripts.idle")
 local walker = require("scripts.walker")
 
 local MAX_JOBS = 16
@@ -92,6 +91,13 @@ local function gate(deps)
   return false
 end
 
+--- The runner's gate pass: with the gate shut, the running job fails and the queued ones cancel.
+function M.settle(deps)
+  if deps.storage.jobs.active > 0 then
+    gate(deps)
+  end
+end
+
 --- One runner tick: start the next job or advance the running one, then check its timeout.
 function M.tick(deps)
   if deps.storage.jobs.active == 0 or not gate(deps) then
@@ -126,11 +132,11 @@ function M.enqueue(deps, specs)
   if queue.active + #specs > MAX_JOBS then
     return check.bad_request("jobs: the queue holds at most " .. MAX_JOBS .. " jobs")
   end
-  -- a stop since the last tick still ends the queue it halted; an empty queue takes the body from idle
+  -- a stop since the last tick still ends the queue it halted; an empty queue takes the walk from idle
   if queue.active > 0 then
     gate(deps)
   else
-    idle.release(deps)
+    walker.cancel(deps)
   end
   local list = queue.list
   local i = 1

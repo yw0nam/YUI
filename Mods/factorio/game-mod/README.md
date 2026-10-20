@@ -143,7 +143,8 @@ change, spawns it, respawns it, or removes it.
   is `…` for 180 ticks after a host chat line, rounded up to the next
   60-tick sweep; else `Stopped` while latched; else `Waiting for <host>`
   while no host is connected; else the text set through
-  `body.set_status(deps, text)`, `Standing by` at first. The render object lives in `storage.body.label`;
+  `body.set_status(deps, text)` — `Following <host>` while a follow job runs —
+  `Standing by` at first. The render object lives in `storage.body.label`;
   only its text is rewritten when the line changes.
 
 Changes to coop-agent's color, name and enabled settings apply at once; a new prototype

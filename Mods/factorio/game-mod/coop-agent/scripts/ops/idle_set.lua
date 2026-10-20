@@ -1,20 +1,33 @@
--- The idle_set op: the idle mode and stay position; lifts the stop latch.
+-- The idle_set op: the idle mode and stay position; settles the queue and lifts the stop latch.
 
 local body = require("scripts.body")
 local check = require("scripts.jobs.check")
 local idle = require("scripts.idle")
-
-local MODES = { follow = true, stay = true }
+local jobs = require("scripts.jobs")
 
 local M = {}
+
+local function mode_names()
+  local names = {}
+  for name in pairs(idle.MODES) do
+    names[#names + 1] = name
+  end
+  table.sort(names)
+  return table.concat(names, ", ")
+end
+
+local MODE_NAMES = mode_names()
 
 local function position(pos)
   return type(pos) == "table" and type(pos.x) == "number" and type(pos.y) == "number"
 end
 
 function M.op(deps, args)
-  if not MODES[args.mode] then
-    return check.bad_request("mode: follow or stay expected")
+  if not idle.MODES[args.mode] then
+    return check.bad_request("mode: one of " .. MODE_NAMES .. " expected")
+  end
+  if args.pos ~= nil and args.mode ~= "stay" then
+    return check.bad_request("pos: only the stay mode takes a pos")
   end
   if args.pos ~= nil and not position(args.pos) then
     return check.bad_request("pos: {x, y} expected")
@@ -28,6 +41,7 @@ function M.op(deps, args)
     local at = entity.position
     pos = { x = at.x, y = at.y }
   end
+  jobs.settle(deps) -- a stop since the last tick still ends the queue it halted
   idle.set(deps, args.mode, pos)
   return {}
 end

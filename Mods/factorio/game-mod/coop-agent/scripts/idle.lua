@@ -1,115 +1,167 @@
 -- Idle modes: follow the host or stand at one position, only while the queue is empty and the gate passes.
 
 local body = require("scripts.body")
+local host = require("scripts.host")
+local store = require("scripts.storage")
 local walker = require("scripts.walker")
 
 local FOLLOW_NEAR = 10 -- a follow step ends within this distance of the host
 local FOLLOW_FAR = 15 -- a follow step starts beyond this distance
 local LEASH = 64 -- beyond this the follow stops and waits for the host
-local RETRY_TICKS = 30 -- rest after a failed follow step
+local RETRY_TICKS = 30 -- rest after one failed follow step
+local STEP_FAILURES = 3 -- failed steps before the follow waits for a reachable host
+local UNREACHABLE_TICKS = 600 -- the wait after three failed steps
+local RECHECK_TICKS = 10 -- ticks between follow distance checks while no walk is under way
 local STAY_RADIUS = 2 -- the arrival radius the pathfinder aims at
 local STANDING_BY = "Standing by"
 
 local M = {}
 
---- Cancels the walk: idle owns it only while no job is queued or running.
-function M.release(deps)
-  if deps.storage.jobs.active == 0 then
-    walker.cancel(deps)
-  end
+--- The status part: idle {mode, pos}; an explicit idle_set mode wins over the start setting.
+function M.summary(deps)
+  local idle = deps.storage.idle
+  return { mode = idle.mode or deps.start_mode, pos = idle.pos }
 end
 
---- The status part: idle {mode, pos}.
-function M.summary(storage)
-  return { mode = storage.idle.mode, pos = storage.idle.pos }
+local function same_position(a, b)
+  return a ~= nil and b ~= nil and a.x == b.x and a.y == b.y
 end
 
 --- One follow step, shared by the idle mode and the follow job: start a short walk toward the
 -- host when too far, wait beyond the leash. Returns the walker's failure, never "arrived".
 function M.follow_step(deps)
+  local entity = body.entity(deps)
   local player = deps.host()
   local state = deps.storage.idle
-  local dist = walker.distance(body.entity(deps).position, player.position)
+  -- the physical position follows a host riding a vehicle; another surface is as good as beyond the leash
+  local dist = player.physical_surface == entity.surface and walker.distance(entity.position, player.physical_position)
+    or LEASH + 1
   if dist > LEASH then
     if not state.leashed then
       state.leashed = true
       walker.cancel(deps)
+      body.set_status(deps, "Waiting for " .. player.name)
     end
-    body.set_status(deps, "Waiting for " .. player.name)
     return nil
   end
-  if state.leashed then
+  if state.leashed and not (state.retry_tick ~= nil and deps.tick < state.retry_tick) then
     state.leashed = nil
     body.set_status(deps, STANDING_BY)
   end
+  if deps.storage.walker and dist <= FOLLOW_NEAR then
+    state.failures = nil
+    walker.cancel(deps) -- the host came within reach: the step ends at once
+    return nil
+  end
   if not deps.storage.walker and dist > FOLLOW_FAR and deps.tick >= (state.retry_tick or 0) then
-    walker.go(deps, player.position, FOLLOW_NEAR)
+    walker.go(deps, player.physical_position, FOLLOW_NEAR)
   end
   local result = walker.tick(deps)
   if result == "arrived" then
     return nil
   end
   if result then
-    state.retry_tick = deps.tick + RETRY_TICKS
+    state.failures = (state.failures or 0) + 1
+    if state.failures >= STEP_FAILURES then
+      -- the host cannot be reached inside the leash: wait a while and say so
+      state.failures, state.retry_tick, state.leashed = nil, deps.tick + UNREACHABLE_TICKS, true
+      body.set_status(deps, "Waiting for " .. player.name)
+    else
+      state.retry_tick = deps.tick + RETRY_TICKS
+    end
   end
   return result
 end
 
 local function stay_step(deps)
-  local pos = deps.storage.idle.pos
-  if not pos then
+  local state = deps.storage.idle
+  if state.arrived or state.pos == nil then
     return
   end
   local result = walker.tick(deps)
   if result then
-    deps.storage.idle.pos = nil -- the walk ran once: arrived, or the path is lost
+    state.arrived = true -- the walk ran once: arrived, or the path is lost
     return
   end
   if not deps.storage.walker then
-    walker.go(deps, pos, STAY_RADIUS)
+    walker.go(deps, state.pos, STAY_RADIUS)
   end
 end
 
---- One idle tick: pick up the start mode once, then run the mode behind the gate.
+M.MODES = { follow = M.follow_step, stay = stay_step }
+
+--- One idle tick behind the gate; a gate that shut mid-step takes the walk away at once.
 --- deps: {storage, tick, start_mode, body_name, host(), direction, draw_text}
 function M.tick(deps)
   local state = deps.storage.idle
-  if state.mode == nil then
-    state.mode = deps.start_mode
-  end
-  if deps.storage.jobs.active > 0 or not body.can_act(deps) then
+  if deps.storage.jobs.active > 0 then
     return
   end
-  if state.mode == "follow" then
-    M.follow_step(deps)
-  elseif state.mode == "stay" then
-    stay_step(deps)
+  if not body.can_act(deps) then
+    if deps.storage.walker then
+      walker.cancel(deps) -- a respawned body never resumes the old path
+    end
+    return
+  end
+  M.MODES[state.mode or deps.start_mode](deps)
+end
+
+--- Sets the mode and stay position; takes the walk, resets the label, lifts the latch, rings on a change.
+function M.set(deps, mode, pos)
+  if deps.storage.jobs.active == 0 then
+    walker.cancel(deps) -- idle owns the walk only while the queue is empty
+  end
+  local state = deps.storage.idle
+  local previous = state.mode or deps.start_mode
+  local changed = previous ~= mode or (mode == "stay" and not same_position(state.pos, pos))
+  local leashed = state.leashed
+  state.mode, state.pos = mode, pos
+  state.leashed, state.arrived, state.failures, state.retry_tick = nil, nil, nil, nil
+  if leashed then
+    body.set_status(deps, STANDING_BY)
+  end
+  body.clear_latch(deps)
+  if changed then
+    deps.push("idle_changed", { mode = mode })
   end
 end
 
---- Sets the mode and stay position; hands the walk over, lifts the latch, rings idle_changed.
-function M.set(deps, mode, pos)
-  M.release(deps)
-  local state = deps.storage.idle
-  state.mode, state.pos, state.leashed = mode, pos, nil
-  body.clear_latch(deps)
-  deps.push("idle_changed", { mode = mode })
+--- The start setting changed: an explicit idle_set stands; otherwise the mode moves with it.
+function M.on_setting_changed_event(e)
+  if e.setting ~= "coop-agent-idle-start" or storage.idle.mode ~= nil then
+    return
+  end
+  store.push("idle_changed", { mode = settings.global["coop-agent-idle-start"].value })
 end
 
+--- The per-tick entry: due checks run without deps; the deps are built only for a due tick.
 function M.tick_event()
   if storage.jobs.active > 0 then
     return
   end
-  -- the start mode resolves even before the first body exists, so status always carries it
-  if storage.body.entity or storage.idle.mode == nil then
-    M.tick(M.game_deps())
+  local state = storage.idle
+  if storage.walker == nil then
+    if storage.body.entity == nil or storage.body.stopped then
+      return -- nothing walks and the body cannot act
+    end
+    local mode = state.mode or settings.global["coop-agent-idle-start"].value
+    if mode == "stay" then
+      if state.arrived or state.pos == nil then
+        return -- stood where asked
+      end
+    elseif game.tick % RECHECK_TICKS ~= 0 then
+      return -- inside the band: the follow distance check runs on every 10th tick
+    end
   end
-end
-
-function M.game_deps()
-  local deps = body.game_deps()
-  deps.start_mode = settings.global["coop-agent-idle-start"].value
-  return deps
+  M.tick({
+    storage = storage,
+    tick = game.tick,
+    body_name = settings.global["coop-agent-body-name"].value,
+    start_mode = settings.global["coop-agent-idle-start"].value,
+    host = host.get,
+    direction = defines.direction,
+    draw_text = rendering.draw_text,
+  })
 end
 
 return M

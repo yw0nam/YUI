@@ -10,7 +10,17 @@ function M.get()
   if remote.interfaces[DEV_INTERFACE] then
     local pos = remote.call(DEV_INTERFACE, "host_position")
     -- index 0 matches no player, so the dev host never owns a chat line
-    return pos and { name = "dev-host", index = 0, connected = true, position = pos, surface = surface_of.get() } or nil
+    return pos
+        and {
+          name = "dev-host",
+          index = 0,
+          connected = true,
+          position = pos,
+          physical_position = pos,
+          surface = surface_of.get(),
+          physical_surface = surface_of.get(),
+        }
+      or nil
   end
   local host = nil
   for _, player in ipairs(game.connected_players) do
