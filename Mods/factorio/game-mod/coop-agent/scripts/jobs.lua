@@ -13,6 +13,7 @@ M.KINDS = {
   mine = require("scripts.jobs.mine"),
   walk_to = require("scripts.jobs.walk_to"),
   wait = require("scripts.jobs.wait"),
+  deliver = require("scripts.jobs.deliver"),
 }
 
 local function active(job)

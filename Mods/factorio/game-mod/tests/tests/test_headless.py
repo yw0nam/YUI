@@ -130,7 +130,7 @@ def test_status_events_since_say_round_trip(server):
         "id": "it-1",
         "ok": True,
         "r": {
-            "mod_version": "0.1.3",
+            "mod_version": "0.1.4",
             "map_id": MAP_ID,
             "seq": 1,
             "body": {"alive": False},
@@ -748,3 +748,111 @@ def test_mine_with_a_full_inventory_fails_target_full(server):
         {"kind": "job_failed", "data": {"id": record["id"], "kind": "mine", "reason": "target_full"}}
     ]
     assert record["progress"] == {"gained": 0, "count": 1, "path": "native"}
+
+
+GROUND_COAL = (
+    "/silent-command local out = {} "
+    "for _, e in pairs(game.surfaces[1].find_entities_filtered{name = 'item-on-ground'}) do "
+    "if e.stack.name == 'coal' then "
+    "out[#out + 1] = {count = e.stack.count, looted = e.to_be_looted, x = e.position.x, y = e.position.y} end end "
+    "rcon.print(helpers.table_to_json(out))"
+)
+
+
+def clear_ground(server):
+    server.command(
+        "/silent-command for _, e in pairs(game.surfaces[1].find_entities_filtered"
+        "{name = 'item-on-ground'}) do e.destroy() end"
+    )
+
+
+def clear_body_coal(server):
+    """Earlier scenes leave the body holding coal it picked up while walking; a scene starts at zero."""
+    server.command(
+        "/silent-command __coop-agent__ "
+        "storage.body.entity.get_inventory(defines.inventory.character_main).remove{name = 'coal', count = 100000}"
+    )
+
+
+def ground_coal(server):
+    return json.loads(server.command(GROUND_COAL))
+
+
+def body_coal(server):
+    return int(
+        server.command(
+            "/silent-command __coop-agent__ rcon.print("
+            "storage.body.entity.get_inventory(defines.inventory.character_main).get_item_count('coal'))"
+        )
+    )
+
+
+def deliver_job(server, id_, count):
+    return enqueued_id(server, id_, {"kind": "deliver", "args": {"item": "coal", "count": count}})
+
+
+def idle_seq(server):
+    """Waits for an empty job queue and returns the event seq then; deliver scenes start drained."""
+    return wait_status(server, lambda s: s["queue"]["length"] == 0)["seq"]
+
+
+def job_events_at_speed(server, seq, count):
+    server.command("/silent-command game.speed = 10")
+    try:
+        return wait_events(server, seq, count)
+    finally:
+        server.command("/silent-command game.speed = 1")
+
+
+def test_deliver_spills_the_coal_at_the_dev_host_for_looting(server):
+    field(server, "")
+    # the body walks the cleared field from 60 tiles east, so the spill lands out of its pickup range
+    server.command(
+        "/silent-command game.surfaces[1].find_entities_filtered{type = 'character'}[1]"
+        ".teleport({x = 60, y = 200})"
+    )
+    clear_ground(server)
+    clear_body_coal(server)
+    server.command(f"/silent-command {CHARACTERS}[1].insert{{name = 'coal', count = 20}}")
+    # the dev host holds nothing, so conservation is body + ground
+    assert (body_coal(server), len(ground_coal(server))) == (20, 0)
+    seq = idle_seq(server)
+    job_id = deliver_job(server, "deliver-1", 20)
+
+    done, idle = job_events_at_speed(server, seq, 2)
+    assert without_ticks([done, idle]) == [
+        {"kind": "job_done", "data": {"id": job_id, "kind": "deliver"}},
+        {"kind": "queue_idle", "data": {"last_job_id": job_id}},
+    ]
+
+    ground = ground_coal(server)
+    assert sorted(item["count"] for item in ground) == [1] * 20
+    assert all(item["looted"] for item in ground)
+    assert all(math.dist((item["x"], item["y"]), (0, 200)) <= 3 for item in ground)
+    assert body_coal(server) == 0
+    assert body_coal(server) + sum(item["count"] for item in ground) == 20
+
+
+def test_deliver_with_fewer_coal_than_asked_fails_no_item_and_keeps_the_body_s_coal(server):
+    field(server, "")
+    clear_ground(server)
+    clear_body_coal(server)
+    server.command(f"/silent-command {CHARACTERS}[1].insert{{name = 'coal', count = 3}}")
+    seq = idle_seq(server)
+    job_id = deliver_job(server, "deliver-2", 5)
+
+    (failed,) = job_events_at_speed(server, seq, 1)
+    assert without_ticks([failed]) == [
+        {
+            "kind": "job_failed",
+            "data": {
+                "id": job_id,
+                "kind": "deliver",
+                "reason": "no_item",
+                "item": "coal",
+                "count": 5,
+                "held": 3,
+            },
+        }
+    ]
+    assert body_coal(server) == 3

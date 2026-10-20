@@ -1,6 +1,6 @@
 {
   "name": "coop-agent",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "title": "Co-op Agent",
   "description": "Co-play observation, RPC transport and a playerless body for a remote agent: an event ring, read and talk ops over one RCON command, and a character the agent drives.",
   "author": "coop-agent maintainers",
