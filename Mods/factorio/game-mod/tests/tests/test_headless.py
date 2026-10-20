@@ -129,7 +129,14 @@ def test_status_events_since_say_round_trip(server):
         "v": 1,
         "id": "it-1",
         "ok": True,
-        "r": {"mod_version": "0.1.1", "map_id": MAP_ID, "seq": 1, "body": {"alive": False}, "stopped": False},
+        "r": {
+            "mod_version": "0.1.2",
+            "map_id": MAP_ID,
+            "seq": 1,
+            "body": {"alive": False},
+            "stopped": False,
+            "queue": {"length": 0},
+        },
     }
 
     said = server.rpc(v=1, id="it-2", op="say", args={"text": "hello"}, map_id=MAP_ID)
@@ -461,3 +468,152 @@ def test_disabling_the_body_spills_its_items_removes_it_and_it_stays_gone(server
     assert status["body"] == {"alive": False}
     assert int(server.command(f"/silent-command rcon.print(#{CHARACTERS})")) == 0
     assert body_events(server, seq) == []
+
+
+# a cleared box north of the dev host: one stone-furnace wall across y = -50 with a 2-tile gap at x = 30,
+# and a closed furnace ring around (-30, -20)
+COURSE = (
+    "/silent-command local s = game.surfaces[1] local box = {{-64, -108}, {64, 4}} "
+    "for _, e in pairs(s.find_entities_filtered{area = box, type = {'tree', 'simple-entity'}}) do e.destroy() end "
+    "local tiles = {} "
+    "for _, t in pairs(s.find_tiles_filtered{area = box, collision_mask = 'water_tile'}) do "
+    "tiles[#tiles + 1] = {name = 'grass-1', position = t.position} end "
+    "s.set_tiles(tiles) "
+    "local function furnace(x, y) s.create_entity{name = 'stone-furnace', position = {x, y}, force = 'player'} end "
+    "for x = -60, 60, 2 do if x ~= 30 then furnace(x, -50) end end "
+    "for i = -40, -20, 2 do furnace(i, -30) furnace(i, -10) end "
+    "for j = -28, -12, 2 do furnace(-40, j) furnace(-20, j) end"
+)
+BODY_STATE = (
+    "/silent-command __coop-agent__ local b = storage.body.entity rcon.print(helpers.table_to_json("
+    "{tick = game.tick, walking = b.walking_state.walking, x = b.position.x, y = b.position.y}))"
+)
+
+
+def enqueue(server, id_, *jobs):
+    return server.rpc(v=1, id=id_, op="jobs_enqueue", args={"jobs": list(jobs)}, map_id=MAP_ID)
+
+
+def walk_to(x, y, radius):
+    return {"kind": "walk_to", "args": {"pos": {"x": x, "y": y}, "radius": radius}}
+
+
+def body_state(server):
+    return json.loads(server.command(BODY_STATE))
+
+
+def wait_events(server, seq, count, deadline_s=120):
+    deadline = time.monotonic() + deadline_s
+    while time.monotonic() < deadline:
+        events = body_events(server, seq)
+        if len(events) >= count:
+            return events
+        time.sleep(0.05)
+    raise AssertionError(f"fewer than {count} events after seq {seq}")
+
+
+def wait_walking(server, deadline_s=30):
+    deadline = time.monotonic() + deadline_s
+    while time.monotonic() < deadline:
+        state = body_state(server)
+        if state["walking"]:
+            return state
+        time.sleep(0.05)
+    raise AssertionError("the body never started walking")
+
+
+def job_states(server):
+    jobs = server.rpc(v=1, id="jobs", op="jobs", args={}, map_id=MAP_ID)["r"]
+    return [(job["id"], job["kind"], job["state"], job.get("reason")) for job in jobs]
+
+
+def test_walk_to_crosses_a_furnace_wall_through_its_one_gap(server):
+    _, status = body_ready(server)
+    server.command(COURSE)
+    assert enqueue(server, "walk-1", walk_to(0, -100, 2)) == {
+        "v": 1,
+        "id": "walk-1",
+        "ok": True,
+        "r": {"ids": [1]},
+    }
+
+    running = wait_status(server, lambda s: "running" in s["queue"])["queue"]
+    assert (running["length"], running["running"]["id"], running["running"]["kind"]) == (1, 1, "walk_to")
+    assert 95 <= running["running"]["progress"]["distance"] <= 103
+    assert labels(server) == ["Buddy · Walking to 0,-100"]
+
+    server.command("/silent-command game.speed = 10")
+    try:
+        done, idle = wait_events(server, status["seq"], 2)
+    finally:
+        server.command("/silent-command game.speed = 1")
+    assert without_ticks([done, idle]) == [
+        {"kind": "job_done", "data": {"id": 1, "kind": "walk_to"}},
+        {"kind": "queue_idle", "data": {"last_job_id": 1}},
+    ]
+    state = body_state(server)
+    assert math.dist((state["x"], state["y"]), (0, -100)) <= 2
+    assert state["walking"] is False
+    assert labels(server) == ["Buddy · Standing by"]
+
+
+def test_walk_to_into_a_closed_ring_fails_no_path_after_the_retries(server):
+    _, status = body_ready(server)
+    assert enqueue(server, "walk-2", walk_to(-30, -20, 1))["r"] == {"ids": [2]}
+    (failed,) = wait_events(server, status["seq"], 1)
+    assert without_ticks([failed]) == [
+        {"kind": "job_failed", "data": {"id": 2, "kind": "walk_to", "reason": "no_path"}}
+    ]
+    # five retries 30 ticks apart
+    assert failed["tick"] - status["tick"] >= 150
+
+
+def test_jobs_cancel_all_while_walking_halts_the_body_by_the_next_tick(server):
+    _, status = body_ready(server)
+    assert enqueue(server, "walk-3", walk_to(0, 0, 2))["r"] == {"ids": [3]}
+    wait_walking(server)
+
+    assert server.rpc(v=1, id="cancel-1", op="jobs_cancel", args={"all": True}, map_id=MAP_ID) == {
+        "v": 1,
+        "id": "cancel-1",
+        "ok": True,
+        "r": {},
+    }
+    halted = body_state(server)
+    while (later := body_state(server))["tick"] == halted["tick"]:
+        time.sleep(0.02)
+    assert (halted["walking"], later["walking"]) == (False, False)
+    assert (later["x"], later["y"]) == (halted["x"], halted["y"])
+    assert job_states(server)[-1] == (3, "walk_to", "cancelled", "cancelled")
+    assert body_events(server, status["seq"]) == []
+
+
+def test_stop_while_walking_fails_the_job_stopped(server):
+    _, status = body_ready(server)
+    assert enqueue(server, "walk-4", walk_to(0, 0, 2))["r"] == {"ids": [4]}
+    wait_walking(server)
+
+    assert server.rpc(v=1, id="stop-2", op="stop", args={}, map_id=MAP_ID)["ok"] is True
+    assert without_ticks(wait_events(server, status["seq"], 2)) == [
+        {"kind": "stopped", "data": {}},
+        {"kind": "job_failed", "data": {"id": 4, "kind": "walk_to", "reason": "stopped"}},
+    ]
+    assert body_state(server)["walking"] is False
+
+
+def test_a_repeated_jobs_enqueue_replays_and_other_args_conflict(server):
+    body_ready(server)
+    request = {"kind": "wait", "args": {"ticks": 60}}
+    first = enqueue(server, "wait-1", request)
+    assert (
+        first == enqueue(server, "wait-1", request) == {"v": 1, "id": "wait-1", "ok": True, "r": {"ids": [5]}}
+    )
+    assert [job[0] for job in job_states(server)] == [1, 2, 3, 4, 5]
+
+    assert enqueue(server, "wait-1", {"kind": "wait", "args": {"ticks": 61}}) == {
+        "v": 1,
+        "id": "wait-1",
+        "ok": False,
+        "e": "id_conflict",
+        "m": "id already used with different arguments",
+    }
