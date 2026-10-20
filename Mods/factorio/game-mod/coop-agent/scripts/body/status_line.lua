@@ -4,6 +4,8 @@ local WHITE = { r = 1, g = 1, b = 1 }
 
 local M = {}
 
+M.STANDING_BY = "Standing by"
+
 --- view: {status, stopped?, waiting_for?, ack?}; the chat acknowledgement outranks the stop latch, the latch outranks waiting.
 function M.text(name, view)
   local state = view.status

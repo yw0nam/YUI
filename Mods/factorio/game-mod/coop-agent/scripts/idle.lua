@@ -2,6 +2,7 @@
 
 local body = require("scripts.body")
 local host = require("scripts.host")
+local status_line = require("scripts.body.status_line")
 local store = require("scripts.storage")
 local walker = require("scripts.walker")
 
@@ -13,7 +14,6 @@ local STEP_FAILURES = 3 -- failed steps before the follow waits for a reachable 
 local UNREACHABLE_TICKS = 600 -- the wait after three failed steps
 local RECHECK_TICKS = 10 -- ticks between follow distance checks while no walk is under way
 local STAY_RADIUS = 2 -- the arrival radius the pathfinder aims at
-local STANDING_BY = "Standing by"
 
 local M = {}
 
@@ -46,7 +46,7 @@ function M.follow_step(deps)
   end
   if state.leashed and not (state.retry_tick ~= nil and deps.tick < state.retry_tick) then
     state.leashed = nil
-    body.set_status(deps, STANDING_BY)
+    body.set_status(deps, status_line.STANDING_BY)
   end
   if deps.storage.walker and dist <= FOLLOW_NEAR then
     state.failures = nil
@@ -118,7 +118,7 @@ function M.set(deps, mode, pos)
   state.mode, state.pos = mode, pos
   state.leashed, state.arrived, state.failures, state.retry_tick = nil, nil, nil, nil
   if leashed then
-    body.set_status(deps, STANDING_BY)
+    body.set_status(deps, status_line.STANDING_BY)
   end
   body.clear_latch(deps)
   if changed then

@@ -1,6 +1,7 @@
 -- The storage tables every module shares, and the one push onto the event ring.
 
 local ring = require("scripts.ring")
+local status_line = require("scripts.body.status_line")
 
 local M = {}
 
@@ -11,7 +12,7 @@ function M.ensure()
   storage.say_ticks = storage.say_ticks or {}
   storage.pings = storage.pings or {}
   storage.unit_index = storage.unit_index or { map = {}, order = {} }
-  storage.body = storage.body or { stopped = false, status = "Standing by" }
+  storage.body = storage.body or { stopped = false, status = status_line.STANDING_BY }
   storage.jobs = storage.jobs or { next_id = 1, active = 0, list = {} }
   storage.idle = storage.idle or {}
 end

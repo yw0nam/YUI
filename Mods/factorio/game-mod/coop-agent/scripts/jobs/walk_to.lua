@@ -9,16 +9,12 @@ local TIMEOUT_TICKS = 3600
 
 local M = {}
 
-local function is_position(pos)
-  return type(pos) == "table" and type(pos.x) == "number" and type(pos.y) == "number"
-end
-
 --- nil for valid args, else the field (nil for args itself) and what was expected.
 function M.validate(args)
   if (args.pos == nil) == (args.entity == nil) then
     return nil, "pos or entity expected"
   end
-  if args.pos ~= nil and not is_position(args.pos) then
+  if args.pos ~= nil and not check.position(args.pos) then
     return "pos", "{x, y} expected"
   end
   if args.entity ~= nil and type(args.entity) ~= "number" then

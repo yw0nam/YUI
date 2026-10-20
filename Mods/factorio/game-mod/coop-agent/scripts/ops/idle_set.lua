@@ -18,10 +18,6 @@ end
 
 local MODE_NAMES = mode_names()
 
-local function position(pos)
-  return type(pos) == "table" and type(pos.x) == "number" and type(pos.y) == "number"
-end
-
 function M.op(deps, args)
   if not idle.MODES[args.mode] then
     return check.bad_request("mode: one of " .. MODE_NAMES .. " expected")
@@ -29,7 +25,7 @@ function M.op(deps, args)
   if args.pos ~= nil and args.mode ~= "stay" then
     return check.bad_request("pos: only the stay mode takes a pos")
   end
-  if args.pos ~= nil and not position(args.pos) then
+  if args.pos ~= nil and not check.position(args.pos) then
     return check.bad_request("pos: {x, y} expected")
   end
   local pos = args.pos

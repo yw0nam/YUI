@@ -2,10 +2,10 @@
 
 local body = require("scripts.body")
 local check = require("scripts.jobs.check")
+local status_line = require("scripts.body.status_line")
 local walker = require("scripts.walker")
 
 local MAX_JOBS = 16
-local IDLE_STATUS = "Standing by"
 
 local M = {}
 
@@ -40,7 +40,7 @@ local function close(deps, job, state, reason, status)
     deps.storage.jobs.kind_state = nil
     walker.cancel(deps)
     body.halt(deps)
-    body.set_status(deps, status or IDLE_STATUS)
+    body.set_status(deps, status or status_line.STANDING_BY)
   end
 end
 

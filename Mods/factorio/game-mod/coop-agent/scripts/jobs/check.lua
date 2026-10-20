@@ -27,4 +27,9 @@ function M.positive(value)
   return nil
 end
 
+--- True for a {x, y} pair of numbers.
+function M.position(pos)
+  return type(pos) == "table" and type(pos.x) == "number" and type(pos.y) == "number"
+end
+
 return M
