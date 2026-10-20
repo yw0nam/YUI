@@ -137,7 +137,7 @@ def test_the_server_runs_the_poller_and_doorbell_for_the_connection_lifetime(tmp
     asyncio.run(case())
 
 
-def test_the_mod_registers_all_eight_tools(tmp_path):
+def test_the_mod_registers_all_thirteen_tools(tmp_path):
     mcp, _poller, _doorbell = server_with_fakes(tmp_path)
     names = {tool.name for tool in asyncio.run(mcp.list_tools())}
     assert names == {
@@ -149,4 +149,9 @@ def test_the_mod_registers_all_eight_tools(tmp_path):
         "factorio_recipe",
         "factorio_say",
         "factorio_ping",
+        "factorio_jobs",
+        "factorio_jobs_enqueue",
+        "factorio_jobs_cancel",
+        "factorio_idle",
+        "factorio_stop",
     }

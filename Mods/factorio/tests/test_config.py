@@ -32,15 +32,12 @@ def test_reads_rcon_from_the_game_config_and_applies_defaults(tmp_path):
     assert config.coalesce_ms == 2000
     assert config.wake_kinds == (
         "chat",
-        "job_done",
+        "queue_idle",
         "job_failed",
+        "stopped",
         "body_died",
-        "body_damaged",
-        "research_finished",
-        "rocket_launched",
         "player_died",
-        "attack_started",
-        "attack_ended",
+        "rocket_launched",
     )
     assert config.outcome_log == str(tmp_path / "outcome.jsonl")
 

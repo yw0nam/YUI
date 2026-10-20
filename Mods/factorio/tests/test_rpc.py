@@ -79,7 +79,7 @@ def test_stale_session_runs_the_recovery_and_does_not_rerun_the_op():
             return reply(request, ok=False, e="stale_session")
         return reply(request, r={"said": True})
 
-    async def on_reset(status, *_):
+    async def on_reset(_rpc, status, *_):
         recovered.append(status)
 
     async def body(rpc, session):
@@ -151,7 +151,7 @@ def test_an_unknown_outcome_after_a_map_change_recovers_and_raises():
             return reply(request, r={"map_id": "map-b", "seq": 40})
         return CLOSE
 
-    async def on_reset(status, *_):
+    async def on_reset(_rpc, status, *_):
         recovered.append(status)
 
     async def body(rpc, session):
