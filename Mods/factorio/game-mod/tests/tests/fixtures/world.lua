@@ -1,5 +1,11 @@
 -- A fake world for the job, walker and mine units: one body on a surface that holds mineable entities and records path requests.
 
+-- the status op reads these game globals
+script = { active_mods = { ["coop-agent"] = "test" } }
+defines = { inventory = { character_main = 1 } }
+remote = { interfaces = {} }
+game = { connected_players = {} }
+
 storage = { map_id = "m" }
 require("scripts.storage").ensure()
 
@@ -88,6 +94,7 @@ BODY = {
   resource_reach_distance = 2.7,
   character_mining_speed_modifier = 0,
   character_mining_progress = 0,
+  health = 250,
   get_item_count = function(name) return INVENTORY[name] or 0 end,
   can_insert = function() return not FULL end,
   mine_entity = function(entity)
@@ -99,6 +106,9 @@ BODY = {
     return true
   end,
 }
+function BODY.get_inventory(_index)
+  return { get_contents = function() return {} end }
+end
 storage.body.entity = BODY
 HOST = { name = "host" }
 
@@ -106,6 +116,7 @@ DEPS = {
   storage = storage,
   tick = 0,
   body_name = "Buddy",
+  start_mode = "follow",
   host = function() return HOST end,
   push = function(kind, data) EVENTS[#EVENTS + 1] = { kind = kind, data = data } end,
   draw_text = function(spec)
@@ -122,6 +133,7 @@ DEPS = {
 }
 
 WALKER = require("scripts.walker")
+IDLE = require("scripts.idle")
 JOBS = require("scripts.jobs")
 RPC = require("scripts.rpc")
 DEPS.ops = RPC.OPS

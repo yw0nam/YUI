@@ -1,3 +1,5 @@
+import math
+
 import pytest
 from conftest import events, rpc, run
 
@@ -32,6 +34,29 @@ def test_walk_to_walks_the_path_ends_done_and_the_queue_goes_idle(lua, world):
     assert world.BODY.walking_state.walking is False
     assert world.LABEL.text == "Buddy · Standing by"
     assert states(world) == [(1, "done", None)]
+
+
+def test_a_follow_job_walks_toward_the_host_and_ends_done_at_its_ticks(lua, world):
+    lua.execute("HOST = { name = 'host', position = { x = 20, y = 0 } }")
+    assert enqueue(world, {"kind": "follow", "args": {"ticks": 40}}) == {
+        "v": 1,
+        "id": "t",
+        "ok": True,
+        "r": {"ids": [1]},
+    }
+    run(world, 1)
+    assert world.LABEL.text == "Buddy · Following host"
+    assert rpc(world, "jobs", {}, "j")["r"][0]["timeout_ticks"] == 40
+    answer_east(lua, world)
+
+    run(world, 40)
+    assert events(world) == [
+        {"kind": "job_done", "data": {"id": 1, "kind": "follow"}},
+        {"kind": "queue_idle", "data": {"last_job_id": 1}},
+    ]
+    assert states(world) == [(1, "done", None)]
+    assert world.BODY.walking_state.walking is False
+    assert math.dist((world.BODY.position.x, world.BODY.position.y), (20, 0)) <= 15
 
 
 def test_queue_idle_follows_only_the_last_done_job(world):
@@ -201,7 +226,7 @@ def test_cancel_all_while_walking_halts_the_body_at_once_and_emits_nothing(lua, 
         (
             "jobs_enqueue",
             {"jobs": [{"kind": "dig", "args": {}}]},
-            "jobs[0].kind: one of deliver, mine, wait, walk_to expected",
+            "jobs[0].kind: one of deliver, follow, mine, wait, walk_to expected",
         ),
         (
             "jobs_enqueue",
