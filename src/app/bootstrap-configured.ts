@@ -4,8 +4,7 @@ import type { AppConfig } from "../config/load";
 import { isChatConfigured } from "../dispatcher/backend/backend-caller";
 import type { Guardrails } from "../dispatcher/core/guardrails";
 import type { Dispatcher } from "../dispatcher/dispatcher";
-import { createBrowserShell } from "../io/browser/browser-shell";
-import { stopBrowserWhenOff } from "../io/browser/browser-switch";
+import { createBrowserRelay } from "../io/browser/browser-relay";
 import { createAvatarTools } from "../io/chat/tools/avatar";
 import { createBrowserTool } from "../io/chat/tools/browser/browser-tool";
 import type { ClientTool } from "../io/chat/tools/client-tools";
@@ -15,6 +14,7 @@ import type { SummonHotkey } from "../io/window/pet/summon-hotkey";
 import { subscribeOsEvent } from "../io/window/tauri-listen";
 import { createLogger } from "../logger";
 import { mergeScreen } from "../settings/capture/screen-settings";
+import { presetIdForWindow } from "../settings/preset/active-preset";
 import { isMacOS, isTauri, isWindows } from "../tauri-env";
 import { t } from "../ui/i18n";
 import { maybeShowFirstRunHint } from "../ui/notices/first-run-hint";
@@ -123,23 +123,23 @@ const realFactories: ConfiguredBootstrapFactories = {
     // The stage is wired after the turn core, so the tools read the executor late-bound:
     // null until wireLocomotion has run.
     let locomotion: ReturnType<typeof wireLocomotion> | null = null;
-    const browserShell = !phase1.bound && isTauri() ? createBrowserShell() : null;
-    if (browserShell) register(stopBrowserWhenOff(settings.browserSettings, browserShell));
-    const avatarTools = browserShell
-      ? [
-          ...createAvatarTools(() => locomotion?.getAvatarExecutor() ?? null, {
-            allowRequests: () => settings.screenshotSettings.get().allowRequests,
-            getWindow: () => locomotion?.frame.frameWindow() ?? null,
-            listMonitors: () => locomotion?.frame.listMonitors() ?? Promise.resolve([]),
-            pointsAreLogical: !isWindows(),
-            capturer: phase1.screenCapturer,
-          }),
-          createBrowserTool({
-            shell: browserShell,
-            enabled: () => settings.browserSettings.get().enabled,
-          }),
-        ]
-      : [];
+    const avatarTools =
+      !phase1.bound && isTauri()
+        ? [
+            ...createAvatarTools(() => locomotion?.getAvatarExecutor() ?? null, {
+              allowRequests: () => settings.screenshotSettings.get().allowRequests,
+              getWindow: () => locomotion?.frame.frameWindow() ?? null,
+              listMonitors: () => locomotion?.frame.listMonitors() ?? Promise.resolve([]),
+              pointsAreLogical: !isWindows(),
+              capturer: phase1.screenCapturer,
+            }),
+            createBrowserTool({
+              relay: createBrowserRelay(),
+              enabled: () => settings.browserSettings.get().enabled,
+              presetId: presetIdForWindow,
+            }),
+          ]
+        : [];
     const core = await wireTurnCore(cfg, phase1, {
       getFrontmost: () => frontmostTracker.get(),
       screenCapturer: phase1.screenCapturer,

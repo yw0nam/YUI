@@ -210,10 +210,10 @@ describe("docs/reference/client-tools.md catalog", () => {
     // The catalog is the table above the first section heading.
     const catalog = doc.slice(0, doc.indexOf("\n## "));
     const rows = new Set([...catalog.matchAll(/^\| `([^`]+)` \|/gm)].map((m) => m[1]));
-    const browser = { run: vi.fn(), cancel: vi.fn(), stop: vi.fn() };
+    const relay = { run: vi.fn(), guide: vi.fn() };
     const names = createClientTools(vocab(), [
       ...createAvatarTools(() => null),
-      createBrowserTool({ shell: browser, enabled: () => false }),
+      createBrowserTool({ relay, enabled: () => false, presetId: () => "p1" }),
     ]).map((tool) => tool.name);
 
     expect(names).toEqual(["generate_express", "body_action", "look", "browser"]);
