@@ -80,6 +80,29 @@ impl Relay {
             unreadable: shots.unreadable,
         })
     }
+
+    /// The installed CLI's guide (`ego-browser skill` stdout).
+    pub async fn guide(&self, bin: &Path, kill_after: Duration) -> Result<String, String> {
+        let child = Command::new(bin)
+            .arg("skill")
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .kill_on_drop(true)
+            .spawn()
+            .map_err(spawn_error)?;
+        let output = tokio::time::timeout(kill_after, child.wait_with_output())
+            .await
+            .map_err(|_| "ego-browser skill timed out".to_string())?
+            .map_err(|e| e.to_string())?;
+        if !output.status.success() {
+            return Err(format!(
+                "ego-browser skill failed: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ));
+        }
+        Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    }
 }
 
 /// The CLI's output, or `None` when it was killed at `limits.kill_after`.
