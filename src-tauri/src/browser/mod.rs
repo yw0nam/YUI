@@ -5,6 +5,7 @@ mod gate;
 mod keys;
 mod lifecycle;
 mod outcome;
+mod relay;
 mod session;
 mod shell;
 mod snapshot;
