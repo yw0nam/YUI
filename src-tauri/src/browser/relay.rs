@@ -274,6 +274,48 @@ await screenshot(task.page("p1"));"#;
         assert_eq!(out.dropped, 0);
     }
 
+    const TIMED: &str = r#"console.log("start " + Date.now());
+await new Promise((r) => setTimeout(r, 500));
+console.log("end " + Date.now());"#;
+
+    /// The `start` and `end` timestamps a `TIMED` run logged.
+    fn span(out: &RunOutcome) -> (u64, u64) {
+        let at = |key: &str| -> u64 {
+            let line = out.output.lines().find_map(|l| l.strip_prefix(key));
+            line.unwrap_or_else(|| panic!("no {key} in output: {}", out.output))
+                .parse()
+                .unwrap()
+        };
+        (at("start "), at("end "))
+    }
+
+    async fn timed_pair(space_a: &str, space_b: &str) -> ((u64, u64), (u64, u64)) {
+        let relay = Relay::new();
+        let bin = fake_ego();
+        let limits = Limits {
+            deadline_ms: 5000,
+            kill_after: Duration::from_secs(8),
+            ..limits()
+        };
+        let (a, b) = tokio::join!(
+            relay.run(&bin, space_a, TIMED, limits),
+            relay.run(&bin, space_b, TIMED, limits),
+        );
+        (span(&a.unwrap()), span(&b.unwrap()))
+    }
+
+    #[tokio::test]
+    async fn runs_in_one_space_go_one_at_a_time() {
+        let (a, b) = timed_pair("yui-a", "yui-a").await;
+        assert!(a.1 <= b.0 || b.1 <= a.0, "a: {a:?}, b: {b:?}");
+    }
+
+    #[tokio::test]
+    async fn runs_in_different_spaces_overlap() {
+        let (a, b) = timed_pair("yui-a", "yui-b").await;
+        assert!(a.0 < b.1 && b.0 < a.1, "a: {a:?}, b: {b:?}");
+    }
+
     #[tokio::test]
     async fn run_answers_not_found_for_a_missing_binary() {
         let missing = std::env::temp_dir().join("yui-no-such-dir/ego-browser");
