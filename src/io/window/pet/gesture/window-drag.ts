@@ -128,7 +128,6 @@ export async function initDrag(
     if (pe.pointerId !== activePointerId) return;
     if (!exceedsPressTravel({ x: startX, y: startY }, { x: pe.clientX, y: pe.clientY })) return;
     started = true;
-    dragArmed = true;
     el.removeEventListener("pointermove", onPointerMove);
     void startNativeDrag();
   }
@@ -143,7 +142,9 @@ export async function initDrag(
     // `endGesture` already fired in that case, and starting the native drag now would
     // grab a button that is no longer held.
     if (ended) return;
+    dragArmed = true;
     invokeDragWindow().catch((err: unknown) => {
+      dragArmed = false;
       log.warn("drag_window_invoke_failed", { error: String(err) });
     });
   }
