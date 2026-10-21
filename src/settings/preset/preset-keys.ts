@@ -12,6 +12,7 @@ export const PRESET_COPIED_KEYS: readonly string[] = [
   "yui.tts-key",
   "yui.speaker",
   "yui.vrm",
+  "yui.camera",
   "yui.filler",
 ];
 
