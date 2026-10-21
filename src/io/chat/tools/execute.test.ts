@@ -60,6 +60,21 @@ describe("executeClientTool", () => {
     await expect(pending).resolves.toBe("unknown: open");
   });
 
+  it("resolves the timeout result, not the tool's answer to the abort the wait sends", async () => {
+    const pending = executeClientTool(
+      tool({
+        timeoutResult: () => "unknown: may still run",
+        execute: (_args, signal) =>
+          new Promise<string>((resolve) =>
+            signal?.addEventListener("abort", () => resolve("error: turn stopped")),
+          ),
+      }),
+      {},
+    );
+    await vi.advanceTimersByTimeAsync(2000);
+    await expect(pending).resolves.toBe("unknown: may still run");
+  });
+
   it("aborts the execution's signal when the wait passes", async () => {
     let seen: AbortSignal | undefined;
     const pending = executeClientTool(
