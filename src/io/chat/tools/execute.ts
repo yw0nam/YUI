@@ -46,8 +46,9 @@ async function boundedExecute(
       tool.execute(args, execution.signal),
       new Promise<string>((resolve) => {
         timer = setTimeout(() => {
-          abort();
+          // Resolved before the abort, so a tool's answer to the abort never wins the race.
           resolve(timeoutResult(tool, args));
+          abort();
         }, tool.waitMs);
       }),
     ]);
