@@ -1840,7 +1840,7 @@ globalThis.YUI_MAP =
       "carries": "body_action → executor.command(args); look → executor.state(), perchTargets()",
       "kind": "callback",
       "transport": "shared",
-      "wiring": "src/app/turn/pet-window-tools.ts"
+      "wiring": "src/io/chat/tools/pet-window-tools.ts"
     },
     {
       "id": "tools-capture",
@@ -1849,7 +1849,7 @@ globalThis.YUI_MAP =
       "carries": "look at screen → capturer.captureAt(point)",
       "kind": "callback",
       "transport": "shared",
-      "wiring": "src/app/turn/pet-window-tools.ts"
+      "wiring": "src/io/chat/tools/pet-window-tools.ts"
     },
     {
       "id": "tools-browser",
@@ -1858,7 +1858,7 @@ globalThis.YUI_MAP =
       "carries": "relay.run(space, code) / relay.guide() → RunOutcome",
       "kind": "callback",
       "transport": "shared",
-      "wiring": "src/app/turn/pet-window-tools.ts"
+      "wiring": "src/io/chat/tools/pet-window-tools.ts"
     },
     {
       "id": "settings-tool-switches",
@@ -1867,7 +1867,7 @@ globalThis.YUI_MAP =
       "carries": "look.screen and browser switches, read when a call runs and when the tools line is built",
       "kind": "callback",
       "transport": "shared",
-      "wiring": "src/app/turn/pet-window-tools.ts"
+      "wiring": "src/io/chat/tools/pet-window-tools.ts"
     },
     {
       "id": "capture-shell",
