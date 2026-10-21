@@ -1,35 +1,22 @@
-/**
- * wire-window-geometry — the pet window keeps the size and position its user chose.
- *
- * The two user gestures that set the frame feed the store: a Ctrl+wheel resize writes the
- * size, a drag that lands writes the position. Boot applies the stored record once, before
- * the faller places the window and the bed scene parks it, so the park widens the restored
- * size and the drop starts from the restored position. Park, travel and keep-on-screen moves
- * are the app's own and never reach the store.
- */
+/** Saves the pet window's size and position after the OS drag ends and after a Ctrl+wheel resize, and applies the saved record once at boot, clamped on screen, before the faller places the window and the bed scene parks it. */
 
+import { tauriFrameWindow } from "../../io/window/geometry/tauri-frame-window";
 import type { FrameWindow } from "../../io/window/geometry/travel-frame";
-import type { WindowGeometrySettings } from "../../settings/window/window-geometry-settings";
+import {
+  createWindowGeometrySettings,
+  localStorageWindowGeometryStorage,
+  type WindowGeometrySettings,
+} from "../../settings/panels/window-geometry-settings";
 import { isTauri } from "../../tauri-env";
 
-/** The real pet window as the geometry wiring reads and writes it; null outside Tauri. */
-export async function tauriFrameWindow(): Promise<FrameWindow | null> {
-  if (!isTauri()) return null;
-  const { invoke } = await import("@tauri-apps/api/core");
-  const { getCurrentWindow } = await import("@tauri-apps/api/window");
-  const { LogicalPosition } = await import("@tauri-apps/api/dpi");
-  const win = getCurrentWindow();
-  return {
-    outerPosition: () => win.outerPosition(),
-    outerSize: () => win.outerSize(),
-    scaleFactor: () => win.scaleFactor(),
-    setPositionLogical: (x, y) => win.setPosition(new LogicalPosition(x, y)),
-    setFrameLogical: (x, y, width, height) =>
-      invoke("set_frame_logical", { x, y, width, height }) as Promise<void>,
-  };
+/** The hooks the producers call: a resize's applied size and an OS drag release. */
+export interface WindowGeometryHooks {
+  onResizeApplied(size: { width: number; height: number }): void;
+  onLand(): Promise<void>;
 }
 
-export function wireWindowGeometry(deps: { store: WindowGeometrySettings; frame: FrameWindow }): {
+/** The store-and-frame core: boot apply plus the two producer hooks. Injectable for tests. */
+export function createWindowGeometry(deps: { store: WindowGeometrySettings; frame: FrameWindow }): {
   /** Applies the stored size, then position, once; awaiting it orders the boot placement. */
   apply(): Promise<void>;
   /** A Ctrl+wheel resize landed — the applied logical size joins the store. */
@@ -82,4 +69,21 @@ export function wireWindowGeometry(deps: { store: WindowGeometrySettings; frame:
       disposed = true;
     },
   };
+}
+
+/** The whole wiring: label, store and frame by window label, applied once before placement. */
+export async function wireWindowGeometry(deps: {
+  register: (teardown: () => void) => void;
+}): Promise<WindowGeometryHooks | null> {
+  if (!isTauri()) return null;
+  const frame = await tauriFrameWindow();
+  if (!frame) return null;
+  const { getCurrentWindow } = await import("@tauri-apps/api/window");
+  const store = createWindowGeometrySettings({
+    storage: localStorageWindowGeometryStorage(getCurrentWindow().label),
+  });
+  const wiring = createWindowGeometry({ store, frame });
+  deps.register(wiring.dispose);
+  await wiring.apply();
+  return wiring;
 }

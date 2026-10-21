@@ -126,7 +126,7 @@ export function wireFaller(deps: {
       },
     });
     faller = createdFaller;
-    // The OS chooses the initial position; placement is not a user-controlled fall.
+    // Placement is not a user-controlled fall; boot applied the saved position before this.
     await createdFaller.drop({ place: true });
   })()
     .catch((err) => log.warn("faller_start_failed", { degrade: true, error: String(err) }))

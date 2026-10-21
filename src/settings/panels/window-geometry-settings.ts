@@ -1,6 +1,6 @@
 /**
- * Window geometry — the size and position a pet window's user gestures left it, per window
- * label. A Partial record: a size saved before any drop (or the reverse) still applies alone.
+ * Window geometry — the size and position the user's OS drags and Ctrl+wheel resizes leave, per
+ * window label. A Partial record: a size saved before any drop (or the reverse) still applies alone.
  */
 
 import {
@@ -10,7 +10,7 @@ import {
   type PersistedStorage,
 } from "../persisted-store";
 
-export interface WindowGeometry {
+interface WindowGeometry {
   x: number;
   y: number;
   width: number;
@@ -53,7 +53,6 @@ export function createWindowGeometrySettings(opts?: {
       core.commit({ ...core.current(), width: size.width, height: size.height }),
     setPosition: (pos: { x: number; y: number }): void =>
       core.commit({ ...core.current(), x: pos.x, y: pos.y }),
-    subscribe: core.subscribe,
     dispose: core.dispose,
   };
 }

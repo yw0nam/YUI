@@ -12,12 +12,6 @@ import type { SummonHotkey } from "../io/window/pet/summon-hotkey";
 import { subscribeOsEvent } from "../io/window/tauri-listen";
 import { createLogger } from "../logger";
 import { mergeScreen } from "../settings/capture/screen-settings";
-import { readBoundPresetId } from "../settings/preset/bound-preset";
-import { windowLabel } from "../settings/preset/pet-windows";
-import {
-  createWindowGeometrySettings,
-  localStorageWindowGeometryStorage,
-} from "../settings/window/window-geometry-settings";
 import { isMacOS, isWindows } from "../tauri-env";
 import { t } from "../ui/i18n";
 import { maybeShowFirstRunHint } from "../ui/notices/first-run-hint";
@@ -29,7 +23,7 @@ import { wireStageGestures } from "./stage/wire-gestures";
 import { wireLocomotion } from "./stage/wire-locomotion";
 import { wireGaze, wireHitTest } from "./stage/wire-stage";
 import { wirePeek, wireSummonHotkey } from "./stage/wire-summon";
-import { tauriFrameWindow, wireWindowGeometry } from "./stage/wire-window-geometry";
+import { wireWindowGeometry } from "./stage/wire-window-geometry";
 import { type TurnCorePhase1, wireTurnCore } from "./turn/turn-core";
 import type { wireVocabulary } from "./turn/vocabulary/wire-vocabulary";
 import type { VoicePipeline } from "./turn/voice/wire-voice-pipeline";
@@ -210,20 +204,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     wireGaze({ renderer, gazeSettings, register });
 
     // The saved geometry applies before the faller places the window and the bed scene parks it.
-    const geometryBoundId = readBoundPresetId();
-    const geometryStore = createWindowGeometrySettings({
-      storage: localStorageWindowGeometryStorage(
-        geometryBoundId ? windowLabel("pet", geometryBoundId) : "main",
-      ),
-    });
-    const geometryFrame = await tauriFrameWindow();
-    const windowGeometry =
-      geometryFrame && wireWindowGeometry({ store: geometryStore, frame: geometryFrame });
-    if (windowGeometry) {
-      register(windowGeometry.dispose);
-      register(() => geometryStore.dispose());
-      await windowGeometry.apply();
-    }
+    const windowGeometry = await wireWindowGeometry({ register });
 
     locomotion = wireLocomotion({
       bound: phase1.bound,
@@ -243,12 +224,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       onStrollEnd: (bodyReleased) => {
         if (bodyReleased) voice.resumeThinking();
       },
-      windowGeometry: windowGeometry
-        ? {
-            onResizeApplied: (size) => windowGeometry.onResizeApplied(size),
-            onLand: () => void windowGeometry.onLand(),
-          }
-        : undefined,
+      windowGeometry: windowGeometry ?? undefined,
       register,
       log,
     });

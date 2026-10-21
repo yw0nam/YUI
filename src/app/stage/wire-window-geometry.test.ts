@@ -1,17 +1,10 @@
-/**
- * wire-window-geometry — the pet window keeps the size and position its user chose.
- *
- * Boot applies the stored record once through the frame; a Ctrl+wheel resize
- * writes the size half; a landed drag writes the live position.
- */
-
 import { describe, expect, it, vi } from "vitest";
 import type { FrameWindow } from "../../io/window/geometry/travel-frame";
 import {
   createWindowGeometrySettings,
   type StoredWindowGeometry,
-} from "../../settings/window/window-geometry-settings";
-import { wireWindowGeometry } from "./wire-window-geometry";
+} from "../../settings/panels/window-geometry-settings";
+import { createWindowGeometry } from "./wire-window-geometry";
 
 function memoryStorage() {
   let saved: StoredWindowGeometry | null = null;
@@ -43,12 +36,12 @@ function fakeFrame() {
   return { state, frame: frame as unknown as FrameWindow };
 }
 
-describe("wireWindowGeometry", () => {
+describe("createWindowGeometry", () => {
   it("boot applies a stored rect through setFrameLogical", async () => {
     const storage = memoryStorage();
     storage.save({ x: 11, y: 22, width: 500, height: 700 });
     const { frame } = fakeFrame();
-    const wiring = wireWindowGeometry({
+    const wiring = createWindowGeometry({
       store: createWindowGeometrySettings({ storage }),
       frame,
     });
@@ -59,7 +52,7 @@ describe("wireWindowGeometry", () => {
   it("a resize write lands in the store as size", () => {
     const storage = memoryStorage();
     const { frame } = fakeFrame();
-    const wiring = wireWindowGeometry({
+    const wiring = createWindowGeometry({
       store: createWindowGeometrySettings({ storage }),
       frame,
     });
@@ -67,14 +60,14 @@ describe("wireWindowGeometry", () => {
     expect(storage.load()).toEqual({ width: 424, height: 636 });
   });
 
-  it("a land writes the live position", async () => {
+  it("a drag landed writes the live position", async () => {
     const storage = memoryStorage();
-    const { frame, state } = fakeFrame();
-    const wiring = wireWindowGeometry({
+    const { frame } = fakeFrame();
+    const wiring = createWindowGeometry({
       store: createWindowGeometrySettings({ storage }),
       frame,
     });
     await wiring.onLand();
-    expect(storage.load()).toEqual({ x: state.x, y: state.y });
+    expect(storage.load()).toEqual({ x: 10, y: 20 });
   });
 });

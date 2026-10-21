@@ -3,6 +3,7 @@ import {
   type ScreenMonitor,
   toScreenMonitor,
 } from "../../../io/window/geometry/screen-geometry";
+import { tauriFrameWindow } from "../../../io/window/geometry/tauri-frame-window";
 import {
   createTravelFrame,
   type FrameWindow,
@@ -86,21 +87,16 @@ export function wireTravelFrame(deps: {
     return handle;
   }
   void (async () => {
-    const { invoke } = await import("@tauri-apps/api/core");
-    const { getCurrentWindow } = await import("@tauri-apps/api/window");
-    const { LogicalPosition } = await import("@tauri-apps/api/dpi");
     if (disposed) {
       resolveReady();
       return;
     }
-    realWindow = {
-      outerPosition: () => getCurrentWindow().outerPosition(),
-      outerSize: () => getCurrentWindow().outerSize(),
-      scaleFactor: () => getCurrentWindow().scaleFactor(),
-      setPositionLogical: (x, y) => getCurrentWindow().setPosition(new LogicalPosition(x, y)),
-      setFrameLogical: (x, y, width, height) =>
-        invoke("set_frame_logical", { x, y, width, height }) as Promise<void>,
-    };
+    const frame = await tauriFrameWindow();
+    if (!frame) {
+      resolveReady();
+      return;
+    }
+    realWindow = frame;
     travel = createTravelFrame({
       frame: realWindow,
       renderer: deps.renderer,
