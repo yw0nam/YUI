@@ -883,6 +883,27 @@ describe("createTtsPipeline — one voice gate", () => {
     expect(playedOrder).toEqual([]);
     expect(release).not.toHaveBeenCalled();
   });
+
+  it("dispose while the lock is held releases it once", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink, playedOrder } = recordingSink();
+    const { gate, release, grant } = stubGate();
+    const pipe = createTtsPipeline({ synth, sink, gate, maxInflight: 2 });
+
+    pipe.pushTextDelta("One. Two.", true);
+    pipe.end();
+    await tick();
+    resolvers[0].resolve(bufFor(0));
+    resolvers[1].resolve(bufFor(1));
+    await tick();
+    grant();
+    await tick();
+    expect(playedOrder).toEqual([0]);
+
+    pipe.dispose();
+    await tick();
+    expect(release).toHaveBeenCalledTimes(1);
+  });
 });
 
 // ── #observability: structured logging via injectable logger seam ──────────────

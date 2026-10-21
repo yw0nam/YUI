@@ -3985,7 +3985,7 @@ globalThis.YUI_MAP =
         "id": "voice-lock-bound-pet",
         "from": "pet-<id>",
         "to": "pet",
-        "carries": "navigator.locks yui.speaking: taken before an utterance's first sentence plays while yui.one-voice is on, released at the utterance's end or when the window dies; other windows queue in order",
+        "carries": "navigator.locks yui.speaking",
         "kind": "storage"
       },
       {

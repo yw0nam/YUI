@@ -1,5 +1,5 @@
 /** One voice at a time across windows: an exclusive Web Lock held from an utterance's first sound to its end. */
-export const VOICE_LOCK_NAME = "yui.speaking";
+const VOICE_LOCK_NAME = "yui.speaking";
 
 export interface VoiceGate {
   /** Resolves once this window may play: at once when the gate is off, when no lock manager exists, or when the signal is already aborted; an abort while waiting resolves without holding. */
@@ -22,6 +22,8 @@ export function createVoiceGate(deps: {
         locks
           .request(VOICE_LOCK_NAME, { signal }, () => {
             granted();
+            // A grant already scheduled when the abort landed still runs; returning frees the lock.
+            if (signal.aborted) return;
             return new Promise<void>((r) => {
               release = r;
             });

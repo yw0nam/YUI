@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { createVoiceGate } from "./voice-gate";
 
-/** One exclusive lock: grants waiters in order as each callback's promise settles; honours `signal` while queued. */
-function fakeLocks() {
+/**
+ * One exclusive lock: grants waiters in order as each callback's result settles; honours `signal` while queued.
+ * `grantAfterAbort` models a grant already scheduled when the abort lands, so the callback still runs.
+ */
+function fakeLocks({ grantAfterAbort = false } = {}) {
   let held = false;
   const waiting: Array<() => void> = [];
   const next = () => {
@@ -10,7 +13,7 @@ function fakeLocks() {
     waiting.shift()?.();
   };
   const request = vi.fn(
-    (_name: string, options: { signal?: AbortSignal }, callback: () => Promise<void>) =>
+    (_name: string, options: { signal?: AbortSignal }, callback: () => Promise<void> | undefined) =>
       new Promise<void>((resolve, reject) => {
         const onAbort = () => {
           waiting.splice(waiting.indexOf(grant), 1);
@@ -19,14 +22,18 @@ function fakeLocks() {
         function grant() {
           held = true;
           options.signal?.removeEventListener("abort", onAbort);
-          callback().then(resolve, reject).finally(next);
+          Promise.resolve(callback()).then(resolve, reject).finally(next);
         }
-        options.signal?.addEventListener("abort", onAbort, { once: true });
+        if (!grantAfterAbort) options.signal?.addEventListener("abort", onAbort, { once: true });
         if (held) waiting.push(grant);
         else grant();
       }),
   );
-  return { locks: { request } as unknown as Pick<LockManager, "request">, request };
+  return {
+    locks: { request } as unknown as Pick<LockManager, "request">,
+    request,
+    isHeld: () => held,
+  };
 }
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -82,5 +89,20 @@ describe("createVoiceGate", () => {
     holder.release();
     await tick();
     expect(c.resolved).toBe(true);
+  });
+
+  it("a grant delivered after the abort resolves acquire and frees the lock without release", async () => {
+    const { locks, isHeld } = fakeLocks({ grantAfterAbort: true });
+    const holder = createVoiceGate({ enabled: () => true, locks });
+    const late = createVoiceGate({ enabled: () => true, locks });
+    const controller = new AbortController();
+
+    await holder.acquire(new AbortController().signal);
+    const b = track(late.acquire(controller.signal));
+    controller.abort();
+    holder.release();
+    await tick();
+    expect(b.resolved).toBe(true);
+    expect(isHeld()).toBe(false);
   });
 });
