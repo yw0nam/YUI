@@ -4,7 +4,7 @@ use crate::image_encode::encode_capture;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const PREFIX: &str = "yui-browser-";
 
@@ -78,13 +78,23 @@ pub async fn remove(dir: PathBuf) {
     let _ = tauri::async_runtime::spawn_blocking(move || std::fs::remove_dir_all(dir)).await;
 }
 
-/// Removes every `yui-browser-*` folder left in the temp directory, e.g. one a killed script recreated late.
+/// Far past one run's folder life (kill after 28 s plus collection), so another YUI instance's live folder survives.
+const STALE_AGE: Duration = Duration::from_secs(10 * 60);
+
+/// Removes `yui-browser-*` entries in the temp directory older than `STALE_AGE`, e.g. one a killed script recreated late.
 pub fn sweep_stale() {
     let Ok(entries) = std::fs::read_dir(std::env::temp_dir()) else {
         return;
     };
-    for entry in entries.flatten() {
-        if entry.file_name().to_string_lossy().starts_with(PREFIX) {
+    let ours = entries
+        .flatten()
+        .filter(|entry| entry.file_name().to_string_lossy().starts_with(PREFIX));
+    for entry in ours {
+        let stale = entry
+            .metadata()
+            .and_then(|m| m.modified())
+            .is_ok_and(|t| t.elapsed().is_ok_and(|age| age > STALE_AGE));
+        if stale {
             let _ = std::fs::remove_dir_all(entry.path());
         }
     }
@@ -93,7 +103,6 @@ pub fn sweep_stale() {
 #[cfg(all(test, unix))]
 mod tests {
     use super::*;
-    use std::time::Duration;
 
     #[test]
     fn sweep_stale_removes_old_folders_and_spares_fresh_ones() {
