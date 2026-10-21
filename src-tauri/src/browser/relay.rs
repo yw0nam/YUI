@@ -50,11 +50,14 @@ impl Relay {
         let dir = shots::create().map_err(|e| format!("screenshot folder failed: {e}"))?;
         let result = spawn_script(bin, space, &dir, code, limits).await;
         shots::remove(&dir);
-        let output = result?;
+        let (output, exit_code, killed) = match result? {
+            Some(out) => (out.stderr, out.status.code(), false),
+            None => (Vec::new(), None, true),
+        };
         Ok(RunOutcome {
-            output: String::from_utf8_lossy(&output.stderr).into_owned(),
-            exit_code: output.status.code(),
-            killed: false,
+            output: String::from_utf8_lossy(&output).into_owned(),
+            exit_code,
+            killed,
             images: Vec::new(),
             dropped: 0,
             unreadable: Vec::new(),
@@ -62,13 +65,14 @@ impl Relay {
     }
 }
 
+/// The CLI's output, or `None` when it was killed at `limits.kill_after`.
 async fn spawn_script(
     bin: &Path,
     space: &str,
     dir: &Path,
     code: &str,
     limits: Limits,
-) -> Result<std::process::Output, String> {
+) -> Result<Option<std::process::Output>, String> {
     let mut child = Command::new(bin)
         .arg("nodejs")
         .stdin(Stdio::piped())
@@ -77,14 +81,23 @@ async fn spawn_script(
         .kill_on_drop(true)
         .spawn()
         .map_err(spawn_error)?;
-    if let Some(mut stdin) = child.stdin.take() {
-        let script = script::build_script(space, dir, code, limits.deadline_ms);
-        // A CLI that exits before reading stdin still reports through its exit and stderr.
-        if let Err(e) = stdin.write_all(script.as_bytes()).await {
-            log::warn!("browser_stdin_failed error={e}");
+    let script = script::build_script(space, dir, code, limits.deadline_ms);
+    let finished = async move {
+        if let Some(mut stdin) = child.stdin.take() {
+            // A CLI that exits before reading stdin still reports through its exit and stderr.
+            if let Err(e) = stdin.write_all(script.as_bytes()).await {
+                log::warn!("browser_stdin_failed error={e}");
+            }
+        }
+        child.wait_with_output().await
+    };
+    match tokio::time::timeout(limits.kill_after, finished).await {
+        Ok(output) => output.map(Some).map_err(|e| e.to_string()),
+        Err(_) => {
+            log::warn!("browser_cli_killed space={space}");
+            Ok(None)
         }
     }
-    child.wait_with_output().await.map_err(|e| e.to_string())
 }
 
 fn spawn_error(e: std::io::Error) -> String {
