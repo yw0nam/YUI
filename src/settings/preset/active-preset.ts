@@ -51,6 +51,12 @@ export function readActivePresetId(): string {
   }
 }
 
+/** The name a window shows: the bound preset's when bound, else the active preset's. */
+export function presetNameFor(state: PresetState, boundId: string | null): string {
+  const id = boundId ?? state.active;
+  return state.list.find((e) => e.id === id)?.name ?? id;
+}
+
 /** The key `key` is stored under for this window's bound or active preset. */
 export function resolvePresetKey(key: string): string {
   return resolveStorageKey(key, presetIdForWindow());

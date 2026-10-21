@@ -12,6 +12,7 @@ import "../ui/message/message-window.css";
 import { createDisposers } from "../app/disposers";
 import { wireMessageSurfaceOps } from "../app/message/wire-message-surface-ops";
 import { startDragging, wireTauriWindow } from "../app/message/wire-message-tauri-window";
+import { wirePlateName } from "../app/message/wire-plate-name";
 import { bootCompanion } from "../app/pet-windows/companion-window";
 import { wirePresetSwitch } from "../app/settings/wire-preset";
 import { createMirroredDelegations } from "../io/bridge/delegations/delegations-bridge";
@@ -30,6 +31,7 @@ import {
   localStorageMessageWindowStorage,
 } from "../settings/panels/message-window-settings";
 import { createFlagSettings, localStorageStore } from "../settings/persisted-store";
+import { presetNameFor } from "../settings/preset/active-preset";
 import { isTauri } from "../tauri-env";
 import { createDelegationChip } from "../ui/chips/delegation-chip";
 import { reloadFromStorage as reloadLocale } from "../ui/i18n";
@@ -94,6 +96,7 @@ async function bootstrap(): Promise<void> {
   surfaces.el.prepend(plateRow);
   const plate = createMessagePlate({
     mount: plateRow,
+    name: presetNameFor(presetRegistry.get(), boundId),
     onDock: () => bridge.emitControl({ op: "dock" }),
     startDragging: () => void startDragging(),
   });
@@ -136,6 +139,7 @@ async function bootstrap(): Promise<void> {
   disposers.register(() => surfaces.dispose());
   disposers.register(() => plateRow.remove());
   disposers.register(() => plate.dispose());
+  disposers.register(wirePlateName({ registry: presetRegistry, plate, boundId }));
   disposers.register(() => delegations.dispose());
   disposers.register(() => pushSocket.dispose());
   disposers.register(() => chipCollapsed.dispose());

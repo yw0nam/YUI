@@ -22,7 +22,7 @@ describe("createMessagePlate", () => {
     document.body.appendChild(mount);
     onDock = vi.fn<() => void>();
     startDragging = vi.fn<() => void>();
-    plate = createMessagePlate({ mount, onDock, startDragging });
+    plate = createMessagePlate({ mount, name: "YUI", onDock, startDragging });
   });
 
   afterEach(() => {
@@ -145,7 +145,7 @@ describe("createMessagePlate without the window options", () => {
   const el = (): HTMLElement => mount.querySelector(".yui-plate") as HTMLElement;
 
   it("renders no dock button and no drag handle", () => {
-    createMessagePlate({ mount });
+    createMessagePlate({ mount, name: "YUI" });
     expect(mount.querySelector(".yui-plate__dock")).toBeNull();
     expect(el().hasAttribute("data-draggable")).toBe(false);
   });

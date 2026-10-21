@@ -386,6 +386,7 @@ describe("createSurfacesRouter over the message bridge", () => {
       );
       const plate = createMessagePlate({
         mount: surfaces.el,
+        name: "YUI",
         onDock: () => {},
         startDragging: () => {},
       });

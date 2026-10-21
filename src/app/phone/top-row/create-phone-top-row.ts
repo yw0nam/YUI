@@ -47,7 +47,7 @@ export function createPhoneTopRow(deps: {
   row.className = "yui-phone__top";
   head.appendChild(row);
 
-  const plate = createMessagePlate({ mount: row });
+  const plate = createMessagePlate({ mount: row, name: "YUI" });
   const pill = createStatusPill({
     mount: head,
     voice: deps.voice,

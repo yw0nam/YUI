@@ -10,7 +10,7 @@ import {
   type createAgentNotifySettings,
   ingressUrl,
 } from "../../../settings/backend/agent-notify-settings";
-import type { PresetState } from "../../../settings/preset/active-preset";
+import { presetNameFor } from "../../../settings/preset/active-preset";
 import { isPresetWindowLive, type PetWindows } from "../../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../../settings/preset/preset-registry";
 import { t } from "../../i18n";
@@ -36,10 +36,6 @@ export interface PresetStrip {
   /** Closes the manage popover — the panel closed. */
   close(): void;
   dispose(): void;
-}
-
-function activeName(state: PresetState): string {
-  return state.list.find((e) => e.id === state.active)?.name ?? state.active;
 }
 
 export function createPresetStrip(deps: {
@@ -97,10 +93,7 @@ export function createPresetStrip(deps: {
         return option;
       }),
     );
-    const name =
-      boundId === null
-        ? activeName(state)
-        : (state.list.find((e) => e.id === boundId)?.name ?? boundId);
+    const name = presetNameFor(state, boundId);
     if (boundName) boundName.textContent = name;
     for (const line of root.querySelectorAll<HTMLElement>("[data-scope-tab]")) {
       line.textContent = presetScopeText(line.dataset.scopeTab!, name);
