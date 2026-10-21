@@ -9,6 +9,10 @@ mod drag;
 #[cfg(desktop)]
 mod screenshot;
 
+// Image resize and JPEG data-URL encode.
+#[cfg(desktop)]
+mod image_encode;
+
 // Calendar-date-based log rotation.
 mod log_rotation;
 

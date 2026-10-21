@@ -514,6 +514,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "shell/image",
+      "module": "shell",
+      "label": "image encode",
+      "role": "Resizes an image to a long-edge limit and encodes it as a JPEG data URL.",
+      "paths": [
+        "src-tauri/src/image_encode.rs"
+      ]
+    },
+    {
       "id": "shell/browser",
       "module": "shell",
       "label": "browser",
