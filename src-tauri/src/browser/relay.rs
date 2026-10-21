@@ -205,6 +205,20 @@ esac
     }
 
     #[tokio::test]
+    async fn run_kills_a_script_that_never_yields_to_its_deadline() {
+        let started = std::time::Instant::now();
+        let out = tokio::time::timeout(
+            limits().kill_after + Duration::from_secs(1),
+            Relay::new().run(&fake_ego(), "yui-a", "while (true) {}", limits()),
+        )
+        .await
+        .expect("run returns within kill_after + 1 s")
+        .unwrap();
+        assert!(out.killed);
+        assert!(started.elapsed() < limits().kill_after + Duration::from_secs(1));
+    }
+
+    #[tokio::test]
     async fn run_answers_not_found_for_a_missing_binary() {
         let missing = std::env::temp_dir().join("yui-no-such-dir/ego-browser");
         let err = Relay::new()
