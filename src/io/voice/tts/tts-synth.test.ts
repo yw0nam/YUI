@@ -215,6 +215,29 @@ describe("createTtsSynth", () => {
       await assertion;
     });
 
+    it("a request that answers after 10 s still resolves", async () => {
+      vi.useFakeTimers();
+      const buf = new ArrayBuffer(4);
+      const fetchMock = vi.fn<FetchFn>(
+        (_url, init) =>
+          new Promise((resolve, reject) => {
+            setTimeout(() => resolve(okResponse(buf)), 10_010);
+            init.signal?.addEventListener("abort", () =>
+              reject(init.signal?.reason ?? new DOMException("Aborted", "AbortError")),
+            );
+          }),
+      );
+      const synth = createTtsSynth({
+        provider: "irodori",
+        baseUrl: BASE_URL,
+        fetch: fetchMock as unknown as typeof fetch,
+      });
+
+      const assertion = expect(synth("hi")).resolves.toBe(buf);
+      await vi.advanceTimersByTimeAsync(10_010);
+      await assertion;
+    });
+
     it("does not fire the deadline when the request settles first", async () => {
       vi.useFakeTimers();
       const fetchMock = vi.fn<FetchFn>(async () => okResponse(new ArrayBuffer(4)));
