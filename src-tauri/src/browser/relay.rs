@@ -133,15 +133,17 @@ async fn spawn_script(
         .spawn()
         .map_err(spawn_error)?;
     let script = script::build_script(space, dir, code, limits.deadline_ms);
-    let finished = async move {
-        if let Some(mut stdin) = child.stdin.take() {
+    let stdin = child.stdin.take();
+    let write = async move {
+        if let Some(mut stdin) = stdin {
             // A CLI that exits before reading stdin still reports through its exit and stderr.
             if let Err(e) = stdin.write_all(script.as_bytes()).await {
                 log::warn!("browser_stdin_failed error={e}");
             }
         }
-        child.wait_with_output().await
     };
+    // Drains stdout and stderr while stdin is written, so neither side waits on a full pipe.
+    let finished = async move { tokio::join!(write, child.wait_with_output()).1 };
     match tokio::time::timeout(limits.kill_after, finished).await {
         Ok(output) => output.map(Some).map_err(|e| e.to_string()),
         Err(_) => {
