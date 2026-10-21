@@ -33,7 +33,7 @@ function releaseTracks(stream: MediaStream): void {
 }
 
 // Deadline so a hung STT request settles instead of silently discarding the captured utterance forever.
-// Magnitude mirrors tts-synth's TTS_SYNTH_TIMEOUT_MS.
+// 10 s: a captured utterance is a few seconds of audio, so a transcription still pending past it is hung.
 export const STT_REQUEST_TIMEOUT_MS = 10_000;
 
 export interface SttVadOptions {
