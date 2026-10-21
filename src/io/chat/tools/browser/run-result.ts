@@ -16,12 +16,7 @@ const utf8 = new TextEncoder();
 
 function statusLine(outcome: RunOutcome): string | undefined {
   if (outcome.killed) return UNKNOWN;
-  const { output } = outcome;
-  if (
-    output.split("\n").includes("[error] [yui] deadline") &&
-    output.includes("exited with code 124")
-  )
-    return "error: the script was stopped at 25 s";
+  if (outcome.deadline) return "error: the script was stopped at its time limit";
   if (outcome.exitCode !== 0) return "error: the script failed";
   return undefined;
 }

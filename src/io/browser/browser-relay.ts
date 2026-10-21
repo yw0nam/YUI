@@ -15,6 +15,8 @@ export interface RunOutcome {
   exitCode: number | null;
   /** The relay killed the CLI at its backstop; the script may still run in ego lite. */
   killed: boolean;
+  /** The script stopped itself at its time limit. */
+  deadline: boolean;
   /** The kept screenshots as JPEG data URLs, oldest first. */
   images: string[];
   /** How many earlier screenshots were dropped past the cap. */
