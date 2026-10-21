@@ -75,7 +75,7 @@ impl Relay {
             Ok(_) => shots::collect(dir.clone(), limits.image_cap, limits.long_edge).await,
             Err(_) => shots::Collected::default(),
         };
-        shots::remove(&dir);
+        shots::remove(dir).await;
         let (output, exit_code, killed) = match result? {
             Some(out) => (out.stderr, out.status.code(), false),
             None => (Vec::new(), None, true),

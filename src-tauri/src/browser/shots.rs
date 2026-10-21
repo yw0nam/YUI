@@ -73,8 +73,9 @@ fn collect_blocking(dir: &Path, cap: usize, long_edge: u32) -> Collected {
     collected
 }
 
-pub fn remove(dir: &Path) {
-    let _ = std::fs::remove_dir_all(dir);
+/// Deletes `dir` off the async runtime, ignoring errors.
+pub async fn remove(dir: PathBuf) {
+    let _ = tauri::async_runtime::spawn_blocking(move || std::fs::remove_dir_all(dir)).await;
 }
 
 /// Removes every `yui-browser-*` folder left in the temp directory, e.g. one a killed script recreated late.
@@ -84,7 +85,7 @@ pub fn sweep_stale() {
     };
     for entry in entries.flatten() {
         if entry.file_name().to_string_lossy().starts_with(PREFIX) {
-            remove(&entry.path());
+            let _ = std::fs::remove_dir_all(entry.path());
         }
     }
 }
