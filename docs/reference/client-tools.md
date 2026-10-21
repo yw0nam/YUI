@@ -203,7 +203,7 @@ At app start, Rust deletes every leftover `yui-browser-*` folder in the temp dir
 
 ### Task-space lifetime
 
-YUI never closes a task space. It stays across the switch going off, the window closing, a preset switch, and quitting YUI; the next call for that preset resumes it by name. The user closes spaces in ego lite, and ego lite drops every space when it quits.
+YUI never closes a task space. It stays across the switch going off, the window closing, a preset switch, and quitting YUI; the next call for that preset resumes it by name. The user closes spaces in ego lite, ego lite drops every space when it quits, and ego lite closes an agent-owned space 30 minutes after its last call. A call after that creates a new space under the same name.
 
 ### Warning
 

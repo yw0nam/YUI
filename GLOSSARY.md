@@ -98,7 +98,7 @@ A named bundle of per-character client state: the backend connection and chat id
 _Avoid_: profile, character (for this bundle)
 
 **Task space**:
-An ego lite tab workspace the `browser` tool works in, named `yui-<presetId>`: one per preset, so one per pet window. It outlives a call, the browser switch going off, the window, and the app, and the user closes it in ego lite. ego lite's "YUI" browser profile is where those spaces run, and it is not a Preset.
+An ego lite tab workspace the `browser` tool works in, named `yui-<presetId>`: one per preset, so one per pet window. It outlives a call, the browser switch going off, the window, and the app. The user closes it in ego lite, and ego lite closes it after 30 idle minutes. ego lite's "YUI" browser profile is where those spaces run, and it is not a Preset.
 _Avoid_: tab group, browser session
 
 **Bound pet window**:
