@@ -41,6 +41,14 @@ describe("createMessagePlate", () => {
     expect(dock().getAttribute("aria-label")).toBeTruthy();
   });
 
+  it("renders the name option, and setName changes the text", () => {
+    const named = createMessagePlate({ mount, name: "YUI", onDock, startDragging });
+    const nameEl = mount.querySelector(".yui-plate__name") as HTMLElement;
+    expect(nameEl.textContent).toBe("YUI");
+    named.setName("perlica");
+    expect(nameEl.textContent).toBe("perlica");
+  });
+
   it("starts idle with an empty state label", () => {
     expect(el().getAttribute("data-state")).toBe("idle");
     expect(stateLabel().textContent).toBe("");
