@@ -122,4 +122,17 @@ describe("browser tool", () => {
     );
     expect(t.failed?.(result as string)).toBe(true);
   });
+
+  it("cuts an output past 64 KiB and keeps the status line", async () => {
+    // 3-byte characters, so a cut that splits one would leave a replacement character.
+    const output = `${"가".repeat(30_000)}\nexited with code 1\n`;
+    const t = tool(relay({ run: vi.fn(async () => outcome({ output, exitCode: 1 })) }));
+    const result = (await t.execute({ code: "x" })) as string;
+    const head = `error: the script failed\n${UNTRUSTED}\n`;
+    expect(result.startsWith(`${head}가가`)).toBe(true);
+    expect(result.endsWith("가\n[truncated]")).toBe(true);
+    const bytes = new TextEncoder().encode(result).length;
+    expect(bytes).toBeLessThanOrEqual(65_536);
+    expect(bytes).toBeGreaterThan(65_536 - 3);
+  });
 });
