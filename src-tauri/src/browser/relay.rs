@@ -22,6 +22,13 @@ pub struct Limits {
     pub long_edge: u32,
 }
 
+pub const LIMITS: Limits = Limits {
+    deadline_ms: 25_000,
+    kill_after: Duration::from_secs(28),
+    image_cap: 4,
+    long_edge: 1280,
+};
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RunOutcome {

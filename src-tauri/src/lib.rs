@@ -35,7 +35,7 @@ mod voice_import;
 #[cfg(desktop)]
 mod passthrough;
 
-// Dedicated Chrome the `browser` client tool drives over CDP.
+// Relays browser scripts to the installed ego lite CLI.
 #[cfg(desktop)]
 mod browser;
 
@@ -68,10 +68,5 @@ pub fn run() {
         .invoke_handler(commands::handler())
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|_app, _event| {
-            #[cfg(desktop)]
-            if let tauri::RunEvent::Exit = _event {
-                browser::stop_on_exit(_app);
-            }
-        });
+        .run(|_, _| {});
 }

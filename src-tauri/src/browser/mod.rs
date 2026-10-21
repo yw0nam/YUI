@@ -1,50 +1,27 @@
-//! The `browser` client tool's native half: a dedicated Chrome the app owns, driven over CDP.
+//! The `browser` client tool's native half: relays scripts to the installed ego lite CLI.
 
-mod args;
-mod gate;
-mod keys;
-mod lifecycle;
-mod outcome;
+mod locate;
 mod relay;
 mod script;
-mod session;
-mod shell;
 mod shots;
-mod snapshot;
 
-pub use shell::BrowserShell;
-use tauri::{AppHandle, Manager, State};
-
-#[tauri::command]
-pub fn browser_generation(shell: State<'_, BrowserShell>) -> u64 {
-    shell.generation()
-}
-
-/// Starts a new generation and cancels the call in flight; never waits on it.
-#[tauri::command]
-pub fn browser_cancel(shell: State<'_, BrowserShell>) -> u64 {
-    shell.cancel()
-}
+pub use relay::Relay;
+use relay::{RunOutcome, LIMITS, NOT_FOUND};
+pub use shots::sweep_stale;
+use tauri::State;
 
 #[tauri::command]
 pub async fn browser_run(
-    app: AppHandle,
-    gen: u64,
-    deadline_at: u64,
-    action: String,
-    args: serde_json::Value,
-) -> String {
-    app.state::<BrowserShell>()
-        .run(gen, deadline_at, &action, &args)
-        .await
+    relay: State<'_, Relay>,
+    space: String,
+    code: String,
+) -> Result<RunOutcome, String> {
+    let bin = locate::find_ego_browser().ok_or(NOT_FOUND)?;
+    relay.run(&bin, &space, &code, LIMITS).await
 }
 
 #[tauri::command]
-pub async fn browser_stop(app: AppHandle) {
-    app.state::<BrowserShell>().stop().await;
-}
-
-/// Stops the owned browser before the app exits.
-pub fn stop_on_exit(app: &AppHandle) {
-    tauri::async_runtime::block_on(app.state::<BrowserShell>().stop());
+pub async fn browser_guide(relay: State<'_, Relay>) -> Result<String, String> {
+    let bin = locate::find_ego_browser().ok_or(NOT_FOUND)?;
+    relay.guide(&bin, LIMITS.kill_after).await
 }

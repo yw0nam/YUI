@@ -32,9 +32,10 @@ pub fn run(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     #[cfg(desktop)]
-    app.manage(crate::browser::BrowserShell::new(
-        app.path().app_data_dir().ok(),
-    ));
+    {
+        app.manage(crate::browser::Relay::new());
+        crate::browser::sweep_stale();
+    }
 
     // Start OS event polling loop (emits `os_event` IPC to webview).
     os_event_watcher::start(app.handle());

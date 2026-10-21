@@ -76,3 +76,15 @@ fn collect_blocking(dir: &Path, cap: usize, long_edge: u32) -> Collected {
 pub fn remove(dir: &Path) {
     let _ = std::fs::remove_dir_all(dir);
 }
+
+/// Removes every `yui-browser-*` folder left in the temp directory, e.g. one a killed script recreated late.
+pub fn sweep_stale() {
+    let Ok(entries) = std::fs::read_dir(std::env::temp_dir()) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        if entry.file_name().to_string_lossy().starts_with(PREFIX) {
+            remove(&entry.path());
+        }
+    }
+}
