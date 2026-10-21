@@ -84,7 +84,9 @@ export interface WindowDropSourceDeps {
   /** A drag release that neither sat nor peeked — the character is left mid-air. */
   onDragMiss?: () => void;
   /** The OS drag release settled — the window-geometry store saves the position. */
-  onReleased?: () => void;
+  onReleased?: () => Promise<void>;
+  /** True when this window's drag gesture started and its release is unconsumed. */
+  wasDragging?: () => boolean;
   /** An armed sit lost its host — the seat is gone and the character hangs where it was. */
   onSitLost?: () => void;
   /** Play the sit-down where she is. "lost" means a pickup took her before it landed. */
@@ -417,11 +419,12 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       if (unlisten) return;
       try {
         unlisten = await listen(RELEASE_EVENT, () => {
+          const dragged = deps.wasDragging?.() ?? true;
           if (deps.isHeld?.()) return;
           void settle()
             .then(async (outcome) => {
-              // The release point is the user's placement; a miss-fall starts after the save.
-              await deps.onReleased?.();
+              // Only the dragged window saves; every pet window still settles the release.
+              if (dragged) await deps.onReleased?.();
               if (outcome.kind === "none") deps.onDragMiss?.();
             })
             .catch((err) =>

@@ -2,18 +2,21 @@
 
 import {
   clampToWorkArea,
+  logicalWorkArea,
   monitorAtLogical,
   type ScreenMonitor,
   toScreenMonitor,
 } from "../../io/window/geometry/screen-geometry";
 import { tauriFrameWindow } from "../../io/window/geometry/tauri-frame-window";
 import type { FrameWindow } from "../../io/window/geometry/travel-frame";
+import { createLogger } from "../../logger";
 import {
   createWindowGeometrySettings,
   localStorageWindowGeometryStorage,
   type WindowGeometrySettings,
 } from "../../settings/panels/window-geometry-settings";
-import { isTauri } from "../../tauri-env";
+
+const log = createLogger("window-geometry");
 
 /** The hooks the producers call: a resize's applied bounds and an OS drag release. */
 export interface WindowGeometryHooks {
@@ -25,7 +28,7 @@ export interface WindowGeometryHooks {
 export function createWindowGeometry(deps: {
   store: WindowGeometrySettings;
   frame: FrameWindow;
-  listMonitors?: () => Promise<ScreenMonitor[]>;
+  listMonitors: () => Promise<ScreenMonitor[]>;
 }): {
   /** Applies the stored size, then position, once; awaiting it orders the boot placement. */
   apply(): Promise<void>;
@@ -60,20 +63,10 @@ export function createWindowGeometry(deps: {
     width: number,
     height: number,
   ): Promise<{ x: number; y: number } | null> {
-    if (!deps.listMonitors) return null;
     const monitor = monitorAtLogical(await deps.listMonitors(), x + width / 2, y + height / 2);
     if (!monitor) return null;
-    const sf = monitor.scaleFactor;
-    return clampToWorkArea(
-      x,
-      y,
-      width,
-      height,
-      monitor.workArea.position.x / sf,
-      monitor.workArea.position.y / sf,
-      monitor.workArea.size.width / sf,
-      monitor.workArea.size.height / sf,
-    );
+    const work = logicalWorkArea(monitor);
+    return clampToWorkArea(x, y, width, height, work.x, work.y, work.width, work.height);
   }
 
   const nextFrame = (): Promise<void> =>
@@ -126,9 +119,13 @@ export function createWindowGeometry(deps: {
     },
     async onDragReleased() {
       if (disposed) return;
-      const { x, y } = await liveRect();
-      if (disposed) return;
-      store.setPosition({ x, y });
+      try {
+        const { x, y } = await liveRect();
+        if (disposed) return;
+        store.setPosition({ x, y });
+      } catch (err) {
+        log.warn("drag_release_save_failed", { degrade: true, error: String(err) });
+      }
     },
     dispose() {
       disposed = true;
@@ -140,19 +137,23 @@ export function createWindowGeometry(deps: {
 export async function wireWindowGeometry(deps: {
   register: (teardown: () => void) => void;
 }): Promise<WindowGeometryHooks | null> {
-  if (!isTauri()) return null;
-  const frame = await tauriFrameWindow();
-  if (!frame) return null;
-  const { getCurrentWindow, availableMonitors } = await import("@tauri-apps/api/window");
-  const store = createWindowGeometrySettings({
-    storage: localStorageWindowGeometryStorage(getCurrentWindow().label),
-  });
-  const wiring = createWindowGeometry({
-    store,
-    frame,
-    listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
-  });
-  deps.register(wiring.dispose);
-  await wiring.apply();
-  return wiring;
+  try {
+    const frame = await tauriFrameWindow();
+    if (!frame) return null;
+    const { getCurrentWindow, availableMonitors } = await import("@tauri-apps/api/window");
+    const store = createWindowGeometrySettings({
+      storage: localStorageWindowGeometryStorage(getCurrentWindow().label),
+    });
+    const wiring = createWindowGeometry({
+      store,
+      frame,
+      listMonitors: async () => (await availableMonitors()).map(toScreenMonitor),
+    });
+    deps.register(wiring.dispose);
+    await wiring.apply();
+    return wiring;
+  } catch (error) {
+    log.warn("window_geometry_degraded", { error: String(error) });
+    return null;
+  }
 }

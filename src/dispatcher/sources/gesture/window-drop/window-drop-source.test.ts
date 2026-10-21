@@ -2209,3 +2209,84 @@ describe("window-drop-source — host loss fall", () => {
     expect(onSitLost).not.toHaveBeenCalled();
   });
 });
+
+describe("window-drop-source — geometry save gating", () => {
+  const idleRenderer = {
+    getPerchProbe: vi.fn(() => ({ seatPx: { x: 40, y: 30 }, charHpx: 200 })),
+    isPerched: vi.fn(() => false),
+  };
+
+  it("awaits onReleased before onDragMiss, and only the dragged window saves", async () => {
+    const invoke = vi.fn(async () => []);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+    const order: string[] = [];
+    const onReleased = vi.fn(async () => {
+      order.push("released");
+    });
+    const onDragMiss = vi.fn(() => {
+      order.push("miss");
+    });
+
+    const source = createWindowDropSource({
+      bus,
+      renderer: idleRenderer,
+      invoke,
+      getWindow,
+      listen,
+      onReleased,
+      onDragMiss,
+      wasDragging: () => true,
+    });
+    await source.start();
+    fire({ point: { x: 123, y: 456 } });
+    await settleRelease();
+
+    expect(order).toEqual(["released", "miss"]);
+  });
+
+  it("does not save while the bed scene holds", async () => {
+    const invoke = vi.fn(async () => []);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+    const onReleased = vi.fn();
+
+    const source = createWindowDropSource({
+      bus,
+      renderer: idleRenderer,
+      invoke,
+      getWindow,
+      listen,
+      onReleased,
+      isHeld: () => true,
+      wasDragging: () => true,
+    });
+    await source.start();
+    fire({ point: { x: 123, y: 456 } });
+    await settleRelease();
+
+    expect(onReleased).not.toHaveBeenCalled();
+  });
+
+  it("does not save when this window was not dragging", async () => {
+    const invoke = vi.fn(async () => []);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+    const onReleased = vi.fn();
+
+    const source = createWindowDropSource({
+      bus,
+      renderer: idleRenderer,
+      invoke,
+      getWindow,
+      listen,
+      onReleased,
+      wasDragging: () => false,
+    });
+    await source.start();
+    fire({ point: { x: 123, y: 456 } });
+    await settleRelease();
+
+    expect(onReleased).not.toHaveBeenCalled();
+  });
+});

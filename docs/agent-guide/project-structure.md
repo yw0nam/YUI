@@ -410,6 +410,7 @@ YUI/
           keep-on-screen.ts            # Pushes a window back until its centre lands on a monitor
           travel-frame.ts              # Parks the real window once for a scale-seam crossing
           stationary-frame.ts          # Widens the real window around a character that stays where she is
+          tauri-frame-window.ts        # The real pet window as one FrameWindow seam, built once for the movers
           perch.ts                     # Perch values, perch-target and placement types, and the host-edge span shared by the drop source, avatar RPC and locomotion
           visible-viewport.ts          # Cached height of the pet window part above the work-area bottom
         openers/                       # Openers and placement of the message, settings, devtools, and pet windows, the first two bound to a pet window's preset

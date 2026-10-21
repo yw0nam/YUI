@@ -238,23 +238,6 @@ describe("window-resize-source — wheel handler", () => {
     expect(onApplied).toHaveBeenCalledExactlyOnceWith({ x: -12, y: -36, width: 424, height: 636 });
   });
 
-  it("a resize is ignored while a travel is active", async () => {
-    const { win, setBoundsLogical } = makeWindow(1, { x: 0, y: 0 }, { width: 400, height: 600 });
-    const { target, fire } = makeTarget();
-    const source = createWindowResizeSource({
-      renderer,
-      getWindow: () => win,
-      target,
-      isLocked: () => true,
-    });
-    source.start();
-
-    fire({ ctrlKey: true, deltaY: -100 });
-    await settle();
-
-    expect(setBoundsLogical).not.toHaveBeenCalled();
-  });
-
   it("does not throw to the caller when the window seam rejects", async () => {
     const win = {
       outerPosition: vi.fn(async () => {

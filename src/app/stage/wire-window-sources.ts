@@ -16,6 +16,7 @@ import {
   type KeepOnScreenHandle,
 } from "../../io/window/geometry/keep-on-screen";
 import { toScreenMonitor } from "../../io/window/geometry/screen-geometry";
+import { wasWindowDragging } from "../../io/window/pet/gesture/window-drag";
 import { createWindowResizeSource } from "../../io/window/pet/window-resize-source";
 import type { Logger } from "../../logger";
 import type { Renderer } from "../../renderer";
@@ -61,7 +62,7 @@ export function wireWindowSources(deps: {
   /** The applied Ctrl+wheel resize bounds — the window-geometry store's record. */
   onResizeApplied?: (bounds: { x: number; y: number; width: number; height: number }) => void;
   /** The OS drag release settled — the window-geometry store saves the position. */
-  onDragReleased?: () => void;
+  onDragReleased?: () => Promise<void>;
   /** True while a travel parks the window — a resize then reads the parked bounding box. */
   isTravelActive?: () => boolean;
   log: Logger;
@@ -161,6 +162,7 @@ export function wireWindowSources(deps: {
       getGestureCues,
       onDragMiss: deps.onDragMiss,
       onReleased: deps.onDragReleased,
+      wasDragging: wasWindowDragging,
       onSitLost: deps.onSitLost,
       sitDown: deps.sitDown,
       isHeld: deps.isHeld,

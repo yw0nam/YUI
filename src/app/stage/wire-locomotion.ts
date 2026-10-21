@@ -66,7 +66,7 @@ export function wireLocomotion(deps: {
   /** The window-geometry wiring, once boot has applied the saved record; absent outside Tauri. */
   windowGeometry?: {
     onResizeApplied(bounds: { x: number; y: number; width: number; height: number }): void;
-    onDragReleased(): void;
+    onDragReleased(): Promise<void>;
   };
   register: (teardown: () => void) => void;
   log: Logger;
@@ -202,7 +202,9 @@ export function wireLocomotion(deps: {
     isHeld,
     bed: deps.bed,
     onResizeApplied: (bounds) => deps.windowGeometry?.onResizeApplied(bounds),
-    onDragReleased: () => deps.windowGeometry?.onDragReleased(),
+    onDragReleased: async () => {
+      await deps.windowGeometry?.onDragReleased();
+    },
     isTravelActive: () => travelFrame.travel.current() !== null,
     log,
   });

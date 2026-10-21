@@ -73,6 +73,7 @@ describe("createWindowGeometry", () => {
     const wiring = createWindowGeometry({
       store: createWindowGeometrySettings({ storage }),
       frame,
+      listMonitors: async () => [],
     });
     await wiring.onDragReleased();
     expect(storage.load()).toEqual({ x: 10, y: 20 });
@@ -84,6 +85,7 @@ describe("createWindowGeometry", () => {
     const wiring = createWindowGeometry({
       store: createWindowGeometrySettings({ storage }),
       frame,
+      listMonitors: async () => [],
     });
     wiring.onResizeApplied({ x: 50, y: 60, width: 424, height: 636 });
     expect(storage.load()).toEqual({ x: 50, y: 60, width: 424, height: 636 });
@@ -107,6 +109,7 @@ describe("createWindowGeometry", () => {
     const wiring = createWindowGeometry({
       store: createWindowGeometrySettings({ storage }),
       frame,
+      listMonitors: async () => [],
     });
     let pageSizeAtResolve = "";
     const done = wiring.apply().then(() => {
@@ -116,7 +119,7 @@ describe("createWindowGeometry", () => {
     expect(pageSizeAtResolve).toBe("500x700");
   });
 
-  it("a stored position outside every monitor is clamped into the monitor work area before applying", async () => {
+  it("a stored rect whose centre is on a monitor is clamped into its work area", async () => {
     const storage = memoryStorage();
     storage.save({ x: 880, y: 400, width: 200, height: 90 });
     const { frame } = fakeFrame();
