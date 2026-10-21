@@ -195,6 +195,12 @@ $(cat)" ;;
 esac
 "#;
 
+    /// A CLI that fills its stderr pipe before it reads stdin.
+    const CHATTY_BIN: &str = r#"#!/bin/sh
+head -c 262144 /dev/zero | tr '\0' x >&2
+cat >/dev/null
+"#;
+
     /// A fake `ego-browser` in one temp folder shared by test runs: `skill` prints the guide, `nodejs` execs node.
     fn fake_ego() -> PathBuf {
         static BIN: OnceLock<PathBuf> = OnceLock::new();
@@ -212,6 +218,7 @@ esac
                 ("prelude.mjs", FAKE_PRELUDE, 0o644),
                 ("guide.txt", FAKE_GUIDE, 0o644),
                 ("ego-browser", FAKE_BIN, 0o755),
+                ("chatty-ego-browser", CHATTY_BIN, 0o755),
             ] {
                 let staged = dir.join(format!("{name}.{}", std::process::id()));
                 std::fs::write(&staged, content).unwrap();
@@ -273,6 +280,19 @@ esac
         assert_eq!(out.exit_code, Some(124));
         assert!(out.deadline);
         assert!(!out.killed);
+    }
+
+    #[tokio::test]
+    async fn run_finishes_when_the_cli_writes_much_before_reading_a_long_script() {
+        let chatty = fake_ego().with_file_name("chatty-ego-browser");
+        let code = "x".repeat(262_144);
+        let out = Relay::new()
+            .run(&chatty, "yui-a", &code, limits())
+            .await
+            .unwrap();
+        assert!(!out.killed);
+        assert_eq!(out.exit_code, Some(0));
+        assert_eq!(out.output.len(), 262_144);
     }
 
     #[tokio::test]
