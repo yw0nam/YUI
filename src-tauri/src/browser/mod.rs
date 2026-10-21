@@ -6,8 +6,10 @@ mod keys;
 mod lifecycle;
 mod outcome;
 mod relay;
+mod script;
 mod session;
 mod shell;
+mod shots;
 mod snapshot;
 
 pub use shell::BrowserShell;

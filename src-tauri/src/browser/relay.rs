@@ -1,3 +1,100 @@
+//! Runs a script in an ego lite task space through the installed `ego-browser` CLI.
+
+use super::{script, shots};
+use serde::Serialize;
+use std::path::Path;
+use std::process::Stdio;
+use std::time::Duration;
+use tokio::io::AsyncWriteExt;
+use tokio::process::Command;
+
+pub const NOT_FOUND: &str = "ego lite not found: install ego lite and run it once";
+
+#[derive(Debug, Clone, Copy)]
+pub struct Limits {
+    /// The script stops itself after this long.
+    pub deadline_ms: u64,
+    /// The CLI is killed after this long when the script did not stop itself.
+    pub kill_after: Duration,
+    pub image_cap: usize,
+    pub long_edge: u32,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunOutcome {
+    /// The CLI's stderr, where ego prints the script's logs.
+    pub output: String,
+    pub exit_code: Option<i32>,
+    pub killed: bool,
+    pub images: Vec<String>,
+    pub dropped: u32,
+    pub unreadable: Vec<String>,
+}
+
+#[derive(Default)]
+pub struct Relay {}
+
+impl Relay {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub async fn run(
+        &self,
+        bin: &Path,
+        space: &str,
+        code: &str,
+        limits: Limits,
+    ) -> Result<RunOutcome, String> {
+        let dir = shots::create().map_err(|e| format!("screenshot folder failed: {e}"))?;
+        let result = spawn_script(bin, space, &dir, code, limits).await;
+        shots::remove(&dir);
+        let output = result?;
+        Ok(RunOutcome {
+            output: String::from_utf8_lossy(&output.stderr).into_owned(),
+            exit_code: output.status.code(),
+            killed: false,
+            images: Vec::new(),
+            dropped: 0,
+            unreadable: Vec::new(),
+        })
+    }
+}
+
+async fn spawn_script(
+    bin: &Path,
+    space: &str,
+    dir: &Path,
+    code: &str,
+    limits: Limits,
+) -> Result<std::process::Output, String> {
+    let mut child = Command::new(bin)
+        .arg("nodejs")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()
+        .map_err(spawn_error)?;
+    if let Some(mut stdin) = child.stdin.take() {
+        let script = script::build_script(space, dir, code, limits.deadline_ms);
+        // A CLI that exits before reading stdin still reports through its exit and stderr.
+        if let Err(e) = stdin.write_all(script.as_bytes()).await {
+            log::warn!("browser_stdin_failed error={e}");
+        }
+    }
+    child.wait_with_output().await.map_err(|e| e.to_string())
+}
+
+fn spawn_error(e: std::io::Error) -> String {
+    if e.kind() == std::io::ErrorKind::NotFound {
+        NOT_FOUND.to_string()
+    } else {
+        format!("ego-browser failed to start: {e}")
+    }
+}
+
 #[cfg(all(test, unix))]
 mod tests {
     use super::*;

@@ -47,7 +47,7 @@ xcap = "0.4.1"
 # The `browser` tool drives a dedicated Chrome over CDP.
 chromiumoxide = "0.9.1"
 futures = "0.3"
-tokio = { version = "1", features = ["macros", "process", "rt-multi-thread", "sync", "time"] }
+tokio = { version = "1", features = ["io-util", "macros", "process", "rt-multi-thread", "sync", "time"] }
 tokio-util = "0.7"
 url = "2"
 
