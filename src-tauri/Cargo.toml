@@ -40,7 +40,7 @@ tauri-plugin-wdio-webdriver = { version = "1.5.0", optional = true }
 # Embedded WebDriver server on 127.0.0.1:4445 for the verify bundle.
 verify = ["dep:tauri-plugin-wdio-webdriver"]
 
-# Desktop-only crates: neither has an Android/iOS implementation.
+# Desktop-only crates: none has an Android/iOS implementation.
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-window-state = "2"

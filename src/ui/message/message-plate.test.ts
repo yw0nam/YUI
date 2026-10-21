@@ -22,7 +22,7 @@ describe("createMessagePlate", () => {
     document.body.appendChild(mount);
     onDock = vi.fn<() => void>();
     startDragging = vi.fn<() => void>();
-    plate = createMessagePlate({ mount, name: "YUI", onDock, startDragging });
+    plate = createMessagePlate({ mount, onDock, startDragging });
   });
 
   afterEach(() => {
@@ -41,9 +41,11 @@ describe("createMessagePlate", () => {
     expect(dock().getAttribute("aria-label")).toBeTruthy();
   });
 
-  it("renders the name option, and setName changes the text", () => {
-    const named = createMessagePlate({ mount, name: "YUI", onDock, startDragging });
-    const nameEl = mount.querySelector(".yui-plate__name") as HTMLElement;
+  it("shows YUI before setName and the set name after", () => {
+    const fresh = document.createElement("div");
+    document.body.appendChild(fresh);
+    const named = createMessagePlate({ mount: fresh, onDock, startDragging });
+    const nameEl = fresh.querySelector(".yui-plate__name") as HTMLElement;
     expect(nameEl.textContent).toBe("YUI");
     named.setName("perlica");
     expect(nameEl.textContent).toBe("perlica");
@@ -145,7 +147,7 @@ describe("createMessagePlate without the window options", () => {
   const el = (): HTMLElement => mount.querySelector(".yui-plate") as HTMLElement;
 
   it("renders no dock button and no drag handle", () => {
-    createMessagePlate({ mount, name: "YUI" });
+    createMessagePlate({ mount });
     expect(mount.querySelector(".yui-plate__dock")).toBeNull();
     expect(el().hasAttribute("data-draggable")).toBe(false);
   });

@@ -22,15 +22,11 @@ describe("presetNameFor", () => {
     ],
   };
 
-  it("returns the bound entry's name", () => {
-    expect(presetNameFor(state, "bbbb0002")).toBe("Beta");
-  });
-
-  it("returns the active entry's name when nothing is bound", () => {
-    expect(presetNameFor(state, null)).toBe("Alpha");
-  });
-
-  it("returns the id when the bound id is missing from the list", () => {
-    expect(presetNameFor(state, "cccc0003")).toBe("cccc0003");
+  it.each([
+    ["returns the bound entry's name", "bbbb0002", "Beta"],
+    ["returns the active entry's name when nothing is bound", null, "Alpha"],
+    ["returns the id when the bound id is missing from the list", "cccc0003", "cccc0003"],
+  ])("%s", (_name, boundId, expected) => {
+    expect(presetNameFor(state, boundId)).toBe(expected);
   });
 });

@@ -11,7 +11,7 @@ import "./message-plate.css";
 
 export interface MessagePlate {
   readonly el: HTMLElement;
-  /** The name the plate carries — the preset's, kept current by the plate-name wiring. */
+  /** Sets the name the plate shows. */
   setName(name: string): void;
   /** Speech streams — "responding" while set, outranking busy. */
   setLive(live: boolean): void;
@@ -24,8 +24,6 @@ export interface MessagePlate {
 
 interface MessagePlateOptions {
   mount: HTMLElement;
-  /** The name the plate carries — the preset's for a character window, "YUI" on the phone. */
-  name: string;
   /** Docks the surfaces back into the character window; without it the dock button is absent. */
   onDock?: () => void;
   /** Starts the OS window drag; without it the plate is not a grab target. */
@@ -34,7 +32,6 @@ interface MessagePlateOptions {
 
 export function createMessagePlate({
   mount,
-  name,
   onDock,
   startDragging,
 }: MessagePlateOptions): MessagePlate {
@@ -42,7 +39,7 @@ export function createMessagePlate({
   el.className = "yui-plate";
   el.innerHTML = `
     <span class="yui-plate__dot" aria-hidden="true"></span>
-    <span class="yui-plate__name"></span>
+    <span class="yui-plate__name">YUI</span>
     <span class="yui-plate__state"></span>
     ${
       onDock
@@ -59,7 +56,6 @@ export function createMessagePlate({
   mount.prepend(el);
 
   const nameEl = el.querySelector<HTMLSpanElement>(".yui-plate__name")!;
-  nameEl.textContent = name;
   const dockBtn = el.querySelector<HTMLButtonElement>(".yui-plate__dock");
   const stateEl = el.querySelector<HTMLSpanElement>(".yui-plate__state")!;
   if (startDragging) el.dataset.draggable = "";

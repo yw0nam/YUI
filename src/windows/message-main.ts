@@ -31,7 +31,6 @@ import {
   localStorageMessageWindowStorage,
 } from "../settings/panels/message-window-settings";
 import { createFlagSettings, localStorageStore } from "../settings/persisted-store";
-import { presetNameFor } from "../settings/preset/active-preset";
 import { isTauri } from "../tauri-env";
 import { createDelegationChip } from "../ui/chips/delegation-chip";
 import { reloadFromStorage as reloadLocale } from "../ui/i18n";
@@ -96,7 +95,6 @@ async function bootstrap(): Promise<void> {
   surfaces.el.prepend(plateRow);
   const plate = createMessagePlate({
     mount: plateRow,
-    name: presetNameFor(presetRegistry.get(), boundId),
     onDock: () => bridge.emitControl({ op: "dock" }),
     startDragging: () => void startDragging(),
   });

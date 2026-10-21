@@ -85,7 +85,7 @@ interface TtsProvider {
   isReady(): boolean;
 }
 
-// Deadline so a hung request settles instead of stalling the turn's ordered playback forever. 30 s: a serial TTS server shared by three pet windows still answers inside it.
+// 30 s: queued synths on a serial TTS server shared by pet windows answer within it.
 export const TTS_SYNTH_TIMEOUT_MS = 30_000;
 
 interface TtsSynthOptions {
