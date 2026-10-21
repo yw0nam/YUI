@@ -65,7 +65,7 @@ describe("createBrowserSection", () => {
     const screenshotSec = root.querySelector(".yui-screenshot-switch")?.closest(".yui-sec");
     expect(screenshotSec?.nextElementSibling).toBe(sec);
     expect(sec?.querySelector(".yui-sec__foot")?.textContent).toBe(
-      "She can use any account you sign into in the dedicated Chrome. Page content she reads is sent to the connected backend.",
+      "There is no sandbox: a script can read your files, run programs, and reach every site signed in on ego lite's YUI profile.",
     );
   });
 
