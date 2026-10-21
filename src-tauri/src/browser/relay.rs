@@ -219,10 +219,11 @@ esac
         .clone()
     }
 
+    /// Short deadline; a backstop that only the backstop test reaches, even on a loaded machine.
     fn limits() -> Limits {
         Limits {
             deadline_ms: 300,
-            kill_after: Duration::from_millis(1500),
+            kill_after: Duration::from_secs(20),
             image_cap: 4,
             long_edge: 1280,
         }
@@ -270,16 +271,20 @@ esac
 
     #[tokio::test]
     async fn run_kills_a_script_that_never_yields_to_its_deadline() {
+        let limits = Limits {
+            kill_after: Duration::from_millis(1500),
+            ..limits()
+        };
         let started = std::time::Instant::now();
         let out = tokio::time::timeout(
-            limits().kill_after + Duration::from_secs(1),
-            Relay::new().run(&fake_ego(), "yui-a", "while (true) {}", limits()),
+            limits.kill_after + Duration::from_secs(1),
+            Relay::new().run(&fake_ego(), "yui-a", "while (true) {}", limits),
         )
         .await
         .expect("run returns within kill_after + 1 s")
         .unwrap();
         assert!(out.killed);
-        assert!(started.elapsed() < limits().kill_after + Duration::from_secs(1));
+        assert!(started.elapsed() < limits.kill_after + Duration::from_secs(1));
     }
 
     /// The shot folder a run logged as `shot <path>`.
@@ -341,7 +346,6 @@ console.log("end " + Date.now());"#;
         let bin = fake_ego();
         let limits = Limits {
             deadline_ms: 5000,
-            kill_after: Duration::from_secs(8),
             ..limits()
         };
         let (a, b) = tokio::join!(
@@ -366,7 +370,7 @@ console.log("end " + Date.now());"#;
     #[tokio::test]
     async fn guide_returns_the_cli_skill_text() {
         let guide = Relay::new()
-            .guide(&fake_ego(), Duration::from_millis(1500))
+            .guide(&fake_ego(), limits().kill_after)
             .await
             .unwrap();
         assert_eq!(guide, "fake ego-browser guide\nline two\n");
