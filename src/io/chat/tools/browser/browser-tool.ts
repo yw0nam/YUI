@@ -8,8 +8,7 @@
 
 import type { BrowserRelay } from "../../../browser/browser-relay";
 import type { ClientTool } from "../client-tools";
-
-const UNKNOWN = "unknown: the script may still be running in ego lite; inspect before retrying";
+import { formatRunOutcome, UNKNOWN } from "./run-result";
 
 const DESCRIPTION =
   "Run JavaScript against the ego lite browser SDK in this character's own task space of the " +
@@ -63,8 +62,7 @@ export function createBrowserTool(deps: {
         return deps.relay.guide();
       }
       if (typeof code !== "string" || code === "") return "error: missing field code";
-      const outcome = await deps.relay.run(`yui-${deps.presetId()}`, code);
-      return outcome.output;
+      return formatRunOutcome(await deps.relay.run(`yui-${deps.presetId()}`, code));
     },
     // The relay kills the CLI at 28 s; the wait covers it and the image collection after it.
     waitMs: 32_000,
