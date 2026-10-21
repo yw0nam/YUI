@@ -129,7 +129,7 @@ YUI自体はモデルを内蔵していません。プロバイダーは **設�
 **開発する人向け**
 
 - [ビルド・実行・ログ](docs/agent-guide/build-run.md) · [プロジェクト構成](docs/agent-guide/project-structure.md) · [`CONTRIBUTING.md`](CONTRIBUTING.md)
-- [`AGENTS.md`](AGENTS.md)(コーディングエージェント向け) · [`CONTEXT.md`](CONTEXT.md)(用語集) · [バックエンド連携の仕様](docs/reference/client-context.md)
+- [`AGENTS.md`](AGENTS.md)(コーディングエージェント向け) · [`GLOSSARY.md`](GLOSSARY.md)(用語集) · [バックエンド連携の仕様](docs/reference/client-context.md)
 
 ## コミュニティ
 

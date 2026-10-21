@@ -125,7 +125,7 @@ The [connection guide](docs/guide/getting-started.md) covers each setup. Missing
 **Developing YUI**
 
 - [Build, run, and logs](docs/agent-guide/build-run.md) · [Project structure](docs/agent-guide/project-structure.md) · [`CONTRIBUTING.md`](CONTRIBUTING.md)
-- [`AGENTS.md`](AGENTS.md) for coding agents · [`CONTEXT.md`](CONTEXT.md) glossary · [Backend contract](docs/reference/client-context.md)
+- [`AGENTS.md`](AGENTS.md) for coding agents · [`GLOSSARY.md`](GLOSSARY.md) glossary · [Backend contract](docs/reference/client-context.md)
 
 ## Community
 

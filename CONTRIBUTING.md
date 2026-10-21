@@ -189,6 +189,25 @@ which lists it under **Removed** in the release notes.
   consumer; a transport's wiring only maps its own frames or stream events onto
   it.
 
+## Review checklist
+
+A review checks every diff against the rules above and against these traps:
+
+- **Value completeness.** A diff that adds an emotion or motion id, an event
+  name, a status, or a type constant reaches every consumer of that value:
+  the dispatcher, the renderer, the config loaders, and
+  `src/contract/types.ts`. A value one switch, allowlist, or fallback does not
+  handle is a blocker.
+- **Backend output is untrusted.** `generate_express` arguments, speech text,
+  and STT results reach the renderer and TTS only after a shape and
+  vocabulary check. An unknown emotion or motion id takes a defined fallback.
+- **Races.** Async, poll, and teardown code is checked at the entry and the
+  exit of every state: a poll that fires after disarm, a waiter that never
+  settles, a thread that emits after release.
+- **One source for the contract.** Consumers compile against
+  `src/contract/types.ts`. `configs/motions.json` and
+  `docs/reference/motions.md` change together.
+
 ## Finding your way
 
 Why is the code the way it is? Start with `git blame <file>`; when blame lands
@@ -226,7 +245,8 @@ an accepted idea becomes a `help wanted` issue.
   conventional-commit format; the `pr-title` CI job enforces it.
 - Fill the [PR template](.github/PULL_REQUEST_TEMPLATE.md) — Summary (with the
   why-this-value line for every new constant, threshold, or special-cased
-  status), related issues, Runtime evidence, and the verification checklist.
+  status), related issues, Runtime evidence, Merge danger, and the
+  verification checklist.
 
 ## Before you open a PR
 
