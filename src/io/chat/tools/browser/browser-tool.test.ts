@@ -17,6 +17,7 @@ function outcome(over: Partial<RunOutcome> = {}): RunOutcome {
     output: "hi\n",
     exitCode: 0,
     killed: false,
+    deadline: false,
     images: [],
     dropped: 0,
     unreadable: [],
@@ -102,11 +103,13 @@ describe("browser tool", () => {
     expect(t.failed?.(result as string)).toBe(true);
   });
 
-  it("names the 25 s stop when the script hit its deadline", async () => {
-    const output = "step 1\n[error] [yui] deadline\nexited with code 124\n";
-    const t = tool(relay({ run: vi.fn(async () => outcome({ output, exitCode: 1 })) }));
+  it("names the time-limit stop when the relay reports the deadline", async () => {
+    const output = "step 1\nexited with code 1\n";
+    const t = tool(
+      relay({ run: vi.fn(async () => outcome({ output, exitCode: 1, deadline: true })) }),
+    );
     await expect(t.execute({ code: "x" })).resolves.toBe(
-      `error: the script was stopped at 25 s\n${UNTRUSTED}\nstep 1\n[error] [yui] deadline\nexited with code 124`,
+      `error: the script was stopped at its time limit\n${UNTRUSTED}\nstep 1\nexited with code 1`,
     );
   });
 
