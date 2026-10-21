@@ -362,10 +362,11 @@ const en: Record<string, string> = {
     "Off by default. Turn on to let her look at your screen on request.",
   "browser.label": "Allow browser use",
   "browser.sub_off":
-    "Off by default. Turn on to let her open, click, and type on websites in a dedicated Chrome.",
-  "browser.sub_on": "While on, she can open, click, and type on websites in a dedicated Chrome.",
+    "Off by default. Turn on to let the backend run JavaScript on this computer through ego lite.",
+  "browser.sub_on":
+    "While on, the backend runs JavaScript on this computer through ego lite, with your rights.",
   "browser.foot":
-    "She can use any account you sign into in the dedicated Chrome. Page content she reads is sent to the connected backend.",
+    "There is no sandbox: a script can read your files, run programs, and reach every site signed in on ego lite's YUI profile.",
 
   // voice input
   "voice_input.label": "Voice input",

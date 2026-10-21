@@ -360,10 +360,11 @@ const ko: Record<string, string> = {
   "screenshot.request_foot_off": "기본은 꺼져 있어요. 켜면 유이가 요청할 때 화면을 보여줘요.",
   "browser.label": "브라우저 사용 허용",
   "browser.sub_off":
-    "기본은 꺼져 있어요. 켜면 유이가 전용 Chrome에서 웹사이트를 열고, 누르고, 입력해요.",
-  "browser.sub_on": "켜져 있는 동안 유이가 전용 Chrome에서 웹사이트를 열고, 누르고, 입력해요.",
+    "기본은 꺼져 있어요. 켜면 백엔드가 ego lite를 통해 이 컴퓨터에서 JavaScript를 실행해요.",
+  "browser.sub_on":
+    "켜져 있는 동안 백엔드가 ego lite를 통해 이 컴퓨터에서 내 권한으로 JavaScript를 실행해요.",
   "browser.foot":
-    "전용 Chrome에 로그인한 계정은 유이도 쓸 수 있어요. 읽은 페이지 내용은 연결된 백엔드로 보내져요.",
+    "샌드박스는 없어요. 스크립트가 파일을 읽고 프로그램을 실행할 수 있고, ego lite의 YUI 프로필에 로그인된 모든 사이트에 접근할 수 있어요.",
 
   // voice input
   "voice_input.label": "음성 입력",
