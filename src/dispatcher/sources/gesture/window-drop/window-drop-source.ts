@@ -83,6 +83,8 @@ export interface WindowDropSourceDeps {
   getGestureCues: () => GestureCuesConfig;
   /** A drag release that neither sat nor peeked — the character is left mid-air. */
   onDragMiss?: () => void;
+  /** The OS drag release settled — the window-geometry store saves the position. */
+  onReleased?: () => void;
   /** An armed sit lost its host — the seat is gone and the character hangs where it was. */
   onSitLost?: () => void;
   /** Play the sit-down where she is. "lost" means a pickup took her before it landed. */
@@ -417,7 +419,9 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
         unlisten = await listen(RELEASE_EVENT, () => {
           if (deps.isHeld?.()) return;
           void settle()
-            .then((outcome) => {
+            .then(async (outcome) => {
+              // The release point is the user's placement; a miss-fall starts after the save.
+              await deps.onReleased?.();
               if (outcome.kind === "none") deps.onDragMiss?.();
             })
             .catch((err) =>

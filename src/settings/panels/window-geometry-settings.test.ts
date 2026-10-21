@@ -15,9 +15,9 @@ function memoryStorage() {
 }
 
 describe("createWindowGeometrySettings", () => {
-  it("setSize then setPosition merge into one record", () => {
+  it("setBounds then setPosition merge into one record", () => {
     const store = createWindowGeometrySettings({ storage: memoryStorage() });
-    store.setSize({ width: 400, height: 600 });
+    store.setBounds({ x: 0, y: 0, width: 400, height: 600 });
     store.setPosition({ x: 30, y: 50 });
     expect(store.get()).toEqual({ x: 30, y: 50, width: 400, height: 600 });
   });

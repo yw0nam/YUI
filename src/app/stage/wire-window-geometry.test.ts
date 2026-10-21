@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ScreenMonitor } from "../../io/window/geometry/screen-geometry";
 import type { FrameWindow } from "../../io/window/geometry/travel-frame";
 import {
   createWindowGeometrySettings,
@@ -38,6 +39,14 @@ function fakeFrame() {
 }
 
 describe("createWindowGeometry", () => {
+  /** One wide monitor at scale 2 — logical bounds 2000×2000, work area included. */
+  const bigMonitor: ScreenMonitor = {
+    position: { x: 0, y: 0 },
+    size: { width: 4000, height: 4000 },
+    workArea: { position: { x: 0, y: 0 }, size: { width: 4000, height: 4000 } },
+    scaleFactor: 2,
+  };
+
   beforeEach(() => {
     vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
       cb(0);
@@ -52,6 +61,7 @@ describe("createWindowGeometry", () => {
     const wiring = createWindowGeometry({
       store: createWindowGeometrySettings({ storage }),
       frame,
+      listMonitors: async () => [bigMonitor],
     });
     await wiring.apply();
     expect(frame.setFrameLogical).toHaveBeenCalledExactlyOnceWith(11, 22, 500, 700);

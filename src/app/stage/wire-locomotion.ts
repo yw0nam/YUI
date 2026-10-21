@@ -65,8 +65,8 @@ export function wireLocomotion(deps: {
   onStrollEnd: (bodyReleased: boolean) => void;
   /** The window-geometry wiring, once boot has applied the saved record; absent outside Tauri. */
   windowGeometry?: {
-    onResizeApplied(size: { width: number; height: number }): void;
-    onLand(): void;
+    onResizeApplied(bounds: { x: number; y: number; width: number; height: number }): void;
+    onDragReleased(): void;
   };
   register: (teardown: () => void) => void;
   log: Logger;
@@ -168,7 +168,6 @@ export function wireLocomotion(deps: {
     getGestureCues: () => getConfig().avatar.gesture_cues,
     setHitTestMoving: (moving) => hitTest.setMoving(moving),
     onWindowLand: (target) => percherRef?.landOn(target),
-    onWindowGeometry: () => void deps.windowGeometry?.onLand(),
     log,
   });
   register(faller.dispose);
@@ -202,7 +201,9 @@ export function wireLocomotion(deps: {
     sitDown: () => sitter.sitDown(null),
     isHeld,
     bed: deps.bed,
-    onResizeApplied: (size) => deps.windowGeometry?.onResizeApplied(size),
+    onResizeApplied: (bounds) => deps.windowGeometry?.onResizeApplied(bounds),
+    onDragReleased: () => deps.windowGeometry?.onDragReleased(),
+    isTravelActive: () => travelFrame.travel.current() !== null,
     log,
   });
   windowSourcesRef = windowSources;

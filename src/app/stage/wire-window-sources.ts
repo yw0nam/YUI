@@ -58,8 +58,12 @@ export function wireWindowSources(deps: {
   isHeld: () => boolean;
   /** The bed the avatar commands lay her on. */
   bed: AvatarBed;
-  /** The applied Ctrl+wheel resize size — the window-geometry store's size half. */
-  onResizeApplied?: (size: { width: number; height: number }) => void;
+  /** The applied Ctrl+wheel resize bounds — the window-geometry store's record. */
+  onResizeApplied?: (bounds: { x: number; y: number; width: number; height: number }) => void;
+  /** The OS drag release settled — the window-geometry store saves the position. */
+  onDragReleased?: () => void;
+  /** True while a travel parks the window — a resize then reads the parked bounding box. */
+  isTravelActive?: () => boolean;
   log: Logger;
 }): Pick<
   WindowDropSource,
@@ -156,6 +160,7 @@ export function wireWindowSources(deps: {
       getPeekConfig,
       getGestureCues,
       onDragMiss: deps.onDragMiss,
+      onReleased: deps.onDragReleased,
       onSitLost: deps.onSitLost,
       sitDown: deps.sitDown,
       isHeld: deps.isHeld,
@@ -174,7 +179,7 @@ export function wireWindowSources(deps: {
           },
         };
       },
-      isLocked: deps.isHeld,
+      isLocked: () => deps.isHeld() || (deps.isTravelActive?.() ?? false),
       onApplied: deps.onResizeApplied,
     });
     // Avatar RPC: the loopback ingress bridges `/avatar/*` here, where the state

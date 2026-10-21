@@ -227,12 +227,8 @@ describe("window-resize-source — wheel handler", () => {
   it("the applied bounds reach onApplied", async () => {
     const { win } = makeWindow(1, { x: 0, y: 0 }, { width: 400, height: 600 });
     const { target, fire } = makeTarget();
-    const onApplied = vi.fn<(bounds: {
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-    }) => void>();
+    const onApplied =
+      vi.fn<(bounds: { x: number; y: number; width: number; height: number }) => void>();
     const source = createWindowResizeSource({ renderer, getWindow: () => win, target, onApplied });
     source.start();
 

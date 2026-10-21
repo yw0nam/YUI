@@ -49,8 +49,14 @@ export function createWindowGeometrySettings(opts?: {
 
   return {
     get: core.get,
-    setSize: (size: { width: number; height: number }): void =>
-      core.commit({ ...core.current(), width: size.width, height: size.height }),
+    setBounds: (bounds: { x: number; y: number; width: number; height: number }): void =>
+      core.commit({
+        ...core.current(),
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width,
+        height: bounds.height,
+      }),
     setPosition: (pos: { x: number; y: number }): void =>
       core.commit({ ...core.current(), x: pos.x, y: pos.y }),
     dispose: core.dispose,

@@ -2408,7 +2408,7 @@ globalThis.YUI_MAP =
       "id": "window-geometry",
       "from": "app/stage",
       "to": "settings",
-      "carries": "yui.window.<label> {x,y,width,height}: written after a Ctrl+wheel resize and after a drag lands; applied once at boot before the faller places the window and the bed scene parks it",
+      "carries": "yui.window.<label> {x,y,width,height}: written after the OS drag ends and after a Ctrl+wheel resize; applied once at boot, clamped on screen, before the faller places the window and the bed scene parks it",
       "kind": "storage",
       "transport": "shared",
       "wiring": "src/app/stage/wire-window-geometry.ts"
