@@ -174,7 +174,17 @@ globalThis.taskSpace = async (name) => ({
 
     const FAKE_GUIDE: &str = "fake ego-browser guide\nline two\n";
 
-    /// A fake `ego-browser` written once per test process: `skill` prints the guide, `nodejs` execs node.
+    const FAKE_BIN: &str = r#"#!/bin/sh
+dir=$(dirname "$0")
+case "$1" in
+  skill) cat "$dir/guide.txt" ;;
+  nodejs) exec node --input-type=module -e "$(cat "$dir/prelude.mjs")
+$(cat)" ;;
+  *) exit 2 ;;
+esac
+"#;
+
+    /// A fake `ego-browser` in one temp folder shared by test runs: `skill` prints the guide, `nodejs` execs node.
     fn fake_ego() -> PathBuf {
         static BIN: OnceLock<PathBuf> = OnceLock::new();
         BIN.get_or_init(|| {
@@ -184,26 +194,20 @@ globalThis.taskSpace = async (name) => ({
                 node.is_ok_and(|o| o.status.success()),
                 "node is required on PATH for the fake ego-browser tests"
             );
-            let dir = std::env::temp_dir().join(format!("yui-fake-ego-{}", std::process::id()));
+            let dir = std::env::temp_dir().join("yui-fake-ego");
             std::fs::create_dir_all(&dir).unwrap();
-            std::fs::write(dir.join("prelude.mjs"), FAKE_PRELUDE).unwrap();
-            std::fs::write(dir.join("guide.txt"), FAKE_GUIDE).unwrap();
-            let bin = dir.join("ego-browser");
-            std::fs::write(
-                &bin,
-                r#"#!/bin/sh
-dir=$(dirname "$0")
-case "$1" in
-  skill) cat "$dir/guide.txt" ;;
-  nodejs) exec node --input-type=module -e "$(cat "$dir/prelude.mjs")
-$(cat)" ;;
-  *) exit 2 ;;
-esac
-"#,
-            )
-            .unwrap();
-            std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
-            bin
+            // Write then rename, so a concurrent test run never executes a half-written file.
+            for (name, content, mode) in [
+                ("prelude.mjs", FAKE_PRELUDE, 0o644),
+                ("guide.txt", FAKE_GUIDE, 0o644),
+                ("ego-browser", FAKE_BIN, 0o755),
+            ] {
+                let staged = dir.join(format!("{name}.{}", std::process::id()));
+                std::fs::write(&staged, content).unwrap();
+                std::fs::set_permissions(&staged, std::fs::Permissions::from_mode(mode)).unwrap();
+                std::fs::rename(&staged, dir.join(name)).unwrap();
+            }
+            dir.join("ego-browser")
         })
         .clone()
     }
