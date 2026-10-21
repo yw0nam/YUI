@@ -2405,6 +2405,14 @@ globalThis.YUI_MAP =
       "transport": "shared"
     },
     {
+      "id": "window-state",
+      "from": "shell/core",
+      "to": "io/window/openers",
+      "carries": "window-state: size and position of main and pet-<id> restored when the window is ready, cached on Moved and Resized, written to .window-state.json at exit",
+      "kind": "call",
+      "transport": "shared"
+    },
+    {
       "id": "settings-camera",
       "from": "settings",
       "to": "renderer/camera",
