@@ -330,6 +330,15 @@ console.log("end " + Date.now());"#;
     }
 
     #[tokio::test]
+    async fn guide_returns_the_cli_skill_text() {
+        let guide = Relay::new()
+            .guide(&fake_ego(), Duration::from_millis(1500))
+            .await
+            .unwrap();
+        assert_eq!(guide, "fake ego-browser guide\nline two\n");
+    }
+
+    #[tokio::test]
     async fn run_answers_not_found_for_a_missing_binary() {
         let missing = std::env::temp_dir().join("yui-no-such-dir/ego-browser");
         let err = Relay::new()
