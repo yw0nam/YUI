@@ -395,6 +395,11 @@ const ko: Record<string, string> = {
   "tts_output.sub": "TTS로 답변을 읽어줘요. 끄면 텍스트만 표시해요",
   "tts_output.aria": "음성 출력",
 
+  // One voice at a time across pet windows
+  "one_voice.label": "한 번에 한 명만 말하기",
+  "one_voice.sub": "다른 캐릭터가 말을 마칠 때까지 기다렸다가 말해요",
+  "one_voice.aria": "한 번에 한 명만 말하기",
+
   // cue lists (input tab)
   "cue.schedule_title": "시간대 인사",
   "cue.schedule_sub": "정한 시각에 자리에 있으면 먼저 말을 걸어요",

@@ -33,6 +33,7 @@ type FillerSettingsStore = ReturnType<typeof createFillerSettings>;
 interface SwitchRowOptions {
   idleThrottleSettings: FlagSettingsStore;
   ttsSettings?: FlagSettingsStore;
+  oneVoiceSettings?: FlagSettingsStore;
   vad: VadSettingsStore;
   gazeSettings?: FlagSettingsStore;
   climbSettings?: FlagSettingsStore;
@@ -67,6 +68,7 @@ export function createBubblePersistRow(bubblePersistSettings?: FlagSettingsStore
 export function createSwitchRows({
   idleThrottleSettings,
   ttsSettings,
+  oneVoiceSettings,
   vad,
   gazeSettings,
   climbSettings,
@@ -127,6 +129,20 @@ export function createSwitchRows({
       setEnabled: (v) => ttsSettings!.setEnabled(v),
       logKey: "tts_output_toggle",
       subscribe: ttsSettings ? (cb) => ttsSettings.subscribe(cb) : undefined,
+    },
+    {
+      selector: ".yui-one-voice-switch",
+      labelKey: "one_voice.label",
+      subKey: "one_voice.sub",
+      ariaKey: "one_voice.aria",
+      tab: "input",
+      isVisible: !!oneVoiceSettings,
+      isAvailable: !!oneVoiceSettings,
+      initialEnabled: oneVoiceSettings?.get().enabled ?? true,
+      getEnabled: () => oneVoiceSettings!.get().enabled,
+      setEnabled: (v) => oneVoiceSettings!.setEnabled(v),
+      logKey: "one_voice_toggle",
+      subscribe: oneVoiceSettings ? (cb) => oneVoiceSettings.subscribe(cb) : undefined,
     },
     {
       selector: ".yui-bargein-switch",

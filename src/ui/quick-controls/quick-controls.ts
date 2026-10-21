@@ -197,6 +197,8 @@ interface QuickControlsOptions {
   fillerSettings?: FillerSettingsStore;
   /** TTS speech output on/off store. */
   ttsSettings?: FlagSettingsStore;
+  /** One-voice-at-a-time store. If absent, that toggle row won't render. */
+  oneVoiceSettings?: FlagSettingsStore;
   /** Cursor gaze (eye contact) on/off store. If absent, that toggle row won't render. */
   gazeSettings?: FlagSettingsStore;
   /** Ambient window-climbing on/off store. If absent, that toggle row won't render. */
@@ -306,6 +308,7 @@ export function createQuickControls({
   transcript,
   fillerSettings,
   ttsSettings,
+  oneVoiceSettings,
   gazeSettings,
   climbSettings,
   fallSettings,
@@ -348,6 +351,7 @@ export function createQuickControls({
   const TOGGLE_SPECS = createSwitchRows({
     idleThrottleSettings,
     ttsSettings,
+    oneVoiceSettings,
     vad,
     gazeSettings,
     climbSettings,

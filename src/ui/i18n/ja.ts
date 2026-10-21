@@ -399,6 +399,11 @@ const ja: Record<string, string> = {
   "tts_output.sub": "TTS で返答を読み上げます。オフにするとテキストのみ表示します",
   "tts_output.aria": "音声出力",
 
+  // One voice at a time across pet windows
+  "one_voice.label": "同時に話すのは一人だけ",
+  "one_voice.sub": "ほかのキャラクターが話し終わるまで待ちます",
+  "one_voice.aria": "同時に話すのは一人だけ",
+
   // cue lists (input tab)
   "cue.schedule_title": "時間帯のあいさつ",
   "cue.schedule_sub": "決めた時刻に席にいると、先に話しかけます",

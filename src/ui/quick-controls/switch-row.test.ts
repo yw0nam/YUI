@@ -14,6 +14,7 @@ function makeSwitchRows(): SwitchRow[] {
   return createSwitchRows({
     idleThrottleSettings: createFlagSettings(true),
     ttsSettings: createFlagSettings(false),
+    oneVoiceSettings: createFlagSettings(true),
     vad: createVadSettings(),
     gazeSettings: createFlagSettings(true),
     climbSettings: createFlagSettings(true),
