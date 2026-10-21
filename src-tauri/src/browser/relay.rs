@@ -2,8 +2,10 @@
 
 use super::{script, shots};
 use serde::Serialize;
+use std::collections::HashMap;
 use std::path::Path;
 use std::process::Stdio;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
@@ -33,7 +35,10 @@ pub struct RunOutcome {
 }
 
 #[derive(Default)]
-pub struct Relay {}
+pub struct Relay {
+    /// One lock per task-space name, held until that space's CLI exits and its screenshots are collected.
+    spaces: std::sync::Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
+}
 
 impl Relay {
     pub fn new() -> Self {
@@ -47,6 +52,14 @@ impl Relay {
         code: &str,
         limits: Limits,
     ) -> Result<RunOutcome, String> {
+        let lock = Arc::clone(
+            self.spaces
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .entry(space.to_string())
+                .or_default(),
+        );
+        let _held = lock.lock().await;
         let dir = shots::create().map_err(|e| format!("screenshot folder failed: {e}"))?;
         let result = spawn_script(bin, space, &dir, code, limits).await;
         let shots = match result {
