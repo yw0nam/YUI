@@ -6,11 +6,6 @@ const en: Record<string, string> = {
   // tool labels (English in all locales — AI tool-call status)
   "tool.web_search": "Searching…",
   "tool.browser": "Browsing…",
-  "tool.browser.open": "Opening page…",
-  "tool.browser.read": "Reading page…",
-  "tool.browser.click": "Clicking…",
-  "tool.browser.type": "Typing…",
-  "tool.browser.press_key": "Pressing key…",
   "tool.terminal": "Running…",
   "tool.code": "Running…",
   "tool.python": "Running…",

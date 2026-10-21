@@ -53,8 +53,6 @@ export interface ClientTool {
   timeoutResult?(args: Record<string, unknown>): string;
   /** Whether a result reads as a failure; the status pill shows it as failed. Unset: the result starts with `error:`. */
   failed?(result: string): boolean;
-  /** The action the status pill names beside the tool while the call runs. */
-  statusAction?(args: Record<string, unknown>): string | undefined;
   /** Push shows this tool's status from the client's own run and ignores the backend's `tool_status` naming it. */
   localStatus?: true;
 }

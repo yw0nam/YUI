@@ -227,13 +227,6 @@ describe("backend_caller — B5 cue forwarding + tool_status callbacks", () => {
     expect(toolStatusSink).toHaveBeenNthCalledWith(2, done);
   });
 
-  it("carries the action a client-run tool's status names to onToolStatus", async () => {
-    const running = { state: "running" as const, tool_id: "browser", action: "open" };
-    script.events = [toolStatusEvent(running), completedEvent({ speech_text: "" })];
-    await caller.call(turnOf(userEnv()));
-    expect(toolStatusSink).toHaveBeenNthCalledWith(1, running);
-  });
-
   it("emits an idle status when a running tool never completes (turn drops mid-flight)", async () => {
     const running = { state: "running" as const, tool_id: "web_search" };
     script.events = [toolStatusEvent(running)];

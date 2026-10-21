@@ -85,8 +85,8 @@ export function wirePushTransport(deps: {
     send: (frame) => deps.socket.sendToolResult(frame),
     execute: executeClientTool,
     getMaxTurnBytes: deps.socket.getMaxTurnBytes,
-    onStatus: (callId, state, toolId, action) =>
-      deps.turnFeed.toolStatus(`push:call:${callId}`, state, toolId, action),
+    onStatus: (callId, state, toolId) =>
+      deps.turnFeed.toolStatus(`push:call:${callId}`, state, toolId),
     log: deps.log,
   });
   const unsubscribes = [

@@ -34,18 +34,6 @@ describe("turnFeed — tool slot", () => {
   });
 });
 
-describe("turnFeed — tool action", () => {
-  it("hands the action a state names to the sink", () => {
-    feed.toolStatus("push:call:c1", "running", "browser", "open");
-    feed.toolStatus("push:call:c1", "done", "browser", "open");
-
-    expect(sink.mock.calls).toEqual([
-      [{ state: "running", tool_id: "browser", action: "open" }],
-      [{ state: "done", tool_id: "browser", action: "open" }],
-    ]);
-  });
-});
-
 describe("turnFeed — reasoning cycle", () => {
   it("a new owner's delta abandons the live cycle; only its own end or reply closes it", () => {
     feed.reasoning("stream:1", "a");

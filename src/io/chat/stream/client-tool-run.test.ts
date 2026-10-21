@@ -64,20 +64,6 @@ describe("runClientCall — the request's signal", () => {
   });
 });
 
-describe("runClientCall — tool_status action", () => {
-  it("names the tool's status action on the running and terminal states", async () => {
-    const registry = createClientToolRegistry([
-      tool({ name: "browser", statusAction: (args) => String(args.action) }),
-    ]);
-    const events = await collect(registry, "browser", '{"action":"read"}');
-
-    expect(events).toEqual([
-      { type: "tool_status", status: { state: "running", tool_id: "browser", action: "read" } },
-      { type: "tool_status", status: { state: "done", tool_id: "browser", action: "read" } },
-    ]);
-  });
-});
-
 describe("runClientCall — tool_status state", () => {
   it("reports failed instead of done when a body action does not answer ok", async () => {
     const registry = createClientToolRegistry([

@@ -326,7 +326,6 @@ describe("createPushToolCalls — local status", () => {
     const browser: ClientTool = {
       ...tool("browser", async () => "error: browser is off"),
       localStatus: true,
-      statusAction: (args) => String(args.action),
     };
     const h = harness({
       tools: createClientToolRegistry([browser, tool("look", async () => "{}")]),
@@ -337,14 +336,14 @@ describe("createPushToolCalls — local status", () => {
       id: "c1",
       turn_id: "t",
       name: "browser",
-      arguments: { action: "open" },
+      arguments: { code: "x" },
     });
     h.calls.handle(call("c2", "t", "look"));
     await flush();
 
     expect(onStatus.mock.calls).toEqual([
-      ["c1", "running", "browser", "open"],
-      ["c1", "failed", "browser", "open"],
+      ["c1", "running", "browser"],
+      ["c1", "failed", "browser"],
     ]);
   });
 });

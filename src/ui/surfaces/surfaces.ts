@@ -56,7 +56,7 @@ export interface Surfaces {
   clearQuote(): void;
 
   // ── tool status (observing backend tools), forwarded to the ToolStatus the surfaces were given ──
-  showTool(toolId: string, action?: string): void;
+  showTool(toolId: string): void;
   finishTool(failed?: boolean): void;
   hideTool(): void;
 

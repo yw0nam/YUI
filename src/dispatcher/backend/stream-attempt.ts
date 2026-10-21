@@ -133,7 +133,7 @@ export function createStreamAttempt(
             // Native tool observation result — pass immediately on streaming to show running chip.
             // Do not call endThinking: tool_status does not break thinking.
             log.debug("tool_status", { state: ev.status.state, tool_id: ev.status.tool_id });
-            deps.turnFeed?.toolStatus(owner, ev.status.state, ev.status.tool_id, ev.status.action);
+            deps.turnFeed?.toolStatus(owner, ev.status.state, ev.status.tool_id);
             deps.turnOutput?.toolStatus(turn.id, ev.status.state, ev.status.tool_id);
             break;
           case "reasoning":

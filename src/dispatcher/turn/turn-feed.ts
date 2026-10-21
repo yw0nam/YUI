@@ -18,12 +18,7 @@ export interface TurnFeed {
    * A tool state of this owner's turn. The chip is one slot: a `running` always takes it, and any
    * other state from an owner that does not hold it is ignored.
    */
-  toolStatus(
-    owner: Owner,
-    state: ToolStatus["state"],
-    toolId: string | undefined,
-    action?: string,
-  ): void;
+  toolStatus(owner: Owner, state: ToolStatus["state"], toolId: string | undefined): void;
   /** A reasoning delta. A delta from a new owner abandons the live cycle: the newest turn wins. */
   reasoning(owner: Owner, delta: string): void;
   /** The owner's reply landed: closes its cycle. `full` replaces the streamed text when given. */
@@ -54,7 +49,7 @@ export function createTurnFeed(deps: {
   }
 
   return {
-    toolStatus(owner, state, toolId, action) {
+    toolStatus(owner, state, toolId) {
       if (state === "running") {
         toolOwner = owner;
       } else if (toolOwner !== null && toolOwner !== owner) {
@@ -63,7 +58,7 @@ export function createTurnFeed(deps: {
       } else {
         toolOwner = null;
       }
-      deps.onToolStatus({ state, tool_id: toolId, action });
+      deps.onToolStatus({ state, tool_id: toolId });
     },
 
     reasoning(owner, delta) {

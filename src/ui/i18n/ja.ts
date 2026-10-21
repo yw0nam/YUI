@@ -6,11 +6,6 @@ const ja: Record<string, string> = {
   // tool labels (English — not translated)
   "tool.web_search": "Searching…",
   "tool.browser": "Browsing…",
-  "tool.browser.open": "Opening page…",
-  "tool.browser.read": "Reading page…",
-  "tool.browser.click": "Clicking…",
-  "tool.browser.type": "Typing…",
-  "tool.browser.press_key": "Pressing key…",
   "tool.terminal": "Running…",
   "tool.code": "Running…",
   "tool.python": "Running…",

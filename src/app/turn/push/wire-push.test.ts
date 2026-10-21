@@ -650,7 +650,6 @@ describe("wirePushTransport — tool calls", () => {
       ...look,
       name: "browser",
       localStatus: true,
-      statusAction: (args) => String(args.action),
       execute: () =>
         new Promise((resolve) => {
           finish = resolve;
@@ -660,22 +659,16 @@ describe("wirePushTransport — tool calls", () => {
     const onFrame = vi.fn();
     void pushTurns.awaitTurnEnd("7", { onFrame });
     wire(turnFeed, [browser]);
-    socket.pushToolCall({ ...frame("c1", "7"), name: "browser", arguments: { action: "read" } });
+    socket.pushToolCall({ ...frame("c1", "7"), name: "browser", arguments: { code: "x" } });
     await vi.waitFor(() => expect(finish).toBeDefined());
     socket.pushToolStatus({ type: "tool_status", turn_id: "7", state: "done", tool_id: "browser" });
 
-    expect(toolStatusSink.mock.calls).toEqual([
-      [{ state: "running", tool_id: "browser", action: "read" }],
-    ]);
+    expect(toolStatusSink.mock.calls).toEqual([[{ state: "running", tool_id: "browser" }]]);
     expect(onFrame).toHaveBeenCalledTimes(1);
 
     finish?.("Untrusted page content from the browser.\n{}");
     await vi.waitFor(() =>
-      expect(toolStatusSink).toHaveBeenLastCalledWith({
-        state: "done",
-        tool_id: "browser",
-        action: "read",
-      }),
+      expect(toolStatusSink).toHaveBeenLastCalledWith({ state: "done", tool_id: "browser" }),
     );
   });
 
@@ -691,7 +684,7 @@ describe("wirePushTransport — tool calls", () => {
         }),
     };
     wire(turnFeed, [browser]);
-    socket.pushToolCall({ ...frame("c1", "7"), name: "browser", arguments: { action: "read" } });
+    socket.pushToolCall({ ...frame("c1", "7"), name: "browser", arguments: { code: "x" } });
     await vi.waitFor(() => expect(finish).toBeDefined());
     socket.pushToolStatus({
       type: "tool_status",
