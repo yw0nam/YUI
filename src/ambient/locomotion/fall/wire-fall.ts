@@ -29,6 +29,8 @@ export function wireFaller(deps: {
   setHitTestMoving: (moving: boolean) => void;
   /** She came down on a foreign window top — the perch loop takes it from there. */
   onWindowLand: (target: WindowRect) => void;
+  /** A drag landed away from any window — the window-geometry store saves the position. */
+  onWindowGeometry?: () => void;
   log: Logger;
 }): {
   drop(opts?: DropOptions): Promise<void>;
@@ -103,6 +105,8 @@ export function wireFaller(deps: {
               window_title: target?.name ?? null,
             },
           });
+          // A perch landing leaves the geometry to the seat pin; only a floor landing is kept.
+          if (!target) deps.onWindowGeometry?.();
         }
         if (target) deps.onWindowLand(target);
       },

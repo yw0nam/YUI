@@ -92,6 +92,8 @@ interface WindowResizeSourceDeps {
   getWindow: () => ResizeWindow;
   /** True while the resize gesture is ignored. */
   isLocked?: () => boolean;
+  /** The applied rounded logical size — the window-geometry store's size half. */
+  onApplied?: (size: { width: number; height: number }) => void;
   /** Event target (injectable for tests). */
   target?: WheelTarget;
 }
@@ -134,10 +136,12 @@ export function createWindowResizeSource(deps: WindowResizeSourceDeps): WindowRe
         );
         if (next) {
           await win.setBoundsLogical(next.pos, next.size);
-          log.debug("resize.applied", {
+          const applied = {
             width: Math.round(next.size.width),
             height: Math.round(next.size.height),
-          });
+          };
+          log.debug("resize.applied", applied);
+          deps.onApplied?.(applied);
         }
       }
     } catch (err) {

@@ -43,7 +43,6 @@ verify = ["dep:tauri-plugin-wdio-webdriver"]
 # Desktop-only crates: none has an Android/iOS implementation.
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-global-shortcut = "2"
-tauri-plugin-window-state = "2"
 xcap = "0.4.1"
 tokio = { version = "1", features = ["io-util", "macros", "process", "rt", "sync", "time"] }
 

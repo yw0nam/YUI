@@ -58,6 +58,8 @@ export function wireWindowSources(deps: {
   isHeld: () => boolean;
   /** The bed the avatar commands lay her on. */
   bed: AvatarBed;
+  /** The applied Ctrl+wheel resize size — the window-geometry store's size half. */
+  onResizeApplied?: (size: { width: number; height: number }) => void;
   log: Logger;
 }): Pick<
   WindowDropSource,
@@ -173,6 +175,7 @@ export function wireWindowSources(deps: {
         };
       },
       isLocked: deps.isHeld,
+      onApplied: deps.onResizeApplied,
     });
     // Avatar RPC: the loopback ingress bridges `/avatar/*` here, where the state
     // lives and the movement happens. Perch gestures go through the drop source's

@@ -2405,12 +2405,13 @@ globalThis.YUI_MAP =
       "transport": "shared"
     },
     {
-      "id": "window-state",
-      "from": "shell/core",
-      "to": "io/window/openers",
-      "carries": "window-state: size and position of main and pet-<id> restored when the window is ready, cached on Moved and Resized, written to .window-state.json at exit",
-      "kind": "call",
-      "transport": "shared"
+      "id": "window-geometry",
+      "from": "app/stage",
+      "to": "settings",
+      "carries": "yui.window.<label> {x,y,width,height}: written after a Ctrl+wheel resize and after a drag lands; applied once at boot before the faller places the window and the bed scene parks it",
+      "kind": "storage",
+      "transport": "shared",
+      "wiring": "src/app/stage/wire-window-geometry.ts"
     },
     {
       "id": "settings-camera",
