@@ -250,7 +250,8 @@ esac
             .unwrap();
         assert!(out.output.contains("before"), "output: {}", out.output);
         assert!(out.output.contains("boom"), "output: {}", out.output);
-        assert_ne!(out.exit_code, Some(0));
+        assert_eq!(out.exit_code, Some(1));
+        assert!(!out.deadline);
     }
 
     #[tokio::test]
@@ -266,6 +267,7 @@ esac
             out.output
         );
         assert_eq!(out.exit_code, Some(124));
+        assert!(out.deadline);
         assert!(!out.killed);
     }
 
