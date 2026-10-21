@@ -25,7 +25,7 @@ import type { ClientTool } from "../../io/chat/tools/client-tools";
 import { wireDispatcher } from "./wire-dispatcher";
 
 describe("wireDispatcher", () => {
-  const setup = (isBodyHeld?: () => boolean, avatarTools?: ClientTool[]) => {
+  const setup = (isBodyHeld?: () => boolean, windowTools?: ClientTool[]) => {
     const registered: Array<() => void> = [];
     const register = vi.fn((teardown: () => void) => {
       registered.push(teardown);
@@ -100,7 +100,7 @@ describe("wireDispatcher", () => {
         motionIds: [],
         emotionText: { mode: "free", table: null },
       }),
-      avatarTools,
+      windowTools,
       openQuickControls: vi.fn(),
       showVoiceError,
       appendTurnRecord: vi.fn(),

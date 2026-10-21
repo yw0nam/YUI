@@ -39,7 +39,7 @@ it.each([
         } as never,
       ),
     ).rejects.toThrow("stop after tool composition");
-    const tools = vi.mocked(wireTurnCore).mock.calls[0]?.[2].avatarTools ?? [];
+    const tools = vi.mocked(wireTurnCore).mock.calls[0]?.[2].windowTools ?? [];
     expect(tools.map((tool) => tool.name)).toEqual(names);
   } finally {
     browserSettings.dispose();

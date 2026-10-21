@@ -54,7 +54,7 @@ describe("createPushStores", () => {
 
     expect(socketDeps.tools()).toEqual([]);
 
-    stores.bind({ vocabulary: () => PAYLOAD, stopTurn: () => {}, avatarTools });
+    stores.bind({ vocabulary: () => PAYLOAD, stopTurn: () => {}, windowTools: avatarTools });
     expect(socketDeps.tools()).toEqual(avatarTools.map((tool) => tool.definition));
   });
 

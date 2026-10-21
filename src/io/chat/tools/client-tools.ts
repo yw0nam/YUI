@@ -83,10 +83,10 @@ export function createClientToolRegistry(tools: readonly ClientTool[]): ClientTo
   };
 }
 
-/** Every tool a window declares: generate_express, then the tools of a window that has an executor. */
+/** Every tool a window declares: generate_express, then the window tools it is given. */
 export function createClientTools(
   vocab: ExpressVocabulary,
-  avatarTools: readonly ClientTool[] = [],
+  windowTools: readonly ClientTool[] = [],
 ): ClientTool[] {
-  return [createGenerateExpressTool(vocab), ...avatarTools];
+  return [createGenerateExpressTool(vocab), ...windowTools];
 }

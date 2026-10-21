@@ -102,8 +102,8 @@ export async function wireTurnCore(
     voiceHost?: VoiceHost;
     /** A sustained user utterance began. */
     onVoiceTurnStart?: () => void;
-    /** The avatar tools of a window that has an executor, declared on every transport; a window without one passes none. */
-    avatarTools?: readonly ClientTool[];
+    /** The tools beside generate_express, declared on every transport; none outside Tauri. */
+    windowTools?: readonly ClientTool[];
     register: (dispose: () => void) => void;
     ensureActive: () => void;
   },
@@ -194,7 +194,7 @@ export async function wireTurnCore(
     pushTurns,
     pushSocket: pushSocket ?? null,
     getVocabulary: () => vocabulary!.vocabulary(),
-    avatarTools: deps.avatarTools,
+    windowTools: deps.windowTools,
     openQuickControls: deps.openQuickControls,
     showVoiceError: voiceErrorDwell.show,
     appendTurnRecord: (record) => appendRecord(record),
@@ -256,7 +256,7 @@ export async function wireTurnCore(
         register(
           wirePushTransport({
             socket: pushSocket,
-            tools: createClientToolRegistry(deps.avatarTools ?? []),
+            tools: createClientToolRegistry(deps.windowTools ?? []),
             turnOutput: voice.turnOutput,
             pushTurns,
             delegations,

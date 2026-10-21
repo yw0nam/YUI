@@ -50,8 +50,8 @@ export interface ConfiguredBootstrapHandles {
   vocabulary: Awaited<ReturnType<typeof wireVocabulary>>;
   /** The seat transitions — the dev perch plays its sit-down through it. */
   sitter: Pick<Sitter, "sitDown">;
-  /** The browser tool, and in main the tools over the avatar executor; empty outside Tauri. */
-  avatarTools: readonly ClientTool[];
+  /** The tools beside generate_express: browser, and in main the avatar tools; none outside Tauri. */
+  windowTools: readonly ClientTool[];
   /** Cancels the in-flight turn, cuts the outstanding push turns and stops the queued speech. */
   stopTurn: () => void;
   /** Resets the proactive gap, the way a typed submit does. */
@@ -120,7 +120,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     // The stage is wired after the turn core, so the tools read the executor late-bound:
     // null until wireLocomotion has run.
     let locomotion: ReturnType<typeof wireLocomotion> | null = null;
-    const avatarTools = createPetWindowTools({
+    const windowTools = createPetWindowTools({
       bound: phase1.bound === true,
       getExecutor: () => locomotion?.getAvatarExecutor() ?? null,
       screen: {
@@ -136,7 +136,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       getFrontmost: () => frontmostTracker.get(),
       screenCapturer: phase1.screenCapturer,
       openQuickControls: (tab) => getQuickControls().open(undefined, { tab }),
-      avatarTools,
+      windowTools,
       voicePersistence: {
         get: () => settings.sttSettings.get().enabled,
         set: settings.sttSettings.setEnabled,
@@ -275,7 +275,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       summonHotkey,
       vocabulary,
       sitter: locomotion.sitter,
-      avatarTools,
+      windowTools,
       stopTurn,
       noteInteraction: () => proactiveSource.noteInteraction(),
     };

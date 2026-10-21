@@ -46,12 +46,12 @@ export function createPushStores(deps: {
   bind(deps: {
     vocabulary: () => ExpressVocabulary;
     stopTurn: () => void;
-    avatarTools?: readonly ClientTool[];
+    windowTools?: readonly ClientTool[];
   }): void;
 } {
   let publishedVocabulary: (() => ExpressVocabulary) | null = null;
-  // The avatar tools land with bind(); the socket declares them in `hello.tools`.
-  let avatarTools: readonly ClientTool[] = [];
+  // The window tools land with bind(); the socket declares them in `hello.tools`.
+  let windowTools: readonly ClientTool[] = [];
   // The panel's session reset stops the running turn the way the stop button does; the shared
   // closure exists once the configured bootstrap has wired it.
   let stopTurn: () => void = () => {};
@@ -61,7 +61,7 @@ export function createPushStores(deps: {
     chatId: () => chatIdSettings.get().chat_id,
     getKey: deps.getChatKey,
     vocabulary: () => pushVocabularyOf(publishedVocabulary?.()),
-    tools: () => avatarTools.map((tool) => tool.definition),
+    tools: () => windowTools.map((tool) => tool.definition),
   });
   deps.register(pushSocket.dispose);
   deps.register(chatIdSettings.dispose);
@@ -80,11 +80,11 @@ export function createPushStores(deps: {
     bind: (bound: {
       vocabulary: () => ExpressVocabulary;
       stopTurn: () => void;
-      avatarTools?: readonly ClientTool[];
+      windowTools?: readonly ClientTool[];
     }) => {
       publishedVocabulary = bound.vocabulary;
       stopTurn = bound.stopTurn;
-      avatarTools = bound.avatarTools ?? [];
+      windowTools = bound.windowTools ?? [];
     },
   };
 }
