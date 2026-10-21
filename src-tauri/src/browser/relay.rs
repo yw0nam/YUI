@@ -49,6 +49,10 @@ impl Relay {
     ) -> Result<RunOutcome, String> {
         let dir = shots::create().map_err(|e| format!("screenshot folder failed: {e}"))?;
         let result = spawn_script(bin, space, &dir, code, limits).await;
+        let shots = match result {
+            Ok(_) => shots::collect(dir.clone(), limits.image_cap, limits.long_edge).await,
+            Err(_) => shots::Collected::default(),
+        };
         shots::remove(&dir);
         let (output, exit_code, killed) = match result? {
             Some(out) => (out.stderr, out.status.code(), false),
@@ -58,9 +62,9 @@ impl Relay {
             output: String::from_utf8_lossy(&output).into_owned(),
             exit_code,
             killed,
-            images: Vec::new(),
-            dropped: 0,
-            unreadable: Vec::new(),
+            images: shots.images,
+            dropped: shots.dropped,
+            unreadable: shots.unreadable,
         })
     }
 }
