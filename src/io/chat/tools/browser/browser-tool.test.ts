@@ -135,4 +135,13 @@ describe("browser tool", () => {
     expect(bytes).toBeLessThanOrEqual(65_536);
     expect(bytes).toBeGreaterThan(65_536 - 3);
   });
+
+  it("answers a stopped turn at once while the run goes on in the relay", async () => {
+    const fake = relay({ run: vi.fn(() => new Promise<RunOutcome>(() => {})) });
+    const stop = new AbortController();
+    const pending = tool(fake).execute({ code: "x" }, stop.signal);
+    stop.abort();
+    await expect(pending).resolves.toBe("error: turn stopped");
+    expect(fake.run).toHaveBeenCalledTimes(1);
+  });
 });
