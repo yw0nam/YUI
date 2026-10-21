@@ -224,6 +224,19 @@ describe("window-resize-source — wheel handler", () => {
     expect(setBoundsLogical).not.toHaveBeenCalled();
   });
 
+  it("the applied size reaches onApplied", async () => {
+    const { win } = makeWindow(1, { x: 0, y: 0 }, { width: 400, height: 600 });
+    const { target, fire } = makeTarget();
+    const onApplied = vi.fn<(size: { width: number; height: number }) => void>();
+    const source = createWindowResizeSource({ renderer, getWindow: () => win, target, onApplied });
+    source.start();
+
+    fire({ ctrlKey: true, deltaY: -100 });
+    await settle();
+
+    expect(onApplied).toHaveBeenCalledExactlyOnceWith({ width: 424, height: 636 });
+  });
+
   it("does not throw to the caller when the window seam rejects", async () => {
     const win = {
       outerPosition: vi.fn(async () => {
