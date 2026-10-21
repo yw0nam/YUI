@@ -28,10 +28,11 @@ Done when every command above prints a version or a path.
 
 ### 2. Clone
 
-If the current directory is already a YUI checkout, use it. Otherwise clone into a directory the user names, defaulting to `~/YUI`:
+If the current directory is already a YUI checkout, use it. Otherwise clone into a directory the user names, defaulting to `~/YUI`, and check out the latest release tag, since `main` carries unreleased work:
 
 ```bash
 git clone https://github.com/yw0nam/YUI ~/YUI && cd ~/YUI
+git checkout "$(git describe --tags --abbrev=0)"
 pnpm install
 ```
 

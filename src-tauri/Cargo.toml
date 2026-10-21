@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.4.0"
+version = "0.5.0"
 description = "YUI desktop companion: VRM character window and desktop-pet shell"
 authors = ["YoungWoo Nam"]
 license = "PolyForm-Noncommercial-1.0.0"
