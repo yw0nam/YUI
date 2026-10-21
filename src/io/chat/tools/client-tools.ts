@@ -28,6 +28,9 @@ export interface ClientToolDefinition {
 
 export type ClientToolResult = string | { text: string; images: string[] };
 
+/** The result of a call whose turn the user stopped. */
+export const TURN_STOPPED = "error: turn stopped";
+
 export function toolResultText(result: ClientToolResult): string {
   return typeof result === "string" ? result : result.text;
 }

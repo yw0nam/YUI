@@ -7,7 +7,7 @@
  */
 
 import type { BrowserRelay } from "../../../browser/browser-relay";
-import type { ClientTool } from "../client-tools";
+import { type ClientTool, TURN_STOPPED } from "../client-tools";
 import { formatRunOutcome, UNKNOWN } from "./run-result";
 
 const DESCRIPTION =
@@ -22,6 +22,20 @@ const DESCRIPTION =
   "space the user took over fails with EGO_TASK_SPACE_NAME_IN_USE until the user hands it back " +
   "in ego lite. Error line numbers are 5 more than the line in code. Call with guide: true to " +
   "read the full guide. Calls are refused unless the user allows browser use.";
+
+/** The relay's answer, or the stopped-turn result once signal aborts; the relay runs on. */
+function unlessStopped<T>(
+  work: Promise<T>,
+  signal?: AbortSignal,
+): Promise<T | typeof TURN_STOPPED> {
+  if (!signal) return work;
+  return new Promise((resolve, reject) => {
+    const stop = (): void => resolve(TURN_STOPPED);
+    if (signal.aborted) return stop();
+    signal.addEventListener("abort", stop, { once: true });
+    work.then(resolve, reject).finally(() => signal.removeEventListener("abort", stop));
+  });
+}
 
 export function createBrowserTool(deps: {
   relay: BrowserRelay;
@@ -54,15 +68,16 @@ export function createBrowserTool(deps: {
         },
       },
     },
-    execute: async (args) => {
+    execute: async (args, signal) => {
       if (!deps.enabled()) return "error: browser is off";
       const code = args.code;
       if (args.guide === true) {
         if (code !== undefined && code !== "") return "error: invalid field code";
-        return deps.relay.guide();
+        return unlessStopped(deps.relay.guide(), signal);
       }
       if (typeof code !== "string" || code === "") return "error: missing field code";
-      return formatRunOutcome(await deps.relay.run(`yui-${deps.presetId()}`, code));
+      const outcome = await unlessStopped(deps.relay.run(`yui-${deps.presetId()}`, code), signal);
+      return outcome === TURN_STOPPED ? outcome : formatRunOutcome(outcome);
     },
     // The relay kills the CLI at 28 s; the wait covers it and the image collection after it.
     waitMs: 32_000,

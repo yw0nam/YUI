@@ -13,6 +13,7 @@ import {
   type ClientTool,
   type ClientToolRegistry,
   type ClientToolResult,
+  TURN_STOPPED,
   toolFailed,
   toolResultText,
 } from "../tools/client-tools";
@@ -72,7 +73,7 @@ export function createPushToolCalls(deps: PushToolCallsDeps): PushToolCalls {
     try {
       // A turn the user stopped while this call waited in the queue still refuses.
       if (deps.isTurnStopped(frame.turn_id)) {
-        answer(frame, "error: turn stopped");
+        answer(frame, TURN_STOPPED);
         return;
       }
       if (tool.localStatus) deps.onStatus?.(frame.id, "running", frame.name);
@@ -99,7 +100,7 @@ export function createPushToolCalls(deps: PushToolCallsDeps): PushToolCalls {
         return;
       }
       if (deps.isTurnStopped(frame.turn_id)) {
-        answer(frame, "error: turn stopped");
+        answer(frame, TURN_STOPPED);
         return;
       }
       const abort = new AbortController();
