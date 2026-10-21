@@ -1,11 +1,9 @@
 /**
  * The browser tool's door to the Rust relay, which runs a script or reads the guide through the
- * installed ego lite CLI. invoke is test-injectable (defaults to the real @tauri-apps/api/core invoke).
+ * installed ego lite CLI.
  */
 
-import { invoke as tauriInvoke } from "@tauri-apps/api/core";
-
-type InvokeFn = <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
+import { invoke } from "@tauri-apps/api/core";
 
 /** What one script run left behind. */
 export interface RunOutcome {
@@ -32,7 +30,7 @@ export interface BrowserRelay {
   guide(): Promise<string>;
 }
 
-export function createBrowserRelay(invoke: InvokeFn = tauriInvoke): BrowserRelay {
+export function createBrowserRelay(): BrowserRelay {
   return {
     run: (space, code) => invoke<RunOutcome>("browser_run", { space, code }),
     guide: () => invoke<string>("browser_guide"),
