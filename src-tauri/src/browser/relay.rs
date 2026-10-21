@@ -231,6 +231,45 @@ esac
         assert!(started.elapsed() < limits().kill_after + Duration::from_secs(1));
     }
 
+    /// The shot folder a run logged as `shot <path>`.
+    fn logged_shot_dir(output: &str) -> PathBuf {
+        let line = output
+            .lines()
+            .find_map(|l| l.strip_prefix("shot "))
+            .unwrap();
+        PathBuf::from(line).parent().unwrap().to_path_buf()
+    }
+
+    #[tokio::test]
+    async fn run_returns_the_last_screenshots_and_removes_their_folder() {
+        let code = r#"const p = task.page("p1");
+const shoot = p.screenshot;
+p.screenshot = (o) => { console.log("shot " + o.path); return shoot(o); };
+for (let i = 0; i < 6; i++) await screenshot(p);"#;
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits())
+            .await
+            .unwrap();
+        assert_eq!(out.images.len(), 4, "output: {}", out.output);
+        assert!(out.images[0].starts_with("data:image/jpeg;base64,"));
+        assert_eq!(out.dropped, 2);
+        assert!(!logged_shot_dir(&out.output).exists());
+    }
+
+    #[tokio::test]
+    async fn run_names_a_screenshot_that_does_not_decode() {
+        let code = r#"await screenshot(task.page("p1"));
+globalThis.corruptNextShot = true;
+await screenshot(task.page("p1"));"#;
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits())
+            .await
+            .unwrap();
+        assert_eq!(out.unreadable, vec!["002.png".to_string()]);
+        assert_eq!(out.images.len(), 1);
+        assert_eq!(out.dropped, 0);
+    }
+
     #[tokio::test]
     async fn run_answers_not_found_for_a_missing_binary() {
         let missing = std::env::temp_dir().join("yui-no-such-dir/ego-browser");
