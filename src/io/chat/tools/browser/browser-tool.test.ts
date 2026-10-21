@@ -147,4 +147,16 @@ describe("browser tool", () => {
     await expect(pending).resolves.toBe("error: turn stopped");
     expect(fake.run).toHaveBeenCalledTimes(1);
   });
+
+  it.each([
+    { code: "x" },
+    { guide: true },
+  ])("answers %j on an already stopped turn without reaching the relay", async (args) => {
+    const fake = relay();
+    const stop = new AbortController();
+    stop.abort();
+    await expect(tool(fake).execute(args, stop.signal)).resolves.toBe("error: turn stopped");
+    expect(fake.run).not.toHaveBeenCalled();
+    expect(fake.guide).not.toHaveBeenCalled();
+  });
 });
