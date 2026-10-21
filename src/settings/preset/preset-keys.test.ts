@@ -19,6 +19,7 @@ describe("resolveStorageKey", () => {
     ["yui.previous-turn", "yui.ab12cd34.previous-turn"],
     ["yui.vrm", "yui.ab12cd34.vrm"],
     ["yui.filler", "yui.ab12cd34.filler"],
+    ["yui.camera", "yui.ab12cd34.camera"],
   ])("prefixes the per-preset key %s with the active preset id", (key, expected) => {
     expect(resolveStorageKey(key, "ab12cd34")).toBe(expected);
   });
@@ -30,7 +31,6 @@ describe("resolveStorageKey", () => {
     "yui.stt-key",
     "yui.vad",
     "yui.voice-mode",
-    "yui.camera",
     "yui.locale",
     "yui.presets",
     "yui.delegation_history",

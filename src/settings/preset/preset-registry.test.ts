@@ -47,6 +47,7 @@ describe("createPresetRegistry", () => {
       "speaker",
       "vrm",
       "filler",
+      "camera",
       "message-window",
       "chat-id",
       "chat_transcript",
@@ -65,6 +66,7 @@ describe("createPresetRegistry", () => {
     const copied = [...map.keys()].filter((k) => k.startsWith("yui.bbbb0002.")).sort();
     expect(copied).toEqual([
       "yui.bbbb0002.agent",
+      "yui.bbbb0002.camera",
       "yui.bbbb0002.chat-key",
       "yui.bbbb0002.endpoints",
       "yui.bbbb0002.filler",
