@@ -142,6 +142,7 @@ export async function wireTurnCore(
     bound: phase1.bound,
     voiceHost: deps.voiceHost,
     ttsSettings: settings.ttsSettings,
+    oneVoiceSettings: settings.oneVoiceSettings,
     lipsyncSettings: settings.lipsyncSettings,
     fillerSettings: settings.fillerSettings,
     vadSettings: settings.vadSettings,

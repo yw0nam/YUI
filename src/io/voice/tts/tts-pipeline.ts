@@ -8,6 +8,7 @@ import { createLogger, type Logger } from "../../../logger";
 import { type AudioSink, createWebAudioSink } from "./audio-player";
 import { createSentenceSegmenter } from "./sentence-segmenter";
 import type { TtsSynth, TtsSynthCallOptions } from "./tts-synth";
+import type { VoiceGate } from "./voice-gate";
 
 /** When synth rejects with this value it's a silent skip — takes the failed-skip path with no error log. */
 export const TTS_SKIP: unique symbol = Symbol("TTS_SKIP");
@@ -24,6 +25,8 @@ export interface TtsPipelineOptions {
   onSynthFailure?: () => void;
   // Concurrent-synth cap. Default 1 = serial. The function form is evaluated per drain, reading config lazily.
   maxInflight?: number | (() => number);
+  // Held from an utterance's first played sentence to its completion boundary.
+  gate?: VoiceGate;
   logger?: Logger;
 }
 
@@ -49,6 +52,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
   const log: Logger = options.logger ?? createLogger("tts-pipeline");
   const synth: TtsSynth = options.synth;
   const sink: AudioSink = options.sink ?? createWebAudioSink();
+  const gate = options.gate;
   // Evaluated at drain time — the function form reads the hot-reload config value each time.
   const resolveMaxInflight = (): number => {
     const v =
@@ -76,6 +80,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
   let submitted = 0;
   let nextToPlay = 0;
   let pumping = false;
+  let held = false;
   // Submitted-count boundaries queued by end() calls not yet fully played. A new turn's
   // pushTextDelta can submit more segments before an earlier turn's boundary is reached,
   // so boundaries are tracked independently — each fires onPlaybackEnd exactly once, in order.
@@ -87,6 +92,10 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
     if (disposed || pumping) return;
     while (pendingCompletions.length > 0 && nextToPlay >= pendingCompletions[0]) {
       const boundary = pendingCompletions.shift()!;
+      if (held) {
+        gate?.release();
+        held = false;
+      }
       // A finished utterance is reported complete, so it is no longer what a later interrupt cut.
       for (const index of entries.keys()) if (index < boundary) entries.delete(index);
       log.info("playback", { state: "complete", segments: nextToPlay });
@@ -109,6 +118,11 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
         }
         const wav = results.get(nextToPlay);
         if (wav === undefined) break;
+        if (gate && !held) {
+          await gate.acquire(abort.signal);
+          if (disposed) break;
+          held = true;
+        }
         results.delete(nextToPlay);
         const idx = nextToPlay;
         nextToPlay++;
@@ -246,6 +260,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
       if (disposed) return;
       disposed = true;
       abort.abort();
+      if (held) gate?.release();
       sink.stop();
       results.clear();
       failed.clear();

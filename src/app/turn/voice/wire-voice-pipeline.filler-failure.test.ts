@@ -86,6 +86,7 @@ function setup(): VoicePipeline {
     getTtsApiKey: vi.fn().mockResolvedValue(undefined),
     getSttApiKey: vi.fn().mockResolvedValue(undefined),
     ttsSettings: { get: () => ({ enabled: true }) },
+    oneVoiceSettings: { get: () => ({ enabled: false }) },
     lipsyncSettings: { get: () => ({ gain: 1 }) },
     fillerSettings: {
       get: () => ({

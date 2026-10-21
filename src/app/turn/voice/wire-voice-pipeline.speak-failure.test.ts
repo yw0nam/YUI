@@ -96,6 +96,7 @@ function setup(
     getTtsApiKey: vi.fn().mockResolvedValue(undefined),
     getSttApiKey: vi.fn().mockResolvedValue(undefined),
     ttsSettings: { get: () => ({ enabled: opts?.ttsEnabled ?? true }) },
+    oneVoiceSettings: { get: () => ({ enabled: false }) },
     lipsyncSettings: { get: () => ({ gain: 1 }) },
     fillerSettings: { get: getSettings, subscribe },
     vadSettings: { get: () => ({ silenceMs: 1_500, bargeIn: false }) },

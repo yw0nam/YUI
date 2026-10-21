@@ -21,6 +21,7 @@ import { createWebAudioSink } from "../../../io/voice/tts/audio-player";
 import { createSpeechPlayback, type SpeechPlayback } from "../../../io/voice/tts/speech-playback";
 import { type SpokenSplit, TTS_SKIP } from "../../../io/voice/tts/tts-pipeline";
 import { createTtsProvider, type TtsSynthCallOptions } from "../../../io/voice/tts/tts-synth";
+import { createVoiceGate } from "../../../io/voice/tts/voice-gate";
 import type { SpeakerOption } from "../../../io/voice/voices/speaker-selection";
 import type { Renderer } from "../../../renderer";
 import type { FillerSettings } from "../../../settings/voice/filler-settings";
@@ -43,6 +44,7 @@ interface VoicePipelineDeps {
   getTtsApiKey: () => Promise<string | undefined>;
   getSttApiKey: () => Promise<string | undefined>;
   ttsSettings: { get(): { enabled: boolean } };
+  oneVoiceSettings: { get(): { enabled: boolean } };
   lipsyncSettings: { get(): { gain: number } };
   fillerSettings: {
     get(): FillerSettings;
@@ -186,6 +188,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     onUtteranceEnd: deps.onUtteranceEnd,
     pipeline: {
       sink: createWebAudioSink({ getGain: () => deps.lipsyncSettings.get().gain }),
+      gate: createVoiceGate({ enabled: () => deps.oneVoiceSettings.get().enabled }),
       maxInflight: () => deps.getEndpoints().tts_max_inflight ?? 1,
       synth,
       // A dead TTS server would otherwise be retried once per gap for the whole thinking window.

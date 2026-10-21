@@ -22,6 +22,7 @@ describe("createSettingsStores", () => {
     expect(Object.keys(stores)).toEqual([
       "screenshotSettings",
       "ttsSettings",
+      "oneVoiceSettings",
       "sttSettings",
       "idleThrottleSettings",
       "proactiveSettings",

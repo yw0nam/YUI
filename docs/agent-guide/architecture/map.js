@@ -776,7 +776,7 @@ globalThis.YUI_MAP =
       "id": "io/voice/tts",
       "module": "speech",
       "label": "speech output",
-      "role": "Sentence segmentation, synthesis, in-order playback, and the glue to the mouth and the bubble.",
+      "role": "Sentence segmentation, synthesis, in-order playback held to one voice across pet windows, and the glue to the mouth and the bubble.",
       "paths": [
         "src/io/voice/tts"
       ]
@@ -3973,6 +3973,20 @@ globalThis.YUI_MAP =
         "to": "pet",
         "carries": "yui://pet-windows-changed",
         "kind": "bridge"
+      },
+      {
+        "id": "voice-lock-pet-bound",
+        "from": "pet",
+        "to": "pet-<id>",
+        "carries": "navigator.locks yui.speaking: taken before an utterance's first sentence plays while yui.one-voice is on, released at the utterance's end or when the window dies; other windows queue in order",
+        "kind": "storage"
+      },
+      {
+        "id": "voice-lock-bound-pet",
+        "from": "pet-<id>",
+        "to": "pet",
+        "carries": "navigator.locks yui.speaking: taken before an utterance's first sentence plays while yui.one-voice is on, released at the utterance's end or when the window dies; other windows queue in order",
+        "kind": "storage"
       },
       {
         "id": "pet-windows-changed-settings-companion",

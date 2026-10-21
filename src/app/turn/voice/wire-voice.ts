@@ -49,6 +49,7 @@ export function wireTurnVoice(deps: {
   voicePersistence?: VoicePersistence;
   voiceHost?: VoiceHost;
   ttsSettings: { get(): { enabled: boolean } };
+  oneVoiceSettings: { get(): { enabled: boolean } };
   lipsyncSettings: { get(): { gain: number } };
   fillerSettings: SettingsStores["fillerSettings"];
   vadSettings: { get(): { silenceMs: number; bargeIn: boolean } };
@@ -119,6 +120,7 @@ export function wireTurnVoice(deps: {
     getTtsApiKey: () => getSecret(TTS_API_KEY_SECRET),
     getSttApiKey: () => getSecret(STT_API_KEY_SECRET),
     ttsSettings,
+    oneVoiceSettings: deps.oneVoiceSettings,
     lipsyncSettings,
     fillerSettings,
     vadSettings,

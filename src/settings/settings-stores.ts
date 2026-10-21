@@ -72,6 +72,10 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   });
   // TTS voice output on/off. Default ON. When OFF, skip synth and show only expression/motion + speech bubble.
   const ttsSettings = createFlagSettings(true, { storage: localStorageStore("yui.tts") });
+  // One voice at a time across pet windows: a window waits while another one speaks. Default ON.
+  const oneVoiceSettings = createFlagSettings(true, {
+    storage: localStorageStore("yui.one-voice"),
+  });
   // STT voice-input on/off intent. Default OFF. If quit while on, auto-resumes on the next run.
   const sttSettings = createFlagSettings(false, { storage: localStorageStore("yui.stt") });
   // Idle power-saving (30fps cap) on/off. Default ON.
@@ -171,6 +175,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   return {
     screenshotSettings,
     ttsSettings,
+    oneVoiceSettings,
     sttSettings,
     idleThrottleSettings,
     proactiveSettings,
@@ -219,6 +224,7 @@ type SyncMode = "local" | "broadcast";
 export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   screenshotSettings: "broadcast",
   ttsSettings: "broadcast",
+  oneVoiceSettings: "broadcast",
   sttSettings: "local",
   idleThrottleSettings: "broadcast",
   proactiveSettings: "broadcast",
