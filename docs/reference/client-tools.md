@@ -143,7 +143,7 @@ The tool description takes precedence over the guide and states the contract:
 - `task`, `screenshot`, and every name starting `__yui` are reserved; variables start fresh on every call.
 - The injected `task` is the task space's handle: use it, do not call `taskSpace()`, and do not finish the space.
 - Observations go to `console.log`; the output is text.
-- `await screenshot(page)` attaches an image of the page's viewport. Images need an image-capable model. A screenshot fails while the ego lite window is minimized.
+- `await screenshot(page)` attaches an image of the page's viewport. Images need an image-capable model. `screenshot` restores a minimized ego lite window before it captures.
 - A space the user took over fails with `EGO_TASK_SPACE_NAME_IN_USE` until the user hands it back in ego lite.
 - Error line numbers are 5 more than the line in `code`.
 - `guide: true` returns the full guide.
