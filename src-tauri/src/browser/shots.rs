@@ -89,3 +89,25 @@ pub fn sweep_stale() {
         }
     }
 }
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    #[test]
+    fn sweep_stale_removes_old_folders_and_spares_fresh_ones() {
+        let fresh = create().unwrap();
+        let old = create().unwrap();
+        std::fs::File::open(&old)
+            .unwrap()
+            .set_modified(SystemTime::now() - Duration::from_secs(3600))
+            .unwrap();
+
+        sweep_stale();
+
+        assert!(fresh.exists());
+        assert!(!old.exists());
+        std::fs::remove_dir_all(fresh).unwrap();
+    }
+}
