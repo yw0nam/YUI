@@ -14,6 +14,7 @@ import type { Logger } from "../../../logger";
 import type { AudioSink } from "./audio-player";
 import { createTtsPipeline } from "./tts-pipeline";
 import { createTtsProvider } from "./tts-synth";
+import type { VoiceGate } from "./voice-gate";
 
 /** A 1-byte ArrayBuffer identifiable by its index. */
 function bufFor(n: number): ArrayBuffer {
@@ -799,6 +800,88 @@ describe("createTtsPipeline — dispose()", () => {
     resolvers[1].resolve(bufFor(1));
     await tick();
     expect(playedOrder).toEqual([]);
+  });
+});
+
+/** A gate whose acquire stays pending until grant() resolves the oldest call. */
+function stubGate() {
+  const grants: Array<() => void> = [];
+  const acquire = vi.fn((_signal: AbortSignal) => new Promise<void>((r) => grants.push(r)));
+  const release = vi.fn();
+  const gate: VoiceGate = { acquire, release };
+  return { gate, acquire, release, grant: () => grants.shift()?.() };
+}
+
+describe("createTtsPipeline — one voice gate", () => {
+  it("does not play until the gate opens, then plays in order", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink, playedOrder, finish } = recordingSink();
+    const { gate, grant } = stubGate();
+    const pipe = createTtsPipeline({ synth, sink, gate, maxInflight: 2 });
+
+    pipe.pushTextDelta("One. Two.", true);
+    pipe.end();
+    await tick();
+    resolvers[0].resolve(bufFor(0));
+    resolvers[1].resolve(bufFor(1));
+    await tick();
+    expect(playedOrder).toEqual([]);
+
+    grant();
+    await tick();
+    expect(playedOrder).toEqual([0]);
+    finish();
+    await tick();
+    expect(playedOrder).toEqual([0, 1]);
+  });
+
+  it("acquires once per utterance and releases once at its completion boundary", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink, finish } = recordingSink();
+    const { gate, acquire, release, grant } = stubGate();
+    const releasedBeforeEnd: number[] = [];
+    const onPlaybackEnd = vi.fn(() => releasedBeforeEnd.push(release.mock.calls.length));
+    const pipe = createTtsPipeline({ synth, sink, gate, onPlaybackEnd, maxInflight: 2 });
+
+    pipe.pushTextDelta("One. Two.", true);
+    pipe.end();
+    await tick();
+    resolvers[0].resolve(bufFor(0));
+    resolvers[1].resolve(bufFor(1));
+    await tick();
+    grant();
+    await tick();
+    finish();
+    await tick();
+    expect(acquire).toHaveBeenCalledTimes(1);
+    expect(release).not.toHaveBeenCalled();
+
+    finish();
+    await tick();
+    expect(acquire).toHaveBeenCalledTimes(1);
+    expect(release).toHaveBeenCalledTimes(1);
+    expect(releasedBeforeEnd).toEqual([1]);
+  });
+
+  it("dispose while waiting never plays and calls no release", async () => {
+    const { synth, resolvers } = deferredSynth();
+    const { sink, playedOrder } = recordingSink();
+    const { gate, acquire, release, grant } = stubGate();
+    const pipe = createTtsPipeline({ synth, sink, gate });
+
+    pipe.pushTextDelta("One.", true);
+    pipe.end();
+    await tick();
+    resolvers[0].resolve(bufFor(0));
+    await tick();
+    pipe.dispose();
+    expect(acquire.mock.calls[0][0].aborted).toBe(true);
+
+    // The aborted signal settles a real gate's pending acquire without a hold.
+    grant();
+    await tick();
+    expect(playedOrder).toEqual([]);
+    expect(release).not.toHaveBeenCalled();
   });
 });
 
