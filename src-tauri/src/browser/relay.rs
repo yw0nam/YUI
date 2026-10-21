@@ -35,6 +35,8 @@ pub struct RunOutcome {
     /// The CLI's stderr, where ego prints the script's logs.
     pub output: String,
     pub exit_code: Option<i32>,
+    /// The prelude's deadline stopped the script.
+    pub deadline: bool,
     pub killed: bool,
     pub images: Vec<String>,
     pub dropped: u32,
@@ -78,8 +80,10 @@ impl Relay {
             Some(out) => (out.stderr, out.status.code(), false),
             None => (Vec::new(), None, true),
         };
+        let output = String::from_utf8_lossy(&output).into_owned();
         Ok(RunOutcome {
-            output: String::from_utf8_lossy(&output).into_owned(),
+            deadline: exit_code != Some(0) && script::names_deadline(&output),
+            output,
             exit_code,
             killed,
             images: shots.images,
