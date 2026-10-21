@@ -526,7 +526,7 @@ globalThis.YUI_MAP =
       "id": "shell/browser",
       "module": "shell",
       "label": "browser",
-      "role": "Launches and owns a dedicated-profile Chrome over loopback CDP, runs one browser action at a time under a generation and a deadline, keeps the current ref table, and stops only the Chrome it started.",
+      "role": "Relays a script or the guide to the installed ego lite CLI, holds one lock per task space and a backstop kill, builds the prelude, and owns the per-call screenshot folder.",
       "paths": [
         "src-tauri/src/browser"
       ]
@@ -704,7 +704,7 @@ globalThis.YUI_MAP =
       "id": "io/browser",
       "module": "tools",
       "label": "browser shell adapter",
-      "role": "Forwards a browser action to the shell under the generation it was accepted in, cancels accepted calls, and stops the owned Chrome when the switch turns off.",
+      "role": "Invokes the relay commands: a script in a task space, or the installed version's guide.",
       "paths": [
         "src/io/browser"
       ]
@@ -1715,7 +1715,7 @@ globalThis.YUI_MAP =
       "id": "feed-surfaces",
       "from": "dispatcher/turn",
       "to": "ui/surfaces",
-      "carries": "TurnFeed.onToolStatus {state, tool_id, action} → showTool, finishTool, hideTool",
+      "carries": "TurnFeed.onToolStatus {state, tool_id} → showTool, finishTool, hideTool",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/wire-dispatcher.ts"
@@ -1840,7 +1840,7 @@ globalThis.YUI_MAP =
       "carries": "body_action → executor.command(args); look → executor.state(), perchTargets()",
       "kind": "callback",
       "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
+      "wiring": "src/app/turn/pet-window-tools.ts"
     },
     {
       "id": "tools-capture",
@@ -1849,16 +1849,16 @@ globalThis.YUI_MAP =
       "carries": "look at screen → capturer.captureAt(point)",
       "kind": "callback",
       "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
+      "wiring": "src/app/turn/pet-window-tools.ts"
     },
     {
       "id": "tools-browser",
       "from": "io/chat/tools",
       "to": "io/browser",
-      "carries": "browser → shell.run(action, fields, signal) → result string",
+      "carries": "relay.run(space, code) / relay.guide() → RunOutcome",
       "kind": "callback",
       "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
+      "wiring": "src/app/turn/pet-window-tools.ts"
     },
     {
       "id": "settings-tool-switches",
@@ -1867,16 +1867,7 @@ globalThis.YUI_MAP =
       "carries": "look.screen and browser switches, read when a call runs and when the tools line is built",
       "kind": "callback",
       "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
-    },
-    {
-      "id": "settings-browser",
-      "from": "settings",
-      "to": "io/browser",
-      "carries": "browserSettings off → cancel, browser_stop",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
+      "wiring": "src/app/turn/pet-window-tools.ts"
     },
     {
       "id": "capture-shell",
@@ -1890,7 +1881,7 @@ globalThis.YUI_MAP =
       "id": "browser-shell",
       "from": "io/browser",
       "to": "shell/browser",
-      "carries": "browser_generation, browser_cancel, browser_run {gen, deadlineAt, action, args}, browser_stop",
+      "carries": "browser_run {space, code}, browser_guide",
       "kind": "tauri-command",
       "transport": "shared"
     },

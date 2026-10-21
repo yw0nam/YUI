@@ -307,7 +307,7 @@ YUI/
         screen-settings.ts           # User-editable screen-watch thresholds
         screenshot-settings.ts       # Screenshot enabled state and source
       browser/                       # The browser tool's on/off flag
-        browser-settings.ts          # Whether the browser tool may drive the app's own Chrome, off by default
+        browser-settings.ts          # Whether the browser tool may run scripts through ego lite, off by default
       avatar/                        # Camera, motion, and lip-sync
         bed-scene-settings.ts        # Launch bed scene on/off and its wake timeout
         camera-settings.ts           # Camera zoom and orbit viewpoint
@@ -360,9 +360,8 @@ YUI/
           session-diagnostics.ts       # Used tokens and context window for the settings window
         record/                        # The turn-record JSONL log
           turn-record-log.ts           # Appends one JSONL record per completed turn or skipped fire
-      browser/                         # The browser tool's adapter to the Rust shell
-        browser-shell.ts               # Forwards a browser action to the Rust shell under its acceptance generation, and cancels accepted calls
-        browser-switch.ts              # Stops the owned Chrome each time the browser switch turns off
+      browser/                         # The browser tool's adapter to the Rust relay
+        browser-relay.ts               # browser_run and browser_guide invocations, and the outcome and guide shapes they answer
       voice/
         deadline.ts                    # Per-request deadline and the body-read race that settle a stalled fetch
         stt-vad.ts                     # Voice input pipeline: VAD segmentation then STT upload
@@ -659,6 +658,13 @@ YUI/
       window_frame.rs                # Lifts AppKit frame constraining and applies logical window frames
       passthrough.rs                 # Click-through toggle over the transparent overlay
       screenshot.rs                  # Screen-source enumeration and off-thread display capture
+      image_encode.rs                # Long-edge resize and JPEG data-URL encode shared by capture and the browser relay
+      browser/                       # The browser tool's half in the shell: scripts and the guide through ego lite
+        mod.rs                       # browser_run and browser_guide commands
+        locate.rs                    # Finds the ego-browser binary under the home directory, then on PATH
+        relay.rs                     # One script run per task space under the space lock, the backstop kill, and the guide run
+        script.rs                    # The prelude wrapped around the caller's code
+        shots.rs                     # The per-call screenshot folder, its collection and encode, and the stale sweep
       agent_ingress/
         mod.rs                       # Loopback HTTP listener for agent hooks, signals, and the avatar RPC surface, routed to main or the pet window a /presets/<id>/ path names
         payload.rs                   # Request parsing, size caps, and event payload types

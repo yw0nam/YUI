@@ -97,6 +97,10 @@ _Avoid_: default constant, fallback value, code-side default
 A named bundle of per-character client state: the backend connection and chat id, the TTS voice, the conversation history, the VRM selection, and the filler phrases. One preset is active at a time; the built-in default preset keeps the unprefixed storage keys. Everything else is device-wide and shared by every preset.
 _Avoid_: profile, character (for this bundle)
 
+**Task space**:
+An ego lite tab workspace the `browser` tool works in, named `yui-<presetId>`: one per preset, so one per pet window. It outlives a call, the browser switch going off, the window, and the app, and the user closes it in ego lite. ego lite's "YUI" browser profile is where those spaces run, and it is not a Preset.
+_Avoid_: tab group, browser session
+
 **Bound pet window**:
 A pet window opened for one preset by label `pet-<id>` and URL query `preset=<id>`. Its per-preset keys resolve under that preset (`yui.<id>.*`; the built-in default keeps the unprefixed keys) and it keeps the preset while `main`, the window without the query, follows the active one. It opens its own settings window `settings-<id>` and message window `message-<id>`, which resolve the same preset's keys and close when it closes or its preset leaves the registry. `yui.windows` is the device-wide list of ids the user wants open, and each of the three windows holds its live key `yui.live-window.<label>` from boot until it closes; the registry refuses to remove or activate a preset while any of the three is live, and `main` clears keys whose window no longer exists at boot.
 _Avoid_: secondary window, companion window, extra window, sub-window
