@@ -223,6 +223,8 @@ Result strings (exact):
 | `error: ego lite not found: install ego lite and run it once` | `ego-browser` is neither at `~/.local/bin` nor on `PATH` |
 | `error: ego-browser skill failed: <stderr>` | `guide` ran `ego-browser skill`, which exited non-zero |
 | `error: ego-browser skill timed out` | `guide` passed the 28 s backstop |
+| `error: ego-browser failed to start: <reason>` | The CLI exists but could not be started |
+| `error: screenshot folder failed: <reason>` | The call's screenshot folder could not be created |
 
 ## Backend capability
 

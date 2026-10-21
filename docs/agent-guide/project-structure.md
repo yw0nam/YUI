@@ -348,6 +348,7 @@ YUI/
           execute.ts                   # The bounded execute both the request transports and the push consumer call
           express.ts                   # The generate_express tool
           avatar.ts                    # The body_action and look tools over the avatar executor
+          pet-window-tools.ts          # Builds the tool list a pet window declares: browser everywhere, body_action and look in main
         vocabulary/                    # The emotion, motion, and voice-tone ids the agent may cue with
           express-vocabulary.ts        # Derives the express vocabulary from the loaded config and the motion selection
         broker/                        # The Expression Broker client and its URL override reconciler

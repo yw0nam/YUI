@@ -703,7 +703,7 @@ globalThis.YUI_MAP =
     {
       "id": "io/browser",
       "module": "tools",
-      "label": "browser shell adapter",
+      "label": "browser relay adapter",
       "role": "Invokes the relay commands: a script in a task space, or the installed version's guide.",
       "paths": [
         "src/io/browser"
@@ -1759,7 +1759,7 @@ globalThis.YUI_MAP =
       "id": "vocabulary-tools",
       "from": "io/chat/vocabulary",
       "to": "io/chat/tools",
-      "carries": "createClientTools(vocabulary, avatarTools) per turn",
+      "carries": "createClientTools(vocabulary, windowTools) per turn",
       "kind": "callback",
       "transport": "request",
       "wiring": "src/app/turn/wire-dispatcher.ts"
@@ -1795,7 +1795,7 @@ globalThis.YUI_MAP =
       "id": "tools-push",
       "from": "io/chat/tools",
       "to": "io/chat/push",
-      "carries": "hello.tools: the avatar tools and browser",
+      "carries": "hello.tools: the window tools (browser in every pet window, body_action and look in main)",
       "kind": "callback",
       "transport": "push",
       "wiring": "src/app/turn/push/push-stores.ts"
@@ -1840,7 +1840,7 @@ globalThis.YUI_MAP =
       "carries": "body_action → executor.command(args); look → executor.state(), perchTargets()",
       "kind": "callback",
       "transport": "shared",
-      "wiring": "src/io/chat/tools/pet-window-tools.ts"
+      "wiring": "src/app/bootstrap-configured.ts"
     },
     {
       "id": "tools-capture",
@@ -1849,7 +1849,7 @@ globalThis.YUI_MAP =
       "carries": "look at screen → capturer.captureAt(point)",
       "kind": "callback",
       "transport": "shared",
-      "wiring": "src/io/chat/tools/pet-window-tools.ts"
+      "wiring": "src/app/bootstrap-configured.ts"
     },
     {
       "id": "tools-browser",
@@ -1867,7 +1867,7 @@ globalThis.YUI_MAP =
       "carries": "look.screen and browser switches, read when a call runs and when the tools line is built",
       "kind": "callback",
       "transport": "shared",
-      "wiring": "src/io/chat/tools/pet-window-tools.ts"
+      "wiring": "src/app/bootstrap-configured.ts"
     },
     {
       "id": "capture-shell",
