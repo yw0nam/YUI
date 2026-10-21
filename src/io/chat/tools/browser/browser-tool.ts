@@ -31,7 +31,6 @@ function unlessStopped<T>(
   if (!signal) return work;
   return new Promise((resolve, reject) => {
     const stop = (): void => resolve(TURN_STOPPED);
-    if (signal.aborted) return stop();
     signal.addEventListener("abort", stop, { once: true });
     work.then(resolve, reject).finally(() => signal.removeEventListener("abort", stop));
   });
@@ -70,6 +69,7 @@ export function createBrowserTool(deps: {
     },
     execute: async (args, signal) => {
       if (!deps.enabled()) return "error: browser is off";
+      if (signal?.aborted) return TURN_STOPPED;
       const code = args.code;
       if (args.guide === true) {
         if (code !== undefined && code !== "") return "error: invalid field code";
