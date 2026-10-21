@@ -526,3 +526,52 @@ describe("createQuickControls — keep bubble until dismissed switch", () => {
     qc.dispose();
   });
 });
+
+describe("createQuickControls — one voice at a time switch", () => {
+  let mount: HTMLElement;
+
+  beforeEach(() => {
+    let rafId = 0;
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return ++rafId;
+    });
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+    setLocale("en");
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = "";
+    vi.restoreAllMocks();
+  });
+
+  it("sits right after the voice-output switch in the Input tab, on, and turns the store off", () => {
+    const oneVoiceSettings = createFlagSettings(true);
+    const setEnabled = vi.spyOn(oneVoiceSettings, "setEnabled");
+    const qc = createQuickControls({ ...defaultQcArgs(mount), oneVoiceSettings });
+    qc.open();
+
+    const sw = qc.el.querySelector<HTMLButtonElement>(".yui-one-voice-switch")!;
+    expect(qc.el.querySelector<HTMLElement>("#yui-panel-input")!.contains(sw)).toBe(true);
+    expect(sw.getAttribute("aria-checked")).toBe("true");
+    expect(sw.getAttribute("aria-label")).toBe("One voice at a time");
+    expect(sw.closest(".yui-row")!.previousElementSibling).toBe(
+      qc.el.querySelector(".yui-tts-switch")!.closest(".yui-row"),
+    );
+
+    sw.click();
+    expect(setEnabled).toHaveBeenCalledWith(false);
+    expect(sw.getAttribute("aria-checked")).toBe("false");
+
+    qc.dispose();
+  });
+
+  it("is absent when no store is injected", () => {
+    const qc = createQuickControls(defaultQcArgs(mount));
+    qc.open();
+    expect(qc.el.querySelector(".yui-one-voice-switch")).toBeNull();
+    qc.dispose();
+  });
+});
