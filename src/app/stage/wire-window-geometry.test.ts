@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+// @vitest-environment jsdom
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { FrameWindow } from "../../io/window/geometry/travel-frame";
 import {
   createWindowGeometrySettings,
@@ -37,6 +38,13 @@ function fakeFrame() {
 }
 
 describe("createWindowGeometry", () => {
+  beforeEach(() => {
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return 0;
+    });
+  });
+
   it("boot applies a stored rect through setFrameLogical", async () => {
     const storage = memoryStorage();
     storage.save({ x: 11, y: 22, width: 500, height: 700 });
@@ -49,25 +57,72 @@ describe("createWindowGeometry", () => {
     expect(frame.setFrameLogical).toHaveBeenCalledExactlyOnceWith(11, 22, 500, 700);
   });
 
-  it("a resize write lands in the store as size", () => {
+  it("a drag release saves the live position", async () => {
     const storage = memoryStorage();
     const { frame } = fakeFrame();
     const wiring = createWindowGeometry({
       store: createWindowGeometrySettings({ storage }),
       frame,
     });
-    wiring.onResizeApplied({ width: 424, height: 636 });
-    expect(storage.load()).toEqual({ width: 424, height: 636 });
+    await wiring.onDragReleased();
+    expect(storage.load()).toEqual({ x: 10, y: 20 });
   });
 
-  it("a drag landed writes the live position", async () => {
+  it("a resize saves the applied bounds", () => {
     const storage = memoryStorage();
     const { frame } = fakeFrame();
     const wiring = createWindowGeometry({
       store: createWindowGeometrySettings({ storage }),
       frame,
     });
-    await wiring.onLand();
-    expect(storage.load()).toEqual({ x: 10, y: 20 });
+    wiring.onResizeApplied({ x: 50, y: 60, width: 424, height: 636 });
+    expect(storage.load()).toEqual({ x: 50, y: 60, width: 424, height: 636 });
+  });
+
+  it("apply waits until the page has the applied size before resolving", async () => {
+    // jsdom's viewport starts at 1024×768; the page catches up on the third frame.
+    let raf = 0;
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      raf += 1;
+      if (raf === 3) {
+        Object.defineProperty(window, "innerWidth", { configurable: true, value: 500 });
+        Object.defineProperty(window, "innerHeight", { configurable: true, value: 700 });
+      }
+      cb(0);
+      return raf;
+    });
+    const storage = memoryStorage();
+    storage.save({ x: 11, y: 22, width: 500, height: 700 });
+    const { frame } = fakeFrame();
+    const wiring = createWindowGeometry({
+      store: createWindowGeometrySettings({ storage }),
+      frame,
+    });
+    let pageSizeAtResolve = "";
+    const done = wiring.apply().then(() => {
+      pageSizeAtResolve = `${window.innerWidth}x${window.innerHeight}`;
+    });
+    await done;
+    expect(pageSizeAtResolve).toBe("500x700");
+  });
+
+  it("a stored position outside every monitor is clamped into the monitor work area before applying", async () => {
+    const storage = memoryStorage();
+    storage.save({ x: 880, y: 400, width: 200, height: 90 });
+    const { frame } = fakeFrame();
+    const wiring = createWindowGeometry({
+      store: createWindowGeometrySettings({ storage }),
+      frame,
+      listMonitors: async () => [
+        {
+          position: { x: 0, y: 0 },
+          size: { width: 2000, height: 1000 },
+          workArea: { position: { x: 0, y: 0 }, size: { width: 2000, height: 950 } },
+          scaleFactor: 2,
+        },
+      ],
+    });
+    await wiring.apply();
+    expect(frame.setFrameLogical).toHaveBeenCalledExactlyOnceWith(800, 385, 200, 90);
   });
 });

@@ -224,17 +224,39 @@ describe("window-resize-source — wheel handler", () => {
     expect(setBoundsLogical).not.toHaveBeenCalled();
   });
 
-  it("the applied size reaches onApplied", async () => {
+  it("the applied bounds reach onApplied", async () => {
     const { win } = makeWindow(1, { x: 0, y: 0 }, { width: 400, height: 600 });
     const { target, fire } = makeTarget();
-    const onApplied = vi.fn<(size: { width: number; height: number }) => void>();
+    const onApplied = vi.fn<(bounds: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }) => void>();
     const source = createWindowResizeSource({ renderer, getWindow: () => win, target, onApplied });
     source.start();
 
     fire({ ctrlKey: true, deltaY: -100 });
     await settle();
 
-    expect(onApplied).toHaveBeenCalledExactlyOnceWith({ width: 424, height: 636 });
+    expect(onApplied).toHaveBeenCalledExactlyOnceWith({ x: -12, y: -36, width: 424, height: 636 });
+  });
+
+  it("a resize is ignored while a travel is active", async () => {
+    const { win, setBoundsLogical } = makeWindow(1, { x: 0, y: 0 }, { width: 400, height: 600 });
+    const { target, fire } = makeTarget();
+    const source = createWindowResizeSource({
+      renderer,
+      getWindow: () => win,
+      target,
+      isLocked: () => true,
+    });
+    source.start();
+
+    fire({ ctrlKey: true, deltaY: -100 });
+    await settle();
+
+    expect(setBoundsLogical).not.toHaveBeenCalled();
   });
 
   it("does not throw to the caller when the window seam rejects", async () => {
