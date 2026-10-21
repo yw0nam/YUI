@@ -169,6 +169,7 @@ mod tests {
     use std::time::Duration;
 
     /// Mirrors ego's `nodejs` prelude: logs go to stderr, `taskSpace` pages write a 1×1 PNG.
+    /// A minimized window fails screenshots until `Browser.setWindowBounds` restores it, then once more.
     const FAKE_PRELUDE: &str = r#"import { writeFileSync, writeSync } from "node:fs";
 const __fakeWrite = (prefix, args) => writeSync(2, prefix + args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" ") + "\n");
 console.log = (...a) => __fakeWrite("", a);
@@ -176,8 +177,26 @@ console.error = (...a) => __fakeWrite("[error] ", a);
 const __fakePng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
 globalThis.taskSpace = async (name) => ({
   name,
+  cdp: async (method, params) => {
+    console.log("cdp " + method);
+    if (method === "Browser.getWindowForTarget" && params.targetId === "target-1") return { windowId: 7 };
+    if (method === "Browser.setWindowBounds" && params.windowId === 7 && params.bounds.windowState === "normal") {
+      if (!globalThis.windowStuck && globalThis.minimized) {
+        globalThis.minimized = false;
+        globalThis.failsAfterRestore = 1;
+      }
+      return {};
+    }
+    throw new Error("unexpected cdp " + method + " " + JSON.stringify(params));
+  },
   page: () => ({
+    targetId: "target-1",
     screenshot: async ({ path }) => {
+      if (globalThis.minimized || globalThis.failsAfterRestore > 0) {
+        if (!globalThis.minimized) globalThis.failsAfterRestore--;
+        throw new Error("Cannot capture a screenshot while the window is minimized.");
+      }
+      if (globalThis.shotError) throw new Error(globalThis.shotError);
       const corrupt = globalThis.corruptNextShot === true;
       globalThis.corruptNextShot = false;
       writeFileSync(path, corrupt ? "not a png" : __fakePng);
@@ -352,6 +371,51 @@ await screenshot(task.page("p1"));"#;
         assert_eq!(out.unreadable, vec!["002.png".to_string()]);
         assert_eq!(out.images.len(), 1);
         assert_eq!(out.dropped, 0);
+    }
+
+    #[tokio::test]
+    async fn screenshot_restores_a_minimized_window_and_captures() {
+        let code = r#"globalThis.minimized = true;
+await screenshot(task.page("p1"));"#;
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits())
+            .await
+            .unwrap();
+        assert_eq!(out.exit_code, Some(0), "output: {}", out.output);
+        assert_eq!(out.images.len(), 1);
+        assert_eq!(out.output.matches("cdp Browser.setWindowBounds").count(), 1);
+    }
+
+    #[tokio::test]
+    async fn screenshot_throws_the_last_minimized_error_when_the_window_stays_minimized() {
+        let code = r#"globalThis.minimized = true;
+globalThis.windowStuck = true;
+await screenshot(task.page("p1"));"#;
+        let limits = Limits {
+            deadline_ms: 5000,
+            ..limits()
+        };
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits)
+            .await
+            .unwrap();
+        assert_eq!(out.exit_code, Some(1), "output: {}", out.output);
+        assert!(out.output.contains("while the window is minimized"));
+        assert_eq!(out.output.matches("cdp Browser.setWindowBounds").count(), 1);
+        assert!(out.images.is_empty());
+    }
+
+    #[tokio::test]
+    async fn screenshot_throws_other_errors_without_a_restore() {
+        let code = r#"globalThis.shotError = "capture boom";
+await screenshot(task.page("p1"));"#;
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits())
+            .await
+            .unwrap();
+        assert_eq!(out.exit_code, Some(1), "output: {}", out.output);
+        assert!(out.output.contains("capture boom"));
+        assert!(!out.output.contains("cdp "));
     }
 
     const TIMED: &str = r#"console.log("start " + Date.now());
