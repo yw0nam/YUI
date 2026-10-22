@@ -18,6 +18,7 @@ import type { TurnLog } from "../../dispatcher/turn/turn";
 import { createTurnFeed, type TurnFeed } from "../../dispatcher/turn/turn-feed";
 import type { ReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
 import { clientToolsUnlessBrokered } from "../../io/chat/broker/broker-tool-owner";
+import { createOverheardReader } from "../../io/chat/conversation/overheard-reader";
 import type { PushSocket } from "../../io/chat/push/push-socket";
 import type { PacerSkipRecord, TurnRecord } from "../../io/chat/record/turn-record-log";
 import {
@@ -29,6 +30,12 @@ import type { ExpressVocabulary } from "../../io/chat/vocabulary/express-vocabul
 import type { ScreenCapturer } from "../../io/window/capture/screen-source-provider";
 import { buildScreenshotBlock } from "../../io/window/capture/screenshot-context";
 import type { Renderer } from "../../renderer";
+import {
+  presetIdForWindow,
+  readActivePresetId,
+  readPresetName,
+} from "../../settings/preset/active-preset";
+import { readOpenPetWindowIds } from "../../settings/preset/pet-windows";
 import type { SettingsStores } from "../../settings/settings-stores";
 import { showChainResetNotice } from "../../ui/notices/chain-reset-notice";
 import {
@@ -39,7 +46,7 @@ import {
 import type { QuickControlsTab } from "../../ui/quick-controls/constants";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
 import { wireGuardrailsOverrides } from "../cross-window/wire-window-sync";
-import type { ConversationStores } from "../settings/conversation-stores";
+import { type ConversationStores, transcriptReaderFor } from "../settings/conversation-stores";
 import type { VoicePipeline } from "./voice/wire-voice-pipeline";
 
 export function wireDispatcher(deps: {
@@ -68,6 +75,7 @@ export function wireDispatcher(deps: {
   onUsage: (usage: Usage) => void;
   chatHistoryStore: ConversationStores["chatHistoryStore"];
   contextHistory: ConversationStores["contextHistory"];
+  overheardStore: ConversationStores["overheardStore"];
   agentSettings: SettingsStores["agentSettings"];
   guardrailsSettings: SettingsStores["guardrailsSettings"];
   pacerGapSettings: SettingsStores["pacerGapSettings"];
@@ -113,6 +121,7 @@ export function wireDispatcher(deps: {
     onUsage,
     chatHistoryStore,
     contextHistory,
+    overheardStore,
     agentSettings,
     guardrailsSettings,
     pacerGapSettings,
@@ -153,6 +162,14 @@ export function wireDispatcher(deps: {
       createClientToolRegistry(createClientTools(getVocabulary(), windowTools)),
     );
 
+  const overheard = createOverheardReader({
+    selfPresetId: presetIdForWindow(),
+    otherPresetIds: () => [readActivePresetId(), ...readOpenPetWindowIds()],
+    presetName: readPresetName,
+    transcriptOf: transcriptReaderFor,
+    cursors: overheardStore,
+  });
+
   const backendCaller = createBackendCaller({
     get config() {
       return getEndpoints();
@@ -181,6 +198,8 @@ export function wireDispatcher(deps: {
     getPrevious: previousTurn.get,
     getToolSwitches: () => turnTools()?.switches() ?? [],
     takeMessageWake,
+    getOverheard: overheard.read,
+    commitOverheard: overheard.commit,
     isBodyHeld,
     contextHistory,
     appendTurnRecord,

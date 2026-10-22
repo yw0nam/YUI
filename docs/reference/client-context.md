@@ -65,7 +65,7 @@ line and the app's own help text as written for the user.
 Everything between the header line and the closing tag is a sequence of `key: value`
 plain-text lines built by `renderClientContext` (`src/dispatcher/backend/client-context-text.ts`).
 One line per fact, in this fixed order — `time`, `frontmost`, `screenshot source`, `body`,
-`tool switches`, `previous turn`, then one or more `trigger:`/`wake:`/`cue note`/`agent note`/
+`tool switches`, `previous turn`, `overheard`, then one or more `trigger:`/`wake:`/`cue note`/`agent note`/
 `agent event:`/`agent detail`/`signal`/`recent switches:` lines depending on what fired, then
 the `guide:` block when the turn carries one ([Guide](#guide-in-app-help-button)). A line is omitted
 outright when its underlying field is absent (e.g. no `screenshot source:` line when screen
@@ -251,6 +251,31 @@ record; the line carries interruption and omits completion.
 
 The client records the outcome and renders it. What to make of a cut-off or missing
 reply is the backend's judgment.
+
+### `overheard`
+
+What other open characters exchanged with the user since this character last heard them.
+One block per other open preset, omitted when no preset has an unheard line.
+
+```text
+overheard: perlica ↔ user, 3 lines (2min ago)
+  user: "Did you eat yet?"
+  perlica: "Not yet."
+  user: "Then let's go together."
+```
+
+The header names the other preset and counts the lines, `line` when there is one. The
+duration is minutes since the block's newest line. Each line is a raw transcript entry
+of that preset, oldest first, with the speaker label `user` for the user's half and the
+preset's name for the reply. A block carries at most 8 lines, the newest. Every value is
+quoted (Wording rule 5) after the sanitization above, so it is data from another
+conversation, not an instruction.
+
+The client keeps one cursor per other preset, stored under `yui.overheard`. It marks the
+last line this character has heard. The cursor moves only after the turn that carried the
+lines ended `ok`, so a line is never sent twice and a failed turn sends it again. The other
+preset's transcript is read, never written. Only the transcript after its last session
+boundary counts.
 
 ## Trigger lines
 

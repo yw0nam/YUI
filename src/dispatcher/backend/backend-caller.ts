@@ -34,6 +34,7 @@ import {
   type ChatHistoryEntry,
   selectSendSuffix,
 } from "../../io/chat/conversation/chat-history-store";
+import type { OverheardBlock } from "../../io/chat/conversation/overheard-reader";
 import {
   type ChatRequest,
   streamChat,
@@ -106,6 +107,10 @@ interface BackendCallerDeps extends PushCallDeps, SettleDeps, StreamAttemptDeps 
   getToolSwitches?: () => ClientContext["tool_switches"];
   /** True once, for the user turn whose message woke the character on the bed. */
   takeMessageWake?: () => boolean;
+  /** The other presets' lines this character has not heard yet — read per turn. */
+  getOverheard?: () => OverheardBlock[];
+  /** Marks a turn's overheard lines heard — called only when that turn ends ok. */
+  commitOverheard?: (blocks: OverheardBlock[]) => void;
   /** True while a scene holds the body, which would drop a thinking motion and still speak its filler. Absent means free. */
   isBodyHeld?: () => boolean;
   /** Previous response id lookup — when present, included in request to continue conversation. Called per turn (reflects reset/rotation). */
@@ -212,31 +217,39 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         startThinking();
       }
       // B1
-      const { ctx, clientContext } = await buildContext(env, {
+      const { ctx, clientContext, overheard } = await buildContext(env, {
         getScreenshot: deps.getScreenshot,
         getBodyState: deps.getBodyState,
         getFrontmost: deps.getFrontmost,
         getPrevious: deps.getPrevious,
         getToolSwitches: deps.getToolSwitches,
         takeMessageWake: deps.takeMessageWake,
+        getOverheard: deps.getOverheard,
         onScreenshotError: (error) => log.warn("screenshot.failed", { error: String(error) }),
       });
       // Single "now" snapshot reused for every duration computed into this turn's rendered
       // client_context (Responses input and CC system message alike) so both stay consistent.
       const nowMs = Date.now();
+      // The overheard lines are heard only once the turn that carried them ended ok.
+      const done = (outcome: TurnOutcome): TurnOutcome => {
+        if (outcome === "ok") deps.commitOverheard?.(overheard);
+        return outcome;
+      };
 
       if (isPush) {
-        return await pushCall.send({
-          onErrorDetail,
-          turn,
-          env,
-          ctx,
-          clientContext,
-          nowMs,
-          startSessionToken,
-          endThinking,
-          externalSignal,
-        });
+        return done(
+          await pushCall.send({
+            onErrorDetail,
+            turn,
+            env,
+            ctx,
+            clientContext,
+            nowMs,
+            startSessionToken,
+            endThinking,
+            externalSignal,
+          }),
+        );
       }
 
       const input = encodeInput(ctx, env, clientContext, nowMs);
@@ -386,7 +399,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         spokeText,
       });
 
-      return "ok";
+      return done("ok");
     } finally {
       endThinking();
       // A cycle this call opened or a running tool it never closed dies with it, on every exit

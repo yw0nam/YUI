@@ -76,7 +76,7 @@ YUI/
         wire-help-guide.ts           # Guide requests submitted as user turns, from the panel's Ask buttons or the settings bridge
       settings/                      # Selections and conversation state applied to the running app
         config-defaults.ts           # The quick-controls getters over the bundled config, shared by the pet and settings windows
-        conversation-stores.ts       # Constructs the four shared io/chat conversation stores each window owns and disposes
+        conversation-stores.ts       # Constructs the shared io/chat conversation stores each window owns and disposes
         dev-key-fallback.ts          # The VITE_YUI_*_KEY build-time key values, read in dev builds only
         window-stores.ts             # Creates the settings and conversation store bags and the preset registry of the pet, settings, and phone windows and registers each store's teardown
         wire-avatar.ts               # VRM and speaker selection stores, their swap and import flows, the voice-list refresh on override commits, and the avatar config applied at boot
@@ -360,6 +360,8 @@ YUI/
         conversation/                  # Transcript, context, and session state for conversation continuation
           chat-history-store.ts        # Unified conversation transcript with session boundaries
           context-history.ts           # Capped ring of recent client-context entries
+          overheard-reader.ts          # Reads the lines other open presets exchanged since this window last heard them
+          overheard-store.ts           # Per other preset, the cursor up to which this window has heard its transcript
           session-store.ts             # Holds the last Responses response.id for conversation continuation
           session-diagnostics.ts       # Used tokens and context window for the settings window
         record/                        # The turn-record JSONL log

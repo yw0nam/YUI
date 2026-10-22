@@ -93,6 +93,18 @@ function renderPrevious(previous: ClientContext["previous"], nowMs: number): str
   return `previous turn: the reply to ${oneLine(previous.event_name)} ${PREVIOUS_ENDED[previous.ended]} (${minutesSince(previous.ts, nowMs)}min ago)${heard}`;
 }
 
+function renderOverheard(overheard: ClientContext["overheard"], nowMs: number): string[] {
+  return (overheard ?? []).flatMap(({ name, entries }) => {
+    const speaker = oneLine(name);
+    const count = entries.length;
+    const header = `overheard: ${speaker} ↔ user, ${count} line${count === 1 ? "" : "s"} (${minutesSince(entries[count - 1]!.ts, nowMs)}min ago)`;
+    return [
+      header,
+      ...entries.map((e) => `  ${e.role === "user" ? "user" : speaker}: "${oneLine(e.text)}"`),
+    ];
+  });
+}
+
 function renderRecentSwitches(recent: NonNullable<TriggerMeta["screen"]>["recent"]): string[] {
   if (!recent || recent.length === 0) return [];
   const steps: string[] = [];
@@ -213,6 +225,8 @@ export function renderClientContext(clientContext: ClientContext, nowMs: number)
 
   const previous = renderPrevious(clientContext.previous, nowMs);
   if (previous) lines.push(previous);
+
+  lines.push(...renderOverheard(clientContext.overheard, nowMs));
 
   lines.push(...renderTrigger(clientContext.trigger, nowMs));
   if (clientContext.trigger.guide) lines.push(renderGuideBlock(clientContext.trigger.guide));

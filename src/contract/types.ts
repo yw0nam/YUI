@@ -342,6 +342,12 @@ export interface ClientContext {
   tool_switches?: { id: string; on: boolean }[];
   /** Present only when the last turn that tried to speak ended `interrupted` or `failed`. */
   previous?: PreviousTurn;
+  /** Lines other open characters exchanged with the user since this character last heard them; absent when none. */
+  overheard?: {
+    preset: string;
+    name: string;
+    entries: { role: "user" | "assistant"; text: string; ts: number }[];
+  }[];
   trigger: TriggerMeta;
 }
 

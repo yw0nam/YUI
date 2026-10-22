@@ -51,6 +51,16 @@ export function readActivePresetId(): string {
   }
 }
 
+/** The name a stored preset id is listed under; the id itself when unlisted. */
+export function readPresetName(id: string): string {
+  try {
+    const raw = globalThis.localStorage?.getItem(PRESETS_KEY);
+    return parsePresetState(JSON.parse(raw ?? "null"))?.list.find((e) => e.id === id)?.name ?? id;
+  } catch {
+    return id;
+  }
+}
+
 /** The name a window shows: the bound preset's when bound, else the active preset's. */
 export function presetNameFor(state: PresetState, boundId: string | null): string {
   const id = boundId ?? state.active;

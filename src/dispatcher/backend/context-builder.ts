@@ -7,6 +7,7 @@ import type {
   PreviousTurn,
   TriggerMeta,
 } from "../../contract";
+import type { OverheardBlock } from "../../io/chat/conversation/overheard-reader";
 import { isGuideKey } from "../../io/guide/guide-docs";
 import type { BusEnvelope } from "../core/event-bus";
 
@@ -20,11 +21,15 @@ interface ContextProviders {
   getToolSwitches?: () => ClientContext["tool_switches"];
   /** True once, for the user turn whose message woke the character on the bed. */
   takeMessageWake?: () => boolean;
+  /** The other presets' unheard lines, read once per turn. */
+  getOverheard?: () => OverheardBlock[];
 }
 
 interface BuiltContext {
   ctx: InputContext;
   clientContext: ClientContext;
+  /** The overheard blocks this turn carries, for the caller to commit once the turn ends ok. */
+  overheard: OverheardBlock[];
 }
 
 /** The text the user typed or spoke on this turn, absent on a turn the client fired by itself. */
@@ -309,6 +314,7 @@ export async function buildContext(
   }
 
   const switches = providers.getToolSwitches?.();
+  const overheard = providers.getOverheard?.() ?? [];
   const clientContext = {
     ...buildClientContext(
       ctx,
@@ -319,9 +325,12 @@ export async function buildContext(
       triggerKind(env.event_name) === "user" && providers.takeMessageWake?.() === true,
     ),
     ...(switches?.length ? { tool_switches: switches } : {}),
+    ...(overheard.length
+      ? { overheard: overheard.map(({ preset, name, entries }) => ({ preset, name, entries })) }
+      : {}),
   };
 
-  return { ctx, clientContext };
+  return { ctx, clientContext, overheard };
 }
 
 export function imageDataUrlsOf(ctx: InputContext): string[] {

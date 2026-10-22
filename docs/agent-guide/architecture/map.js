@@ -731,7 +731,7 @@ globalThis.YUI_MAP =
       "id": "io/chat/conversation",
       "module": "conversation",
       "label": "conversation stores",
-      "role": "Transcript, context history, response-id session, and session diagnostics.",
+      "role": "Transcript, context history, response-id session, session diagnostics, and the overheard store and reader that hand a turn the other open presets' unheard lines.",
       "paths": [
         "src/io/chat/conversation"
       ]
@@ -1424,6 +1424,15 @@ globalThis.YUI_MAP =
       "carries": "previous response id, pending tool outputs, transcript entries after the last boundary",
       "kind": "callback",
       "transport": "request",
+      "wiring": "src/app/turn/wire-dispatcher.ts"
+    },
+    {
+      "id": "overheard-backend",
+      "from": "io/chat/conversation",
+      "to": "dispatcher/backend",
+      "carries": "other presets' entries after the per-pair cursor; the cursor commits after a turn ends ok",
+      "kind": "callback",
+      "transport": "shared",
       "wiring": "src/app/turn/wire-dispatcher.ts"
     },
     {

@@ -28,6 +28,7 @@ export const PRESET_KEYS: readonly string[] = [
   "yui.context-history",
   "yui.session_diagnostics",
   "yui.previous-turn",
+  "yui.overheard",
 ];
 
 /** The key `key` is stored under while `presetId` is active: `yui.<id>.<rest>` for a preset's own key. */
