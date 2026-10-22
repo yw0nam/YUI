@@ -69,10 +69,6 @@
   color: var(--yui-text-mute);
 }
 
-.yui-preset__note[hidden] {
-  display: none;
-}
-
 .yui-quick__cols.is-busy {
   opacity: 0.4;
   pointer-events: none;

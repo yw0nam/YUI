@@ -276,7 +276,6 @@ export async function wireSettingsWindow(deps: {
       presetRegistry,
       petWindows,
       boundId,
-      presetMode: "edit",
       onEditTarget: (id) =>
         location.replace(editTargetUrl(location.href, id, boundId ?? presetRegistry.get().active)),
       showVoiceInput: boundId === null,

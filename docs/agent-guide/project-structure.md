@@ -95,7 +95,7 @@ YUI/
         wire-message-surface-ops.ts  # Draws each surface op from the pet window onto the surfaces and the plate
         wire-message-tauri-window.ts # Window focus, the OS drag, the content-height resize, and the moved-position record
       settings-window/               # The settings window's wiring
-        wire-settings-window.ts      # Stores, config, cross-window sync, and the quick controls remounted on locale change, bound to the query's preset when it names one
+        wire-settings-window.ts      # Stores, config, cross-window sync, and the quick controls remounted on locale change, bound to the query's preset when it names one, and editing the preset `?edit=` names
         edit-target-url.ts           # The settings URL with its `edit` param set to the picked preset, or dropped for the window's own
         wire-voice-mirror.ts         # Mirrors the voice toggle to the pet window and the pet window's voice state back; main only
       voice/                         # Desktop voice wiring
@@ -324,7 +324,7 @@ YUI/
       preset/                        # Presets: which keys belong to one, the active one, the registry, and the windows bound to one
         preset-keys.ts               # The per-preset key list and where a key lives under a given preset
         active-preset.ts             # The registry's stored shape and the id a window resolves its keys under: the preset query, else the active preset
-        bound-preset.ts              # The preset query that binds a window to one preset
+        bound-preset.ts              # The page queries that bind a window to one preset (`?preset=`) and name the preset a settings window edits (`?edit=`)
         preset-registry.ts           # Preset list and active preset under yui.presets: create, rename, remove, activate
         pet-windows.ts               # The desired open set under yui.windows and the live key each window holds under yui.live-window.<label>
       panels/                        # Panel and window state
@@ -585,8 +585,8 @@ YUI/
         header/                      # Popover header bar buttons
           header-buttons.ts          # Pop-out, message, devtools and close buttons with their listeners
         preset/                      # Preset strip above the tab rail
-          preset-strip.ts            # Active-preset picker, the switching state, and the tab scope lines it fills; in the settings window it picks the preset to edit (`?edit=`) and main's character is switched from the manage popover
-          preset-manage.ts           # Manage popover: rows with inline rename, delete confirm and the open or close window row, and the new-preset field
+          preset-strip.ts            # Active-preset picker, the switching state, and the tab scope lines it fills; in the settings window it picks the preset to edit (`?edit=`)
+          preset-manage.ts           # Manage popover: rows with inline rename, delete confirm, the open or close window action, "Use in main" in the settings window (it switches main's preset), and the new-preset field
           preset-scope.ts            # Scope line text: the preset a tab edits, or that its settings are shared
           preset.css                 # Strip, manage popover, and scope line styles
         history/                     # History tab and its session accordion section

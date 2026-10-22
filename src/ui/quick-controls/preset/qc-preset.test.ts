@@ -56,6 +56,7 @@ describe("createQuickControls — presets", () => {
   });
 
   function rebuild(boundId: string | null = null) {
+    if (boundId) history.replaceState(null, "", `/?preset=${boundId}`);
     qc.dispose();
     const petWindows = createPetWindows();
     const args = defaultQcArgs(mount);
@@ -70,15 +71,15 @@ describe("createQuickControls — presets", () => {
     return petWindows;
   }
 
-  function editMode(edit: string, onEditTarget = vi.fn()) {
-    history.replaceState(null, "", `/?edit=${edit}`);
+  function editMode(edit: string, onEditTarget = vi.fn(), boundId: string | null = null) {
+    history.replaceState(null, "", `/?${boundId ? `preset=${boundId}&` : ""}edit=${edit}`);
     qc.dispose();
     const petWindows = createPetWindows();
     qc = createQuickControls({
       ...defaultQcArgs(mount),
       presetRegistry: registry,
       petWindows,
-      presetMode: "edit",
+      boundId,
       onEditTarget,
     });
     qc.open();
@@ -112,17 +113,19 @@ describe("createQuickControls — presets", () => {
     );
   });
 
-  it("edit mode: the manage row switches main's preset, except for one whose window is open", () => {
+  it("edit mode: a non-active row keeps its window button and adds Use in main, disabled while its window is open", () => {
     const { petWindows } = editMode("bbbb0002");
     petWindows.open("default");
     openManage();
-    const useInMain = (name: string) =>
-      rowOf(name).querySelector<HTMLButtonElement>(".yui-preset-row__window")!;
+    const buttons = (name: string) =>
+      Array.from(rowOf(name).querySelectorAll<HTMLButtonElement>(".yui-preset-row__window"));
 
-    expect(useInMain("default").textContent).toBe("Use in main");
-    expect(useInMain("default").disabled).toBe(true);
-    expect(rowOf("natsume").querySelector(".yui-preset-row__window")).toBeNull();
-    useInMain("perlica").click();
+    expect(buttons("default").map((b) => [b.textContent, b.disabled])).toEqual([
+      ["Close window", false],
+      ["Use in main", true],
+    ]);
+    expect(buttons("natsume")).toEqual([]);
+    buttons("perlica")[1]!.click();
 
     expect(registry.get().active).toBe("bbbb0002");
   });
@@ -144,6 +147,15 @@ describe("createQuickControls — presets", () => {
 
     expect(onEditTarget).toHaveBeenCalledTimes(1);
     expect(onEditTarget).toHaveBeenCalledWith("aaaa0001");
+  });
+
+  it("edit mode: a bound window whose edited preset is deleted returns to its bound preset", () => {
+    const { onEditTarget } = editMode("bbbb0002", vi.fn(), "default");
+
+    registry.remove("bbbb0002");
+
+    expect(onEditTarget).toHaveBeenCalledTimes(1);
+    expect(onEditTarget).toHaveBeenCalledWith("default");
   });
 
   it("edit mode: a new preset is seeded from the edited preset", () => {

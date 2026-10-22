@@ -47,13 +47,12 @@ export function createPresetStrip(deps: {
   log: Logger;
   petWindows?: PetWindows;
   boundId?: string | null;
-  /** `edit` picks the preset the window edits; `activate` switches main's preset. */
-  mode?: "activate" | "edit";
+  /** Passed in the settings window: the strip picks the preset the window edits instead of switching main's. */
   onEditTarget?: (id: string) => void;
   agentNotifySettings?: ReturnType<typeof createAgentNotifySettings>;
 }): PresetStrip {
-  const { root, registry, log, petWindows, boundId = null, mode = "activate", onEditTarget } = deps;
-  const edit = mode === "edit";
+  const { root, registry, log, petWindows, boundId = null, onEditTarget } = deps;
+  const edit = !!onEditTarget;
   const shownId = presetIdForWindow();
   const stripEl = root.querySelector<HTMLDivElement>(".yui-preset")!;
   const select = stripEl.querySelector<HTMLSelectElement>(".yui-preset__select")!;
@@ -81,7 +80,7 @@ export function createPresetStrip(deps: {
     log,
     petWindows,
     boundId,
-    mode,
+    edit,
     presetUrl: (id) => {
       const settings = deps.agentNotifySettings?.get();
       return settings?.enabled ? ingressUrl(settings.port, id) : null;
@@ -96,7 +95,7 @@ export function createPresetStrip(deps: {
     const state = registry.get();
     if (edit && !state.list.some((e) => e.id === shownId)) {
       left = true;
-      onEditTarget?.(state.active);
+      onEditTarget?.(boundId ?? state.active);
       return;
     }
     select.replaceChildren(
@@ -106,13 +105,13 @@ export function createPresetStrip(deps: {
           open ? t("preset.in_window", { name: e.name }) : e.name,
           e.id,
           false,
-          e.id === (edit ? shownId : state.active),
+          e.id === shownId,
         );
         option.disabled = !!open;
         return option;
       }),
     );
-    const name = presetNameFor(state, edit ? shownId : boundId);
+    const name = presetNameFor(state, shownId);
     if (edit) {
       const open = petWindows?.get().includes(shownId) || isPresetWindowLive(shownId);
       const key = shownId === state.active ? "main" : open ? "window" : "idle";

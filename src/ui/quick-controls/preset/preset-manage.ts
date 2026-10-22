@@ -36,12 +36,12 @@ export function createPresetManage(deps: {
   log: Logger;
   petWindows?: PetWindows;
   boundId?: string | null;
-  /** `edit` swaps each row's open/close window action for "Use in main". */
-  mode?: "activate" | "edit";
+  /** The settings window: rows also offer "Use in main". */
+  edit?: boolean;
   presetUrl?: (id: string) => string | null;
 }): PresetManage {
   const { el, registry, log, petWindows, boundId } = deps;
-  const edit = deps.mode === "edit";
+  const edit = !!deps.edit;
   let renamingId: string | null = null;
   let confirmId: string | null = null;
   let naming = false;
@@ -89,16 +89,7 @@ export function createPresetManage(deps: {
       focusSel = ".yui-preset-row__confirm .yui-pill:not(.yui-pill--go)";
       render();
     });
-    if (edit && entry.id !== active) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "yui-preset-row__window";
-      button.textContent = t("preset.use_in_main");
-      // The registry refuses a preset whose window is open; the button shows the rule.
-      button.disabled = desired || live;
-      button.addEventListener("click", () => registry.activate(entry.id));
-      row.querySelector(".yui-preset-row__acts")!.append(button);
-    } else if (!edit && petWindows && entry.id !== active && entry.id !== boundId) {
+    if (petWindows && entry.id !== active && entry.id !== boundId) {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "yui-preset-row__window";
@@ -107,6 +98,16 @@ export function createPresetManage(deps: {
       button.addEventListener("click", () =>
         desired ? petWindows.close(entry.id) : petWindows.open(entry.id),
       );
+      row.querySelector(".yui-preset-row__acts")!.append(button);
+    }
+    if (edit && entry.id !== active) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "yui-preset-row__window";
+      button.textContent = t("preset.use_in_main");
+      // The registry refuses a preset whose window is open; the button shows the rule.
+      button.disabled = desired || live;
+      button.addEventListener("click", () => registry.activate(entry.id));
       row.querySelector(".yui-preset-row__acts")!.append(button);
     }
     const url = deps.presetUrl?.(entry.id);
