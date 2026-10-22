@@ -34,9 +34,10 @@ async function collect(
   name: string,
   argsJson: string,
   signal?: AbortSignal,
+  turnId?: string,
 ): Promise<ChatStreamEvent[]> {
   const events: ChatStreamEvent[] = [];
-  const gen = runClientCall(tools, name, argsJson, signal);
+  const gen = runClientCall(tools, name, argsJson, signal, undefined, turnId);
   for (let next = await gen.next(); !next.done; next = await gen.next()) events.push(next.value);
   await gen.next();
   return events;
@@ -61,6 +62,21 @@ describe("runClientCall — the request's signal", () => {
     await collect(registry, "body_action", "{}", request.signal);
 
     expect(seen?.aborted).toBe(true);
+  });
+});
+
+describe("runClientCall — the turn id", () => {
+  it("hands the tool the request's turn id", async () => {
+    const execute = vi.fn(async () => "ok");
+    await collect(
+      createClientToolRegistry([tool({ execute })]),
+      "body_action",
+      "{}",
+      undefined,
+      "t1",
+    );
+
+    expect(execute).toHaveBeenCalledWith({}, expect.any(AbortSignal), { turnId: "t1" });
   });
 });
 

@@ -436,6 +436,7 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
     expect(express.execute).toHaveBeenCalledWith(
       { emotion_id: "happy", motion_id: "embarrassed", emotion_text: "[whisper]" },
       expect.any(AbortSignal),
+      { turnId: undefined },
     );
     expect(events).toEqual([
       {
@@ -631,9 +632,11 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
       )
       .mockResolvedValueOnce(streamOf([textChunk("warm"), finishChunk("stop")]));
 
-    const events = await collect(streamChat(CONFIG, req(), { tools: registry }));
+    const events = await collect(streamChat(CONFIG, req({ turnId: "t1" }), { tools: registry }));
 
-    expect(weather.execute).toHaveBeenCalledWith({ city: "seoul" }, expect.any(AbortSignal));
+    expect(weather.execute).toHaveBeenCalledWith({ city: "seoul" }, expect.any(AbortSignal), {
+      turnId: "t1",
+    });
     expect(events.slice(0, 2)).toEqual([
       { type: "tool_status", status: { state: "running", tool_id: "get_weather" } },
       { type: "tool_status", status: { state: "done", tool_id: "get_weather" } },
@@ -798,7 +801,7 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
 
     const events = await collect(streamChat(CONFIG, req(), { tools: registry }));
 
-    expect(noArg.execute).toHaveBeenCalledWith({}, expect.any(AbortSignal));
+    expect(noArg.execute).toHaveBeenCalledWith({}, expect.any(AbortSignal), { turnId: undefined });
     expect(events.some((e) => e.type === "error")).toBe(false);
   });
 

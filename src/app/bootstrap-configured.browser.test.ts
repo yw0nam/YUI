@@ -15,8 +15,8 @@ vi.mock("./turn/turn-core", () => ({
 }));
 afterEach(() => vi.unstubAllGlobals());
 it.each([
-  [false, ["body_action", "look", "browser"]],
-  [true, ["browser"]],
+  [false, ["rate_relation", "body_action", "look", "browser"]],
+  [true, ["rate_relation", "browser"]],
 ])("a pet window (bound: %s) declares %j", async (bound, names) => {
   vi.stubGlobal("__TAURI_INTERNALS__", {});
   vi.mocked(wireTurnCore).mockImplementation(async () => {
@@ -34,6 +34,7 @@ it.each([
             sttSettings: { get: () => ({ enabled: false }), setEnabled: () => {} },
             screenshotSettings: { get: () => ({ allowRequests: false }) },
           },
+          conversation: { relationsStore: {} },
           vrm: { vrmSelection: {} },
           isDisposed: () => false,
         } as never,

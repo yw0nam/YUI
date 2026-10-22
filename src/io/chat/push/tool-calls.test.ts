@@ -123,6 +123,21 @@ describe("createPushToolCalls", () => {
     expect(h.log.warn).toHaveBeenCalledWith("tool_call_duplicate", { id: "c1", name: "look" });
   });
 
+  it("runs a call with its frame's id and turn id", async () => {
+    const execute = vi.fn(async () => "ok");
+    const h = harness({ execute });
+    h.calls.handle(call("c1", "t9", "look"));
+    await flush();
+
+    expect(execute).toHaveBeenCalledWith(
+      h.tools.get("look"),
+      { action: "stand" },
+      expect.any(AbortSignal),
+      "c1",
+      "t9",
+    );
+  });
+
   it("runs one call at a time in arrival order", async () => {
     const order: string[] = [];
     let release!: (result: string) => void;

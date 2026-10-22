@@ -142,10 +142,12 @@ describe("streamChat — Responses tool-call round trip", () => {
       .mockResolvedValueOnce(streamOf([...call("generate_express", "fc_1"), done("resp_1")]))
       .mockResolvedValueOnce(streamOf([text("Hello"), done("resp_2")]));
 
-    const events = await collect(streamChat(CONFIG, req(), optsFor(gen)));
+    const events = await collect(streamChat(CONFIG, req({ turnId: "t1" }), optsFor(gen)));
 
     expect(gen.execute).toHaveBeenCalledOnce();
-    expect(gen.execute).toHaveBeenCalledWith({ emotion_id: "happy" }, expect.any(AbortSignal));
+    expect(gen.execute).toHaveBeenCalledWith({ emotion_id: "happy" }, expect.any(AbortSignal), {
+      turnId: "t1",
+    });
     expect(events.filter((e) => e.type === "express")).toEqual([
       { type: "express", args: { emotion_id: "happy" } },
     ]);
@@ -534,7 +536,7 @@ describe("streamChat — Responses tool-call round trip", () => {
     await collect(streamChat(CONFIG, req(), optsFor(ping)));
 
     expect(ping.execute).toHaveBeenCalledOnce();
-    expect(ping.execute).toHaveBeenCalledWith({}, expect.any(AbortSignal));
+    expect(ping.execute).toHaveBeenCalledWith({}, expect.any(AbortSignal), { turnId: undefined });
   });
 
   it("executes id-less calls at the same output_index in consecutive responses separately", async () => {

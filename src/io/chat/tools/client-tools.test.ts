@@ -14,6 +14,7 @@ import { createAvatarTools } from "./avatar";
 import { createBrowserTool } from "./browser/browser-tool";
 import { type ClientTool, createClientToolRegistry, createClientTools } from "./client-tools";
 import { createGenerateExpressTool } from "./express";
+import { createRateRelationTool } from "./relation";
 
 /** The published vocabulary (deriveExpressVocabulary) is the schema's only source. */
 const vocab = (over: Partial<ExpressVocabulary> = {}): ExpressVocabulary => ({
@@ -212,11 +213,12 @@ describe("docs/reference/client-tools.md catalog", () => {
     const rows = new Set([...catalog.matchAll(/^\| `([^`]+)` \|/gm)].map((m) => m[1]));
     const relay = { run: vi.fn(), guide: vi.fn() };
     const names = createClientTools(vocab(), [
+      createRateRelationTool({ store: { rate: vi.fn() }, targets: () => [] }),
       ...createAvatarTools(() => null),
       createBrowserTool({ relay, enabled: () => false, presetId: () => "p1" }),
     ]).map((tool) => tool.name);
 
-    expect(names).toEqual(["generate_express", "body_action", "look", "browser"]);
+    expect(names).toEqual(["generate_express", "rate_relation", "body_action", "look", "browser"]);
     expect(names.filter((name) => !rows.has(name))).toEqual([]);
   });
 });
