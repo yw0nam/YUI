@@ -8,7 +8,7 @@ describe("matrix open state", () => {
     localStorage.clear();
   });
 
-  it("keeps one open state per preset window", () => {
+  it("keeps one open state per preset", () => {
     vi.stubGlobal("location", { search: "?preset=aaaa0001" });
     writeOpen(true);
     expect(readOpen()).toBe(true);

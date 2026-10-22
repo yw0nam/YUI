@@ -605,7 +605,7 @@ YUI/
           preset.css                 # Strip, manage popover, scope line, relation line, matrix, and reasons card styles
           relations/                 # The relation line under the preset row, the relations matrix, and the reasons card
             relations-section.ts     # Composes the three, re-renders on a write or a storage event, and moves the changed relations
-            matrix-open-state.ts     # The matrix disclosure's open state, per window
+            matrix-open-state.ts     # The matrix disclosure's open state, per preset: the pet window and the settings window editing that preset share it
             relation-glyph.ts        # The five-step glyph and its band motion, the relation chip, the direction mark, and the age text
             relation-line.ts         # This preset's relation toward each rated target, and the matrix toggle
             relations-matrix.ts      # Every preset's relation toward every target, and the newest change

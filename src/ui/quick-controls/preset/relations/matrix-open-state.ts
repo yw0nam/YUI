@@ -1,4 +1,4 @@
-/** The matrix disclosure's open state, per window. */
+/** The matrix disclosure's open state, per preset: the pet window and the settings window editing that preset share it. */
 
 import { presetIdForWindow } from "../../../../settings/preset/active-preset";
 import { resolveStorageKey } from "../../../../settings/preset/preset-keys";
