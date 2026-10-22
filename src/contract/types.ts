@@ -351,6 +351,17 @@ export interface ClientContext {
     name: string;
     entries: { role: "user" | "assistant"; text: string; ts: number }[];
   }[];
+  /** This character's stance toward each target the backend has rated; absent when none. */
+  stance?: {
+    /** `user` or the other preset's name. */
+    target: string;
+    band: RelationBand;
+    /** The last accepted change; 0 with an empty `why` when the record has no logged change. */
+    delta: number;
+    why: string;
+    at: number;
+    note?: string;
+  }[];
   trigger: TriggerMeta;
 }
 

@@ -70,6 +70,24 @@ function renderBody(
   return `body: ${bodyState.posture.state}${on}${gettingUp} (for ${mins}min)`;
 }
 
+/** `Nmin ago` under an hour, `Nh ago` under a day, else `Nd ago`. */
+function ageOf(atMs: number, nowMs: number): string {
+  const mins = minutesSince(atMs, nowMs);
+  if (mins < 60) return `${mins}min ago`;
+  const hours = Math.round(mins / 60);
+  return hours < 24 ? `${hours}h ago` : `${Math.round(mins / 1440)}d ago`;
+}
+
+function renderStance(stance: ClientContext["stance"], nowMs: number): string[] {
+  return (stance ?? []).map(({ target, band, delta, why, at, note }) => {
+    const summary = note ? `, "${oneLine(note)}"` : "";
+    const last = why
+      ? ` (last change ${delta > 0 ? "+" : ""}${delta}, ${ageOf(at, nowMs)}: "${oneLine(why)}")`
+      : "";
+    return `stance: toward ${oneLine(target)} ${band}${summary}${last}`;
+  });
+}
+
 function renderToolSwitches(switches: ClientContext["tool_switches"]): string | undefined {
   if (!switches || switches.length === 0) return undefined;
   const entries = switches.map((entry) => `${oneLine(entry.id)}=${entry.on ? "on" : "off"}`);
@@ -221,6 +239,8 @@ export function renderClientContext(clientContext: ClientContext, nowMs: number)
 
   const body = renderBody(clientContext.body_state, Boolean(clientContext.trigger.wake), nowMs);
   if (body) lines.push(body);
+
+  lines.push(...renderStance(clientContext.stance, nowMs));
 
   const tools = renderToolSwitches(clientContext.tool_switches);
   if (tools) lines.push(tools);

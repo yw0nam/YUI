@@ -78,6 +78,7 @@ describe("wireDispatcher", () => {
       chatHistoryStore: {} as never,
       contextHistory: {} as never,
       overheardStore: {} as never,
+      relationsStore: {} as never,
       agentSettings: {} as never,
       guardrailsSettings: {
         subscribe: vi.fn(() => guardrailsOverrideDisposer),

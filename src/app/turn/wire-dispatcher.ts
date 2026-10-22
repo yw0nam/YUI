@@ -32,8 +32,13 @@ import type { ExpressVocabulary } from "../../io/chat/vocabulary/express-vocabul
 import type { ScreenCapturer } from "../../io/window/capture/screen-source-provider";
 import { buildScreenshotBlock } from "../../io/window/capture/screenshot-context";
 import type { Renderer } from "../../renderer";
-import { presetIdForWindow, readPresetName } from "../../settings/preset/active-preset";
+import {
+  presetIdForWindow,
+  readPresetList,
+  readPresetName,
+} from "../../settings/preset/active-preset";
 import { readOpenPresetIds } from "../../settings/preset/pet-windows";
+import { readStance } from "../../settings/relations/stance";
 import type { SettingsStores } from "../../settings/settings-stores";
 import { showChainResetNotice } from "../../ui/notices/chain-reset-notice";
 import {
@@ -74,6 +79,7 @@ export function wireDispatcher(deps: {
   chatHistoryStore: ConversationStores["chatHistoryStore"];
   contextHistory: ConversationStores["contextHistory"];
   overheardStore: ConversationStores["overheardStore"];
+  relationsStore: ConversationStores["relationsStore"];
   agentSettings: SettingsStores["agentSettings"];
   guardrailsSettings: SettingsStores["guardrailsSettings"];
   pacerGapSettings: SettingsStores["pacerGapSettings"];
@@ -121,6 +127,7 @@ export function wireDispatcher(deps: {
     chatHistoryStore,
     contextHistory,
     overheardStore,
+    relationsStore,
     agentSettings,
     guardrailsSettings,
     pacerGapSettings,
@@ -199,6 +206,7 @@ export function wireDispatcher(deps: {
     getToolSwitches: () => turnTools()?.switches() ?? [],
     takeMessageWake,
     getOverheard: overheard.read,
+    getStance: () => readStance(relationsStore.all(), presetIdForWindow(), readPresetList()),
     commitOverheard: overheard.commit,
     isBodyHeld,
     contextHistory,

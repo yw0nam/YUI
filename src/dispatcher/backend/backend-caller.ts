@@ -109,6 +109,8 @@ interface BackendCallerDeps extends PushCallDeps, SettleDeps, StreamAttemptDeps 
   takeMessageWake?: () => boolean;
   /** The other presets' lines this character has not heard yet — read per turn. */
   getOverheard?: () => OverheardBlock[];
+  /** This character's stance toward each rated target — read per turn. */
+  getStance?: () => ClientContext["stance"];
   /** Marks a turn's overheard lines heard — called only when that turn ends ok. */
   commitOverheard?: (blocks: OverheardBlock[]) => void;
   /** True while a scene holds the body, which would drop a thinking motion and still speak its filler. Absent means free. */
@@ -225,6 +227,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         getToolSwitches: deps.getToolSwitches,
         takeMessageWake: deps.takeMessageWake,
         getOverheard: deps.getOverheard,
+        getStance: deps.getStance,
         onScreenshotError: (error) => log.warn("screenshot.failed", { error: String(error) }),
       });
       // Single "now" snapshot reused for every duration computed into this turn's rendered

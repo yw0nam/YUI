@@ -50,6 +50,11 @@ function readPresetState(): PresetState | null {
   }
 }
 
+/** The registry's presets as storage holds them now, in registry order. */
+export function readPresetList(): PresetEntry[] {
+  return readPresetState()?.list ?? [{ ...DEFAULT_PRESET }];
+}
+
 /** The active preset id as storage holds it now; the default preset when nothing valid is stored. */
 export function readActivePresetId(): string {
   return readPresetState()?.active ?? DEFAULT_PRESET_ID;

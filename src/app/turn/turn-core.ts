@@ -128,8 +128,14 @@ export async function wireTurnCore(
     bedSceneHold,
   } = phase1;
   const { register, ensureActive } = deps;
-  const { contextHistory, sessionStore, sessionDiagnostics, chatHistoryStore, overheardStore } =
-    conversation;
+  const {
+    contextHistory,
+    sessionStore,
+    sessionDiagnostics,
+    chatHistoryStore,
+    overheardStore,
+    relationsStore,
+  } = conversation;
   const { vrmSelection, loadVrmSerialized } = vrm;
   const { speakerSelection, refreshVoiceList, migrateVoiceIds } = speaker;
   // Published by connect(); a turn reads it when it builds its client tools.
@@ -182,6 +188,7 @@ export async function wireTurnCore(
     chatHistoryStore,
     contextHistory,
     overheardStore,
+    relationsStore,
     agentSettings: settings.agentSettings,
     guardrailsSettings: settings.guardrailsSettings,
     pacerGapSettings: settings.pacerGapSettings,
