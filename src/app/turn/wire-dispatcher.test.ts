@@ -86,7 +86,7 @@ describe("wireDispatcher", () => {
         get: () => ({ value: 0 }),
         subscribe: vi.fn(() => pacerGapUnsubscribe),
       } as never,
-      oneVoiceSettings: { get: () => ({ enabled: false }) },
+      oneVoiceSettings: { get: () => ({ enabled: false }) } as never,
       screenshotSettings: {} as never,
       screenCapturer: {} as never,
       getFrontmost: () => undefined,

@@ -1,5 +1,6 @@
 /** Desired pet windows and per-window live keys keep preset edits behind running-window guards. */
 import { createPersistedStore, localStorageStore, type PersistedStorage } from "../persisted-store";
+import { readActivePresetId } from "./active-preset";
 
 export const PET_WINDOWS_KEY = "yui.windows";
 export const LIVE_KEY_PREFIX = "yui.live-window.";
@@ -52,6 +53,10 @@ export function readOpenPetWindowIds(): string[] {
   } catch {
     return [];
   }
+}
+/** Main's active preset and every preset with an open pet window, each once. */
+export function readOpenPresetIds(): string[] {
+  return [...new Set([readActivePresetId(), ...readOpenPetWindowIds()])];
 }
 export function createPetWindows(deps?: { storage?: PersistedStorage<{ open: string[] }> }) {
   const core = createPersistedStore({

@@ -100,7 +100,7 @@ interface DispatcherDeps {
    */
   onTurnFailed?: (turn: Turn, reason: TurnFailure) => void;
   /** Cross-window turn lock: taken before a turn's backend call, released once the pipeline is idle again. */
-  turnGate?: Pick<TurnGate, "acquire" | "release">;
+  turnGate?: TurnGate;
   /** The dispatcher admitted a trigger: the turn it opened, reported before its backend call starts. */
   onTurnAdmitted?: (turn: Turn) => void;
   /** Structured logging (defaults to the dispatcher namespace logger). */

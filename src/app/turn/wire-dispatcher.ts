@@ -32,12 +32,8 @@ import type { ExpressVocabulary } from "../../io/chat/vocabulary/express-vocabul
 import type { ScreenCapturer } from "../../io/window/capture/screen-source-provider";
 import { buildScreenshotBlock } from "../../io/window/capture/screenshot-context";
 import type { Renderer } from "../../renderer";
-import {
-  presetIdForWindow,
-  readActivePresetId,
-  readPresetName,
-} from "../../settings/preset/active-preset";
-import { readOpenPetWindowIds } from "../../settings/preset/pet-windows";
+import { presetIdForWindow, readPresetName } from "../../settings/preset/active-preset";
+import { readOpenPresetIds } from "../../settings/preset/pet-windows";
 import type { SettingsStores } from "../../settings/settings-stores";
 import { showChainResetNotice } from "../../ui/notices/chain-reset-notice";
 import {
@@ -81,7 +77,7 @@ export function wireDispatcher(deps: {
   agentSettings: SettingsStores["agentSettings"];
   guardrailsSettings: SettingsStores["guardrailsSettings"];
   pacerGapSettings: SettingsStores["pacerGapSettings"];
-  oneVoiceSettings: { get(): { enabled: boolean } };
+  oneVoiceSettings: SettingsStores["oneVoiceSettings"];
   screenshotSettings: SettingsStores["screenshotSettings"];
   screenCapturer: ScreenCapturer;
   getFrontmost: () => FrontmostState | undefined;
@@ -168,7 +164,7 @@ export function wireDispatcher(deps: {
 
   const overheard = createOverheardReader({
     selfPresetId: presetIdForWindow(),
-    otherPresetIds: () => [readActivePresetId(), ...readOpenPetWindowIds()],
+    otherPresetIds: readOpenPresetIds,
     presetName: readPresetName,
     transcriptOf: readTranscriptAfterBoundary,
     cursors: overheardStore,

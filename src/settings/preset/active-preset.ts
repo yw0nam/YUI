@@ -40,25 +40,25 @@ export function parsePresetState(v: unknown): PresetState | null {
   return { active, list };
 }
 
-/** The active preset id as storage holds it now; the default preset when nothing valid is stored. */
-export function readActivePresetId(): string {
+/** The registry as storage holds it now; null when nothing valid is stored. */
+function readPresetState(): PresetState | null {
   try {
     const raw = globalThis.localStorage?.getItem(PRESETS_KEY);
-    if (!raw) return DEFAULT_PRESET_ID;
-    return parsePresetState(JSON.parse(raw))?.active ?? DEFAULT_PRESET_ID;
+    return raw ? parsePresetState(JSON.parse(raw)) : null;
   } catch {
-    return DEFAULT_PRESET_ID;
+    return null;
   }
+}
+
+/** The active preset id as storage holds it now; the default preset when nothing valid is stored. */
+export function readActivePresetId(): string {
+  return readPresetState()?.active ?? DEFAULT_PRESET_ID;
 }
 
 /** The name a stored preset id is listed under; the id itself when unlisted. */
 export function readPresetName(id: string): string {
-  try {
-    const raw = globalThis.localStorage?.getItem(PRESETS_KEY);
-    return parsePresetState(JSON.parse(raw ?? "null"))?.list.find((e) => e.id === id)?.name ?? id;
-  } catch {
-    return id;
-  }
+  const state = readPresetState();
+  return state ? presetNameFor(state, id) : id;
 }
 
 /** The name a window shows: the bound preset's when bound, else the active preset's. */
