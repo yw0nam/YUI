@@ -89,6 +89,8 @@
   background: var(--yui-panel-bg);
   box-shadow: var(--yui-float);
   animation: yui-preset-in var(--yui-dur-fast) var(--yui-ease);
+  max-height: min(24rem, calc(100vh - 8rem));
+  overflow-y: auto;
 }
 
 .yui-quick--window .yui-preset-pop {
@@ -278,6 +280,9 @@
 }
 .yui-preset-row__window {
   font: inherit;
+  font-size: var(--yui-fs-sub);
+  padding: 0.125rem 0.375rem;
+  border-radius: var(--yui-radius-control);
   color: var(--yui-text-dim);
   background: none;
   border: 0;
