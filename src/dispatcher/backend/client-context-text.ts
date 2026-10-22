@@ -78,10 +78,7 @@ function ageOf(atMs: number, nowMs: number): string {
   return hours < 24 ? `${hours}h ago` : `${Math.round(mins / 1440)}d ago`;
 }
 
-function renderRelations(
-  relations: ClientContext["relations"],
-  nowMs: number,
-): string[] {
+function renderRelations(relations: ClientContext["relations"], nowMs: number): string[] {
   return (relations ?? []).map(({ target, band, delta, why, at, note }) => {
     const summary = note ? `, "${oneLine(note)}"` : "";
     const last = why

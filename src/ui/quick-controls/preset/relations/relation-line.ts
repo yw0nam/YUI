@@ -18,7 +18,7 @@ export function relationLineEl(view: RelationsView, open: boolean): HTMLElement 
   for (const target of targets) {
     const band = bandOf(own[target]!.value);
     line.append(
-    relationEl({
+      relationEl({
         subject: view.self,
         target,
         band,

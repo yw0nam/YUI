@@ -18,7 +18,7 @@ import type { RelationsStore } from "../../../settings/relations/relations-store
 import { t } from "../../i18n";
 import { createPresetManage } from "./preset-manage";
 import { presetScopeText } from "./preset-scope";
-import { createPresetRelations } from "./relations";
+import { createPresetRelations } from "./relations/relations-section";
 
 const DOTS_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/></svg>`;
 

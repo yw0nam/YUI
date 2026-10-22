@@ -1170,6 +1170,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "app/relations",
+      "module": "wiring",
+      "label": "relations wiring",
+      "role": "Wires rate_relation's open-preset targets and the ingress relations RPC to this window's relation store.",
+      "paths": [
+        "src/app/relations"
+      ]
+    },
+    {
       "id": "app/turn",
       "module": "wiring",
       "label": "turn wiring",
@@ -1903,7 +1912,7 @@ globalThis.YUI_MAP =
       "carries": "yui.presets names and the open presets (active and yui.windows) → rate_relation's toward enum, without this window's preset",
       "kind": "storage",
       "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
+      "wiring": "src/app/relations/wire-relations.ts"
     },
     {
       "id": "relations-tool",
@@ -1912,7 +1921,7 @@ globalThis.YUI_MAP =
       "carries": "rate_relation → store.rate(target id, delta, why, now) → {band, applied, clamped}; the daily cap and the range clamp it",
       "kind": "call",
       "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
+      "wiring": "src/app/relations/wire-relations.ts"
     },
     {
       "id": "capture-shell",
@@ -2009,7 +2018,7 @@ globalThis.YUI_MAP =
       "carries": "relations_get → store.all(); relations_put → store.replace(body) → the stored body",
       "kind": "call",
       "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
+      "wiring": "src/app/relations/wire-relations.ts"
     },
     {
       "id": "relations-ui",

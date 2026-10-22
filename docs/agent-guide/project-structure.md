@@ -38,6 +38,8 @@ YUI/
     app/                             # Composes the pet window from the layers below
       bootstrap-configured.ts        # Pet window's config-derived bootstrap: runs the turn core and the pet-only wirings in order and drains their teardowns
       disposers.ts                   # Shared teardown bag: registers teardowns at creation sites and drains them LIFO
+      relations/                     # This window's relations wiring
+        wire-relations.ts            # rate_relation's open-preset targets and the ingress relations RPC, over the window's store
       turn/                          # The path of a turn: sources, voice, and push
         turn-core.ts                 # The chat turn every backend-facing window runs: voice, dispatcher, STT, VRM load, vocabulary, broker, push transport, stop, and submit
         wire-dispatcher.ts           # Turn feed, backend caller, guardrails, pacer, and the dispatcher
@@ -327,7 +329,7 @@ YUI/
         active-preset.ts             # The registry's stored shape and the id a window resolves its keys under: the preset query, else the active preset
         bound-preset.ts              # The page queries that bind a window to one preset (`?preset=`) and name the preset a settings window edits (`?edit=`)
         preset-registry.ts           # Preset list and active preset under yui.presets: create, rename, remove, activate
-        pet-windows.ts               # The desired open set under yui.windows and the live key each window holds under yui.live-window.<label>
+        pet-windows.ts               # The desired open set under yui.windows, the open presets with names, and the live key each window holds under yui.live-window.<label>
       relations/                     # Each preset's relation toward the user and the other presets
         relations-store.ts           # The per-preset store under yui.<id>.relations: bands, the daily cap, the range clamp, and the read of another preset's store
         relation-lines.ts            # The relation entries a turn carries: user first, then the other presets in registry order
@@ -602,7 +604,8 @@ YUI/
           preset-scope.ts            # Scope line text: the preset a tab edits, or that its settings are shared
           preset.css                 # Strip, manage popover, scope line, relation line, matrix, and reasons card styles
           relations/                 # The relation line under the preset row, the relations matrix, and the reasons card
-            index.ts                 # Composes the three, re-renders on a write or a storage event, and moves the changed relations
+            relations-section.ts     # Composes the three, re-renders on a write or a storage event, and moves the changed relations
+            matrix-open-state.ts     # The matrix disclosure's open state, per window
             relation-glyph.ts        # The five-step glyph and its band motion, the relation chip, the direction mark, and the age text
             relation-line.ts         # This preset's relation toward each rated target, and the matrix toggle
             relations-matrix.ts      # Every preset's relation toward every target, and the newest change

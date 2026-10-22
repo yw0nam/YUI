@@ -5,7 +5,6 @@ import { isChatConfigured } from "../dispatcher/backend/backend-caller";
 import type { Guardrails } from "../dispatcher/core/guardrails";
 import type { Dispatcher } from "../dispatcher/dispatcher";
 import { onAvatarRpc, respondAvatarRpc } from "../io/bridge/inbox/avatar-rpc";
-import { createRelationsRpc } from "../io/bridge/inbox/relations-rpc";
 import type { ClientTool } from "../io/chat/tools/client-tools";
 import { createPetWindowTools } from "../io/chat/tools/pet-window-tools";
 import type { ScreenCapturer } from "../io/window/capture/screen-source-provider";
@@ -14,13 +13,13 @@ import type { SummonHotkey } from "../io/window/pet/summon-hotkey";
 import { subscribeOsEvent } from "../io/window/tauri-listen";
 import { createLogger } from "../logger";
 import { mergeScreen } from "../settings/capture/screen-settings";
-import { presetIdForWindow, readPresetName } from "../settings/preset/active-preset";
-import { readOpenPresetIds } from "../settings/preset/pet-windows";
+import { presetIdForWindow } from "../settings/preset/active-preset";
 import { isMacOS, isWindows } from "../tauri-env";
 import { t } from "../ui/i18n";
 import { maybeShowFirstRunHint } from "../ui/notices/first-run-hint";
 import { wireIngressDeadNotice } from "../ui/notices/ingress-dead-notice";
 import type { createQuickControls } from "../ui/quick-controls/quick-controls";
+import { wireRelations } from "./relations/wire-relations";
 import type { BedSceneHold } from "./stage/bed-scene-hold";
 import { wireBedScene } from "./stage/wire-bed-scene";
 import { wireStageGestures } from "./stage/wire-gestures";
@@ -125,6 +124,13 @@ const realFactories: ConfiguredBootstrapFactories = {
     // The stage is wired after the turn core, so the tools read the executor late-bound:
     // null until wireLocomotion has run.
     let locomotion: ReturnType<typeof wireLocomotion> | null = null;
+    const relations = wireRelations({
+      relationsStore: phase1.conversation.relationsStore,
+      presetId: presetIdForWindow(),
+      onAvatarRpc,
+      respondAvatarRpc,
+      register,
+    });
     const windowTools = createPetWindowTools({
       bound: phase1.bound === true,
       getExecutor: () => locomotion?.getAvatarExecutor() ?? null,
@@ -137,18 +143,8 @@ const realFactories: ConfiguredBootstrapFactories = {
       },
       browserEnabled: () => settings.browserSettings.get().enabled,
       relations: phase1.conversation.relationsStore,
-      targets: () =>
-        readOpenPresetIds()
-          .filter((id) => id !== presetIdForWindow())
-          .map((id) => ({ id, name: readPresetName(id) })),
+      targets: relations.targets,
     });
-    const relationsRpc = createRelationsRpc({
-      subscribe: (cb) => onAvatarRpc(cb),
-      respond: (id, result) => void respondAvatarRpc(id, result),
-      store: phase1.conversation.relationsStore,
-    });
-    relationsRpc.start();
-    register(relationsRpc.stop);
     const core = await wireTurnCore(cfg, phase1, {
       getFrontmost: () => frontmostTracker.get(),
       screenCapturer: phase1.screenCapturer,

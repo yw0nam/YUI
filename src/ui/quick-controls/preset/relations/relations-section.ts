@@ -1,7 +1,4 @@
-/**
- * The preset strip's relations: the relation line, the matrix disclosure and the reasons card. This
- * window's preset reads the live store and moves on its writes; the other presets read storage.
- */
+/** The preset strip's relations: the relation line, the matrix disclosure and the reasons card. */
 
 import type { RelationBand } from "../../../../contract/types";
 import { presetIdForWindow } from "../../../../settings/preset/active-preset";
@@ -12,30 +9,12 @@ import {
   readRelationsOf,
 } from "../../../../settings/relations/relations-store";
 import { t } from "../../../i18n";
+import { readOpen, writeOpen } from "./matrix-open-state";
 import { createReasonsCard } from "./reasons-card";
-import { relationsMatrixEl } from "./relations-matrix";
 import { bandShift, restart } from "./relation-glyph";
 import { relationLineEl } from "./relation-line";
+import { relationsMatrixEl } from "./relations-matrix";
 import type { RelationsView } from "./view";
-
-/** The matrix disclosure's open state, per window. */
-const OPEN_KEY = "yui.relations-matrix-open";
-
-function readOpen(): boolean {
-  try {
-    return globalThis.localStorage?.getItem(OPEN_KEY) === "true";
-  } catch {
-    return false;
-  }
-}
-
-function writeOpen(open: boolean): void {
-  try {
-    globalThis.localStorage?.setItem(OPEN_KEY, String(open));
-  } catch {
-    // The state lives for this panel only.
-  }
-}
 
 export function createPresetRelations(deps: {
   strip: HTMLElement;
