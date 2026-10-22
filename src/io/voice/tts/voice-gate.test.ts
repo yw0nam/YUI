@@ -1,40 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
+import { fakeLocks } from "../../locks/fake-lock-manager";
 import { createVoiceGate } from "./voice-gate";
-
-/**
- * One exclusive lock: grants waiters in order as each callback's result settles; honours `signal` while queued.
- * `grantAfterAbort` models a grant already scheduled when the abort lands, so the callback still runs.
- */
-function fakeLocks({ grantAfterAbort = false } = {}) {
-  let held = false;
-  const waiting: Array<() => void> = [];
-  const next = () => {
-    held = false;
-    waiting.shift()?.();
-  };
-  const request = vi.fn(
-    (_name: string, options: { signal?: AbortSignal }, callback: () => Promise<void> | undefined) =>
-      new Promise<void>((resolve, reject) => {
-        const onAbort = () => {
-          waiting.splice(waiting.indexOf(grant), 1);
-          reject(new DOMException("aborted", "AbortError"));
-        };
-        function grant() {
-          held = true;
-          options.signal?.removeEventListener("abort", onAbort);
-          Promise.resolve(callback()).then(resolve, reject).finally(next);
-        }
-        if (!grantAfterAbort) options.signal?.addEventListener("abort", onAbort, { once: true });
-        if (held) waiting.push(grant);
-        else grant();
-      }),
-  );
-  return {
-    locks: { request } as unknown as Pick<LockManager, "request">,
-    request,
-    isHeld: () => held,
-  };
-}
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 

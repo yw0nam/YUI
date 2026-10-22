@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fakeLocks } from "../test-helpers";
+import { fakeLocks } from "../../io/locks/fake-lock-manager";
 import { createTurnGate } from "./turn-gate";
 
 const tick = () => new Promise((r) => setTimeout(r, 0));

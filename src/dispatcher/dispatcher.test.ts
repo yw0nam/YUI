@@ -10,6 +10,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PeekConfig, TapConfig } from "../config/validators/avatar/types";
+import { fakeLocks } from "../io/locks/fake-lock-manager";
 import type { Logger } from "../logger";
 import type { BackendCaller, TurnFailure } from "./backend/backend-caller";
 import { createEventBus, type EventBus } from "./core/event-bus";
@@ -19,7 +20,6 @@ import { createDispatcher, type Dispatcher } from "./dispatcher";
 import {
   type DeferredCall,
   env,
-  fakeLocks,
   makeDeferredBackendCaller,
   makeLogger,
   NOW,

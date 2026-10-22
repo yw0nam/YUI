@@ -477,6 +477,7 @@ YUI/
         jpeg-encode.ts                 # Draws a bitmap onto a canvas and returns its JPEG data URL
       locks/                           # The exclusive Web Lock a window holds across windows
         exclusive-hold.ts              # Takes a named Web Lock, holds it until release, and frees it when the window dies
+        fake-lock-manager.ts           # The in-memory exclusive lock the gate tests share
       lifecycle/                       # Page-lifecycle seams: the Android back gesture and page visibility
         back-button.ts                 # Android back-button claim: the open surface that should swallow the gesture holds it
         page-visibility.ts             # Page visibility as a suspension port: hidden means nothing background should run

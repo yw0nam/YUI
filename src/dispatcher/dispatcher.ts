@@ -481,27 +481,26 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     // target === "drop": unhandled event (no-op — bus already filters unknown event_name).
   }
 
-  /**
-   * pump: drain bus every tick. Operates in running/cooldown/degraded all (tier1 always continues each).
-   * Otherwise (booting/stopped) hold pending events as no-op.
-   */
   function releaseGate(): void {
     if (!gateHeld) return;
     gateHeld = false;
     deps.turnGate?.release();
   }
 
+  /**
+   * pump: drain bus every tick. Operates in running/cooldown/degraded all (tier1 always continues each).
+   * Otherwise (booting/stopped) hold pending events as no-op.
+   */
   function pump(): void {
     if (state !== "running" && state !== "cooldown" && state !== "degraded") return;
+    // Before the bus: a turn popped now asks for the lock again, behind any window already waiting.
+    if (!currentPipelineBusy()) releaseGate();
     let env: BusEnvelope | null;
     while ((env = bus.pop()) !== null) {
       handle(env);
     }
     // Backend evaluation may have entered cooldown or timer may have expired → sync state.
     syncCooldownState();
-    // The turn ends with its playback, so the lock outlives the backend call. It is released
-    // before the next turn drains, which then queues behind any window already waiting.
-    if (!currentPipelineBusy()) releaseGate();
     drainPending();
   }
 
