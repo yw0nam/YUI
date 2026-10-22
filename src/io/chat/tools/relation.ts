@@ -1,8 +1,13 @@
 /** rate_relation: the backend moves this character's relation toward the user or another open preset. */
 
 import { createLogger } from "../../../logger";
+import type { PresetEntry } from "../../../settings/preset/active-preset";
 import { targetLabel } from "../../../settings/relations/relation-targets";
-import type { RelationsStore } from "../../../settings/relations/relations-store";
+import {
+  DELTAS,
+  type RelationsStore,
+  WHY_LENGTH,
+} from "../../../settings/relations/relations-store";
 import type { ClientTool } from "./client-tools";
 
 const log = createLogger("relation");
@@ -11,14 +16,13 @@ const DESCRIPTION =
   "Move how you feel toward the user or another character by one small step, with the reason, " +
   "after something they did or said; once per target per reply.";
 
-const DELTAS = [-2, -1, 1, 2];
 /** Turns whose rated targets are kept, so overlapping push turns stay apart. */
 const TURNS_KEPT = 8;
 
 export function createRateRelationTool(deps: {
   store: Pick<RelationsStore, "rate">;
   /** The other open presets, read each time the schema is built. */
-  targets: () => { id: string; name: string }[];
+  targets: () => PresetEntry[];
   now?: () => number;
 }): ClientTool {
   const now = deps.now ?? Date.now;
@@ -43,8 +47,8 @@ export function createRateRelationTool(deps: {
             type: "object" as const,
             properties: {
               toward: { type: "string", enum: [...labels().keys()] },
-              delta: { type: "integer", enum: DELTAS },
-              why: { type: "string", maxLength: 80 },
+              delta: { type: "integer", enum: [...DELTAS] },
+              why: { type: "string", maxLength: WHY_LENGTH },
             },
             additionalProperties: false as const,
             required: ["toward", "delta", "why"],

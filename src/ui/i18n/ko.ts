@@ -197,7 +197,7 @@ const ko: Record<string, string> = {
   "preset.scope_char": "{name} · VRM 선택만 프리셋별",
   "preset.scope_shared": "모든 프리셋이 함께 쓰는 설정",
   "relation.group": "{name}의 마음",
-  "relation.to_you": "당신",
+  "relation.to_you": "나",
   "relation.matrix": "모든 프리셋 사이의 관계",
   "relation.matrix_table": "누가 누구를 어떻게 느끼는지",
   "relation.band.hostile": "적대",

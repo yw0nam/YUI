@@ -236,6 +236,11 @@ mod tests {
             .unwrap_err(),
             400
         );
+    }
+    #[test]
+    fn dispatches_a_valid_relations_put_to_main() {
+        let record = r#"{"value":1,"updated_at":1,"log":[]}"#;
+        let known = |id: &str| Ok(id == "aaaa0001");
         assert_eq!(
             dispatch(
                 "PUT",

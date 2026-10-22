@@ -1,9 +1,6 @@
-/**
- * The tools a pet window declares beside generate_express: rate_relation in every window, browser
- * in every window under Tauri, the avatar tools in main only.
- */
+/** The tools a pet window declares beside generate_express: rate_relation everywhere, browser under Tauri, the avatar tools in main only. */
 
-import { presetIdForWindow } from "../../../settings/preset/active-preset";
+import { type PresetEntry, presetIdForWindow } from "../../../settings/preset/active-preset";
 import type { RelationsStore } from "../../../settings/relations/relations-store";
 import { isTauri } from "../../../tauri-env";
 import type { AvatarExecutor } from "../../bridge/inbox/avatar-executor";
@@ -22,7 +19,7 @@ export function createPetWindowTools(deps: {
   browserEnabled: () => boolean;
   relations: RelationsStore;
   /** The other open presets rate_relation can name. */
-  targets: () => { id: string; name: string }[];
+  targets: () => PresetEntry[];
 }): ClientTool[] {
   const rate = createRateRelationTool({ store: deps.relations, targets: deps.targets });
   if (!isTauri()) return [rate];

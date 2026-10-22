@@ -36,8 +36,10 @@ export interface RateOutcome {
 const MAX = 20;
 const DAILY_POINTS = 4;
 const LOG_LENGTH = 20;
-const WHY_LENGTH = 80;
-const NOTE_LENGTH = 200;
+export const WHY_LENGTH = 80;
+export const NOTE_LENGTH = 200;
+/** The accepted step sizes of one change. */
+export const DELTAS: readonly number[] = [-2, -1, 1, 2];
 
 export function bandOf(value: number): RelationBand {
   if (value <= -12) return "hostile";

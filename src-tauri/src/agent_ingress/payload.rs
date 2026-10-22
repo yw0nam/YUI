@@ -17,6 +17,13 @@ const DETAIL_MAX_BYTES: usize = 16384;
 /// Hard body read ceiling; prevents OOM on oversized payloads.
 pub(super) const BODY_CEILING_BYTES: usize = 65536;
 
+/// The `/relations` record limits, as `docs/reference/signals-ingress.md` states them.
+const VALUE_RANGE: std::ops::RangeInclusive<i64> = -20..=20;
+const DELTA_RANGE: std::ops::RangeInclusive<i64> = -2..=2;
+const LOG_LENGTH: usize = 20;
+const WHY_CHARS: usize = 80;
+const NOTE_CHARS: usize = 200;
+
 /// Lifecycle phase of an external coding-agent session.
 #[derive(Deserialize, Serialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -119,13 +126,15 @@ struct RelationRecord {
 
 impl RelationRecord {
     fn in_range(&self) -> bool {
-        (-20..=20).contains(&self.value)
-            && self.log.len() <= 20
-            && self.note.as_ref().is_none_or(|n| n.chars().count() <= 200)
+        VALUE_RANGE.contains(&self.value)
+            && self.log.len() <= LOG_LENGTH
             && self
-                .log
-                .iter()
-                .all(|c| c.delta != 0 && (-2..=2).contains(&c.delta) && c.why.chars().count() <= 80)
+                .note
+                .as_ref()
+                .is_none_or(|n| n.chars().count() <= NOTE_CHARS)
+            && self.log.iter().all(|c| {
+                c.delta != 0 && DELTA_RANGE.contains(&c.delta) && c.why.chars().count() <= WHY_CHARS
+            })
     }
 }
 

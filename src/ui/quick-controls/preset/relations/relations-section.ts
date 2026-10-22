@@ -1,7 +1,7 @@
 /** The preset strip's relations: the relation line, the matrix disclosure and the reasons card. */
 
 import type { RelationBand } from "../../../../contract/types";
-import { presetIdForWindow } from "../../../../settings/preset/active-preset";
+import { type PresetEntry, presetIdForWindow } from "../../../../settings/preset/active-preset";
 import {
   bandOf,
   type Relations,
@@ -21,7 +21,7 @@ export function createPresetRelations(deps: {
   /** The line goes right after this element. */
   anchor: HTMLElement;
   store: RelationsStore;
-  presets: () => readonly { id: string; name: string }[];
+  presets: () => readonly PresetEntry[];
 }): { render(): void; dispose(): void } {
   const self = presetIdForWindow();
   let line: HTMLElement | null = null;

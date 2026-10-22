@@ -1,11 +1,12 @@
 import type { RelationBand } from "../../../../contract/types";
+import type { PresetEntry } from "../../../../settings/preset/active-preset";
 import type { Relations } from "../../../../settings/relations/relations-store";
 
 /** What the line, the matrix and the card read: every listed preset's relations, as stored now. */
 export interface RelationsView {
   /** This window's preset. */
   self: string;
-  presets: readonly { id: string; name: string }[];
+  presets: readonly PresetEntry[];
   /** Keyed by preset id. */
   relations: Record<string, Relations>;
   /** `user` and every listed preset but `subject`, in registry order. */
