@@ -8,7 +8,7 @@
  *   selectSendSuffix(entries, contextWindow) pure helper
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ChatHistoryEntry, ChatHistoryItem, ChatHistoryStorage } from "./chat-history-store";
 import {
   createChatHistoryStore,
@@ -802,21 +802,38 @@ describe("selectSendSuffix — guide cost", () => {
 });
 
 describe("readTranscriptAfterBoundary", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   it.each([
-    ["default", "yui.chat_transcript"],
-    ["bbbb0002", "yui.bbbb0002.chat_transcript"],
-  ])("reads preset %s's stored transcript after its last boundary", (presetId, key) => {
+    { from: "default", search: "", presetId: "default", key: "yui.chat_transcript" },
+    { from: "default", search: "", presetId: "bbbb0002", key: "yui.bbbb0002.chat_transcript" },
+    {
+      from: "bbbb0002",
+      search: "?preset=bbbb0002",
+      presetId: "default",
+      key: "yui.chat_transcript",
+    },
+    {
+      from: "bbbb0002",
+      search: "?preset=bbbb0002",
+      presetId: "cccc0003",
+      key: "yui.cccc0003.chat_transcript",
+    },
+  ])("in the $from window reads $presetId's transcript after its last boundary", ({
+    search,
+    presetId,
+    key,
+  }) => {
     const stored = JSON.stringify([
       { role: "user", text: "old", ts: 1 },
       { kind: "boundary", ts: 2 },
       { role: "user", text: "new", ts: 3 },
     ]);
-    (globalThis as any).localStorage = {
+    vi.stubGlobal("location", { search });
+    vi.stubGlobal("localStorage", {
       getItem: (k: string) => (k === key ? stored : null),
-    };
+    });
 
     expect(readTranscriptAfterBoundary(presetId)).toEqual([entry("user", "new", 3)]);
-
-    delete (globalThis as any).localStorage;
   });
 });

@@ -100,4 +100,27 @@ describe("createTurnGate", () => {
 
     expect(request).toHaveBeenCalledOnce();
   });
+
+  it("a holder's later abort does not drop another window's queued request", async () => {
+    const { locks, freeOther } = fakeLocks({ heldByOther: true });
+    const controller = new AbortController();
+    const first = makeGate({ locks }).gate;
+    const second = makeGate({ locks }).gate;
+    const third = makeGate({ locks }).gate;
+    const granted: string[] = [];
+
+    void first.acquire(controller.signal).then(() => granted.push("first"));
+    void second.acquire(new AbortController().signal).then(() => granted.push("second"));
+    void third.acquire(new AbortController().signal).then(() => granted.push("third"));
+    await tick();
+    freeOther();
+    await tick();
+    controller.abort();
+    first.release();
+    await tick();
+    second.release();
+    await tick();
+
+    expect(granted).toEqual(["first", "second", "third"]);
+  });
 });

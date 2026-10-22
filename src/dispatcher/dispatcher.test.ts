@@ -921,7 +921,12 @@ describe("dispatcher — turn gate", () => {
 });
 
 describe("dispatcher — turn gate across two windows", () => {
-  it("a deferred proactive turn waits behind the other window's user turn", async () => {
+  it.each([
+    { name: "deferred during the playback", pushDuringPlayback: true },
+    { name: "popped in the first tick after the playback", pushDuringPlayback: false },
+  ])("a proactive turn $name waits behind the other window's user turn", async ({
+    pushDuringPlayback,
+  }) => {
     const { locks } = fakeLocks();
     const calls: DeferredCall[] = [];
     const backend = makeDeferredBackendCaller(calls);
@@ -958,9 +963,12 @@ describe("dispatcher — turn gate across two windows", () => {
     setSpeaking(true);
     calls[0].resolve("ok");
     await vi.advanceTimersByTimeAsync(20);
-    bus.push(proactive(NOW + 100));
-    await vi.advanceTimersByTimeAsync(20);
+    if (pushDuringPlayback) {
+      bus.push(proactive(NOW + 100));
+      await vi.advanceTimersByTimeAsync(20);
+    }
     setSpeaking(false);
+    if (!pushDuringPlayback) bus.push(proactive(NOW + 100));
     await vi.advanceTimersByTimeAsync(50);
 
     expect({ aCalls: calls.length, bGranted }).toEqual({ aCalls: 1, bGranted: true });
