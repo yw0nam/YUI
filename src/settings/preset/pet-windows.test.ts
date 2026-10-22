@@ -6,6 +6,7 @@ import {
   createPetWindows,
   isPresetWindowLive,
   readOpenPetWindowIds,
+  readOpenPresetIds,
   setWindowLive,
 } from "./pet-windows";
 
@@ -57,4 +58,17 @@ it("clears only stale live keys while iteration remains stable", () => {
   expect(localStorage.getItem("yui.live-window.settings-present")).toBe("1");
   expect(localStorage.getItem("yui.live-window.message-gone")).toBeNull();
   expect(readOpenPetWindowIds()).toEqual(["present"]);
+});
+
+it.each([
+  ["no window open", [], ["aaaa0001"]],
+  ["the active preset's window open", ["aaaa0001", "bbbb0002"], ["aaaa0001", "bbbb0002"]],
+  ["only another preset's window open", ["bbbb0002"], ["aaaa0001", "bbbb0002"]],
+])("readOpenPresetIds with %s lists the active preset and the open windows once", (_name, open, expected) => {
+  localStorage.setItem(
+    "yui.presets",
+    JSON.stringify({ active: "aaaa0001", list: [{ id: "aaaa0001", name: "A" }] }),
+  );
+  localStorage.setItem("yui.windows", JSON.stringify({ open }));
+  expect(readOpenPresetIds()).toEqual(expected);
 });
