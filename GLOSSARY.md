@@ -1,6 +1,6 @@
 # YUI
 
-Embodied desktop-pet frontend (the body) for the selected backend agent (the brain): it renders a VRM character, fires candidate events at the backend, and performs whatever the backend sends back. Judgment lives in the backend, so the language here is about _firing_ and _performing_, never about deciding what to say. This glossary is the canonical vocabulary; issue titles, test names, and proposals use these terms.
+Embodied desktop-pet frontend (the body) for the selected backend agent (the brain): it renders a VRM character, fires candidate events at the backend, and performs whatever the backend sends back. Judgment lives in the backend, so the language here is about _firing_ (detecting, routing, ordering, naming a topic) and _performing_, never about writing what a character says. This glossary is the canonical vocabulary; issue titles, test names, and proposals use these terms.
 
 ## Language
 
@@ -15,11 +15,11 @@ The selected backend — judgment, persona, memory, and the agent loop.
 _Avoid_: server, LLM (as a component name)
 
 **Firing**:
-Client-side detection that a candidate event occurred and a turn should be sent.
-_Avoid_: triggering judgment, deciding to speak
+Client-side detection that a candidate event occurred, the choice of which character receives a turn for it and in what order, and the topic the backend is told to address.
+_Avoid_: triggering judgment, writing the reply
 
 **Judgment**:
-The brain's decision whether and what to speak. Silence is expressed as empty speech text or the bare `[SILENT]` token, never a client-side gate.
+The brain's decision, once a character has the turn, whether it speaks and what the words are. Silence is expressed as empty speech text or the bare `[SILENT]` token, never dropped by the client.
 
 ### Turn lifecycle
 

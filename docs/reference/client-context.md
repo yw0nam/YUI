@@ -273,8 +273,8 @@ the agent reads the trigger lines to decide whether and what to say. Firing a tu
 not guarantee speech: the client renders whatever text the agent returns, and silence
 means the agent returns empty or no speech text. Speech text that, after trimming
 whitespace, is exactly `[SILENT]` is also a deliberate silence, equivalent to no speech
-text; `[SILENT]` inside a longer reply is ordinary text. No client-side gate decides
-whether to speak (firing ≠ judgment).
+text; `[SILENT]` inside a longer reply is ordinary text. Once a character has the turn,
+no client-side gate decides whether it speaks (firing ≠ judgment).
 
 ### `trigger: user message`
 

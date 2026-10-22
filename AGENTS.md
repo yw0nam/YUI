@@ -4,7 +4,7 @@
 
 ## Core Principle: firing ≠ judgment
 
-The client handles **firing**: when a candidate event occurs, which character receives it, in what order, and what the backend is asked to address. **Judgment**, the words a character speaks and whether it speaks at all, belongs to the backend. The backend expresses silence by sending no/empty speech text or the bare `[SILENT]` token; the client renders whatever text arrives and never writes speech text itself. No brain lives in the client.
+The client handles **firing**: it detects a candidate event, chooses which character receives a turn for it and in what order, and names the topic or direction the backend is told to address. The client never writes the reply. **Judgment** belongs to the backend: the words a character speaks, and whether a character that received a turn speaks at all. The backend expresses silence by sending no/empty speech text or the bare `[SILENT]` token, and the client renders whatever text arrives. No brain lives in the client.
 
 ## Backend-agnostic
 
