@@ -91,6 +91,10 @@
   animation: yui-preset-in var(--yui-dur-fast) var(--yui-ease);
 }
 
+.yui-quick--window .yui-preset-pop {
+  width: min(26rem, calc(100% - 1.1rem));
+}
+
 .yui-preset-pop[hidden] {
   display: none;
 }
@@ -105,15 +109,17 @@
 .yui-preset-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
+  row-gap: 0.25rem;
   box-sizing: border-box;
   min-height: 2.5rem;
   padding: 0.375rem 0.5rem 0.375rem 0.875rem;
 }
 
 .yui-preset-row__name {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 6rem;
+  min-width: 4rem;
   overflow: hidden;
   font-size: var(--yui-fs-body);
   font-weight: 500;
