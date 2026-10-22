@@ -18,6 +18,10 @@ import {
   createSessionStore,
   localStorageSessionStorage,
 } from "../../io/chat/conversation/session-store";
+import {
+  createRelationsStore,
+  localStorageRelations,
+} from "../../settings/relations/relations-store";
 
 /** The io/chat conversation stores every window constructs, syncs, and disposes as one bag. */
 export function createConversationStores() {
@@ -32,6 +36,8 @@ export function createConversationStores() {
   const chatHistoryStore = createChatHistoryStore({ storage: localStorageChatHistoryStorage() });
   // Per other preset, how far this window has heard its transcript.
   const overheardStore = createOverheardStore({ storage: localStorageOverheard() });
+  // This preset's stance toward the user and each other preset.
+  const relationsStore = createRelationsStore({ storage: localStorageRelations() });
 
   return {
     contextHistory,
@@ -39,6 +45,7 @@ export function createConversationStores() {
     sessionDiagnostics,
     chatHistoryStore,
     overheardStore,
+    relationsStore,
   };
 }
 
