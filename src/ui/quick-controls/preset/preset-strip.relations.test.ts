@@ -115,6 +115,16 @@ describe("preset strip — relations", () => {
     expect(root.querySelector<HTMLElement>(".yui-preset__rel")!.hidden).toBe(true);
   });
 
+  it("keeps the matrix closed while the line is hidden", () => {
+    localStorage.setItem("yui.relations-matrix-open", "true");
+    localStorage.removeItem("yui.aaaa0001.relations");
+    build({});
+
+    expect(
+      root.querySelector<HTMLElement>(".yui-preset__matrix")!.classList.contains("is-open"),
+    ).toBe(false);
+  });
+
   it("adds a stance as soon as this preset rates a new target", () => {
     store.rate("bbbb0002", -2, "hummed off key", NOW);
 
