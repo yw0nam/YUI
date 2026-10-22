@@ -15,9 +15,10 @@ export async function executeClientTool(
   args: Record<string, unknown>,
   signal?: AbortSignal,
   callId?: string,
+  turnId?: string,
 ): Promise<ClientToolResult> {
   const started = Date.now();
-  const result = await boundedExecute(tool, args, signal);
+  const result = await boundedExecute(tool, args, signal, turnId);
   const text = toolResultText(result);
   const ok = !toolFailed(tool, result);
   log.info("tool_result", {
@@ -34,7 +35,8 @@ export async function executeClientTool(
 async function boundedExecute(
   tool: ClientTool,
   args: Record<string, unknown>,
-  signal?: AbortSignal,
+  signal: AbortSignal | undefined,
+  turnId: string | undefined,
 ): Promise<ClientToolResult> {
   const execution = new AbortController();
   const abort = (): void => execution.abort();
@@ -43,7 +45,7 @@ async function boundedExecute(
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
-      tool.execute(args, execution.signal),
+      tool.execute(args, execution.signal, { turnId }),
       new Promise<string>((resolve) => {
         timer = setTimeout(() => {
           // Resolved before the abort, so a tool's answer to the abort never wins the race.

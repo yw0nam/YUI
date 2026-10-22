@@ -157,7 +157,14 @@ export async function* streamResponses(
   ): AsyncGenerator<ChatStreamEvent> {
     if (handled.has(key)) return;
     const call_id = callIds.get(key) ?? `call_${seq++}`;
-    const outcome = yield* runClientCall(tools, name, argsJson, request.signal, call_id);
+    const outcome = yield* runClientCall(
+      tools,
+      name,
+      argsJson,
+      request.signal,
+      call_id,
+      request.turnId,
+    );
     if (!outcome) return;
     // Marked handled even when the arguments did not parse: a later event for the key does not retry.
     handled.add(key);

@@ -276,7 +276,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         if (externalSignal.aborted) ac.abort();
         else externalSignal.addEventListener("abort", () => ac.abort(), { once: true });
       }
-      const request: ChatRequest = { input, signal: ac.signal };
+      const request: ChatRequest = { input, signal: ac.signal, turnId: String(turn.id) };
       const isCC = deps.config.chat_api === "chat_completions";
 
       // Apply agent settings: reasoning_effort always sent in both modes.

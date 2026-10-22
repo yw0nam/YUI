@@ -76,6 +76,8 @@ export interface ChatRequest {
   instructions?: string;
   /** Mid-flight abort. */
   signal?: AbortSignal;
+  /** The turn this request belongs to; handed to every client tool call it runs. */
+  turnId?: string;
   /** Chat Completions mode: pre-assembled messages (chat-completions.buildCCMessages). Used when config.chat_api==="chat_completions". */
   messages?: CCMessage[];
 }

@@ -42,7 +42,11 @@ export interface ClientTool {
    * Runs the call and resolves the text or image result returned to the model. The signal aborts
    * when the wait passes or the turn stops; a tool that ignores it runs on.
    */
-  execute(args: Record<string, unknown>, signal?: AbortSignal): Promise<ClientToolResult>;
+  execute(
+    args: Record<string, unknown>,
+    signal?: AbortSignal,
+    call?: { turnId?: string },
+  ): Promise<ClientToolResult>;
   /** The wait the call's execution is bounded by; the execution keeps running past it. */
   waitMs: number;
   /** The switch that gates the tool's execution, read when a call runs; absent on unswitched tools. */

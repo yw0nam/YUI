@@ -35,6 +35,7 @@ export async function* runClientCall(
   argsJson: string,
   signal?: AbortSignal,
   callId?: string,
+  turnId?: string,
 ): AsyncGenerator<ChatStreamEvent, ClientCallOutcome | undefined> {
   const tool = tools?.get(name);
   const express_call = isExpressTool(name);
@@ -63,7 +64,7 @@ export async function* runClientCall(
   if (!tool) return outcome;
 
   if (!express_call) yield { type: "tool_status", status: { state: "running", tool_id: name } };
-  const result = await executeClientTool(tool, parsed.args, signal, callId);
+  const result = await executeClientTool(tool, parsed.args, signal, callId, turnId);
   if (!express_call)
     yield {
       type: "tool_status",

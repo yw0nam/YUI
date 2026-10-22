@@ -12,6 +12,8 @@ import type { SummonHotkey } from "../io/window/pet/summon-hotkey";
 import { subscribeOsEvent } from "../io/window/tauri-listen";
 import { createLogger } from "../logger";
 import { mergeScreen } from "../settings/capture/screen-settings";
+import { presetIdForWindow, readPresetName } from "../settings/preset/active-preset";
+import { readOpenPresetIds } from "../settings/preset/pet-windows";
 import { isMacOS, isWindows } from "../tauri-env";
 import { t } from "../ui/i18n";
 import { maybeShowFirstRunHint } from "../ui/notices/first-run-hint";
@@ -132,6 +134,11 @@ const realFactories: ConfiguredBootstrapFactories = {
         capturer: phase1.screenCapturer,
       },
       browserEnabled: () => settings.browserSettings.get().enabled,
+      relations: phase1.conversation.relationsStore,
+      targets: () =>
+        readOpenPresetIds()
+          .filter((id) => id !== presetIdForWindow())
+          .map((id) => ({ id, name: readPresetName(id) })),
     });
     const core = await wireTurnCore(cfg, phase1, {
       getFrontmost: () => frontmostTracker.get(),
