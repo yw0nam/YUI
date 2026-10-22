@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createConversationStores } from "./conversation-stores";
 
 describe("createConversationStores", () => {
-  it("constructs exactly the five cross-window conversation stores", () => {
+  it("constructs exactly the six cross-window conversation stores", () => {
     const stores = createConversationStores();
 
     expect(Object.keys(stores)).toEqual([
@@ -11,6 +11,7 @@ describe("createConversationStores", () => {
       "sessionDiagnostics",
       "chatHistoryStore",
       "overheardStore",
+      "relationsStore",
     ]);
     // Every window iterates the bag for teardown, so each store must be disposable.
     for (const store of Object.values(stores)) {
