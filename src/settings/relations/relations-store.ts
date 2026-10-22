@@ -89,10 +89,6 @@ export function createRelationsStore(opts?: { storage?: RelationsStorage }) {
 
   return {
     all: (): Relations => structuredClone(core.current()),
-    get: (target: string): RelationRecord | undefined => {
-      const record = core.current()[target];
-      return record && structuredClone(record);
-    },
     /** Applies `delta` as far as the daily cap and the range allow. */
     rate(target: string, delta: number, why: string, nowMs: number): RateOutcome {
       const record = core.current()[target] ?? { value: 0, updated_at: 0, log: [] };

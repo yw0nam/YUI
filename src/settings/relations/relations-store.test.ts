@@ -25,7 +25,7 @@ describe("createRelationsStore", () => {
       applied: 2,
       clamped: false,
     });
-    expect(store.get("user")).toEqual({
+    expect(store.all().user).toEqual({
       value: 2,
       updated_at: t0,
       log: [{ at: t0, delta: 2, why: "listened" }],
@@ -36,15 +36,15 @@ describe("createRelationsStore", () => {
     const store = createRelationsStore({ storage: memory() });
 
     store.rate("user", 2, "a", t0);
-    expect(store.get("user")?.value).toBe(2);
+    expect(store.all().user?.value).toBe(2);
     store.rate("user", 2, "b", t0 + HOUR);
-    expect(store.get("user")?.value).toBe(4);
+    expect(store.all().user?.value).toBe(4);
     expect(store.rate("user", 2, "c", t0 + 2 * HOUR)).toEqual({
       band: "warm",
       applied: 0,
       clamped: true,
     });
-    expect(store.get("user")?.log).toHaveLength(2);
+    expect(store.all().user?.log).toHaveLength(2);
     expect(store.rate("user", -1, "d", t0 + 3 * HOUR)).toEqual({
       band: "warm",
       applied: 0,
@@ -56,7 +56,7 @@ describe("createRelationsStore", () => {
       applied: 2,
       clamped: false,
     });
-    expect(store.get("user")?.value).toBe(6);
+    expect(store.all().user?.value).toBe(6);
   });
 
   it("clamps a change at the edge of the range", () => {
@@ -65,7 +65,7 @@ describe("createRelationsStore", () => {
     });
 
     expect(store.rate("user", 2, "x", t0)).toEqual({ band: "close", applied: 1, clamped: true });
-    expect(store.get("user")?.value).toBe(20);
+    expect(store.all().user?.value).toBe(20);
   });
 
   it("stores a reason cut to 80 characters", () => {
@@ -73,7 +73,7 @@ describe("createRelationsStore", () => {
 
     store.rate("user", 1, "a".repeat(100), t0);
 
-    expect(store.get("user")?.log[0]?.why).toBe("a".repeat(80));
+    expect(store.all().user?.log[0]?.why).toBe("a".repeat(80));
   });
 
   it.each([

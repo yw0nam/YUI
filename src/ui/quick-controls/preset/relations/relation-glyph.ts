@@ -17,7 +17,7 @@ const SVG = (d: string) =>
 export const CHEVRON_SVG = SVG('<path d="M6 9l6 6 6-6"/>');
 const UP_SVG = SVG('<path d="M6 15l6-6 6 6"/>');
 
-export function glyphEl(band: RelationBand): HTMLElement {
+function glyphEl(band: RelationBand): HTMLElement {
   const glyph = document.createElement("span");
   glyph.className = "yui-glyph";
   glyph.dataset.band = band;
