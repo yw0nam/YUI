@@ -275,6 +275,7 @@ export async function wireSettingsWindow(deps: {
       messageWindowSettings,
       presetRegistry,
       petWindows,
+      relationsStore: conversationStores.relationsStore,
       boundId,
       onEditTarget: (id) =>
         location.replace(editTargetUrl(location.href, id, boundId ?? presetRegistry.get().active)),

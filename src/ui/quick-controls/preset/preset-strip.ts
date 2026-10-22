@@ -1,6 +1,6 @@
 /**
  * Preset strip — the active preset's picker and the dots button that opens the manage popover,
- * above the tab rail and body. Picking another preset activates it and holds the panel inert
+ * above the tab rail and body, with the preset's stance line and the relations matrix under it. Picking another preset activates it and holds the panel inert
  * until the window reloads (wire-preset); in edit mode (the settings window) it hands the picked
  * id to `onEditTarget` instead. Also fills each tab's scope line.
  */
@@ -14,9 +14,11 @@ import {
 import { presetIdForWindow, presetNameFor } from "../../../settings/preset/active-preset";
 import { isPresetWindowLive, type PetWindows } from "../../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../../settings/preset/preset-registry";
+import type { RelationsStore } from "../../../settings/relations/relations-store";
 import { t } from "../../i18n";
 import { createPresetManage } from "./preset-manage";
 import { presetScopeText } from "./preset-scope";
+import { createPresetRelations } from "./relations";
 
 const DOTS_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/></svg>`;
 
@@ -50,6 +52,8 @@ export function createPresetStrip(deps: {
   /** Passed in the settings window: the strip picks the preset the window edits instead of switching main's. */
   onEditTarget?: (id: string) => void;
   agentNotifySettings?: ReturnType<typeof createAgentNotifySettings>;
+  /** This window's preset's relations; absent, the strip shows no stance line. */
+  relationsStore?: RelationsStore;
 }): PresetStrip {
   const { root, registry, log, petWindows, boundId = null, onEditTarget } = deps;
   const edit = !!onEditTarget;
@@ -86,6 +90,14 @@ export function createPresetStrip(deps: {
       return settings?.enabled ? ingressUrl(settings.port, id) : null;
     },
   });
+  const relations = deps.relationsStore
+    ? createPresetRelations({
+        strip: stripEl,
+        anchor: edit ? noteEl : stripEl.querySelector<HTMLElement>(".yui-preset__row")!,
+        store: deps.relationsStore,
+        presets: () => registry.get().list,
+      })
+    : null;
   let switching = false;
   let left = false;
 
@@ -121,6 +133,7 @@ export function createPresetStrip(deps: {
     for (const line of root.querySelectorAll<HTMLElement>("[data-scope-tab]")) {
       line.textContent = presetScopeText(line.dataset.scopeTab!, name);
     }
+    relations?.render();
     if (!popEl.hidden) manage.render();
   }
 
@@ -203,6 +216,7 @@ export function createPresetStrip(deps: {
       unsubscribe();
       offWindows?.();
       offIngressUrl?.();
+      relations?.dispose();
       select.removeEventListener("change", handleChange);
       manageBtn.removeEventListener("click", handleManageClick);
       popEl.removeEventListener("keydown", handlePopKeydown);

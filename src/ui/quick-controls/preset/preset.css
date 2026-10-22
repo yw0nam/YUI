@@ -315,3 +315,415 @@
   width: 0.875rem;
   height: 0.875rem;
 }
+
+/* Stance line — under the preset row, this window's preset, one stance per rated target. */
+.yui-preset__rel {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.125rem 0.25rem;
+  min-width: 0;
+  margin: 0.4rem 0 0 0.1rem;
+}
+
+.yui-preset__rel[hidden] {
+  display: none;
+}
+
+.yui-stance {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0.125rem 0.375rem 0.125rem 0.25rem;
+  border-radius: var(--yui-radius-pill);
+  font-size: var(--yui-fs-sub);
+  line-height: 1.35;
+  color: var(--yui-text-mute);
+  cursor: default;
+  transition:
+    background var(--yui-dur-fast) var(--yui-ease),
+    color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-stance:hover,
+.yui-stance:focus-visible {
+  background: var(--yui-hover);
+  color: var(--yui-text-dim);
+}
+
+.yui-stance:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+.yui-stance.is-entering {
+  animation: yui-enter var(--yui-dur) var(--yui-ease);
+}
+
+.yui-stance__to {
+  white-space: nowrap;
+}
+
+.yui-stance.is-fresh .yui-stance__to {
+  animation: yui-fresh 1050ms var(--yui-ease);
+}
+
+.yui-preset__rel-more {
+  width: 1.6rem;
+  height: 1.6rem;
+  margin-left: auto;
+}
+
+.yui-preset__rel-more svg {
+  transition: transform var(--yui-dur) var(--yui-ease);
+}
+
+.yui-preset__rel-more[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+/* Stance glyph — two segments each side of a centre notch: the side is the sign, the length the strength. */
+.yui-glyph {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: 2px;
+  height: 12px;
+  padding-inline: 2px;
+}
+
+.yui-glyph__seg {
+  position: relative;
+  display: block;
+  width: 8px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--yui-track);
+}
+
+.yui-glyph__seg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--yui-text-dim);
+  transform: scaleX(0);
+  transition:
+    transform var(--yui-dur) var(--yui-ease),
+    opacity var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-glyph__seg[data-s="-2"]::after,
+.yui-glyph__seg[data-s="-1"]::after {
+  transform-origin: right center;
+}
+
+.yui-glyph__seg[data-s="1"]::after,
+.yui-glyph__seg[data-s="2"]::after {
+  transform-origin: left center;
+}
+
+.yui-glyph__mid {
+  display: block;
+  width: 2px;
+  height: 10px;
+  margin-inline: 1px;
+  border-radius: 1px;
+  background: var(--yui-text-mute);
+  transition:
+    background var(--yui-dur-fast) var(--yui-ease),
+    transform var(--yui-dur) var(--yui-ease);
+}
+
+.yui-glyph[data-band="hostile"] [data-s="-2"]::after,
+.yui-glyph[data-band="hostile"] [data-s="-1"]::after,
+.yui-glyph[data-band="cold"] [data-s="-1"]::after,
+.yui-glyph[data-band="warm"] [data-s="1"]::after,
+.yui-glyph[data-band="close"] [data-s="1"]::after,
+.yui-glyph[data-band="close"] [data-s="2"]::after {
+  transform: scaleX(1);
+}
+
+.yui-glyph[data-band="hostile"] [data-s="-2"]::after {
+  background: var(--yui-danger);
+}
+
+.yui-glyph[data-band="close"] [data-s="2"]::after {
+  background: var(--yui-accent);
+}
+
+.yui-glyph[data-band="neutral"] .yui-glyph__mid {
+  background: var(--yui-text);
+  transform: scaleY(1.2);
+}
+
+/* A segment the band left keeps its colour as a ghost, then drains. */
+.yui-glyph__seg.is-ghost::after {
+  transform: scaleX(1);
+  opacity: 0.4;
+  background: var(--yui-ghost);
+  transition: opacity var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-glyph__seg.is-draining::after {
+  opacity: 0.4;
+  background: var(--yui-ghost);
+  transition: transform 400ms var(--yui-ease);
+}
+
+/* Relations matrix — a disclosure under the line: rows are presets, columns are targets. */
+.yui-preset__matrix {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--yui-dur) var(--yui-ease);
+}
+
+.yui-preset__matrix.is-open {
+  grid-template-rows: 1fr;
+}
+
+.yui-preset__matrix > div {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.yui-matrix {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0.125rem 0.1rem;
+}
+
+.yui-matrix table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: var(--yui-fs-sub);
+}
+
+.yui-matrix th,
+.yui-matrix td {
+  padding: 0.2rem 0;
+  overflow: hidden;
+  font-weight: 500;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--yui-text-mute);
+}
+
+.yui-matrix th {
+  font-size: var(--yui-fs-caption);
+}
+
+.yui-matrix th[scope="row"] {
+  width: 4.25rem;
+  padding-right: 0.25rem;
+  font-size: var(--yui-fs-sub);
+  text-align: left;
+  color: var(--yui-text-dim);
+}
+
+.yui-matrix td {
+  height: 1.5rem;
+}
+
+.yui-matrix td .yui-stance {
+  padding: 0.125rem 0.25rem;
+}
+
+.yui-matrix td.is-empty::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 1px;
+  vertical-align: middle;
+  background: var(--yui-edge-strong);
+}
+
+.yui-matrix__latest {
+  display: flex;
+  align-items: center;
+  gap: 0.3125rem;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.35;
+  color: var(--yui-text-mute);
+}
+
+.yui-matrix__latest svg {
+  flex: none;
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.yui-matrix__latest-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yui-matrix__latest-who {
+  color: var(--yui-text-dim);
+}
+
+.yui-matrix__latest.is-fresh .yui-matrix__latest-text {
+  animation: yui-fresh-why 1050ms var(--yui-ease);
+}
+
+/* Reasons card — the band, the engine's note and the last three reasons, on hover or focus of a stance. */
+.yui-reasons {
+  position: absolute;
+  z-index: 4;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(16rem, calc(100% - 0.75rem));
+  padding: 0.5rem 0.625rem 0.5625rem;
+  border: 1px solid var(--yui-edge-strong);
+  border-radius: var(--yui-radius-control);
+  background: var(--yui-panel-bg);
+  box-shadow: var(--yui-float);
+  opacity: 0;
+  transform: translateY(-2px);
+  pointer-events: none;
+  visibility: hidden;
+  transition:
+    opacity var(--yui-dur-fast) var(--yui-ease),
+    transform var(--yui-dur-fast) var(--yui-ease),
+    visibility 0s linear var(--yui-dur-fast);
+}
+
+.yui-reasons.is-open {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.yui-reasons__head {
+  margin: 0 0 0.375rem;
+  font-size: var(--yui-fs-sub);
+  color: var(--yui-text-dim);
+}
+
+.yui-reasons__head b {
+  font-weight: 500;
+  color: var(--yui-text);
+}
+
+.yui-reasons__note {
+  margin: 0 0 0.375rem;
+  font-size: var(--yui-fs-sub);
+  font-style: italic;
+  color: var(--yui-text-dim);
+}
+
+.yui-reasons ol {
+  display: grid;
+  gap: 0.3125rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yui-reasons li {
+  display: grid;
+  grid-template-columns: 0.75rem minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.4375rem;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.4;
+  color: var(--yui-text-dim);
+}
+
+.yui-reasons li > span:first-child {
+  display: flex;
+}
+
+.yui-reasons li svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-top: 0.125rem;
+  color: var(--yui-text-mute);
+}
+
+.yui-reasons__age {
+  padding-top: 0.0625rem;
+  font-size: var(--yui-fs-caption);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--yui-text-mute);
+}
+
+.yui-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@keyframes yui-enter {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes yui-fresh {
+  0%,
+  14% {
+    color: var(--yui-text);
+  }
+  100% {
+    color: inherit;
+  }
+}
+
+@keyframes yui-fresh-why {
+  0%,
+  14% {
+    color: var(--yui-text);
+  }
+  100% {
+    color: var(--yui-text-mute);
+  }
+}
+
+/* Reduced motion: nothing moves or scales; fills, ghosts, the card and the disclosure change by opacity or at once. */
+@media (prefers-reduced-motion: reduce) {
+  .yui-stance,
+  .yui-preset__matrix,
+  .yui-preset__rel-more svg {
+    transition: none;
+  }
+  .yui-glyph__seg::after {
+    transform: none;
+    opacity: 0;
+    transition: opacity var(--yui-dur) var(--yui-ease);
+  }
+  .yui-glyph[data-band="hostile"] [data-s="-2"]::after,
+  .yui-glyph[data-band="hostile"] [data-s="-1"]::after,
+  .yui-glyph[data-band="cold"] [data-s="-1"]::after,
+  .yui-glyph[data-band="warm"] [data-s="1"]::after,
+  .yui-glyph[data-band="close"] [data-s="1"]::after,
+  .yui-glyph[data-band="close"] [data-s="2"]::after {
+    opacity: 1;
+  }
+  .yui-glyph__seg.is-ghost::after {
+    opacity: 0.4;
+    transition: none;
+  }
+  .yui-glyph__seg.is-draining::after {
+    opacity: 0;
+    transition: opacity 400ms var(--yui-ease);
+  }
+  .yui-glyph[data-band="neutral"] .yui-glyph__mid,
+  .yui-reasons {
+    transform: none;
+  }
+}

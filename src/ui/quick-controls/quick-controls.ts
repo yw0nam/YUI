@@ -52,6 +52,7 @@ import type { MessageWindowSettingsStore } from "../../settings/panels/message-w
 import type { ClampedIntSettingsStore, FlagSettingsStore } from "../../settings/persisted-store";
 import type { PetWindows } from "../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
+import type { RelationsStore } from "../../settings/relations/relations-store";
 import type { createFillerSettings } from "../../settings/voice/filler-settings";
 import type { createVadSettings } from "../../settings/voice/vad-settings";
 import type { VoiceInputStatus } from "../chips/voice-input-status";
@@ -240,6 +241,8 @@ interface QuickControlsOptions {
   /** Preset list and active preset. If absent, the preset strip and the tab scope lines won't render. */
   presetRegistry?: PresetRegistry;
   petWindows?: PetWindows;
+  /** This window's preset's relations, shown under the preset row. */
+  relationsStore?: RelationsStore;
   boundId?: string | null;
   /** Set in the settings window: the preset strip picks the preset the window edits. */
   onEditTarget?: (id: string) => void;
@@ -332,6 +335,7 @@ export function createQuickControls({
   browserSettings,
   presetRegistry,
   petWindows,
+  relationsStore,
   boundId,
   onEditTarget,
   showVoiceInput = true,
@@ -438,6 +442,7 @@ export function createQuickControls({
         boundId,
         onEditTarget,
         agentNotifySettings,
+        relationsStore,
       })
     : null;
   const hintTooltip = createHintTooltip({ root: el });

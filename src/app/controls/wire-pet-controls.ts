@@ -39,7 +39,7 @@ export function wirePetControls(deps: {
   stores: SettingsStores;
   conversation: Pick<
     ConversationStores,
-    "sessionStore" | "sessionDiagnostics" | "chatHistoryStore"
+    "sessionStore" | "sessionDiagnostics" | "chatHistoryStore" | "relationsStore"
   >;
   config: Pick<ConfigStore, "get">;
   /** Resolves the chat key the chat turn would send, per request (SecretProvider path). */
@@ -142,7 +142,7 @@ export function wirePetControls(deps: {
     browserSettings,
   } = stores;
   // The quick-controls session reset writes the same instances the dispatcher reads through.
-  const { sessionStore, sessionDiagnostics, chatHistoryStore } = conversation;
+  const { sessionStore, sessionDiagnostics, chatHistoryStore, relationsStore } = conversation;
 
   // The pet window exists only under Tauri; a plain browser bounds the panel by the webview.
   const visibleViewport = isTauri()
@@ -222,6 +222,7 @@ export function wirePetControls(deps: {
       visibleViewport,
       presetRegistry,
       petWindows: deps.petWindows,
+      relationsStore,
       boundId: deps.boundId,
     });
   // Re-mounted on locale change (see i18n subscriber below); consumers read the live binding.

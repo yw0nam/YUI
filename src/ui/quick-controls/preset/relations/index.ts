@@ -1,0 +1,151 @@
+/**
+ * The preset strip's relations: the stance line, the matrix disclosure and the reasons card. This
+ * window's preset reads the live store and moves on its writes; the other presets read storage.
+ */
+
+import type { RelationBand } from "../../../../contract/types";
+import { presetIdForWindow } from "../../../../settings/preset/active-preset";
+import {
+  bandOf,
+  type Relations,
+  type RelationsStore,
+  readRelationsOf,
+} from "../../../../settings/relations/relations-store";
+import { t } from "../../../i18n";
+import { createReasonsCard } from "./reasons-card";
+import { relationsMatrixEl } from "./relations-matrix";
+import { bandShift, restart } from "./stance-glyph";
+import { stanceLineEl } from "./stance-line";
+import type { RelationsView } from "./view";
+
+/** The matrix disclosure's open state, per window. */
+const OPEN_KEY = "yui.relations-matrix-open";
+
+function readOpen(): boolean {
+  try {
+    return globalThis.localStorage?.getItem(OPEN_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function writeOpen(open: boolean): void {
+  try {
+    globalThis.localStorage?.setItem(OPEN_KEY, String(open));
+  } catch {
+    // The state lives for this panel only.
+  }
+}
+
+export function createPresetRelations(deps: {
+  strip: HTMLElement;
+  /** The line goes right after this element. */
+  anchor: HTMLElement;
+  store: RelationsStore;
+  presets: () => readonly { id: string; name: string }[];
+}): { render(): void; dispose(): void } {
+  const self = presetIdForWindow();
+  let line: HTMLElement | null = null;
+  let matrix: HTMLElement | null = null;
+  let view: RelationsView | null = null;
+  let previous: Relations = deps.store.all();
+
+  function buildView(): RelationsView {
+    const presets = deps.presets();
+    const relations: Record<string, Relations> = {};
+    for (const { id } of presets) {
+      relations[id] = id === self ? deps.store.all() : readRelationsOf(id);
+    }
+    const nameOf = (id: string): string =>
+      id === "user" ? t("relation.to_you") : (presets.find((p) => p.id === id)?.name ?? id);
+    return {
+      self,
+      presets,
+      relations,
+      targetsOf: (subject) => ["user", ...presets.map((p) => p.id).filter((id) => id !== subject)],
+      nameOf,
+      label: (subject, target, band: RelationBand) =>
+        t("relation.card_head", {
+          subject: nameOf(subject),
+          band: t(`relation.band.${band}`),
+          target: nameOf(target),
+        }),
+    };
+  }
+
+  const card = createReasonsCard({
+    strip: deps.strip,
+    recordOf: (subject, target) => view?.relations[subject]?.[target],
+    nameOf: (id) => view?.nameOf(id) ?? id,
+  });
+
+  function toggle(): void {
+    if (!matrix || !line) return;
+    const open = !matrix.classList.contains("is-open");
+    matrix.classList.toggle("is-open", open);
+    line.querySelector(".yui-preset__rel-more")?.setAttribute("aria-expanded", String(open));
+    writeOpen(open);
+  }
+
+  function render(): void {
+    card.close();
+    view = buildView();
+    const open = readOpen() && view.presets.length > 1;
+    const nextLine = stanceLineEl(view, open);
+    const nextMatrix = relationsMatrixEl(view, open, Date.now());
+    if (line && matrix) {
+      line.replaceWith(nextLine);
+      matrix.replaceWith(nextMatrix);
+    } else {
+      deps.anchor.after(nextLine, nextMatrix);
+    }
+    line = nextLine;
+    matrix = nextMatrix;
+    line.querySelector(".yui-preset__rel-more")?.addEventListener("click", toggle);
+  }
+
+  /** Moves the stances of every pair of this preset whose value changed since the last write. */
+  function paint(next: Relations): void {
+    for (const [target, record] of Object.entries(next)) {
+      const before = previous[target];
+      if (before?.value === record.value) continue;
+      const stances = deps.strip.querySelectorAll<HTMLElement>(
+        `.yui-stance[data-subject="${self}"][data-target="${target}"]`,
+      );
+      for (const stance of stances) {
+        if (before)
+          bandShift(
+            stance.querySelector(".yui-glyph")!,
+            bandOf(before.value),
+            bandOf(record.value),
+          );
+        else restart(stance, "is-entering");
+        restart(stance, "is-fresh");
+      }
+      const latest = deps.strip.querySelector<HTMLElement>(".yui-matrix__latest");
+      if (latest) restart(latest, "is-fresh");
+    }
+    previous = next;
+  }
+
+  const offStore = deps.store.subscribe((next) => {
+    render();
+    paint(next);
+  });
+  // Another window wrote a preset's relations: re-render without motion.
+  const onStorage = (e: StorageEvent): void => {
+    if (e.key === null || e.key === "yui.relations" || e.key.endsWith(".relations")) render();
+  };
+  window.addEventListener("storage", onStorage);
+
+  return {
+    render,
+    dispose(): void {
+      offStore();
+      window.removeEventListener("storage", onStorage);
+      card.dispose();
+      line?.remove();
+      matrix?.remove();
+    },
+  };
+}
