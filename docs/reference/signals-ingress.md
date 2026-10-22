@@ -91,7 +91,7 @@ starts does not hold them.
 `GET /relations` and `GET /presets/<id>/relations` return the character's relation store,
 the relation the backend has rated toward the user and toward each other preset
 (`docs/reference/client-tools.md` § `rate_relation`). `PUT` on the same path replaces the
-whole store; an external memory that keeps its own relationship record writes it here.
+whole store; an external engine that keeps its own relationship record writes it here.
 
 ```json
 {
@@ -108,10 +108,11 @@ at most 20, each `{at, delta, why}` with `delta` an integer from -2 to 2 other t
 string of at most 80 characters. An optional `note` of at most 200 characters holds an external
 engine's own summary of the relation; the client never writes it and renders it on the `relation:`
 line after the band. A `PUT` body that is not an object, has a key that is neither `user`
-nor an existing preset id (the window's own id included), or breaks any range receives
-HTTP 400 and leaves the store unchanged; a valid body answers 200 with the stored body. Any
-other method receives 405. The window renders the new relation on its next turn and in its
-preset row at once. The daily cap applies to the tool only; a `PUT` sets what it says.
+nor an existing preset id, or breaks any range receives HTTP 400 and leaves the store
+unchanged; a valid body answers 200 with the stored body. A key for the window's own
+preset id is accepted, stored, and never rendered. Any other method receives 405. The window
+renders the new relation on its next turn and in its preset row at once. The daily cap
+applies to the tool only; a `PUT` sets what it says.
 
 ## Preset switch
 

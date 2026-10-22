@@ -43,7 +43,7 @@ The client renders what arrives and judges nothing. Everything the backend must 
 | `done` or `failed` state held in the status pill's tool segment before it clears | 1.5 s |
 | `tool_call` wait, body action | 15 s on the client, 20 s on the backend adapter |
 | `tool_call` wait, query | 2 s on the client, 7 s on the backend adapter |
-| `tool_call` wait, rate_relation | 2 s on the client, 20 s on the backend adapter |
+| `tool_call` wait, rate_relation | 2 s on the client, 7 s on the backend adapter |
 | `tool_call` wait, browser | 32 s on the client, 40 s on the backend adapter |
 | Text-only `tool_result` frame size | 256 KiB |
 | `tool_result` frame size with a non-empty list of image data URLs | `max_turn_bytes` from `ready`, or 256 KiB when absent |

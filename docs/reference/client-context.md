@@ -308,7 +308,7 @@ backend reads a band and the reason behind the last move, not a score.
 Only this window's own relation is rendered. What another character thinks of this one is
 never injected; the character learns it the way the user does, from what the other
 character says ([`overheard`](#overheard)). The store is `yui.<id>.relations`, read every
-turn; the backend moves it with the `rate_relation` tool, and an external memory reads or
+turn; the backend moves it with the `rate_relation` tool, and an external engine reads or
 replaces it over the ingress (`docs/reference/signals-ingress.md`).
 
 ## Trigger lines
