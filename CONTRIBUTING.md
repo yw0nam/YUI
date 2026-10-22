@@ -175,9 +175,10 @@ which lists it under **Removed** in the release notes.
 
 ## Client anti-patterns
 
-- **No brain in the client.** Judgment, persona, and speak/don't-speak
-  decisions belong to the backend; the client fires candidate events and
-  renders whatever text arrives.
+- **No brain in the client.** The words a character speaks, and whether it
+  speaks, come from the backend. The client fires candidate events, decides
+  which character receives them and what the backend is asked to address,
+  and renders whatever text arrives.
 - **No inline control tags.** Emotion and motion travel only as
   `generate_express` tool-call arguments — never as inline tokens in speech
   text.
