@@ -38,6 +38,15 @@ Applies to all TypeScript in `src/` and all Rust in `src-tauri/src/`.
 | `turn_hold` | none | Another window holds the turn lock, so this window waits. |
 | `turn_granted` | `waited_ms` | The waiting window received the lock after that many milliseconds. |
 
+## Relation events
+
+`io/chat/tools/relation.ts` (namespace `relation`) and `io/bridge/inbox/relations-rpc.ts` (namespace `relations-rpc`) log at `info`.
+
+| Event | Fields | When |
+|---|---|---|
+| `relation_rated` | `target`, `delta`, `band`, `clamped` | A `rate_relation` call reached the store. `target` is `user` or a preset id, `delta` the change applied after the daily cap and the range, `band` the band after it. |
+| `relations_replaced` | `targets` | An ingress `PUT /relations` replaced the window's store; `targets` lists its keys. |
+
 ## TypeScript Usage
 
 ```ts

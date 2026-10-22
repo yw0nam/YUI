@@ -668,7 +668,7 @@ globalThis.YUI_MAP =
       "id": "settings",
       "module": "settings",
       "label": "settings",
-      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live.",
+      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its stance toward the user and the other presets, in five bands with a daily cap, and the stance entries a turn carries.",
       "paths": [
         "src/settings"
       ]
@@ -695,7 +695,7 @@ globalThis.YUI_MAP =
       "id": "io/chat/tools",
       "module": "tools",
       "label": "client tools",
-      "role": "The tools the client declares to the backend and runs itself: generate_express, body_action, look, browser.",
+      "role": "The tools the client declares to the backend and runs itself: generate_express, rate_relation, body_action, look, browser.",
       "paths": [
         "src/io/chat/tools"
       ]
@@ -902,7 +902,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/inbox",
       "module": "tools",
       "label": "inbox",
-      "role": "Subscriptions to the shell's agent, signals, and avatar RPC channels, and the avatar executor that answers body commands addressed to its window.",
+      "role": "Subscriptions to the shell's agent, signals, and avatar RPC channels, and the avatar executor that answers body commands addressed to its window, and the relations RPC that answers the relations routes from the window's relation store.",
       "paths": [
         "src/io/bridge/inbox"
       ]
@@ -1127,7 +1127,7 @@ globalThis.YUI_MAP =
       "id": "ui/quick-controls",
       "module": "settings",
       "label": "quick controls",
-      "role": "The settings panel, shown as a popover in the pet window and as the whole settings window; the preset manage row's copy button copies a character's ingress URL and the Reactions URL line shows this window's.",
+      "role": "The settings panel, shown as a popover in the pet window and as the whole settings window; the preset manage row's copy button copies a character's ingress URL and the Reactions URL line shows this window's; the preset strip shows this preset's stance line, the relations matrix of every preset, and the reasons card.",
       "paths": [
         "src/ui/quick-controls"
       ]
@@ -1440,6 +1440,15 @@ globalThis.YUI_MAP =
       "from": "io/chat/conversation",
       "to": "dispatcher/backend",
       "carries": "other presets' entries after the per-pair cursor; the cursor commits after a turn ends ok",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-dispatcher.ts"
+    },
+    {
+      "id": "relations-context",
+      "from": "settings",
+      "to": "dispatcher/backend",
+      "carries": "readStance(store.all(), this window's preset, the registry list) → ClientContext.stance, read per turn",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/wire-dispatcher.ts"
@@ -1786,7 +1795,7 @@ globalThis.YUI_MAP =
       "id": "tools-backend",
       "from": "io/chat/tools",
       "to": "dispatcher/backend",
-      "carries": "declared tool schemas of the turn",
+      "carries": "declared tool schemas of the turn; rate_relation's toward enum is read from the open presets as the schema is built",
       "kind": "callback",
       "transport": "request",
       "wiring": "src/app/turn/wire-dispatcher.ts"
@@ -1813,7 +1822,7 @@ globalThis.YUI_MAP =
       "id": "tools-push",
       "from": "io/chat/tools",
       "to": "io/chat/push",
-      "carries": "hello.tools: the window tools (browser in every pet window, body_action and look in main)",
+      "carries": "hello.tools: the window tools (rate_relation in every pet window, browser in every pet window under Tauri, body_action and look in main)",
       "kind": "callback",
       "transport": "push",
       "wiring": "src/app/turn/push/push-stores.ts"
@@ -1839,7 +1848,7 @@ globalThis.YUI_MAP =
       "id": "stream-tools",
       "from": "io/chat/stream",
       "to": "io/chat/tools",
-      "carries": "runClientCall → executeClientTool(tool, args, request signal) → ClientToolResult; tool_status with the call's action",
+      "carries": "runClientCall → executeClientTool(tool, args, request signal, call id, request turn id) → ClientToolResult; tool_status with the call's action",
       "kind": "call",
       "transport": "request"
     },
@@ -1847,7 +1856,7 @@ globalThis.YUI_MAP =
       "id": "push-tools",
       "from": "io/chat/push",
       "to": "io/chat/tools",
-      "carries": "tool_call frame → executeClientTool(tool, args, signal aborted on the turn's cut, socket loss, reset, disposal) → tool_result frame",
+      "carries": "tool_call frame → executeClientTool(tool, args, signal aborted on the turn's cut, socket loss, reset, disposal, call id, frame turn_id) → tool_result frame",
       "kind": "call",
       "transport": "push"
     },
@@ -1884,6 +1893,24 @@ globalThis.YUI_MAP =
       "to": "io/chat/tools",
       "carries": "look.screen and browser switches, read when a call runs and when the tools line is built",
       "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/bootstrap-configured.ts"
+    },
+    {
+      "id": "settings-relation-targets",
+      "from": "settings",
+      "to": "io/chat/tools",
+      "carries": "yui.presets names and the open presets (active and yui.windows) → rate_relation's toward enum, without this window's preset",
+      "kind": "storage",
+      "transport": "shared",
+      "wiring": "src/app/bootstrap-configured.ts"
+    },
+    {
+      "id": "relations-tool",
+      "from": "io/chat/tools",
+      "to": "settings",
+      "carries": "rate_relation → store.rate(target id, delta, why, now) → {band, applied, clamped}; the daily cap and the range clamp it",
+      "kind": "call",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"
     },
@@ -1936,6 +1963,14 @@ globalThis.YUI_MAP =
       "transport": "shared"
     },
     {
+      "id": "relations-ingress",
+      "from": "signal-producers",
+      "to": "shell/agent-ingress",
+      "carries": "GET /relations; PUT /relations {<user or preset id>: {value, updated_at, log, note?}}, refused with 400 outside the ranges or for an unknown key; JSON answer, or the same path under /presets/<id>/ answered by that window",
+      "kind": "http",
+      "transport": "shared"
+    },
+    {
       "id": "factorio-ingress",
       "from": "mods-factorio",
       "to": "shell/agent-ingress",
@@ -1955,7 +1990,7 @@ globalThis.YUI_MAP =
       "id": "ingress-inbox",
       "from": "shell/agent-ingress",
       "to": "io/bridge/inbox",
-      "carries": "targeted emit_to per window — bare routes → main, /presets/<id>/ → pet-<id>; agent-inbox, signals-inbox, avatar-rpc, ingress-dead; each inbox listens with its own window's label",
+      "carries": "targeted emit_to per window — bare routes → main, /presets/<id>/ → pet-<id>; agent-inbox, signals-inbox, avatar-rpc (the avatar and relations routes), ingress-dead; each inbox listens with its own window's label",
       "kind": "tauri-event",
       "transport": "shared"
     },
@@ -1963,9 +1998,27 @@ globalThis.YUI_MAP =
       "id": "inbox-rpc-response",
       "from": "io/bridge/inbox",
       "to": "shell/agent-ingress",
-      "carries": "avatar_rpc_response {id, result}; accepted only from the window the request was emitted to",
+      "carries": "avatar_rpc_response {id, result} for state, perch_targets, command, relations_get and relations_put; accepted only from the window the request was emitted to",
       "kind": "tauri-command",
       "transport": "shared"
+    },
+    {
+      "id": "relations-rpc",
+      "from": "io/bridge/inbox",
+      "to": "settings",
+      "carries": "relations_get → store.all(); relations_put → store.replace(body) → the stored body",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/bootstrap-configured.ts"
+    },
+    {
+      "id": "relations-ui",
+      "from": "settings",
+      "to": "ui/quick-controls",
+      "carries": "this preset's store.all() and subscribe, re-rendered with motion on a write; the other presets' yui.<id>.relations through readRelationsOf, re-rendered on a storage event",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/controls/wire-pet-controls.ts"
     },
     {
       "id": "ingress-start",
@@ -3361,6 +3414,22 @@ globalThis.YUI_MAP =
         },
         {
           "from": "tools",
+          "label": "rate_relation moves this preset's stance; the daily cap and the range clamp it",
+          "edges": [
+            "relations-tool"
+          ],
+          "to": "settings"
+        },
+        {
+          "from": "settings",
+          "label": "the next turn carries the stance line",
+          "edges": [
+            "relations-context"
+          ],
+          "to": "backend-call"
+        },
+        {
+          "from": "tools",
           "label": "body_action and look reach the avatar executor",
           "edges": [
             "tools-executor"
@@ -3384,6 +3453,14 @@ globalThis.YUI_MAP =
           "to": "shell"
         },
         {
+          "from": "senders",
+          "label": "GET or PUT /relations",
+          "edges": [
+            "relations-ingress"
+          ],
+          "to": "shell"
+        },
+        {
           "from": "shell",
           "label": "avatar-rpc event, answered on avatar_rpc_response",
           "edges": [
@@ -3391,6 +3468,14 @@ globalThis.YUI_MAP =
             "inbox-rpc-response"
           ],
           "to": "tools"
+        },
+        {
+          "from": "tools",
+          "label": "relations_get reads the store; relations_put replaces it",
+          "edges": [
+            "relations-rpc"
+          ],
+          "to": "settings"
         },
         {
           "from": "tools",
