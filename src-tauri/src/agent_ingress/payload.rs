@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::time::Duration;
 
 pub const AGENT_INBOX_CHANNEL: &str = "agent-inbox";
@@ -96,12 +97,57 @@ pub enum AvatarCommand {
     GoToBed,
 }
 
-/// A parsed `/avatar/*` request, ready to bridge into the webview.
+/// One logged change of a `/relations` record.
+#[derive(Deserialize, Serialize, Debug)]
+#[serde(deny_unknown_fields)]
+struct RelationChange {
+    at: u64,
+    delta: i64,
+    why: String,
+}
+
+/// One target's record in a `/relations` body.
+#[derive(Deserialize, Serialize, Debug)]
+#[serde(deny_unknown_fields)]
+struct RelationRecord {
+    value: i64,
+    updated_at: u64,
+    log: Vec<RelationChange>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    note: Option<String>,
+}
+
+impl RelationRecord {
+    fn in_range(&self) -> bool {
+        (-20..=20).contains(&self.value)
+            && self.log.len() <= 20
+            && self.note.as_ref().is_none_or(|n| n.chars().count() <= 200)
+            && self
+                .log
+                .iter()
+                .all(|c| c.delta != 0 && (-2..=2).contains(&c.delta) && c.why.chars().count() <= 80)
+    }
+}
+
+/// Validates a `PUT /relations` body; `Err(400)` for a shape or range the contract refuses.
+fn parse_relations(body: &str) -> Result<serde_json::Value, u16> {
+    let records: BTreeMap<String, RelationRecord> =
+        serde_json::from_str(body).map_err(|_| 400u16)?;
+    if !records.values().all(RelationRecord::in_range) {
+        return Err(400);
+    }
+    serde_json::to_value(records).map_err(|_| 400u16)
+}
+
+/// A parsed `/avatar/*` or `/relations` request, ready to bridge into the webview.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) enum AvatarRoute {
     State,
     PerchTargets,
     Command(AvatarCommand),
+    RelationsGet,
+    /// The validated body that replaces the window's relation store.
+    RelationsPut(serde_json::Value),
 }
 
 impl AvatarRoute {
@@ -111,6 +157,8 @@ impl AvatarRoute {
             AvatarRoute::State => ("state", None),
             AvatarRoute::PerchTargets => ("perch_targets", None),
             AvatarRoute::Command(cmd) => ("command", serde_json::to_value(cmd).ok()),
+            AvatarRoute::RelationsGet => ("relations_get", None),
+            AvatarRoute::RelationsPut(body) => ("relations_put", Some(body)),
         }
     }
 
@@ -179,9 +227,9 @@ pub(super) fn parse_signals_request(
 
 /// Validates and parses a raw HTTP request into an `AvatarRoute`.
 ///
-/// Returns `Err(405)` for a known `/avatar/*` path with the wrong method, `Err(404)`
-/// for an unknown `/avatar/*` path, and `Err(400)` when the command body does not
-/// fit the route.
+/// Returns `Err(405)` for a known `/avatar/*` or `/relations` path with the wrong method,
+/// `Err(404)` for an unknown `/avatar/*` path, and `Err(400)` when the command or relations
+/// body does not fit the route.
 pub(super) fn parse_avatar_request(
     method: &str,
     path: &str,
@@ -196,6 +244,11 @@ pub(super) fn parse_avatar_request(
                 .map(AvatarRoute::Command)
                 .map_err(|_| 400u16)
         }),
+        "/relations" => match method {
+            "GET" => Ok(AvatarRoute::RelationsGet),
+            "PUT" => parse_relations(body).map(AvatarRoute::RelationsPut),
+            _ => Err(405),
+        },
         _ => Err(404),
     }
 }

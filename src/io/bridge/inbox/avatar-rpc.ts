@@ -29,7 +29,7 @@ export type AvatarCommand =
   | { action: "stand" }
   | { action: "go_to_bed" };
 
-type AvatarRpcMethod = "state" | "perch_targets" | "command";
+type AvatarRpcMethod = "state" | "perch_targets" | "command" | "relations_get" | "relations_put";
 
 /** `avatar-rpc` event payload — mirrors the Rust `AvatarRpcRequest`. */
 export interface AvatarRpcRequest {

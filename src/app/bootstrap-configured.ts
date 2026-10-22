@@ -4,6 +4,8 @@ import type { AppConfig } from "../config/load";
 import { isChatConfigured } from "../dispatcher/backend/backend-caller";
 import type { Guardrails } from "../dispatcher/core/guardrails";
 import type { Dispatcher } from "../dispatcher/dispatcher";
+import { onAvatarRpc, respondAvatarRpc } from "../io/bridge/inbox/avatar-rpc";
+import { createRelationsRpc } from "../io/bridge/inbox/relations-rpc";
 import type { ClientTool } from "../io/chat/tools/client-tools";
 import { createPetWindowTools } from "../io/chat/tools/pet-window-tools";
 import type { ScreenCapturer } from "../io/window/capture/screen-source-provider";
@@ -140,6 +142,13 @@ const realFactories: ConfiguredBootstrapFactories = {
           .filter((id) => id !== presetIdForWindow())
           .map((id) => ({ id, name: readPresetName(id) })),
     });
+    const relationsRpc = createRelationsRpc({
+      subscribe: (cb) => onAvatarRpc(cb),
+      respond: (id, result) => void respondAvatarRpc(id, result),
+      store: phase1.conversation.relationsStore,
+    });
+    relationsRpc.start();
+    register(relationsRpc.stop);
     const core = await wireTurnCore(cfg, phase1, {
       getFrontmost: () => frontmostTracker.get(),
       screenCapturer: phase1.screenCapturer,

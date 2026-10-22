@@ -220,6 +220,8 @@ function spotOrigin(
   }
 }
 
+const OWNED_METHODS: ReadonlySet<string> = new Set(["state", "perch_targets", "command"]);
+
 export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
   const { perch, getWindow, listMonitors, getPosture, getVrm, noteAvatarMoved, bed } = deps;
 
@@ -388,6 +390,8 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
     start() {
       if (unsubscribe) return;
       unsubscribe = deps.subscribe((req) => {
+        // Another subscriber on the channel answers the methods this executor does not own.
+        if (!OWNED_METHODS.has(req.method)) return;
         void handle(req)
           .then((result) => deps.respond(req.id, result))
           .catch((err) => {
