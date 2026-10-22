@@ -82,6 +82,7 @@ export function bandShift(glyph: HTMLElement, from: RelationBand, to: RelationBa
     seg.classList.remove("is-ghost", "is-draining");
   }
   glyph.dataset.band = from;
+  void glyph.offsetWidth;
   if (from === to) return;
   const left = LIT[from]
     .filter((s) => !LIT[to].includes(s))
