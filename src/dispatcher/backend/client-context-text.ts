@@ -78,13 +78,16 @@ function ageOf(atMs: number, nowMs: number): string {
   return hours < 24 ? `${hours}h ago` : `${Math.round(mins / 1440)}d ago`;
 }
 
-function renderStance(stance: ClientContext["stance"], nowMs: number): string[] {
-  return (stance ?? []).map(({ target, band, delta, why, at, note }) => {
+function renderRelations(
+  relations: ClientContext["relations"],
+  nowMs: number,
+): string[] {
+  return (relations ?? []).map(({ target, band, delta, why, at, note }) => {
     const summary = note ? `, "${oneLine(note)}"` : "";
     const last = why
       ? ` (last change ${delta > 0 ? "+" : ""}${delta}, ${ageOf(at, nowMs)}: "${oneLine(why)}")`
       : "";
-    return `stance: toward ${oneLine(target)} ${band}${summary}${last}`;
+    return `relation: toward ${oneLine(target)} ${band}${summary}${last}`;
   });
 }
 
@@ -240,7 +243,7 @@ export function renderClientContext(clientContext: ClientContext, nowMs: number)
   const body = renderBody(clientContext.body_state, Boolean(clientContext.trigger.wake), nowMs);
   if (body) lines.push(body);
 
-  lines.push(...renderStance(clientContext.stance, nowMs));
+  lines.push(...renderRelations(clientContext.relations, nowMs));
 
   const tools = renderToolSwitches(clientContext.tool_switches);
   if (tools) lines.push(tools);

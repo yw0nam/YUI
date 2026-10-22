@@ -1,11 +1,11 @@
-/** The stance line under the preset row: this window's preset, one stance per rated target. */
+/** The relation line under the preset row: this window's preset, one relation per rated target. */
 
 import { bandOf } from "../../../../settings/relations/relations-store";
 import { t } from "../../../i18n";
-import { CHEVRON_SVG, stanceEl } from "./stance-glyph";
+import { CHEVRON_SVG, relationEl } from "./relation-glyph";
 import type { RelationsView } from "./view";
 
-export function stanceLineEl(view: RelationsView, open: boolean): HTMLElement {
+export function relationLineEl(view: RelationsView, open: boolean): HTMLElement {
   const line = document.createElement("div");
   line.className = "yui-preset__rel";
   line.setAttribute("role", "group");
@@ -18,7 +18,7 @@ export function stanceLineEl(view: RelationsView, open: boolean): HTMLElement {
   for (const target of targets) {
     const band = bandOf(own[target]!.value);
     line.append(
-      stanceEl({
+    relationEl({
         subject: view.self,
         target,
         band,

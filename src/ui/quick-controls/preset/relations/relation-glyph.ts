@@ -1,4 +1,4 @@
-/** The stance chip's atoms: the five-step glyph and its band motion, the direction mark, and the age text. */
+/** The relation chip's atoms: the five-step glyph and its band motion, the direction mark, and the age text. */
 
 import type { RelationBand } from "../../../../contract/types";
 import { t } from "../../../i18n";
@@ -29,8 +29,8 @@ export function glyphEl(band: RelationBand): HTMLElement {
   return glyph;
 }
 
-/** One stance: the glyph, and the target's name when `name` is given. */
-export function stanceEl(p: {
+/** One relation: the glyph, and the target's name when `name` is given. */
+export function relationEl(p: {
   subject: string;
   target: string;
   band: RelationBand;
@@ -38,7 +38,7 @@ export function stanceEl(p: {
   name?: string;
 }): HTMLElement {
   const el = document.createElement("span");
-  el.className = "yui-stance";
+  el.className = "yui-relation";
   el.tabIndex = 0;
   el.dataset.subject = p.subject;
   el.dataset.target = p.target;
@@ -46,7 +46,7 @@ export function stanceEl(p: {
   el.append(glyphEl(p.band));
   if (p.name !== undefined) {
     const to = document.createElement("span");
-    to.className = "yui-stance__to";
+    to.className = "yui-relation__to";
     to.textContent = p.name;
     el.append(to);
   }

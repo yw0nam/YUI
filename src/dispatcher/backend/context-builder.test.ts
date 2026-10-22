@@ -137,18 +137,18 @@ describe("context builder — tool switches", () => {
   });
 });
 
-describe("context builder — stance", () => {
-  it("carries the stance entries from the provider, and omits the field when there are none", async () => {
-    const stance = [
+describe("context builder — relations", () => {
+  it("carries the relation entries from the provider, and omits the field when there are none", async () => {
+    const relations = [
       { target: "user", band: "warm" as const, delta: 1, why: "stayed up", at: 7 },
       { target: "perlica", band: "cold" as const, delta: -2, why: "took the chair", at: 8 },
     ];
 
-    const rated = await buildContext(ENV, { getStance: () => stance });
-    expect(rated.clientContext.stance).toEqual(stance);
+    const rated = await buildContext(ENV, { getRelations: () => relations });
+    expect(rated.clientContext.relations).toEqual(relations);
 
-    const none = await buildContext(ENV, { getStance: () => [] });
-    expect("stance" in none.clientContext).toBe(false);
+    const none = await buildContext(ENV, { getRelations: () => [] });
+    expect("relations" in none.clientContext).toBe(false);
   });
 });
 

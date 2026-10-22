@@ -77,7 +77,7 @@ function parse(value: unknown): Relations | null {
   return out;
 }
 
-/** One preset's directed stance toward the user and each other preset. */
+/** One preset's directed relation toward the user and each other preset. */
 export function createRelationsStore(opts?: { storage?: RelationsStorage }) {
   const core = createPersistedStore<Relations>({
     storage: opts?.storage,

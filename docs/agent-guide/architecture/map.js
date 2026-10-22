@@ -668,7 +668,7 @@ globalThis.YUI_MAP =
       "id": "settings",
       "module": "settings",
       "label": "settings",
-      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its stance toward the user and the other presets, in five bands with a daily cap, and the stance entries a turn carries.",
+      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap, and the relation entries a turn carries.",
       "paths": [
         "src/settings"
       ]
@@ -1127,7 +1127,7 @@ globalThis.YUI_MAP =
       "id": "ui/quick-controls",
       "module": "settings",
       "label": "quick controls",
-      "role": "The settings panel, shown as a popover in the pet window and as the whole settings window; the preset manage row's copy button copies a character's ingress URL and the Reactions URL line shows this window's; the preset strip shows this preset's stance line, the relations matrix of every preset, and the reasons card.",
+      "role": "The settings panel, shown as a popover in the pet window and as the whole settings window; the preset manage row's copy button copies a character's ingress URL and the Reactions URL line shows this window's; the preset strip shows this preset's relation line, the relations matrix of every preset, and the reasons card.",
       "paths": [
         "src/ui/quick-controls"
       ]
@@ -1448,7 +1448,7 @@ globalThis.YUI_MAP =
       "id": "relations-context",
       "from": "settings",
       "to": "dispatcher/backend",
-      "carries": "readStance(store.all(), this window's preset, the registry list) → ClientContext.stance, read per turn",
+      "carries": "readRelationLines(store.all(), this window's preset, the registry list) → ClientContext.relations, read per turn",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/wire-dispatcher.ts"
@@ -3414,7 +3414,7 @@ globalThis.YUI_MAP =
         },
         {
           "from": "tools",
-          "label": "rate_relation moves this preset's stance; the daily cap and the range clamp it",
+          "label": "rate_relation moves this preset's relation; the daily cap and the range clamp it",
           "edges": [
             "relations-tool"
           ],
@@ -3422,7 +3422,7 @@ globalThis.YUI_MAP =
         },
         {
           "from": "settings",
-          "label": "the next turn carries the stance line",
+          "label": "the next turn carries the relation line",
           "edges": [
             "relations-context"
           ],

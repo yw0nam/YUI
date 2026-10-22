@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readStance } from "./stance";
+import { readRelationLines } from "./relation-lines";
 
 const PRESETS = [
   { id: "default", name: "yui" },
@@ -9,7 +9,7 @@ const PRESETS = [
   { id: "dddd0004", name: "user" },
 ];
 
-describe("readStance", () => {
+describe("readRelationLines", () => {
   it("lists user first, then the other rated presets in registry order, by name", () => {
     const relations = {
       cccc0003: { value: -6, updated_at: 9, log: [{ at: 8, delta: -2, why: "took the chair" }] },
@@ -18,7 +18,7 @@ describe("readStance", () => {
       aaaa0001: { value: 0, updated_at: 5, log: [], note: "trusts the work" },
     };
 
-    expect(readStance(relations, "default", PRESETS)).toEqual([
+    expect(readRelationLines(relations, "default", PRESETS)).toEqual([
       { target: "user", band: "warm", delta: 1, why: "stayed up", at: 7 },
       { target: "perlica", band: "neutral", delta: 0, why: "", at: 5, note: "trusts the work" },
       { target: "rin", band: "cold", delta: -2, why: "took the chair", at: 8 },
@@ -30,7 +30,7 @@ describe("readStance", () => {
       dddd0004: { value: 2, updated_at: 9, log: [{ at: 9, delta: 2, why: "said hi" }] },
     };
 
-    expect(readStance(relations, "default", PRESETS)).toEqual([
+    expect(readRelationLines(relations, "default", PRESETS)).toEqual([
       { target: "user (character)", band: "neutral", delta: 2, why: "said hi", at: 9 },
     ]);
   });

@@ -1,6 +1,6 @@
 /**
  * Preset strip — the active preset's picker and the dots button that opens the manage popover,
- * above the tab rail and body, with the preset's stance line and the relations matrix under it. Picking another preset activates it and holds the panel inert
+ * above the tab rail and body, with the preset's relation line and the relations matrix under it. Picking another preset activates it and holds the panel inert
  * until the window reloads (wire-preset); in edit mode (the settings window) it hands the picked
  * id to `onEditTarget` instead. Also fills each tab's scope line.
  */
@@ -52,7 +52,7 @@ export function createPresetStrip(deps: {
   /** Passed in the settings window: the strip picks the preset the window edits instead of switching main's. */
   onEditTarget?: (id: string) => void;
   agentNotifySettings?: ReturnType<typeof createAgentNotifySettings>;
-  /** This window's preset's relations; absent, the strip shows no stance line. */
+  /** This window's preset's relations; absent, the strip shows no relation line. */
   relationsStore?: RelationsStore;
 }): PresetStrip {
   const { root, registry, log, petWindows, boundId = null, onEditTarget } = deps;

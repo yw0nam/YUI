@@ -351,8 +351,8 @@ export interface ClientContext {
     name: string;
     entries: { role: "user" | "assistant"; text: string; ts: number }[];
   }[];
-  /** This character's stance toward each target the backend has rated; absent when none. */
-  stance?: {
+  /** This character's relation toward each target the backend has rated; absent when none. */
+  relations?: {
     /** `user` or the other preset's name. */
     target: string;
     band: RelationBand;

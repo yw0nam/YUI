@@ -1,8 +1,8 @@
-/** The relations matrix, a disclosure under the stance line: every preset's stance toward every target. */
+/** The relations matrix, a disclosure under the relation line: every preset's relation toward every target. */
 
 import { bandOf } from "../../../../settings/relations/relations-store";
 import { t } from "../../../i18n";
-import { ageText, directionHtml, stanceEl } from "./stance-glyph";
+import { ageText, directionHtml, relationEl } from "./relation-glyph";
 import type { RelationsView } from "./view";
 
 /** The newest statement across every preset: a logged change, or an engine note written after it. */
@@ -67,7 +67,7 @@ export function relationsMatrixEl(view: RelationsView, open: boolean, nowMs: num
       const record = view.relations[id]?.[col];
       if (record) {
         const band = bandOf(record.value);
-        td.append(stanceEl({ subject: id, target: col, band, label: view.label(id, col, band) }));
+        td.append(relationEl({ subject: id, target: col, band, label: view.label(id, col, band) }));
       } else {
         td.className = "is-empty";
         td.setAttribute(

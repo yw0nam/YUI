@@ -1,4 +1,4 @@
-/** rate_relation: the backend moves this character's stance toward the user or another open preset. */
+/** rate_relation: the backend moves this character's relation toward the user or another open preset. */
 
 import { createLogger } from "../../../logger";
 import { targetLabel } from "../../../settings/relations/relation-targets";

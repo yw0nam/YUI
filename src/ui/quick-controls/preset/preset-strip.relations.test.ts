@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The stance line, the relations matrix and the reasons card, through the preset strip.
+// The relation line, the relations matrix and the reasons card, through the preset strip.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -51,11 +51,11 @@ describe("preset strip — relations", () => {
     strip = createPresetStrip({ root, registry, log, relationsStore: store });
   }
 
-  const stances = (scope: string) =>
-    [...root.querySelectorAll<HTMLElement>(`${scope} .yui-stance`)].map((s) => ({
+  const relations = (scope: string) =>
+    [...root.querySelectorAll<HTMLElement>(`${scope} .yui-relation`)].map((s) => ({
       target: s.dataset.target,
       band: s.querySelector<HTMLElement>(".yui-glyph")?.dataset.band,
-      name: s.querySelector(".yui-stance__to")?.textContent,
+      name: s.querySelector(".yui-relation__to")?.textContent,
     }));
 
   beforeEach(() => {
@@ -97,12 +97,12 @@ describe("preset strip — relations", () => {
     vi.useRealTimers();
   });
 
-  it("lists this preset's stance toward each rated target, user first", () => {
+  it("lists this preset's relation toward each rated target, user first", () => {
     const line = root.querySelector<HTMLElement>(".yui-preset__rel")!;
 
     expect(line.hidden).toBe(false);
     expect(line.getAttribute("aria-label")).toBe("How natsume feels");
-    expect(stances(".yui-preset__rel")).toEqual([
+    expect(relations(".yui-preset__rel")).toEqual([
       { target: "user", band: "warm", name: "you" },
       { target: "aaaa0001", band: "cold", name: "perlica" },
     ]);
@@ -125,10 +125,10 @@ describe("preset strip — relations", () => {
     ).toBe(false);
   });
 
-  it("adds a stance as soon as this preset rates a new target", () => {
+  it("adds a relation as soon as this preset rates a new target", () => {
     store.rate("bbbb0002", -2, "hummed off key", NOW);
 
-    expect(stances(".yui-preset__rel").map((s) => s.target)).toEqual([
+    expect(relations(".yui-preset__rel").map((s) => s.target)).toEqual([
       "user",
       "aaaa0001",
       "bbbb0002",
@@ -150,7 +150,7 @@ describe("preset strip — relations", () => {
     expect(toggle().getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("shows every preset's stance in the matrix and names the newest change", () => {
+  it("shows every preset's relations in the matrix and names the newest change", () => {
     const rows = [...root.querySelectorAll(".yui-matrix tbody tr")];
 
     expect(rows.map((r) => r.querySelector("th")?.textContent)).toEqual([
@@ -158,11 +158,11 @@ describe("preset strip — relations", () => {
       "perlica",
       "shino",
     ]);
-    expect(stances(".yui-matrix tbody tr:nth-child(1)").map((s) => [s.target, s.band])).toEqual([
+    expect(relations(".yui-matrix tbody tr:nth-child(1)").map((s) => [s.target, s.band])).toEqual([
       ["user", "warm"],
       ["aaaa0001", "cold"],
     ]);
-    expect(stances(".yui-matrix tbody tr:nth-child(2)").map((s) => [s.target, s.band])).toEqual([
+    expect(relations(".yui-matrix tbody tr:nth-child(2)").map((s) => [s.target, s.band])).toEqual([
       ["default", "close"],
     ]);
     expect(rows[2]!.querySelectorAll("td.is-empty")).toHaveLength(3);
@@ -172,15 +172,15 @@ describe("preset strip — relations", () => {
   });
 
   it("fills the reasons card on hover and closes it on Escape", () => {
-    const stance = root.querySelector<HTMLElement>(
-      '.yui-preset__rel .yui-stance[data-target="user"]',
+    const relation = root.querySelector<HTMLElement>(
+      '.yui-preset__rel .yui-relation[data-target="user"]',
     )!;
     const card = root.querySelector<HTMLElement>(".yui-reasons")!;
 
-    stance.dispatchEvent(new Event("pointerover", { bubbles: true }));
+    relation.dispatchEvent(new Event("pointerover", { bubbles: true }));
 
     expect(card.classList.contains("is-open")).toBe(true);
-    expect(stance.getAttribute("aria-describedby")).toBe(card.id);
+    expect(relation.getAttribute("aria-describedby")).toBe(card.id);
     expect(card.querySelector(".yui-reasons__head")?.textContent).toBe("natsume: warm to you");
     expect(card.querySelector(".yui-reasons__note")?.textContent).toBe(
       "trusts the work, doubts the promises",
@@ -191,8 +191,8 @@ describe("preset strip — relations", () => {
       "rose: fixed my window3h",
     ]);
 
-    stance.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    relation.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     expect(card.classList.contains("is-open")).toBe(false);
-    expect(stance.hasAttribute("aria-describedby")).toBe(false);
+    expect(relation.hasAttribute("aria-describedby")).toBe(false);
   });
 });

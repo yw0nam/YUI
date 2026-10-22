@@ -36,7 +36,7 @@ export function createConversationStores() {
   const chatHistoryStore = createChatHistoryStore({ storage: localStorageChatHistoryStorage() });
   // Per other preset, how far this window has heard its transcript.
   const overheardStore = createOverheardStore({ storage: localStorageOverheard() });
-  // This preset's stance toward the user and each other preset.
+  // This preset's relation toward the user and each other preset.
   const relationsStore = createRelationsStore({ storage: localStorageRelations() });
 
   return {

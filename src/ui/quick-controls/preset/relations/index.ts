@@ -1,5 +1,5 @@
 /**
- * The preset strip's relations: the stance line, the matrix disclosure and the reasons card. This
+ * The preset strip's relations: the relation line, the matrix disclosure and the reasons card. This
  * window's preset reads the live store and moves on its writes; the other presets read storage.
  */
 
@@ -14,8 +14,8 @@ import {
 import { t } from "../../../i18n";
 import { createReasonsCard } from "./reasons-card";
 import { relationsMatrixEl } from "./relations-matrix";
-import { bandShift, restart } from "./stance-glyph";
-import { stanceLineEl } from "./stance-line";
+import { bandShift, restart } from "./relation-glyph";
+import { relationLineEl } from "./relation-line";
 import type { RelationsView } from "./view";
 
 /** The matrix disclosure's open state, per window. */
@@ -91,7 +91,7 @@ export function createPresetRelations(deps: {
     card.close();
     view = buildView();
     const open = readOpen() && view.presets.length > 1;
-    const nextLine = stanceLineEl(view, open);
+    const nextLine = relationLineEl(view, open);
     // The chevron lives on the line, so a hidden line must not leave the matrix open.
     const nextMatrix = relationsMatrixEl(view, open && !nextLine.hidden, Date.now());
     if (line && matrix) {
@@ -105,23 +105,23 @@ export function createPresetRelations(deps: {
     line.querySelector(".yui-preset__rel-more")?.addEventListener("click", toggle);
   }
 
-  /** Moves the stances of every pair of this preset whose value changed since the last write. */
+  /** Moves the relations of every pair of this preset whose value changed since the last write. */
   function paint(next: Relations): void {
     for (const [target, record] of Object.entries(next)) {
       const before = previous[target];
       if (before?.value === record.value) continue;
-      const stances = deps.strip.querySelectorAll<HTMLElement>(
-        `.yui-stance[data-subject="${self}"][data-target="${target}"]`,
+      const relations = deps.strip.querySelectorAll<HTMLElement>(
+        `.yui-relation[data-subject="${self}"][data-target="${target}"]`,
       );
-      for (const stance of stances) {
+      for (const relation of relations) {
         if (before)
           bandShift(
-            stance.querySelector(".yui-glyph")!,
+            relation.querySelector(".yui-glyph")!,
             bandOf(before.value),
             bandOf(record.value),
           );
-        else restart(stance, "is-entering");
-        restart(stance, "is-fresh");
+        else restart(relation, "is-entering");
+        restart(relation, "is-fresh");
       }
       const latest = deps.strip.querySelector<HTMLElement>(".yui-matrix__latest");
       if (latest) restart(latest, "is-fresh");

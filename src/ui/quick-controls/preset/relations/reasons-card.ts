@@ -1,8 +1,8 @@
-/** The reasons card: on hover or focus of a stance, its band, the engine's note and the last three reasons. */
+/** The reasons card: on hover or focus of a relation, its band, the engine's note and the last three reasons. */
 
 import { bandOf, type RelationRecord } from "../../../../settings/relations/relations-store";
 import { t } from "../../../i18n";
-import { ageText, directionHtml } from "./stance-glyph";
+import { ageText, directionHtml } from "./relation-glyph";
 
 const CARD_ID = "yui-reasons";
 
@@ -18,11 +18,11 @@ export function createReasonsCard(deps: {
   card.setAttribute("role", "tooltip");
   strip.append(card);
   let openFor: HTMLElement | null = null;
-  // Escape keeps the card shut for this stance until the pointer leaves it.
+  // Escape keeps the card shut for this relation until the pointer leaves it.
   let escaped: HTMLElement | null = null;
 
-  const stanceOf = (target: EventTarget | null): HTMLElement | null =>
-    target instanceof Element ? target.closest<HTMLElement>(".yui-stance") : null;
+  const relationOf = (target: EventTarget | null): HTMLElement | null =>
+    target instanceof Element ? target.closest<HTMLElement>(".yui-relation") : null;
 
   function fill(subject: string, target: string, record: RelationRecord): void {
     const head = document.createElement("p");
@@ -53,21 +53,21 @@ export function createReasonsCard(deps: {
     card.append(list);
   }
 
-  function open(stance: HTMLElement): void {
-    const { subject = "", target = "" } = stance.dataset;
+  function open(relation: HTMLElement): void {
+    const { subject = "", target = "" } = relation.dataset;
     const record = deps.recordOf(subject, target);
     if (!record) return;
-    if (openFor !== stance) close();
+    if (openFor !== relation) close();
     fill(subject, target, record);
-    stance.setAttribute("aria-describedby", CARD_ID);
+    relation.setAttribute("aria-describedby", CARD_ID);
     const stripBox = strip.getBoundingClientRect();
-    const box = stance.getBoundingClientRect();
+    const box = relation.getBoundingClientRect();
     card.style.left = "0px";
     const left = Math.min(box.left - stripBox.left, strip.clientWidth - card.offsetWidth - 6);
     card.style.left = `${Math.max(6, left)}px`;
     card.style.top = `${box.bottom - stripBox.top + 6}px`;
     card.classList.add("is-open");
-    openFor = stance;
+    openFor = relation;
   }
 
   function close(): void {
@@ -77,21 +77,21 @@ export function createReasonsCard(deps: {
   }
 
   const onOver = (e: Event): void => {
-    const stance = stanceOf(e.target);
-    if (stance && stance !== escaped) open(stance);
+    const relation = relationOf(e.target);
+    if (relation && relation !== escaped) open(relation);
   };
   const onOut = (e: Event): void => {
-    const stance = stanceOf(e.target);
-    if (!stance || stance.contains((e as MouseEvent).relatedTarget as Node | null)) return;
-    if (stance === escaped) escaped = null;
-    if (stance === openFor && document.activeElement !== stance) close();
+    const relation = relationOf(e.target);
+    if (!relation || relation.contains((e as MouseEvent).relatedTarget as Node | null)) return;
+    if (relation === escaped) escaped = null;
+    if (relation === openFor && document.activeElement !== relation) close();
   };
   const onFocusIn = (e: Event): void => {
-    const stance = stanceOf(e.target);
-    if (stance) open(stance);
+    const relation = relationOf(e.target);
+    if (relation) open(relation);
   };
   const onFocusOut = (e: Event): void => {
-    if (stanceOf(e.target) === openFor) close();
+    if (relationOf(e.target) === openFor) close();
   };
   // Esc closes the card alone; the panel stays open behind it.
   const onKeydown = (e: KeyboardEvent): void => {

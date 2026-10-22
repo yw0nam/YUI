@@ -321,7 +321,7 @@
   height: 0.875rem;
 }
 
-/* Stance line — under the preset row, this window's preset, one stance per rated target. */
+/* Relation line — under the preset row, this window's preset, one relation per rated target. */
 .yui-preset__rel {
   display: flex;
   align-items: center;
@@ -335,7 +335,7 @@
   display: none;
 }
 
-.yui-stance {
+.yui-relation {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
@@ -351,26 +351,26 @@
     color var(--yui-dur-fast) var(--yui-ease);
 }
 
-.yui-stance:hover,
-.yui-stance:focus-visible {
+.yui-relation:hover,
+.yui-relation:focus-visible {
   background: var(--yui-hover);
   color: var(--yui-text-dim);
 }
 
-.yui-stance:focus-visible {
+.yui-relation:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--yui-accent-soft);
 }
 
-.yui-stance.is-entering {
+.yui-relation.is-entering {
   animation: yui-enter var(--yui-dur) var(--yui-ease);
 }
 
-.yui-stance__to {
+.yui-relation__to {
   white-space: nowrap;
 }
 
-.yui-stance.is-fresh .yui-stance__to {
+.yui-relation.is-fresh .yui-relation__to {
   animation: yui-fresh 1050ms var(--yui-ease);
 }
 
@@ -388,7 +388,7 @@
   transform: rotate(180deg);
 }
 
-/* Stance glyph — two segments each side of a centre notch: the side is the sign, the length the strength. */
+/* Relation glyph — two segments each side of a centre notch: the side is the sign, the length the strength. */
 .yui-glyph {
   position: relative;
   display: inline-flex;
@@ -534,7 +534,7 @@
   height: 1.5rem;
 }
 
-.yui-matrix td .yui-stance {
+.yui-matrix td .yui-relation {
   padding: 0.125rem 0.25rem;
 }
 
@@ -579,7 +579,7 @@
   animation: yui-fresh-why 1050ms var(--yui-ease);
 }
 
-/* Reasons card — the band, the engine's note and the last three reasons, on hover or focus of a stance. */
+/* Reasons card — the band, the engine's note and the last three reasons, on hover or focus of a relation. */
 .yui-reasons {
   position: absolute;
   z-index: 4;
@@ -701,7 +701,7 @@
 
 /* Reduced motion: nothing moves or scales; fills, ghosts, the card and the disclosure change by opacity or at once. */
 @media (prefers-reduced-motion: reduce) {
-  .yui-stance,
+  .yui-relation,
   .yui-preset__matrix,
   .yui-preset__rel-more svg {
     transition: none;

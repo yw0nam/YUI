@@ -38,7 +38,7 @@ import {
   readPresetName,
 } from "../../settings/preset/active-preset";
 import { readOpenPresetIds } from "../../settings/preset/pet-windows";
-import { readStance } from "../../settings/relations/stance";
+import { readRelationLines } from "../../settings/relations/relation-lines";
 import type { SettingsStores } from "../../settings/settings-stores";
 import { showChainResetNotice } from "../../ui/notices/chain-reset-notice";
 import {
@@ -206,7 +206,8 @@ export function wireDispatcher(deps: {
     getToolSwitches: () => turnTools()?.switches() ?? [],
     takeMessageWake,
     getOverheard: overheard.read,
-    getStance: () => readStance(relationsStore.all(), presetIdForWindow(), readPresetList()),
+    getRelations: () =>
+      readRelationLines(relationsStore.all(), presetIdForWindow(), readPresetList()),
     commitOverheard: overheard.commit,
     isBodyHeld,
     contextHistory,
