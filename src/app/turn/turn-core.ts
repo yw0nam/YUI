@@ -185,6 +185,7 @@ export async function wireTurnCore(
     agentSettings: settings.agentSettings,
     guardrailsSettings: settings.guardrailsSettings,
     pacerGapSettings: settings.pacerGapSettings,
+    oneVoiceSettings: settings.oneVoiceSettings,
     screenshotSettings: settings.screenshotSettings,
     screenCapturer: deps.screenCapturer,
     getFrontmost: deps.getFrontmost,

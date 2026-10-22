@@ -408,7 +408,7 @@ const ja: Record<string, string> = {
 
   // One voice at a time across pet windows
   "one_voice.label": "同時に話すのは一人だけ",
-  "one_voice.sub": "ほかのキャラクターが話し終わるまで待ちます",
+  "one_voice.sub": "ほかのキャラクターはこのキャラクターのターンが終わるまで待ちます",
   "one_voice.aria": "同時に話すのは一人だけ",
 
   // cue lists (input tab)

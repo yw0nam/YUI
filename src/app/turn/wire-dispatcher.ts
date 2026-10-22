@@ -11,6 +11,7 @@ import {
   type GuardrailsConfig,
 } from "../../dispatcher/core/guardrails";
 import { createProactivePacer, type ProactivePacer } from "../../dispatcher/core/proactive-pacer";
+import { createTurnGate } from "../../dispatcher/core/turn-gate";
 import { createDispatcher, type Dispatcher } from "../../dispatcher/dispatcher";
 import type { PushTurns } from "../../dispatcher/turn/push-turn";
 import type { QuotedTurn } from "../../dispatcher/turn/quoted-turn";
@@ -79,6 +80,7 @@ export function wireDispatcher(deps: {
   agentSettings: SettingsStores["agentSettings"];
   guardrailsSettings: SettingsStores["guardrailsSettings"];
   pacerGapSettings: SettingsStores["pacerGapSettings"];
+  oneVoiceSettings: { get(): { enabled: boolean } };
   screenshotSettings: SettingsStores["screenshotSettings"];
   screenCapturer: ScreenCapturer;
   getFrontmost: () => FrontmostState | undefined;
@@ -125,6 +127,7 @@ export function wireDispatcher(deps: {
     agentSettings,
     guardrailsSettings,
     pacerGapSettings,
+    oneVoiceSettings,
     screenshotSettings,
     screenCapturer,
     getFrontmost,
@@ -234,6 +237,7 @@ export function wireDispatcher(deps: {
     peekConfig: () => getConfig().avatar.peek,
     tapConfig: () => getConfig().avatar.tap,
     turnLog,
+    turnGate: createTurnGate({ enabled: () => oneVoiceSettings.get().enabled }),
     hasOutstandingSpeech: () => voice.turnOutput.hasOutstandingSpeech(),
     pacer,
     appendSkipRecord: appendTurnRecord,

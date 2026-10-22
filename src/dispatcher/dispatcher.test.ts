@@ -832,12 +832,12 @@ describe("dispatcher — turn gate", () => {
       dnd_override: false,
     });
   let waiting: Array<{ signal: AbortSignal; grant: () => void }>;
-  let release: ReturnType<typeof vi.fn>;
+  let release: ReturnType<typeof vi.fn<() => void>>;
   let called: () => string[];
 
   beforeEach(() => {
     waiting = [];
-    release = vi.fn();
+    release = vi.fn<() => void>();
     dispatcher.stop();
     const turnGate = {
       acquire: (signal: AbortSignal) =>

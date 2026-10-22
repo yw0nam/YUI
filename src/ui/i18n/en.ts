@@ -405,7 +405,7 @@ const en: Record<string, string> = {
 
   // One voice at a time across pet windows
   "one_voice.label": "One voice at a time",
-  "one_voice.sub": "Another character waits until this one finishes speaking",
+  "one_voice.sub": "Another character waits until this one finishes its turn",
   "one_voice.aria": "One voice at a time",
 
   // cue lists (input tab)

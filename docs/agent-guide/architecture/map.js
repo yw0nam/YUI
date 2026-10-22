@@ -91,7 +91,7 @@ globalThis.YUI_MAP =
       "kind": "module",
       "col": 2,
       "row": 1,
-      "desc": "Event bus, tier classification, guardrails, pacer, tier-1 reactions",
+      "desc": "Event bus, tier classification, guardrails, pacer, turn gate, tier-1 reactions",
       "zone": "logic"
     },
     {
@@ -956,7 +956,7 @@ globalThis.YUI_MAP =
       "id": "dispatcher",
       "module": "dispatcher",
       "label": "dispatcher",
-      "role": "The router: pumps the bus, classifies each envelope, and runs one backend call at a time.",
+      "role": "The router: pumps the bus, classifies each envelope, and runs one backend call at a time, taking the cross-window turn lock first.",
       "paths": [
         "src/dispatcher"
       ]
@@ -965,7 +965,7 @@ globalThis.YUI_MAP =
       "id": "dispatcher/core",
       "module": "dispatcher",
       "label": "bus and gates",
-      "role": "The event bus, tier classification, guardrails, and the proactive pacer.",
+      "role": "The event bus, tier classification, guardrails, the proactive pacer, and the turn gate.",
       "paths": [
         "src/dispatcher/core"
       ]
@@ -4013,6 +4013,20 @@ globalThis.YUI_MAP =
         "from": "pet-<id>",
         "to": "pet",
         "carries": "navigator.locks yui.speaking",
+        "kind": "storage"
+      },
+      {
+        "id": "turn-lock-pet-bound",
+        "from": "pet",
+        "to": "pet-<id>",
+        "carries": "navigator.locks yui.turn: taken before a turn's backend call while yui.one-voice is on, released when the pipeline is idle (call ended and playback done) or when the window dies; other windows queue in order",
+        "kind": "storage"
+      },
+      {
+        "id": "turn-lock-bound-pet",
+        "from": "pet-<id>",
+        "to": "pet",
+        "carries": "navigator.locks yui.turn",
         "kind": "storage"
       },
       {

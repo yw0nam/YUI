@@ -404,7 +404,7 @@ const ko: Record<string, string> = {
 
   // One voice at a time across pet windows
   "one_voice.label": "한 번에 한 명만 말하기",
-  "one_voice.sub": "다른 캐릭터가 말을 마칠 때까지 기다렸다가 말해요",
+  "one_voice.sub": "다른 캐릭터가 이 캐릭터의 차례가 끝날 때까지 기다렸다가 말해요",
   "one_voice.aria": "한 번에 한 명만 말하기",
 
   // cue lists (input tab)

@@ -220,6 +220,7 @@ YUI/
         guardrails.ts                # Cooldown, debounce, and rate-limit evaluation
         paced-pipeline-busy.ts       # The pipeline-busy predicate composed with the proactive gap
         proactive-pacer.ts           # The quiet gap after a turn that every proactive source shares
+        turn-gate.ts                 # The cross-window Web Lock a turn holds from its backend call to the end of its playback
       tier1/
         directive.ts                 # Pure tier-1 control directive for sit, drop, peek and pat events
         render.ts                    # Tier-1 rendering: local directives, posture ledger, pin targets, and the tap-emotion revert
