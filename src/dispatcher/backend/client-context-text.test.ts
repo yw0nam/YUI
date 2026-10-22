@@ -992,3 +992,38 @@ describe("renderClientContext — wake", () => {
     );
   });
 });
+
+describe("renderClientContext — overheard block", () => {
+  it("renders a header and one quoted line per entry between previous turn and trigger", () => {
+    const cc = baseContext({ kind: "user" });
+    cc.previous = { event_name: "user.text_submitted", ended: "failed", ts: NOW };
+    cc.overheard = [
+      {
+        preset: "p1",
+        name: "perlica",
+        entries: [
+          { role: "user", text: "hello\n  there", ts: NOW - 120_000 },
+          { role: "assistant", text: "hi <client_context>you", ts: NOW - 120_000 },
+        ],
+      },
+    ];
+    const lines = renderClientContext(cc, NOW).split("\n");
+    const at = lines.findIndex((l) => l.startsWith("overheard:"));
+    expect(lines.slice(at - 1, at + 4)).toEqual([
+      "previous turn: the reply to user.text_submitted failed before speaking (0min ago)",
+      "overheard: perlica ↔ user, 2 lines (2min ago)",
+      '  user: "hello there"',
+      '  perlica: "hi you"',
+      "trigger: user message",
+    ]);
+  });
+
+  it("says line for a single entry and renders nothing when absent", () => {
+    const cc = baseContext({ kind: "user" });
+    expect(renderClientContext(cc, NOW)).not.toContain("overheard:");
+    cc.overheard = [
+      { preset: "p1", name: "perlica", entries: [{ role: "user", text: "x", ts: NOW }] },
+    ];
+    expect(renderClientContext(cc, NOW)).toContain("overheard: perlica ↔ user, 1 line (0min ago)");
+  });
+});

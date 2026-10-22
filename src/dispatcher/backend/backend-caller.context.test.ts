@@ -674,3 +674,37 @@ describe("backend_caller — wake", () => {
     );
   });
 });
+
+describe("backend_caller — overheard lines", () => {
+  const block = {
+    preset: "p1",
+    name: "perlica",
+    entries: [{ role: "user" as const, text: "ping", ts: 1_717_000_000_000 }],
+    cursor: { ts: 1_717_000_000_000, n: 1 },
+  };
+
+  it.each([
+    { outcome: "ok", error: null, committed: [[[block]]] },
+    { outcome: "network_drop", error: new Error("drop"), committed: [] },
+  ])("sends the lines and commits them only on $outcome", async ({ outcome, error, committed }) => {
+    const commitOverheard = vi.fn();
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      getOverheard: () => [block],
+      commitOverheard,
+    });
+    script.events = error ? [] : [completedEvent({ speech_text: "" })];
+    script.error = error;
+
+    expect(await caller.call(turnOf(userEnv("hi")))).toBe(outcome);
+
+    expect(JSON.stringify(script.spy.mock.calls[0][1].input)).toContain(
+      "overheard: perlica ↔ user, 1 line",
+    );
+    expect(commitOverheard.mock.calls).toEqual(committed);
+  });
+});

@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { presetIdForWindow, presetNameFor, resolvePresetKey } from "./active-preset";
+import {
+  presetIdForWindow,
+  presetNameFor,
+  readPresetName,
+  resolvePresetKey,
+} from "./active-preset";
 
 afterEach(() => vi.unstubAllGlobals());
 it.each([
@@ -41,4 +46,21 @@ describe("presetNameFor", () => {
   ])("%s", (_name, boundId, expected) => {
     expect(presetNameFor(state, boundId)).toBe(expected);
   });
+});
+
+it.each([
+  ["a listed id gives its name", "bbbb0002", "Beta"],
+  ["an unlisted id gives the id", "cccc0003", "cccc0003"],
+])("readPresetName: %s", (_name, id, expected) => {
+  vi.stubGlobal("localStorage", {
+    getItem: () =>
+      JSON.stringify({
+        active: "aaaa0001",
+        list: [
+          { id: "aaaa0001", name: "Alpha" },
+          { id: "bbbb0002", name: "Beta" },
+        ],
+      }),
+  });
+  expect(readPresetName(id)).toBe(expected);
 });
