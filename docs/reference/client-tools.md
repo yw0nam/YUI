@@ -8,8 +8,9 @@ The tools the client exposes to the backend model.
 | `body_action` | Moves the body: sit on a window's top edge, peek around its edge, move to a named spot, stand up, or lie down on a bed | Arguments `action` plus the field it needs: `app` for `sit_on_window`, `side` for `peek`, `spot` and an optional `monitor` for `move_to`; `stand` and `go_to_bed` need none. Result: `ok`, or one word — `not_found`, `blocked`, `interrupted`, `busy`, `unsupported`, `timeout` | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createAvatarTools` in `src/io/chat/tools/avatar.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
 | `look` | Reads the character's body state, perch targets, or a display screenshot | Argument `at`: `body`, `perch_targets`, or `screen`; optional integer `monitor` for `screen`, using the same display number as `body_action.monitor`. Omitted `monitor` selects the character's display; other targets ignore it. Body and perch results are JSON strings. Screen success is `{ text: "screenshot of display <n>", images: [dataUrl] }`; refusal is `error: screen capture is off`, and an invalid monitor is `error: invalid field monitor` | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createAvatarTools` in `src/io/chat/tools/avatar.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
 | `browser` | Runs backend-written JavaScript against the ego lite browser on the user's computer, in this character's own task space | Arguments `code` (string: the body of an async function that runs after the client's prelude) and `guide` (boolean). `guide: true` returns the installed ego lite's guide text; otherwise `code` runs and the result is the untrusted-content line, the script's output and any screenshot notes, with up to 4 screenshots as JPEG data URLs in `images`. Failures answer the strings in [browser](#browser) | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createBrowserTool` in `src/io/chat/tools/browser/` | Tauri commands `browser_run` and `browser_guide` in `src-tauri/src/browser/`, invoked through `src/io/browser/browser-relay.ts` |
+| `rate_relation` | Moves this character's stance toward the user or another open character by one small step, with the reason | Arguments `toward` (enum: `user` and the other open presets' names), `delta` (enum: -2, -1, 1, 2), `why` (string, at most 80 characters). Result: the new band word (`hostile`, `cold`, `neutral`, `warm`, `close`), `clamped: <band>` when the daily cap or the range held the value, `ignored: already rated <toward> this turn`, or `error: unknown target` | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createRateRelationTool` in `src/io/chat/tools/relation.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
 
-`createClientTools` in `src/io/chat/tools/client-tools.ts` lists `generate_express` followed by the tools a window hands it, and `src/io/chat/tools/pet-window-tools.ts` builds that list per window. Every pet window under Tauri hands it `browser`; `main` also hands it `body_action` and `look`, the avatar tools over the avatar executor, which only `main` creates. A bound pet window declares `browser` alone. The phone window and the browser build hand it none and declare none of them. `src/app/turn/wire-dispatcher.ts` builds the registry from that list for each turn, as the `clientTools` dependency of the backend caller. The registry reads the vocabulary loaded at that moment, so a vocabulary edit (a new emotion, a new motion, a different voice engine, a changed motion selection) reaches the schema on the next turn.
+`createClientTools` in `src/io/chat/tools/client-tools.ts` lists `generate_express` followed by the tools a window hands it, and `src/io/chat/tools/pet-window-tools.ts` builds that list per window. Every pet window hands it `rate_relation`, and under Tauri `browser`; `main` also hands it `body_action` and `look`, the avatar tools over the avatar executor, which only `main` creates. A bound pet window declares `rate_relation` and `browser`. The phone window and the browser build hand it none and declare none of them. `src/app/turn/wire-dispatcher.ts` builds the registry from that list for each turn, as the `clientTools` dependency of the backend caller. The registry reads the vocabulary loaded at that moment, so a vocabulary edit (a new emotion, a new motion, a different voice engine, a changed motion selection) reaches the schema on the next turn.
 
 `look` declaration is independent of both screenshot settings. `main` alone declares `look`; the phone window, the browser build, and a bound pet window declare none, so a push call there answers `error: unknown tool`. A declared `look` whose executor is not yet available answers `error: unsupported`.
 
@@ -225,6 +226,31 @@ Result strings (exact):
 | `error: ego-browser skill timed out` | `guide` passed the 28 s backstop |
 | `error: ego-browser failed to start: <reason>` | The CLI exists but could not be started |
 | `error: screenshot folder failed: <reason>` | The call's screenshot folder could not be created |
+
+## rate_relation
+
+The client keeps, per preset, one directed integer per target, `user` or another preset:
+-20 to 20, starting at 0, in five bands by plain comparison — hostile ≤ -12, cold ≤ -4,
+neutral, warm ≥ 4, close ≥ 12. The store is `yui.<id>.relations` (shape in
+[signals-ingress.md](signals-ingress.md#relations)). The backend moves the value; the client
+holds it, caps it, renders it as the `stance:` line of every turn
+([client-context.md](client-context.md#stance)) and shows the band in the preset row of the
+quick controls. The client never changes the value on its own: no decay, no rule of its own.
+
+`toward` lists `user` and the names of the other presets open at that moment (main's active
+preset and the open pet windows), read when the schema is built, like the expression
+vocabulary; the push transport reads it at `hello`, so a preset opened later joins the list at
+the next connect. A preset named `user` is listed as `user (character)`, so the bare `user` is
+always the human. The entry maps to the preset id; an entry outside the list answers
+`error: unknown target`. `delta` is one of -2, -1, 1, 2 and `why` is the reason in at most 80 characters;
+it is stored with the change and shown to the user, so it is written for the user to read.
+
+One accepted call per target per turn: a second call for the same target in the same turn
+answers `ignored: already rated <toward> this turn` and changes nothing. At most 4 points of
+change per target per local calendar day, counted as the sum of the absolute deltas accepted
+that day: a call that would pass the cap, or push the value past -20 or 20, is cut to what
+fits and answers `clamped: <band>`; a call cut to nothing is not logged. The result is the
+band after the change, so the model knows where it stands without a number.
 
 ## Backend capability
 

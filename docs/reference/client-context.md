@@ -65,7 +65,7 @@ line and the app's own help text as written for the user.
 Everything between the header line and the closing tag is a sequence of `key: value`
 plain-text lines built by `renderClientContext` (`src/dispatcher/backend/client-context-text.ts`).
 One line per fact, in this fixed order — `time`, `frontmost`, `screenshot source`, `body`,
-`tool switches`, `previous turn`, `overheard`, then one or more `trigger:`/`wake:`/`cue note`/`agent note`/
+`stance`, `tool switches`, `previous turn`, `overheard`, then one or more `trigger:`/`wake:`/`cue note`/`agent note`/
 `agent event:`/`agent detail`/`signal`/`recent switches:` lines depending on what fired, then
 the `guide:` block when the turn carries one ([Guide](#guide-in-app-help-button)). A line is omitted
 outright when its underlying field is absent (e.g. no `screenshot source:` line when screen
@@ -80,7 +80,9 @@ malformed payload could inject a fake extra line into the block, and without the
 it could forge a premature `</client_context>` and smuggle fabricated lines past the real
 closing tag. `configs/`-authored and user-typed fields go through the same sanitization.
 
-Every epoch-ms field (`since`, `ts`) is converted into a minutes-elapsed duration —
+Every epoch-ms field (`since`, `ts`) is converted into a minutes-elapsed duration (the
+`stance` line alone renders an age in hours or days once it passes an hour, since a stance
+holds for weeks) —
 `max(0, round((nowMs - sinceMs) / 60000))`, rendered as a bare `Xmin` — computed once
 per turn from a single `nowMs` snapshot shared by every duration in the block. Raw
 epoch milliseconds never appear in the rendered text.
@@ -279,6 +281,35 @@ last line this character has heard. The cursor moves only after the turn that ca
 lines ended `ok`, so a line is never sent twice and a failed turn sends it again. The other
 preset's transcript is read, never written. Only the transcript after its last session
 boundary counts.
+
+### `stance`
+
+How this character stands toward the user and toward each other character, as the
+backend has rated it so far. One line per target with a record, `user` first and then the
+other presets in registry order; omitted for a target the backend never rated.
+
+```text
+stance: toward user warm (last change +1, 3d ago: "stayed up to finish the parser together")
+stance: toward perlica cold, "trusts the work, doubts the promises" (last change -2, 4h ago: "took the chair I was sitting in")
+```
+
+The `ClientContext` field is `stance?: { target, band, delta, why, at, note? }[]`, with `target`
+`user` or the other preset's name, `band` one of `hostile`, `cold`, `neutral`, `warm`,
+`close`, and `at` in epoch milliseconds.
+
+The band is the value's band at the moment of the turn (`docs/reference/client-tools.md`
+§ `rate_relation` has the value, the bands and the caps). A quoted summary after the band is
+the record's `note`, written only by an external engine over the ingress
+(`docs/reference/signals-ingress.md` § Relations); it is absent otherwise. The parenthesis names the last
+accepted change: its delta, its age (`Nmin`, `Nh` or `Nd`), and the reason the backend gave,
+quoted (Wording rule 5) after the sanitization above. The line carries no number: the
+backend reads a band and the reason behind the last move, not a score.
+
+Only this window's own stance is rendered. What another character thinks of this one is
+never injected; the character learns it the way the user does, from what the other
+character says ([`overheard`](#overheard)). The store is `yui.<id>.relations`, read every
+turn; the backend moves it with the `rate_relation` tool, and an external memory reads or
+replaces it over the ingress (`docs/reference/signals-ingress.md`).
 
 ## Trigger lines
 

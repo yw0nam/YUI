@@ -27,10 +27,10 @@ One listener on one port serves every window. The path chooses the recipient.
 | Path | Recipient |
 |---|---|
 | `/signals`, `/agent-event` | `main`: the main window's character, whichever preset is active |
-| `/avatar/state`, `/avatar/perch-targets`, `/avatar/command` | `main` |
+| `/avatar/state`, `/avatar/perch-targets`, `/avatar/command`, `/relations` | `main` |
 | `/presets/<id>/signals`, `/presets/<id>/agent-event` | `pet-<id>`: the pet window bound to preset `<id>`, and no other window |
-| `/presets/<id>/avatar/state`, `/presets/<id>/avatar/perch-targets`, `/presets/<id>/avatar/command` | `pet-<id>`; that window answers the request |
-| any other path under `/presets/`, including a route name outside the five above | none: HTTP 404 |
+| `/presets/<id>/avatar/state`, `/presets/<id>/avatar/perch-targets`, `/presets/<id>/avatar/command`, `/presets/<id>/relations` | `pet-<id>`; that window answers the request |
+| any other path under `/presets/`, including a route name outside the six above | none: HTTP 404 |
 | a preset id that exists while its pet window is closed | none: HTTP 503 |
 
 `<id>` is one path segment of ASCII letters, digits, `_` and `-`. The prefix itself, an id
@@ -86,6 +86,33 @@ Live turns are capped by their own hourly rate limit, `rate_limit.live_max` (def
 They do not count toward the tier-2 or overall caps, and the cooldown the overall cap
 starts does not hold them.
 
+## Relations
+
+`GET /relations` and `GET /presets/<id>/relations` return the character's relation store,
+the stance the backend has rated toward the user and toward each other preset
+(`docs/reference/client-tools.md` § `rate_relation`). `PUT` on the same path replaces the
+whole store; an external memory that keeps its own relationship record writes it here.
+
+```json
+{
+  "user": { "value": 5, "updated_at": 1787449000000,
+            "log": [{ "at": 1787449000000, "delta": 2, "why": "asked how my day was before the bug" }] },
+  "aaaa0001": { "value": -6, "updated_at": 1787430000000, "log": [],
+                "note": "trusts the work, doubts the promises" }
+}
+```
+
+One key per target: `user`, or another preset's id. `value` is an integer from -20 to 20,
+`updated_at` the epoch milliseconds of the last change, `log` the last changes newest first,
+at most 20, each `{at, delta, why}` with `delta` an integer from -2 to 2 other than 0 and `why` a
+string of at most 80 characters. An optional `note` of at most 200 characters holds an external
+engine's own summary of the stance; the client never writes it and renders it on the `stance:`
+line after the band. A `PUT` body that is not an object, has a key that is neither `user`
+nor an existing preset id (the window's own id included), or breaks any range receives
+HTTP 400 and leaves the store unchanged; a valid body answers 200 with the stored body. Any
+other method receives 405. The window renders the new stance on its next turn and in its
+preset row at once. The daily cap applies to the tool only; a `PUT` sets what it says.
+
 ## Preset switch
 
 The bare routes belong to `main`. A group that arrives on `/signals` after the user
@@ -105,7 +132,7 @@ non-null `envelope`. A request with another method on `/signals` or
 Invalid JSON, a missing `signals` array, a missing `envelope`, or an explicit
 `"envelope": null` receives HTTP 400. A request whose `envelope` is any other JSON
 value receives HTTP 200. A request under `/presets/` whose id no preset has, or whose path
-after the id is none of the five routes, receives HTTP 404. A request for a preset id that
+after the id is none of the six routes, receives HTTP 404. A request for a preset id that
 exists while its pet window is not open receives HTTP 503; it is never passed to `main`.
 
 HTTP 200 means that the ingress accepted the wire shape and attempted to emit the
