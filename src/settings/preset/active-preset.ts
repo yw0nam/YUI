@@ -57,7 +57,7 @@ export function presetNameFor(state: PresetState, boundId: string | null): strin
   return state.list.find((e) => e.id === id)?.name ?? id;
 }
 
-/** The key `key` is stored under for this window's bound or active preset. */
+/** The key `key` is stored under for this window's edited, bound or active preset. */
 export function resolvePresetKey(key: string): string {
   return resolveStorageKey(key, presetIdForWindow());
 }
