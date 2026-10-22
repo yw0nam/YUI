@@ -12,7 +12,7 @@
 
 import { createPersistedStore, localStorageStore, type PersistedStorage } from "../persisted-store";
 
-import { readBoundPresetId } from "../preset/bound-preset";
+import { readBoundPresetId, readEditPresetId } from "../preset/bound-preset";
 import { resolveStorageKey } from "../preset/preset-keys";
 
 export type MessageWindowMode = "docked" | "popped";
@@ -75,6 +75,8 @@ export type MessageWindowSettingsStore = ReturnType<typeof createMessageWindowSe
 
 /** localStorage-based MessageWindowStorage adapter. */
 export function localStorageMessageWindowStorage(key?: string): MessageWindowStorage {
-  const resolved = key ?? resolveStorageKey("yui.message-window", readBoundPresetId() ?? "default");
+  const resolved =
+    key ??
+    resolveStorageKey("yui.message-window", readEditPresetId() ?? readBoundPresetId() ?? "default");
   return localStorageStore<MessageWindowSettings>(resolved, { resolve: false });
 }

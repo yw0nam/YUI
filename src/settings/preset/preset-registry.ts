@@ -1,6 +1,6 @@
 /**
  * Preset registry — the list of presets and which one is active, under the device-wide key
- * `yui.presets`. Creating a preset copies the active preset's settings keys; removing one deletes
+ * `yui.presets`. Creating a preset copies the settings keys of the window's preset; removing one deletes
  * every key in its namespace. Switching takes effect when each window reloads (wire-preset).
  */
 
@@ -11,6 +11,7 @@ import {
   type PresetEntry,
   type PresetState,
   parsePresetState,
+  presetIdForWindow,
 } from "./active-preset";
 import { isPresetWindowLive, readOpenPetWindowIds } from "./pet-windows";
 import {
@@ -55,16 +56,17 @@ export function createPresetRegistry(deps?: {
   return {
     get: core.get,
 
-    /** Adds a preset seeded with the active preset's settings. Null when the name is empty or taken. */
+    /** Adds a preset seeded with the settings of the window's preset. Null when the name is empty or taken. */
     create(name: string): string | null {
       const trimmed = name.trim();
       const { active, list } = latest();
+      const from = presetIdForWindow();
       if (!trimmed || !nameFree(trimmed)) return null;
       let id = newId();
       while (id === DEFAULT_PRESET_ID || list.some((e) => e.id === id)) id = randomId();
       try {
         for (const key of PRESET_COPIED_KEYS) {
-          const value = kv()?.getItem(resolveStorageKey(key, active));
+          const value = kv()?.getItem(resolveStorageKey(key, from));
           if (value !== null && value !== undefined)
             kv()?.setItem(resolveStorageKey(key, id), value);
         }
