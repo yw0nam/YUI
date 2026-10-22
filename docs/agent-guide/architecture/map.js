@@ -935,6 +935,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "io/locks",
+      "module": "window",
+      "label": "window locks",
+      "role": "The exclusive Web Lock a window holds, shared by the voice gate and the turn gate.",
+      "paths": [
+        "src/io/locks"
+      ]
+    },
+    {
       "id": "io/lifecycle",
       "module": "window",
       "label": "page lifecycle",

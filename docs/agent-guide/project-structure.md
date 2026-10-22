@@ -475,6 +475,8 @@ YUI/
         guide-docs.ts                  # The guide docs bundled with the app and the guide: block of the client context
       image/                           # The bitmap → JPEG data URL encode the image paths share
         jpeg-encode.ts                 # Draws a bitmap onto a canvas and returns its JPEG data URL
+      locks/                           # The exclusive Web Lock a window holds across windows
+        exclusive-hold.ts              # Takes a named Web Lock, holds it until release, and frees it when the window dies
       lifecycle/                       # Page-lifecycle seams: the Android back gesture and page visibility
         back-button.ts                 # Android back-button claim: the open surface that should swallow the gesture holds it
         page-visibility.ts             # Page visibility as a suspension port: hidden means nothing background should run
