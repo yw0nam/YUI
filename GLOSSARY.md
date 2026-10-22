@@ -75,6 +75,16 @@ Backend-independent idle life — blink, sway, breath. Runs always; attenuates u
 A short client-side utterance covering the silence between a firing and the brain's first speech. It is stagecraft, not thinking, and never influences what is said.
 _Avoid_: thinking, placeholder, stall
 
+### Relations
+
+**Relation**:
+A character's directed value toward the user or toward another preset: −20..20, its band, a log of changes with reasons, and an optional `note` an external engine writes. Sent to the brain as the `relation:` line; moved by the `rate_relation` tool.
+_Avoid_: stance, affinity, opinion, feeling
+
+**Band**:
+One of the five named ranges of a relation: `hostile` (≤ −12), `cold` (≤ −4), `neutral`, `warm` (≥ 4), `close` (≥ 12).
+_Avoid_: level, tier, mood
+
 ### Surfaces & periphery
 
 **Surface**:
