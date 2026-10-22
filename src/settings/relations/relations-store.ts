@@ -37,7 +37,7 @@ const MAX = 20;
 const DAILY_POINTS = 4;
 const LOG_LENGTH = 20;
 export const WHY_LENGTH = 80;
-export const NOTE_LENGTH = 200;
+const NOTE_LENGTH = 200;
 /** The accepted step sizes of one change. */
 export const DELTAS: readonly number[] = [-2, -1, 1, 2];
 
@@ -57,7 +57,7 @@ function dayKey(ms: number): string {
 function parseChange(raw: unknown): RelationChange | null {
   const { at, delta, why } = (raw ?? {}) as Record<string, unknown>;
   if (typeof at !== "number" || typeof why !== "string") return null;
-  if (!Number.isInteger(delta) || delta === 0 || Math.abs(delta as number) > 2) return null;
+  if (!Number.isInteger(delta) || delta === 0 || !DELTAS.includes(delta as number)) return null;
   return { at, delta: delta as number, why: why.slice(0, WHY_LENGTH) };
 }
 
