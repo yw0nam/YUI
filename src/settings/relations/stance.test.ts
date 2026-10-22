@@ -6,6 +6,7 @@ const PRESETS = [
   { id: "aaaa0001", name: "perlica" },
   { id: "bbbb0002", name: "shino" },
   { id: "cccc0003", name: "rin" },
+  { id: "dddd0004", name: "user" },
 ];
 
 describe("readStance", () => {
@@ -21,6 +22,16 @@ describe("readStance", () => {
       { target: "user", band: "warm", delta: 1, why: "stayed up", at: 7 },
       { target: "perlica", band: "neutral", delta: 0, why: "", at: 5, note: "trusts the work" },
       { target: "rin", band: "cold", delta: -2, why: "took the chair", at: 8 },
+    ]);
+  });
+
+  it("labels a preset named user as user (character), the bare user staying the human", () => {
+    const relations = {
+      dddd0004: { value: 2, updated_at: 9, log: [{ at: 9, delta: 2, why: "said hi" }] },
+    };
+
+    expect(readStance(relations, "default", PRESETS)).toEqual([
+      { target: "user (character)", band: "neutral", delta: 2, why: "said hi", at: 9 },
     ]);
   });
 });
