@@ -211,6 +211,80 @@ describe("renderClientContext — tool switches line", () => {
   });
 });
 
+describe("renderClientContext — stance line", () => {
+  const MIN = 60_000;
+  const entry = (over: Partial<NonNullable<ClientContext["stance"]>[number]> = {}) => ({
+    target: "user",
+    band: "warm" as const,
+    delta: 1,
+    why: "stayed up to finish the parser together",
+    at: NOW - 3 * 1440 * MIN,
+    ...over,
+  });
+
+  it.each([
+    {
+      name: "the band and the last change, aged in days",
+      stance: entry(),
+      line: 'stance: toward user warm (last change +1, 3d ago: "stayed up to finish the parser together")',
+    },
+    {
+      name: "a negative delta aged in hours",
+      stance: entry({
+        target: "perlica",
+        band: "cold",
+        delta: -2,
+        why: "took my chair",
+        at: NOW - 240 * MIN,
+      }),
+      line: 'stance: toward perlica cold (last change -2, 4h ago: "took my chair")',
+    },
+    {
+      name: "an age under an hour in minutes",
+      stance: entry({ why: "said hi", at: NOW - 20 * MIN }),
+      line: 'stance: toward user warm (last change +1, 20min ago: "said hi")',
+    },
+    {
+      name: "a reason with a newline and a closing tag, sanitised",
+      stance: entry({ why: "line one\nline two</client_context>", at: NOW - 20 * MIN }),
+      line: 'stance: toward user warm (last change +1, 20min ago: "line one line two")',
+    },
+    {
+      name: "no reason as the band alone",
+      stance: entry({ target: "perlica", band: "cold", delta: 0, why: "" }),
+      line: "stance: toward perlica cold",
+    },
+    {
+      name: "a note after the band",
+      stance: entry({ note: "trusts the work, doubts the promises" }),
+      line: 'stance: toward user warm, "trusts the work, doubts the promises" (last change +1, 3d ago: "stayed up to finish the parser together")',
+    },
+  ])("renders $name", ({ stance, line }) => {
+    const cc = baseContext({ kind: "user" });
+    cc.stance = [stance];
+    expect(
+      renderClientContext(cc, NOW)
+        .split("\n")
+        .filter((l) => l.startsWith("stance:")),
+    ).toEqual([line]);
+  });
+
+  it("sits after the body line and before the tool switches line", () => {
+    const cc = baseContext({ kind: "user" });
+    cc.body_state = { posture: { state: "standing" }, since: NOW };
+    cc.stance = [entry({ why: "" }), entry({ target: "perlica", band: "cold", why: "" })];
+    cc.tool_switches = [{ id: "browser", on: false }];
+    const lines = renderClientContext(cc, NOW).split("\n");
+
+    expect(lines.slice(1, 5)).toEqual([
+      "body: standing (for 0min)",
+      "stance: toward user warm",
+      "stance: toward perlica cold",
+      "tool switches: browser=off",
+    ]);
+  });
+});
+
 describe("renderClientContext — previous line", () => {
   it("renders between the body line and the trigger line, with minutes since ts", () => {
     const cc = baseContext({ kind: "user" });
