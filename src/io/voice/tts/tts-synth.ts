@@ -85,7 +85,7 @@ interface TtsProvider {
   isReady(): boolean;
 }
 
-// 30 s: queued synths on a serial TTS server shared by pet windows answer within it.
+// 30 s: synths queued behind other windows' requests on a shared TTS server answer within it.
 export const TTS_SYNTH_TIMEOUT_MS = 30_000;
 
 interface TtsSynthOptions {
