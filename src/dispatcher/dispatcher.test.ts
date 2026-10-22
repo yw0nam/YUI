@@ -822,3 +822,88 @@ describe("dispatcher — the admitted turn and the quoted-turn ledger", () => {
     expect(surfaces.clearQuote).not.toHaveBeenCalled();
   });
 });
+
+describe("dispatcher — turn gate", () => {
+  const proactive = (ts: number) =>
+    env({
+      source: "os_event_watcher",
+      event_name: "proactive.tap_bored",
+      ts,
+      dnd_override: false,
+    });
+  let waiting: Array<{ signal: AbortSignal; grant: () => void }>;
+  let release: ReturnType<typeof vi.fn>;
+  let called: () => string[];
+
+  beforeEach(() => {
+    waiting = [];
+    release = vi.fn();
+    dispatcher.stop();
+    const turnGate = {
+      acquire: (signal: AbortSignal) =>
+        new Promise<void>((grant) => {
+          waiting.push({ signal, grant });
+          signal.addEventListener("abort", () => grant());
+        }),
+      release,
+    };
+    dispatcher = createDispatcher({
+      bus,
+      renderer: renderer as never,
+      backendCaller,
+      guardrails,
+      turnLog,
+      hasOutstandingSpeech: () => speaking,
+      logger,
+      peekConfig: () => PEEK_CONFIG,
+      tapConfig: () => TAP_CONFIG,
+      turnGate,
+    });
+    called = () =>
+      vi.mocked(backendCaller.call).mock.calls.map(([turn]) => turn.trigger.event_name);
+    dispatcher.start();
+  });
+
+  it("starts the backend call only after the gate grants the turn", async () => {
+    bus.push(proactive(NOW));
+    await vi.advanceTimersByTimeAsync(20);
+    expect(called()).toEqual([]);
+    expect(dispatcher.inFlight()?.trigger.event_name).toBe("proactive.tap_bored");
+
+    waiting[0].grant();
+    await vi.advanceTimersByTimeAsync(20);
+    expect(called()).toEqual(["proactive.tap_bored"]);
+  });
+
+  it("a user turn aborts the waiting turn and reaches the backend first once granted", async () => {
+    bus.push(proactive(NOW));
+    await vi.advanceTimersByTimeAsync(20);
+    bus.push(userEnv("hi"));
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(waiting[0].signal.aborted).toBe(true);
+    expect(waiting[1].signal.aborted).toBe(false);
+    expect(called().filter((name) => name === "user.text_submitted")).toEqual([]);
+
+    waiting[1].grant();
+    await vi.advanceTimersByTimeAsync(20);
+    expect(called().at(-1)).toBe("user.text_submitted");
+    expect(callDeferred.at(-1)?.signal?.aborted).toBe(false);
+  });
+
+  it("releases once, when the call has ended and the playback is done", async () => {
+    bus.push(proactive(NOW));
+    await vi.advanceTimersByTimeAsync(20);
+    waiting[0].grant();
+    await vi.advanceTimersByTimeAsync(20);
+
+    setSpeaking(true);
+    callDeferred[0].resolve("ok");
+    await vi.advanceTimersByTimeAsync(50);
+    expect(release).not.toHaveBeenCalled();
+
+    setSpeaking(false);
+    await vi.advanceTimersByTimeAsync(50);
+    expect(release).toHaveBeenCalledOnce();
+  });
+});
