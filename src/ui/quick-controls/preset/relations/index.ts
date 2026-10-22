@@ -92,7 +92,8 @@ export function createPresetRelations(deps: {
     view = buildView();
     const open = readOpen() && view.presets.length > 1;
     const nextLine = stanceLineEl(view, open);
-    const nextMatrix = relationsMatrixEl(view, open, Date.now());
+    // The chevron lives on the line, so a hidden line must not leave the matrix open.
+    const nextMatrix = relationsMatrixEl(view, open && !nextLine.hidden, Date.now());
     if (line && matrix) {
       line.replaceWith(nextLine);
       matrix.replaceWith(nextMatrix);
