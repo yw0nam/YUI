@@ -764,6 +764,49 @@ mod tests {
 
     // ── RPC request payload ───────────────────────────────────────────────────
 
+    const RELATIONS_BODY: &str = r#"{"user":{"value":5,"updated_at":1787449000000,"log":[{"at":1787449000000,"delta":2,"why":"asked how my day was before the bug"}]},"aaaa0001":{"value":-6,"updated_at":1787430000000,"log":[],"note":"trusts the work, doubts the promises"}}"#;
+
+    #[test]
+    fn parse_avatar_relations_get_and_put() {
+        assert_eq!(
+            parse_avatar_request("GET", "/relations", "").unwrap(),
+            AvatarRoute::RelationsGet
+        );
+        assert_eq!(
+            parse_avatar_request("PUT", "/relations", RELATIONS_BODY).unwrap(),
+            AvatarRoute::RelationsPut(serde_json::from_str(RELATIONS_BODY).unwrap())
+        );
+        assert_eq!(
+            parse_avatar_request("POST", "/relations", RELATIONS_BODY).unwrap_err(),
+            405
+        );
+    }
+
+    #[test]
+    fn parse_avatar_relations_put_rejects_out_of_range() {
+        use serde_json::json;
+        let change = |delta: i64, why: String| json!({"at": 1, "delta": delta, "why": why});
+        let at_limits = json!({"user": {"value": -20, "updated_at": 1,
+            "log": vec![change(-2, "x".repeat(80)); 20], "note": "x".repeat(200)}});
+        assert!(parse_avatar_request("PUT", "/relations", &at_limits.to_string()).is_ok());
+        for body in [
+            json!({"user": {"value": 25, "updated_at": 1, "log": []}}),
+            json!({"user": {"value": 1, "updated_at": 1, "log": [change(3, "x".into())]}}),
+            json!({"user": {"value": 1, "updated_at": 1, "log": [change(0, "x".into())]}}),
+            json!({"user": {"value": 1, "updated_at": 1, "log": [change(1, "x".repeat(81))]}}),
+            json!({"user": {"value": 1, "updated_at": 1, "log": [], "note": "x".repeat(201)}}),
+            json!({"user": {"value": 1, "updated_at": 1, "log": vec![change(1, "x".into()); 21]}}),
+            json!({"user": {"value": 1, "updated_at": 1, "log": [], "mood": "x"}}),
+            json!("x"),
+        ] {
+            assert_eq!(
+                parse_avatar_request("PUT", "/relations", &body.to_string()).unwrap_err(),
+                400,
+                "{body}"
+            );
+        }
+    }
+
     #[test]
     fn avatar_route_maps_to_method_and_params() {
         let (method, params) = AvatarRoute::State.into_rpc();
@@ -782,6 +825,15 @@ mod tests {
         let params = params.unwrap();
         assert_eq!(params["action"], "peek");
         assert_eq!(params["side"], "right");
+
+        let (method, params) = AvatarRoute::RelationsGet.into_rpc();
+        assert_eq!(method, "relations_get");
+        assert!(params.is_none());
+
+        let body: serde_json::Value = serde_json::from_str(RELATIONS_BODY).unwrap();
+        let (method, params) = AvatarRoute::RelationsPut(body.clone()).into_rpc();
+        assert_eq!(method, "relations_put");
+        assert_eq!(params, Some(body));
     }
 
     #[test]

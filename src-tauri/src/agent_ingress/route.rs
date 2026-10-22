@@ -133,6 +133,12 @@ mod tests {
             ("GET", "/avatar/state", ""),
             ("GET", "/avatar/perch-targets", ""),
             ("POST", "/avatar/command", r#"{"action":"stand"}"#),
+            ("GET", "/relations", ""),
+            (
+                "PUT",
+                "/relations",
+                r#"{"user":{"value":1,"updated_at":1,"log":[]}}"#,
+            ),
         ] {
             assert!(matches!(
                 parse_route(method, path, body).unwrap().target,
@@ -204,6 +210,31 @@ mod tests {
         );
         assert_eq!(parse_route("POST", "/unknown", "").unwrap_err(), 400);
         assert_eq!(parse_route("GET", "/avatar/unknown", "").unwrap_err(), 404);
+        let record = r#"{"value":1,"updated_at":1,"log":[]}"#;
+        let known = |id: &str| Ok(id == "aaaa0001");
+        assert_eq!(
+            dispatch(
+                "PUT",
+                "/relations",
+                &format!(r#"{{"ghost":{record}}}"#),
+                known,
+                |_| false
+            )
+            .unwrap_err(),
+            400
+        );
+        assert_eq!(
+            dispatch(
+                "PUT",
+                "/relations",
+                &format!(r#"{{"user":{record},"aaaa0001":{record}}}"#),
+                known,
+                |_| false
+            )
+            .unwrap()
+            .label,
+            "main"
+        );
     }
     #[test]
     fn resolves_by_window_then_registry_without_main_fallback() {

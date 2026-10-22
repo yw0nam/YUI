@@ -889,10 +889,15 @@ describe("avatar-executor — concurrency and interruption", () => {
 });
 
 describe("avatar-executor — malformed input and lifecycle", () => {
-  it("reports unsupported for an unknown method", async () => {
+  it.each([
+    "relations_get",
+    "teleport",
+  ])("leaves %s unanswered for the subscriber that owns it", async (method) => {
     const h = harness();
+    h.fire(method as never);
+    await flush();
 
-    expect(await h.call("teleport" as never)).toEqual({ ok: false, reason: "unsupported" });
+    expect(h.responses).toEqual([]);
   });
 
   it("reports unsupported for a malformed command payload", async () => {
