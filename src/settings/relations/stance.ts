@@ -1,5 +1,6 @@
 import type { ClientContext } from "../../contract/types";
 import type { PresetEntry } from "../preset/active-preset";
+import { targetLabel } from "./relation-targets";
 import { bandOf, type Relations } from "./relations-store";
 
 /** This preset's stance entries: `user` first, then the other presets in registry order; unrated targets skipped. */
@@ -8,7 +9,12 @@ export function readStance(
   selfId: string,
   presets: readonly PresetEntry[],
 ): NonNullable<ClientContext["stance"]> {
-  const targets = [{ id: "user", name: "user" }, ...presets.filter((p) => p.id !== selfId)];
+  const targets = [
+    { id: "user", name: "user" },
+    ...presets
+      .filter((p) => p.id !== selfId)
+      .map(({ id, name }) => ({ id, name: targetLabel(name) })),
+  ];
   return targets.flatMap(({ id, name }) => {
     const record = relations[id];
     if (!record) return [];

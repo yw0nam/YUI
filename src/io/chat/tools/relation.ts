@@ -1,6 +1,7 @@
 /** rate_relation: the backend moves this character's stance toward the user or another open preset. */
 
 import { createLogger } from "../../../logger";
+import { targetLabel } from "../../../settings/relations/relation-targets";
 import type { RelationsStore } from "../../../settings/relations/relations-store";
 import type { ClientTool } from "./client-tools";
 
@@ -27,12 +28,7 @@ export function createRateRelationTool(deps: {
   const labels = (): Map<string, string> =>
     new Map([
       ["user", "user"],
-      ...deps
-        .targets()
-        .map(({ id, name }): [string, string] => [
-          name.toLowerCase() === "user" ? `${name} (character)` : name,
-          id,
-        ]),
+      ...deps.targets().map(({ id, name }): [string, string] => [targetLabel(name), id]),
     ]);
 
   return {
