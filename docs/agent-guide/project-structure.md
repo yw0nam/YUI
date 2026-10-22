@@ -96,6 +96,7 @@ YUI/
         wire-message-tauri-window.ts # Window focus, the OS drag, the content-height resize, and the moved-position record
       settings-window/               # The settings window's wiring
         wire-settings-window.ts      # Stores, config, cross-window sync, and the quick controls remounted on locale change, bound to the query's preset when it names one
+        edit-target-url.ts           # The settings URL with its `edit` param set to the picked preset, or dropped for the window's own
         wire-voice-mirror.ts         # Mirrors the voice toggle to the pet window and the pet window's voice state back; main only
       voice/                         # Desktop voice wiring
         voice-fix.ts                 # The desktop pill's setup-needed tap: open Connection, then back to listening
@@ -584,7 +585,7 @@ YUI/
         header/                      # Popover header bar buttons
           header-buttons.ts          # Pop-out, message, devtools and close buttons with their listeners
         preset/                      # Preset strip above the tab rail
-          preset-strip.ts            # Active-preset picker, the switching state, and the tab scope lines it fills
+          preset-strip.ts            # Active-preset picker, the switching state, and the tab scope lines it fills; in the settings window it picks the preset to edit (`?edit=`) and main's character is switched from the manage popover
           preset-manage.ts           # Manage popover: rows with inline rename, delete confirm and the open or close window row, and the new-preset field
           preset-scope.ts            # Scope line text: the preset a tab edits, or that its settings are shared
           preset.css                 # Strip, manage popover, and scope line styles

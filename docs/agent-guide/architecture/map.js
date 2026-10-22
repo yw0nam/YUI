@@ -668,7 +668,7 @@ globalThis.YUI_MAP =
       "id": "settings",
       "module": "settings",
       "label": "settings",
-      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live.",
+      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live.",
       "paths": [
         "src/settings"
       ]
@@ -1227,7 +1227,7 @@ globalThis.YUI_MAP =
       "id": "app/settings-window",
       "module": "wiring",
       "label": "settings-window wiring",
-      "role": "Composes the settings window over its preset's stores and mirrors the voice toggle in main only.",
+      "role": "Composes the settings window over the stores of the preset it edits (`?edit=`, else its own) and mirrors the voice toggle in main only.",
       "paths": [
         "src/app/settings-window"
       ]
@@ -2414,6 +2414,15 @@ globalThis.YUI_MAP =
       "wiring": "src/app/stage/wire-window-geometry.ts"
     },
     {
+      "id": "settings-edit-target",
+      "from": "ui/quick-controls",
+      "to": "app/settings-window",
+      "carries": "the preset id picked in the strip's edit mode; the window navigates to settings.html with `?edit=<id>` and rebuilds over that preset's stores and bridge stamp; main's active preset and every pet window are untouched",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/settings-window/wire-settings-window.ts"
+    },
+    {
       "id": "settings-camera",
       "from": "settings",
       "to": "renderer/camera",
@@ -2434,7 +2443,7 @@ globalThis.YUI_MAP =
       "id": "controls-settings",
       "from": "ui/quick-controls",
       "to": "settings",
-      "carries": "store commit → localStorage yui.*, or yui.<preset-id>.* for a per-preset key; the preset strip writes yui.windows, and activate returns false while a preset is open or live",
+      "carries": "store commit → localStorage yui.*, or yui.<preset-id>.* for a per-preset key; the preset strip writes yui.windows, the manage popover's Use in main writes the active id, and activate returns false while a preset is open or live",
       "kind": "storage",
       "transport": "shared"
     },
@@ -3807,7 +3816,7 @@ globalThis.YUI_MAP =
       {
         "id": "settings-<id>",
         "label": "settings-<id>",
-        "role": "The settings window of one bound pet window, settings.html?preset=<id>: the same panel over that preset's stores and mirrors of pet-<id>'s push state and delegations, with no voice switch."
+        "role": "The settings window of one bound pet window, settings.html?preset=<id>: the same panel over that preset's stores and mirrors of pet-<id>'s push state and delegations, with no voice switch, and an edit target like main's settings window."
       },
       {
         "id": "message",
@@ -4057,14 +4066,14 @@ globalThis.YUI_MAP =
         "id": "voice-set",
         "from": "settings",
         "to": "pet",
-        "carries": "yui://voice-set: boolean; main only, since a bound pet window has no voice toggle; filtered by preset id",
+        "carries": "yui://voice-set: boolean; unscoped: main is the only handler, so main's settings window keeps the toggle while it edits another preset",
         "kind": "bridge"
       },
       {
         "id": "voice-state",
         "from": "pet",
         "to": "settings",
-        "carries": "yui://voice-state: {state}; main only, since a bound pet window has no capture; filtered by preset id",
+        "carries": "yui://voice-state: {state}; unscoped: main is the only handler, so main's settings window keeps the toggle while it edits another preset",
         "kind": "bridge"
       },
       {

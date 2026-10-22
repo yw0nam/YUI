@@ -29,6 +29,7 @@ import { createWindowStores } from "../settings/window-stores";
 import { createEffectiveEndpoints, wireSpeakerSelection } from "../settings/wire-avatar";
 import { wireCueLocaleSync } from "../settings/wire-cue-locale-sync";
 import { wirePresetSwitch } from "../settings/wire-preset";
+import { editTargetUrl } from "./edit-target-url";
 import { wireVoiceMirror } from "./wire-voice-mirror";
 
 const log = createLogger("settings-bootstrap");
@@ -275,6 +276,9 @@ export async function wireSettingsWindow(deps: {
       presetRegistry,
       petWindows,
       boundId,
+      presetMode: "edit",
+      onEditTarget: (id) =>
+        location.replace(editTargetUrl(location.href, id, boundId ?? presetRegistry.get().active)),
       showVoiceInput: boundId === null,
     });
   };
