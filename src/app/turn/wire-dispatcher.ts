@@ -20,7 +20,7 @@ import { createTurnFeed, type TurnFeed } from "../../dispatcher/turn/turn-feed";
 import type { ReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
 import { clientToolsUnlessBrokered } from "../../io/chat/broker/broker-tool-owner";
 import { readTranscriptAfterBoundary } from "../../io/chat/conversation/chat-history-store";
-import { createOverheardReader } from "../../io/chat/conversation/overheard-reader";
+import { createOverheardReader } from "../../io/chat/conversation/overheard/overheard-reader";
 import type { PushSocket } from "../../io/chat/push/push-socket";
 import type { PacerSkipRecord, TurnRecord } from "../../io/chat/record/turn-record-log";
 import {

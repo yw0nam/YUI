@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ChatHistoryEntry } from "./chat-history-store";
+import type { ChatHistoryEntry } from "../chat-history-store";
 import { createOverheardReader } from "./overheard-reader";
 import { createOverheardStore } from "./overheard-store";
 

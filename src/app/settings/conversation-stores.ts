@@ -9,7 +9,7 @@ import {
 import {
   createOverheardStore,
   localStorageOverheard,
-} from "../../io/chat/conversation/overheard-store";
+} from "../../io/chat/conversation/overheard/overheard-store";
 import {
   createSessionDiagnosticsStore,
   localStorageSessionDiagnosticsStorage,

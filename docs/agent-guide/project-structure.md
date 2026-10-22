@@ -361,8 +361,9 @@ YUI/
         conversation/                  # Transcript, context, and session state for conversation continuation
           chat-history-store.ts        # Unified conversation transcript with session boundaries
           context-history.ts           # Capped ring of recent client-context entries
-          overheard-reader.ts          # Reads the lines other open presets exchanged since this window last heard them
-          overheard-store.ts           # Per other preset, the cursor up to which this window has heard its transcript
+          overheard/                   # What this window has heard of the other open presets
+            overheard-reader.ts        # Reads the lines other open presets exchanged since this window last heard them
+            overheard-store.ts         # Per other preset, the cursor up to which this window has heard its transcript
           session-store.ts             # Holds the last Responses response.id for conversation continuation
           session-diagnostics.ts       # Used tokens and context window for the settings window
         record/                        # The turn-record JSONL log

@@ -1,8 +1,8 @@
-import type { ClientContext } from "../../../contract";
-import type { ChatHistoryEntry } from "./chat-history-store";
+import type { ClientContext } from "../../../../contract";
+import type { ChatHistoryEntry } from "../chat-history-store";
 import type { OverheardCursor, OverheardStore } from "./overheard-store";
 
-export const OVERHEARD_MAX_LINES = 8;
+const OVERHEARD_MAX_LINES = 8;
 
 /** One other preset's unheard lines, with the cursor that marks them heard. */
 export type OverheardBlock = NonNullable<ClientContext["overheard"]>[number] & {
@@ -49,5 +49,3 @@ export function createOverheardReader(deps: {
     },
   };
 }
-
-export type OverheardReader = ReturnType<typeof createOverheardReader>;

@@ -7,7 +7,7 @@ import type {
   PreviousTurn,
   TriggerMeta,
 } from "../../contract";
-import type { OverheardBlock } from "../../io/chat/conversation/overheard-reader";
+import type { OverheardBlock } from "../../io/chat/conversation/overheard/overheard-reader";
 import { isGuideKey } from "../../io/guide/guide-docs";
 import type { BusEnvelope } from "../core/event-bus";
 

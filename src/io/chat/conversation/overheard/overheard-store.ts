@@ -3,7 +3,7 @@ import {
   isPlainObject,
   localStorageStore,
   type PersistedStorage,
-} from "../../../settings/persisted-store";
+} from "../../../../settings/persisted-store";
 
 /** How far this window has heard another preset: the last delivered entry's ts and how many entries at exactly that ts. */
 export interface OverheardCursor {

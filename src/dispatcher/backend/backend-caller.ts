@@ -34,7 +34,7 @@ import {
   type ChatHistoryEntry,
   selectSendSuffix,
 } from "../../io/chat/conversation/chat-history-store";
-import type { OverheardBlock } from "../../io/chat/conversation/overheard-reader";
+import type { OverheardBlock } from "../../io/chat/conversation/overheard/overheard-reader";
 import {
   type ChatRequest,
   streamChat,
