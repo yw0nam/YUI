@@ -1018,12 +1018,21 @@ describe("renderClientContext — overheard block", () => {
     ]);
   });
 
-  it("says line for a single entry and renders nothing when absent", () => {
+  it.each([
+    { name: "absent renders nothing", overheard: undefined, expected: [] },
+    {
+      name: "a single entry says line",
+      overheard: [
+        { preset: "p1", name: "perlica", entries: [{ role: "user" as const, text: "x", ts: NOW }] },
+      ],
+      expected: ["overheard: perlica ↔ user, 1 line (0min ago)", '  user: "x"'],
+    },
+  ])("$name", ({ overheard, expected }) => {
     const cc = baseContext({ kind: "user" });
-    expect(renderClientContext(cc, NOW)).not.toContain("overheard:");
-    cc.overheard = [
-      { preset: "p1", name: "perlica", entries: [{ role: "user", text: "x", ts: NOW }] },
-    ];
-    expect(renderClientContext(cc, NOW)).toContain("overheard: perlica ↔ user, 1 line (0min ago)");
+    cc.overheard = overheard;
+    const lines = renderClientContext(cc, NOW)
+      .split("\n")
+      .filter((l) => l.startsWith("overheard:") || l.startsWith("  "));
+    expect(lines).toEqual(expected);
   });
 });

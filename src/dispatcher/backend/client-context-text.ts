@@ -96,8 +96,10 @@ function renderPrevious(previous: ClientContext["previous"], nowMs: number): str
 function renderOverheard(overheard: ClientContext["overheard"], nowMs: number): string[] {
   return (overheard ?? []).flatMap(({ name, entries }) => {
     const speaker = oneLine(name);
+    const last = entries.at(-1);
+    if (!last) return [];
     const count = entries.length;
-    const header = `overheard: ${speaker} ↔ user, ${count} line${count === 1 ? "" : "s"} (${minutesSince(entries[count - 1]!.ts, nowMs)}min ago)`;
+    const header = `overheard: ${speaker} ↔ user, ${count} line${count === 1 ? "" : "s"} (${minutesSince(last.ts, nowMs)}min ago)`;
     return [
       header,
       ...entries.map((e) => `  ${e.role === "user" ? "user" : speaker}: "${oneLine(e.text)}"`),

@@ -264,6 +264,9 @@ overheard: perlica ↔ user, 3 lines (2min ago)
   user: "Then let's go together."
 ```
 
+The `ClientContext` field is `overheard?: { preset, name, entries: { role, text, ts }[] }[]`, with
+`role` `user` or `assistant`, and `ts` in epoch milliseconds.
+
 The header names the other preset and counts the lines, `line` when there is one. The
 duration is minutes since the block's newest line. Each line is a raw transcript entry
 of that preset, oldest first, with the speaker label `user` for the user's half and the
