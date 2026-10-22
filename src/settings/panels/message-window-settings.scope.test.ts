@@ -39,3 +39,14 @@ it("keeps main on the released global key while bound windows use independent ke
   main.dispose();
   bound.dispose();
 });
+
+it.each([
+  ["/?preset=a&edit=b", "yui.b.message-window"],
+  ["/?preset=a", "yui.a.message-window"],
+])("stores the message window of %s under %s", (url, key) => {
+  history.replaceState(null, "", url);
+  const store = createMessageWindowSettings({ storage: localStorageMessageWindowStorage() });
+  store.setPosition(1, 2);
+  expect(Object.keys(localStorage)).toEqual([key]);
+  store.dispose();
+});

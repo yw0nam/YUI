@@ -86,6 +86,21 @@ describe("createPresetRegistry", () => {
     });
   });
 
+  it("create copies the preset under ?edit= and not the active one", () => {
+    seedPresets("aaaa0001", [
+      { id: "aaaa0001", name: "natsume" },
+      { id: "cccc0003", name: "kiri" },
+    ]);
+    map.set("yui.aaaa0001.tts", "active-tts");
+    map.set("yui.cccc0003.tts", "edited-tts");
+    vi.stubGlobal("location", { search: "?edit=cccc0003" });
+    const registry = createPresetRegistry({ newId: () => "bbbb0002" });
+
+    registry.create("perlica");
+
+    expect(map.get("yui.bbbb0002.tts")).toBe("edited-tts");
+  });
+
   it.each(["default", "natsume", "   "])("create refuses the name %j", (name) => {
     seedPresets("default", [
       { id: "default", name: "default" },

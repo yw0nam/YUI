@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { presetNameFor, resolvePresetKey } from "./active-preset";
+import { presetIdForWindow, presetNameFor, resolvePresetKey } from "./active-preset";
 
 afterEach(() => vi.unstubAllGlobals());
 it.each([
@@ -11,6 +11,18 @@ it.each([
     getItem: () => JSON.stringify({ active: "aaaa0001", list: [{ id: "aaaa0001", name: "A" }] }),
   });
   expect(resolvePresetKey("yui.endpoints")).toBe(key);
+});
+
+it.each([
+  ["?preset=bbbb0002&edit=cccc0003", "cccc0003"],
+  ["?preset=bbbb0002", "bbbb0002"],
+  ["", "aaaa0001"],
+])("presetIdForWindow of %s is %s", (search, id) => {
+  vi.stubGlobal("location", { search });
+  vi.stubGlobal("localStorage", {
+    getItem: () => JSON.stringify({ active: "aaaa0001", list: [{ id: "aaaa0001", name: "A" }] }),
+  });
+  expect(presetIdForWindow()).toBe(id);
 });
 
 describe("presetNameFor", () => {
