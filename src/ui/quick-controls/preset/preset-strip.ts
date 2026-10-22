@@ -1,7 +1,8 @@
 /**
  * Preset strip — the active preset's picker and the dots button that opens the manage popover,
  * above the tab rail and body. Picking another preset activates it and holds the panel inert
- * until the window reloads (wire-preset). Also fills each tab's scope line.
+ * until the window reloads (wire-preset); in edit mode (the settings window) it hands the picked
+ * id to `onEditTarget` instead. Also fills each tab's scope line.
  */
 
 import "./preset.css";
@@ -10,7 +11,7 @@ import {
   type createAgentNotifySettings,
   ingressUrl,
 } from "../../../settings/backend/agent-notify-settings";
-import { presetNameFor } from "../../../settings/preset/active-preset";
+import { presetIdForWindow, presetNameFor } from "../../../settings/preset/active-preset";
 import { isPresetWindowLive, type PetWindows } from "../../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../../settings/preset/preset-registry";
 import { t } from "../../i18n";
@@ -27,6 +28,7 @@ export function presetStripHtml(): string {
         <select class="yui-select yui-preset__select" id="yui-preset-select"></select>
         <button class="yui-iconbtn yui-preset__manage" type="button" aria-label="${t("preset.manage")}" data-tip="${t("preset.manage")}" aria-haspopup="dialog" aria-expanded="false">${DOTS_SVG}</button>
       </div>
+      <p class="yui-preset__note" hidden></p>
       <p class="yui-chat-status is-waiting yui-preset__state" role="status" hidden><span class="yui-chat-status__dot" aria-hidden="true"></span><span class="yui-preset__state-text"></span></p>
       <div class="yui-preset-pop" role="dialog" aria-label="${t("preset.manage")}" hidden></div>
     </div>`;
@@ -45,13 +47,18 @@ export function createPresetStrip(deps: {
   log: Logger;
   petWindows?: PetWindows;
   boundId?: string | null;
+  /** `edit` picks the preset the window edits; `activate` switches main's preset. */
+  mode?: "activate" | "edit";
+  onEditTarget?: (id: string) => void;
   agentNotifySettings?: ReturnType<typeof createAgentNotifySettings>;
 }): PresetStrip {
-  const { root, registry, log, petWindows, boundId = null } = deps;
+  const { root, registry, log, petWindows, boundId = null, mode = "activate", onEditTarget } = deps;
+  const edit = mode === "edit";
+  const shownId = presetIdForWindow();
   const stripEl = root.querySelector<HTMLDivElement>(".yui-preset")!;
   const select = stripEl.querySelector<HTMLSelectElement>(".yui-preset__select")!;
   let boundName: HTMLSpanElement | null = null;
-  if (boundId !== null) {
+  if (boundId !== null && !edit) {
     boundName = document.createElement("span");
     boundName.className = "yui-preset__bound";
     boundName.setAttribute("role", "group");
@@ -60,6 +67,11 @@ export function createPresetStrip(deps: {
     stripEl.querySelector("label")!.removeAttribute("for");
   }
   const manageBtn = stripEl.querySelector<HTMLButtonElement>(".yui-preset__manage")!;
+  const noteEl = stripEl.querySelector<HTMLParagraphElement>(".yui-preset__note")!;
+  if (edit) {
+    stripEl.querySelector("label")!.textContent = t("preset.edit_label");
+    noteEl.hidden = false;
+  }
   const stateEl = stripEl.querySelector<HTMLParagraphElement>(".yui-preset__state")!;
   const popEl = stripEl.querySelector<HTMLDivElement>(".yui-preset-pop")!;
   const colsEl = root.querySelector<HTMLDivElement>(".yui-quick__cols")!;
@@ -69,31 +81,43 @@ export function createPresetStrip(deps: {
     log,
     petWindows,
     boundId,
+    mode,
     presetUrl: (id) => {
       const settings = deps.agentNotifySettings?.get();
       return settings?.enabled ? ingressUrl(settings.port, id) : null;
     },
   });
   let switching = false;
+  let left = false;
 
   function render(): void {
     // The window reloads into the picked preset; until then it keeps showing the switch.
-    if (switching) return;
+    if (switching || left) return;
     const state = registry.get();
+    if (edit && !state.list.some((e) => e.id === shownId)) {
+      left = true;
+      onEditTarget?.(state.active);
+      return;
+    }
     select.replaceChildren(
       ...state.list.map((e) => {
-        const open = petWindows?.get().includes(e.id) || isPresetWindowLive(e.id);
+        const open = !edit && (petWindows?.get().includes(e.id) || isPresetWindowLive(e.id));
         const option = new Option(
           open ? t("preset.in_window", { name: e.name }) : e.name,
           e.id,
           false,
-          e.id === state.active,
+          e.id === (edit ? shownId : state.active),
         );
         option.disabled = !!open;
         return option;
       }),
     );
-    const name = presetNameFor(state, boundId);
+    const name = presetNameFor(state, edit ? shownId : boundId);
+    if (edit) {
+      const open = petWindows?.get().includes(shownId) || isPresetWindowLive(shownId);
+      const key = shownId === state.active ? "main" : open ? "window" : "idle";
+      noteEl.textContent = t(`preset.note_${key}`, { name });
+    }
     if (boundName) boundName.textContent = name;
     for (const line of root.querySelectorAll<HTMLElement>("[data-scope-tab]")) {
       line.textContent = presetScopeText(line.dataset.scopeTab!, name);
@@ -102,6 +126,10 @@ export function createPresetStrip(deps: {
   }
 
   function handleChange(): void {
+    if (edit) {
+      if (select.value !== shownId) onEditTarget?.(select.value);
+      return;
+    }
     const target = registry.get().list.find((e) => e.id === select.value);
     if (!target || target.id === registry.get().active) return;
     if (boundId !== null) return;

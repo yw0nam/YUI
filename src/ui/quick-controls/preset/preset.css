@@ -62,6 +62,17 @@
   margin: 0.4rem 0 0.05rem 0.1rem;
 }
 
+.yui-preset__note {
+  margin: 0.45rem 0 0.05rem 0.1rem;
+  font-size: var(--yui-fs-caption);
+  line-height: 1.4;
+  color: var(--yui-text-mute);
+}
+
+.yui-preset__note[hidden] {
+  display: none;
+}
+
 .yui-quick__cols.is-busy {
   opacity: 0.4;
   pointer-events: none;

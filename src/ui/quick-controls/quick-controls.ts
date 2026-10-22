@@ -241,6 +241,9 @@ interface QuickControlsOptions {
   presetRegistry?: PresetRegistry;
   petWindows?: PetWindows;
   boundId?: string | null;
+  /** `edit` (the settings window) picks the preset the window edits; default switches main's preset. */
+  presetMode?: "activate" | "edit";
+  onEditTarget?: (id: string) => void;
   showVoiceInput?: boolean;
 }
 
@@ -331,6 +334,8 @@ export function createQuickControls({
   presetRegistry,
   petWindows,
   boundId,
+  presetMode,
+  onEditTarget,
   showVoiceInput = true,
 }: QuickControlsOptions): QuickControls {
   const isWindow = variant === "window";
@@ -433,6 +438,8 @@ export function createQuickControls({
         log,
         petWindows,
         boundId,
+        mode: presetMode,
+        onEditTarget,
         agentNotifySettings,
       })
     : null;
