@@ -319,3 +319,49 @@ export function clientContextTextOf(userContent: string): string {
     userContent,
   )![1]!;
 }
+
+type Options = { ifAvailable?: boolean; signal?: AbortSignal };
+
+/** One exclusive lock: `ifAvailable` answers null while held; a queued request is granted in order and honours `signal`. */
+export function fakeLocks(opts: { heldByOther?: boolean } = {}) {
+  let held = opts.heldByOther ?? false;
+  const waiting: Array<() => void> = [];
+  const next = () => {
+    held = false;
+    waiting.shift()?.();
+  };
+  const request = vi.fn(
+    (
+      _name: string,
+      options: Options,
+      callback: (lock: object | null) => Promise<void> | undefined,
+    ) =>
+      new Promise<void>((resolve, reject) => {
+        const grant = () => {
+          held = true;
+          Promise.resolve(callback({})).then(resolve, reject).finally(next);
+        };
+        if (options.ifAvailable) {
+          if (held) resolve(void callback(null));
+          else grant();
+          return;
+        }
+        options.signal?.addEventListener(
+          "abort",
+          () => {
+            waiting.splice(waiting.indexOf(grant), 1);
+            reject(new DOMException("aborted", "AbortError"));
+          },
+          { once: true },
+        );
+        if (held) waiting.push(grant);
+        else grant();
+      }),
+  );
+  return {
+    locks: { request } as unknown as Pick<LockManager, "request">,
+    request,
+    isHeld: () => held,
+    freeOther: next,
+  };
+}

@@ -14,10 +14,12 @@ import type { Logger } from "../logger";
 import type { BackendCaller, TurnFailure } from "./backend/backend-caller";
 import { createEventBus, type EventBus } from "./core/event-bus";
 import { createGuardrails, type Guardrails } from "./core/guardrails";
+import { createTurnGate } from "./core/turn-gate";
 import { createDispatcher, type Dispatcher } from "./dispatcher";
 import {
   type DeferredCall,
   env,
+  fakeLocks,
   makeDeferredBackendCaller,
   makeLogger,
   NOW,
@@ -883,12 +885,22 @@ describe("dispatcher — turn gate", () => {
 
     expect(waiting[0].signal.aborted).toBe(true);
     expect(waiting[1].signal.aborted).toBe(false);
-    expect(called().filter((name) => name === "user.text_submitted")).toEqual([]);
+    expect(called()).toEqual([]);
 
     waiting[1].grant();
     await vi.advanceTimersByTimeAsync(20);
-    expect(called().at(-1)).toBe("user.text_submitted");
+    expect(called()).toEqual(["user.text_submitted"]);
     expect(callDeferred.at(-1)?.signal?.aborted).toBe(false);
+  });
+
+  it("stop() releases the lock this window holds", async () => {
+    bus.push(proactive(NOW));
+    await vi.advanceTimersByTimeAsync(20);
+    waiting[0].grant();
+    await vi.advanceTimersByTimeAsync(20);
+
+    dispatcher.stop();
+    expect(release).toHaveBeenCalledOnce();
   });
 
   it("releases once, when the call has ended and the playback is done", async () => {
@@ -905,5 +917,53 @@ describe("dispatcher — turn gate", () => {
     setSpeaking(false);
     await vi.advanceTimersByTimeAsync(50);
     expect(release).toHaveBeenCalledOnce();
+  });
+});
+
+describe("dispatcher — turn gate across two windows", () => {
+  it("a deferred proactive turn waits behind the other window's user turn", async () => {
+    const { locks } = fakeLocks();
+    const calls: DeferredCall[] = [];
+    const backend = makeDeferredBackendCaller(calls);
+    const windowA = createDispatcher({
+      bus,
+      renderer: renderer as never,
+      backendCaller: backend,
+      guardrails,
+      turnLog,
+      hasOutstandingSpeech: () => speaking,
+      logger,
+      peekConfig: () => PEEK_CONFIG,
+      tapConfig: () => TAP_CONFIG,
+      turnGate: createTurnGate({ enabled: () => true, locks, logger }),
+    });
+    const proactive = (ts: number) =>
+      env({
+        source: "os_event_watcher",
+        event_name: "proactive.tap_bored",
+        ts,
+        dnd_override: false,
+      });
+    windowA.start();
+    bus.push(proactive(NOW));
+    await vi.advanceTimersByTimeAsync(20);
+
+    let bGranted = false;
+    void createTurnGate({ enabled: () => true, locks, logger })
+      .acquire(new AbortController().signal)
+      .then(() => {
+        bGranted = true;
+      });
+    await vi.advanceTimersByTimeAsync(20);
+    setSpeaking(true);
+    calls[0].resolve("ok");
+    await vi.advanceTimersByTimeAsync(20);
+    bus.push(proactive(NOW + 100));
+    await vi.advanceTimersByTimeAsync(20);
+    setSpeaking(false);
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect({ aCalls: calls.length, bGranted }).toEqual({ aCalls: 1, bGranted: true });
+    windowA.stop();
   });
 });

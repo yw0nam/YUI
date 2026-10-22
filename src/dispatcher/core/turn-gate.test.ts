@@ -1,51 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { fakeLocks } from "../test-helpers";
 import { createTurnGate } from "./turn-gate";
-
-type Options = { ifAvailable?: boolean; signal?: AbortSignal };
-
-/** One exclusive lock: `ifAvailable` answers null while held; a queued request is granted in order and honours `signal`. */
-function fakeLocks(opts: { heldByOther?: boolean } = {}) {
-  let held = opts.heldByOther ?? false;
-  const waiting: Array<() => void> = [];
-  const next = () => {
-    held = false;
-    waiting.shift()?.();
-  };
-  const request = vi.fn(
-    (
-      _name: string,
-      options: Options,
-      callback: (lock: object | null) => Promise<void> | undefined,
-    ) =>
-      new Promise<void>((resolve, reject) => {
-        const grant = () => {
-          held = true;
-          Promise.resolve(callback({})).then(resolve, reject).finally(next);
-        };
-        if (options.ifAvailable) {
-          if (held) resolve(void callback(null));
-          else grant();
-          return;
-        }
-        options.signal?.addEventListener(
-          "abort",
-          () => {
-            waiting.splice(waiting.indexOf(grant), 1);
-            reject(new DOMException("aborted", "AbortError"));
-          },
-          { once: true },
-        );
-        if (held) waiting.push(grant);
-        else grant();
-      }),
-  );
-  return {
-    locks: { request } as unknown as Pick<LockManager, "request">,
-    request,
-    isHeld: () => held,
-    freeOther: next,
-  };
-}
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
@@ -83,7 +38,7 @@ describe("createTurnGate", () => {
     expect(logger.info).not.toHaveBeenCalled();
   });
 
-  it("logs turn_hold when the lock is taken, then turn_release with the wait once granted", async () => {
+  it("logs turn_hold when the lock is taken, then turn_granted with the wait once granted", async () => {
     const { locks, freeOther } = fakeLocks({ heldByOther: true });
     const times = [1_000, 1_250];
     const { gate, logger } = makeGate({ locks, now: () => times.shift() ?? 0 });
@@ -101,7 +56,7 @@ describe("createTurnGate", () => {
     expect(granted).toBe(true);
     expect(logger.info.mock.calls).toEqual([
       ["turn_hold", {}],
-      ["turn_release", { held_ms: 250 }],
+      ["turn_granted", { waited_ms: 250 }],
     ]);
   });
 
