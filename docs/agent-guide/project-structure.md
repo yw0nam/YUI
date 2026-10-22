@@ -333,6 +333,7 @@ YUI/
       relations/                     # Each preset's relation toward the user and the other presets
         relations-store.ts           # The per-preset store under yui.<id>.relations: bands, the daily cap, the range clamp, and the read of another preset's store
         relation-lines.ts            # The relation entries a turn carries: user first, then the other presets in registry order
+        relation-targets.ts          # The label a prompt line or the rate_relation enum shows for a preset: one named `user` is disambiguated
       panels/                        # Panel and window state
         delegation-chip-settings.ts  # Per-device fold state of the delegation chip
         message-window-settings.ts   # Message-window mode and last outer position under the window's preset key

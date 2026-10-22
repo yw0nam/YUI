@@ -294,7 +294,8 @@ relation: toward perlica cold, "trusts the work, doubts the promises" (last chan
 ```
 
 The `ClientContext` field is `relations?: { target, band, delta, why, at, note? }[]`, with `target`
-`user` or the other preset's name, `band` one of `hostile`, `cold`, `neutral`, `warm`,
+`user` or the other preset's name — a preset named `user` appears as `user (character)`, so the
+bare `user` is always the human — `band` one of `hostile`, `cold`, `neutral`, `warm`,
 `close`, and `at` in epoch milliseconds.
 
 The band is the value's band at the moment of the turn (`docs/reference/client-tools.md`
