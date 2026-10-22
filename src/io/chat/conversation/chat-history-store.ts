@@ -12,6 +12,7 @@ import {
   localStorageStore,
   type PersistedStorage,
 } from "../../../settings/persisted-store";
+import { resolveStorageKey } from "../../../settings/preset/preset-keys";
 import { isGuideKey, renderGuideBlock } from "../../guide/guide-docs";
 
 export interface ChatHistoryEntry {
@@ -211,9 +212,22 @@ export function createChatHistoryStore(opts?: { storage?: ChatHistoryStorage }) 
   };
 }
 
+const TRANSCRIPT_KEY = "yui.chat_transcript";
+
 /** localStorage-backed adapter. Gracefully no-ops where localStorage is absent. */
-export function localStorageChatHistoryStorage(key = "yui.chat_transcript"): ChatHistoryStorage {
+export function localStorageChatHistoryStorage(key = TRANSCRIPT_KEY): ChatHistoryStorage {
   return localStorageStore<ChatHistoryItem[]>(key);
+}
+
+/** The entries after the last boundary of another preset's transcript, read straight from storage. */
+export function readTranscriptAfterBoundary(presetId: string): ChatHistoryEntry[] {
+  const store = createChatHistoryStore({
+    storage: localStorageStore(resolveStorageKey(TRANSCRIPT_KEY, presetId), { resolve: false }),
+  });
+  store.reloadFromStorage();
+  const entries = store.entriesAfterLastBoundary();
+  store.dispose();
+  return entries;
 }
 
 // Code point ranges where one character is estimated at ~1 token: Hangul

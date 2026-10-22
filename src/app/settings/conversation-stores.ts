@@ -1,5 +1,4 @@
 import {
-  type ChatHistoryEntry,
   createChatHistoryStore,
   localStorageChatHistoryStorage,
 } from "../../io/chat/conversation/chat-history-store";
@@ -19,21 +18,6 @@ import {
   createSessionStore,
   localStorageSessionStorage,
 } from "../../io/chat/conversation/session-store";
-import { localStorageStore } from "../../settings/persisted-store";
-import { resolveStorageKey } from "../../settings/preset/preset-keys";
-
-/** The entries after the last boundary of another preset's transcript, read straight from storage. */
-export function transcriptReaderFor(presetId: string): ChatHistoryEntry[] {
-  const store = createChatHistoryStore({
-    storage: localStorageStore(resolveStorageKey("yui.chat_transcript", presetId), {
-      resolve: false,
-    }),
-  });
-  store.reloadFromStorage();
-  const entries = store.entriesAfterLastBoundary();
-  store.dispose();
-  return entries;
-}
 
 /** The io/chat conversation stores every window constructs, syncs, and disposes as one bag. */
 export function createConversationStores() {

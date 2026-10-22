@@ -14,6 +14,7 @@ import {
   createChatHistoryStore,
   estimateTokens,
   localStorageChatHistoryStorage,
+  readTranscriptAfterBoundary,
   selectSendSuffix,
 } from "./chat-history-store";
 
@@ -797,5 +798,25 @@ describe("selectSendSuffix — guide cost", () => {
 
     expect(selectSendSuffix([plain], 50)).toEqual([plain]);
     expect(selectSendSuffix([{ ...plain, guide: "controls" }], 50)).toEqual([]);
+  });
+});
+
+describe("readTranscriptAfterBoundary", () => {
+  it.each([
+    ["default", "yui.chat_transcript"],
+    ["bbbb0002", "yui.bbbb0002.chat_transcript"],
+  ])("reads preset %s's stored transcript after its last boundary", (presetId, key) => {
+    const stored = JSON.stringify([
+      { role: "user", text: "old", ts: 1 },
+      { kind: "boundary", ts: 2 },
+      { role: "user", text: "new", ts: 3 },
+    ]);
+    (globalThis as any).localStorage = {
+      getItem: (k: string) => (k === key ? stored : null),
+    };
+
+    expect(readTranscriptAfterBoundary(presetId)).toEqual([entry("user", "new", 3)]);
+
+    delete (globalThis as any).localStorage;
   });
 });
