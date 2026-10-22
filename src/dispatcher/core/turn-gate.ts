@@ -41,10 +41,10 @@ export function createTurnGate(deps: {
           .request(TURN_LOCK_NAME, { ifAvailable: true }, (lock) => {
             if (lock) return hold();
             log.info("turn_hold", {});
-            const heldSince = now();
+            const waitingSince = now();
             locks
               .request(TURN_LOCK_NAME, { signal }, () => {
-                log.info("turn_release", { held_ms: now() - heldSince });
+                log.info("turn_granted", { waited_ms: now() - waitingSince });
                 return hold();
               })
               .catch(() => granted());

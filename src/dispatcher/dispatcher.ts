@@ -189,7 +189,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     started_at: number;
     outcome: TurnOutcome | null;
   } | null = null;
-  // True from the gate's grant until its release.
+  // A turn passed the gate; cleared when the pipeline goes idle.
   let gateHeld = false;
   // Consecutive backend call failure counter — superseded_by_user does not count as a failure.
   let consecutiveFailures = 0;
@@ -334,7 +334,9 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     let errorDetail: TurnErrorDetail | undefined;
     const gate = deps.turnGate?.acquire(abort.signal) ?? Promise.resolve();
     void gate
-      .then(() => {
+      .then((): Promise<TurnOutcome> | TurnOutcome => {
+        // An abort while the gate waited means the turn was superseded before it began.
+        if (abort.signal.aborted) return "superseded_by_user";
         gateHeld = true;
         return backendCaller.call(turn, abort.signal, (detail) => {
           errorDetail = detail;
@@ -372,6 +374,8 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
               // Playing — free the slot only and keep pending. pump drains it after playback ends.
               setInFlight(null);
             } else {
+              // The next call asks for the lock again, behind any window already waiting for it.
+              releaseGate();
               startBackendCall(pending.shift()!);
             }
           } else if (state === "degraded" && pending.length > 0) {
@@ -481,6 +485,12 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
    * pump: drain bus every tick. Operates in running/cooldown/degraded all (tier1 always continues each).
    * Otherwise (booting/stopped) hold pending events as no-op.
    */
+  function releaseGate(): void {
+    if (!gateHeld) return;
+    gateHeld = false;
+    deps.turnGate?.release();
+  }
+
   function pump(): void {
     if (state !== "running" && state !== "cooldown" && state !== "degraded") return;
     let env: BusEnvelope | null;
@@ -489,12 +499,10 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     }
     // Backend evaluation may have entered cooldown or timer may have expired → sync state.
     syncCooldownState();
+    // The turn ends with its playback, so the lock outlives the backend call. It is released
+    // before the next turn drains, which then queues behind any window already waiting.
+    if (!currentPipelineBusy()) releaseGate();
     drainPending();
-    // The turn ends with its playback, so the lock outlives the backend call.
-    if (gateHeld && !currentPipelineBusy()) {
-      gateHeld = false;
-      deps.turnGate?.release();
-    }
   }
 
   return {
@@ -522,6 +530,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         setInFlight(null);
       }
       pending.length = 0;
+      releaseGate();
       tier1.dispose();
       setState("stopped");
     },
