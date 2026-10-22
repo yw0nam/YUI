@@ -2547,6 +2547,33 @@ globalThis.YUI_MAP =
       "wiring": "src/app/turn/wire-dispatcher.ts"
     },
     {
+      "id": "settings-turn-gate",
+      "from": "settings",
+      "to": "dispatcher/core",
+      "carries": "yui.one-voice flag → turnGate enabled(), read on each acquire",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-dispatcher.ts"
+    },
+    {
+      "id": "settings-overheard",
+      "from": "settings",
+      "to": "io/chat/conversation",
+      "carries": "yui.presets names and active id, yui.windows open list → the overheard reader's preset names and other preset ids",
+      "kind": "storage",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-dispatcher.ts"
+    },
+    {
+      "id": "transcripts-overheard",
+      "from": "settings",
+      "to": "io/chat/conversation",
+      "carries": "another preset's yui.<id>.chat_transcript → readTranscriptAfterBoundary, read-only",
+      "kind": "storage",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-dispatcher.ts"
+    },
+    {
       "id": "settings-push",
       "from": "settings",
       "to": "io/chat/push",
