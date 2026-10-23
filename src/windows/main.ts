@@ -36,7 +36,7 @@ import {
 } from "../app/turn/push/delegation-chip-mount";
 import { createPushStores, publishPushStores } from "../app/turn/push/push-stores";
 import { wirePushMode } from "../app/turn/push/wire-push";
-import { createSessionResetAnnouncer } from "../app/turn/wire-greeting";
+import { createSessionResetAnnouncer } from "../app/turn/session-reset-announcer";
 import { createVoiceFix } from "../app/voice/voice-fix";
 import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/secrets";
 import { createEventBus } from "../dispatcher/core/event-bus";

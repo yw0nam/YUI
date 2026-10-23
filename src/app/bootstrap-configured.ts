@@ -44,7 +44,7 @@ interface Phase1Handles extends TurnCorePhase1 {
   root: HTMLElement;
   stage: HTMLElement;
   getQuickControls(): ReturnType<typeof createQuickControls>;
-  /** Resets the preset's other windows announce over the bridge. */
+  /** Subscribes to resets the preset's other windows announce. */
   onSessionReset(cb: (presetId: string) => void): () => void;
   isDisposed(): boolean;
   bedSceneHold: BedSceneHold;
@@ -151,7 +151,14 @@ const realFactories: ConfiguredBootstrapFactories = {
       relations: phase1.conversation.relationsStore,
       targets: relations.targets,
     });
+    const card = wireCard({
+      agentSettings: settings.agentSettings,
+      userNameSettings: settings.userNameSettings,
+      getEndpoints: phase1.getEndpoints,
+      getConfig: () => config.get(),
+    });
     const core = await wireTurnCore(cfg, phase1, {
+      getCardText: card.getCardText,
       getFrontmost: () => frontmostTracker.get(),
       screenCapturer: phase1.screenCapturer,
       openQuickControls: (tab) => getQuickControls().open(undefined, { tab }),
@@ -289,12 +296,6 @@ const realFactories: ConfiguredBootstrapFactories = {
         proactiveSource.noteInteraction();
         bedScene.wake("message");
       },
-    });
-    const card = wireCard({
-      agentSettings: settings.agentSettings,
-      userNameSettings: settings.userNameSettings,
-      getEndpoints: phase1.getEndpoints,
-      getConfig: () => config.get(),
     });
     const greeting = wireGreeting({
       onSessionReset: phase1.onSessionReset,
