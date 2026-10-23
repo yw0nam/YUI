@@ -46,10 +46,6 @@ After **Start fresh**, she speaks one greeting, picked at random from Greeting a
 
 :::
 
-## Import and export
-
-Cards in Tavern Card V2 shape import and export from this section.
-
 ## Learn more
 
 - [Character design](https://docs.sillytavern.app/usage/core-concepts/characterdesign/) in the SillyTavern docs
