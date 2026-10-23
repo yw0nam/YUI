@@ -39,6 +39,9 @@ export function wireMessageSurfaceOps({
       case "quote":
         surfaces.quoteUser(op.quote);
         break;
+      case "quote-signals":
+        surfaces.quoteSignals(op.lines);
+        break;
       case "settle-quote":
         surfaces.settleQuote();
         break;

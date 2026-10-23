@@ -296,6 +296,19 @@
   padding-bottom: 0;
   border-bottom: 0;
 }
+/* The quote slot holding signal source lines instead of a user quote. */
+.yui-bubble__quote.is-sources {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.2rem;
+}
+.yui-bubble__quote.is-sources .yui-source {
+  font-size: inherit;
+}
+.yui-bubble__sources-more {
+  padding-left: 0.9rem;
+  color: var(--yui-text-mute);
+}
 
 /* ── Speech action — in-place fix under the speech text (e.g. "Open Connection" on an
    unconfigured backend). Same inline-link treatment as the bubble's links (treatment A);

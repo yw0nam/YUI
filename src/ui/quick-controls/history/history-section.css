@@ -108,6 +108,17 @@
   font-variant-numeric: tabular-nums;
 }
 
+.yui-hist__turn .yui-hist__source {
+  grid-column: 2 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.yui-hist__say.is-silent {
+  color: var(--yui-text-mute);
+}
+
 .yui-hist__empty {
   margin: 0;
   font-size: var(--yui-fs-sub);

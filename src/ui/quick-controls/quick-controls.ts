@@ -12,6 +12,7 @@ import type { createVrmSelection } from "../../io/assets/vrm-selection";
 import type { createChatHistoryStore } from "../../io/chat/conversation/chat-history-store";
 import type { createSessionDiagnosticsStore } from "../../io/chat/conversation/session-diagnostics";
 import type { createSessionStore } from "../../io/chat/conversation/session-store";
+import type { createSignalHistoryStore } from "../../io/chat/conversation/signal-history-store";
 import type { DelegationItem } from "../../io/chat/push/push-frames";
 import type {
   createSpeakerSelection,
@@ -97,6 +98,7 @@ type SpeakerSelectionStore = ReturnType<typeof createSpeakerSelection>;
 type SessionDiagnosticsStore = ReturnType<typeof createSessionDiagnosticsStore>;
 type SessionStore = ReturnType<typeof createSessionStore>;
 type ChatHistoryStore = ReturnType<typeof createChatHistoryStore>;
+type SignalHistoryStore = ReturnType<typeof createSignalHistoryStore>;
 
 /** The delegations list as the settings window sees it — mirrored over the bridge. */
 export interface DelegationsPanelPort {
@@ -194,6 +196,8 @@ interface QuickControlsOptions {
   sessionStore?: SessionStore;
   /** Unified conversation transcript. Feeds the History tab; "Start fresh" closes the running session in it. */
   transcript?: Pick<ChatHistoryStore, "startNewSession" | "sessions" | "subscribe">;
+  /** Signal records. Feed the History tab beside the turns they ran in. */
+  signalHistory?: Pick<SignalHistoryStore, "records" | "subscribe">;
   /** Thinking filler settings store. If absent, section won't render (injected by unified agent). */
   fillerSettings?: FillerSettingsStore;
   /** TTS speech output on/off store. */
@@ -311,6 +315,7 @@ export function createQuickControls({
   sessionDiagnostics,
   sessionStore,
   transcript,
+  signalHistory,
   fillerSettings,
   ttsSettings,
   oneVoiceSettings,
@@ -422,6 +427,7 @@ export function createQuickControls({
   const historyTab = transcript
     ? createHistoryTab({
         transcript,
+        signalHistory,
         sessionDiagnostics,
         sessionStore,
         stopTurn,

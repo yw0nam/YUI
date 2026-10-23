@@ -14,13 +14,14 @@
 
 import "./surfaces.css";
 import type { AttachmentLimits } from "../../config/validators/guardrails";
-import type { UserQuote } from "../../io/bridge/message/message-bridge";
+import type { SourceLine, UserQuote } from "../../io/bridge/message/message-bridge";
 import type { InputErrorAction, SpeechAction } from "../../io/bridge/message/message-remote";
 import type { ToolStatus } from "../chips/status-pill";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import type { MicPort } from "../input/action-button";
 import { createTextInput } from "../input/text-input";
 import { createReasoningDisclosure, type ReasoningSource } from "../message/reasoning-disclosure";
+import { createSignalSourceLines } from "../message/signal-source-lines";
 import { createSpeechBubble } from "../message/speech-bubble";
 import { createUserQuote } from "../message/user-quote";
 
@@ -50,6 +51,8 @@ export interface Surfaces {
   showSpeechAction(action?: SpeechAction): void;
   /** A turn the user started was admitted: the bubble opens with the message quoted on its first line and holds through the turn. */
   quoteUser(quote: UserQuote): void;
+  /** A turn ran with signal groups and its first utterance opened: the groups show as source lines on the bubble's first lines. */
+  quoteSignals(lines: SourceLine[]): void;
   /** The quoted turn is over: the line stays and the bubble takes its dwell, or hides when it shows nothing else. */
   settleQuote(): void;
   /** The quoted turn ended before any reply: the line goes and the bubble hides when it shows nothing else. */
@@ -203,6 +206,7 @@ export function createSurfaces({
     ? createReasoningDisclosure({ before: bubbleText, source: reasoning, bubble })
     : null;
   const quote = createUserQuote({ el: bubbleQuote, bubble });
+  const sources = createSignalSourceLines({ el: bubbleQuote, bubble });
   const input = createTextInput(
     { formEl, field, errorEl, trayEl, attachBtn, picker, sendBtn },
     { liftAboveInput: bubble.liftAboveInput, resetPosition: bubble.resetPosition },
@@ -245,6 +249,7 @@ export function createSurfaces({
     hideSpeech: bubble.hideSpeech,
     showSpeechAction: bubble.showSpeechAction,
     quoteUser: quote.show,
+    quoteSignals: sources.show,
     settleQuote: quote.settle,
     clearQuote: quote.clear,
     showTool: tool.showTool,

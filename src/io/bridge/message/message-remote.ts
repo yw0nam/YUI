@@ -10,7 +10,7 @@
 
 import type { AttachmentLimits } from "../../../config/validators/guardrails";
 import { createLogger } from "../../../logger";
-import type { MessageBridge, UserQuote } from "./message-bridge";
+import type { MessageBridge, SourceLine, UserQuote } from "./message-bridge";
 
 /** In-place fix offered next to an inline error (e.g. "Open Advanced" on an unconfigured backend). */
 export interface InputErrorAction {
@@ -33,6 +33,8 @@ export interface RemoteSurfaces {
   hideSpeech(): void;
   /** Opens the message window's bubble with the user's message quoted on its first line. */
   quoteUser(quote: UserQuote): void;
+  /** Shows the turn's signal groups as source lines on the message window's bubble. */
+  quoteSignals(lines: SourceLine[]): void;
   /** Hands the quoted turn's bubble to its dwell. */
   settleQuote(): void;
   /** Drops the quoted line from the message window's bubble. */
@@ -123,6 +125,9 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
     },
     quoteUser(quote) {
       bridge.emitSurface({ op: "quote", quote });
+    },
+    quoteSignals(lines) {
+      bridge.emitSurface({ op: "quote-signals", lines });
     },
     settleQuote() {
       bridge.emitSurface({ op: "settle-quote" });

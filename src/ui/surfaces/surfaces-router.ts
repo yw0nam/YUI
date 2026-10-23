@@ -35,6 +35,7 @@ export function createSurfacesRouter({
     | "hideSpeech"
     | "showSpeechAction"
     | "quoteUser"
+    | "quoteSignals"
     | "settleQuote"
     | "clearQuote"
   > => (getMode() === "popped" ? remote : local);
@@ -70,6 +71,7 @@ export function createSurfacesRouter({
     hideSpeech: () => speech().hideSpeech(),
     showSpeechAction: (action) => speech().showSpeechAction(action),
     quoteUser: (quote) => speech().quoteUser(quote),
+    quoteSignals: (lines) => speech().quoteSignals(lines),
     settleQuote: () => speech().settleQuote(),
     clearQuote: () => speech().clearQuote(),
 

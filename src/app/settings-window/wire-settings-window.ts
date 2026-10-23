@@ -82,7 +82,8 @@ export async function wireSettingsWindow(deps: {
     browserSettings,
   } = settingsStores;
   // Quick Controls' session reset and History tab read the same instances the sync reloads.
-  const { sessionStore, sessionDiagnostics, chatHistoryStore } = conversationStores;
+  const { sessionStore, sessionDiagnostics, chatHistoryStore, signalHistoryStore } =
+    conversationStores;
   const voiceInputStatus = createVoiceInputStatus();
   const sourceProvider = resolveScreenSourceProvider();
 
@@ -270,6 +271,7 @@ export async function wireSettingsWindow(deps: {
       sessionDiagnostics,
       sessionStore,
       transcript: chatHistoryStore,
+      signalHistory: signalHistoryStore,
       bubblePersistSettings,
       oneVoiceSettings,
       messageWindowSettings,

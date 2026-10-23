@@ -63,7 +63,7 @@ export function createPhoneSettings(deps: {
   selectVoiceMode: (mode: VoiceMode) => void;
   conversation: Pick<
     ConversationStores,
-    "sessionStore" | "sessionDiagnostics" | "chatHistoryStore"
+    "sessionStore" | "sessionDiagnostics" | "chatHistoryStore" | "signalHistoryStore"
   >;
   pushSocket: PushSocket;
   /** Stops the in-flight turn before "Start fresh" resets the conversation. */
@@ -114,6 +114,7 @@ export function createPhoneSettings(deps: {
 
   const history = createHistoryTab({
     transcript: conversation.chatHistoryStore,
+    signalHistory: conversation.signalHistoryStore,
     sessionDiagnostics: conversation.sessionDiagnostics,
     sessionStore: conversation.sessionStore,
     stopTurn,

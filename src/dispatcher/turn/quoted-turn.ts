@@ -14,8 +14,7 @@ import type { Turn, TurnLog } from "./turn";
 /** The surface calls the quote drives; the real Surfaces satisfies it. */
 export interface QuoteSurfaces {
   quoteUser(quote: UserQuote): void;
-  /** The message window's Surfaces gains it with its source-line render; absent means nothing shows yet. */
-  quoteSignals?(lines: SourceLine[]): void;
+  quoteSignals(lines: SourceLine[]): void;
   settleQuote(): void;
   clearQuote(): void;
   restoreInput(text: string, images: string[]): void;
@@ -85,7 +84,7 @@ export function createQuotedTurn(deps: {
     },
     utteranceStart() {
       if (!quoted) return;
-      if (quoted.kind === "signals" && !quoted.spoke) surfaces.quoteSignals?.(quoted.lines);
+      if (quoted.kind === "signals" && !quoted.spoke) surfaces.quoteSignals(quoted.lines);
       quoted.spoke = true;
     },
     failed(turn) {

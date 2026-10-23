@@ -42,6 +42,7 @@ export type MessageSurfaceOp =
   | { op: "speech-action"; action?: { label: string } }
   | { op: "attachment-limits"; limits: AttachmentLimits }
   | { op: "quote"; quote: UserQuote }
+  | { op: "quote-signals"; lines: SourceLine[] }
   | { op: "settle-quote" }
   | { op: "clear-quote" }
   | { op: "restore-input"; text: string; images: string[] };

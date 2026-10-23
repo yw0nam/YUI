@@ -41,6 +41,7 @@ export function wireTurnVoice(deps: {
     | "endSpeech"
     | "finishSpeech"
     | "quoteUser"
+    | "quoteSignals"
     | "settleQuote"
     | "clearQuote"
     | "restoreInput"

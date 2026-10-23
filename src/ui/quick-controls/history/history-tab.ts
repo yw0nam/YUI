@@ -6,6 +6,7 @@
 import type { createChatHistoryStore } from "../../../io/chat/conversation/chat-history-store";
 import type { createSessionDiagnosticsStore } from "../../../io/chat/conversation/session-diagnostics";
 import type { createSessionStore } from "../../../io/chat/conversation/session-store";
+import type { createSignalHistoryStore } from "../../../io/chat/conversation/signal-history-store";
 import type { Logger } from "../../../logger";
 import { t } from "../../i18n";
 import type { PushSocketPanelPort } from "../connection/connection-tab";
@@ -43,6 +44,8 @@ export function createHistoryTab(deps: {
     ReturnType<typeof createChatHistoryStore>,
     "startNewSession" | "sessions" | "subscribe"
   >;
+  /** Signal records shown beside the turns they ran in. */
+  signalHistory?: Pick<ReturnType<typeof createSignalHistoryStore>, "records" | "subscribe">;
   sessionDiagnostics?: ReturnType<typeof createSessionDiagnosticsStore>;
   /** Current session id pointer. "Start fresh" clears it along with diagnostics. */
   sessionStore?: ReturnType<typeof createSessionStore>;
@@ -58,6 +61,7 @@ export function createHistoryTab(deps: {
 }): HistoryTab {
   const {
     transcript,
+    signalHistory,
     sessionDiagnostics,
     sessionStore,
     stopTurn,
@@ -77,7 +81,7 @@ export function createHistoryTab(deps: {
           <p class="yui-hist__foot">${t("history.foot")}</p>
         </div>${startFresh ? startFreshHtml() : ""}`;
 
-  const list = createHistorySection({ root: el, transcript, isOpen });
+  const list = createHistorySection({ root: el, transcript, signalHistory, isOpen });
 
   const sessionResetBtn = el.querySelector<HTMLButtonElement>(".yui-session__reset");
   // Cue rows also use the .yui-confirm pattern, so scope the session's specifically.

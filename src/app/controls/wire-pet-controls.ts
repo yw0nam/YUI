@@ -39,7 +39,11 @@ export function wirePetControls(deps: {
   stores: SettingsStores;
   conversation: Pick<
     ConversationStores,
-    "sessionStore" | "sessionDiagnostics" | "chatHistoryStore" | "relationsStore"
+    | "sessionStore"
+    | "sessionDiagnostics"
+    | "chatHistoryStore"
+    | "signalHistoryStore"
+    | "relationsStore"
   >;
   config: Pick<ConfigStore, "get">;
   /** Resolves the chat key the chat turn would send, per request (SecretProvider path). */
@@ -174,6 +178,7 @@ export function wirePetControls(deps: {
       screenSettings,
       screenKnobSettings,
       transcript: chatHistoryStore,
+      signalHistory: conversation.signalHistoryStore,
       // Same instances the dispatcher reads through, so "start fresh" takes effect on the next turn.
       sessionStore,
       sessionDiagnostics,

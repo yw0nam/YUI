@@ -6,8 +6,11 @@
  */
 import "./history-section.css";
 import type { ChatSession } from "../../../io/chat/conversation/chat-history-store";
+import type { SignalRecord } from "../../../io/chat/conversation/signal-history-store";
 import { getLocale, t } from "../../i18n";
+import { renderSourceLine } from "../../signals/source-line";
 import { HIST_CHEVRON_SVG } from "../constants";
+import { type HistoryRow, mergeSessionRows, tsOf } from "./history-rows";
 
 interface HistoryTranscript {
   sessions(): ChatSession[];
@@ -17,6 +20,8 @@ interface HistoryTranscript {
 interface HistorySectionDeps {
   root: HTMLElement;
   transcript: HistoryTranscript;
+  /** The signal records shown beside the turns they ran in. */
+  signalHistory?: { records(): SignalRecord[]; subscribe(cb: () => void): () => void };
   /** Skip repaints while the panel is closed. */
   isOpen: () => boolean;
 }
@@ -51,6 +56,7 @@ function formatSessionStart(ts: number, now: number): string {
 export function createHistorySection({
   root,
   transcript,
+  signalHistory,
   isOpen,
 }: HistorySectionDeps): HistorySection {
   const listEl = root.querySelector<HTMLElement>(".yui-hist");
@@ -61,23 +67,47 @@ export function createHistorySection({
     return session.startedAt === null ? `empty-${index}` : String(session.startedAt);
   }
 
-  function turnEl(entry: { role: "user" | "assistant"; text: string; ts: number }): HTMLElement {
-    const row = document.createElement("div");
-    row.className = entry.role === "assistant" ? "yui-hist__turn is-yui" : "yui-hist__turn";
+  function turnEl(row: HistoryRow): HTMLElement {
+    const records = row.kind === "chat" ? row.signals : row.records;
+    const isYui = row.kind === "signal" || row.entry.role === "assistant";
+    const silent = row.kind === "signal" && row.records[0].said === null;
+    const text =
+      row.kind === "chat" ? row.entry.text : (row.records[0].said ?? t("history.signal_silent"));
+    const el = document.createElement("div");
+    el.className = `yui-hist__turn${isYui ? " is-yui" : ""}${row.kind === "signal" ? " is-signal" : ""}`;
+    if (records.length > 0) {
+      const source = document.createElement("div");
+      source.className = "yui-hist__source";
+      source.append(
+        ...records.map((r) =>
+          renderSourceLine({
+            delivery: r.delivery,
+            source: r.source,
+            text: r.label ?? r.event_type,
+          }),
+        ),
+      );
+      el.append(source);
+    }
     const who = document.createElement("span");
     who.className = "yui-hist__who";
-    who.textContent = t(entry.role === "assistant" ? "history.who_yui" : "history.who_user");
+    who.textContent = t(isYui ? "history.who_yui" : "history.who_user");
     const say = document.createElement("span");
-    say.className = "yui-hist__say";
-    say.textContent = entry.text;
+    say.className = silent ? "yui-hist__say is-silent" : "yui-hist__say";
+    say.textContent = text;
     const ts = document.createElement("span");
     ts.className = "yui-hist__ts";
-    ts.textContent = formatTime(entry.ts);
-    row.append(who, say, ts);
-    return row;
+    ts.textContent = formatTime(tsOf(row));
+    el.append(who, say, ts);
+    return el;
   }
 
-  function sessionEl(session: ChatSession, index: number, now: number): HTMLElement {
+  function sessionEl(
+    session: ChatSession,
+    rows: HistoryRow[],
+    index: number,
+    now: number,
+  ): HTMLElement {
     const key = keyOf(session, index);
     const open = toggled.get(key) ?? index === 0;
     const isCurrent = index === 0;
@@ -120,9 +150,7 @@ export function createHistorySection({
     const count = document.createElement("span");
     count.className = "yui-hist__sess-count";
     count.textContent =
-      session.entries.length === 1
-        ? t("history.messages_one")
-        : t("history.messages", { n: session.entries.length });
+      rows.length === 1 ? t("history.messages_one") : t("history.messages", { n: rows.length });
 
     head.append(chev, main, count);
     group.append(head);
@@ -133,13 +161,13 @@ export function createHistorySection({
       log.id = logId;
       log.setAttribute("role", "region");
       log.setAttribute("aria-labelledby", headId);
-      if (session.entries.length === 0) {
+      if (rows.length === 0) {
         const empty = document.createElement("p");
         empty.className = "yui-hist__empty";
         empty.textContent = t("history.empty");
         log.append(empty);
       } else {
-        for (const entry of session.entries) log.append(turnEl(entry));
+        for (const row of rows) log.append(turnEl(row));
       }
       group.append(log);
     }
@@ -149,7 +177,9 @@ export function createHistorySection({
   function render(): void {
     if (!listEl) return;
     const now = Date.now();
-    listEl.replaceChildren(...transcript.sessions().map((s, i) => sessionEl(s, i, now)));
+    const sessions = transcript.sessions();
+    const rows = mergeSessionRows(sessions, signalHistory?.records() ?? []);
+    listEl.replaceChildren(...sessions.map((s, i) => sessionEl(s, rows[i], i, now)));
   }
 
   function handleClick(e: MouseEvent): void {
@@ -167,13 +197,16 @@ export function createHistorySection({
   }
 
   listEl?.addEventListener("click", handleClick);
-  const unsubscribe = transcript.subscribe(() => {
+  const repaint = (): void => {
     if (isOpen()) render();
-  });
+  };
+  const unsubscribe = transcript.subscribe(repaint);
+  const unsubscribeSignals = signalHistory?.subscribe(repaint);
 
   function dispose(): void {
     listEl?.removeEventListener("click", handleClick);
     unsubscribe();
+    unsubscribeSignals?.();
   }
 
   return { render, dispose };

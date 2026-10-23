@@ -47,6 +47,9 @@ export function createUserQuote({ el, bubble }: UserQuoteOptions): UserQuoteLine
 
   function show(quote: UserQuote): void {
     via = quote.via;
+    // The slot may hold source lines, so the two spans are put back.
+    el.classList.remove("is-sources");
+    el.replaceChildren(whoEl, textEl);
     // Hold first, so the reveal keeps the slot.
     bubble.holdForTurn(true);
     bubble.reveal({ clearSpeech: true });
