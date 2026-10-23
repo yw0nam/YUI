@@ -10,7 +10,7 @@ Personal use first (currently the developer). The source is public under a nonco
 
 Usage context: in front of a computer all day. The YUI character **lives on the desktop** as a transparent, always-on-top overlay — the main experience is a presence in a corner of the workspace, while settings open in a separate utility window. On Android the same companion fills a phone: the character on a dark stage that fills the screen, chat over the push transport, and the same speech bubble, status pill and composer — a presence that leaves the desk with you rather than a messenger app.
 
-Job-to-be-done: a companion that is alive beside you. A character you can talk to via text and voice, that notices screen context, and occasionally initiates conversation. The brain (judgment · memory · tools · persona) is handled by the selected backend; YUI handles only the **head** (rendering + sensing + I/O surfaces).
+Job-to-be-done: a companion that is alive beside you. A character you can talk to via text and voice, that notices screen context, and occasionally initiates conversation. The brain (judgment · memory · tools) is handled by the selected backend; YUI is the **body** (rendering + sensing + I/O surfaces) and sends the persona text on the request transports.
 
 ## Product Purpose
 
@@ -38,7 +38,7 @@ Core tone in one line: **invisible-by-default, warm-when-present.**
 
 1. **Character is protagonist, UI is backstage staff.** Chrome recedes by default and only appears when it has something to say, then steps back again. (invisible-by-default)
 2. **Warm when present.** When UI surfaces (speech bubble · status pill · input · system tray), be characterful and warm — never like an enterprise widget. (warm-when-present)
-3. **`firing ≠ judgment` in the UI too.** The client only *renders* the state the backend has determined. The UI does not invent persona · mode · opinions. Surfaces reflect backend signals; they do not fabricate them.
+3. **`firing ≠ judgment` in the UI too.** The client only *renders* the state the backend has determined. The UI does not invent mode · opinions; persona text is user configuration passed to the backend. Surfaces reflect backend signals; they do not fabricate them.
 4. **Legible on anything.** The UI floats over an arbitrary desktop background in a transparent window. Every surface must be legible on any backdrop without heavy containers.
 5. **Calm by default, respectful of attention.** Ambient liveliness is subtle; respect reduced-motion; do not steal attention (rate-limit · DND awareness). A companion does not nag.
 6. **Answer in place.** Once setup is done, no surface sends the user to the settings window to do its job. The character, or the surface beside it, shows the answer where the user already looks. The settings window is for changing configuration, not for reading state.

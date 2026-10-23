@@ -1,6 +1,6 @@
 # YUI — Agent Guide
 
-> **YUI = embodied frontend (body) for the selected backend (brain).** VRM character rendering + desktop-pet behavior + I/O surfaces only. The brain (judgment · persona · agent loop) is **delegated to the backend**. This file orients you to the project; read it before touching any code.
+> **YUI = embodied frontend (body) for the selected backend (brain).** VRM character rendering + desktop-pet behavior + I/O surfaces only. The brain (judgment · memory · agent loop) is **delegated to the backend**. Persona text is client configuration, sent as a system message on Chat Completions and as `instructions` on Responses. This file orients you to the project; read it before touching any code.
 
 ## Core Principle: firing ≠ judgment
 
@@ -8,7 +8,7 @@ The client handles **firing**: it detects a candidate event, chooses which chara
 
 ## Backend-agnostic
 
-The backend is whichever agent the user selects. No code path, doc, or skill outside `integrations/<agent>/` assumes a specific backend agent's behavior, configuration, or install route; each addresses any agent that speaks the contract in `docs/reference/`. Agent-specific wiring lives under `integrations/<agent>/`. Plugin-discovery files whose names an outside ecosystem fixes (`SKILL.md` frontmatter) are packaging and carry no such assumption.
+The backend is whichever agent the user selects. No code path, doc, or skill outside `integrations/<agent>/` assumes a specific backend agent's behavior, configuration, or install route; each addresses any agent that speaks the contract in `docs/reference/`. Agent-specific wiring lives under `integrations/<agent>/`. Plugin-discovery files whose names an outside ecosystem fixes (`SKILL.md` frontmatter) are packaging and carry no such assumption. `README.md` recommends backends by capability and names an agent with an adapter under `integrations/` as the worked example.
 
 A feature lives in the shared consumer; a transport's wiring only turns that transport's frames or stream events into calls on it. A feature ships a producer for every transport whose wire carries its data, in the same PR. A feature only one transport has is limited to what that transport alone can deliver — for the push transport, delivery the client did not request.
 

@@ -19,6 +19,19 @@ One VRM model — and one ships in the repo (`resources/vrms/Sendagaya_Shino.vrm
 
 ---
 
+## Fastest path: one OpenAI key
+
+With YUI running (§1), one OpenAI key covers chat and voice: Chat Completions for chat and OpenAI for TTS. Neither service runs on your machine.
+
+1. Right-click the character → Settings → **Connection** tab.
+2. Chat section: keep **Chat Completions** as the chat API, pick the **OpenAI** provider, paste the key into **Chat API key**, set **Chat model** (`gpt-5-mini`).
+3. TTS section: pick the **OpenAI** provider and paste the same key into **TTS API key**.
+4. Close Settings and press `/` to type a message.
+
+Her personality is the **Instructions** field in the **Talk** tab, sent on Chat Completions and Responses. The shipped default covers expression only, so write who she is and how she talks there.
+
+---
+
 ## 1. Run YUI itself
 
 A coding agent can run sections 1–2 and the wiring in 4–7 for you from [Install with a coding agent](install.md). The rest of this page is the manual path and the reference for the external services.

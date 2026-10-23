@@ -18,7 +18,7 @@
 </div>
 
 - **She lives on your desktop.** A VRM character of your choice stands on top of your windows, follows the cursor with her eyes, and walks, sits, and jumps between them.
-- **You choose her brain.** A local model, a hosted API, or your own agent: whatever you plug in thinks for her, so her smarts and personality are up to you.
+- **You choose her brain.** A local model, a hosted API, or your own agent thinks for her. You write her persona text in the app, or your agent brings its own; the brain decides what she says.
 - **She speaks first, with restraint.** She greets you, checks in when you go quiet, and notices what you are doing, then stays silent when there is nothing worth saying.
 
 *Named after [Yui from* Sword Art Online*](https://swordartonline.fandom.com/wiki/Yui): an AI who stopped being a program and became someone you come home to.*
@@ -67,7 +67,14 @@ YUI is the body; the model or agent you plug in is the brain. YUI notices what h
 
 ## Bring your own brain
 
-YUI ships no model of its own. Pick each provider in **Settings → Connection**.
+YUI ships no model of its own. Choose the brain by what it can do.
+
+| Brain | What you get |
+| --- | --- |
+| **Any OpenAI-compatible endpoint** (OpenAI · Ollama · LM Studio · Groq · your own endpoint) | Chat, persona text you write in the app, and expression with a tool-calling model. Voice and speech recognition are separate connections. |
+| **An automation agent with memory and the push transport** | Turns the backend starts on its own, long-term memory the agent keeps, and delegation status when the backend reports it. Recommended for the full feature set. Worked example: [Hermes Agent](integrations/hermes/README.md). Other agents connect through the [push contract](docs/reference/push-transport.md). |
+
+Pick each provider in **Settings → Connection**.
 
 | | Providers |
 | --- | --- |

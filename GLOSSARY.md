@@ -7,11 +7,11 @@ Embodied desktop-pet frontend (the body) for the selected backend agent (the bra
 ### Split of responsibility
 
 **Body**:
-YUI itself — VRM rendering, sensing, and I/O surfaces. Holds no judgment.
+YUI itself — VRM rendering, sensing, I/O surfaces, and the persona text it sends on the request transports. Holds no judgment.
 _Avoid_: head, client-side brain, frontend agent
 
 **Brain**:
-The selected backend — judgment, persona, memory, and the agent loop.
+The selected backend — judgment, memory, and the agent loop.
 _Avoid_: server, LLM (as a component name)
 
 **Firing**:
