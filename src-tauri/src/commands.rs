@@ -20,6 +20,10 @@ pub fn handler() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         crate::voice_import::import_voice_file,
         crate::voice_import::remove_user_voice,
         crate::voice_import::rename_user_voice,
+        crate::card_import::import_card_file,
+        crate::card_import::retain_card_thumbnail,
+        crate::card_import::remove_card_thumbnail,
+        crate::card_import::write_card_file,
         #[cfg(desktop)]
         crate::passthrough::set_click_through,
         crate::agent_ingress::start_agent_ingress,
