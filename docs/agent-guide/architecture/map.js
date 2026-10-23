@@ -445,7 +445,7 @@ globalThis.YUI_MAP =
       "id": "mods-factorio",
       "module": "senders",
       "label": "Mods/factorio",
-      "role": "The MCP server that polls the Factorio game mod over RCON and posts live game signals to the loopback ingress.",
+      "role": "The MCP server that polls the Factorio game mod over RCON and posts urgent game signals to the loopback ingress.",
       "paths": [],
       "external": true
     },
@@ -499,7 +499,7 @@ globalThis.YUI_MAP =
       "id": "shell/agent-ingress",
       "module": "shell",
       "label": "agent_ingress",
-      "role": "Loopback HTTP listener for agent events, signals, and the avatar RPC round trip; routes `/presets/<id>/…` to the window bound to that preset.",
+      "role": "Loopback HTTP listener for agent events, signals, and the avatar RPC round trip; routes `/presets/<id>/…` to the window bound to that preset and refuses a signals request holding an item over 16 KiB.",
       "paths": [
         "src-tauri/src/agent_ingress"
       ]
@@ -1028,7 +1028,7 @@ globalThis.YUI_MAP =
       "id": "dispatcher/sources/inbox",
       "module": "sources",
       "label": "inbox sources",
-      "role": "Agent-lifecycle and signals firing sources with presence-gated buffering.",
+      "role": "Agent-lifecycle and signals firing sources with presence-gated buffering; a signal group routes by its delivery tier, replaces a buffered group with the same event_id, and the urgent catch-up goes out first on return.",
       "paths": [
         "src/dispatcher/sources/inbox"
       ]
@@ -1959,7 +1959,7 @@ globalThis.YUI_MAP =
       "id": "hooks-ingress",
       "from": "agent-hooks",
       "to": "shell/agent-ingress",
-      "carries": "POST /agent-event {tool, project, phase, summary, …}, or the same path under /presets/<id>/",
+      "carries": "POST /agent-event {tool, project, phase, summary, …}, or the same path under /presets/<id>/; deprecated, removed in v0.6.0 for POST /signals",
       "kind": "http",
       "transport": "shared"
     },
@@ -1967,7 +1967,7 @@ globalThis.YUI_MAP =
       "id": "signals-ingress",
       "from": "signal-producers",
       "to": "shell/agent-ingress",
-      "carries": "POST /signals {signals, envelope.delivery: immediate|batched|live}, or the same path under /presets/<id>/",
+      "carries": "POST /signals {signals, envelope {delivery: urgent|batched|immediate (deprecated), event_id, label?}}, or the same path under /presets/<id>/; an item over 16 KiB refuses the request",
       "kind": "http",
       "transport": "shared"
     },
@@ -1983,7 +1983,7 @@ globalThis.YUI_MAP =
       "id": "factorio-ingress",
       "from": "mods-factorio",
       "to": "shell/agent-ingress",
-      "carries": "POST /signals {signals, envelope delivery:\"live\"}",
+      "carries": "POST /signals {signals, envelope delivery:\"urgent\"}",
       "kind": "http",
       "transport": "shared"
     },
@@ -1999,7 +1999,7 @@ globalThis.YUI_MAP =
       "id": "ingress-inbox",
       "from": "shell/agent-ingress",
       "to": "io/bridge/inbox",
-      "carries": "targeted emit_to per window — bare routes → main, /presets/<id>/ → pet-<id>; agent-inbox, signals-inbox, avatar-rpc (the avatar and relations routes), ingress-dead; each inbox listens with its own window's label",
+      "carries": "targeted emit_to per window — bare routes → main, /presets/<id>/ → pet-<id>; agent-inbox, signals-inbox (envelope verbatim, label included), avatar-rpc (the avatar and relations routes), ingress-dead; each inbox listens with its own window's label",
       "kind": "tauri-event",
       "transport": "shared"
     },
@@ -2188,7 +2188,7 @@ globalThis.YUI_MAP =
       "id": "inbox-bus",
       "from": "dispatcher/sources/inbox",
       "to": "dispatcher/core",
-      "carries": "bus.push: agent.done, agent.needs_input, agent.catchup, signals.push, signals.batch, signals.catchup, signals.live, signals.live_catchup",
+      "carries": "bus.push: agent.done, agent.needs_input, agent.catchup, signals.push, signals.batch, signals.catchup, signals.urgent, signals.urgent_catchup",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/turn/wire-sources.ts"
@@ -2239,10 +2239,10 @@ globalThis.YUI_MAP =
       "wiring": "src/app/turn/wire-sources.ts"
     },
     {
-      "id": "busy-inbox-live",
+      "id": "busy-inbox-urgent",
       "from": "dispatcher/core",
       "to": "dispatcher/sources/inbox",
-      "carries": "raw dispatcher busy state for the live inbox instance (no pacer)",
+      "carries": "raw dispatcher busy state for the urgent inbox instance (no pacer)",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/wire-sources.ts"
@@ -3713,7 +3713,7 @@ globalThis.YUI_MAP =
           "label": "pacer gap and busy state hold inbox delivery",
           "edges": [
             "pacer-inbox",
-            "busy-inbox-live"
+            "busy-inbox-urgent"
           ],
           "to": "sources"
         },
