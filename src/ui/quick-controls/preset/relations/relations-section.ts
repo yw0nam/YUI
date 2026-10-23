@@ -1,4 +1,4 @@
-/** The preset strip's relations: the relation line, the matrix disclosure and the reasons card. */
+/** The preset strip's relations: the relation line and the reasons card. */
 
 import type { RelationBand } from "../../../../contract/types";
 import { type PresetEntry, presetIdForWindow } from "../../../../settings/preset/active-preset";
@@ -6,14 +6,11 @@ import {
   bandOf,
   type Relations,
   type RelationsStore,
-  readRelationsOf,
 } from "../../../../settings/relations/relations-store";
 import { t } from "../../../i18n";
-import { readOpen, writeOpen } from "./matrix-open-state";
 import { createReasonsCard } from "./reasons-card";
 import { bandShift, restart } from "./relation-glyph";
 import { relationLineEl } from "./relation-line";
-import { relationsMatrixEl } from "./relations-matrix";
 import type { RelationsView } from "./view";
 
 export function createPresetRelations(deps: {
@@ -25,22 +22,17 @@ export function createPresetRelations(deps: {
 }): { render(): void; dispose(): void } {
   const self = presetIdForWindow();
   let line: HTMLElement | null = null;
-  let matrix: HTMLElement | null = null;
   let view: RelationsView | null = null;
   let previous: Relations = deps.store.all();
 
   function buildView(): RelationsView {
     const presets = deps.presets();
-    const relations: Record<string, Relations> = {};
-    for (const { id } of presets) {
-      relations[id] = id === self ? deps.store.all() : readRelationsOf(id);
-    }
     const nameOf = (id: string): string =>
       id === "user" ? t("relation.to_you") : (presets.find((p) => p.id === id)?.name ?? id);
     return {
       self,
       presets,
-      relations,
+      relations: { [self]: deps.store.all() },
       targetsOf: (subject) => ["user", ...presets.map((p) => p.id).filter((id) => id !== subject)],
       nameOf,
       label: (subject, target, band: RelationBand) =>
@@ -58,30 +50,13 @@ export function createPresetRelations(deps: {
     nameOf: (id) => view?.nameOf(id) ?? id,
   });
 
-  function toggle(): void {
-    if (!matrix || !line) return;
-    const open = !matrix.classList.contains("is-open");
-    matrix.classList.toggle("is-open", open);
-    line.querySelector(".yui-preset__rel-more")?.setAttribute("aria-expanded", String(open));
-    writeOpen(open);
-  }
-
   function render(): void {
     card.close();
     view = buildView();
-    const open = readOpen() && view.presets.length > 1;
-    const nextLine = relationLineEl(view, open);
-    // The chevron lives on the line, so a hidden line must not leave the matrix open.
-    const nextMatrix = relationsMatrixEl(view, open && !nextLine.hidden, Date.now());
-    if (line && matrix) {
-      line.replaceWith(nextLine);
-      matrix.replaceWith(nextMatrix);
-    } else {
-      deps.anchor.after(nextLine, nextMatrix);
-    }
+    const nextLine = relationLineEl(view);
+    if (line) line.replaceWith(nextLine);
+    else deps.anchor.after(nextLine);
     line = nextLine;
-    matrix = nextMatrix;
-    line.querySelector(".yui-preset__rel-more")?.addEventListener("click", toggle);
   }
 
   /** Moves the relations of every pair of this preset whose value changed since the last write. */
@@ -102,8 +77,6 @@ export function createPresetRelations(deps: {
         else restart(relation, "is-entering");
         restart(relation, "is-fresh");
       }
-      const latest = deps.strip.querySelector<HTMLElement>(".yui-matrix__latest");
-      if (latest) restart(latest, "is-fresh");
     }
     previous = next;
   }
@@ -125,7 +98,6 @@ export function createPresetRelations(deps: {
       window.removeEventListener("storage", onStorage);
       card.dispose();
       line?.remove();
-      matrix?.remove();
     },
   };
 }

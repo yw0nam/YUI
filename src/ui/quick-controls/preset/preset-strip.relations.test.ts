@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The relation line, the relations matrix and the reasons card, through the preset strip.
+// The relation line and the reasons card, through the preset strip.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -72,16 +72,6 @@ describe("preset strip — relations", () => {
         ],
       }),
     );
-    localStorage.setItem(
-      "yui.aaaa0001.relations",
-      JSON.stringify({
-        default: {
-          value: 13,
-          updated_at: NOW - 10 * 60_000,
-          log: [{ at: NOW - 10 * 60_000, delta: 2, why: "gave the chair back" }],
-        },
-      }),
-    );
     setLocale("en");
     root = document.createElement("div");
     document.body.appendChild(root);
@@ -109,20 +99,9 @@ describe("preset strip — relations", () => {
   });
 
   it("hides the line while no preset has a record", () => {
-    localStorage.removeItem("yui.aaaa0001.relations");
     build({});
 
     expect(root.querySelector<HTMLElement>(".yui-preset__rel")!.hidden).toBe(true);
-  });
-
-  it("keeps the matrix closed while the line is hidden", () => {
-    localStorage.setItem("yui.relations-matrix-open", "true");
-    localStorage.removeItem("yui.aaaa0001.relations");
-    build({});
-
-    expect(
-      root.querySelector<HTMLElement>(".yui-preset__matrix")!.classList.contains("is-open"),
-    ).toBe(false);
   });
 
   it("adds a relation as soon as this preset rates a new target", () => {
@@ -133,42 +112,6 @@ describe("preset strip — relations", () => {
       "aaaa0001",
       "bbbb0002",
     ]);
-  });
-
-  it("opens the matrix from the chevron and keeps it open across a rebuild", () => {
-    const toggle = () => root.querySelector<HTMLButtonElement>(".yui-preset__rel-more")!;
-    const matrix = () => root.querySelector<HTMLElement>(".yui-preset__matrix")!;
-
-    toggle().click();
-    expect(matrix().classList.contains("is-open")).toBe(true);
-    expect(toggle().getAttribute("aria-expanded")).toBe("true");
-
-    build();
-    expect(matrix().classList.contains("is-open")).toBe(true);
-    toggle().click();
-    expect(matrix().classList.contains("is-open")).toBe(false);
-    expect(toggle().getAttribute("aria-expanded")).toBe("false");
-  });
-
-  it("shows every preset's relations in the matrix and names the newest change", () => {
-    const rows = [...root.querySelectorAll(".yui-matrix tbody tr")];
-
-    expect(rows.map((r) => r.querySelector("th")?.textContent)).toEqual([
-      "natsume",
-      "perlica",
-      "shino",
-    ]);
-    expect(relations(".yui-matrix tbody tr:nth-child(1)").map((s) => [s.target, s.band])).toEqual([
-      ["user", "warm"],
-      ["aaaa0001", "cold"],
-    ]);
-    expect(relations(".yui-matrix tbody tr:nth-child(2)").map((s) => [s.target, s.band])).toEqual([
-      ["default", "close"],
-    ]);
-    expect(rows[2]!.querySelectorAll("td.is-empty")).toHaveLength(3);
-    expect(root.querySelector(".yui-matrix__latest")?.textContent).toBe(
-      "rose: perlica, about natsume, 10min: gave the chair back",
-    );
   });
 
   it("fills the reasons card on hover and closes it on Escape", () => {

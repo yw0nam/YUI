@@ -198,8 +198,6 @@ const ko: Record<string, string> = {
   "preset.scope_shared": "모든 프리셋이 함께 쓰는 설정",
   "relation.group": "{name}의 마음",
   "relation.to_you": "나",
-  "relation.matrix": "모든 프리셋 사이의 관계",
-  "relation.matrix_table": "누가 누구를 어떻게 느끼는지",
   "relation.band.hostile": "적대",
   "relation.band.cold": "냉담",
   "relation.band.neutral": "보통",
@@ -207,9 +205,7 @@ const ko: Record<string, string> = {
   "relation.band.close": "친밀",
   "relation.rose": "올라감",
   "relation.fell": "내려감",
-  "relation.latest": "{subject}, {target}에 대해, {age}:",
   "relation.card_head": "{subject}: {target}에게 {band}",
-  "relation.unrated": "{subject}은(는) 아직 {target}을(를) 평가하지 않았어요",
 
   // reasoning effort segment
   "reasoning.label": "추론 강도",

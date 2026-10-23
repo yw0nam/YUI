@@ -1,6 +1,6 @@
 /**
  * Preset strip — the active preset's picker and the dots button that opens the manage popover,
- * above the tab rail and body, with the preset's relation line and the relations matrix under it. Picking another preset activates it and holds the panel inert
+ * above the tab rail and body, with the preset's relation line under it. Picking another preset activates it and holds the panel inert
  * until the window reloads (wire-preset); in edit mode (the settings window) it hands the picked
  * id to `onEditTarget` instead. Also fills each tab's scope line.
  */

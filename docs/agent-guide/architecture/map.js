@@ -1127,7 +1127,7 @@ globalThis.YUI_MAP =
       "id": "ui/quick-controls",
       "module": "settings",
       "label": "quick controls",
-      "role": "The settings panel, shown as a popover in the pet window and as the whole settings window; the preset manage row's copy button copies a character's ingress URL and the Reactions URL line shows this window's; the preset strip shows this preset's relation line, the relations matrix of every preset, and the reasons card.",
+      "role": "The settings panel, shown as a popover in the pet window and as the whole settings window; the preset manage row's copy button copies a character's ingress URL and the Reactions URL line shows this window's; the preset strip shows this preset's relation line and the reasons card.",
       "paths": [
         "src/ui/quick-controls"
       ]
@@ -2024,7 +2024,7 @@ globalThis.YUI_MAP =
       "id": "relations-ui",
       "from": "settings",
       "to": "ui/quick-controls",
-      "carries": "this preset's store.all() and subscribe, re-rendered with motion on a write; the other presets' yui.<id>.relations through readRelationsOf, re-rendered on a storage event",
+      "carries": "this preset's store.all() and subscribe, re-rendered with motion on a write and re-rendered on a storage event for the preset's relations key",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/controls/wire-pet-controls.ts"

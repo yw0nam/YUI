@@ -5,7 +5,6 @@ import {
   localStorageStore,
   type PersistedStorage,
 } from "../persisted-store";
-import { resolveStorageKey } from "../preset/preset-keys";
 
 export interface RelationChange {
   at: number;
@@ -131,15 +130,4 @@ export type RelationsStore = ReturnType<typeof createRelationsStore>;
 
 export function localStorageRelations(key = "yui.relations"): RelationsStorage {
   return localStorageStore<Relations>(key);
-}
-
-/** Another preset's relations, read straight from storage. */
-export function readRelationsOf(presetId: string): Relations {
-  const store = createRelationsStore({
-    storage: localStorageStore(resolveStorageKey("yui.relations", presetId), { resolve: false }),
-  });
-  store.reloadFromStorage();
-  const relations = store.all();
-  store.dispose();
-  return relations;
 }

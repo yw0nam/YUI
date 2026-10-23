@@ -200,8 +200,6 @@ const ja: Record<string, string> = {
   "preset.scope_shared": "すべてのプリセットで共通の設定",
   "relation.group": "{name}の気持ち",
   "relation.to_you": "あなた",
-  "relation.matrix": "すべてのプリセット同士の関係",
-  "relation.matrix_table": "誰が誰をどう思っているか",
   "relation.band.hostile": "敵対",
   "relation.band.cold": "冷淡",
   "relation.band.neutral": "ふつう",
@@ -209,9 +207,7 @@ const ja: Record<string, string> = {
   "relation.band.close": "親密",
   "relation.rose": "上がった",
   "relation.fell": "下がった",
-  "relation.latest": "{subject}、{target}について、{age}:",
   "relation.card_head": "{subject}: {target}に{band}",
-  "relation.unrated": "{subject}は{target}をまだ評価していません",
 
   // reasoning effort segment
   "reasoning.label": "推論の強さ",

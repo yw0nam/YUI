@@ -2,7 +2,7 @@ import type { RelationBand } from "../../../../contract/types";
 import type { PresetEntry } from "../../../../settings/preset/active-preset";
 import type { Relations } from "../../../../settings/relations/relations-store";
 
-/** What the line, the matrix and the card read: every listed preset's relations, as stored now. */
+/** What the line and the card read: this preset's relations, as stored now. */
 export interface RelationsView {
   /** This window's preset. */
   self: string;

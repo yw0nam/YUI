@@ -2,10 +2,10 @@
 
 import { bandOf } from "../../../../settings/relations/relations-store";
 import { t } from "../../../i18n";
-import { CHEVRON_SVG, relationEl } from "./relation-glyph";
+import { relationEl } from "./relation-glyph";
 import type { RelationsView } from "./view";
 
-export function relationLineEl(view: RelationsView, open: boolean): HTMLElement {
+export function relationLineEl(view: RelationsView): HTMLElement {
   const line = document.createElement("div");
   line.className = "yui-preset__rel";
   line.setAttribute("role", "group");
@@ -26,15 +26,6 @@ export function relationLineEl(view: RelationsView, open: boolean): HTMLElement 
         name: view.nameOf(target),
       }),
     );
-  }
-  if (view.presets.length > 1) {
-    const more = document.createElement("button");
-    more.type = "button";
-    more.className = "yui-iconbtn yui-preset__rel-more";
-    more.setAttribute("aria-label", t("relation.matrix"));
-    more.setAttribute("aria-expanded", String(open));
-    more.innerHTML = CHEVRON_SVG;
-    line.append(more);
   }
   return line;
 }

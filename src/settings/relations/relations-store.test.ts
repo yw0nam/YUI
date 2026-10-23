@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { createRelationsStore, type Relations, readRelationsOf } from "./relations-store";
+import { describe, expect, it } from "vitest";
+import { createRelationsStore, type Relations } from "./relations-store";
 
 /** In-memory storage seeded with a raw stored value. */
 function memory(stored: unknown = null) {
@@ -100,22 +100,5 @@ describe("createRelationsStore", () => {
     expect(store.all()).toEqual(body);
     expect(store.replace("x")).toBe(false);
     expect(store.all()).toEqual(body);
-  });
-});
-
-describe("readRelationsOf", () => {
-  afterEach(() => vi.unstubAllGlobals());
-
-  it.each([
-    { presetId: "bbbb0002", key: "yui.bbbb0002.relations" },
-    { presetId: "default", key: "yui.relations" },
-  ])("in a window bound to cccc0003 reads $presetId's store from $key", ({ presetId, key }) => {
-    const stored = { user: { value: 3, updated_at: 1, log: [] } };
-    vi.stubGlobal("location", { search: "?preset=cccc0003" });
-    vi.stubGlobal("localStorage", {
-      getItem: (k: string) => (k === key ? JSON.stringify(stored) : null),
-    });
-
-    expect(readRelationsOf(presetId)).toEqual(stored);
   });
 });

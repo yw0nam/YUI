@@ -374,20 +374,6 @@
   animation: yui-fresh 1050ms var(--yui-ease);
 }
 
-.yui-preset__rel-more {
-  width: 1.6rem;
-  height: 1.6rem;
-  margin-left: auto;
-}
-
-.yui-preset__rel-more svg {
-  transition: transform var(--yui-dur) var(--yui-ease);
-}
-
-.yui-preset__rel-more[aria-expanded="true"] svg {
-  transform: rotate(180deg);
-}
-
 /* Relation glyph — two segments each side of a centre notch: the side is the sign, the length the strength. */
 .yui-glyph {
   position: relative;
@@ -476,107 +462,6 @@
   opacity: 0.4;
   background: var(--yui-ghost);
   transition: transform 400ms var(--yui-ease);
-}
-
-/* Relations matrix — a disclosure under the line: rows are presets, columns are targets. */
-.yui-preset__matrix {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows var(--yui-dur) var(--yui-ease);
-}
-
-.yui-preset__matrix.is-open {
-  grid-template-rows: 1fr;
-}
-
-.yui-preset__matrix > div {
-  min-height: 0;
-  overflow: hidden;
-}
-
-.yui-matrix {
-  display: grid;
-  gap: 0.5rem;
-  margin: 0.5rem 0 0.125rem 0.1rem;
-}
-
-.yui-matrix table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-  font-size: var(--yui-fs-sub);
-}
-
-.yui-matrix th,
-.yui-matrix td {
-  padding: 0.2rem 0;
-  overflow: hidden;
-  font-weight: 500;
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--yui-text-mute);
-}
-
-.yui-matrix th {
-  font-size: var(--yui-fs-caption);
-}
-
-.yui-matrix th[scope="row"] {
-  width: 4.25rem;
-  padding-right: 0.25rem;
-  font-size: var(--yui-fs-sub);
-  text-align: left;
-  color: var(--yui-text-dim);
-}
-
-.yui-matrix td {
-  height: 1.5rem;
-}
-
-.yui-matrix td .yui-relation {
-  padding: 0.125rem 0.25rem;
-}
-
-.yui-matrix td.is-empty::before {
-  content: "";
-  display: inline-block;
-  width: 6px;
-  height: 1px;
-  vertical-align: middle;
-  background: var(--yui-edge-strong);
-}
-
-.yui-matrix__latest {
-  display: flex;
-  align-items: center;
-  gap: 0.3125rem;
-  min-width: 0;
-  margin: 0;
-  font-size: var(--yui-fs-sub);
-  line-height: 1.35;
-  color: var(--yui-text-mute);
-}
-
-.yui-matrix__latest svg {
-  flex: none;
-  width: 0.75rem;
-  height: 0.75rem;
-}
-
-.yui-matrix__latest-text {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.yui-matrix__latest-who {
-  color: var(--yui-text-dim);
-}
-
-.yui-matrix__latest.is-fresh .yui-matrix__latest-text {
-  animation: yui-fresh-why 1050ms var(--yui-ease);
 }
 
 /* Reasons card — the band, the engine's note and the last three reasons, on hover or focus of a relation. */
@@ -689,21 +574,9 @@
   }
 }
 
-@keyframes yui-fresh-why {
-  0%,
-  14% {
-    color: var(--yui-text);
-  }
-  100% {
-    color: var(--yui-text-mute);
-  }
-}
-
-/* Reduced motion: nothing moves or scales; fills, ghosts, the card and the disclosure change by opacity or at once. */
+/* Reduced motion: nothing moves or scales; fills, ghosts and the card change by opacity or at once. */
 @media (prefers-reduced-motion: reduce) {
-  .yui-relation,
-  .yui-preset__matrix,
-  .yui-preset__rel-more svg {
+  .yui-relation {
     transition: none;
   }
   .yui-glyph__seg::after {

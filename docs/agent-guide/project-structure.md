@@ -603,15 +603,13 @@ YUI/
           preset-strip.ts            # Active-preset picker, the switching state, and the tab scope lines it fills; in the settings window it picks the preset to edit (`?edit=`)
           preset-manage.ts           # Manage popover: rows with inline rename, delete confirm, the open or close window action, "Use in main" in the settings window (it switches main's preset), and the new-preset field
           preset-scope.ts            # Scope line text: the preset a tab edits, or that its settings are shared
-          preset.css                 # Strip, manage popover, scope line, relation line, matrix, and reasons card styles
-          relations/                 # The relation line under the preset row, the relations matrix, and the reasons card
-            relations-section.ts     # Composes the three, re-renders on a write or a storage event, and moves the changed relations
-            matrix-open-state.ts     # The matrix disclosure's open state, per preset: the pet window and the settings window editing that preset share it
+          preset.css                 # Strip, manage popover, scope line, relation line, and reasons card styles
+          relations/                 # The relation line under the preset row, and the reasons card
+            relations-section.ts     # Composes the two, re-renders on a write or a storage event, and moves the changed relations
             relation-glyph.ts        # The five-step glyph and its band motion, the relation chip, the direction mark, and the age text
-            relation-line.ts         # This preset's relation toward each rated target, and the matrix toggle
-            relations-matrix.ts      # Every preset's relation toward every target, and the newest change
+            relation-line.ts         # This preset's relation toward each rated target
             reasons-card.ts          # The band, the engine's note, and the last three reasons of a hovered or focused relation
-            view.ts                  # What the three read: every listed preset's relations as stored now
+            view.ts                  # What the two read: this preset's relations as stored now
         history/                     # History tab and its session accordion section
           history-tab.ts             # The History tab the desktop panel and the phone settings view share, with its start-fresh row
           history-section.ts         # History tab session accordion over the persisted transcript
