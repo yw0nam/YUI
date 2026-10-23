@@ -27,6 +27,7 @@ jobs:
       - run: pnpm typecheck:test # tsc over tsconfig.test.json, which includes src/ so fixtures type-check against the real sources
       - run: pnpm test # vitest run
       - run: pnpm map:check # architecture map matches the tree
+      - run: pnpm css:check # one owner per bare class selector across src/**/*.css
       - run: pnpm docs:build # vitepress build + dead-link check
 
   web-windows-python:

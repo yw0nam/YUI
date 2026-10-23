@@ -259,6 +259,7 @@ Run the same checks CI does — paste the block from the repo root:
 ```bash
 pnpm test                         # vitest
 pnpm map:check                    # architecture map matches the tree
+pnpm css:check                    # a bare class selector is declared in one stylesheet
 pnpm typecheck:test               # tsc over the test files
 pnpm build                        # tsc + vite build
 pnpm docs:build                   # vitepress build + dead-link check

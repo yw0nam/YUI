@@ -20,6 +20,7 @@
     "lint:fix": "biome check --write",
     "format": "biome format --write",
     "map:check": "node scripts/ci/architecture-map.mjs",
+    "css:check": "node scripts/ci/css-selectors.mjs",
     "map:base": "node scripts/architecture-map-base.mjs"
   },
   "devDependencies": {
