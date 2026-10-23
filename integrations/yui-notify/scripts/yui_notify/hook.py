@@ -8,9 +8,9 @@ from typing import TextIO
 from yui_notify import config
 from yui_notify.adapters import parse_event
 from yui_notify.envelope import build_signal
+from yui_notify.excerpt import excerpt
 from yui_notify.label import context
 from yui_notify.post import post
-from yui_notify.summary import excerpt
 
 
 def run_hook(env: Mapping[str, str], stdin: TextIO) -> None:

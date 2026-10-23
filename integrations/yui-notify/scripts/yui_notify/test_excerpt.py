@@ -1,6 +1,6 @@
 import pytest
 
-from yui_notify.summary import excerpt
+from yui_notify.excerpt import excerpt
 
 
 @pytest.mark.parametrize(
