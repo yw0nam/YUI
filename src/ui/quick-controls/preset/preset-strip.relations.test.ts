@@ -2,6 +2,7 @@
 // The relation line and the reasons card, through the preset strip.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createPetWindows, type PetWindows } from "../../../settings/preset/pet-windows";
 import {
   createPresetRegistry,
   type PresetRegistry,
@@ -42,13 +43,13 @@ describe("preset strip — relations", () => {
   let store: RelationsStore;
   let strip: PresetStrip;
 
-  function build(relations: Relations = OWN): void {
+  function build(relations: Relations = OWN, petWindows?: PetWindows): void {
     strip?.dispose();
     store?.dispose();
     store = createRelationsStore({ storage: { load: () => relations, save: () => {} } });
     root.innerHTML = `${presetStripHtml()}<div class="yui-quick__cols"></div>`;
     const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-    strip = createPresetStrip({ root, registry, log, relationsStore: store });
+    strip = createPresetStrip({ root, registry, log, petWindows, relationsStore: store });
   }
 
   const relations = (scope: string) =>
@@ -141,6 +142,45 @@ describe("preset strip — relations", () => {
         (s) => s.dataset.target,
       ),
     ).toEqual(["user", "bbbb0002", "aaaa0001", "cccc0003"]);
+  });
+
+  it("folds the rated targets whose window is closed behind a +N chip", () => {
+    const petWindows = createPetWindows({
+      storage: { load: () => ({ open: ["aaaa0001"] }), save: () => {} },
+    });
+    try {
+      build(
+        {
+          user: { value: 5, updated_at: NOW - HOUR, log: [] },
+          aaaa0001: { value: 8, updated_at: NOW - HOUR, log: [] },
+          bbbb0002: { value: -3, updated_at: NOW - HOUR, log: [] },
+        },
+        petWindows,
+      );
+      const line = root.querySelector<HTMLElement>(".yui-preset__rel")!;
+      const more = line.querySelector<HTMLButtonElement>(".yui-relation--more")!;
+
+      expect(relations(".yui-preset__rel").map((s) => s.target)).toEqual([
+        "user",
+        "aaaa0001",
+        "bbbb0002",
+      ]);
+      expect(
+        line.querySelector('.yui-relation[data-target="aaaa0001"]')?.hasAttribute("data-folded"),
+      ).toBe(false);
+      expect(
+        line.querySelector('.yui-relation[data-target="bbbb0002"]')?.hasAttribute("data-folded"),
+      ).toBe(true);
+      expect(line.classList.contains("is-unfolded")).toBe(false);
+      expect(more.textContent).toBe("+1");
+      expect(more.getAttribute("aria-label")).toBe("1 more, not open now");
+
+      more.click();
+      expect(line.classList.contains("is-unfolded")).toBe(true);
+      expect(more.getAttribute("aria-expanded")).toBe("true");
+    } finally {
+      petWindows.dispose();
+    }
   });
 
   it("fills the reasons card on hover and closes it on Escape", () => {
