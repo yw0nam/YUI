@@ -6,6 +6,8 @@
 import type { ConfigReader } from "./load";
 import type { AvatarConfig } from "./validators/avatar/types";
 import type { GuardrailsConfig } from "./validators/guardrails";
+import { validatePersona } from "./validators/persona/persona";
+import type { PersonaConfig } from "./validators/persona/types";
 
 // ── fixtures (mirror the real configs/*.json) ─────────────────────────────────
 
@@ -122,6 +124,52 @@ export function guardrailsFixture(): GuardrailsConfig {
   };
 }
 
+/** A minimal valid persona.json card envelope for one locale. */
+function personaCardFixture(name: string, first_mes: string) {
+  return {
+    spec: "chara_card_v2",
+    spec_version: "2.0",
+    data: {
+      name,
+      description: `{{char}} lives on {{user}}'s desktop.`,
+      personality: "",
+      scenario: "",
+      first_mes,
+      mes_example: "",
+      creator_notes: "",
+      system_prompt: "",
+      post_history_instructions: "",
+      alternate_greetings: [],
+      tags: [],
+      creator: "YUI",
+      character_version: "1",
+      extensions: {},
+    },
+  };
+}
+
+/** Full persona.json — framing, user fallback, and one card per UI language. */
+export function personaFileFixture() {
+  return {
+    framing: {
+      en: "You are {{char}}, with {{user}}.",
+      ja: "{{char}}は{{user}}のそばにいます。",
+      ko: "{{char}}는 {{user}} 곁에 있어요.",
+    },
+    user_fallback: { en: "User", ja: "ユーザー", ko: "사용자" },
+    cards: {
+      en: personaCardFixture("Yui", "Hi, {{user}}."),
+      ja: personaCardFixture("Yui", "こんにちは、{{user}}。"),
+      ko: personaCardFixture("Yui", "안녕, {{user}}."),
+    },
+  };
+}
+
+/** The validated persona section of the fixture file. */
+export function personaFixture(): PersonaConfig {
+  return validatePersona("persona.json", personaFileFixture());
+}
+
 /** known-good file bundle. Each test clones and lightly mutates it. */
 export function goodFixture(): Record<string, unknown> {
   return {
@@ -202,6 +250,7 @@ export function goodFixture(): Record<string, unknown> {
       quiet_after_turn_ms: 180000,
       recent_cap: 5,
     },
+    "persona.json": personaFileFixture(),
   };
 }
 

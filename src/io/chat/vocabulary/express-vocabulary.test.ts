@@ -2,7 +2,11 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { AppConfig } from "../../../config/load";
-import { avatarFixture, guardrailsFixture } from "../../../config/load-test-helpers";
+import {
+  avatarFixture,
+  guardrailsFixture,
+  personaFixture,
+} from "../../../config/load-test-helpers";
 import { validateMotions } from "../../../config/validators/motions";
 import type { MotionRegistry } from "../../../contract";
 import { agentTriggerableMotionIds, deriveExpressVocabulary } from "./express-vocabulary";
@@ -178,6 +182,7 @@ describe("deriveExpressVocabulary", () => {
         quiet_after_turn_ms: 180000,
         recent_cap: 5,
       },
+      persona: personaFixture(),
     };
   }
 

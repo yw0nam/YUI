@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AppConfig } from "../config/load";
-import { avatarFixture, guardrailsFixture } from "../config/load-test-helpers";
+import { avatarFixture, guardrailsFixture, personaFixture } from "../config/load-test-helpers";
 import {
   type ConfiguredBootstrapFactories,
   createConfiguredBootstrap,
@@ -67,6 +67,7 @@ function validConfig(): AppConfig {
       quiet_after_turn_ms: 180000,
       recent_cap: 5,
     },
+    persona: personaFixture(),
   };
 }
 
