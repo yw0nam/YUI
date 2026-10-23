@@ -542,8 +542,8 @@ describe("backend_caller — flat client_context envelope", () => {
   });
 });
 
-describe("backend_caller — agent settings (reasoning effort + instructions)", () => {
-  it("getAgentSettings present → reasoning_effort + instructions threaded into ChatRequest", async () => {
+describe("backend_caller — agent settings (reasoning effort)", () => {
+  it("getAgentSettings present → reasoning_effort threaded into ChatRequest", async () => {
     script.events = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
       config: CONFIG,
@@ -552,15 +552,14 @@ describe("backend_caller — agent settings (reasoning effort + instructions)", 
       getFetch: async () => undefined,
       stream: script.stream,
       turnOutput,
-      getAgentSettings: () => ({ reasoning_effort: "medium", instructions: "be terse" }),
+      getAgentSettings: () => ({ reasoning_effort: "medium", send_card: true, card: null }),
     });
     await caller.call(turnOf(userEnv()));
     const [, request] = script.spy.mock.calls[0];
     expect(request.reasoning_effort).toBe("medium");
-    expect(request.instructions).toBe("be terse");
   });
 
-  it("getAgentSettings 'none' → reasoning_effort always sent; empty instructions omitted", async () => {
+  it("getAgentSettings 'none' → reasoning_effort always sent; no instructions without a card", async () => {
     script.events = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
       config: CONFIG,
@@ -569,7 +568,7 @@ describe("backend_caller — agent settings (reasoning effort + instructions)", 
       getFetch: async () => undefined,
       stream: script.stream,
       turnOutput,
-      getAgentSettings: () => ({ reasoning_effort: "none", instructions: "" }),
+      getAgentSettings: () => ({ reasoning_effort: "none", send_card: true, card: null }),
     });
     await caller.call(turnOf(userEnv()));
     const [, request] = script.spy.mock.calls[0];

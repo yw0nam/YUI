@@ -125,7 +125,7 @@ interface BackendCallerDeps extends PushCallDeps, SettleDeps, StreamAttemptDeps 
   onResponseIdInvalid?: () => void;
   /** Chain-break UI notice sink — called once alongside onResponseIdInvalid so the user sees the context reset. */
   onChainReset?: () => void;
-  /** Current agent setting (reasoning effort + instructions override) snapshot. Reflected in request only when present. */
+  /** Current agent setting snapshot; its reasoning effort is reflected in the request when present. */
   getAgentSettings?: () => import("../../settings/backend/agent-settings").AgentSettings;
   /** Client-declared tool registry, resolved per turn so vocabulary edits land on the next call. */
   clientTools?: () => ClientToolRegistry | undefined;
@@ -290,9 +290,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       // CC mode has no server-side conversation state (stitched by transcript) — skip snapshot/persist.
       let startPreviousResponseId: string | undefined;
       if (isCC) {
-        const effectiveInstructions = agent?.instructions.trim()
-          ? agent.instructions
-          : deps.config.chat_instructions;
+        const effectiveInstructions = deps.config.chat_instructions;
         const ccTranscript = selectSendSuffix(
           deps.transcript?.entriesAfterLastBoundary() ?? [],
           deps.config.chat_model_context_window,
@@ -311,8 +309,6 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           request.previous_response_id = startPreviousResponseId;
           request.input = withPendingOutputs(input, deps.getPendingToolOutputs?.() ?? []);
         }
-        // Empty instructions omitted for config fallback.
-        if (agent?.instructions.trim()) request.instructions = agent.instructions;
       }
 
       // Tools declared for this turn on both request transports.

@@ -1,16 +1,14 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { AvatarOption } from "../../../../config/validators/avatar/types";
+import { CARD_FIELD_MAX_LEN, EMPTY_CARD } from "../../../../config/validators/persona/types";
 import type { createVrmSelection } from "../../../../io/assets/vrm-selection";
 import type {
   createSpeakerSelection,
   SpeakerOption,
 } from "../../../../io/voice/voices/speaker-selection";
 import { createLipsyncSettings } from "../../../../settings/avatar/lipsync-settings";
-import {
-  createAgentSettings,
-  INSTRUCTIONS_MAX_LEN,
-} from "../../../../settings/backend/agent-settings";
+import { createAgentSettings } from "../../../../settings/backend/agent-settings";
 import { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
 import { createProactiveSettings } from "../../../../settings/cues/proactive-settings";
 import { createScheduleSettings } from "../../../../settings/cues/schedule-settings";
@@ -49,6 +47,9 @@ describe("createQuickControls — agent section", () => {
   let pickVoiceImport: Mock<() => Promise<{ srcPath: string; seedName: string } | null>>;
   let commitVoiceImport: Mock<(srcPath: string, name: string) => Promise<void>>;
   let removeVoice: Mock<(id: string) => Promise<void>>;
+
+  const setPrompt = (system_prompt: string): void =>
+    agentSettings.setCard({ ...EMPTY_CARD, system_prompt });
 
   beforeEach(() => {
     // Make rAF synchronous so open() → is-open transition happens immediately in tests
@@ -171,7 +172,7 @@ describe("createQuickControls — agent section", () => {
 
   // ── Chat (Agent) section: instructions textarea ───────────────────────────
 
-  it("typing into the instructions textarea calls setInstructions", () => {
+  it("typing into the instructions textarea writes the card's system prompt", () => {
     const qc = buildQc();
     qc.open();
 
@@ -179,13 +180,13 @@ describe("createQuickControls — agent section", () => {
     ta.value = "be terse";
     ta.dispatchEvent(new Event("input", { bubbles: true }));
 
-    expect(agentSettings.get().instructions).toBe("be terse");
+    expect(agentSettings.get().card?.system_prompt).toBe("be terse");
 
     qc.dispose();
   });
 
-  it("reset-to-defaults sets instructions to '' and clears the textarea", () => {
-    agentSettings.setInstructions("custom note");
+  it("reset-to-defaults returns to the default card and clears the textarea", () => {
+    setPrompt("custom note");
     const qc = buildQc();
     qc.open();
 
@@ -195,18 +196,18 @@ describe("createQuickControls — agent section", () => {
     const reset = qc.el.querySelector<HTMLButtonElement>(".yui-reset")!;
     reset.click();
 
-    expect(agentSettings.get().instructions).toBe("");
+    expect(agentSettings.get().card).toBeNull();
     expect(ta.value).toBe("");
 
     qc.dispose();
   });
 
-  it("caps the instructions textarea at INSTRUCTIONS_MAX_LEN", () => {
+  it("caps the instructions textarea at CARD_FIELD_MAX_LEN", () => {
     const qc = buildQc();
     qc.open();
 
     const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
-    expect(ta.maxLength).toBe(INSTRUCTIONS_MAX_LEN);
+    expect(ta.maxLength).toBe(CARD_FIELD_MAX_LEN);
 
     qc.dispose();
   });
@@ -225,7 +226,7 @@ describe("createQuickControls — agent section", () => {
 
   it("open() reflects the store's reasoning_effort and instructions", () => {
     agentSettings.setReasoningEffort("medium");
-    agentSettings.setInstructions("hello world");
+    setPrompt("hello world");
 
     const qc = buildQc();
     qc.open();
@@ -245,7 +246,7 @@ describe("createQuickControls — agent section", () => {
     qc.open();
 
     agentSettings.setReasoningEffort("low");
-    agentSettings.setInstructions("changed externally");
+    setPrompt("changed externally");
 
     const btns = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
     expect(btns[2].getAttribute("aria-checked")).toBe("true"); // low
@@ -264,7 +265,7 @@ describe("createQuickControls — agent section", () => {
     ta.focus();
     ta.value = "user is mid-edit";
 
-    agentSettings.setInstructions("remote clobber");
+    setPrompt("remote clobber");
 
     expect(ta.value).toBe("user is mid-edit");
 
@@ -281,7 +282,7 @@ describe("createQuickControls — agent section", () => {
     vi.spyOn(document, "hasFocus").mockReturnValue(false);
     expect(document.activeElement).toBe(ta);
 
-    agentSettings.setInstructions("remote value");
+    setPrompt("remote value");
 
     expect(ta.value).toBe("remote value");
 
@@ -295,7 +296,7 @@ describe("createQuickControls — agent section", () => {
     const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
     ta.focus();
 
-    agentSettings.setInstructions("remote value");
+    setPrompt("remote value");
     expect(ta.value).not.toBe("remote value");
 
     ta.blur();
@@ -384,13 +385,13 @@ describe("createQuickControls — agent section", () => {
 
     it("keeps the stored effort and instructions while the controls are hidden", () => {
       agentSettings.setReasoningEffort("medium");
-      agentSettings.setInstructions("keep me");
+      setPrompt("keep me");
       endpointsSettings.set({ chat_api: "push" });
       const qc = buildQc();
       qc.open();
 
       expect(agentSettings.get().reasoning_effort).toBe("medium");
-      expect(agentSettings.get().instructions).toBe("keep me");
+      expect(agentSettings.get().card?.system_prompt).toBe("keep me");
 
       qc.dispose();
     });

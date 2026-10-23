@@ -1,6 +1,7 @@
 /** Quick-controls panel markup — pure string construction (no DOM, no state). */
 import "./sections/session/session-section.css";
-import { INSTRUCTIONS_MAX_LEN, REASONING_EFFORTS } from "../../settings/backend/agent-settings";
+import { CARD_FIELD_MAX_LEN } from "../../config/validators/persona/types";
+import { REASONING_EFFORTS } from "../../settings/backend/agent-settings";
 import { RATE_LIMIT_MAX } from "../../settings/backend/guardrails-settings";
 import { LOCALE_DISPLAY_NAMES, t } from "../i18n";
 import {
@@ -315,7 +316,7 @@ ${panelOpenHtml("talk")}
         <div class="yui-sec">
           ${secHeadHtml(t("instructions.label"), `<button class="yui-reset" type="button">${t("instructions.reset")}</button>`)}
           <p class="yui-sec__note">${t("instructions.sub")}</p>
-          <textarea class="yui-textarea" spellcheck="false" rows="4" maxlength="${INSTRUCTIONS_MAX_LEN}" aria-label="${t("instructions.label")}"></textarea>
+          <textarea class="yui-textarea" spellcheck="false" rows="4" maxlength="${CARD_FIELD_MAX_LEN}" aria-label="${t("instructions.label")}"></textarea>
         </div>${fillerHtml}
       </div>
 ${panelOpenHtml("char")}

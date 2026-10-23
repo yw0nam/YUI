@@ -1111,25 +1111,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
     expect(msgs[msgs.length - 1]).toEqual({ role: "user", content: "혼자" });
   });
 
-  it("agent instructions override → leading system message carries it", async () => {
-    script.events = [completedEvent({ speech_text: "" }, "")];
-    caller = createBackendCaller({
-      config: CC_CONFIG,
-      renderer: { applyDirective } as never,
-      getApiKey: async () => "k",
-      getFetch: async () => undefined,
-      stream: script.stream,
-      turnOutput,
-      getAgentSettings: () => ({ reasoning_effort: "medium", instructions: "be terse" }),
-    });
-    await caller.call(turnOf(userEnv()));
-    const [, request] = script.spy.mock.calls[0];
-    expect(request.reasoning_effort).toBe("medium");
-    expect(messagesOf(request)[0]).toEqual({ role: "system", content: "be terse" });
-    expect("instructions" in request).toBe(false);
-  });
-
-  it("empty agent instructions → falls back to config.chat_instructions", async () => {
+  it("no card → the leading system message is config.chat_instructions", async () => {
     script.events = [completedEvent({ speech_text: "" }, "")];
     caller = createBackendCaller({
       config: { ...CC_CONFIG, chat_instructions: "config nudge" },
@@ -1138,7 +1120,7 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
       getFetch: async () => undefined,
       stream: script.stream,
       turnOutput,
-      getAgentSettings: () => ({ reasoning_effort: "none", instructions: "" }),
+      getAgentSettings: () => ({ reasoning_effort: "none", send_card: true, card: null }),
     });
     await caller.call(turnOf(userEnv()));
     const [, request] = script.spy.mock.calls[0];

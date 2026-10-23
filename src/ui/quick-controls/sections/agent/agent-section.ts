@@ -5,6 +5,7 @@
  * This module owns handlers, subscriptions, redraws, teardown.
  */
 
+import { EMPTY_CARD } from "../../../../config/validators/persona/types";
 import type { Logger } from "../../../../logger";
 import {
   type createAgentSettings,
@@ -81,12 +82,13 @@ export function createAgentSection(deps: AgentSectionDeps): AgentSection {
       btn.setAttribute("aria-checked", String(selected));
       btn.tabIndex = selected ? 0 : -1;
     });
+    const prompt = a.card?.system_prompt ?? "";
     // Do not overwrite textarea while typing (remote changes apply on blur).
     if (
       (!document.hasFocus() || document.activeElement !== instructionsEl) &&
-      instructionsEl.value !== a.instructions
+      instructionsEl.value !== prompt
     ) {
-      instructionsEl.value = a.instructions;
+      instructionsEl.value = prompt;
     }
   }
 
@@ -190,8 +192,9 @@ export function createAgentSection(deps: AgentSectionDeps): AgentSection {
 
   // ── Instructions textarea ──
 
+  // ponytail: the textarea edits only the card's system prompt; Task F's card editor replaces it.
   function handleInstructionsInput(): void {
-    agentSettings.setInstructions(instructionsEl.value);
+    agentSettings.updateCard({ system_prompt: instructionsEl.value }, EMPTY_CARD);
     log.info("instructions_change", { length: instructionsEl.value.length });
   }
 
@@ -201,7 +204,7 @@ export function createAgentSection(deps: AgentSectionDeps): AgentSection {
   }
 
   function handleResetInstructions(): void {
-    agentSettings.setInstructions("");
+    agentSettings.resetCard();
     instructionsEl.value = "";
     log.info("instructions_reset");
   }
