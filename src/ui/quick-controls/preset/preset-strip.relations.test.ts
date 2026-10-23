@@ -99,10 +99,19 @@ describe("preset strip — relations", () => {
     ]);
   });
 
-  it("hides the line while no preset has a record", () => {
+  it("shows the empty sentence while this preset has no record, and the chip once it rates someone", () => {
     build({});
 
-    expect(root.querySelector<HTMLElement>(".yui-preset__rel")!.hidden).toBe(true);
+    expect(
+      root.querySelector<HTMLElement>(".yui-preset__rel")!.querySelector(".yui-preset__rel-empty")
+        ?.textContent,
+    ).toBe("No one rated yet");
+
+    store.rate("user", 2, "said hello", NOW);
+    const line = root.querySelector<HTMLElement>(".yui-preset__rel")!;
+
+    expect(line.querySelector(".yui-preset__rel-empty")).toBeNull();
+    expect(line.querySelectorAll(".yui-relation[data-target]")).toHaveLength(1);
   });
 
   it("adds a relation as soon as this preset rates a new target", () => {
