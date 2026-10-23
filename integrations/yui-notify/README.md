@@ -57,6 +57,8 @@ The delivery classes and the envelope fields are in the
 ## What it does not send
 
 - A Claude Code `Stop` while any `background_tasks` entry has status `running`.
+- A `Stop` of a headless `claude -p` run: the process exits before the `async` hook finishes, so
+  no `agent.done` is sent.
 - The `idle_prompt` and `permission_prompt` notifications: they repeat `Stop` and
   `PermissionRequest`.
 - A Codex `Notification`: Codex has no such event, so an MCP elicitation prompt in Codex
