@@ -238,6 +238,33 @@ mod tests {
         );
     }
     #[test]
+    fn rejects_the_whole_request_when_a_signal_item_exceeds_16_kib() {
+        fn item(bytes: usize) -> serde_json::Value {
+            let item = serde_json::json!({ "s": "x".repeat(bytes - 8) });
+            assert_eq!(serde_json::to_vec(&item).unwrap().len(), bytes);
+            item
+        }
+        for path in ["/signals", "/presets/abc12345/signals"] {
+            let over = serde_json::json!({
+                "signals": [{ "kind": "small" }, item(16 * 1024 + 1)],
+                "envelope": { "event_id": "run-1" }
+            });
+            assert_eq!(
+                parse_route("POST", path, &over.to_string()).unwrap_err(),
+                400,
+                "{path}"
+            );
+            let at_cap = serde_json::json!({
+                "signals": [item(16 * 1024)],
+                "envelope": { "event_id": "run-1" }
+            });
+            assert!(
+                parse_route("POST", path, &at_cap.to_string()).is_ok(),
+                "{path}"
+            );
+        }
+    }
+    #[test]
     fn dispatches_a_valid_relations_put_to_main() {
         let record = r#"{"value":1,"updated_at":1,"log":[]}"#;
         let known = |id: &str| Ok(id == "aaaa0001");
