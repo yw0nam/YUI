@@ -31,6 +31,9 @@ mod stage_image;
 // Bring-your-own-voice import (reference clip copy into app-data).
 mod voice_import;
 
+// Tavern card import/export (file parse, thumbnail copy, exported file write).
+mod card_import;
+
 // Click-through toggle (top-level + Windows child HWNDs).
 #[cfg(desktop)]
 mod passthrough;
