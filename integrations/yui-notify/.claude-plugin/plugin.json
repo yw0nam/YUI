@@ -1,0 +1,6 @@
+{
+  "name": "yui-notify",
+  "version": "0.1.0",
+  "description": "Claude Code and Codex hooks that tell a YUI character when an agent finished or needs input.",
+  "license": "PolyForm-Noncommercial-1.0.0"
+}

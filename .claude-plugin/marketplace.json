@@ -1,0 +1,13 @@
+{
+  "name": "yui",
+  "owner": {
+    "name": "yw0nam"
+  },
+  "plugins": [
+    {
+      "name": "yui-notify",
+      "source": "./integrations/yui-notify",
+      "description": "Claude Code and Codex hooks that tell a YUI character when an agent finished or needs input."
+    }
+  ]
+}
