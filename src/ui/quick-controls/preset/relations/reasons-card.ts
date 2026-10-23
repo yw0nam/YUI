@@ -22,7 +22,7 @@ export function createReasonsCard(deps: {
   let escaped: HTMLElement | null = null;
 
   const relationOf = (target: EventTarget | null): HTMLElement | null =>
-    target instanceof Element ? target.closest<HTMLElement>(".yui-relation") : null;
+    target instanceof Element ? target.closest<HTMLElement>(".yui-relation[data-target]") : null;
 
   function fill(subject: string, target: string, record: RelationRecord): void {
     const head = document.createElement("p");
