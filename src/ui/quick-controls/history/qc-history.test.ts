@@ -409,6 +409,20 @@ describe("createQuickControls — start fresh action in the History tab", () => 
     qc.dispose();
   });
 
+  it("announces the reset after the transcript boundary is written", () => {
+    const transcript = seedStore();
+    const order: string[] = [];
+    vi.spyOn(transcript, "startNewSession").mockImplementation(() => order.push("boundary"));
+    const qc = buildQc({ transcript, announceSessionReset: () => order.push("announce") });
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.click();
+    qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__confirm")!.click();
+
+    expect(order).toEqual(["boundary", "announce"]);
+    qc.dispose();
+  });
+
   it("cancelling dismisses the confirm without resetting anything", () => {
     sessionStore.set("resp_y");
     const clearSession = vi.spyOn(sessionStore, "clear");
