@@ -65,6 +65,7 @@ describe("createQuickControls — card section", () => {
   afterEach(() => {
     qc.dispose();
     registry.dispose();
+    history.replaceState(null, "", "/");
     document.body.innerHTML = "";
     vi.restoreAllMocks();
   });
@@ -205,5 +206,78 @@ describe("createQuickControls — card section", () => {
     expect(help.getAttribute("href")).toBe(CARD_GUIDE_URL);
     expect(help.target).toBe("_blank");
     expect(help.getAttribute("aria-label")).toBe("About cards");
+  });
+
+  it("exports the effective card as V2 JSON under the effective name", async () => {
+    const exportCard = vi.fn(async () => "written" as const);
+    build({ exportCard });
+    sec().querySelector<HTMLButtonElement>(".yui-card-export")!.click();
+    await vi.waitFor(() => expect(exportCard).toHaveBeenCalledTimes(1));
+    const [text, fileName] = exportCard.mock.calls[0];
+    expect(fileName).toBe("Yui.json");
+    expect(JSON.parse(text)).toMatchObject({
+      spec: "chara_card_v2",
+      spec_version: "2.0",
+      data: { name: "Yui", description: "English text" },
+    });
+  });
+
+  it("an export cancelled at the save dialog logs nothing", async () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    const exportCard = vi.fn(async () => "cancelled" as const);
+    build({ exportCard });
+    sec().querySelector<HTMLButtonElement>(".yui-card-export")!.click();
+    await vi.waitFor(() => expect(exportCard).toHaveBeenCalledTimes(1));
+    expect(info.mock.calls.some((c) => String(c[0]).includes("card_export"))).toBe(false);
+  });
+
+  it("import success creates the preset from the card and logs card_import once", async () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    const importedCard = { ...EMPTY_CARD, name: "Mio", first_mes: "Hi." };
+    const importCard = vi.fn(async () => ({ card: importedCard, thumbnailTempId: "temp-1" }));
+    const createPresetFromCard = vi.fn(async () => "abcd1234");
+    build({ importCard, createPresetFromCard });
+    sec().querySelector<HTMLButtonElement>(".yui-card-import")!.click();
+    await vi.waitFor(() => expect(createPresetFromCard).toHaveBeenCalledTimes(1));
+    expect(createPresetFromCard).toHaveBeenCalledWith(importedCard, "temp-1");
+    expect(info.mock.calls.filter((c) => String(c[0]).includes("card_import"))).toHaveLength(1);
+  });
+
+  it("a refused preset creation shows the import error and logs no success", async () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    const importCard = vi.fn(async () => ({ card: { ...EMPTY_CARD, name: "Mio" } }));
+    const createPresetFromCard = vi.fn(async () => {
+      throw new Error("preset_create_failed");
+    });
+    build({ importCard, createPresetFromCard });
+    sec().querySelector<HTMLButtonElement>(".yui-card-import")!.click();
+    await vi.waitFor(() =>
+      expect(sec().querySelector<HTMLElement>(".yui-vrm__error")!.textContent).toBe(
+        "That file holds no card",
+      ),
+    );
+    expect(info.mock.calls.some((c) => String(c[0]).includes("card_import"))).toBe(false);
+  });
+
+  it("shows the thumbnail img only for an entry that carries one", () => {
+    localStorage.setItem(
+      "yui.presets",
+      JSON.stringify({
+        active: "default",
+        list: [
+          { id: "default", name: "default" },
+          { id: "aaaa0001", name: "natsume", thumbnail: "asset://localhost/app-data/cards/aaaa0001.png" },
+        ],
+      }),
+    );
+    registry = createPresetRegistry();
+    build();
+    expect(sec().querySelector<HTMLImageElement>(".yui-card-thumb")!.hidden).toBe(true);
+    history.replaceState(null, "", "/?preset=aaaa0001");
+    qc.dispose();
+    build();
+    const thumb = sec().querySelector<HTMLImageElement>(".yui-card-thumb")!;
+    expect(thumb.hidden).toBe(false);
+    expect(thumb.src).toBe("asset://localhost/app-data/cards/aaaa0001.png");
   });
 });

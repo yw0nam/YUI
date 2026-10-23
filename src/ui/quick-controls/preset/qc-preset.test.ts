@@ -86,6 +86,28 @@ describe("createQuickControls — presets", () => {
     return { petWindows, onEditTarget };
   }
 
+  it("shows the shown entry's thumbnail beside the select", () => {
+    localStorage.clear();
+    localStorage.setItem(
+      "yui.presets",
+      JSON.stringify({
+        active: "bbbb0002",
+        list: [
+          { id: "default", name: "default" },
+          { id: "aaaa0001", name: "natsume" },
+          { id: "bbbb0002", name: "perlica", thumbnail: "asset://localhost/app-data/cards/bbbb0002.png" },
+        ],
+      }),
+    );
+    registry = createPresetRegistry();
+    qc.dispose();
+    qc = createQuickControls({ ...defaultQcArgs(mount), presetRegistry: registry });
+    qc.open();
+    const thumb = document.querySelector<HTMLImageElement>(".yui-preset__thumb")!;
+    expect(thumb.hidden).toBe(false);
+    expect(thumb.src).toBe("asset://localhost/app-data/cards/bbbb0002.png");
+  });
+
   it("edit mode: picking a preset hands its id over without activating, open windows included", () => {
     const { petWindows, onEditTarget } = editMode("aaaa0001");
     petWindows.open("bbbb0002");

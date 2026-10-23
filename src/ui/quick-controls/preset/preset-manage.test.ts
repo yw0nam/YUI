@@ -43,3 +43,21 @@ it("copies the current preset URL, hides when disabled and shows fallback on fai
   expect(el.querySelector(".yui-preset-row__url-text")).not.toBeNull();
   registry.dispose();
 });
+
+it("removing a preset asks for its thumbnail file's removal", async () => {
+  localStorage.clear();
+  const registry = createPresetRegistry({ newId: () => "abcd1234" });
+  registry.create("companion");
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
+  const removeCardThumbnail = vi.fn(async () => {});
+  const manage = createPresetManage({ el, registry, log, removeCardThumbnail });
+  manage.render();
+
+  el.querySelector<HTMLButtonElement>('[data-preset-id="abcd1234"] .yui-preset-row__remove')!.click();
+  el.querySelector<HTMLButtonElement>(".yui-preset-row__confirm .yui-pill--go")!.click();
+  await vi.waitFor(() => expect(removeCardThumbnail).toHaveBeenCalledWith("abcd1234"));
+  expect(log.info).toHaveBeenCalledWith("preset_remove", { preset: "abcd1234" });
+  registry.dispose();
+});
