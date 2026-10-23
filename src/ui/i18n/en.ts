@@ -197,6 +197,7 @@ const en: Record<string, string> = {
   "preset.scope_shared": "Shared by every preset",
   "relation.group": "How {name} feels",
   "relation.to_you": "you",
+  "relation.none": "No one rated yet",
   "relation.more": "{n} more, not open now",
   "relation.band.hostile": "hostile",
   "relation.band.cold": "cold",

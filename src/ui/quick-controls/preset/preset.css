@@ -331,13 +331,16 @@
   margin: 0.4rem 0 0 0.1rem;
 }
 
-.yui-preset__rel[hidden] {
-  display: none;
-}
-
 /* A folded chip stays in the DOM, shown only while the line is unfolded. */
 .yui-preset__rel:not(.is-unfolded) .yui-relation[data-folded] {
   display: none;
+}
+
+.yui-preset__rel-empty {
+  padding: 0.125rem 0.375rem 0.125rem 0.25rem;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.35;
+  color: var(--yui-text-mute);
 }
 
 .yui-relation {

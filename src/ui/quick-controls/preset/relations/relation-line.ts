@@ -21,9 +21,13 @@ export function relationLineEl(view: RelationsView, isOpen: (id: string) => bool
     ...targets.filter((id) => id === "user" || isOpen(id)),
     ...targets.filter((id) => id !== "user" && !isOpen(id)),
   ];
-  line.hidden =
-    targets.length === 0 &&
-    !Object.values(view.relations).some((rel) => Object.keys(rel).length > 0);
+  if (targets.length === 0) {
+    const empty = document.createElement("span");
+    empty.className = "yui-preset__rel-empty";
+    empty.textContent = t("relation.none");
+    line.append(empty);
+    return line;
+  }
   let folded = 0;
   for (const target of ordered) {
     const band = bandOf(own[target]!.value);

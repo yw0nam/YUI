@@ -198,6 +198,7 @@ const ko: Record<string, string> = {
   "preset.scope_shared": "모든 프리셋이 함께 쓰는 설정",
   "relation.group": "{name}의 마음",
   "relation.to_you": "나",
+  "relation.none": "아직 평가한 상대가 없어요",
   "relation.more": "지금 열려 있지 않은 {n}명",
   "relation.band.hostile": "적대",
   "relation.band.cold": "냉담",

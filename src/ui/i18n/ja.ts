@@ -200,6 +200,7 @@ const ja: Record<string, string> = {
   "preset.scope_shared": "すべてのプリセットで共通の設定",
   "relation.group": "{name}の気持ち",
   "relation.to_you": "あなた",
+  "relation.none": "まだ誰も評価していません",
   "relation.more": "今は開いていない{n}人",
   "relation.band.hostile": "敵対",
   "relation.band.cold": "冷淡",
