@@ -3,11 +3,11 @@
  * inline error line, and the logs. The section wires the clicks and owns the redraw.
  */
 
+import { toV2Envelope } from "../../../../config/validators/persona/serialize-card";
 import type { Card } from "../../../../config/validators/persona/types";
 import { sanitizeFileStem } from "../../../../io/assets/card/card-export";
 import type { ImportedCard } from "../../../../io/assets/card/card-import";
 import { cardName } from "../../../../io/chat/card/resolve-card";
-import { toV2Envelope } from "../../../../io/chat/card/serialize-card";
 import type { Logger } from "../../../../logger";
 import { t } from "../../../i18n";
 

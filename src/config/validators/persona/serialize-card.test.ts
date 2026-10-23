@@ -1,15 +1,15 @@
 /**
  * serialize-card.test.ts — the V2 export envelope.
  *
- * Pins src/io/chat/card/serialize-card.ts: a Card round-trips out as a chara_card_v2
+ * Pins src/config/validators/persona/serialize-card.ts: a Card round-trips out as a chara_card_v2
  * envelope under the preset's effective name, with V3-only extras kept under
  * extensions.chara_card_v3 and the metadata fields unchanged.
  */
 
 import { describe, expect, it } from "vitest";
-import { readCard } from "../../../config/validators/persona/read-card";
-import { type Card, EMPTY_CARD } from "../../../config/validators/persona/types";
+import { readCard } from "./read-card";
 import { toV2Envelope } from "./serialize-card";
+import { type Card, EMPTY_CARD } from "./types";
 
 const card: Card = {
   ...EMPTY_CARD,

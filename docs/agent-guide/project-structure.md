@@ -161,7 +161,8 @@ YUI/
         guardrails.ts                # The guardrails.json debounce, rate-limit, and attachment-cap types and their validation
         hotkeys.ts                   # The hotkeys.json summon-accelerator type and its validation
         motions.ts                   # Validates the motion registry
-        persona/                     # The card type, the V1/V2/V3 card reader, and the persona.json validation
+        persona/                     # The card type, the V1/V2/V3 card reader, the V2 export envelope, and the persona.json validation
+          serialize-card.ts           # The card as a chara_card_v2 envelope for export
         screen.ts                    # The screen.json type and the validation of its frontmost-transition thresholds
         shared.ts                    # Shared ConfigError plus issue-recording helpers
     renderer/                        # three.js + VRM rendering
@@ -377,7 +378,6 @@ YUI/
           resolve-card.ts              # The preset's card and its effective name; null on push or with the switch off
           assemble-card.ts             # The first system message and the post-history text, with {{char}}, {{user}}, {{original}}
           pick-greeting.ts             # One of the card's greetings at random
-          serialize-card.ts            # The card as a chara_card_v2 envelope for export
         conversation/                  # Transcript, context, and session state for conversation continuation
           chat-history-store.ts        # Unified conversation transcript with session boundaries
           signal-history-store.ts      # Per-turn signal records, one per group, spoken or silent
