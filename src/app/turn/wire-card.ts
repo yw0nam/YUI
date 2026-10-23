@@ -4,7 +4,7 @@ import type { Locale } from "../../config/validators/persona/types";
 import type { EndpointsConfig } from "../../contract";
 import { assembleCard } from "../../io/chat/card/assemble-card";
 import { resolveCard } from "../../io/chat/card/resolve-card";
-import type { PresetEntry } from "../../settings/preset/active-preset";
+import { presetIdForWindow, readPresetName } from "../../settings/preset/active-preset";
 import type { SettingsStores } from "../../settings/settings-stores";
 import { getLocale } from "../../ui/i18n";
 
@@ -13,9 +13,9 @@ export function wireCard(deps: {
   userNameSettings: Pick<SettingsStores["userNameSettings"], "get">;
   getEndpoints: () => EndpointsConfig;
   getConfig: () => Pick<AppConfig, "persona">;
-  presetEntry: () => PresetEntry;
 }) {
-  const { agentSettings, userNameSettings, getEndpoints, getConfig, presetEntry } = deps;
+  const { agentSettings, userNameSettings, getEndpoints, getConfig } = deps;
+  const presetId = presetIdForWindow();
   const userNameIn = (locale: Locale): string =>
     userNameSettings.get().name || getConfig().persona.user_fallback[locale];
   const resolveIn = (locale: Locale) =>
@@ -23,7 +23,7 @@ export function wireCard(deps: {
       settings: agentSettings.get(),
       locale,
       persona: getConfig().persona,
-      presetEntry: presetEntry(),
+      presetEntry: { id: presetId, name: readPresetName(presetId) },
       chatApi: getEndpoints().chat_api,
     });
 

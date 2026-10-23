@@ -36,6 +36,7 @@ import {
 } from "../app/turn/push/delegation-chip-mount";
 import { createPushStores, publishPushStores } from "../app/turn/push/push-stores";
 import { wirePushMode } from "../app/turn/push/wire-push";
+import { createSessionResetAnnouncer } from "../app/turn/wire-greeting";
 import { createVoiceFix } from "../app/voice/voice-fix";
 import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/secrets";
 import { createEventBus } from "../dispatcher/core/event-bus";
@@ -48,6 +49,7 @@ import { createDevtoolsWindowOpener } from "../io/window/openers/devtools-window
 import { createSettingsWindowOpener } from "../io/window/openers/settings-window";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
+import { presetIdForWindow } from "../settings/preset/active-preset";
 import { readBoundPresetId } from "../settings/preset/bound-preset";
 import { createStatusPill } from "../ui/chips/status-pill";
 import { createVoiceInputStatus } from "../ui/chips/voice-input-status";
@@ -205,6 +207,10 @@ async function bootstrap(): Promise<BootstrapHandle> {
   });
   const userInput = createUserInputSource(bus);
   const help = wireHelpGuide({ userInput, bridge: windowBridge, register });
+  const sessionReset = createSessionResetAnnouncer(
+    windowBridge.emitSessionReset,
+    presetIdForWindow(),
+  );
 
   const controls = wirePetControls({
     root,
@@ -218,6 +224,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     speaker,
     pushSocket: push.pushSocket,
     stopTurn: push.stopTurn,
+    announceSessionReset: sessionReset.announce,
     presetRegistry,
     petWindows,
     boundId,
@@ -261,6 +268,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       root,
       stage,
       getQuickControls: controls.get,
+      onSessionReset: windowBridge.onSessionReset,
       pushSocket: push.pushSocket,
       delegations: push.delegations,
       delegationHistory: push.delegationHistory,
@@ -272,6 +280,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     register(configured.dispose);
     if (isDisposed()) return { dispose };
     help.bindInteraction(configured.noteInteraction);
+    sessionReset.bindGreeting(configured.greetLocal);
     push.bind({
       vocabulary: configured.vocabulary.vocabulary,
       stopTurn: configured.stopTurn,

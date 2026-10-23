@@ -48,6 +48,8 @@ export function createHistoryTab(deps: {
   sessionStore?: ReturnType<typeof createSessionStore>;
   /** Stops the in-flight turn the way the stop button does, before the reset frame goes out. */
   stopTurn?: () => void;
+  /** Tells the preset's other windows, and this window's greeting, that a new session opened. */
+  announceSessionReset?: () => void;
   /** The push transport — "Start fresh" resets the conversation on it in push mode. */
   pushSocket?: PushSocketPanelPort;
   /** Effective chat protocol — push resets the conversation with a frame, not in place. */
@@ -61,6 +63,7 @@ export function createHistoryTab(deps: {
     sessionDiagnostics,
     sessionStore,
     stopTurn,
+    announceSessionReset,
     pushSocket,
     getChatApi,
     isOpen,
@@ -103,6 +106,7 @@ export function createHistoryTab(deps: {
     sessionStore?.clear();
     sessionDiagnostics?.clear();
     transcript.startNewSession();
+    announceSessionReset?.();
     // Push mode keeps its conversation on the backend — it ends only when the frame lands.
     if (getChatApi() === "push") pushSocket?.sendReset();
     hideSessionConfirm();

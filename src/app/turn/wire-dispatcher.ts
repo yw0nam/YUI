@@ -180,13 +180,7 @@ export function wireDispatcher(deps: {
     cursors: overheardStore,
   });
 
-  const card = wireCard({
-    agentSettings,
-    userNameSettings,
-    getEndpoints,
-    getConfig,
-    presetEntry: () => ({ id: presetIdForWindow(), name: readPresetName(presetIdForWindow()) }),
-  });
+  const card = wireCard({ agentSettings, userNameSettings, getEndpoints, getConfig });
 
   const backendCaller = createBackendCaller({
     get config() {

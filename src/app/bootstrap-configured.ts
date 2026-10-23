@@ -30,6 +30,8 @@ import { wireWindowGeometry } from "./stage/wire-window-geometry";
 import { type TurnCorePhase1, wireTurnCore } from "./turn/turn-core";
 import type { wireVocabulary } from "./turn/vocabulary/wire-vocabulary";
 import type { VoicePipeline } from "./turn/voice/wire-voice-pipeline";
+import { wireCard } from "./turn/wire-card";
+import { wireGreeting } from "./turn/wire-greeting";
 import { wireDispatcherSources } from "./turn/wire-sources";
 
 const log = createLogger("bootstrap");
@@ -42,6 +44,8 @@ interface Phase1Handles extends TurnCorePhase1 {
   root: HTMLElement;
   stage: HTMLElement;
   getQuickControls(): ReturnType<typeof createQuickControls>;
+  /** Resets the preset's other windows announce over the bridge. */
+  onSessionReset(cb: (presetId: string) => void): () => void;
   isDisposed(): boolean;
   bedSceneHold: BedSceneHold;
 }
@@ -60,6 +64,8 @@ export interface ConfiguredBootstrapHandles {
   stopTurn: () => void;
   /** Resets the proactive gap, the way a typed submit does. */
   noteInteraction: () => void;
+  /** Performs the card's greeting when the running session is empty. */
+  greetLocal: () => void;
   dispose(): void;
 }
 
@@ -284,6 +290,22 @@ const realFactories: ConfiguredBootstrapFactories = {
         bedScene.wake("message");
       },
     });
+    const card = wireCard({
+      agentSettings: settings.agentSettings,
+      userNameSettings: settings.userNameSettings,
+      getEndpoints: phase1.getEndpoints,
+      getConfig: () => config.get(),
+    });
+    const greeting = wireGreeting({
+      onSessionReset: phase1.onSessionReset,
+      presetId: presetIdForWindow(),
+      stopTurn: () => void stopTurn(),
+      transcript: phase1.conversation.chatHistoryStore,
+      getCard: card.getCard,
+      userName: card.userName,
+      speak: voice.turnOutput.speak,
+    });
+    register(greeting.dispose);
 
     return {
       voice,
@@ -295,6 +317,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       windowTools,
       stopTurn,
       noteInteraction: () => proactiveSource.noteInteraction(),
+      greetLocal: greeting.greetLocal,
     };
   },
 };

@@ -186,6 +186,8 @@ interface QuickControlsOptions {
   pushSocket?: PushSocketPanelPort;
   /** Stops the in-flight turn the way the stop button does, before the reset frame goes out. */
   stopTurn?: () => void;
+  /** "Start fresh" calls it after the transcript boundary is written. */
+  announceSessionReset?: () => void;
   /** Delegated-work list for the session section (window variant). The pet window publishes it. */
   delegations?: DelegationsPanelPort;
   /** Session diagnostics (context usage · last compression). The occupancy readout renders in the window variant only. */
@@ -307,6 +309,7 @@ export function createQuickControls({
   getFetch,
   pushSocket,
   stopTurn,
+  announceSessionReset,
   delegations,
   sessionDiagnostics,
   sessionStore,
@@ -425,6 +428,7 @@ export function createQuickControls({
         sessionDiagnostics,
         sessionStore,
         stopTurn,
+        announceSessionReset,
         pushSocket,
         getChatApi: () => (isPushMode() ? "push" : undefined),
         isOpen: () => popover.isOpen(),
