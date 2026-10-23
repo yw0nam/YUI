@@ -77,21 +77,27 @@ def test_long_message_runs_the_agent_cli(agent, argv):
     ],
     ids=["no-models", "model-missing", "cli-missing"],
 )
-def test_without_a_runnable_model_cuts_message(models, which_fn):
-    assert summarize("x" * 2000, "claude-code", models, run=no_run, which=which_fn) == "x" * 1500
+def test_unsummarised_message_sends_the_excerpt(models, which_fn):
+    assert (
+        summarize("x" * 2000, "claude-code", models, run=no_run, which=which_fn)
+        == "x" * 740 + "\n…\n" + "x" * 740
+    )
 
 
 @pytest.mark.parametrize(
-    "out",
-    ["y" * 3000, None],
+    "out, expected",
+    [
+        ("y" * 3000, "y" * 1500),
+        (None, "x" * 740 + "\n…\n" + "x" * 740),
+    ],
     ids=["output-too-long", "runner-failure"],
 )
-def test_unusable_runner_output_cuts_message(out):
+def test_unusable_runner_output(out, expected):
     assert (
         summarize(
             "x" * 2000, "claude-code", {"claude-code": "m"}, run=lambda cmd, text: out, which=has_claude
         )
-        == "x" * 1500
+        == expected
     )
 
 

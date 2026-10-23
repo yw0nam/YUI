@@ -7,7 +7,7 @@ from yui_notify.config import load
 DEFAULTS = {
     "endpoint": "http://127.0.0.1:8770",
     "events": {"done": "batched", "needs_input": "urgent"},
-    "summary": {"claude-code": "claude-haiku-5-5", "codex": "gpt-6-luna"},
+    "summary": None,
 }
 
 
@@ -26,7 +26,7 @@ def test_partial_file_merges(tmp_path):
     assert load(env) == {
         "endpoint": "http://127.0.0.1:9",
         "events": {"done": "drop", "needs_input": "urgent"},
-        "summary": {"claude-code": "claude-haiku-5-5", "codex": "gpt-6-luna"},
+        "summary": None,
     }
 
 
@@ -49,9 +49,9 @@ def test_invalid_json_gives_defaults(tmp_path):
     "value, expected",
     [
         (None, None),
-        ({"codex": None}, {"claude-code": "claude-haiku-5-5", "codex": None}),
-        ({"codex": "gpt-6-sol"}, {"claude-code": "claude-haiku-5-5", "codex": "gpt-6-sol"}),
-        (5, {"claude-code": "claude-haiku-5-5", "codex": "gpt-6-luna"}),
+        ({"codex": None}, {"claude-code": None, "codex": None}),
+        ({"codex": "gpt-6-luna"}, {"claude-code": None, "codex": "gpt-6-luna"}),
+        (5, None),
     ],
     ids=["off", "codex-off", "codex-model", "not-an-object"],
 )

@@ -67,11 +67,13 @@ Ask two questions, one for `done` and one for `needs_input`. Offer `urgent`, `ba
 line on each choice, from the delivery-class table in
 https://github.com/yw0nam/YUI/blob/main/docs/guide/signals-producer.md.
 
-Ask whether the character should receive a one-sentence summary of the finished work.
-Offer the default model `claude-haiku-5-5`, another model id, or off (`null`).
+For each agent the user runs, ask whether to turn on a one-sentence model summary of the
+finished work — suggest `claude-haiku-5-5` for Claude Code and `gpt-6-luna` for Codex, or
+take another model id — or keep the excerpt: the default sends no model call, and a long
+message keeps its first and last 740 characters.
 
 Done when: the user has chosen a delivery class for `done`, a delivery class for
-`needs_input`, and a summary model or `null`.
+`needs_input`, and a summary model or the excerpt for each agent the user runs.
 
 ## 4. Wire the agents
 
@@ -92,12 +94,14 @@ values chosen in steps 2 and 3:
 {
   "endpoint": "http://127.0.0.1:8770",
   "events": { "done": "batched", "needs_input": "urgent" },
-  "summary": "claude-haiku-5-5"
+  "summary": null
 }
 ```
 
 `endpoint` is the URL from step 2 with no trailing `/signals`. A preset URL keeps its
-`/presets/<id>` prefix.
+`/presets/<id>` prefix. `summary` is `null` by default: a long message then keeps its
+first and last 740 characters. An object turns the one-sentence summary on per agent,
+e.g. `"summary": { "claude-code": "claude-haiku-5-5", "codex": "gpt-6-luna" }`.
 
 Done when: the file parses as JSON and holds `endpoint`, `events.done`,
 `events.needs_input`, and `summary`.

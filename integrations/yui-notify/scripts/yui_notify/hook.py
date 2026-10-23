@@ -23,7 +23,7 @@ def run_hook(env: Mapping[str, str], stdin: TextIO) -> None:
     cfg = config.load(env)
     if event is None or cfg["events"][event.phase] == "drop":
         return
-    summary = summarize(event.text, cfg["summary"]) if event.phase == "done" else ""
+    summary = summarize(event.text, event.agent, cfg["summary"]) if event.phase == "done" else ""
     body = build_signal(
         event, context(event.cwd, env), cfg["events"][event.phase], summary, int(time.time() * 1000)
     )
