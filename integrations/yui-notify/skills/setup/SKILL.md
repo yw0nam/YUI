@@ -63,7 +63,7 @@ Done when: the probe prints `ok: YUI is listening at <url>`. On any other line, 
 ## 3. Choose the delivery classes
 
 Ask two questions, one for `done` and one for `needs_input`. Offer `urgent`, `batched`, and
-`drop`, with the defaults `batched` for `done` and `urgent` for `needs_input`. Give one
+`drop`, with the default `urgent` for both `done` and `needs_input`. Give one
 line on each choice, from the delivery-class table in
 https://github.com/yw0nam/YUI/blob/main/docs/guide/signals-producer.md.
 
@@ -88,7 +88,7 @@ values chosen in steps 2 and 3:
 ```json
 {
   "endpoint": "http://127.0.0.1:8770",
-  "events": { "done": "batched", "needs_input": "urgent" }
+  "events": { "done": "urgent", "needs_input": "urgent" }
 }
 ```
 

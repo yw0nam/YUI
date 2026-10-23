@@ -30,7 +30,7 @@ line are in the [plugin README](../../integrations/yui-notify/README.md).
 
 | Agent | Hook | `event_type` | Default delivery class |
 |---|---|---|---|
-| Claude Code, Codex | `Stop` | `agent.done` | `batched` |
+| Claude Code, Codex | `Stop` | `agent.done` | `urgent` |
 | Claude Code, Codex | `PermissionRequest` | `agent.needs_input` | `urgent` |
 | Claude Code | `Notification` (`elicitation_dialog`, `elicitation_url_dialog`) | `agent.needs_input` | `urgent` |
 

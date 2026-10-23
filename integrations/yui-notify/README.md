@@ -38,7 +38,7 @@ is loopback-only, and its port defaults to `8770`.
 
 | Agent | Hook | `event_type` | Default delivery class |
 |---|---|---|---|
-| Claude Code, Codex | `Stop` | `agent.done` | `batched` |
+| Claude Code, Codex | `Stop` | `agent.done` | `urgent` |
 | Claude Code, Codex | `PermissionRequest` | `agent.needs_input` | `urgent` |
 | Claude Code | `Notification` (`elicitation_dialog`, `elicitation_url_dialog`) | `agent.needs_input` | `urgent` |
 
@@ -60,8 +60,8 @@ The delivery classes and the envelope fields are in the
 ## What it does not send
 
 - A Claude Code `Stop` while any `background_tasks` entry has status `running`.
-- A `Stop` of a headless `claude -p` run: the process exits before the `async` hook finishes, so
-  no `agent.done` is sent.
+- A `Stop` of a headless or delegated run: Claude Code with an SDK entrypoint (`claude -p`),
+  and a Codex session whose source is not `cli` or `vscode` (`codex exec`, a subagent).
 - The `idle_prompt` and `permission_prompt` notifications: they repeat `Stop` and
   `PermissionRequest`.
 - A Codex `Notification`: Codex has no such event, so an MCP elicitation prompt in Codex
@@ -76,7 +76,7 @@ The delivery classes and the envelope fields are in the
 | Key | Value | Default |
 |---|---|---|
 | `endpoint` | `http://127.0.0.1:<port>`, optionally followed by `/presets/<id>`; no trailing `/signals` | `http://127.0.0.1:8770` |
-| `events.done` | `urgent`, `batched`, or `drop` | `batched` |
+| `events.done` | `urgent`, `batched`, or `drop` | `urgent` |
 | `events.needs_input` | `urgent`, `batched`, or `drop` | `urgent` |
 
 A missing file, an unreadable file, or an invalid value falls back to its default. A value
@@ -85,7 +85,7 @@ outside the three delivery classes takes that event's default.
 ```json
 {
   "endpoint": "http://127.0.0.1:8770/presets/aaaa0001",
-  "events": { "done": "batched", "needs_input": "urgent" }
+  "events": { "done": "urgent", "needs_input": "urgent" }
 }
 ```
 

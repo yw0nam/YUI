@@ -9,7 +9,7 @@ from typing import Any
 CLASSES = ("urgent", "batched", "drop")
 DEFAULTS = {
     "endpoint": "http://127.0.0.1:8770",
-    "events": {"done": "batched", "needs_input": "urgent"},
+    "events": {"done": "urgent", "needs_input": "urgent"},
 }
 
 
