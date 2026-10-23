@@ -22,6 +22,7 @@ describe("resolveStorageKey", () => {
     ["yui.filler", "yui.ab12cd34.filler"],
     ["yui.camera", "yui.ab12cd34.camera"],
     ["yui.relations", "yui.ab12cd34.relations"],
+    ["yui.greeting-pending", "yui.ab12cd34.greeting-pending"],
   ])("prefixes the per-preset key %s with the active preset id", (key, expected) => {
     expect(resolveStorageKey(key, "ab12cd34")).toBe(expected);
   });

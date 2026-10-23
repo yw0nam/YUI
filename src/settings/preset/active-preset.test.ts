@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  parsePresetState,
   presetIdForWindow,
   presetNameFor,
   readPresetName,
@@ -45,6 +46,26 @@ describe("presetNameFor", () => {
     ["returns the id when the bound id is missing from the list", "cccc0003", "cccc0003"],
   ])("%s", (_name, boundId, expected) => {
     expect(presetNameFor(state, boundId)).toBe(expected);
+  });
+});
+
+describe("parsePresetState", () => {
+  it("keeps a string thumbnail on the entry and drops any other value", () => {
+    expect(
+      parsePresetState({
+        active: "aaaa0001",
+        list: [
+          { id: "aaaa0001", name: "Alpha", thumbnail: "asset://x/a.png" },
+          { id: "bbbb0002", name: "Beta", thumbnail: 42 },
+        ],
+      }),
+    ).toEqual({
+      active: "aaaa0001",
+      list: [
+        { id: "aaaa0001", name: "Alpha", thumbnail: "asset://x/a.png" },
+        { id: "bbbb0002", name: "Beta" },
+      ],
+    });
   });
 });
 

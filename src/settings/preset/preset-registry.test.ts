@@ -201,6 +201,48 @@ describe("createPresetRegistry", () => {
       { id: "bbbb0002", name: "perlica" },
     ]);
   });
+
+  it("setThumbnail stores the URL on the entry and refuses an unknown id", () => {
+    seedPresets("default", [
+      { id: "default", name: "default" },
+      { id: "aaaa0001", name: "natsume" },
+    ]);
+    const registry = createPresetRegistry();
+
+    expect(registry.setThumbnail("aaaa0001", "asset://x/a.png")).toBe(true);
+    expect(registry.get().list.find((e) => e.id === "aaaa0001")?.thumbnail).toBe(
+      "asset://x/a.png",
+    );
+    expect(registry.setThumbnail("bbbb0002", "asset://x/b.png")).toBe(false);
+  });
+
+  it("rename carries the thumbnail", () => {
+    seedPresets("default", [
+      { id: "default", name: "default" },
+      { id: "aaaa0001", name: "natsume" },
+    ]);
+    const registry = createPresetRegistry();
+    registry.setThumbnail("aaaa0001", "asset://x/a.png");
+
+    expect(registry.rename("aaaa0001", "mio")).toBe(true);
+    expect(registry.get().list.find((e) => e.id === "aaaa0001")).toEqual({
+      id: "aaaa0001",
+      name: "mio",
+      thumbnail: "asset://x/a.png",
+    });
+  });
+
+  it("remove deletes the preset's pending greeting key", () => {
+    seedPresets("default", [
+      { id: "default", name: "default" },
+      { id: "aaaa0001", name: "natsume" },
+    ]);
+    map.set("yui.aaaa0001.greeting-pending", "1");
+    const registry = createPresetRegistry();
+
+    expect(registry.remove("aaaa0001")).toBe(true);
+    expect(map.has("yui.aaaa0001.greeting-pending")).toBe(false);
+  });
 });
 
 it.each([
