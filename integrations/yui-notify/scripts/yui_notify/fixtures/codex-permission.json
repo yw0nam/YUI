@@ -1,0 +1,11 @@
+{
+  "session_id": "019a1f2e-7c4b-7d30-9b1e-3f5a8c2d4e61",
+  "turn_id": "019a1f2f-0a12-7e44-8c3d-5b6e7f8a9b0c",
+  "transcript_path": "/Users/dev/.codex/sessions/2026/10/23/rollout-2026-10-23T15-49-00-019a1f2e-7c4b-7d30-9b1e-3f5a8c2d4e61.jsonl",
+  "cwd": "/Users/dev/projects/demo",
+  "hook_event_name": "PermissionRequest",
+  "model": "gpt-6.1-sol",
+  "permission_mode": "default",
+  "tool_name": "Bash",
+  "tool_input": {"command": "rm -rf build"}
+}

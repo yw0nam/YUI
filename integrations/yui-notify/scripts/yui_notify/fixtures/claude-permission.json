@@ -1,0 +1,30 @@
+{
+  "session_id": "bc68d697-4e8f-4be0-8ea6-e67f955b2586",
+  "transcript_path": "/Users/dev/.claude/projects/-Users-dev-projects-demo/bc68d697-4e8f-4be0-8ea6-e67f955b2586.jsonl",
+  "cwd": "/Users/dev/projects/demo",
+  "prompt_id": "1ff4e1d3-ac30-4fde-9a19-c0c0009d09ad",
+  "permission_mode": "default",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PermissionRequest",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "touch /Users/dev/projects/demo/hello.txt",
+    "description": "Create hello.txt file via touch"
+  },
+  "permission_suggestions": [
+    {
+      "type": "addDirectories",
+      "directories": [
+        "/Users/dev/projects/demo"
+      ],
+      "destination": "session"
+    },
+    {
+      "type": "setMode",
+      "mode": "acceptEdits",
+      "destination": "session"
+    }
+  ]
+}

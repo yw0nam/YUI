@@ -1,0 +1,15 @@
+{
+  "session_id": "bc68d697-4e8f-4be0-8ea6-e67f955b2586",
+  "transcript_path": "/Users/dev/.claude/projects/-Users-dev-projects-demo/bc68d697-4e8f-4be0-8ea6-e67f955b2586.jsonl",
+  "cwd": "/Users/dev/projects/demo",
+  "prompt_id": "1ff4e1d3-ac30-4fde-9a19-c0c0009d09ad",
+  "permission_mode": "default",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "Stop",
+  "stop_hook_active": false,
+  "last_assistant_message": "I couldn't create the file. The Bash `touch` was blocked because Claude Code asks for approval before a shell command creates files in this working directory, and this session can't show that prompt. The file `hello.txt` does not exist yet.\n\nTo finish, approve the `touch` command when it prompts, or allow Bash writes to this directory, then I can run it again. I didn't use another tool to create the file, since you asked for Bash specifically and the approval gate is there for a reason.",
+  "background_tasks": [],
+  "session_crons": []
+}

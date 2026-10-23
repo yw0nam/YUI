@@ -1,0 +1,23 @@
+{
+  "session_id": "c589b2f6-ae27-4c9b-b6e5-0e9395fd95ae",
+  "transcript_path": "/Users/dev/.claude/projects/-Users-dev-projects-demo/c589b2f6-ae27-4c9b-b6e5-0e9395fd95ae.jsonl",
+  "cwd": "/Users/dev/projects/demo",
+  "prompt_id": "7205b098-c8b0-49ac-95fc-a2f43c138bf8",
+  "permission_mode": "default",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "Stop",
+  "stop_hook_active": false,
+  "last_assistant_message": "started.",
+  "background_tasks": [
+    {
+      "id": "b1q0na5un",
+      "type": "shell",
+      "status": "running",
+      "description": "Sleep 40 seconds in background",
+      "command": "sleep 40"
+    }
+  ],
+  "session_crons": []
+}

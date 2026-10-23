@@ -1,0 +1,8 @@
+{
+  "session_id": "bc68d697-4e8f-4be0-8ea6-e67f955b2586",
+  "transcript_path": "/Users/dev/.claude/projects/-Users-dev-projects-demo/bc68d697-4e8f-4be0-8ea6-e67f955b2586.jsonl",
+  "cwd": "/Users/dev/projects/demo",
+  "hook_event_name": "Notification",
+  "message": "The github MCP server is asking for your input",
+  "notification_type": "elicitation_dialog"
+}
