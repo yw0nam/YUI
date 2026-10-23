@@ -12,7 +12,7 @@ import { exportCardToFile, sanitizeFileStem } from "./card-export";
 function makeDeps(over: Partial<CardExportDeps> = {}): CardExportDeps {
   return {
     saveDialog: vi.fn(async () => "/Users/me/Desktop/Mio.json"),
-    invoke: vi.fn(async () => undefined),
+    invoke: vi.fn(async () => undefined) as unknown as CardExportDeps["invoke"],
     ...over,
   };
 }
@@ -35,12 +35,10 @@ describe("exportCardToFile", () => {
 
   it("writes the card text to the picked path", async () => {
     const deps = makeDeps();
-    await expect(exportCardToFile("{\"name\":\"Mio\"}", "Mio.json", deps)).resolves.toBe(
-      "written",
-    );
+    await expect(exportCardToFile('{"name":"Mio"}', "Mio.json", deps)).resolves.toBe("written");
     expect(deps.invoke).toHaveBeenCalledWith("write_card_file", {
       destPath: "/Users/me/Desktop/Mio.json",
-      text: "{\"name\":\"Mio\"}",
+      text: '{"name":"Mio"}',
     });
   });
 });

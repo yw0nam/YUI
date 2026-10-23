@@ -4,7 +4,7 @@
  * API out of non-Tauri/test envs, and the orphan cleanup a failed import runs.
  */
 
-import type { OpenDialogOptions } from "@tauri-apps/plugin-dialog";
+import type { OpenDialogOptions, SaveDialogOptions } from "@tauri-apps/plugin-dialog";
 
 /** Dialog open result shape (path string, array, or {path} per plugin version). */
 export type OpenResult = string | string[] | { path: string } | null;
@@ -25,6 +25,15 @@ export function pickedPath(result: OpenResult): string | null {
 export async function loadOpenDialog(): Promise<(opts: OpenDialogOptions) => Promise<OpenResult>> {
   const { open } = await import("@tauri-apps/plugin-dialog");
   return (opts) => open(opts) as Promise<OpenResult>;
+}
+
+/** Dialog save result shape (a picked path, or null when dismissed). */
+export type SaveResult = string | null;
+
+/** Lazily imported `@tauri-apps/plugin-dialog` save, narrowed to SaveResult. */
+export async function loadSaveDialog(): Promise<(opts: SaveDialogOptions) => Promise<SaveResult>> {
+  const { save } = await import("@tauri-apps/plugin-dialog");
+  return (opts) => save(opts) as Promise<SaveResult>;
 }
 
 /** Lazily imported `@tauri-apps/api/core` invoke. */

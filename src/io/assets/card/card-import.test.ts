@@ -20,10 +20,17 @@ const V2_JSON = JSON.stringify({
 function makeDeps(over: Partial<CardImportDeps> = {}): CardImportDeps {
   return {
     openDialog: vi.fn(async () => "/Users/me/Downloads/mio.png"),
-    invoke: vi.fn(async () => ({ json: V2_JSON, thumbnailTempId: "mio-1a2b3c" })),
+    invoke: vi.fn(async () => ({
+      json: V2_JSON,
+      thumbnailTempId: "mio-1a2b3c",
+    })) as unknown as CardImportDeps["invoke"],
     removeThumbnail: vi.fn(async () => {}),
     ...over,
   };
+}
+
+function invokeReturning(json: string, thumbnailTempId: string | null): CardImportDeps["invoke"] {
+  return vi.fn(async () => ({ json, thumbnailTempId })) as unknown as CardImportDeps["invoke"];
 }
 
 describe("importCardFromFile", () => {
@@ -46,7 +53,7 @@ describe("importCardFromFile", () => {
   it("reads a JSON card with no temp thumbnail", async () => {
     const deps = makeDeps({
       openDialog: vi.fn(async () => "/Users/me/Downloads/mio.json"),
-      invoke: vi.fn(async () => ({ json: V2_JSON, thumbnailTempId: null })),
+      invoke: invokeReturning(V2_JSON, null),
     });
     await expect(importCardFromFile(deps)).resolves.toEqual({
       card: expect.objectContaining({ name: "Mio", description: "picked card" }),
@@ -68,7 +75,7 @@ describe("importCardFromFile", () => {
     ["unparsable JSON", "not json"],
     ["an unknown spec", JSON.stringify({ spec: "chara_card_v9", data: {} })],
   ])("rolls the temp thumbnail back and throws card_unreadable on %s", async (_label, json) => {
-    const deps = makeDeps({ invoke: vi.fn(async () => ({ json, thumbnailTempId: "mio-1a2b3c" })) });
+    const deps = makeDeps({ invoke: invokeReturning(json, "mio-1a2b3c") });
     await expect(importCardFromFile(deps)).rejects.toThrow("card_unreadable");
     expect(deps.removeThumbnail).toHaveBeenCalledWith("mio-1a2b3c");
   });

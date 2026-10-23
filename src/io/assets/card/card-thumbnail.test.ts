@@ -11,8 +11,10 @@ import { removeCardThumbnail, retainCardThumbnail } from "./card-thumbnail";
 
 function makeDeps(over: Partial<CardThumbnailDeps> = {}): CardThumbnailDeps {
   return {
-    invoke: vi.fn(async () => "/app-data/cards/abcd1234.png"),
-    convertFileSrc: vi.fn((path: string) => `asset://localhost/${encodeURI(path)}`),
+    invoke: vi.fn(
+      async () => "/app-data/cards/abcd1234.png",
+    ) as unknown as CardThumbnailDeps["invoke"],
+    convertFileSrc: vi.fn((path: string) => `asset://localhost${path}`),
     ...over,
   };
 }
