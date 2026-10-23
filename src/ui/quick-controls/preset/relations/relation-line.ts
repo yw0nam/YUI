@@ -10,10 +10,9 @@ export function relationLineEl(view: RelationsView, isOpen: (id: string) => bool
   line.className = "yui-preset__rel";
   line.setAttribute("role", "group");
   line.setAttribute("aria-label", t("relation.group", { name: view.nameOf(view.self) }));
-  const own = view.relations[view.self] ?? {};
+  const own = view.own;
   // "you" first when rated, then the rated targets by value, close first; ties keep registry order.
-  const targets = view
-    .targetsOf(view.self)
+  const targets = view.targets
     .filter((id) => own[id])
     .sort((a, b) => (a === "user" ? -1 : b === "user" ? 1 : own[b]!.value - own[a]!.value));
   if (targets.length === 0) {
@@ -33,7 +32,7 @@ export function relationLineEl(view: RelationsView, isOpen: (id: string) => bool
       subject: view.self,
       target,
       band,
-      label: view.label(view.self, target, band),
+      label: view.label(target, band),
       name: view.nameOf(target),
     });
     if (folds(target)) {

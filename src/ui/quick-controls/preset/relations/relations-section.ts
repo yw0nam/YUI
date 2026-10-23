@@ -33,13 +33,12 @@ export function createPresetRelations(deps: {
       id === "user" ? t("relation.to_you") : (presets.find((p) => p.id === id)?.name ?? id);
     return {
       self,
-      presets,
-      relations: { [self]: deps.store.all() },
-      targetsOf: (subject) => ["user", ...presets.map((p) => p.id).filter((id) => id !== subject)],
+      own: deps.store.all(),
+      targets: ["user", ...presets.map((p) => p.id).filter((id) => id !== self)],
       nameOf,
-      label: (subject, target, band: RelationBand) =>
+      label: (target, band: RelationBand) =>
         t("relation.card_head", {
-          subject: nameOf(subject),
+          subject: nameOf(self),
           band: t(`relation.band.${band}`),
           target: nameOf(target),
         }),
@@ -48,7 +47,7 @@ export function createPresetRelations(deps: {
 
   const card = createReasonsCard({
     strip: deps.strip,
-    recordOf: (subject, target) => view?.relations[subject]?.[target],
+    recordOf: (subject, target) => (subject === self ? view?.own[target] : undefined),
     nameOf: (id) => view?.nameOf(id) ?? id,
   });
 
