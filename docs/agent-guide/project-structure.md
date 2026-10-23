@@ -605,9 +605,9 @@ YUI/
           preset-scope.ts            # Scope line text: the preset a tab edits, or that its settings are shared
           preset.css                 # Strip, manage popover, scope line, relation line, and reasons card styles
           relations/                 # The relation line under the preset row, and the reasons card
-            relations-section.ts     # Composes the two, re-renders on a write or a storage event, and moves the changed relations
+            relations-section.ts     # Composes the two, re-renders on the store's notifications, and moves the changed relations
             relation-glyph.ts        # The five-step glyph and its band motion, the relation chip, the direction mark, and the age text
-            relation-line.ts         # This preset's relation toward each rated target
+            relation-line.ts         # This preset's relation toward each rated target, sorted by strength, the closed presets folded into a +N chip
             reasons-card.ts          # The band, the engine's note, and the last three reasons of a hovered or focused relation
             view.ts                  # What the two read: this preset's relations as stored now
         history/                     # History tab and its session accordion section
