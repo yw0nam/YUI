@@ -10,12 +10,10 @@ from yui_notify.adapters import parse_event
 from yui_notify.envelope import build_signal
 from yui_notify.label import context
 from yui_notify.post import post
-from yui_notify.summary import summarize
+from yui_notify.summary import excerpt
 
 
 def run_hook(env: Mapping[str, str], stdin: TextIO) -> None:
-    if env.get("YUI_NOTIFY_CHILD") == "1":
-        return
     try:
         event = parse_event(json.load(stdin), env)
     except ValueError:
@@ -23,7 +21,7 @@ def run_hook(env: Mapping[str, str], stdin: TextIO) -> None:
     cfg = config.load(env)
     if event is None or cfg["events"][event.phase] == "drop":
         return
-    summary = summarize(event.text, event.agent, cfg["summary"]) if event.phase == "done" else ""
+    summary = excerpt(event.text) if event.phase == "done" else ""
     body = build_signal(
         event, context(event.cwd, env), cfg["events"][event.phase], summary, int(time.time() * 1000)
     )

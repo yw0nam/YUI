@@ -47,7 +47,7 @@ def server():
 
 def run_hook(tmp_path, endpoint, fixture, config=None, extra_env=None):
     (tmp_path / "cfg" / "yui-notify").mkdir(parents=True, exist_ok=True)
-    cfg = {"endpoint": endpoint, "summary": None}
+    cfg = {"endpoint": endpoint}
     cfg.update(config or {})
     (tmp_path / "cfg" / "yui-notify" / "config.json").write_text(json.dumps(cfg))
     env = {
@@ -110,12 +110,6 @@ def test_hook_posts_signal(tmp_path, server, fixture, event_type, delivery, even
 def test_drop_posts_nothing(tmp_path, server):
     endpoint, received = server
     run_hook(tmp_path, endpoint, "claude-stop.json", {"events": {"done": "drop"}})
-    assert received == []
-
-
-def test_child_posts_nothing(tmp_path, server):
-    endpoint, received = server
-    run_hook(tmp_path, endpoint, "claude-stop.json", extra_env={"YUI_NOTIFY_CHILD": "1"})
     assert received == []
 
 

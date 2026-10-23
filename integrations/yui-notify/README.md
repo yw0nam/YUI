@@ -50,6 +50,9 @@ Every signal POSTs to `<endpoint>/signals` with:
 - item fields: `project`, `branch`, `host`, `tmux`, and `summary` for `agent.done` or
   `pending` for `agent.needs_input`
 
+The `summary` of a `done` item is the last assistant message as it is up to 700
+characters; a longer message keeps its first 200 and last 500 characters.
+
 The delivery classes and the envelope fields are in the
 [signals ingress reference](../../docs/reference/signals-ingress.md) and the
 [producer guide](../../docs/guide/signals-producer.md).
@@ -64,8 +67,6 @@ The delivery classes and the envelope fields are in the
 - A Codex `Notification`: Codex has no such event, so an MCP elicitation prompt in Codex
   posts nothing.
 - An event whose delivery class in the configuration is `drop`.
-- The nested `claude -p` or `codex exec` call that writes a summary: it runs with the agent's
-  hooks disabled for that run, and every hook exits at once under `YUI_NOTIFY_CHILD=1`.
 
 ## Configuration
 
@@ -77,12 +78,6 @@ The delivery classes and the envelope fields are in the
 | `endpoint` | `http://127.0.0.1:<port>`, optionally followed by `/presets/<id>`; no trailing `/signals` | `http://127.0.0.1:8770` |
 | `events.done` | `urgent`, `batched`, or `drop` | `batched` |
 | `events.needs_input` | `urgent`, `batched`, or `drop` | `urgent` |
-| `summary` | Per agent, a model id or `null`; an object turns the one-sentence summary on for the agents it names | `null` |
-
-A message of at most 1500 characters is sent as it is; a longer one is summarised by the
-agent's own CLI with every hook disabled for that run. Without a summary model the item
-carries the first and last 740 characters of the message, so a summary costs no model
-usage when off.
 
 A missing file, an unreadable file, or an invalid value falls back to its default. A value
 outside the three delivery classes takes that event's default.
@@ -90,13 +85,9 @@ outside the three delivery classes takes that event's default.
 ```json
 {
   "endpoint": "http://127.0.0.1:8770/presets/aaaa0001",
-  "events": { "done": "batched", "needs_input": "urgent" },
-  "summary": null
+  "events": { "done": "batched", "needs_input": "urgent" }
 }
 ```
-
-An object turns the one-sentence summary on per agent, e.g.
-`"summary": { "claude-code": "claude-haiku-5-5", "codex": "gpt-6-luna" }`.
 
 ## Files
 
@@ -129,9 +120,6 @@ its cause.
 - `python3` 3.9 or later for the hook process.
 - Claude Code or Codex with plugin support.
 - YUI running with External signals on.
-- The `claude` and `codex` CLIs are optional. With a `summary` model for the agent, its CLI
-  writes the one-sentence summary of a long message; without it, the item carries the
-  message's first and last 740 characters.
 
 ## Developing
 

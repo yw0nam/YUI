@@ -7,11 +7,9 @@ from datetime import datetime, timezone
 from typing import Any
 
 CLASSES = ("urgent", "batched", "drop")
-SUMMARY_AGENTS = ("claude-code", "codex")
 DEFAULTS = {
     "endpoint": "http://127.0.0.1:8770",
     "events": {"done": "batched", "needs_input": "urgent"},
-    "summary": None,
 }
 
 
@@ -30,14 +28,6 @@ def load(env: Mapping[str, str]) -> dict:
         return cfg
     if isinstance(data.get("endpoint"), str):
         cfg["endpoint"] = data["endpoint"].rstrip("/")
-    # summaries are opt-in; only an object turns a per-agent model on
-    summary = data.get("summary")
-    if isinstance(summary, dict):
-        models = {}
-        for agent in SUMMARY_AGENTS:
-            model = summary.get(agent)
-            models[agent] = model if isinstance(model, str) else None
-        cfg["summary"] = models
     events = data.get("events")
     for phase in cfg["events"]:
         if isinstance(events, dict) and events.get(phase) in CLASSES:

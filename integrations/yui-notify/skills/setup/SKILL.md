@@ -67,13 +67,8 @@ Ask two questions, one for `done` and one for `needs_input`. Offer `urgent`, `ba
 line on each choice, from the delivery-class table in
 https://github.com/yw0nam/YUI/blob/main/docs/guide/signals-producer.md.
 
-For each agent the user runs, ask whether to turn on a one-sentence model summary of the
-finished work — suggest `claude-haiku-5-5` for Claude Code and `gpt-6-luna` for Codex, or
-take another model id — or keep the excerpt: the default sends no model call, and a long
-message keeps its first and last 740 characters.
-
-Done when: the user has chosen a delivery class for `done`, a delivery class for
-`needs_input`, and a summary model or the excerpt for each agent the user runs.
+Done when: the user has chosen a delivery class for `done` and a delivery class for
+`needs_input`.
 
 ## 4. Wire the agents
 
@@ -93,18 +88,15 @@ values chosen in steps 2 and 3:
 ```json
 {
   "endpoint": "http://127.0.0.1:8770",
-  "events": { "done": "batched", "needs_input": "urgent" },
-  "summary": null
+  "events": { "done": "batched", "needs_input": "urgent" }
 }
 ```
 
 `endpoint` is the URL from step 2 with no trailing `/signals`. A preset URL keeps its
-`/presets/<id>` prefix. `summary` is `null` by default: a long message then keeps its
-first and last 740 characters. An object turns the one-sentence summary on per agent,
-e.g. `"summary": { "claude-code": "claude-haiku-5-5", "codex": "gpt-6-luna" }`.
+`/presets/<id>` prefix.
 
-Done when: the file parses as JSON and holds `endpoint`, `events.done`,
-`events.needs_input`, and `summary`.
+Done when: the file parses as JSON and holds `endpoint`, `events.done`, and
+`events.needs_input`.
 
 ## 6. Run a round trip
 
