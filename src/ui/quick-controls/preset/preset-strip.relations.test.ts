@@ -109,8 +109,8 @@ describe("preset strip — relations", () => {
 
     expect(relations(".yui-preset__rel").map((s) => s.target)).toEqual([
       "user",
-      "aaaa0001",
       "bbbb0002",
+      "aaaa0001",
     ]);
   });
 

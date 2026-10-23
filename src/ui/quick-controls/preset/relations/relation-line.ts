@@ -11,7 +11,11 @@ export function relationLineEl(view: RelationsView): HTMLElement {
   line.setAttribute("role", "group");
   line.setAttribute("aria-label", t("relation.group", { name: view.nameOf(view.self) }));
   const own = view.relations[view.self] ?? {};
-  const targets = view.targetsOf(view.self).filter((id) => own[id]);
+  // "you" first when rated, then the rated targets by value, close first; ties keep registry order.
+  const targets = view
+    .targetsOf(view.self)
+    .filter((id) => own[id])
+    .sort((a, b) => (a === "user" ? -1 : b === "user" ? 1 : own[b]!.value - own[a]!.value));
   line.hidden =
     targets.length === 0 &&
     !Object.values(view.relations).some((rel) => Object.keys(rel).length > 0);
