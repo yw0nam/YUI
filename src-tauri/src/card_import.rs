@@ -14,7 +14,7 @@ use serde::Serialize;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use tauri::{command, AppHandle};
-use tauri_plugin_fs::FilePath;
+use tauri_plugin_dialog::DialogExt;
 
 /// Max accepted source size for a card JSON.
 const MAX_JSON_BYTES: u64 = 16 * 1024 * 1024;
@@ -89,8 +89,8 @@ fn read_bounded(source: &mut std::fs::File, cap: u64) -> Result<Vec<u8>, String>
     source
         .take(cap.saturating_add(1))
         .read_to_end(&mut buf)
-        .map_err(|_| {
-            log::warn!("card_source_read_failed");
+        .map_err(|e| {
+            log::warn!("card_source_read_failed error={e}");
             "source file not found".to_string()
         })?;
     if buf.len() as u64 > cap {
@@ -151,10 +151,19 @@ fn cards_dir(app: &AppHandle) -> Result<PathBuf, String> {
     app_data_subdir(app, "cards")
 }
 
-/// Read a user-picked card file (`.json`, or `.png` with its card JSON in a tEXt chunk),
-/// copying a PNG source into `cards/` under a temp id for the preset thumbnail.
+/// Open the card picker here and read the picked file (`.json`, or `.png` with its card
+/// JSON in a tEXt chunk), copying a PNG source into `cards/` under a temp id for the
+/// preset thumbnail. `None` when the picker is dismissed.
 #[command]
-pub async fn import_card_file(app: AppHandle, src_path: FilePath) -> Result<ImportedCardFile, String> {
+pub async fn import_card_file(app: AppHandle) -> Result<Option<ImportedCardFile>, String> {
+    let Some(src_path) = app
+        .dialog()
+        .file()
+        .add_filter("Card", &["json", "png"])
+        .blocking_pick_file()
+    else {
+        return Ok(None);
+    };
     let cards = cards_dir(&app)?;
     open_and_import(app, src_path, move |name, identity, mut source| {
         let name = Path::new(name.as_deref().unwrap_or(""));
@@ -186,6 +195,7 @@ pub async fn import_card_file(app: AppHandle, src_path: FilePath) -> Result<Impo
         }
     })
     .await
+    .map(Some)
 }
 
 /// Move a PNG card's temp thumbnail to the importing preset's id, returning the dest path.
@@ -200,9 +210,19 @@ pub fn remove_card_thumbnail(app: AppHandle, id: String) -> Result<(), String> {
     remove_thumbnail_at(&cards_dir(&app)?, &id)
 }
 
-/// Write an exported card file to the save dialog's picked path.
+/// Open the save dialog here and write the exported card to the picked path. `false`
+/// when the dialog is dismissed.
 #[command]
-pub fn write_card_file(dest_path: FilePath, text: String) -> Result<(), String> {
+pub async fn export_card_file(app: AppHandle, default_name: String, text: String) -> Result<bool, String> {
+    let Some(dest_path) = app
+        .dialog()
+        .file()
+        .set_file_name(&default_name)
+        .add_filter("Card", &["json"])
+        .blocking_save_file()
+    else {
+        return Ok(false);
+    };
     let dest = dest_path.into_path().map_err(|e| {
         log::error!("card_dest_unavailable error={e}");
         "destination unavailable".to_string()
@@ -213,7 +233,8 @@ pub fn write_card_file(dest_path: FilePath, text: String) -> Result<(), String> 
     std::fs::write(&dest, text).map_err(|e| {
         log::error!("card_write_failed dest={} error={e}", dest.display());
         "card write failed".to_string()
-    })
+    })?;
+    Ok(true)
 }
 
 #[cfg(test)]

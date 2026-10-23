@@ -1,25 +1,16 @@
 /**
- * Tavern card export — OS save dialog → native write. Deps are injectable so tests
- * never touch a real Tauri runtime; the real Tauri APIs are lazily imported.
+ * Tavern card export — the Rust `export_card_file` command, which opens the OS save
+ * dialog and writes the file itself. Deps are injectable so tests never touch a real
+ * Tauri runtime; the real Tauri API is lazily imported.
  */
 
-import { type InvokeFn, loadInvoke, loadSaveDialog } from "../user-asset-import";
+import { type InvokeFn, loadInvoke } from "../user-asset-import";
 
 export type CardExportResult = "written" | "cancelled";
 
 export interface CardExportDeps {
-  /** `@tauri-apps/plugin-dialog` save; resolves the picked path or null. */
-  saveDialog(opts: {
-    defaultPath: string;
-    filters: Array<{ name: string; extensions: string[] }>;
-  }): Promise<string | null>;
   /** `@tauri-apps/api/core` invoke. */
   invoke: InvokeFn;
-}
-
-async function defaultDeps(): Promise<CardExportDeps> {
-  const [saveDialog, invoke] = await Promise.all([loadSaveDialog(), loadInvoke()]);
-  return { saveDialog, invoke };
 }
 
 /** Path separators and control characters, the only characters a file stem may not carry. */
@@ -31,18 +22,16 @@ export function sanitizeFileStem(name: string): string {
   return name.replace(UNSAFE_FILE_CHARS, "_").trim() || "card";
 }
 
-/** Save the card JSON through the OS save dialog and write it natively. */
+/** Save the card JSON through the OS save dialog the command opens natively. */
 export async function exportCardToFile(
   text: string,
   fileName: string,
   deps?: CardExportDeps,
 ): Promise<CardExportResult> {
-  const d = deps ?? (await defaultDeps());
-  const destPath = await d.saveDialog({
-    defaultPath: fileName,
-    filters: [{ name: "Card", extensions: ["json"] }],
+  const d = deps ?? { invoke: await loadInvoke() };
+  const written = await d.invoke<boolean>("export_card_file", {
+    defaultName: fileName,
+    text,
   });
-  if (destPath === null || destPath === "") return "cancelled";
-  await d.invoke("write_card_file", { destPath, text });
-  return "written";
+  return written ? "written" : "cancelled";
 }
