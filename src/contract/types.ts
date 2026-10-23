@@ -238,6 +238,8 @@ export type SignalEnvelope = {
   delivery: "immediate" | "batched" | "urgent";
   event_id: string;
   occurred_at: number;
+  /** producer's one-line origin, at most 120 code points; rendered by the UI, not sent in client_context. */
+  label?: string;
 };
 
 export type SignalGroup = { envelope: SignalEnvelope; items: SignalItem[] };

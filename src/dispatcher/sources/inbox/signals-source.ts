@@ -21,6 +21,7 @@ import { createBufferedInboxSource, type InboxFiring } from "./buffered-inbox-so
 const log = createLogger("signals-source");
 
 const BUFFER_CAP = 5;
+const LABEL_MAX = 120;
 const BATCH_INTERVAL_MS = 5 * 60_000;
 
 interface SignalsSourceDeps {
@@ -62,6 +63,7 @@ function validEnvelope(value: unknown): value is SignalEnvelope {
     (envelope.delivery === "immediate" ||
       envelope.delivery === "batched" ||
       envelope.delivery === "urgent") &&
+    (envelope.label === undefined || typeof envelope.label === "string") &&
     typeof envelope.event_id === "string" &&
     envelope.event_id.length > 0 &&
     typeof envelope.occurred_at === "number" &&
@@ -95,6 +97,11 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
   }
 
   function appendCapped(buffer: BufferedGroup[], group: SignalGroup): void {
+    const same = buffer.find((entry) => entry.group.envelope.event_id === group.envelope.event_id);
+    if (same) {
+      same.group = group;
+      return;
+    }
     buffer.push({ sequence: nextSequence++, group });
     if (buffer.length > BUFFER_CAP) buffer.shift();
   }
@@ -109,7 +116,12 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
       log.warn("envelope_invalid", { dropped_items: raw.signals.length });
       return undefined;
     }
-    return { group: { envelope, items: raw.signals }, delivery: envelope.delivery };
+    const { label } = envelope;
+    const cut =
+      label !== undefined && [...label].length > LABEL_MAX
+        ? { ...envelope, label: `${[...label].slice(0, LABEL_MAX - 1).join("")}…` }
+        : envelope;
+    return { group: { envelope: cut, items: raw.signals }, delivery: envelope.delivery };
   }
 
   // One inbox subscription feeds both cores: each arrival is parsed once, then routed by
@@ -234,8 +246,9 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
   });
 
   async function start(): Promise<void> {
-    await core.start();
+    // Urgent first: equal-priority catch-ups fire in subscription order.
     await urgentCore.start();
+    await core.start();
     armBatchTimer();
   }
 
