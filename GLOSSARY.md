@@ -7,7 +7,7 @@ Embodied desktop-pet frontend (the body) for the selected backend agent (the bra
 ### Split of responsibility
 
 **Body**:
-YUI itself — VRM rendering, sensing, I/O surfaces, and the persona text it sends on the request transports. Holds no judgment.
+YUI itself — VRM rendering, sensing, I/O surfaces, and the card it sends on the request transports. Holds no judgment.
 _Avoid_: head, client-side brain, frontend agent
 
 **Brain**:
@@ -108,8 +108,16 @@ A numeric or enum knob the client reads at boot (peek distances, jump gravity, g
 _Avoid_: default constant, fallback value, code-side default
 
 **Preset**:
-A named bundle of per-character client state: the backend connection and chat id, the TTS voice, the conversation history, the VRM selection, the camera zoom and orbit, and the filler phrases. One preset is active at a time; the built-in default preset keeps the unprefixed storage keys. Everything else is device-wide and shared by every preset.
+A named bundle of per-character client state: the backend connection and chat id, the card, the TTS voice, the conversation history, the VRM selection, the camera zoom and orbit, and the filler phrases. One preset is active at a time; the built-in default preset keeps the unprefixed storage keys. Everything else is device-wide and shared by every preset.
 _Avoid_: profile, character (for this bundle)
+
+**Card**:
+The persona text of a preset in Tavern Card V2 shape. Sent as the first system message on Chat Completions and as `instructions` on Responses. Never sent on push.
+_Avoid_: character card (as a YUI term), profile, persona file
+
+**Greeting**:
+The card's `first_mes` or one of its `alternate_greetings`, performed by the client after a session reset and recorded as an assistant entry.
+_Avoid_: first message, opener
 
 **Task space**:
 An ego lite tab workspace the `browser` tool works in, named `yui-<presetId>`: one per preset, so one per pet window. It outlives a call, the browser switch going off, the window, and the app. The user closes it in ego lite, and ego lite closes it after 30 idle minutes. ego lite's "YUI" browser profile is where those spaces run, and it is not a Preset.

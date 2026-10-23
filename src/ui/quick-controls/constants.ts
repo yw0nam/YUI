@@ -181,6 +181,9 @@ export const HERMES_AGENT = {
   url: "https://github.com/NousResearch/hermes-agent",
 } as const;
 
+// The cards guide the Card section's ? button opens. The settings window's opener grant names the same URL.
+export const CARD_GUIDE_URL = "https://yw0nam.github.io/YUI/guide/cards";
+
 // Chat provider presets (Connection tab, chat section) — selecting one autofills chat_base_url with the
 // provider's OpenAI-compatible path, the chat protocol, or both. Brand names are display-as-is,
 // never localized. "custom" is the no-autofill entry the dropdown falls back to when nothing matches.

@@ -48,9 +48,8 @@ import type { Turn } from "../turn/turn";
 import { backgroundMarker } from "./background-marker";
 import { renderClientContext } from "./client-context-text";
 import { buildContext, imageDataUrlsOf, userTextOf } from "./context-builder";
-import { withPendingOutputs } from "./pending-tool-outputs";
 import { createPushCall, type PushCallDeps } from "./push-call";
-import { encodeInput } from "./request-input";
+import { composeResponsesInput, encodeInput } from "./request-input";
 import { createReplySettler, type SettleDeps } from "./settle-reply";
 import { type AttemptResult, createStreamAttempt, type StreamAttemptDeps } from "./stream-attempt";
 import type { TurnErrorDetail, TurnOutcome } from "./turn-outcome";
@@ -125,8 +124,10 @@ interface BackendCallerDeps extends PushCallDeps, SettleDeps, StreamAttemptDeps 
   onResponseIdInvalid?: () => void;
   /** Chain-break UI notice sink — called once alongside onResponseIdInvalid so the user sees the context reset. */
   onChainReset?: () => void;
-  /** Current agent setting (reasoning effort + instructions override) snapshot. Reflected in request only when present. */
+  /** Current agent setting snapshot; its reasoning effort is reflected in the request when present. */
   getAgentSettings?: () => import("../../settings/backend/agent-settings").AgentSettings;
+  /** The assembled card for this turn; null sends config.chat_instructions alone. */
+  getCardText?: () => { system: string; postHistory: string } | null;
   /** Client-declared tool registry, resolved per turn so vocabulary edits land on the next call. */
   clientTools?: () => ClientToolRegistry | undefined;
   /** The user typed or spoke, so the push turns still outstanding are stopped with the speech. */
@@ -255,7 +256,9 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         );
       }
 
-      const input = encodeInput(ctx, env, clientContext, nowMs);
+      const isCC = deps.config.chat_api === "chat_completions";
+      const cardText = deps.getCardText?.() ?? null;
+      const input = encodeInput(ctx, env, clientContext, nowMs, isCC ? "" : cardText?.postHistory);
       log.debug("backend_call", { event_name: env.event_name, seq_id: env.seq_id });
 
       // B2: After resolving fetch/apiKey, streamChat. Pass externalSignal as-is (delegate abort).
@@ -280,7 +283,6 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         else externalSignal.addEventListener("abort", () => ac.abort(), { once: true });
       }
       const request: ChatRequest = { input, signal: ac.signal, turnId: String(turn.id) };
-      const isCC = deps.config.chat_api === "chat_completions";
 
       // Apply agent settings: reasoning_effort always sent in both modes.
       const agent = deps.getAgentSettings?.();
@@ -289,10 +291,18 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       // Snapshot previous response id into request — preserve start value to detect reset on completion (R2).
       // CC mode has no server-side conversation state (stitched by transcript) — skip snapshot/persist.
       let startPreviousResponseId: string | undefined;
+      // One builder for the first attempt and the chain-break retry, so both carry the same items.
+      const responsesInput = (freshChain: boolean): ChatRequest["input"] =>
+        composeResponsesInput({
+          userItems: input,
+          pendingOutputs: freshChain ? [] : (deps.getPendingToolOutputs?.() ?? []),
+          greetingReplay: (deps.transcript?.entriesAfterLastBoundary() ?? [])
+            .filter((e) => e.greeting)
+            .map((e) => e.text),
+          freshChain,
+        });
       if (isCC) {
-        const effectiveInstructions = agent?.instructions.trim()
-          ? agent.instructions
-          : deps.config.chat_instructions;
+        const effectiveInstructions = cardText?.system ?? deps.config.chat_instructions;
         const ccTranscript = selectSendSuffix(
           deps.transcript?.entriesAfterLastBoundary() ?? [],
           deps.config.chat_model_context_window,
@@ -302,17 +312,15 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           ...(effectiveInstructions ? { instructions: effectiveInstructions } : {}),
           clientContextText: renderClientContext(clientContext, nowMs),
           transcript: ccTranscript,
+          postHistoryInstructions: cardText?.postHistory,
           userText: ctx.user_text ?? backgroundMarker(env.event_name, clientContext.trigger),
           ...(imageDataUrls.length ? { imageDataUrls } : {}),
         });
       } else {
         startPreviousResponseId = deps.getPreviousResponseId?.();
-        if (startPreviousResponseId) {
-          request.previous_response_id = startPreviousResponseId;
-          request.input = withPendingOutputs(input, deps.getPendingToolOutputs?.() ?? []);
-        }
-        // Empty instructions omitted for config fallback.
-        if (agent?.instructions.trim()) request.instructions = agent.instructions;
+        if (startPreviousResponseId) request.previous_response_id = startPreviousResponseId;
+        request.input = responsesInput(!startPreviousResponseId);
+        if (cardText) request.instructions = cardText.system;
       }
 
       // Tools declared for this turn on both request transports.
@@ -357,7 +365,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
             deps.onResponseIdInvalid?.();
             deps.onChainReset?.();
             delete request.previous_response_id;
-            request.input = input;
+            request.input = responsesInput(true);
             startPreviousResponseId = undefined;
             continue;
           }

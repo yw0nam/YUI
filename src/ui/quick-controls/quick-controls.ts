@@ -7,6 +7,7 @@
 import "./quick-controls.css";
 import "./controls.css";
 import type { AvatarOption } from "../../config/validators/avatar/types";
+import type { PersonaConfig } from "../../config/validators/persona/types";
 import type { GuideKey } from "../../contract";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
 import type { createChatHistoryStore } from "../../io/chat/conversation/chat-history-store";
@@ -49,6 +50,7 @@ import type {
 import type { createScreenshotSettings } from "../../settings/capture/screenshot-settings";
 import type { createProactiveSettings } from "../../settings/cues/proactive-settings";
 import type { createScheduleSettings } from "../../settings/cues/schedule-settings";
+import type { createUserNameSettings } from "../../settings/identity/user-name-settings";
 import type { MessageWindowSettingsStore } from "../../settings/panels/message-window-settings";
 import type { ClampedIntSettingsStore, FlagSettingsStore } from "../../settings/persisted-store";
 import type { PetWindows } from "../../settings/preset/pet-windows";
@@ -69,6 +71,7 @@ import { createPopover } from "./popover";
 import { createPresetStrip } from "./preset/preset-strip";
 import { createAgentSection } from "./sections/agent/agent-section";
 import { createBrowserSection } from "./sections/browser/browser-section";
+import { createCardSection } from "./sections/card/card-section";
 import { createFillerSection } from "./sections/filler/filler-section";
 import { bindHelpSection } from "./sections/help/help-section";
 import { createReactionsSection } from "./sections/reactions/reactions-section";
@@ -90,6 +93,7 @@ type ScheduleSettingsStore = ReturnType<typeof createScheduleSettings>;
 type WorkflowSettingsStore = ReturnType<typeof createWorkflowSettings>;
 type LipsyncSettingsStore = ReturnType<typeof createLipsyncSettings>;
 type VadSettingsStore = ReturnType<typeof createVadSettings>;
+type UserNameSettingsStore = ReturnType<typeof createUserNameSettings>;
 type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
 type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
 type FillerSettingsStore = ReturnType<typeof createFillerSettings>;
@@ -166,8 +170,10 @@ interface QuickControlsOptions {
   onCloseWindow?: () => void;
   /** Popover variant: the on-screen height of the pet window, re-read before each open; the panel stays inside it. */
   visibleViewport?: { get(): number; refresh(): Promise<void> };
-  /** Default instructions to show as placeholder when instructions are empty (config.chat_instructions). */
-  getDefaultInstructions?: () => string | undefined;
+  /** The bundled default cards and `{{user}}` fallback words (undefined if not loaded). */
+  getPersona?: () => PersonaConfig | undefined;
+  /** Device-wide "Your name" store for the Card section. */
+  userNameSettings: UserNameSettingsStore;
   /** User-edited endpoint overrides store. Empty value = fallback. */
   endpointsSettings: EndpointsSettingsStore;
   /** chat API key overrides store. Empty value = use build-time key. Value is secret — no logging. */
@@ -188,6 +194,8 @@ interface QuickControlsOptions {
   pushSocket?: PushSocketPanelPort;
   /** Stops the in-flight turn the way the stop button does, before the reset frame goes out. */
   stopTurn?: () => void;
+  /** "Start fresh" calls it after the transcript boundary is written. */
+  announceSessionReset?: () => void;
   /** Delegated-work list for the session section (window variant). The pet window publishes it. */
   delegations?: DelegationsPanelPort;
   /** Session diagnostics (context usage · last compression). The occupancy readout renders in the window variant only. */
@@ -300,7 +308,8 @@ export function createQuickControls({
   variant = "popover",
   onCloseWindow,
   visibleViewport,
-  getDefaultInstructions,
+  getPersona,
+  userNameSettings,
   endpointsSettings,
   chatKeySettings,
   sttKeySettings,
@@ -311,6 +320,7 @@ export function createQuickControls({
   getFetch,
   pushSocket,
   stopTurn,
+  announceSessionReset,
   delegations,
   sessionDiagnostics,
   sessionStore,
@@ -431,6 +441,7 @@ export function createQuickControls({
         sessionDiagnostics,
         sessionStore,
         stopTurn,
+        announceSessionReset,
         pushSocket,
         getChatApi: () => (isPushMode() ? "push" : undefined),
         isOpen: () => popover.isOpen(),
@@ -526,6 +537,7 @@ export function createQuickControls({
       screen.reflect();
       voiceInput.reflect();
       agent.reflect();
+      card.reflect();
       filler.reflect();
       agent.reflectLanguage();
       connectionTab.refresh();
@@ -575,13 +587,24 @@ export function createQuickControls({
     isOpen: popover.isOpen,
   });
 
-  // ── Agent section (locale segment · reasoning-effort segment · instructions textarea) ──
+  // ── Agent section (locale segment · reasoning-effort segment) ──
   const agent = createAgentSection({
     root: el,
     agentSettings,
     endpointsSettings,
     isPushMode,
-    getDefaultInstructions,
+    isOpen: popover.isOpen,
+    log,
+  });
+
+  // ── Card section (send switch · card fields · greetings · user name) ──
+  const card = createCardSection({
+    root: el,
+    agentSettings,
+    userNameSettings,
+    registry: presetRegistry,
+    getPersona,
+    isPushMode,
     isOpen: popover.isOpen,
     log,
   });
@@ -707,6 +730,7 @@ export function createQuickControls({
     screen.dispose();
     reactions.dispose();
     agent.dispose();
+    card.dispose();
     filler.dispose();
     voiceInput.dispose();
     session.dispose();

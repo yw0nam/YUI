@@ -188,7 +188,7 @@ describe("wirePetControls", () => {
 
     expect(options.getRateLimitDefaults()).toBeUndefined();
     expect(options.getScreenDefaults()).toBeUndefined();
-    expect(options.getDefaultInstructions()).toBeUndefined();
+    expect(options.getPersona()).toBeUndefined();
     expect(options.getEndpointDefaults()).toBeUndefined();
     expect(options.getDefaultChatApi()).toBeUndefined();
     expect(options.getIdlePool()).toBeUndefined();

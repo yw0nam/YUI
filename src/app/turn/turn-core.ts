@@ -96,6 +96,7 @@ export async function wireTurnCore(
     takeMessageWake?: DispatcherDeps["takeMessageWake"];
     screenCapturer: DispatcherDeps["screenCapturer"];
     openQuickControls?: DispatcherDeps["openQuickControls"];
+    getCardText?: DispatcherDeps["getCardText"];
     /** Where voice-on intent is kept across runs; a window that passes none starts every run silent. */
     voicePersistence?: VoicePersistence;
     /** A window that owns capture intent itself. */
@@ -192,6 +193,7 @@ export async function wireTurnCore(
     overheardStore,
     relationsStore,
     agentSettings: settings.agentSettings,
+    getCardText: deps.getCardText,
     guardrailsSettings: settings.guardrailsSettings,
     pacerGapSettings: settings.pacerGapSettings,
     oneVoiceSettings: settings.oneVoiceSettings,

@@ -33,6 +33,8 @@ export type CCMessage =
 
 interface BuildCCMessagesOpts {
   instructions?: string;
+  /** One system message after the transcript, before client_context; omitted when empty. */
+  postHistoryInstructions?: string;
   clientContextText: string;
   transcript: ChatHistoryEntry[];
   userText: string;
@@ -53,6 +55,9 @@ export function buildCCMessages(opts: BuildCCMessagesOpts): CCMessage[] {
       });
     }
     messages.push({ role: entry.role, content: entry.text });
+  }
+  if (opts.postHistoryInstructions) {
+    messages.push({ role: "system", content: opts.postHistoryInstructions });
   }
   // After the transcript: it changes every turn, and provider prompt caches reuse only the unchanged prefix.
   messages.push({ role: "system", content: `client_context:\n${opts.clientContextText}` });

@@ -135,13 +135,16 @@ describe("createQuickControls — settings layout", () => {
     qc.dispose();
   });
 
-  it("renders no <details> except the filler's more-phrases disclosure", () => {
+  it("renders no <details> except the filler's and the card's disclosures", () => {
     const qc = buildFullQc();
     qc.open();
 
     const details = Array.from(qc.el.querySelectorAll("details"));
-    expect(details).toHaveLength(1);
-    expect(details[0]!.classList.contains("yui-filler-more")).toBe(true);
+    expect(details.map((d) => d.closest(".yui-sec")?.classList.contains("yui-card"))).toEqual([
+      true,
+      false,
+    ]);
+    expect(details.every((d) => d.classList.contains("yui-more"))).toBe(true);
 
     qc.dispose();
   });

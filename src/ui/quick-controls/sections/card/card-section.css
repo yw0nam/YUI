@@ -1,0 +1,39 @@
+/* Card section of the Talk tab: state text, field spacing, and the greeting rows. */
+.yui-card .yui-sec__state {
+  font-size: var(--yui-fs-sub);
+  color: var(--yui-text-mute);
+}
+
+.yui-card .yui-sec__head .yui-reset {
+  margin-right: -0.25rem;
+}
+
+.yui-card__help {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.yui-card .yui-textarea {
+  min-height: 0;
+  margin-top: 0.5rem;
+}
+
+.yui-card .yui-stack > .yui-input-row__label {
+  display: block;
+}
+
+.yui-card .yui-stack > .yui-row__sub {
+  margin: 0.375rem 0 0;
+}
+
+.yui-card__greet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.yui-card .yui-group--switch + .yui-card-body,
+.yui-card .yui-group--you {
+  margin-top: 0.5rem;
+}

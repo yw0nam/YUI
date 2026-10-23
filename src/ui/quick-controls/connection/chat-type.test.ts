@@ -14,7 +14,7 @@ import {
 import { createEndpointsSettings } from "../../../settings/backend/endpoints-settings";
 import { type Locale, setLocale, t } from "../../i18n";
 import en from "../../i18n/en";
-import { HERMES_AGENT } from "../constants";
+import { CARD_GUIDE_URL, HERMES_AGENT } from "../constants";
 import { inMemoryApiKeyStorage } from "../test-helpers";
 import { createConnectionTab } from "./connection-tab";
 
@@ -143,11 +143,11 @@ describe("chat type row", () => {
     tab.dispose();
   });
 
-  it("the settings window may open exactly the link's URL through the opener", () => {
+  it("the settings window may open exactly the panel's link URLs through the opener", () => {
     const cap = JSON.parse(readFileSync("src-tauri/capabilities/settings.json", "utf8"));
     const grant = cap.permissions.find(
       (p: { identifier?: string }) => p.identifier === "opener:allow-open-url",
     );
-    expect(grant.allow).toEqual([{ url: HERMES_AGENT.url }]);
+    expect(grant.allow).toEqual([{ url: HERMES_AGENT.url }, { url: CARD_GUIDE_URL }]);
   });
 });

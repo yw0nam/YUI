@@ -7,10 +7,7 @@ import type {
   SpeakerOption,
 } from "../../../../io/voice/voices/speaker-selection";
 import { createLipsyncSettings } from "../../../../settings/avatar/lipsync-settings";
-import {
-  createAgentSettings,
-  INSTRUCTIONS_MAX_LEN,
-} from "../../../../settings/backend/agent-settings";
+import { createAgentSettings } from "../../../../settings/backend/agent-settings";
 import { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
 import { createProactiveSettings } from "../../../../settings/cues/proactive-settings";
 import { createScheduleSettings } from "../../../../settings/cues/schedule-settings";
@@ -169,63 +166,10 @@ describe("createQuickControls — agent section", () => {
     qc.dispose();
   });
 
-  // ── Chat (Agent) section: instructions textarea ───────────────────────────
-
-  it("typing into the instructions textarea calls setInstructions", () => {
-    const qc = buildQc();
-    qc.open();
-
-    const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
-    ta.value = "be terse";
-    ta.dispatchEvent(new Event("input", { bubbles: true }));
-
-    expect(agentSettings.get().instructions).toBe("be terse");
-
-    qc.dispose();
-  });
-
-  it("reset-to-defaults sets instructions to '' and clears the textarea", () => {
-    agentSettings.setInstructions("custom note");
-    const qc = buildQc();
-    qc.open();
-
-    const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
-    expect(ta.value).toBe("custom note");
-
-    const reset = qc.el.querySelector<HTMLButtonElement>(".yui-reset")!;
-    reset.click();
-
-    expect(agentSettings.get().instructions).toBe("");
-    expect(ta.value).toBe("");
-
-    qc.dispose();
-  });
-
-  it("caps the instructions textarea at INSTRUCTIONS_MAX_LEN", () => {
-    const qc = buildQc();
-    qc.open();
-
-    const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
-    expect(ta.maxLength).toBe(INSTRUCTIONS_MAX_LEN);
-
-    qc.dispose();
-  });
-
-  it("uses getDefaultInstructions() as the textarea placeholder when provided", () => {
-    const qc = buildQc({ getDefaultInstructions: () => "default nudge here" });
-    qc.open();
-
-    const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
-    expect(ta.placeholder).toBe("default nudge here");
-
-    qc.dispose();
-  });
-
   // ── reflect store state on open ───────────────────────────────────────────
 
-  it("open() reflects the store's reasoning_effort and instructions", () => {
+  it("open() reflects the store's reasoning_effort", () => {
     agentSettings.setReasoningEffort("medium");
-    agentSettings.setInstructions("hello world");
 
     const qc = buildQc();
     qc.open();
@@ -233,9 +177,6 @@ describe("createQuickControls — agent section", () => {
     const btns = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
     expect(btns[3].getAttribute("aria-checked")).toBe("true"); // medium
     expect(btns[0].getAttribute("aria-checked")).toBe("false");
-
-    const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
-    expect(ta.value).toBe("hello world");
 
     qc.dispose();
   });
@@ -245,61 +186,9 @@ describe("createQuickControls — agent section", () => {
     qc.open();
 
     agentSettings.setReasoningEffort("low");
-    agentSettings.setInstructions("changed externally");
 
     const btns = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
     expect(btns[2].getAttribute("aria-checked")).toBe("true"); // low
-
-    const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
-    expect(ta.value).toBe("changed externally");
-
-    qc.dispose();
-  });
-
-  it("does not overwrite the instructions textarea while it is focused", () => {
-    const qc = buildQc();
-    qc.open();
-
-    const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
-    ta.focus();
-    ta.value = "user is mid-edit";
-
-    agentSettings.setInstructions("remote clobber");
-
-    expect(ta.value).toBe("user is mid-edit");
-
-    qc.dispose();
-  });
-
-  it("reflects a cross-window instructions change while the focused document is blurred", () => {
-    const qc = buildQc();
-    qc.open();
-
-    const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
-    ta.focus();
-    ta.value = "user is mid-edit";
-    vi.spyOn(document, "hasFocus").mockReturnValue(false);
-    expect(document.activeElement).toBe(ta);
-
-    agentSettings.setInstructions("remote value");
-
-    expect(ta.value).toBe("remote value");
-
-    qc.dispose();
-  });
-
-  it("applies a deferred cross-window instructions change on blur", () => {
-    const qc = buildQc();
-    qc.open();
-
-    const ta = qc.el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
-    ta.focus();
-
-    agentSettings.setInstructions("remote value");
-    expect(ta.value).not.toBe("remote value");
-
-    ta.blur();
-    expect(ta.value).toBe("remote value");
 
     qc.dispose();
   });
@@ -317,21 +206,17 @@ describe("createQuickControls — agent section", () => {
   describe("transport-dependent controls", () => {
     function agentControls(qc: ReturnType<typeof buildQc>) {
       const effortSec = qc.el.querySelector(".yui-effort-seg")!.closest<HTMLElement>(".yui-sec")!;
-      const instructionsSec = qc.el
-        .querySelector(".yui-textarea")!
-        .closest<HTMLElement>(".yui-sec")!;
       const localeRow = qc.el.querySelector(".yui-lang-seg")!.closest<HTMLElement>(".yui-row")!;
-      return { effortSec, instructionsSec, localeRow };
+      return { effortSec, localeRow };
     }
 
-    it("hides the effort segment and the instructions textarea on the push transport, keeps the locale picker", () => {
+    it("hides the effort segment on the push transport, keeps the locale picker", () => {
       endpointsSettings.set({ chat_api: "push" });
       const qc = buildQc();
       qc.open();
 
-      const { effortSec, instructionsSec, localeRow } = agentControls(qc);
+      const { effortSec, localeRow } = agentControls(qc);
       expect(effortSec.hidden).toBe(true);
-      expect(instructionsSec.hidden).toBe(true);
       expect(localeRow.hidden).toBe(false);
 
       qc.dispose();
@@ -341,15 +226,13 @@ describe("createQuickControls — agent section", () => {
       endpointsSettings.set({ chat_api: "responses" });
       const qc = buildQc();
       qc.open();
-      const { effortSec, instructionsSec } = agentControls(qc);
+      const { effortSec } = agentControls(qc);
 
       endpointsSettings.set({ chat_api: "push" });
       expect(effortSec.hidden).toBe(true);
-      expect(instructionsSec.hidden).toBe(true);
 
       endpointsSettings.set({ chat_api: "responses" });
       expect(effortSec.hidden).toBe(false);
-      expect(instructionsSec.hidden).toBe(false);
 
       qc.dispose();
     });
@@ -358,9 +241,8 @@ describe("createQuickControls — agent section", () => {
       const qc = buildQc({ getDefaultChatApi: () => "push" });
       qc.open();
 
-      const { effortSec, instructionsSec } = agentControls(qc);
+      const { effortSec } = agentControls(qc);
       expect(effortSec.hidden).toBe(true);
-      expect(instructionsSec.hidden).toBe(true);
 
       qc.dispose();
     });
@@ -369,28 +251,24 @@ describe("createQuickControls — agent section", () => {
       const qc = buildQc();
       qc.open();
       qc.close();
-      const { effortSec, instructionsSec } = agentControls(qc);
+      const { effortSec } = agentControls(qc);
 
       endpointsSettings.set({ chat_api: "push" });
       expect(effortSec.hidden).toBe(false);
-      expect(instructionsSec.hidden).toBe(false);
 
       qc.open();
       expect(effortSec.hidden).toBe(true);
-      expect(instructionsSec.hidden).toBe(true);
 
       qc.dispose();
     });
 
-    it("keeps the stored effort and instructions while the controls are hidden", () => {
+    it("keeps the stored effort while the control is hidden", () => {
       agentSettings.setReasoningEffort("medium");
-      agentSettings.setInstructions("keep me");
       endpointsSettings.set({ chat_api: "push" });
       const qc = buildQc();
       qc.open();
 
       expect(agentSettings.get().reasoning_effort).toBe("medium");
-      expect(agentSettings.get().instructions).toBe("keep me");
 
       qc.dispose();
     });

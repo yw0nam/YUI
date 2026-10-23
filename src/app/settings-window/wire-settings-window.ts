@@ -15,6 +15,7 @@ import { wireVoiceListAutoRefresh } from "../../io/voice/voices/voice-list-refre
 import { resolveScreenSourceProvider } from "../../io/window/capture/tauri-screen";
 import { closeSettingsWindow, titleSettingsWindow } from "../../io/window/openers/settings-window";
 import { createLogger } from "../../logger";
+import { presetIdForWindow } from "../../settings/preset/active-preset";
 import { readBoundPresetId } from "../../settings/preset/bound-preset";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import { createVoiceInputStatus } from "../../ui/chips/voice-input-status";
@@ -29,6 +30,7 @@ import { createWindowStores } from "../settings/window-stores";
 import { createEffectiveEndpoints, wireSpeakerSelection } from "../settings/wire-avatar";
 import { wireCueLocaleSync } from "../settings/wire-cue-locale-sync";
 import { wirePresetSwitch } from "../settings/wire-preset";
+import { createSessionResetAnnouncer } from "../turn/session-reset-announcer";
 import { editTargetUrl } from "./edit-target-url";
 import { wireVoiceMirror } from "./wire-voice-mirror";
 
@@ -65,6 +67,7 @@ export async function wireSettingsWindow(deps: {
     fillerSettings,
     ttsSettings,
     agentSettings,
+    userNameSettings,
     endpointsSettings,
     chatKeySettings,
     sttKeySettings,
@@ -87,7 +90,7 @@ export async function wireSettingsWindow(deps: {
   const voiceInputStatus = createVoiceInputStatus();
   const sourceProvider = resolveScreenSourceProvider();
 
-  // Config for default instructions placeholder loaded best-effort only (failure → generic placeholder).
+  // Config for the Card section's default cards loaded best-effort only (failure → empty fields).
   // The TTS key rides along so this window's voice uploads reach a gated server too.
   const config = createConfigStore({
     secrets: createSettingsSecretProvider({
@@ -188,6 +191,8 @@ export async function wireSettingsWindow(deps: {
   broadcastSpeaker = broadcastSettings;
   // The push socket lives in the pet window; this window mirrors it and asks it to reset.
   const pushSocket = createMirroredPushSocket({ bridge });
+  // This window runs no turn: the preset's pet window stops its reply and greets when it hears the reset.
+  const sessionReset = createSessionResetAnnouncer(bridge.emitSessionReset, presetIdForWindow());
   // The delegations list rides the same bridge; this window mirrors it, never a second socket.
   const delegations = createMirroredDelegations({ bridge });
   // The pet window writes the history to storage before it emits the live list, so each emit is the cue to re-read it.
@@ -209,6 +214,7 @@ export async function wireSettingsWindow(deps: {
       mount: app,
       variant: "window",
       pushSocket,
+      announceSessionReset: sessionReset.announce,
       delegations: {
         get: delegationHistory.get,
         subscribe: delegationHistory.subscribe,
@@ -217,6 +223,7 @@ export async function wireSettingsWindow(deps: {
       // Close settings window with Escape — closing for window variant is OS window's job.
       onCloseWindow: closeSettingsWindow,
       agentSettings,
+      userNameSettings,
       settings: screenshotSettings,
       idleThrottleSettings,
       gazeSettings,

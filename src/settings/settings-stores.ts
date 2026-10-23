@@ -38,6 +38,7 @@ import {
 import type { CueLocale } from "./cues/cue-list-settings";
 import { createProactiveSettings, localStorageProactiveStorage } from "./cues/proactive-settings";
 import { createScheduleSettings, localStorageScheduleStorage } from "./cues/schedule-settings";
+import { createUserNameSettings, localStorageUserNameStorage } from "./identity/user-name-settings";
 import {
   createMessageWindowSettings,
   localStorageMessageWindowStorage,
@@ -116,6 +117,8 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const agentSettings = createAgentSettings({
     storage: localStorageAgentStorage(),
   });
+  // Device-wide "Your name": what {{user}} resolves to in every preset's card.
+  const userNameSettings = createUserNameSettings({ storage: localStorageUserNameStorage() });
   // TTFT filler (thinking motion + filler utterance) settings. Both windows sync via wireStorageSync.
   const fillerSettings = createFillerSettings({
     storage: localStorageFillerStorage(),
@@ -189,6 +192,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     lipsyncSettings,
     vadSettings,
     agentSettings,
+    userNameSettings,
     fillerSettings,
     bubblePersistSettings,
     messageWindowSettings,
@@ -238,6 +242,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   lipsyncSettings: "broadcast",
   vadSettings: "broadcast",
   agentSettings: "broadcast",
+  userNameSettings: "broadcast",
   fillerSettings: "broadcast",
   bubblePersistSettings: "broadcast",
   messageWindowSettings: "broadcast",

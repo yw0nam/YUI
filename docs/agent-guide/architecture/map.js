@@ -668,7 +668,7 @@ globalThis.YUI_MAP =
       "id": "settings",
       "module": "settings",
       "label": "settings",
-      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap, and the relation entries a turn carries.",
+      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap, and the relation entries a turn carries; each preset's card and send switch live in its yui.agent key, and the device-wide yui.user-name holds what {{user}} resolves to.",
       "paths": [
         "src/settings"
       ]
@@ -761,6 +761,15 @@ globalThis.YUI_MAP =
       "role": "Resolves each secret from its runtime store, then the build-time fallback.",
       "paths": [
         "src/io/chat/secret-provider.ts"
+      ]
+    },
+    {
+      "id": "io/chat/card",
+      "module": "backend-call",
+      "label": "card",
+      "role": "Resolves a preset's card and its effective name, assembles the first system message and the post-history text with the {{char}}, {{user}}, {{original}} macros, and picks a greeting.",
+      "paths": [
+        "src/io/chat/card"
       ]
     },
     {
@@ -1136,7 +1145,7 @@ globalThis.YUI_MAP =
       "id": "ui/quick-controls",
       "module": "settings",
       "label": "quick controls",
-      "role": "The settings panel, shown as a popover in the pet window and as the whole settings window; the preset manage row's copy button copies a character's ingress URL and the Reactions URL line shows this window's; the preset strip shows this preset's relation line and the reasons card.",
+      "role": "The settings panel, shown as a popover in the pet window and as the whole settings window; the preset manage row's copy button copies a character's ingress URL and the Reactions URL line shows this window's; the preset strip shows this preset's relation line and the reasons card; the Talk tab's Card section edits the preset's card, its send switch, the preset's name and the device-wide user name.",
       "paths": [
         "src/ui/quick-controls"
       ]
@@ -1194,6 +1203,16 @@ globalThis.YUI_MAP =
       "role": "Connects voice, dispatcher, sources, vocabulary, broker, and the push transport into the chat turn.",
       "paths": [
         "src/app/turn"
+      ]
+    },
+    {
+      "id": "app/turn/card",
+      "module": "wiring",
+      "label": "card wiring",
+      "role": "Binds the card module to the window's stores, preset, UI language, and config for the backend caller, and performs the greeting after a session reset.",
+      "paths": [
+        "src/app/turn/wire-card.ts",
+        "src/app/turn/wire-greeting.ts"
       ]
     },
     {
@@ -1448,10 +1467,73 @@ globalThis.YUI_MAP =
       "id": "conversation-backend",
       "from": "io/chat/conversation",
       "to": "dispatcher/backend",
-      "carries": "previous response id, pending tool outputs, transcript entries after the last boundary",
+      "carries": "previous response id, pending tool outputs, transcript entries after the last boundary; the greeting entries among them on a fresh Responses chain",
       "kind": "callback",
       "transport": "request",
       "wiring": "src/app/turn/wire-dispatcher.ts"
+    },
+    {
+      "id": "card-config",
+      "from": "config",
+      "to": "io/chat/card",
+      "carries": "config.persona: the framing, the {{user}} fallback word, and the default card of each UI language",
+      "kind": "callback",
+      "transport": "request",
+      "wiring": "src/app/turn/wire-card.ts"
+    },
+    {
+      "id": "card-settings",
+      "from": "settings",
+      "to": "io/chat/card",
+      "carries": "agentSettings.get(): card (null means the UI language's default) and send_card; userNameSettings.get().name for {{user}}",
+      "kind": "callback",
+      "transport": "request",
+      "wiring": "src/app/turn/wire-card.ts"
+    },
+    {
+      "id": "card-backend",
+      "from": "io/chat/card",
+      "to": "dispatcher/backend",
+      "carries": "getCardText(): {system, postHistory}, null on push or with the switch off; read per turn",
+      "kind": "callback",
+      "transport": "request",
+      "wiring": "src/app/turn/wire-dispatcher.ts"
+    },
+    {
+      "id": "greeting-transcript",
+      "from": "app/turn/card",
+      "to": "io/chat/conversation",
+      "carries": "greetLocal: one greeting with its macros substituted → append({role: assistant, greeting: true}) while the session after the last boundary is empty",
+      "kind": "call",
+      "transport": "request",
+      "wiring": "src/app/turn/wire-greeting.ts"
+    },
+    {
+      "id": "greeting-speech",
+      "from": "app/turn/card",
+      "to": "io/voice/tts",
+      "carries": "greetLocal → turnOutput.speak(text, {turn_id: greeting:<ts>, event_name: greeting})",
+      "kind": "callback",
+      "transport": "request",
+      "wiring": "src/app/turn/wire-greeting.ts"
+    },
+    {
+      "id": "session-reset-announce",
+      "from": "ui/quick-controls",
+      "to": "io/bridge/settings",
+      "carries": "Start fresh → announceSessionReset → yui://session-reset {presetId}, scoped to the preset; the pet window also greets directly",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-greeting.ts"
+    },
+    {
+      "id": "session-reset-stop",
+      "from": "io/bridge/settings",
+      "to": "dispatcher/turn",
+      "carries": "yui://session-reset for this window's preset → stopTurn() before the greeting",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-greeting.ts"
     },
     {
       "id": "overheard-backend",
@@ -2540,7 +2622,7 @@ globalThis.YUI_MAP =
       "id": "controls-settings",
       "from": "ui/quick-controls",
       "to": "settings",
-      "carries": "store commit → localStorage yui.*, or yui.<preset-id>.* for a per-preset key; the preset strip writes yui.windows, the manage popover's Use in main writes the active id, and activate returns false while a preset is open or live",
+      "carries": "store commit → localStorage yui.*, or yui.<preset-id>.* for a per-preset key; the preset strip writes yui.windows, the manage popover's Use in main writes the active id, and activate returns false while a preset is open or live; the Card section writes the card and send switch into yui.agent, the user name into yui.user-name, and renames the preset in yui.presets",
       "kind": "storage",
       "transport": "shared"
     },
@@ -4303,6 +4385,20 @@ globalThis.YUI_MAP =
         "from": "pet-<id>",
         "to": "message-<id>",
         "carries": "yui://push-state, answered on yui://push-state-ask; filtered by preset id",
+        "kind": "bridge"
+      },
+      {
+        "id": "session-reset",
+        "from": "settings",
+        "to": "pet",
+        "carries": "yui://session-reset: {presetId}; filtered by preset id",
+        "kind": "bridge"
+      },
+      {
+        "id": "session-reset-companion",
+        "from": "settings-<id>",
+        "to": "pet-<id>",
+        "carries": "yui://session-reset: {presetId}; filtered by preset id",
         "kind": "bridge"
       },
       {

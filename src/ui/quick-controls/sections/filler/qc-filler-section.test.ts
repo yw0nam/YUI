@@ -331,11 +331,11 @@ describe("createQuickControls — thinking filler section", () => {
 
   // ── "More phrases" details (long_wait / timeout / unreachable / tool) ─────────
 
-  it("wraps the four extra tiers in a closed-by-default <details class='yui-filler-more'>", () => {
+  it("wraps the four extra tiers in a closed-by-default <details class='yui-more'>", () => {
     const qc = buildQc({ fillerSettings: makeFillerSettings() });
     qc.open();
 
-    const details = qc.el.querySelector<HTMLDetailsElement>(".yui-filler .yui-filler-more")!;
+    const details = qc.el.querySelector<HTMLDetailsElement>(".yui-filler .yui-more")!;
     expect(details).not.toBeNull();
     expect(details.open).toBe(false);
     expect(details.querySelector("summary")?.textContent).toBe("더 보기"); // ko locale — see beforeEach
@@ -356,13 +356,13 @@ describe("createQuickControls — thinking filler section", () => {
     qc.open();
 
     const summary = qc.el
-      .querySelector<HTMLDetailsElement>(".yui-filler .yui-filler-more")!
+      .querySelector<HTMLDetailsElement>(".yui-filler .yui-more")!
       .querySelector("summary")!;
     expect(summary.querySelector("svg")).not.toBeNull();
 
     const css = readFileSync("src/ui/quick-controls/controls.css", "utf8");
     expect(css).not.toContain('content: "\u203A"');
-    expect(css).not.toContain(".yui-filler-more > summary::before");
+    expect(css).not.toContain(".yui-more > summary::before");
 
     qc.dispose();
   });

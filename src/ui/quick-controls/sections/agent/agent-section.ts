@@ -1,6 +1,6 @@
 /**
- * Agent section — owns the locale picker segment, the reasoning-effort segment, and the chat
- * instructions textarea. The effort segment and the textarea show on the request transports only.
+ * Agent section — owns the locale picker segment and the reasoning-effort segment. The effort
+ * segment shows on the request transports only.
  * Same pattern as sibling sections: explicit deps + wired from shell.
  * This module owns handlers, subscriptions, redraws, teardown.
  */
@@ -11,7 +11,7 @@ import {
   REASONING_EFFORTS,
 } from "../../../../settings/backend/agent-settings";
 import type { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
-import { getLocale, type Locale, setLocale, t } from "../../../i18n";
+import { getLocale, type Locale, setLocale } from "../../../i18n";
 import { LANG_PICKER_ORDER } from "../../constants";
 import { handleSegmentKeydown } from "../../seg-keyboard";
 
@@ -19,16 +19,14 @@ type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
 type EndpointsSettingsStore = Pick<ReturnType<typeof createEndpointsSettings>, "subscribe">;
 
 interface AgentSectionDeps {
-  /** Panel root (el) — query the locale segment, effort segment, and instructions textarea here. */
+  /** Panel root (el) — query the locale segment and effort segment here. */
   root: HTMLElement;
-  /** Reasoning-effort + instructions store — its subscription redraws the segment and textarea. */
+  /** Reasoning-effort store — its subscription redraws the segment. */
   agentSettings: AgentSettingsStore;
   /** Endpoint overrides store — its subscription re-evaluates which transport is selected. */
   endpointsSettings: EndpointsSettingsStore;
-  /** Whether push chat is the effective mode; the effort segment and the textarea are hidden then. */
+  /** Whether push chat is the effective mode; the effort segment is hidden then. */
   isPushMode: () => boolean;
-  /** Default instructions shown as textarea placeholder while the value is empty (undefined if not loaded). */
-  getDefaultInstructions?: () => string | undefined;
   /** Popover open state — the store subscription redraws only while the panel is open. */
   isOpen: () => boolean;
   /** Logger — section-scoped changes report here. */
@@ -36,7 +34,7 @@ interface AgentSectionDeps {
 }
 
 interface AgentSection {
-  /** Render the effort segment and textarea from the store and show them on request transports only. */
+  /** Render the effort segment from the store and show it on request transports only. */
   reflect(): void;
   /** Render the locale segment from the current display language. */
   reflectLanguage(): void;
@@ -45,35 +43,17 @@ interface AgentSection {
 }
 
 export function createAgentSection(deps: AgentSectionDeps): AgentSection {
-  const {
-    root: el,
-    agentSettings,
-    endpointsSettings,
-    isPushMode,
-    getDefaultInstructions,
-    isOpen,
-    log,
-  } = deps;
+  const { root: el, agentSettings, endpointsSettings, isPushMode, isOpen, log } = deps;
 
   const segEl = el.querySelector<HTMLDivElement>(".yui-effort-seg")!;
   const segButtons = Array.from(segEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
-  const instructionsEl = el.querySelector<HTMLTextAreaElement>(".yui-textarea")!;
-  const resetBtn = el.querySelector<HTMLButtonElement>(".yui-reset")!;
   const effortSecEl = segEl.closest<HTMLElement>(".yui-sec")!;
-  const instructionsSecEl = instructionsEl.closest<HTMLElement>(".yui-sec")!;
   // Language picker segment (3 buttons) node.
   const langSegEl = el.querySelector<HTMLDivElement>(".yui-lang-seg")!;
   const langSegButtons = Array.from(langSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
 
-  // Default instructions placeholder.
-  const defaultInstr = getDefaultInstructions?.();
-  instructionsEl.placeholder =
-    defaultInstr && defaultInstr.length > 0 ? defaultInstr : t("instructions.placeholder_default");
-
   function reflectAgent(): void {
-    const push = isPushMode();
-    effortSecEl.hidden = push;
-    instructionsSecEl.hidden = push;
+    effortSecEl.hidden = isPushMode();
     const a = agentSettings.get();
     const idx = Math.max(0, REASONING_EFFORTS.indexOf(a.reasoning_effort));
     segButtons.forEach((btn, i) => {
@@ -81,13 +61,6 @@ export function createAgentSection(deps: AgentSectionDeps): AgentSection {
       btn.setAttribute("aria-checked", String(selected));
       btn.tabIndex = selected ? 0 : -1;
     });
-    // Do not overwrite textarea while typing (remote changes apply on blur).
-    if (
-      (!document.hasFocus() || document.activeElement !== instructionsEl) &&
-      instructionsEl.value !== a.instructions
-    ) {
-      instructionsEl.value = a.instructions;
-    }
   }
 
   // Language picker — reflects current display language onto selected seg.
@@ -188,31 +161,10 @@ export function createAgentSection(deps: AgentSectionDeps): AgentSection {
     });
   }
 
-  // ── Instructions textarea ──
-
-  function handleInstructionsInput(): void {
-    agentSettings.setInstructions(instructionsEl.value);
-    log.info("instructions_change", { length: instructionsEl.value.length });
-  }
-
-  // On blur, reflect pending remote changes from mid-edit.
-  function handleInstructionsBlur(): void {
-    reflectAgent();
-  }
-
-  function handleResetInstructions(): void {
-    agentSettings.setInstructions("");
-    instructionsEl.value = "";
-    log.info("instructions_reset");
-  }
-
   langSegEl.addEventListener("click", handleLangSegClick);
   langSegEl.addEventListener("keydown", handleLangSegKeydown);
   segEl.addEventListener("click", handleSegClick);
   segEl.addEventListener("keydown", handleSegKeydown);
-  instructionsEl.addEventListener("input", handleInstructionsInput);
-  instructionsEl.addEventListener("blur", handleInstructionsBlur);
-  resetBtn.addEventListener("click", handleResetInstructions);
 
   return {
     reflect: reflectAgent,
@@ -224,9 +176,6 @@ export function createAgentSection(deps: AgentSectionDeps): AgentSection {
       langSegEl.removeEventListener("keydown", handleLangSegKeydown);
       segEl.removeEventListener("click", handleSegClick);
       segEl.removeEventListener("keydown", handleSegKeydown);
-      instructionsEl.removeEventListener("input", handleInstructionsInput);
-      instructionsEl.removeEventListener("blur", handleInstructionsBlur);
-      resetBtn.removeEventListener("click", handleResetInstructions);
     },
   };
 }

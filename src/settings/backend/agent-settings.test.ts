@@ -2,19 +2,18 @@
  * agent-settings.test.ts — AI agent request-shaping reactive store.
  *
  * Pins the contract for src/settings/backend/agent-settings.ts:
- *   REASONING_EFFORTS / INSTRUCTIONS_MAX_LEN constants
+ *   REASONING_EFFORTS constant
  *   createAgentSettings({ storage? }) store
  *   localStorageAgentStorage(key?) localStorage adapter
  */
 
 import { describe, expect, it, vi } from "vitest";
+import { type Card, EMPTY_CARD } from "../../config/validators/persona/types";
 import type { AgentSettings, AgentStorage } from "./agent-settings";
-import {
-  createAgentSettings,
-  INSTRUCTIONS_MAX_LEN,
-  localStorageAgentStorage,
-  REASONING_EFFORTS,
-} from "./agent-settings";
+import { createAgentSettings, localStorageAgentStorage, REASONING_EFFORTS } from "./agent-settings";
+
+const DEFAULTS = { reasoning_effort: "none", send_card: true, card: null };
+const OWN: Card = { ...EMPTY_CARD, name: "Mira", alternate_greetings: ["Evening."], tags: [] };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -23,10 +22,6 @@ import {
 describe("agent-settings constants", () => {
   it("REASONING_EFFORTS is the expected ordered list", () => {
     expect(REASONING_EFFORTS).toEqual(["none", "minimal", "low", "medium"]);
-  });
-
-  it("INSTRUCTIONS_MAX_LEN is 4000", () => {
-    expect(INSTRUCTIONS_MAX_LEN).toBe(4000);
   });
 });
 
@@ -37,7 +32,7 @@ describe("agent-settings constants", () => {
 describe("createAgentSettings — defaults", () => {
   it("returns default state when no storage given", () => {
     const store = createAgentSettings();
-    expect(store.get()).toEqual({ reasoning_effort: "none", instructions: "" });
+    expect(store.get()).toEqual(DEFAULTS);
   });
 });
 
@@ -46,43 +41,34 @@ describe("createAgentSettings — defaults", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createAgentSettings — load coercion", () => {
-  it("loads valid stored settings", () => {
-    const storage: AgentStorage = {
-      load: () => ({ reasoning_effort: "medium", instructions: "hi" }),
-      save: vi.fn(),
-    };
-    const store = createAgentSettings({ storage });
-    expect(store.get()).toEqual({ reasoning_effort: "medium", instructions: "hi" });
-  });
-
   it("coerces invalid stored reasoning_effort to 'none'", () => {
     const storage: AgentStorage = {
-      load: () => ({ reasoning_effort: "bogus", instructions: "x" }) as unknown as AgentSettings,
+      load: () => ({ reasoning_effort: "bogus" }) as unknown as AgentSettings,
       save: vi.fn(),
     };
-    const store = createAgentSettings({ storage });
-    expect(store.get().reasoning_effort).toBe("none");
-    expect(store.get().instructions).toBe("x");
+    expect(createAgentSettings({ storage }).get().reasoning_effort).toBe("none");
   });
 
-  it("coerces non-string stored instructions to ''", () => {
+  it("reads a stored instructions string as an own card and never writes it back", () => {
     const storage: AgentStorage = {
-      load: () => ({ reasoning_effort: "low", instructions: 123 }) as unknown as AgentSettings,
+      load: () => ({ reasoning_effort: "low", instructions: "be terse" }) as never,
       save: vi.fn(),
     };
     const store = createAgentSettings({ storage });
-    expect(store.get().instructions).toBe("");
-    expect(store.get().reasoning_effort).toBe("low");
+    expect(store.get().card).toEqual({ ...EMPTY_CARD, system_prompt: "be terse" });
+
+    store.setReasoningEffort("medium");
+    const saved = vi.mocked(storage.save).mock.calls[0][0];
+    expect(saved).not.toHaveProperty("instructions");
+    expect(saved.card?.system_prompt).toBe("be terse");
   });
 
-  it("caps stored instructions length to INSTRUCTIONS_MAX_LEN", () => {
-    const long = "a".repeat(INSTRUCTIONS_MAX_LEN + 100);
+  it("reads an empty stored instructions string as the default card", () => {
     const storage: AgentStorage = {
-      load: () => ({ reasoning_effort: "none", instructions: long }),
+      load: () => ({ reasoning_effort: "none", instructions: "" }) as never,
       save: vi.fn(),
     };
-    const store = createAgentSettings({ storage });
-    expect(store.get().instructions.length).toBe(INSTRUCTIONS_MAX_LEN);
+    expect(createAgentSettings({ storage }).get()).toEqual(DEFAULTS);
   });
 });
 
@@ -98,7 +84,7 @@ describe("createAgentSettings — setReasoningEffort", () => {
     store.setReasoningEffort("medium");
     expect(store.get().reasoning_effort).toBe("medium");
     expect(cb).toHaveBeenCalledOnce();
-    expect(cb).toHaveBeenCalledWith({ reasoning_effort: "medium", instructions: "" });
+    expect(cb).toHaveBeenCalledWith({ ...DEFAULTS, reasoning_effort: "medium" });
     expect(cb.mock.calls[0][0]).not.toBe(store.get());
   });
 
@@ -106,10 +92,7 @@ describe("createAgentSettings — setReasoningEffort", () => {
     const storage: AgentStorage = { load: () => null, save: vi.fn() };
     const store = createAgentSettings({ storage });
     store.setReasoningEffort("medium");
-    expect(storage.save).toHaveBeenCalledWith({
-      reasoning_effort: "medium",
-      instructions: "",
-    });
+    expect(storage.save).toHaveBeenCalledWith({ ...DEFAULTS, reasoning_effort: "medium" });
   });
 
   it("invalid effort coerces to 'none' (no-op from default state)", () => {
@@ -144,59 +127,42 @@ describe("createAgentSettings — setReasoningEffort", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// createAgentSettings — setInstructions
+// createAgentSettings — card
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("createAgentSettings — setInstructions", () => {
-  it("updates state and notifies with a fresh copy", () => {
+describe("createAgentSettings — card", () => {
+  it("a set card round-trips through storage", () => {
+    const storage = makeMemStorage();
+    createAgentSettings({ storage }).setCard(OWN);
+    expect(createAgentSettings({ storage }).get().card).toEqual(OWN);
+  });
+
+  it("updateCard patches a copy of the base while the card is the default", () => {
     const store = createAgentSettings();
-    const cb = vi.fn();
-    store.subscribe(cb);
-    store.setInstructions("hello");
-    expect(store.get().instructions).toBe("hello");
-    expect(cb).toHaveBeenCalledOnce();
-    expect(cb).toHaveBeenCalledWith({ reasoning_effort: "none", instructions: "hello" });
-    expect(cb.mock.calls[0][0]).not.toBe(store.get());
+    store.updateCard({ scenario: "rain" }, OWN);
+    expect(store.get().card).toEqual({ ...OWN, scenario: "rain" });
+    store.updateCard({ name: "Ren" }, EMPTY_CARD);
+    expect(store.get().card).toEqual({ ...OWN, scenario: "rain", name: "Ren" });
   });
 
-  it("persists via storage.save", () => {
-    const storage: AgentStorage = { load: () => null, save: vi.fn() };
-    const store = createAgentSettings({ storage });
-    store.setInstructions("custom");
-    expect(storage.save).toHaveBeenCalledWith({
-      reasoning_effort: "none",
-      instructions: "custom",
-    });
-  });
-
-  it("caps length at INSTRUCTIONS_MAX_LEN", () => {
+  it("resetCard returns to the default card", () => {
     const store = createAgentSettings();
-    store.setInstructions("b".repeat(INSTRUCTIONS_MAX_LEN + 50));
-    expect(store.get().instructions.length).toBe(INSTRUCTIONS_MAX_LEN);
+    store.setCard(OWN);
+    store.resetCard();
+    expect(store.get().card).toBeNull();
   });
 
-  it("non-string coerces to ''", () => {
+  it("setSendCard persists the switch", () => {
+    const storage = makeMemStorage();
+    createAgentSettings({ storage }).setSendCard(false);
+    expect(createAgentSettings({ storage }).get().send_card).toBe(false);
+  });
+
+  it("mutating a returned card leaves the store unchanged", () => {
     const store = createAgentSettings();
-    store.setInstructions("had text");
-    store.setInstructions(42 as unknown as string);
-    expect(store.get().instructions).toBe("");
-  });
-
-  it("does not trim user content", () => {
-    const store = createAgentSettings();
-    store.setInstructions("  padded  ");
-    expect(store.get().instructions).toBe("  padded  ");
-  });
-
-  it("unchanged value is a no-op (no save, no notify)", () => {
-    const storage: AgentStorage = { load: () => null, save: vi.fn() };
-    const store = createAgentSettings({ storage });
-    const cb = vi.fn();
-    store.subscribe(cb);
-    store.setInstructions("same");
-    store.setInstructions("same");
-    expect(cb).toHaveBeenCalledOnce();
-    expect(storage.save).toHaveBeenCalledOnce();
+    store.setCard(OWN);
+    store.get().card?.alternate_greetings.push("Hi.");
+    expect(store.get().card?.alternate_greetings).toEqual(["Evening."]);
   });
 });
 
@@ -217,7 +183,7 @@ function makeMemStorage(): AgentStorage & { _data: AgentSettings | null } {
       return data;
     },
     save(s) {
-      data = { ...s };
+      data = structuredClone(s);
     },
   };
 }
@@ -226,31 +192,31 @@ describe("createAgentSettings — reloadFromStorage", () => {
   it("coerces invalid stored values on reload", () => {
     const storage = makeMemStorage();
     const store = createAgentSettings({ storage });
-    storage._data = { reasoning_effort: "bogus", instructions: 9 } as unknown as AgentSettings;
+    storage._data = { reasoning_effort: "bogus", card: 9 } as unknown as AgentSettings;
     store.reloadFromStorage();
-    expect(store.get()).toEqual({ reasoning_effort: "none", instructions: "" });
+    expect(store.get()).toEqual(DEFAULTS);
   });
 
-  it("keeps the in-memory instructions when the stored value is corrupted", () => {
+  it("keeps the in-memory card when the stored value is corrupted", () => {
     const storage = makeMemStorage();
     const store = createAgentSettings({ storage });
-    store.setInstructions("user-authored");
+    store.setCard(OWN);
 
     storage._data = "garbage" as unknown as AgentSettings;
     store.reloadFromStorage();
 
-    expect(store.get()).toEqual({ reasoning_effort: "none", instructions: "user-authored" });
+    expect(store.get()).toEqual({ ...DEFAULTS, card: OWN });
   });
 
-  it("keeps the in-memory instructions when the stored value is an array", () => {
+  it("keeps the in-memory card when the stored value is an array", () => {
     const storage = makeMemStorage();
     const store = createAgentSettings({ storage });
-    store.setInstructions("user-authored");
+    store.setCard(OWN);
 
     storage._data = [] as unknown as AgentSettings;
     store.reloadFromStorage();
 
-    expect(store.get()).toEqual({ reasoning_effort: "none", instructions: "user-authored" });
+    expect(store.get()).toEqual({ ...DEFAULTS, card: OWN });
   });
 });
 
@@ -262,10 +228,7 @@ describe("createAgentSettings — bootstrap rejects a corrupted stored value", (
   it("falls back to the default state", () => {
     const load = vi.fn(() => "garbage" as unknown as AgentSettings);
     const storage: AgentStorage = { load, save: vi.fn() };
-    expect(createAgentSettings({ storage }).get()).toEqual({
-      reasoning_effort: "none",
-      instructions: "",
-    });
+    expect(createAgentSettings({ storage }).get()).toEqual(DEFAULTS);
     expect(load).toHaveBeenCalled();
   });
 });
@@ -283,7 +246,7 @@ describe("localStorageAgentStorage", () => {
     };
 
     const adapter = localStorageAgentStorage();
-    adapter.save({ reasoning_effort: "none", instructions: "" });
+    adapter.save({ reasoning_effort: "none", send_card: true, card: null });
     expect(written[0][0]).toBe("yui.agent");
 
     delete (globalThis as any).localStorage;
@@ -297,7 +260,7 @@ describe("localStorageAgentStorage", () => {
     };
 
     const adapter = localStorageAgentStorage("my.key");
-    adapter.save({ reasoning_effort: "none", instructions: "" });
+    adapter.save({ reasoning_effort: "none", send_card: true, card: null });
     expect(written[0][0]).toBe("my.key");
 
     delete (globalThis as any).localStorage;

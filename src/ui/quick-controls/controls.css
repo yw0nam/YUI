@@ -278,12 +278,12 @@
   transform: none;
 }
 
-/* ── "More phrases" (long_wait/timeout/unreachable/tool) — the one disclosure, default closed ── */
-.yui-filler-more {
+/* ── Disclosure ("More phrases", "Advanced") — a chevron summary over a group, default closed ── */
+.yui-more {
   margin-top: 0.5rem;
 }
 
-.yui-filler-more > summary {
+.yui-more > summary {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
@@ -297,27 +297,27 @@
   user-select: none;
 }
 
-.yui-filler-more > summary::-webkit-details-marker {
+.yui-more > summary::-webkit-details-marker {
   display: none;
 }
 
-.yui-filler-more > summary svg {
+.yui-more > summary svg {
   width: 0.875rem;
   height: 0.875rem;
   flex: none;
   transition: transform var(--yui-dur-fast) var(--yui-ease);
 }
 
-.yui-filler-more[open] > summary svg {
+.yui-more[open] > summary svg {
   transform: rotate(90deg);
 }
 
-.yui-filler-more > summary:focus-visible {
+.yui-more > summary:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--yui-accent-soft);
 }
 
-.yui-filler-more > .yui-group {
+.yui-more > .yui-group {
   margin-top: 0.5rem;
 }
 
@@ -498,7 +498,7 @@
 @media (prefers-reduced-motion: reduce) {
   .yui-switch,
   .yui-switch::after,
-  .yui-filler-more > summary svg {
+  .yui-more > summary svg {
     transition: none;
   }
   .yui-seg__btn:active,

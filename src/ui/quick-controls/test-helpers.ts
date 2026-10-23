@@ -27,6 +27,7 @@ import { createEndpointsSettings } from "../../settings/backend/endpoints-settin
 import { createWorkflowSettings } from "../../settings/backend/workflow-settings";
 import { createProactiveSettings } from "../../settings/cues/proactive-settings";
 import { createScheduleSettings } from "../../settings/cues/schedule-settings";
+import { createUserNameSettings } from "../../settings/identity/user-name-settings";
 import { createFlagSettings } from "../../settings/persisted-store";
 import { createVadSettings } from "../../settings/voice/vad-settings";
 
@@ -172,6 +173,7 @@ export function defaultQcArgs(mount: HTMLElement) {
     onGainPreview: vi.fn(),
     onGainPreviewEnd: vi.fn(),
     agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
+    userNameSettings: createUserNameSettings({ storage: undefined }),
     endpointsSettings: createEndpointsSettings(),
     proactiveSettings: createProactiveSettings(),
     scheduleSettings: createScheduleSettings(),

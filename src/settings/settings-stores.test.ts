@@ -36,6 +36,7 @@ describe("createSettingsStores", () => {
       "lipsyncSettings",
       "vadSettings",
       "agentSettings",
+      "userNameSettings",
       "fillerSettings",
       "bubblePersistSettings",
       "messageWindowSettings",

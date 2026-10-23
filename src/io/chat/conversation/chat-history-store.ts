@@ -23,6 +23,8 @@ export interface ChatHistoryEntry {
   guide?: GuideKey;
   /** The dispatcher turn that produced an assistant entry — History folds the turn's signal records under it. */
   turn_id?: string;
+  /** An assistant entry the client performed from the card after a session reset. */
+  greeting?: true;
 }
 
 /** Divider between conversation sessions. Replay stops here; the viewer reads past it. */
@@ -71,6 +73,7 @@ function coerceItem(v: unknown): ChatHistoryItem | null {
     ts: e.ts,
     ...(isGuideKey(e.guide) ? { guide: e.guide } : {}),
     ...(typeof e.turn_id === "string" ? { turn_id: e.turn_id } : {}),
+    ...(e.greeting === true ? { greeting: true as const } : {}),
   };
 }
 
@@ -96,7 +99,8 @@ function equalItems(a: ChatHistoryItem[], b: ChatHistoryItem[]): boolean {
       item.text === other.text &&
       item.ts === other.ts &&
       item.guide === other.guide &&
-      item.turn_id === other.turn_id
+      item.turn_id === other.turn_id &&
+      item.greeting === other.greeting
     );
   });
 }

@@ -291,6 +291,7 @@ describe("createSettingsBridge", () => {
     ["onPushState", { kind: "disconnected" }, true],
     ["onPushStateAsk", undefined, true],
     ["onPushReset", undefined, true],
+    ["onSessionReset", "a", true],
     ["onPushReconnect", undefined, true],
     ["onDelegations", [], true],
     ["onDelegationsAsk", undefined, true],

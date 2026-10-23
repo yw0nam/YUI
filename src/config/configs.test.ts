@@ -6,6 +6,7 @@ import { validateEndpoints } from "./validators/endpoints";
 import { validateGuardrails } from "./validators/guardrails";
 import { validateHotkeys } from "./validators/hotkeys";
 import { validateMotions } from "./validators/motions";
+import { validatePersona } from "./validators/persona/persona";
 import { validateScreen } from "./validators/screen";
 
 const read = (rel: string): any => JSON.parse(readFileSync(resolve(process.cwd(), rel), "utf-8"));
@@ -17,6 +18,7 @@ const SHIPPED: Array<[string, (file: string, raw: unknown) => unknown]> = [
   ["configs/screen.json", validateScreen],
   ["configs/hotkeys.json", validateHotkeys],
   ["configs/motions.json", validateMotions],
+  ["configs/persona.json", validatePersona],
 ];
 
 it.each(SHIPPED)("passes the shipped %s through its validator", (file, validate) => {

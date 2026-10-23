@@ -6,8 +6,11 @@
  */
 
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
+import { personaFixture } from "../../config/load-test-helpers";
 import type { EndpointsConfig, ToolStatus, Usage } from "../../contract";
 import { createReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
+import { assembleCard } from "../../io/chat/card/assemble-card";
+import { resolveCard } from "../../io/chat/card/resolve-card";
 import {
   type ChatHistoryEntry,
   type ChatHistoryItem,
@@ -19,6 +22,7 @@ import {
   createClientToolRegistry,
 } from "../../io/chat/tools/client-tools";
 import type { Logger } from "../../logger";
+import { createAgentSettings } from "../../settings/backend/agent-settings";
 import type { BusEnvelope } from "../core/event-bus";
 import {
   CONFIG,
@@ -1111,25 +1115,8 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
     expect(msgs[msgs.length - 1]).toEqual({ role: "user", content: "혼자" });
   });
 
-  it("agent instructions override → leading system message carries it", async () => {
-    script.events = [completedEvent({ speech_text: "" }, "")];
-    caller = createBackendCaller({
-      config: CC_CONFIG,
-      renderer: { applyDirective } as never,
-      getApiKey: async () => "k",
-      getFetch: async () => undefined,
-      stream: script.stream,
-      turnOutput,
-      getAgentSettings: () => ({ reasoning_effort: "medium", instructions: "be terse" }),
-    });
-    await caller.call(turnOf(userEnv()));
-    const [, request] = script.spy.mock.calls[0];
-    expect(request.reasoning_effort).toBe("medium");
-    expect(messagesOf(request)[0]).toEqual({ role: "system", content: "be terse" });
-    expect("instructions" in request).toBe(false);
-  });
-
-  it("empty agent instructions → falls back to config.chat_instructions", async () => {
+  it("no card → the leading system message is config.chat_instructions", async () => {
+    // getCardText null is the switch off or push: the request keeps the shape it has without a card.
     script.events = [completedEvent({ speech_text: "" }, "")];
     caller = createBackendCaller({
       config: { ...CC_CONFIG, chat_instructions: "config nudge" },
@@ -1138,11 +1125,13 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
       getFetch: async () => undefined,
       stream: script.stream,
       turnOutput,
-      getAgentSettings: () => ({ reasoning_effort: "none", instructions: "" }),
+      getAgentSettings: () => ({ reasoning_effort: "none", send_card: false, card: null }),
+      getCardText: () => null,
     });
     await caller.call(turnOf(userEnv()));
     const [, request] = script.spy.mock.calls[0];
     expect(messagesOf(request)[0]).toEqual({ role: "system", content: "config nudge" });
+    expect(messagesOf(request)).toHaveLength(3);
   });
 
   it("proactive turn in CC mode → user message is the proactive background marker", async () => {
@@ -1268,6 +1257,138 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
     const firstTools = firstOpts?.tools.definitions() as ClientToolDefinition[] | undefined;
     expect(firstTools).toEqual(secondOpts?.tools.definitions());
     expect(firstTools?.map((d) => d.function.name)).toContain("look");
+  });
+});
+
+// ── card ──────────────────────────────────────────────────────────────────────
+
+describe("backend_caller — card", () => {
+  const CC_CONFIG: EndpointsConfig = { ...CONFIG, chat_api: "chat_completions" };
+  const CARD_TEXT = { system: "You are Yui.\n\nUse the tool.", postHistory: "Stay brief." };
+
+  function cardCaller(
+    config: EndpointsConfig,
+    extra: Partial<Parameters<typeof createBackendCaller>[0]> = {},
+  ) {
+    return createBackendCaller({
+      config,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      turnOutput,
+      getCardText: () => CARD_TEXT,
+      ...extra,
+    });
+  }
+
+  it("Chat Completions: the card is the first system message and post-history precedes client_context", async () => {
+    script.events = [completedEvent({ speech_text: "" }, "")];
+    const transcript: ChatHistoryEntry[] = [{ role: "assistant", text: "Hi.", ts: 1 }];
+    await cardCaller(CC_CONFIG, {
+      transcript: {
+        entriesAfterLastBoundary: () => transcript,
+        append: vi.fn(),
+        sessionToken: () => "s",
+      },
+    }).call(turnOf(userEnv("hey")));
+    const msgs = script.spy.mock.calls[0][1].messages as Array<{ role: string; content: unknown }>;
+    expect(msgs.slice(0, 3)).toEqual([
+      { role: "system", content: CARD_TEXT.system },
+      { role: "assistant", content: "Hi." },
+      { role: "system", content: "Stay brief." },
+    ]);
+    expect(String(msgs[3].content)).toMatch(/^client_context:/);
+  });
+
+  it("Chat Completions: two turns with a different time, trigger, and transcript share the first system message byte for byte", async () => {
+    script.events = [completedEvent({ speech_text: "ok" }, "")];
+    const store = createChatHistoryStore();
+    const settings = createAgentSettings();
+    const getCardText = () => {
+      const resolved = resolveCard({
+        settings: settings.get(),
+        locale: "en",
+        persona: personaFixture(),
+        presetEntry: { id: "default", name: "default" },
+        chatApi: "chat_completions",
+      });
+      return (
+        resolved &&
+        assembleCard({ ...resolved, framing: "F {{char}}", userName: "Sam", chatInstructions: "T" })
+      );
+    };
+    const c = cardCaller(CC_CONFIG, { transcript: store, getCardText });
+    vi.useFakeTimers({ now: 1_717_000_000_000 });
+    try {
+      await c.call(turnOf(userEnv("first")));
+      vi.setSystemTime(1_717_000_600_000);
+      const proactive: BusEnvelope = {
+        seq_id: 2,
+        source: "timer_scheduler",
+        event_name: "proactive.cowork",
+        ts: 1_717_000_600_000,
+        payload: {},
+      };
+      await c.call(turnOf(proactive, 2));
+    } finally {
+      vi.useRealTimers();
+    }
+    const [first, second] = script.spy.mock.calls.map(
+      ([, r]) => (r.messages as Array<{ content: unknown }>)[0].content,
+    );
+    expect(second).toBe(first);
+    expect(String(first)).toMatch(/^F Yui\n\n/);
+  });
+
+  it("a stored v0.4.0 instructions string reaches the request as the first block of the first system message", async () => {
+    script.events = [completedEvent({ speech_text: "" }, "")];
+    const settings = createAgentSettings({
+      storage: {
+        load: () => ({ reasoning_effort: "none", instructions: "be terse" }) as never,
+        save: vi.fn(),
+      },
+    });
+    const getCardText = () => {
+      const resolved = resolveCard({
+        settings: settings.get(),
+        locale: "en",
+        persona: personaFixture(),
+        presetEntry: { id: "default", name: "default" },
+        chatApi: "chat_completions",
+      });
+      return (
+        resolved &&
+        assembleCard({ ...resolved, framing: "F", userName: "Sam", chatInstructions: "T" })
+      );
+    };
+    await cardCaller(CC_CONFIG, { getCardText }).call(turnOf(userEnv()));
+    const msgs = script.spy.mock.calls[0][1].messages as Array<{ content: unknown }>;
+    expect(msgs[0].content).toBe("be terse\n\nT");
+  });
+
+  it("Responses: the card goes in instructions, post-history leads the user item, and a fresh chain replays only the flagged greeting", async () => {
+    script.events = [completedEvent({ speech_text: "" })];
+    const transcript: ChatHistoryEntry[] = [
+      { role: "assistant", text: "Hello again.", ts: 1, greeting: true },
+      { role: "assistant", text: "unprompted line", ts: 2 },
+    ];
+    await cardCaller(CONFIG, {
+      transcript: {
+        entriesAfterLastBoundary: () => transcript,
+        append: vi.fn(),
+        sessionToken: () => "s",
+      },
+    }).call(turnOf(userEnv()));
+    const [, request] = script.spy.mock.calls[0];
+    expect(request.instructions).toBe(CARD_TEXT.system);
+    const input = request.input as Array<{ role: string; content: string }>;
+    expect(input).toHaveLength(2);
+    expect(input[0]).toEqual({ role: "assistant", content: "Hello again." });
+    expect(input[1].role).toBe("user");
+    expect(input[1].content).toMatch(
+      /^<post_history_instructions>\nStay brief\.\n<\/post_history_instructions>\n<client_context>\n/,
+    );
   });
 });
 

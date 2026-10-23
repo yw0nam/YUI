@@ -10,6 +10,7 @@
  *  - emotion_registry.json   → EmotionRegistry (emotion id → vrm_expression + fallback)
  *  - motions.json            → MotionRegistry (id → vrma_path + playback policy)
  *  - screen.json             → ScreenConfig (frontmost-transition detector thresholds)
+ *  - persona.json            → PersonaConfig (default cards, framing, `{{user}}` fallback per UI language)
  *
  * This file does pure load + validation only (no side effects, reader injectable → testable). Hot-reload/
  * subscription is layered on by store.ts (createConfigStore), which wraps this loadConfig.
@@ -27,6 +28,8 @@ import { type FillerConfig, validateFiller } from "./validators/filler";
 import { type GuardrailsConfig, validateGuardrails } from "./validators/guardrails";
 import { type HotkeysConfig, validateHotkeys } from "./validators/hotkeys";
 import { validateMotions } from "./validators/motions";
+import { validatePersona } from "./validators/persona/persona";
+import type { PersonaConfig } from "./validators/persona/types";
 import { type ScreenConfig, validateScreen } from "./validators/screen";
 import { ConfigError } from "./validators/shared";
 
@@ -47,6 +50,7 @@ export interface AppConfig {
   filler: FillerConfig;
   hotkeys: HotkeysConfig;
   screen: ScreenConfig;
+  persona: PersonaConfig;
 }
 
 /** AppConfig domain keys — the unit hot-reload uses to notify "what changed" (store.ts). */
@@ -62,6 +66,7 @@ export const CONFIG_FILES: Record<ConfigSection, string> = {
   filler: "filler.json",
   hotkeys: "hotkeys.json",
   screen: "screen.json",
+  persona: "persona.json",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -147,6 +152,7 @@ export async function loadConfig(opts: LoadConfigOptions = {}): Promise<AppConfi
     fillerRaw,
     hotkeysRaw,
     screenRaw,
+    personaRaw,
   ] = await Promise.all([
     read(CONFIG_FILES.endpoints),
     read(CONFIG_FILES.avatar),
@@ -156,6 +162,7 @@ export async function loadConfig(opts: LoadConfigOptions = {}): Promise<AppConfi
     read(CONFIG_FILES.filler),
     read(CONFIG_FILES.hotkeys),
     read(CONFIG_FILES.screen),
+    read(CONFIG_FILES.persona),
   ]);
 
   return {
@@ -167,5 +174,6 @@ export async function loadConfig(opts: LoadConfigOptions = {}): Promise<AppConfi
     filler: validateFiller(CONFIG_FILES.filler, fillerRaw),
     hotkeys: validateHotkeys(CONFIG_FILES.hotkeys, hotkeysRaw),
     screen: validateScreen(CONFIG_FILES.screen, screenRaw),
+    persona: validatePersona(CONFIG_FILES.persona, personaRaw),
   };
 }
