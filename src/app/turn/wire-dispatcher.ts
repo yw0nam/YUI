@@ -51,6 +51,7 @@ import type { Surfaces } from "../../ui/surfaces/surfaces";
 import { wireGuardrailsOverrides } from "../cross-window/wire-window-sync";
 import type { ConversationStores } from "../settings/conversation-stores";
 import type { VoicePipeline } from "./voice/wire-voice-pipeline";
+import { wireCard } from "./wire-card";
 
 export function wireDispatcher(deps: {
   bus: EventBus;
@@ -81,6 +82,7 @@ export function wireDispatcher(deps: {
   overheardStore: ConversationStores["overheardStore"];
   relationsStore: ConversationStores["relationsStore"];
   agentSettings: SettingsStores["agentSettings"];
+  userNameSettings: SettingsStores["userNameSettings"];
   guardrailsSettings: SettingsStores["guardrailsSettings"];
   pacerGapSettings: SettingsStores["pacerGapSettings"];
   oneVoiceSettings: SettingsStores["oneVoiceSettings"];
@@ -129,6 +131,7 @@ export function wireDispatcher(deps: {
     overheardStore,
     relationsStore,
     agentSettings,
+    userNameSettings,
     guardrailsSettings,
     pacerGapSettings,
     oneVoiceSettings,
@@ -177,6 +180,14 @@ export function wireDispatcher(deps: {
     cursors: overheardStore,
   });
 
+  const card = wireCard({
+    agentSettings,
+    userNameSettings,
+    getEndpoints,
+    getConfig,
+    presetEntry: () => ({ id: presetIdForWindow(), name: readPresetName(presetIdForWindow()) }),
+  });
+
   const backendCaller = createBackendCaller({
     get config() {
       return getEndpoints();
@@ -213,6 +224,7 @@ export function wireDispatcher(deps: {
     contextHistory,
     appendTurnRecord,
     getAgentSettings: () => agentSettings.get(),
+    getCardText: card.getCardText,
     clientTools: turnTools,
     pushTurn: (frame) => pushSocket?.sendTurn(frame) ?? false,
     pushImageRoom: (frame) => pushSocket?.imageRoom(frame),

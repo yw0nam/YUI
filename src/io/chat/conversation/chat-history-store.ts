@@ -21,6 +21,8 @@ export interface ChatHistoryEntry {
   ts: number;
   /** A user entry that asked from a help button: the guide the reply answered from. */
   guide?: GuideKey;
+  /** An assistant entry the client performed from the card after a session reset. */
+  greeting?: true;
 }
 
 /** Divider between conversation sessions. Replay stops here; the viewer reads past it. */
@@ -68,6 +70,7 @@ function coerceItem(v: unknown): ChatHistoryItem | null {
     text: e.text,
     ts: e.ts,
     ...(isGuideKey(e.guide) ? { guide: e.guide } : {}),
+    ...(e.greeting === true ? { greeting: true as const } : {}),
   };
 }
 
@@ -92,7 +95,8 @@ function equalItems(a: ChatHistoryItem[], b: ChatHistoryItem[]): boolean {
       item.role === other.role &&
       item.text === other.text &&
       item.ts === other.ts &&
-      item.guide === other.guide
+      item.guide === other.guide &&
+      item.greeting === other.greeting
     );
   });
 }

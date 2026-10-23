@@ -190,6 +190,7 @@ export async function wireTurnCore(
     overheardStore,
     relationsStore,
     agentSettings: settings.agentSettings,
+    userNameSettings: settings.userNameSettings,
     guardrailsSettings: settings.guardrailsSettings,
     pacerGapSettings: settings.pacerGapSettings,
     oneVoiceSettings: settings.oneVoiceSettings,
