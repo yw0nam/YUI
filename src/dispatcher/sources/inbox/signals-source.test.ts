@@ -532,11 +532,11 @@ describe("signals_source — global pacer composed into the busy predicate (#689
   });
 });
 
-describe("signals_source — live delivery class", () => {
-  const LIVE_ENVELOPE = { ...ENVELOPE, delivery: "live" as const, event_id: "run-live-1" };
+describe("signals_source — urgent delivery class", () => {
+  const URGENT_ENVELOPE = { ...ENVELOPE, delivery: "urgent" as const, event_id: "run-urgent-1" };
 
-  /** Wires one source the way wire-sources.ts does: paced busy for the non-live core, raw for live. */
-  function setupLiveDelivery(pacerHolding: boolean) {
+  /** Wires one source the way wire-sources.ts does: paced busy for the non-urgent core, raw for urgent. */
+  function setupUrgentDelivery(pacerHolding: boolean) {
     const { bus, pushed } = fakeBus();
     const { listen, emit: emitIdle } = fakeListen();
     const { onInbox, emit: emitInbox } = fakeInbox();
@@ -557,33 +557,35 @@ describe("signals_source — live delivery class", () => {
       listen,
       isPipelineBusy: paced.isBusy,
       subscribePipelineBusy: paced.subscribe,
-      isLivePipelineBusy: pipelineBusy.isPipelineBusy,
-      subscribeLivePipelineBusy: pipelineBusy.subscribePipelineBusy,
+      isUrgentPipelineBusy: pipelineBusy.isPipelineBusy,
+      subscribeUrgentPipelineBusy: pipelineBusy.subscribePipelineBusy,
     });
     return { src, pushed, emitIdle, emitInbox, pipelineBusy };
   }
 
-  const liveArrival = [{ envelope: LIVE_ENVELOPE, items: [{ id: 1 }] }];
+  const urgentArrival = [{ envelope: URGENT_ENVELOPE, items: [{ id: 1 }] }];
 
   it.each([
     {
-      delivery: "live",
+      delivery: "urgent",
       title:
-        "a live-delivery envelope validates and fires at once as signals.live under live_signal_source",
-      fired: [{ source: "live_signal_source", event_name: "signals.live", signals: liveArrival }],
+        "an urgent-delivery envelope validates and fires at once as signals.urgent under urgent_signal_source",
+      fired: [
+        { source: "urgent_signal_source", event_name: "signals.urgent", signals: urgentArrival },
+      ],
     },
     {
       delivery: "immediate",
       title:
-        "an immediate-delivery group in the same state stays buffered — the pacer still holds the non-live core",
+        "an immediate-delivery group in the same state stays buffered — the pacer still holds the non-urgent core",
       fired: [],
     },
   ])("$title", async ({ delivery, fired }) => {
-    const s = setupLiveDelivery(true);
+    const s = setupUrgentDelivery(true);
     await s.src.start();
 
     s.emitIdle(idleTick(LOW_IDLE)); // present, pipeline idle, pacer holding
-    s.emitInbox(batch([{ id: 1 }], 1000, { ...LIVE_ENVELOPE, delivery } as never));
+    s.emitInbox(batch([{ id: 1 }], 1000, { ...URGENT_ENVELOPE, delivery } as never));
 
     expect(
       s.pushed.map((e) => ({
@@ -596,14 +598,14 @@ describe("signals_source — live delivery class", () => {
     s.src.stop();
   });
 
-  it("three live-delivery groups during a busy pipeline fire as one signals.live_catchup on the busy→idle edge, while the buffered immediate group fires its own signals.catchup", async () => {
-    const s = setupLiveDelivery(false);
+  it("three urgent-delivery groups during a busy pipeline fire as one signals.urgent_catchup on the busy→idle edge, while the buffered immediate group fires its own signals.catchup", async () => {
+    const s = setupUrgentDelivery(false);
     await s.src.start();
 
     s.emitIdle(idleTick(LOW_IDLE)); // present
     s.pipelineBusy.setBusy(true); // raw busy — both instances buffer
     for (const id of [1, 2, 3]) {
-      s.emitInbox(batch([{ id }], id, { ...LIVE_ENVELOPE, event_id: `run-live-${id}` }));
+      s.emitInbox(batch([{ id }], id, { ...URGENT_ENVELOPE, event_id: `run-urgent-${id}` }));
     }
     s.emitInbox(batch([{ id: 9 }], 9)); // immediate — buffered by the paced busy state
     expect(s.pushed).toHaveLength(0);
@@ -612,12 +614,12 @@ describe("signals_source — live delivery class", () => {
 
     expect(s.pushed.map((e) => e.event_name).sort()).toEqual([
       "signals.catchup",
-      "signals.live_catchup",
+      "signals.urgent_catchup",
     ]);
-    const liveCatchup = s.pushed.find((e) => e.event_name === "signals.live_catchup")!;
-    expect(liveCatchup.source).toBe("live_signal_source");
+    const urgentCatchup = s.pushed.find((e) => e.event_name === "signals.urgent_catchup")!;
+    expect(urgentCatchup.source).toBe("urgent_signal_source");
     expect(
-      (liveCatchup.payload as { signals: Array<{ items: Array<{ id: number }> }> }).signals.map(
+      (urgentCatchup.payload as { signals: Array<{ items: Array<{ id: number }> }> }).signals.map(
         (g) => g.items[0].id,
       ),
     ).toEqual([1, 2, 3]);
@@ -630,20 +632,20 @@ describe("signals_source — live delivery class", () => {
     s.src.stop();
   });
 
-  it("drain returns non-live groups only and leaves a live-delivery group to its own catch-up", async () => {
-    const s = setupLiveDelivery(false);
+  it("drain returns non-urgent groups only and leaves an urgent-delivery group to its own catch-up", async () => {
+    const s = setupUrgentDelivery(false);
     await s.src.start();
 
     s.emitIdle(idleTick(HIGH_IDLE)); // away
-    s.emitInbox(batch([{ id: 1 }], 1000, LIVE_ENVELOPE));
+    s.emitInbox(batch([{ id: 1 }], 1000, URGENT_ENVELOPE));
     s.emitInbox(batch([{ id: 2 }], 2000));
 
     expect(s.src.drain()).toEqual([{ envelope: ENVELOPE, items: [{ id: 2 }] }]);
 
-    // the live-delivery group survives the drain and fires on its own return-to-present edge
+    // the urgent-delivery group survives the drain and fires on its own return-to-present edge
     s.emitIdle(idleTick(LOW_IDLE));
-    expect(s.pushed.map((e) => e.event_name)).toEqual(["signals.live_catchup"]);
-    expect(s.pushed[0].source).toBe("live_signal_source");
+    expect(s.pushed.map((e) => e.event_name)).toEqual(["signals.urgent_catchup"]);
+    expect(s.pushed[0].source).toBe("urgent_signal_source");
 
     s.src.stop();
   });

@@ -413,16 +413,16 @@ describe("dispatcher — global proactive pacer gate", () => {
   });
 });
 
-describe("dispatcher — live signals guardrails (live_max)", () => {
-  const liveEnv = (over: Partial<BusEnvelope> = {}): BusEnvelope =>
+describe("dispatcher — urgent signals guardrails (urgent_max)", () => {
+  const urgentEnv = (over: Partial<BusEnvelope> = {}): BusEnvelope =>
     env({
-      source: "live_signal_source",
-      event_name: "signals.live",
+      source: "urgent_signal_source",
+      event_name: "signals.urgent",
       dnd_override: false,
       ...over,
     });
 
-  function makeLiveGated(): { d: Dispatcher; g: Guardrails } {
+  function makeUrgentGated(): { d: Dispatcher; g: Guardrails } {
     const cfg = realGuardrailsConfig();
     cfg.rate_limit.tier2_max = 1000;
     const g = createGuardrails(cfg, { now: () => Date.now() });
@@ -440,8 +440,8 @@ describe("dispatcher — live signals guardrails (live_max)", () => {
     return { d, g };
   }
 
-  it("fires a live turn while the global cooldown is active", async () => {
-    const { d, g } = makeLiveGated();
+  it("fires an urgent turn while the global cooldown is active", async () => {
+    const { d, g } = makeUrgentGated();
     d.start();
     for (let i = 0; i < 21; i++) {
       g.evaluate(
@@ -457,15 +457,15 @@ describe("dispatcher — live signals guardrails (live_max)", () => {
     await vi.advanceTimersByTimeAsync(20);
     expect(d.state()).toBe("cooldown");
 
-    bus.push(liveEnv());
+    bus.push(urgentEnv());
     await vi.advanceTimersByTimeAsync(20);
 
     expect(backendCaller.call).toHaveBeenCalledOnce();
     d.stop();
   });
 
-  it("drains a pending live turn at the pending-drain gate during cooldown", async () => {
-    const { d, g } = makeLiveGated();
+  it("drains a pending urgent turn at the pending-drain gate during cooldown", async () => {
+    const { d, g } = makeUrgentGated();
     d.start();
 
     bus.push(env({ ts: NOW })); // user turn takes the in-flight slot
@@ -485,7 +485,7 @@ describe("dispatcher — live signals guardrails (live_max)", () => {
     await vi.advanceTimersByTimeAsync(20);
     expect(d.state()).toBe("cooldown");
 
-    bus.push(liveEnv({ ts: NOW + 100 }));
+    bus.push(urgentEnv({ ts: NOW + 100 }));
     await vi.advanceTimersByTimeAsync(20);
     expect(backendCaller.call).toHaveBeenCalledOnce(); // held in pending behind the user turn
 

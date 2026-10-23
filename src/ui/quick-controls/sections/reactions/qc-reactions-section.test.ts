@@ -303,7 +303,7 @@ describe("createQuickControls — reactions section", () => {
 
   // ── Rate-limit caps ───────────────────────────────────────────────────────
 
-  const RATE_LIMIT_DEFAULTS = { tier2_max: 24, live_max: 120, overall_max: 40 };
+  const RATE_LIMIT_DEFAULTS = { tier2_max: 24, urgent_max: 120, overall_max: 40 };
 
   function buildRateQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
     const rateLimitSettings = createGuardrailsSettings();

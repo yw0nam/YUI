@@ -234,8 +234,8 @@ export type SignalItem = Record<string, unknown>;
 export type SignalEnvelope = {
   source: string;
   event_type: string;
-  /** immediate: fire at once when eligible; batched: wait for the interval; live: user-started activity, skips the proactive pacer. */
-  delivery: "immediate" | "batched" | "live";
+  /** immediate: deprecated, fire at once when eligible; batched: wait for the interval; urgent: handle now, skips the proactive pacer. */
+  delivery: "immediate" | "batched" | "urgent";
   event_id: string;
   occurred_at: number;
 };

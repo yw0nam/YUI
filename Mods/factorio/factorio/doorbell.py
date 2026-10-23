@@ -19,7 +19,7 @@ TICK_S = 0.05
 
 
 class Doorbell:
-    """Post one `delivery: live` group when a wake-kind event arrives."""
+    """Post one `delivery: urgent` group when a wake-kind event arrives."""
 
     def __init__(
         self,
@@ -158,7 +158,7 @@ class Doorbell:
             "envelope": {
                 "source": "factorio",
                 "event_type": "game.wake",
-                "delivery": "live",
+                "delivery": "urgent",
                 "event_id": str(uuid.uuid4()),
                 "occurred_at": int(self._clock() * 1000),
             },

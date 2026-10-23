@@ -185,7 +185,7 @@ describe("createQuickControls — toggles", () => {
     {
       name: "agentNotify",
       selector: ".yui-agentnotify-switch",
-      ariaLabel: "에이전트 알림",
+      ariaLabel: "외부 신호",
       initialEnabled: false,
       gated: true,
       build: () => {

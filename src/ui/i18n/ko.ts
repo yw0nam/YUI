@@ -528,10 +528,10 @@ const ko: Record<string, string> = {
   "fall.label": "떨어지기",
   "fall.sub": "허공에 놓으면 아래 창이나 바닥까지 떨어집니다.",
   "fall.aria": "떨어지기",
-  "agentNotify.label": "에이전트 알림",
+  "agentNotify.label": "외부 신호",
   "agentNotify.sub":
-    "Claude Code, opencode 등 코딩 에이전트가 작업을 마치거나 입력이 필요하면 먼저 말합니다.",
-  "agentNotify.aria": "에이전트 알림",
+    "코딩 에이전트, 워크플로, 다른 프로그램이 이 컴퓨터에서 신호를 보내면 말을 걸어요.",
+  "agentNotify.aria": "외부 신호",
 
   // first-run onboarding hint
   "hint.first_run": "우클릭하면 컨트롤이 열려요 · {hotkey}로 말 걸 수 있어요",
@@ -561,8 +561,8 @@ const ko: Record<string, string> = {
   "reactions.rate_tier2_sub": "자리 비움, 자발적 말 걸기, 일정, 에이전트 알림을 합쳐서 세요",
   "reactions.rate_overall_label": "시간당 먼저 건 대화 전체",
   "reactions.rate_overall_sub": "넘어서면 쿨다운 동안 모두 멈춰요",
-  "reactions.rate_live_label": "시간당 라이브 활동 턴",
-  "reactions.rate_live_sub": "내가 시작한 활동의 신호예요. 쿨다운에 걸리지 않아요",
+  "reactions.rate_urgent_label": "시간당 긴급 신호 턴",
+  "reactions.rate_urgent_sub": "보낸 쪽이 긴급으로 표시한 신호예요. 쿨다운에 걸리지 않아요",
   "reactions.rate_hint_text":
     "유이가 1시간 동안 먼저 말을 걸 수 있는 횟수의 한도예요. 내가 직접 건 말은 세지 않아요.",
 

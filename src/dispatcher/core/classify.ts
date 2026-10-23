@@ -69,8 +69,8 @@ export function userTurnSourceOf(env: BusEnvelope): UserTurnSource | undefined {
 
 /**
  * Which sources the global proactive gap applies to. Loop cues, schedule and the buffered
- * inboxes (signals, agent) all push as timer_scheduler — except the live signals instance,
- * whose user-started activity a hold must not delay; screen transitions as screen_watcher;
+ * inboxes (signals, agent) all push as timer_scheduler — except the urgent signals instance,
+ * whose handle-now delivery a hold must not delay; screen transitions as screen_watcher;
  * gesture cues, typed/spoken input and the once-a-day milestone push as os_event_watcher and
  * pass ungated. Record forces a new source value to answer paced-or-not at compile time.
  */
@@ -79,5 +79,5 @@ export const PACED_SOURCES: Record<BusEnvelope["source"], boolean> = {
   screen_watcher: true,
   os_event_watcher: false,
   user_input_source: false,
-  live_signal_source: false,
+  urgent_signal_source: false,
 };

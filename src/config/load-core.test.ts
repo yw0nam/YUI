@@ -53,7 +53,7 @@ describe("loadConfig — guardrails", () => {
       rate_limit: {
         window_ms: 3600000,
         tier2_max: 6,
-        live_max: 120,
+        urgent_max: 120,
         overall_max: 20,
         cooldown_ms: 300000,
       },

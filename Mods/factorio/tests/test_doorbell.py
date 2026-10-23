@@ -99,7 +99,7 @@ def test_two_wake_events_inside_the_coalesce_window_post_once(tmp_path):
     assert (envelope["source"], envelope["event_type"], envelope["delivery"]) == (
         "factorio",
         "game.wake",
-        "live",
+        "urgent",
     )
     assert envelope["occurred_at"] == CLOCK_MS
 

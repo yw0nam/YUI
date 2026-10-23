@@ -61,10 +61,10 @@ export const RATE_LIMIT_FIELDS: readonly RateLimitFieldDef[] = [
     subKey: "reactions.rate_tier2_sub",
   },
   {
-    key: "live_max",
-    id: "yui-rate-live",
-    labelKey: "reactions.rate_live_label",
-    subKey: "reactions.rate_live_sub",
+    key: "urgent_max",
+    id: "yui-rate-urgent",
+    labelKey: "reactions.rate_urgent_label",
+    subKey: "reactions.rate_urgent_sub",
   },
   {
     key: "overall_max",

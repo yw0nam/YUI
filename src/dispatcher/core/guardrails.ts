@@ -8,9 +8,9 @@
  *  - Debounce: per source window. If now() − lastFire[source] < window, drop.
  *  - Rate-limit: tier-2 rolling window. Slots consumed on fire (=pass), no refund.
  *               If overall_max exceeded, set cooldownUntil (entry/exit transition owned by dispatcher).
- *  - Live signals (live_signal_source): capped by rate_limit.live_max alone — outside the
- *               cooldown and the tier2/overall windows, since a live turn is an activity the
- *               user started and is waiting on.
+ *  - Urgent signals (urgent_signal_source): capped by rate_limit.urgent_max alone — outside
+ *               the cooldown and the tier2/overall windows, since an urgent turn asks to be
+ *               handled now.
  *
  * Evaluation functions are pure (return verdict only) — don't mutate dispatcher state, no dispatcher reference.
  * Time read only via injected now() (bare Date.now() forbidden).
@@ -51,10 +51,10 @@ export function createGuardrails(
   // debounce: last pass time per source.
   const lastFire = new Map<Source, number>();
 
-  // rate-limit: tier 2 + overall + live rolling windows (pass times epoch ms).
+  // rate-limit: tier 2 + overall + urgent rolling windows (pass times epoch ms).
   const tier2Window: number[] = [];
   const overallWindow: number[] = [];
-  const liveWindow: number[] = [];
+  const urgentWindow: number[] = [];
   let cooldownUntil = 0;
 
   /** Remove items from rolling window that are before now() − window_ms. */
@@ -67,14 +67,14 @@ export function createGuardrails(
     // 1) dnd_override: top-level short-circuit. Don't increment any counter/debounce.
     if (env.dnd_override === true) return { pass: true };
 
-    // 2) live signals: live_max is their only cap — the overall cooldown never holds them,
+    // 2) urgent signals: urgent_max is their only cap — the overall cooldown never holds them,
     //    and they consume no tier2/overall slot.
-    if (env.source === "live_signal_source") {
-      prune(liveWindow);
-      if (liveWindow.length >= config.rate_limit.live_max) {
+    if (env.source === "urgent_signal_source") {
+      prune(urgentWindow);
+      if (urgentWindow.length >= config.rate_limit.urgent_max) {
         return { pass: false, reason: "guardrail_drop" };
       }
-      liveWindow.push(now());
+      urgentWindow.push(now());
       return { pass: true };
     }
 

@@ -35,7 +35,7 @@ import type { ClampedIntSettingsStore } from "../../settings/persisted-store";
 
 /**
  * tier2 utterance candidate sources: proactive.<id> (idle dramatization) + schedule.<id>
- * (time-of-day greeting) + agent.done/needs_input/catchup + signals.push/batch/catchup/live/live_catchup +
+ * (time-of-day greeting) + agent.done/needs_input/catchup + signals.push/batch/catchup/urgent/urgent_catchup +
  * time_milestone.first_activity (first present tick of the local day), all over the
  * presence gate, plus proactive.wake (the character getting out of the bed).
  * Created and started; the started refs are returned for interaction-notes and teardown.
@@ -105,8 +105,8 @@ export function wireDispatcherSources(deps: {
     isEnabled: () => agentNotifySettings.get().enabled,
     isPipelineBusy: pacedPipelineBusy.isBusy,
     subscribePipelineBusy: pacedPipelineBusy.subscribe,
-    isLivePipelineBusy: pipelineBusy.isBusy,
-    subscribeLivePipelineBusy: pipelineBusy.subscribe,
+    isUrgentPipelineBusy: pipelineBusy.isBusy,
+    subscribeUrgentPipelineBusy: pipelineBusy.subscribe,
   });
   void signalsSource.start();
   const milestoneSource = createMilestoneSource({

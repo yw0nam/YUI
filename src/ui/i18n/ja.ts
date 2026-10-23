@@ -532,10 +532,10 @@ const ja: Record<string, string> = {
   "fall.label": "落下",
   "fall.sub": "空中で放すと、下のウィンドウや床まで落ちます。",
   "fall.aria": "落下",
-  "agentNotify.label": "エージェント通知",
+  "agentNotify.label": "外部シグナル",
   "agentNotify.sub":
-    "Claude Code や opencode などのコーディングエージェントがタスクを終えたとき、または入力が必要なときに先に知らせます。",
-  "agentNotify.aria": "エージェント通知",
+    "コーディングエージェントやワークフローなど、このマシンのプログラムがシグナルを送ると話しかけます。",
+  "agentNotify.aria": "外部シグナル",
 
   // first-run onboarding hint
   "hint.first_run": "右クリックでコントロール · {hotkey}で話しかけてね",
@@ -565,8 +565,8 @@ const ja: Record<string, string> = {
   "reactions.rate_tier2_sub": "アイドル・自発・スケジュール・エージェントの合計",
   "reactions.rate_overall_label": "1時間あたりの自発ターン合計",
   "reactions.rate_overall_sub": "超えるとクールダウンの間すべて止まります",
-  "reactions.rate_live_label": "1時間あたりのライブ活動ターン",
-  "reactions.rate_live_sub": "あなたが始めたアクティビティのシグナル。クールダウンでは止まりません",
+  "reactions.rate_urgent_label": "1時間あたりの緊急シグナルターン",
+  "reactions.rate_urgent_sub": "送り手が緊急と指定したシグナル。クールダウンでは止まりません",
   "reactions.rate_hint_text":
     "ユイが1時間に自分から話しかけられる回数の上限です。あなたから話しかけた分は数えません。",
 

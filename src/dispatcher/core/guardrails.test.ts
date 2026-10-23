@@ -30,7 +30,7 @@ function config(): GuardrailsConfig {
     rate_limit: {
       window_ms: 3_600_000,
       tier2_max: 6,
-      live_max: 120,
+      urgent_max: 120,
       overall_max: 20,
       cooldown_ms: 300_000,
     },
@@ -217,21 +217,21 @@ describe("guardrails — overall cap → cooldown (§6.3)", () => {
   });
 });
 
-// ── Live signals cap (live_max) ──────────────────────────────────────────────
+// ── Urgent signals cap (urgent_max) ──────────────────────────────────────────────
 
-describe("guardrails — live signals cap (live_max)", () => {
-  it("counts live turns toward live_max only: the 121st drops while the tier2/overall counters never move", () => {
+describe("guardrails — urgent signals cap (urgent_max)", () => {
+  it("counts urgent turns toward urgent_max only: the 121st drops while the tier2/overall counters never move", () => {
     const c = clock();
     const g = createGuardrails(config(), { now: c.now });
-    // 120 live passes — far past tier2_max 6 and overall_max 20, which live never touches.
+    // 120 urgent passes — far past tier2_max 6 and overall_max 20, which urgent never touches.
     for (let i = 0; i < 120; i++) {
       expect(
-        g.evaluate(env({ source: "live_signal_source", event_name: "signals.live" })).pass,
+        g.evaluate(env({ source: "urgent_signal_source", event_name: "signals.urgent" })).pass,
       ).toBe(true);
     }
-    expect(g.evaluate(env({ source: "live_signal_source", event_name: "signals.live" })).pass).toBe(
-      false,
-    );
+    expect(
+      g.evaluate(env({ source: "urgent_signal_source", event_name: "signals.urgent" })).pass,
+    ).toBe(false);
     // overall never moved → no cooldown; the full tier2 budget is still there.
     expect(g.cooldownActive()).toBe(false);
     expect(
@@ -239,24 +239,24 @@ describe("guardrails — live signals cap (live_max)", () => {
     ).toBe(true);
   });
 
-  it("a live turn passes during the overall cooldown, and live_max still caps the next one", () => {
+  it("an urgent turn passes during the overall cooldown, and urgent_max still caps the next one", () => {
     const c = clock();
     const cfg = config();
     cfg.rate_limit.tier2_max = 1000;
-    cfg.rate_limit.live_max = 1;
+    cfg.rate_limit.urgent_max = 1;
     const g = createGuardrails(cfg, { now: c.now });
     for (let i = 0; i < 20; i++) {
       g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" }));
     }
     g.evaluate(env({ source: "user_input_source", event_name: "user.text_submitted" })); // enters cooldown
     expect(g.cooldownActive()).toBe(true);
-    expect(g.evaluate(env({ source: "live_signal_source", event_name: "signals.live" })).pass).toBe(
-      true,
-    );
+    expect(
+      g.evaluate(env({ source: "urgent_signal_source", event_name: "signals.urgent" })).pass,
+    ).toBe(true);
     expect(g.cooldownActive()).toBe(true);
-    expect(g.evaluate(env({ source: "live_signal_source", event_name: "signals.live" })).pass).toBe(
-      false,
-    );
+    expect(
+      g.evaluate(env({ source: "urgent_signal_source", event_name: "signals.urgent" })).pass,
+    ).toBe(false);
   });
 });
 

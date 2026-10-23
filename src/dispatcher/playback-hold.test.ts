@@ -41,7 +41,7 @@ function permissiveGuardrailsConfig(): GuardrailsConfig {
     rate_limit: {
       window_ms: 3_600_000,
       tier2_max: 1000,
-      live_max: 1000,
+      urgent_max: 1000,
       overall_max: 1000,
       cooldown_ms: 300_000,
     },

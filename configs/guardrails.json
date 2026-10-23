@@ -7,7 +7,7 @@
   "rate_limit": {
     "window_ms": 3600000,
     "tier2_max": 24,
-    "live_max": 120,
+    "urgent_max": 120,
     "overall_max": 40,
     "cooldown_ms": 300000
   },
