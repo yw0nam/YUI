@@ -4,7 +4,7 @@ from yui_notify.config import load
 
 DEFAULTS = {
     "endpoint": "http://127.0.0.1:8770",
-    "events": {"done": "batched", "needs_input": "urgent"},
+    "events": {"done": "urgent", "needs_input": "urgent"},
 }
 
 
@@ -32,7 +32,7 @@ def test_invalid_event_value_falls_back(tmp_path):
     )
     assert load(env) == {
         "endpoint": "http://127.0.0.1:8770",
-        "events": {"done": "batched", "needs_input": "batched"},
+        "events": {"done": "urgent", "needs_input": "batched"},
     }
 
 

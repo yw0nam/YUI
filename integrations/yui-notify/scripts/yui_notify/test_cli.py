@@ -65,7 +65,7 @@ def run_hook(tmp_path, endpoint, fixture, config=None, extra_env=None):
         (
             "claude-stop.json",
             "agent.done",
-            "batched",
+            "urgent",
             "bc68d697-4e8f-4be0-8ea6-e67f955b2586:done",
             "summary",
             CLAUDE_STOP_TEXT,

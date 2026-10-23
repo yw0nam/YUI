@@ -15,6 +15,16 @@ CLAUDE_STOP_TEXT = (
     "for a reason."
 )
 CLAUDE_ENV = {"CLAUDECODE": "1"}
+CODEX_SESSION = "019a1f2e-7c4b-7d30-9b1e-3f5a8c2d4e61"
+NO_ROLLOUT = object()
+
+
+def load(fixture, rollout=NO_ROLLOUT):
+    data = json.loads((FIXTURES / fixture).read_text())
+    # the fixtures name their rollout file relative to the fixtures dir
+    path = data["transcript_path"] if rollout is NO_ROLLOUT else rollout
+    data["transcript_path"] = str(FIXTURES / path) if path else path
+    return data
 
 
 @pytest.mark.parametrize(
@@ -26,6 +36,22 @@ CLAUDE_ENV = {"CLAUDECODE": "1"}
             ("claude-code", "done", "bc68d697-4e8f-4be0-8ea6-e67f955b2586", CLAUDE_STOP_TEXT),
         ),
         ("claude-stop-background.json", CLAUDE_ENV, None),
+        ("claude-stop.json", {**CLAUDE_ENV, "CLAUDE_CODE_ENTRYPOINT": "sdk-cli"}, None),
+        (
+            "claude-stop.json",
+            {**CLAUDE_ENV, "CLAUDE_CODE_ENTRYPOINT": "cli"},
+            ("claude-code", "done", "bc68d697-4e8f-4be0-8ea6-e67f955b2586", CLAUDE_STOP_TEXT),
+        ),
+        (
+            "claude-permission.json",
+            {**CLAUDE_ENV, "CLAUDE_CODE_ENTRYPOINT": "sdk-cli"},
+            (
+                "claude-code",
+                "needs_input",
+                "bc68d697-4e8f-4be0-8ea6-e67f955b2586",
+                "Bash: touch /Users/dev/projects/demo/hello.txt",
+            ),
+        ),
         (
             "claude-permission.json",
             CLAUDE_ENV,
@@ -76,6 +102,9 @@ CLAUDE_ENV = {"CLAUDECODE": "1"}
     ids=[
         "claude-stop",
         "claude-stop-background",
+        "claude-stop-sdk-skipped",
+        "claude-stop-interactive",
+        "claude-permission-sdk-sent",
         "claude-permission",
         "claude-notification-synthetic",
         "codex-stop",
@@ -85,6 +114,26 @@ CLAUDE_ENV = {"CLAUDECODE": "1"}
     ],
 )
 def test_parse_event(fixture, env, expected):
-    event = parse_event(json.loads((FIXTURES / fixture).read_text()), env)
+    event = parse_event(load(fixture), env)
     got = None if event is None else (event.agent, event.phase, event.session_id, event.text)
     assert got == expected
+
+
+@pytest.mark.parametrize(
+    "fixture, rollout, sent",
+    [
+        ("codex-stop.json", "codex-rollout-cli.jsonl", True),
+        ("codex-stop.json", "codex-rollout-vscode.jsonl", True),
+        ("codex-stop.json", "codex-rollout-exec.jsonl", False),
+        ("codex-stop.json", "codex-rollout-subagent.jsonl", False),
+        ("codex-stop.json", "codex-rollout-missing.jsonl", False),
+        ("codex-stop.json", None, False),
+        ("codex-permission.json", "codex-rollout-exec.jsonl", True),
+    ],
+    ids=["cli", "vscode", "exec", "subagent", "unreadable", "null-path", "permission-under-exec"],
+)
+def test_codex_sends_only_interactive_sessions(fixture, rollout, sent):
+    event = parse_event(load(fixture, rollout), {})
+    assert (event is not None) == sent
+    if sent:
+        assert event.session_id == CODEX_SESSION
