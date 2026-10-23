@@ -9,10 +9,8 @@ import {
   EMPTY_CARD,
   type PersonaConfig,
 } from "../../../../config/validators/persona/types";
-import { sanitizeFileStem } from "../../../../io/assets/card/card-export";
 import type { ImportedCard } from "../../../../io/assets/card/card-import";
 import { cardName, isUnnamedBuiltIn } from "../../../../io/chat/card/resolve-card";
-import { toV2Envelope } from "../../../../io/chat/card/serialize-card";
 import type { Logger } from "../../../../logger";
 import type { createAgentSettings } from "../../../../settings/backend/agent-settings";
 import type { createUserNameSettings } from "../../../../settings/identity/user-name-settings";
@@ -25,6 +23,7 @@ import type { PresetRegistry } from "../../../../settings/preset/preset-registry
 import { getLocale, LOCALE_DISPLAY_NAMES, subscribe as subscribeLocale, t } from "../../../i18n";
 import { CARD_GUIDE_URL } from "../../constants";
 import { escapeAttr, secHeadHtml } from "../../markup";
+import { createCardIo } from "./card-io";
 import "./card-section.css";
 
 type TextField =
@@ -94,16 +93,16 @@ export function cardSectionHtml(): string {
               <div class="yui-group">${stackHtml("mes_example", "card.mes_example", 4)}${stackHtml("system_prompt", "card.system_prompt", 4, "card.system_prompt_sub")}${stackHtml("post_history_instructions", "card.post_history", 2)}
               </div>
             </details>
-            <div class="yui-row yui-row--action yui-card__io">
-              <button class="yui-link-btn yui-card-import" type="button">${t("card.import")}</button>
-              <button class="yui-link-btn yui-card-export" type="button">${t("card.export")}</button>
-            </div>
-            <p class="yui-row__sub yui-card__io-note">${t("card.io_note")}</p>
-            <p class="yui-card__io-error" role="status" hidden></p>
             <p class="yui-sec__foot">${t("card.macros")}</p>
             <div class="yui-group yui-group--you">${inputRowHtml("yui-card-username", "card.user_name", "", "card.user_name_sub")}
             </div>
           </div>
+          <div class="yui-row yui-row--action yui-card__io">
+            <button class="yui-link-btn yui-card-import" type="button">${t("card.import")}</button>
+            <button class="yui-link-btn yui-card-export" type="button">${t("card.export")}</button>
+          </div>
+          <p class="yui-row__sub yui-card__io-note">${t("card.io_note")}</p>
+          <p class="yui-card__io-error" role="status" hidden></p>
         </div>`;
 }
 
@@ -124,9 +123,9 @@ interface CardSectionDeps {
   /** Popover open state: store subscriptions redraw only while the panel is open. */
   isOpen: () => boolean;
   /** Card file steps and the preset creator, wired by the app layer. */
-  importCard?: () => Promise<ImportedCard | null>;
-  exportCard?: (text: string, fileName: string) => Promise<"written" | "cancelled">;
-  createPresetFromCard?: (card: Card, thumbnailTempId?: string) => Promise<string>;
+  importCard: () => Promise<ImportedCard | null>;
+  exportCard: (text: string, fileName: string) => Promise<"written" | "cancelled">;
+  createPresetFromCard: (card: Card, thumbnailTempId?: string) => Promise<string>;
   log: Logger;
 }
 
@@ -196,49 +195,17 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
 
   const currentCard = (): Card => agentSettings.get().card ?? base();
 
-  function showIoError(message: string): void {
-    const errorEl = q<HTMLElement>(".yui-card__io-error");
-    errorEl.textContent = message;
-    errorEl.hidden = false;
-  }
-
-  function clearIoError(): void {
-    const errorEl = q<HTMLElement>(".yui-card__io-error");
-    errorEl.hidden = true;
-    errorEl.textContent = "";
-  }
-
-  async function handleImport(): Promise<void> {
-    try {
-      const imported = await deps.importCard?.();
-      if (!imported) return;
-      const id = await deps.createPresetFromCard?.(imported.card, imported.thumbnailTempId);
-      clearIoError();
-      // The windows reload into the new preset right after; the log line is the record.
-      log.info("card_import", { preset: id });
-    } catch (err) {
-      showIoError(t("card.import_error"));
-      log.error("card_import_failed", { error: err instanceof Error ? err.message : String(err) });
-    }
-  }
-
-  async function handleExport(): Promise<void> {
-    try {
-      const card = currentCard();
-      const name = cardName(card, entry());
-      const result = await deps.exportCard?.(
-        JSON.stringify(toV2Envelope(card, name)),
-        `${sanitizeFileStem(name)}.json`,
-      );
-      if (result === "written") {
-        clearIoError();
-        log.info("card_export");
-      }
-    } catch (err) {
-      showIoError(t("card.export_error"));
-      log.error("card_export_failed", { error: err instanceof Error ? err.message : String(err) });
-    }
-  }
+  const io = createCardIo({
+    errorEl: q<HTMLElement>(".yui-card__io-error"),
+    ports: {
+      importCard: deps.importCard,
+      exportCard: deps.exportCard,
+      createPresetFromCard: deps.createPresetFromCard,
+    },
+    currentCard,
+    entry,
+    log,
+  });
 
   function setGreetings(next: string[]): void {
     agentSettings.updateCard({ alternate_greetings: next }, base());
@@ -279,6 +246,10 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
 
   function handleClick(e: MouseEvent): void {
     const target = e.target as HTMLElement;
+    if (target.closest(".yui-card__io")) {
+      io.handle(e);
+      return;
+    }
     if (target.closest(".yui-card-switch")) {
       const enabled = !agentSettings.get().send_card;
       agentSettings.setSendCard(enabled);
@@ -289,12 +260,6 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
     } else if (target.closest(".yui-card-add")) {
       setGreetings([...currentCard().alternate_greetings, ""]);
       greetings().at(-1)?.focus();
-    } else if (target.closest(".yui-card-import")) {
-      void handleImport();
-      return;
-    } else if (target.closest(".yui-card-export")) {
-      void handleExport();
-      return;
     } else {
       const remove = target.closest<HTMLElement>(".yui-card-greeting__remove");
       if (remove)

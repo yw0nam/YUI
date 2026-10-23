@@ -199,7 +199,11 @@ export function createPresetManage(deps: {
     goBtn.addEventListener("click", () => {
       confirmId = null;
       if (registry.remove(entry.id)) {
-        void deps.removeCardThumbnail?.(entry.id);
+        deps
+          .removeCardThumbnail?.(entry.id)
+          .catch((e) =>
+            log.warn("thumbnail_remove_failed", { preset: entry.id, error: String(e) }),
+          );
         log.info("preset_remove", { preset: entry.id });
       }
       focusSel = ".yui-add-btn";

@@ -251,11 +251,11 @@ interface QuickControlsOptions {
   bedSceneSettings?: BedSceneSettingsStore;
   /** Browser-use on/off store. If absent, that section won't render. */
   browserSettings?: FlagSettingsStore;
-  /** Card file steps and the preset creator, wired by the app layer. If absent, the action row shows nothing. */
-  importCard?: () => Promise<ImportedCard | null>;
-  exportCard?: (text: string, fileName: string) => Promise<"written" | "cancelled">;
-  createPresetFromCard?: (card: Card, thumbnailTempId?: string) => Promise<string>;
-  removeCardThumbnail?: (id: string) => Promise<void>;
+  /** Card file steps and the preset creator, wired by the app layer. */
+  importCard: () => Promise<ImportedCard | null>;
+  exportCard: (text: string, fileName: string) => Promise<"written" | "cancelled">;
+  createPresetFromCard: (card: Card, thumbnailTempId?: string) => Promise<string>;
+  removeCardThumbnail: (id: string) => Promise<void>;
   /** Preset list and active preset. If absent, the preset strip and the tab scope lines won't render. */
   presetRegistry?: PresetRegistry;
   petWindows?: PetWindows;

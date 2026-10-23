@@ -1,8 +1,5 @@
 import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../../config/secrets";
 import { createConfigStore } from "../../config/store";
-import { exportCardToFile } from "../../io/assets/card/card-export";
-import { importCardFromFile } from "../../io/assets/card/card-import";
-import { removeCardThumbnail, retainCardThumbnail } from "../../io/assets/card/card-thumbnail";
 import { importVrmFromFile, removeUserVrm } from "../../io/assets/vrm-import";
 import {
   createVrmSelection,
@@ -20,11 +17,11 @@ import { closeSettingsWindow, titleSettingsWindow } from "../../io/window/opener
 import { createLogger } from "../../logger";
 import { presetIdForWindow } from "../../settings/preset/active-preset";
 import { readBoundPresetId } from "../../settings/preset/bound-preset";
-import { createPresetFromCard } from "../../settings/preset/import-card-preset";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import { createVoiceInputStatus } from "../../ui/chips/voice-input-status";
 import { subscribe as subscribeLocale, t } from "../../ui/i18n";
 import { createQuickControls } from "../../ui/quick-controls/quick-controls";
+import { wireCardIo } from "../card-io/wire-card-io";
 import { wireSettingsWindowSync } from "../cross-window/wire-cross-window";
 import type { Disposers } from "../disposers";
 import { wirePetWindowsSync } from "../pet-windows/wire-pet-windows-sync";
@@ -262,24 +259,7 @@ export async function wireSettingsWindow(deps: {
       canManageVoices,
       canReuploadVoices,
       canPasteVoiceId,
-      importCard: () => importCardFromFile(),
-      exportCard: (text, fileName) => exportCardToFile(text, fileName),
-      createPresetFromCard: (card, thumbnailTempId) =>
-        createPresetFromCard({
-          registry: presetRegistry,
-          card,
-          ...(thumbnailTempId
-            ? {
-                retainThumbnail: (presetId: string) =>
-                  retainCardThumbnail(thumbnailTempId, presetId),
-                discardThumbnail: async (presetId: string) => {
-                  await removeCardThumbnail(thumbnailTempId);
-                  await removeCardThumbnail(presetId);
-                },
-              }
-            : {}),
-        }),
-      removeCardThumbnail: (id) => removeCardThumbnail(id),
+      ...wireCardIo(presetRegistry),
       // Renderer in main window, pass gain preview via bridge → main window VRM mouth moves.
       onGainPreview: (mouthOpen) => bridge.emitMouthPreview(mouthOpen),
       onGainPreviewEnd: () => bridge.emitMouthPreview(null),
