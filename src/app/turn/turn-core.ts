@@ -133,6 +133,7 @@ export async function wireTurnCore(
     sessionStore,
     sessionDiagnostics,
     chatHistoryStore,
+    signalHistoryStore,
     overheardStore,
     relationsStore,
   } = conversation;
@@ -186,6 +187,7 @@ export async function wireTurnCore(
     sessionStore,
     onUsage,
     chatHistoryStore,
+    signalHistoryStore,
     contextHistory,
     overheardStore,
     relationsStore,
@@ -275,6 +277,7 @@ export async function wireTurnCore(
             turnFeed,
             appendTurnRecord: (record) => appendRecord(record),
             appendTranscript: (entry) => chatHistoryStore.append(entry),
+            signalHistory: signalHistoryStore,
             reportSpokeText: (turnId, spoke) => turnLog.setSpokeText(turnId, spoke),
             onUsage,
             log,

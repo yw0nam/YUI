@@ -19,6 +19,10 @@ import {
   localStorageSessionStorage,
 } from "../../io/chat/conversation/session-store";
 import {
+  createSignalHistoryStore,
+  localStorageSignalHistoryStorage,
+} from "../../io/chat/conversation/signal-history-store";
+import {
   createRelationsStore,
   localStorageRelations,
 } from "../../settings/relations/relations-store";
@@ -34,6 +38,10 @@ export function createConversationStores() {
   // Unified conversation transcript — both protocol modes append, and only CC mode pulls its
   // outbound share from here. "Start new conversation" writes a session boundary instead of erasing it.
   const chatHistoryStore = createChatHistoryStore({ storage: localStorageChatHistoryStorage() });
+  // Per-turn signal records, kept per preset beside the transcript so History folds them into its sessions.
+  const signalHistoryStore = createSignalHistoryStore({
+    storage: localStorageSignalHistoryStorage(),
+  });
   // Per other preset, how far this window has heard its transcript.
   const overheardStore = createOverheardStore({ storage: localStorageOverheard() });
   // This preset's relation toward the user and each other preset.
@@ -44,6 +52,7 @@ export function createConversationStores() {
     sessionStore,
     sessionDiagnostics,
     chatHistoryStore,
+    signalHistoryStore,
     overheardStore,
     relationsStore,
   };
@@ -52,12 +61,18 @@ export function createConversationStores() {
 export type ConversationStores = ReturnType<typeof createConversationStores>;
 
 /**
- * Every store reloads on a remote change; only the transcript broadcasts its own edits, so the
- * settings window's History tab updates as turns land in the pet window.
+ * Every store reloads on a remote change; the transcript and the signal history broadcast their own
+ * edits, so the settings window's History tab updates as turns land in the pet window.
  */
 export function conversationSyncStores(bag: ConversationStores): {
   extraReload: ConversationStores[keyof ConversationStores][];
-  extraBroadcast: ConversationStores["chatHistoryStore"][];
+  extraBroadcast: (
+    | ConversationStores["chatHistoryStore"]
+    | ConversationStores["signalHistoryStore"]
+  )[];
 } {
-  return { extraReload: Object.values(bag), extraBroadcast: [bag.chatHistoryStore] };
+  return {
+    extraReload: Object.values(bag),
+    extraBroadcast: [bag.chatHistoryStore, bag.signalHistoryStore],
+  };
 }

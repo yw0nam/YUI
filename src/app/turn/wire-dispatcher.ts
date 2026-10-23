@@ -77,6 +77,7 @@ export function wireDispatcher(deps: {
   /** The session readout's usage consumer, shared with the push transport. */
   onUsage: (usage: Usage) => void;
   chatHistoryStore: ConversationStores["chatHistoryStore"];
+  signalHistoryStore: ConversationStores["signalHistoryStore"];
   contextHistory: ConversationStores["contextHistory"];
   overheardStore: ConversationStores["overheardStore"];
   relationsStore: ConversationStores["relationsStore"];
@@ -125,6 +126,7 @@ export function wireDispatcher(deps: {
     sessionStore,
     onUsage,
     chatHistoryStore,
+    signalHistoryStore,
     contextHistory,
     overheardStore,
     relationsStore,
@@ -190,6 +192,7 @@ export function wireDispatcher(deps: {
     onResponseIdInvalid: () => sessionStore.clear(),
     onChainReset: () => showChainResetNotice({ surfaces, t }),
     transcript: chatHistoryStore,
+    signalHistory: signalHistoryStore,
     onUsage,
     turnOutput: voice.turnOutput,
     reportSpokeText: (turnId, spoke) => turnLog.setSpokeText(turnId, spoke),

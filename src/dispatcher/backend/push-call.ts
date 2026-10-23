@@ -190,6 +190,7 @@ export function createPushCall(deps: PushCallDeps, log: Logger): PushCall {
     recordSentTurn(deps, log, {
       eventName: env.event_name,
       userText: ctx.user_text,
+      turnId: String(turn.id),
       clientContext,
       startSessionToken,
       spokeText: false,

@@ -22,6 +22,7 @@ export const PRESET_KEYS: readonly string[] = [
   "yui.message-window",
   "yui.chat-id",
   "yui.chat_transcript",
+  "yui.signal_history",
   "yui.previous_response_id",
   // Derived by the session store from its base key; it moves with that key.
   "yui.previous_response_id.tool_outputs",

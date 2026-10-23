@@ -396,6 +396,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       recordSentTurn(deps, log, {
         eventName: env.event_name,
         userText: ctx.user_text,
+        turnId: String(turn.id),
         clientContext,
         startSessionToken,
         assistantText: envelope.speech_text,

@@ -5,14 +5,17 @@
  * reports the utterance it opened, the turn log reports settlement, and each fact becomes one call
  * on the surfaces. Whether there is a reply is the backend's.
  */
-import type { UserQuote } from "../../io/bridge/message/message-bridge";
+import type { SourceLine, UserQuote } from "../../io/bridge/message/message-bridge";
 import { guideKeyOf, userImagesOf, userTextOf } from "../backend/context-builder";
 import { userTurnSourceOf } from "../core/classify";
+import { sourceLinesOf } from "./signal-lines";
 import type { Turn, TurnLog } from "./turn";
 
 /** The surface calls the quote drives; the real Surfaces satisfies it. */
 export interface QuoteSurfaces {
   quoteUser(quote: UserQuote): void;
+  /** The message window's Surfaces gains it with its source-line render; absent means nothing shows yet. */
+  quoteSignals?(lines: SourceLine[]): void;
   settleQuote(): void;
   clearQuote(): void;
   restoreInput(text: string, images: string[]): void;
@@ -33,14 +36,18 @@ export function createQuotedTurn(deps: {
   turnLog: Pick<TurnLog, "subscribe">;
 }): QuotedTurn {
   const { surfaces } = deps;
-  let quoted: {
-    id: number;
-    text: string;
-    images: string[];
-    via: UserQuote["via"];
-    guide: boolean;
-    spoke: boolean;
-  } | null = null;
+  type Quoted =
+    | {
+        kind: "user";
+        id: number;
+        text: string;
+        images: string[];
+        via: UserQuote["via"];
+        guide: boolean;
+        spoke: boolean;
+      }
+    | { kind: "signals"; id: number; lines: SourceLine[]; spoke: boolean };
+  let quoted: Quoted | null = null;
 
   const unsubscribe = deps.turnLog.subscribe((over) => {
     if (!over || quoted === null) return;
@@ -52,6 +59,12 @@ export function createQuotedTurn(deps: {
     admitted(turn) {
       const via = userTurnSourceOf(turn.trigger);
       if (via === undefined) {
+        const lines = sourceLinesOf(turn.trigger);
+        if (lines.length > 0) {
+          // Nothing shows until the utterance opens — the quote holds the lines for it.
+          quoted = { kind: "signals", id: turn.id, lines, spoke: false };
+          return;
+        }
         if (quoted === null) return;
         quoted = null;
         surfaces.settleQuote();
@@ -60,6 +73,7 @@ export function createQuotedTurn(deps: {
       const text = userTextOf(turn.trigger) ?? "";
       const images = userImagesOf(turn.trigger) ?? [];
       quoted = {
+        kind: "user",
         id: turn.id,
         text,
         images,
@@ -70,7 +84,9 @@ export function createQuotedTurn(deps: {
       surfaces.quoteUser({ text, via, images: images.length });
     },
     utteranceStart() {
-      if (quoted) quoted.spoke = true;
+      if (!quoted) return;
+      if (quoted.kind === "signals" && !quoted.spoke) surfaces.quoteSignals?.(quoted.lines);
+      quoted.spoke = true;
     },
     failed(turn) {
       if (quoted?.id !== turn.id) return;
@@ -80,6 +96,8 @@ export function createQuotedTurn(deps: {
         surfaces.settleQuote();
         return;
       }
+      // A signal quote never showed, so there is nothing to clear or restore.
+      if (failedQuote.kind === "signals") return;
       // Resending the bare request would lose the guide, so a guide turn restores nothing.
       if (failedQuote.via === "text" && !failedQuote.guide)
         surfaces.restoreInput(failedQuote.text, failedQuote.images);

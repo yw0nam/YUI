@@ -20,6 +20,14 @@ export interface UserQuote {
   images: number;
 }
 
+/** One signal group as the bubble quotes it: its delivery class, its source, and its label. */
+export interface SourceLine {
+  delivery: "urgent" | "batched";
+  source: string;
+  /** The producer's label, or the event type when it gave none. */
+  text: string;
+}
+
 /** Pet → message: one call on the message window's local `Surfaces`. */
 export type MessageSurfaceOp =
   | { op: "begin" }

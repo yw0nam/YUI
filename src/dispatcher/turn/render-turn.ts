@@ -42,6 +42,8 @@ export interface RenderTurnDeps {
   pushTurns: Pick<PushTurns, "rendered" | "isCut" | "cutCount" | "identity">;
   /** Conversation transcript — the reply half of a push turn lands here. */
   appendTranscript?: (entry: ChatHistoryEntry) => void;
+  /** Per-turn signal records — the reply's landing fills what the turn said. */
+  signalHistory?: { setSaid(turnId: string, text: string): void };
   appendTurnRecord?: (record: RenderRecord) => void;
   /** Speech-gate sink — a frame of the turn spoke text, independent of TTS. */
   reportSpokeText?: (turnId: string, spoke: boolean) => void;
@@ -77,10 +79,16 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
   /** The turn whose `speech` frames opened the utterance still waiting to be closed. */
   let open: { turnId: string; said: string[]; timer?: ReturnType<typeof setTimeout> } | null = null;
 
-  function appendTranscript(said: readonly string[]): void {
+  function appendTranscript(turnId: string, said: readonly string[]): void {
     if (said.length === 0) return;
     try {
-      deps.appendTranscript?.({ role: "assistant", text: said.join(" "), ts: Date.now() });
+      deps.appendTranscript?.({
+        role: "assistant",
+        text: said.join(" "),
+        ts: Date.now(),
+        turn_id: turnId,
+      });
+      deps.signalHistory?.setSaid(turnId, said.join(" "));
     } catch (err) {
       log.debug("transcript_append_failed", { error: String(err) });
     }
@@ -145,9 +153,10 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
 
   function close(turnId?: string): void {
     if (open === null || (turnId !== undefined && open.turnId !== turnId)) return;
+    const closedTurnId = open.turnId;
     const said = takeOpen();
     deps.turnOutput.end();
-    appendTranscript(said);
+    appendTranscript(closedTurnId, said);
   }
 
   return {
@@ -177,7 +186,7 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
         queued_behind: queuedBehind,
       });
 
-      appendTranscript(heard);
+      appendTranscript(frame.turn_id, heard);
 
       try {
         deps.appendTurnRecord?.(
@@ -221,7 +230,7 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
 
     drop(turnId) {
       if (open?.turnId !== turnId) return;
-      appendTranscript(takeOpen());
+      appendTranscript(turnId, takeOpen());
     },
 
     dispose() {

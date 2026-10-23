@@ -129,7 +129,7 @@ function milestoneOf(env: BusEnvelope): TriggerMeta["milestone"] | undefined {
   return { name: payload.name, local_time: payload.local_time };
 }
 
-function signalsOf(env: BusEnvelope): TriggerMeta["signals"] | undefined {
+export function signalsOf(env: BusEnvelope): TriggerMeta["signals"] | undefined {
   if (
     !env.event_name.startsWith("signals.") &&
     !env.event_name.startsWith("time_milestone.") &&

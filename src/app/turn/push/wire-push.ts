@@ -62,6 +62,8 @@ export function wirePushTransport(deps: {
   appendTurnRecord: (record: RenderRecord) => void;
   /** Conversation transcript — the reply half of a push turn lands here. */
   appendTranscript: (entry: ChatHistoryEntry) => void;
+  /** Per-turn signal records — the reply's landing fills what the turn said. */
+  signalHistory?: { setSaid(turnId: string, text: string): void };
   /** Speech-gate sink keyed by the dispatcher's turn id; a backend-minted id names no such turn. */
   reportSpokeText: (turnId: number, spoke: boolean) => void;
   /** The shared usage consumer — a `turn_end` frame's usage reaches it as a request's does. */
@@ -73,6 +75,7 @@ export function wirePushTransport(deps: {
     pushTurns: deps.pushTurns,
     appendTurnRecord: deps.appendTurnRecord,
     appendTranscript: deps.appendTranscript,
+    signalHistory: deps.signalHistory,
     reportSpokeText: (turnId, spoke) => {
       // Only the id the client sent, `String(turn.id)`, names a ledger turn.
       const id = Number(turnId);
