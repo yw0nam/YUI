@@ -185,13 +185,12 @@ describe("preset strip — relations", () => {
       expect(line.classList.contains("is-unfolded")).toBe(true);
       expect(more.getAttribute("aria-expanded")).toBe("true");
 
-      build(seed, petWindows);
-      const rebuilt = root.querySelector<HTMLElement>(".yui-preset__rel")!;
-      expect(rebuilt.classList.contains("is-unfolded")).toBe(false);
+      // The next render on the same strip folds again; a store write triggers one.
+      store.rate("user", 1, "kept a promise", NOW);
+      const next = root.querySelector<HTMLElement>(".yui-preset__rel")!;
+      expect(next.classList.contains("is-unfolded")).toBe(false);
       expect(
-        rebuilt
-          .querySelector<HTMLButtonElement>(".yui-relation--more")!
-          .getAttribute("aria-expanded"),
+        next.querySelector<HTMLButtonElement>(".yui-relation--more")!.getAttribute("aria-expanded"),
       ).toBe("false");
     } finally {
       petWindows.dispose();
