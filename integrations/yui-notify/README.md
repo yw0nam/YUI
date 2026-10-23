@@ -105,8 +105,9 @@ yui-notify test [--endpoint URL] [--delivery urgent|batched]
 
 - `hook` reads the agent's hook JSON on stdin and exits 0 after posting or after any
   failure. It never writes to stdout.
-- `probe` posts `{"envelope": null}`; HTTP 400 proves the listener is up and the route
-  exists without delivering a signal.
+- `probe` posts `{"signals": [], "envelope": "yui-notify-probe"}`; HTTP 200 proves the
+  listener is up and the route and preset exist. The client drops the group because the
+  envelope is not an object, so nothing is delivered and YUI logs one warning.
 - `test` posts one `yui-notify.test` signal and prints `sent: HTTP <n>` on success.
 
 `probe` and `test` print one line and exit 1 on failure. The

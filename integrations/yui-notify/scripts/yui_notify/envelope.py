@@ -24,3 +24,17 @@ def build_signal(event: Event, ctx: Mapping[str, Any], delivery: str, summary: s
             "occurred_at": now_ms,
         },
     }
+
+
+def build_test_signal(ctx: Mapping[str, Any], delivery: str, now_ms: int) -> dict:
+    return {
+        "signals": [{"summary": "Test signal from the yui-notify setup."}],
+        "envelope": {
+            "source": "yui-notify",
+            "event_type": "yui-notify.test",
+            "delivery": delivery,
+            "event_id": f"yui-notify-test:{now_ms}",
+            "label": make_label(ctx),
+            "occurred_at": now_ms,
+        },
+    }

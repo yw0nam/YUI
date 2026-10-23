@@ -31,7 +31,9 @@ unset.
 - The file is missing: this is new setup.
 
 Then find hand-installed YUI hooks that would double-send. Look for an entry under `hooks`
-in `~/.claude/settings.json` and in `~/.codex/hooks.json` whose command posts to
+in `~/.claude/settings.json`, `~/.claude/settings.local.json`, the current project's
+`.claude/settings.json` and `.claude/settings.local.json`, `~/.codex/hooks.json`, and the
+hooks tables of `~/.codex/config.toml`, whose command posts to
 `/agent-event` or `/signals` on the YUI port or runs a script that does. List each entry
 and offer to remove that entry alone. Change no other hook, and ask before deleting a
 script file.
