@@ -32,7 +32,7 @@ The History tab keeps your past conversations on your device, and you can start 
 
 ## Choose her mind
 
-She uses whichever AI backend you connect, from a plain chat model to a full agent. How smart and how personal she is depends on that backend.
+She uses whichever AI backend you connect, from a plain chat model to a full agent. How smart she is depends on that backend; who she is comes from the persona text you write in the app, or from the agent itself.
 
 ## Languages
 
