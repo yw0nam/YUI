@@ -16,6 +16,8 @@ const SUMMARY_MAX_BYTES: usize = 8192;
 const DETAIL_MAX_BYTES: usize = 16384;
 /// Hard body read ceiling; prevents OOM on oversized payloads.
 pub(super) const BODY_CEILING_BYTES: usize = 65536;
+/// One signal item's ceiling; a request holding a larger item is refused whole.
+const ITEM_CEILING_BYTES: usize = 16 * 1024;
 
 /// The `/relations` record limits, as `docs/reference/signals-ingress.md` states them.
 const VALUE_RANGE: std::ops::RangeInclusive<i64> = -20..=20;
@@ -215,8 +217,9 @@ pub(super) fn parse_request(
 ///
 /// Returns `Err(405)` when the method is not POST, and `Err(400)` when the path
 /// (before any query string) is not `/signals`, the body is not valid JSON
-/// shaped `{"signals": [...]}`, or the `envelope` is missing or null. Each
-/// element of `signals` is passed through as opaque JSON.
+/// shaped `{"signals": [...]}`, the `envelope` is missing or null, or an item
+/// exceeds `ITEM_CEILING_BYTES`. Each element of `signals` is passed through as
+/// opaque JSON.
 pub(super) fn parse_signals_request(
     method: &str,
     path: &str,
@@ -231,6 +234,12 @@ pub(super) fn parse_signals_request(
     }
     let request = serde_json::from_str::<SignalsRequest>(body).map_err(|_| 400u16)?;
     request.envelope.as_ref().ok_or(400u16)?;
+    for item in &request.signals {
+        let bytes = serde_json::to_vec(item).map_err(|_| 400u16)?;
+        if bytes.len() > ITEM_CEILING_BYTES {
+            return Err(400);
+        }
+    }
     Ok(request)
 }
 

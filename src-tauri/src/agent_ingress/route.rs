@@ -51,6 +51,7 @@ pub(super) fn parse_route(method: &str, url: &str, body: &str) -> Result<Route, 
         (Target::Main, path.to_string())
     };
     let kind = match path.as_str() {
+        // Deprecated: removed in v0.6.0. Use POST /signals.
         "/agent-event" => {
             RouteKind::AgentEvent(cap_detail(cap_summary(parse_request(method, &path, body)?)))
         }
