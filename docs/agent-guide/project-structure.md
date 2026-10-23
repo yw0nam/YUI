@@ -714,7 +714,7 @@ YUI/
     avatar/                          # Avatar body-state and movement Mod
     browser-cdp/                     # Browser CDP Mod
     desktop-control/                 # macOS screen and app-control Mod
-    factorio/                        # Factorio RCON poll, event cache, and live signals Mod
+    factorio/                        # Factorio RCON poll, event cache, and urgent signals Mod
       game-mod/                      # The coop-agent Lua game mod; its tests/ uv project runs in the mods CI job
     shell-sandbox/                   # Sandboxed shell Mod
     router/                          # Shared Mod router

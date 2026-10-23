@@ -20,7 +20,7 @@ She can start a conversation herself, within limits you control in the settings.
 
 ## Your coding agents
 
-With agent notifications turned on, she tells you when a coding agent finishes a task or needs your input.
+With External signals turned on, she tells you when a coding agent finishes a task or needs your input.
 
 ## Delegated work
 

@@ -44,9 +44,10 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST -H 'Content-Type: application/j
 ```
 
 Pick `delivery` by how soon the character should speak: `urgent` speaks now if the user is
-present and waits for their return otherwise; `batched` waits for the next five-minute
-batch. The character decides what to say; the signal carries facts, not a script. The
-producer guide covers the tiers, the label, and the event id:
+present and the character is idle, and otherwise waits for their return or the end of the
+current turn; `batched` waits for the next five-minute batch. The character decides what
+to say; the signal carries facts, not a script. The producer guide covers the delivery
+classes, the label, and the event id:
 https://github.com/yw0nam/YUI/blob/main/docs/guide/signals-producer.md
 
 Done when: the response code is read.
@@ -58,7 +59,7 @@ Done when: the response code is read.
 | 200 | Accepted for the character | Nothing. The character speaks under the delivery rules. |
 | 404 | No preset has this id, or the path is wrong | Ask the user for the URL again (step 1). |
 | 503 | The preset exists but its window is closed | Ask the user to open the character's window (preset list → "Open window"), then send again. |
-| 400 | The body is not a valid envelope | Fix the body against the envelope table in `signals-ingress.md`. |
+| 400 | The body is not a valid envelope, or one signal item is over 16 KiB | Fix the body against the envelope table and the limits in `signals-ingress.md`. |
 | 405 | Wrong method | Use POST. |
 | 421 or 403 | The request did not come from this machine | Send from the same machine as YUI, or through an SSH tunnel to 127.0.0.1. |
 | connection refused | The ingress is off or YUI is not running | Ask the user to turn on External signals and restart YUI. |

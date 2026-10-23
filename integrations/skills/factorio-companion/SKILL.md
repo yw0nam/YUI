@@ -17,7 +17,7 @@ Use this skill when both conditions hold:
 1. You are the backend of YUI.
 2. The owner plays Factorio with the Mod `Mods/factorio` running.
 
-The Mod speaks to the game over RCON and posts a `urgent` signal to YUI when a wake event arrives.
+The Mod speaks to the game over RCON and posts an `urgent` signal to YUI when a wake event arrives.
 
 ## 2. Setup for the owner
 

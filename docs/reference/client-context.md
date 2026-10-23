@@ -450,6 +450,8 @@ couldn't validate (missing/malformed required fields) leaves both trigger-detail
 with no note/detail lines — the background marker still falls back to unnamed wording
 in that case (see below).
 
+Deprecated: removed in v0.6.0. Use `POST /signals`.
+
 ### Agent lifecycle (catchup burst)
 
 ```text
@@ -596,6 +598,8 @@ all situational detail still lives in the trigger lines above.
 | `signals.push` | `(a new signal just arrived for you)` |
 | `signals.batch` | `(a few signals batched up for you)` |
 | `signals.catchup` | `(signals piled up while I was away)` |
+| `signals.urgent` | `(something urgent just came in for you)` |
+| `signals.urgent_catchup` | `(urgent things piled up while I was away)` |
 | `time_milestone.first_activity` | `(I've just started my day)` |
 | any other | `(something just caught your attention)` |
 

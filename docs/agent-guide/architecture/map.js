@@ -1028,7 +1028,7 @@ globalThis.YUI_MAP =
       "id": "dispatcher/sources/inbox",
       "module": "sources",
       "label": "inbox sources",
-      "role": "Agent-lifecycle and signals firing sources with presence-gated buffering; a signal group routes by its delivery tier, replaces a buffered group with the same event_id, and the urgent catch-up goes out first on return.",
+      "role": "Agent-lifecycle and signals firing sources with presence-gated buffering; a signal group routes by its delivery class, replaces a buffered group with the same event_id, and on return the other buffers' catch-up goes out first with the urgent catch-up as the next turn.",
       "paths": [
         "src/dispatcher/sources/inbox"
       ]
@@ -2033,7 +2033,7 @@ globalThis.YUI_MAP =
       "id": "ingress-start",
       "from": "settings",
       "to": "shell/agent-ingress",
-      "carries": "start_agent_ingress {port} at boot when agent notifications are on; main only, a bound window starts no ingress",
+      "carries": "start_agent_ingress {port} at boot when External signals is on; main only, a bound window starts no ingress",
       "kind": "tauri-command",
       "transport": "shared",
       "wiring": "src/app/stage/wire-window-sources.ts"

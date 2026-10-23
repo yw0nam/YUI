@@ -49,22 +49,23 @@ preset ids exist by the 404 and 503 replies. The ids are opaque keys, not secret
 | `source` | Non-empty string identifying the producer |
 | `event_type` | Non-empty string identifying the producer-defined event type |
 | `delivery` | Exactly `"urgent"`, `"batched"`, or the deprecated `"immediate"` |
-| `event_id` | Non-empty opaque string; a group replaces a buffered group with the same `event_id` in the same buffer, at its position, and a delivered group is not compared |
+| `event_id` | Non-empty opaque string; a group replaces a buffered group with the same `event_id` in the same buffer, at its position, and a group with the same `event_id` in another buffer stays. A delivered group is not compared |
 | `label` | Optional string: the producer's one-line origin, for example `dev43 · tmux yui:2 · YUI (main)`. Over 120 code points it is cut to 119 code points plus `…` and the request is accepted. A non-string label makes the envelope invalid. The label is not rendered in `client_context` |
 | `occurred_at` | Finite epoch-millisecond number in the inclusive range `-8.64e15` through `8.64e15`, representable as an ISO-8601 date |
 
 ## Delivery
 
-`delivery` names one of two tiers, `urgent` and `batched`. Dropping is a producer-side
-rule: a producer that wants a signal dropped does not send it.
+`delivery` names one of two delivery classes, `urgent` and `batched`. Dropping is a
+producer-side rule: a producer that wants a signal dropped does not send it.
 
 An `urgent` group means the user should hear it now. It fires at once while the user is
 present and the pipeline is idle, and the proactive quiet gap does not hold it.
 Otherwise it waits in its own buffer, and on the away-to-present or busy-to-idle edge
 the buffered urgent groups fire together as one urgent catch-up turn. On the return to
-present that turn goes out before the catch-up of the other buffers. Urgent groups never
-share a catch-up turn with `immediate` or `batched` groups, and the drains below carry
-non-urgent groups only — a buffered urgent group keeps waiting for its own edge.
+present, the catch-up of the other buffers goes out first and the urgent catch-up is the
+next turn, right after it ends. Urgent groups never share a catch-up turn with
+`immediate` or `batched` groups, and the drains below carry non-urgent groups only — a
+buffered urgent group keeps waiting for its own edge.
 
 A `batched` group always waits in the batch buffer. The first group starts a five-minute
 delivery interval. At the interval boundary, all pending batched groups fire together
@@ -156,6 +157,4 @@ logs no envelope warning.
 A request with any signal item whose JSON serialization exceeds 16 KiB receives HTTP 400;
 no item of that request is delivered. The body cap is 64 KiB.
 
-A group replaces a buffered group with the same `event_id` in the same buffer, at the
-old group's position. A group with the same `event_id` in another buffer stays. A
-delivered group is not compared. There is no fallback timestamp.
+There is no fallback timestamp.

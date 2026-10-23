@@ -10,24 +10,25 @@ Settings → Proactive → Watchers, and a change of that switch or port takes e
 next launch. `POST /signals` wakes the main window's character;
 `POST /presets/<id>/signals` wakes the character bound to preset `<id>`.
 
-## Choose a tier
+## Choose a delivery class
 
-No tier decides the words. The tier decides when the character hears about the signal.
+A delivery class decides when the character hears about the signal, and never what the
+character says.
 
-| Tier | Use it when | Example |
+| Choice | Use it when | Example |
 |---|---|---|
 | `urgent` | The user should hear it now | An agent is waiting for their input |
 | `batched` | It can wait for the next batch | A long job finished |
 | drop | The user does not need it | A retry that succeeded on its own |
 
-Drop a signal by not sending it. The client has no drop tier.
+Drop a signal by not sending it. `delivery` carries no drop value.
 
 ## Write a label
 
-`label` is one optional line that says where the signal came from, in at most 120
-characters: `dev43 · tmux yui:2 · YUI (main)`. A longer label is cut to 119 characters
-plus `…` and the request still succeeds. A label that is present and not a string makes
-the whole envelope invalid, so the group is dropped.
+`label` is one optional line that says where the signal came from, in at most 120 code
+points: `dev43 · tmux yui:2 · YUI (main)`. A longer label is cut to 119 code points plus
+`…` and the request still succeeds. A label that is present and not a string makes the
+whole envelope invalid, so the group is dropped.
 
 ## Choose an event_id
 
@@ -85,6 +86,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST \
   http://127.0.0.1:8770/presets/<id>/signals
 ```
 
-A `200` means the ingress accepted the body and passed it to the target window. Every
-other code, the envelope fields, and the delivery rules are in the
+A `200` means the ingress accepted the wire shape and attempted to emit the batch to the
+target window. It confirms neither receipt nor envelope validity. Every other code, the
+envelope fields, and the delivery rules are in the
 [signals ingress reference](../reference/signals-ingress.md).
