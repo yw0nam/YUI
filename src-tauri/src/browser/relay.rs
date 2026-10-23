@@ -322,7 +322,6 @@ cat >/dev/null
             kill_after: Duration::from_millis(1500),
             ..limits()
         };
-        let started = std::time::Instant::now();
         let out = tokio::time::timeout(
             limits.kill_after + Duration::from_secs(1),
             Relay::new().run(&fake_ego(), "yui-a", "while (true) {}", limits),
@@ -331,7 +330,6 @@ cat >/dev/null
         .expect("run returns within kill_after + 1 s")
         .unwrap();
         assert!(out.killed);
-        assert!(started.elapsed() < limits.kill_after + Duration::from_secs(1));
     }
 
     /// The shot folder a run logged as `shot <path>`.
