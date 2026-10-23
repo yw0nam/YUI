@@ -9,7 +9,8 @@ import { t } from "../i18n";
 import { renderSourceLine } from "../signals/source-line";
 import type { SpeechBubble } from "./speech-bubble";
 
-const MAX_LINES = 3;
+// Two lines keep the slot under a four-line reply inside the bubble's 34vh cap; the rest fold into "+N more".
+const MAX_LINES = 2;
 
 export function createSignalSourceLines({
   el,

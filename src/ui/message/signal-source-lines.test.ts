@@ -22,14 +22,14 @@ function build() {
 describe("createSignalSourceLines", () => {
   beforeEach(() => setLocale("en"));
 
-  it("shows three rows and a more-row for four lines, holding the bubble without revealing", () => {
+  it("shows two rows and a more-row for four lines, holding the bubble without revealing", () => {
     const { el, bubble, sources } = build();
     sources.show([line(1), line(2), line(3), line(4)]);
 
     expect(el.hidden).toBe(false);
     expect(el.classList.contains("is-sources")).toBe(true);
-    expect(el.querySelectorAll(".yui-signal-line")).toHaveLength(3);
-    expect(el.querySelector(".yui-bubble__sources-more")!.textContent).toBe("+1 more");
+    expect(el.querySelectorAll(".yui-signal-line")).toHaveLength(2);
+    expect(el.querySelector(".yui-bubble__sources-more")!.textContent).toBe("+2 more");
     expect(bubble.holdForTurn).toHaveBeenCalledWith(true);
     expect(bubble.measure).toHaveBeenCalledTimes(1);
     expect(bubble.reveal).not.toHaveBeenCalled();
