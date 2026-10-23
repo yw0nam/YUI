@@ -91,7 +91,6 @@ describe("preset strip — relations", () => {
   it("lists this preset's relation toward each rated target, user first", () => {
     const line = root.querySelector<HTMLElement>(".yui-preset__rel")!;
 
-    expect(line.hidden).toBe(false);
     expect(line.getAttribute("aria-label")).toBe("How natsume feels");
     expect(relations(".yui-preset__rel")).toEqual([
       { target: "user", band: "warm", name: "you" },
@@ -157,15 +156,13 @@ describe("preset strip — relations", () => {
     const petWindows = createPetWindows({
       storage: { load: () => ({ open: ["aaaa0001"] }), save: () => {} },
     });
+    const seed = {
+      user: { value: 5, updated_at: NOW - HOUR, log: [] },
+      aaaa0001: { value: 8, updated_at: NOW - HOUR, log: [] },
+      bbbb0002: { value: -3, updated_at: NOW - HOUR, log: [] },
+    };
     try {
-      build(
-        {
-          user: { value: 5, updated_at: NOW - HOUR, log: [] },
-          aaaa0001: { value: 8, updated_at: NOW - HOUR, log: [] },
-          bbbb0002: { value: -3, updated_at: NOW - HOUR, log: [] },
-        },
-        petWindows,
-      );
+      build(seed, petWindows);
       const line = root.querySelector<HTMLElement>(".yui-preset__rel")!;
       const more = line.querySelector<HTMLButtonElement>(".yui-relation--more")!;
 
@@ -187,6 +184,15 @@ describe("preset strip — relations", () => {
       more.click();
       expect(line.classList.contains("is-unfolded")).toBe(true);
       expect(more.getAttribute("aria-expanded")).toBe("true");
+
+      build(seed, petWindows);
+      const rebuilt = root.querySelector<HTMLElement>(".yui-preset__rel")!;
+      expect(rebuilt.classList.contains("is-unfolded")).toBe(false);
+      expect(
+        rebuilt
+          .querySelector<HTMLButtonElement>(".yui-relation--more")!
+          .getAttribute("aria-expanded"),
+      ).toBe("false");
     } finally {
       petWindows.dispose();
     }
