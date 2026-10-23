@@ -137,6 +137,15 @@ jobs:
             The PR title subject must be written in English (printable ASCII).
             GitHub tracker content is English-only (AGENTS.md).
 
+      - name: PR body carries no AI attribution
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if printf '%s' "$BODY" | grep -qiE 'Co-Authored-By|Claude-Session|Generated with|🤖'; then
+            echo '::error::The PR body carries an AI attribution line (AGENTS.md § No AI attribution). Remove it; the squash commit is built from this body.'
+            exit 1
+          fi
+
   rust:
     name: rust (cargo test)
     runs-on: ubuntu-latest
