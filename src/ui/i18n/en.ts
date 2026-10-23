@@ -240,6 +240,11 @@ const en: Record<string, string> = {
   "card.system_prompt_sub": "Replaces the built-in framing. {{original}} inserts it.",
   "card.post_history": "Post-history instructions",
   "card.macros": "Macros: {{char}} = her name · {{user}} = your name",
+  "card.import": "Import card…",
+  "card.export": "Export card",
+  "card.io_note": "JSON or PNG card in · V2 JSON out",
+  "card.import_error": "That file holds no card",
+  "card.export_error": "Could not write the file",
   "card.user_name": "Your name",
   "card.user_name_sub": "Shared by every preset",
 

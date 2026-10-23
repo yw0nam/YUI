@@ -241,6 +241,11 @@ const ko: Record<string, string> = {
   "card.system_prompt_sub": "기본 틀을 대체해요. {{original}}로 기본 틀을 넣을 수 있어요.",
   "card.post_history": "기록 뒤 지침",
   "card.macros": "매크로: {{char}} = 그녀의 이름 · {{user}} = 내 이름",
+  "card.import": "카드 가져오기…",
+  "card.export": "카드 내보내기",
+  "card.io_note": "JSON이나 PNG 카드를 가져오고, V2 JSON으로 내보내요",
+  "card.import_error": "이 파일에는 카드가 없어요",
+  "card.export_error": "파일을 쓰지 못했어요",
   "card.user_name": "내 이름",
   "card.user_name_sub": "모든 프리셋이 함께 써요",
 

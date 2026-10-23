@@ -39,6 +39,8 @@ export function createPresetManage(deps: {
   /** The settings window: rows also offer "Use in main". */
   edit?: boolean;
   presetUrl?: (id: string) => string | null;
+  /** Deletes a removed preset's thumbnail file; idempotent, so JSON-card presets are fine. */
+  removeCardThumbnail?: (id: string) => Promise<void>;
 }): PresetManage {
   const { el, registry, log, petWindows, boundId } = deps;
   const edit = !!deps.edit;
@@ -196,7 +198,10 @@ export function createPresetManage(deps: {
     });
     goBtn.addEventListener("click", () => {
       confirmId = null;
-      if (registry.remove(entry.id)) log.info("preset_remove", { preset: entry.id });
+      if (registry.remove(entry.id)) {
+        void deps.removeCardThumbnail?.(entry.id);
+        log.info("preset_remove", { preset: entry.id });
+      }
       focusSel = ".yui-add-btn";
       render();
     });

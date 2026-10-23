@@ -7,8 +7,9 @@
 import "./quick-controls.css";
 import "./controls.css";
 import type { AvatarOption } from "../../config/validators/avatar/types";
-import type { PersonaConfig } from "../../config/validators/persona/types";
+import type { Card, PersonaConfig } from "../../config/validators/persona/types";
 import type { GuideKey } from "../../contract";
+import type { ImportedCard } from "../../io/assets/card/card-import";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
 import type { createChatHistoryStore } from "../../io/chat/conversation/chat-history-store";
 import type { createSessionDiagnosticsStore } from "../../io/chat/conversation/session-diagnostics";
@@ -250,6 +251,11 @@ interface QuickControlsOptions {
   bedSceneSettings?: BedSceneSettingsStore;
   /** Browser-use on/off store. If absent, that section won't render. */
   browserSettings?: FlagSettingsStore;
+  /** Card file steps and the preset creator, wired by the app layer. If absent, the action row shows nothing. */
+  importCard?: () => Promise<ImportedCard | null>;
+  exportCard?: (text: string, fileName: string) => Promise<"written" | "cancelled">;
+  createPresetFromCard?: (card: Card, thumbnailTempId?: string) => Promise<string>;
+  removeCardThumbnail?: (id: string) => Promise<void>;
   /** Preset list and active preset. If absent, the preset strip and the tab scope lines won't render. */
   presetRegistry?: PresetRegistry;
   petWindows?: PetWindows;
@@ -348,6 +354,10 @@ export function createQuickControls({
   getExpressMotions,
   bedSceneSettings,
   browserSettings,
+  importCard,
+  exportCard,
+  createPresetFromCard,
+  removeCardThumbnail,
   presetRegistry,
   petWindows,
   relationsStore,
@@ -460,6 +470,7 @@ export function createQuickControls({
         onEditTarget,
         agentNotifySettings,
         relationsStore,
+        removeCardThumbnail,
       })
     : null;
   const hintTooltip = createHintTooltip({ root: el });
@@ -597,7 +608,7 @@ export function createQuickControls({
     log,
   });
 
-  // ── Card section (send switch · card fields · greetings · user name) ──
+  // ── Card section (send switch · card fields · greetings · import/export · user name) ──
   const card = createCardSection({
     root: el,
     agentSettings,
@@ -606,6 +617,9 @@ export function createQuickControls({
     getPersona,
     isPushMode,
     isOpen: popover.isOpen,
+    importCard,
+    exportCard,
+    createPresetFromCard,
     log,
   });
 

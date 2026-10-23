@@ -209,7 +209,7 @@ describe("createQuickControls — card section", () => {
   });
 
   it("exports the effective card as V2 JSON under the effective name", async () => {
-    const exportCard = vi.fn(async () => "written" as const);
+    const exportCard = vi.fn(async (_text: string, _fileName: string) => "written" as const);
     build({ exportCard });
     sec().querySelector<HTMLButtonElement>(".yui-card-export")!.click();
     await vi.waitFor(() => expect(exportCard).toHaveBeenCalledTimes(1));
@@ -252,7 +252,7 @@ describe("createQuickControls — card section", () => {
     build({ importCard, createPresetFromCard });
     sec().querySelector<HTMLButtonElement>(".yui-card-import")!.click();
     await vi.waitFor(() =>
-      expect(sec().querySelector<HTMLElement>(".yui-vrm__error")!.textContent).toBe(
+      expect(sec().querySelector<HTMLElement>(".yui-card__io-error")!.textContent).toBe(
         "That file holds no card",
       ),
     );
@@ -266,7 +266,11 @@ describe("createQuickControls — card section", () => {
         active: "default",
         list: [
           { id: "default", name: "default" },
-          { id: "aaaa0001", name: "natsume", thumbnail: "asset://localhost/app-data/cards/aaaa0001.png" },
+          {
+            id: "aaaa0001",
+            name: "natsume",
+            thumbnail: "asset://localhost/app-data/cards/aaaa0001.png",
+          },
         ],
       }),
     );

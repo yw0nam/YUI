@@ -95,7 +95,11 @@ describe("createQuickControls — presets", () => {
         list: [
           { id: "default", name: "default" },
           { id: "aaaa0001", name: "natsume" },
-          { id: "bbbb0002", name: "perlica", thumbnail: "asset://localhost/app-data/cards/bbbb0002.png" },
+          {
+            id: "bbbb0002",
+            name: "perlica",
+            thumbnail: "asset://localhost/app-data/cards/bbbb0002.png",
+          },
         ],
       }),
     );

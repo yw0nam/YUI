@@ -55,7 +55,9 @@ it("removing a preset asks for its thumbnail file's removal", async () => {
   const manage = createPresetManage({ el, registry, log, removeCardThumbnail });
   manage.render();
 
-  el.querySelector<HTMLButtonElement>('[data-preset-id="abcd1234"] .yui-preset-row__remove')!.click();
+  el.querySelector<HTMLButtonElement>(
+    '[data-preset-id="abcd1234"] .yui-preset-row__remove',
+  )!.click();
   el.querySelector<HTMLButtonElement>(".yui-preset-row__confirm .yui-pill--go")!.click();
   await vi.waitFor(() => expect(removeCardThumbnail).toHaveBeenCalledWith("abcd1234"));
   expect(log.info).toHaveBeenCalledWith("preset_remove", { preset: "abcd1234" });

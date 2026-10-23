@@ -28,6 +28,15 @@
   color: var(--yui-text-mute);
 }
 
+.yui-preset__thumb {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: none;
+  border: 1px solid var(--yui-edge);
+  border-radius: var(--yui-radius-img);
+  object-fit: cover;
+}
+
 .yui-preset__select {
   display: block;
   flex: 1 1 auto;

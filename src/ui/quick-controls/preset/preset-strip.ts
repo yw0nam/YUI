@@ -27,6 +27,7 @@ export function presetStripHtml(): string {
     <div class="yui-preset">
       <div class="yui-preset__row">
         <label class="yui-preset__label" for="yui-preset-select">${t("preset.label")}</label>
+        <img class="yui-preset__thumb" alt="" hidden />
         <select class="yui-select yui-preset__select" id="yui-preset-select"></select>
         <button class="yui-iconbtn yui-preset__manage" type="button" aria-label="${t("preset.manage")}" data-tip="${t("preset.manage")}" aria-haspopup="dialog" aria-expanded="false">${DOTS_SVG}</button>
       </div>
@@ -54,6 +55,8 @@ export function createPresetStrip(deps: {
   agentNotifySettings?: ReturnType<typeof createAgentNotifySettings>;
   /** This window's preset's relations; absent, the strip shows no relation line. */
   relationsStore?: RelationsStore;
+  /** Deletes a removed preset's thumbnail file; injected by the app wiring. */
+  removeCardThumbnail?: (id: string) => Promise<void>;
 }): PresetStrip {
   const { root, registry, log, petWindows, boundId = null, onEditTarget } = deps;
   const edit = !!onEditTarget;
@@ -78,6 +81,7 @@ export function createPresetStrip(deps: {
     noteEl.hidden = false;
   }
   const stateEl = stripEl.querySelector<HTMLParagraphElement>(".yui-preset__state")!;
+  const thumbEl = stripEl.querySelector<HTMLImageElement>(".yui-preset__thumb")!;
   const popEl = stripEl.querySelector<HTMLDivElement>(".yui-preset-pop")!;
   const colsEl = root.querySelector<HTMLDivElement>(".yui-quick__cols")!;
   const manage = createPresetManage({
@@ -87,6 +91,7 @@ export function createPresetStrip(deps: {
     petWindows,
     boundId,
     edit,
+    removeCardThumbnail: deps.removeCardThumbnail,
     presetUrl: (id) => {
       const settings = deps.agentNotifySettings?.get();
       return settings?.enabled ? ingressUrl(settings.port, id) : null;
@@ -108,6 +113,9 @@ export function createPresetStrip(deps: {
     // The window reloads into the picked preset; until then it keeps showing the switch.
     if (switching || left) return;
     const state = registry.get();
+    const shown = state.list.find((e) => e.id === shownId);
+    thumbEl.hidden = !shown?.thumbnail;
+    if (shown?.thumbnail) thumbEl.src = shown.thumbnail;
     if (edit && !state.list.some((e) => e.id === shownId)) {
       left = true;
       onEditTarget?.(boundId ?? state.active);

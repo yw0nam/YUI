@@ -6,6 +6,9 @@
 import { availableMonitors, getCurrentWindow } from "@tauri-apps/api/window";
 import type { ConfigStore } from "../../config/store";
 import type { GuideKey } from "../../contract";
+import { exportCardToFile } from "../../io/assets/card/card-export";
+import { importCardFromFile } from "../../io/assets/card/card-import";
+import { removeCardThumbnail, retainCardThumbnail } from "../../io/assets/card/card-thumbnail";
 import { removeUserVrm } from "../../io/assets/vrm-import";
 import type { RemoteSurfaces } from "../../io/bridge/message/message-remote";
 import type { PushSocket } from "../../io/chat/push/push-socket";
@@ -14,6 +17,7 @@ import type { ScreenSourceProvider } from "../../io/window/capture/screen-source
 import { toScreenMonitor } from "../../io/window/geometry/screen-geometry";
 import { createVisibleViewport } from "../../io/window/geometry/visible-viewport";
 import type { Renderer } from "../../renderer";
+import { createPresetFromCard } from "../../settings/preset/import-card-preset";
 import type { PetWindows } from "../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import type { SettingsStores } from "../../settings/settings-stores";
@@ -209,6 +213,24 @@ export function wirePetControls(deps: {
       canManageVoices,
       canReuploadVoices,
       canPasteVoiceId,
+      importCard: () => importCardFromFile(),
+      exportCard: (text, fileName) => exportCardToFile(text, fileName),
+      createPresetFromCard: (card, thumbnailTempId) =>
+        createPresetFromCard({
+          registry: presetRegistry,
+          card,
+          ...(thumbnailTempId
+            ? {
+                retainThumbnail: (presetId: string) =>
+                  retainCardThumbnail(thumbnailTempId, presetId),
+                discardThumbnail: async (presetId: string) => {
+                  await removeCardThumbnail(thumbnailTempId);
+                  await removeCardThumbnail(presetId);
+                },
+              }
+            : {}),
+        }),
+      removeCardThumbnail: (id) => removeCardThumbnail(id),
       onGainPreview: (mouthOpen) => renderer.setMouthOpen(mouthOpen),
       onGainPreviewEnd: () => renderer.stopMouth(),
       onOpenDevtools: openDevtools,

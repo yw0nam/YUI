@@ -243,6 +243,11 @@ const ja: Record<string, string> = {
   "card.system_prompt_sub": "組み込みの枠組みを置き換えます。{{original}} でそれを挿入します。",
   "card.post_history": "履歴後の指示",
   "card.macros": "マクロ: {{char}} = 彼女の名前 · {{user}} = あなたの名前",
+  "card.import": "カードを読み込む…",
+  "card.export": "カードを書き出す",
+  "card.io_note": "JSON か PNG のカードを読み込み、V2 JSON で書き出します",
+  "card.import_error": "このファイルにカードが入っていません",
+  "card.export_error": "ファイルを書き出せませんでした",
   "card.user_name": "あなたの名前",
   "card.user_name_sub": "すべてのプリセットで共通です",
 
