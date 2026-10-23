@@ -142,6 +142,34 @@ describe("agent_source — present: immediate agent.done (spec §1)", () => {
   });
 });
 
+describe("agent_source — deprecation", () => {
+  it("two valid agent events log the deprecation once", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { bus } = fakeBus();
+    const { listen, emit: emitIdle } = fakeListen();
+    const { onInbox, emit: emitInbox } = fakeInbox();
+    const src = createAgentSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled: () => true,
+      onInbox,
+      listen,
+    });
+    await src.start();
+    emitIdle(idleTick(LOW_IDLE));
+    emitInbox(done("claude"));
+    emitInbox(done("claude"));
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith("[YUI][agent-source] deprecated", {
+      what: "POST /agent-event",
+      removed_in: "v0.6.0",
+      use: "POST /signals",
+    });
+    warn.mockRestore();
+    src.stop();
+  });
+});
+
 describe("agent_source — away: buffer + catch-up (spec §2–3)", () => {
   it("away: inbox events are buffered (nothing pushed); present tick → ONE agent.catchup; buffer cleared", async () => {
     const { bus, pushed } = fakeBus();

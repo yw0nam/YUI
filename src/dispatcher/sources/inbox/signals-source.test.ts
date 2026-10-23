@@ -757,6 +757,22 @@ describe("signals_source — delivery envelopes", () => {
     warn.mockRestore();
   });
 
+  it("two immediate arrivals log the deprecation once", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const s = setup();
+    await s.src.start();
+    s.emitIdle(idleTick(LOW_IDLE));
+    s.emitInbox(batch([{ id: 1 }], 1, envelopeOf(1)));
+    s.emitInbox(batch([{ id: 2 }], 2, envelopeOf(2)));
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith("[YUI][signals-source] deprecated", {
+      what: "delivery immediate",
+      removed_in: "v0.6.0",
+      use: "urgent or batched",
+    });
+    warn.mockRestore();
+  });
+
   it("a disabled source drops an invalid envelope without a warning", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const s = setup({ enabled: () => false });
@@ -870,15 +886,15 @@ describe("signals_source — delivery envelopes", () => {
     expect(s.pushed[0]!.payload!.signals).toEqual([{ envelope: ENVELOPE, items: [] }]);
   });
 
-  it("distinct event ids remain separate groups", async () => {
+  it("a group with the same event id in another buffer stays", async () => {
     const s = setup();
     await s.src.start();
     s.emitIdle(idleTick(HIGH_IDLE));
-    s.emitInbox(batch([{ id: 1 }], 1, envelopeOf(1)));
-    s.emitInbox(batch([{ id: 2 }], 2, envelopeOf(2)));
+    s.emitInbox(batch([{ id: 1 }], 1, { ...ENVELOPE, event_id: "x" }));
+    s.emitInbox(batch([{ id: 2 }], 2, { ...ENVELOPE, delivery: "batched", event_id: "x" }));
     expect(s.src.drain()).toEqual([
-      { envelope: envelopeOf(1), items: [{ id: 1 }] },
-      { envelope: envelopeOf(2), items: [{ id: 2 }] },
+      { envelope: { ...ENVELOPE, event_id: "x" }, items: [{ id: 1 }] },
+      { envelope: { ...ENVELOPE, delivery: "batched", event_id: "x" }, items: [{ id: 2 }] },
     ]);
   });
 
@@ -939,21 +955,9 @@ describe("signals_source — delivery envelopes", () => {
     ]);
   });
 
-  it("an urgent group buffered while away goes out before the non-urgent catch-up", async () => {
-    const s = setup();
-    await s.src.start();
-    s.emitIdle(idleTick(HIGH_IDLE));
-    s.emitInbox(batch([{ id: 1 }], 1, { ...ENVELOPE, delivery: "urgent", event_id: "u" }));
-    s.emitInbox(batch([{ id: 2 }], 2, envelopeOf(2)));
-    s.emitIdle(idleTick(LOW_IDLE));
-    expect(s.pushed.map((e) => e.event_name)).toEqual([
-      "signals.urgent_catchup",
-      "signals.catchup",
-    ]);
-  });
-
   it.each([
     ["130 characters is cut to 119 plus an ellipsis", "x".repeat(130), `${"x".repeat(119)}…`],
+    ["130 astral characters count as code points", "😀".repeat(130), `${"😀".repeat(119)}…`],
     ["exactly 120 characters is kept", "x".repeat(120), "x".repeat(120)],
   ])("label: %s", async (_name, label, delivered) => {
     const s = setup();
