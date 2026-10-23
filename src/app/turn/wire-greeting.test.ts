@@ -33,4 +33,25 @@ describe("wireGreeting", () => {
     fire("p1");
     expect(calls).toEqual(["stopTurn", "speak:Hi."]);
   });
+
+  it("greets once at wire time when the import's pending marker is set, and consumes it", () => {
+    const map = new Map([["yui.p1.greeting-pending", "1"]]);
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => map.get(k) ?? null,
+      removeItem: (k: string) => map.delete(k),
+    });
+    const { calls } = setup();
+    expect(calls).toEqual(["speak:Hi."]);
+    expect(map.has("yui.p1.greeting-pending")).toBe(false);
+  });
+
+  it("a wire with no pending marker greets nothing", () => {
+    const map = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => map.get(k) ?? null,
+      removeItem: (k: string) => map.delete(k),
+    });
+    const { calls } = setup();
+    expect(calls).toEqual([]);
+  });
 });
