@@ -53,7 +53,7 @@ describe("preset strip — relations", () => {
   }
 
   const relations = (scope: string) =>
-    [...root.querySelectorAll<HTMLElement>(`${scope} .yui-relation`)].map((s) => ({
+    [...root.querySelectorAll<HTMLElement>(`${scope} .yui-relation[data-target]`)].map((s) => ({
       target: s.dataset.target,
       band: s.querySelector<HTMLElement>(".yui-glyph")?.dataset.band,
       name: s.querySelector(".yui-relation__to")?.textContent,
@@ -138,7 +138,7 @@ describe("preset strip — relations", () => {
     });
 
     expect(
-      [...root.querySelectorAll<HTMLElement>(".yui-preset__rel .yui-relation")].map(
+      [...root.querySelectorAll<HTMLElement>(".yui-preset__rel .yui-relation[data-target]")].map(
         (s) => s.dataset.target,
       ),
     ).toEqual(["user", "bbbb0002", "aaaa0001", "cccc0003"]);

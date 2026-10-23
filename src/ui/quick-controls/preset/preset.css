@@ -335,6 +335,11 @@
   display: none;
 }
 
+/* A folded chip stays in the DOM, shown only while the line is unfolded. */
+.yui-preset__rel:not(.is-unfolded) .yui-relation[data-folded] {
+  display: none;
+}
+
 .yui-relation {
   display: inline-flex;
   align-items: center;
@@ -372,6 +377,13 @@
 
 .yui-relation.is-fresh .yui-relation__to {
   animation: yui-fresh 1050ms var(--yui-ease);
+}
+
+.yui-relation--more {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
 }
 
 /* Relation glyph — two segments each side of a centre notch: the side is the sign, the length the strength. */

@@ -19,6 +19,8 @@ export function createPresetRelations(deps: {
   anchor: HTMLElement;
   store: RelationsStore;
   presets: () => readonly PresetEntry[];
+  /** Whether the preset's window is open in this app. */
+  isOpen: (id: string) => boolean;
 }): { render(): void; dispose(): void } {
   const self = presetIdForWindow();
   let line: HTMLElement | null = null;
@@ -53,7 +55,7 @@ export function createPresetRelations(deps: {
   function render(): void {
     card.close();
     view = buildView();
-    const nextLine = relationLineEl(view);
+    const nextLine = relationLineEl(view, deps.isOpen);
     if (line) line.replaceWith(nextLine);
     else deps.anchor.after(nextLine);
     line = nextLine;

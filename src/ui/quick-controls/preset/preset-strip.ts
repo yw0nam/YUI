@@ -96,6 +96,7 @@ export function createPresetStrip(deps: {
         anchor: edit ? noteEl : stripEl.querySelector<HTMLElement>(".yui-preset__row")!,
         store: deps.relationsStore,
         presets: () => registry.get().list,
+        isOpen: (id) => !!(petWindows?.get().includes(id) || isPresetWindowLive(id)),
       })
     : null;
   let switching = false;
