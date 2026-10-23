@@ -114,6 +114,35 @@ describe("preset strip — relations", () => {
     ]);
   });
 
+  it("orders the rated targets by value after the user, close first", () => {
+    registry.dispose();
+    localStorage.setItem(
+      "yui.presets",
+      JSON.stringify({
+        active: "default",
+        list: [
+          { id: "default", name: "natsume" },
+          { id: "aaaa0001", name: "perlica" },
+          { id: "bbbb0002", name: "shino" },
+          { id: "cccc0003", name: "ilta" },
+        ],
+      }),
+    );
+    registry = createPresetRegistry();
+    build({
+      user: { value: 5, updated_at: NOW - HOUR, log: [] },
+      aaaa0001: { value: 2, updated_at: NOW - HOUR, log: [] },
+      bbbb0002: { value: 12, updated_at: NOW - HOUR, log: [] },
+      cccc0003: { value: -5, updated_at: NOW - HOUR, log: [] },
+    });
+
+    expect(
+      [...root.querySelectorAll<HTMLElement>(".yui-preset__rel .yui-relation")].map(
+        (s) => s.dataset.target,
+      ),
+    ).toEqual(["user", "bbbb0002", "aaaa0001", "cccc0003"]);
+  });
+
   it("fills the reasons card on hover and closes it on Escape", () => {
     const relation = root.querySelector<HTMLElement>(
       '.yui-preset__rel .yui-relation[data-target="user"]',
