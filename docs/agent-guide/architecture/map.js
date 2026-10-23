@@ -1492,7 +1492,7 @@ globalThis.YUI_MAP =
     },
     {
       "id": "greeting-transcript",
-      "from": "io/chat/card",
+      "from": "app/turn/card",
       "to": "io/chat/conversation",
       "carries": "greetLocal: one greeting with its macros substituted → append({role: assistant, greeting: true}) while the session after the last boundary is empty",
       "kind": "call",
@@ -1501,7 +1501,7 @@ globalThis.YUI_MAP =
     },
     {
       "id": "greeting-speech",
-      "from": "io/chat/card",
+      "from": "app/turn/card",
       "to": "io/voice/tts",
       "carries": "greetLocal → turnOutput.speak(text, {turn_id: greeting:<ts>, event_name: greeting})",
       "kind": "callback",
@@ -1524,7 +1524,7 @@ globalThis.YUI_MAP =
       "carries": "yui://session-reset for this window's preset → stopTurn() before the greeting",
       "kind": "bridge",
       "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
+      "wiring": "src/app/turn/wire-greeting.ts"
     },
     {
       "id": "overheard-backend",
