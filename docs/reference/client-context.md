@@ -62,12 +62,14 @@ non-empty:
 5. `Example dialogue:` + a newline + `mes_example`
 6. `chat_instructions`
 
+::: v-pre
 `{{char}}` becomes the preset's name, `{{user}}` the user's name (a fallback word in the UI
 language when unset), and `{{original}}` the framing sentence. No other macro is replaced.
 The string is the same bytes on every turn while the card, the UI language, the names, and
 `chat_instructions` are unchanged. A preset that has no card of its own sends the default
 card of the UI language from `configs/persona.json`. Push sends no card; a push backend
 carries its own persona.
+:::
 
 After a session reset the client performs one of the card's greetings through the speech
 path and records it as an assistant entry, so the next request carries it as history.
