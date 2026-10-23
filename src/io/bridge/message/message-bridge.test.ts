@@ -191,12 +191,14 @@ describe("createRemoteSurfaces — the pet-side adapter", () => {
     remote.quoteUser({ text: "hi", via: "text", images: 0 });
     remote.settleQuote();
     remote.clearQuote();
+    remote.quoteSignals([{ delivery: "urgent", source: "gh", text: "CI failed" }]);
     remote.restoreInput("hi", ["data:image/jpeg;base64,x"]);
 
     expect(seen).toEqual([
       { op: "quote", quote: { text: "hi", via: "text", images: 0 } },
       { op: "settle-quote" },
       { op: "clear-quote" },
+      { op: "quote-signals", lines: [{ delivery: "urgent", source: "gh", text: "CI failed" }] },
       { op: "restore-input", text: "hi", images: ["data:image/jpeg;base64,x"] },
     ]);
   });

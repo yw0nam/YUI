@@ -760,6 +760,7 @@ describe("dispatcher — the admitted turn and the quoted-turn ledger", () => {
   function wireQuote() {
     const surfaces = {
       quoteUser: vi.fn(),
+      quoteSignals: vi.fn(),
       settleQuote: vi.fn(),
       clearQuote: vi.fn(),
       restoreInput: vi.fn(),

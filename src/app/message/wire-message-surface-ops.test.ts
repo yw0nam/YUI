@@ -19,6 +19,7 @@ function setup() {
     setBusy: vi.fn(),
     showInputError: vi.fn(),
     showSpeechAction: vi.fn(),
+    quoteSignals: vi.fn(),
   } as unknown as Surfaces;
   const plate = { setLive: vi.fn(), setBusy: vi.fn() } as unknown as MessagePlate;
   wireMessageSurfaceOps({ bridge, surfaces, plate });
@@ -66,4 +67,13 @@ it("routes the speech-action click back as a control op", () => {
   expect(action.label).toBe("Open Connection");
   action.onClick();
   expect(bridge.emitControl).toHaveBeenCalledWith({ op: "speech-action" });
+});
+
+it("quotes the source lines on quote-signals", () => {
+  const { send, surfaces } = setup();
+  const lines = [{ delivery: "urgent" as const, source: "gh", text: "CI failed" }];
+
+  send({ op: "quote-signals", lines });
+
+  expect(surfaces.quoteSignals).toHaveBeenCalledWith(lines);
 });

@@ -5,6 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatHistoryStore } from "../../../io/chat/conversation/chat-history-store";
 import { createSessionDiagnosticsStore } from "../../../io/chat/conversation/session-diagnostics";
 import { createSessionStore } from "../../../io/chat/conversation/session-store";
+import {
+  createSignalHistoryStore,
+  type SignalRecord,
+} from "../../../io/chat/conversation/signal-history-store";
 import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
 import { defaultQcArgs } from "../test-helpers";
@@ -119,6 +123,50 @@ describe("createQuickControls — history tab", () => {
     expect(rows).toHaveLength(2);
     expect(rows[0].querySelector(".yui-hist__sess-count")!.textContent).toContain("2");
     expect(rows[1].querySelector(".yui-hist__sess-count")!.textContent).toContain("2");
+
+    qc.dispose();
+  });
+
+  const signalRecord = (turn_id: string, ts: number, said: string | null): SignalRecord => ({
+    turn_id,
+    source: "gh",
+    event_type: "ci.failed",
+    label: "CI failed on main",
+    delivery: "urgent",
+    ts,
+    said,
+  });
+
+  it("shows a silent signal turn as its own row with the source line and Did not speak, counted in the session", () => {
+    const signalHistory = createSignalHistoryStore();
+    signalHistory.append([signalRecord("t9", Date.parse("2026-08-13T09:14:00Z"), null)]);
+    const qc = buildQc({ transcript: seedStore(), signalHistory });
+    qc.open();
+
+    const row = qc.el.querySelector<HTMLElement>(".yui-hist__turn.is-signal")!;
+    expect(row.querySelector(".yui-hist__say.is-silent")!.textContent).toBe("Did not speak");
+    expect(row.querySelector(".yui-source__text")!.textContent).toBe("CI failed on main");
+    expect(
+      qc.el.querySelectorAll(".yui-hist__sess")[0].querySelector(".yui-hist__sess-count")!
+        .textContent,
+    ).toBe("3 messages");
+
+    qc.dispose();
+  });
+
+  it("folds a signal record into the assistant row of its turn without an extra row", () => {
+    const store = createChatHistoryStore();
+    const ts = Date.parse("2026-08-13T09:12:00Z");
+    store.append({ role: "assistant", text: "CI is red", ts, turn_id: "t1" });
+    const signalHistory = createSignalHistoryStore();
+    signalHistory.append([signalRecord("t1", ts - 1000, "CI is red")]);
+    const qc = buildQc({ transcript: store, signalHistory });
+    qc.open();
+
+    const rows = qc.el.querySelectorAll(".yui-hist__turn");
+    expect(rows).toHaveLength(1);
+    expect(rows[0].classList.contains("is-signal")).toBe(false);
+    expect(rows[0].querySelector(".yui-hist__source .yui-source__src")!.textContent).toBe("gh");
 
     qc.dispose();
   });

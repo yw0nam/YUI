@@ -179,6 +179,7 @@ describe("wireTurnVoice", () => {
     const submitVoice = vi.fn();
     const surfaces = {
       quoteUser: vi.fn(),
+      quoteSignals: vi.fn(),
       settleQuote: vi.fn(),
       clearQuote: vi.fn(),
       restoreInput: vi.fn(),

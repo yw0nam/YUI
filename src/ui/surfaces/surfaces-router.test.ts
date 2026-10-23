@@ -32,6 +32,7 @@ function makeLocal(): Surfaces {
     hideSpeech: vi.fn(),
     showSpeechAction: vi.fn(),
     quoteUser: vi.fn(),
+    quoteSignals: vi.fn(),
     settleQuote: vi.fn(),
     clearQuote: vi.fn(),
     showTool: vi.fn(),
@@ -60,6 +61,7 @@ function makeRemote(): RemoteSurfaces {
     hideSpeech: vi.fn(),
     showSpeechAction: vi.fn(),
     quoteUser: vi.fn(),
+    quoteSignals: vi.fn(),
     settleQuote: vi.fn(),
     clearQuote: vi.fn(),
     summonInput: vi.fn(),
@@ -159,6 +161,17 @@ describe("createSurfacesRouter", () => {
     expect(remote.settleQuote).toHaveBeenCalledTimes(1);
     expect(remote.clearQuote).toHaveBeenCalledTimes(1);
     expect(local.quoteUser).toHaveBeenCalledTimes(1);
+  });
+
+  it("quoteSignals reaches the side the mode names", () => {
+    const lines = [{ delivery: "urgent" as const, source: "gh", text: "CI failed" }];
+    router.quoteSignals(lines);
+    expect(local.quoteSignals).toHaveBeenCalledWith(lines);
+
+    setMode("popped");
+    router.quoteSignals(lines);
+    expect(remote.quoteSignals).toHaveBeenCalledWith(lines);
+    expect(local.quoteSignals).toHaveBeenCalledTimes(1);
   });
 
   it("restoreInput reaches the input side the mode names", () => {
