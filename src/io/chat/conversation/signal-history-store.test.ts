@@ -84,7 +84,12 @@ describe("createSignalHistoryStore", () => {
 
   it("a stored array with one malformed row keeps the good rows", () => {
     const store = createSignalHistoryStore({
-      storage: seeded([record({ turn_id: "good" }), { turn_id: 7 }]),
+      storage: seeded([
+        record({ turn_id: "good" }),
+        { turn_id: 7 },
+        { ...record(), delivery: "bogus" },
+        { ...record(), delivery: null },
+      ]),
     });
 
     expect(store.records()).toEqual([record({ turn_id: "good" })]);
