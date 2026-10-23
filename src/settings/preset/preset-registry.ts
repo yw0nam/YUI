@@ -84,7 +84,22 @@ export function createPresetRegistry(deps?: {
       if (!trimmed || !list.some((e) => e.id === id) || !nameFree(trimmed, id)) return false;
       core.commit({
         active,
-        list: list.map((e): PresetEntry => (e.id === id ? { id, name: trimmed } : e)),
+        list: list.map(
+          (e): PresetEntry => (e.id === id ? { id, name: trimmed, thumbnail: e.thumbnail } : e),
+        ),
+      });
+      return true;
+    },
+
+    /** Stores or clears the thumbnail's file URL on the entry; false for an unknown id. */
+    setThumbnail(id: string, url: string | undefined): boolean {
+      const { active, list } = latest();
+      if (!list.some((e) => e.id === id)) return false;
+      core.commit({
+        active,
+        list: list.map(
+          (e): PresetEntry => (e.id === id ? { id, name: e.name, thumbnail: url } : e),
+        ),
       });
       return true;
     },

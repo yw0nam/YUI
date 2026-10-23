@@ -210,9 +210,7 @@ describe("createPresetRegistry", () => {
     const registry = createPresetRegistry();
 
     expect(registry.setThumbnail("aaaa0001", "asset://x/a.png")).toBe(true);
-    expect(registry.get().list.find((e) => e.id === "aaaa0001")?.thumbnail).toBe(
-      "asset://x/a.png",
-    );
+    expect(registry.get().list.find((e) => e.id === "aaaa0001")?.thumbnail).toBe("asset://x/a.png");
     expect(registry.setThumbnail("bbbb0002", "asset://x/b.png")).toBe(false);
   });
 

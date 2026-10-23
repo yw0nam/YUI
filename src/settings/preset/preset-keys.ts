@@ -31,6 +31,8 @@ export const PRESET_KEYS: readonly string[] = [
   "yui.previous-turn",
   "yui.overheard",
   "yui.relations",
+  // Written once by a card import; the bound pet window consumes it at its next boot.
+  "yui.greeting-pending",
 ];
 
 /** The key `key` is stored under while `presetId` is active: `yui.<id>.<rest>` for a preset's own key. */

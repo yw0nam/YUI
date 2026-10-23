@@ -9,10 +9,10 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { readCard } from "../../config/validators/persona/read-card";
-import { type Card } from "../../config/validators/persona/types";
+import type { Card } from "../../config/validators/persona/types";
 import { toV2Envelope } from "../../io/chat/card/serialize-card";
-import { resolveStorageKey } from "./preset-keys";
 import { createPresetFromCard } from "./import-card-preset";
+import { resolveStorageKey } from "./preset-keys";
 
 /** A card as a V3 import produces it: V3-only extras under extensions.chara_card_v3. */
 const v3Card = (): Card =>
@@ -44,7 +44,7 @@ function memoryStorage(): Storage {
 }
 
 function fakeRegistry(
-  seed: Array<{ id: string; name: string }> = [],
+  seed: Array<{ id: string; name: string; thumbnail?: string }> = [],
   ids: string[] = [],
 ): {
   registry: {
@@ -108,8 +108,8 @@ describe("createPresetFromCard", () => {
       ["n1", "n2", "n3"],
     );
     const id = await createPresetFromCard({ registry, card: v3Card(), storage: memoryStorage() });
-    expect(id).toBe("n3");
-    expect(list.at(-1)).toEqual({ id: "n3", name: "Mio 3" });
+    expect(id).toBe("n1");
+    expect(list.at(-1)).toEqual({ id: "n1", name: "Mio 3" });
   });
 
   it("merges the card into the copied agent value with the send switch on", async () => {

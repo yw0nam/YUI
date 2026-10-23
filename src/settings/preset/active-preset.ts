@@ -12,6 +12,8 @@ export const PRESETS_KEY = "yui.presets";
 export interface PresetEntry {
   id: string;
   name: string;
+  /** The file URL of the preset thumbnail; a PNG card import sets it, JSON never does. */
+  thumbnail?: string;
 }
 
 export interface PresetState {
@@ -27,10 +29,14 @@ export function parsePresetState(v: unknown): PresetState | null {
   const raw = v as { active?: unknown; list?: unknown };
   const list: PresetEntry[] = [];
   for (const item of Array.isArray(raw.list) ? raw.list : []) {
-    const { id, name } = (item ?? {}) as { id?: unknown; name?: unknown };
+    const { id, name, thumbnail } = (item ?? {}) as {
+      id?: unknown;
+      name?: unknown;
+      thumbnail?: unknown;
+    };
     if (typeof id !== "string" || !id || typeof name !== "string" || !name.trim()) continue;
     if (list.some((e) => e.id === id)) continue;
-    list.push({ id, name });
+    list.push(typeof thumbnail === "string" && thumbnail ? { id, name, thumbnail } : { id, name });
   }
   if (!list.some((e) => e.id === DEFAULT_PRESET_ID)) list.unshift({ ...DEFAULT_PRESET });
   const active =
@@ -64,6 +70,11 @@ export function readActivePresetId(): string {
 export function readPresetName(id: string): string {
   const state = readPresetState();
   return state ? presetNameFor(state, id) : id;
+}
+
+/** The thumbnail a stored preset id carries; undefined when it has none. */
+export function readPresetThumbnail(id: string): string | undefined {
+  return readPresetState()?.list.find((e) => e.id === id)?.thumbnail;
 }
 
 /** The name a window shows: the bound preset's when bound, else the active preset's. */

@@ -62,6 +62,7 @@ describe("parsePresetState", () => {
     ).toEqual({
       active: "aaaa0001",
       list: [
+        { id: "default", name: "default" },
         { id: "aaaa0001", name: "Alpha", thumbnail: "asset://x/a.png" },
         { id: "bbbb0002", name: "Beta" },
       ],
