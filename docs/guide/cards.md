@@ -17,7 +17,7 @@ A card is the persona text of a preset: her name, who she is, how she talks, and
 | Personality | A short list of her traits, sent as `Personality: …` |
 | Scenario | The situation she is in, sent as `Scenario: …` |
 | Greeting | The line she opens a new conversation with |
-| More greetings | Other opening lines; one of these or the greeting is picked at random |
+| More greetings | Other greetings; one of these or the greeting is picked at random |
 | Example dialogue | Sample exchanges that show how she talks, sent as `Example dialogue:` |
 | System prompt | Replaces YUI's built-in framing sentence; `{{original}}` puts that sentence back in |
 | Post-history instructions | A note sent after the conversation history on every turn |
