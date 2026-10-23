@@ -36,7 +36,7 @@ describe("assembleCard", () => {
   });
 
   it("drops an empty field's block with its label, and falls back to the framing", () => {
-    const { system } = assemble({ description: "d" }, undefined);
+    const { system } = assemble({ description: "d" }, "");
     expect(system).toBe("You are Mira, on Sam's desktop.\n\nd");
     expect(system).not.toContain("Personality: ");
   });

@@ -764,6 +764,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "io/chat/card",
+      "module": "backend-call",
+      "label": "card",
+      "role": "Resolves a preset's card and its effective name, assembles the first system message and the post-history text with the {{char}}, {{user}}, {{original}} macros, and picks a greeting.",
+      "paths": [
+        "src/io/chat/card"
+      ]
+    },
+    {
       "id": "io/voice/stt",
       "module": "input",
       "label": "voice input",
