@@ -171,6 +171,7 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
       lines.push(`cue note (the user's own intent for this cue): ${oneLine(trigger.cue.context)}`);
     }
   } else if (trigger.agent) {
+    // Deprecated: removed in v0.6.0. Use POST /signals.
     const a = trigger.agent;
     const status = a.status ? ` (${a.status})` : "";
     const ago = ` (${minutesSince(a.ts, nowMs)}min ago)`;
@@ -180,6 +181,7 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
     if (a.summary) lines.push(`agent note (the coding agent's summary): "${oneLine(a.summary)}"`);
     if (a.detail) lines.push(agentDetail(a.detail));
   } else if (trigger.agent_catchup) {
+    // Deprecated: removed in v0.6.0. Use POST /signals.
     const ac = trigger.agent_catchup;
     lines.push(`trigger: agent catchup (${ac.count} event${ac.count === 1 ? "" : "s"})`);
     for (const item of ac.items) {

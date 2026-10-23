@@ -22,7 +22,7 @@ export interface GuardrailsConfig {
     window_ms: number;
     /** tier2 cap. */
     tier2_max: number;
-    /** live signals cap — counts live-delivery turns only; the overall cooldown does not hold them. */
+    /** urgent signals cap — counts urgent-delivery turns only; the overall cooldown does not hold them. */
     urgent_max: number;
     /** overall cap on backend calls — entering cooldown when exceeded. */
     overall_max: number;

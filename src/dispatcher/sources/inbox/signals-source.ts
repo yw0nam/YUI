@@ -256,9 +256,9 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
   });
 
   async function start(): Promise<void> {
-    // Urgent first: equal-priority catch-ups fire in subscription order.
-    await urgentCore.start();
+    // Non-urgent first: an urgent turn opens the pacer gap that would drop the paced catch-up.
     await core.start();
+    await urgentCore.start();
     armBatchTimer();
   }
 

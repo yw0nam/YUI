@@ -28,7 +28,7 @@ INSTRUCTIONS = (
     "The Factorio game on this machine, through the coop-agent game mod. Read status and "
     "cached events, then snapshot, find, inspect, and recipe for game state. Say and ping "
     "put words and map markers into the game. Jobs, idle mode, and stop drive the body. "
-    "Events arrive from the game on their own; the Mod posts a live signal when a "
+    "Events arrive from the game on their own; the Mod posts an urgent signal when a "
     "wake-kind event happens."
 )
 

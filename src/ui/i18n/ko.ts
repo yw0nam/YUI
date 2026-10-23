@@ -90,7 +90,7 @@ const ko: Record<string, string> = {
     "서버가 이전 응답을 찾지 못해 대화 맥락이 초기화되었습니다. 매 턴 반복되면 연결 설정에서 Chat Completions를 선택하세요.",
   "hotkey.register_failed": "소환 단축키 {accelerator} 등록 실패: 다른 앱이 사용 중일 수 있어요",
   "ingress.dead_notice":
-    "에이전트 이벤트 수신 시작 실패 (포트 {port} 사용 중). 이번 세션에는 에이전트 알림이 꺼져요",
+    "에이전트 이벤트 수신 시작 실패 (포트 {port} 사용 중). 이번 세션에는 외부 신호가 꺼져요",
 
   // boot-failure notice
   "boot.error_title": "YUI를 시작하지 못했습니다",
@@ -558,7 +558,7 @@ const ko: Record<string, string> = {
   "reactions.rate_hint":
     "YUI가 먼저 말을 거는 빈도의 상한이에요. 내가 보낸 메시지는 세지 않아요. 비워 두면 기본값을 써요.",
   "reactions.rate_tier2_label": "시간당 말 걸기",
-  "reactions.rate_tier2_sub": "자리 비움, 자발적 말 걸기, 일정, 에이전트 알림을 합쳐서 세요",
+  "reactions.rate_tier2_sub": "자리 비움, 자발적 말 걸기, 일정, 에이전트 이벤트를 합쳐서 세요",
   "reactions.rate_overall_label": "시간당 먼저 건 대화 전체",
   "reactions.rate_overall_sub": "넘어서면 쿨다운 동안 모두 멈춰요",
   "reactions.rate_urgent_label": "시간당 긴급 신호 턴",

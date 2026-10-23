@@ -42,6 +42,7 @@ export function backgroundMarker(eventName: string, trigger: TriggerMeta): strin
   }
   if (eventName.startsWith("proactive.")) return "(I've gone quiet for a while)";
   if (eventName.startsWith("schedule.")) return "(it's the time of day you check in on me)";
+  // Deprecated: removed in v0.6.0. Use POST /signals.
   if (eventName === "agent.done" || eventName === "agent.needs_input") {
     const tool = trigger.agent ? toolName(trigger.agent.tool) : "";
     const subject = tool ? `my ${tool} task` : "one of my coding tasks";
@@ -49,6 +50,7 @@ export function backgroundMarker(eventName: string, trigger: TriggerMeta): strin
       ? `(${subject} just finished)`
       : `(${subject} is waiting on my input)`;
   }
+  // Deprecated: removed in v0.6.0. Use POST /signals.
   if (eventName === "agent.catchup") {
     const named = trigger.agent_catchup?.items.map((item) => toolName(item.tool)).filter(Boolean);
     const tools = [...new Set(named ?? [])];
