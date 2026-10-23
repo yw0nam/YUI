@@ -41,7 +41,7 @@ const inputRowHtml = (
   inputAttrs: string,
   subKey?: string,
 ): string => `
-          <div class="yui-row">
+          <div class="yui-row yui-input-row">
             <div class="yui-row__main"><label class="yui-input-row__label" for="${id}">${t(labelKey)}</label>${subKey ? `<span class="yui-row__sub">${t(subKey)}</span>` : ""}</div>
             <div class="yui-input-wrap"><input class="yui-ep-input ${id}" id="${id}" type="text" spellcheck="false" autocomplete="off" ${inputAttrs} /></div>
           </div>`;
@@ -60,7 +60,7 @@ const CHEVRON_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><pa
 
 export function cardSectionHtml(): string {
   const help = escapeAttr(t("card.help_aria"));
-  const helpLink = `<a class="yui-hint-dot yui-card__help" href="${CARD_GUIDE_URL}" target="_blank" rel="noopener noreferrer" tabindex="0" aria-label="${help}" data-tip="${help}">?</a>`;
+  const helpLink = `<a class="yui-hint-dot yui-card__help" href="${CARD_GUIDE_URL}" target="_blank" rel="noopener noreferrer" aria-label="${help}" data-tip="${help}">?</a>`;
   return `
         <div class="yui-sec yui-card">
           ${secHeadHtml(
@@ -78,9 +78,9 @@ export function cardSectionHtml(): string {
           </div>
           <div class="yui-card-body">
             <div class="yui-group">${inputRowHtml("yui-card-name", "card.name", 'data-card-field="name"')}${stackHtml("description", "card.description", 4)}${stackHtml("personality", "card.personality", 2)}${stackHtml("scenario", "card.scenario", 2)}${stackHtml("first_mes", "card.greeting", 2)}
-          <div class="yui-row yui-row--action yui-card-add-row">
-            <button class="yui-add-btn yui-card-add" type="button">${PLUS_SVG}${t("card.greeting_add")}</button>
-          </div>
+              <div class="yui-row yui-row--action yui-card-add-row">
+                <button class="yui-add-btn yui-card-add" type="button">${PLUS_SVG}${t("card.greeting_add")}</button>
+              </div>
             </div>
             <details class="yui-more">
               <summary>${CHEVRON_SVG}${t("card.advanced")}</summary>
@@ -159,7 +159,7 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
     stateEl.hidden = !a.send_card || own;
     stateEl.textContent = t("card.default_state", { language: LOCALE_DISPLAY_NAMES[getLocale()] });
     resetBtn.hidden = !a.send_card || !own;
-    setValue(nameEl, cardName(card, entry()));
+    if (nameEl.getAttribute("aria-invalid") !== "true") setValue(nameEl, cardName(card, entry()));
     for (const el of fields) setValue(el, card[el.dataset.cardField as TextField]);
     const list = card.alternate_greetings;
     if (greetings().length !== list.length) {
@@ -198,8 +198,17 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
   function handleChange(e: Event): void {
     if (e.target !== nameEl) return;
     const e0 = entry();
+    const mark = (invalid: boolean): void => {
+      nameEl.closest(".yui-input-row")?.classList.toggle("is-invalid", invalid);
+      nameEl.setAttribute("aria-invalid", String(invalid));
+    };
+    // A refused name keeps what was typed and marks the row until a name is accepted; the registry's
+    // own change notice must not redraw over it, so the row is marked before the rename runs.
+    mark(true);
+    let ok = true;
     if (isUnnamedBuiltIn(e0)) agentSettings.updateCard({ name: nameEl.value }, base());
-    else registry?.rename(e0.id, nameEl.value);
+    else ok = registry?.rename(e0.id, nameEl.value) ?? true;
+    mark(!ok);
     reflect();
   }
 

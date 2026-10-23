@@ -9,6 +9,7 @@
 }
 
 .yui-card__help {
+  cursor: pointer;
   text-decoration: none;
 }
 

@@ -237,9 +237,9 @@ const ko: Record<string, string> = {
   "card.system_prompt": "시스템 프롬프트",
   "card.system_prompt_sub": "기본 틀을 대체해요. {{original}}로 기본 틀을 넣을 수 있어요.",
   "card.post_history": "기록 뒤 지침",
-  "card.macros": "매크로: {{char}} = 그녀의 이름 · {{user}} = 당신의 이름",
-  "card.user_name": "당신의 이름",
-  "card.user_name_sub": "모든 캐릭터에 사용해요",
+  "card.macros": "매크로: {{char}} = 그녀의 이름 · {{user}} = 내 이름",
+  "card.user_name": "내 이름",
+  "card.user_name_sub": "모든 프리셋이 함께 써요",
 
   // filler (thinking interjections)
   "filler.section": "생각중 추임새",

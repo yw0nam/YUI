@@ -238,7 +238,7 @@ const en: Record<string, string> = {
   "card.post_history": "Post-history instructions",
   "card.macros": "Macros: {{char}} = her name · {{user}} = your name",
   "card.user_name": "Your name",
-  "card.user_name_sub": "Used on every character",
+  "card.user_name_sub": "Shared by every preset",
 
   // filler (thinking interjections)
   "filler.section": "Thinking interjections",

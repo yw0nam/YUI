@@ -128,6 +128,27 @@ describe("createQuickControls — card section", () => {
     expect(updateCard).not.toHaveBeenCalled();
   });
 
+  it("marks a refused preset name invalid and keeps what was typed", () => {
+    localStorage.setItem(
+      "yui.presets",
+      JSON.stringify({
+        active: "aaaa0001",
+        list: [
+          { id: "default", name: "default" },
+          { id: "aaaa0001", name: "natsume" },
+        ],
+      }),
+    );
+    const updateCard = vi.spyOn(agentSettings, "updateCard");
+    build();
+    type(field("name"), "default", "change");
+    expect(field("name").getAttribute("aria-invalid")).toBe("true");
+    expect(field("name").value).toBe("default");
+    expect(updateCard).not.toHaveBeenCalled();
+    type(field("name"), "mio", "change");
+    expect(field("name").getAttribute("aria-invalid")).toBe("false");
+  });
+
   it("writes the card name for the unnamed built-in preset", () => {
     const rename = vi.spyOn(registry, "rename");
     const updateCard = vi.spyOn(agentSettings, "updateCard");

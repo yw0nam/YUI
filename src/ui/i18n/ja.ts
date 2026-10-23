@@ -241,7 +241,7 @@ const ja: Record<string, string> = {
   "card.post_history": "履歴後の指示",
   "card.macros": "マクロ: {{char}} = 彼女の名前 · {{user}} = あなたの名前",
   "card.user_name": "あなたの名前",
-  "card.user_name_sub": "すべてのキャラクターで使います",
+  "card.user_name_sub": "すべてのプリセットで共通です",
 
   // filler (thinking interjections)
   "filler.section": "考え中のあいづち",
