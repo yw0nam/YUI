@@ -142,7 +142,7 @@ jobs:
           BODY: ${{ github.event.pull_request.body }}
         run: |
           if printf '%s' "$BODY" | grep -qiE 'Co-Authored-By|Claude-Session|Generated with|🤖'; then
-            echo '::error::The PR body carries an AI attribution line (AGENTS.md § No AI attribution). Remove it; the squash commit is built from this body.'
+            echo '::error::The PR body carries an AI attribution line (AGENTS.md § No AI attribution). Remove it, then push a commit or close and reopen the PR: a rerun replays the event payload and keeps reading the old body. The squash commit is built from this body.'
             exit 1
           fi
 
