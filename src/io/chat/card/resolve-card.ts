@@ -8,11 +8,14 @@ interface PresetEntry {
   name: string;
 }
 
-/** The card's effective name: the preset's, or the card's own while the built-in preset still carries its id as its name. */
+/** Whether the built-in preset still carries its id as its name, so the card's own name is the effective one. */
+export function isUnnamedBuiltIn(presetEntry: PresetEntry): boolean {
+  return presetEntry.id === DEFAULT_PRESET_ID && presetEntry.name === DEFAULT_PRESET_ID;
+}
+
+/** The card's effective name: the preset's, or the card's own while the built-in preset is unnamed. */
 export function cardName(card: Card, presetEntry: PresetEntry): string {
-  const unnamedBuiltIn =
-    presetEntry.id === DEFAULT_PRESET_ID && presetEntry.name === DEFAULT_PRESET_ID;
-  return unnamedBuiltIn ? card.name : presetEntry.name;
+  return isUnnamedBuiltIn(presetEntry) ? card.name : presetEntry.name;
 }
 
 /** The card a preset sends and its effective name; null on push or with the switch off. */

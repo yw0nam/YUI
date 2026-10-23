@@ -1,6 +1,5 @@
 /** Quick-controls panel markup — pure string construction (no DOM, no state). */
 import "./sections/session/session-section.css";
-import { CARD_FIELD_MAX_LEN } from "../../config/validators/persona/types";
 import { REASONING_EFFORTS } from "../../settings/backend/agent-settings";
 import { RATE_LIMIT_MAX } from "../../settings/backend/guardrails-settings";
 import { LOCALE_DISPLAY_NAMES, t } from "../i18n";
@@ -23,6 +22,7 @@ import {
 import { escapeAttr, numRowHtml, secHeadHtml } from "./markup";
 import { presetStripHtml } from "./preset/preset-strip";
 import { browserSectionHtml } from "./sections/browser/browser-section";
+import { cardSectionHtml } from "./sections/card/card-section";
 import { helpSectionHtml } from "./sections/help/help-section";
 import type { SwitchRow } from "./switch-row";
 import { switchButtonHtml, switchRowHtml } from "./switches/switch-rows";
@@ -239,7 +239,7 @@ ${RATE_LIMIT_FIELDS.map((f) =>
           </div>${fillerStackHtml("filler.first_label", "filler.first_sub", "yui-filler-first-textarea", "filler.first_aria")}${fillerStackHtml("filler.repeat_label", "filler.repeat_sub", "yui-filler-repeat-textarea", "filler.repeat_aria")}
         </div>
         <p class="yui-sec__foot">${t("filler.hint")}</p>
-        <details class="yui-filler-more">
+        <details class="yui-more">
           <summary><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>${t("filler.more")}</summary>
           <div class="yui-group">${fillerStackHtml("filler.long_wait_label", "filler.long_wait_sub", "yui-filler-long-wait-textarea", "filler.long_wait_aria")}${fillerStackHtml("filler.timeout_label", "filler.timeout_sub", "yui-filler-timeout-textarea", "filler.timeout_aria")}${fillerStackHtml("filler.unreachable_label", "filler.unreachable_sub", "yui-filler-unreachable-textarea", "filler.unreachable_aria")}${fillerStackHtml("filler.tool_label", "filler.tool_sub", "yui-filler-tool-textarea", "filler.tool_aria")}
           </div>
@@ -313,11 +313,7 @@ ${panelOpenHtml("talk")}
             </div>${talkRowsHtml}
           </div>
         </div>
-        <div class="yui-sec">
-          ${secHeadHtml(t("instructions.label"), `<button class="yui-reset" type="button">${t("instructions.reset")}</button>`)}
-          <p class="yui-sec__note">${t("instructions.sub")}</p>
-          <textarea class="yui-textarea" spellcheck="false" rows="4" maxlength="${CARD_FIELD_MAX_LEN}" aria-label="${t("instructions.label")}"></textarea>
-        </div>${fillerHtml}
+${cardSectionHtml()}${fillerHtml}
       </div>
 ${panelOpenHtml("char")}
       </div>

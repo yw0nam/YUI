@@ -1,0 +1,253 @@
+/**
+ * Card section of the Talk tab: the markup, the field edits, the send switch, Reset to default, the
+ * greeting list and the device-wide user name. It owns its subscriptions, redraws and teardown.
+ */
+
+import {
+  CARD_FIELD_MAX_LEN,
+  type Card,
+  EMPTY_CARD,
+  type PersonaConfig,
+} from "../../../../config/validators/persona/types";
+import { cardName, isUnnamedBuiltIn } from "../../../../io/chat/card/resolve-card";
+import type { Logger } from "../../../../logger";
+import type { createAgentSettings } from "../../../../settings/backend/agent-settings";
+import type { createUserNameSettings } from "../../../../settings/identity/user-name-settings";
+import { presetIdForWindow, readPresetName } from "../../../../settings/preset/active-preset";
+import type { PresetRegistry } from "../../../../settings/preset/preset-registry";
+import { getLocale, LOCALE_DISPLAY_NAMES, subscribe as subscribeLocale, t } from "../../../i18n";
+import { CARD_GUIDE_URL } from "../../constants";
+import { escapeAttr, secHeadHtml } from "../../markup";
+import "./card-section.css";
+
+type TextField =
+  | "description"
+  | "personality"
+  | "scenario"
+  | "first_mes"
+  | "mes_example"
+  | "system_prompt"
+  | "post_history_instructions";
+
+const stackHtml = (field: TextField, labelKey: string, rows: number, subKey?: string): string => `
+          <div class="yui-stack">
+            <label class="yui-input-row__label" for="yui-card-${field}">${t(labelKey)}</label>
+            <textarea class="yui-textarea" id="yui-card-${field}" data-card-field="${field}" spellcheck="false" rows="${rows}" maxlength="${CARD_FIELD_MAX_LEN}"></textarea>${subKey ? `<p class="yui-row__sub">${t(subKey)}</p>` : ""}
+          </div>`;
+
+const inputRowHtml = (
+  id: string,
+  labelKey: string,
+  inputAttrs: string,
+  subKey?: string,
+): string => `
+          <div class="yui-row">
+            <div class="yui-row__main"><label class="yui-input-row__label" for="${id}">${t(labelKey)}</label>${subKey ? `<span class="yui-row__sub">${t(subKey)}</span>` : ""}</div>
+            <div class="yui-input-wrap"><input class="yui-ep-input ${id}" id="${id}" type="text" spellcheck="false" autocomplete="off" ${inputAttrs} /></div>
+          </div>`;
+
+const greetingHtml = (i: number): string => `
+          <div class="yui-stack yui-card-greeting">
+            <div class="yui-card__greet-head">
+              <label class="yui-input-row__label" for="yui-card-greeting-${i}">${t("card.greeting_n", { n: i + 2 })}</label>
+              <button class="yui-link-btn yui-card-greeting__remove" type="button" data-index="${i}">${t("card.greeting_remove")}</button>
+            </div>
+            <textarea class="yui-textarea" id="yui-card-greeting-${i}" data-greeting-index="${i}" spellcheck="false" rows="2" maxlength="${CARD_FIELD_MAX_LEN}"></textarea>
+          </div>`;
+
+const PLUS_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+const CHEVRON_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+export function cardSectionHtml(): string {
+  const help = escapeAttr(t("card.help_aria"));
+  const helpLink = `<a class="yui-hint-dot yui-card__help" href="${CARD_GUIDE_URL}" target="_blank" rel="noopener noreferrer" tabindex="0" aria-label="${help}" data-tip="${help}">?</a>`;
+  return `
+        <div class="yui-sec yui-card">
+          ${secHeadHtml(
+            `${t("card.label")}${helpLink}`,
+            `<span class="yui-sec__state"></span><button class="yui-reset" type="button">${t("card.reset")}</button>`,
+          )}
+          <div class="yui-group yui-group--switch">
+            <div class="yui-row">
+              <div class="yui-row__main">
+                <span class="yui-row__label">${t("card.send_label")}</span>
+                <span class="yui-row__sub">${t("card.send_sub")}</span>
+              </div>
+              <button class="yui-switch yui-card-switch" type="button" role="switch" aria-checked="true" aria-label="${t("card.send_label")}"></button>
+            </div>
+          </div>
+          <div class="yui-card-body">
+            <div class="yui-group">${inputRowHtml("yui-card-name", "card.name", 'data-card-field="name"')}${stackHtml("description", "card.description", 4)}${stackHtml("personality", "card.personality", 2)}${stackHtml("scenario", "card.scenario", 2)}${stackHtml("first_mes", "card.greeting", 2)}
+          <div class="yui-row yui-row--action yui-card-add-row">
+            <button class="yui-add-btn yui-card-add" type="button">${PLUS_SVG}${t("card.greeting_add")}</button>
+          </div>
+            </div>
+            <details class="yui-more">
+              <summary>${CHEVRON_SVG}${t("card.advanced")}</summary>
+              <div class="yui-group">${stackHtml("mes_example", "card.mes_example", 4)}${stackHtml("system_prompt", "card.system_prompt", 4, "card.system_prompt_sub")}${stackHtml("post_history_instructions", "card.post_history", 2)}
+              </div>
+            </details>
+            <p class="yui-sec__foot">${t("card.macros")}</p>
+            <div class="yui-group yui-group--you">${inputRowHtml("yui-card-username", "card.user_name", "", "card.user_name_sub")}
+            </div>
+          </div>
+        </div>`;
+}
+
+type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
+type UserNameSettingsStore = ReturnType<typeof createUserNameSettings>;
+
+interface CardSectionDeps {
+  /** Panel root holding the section's markup. */
+  root: HTMLElement;
+  agentSettings: AgentSettingsStore;
+  userNameSettings: UserNameSettingsStore;
+  /** Renames the preset; absent where the panel shows no preset strip. */
+  registry?: Pick<PresetRegistry, "rename" | "subscribe">;
+  /** The bundled config's default cards and fallback words; undefined until the config loads. */
+  getPersona?: () => PersonaConfig | undefined;
+  /** Whether push chat is the effective mode; the whole section is hidden then. */
+  isPushMode: () => boolean;
+  /** Popover open state: store subscriptions redraw only while the panel is open. */
+  isOpen: () => boolean;
+  log: Logger;
+}
+
+interface CardSection {
+  /** Render every control from the stores and the UI language. */
+  reflect(): void;
+  /** Permanent teardown: unsubscribe and remove all listeners. */
+  dispose(): void;
+}
+
+export function createCardSection(deps: CardSectionDeps): CardSection {
+  const { root, agentSettings, userNameSettings, registry, getPersona, isPushMode, isOpen, log } =
+    deps;
+  const sec = root.querySelector<HTMLElement>(".yui-card")!;
+  const q = <T extends HTMLElement>(sel: string): T => sec.querySelector<T>(sel)!;
+  const body = q<HTMLElement>(".yui-card-body");
+  const switchBtn = q<HTMLButtonElement>(".yui-card-switch");
+  const stateEl = q<HTMLElement>(".yui-sec__state");
+  const resetBtn = q<HTMLButtonElement>(".yui-reset");
+  const nameEl = q<HTMLInputElement>('[data-card-field="name"]');
+  const userEl = q<HTMLInputElement>(".yui-card-username");
+  const addRow = q<HTMLElement>(".yui-card-add-row");
+  const fields = Array.from(sec.querySelectorAll<HTMLTextAreaElement>("textarea[data-card-field]"));
+
+  const entry = () => {
+    const id = presetIdForWindow();
+    return { id, name: readPresetName(id) };
+  };
+  // The default card of the UI language: what a first edit starts from.
+  const base = (): Card => getPersona?.()?.cards[getLocale()] ?? EMPTY_CARD;
+  const greetings = (): HTMLTextAreaElement[] =>
+    Array.from(sec.querySelectorAll<HTMLTextAreaElement>("textarea[data-greeting-index]"));
+
+  // A focused control keeps what the user is typing; it catches up on blur.
+  function setValue(el: HTMLInputElement | HTMLTextAreaElement, value: string): void {
+    if (document.hasFocus() && document.activeElement === el) return;
+    if (el.value !== value) el.value = value;
+  }
+
+  function reflect(): void {
+    sec.hidden = isPushMode();
+    const a = agentSettings.get();
+    const card = a.card ?? base();
+    const own = a.card !== null;
+    switchBtn.setAttribute("aria-checked", String(a.send_card));
+    body.hidden = !a.send_card;
+    stateEl.hidden = !a.send_card || own;
+    stateEl.textContent = t("card.default_state", { language: LOCALE_DISPLAY_NAMES[getLocale()] });
+    resetBtn.hidden = !a.send_card || !own;
+    setValue(nameEl, cardName(card, entry()));
+    for (const el of fields) setValue(el, card[el.dataset.cardField as TextField]);
+    const list = card.alternate_greetings;
+    if (greetings().length !== list.length) {
+      for (const node of sec.querySelectorAll(".yui-card-greeting")) node.remove();
+      addRow.insertAdjacentHTML("beforebegin", list.map((_, i) => greetingHtml(i)).join(""));
+    }
+    greetings().forEach((el, i) => {
+      setValue(el, list[i] ?? "");
+    });
+    setValue(userEl, userNameSettings.get().name);
+    userEl.placeholder = getPersona?.()?.user_fallback[getLocale()] ?? "";
+  }
+
+  const currentCard = (): Card => agentSettings.get().card ?? base();
+
+  function setGreetings(next: string[]): void {
+    agentSettings.updateCard({ alternate_greetings: next }, base());
+    reflect();
+  }
+
+  function handleInput(e: Event): void {
+    const el = e.target as HTMLInputElement | HTMLTextAreaElement;
+    const field = el.dataset.cardField as TextField | "name" | undefined;
+    if (el === userEl) {
+      userNameSettings.setName(el.value);
+    } else if (field && field !== "name") {
+      agentSettings.updateCard({ [field]: el.value }, base());
+    } else if (el.dataset.greetingIndex !== undefined) {
+      const next = [...currentCard().alternate_greetings];
+      next[Number(el.dataset.greetingIndex)] = el.value;
+      agentSettings.updateCard({ alternate_greetings: next }, base());
+    }
+  }
+
+  // The name is one value in two places: the preset's, or the card's while the built-in preset is unnamed.
+  function handleChange(e: Event): void {
+    if (e.target !== nameEl) return;
+    const e0 = entry();
+    if (isUnnamedBuiltIn(e0)) agentSettings.updateCard({ name: nameEl.value }, base());
+    else registry?.rename(e0.id, nameEl.value);
+    reflect();
+  }
+
+  function handleClick(e: MouseEvent): void {
+    const target = e.target as HTMLElement;
+    if (target.closest(".yui-card-switch")) {
+      const enabled = !agentSettings.get().send_card;
+      agentSettings.setSendCard(enabled);
+      log.info("card_send_toggle", { enabled });
+    } else if (target.closest(".yui-reset")) {
+      agentSettings.resetCard();
+      log.info("card_reset");
+    } else if (target.closest(".yui-card-add")) {
+      setGreetings([...currentCard().alternate_greetings, ""]);
+      greetings().at(-1)?.focus();
+    } else {
+      const remove = target.closest<HTMLElement>(".yui-card-greeting__remove");
+      if (remove)
+        setGreetings(
+          currentCard().alternate_greetings.filter((_, i) => i !== Number(remove.dataset.index)),
+        );
+    }
+    reflect();
+  }
+
+  const redraw = (): void => {
+    if (isOpen()) reflect();
+  };
+  const unsubscribes = [
+    agentSettings.subscribe(redraw),
+    userNameSettings.subscribe(redraw),
+    registry?.subscribe(redraw),
+    subscribeLocale(redraw),
+  ];
+
+  sec.addEventListener("input", handleInput);
+  sec.addEventListener("change", handleChange);
+  sec.addEventListener("click", handleClick);
+  sec.addEventListener("focusout", reflect);
+
+  return {
+    reflect,
+    dispose(): void {
+      for (const off of unsubscribes) off?.();
+      sec.removeEventListener("input", handleInput);
+      sec.removeEventListener("change", handleChange);
+      sec.removeEventListener("click", handleClick);
+      sec.removeEventListener("focusout", reflect);
+    },
+  };
+}

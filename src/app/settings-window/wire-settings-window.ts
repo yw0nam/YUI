@@ -30,7 +30,7 @@ import { createWindowStores } from "../settings/window-stores";
 import { createEffectiveEndpoints, wireSpeakerSelection } from "../settings/wire-avatar";
 import { wireCueLocaleSync } from "../settings/wire-cue-locale-sync";
 import { wirePresetSwitch } from "../settings/wire-preset";
-import { createSessionResetAnnouncer } from "../turn/wire-greeting";
+import { createSessionResetAnnouncer } from "../turn/session-reset-announcer";
 import { editTargetUrl } from "./edit-target-url";
 import { wireVoiceMirror } from "./wire-voice-mirror";
 
@@ -67,6 +67,7 @@ export async function wireSettingsWindow(deps: {
     fillerSettings,
     ttsSettings,
     agentSettings,
+    userNameSettings,
     endpointsSettings,
     chatKeySettings,
     sttKeySettings,
@@ -88,7 +89,7 @@ export async function wireSettingsWindow(deps: {
   const voiceInputStatus = createVoiceInputStatus();
   const sourceProvider = resolveScreenSourceProvider();
 
-  // Config for default instructions placeholder loaded best-effort only (failure → generic placeholder).
+  // Config for the Card section's default cards loaded best-effort only (failure → empty fields).
   // The TTS key rides along so this window's voice uploads reach a gated server too.
   const config = createConfigStore({
     secrets: createSettingsSecretProvider({
@@ -221,6 +222,7 @@ export async function wireSettingsWindow(deps: {
       // Close settings window with Escape — closing for window variant is OS window's job.
       onCloseWindow: closeSettingsWindow,
       agentSettings,
+      userNameSettings,
       settings: screenshotSettings,
       idleThrottleSettings,
       gazeSettings,

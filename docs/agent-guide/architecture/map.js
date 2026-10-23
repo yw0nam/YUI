@@ -1136,7 +1136,7 @@ globalThis.YUI_MAP =
       "id": "ui/quick-controls",
       "module": "settings",
       "label": "quick controls",
-      "role": "The settings panel, shown as a popover in the pet window and as the whole settings window; the preset manage row's copy button copies a character's ingress URL and the Reactions URL line shows this window's; the preset strip shows this preset's relation line and the reasons card.",
+      "role": "The settings panel, shown as a popover in the pet window and as the whole settings window; the preset manage row's copy button copies a character's ingress URL and the Reactions URL line shows this window's; the preset strip shows this preset's relation line and the reasons card; the Talk tab's Card section edits the preset's card, its send switch, the preset's name and the device-wide user name.",
       "paths": [
         "src/ui/quick-controls"
       ]
@@ -2613,7 +2613,7 @@ globalThis.YUI_MAP =
       "id": "controls-settings",
       "from": "ui/quick-controls",
       "to": "settings",
-      "carries": "store commit → localStorage yui.*, or yui.<preset-id>.* for a per-preset key; the preset strip writes yui.windows, the manage popover's Use in main writes the active id, and activate returns false while a preset is open or live",
+      "carries": "store commit → localStorage yui.*, or yui.<preset-id>.* for a per-preset key; the preset strip writes yui.windows, the manage popover's Use in main writes the active id, and activate returns false while a preset is open or live; the Card section writes the card and send switch into yui.agent, the user name into yui.user-name, and renames the preset in yui.presets",
       "kind": "storage",
       "transport": "shared"
     },

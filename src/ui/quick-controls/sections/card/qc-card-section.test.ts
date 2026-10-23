@@ -159,6 +159,17 @@ describe("createQuickControls — card section", () => {
     expect(field("description").value).toBe("own");
   });
 
+  it("does not overwrite a focused field when the store changes", () => {
+    build();
+    const ta = field("description");
+    ta.focus();
+    ta.value = "mid-edit";
+    agentSettings.setCard(card("remote"));
+    expect(ta.value).toBe("mid-edit");
+    ta.blur();
+    expect(ta.value).toBe("remote");
+  });
+
   it("stores the user's name and shows the language's fallback word as placeholder", () => {
     build();
     const input = sec().querySelector<HTMLInputElement>(".yui-card-username")!;

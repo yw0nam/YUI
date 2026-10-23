@@ -16,7 +16,7 @@ export function quickControlsConfigDefaults(config: Pick<ConfigStore, "get">) {
   return {
     getRateLimitDefaults: () => read((c) => rateLimitDefaultsFromConfig(c.guardrails), undefined),
     getScreenDefaults: () => read((c) => screenDefaultsFromConfig(c.screen), undefined),
-    getDefaultInstructions: () => read((c) => c.endpoints.chat_instructions, undefined),
+    getPersona: () => read((c) => c.persona, undefined),
     getEndpointDefaults: () => endpointDefaultsOf(config),
     getDefaultChatApi: () => read((c) => c.endpoints.chat_api, undefined),
     getIdlePool: () => read((c) => c.motions.idle, undefined),
