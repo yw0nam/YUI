@@ -58,6 +58,8 @@ export function createPresetStrip(deps: {
   const { root, registry, log, petWindows, boundId = null, onEditTarget } = deps;
   const edit = !!onEditTarget;
   const shownId = presetIdForWindow();
+  const isOpen = (id: string): boolean =>
+    !!(petWindows?.get().includes(id) || isPresetWindowLive(id));
   const stripEl = root.querySelector<HTMLDivElement>(".yui-preset")!;
   const select = stripEl.querySelector<HTMLSelectElement>(".yui-preset__select")!;
   let boundName: HTMLSpanElement | null = null;
@@ -96,7 +98,7 @@ export function createPresetStrip(deps: {
         anchor: edit ? noteEl : stripEl.querySelector<HTMLElement>(".yui-preset__row")!,
         store: deps.relationsStore,
         presets: () => registry.get().list,
-        isOpen: (id) => !!(petWindows?.get().includes(id) || isPresetWindowLive(id)),
+        isOpen,
       })
     : null;
   let switching = false;
@@ -113,7 +115,7 @@ export function createPresetStrip(deps: {
     }
     select.replaceChildren(
       ...state.list.map((e) => {
-        const open = !edit && (petWindows?.get().includes(e.id) || isPresetWindowLive(e.id));
+        const open = !edit && isOpen(e.id);
         const option = new Option(
           open ? t("preset.in_window", { name: e.name }) : e.name,
           e.id,
@@ -126,7 +128,7 @@ export function createPresetStrip(deps: {
     );
     const name = presetNameFor(state, shownId);
     if (edit) {
-      const open = petWindows?.get().includes(shownId) || isPresetWindowLive(shownId);
+      const open = isOpen(shownId);
       const key = shownId === state.active ? "main" : open ? "window" : "idle";
       noteEl.textContent = t(`preset.note_${key}`, { name });
     }

@@ -16,11 +16,6 @@ export function relationLineEl(view: RelationsView, isOpen: (id: string) => bool
     .targetsOf(view.self)
     .filter((id) => own[id])
     .sort((a, b) => (a === "user" ? -1 : b === "user" ? 1 : own[b]!.value - own[a]!.value));
-  // Open chips first, then the folded ones; each group keeps the value order.
-  const ordered = [
-    ...targets.filter((id) => id === "user" || isOpen(id)),
-    ...targets.filter((id) => id !== "user" && !isOpen(id)),
-  ];
   if (targets.length === 0) {
     const empty = document.createElement("span");
     empty.className = "yui-preset__rel-empty";
@@ -28,6 +23,9 @@ export function relationLineEl(view: RelationsView, isOpen: (id: string) => bool
     line.append(empty);
     return line;
   }
+  const folds = (id: string): boolean => id !== "user" && !isOpen(id);
+  // Open chips first, then the folded ones; each group keeps the value order.
+  const ordered = [...targets.filter((id) => !folds(id)), ...targets.filter(folds)];
   let folded = 0;
   for (const target of ordered) {
     const band = bandOf(own[target]!.value);
@@ -38,7 +36,7 @@ export function relationLineEl(view: RelationsView, isOpen: (id: string) => bool
       label: view.label(view.self, target, band),
       name: view.nameOf(target),
     });
-    if (target !== "user" && !isOpen(target)) {
+    if (folds(target)) {
       chip.setAttribute("data-folded", "");
       folded += 1;
     }
