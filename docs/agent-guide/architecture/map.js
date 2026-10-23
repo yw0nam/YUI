@@ -731,7 +731,7 @@ globalThis.YUI_MAP =
       "id": "io/chat/conversation",
       "module": "conversation",
       "label": "conversation stores",
-      "role": "Transcript, context history, response-id session, session diagnostics, and the overheard store and reader that hand a turn the other open presets' unheard lines.",
+      "role": "Transcript, signal history, context history, response-id session, session diagnostics, and the overheard store and reader that hand a turn the other open presets' unheard lines.",
       "paths": [
         "src/io/chat/conversation"
       ]
@@ -1100,9 +1100,18 @@ globalThis.YUI_MAP =
       "id": "ui/message",
       "module": "display",
       "label": "bubble and plate",
-      "role": "The speech bubble, the quoted user line, the reasoning disclosure, and the message-window plate.",
+      "role": "The speech bubble, the quoted user line or signal source lines, the reasoning disclosure, and the message-window plate.",
       "paths": [
         "src/ui/message"
+      ]
+    },
+    {
+      "id": "ui/signals",
+      "module": "display",
+      "label": "source line",
+      "role": "The source line of a signal group: delivery-class dot, source, label; drawn by the bubble and by History.",
+      "paths": [
+        "src/ui/signals"
       ]
     },
     {
@@ -1350,7 +1359,7 @@ globalThis.YUI_MAP =
       "id": "ledger-quote",
       "from": "dispatcher/turn",
       "to": "ui/surfaces",
-      "carries": "onTurnAdmitted → quoteUser, settleQuote, clearQuote",
+      "carries": "onTurnAdmitted, utteranceStart → quoteUser, quoteSignals, settleQuote, clearQuote",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/wire-dispatcher.ts"
@@ -1516,7 +1525,7 @@ globalThis.YUI_MAP =
       "id": "backend-record",
       "from": "dispatcher/backend",
       "to": "io/chat/conversation",
-      "carries": "recordSentTurn: transcript entries, context history, response id; usage",
+      "carries": "recordSentTurn: transcript entries, signal records, context history, response id; usage",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/wire-dispatcher.ts"
@@ -1602,7 +1611,7 @@ globalThis.YUI_MAP =
       "id": "render-conversation",
       "from": "dispatcher/turn",
       "to": "io/chat/conversation",
-      "carries": "assistant transcript entry of a rendered reply",
+      "carries": "assistant transcript entry of a rendered reply, and what the turn said into its signal records",
       "kind": "callback",
       "transport": "push",
       "wiring": "src/app/turn/turn-core.ts"
@@ -1691,7 +1700,7 @@ globalThis.YUI_MAP =
       "id": "surfaces-bubble",
       "from": "ui/surfaces",
       "to": "ui/message",
-      "carries": "speech bubble text, user quote, reasoning disclosure",
+      "carries": "speech bubble text, user quote, signal source lines, reasoning disclosure",
       "kind": "call",
       "transport": "shared"
     },
@@ -2898,7 +2907,7 @@ globalThis.YUI_MAP =
       "id": "conversation-controls",
       "from": "io/chat/conversation",
       "to": "ui/quick-controls",
-      "carries": "sessions() → History tab; session diagnostics → Session section",
+      "carries": "sessions() and signal records → History tab; session diagnostics → Session section",
       "kind": "call",
       "transport": "shared"
     },
@@ -2970,10 +2979,26 @@ globalThis.YUI_MAP =
       "transport": "shared"
     },
     {
+      "id": "message-source-line",
+      "from": "ui/message",
+      "to": "ui/signals",
+      "carries": "renderSourceLine for each source line in the bubble's quote slot",
+      "kind": "call",
+      "transport": "shared"
+    },
+    {
+      "id": "history-source-line",
+      "from": "ui/quick-controls",
+      "to": "ui/signals",
+      "carries": "renderSourceLine for each signal record of a History row",
+      "kind": "call",
+      "transport": "shared"
+    },
+    {
       "id": "bubble-user",
       "from": "ui/message",
       "to": "user",
-      "carries": "speech bubble text, the quoted user line, reasoning",
+      "carries": "speech bubble text, the quoted user line, the signal source lines, reasoning",
       "kind": "user",
       "transport": "shared"
     },

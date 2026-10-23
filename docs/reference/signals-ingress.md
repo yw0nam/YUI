@@ -50,7 +50,7 @@ preset ids exist by the 404 and 503 replies. The ids are opaque keys, not secret
 | `event_type` | Non-empty string identifying the producer-defined event type |
 | `delivery` | Exactly `"urgent"`, `"batched"`, or the deprecated `"immediate"` |
 | `event_id` | Non-empty opaque string; a group replaces a buffered group with the same `event_id` in the same buffer, at its position, and a group with the same `event_id` in another buffer stays. A delivered group is not compared |
-| `label` | Optional string: the producer's one-line origin, for example `dev43 · tmux yui:2 · YUI (main)`. Over 120 code points it is cut to 119 code points plus `…` and the request is accepted. A non-string label makes the envelope invalid. The label is not rendered in `client_context` |
+| `label` | Optional string: the producer's one-line origin, for example `dev43 · tmux yui:2 · YUI (main)`. Over 120 code points it is cut to 119 code points plus `…` and the request is accepted. A non-string label makes the envelope invalid. The label is not rendered in `client_context`. The client shows it, or `event_type` when it is absent, after `source` as the source line of the group on the speech bubble and in History; the bubble cuts the line at about 34 characters, so the distinguishing words go first |
 | `occurred_at` | Finite epoch-millisecond number in the inclusive range `-8.64e15` through `8.64e15`, representable as an ISO-8601 date |
 
 ## Delivery

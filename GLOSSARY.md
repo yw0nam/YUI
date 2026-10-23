@@ -94,6 +94,10 @@ _Avoid_: widget, overlay, panel
 **Signals**:
 A burst of events from an external producer POSTed to the `/signals` ingress, flushed as one turn.
 
+**Delivery class**:
+How urgent a signal group is, chosen by the producer: `urgent` (handle now) or `batched` (can wait and go out together). The client routes by it and shows it as the dot of a source line; it never changes it.
+_Avoid_: tier, urgency, priority
+
 **Mod**:
 A standalone MCP server the brain uses (avatar, browser-cdp, desktop-control, shell-sandbox). Not part of the app runtime.
 

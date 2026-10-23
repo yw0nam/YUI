@@ -230,7 +230,8 @@ YUI/
         turn.ts                      # Turn identity ledger and the single definition of over
         turn-output.ts               # Speech lifecycle port between the backend caller and the voice pipeline
         push-turn.ts                 # Push-turn ids the user stopped, so their late frames drop whole, and the wait for a sent turn to finish
-        quoted-turn.ts               # The admitted user turn the bubble quotes, and what was observed of it
+        quoted-turn.ts               # The admitted turn the bubble quotes: the user's message, or a signal turn's source lines at its first utterance
+        signal-lines.ts              # A trigger's signal groups as source lines, urgent first
         render-turn.ts               # Plays a finished backend turn that arrived as a render frame on the push socket
         turn-feed.ts                 # Shared tool-status and reasoning consumer for every transport
       backend/
@@ -367,6 +368,7 @@ YUI/
           broker-override-reconciler.ts # Applies a broker-URL override to the live broker client
         conversation/                  # Transcript, context, and session state for conversation continuation
           chat-history-store.ts        # Unified conversation transcript with session boundaries
+          signal-history-store.ts      # Per-turn signal records, one per group, spoken or silent
           context-history.ts           # Capped ring of recent client-context entries
           overheard/                   # What this window has heard of the other open presets
             overheard-reader.ts        # Reads the lines other open presets exchanged since this window last heard them
@@ -510,6 +512,7 @@ YUI/
       message/                       # Message-window plate, bubble, and cue-list rendering
         speech-bubble.ts             # Speech bubble: dwell, scroll, markdown, and aria for streamed speech
         user-quote.ts                # The user's message quoted on the bubble's first line
+        signal-source-lines.ts       # A signal turn's source lines in the bubble's quote slot
         reasoning-disclosure.ts      # Backend reasoning folded under the quoted line at the top of the bubble in the message and phone windows
         message-plate.ts             # Message-window name plate and OS drag handle
         plate-connection.ts          # Binds the push socket's state onto the plate's connection tell
@@ -519,6 +522,9 @@ YUI/
         message-plate.css            # Name-plate chip styles: state dot, name, state label, and dock button
         message-window.css           # Message-window layout and name-plate styles
         cue-list.css                 # Cue-list section styles
+      signals/                       # The source line of a signal group, shared by the bubble and History
+        source-line.ts               # Renders one source line: delivery-class dot, source, label
+        source-line.css              # Source-line styles: filled urgent dot, ring batched dot
       chips/                         # Status and delegation chips beside the avatar and on the message-window plate
         status-pill.ts               # Status pill: capture, voice, and backend tool tells in one pill
         tool-labels.ts               # Tool id to display label lookup
@@ -612,7 +618,8 @@ YUI/
             view.ts                  # What the two read: this preset's relations as stored now
         history/                     # History tab and its session accordion section
           history-tab.ts             # The History tab the desktop panel and the phone settings view share, with its start-fresh row
-          history-section.ts         # History tab session accordion over the persisted transcript
+          history-section.ts         # History tab session accordion over the persisted transcript and the signal records
+          history-rows.ts            # Merges a session's chat entries with the signal records of the turns that ran in it
           history-section.css        # Session history accordion styles
         sections/                    # The tab sections the shell mounts and the list helpers only they use
           agent/                     # Locale, reasoning-effort, and instructions controls
