@@ -106,12 +106,4 @@ describe("createSignalHistoryStore", () => {
 
     expect(store.records()).toEqual([]);
   });
-
-  it("a stored delivery of immediate is kept as batched", () => {
-    const store = createSignalHistoryStore({
-      storage: seeded([{ ...record(), delivery: "immediate" }]),
-    });
-
-    expect(store.records()).toEqual([record()]);
-  });
 });

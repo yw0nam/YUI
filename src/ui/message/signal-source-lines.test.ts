@@ -28,7 +28,7 @@ describe("createSignalSourceLines", () => {
 
     expect(el.hidden).toBe(false);
     expect(el.classList.contains("is-sources")).toBe(true);
-    expect(el.querySelectorAll(".yui-source")).toHaveLength(3);
+    expect(el.querySelectorAll(".yui-signal-line")).toHaveLength(3);
     expect(el.querySelector(".yui-bubble__sources-more")!.textContent).toBe("+1 more");
     expect(bubble.holdForTurn).toHaveBeenCalledWith(true);
     expect(bubble.measure).toHaveBeenCalledTimes(1);
@@ -39,7 +39,7 @@ describe("createSignalSourceLines", () => {
     const { el, sources } = build();
     sources.show([line(1), line(2)]);
 
-    expect(el.querySelectorAll(".yui-source")).toHaveLength(2);
+    expect(el.querySelectorAll(".yui-signal-line")).toHaveLength(2);
     expect(el.querySelector(".yui-bubble__sources-more")).toBeNull();
   });
 
@@ -49,7 +49,7 @@ describe("createSignalSourceLines", () => {
     createUserQuote({ el, bubble }).show({ text: "hello", via: "text", images: 0 });
 
     expect(el.classList.contains("is-sources")).toBe(false);
-    expect(el.querySelector(".yui-source")).toBeNull();
+    expect(el.querySelector(".yui-signal-line")).toBeNull();
     expect(el.querySelector(".yui-bubble__quote-who")!.textContent).toBe("You");
     expect(el.querySelector(".yui-bubble__quote-text")!.textContent).toBe("hello");
   });

@@ -115,7 +115,7 @@
   gap: 0.1rem;
 }
 
-.yui-hist__say.is-silent {
+.yui-hist__turn.is-yui .yui-hist__say.is-silent {
   color: var(--yui-text-mute);
 }
 

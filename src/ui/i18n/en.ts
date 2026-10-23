@@ -44,6 +44,8 @@ const en: Record<string, string> = {
   "bubble.you": "You",
   "bubble.quote_attached": "{count} attached",
   "bubble.sources_more": "+{n} more",
+  "signals.delivery_urgent": "Urgent signal",
+  "signals.delivery_batched": "Batched signal",
   "aria.dock_message": "Move speech back to the character",
   "aria.pop_message": "Move speech to the message window",
   "aria.dismiss_error": "Dismiss error",
@@ -410,8 +412,6 @@ const en: Record<string, string> = {
   "history.who_yui": "YUI",
   "history.empty": "Nothing has been said yet",
   "history.signal_silent": "Did not speak",
-  "signals.delivery_urgent": "Urgent signal",
-  "signals.delivery_batched": "Batched signal",
   "history.foot": "Last 200 messages · stored on this device only",
 
   // TTS output toggle

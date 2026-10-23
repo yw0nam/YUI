@@ -145,7 +145,7 @@ describe("createQuickControls — history tab", () => {
 
     const row = qc.el.querySelector<HTMLElement>(".yui-hist__turn.is-signal")!;
     expect(row.querySelector(".yui-hist__say.is-silent")!.textContent).toBe("Did not speak");
-    expect(row.querySelector(".yui-source__text")!.textContent).toBe("CI failed on main");
+    expect(row.querySelector(".yui-signal-line__text")!.textContent).toBe("CI failed on main");
     expect(
       qc.el.querySelectorAll(".yui-hist__sess")[0].querySelector(".yui-hist__sess-count")!
         .textContent,
@@ -166,7 +166,9 @@ describe("createQuickControls — history tab", () => {
     const rows = qc.el.querySelectorAll(".yui-hist__turn");
     expect(rows).toHaveLength(1);
     expect(rows[0].classList.contains("is-signal")).toBe(false);
-    expect(rows[0].querySelector(".yui-hist__source .yui-source__src")!.textContent).toBe("gh");
+    expect(rows[0].querySelector(".yui-hist__source .yui-signal-line__src")!.textContent).toBe(
+      "gh",
+    );
 
     qc.dispose();
   });

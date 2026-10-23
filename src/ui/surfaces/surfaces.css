@@ -302,7 +302,7 @@
   align-items: stretch;
   gap: 0.2rem;
 }
-.yui-bubble__quote.is-sources .yui-source {
+.yui-bubble__quote.is-sources .yui-signal-line {
   font-size: inherit;
 }
 .yui-bubble__sources-more {

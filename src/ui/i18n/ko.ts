@@ -43,6 +43,8 @@ const ko: Record<string, string> = {
   "bubble.you": "나",
   "bubble.quote_attached": "첨부 {count}장",
   "bubble.sources_more": "+{n}개",
+  "signals.delivery_urgent": "긴급 신호",
+  "signals.delivery_batched": "모아서 전달한 신호",
   "aria.dock_message": "말풍선을 캐릭터 창으로 되돌리기",
   "aria.pop_message": "말풍선을 메시지 창으로 분리",
   "aria.dismiss_error": "오류 닫기",
@@ -409,8 +411,6 @@ const ko: Record<string, string> = {
   "history.who_yui": "유이",
   "history.empty": "아직 나눈 대화가 없어요",
   "history.signal_silent": "말하지 않음",
-  "signals.delivery_urgent": "긴급 신호",
-  "signals.delivery_batched": "모아서 전달한 신호",
   "history.foot": "최근 메시지 200개 · 이 기기에만 저장",
 
   // TTS output toggle

@@ -34,15 +34,13 @@ function coerceRecord(v: unknown): SignalRecord | null {
   if (r.label !== null && typeof r.label !== "string") return null;
   if (typeof r.ts !== "number") return null;
   if (r.said !== null && typeof r.said !== "string") return null;
-  // immediate is deprecated but still sits in stored rows of an older release.
-  if (r.delivery !== "urgent" && r.delivery !== "batched" && r.delivery !== "immediate")
-    return null;
+  if (r.delivery !== "urgent" && r.delivery !== "batched") return null;
   return {
     turn_id: r.turn_id,
     source: r.source,
     event_type: r.event_type,
     label: r.label,
-    delivery: r.delivery === "urgent" ? "urgent" : "batched",
+    delivery: r.delivery,
     ts: r.ts,
     said: r.said,
   };

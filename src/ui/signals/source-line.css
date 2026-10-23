@@ -1,5 +1,6 @@
 /* Source line — delivery-class dot, source, label. Tokens in ../tokens.css. */
-.yui-source {
+.yui-signal-line {
+  position: relative;
   display: flex;
   gap: 0.4rem;
   align-items: center;
@@ -8,32 +9,32 @@
   line-height: 1.4;
   color: var(--yui-text-mute);
 }
-.yui-source__dot {
+.yui-signal-line__dot {
   flex: none;
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 50%;
   box-sizing: border-box;
 }
-.yui-source--urgent .yui-source__dot {
+.yui-signal-line--urgent .yui-signal-line__dot {
   background: var(--yui-danger);
 }
-.yui-source--batched .yui-source__dot {
+.yui-signal-line--batched .yui-signal-line__dot {
   border: 1.5px solid var(--yui-accent);
 }
-.yui-source__src {
+.yui-signal-line__src {
   flex: none;
   font-weight: 600;
   color: var(--yui-text-dim);
 }
-.yui-source__text {
+.yui-signal-line__text {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 /* Read by screen readers only. */
-.yui-source__class {
+.yui-signal-line__class {
   position: absolute;
   width: 1px;
   height: 1px;

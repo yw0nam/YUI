@@ -8,7 +8,7 @@ import "./history-section.css";
 import type { ChatSession } from "../../../io/chat/conversation/chat-history-store";
 import type { SignalRecord } from "../../../io/chat/conversation/signal-history-store";
 import { getLocale, t } from "../../i18n";
-import { renderSourceLine } from "../../signals/source-line";
+import { renderSourceLine, sourceLineOf } from "../../signals/source-line";
 import { HIST_CHEVRON_SVG } from "../constants";
 import { type HistoryRow, mergeSessionRows, tsOf } from "./history-rows";
 
@@ -78,15 +78,7 @@ export function createHistorySection({
     if (records.length > 0) {
       const source = document.createElement("div");
       source.className = "yui-hist__source";
-      source.append(
-        ...records.map((r) =>
-          renderSourceLine({
-            delivery: r.delivery,
-            source: r.source,
-            text: r.label ?? r.event_type,
-          }),
-        ),
-      );
+      source.append(...records.map((r) => renderSourceLine(sourceLineOf(r))));
       el.append(source);
     }
     const who = document.createElement("span");

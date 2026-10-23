@@ -4,6 +4,7 @@ import type { ContextHistoryEntry } from "../../io/chat/conversation/context-his
 import type { SignalRecord } from "../../io/chat/conversation/signal-history-store";
 import { buildTurnRecord, type TurnRecord } from "../../io/chat/record/turn-record-log";
 import type { Logger } from "../../logger";
+import { deliveryClassOf } from "../turn/signal-lines";
 import type { buildContext } from "./context-builder";
 
 export interface TurnRecordingDeps {
@@ -61,8 +62,7 @@ export function recordSentTurn(deps: TurnRecordingDeps, log: Logger, turn: SentT
       log.info("transcript_skipped", { reason: "session_reset", event_name: eventName });
     }
   }
-  // Signals are not conversation: recorded ungated by the session token and by userHalfOnly, so
-  // the push send records them with said null and the reply's render fills it.
+  // Signal records are not conversation: the session token and userHalfOnly do not gate them.
   const groups = clientContext.trigger.signals;
   if (Array.isArray(groups) && groups.length > 0) {
     deps.signalHistory?.append(
@@ -72,7 +72,7 @@ export function recordSentTurn(deps: TurnRecordingDeps, log: Logger, turn: SentT
           source: group.envelope.source,
           event_type: group.envelope.event_type,
           label: group.envelope.label ?? null,
-          delivery: group.envelope.delivery === "urgent" ? "urgent" : "batched",
+          delivery: deliveryClassOf(group.envelope.delivery),
           ts: Date.now(),
           said: turn.spokeText && assistantText ? assistantText : null,
         }),

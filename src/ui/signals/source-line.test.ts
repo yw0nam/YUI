@@ -7,16 +7,16 @@ describe("renderSourceLine", () => {
   beforeEach(() => setLocale("en"));
 
   it.each([
-    ["urgent", "yui-source--urgent", "Urgent signal"],
-    ["batched", "yui-source--batched", "Batched signal"],
+    ["urgent", "yui-signal-line--urgent", "Urgent signal"],
+    ["batched", "yui-signal-line--batched", "Batched signal"],
   ] as const)("a %s line carries %s and the screen-reader class %s", (delivery, cls, spoken) => {
     const el = renderSourceLine({ delivery, source: "gh", text: "CI failed on main" });
 
-    expect(el.className).toBe(`yui-source ${cls}`);
-    expect(el.querySelector(".yui-source__dot")!.getAttribute("aria-hidden")).toBe("true");
-    expect(el.querySelector(".yui-source__class")!.textContent).toBe(spoken);
-    expect(el.querySelector(".yui-source__src")!.textContent).toBe("gh");
-    expect(el.querySelector(".yui-source__text")!.textContent).toBe("CI failed on main");
+    expect(el.className).toBe(`yui-signal-line ${cls}`);
+    expect(el.querySelector(".yui-signal-line__dot")!.getAttribute("aria-hidden")).toBe("true");
+    expect(el.querySelector(".yui-signal-line__class")!.textContent).toBe(spoken);
+    expect(el.querySelector(".yui-signal-line__src")!.textContent).toBe("gh");
+    expect(el.querySelector(".yui-signal-line__text")!.textContent).toBe("CI failed on main");
     expect(el.hasAttribute("title")).toBe(false);
   });
 });
