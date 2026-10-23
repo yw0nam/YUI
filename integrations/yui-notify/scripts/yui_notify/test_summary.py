@@ -1,3 +1,5 @@
+import os
+
 from yui_notify.summary import summarize
 
 
@@ -25,3 +27,11 @@ def test_runner_output_is_cut():
 
 def test_runner_failure_gives_cut_message():
     assert summarize("long report", "m", run=lambda cmd, text: None, which=has_claude) == "long report"
+
+
+def test_real_runner_marks_the_child(tmp_path, monkeypatch):
+    fake = tmp_path / "claude"
+    fake.write_text('#!/bin/sh\nprintf %s "$YUI_NOTIFY_CHILD"\n')
+    fake.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{tmp_path}{os.pathsep}{os.environ['PATH']}")
+    assert summarize("long report", "m") == "1"

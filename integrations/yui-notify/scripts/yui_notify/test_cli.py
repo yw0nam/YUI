@@ -9,16 +9,29 @@ import pytest
 from yui_notify.cli import main
 
 FIXTURES = Path(__file__).parent / "fixtures"
+CLAUDE_STOP_TEXT = (
+    "I couldn't create the file. The Bash `touch` was blocked because Claude Code asks for approval "
+    "before a shell command creates files in this working directory, and this session can't show that "
+    "prompt. The file `hello.txt` does not exist yet.\n\nTo finish, approve the `touch` command when it "
+    "prompts, or allow Bash writes to this directory, then I can run it again. I didn't use another "
+    "tool to create the file, since you asked for Bash specifically and the approval gate is there "
+    "for a reason."
+)
+
+
+class Received(list):
+    status: list
 
 
 @pytest.fixture
 def server():
-    received = []
+    received = Received()
+    status = [200]
 
     class Handler(http.server.BaseHTTPRequestHandler):
         def do_POST(self):
             received.append((self.path, json.loads(self.rfile.read(int(self.headers["Content-Length"])))))
-            self.send_response(200)
+            self.send_response(status[0])
             self.send_header("Content-Length", "0")
             self.end_headers()
 
@@ -27,6 +40,7 @@ def server():
 
     httpd = http.server.HTTPServer(("127.0.0.1", 0), Handler)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    received.status = status
     yield f"http://127.0.0.1:{httpd.server_port}", received
     httpd.shutdown()
 
@@ -45,40 +59,52 @@ def run_hook(tmp_path, endpoint, fixture, config=None, extra_env=None):
     return main(["hook"], stdin=io.StringIO((FIXTURES / fixture).read_text()), env=env)
 
 
-def test_stop_posts_done_signal(tmp_path, server):
+@pytest.mark.parametrize(
+    "fixture, event_type, delivery, event_id, item_key, item_value",
+    [
+        (
+            "claude-stop.json",
+            "agent.done",
+            "batched",
+            "bc68d697-4e8f-4be0-8ea6-e67f955b2586:done",
+            "summary",
+            CLAUDE_STOP_TEXT,
+        ),
+        (
+            "claude-permission.json",
+            "agent.needs_input",
+            "urgent",
+            "bc68d697-4e8f-4be0-8ea6-e67f955b2586:needs_input",
+            "pending",
+            "Bash: touch /Users/dev/projects/demo/hello.txt",
+        ),
+        (
+            "claude-notification.json",
+            "agent.needs_input",
+            "urgent",
+            "bc68d697-4e8f-4be0-8ea6-e67f955b2586:needs_input",
+            "pending",
+            "The github MCP server is asking for your input",
+        ),
+    ],
+    ids=["stop", "permission", "notification-synthetic"],
+)
+def test_hook_posts_signal(tmp_path, server, fixture, event_type, delivery, event_id, item_key, item_value):
     endpoint, received = server
-    assert run_hook(tmp_path, endpoint, "claude-stop.json") == 0
+    assert run_hook(tmp_path, endpoint, fixture) == 0
     path, body = received[0]
     assert path == "/signals"
-    envelope = body["envelope"]
-    assert isinstance(envelope.pop("occurred_at"), int)
-    assert envelope == {
+    assert isinstance(body["envelope"].pop("occurred_at"), int)
+    assert body["envelope"] == {
         "source": "claude-code",
-        "event_type": "agent.done",
-        "delivery": "batched",
-        "event_id": "bc68d697-4e8f-4be0-8ea6-e67f955b2586:done",
+        "event_type": event_type,
+        "delivery": delivery,
+        "event_id": event_id,
         "label": "demo",
     }
-    item = body["signals"][0]
-    assert item["project"] == "demo"
-    assert item["summary"].startswith("I couldn't create the file.")
-    assert item["summary"].endswith("for a reason.")
-
-
-def test_permission_posts_urgent_pending(tmp_path, server):
-    endpoint, received = server
-    run_hook(tmp_path, endpoint, "claude-permission.json")
-    body = received[0][1]
-    assert body["envelope"]["event_type"] == "agent.needs_input"
-    assert body["envelope"]["delivery"] == "urgent"
-    assert body["signals"][0]["pending"] == "Bash: touch /Users/dev/projects/demo/hello.txt"
-
-
-def test_notification_posts_message_as_pending(tmp_path, server):
-    endpoint, received = server
-    run_hook(tmp_path, endpoint, "claude-notification.json")
-    assert received[0][1]["signals"][0]["pending"] == "The github MCP server is asking for your input"
-    assert received[0][1]["envelope"]["delivery"] == "urgent"
+    assert body["signals"] == [
+        {"project": "demo", "branch": None, "host": None, "tmux": None, item_key: item_value}
+    ]
 
 
 def test_drop_posts_nothing(tmp_path, server):
@@ -99,3 +125,27 @@ def test_unreachable_endpoint_exits_zero_and_records_error(tmp_path):
     assert err["url"] == "http://127.0.0.1:1/signals"
     assert err["status"] is None
     assert err["error"]
+
+
+@pytest.mark.parametrize(
+    "command, status, line, code",
+    [
+        ("probe", 200, "ok: YUI is listening at {url}", 0),
+        ("probe", 404, "no such preset: {url}", 1),
+        ("probe", 503, "the preset's pet window is closed: {url}", 1),
+        ("probe", 400, "unexpected HTTP 400 from {url}", 1),
+        ("probe", None, "YUI is not listening at {url} (External signals off, wrong port, or no tunnel)", 1),
+        ("test", 200, "sent: HTTP 200", 0),
+        ("test", 503, "the preset's pet window is closed: {url}", 1),
+    ],
+)
+def test_probe_and_test_report(tmp_path, server, capsys, command, status, line, code):
+    endpoint, received = server
+    if status is None:
+        endpoint = "http://127.0.0.1:1"
+    else:
+        received.status[0] = status
+    assert main([command, "--endpoint", endpoint], env={"XDG_CONFIG_HOME": str(tmp_path)}) == code
+    assert capsys.readouterr().out == line.format(url=endpoint + "/signals") + "\n"
+    if command == "probe" and status is not None:
+        assert received[0] == ("/signals", {"signals": [], "envelope": "yui-notify-probe"})
