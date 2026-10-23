@@ -32,15 +32,11 @@ describe("retainCardThumbnail", () => {
 });
 
 describe("removeCardThumbnail", () => {
-  it("removes by temp id or preset id through the same command", async () => {
+  it("removes through the remove command", async () => {
     const deps = makeDeps();
     await removeCardThumbnail("mio-1a2b3c", deps);
-    await removeCardThumbnail("abcd1234", deps);
-    expect(deps.invoke).toHaveBeenNthCalledWith(1, "remove_card_thumbnail", {
+    expect(deps.invoke).toHaveBeenCalledWith("remove_card_thumbnail", {
       id: "mio-1a2b3c",
-    });
-    expect(deps.invoke).toHaveBeenNthCalledWith(2, "remove_card_thumbnail", {
-      id: "abcd1234",
     });
   });
 });

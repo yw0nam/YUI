@@ -63,3 +63,30 @@ it("removing a preset asks for its thumbnail file's removal", async () => {
   expect(log.info).toHaveBeenCalledWith("preset_remove", { preset: "abcd1234" });
   registry.dispose();
 });
+
+it("a rejected thumbnail removal logs a warning and keeps the removal", async () => {
+  localStorage.clear();
+  const registry = createPresetRegistry({ newId: () => "abcd1234" });
+  registry.create("companion");
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
+  const removeCardThumbnail = vi.fn(async () => {
+    throw new Error("remove failed");
+  });
+  const manage = createPresetManage({ el, registry, log, removeCardThumbnail });
+  manage.render();
+
+  el.querySelector<HTMLButtonElement>(
+    '[data-preset-id="abcd1234"] .yui-preset-row__remove',
+  )!.click();
+  el.querySelector<HTMLButtonElement>(".yui-preset-row__confirm .yui-pill--go")!.click();
+  await vi.waitFor(() =>
+    expect(log.warn).toHaveBeenCalledWith("thumbnail_remove_failed", {
+      preset: "abcd1234",
+      error: "Error: remove failed",
+    }),
+  );
+  expect(log.info).toHaveBeenCalledWith("preset_remove", { preset: "abcd1234" });
+  registry.dispose();
+});

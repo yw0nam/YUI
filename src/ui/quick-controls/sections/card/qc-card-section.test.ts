@@ -243,7 +243,7 @@ describe("createQuickControls — card section", () => {
     expect(info.mock.calls.filter((c) => String(c[0]).includes("card_import"))).toHaveLength(1);
   });
 
-  it("a refused preset creation shows the import error and logs no success", async () => {
+  it("a refused preset creation shows the generic import failure and logs no success", async () => {
     const info = vi.spyOn(console, "info").mockImplementation(() => {});
     const importCard = vi.fn(async () => ({ card: { ...EMPTY_CARD, name: "Mio" } }));
     const createPresetFromCard = vi.fn(async () => {
@@ -253,10 +253,33 @@ describe("createQuickControls — card section", () => {
     sec().querySelector<HTMLButtonElement>(".yui-card-import")!.click();
     await vi.waitFor(() =>
       expect(sec().querySelector<HTMLElement>(".yui-card__io-error")!.textContent).toBe(
-        "That file holds no card",
+        "Could not import that card",
       ),
     );
     expect(info.mock.calls.some((c) => String(c[0]).includes("card_import"))).toBe(false);
+  });
+
+  it("an unreadable payload shows the holds-no-card error", async () => {
+    const importCard = vi.fn(async () => {
+      throw new Error("card_unreadable");
+    });
+    build({ importCard });
+    sec().querySelector<HTMLButtonElement>(".yui-card-import")!.click();
+    await vi.waitFor(() =>
+      expect(sec().querySelector<HTMLElement>(".yui-card__io-error")!.textContent).toBe(
+        "That file holds no card",
+      ),
+    );
+  });
+
+  it("keeps the action row visible with the send switch off", () => {
+    build();
+    sec().querySelector<HTMLButtonElement>(".yui-card-switch")!.click();
+    const body = sec().querySelector<HTMLElement>(".yui-card-body")!;
+    const importBtn = sec().querySelector<HTMLButtonElement>(".yui-card-import")!;
+    expect(body.hidden).toBe(true);
+    expect(body.contains(importBtn)).toBe(false);
+    expect(importBtn.hidden).toBe(false);
   });
 
   it("shows the thumbnail img only for an entry that carries one", () => {

@@ -1,8 +1,9 @@
 /**
  * card-export.test.ts — the card export file step.
  *
- * Pins src/io/assets/card/card-export.ts: the OS save dialog → the Rust `write_card_file`
- * command, the cancelled path, and the export file-name sanitizer.
+ * Pins src/io/assets/card/card-export.ts: the Rust `export_card_file` command (which
+ * opens the OS save dialog itself), the cancelled path, and the default file-name
+ * sanitizer.
  */
 
 import { describe, expect, it, vi } from "vitest";
@@ -11,33 +12,24 @@ import { exportCardToFile, sanitizeFileStem } from "./card-export";
 
 function makeDeps(over: Partial<CardExportDeps> = {}): CardExportDeps {
   return {
-    saveDialog: vi.fn(async () => "/Users/me/Desktop/Mio.json"),
-    invoke: vi.fn(async () => undefined) as unknown as CardExportDeps["invoke"],
+    invoke: vi.fn(async () => true) as unknown as CardExportDeps["invoke"],
     ...over,
   };
 }
 
 describe("exportCardToFile", () => {
   it("returns cancelled when the save dialog is dismissed and writes nothing", async () => {
-    const deps = makeDeps({ saveDialog: vi.fn(async () => null) });
-    await expect(exportCardToFile("{}", "Mio.json", deps)).resolves.toBe("cancelled");
-    expect(deps.invoke).not.toHaveBeenCalled();
-  });
-
-  it("offers the JSON filter with the given default name", async () => {
-    const deps = makeDeps();
-    await exportCardToFile("{}", "Mio.json", deps);
-    expect(deps.saveDialog).toHaveBeenCalledWith({
-      defaultPath: "Mio.json",
-      filters: [{ name: "Card", extensions: ["json"] }],
+    const deps = makeDeps({
+      invoke: vi.fn(async () => false) as unknown as CardExportDeps["invoke"],
     });
+    await expect(exportCardToFile("{}", "Mio.json", deps)).resolves.toBe("cancelled");
   });
 
-  it("writes the card text to the picked path", async () => {
+  it("hands the default name and the card text to the command", async () => {
     const deps = makeDeps();
     await expect(exportCardToFile('{"name":"Mio"}', "Mio.json", deps)).resolves.toBe("written");
-    expect(deps.invoke).toHaveBeenCalledWith("write_card_file", {
-      destPath: "/Users/me/Desktop/Mio.json",
+    expect(deps.invoke).toHaveBeenCalledWith("export_card_file", {
+      defaultName: "Mio.json",
       text: '{"name":"Mio"}',
     });
   });

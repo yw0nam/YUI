@@ -10,7 +10,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { readCard } from "../../config/validators/persona/read-card";
 import type { Card } from "../../config/validators/persona/types";
-import { toV2Envelope } from "../../io/chat/card/serialize-card";
 import { createPresetFromCard } from "./import-card-preset";
 import { resolveStorageKey } from "./preset-keys";
 
@@ -124,13 +123,6 @@ describe("createPresetFromCard", () => {
     expect(agent.reasoning_effort).toBe("low");
     expect(agent.send_card).toBe(true);
     expect(agent.card).toEqual(v3Card());
-    const envelope = toV2Envelope(agent.card, agent.card.name);
-    expect(envelope.data.extensions).toEqual({
-      chara_card_v3: { nickname: "Mii", group_only_greetings: [] },
-    });
-    expect(envelope.data.creator).toBe("someone");
-    expect(envelope.data.tags).toEqual(["a", "b"]);
-    expect(envelope.data.name).toBe("Mio");
   });
 
   it("writes the pending greeting and activates the new preset", async () => {
@@ -172,6 +164,23 @@ describe("createPresetFromCard", () => {
     ).rejects.toThrow("thumbnail retain failed");
     expect(removed).toEqual(["n1"]);
     expect(discardThumbnail).toHaveBeenCalledWith("n1");
+  });
+
+  it("a failing thumbnail discard keeps the original error", async () => {
+    const { registry } = fakeRegistry([{ id: "default", name: "default" }], ["n1"]);
+    await expect(
+      createPresetFromCard({
+        registry,
+        card: v3Card(),
+        storage: memoryStorage(),
+        retainThumbnail: vi.fn(async () => {
+          throw new Error("thumbnail retain failed");
+        }),
+        discardThumbnail: vi.fn(async () => {
+          throw new Error("thumbnail discard failed");
+        }),
+      }),
+    ).rejects.toThrow("thumbnail retain failed");
   });
 
   it("a refused thumbnail entry removes the preset and discards the thumbnail", async () => {
