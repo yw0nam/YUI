@@ -121,7 +121,7 @@ describe("backend_caller — 404 chain-break recovery", () => {
     expect(JSON.stringify(secondRequest.input)).not.toContain("function_call_output");
   });
 
-  it("the retry carries the post-history item and the greeting a fresh chain replays", async () => {
+  it("the retry carries the post-history block and the greeting a fresh chain replays", async () => {
     let stored: string | undefined = "resp_dead";
     const c = createBackendCaller({
       config: CONFIG,
@@ -151,11 +151,12 @@ describe("backend_caller — 404 chain-break recovery", () => {
 
     const [, firstRequest] = script.spy.mock.calls[0];
     const [, secondRequest] = script.spy.mock.calls[1];
-    expect(firstRequest.input.slice(0, 1)).toEqual([{ role: "system", content: "Stay brief." }]);
-    expect(secondRequest.input.slice(0, 2)).toEqual([
-      { role: "assistant", content: "Hello again." },
-      { role: "system", content: "Stay brief." },
-    ]);
+    const postHistory =
+      /^<post_history_instructions>\nStay brief\.\n<\/post_history_instructions>\n/;
+    expect(firstRequest.input).toHaveLength(1);
+    expect(firstRequest.input[0].content).toMatch(postHistory);
+    expect(secondRequest.input[0]).toEqual({ role: "assistant", content: "Hello again." });
+    expect(secondRequest.input[1].content).toMatch(postHistory);
   });
 
   it("404 + no previous_response_id → no retry, network_drop, onResponseIdInvalid not called", async () => {

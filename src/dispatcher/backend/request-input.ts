@@ -21,8 +21,8 @@ export function contextBlock(
 }
 
 /**
- * InputContext → OpenAI Responses input — one user item carrying the tagged client_context
- * block followed by userText ?? backgroundMarker(env.event_name, trigger) (+ image content-parts when
+ * InputContext → OpenAI Responses input — one user item carrying the tagged post-history block
+ * when the card has one, then the tagged client_context block, then userText ?? backgroundMarker(env.event_name, trigger) (+ image content-parts when
  * images present). The `input` array has no contractual system slot: its last item becomes the
  * turn's user message and earlier items land in plain history, so context rides inside the turn.
  * Context leads and the utterance trails it — recall on the trailing query holds as the block grows.
@@ -32,8 +32,12 @@ export function encodeInput(
   env: BusEnvelope,
   clientContext: Awaited<ReturnType<typeof buildContext>>["clientContext"],
   nowMs: number,
+  postHistory = "",
 ): ChatRequest["input"] {
   const text = [
+    ...(postHistory
+      ? ["<post_history_instructions>", postHistory, "</post_history_instructions>"]
+      : []),
     contextBlock(clientContext, nowMs),
     "",
     ctx.user_text ?? backgroundMarker(env.event_name, clientContext.trigger),
@@ -51,22 +55,19 @@ export function encodeInput(
 
 /**
  * The whole Responses input of one attempt: the stored response's pending tool outputs on a
- * continuing chain, or the session's greetings on a fresh one, then the post-history system item,
- * then the user items.
+ * continuing chain, or the session's greetings on a fresh one, then the user items.
  */
 export function composeResponsesInput(input: {
   userItems: ChatRequest["input"];
   pendingOutputs: readonly ToolOutputItem[];
-  postHistory: string;
   greetingReplay: readonly string[];
   freshChain: boolean;
 }): ChatRequest["input"] {
-  const { userItems, pendingOutputs, postHistory, greetingReplay, freshChain } = input;
+  const { userItems, pendingOutputs, greetingReplay, freshChain } = input;
   return [
     ...(freshChain
       ? greetingReplay.map((content) => ({ role: "assistant", content }))
       : pendingOutputs),
-    ...(postHistory ? [{ role: "system", content: postHistory }] : []),
     ...(userItems as unknown[]),
   ];
 }

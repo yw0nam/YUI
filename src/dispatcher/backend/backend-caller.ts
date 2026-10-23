@@ -256,7 +256,9 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         );
       }
 
-      const input = encodeInput(ctx, env, clientContext, nowMs);
+      const isCC = deps.config.chat_api === "chat_completions";
+      const cardText = deps.getCardText?.() ?? null;
+      const input = encodeInput(ctx, env, clientContext, nowMs, isCC ? "" : cardText?.postHistory);
       log.debug("backend_call", { event_name: env.event_name, seq_id: env.seq_id });
 
       // B2: After resolving fetch/apiKey, streamChat. Pass externalSignal as-is (delegate abort).
@@ -281,12 +283,10 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         else externalSignal.addEventListener("abort", () => ac.abort(), { once: true });
       }
       const request: ChatRequest = { input, signal: ac.signal, turnId: String(turn.id) };
-      const isCC = deps.config.chat_api === "chat_completions";
 
       // Apply agent settings: reasoning_effort always sent in both modes.
       const agent = deps.getAgentSettings?.();
       if (agent) request.reasoning_effort = agent.reasoning_effort;
-      const cardText = deps.getCardText?.() ?? null;
 
       // Snapshot previous response id into request — preserve start value to detect reset on completion (R2).
       // CC mode has no server-side conversation state (stitched by transcript) — skip snapshot/persist.
@@ -296,7 +296,6 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         composeResponsesInput({
           userItems: input,
           pendingOutputs: freshChain ? [] : (deps.getPendingToolOutputs?.() ?? []),
-          postHistory: cardText?.postHistory ?? "",
           greetingReplay: (deps.transcript?.entriesAfterLastBoundary() ?? [])
             .filter((e) => e.greeting)
             .map((e) => e.text),

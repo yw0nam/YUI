@@ -1367,7 +1367,7 @@ describe("backend_caller — card", () => {
     expect(msgs[0].content).toBe("be terse\n\nT");
   });
 
-  it("Responses: the card goes in instructions, and a fresh chain replays only the flagged greeting", async () => {
+  it("Responses: the card goes in instructions, post-history leads the user item, and a fresh chain replays only the flagged greeting", async () => {
     script.events = [completedEvent({ speech_text: "" })];
     const transcript: ChatHistoryEntry[] = [
       { role: "assistant", text: "Hello again.", ts: 1, greeting: true },
@@ -1382,13 +1382,13 @@ describe("backend_caller — card", () => {
     }).call(turnOf(userEnv()));
     const [, request] = script.spy.mock.calls[0];
     expect(request.instructions).toBe(CARD_TEXT.system);
-    const input = request.input as Array<{ role: string; content: unknown }>;
-    expect(input.slice(0, 2)).toEqual([
-      { role: "assistant", content: "Hello again." },
-      { role: "system", content: "Stay brief." },
-    ]);
-    expect(input).toHaveLength(3);
-    expect(input[2].role).toBe("user");
+    const input = request.input as Array<{ role: string; content: string }>;
+    expect(input).toHaveLength(2);
+    expect(input[0]).toEqual({ role: "assistant", content: "Hello again." });
+    expect(input[1].role).toBe("user");
+    expect(input[1].content).toMatch(
+      /^<post_history_instructions>\nStay brief\.\n<\/post_history_instructions>\n<client_context>\n/,
+    );
   });
 });
 

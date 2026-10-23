@@ -243,7 +243,7 @@ YUI/
         settle-reply.ts              # Settles a finished reply: directive render, cue routing, speech gate
         stream-attempt.ts            # One stream attempt of a turn: stream events to the speech pipeline and the verdict on how it ended
         turn-recording.ts            # Records a sent turn into the transcript, the context history, and the turn-record log
-        request-input.ts             # Pure encoders for a turn's Responses input: client_context block, user item, and the items before it
+        request-input.ts             # Pure encoders for a turn's Responses input: post-history and client_context blocks, user item, and the items before it
         turn-outcome.ts              # How a backend call settled
         background-marker.ts         # Placeholder user-content text for a turn with no real user utterance
         idle-watchdog.ts             # Idle-gap watchdog over the backend event stream and its two timeout budgets
