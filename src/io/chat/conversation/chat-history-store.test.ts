@@ -758,6 +758,21 @@ describe("estimateTokens", () => {
   });
 });
 
+describe("createChatHistoryStore — greeting flag", () => {
+  it("survives a save and a second store's load", () => {
+    const storage = makeMemStorage();
+    createChatHistoryStore({ storage }).append({
+      role: "assistant",
+      text: "Hi.",
+      ts: 1,
+      greeting: true,
+    });
+    expect(createChatHistoryStore({ storage }).entriesAfterLastBoundary()).toEqual([
+      { role: "assistant", text: "Hi.", ts: 1, greeting: true },
+    ]);
+  });
+});
+
 describe("createChatHistoryStore — guide key", () => {
   it("keeps a valid guide key through reload and drops an invalid one", () => {
     const storage = seeded([

@@ -63,6 +63,23 @@ describe("buildCCMessages", () => {
     ]);
   });
 
+  it("puts the post-history instructions after the transcript and before client_context", () => {
+    const msgs = buildCCMessages({
+      instructions: "card",
+      postHistoryInstructions: "stay brief",
+      clientContextText: "trigger: user message",
+      transcript: [{ role: "assistant", text: "Hi.", ts: 1 }],
+      userText: "new turn",
+    });
+    expect(msgs).toEqual([
+      { role: "system", content: "card" },
+      { role: "assistant", content: "Hi." },
+      { role: "system", content: "stay brief" },
+      { role: "system", content: "client_context:\ntrigger: user message" },
+      { role: "user", content: "new turn" },
+    ]);
+  });
+
   it("keeps the earlier turn's instructions and transcript as the next turn's prefix", () => {
     const transcript: ChatHistoryEntry[] = [
       { role: "user", text: "a", ts: 1 },

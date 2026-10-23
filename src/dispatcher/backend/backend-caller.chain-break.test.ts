@@ -121,6 +121,43 @@ describe("backend_caller — 404 chain-break recovery", () => {
     expect(JSON.stringify(secondRequest.input)).not.toContain("function_call_output");
   });
 
+  it("the retry carries the post-history item and the greeting a fresh chain replays", async () => {
+    let stored: string | undefined = "resp_dead";
+    const c = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      turnOutput,
+      getPreviousResponseId: () => stored,
+      onResponseIdInvalid: () => {
+        stored = undefined;
+      },
+      getCardText: () => ({ system: "card", postHistory: "Stay brief." }),
+      transcript: {
+        entriesAfterLastBoundary: () => [
+          { role: "assistant", text: "Hello again.", ts: 1, greeting: true },
+        ],
+        append: vi.fn(),
+        sessionToken: () => "s",
+      },
+    });
+    script.queue = [
+      [{ type: "error", message: "Previous response not found: resp_dead", status: 404 }],
+      [completedEvent({ speech_text: "hi again" }, "resp_new")],
+    ];
+    await c.call(turnOf(userEnv()));
+
+    const [, firstRequest] = script.spy.mock.calls[0];
+    const [, secondRequest] = script.spy.mock.calls[1];
+    expect(firstRequest.input.slice(0, 1)).toEqual([{ role: "system", content: "Stay brief." }]);
+    expect(secondRequest.input.slice(0, 2)).toEqual([
+      { role: "assistant", content: "Hello again." },
+      { role: "system", content: "Stay brief." },
+    ]);
+  });
+
   it("404 + no previous_response_id → no retry, network_drop, onResponseIdInvalid not called", async () => {
     make404(undefined);
     script.queue = [[{ type: "error", message: "not found", status: 404 }]];
