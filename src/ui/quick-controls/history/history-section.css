@@ -108,6 +108,12 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The source block belongs to its own row: tight under it, a step away from the row above. */
+.yui-hist__turn:has(.yui-hist__source) {
+  row-gap: 0.2rem;
+  margin-top: 0.3rem;
+}
+
 .yui-hist__turn .yui-hist__source {
   grid-column: 2 / -1;
   display: flex;
