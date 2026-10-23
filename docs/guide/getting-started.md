@@ -28,7 +28,7 @@ With YUI running (§1), one OpenAI key covers chat and voice: Chat Completions f
 3. TTS section: pick the **OpenAI** provider and paste the same key into **TTS API key**.
 4. Close Settings and press `/` to type a message.
 
-Her personality is the **Instructions** field in the **Talk** tab, sent on Chat Completions and Responses. The shipped default covers expression only, so write who she is and how she talks there.
+Her personality is the **Card** section of the **Talk** tab, sent on Chat Completions and Responses. Each preset starts with the default card in the UI language; edit any field to make the card your own.
 
 ---
 
@@ -237,7 +237,7 @@ Key reference:
 | `chat_base_url` | unset | In `chat_completions` and `responses` modes, the API root including `/v1`, to which the client appends `/chat/completions` or `/responses`. In push mode, the WebSocket base without `/v1`, where the client opens `<chat_base_url>/ws` |
 | `chat_model` | unset | Model ID sent to the backend |
 | `chat_model_context_window` | `200000` | Token window — display in Responses mode; also trims the client-side transcript in Chat Completions mode |
-| `chat_instructions` | expression prompt | System-level nudge on how to use `generate_express`; sent as `instructions` (Responses) or a system message (Chat Completions) |
+| `chat_instructions` | expression prompt | System-level nudge on how to use `generate_express`; appended to the card, sent as `instructions` (Responses) or the first system message (Chat Completions) |
 | `stt_base_url` | unset | STT server base URL |
 | `stt_model` | unset | `model` sent to the STT server; omitted when unset |
 | `tts_provider` | `irodori` | TTS engine at `tts_base_url`: `irodori`, `openai`, or `fish` |

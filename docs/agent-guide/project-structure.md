@@ -32,6 +32,7 @@ YUI/
     guardrails.json                  # Dispatcher cooldown/suppression + attachment caps (max_count, max_image_bytes)
     hotkeys.json                     # Global summon accelerator (empty = disabled)
     screen.json                      # Frontmost-transition detector thresholds (dwell/settle/session/gap/quiet)
+    persona.json                     # Default card per UI language (en/ja/ko), the framing sentence, and the {{user}} fallback word
     emotion_text/                    # Emoji voice-tag vocabulary, loaded only when tts_provider is irodori (emotion_text/irodori.json)
   public/motions/                    # VRMA motion assets
   src/
@@ -44,6 +45,8 @@ YUI/
         turn-core.ts                 # The chat turn every backend-facing window runs: voice, dispatcher, STT, VRM load, vocabulary, broker, push transport, stop, and submit
         wire-dispatcher.ts           # Turn feed, backend caller, guardrails, pacer, and the dispatcher
         wire-sources.ts              # The dispatcher's utterance sources, built and started
+        wire-card.ts                 # The card module bound to the window's stores, preset, UI language, and config
+        wire-greeting.ts             # The greeting after a session reset, and the reset announcement each window's Start fresh makes
         broker/                      # Expression broker wiring
           wire-broker.ts             # The broker client: boot publish, override retargeting, and republish when the vocabulary moves
         vocabulary/                  # The express vocabulary every consumer declares
@@ -158,6 +161,7 @@ YUI/
         guardrails.ts                # The guardrails.json debounce, rate-limit, and attachment-cap types and their validation
         hotkeys.ts                   # The hotkeys.json summon-accelerator type and its validation
         motions.ts                   # Validates the motion registry
+        persona/                     # The card type, the V1/V2/V3 card reader, and the persona.json validation
         screen.ts                    # The screen.json type and the validation of its frontmost-transition thresholds
         shared.ts                    # Shared ConfigError plus issue-recording helpers
     renderer/                        # three.js + VRM rendering
@@ -239,7 +243,7 @@ YUI/
         settle-reply.ts              # Settles a finished reply: directive render, cue routing, speech gate
         stream-attempt.ts            # One stream attempt of a turn: stream events to the speech pipeline and the verdict on how it ended
         turn-recording.ts            # Records a sent turn into the transcript, the context history, and the turn-record log
-        request-input.ts             # Pure encoders for a turn's Responses input: client_context block and user item
+        request-input.ts             # Pure encoders for a turn's Responses input: client_context block, user item, and the items before it
         turn-outcome.ts              # How a backend call settled
         background-marker.ts         # Placeholder user-content text for a turn with no real user utterance
         idle-watchdog.ts             # Idle-gap watchdog over the backend event stream and its two timeout budgets
@@ -295,7 +299,7 @@ YUI/
       persisted-store.ts             # Shared bootstrap, notify, reload, and localStorage core for the settings stores
       settings-stores.ts             # Constructs and synchronises the persisted user-setting stores
       backend/                       # What the backend connection uses
-        agent-settings.ts            # Reasoning effort and system-instructions override
+        agent-settings.ts            # Reasoning effort, the preset's card (null means the UI language's default), and the send switch
         agent-notify-settings.ts     # Agent-notification enabled flag and listener port
         api-key-settings.ts          # Generic API-key override store behind the chat, STT, and TTS key settings
         chat-id-settings.ts          # Conversation id this installation sends in every push hello
@@ -334,6 +338,8 @@ YUI/
         relations-store.ts           # The per-preset store under yui.<id>.relations: bands, the daily cap, the range clamp, and the read of another preset's store
         relation-lines.ts            # The relation entries a turn carries: user first, then the other presets in registry order
         relation-targets.ts          # The label a prompt line or the rate_relation enum shows for a preset: one named `user` is disambiguated
+      identity/                      # Who the user is to the character
+        user-name-settings.ts        # Device-wide "Your name", what {{user}} resolves to
       panels/                        # Panel and window state
         delegation-chip-settings.ts  # Per-device fold state of the delegation chip
         message-window-settings.ts   # Message-window mode and last outer position under the window's preset key
@@ -365,6 +371,10 @@ YUI/
         broker/                        # The Expression Broker client and its URL override reconciler
           broker-client.ts             # Write-only Expression Broker MCP client that publishes the renderable vocabulary
           broker-override-reconciler.ts # Applies a broker-URL override to the live broker client
+        card/                          # The card a preset sends: resolution, assembly with macros, and the greeting pick
+          resolve-card.ts              # The preset's card and its effective name; null on push or with the switch off
+          assemble-card.ts             # The first system message and the post-history text, with {{char}}, {{user}}, {{original}}
+          pick-greeting.ts             # One of the card's greetings at random
         conversation/                  # Transcript, context, and session state for conversation continuation
           chat-history-store.ts        # Unified conversation transcript with session boundaries
           context-history.ts           # Capped ring of recent client-context entries
@@ -616,7 +626,7 @@ YUI/
           history-section.css        # Session history accordion styles
         sections/                    # The tab sections the shell mounts and the list helpers only they use
           agent/                     # Locale, reasoning-effort, and instructions controls
-            agent-section.ts         # Locale segment, reasoning-effort segment, instructions textarea, and their redraw
+            agent-section.ts         # Locale segment, reasoning-effort segment, the card's system-prompt textarea, and their redraw
           help/                      # Help section of the General tab
             help-section.ts          # One Ask button per bundled guide
           monitors/                  # Screen-source radiogroup of the screenshot section
