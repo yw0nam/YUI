@@ -13,7 +13,7 @@ chooses the character: `POST /signals` wakes the character of the main window, a
 is the same signal envelope in both cases; read `docs/reference/signals-ingress.md` in the
 YUI repository for its fields and the delivery rules.
 
-The ingress listens only while the user has turned on **Agent notifications** in YUI's
+The ingress listens only while the user has turned on **External signals** in YUI's
 Proactive tab, on the port shown there (default 8770), and a change of that switch or
 port takes effect after YUI restarts.
 
@@ -61,7 +61,7 @@ Done when: the response code is read.
 | 400 | The body is not a valid envelope | Fix the body against the envelope table in `signals-ingress.md`. |
 | 405 | Wrong method | Use POST. |
 | 421 or 403 | The request did not come from this machine | Send from the same machine as YUI, or through an SSH tunnel to 127.0.0.1. |
-| connection refused | The ingress is off or YUI is not running | Ask the user to turn on Agent notifications and restart YUI. |
+| connection refused | The ingress is off or YUI is not running | Ask the user to turn on External signals and restart YUI. |
 
 Done when: the code is 200, or the user has been told the one action that the table names.
 

@@ -33,7 +33,7 @@ The agent reads these steps aloud or pastes them. The agent never edits `config.
 
 3. Save the file. Start Factorio and host the save from Multiplayer → Host. RCON applies when the owner launches a multiplayer server from the menu, as the `config.ini` comment states.
 4. Switch on the game mod setting Body enabled in Factorio's mod settings. The change applies at once.
-5. Switch on YUI Settings → Proactive → Watchers → Agent notifications. Start YUI again. The setting applies at the next launch.
+5. Switch on YUI Settings → Proactive → Watchers → External signals. Start YUI again. The setting applies at the next launch.
 6. Start the Mod:
 
    ```bash

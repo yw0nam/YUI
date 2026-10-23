@@ -255,7 +255,7 @@ turn Hermes attributes to one of them counts as the user speaking even when it c
 is the character's URL copied from YUI's preset list: the default wakes the main window's character, and
 `http://127.0.0.1:<port>/presets/<id>/signals` wakes the character bound to preset `<id>`; the route table in
 `docs/reference/signals-ingress.md` is the reference. The `/signals` ingress listens only while Settings → Proactive
-→ Agent notifications is on in YUI, and toggling it requires an app restart. When Hermes runs on a remote host, such
+→ External signals is on in YUI, and toggling it requires an app restart. When Hermes runs on a remote host, such
 as when it reaches YUI through an SSH reverse tunnel, `YUI_SIGNALS_URL` must be set to the tunnel endpoint.
 
 The gate runs as the tick job's pre-run script (`hermes cron create … --script <wrapper>`), from a real file under

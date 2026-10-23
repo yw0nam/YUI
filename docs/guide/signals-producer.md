@@ -80,7 +80,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST \
   -H 'Content-Type: application/json' \
   -d '{"signals":[{"kind":"workflow","status":"complete"}],
        "envelope":{"source":"n8n","event_type":"workflow_done",
-                   "delivery":"urgent","event_id":"run-8812",
+                   "delivery":"batched","event_id":"run-8812",
                    "occurred_at":1787449000000}}' \
   http://127.0.0.1:8770/presets/<id>/signals
 ```
