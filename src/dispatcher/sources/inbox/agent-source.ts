@@ -75,6 +75,7 @@ function toCatchupItem(p: AgentEvent): CatchupItem {
 export function createAgentSource(deps: AgentSourceDeps): { start(): Promise<void>; stop(): void } {
   /** Per-tool buffered lifecycle events (away or busy accumulation). */
   const buffer = new Map<string, AgentEvent[]>();
+  let warnedDeprecated = false;
 
   function parse(p: AgentEvent): AgentEvent | undefined {
     const tool = (p as unknown as { tool?: unknown })?.tool;
@@ -86,6 +87,15 @@ export function createAgentSource(deps: AgentSourceDeps): { start(): Promise<voi
     if (phase !== "done" && phase !== "needs_input") {
       log.debug("inbox_malformed_phase", { degrade: true });
       return undefined;
+    }
+    // Deprecated: removed in v0.6.0. Use POST /signals.
+    if (!warnedDeprecated) {
+      warnedDeprecated = true;
+      log.warn("deprecated", {
+        what: "POST /agent-event",
+        removed_in: "v0.6.0",
+        use: "POST /signals",
+      });
     }
     return p;
   }

@@ -77,6 +77,7 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
   const batchBuffer: BufferedGroup[] = [];
   const urgentBuffer: BufferedGroup[] = [];
   let nextSequence = 0;
+  let warnedImmediate = false;
   let batchTimer: ReturnType<typeof setTimeout> | undefined;
 
   function groupsInArrivalOrder(): SignalGroup[] {
@@ -115,6 +116,15 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     if (!validEnvelope(envelope)) {
       log.warn("envelope_invalid", { dropped_items: raw.signals.length });
       return undefined;
+    }
+    // Deprecated: removed in v0.6.0. Use urgent or batched.
+    if (envelope.delivery === "immediate" && !warnedImmediate) {
+      warnedImmediate = true;
+      log.warn("deprecated", {
+        what: "delivery immediate",
+        removed_in: "v0.6.0",
+        use: "urgent or batched",
+      });
     }
     const { label } = envelope;
     const cut =
