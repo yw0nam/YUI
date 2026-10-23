@@ -79,7 +79,9 @@ fn card_json_from_png(bytes: &[u8]) -> Result<String, String> {
         offset += 12 + len;
     }
     let encoded = preferred.or(fallback).ok_or("no card in png".to_string())?;
-    let decoded = B64.decode(encoded).map_err(|_| "card unreadable".to_string())?;
+    let decoded = B64
+        .decode(encoded)
+        .map_err(|_| "card unreadable".to_string())?;
     String::from_utf8(decoded).map_err(|_| "card unreadable".to_string())
 }
 
@@ -100,7 +102,12 @@ fn read_bounded(source: &mut std::fs::File, cap: u64) -> Result<Vec<u8>, String>
 }
 
 /// Copy the PNG bytes into `cards/` under the first free stem and return its id.
-fn claim_thumbnail(cards: &Path, name_stem: &str, identity: &str, bytes: &[u8]) -> Result<String, String> {
+fn claim_thumbnail(
+    cards: &Path,
+    name_stem: &str,
+    identity: &str,
+    bytes: &[u8],
+) -> Result<String, String> {
     let empty: Vec<String> = Vec::new();
     let (id, _dest) = claim_and_copy(
         bytes,
@@ -200,7 +207,11 @@ pub async fn import_card_file(app: AppHandle) -> Result<Option<ImportedCardFile>
 
 /// Move a PNG card's temp thumbnail to the importing preset's id, returning the dest path.
 #[command]
-pub fn retain_card_thumbnail(app: AppHandle, temp_id: String, preset_id: String) -> Result<String, String> {
+pub fn retain_card_thumbnail(
+    app: AppHandle,
+    temp_id: String,
+    preset_id: String,
+) -> Result<String, String> {
     retain_thumbnail_at(&cards_dir(&app)?, &temp_id, &preset_id)
 }
 
@@ -213,7 +224,11 @@ pub fn remove_card_thumbnail(app: AppHandle, id: String) -> Result<(), String> {
 /// Open the save dialog here and write the exported card to the picked path. `false`
 /// when the dialog is dismissed.
 #[command]
-pub async fn export_card_file(app: AppHandle, default_name: String, text: String) -> Result<bool, String> {
+pub async fn export_card_file(
+    app: AppHandle,
+    default_name: String,
+    text: String,
+) -> Result<bool, String> {
     let Some(dest_path) = app
         .dialog()
         .file()
