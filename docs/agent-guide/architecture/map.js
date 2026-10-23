@@ -566,12 +566,13 @@ globalThis.YUI_MAP =
       "id": "shell/imports",
       "module": "shell",
       "label": "asset imports",
-      "role": "Native copy of user-picked VRM, voice clip, and stage image files into app data.",
+      "role": "Native copy of user-picked VRM, voice clip, and stage image files into app data, and the card file steps: a JSON or PNG card read, the PNG kept as the thumbnail copy, and the exported card write.",
       "paths": [
         "src-tauri/src/import_fs.rs",
         "src-tauri/src/vrm_import.rs",
         "src-tauri/src/voice_import.rs",
-        "src-tauri/src/stage_image.rs"
+        "src-tauri/src/stage_image.rs",
+        "src-tauri/src/card_import.rs"
       ]
     },
     {
@@ -920,7 +921,7 @@ globalThis.YUI_MAP =
       "id": "io/assets",
       "module": "settings",
       "label": "assets",
-      "role": "VRM selection and import, and the phone stage background.",
+      "role": "VRM selection and import, the phone stage background, and the card's file steps: the OS pickers for import and export, the V2 export envelope, and the thumbnail file URL the preset entry carries.",
       "paths": [
         "src/io/assets"
       ]
@@ -2803,6 +2804,40 @@ globalThis.YUI_MAP =
       "to": "shell/imports",
       "carries": "import_vrm_file, remove_user_vrm, import_stage_image, remove_stage_image",
       "kind": "tauri-command",
+      "transport": "shared"
+    },
+    {
+      "id": "card-io-ui",
+      "from": "ui/quick-controls",
+      "to": "io/assets",
+      "carries": "Import card\u2026 \u2192 importCardFromFile (JSON or PNG in); Export card \u2192 exportCardToFile (V2 JSON out)",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/controls/wire-pet-controls.ts"
+    },
+    {
+      "id": "card-preset-ui",
+      "from": "ui/quick-controls",
+      "to": "settings",
+      "carries": "Import card\u2026 \u2192 settings/preset/import-card-preset.ts createPresetFromCard: the preset from the card, the thumbnail retained onto the entry, the pending greeting, and activation; a failure removes both",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/controls/wire-pet-controls.ts"
+    },
+    {
+      "id": "card-shell",
+      "from": "io/assets",
+      "to": "shell/imports",
+      "carries": "import_card_file, retain_card_thumbnail, remove_card_thumbnail, write_card_file",
+      "kind": "tauri-command",
+      "transport": "shared"
+    },
+    {
+      "id": "card-thumb-ui",
+      "from": "settings",
+      "to": "ui/quick-controls",
+      "carries": "PresetEntry.thumbnail on the registry state \u2192 the strip's and the card section's thumbnail img",
+      "kind": "callback",
       "transport": "shared"
     },
     {

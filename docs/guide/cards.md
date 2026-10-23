@@ -44,6 +44,12 @@ With **Send card** off, the backend receives only the expression instructions, w
 
 After **Start fresh**, she speaks one greeting, picked at random from Greeting and More greetings. It shows in her speech bubble, plays in her voice, and is kept in the conversation history, so the backend reads it on the next turn. She does not greet when the app starts, on push, or with **Send card** off.
 
+## Import and export
+
+**Import card…** at the bottom of the Card section reads a card file into a new preset. It reads JSON (`chara_card_v2`, `chara_card_v3`, or a bare V1 object) and PNG — the PNG is the file format Character.AI uses, with the card JSON embedded in the image; cards from other tools usually open as-is, and a community converter converts the rest. The new preset takes the card's name, or the name with a number when it is already in use, and the card becomes the preset's own card with **Send card** on. A PNG card's image is kept as the preset's thumbnail and shows on the preset strip and beside the Name field; removing the preset removes the file. The new preset becomes the active one, and she greets once from the card when its window first boots.
+
+**Export card** writes the preset's card as `chara_card_v2` JSON through the OS save dialog, named after the preset. Fields only V3 knows are kept under `extensions`.
+
 :::
 
 ## Learn more
