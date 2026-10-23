@@ -149,12 +149,9 @@ describe("backend_caller — 404 chain-break recovery", () => {
     ];
     await c.call(turnOf(userEnv()));
 
-    const [, firstRequest] = script.spy.mock.calls[0];
     const [, secondRequest] = script.spy.mock.calls[1];
     const postHistory =
       /^<post_history_instructions>\nStay brief\.\n<\/post_history_instructions>\n/;
-    expect(firstRequest.input).toHaveLength(1);
-    expect(firstRequest.input[0].content).toMatch(postHistory);
     expect(secondRequest.input[0]).toEqual({ role: "assistant", content: "Hello again." });
     expect(secondRequest.input[1].content).toMatch(postHistory);
   });

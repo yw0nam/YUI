@@ -31,6 +31,18 @@ describe("resolveCard", () => {
     });
   });
 
+  it("a default card follows the UI language and an own card does not", () => {
+    const own = { ...EMPTY_CARD, name: "Mira", first_mes: "Evening." };
+    const greetingIn = (locale: "en" | "ja", card: typeof own | null) =>
+      resolveCard({ ...base, settings: { ...settings, card }, locale, chatApi: "responses" })?.card
+        .first_mes;
+    expect([greetingIn("en", null), greetingIn("ja", null)]).toEqual([
+      "Hi, {{user}}.",
+      "こんにちは、{{user}}。",
+    ]);
+    expect([greetingIn("en", own), greetingIn("ja", own)]).toEqual(["Evening.", "Evening."]);
+  });
+
   it.each([
     ["push", settings],
     ["responses", { ...settings, send_card: false }],

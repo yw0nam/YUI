@@ -569,6 +569,7 @@ describe("backend_caller — agent settings (reasoning effort)", () => {
       stream: script.stream,
       turnOutput,
       getAgentSettings: () => ({ reasoning_effort: "none", send_card: true, card: null }),
+      getCardText: () => null,
     });
     await caller.call(turnOf(userEnv()));
     const [, request] = script.spy.mock.calls[0];
