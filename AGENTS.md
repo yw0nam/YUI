@@ -59,7 +59,7 @@ Read these when the trigger applies; they are not loaded by default.
 - **Waking one YUI character from a backend agent or producer** → `integrations/skills/yui-wake-character/SKILL.md`
 - **Runtime evidence for a yui platform plugin change (live Hermes gateway, throwaway profile)** → `integrations/hermes/platform/yui/skills/yui-platform-smoke-test/SKILL.md`
 - **IO or backend work (chat/STT/TTS/Expression Broker)** → `docs/agent-guide/backend-integration.md`
-- **Wiring an external coding-agent's lifecycle hooks** → `docs/agent-guide/agent-completion-hooks.md`
+- **Coding-agent done / needs-input signals (yui-notify plugin)** → `integrations/yui-notify/README.md`
 - **Checking how a rule is enforced** → `docs/agent-guide/harness-enforcement.md`
 - **Build / run / find logs** → `docs/agent-guide/build-run.md`
 - **Any UI or visual work** → `docs/agent-guide/design-context.md` (+ `PRODUCT.md`, `DESIGN.md`)

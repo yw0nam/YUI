@@ -1,212 +1,55 @@
 # Agent Lifecycle Hooks
 
-When a coding agent (Claude Code, opencode, or any compatible tool) finishes a task or stalls waiting on the user, it can POST a lifecycle signal to the running YUI app. YUI validates the payload, fires it onto the event bus as a `trigger.kind:"agent"` turn, and sends it to the selected backend. The backend decides whether and what to speak — an empty response means silence. The hook requires YUI to be running with **Settings → Proactive → Watchers → External signals** enabled. The ingress endpoint listens on loopback only; the port defaults to `8770` and is configurable in the same section (**Listener port**) — a port change takes effect on app restart. Remote agents reach the endpoint via an SSH reverse tunnel.
+A coding agent tells YUI when it finishes a task or stalls waiting on the user. The
+[`yui-notify` plugin](../../integrations/yui-notify/README.md) is the supported wiring for
+Claude Code and Codex: it installs the agent hooks and posts one signal per event to YUI's
+loopback ingress. YUI validates the signal, fires a `signals` trigger, and sends it to the
+selected backend. The backend decides whether and what to speak — an empty response means
+silence.
 
-`POST /agent-event` is deprecated: removed in v0.6.0. Use `POST /signals` ([producer guide](../guide/signals-producer.md)).
+The ingress listens only while **Settings → Proactive → Watchers → External signals** is
+on, on the port shown in the same section (default `8770`), and a change of the switch or
+port takes effect on the next launch. The listener is loopback-only and carries no
+authentication; a request whose `Host` is not `127.0.0.1`, `localhost` or `::1` is refused
+with 421, and a request whose `Origin` names another host with 403.
 
-## Endpoint
+## Setup
 
-The examples below use the default port `8770`. Substitute the port you configured in Settings → Proactive → Watchers if you changed it.
+Install the plugin, then run its setup skill:
 
-Without a prefix, `/agent-event` reaches the main window's character. `/presets/<id>/agent-event` reaches the character bound to preset `<id>` and no other window; YUI's preset list copies that URL. The [route table](../reference/signals-ingress.md#routes) holds every path, the status codes, and the id grammar.
+- Claude Code: `/plugin marketplace add yw0nam/YUI`, `/plugin install yui-notify@yui`,
+  then `/yui-notify:setup`.
+- Codex: `codex plugin marketplace add yw0nam/YUI`, `codex plugin add yui-notify@yui`,
+  then trust the hooks and run `$yui-notify:setup`.
 
-```
-POST http://127.0.0.1:8770/agent-event
-Content-Type: application/json
-```
+The setup skill probes the character, chooses the delivery classes, writes the
+configuration, and sends a test signal. Install steps, configuration keys, and the command
+line are in the [plugin README](../../integrations/yui-notify/README.md).
 
-The snippets below post to `/agent-event` and so wake the default character. Replace that URL with the character's URL copied from YUI's preset list to wake another character.
+## What is sent
 
-**Body shape:**
-
-```json
-{
-  "tool": "claude-code",
-  "project": "yui",
-  "cwd": "/Users/you/Desktop/codes/waifu/2026/YUI",
-  "status": "success",
-  "phase": "done",
-  "summary": "Extracted dev workflow into yui-dev-workflow skill.",
-  "ts": 1781000000000
-}
-```
-
-| Field | Type | Required | Notes |
+| Agent | Hook | `event_type` | Default delivery class |
 |---|---|---|---|
-| `tool` | string | Yes | Identifies the coding agent (e.g. `"claude-code"`, `"opencode"`) |
-| `project` | string | Yes | Project name — typically the directory base name |
-| `cwd` | string | Yes | Absolute working directory at the time of completion |
-| `status` | `"success" \| "error"` | No | Exit status; meaningful for `phase:"done"` only, omit if unknown |
-| `phase` | `"done" \| "needs_input"` | Yes | Lifecycle phase: the task finished, or the agent is blocked waiting on the user |
-| `session_id` | string | No | Opaque pass-through identifying the coding-agent session; the client does not interpret it |
-| `detail` | string | No | Judgment material for the backend — a transcript excerpt or the pending tool call; capped at 16384 bytes at ingress |
-| `summary` | string | Yes | Speech material for the backend; capped at 8192 bytes at ingress |
-| `ts` | number | Yes | Epoch milliseconds when the hook fired |
+| Claude Code, Codex | `Stop` | `agent.done` | `batched` |
+| Claude Code, Codex | `PermissionRequest` | `agent.needs_input` | `urgent` |
+| Claude Code | `Notification` (`elicitation_dialog`, `elicitation_url_dialog`) | `agent.needs_input` | `urgent` |
 
-Each snippet first checks that the app's loopback ingress port is open and exits quietly when it isn't — the hook does no work, and spends nothing on a model call, unless YUI is running.
+A Claude Code `Stop` with a running background task sends nothing, because the turn is not
+over. `idle_prompt` and `permission_prompt` are not hooked: they repeat `Stop` and
+`PermissionRequest`. Codex has no `Notification` event, so an MCP elicitation prompt in
+Codex posts nothing.
 
-## Wiring `phase:"done"` (Claude Code `Stop`)
-
-Both variants send the last assistant message as `detail`, the judgment material the backend grounds a next-step remark in, behind a size gate: at or under 1500 characters the message rides verbatim, above it a `claude -p … --model claude-haiku-4-5` call digests it first. The digest is a compact account of the work — several sentences where the task warrants it — distinct from the one-sentence `summary` that carries the speech material. `jq -Rs 'length'` measures the gate in characters; `${#last}` counts bytes under a C locale, which would move the threshold for non-ASCII text.
-
-The gate exists for the backend's context budget, not for the ingress limit. Four or five coding sessions running concurrently each contribute a transcript tail per completion, and full tails crowd out the rest of the turn's context. The 16384-byte `detail` cap at ingress is a safety cap against a runaway payload, not a per-turn budget.
-
-Every `claude -p` call inside a hook runs with `YUI_HOOK_NESTED=1`, and each script exits at its first line when that variable is already set. A nested call opens a child session with its own `Stop` event, and Claude Code's `stop_hook_active` flag does not span sessions — the marker is what makes a re-entrant firing a no-op. A model call that returns nothing (model unavailable, quota exhausted, `claude` absent from the hook's `PATH`) falls back to the message text — the first 1500 characters for `detail`, the whole message for Variant B's `summary` — so neither field is sent empty. `printf '%.1500s'` bounds the whole string; `cut -c1-1500` would truncate each line separately and leave a multi-line message unbounded.
-
-### Variant A — raw last message
-
-Claude Code `Stop` hook that sends the last assistant message as the summary, so the backend agent reads the raw text. It calls no model unless the message exceeds the `detail` size gate.
-
-```bash
-[ -n "$YUI_HOOK_NESTED" ] && exit 0
-(exec 3<>/dev/tcp/127.0.0.1/8770) 2>/dev/null || exit 0
-input=$(cat)
-session_id=$(echo "$input" | jq -r '.session_id // empty')
-transcript_path=$(echo "$input" | jq -r '.transcript_path')
-last=$(jq -rs '[.[]|select(.type=="assistant")]|last|.message.content[]?|select(.type=="text").text' "$transcript_path")
-if [ "$(printf '%s' "$last" | jq -Rs 'length')" -le 1500 ]; then detail=$last; else
-  detail=$(printf '%s' "$last" | YUI_HOOK_NESTED=1 claude -p "Digest this into a compact account of what was done, what changed, and what is still open." --model claude-haiku-4-5)
-  [ -n "$detail" ] || detail=$(printf '%.1500s' "$last")
-fi
-jq -n --arg s "$last" --arg d "$detail" --arg cwd "$PWD" --arg sid "$session_id" \
-  '{tool:"claude-code",project:($cwd|split("/")|last),cwd:$cwd,phase:"done",session_id:$sid,detail:$d,summary:$s,ts:(now*1000|floor)} | if .session_id == "" then del(.session_id) else . end' \
-| curl -s -X POST localhost:8770/agent-event -d @-
-```
-
-### Variant B — cheap-model summary (recommended)
-
-Summarize the last message with Haiku before POSTing. The backend receives a concise, speech-ready sentence in `summary` and the size-gated message in `detail`.
-
-```bash
-[ -n "$YUI_HOOK_NESTED" ] && exit 0
-(exec 3<>/dev/tcp/127.0.0.1/8770) 2>/dev/null || exit 0
-input=$(cat)
-session_id=$(echo "$input" | jq -r '.session_id // empty')
-transcript_path=$(echo "$input" | jq -r '.transcript_path')
-last=$(jq -rs '[.[]|select(.type=="assistant")]|last|.message.content[]?|select(.type=="text").text' "$transcript_path")
-summary=$(printf '%s' "$last" | YUI_HOOK_NESTED=1 claude -p "Summarize what was done in one sentence." --model claude-haiku-4-5)
-[ -n "$summary" ] || summary=$last
-if [ "$(printf '%s' "$last" | jq -Rs 'length')" -le 1500 ]; then detail=$last; else
-  detail=$(printf '%s' "$last" | YUI_HOOK_NESTED=1 claude -p "Digest this into a compact account of what was done, what changed, and what is still open." --model claude-haiku-4-5)
-  [ -n "$detail" ] || detail=$(printf '%.1500s' "$last")
-fi
-jq -n --arg s "$summary" --arg d "$detail" --arg cwd "$PWD" --arg sid "$session_id" \
-  '{tool:"claude-code",project:($cwd|split("/")|last),cwd:$cwd,phase:"done",session_id:$sid,detail:$d,summary:$s,ts:(now*1000|floor)} | if .session_id == "" then del(.session_id) else . end' \
-| curl -s -X POST localhost:8770/agent-event -d @-
-```
-
-Add the chosen variant to `.claude/settings.json` (project) or `~/.claude/settings.json` (global):
-
-```json
-{
-  "hooks": {
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "<paste variant A or B here>"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-## Wiring `phase:"needs_input"` (Claude Code `PermissionRequest` + `Notification`)
-
-Two Claude Code top-level hooks cover the ways a session stalls waiting on the user — a permission prompt for a specific tool call, and the idle prompt Claude Code sends once it has nothing left to do without more input. Both are zero-cost: no model call, the hook forwards fields already on its stdin JSON.
-
-### `PermissionRequest` — a tool call is waiting on approval
-
-The hook input carries `tool_name` and `tool_input` for the pending call (for `Bash`, `tool_input.command`); `detail` is composed as `"waiting on <tool_name>: <command>"`.
-
-```bash
-(exec 3<>/dev/tcp/127.0.0.1/8770) 2>/dev/null || exit 0
-input=$(cat)
-tool_name=$(echo "$input" | jq -r '.tool_name')
-session_id=$(echo "$input" | jq -r '.session_id // empty')
-cwd=$(echo "$input" | jq -r '.cwd')
-cmd=$(echo "$input" | jq -r '.tool_input.command // (.tool_input | tostring)')
-jq -n --arg tool_name "$tool_name" --arg cmd "$cmd" --arg sid "$session_id" --arg cwd "$cwd" \
-  '{tool:"claude-code",project:($cwd|split("/")|last),cwd:$cwd,phase:"needs_input",session_id:$sid,detail:("waiting on " + $tool_name + ": " + $cmd),summary:"",ts:(now*1000|floor)} | if .session_id == "" then del(.session_id) else . end' \
-| curl -s -X POST localhost:8770/agent-event -d @-
-```
-
-### `Notification` (`idle_prompt`) — the session is idle, waiting on the next prompt
-
-The `idle_prompt` matcher scopes the hook to the one notification type that means "waiting on you"; `detail` carries the last assistant message, read from the transcript the same way as the `Stop` hook.
-
-```bash
-(exec 3<>/dev/tcp/127.0.0.1/8770) 2>/dev/null || exit 0
-input=$(cat)
-session_id=$(echo "$input" | jq -r '.session_id // empty')
-cwd=$(echo "$input" | jq -r '.cwd')
-transcript_path=$(echo "$input" | jq -r '.transcript_path')
-last=$(jq -rs '[.[]|select(.type=="assistant")]|last|.message.content[]?|select(.type=="text").text' "$transcript_path")
-jq -n --arg s "$last" --arg sid "$session_id" --arg cwd "$cwd" \
-  '{tool:"claude-code",project:($cwd|split("/")|last),cwd:$cwd,phase:"needs_input",session_id:$sid,detail:$s,summary:"",ts:(now*1000|floor)} | if .session_id == "" then del(.session_id) else . end' \
-| curl -s -X POST localhost:8770/agent-event -d @-
-```
-
-Add both to `.claude/settings.json` (project) or `~/.claude/settings.json` (global):
-
-```json
-{
-  "hooks": {
-    "PermissionRequest": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "<paste the PermissionRequest script here>"
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "matcher": "idle_prompt",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "<paste the Notification script here>"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-This wiring covers top-level Claude Code sessions only — it does not configure Claude Code's separate subagent (`Task` tool) hooks, and there is no Codex- or opencode-specific `needs_input` wiring. A Codex run launched under Claude Code orchestration (see the `agent-team` skill) is still a tool call inside the top-level session, so its permission prompts and idle waits already reach the ingress through the `PermissionRequest`/`Notification` hooks above.
-
-Wiring both `Stop` (`phase:"done"`) and `Notification`/`idle_prompt` (`phase:"needs_input"`) can double-fire on the same lull — Claude Code's `Stop` event and its idle-prompt notification can both land around the same turn boundary, and since their `phase` values differ, the buffer's `session_id`+`phase` dedup does not merge them into one. Pick one wiring per session rather than running both.
+Each signal carries `event_id` `<session_id>:<phase>`, a label, and one item with the
+project, branch, tmux pane, host, and either a summary of the finished work or the pending
+tool call. The envelope fields and delivery rules are in the
+[signals ingress reference](../reference/signals-ingress.md).
 
 ## Other tools
 
-Any tool that supports a post-run command can POST directly:
+Any tool that runs a command after its work can post a signal itself. The
+[producer guide](../guide/signals-producer.md) holds the envelope, the delivery classes,
+and examples.
 
-```bash
-(exec 3<>/dev/tcp/127.0.0.1/8770) 2>/dev/null || exit 0
-curl -s -X POST localhost:8770/agent-event \
-  -H 'Content-Type: application/json' \
-  -d "{\"tool\":\"opencode\",\"project\":\"$(basename $PWD)\",\"cwd\":\"$PWD\",\"phase\":\"done\",\"summary\":\"$SUMMARY\",\"ts\":$(date +%s)000}"
-```
+## Deprecation
 
-## Remote agents
-
-If the coding agent runs on a remote host, forward the loopback port over SSH before starting the session:
-
-```bash
-ssh -R 8770:localhost:8770 user@host
-```
-
-Any `POST localhost:8770/agent-event` on the remote side reaches the local YUI instance through the tunnel.
-
-## Security
-
-The endpoint binds to `127.0.0.1` only and carries no authentication. Do not expose the listener port beyond localhost or your own SSH tunnel. A request whose `Host` is not `127.0.0.1`, `localhost` or `::1` is refused with 421 and a request whose `Origin` names another host with 403, while a hook that sends no browser headers passes.
+`POST /agent-event` is deprecated: removed in v0.6.0. Use `POST /signals`.

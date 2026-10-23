@@ -453,7 +453,7 @@ globalThis.YUI_MAP =
       "id": "agent-hooks",
       "module": "senders",
       "label": "coding-agent hooks",
-      "role": "Lifecycle hooks of external coding agents that post done and needs-input events.",
+      "role": "The yui-notify plugin's Claude Code and Codex hooks, which post done and needs-input signals; hand-installed hooks may still post the deprecated /agent-event.",
       "paths": [],
       "external": true
     },
@@ -1960,6 +1960,14 @@ globalThis.YUI_MAP =
       "from": "agent-hooks",
       "to": "shell/agent-ingress",
       "carries": "POST /agent-event {tool, project, phase, summary, …}, or the same path under /presets/<id>/; deprecated, removed in v0.6.0 for POST /signals",
+      "kind": "http",
+      "transport": "shared"
+    },
+    {
+      "id": "agent-hooks-signals",
+      "from": "agent-hooks",
+      "to": "shell/agent-ingress",
+      "carries": "POST /signals {source claude-code|codex, event_type agent.done|agent.needs_input, delivery, event_id <session_id>:<phase>, label}, or the same path under /presets/<id>/",
       "kind": "http",
       "transport": "shared"
     },
@@ -3687,6 +3695,7 @@ globalThis.YUI_MAP =
           "label": "POST /agent-event, POST /signals",
           "edges": [
             "hooks-ingress",
+            "agent-hooks-signals",
             "signals-ingress",
             "factorio-ingress"
           ],
