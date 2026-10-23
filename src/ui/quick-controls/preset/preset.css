@@ -383,9 +383,9 @@
 }
 
 .yui-relation--more {
+  appearance: none;
   border: 0;
-  background: transparent;
-  font: inherit;
+  background: none;
   cursor: pointer;
 }
 
