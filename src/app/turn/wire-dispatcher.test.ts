@@ -76,6 +76,7 @@ describe("wireDispatcher", () => {
       sessionStore: {} as never,
       onUsage: () => {},
       chatHistoryStore: {} as never,
+      signalHistoryStore: {} as never,
       contextHistory: {} as never,
       overheardStore: {} as never,
       relationsStore: {} as never,

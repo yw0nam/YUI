@@ -471,6 +471,19 @@ describe("createChatHistoryStore — persist + reload", () => {
     ]);
     expect(storage._data).toEqual(store.get());
   });
+
+  it("an assistant entry with turn_id round-trips through storage and sessions()", () => {
+    const storage = makeMemStorage();
+    const store = createChatHistoryStore({ storage });
+    store.append({ role: "assistant", text: "done", ts: 5, turn_id: "t9" });
+
+    const reread = createChatHistoryStore({ storage });
+
+    expect(reread.get()).toEqual([{ role: "assistant", text: "done", ts: 5, turn_id: "t9" }]);
+    expect(reread.sessions()).toEqual([
+      { startedAt: 5, entries: [{ role: "assistant", text: "done", ts: 5, turn_id: "t9" }] },
+    ]);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -51,6 +51,7 @@ let silentCues: ExpressArgs[];
 let logger: Logger;
 let records: unknown[];
 let transcript: ChatHistoryEntry[];
+let saidOfTurn: { turnId: string; text: string }[];
 
 function frame(segments: RenderSegment[], overrides: Partial<RenderFrame> = {}): RenderFrame {
   return { type: "render", turn_id: "7", source: "hermes", segments, ...overrides };
@@ -63,11 +64,13 @@ function speech(segments: RenderSegment[], overrides: Partial<SpeechFrame> = {})
 function turn() {
   records = [];
   transcript = [];
+  saidOfTurn = [];
   return createRenderTurn({
     turnOutput,
     pushTurns,
     appendTurnRecord: (record) => records.push(record),
     appendTranscript: (entry) => transcript.push(entry),
+    signalHistory: { setSaid: (turnId, text) => saidOfTurn.push({ turnId, text }) },
     logger,
   });
 }
@@ -383,14 +386,21 @@ describe("render_turn — transcript", () => {
     turn().render(frame([{ speech: "All green." }, { speech: "Want the list?" }]));
 
     expect(transcript).toEqual([
-      { role: "assistant", text: "All green. Want the list?", ts: expect.any(Number) },
+      {
+        role: "assistant",
+        text: "All green. Want the list?",
+        ts: expect.any(Number),
+        turn_id: "7",
+      },
     ]);
   });
 
   it("leaves the silent segments out of the transcribed reply", () => {
     turn().render(frame([{ speech: "[SILENT]" }, { speech: "Here." }, { speech: "  " }]));
 
-    expect(transcript).toEqual([{ role: "assistant", text: "Here.", ts: expect.any(Number) }]);
+    expect(transcript).toEqual([
+      { role: "assistant", text: "Here.", ts: expect.any(Number), turn_id: "7" },
+    ]);
   });
 
   it("writes nothing for a reply that spoke nothing at all", () => {
@@ -411,6 +421,48 @@ describe("render_turn — transcript", () => {
 
     expect(() => r.render(frame([{ speech: "Hello." }]))).not.toThrow();
     expect(pipeline.spoken[0]!.text).toBe("Hello.");
+  });
+});
+
+describe("render_turn — the turn behind the transcript", () => {
+  it("a direct render names the frame's turn on the entry and reports what it said", () => {
+    turn().render(frame([{ speech: "All green." }]));
+
+    expect(transcript).toEqual([
+      { role: "assistant", text: "All green.", ts: expect.any(Number), turn_id: "7" },
+    ]);
+    expect(saidOfTurn).toEqual([{ turnId: "7", text: "All green." }]);
+  });
+
+  it("close() after speech frames records the streamed turn's id and its said", () => {
+    const r = turn();
+    r.stream(speech([{ speech: "All green." }], { turn_id: "hermes-1" }));
+    r.close("hermes-1");
+
+    expect(transcript).toEqual([
+      { role: "assistant", text: "All green.", ts: expect.any(Number), turn_id: "hermes-1" },
+    ]);
+    expect(saidOfTurn).toEqual([{ turnId: "hermes-1", text: "All green." }]);
+  });
+
+  it("drop() of an open turn does the same", () => {
+    pushTurns.opened("7", "user.text_submitted");
+    const r = turn();
+    r.stream(speech([{ speech: "All green." }]));
+    pushTurns.cut();
+    r.drop("7");
+
+    expect(transcript).toEqual([
+      { role: "assistant", text: "All green.", ts: expect.any(Number), turn_id: "7" },
+    ]);
+    expect(saidOfTurn).toEqual([{ turnId: "7", text: "All green." }]);
+  });
+
+  it("a frame with no speech appends neither an entry nor a said", () => {
+    turn().render(frame([{ cues: [{ emotion_id: "sad" }], speech: "[SILENT]" }]));
+
+    expect(transcript).toEqual([]);
+    expect(saidOfTurn).toEqual([]);
   });
 });
 
@@ -546,7 +598,12 @@ describe("render_turn — a reply streamed as speech frames", () => {
     r.render(frame([{ speech: "Want the list?" }]));
 
     expect(transcript).toEqual([
-      { role: "assistant", text: "All green. Every one. Want the list?", ts: expect.any(Number) },
+      {
+        role: "assistant",
+        text: "All green. Every one. Want the list?",
+        ts: expect.any(Number),
+        turn_id: "7",
+      },
     ]);
   });
 
@@ -555,7 +612,9 @@ describe("render_turn — a reply streamed as speech frames", () => {
     r.stream(speech([{ speech: "All green." }]));
     r.render(frame([]));
 
-    expect(transcript).toEqual([{ role: "assistant", text: "All green.", ts: expect.any(Number) }]);
+    expect(transcript).toEqual([
+      { role: "assistant", text: "All green.", ts: expect.any(Number), turn_id: "7" },
+    ]);
   });
 
   it("writes a render record for the render alone", () => {
@@ -616,7 +675,7 @@ describe("render_turn — a streamed reply closed without its render", () => {
 
     expect(turnOutput.end).toHaveBeenCalledOnce();
     expect(transcript).toEqual([
-      { role: "assistant", text: "All green. Every one.", ts: expect.any(Number) },
+      { role: "assistant", text: "All green. Every one.", ts: expect.any(Number), turn_id: "7" },
     ]);
   });
 
@@ -669,7 +728,9 @@ describe("render_turn — a streamed reply closed without its render", () => {
 
     vi.advanceTimersByTime(1);
     expect(turnOutput.end).toHaveBeenCalledOnce();
-    expect(transcript).toEqual([{ role: "assistant", text: "All green.", ts: expect.any(Number) }]);
+    expect(transcript).toEqual([
+      { role: "assistant", text: "All green.", ts: expect.any(Number), turn_id: turnId },
+    ]);
   });
 
   it("restarts the frame wait on every speech frame", () => {
@@ -748,7 +809,9 @@ describe("render_turn — a streamed reply the user stopped", () => {
     const r = turn();
     streamThenCut(r);
 
-    expect(transcript).toEqual([{ role: "assistant", text: "All green.", ts: expect.any(Number) }]);
+    expect(transcript).toEqual([
+      { role: "assistant", text: "All green.", ts: expect.any(Number), turn_id: "7" },
+    ]);
     expect(turnOutput.end).not.toHaveBeenCalled();
   });
 

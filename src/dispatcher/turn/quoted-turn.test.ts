@@ -26,15 +26,38 @@ function proactiveEnv(): BusEnvelope {
   return { source: "timer_scheduler", event_name: "proactive.idle", ts: 0 };
 }
 
+function signalsEnv(delivery: "urgent" | "batched"): BusEnvelope {
+  return {
+    source: "urgent_signal_source",
+    event_name: delivery === "urgent" ? "signals.urgent" : "signals.batch",
+    ts: 0,
+    payload: {
+      signals: [
+        {
+          envelope: {
+            source: "ci",
+            event_type: "build.failed",
+            delivery,
+            event_id: "e1",
+            occurred_at: 0,
+          },
+          items: [],
+        },
+      ],
+    },
+  };
+}
+
 describe("createQuotedTurn", () => {
   let turnLog: TurnLog;
-  let surfaces: { [K in keyof QuoteSurfaces]: Mock<QuoteSurfaces[K]> };
+  let surfaces: { [K in keyof QuoteSurfaces]: Mock<NonNullable<QuoteSurfaces[K]>> };
   let quoted: QuotedTurn;
 
   beforeEach(() => {
     turnLog = createTurnLog();
     surfaces = {
       quoteUser: vi.fn(),
+      quoteSignals: vi.fn(),
       settleQuote: vi.fn(),
       clearQuote: vi.fn(),
       restoreInput: vi.fn(),
@@ -144,5 +167,63 @@ describe("createQuotedTurn", () => {
     turnLog.settle(turn.id);
 
     expect(surfaces.settleQuote).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "urgent",
+    "batched",
+  ] as const)("%s signal turn shows nothing on admission and its source line on the first utterance", (delivery) => {
+    admit(signalsEnv(delivery));
+
+    expect(surfaces.quoteSignals).not.toHaveBeenCalled();
+    expect(surfaces.quoteUser).not.toHaveBeenCalled();
+
+    quoted.utteranceStart();
+    quoted.utteranceStart();
+
+    expect(surfaces.quoteSignals).toHaveBeenCalledTimes(1);
+    expect(surfaces.quoteSignals).toHaveBeenCalledWith([
+      { delivery, source: "ci", text: "build.failed" },
+    ]);
+  });
+
+  it("the turn log settling a quoted signal turn releases it", () => {
+    const turn = admit(signalsEnv("urgent"));
+    quoted.utteranceStart();
+
+    turnLog.settle(turn.id);
+
+    expect(surfaces.settleQuote).toHaveBeenCalledTimes(1);
+  });
+
+  it("a signal turn that fails before any utterance shows and restores nothing", () => {
+    const turn = admit(signalsEnv("urgent"));
+
+    quoted.failed(turn);
+
+    expect(surfaces.quoteSignals).not.toHaveBeenCalled();
+    expect(surfaces.settleQuote).not.toHaveBeenCalled();
+    expect(surfaces.clearQuote).not.toHaveBeenCalled();
+    expect(surfaces.restoreInput).not.toHaveBeenCalled();
+  });
+
+  it("a signal turn that fails after the utterance settles the quote", () => {
+    const turn = admit(signalsEnv("urgent"));
+    quoted.utteranceStart();
+
+    quoted.failed(turn);
+
+    expect(surfaces.settleQuote).toHaveBeenCalledTimes(1);
+    expect(surfaces.clearQuote).not.toHaveBeenCalled();
+    expect(surfaces.restoreInput).not.toHaveBeenCalled();
+  });
+
+  it("a proactive turn with no signal groups only settles as before", () => {
+    admit(userEnv("hi"));
+
+    admit(proactiveEnv());
+
+    expect(surfaces.settleQuote).toHaveBeenCalledTimes(1);
+    expect(surfaces.quoteSignals).not.toHaveBeenCalled();
   });
 });

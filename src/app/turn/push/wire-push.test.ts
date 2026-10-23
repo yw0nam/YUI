@@ -272,7 +272,9 @@ describe("wirePushTransport", () => {
     wire();
     socket.pushRender(RENDER);
 
-    expect(transcript).toEqual([{ role: "assistant", text: "All green.", ts: expect.any(Number) }]);
+    expect(transcript).toEqual([
+      { role: "assistant", text: "All green.", ts: expect.any(Number), turn_id: "7" },
+    ]);
   });
 
   it("sends a silent frame's cues out as a speechless cue", () => {
@@ -743,7 +745,7 @@ describe("wirePushTransport — speech frames", () => {
 
     expect(turnOutput.end).toHaveBeenCalledOnce();
     expect(transcript).toEqual([
-      { role: "assistant", text: "All green. Every one.", ts: expect.any(Number) },
+      { role: "assistant", text: "All green. Every one.", ts: expect.any(Number), turn_id: "7" },
     ]);
   });
 
@@ -760,7 +762,9 @@ describe("wirePushTransport — speech frames", () => {
     expect(turnOutput.end.mock.invocationCallOrder[0]).toBeLessThan(
       ended.mock.invocationCallOrder[0]!,
     );
-    expect(transcript).toEqual([{ role: "assistant", text: "All green.", ts: expect.any(Number) }]);
+    expect(transcript).toEqual([
+      { role: "assistant", text: "All green.", ts: expect.any(Number), turn_id: turnId },
+    ]);
   });
 
   it("leaves the open utterance alone on another turn's turn_end", () => {
@@ -810,7 +814,7 @@ describe("wirePushTransport — speech frames", () => {
     socket.pushRender({ ...RENDER, segments: [{ speech: "Want the list?" }] });
 
     expect(transcript).toEqual([
-      { role: "assistant", text: "All green.", ts: expect.any(Number) },
+      { role: "assistant", text: "All green.", ts: expect.any(Number), turn_id: "7" },
       { role: "user", text: "Stop there.", ts: 1 },
     ]);
     expect(turnOutput.end).not.toHaveBeenCalled();

@@ -110,7 +110,7 @@ describe("wireCrossWindowSync", () => {
     teardown(deps);
   });
 
-  it("subscribes the settings broadcast set plus only the conversation chat history", () => {
+  it("subscribes the settings broadcast set plus the conversation transcript and signal history", () => {
     const deps = makeDeps();
     const allStores = [
       ...Object.values(deps.stores),
@@ -125,6 +125,7 @@ describe("wireCrossWindowSync", () => {
     const expectedStores = new Set([
       ...broadcastSyncStores(deps.stores),
       deps.conversation.chatHistoryStore,
+      deps.conversation.signalHistoryStore,
     ]);
     expect(subscribedStores.size).toBe(expectedStores.size);
     expect(subscribedStores).toEqual(expectedStores);
@@ -198,7 +199,7 @@ describe("wireSettingsWindowSync", () => {
     for (const store of Object.values(deps.conversation)) store.dispose();
   };
 
-  it("subscribes the settings broadcast set plus only the conversation chat history", () => {
+  it("subscribes the settings broadcast set plus the conversation transcript and signal history", () => {
     const deps = makeDeps();
     const allStores = [
       ...Object.values(deps.stores),
@@ -214,6 +215,7 @@ describe("wireSettingsWindowSync", () => {
     const expectedStores = new Set([
       ...broadcastSyncStores(deps.stores),
       deps.conversation.chatHistoryStore,
+      deps.conversation.signalHistoryStore,
     ]);
     expect(subscribedStores.size).toBe(expectedStores.size);
     expect(subscribedStores).toEqual(expectedStores);
@@ -276,7 +278,7 @@ describe("wireDevtoolsSync", () => {
     for (const store of Object.values(bags.conversation)) store.dispose();
   };
 
-  it("subscribes the settings broadcast set plus only the conversation chat history", () => {
+  it("subscribes the settings broadcast set plus the conversation transcript and signal history", () => {
     const { bag, conversation } = makeBags();
     const allStores = [...Object.values(bag), ...Object.values(conversation)] as SyncedStore[];
     const subscribeSpies = allStores.map((store) => vi.spyOn(store, "subscribe"));
@@ -286,7 +288,11 @@ describe("wireDevtoolsSync", () => {
     const subscribedStores = new Set(
       allStores.filter((_store, index) => subscribeSpies[index]!.mock.calls.length > 0),
     );
-    const expectedStores = new Set([...broadcastSyncStores(bag), conversation.chatHistoryStore]);
+    const expectedStores = new Set([
+      ...broadcastSyncStores(bag),
+      conversation.chatHistoryStore,
+      conversation.signalHistoryStore,
+    ]);
     expect(subscribedStores.size).toBe(expectedStores.size);
     expect(subscribedStores).toEqual(expectedStores);
 

@@ -12,6 +12,7 @@ describe("resolveStorageKey", () => {
     ["yui.tts-key", "yui.ab12cd34.tts-key"],
     ["yui.speaker", "yui.ab12cd34.speaker"],
     ["yui.chat_transcript", "yui.ab12cd34.chat_transcript"],
+    ["yui.signal_history", "yui.ab12cd34.signal_history"],
     ["yui.previous_response_id", "yui.ab12cd34.previous_response_id"],
     ["yui.previous_response_id.tool_outputs", "yui.ab12cd34.previous_response_id.tool_outputs"],
     ["yui.context-history", "yui.ab12cd34.context-history"],

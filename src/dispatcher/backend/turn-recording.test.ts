@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { SignalEnvelope, SignalGroup } from "../../contract";
 import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
 import type { Logger } from "../../logger";
 import type { SentTurn } from "./turn-recording";
@@ -11,6 +12,7 @@ function setup(token = "s1") {
     transcript: { append: (e: ChatHistoryEntry) => entries.push(e), sessionToken: () => token },
     contextHistory: { append: vi.fn() },
     appendTurnRecord: vi.fn(),
+    signalHistory: { append: vi.fn() },
   };
   return { entries, log, deps };
 }
@@ -19,6 +21,7 @@ function turnOf(over: Partial<SentTurn> = {}, guide?: "controls"): SentTurn {
   return {
     eventName: "user.text",
     userText: "hi",
+    turnId: "t1",
     // Narrow cast: the real client context is large and only the trigger is read.
     clientContext: {
       trigger: { kind: "user", ...(guide ? { guide } : {}) },
@@ -27,6 +30,38 @@ function turnOf(over: Partial<SentTurn> = {}, guide?: "controls"): SentTurn {
     spokeText: true,
     ...over,
   };
+}
+
+function groupOf(over: Partial<SignalEnvelope> = {}): SignalGroup {
+  return {
+    envelope: {
+      source: "unset",
+      event_type: "issue.opened",
+      delivery: "batched",
+      event_id: "e1",
+      occurred_at: 1,
+      ...over,
+    },
+    items: [],
+  };
+}
+
+function signalsTurn(over: Partial<SentTurn> = {}): SentTurn {
+  return turnOf({
+    eventName: "signals.urgent",
+    userText: undefined,
+    spokeText: false,
+    clientContext: {
+      trigger: {
+        kind: "signals",
+        signals: [
+          groupOf({ source: "a", delivery: "urgent" }),
+          groupOf({ source: "b", label: "CI failed", delivery: "immediate" }),
+        ],
+      },
+    } as SentTurn["clientContext"],
+    ...over,
+  });
 }
 
 describe("recordSentTurn", () => {
@@ -86,5 +121,73 @@ describe("recordSentTurn", () => {
     expect(a.log.debug).toHaveBeenCalledWith("turn_record_append_failed", {
       error: "Error: disk",
     });
+  });
+
+  it("appends one record per signal group, delivery kept or folded to batched, said = what was spoken", () => {
+    const a = setup();
+    recordSentTurn(a.deps, a.log, signalsTurn({ assistantText: "Two came.", spokeText: true }));
+
+    expect(a.deps.signalHistory.append).toHaveBeenCalledWith([
+      {
+        turn_id: "t1",
+        source: "a",
+        event_type: "issue.opened",
+        label: null,
+        delivery: "urgent",
+        ts: expect.any(Number),
+        said: "Two came.",
+      },
+      {
+        turn_id: "t1",
+        source: "b",
+        event_type: "issue.opened",
+        label: "CI failed",
+        delivery: "batched",
+        ts: expect.any(Number),
+        said: "Two came.",
+      },
+    ]);
+  });
+
+  it("a silent turn records its groups with said null", () => {
+    const a = setup();
+    recordSentTurn(a.deps, a.log, signalsTurn({ assistantText: "[SILENT]", spokeText: false }));
+
+    expect(a.deps.signalHistory.append).toHaveBeenCalledWith([
+      expect.objectContaining({ turn_id: "t1", said: null }),
+      expect.objectContaining({ turn_id: "t1", said: null }),
+    ]);
+  });
+
+  it("a push send records its groups though its half is the user's only", () => {
+    const a = setup();
+    recordSentTurn(a.deps, a.log, signalsTurn({ userHalfOnly: true }));
+
+    expect(a.deps.signalHistory.append).toHaveBeenCalledTimes(1);
+    expect(a.entries).toEqual([]);
+  });
+
+  it("a turn whose trigger carries no groups records none", () => {
+    const a = setup();
+    recordSentTurn(a.deps, a.log, turnOf({ assistantText: "hello" }));
+
+    expect(a.deps.signalHistory.append).not.toHaveBeenCalled();
+  });
+
+  it("the assistant entry names the turn that spoke it", () => {
+    const a = setup();
+    recordSentTurn(a.deps, a.log, turnOf({ assistantText: "hello", turnId: "t42" }));
+
+    expect(a.entries).toEqual([
+      { role: "user", text: "hi", ts: expect.any(Number) },
+      { role: "assistant", text: "hello", ts: expect.any(Number), turn_id: "t42" },
+    ]);
+  });
+
+  it("a silent reply appends no assistant entry", () => {
+    const a = setup();
+    recordSentTurn(a.deps, a.log, turnOf({ assistantText: "[SILENT]", spokeText: false }));
+
+    expect(a.entries.map((e) => e.role)).toEqual(["user"]);
   });
 });

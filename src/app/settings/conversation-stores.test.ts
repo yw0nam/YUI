@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createConversationStores } from "./conversation-stores";
 
 describe("createConversationStores", () => {
-  it("constructs exactly the six cross-window conversation stores", () => {
+  it("constructs exactly the seven cross-window conversation stores", () => {
     const stores = createConversationStores();
 
     expect(Object.keys(stores)).toEqual([
@@ -10,6 +10,7 @@ describe("createConversationStores", () => {
       "sessionStore",
       "sessionDiagnostics",
       "chatHistoryStore",
+      "signalHistoryStore",
       "overheardStore",
       "relationsStore",
     ]);
