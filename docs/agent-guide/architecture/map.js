@@ -2024,7 +2024,7 @@ globalThis.YUI_MAP =
       "id": "relations-ui",
       "from": "settings",
       "to": "ui/quick-controls",
-      "carries": "this preset's store.all() and subscribe, re-rendered with motion on a write and re-rendered on a storage event for the preset's relations key",
+      "carries": "this preset's store.all() and subscribe, re-rendered with motion on a write, and again on a cross-window reload of the store",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/controls/wire-pet-controls.ts"

@@ -87,17 +87,11 @@ export function createPresetRelations(deps: {
     render();
     paint(next);
   });
-  // Another window wrote a preset's relations: re-render without motion.
-  const onStorage = (e: StorageEvent): void => {
-    if (e.key === null || e.key === "yui.relations" || e.key.endsWith(".relations")) render();
-  };
-  window.addEventListener("storage", onStorage);
 
   return {
     render,
     dispose(): void {
       offStore();
-      window.removeEventListener("storage", onStorage);
       card.dispose();
       line?.remove();
     },
