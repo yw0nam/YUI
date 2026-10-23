@@ -482,8 +482,8 @@ signal [calendar/sync @2026-08-23T01:36:40.000Z, id delivery-43]: (no payload)
 Signals are grouped by ingress batch. The headline counts items across all groups.
 Each item in an enveloped group renders with its normalized `source/event_type`, UTC
 occurrence time, and normalized event id. An enveloped group with no items renders one
-`(no payload)` line and contributes zero to the headline count. Envelope `delivery` is
-not rendered.
+`(no payload)` line and contributes zero to the headline count. Envelope `delivery` and
+`label` are not rendered.
 
 Signal items remain opaque, heterogeneous objects with no client-known shape, so JSON
 preserves their structure. Signal lines are independent of the headline and also appear

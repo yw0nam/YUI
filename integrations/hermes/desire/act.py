@@ -88,7 +88,7 @@ def _deliver(note, now, opener, kind="desire", event_type="desire.impulse"):
         "envelope": {
             "source": desire_config.signal_source(),
             "event_type": event_type,
-            "delivery": "immediate",
+            "delivery": "batched",
             "event_id": event_id,
             "occurred_at": int(now.timestamp() * 1000),
         },

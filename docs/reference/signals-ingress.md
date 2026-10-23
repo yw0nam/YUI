@@ -1,6 +1,7 @@
 # Signals ingress
 
 External producers send signal groups to the loopback HTTP ingress with `POST /signals`.
+The [producer guide](../guide/signals-producer.md) walks through writing a producer.
 The ingress refuses a request whose `Host` is not `127.0.0.1`, `localhost` or `::1` with 421 and a request whose `Origin` names another host with 403.
 The request body contains a `signals` array and a delivery envelope:
 
@@ -26,9 +27,11 @@ One listener on one port serves every window. The path chooses the recipient.
 
 | Path | Recipient |
 |---|---|
-| `/signals`, `/agent-event` | `main`: the main window's character, whichever preset is active |
+| `/signals` | `main`: the main window's character, whichever preset is active |
+| `/agent-event` | `main` (deprecated: removed in v0.6.0; use `/signals`) |
 | `/avatar/state`, `/avatar/perch-targets`, `/avatar/command`, `/relations` | `main` |
-| `/presets/<id>/signals`, `/presets/<id>/agent-event` | `pet-<id>`: the pet window bound to preset `<id>`, and no other window |
+| `/presets/<id>/signals` | `pet-<id>`: the pet window bound to preset `<id>`, and no other window |
+| `/presets/<id>/agent-event` | `pet-<id>` (deprecated: removed in v0.6.0; use `/presets/<id>/signals`) |
 | `/presets/<id>/avatar/state`, `/presets/<id>/avatar/perch-targets`, `/presets/<id>/avatar/command`, `/presets/<id>/relations` | `pet-<id>`; that window answers the request |
 | any other path under `/presets/`, including a route name outside the six above | none: HTTP 404 |
 | a preset id that exists while its pet window is closed | none: HTTP 503 |
@@ -45,27 +48,32 @@ preset ids exist by the 404 and 503 replies. The ids are opaque keys, not secret
 |---|---|
 | `source` | Non-empty string identifying the producer |
 | `event_type` | Non-empty string identifying the producer-defined event type |
-| `delivery` | Exactly `"immediate"`, `"batched"`, or `"live"` |
-| `event_id` | Non-empty opaque string; duplicate values remain separate groups |
+| `delivery` | Exactly `"urgent"`, `"batched"`, or the deprecated `"immediate"` |
+| `event_id` | Non-empty opaque string; a group replaces a buffered group with the same `event_id` in the same buffer, at its position, and a delivered group is not compared |
+| `label` | Optional string: the producer's one-line origin, for example `dev43 · tmux yui:2 · YUI (main)`. Over 120 code points it is cut to 119 code points plus `…` and the request is accepted. A non-string label makes the envelope invalid. The label is not rendered in `client_context` |
 | `occurred_at` | Finite epoch-millisecond number in the inclusive range `-8.64e15` through `8.64e15`, representable as an ISO-8601 date |
 
 ## Delivery
 
-An `immediate` group fires at once while the user is present and the pipeline is idle.
-Otherwise it waits in the away buffer.
+`delivery` names one of two tiers, `urgent` and `batched`. Dropping is a producer-side
+rule: a producer that wants a signal dropped does not send it.
 
-A `live` group marks an activity the user started and is waiting on. It fires at once while
-the user is present and the pipeline is idle, and the proactive quiet gap does not hold it.
-Otherwise it waits in its own buffer; on the busy-to-idle or away-to-present edge, the
-buffered live groups fire together as one live catch-up turn. Live groups never share a
-catch-up turn with `immediate` or `batched` groups, and the drains below carry non-live
-groups only — a buffered live group keeps waiting for its own edge. User-started activities
-use `live`; unrequested background chatter uses `immediate` or `batched`.
+An `urgent` group means the user should hear it now. It fires at once while the user is
+present and the pipeline is idle, and the proactive quiet gap does not hold it.
+Otherwise it waits in its own buffer, and on the away-to-present or busy-to-idle edge
+the buffered urgent groups fire together as one urgent catch-up turn. On the return to
+present that turn goes out before the catch-up of the other buffers. Urgent groups never
+share a catch-up turn with `immediate` or `batched` groups, and the drains below carry
+non-urgent groups only — a buffered urgent group keeps waiting for its own edge.
 
 A `batched` group always waits in the batch buffer. The first group starts a five-minute
 delivery interval. At the interval boundary, all pending batched groups fire together
 when signals are enabled, the user is present, and the pipeline is idle. If those
 conditions are not met, the groups remain buffered without another timer.
+
+An `immediate` group fires at once while the user is present and the pipeline is idle.
+Otherwise it waits in the away buffer. Deprecated: removed in v0.6.0. Use `urgent` or
+`batched`.
 
 While signals are disabled, the client drops every group that arrives, and the next
 OS idle tick clears the groups already buffered.
@@ -77,14 +85,14 @@ a batched group's deadline therefore includes it in that catch-up.
 Three client-fired turns also drain the buffers and carry the groups themselves: a
 `proactive.tap_bored` turn, the `time_milestone.first_activity` turn, and a
 `proactive.wake` turn that carries the day's first activity. Each takes every pending
-non-live group in arrival order, and a drain empties the away buffer and the batch buffer
-together.
+non-urgent group in arrival order, and a drain empties the away buffer and the batch
+buffer together.
 
 Each buffer retains at most five groups and drops its oldest group on overflow.
 
-Live turns are capped by their own hourly rate limit, `rate_limit.live_max` (default 120).
-They do not count toward the tier-2 or overall caps, and the cooldown the overall cap
-starts does not hold them.
+Urgent turns are capped by their own hourly rate limit, `rate_limit.urgent_max` (default
+120). They do not count toward the tier-2 or overall caps, and the cooldown the overall
+cap starts does not hold them.
 
 ## Relations
 
@@ -145,4 +153,9 @@ rules is dropped as a whole and one warning is logged with the item count. While
 signals are disabled, the source drops incoming batches before envelope validation and
 logs no envelope warning.
 
-There is no fallback timestamp and no event-id deduplication.
+A request with any signal item whose JSON serialization exceeds 16 KiB receives HTTP 400;
+no item of that request is delivered. The body cap is 64 KiB.
+
+A group replaces a buffered group with the same `event_id` in the same buffer, at the
+old group's position. A group with the same `event_id` in another buffer stays. A
+delivered group is not compared. There is no fallback timestamp.

@@ -39,13 +39,15 @@ POST a JSON body with a `signals` array and an `envelope` object to the URL, wit
 curl -s -o /dev/null -w '%{http_code}\n' -X POST -H 'Content-Type: application/json' \
   -d '{"signals":[{"kind":"workflow","status":"complete"}],
        "envelope":{"source":"my-producer","event_type":"workflow_done",
-                   "delivery":"immediate","event_id":"run-1","occurred_at":1787449000000}}' \
+                   "delivery":"urgent","event_id":"run-1","occurred_at":1787449000000}}' \
   "$YUI_SIGNALS_URL"
 ```
 
-Pick `delivery` by how soon the character should speak: `immediate` speaks now if the
-user is present, `batched` waits for the next five-minute batch, `live` follows the user's
-presence. The character decides what to say; the signal carries facts, not a script.
+Pick `delivery` by how soon the character should speak: `urgent` speaks now if the user is
+present and waits for their return otherwise; `batched` waits for the next five-minute
+batch. The character decides what to say; the signal carries facts, not a script. The
+producer guide covers the tiers, the label, and the event id:
+https://github.com/yw0nam/YUI/blob/main/docs/guide/signals-producer.md
 
 Done when: the response code is read.
 
@@ -67,7 +69,7 @@ Done when: the code is 200, or the user has been told the one action that the ta
 
 1. Read its configured URL. A URL without `/presets/<id>/` wakes the main window's
    character; that is correct only when the user wants the default character.
-2. Send one `immediate` signal with `event_id` set to a fresh value and read the code
+2. Send one `urgent` signal with `event_id` set to a fresh value and read the code
    with the table above.
 3. If the wrong character spoke, the URL points at another preset: repeat step 1 of
    "Wake a character".

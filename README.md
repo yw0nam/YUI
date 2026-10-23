@@ -119,7 +119,7 @@ The [connection guide](docs/guide/getting-started.md) covers each setup. Missing
 
 **Using YUI**
 
-- [Feature list](docs/guide/features.md) · [Controls](docs/guide/controls.md) · [What she can do](docs/guide/capabilities.md)
+- [Feature list](docs/guide/features.md) · [Controls](docs/guide/controls.md) · [What she can do](docs/guide/capabilities.md) · [Send signals from a producer](docs/guide/signals-producer.md)
 - [Install with a coding agent](docs/guide/install.md) · [Connection guide](docs/guide/getting-started.md): chat, voice, your own VRM
 
 **Developing YUI**

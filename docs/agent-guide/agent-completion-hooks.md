@@ -1,6 +1,8 @@
 # Agent Lifecycle Hooks
 
-When a coding agent (Claude Code, opencode, or any compatible tool) finishes a task or stalls waiting on the user, it can POST a lifecycle signal to the running YUI app. YUI validates the payload, fires it onto the event bus as a `trigger.kind:"agent"` turn, and sends it to the selected backend. The backend decides whether and what to speak — an empty response means silence. The hook requires YUI to be running with **Settings → Proactive → Watchers → Agent notifications** enabled. The ingress endpoint listens on loopback only; the port defaults to `8770` and is configurable in the same section (**Listener port**) — a port change takes effect on app restart. Remote agents reach the endpoint via an SSH reverse tunnel.
+When a coding agent (Claude Code, opencode, or any compatible tool) finishes a task or stalls waiting on the user, it can POST a lifecycle signal to the running YUI app. YUI validates the payload, fires it onto the event bus as a `trigger.kind:"agent"` turn, and sends it to the selected backend. The backend decides whether and what to speak — an empty response means silence. The hook requires YUI to be running with **Settings → Proactive → Watchers → External signals** enabled. The ingress endpoint listens on loopback only; the port defaults to `8770` and is configurable in the same section (**Listener port**) — a port change takes effect on app restart. Remote agents reach the endpoint via an SSH reverse tunnel.
+
+`POST /agent-event` is deprecated: removed in v0.6.0. Use `POST /signals` ([producer guide](../guide/signals-producer.md)).
 
 ## Endpoint
 

@@ -60,7 +60,7 @@ def test_signal_post_body_matches_ingress_contract(state_dir, at, monkeypatch):
     assert body["envelope"] == {
         "source": f"{AGENT_NAME}-desire",
         "event_type": "desire.impulse",
-        "delivery": "immediate",
+        "delivery": "batched",
         "event_id": body["envelope"]["event_id"],
         "occurred_at": 1787628896000,
     }

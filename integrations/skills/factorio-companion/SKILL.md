@@ -17,7 +17,7 @@ Use this skill when both conditions hold:
 1. You are the backend of YUI.
 2. The owner plays Factorio with the Mod `Mods/factorio` running.
 
-The Mod speaks to the game over RCON and posts a `live` signal to YUI when a wake event arrives.
+The Mod speaks to the game over RCON and posts a `urgent` signal to YUI when a wake event arrives.
 
 ## 2. Setup for the owner
 
@@ -64,7 +64,7 @@ A wake posts one signal group. The envelope holds these values:
 |---|---|
 | `source` | `factorio` |
 | `event_type` | `game.wake` |
-| `delivery` | `live` |
+| `delivery` | `urgent` |
 
 The group carries `pending_from_seq`, `pending_to_seq`, `note`, and `reset`.
 

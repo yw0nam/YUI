@@ -41,6 +41,7 @@ Core tone in one line: **invisible-by-default, warm-when-present.**
 3. **`firing ≠ judgment` in the UI too.** The client only *renders* the state the backend has determined. The UI does not invent persona · mode · opinions. Surfaces reflect backend signals; they do not fabricate them.
 4. **Legible on anything.** The UI floats over an arbitrary desktop background in a transparent window. Every surface must be legible on any backdrop without heavy containers.
 5. **Calm by default, respectful of attention.** Ambient liveliness is subtle; respect reduced-motion; do not steal attention (rate-limit · DND awareness). A companion does not nag.
+6. **Answer in place.** Once setup is done, no surface sends the user to the settings window to do its job. The character, or the surface beside it, shows the answer where the user already looks. The settings window is for changing configuration, not for reading state.
 
 ## Accessibility & Inclusion
 
