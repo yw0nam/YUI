@@ -116,7 +116,7 @@ The persona text of a preset in Tavern Card V2 shape. Sent as the first system m
 _Avoid_: character card (as a YUI term), profile, persona file
 
 **Greeting**:
-The card's `first_mes` or one of its `alternate_greetings`, performed by the client after a session reset and recorded as an assistant entry.
+The card's `first_mes` or one of its `alternate_greetings`, performed by the client after a session reset — and once at the first boot of a preset a card import created — and recorded as an assistant entry.
 _Avoid_: first message, opener
 
 **Task space**:

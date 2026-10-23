@@ -1207,10 +1207,19 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "app/card-io",
+      "module": "wiring",
+      "label": "card io wiring",
+      "role": "The card's quick-controls ports: io's file steps and settings' preset creator, bound to one registry, shared by the pet and settings windows' control wiring.",
+      "paths": [
+        "src/app/card-io"
+      ]
+    },
+    {
       "id": "app/turn/card",
       "module": "wiring",
       "label": "card wiring",
-      "role": "Binds the card module to the window's stores, preset, UI language, and config for the backend caller, and performs the greeting after a session reset.",
+      "role": "Binds the card module to the window's stores, preset, UI language, and config for the backend caller, and performs the greeting after a session reset and once at the first boot of a preset a card import created.",
       "paths": [
         "src/app/turn/wire-card.ts",
         "src/app/turn/wire-greeting.ts"
@@ -2813,7 +2822,7 @@ globalThis.YUI_MAP =
       "carries": "Import card\u2026 \u2192 importCardFromFile (JSON or PNG in); Export card \u2192 exportCardToFile (V2 JSON out)",
       "kind": "call",
       "transport": "shared",
-      "wiring": "src/app/controls/wire-pet-controls.ts"
+      "wiring": "src/app/card-io/wire-card-io.ts"
     },
     {
       "id": "card-preset-ui",
@@ -2822,7 +2831,7 @@ globalThis.YUI_MAP =
       "carries": "Import card\u2026 \u2192 settings/preset/import-card-preset.ts createPresetFromCard: the preset from the card, the thumbnail retained onto the entry, the pending greeting, and activation; a failure removes both",
       "kind": "call",
       "transport": "shared",
-      "wiring": "src/app/controls/wire-pet-controls.ts"
+      "wiring": "src/app/card-io/wire-card-io.ts"
     },
     {
       "id": "card-shell",
@@ -2830,6 +2839,14 @@ globalThis.YUI_MAP =
       "to": "shell/imports",
       "carries": "import_card_file, retain_card_thumbnail, remove_card_thumbnail, write_card_file",
       "kind": "tauri-command",
+      "transport": "shared"
+    },
+    {
+      "id": "greeting-pending",
+      "from": "settings",
+      "to": "app/turn/card",
+      "carries": "yui.greeting-pending written by a card import; the preset's next boot consumes it and greets once",
+      "kind": "storage",
       "transport": "shared"
     },
     {
