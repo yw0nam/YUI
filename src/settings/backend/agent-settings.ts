@@ -53,6 +53,11 @@ function coerce(s: Record<string, unknown>): AgentSettings {
   };
 }
 
+/** The stored shape normalized: a missing or non-object value reads as the defaults. */
+export function coerceAgentSettings(value: unknown): AgentSettings {
+  return isPlainObject(value) ? coerce(value as Record<string, unknown>) : { ...DEFAULT_SETTINGS };
+}
+
 export function createAgentSettings(opts?: { storage?: AgentStorage }) {
   const core = createPersistedStore<AgentSettings>({
     storage: opts?.storage,

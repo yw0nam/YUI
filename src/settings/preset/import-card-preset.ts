@@ -8,14 +8,15 @@
 
 import type { Card } from "../../config/validators/persona/types";
 import { createLogger } from "../../logger";
+import { coerceAgentSettings } from "../backend/agent-settings";
 import { resolveStorageKey } from "./preset-keys";
 
-const log = createLogger("preset-import");
+const log = createLogger("import-card-preset");
 
 export interface CreatePresetFromCardInput {
   registry: {
     create(name: string): string | null;
-    setThumbnail(id: string, url: string | undefined): boolean;
+    setThumbnail(id: string, url: string): boolean;
     activate(id: string): boolean;
     remove(id: string): boolean;
   };
@@ -28,9 +29,6 @@ export interface CreatePresetFromCardInput {
   storage?: Storage;
 }
 
-/** The agent value a new preset starts from when its copied one is missing or unparsable. */
-const FALLBACK_AGENT = { reasoning_effort: "none" };
-
 export async function createPresetFromCard(input: CreatePresetFromCardInput): Promise<string> {
   const { registry, card, retainThumbnail, discardThumbnail } = input;
   const kv = input.storage ?? globalThis.localStorage;
@@ -42,18 +40,13 @@ export async function createPresetFromCard(input: CreatePresetFromCardInput): Pr
 
   try {
     const key = resolveStorageKey("yui.agent", id);
-    let agent: Record<string, unknown> = { ...FALLBACK_AGENT };
+    let raw: unknown = null;
     try {
-      const raw = kv?.getItem(key);
-      if (raw) {
-        const parsed = JSON.parse(raw) as unknown;
-        if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
-          agent = parsed as Record<string, unknown>;
-        }
-      }
+      raw = JSON.parse(kv?.getItem(key) ?? "null") as unknown;
     } catch {
       // An unparsable copied value starts the preset from the defaults
     }
+    const agent = coerceAgentSettings(raw);
     agent.send_card = true;
     agent.card = card;
     kv?.setItem(key, JSON.stringify(agent));
@@ -68,7 +61,12 @@ export async function createPresetFromCard(input: CreatePresetFromCardInput): Pr
     return id;
   } catch (err) {
     if (!registry.remove(id)) log.warn("preset_rollback_refused", { preset: id });
-    await discardThumbnail?.(id);
+    try {
+      await discardThumbnail?.(id);
+    } catch (cleanupErr) {
+      // The cleanup failure must not replace the error the user is shown
+      log.warn("thumbnail_discard_failed", { preset: id, error: String(cleanupErr) });
+    }
     throw err;
   }
 }

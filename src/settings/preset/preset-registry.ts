@@ -91,8 +91,8 @@ export function createPresetRegistry(deps?: {
       return true;
     },
 
-    /** Stores or clears the thumbnail's file URL on the entry; false for an unknown id. */
-    setThumbnail(id: string, url: string | undefined): boolean {
+    /** Stores the thumbnail's file URL on the entry; false for an unknown id. */
+    setThumbnail(id: string, url: string): boolean {
       const { active, list } = latest();
       if (!list.some((e) => e.id === id)) return false;
       core.commit({
