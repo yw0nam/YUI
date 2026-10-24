@@ -4,7 +4,7 @@
  * Pure renderer — firing ≠ judgment: this only *draws* the delegations list the push socket
  * feeds and the state that socket reports. While the socket is ready it carries the running
  * count and its tap toggles the list popover; while it is connecting, reconnecting or failed
- * it names that state in the Connection tab's words, and its tap opens the settings panel's
+ * it names that state in the name plate's words, and its tap opens the settings panel's
  * Connection tab, which holds the reconnect action; while it is disconnected — no transport in
  * use — it draws nothing.
  * A held press folds the chip to its dot, and the fold is a per-device choice.
@@ -149,13 +149,13 @@ export function createDelegationChip({
     requestAnimationFrame(() => el.classList.add("is-visible"));
   }
 
-  /** The Connection tab's wording for a live loss, so the chip and the tab name one cause. */
+  /** The name plate's short wording for a live loss, so the chip, the plate and the Connection tab name one cause. */
   function lostLabel(state: PushSocketState): string {
     switch (state.kind) {
       case "reconnecting":
-        return t("svc.chat_status_reconnecting", { seconds: Math.ceil(state.delay_ms / 1000) });
+        return t("plate.reconnecting");
       case "failed":
-        return t("svc.chat_status_refused");
+        return t("plate.key_rejected");
       default:
         return t("svc.chat_status_connecting");
     }
