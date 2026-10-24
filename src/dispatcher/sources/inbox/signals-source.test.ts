@@ -1032,3 +1032,49 @@ describe("signals_source — delivery envelopes", () => {
     expect(s.pushed.map((e) => e.event_name)).toEqual(["signals.batch"]);
   });
 });
+
+describe("signals_source — onArrival", () => {
+  async function started(isEnabled: () => boolean, onArrival: (group: unknown) => void) {
+    const { bus } = fakeBus();
+    const { listen, emit: emitIdle } = fakeListen();
+    const { onInbox, emit: emitInbox } = fakeInbox();
+    const src = createSignalsSource({
+      bus,
+      present_max_idle_ms: PRESENT_MAX,
+      isEnabled,
+      onInbox,
+      listen,
+      onArrival,
+    });
+    await src.start();
+    return { src, emitIdle, emitInbox };
+  }
+
+  it("reports a live group and a group buffered while away", async () => {
+    const onArrival = vi.fn();
+    const { src, emitIdle, emitInbox } = await started(() => true, onArrival);
+
+    emitIdle(idleTick(LOW_IDLE));
+    emitInbox(batch([{ id: 1 }], 1000, envelopeOf(1)));
+    emitIdle(idleTick(HIGH_IDLE));
+    emitInbox(batch([{ id: 2 }], 1000, envelopeOf(2)));
+
+    expect(onArrival.mock.calls).toEqual([
+      [{ envelope: envelopeOf(1), items: [{ id: 1 }] }],
+      [{ envelope: envelopeOf(2), items: [{ id: 2 }] }],
+    ]);
+
+    src.stop();
+  });
+
+  it("reports nothing while the source is disabled", async () => {
+    const onArrival = vi.fn();
+    const { src, emitInbox } = await started(() => false, onArrival);
+
+    emitInbox(batch([{ id: 1 }]));
+
+    expect(onArrival).not.toHaveBeenCalled();
+
+    src.stop();
+  });
+});

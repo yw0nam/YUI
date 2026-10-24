@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createDelegationsStore } from "../../../io/bridge/delegations/delegations-store";
+import { createDelegationChipSettings } from "../../../settings/panels/delegation-chip-settings";
 import {
   createMessageWindowSettings,
   type MessageWindowMode,
@@ -106,6 +107,31 @@ describe("createDelegationChipMount", () => {
     mount.dispose();
     expect(settingsDispose).toHaveBeenCalledOnce();
     expect(chip.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("an injected fold store survives the mount's dispose and feeds the next chip", () => {
+    const { mount } = setup(undefined);
+    const shared = createDelegationChipSettings();
+    const seen = vi.fn();
+    shared.subscribe(seen);
+    const withStore = createDelegationChipMount({
+      mount: {} as HTMLElement,
+      store: createDelegationsStore(),
+      pushState: { getState: () => ({ kind: "disconnected" }), onState: () => () => {} },
+      onOpenSettings: () => {},
+      collapsed: shared,
+    });
+
+    withStore.create();
+    withStore.dispose();
+    withStore.create();
+    shared.setCollapsed(true);
+
+    expect(createDelegationChip).toHaveBeenLastCalledWith(
+      expect.objectContaining({ collapsed: shared }),
+    );
+    expect(seen).toHaveBeenCalledOnce();
+    mount.dispose();
   });
 
   it("builds the pet's suppression port from the pet's own mode reader", () => {

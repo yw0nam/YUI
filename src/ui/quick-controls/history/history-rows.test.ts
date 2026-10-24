@@ -5,6 +5,7 @@ import { mergeSessionRows } from "./history-rows";
 
 const record = (turn_id: string, ts: number, source = "gh"): SignalRecord => ({
   turn_id,
+  event_id: null,
   source,
   event_type: "ci.failed",
   label: null,

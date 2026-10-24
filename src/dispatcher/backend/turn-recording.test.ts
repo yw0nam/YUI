@@ -55,8 +55,8 @@ function signalsTurn(over: Partial<SentTurn> = {}): SentTurn {
       trigger: {
         kind: "signals",
         signals: [
-          groupOf({ source: "a", delivery: "urgent" }),
-          groupOf({ source: "b", label: "CI failed", delivery: "immediate" }),
+          groupOf({ source: "a", delivery: "urgent", event_id: "ea" }),
+          groupOf({ source: "b", label: "CI failed", delivery: "immediate", event_id: "eb" }),
         ],
       },
     } as SentTurn["clientContext"],
@@ -130,6 +130,7 @@ describe("recordSentTurn", () => {
     expect(a.deps.signalHistory.append).toHaveBeenCalledWith([
       {
         turn_id: "t1",
+        event_id: "ea",
         source: "a",
         event_type: "issue.opened",
         label: null,
@@ -139,6 +140,7 @@ describe("recordSentTurn", () => {
       },
       {
         turn_id: "t1",
+        event_id: "eb",
         source: "b",
         event_type: "issue.opened",
         label: "CI failed",
