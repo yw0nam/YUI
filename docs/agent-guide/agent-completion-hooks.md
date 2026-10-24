@@ -10,8 +10,8 @@ silence.
 The ingress listens only while **Settings → Proactive → Watchers → External signals** is
 on, on the port shown in the same section (default `8770`), and a change of the switch or
 port takes effect on the next launch. The listener is loopback-only and carries no
-authentication; a request whose `Host` is not `127.0.0.1`, `localhost` or `::1` is refused
-with 421, and a request whose `Origin` names another host with 403.
+authentication; a request whose `Host` is missing or not `127.0.0.1`, `localhost` or `::1`
+is refused with 421, and a request whose `Origin` names another host with 403.
 
 ## Setup
 

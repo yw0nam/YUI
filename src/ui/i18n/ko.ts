@@ -586,7 +586,7 @@ const ko: Record<string, string> = {
   "reactions.rate_hint":
     "YUI가 먼저 말을 거는 빈도의 상한이에요. 내가 보낸 메시지는 세지 않아요. 비워 두면 기본값을 써요.",
   "reactions.rate_tier2_label": "시간당 말 걸기",
-  "reactions.rate_tier2_sub": "자리 비움, 자발적 말 걸기, 일정, 에이전트 이벤트를 합쳐서 세요",
+  "reactions.rate_tier2_sub": "자발적 말 걸기, 일정, 에이전트, 신호, 마일스톤 턴을 합쳐서 세요",
   "reactions.rate_overall_label": "시간당 먼저 건 대화 전체",
   "reactions.rate_overall_sub": "넘어서면 쿨다운 동안 모두 멈춰요",
   "reactions.rate_urgent_label": "시간당 긴급 신호 턴",

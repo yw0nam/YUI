@@ -2060,7 +2060,7 @@ globalThis.YUI_MAP =
       "id": "hooks-ingress",
       "from": "agent-hooks",
       "to": "shell/agent-ingress",
-      "carries": "POST /agent-event {tool, project, phase, summary, …}, or the same path under /presets/<id>/; deprecated, removed in v0.6.0 for POST /signals",
+      "carries": "hand-installed hooks: POST /agent-event {tool, project, phase, summary, …}, or the same path under /presets/<id>/; deprecated, removed in v0.6.0 for POST /signals",
       "kind": "http",
       "transport": "shared"
     },
@@ -2108,7 +2108,7 @@ globalThis.YUI_MAP =
       "id": "ingress-inbox",
       "from": "shell/agent-ingress",
       "to": "io/bridge/inbox",
-      "carries": "targeted emit_to per window — bare routes → main, /presets/<id>/ → pet-<id>; agent-inbox, signals-inbox (envelope verbatim, label included), avatar-rpc (the avatar and relations routes), ingress-dead; each inbox listens with its own window's label",
+      "carries": "targeted emit_to per window — bare routes → main, /presets/<id>/ → pet-<id>; agent-inbox, signals-inbox (signals, envelope verbatim with its label, and the server ts), avatar-rpc (the avatar and relations routes), ingress-dead; each inbox listens with its own window's label",
       "kind": "tauri-event",
       "transport": "shared"
     },
@@ -3851,7 +3851,7 @@ globalThis.YUI_MAP =
         },
         {
           "from": "senders",
-          "label": "POST /agent-event, POST /signals",
+          "label": "POST /signals, POST /agent-event (deprecated)",
           "edges": [
             "hooks-ingress",
             "agent-hooks-signals",

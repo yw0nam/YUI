@@ -40,7 +40,7 @@ workflow.
 
 ## Limits
 
-- The request body holds at most 64 KiB.
+- The request body holds at most 64 KiB. A larger body receives HTTP 400.
 - One signal item serializes to at most 16 KiB. A request with a larger item receives
   HTTP 400, and none of its items are delivered.
 - Each buffer keeps five groups and drops the oldest on overflow.

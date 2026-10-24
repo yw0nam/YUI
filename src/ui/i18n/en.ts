@@ -588,7 +588,7 @@ const en: Record<string, string> = {
   "reactions.rate_hint":
     "Backstop on how often YUI speaks up on her own. Your own messages are never counted. Empty means the shipped default.",
   "reactions.rate_tier2_label": "Cues per hour",
-  "reactions.rate_tier2_sub": "Idle, proactive, schedule, and agent cues together",
+  "reactions.rate_tier2_sub": "Proactive, schedule, agent, signal, and milestone turns together",
   "reactions.rate_overall_label": "Total self-started turns per hour",
   "reactions.rate_overall_sub": "Crossing it holds every cue for a cooldown",
   "reactions.rate_urgent_label": "Urgent signal turns per hour",

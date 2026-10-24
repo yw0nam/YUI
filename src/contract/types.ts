@@ -286,7 +286,7 @@ export interface TriggerMeta {
       ts: number;
     }>;
   };
-  /** signals.ingress — grouped opaque items forwarded from the /signals ingress. */
+  /** signals.push / signals.batch / signals.catchup / signals.urgent / signals.urgent_catchup — grouped opaque items forwarded from the /signals ingress. */
   signals?: SignalGroup[];
   /** proactive.screen_* — a frontmost-app transition fired this turn. */
   screen?: {

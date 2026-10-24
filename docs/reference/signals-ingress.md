@@ -2,7 +2,7 @@
 
 External producers send signal groups to the loopback HTTP ingress with `POST /signals`.
 The [producer guide](../guide/signals-producer.md) walks through writing a producer.
-The ingress refuses a request whose `Host` is not `127.0.0.1`, `localhost` or `::1` with 421 and a request whose `Origin` names another host with 403.
+The ingress refuses a request whose `Host` is missing or not `127.0.0.1`, `localhost` or `::1` with 421 and a request whose `Origin` names another host with 403.
 The request body contains a `signals` array and a delivery envelope:
 
 ```json
@@ -34,6 +34,8 @@ One listener on one port serves every window. The path chooses the recipient.
 | `/presets/<id>/agent-event` | `pet-<id>` (deprecated: removed in v0.6.0; use `/presets/<id>/signals`) |
 | `/presets/<id>/avatar/state`, `/presets/<id>/avatar/perch-targets`, `/presets/<id>/avatar/command`, `/presets/<id>/relations` | `pet-<id>`; that window answers the request |
 | any other path under `/presets/`, including a route name outside the six above | none: HTTP 404 |
+| an unknown path under `/avatar/` | none: HTTP 404 |
+| any other unknown bare path | none: HTTP 400 |
 | a preset id that exists while its pet window is closed | none: HTTP 503 |
 
 `<id>` is one path segment of ASCII letters, digits, `_` and `-`. The prefix itself, an id
@@ -55,7 +57,8 @@ preset ids exist by the 404 and 503 replies. The ids are opaque keys, not secret
 
 ## Delivery
 
-`delivery` names one of two delivery classes, `urgent` and `batched`. Dropping is a
+`delivery` names one of two delivery classes, `urgent` and `batched`, or the deprecated
+`immediate`. Dropping is a
 producer-side rule: a producer that wants a signal dropped does not send it.
 
 An `urgent` group means the user should hear it now. It fires at once while the user is
@@ -142,8 +145,9 @@ non-null `envelope`. A request with another method on `/signals` or
 Invalid JSON, a missing `signals` array, a missing `envelope`, or an explicit
 `"envelope": null` receives HTTP 400. A request whose `envelope` is any other JSON
 value receives HTTP 200. A request under `/presets/` whose id no preset has, or whose path
-after the id is none of the six routes, receives HTTP 404. A request for a preset id that
-exists while its pet window is not open receives HTTP 503; it is never passed to `main`.
+after the id is none of the six routes, receives HTTP 404. An unknown path under `/avatar/`
+receives HTTP 404; any other unknown bare path receives HTTP 400. A request for a preset id
+that exists while its pet window is not open receives HTTP 503; it is never passed to `main`.
 
 HTTP 200 means that the ingress accepted the wire shape and attempted to emit the
 batch to its target window. It does not confirm receipt or delivery. A non-null envelope is
@@ -155,6 +159,6 @@ signals are disabled, the source drops incoming batches before envelope validati
 logs no envelope warning.
 
 A request with any signal item whose JSON serialization exceeds 16 KiB receives HTTP 400;
-no item of that request is delivered. The body cap is 64 KiB.
+no item of that request is delivered. A request body over 64 KiB receives HTTP 400.
 
 There is no fallback timestamp.

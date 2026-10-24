@@ -57,11 +57,11 @@ Done when: the response code is read.
 | Code | Meaning | What to do |
 |---|---|---|
 | 200 | Accepted for the character | Nothing. The character speaks under the delivery rules. |
-| 404 | No preset has this id, or the path is wrong | Ask the user for the URL again (step 1). |
+| 404 | No preset has this id, or the path after the id is not one of the six routes | Ask the user for the URL again (step 1). |
 | 503 | The preset exists but its window is closed | Ask the user to open the character's window (preset list → "Open window"), then send again. |
-| 400 | The body is not a valid envelope, or one signal item is over 16 KiB | Fix the body against the envelope table and the limits in `signals-ingress.md`. |
+| 400 | The body is not a valid envelope, one signal item is over 16 KiB, the body is over 64 KiB, or a bare path without `/presets/<id>/` is unknown | Fix the body against the envelope table and the limits in `signals-ingress.md`. |
 | 405 | Wrong method | Use POST. |
-| 421 or 403 | The request did not come from this machine | Send from the same machine as YUI, or through an SSH tunnel to 127.0.0.1. |
+| 421 or 403 | The `Host` is missing or names another host, the `Origin` names another host, or the request did not come from this machine | Send from the same machine as YUI, or through an SSH tunnel to 127.0.0.1. |
 | connection refused | The ingress is off or YUI is not running | Ask the user to turn on External signals and restart YUI. |
 
 Done when: the code is 200, or the user has been told the one action that the table names.
@@ -78,7 +78,7 @@ Done when: the code is 200, or the user has been told the one action that the ta
 ## Reference
 
 - Route table, envelope fields, delivery and buffering rules: `docs/reference/signals-ingress.md`.
-- Coding-agent lifecycle hooks (`/agent-event`, same prefix rule): `docs/agent-guide/agent-completion-hooks.md`.
+- Coding-agent lifecycle hooks (the `yui-notify` plugin posts to `/signals`; `/agent-event` is deprecated, removed in v0.6.0, same prefix rule): `docs/agent-guide/agent-completion-hooks.md`.
 - The avatar routes `/presets/<id>/avatar/state`, `/presets/<id>/avatar/perch-targets`,
   `/presets/<id>/avatar/command` follow the same prefix rule and move that character's body.
 - `/presets/<id>/relations` follows the same prefix rule and reads or replaces that character's

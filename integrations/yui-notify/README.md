@@ -51,7 +51,8 @@ Every signal POSTs to `<endpoint>/signals` with:
   `pending` for `agent.needs_input`
 
 The `summary` of a `done` item is the last assistant message as it is up to 700
-characters; a longer message keeps its first 200 and last 500 characters.
+characters; a longer message keeps the first 200 and the last 500 characters,
+joined by an ellipsis line.
 
 The delivery classes and the envelope fields are in the
 [signals ingress reference](../../docs/reference/signals-ingress.md) and the
