@@ -4,8 +4,9 @@
  * Pure renderer — firing ≠ judgment: this only *draws* the delegations list the push socket
  * feeds and the state that socket reports. While the socket is ready it carries the running
  * count and its tap toggles the list popover; while it is connecting, reconnecting or failed
- * it carries one lost-connection wording and its tap opens the settings window, where the
- * cause is named; while it is disconnected — no transport in use — it draws nothing.
+ * it names that state in the Connection tab's words, and its tap opens the settings panel's
+ * Connection tab, which holds the reconnect action; while it is disconnected — no transport in
+ * use — it draws nothing.
  * A held press folds the chip to its dot, and the fold is a per-device choice.
  */
 
@@ -41,7 +42,7 @@ interface DelegationChipOptions {
    * failed read as a lost connection.
    */
   pushState: PushStatePort;
-  /** Opens the settings window at the chat section — what a tap does while the connection is lost. */
+  /** Opens the settings panel's Connection tab — what a tap does while the connection is lost. */
   onOpenSettings: () => void;
   /** Starts hidden, for a window that has nothing to report yet. */
   suppressed?: boolean;
@@ -148,6 +149,18 @@ export function createDelegationChip({
     requestAnimationFrame(() => el.classList.add("is-visible"));
   }
 
+  /** The Connection tab's wording for a live loss, so the chip and the tab name one cause. */
+  function lostLabel(state: PushSocketState): string {
+    switch (state.kind) {
+      case "reconnecting":
+        return t("svc.chat_status_reconnecting", { seconds: Math.ceil(state.delay_ms / 1000) });
+      case "failed":
+        return t("svc.chat_status_refused");
+      default:
+        return t("svc.chat_status_connecting");
+    }
+  }
+
   function refresh(): void {
     const kind = pushState.getState().kind;
     // disconnected means no transport is in use — nothing was asked to be up, so nothing is lost.
@@ -156,7 +169,7 @@ export function createDelegationChip({
       hide();
       return;
     }
-    // Every live loss reads the same here; the cause is named in the settings window.
+    // Every live loss shows the red dot; the label names which loss.
     const lost = kind !== "ready";
     el.classList.toggle("is-lost", lost);
     if (suppressed) {
@@ -167,7 +180,7 @@ export function createDelegationChip({
       clearRefreshTimer();
       closeList();
       chipBtn.removeAttribute("aria-expanded");
-      labelEl.textContent = t("deleg.chip_lost");
+      labelEl.textContent = lostLabel(pushState.getState());
       countEl.textContent = "";
       show();
       return;
