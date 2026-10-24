@@ -47,7 +47,7 @@ export async function pickVoiceFile(
   const d = deps ?? (await defaultCopyDeps());
   const picked = await d.invoke<(ImportedVoice & { seedName: string }) | null>(
     "import_voice_file",
-    { desiredName: stagingId },
+    { stagingId },
   );
   if (!picked) return null;
   let ref_url: string;

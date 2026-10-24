@@ -324,6 +324,7 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
   async function startPendingImport(): Promise<void> {
     if (importing || picking || pendingImport !== null) return; // one picker at a time
     picking = true;
+    cfg.importErrorEl.hidden = true;
     try {
       const picked = await cfg.pickImport!();
       if (picked === null) return; // cancelled at the OS picker

@@ -152,7 +152,7 @@ export function createVoiceImportFlow(deps: {
       speakerSelection.select(option.id);
     } catch (err) {
       await cleanUp();
-      log.error("imported_voice_upload_failed", { error: String(err) });
+      log.error("voice_import_failed", { error: String(err) });
       throw err;
     }
   };

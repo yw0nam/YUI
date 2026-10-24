@@ -227,12 +227,12 @@ fn rename_user_voice_at(
 }
 
 /// Open the audio picker here and copy the picked file into
-/// `<app_data_dir>/references/<desired_name>/clip.<ext>`, returning the staged copy plus the
+/// `<app_data_dir>/references/<staging_id>/clip.<ext>`, returning the staged copy plus the
 /// picked file's stem (the naming row's seed). `None` when the picker is dismissed.
 #[command]
 pub async fn import_voice_file(
     app: AppHandle,
-    desired_name: String,
+    staging_id: String,
 ) -> Result<Option<ImportedVoiceFile>, String> {
     let Some(picked) = app
         .dialog()
@@ -242,9 +242,10 @@ pub async fn import_voice_file(
     else {
         return Ok(None);
     };
-    let src = picked
-        .into_path()
-        .map_err(|_| "source file not found".to_string())?;
+    let src = picked.into_path().map_err(|e| {
+        log::error!("source_path_unavailable error={e}");
+        "source file not found".to_string()
+    })?;
     let ext = src.extension().and_then(|e| e.to_str()).unwrap_or("");
     if !is_allowed_audio_ext(ext) {
         return Err("unsupported audio type".to_string());
@@ -258,7 +259,7 @@ pub async fn import_voice_file(
 
     let references_dir = app_data_subdir(&app, "references")?;
     tauri::async_runtime::spawn_blocking(move || {
-        copy_into_references(&references_dir, &src, &ext_lower, &desired_name)
+        copy_into_references(&references_dir, &src, &ext_lower, &staging_id)
     })
     .await
     .map_err(|e| {
