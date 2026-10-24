@@ -25,6 +25,7 @@ const EMPTY: EndpointOverrides = {
   chat_base_url: "",
   stt_base_url: "",
   stt_model: "",
+  stt_language: "",
   tts_base_url: "",
   tts_model: "",
   broker_base_url: "",
@@ -575,9 +576,9 @@ describe("ENDPOINT_FIELD_SPECS", () => {
     );
   });
 
-  it("assigns kind 'string' to stt_model, tts_model and chat_model", () => {
+  it("assigns kind 'string' to stt_model, stt_language, tts_model and chat_model", () => {
     const stringKeys = ENDPOINT_FIELD_SPECS.filter((s) => s.kind === "string").map((s) => s.key);
-    expect(stringKeys).toEqual(["stt_model", "tts_model", "chat_model"]);
+    expect(stringKeys).toEqual(["stt_model", "stt_language", "tts_model", "chat_model"]);
   });
 
   it("assigns kind 'posInt' to chat_model_context_window only", () => {
@@ -612,8 +613,8 @@ describe("ENDPOINT_FIELD_SPECS — resetGroup (endpoints-section.ts per-service 
     expect(bySvc("chat")).toEqual(["chat_api", "chat_base_url", "chat_model"].sort());
   });
 
-  it("stt reset group is stt_base_url + stt_model", () => {
-    expect(bySvc("stt")).toEqual(["stt_base_url", "stt_model"].sort());
+  it("stt reset group is stt_base_url + stt_model + stt_language", () => {
+    expect(bySvc("stt")).toEqual(["stt_base_url", "stt_model", "stt_language"].sort());
   });
 
   it("tts reset group is tts_base_url + tts_model + tts_provider", () => {
@@ -676,6 +677,7 @@ describe("endpointDefaultsFromConfig", () => {
       chat_base_url: "http://localhost:8643/v1",
       stt_base_url: "http://localhost:5517",
       stt_model: "",
+      stt_language: "",
       tts_base_url: "http://localhost:8092",
       tts_model: "irodori-tts",
       broker_base_url: "",

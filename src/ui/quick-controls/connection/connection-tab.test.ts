@@ -238,7 +238,9 @@ describe("createConnectionTab", () => {
     const tab = build(PHONE_ROWS);
 
     const lang = tab.el.querySelector<HTMLInputElement>("#yui-ep-stt_language")!;
-    const options = [...tab.el.querySelectorAll<HTMLOptionElement>(`#${lang.getAttribute("list")} option`)];
+    const options = [
+      ...tab.el.querySelectorAll<HTMLOptionElement>(`#${lang.getAttribute("list")} option`),
+    ];
     expect(options.map((o) => o.value)).toEqual(["auto", "en", "ja"]);
 
     lang.value = "ko";

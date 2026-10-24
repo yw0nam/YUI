@@ -240,6 +240,7 @@ Key reference:
 | `chat_instructions` | expression prompt | System-level nudge on how to use `generate_express`; appended to the card, sent as `instructions` (Responses) or the first system message (Chat Completions) |
 | `stt_base_url` | unset | STT server base URL |
 | `stt_model` | unset | `model` sent to the STT server; omitted when unset |
+| `stt_language` | unset | `language` sent to the STT server, an ISO-639-1 code such as `ja`; omitted when unset or `auto`, and the server detects the language. The Connection tab's STT language field suggests Auto, English, and Japanese and takes any other code |
 | `tts_provider` | `irodori` | TTS engine at `tts_base_url`: `irodori`, `openai`, or `fish` |
 | `tts_base_url` | unset | TTS server root without `/v1` |
 | `tts_model` | `irodori-tts` | Model sent to the TTS server — Irodori/OpenAI as the request's `model` field (must match the server's configured name), Fish as a `model` HTTP header (an S2-family id) |

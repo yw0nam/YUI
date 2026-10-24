@@ -60,8 +60,10 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
     );
   }
   const tts_provider = isTtsProvider(rawTtsProvider) ? rawTtsProvider : undefined;
-  // stt_model / tts_model / tts_speaker: optional. The service default applies when unset.
-  const optStr = (k: "stt_model" | "tts_model" | "tts_speaker"): string | undefined => {
+  // stt_model / stt_language / tts_model / tts_speaker: optional. The service default applies when unset.
+  const optStr = (
+    k: "stt_model" | "stt_language" | "tts_model" | "tts_speaker",
+  ): string | undefined => {
     const v = raw[k];
     if (v !== undefined && (typeof v !== "string" || v.trim() === "")) {
       issues.push(`${k} must be a non-blank string (got: ${JSON.stringify(v)})`);
@@ -72,6 +74,7 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   const tts_model = optStr("tts_model");
   const tts_speaker = optStr("tts_speaker");
   const stt_model = optStr("stt_model");
+  const stt_language = optStr("stt_language");
   // Deprecated: removed in v0.6.0. Use client-declared tools (src/io/chat/tools/client-tools.ts).
   // broker_base_url: optional. If set, must be an http(s) URL (Expression Broker MCP endpoint).
   let broker_base_url: string | undefined;
@@ -113,6 +116,7 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
     ...(chat_api !== undefined ? { chat_api } : {}),
     stt_base_url,
     ...(stt_model !== undefined ? { stt_model } : {}),
+    ...(stt_language !== undefined ? { stt_language } : {}),
     tts_base_url,
     ...(tts_provider !== undefined ? { tts_provider } : {}),
     ...(tts_model !== undefined ? { tts_model } : {}),

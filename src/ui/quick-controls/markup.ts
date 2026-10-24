@@ -24,9 +24,19 @@ export function selectRowHtml(id: string, labelKey: string, controlHtml: string)
 
 // Endpoint field row template. Label/placeholder/value left empty, filled by the tab's reflect.
 // Use type="text" and control validation message directly (avoid browser default URL validation).
-export function endpointRowHtml(key: keyof EndpointOverrides): string {
+// `suggestions` renders a datalist: the input offers those values and still takes free text.
+export function endpointRowHtml(
+  key: keyof EndpointOverrides,
+  suggestions: readonly { value: string; labelKey: string }[] = [],
+): string {
   const def = ENDPOINT_FIELDS.find((f) => f.key === key)!;
   const errId = `yui-ep-err-${key}`;
+  const listId = `yui-ep-list-${key}`;
+  const listAttr = suggestions.length > 0 ? ` list="${listId}"` : "";
+  const listHtml =
+    suggestions.length > 0
+      ? `<datalist id="${listId}">${suggestions.map((s) => `<option value="${s.value}">${t(s.labelKey)}</option>`).join("")}</datalist>`
+      : "";
   const urlClass = def.url ? " yui-ep-input--url" : "";
   const errHtml = def.url
     ? `<p class="yui-input-row__error" id="${errId}" role="status">${t("endpoints.url_error")}</p>`
@@ -39,7 +49,8 @@ export function endpointRowHtml(key: keyof EndpointOverrides): string {
             </div>
             <div class="yui-input-wrap">
               <input class="yui-ep-input${urlClass}" id="yui-ep-${key}" type="text" spellcheck="false"
-                inputmode="${def.url ? "url" : "text"}" autocapitalize="off" autocomplete="off" />
+                inputmode="${def.url ? "url" : "text"}" autocapitalize="off" autocomplete="off"${listAttr} />
+              ${listHtml}
             </div>
             ${errHtml}
           </div>`;

@@ -40,6 +40,7 @@ const emptyEndpointOverrides = {
   chat_base_url: "",
   stt_base_url: "",
   stt_model: "",
+  stt_language: "",
   tts_base_url: "",
   tts_model: "",
   broker_base_url: "",

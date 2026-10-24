@@ -407,6 +407,8 @@ export interface EndpointsConfig {
   stt_base_url: string;
   /** /audio/transcriptions `model`. Omitted from the request when unset. */
   stt_model?: string;
+  /** /audio/transcriptions `language` (ISO-639-1, e.g. "ja"). Unset or "auto" = omitted, so the server detects it. */
+  stt_language?: string;
   /** TTS server root, without `/v1` — the synth appends `/v1/audio/speech`. `""` = TTS off. */
   tts_base_url: string;
   /** Which TTS engine sits at tts_base_url; it decides the request shape and the voice list. Unset = `irodori`. */

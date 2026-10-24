@@ -62,6 +62,13 @@ export interface ConnectionTab {
   dispose(): void;
 }
 
+// "auto" omits `language` from the request; any other ISO-639-1 code can be typed.
+const STT_LANGUAGE_SUGGESTIONS = [
+  { value: "auto", labelKey: "endpoints.stt_language.auto" },
+  { value: "en", labelKey: "endpoints.stt_language.en" },
+  { value: "ja", labelKey: "endpoints.stt_language.ja" },
+] as const;
+
 function sttSectionHtml(rows: ConnectionRows): string {
   // The disabled type row names the protocol; the desktop rows render it, the phone drops it.
   const typeRow =
@@ -79,6 +86,7 @@ function sttSectionHtml(rows: ConnectionRows): string {
             ${typeRow}
             ${endpointRowHtml("stt_base_url")}
             ${endpointRowHtml("stt_model")}
+            ${endpointRowHtml("stt_language", STT_LANGUAGE_SUGGESTIONS)}
             ${keyRowHtml("sttkey")}
             ${svcResetRowHtml("stt")}
           </div>

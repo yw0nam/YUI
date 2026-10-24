@@ -12,6 +12,7 @@ describe("ENDPOINT_FIELDS", () => {
       ["chat_base_url", true],
       ["stt_base_url", true],
       ["stt_model", false],
+      ["stt_language", false],
       ["tts_base_url", true],
       ["tts_model", false],
       ["broker_base_url", true],

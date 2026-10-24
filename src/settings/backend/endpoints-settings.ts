@@ -24,6 +24,7 @@ export interface EndpointOverrides {
   chat_base_url: string;
   stt_base_url: string;
   stt_model: string;
+  stt_language: string;
   tts_base_url: string;
   tts_model: string;
   broker_base_url: string;
@@ -78,6 +79,12 @@ export const ENDPOINT_FIELD_SPECS = [
   },
   { key: "stt_base_url", kind: "url", labelKey: "endpoints.stt_base_url.label", resetGroup: "stt" },
   { key: "stt_model", kind: "string", labelKey: "endpoints.stt_model.label", resetGroup: "stt" },
+  {
+    key: "stt_language",
+    kind: "string",
+    labelKey: "endpoints.stt_language.label",
+    resetGroup: "stt",
+  },
   { key: "tts_base_url", kind: "url", labelKey: "endpoints.tts_base_url.label", resetGroup: "tts" },
   { key: "tts_model", kind: "string", labelKey: "endpoints.tts_model.label", resetGroup: "tts" },
   // Deprecated: removed in v0.6.0. Use client-declared tools (src/io/chat/tools/client-tools.ts).
