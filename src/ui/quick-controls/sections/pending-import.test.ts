@@ -58,7 +58,7 @@ describe("createPendingImport", () => {
 
     void flow.start();
     await flush();
-    await flow.start();
+    void flow.start();
     await flush();
 
     expect(pickImport).toHaveBeenCalledTimes(1);
