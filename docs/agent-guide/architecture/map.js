@@ -1128,7 +1128,7 @@ globalThis.YUI_MAP =
       "id": "ui/chips",
       "module": "display",
       "label": "chips",
-      "role": "The status pill, which names a client-run tool's action, the delegation chip, the signal chip and its card, and the voice-input status model.",
+      "role": "The status pill, which names a client-run tool's action, the delegation chip, the signal chip and its details sheet, and the voice-input status model.",
       "paths": [
         "src/ui/chips"
       ]
@@ -3042,10 +3042,10 @@ globalThis.YUI_MAP =
       "id": "signals-chips",
       "from": "dispatcher/sources/inbox",
       "to": "ui/chips",
-      "carries": "each parsed signal group, buffered or not → signal chip (onArrival)",
+      "carries": "each parsed signal group, buffered or not → signal chip (onArrival, passed from bootstrap-configured through wireDispatcherSources)",
       "kind": "call",
       "transport": "shared",
-      "wiring": "src/app/signal-chips/wire-signal-chips.ts"
+      "wiring": "src/app/turn/wire-sources.ts"
     },
     {
       "id": "history-chips",
@@ -3176,7 +3176,7 @@ globalThis.YUI_MAP =
       "id": "chips-user",
       "from": "ui/chips",
       "to": "user",
-      "carries": "status pill, delegation chip, signal chips and their card",
+      "carries": "status pill, delegation chip, signal chips and their details sheet",
       "kind": "user",
       "transport": "shared"
     },

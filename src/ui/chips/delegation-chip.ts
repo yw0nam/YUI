@@ -16,9 +16,7 @@ import type { DelegationChipSettingsStore } from "../../settings/panels/delegati
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { afterFadeOut } from "../notices/fade-out";
 import { DELEGATION_REFRESH_MS, renderDelegationRows } from "./delegation-rows";
-
-/** How long a press must hold before it folds the chip. */
-export const FOLD_PRESS_MS = 500;
+import { holdToFold } from "./hold-to-fold";
 
 /** Where the push socket stands, as the chip reads it — the real socket or a window's mirror. */
 export interface PushStatePort {
@@ -197,37 +195,10 @@ export function createDelegationChip({
     if (isFolded) closeList();
   }
 
-  // A press held past FOLD_PRESS_MS folds; its release's click is swallowed so it doesn't
-  // also toggle the list.
-  let foldTimer: ReturnType<typeof setTimeout> | null = null;
-  let folded = false;
-
-  function clearFold(): void {
-    if (foldTimer !== null) {
-      clearTimeout(foldTimer);
-      foldTimer = null;
-    }
-  }
-
-  function onPointerDown(): void {
-    clearFold();
-    folded = false;
-    foldTimer = setTimeout(() => {
-      foldTimer = null;
-      folded = true;
-      collapsed.setCollapsed(true);
-    }, FOLD_PRESS_MS);
-  }
-
-  function onPointerEnd(): void {
-    clearFold();
-  }
+  const fold = holdToFold(chipBtn, collapsed);
 
   function onClick(): void {
-    if (folded) {
-      folded = false;
-      return;
-    }
+    if (fold.swallowClick()) return;
     if (collapsed.get().collapsed) {
       collapsed.setCollapsed(false);
       return;
@@ -240,10 +211,6 @@ export function createDelegationChip({
     else openList();
   }
 
-  chipBtn.addEventListener("pointerdown", onPointerDown);
-  chipBtn.addEventListener("pointerup", onPointerEnd);
-  chipBtn.addEventListener("pointercancel", onPointerEnd);
-  chipBtn.addEventListener("pointerleave", onPointerEnd);
   chipBtn.addEventListener("click", onClick);
 
   listTitleEl.textContent = t("deleg.list_title");
@@ -261,7 +228,6 @@ export function createDelegationChip({
 
   function dispose(): void {
     clearRefreshTimer();
-    clearFold();
     document.removeEventListener("keydown", onListKeydown);
     cancelListFade?.();
     cancelHideFade?.();
@@ -269,10 +235,7 @@ export function createDelegationChip({
     unsubscribePushState();
     unsubscribeCollapsed();
     unsubscribeLocale();
-    chipBtn.removeEventListener("pointerdown", onPointerDown);
-    chipBtn.removeEventListener("pointerup", onPointerEnd);
-    chipBtn.removeEventListener("pointercancel", onPointerEnd);
-    chipBtn.removeEventListener("pointerleave", onPointerEnd);
+    fold.dispose();
     chipBtn.removeEventListener("click", onClick);
     el.remove();
   }

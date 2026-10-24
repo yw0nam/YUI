@@ -124,12 +124,12 @@ describe("createSignalChips", () => {
 
     click(opener(0));
 
-    const card = mount.querySelector(".yui-sigdetails")!;
+    const sheet = mount.querySelector(".yui-sigdetails")!;
     expect(opener(0).getAttribute("aria-expanded")).toBe("true");
-    expect(card.querySelector(".yui-sigdetails__said")!.textContent).toBe(
+    expect(sheet.querySelector(".yui-sigdetails__said")!.textContent).toBe(
       "\u201CThe build broke.\u201D",
     );
-    expect(card.querySelector(".yui-sigdetails__items")!.textContent).toBe(
+    expect(sheet.querySelector(".yui-sigdetails__items")!.textContent).toBe(
       '[\n {\n  "run": 1\n }\n]',
     );
 

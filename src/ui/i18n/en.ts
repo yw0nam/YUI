@@ -664,12 +664,12 @@ const en: Record<string, string> = {
   "sigchip.dismiss": "Dismiss",
   "sigchip.close": "Close",
   "sigchip.more": "+{n}",
+  "sigchip.more_aria": "Show {n} more signals",
   "sigchip.collapse": "Collapse",
   "sigchip.kind": "Kind",
   "sigchip.label": "Label",
   "sigchip.received": "Received",
-  "sigchip.silent": "Did not speak",
-  "sigchip.card_aria": "Signal details",
+  "sigchip.details_aria": "Signal details",
   "sigchip.chip_aria": "{delivery} from {source}: {text}",
 
   // reasoning

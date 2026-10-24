@@ -28,7 +28,7 @@
   flex-wrap: wrap;
 }
 
-/* The chip is absolutely placed beside the character; here display: contents unwraps it
+/* Beside the character the chip sits in the chip column; here display: contents unwraps it
    so the chip button and the list become direct flex items of the row. */
 .yui-ui--message .yui-deleg {
   display: contents;

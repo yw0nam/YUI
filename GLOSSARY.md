@@ -99,7 +99,7 @@ How urgent a signal group is, chosen by the producer: `urgent` (handle now) or `
 _Avoid_: tier, urgency, priority
 
 **Signal chip**:
-The pill beside the avatar for one signal group, with a card on tap and a cross to dismiss; in memory only.
+The pill beside the avatar for one signal group, with a details sheet on tap and a cross to dismiss; in memory only.
 
 **Mod**:
 A standalone MCP server the brain uses (avatar, browser-cdp, desktop-control, shell-sandbox). Not part of the app runtime.

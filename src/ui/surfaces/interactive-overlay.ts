@@ -14,6 +14,5 @@ export const INTERACTIVE_OVERLAY_SELECTORS = [
   ".yui-deleg.is-visible .yui-deleg__list.is-open",
   ".yui-sigchips.is-visible .yui-sigchip",
   ".yui-sigchips.is-visible .yui-sigchip__more",
-  ".yui-sigchips.is-visible .yui-sigchip__collapse",
-  ".yui-sigcard",
+  ".yui-sigdetails",
 ] as const;

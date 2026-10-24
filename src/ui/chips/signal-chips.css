@@ -1,7 +1,8 @@
-/* YUI signal chips — one pill per signal group above the delegation chip, with a card on tap.
+/* YUI signal chips — one pill per signal group above the delegation chip, with a details sheet on tap.
    Same pill family as the delegation chip. Tokens live in ../tokens.css. */
 
 .yui-sigchips {
+  --yui-sigchip-h: 1.75rem;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -22,15 +23,20 @@
   pointer-events: auto;
 }
 
-/* Expanded past three: the column scrolls inside once eight chips are shown. */
+/* Expanded past three: exactly eight rows show, then the column scrolls inside. The padding and
+   the matching negative margin keep the Float shadow inside the scroll box. */
 .yui-sigchips.is-expanded {
-  max-height: 18rem;
+  max-height: calc(8 * var(--yui-sigchip-h) + 7 * 0.4rem);
+  padding: 0.75rem;
+  margin: -0.75rem;
   overflow-y: auto;
 }
 
 .yui-sigchip {
   display: inline-flex;
   align-items: center;
+  box-sizing: border-box;
+  height: var(--yui-sigchip-h);
   max-width: min(20rem, 100%);
   border-radius: var(--yui-radius-pill);
   background: var(--yui-scrim-strong);
@@ -92,7 +98,6 @@
 .yui-sigchip__x svg {
   width: 0.65rem;
   height: 0.65rem;
-  stroke-width: 2;
 }
 
 .yui-sigchip__dot {
@@ -109,12 +114,11 @@
   box-shadow: 0 0 0 3px var(--yui-accent-faint);
 }
 
-/* The urgent dot pulses while the chip shows: the signal needs the user now. Named by DESIGN.md's
-   One-Pulse Rule; a deliberate departure from PRODUCT.md principle 5. */
+/* The urgent dot's halo pulses while the chip shows: the signal needs the user now, a deliberate exception to calm-by-default. */
 .yui-sigchip--urgent .yui-sigchip__dot {
   background: var(--yui-danger);
   box-shadow: 0 0 0 3px var(--yui-danger-faint);
-  animation: yui-sigchip-beat 1.8s ease-in-out infinite;
+  animation: yui-sigchip-beat 1.8s var(--yui-ease) infinite;
 }
 
 @keyframes yui-sigchip-beat {
@@ -133,9 +137,10 @@
   }
 }
 
-.yui-sigchip__more,
-.yui-sigchip__collapse {
-  padding: 0.3rem 0.66rem;
+.yui-sigchip__more {
+  box-sizing: border-box;
+  height: var(--yui-sigchip-h);
+  padding: 0 0.66rem;
   border-radius: var(--yui-radius-pill);
   background: var(--yui-scrim-strong);
   border: 1px solid var(--yui-edge);
@@ -151,8 +156,7 @@
 .yui-sigchips.is-mini .yui-sigchip__src,
 .yui-sigchips.is-mini .yui-sigchip__text,
 .yui-sigchips.is-mini .yui-sigchip__x,
-.yui-sigchips.is-mini .yui-sigchip__more,
-.yui-sigchips.is-mini .yui-sigchip__collapse {
+.yui-sigchips.is-mini .yui-sigchip__more {
   display: none;
 }
 
@@ -161,8 +165,8 @@
   padding: 0.3rem 0.4rem;
 }
 
-/* The card hangs under the whole chip column, its right edge 0.5rem inside the window. */
-.yui-sigcard {
+/* The details sheet hangs under the whole chip column, its right edge 0.5rem inside the window. */
+.yui-sigdetails {
   position: absolute;
   top: calc(100% + 0.4rem);
   right: 0.5rem;
@@ -181,14 +185,14 @@
   animation: yui-sigchip-in var(--yui-dur-fast) var(--yui-ease);
 }
 
-.yui-sigcard__head {
+.yui-sigdetails__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
 }
 
-.yui-sigcard__close {
+.yui-sigdetails__close {
   display: grid;
   place-items: center;
   flex: none;
@@ -199,35 +203,34 @@
   cursor: pointer;
 }
 
-.yui-sigcard__close svg {
+.yui-sigdetails__close svg {
   width: 0.75rem;
   height: 0.75rem;
-  stroke-width: 2;
 }
 
-.yui-sigcard__rows {
+.yui-sigdetails__rows {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 0.15rem 0.6rem;
   margin: 0;
 }
 
-.yui-sigcard__rows dt {
+.yui-sigdetails__rows dt {
   color: var(--yui-text-mute);
 }
 
-.yui-sigcard__rows dd {
+.yui-sigdetails__rows dd {
   margin: 0;
   overflow-wrap: anywhere;
 }
 
-.yui-sigcard__said {
+.yui-sigdetails__said {
   margin: 0;
   color: var(--yui-text-mute);
   font-style: italic;
 }
 
-.yui-sigcard__items {
+.yui-sigdetails__items {
   max-height: 110px;
   margin: 0;
   padding: 0.3rem 0.4rem;
@@ -239,7 +242,7 @@
   overflow-wrap: anywhere;
 }
 
-.yui-sigcard__dismiss {
+.yui-sigdetails__dismiss {
   align-self: flex-end;
   padding: 0.2rem 0.5rem;
   background: none;
