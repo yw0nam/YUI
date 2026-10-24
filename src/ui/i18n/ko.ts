@@ -462,6 +462,7 @@ const ko: Record<string, string> = {
   "endpoints.stt_base_url.label": "음성 인식(STT) 서버 URL",
   "endpoints.stt_model.label": "STT 모델",
   "endpoints.stt_language.label": "STT 언어",
+  "endpoints.stt_language.sub": "비우면 언어를 자동 감지해요",
   "endpoints.stt_language.auto": "자동",
   "endpoints.stt_language.en": "영어",
   "endpoints.stt_language.ja": "일본어",

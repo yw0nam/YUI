@@ -25,9 +25,13 @@ export function selectRowHtml(id: string, labelKey: string, controlHtml: string)
 // Endpoint field row template. Label/placeholder/value left empty, filled by the tab's reflect.
 // Use type="text" and control validation message directly (avoid browser default URL validation).
 // `suggestions` renders a datalist: the input offers those values and still takes free text.
+// `subKey` replaces the generic "leave empty" hint when empty means something specific.
 export function endpointRowHtml(
   key: keyof EndpointOverrides,
-  suggestions: readonly { value: string; labelKey: string }[] = [],
+  {
+    suggestions = [],
+    subKey = "endpoints.field_sub",
+  }: { suggestions?: readonly { value: string; labelKey: string }[]; subKey?: string } = {},
 ): string {
   const def = ENDPOINT_FIELDS.find((f) => f.key === key)!;
   const errId = `yui-ep-err-${key}`;
@@ -47,7 +51,7 @@ export function endpointRowHtml(
           <div class="yui-row yui-input-row" data-ep-field="${key}">
             <div class="yui-row__main">
               <label class="yui-input-row__label" for="yui-ep-${key}">${t(def.labelKey)}</label>
-              <span class="yui-input-row__sub">${t("endpoints.field_sub")}</span>
+              <span class="yui-input-row__sub">${t(subKey)}</span>
             </div>
             <div class="yui-input-wrap">
               <input class="yui-ep-input${urlClass}" id="yui-ep-${key}" type="text" spellcheck="false"

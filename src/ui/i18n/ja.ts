@@ -466,6 +466,7 @@ const ja: Record<string, string> = {
   "endpoints.stt_base_url.label": "音声認識 (STT) サーバー URL",
   "endpoints.stt_model.label": "STTモデル",
   "endpoints.stt_language.label": "STT言語",
+  "endpoints.stt_language.sub": "空欄にすると言語を自動検出します",
   "endpoints.stt_language.auto": "自動",
   "endpoints.stt_language.en": "英語",
   "endpoints.stt_language.ja": "日本語",

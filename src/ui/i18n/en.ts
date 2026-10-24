@@ -463,6 +463,7 @@ const en: Record<string, string> = {
   "endpoints.stt_base_url.label": "Speech recognition (STT) server URL",
   "endpoints.stt_model.label": "STT model",
   "endpoints.stt_language.label": "STT language",
+  "endpoints.stt_language.sub": "Leave empty to auto-detect",
   "endpoints.stt_language.auto": "Auto",
   "endpoints.stt_language.en": "English",
   "endpoints.stt_language.ja": "Japanese",

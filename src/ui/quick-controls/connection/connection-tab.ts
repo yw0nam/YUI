@@ -79,7 +79,7 @@ function sttSectionHtml(rows: ConnectionRows): string {
             ${typeRow}
             ${endpointRowHtml("stt_base_url")}
             ${endpointRowHtml("stt_model")}
-            ${endpointRowHtml("stt_language", STT_LANGUAGE_SUGGESTIONS)}
+            ${endpointRowHtml("stt_language", { suggestions: STT_LANGUAGE_SUGGESTIONS, subKey: "endpoints.stt_language.sub" })}
             ${keyRowHtml("sttkey")}
             ${svcResetRowHtml("stt")}
           </div>
