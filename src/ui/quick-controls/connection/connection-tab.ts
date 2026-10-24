@@ -15,7 +15,7 @@ import type {
   EndpointOverrides,
 } from "../../../settings/backend/endpoints-settings";
 import { t } from "../../i18n";
-import { ENDPOINT_FIELDS, TTS_PROVIDER_PRESETS } from "../constants";
+import { ENDPOINT_FIELDS, STT_LANGUAGE_SUGGESTIONS, TTS_PROVIDER_PRESETS } from "../constants";
 import {
   endpointRowHtml,
   keyRowHtml,
@@ -61,13 +61,6 @@ export interface ConnectionTab {
   close(): void;
   dispose(): void;
 }
-
-// "auto" omits `language` from the request; any other ISO-639-1 code can be typed.
-const STT_LANGUAGE_SUGGESTIONS = [
-  { value: "auto", labelKey: "endpoints.stt_language.auto" },
-  { value: "en", labelKey: "endpoints.stt_language.en" },
-  { value: "ja", labelKey: "endpoints.stt_language.ja" },
-] as const;
 
 function sttSectionHtml(rows: ConnectionRows): string {
   // The disabled type row names the protocol; the desktop rows render it, the phone drops it.

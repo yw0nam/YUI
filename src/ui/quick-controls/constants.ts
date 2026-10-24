@@ -219,6 +219,13 @@ export const TTS_PROVIDER_PRESETS: readonly TtsProviderPreset[] = [
   { id: "fish", name: "Fish Audio", url: "https://api.fish.audio", model: "s2.1-pro-free" },
 ];
 
+// STT language suggestions; "auto" omits `language` from the request, and any other ISO-639-1 code can be typed.
+export const STT_LANGUAGE_SUGGESTIONS = [
+  { value: "auto", labelKey: "endpoints.stt_language.auto" },
+  { value: "en", labelKey: "endpoints.stt_language.en" },
+  { value: "ja", labelKey: "endpoints.stt_language.ja" },
+] as const;
+
 // Tab icons — same line-icon vocabulary as other icon buttons (1.5 stroke, 24x24 viewBox).
 // Input icon reuses the same path as the voice_input row icon in the input tab.
 export const TAB_ICON_CONN = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 7.5V4M15 7.5V4M12 16.5V20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M7 7.5h10v4a5 5 0 0 1-10 0v-4Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;

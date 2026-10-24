@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { ENDPOINT_FIELDS } from "./constants";
 
 describe("ENDPOINT_FIELDS", () => {
-  it("lists exactly the 7 url/string-kind fields, in table order, url-validating the 4 urls", () => {
+  it("lists exactly the 8 url/string-kind fields, in table order, url-validating the 4 urls", () => {
     expect(ENDPOINT_FIELDS.map((f) => [f.key, f.url])).toEqual([
       ["chat_base_url", true],
       ["stt_base_url", true],

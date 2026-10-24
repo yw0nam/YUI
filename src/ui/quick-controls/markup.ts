@@ -32,11 +32,13 @@ export function endpointRowHtml(
   const def = ENDPOINT_FIELDS.find((f) => f.key === key)!;
   const errId = `yui-ep-err-${key}`;
   const listId = `yui-ep-list-${key}`;
-  const listAttr = suggestions.length > 0 ? ` list="${listId}"` : "";
-  const listHtml =
+  const [listAttr, listHtml] =
     suggestions.length > 0
-      ? `<datalist id="${listId}">${suggestions.map((s) => `<option value="${s.value}">${t(s.labelKey)}</option>`).join("")}</datalist>`
-      : "";
+      ? [
+          ` list="${listId}"`,
+          `<datalist id="${listId}">${suggestions.map((s) => `<option value="${s.value}">${t(s.labelKey)}</option>`).join("")}</datalist>`,
+        ]
+      : ["", ""];
   const urlClass = def.url ? " yui-ep-input--url" : "";
   const errHtml = def.url
     ? `<p class="yui-input-row__error" id="${errId}" role="status">${t("endpoints.url_error")}</p>`

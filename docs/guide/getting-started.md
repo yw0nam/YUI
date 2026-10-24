@@ -219,7 +219,7 @@ Serve any OpenAI-compatible transcription server at the configured URL, then set
 "stt_base_url": "http://localhost:5517/v1"
 ```
 
-YUI sends audio to `<stt_base_url>/audio/transcriptions`. If the server requires auth, set `VITE_YUI_STT_KEY` in `.env.local` (dev runs; a release build reads the key entered in the Connection tab) — YUI sends it as `Authorization: Bearer`. A hosted API such as Groq also needs a model: set `stt_model` in `configs/endpoints.json` (for example `"stt_model": "whisper-large-v3-turbo"`) or in the Connection tab's STT model field, which overrides the file.
+YUI sends audio to `<stt_base_url>/audio/transcriptions`. If the server requires auth, set `VITE_YUI_STT_KEY` in `.env.local` (dev runs; a release build reads the key entered in the Connection tab) — YUI sends it as `Authorization: Bearer`. A hosted API such as Groq also needs a model: set `stt_model` in `configs/endpoints.json` (for example `"stt_model": "whisper-large-v3-turbo"`) or in the Connection tab's STT model field, which overrides the file. To fix the spoken language, set `stt_language` the same way; the Connection tab's STT language field suggests Auto, English, and Japanese and takes any other ISO-639-1 code.
 
 ---
 
@@ -240,7 +240,7 @@ Key reference:
 | `chat_instructions` | expression prompt | System-level nudge on how to use `generate_express`; appended to the card, sent as `instructions` (Responses) or the first system message (Chat Completions) |
 | `stt_base_url` | unset | STT server base URL |
 | `stt_model` | unset | `model` sent to the STT server; omitted when unset |
-| `stt_language` | unset | `language` sent to the STT server, an ISO-639-1 code such as `ja`; omitted when unset or `auto`, and the server detects the language. The Connection tab's STT language field suggests Auto, English, and Japanese and takes any other code |
+| `stt_language` | unset | `language` sent to the STT server, an ISO-639-1 code such as `ja`; omitted when unset or `auto`, and the server detects the language |
 | `tts_provider` | `irodori` | TTS engine at `tts_base_url`: `irodori`, `openai`, or `fish` |
 | `tts_base_url` | unset | TTS server root without `/v1` |
 | `tts_model` | `irodori-tts` | Model sent to the TTS server — Irodori/OpenAI as the request's `model` field (must match the server's configured name), Fish as a `model` HTTP header (an S2-family id) |
