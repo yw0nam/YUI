@@ -432,31 +432,32 @@ describe("createDelegationChip", () => {
     expect(chip.el.outerHTML).toBe(before);
   });
 
-  // One wording for every loss while the transport is meant to be up — the cause belongs to
-  // the settings window.
+  // A loss while the transport is meant to be up names its state in the Connection tab's words;
+  // the tap opens that tab.
   describe("lost connection", () => {
-    const lost: PushSocketState[] = [
-      { kind: "connecting" },
-      { kind: "reconnecting", delay_ms: 4_000 },
-      { kind: "failed", code: 4401 },
+    const lost: [PushSocketState, string][] = [
+      [{ kind: "connecting" }, "연결하는 중…"],
+      [{ kind: "reconnecting", delay_ms: 4_000 }, "4초 뒤 다시 연결"],
+      [{ kind: "failed", code: 4401 }, "백엔드가 키를 거부했습니다"],
     ];
 
-    for (const state of lost) {
+    for (const [state, label] of lost) {
       it(`shows the lost pill while the socket is ${state.kind}`, () => {
         build(localStorageDelegationChipStorage(STORAGE_KEY), fakePushState(state));
 
         expect(chipEl().hidden).toBe(false);
         expect(chipEl().classList.contains("is-lost")).toBe(true);
-        expect(mount.querySelector<HTMLElement>(".yui-deleg__label")!.textContent).toBe(
-          t("deleg.chip_lost"),
-        );
+        expect(mount.querySelector<HTMLElement>(".yui-deleg__label")!.textContent).toBe(label);
       });
     }
 
     it("words the lost pill in the active locale", () => {
+      setLocale("en");
       build(localStorageDelegationChipStorage(STORAGE_KEY), fakePushState({ kind: "connecting" }));
 
-      expect(mount.querySelector<HTMLElement>(".yui-deleg__label")!.textContent).toBe("연결 끊김");
+      expect(mount.querySelector<HTMLElement>(".yui-deleg__label")!.textContent).toBe(
+        "Connecting…",
+      );
     });
 
     it("shows the lost pill over the running count", () => {
@@ -466,7 +467,7 @@ describe("createDelegationChip", () => {
       pushState.set({ kind: "reconnecting", delay_ms: 1_000 });
 
       expect(mount.querySelector<HTMLElement>(".yui-deleg__label")!.textContent).toBe(
-        t("deleg.chip_lost"),
+        "1초 뒤 다시 연결",
       );
     });
 
@@ -482,7 +483,7 @@ describe("createDelegationChip", () => {
       expect(listEl().hidden).toBe(true);
     });
 
-    it("opens the settings window on a tap, instead of the list", () => {
+    it("opens the Connection tab on a tap, instead of the list", () => {
       const { store, onOpenSettings } = build(
         localStorageDelegationChipStorage(STORAGE_KEY),
         fakePushState({ kind: "failed", code: 4401 }),
