@@ -12,6 +12,7 @@ import { createEndpointsSettings } from "../../../../settings/backend/endpoints-
 import { createProactiveSettings } from "../../../../settings/cues/proactive-settings";
 import { createScheduleSettings } from "../../../../settings/cues/schedule-settings";
 import { setLocale } from "../../../i18n";
+import type { PickedVoiceImport } from "../../../../io/voice/voices/voice-import-flow";
 import { createQuickControls } from "../../quick-controls";
 import {
   defaultQcArgs,
@@ -38,9 +39,16 @@ describe("createQuickControls — speaker section", () => {
   let speakerSelection: ReturnType<typeof createSpeakerSelection>;
   let swapSpeaker: Mock<(option: SpeakerOption) => Promise<void>>;
   let refreshSpeaker: Mock<(option: SpeakerOption) => Promise<void>>;
-  let pickVoiceImport: Mock<() => Promise<{ srcPath: string; seedName: string } | null>>;
-  let commitVoiceImport: Mock<(srcPath: string, name: string) => Promise<void>>;
+  let pickVoiceImport: Mock<() => Promise<PickedVoiceImport | null>>;
+  let commitVoiceImport: Mock<(stagedId: string, name: string) => Promise<void>>;
   let removeVoice: Mock<(id: string) => Promise<void>>;
+
+  /** A pending pick whose discard is observable. */
+  const stagedPick = (stagedId: string, seedName: string): PickedVoiceImport => ({
+    stagedId,
+    seedName,
+    discard: vi.fn(async () => {}),
+  });
 
   beforeEach(() => {
     // Make rAF synchronous so open() → is-open transition happens immediately in tests
@@ -76,10 +84,8 @@ describe("createQuickControls — speaker section", () => {
     });
     // refresh is server-side only — default fake resolves without touching the store.
     refreshSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(async () => {});
-    pickVoiceImport = vi.fn<() => Promise<{ srcPath: string; seedName: string } | null>>(
-      async () => null,
-    );
-    commitVoiceImport = vi.fn<(srcPath: string, name: string) => Promise<void>>(async () => {});
+    pickVoiceImport = vi.fn<() => Promise<PickedVoiceImport | null>>(async () => null);
+    commitVoiceImport = vi.fn<(stagedId: string, name: string) => Promise<void>>(async () => {});
     removeVoice = vi.fn<(id: string) => Promise<void>>(async () => {});
     try {
       globalThis.localStorage?.clear();
@@ -669,7 +675,7 @@ describe("createQuickControls — speaker section", () => {
   }
 
   it("clicking add invokes pickVoiceImport, and a picked file shows a naming row seeded with the file stem", async () => {
-    pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/Natsume.wav", seedName: "Natsume" }));
+    pickVoiceImport = vi.fn(async () => stagedPick("import-natsume", "Natsume"));
     const qc = buildQc({ pickVoiceImport });
     qc.open();
 
@@ -693,7 +699,7 @@ describe("createQuickControls — speaker section", () => {
   }
 
   it("warns on the naming row when the seeded name already names an existing voice", async () => {
-    pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/natsume.wav", seedName: "natsume" }));
+    pickVoiceImport = vi.fn(async () => stagedPick("import-natsume", "natsume"));
     const qc = buildQc({ pickVoiceImport });
     qc.open();
 
@@ -716,7 +722,7 @@ describe("createQuickControls — speaker section", () => {
       ref_url: "asset://localhost/app-data/references/voice-b5a1f4/clip.mp3",
       source: "user",
     });
-    pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/エイメス.wav", seedName: "エイメス" }));
+    pickVoiceImport = vi.fn(async () => stagedPick("import-aimesu", "エイメス"));
     const qc = buildQc({ pickVoiceImport });
     qc.open();
 
@@ -730,7 +736,7 @@ describe("createQuickControls — speaker section", () => {
   });
 
   it("shows no warning for a name that does not collide", async () => {
-    pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/Brand New.wav", seedName: "Brand New" }));
+    pickVoiceImport = vi.fn(async () => stagedPick("import-brand-new", "Brand New"));
     const qc = buildQc({ pickVoiceImport });
     qc.open();
 
@@ -743,7 +749,7 @@ describe("createQuickControls — speaker section", () => {
   });
 
   it("the warning tracks what is typed — appears and clears without re-rendering the row", async () => {
-    pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/Brand New.wav", seedName: "Brand New" }));
+    pickVoiceImport = vi.fn(async () => stagedPick("import-brand-new", "Brand New"));
     const qc = buildQc({ pickVoiceImport });
     qc.open();
 
@@ -778,7 +784,8 @@ describe("createQuickControls — speaker section", () => {
   });
 
   it("Esc on the naming row cancels the whole import — commitVoiceImport is never called", async () => {
-    pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/Natsume.wav", seedName: "Natsume" }));
+    const pending = stagedPick("import-natsume", "Natsume");
+    pickVoiceImport = vi.fn(async () => pending);
     const qc = buildQc({ pickVoiceImport, commitVoiceImport });
     qc.open();
     qc.el.querySelector<HTMLButtonElement>(".yui-spk--add")!.click();
@@ -789,14 +796,15 @@ describe("createQuickControls — speaker section", () => {
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 
     expect(commitVoiceImport).not.toHaveBeenCalled();
+    expect(pending.discard).toHaveBeenCalledTimes(1);
     expect(spkNamingInput(qc)).toBeNull();
     expect(qc.isOpen()).toBe(true); // Escape must not leak to panel close
 
     qc.dispose();
   });
 
-  it("Enter on the naming row commits with the srcPath and the typed name", async () => {
-    pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/Natsume.wav", seedName: "Natsume" }));
+  it("Enter on the naming row commits with the staged id and the typed name", async () => {
+    pickVoiceImport = vi.fn(async () => stagedPick("import-natsume", "Natsume"));
     commitVoiceImport = vi.fn(async () => {
       speakerSelection.addUserOption(USER_VOICE);
     });
@@ -811,7 +819,7 @@ describe("createQuickControls — speaker section", () => {
     await flush();
 
     expect(commitVoiceImport).toHaveBeenCalledOnce();
-    expect(commitVoiceImport).toHaveBeenCalledWith("/tmp/Natsume.wav", "My Voice");
+    expect(commitVoiceImport).toHaveBeenCalledWith("import-natsume", "My Voice");
     expect(spkNamingInput(qc)).toBeNull();
     expect(qc.el.querySelector('.yui-spk[data-spk-id="myvoice"]')).not.toBeNull();
 
@@ -825,7 +833,7 @@ describe("createQuickControls — speaker section", () => {
   // cleared until AFTER that render, the blur listener's guard reads stale state and re-enters
   // commitPendingImport, double-committing the same import.
   it("a synchronous blur fired by render() removing the input does not double-commit", async () => {
-    pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/Natsume.wav", seedName: "Natsume" }));
+    pickVoiceImport = vi.fn(async () => stagedPick("import-natsume", "Natsume"));
     let resolveCommit: () => void = () => {};
     commitVoiceImport = vi.fn(
       () =>
@@ -854,10 +862,10 @@ describe("createQuickControls — speaker section", () => {
   });
 
   it("shows the loading row during commit, not during the pick step", async () => {
-    let resolvePick: (v: { srcPath: string; seedName: string } | null) => void = () => {};
+    let resolvePick: (v: PickedVoiceImport | null) => void = () => {};
     pickVoiceImport = vi.fn(
       () =>
-        new Promise<{ srcPath: string; seedName: string } | null>((res) => {
+        new Promise<PickedVoiceImport | null>((res) => {
           resolvePick = res;
         }),
     );
@@ -875,7 +883,7 @@ describe("createQuickControls — speaker section", () => {
     // Pick is still in flight (mirrors a blocking native OS dialog) — no loading spinner yet.
     expect(qc.el.querySelector(".yui-spk__loading")).toBeNull();
 
-    resolvePick({ srcPath: "/tmp/x.wav", seedName: "x" });
+    resolvePick(stagedPick("import-x", "x"));
     await flush();
     const input = spkNamingInput(qc)!;
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
@@ -893,7 +901,7 @@ describe("createQuickControls — speaker section", () => {
   });
 
   it("a failed commit shows the inline error and clears the naming row", async () => {
-    pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/x.wav", seedName: "x" }));
+    pickVoiceImport = vi.fn(async () => stagedPick("import-x", "x"));
     commitVoiceImport = vi.fn(async () => {
       throw new Error("bad voice");
     });
@@ -916,7 +924,7 @@ describe("createQuickControls — speaker section", () => {
   });
 
   it("a successful commit clears the loading row and error notice", async () => {
-    pickVoiceImport = vi.fn(async () => ({ srcPath: "/tmp/x.wav", seedName: "myvoice" }));
+    pickVoiceImport = vi.fn(async () => stagedPick("import-x", "myvoice"));
     commitVoiceImport = vi.fn(async () => {
       speakerSelection.addUserOption(USER_VOICE);
     });

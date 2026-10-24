@@ -1,146 +1,62 @@
 /**
  * voice-import.test.ts — bring-your-own-voice import module.
  *
- * Pins the contract for src/io/voice/voices/voice-import.ts: a thin TS layer over the dialog
- * plugin + the Rust `import_voice_file` / `remove_user_voice` commands. Import is
- * split into pickVoiceFile (OS picker, path only) and copyVoiceFile (copy + register
- * under a caller-supplied name) so a naming row can sit between them. All deps are
- * injectable so the suite never touches a real Tauri runtime.
+ * Pins the contract for src/io/voice/voices/voice-import.ts: a thin TS layer over the Rust
+ * `import_voice_file` (which opens the OS picker and stages the copy) / `remove_user_voice`
+ * commands. pickVoiceFile stages the copy under the caller's staging id and returns the picked
+ * file's stem to seed the naming row. All deps are injectable so the suite never touches a real
+ * Tauri runtime.
  */
 
 import { describe, expect, it, vi } from "vitest";
-import {
-  copyVoiceFile,
-  fileStemFromPath,
-  pickVoiceFile,
-  removeUserVoice,
-  type VoiceCopyDeps,
-  type VoicePickDeps,
-} from "./voice-import";
-
-function makePickDeps(over: Partial<VoicePickDeps> = {}): VoicePickDeps {
-  return {
-    openDialog: vi.fn(async () => "/Users/me/Downloads/MyVoice.wav"),
-    ...over,
-  };
-}
+import { pickVoiceFile, removeUserVoice, type VoiceCopyDeps } from "./voice-import";
 
 function makeCopyDeps(over: Partial<VoiceCopyDeps> = {}): VoiceCopyDeps {
   return {
     invoke: vi.fn(async () => ({
-      id: "MyVoice",
-      refPath: "/app-data/references/MyVoice/clip.wav",
+      id: "import-x",
+      refPath: "/app-data/references/import-x/clip.wav",
+      seedName: "MyVoice",
     })) as unknown as VoiceCopyDeps["invoke"],
     resolveRefUrl: vi.fn(async (p: string) => `asset://localhost/${p}`),
     ...over,
   };
 }
 
-describe("pickVoiceFile — dialog cancel", () => {
-  it("returns null when the picker is cancelled (open → null)", async () => {
-    const deps = makePickDeps({ openDialog: vi.fn(async () => null) });
-    const out = await pickVoiceFile(deps);
+describe("pickVoiceFile", () => {
+  it("returns null when invoke resolves null, without resolving a ref url", async () => {
+    const deps = makeCopyDeps({
+      invoke: vi.fn(async () => null) as unknown as VoiceCopyDeps["invoke"],
+    });
+    const out = await pickVoiceFile("import-x", deps);
     expect(out).toBeNull();
-  });
-});
-
-describe("pickVoiceFile — successful pick", () => {
-  it("passes Audio filter + multiple:false to the dialog (no directory key)", async () => {
-    const deps = makePickDeps();
-    await pickVoiceFile(deps);
-    expect(deps.openDialog).toHaveBeenCalledWith({
-      multiple: false,
-      filters: [
-        { name: "Audio", extensions: ["mp3", "wav", "ogg", "m4a", "flac", "aac", "opus", "webm"] },
-      ],
-    });
+    expect(deps.resolveRefUrl).not.toHaveBeenCalled();
   });
 
-  it("returns the picked source path (nothing copied yet)", async () => {
-    const deps = makePickDeps();
-    const out = await pickVoiceFile(deps);
-    expect(out).toBe("/Users/me/Downloads/MyVoice.wav");
-  });
-});
-
-describe("fileStemFromPath", () => {
-  it("strips the directory and extension", () => {
-    expect(fileStemFromPath("/Users/me/Downloads/MyVoice.wav")).toBe("MyVoice");
-  });
-
-  it("handles a Windows-style backslash path", () => {
-    expect(fileStemFromPath("C:\\Users\\me\\Natsume.mp3")).toBe("Natsume");
-  });
-
-  it("keeps a UTF-8 stem verbatim", () => {
-    expect(fileStemFromPath("/Users/me/ナツメ.mp3")).toBe("ナツメ");
-  });
-
-  it("keeps interior dots, only stripping the final extension", () => {
-    expect(fileStemFromPath("/Users/me/My.Voice.v2.wav")).toBe("My.Voice.v2");
-  });
-
-  it("returns the whole basename when there is no extension", () => {
-    expect(fileStemFromPath("/Users/me/noext")).toBe("noext");
-  });
-});
-
-describe("copyVoiceFile", () => {
-  it("invokes import_voice_file with the srcPath and the typed name", async () => {
+  it("invokes import_voice_file with the staging id and returns the staged copy plus the seed", async () => {
     const deps = makeCopyDeps();
-    await copyVoiceFile("/Users/me/Downloads/MyVoice.wav", "MyVoice", deps);
-    expect(deps.invoke).toHaveBeenCalledWith("import_voice_file", {
-      srcPath: "/Users/me/Downloads/MyVoice.wav",
-      desiredName: "MyVoice",
-    });
-  });
-
-  it("returns a user SpeakerOption with ref_url from resolveRefUrl and label = id", async () => {
-    const deps = makeCopyDeps();
-    const out = await copyVoiceFile("/Users/me/Downloads/MyVoice.wav", "MyVoice", deps);
+    const out = await pickVoiceFile("import-x", deps);
+    expect(deps.invoke).toHaveBeenCalledWith("import_voice_file", { desiredName: "import-x" });
     expect(out).toEqual({
-      id: "MyVoice",
-      label: "MyVoice",
-      ref_url: "asset://localhost//app-data/references/MyVoice/clip.wav",
-      source: "user",
+      staged: {
+        id: "import-x",
+        label: "import-x",
+        ref_url: "asset://localhost//app-data/references/import-x/clip.wav",
+        source: "user",
+      },
+      seedName: "MyVoice",
     });
-    expect(deps.resolveRefUrl).toHaveBeenCalledWith("/app-data/references/MyVoice/clip.wav");
+    expect(deps.resolveRefUrl).toHaveBeenCalledWith("/app-data/references/import-x/clip.wav");
   });
 
-  it("reflects a sanitized id back, but keeps the typed name as the label", async () => {
+  it("a failing ref-url resolve removes the staged copy and rethrows", async () => {
     const deps = makeCopyDeps({
-      invoke: vi.fn(async () => ({
-        id: "my_voice",
-        refPath: "/app-data/references/my_voice/clip.wav",
-      })) as unknown as VoiceCopyDeps["invoke"],
+      resolveRefUrl: vi.fn(async () => {
+        throw new Error("no asset url");
+      }),
     });
-    const out = await copyVoiceFile("/tmp/x.wav", "my/voice", deps);
-    expect(out.id).toBe("my_voice");
-    expect(out.label).toBe("my/voice");
-  });
-
-  it("keeps the typed label even when the sanitizer collapses the id (reserved device name)", async () => {
-    const deps = makeCopyDeps({
-      invoke: vi.fn(async () => ({
-        id: "avatar",
-        refPath: "/app-data/references/avatar/clip.wav",
-      })) as unknown as VoiceCopyDeps["invoke"],
-    });
-    const out = await copyVoiceFile("/tmp/x.wav", "CON", deps);
-    expect(out.id).toBe("avatar");
-    expect(out.label).toBe("CON");
-  });
-
-  it("falls back to the id for the label when the typed name is blank", async () => {
-    const deps = makeCopyDeps({
-      invoke: vi.fn(async () => ({
-        id: "avatar",
-        refPath: "/app-data/references/avatar/clip.wav",
-      })) as unknown as VoiceCopyDeps["invoke"],
-    });
-    const out = await copyVoiceFile("/tmp/x.wav", "   ", deps);
-    expect(out.id).toBe("avatar");
-    expect(out.label).toBe("avatar");
+    await expect(pickVoiceFile("import-x", deps)).rejects.toThrow("no asset url");
+    expect(deps.invoke).toHaveBeenCalledWith("remove_user_voice", { id: "import-x" });
   });
 });
 

@@ -62,7 +62,7 @@ function makeHarness(overrides: Partial<UserAssetListConfig<FakeOption>> = {}) {
 
   const defaultRender = vi.fn(() => {
     // Re-render rows into containerEl to mirror a domain's render loop closely enough for
-    // row-lookup/keyboard-nav assertions (rename-row markup is left to renderRenamingRow itself).
+    // row-lookup/keyboard-nav assertions (rename/pending-row markup is left to the render*Row helpers).
     list.prepareRender(options.map((opt) => opt.id));
     containerEl.innerHTML = "";
     for (const opt of options) {
@@ -70,6 +70,12 @@ function makeHarness(overrides: Partial<UserAssetListConfig<FakeOption>> = {}) {
       if (opt.id === list.getRenamingId()) {
         list.renderRenamingRow(row, opt);
       }
+      containerEl.appendChild(row);
+    }
+    const pending = list.getPendingImport();
+    if (pending) {
+      const row = makeRow("pending");
+      list.renderPendingImportRow(row, pending);
       containerEl.appendChild(row);
     }
   });
@@ -404,7 +410,11 @@ describe("pending-import overwrite warning", () => {
     });
     const row = makeRow("pending");
     h.containerEl.appendChild(row);
-    h.list.renderPendingImportRow(row, { srcPath: "/pick/clip.mp3", seedName: "エイメス" });
+    h.list.renderPendingImportRow(row, {
+      stagedId: "import-1",
+      seedName: "エイメス",
+      discard: vi.fn(async () => {}),
+    });
 
     expect(
       row.querySelector(".yui-fake__overwrite-warn"),
@@ -416,6 +426,102 @@ describe("pending-import overwrite warning", () => {
     input.value = "fresh";
     input.dispatchEvent(new Event("input"));
     expect(row.querySelector(".yui-fake__overwrite-warn")).toBeNull();
+  });
+});
+
+describe("pending-import lifecycle", () => {
+  const flush = async (): Promise<void> => {
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+  };
+
+  function makePending(overrides: Partial<{ stagedId: string; seedName: string }> = {}) {
+    return {
+      stagedId: overrides.stagedId ?? "import-1",
+      seedName: overrides.seedName ?? "x",
+      discard: vi.fn(async () => {}),
+    };
+  }
+
+  function namingInput(h: ReturnType<typeof makeHarness>): HTMLInputElement | null {
+    return h.containerEl.querySelector<HTMLInputElement>(".yui-fake--renaming .yui-ep-input");
+  }
+
+  it("Escape on the naming row discards the staged copy exactly once", async () => {
+    const pending = makePending();
+    const h = makeHarness({ pickImport: vi.fn(async () => pending) });
+    h.list.handleAddClick();
+    await flush();
+    expect(namingInput(h)).not.toBeNull();
+
+    namingInput(h)!.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+    );
+
+    expect(pending.discard).toHaveBeenCalledTimes(1);
+    expect(h.list.getPendingImport()).toBeNull();
+  });
+
+  it("a second add-click while a pick is unresolved does not call pickImport again", async () => {
+    type Pending = { stagedId: string; seedName: string; discard: () => Promise<void> };
+    const pickImport = vi.fn<() => Promise<Pending | null>>(
+      () => new Promise(() => {}), // never resolves — the picker is open
+    );
+    const h = makeHarness({ pickImport });
+    h.list.handleAddClick();
+    await flush();
+    h.list.handleAddClick();
+    await flush();
+
+    expect(pickImport).toHaveBeenCalledTimes(1);
+  });
+
+  it("a rejected pick shows the inline error and logs import_failed", async () => {
+    const h = makeHarness({
+      pickImport: vi.fn(async () => {
+        throw new Error("unsupported audio type");
+      }),
+    });
+    h.list.handleAddClick();
+    await flush();
+
+    expect(h.importErrorEl.hidden).toBe(false);
+    expect(h.log.error).toHaveBeenCalledWith("fake_import_failed", {
+      error: "Error: unsupported audio type",
+    });
+  });
+
+  it("dispose() with a pending import discards the staged copy", async () => {
+    const pending = makePending();
+    const h = makeHarness({ pickImport: vi.fn(async () => pending) });
+    h.list.handleAddClick();
+    await flush();
+
+    h.list.dispose();
+
+    expect(pending.discard).toHaveBeenCalledTimes(1);
+  });
+
+  it("a pick that resolves after dispose() discards it and renders no naming row", async () => {
+    const pending = makePending();
+    let resolvePick: (v: typeof pending) => void = () => {};
+    const h = makeHarness({
+      pickImport: vi.fn(
+        () =>
+          new Promise<typeof pending>((res) => {
+            resolvePick = res;
+          }),
+      ),
+    });
+    h.list.handleAddClick();
+    await flush();
+
+    h.list.dispose();
+    resolvePick(pending);
+    await flush();
+
+    expect(pending.discard).toHaveBeenCalledTimes(1);
+    expect(h.list.getPendingImport()).toBeNull();
+    expect(namingInput(h)).toBeNull();
   });
 });
 

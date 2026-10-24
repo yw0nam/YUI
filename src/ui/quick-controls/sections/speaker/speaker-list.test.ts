@@ -168,7 +168,11 @@ describe("speaker list — ids another provider's voice holds", () => {
   it("an import naming row refuses a name whose id another provider's voice holds", async () => {
     const commitVoiceImport = vi.fn(async () => {});
     const { el, speakerSelection, list } = buildList(() => false, {
-      pickVoiceImport: vi.fn(async () => ({ srcPath: "/tmp/ayase.wav", seedName: "ayase" })),
+      pickVoiceImport: vi.fn(async () => ({
+        stagedId: "import-ayase",
+        seedName: "ayase",
+        discard: vi.fn(async () => {}),
+      })),
       commitVoiceImport,
     });
     speakerSelection.addUserOption({

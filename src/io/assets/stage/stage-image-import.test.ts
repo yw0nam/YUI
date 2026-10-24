@@ -11,7 +11,6 @@ function setup(over: Partial<StageImportDeps> = {}, initial = true) {
     cmd === "import_stage_image" ? { id: "new.jpg", destPath: "/data/stage/new.jpg" } : undefined,
   );
   const deps: StageImportDeps = {
-    openDialog: vi.fn(async () => "content://picked/1"),
     invoke: invoke as unknown as StageImportDeps["invoke"],
     resolveSrc: vi.fn(async (p: string) => `asset://localhost/${p}`),
     decodeImage: vi.fn(async () => {}),
@@ -22,27 +21,18 @@ function setup(over: Partial<StageImportDeps> = {}, initial = true) {
 }
 
 describe("importStageImage", () => {
-  it("opens the picker with the image extensions", async () => {
-    const { store, deps } = setup();
-    await importStageImage(store, deps);
-    expect(deps.openDialog).toHaveBeenCalledWith({
-      multiple: false,
-      directory: false,
-      filters: [{ name: "Image", extensions: ["png", "jpg", "jpeg", "webp"] }],
-    });
-  });
-
   it("a cancelled pick changes nothing", async () => {
-    const { store, deps, invoke } = setup({ openDialog: vi.fn(async () => null) });
+    const { store, deps } = setup({
+      invoke: vi.fn(async () => null) as unknown as StageImportDeps["invoke"],
+    });
     await importStageImage(store, deps);
-    expect(invoke).not.toHaveBeenCalled();
     expect(store.get().image).toEqual(OLD);
   });
 
   it("stores the new image, selects it and removes the previous file", async () => {
     const { store, deps, invoke } = setup();
     await importStageImage(store, deps);
-    expect(invoke).toHaveBeenCalledWith("import_stage_image", { srcPath: "content://picked/1" });
+    expect(invoke).toHaveBeenCalledWith("import_stage_image");
     expect(deps.decodeImage).toHaveBeenCalledWith("asset://localhost//data/stage/new.jpg");
     expect(store.get()).toEqual({
       mode: "image",

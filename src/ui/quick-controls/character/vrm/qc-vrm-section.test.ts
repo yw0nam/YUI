@@ -20,6 +20,7 @@ import {
   makeVrmSelection,
   USER_OPTION,
 } from "../../test-helpers";
+import type { PickedVoiceImport } from "../../../../../io/voice/voices/voice-import-flow";
 
 describe("createQuickControls — VRM section", () => {
   let mount: HTMLElement;
@@ -38,8 +39,8 @@ describe("createQuickControls — VRM section", () => {
   let speakerSelection: ReturnType<typeof createSpeakerSelection>;
   let swapSpeaker: Mock<(option: SpeakerOption) => Promise<void>>;
   let refreshSpeaker: Mock<(option: SpeakerOption) => Promise<void>>;
-  let pickVoiceImport: Mock<() => Promise<{ srcPath: string; seedName: string } | null>>;
-  let commitVoiceImport: Mock<(srcPath: string, name: string) => Promise<void>>;
+  let pickVoiceImport: Mock<() => Promise<PickedVoiceImport | null>>;
+  let commitVoiceImport: Mock<(stagedId: string, name: string) => Promise<void>>;
   let removeVoice: Mock<(id: string) => Promise<void>>;
 
   beforeEach(() => {

@@ -1,9 +1,9 @@
 /**
  * vrm-import.test.ts — bring-your-own-VRM import module.
  *
- * Pins the contract for src/io/assets/vrm-import.ts: a thin TS layer over the dialog
- * plugin + the Rust `import_vrm_file` / `remove_user_vrm` commands. All deps are
- * injectable so the suite never touches a real Tauri runtime.
+ * Pins the contract for src/io/assets/vrm-import.ts: a thin layer over the Rust
+ * `import_vrm_file` (which opens the OS picker itself) / `remove_user_vrm` commands. All deps
+ * are injectable so the suite never touches a real Tauri runtime.
  */
 
 import { describe, expect, it, vi } from "vitest";
@@ -20,7 +20,6 @@ const selection = {
 
 function makeDeps(over: Partial<VrmImportDeps> = {}): VrmImportDeps {
   return {
-    openDialog: vi.fn(async () => "/Users/me/Downloads/MyAvatar.vrm"),
     invoke: vi.fn(async () => ({
       id: "MyAvatar",
       destPath: "/app-data/vrms/MyAvatar.vrm",
@@ -31,30 +30,21 @@ function makeDeps(over: Partial<VrmImportDeps> = {}): VrmImportDeps {
 }
 
 describe("importVrmFromFile — dialog cancel", () => {
-  it("returns null when the picker is cancelled (open → null)", async () => {
-    const deps = makeDeps({ openDialog: vi.fn(async () => null) });
+  it("returns null when invoke resolves null", async () => {
+    const deps = makeDeps({
+      invoke: vi.fn(async () => null) as unknown as VrmImportDeps["invoke"],
+    });
     const out = await importVrmFromFile(selection, deps);
     expect(out).toBeNull();
-    expect(deps.invoke).not.toHaveBeenCalled();
+    expect(deps.convertFileSrc).not.toHaveBeenCalled();
   });
 });
 
 describe("importVrmFromFile — successful pick", () => {
-  it("passes VRM filter + single-select to the dialog", async () => {
-    const deps = makeDeps();
-    await importVrmFromFile(selection, deps);
-    expect(deps.openDialog).toHaveBeenCalledWith({
-      multiple: false,
-      directory: false,
-      filters: [{ name: "VRM", extensions: ["vrm"] }],
-    });
-  });
-
-  it("invokes import_vrm_file with the picked srcPath and the bundled ids as reserved", async () => {
+  it("invokes import_vrm_file with the bundled ids as reserved", async () => {
     const deps = makeDeps();
     await importVrmFromFile(selection, deps);
     expect(deps.invoke).toHaveBeenCalledWith("import_vrm_file", {
-      srcPath: "/Users/me/Downloads/MyAvatar.vrm",
       reservedIds: ["Sendagaya_Shino"],
     });
   });

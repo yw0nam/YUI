@@ -20,33 +20,21 @@ vi.mock("./fish-voices", () => ({
 const { selectFetch } = vi.hoisted(() => ({ selectFetch: vi.fn(async () => undefined) }));
 vi.mock("../../chat/stream/chat-client", () => ({ selectFetch }));
 
-const { copyVoiceFile, pickVoiceFile, removeOrphanImport, removeUserVoice, renameUserVoice } =
-  vi.hoisted(() => ({
-    copyVoiceFile: vi.fn(),
-    renameUserVoice: vi.fn(),
-    pickVoiceFile: vi.fn(),
-    removeOrphanImport: vi.fn<typeof import("../../assets/user-asset-import").removeOrphanImport>(
-      async (id, remove) => {
-        await remove(id);
-      },
-    ),
-    removeUserVoice: vi.fn(async () => undefined),
-  }));
+const { pickVoiceFile, removeOrphanImport, removeUserVoice, renameUserVoice } = vi.hoisted(() => ({
+  renameUserVoice: vi.fn(),
+  pickVoiceFile: vi.fn(),
+  removeOrphanImport: vi.fn<typeof import("../../assets/user-asset-import").removeOrphanImport>(
+    async (id, remove) => {
+      await remove(id);
+    },
+  ),
+  removeUserVoice: vi.fn(async () => undefined),
+}));
 vi.mock("../../assets/user-asset-import", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../assets/user-asset-import")>()),
   removeOrphanImport,
 }));
-vi.mock("./voice-import", () => ({
-  copyVoiceFile,
-  pickVoiceFile,
-  removeUserVoice,
-  renameUserVoice,
-  fileStemFromPath: (path: string) => {
-    const base = path.split(/[\\/]/).pop() ?? path;
-    const dot = base.lastIndexOf(".");
-    return dot > 0 ? base.slice(0, dot) : base;
-  },
-}));
+vi.mock("./voice-import", () => ({ pickVoiceFile, removeUserVoice, renameUserVoice }));
 
 import type { TtsProviderName } from "../../../contract";
 import { voiceIdFromName } from "../../assets/safe-id";
@@ -62,12 +50,15 @@ const IMPORTED = {
   source: "user" as const,
 };
 
-// The native copy files the clip under the id the desired name sanitizes to.
-const copyUnder = async (_src: string, desired: string) => ({
-  id: desired,
-  label: desired,
-  ref_url: `asset://localhost/app-data/references/${desired}/clip.wav`,
-  source: "user" as const,
+// The Rust pick stages the clip under the staging folder the flow named.
+const stagedUnder = (stagingId: string) => ({
+  staged: {
+    id: stagingId,
+    label: stagingId,
+    ref_url: `asset://localhost/app-data/references/${stagingId}/clip.wav`,
+    source: "user" as const,
+  },
+  seedName: stagingId,
 });
 
 function fakeStore(stored: SpeakerOption[] = []) {
@@ -101,7 +92,9 @@ describe("createVoiceImportFlow", () => {
     upsertVoice.mockReset().mockResolvedValue(undefined);
     listFishVoices.mockReset().mockResolvedValue([]);
     upsertFishVoice.mockReset().mockResolvedValue(undefined);
-    copyVoiceFile.mockReset().mockImplementation(copyUnder);
+    pickVoiceFile
+      .mockReset()
+      .mockImplementation(async (stagingId: string) => stagedUnder(stagingId));
     renameUserVoice
       .mockReset()
       .mockImplementation(
@@ -124,14 +117,17 @@ describe("createVoiceImportFlow", () => {
     it("stages the copy under a unique id and moves it to the model id, never touching natsume", async () => {
       upsertFishVoice.mockResolvedValue("model9");
       renameUserVoice.mockResolvedValue("asset://localhost/app-data/references/model9/clip.wav");
-      const { commitVoiceImport, speakerSelection } = build("https://api.fish.audio", "fish", [
-        NATSUME,
-      ]);
+      const { pickVoiceImport, commitVoiceImport, speakerSelection } = build(
+        "https://api.fish.audio",
+        "fish",
+        [NATSUME],
+      );
 
-      await commitVoiceImport("/tmp/natsume.wav", "natsume");
-
-      const staged = copyVoiceFile.mock.calls[0][1] as string;
+      const staged = (await pickVoiceImport())!.stagedId;
       expect(staged).not.toBe("natsume");
+      await commitVoiceImport(staged, "natsume");
+
+      expect(staged).toMatch(/^import-[0-9a-f-]{36}$/);
       expect(upsertFishVoice.mock.calls[0][0]).toMatchObject({ name: "natsume" });
       expect(renameUserVoice).toHaveBeenCalledWith(staged, "model9");
       expect(removeUserVoice).not.toHaveBeenCalledWith("natsume");
@@ -142,36 +138,39 @@ describe("createVoiceImportFlow", () => {
 
     it("cleans up only the staged copy when the upload fails", async () => {
       upsertFishVoice.mockRejectedValue(new Error("HTTP 400: invalid audio"));
-      const { commitVoiceImport } = build("https://api.fish.audio", "fish", [NATSUME]);
+      const { pickVoiceImport, commitVoiceImport } = build("https://api.fish.audio", "fish", [
+        NATSUME,
+      ]);
 
-      await expect(commitVoiceImport("/tmp/natsume.wav", "natsume")).rejects.toThrow();
+      const staged = (await pickVoiceImport())!.stagedId;
+      await expect(commitVoiceImport(staged, "natsume")).rejects.toThrow();
 
-      const staged = copyVoiceFile.mock.calls[0][1] as string;
       expect(removeUserVoice).toHaveBeenCalledWith(staged);
       expect(removeUserVoice).not.toHaveBeenCalledWith("natsume");
     });
 
-    it("uploads nowhere when the provider changes during the copy, and removes the copy", async () => {
-      const { commitVoiceImport, speakerSelection, endpoints } = build(
+    it("uploads nowhere when the provider changes during the pick, and removes the staged copy", async () => {
+      const { pickVoiceImport, commitVoiceImport, speakerSelection, endpoints } = build(
         "https://api.fish.audio",
         "fish",
       );
-      copyVoiceFile.mockImplementation(async (src: string, desired: string) => {
+      pickVoiceFile.mockImplementation(async (stagingId: string) => {
         endpoints.tts_provider = "irodori";
-        return copyUnder(src, desired);
+        return stagedUnder(stagingId);
       });
 
-      await commitVoiceImport("/tmp/natsume.wav", "natsume");
+      const staged = (await pickVoiceImport())!.stagedId;
+      await commitVoiceImport(staged, "natsume");
 
       expect(upsertFishVoice).not.toHaveBeenCalled();
       expect(upsertVoice).not.toHaveBeenCalled();
       expect(speakerSelection.addUserOption).not.toHaveBeenCalled();
-      expect(removeUserVoice).toHaveBeenCalledWith(copyVoiceFile.mock.calls[0][1]);
+      expect(removeUserVoice).toHaveBeenCalledWith(pickVoiceFile.mock.calls[0][0]);
     });
 
     it("commits nothing and leaves no folder when the server changes during the rename", async () => {
       upsertFishVoice.mockResolvedValue("model9");
-      const { commitVoiceImport, speakerSelection, endpoints } = build(
+      const { pickVoiceImport, commitVoiceImport, speakerSelection, endpoints } = build(
         "https://api.fish.audio",
         "fish",
       );
@@ -180,7 +179,8 @@ describe("createVoiceImportFlow", () => {
         return "asset://localhost/app-data/references/model9/clip.wav";
       });
 
-      await commitVoiceImport("/tmp/natsume.wav", "natsume");
+      const staged = (await pickVoiceImport())!.stagedId;
+      await commitVoiceImport(staged, "natsume");
 
       expect(speakerSelection.addUserOption).not.toHaveBeenCalled();
       expect(speakerSelection.select).not.toHaveBeenCalled();
@@ -192,11 +192,14 @@ describe("createVoiceImportFlow", () => {
     it("uploads the multipart import, moves the clip to the server-assigned _id and selects it", async () => {
       upsertFishVoice.mockResolvedValue("model_9");
       renameUserVoice.mockResolvedValue("asset://localhost/app-data/references/model_9/clip.wav");
-      const { commitVoiceImport, speakerSelection } = build("https://api.fish.audio", "fish");
+      const { pickVoiceImport, commitVoiceImport, speakerSelection } = build(
+        "https://api.fish.audio",
+        "fish",
+      );
 
-      await commitVoiceImport("/tmp/MyVoice.wav", "My Voice");
+      const staged = (await pickVoiceImport())!.stagedId;
+      await commitVoiceImport(staged, "My Voice");
 
-      const staged = copyVoiceFile.mock.calls[0][1] as string;
       expect(upsertFishVoice).toHaveBeenCalledOnce();
       expect(upsertFishVoice.mock.calls[0][0]).toMatchObject({
         baseUrl: "https://api.fish.audio",
@@ -216,7 +219,7 @@ describe("createVoiceImportFlow", () => {
     });
 
     it("adds and selects nothing when the provider changed while the upload ran", async () => {
-      const { commitVoiceImport, speakerSelection, endpoints } = build(
+      const { pickVoiceImport, commitVoiceImport, speakerSelection, endpoints } = build(
         "https://api.fish.audio",
         "fish",
       );
@@ -225,7 +228,8 @@ describe("createVoiceImportFlow", () => {
         return "model_9";
       });
 
-      await commitVoiceImport("/tmp/MyVoice.wav", "My Voice");
+      const staged = (await pickVoiceImport())!.stagedId;
+      await commitVoiceImport(staged, "My Voice");
 
       expect(speakerSelection.addUserOption).not.toHaveBeenCalled();
       expect(speakerSelection.select).not.toHaveBeenCalled();
@@ -234,45 +238,63 @@ describe("createVoiceImportFlow", () => {
 
     it("cleans up the orphan copy and rethrows when the upload fails", async () => {
       upsertFishVoice.mockRejectedValue(new Error("HTTP 400: invalid audio"));
-      const { commitVoiceImport, speakerSelection } = build("https://api.fish.audio", "fish");
-
-      await expect(commitVoiceImport("/tmp/MyVoice.wav", "My Voice")).rejects.toThrow(
-        "invalid audio",
+      const { pickVoiceImport, commitVoiceImport, speakerSelection } = build(
+        "https://api.fish.audio",
+        "fish",
       );
 
-      expect(removeUserVoice).toHaveBeenCalledWith(copyVoiceFile.mock.calls[0][1]);
+      const staged = (await pickVoiceImport())!.stagedId;
+      await expect(commitVoiceImport(staged, "My Voice")).rejects.toThrow("invalid audio");
+
+      expect(removeUserVoice).toHaveBeenCalledWith(pickVoiceFile.mock.calls[0][0]);
       expect(speakerSelection.addUserOption).not.toHaveBeenCalled();
       expect(speakerSelection.select).not.toHaveBeenCalled();
     });
   });
 
   describe("pickVoiceImport", () => {
-    it("returns null on cancel without copying anything", async () => {
+    it("returns null on cancel without staging anything", async () => {
       pickVoiceFile.mockResolvedValue(null);
       const { pickVoiceImport } = build("http://localhost:8091");
 
       expect(await pickVoiceImport()).toBeNull();
-      expect(copyVoiceFile).not.toHaveBeenCalled();
+      expect(removeUserVoice).not.toHaveBeenCalled();
     });
 
-    it("returns the source path plus a seed name from the file stem", async () => {
-      pickVoiceFile.mockResolvedValue("/Users/me/Downloads/ナツメ.wav");
-      const { pickVoiceImport } = build("http://localhost:8091");
-
-      expect(await pickVoiceImport()).toEqual({
-        srcPath: "/Users/me/Downloads/ナツメ.wav",
+    it("stages the copy under import-<uuid> and returns its id with the seed name", async () => {
+      pickVoiceFile.mockResolvedValue({
+        staged: { id: "import-9", label: "import-9", ref_url: "asset://x", source: "user" },
         seedName: "ナツメ",
       });
+      const { pickVoiceImport } = build("http://localhost:8091");
+
+      const out = await pickVoiceImport();
+
+      expect(pickVoiceFile).toHaveBeenCalledWith(
+        expect.stringMatching(/^import-[0-9a-f-]{36}$/),
+      );
+      expect(out!.stagedId).toMatch(/^import-[0-9a-f-]{36}$/);
+      expect(out!.seedName).toBe("ナツメ");
+      expect(out!.discard).toBeInstanceOf(Function);
+    });
+
+    it("discard() removes the staged copy under its id", async () => {
+      const { pickVoiceImport } = build("http://localhost:8091");
+
+      const picked = await pickVoiceImport();
+      await picked!.discard();
+
+      expect(removeUserVoice).toHaveBeenCalledWith(pickVoiceFile.mock.calls[0][0]);
     });
   });
 
   describe("commitVoiceImport", () => {
     it("uploads the clip with upsertVoice and adds + selects the option", async () => {
-      const { commitVoiceImport, speakerSelection } = build("http://localhost:8091");
+      const { pickVoiceImport, commitVoiceImport, speakerSelection } = build("http://localhost:8091");
 
-      await commitVoiceImport("/tmp/MyVoice.wav", "myvoice");
+      const staged = (await pickVoiceImport())!.stagedId;
+      await commitVoiceImport(staged, "myvoice");
 
-      expect(copyVoiceFile.mock.calls[0][0]).toBe("/tmp/MyVoice.wav");
       expect(upsertVoice).toHaveBeenCalledOnce();
       expect(upsertVoice.mock.calls[0][0]).toMatchObject({
         baseUrl: "http://localhost:8091",
@@ -290,11 +312,11 @@ describe("createVoiceImportFlow", () => {
     it("derives the id from a typed name that is not itself an id, and keeps the name as the label", async () => {
       const id = voiceIdFromName("My Voice");
       renameUserVoice.mockResolvedValue(`asset://localhost/app-data/references/${id}/clip.wav`);
-      const { commitVoiceImport, speakerSelection } = build("http://localhost:8091");
+      const { pickVoiceImport, commitVoiceImport, speakerSelection } = build("http://localhost:8091");
 
-      await commitVoiceImport("/tmp/MyVoice.wav", "My Voice");
+      const staged = (await pickVoiceImport())!.stagedId;
+      await commitVoiceImport(staged, "My Voice");
 
-      const staged = copyVoiceFile.mock.calls[0][1] as string;
       expect(id).not.toBe("My Voice");
       expect(upsertVoice.mock.calls[0][0]).toMatchObject({ id, name: "My Voice" });
       expect(removeUserVoice).toHaveBeenCalledWith(id);
@@ -306,7 +328,7 @@ describe("createVoiceImportFlow", () => {
 
     it("stores the replaced clip of a same-name re-import when the server changes during the move, selecting nothing", async () => {
       const stored: SpeakerOption = { ...IMPORTED, provider: "irodori" };
-      const { commitVoiceImport, speakerSelection, endpoints } = build(
+      const { pickVoiceImport, commitVoiceImport, speakerSelection, endpoints } = build(
         "http://localhost:8091",
         "irodori",
         [stored],
@@ -316,7 +338,8 @@ describe("createVoiceImportFlow", () => {
         return "asset://localhost/app-data/references/myvoice/clip.mp3";
       });
 
-      await commitVoiceImport("/tmp/Replacement.mp3", "myvoice");
+      const staged = (await pickVoiceImport())!.stagedId;
+      await commitVoiceImport(staged, "myvoice");
 
       expect(speakerSelection.addUserOption).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -330,23 +353,25 @@ describe("createVoiceImportFlow", () => {
 
     it("hands upsertVoice the TTS key resolver so a gated server still accepts the upload", async () => {
       const getApiKey = vi.fn().mockResolvedValue("sk-tts");
-      const { commitVoiceImport } = createVoiceImportFlow({
+      const { pickVoiceImport, commitVoiceImport } = createVoiceImportFlow({
         getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
         getApiKey,
         speakerSelection: fakeStore(),
         log: noopLog,
       });
 
-      await commitVoiceImport("/tmp/MyVoice.wav", "My Voice");
+      const staged = (await pickVoiceImport())!.stagedId;
+      await commitVoiceImport(staged, "My Voice");
 
       expect(upsertVoice.mock.calls[0][0]).toMatchObject({ getApiKey });
     });
 
     it("bumps the revision on top of whatever is already stored for that id, so a re-import invalidates other windows' filler cache", async () => {
-      const { commitVoiceImport, speakerSelection } = build("http://localhost:8091");
+      const { pickVoiceImport, commitVoiceImport, speakerSelection } = build("http://localhost:8091");
       speakerSelection.list.mockReturnValue([{ ...IMPORTED, revision: 3 }]);
 
-      await commitVoiceImport("/tmp/Replacement.wav", "myvoice");
+      const staged = (await pickVoiceImport())!.stagedId;
+      await commitVoiceImport(staged, "myvoice");
 
       expect(speakerSelection.addUserOption).toHaveBeenCalledWith({
         ...IMPORTED,
@@ -360,9 +385,10 @@ describe("createVoiceImportFlow", () => {
     // list call (it resolves to null rather than throwing) can never skip the upload.
     it("never consults listVoices — a flaked list cannot skip the upload", async () => {
       listVoices.mockResolvedValue(null); // as if the server list call failed
-      const { commitVoiceImport } = build("http://localhost:8091");
+      const { pickVoiceImport, commitVoiceImport } = build("http://localhost:8091");
 
-      await commitVoiceImport("/tmp/MyVoice.wav", "My Voice");
+      const staged = (await pickVoiceImport())!.stagedId;
+      await commitVoiceImport(staged, "My Voice");
 
       expect(listVoices).not.toHaveBeenCalled();
       expect(upsertVoice).toHaveBeenCalledOnce();
@@ -370,9 +396,10 @@ describe("createVoiceImportFlow", () => {
 
     it("overwriting an existing name still uploads (no id-existence short circuit)", async () => {
       listVoices.mockResolvedValue(["myvoice"]); // server already has it — an explicit overwrite
-      const { commitVoiceImport, speakerSelection } = build("http://localhost:8091");
+      const { pickVoiceImport, commitVoiceImport, speakerSelection } = build("http://localhost:8091");
 
-      await commitVoiceImport("/tmp/Replacement.wav", "myvoice");
+      const staged = (await pickVoiceImport())!.stagedId;
+      await commitVoiceImport(staged, "myvoice");
 
       expect(upsertVoice).toHaveBeenCalledOnce();
       expect(speakerSelection.select).toHaveBeenCalledWith("myvoice");
@@ -380,39 +407,40 @@ describe("createVoiceImportFlow", () => {
 
     it("cleans up the orphan copy and rethrows when the upload fails, leaving the store untouched", async () => {
       upsertVoice.mockRejectedValue(new Error("server down"));
-      const { commitVoiceImport, speakerSelection } = build("http://localhost:8091");
+      const { pickVoiceImport, commitVoiceImport, speakerSelection } = build("http://localhost:8091");
 
-      await expect(commitVoiceImport("/tmp/MyVoice.wav", "My Voice")).rejects.toThrow(
-        "server down",
-      );
+      const staged = (await pickVoiceImport())!.stagedId;
+      await expect(commitVoiceImport(staged, "My Voice")).rejects.toThrow("server down");
 
-      expect(removeUserVoice).toHaveBeenCalledWith(copyVoiceFile.mock.calls[0][1]);
+      expect(removeUserVoice).toHaveBeenCalledWith(pickVoiceFile.mock.calls[0][0]);
       expect(speakerSelection.addUserOption).not.toHaveBeenCalled();
       expect(speakerSelection.select).not.toHaveBeenCalled();
     });
 
     it("keeps the stored voice's folder when a same-name re-import fails, removing only the staged copy", async () => {
       upsertVoice.mockRejectedValue(new Error("server down"));
-      const { commitVoiceImport } = build("http://localhost:8091", "irodori", [
+      const { pickVoiceImport, commitVoiceImport } = build("http://localhost:8091", "irodori", [
         { ...IMPORTED, provider: "irodori" },
       ]);
 
-      await expect(commitVoiceImport("/tmp/Replacement.wav", "myvoice")).rejects.toThrow(
-        "server down",
-      );
+      const staged = (await pickVoiceImport())!.stagedId;
+      await expect(commitVoiceImport(staged, "myvoice")).rejects.toThrow("server down");
 
       expect(removeUserVoice).not.toHaveBeenCalledWith("myvoice");
-      expect(removeUserVoice.mock.calls).toEqual([[copyVoiceFile.mock.calls[0][1]]]);
+      expect(removeUserVoice.mock.calls).toEqual([[pickVoiceFile.mock.calls[0][0]]]);
       expect(renameUserVoice).not.toHaveBeenCalled();
     });
 
     it("uploads under the name-derived id, then moves the staged clip over that id's folder", async () => {
       renameUserVoice.mockResolvedValue("asset://localhost/app-data/references/myvoice/moved.wav");
-      const { commitVoiceImport, speakerSelection } = build("http://localhost:8091", "irodori");
+      const { pickVoiceImport, commitVoiceImport, speakerSelection } = build(
+        "http://localhost:8091",
+        "irodori",
+      );
 
-      await commitVoiceImport("/tmp/MyVoice.wav", "myvoice");
+      const staged = (await pickVoiceImport())!.stagedId;
+      await commitVoiceImport(staged, "myvoice");
 
-      const staged = copyVoiceFile.mock.calls[0][1] as string;
       expect(staged).not.toBe("myvoice");
       expect(upsertVoice.mock.calls[0][0]).toMatchObject({
         id: "myvoice",
@@ -436,46 +464,51 @@ describe("createVoiceImportFlow", () => {
       expect(speakerSelection.select).toHaveBeenCalledWith("myvoice");
     });
 
-    it("refuses a blank name under a provider that keeps the caller's id, copying nothing", async () => {
-      const { commitVoiceImport } = build("http://localhost:8091", "irodori");
+    it("refuses a blank name under a provider that keeps the caller's id, removing the staged copy", async () => {
+      const { pickVoiceImport, commitVoiceImport } = build("http://localhost:8091", "irodori");
 
-      await expect(commitVoiceImport("/tmp/MyVoice.wav", "  ")).rejects.toThrow(
-        "voice name required",
-      );
+      const staged = (await pickVoiceImport())!.stagedId;
+      await expect(commitVoiceImport(staged, "  ")).rejects.toThrow("voice name required");
 
-      expect(copyVoiceFile).not.toHaveBeenCalled();
+      expect(removeUserVoice).toHaveBeenCalledWith(staged);
     });
 
-    it("throws without copying when tts_base_url is unset", async () => {
-      const { commitVoiceImport, speakerSelection } = build(undefined);
+    it("throws and removes the staged copy when tts_base_url is unset", async () => {
+      const { pickVoiceImport, commitVoiceImport, speakerSelection } = build(undefined);
 
-      await expect(commitVoiceImport("/tmp/MyVoice.wav", "My Voice")).rejects.toThrow(
-        "tts_base_url",
-      );
+      const staged = (await pickVoiceImport())!.stagedId;
+      await expect(commitVoiceImport(staged, "My Voice")).rejects.toThrow("tts_base_url");
 
-      expect(copyVoiceFile).not.toHaveBeenCalled();
+      expect(removeUserVoice).toHaveBeenCalledWith(staged);
       expect(upsertVoice).not.toHaveBeenCalled();
       expect(speakerSelection.addUserOption).not.toHaveBeenCalled();
     });
 
-    it("refuses an import under a provider that takes no uploaded voices, copying nothing", async () => {
-      const { commitVoiceImport, speakerSelection } = build("https://api.openai.com", "openai");
+    it("refuses an import under a provider that takes no uploaded voices, removing the staged copy", async () => {
+      const { pickVoiceImport, commitVoiceImport, speakerSelection } = build(
+        "https://api.openai.com",
+        "openai",
+      );
 
-      await expect(commitVoiceImport("/tmp/MyVoice.wav", "My Voice")).rejects.toThrow("openai");
+      const staged = (await pickVoiceImport())!.stagedId;
+      await expect(commitVoiceImport(staged, "My Voice")).rejects.toThrow("openai");
 
-      expect(copyVoiceFile).not.toHaveBeenCalled();
+      expect(removeUserVoice).toHaveBeenCalledWith(staged);
       expect(upsertVoice).not.toHaveBeenCalled();
       expect(speakerSelection.addUserOption).not.toHaveBeenCalled();
     });
 
-    it("refuses an Irodori import whose id another provider's voice holds, copying nothing", async () => {
-      const { commitVoiceImport, speakerSelection } = build("http://localhost:8091", "irodori", [
-        { id: "natsume", label: "natsume", ref_url: "", source: "user", provider: "fish" },
-      ]);
+    it("refuses an Irodori import whose id another provider's voice holds, removing the staged copy", async () => {
+      const { pickVoiceImport, commitVoiceImport, speakerSelection } = build(
+        "http://localhost:8091",
+        "irodori",
+        [{ id: "natsume", label: "natsume", ref_url: "", source: "user", provider: "fish" }],
+      );
 
-      await expect(commitVoiceImport("/tmp/natsume.wav", "natsume")).rejects.toThrow("natsume");
+      const staged = (await pickVoiceImport())!.stagedId;
+      await expect(commitVoiceImport(staged, "natsume")).rejects.toThrow("natsume");
 
-      expect(copyVoiceFile).not.toHaveBeenCalled();
+      expect(removeUserVoice).toHaveBeenCalledWith(staged);
       expect(speakerSelection.addUserOption).not.toHaveBeenCalled();
     });
 
@@ -486,17 +519,18 @@ describe("createVoiceImportFlow", () => {
       const speakerSelection = createSpeakerSelection({ defaultValue: "" });
       speakerSelection.addUserOption({ ...IMPORTED, provider: "irodori" });
       speakerSelection.select(IMPORTED.id);
-      const { commitVoiceImport } = createVoiceImportFlow({
-        getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
-        speakerSelection,
-        log: noopLog,
-      });
       const onChange = vi.fn();
       speakerSelection.subscribe(onChange);
 
       // Same name, same id, already active — select() alone is a no-op here (unchanged active id),
       // so addUserOption is the only thing that can wake other windows.
-      await commitVoiceImport("/tmp/MyVoice.wav", "myvoice");
+      const { pickVoiceImport, commitVoiceImport } = createVoiceImportFlow({
+        getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
+        speakerSelection,
+        log: noopLog,
+      });
+      const staged = (await pickVoiceImport())!.stagedId;
+      await commitVoiceImport(staged, "myvoice");
 
       expect(onChange).toHaveBeenCalled();
     });
