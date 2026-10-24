@@ -733,48 +733,6 @@ describe("signals_source — delivery envelopes", () => {
     return { src, pushed, emitIdle, emitInbox, onInbox };
   }
 
-  it("restores groups ahead of existing groups by delivery and keeps newer duplicates", async () => {
-    const s = setup();
-    await s.src.start();
-    s.emitIdle(idleTick(HIGH_IDLE));
-    const away = { envelope: envelopeOf(1), items: [{ id: 1 }] };
-    const batched = {
-      envelope: { ...envelopeOf(2), delivery: "batched" as const },
-      items: [{ id: 2 }],
-    };
-    s.emitInbox(batch(away.items, 1, away.envelope));
-    s.emitInbox(batch(batched.items, 2, batched.envelope));
-    const urgent = {
-      envelope: { ...envelopeOf(3), delivery: "urgent" as const },
-      items: [{ id: 3 }],
-    };
-    const restoredBatch = {
-      envelope: { ...envelopeOf(4), delivery: "batched" as const },
-      items: [{ id: 4 }],
-    };
-    const restoredAway = { envelope: envelopeOf(5), items: [{ id: 5 }] };
-    s.src.restore([urgent, restoredBatch, restoredAway, { ...away, items: [{ id: 99 }] }]);
-    s.emitIdle(idleTick(LOW_IDLE));
-    expect(s.pushed.map((env) => [env.event_name, env.payload?.signals])).toEqual([
-      ["signals.catchup", [restoredBatch, restoredAway, away, batched]],
-      ["signals.urgent_catchup", [urgent]],
-    ]);
-    s.src.stop();
-  });
-
-  it("restoring a batched group into an empty buffer arms delivery", async () => {
-    const s = setup();
-    await s.src.start();
-    s.emitIdle(idleTick(LOW_IDLE));
-    const group = { envelope: { ...ENVELOPE, delivery: "batched" as const }, items: [{ id: 1 }] };
-    s.src.restore([group]);
-    await vi.advanceTimersByTimeAsync(300_000);
-    expect(s.pushed.map((env) => [env.event_name, env.payload?.signals])).toEqual([
-      ["signals.batch", [group]],
-    ]);
-    s.src.stop();
-  });
-
   it.each([
     ["missing field", { ...ENVELOPE, source: undefined }],
     ["wrong type", { ...ENVELOPE, event_id: 7 }],

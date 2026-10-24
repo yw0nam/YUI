@@ -5,8 +5,7 @@ import type { AgentEvent } from "../../../io/bridge/inbox/agent-inbox";
 import type { SignalsBatch } from "../../../io/bridge/inbox/signals-inbox";
 import type { OsEventListen, OsEventPayload } from "../../../io/window/tauri-listen";
 import type { BackendCaller, TurnOutcome } from "../../backend/backend-caller";
-import { signalsOf } from "../../backend/context-builder";
-import { createEventBus } from "../../core/event-bus";
+import { type BusEnvelope, createEventBus } from "../../core/event-bus";
 import { createGuardrails } from "../../core/guardrails";
 import { composePacedPipelineBusy } from "../../core/paced-pipeline-busy";
 import { createProactivePacer } from "../../core/proactive-pacer";
@@ -24,9 +23,9 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 it.each([
-  "agent catch-up",
-  "failed wake",
-])("restores signals after a %s turn is dropped", async (mode) => {
+  { mode: "agent catch-up", title: "restores signals after an agent catch-up turn is dropped" },
+  { mode: "failed wake", title: "restores signals after a failed wake turn is dropped" },
+])("$title", async ({ mode }) => {
   const handlers = new Set<(event: { payload: OsEventPayload }) => void>();
   const listen: OsEventListen = async (_event, handler) => {
     handlers.add(handler);
@@ -57,10 +56,7 @@ it.each([
     renderer: {} as never,
     hasOutstandingSpeech: () => false,
     logger: makeLogger(),
-    onTurnDropped: (env) => {
-      const groups = signalsOf(env);
-      if (groups?.length) signalsSource.restore(groups);
-    },
+    onTurnDropped: (env) => signalsSource.restore(env),
   });
   const pipelineBusy = {
     isBusy: dispatcher.isPipelineBusy,
@@ -137,4 +133,103 @@ it.each([
   agentSource.stop();
   signalsSource.stop();
   pacer.stop();
+});
+
+const envelopeOf = (id: number) => ({ ...SIGNAL_ENVELOPE, event_id: `run-${id}` });
+
+function setupRestore() {
+  const pushed: BusEnvelope[] = [];
+  const handlers = new Set<(event: { payload: OsEventPayload }) => void>();
+  const listen: OsEventListen = async (_event, handler) => {
+    handlers.add(handler);
+    return () => {
+      handlers.delete(handler);
+    };
+  };
+  let acceptSignals: ((event: SignalsBatch) => void) | undefined;
+  const src = createSignalsSource({
+    bus: {
+      push: (env) => {
+        pushed.push(env);
+        return true;
+      },
+    },
+    present_max_idle_ms: 10_000,
+    isEnabled: () => true,
+    listen,
+    onInbox: (cb) => {
+      acceptSignals = cb;
+      return () => {};
+    },
+  });
+  return {
+    src,
+    pushed,
+    emitIdle: (os_idle_ms: number) => {
+      for (const handler of handlers)
+        handler({ payload: { event_name: "os_idle_tick", ts: NOW, data: { os_idle_ms } } });
+    },
+    emitInbox: (group: SignalGroup) =>
+      acceptSignals?.({ envelope: group.envelope, signals: group.items, ts: NOW }),
+  };
+}
+
+it("restores groups ahead of existing groups by delivery and keeps newer duplicates", async () => {
+  const s = setupRestore();
+  await s.src.start();
+  s.emitIdle(20_000);
+  const away = { envelope: envelopeOf(1), items: [{ id: 1 }] };
+  const batched = {
+    envelope: { ...envelopeOf(2), delivery: "batched" as const },
+    items: [{ id: 2 }],
+  };
+  s.emitInbox(away);
+  s.emitInbox(batched);
+  const bufferedUrgent = {
+    envelope: { ...envelopeOf(6), delivery: "urgent" as const },
+    items: [{ id: 6 }],
+  };
+  s.emitInbox(bufferedUrgent);
+  const urgent = {
+    envelope: { ...envelopeOf(3), delivery: "urgent" as const },
+    items: [{ id: 3 }],
+  };
+  const restoredBatch = {
+    envelope: { ...envelopeOf(4), delivery: "batched" as const },
+    items: [{ id: 4 }],
+  };
+  const restoredAway = { envelope: envelopeOf(5), items: [{ id: 5 }] };
+  s.src.restore({
+    source: "timer_scheduler",
+    event_name: "signals.catchup",
+    ts: NOW,
+    payload: { signals: [urgent, restoredBatch, restoredAway, { ...away, items: [{ id: 99 }] }] },
+  });
+  s.emitIdle(100);
+  expect(s.pushed.map((env) => [env.event_name, env.payload?.signals])).toEqual([
+    ["signals.catchup", [restoredBatch, restoredAway, away, batched]],
+    ["signals.urgent_catchup", [urgent, bufferedUrgent]],
+  ]);
+  s.src.stop();
+});
+
+it("restoring a batched group into an empty buffer arms delivery", async () => {
+  const s = setupRestore();
+  await s.src.start();
+  s.emitIdle(100);
+  const group = {
+    envelope: { ...SIGNAL_ENVELOPE, delivery: "batched" as const },
+    items: [{ id: 1 }],
+  };
+  s.src.restore({
+    source: "timer_scheduler",
+    event_name: "signals.batch",
+    ts: NOW,
+    payload: { signals: [group] },
+  });
+  await vi.advanceTimersByTimeAsync(300_000);
+  expect(s.pushed.map((env) => [env.event_name, env.payload?.signals])).toEqual([
+    ["signals.batch", [group]],
+  ]);
+  s.src.stop();
 });

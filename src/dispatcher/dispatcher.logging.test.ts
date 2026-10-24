@@ -208,7 +208,6 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
       guardrails,
       turnLog,
       hasOutstandingSpeech: () => speaking,
-      onTurnDropped,
       logger,
       onUserTurnFailed: sink,
     });
@@ -267,7 +266,6 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
       guardrails,
       turnLog,
       hasOutstandingSpeech: () => speaking,
-      onTurnDropped,
       logger,
       onUserTurnFailed: sink,
     });
@@ -377,14 +375,12 @@ describe("dispatcher — structured logging: drop events via logger", () => {
 
   it("emits logger.warn('drop', ...) for network_drop via DROP_SEVERITY", async () => {
     dispatcher.start();
-    bus.push(env());
+    const trigger = env();
+    bus.push(trigger);
     await vi.advanceTimersByTimeAsync(20);
     callDeferred[0].resolve("network_drop");
     await vi.advanceTimersByTimeAsync(20);
-    expect(onTurnDropped).toHaveBeenCalledWith(
-      expect.objectContaining({ event_name: "user.text_submitted" }),
-      "network_drop",
-    );
+    expect(onTurnDropped).toHaveBeenCalledWith(trigger, "network_drop");
     expect(logger.warn).toHaveBeenCalledWith(
       "drop",
       expect.objectContaining({

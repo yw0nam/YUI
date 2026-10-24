@@ -251,6 +251,22 @@ describe("event_bus — capacity 100 (§4.2)", () => {
     // The first thing popped should now be the user event.
     expect(bus.pop()!.event_name).toBe("user.text_submitted");
   });
+
+  it("returns false for a capacity eviction of itself and true for eviction of an older envelope", () => {
+    const onDrop = vi.fn();
+    const bus = createEventBus({ onDrop });
+    const older = env({ event_name: "proactive.cowork", source: "timer_scheduler" });
+    const rejected = env({ event_name: "avatar.walk_start", source: "timer_scheduler" });
+    const accepted = env({ event_name: "user.text_submitted" });
+    for (let i = 0; i < 99; i++) bus.push(env({ event_name: "user.text_submitted" }));
+    expect(bus.push(older)).toBe(true);
+    expect(bus.push(rejected)).toBe(false);
+    expect(onDrop).toHaveBeenCalledWith(rejected, "capacity_overflow");
+    expect(bus.push(accepted)).toBe(true);
+    expect(onDrop).toHaveBeenCalledWith(older, "capacity_overflow");
+    expect(bus.snapshot()).toHaveLength(100);
+    expect(bus.snapshot()).toContain(accepted);
+  });
 });
 
 describe("event_bus — drop callback / dev observability", () => {
@@ -260,20 +276,4 @@ describe("event_bus — drop callback / dev observability", () => {
     bus.push(env({ event_name: "nope.unknown" }));
     expect(onDrop).toHaveBeenCalledTimes(1);
   });
-});
-
-it("returns false for a capacity eviction of itself and true for eviction of an older envelope", () => {
-  const onDrop = vi.fn();
-  const bus = createEventBus({ onDrop });
-  const older = env({ event_name: "proactive.cowork", source: "timer_scheduler" });
-  const rejected = env({ event_name: "avatar.walk_start", source: "timer_scheduler" });
-  const accepted = env({ event_name: "user.text_submitted" });
-  for (let i = 0; i < 99; i++) bus.push(env({ event_name: "user.text_submitted" }));
-  expect(bus.push(older)).toBe(true);
-  expect(bus.push(rejected)).toBe(false);
-  expect(onDrop).toHaveBeenCalledWith(rejected, "capacity_overflow");
-  expect(bus.push(accepted)).toBe(true);
-  expect(onDrop).toHaveBeenCalledWith(older, "capacity_overflow");
-  expect(bus.snapshot()).toHaveLength(100);
-  expect(bus.snapshot()).toContain(accepted);
 });
