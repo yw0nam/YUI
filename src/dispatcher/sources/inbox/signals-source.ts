@@ -30,6 +30,8 @@ interface SignalsSourceDeps {
   isEnabled: () => boolean;
   onInbox?: (cb: (p: SignalsBatch) => void, deps?: { listen?: OsEventListen }) => () => void;
   listen?: OsEventListen;
+  /** Called with every parsed group before routing, buffered or not. */
+  onArrival?: (group: SignalGroup) => void;
   now?: () => number;
   /** Paced busy predicate for immediate/batched groups — the proactive gap reads as busy. */
   isPipelineBusy?: () => boolean;
@@ -147,6 +149,7 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     if (!deps.isEnabled()) return;
     const item = parse(raw);
     if (item === undefined) return;
+    deps.onArrival?.(item.group);
     for (const { accept, sink } of sinks) {
       if (accept(item)) sink(item);
     }

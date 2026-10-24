@@ -661,6 +661,16 @@ const ja: Record<string, string> = {
   "deleg.unknown": "結果未確認",
   "deleg.unknown_ago": "結果未確認 · {time}前",
   "deleg.took": "所要 {time}",
+  "sigchip.dismiss": "消す",
+  "sigchip.close": "閉じる",
+  "sigchip.more": "+{n}",
+  "sigchip.collapse": "たたむ",
+  "sigchip.kind": "種類",
+  "sigchip.label": "ラベル",
+  "sigchip.received": "受信時刻",
+  "sigchip.silent": "話さなかった",
+  "sigchip.card_aria": "シグナルの詳細",
+  "sigchip.chip_aria": "{source}からの{delivery}: {text}",
 
   // reasoning
   "think.chip": "思考",

@@ -112,7 +112,6 @@ body {
 .yui-phone .yui-deleg {
   position: static;
   min-width: 0;
-  padding-left: 0;
   transform: none;
 }
 

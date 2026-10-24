@@ -69,6 +69,7 @@ export function recordSentTurn(deps: TurnRecordingDeps, log: Logger, turn: SentT
       groups.map(
         (group): SignalRecord => ({
           turn_id: turnId,
+          event_id: group.envelope.event_id,
           source: group.envelope.source,
           event_type: group.envelope.event_type,
           label: group.envelope.label ?? null,

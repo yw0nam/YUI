@@ -1,4 +1,5 @@
 import type { ScreenConfig } from "../../config/validators/screen";
+import type { SignalGroup } from "../../contract";
 import type { EventBus } from "../../dispatcher/core/event-bus";
 import {
   composePacedPipelineBusy,
@@ -55,6 +56,8 @@ export function wireDispatcherSources(deps: {
   pacer: Pick<ProactivePacer, "isHolding" | "subscribe">;
   /** True while the day's first-activity candidate waits. */
   isFirstActivityHeld: () => boolean;
+  /** Called with each parsed signal group as it arrives. */
+  onSignalArrival?: (group: SignalGroup) => void;
 }): {
   proactiveSource: ProactiveSource;
   scheduleSource: ScheduleSource;
@@ -107,6 +110,7 @@ export function wireDispatcherSources(deps: {
     subscribePipelineBusy: pacedPipelineBusy.subscribe,
     isUrgentPipelineBusy: pipelineBusy.isBusy,
     subscribeUrgentPipelineBusy: pipelineBusy.subscribe,
+    onArrival: deps.onSignalArrival,
   });
   void signalsSource.start();
   const milestoneSource = createMilestoneSource({

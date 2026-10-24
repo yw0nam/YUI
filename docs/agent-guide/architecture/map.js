@@ -1128,7 +1128,7 @@ globalThis.YUI_MAP =
       "id": "ui/chips",
       "module": "display",
       "label": "chips",
-      "role": "The status pill, which names a client-run tool's action, the delegation chip, and the voice-input status model.",
+      "role": "The status pill, which names a client-run tool's action, the delegation chip, the signal chip and its card, and the voice-input status model.",
       "paths": [
         "src/ui/chips"
       ]
@@ -1223,6 +1223,15 @@ globalThis.YUI_MAP =
       "paths": [
         "src/app/turn/wire-card.ts",
         "src/app/turn/wire-greeting.ts"
+      ]
+    },
+    {
+      "id": "app/signal-chips",
+      "module": "wiring",
+      "label": "signal chips wiring",
+      "role": "Creates the signal chips and the fold store they share with the delegation chip, and hands the signals source its arrival callback.",
+      "paths": [
+        "src/app/signal-chips"
       ]
     },
     {
@@ -3030,6 +3039,33 @@ globalThis.YUI_MAP =
       "transport": "push"
     },
     {
+      "id": "signals-chips",
+      "from": "dispatcher/sources/inbox",
+      "to": "ui/chips",
+      "carries": "each parsed signal group, buffered or not → signal chip (onArrival)",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/signal-chips/wire-signal-chips.ts"
+    },
+    {
+      "id": "history-chips",
+      "from": "io/chat/conversation",
+      "to": "ui/chips",
+      "carries": "signal records → what YUI said on a chip's card, by event_id",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/signal-chips/wire-signal-chips.ts"
+    },
+    {
+      "id": "chips-fold",
+      "from": "settings",
+      "to": "ui/chips",
+      "carries": "the per-device fold choice → signal chips and delegation chip",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/signal-chips/wire-signal-chips.ts"
+    },
+    {
       "id": "delegations-controls",
       "from": "io/bridge/delegations",
       "to": "ui/quick-controls",
@@ -3140,7 +3176,7 @@ globalThis.YUI_MAP =
       "id": "chips-user",
       "from": "ui/chips",
       "to": "user",
-      "carries": "status pill, delegation chip",
+      "carries": "status pill, delegation chip, signal chips and their card",
       "kind": "user",
       "transport": "shared"
     },

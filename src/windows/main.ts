@@ -290,7 +290,8 @@ async function bootstrap(): Promise<BootstrapHandle> {
       wirePushMode({
         socket: push.pushSocket,
         chip: createDelegationChipMount({
-          mount: root,
+          mount: surfaces.chipColumn,
+          collapsed: configured.chipFold,
           store: push.delegations,
           pushState: push.pushSocket,
           onOpenSettings: () => controls.get().open(undefined, { tab: "conn" }),

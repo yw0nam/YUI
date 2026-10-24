@@ -32,6 +32,8 @@ const POP_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 export interface Surfaces {
   /** overlay root (.yui-ui) */
   readonly el: HTMLElement;
+  /** Where the chips beside the avatar mount, signal chips first and the delegation chip after. */
+  readonly chipColumn: HTMLElement;
 
   // ── speech bubble (output) ──
   /** Reveal the bubble (empty) + caret ON. Called before streaming starts. */
@@ -140,6 +142,7 @@ export function createSurfaces({
       </div>
       <div class="yui-bubble__box"><div class="yui-bubble__quote" hidden></div><span class="yui-bubble__text"></span><span class="yui-bubble__caret" aria-hidden="true">|</span><span class="yui-bubble__speech-action" hidden></span></div>
     </div>
+    <div class="yui-chip-column"></div>
     <span class="yui-bubble__sr" role="status" aria-live="polite"></span>
     <form class="yui-input" novalidate hidden>
       <div class="yui-input__tray"></div>
@@ -178,6 +181,7 @@ export function createSurfaces({
   `;
   mount.appendChild(el);
 
+  const chipColumn = el.querySelector<HTMLDivElement>(".yui-chip-column")!;
   const bubbleEl = el.querySelector<HTMLDivElement>(".yui-bubble")!;
   const bubbleBox = el.querySelector<HTMLDivElement>(".yui-bubble__box")!;
   const bubbleQuote = el.querySelector<HTMLDivElement>(".yui-bubble__quote")!;
@@ -242,6 +246,7 @@ export function createSurfaces({
 
   return {
     el,
+    chipColumn,
     beginSpeech: bubble.beginSpeech,
     pushSpeech: bubble.pushSpeech,
     endSpeech: bubble.endSpeech,

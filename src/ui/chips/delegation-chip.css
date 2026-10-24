@@ -3,13 +3,7 @@
    Tokens live in ./tokens.css. */
 
 .yui-deleg {
-  /* A full-width strip at right-shoulder height: the padding keeps the chip beside the
-     character while the strip's right edge anchors the list inside the window. */
-  position: absolute;
-  top: 30%;
-  left: 0;
-  right: 0;
-  padding-left: calc(50% + 3.5rem);
+  position: relative;
   display: inline-flex;
   flex-direction: column;
   align-items: flex-start;

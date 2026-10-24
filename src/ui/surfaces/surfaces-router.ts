@@ -63,6 +63,7 @@ export function createSurfacesRouter({
 
   return {
     el: local.el,
+    chipColumn: local.chipColumn,
 
     beginSpeech: () => speech().beginSpeech(),
     pushSpeech: (delta) => speech().pushSpeech(delta),

@@ -18,7 +18,7 @@ import { afterFadeOut } from "../notices/fade-out";
 import { DELEGATION_REFRESH_MS, renderDelegationRows } from "./delegation-rows";
 
 /** How long a press must hold before it folds the chip. */
-const FOLD_PRESS_MS = 500;
+export const FOLD_PRESS_MS = 500;
 
 /** Where the push socket stands, as the chip reads it — the real socket or a window's mirror. */
 export interface PushStatePort {

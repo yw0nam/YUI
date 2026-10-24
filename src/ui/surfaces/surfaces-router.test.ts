@@ -25,6 +25,7 @@ const LIMITS = guardrailsFixture().attachments;
 function makeLocal(): Surfaces {
   return {
     el: document.createElement("div"),
+    chipColumn: document.createElement("div"),
     beginSpeech: vi.fn(),
     pushSpeech: vi.fn(),
     endSpeech: vi.fn(),

@@ -1,0 +1,260 @@
+/* YUI signal chips — one pill per signal group above the delegation chip, with a card on tap.
+   Same pill family as the delegation chip. Tokens live in ../tokens.css. */
+
+.yui-sigchips {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  font-family: var(--yui-font);
+  pointer-events: none;
+
+  opacity: 0;
+  transition: opacity var(--yui-dur) var(--yui-ease);
+}
+
+.yui-sigchips[hidden] {
+  display: none;
+}
+
+.yui-sigchips.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Expanded past three: the column scrolls inside once eight chips are shown. */
+.yui-sigchips.is-expanded {
+  max-height: 18rem;
+  overflow-y: auto;
+}
+
+.yui-sigchip {
+  display: inline-flex;
+  align-items: center;
+  max-width: min(20rem, 100%);
+  border-radius: var(--yui-radius-pill);
+  background: var(--yui-scrim-strong);
+  border: 1px solid var(--yui-edge);
+  box-shadow: var(--yui-float);
+  color: var(--yui-text-dim);
+  font-size: var(--yui-fs-sub);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  animation: yui-sigchip-in var(--yui-dur) var(--yui-ease);
+}
+
+.yui-sigchip:hover {
+  border-color: var(--yui-edge-strong);
+}
+
+.yui-sigchip__open {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  padding: 0.3rem 0.25rem 0.3rem 0.66rem;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.yui-sigchip__src {
+  flex: none;
+  font-weight: 600;
+  color: var(--yui-text);
+}
+
+.yui-sigchip__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--yui-text-mute);
+}
+
+.yui-sigchip__x {
+  display: grid;
+  place-items: center;
+  padding: 0.3rem 0.55rem 0.3rem 0.2rem;
+  background: none;
+  border: 0;
+  color: var(--yui-text-mute);
+  cursor: pointer;
+}
+
+.yui-sigchip__x:hover {
+  color: var(--yui-text);
+}
+
+.yui-sigchip__x svg {
+  width: 0.65rem;
+  height: 0.65rem;
+  stroke-width: 2;
+}
+
+.yui-sigchip__dot {
+  flex: none;
+  box-sizing: border-box;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+}
+
+/* Batched: a steady amber ring, the source line's dot. */
+.yui-sigchip--batched .yui-sigchip__dot {
+  border: 1.5px solid var(--yui-accent);
+  box-shadow: 0 0 0 3px var(--yui-accent-faint);
+}
+
+/* The urgent dot pulses while the chip shows: the signal needs the user now. Named by DESIGN.md's
+   One-Pulse Rule; a deliberate departure from PRODUCT.md principle 5. */
+.yui-sigchip--urgent .yui-sigchip__dot {
+  background: var(--yui-danger);
+  box-shadow: 0 0 0 3px var(--yui-danger-faint);
+  animation: yui-sigchip-beat 1.8s ease-in-out infinite;
+}
+
+@keyframes yui-sigchip-beat {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px var(--yui-danger-faint);
+  }
+  50% {
+    box-shadow: 0 0 0 6px var(--yui-danger-faint);
+  }
+}
+
+@keyframes yui-sigchip-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.yui-sigchip__more,
+.yui-sigchip__collapse {
+  padding: 0.3rem 0.66rem;
+  border-radius: var(--yui-radius-pill);
+  background: var(--yui-scrim-strong);
+  border: 1px solid var(--yui-edge);
+  box-shadow: var(--yui-float);
+  color: var(--yui-text-mute);
+  font: inherit;
+  font-size: var(--yui-fs-sub);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* Folded (is-mini): every chip shrinks to its dot. */
+.yui-sigchips.is-mini .yui-sigchip__src,
+.yui-sigchips.is-mini .yui-sigchip__text,
+.yui-sigchips.is-mini .yui-sigchip__x,
+.yui-sigchips.is-mini .yui-sigchip__more,
+.yui-sigchips.is-mini .yui-sigchip__collapse {
+  display: none;
+}
+
+.yui-sigchips.is-mini .yui-sigchip__open {
+  gap: 0;
+  padding: 0.3rem 0.4rem;
+}
+
+/* The card hangs under the whole chip column, its right edge 0.5rem inside the window. */
+.yui-sigcard {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  box-sizing: border-box;
+  width: min(18rem, calc(100vw - 1rem));
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--yui-radius-control);
+  background: var(--yui-scrim-strong);
+  border: 1px solid var(--yui-edge-strong);
+  box-shadow: var(--yui-float);
+  color: var(--yui-text-dim);
+  font-size: var(--yui-fs-sub);
+  animation: yui-sigchip-in var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-sigcard__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.yui-sigcard__close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  padding: 0.2rem;
+  background: none;
+  border: 0;
+  color: var(--yui-text-mute);
+  cursor: pointer;
+}
+
+.yui-sigcard__close svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  stroke-width: 2;
+}
+
+.yui-sigcard__rows {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.6rem;
+  margin: 0;
+}
+
+.yui-sigcard__rows dt {
+  color: var(--yui-text-mute);
+}
+
+.yui-sigcard__rows dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.yui-sigcard__said {
+  margin: 0;
+  color: var(--yui-text-mute);
+  font-style: italic;
+}
+
+.yui-sigcard__items {
+  max-height: 110px;
+  margin: 0;
+  padding: 0.3rem 0.4rem;
+  overflow: auto;
+  border-radius: var(--yui-radius-control);
+  background: var(--yui-field);
+  font-size: var(--yui-fs-caption);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.yui-sigcard__dismiss {
+  align-self: flex-end;
+  padding: 0.2rem 0.5rem;
+  background: none;
+  border: 1px solid var(--yui-edge-strong);
+  border-radius: var(--yui-radius-pill);
+  color: var(--yui-text-dim);
+  font: inherit;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-sigchips {
+    transition-duration: var(--yui-dur-fast) !important;
+  }
+  .yui-sigchip--urgent .yui-sigchip__dot {
+    animation: none;
+  }
+}

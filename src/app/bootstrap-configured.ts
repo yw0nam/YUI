@@ -13,6 +13,7 @@ import type { SummonHotkey } from "../io/window/pet/summon-hotkey";
 import { subscribeOsEvent } from "../io/window/tauri-listen";
 import { createLogger } from "../logger";
 import { mergeScreen } from "../settings/capture/screen-settings";
+import type { DelegationChipSettingsStore } from "../settings/panels/delegation-chip-settings";
 import { presetIdForWindow } from "../settings/preset/active-preset";
 import { isMacOS, isWindows } from "../tauri-env";
 import { t } from "../ui/i18n";
@@ -20,6 +21,7 @@ import { maybeShowFirstRunHint } from "../ui/notices/first-run-hint";
 import { wireIngressDeadNotice } from "../ui/notices/ingress-dead-notice";
 import type { createQuickControls } from "../ui/quick-controls/quick-controls";
 import { wireRelations } from "./relations/wire-relations";
+import { wireSignalChips } from "./signal-chips/wire-signal-chips";
 import type { BedSceneHold } from "./stage/bed-scene-hold";
 import { wireBedScene } from "./stage/wire-bed-scene";
 import { wireStageGestures } from "./stage/wire-gestures";
@@ -66,6 +68,8 @@ export interface ConfiguredBootstrapHandles {
   noteInteraction: () => void;
   /** Performs the card's greeting when the running session is empty. */
   greetLocal: () => void;
+  /** The fold store the signal chips and the delegation chip share. */
+  chipFold: DelegationChipSettingsStore;
   dispose(): void;
 }
 
@@ -188,6 +192,11 @@ const realFactories: ConfiguredBootstrapFactories = {
     if (peekState) core.setPeek(peekState);
 
     core.start();
+    const signalChips = wireSignalChips({
+      mount: surfaces.chipColumn,
+      signalHistory: phase1.conversation.signalHistoryStore,
+      register,
+    });
     const {
       proactiveSource,
       scheduleSource,
@@ -211,6 +220,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       },
       pacer,
       isFirstActivityHeld: bedScene.isHeld,
+      onSignalArrival: signalChips.onArrival,
     });
     core.setProactiveSource(proactiveSource);
     register(proactiveSource.stop);
@@ -319,6 +329,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       stopTurn,
       noteInteraction: () => proactiveSource.noteInteraction(),
       greetLocal: greeting.greetLocal,
+      chipFold: signalChips.collapsed,
     };
   },
 };

@@ -11,6 +11,8 @@ import {
 
 export interface SignalRecord {
   turn_id: string;
+  /** The group's producer-assigned id; null on rows stored before it was kept. */
+  event_id: string | null;
   source: string;
   event_type: string;
   label: string | null;
@@ -37,6 +39,7 @@ function coerceRecord(v: unknown): SignalRecord | null {
   if (r.delivery !== "urgent" && r.delivery !== "batched") return null;
   return {
     turn_id: r.turn_id,
+    event_id: typeof r.event_id === "string" ? r.event_id : null,
     source: r.source,
     event_type: r.event_type,
     label: r.label,
@@ -62,6 +65,7 @@ function equalRecords(a: SignalRecord[], b: SignalRecord[]): boolean {
     const other = b[i]!;
     return (
       r.turn_id === other.turn_id &&
+      r.event_id === other.event_id &&
       r.source === other.source &&
       r.event_type === other.event_type &&
       r.label === other.label &&
