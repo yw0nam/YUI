@@ -233,13 +233,17 @@ describe("dispatcher — global proactive pacer gate", () => {
   function build(
     pacer: ReturnType<typeof fakePacer>,
     appendSkipRecord: () => void,
-    over: { guardrails?: Guardrails } = {},
+    over: {
+      guardrails?: Guardrails;
+      onTurnDropped?: (env: BusEnvelope, reason: string) => void;
+    } = {},
   ) {
     return createDispatcher({
       bus,
       renderer: renderer as never,
       backendCaller,
       guardrails: over.guardrails ?? guardrails,
+      onTurnDropped: over.onTurnDropped,
       turnLog,
       hasOutstandingSpeech: () => false,
       logger,
@@ -253,10 +257,12 @@ describe("dispatcher — global proactive pacer gate", () => {
   it("drops a proactive turn that reaches the gate while the pacer holds", async () => {
     const pacer = fakePacer(true);
     const appendSkipRecord = vi.fn();
-    const d = build(pacer, appendSkipRecord);
+    const onTurnDropped = vi.fn();
+    const d = build(pacer, appendSkipRecord, { onTurnDropped });
     d.start();
 
-    bus.push(proactiveEnv());
+    const trigger = proactiveEnv();
+    bus.push(trigger);
     await vi.advanceTimersByTimeAsync(20);
 
     expect(backendCaller.call).not.toHaveBeenCalled();
@@ -265,6 +271,7 @@ describe("dispatcher — global proactive pacer gate", () => {
       event_name: "proactive.screen_app_switched",
       reason: "global_gap",
     });
+    expect(onTurnDropped).toHaveBeenCalledWith(trigger, "global_gap");
     expect(appendSkipRecord).toHaveBeenCalledWith({
       type: "skip",
       source: "dispatcher",

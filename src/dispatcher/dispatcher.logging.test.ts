@@ -64,6 +64,7 @@ let dispatcher: Dispatcher;
 let logger: Logger;
 let turnLog: TurnLog;
 let speaking: boolean;
+let onTurnDropped: ReturnType<typeof vi.fn>;
 
 /**
  * Simulates "audio is still playing" the way the speech pipeline does: it answers the dispatcher
@@ -98,6 +99,7 @@ beforeEach(() => {
   logger = makeLogger();
   turnLog = createTurnLog();
   speaking = false;
+  onTurnDropped = vi.fn();
   const deps = {
     bus,
     renderer: renderer as never,
@@ -105,6 +107,7 @@ beforeEach(() => {
     guardrails,
     turnLog,
     hasOutstandingSpeech: () => speaking,
+    onTurnDropped,
     peek: { enter: peekEnter, exit: peekExit },
     logger,
     peekConfig: () => PEEK_CONFIG,
@@ -205,6 +208,7 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
       guardrails,
       turnLog,
       hasOutstandingSpeech: () => speaking,
+      onTurnDropped,
       logger,
       onUserTurnFailed: sink,
     });
@@ -263,6 +267,7 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
       guardrails,
       turnLog,
       hasOutstandingSpeech: () => speaking,
+      onTurnDropped,
       logger,
       onUserTurnFailed: sink,
     });
@@ -376,6 +381,10 @@ describe("dispatcher — structured logging: drop events via logger", () => {
     await vi.advanceTimersByTimeAsync(20);
     callDeferred[0].resolve("network_drop");
     await vi.advanceTimersByTimeAsync(20);
+    expect(onTurnDropped).toHaveBeenCalledWith(
+      expect.objectContaining({ event_name: "user.text_submitted" }),
+      "network_drop",
+    );
     expect(logger.warn).toHaveBeenCalledWith(
       "drop",
       expect.objectContaining({
@@ -631,6 +640,7 @@ describe("dispatcher — onTurnFailed seam", () => {
       guardrails,
       turnLog,
       hasOutstandingSpeech: () => speaking,
+      onTurnDropped,
       logger,
       onTurnFailed: sink,
       onUserTurnFailed: userSink,
@@ -722,6 +732,7 @@ describe("dispatcher — onTurnFailed seam", () => {
     const [turn, reason] = sink.mock.calls[0];
     expect((turn as Turn).trigger.event_name).toBe("user.text_submitted");
     expect(reason).toBe("network_drop");
+    expect(onTurnDropped).toHaveBeenCalledWith((turn as Turn).trigger, "network_drop");
     d.stop();
   });
 });

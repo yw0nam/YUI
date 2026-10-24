@@ -18,7 +18,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { OsEventListen, OsEventPayload } from "../../../io/window/tauri-listen";
 import type { Logger } from "../../../logger";
-import type { BusEnvelope, EventBus } from "../../core/event-bus";
+import { type BusEnvelope, createEventBus, type EventBus } from "../../core/event-bus";
 import { createBufferedInboxSource, type InboxFiring } from "./buffered-inbox-source";
 
 const PRESENT_MAX = 10_000;
@@ -263,4 +263,47 @@ describe("buffered_inbox_source — catchup flush delivery contract", () => {
     expect(pushed).toHaveLength(1); // still just the one catchup
     src.stop();
   });
+});
+
+it.each([
+  "refused",
+  "capacity",
+])("retains a catch-up after a %s push and flushes on the next edge", async (mode) => {
+  const fake = fakeBus();
+  const bus = mode === "capacity" ? createEventBus() : fake.bus;
+  if (mode === "capacity") {
+    for (let i = 0; i < 100; i++)
+      bus.push({ source: "user_input_source", event_name: "user.text_submitted", ts: Date.now() });
+  } else vi.mocked(fake.bus.push).mockReturnValueOnce(false);
+  const { listen, emit: emitIdle } = fakeListen();
+  const { onInbox, emit: emitInbox } = fakeInbox();
+  const buf = fakeBuffer();
+  const src = createBufferedInboxSource<FakeItem>({
+    bus,
+    present_max_idle_ms: PRESENT_MAX,
+    isEnabled: () => true,
+    onInbox,
+    listen,
+    log: makeLog(),
+    parse: (p) => p,
+    buildLive,
+    bufferAdd: buf.bufferAdd,
+    bufferEmpty: buf.bufferEmpty,
+    bufferClear: buf.bufferClear,
+    buildCatchup: () => ({ ...buf.buildCatchup(), event_name: "signals.catchup" }),
+  });
+  await src.start();
+  emitIdle(idleTick(HIGH_IDLE));
+  emitInbox(item("a", 1000));
+  emitIdle(idleTick(LOW_IDLE));
+  expect(buf.snapshot()).toEqual([{ id: "a", ts: 1000 }]);
+  if (mode === "capacity") {
+    for (let i = 0; i < 100; i++) (bus as EventBus).pop();
+  }
+  emitIdle(idleTick(HIGH_IDLE));
+  emitIdle(idleTick(LOW_IDLE));
+  expect(buf.snapshot()).toEqual([]);
+  const delivered = mode === "capacity" ? (bus as EventBus).snapshot() : fake.pushed;
+  expect(delivered.at(-1)?.payload).toEqual({ count: 1, items: [{ id: "a", ts: 1000 }] });
+  src.stop();
 });
