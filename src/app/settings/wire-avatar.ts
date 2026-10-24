@@ -26,7 +26,10 @@ import {
   removeUserVoice as removeUserVoiceFile,
   renameUserVoice,
 } from "../../io/voice/voices/voice-import";
-import { createVoiceImportFlow } from "../../io/voice/voices/voice-import-flow";
+import {
+  createVoiceImportFlow,
+  type PickedVoiceImport,
+} from "../../io/voice/voices/voice-import-flow";
 import {
   createVoiceListRefresh,
   wireVoiceListAutoRefresh,
@@ -131,10 +134,10 @@ export function wireSpeakerSelection(deps: {
   speakerSelection: ReturnType<typeof createSpeakerSelection>;
   swapSpeaker: (option: SpeakerOption) => Promise<void>;
   refreshSpeaker: (option: SpeakerOption) => Promise<void>;
-  /** Pick step: opens the file picker, returns the source path + a seed name for the naming row (null on cancel). */
-  pickVoiceImport: () => Promise<{ srcPath: string; seedName: string } | null>;
-  /** Commit step: copy + upload under `name` (overwrite-aware) → add option + select. */
-  commitVoiceImport: (srcPath: string, name: string) => Promise<void>;
+  /** Pick step: stages the picked file's copy, returns its staging id + a seed name for the naming row (null on cancel). */
+  pickVoiceImport: () => Promise<PickedVoiceImport | null>;
+  /** Commit step: uploads the staged copy under `name` (overwrite-aware) → add option + select. */
+  commitVoiceImport: (stagedId: string, name: string) => Promise<void>;
   removeVoice: (id: string) => Promise<void>;
   refreshVoiceList: () => Promise<void>;
   /** Whether the current TTS provider takes imported voices — import and delete. */

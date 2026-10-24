@@ -34,11 +34,11 @@ vi.mock("../../io/voice/voices/fish-voices", () => ({
 // directly; keeps the suite off a real Tauri invoke.
 const { pickVoiceFile, removeOrphanImport, removeUserVoiceMock } = vi.hoisted(() => ({
   pickVoiceFile: vi.fn(),
-  removeOrphanImport: vi.fn<
-    typeof import("../../io/assets/user-asset-import").removeOrphanImport
-  >(async (id, remove) => {
-    await remove(id);
-  }),
+  removeOrphanImport: vi.fn<typeof import("../../io/assets/user-asset-import").removeOrphanImport>(
+    async (id, remove) => {
+      await remove(id);
+    },
+  ),
   removeUserVoiceMock: vi.fn(async () => undefined),
 }));
 vi.mock("../../io/voice/voices/voice-import", () => ({
@@ -55,6 +55,18 @@ vi.mock("../../io/assets/user-asset-import", async (importOriginal) => ({
 }));
 
 import type { EndpointsConfig } from "../../contract";
+
+// The Rust pick stages the clip under the staging folder the flow named.
+const stagedUnder = (stagingId: string) => ({
+  staged: {
+    id: stagingId,
+    label: stagingId,
+    ref_url: `asset://localhost/app-data/references/${stagingId}/clip.wav`,
+    source: "user" as const,
+  },
+  seedName: stagingId,
+});
+
 import { createTtsProvider } from "../../io/voice/tts/tts-synth";
 import { createVoiceListRefresh } from "../../io/voice/voices/voice-list-refresh";
 import { createTtsKeySettings } from "../../settings/backend/api-key-settings";
@@ -230,17 +242,6 @@ describe("wireSpeakerSelection — refreshVoiceList", () => {
 });
 
 describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
-  // The Rust pick stages the clip under the staging folder the flow named.
-  const stagedUnder = (stagingId: string) => ({
-    staged: {
-      id: stagingId,
-      label: stagingId,
-      ref_url: `asset://localhost/app-data/references/${stagingId}/clip.wav`,
-      source: "user" as const,
-    },
-    seedName: stagingId,
-  });
-
   beforeEach(() => {
     listVoices.mockReset().mockResolvedValue([]);
     upsertVoice.mockReset().mockResolvedValue(undefined);
@@ -464,7 +465,9 @@ describe("createEffectiveEndpoints", () => {
     beforeEach(() => {
       listVoices.mockReset().mockResolvedValue(["ナツメ"]);
       upsertVoice.mockReset().mockResolvedValue(undefined);
-      pickVoiceFile.mockReset();
+      pickVoiceFile
+        .mockReset()
+        .mockImplementation(async (stagingId: string) => stagedUnder(stagingId));
     });
 
     it("refreshVoiceList reaches the override URL", async () => {
@@ -522,12 +525,17 @@ describe("createEffectiveEndpoints", () => {
         getBundled: () => null,
         getOverrides: () => overrides(),
       });
-      const { refreshVoiceList, refreshSpeaker, pickVoiceImport, commitVoiceImport, speakerSelection } =
-        wireSpeakerSelection({
-          getEndpoints: notLoaded,
-          log: noopLog,
-          broadcastSettings: () => {},
-        });
+      const {
+        refreshVoiceList,
+        refreshSpeaker,
+        pickVoiceImport,
+        commitVoiceImport,
+        speakerSelection,
+      } = wireSpeakerSelection({
+        getEndpoints: notLoaded,
+        log: noopLog,
+        broadcastSettings: () => {},
+      });
 
       await expect(refreshVoiceList()).resolves.toBeUndefined();
       expect(listVoices).not.toHaveBeenCalled();

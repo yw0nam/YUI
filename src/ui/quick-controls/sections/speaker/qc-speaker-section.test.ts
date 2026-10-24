@@ -6,13 +6,13 @@ import {
   createSpeakerSelection,
   type SpeakerOption,
 } from "../../../../io/voice/voices/speaker-selection";
+import type { PickedVoiceImport } from "../../../../io/voice/voices/voice-import-flow";
 import { createLipsyncSettings } from "../../../../settings/avatar/lipsync-settings";
 import { createAgentSettings } from "../../../../settings/backend/agent-settings";
 import { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
 import { createProactiveSettings } from "../../../../settings/cues/proactive-settings";
 import { createScheduleSettings } from "../../../../settings/cues/schedule-settings";
 import { setLocale } from "../../../i18n";
-import type { PickedVoiceImport } from "../../../../io/voice/voices/voice-import-flow";
 import { createQuickControls } from "../../quick-controls";
 import {
   defaultQcArgs,

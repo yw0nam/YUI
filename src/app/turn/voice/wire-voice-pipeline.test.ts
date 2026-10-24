@@ -78,7 +78,7 @@ const mocks = vi.hoisted(() => {
     // Voice-import-flow fakes, used only by the cross-window re-import test below — drives the
     // settings-window side with the real commitVoiceImport instead of hand-writing its effects.
     upsertVoice: vi.fn(async () => undefined),
-    copyVoiceFile: vi.fn(),
+    pickVoiceFile: vi.fn(),
     renameUserVoice: vi.fn(),
   };
 });
@@ -101,11 +101,9 @@ vi.mock("../../../io/voice/tts/audio-player", () => ({
 }));
 vi.mock("../../../io/chat/stream/chat-client", () => ({ selectFetch: mocks.selectFetch }));
 vi.mock("../../../io/voice/voices/voice-import", () => ({
-  copyVoiceFile: mocks.copyVoiceFile,
-  pickVoiceFile: vi.fn(),
+  pickVoiceFile: mocks.pickVoiceFile,
   removeUserVoice: vi.fn(async () => undefined),
   renameUserVoice: mocks.renameUserVoice,
-  fileStemFromPath: (path: string) => path,
 }));
 
 import type { FillerConfig, FillerPool } from "../../../config/validators/filler";
@@ -684,18 +682,22 @@ describe("wireVoicePipeline", () => {
       });
       windowA.select("myvoice");
       // The clip is staged under a temporary id, then moved over the stored voice's folder.
-      mocks.copyVoiceFile.mockResolvedValue({
-        id: "import-staged",
-        label: "import-staged",
-        ref_url: "/import-staged.wav",
-        source: "user",
+      mocks.pickVoiceFile.mockResolvedValue({
+        staged: {
+          id: "import-staged",
+          label: "import-staged",
+          ref_url: "/import-staged.wav",
+          source: "user",
+        },
+        seedName: "MyVoice",
       });
       mocks.renameUserVoice.mockResolvedValue("/myvoice-v2.wav");
-      const { commitVoiceImport: commitOnWindowA } = createVoiceImportFlow({
-        getEndpoints: () => ({ tts_base_url: "http://tts.test" }),
-        speakerSelection: windowA,
-        log: noopLog,
-      });
+      const { pickVoiceImport: pickOnWindowA, commitVoiceImport: commitOnWindowA } =
+        createVoiceImportFlow({
+          getEndpoints: () => ({ tts_base_url: "http://tts.test" }),
+          speakerSelection: windowA,
+          log: noopLog,
+        });
 
       // Window B loads the already-persisted option at construction time, same as opening the
       // pet window after a voice was imported in a prior session.
@@ -758,7 +760,8 @@ describe("wireVoicePipeline", () => {
 
       // Window A re-imports "myvoice" under the same name it is already active under — same id,
       // new clip, no selection change. This is the #506 scenario: re-importing the active voice.
-      await commitOnWindowA("/tmp/MyVoice.wav", "myvoice");
+      const staged = (await pickOnWindowA())!.stagedId;
+      await commitOnWindowA(staged, "myvoice");
 
       // The store must have notified its own subscribers — without that, nothing wakes window B.
       expect(windowAChanged).toBe(true);

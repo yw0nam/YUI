@@ -19,7 +19,6 @@
     "core:webview:allow-create-webview-window",
     "cors-fetch:default",
     "log:default",
-    "dialog:allow-open",
     {
       "identifier": "opener:allow-open-url",
       "allow": [

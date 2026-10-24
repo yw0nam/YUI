@@ -14,6 +14,7 @@ import type {
   createSpeakerSelection,
   SpeakerOption,
 } from "../../../../io/voice/voices/speaker-selection";
+import type { PickedVoiceImport } from "../../../../io/voice/voices/voice-import-flow";
 import type { Logger } from "../../../../logger";
 import { t } from "../../../i18n";
 import { createUserAssetList, REMOVE_SVG, RENAME_SVG, resolveRovedId } from "../user-asset-list";
@@ -61,10 +62,10 @@ interface SpeakerListDeps {
   swapSpeaker: (option: SpeakerOption) => Promise<void>;
   /** Re-upload the speaker's reference clip. Server-side update only — does not change the selection. */
   refreshSpeaker: (option: SpeakerOption) => Promise<void>;
-  /** Import pick step: opens the file picker, returns the source path + a naming-row seed (null on cancel). */
-  pickVoiceImport: () => Promise<{ srcPath: string; seedName: string } | null>;
-  /** Import commit step: copy + upload under the typed name → addUserOption + select. Inline error on reject. */
-  commitVoiceImport: (srcPath: string, name: string) => Promise<void>;
+  /** Import pick step: stages the copy in Rust, returns its staging id + a naming-row seed (null on cancel). */
+  pickVoiceImport: () => Promise<PickedVoiceImport | null>;
+  /** Import commit step: uploads the staged copy under the typed name → addUserOption + select. Inline error on reject. */
+  commitVoiceImport: (stagedId: string, name: string) => Promise<void>;
   /** Delete imported voice app-data file (idempotent). Called separately from store removal. */
   removeVoice: (id: string) => Promise<void>;
   /** Whether the TTS provider takes imported voices — off hides delete/re-upload and disables import. */

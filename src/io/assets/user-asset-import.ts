@@ -1,31 +1,11 @@
 /**
- * Shared plumbing for the bring-your-own-asset imports (voice, VRM): the dialog result
- * shape both pickers normalize, the lazy Tauri loaders that keep the plugin and the core
- * API out of non-Tauri/test envs, and the orphan cleanup a failed import runs.
+ * Shared plumbing for the bring-your-own-asset imports (voice, VRM): the lazy Tauri loader
+ * that keeps the core API out of non-Tauri/test envs, and the orphan cleanup a failed import
+ * runs.
  */
-
-import type { OpenDialogOptions } from "@tauri-apps/plugin-dialog";
-
-/** Dialog open result shape (path string, array, or {path} per plugin version). */
-export type OpenResult = string | string[] | { path: string } | null;
 
 /** `@tauri-apps/api/core` invoke. */
 export type InvokeFn = <T = unknown>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
-
-/** Normalize the dialog result to a single source path, or null if nothing chosen. */
-export function pickedPath(result: OpenResult): string | null {
-  if (result == null) return null;
-  if (typeof result === "string") return result.length > 0 ? result : null;
-  if (Array.isArray(result)) return result.length > 0 ? result[0] : null;
-  if (typeof result === "object" && typeof result.path === "string") return result.path;
-  return null;
-}
-
-/** Lazily imported `@tauri-apps/plugin-dialog` open, narrowed to OpenResult. */
-export async function loadOpenDialog(): Promise<(opts: OpenDialogOptions) => Promise<OpenResult>> {
-  const { open } = await import("@tauri-apps/plugin-dialog");
-  return (opts) => open(opts) as Promise<OpenResult>;
-}
 
 /** Lazily imported `@tauri-apps/api/core` invoke. */
 export async function loadInvoke(): Promise<InvokeFn> {

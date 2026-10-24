@@ -1,7 +1,7 @@
 /**
  * Bring-your-own-voice import flow, in two steps so a naming row can sit between them:
- * pickVoiceImport opens the OS picker (nothing copied yet), commitVoiceImport copies the
- * file and uploads it to the TTS server under the typed name.
+ * pickVoiceImport stages the picked file's copy under a fresh staging id, commitVoiceImport
+ * uploads the staged copy to the TTS server under the typed name and moves the folder there.
  *
  * Both windows run this identically — the pet window and the settings window each call the
  * TTS server directly — so it lives here rather than being written twice.
@@ -16,17 +16,16 @@ import { selectFetch } from "../../chat/stream/chat-client";
 import { nextRevision, type SpeakerOption } from "./speaker-selection";
 import { VOICE_APIS } from "./voice-apis";
 import {
-  copyVoiceFile,
-  fileStemFromPath,
   pickVoiceFile,
   removeUserVoice as removeUserVoiceFile,
   renameUserVoice,
 } from "./voice-import";
 
-/** A picked-but-not-yet-copied import: the source file plus what to seed the naming row with. */
-interface PickedVoiceImport {
-  srcPath: string;
+/** A staged-but-not-yet-named import: the naming row names the staged copy, Esc discards it. */
+export interface PickedVoiceImport {
+  stagedId: string;
   seedName: string;
+  discard: () => Promise<void>;
 }
 
 /** The slice of the speaker store the commit step writes to. */
@@ -47,62 +46,77 @@ export function createVoiceImportFlow(deps: {
   log: Logger;
 }): {
   pickVoiceImport: () => Promise<PickedVoiceImport | null>;
-  commitVoiceImport: (srcPath: string, name: string) => Promise<void>;
+  commitVoiceImport: (stagedId: string, name: string) => Promise<void>;
 } {
   const { getEndpoints, getApiKey, speakerSelection, log } = deps;
 
+  // Staged copies keyed by staging id, alive between the pick step and the commit step.
+  const staged = new Map<string, SpeakerOption & { source: "user" }>();
+
   const pickVoiceImport = async (): Promise<PickedVoiceImport | null> => {
-    const srcPath = await pickVoiceFile();
-    if (srcPath === null) return null; // cancelled at the OS picker
-    return { srcPath, seedName: fileStemFromPath(srcPath) };
+    const stagingId = `import-${crypto.randomUUID()}`;
+    const picked = await pickVoiceFile(stagingId);
+    if (picked === null) return null; // cancelled at the OS picker
+    staged.set(stagingId, picked.staged);
+    return {
+      stagedId: stagingId,
+      seedName: picked.seedName,
+      discard: () => {
+        staged.delete(stagingId);
+        return removeUserVoiceFile(stagingId);
+      },
+    };
   };
 
-  // Copy under a unique staging id, then upload. Once the upload succeeds the staged folder moves
-  // to its final id: the name-derived id for a provider that keeps the caller's id (replacing a
-  // same-name voice's folder), the id the server assigns for any other. The target is read before
-  // the first await, and a switch away from it at any later point leaves the store alone, except
-  // for a stored voice whose folder the move already replaced. On failure, delete the staged copy
-  // and rethrow without touching the store or a stored voice's clip.
-  const commitVoiceImport = async (srcPath: string, name: string): Promise<void> => {
-    const eps = getEndpoints();
-    if (!eps?.tts_base_url) throw new Error("voice import requires tts_base_url");
-    const baseUrl = eps.tts_base_url;
-    const provider = ttsProviderOf(eps);
-    const api = VOICE_APIS[provider];
-    const upsert = api?.upsert;
-    if (!upsert) throw new Error(`TTS provider "${provider}" takes no imported voices`);
-    let finalId: string | undefined;
-    if (api.keepsId) {
-      if (!name.trim()) throw new Error("voice name required");
-      const id = voiceIdFromName(name);
-      if (speakerSelection.listUser().some((o) => o.id === id && o.provider !== provider)) {
-        throw new Error(`voice id "${id}" belongs to another TTS provider`);
-      }
-      finalId = id;
-    }
-    const superseded = (): boolean => {
-      const live = getEndpoints();
-      return !live || ttsProviderOf(live) !== provider || live.tts_base_url !== baseUrl;
-    };
-
-    const copied = await copyVoiceFile(srcPath, `import-${crypto.randomUUID()}`);
-    const label = name.trim() || copied.id;
-    // A same-name re-import keeps the id but replaces the clip — bump the persisted revision so
-    // the existing cross-window settings sync carries the change into other windows' filler cache key.
-    let option: SpeakerOption & { source: "user" } = {
-      ...copied,
-      label,
-      provider,
-      revision: nextRevision(speakerSelection.list(), finalId ?? copied.id),
-    };
-    let folder = copied.id;
-    let serverId: string | undefined;
+  // The staged copy sits at references/<stagedId> until the upload succeeds; then it moves to
+  // its final id: the name-derived id for a provider that keeps the caller's id (replacing a
+  // same-name voice's folder), the id the server assigns for any other. The target is read
+  // before the first await, and a switch away from it at any later point leaves the store alone,
+  // except for a stored voice whose folder the move already replaced. Every failure — a
+  // pre-upload check or the upload itself — deletes the staged copy and rethrows without
+  // touching the store or a stored voice's clip.
+  const commitVoiceImport = async (stagedId: string, name: string): Promise<void> => {
+    const copied = staged.get(stagedId);
+    if (!copied) throw new Error("no staged voice");
+    staged.delete(stagedId);
+    let folder = stagedId;
     const cleanUp = (): Promise<void> =>
       // Surface a cleanup failure as a warning rather than swallowing it.
       removeOrphanImport(folder, removeUserVoiceFile, (e) =>
         log.warn("orphan_voice_cleanup_failed", { error: String(e) }),
       );
     try {
+      const eps = getEndpoints();
+      if (!eps?.tts_base_url) throw new Error("voice import requires tts_base_url");
+      const baseUrl = eps.tts_base_url;
+      const provider = ttsProviderOf(eps);
+      const api = VOICE_APIS[provider];
+      const upsert = api?.upsert;
+      if (!upsert) throw new Error(`TTS provider "${provider}" takes no imported voices`);
+      let finalId: string | undefined;
+      if (api.keepsId) {
+        if (!name.trim()) throw new Error("voice name required");
+        const id = voiceIdFromName(name);
+        if (speakerSelection.listUser().some((o) => o.id === id && o.provider !== provider)) {
+          throw new Error(`voice id "${id}" belongs to another TTS provider`);
+        }
+        finalId = id;
+      }
+      const superseded = (): boolean => {
+        const live = getEndpoints();
+        return !live || ttsProviderOf(live) !== provider || live.tts_base_url !== baseUrl;
+      };
+
+      const label = name.trim() || copied.id;
+      // A same-name re-import keeps the id but replaces the clip — bump the persisted revision so
+      // the existing cross-window settings sync carries the change into other windows' filler cache key.
+      let option: SpeakerOption & { source: "user" } = {
+        ...copied,
+        label,
+        provider,
+        revision: nextRevision(speakerSelection.list(), finalId ?? copied.id),
+      };
+      let serverId: string | undefined;
       if (!superseded()) {
         const f = await selectFetch();
         // ref_url is an asset:// URL that reference-clip reads through the webview fetch.
@@ -123,24 +137,24 @@ export function createVoiceImportFlow(deps: {
           folder = target;
         }
       }
+      if (superseded()) {
+        // A folder a stored voice already owns (a same-name Irodori re-import) holds that voice's
+        // new clip, so its entry follows the clip; any other folder is an orphan.
+        if (speakerSelection.listUser().some((o) => o.id === folder)) {
+          speakerSelection.addUserOption(option);
+        } else {
+          await cleanUp();
+        }
+        log.warn("voice_import_superseded", { provider, server_voice: serverId ?? null });
+        return;
+      }
+      speakerSelection.addUserOption(option);
+      speakerSelection.select(option.id);
     } catch (err) {
       await cleanUp();
       log.error("imported_voice_upload_failed", { error: String(err) });
       throw err;
     }
-    if (superseded()) {
-      // A folder a stored voice already owns (a same-name Irodori re-import) holds that voice's
-      // new clip, so its entry follows the clip; any other folder is an orphan.
-      if (speakerSelection.listUser().some((o) => o.id === folder)) {
-        speakerSelection.addUserOption(option);
-      } else {
-        await cleanUp();
-      }
-      log.warn("voice_import_superseded", { provider, server_voice: serverId ?? null });
-      return;
-    }
-    speakerSelection.addUserOption(option);
-    speakerSelection.select(option.id);
   };
 
   return { pickVoiceImport, commitVoiceImport };

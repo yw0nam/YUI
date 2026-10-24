@@ -1,15 +1,17 @@
 //! Bring-your-own-voice import (reference clip copy into app-data).
 //!
-//! Copies a user-picked audio file into `<app_data_dir>/references/<id>/clip.<ext>`.
-//! A native `std::fs::copy` reads the arbitrary source with the app's own privileges.
+//! Opens the audio picker here and copies the picked file into
+//! `<app_data_dir>/references/<staging id>/clip.<ext>`. A native `std::fs::copy` reads the
+//! arbitrary source with the app's own privileges.
 
 use crate::import_fs::{
     app_data_subdir, audio_sniff_kind, ensure_within, sanitize_stem, short_hash, sniff_file,
     MAX_STEM_BYTES,
 };
 use serde::Serialize;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tauri::{command, AppHandle};
+use tauri_plugin_dialog::DialogExt;
 
 /// Allowed audio file extensions (lowercase).
 const AUDIO_EXTS: [&str; 8] = ["mp3", "wav", "ogg", "m4a", "flac", "aac", "opus", "webm"];
@@ -31,6 +33,15 @@ pub struct ImportedVoice {
     pub id: String,
     /// Absolute path of the copied clip under app-data.
     pub ref_path: String,
+}
+
+/// A staged voice copy plus the picked file's stem, the naming row's seed.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportedVoiceFile {
+    #[serde(flatten)]
+    pub voice: ImportedVoice,
+    pub seed_name: String,
 }
 
 /// Derive the voice id sent to the TTS server from the user-typed name: `sanitize_stem` first
@@ -215,24 +226,46 @@ fn rename_user_voice_at(
     })
 }
 
-/// Copy a user-picked audio file into `<app_data_dir>/references/<id>/clip.<ext>`, where `<id>`
-/// is the server-charset voice id `voice_id_from_name` derives from the typed `desired_name`.
+/// Open the audio picker here and copy the picked file into
+/// `<app_data_dir>/references/<desired_name>/clip.<ext>`, returning the staged copy plus the
+/// picked file's stem (the naming row's seed). `None` when the picker is dismissed.
 #[command]
-pub fn import_voice_file(
+pub async fn import_voice_file(
     app: AppHandle,
-    src_path: String,
     desired_name: String,
-) -> Result<ImportedVoice, String> {
-    let src = PathBuf::from(&src_path);
+) -> Result<Option<ImportedVoiceFile>, String> {
+    let Some(picked) = app
+        .dialog()
+        .file()
+        .add_filter("Audio", &AUDIO_EXTS)
+        .blocking_pick_file()
+    else {
+        return Ok(None);
+    };
+    let src = picked
+        .into_path()
+        .map_err(|_| "source file not found".to_string())?;
     let ext = src.extension().and_then(|e| e.to_str()).unwrap_or("");
     if !is_allowed_audio_ext(ext) {
         return Err("unsupported audio type".to_string());
     }
     let ext_lower = ext.to_ascii_lowercase();
+    let seed_name = src
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_string();
 
     let references_dir = app_data_subdir(&app, "references")?;
-
-    copy_into_references(&references_dir, &src, &ext_lower, &desired_name)
+    tauri::async_runtime::spawn_blocking(move || {
+        copy_into_references(&references_dir, &src, &ext_lower, &desired_name)
+    })
+    .await
+    .map_err(|e| {
+        log::error!("import_task_failed error={e}");
+        "import failed".to_string()
+    })?
+    .map(|voice| Some(ImportedVoiceFile { voice, seed_name }))
 }
 
 /// Delete `<app_data_dir>/references/<id>/` if present. Idempotent — missing is Ok.
@@ -276,6 +309,7 @@ pub(crate) fn sweep_stale_import_artifacts(references_dir: &Path) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     #[test]
     fn audio_ext_allowlist_has_eight_entries() {

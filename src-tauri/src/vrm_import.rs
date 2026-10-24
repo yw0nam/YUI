@@ -1,8 +1,6 @@
 //! Bring-your-own-VRM import (native half).
 //!
-//! Streams a user-picked `.vrm` into `<app_data_dir>/vrms/` through the fs plugin, which opens a
-//! plain path on desktop and a content URI on Android. The source needs no pre-declared scope,
-//! which an OS file picker cannot satisfy.
+//! Opens the `.vrm` picker here and streams the picked file into `<app_data_dir>/vrms/`.
 
 use crate::import_fs::{
     app_data_subdir, claim_and_copy, ensure_within, open_and_import, sanitize_stem, ClaimTarget,
@@ -11,7 +9,7 @@ use crate::import_fs::{
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use tauri::{command, AppHandle};
-use tauri_plugin_fs::FilePath;
+use tauri_plugin_dialog::DialogExt;
 
 /// Max accepted source size for a VRM import.
 const MAX_VRM_BYTES: u64 = 512 * 1024 * 1024;
@@ -88,14 +86,22 @@ fn vrms_dir(app: &AppHandle) -> Result<PathBuf, String> {
     app_data_subdir(app, "vrms")
 }
 
-/// Stream a user-picked `.vrm` (a path or a content URI) into `<app_data_dir>/vrms/`, returning
-/// its id + dest path. `reserved_ids` are ids the import must not take.
+/// Open the `.vrm` picker here and stream the picked file into `<app_data_dir>/vrms/`, returning
+/// its id + dest path. `reserved_ids` are ids the import must not take. `None` when the picker
+/// is dismissed.
 #[command]
 pub async fn import_vrm_file(
     app: AppHandle,
-    src_path: FilePath,
     reserved_ids: Vec<String>,
-) -> Result<ImportedVrm, String> {
+) -> Result<Option<ImportedVrm>, String> {
+    let Some(src_path) = app
+        .dialog()
+        .file()
+        .add_filter("VRM", &["vrm"])
+        .blocking_pick_file()
+    else {
+        return Ok(None);
+    };
     let vrms_dir = vrms_dir(&app)?;
     open_and_import(app, src_path, move |name, identity, source| {
         import_into(
@@ -108,6 +114,7 @@ pub async fn import_vrm_file(
         )
     })
     .await
+    .map(Some)
 }
 
 /// Delete `<app_data_dir>/vrms/<id>.vrm` if present. Idempotent — missing is Ok.

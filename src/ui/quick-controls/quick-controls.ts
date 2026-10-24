@@ -20,6 +20,7 @@ import type {
   createSpeakerSelection,
   SpeakerOption,
 } from "../../io/voice/voices/speaker-selection";
+import type { PickedVoiceImport } from "../../io/voice/voices/voice-import-flow";
 import type { ScreenSourceProvider } from "../../io/window/capture/screen-source-provider";
 import { createLogger } from "../../logger";
 import type { BedSceneSettingsStore } from "../../settings/avatar/bed-scene-settings";
@@ -142,10 +143,10 @@ interface QuickControlsOptions {
   swapSpeaker: (option: SpeakerOption) => Promise<void>;
   /** Re-register speaker's reference voice (PUT /voices). Server-side update only — doesn't change speaker selection/store. */
   refreshSpeaker: (option: SpeakerOption) => Promise<void>;
-  /** Import pick step: opens the file picker, returns the source path + a naming-row seed (null on cancel). */
-  pickVoiceImport: () => Promise<{ srcPath: string; seedName: string } | null>;
-  /** Import commit step: copy + register under the typed name → addUserOption + select. Inline error on reject. */
-  commitVoiceImport: (srcPath: string, name: string) => Promise<void>;
+  /** Import pick step: stages the copy in Rust, returns its staging id + a naming-row seed (null on cancel). */
+  pickVoiceImport: () => Promise<PickedVoiceImport | null>;
+  /** Import commit step: uploads the staged copy under the typed name → addUserOption + select. Inline error on reject. */
+  commitVoiceImport: (stagedId: string, name: string) => Promise<void>;
   /** Delete imported voice's app-data file (idempotent). Called separately from store removal. */
   removeVoice: (id: string) => Promise<void>;
   /** Whether the TTS provider takes imported voices — gates import, delete and re-upload. */

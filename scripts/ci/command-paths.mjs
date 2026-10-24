@@ -4,9 +4,6 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-// Commands that predate the rule; they leave with the issue that moves their dialog into Rust.
-const KNOWN = new Set(["import_vrm_file", "import_stage_image", "import_voice_file"]);
-
 const files = [];
 const walk = (dir) => {
   for (const name of readdirSync(dir)) {
@@ -23,7 +20,7 @@ const pathParam = /FilePath|PathBuf|&\s*Path\b|\w*path\w*\s*:/;
 const bad = [];
 for (const file of files) {
   for (const m of readFileSync(file, "utf8").matchAll(command)) {
-    if (pathParam.test(m[2]) && !KNOWN.has(m[1])) bad.push(`${file}: ${m[1]}(${m[2].trim()})`);
+    if (pathParam.test(m[2])) bad.push(`${file}: ${m[1]}(${m[2].trim()})`);
   }
 }
 if (bad.length) {

@@ -489,7 +489,7 @@ YUI/
           card-import.ts               # Card import: OS picker, native read/parse, rollback of the temp thumbnail
           card-thumbnail.ts            # Thumbnail retain (temp id → preset id) and remove, through the shell
           card-export.ts               # Card export: OS save dialog, native write, and the export file-name sanitizer
-        user-asset-import.ts           # Dialog result shape, lazy Tauri loaders, and orphan cleanup shared by the voice and VRM imports
+        user-asset-import.ts           # Lazy invoke loader and orphan cleanup shared by the voice and VRM imports
         vrm-selection.ts               # Owns the active VRM selection
         selection-store.ts             # Generic selection store behind VRM and speaker selection
         safe-id.ts                     # TS mirror of the native stem sanitizer for persisted option ids

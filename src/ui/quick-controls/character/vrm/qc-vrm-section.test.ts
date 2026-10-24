@@ -6,6 +6,7 @@ import type {
   createSpeakerSelection,
   SpeakerOption,
 } from "../../../../io/voice/voices/speaker-selection";
+import type { PickedVoiceImport } from "../../../../io/voice/voices/voice-import-flow";
 import { createLipsyncSettings } from "../../../../settings/avatar/lipsync-settings";
 import { createAgentSettings } from "../../../../settings/backend/agent-settings";
 import { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
@@ -20,7 +21,6 @@ import {
   makeVrmSelection,
   USER_OPTION,
 } from "../../test-helpers";
-import type { PickedVoiceImport } from "../../../../../io/voice/voices/voice-import-flow";
 
 describe("createQuickControls — VRM section", () => {
   let mount: HTMLElement;
@@ -77,10 +77,8 @@ describe("createQuickControls — VRM section", () => {
     });
     // refresh is server-side only — default fake resolves without touching the store.
     refreshSpeaker = vi.fn<(option: SpeakerOption) => Promise<void>>(async () => {});
-    pickVoiceImport = vi.fn<() => Promise<{ srcPath: string; seedName: string } | null>>(
-      async () => null,
-    );
-    commitVoiceImport = vi.fn<(srcPath: string, name: string) => Promise<void>>(async () => {});
+    pickVoiceImport = vi.fn<() => Promise<PickedVoiceImport | null>>(async () => null);
+    commitVoiceImport = vi.fn<(stagedId: string, name: string) => Promise<void>>(async () => {});
     removeVoice = vi.fn<(id: string) => Promise<void>>(async () => {});
     try {
       globalThis.localStorage?.clear();

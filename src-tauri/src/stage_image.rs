@@ -1,7 +1,7 @@
 //! Stage background image import (native half).
 //!
-//! Streams a user-picked PNG, JPEG or WebP into `<app_data_dir>/stage/` through the fs plugin
-//! (a plain path on desktop, a content URI on Android) and deletes a stored image by id.
+//! Opens the image picker here and streams the picked PNG, JPEG or WebP into
+//! `<app_data_dir>/stage/`, and deletes a stored image by id.
 
 use crate::import_fs::{
     app_data_subdir, claim_and_copy, ensure_within, image_ext, open_and_import, sanitize_stem,
@@ -10,7 +10,7 @@ use crate::import_fs::{
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use tauri::{command, AppHandle};
-use tauri_plugin_fs::FilePath;
+use tauri_plugin_dialog::DialogExt;
 
 /// Max accepted source size for a stage image import.
 const MAX_STAGE_IMAGE_BYTES: u64 = 32 * 1024 * 1024;
@@ -92,13 +92,18 @@ fn stage_dir(app: &AppHandle) -> Result<PathBuf, String> {
     app_data_subdir(app, "stage")
 }
 
-/// Stream a user-picked image (a path or a content URI) into `<app_data_dir>/stage/`, returning
-/// its id + dest path.
+/// Open the image picker here and stream the picked image into `<app_data_dir>/stage/`,
+/// returning its id + dest path. `None` when the picker is dismissed.
 #[command]
-pub async fn import_stage_image(
-    app: AppHandle,
-    src_path: FilePath,
-) -> Result<ImportedStage, String> {
+pub async fn import_stage_image(app: AppHandle) -> Result<Option<ImportedStage>, String> {
+    let Some(src_path) = app
+        .dialog()
+        .file()
+        .add_filter("Image", &["png", "jpg", "jpeg", "webp"])
+        .blocking_pick_file()
+    else {
+        return Ok(None);
+    };
     let stage_dir = stage_dir(&app)?;
     open_and_import(app, src_path, move |name, identity, source| {
         import_into(
@@ -110,6 +115,7 @@ pub async fn import_stage_image(
         )
     })
     .await
+    .map(Some)
 }
 
 /// Delete `<app_data_dir>/stage/<id>` if present. Idempotent: missing is Ok.

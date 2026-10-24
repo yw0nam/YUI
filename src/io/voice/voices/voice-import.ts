@@ -1,31 +1,20 @@
 /**
- * Bring-your-own-voice import — OS file picker → native copy → user SpeakerOption.
+ * Bring-your-own-voice import — Rust pick → staged copy → naming row → upload.
  *
- * Split into pickVoiceFile (opens the OS picker, returns a source path only — nothing
- * copied yet) and copyVoiceFile (copies + registers under a caller-supplied name). The
- * split lets a naming row sit between picking and copying: name the voice BEFORE any
- * file touches disk, so cancelling the naming step needs no cleanup.
+ * pickVoiceFile opens the audio picker in Rust and stages a copy under the caller's staging
+ * id at once; the naming row sits between staging and upload, and Esc on it removes the
+ * staged copy (remove_user_voice, idempotent).
  *
- * Thin layer over the dialog plugin + the Rust `import_voice_file` / `rename_user_voice` /
- * `remove_user_voice` commands. Deps are injectable so tests never touch a real Tauri runtime;
- * the real Tauri APIs are lazily imported (non-Tauri/test envs never load them).
+ * Thin layer over the Rust `import_voice_file` / `rename_user_voice` / `remove_user_voice`
+ * commands. Deps are injectable so tests never touch a real Tauri runtime; the real Tauri
+ * APIs are lazily imported (non-Tauri/test envs never load them).
  */
 
-import {
-  loadInvoke,
-  loadOpenDialog,
-  type OpenResult,
-  pickedPath,
-} from "../../assets/user-asset-import";
+import { createLogger } from "../../../logger";
+import { loadInvoke, removeOrphanImport } from "../../assets/user-asset-import";
 import type { SpeakerOption } from "./speaker-selection";
 
-export interface VoicePickDeps {
-  /** `@tauri-apps/plugin-dialog` open. */
-  openDialog(opts: {
-    multiple: boolean;
-    filters: Array<{ name: string; extensions: string[] }>;
-  }): Promise<OpenResult>;
-}
+const log = createLogger("voice-import");
 
 export interface VoiceCopyDeps {
   /** `@tauri-apps/api/core` invoke. */
@@ -45,52 +34,38 @@ async function defaultCopyDeps(): Promise<VoiceCopyDeps> {
   return { invoke, resolveRefUrl: resolveUserFileSrc };
 }
 
-/**
- * Open the audio file picker and return the chosen source path — nothing is copied
- * yet. Returns null when the picker is cancelled.
- */
-export async function pickVoiceFile(deps?: VoicePickDeps): Promise<string | null> {
-  const d = deps ?? { openDialog: await loadOpenDialog() };
-  const result = await d.openDialog({
-    multiple: false,
-    filters: [
-      { name: "Audio", extensions: ["mp3", "wav", "ogg", "m4a", "flac", "aac", "opus", "webm"] },
-    ],
-  });
-  return pickedPath(result);
-}
-
-/** Extract the filename stem (no extension) from an absolute path — seeds the naming row. */
-export function fileStemFromPath(path: string): string {
-  const base = path.split(/[\\/]/).pop() ?? path;
-  const dot = base.lastIndexOf(".");
-  return dot > 0 ? base.slice(0, dot) : base;
-}
-
 interface ImportedVoice {
   id: string;
   refPath: string;
 }
 
-/**
- * Copy `srcPath` into app-data under `name` and return its SpeakerOption (source:"user").
- * The native side sanitizes `name` into the id it actually used and refuses an id that
- * already has a voice — the returned id reflects that, never the raw input. The
- * label keeps the typed name so a collapse (e.g. a non-ASCII name → a hashed ASCII id) doesn't
- * silently discard what the user typed; it falls back to the id only when the name is blank.
- */
-export async function copyVoiceFile(
-  srcPath: string,
-  name: string,
+/** The staged copy under `stagingId` plus the picked file's stem; null when the picker is cancelled. */
+export async function pickVoiceFile(
+  stagingId: string,
   deps?: VoiceCopyDeps,
-): Promise<SpeakerOption & { source: "user" }> {
+): Promise<{ staged: SpeakerOption & { source: "user" }; seedName: string } | null> {
   const d = deps ?? (await defaultCopyDeps());
-  const { id, refPath } = await d.invoke<ImportedVoice>("import_voice_file", {
-    srcPath,
-    desiredName: name,
-  });
-  const ref_url = await d.resolveRefUrl(refPath);
-  return { id, label: name.trim() || id, ref_url, source: "user" };
+  const picked = await d.invoke<(ImportedVoice & { seedName: string }) | null>(
+    "import_voice_file",
+    { desiredName: stagingId },
+  );
+  if (!picked) return null;
+  let ref_url: string;
+  try {
+    ref_url = await d.resolveRefUrl(picked.refPath);
+  } catch (err) {
+    // The staged copy would orphan — remove it before surfacing the original error.
+    await removeOrphanImport(
+      picked.id,
+      (id) => d.invoke("remove_user_voice", { id }),
+      (e) => log.warn("staged_voice_cleanup_failed", { error: String(e) }),
+    );
+    throw err;
+  }
+  return {
+    staged: { id: picked.id, label: picked.id, ref_url, source: "user" },
+    seedName: picked.seedName,
+  };
 }
 
 /** Move an imported voice's clip in app-data from id `from` to id `to`; returns its new ref_url. */

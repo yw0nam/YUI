@@ -10,7 +10,6 @@
     "core:window:allow-destroy",
     "log:default",
     "cors-fetch:default",
-    "dialog:allow-open",
     {
       "identifier": "opener:allow-open-url",
       "allow": [

@@ -18,11 +18,13 @@ interface UserAssetOption {
   label?: string;
 }
 
-/** A picked-but-not-yet-copied import, awaiting a typed name from the naming row. */
+/** A staged-but-not-yet-named import: the naming row names it, Esc discards it. */
 interface PendingImport {
-  srcPath: string;
-  /** Seeds the naming row's input (typically the picked file's stem). */
+  stagedId: string;
+  /** Seeds the naming row's input (the picked file's stem). */
   seedName: string;
+  /** Removes the staged copy when the naming row is cancelled or the list torn down. */
+  discard: () => Promise<void>;
 }
 
 export interface UserAssetListConfig<T extends UserAssetOption> {
@@ -57,10 +59,10 @@ export interface UserAssetListConfig<T extends UserAssetOption> {
   isImportBlocked?: (id: string) => boolean;
   /** One-shot import flow (VRM): file select → copy/load → addOption + select. Mutually exclusive with pickImport/commitImport. */
   importFn?: () => Promise<void>;
-  /** Two-phase import pick step (speaker): opens the file picker, returns the source path + a naming-row seed (null on cancel). */
+  /** Two-phase import pick step (speaker): stages the picked file's copy, returns its staging id + a naming-row seed (null on cancel). */
   pickImport?: () => Promise<PendingImport | null>;
-  /** Two-phase import commit step (speaker): copy + register under the typed name, then addOption + select. */
-  commitImport?: (srcPath: string, name: string) => Promise<void>;
+  /** Two-phase import commit step (speaker): uploads the staged copy under the typed name, then addOption + select. */
+  commitImport?: (stagedId: string, name: string) => Promise<void>;
   /** Domain's full list render — called after any state change that isn't reflected via store subscription. */
   render: () => void;
   /** Per-domain DOM tweak right after a row is marked aria-busy for swap, before the "swapping…" hint (speaker removes its preview button). */
@@ -98,8 +100,10 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
   // User option id being renamed inline (null if none) · whether import is in progress.
   let renamingId: string | null = null;
   let importing = false;
-  // Two-phase import: picked-but-not-yet-copied file awaiting a typed name (null if none pending).
+  // Two-phase import: staged copy awaiting a typed name (null if none pending) · whether a pick is in flight.
   let pendingImport: PendingImport | null = null;
+  let picking = false;
+  let disposed = false;
   let armedRemoveId: string | null = null;
   let removingId: string | null = null;
   let keepArmedForRender = false;
@@ -159,10 +163,10 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     });
   }
 
-  // Render the not-yet-imported pending row in the same inline naming presentation as
-  // renderRenamingRow — seeded with the file stem, text selected (see focusIfRenaming). Enter
-  // commits the import (copy + register under the typed name); Esc cancels the whole import —
-  // nothing was copied yet, so nothing to clean up.
+  // Render the not-yet-named staged import in the same inline naming presentation as
+  // renderRenamingRow — seeded with the picked file's stem, text selected (see focusIfRenaming).
+  // Enter commits the import (uploads the staged copy under the typed name); Esc discards the
+  // staged copy.
   function renderPendingImportRow(row: HTMLElement, pending: PendingImport): void {
     row.classList.add(renamingClass);
     row.innerHTML = `
@@ -314,24 +318,46 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     }
   }
 
-  // "Add from file…" pick step (speaker) — opens the file picker only. A naming row then
-  // appears (see renderPendingImportRow), seeded with the picked file's stem.
+  // "Add from file…" pick step (speaker) — the Rust side copies the picked file into a staging
+  // folder, so the pick owns a lifecycle. A naming row then appears (see renderPendingImportRow),
+  // seeded with the picked file's stem.
   async function startPendingImport(): Promise<void> {
-    if (importing || pendingImport !== null) return; // Prevent a second pick while one is in flight
-    const picked = await cfg.pickImport!();
-    if (picked === null) return; // cancelled at the OS picker
-    pendingImport = picked;
-    cfg.render();
+    if (importing || picking || pendingImport !== null) return; // one picker at a time
+    picking = true;
+    try {
+      const picked = await cfg.pickImport!();
+      if (picked === null) return; // cancelled at the OS picker
+      if (disposed) {
+        discardStaged(picked);
+        return;
+      }
+      pendingImport = picked;
+      cfg.render();
+    } catch (err) {
+      cfg.importErrorEl.hidden = false;
+      cfg.log.error(`${cfg.logPrefix}_import_failed`, { error: String(err) });
+    } finally {
+      picking = false;
+    }
   }
 
-  // Esc on the naming row — cancels the whole import. Nothing was copied yet, so nothing to clean up.
+  // Remove the staged copy; a failure surfaces as a warning, never into UI code.
+  function discardStaged(pending: PendingImport): void {
+    void pending
+      .discard()
+      .catch((e) => cfg.log.warn(`${cfg.logPrefix}_import_discard_failed`, { error: String(e) }));
+  }
+
+  // Esc on the naming row — discards the staged copy and closes the naming row.
   function cancelPendingImport(): void {
     if (pendingImport === null) return;
+    const pending = pendingImport;
     pendingImport = null;
     cfg.render();
+    discardStaged(pending);
   }
 
-  // Enter on the naming row — copy + register under the typed name, then addOption + select
+  // Enter on the naming row — upload the staged copy under the typed name, then addOption + select
   // (performed by cfg.commitImport). Failure shows the inline error, same as the one-shot flow.
   async function commitPendingImport(name: string): Promise<void> {
     if (importing || pendingImport === null) return; // Reentrancy guard (see below for why it holds)
@@ -348,7 +374,7 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     cfg.importErrorEl.hidden = true;
     cfg.render();
     try {
-      await cfg.commitImport!(picked.srcPath, name);
+      await cfg.commitImport!(picked.stagedId, name);
     } catch (err) {
       cfg.importErrorEl.hidden = false;
       cfg.log.error(`${cfg.logPrefix}_import_failed`, { error: String(err) });
@@ -453,6 +479,12 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
   }
 
   function dispose(): void {
+    disposed = true;
+    if (pendingImport !== null) {
+      const pending = pendingImport;
+      pendingImport = null;
+      discardStaged(pending);
+    }
     disarmRemove(false);
     clearRemoveTimer();
     ownerDocument.removeEventListener("click", handleDocumentClick, true);
