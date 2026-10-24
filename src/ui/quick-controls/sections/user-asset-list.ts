@@ -1,30 +1,23 @@
 /**
  * Shared "user-managed asset list" scaffolding for the VRM and speaker radiogroups:
- * inline rename FSM, delete-file-then-store removal with active-fallback swap, a
- * reentrancy-guarded import flow with inline error, row lookup, roving-tabindex keyboard
- * nav, and the swap orchestration (busy state + error row id). Domain-specific rendering
- * (row markup, refresh/audition, controls-enabled gating of markup) stays in the caller;
- * this module owns only the state + control flow that is identical across domains.
+ * inline rename FSM, delete-file-then-store removal with active-fallback swap, row
+ * lookup, roving-tabindex keyboard nav, and the swap orchestration (busy state + error
+ * row id); the two-phase import flow lives in `pending-import.ts`. Domain-specific
+ * rendering (row markup, refresh/audition, controls-enabled gating of markup) stays in
+ * the caller; this module owns only the state + control flow that is identical across
+ * domains.
  */
 import "./user-asset-list.css";
 
 import type { Logger } from "../../../logger";
 import { t } from "../../i18n";
+import { createPendingImport, type PendingImport } from "./pending-import";
 
 const REMOVE_CONFIRM_MS = 4000;
 
 interface UserAssetOption {
   id: string;
   label?: string;
-}
-
-/** A staged-but-not-yet-named import: the naming row names it, Esc discards it. */
-interface PendingImport {
-  stagedId: string;
-  /** Seeds the naming row's input (the picked file's stem). */
-  seedName: string;
-  /** Removes the staged copy when the naming row is cancelled or the list torn down. */
-  discard: () => Promise<void>;
 }
 
 export interface UserAssetListConfig<T extends UserAssetOption> {
@@ -92,6 +85,25 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
   const overwriteWarnClass = `${cfg.classPrefix}__overwrite-warn`;
   const datasetAttr = camelToKebab(cfg.datasetKey);
 
+  const pendingImport = createPendingImport({
+    pickImport: () => cfg.pickImport!(),
+    commitImport: (stagedId, name) => cfg.commitImport!(stagedId, name),
+    deriveId: cfg.deriveId,
+    isImportBlocked: cfg.isImportBlocked,
+    hasId: (id) => cfg.list().some((o) => o.id === id),
+    importErrorEl: cfg.importErrorEl,
+    log: cfg.log,
+    logPrefix: cfg.logPrefix,
+    i18nNamespace: cfg.i18nNamespace,
+    rowClasses: {
+      renaming: renamingClass,
+      tick: tickClass,
+      renameHint: renameHintClass,
+      overwriteWarn: overwriteWarnClass,
+    },
+    render: cfg.render,
+  });
+
   // Swapping id (guards duplicate swap) · last error row id (keeps inline guidance on re-render).
   let swappingId: string | null = null;
   let errorId: string | null = null;
@@ -100,10 +112,6 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
   // User option id being renamed inline (null if none) · whether import is in progress.
   let renamingId: string | null = null;
   let importing = false;
-  // Two-phase import: staged copy awaiting a typed name (null if none pending) · whether a pick is in flight.
-  let pendingImport: PendingImport | null = null;
-  let picking = false;
-  let disposed = false;
   let armedRemoveId: string | null = null;
   let removingId: string | null = null;
   let keepArmedForRender = false;
@@ -160,54 +168,6 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     input.addEventListener("blur", () => {
       if (renamingId !== opt.id) return; // Already cleaned up by commit/cancel
       commitRename(opt.id, input.value);
-    });
-  }
-
-  // Render the not-yet-named staged import in the same inline naming presentation as
-  // renderRenamingRow — seeded with the picked file's stem, text selected (see focusIfRenaming).
-  // Enter commits the import (uploads the staged copy under the typed name); Esc discards the
-  // staged copy.
-  function renderPendingImportRow(row: HTMLElement, pending: PendingImport): void {
-    row.classList.add(renamingClass);
-    row.innerHTML = `
-      <span class="${tickClass}" aria-hidden="true"></span>
-      <span class="yui-input-wrap"><input class="yui-ep-input" type="text" aria-label="${t(`${cfg.i18nNamespace}.name_aria`)}" /></span>
-      <span class="${renameHintClass}"><kbd>Enter</kbd> ${t(`${cfg.i18nNamespace}.rename_hint_save`)} · <kbd>Esc</kbd> ${t(`${cfg.i18nNamespace}.rename_hint_cancel`)}</span>
-    `;
-    const input = row.querySelector<HTMLInputElement>(".yui-ep-input")!;
-    input.value = pending.seedName;
-    // Committing a name whose derived id matches an existing one replaces that asset's file
-    // outright. The seed comes from the picked filename, so the collision can be entirely
-    // unintended — flag it live next to the hint rather than letting Enter silently overwrite.
-    const hintEl = row.querySelector<HTMLElement>(`.${renameHintClass}`)!;
-    const baseHint = hintEl.innerHTML;
-    const syncOverwriteWarning = (): void => {
-      const id = cfg.deriveId(input.value);
-      const warnKey = cfg.isImportBlocked?.(id)
-        ? "import_taken_warn"
-        : cfg.list().some((o) => o.id === id)
-          ? "import_overwrite_warn"
-          : null;
-      hintEl.innerHTML = warnKey
-        ? `${baseHint} · <span class="${overwriteWarnClass}">${t(`${cfg.i18nNamespace}.${warnKey}`)}</span>`
-        : baseHint;
-    };
-    syncOverwriteWarning();
-    input.addEventListener("input", syncOverwriteWarning);
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        void commitPendingImport(input.value);
-      } else if (e.key === "Escape") {
-        // Escape cancels the import only — does not propagate to panel close (document Escape).
-        e.preventDefault();
-        e.stopPropagation();
-        cancelPendingImport();
-      }
-    });
-    input.addEventListener("blur", () => {
-      if (pendingImport === null) return; // Already cleaned up by commit/cancel
-      void commitPendingImport(input.value);
     });
   }
 
@@ -318,73 +278,6 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     }
   }
 
-  // "Add from file…" pick step (speaker) — the Rust side copies the picked file into a staging
-  // folder, so the pick owns a lifecycle. A naming row then appears (see renderPendingImportRow),
-  // seeded with the picked file's stem.
-  async function startPendingImport(): Promise<void> {
-    if (importing || picking || pendingImport !== null) return; // one picker at a time
-    picking = true;
-    cfg.importErrorEl.hidden = true;
-    try {
-      const picked = await cfg.pickImport!();
-      if (picked === null) return; // cancelled at the OS picker
-      if (disposed) {
-        discardStaged(picked);
-        return;
-      }
-      pendingImport = picked;
-      cfg.render();
-    } catch (err) {
-      cfg.importErrorEl.hidden = false;
-      cfg.log.error(`${cfg.logPrefix}_import_failed`, { error: String(err) });
-    } finally {
-      picking = false;
-    }
-  }
-
-  // Remove the staged copy; a failure surfaces as a warning, never into UI code.
-  function discardStaged(pending: PendingImport): void {
-    void pending
-      .discard()
-      .catch((e) => cfg.log.warn(`${cfg.logPrefix}_import_discard_failed`, { error: String(e) }));
-  }
-
-  // Esc on the naming row — discards the staged copy and closes the naming row.
-  function cancelPendingImport(): void {
-    if (pendingImport === null) return;
-    const pending = pendingImport;
-    pendingImport = null;
-    cfg.render();
-    discardStaged(pending);
-  }
-
-  // Enter on the naming row — upload the staged copy under the typed name, then addOption + select
-  // (performed by cfg.commitImport). Failure shows the inline error, same as the one-shot flow.
-  async function commitPendingImport(name: string): Promise<void> {
-    if (importing || pendingImport === null) return; // Reentrancy guard (see below for why it holds)
-    if (cfg.isImportBlocked?.(cfg.deriveId(name))) return; // the warning stays; the row stays open
-    const picked = pendingImport;
-    // Clear BEFORE the first render — mirrors commitRename clearing renamingId before its render.
-    // cfg.render() (next line) replaces the naming row's innerHTML, detaching the still-focused
-    // input; a real browser fires `blur` on that SYNCHRONOUSLY, re-entering this function through
-    // the input's blur listener. Clearing pendingImport (and setting importing=true) first means
-    // that reentrant call's guard above sees the already-cleared state and no-ops instead of
-    // double-committing the same import.
-    pendingImport = null;
-    importing = true;
-    cfg.importErrorEl.hidden = true;
-    cfg.render();
-    try {
-      await cfg.commitImport!(picked.stagedId, name);
-    } catch (err) {
-      cfg.importErrorEl.hidden = false;
-      cfg.log.error(`${cfg.logPrefix}_import_failed`, { error: String(err) });
-    } finally {
-      importing = false;
-      cfg.render();
-    }
-  }
-
   async function swapTo(option: T): Promise<void> {
     if (swappingId !== null) return; // Prevent second swap while in progress
     if (option.id === cfg.getActiveId()) return; // Already active, no-op
@@ -466,7 +359,7 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
   }
 
   function handleAddClick(): void {
-    if (cfg.pickImport) void startPendingImport();
+    if (cfg.pickImport) void pendingImport.start();
     else void runImport();
   }
 
@@ -480,12 +373,7 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
   }
 
   function dispose(): void {
-    disposed = true;
-    if (pendingImport !== null) {
-      const pending = pendingImport;
-      pendingImport = null;
-      discardStaged(pending);
-    }
+    pendingImport.dispose();
     disarmRemove(false);
     clearRemoveTimer();
     ownerDocument.removeEventListener("click", handleDocumentClick, true);
@@ -496,7 +384,7 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
   // input and report "handled" (domain render should return early — takes precedence over
   // restoring roving focus, even when the input node itself wasn't found).
   function focusIfRenaming(): boolean {
-    if (renamingId === null && pendingImport === null) return false;
+    if (renamingId === null && pendingImport.get() === null) return false;
     const input = cfg.containerEl.querySelector<HTMLInputElement>(
       `${renamingSelector} .yui-ep-input`,
     );
@@ -512,13 +400,14 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     getRovedId: (): string | null => rovedId,
     getErrorId: (): string | null => errorId,
     getArmedRemoveId: (): string | null => armedRemoveId,
-    getPendingImport: (): PendingImport | null => pendingImport,
-    isImporting: (): boolean => importing,
+    getPendingImport: (): PendingImport | null => pendingImport.get(),
+    isImporting: (): boolean => importing || pendingImport.isCommitting(),
     isSwapping: (): boolean => swappingId !== null,
     prepareRender,
     focusIfRenaming,
     renderRenamingRow,
-    renderPendingImportRow,
+    renderPendingImportRow: (row: HTMLElement, pending: PendingImport): void =>
+      pendingImport.renderRow(row, pending),
     rowById,
     startRename,
     remove,
