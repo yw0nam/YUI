@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { TriggerMeta } from "../../contract";
 import { backgroundMarker } from "./background-marker";
 
-describe("backgroundMarker — signals catch-up", () => {
+describe("backgroundMarker — signals markers", () => {
   it.each([
     ["signals.urgent", "(something urgent just came in for you)"],
     ["signals.catchup", "(signals piled up for you)"],
