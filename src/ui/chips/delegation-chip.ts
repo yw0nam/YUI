@@ -162,7 +162,8 @@ export function createDelegationChip({
   }
 
   function refresh(): void {
-    const kind = pushState.getState().kind;
+    const state = pushState.getState();
+    const kind = state.kind;
     // disconnected means no transport is in use — nothing was asked to be up, so nothing is lost.
     if (kind === "disconnected") {
       el.classList.remove("is-lost");
@@ -180,7 +181,7 @@ export function createDelegationChip({
       clearRefreshTimer();
       closeList();
       chipBtn.removeAttribute("aria-expanded");
-      labelEl.textContent = lostLabel(pushState.getState());
+      labelEl.textContent = lostLabel(state);
       countEl.textContent = "";
       show();
       return;

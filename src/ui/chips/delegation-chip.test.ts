@@ -432,8 +432,7 @@ describe("createDelegationChip", () => {
     expect(chip.el.outerHTML).toBe(before);
   });
 
-  // A loss while the transport is meant to be up names its state in the Connection tab's words;
-  // the tap opens that tab.
+  // A live loss names its state in the Connection tab's words; the tap opens that tab.
   describe("lost connection", () => {
     const lost: [PushSocketState, string][] = [
       [{ kind: "connecting" }, "연결하는 중…"],
