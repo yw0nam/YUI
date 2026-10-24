@@ -153,8 +153,8 @@ export function createSttVad(options: SttVadOptions): SttVad {
       const key = (await getApiKey?.())?.trim() || undefined;
       const cfg = config();
       if (cfg.stt_model) form.append("model", cfg.stt_model);
-      if (cfg.stt_language && cfg.stt_language !== "auto")
-        form.append("language", cfg.stt_language);
+      const language = cfg.stt_language?.trim().toLowerCase();
+      if (language && language !== "auto") form.append("language", language);
       const res = await fetchImpl(`${cfg.stt_base_url}/audio/transcriptions`, {
         method: "POST",
         body: form,
