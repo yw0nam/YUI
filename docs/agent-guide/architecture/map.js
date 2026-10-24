@@ -2340,12 +2340,21 @@ globalThis.YUI_MAP =
     },
     {
       "id": "drop-restore",
-      "from": "dispatcher/core",
+      "from": "dispatcher",
       "to": "dispatcher/sources/inbox",
-      "carries": "a dropped turn's signal groups back to their buffers (onTurnDropped and the bus's onDrop → restore)",
+      "carries": "onTurnDropped(env) → restore",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"
+    },
+    {
+      "id": "bus-drop-restore",
+      "from": "dispatcher/core",
+      "to": "dispatcher/sources/inbox",
+      "carries": "onDrop(env) of a refused push → restore",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/windows/main.ts"
     },
     {
       "id": "pacer-inbox",

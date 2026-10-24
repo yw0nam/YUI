@@ -104,7 +104,7 @@ export function createMilestoneSource(deps: MilestoneSourceDeps): MilestoneSourc
     } catch (error) {
       log.warn("signal drain failed", error);
     }
-    // A dropped candidate's groups come back through the dispatcher's onTurnDropped.
+    // A dropped candidate's groups come back through the dispatcher's onTurnDropped or the bus's onDrop.
     const env: BusEnvelope = {
       source: "os_event_watcher",
       event_name: `time_milestone.${MILESTONE_NAME}`,

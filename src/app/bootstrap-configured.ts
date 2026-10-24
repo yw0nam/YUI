@@ -2,7 +2,6 @@ import type { Tier1Engine } from "../ambient/liveliness/tier1";
 import type { Sitter } from "../ambient/locomotion/sitter";
 import type { AppConfig } from "../config/load";
 import { isChatConfigured } from "../dispatcher/backend/backend-caller";
-import { signalsOf } from "../dispatcher/backend/context-builder";
 import type { BusEnvelope } from "../dispatcher/core/event-bus";
 import type { Guardrails } from "../dispatcher/core/guardrails";
 import type { Dispatcher } from "../dispatcher/dispatcher";
@@ -162,10 +161,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       getConfig: () => config.get(),
     });
     let signals: Pick<SignalsSource, "restore"> | null = null;
-    const restoreSignals = (env: BusEnvelope): void => {
-      const groups = signalsOf(env);
-      if (groups?.length) signals?.restore(groups);
-    };
+    const restoreSignals = (env: BusEnvelope): void => signals?.restore(env);
     const core = await wireTurnCore(cfg, phase1, {
       restoreSignals,
       getCardText: card.getCardText,

@@ -90,10 +90,7 @@ Three client-fired turns also drain the buffers and carry the groups themselves:
 non-urgent group in arrival order, and a drain empties the away buffer and the batch
 buffer together.
 
-A turn that ends without a reply — dropped by the pacer gap, a guardrail, a supersede or
-a stale pending slot, or failed in transport or at the backend — puts its groups back at
-the front of their buffers, and the next edge or drain delivers them. A reply the user
-cut short does not: those groups were delivered.
+A turn dropped before its backend call (by the proactive quiet gap, a guardrail, the user's message while it waits, a stale queue entry, or a degraded backend), a push the bus refuses, or a call that failed in transport or at the backend puts its groups back at the front of their buffers, and the next edge or drain delivers them. A turn the user's message cancels after its call started does not.
 
 Each buffer retains at most five groups and drops its oldest group on overflow.
 

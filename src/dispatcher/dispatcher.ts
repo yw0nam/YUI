@@ -103,7 +103,7 @@ interface DispatcherDeps {
   turnGate?: TurnGate;
   /** The dispatcher admitted a trigger: the turn it opened, reported before its backend call starts. */
   onTurnAdmitted?: (turn: Turn) => void;
-  /** A trigger the dispatcher dropped before the backend answered it, with the drop reason. */
+  /** Every drop the dispatcher records, with its reason: a trigger held back or superseded before its backend call, or a backend call that failed. */
   onTurnDropped?: (env: BusEnvelope, reason: DropRecord["reason"]) => void;
   /** Structured logging (defaults to the dispatcher namespace logger). */
   logger?: Logger;

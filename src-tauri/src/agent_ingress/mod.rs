@@ -71,7 +71,7 @@ fn emit_agent_event(app: &AppHandle, label: &str, payload: AgentEventPayload) {
 
 fn emit_signals_event(app: &AppHandle, label: &str, payload: SignalsPayload) {
     log::debug!(
-        "agent_ingress_signals_accepted event_id={}",
+        "agent_ingress_signals_accepted event_id={:?}",
         payload.envelope["event_id"].as_str().unwrap_or_default()
     );
     let result = app.emit_to(label, SIGNALS_INBOX_CHANNEL, payload);
