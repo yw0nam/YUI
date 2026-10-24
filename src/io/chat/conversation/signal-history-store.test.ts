@@ -96,8 +96,8 @@ describe("createSignalHistoryStore", () => {
     expect(store.records()).toEqual([record({ turn_id: "good" })]);
   });
 
-  it("a stored row from before event_id existed reads event_id as null; a row with one keeps it", () => {
-    const legacy = {
+  it("a stored row without a string event_id is dropped", () => {
+    const withoutId = {
       turn_id: "t1",
       source: "github",
       event_type: "issue.opened",
@@ -107,13 +107,10 @@ describe("createSignalHistoryStore", () => {
       said: null,
     };
     const store = createSignalHistoryStore({
-      storage: seeded([legacy, record({ turn_id: "t2", event_id: "run-7" })]),
+      storage: seeded([withoutId, { ...withoutId, event_id: null }, record({ event_id: "run-7" })]),
     });
 
-    expect(store.records()).toEqual([
-      record({ event_id: null }),
-      record({ turn_id: "t2", event_id: "run-7" }),
-    ]);
+    expect(store.records()).toEqual([record({ event_id: "run-7" })]);
   });
 
   it("a stored non-array leaves the store empty", () => {

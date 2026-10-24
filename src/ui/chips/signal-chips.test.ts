@@ -78,13 +78,17 @@ describe("createSignalChips", () => {
     expect(chipEls()[0]!.querySelector(".yui-sigchip__text")!.textContent).toBe("label 5");
     const more = mount.querySelector<HTMLButtonElement>(".yui-sigchip__more")!;
     expect(more.textContent).toBe("+2");
+    expect(more.getAttribute("aria-expanded")).toBe("false");
 
     click(more);
 
     expect(chipEls()).toHaveLength(5);
-    expect(mount.querySelector(".yui-sigchip__more")).toBeNull();
-    click(mount.querySelector(".yui-sigchip__collapse")!);
+    expect(more.getAttribute("aria-expanded")).toBe("true");
+    expect(more.textContent).toBe("Collapse");
+    click(more);
     expect(chipEls()).toHaveLength(3);
+    expect(more.getAttribute("aria-expanded")).toBe("false");
+    expect(more.textContent).toBe("+2");
   });
 
   it("the chip shows the event type when the group has no label, and the urgent class", () => {
@@ -103,7 +107,7 @@ describe("createSignalChips", () => {
     expect(model.list().map((i) => i.group.envelope.event_id)).toEqual(["e1"]);
   });
 
-  it("a tap opens the card with what YUI said and the raw items; Escape closes it", () => {
+  it("a tap opens the details with what YUI said and the raw items; Escape closes it", () => {
     history.rows = [
       {
         turn_id: "t1",
@@ -120,27 +124,29 @@ describe("createSignalChips", () => {
 
     click(opener(0));
 
-    const card = mount.querySelector(".yui-sigcard")!;
+    const card = mount.querySelector(".yui-sigdetails")!;
     expect(opener(0).getAttribute("aria-expanded")).toBe("true");
-    expect(card.querySelector(".yui-sigcard__said")!.textContent).toContain("The build broke.");
-    expect(card.querySelector(".yui-sigcard__items")!.textContent).toBe(
-      JSON.stringify([{ run: 1 }], null, 1),
+    expect(card.querySelector(".yui-sigdetails__said")!.textContent).toBe(
+      "\u201CThe build broke.\u201D",
+    );
+    expect(card.querySelector(".yui-sigdetails__items")!.textContent).toBe(
+      '[\n {\n  "run": 1\n }\n]',
     );
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
 
-    expect(mount.querySelector(".yui-sigcard")).toBeNull();
+    expect(mount.querySelector(".yui-sigdetails")).toBeNull();
     expect(opener(0).getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("the card says Did not speak while nothing was said, and shows one card at a time", () => {
+  it("the details say Did not speak while nothing was said, and shows one sheet at a time", () => {
     build([group(1), group(2)]);
 
     click(opener(0));
-    expect(mount.querySelector(".yui-sigcard__said")!.textContent).toBe("Did not speak");
+    expect(mount.querySelector(".yui-sigdetails__said")!.textContent).toBe("Did not speak");
 
     click(opener(1));
-    expect(mount.querySelectorAll(".yui-sigcard")).toHaveLength(1);
+    expect(mount.querySelectorAll(".yui-sigdetails")).toHaveLength(1);
     expect(opener(0).getAttribute("aria-expanded")).toBe("false");
   });
 
@@ -154,10 +160,10 @@ describe("createSignalChips", () => {
 
     expect(collapsed.get().collapsed).toBe(true);
     expect(mount.querySelector(".yui-sigchips")!.classList.contains("is-mini")).toBe(true);
-    expect(mount.querySelector(".yui-sigcard")).toBeNull();
+    expect(mount.querySelector(".yui-sigdetails")).toBeNull();
   });
 
-  it("a shorter press opens the card instead of folding", () => {
+  it("a shorter press opens the details instead of folding", () => {
     const { collapsed } = build([group(1)]);
 
     press(opener(0), "pointerdown");
@@ -166,7 +172,7 @@ describe("createSignalChips", () => {
     click(opener(0));
 
     expect(collapsed.get().collapsed).toBe(false);
-    expect(mount.querySelector(".yui-sigcard")).not.toBeNull();
+    expect(mount.querySelector(".yui-sigdetails__said")!.textContent).toBe("Did not speak");
   });
 
   it("follows the shared fold store from outside, and a click while folded unfolds", () => {
@@ -178,6 +184,50 @@ describe("createSignalChips", () => {
     click(opener(0));
     expect(collapsed.get().collapsed).toBe(false);
     expect(mount.querySelector(".yui-sigchips")!.classList.contains("is-mini")).toBe(false);
-    expect(mount.querySelector(".yui-sigcard")).toBeNull();
+    expect(mount.querySelector(".yui-sigdetails")).toBeNull();
+  });
+
+  it("a history update keeps each chip's element, so focus and the pulse survive", () => {
+    build([group(1), group(2)]);
+    const before = chipEls();
+    opener(0).focus();
+
+    history.rows = [
+      {
+        turn_id: "t1",
+        event_id: "e2",
+        source: "src2",
+        event_type: "ci.failed",
+        label: "label 2",
+        delivery: "batched",
+        ts: 1,
+        said: "Seen.",
+      },
+    ];
+    for (const cb of history.subs) cb();
+
+    expect(chipEls()[0]!.isSameNode(before[0]!)).toBe(true);
+    expect(chipEls()[1]!.isSameNode(before[1]!)).toBe(true);
+    expect(document.activeElement).toBe(opener(0));
+  });
+
+  it("a new signal adds one chip and leaves the others' elements alone", () => {
+    const { model } = build([group(1)]);
+    const first = chipEls()[0]!;
+
+    model.add(group(2));
+
+    expect(chipEls()).toHaveLength(2);
+    expect(chipEls()[1]!.isSameNode(first)).toBe(true);
+  });
+
+  it("the details take focus on the close button and give it back to the chip", () => {
+    build([group(1)]);
+
+    click(opener(0));
+    expect(document.activeElement).toBe(mount.querySelector(".yui-sigdetails__close"));
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(document.activeElement).toBe(opener(0));
   });
 });

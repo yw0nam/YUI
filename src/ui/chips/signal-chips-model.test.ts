@@ -122,7 +122,7 @@ describe("createSignalChipsModel", () => {
 
     history.set([row("a", null), row("a", "Build broke."), row("zzz", "elsewhere")]);
     expect(model.list()[0]!.said).toBe("Build broke.");
-    expect(seen).toHaveBeenCalled();
+    expect(seen).toHaveBeenCalledTimes(2);
   });
 
   it("a group added after its turn was recorded reads the said already stored", () => {

@@ -129,7 +129,7 @@ describe("createQuickControls — history tab", () => {
 
   const signalRecord = (turn_id: string, ts: number, said: string | null): SignalRecord => ({
     turn_id,
-    event_id: null,
+    event_id: `e-${turn_id}`,
     source: "gh",
     event_type: "ci.failed",
     label: "CI failed on main",
