@@ -234,7 +234,7 @@ describe("createConnectionTab", () => {
     tab.dispose();
   });
 
-  it("offers Auto / en / ja for the STT language field", () => {
+  it("offers Auto / en / ja for the STT language field and says an empty field auto-detects", () => {
     const tab = build(PHONE_ROWS);
 
     const lang = tab.el.querySelector<HTMLInputElement>("#yui-ep-stt_language")!;
@@ -242,6 +242,8 @@ describe("createConnectionTab", () => {
       ...tab.el.querySelectorAll<HTMLOptionElement>(`#${lang.getAttribute("list")} option`),
     ];
     expect(options.map((o) => o.value)).toEqual(["auto", "en", "ja"]);
+    const sub = tab.el.querySelector('[data-ep-field="stt_language"] .yui-input-row__sub');
+    expect(sub?.textContent).toBe(t("endpoints.stt_language.sub"));
 
     tab.dispose();
   });
