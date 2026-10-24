@@ -634,9 +634,9 @@ all situational detail still lives in the trigger lines above.
 | `agent.catchup` | `(my claude-code and opencode tasks piled up while I was away)` |
 | `signals.push` | `(a new signal just arrived for you)` |
 | `signals.batch` | `(a few signals batched up for you)` |
-| `signals.catchup` | `(signals piled up while I was away)` |
+| `signals.catchup` | `(signals piled up for you)` |
 | `signals.urgent` | `(something urgent just came in for you)` |
-| `signals.urgent_catchup` | `(urgent things piled up while I was away)` |
+| `signals.urgent_catchup` | `(urgent things piled up for you)` |
 | `time_milestone.first_activity` | `(I've just started my day)` |
 | any other | `(something just caught your attention)` |
 
