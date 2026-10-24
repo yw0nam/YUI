@@ -6,7 +6,7 @@
  * by user-asset-list.test.ts.
  */
 import { describe, expect, it, vi } from "vitest";
-import type { Logger } from "../../../logger";
+import type { Logger } from "../../../../logger";
 import {
   createPendingImport,
   type PendingImport,

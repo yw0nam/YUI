@@ -11,7 +11,7 @@ import type {
 import type { Logger } from "../../../../../logger";
 import { t } from "../../../../i18n";
 import { secHeadHtml } from "../../../../quick-controls/markup";
-import "../../../../quick-controls/sections/user-asset-list.css";
+import "../../../../quick-controls/sections/user-asset-list/user-asset-list.css";
 import { bindRadioSegment } from "../segment/radio-segment";
 import "./stage-section.css";
 

@@ -4,8 +4,8 @@
  * commits it (uploads the staged copy under the typed name), Esc discards it. One picker at
  * a time; a pick that resolves after `dispose()` is discarded.
  */
-import type { Logger } from "../../../logger";
-import { t } from "../../i18n";
+import type { Logger } from "../../../../logger";
+import { t } from "../../../i18n";
 
 /** A staged-but-not-yet-named import: the naming row names it, Esc discards it. */
 export interface PendingImport {

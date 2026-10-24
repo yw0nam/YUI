@@ -10,7 +10,7 @@ import {
   REMOVE_SVG,
   RENAME_SVG,
   resolveRovedId,
-} from "../../sections/user-asset-list";
+} from "../../sections/user-asset-list/user-asset-list";
 
 interface VrmListDeps {
   /** Panel root (el) — query .yui-vrms / .yui-vrm__import-error from here. */

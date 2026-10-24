@@ -15,7 +15,7 @@ import { DEFAULT_PRESET_ID } from "../../../settings/preset/preset-keys";
 import type { PresetRegistry } from "../../../settings/preset/preset-registry";
 import { t } from "../../i18n";
 import { PLUS_SVG } from "../constants";
-import { REMOVE_SVG, RENAME_SVG } from "../sections/user-asset-list";
+import { REMOVE_SVG, RENAME_SVG } from "../sections/user-asset-list/user-asset-list";
 
 type Registry = Pick<PresetRegistry, "get" | "create" | "rename" | "remove" | "activate">;
 

@@ -17,7 +17,12 @@ import type {
 import type { PickedVoiceImport } from "../../../../io/voice/voices/voice-import-flow";
 import type { Logger } from "../../../../logger";
 import { t } from "../../../i18n";
-import { createUserAssetList, REMOVE_SVG, RENAME_SVG, resolveRovedId } from "../user-asset-list";
+import {
+  createUserAssetList,
+  REMOVE_SVG,
+  RENAME_SVG,
+  resolveRovedId,
+} from "../user-asset-list/user-asset-list";
 
 const SPK_PLAY_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>`;
 const SPK_PAUSE_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="7" y="6" width="3.4" height="12" rx="0.8"/><rect x="13.6" y="6" width="3.4" height="12" rx="0.8"/></svg>`;

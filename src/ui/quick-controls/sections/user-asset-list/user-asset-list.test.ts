@@ -8,7 +8,7 @@
  * the reentrancy-guarded import flow with inline error, and row lookup/keyboard nav.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Logger } from "../../../logger";
+import type { Logger } from "../../../../logger";
 import { createUserAssetList, resolveRovedId, type UserAssetListConfig } from "./user-asset-list";
 
 // jsdom lacks CSS.escape — polyfill (mirrors quick-controls/test-helpers.ts).
