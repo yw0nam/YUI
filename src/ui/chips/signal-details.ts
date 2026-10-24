@@ -1,6 +1,6 @@
 /** Signal details — one signal group's source line, kind, label, time, what YUI said, and its raw items. */
 
-import { t } from "../i18n";
+import { getLocale, t } from "../i18n";
 import { CROSS_SVG } from "../quick-controls/constants";
 import { renderSourceLine } from "../signals/source-line";
 import type { SignalChipItem } from "./signal-chips-model";
@@ -39,7 +39,10 @@ export function renderSignalDetails(
   if (envelope.label) rows.push(["sigchip.label", envelope.label]);
   rows.push([
     "sigchip.received",
-    new Date(item.received_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    new Date(item.received_at).toLocaleTimeString(getLocale(), {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
   ]);
   const dl = sheet.querySelector(".yui-sigdetails__rows")!;
   for (const [key, value] of rows) {

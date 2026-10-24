@@ -23,13 +23,21 @@
   pointer-events: auto;
 }
 
-/* Expanded past three: exactly eight rows show, then the column scrolls inside. The padding and
-   the matching negative margin keep the Float shadow inside the scroll box. */
+/* Expanded past three: exactly eight rows show, then the column scrolls inside. The scroll box
+   would clip the Float shadow into a hard edge, so the pills go without it here. */
 .yui-sigchips.is-expanded {
   max-height: calc(8 * var(--yui-sigchip-h) + 7 * 0.4rem);
-  padding: 0.75rem;
-  margin: -0.75rem;
   overflow-y: auto;
+}
+
+.yui-sigchips.is-expanded .yui-sigchip,
+.yui-sigchips.is-expanded .yui-sigchip__more {
+  box-shadow: none;
+}
+
+.yui-sigchip,
+.yui-sigchip__more {
+  flex-shrink: 0;
 }
 
 .yui-sigchip {
