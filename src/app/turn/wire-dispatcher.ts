@@ -54,6 +54,7 @@ import type { VoicePipeline } from "./voice/wire-voice-pipeline";
 
 export function wireDispatcher(deps: {
   bus: EventBus;
+  onTurnDropped?: Parameters<typeof createDispatcher>[0]["onTurnDropped"];
   renderer: Renderer;
   surfaces: Pick<
     Surfaces,
@@ -255,6 +256,7 @@ export function wireDispatcher(deps: {
     pacer,
     appendSkipRecord: appendTurnRecord,
     onTurnAdmitted: quotedTurn.admitted,
+    onTurnDropped: deps.onTurnDropped,
     onTurnFailed: (turn, reason) => {
       previousTurn.callFailed(turn, reason);
       quotedTurn.failed(turn);

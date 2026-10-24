@@ -2339,6 +2339,15 @@ globalThis.YUI_MAP =
       "wiring": "src/app/turn/wire-sources.ts"
     },
     {
+      "id": "drop-restore",
+      "from": "dispatcher/core",
+      "to": "dispatcher/sources/inbox",
+      "carries": "a dropped turn's signal groups back to their buffers (onTurnDropped and the bus's onDrop → restore)",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/bootstrap-configured.ts"
+    },
+    {
       "id": "pacer-inbox",
       "from": "dispatcher/core",
       "to": "dispatcher/sources/inbox",

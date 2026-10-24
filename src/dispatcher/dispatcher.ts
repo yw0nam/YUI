@@ -103,6 +103,8 @@ interface DispatcherDeps {
   turnGate?: TurnGate;
   /** The dispatcher admitted a trigger: the turn it opened, reported before its backend call starts. */
   onTurnAdmitted?: (turn: Turn) => void;
+  /** A trigger the dispatcher dropped before the backend answered it, with the drop reason. */
+  onTurnDropped?: (env: BusEnvelope, reason: DropRecord["reason"]) => void;
   /** Structured logging (defaults to the dispatcher namespace logger). */
   logger?: Logger;
 }
@@ -255,6 +257,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     drops.push({ seq_id: env.seq_id, event_name: env.event_name, reason, ts: env.ts });
     if (drops.length > MAX_DROP_RECORDS) drops.shift();
     log[DROP_SEVERITY[reason]]("drop", { event_name: env.event_name, reason, seq_id: env.seq_id });
+    deps.onTurnDropped?.(env, reason);
   }
 
   /** Whether the global proactive gap holds this fire back. */

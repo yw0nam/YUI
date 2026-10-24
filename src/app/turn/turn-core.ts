@@ -93,6 +93,7 @@ export async function wireTurnCore(
   phase1: TurnCorePhase1,
   deps: {
     getFrontmost: DispatcherDeps["getFrontmost"];
+    restoreSignals?: DispatcherDeps["onTurnDropped"];
     takeMessageWake?: DispatcherDeps["takeMessageWake"];
     screenCapturer: DispatcherDeps["screenCapturer"];
     openQuickControls?: DispatcherDeps["openQuickControls"];
@@ -176,6 +177,7 @@ export async function wireTurnCore(
     );
 
   const turnWiring = wireDispatcher({
+    onTurnDropped: deps.restoreSignals,
     bus,
     renderer,
     surfaces,

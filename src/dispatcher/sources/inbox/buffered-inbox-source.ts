@@ -93,8 +93,8 @@ export function createBufferedInboxSource<TRaw, TItem = TRaw>(
     return config.isPipelineBusy?.() ?? false;
   }
 
-  function fire(firing: InboxFiring): void {
-    bus.push({
+  function fire(firing: InboxFiring): boolean {
+    return bus.push({
       source: config.busSource ?? "timer_scheduler",
       event_name: firing.event_name,
       ts: now(),
@@ -104,14 +104,12 @@ export function createBufferedInboxSource<TRaw, TItem = TRaw>(
 
   function fireIfEligible(firing: InboxFiring): boolean {
     if (!isEnabled() || !isPresent() || isBusy()) return false;
-    fire(firing);
-    return true;
+    return fire(firing);
   }
 
   function flushCatchup(): void {
     if (config.bufferEmpty()) return;
-    fire(config.buildCatchup());
-    config.bufferClear();
+    if (fire(config.buildCatchup())) config.bufferClear();
   }
 
   /** Flush iff enabled, buffer non-empty, present, and the pipeline is idle. */

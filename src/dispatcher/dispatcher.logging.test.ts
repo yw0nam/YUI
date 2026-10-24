@@ -64,7 +64,7 @@ let dispatcher: Dispatcher;
 let logger: Logger;
 let turnLog: TurnLog;
 let speaking: boolean;
-let onTurnDropped: ReturnType<typeof vi.fn>;
+let onTurnDropped: ReturnType<typeof vi.fn<(env: BusEnvelope, reason: string) => void>>;
 
 /**
  * Simulates "audio is still playing" the way the speech pipeline does: it answers the dispatcher

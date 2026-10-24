@@ -43,6 +43,7 @@ export interface SignalsSource {
   start(): Promise<void>;
   stop(): void;
   drain(): SignalGroup[];
+  restore(groups: SignalGroup[]): void;
 }
 
 type RoutedGroup = {
@@ -211,6 +212,33 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     return groups;
   }
 
+  function restore(groups: SignalGroup[]): void {
+    if (!deps.isEnabled()) return;
+    const batchWasEmpty = batchBuffer.length === 0;
+    let sequence =
+      Math.min(
+        0,
+        ...awayBuffer.map((entry) => entry.sequence),
+        ...batchBuffer.map((entry) => entry.sequence),
+        ...urgentBuffer.map((entry) => entry.sequence),
+      ) - groups.length;
+    for (const group of groups) {
+      const buffer =
+        group.envelope.delivery === "urgent"
+          ? urgentBuffer
+          : group.envelope.delivery === "batched"
+            ? batchBuffer
+            : awayBuffer;
+      const restoredSequence = sequence++;
+      if (buffer.some((entry) => entry.group.envelope.event_id === group.envelope.event_id))
+        continue;
+      buffer.push({ sequence: restoredSequence, group });
+      buffer.sort((left, right) => left.sequence - right.sequence);
+      if (buffer.length > BUFFER_CAP) buffer.shift();
+    }
+    if (batchWasEmpty) armBatchTimer();
+  }
+
   const urgentCore = createBufferedInboxSource<RoutedGroup, RoutedGroup>({
     bus: deps.bus,
     present_max_idle_ms: deps.present_max_idle_ms,
@@ -268,5 +296,5 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     clearBatchTimer();
   }
 
-  return { start, stop, drain };
+  return { start, stop, drain, restore };
 }

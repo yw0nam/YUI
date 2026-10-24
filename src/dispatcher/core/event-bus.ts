@@ -150,6 +150,7 @@ export function createEventBus(opts: EventBusOptions = {}): EventBus {
       if (items.length > capacity) {
         const evicted = items.pop()!;
         drop(evicted.env, "capacity_overflow");
+        if (evicted.env === env) return false;
       }
       return true;
     },

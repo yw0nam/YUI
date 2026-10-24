@@ -2,8 +2,11 @@ import type { Tier1Engine } from "../ambient/liveliness/tier1";
 import type { Sitter } from "../ambient/locomotion/sitter";
 import type { AppConfig } from "../config/load";
 import { isChatConfigured } from "../dispatcher/backend/backend-caller";
+import { signalsOf } from "../dispatcher/backend/context-builder";
+import type { BusEnvelope } from "../dispatcher/core/event-bus";
 import type { Guardrails } from "../dispatcher/core/guardrails";
 import type { Dispatcher } from "../dispatcher/dispatcher";
+import type { SignalsSource } from "../dispatcher/sources/inbox/signals-source";
 import { onAvatarRpc, respondAvatarRpc } from "../io/bridge/inbox/avatar-rpc";
 import type { ClientTool } from "../io/chat/tools/client-tools";
 import { createPetWindowTools } from "../io/chat/tools/pet-window-tools";
@@ -51,6 +54,7 @@ interface Phase1Handles extends TurnCorePhase1 {
 }
 
 export interface ConfiguredBootstrapHandles {
+  restoreSignals: (env: BusEnvelope) => void;
   voice: VoicePipeline;
   dispatcher: Dispatcher;
   guardrails: Guardrails;
@@ -157,7 +161,13 @@ const realFactories: ConfiguredBootstrapFactories = {
       getEndpoints: phase1.getEndpoints,
       getConfig: () => config.get(),
     });
+    let signals: Pick<SignalsSource, "restore"> | null = null;
+    const restoreSignals = (env: BusEnvelope): void => {
+      const groups = signalsOf(env);
+      if (groups?.length) signals?.restore(groups);
+    };
     const core = await wireTurnCore(cfg, phase1, {
+      restoreSignals,
       getCardText: card.getCardText,
       getFrontmost: () => frontmostTracker.get(),
       screenCapturer: phase1.screenCapturer,
@@ -212,6 +222,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       pacer,
       isFirstActivityHeld: bedScene.isHeld,
     });
+    signals = signalsSource;
     core.setProactiveSource(proactiveSource);
     register(proactiveSource.stop);
     register(scheduleSource.stop);
@@ -309,6 +320,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     register(greeting.dispose);
 
     return {
+      restoreSignals,
       voice,
       dispatcher,
       guardrails,

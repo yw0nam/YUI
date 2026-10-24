@@ -39,7 +39,7 @@ import { wirePushMode } from "../app/turn/push/wire-push";
 import { createSessionResetAnnouncer } from "../app/turn/session-reset-announcer";
 import { createVoiceFix } from "../app/voice/voice-fix";
 import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/secrets";
-import { createEventBus } from "../dispatcher/core/event-bus";
+import { type BusEnvelope, createEventBus } from "../dispatcher/core/event-bus";
 import { createUserInputSource } from "../dispatcher/sources/user-input-source";
 import {
   resolveScreenCapturer,
@@ -202,8 +202,12 @@ async function bootstrap(): Promise<BootstrapHandle> {
 
   // The bus and input source come first: the settings panel submits its help requests through them.
   // The bus is safe to create before config load: it only queues until the dispatcher starts popping.
+  let restoreSignals: ((env: BusEnvelope) => void) | null = null;
   const bus = createEventBus({
-    onDrop: (env, reason) => log.info("drop", { event_name: env.event_name, reason }),
+    onDrop: (env, reason) => {
+      log.info("drop", { event_name: env.event_name, reason });
+      restoreSignals?.(env);
+    },
   });
   const userInput = createUserInputSource(bus);
   const help = wireHelpGuide({ userInput, bridge: windowBridge, register });
@@ -277,6 +281,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       getGuardrails: petConfig.getGuardrails,
       isDisposed,
     });
+    restoreSignals = configured.restoreSignals;
     register(configured.dispose);
     if (isDisposed()) return { dispose };
     help.bindInteraction(configured.noteInteraction);

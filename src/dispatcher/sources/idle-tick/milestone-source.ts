@@ -104,9 +104,7 @@ export function createMilestoneSource(deps: MilestoneSourceDeps): MilestoneSourc
     } catch (error) {
       log.warn("signal drain failed", error);
     }
-    // ponytail: the guardrail (cooldown, debounce, rate limit) and the degraded state can still
-    // drop the candidate after the drain, and those groups are gone for the day — re-buffer them
-    // on drop if that bites.
+    // A dropped candidate's groups come back through the dispatcher's onTurnDropped.
     const env: BusEnvelope = {
       source: "os_event_watcher",
       event_name: `time_milestone.${MILESTONE_NAME}`,
