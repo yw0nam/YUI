@@ -898,7 +898,7 @@ describe("backend_caller — signals trigger forwarding", () => {
     const userMsg = (request.input as Array<{ role: string; content: unknown }>).find(
       (m) => m.role === "user",
     )!;
-    expect(userMsg.content).toContain("(signals piled up while I was away)");
+    expect(userMsg.content).toContain("(signals piled up for you)");
   });
 
   it("(c) heterogeneous/nested item shapes pass through unmodified — no structural validation", async () => {
