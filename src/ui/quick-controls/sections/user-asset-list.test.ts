@@ -523,6 +523,25 @@ describe("pending-import lifecycle", () => {
     expect(h.list.getPendingImport()).toBeNull();
     expect(namingInput(h)).toBeNull();
   });
+
+  it("a pick after a rejected one hides the stale inline error", async () => {
+    const pickImport = vi.fn<() => Promise<ReturnType<typeof makePending> | null>>(
+      () => new Promise(() => {}),
+    );
+    pickImport.mockRejectedValueOnce(new Error("unsupported audio type"));
+    pickImport.mockResolvedValueOnce(makePending());
+    const h = makeHarness({ pickImport });
+
+    h.list.handleAddClick();
+    await flush();
+    expect(h.importErrorEl.hidden).toBe(false);
+
+    h.list.handleAddClick();
+    await flush();
+
+    expect(h.importErrorEl.hidden).toBe(true);
+    expect(h.list.getPendingImport()).not.toBeNull();
+  });
 });
 
 describe("row lookup + keyboard nav", () => {

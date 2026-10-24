@@ -78,7 +78,7 @@ const mocks = vi.hoisted(() => {
     // Voice-import-flow fakes, used only by the cross-window re-import test below — drives the
     // settings-window side with the real commitVoiceImport instead of hand-writing its effects.
     upsertVoice: vi.fn(async () => undefined),
-    pickVoiceFile: vi.fn(),
+    pickVoiceFile: vi.fn<typeof import("../../../io/voice/voices/voice-import").pickVoiceFile>(),
     renameUserVoice: vi.fn(),
   };
 });

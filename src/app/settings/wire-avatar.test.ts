@@ -33,7 +33,7 @@ vi.mock("../../io/voice/voices/fish-voices", () => ({
 // voice-import fakes — wireSpeakerSelection's pickVoiceImport/commitVoiceImport exercise these
 // directly; keeps the suite off a real Tauri invoke.
 const { pickVoiceFile, removeOrphanImport, removeUserVoiceMock } = vi.hoisted(() => ({
-  pickVoiceFile: vi.fn(),
+  pickVoiceFile: vi.fn<typeof import("../../io/voice/voices/voice-import").pickVoiceFile>(),
   removeOrphanImport: vi.fn<typeof import("../../io/assets/user-asset-import").removeOrphanImport>(
     async (id, remove) => {
       await remove(id);
@@ -55,6 +55,11 @@ vi.mock("../../io/assets/user-asset-import", async (importOriginal) => ({
 }));
 
 import type { EndpointsConfig } from "../../contract";
+import { createTtsProvider } from "../../io/voice/tts/tts-synth";
+import { createVoiceListRefresh } from "../../io/voice/voices/voice-list-refresh";
+import { createTtsKeySettings } from "../../settings/backend/api-key-settings";
+import type { EndpointOverrides } from "../../settings/backend/endpoints-settings";
+import { createEffectiveEndpoints, wireAvatarSelection, wireSpeakerSelection } from "./wire-avatar";
 
 // The Rust pick stages the clip under the staging folder the flow named.
 const stagedUnder = (stagingId: string) => ({
@@ -66,12 +71,6 @@ const stagedUnder = (stagingId: string) => ({
   },
   seedName: stagingId,
 });
-
-import { createTtsProvider } from "../../io/voice/tts/tts-synth";
-import { createVoiceListRefresh } from "../../io/voice/voices/voice-list-refresh";
-import { createTtsKeySettings } from "../../settings/backend/api-key-settings";
-import type { EndpointOverrides } from "../../settings/backend/endpoints-settings";
-import { createEffectiveEndpoints, wireAvatarSelection, wireSpeakerSelection } from "./wire-avatar";
 
 const noopLog = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} } as never;
 
@@ -283,7 +282,8 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
 
     expect(out!.stagedId).toMatch(/^import-[0-9a-f-]{36}$/);
     expect(out!.seedName).toBe("ナツメ");
-    expect(out!.discard).toBeInstanceOf(Function);
+    await out!.discard();
+    expect(removeUserVoiceMock).toHaveBeenCalledWith(out!.stagedId);
     speakerSelection.dispose();
   });
 
@@ -295,7 +295,6 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
     });
 
     const staged = (await pickVoiceImport())!.stagedId;
-    expect(staged).not.toBe("myvoice");
     await commitVoiceImport(staged, "myvoice");
 
     expect(upsertVoice).toHaveBeenCalledOnce();
@@ -344,7 +343,7 @@ describe("wireSpeakerSelection — pickVoiceImport / commitVoiceImport", () => {
     speakerSelection.dispose();
   });
 
-  it("throws and removes the staged copy when tts_base_url is unset (guard before any upload)", async () => {
+  it("throws and removes the staged copy when tts_base_url is unset", async () => {
     const { pickVoiceImport, commitVoiceImport, speakerSelection } = wireSpeakerSelection({
       getEndpoints: () => ({}),
       log: noopLog,

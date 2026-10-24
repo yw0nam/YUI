@@ -343,6 +343,26 @@ mod tests {
         assert!(!is_allowed_audio_ext("mp4"));
     }
 
+    #[test]
+    fn imported_voice_file_serializes_the_staged_wire_shape() {
+        let value = serde_json::to_value(ImportedVoiceFile {
+            voice: ImportedVoice {
+                id: "import-x".to_string(),
+                ref_path: "/app-data/references/import-x/clip.wav".to_string(),
+            },
+            seed_name: "MyVoice".to_string(),
+        })
+        .unwrap();
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "id": "import-x",
+                "refPath": "/app-data/references/import-x/clip.wav",
+                "seedName": "MyVoice",
+            })
+        );
+    }
+
     fn unique_dir(tag: &str) -> PathBuf {
         let nanos = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

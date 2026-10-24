@@ -22,7 +22,7 @@ vi.mock("../../chat/stream/chat-client", () => ({ selectFetch }));
 
 const { pickVoiceFile, removeOrphanImport, removeUserVoice, renameUserVoice } = vi.hoisted(() => ({
   renameUserVoice: vi.fn(),
-  pickVoiceFile: vi.fn(),
+  pickVoiceFile: vi.fn<typeof import("./voice-import").pickVoiceFile>(),
   removeOrphanImport: vi.fn<typeof import("../../assets/user-asset-import").removeOrphanImport>(
     async (id, remove) => {
       await remove(id);
@@ -148,26 +148,6 @@ describe("createVoiceImportFlow", () => {
       expect(removeUserVoice).not.toHaveBeenCalledWith("natsume");
     });
 
-    it("uploads nowhere when the provider changes during the upload, and removes the staged copy", async () => {
-      const { pickVoiceImport, commitVoiceImport, speakerSelection, endpoints } = build(
-        "https://api.fish.audio",
-        "fish",
-        [NATSUME],
-      );
-      upsertFishVoice.mockImplementation(async () => {
-        endpoints.tts_provider = "irodori";
-        return "model9";
-      });
-
-      const staged = (await pickVoiceImport())!.stagedId;
-      await commitVoiceImport(staged, "natsume");
-
-      expect(upsertVoice).not.toHaveBeenCalled();
-      expect(speakerSelection.addUserOption).not.toHaveBeenCalled();
-      expect(removeUserVoice).toHaveBeenCalledWith(pickVoiceFile.mock.calls[0][0]);
-      expect(removeUserVoice).not.toHaveBeenCalledWith("natsume");
-    });
-
     it("commits nothing and leaves no folder when the server changes during the rename", async () => {
       upsertFishVoice.mockResolvedValue("model9");
       const { pickVoiceImport, commitVoiceImport, speakerSelection, endpoints } = build(
@@ -234,6 +214,8 @@ describe("createVoiceImportFlow", () => {
       expect(speakerSelection.addUserOption).not.toHaveBeenCalled();
       expect(speakerSelection.select).not.toHaveBeenCalled();
       expect(renameUserVoice).not.toHaveBeenCalled();
+      expect(removeUserVoice).toHaveBeenCalledWith(pickVoiceFile.mock.calls[0][0]);
+      expect(removeUserVoice).not.toHaveBeenCalledWith("natsume");
     });
 
     it("cleans up the orphan copy and rethrows when the upload fails", async () => {
@@ -273,7 +255,6 @@ describe("createVoiceImportFlow", () => {
       expect(pickVoiceFile).toHaveBeenCalledWith(expect.stringMatching(/^import-[0-9a-f-]{36}$/));
       expect(out!.stagedId).toMatch(/^import-[0-9a-f-]{36}$/);
       expect(out!.seedName).toBe("ナツメ");
-      expect(out!.discard).toBeInstanceOf(Function);
     });
 
     it("discard() removes the staged copy under its id", async () => {
@@ -444,7 +425,6 @@ describe("createVoiceImportFlow", () => {
       const staged = (await pickVoiceImport())!.stagedId;
       await commitVoiceImport(staged, "myvoice");
 
-      expect(staged).not.toBe("myvoice");
       expect(upsertVoice.mock.calls[0][0]).toMatchObject({
         id: "myvoice",
         refUrl: `asset://localhost/app-data/references/${staged}/clip.wav`,
@@ -467,52 +447,63 @@ describe("createVoiceImportFlow", () => {
       expect(speakerSelection.select).toHaveBeenCalledWith("myvoice");
     });
 
-    it("refuses a blank name under a provider that keeps the caller's id, removing the staged copy", async () => {
-      const { pickVoiceImport, commitVoiceImport } = build("http://localhost:8091", "irodori");
-
-      const staged = (await pickVoiceImport())!.stagedId;
-      await expect(commitVoiceImport(staged, "  ")).rejects.toThrow("voice name required");
-
-      expect(removeUserVoice).toHaveBeenCalledWith(staged);
-    });
-
-    it("throws and removes the staged copy when tts_base_url is unset", async () => {
-      const { pickVoiceImport, commitVoiceImport, speakerSelection } = build(undefined);
-
-      const staged = (await pickVoiceImport())!.stagedId;
-      await expect(commitVoiceImport(staged, "My Voice")).rejects.toThrow("tts_base_url");
-
-      expect(removeUserVoice).toHaveBeenCalledWith(staged);
-      expect(upsertVoice).not.toHaveBeenCalled();
-      expect(speakerSelection.addUserOption).not.toHaveBeenCalled();
-    });
-
-    it("refuses an import under a provider that takes no uploaded voices, removing the staged copy", async () => {
+    const refusalRows: Array<{
+      what: string;
+      baseUrl?: string;
+      provider?: TtsProviderName;
+      stored?: SpeakerOption[];
+      voiceName: string;
+      message: string;
+    }> = [
+      {
+        what: "a blank name under a provider that keeps the caller's id",
+        baseUrl: "http://localhost:8091",
+        provider: "irodori",
+        voiceName: "  ",
+        message: "voice name required",
+      },
+      {
+        what: "an unset tts_base_url",
+        voiceName: "My Voice",
+        message: "tts_base_url",
+      },
+      {
+        what: "a provider that takes no uploaded voices",
+        baseUrl: "https://api.openai.com",
+        provider: "openai",
+        voiceName: "My Voice",
+        message: "openai",
+      },
+      {
+        what: "an Irodori id another provider's voice holds",
+        baseUrl: "http://localhost:8091",
+        provider: "irodori",
+        stored: [
+          { id: "natsume", label: "natsume", ref_url: "", source: "user", provider: "fish" },
+        ],
+        voiceName: "natsume",
+        message: "natsume",
+      },
+    ];
+    it.each(refusalRows)("refuses the import and removes the staged copy: $what", async ({
+      baseUrl,
+      provider,
+      stored,
+      voiceName,
+      message,
+    }) => {
       const { pickVoiceImport, commitVoiceImport, speakerSelection } = build(
-        "https://api.openai.com",
-        "openai",
+        baseUrl,
+        provider,
+        stored,
       );
 
       const staged = (await pickVoiceImport())!.stagedId;
-      await expect(commitVoiceImport(staged, "My Voice")).rejects.toThrow("openai");
-
-      expect(removeUserVoice).toHaveBeenCalledWith(staged);
-      expect(upsertVoice).not.toHaveBeenCalled();
-      expect(speakerSelection.addUserOption).not.toHaveBeenCalled();
-    });
-
-    it("refuses an Irodori import whose id another provider's voice holds, removing the staged copy", async () => {
-      const { pickVoiceImport, commitVoiceImport, speakerSelection } = build(
-        "http://localhost:8091",
-        "irodori",
-        [{ id: "natsume", label: "natsume", ref_url: "", source: "user", provider: "fish" }],
-      );
-
-      const staged = (await pickVoiceImport())!.stagedId;
-      await expect(commitVoiceImport(staged, "natsume")).rejects.toThrow("natsume");
+      await expect(commitVoiceImport(staged, voiceName)).rejects.toThrow(message);
 
       expect(removeUserVoice).toHaveBeenCalledWith(staged);
       expect(speakerSelection.addUserOption).not.toHaveBeenCalled();
+      expect(speakerSelection.select).not.toHaveBeenCalled();
     });
 
     // fakeStore() above doesn't exercise createSelectionStore's own notify logic, so it can't

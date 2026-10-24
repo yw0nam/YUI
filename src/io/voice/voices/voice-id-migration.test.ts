@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { voiceIdFromName } from "../../assets/safe-id";
 import { createSpeakerSelection, type SpeakerOption } from "./speaker-selection";
 import { migrateUserVoiceIds } from "./voice-id-migration";
-import { removeUserVoice, renameUserVoice, type VoiceCopyDeps } from "./voice-import";
+import { removeUserVoice, renameUserVoice, type VoiceImportDeps } from "./voice-import";
 
 function makeStore(users: SpeakerOption[], selected: string | null) {
   let persisted = users;
@@ -18,12 +18,12 @@ function makeStore(users: SpeakerOption[], selected: string | null) {
 /** Fake Tauri `invoke` that records every `rename_user_voice` / `remove_user_voice` call. */
 function fakeVoiceDeps(fail = false) {
   const calls: Array<{ cmd: string; args?: Record<string, unknown> }> = [];
-  const deps: VoiceCopyDeps = {
+  const deps: VoiceImportDeps = {
     invoke: (async (cmd: string, args?: Record<string, unknown>) => {
       calls.push({ cmd, args });
       if (fail) throw new Error("voice id taken");
       return { id: args?.to, refPath: `/app-data/references/${args?.to}/clip.wav` };
-    }) as VoiceCopyDeps["invoke"],
+    }) as VoiceImportDeps["invoke"],
     resolveRefUrl: async (p) => `asset://localhost${p}`,
   };
   return { deps, calls };
@@ -33,7 +33,7 @@ const log = () => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(
 
 function migrate(
   store: ReturnType<typeof createSpeakerSelection>,
-  deps: VoiceCopyDeps,
+  deps: VoiceImportDeps,
   logger = log(),
 ): Promise<void> {
   return migrateUserVoiceIds({

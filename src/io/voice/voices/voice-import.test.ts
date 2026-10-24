@@ -9,15 +9,15 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { pickVoiceFile, removeUserVoice, type VoiceCopyDeps } from "./voice-import";
+import { pickVoiceFile, removeUserVoice, type VoiceImportDeps } from "./voice-import";
 
-function makeCopyDeps(over: Partial<VoiceCopyDeps> = {}): VoiceCopyDeps {
+function makeImportDeps(over: Partial<VoiceImportDeps> = {}): VoiceImportDeps {
   return {
     invoke: vi.fn(async () => ({
       id: "import-x",
       refPath: "/app-data/references/import-x/clip.wav",
       seedName: "MyVoice",
-    })) as unknown as VoiceCopyDeps["invoke"],
+    })) as unknown as VoiceImportDeps["invoke"],
     resolveRefUrl: vi.fn(async (p: string) => `asset://localhost/${p}`),
     ...over,
   };
@@ -25,8 +25,8 @@ function makeCopyDeps(over: Partial<VoiceCopyDeps> = {}): VoiceCopyDeps {
 
 describe("pickVoiceFile", () => {
   it("returns null when invoke resolves null, without resolving a ref url", async () => {
-    const deps = makeCopyDeps({
-      invoke: vi.fn(async () => null) as unknown as VoiceCopyDeps["invoke"],
+    const deps = makeImportDeps({
+      invoke: vi.fn(async () => null) as unknown as VoiceImportDeps["invoke"],
     });
     const out = await pickVoiceFile("import-x", deps);
     expect(out).toBeNull();
@@ -34,9 +34,9 @@ describe("pickVoiceFile", () => {
   });
 
   it("invokes import_voice_file with the staging id and returns the staged copy plus the seed", async () => {
-    const deps = makeCopyDeps();
+    const deps = makeImportDeps();
     const out = await pickVoiceFile("import-x", deps);
-    expect(deps.invoke).toHaveBeenCalledWith("import_voice_file", { desiredName: "import-x" });
+    expect(deps.invoke).toHaveBeenCalledWith("import_voice_file", { stagingId: "import-x" });
     expect(out).toEqual({
       staged: {
         id: "import-x",
@@ -50,7 +50,7 @@ describe("pickVoiceFile", () => {
   });
 
   it("a failing ref-url resolve removes the staged copy and rethrows", async () => {
-    const deps = makeCopyDeps({
+    const deps = makeImportDeps({
       resolveRefUrl: vi.fn(async () => {
         throw new Error("no asset url");
       }),
@@ -63,7 +63,7 @@ describe("pickVoiceFile", () => {
 describe("removeUserVoice", () => {
   it("invokes remove_user_voice with the id", async () => {
     const invoke = vi.fn(async () => undefined);
-    await removeUserVoice("MyVoice", { invoke: invoke as unknown as VoiceCopyDeps["invoke"] });
+    await removeUserVoice("MyVoice", { invoke: invoke as unknown as VoiceImportDeps["invoke"] });
     expect(invoke).toHaveBeenCalledWith("remove_user_voice", { id: "MyVoice" });
   });
 });
