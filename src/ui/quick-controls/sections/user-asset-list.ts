@@ -109,7 +109,7 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
   let errorId: string | null = null;
   // Last row id where arrow roved — kept so re-render doesn't snap roving tabindex back to active.
   let rovedId: string | null = null;
-  // User option id being renamed inline (null if none) · whether import is in progress.
+  // User option id being renamed inline (null if none) · whether the one-shot import is in progress.
   let renamingId: string | null = null;
   let importing = false;
   let armedRemoveId: string | null = null;
@@ -400,14 +400,13 @@ export function createUserAssetList<T extends UserAssetOption>(cfg: UserAssetLis
     getRovedId: (): string | null => rovedId,
     getErrorId: (): string | null => errorId,
     getArmedRemoveId: (): string | null => armedRemoveId,
-    getPendingImport: (): PendingImport | null => pendingImport.get(),
+    getPendingImport: pendingImport.get,
     isImporting: (): boolean => importing || pendingImport.isCommitting(),
     isSwapping: (): boolean => swappingId !== null,
     prepareRender,
     focusIfRenaming,
     renderRenamingRow,
-    renderPendingImportRow: (row: HTMLElement, pending: PendingImport): void =>
-      pendingImport.renderRow(row, pending),
+    renderPendingImportRow: pendingImport.renderRow,
     rowById,
     startRename,
     remove,

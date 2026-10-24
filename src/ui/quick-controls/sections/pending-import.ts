@@ -27,7 +27,7 @@ export interface PendingImportConfig {
   log: Logger;
   logPrefix: string;
   i18nNamespace: string;
-  /** Row renderer hooks: the list's class names the naming row reuses. */
+  /** Class names the naming row borrows from the list. */
   rowClasses: { renaming: string; tick: string; renameHint: string; overwriteWarn: string };
   render: () => void;
 }
@@ -135,7 +135,7 @@ export function createPendingImport(cfg: PendingImportConfig): PendingImportFlow
     if (committing || pendingImport === null) return; // Reentrancy guard (see below for why it holds)
     if (cfg.isImportBlocked?.(cfg.deriveId(name))) return; // the warning stays; the row stays open
     const picked = pendingImport;
-    // Clear BEFORE the first render — mirrors commitRename clearing renamingId before its render.
+    // Clear BEFORE the first render — mirrors the list's commitRename (user-asset-list.ts) clearing renamingId before its render.
     // cfg.render() (next line) replaces the naming row's innerHTML, detaching the still-focused
     // input; a real browser fires `blur` on that SYNCHRONOUSLY, re-entering this function through
     // the input's blur listener. Clearing pendingImport (and setting committing=true) first means
