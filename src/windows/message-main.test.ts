@@ -114,7 +114,7 @@ it("draws the lost pill while the mirrored socket is not ready", async () => {
 
   answer({ kind: "reconnecting", delay_ms: 4_000 });
 
-  await vi.waitFor(() => expect(label()).toBe("Reconnecting in 4s"));
+  await vi.waitFor(() => expect(label()).toBe("Reconnecting"));
   expect(chipEl().classList.contains("is-lost")).toBe(true);
   expect(chipEl().hidden).toBe(false);
 });
@@ -150,7 +150,7 @@ it("shows the lost pill even where storage names a non-push protocol", async () 
 
   answer({ kind: "reconnecting", delay_ms: 4_000 });
 
-  await vi.waitFor(() => expect(label()).toBe("Reconnecting in 4s"));
+  await vi.waitFor(() => expect(label()).toBe("Reconnecting"));
   expect(chipEl().hidden).toBe(false);
 });
 

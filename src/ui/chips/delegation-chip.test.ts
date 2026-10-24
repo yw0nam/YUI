@@ -436,8 +436,8 @@ describe("createDelegationChip", () => {
   describe("lost connection", () => {
     const lost: [PushSocketState, string][] = [
       [{ kind: "connecting" }, "연결하는 중…"],
-      [{ kind: "reconnecting", delay_ms: 4_000 }, "4초 뒤 다시 연결"],
-      [{ kind: "failed", code: 4401 }, "백엔드가 키를 거부했습니다"],
+      [{ kind: "reconnecting", delay_ms: 4_000 }, "재연결 중"],
+      [{ kind: "failed", code: 4401 }, "키 거부됨"],
     ];
 
     for (const [state, label] of lost) {
@@ -465,9 +465,7 @@ describe("createDelegationChip", () => {
 
       pushState.set({ kind: "reconnecting", delay_ms: 1_000 });
 
-      expect(mount.querySelector<HTMLElement>(".yui-deleg__label")!.textContent).toBe(
-        "1초 뒤 다시 연결",
-      );
+      expect(mount.querySelector<HTMLElement>(".yui-deleg__label")!.textContent).toBe("재연결 중");
     });
 
     it("closes the open list when the connection goes", () => {
