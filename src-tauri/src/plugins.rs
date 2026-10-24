@@ -6,7 +6,7 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
     let builder = builder
         // Window.fetch routed to Rust → CORS bypass + SSE streaming support (plugin-http doesn't support streaming).
         .plugin(tauri_plugin_cors_fetch::init())
-        // Serves stored files to the webview fetch; opens the import commands' picked sources.
+        // Used only in Rust, by open_and_import, to read a picked file.
         .plugin(tauri_plugin_fs::init())
         // OS file pickers — the import/export commands open them in Rust.
         .plugin(tauri_plugin_dialog::init())

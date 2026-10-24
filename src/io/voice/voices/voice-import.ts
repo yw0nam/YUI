@@ -16,7 +16,7 @@ import type { SpeakerOption } from "./speaker-selection";
 
 const log = createLogger("voice-import");
 
-export interface VoiceCopyDeps {
+export interface VoiceImportDeps {
   /** `@tauri-apps/api/core` invoke. */
   invoke<T = unknown>(cmd: string, args?: Record<string, unknown>): Promise<T>;
   /** Converts an absolute app-data path to a webview-fetchable URL (async). */
@@ -24,9 +24,9 @@ export interface VoiceCopyDeps {
 }
 
 /** Only the bits removeUserVoice needs. */
-type VoiceRemoveDeps = Pick<VoiceCopyDeps, "invoke">;
+type VoiceRemoveDeps = Pick<VoiceImportDeps, "invoke">;
 
-async function defaultCopyDeps(): Promise<VoiceCopyDeps> {
+async function defaultImportDeps(): Promise<VoiceImportDeps> {
   const [{ invoke }, { resolveUserFileSrc }] = await Promise.all([
     import("@tauri-apps/api/core"),
     import("../../../config/asset-url"),
@@ -42,9 +42,9 @@ interface ImportedVoice {
 /** The staged copy under `stagingId` plus the picked file's stem; null when the picker is cancelled. */
 export async function pickVoiceFile(
   stagingId: string,
-  deps?: VoiceCopyDeps,
+  deps?: VoiceImportDeps,
 ): Promise<{ staged: SpeakerOption & { source: "user" }; seedName: string } | null> {
-  const d = deps ?? (await defaultCopyDeps());
+  const d = deps ?? (await defaultImportDeps());
   const picked = await d.invoke<(ImportedVoice & { seedName: string }) | null>(
     "import_voice_file",
     { stagingId },
@@ -72,9 +72,9 @@ export async function pickVoiceFile(
 export async function renameUserVoice(
   from: string,
   to: string,
-  deps?: VoiceCopyDeps,
+  deps?: VoiceImportDeps,
 ): Promise<string> {
-  const d = deps ?? (await defaultCopyDeps());
+  const d = deps ?? (await defaultImportDeps());
   const { refPath } = await d.invoke<ImportedVoice>("rename_user_voice", { from, to });
   return d.resolveRefUrl(refPath);
 }

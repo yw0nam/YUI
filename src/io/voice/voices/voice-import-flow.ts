@@ -117,25 +117,23 @@ export function createVoiceImportFlow(deps: {
         revision: nextRevision(speakerSelection.list(), finalId ?? copied.id),
       };
       let serverId: string | undefined;
-      if (!superseded()) {
-        const f = await selectFetch();
-        // ref_url is an asset:// URL that reference-clip reads through the webview fetch.
-        serverId = await upsert({
-          baseUrl,
-          id: finalId ?? copied.id,
-          name: label,
-          refUrl: copied.ref_url,
-          fetch: f,
-          getApiKey,
-          logger: log,
-        });
-        const target = finalId ?? serverId;
-        if (target && target !== copied.id && !superseded()) {
-          // The native rename refuses an existing destination, so a same-name voice's folder goes first.
-          if (finalId) await removeUserVoiceFile(finalId);
-          option = { ...option, id: target, ref_url: await renameUserVoice(copied.id, target) };
-          folder = target;
-        }
+      const f = await selectFetch();
+      // ref_url is an asset:// URL that reference-clip reads through the webview fetch.
+      serverId = await upsert({
+        baseUrl,
+        id: finalId ?? copied.id,
+        name: label,
+        refUrl: copied.ref_url,
+        fetch: f,
+        getApiKey,
+        logger: log,
+      });
+      const target = finalId ?? serverId;
+      if (target && target !== copied.id && !superseded()) {
+        // The native rename refuses an existing destination, so a same-name voice's folder goes first.
+        if (finalId) await removeUserVoiceFile(finalId);
+        option = { ...option, id: target, ref_url: await renameUserVoice(copied.id, target) };
+        folder = target;
       }
       if (superseded()) {
         // A folder a stored voice already owns (a same-name Irodori re-import) holds that voice's
