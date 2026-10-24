@@ -42,8 +42,16 @@
   font-weight: 500;
   letter-spacing: 0.01em;
   white-space: nowrap;
+  max-width: 100%;
   cursor: pointer;
   user-select: none;
+}
+
+/* A long lost-state label ends in an ellipsis inside the chip column, as the status pill does. */
+.yui-deleg__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .yui-deleg__chip:hover {
