@@ -606,6 +606,7 @@ describe("createSttVad — onSpeechEnd → STT fetch → onVoiceSegment", () => 
     const file = body.get("file");
     expect(file).toBeInstanceOf(Blob);
     expect(body.has("model")).toBe(false);
+    expect(body.has("language")).toBe(false);
   });
 
   it("sends stt_model as the 'model' field when set", async () => {
@@ -623,6 +624,26 @@ describe("createSttVad — onSpeechEnd → STT fetch → onVoiceSegment", () => 
 
     const body = fetchMock.mock.calls[0][1]?.body as FormData;
     expect(body.get("model")).toBe("whisper-large-v3-turbo");
+  });
+
+  it("sends stt_language as the 'language' field, and omits it for 'auto'", async () => {
+    for (const [stt_language, expected] of [
+      ["ja", "ja"],
+      ["auto", null],
+    ] as const) {
+      const fetchMock = buildFetchMock("ok");
+      const stt = createSttVad({
+        config: () => ({ ...CONFIG, stt_language }),
+        onVoiceSegment: vi.fn(),
+        fetch: fetchMock,
+      });
+      await stt.start();
+      await triggerSpeechEnd!(new Float32Array(16));
+
+      const body = fetchMock.mock.calls[0][1]?.body as FormData;
+      expect(body.get("language")).toBe(expected);
+      stt.dispose();
+    }
   });
 
   it("sends audio data that encodes the Float32Array samples", async () => {

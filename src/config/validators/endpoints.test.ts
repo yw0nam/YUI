@@ -43,6 +43,7 @@ describe("validateEndpoints — happy path", () => {
         chat_instructions: "use generate_express",
         chat_api: "responses",
         stt_model: "whisper-large-v3-turbo",
+        stt_language: "ja",
         tts_provider: "openai",
         tts_model: "irodori-tts",
         tts_speaker: "ナツメ",
@@ -54,6 +55,7 @@ describe("validateEndpoints — happy path", () => {
     expect(out.chat_instructions).toBe("use generate_express");
     expect(out.chat_api).toBe("responses");
     expect(out.stt_model).toBe("whisper-large-v3-turbo");
+    expect(out.stt_language).toBe("ja");
     expect(out.tts_provider).toBe("openai");
     expect(out.tts_model).toBe("irodori-tts");
     expect(out.tts_speaker).toBe("ナツメ");

@@ -234,6 +234,20 @@ describe("createConnectionTab", () => {
     tab.dispose();
   });
 
+  it("offers Auto / en / ja for the STT language field and keeps a typed code", () => {
+    const tab = build(PHONE_ROWS);
+
+    const lang = tab.el.querySelector<HTMLInputElement>("#yui-ep-stt_language")!;
+    const options = [...tab.el.querySelectorAll<HTMLOptionElement>(`#${lang.getAttribute("list")} option`)];
+    expect(options.map((o) => o.value)).toEqual(["auto", "en", "ja"]);
+
+    lang.value = "ko";
+    lang.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(endpointsSettings.get().stt_language).toBe("ko");
+
+    tab.dispose();
+  });
+
   // ── Close contract ────────────────────────────────────────────────────────────────────────
 
   it("dispose() commits dirty key and endpoint inputs", () => {
