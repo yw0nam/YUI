@@ -626,10 +626,12 @@ describe("createSttVad — onSpeechEnd → STT fetch → onVoiceSegment", () => 
     expect(body.get("model")).toBe("whisper-large-v3-turbo");
   });
 
-  it("sends stt_language as the 'language' field, and omits it for 'auto'", async () => {
+  it("sends stt_language as the 'language' field, and omits it for 'auto' in any case", async () => {
     for (const [stt_language, expected] of [
       ["ja", "ja"],
+      [" JA ", "ja"],
       ["auto", null],
+      ["Auto ", null],
     ] as const) {
       const fetchMock = buildFetchMock("ok");
       const stt = createSttVad({
