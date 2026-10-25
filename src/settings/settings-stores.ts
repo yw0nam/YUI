@@ -50,6 +50,7 @@ import {
   type PersistedStorage,
 } from "./persisted-store";
 import { createRelationsSwitch } from "./relations/relations-switch";
+import { createUnifiedChatSwitch } from "./unified/unified-chat-switch";
 import { createFillerSettings, localStorageFillerStorage } from "./voice/filler-settings";
 import { createVadSettings, localStorageVadStorage } from "./voice/vad-settings";
 
@@ -177,6 +178,8 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const browserSettings = createBrowserSettings();
   // Relations on/off. Default ON. Device-wide: every preset's relations follow one switch.
   const relationsSwitch = createRelationsSwitch();
+  // Unified chat window on/off. Default OFF. Device-wide: main opens it while two or more presets are open.
+  const unifiedChatSwitch = createUnifiedChatSwitch();
 
   return {
     screenshotSettings,
@@ -214,6 +217,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     bedSceneSettings,
     browserSettings,
     relationsSwitch,
+    unifiedChatSwitch,
   };
 }
 
@@ -265,6 +269,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   bedSceneSettings: "broadcast",
   browserSettings: "broadcast",
   relationsSwitch: "broadcast",
+  unifiedChatSwitch: "broadcast",
 };
 
 /** Stores that reload on a remote signal — the `storage` event and a bridge settings-changed alike. */

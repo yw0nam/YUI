@@ -259,6 +259,11 @@ const ko: Record<string, string> = {
   "card.user_name": "내 이름",
   "card.user_name_sub": "모든 프리셋이 함께 써요",
 
+  // unified chat window
+  "unified.enable_label": "통합 채팅창",
+  "unified.enable_sub":
+    "열린 캐릭터가 둘 이상이면 한 창에서 함께 대화해요. @로 받는 캐릭터를 고르고, 없으면 마지막으로 말한 캐릭터가 받아요",
+
   // filler (thinking interjections)
   "filler.section": "생각중 추임새",
   "filler.enable_label": "추임새 사용",

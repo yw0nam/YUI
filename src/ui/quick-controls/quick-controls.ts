@@ -265,6 +265,8 @@ interface QuickControlsOptions {
   relationsStore?: RelationsStore;
   /** The Relations switch: the Relations section's toggle and the relation line's gate. */
   relationsSwitch: FlagSettingsStore;
+  /** The Unified chat switch: a Talk-tab row; absent where the window cannot be opened. */
+  unifiedChatSwitch?: FlagSettingsStore;
   boundId?: string | null;
   /** Set in the settings window: the preset strip picks the preset the window edits. */
   onEditTarget?: (id: string) => void;
@@ -366,6 +368,7 @@ export function createQuickControls({
   petWindows,
   relationsStore,
   relationsSwitch,
+  unifiedChatSwitch,
   boundId,
   onEditTarget,
   showVoiceInput = true,
@@ -399,6 +402,7 @@ export function createQuickControls({
     messageWindowSettings,
     screenSettings,
     screenKnobSettings,
+    unifiedChatSwitch,
   });
 
   el.innerHTML = buildPanelHtml({

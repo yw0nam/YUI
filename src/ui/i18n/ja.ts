@@ -261,6 +261,11 @@ const ja: Record<string, string> = {
   "card.user_name": "あなたの名前",
   "card.user_name_sub": "すべてのプリセットで共通です",
 
+  // unified chat window
+  "unified.enable_label": "統合チャット",
+  "unified.enable_sub":
+    "キャラクターが2人以上開いているとき、ひとつのウィンドウでまとめて話せます。@で相手を選び、なければ最後に話したキャラクターが答えます",
+
   // filler (thinking interjections)
   "filler.section": "考え中のあいづち",
   "filler.enable_label": "あいづちを使う",

@@ -258,6 +258,11 @@ const en: Record<string, string> = {
   "card.user_name": "Your name",
   "card.user_name_sub": "Shared by every preset",
 
+  // unified chat window
+  "unified.enable_label": "Unified chat",
+  "unified.enable_sub":
+    "With two or more characters open, talk to all of them in one window; @ picks who answers, else the last speaker",
+
   // filler (thinking interjections)
   "filler.section": "Thinking interjections",
   "filler.enable_label": "Use interjections",

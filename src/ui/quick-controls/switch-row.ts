@@ -44,6 +44,7 @@ interface SwitchRowOptions {
   messageWindowSettings?: MessageWindowSettingsStore;
   screenSettings?: FlagSettingsStore;
   screenKnobSettings?: ScreenKnobSettingsStore;
+  unifiedChatSwitch?: FlagSettingsStore;
 }
 
 /** The speech bubble's keep-until-dismissed row; the phone's General tab renders it on its own. */
@@ -79,6 +80,7 @@ export function createSwitchRows({
   messageWindowSettings,
   screenSettings,
   screenKnobSettings,
+  unifiedChatSwitch,
 }: SwitchRowOptions): SwitchRow[] {
   return [
     {
@@ -242,6 +244,20 @@ export function createSwitchRows({
       initialEnabled: false,
       getEnabled: () => fillerSettings!.get().enabled,
       setEnabled: (v) => fillerSettings!.setEnabled(v),
+    },
+    {
+      selector: ".yui-unified-switch",
+      labelKey: "unified.enable_label",
+      subKey: "unified.enable_sub",
+      ariaKey: "unified.enable_label",
+      tab: "talk",
+      isVisible: !!unifiedChatSwitch,
+      isAvailable: !!unifiedChatSwitch,
+      initialEnabled: false,
+      getEnabled: () => unifiedChatSwitch!.get().enabled,
+      setEnabled: (v) => unifiedChatSwitch!.setEnabled(v),
+      logKey: "unified_chat_toggle",
+      subscribe: unifiedChatSwitch ? (cb) => unifiedChatSwitch.subscribe(cb) : undefined,
     },
   ];
 }
