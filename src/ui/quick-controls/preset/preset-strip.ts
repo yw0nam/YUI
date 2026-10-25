@@ -11,6 +11,7 @@ import {
   type createAgentNotifySettings,
   ingressUrl,
 } from "../../../settings/backend/agent-notify-settings";
+import type { FlagSettingsStore } from "../../../settings/persisted-store";
 import { presetIdForWindow, presetNameFor } from "../../../settings/preset/active-preset";
 import { isPresetWindowLive, type PetWindows } from "../../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../../settings/preset/preset-registry";
@@ -55,6 +56,8 @@ export function createPresetStrip(deps: {
   agentNotifySettings?: ReturnType<typeof createAgentNotifySettings>;
   /** This window's preset's relations; absent, the strip shows no relation line. */
   relationsStore?: RelationsStore;
+  /** The Relations switch; off, the relation line hides. Absent, the line shows. */
+  relationsSwitch?: FlagSettingsStore;
   /** Deletes a removed preset's thumbnail file; injected by the app wiring. */
   removeCardThumbnail?: (id: string) => Promise<void>;
 }): PresetStrip {
@@ -104,6 +107,8 @@ export function createPresetStrip(deps: {
         store: deps.relationsStore,
         presets: () => registry.get().list,
         isOpen,
+        enabled: () => deps.relationsSwitch?.get().enabled ?? true,
+        subscribeEnabled: (cb) => deps.relationsSwitch?.subscribe(cb) ?? (() => {}),
       })
     : null;
   let switching = false;

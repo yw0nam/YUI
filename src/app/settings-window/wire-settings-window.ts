@@ -84,6 +84,7 @@ export async function wireSettingsWindow(deps: {
     expressMotionSettings,
     bedSceneSettings,
     browserSettings,
+    relationsSwitch,
   } = settingsStores;
   // Quick Controls' session reset and History tab read the same instances the sync reloads.
   const { sessionStore, sessionDiagnostics, chatHistoryStore, signalHistoryStore } =
@@ -287,6 +288,7 @@ export async function wireSettingsWindow(deps: {
       presetRegistry,
       petWindows,
       relationsStore: conversationStores.relationsStore,
+      relationsSwitch,
       boundId,
       onEditTarget: (id) =>
         location.replace(editTargetUrl(location.href, id, boundId ?? presetRegistry.get().active)),

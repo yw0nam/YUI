@@ -147,6 +147,7 @@ export function wirePetControls(deps: {
     expressMotionSettings,
     bedSceneSettings,
     browserSettings,
+    relationsSwitch,
   } = stores;
   // The quick-controls session reset writes the same instances the dispatcher reads through.
   const { sessionStore, sessionDiagnostics, chatHistoryStore, relationsStore } = conversation;
@@ -234,6 +235,7 @@ export function wirePetControls(deps: {
       presetRegistry,
       petWindows: deps.petWindows,
       relationsStore,
+      relationsSwitch,
       boundId: deps.boundId,
     });
   // Re-mounted on locale change (see i18n subscriber below); consumers read the live binding.

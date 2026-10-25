@@ -201,7 +201,7 @@ const en: Record<string, string> = {
   "relation.group": "How {name} feels",
   "relation.to_you": "you",
   "relation.none": "No one rated yet",
-  "relation.more": "{n} more, not open now",
+  "relation.more": "Show {n} more",
   "relation.band.hostile": "hostile",
   "relation.band.cold": "cold",
   "relation.band.neutral": "neutral",

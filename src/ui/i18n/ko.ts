@@ -202,7 +202,7 @@ const ko: Record<string, string> = {
   "relation.group": "{name}의 마음",
   "relation.to_you": "나",
   "relation.none": "아직 평가한 상대가 없어요",
-  "relation.more": "지금 열려 있지 않은 {n}명",
+  "relation.more": "{n}개 더 보기",
   "relation.band.hostile": "적대",
   "relation.band.cold": "냉담",
   "relation.band.neutral": "보통",

@@ -262,6 +262,8 @@ interface QuickControlsOptions {
   petWindows?: PetWindows;
   /** This window's preset's relations, shown under the preset row. */
   relationsStore?: RelationsStore;
+  /** The Relations switch: the Relations section's toggle and the relation line's gate. */
+  relationsSwitch?: FlagSettingsStore;
   boundId?: string | null;
   /** Set in the settings window: the preset strip picks the preset the window edits. */
   onEditTarget?: (id: string) => void;
@@ -362,6 +364,7 @@ export function createQuickControls({
   presetRegistry,
   petWindows,
   relationsStore,
+  relationsSwitch,
   boundId,
   onEditTarget,
   showVoiceInput = true,
@@ -471,6 +474,7 @@ export function createQuickControls({
         onEditTarget,
         agentNotifySettings,
         relationsStore,
+        relationsSwitch,
         removeCardThumbnail,
       })
     : null;

@@ -10,7 +10,7 @@ import {
 import { t } from "../../../i18n";
 import { createReasonsCard } from "./reasons-card";
 import { bandShift, restart } from "./relation-glyph";
-import { relationLineEl } from "./relation-line";
+import { foldToWidth, relationLineEl } from "./relation-line";
 import type { RelationsView } from "./view";
 
 export function createPresetRelations(deps: {
@@ -21,6 +21,9 @@ export function createPresetRelations(deps: {
   presets: () => readonly PresetEntry[];
   /** Whether the preset's window is open in this app. */
   isOpen: (id: string) => boolean;
+  /** The Relations switch; off, the line hides. */
+  enabled: () => boolean;
+  subscribeEnabled: (cb: () => void) => () => void;
 }): { render(): void; dispose(): void } {
   const self = presetIdForWindow();
   let line: HTMLElement | null = null;
@@ -58,6 +61,8 @@ export function createPresetRelations(deps: {
     if (line) line.replaceWith(nextLine);
     else deps.anchor.after(nextLine);
     line = nextLine;
+    line.hidden = !deps.enabled();
+    foldToWidth(line);
   }
 
   /** Moves the relations of every pair of this preset whose value changed since the last write. */
@@ -86,11 +91,25 @@ export function createPresetRelations(deps: {
     render();
     paint(next);
   });
+  const offEnabled = deps.subscribeEnabled(render);
+  // Only a width change refolds; the height an unfolded line gains must not.
+  let width = -1;
+  const resize =
+    typeof ResizeObserver === "function"
+      ? new ResizeObserver(([entry]) => {
+          if (!entry || entry.contentRect.width === width) return;
+          width = entry.contentRect.width;
+          render();
+        })
+      : null;
+  resize?.observe(deps.strip);
 
   return {
     render,
     dispose(): void {
       offStore();
+      offEnabled();
+      resize?.disconnect();
       card.dispose();
       line?.remove();
     },

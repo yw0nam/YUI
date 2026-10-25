@@ -25,6 +25,7 @@ export function relationLineEl(view: RelationsView, isOpen: (id: string) => bool
   const folds = (id: string): boolean => id !== "user" && !isOpen(id);
   // Open chips first, then the folded ones; each group keeps the value order.
   const ordered = [...targets.filter((id) => !folds(id)), ...targets.filter(folds)];
+  const more = document.createElement("button");
   let folded = 0;
   for (const target of ordered) {
     const band = bandOf(own[target]!.value);
@@ -41,19 +42,37 @@ export function relationLineEl(view: RelationsView, isOpen: (id: string) => bool
     }
     line.append(chip);
   }
-  if (folded > 0) {
-    const more = document.createElement("button");
-    more.type = "button";
-    more.className = "yui-relation yui-relation--more";
-    more.textContent = `+${folded}`;
-    more.setAttribute("aria-label", t("relation.more", { n: folded }));
-    more.setAttribute("aria-expanded", "false");
-    more.addEventListener("click", () => {
-      const open = !line.classList.contains("is-unfolded");
-      line.classList.toggle("is-unfolded", open);
-      more.setAttribute("aria-expanded", String(open));
-    });
-    line.append(more);
-  }
+  more.type = "button";
+  more.className = "yui-relation yui-relation--more";
+  moreButton(more, folded);
+  more.setAttribute("aria-expanded", "false");
+  more.addEventListener("click", () => {
+    const open = !line.classList.contains("is-unfolded");
+    line.classList.toggle("is-unfolded", open);
+    more.setAttribute("aria-expanded", String(open));
+  });
+  line.append(more);
   return line;
+}
+
+/** Folds the last shown chips but `user` into the `+N` chip until the line fits one row; a line not laid out is left as is. */
+export function foldToWidth(line: HTMLElement): void {
+  const more = line.querySelector<HTMLButtonElement>(".yui-relation--more");
+  if (!more || line.clientWidth === 0) return;
+  let folded = line.querySelectorAll("[data-folded]").length;
+  const shown = [
+    ...line.querySelectorAll<HTMLElement>(".yui-relation[data-target]:not([data-folded])"),
+  ].filter((chip) => chip.dataset.target !== "user");
+  while (line.scrollWidth > line.clientWidth && shown.length > 0) {
+    shown.pop()!.setAttribute("data-folded", "");
+    folded += 1;
+    moreButton(more, folded);
+  }
+}
+
+/** The `+N` chip for `n` folded chips, whether a closed window or the line's width folded them. */
+function moreButton(more: HTMLButtonElement, n: number): void {
+  more.hidden = n === 0;
+  more.textContent = `+${n}`;
+  more.setAttribute("aria-label", t("relation.more", { n }));
 }

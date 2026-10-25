@@ -204,7 +204,7 @@ const ja: Record<string, string> = {
   "relation.group": "{name}の気持ち",
   "relation.to_you": "あなた",
   "relation.none": "まだ誰も評価していません",
-  "relation.more": "今は開いていない{n}人",
+  "relation.more": "あと{n}件を表示",
   "relation.band.hostile": "敵対",
   "relation.band.cold": "冷淡",
   "relation.band.neutral": "ふつう",
