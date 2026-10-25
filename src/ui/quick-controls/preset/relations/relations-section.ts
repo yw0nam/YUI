@@ -1,6 +1,7 @@
 /** The preset strip's relations: the relation line and the reasons card. */
 
 import type { RelationBand } from "../../../../contract/types";
+import type { FlagSettingsStore } from "../../../../settings/persisted-store";
 import { type PresetEntry, presetIdForWindow } from "../../../../settings/preset/active-preset";
 import {
   bandOf,
@@ -10,8 +11,8 @@ import {
 import { t } from "../../../i18n";
 import { createReasonsCard } from "./reasons-card";
 import { bandShift, restart } from "./relation-glyph";
-import { foldToWidth, relationLineEl, setUnfolded } from "./relation-line";
-import type { RelationsView } from "./view";
+import { foldToWidth, observeWidth, relationLineEl, setUnfolded } from "./relation-line";
+import { type RelationsView, targetName } from "./view";
 
 export function createPresetRelations(deps: {
   strip: HTMLElement;
@@ -22,8 +23,7 @@ export function createPresetRelations(deps: {
   /** Whether the preset's window is open in this app. */
   isOpen: (id: string) => boolean;
   /** The Relations switch; off, the line hides. */
-  enabled: () => boolean;
-  subscribeEnabled: (cb: () => void) => () => void;
+  relationsSwitch: FlagSettingsStore;
 }): { render(): void; dispose(): void } {
   const self = presetIdForWindow();
   let line: HTMLElement | null = null;
@@ -32,8 +32,7 @@ export function createPresetRelations(deps: {
 
   function buildView(): RelationsView {
     const presets = deps.presets();
-    const nameOf = (id: string): string =>
-      id === "user" ? t("relation.to_you") : (presets.find((p) => p.id === id)?.name ?? id);
+    const nameOf = (id: string): string => targetName(id, presets);
     return {
       self,
       own: deps.store.all(),
@@ -62,7 +61,7 @@ export function createPresetRelations(deps: {
     if (line) line.replaceWith(nextLine);
     else deps.anchor.after(nextLine);
     line = nextLine;
-    line.hidden = !deps.enabled();
+    line.hidden = !deps.relationsSwitch.get().enabled;
     // Measured folded, so the width fold holds; then the fold the user opened is restored.
     foldToWidth(line);
     setUnfolded(line, unfolded);
@@ -94,25 +93,16 @@ export function createPresetRelations(deps: {
     render();
     paint(next);
   });
-  const offEnabled = deps.subscribeEnabled(render);
+  const offEnabled = deps.relationsSwitch.subscribe(render);
   // Only a width change refolds; the height an unfolded line gains must not.
-  let width = -1;
-  const resize =
-    typeof ResizeObserver === "function"
-      ? new ResizeObserver(([entry]) => {
-          if (!entry || entry.contentRect.width === width) return;
-          width = entry.contentRect.width;
-          render();
-        })
-      : null;
-  resize?.observe(deps.strip);
+  const offWidth = observeWidth(deps.strip, render);
 
   return {
     render,
     dispose(): void {
       offStore();
       offEnabled();
-      resize?.disconnect();
+      offWidth();
       card.dispose();
       line?.remove();
     },

@@ -633,9 +633,9 @@ YUI/
           relations/                 # The relation line under the preset row, and the reasons card
             relations-section.ts     # Composes the two, re-renders on the store's notifications, and moves the changed relations
             relation-glyph.ts        # The five-step glyph and its band motion, the relation chip, the direction mark, and the age text
-            relation-line.ts         # This preset's relation toward each rated target, sorted by strength, on one row: the closed presets and the chips past its width folded into a +N chip
+            relation-line.ts         # This preset's relation toward each rated target, sorted by strength, on one row: the closed presets and the chips past its width folded into a +N chip, refolded on a width change
             reasons-card.ts          # The band, the engine's note, and the last three reasons of a hovered or focused relation
-            view.ts                  # What the two read: this preset's relations as stored now
+            view.ts                  # What the two read: this preset's relations as stored now, a target's name, and the rated targets' order
         history/                     # History tab and its session accordion section
           history-tab.ts             # The History tab the desktop panel and the phone settings view share, with its start-fresh row
           history-section.ts         # History tab session accordion over the persisted transcript and the signal records

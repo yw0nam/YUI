@@ -11,14 +11,14 @@ import type { FlagSettingsStore } from "../../../../settings/persisted-store";
 import type { PresetEntry } from "../../../../settings/preset/active-preset";
 import {
   bandOf,
+  MAX,
   type RelationRecord,
   type RelationsStore,
   SET_BY_USER,
 } from "../../../../settings/relations/relations-store";
 import { t } from "../../../i18n";
 import { ageText, glyphEl } from "../../preset/relations/relation-glyph";
-
-const MAX = 20;
+import { ratedInOrder, targetName } from "../../preset/relations/view";
 
 /** `+9`, `−6` with a true minus, `0`. */
 const signed = (v: number): string => (v > 0 ? `+${v}` : v < 0 ? `−${-v}` : "0");
@@ -43,8 +43,7 @@ export function createRelationsEditSection(deps: {
   const rowsEl = sectionEl.querySelector<HTMLElement>(".yui-relations__rows")!;
   const rows = new Map<string, HTMLElement>();
 
-  const nameOf = (id: string): string =>
-    id === "user" ? t("relation.to_you") : (deps.presets().find((p) => p.id === id)?.name ?? id);
+  const nameOf = (id: string): string => targetName(id, deps.presets());
 
   /** The band word, then the last reason and its age; no record reads `fallback`. */
   function subText(band: RelationBand, record: RelationRecord | undefined, fallback: string) {
@@ -109,10 +108,7 @@ export function createRelationsEditSection(deps: {
         .map((p) => p.id)
         .filter((id) => id !== self),
     ];
-    // "you" first when rated, then the rated targets by value, close first; ties keep registry order.
-    const rated = targets
-      .filter((id) => own[id])
-      .sort((a, b) => (a === "user" ? -1 : b === "user" ? 1 : own[b]!.value - own[a]!.value));
+    const rated = ratedInOrder(targets, own);
     const unrated = targets.filter((id) => !own[id]);
     for (const [id, row] of rows) {
       if (!targets.includes(id)) {

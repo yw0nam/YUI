@@ -166,6 +166,7 @@ export function defaultQcArgs(mount: HTMLElement) {
     mount,
     settings: makeSettings(),
     idleThrottleSettings: createFlagSettings(true),
+    relationsSwitch: createFlagSettings(true),
     sourceProvider: makeSourceProvider(),
     voiceStatus: makeVoiceStatus(),
     lipsync: createLipsyncSettings(),

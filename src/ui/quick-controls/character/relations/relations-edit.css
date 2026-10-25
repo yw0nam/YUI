@@ -34,49 +34,31 @@
   transform: translateY(-50%);
 }
 
+/* The fill grows from the centre: amber on the positive side, Ash on the negative, Ember Red while hostile. */
 .yui-relations__slider {
+  --neg-fill: var(--yui-text-dim);
+  --track: linear-gradient(
+    to right,
+    var(--yui-track) 0 calc(50% - var(--neg, 0) * 100%),
+    var(--neg-fill) calc(50% - var(--neg, 0) * 100%) 50%,
+    var(--yui-accent) 50% calc(50% + var(--pos, 0) * 100%),
+    var(--yui-track) calc(50% + var(--pos, 0) * 100%) 100%
+  );
   position: relative;
   flex: 1;
   min-width: 0;
 }
 
-/* The fill grows from the centre: amber on the positive side, Ash on the negative, Ember Red while hostile. */
-.yui-relations__slider::-webkit-slider-runnable-track {
-  background: linear-gradient(
-    to right,
-    var(--yui-track) 0 calc(50% - var(--neg, 0) * 100%),
-    var(--yui-text-dim) calc(50% - var(--neg, 0) * 100%) 50%,
-    var(--yui-accent) 50% calc(50% + var(--pos, 0) * 100%),
-    var(--yui-track) calc(50% + var(--pos, 0) * 100%) 100%
-  );
+.yui-relations__slider[data-band="hostile"] {
+  --neg-fill: var(--yui-danger);
 }
 
-.yui-relations__slider[data-band="hostile"]::-webkit-slider-runnable-track {
-  background: linear-gradient(
-    to right,
-    var(--yui-track) 0 calc(50% - var(--neg, 0) * 100%),
-    var(--yui-danger) calc(50% - var(--neg, 0) * 100%) 50%,
-    var(--yui-track) 50% 100%
-  );
+.yui-relations__slider::-webkit-slider-runnable-track {
+  background: var(--track);
 }
 
 .yui-relations__slider::-moz-range-track {
-  background: linear-gradient(
-    to right,
-    var(--yui-track) 0 calc(50% - var(--neg, 0) * 100%),
-    var(--yui-text-dim) calc(50% - var(--neg, 0) * 100%) 50%,
-    var(--yui-accent) 50% calc(50% + var(--pos, 0) * 100%),
-    var(--yui-track) calc(50% + var(--pos, 0) * 100%) 100%
-  );
-}
-
-.yui-relations__slider[data-band="hostile"]::-moz-range-track {
-  background: linear-gradient(
-    to right,
-    var(--yui-track) 0 calc(50% - var(--neg, 0) * 100%),
-    var(--yui-danger) calc(50% - var(--neg, 0) * 100%) 50%,
-    var(--yui-track) 50% 100%
-  );
+  background: var(--track);
 }
 
 .yui-relations__slider::-moz-range-progress {

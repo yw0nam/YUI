@@ -12,6 +12,7 @@ import {
   createPresetRegistry,
   type PresetRegistry,
 } from "../../../settings/preset/preset-registry";
+import { createRelationsSwitch } from "../../../settings/relations/relations-switch";
 import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
 import { defaultQcArgs } from "../test-helpers";
@@ -208,7 +209,13 @@ describe("createQuickControls — presets", () => {
     const root = document.createElement("div");
     root.innerHTML = `${presetStripHtml()}<div class="yui-quick__cols"></div>`;
     const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-    const strip = createPresetStrip({ root, registry, log, agentNotifySettings });
+    const strip = createPresetStrip({
+      root,
+      registry,
+      log,
+      agentNotifySettings,
+      relationsSwitch: createRelationsSwitch({ load: () => null, save() {} }),
+    });
     root.querySelector<HTMLButtonElement>(".yui-preset__manage")!.click();
     expect(root.querySelector(".yui-preset-row__url")).toBeNull();
     agentNotifySettings.setEnabled(true);

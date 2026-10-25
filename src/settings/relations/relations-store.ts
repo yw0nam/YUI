@@ -32,7 +32,7 @@ export interface RateOutcome {
   clamped: boolean;
 }
 
-const MAX = 20;
+export const MAX = 20;
 const DAILY_POINTS = 4;
 const LOG_LENGTH = 20;
 export const WHY_LENGTH = 80;

@@ -48,7 +48,7 @@ describe("preset strip — relations", () => {
   function build(
     relations: Relations = OWN,
     petWindows?: PetWindows,
-    relationsSwitch?: FlagSettingsStore,
+    relationsSwitch: FlagSettingsStore = createRelationsSwitch({ load: () => null, save() {} }),
   ): void {
     strip?.dispose();
     store?.dispose();

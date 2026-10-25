@@ -3,7 +3,7 @@
 import { bandOf } from "../../../../settings/relations/relations-store";
 import { t } from "../../../i18n";
 import { relationEl } from "./relation-glyph";
-import type { RelationsView } from "./view";
+import { type RelationsView, ratedInOrder } from "./view";
 
 export function relationLineEl(view: RelationsView, isOpen: (id: string) => boolean): HTMLElement {
   const line = document.createElement("div");
@@ -11,10 +11,7 @@ export function relationLineEl(view: RelationsView, isOpen: (id: string) => bool
   line.setAttribute("role", "group");
   line.setAttribute("aria-label", t("relation.group", { name: view.nameOf(view.self) }));
   const own = view.own;
-  // "you" first when rated, then the rated targets by value, close first; ties keep registry order.
-  const targets = view.targets
-    .filter((id) => own[id])
-    .sort((a, b) => (a === "user" ? -1 : b === "user" ? 1 : own[b]!.value - own[a]!.value));
+  const targets = ratedInOrder(view.targets, own);
   if (targets.length === 0) {
     const empty = document.createElement("span");
     empty.className = "yui-preset__rel-empty";
@@ -44,7 +41,7 @@ export function relationLineEl(view: RelationsView, isOpen: (id: string) => bool
   }
   more.type = "button";
   more.className = "yui-relation yui-relation--more";
-  moreButton(more, folded);
+  setMoreCount(more, folded);
   more.setAttribute("aria-expanded", "false");
   more.addEventListener("click", () => setUnfolded(line, !line.classList.contains("is-unfolded")));
   line.append(more);
@@ -68,13 +65,26 @@ export function foldToWidth(line: HTMLElement): void {
   while (line.scrollWidth > line.clientWidth && shown.length > 0) {
     shown.pop()!.setAttribute("data-folded", "");
     folded += 1;
-    moreButton(more, folded);
+    setMoreCount(more, folded);
   }
 }
 
 /** The `+N` chip for `n` folded chips, whether a closed window or the line's width folded them. */
-function moreButton(more: HTMLButtonElement, n: number): void {
+function setMoreCount(more: HTMLButtonElement, n: number): void {
   more.hidden = n === 0;
   more.textContent = `+${n}`;
   more.setAttribute("aria-label", t("relation.more", { n }));
+}
+
+/** Calls `onChange` when `el`'s width changes, never for its height; a no-op without ResizeObserver. */
+export function observeWidth(el: HTMLElement, onChange: () => void): () => void {
+  if (typeof ResizeObserver !== "function") return () => {};
+  let width = -1;
+  const observer = new ResizeObserver(([entry]) => {
+    if (!entry || entry.contentRect.width === width) return;
+    width = entry.contentRect.width;
+    onChange();
+  });
+  observer.observe(el);
+  return () => observer.disconnect();
 }

@@ -264,7 +264,7 @@ interface QuickControlsOptions {
   /** This window's preset's relations, shown under the preset row. */
   relationsStore?: RelationsStore;
   /** The Relations switch: the Relations section's toggle and the relation line's gate. */
-  relationsSwitch?: FlagSettingsStore;
+  relationsSwitch: FlagSettingsStore;
   boundId?: string | null;
   /** Set in the settings window: the preset strip picks the preset the window edits. */
   onEditTarget?: (id: string) => void;
