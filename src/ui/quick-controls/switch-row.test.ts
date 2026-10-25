@@ -7,7 +7,7 @@ import { createFlagSettings } from "../../settings/persisted-store";
 import { createFillerSettings } from "../../settings/voice/filler-settings";
 import { createVadSettings } from "../../settings/voice/vad-settings";
 import { createSwitchRows, type SwitchRow } from "./switch-row";
-import { reflectSwitchRows } from "./switches/switch-rows";
+import { bindSwitchRows, reflectSwitchRows } from "./switches/switch-rows";
 import { buildPanelHtml } from "./template";
 
 function makeSwitchRows(): SwitchRow[] {
@@ -32,6 +32,7 @@ function makeSwitchRows(): SwitchRow[] {
     messageWindowSettings: createMessageWindowSettings(),
     screenSettings: createFlagSettings(false),
     screenKnobSettings: createScreenKnobSettings(),
+    unifiedChatSwitch: createFlagSettings(false),
   });
 }
 
@@ -87,6 +88,25 @@ describe("SwitchRow descriptor", () => {
         String(index % 2 === 0),
       );
     }
+  });
+
+  it("puts the Unified chat row in the Talk tab, off, and a click flips its store", () => {
+    const unifiedChatSwitch = createFlagSettings(false);
+    const rows = createSwitchRows({
+      idleThrottleSettings: createFlagSettings(true),
+      vad: createVadSettings(),
+      unifiedChatSwitch,
+    });
+    const root = render(rows);
+    const button = root.querySelector<HTMLButtonElement>(".yui-unified-switch");
+
+    expect(button?.closest("[role=tabpanel]")?.id).toBe("yui-panel-talk");
+    expect(button?.getAttribute("aria-checked")).toBe("false");
+
+    const bound = bindSwitchRows(root, rows, { debug() {}, info() {}, warn() {}, error() {} });
+    button?.click();
+    expect(unifiedChatSwitch.get().enabled).toBe(true);
+    bound.dispose();
   });
 
   it("omits an invisible, unavailable row and skips reflection", () => {
