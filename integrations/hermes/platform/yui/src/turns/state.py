@@ -9,6 +9,7 @@ from ..express.segments import Placement
 
 _lock = threading.Lock()
 _vocabularies: dict[str, Vocabulary] = {}
+_client_tools: dict[str, list] = {}
 _cues: dict[str, list[Placement]] = {}
 _open_turns: dict[str, list[str]] = {}
 _joined: dict[str, list[str]] = {}
@@ -28,6 +29,17 @@ def vocabulary(chat_id: str) -> Vocabulary | None:
     """This chat's published vocabulary, or None when it has never published one."""
     with _lock:
         return _vocabularies.get(chat_id)
+
+
+def set_client_tools(chat_id: str, tools: object) -> None:
+    """The function tools this chat's client declared in its hello frame."""
+    with _lock:
+        _client_tools[chat_id] = list(tools) if isinstance(tools, list) else []
+
+
+def client_tools(chat_id: str) -> list:
+    with _lock:
+        return list(_client_tools.get(chat_id, []))
 
 
 def open_turn(chat_id: str, turn_id: str) -> None:

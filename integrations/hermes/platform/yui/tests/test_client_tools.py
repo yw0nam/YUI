@@ -72,7 +72,7 @@ def test_registration_registers_each_client_tool_once_per_fingerprint(monkeypatc
             registered.append(kwargs)
 
     monkeypatch.setattr(registry, "_ctx", Ctx())
-    monkeypatch.setattr(registry, "_declared", set())
+    monkeypatch.setattr(registry, "_declared", {})
 
     registry.declare([LOOK_TOOL], CHAT)
     registry.declare([LOOK_TOOL], CHAT)
@@ -83,6 +83,44 @@ def test_registration_registers_each_client_tool_once_per_fingerprint(monkeypatc
     assert registered[0]["schema"]["description"] == "Read the character's state"
     assert registered[0]["schema"]["parameters"]["required"] == ["at"]
     assert callable(registered[0]["handler"])
+
+
+def address_tool(*names: str) -> dict:
+    return {
+        "type": "function",
+        "function": {
+            "name": "address_character",
+            "description": "Speak to another character",
+            "parameters": {
+                "type": "object",
+                "properties": {"to": {"type": "string", "enum": list(names)}},
+                "required": ["to"],
+            },
+        },
+    }
+
+
+def test_a_tool_whose_schema_differs_per_chat_is_registered_again_with_the_chats_own(monkeypatch):
+    """Hermes keeps one schema per name: each chat's turn start declares its own enum again."""
+    enums: list[list[str]] = []
+
+    class Ctx:
+        def register_tool(self, **kwargs):
+            enums.append(kwargs["schema"]["parameters"]["properties"]["to"]["enum"])
+
+    monkeypatch.setattr(registry, "_ctx", Ctx())
+    monkeypatch.setattr(registry, "_declared", {})
+    monkeypatch.setattr(state, "_client_tools", {})
+
+    state.set_client_tools("yui-perlica", [address_tool("natsume")])
+    state.set_client_tools("yui-natsume", [address_tool("perlica")])
+    registry.declare(state.client_tools("yui-perlica"), "yui-perlica")
+    registry.declare(state.client_tools("yui-natsume"), "yui-natsume")
+    registry.declare(state.client_tools("yui-natsume"), "yui-natsume")
+    registry.declare(state.client_tools("yui-perlica"), "yui-perlica")
+
+    assert enums == [["natsume"], ["perlica"], ["natsume"]]
+    assert state.client_tools("yui-nobody") == []
 
 
 async def test_the_handler_sends_one_tool_call_and_returns_the_result(monkeypatch):

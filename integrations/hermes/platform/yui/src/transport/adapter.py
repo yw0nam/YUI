@@ -298,7 +298,8 @@ class YuiAdapter(BasePlatformAdapter):
             pending.fail(chat_id, pending.DISCONNECTED)
         self._adopt_home_channel(chat_id)
         self._publish_vocabulary(chat_id, frame.get("vocabulary"))
-        registry.declare(frame.get("tools"), chat_id)
+        state.set_client_tools(chat_id, frame.get("tools"))
+        registry.declare(state.client_tools(chat_id), chat_id)
         accepts = frame.get("accepts")
         listed = isinstance(accepts, list) and all(isinstance(name, str) for name in accepts)
         self._accepts[chat_id] = frozenset(accepts) if listed else frozenset()
@@ -904,6 +905,7 @@ class YuiAdapter(BasePlatformAdapter):
         # ponytail: one schema per process; chats whose turns overlap can read each other's ids
         if vocab is not None:
             tools.declare(vocab, chat_id)
+        registry.declare(state.client_tools(chat_id), chat_id)
 
     async def on_processing_complete(self, event: MessageEvent, outcome: ProcessingOutcome) -> None:
         """Close the turn: a reply already rendered, anything else renders as silence."""
