@@ -771,6 +771,36 @@ describe("estimateTokens", () => {
   });
 });
 
+describe("createChatHistoryStore — send id and recipient", () => {
+  const routed: ChatHistoryEntry[] = [
+    { role: "user", text: "hi", ts: 1, send_id: "s1" },
+    { role: "assistant", text: "Hello.", ts: 2, turn_id: "t1", to: "perlica" },
+  ];
+
+  it("survive a save and a second store's load", () => {
+    const storage = makeMemStorage();
+    const store = createChatHistoryStore({ storage });
+    for (const e of routed) store.append(e);
+    expect(createChatHistoryStore({ storage }).entriesAfterLastBoundary()).toEqual(routed);
+  });
+
+  it.each([
+    ["send_id", { role: "user", text: "hi", ts: 1, send_id: "s2" }],
+    ["to", { role: "assistant", text: "Hello.", ts: 2, turn_id: "t1", to: "natsume" }],
+  ] as const)("a stored change of only %s counts as a change", (_field, changed) => {
+    const storage = makeMemStorage();
+    const store = createChatHistoryStore({ storage });
+    for (const e of routed) store.append(e);
+    const cb = vi.fn();
+    store.subscribe(cb);
+
+    storage._data = routed.map((e) => (e.role === changed.role ? changed : e));
+    store.reloadFromStorage();
+
+    expect(cb).toHaveBeenCalledOnce();
+  });
+});
+
 describe("createChatHistoryStore — greeting flag", () => {
   it("survives a save and a second store's load", () => {
     const storage = makeMemStorage();

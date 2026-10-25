@@ -61,7 +61,7 @@ function speech(segments: RenderSegment[], overrides: Partial<SpeechFrame> = {})
   return { type: "speech", turn_id: "7", segments, ...overrides };
 }
 
-function turn() {
+function turn(extra: Partial<Parameters<typeof createRenderTurn>[0]> = {}) {
   records = [];
   transcript = [];
   saidOfTurn = [];
@@ -72,6 +72,7 @@ function turn() {
     appendTranscript: (entry) => transcript.push(entry),
     signalHistory: { setSaid: (turnId, text) => saidOfTurn.push({ turnId, text }) },
     logger,
+    ...extra,
   });
 }
 
@@ -391,6 +392,22 @@ describe("render_turn — transcript", () => {
         text: "All green. Want the list?",
         ts: expect.any(Number),
         turn_id: "7",
+      },
+    ]);
+  });
+
+  it("names the recipient of an address_character reply", () => {
+    turn({ addressedTo: (id) => (id === "7" ? "perlica" : undefined) }).render(
+      frame([{ speech: "Perlica, come here." }]),
+    );
+
+    expect(transcript).toEqual([
+      {
+        role: "assistant",
+        text: "Perlica, come here.",
+        ts: expect.any(Number),
+        turn_id: "7",
+        to: "perlica",
       },
     ]);
   });

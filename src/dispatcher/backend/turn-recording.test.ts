@@ -64,6 +64,30 @@ function signalsTurn(over: Partial<SentTurn> = {}): SentTurn {
   });
 }
 
+describe("recordSentTurn — routed turns", () => {
+  it("the user entry carries the send id and the assistant entry the recipient", () => {
+    const a = setup();
+    recordSentTurn(
+      { ...a.deps, addressedTo: (id) => (id === "t1" ? "perlica" : undefined) },
+      a.log,
+      turnOf({ sendId: "s1", assistantText: "Hello." }),
+    );
+    expect(a.entries).toEqual([
+      { role: "user", text: "hi", ts: expect.any(Number), send_id: "s1" },
+      { role: "assistant", text: "Hello.", ts: expect.any(Number), turn_id: "t1", to: "perlica" },
+    ]);
+  });
+
+  it("adds neither field to an unrouted turn", () => {
+    const a = setup();
+    recordSentTurn(a.deps, a.log, turnOf({ assistantText: "Hello." }));
+    expect(a.entries).toEqual([
+      { role: "user", text: "hi", ts: expect.any(Number) },
+      { role: "assistant", text: "Hello.", ts: expect.any(Number), turn_id: "t1" },
+    ]);
+  });
+});
+
 describe("recordSentTurn", () => {
   it("appends the user entry on a matching token, with the guide when present", () => {
     const a = setup();

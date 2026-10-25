@@ -39,6 +39,20 @@ describe("user_input_source — submit", () => {
     expect(typeof e.ts).toBe("number");
   });
 
+  it("a routed message carries its send id and mention with a fresh ts", () => {
+    const { bus, pushed } = fakeBus();
+    const before = Date.now();
+    createUserInputSource(bus).submit("hi", [], { mention: "character", sendId: "s1" });
+    expect(pushed[0].payload).toEqual({ text: "hi", send_id: "s1", mention: "character" });
+    expect(pushed[0].ts).toBeGreaterThanOrEqual(before);
+  });
+
+  it("a routed message without a mention carries only the send id", () => {
+    const { bus, pushed } = fakeBus();
+    createUserInputSource(bus).submit("hi", [], { sendId: "s1" });
+    expect(pushed[0].payload).toEqual({ text: "hi", send_id: "s1" });
+  });
+
   it("ignores empty / whitespace-only text", () => {
     const { bus, pushed } = fakeBus();
     const src = createUserInputSource(bus);

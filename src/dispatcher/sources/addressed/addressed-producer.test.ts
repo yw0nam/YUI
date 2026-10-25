@@ -37,6 +37,17 @@ describe("createAddressedProducer", () => {
     expect(emit).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ to: "perlica" }));
   });
 
+  it("answers the recipient of an open turn and forgets it once the turn closes", () => {
+    const { producer } = setup([assistantEntry("hi", "7", 1)]);
+    producer.record("7", "perlica");
+
+    expect(producer.targetOf("7")).toBe("perlica");
+    expect(producer.targetOf("8")).toBeUndefined();
+
+    producer.onTurnClosed({ id: 7, outcome: "ok", spokeText: true });
+    expect(producer.targetOf("7")).toBeUndefined();
+  });
+
   it("emits once for a closed turn with speech, joining its assistant entries", () => {
     const { producer, emit } = setup([
       assistantEntry("You", "7", 1),

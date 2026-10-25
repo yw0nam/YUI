@@ -187,6 +187,29 @@ describe("buildClientContext — addressed forwarding", () => {
   });
 });
 
+describe("buildClientContext — mention forwarding", () => {
+  const CTX: InputContext = { env: { timestamp: "2026-07-31T14:22:33+09:00", timezone: "UTC" } };
+
+  function userEnv(
+    payload: Record<string, unknown>,
+    event_name = "user.text_submitted",
+  ): BusEnvelope {
+    return { seq_id: 5, source: "user_input_source", event_name, ts: 1_717_000_000_000, payload };
+  }
+
+  it.each(["character", "everyone"] as const)("forwards a %s mention", (mention) => {
+    expect(buildClientContext(CTX, userEnv({ text: "hi", mention })).trigger.mention).toBe(mention);
+  });
+
+  it.each([
+    ["no mention", userEnv({ text: "hi" })],
+    ["an unknown mention", userEnv({ text: "hi", mention: "all" })],
+    ["a voice event", userEnv({ text: "hi", mention: "everyone" }, "user.voice_segment_ready")],
+  ])("omits the field for %s", (_name, env) => {
+    expect("mention" in buildClientContext(CTX, env).trigger).toBe(false);
+  });
+});
+
 describe("buildClientContext — cue forwarding", () => {
   const CTX: InputContext = { env: { timestamp: "2026-07-31T14:22:33+09:00", timezone: "UTC" } };
 

@@ -386,6 +386,24 @@ describe("renderClientContext — trigger: user", () => {
     const text = renderClientContext(baseContext({ kind: "user" }), NOW);
     expect(text).toContain("trigger: user message");
   });
+
+  it.each([
+    ["character", "trigger: user message (addressed to the character)"],
+    ["everyone", "trigger: user message (addressed to everyone)"],
+  ] as const)("a %s mention names the addressee", (mention, line) => {
+    const text = renderClientContext(baseContext({ kind: "user", mention }), NOW);
+    expect(text.split("\n").filter((l) => l.startsWith("trigger:"))).toEqual([line]);
+  });
+
+  it("puts the idle clause after the mention", () => {
+    const text = renderClientContext(
+      baseContext({ kind: "user", mention: "everyone", idle_elapsed_min: 12 }),
+      NOW,
+    );
+    expect(text).toContain(
+      "trigger: user message (addressed to everyone) (the user has been idle for 12min)",
+    );
+  });
 });
 
 describe("renderClientContext — trigger: schedule / proactive cue", () => {
