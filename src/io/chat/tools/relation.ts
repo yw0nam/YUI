@@ -6,6 +6,7 @@ import { targetLabel } from "../../../settings/relations/relation-targets";
 import {
   DELTAS,
   type RelationsStore,
+  SET_BY_USER,
   WHY_LENGTH,
 } from "../../../settings/relations/relations-store";
 import type { ClientTool } from "./client-tools";
@@ -66,6 +67,7 @@ export function createRateRelationTool(deps: {
       if (id === undefined) return "error: unknown target";
       if (typeof delta !== "number" || !DELTAS.includes(delta)) return "error: invalid field delta";
       if (typeof why !== "string") return "error: invalid field why";
+      if (why.trim() === SET_BY_USER) return "error: reserved reason";
       const key = call?.turnId ?? "";
       const turn = rated.get(key) ?? new Set<string>();
       if (turn.has(id)) return `ignored: already rated ${toward} this turn`;
