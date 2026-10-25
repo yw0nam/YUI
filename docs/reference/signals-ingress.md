@@ -119,8 +119,9 @@ whole store; an external engine that keeps its own relationship record writes it
 
 One key per target: `user`, or another preset's id. `value` is an integer from -20 to 20,
 `updated_at` the epoch milliseconds of the last change, `log` the last changes newest first,
-at most 20, each `{at, delta, why}` with `delta` an integer from -2 to 2 other than 0 and `why` a
-string of at most 80 characters. An optional `note` of at most 200 characters holds an external
+at most 20, each `{at, delta, why}` with `delta` an integer from -40 to 40 other than 0 and `why` a
+string of at most 80 characters. A value the user sets by hand in the settings window logs one
+change with the full jump and the `why` `set by the user`. An optional `note` of at most 200 characters holds an external
 engine's own summary of the relation; the client never writes it and renders it on the `relation:`
 line after the band. A `PUT` body that is not an object, has a key that is neither `user`
 nor an existing preset id, or breaks any range receives HTTP 400 and leaves the store

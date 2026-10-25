@@ -21,7 +21,7 @@ const ITEM_CEILING_BYTES: usize = 16 * 1024;
 
 /// The `/relations` record limits, as `docs/reference/signals-ingress.md` states them.
 const VALUE_RANGE: std::ops::RangeInclusive<i64> = -20..=20;
-const DELTA_RANGE: std::ops::RangeInclusive<i64> = -2..=2;
+const DELTA_RANGE: std::ops::RangeInclusive<i64> = -40..=40;
 const LOG_LENGTH: usize = 20;
 const WHY_CHARS: usize = 80;
 const NOTE_CHARS: usize = 200;
