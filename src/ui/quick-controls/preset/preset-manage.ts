@@ -12,7 +12,7 @@ import {
 } from "../../../settings/preset/active-preset";
 import { isPresetWindowLive, type PetWindows } from "../../../settings/preset/pet-windows";
 import { DEFAULT_PRESET_ID } from "../../../settings/preset/preset-keys";
-import type { PresetRegistry } from "../../../settings/preset/preset-registry";
+import { type PresetRegistry, RESERVED_NAMES } from "../../../settings/preset/preset-registry";
 import { t } from "../../i18n";
 import { PLUS_SVG } from "../constants";
 import { REMOVE_SVG, RENAME_SVG } from "../sections/user-asset-list/user-asset-list";
@@ -53,7 +53,10 @@ export function createPresetManage(deps: {
   let focusSel: string | null = null;
 
   function isTaken(state: PresetState, name: string, exceptId?: string): boolean {
-    return state.list.some((e) => e.id !== exceptId && e.name === name.trim());
+    return (
+      RESERVED_NAMES.has(name.trim().toLowerCase()) ||
+      state.list.some((e) => e.id !== exceptId && e.name === name.trim())
+    );
   }
 
   function rowEl(entry: PresetEntry, active: string): HTMLElement {

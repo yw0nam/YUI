@@ -21,6 +21,9 @@ import {
   resolveStorageKey,
 } from "./preset-keys";
 
+/** The mention words of the unified chat window; no preset is created or renamed to one. Stored names are left alone. */
+export const RESERVED_NAMES: ReadonlySet<string> = new Set(["everyone", "here", "all"]);
+
 function randomId(): string {
   const [n] = crypto.getRandomValues(new Uint32Array(1));
   return n.toString(16).padStart(8, "0");
@@ -50,7 +53,10 @@ export function createPresetRegistry(deps?: {
   }
 
   function nameFree(name: string, exceptId?: string): boolean {
-    return !core.current().list.some((e) => e.id !== exceptId && e.name === name);
+    return (
+      !RESERVED_NAMES.has(name.toLowerCase()) &&
+      !core.current().list.some((e) => e.id !== exceptId && e.name === name)
+    );
   }
 
   return {

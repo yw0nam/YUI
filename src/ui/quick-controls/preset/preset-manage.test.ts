@@ -99,7 +99,6 @@ it.each([
   localStorage.clear();
   const registry = createPresetRegistry({ newId: () => "abcd1234" });
   const el = document.createElement("div");
-  document.body.appendChild(el);
   const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
   const manage = createPresetManage({ el, registry, log });
   manage.render();
@@ -119,7 +118,6 @@ it("a reserved name typed into a rename field shows as a taken one", () => {
   const registry = createPresetRegistry({ newId: () => "abcd1234" });
   registry.create("companion");
   const el = document.createElement("div");
-  document.body.appendChild(el);
   const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
   const manage = createPresetManage({ el, registry, log });
   manage.render();
