@@ -172,3 +172,36 @@ it("stores the picked photo as the preset's thumbnail and leaves it when the pic
   expect(thumbnail()).toBe("asset://x/abcd1234.png?v=1");
   registry.dispose();
 });
+
+it("a photo the picker refuses is logged and shown as an error line until the next pick works", async () => {
+  const pick = vi.fn<(id: string) => Promise<string | null>>(async () => {
+    throw "unsupported file";
+  });
+  const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
+  localStorage.clear();
+  const registry = createPresetRegistry({ newId: () => "abcd1234" });
+  registry.create("companion");
+  const el = document.createElement("div");
+  createPresetManage({ el, registry, log, pickPhoto: pick }).render();
+  const click = () =>
+    el
+      .querySelector<HTMLButtonElement>('[data-preset-id="abcd1234"] .yui-preset-row__photo')!
+      .click();
+
+  click();
+
+  await vi.waitFor(() =>
+    expect(el.querySelector(".yui-input-row__error")?.textContent).toBe(
+      "Could not use that photo. Choose a PNG or JPEG.",
+    ),
+  );
+  expect(log.warn).toHaveBeenCalledWith("photo_pick_failed", {
+    preset: "abcd1234",
+    error: "unsupported file",
+  });
+
+  pick.mockResolvedValueOnce("asset://x/abcd1234.png?v=1");
+  click();
+  await vi.waitFor(() => expect(el.querySelector(".yui-input-row__error")).toBeNull());
+  registry.dispose();
+});

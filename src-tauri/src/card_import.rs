@@ -470,6 +470,18 @@ mod tests {
     }
 
     #[test]
+    fn a_jpeg_wider_than_the_decode_limit_is_refused_and_stores_nothing() {
+        let cards = unique_dir("photo_huge");
+        let jpeg = encoded(PHOTO_DECODE_MAX_EDGE + 1, 1, image::ImageFormat::Jpeg);
+
+        let err = store_preset_photo(&cards, "abcd1234", "file:///huge.jpg", jpeg).unwrap_err();
+
+        assert_eq!(err, "photo unreadable".to_string());
+        assert!(!cards.join("abcd1234.png").exists());
+        std::fs::remove_dir_all(&cards).ok();
+    }
+
+    #[test]
     fn a_file_that_is_no_png_or_jpeg_is_refused_and_stores_nothing() {
         let cards = unique_dir("photo_refused");
 
