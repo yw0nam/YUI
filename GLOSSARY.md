@@ -28,12 +28,16 @@ One backend round trip, from the moment the dispatcher admits a trigger until th
 _Avoid_: request, exchange, interaction
 
 **Trigger**:
-The event that makes a turn a candidate — typed text, a voice segment, a physical poke, a schedule tick. Carried as one of `user`, `schedule`, `proactive`, `agent`, `signals`, `milestone`, `addressed`. Firing a trigger is not a decision to speak.
+The event that makes a turn a candidate — typed text, a voice segment, a physical poke, a schedule tick, another open character's reply naming this character through `address_character`. Carried as one of `user`, `schedule`, `proactive`, `agent`, `signals`, `milestone`, `addressed`. Firing a trigger is not a decision to speak.
 _Avoid_: intent, command, prompt
 
 **Guardrails**:
 The gate a trigger passes before it becomes a turn: cooldown, do-not-disturb, debounce, rate limit. It answers whether to _bother_ the brain, never what the brain should say.
 _Avoid_: filter, policy, throttle
+
+**Chain cap**:
+The most addressed turns one window answers in a row without a user turn in between; `addressed_chain_max` in configs/guardrails.json, overridable in the Reactions tab. The next one is dropped with reason `addressed_cap`.
+_Avoid_: ping-pong cap, chain limit, addressed limit
 
 **Tier**:
 How a trigger is routed. Tier 1 is performed locally with no backend call; tier 2 becomes a turn.

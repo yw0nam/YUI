@@ -82,13 +82,13 @@ and the pump goes on.
 `dispatcher/sources/addressed/addressed-source.ts` (namespace `addressed-source`) log at
 `info`.
 
-| Event | Fields | When |
-|---|---|---|
-| `character_addressed` | `to` | An `address_character` call recorded the reply's recipient. `to` is the named preset id. |
-| `fire` | `to` | The producer emitted the character-addressed event for a closed, spoken reply. |
-| `no_text` | `to` | The closed addressed turn left no transcript entry to carry. |
-| `fire` | `from` | The addressed source pushed an `addressed.character` candidate for this preset. |
-| `push_rejected` | `from` | The bus refused the addressed candidate. |
+| Namespace | Event | Fields | When |
+|---|---|---|---|
+| `address-character` | `character_addressed` | `to` | An `address_character` call recorded the reply's recipient. `to` is the named preset id. |
+| `addressed-producer` | `fire` | `to` | The producer emitted the character-addressed event for a closed, spoken reply. |
+| `addressed-producer` | `no_text` | `to` | The closed addressed turn left no transcript entry to carry. |
+| `addressed-source` | `fire` | `from` | The addressed source pushed an `addressed.character` candidate for this preset. |
+| `addressed-source` | `push_rejected` | `from` | The bus refused the addressed candidate. |
 
 ## TypeScript Usage
 
