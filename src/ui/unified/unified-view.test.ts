@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { UserTurnRouted } from "../../io/bridge/settings-bridge";
 import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
 import { createUnifiedView } from "./unified-view";
@@ -33,14 +33,14 @@ function seed(): Record<string, ChatHistoryEntry[]> {
   };
 }
 
-function mount(opts: { mainId?: string } = {}): void {
+function mount(opts: { mainId?: string; now?: () => number } = {}): void {
   document.body.innerHTML = '<div id="app"></div>';
   view = createUnifiedView({
     mount: document.querySelector("#app")!,
     cast: () => CAST,
     transcripts: () => CAST.map((c) => ({ ...c, entries: transcripts[c.id] ?? [] })),
     mainId: () => opts.mainId ?? "perlica",
-    now: () => T,
+    now: opts.now ?? (() => T),
     randomId: () => `send-${++nextId}`,
   });
   routed = [];
@@ -181,5 +181,56 @@ describe("unified view — routing", () => {
     press("Enter");
 
     expect(routed).toEqual([{ sendId: "send-1", to: "natsume", text: "@natsume hi" }]);
+  });
+});
+
+describe("unified view — pending sends over time", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(T);
+    mount({ now: () => Date.now() });
+  });
+  afterEach(() => vi.useRealTimers());
+
+  const pendingTexts = () =>
+    [...document.querySelectorAll(".is-pending .yui-uc__say")].map((el) => el.textContent);
+
+  it("removes a pending row through its own timer 60 seconds after the send", () => {
+    type("hello");
+    press("Enter");
+    expect(pendingTexts()).toHaveLength(1);
+
+    vi.advanceTimersByTime(59_000);
+    expect(pendingTexts()).toHaveLength(1);
+    vi.advanceTimersByTime(2_000);
+    expect(pendingTexts()).toEqual([]);
+  });
+
+  it("keeps the row of a send that still waits behind a running sequence", () => {
+    type("@");
+    [...document.querySelectorAll<HTMLElement>("[role=option]")]
+      .find((o) => o.querySelector(".yui-uc__opt-name")?.textContent === "@everyone")
+      ?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+    type("first");
+    press("Enter");
+    type("second");
+    press("Enter");
+
+    vi.advanceTimersByTime(65_000);
+
+    expect(pendingTexts()).toEqual(["second"]);
+  });
+});
+
+describe("unified view — the mention pill", () => {
+  it("Backspace in an empty field removes it", () => {
+    mount();
+    type("@nat");
+    press("Enter");
+    expect(document.querySelector(".yui-uc__pill")?.hasAttribute("hidden")).toBe(false);
+
+    press("Backspace");
+
+    expect(document.querySelector(".yui-uc__pill")?.hasAttribute("hidden")).toBe(true);
   });
 });

@@ -78,6 +78,14 @@ describe("mergeTranscripts", () => {
     ]);
   });
 
+  it("keeps a queued send however long it waits", () => {
+    const pending = [{ sendId: "s1", text: "hi", at: 150, queued: true }];
+
+    expect(brief(mergeTranscripts([perlica([])], pending, 150 + 600_000))).toEqual([
+      ["user", "hi", 150],
+    ]);
+  });
+
   it("drops a pending send after 60 seconds", () => {
     const pending = [{ sendId: "s1", text: "hi", at: 150 }];
 
