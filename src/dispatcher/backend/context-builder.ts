@@ -156,6 +156,16 @@ function wakeOf(env: BusEnvelope, messageWake: boolean): TriggerMeta["wake"] | u
   return cause === "click" || cause === "timeout" ? { cause } : undefined;
 }
 
+const ADDRESSED_EVENT_NAME = "addressed.character";
+
+function addressedOf(env: BusEnvelope): TriggerMeta["addressed"] | undefined {
+  if (env.event_name !== ADDRESSED_EVENT_NAME) return undefined;
+  const { name, line } = env.payload ?? {};
+  return typeof name === "string" && typeof line === "string"
+    ? { from: name, text: line, ts: env.ts }
+    : undefined;
+}
+
 type RecentTransition = { from_app: string; to_app: string; dwell_min: number };
 
 function recentOf(payload: BusEnvelope["payload"]): RecentTransition[] | undefined {
@@ -233,6 +243,7 @@ function triggerKind(eventName: string): TriggerMeta["kind"] {
   if (eventName.startsWith("agent.")) return "agent";
   if (eventName.startsWith("signals.")) return "signals";
   if (eventName.startsWith("time_milestone.")) return "milestone";
+  if (eventName.startsWith("addressed.")) return "addressed";
   return "user";
 }
 
@@ -259,6 +270,7 @@ export function buildClientContext(
   const signals = signalsOf(env);
   const screen = screenOf(env);
   const wake = wakeOf(env, messageWake);
+  const addressed = addressedOf(env);
   const guide = guideKeyOf(env);
   const screenshot = ctx.screenshot
     ? { enabled: ctx.screenshot.enabled, source: ctx.screenshot.source }
@@ -286,6 +298,7 @@ export function buildClientContext(
       ...(signals ? { signals } : {}),
       ...(screen ? { screen } : {}),
       ...(wake ? { wake } : {}),
+      ...(addressed ? { addressed } : {}),
     },
   };
 }

@@ -10,7 +10,7 @@
  *     · tier1 (drag/window/tap/pat reactions, avatar.* gait cues, user.fall_land) → local
  *       handling (no backend).
  *     · tier2 (user.text_submitted · user.voice_segment_ready · time_milestone.* ·
- *       proactive.* · schedule.* · agent.* · signals.*) → backend_caller.
+ *       proactive.* · schedule.* · agent.* · signals.* · addressed.*) → backend_caller.
  *
  * Single in-flight backend call. Deferred tier2 keeps only one item in local pending
  * (with two or more deferred, the oldest is dropped). With the turn gate on, a call first waits

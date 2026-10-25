@@ -198,6 +198,11 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
     lines.push(`trigger: milestone ${oneLine(m.name)} (fired at ${oneLine(m.local_time)})`);
   } else if (trigger.wake && trigger.kind !== "user") {
     lines.push("trigger: wake");
+  } else if (trigger.addressed) {
+    const a = trigger.addressed;
+    lines.push(
+      `trigger: addressed by ${oneLine(a.from)}: "${oneLine(a.text)}" (${minutesSince(a.ts, nowMs)}min ago)`,
+    );
   } else if (trigger.kind === "user") {
     lines.push(`trigger: user message${idleClause}`);
   } else if (trigger.kind === "signals") {

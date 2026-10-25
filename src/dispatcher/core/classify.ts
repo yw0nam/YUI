@@ -27,6 +27,9 @@ export function classify(env: BusEnvelope): Classification {
   if (n.startsWith("agent.")) {
     return { tier: 2, target: "backend_caller" };
   }
+  if (n.startsWith("addressed.")) {
+    return { tier: 2, target: "backend_caller" };
+  }
   if (n.startsWith("signals.")) {
     return { tier: 2, target: "backend_caller" };
   }
@@ -80,4 +83,5 @@ export const PACED_SOURCES: Record<BusEnvelope["source"], boolean> = {
   os_event_watcher: false,
   user_input_source: false,
   urgent_signal_source: false,
+  addressed_source: false,
 };

@@ -252,7 +252,7 @@ export type WakeCause = "click" | "timeout" | "message";
 
 /** trigger envelope describing what fired this backend turn. */
 export interface TriggerMeta {
-  kind: "user" | "schedule" | "proactive" | "agent" | "signals" | "milestone";
+  kind: "user" | "schedule" | "proactive" | "agent" | "signals" | "milestone" | "addressed";
   /** user only: the in-app help button that asked, naming the guide that answers it. */
   guide?: GuideKey;
   cue?: CueMeta;
@@ -260,6 +260,8 @@ export interface TriggerMeta {
   milestone?: { name: string; local_time: string };
   /** proactive only: Math.round(gap_ms / 60000). */
   idle_elapsed_min?: number;
+  /** addressed.* — another open character's reply named this character through address_character. */
+  addressed?: { from: string; text: string; ts: number };
   /** agent.done / agent.needs_input — single coding-agent lifecycle event. */
   agent?: {
     tool: string; // "claude-code" | "opencode" | <string>

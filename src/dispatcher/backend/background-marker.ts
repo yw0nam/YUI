@@ -62,6 +62,9 @@ export function backgroundMarker(eventName: string, trigger: TriggerMeta): strin
   if (eventName === "signals.catchup") return "(signals piled up for you)";
   if (eventName === "signals.urgent") return "(something urgent just came in for you)";
   if (eventName === "signals.urgent_catchup") return "(urgent things piled up for you)";
+  if (eventName === "addressed.character" && trigger.addressed) {
+    return `(${toolName(trigger.addressed.from)} just spoke to you)`;
+  }
   if (eventName === "time_milestone.first_activity") return "(I've just started my day)";
   return "(something just caught your attention)";
 }

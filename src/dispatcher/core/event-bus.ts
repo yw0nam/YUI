@@ -21,7 +21,8 @@ export interface BusEnvelope {
     | "os_event_watcher"
     | "user_input_source"
     | "screen_watcher"
-    | "urgent_signal_source";
+    | "urgent_signal_source"
+    | "addressed_source";
   /** event_name. ex: "time_milestone.morning". */
   event_name: string;
   /** client epoch ms. */
@@ -62,6 +63,7 @@ const KNOWN_PREFIXES: ReadonlyArray<{ prefix: string; priority: number }> = [
   { prefix: "proactive.", priority: 2 },
   { prefix: "schedule.", priority: 2 },
   { prefix: "agent.", priority: 2 },
+  { prefix: "addressed.", priority: 2 },
   { prefix: "signals.", priority: 2 },
   { prefix: "avatar.", priority: 3 },
 ];
@@ -79,6 +81,7 @@ const VALID_SOURCES = new Set<BusEnvelope["source"]>([
   "user_input_source",
   "screen_watcher",
   "urgent_signal_source",
+  "addressed_source",
 ]);
 
 interface QueueItem {
