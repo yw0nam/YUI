@@ -27,6 +27,10 @@ const PNG_SIGNATURE: &[u8; 8] = b"\x89PNG\r\n\x1a\n";
 /// Longest edge, in px, of a JPEG photo re-encoded as a preset's thumbnail.
 const PHOTO_EDGE: u32 = 512;
 
+/// Widest or tallest JPEG, in px, the photo decode accepts, and the most memory it may take.
+const PHOTO_DECODE_MAX_EDGE: u32 = 8192;
+const PHOTO_DECODE_MAX_ALLOC: u64 = 256 * 1024 * 1024;
+
 /// Card file handed to the webview: the card JSON and, for a PNG, the temp thumbnail id.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -153,8 +157,14 @@ fn photo_as_png(bytes: Vec<u8>) -> Result<Vec<u8>, String> {
         log::warn!("photo_unreadable error={e}");
         "photo unreadable".to_string()
     };
-    let photo = image::load_from_memory_with_format(&bytes, image::ImageFormat::Jpeg)
-        .map_err(unreadable)?;
+    let mut reader =
+        image::ImageReader::with_format(std::io::Cursor::new(&bytes), image::ImageFormat::Jpeg);
+    let mut limits = image::Limits::default();
+    limits.max_image_width = Some(PHOTO_DECODE_MAX_EDGE);
+    limits.max_image_height = Some(PHOTO_DECODE_MAX_EDGE);
+    limits.max_alloc = Some(PHOTO_DECODE_MAX_ALLOC);
+    reader.limits(limits);
+    let photo = reader.decode().map_err(unreadable)?;
     let mut png = Vec::new();
     photo
         .thumbnail(PHOTO_EDGE, PHOTO_EDGE)
@@ -254,7 +264,8 @@ pub fn retain_card_thumbnail(
 }
 
 /// Open the photo picker here and store the picked PNG or JPEG as the preset's thumbnail,
-/// returning the file path. `None` when the picker is dismissed.
+/// returning the file path. A JPEG decodes within `PHOTO_DECODE_MAX_EDGE` and
+/// `PHOTO_DECODE_MAX_ALLOC`, so a small file cannot expand to an unbounded bitmap. `None` when the picker is dismissed.
 #[command]
 pub async fn pick_preset_photo(
     app: AppHandle,

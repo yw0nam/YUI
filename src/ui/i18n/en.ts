@@ -183,6 +183,7 @@ const en: Record<string, string> = {
   "preset.window_open": "Window open",
   "preset.rename": "Rename {name}",
   "preset.photo": "Choose a photo for {name}",
+  "preset.photo_failed": "Could not use that photo. Choose a PNG or JPEG.",
   "preset.remove": "Delete {name}",
   "preset.name_aria": "Preset name",
   "preset.hint_save": "save",

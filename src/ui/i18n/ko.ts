@@ -184,6 +184,7 @@ const ko: Record<string, string> = {
   "preset.window_open": "창 열림",
   "preset.rename": "{name} 이름 바꾸기",
   "preset.photo": "{name}의 사진 고르기",
+  "preset.photo_failed": "이 사진을 쓸 수 없어요. PNG 또는 JPEG를 골라 주세요.",
   "preset.remove": "{name} 삭제",
   "preset.name_aria": "프리셋 이름",
   "preset.hint_save": "저장",

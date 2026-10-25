@@ -54,6 +54,8 @@ export function createPresetManage(deps: {
   let renamingId: string | null = null;
   let confirmId: string | null = null;
   let naming = false;
+  // A picked photo the shell refused: the list says so until the next pick or the popover closes.
+  let photoError = false;
   // The field keeps what was typed across a re-render (another window's edit lands mid-typing).
   let draft = "";
   // The control to focus after the next render, so keyboard users stay where they acted.
@@ -88,9 +90,18 @@ export function createPresetManage(deps: {
     const photoBtn = row.querySelector<HTMLButtonElement>(".yui-preset-row__photo");
     photoBtn?.setAttribute("aria-label", t("preset.photo", { name: entry.name }));
     photoBtn?.addEventListener("click", () => {
-      void deps.pickPhoto?.(entry.id).then((url) => {
-        if (url !== null) registry.setThumbnail(entry.id, url);
-      });
+      deps
+        .pickPhoto?.(entry.id)
+        .then((url) => {
+          photoError = false;
+          if (url !== null) registry.setThumbnail(entry.id, url);
+          render();
+        })
+        .catch((err) => {
+          log.warn("photo_pick_failed", { preset: entry.id, error: String(err) });
+          photoError = true;
+          render();
+        });
     });
     const renameBtn = row.querySelector<HTMLButtonElement>(".yui-preset-row__rename")!;
     renameBtn.setAttribute("aria-label", t("preset.rename", { name: entry.name }));
@@ -304,6 +315,13 @@ export function createPresetManage(deps: {
     }
     group.append(naming ? newFieldEl(state) : addRowEl());
     el.replaceChildren(group);
+    if (photoError) {
+      const note = document.createElement("div");
+      note.className = "yui-input-row is-invalid";
+      note.innerHTML = `<p class="yui-input-row__error" role="status"></p>`;
+      note.firstElementChild!.textContent = t("preset.photo_failed");
+      el.append(note);
+    }
     if (focusSel) {
       el.querySelector<HTMLElement>(focusSel)?.focus();
       focusSel = null;
@@ -317,6 +335,7 @@ export function createPresetManage(deps: {
       confirmId = null;
       naming = false;
       draft = "";
+      photoError = false;
     },
     focusFirst(): void {
       el.querySelector<HTMLElement>("button, input")?.focus();

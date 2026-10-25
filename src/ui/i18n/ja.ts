@@ -186,6 +186,7 @@ const ja: Record<string, string> = {
   "preset.window_open": "ウィンドウあり",
   "preset.rename": "{name}の名前を変更",
   "preset.photo": "{name}の写真を選ぶ",
+  "preset.photo_failed": "この写真は使えません。PNGかJPEGを選んでください。",
   "preset.remove": "{name}を削除",
   "preset.name_aria": "プリセット名",
   "preset.hint_save": "保存",
