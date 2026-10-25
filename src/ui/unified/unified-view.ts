@@ -26,8 +26,6 @@ export interface UnifiedView {
   dispose(): void;
 }
 
-const ARROW = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>`;
-
 function shuffled(ids: string[]): string[] {
   for (let i = ids.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -94,7 +92,6 @@ export function createUnifiedView(deps: {
       const to = document.createElement("span");
       to.className = "yui-uc__to";
       to.style.color = colorOf(row.to);
-      to.innerHTML = ARROW;
       to.append(t("unified.marker", { name: entryOf(row.to, cast)?.name ?? row.to }));
       say.append(to);
     }
