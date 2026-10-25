@@ -47,6 +47,10 @@ vi.mock("../../dispatcher/sources/idle-tick/milestone-source", () => ({
   createMilestoneSource: vi.fn(makeSource("milestone")),
 }));
 
+vi.mock("../../dispatcher/sources/addressed/addressed-source", () => ({
+  createAddressedSource: vi.fn(makeSource("addressed")),
+}));
+
 import { createScreenKnobSettings, mergeScreen } from "../../settings/capture/screen-settings";
 import { wireDispatcherSources } from "./wire-sources";
 
@@ -104,6 +108,7 @@ describe("wireDispatcherSources", () => {
     });
 
     expect(Object.keys(result).sort()).toEqual([
+      "addressedSource",
       "agentSource",
       "milestoneSource",
       "proactiveSource",
@@ -114,6 +119,7 @@ describe("wireDispatcherSources", () => {
     ]);
     // Each source is started (fire-and-forget) so candidate events flow once wired.
     expect(started.sort()).toEqual([
+      "addressed",
       "agent",
       "milestone",
       "proactive",

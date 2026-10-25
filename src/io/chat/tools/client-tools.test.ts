@@ -11,6 +11,7 @@ import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
 import { createAvatarTools } from "./avatar";
+import { createAddressCharacterTool } from "./address-character";
 import { createBrowserTool } from "./browser/browser-tool";
 import { type ClientTool, createClientToolRegistry, createClientTools } from "./client-tools";
 import { createGenerateExpressTool } from "./express";
@@ -214,11 +215,19 @@ describe("docs/reference/client-tools.md catalog", () => {
     const relay = { run: vi.fn(), guide: vi.fn() };
     const names = createClientTools(vocab(), [
       createRateRelationTool({ store: { rate: vi.fn() }, targets: () => [] }),
+      createAddressCharacterTool({ targets: () => [], record: vi.fn() }),
       ...createAvatarTools(() => null),
       createBrowserTool({ relay, enabled: () => false, presetId: () => "p1" }),
     ]).map((tool) => tool.name);
 
-    expect(names).toEqual(["generate_express", "rate_relation", "body_action", "look", "browser"]);
+    expect(names).toEqual([
+      "generate_express",
+      "rate_relation",
+      "address_character",
+      "body_action",
+      "look",
+      "browser",
+    ]);
     expect(names.filter((name) => !rows.has(name))).toEqual([]);
   });
 });

@@ -298,6 +298,7 @@ describe("createSettingsBridge", () => {
     ["onReasoning", { text: "x", live: true }, true],
     ["onReasoningAsk", undefined, true],
     ["onHelpGuide", { guide: "controls", text: "help" }, true],
+    ["onCharacterAddressed", { from: "p1", name: "Perlica", to: "p2", text: "x", ts: 1 }, false],
   ] as const)("%s uses its declared preset scope", (method, payload, scoped) => {
     history.replaceState(null, "", "/?preset=a");
     const t = createFakeTransport();
@@ -310,5 +311,45 @@ describe("createSettingsBridge", () => {
     expect(cb).toHaveBeenCalledTimes(scoped ? 1 : 3);
     bridge.dispose();
     history.replaceState(null, "", "/");
+  });
+
+  it("delivers a character-addressed event from A to B with the payload", () => {
+    const t = createFakeTransport();
+    const a = createSettingsBridge(t, { windowKind: "pet" });
+    const b = createSettingsBridge(t, { windowKind: "pet" });
+    const cb = vi.fn();
+    b.onCharacterAddressed(cb);
+
+    a.emitCharacterAddressed({
+      from: "perlica",
+      name: "Perlica",
+      to: "natsume",
+      text: "natsume, you took my chair",
+      ts: 1_717_000_000_000,
+    });
+
+    expect(cb).toHaveBeenCalledWith({
+      from: "perlica",
+      name: "Perlica",
+      to: "natsume",
+      text: "natsume, you took my chair",
+      ts: 1_717_000_000_000,
+    });
+  });
+
+  it.each([
+    { from: "perlica", name: "Perlica", to: "natsume", ts: 1 },
+    { from: "perlica", name: "Perlica", to: 7, text: "x", ts: 1 },
+    "garbage",
+  ])("ignores a malformed character-addressed payload %j", (payload) => {
+    const t = createFakeTransport();
+    const a = createSettingsBridge(t, { windowKind: "pet" });
+    const b = createSettingsBridge(t, { windowKind: "pet" });
+    const cb = vi.fn();
+    b.onCharacterAddressed(cb);
+
+    a.emitCharacterAddressed(payload as never);
+
+    expect(cb).not.toHaveBeenCalled();
   });
 });

@@ -1,0 +1,94 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ChatHistoryEntry } from "../../../io/chat/conversation/chat-history-store";
+import { createAddressedProducer } from "./addressed-producer";
+
+const NO_TEXT_LINE = "[YUI][addressed-producer] no_text";
+
+function setup(entries: ChatHistoryEntry[] = []) {
+  const emit = vi.fn();
+  const producer = createAddressedProducer({
+    transcript: { entriesAfterLastBoundary: () => entries },
+    selfPresetId: "natsume",
+    selfName: () => "Natsume",
+    emit,
+    now: () => 5_000,
+  });
+  return { producer, emit };
+}
+
+function assistantEntry(text: string, turnId: string, ts: number): ChatHistoryEntry {
+  return { role: "assistant", text, ts, turn_id: turnId };
+}
+
+describe("createAddressedProducer", () => {
+  let consoleInfo: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    consoleInfo = vi.spyOn(console, "info").mockImplementation(() => {});
+  });
+
+  it("emits once for a closed turn with speech, joining its assistant entries", () => {
+    const { producer, emit } = setup([
+      assistantEntry("You", "7", 1),
+      { role: "user", text: "did not", ts: 2, turn_id: "8" },
+      assistantEntry("are right.", "7", 3),
+    ]);
+    producer.record("7", "perlica");
+
+    producer.onTurnClosed({ id: 7, outcome: "ok", spokeText: true });
+
+    expect(emit).toHaveBeenCalledExactlyOnceWith({
+      from: "natsume",
+      name: "Natsume",
+      to: "perlica",
+      text: "You are right.",
+      ts: 5_000,
+    });
+  });
+
+  it("emits nothing when the same turn closes again", () => {
+    const { producer, emit } = setup([assistantEntry("hi", "7", 1)]);
+    producer.record("7", "perlica");
+
+    producer.onTurnClosed({ id: 7, outcome: "ok", spokeText: true });
+    producer.onTurnClosed({ id: 7, outcome: "ok", spokeText: true });
+
+    expect(emit).toHaveBeenCalledTimes(1);
+  });
+
+  it("emits nothing when the outcome is not ok", () => {
+    const { producer, emit } = setup([assistantEntry("hi", "7", 1)]);
+    producer.record("7", "perlica");
+
+    producer.onTurnClosed({ id: 7, outcome: "network_drop", spokeText: true });
+
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it("emits nothing when the turn spoke no text", () => {
+    const { producer, emit } = setup([assistantEntry("hi", "7", 1)]);
+    producer.record("7", "perlica");
+
+    producer.onTurnClosed({ id: 7, outcome: "ok", spokeText: false });
+
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it("emits nothing and logs no_text when the transcript holds no entry of the turn", () => {
+    const { producer, emit } = setup([assistantEntry("another turn", "8", 1)]);
+    producer.record("7", "perlica");
+
+    producer.onTurnClosed({ id: 7, outcome: "ok", spokeText: true });
+
+    expect(emit).not.toHaveBeenCalled();
+    expect(consoleInfo).toHaveBeenCalledWith(NO_TEXT_LINE, expect.stringContaining("perlica"));
+  });
+
+  it("emits nothing for a turn with no recorded target", () => {
+    const { producer, emit } = setup([assistantEntry("hi", "7", 1)]);
+
+    producer.onTurnClosed({ id: 7, outcome: "ok", spokeText: true });
+
+    expect(emit).not.toHaveBeenCalled();
+  });
+});

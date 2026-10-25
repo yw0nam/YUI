@@ -15,8 +15,8 @@ vi.mock("./turn/turn-core", () => ({
 }));
 afterEach(() => vi.unstubAllGlobals());
 it.each([
-  [false, ["rate_relation", "body_action", "look", "browser"]],
-  [true, ["rate_relation", "browser"]],
+  [false, ["rate_relation", "address_character", "body_action", "look", "browser"]],
+  [true, ["rate_relation", "address_character", "browser"]],
 ])("a pet window (bound: %s) declares %j", async (bound, names) => {
   vi.stubGlobal("__TAURI_INTERNALS__", {});
   vi.mocked(wireTurnCore).mockImplementation(async () => {
