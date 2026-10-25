@@ -3,7 +3,7 @@ import { wireUnifiedWindow } from "./wire-unified-window";
 
 function setup(initial: { enabled: boolean; open: string[] }) {
   const state = { ...initial };
-  const switchListeners = new Set<() => void>();
+  const switchListeners = new Set<(s: { enabled: boolean }) => void>();
   const windowListeners = new Set<() => void>();
   const win = { open: vi.fn(), close: vi.fn() };
   const dispose = wireUnifiedWindow({
@@ -26,7 +26,7 @@ function setup(initial: { enabled: boolean; open: string[] }) {
     dispose,
     flip: (enabled: boolean) => {
       state.enabled = enabled;
-      for (const cb of switchListeners) cb();
+      for (const cb of switchListeners) cb({ enabled });
     },
     setOpen: (open: string[]) => {
       state.open = open;

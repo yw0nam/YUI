@@ -1316,6 +1316,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "app/unified",
+      "module": "wiring",
+      "label": "unified-window wiring",
+      "role": "Opens the unified chat window while its switch is on and two or more presets are open, and closes it otherwise.",
+      "paths": [
+        "src/app/unified"
+      ]
+    },
+    {
       "id": "app/settings-window",
       "module": "wiring",
       "label": "settings-window wiring",
