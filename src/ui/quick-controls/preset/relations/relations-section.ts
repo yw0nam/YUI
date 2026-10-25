@@ -58,6 +58,11 @@ export function createPresetRelations(deps: {
     card.close();
     view = buildView();
     const nextLine = relationLineEl(view, deps.isOpen);
+    // A re-render keeps the fold the user opened.
+    if (line?.classList.contains("is-unfolded")) {
+      nextLine.classList.add("is-unfolded");
+      nextLine.querySelector(".yui-relation--more")?.setAttribute("aria-expanded", "true");
+    }
     if (line) line.replaceWith(nextLine);
     else deps.anchor.after(nextLine);
     line = nextLine;
