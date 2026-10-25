@@ -71,6 +71,21 @@ Fields: `event_name`, `reason`, `seq_id`. The level comes from the reason:
 | `relation_set` | `target`, `value`, `band` | The user released a Relations slider at a value other than the stored one. `value` is the slider's value, `band` the band the store holds after the set. |
 | `relations_toggle` | `enabled` | The user flipped the Relations switch. |
 
+## Addressed events
+
+`io/chat/tools/address-character.ts` (namespace `address-character`),
+`dispatcher/sources/addressed/addressed-producer.ts` (namespace `addressed-producer`), and
+`dispatcher/sources/addressed/addressed-source.ts` (namespace `addressed-source`) log at
+`info`.
+
+| Event | Fields | When |
+|---|---|---|
+| `character_addressed` | `to` | An `address_character` call recorded the reply's recipient. `to` is the named preset id. |
+| `fire` | `to` | The producer emitted the character-addressed event for a closed, spoken reply. |
+| `no_text` | `to` | The closed addressed turn left no transcript entry to carry. |
+| `fire` | `from` | The addressed source pushed an `addressed.character` candidate for this preset. |
+| `push rejected` | `from` | The bus refused the addressed candidate. |
+
 ## TypeScript Usage
 
 ```ts

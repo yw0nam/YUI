@@ -225,6 +225,7 @@ YUI/
         classify.ts                  # Pure tier and target classification of a bus envelope, plus the paced-source table
         event-bus.ts                 # Priority queue collecting every speech-candidate event
         guardrails.ts                # Cooldown, debounce, and rate-limit evaluation
+        addressed-chain.ts           # The chain cap: how many addressed turns a window takes in a row without a user turn
         paced-pipeline-busy.ts       # The pipeline-busy predicate composed with the proactive gap
         proactive-pacer.ts           # The quiet gap after a turn that every proactive source shares
         turn-gate.ts                 # The cross-window Web Lock a turn holds from its backend call to the end of its playback
@@ -272,6 +273,9 @@ YUI/
             placement.ts             # Programmatic placement of the character on a named window
         wake/                        # The bed wake firing source
           wake-source.ts             # Fires the wake candidate as she gets out of bed, carrying the day's first activity while it is owed
+        addressed/                   # The character-addressed firing source and the speaking half
+          addressed-source.ts        # Turns a character-addressed bridge event for this preset into the addressed.character candidate
+          addressed-producer.ts      # Emits the character-addressed event for this window's reply once its turn is over
     ambient/                         # Backend-independent local liveliness and movement
       bed-scene/                     # Bed scene
         bed-scene.ts                 # Asleep on a bed at launch or lying down on command, the wake, the bed's fade, and the one exit that releases the hold and the frame; runs again after it ends
@@ -369,7 +373,8 @@ YUI/
           express.ts                   # The generate_express tool
           avatar.ts                    # The body_action and look tools over the avatar executor
           relation.ts                  # The rate_relation tool: one accepted call per target per turn
-          pet-window-tools.ts          # Builds the tool list a pet window declares: rate_relation everywhere, browser under Tauri, body_action and look in main
+          address-character.ts         # The address_character tool: names the character a reply is for, once per reply
+          pet-window-tools.ts          # Builds the tool list a pet window declares: rate_relation and address_character everywhere, browser under Tauri, body_action and look in main
         vocabulary/                    # The emotion, motion, and voice-tone ids the agent may cue with
           express-vocabulary.ts        # Derives the express vocabulary from the loaded config and the motion selection
         broker/                        # The Expression Broker client and its URL override reconciler

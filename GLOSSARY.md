@@ -28,7 +28,7 @@ One backend round trip, from the moment the dispatcher admits a trigger until th
 _Avoid_: request, exchange, interaction
 
 **Trigger**:
-The event that makes a turn a candidate — typed text, a voice segment, a physical poke, a schedule tick. Carried as one of `user`, `schedule`, `proactive`, `agent`, `signals`, `milestone`. Firing a trigger is not a decision to speak.
+The event that makes a turn a candidate — typed text, a voice segment, a physical poke, a schedule tick. Carried as one of `user`, `schedule`, `proactive`, `agent`, `signals`, `milestone`, `addressed`. Firing a trigger is not a decision to speak.
 _Avoid_: intent, command, prompt
 
 **Guardrails**:
