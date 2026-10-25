@@ -159,6 +159,28 @@ describe("validateGuardrails — rate_limit", () => {
     expectIssue(mutate(baseRaw()), "rate_limit.urgent_max must be a finite number >= 0");
   });
 
+  it("rejects a missing addressed_chain_max", () => {
+    const raw = baseRaw();
+    delete (raw.rate_limit as Record<string, unknown>).addressed_chain_max;
+    expectIssue(raw, "rate_limit.addressed_chain_max must be a finite number >= 0");
+  });
+
+  it("rejects a fractional addressed_chain_max — a fractional chain makes no sense", () => {
+    expectIssue(
+      baseRaw({
+        rate_limit: {
+          window_ms: 3600000,
+          tier2_max: 12,
+          urgent_max: 120,
+          overall_max: 26,
+          cooldown_ms: 300000,
+          addressed_chain_max: 1.5,
+        },
+      }),
+      "rate_limit.addressed_chain_max must be an integer",
+    );
+  });
+
   it("accumulates one issue per malformed block at once", () => {
     try {
       validateGuardrails(FILE, { debounce_ms: "y", rate_limit: "z", attachments: "w" });

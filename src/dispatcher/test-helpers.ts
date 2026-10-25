@@ -17,6 +17,7 @@ import type { Logger } from "../logger";
 import type { BackendCaller, TurnOutcome } from "./backend/backend-caller";
 import type { BusEnvelope } from "./core/event-bus";
 import type { GuardrailsConfig } from "./core/guardrails";
+import type { AddressedChain } from "./core/addressed-chain";
 import type { Turn } from "./turn/turn";
 import type { TurnOutput } from "./turn/turn-output";
 
@@ -99,6 +100,20 @@ export const CONFIG: EndpointsConfig = {
   stt_base_url: "http://localhost:5517",
   tts_base_url: "http://localhost:8092",
 };
+
+/** The default chain the dispatcher tests run with: two addressed turns in a row, the shipped cap. */
+export function createDefaultAddressedChain(): AddressedChain {
+  let taken = 0;
+  return {
+    canAdmit: () => taken < 2,
+    count: () => {
+      taken += 1;
+    },
+    reset: () => {
+      taken = 0;
+    },
+  };
+}
 
 /** Valid /signals ingress envelope for fixture groups. */
 export const SIGNAL_ENVELOPE: SignalEnvelope = {
