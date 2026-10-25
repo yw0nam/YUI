@@ -51,6 +51,10 @@ vi.mock("../../dispatcher/sources/addressed/addressed-source", () => ({
   createAddressedSource: vi.fn(makeSource("addressed")),
 }));
 
+vi.mock("../../dispatcher/sources/routed/routed-user-source", () => ({
+  createRoutedUserSource: vi.fn(makeSource("routed")),
+}));
+
 import { createScreenKnobSettings, mergeScreen } from "../../settings/capture/screen-settings";
 import { wireDispatcherSources } from "./wire-sources";
 
@@ -106,6 +110,8 @@ describe("wireDispatcherSources", () => {
       pacer: fakePacer(),
       isFirstActivityHeld: () => false,
       onCharacterAddressed: () => () => {},
+      onUserTurnRouted: () => () => {},
+      submitUser: vi.fn(),
       selfPresetId: "natsume",
     });
 
@@ -114,6 +120,7 @@ describe("wireDispatcherSources", () => {
       "agentSource",
       "milestoneSource",
       "proactiveSource",
+      "routedUserSource",
       "scheduleSource",
       "screenSource",
       "signalsSource",
@@ -125,6 +132,7 @@ describe("wireDispatcherSources", () => {
       "agent",
       "milestone",
       "proactive",
+      "routed",
       "schedule",
       "screen",
       "signals",
@@ -160,6 +168,8 @@ describe("wireDispatcherSources", () => {
       pacer: fakePacer(),
       isFirstActivityHeld: () => false,
       onCharacterAddressed: () => () => {},
+      onUserTurnRouted: () => () => {},
+      submitUser: vi.fn(),
       selfPresetId: "natsume",
     });
 
@@ -189,6 +199,8 @@ describe("wireDispatcherSources", () => {
       pacer: fakePacer(),
       isFirstActivityHeld: () => held,
       onCharacterAddressed: () => () => {},
+      onUserTurnRouted: () => () => {},
+      submitUser: vi.fn(),
       selfPresetId: "natsume",
     });
 
@@ -218,6 +230,8 @@ describe("wireDispatcherSources", () => {
       pacer: fakePacer(),
       isFirstActivityHeld: () => false,
       onCharacterAddressed: () => () => {},
+      onUserTurnRouted: () => () => {},
+      submitUser: vi.fn(),
       selfPresetId: "natsume",
     });
 
@@ -245,6 +259,8 @@ describe("wireDispatcherSources", () => {
       pacer: fakePacer(),
       isFirstActivityHeld: () => false,
       onCharacterAddressed: () => () => {},
+      onUserTurnRouted: () => () => {},
+      submitUser: vi.fn(),
       selfPresetId: "natsume",
     });
 
@@ -280,6 +296,8 @@ describe("wireDispatcherSources", () => {
       pacer: fakePacer(),
       isFirstActivityHeld: () => false,
       onCharacterAddressed: () => () => {},
+      onUserTurnRouted: () => () => {},
+      submitUser: vi.fn(),
       selfPresetId: "natsume",
     });
 
@@ -305,6 +323,8 @@ describe("wireDispatcherSources", () => {
       pacer,
       isFirstActivityHeld: () => false,
       onCharacterAddressed: () => () => {},
+      onUserTurnRouted: () => () => {},
+      submitUser: vi.fn(),
       selfPresetId: "natsume",
     });
   }

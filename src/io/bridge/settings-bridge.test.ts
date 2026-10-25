@@ -299,6 +299,8 @@ describe("createSettingsBridge", () => {
     ["onReasoningAsk", undefined, true],
     ["onHelpGuide", { guide: "controls", text: "help" }, true],
     ["onCharacterAddressed", { from: "p1", name: "Perlica", to: "p2", text: "x", ts: 1 }, false],
+    ["onUserTurnRouted", { sendId: "s1", to: "p2", text: "x" }, false],
+    ["onUserTurnDone", { sendId: "s1", preset: "p2" }, false],
   ] as const)("%s uses its declared preset scope", (method, payload, scoped) => {
     history.replaceState(null, "", "/?preset=a");
     const t = createFakeTransport();
@@ -349,6 +351,72 @@ describe("createSettingsBridge", () => {
     b.onCharacterAddressed(cb);
 
     a.emitCharacterAddressed(payload as never);
+
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("delivers a routed user turn from the unified window to a pet window", () => {
+    const t = createFakeTransport();
+    const unified = createSettingsBridge(t, { windowKind: "unified" });
+    const pet = createSettingsBridge(t, { windowKind: "pet" });
+    const cb = vi.fn();
+    pet.onUserTurnRouted(cb);
+
+    unified.emitUserTurnRouted({
+      sendId: "s1",
+      to: "natsume",
+      text: "@Natsume hi",
+      mention: "character",
+    });
+    unified.emitUserTurnRouted({ sendId: "s2", to: "natsume", text: "hi" });
+
+    expect(cb.mock.calls).toEqual([
+      [{ sendId: "s1", to: "natsume", text: "@Natsume hi", mention: "character" }],
+      [{ sendId: "s2", to: "natsume", text: "hi" }],
+    ]);
+  });
+
+  it.each([
+    { sendId: "s1", to: "natsume" },
+    { sendId: 7, to: "natsume", text: "x" },
+    { sendId: "s1", to: "natsume", text: "x", mention: "all" },
+    "garbage",
+  ])("ignores a malformed user-turn-routed payload %j", (payload) => {
+    const t = createFakeTransport();
+    const a = createSettingsBridge(t, { windowKind: "unified" });
+    const b = createSettingsBridge(t, { windowKind: "pet" });
+    const cb = vi.fn();
+    b.onUserTurnRouted(cb);
+
+    a.emitUserTurnRouted(payload as never);
+
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("delivers a user-turn-done event from a pet window to the unified window", () => {
+    const t = createFakeTransport();
+    const pet = createSettingsBridge(t, { windowKind: "pet" });
+    const unified = createSettingsBridge(t, { windowKind: "unified" });
+    const cb = vi.fn();
+    unified.onUserTurnDone(cb);
+
+    pet.emitUserTurnDone({ sendId: "s1", preset: "natsume" });
+
+    expect(cb).toHaveBeenCalledExactlyOnceWith({ sendId: "s1", preset: "natsume" });
+  });
+
+  it.each([
+    { sendId: "s1" },
+    { sendId: "s1", preset: 7 },
+    "garbage",
+  ])("ignores a malformed user-turn-done payload %j", (payload) => {
+    const t = createFakeTransport();
+    const a = createSettingsBridge(t, { windowKind: "pet" });
+    const b = createSettingsBridge(t, { windowKind: "unified" });
+    const cb = vi.fn();
+    b.onUserTurnDone(cb);
+
+    a.emitUserTurnDone(payload as never);
 
     expect(cb).not.toHaveBeenCalled();
   });
