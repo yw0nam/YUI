@@ -40,12 +40,14 @@ Applies to all TypeScript in `src/` and all Rust in `src-tauri/src/`.
 
 ## Relation events
 
-`io/chat/tools/relation.ts` (namespace `relation`) and `io/bridge/inbox/relations-rpc.ts` (namespace `relations-rpc`) log at `info`.
+`io/chat/tools/relation.ts` (namespace `relation`), `io/bridge/inbox/relations-rpc.ts` (namespace `relations-rpc`), and the Character tab's Relations section (namespace `quick-ui` in the pet window, `settings-ui` in the settings window) log at `info`.
 
 | Event | Fields | When |
 |---|---|---|
 | `relation_rated` | `target`, `delta`, `band`, `clamped` | A `rate_relation` call reached the store. `target` is `user` or a preset id, `delta` the change applied after the daily cap and the range, `band` the band after it. |
 | `relations_replaced` | `targets` | An ingress `PUT /relations` replaced the window's store; `targets` lists its keys. |
+| `relation_set` | `target`, `value`, `band` | The user released a Relations slider. `value` is the slider's value, `band` the band the store holds after the set. |
+| `relations_toggle` | `enabled` | The user flipped the Relations switch. |
 
 ## TypeScript Usage
 

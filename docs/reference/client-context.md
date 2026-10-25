@@ -220,14 +220,15 @@ The on/off state of every switchable in-app tool the window declares, rendered e
 `id=state` entry per tool, comma-separated, in declaration order; values are `on` and `off`:
 
 ```text
-tool switches: look.screen=on, browser=off
+tool switches: look.screen=on, browser=off, relations=on
 ```
 
 The line names the switch state only. The switch gates the tool's execution, read at the moment
 the call runs, so a state line the request outlives can still end in a refusal. The line is
-omitted when the turn declares no switchable tool: `main` declares `look.screen` and `browser`; a
-bound pet window declares `browser` alone; the phone window and the browser build declare none;
-and on Responses with `broker_base_url` set the client declares no tools. Tool ids carry the same
+omitted when the turn declares no switchable tool: every pet window and the browser build declare
+`relations`; under Tauri `main` also declares `look.screen` and `browser`, and a bound pet window
+also declares `browser`; the phone window declares none; and on Responses with `broker_base_url`
+set the client declares no tools. Tool ids carry the same
 sanitization as the other sampled fields.
 
 ### `previous turn`
@@ -323,7 +324,8 @@ boundary counts.
 
 How this character stands toward the user and toward each other character, as the
 backend has rated it so far. One line per target with a record, `user` first and then the
-other presets in registry order; omitted for a target the backend never rated.
+other presets in registry order; omitted for a target never rated, and omitted altogether while
+the Relations switch is off (`docs/reference/client-tools.md` § `rate_relation`).
 
 ```text
 relation: toward user warm (last change +1, 3d ago: "stayed up to finish the parser together")
@@ -340,7 +342,8 @@ The band is the value's band at the moment of the turn (`docs/reference/client-t
 the record's `note`, written only by an external engine over the ingress
 (`docs/reference/signals-ingress.md` § Relations); it is absent otherwise. The parenthesis names the last
 accepted change: its delta, its age (`Nmin`, `Nh` or `Nd`), and the reason the backend gave,
-quoted (Wording rule 5) after the sanitization above. The line carries no number: the
+or `set by the user` for a value the user set by hand, quoted (Wording rule 5) after the
+sanitization above. The line carries no number: the
 backend reads a band and the reason behind the last move, not a score.
 
 Only this window's own relation is rendered. What another character thinks of this one is

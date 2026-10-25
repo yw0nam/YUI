@@ -338,8 +338,9 @@ YUI/
         import-card-preset.ts        # Creates a preset from an imported card and rolls it back on any failure
         pet-windows.ts               # The desired open set under yui.windows, the open presets with names, and the live key each window holds under yui.live-window.<label>
       relations/                     # Each preset's relation toward the user and the other presets
-        relations-store.ts           # The per-preset store under yui.<id>.relations: bands, the daily cap, the range clamp, and the read of another preset's store
-        relation-lines.ts            # The relation entries a turn carries: user first, then the other presets in registry order
+        relations-store.ts           # The per-preset store under yui.<id>.relations: bands, the daily cap, the range clamp, the user's own set, and the read of another preset's store
+        relations-switch.ts          # The device-wide Relations switch under yui.relations-enabled, on by default
+        relation-lines.ts            # The relation entries a turn carries: user first, then the other presets in registry order; none while the switch is off
         relation-targets.ts          # The label a prompt line or the rate_relation enum shows for a preset: one named `user` is disambiguated
       identity/                      # Who the user is to the character
         user-name-settings.ts        # Device-wide "Your name", what {{user}} resolves to
@@ -605,6 +606,9 @@ YUI/
             express-motion-section.css # Express motion styles
           bed-scene/                 # Launch bed scene
             bed-scene-section.ts     # Bed scene switch and wake timeout
+          relations/                 # Relations section
+            relations-edit-section.ts  # One slider row per target that sets the relation by hand, and the Relations switch
+            relations-edit.css       # Relations rows, the centre-out slider fill, and the number
           gain/                      # Mouth gain
             gain-row.ts              # Mouth gain preview
           viewpoint/                 # Camera view reset
@@ -629,7 +633,7 @@ YUI/
           relations/                 # The relation line under the preset row, and the reasons card
             relations-section.ts     # Composes the two, re-renders on the store's notifications, and moves the changed relations
             relation-glyph.ts        # The five-step glyph and its band motion, the relation chip, the direction mark, and the age text
-            relation-line.ts         # This preset's relation toward each rated target, sorted by strength, the closed presets folded into a +N chip
+            relation-line.ts         # This preset's relation toward each rated target, sorted by strength, on one row: the closed presets and the chips past its width folded into a +N chip
             reasons-card.ts          # The band, the engine's note, and the last three reasons of a hovered or focused relation
             view.ts                  # What the two read: this preset's relations as stored now
         history/                     # History tab and its session accordion section

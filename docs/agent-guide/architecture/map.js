@@ -669,7 +669,7 @@ globalThis.YUI_MAP =
       "id": "settings",
       "module": "settings",
       "label": "settings",
-      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap, and the relation entries a turn carries; each preset's card and send switch live in its yui.agent key, and the device-wide yui.user-name holds what {{user}} resolves to.",
+      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, and the device-wide yui.user-name holds what {{user}} resolves to.",
       "paths": [
         "src/settings"
       ]
@@ -1567,7 +1567,7 @@ globalThis.YUI_MAP =
       "id": "relations-context",
       "from": "settings",
       "to": "dispatcher/backend",
-      "carries": "readRelationLines(store.all(), this window's preset, the registry list) → ClientContext.relations, read per turn",
+      "carries": "readRelationLines(store.all(), this window's preset, the registry list, the Relations switch) → ClientContext.relations, read per turn; none while the switch is off",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/wire-dispatcher.ts"
@@ -2028,7 +2028,7 @@ globalThis.YUI_MAP =
       "id": "relations-tool",
       "from": "io/chat/tools",
       "to": "settings",
-      "carries": "rate_relation → store.rate(target id, delta, why, now) → {band, applied, clamped}; the daily cap and the range clamp it",
+      "carries": "rate_relation → store.rate(target id, delta, why, now) → {band, applied, clamped}; the daily cap and the range clamp it; while the Relations switch is off the call answers error: relations are off and writes nothing",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/relations/wire-relations.ts"
@@ -2146,6 +2146,15 @@ globalThis.YUI_MAP =
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/controls/wire-pet-controls.ts"
+    },
+    {
+      "id": "relations-set",
+      "from": "ui/quick-controls",
+      "to": "settings",
+      "carries": "the Relations section's slider → store.set(target, value, \"set by the user\", now): the range clamps, no daily cap; the strip, the pet window (over the broadcast) and the next turn read the new value",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/quick-controls.ts"
     },
     {
       "id": "ingress-start",
