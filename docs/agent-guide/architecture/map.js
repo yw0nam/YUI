@@ -1134,6 +1134,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "ui/unified",
+      "module": "display",
+      "label": "unified chat",
+      "role": "The unified chat window's list of every open preset's transcript, its composer with the mention pill and the @ list, and the one-at-a-time routing of a message to one preset or to all.",
+      "paths": [
+        "src/ui/unified"
+      ]
+    },
+    {
       "id": "ui/signals",
       "module": "display",
       "label": "source line",

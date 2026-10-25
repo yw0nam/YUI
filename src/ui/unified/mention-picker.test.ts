@@ -8,9 +8,9 @@ const CAST = [
 ];
 
 let field: HTMLTextAreaElement;
-let onPick: ReturnType<typeof vi.fn>;
+let onPick: ReturnType<typeof vi.fn<(mention: string) => void>>;
 /** Stands in for the text input's own Enter and Escape handler, registered after the picker's. */
-let reachesInput: ReturnType<typeof vi.fn>;
+let reachesInput: ReturnType<typeof vi.fn<(e: KeyboardEvent) => void>>;
 
 function type(text: string): void {
   field.value = text;
@@ -30,14 +30,14 @@ function list(): HTMLElement {
 beforeEach(() => {
   document.body.innerHTML = '<div id="dock"><textarea></textarea></div>';
   field = document.querySelector("textarea")!;
-  onPick = vi.fn();
+  onPick = vi.fn<(mention: string) => void>();
   createMentionPicker({
     field,
     mount: document.querySelector("#dock")!,
     cast: () => CAST,
     onPick,
   });
-  reachesInput = vi.fn();
+  reachesInput = vi.fn<(e: KeyboardEvent) => void>();
   field.addEventListener("keydown", reachesInput);
 });
 
@@ -47,7 +47,7 @@ describe("createMentionPicker", () => {
 
     expect(list().hidden).toBe(false);
     expect(field.getAttribute("aria-expanded")).toBe("true");
-    expect([...list().querySelectorAll("[role=option]")].map((o) => o.textContent)).toEqual([
+    expect([...list().querySelectorAll(".yui-uc__opt-name")].map((o) => o.textContent)).toEqual([
       "Natsume",
       "@everyone",
     ]);

@@ -126,7 +126,7 @@ describe("unified view — routing", () => {
     expect(routed).toEqual([
       { sendId: "send-1", to: "natsume", text: "@Natsume hello", mention: "character" },
     ]);
-    expect(document.querySelector(".yui-uc__pill")).toBeNull();
+    expect(document.querySelector(".yui-uc__pill")?.hasAttribute("hidden")).toBe(true);
     expect(field().value).toBe("");
   });
 
@@ -153,10 +153,9 @@ describe("unified view — routing", () => {
   it("@everyone emits to the first target only, then to the second once the first is done", () => {
     mount();
     type("@");
-    document.querySelectorAll<HTMLElement>("[role=option]").forEach((o) => {
-      if (o.textContent === "@everyone")
-        o.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
-    });
+    [...document.querySelectorAll<HTMLElement>("[role=option]")]
+      .find((o) => o.querySelector(".yui-uc__opt-name")?.textContent === "@everyone")
+      ?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
     type("hi");
     press("Enter");
 

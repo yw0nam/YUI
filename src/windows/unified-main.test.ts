@@ -106,7 +106,9 @@ it("routes a typed message to the last speaker over the bridge", async () => {
     new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
   );
 
-  expect(routed).toEqual([{ sendId: expect.any(String), to: "natsume", text: "hi" }]);
+  await vi.waitFor(() =>
+    expect(routed).toEqual([{ sendId: expect.any(String), to: "natsume", text: "hi" }]),
+  );
 });
 
 it("stops following the signals after unload", async () => {

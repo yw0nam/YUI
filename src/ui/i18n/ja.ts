@@ -265,6 +265,15 @@ const ja: Record<string, string> = {
   "unified.enable_label": "統合チャット",
   "unified.enable_sub":
     "キャラクターが2人以上開いているとき、ひとつのウィンドウでまとめて話せます。@で相手を選び、なければ最後に話したキャラクターが答えます",
+  "unified.title": "統合チャット",
+  "unified.to": "{name}に",
+  "unified.marker": "→ {name}",
+  "unified.everyone": "@everyone",
+  "unified.everyone_sub": "開いているキャラクター全員に",
+  "unified.hint": "@で答えるキャラクターを選べます",
+  "unified.remove_mention": "宛先を外す",
+  "unified.just_now": "たった今",
+  "unified.pending": "送信中",
 
   // filler (thinking interjections)
   "filler.section": "考え中のあいづち",

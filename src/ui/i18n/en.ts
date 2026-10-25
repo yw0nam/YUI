@@ -262,6 +262,15 @@ const en: Record<string, string> = {
   "unified.enable_label": "Unified chat",
   "unified.enable_sub":
     "With two or more characters open, talk to all of them in one window; @ picks who answers, else the last speaker",
+  "unified.title": "Unified chat",
+  "unified.to": "to {name}",
+  "unified.marker": "→ {name}",
+  "unified.everyone": "@everyone",
+  "unified.everyone_sub": "to every open character",
+  "unified.hint": "@ picks who answers",
+  "unified.remove_mention": "Remove mention",
+  "unified.just_now": "now",
+  "unified.pending": "sending",
 
   // filler (thinking interjections)
   "filler.section": "Thinking interjections",

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { UserTurnRouted } from "../../io/bridge/settings-bridge";
 import type { Row } from "./merge";
 import { createSequence, lastSpeakerOf, targetsFor } from "./router";
 
@@ -43,12 +44,12 @@ describe("createSequence", () => {
     text: "hi",
     mention: "everyone" as const,
   };
-  let emit: ReturnType<typeof vi.fn>;
+  let emit: ReturnType<typeof vi.fn<(event: UserTurnRouted) => void>>;
 
   beforeEach(() => {
     vi.useFakeTimers();
     vi.spyOn(console, "info").mockImplementation(() => {});
-    emit = vi.fn();
+    emit = vi.fn<(event: UserTurnRouted) => void>();
   });
   afterEach(() => {
     vi.useRealTimers();

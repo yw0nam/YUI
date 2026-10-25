@@ -72,6 +72,7 @@ export default defineConfig(() => ({
         main: resolve(__dirname, "index.html"),
         settings: resolve(__dirname, "settings.html"),
         message: resolve(__dirname, "message.html"),
+        unified: resolve(__dirname, "unified.html"),
         devtools: resolve(__dirname, "devtools.html"),
         phone: resolve(__dirname, "phone.html"),
       },
