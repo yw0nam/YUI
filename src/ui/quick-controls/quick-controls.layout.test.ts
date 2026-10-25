@@ -381,7 +381,12 @@ describe("createQuickControls — Reactions tab layout", () => {
 
   // ── Rate-limit caps ───────────────────────────────────────────────────────
 
-  const RATE_LIMIT_DEFAULTS = { tier2_max: 24, urgent_max: 120, overall_max: 40 };
+  const RATE_LIMIT_DEFAULTS = {
+    tier2_max: 24,
+    urgent_max: 120,
+    overall_max: 40,
+    addressed_chain_max: 2,
+  };
 
   function buildRateQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
     const rateLimitSettings = createGuardrailsSettings();
@@ -395,11 +400,16 @@ describe("createQuickControls — Reactions tab layout", () => {
     };
   }
 
-  it("renders the three rate-limit rows inside #yui-panel-react", () => {
+  it("renders the four rate-limit rows inside #yui-panel-react", () => {
     const { qc } = buildRateQc();
     qc.open();
     const panel = qc.el.querySelector<HTMLElement>("#yui-panel-react")!;
-    for (const id of ["#yui-rate-tier2", "#yui-rate-urgent", "#yui-rate-overall"]) {
+    for (const id of [
+      "#yui-rate-tier2",
+      "#yui-rate-urgent",
+      "#yui-rate-overall",
+      "#yui-rate-addressed",
+    ]) {
       const input = qc.el.querySelector<HTMLInputElement>(id);
       expect(input).not.toBeNull();
       expect(input!.type).toBe("number");

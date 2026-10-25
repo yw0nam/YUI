@@ -18,6 +18,7 @@ const CFG = {
       tier2_max: 5,
       overall_max: 10,
       cooldown_ms: 1000,
+      addressed_chain_max: 2,
     },
   },
 } as unknown as AppConfig;
@@ -49,7 +50,12 @@ const emptyEndpointOverrides = {
   chat_api: "",
   tts_provider: "",
 };
-const emptyGuardrailOverrides = { tier2_max: 0, urgent_max: 0, overall_max: 0 };
+const emptyGuardrailOverrides = {
+  tier2_max: 0,
+  urgent_max: 0,
+  overall_max: 0,
+  addressed_chain_max: 0,
+};
 
 beforeEach(() => {
   vi.stubEnv("VITE_YUI_CHAT_KEY", "");

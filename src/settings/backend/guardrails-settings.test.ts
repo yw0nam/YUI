@@ -22,6 +22,7 @@ function baseConfig(): GuardrailsConfig {
       urgent_max: 120,
       overall_max: 40,
       cooldown_ms: 300_000,
+      addressed_chain_max: 2,
     },
     attachments: { max_count: 6, max_image_bytes: 5_242_880 },
   };
@@ -40,7 +41,12 @@ function inMemoryStorage(initial: RateLimitOverrides | null = null): GuardrailsS
 describe("guardrails settings — store shape", () => {
   it("defaults to no override for every cap", () => {
     const store = createGuardrailsSettings({ storage: inMemoryStorage() });
-    expect(store.get()).toEqual({ tier2_max: 0, urgent_max: 0, overall_max: 0 });
+    expect(store.get()).toEqual({
+      tier2_max: 0,
+      urgent_max: 0,
+      overall_max: 0,
+      addressed_chain_max: 0,
+    });
   });
 
   it("set() persists an edited cap and notifies subscribers", () => {
@@ -58,7 +64,12 @@ describe("guardrails settings — store shape", () => {
     const store = createGuardrailsSettings({ storage: inMemoryStorage() });
     store.set({ tier2_max: 30 });
     store.set({ overall_max: 50 });
-    expect(store.get()).toEqual({ tier2_max: 30, urgent_max: 0, overall_max: 50 });
+    expect(store.get()).toEqual({
+      tier2_max: 30,
+      urgent_max: 0,
+      overall_max: 50,
+      addressed_chain_max: 0,
+    });
   });
 
   it("clears the override when set to 0", () => {
@@ -87,7 +98,12 @@ describe("guardrails settings — store shape", () => {
         overall_max: 0,
       } as RateLimitOverrides),
     });
-    expect(store.get()).toEqual({ tier2_max: 0, urgent_max: 0, overall_max: 0 });
+    expect(store.get()).toEqual({
+      tier2_max: 0,
+      urgent_max: 0,
+      overall_max: 0,
+      addressed_chain_max: 0,
+    });
   });
 
   it("loads a stored value that still holds tier3_max and keeps the other caps across a reload", () => {
@@ -107,7 +123,7 @@ describe("guardrails settings — store shape", () => {
   it("reloadFromStorage adopts another window's edit", () => {
     const storage = inMemoryStorage();
     const store = createGuardrailsSettings({ storage });
-    storage.save({ tier2_max: 18, urgent_max: 0, overall_max: 0 });
+    storage.save({ tier2_max: 18, urgent_max: 0, overall_max: 0, addressed_chain_max: 0 });
     store.reloadFromStorage();
     expect(store.get().tier2_max).toBe(18);
   });
@@ -119,6 +135,7 @@ describe("guardrails settings — store shape", () => {
       tier2_max: 0,
       urgent_max: 0,
       overall_max: 0,
+      addressed_chain_max: 0,
     });
     expect(load).toHaveBeenCalled();
   });
@@ -138,7 +155,12 @@ describe("guardrails settings — store shape", () => {
 describe("guardrails settings — store over config", () => {
   it("keeps the config default for every cap left unset", () => {
     const base = baseConfig();
-    const merged = mergeGuardrails(base, { tier2_max: 0, urgent_max: 0, overall_max: 0 });
+    const merged = mergeGuardrails(base, {
+      tier2_max: 0,
+      urgent_max: 0,
+      overall_max: 0,
+      addressed_chain_max: 0,
+    });
     expect(merged.rate_limit).toEqual(base.rate_limit);
   });
 
@@ -147,6 +169,7 @@ describe("guardrails settings — store over config", () => {
       tier2_max: 30,
       urgent_max: 90,
       overall_max: 60,
+      addressed_chain_max: 0,
     });
     expect(merged.rate_limit.tier2_max).toBe(30);
     expect(merged.rate_limit.urgent_max).toBe(90);
@@ -155,7 +178,12 @@ describe("guardrails settings — store over config", () => {
 
   it("leaves window_ms / cooldown_ms / debounce_ms / attachments untouched", () => {
     const base = baseConfig();
-    const merged = mergeGuardrails(base, { tier2_max: 30, urgent_max: 0, overall_max: 0 });
+    const merged = mergeGuardrails(base, {
+      tier2_max: 30,
+      urgent_max: 0,
+      overall_max: 0,
+      addressed_chain_max: 0,
+    });
     expect(merged.rate_limit.window_ms).toBe(base.rate_limit.window_ms);
     expect(merged.rate_limit.cooldown_ms).toBe(base.rate_limit.cooldown_ms);
     expect(merged.debounce_ms).toEqual(base.debounce_ms);
@@ -167,12 +195,18 @@ describe("guardrails settings — store over config", () => {
       tier2_max: 24,
       urgent_max: 120,
       overall_max: 40,
+      addressed_chain_max: 2,
     });
   });
 
   it("never mutates the config it layers onto", () => {
     const base = baseConfig();
-    mergeGuardrails(base, { tier2_max: 30, urgent_max: 90, overall_max: 60 });
+    mergeGuardrails(base, {
+      tier2_max: 30,
+      urgent_max: 90,
+      overall_max: 60,
+      addressed_chain_max: 0,
+    });
     expect(base.rate_limit.tier2_max).toBe(24);
     expect(base.rate_limit.urgent_max).toBe(120);
     expect(base.rate_limit.overall_max).toBe(40);

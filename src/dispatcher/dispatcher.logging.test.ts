@@ -15,6 +15,7 @@ import { type BusEnvelope, createEventBus, type EventBus } from "./core/event-bu
 import { createGuardrails, type Guardrails } from "./core/guardrails";
 import { createDispatcher, type Dispatcher } from "./dispatcher";
 import {
+  createDefaultAddressedChain,
   type DeferredCall,
   env,
   makeDeferredBackendCaller,
@@ -107,6 +108,7 @@ beforeEach(() => {
     guardrails,
     turnLog,
     hasOutstandingSpeech: () => speaking,
+    addressedChain: createDefaultAddressedChain(),
     onTurnDropped,
     peek: { enter: peekEnter, exit: peekExit },
     logger,
@@ -208,6 +210,7 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
       guardrails,
       turnLog,
       hasOutstandingSpeech: () => speaking,
+      addressedChain: createDefaultAddressedChain(),
       logger,
       onUserTurnFailed: sink,
     });
@@ -266,6 +269,7 @@ describe("dispatcher — onUserTurnFailed seam (issue #274)", () => {
       guardrails,
       turnLog,
       hasOutstandingSpeech: () => speaking,
+      addressedChain: createDefaultAddressedChain(),
       logger,
       onUserTurnFailed: sink,
     });
@@ -636,6 +640,7 @@ describe("dispatcher — onTurnFailed seam", () => {
       guardrails,
       turnLog,
       hasOutstandingSpeech: () => speaking,
+      addressedChain: createDefaultAddressedChain(),
       onTurnDropped,
       logger,
       onTurnFailed: sink,

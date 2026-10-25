@@ -14,7 +14,13 @@ import { createBackendCaller } from "./backend/backend-caller";
 import { type BusEnvelope, createEventBus, type EventBus } from "./core/event-bus";
 import { createGuardrails } from "./core/guardrails";
 import { createDispatcher, type Dispatcher } from "./dispatcher";
-import { CONFIG, makeLogger, makeTurnOutput, userEnv } from "./test-helpers";
+import {
+  CONFIG,
+  createDefaultAddressedChain,
+  makeLogger,
+  makeTurnOutput,
+  userEnv,
+} from "./test-helpers";
 import { createPushTurns, type PushTurns } from "./turn/push-turn";
 import { createTurnLog } from "./turn/turn";
 
@@ -85,11 +91,13 @@ beforeEach(() => {
         urgent_max: 1000,
         overall_max: 1000,
         cooldown_ms: 300_000,
+        addressed_chain_max: 2,
       },
       attachments: guardrailsFixture().attachments,
     }),
     turnLog: createTurnLog(),
     hasOutstandingSpeech: () => false,
+    addressedChain: createDefaultAddressedChain(),
     peekConfig: () => PEEK_CONFIG,
     tapConfig: () => TAP_CONFIG,
     logger: makeLogger(),

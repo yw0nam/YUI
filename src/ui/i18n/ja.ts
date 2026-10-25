@@ -600,17 +600,20 @@ const ja: Record<string, string> = {
   "reactions.pacer_gap_sub": "やり取りのあと、YUI がまた自分から話しかけるまで空ける最小の間隔",
   "reactions.pacer_gap_hint": "0 にすると待たずにすぐ話しかけます。",
   "reactions.minutes_suffix": "分",
-  "reactions.rate_title": "1時間あたりの上限",
+  "reactions.rate_title": "上限",
   "reactions.rate_hint":
     "YUI が自分から話しかける頻度の上限です。あなたからのメッセージは数えません。空欄なら初期値を使います。",
   "reactions.rate_tier2_label": "1時間あたりの話しかけ",
-  "reactions.rate_tier2_sub": "自発・スケジュール・エージェント・シグナル・マイルストーンの合計",
+  "reactions.rate_tier2_sub":
+    "自発・スケジュール・エージェント・シグナル・マイルストーン・呼ばれて答えるの合計",
   "reactions.rate_overall_label": "1時間あたりの自発ターン合計",
   "reactions.rate_overall_sub": "超えるとクールダウンの間すべて止まります",
   "reactions.rate_urgent_label": "1時間あたりの緊急シグナルターン",
   "reactions.rate_urgent_sub": "送り手が緊急と指定したシグナル。クールダウンでは止まりません",
+  "reactions.rate_addressed_label": "呼ばれて続けて答える回数",
+  "reactions.rate_addressed_sub": "あなたが次に話すまでに、他のキャラクターに呼ばれて答える回数",
   "reactions.rate_hint_text":
-    "ユイが1時間に自分から話しかけられる回数の上限です。あなたから話しかけた分は数えません。",
+    "ユイが自分から話しかけられる回数の上限です。あなたから話しかけた分は数えません。",
 
   // screen watch (proactive tab)
   "screen.section": "画面の検知",

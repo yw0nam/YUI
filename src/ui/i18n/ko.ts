@@ -596,17 +596,20 @@ const ko: Record<string, string> = {
   "reactions.pacer_gap_sub": "대화가 오간 뒤 유이가 다시 먼저 말을 걸기까지 두는 최소 간격",
   "reactions.pacer_gap_hint": "0으로 두면 기다리지 않고 바로 말을 걸어요.",
   "reactions.minutes_suffix": "분",
-  "reactions.rate_title": "시간당 상한",
+  "reactions.rate_title": "상한",
   "reactions.rate_hint":
     "YUI가 먼저 말을 거는 빈도의 상한이에요. 내가 보낸 메시지는 세지 않아요. 비워 두면 기본값을 써요.",
   "reactions.rate_tier2_label": "시간당 말 걸기",
-  "reactions.rate_tier2_sub": "자발적 말 걸기, 일정, 에이전트, 신호, 마일스톤 턴을 합쳐서 세요",
+  "reactions.rate_tier2_sub":
+    "자발적 말 걸기, 일정, 에이전트, 신호, 마일스톤, 불려서 답하는 턴을 합쳐서 세요",
   "reactions.rate_overall_label": "시간당 먼저 건 대화 전체",
   "reactions.rate_overall_sub": "넘어서면 쿨다운 동안 모두 멈춰요",
   "reactions.rate_urgent_label": "시간당 긴급 신호 턴",
   "reactions.rate_urgent_sub": "보낸 쪽이 긴급으로 표시한 신호예요. 쿨다운에 걸리지 않아요",
+  "reactions.rate_addressed_label": "연달아 불려서 답하기",
+  "reactions.rate_addressed_sub": "내가 다시 말하기 전까지, 다른 캐릭터에게 불려 답하는 횟수",
   "reactions.rate_hint_text":
-    "유이가 1시간 동안 먼저 말을 걸 수 있는 횟수의 한도예요. 내가 직접 건 말은 세지 않아요.",
+    "유이가 먼저 말을 걸 수 있는 횟수의 한도예요. 내가 직접 건 말은 세지 않아요.",
 
   // screen watch (proactive tab)
   "screen.section": "화면 감지",

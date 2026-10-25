@@ -10,7 +10,13 @@ import { createGuardrails } from "../../core/guardrails";
 import { composePacedPipelineBusy } from "../../core/paced-pipeline-busy";
 import { createProactivePacer } from "../../core/proactive-pacer";
 import { createDispatcher } from "../../dispatcher";
-import { makeLogger, NOW, permissiveGuardrailsConfig, SIGNAL_ENVELOPE } from "../../test-helpers";
+import {
+  createDefaultAddressedChain,
+  makeLogger,
+  NOW,
+  permissiveGuardrailsConfig,
+  SIGNAL_ENVELOPE,
+} from "../../test-helpers";
 import { createTurnLog } from "../../turn/turn";
 import { createWakeSource } from "../wake/wake-source";
 import { createAgentSource } from "./agent-source";
@@ -55,6 +61,7 @@ it.each([
     turnLog: createTurnLog(),
     renderer: {} as never,
     hasOutstandingSpeech: () => false,
+    addressedChain: createDefaultAddressedChain(),
     logger: makeLogger(),
     onTurnDropped: (env) => signalsSource.restore(env),
   });

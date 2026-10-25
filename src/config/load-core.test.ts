@@ -56,6 +56,7 @@ describe("loadConfig — guardrails", () => {
         urgent_max: 120,
         overall_max: 20,
         cooldown_ms: 300000,
+        addressed_chain_max: 2,
       },
       attachments: guardrailsFixture().attachments,
     });

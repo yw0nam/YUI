@@ -9,7 +9,8 @@
     "tier2_max": 24,
     "urgent_max": 120,
     "overall_max": 40,
-    "cooldown_ms": 300000
+    "cooldown_ms": 300000,
+    "addressed_chain_max": 2
   },
   "attachments": {
     "max_count": 6,

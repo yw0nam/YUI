@@ -21,6 +21,7 @@ import { createDispatcher, type Dispatcher } from "./dispatcher";
 import {
   CONFIG,
   completedEvent,
+  createDefaultAddressedChain,
   createScriptedStream,
   deltaEvent,
   makeLogger,
@@ -44,6 +45,7 @@ function permissiveGuardrailsConfig(): GuardrailsConfig {
       urgent_max: 1000,
       overall_max: 1000,
       cooldown_ms: 300_000,
+      addressed_chain_max: 2,
     },
     attachments: guardrailsFixture().attachments,
   };
@@ -200,6 +202,7 @@ describe("dispatcher — turn admission across the amplitude flag (#512)", () =>
       guardrails,
       turnLog,
       hasOutstandingSpeech: () => speechPlayback.hasOutstandingSpeech(),
+      addressedChain: createDefaultAddressedChain(),
       logger: makeLogger(),
     });
   });

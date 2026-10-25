@@ -47,6 +47,7 @@ function validConfig(): AppConfig {
         urgent_max: 120,
         overall_max: 20,
         cooldown_ms: 30_000,
+        addressed_chain_max: 2,
       },
       attachments: guardrailsFixture().attachments,
     },

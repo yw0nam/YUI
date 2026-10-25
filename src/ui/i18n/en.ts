@@ -598,17 +598,21 @@ const en: Record<string, string> = {
   "reactions.pacer_gap_sub": "Minimum quiet gap after any turn before YUI speaks up on her own",
   "reactions.pacer_gap_hint": "0 lets every source speak up without waiting.",
   "reactions.minutes_suffix": "min",
-  "reactions.rate_title": "Hourly limits",
+  "reactions.rate_title": "Limits",
   "reactions.rate_hint":
     "Backstop on how often YUI speaks up on her own. Your own messages are never counted. Empty means the shipped default.",
   "reactions.rate_tier2_label": "Cues per hour",
-  "reactions.rate_tier2_sub": "Proactive, schedule, agent, signal, and milestone turns together",
+  "reactions.rate_tier2_sub":
+    "Proactive, schedule, agent, signal, milestone, and addressed turns together",
   "reactions.rate_overall_label": "Total self-started turns per hour",
   "reactions.rate_overall_sub": "Crossing it holds every cue for a cooldown",
   "reactions.rate_urgent_label": "Urgent signal turns per hour",
   "reactions.rate_urgent_sub": "Signals a producer marked urgent; the cooldown never holds them",
+  "reactions.rate_addressed_label": "Answers to another character, in a row",
+  "reactions.rate_addressed_sub":
+    "How many times she answers a character who addressed her before you speak again",
   "reactions.rate_hint_text":
-    "Ceiling on how many times YUI may speak up on her own in an hour. Turns you start are never counted.",
+    "Ceilings on how often YUI may speak up on her own. Turns you start are never counted.",
 
   // screen watch (proactive tab)
   "screen.section": "Screen watch",

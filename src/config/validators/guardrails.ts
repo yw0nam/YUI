@@ -28,6 +28,8 @@ export interface GuardrailsConfig {
     overall_max: number;
     /** cooldown duration (ms) after overall is exceeded. */
     cooldown_ms: number;
+    /** consecutive addressed turns a window answers without a user turn in between. */
+    addressed_chain_max: number;
   };
   /** attach-time caps on turn attachments. */
   attachments: AttachmentLimits;
@@ -64,13 +66,25 @@ export function validateGuardrails(file: string, raw: unknown): GuardrailsConfig
 
   // rate_limit
   const rawRate = raw.rate_limit;
-  const rate_limit = { window_ms: 0, tier2_max: 0, urgent_max: 0, overall_max: 0, cooldown_ms: 0 };
+  const rate_limit = {
+    window_ms: 0,
+    tier2_max: 0,
+    urgent_max: 0,
+    overall_max: 0,
+    cooldown_ms: 0,
+    addressed_chain_max: 0,
+  };
   if (!isObject(rawRate)) {
     issues.push(`rate_limit must be an object (got: ${JSON.stringify(rawRate)})`);
   } else {
     for (const k of Object.keys(rate_limit) as (keyof typeof rate_limit)[]) {
       rate_limit[k] = nonNegNum(rawRate, "rate_limit", k);
     }
+  }
+  if (!Number.isInteger(rate_limit.addressed_chain_max)) {
+    issues.push(
+      `rate_limit.addressed_chain_max must be an integer (got: ${JSON.stringify(rate_limit.addressed_chain_max)})`,
+    );
   }
 
   // attachments

@@ -17,6 +17,7 @@ function baseRaw(overrides: Record<string, unknown> = {}): Record<string, unknow
       urgent_max: 120,
       overall_max: 26,
       cooldown_ms: 300000,
+      addressed_chain_max: 2,
     },
     attachments: {
       max_count: 6,
@@ -54,7 +55,14 @@ describe("validateGuardrails — happy path", () => {
         user_input_source: 0,
         screen_watcher: 0,
       },
-      rate_limit: { window_ms: 0, tier2_max: 0, urgent_max: 0, overall_max: 0, cooldown_ms: 0 },
+      rate_limit: {
+        window_ms: 0,
+        tier2_max: 0,
+        urgent_max: 0,
+        overall_max: 0,
+        cooldown_ms: 0,
+        addressed_chain_max: 0,
+      },
     });
     const out = validateGuardrails(FILE, raw);
     expect(out).toEqual(raw);
@@ -72,6 +80,7 @@ describe("validateGuardrails — a file that still holds tier3_max", () => {
         urgent_max: 120,
         overall_max: 26,
         cooldown_ms: 300000,
+        addressed_chain_max: 2,
       },
       attachments: { max_count: 6, max_image_bytes: 5242880 },
     };
@@ -134,6 +143,7 @@ describe("validateGuardrails — rate_limit", () => {
           urgent_max: 120,
           overall_max: 26,
           cooldown_ms: 300000,
+          addressed_chain_max: 2,
         },
       }),
       "rate_limit.tier2_max must be a finite number >= 0",

@@ -16,6 +16,7 @@ import { type BusEnvelope, createEventBus, type EventBus } from "./core/event-bu
 import { createGuardrails, type Guardrails } from "./core/guardrails";
 import { createDispatcher, type Dispatcher } from "./dispatcher";
 import {
+  createDefaultAddressedChain,
   type DeferredCall,
   env,
   makeDeferredBackendCaller,
@@ -102,6 +103,7 @@ beforeEach(() => {
     guardrails,
     turnLog,
     hasOutstandingSpeech: () => speaking,
+    addressedChain: createDefaultAddressedChain(),
     peek: { enter: peekEnter, exit: peekExit },
     logger,
     peekConfig: () => PEEK_CONFIG,

@@ -15,8 +15,8 @@ import { type BusEnvelope, createEventBus, type EventBus } from "./core/event-bu
 import { createGuardrails, type Guardrails } from "./core/guardrails";
 import { createDispatcher, type Dispatcher } from "./dispatcher";
 import {
-  type DeferredCall,
   createDefaultAddressedChain,
+  type DeferredCall,
   env,
   makeDeferredBackendCaller,
   makeLogger,
@@ -270,6 +270,7 @@ describe("dispatcher — guardrail gating (§6)", () => {
       guardrails: g,
       turnLog,
       hasOutstandingSpeech: () => false,
+      addressedChain: createDefaultAddressedChain(),
       logger,
     });
     return { d, g };
@@ -289,6 +290,7 @@ describe("dispatcher — guardrail gating (§6)", () => {
       guardrails: g,
       turnLog,
       hasOutstandingSpeech: () => false,
+      addressedChain: createDefaultAddressedChain(),
       logger,
     });
     d.start();
@@ -396,6 +398,7 @@ describe("dispatcher — global proactive pacer gate", () => {
       onTurnDropped: over.onTurnDropped,
       turnLog,
       hasOutstandingSpeech: () => false,
+      addressedChain: createDefaultAddressedChain(),
       logger,
       peekConfig: () => PEEK_CONFIG,
       tapConfig: () => TAP_CONFIG,
@@ -592,6 +595,7 @@ describe("dispatcher — urgent signals guardrails (urgent_max)", () => {
       guardrails: g,
       turnLog,
       hasOutstandingSpeech: () => false,
+      addressedChain: createDefaultAddressedChain(),
       logger,
     });
     return { d, g };

@@ -4,6 +4,7 @@ import { CHAT_API_KEY_SECRET } from "../../config/secrets";
 import type { EndpointsConfig, FrontmostState, ToolStatus, Usage } from "../../contract";
 import { createBackendCaller } from "../../dispatcher/backend/backend-caller";
 import type { PreviousTurnSlot } from "../../dispatcher/backend/previous-turn";
+import { createAddressedChain } from "../../dispatcher/core/addressed-chain";
 import type { EventBus } from "../../dispatcher/core/event-bus";
 import {
   createGuardrails,
@@ -240,6 +241,8 @@ export function wireDispatcher(deps: {
       }) ?? (() => {}),
   });
   const guardrails = createGuardrails(getGuardrails());
+  // Read per envelope, so an edited row applies to the next one.
+  const addressedChain = createAddressedChain(() => getGuardrails().rate_limit.addressed_chain_max);
   const pacer = createProactivePacer({ getIntervalMs: () => pacerGapSettings.get().value });
   register(pacer.stop);
   register(pacerGapSettings.subscribe(() => pacer.noteIntervalChanged()));
@@ -251,6 +254,7 @@ export function wireDispatcher(deps: {
     renderer,
     backendCaller,
     guardrails,
+    addressedChain,
     peek: {
       enter: () => peekRef?.enter() ?? Promise.resolve(),
       exit: () => peekRef?.exit() ?? Promise.resolve(),

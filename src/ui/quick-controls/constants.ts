@@ -72,6 +72,12 @@ export const RATE_LIMIT_FIELDS: readonly RateLimitFieldDef[] = [
     labelKey: "reactions.rate_overall_label",
     subKey: "reactions.rate_overall_sub",
   },
+  {
+    key: "addressed_chain_max",
+    id: "yui-rate-addressed",
+    labelKey: "reactions.rate_addressed_label",
+    subKey: "reactions.rate_addressed_sub",
+  },
 ];
 
 // Proactive tab, screen-watch section: the editable configs/screen.json thresholds

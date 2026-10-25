@@ -14,6 +14,7 @@ import { createEventBus, type EventBus } from "./core/event-bus";
 import { createGuardrails, type Guardrails } from "./core/guardrails";
 import { createDispatcher, type Dispatcher } from "./dispatcher";
 import {
+  createDefaultAddressedChain,
   type DeferredCall,
   env,
   makeDeferredBackendCaller,
@@ -94,6 +95,7 @@ beforeEach(() => {
     guardrails,
     turnLog,
     hasOutstandingSpeech: () => false,
+    addressedChain: createDefaultAddressedChain(),
     peek: { enter: peekEnter, exit: peekExit },
     logger,
     peekConfig: () => PEEK_CONFIG,
@@ -121,6 +123,7 @@ describe("dispatcher — cooldown state mirror (§6.3/§9)", () => {
       guardrails: g,
       turnLog,
       hasOutstandingSpeech: () => false,
+      addressedChain: createDefaultAddressedChain(),
       logger,
     });
     d.start();

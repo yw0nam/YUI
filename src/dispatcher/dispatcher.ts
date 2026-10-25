@@ -41,6 +41,7 @@ import type {
   TurnFailure,
   TurnOutcome,
 } from "./backend/backend-caller";
+import type { AddressedChain } from "./core/addressed-chain";
 import { classify, PACED_SOURCES, type UserTurnSource, userTurnSourceOf } from "./core/classify";
 import type { BusEnvelope, EventBus } from "./core/event-bus";
 import type { Guardrails } from "./core/guardrails";
@@ -105,6 +106,15 @@ interface DispatcherDeps {
   onTurnAdmitted?: (turn: Turn) => void;
   /** Every drop the dispatcher records, with its reason: a trigger held back or superseded before its backend call, or a backend call that failed. */
   onTurnDropped?: (env: BusEnvelope, reason: DropRecord["reason"]) => void;
+  /** The chain cap on addressed turns: an over-cap fire drops at the routing gate, a begun one counts. */
+  addressedChain: AddressedChain;
+  /** A turn is over — the over edge, or the next begin displacing it — with the facts the `turn` log line holds. */
+  onTurnClosed?: (turn: {
+    id: number;
+    trigger: string;
+    outcome: TurnOutcome;
+    spokeText: boolean;
+  }) => void;
   /** Structured logging (defaults to the dispatcher namespace logger). */
   logger?: Logger;
 }
@@ -115,7 +125,13 @@ type DispatcherState = "booting" | "running" | "cooldown" | "degraded" | "stoppe
 interface DropRecord {
   seq_id?: number;
   event_name: string;
-  reason: TurnFailure | "guardrail_drop" | "stale_pending" | "degraded_drop" | "global_gap";
+  reason:
+    | TurnFailure
+    | "guardrail_drop"
+    | "stale_pending"
+    | "degraded_drop"
+    | "global_gap"
+    | "addressed_cap";
   ts: number;
 }
 
@@ -131,6 +147,7 @@ export const DROP_SEVERITY: Record<DropRecord["reason"], LogLevel> = {
   stale_pending: "info",
   degraded_drop: "warn",
   global_gap: "info",
+  addressed_cap: "info",
 };
 
 /** in_flight_backend_call. */
@@ -226,6 +243,12 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       duration_ms: Date.now() - openTurn.started_at,
       spoke: deps.turnLog.didOweAudio(),
       spoke_text: deps.turnLog.didSpeakText(),
+    });
+    deps.onTurnClosed?.({
+      id: openTurn.id,
+      trigger: openTurn.trigger,
+      outcome: openTurn.outcome ?? "superseded_by_user",
+      spokeText: deps.turnLog.didSpeakText(),
     });
     openTurn = null;
   }
@@ -330,6 +353,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     log.debug("backend_call", { trigger: env.event_name, seq_id: env.seq_id, started_at });
     closeTurn();
     const turn = deps.turnLog.begin(env);
+    if (env.event_name.startsWith("addressed.")) deps.addressedChain.count();
     openTurn = { id: turn.id, trigger: env.event_name, started_at, outcome: null };
     deps.onTurnAdmitted?.(turn);
     // Server-side HTTP error detail, kept per call so a superseded turn's late detail
@@ -450,6 +474,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     // For a user-initiated turn (typed or voice), apply supersede before classification.
     if (userTurnSourceOf(env) !== undefined) {
       supersedeByUser();
+      deps.addressedChain.reset();
     }
 
     const classified = classify(env);
@@ -466,7 +491,12 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
         return;
       }
       // Ahead of the guardrail: evaluate() spends a rate-limit slot at fire time and never
-      // refunds it, so a held fire must not reach it.
+      // refunds it, so a held fire must not reach it. The chain cap drops before it for the
+      // same reason.
+      if (env.event_name.startsWith("addressed.") && !deps.addressedChain.canAdmit()) {
+        recordDrop(env, "addressed_cap");
+        return;
+      }
       if (heldByPacer(env)) {
         dropForPacer(env);
         return;

@@ -21,6 +21,7 @@ export interface RateLimitOverrides {
   tier2_max: number;
   urgent_max: number;
   overall_max: number;
+  addressed_chain_max: number;
 }
 
 export type GuardrailsStorage = PersistedStorage<RateLimitOverrides>;
@@ -30,7 +31,12 @@ export type GuardrailsStorage = PersistedStorage<RateLimitOverrides>;
  * without an entry here fails to typecheck rather than silently losing its merge branch, its
  * setter, and its UI row.
  */
-const EMPTY: RateLimitOverrides = { tier2_max: 0, urgent_max: 0, overall_max: 0 };
+const EMPTY: RateLimitOverrides = {
+  tier2_max: 0,
+  urgent_max: 0,
+  overall_max: 0,
+  addressed_chain_max: 0,
+};
 
 const KEYS = Object.keys(EMPTY) as (keyof RateLimitOverrides)[];
 

@@ -407,10 +407,20 @@ describe("wireWindowSync", () => {
 
 describe("wireGuardrailsOverrides", () => {
   const inMemoryStorage = () => {
-    let value: { tier2_max: number; urgent_max: number; overall_max: number } | null = null;
+    let value: {
+      tier2_max: number;
+      urgent_max: number;
+      overall_max: number;
+      addressed_chain_max: number;
+    } | null = null;
     return {
       load: () => (value ? { ...value } : null),
-      save: (s: { tier2_max: number; urgent_max: number; overall_max: number }) => {
+      save: (s: {
+        tier2_max: number;
+        urgent_max: number;
+        overall_max: number;
+        addressed_chain_max: number;
+      }) => {
         value = { ...s };
       },
     };
@@ -429,6 +439,7 @@ describe("wireGuardrailsOverrides", () => {
         urgent_max: 120,
         overall_max: 100,
         cooldown_ms: 300_000,
+        addressed_chain_max: 2,
       },
       attachments: { max_count: 6, max_image_bytes: 5_242_880 },
     };

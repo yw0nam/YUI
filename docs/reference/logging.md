@@ -38,6 +38,28 @@ Applies to all TypeScript in `src/` and all Rust in `src-tauri/src/`.
 | `turn_hold` | none | Another window holds the turn lock, so this window waits. |
 | `turn_granted` | `waited_ms` | The waiting window received the lock after that many milliseconds. |
 
+## Drop events
+
+`dispatcher/dispatcher.ts` (namespace `dispatcher`) logs a `drop` line for every trigger it
+holds back or supersedes before its backend call, and for every backend call that failed.
+Fields: `event_name`, `reason`, `seq_id`. The level comes from the reason:
+
+| `reason` | Level | When |
+|---|---|---|
+| `guardrail_drop` | `info` | The debounce/cooldown/rate-limit gate refused the fire. |
+| `not_configured` | `warn` | The backend call failed: no endpoint is configured. |
+| `parse_error` | `warn` | The backend call failed: the reply could not be parsed. |
+| `network_drop` | `warn` | The backend call failed on the network. |
+| `network_stall` | `warn` | The backend call stalled past its deadline. |
+| `http_4xx_drop` | `error` | The backend answered the call with an HTTP 4xx. |
+| `superseded_by_user` | `info` | The user typed or spoke, so the turn was aborted or dropped. |
+| `stale_pending` | `info` | A second deferred turn arrived, so the older one is dropped. |
+| `degraded_drop` | `warn` | A non-user turn reached the gate during the degraded state. |
+| `global_gap` | `info` | The global proactive gap held the fire back. |
+| `addressed_cap` | `info` | The third addressed turn in a row without a user turn; the cap is `rate_limit.addressed_chain_max`. |
+
+`recentDrops(n)` returns the last n records.
+
 ## Relation events
 
 `io/chat/tools/relation.ts` (namespace `relation`), `io/bridge/inbox/relations-rpc.ts` (namespace `relations-rpc`), and the Character tab's Relations section (namespace `quick-ui` in the pet window, `settings-ui` in the settings window) log at `info`.

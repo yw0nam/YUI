@@ -33,6 +33,7 @@ function config(): GuardrailsConfig {
       urgent_max: 120,
       overall_max: 20,
       cooldown_ms: 300_000,
+      addressed_chain_max: 2,
     },
     attachments: guardrailsFixture().attachments,
   };

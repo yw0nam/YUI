@@ -18,6 +18,7 @@ import { createGuardrails, type Guardrails } from "./core/guardrails";
 import { createTurnGate } from "./core/turn-gate";
 import { createDispatcher, type Dispatcher } from "./dispatcher";
 import {
+  createDefaultAddressedChain,
   type DeferredCall,
   env,
   makeDeferredBackendCaller,
@@ -116,6 +117,7 @@ beforeEach(() => {
     guardrails,
     turnLog,
     hasOutstandingSpeech: () => speaking,
+    addressedChain: createDefaultAddressedChain(),
     peek: { enter: peekEnter, exit: peekExit },
     logger,
     peekConfig: () => PEEK_CONFIG,
@@ -150,6 +152,7 @@ describe("dispatcher — state machine (§9)", () => {
       guardrails: g,
       turnLog,
       hasOutstandingSpeech: () => speaking,
+      addressedChain: createDefaultAddressedChain(),
       logger,
     });
     d.start();
@@ -857,6 +860,7 @@ describe("dispatcher — turn gate", () => {
       guardrails,
       turnLog,
       hasOutstandingSpeech: () => speaking,
+      addressedChain: createDefaultAddressedChain(),
       logger,
       peekConfig: () => PEEK_CONFIG,
       tapConfig: () => TAP_CONFIG,
@@ -938,6 +942,7 @@ describe("dispatcher — turn gate across two windows", () => {
       guardrails,
       turnLog,
       hasOutstandingSpeech: () => speaking,
+      addressedChain: createDefaultAddressedChain(),
       logger,
       peekConfig: () => PEEK_CONFIG,
       tapConfig: () => TAP_CONFIG,
