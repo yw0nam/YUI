@@ -231,12 +231,7 @@ describe("dispatcher — addressed chain cap", () => {
     callDeferred.at(-1)?.resolve("ok");
     await vi.advanceTimersByTimeAsync(20);
     expect(onTurnClosed).toHaveBeenCalledTimes(1);
-    expect(onTurnClosed).toHaveBeenCalledWith({
-      id,
-      trigger: "addressed.character",
-      outcome: "ok",
-      spokeText: true,
-    });
+    expect(onTurnClosed).toHaveBeenCalledWith({ id, outcome: "ok", spokeText: true });
 
     // Displacement: the user speaks while the turn is still open — the next begin closes it.
     onTurnClosed.mockClear();
@@ -249,10 +244,39 @@ describe("dispatcher — addressed chain cap", () => {
     expect(onTurnClosed).toHaveBeenCalledTimes(1);
     expect(onTurnClosed).toHaveBeenCalledWith({
       id: id2,
-      trigger: "addressed.character",
       outcome: "superseded_by_user",
       spokeText: true,
     });
+    d.stop();
+  });
+
+  it("a throwing onTurnClosed is warned once per turn and leaves the next turn runnable", async () => {
+    const onTurnClosed = vi.fn(() => {
+      throw new Error("hook down");
+    });
+    const d = createDispatcher({
+      bus,
+      renderer: renderer as never,
+      backendCaller,
+      guardrails,
+      turnLog,
+      hasOutstandingSpeech: () => false,
+      logger,
+      peekConfig: () => PEEK_CONFIG,
+      tapConfig: () => TAP_CONFIG,
+      addressedChain: createDefaultAddressedChain(),
+      onTurnClosed,
+    });
+    d.start();
+    await runAddressed(1);
+    expect(onTurnClosed).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith("turn_hook_failed", {
+      error: "Error: hook down",
+    });
+
+    await runAddressed(2);
+    expect(backendCaller.call as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(2);
+    expect(onTurnClosed).toHaveBeenCalledTimes(2);
     d.stop();
   });
 });

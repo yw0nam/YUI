@@ -27,6 +27,16 @@ describe("createAddressedProducer", () => {
     consoleInfo = vi.spyOn(console, "info").mockImplementation(() => {});
   });
 
+  it("keeps the first target of a turn and answers it from a second record call", () => {
+    const { producer, emit } = setup([assistantEntry("hi", "7", 1)]);
+
+    expect(producer.record("7", "perlica")).toBeUndefined();
+    expect(producer.record("7", "shino")).toBe("perlica");
+
+    producer.onTurnClosed({ id: 7, outcome: "ok", spokeText: true });
+    expect(emit).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ to: "perlica" }));
+  });
+
   it("emits once for a closed turn with speech, joining its assistant entries", () => {
     const { producer, emit } = setup([
       assistantEntry("You", "7", 1),

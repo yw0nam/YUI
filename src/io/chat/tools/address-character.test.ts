@@ -1,17 +1,33 @@
 import { describe, expect, it, vi } from "vitest";
 import { createAddressCharacterTool } from "./address-character";
 
-function setup(targets = [{ id: "aaaa0001", name: "perlica" }]) {
-  const record = vi.fn();
+/** The producer's one-owner semantics: the first target recorded for a turn is kept. */
+function ownerRecord() {
+  const targets = new Map<string, string>();
+  return vi.fn((turnId: string, to: string): string | undefined => {
+    const known = targets.get(turnId);
+    if (known !== undefined) return known;
+    targets.set(turnId, to);
+    return undefined;
+  });
+}
+
+function setup(
+  targets = [
+    { id: "aaaa0001", name: "perlica" },
+    { id: "bbbb0002", name: "shino" },
+  ],
+) {
+  const record = ownerRecord();
   const tool = createAddressCharacterTool({
     targets: () => targets,
     record,
   });
-  return { tool, record };
+  return { tool, record, targets };
 }
 
 describe("createAddressCharacterTool — definition", () => {
-  it("lists the open presets as targets and never the bare user, read each time the schema is built", () => {
+  it("lists the open presets as targets (never the bare user) read each time the schema is built, requires to alone, and carries no switch or one-way flag", () => {
     const targets = [{ id: "aaaa0001", name: "perlica" }];
     const { tool } = setup(targets);
     const to = () => (tool.definition.function.parameters.properties.to as { enum: string[] }).enum;
@@ -19,10 +35,6 @@ describe("createAddressCharacterTool — definition", () => {
     expect(to()).toEqual(["perlica"]);
     targets.push({ id: "bbbb0002", name: "shino" });
     expect(to()).toEqual(["perlica", "shino"]);
-  });
-
-  it("requires to and allows no other field", () => {
-    const { tool } = setup();
     expect(tool.definition.function.parameters.required).toEqual(["to"]);
     expect(tool.definition.function.parameters.additionalProperties).toBe(false);
     expect(tool.switch).toBeUndefined();
@@ -45,22 +57,34 @@ describe("createAddressCharacterTool — execute", () => {
     expect(record).toHaveBeenCalledExactlyOnceWith("t1", "aaaa0001");
   });
 
-  it("answers ignored on a second call in the same turn and records nothing more", async () => {
+  it.each([
+    "perlica",
+    "shino",
+  ])("answers the kept preset's label, not the second call's target, on a second call naming %s", async (to) => {
+    const { tool } = setup();
+
+    expect(await tool.execute({ to: "perlica" }, undefined, { turnId: "t1" })).toBe("ok");
+    expect(await tool.execute({ to }, undefined, { turnId: "t1" })).toBe(
+      "ignored: already addressed perlica",
+    );
+  });
+
+  it("falls back to the kept id when its preset is gone from the targets", async () => {
     const { tool, record } = setup();
 
-    await tool.execute({ to: "perlica" }, undefined, { turnId: "t1" });
-    expect(await tool.execute({ to: "perlica" }, undefined, { turnId: "t1" })).toBe(
-      "ignored: already addressed perlica this turn",
+    expect(await tool.execute({ to: "perlica" }, undefined, { turnId: "t1" })).toBe("ok");
+    record.mockImplementationOnce(() => "cccc0009");
+    expect(await tool.execute({ to: "shino" }, undefined, { turnId: "t1" })).toBe(
+      "ignored: already addressed cccc0009",
     );
-    expect(record).toHaveBeenCalledTimes(1);
   });
 
   it("records again in another turn", async () => {
     const { tool, record } = setup();
 
     await tool.execute({ to: "perlica" }, undefined, { turnId: "t1" });
-    await tool.execute({ to: "perlica" }, undefined, { turnId: "t2" });
+    await tool.execute({ to: "shino" }, undefined, { turnId: "t2" });
     expect(record).toHaveBeenCalledTimes(2);
-    expect(record).toHaveBeenLastCalledWith("t2", "aaaa0001");
+    expect(record).toHaveBeenLastCalledWith("t2", "bbbb0002");
   });
 });

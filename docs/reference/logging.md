@@ -60,6 +60,10 @@ Fields: `event_name`, `reason`, `seq_id`. The level comes from the reason:
 
 `recentDrops(n)` returns the last n records.
 
+`dispatcher/dispatcher.ts` (namespace `dispatcher`) also logs `turn_hook_failed` at `warn`, with
+the field `error`, when an `onTurnClosed` subscriber throws: the turn summary was already logged
+and the pump goes on.
+
 ## Relation events
 
 `io/chat/tools/relation.ts` (namespace `relation`), `io/bridge/inbox/relations-rpc.ts` (namespace `relations-rpc`), and the Character tab's Relations section (namespace `quick-ui` in the pet window, `settings-ui` in the settings window) log at `info`.
@@ -84,7 +88,7 @@ Fields: `event_name`, `reason`, `seq_id`. The level comes from the reason:
 | `fire` | `to` | The producer emitted the character-addressed event for a closed, spoken reply. |
 | `no_text` | `to` | The closed addressed turn left no transcript entry to carry. |
 | `fire` | `from` | The addressed source pushed an `addressed.character` candidate for this preset. |
-| `push rejected` | `from` | The bus refused the addressed candidate. |
+| `push_rejected` | `from` | The bus refused the addressed candidate. |
 
 ## TypeScript Usage
 

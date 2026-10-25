@@ -27,7 +27,7 @@ export function createAddressedProducer(deps: {
   emit: (event: CharacterAddressed) => void;
   now?: () => number;
 }): {
-  record(turnId: string, to: string): void;
+  record(turnId: string, to: string): string | undefined;
   /** The dispatcher's onTurnClosed. */
   onTurnClosed(turn: { id: number; outcome: TurnOutcome; spokeText: boolean }): void;
 } {
@@ -36,9 +36,12 @@ export function createAddressedProducer(deps: {
 
   return {
     record(turnId, to) {
+      const known = targets.get(turnId);
+      if (known !== undefined) return known;
       targets.delete(turnId);
       targets.set(turnId, to);
       if (targets.size > TARGETS_KEPT) targets.delete(targets.keys().next().value as string);
+      return undefined;
     },
     onTurnClosed({ id, outcome, spokeText }) {
       const key = String(id);

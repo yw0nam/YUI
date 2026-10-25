@@ -11,6 +11,7 @@
 
 import type { CharacterAddressed } from "../../../io/bridge/settings-bridge";
 import { createLogger } from "../../../logger";
+import { ADDRESSED_EVENT } from "../../core/classify";
 import type { EventBus } from "../../core/event-bus";
 
 const log = createLogger("addressed-source");
@@ -33,12 +34,12 @@ export function createAddressedSource(deps: {
         if (event.to !== deps.selfPresetId) return;
         const pushed = deps.bus.push({
           source: "addressed_source",
-          event_name: "addressed.character",
+          event_name: ADDRESSED_EVENT,
           ts: event.ts,
           payload: { from: event.from, name: event.name, line: event.text },
         });
         if (!pushed) {
-          log.info("push rejected", { from: event.from });
+          log.info("push_rejected", { from: event.from });
           return;
         }
         log.info("fire", { from: event.from });

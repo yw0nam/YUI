@@ -60,6 +60,11 @@ export function classify(env: BusEnvelope): Classification {
   return { target: "drop" };
 }
 
+export const ADDRESSED_EVENT = "addressed.character";
+
+export const isAddressedEvent = (env: Pick<BusEnvelope, "event_name">): boolean =>
+  env.event_name.startsWith("addressed.");
+
 /** Source of a user-initiated turn (typed vs voice) — filters onUserTurnFailed targets and hints routing.
  * Other triggers such as proactive/schedule/agent are undefined (§274, not a UI error-surface target). */
 export type UserTurnSource = "text" | "voice";

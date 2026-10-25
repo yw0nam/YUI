@@ -9,6 +9,7 @@ import type {
 } from "../../contract";
 import type { OverheardBlock } from "../../io/chat/conversation/overheard/overheard-reader";
 import { isGuideKey } from "../../io/guide/guide-docs";
+import { ADDRESSED_EVENT } from "../core/classify";
 import type { BusEnvelope } from "../core/event-bus";
 
 interface ContextProviders {
@@ -156,10 +157,8 @@ function wakeOf(env: BusEnvelope, messageWake: boolean): TriggerMeta["wake"] | u
   return cause === "click" || cause === "timeout" ? { cause } : undefined;
 }
 
-const ADDRESSED_EVENT_NAME = "addressed.character";
-
 function addressedOf(env: BusEnvelope): TriggerMeta["addressed"] | undefined {
-  if (env.event_name !== ADDRESSED_EVENT_NAME) return undefined;
+  if (env.event_name !== ADDRESSED_EVENT) return undefined;
   const { name, line } = env.payload ?? {};
   return typeof name === "string" && typeof line === "string"
     ? { from: name, text: line, ts: env.ts }

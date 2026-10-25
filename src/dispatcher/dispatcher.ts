@@ -42,7 +42,13 @@ import type {
   TurnOutcome,
 } from "./backend/backend-caller";
 import type { AddressedChain } from "./core/addressed-chain";
-import { classify, PACED_SOURCES, type UserTurnSource, userTurnSourceOf } from "./core/classify";
+import {
+  classify,
+  isAddressedEvent,
+  PACED_SOURCES,
+  type UserTurnSource,
+  userTurnSourceOf,
+} from "./core/classify";
 import type { BusEnvelope, EventBus } from "./core/event-bus";
 import type { Guardrails } from "./core/guardrails";
 import type { ProactivePacer } from "./core/proactive-pacer";
@@ -109,12 +115,7 @@ interface DispatcherDeps {
   /** The chain cap on addressed turns: an over-cap fire drops at the routing gate, a begun one counts. */
   addressedChain: AddressedChain;
   /** A turn is over — the over edge, or the next begin displacing it — with the facts the `turn` log line holds. */
-  onTurnClosed?: (turn: {
-    id: number;
-    trigger: string;
-    outcome: TurnOutcome;
-    spokeText: boolean;
-  }) => void;
+  onTurnClosed?: (turn: { id: number; outcome: TurnOutcome; spokeText: boolean }) => void;
   /** Structured logging (defaults to the dispatcher namespace logger). */
   logger?: Logger;
 }
@@ -234,23 +235,25 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
    */
   function closeTurn(): void {
     if (!openTurn) return;
+    const outcome = openTurn.outcome ?? "superseded_by_user";
+    const spokeText = deps.turnLog.didSpeakText();
     log.info("turn", {
       id: openTurn.id,
       trigger: openTurn.trigger,
       // A turn still open when the next one begins was displaced; the only way its call had not
       // yet resolved is an abort.
-      outcome: openTurn.outcome ?? "superseded_by_user",
+      outcome,
       duration_ms: Date.now() - openTurn.started_at,
       spoke: deps.turnLog.didOweAudio(),
-      spoke_text: deps.turnLog.didSpeakText(),
+      spoke_text: spokeText,
     });
-    deps.onTurnClosed?.({
-      id: openTurn.id,
-      trigger: openTurn.trigger,
-      outcome: openTurn.outcome ?? "superseded_by_user",
-      spokeText: deps.turnLog.didSpeakText(),
-    });
+    const closed = { id: openTurn.id, outcome, spokeText };
     openTurn = null;
+    try {
+      deps.onTurnClosed?.(closed);
+    } catch (err) {
+      log.warn("turn_hook_failed", { error: String(err) });
+    }
   }
 
   // Close the turn line at the over⟷live boundary — covers a turn that settles and finishes
@@ -353,7 +356,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     log.debug("backend_call", { trigger: env.event_name, seq_id: env.seq_id, started_at });
     closeTurn();
     const turn = deps.turnLog.begin(env);
-    if (env.event_name.startsWith("addressed.")) deps.addressedChain.count();
+    if (isAddressedEvent(env)) deps.addressedChain.count();
     openTurn = { id: turn.id, trigger: env.event_name, started_at, outcome: null };
     deps.onTurnAdmitted?.(turn);
     // Server-side HTTP error detail, kept per call so a superseded turn's late detail
@@ -493,7 +496,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       // Ahead of the guardrail: evaluate() spends a rate-limit slot at fire time and never
       // refunds it, so a held fire must not reach it. The chain cap drops before it for the
       // same reason.
-      if (env.event_name.startsWith("addressed.") && !deps.addressedChain.canAdmit()) {
+      if (isAddressedEvent(env) && !deps.addressedChain.canAdmit()) {
         recordDrop(env, "addressed_cap");
         return;
       }

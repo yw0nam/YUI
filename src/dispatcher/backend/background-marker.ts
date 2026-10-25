@@ -1,6 +1,7 @@
 /** Placeholder user-content text a turn with no real user utterance carries into the backend prompt. */
 
 import type { TriggerMeta } from "../../contract";
+import { ADDRESSED_EVENT } from "../core/classify";
 
 /** "a" / "a and b" / "a, b and c". */
 function joinNames(names: string[]): string {
@@ -62,7 +63,7 @@ export function backgroundMarker(eventName: string, trigger: TriggerMeta): strin
   if (eventName === "signals.catchup") return "(signals piled up for you)";
   if (eventName === "signals.urgent") return "(something urgent just came in for you)";
   if (eventName === "signals.urgent_catchup") return "(urgent things piled up for you)";
-  if (eventName === "addressed.character" && trigger.addressed) {
+  if (eventName === ADDRESSED_EVENT && trigger.addressed) {
     return `(${toolName(trigger.addressed.from)} just spoke to you)`;
   }
   if (eventName === "time_milestone.first_activity") return "(I've just started my day)";
