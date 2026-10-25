@@ -129,6 +129,8 @@ export function createRelationsEditSection(deps: {
       );
       row.querySelector(".yui-relations__name")!.textContent = nameOf(target);
       paintValue(row, value, record ? bandOf(value) : "none");
+      // A drag previews "band, value"; at rest an unrated slider reads like its sub-line.
+      if (!record) slider.setAttribute("aria-valuetext", t("relations.not_rated"));
       row.querySelector(".yui-row__sub")!.textContent = subText(
         bandOf(value),
         record,
