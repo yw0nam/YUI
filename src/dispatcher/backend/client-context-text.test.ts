@@ -950,6 +950,14 @@ describe("renderClientContext — exhaustiveness", () => {
       ],
     ],
     [
+      "addressed",
+      {
+        kind: "addressed",
+        addressed: { from: "perlica", text: "natsume, you took my chair", ts: NOW },
+      },
+      ['trigger: addressed by perlica: "natsume, you took my chair" (0min ago)'],
+    ],
+    [
       "milestone",
       {
         kind: "milestone",

@@ -228,6 +228,46 @@ describe("event_bus — agent.* family", () => {
   });
 });
 
+describe("event_bus — addressed.* family", () => {
+  it("accepts addressed.character from addressed_source (not unknown_event_name-dropped)", () => {
+    expect(
+      bus.push(
+        env({
+          source: "addressed_source",
+          event_name: "addressed.character",
+          ts: NOW,
+          dnd_override: false,
+        }),
+      ),
+    ).toBe(true);
+    expect(bus.snapshot()).toHaveLength(1);
+  });
+
+  it("gives addressed.* priority 2 — after user.* (0), before avatar.* (3)", () => {
+    bus.push(
+      env({
+        source: "addressed_source",
+        event_name: "avatar.walk_start",
+        ts: NOW,
+        dnd_override: false,
+      }),
+    );
+    bus.push(
+      env({
+        source: "addressed_source",
+        event_name: "addressed.character",
+        ts: NOW,
+        dnd_override: false,
+      }),
+    );
+    bus.push(env({ source: "user_input_source", event_name: "user.text_submitted", ts: NOW }));
+    expect(bus.pop()!.event_name).toBe("user.text_submitted");
+    expect(bus.pop()!.event_name).toBe("addressed.character");
+    expect(bus.pop()!.event_name).toBe("avatar.walk_start");
+    expect(bus.pop()).toBeNull();
+  });
+});
+
 describe("event_bus — capacity 100 (§4.2)", () => {
   it("drops the lowest-priority entry when over capacity, keeping high-priority", () => {
     const drops: unknown[] = [];

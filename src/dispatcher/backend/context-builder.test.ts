@@ -152,6 +152,41 @@ describe("context builder — relations", () => {
   });
 });
 
+describe("buildClientContext — addressed forwarding", () => {
+  const CTX: InputContext = { env: { timestamp: "2026-07-31T14:22:33+09:00", timezone: "UTC" } };
+
+  function addressedEnv(payload: Record<string, unknown>): BusEnvelope {
+    return {
+      seq_id: 4,
+      source: "addressed_source",
+      event_name: "addressed.character",
+      ts: 1_717_000_000_000,
+      payload,
+    };
+  }
+
+  it("forwards the speaker, her line and the envelope ts as the addressed field", () => {
+    const client = buildClientContext(
+      CTX,
+      addressedEnv({ from: "perlica", name: "Perlica", line: "natsume, you took my chair" }),
+    );
+
+    expect(client.trigger.kind).toBe("addressed");
+    expect(client.trigger.addressed).toEqual({
+      from: "Perlica",
+      text: "natsume, you took my chair",
+      ts: 1_717_000_000_000,
+    });
+  });
+
+  it("keeps the addressed kind but omits the addressed field when the payload carries no line", () => {
+    const client = buildClientContext(CTX, addressedEnv({ from: "perlica", name: "Perlica" }));
+
+    expect(client.trigger.kind).toBe("addressed");
+    expect("addressed" in client.trigger).toBe(false);
+  });
+});
+
 describe("buildClientContext — cue forwarding", () => {
   const CTX: InputContext = { env: { timestamp: "2026-07-31T14:22:33+09:00", timezone: "UTC" } };
 

@@ -357,7 +357,7 @@ replaces it over the ingress (`docs/reference/signals-ingress.md`).
 Exactly one headline `trigger: …` line describes what fired the turn, chosen by what
 the turn actually carries (screen transition, cue, single agent event, agent catchup
 burst, milestone, wake, or a bare kind fallback); zero or more follow-up lines add detail. `trigger.kind`
-is one of `user` \| `schedule` \| `proactive` \| `agent` \| `signals` \| `milestone`.
+is one of `user` \| `schedule` \| `proactive` \| `agent` \| `signals` \| `milestone` \| `addressed`.
 
 | `kind` | What fired | User content |
 |---|---|---|
@@ -367,8 +367,9 @@ is one of `user` \| `schedule` \| `proactive` \| `agent` \| `signals` \| `milest
 | `agent` | An external coding-agent lifecycle hook posted a completion or needs-input signal | Background marker |
 | `signals` | An external producer POSTed a burst to the `/signals` ingress | Background marker |
 | `milestone` | A once-per-day client clock fact fired on the first present tick of the local day | Background marker |
+| `addressed` | Another open character's reply called `address_character` naming this character, and its playback ended | Background marker |
 
-For `schedule`, `proactive`, `agent`, `signals`, and `milestone` turns there is no user utterance —
+For `schedule`, `proactive`, `agent`, `signals`, `milestone`, and `addressed` turns there is no user utterance —
 the agent reads the trigger lines to decide whether and what to say. Firing a turn does
 not guarantee speech: the client renders whatever text the agent returns, and silence
 means the agent returns empty or no speech text. Speech text that, after trimming
@@ -533,6 +534,21 @@ alongside a cue headline: `proactive.tap_bored` turns carry both their configure
 and drained signal groups. Every group carries the ingress envelope; the required
 request contract lives in [Signals ingress](./signals-ingress.md).
 
+### Addressed
+
+```text
+trigger: addressed by perlica: "natsume, you took my chair" (0min ago)
+```
+
+Another open character's reply called `address_character` naming this character, and that
+reply's playback has ended. The headline names the speaker, quotes what she said, and
+gives the minutes since it was spoken. The `ClientContext` field is
+`trigger.addressed?: { from, text, ts }`, with `from` the speaker's preset name, `text`
+the reply's spoken text, and `ts` the epoch-ms moment the reply was spoken. When the
+cursor has not passed the exchange yet, the same lines also ride in the
+[`overheard`](#overheard) block. The client routes the turn; whether this character
+answers is the backend's judgment, and a `[SILENT]` reply ends the exchange.
+
 ### Milestone
 
 ```text
@@ -640,8 +656,12 @@ all situational detail still lives in the trigger lines above.
 | `signals.catchup` | `(signals piled up for you)` |
 | `signals.urgent` | `(something urgent just came in for you)` |
 | `signals.urgent_catchup` | `(urgent things piled up for you)` |
+| `addressed.character` | `(perlica just spoke to you)` |
 | `time_milestone.first_activity` | `(I've just started my day)` |
 | any other | `(something just caught your attention)` |
+
+The `addressed.character` marker names the character who spoke: `<name>` is her preset
+name, whitespace-collapsed and clamped like the coding-agent tool names below.
 
 The `agent.*` markers name the coding agent that fired. `agent.done` and
 `agent.needs_input` name `trigger.agent.tool`; `agent.catchup` lists the distinct
