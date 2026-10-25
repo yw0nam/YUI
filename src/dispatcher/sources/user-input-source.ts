@@ -7,12 +7,19 @@
  * Both events carry the utterance in payload.text; a help-button submit also names its guide.
  */
 
-import type { GuideKey } from "../../contract";
+import type { GuideKey, TriggerMeta } from "../../contract";
 import type { BusEnvelope, EventBus } from "../core/event-bus";
 
 export interface UserInputSource {
-  /** Chat submit → bus push. Pushes when text is non-empty OR ≥1 image is attached. */
-  submit(text: string, images?: string[]): void;
+  /**
+   * Chat submit → bus push. Pushes when text is non-empty OR ≥1 image is attached.
+   * A routed message carries the unified chat window's send id, so every preset records the same user entry and reports done for it.
+   */
+  submit(
+    text: string,
+    images?: string[],
+    routed?: { mention?: TriggerMeta["mention"]; sendId: string },
+  ): void;
   /** Help-button submit: the request text plus the guide that answers it → bus push, as a text turn. */
   submitGuide(guide: GuideKey, text: string): void;
   /** Voice text from STT → bus push with payload.text. Empty text is ignored. */
@@ -21,14 +28,20 @@ export interface UserInputSource {
 
 export function createUserInputSource(bus: EventBus): UserInputSource {
   return {
-    submit(text, images) {
+    submit(text, images, routed) {
       const trimmed = text.trim();
       if (trimmed.length === 0 && (images?.length ?? 0) === 0) return;
       const env: BusEnvelope = {
         source: "user_input_source",
         event_name: "user.text_submitted",
         ts: Date.now(),
-        payload: { text: trimmed, ...(images?.length ? { images } : {}) },
+        payload: {
+          text: trimmed,
+          ...(images?.length ? { images } : {}),
+          ...(routed
+            ? { send_id: routed.sendId, ...(routed.mention ? { mention: routed.mention } : {}) }
+            : {}),
+        },
         dnd_override: true,
       };
       bus.push(env);

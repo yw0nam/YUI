@@ -3,6 +3,7 @@ import type { InputContext } from "../../contract";
 import { fitTurnImages } from "../../io/chat/push/fit-turn-images";
 import type { PushTurnFrame } from "../../io/chat/push/push-frames";
 import type { Logger } from "../../logger";
+import { sendIdOf } from "../core/classify";
 import type { BusEnvelope } from "../core/event-bus";
 import type { PushTurns } from "../turn/push-turn";
 import type { Turn } from "../turn/turn";
@@ -195,6 +196,7 @@ export function createPushCall(deps: PushCallDeps, log: Logger): PushCall {
       startSessionToken,
       spokeText: false,
       userHalfOnly: true,
+      sendId: sendIdOf(env),
     });
     if (externalSignal?.aborted) return "superseded_by_user";
     return await awaitPushReply(turn, env.event_name, endThinking, externalSignal, onErrorDetail);

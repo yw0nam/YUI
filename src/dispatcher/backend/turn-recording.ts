@@ -19,6 +19,8 @@ export interface TurnRecordingDeps {
   contextHistory?: { append(entry: ContextHistoryEntry): void };
   /** Turn-record JSONL sink — best-effort disk log for speak-rate/suppression analysis. */
   appendTurnRecord?: (record: TurnRecord) => void;
+  /** The preset a turn's reply was addressed to, when its turn called address_character. */
+  addressedTo?: (turnId: string) => string | undefined;
 }
 
 export interface SentTurn {
@@ -33,6 +35,8 @@ export interface SentTurn {
   spokeText: boolean;
   /** Touches the transcript only for a turn that has user text, so a session reset logs nothing without it. */
   userHalfOnly?: boolean;
+  /** The unified chat window's send id when the user text was routed from there. */
+  sendId?: string;
 }
 
 export function recordSentTurn(deps: TurnRecordingDeps, log: Logger, turn: SentTurn): void {
@@ -47,15 +51,18 @@ export function recordSentTurn(deps: TurnRecordingDeps, log: Logger, turn: SentT
           text: userText,
           ts: Date.now(),
           ...(clientContext.trigger.guide ? { guide: clientContext.trigger.guide } : {}),
+          ...(turn.sendId ? { send_id: turn.sendId } : {}),
         });
       }
       // A reply the turn never spoke ([SILENT]) is not transcript text.
       if (turn.spokeText && assistantText) {
+        const to = deps.addressedTo?.(turnId);
         transcript.append({
           role: "assistant",
           text: assistantText,
           ts: Date.now(),
           turn_id: turnId,
+          ...(to ? { to } : {}),
         });
       }
     } else {

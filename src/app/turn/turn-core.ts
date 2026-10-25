@@ -108,6 +108,8 @@ export async function wireTurnCore(
     windowTools?: readonly ClientTool[];
     /** A turn is over — the over edge, or the next begin displacing it. */
     onTurnClosed?: DispatcherDeps["onTurnClosed"];
+    /** The preset a turn's reply was addressed to, recorded on its transcript entry. */
+    addressedTo?: (turnId: string) => string | undefined;
     register: (dispose: () => void) => void;
     ensureActive: () => void;
   },
@@ -216,6 +218,7 @@ export async function wireTurnCore(
     getVocabulary: () => vocabulary!.vocabulary(),
     windowTools: deps.windowTools,
     onTurnClosed: deps.onTurnClosed,
+    addressedTo: deps.addressedTo,
     openQuickControls: deps.openQuickControls,
     showVoiceError: voiceErrorDwell.show,
     appendTurnRecord: (record) => appendRecord(record),
@@ -285,6 +288,7 @@ export async function wireTurnCore(
             turnFeed,
             appendTurnRecord: (record) => appendRecord(record),
             appendTranscript: (entry) => chatHistoryStore.append(entry),
+            addressedTo: deps.addressedTo,
             signalHistory: signalHistoryStore,
             reportSpokeText: (turnId, spoke) => turnLog.setSpokeText(turnId, spoke),
             onUsage,

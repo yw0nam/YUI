@@ -204,7 +204,13 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
       `trigger: addressed by ${oneLine(a.from)}: "${oneLine(a.text)}" (${minutesSince(a.ts, nowMs)}min ago)`,
     );
   } else if (trigger.kind === "user") {
-    lines.push(`trigger: user message${idleClause}`);
+    const addressed =
+      trigger.mention === "everyone"
+        ? " (addressed to everyone)"
+        : trigger.mention === "character"
+          ? " (addressed to the character)"
+          : "";
+    lines.push(`trigger: user message${addressed}${idleClause}`);
   } else if (trigger.kind === "signals") {
     const count = trigger.signals?.reduce((total, group) => total + group.items.length, 0) ?? 0;
     lines.push(`trigger: signals (${count} signal${count === 1 ? "" : "s"})${idleClause}`);

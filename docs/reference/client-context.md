@@ -361,7 +361,7 @@ is one of `user` \| `schedule` \| `proactive` \| `agent` \| `signals` \| `milest
 
 | `kind` | What fired | User content |
 |---|---|---|
-| `user` | User spoke or typed | The user's message text |
+| `user` | User spoke or typed | The user's message text; from the unified chat window the text keeps the visible `@name` |
 | `schedule` | A user-configured time-of-day cue fired | Background marker |
 | `proactive` | A configured engagement cue, tap-bored cue, region-touch cue, or screen transition fired, or the character woke on the bed, which renders the `trigger: wake` headline | Background marker |
 | `agent` | An external coding-agent lifecycle hook posted a completion or needs-input signal | Background marker |
@@ -382,6 +382,11 @@ no client-side gate decides whether it speaks (firing ≠ judgment).
 ```text
 trigger: user message
 ```
+
+The unified chat window adds a suffix to the headline. The idle clause follows the suffix.
+
+- `trigger: user message (addressed to the character)`: the user picked this character in the unified chat window.
+- `trigger: user message (addressed to everyone)`: the user wrote to every open character. The characters answer one after another, and each later one overhears the earlier replies through the [`overheard`](#overheard) block.
 
 ### Guide (in-app help button)
 

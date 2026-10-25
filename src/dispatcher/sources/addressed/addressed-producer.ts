@@ -28,6 +28,8 @@ export function createAddressedProducer(deps: {
   now?: () => number;
 }): {
   record(turnId: string, to: string): string | undefined;
+  /** The preset a still-open turn's reply was addressed to. */
+  targetOf(turnId: string): string | undefined;
   /** The dispatcher's onTurnClosed. */
   onTurnClosed(turn: { id: number; outcome: TurnOutcome; spokeText: boolean }): void;
 } {
@@ -43,6 +45,7 @@ export function createAddressedProducer(deps: {
       if (targets.size > TARGETS_KEPT) targets.delete(targets.keys().next().value as string);
       return undefined;
     },
+    targetOf: (turnId) => targets.get(turnId),
     onTurnClosed({ id, outcome, spokeText }) {
       const key = String(id);
       const to = targets.get(key);

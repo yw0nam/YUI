@@ -58,6 +58,8 @@ export function wireDispatcher(deps: {
   onTurnDropped?: Parameters<typeof createDispatcher>[0]["onTurnDropped"];
   /** A turn is over — the over edge, or the next begin displacing it. */
   onTurnClosed?: Parameters<typeof createDispatcher>[0]["onTurnClosed"];
+  /** The preset a turn's reply was addressed to, recorded on its transcript entry. */
+  addressedTo?: (turnId: string) => string | undefined;
   renderer: Renderer;
   surfaces: Pick<
     Surfaces,
@@ -201,6 +203,7 @@ export function wireDispatcher(deps: {
     onResponseIdInvalid: () => sessionStore.clear(),
     onChainReset: () => showChainResetNotice({ surfaces, t }),
     transcript: chatHistoryStore,
+    addressedTo: deps.addressedTo,
     signalHistory: signalHistoryStore,
     onUsage,
     turnOutput: voice.turnOutput,

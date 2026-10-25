@@ -9,7 +9,7 @@ import type {
 } from "../../contract";
 import type { OverheardBlock } from "../../io/chat/conversation/overheard/overheard-reader";
 import { isGuideKey } from "../../io/guide/guide-docs";
-import { ADDRESSED_EVENT } from "../core/classify";
+import { ADDRESSED_EVENT, mentionOf } from "../core/classify";
 import type { BusEnvelope } from "../core/event-bus";
 
 interface ContextProviders {
@@ -271,6 +271,7 @@ export function buildClientContext(
   const wake = wakeOf(env, messageWake);
   const addressed = addressedOf(env);
   const guide = guideKeyOf(env);
+  const mention = env.event_name === "user.text_submitted" ? mentionOf(env) : undefined;
   const screenshot = ctx.screenshot
     ? { enabled: ctx.screenshot.enabled, source: ctx.screenshot.source }
     : undefined;
@@ -289,6 +290,7 @@ export function buildClientContext(
     trigger: {
       kind: triggerKind(env.event_name),
       ...(guide ? { guide } : {}),
+      ...(mention ? { mention } : {}),
       ...(cue ? { cue } : {}),
       ...(gapMs != null ? { idle_elapsed_min: Math.round(gapMs / 60_000) } : {}),
       ...(agent ? { agent } : {}),

@@ -42,6 +42,8 @@ export interface RenderTurnDeps {
   pushTurns: Pick<PushTurns, "rendered" | "isCut" | "cutCount" | "identity">;
   /** Conversation transcript — the reply half of a push turn lands here. */
   appendTranscript?: (entry: ChatHistoryEntry) => void;
+  /** The preset a turn's reply was addressed to, when its turn called address_character. */
+  addressedTo?: (turnId: string) => string | undefined;
   /** Per-turn signal records — the reply's landing fills what the turn said. */
   signalHistory?: { setSaid(turnId: string, text: string): void };
   appendTurnRecord?: (record: RenderRecord) => void;
@@ -82,11 +84,13 @@ export function createRenderTurn(deps: RenderTurnDeps): RenderTurn {
   function appendTranscript(turnId: string, said: readonly string[]): void {
     if (said.length === 0) return;
     try {
+      const to = deps.addressedTo?.(turnId);
       deps.appendTranscript?.({
         role: "assistant",
         text: said.join(" "),
         ts: Date.now(),
         turn_id: turnId,
+        ...(to ? { to } : {}),
       });
       deps.signalHistory?.setSaid(turnId, said.join(" "));
     } catch (err) {

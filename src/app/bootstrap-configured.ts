@@ -189,6 +189,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       openQuickControls: (tab) => getQuickControls().open(undefined, { tab }),
       windowTools,
       onTurnClosed: addressed.onTurnClosed,
+      addressedTo: addressed.targetOf,
       voicePersistence: {
         get: () => settings.sttSettings.get().enabled,
         set: settings.sttSettings.setEnabled,

@@ -44,6 +44,7 @@ import { buildCCMessages } from "../../io/chat/stream/chat-completions";
 import type { ClientToolRegistry } from "../../io/chat/tools/client-tools";
 import type { Logger } from "../../logger";
 import { createLogger } from "../../logger";
+import { sendIdOf } from "../core/classify";
 import type { Turn } from "../turn/turn";
 import { backgroundMarker } from "./background-marker";
 import { renderClientContext } from "./client-context-text";
@@ -409,6 +410,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         startSessionToken,
         assistantText: envelope.speech_text,
         spokeText,
+        sendId: sendIdOf(env),
       });
 
       return done("ok");

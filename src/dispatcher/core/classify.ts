@@ -1,4 +1,5 @@
 /** Pure classification of a bus envelope into tier and target, plus the paced-source table. */
+import type { TriggerMeta } from "../../contract";
 import type { BusEnvelope } from "./event-bus";
 
 export type Classification =
@@ -73,6 +74,18 @@ export function userTurnSourceOf(env: BusEnvelope): UserTurnSource | undefined {
   if (env.event_name === "user.text_submitted") return "text";
   if (env.event_name === "user.voice_segment_ready") return "voice";
   return undefined;
+}
+
+/** The unified chat window's send id on a routed user envelope. */
+export function sendIdOf(env: Pick<BusEnvelope, "payload">): string | undefined {
+  const id = env.payload?.send_id;
+  return typeof id === "string" ? id : undefined;
+}
+
+/** The unified chat window's recipient pick on a routed user envelope. */
+export function mentionOf(env: Pick<BusEnvelope, "payload">): TriggerMeta["mention"] | undefined {
+  const m = env.payload?.mention;
+  return m === "character" || m === "everyone" ? m : undefined;
 }
 
 /**
