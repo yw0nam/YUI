@@ -47,7 +47,10 @@ export interface PresetStrip {
 export function createPresetStrip(deps: {
   /** Panel root holding the strip markup, the columns it disables, and the scope lines it fills. */
   root: HTMLElement;
-  registry: Pick<PresetRegistry, "get" | "subscribe" | "activate" | "create" | "rename" | "remove">;
+  registry: Pick<
+    PresetRegistry,
+    "get" | "subscribe" | "activate" | "create" | "rename" | "remove" | "setThumbnail"
+  >;
   log: Logger;
   petWindows?: PetWindows;
   boundId?: string | null;
@@ -60,6 +63,8 @@ export function createPresetStrip(deps: {
   relationsSwitch: FlagSettingsStore;
   /** Deletes a removed preset's thumbnail file; injected by the app wiring. */
   removeCardThumbnail?: (id: string) => Promise<void>;
+  /** Opens the photo picker for a preset; injected under Tauri. */
+  pickPhoto?: (presetId: string) => Promise<string | null>;
 }): PresetStrip {
   const { root, registry, log, petWindows, boundId = null, onEditTarget } = deps;
   const edit = !!onEditTarget;
@@ -95,6 +100,7 @@ export function createPresetStrip(deps: {
     boundId,
     edit,
     removeCardThumbnail: deps.removeCardThumbnail,
+    pickPhoto: deps.pickPhoto,
     presetUrl: (id) => {
       const settings = deps.agentNotifySettings?.get();
       return settings?.enabled ? ingressUrl(settings.port, id) : null;

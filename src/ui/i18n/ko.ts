@@ -183,6 +183,7 @@ const ko: Record<string, string> = {
   "preset.use_in_main": "main에 띄우기",
   "preset.window_open": "창 열림",
   "preset.rename": "{name} 이름 바꾸기",
+  "preset.photo": "{name}의 사진 고르기",
   "preset.remove": "{name} 삭제",
   "preset.name_aria": "프리셋 이름",
   "preset.hint_save": "저장",

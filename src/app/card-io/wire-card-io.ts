@@ -6,15 +6,22 @@
 import type { Card } from "../../config/validators/persona/types";
 import { exportCardToFile } from "../../io/assets/card/card-export";
 import { type ImportedCard, importCardFromFile } from "../../io/assets/card/card-import";
-import { removeCardThumbnail, retainCardThumbnail } from "../../io/assets/card/card-thumbnail";
+import {
+  pickPresetPhoto,
+  removeCardThumbnail,
+  retainCardThumbnail,
+} from "../../io/assets/card/card-thumbnail";
 import { createPresetFromCard } from "../../settings/preset/import-card-preset";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
+import { isTauri } from "../../tauri-env";
 
 export interface CardIoPorts {
   importCard: () => Promise<ImportedCard | null>;
   exportCard: (text: string, fileName: string) => Promise<"written" | "cancelled">;
   createPresetFromCard: (card: Card, thumbnailTempId?: string) => Promise<string>;
   removeCardThumbnail: (id: string) => Promise<void>;
+  /** Absent outside Tauri, where there is no native picker. */
+  pickPresetPhoto?: (presetId: string) => Promise<string | null>;
 }
 
 export function wireCardIo(registry: PresetRegistry): CardIoPorts {
@@ -39,5 +46,6 @@ export function wireCardIo(registry: PresetRegistry): CardIoPorts {
           : {}),
       }),
     removeCardThumbnail: (id) => removeCardThumbnail(id),
+    ...(isTauri() ? { pickPresetPhoto: (presetId: string) => pickPresetPhoto(presetId) } : {}),
   };
 }

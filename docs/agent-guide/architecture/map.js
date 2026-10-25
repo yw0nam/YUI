@@ -2909,7 +2909,7 @@ globalThis.YUI_MAP =
       "id": "card-shell",
       "from": "io/assets",
       "to": "shell/imports",
-      "carries": "import_card_file, retain_card_thumbnail, remove_card_thumbnail, write_card_file",
+      "carries": "import_card_file, retain_card_thumbnail, pick_preset_photo, remove_card_thumbnail, write_card_file",
       "kind": "tauri-command",
       "transport": "shared"
     },
@@ -2920,6 +2920,15 @@ globalThis.YUI_MAP =
       "carries": "yui.greeting-pending written by a card import; the preset's next boot consumes it and greets once",
       "kind": "storage",
       "transport": "shared"
+    },
+    {
+      "id": "preset-photo",
+      "from": "ui/quick-controls",
+      "to": "settings",
+      "carries": "the manage row's photo button \u2192 pickPresetPhoto (pick_preset_photo stores cards/<id>.png) \u2192 registry.setThumbnail(file URL with ?v=<time>) \u2192 the strip and the unified chat window's avatar",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/card-io/wire-card-io.ts"
     },
     {
       "id": "card-thumb-ui",

@@ -154,6 +154,7 @@
   gap: 0.125rem;
 }
 
+.yui-preset-row__photo,
 .yui-preset-row__rename,
 .yui-preset-row__remove,
 .yui-preset-row__url {
@@ -179,6 +180,7 @@
   opacity: 0.7;
 }
 
+.yui-preset-row__photo:hover,
 .yui-preset-row__rename:hover,
 .yui-preset-row__url:hover {
   opacity: 1;
@@ -192,6 +194,7 @@
   color: var(--yui-danger);
 }
 
+.yui-preset-row__photo:focus-visible,
 .yui-preset-row__rename:focus-visible,
 .yui-preset-row__remove:focus-visible,
 .yui-preset-row__url:focus-visible {
@@ -204,6 +207,7 @@
   box-shadow: 0 0 0 2px var(--yui-danger-soft);
 }
 
+.yui-preset-row__photo svg,
 .yui-preset-row__rename svg,
 .yui-preset-row__remove svg {
   width: 0.9rem;
@@ -269,6 +273,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .yui-quick__cols.is-busy,
+  .yui-preset-row__photo,
   .yui-preset-row__rename,
   .yui-preset-row__remove {
     transition: none;

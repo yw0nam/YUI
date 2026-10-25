@@ -6,8 +6,8 @@
 //! those files and writes an exported card file.
 
 use crate::import_fs::{
-    app_data_subdir, claim_and_copy, ensure_within, open_and_import, sanitize_stem, ClaimTarget,
-    SniffKind,
+    app_data_subdir, claim_and_copy, ensure_within, open_and_import, sanitize_stem, sniff_ok,
+    ClaimTarget, SniffKind,
 };
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde::Serialize;
@@ -23,6 +23,9 @@ const MAX_JSON_BYTES: u64 = 16 * 1024 * 1024;
 const MAX_PNG_BYTES: u64 = 32 * 1024 * 1024;
 
 const PNG_SIGNATURE: &[u8; 8] = b"\x89PNG\r\n\x1a\n";
+
+/// Longest edge, in px, of a JPEG photo re-encoded as a preset's thumbnail.
+const PHOTO_EDGE: u32 = 512;
 
 /// Card file handed to the webview: the card JSON and, for a PNG, the temp thumbnail id.
 #[derive(Debug, Clone, Serialize)]
@@ -138,6 +141,41 @@ fn retain_thumbnail_at(cards: &Path, temp_id: &str, preset_id: &str) -> Result<S
     Ok(dest.to_string_lossy().into_owned())
 }
 
+/// A picked photo as PNG bytes: a PNG passes through, a JPEG is decoded and fitted to `PHOTO_EDGE`.
+fn photo_as_png(bytes: Vec<u8>) -> Result<Vec<u8>, String> {
+    if sniff_ok(&bytes, SniffKind::Png) {
+        return Ok(bytes);
+    }
+    if !sniff_ok(&bytes, SniffKind::Jpeg) {
+        return Err("unsupported file".to_string());
+    }
+    let unreadable = |e: image::ImageError| {
+        log::warn!("photo_unreadable error={e}");
+        "photo unreadable".to_string()
+    };
+    let photo = image::load_from_memory_with_format(&bytes, image::ImageFormat::Jpeg)
+        .map_err(unreadable)?;
+    let mut png = Vec::new();
+    photo
+        .thumbnail(PHOTO_EDGE, PHOTO_EDGE)
+        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+        .map_err(unreadable)?;
+    Ok(png)
+}
+
+/// Store a picked photo as `cards/<preset_id>.png`, replacing the preset's thumbnail, and
+/// return the dest path.
+fn store_preset_photo(
+    cards: &Path,
+    preset_id: &str,
+    identity: &str,
+    bytes: Vec<u8>,
+) -> Result<String, String> {
+    let png = photo_as_png(bytes)?;
+    let temp_id = claim_thumbnail(cards, "photo", identity, &png)?;
+    retain_thumbnail_at(cards, &temp_id, preset_id)
+}
+
 /// Delete `cards/<sanitized id>.png` if present. Idempotent — missing is Ok.
 fn remove_thumbnail_at(cards: &Path, id: &str) -> Result<(), String> {
     if !cards.exists() {
@@ -213,6 +251,30 @@ pub fn retain_card_thumbnail(
     preset_id: String,
 ) -> Result<String, String> {
     retain_thumbnail_at(&cards_dir(&app)?, &temp_id, &preset_id)
+}
+
+/// Open the photo picker here and store the picked PNG or JPEG as the preset's thumbnail,
+/// returning the file path. `None` when the picker is dismissed.
+#[command]
+pub async fn pick_preset_photo(
+    app: AppHandle,
+    preset_id: String,
+) -> Result<Option<String>, String> {
+    let Some(src_path) = app
+        .dialog()
+        .file()
+        .add_filter("Photo", &["png", "jpg", "jpeg"])
+        .blocking_pick_file()
+    else {
+        return Ok(None);
+    };
+    let cards = cards_dir(&app)?;
+    open_and_import(app, src_path, move |_name, identity, mut source| {
+        let bytes = read_bounded(&mut source, MAX_PNG_BYTES)?;
+        store_preset_photo(&cards, &preset_id, &identity, bytes)
+    })
+    .await
+    .map(Some)
 }
 
 /// Delete a thumbnail file by temp id or preset id. Idempotent — missing is Ok.

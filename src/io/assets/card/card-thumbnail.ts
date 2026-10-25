@@ -37,3 +37,17 @@ export async function removeCardThumbnail(
   const d = deps ?? { invoke: await loadInvoke() };
   await d.invoke("remove_card_thumbnail", { id });
 }
+
+/**
+ * Open the photo picker for a preset and return the file URL of its new thumbnail; null when the
+ * picker is dismissed. A second pick overwrites the same file, so the URL carries the pick's time
+ * to read as a change to the registry and to the webview's image cache.
+ */
+export async function pickPresetPhoto(
+  presetId: string,
+  deps?: CardThumbnailDeps,
+): Promise<string | null> {
+  const d = deps ?? (await defaultDeps());
+  const path = await d.invoke<string | null>("pick_preset_photo", { presetId });
+  return path === null ? null : `${d.convertFileSrc(path)}?v=${Date.now()}`;
+}

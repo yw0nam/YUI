@@ -258,6 +258,8 @@ interface QuickControlsOptions {
   exportCard: (text: string, fileName: string) => Promise<"written" | "cancelled">;
   createPresetFromCard: (card: Card, thumbnailTempId?: string) => Promise<string>;
   removeCardThumbnail: (id: string) => Promise<void>;
+  /** Opens the photo picker for a preset and returns its new thumbnail URL; absent outside Tauri. */
+  pickPresetPhoto?: (presetId: string) => Promise<string | null>;
   /** Preset list and active preset. If absent, the preset strip and the tab scope lines won't render. */
   presetRegistry?: PresetRegistry;
   petWindows?: PetWindows;
@@ -364,6 +366,7 @@ export function createQuickControls({
   exportCard,
   createPresetFromCard,
   removeCardThumbnail,
+  pickPresetPhoto,
   presetRegistry,
   petWindows,
   relationsStore,
@@ -481,6 +484,7 @@ export function createQuickControls({
         relationsStore,
         relationsSwitch,
         removeCardThumbnail,
+        pickPhoto: pickPresetPhoto,
       })
     : null;
   const hintTooltip = createHintTooltip({ root: el });
