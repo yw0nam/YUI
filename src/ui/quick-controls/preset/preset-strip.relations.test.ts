@@ -2,6 +2,7 @@
 // The relation line and the reasons card, through the preset strip.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { FlagSettingsStore } from "../../../settings/persisted-store";
 import { createPetWindows, type PetWindows } from "../../../settings/preset/pet-windows";
 import {
   createPresetRegistry,
@@ -12,6 +13,7 @@ import {
   type Relations,
   type RelationsStore,
 } from "../../../settings/relations/relations-store";
+import { createRelationsSwitch } from "../../../settings/relations/relations-switch";
 import { setLocale } from "../../i18n";
 import { createPresetStrip, type PresetStrip, presetStripHtml } from "./preset-strip";
 
@@ -43,13 +45,24 @@ describe("preset strip — relations", () => {
   let store: RelationsStore;
   let strip: PresetStrip;
 
-  function build(relations: Relations = OWN, petWindows?: PetWindows): void {
+  function build(
+    relations: Relations = OWN,
+    petWindows?: PetWindows,
+    relationsSwitch?: FlagSettingsStore,
+  ): void {
     strip?.dispose();
     store?.dispose();
     store = createRelationsStore({ storage: { load: () => relations, save: () => {} } });
     root.innerHTML = `${presetStripHtml()}<div class="yui-quick__cols"></div>`;
     const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-    strip = createPresetStrip({ root, registry, log, petWindows, relationsStore: store });
+    strip = createPresetStrip({
+      root,
+      registry,
+      log,
+      petWindows,
+      relationsStore: store,
+      relationsSwitch,
+    });
   }
 
   const relations = (scope: string) =>
@@ -61,6 +74,13 @@ describe("preset strip — relations", () => {
 
   beforeEach(() => {
     vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    );
     localStorage.clear();
     localStorage.setItem(
       "yui.presets",
@@ -86,6 +106,7 @@ describe("preset strip — relations", () => {
     registry.dispose();
     root.remove();
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it("lists this preset's relation toward each rated target, user first", () => {
@@ -179,7 +200,7 @@ describe("preset strip — relations", () => {
       ).toBe(true);
       expect(line.classList.contains("is-unfolded")).toBe(false);
       expect(more.textContent).toBe("+1");
-      expect(more.getAttribute("aria-label")).toBe("1 more, not open now");
+      expect(more.getAttribute("aria-label")).toBe("Show 1 more");
 
       more.click();
       expect(line.classList.contains("is-unfolded")).toBe(true);
@@ -194,6 +215,60 @@ describe("preset strip — relations", () => {
       ).toBe("false");
     } finally {
       petWindows.dispose();
+    }
+  });
+
+  it("hides the line while the Relations switch is off and shows it again when on", () => {
+    const relationsSwitch = createRelationsSwitch({ load: () => ({ enabled: false }), save() {} });
+    build(OWN, undefined, relationsSwitch);
+
+    expect(root.querySelector(".yui-preset__rel")!.hasAttribute("hidden")).toBe(true);
+    relationsSwitch.setEnabled(true);
+    expect(root.querySelector(".yui-preset__rel")!.hasAttribute("hidden")).toBe(false);
+  });
+
+  it("folds the chips past the line's width into +N", () => {
+    const proto = HTMLElement.prototype;
+    // A 180px line; each shown child is 60px wide.
+    Object.defineProperty(proto, "clientWidth", {
+      configurable: true,
+      get(this: HTMLElement) {
+        return this.classList.contains("yui-preset__rel") ? 180 : 0;
+      },
+    });
+    Object.defineProperty(proto, "scrollWidth", {
+      configurable: true,
+      get(this: HTMLElement) {
+        return 60 * [...this.children].filter((c) => !c.hasAttribute("data-folded")).length;
+      },
+    });
+    const petWindows = createPetWindows({
+      storage: { load: () => ({ open: ["aaaa0001", "bbbb0002"] }), save: () => {} },
+    });
+    try {
+      build(
+        {
+          user: { value: 5, updated_at: NOW - HOUR, log: [] },
+          aaaa0001: { value: 8, updated_at: NOW - HOUR, log: [] },
+          bbbb0002: { value: -3, updated_at: NOW - HOUR, log: [] },
+        },
+        petWindows,
+      );
+      const line = root.querySelector<HTMLElement>(".yui-preset__rel")!;
+      const chips = [...line.querySelectorAll<HTMLElement>(".yui-relation[data-target]")];
+      const more = line.querySelector<HTMLButtonElement>(".yui-relation--more")!;
+
+      expect(chips.map((c) => [c.dataset.target, c.hasAttribute("data-folded")])).toEqual([
+        ["user", false],
+        ["aaaa0001", false],
+        ["bbbb0002", true],
+      ]);
+      expect(more.textContent).toBe("+1");
+      expect(more.getAttribute("aria-label")).toBe("Show 1 more");
+    } finally {
+      petWindows.dispose();
+      delete (proto as { clientWidth?: number }).clientWidth;
+      delete (proto as { scrollWidth?: number }).scrollWidth;
     }
   });
 
