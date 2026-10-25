@@ -1,0 +1,98 @@
+/* Relations section — one row per target, a centre-out slider and its number. Tokens in ../../../tokens.css. */
+
+.yui-relations__row .yui-row__label {
+  gap: 0.375rem;
+}
+
+.yui-relations__row.is-first-unrated {
+  border-top-color: var(--yui-edge-strong);
+}
+
+.yui-relations__row.is-unrated .yui-glyph {
+  opacity: 0.6;
+}
+
+.yui-relations__ctl {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 11rem;
+  font-size: var(--yui-fs-body);
+}
+
+/* The centre tick, behind the track, at the slider's 0. */
+.yui-relations__ctl::before {
+  content: "";
+  position: absolute;
+  left: calc((100% - 3ch - 0.5rem) / 2 - 1px);
+  top: 50%;
+  width: 2px;
+  height: 10px;
+  border-radius: 1px;
+  background: var(--yui-text-mute);
+  transform: translateY(-50%);
+}
+
+.yui-relations__slider {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+/* The fill grows from the centre: amber on the positive side, Ash on the negative, Ember Red while hostile. */
+.yui-relations__slider::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    to right,
+    var(--yui-track) 0 calc(50% - var(--neg, 0) * 100%),
+    var(--yui-text-dim) calc(50% - var(--neg, 0) * 100%) 50%,
+    var(--yui-accent) 50% calc(50% + var(--pos, 0) * 100%),
+    var(--yui-track) calc(50% + var(--pos, 0) * 100%) 100%
+  );
+}
+
+.yui-relations__slider[data-band="hostile"]::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    to right,
+    var(--yui-track) 0 calc(50% - var(--neg, 0) * 100%),
+    var(--yui-danger) calc(50% - var(--neg, 0) * 100%) 50%,
+    var(--yui-track) 50% 100%
+  );
+}
+
+.yui-relations__slider::-moz-range-track {
+  background: linear-gradient(
+    to right,
+    var(--yui-track) 0 calc(50% - var(--neg, 0) * 100%),
+    var(--yui-text-dim) calc(50% - var(--neg, 0) * 100%) 50%,
+    var(--yui-accent) 50% calc(50% + var(--pos, 0) * 100%),
+    var(--yui-track) calc(50% + var(--pos, 0) * 100%) 100%
+  );
+}
+
+.yui-relations__slider[data-band="hostile"]::-moz-range-track {
+  background: linear-gradient(
+    to right,
+    var(--yui-track) 0 calc(50% - var(--neg, 0) * 100%),
+    var(--yui-danger) calc(50% - var(--neg, 0) * 100%) 50%,
+    var(--yui-track) 50% 100%
+  );
+}
+
+.yui-relations__slider::-moz-range-progress {
+  background: none;
+}
+
+/* Wide enough for `−20`, so the slider keeps its width while the number changes. */
+.yui-relations__value {
+  min-width: 3ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A narrow panel wraps the control under its label. */
+@container (width < 30rem) {
+  .yui-relations__ctl {
+    flex-basis: 100%;
+  }
+}

@@ -17,7 +17,8 @@ const SVG = (d: string) =>
 export const CHEVRON_SVG = SVG('<path d="M6 9l6 6 6-6"/>');
 const UP_SVG = SVG('<path d="M6 15l6-6 6 6"/>');
 
-function glyphEl(band: RelationBand): HTMLElement {
+/** The glyph; `none` lights nothing and leaves the notch Muted Ash, for a target not rated yet. */
+export function glyphEl(band: RelationBand | "none"): HTMLElement {
   const glyph = document.createElement("span");
   glyph.className = "yui-glyph";
   glyph.dataset.band = band;

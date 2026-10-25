@@ -196,7 +196,7 @@ const en: Record<string, string> = {
   "preset.taken": "{name} already exists",
   "preset.switching": "Switching to {name}…",
   "preset.scope_tab": "{name} · {tab}",
-  "preset.scope_char": "{name} · Only the VRM selection is per preset",
+  "preset.scope_char": "{name} · Only the VRM selection and relations are per preset",
   "preset.scope_shared": "Shared by every preset",
   "relation.group": "How {name} feels",
   "relation.to_you": "you",
@@ -210,6 +210,15 @@ const en: Record<string, string> = {
   "relation.rose": "rose",
   "relation.fell": "fell",
   "relation.card_head": "{subject}: {band} to {target}",
+  "relations.section": "Relations",
+  "relations.aria": "Relations on or off",
+  "relations.note":
+    "Drag to set how {name} feels toward each one. The change is logged as set by you; the daily cap does not apply.",
+  "relations.off_note":
+    "Relations are off for every character: no one is rated, and the backend is told no relation. Stored values are kept.",
+  "relations.not_rated": "Not rated yet",
+  "relations.set_by_you": "set by you",
+  "relations.slider_aria": "How {name} feels toward {target}",
 
   // reasoning effort segment
   "reasoning.label": "Reasoning effort",

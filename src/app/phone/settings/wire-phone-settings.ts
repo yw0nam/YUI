@@ -42,6 +42,7 @@ const CHARACTER_ROWS = {
   expressMotion: false,
   bedScene: false,
   viewpoint: true,
+  relations: false,
 } as const;
 
 export function createPhoneSettings(deps: {

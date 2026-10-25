@@ -19,6 +19,8 @@ export interface CharacterRows {
   bedScene: boolean;
   /** The camera view reset. */
   viewpoint: boolean;
+  /** The relations rows with their switch; the settings window and the pet popover render it, the phone does not. */
+  relations: boolean;
 }
 
 /** The surface the tab sits on: the desktop panel, or the phone's full-screen settings view. */
@@ -50,6 +52,14 @@ const vrmsHtml = (): string => `
               </p>
             </div>
           </div>
+        </div>`;
+
+const relationsHtml = (): string => `
+        <div class="yui-sec yui-relations">
+          ${secHeadHtml(t("relations.section"), `<button class="yui-switch yui-relations__switch" type="button" role="switch" aria-label="${t("relations.aria")}" aria-checked="true"></button>`)}
+          <p class="yui-sec__note yui-relations__note"></p>
+          <p class="yui-sec__note yui-relations__off" hidden>${t("relations.off_note")}</p>
+          <div class="yui-group yui-relations__rows" role="group" aria-label="${t("relations.section")}"></div>
         </div>`;
 
 const gainHtml = (): string => `
@@ -129,6 +139,7 @@ const viewpointHtml = (variant: CharacterVariant): string =>
 export function characterHtml(rows: CharacterRows, variant: CharacterVariant): string {
   return [
     vrmsHtml(),
+    rows.relations ? relationsHtml() : "",
     rows.gain ? gainHtml() : "",
     rows.idleMotion ? idleMotionHtml() : "",
     rows.expressMotion ? expressMotionHtml() : "",

@@ -197,7 +197,7 @@ const ko: Record<string, string> = {
   "preset.taken": "이미 있는 이름이에요",
   "preset.switching": "{name} 프리셋으로 바꾸는 중…",
   "preset.scope_tab": "{name} · {tab}",
-  "preset.scope_char": "{name} · VRM 선택만 프리셋별",
+  "preset.scope_char": "{name} · VRM 선택과 관계만 프리셋별",
   "preset.scope_shared": "모든 프리셋이 함께 쓰는 설정",
   "relation.group": "{name}의 마음",
   "relation.to_you": "나",
@@ -211,6 +211,15 @@ const ko: Record<string, string> = {
   "relation.rose": "올라감",
   "relation.fell": "내려감",
   "relation.card_head": "{subject}: {target}에게 {band}",
+  "relations.section": "관계",
+  "relations.aria": "관계 켜기/끄기",
+  "relations.note":
+    "끌어서 {name}의 마음을 상대마다 정해요. 바꾼 값은 직접 정한 것으로 기록되고, 하루 변경 한도는 적용되지 않아요.",
+  "relations.off_note":
+    "모든 캐릭터의 관계가 꺼져 있어요. 아무도 평가하지 않고, 백엔드에도 관계를 알리지 않아요. 저장된 값은 그대로 남아요.",
+  "relations.not_rated": "아직 평가하지 않음",
+  "relations.set_by_you": "직접 정함",
+  "relations.slider_aria": "{target}을(를) 향한 {name}의 마음",
 
   // reasoning effort segment
   "reasoning.label": "추론 강도",

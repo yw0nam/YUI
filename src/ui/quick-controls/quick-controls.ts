@@ -55,6 +55,7 @@ import type { createScheduleSettings } from "../../settings/cues/schedule-settin
 import type { createUserNameSettings } from "../../settings/identity/user-name-settings";
 import type { MessageWindowSettingsStore } from "../../settings/panels/message-window-settings";
 import type { ClampedIntSettingsStore, FlagSettingsStore } from "../../settings/persisted-store";
+import { presetIdForWindow } from "../../settings/preset/active-preset";
 import type { PetWindows } from "../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import type { RelationsStore } from "../../settings/relations/relations-store";
@@ -492,6 +493,7 @@ export function createQuickControls({
       expressMotion: !!expressMotionSettings,
       bedScene: !!bedSceneSettings,
       viewpoint: !!onResetViewpoint,
+      relations: !!relationsStore && !!relationsSwitch && !!presetRegistry,
     },
     variant: "panel",
     vrmSelection,
@@ -515,6 +517,16 @@ export function createQuickControls({
         }
       : {}),
     ...(bedSceneSettings ? { bedScene: { settings: bedSceneSettings } } : {}),
+    ...(relationsStore && relationsSwitch && presetRegistry
+      ? {
+          relations: {
+            store: relationsStore,
+            relationsSwitch,
+            self: presetIdForWindow(),
+            presets: () => presetRegistry.get().list,
+          },
+        }
+      : {}),
   });
   el.querySelector("#yui-panel-char")!.append(characterTab.el);
 

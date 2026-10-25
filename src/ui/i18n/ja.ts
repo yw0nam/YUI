@@ -199,7 +199,7 @@ const ja: Record<string, string> = {
   "preset.taken": "{name}はすでにあります",
   "preset.switching": "{name}に切り替え中…",
   "preset.scope_tab": "{name} · {tab}",
-  "preset.scope_char": "{name} · VRMの選択だけがプリセットごと",
+  "preset.scope_char": "{name} · VRMの選択と関係だけがプリセットごと",
   "preset.scope_shared": "すべてのプリセットで共通の設定",
   "relation.group": "{name}の気持ち",
   "relation.to_you": "あなた",
@@ -213,6 +213,15 @@ const ja: Record<string, string> = {
   "relation.rose": "上がった",
   "relation.fell": "下がった",
   "relation.card_head": "{subject}: {target}に{band}",
+  "relations.section": "関係",
+  "relations.aria": "関係のオン/オフ",
+  "relations.note":
+    "ドラッグして{name}の気持ちを相手ごとに決めます。変更はあなたが決めたものとして記録され、1日の上限はかかりません。",
+  "relations.off_note":
+    "すべてのキャラクターの関係がオフです。誰も評価せず、バックエンドにも関係を伝えません。保存された値はそのまま残ります。",
+  "relations.not_rated": "まだ評価していません",
+  "relations.set_by_you": "あなたが決めた",
+  "relations.slider_aria": "{name}の{target}への気持ち",
 
   // reasoning effort segment
   "reasoning.label": "推論の強さ",
