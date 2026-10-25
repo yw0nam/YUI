@@ -1,41 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { UserTurnRouted } from "../../io/bridge/settings-bridge";
-import type { Row } from "./merge";
-import { createSequence, lastSpeakerOf, targetsFor } from "./router";
-
-const reverse = (ids: string[]) => [...ids].reverse();
-
-describe("targetsFor", () => {
-  const base = {
-    cast: ["perlica", "natsume"],
-    lastSpeaker: undefined,
-    mainId: "perlica",
-    shuffle: reverse,
-  };
-
-  it.each([
-    ["everyone shuffles the cast", { mention: "everyone" }, ["natsume", "perlica"]],
-    ["a pick goes to its preset", { mention: "natsume" }, ["natsume"]],
-    ["no mention goes to the last speaker", { mention: null, lastSpeaker: "natsume" }, ["natsume"]],
-    ["no mention and no speaker goes to main", { mention: null }, ["perlica"]],
-    [
-      "a last speaker who closed falls back to main",
-      { mention: null, lastSpeaker: "gone" },
-      ["perlica"],
-    ],
-  ])("%s", (_name, over, expected) => {
-    expect(targetsFor({ ...base, ...over })).toEqual(expected);
-  });
-});
-
-describe("lastSpeakerOf", () => {
-  it("is the newest row that is not the user's", () => {
-    const row = (who: string): Row => ({ key: who, who, name: who, text: "x", ts: 1 });
-
-    expect(lastSpeakerOf([row("perlica"), row("natsume"), row("user")])).toBe("natsume");
-    expect(lastSpeakerOf([row("user")])).toBeUndefined();
-  });
-});
+import { createSequence } from "./sequence";
 
 describe("createSequence", () => {
   const send = {

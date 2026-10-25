@@ -7,6 +7,7 @@ import {
   isPresetWindowLive,
   readOpenPetWindowIds,
   readOpenPresetIds,
+  readOpenPresets,
   setWindowLive,
 } from "./pet-windows";
 
@@ -71,4 +72,24 @@ it.each([
   );
   localStorage.setItem("yui.windows", JSON.stringify({ open }));
   expect(readOpenPresetIds()).toEqual(expected);
+});
+
+it("readOpenPresets maps the open ids to their registry entries, thumbnail included, and names an unlisted id by itself", () => {
+  localStorage.setItem(
+    "yui.presets",
+    JSON.stringify({
+      active: "aaaa0001",
+      list: [
+        { id: "aaaa0001", name: "A", thumbnail: "asset://a.png" },
+        { id: "bbbb0002", name: "B" },
+      ],
+    }),
+  );
+  localStorage.setItem("yui.windows", JSON.stringify({ open: ["bbbb0002", "cccc0003"] }));
+
+  expect(readOpenPresets()).toEqual([
+    { id: "aaaa0001", name: "A", thumbnail: "asset://a.png" },
+    { id: "bbbb0002", name: "B" },
+    { id: "cccc0003", name: "cccc0003" },
+  ]);
 });

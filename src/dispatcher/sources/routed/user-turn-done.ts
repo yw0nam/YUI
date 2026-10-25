@@ -12,8 +12,8 @@ import type { DispatcherDeps } from "../../dispatcher";
 export function createUserTurnDone(deps: {
   presetId: () => string;
   emit: (event: UserTurnDone) => void;
-  onTurnClosed?: DispatcherDeps["onTurnClosed"];
-  onTurnDropped?: DispatcherDeps["onTurnDropped"];
+  onTurnClosed: NonNullable<DispatcherDeps["onTurnClosed"]>;
+  onTurnDropped: NonNullable<DispatcherDeps["onTurnDropped"]>;
 }): {
   onTurnClosed: NonNullable<DispatcherDeps["onTurnClosed"]>;
   onTurnDropped: NonNullable<DispatcherDeps["onTurnDropped"]>;
@@ -23,11 +23,11 @@ export function createUserTurnDone(deps: {
   };
   return {
     onTurnClosed(turn) {
-      deps.onTurnClosed?.(turn);
+      deps.onTurnClosed(turn);
       report(turn.sendId);
     },
     onTurnDropped(env, reason) {
-      deps.onTurnDropped?.(env, reason);
+      deps.onTurnDropped(env, reason);
       report(sendIdOf(env));
     },
   };

@@ -267,7 +267,6 @@ const ko: Record<string, string> = {
   "unified.title": "통합 채팅창",
   "unified.to": "{name}에게",
   "unified.marker": "→ {name}",
-  "unified.everyone": "@everyone",
   "unified.everyone_sub": "열린 캐릭터 전원에게",
   "unified.hint": "@로 받는 캐릭터를 고를 수 있어요",
   "unified.remove_mention": "받는 캐릭터 지우기",

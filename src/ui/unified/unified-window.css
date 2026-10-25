@@ -19,7 +19,7 @@
   box-sizing: border-box;
 }
 
-/* ── Head: the window's name and the open characters ── */
+/* ── Head: the window's name and the open presets ── */
 .yui-uc__head {
   display: flex;
   align-items: center;
@@ -127,7 +127,7 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-/* "→ name": who the speaker's reply was addressed to, in that character's hue. */
+/* "→ name": who the speaker's reply was addressed to, in that preset's hue. */
 .yui-uc__to {
   display: inline-flex;
   align-items: center;

@@ -269,7 +269,6 @@ const ja: Record<string, string> = {
   "unified.title": "統合チャット",
   "unified.to": "{name}に",
   "unified.marker": "→ {name}",
-  "unified.everyone": "@everyone",
   "unified.everyone_sub": "開いているキャラクター全員に",
   "unified.hint": "@で答えるキャラクターを選べます",
   "unified.remove_mention": "宛先を外す",

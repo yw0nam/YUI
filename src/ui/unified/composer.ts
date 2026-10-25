@@ -10,14 +10,15 @@ import { createTextInput } from "../input/text-input";
 import "../surfaces/surfaces.css";
 import { avatarEl } from "./avatar";
 import { createMentionPicker } from "./mention-picker";
+import { EVERYONE, type Mention } from "./targets";
 
 const CHEVRON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>`;
 const CROSS = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"></path></svg>`;
 
 export interface Composer {
-  /** The picked preset id, "everyone", or null. */
-  getMention(): string | null;
-  setMention(mention: string | null): void;
+  /** The picked recipient, or null. */
+  getMention(): Mention | null;
+  setMention(mention: Mention | null): void;
   /** The preset a message with no mention goes to; undefined while the cast is empty. */
   setTarget(entry: PresetEntry | undefined): void;
   /** text is trimmed and never empty. */
@@ -51,7 +52,7 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
   const targetBtn = q<HTMLButtonElement>(".yui-uc__target");
   const hint = q<HTMLElement>(".yui-uc__hint");
 
-  let mention: string | null = null;
+  let mention: Mention | null = null;
   let target: PresetEntry | undefined;
 
   // The picker's capture listener is added first, so it sees Enter and Escape before the text input.
@@ -79,9 +80,9 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
     pill.hidden = mention === null;
     pill.replaceChildren();
     if (mention === null) return;
-    const entry = mention === "everyone" ? undefined : deps.cast().find((e) => e.id === mention);
+    const entry = mention === EVERYONE ? undefined : deps.cast().find((e) => e.id === mention);
     if (entry) pill.append(avatarEl(entry, 14));
-    pill.append(mention === "everyone" ? t("unified.everyone") : `@${entry?.name ?? mention}`);
+    pill.append(mention === EVERYONE ? `@${EVERYONE}` : `@${entry?.name ?? mention}`);
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "yui-uc__pill-x";
@@ -99,11 +100,11 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
     targetBtn.hidden = !target;
     targetBtn.setAttribute("aria-disabled", String(mention !== null));
     if (!target) return;
-    targetBtn.append(avatarEl(target, 7), t("unified.to", { name: target.name }));
+    targetBtn.append(avatarEl(target, 14), t("unified.to", { name: target.name }));
     targetBtn.insertAdjacentHTML("beforeend", CHEVRON);
   }
 
-  function setMention(next: string | null): void {
+  function setMention(next: Mention | null): void {
     mention = next;
     paintPill();
     paintTarget();

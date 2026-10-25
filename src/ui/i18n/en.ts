@@ -266,7 +266,6 @@ const en: Record<string, string> = {
   "unified.title": "Unified chat",
   "unified.to": "to {name}",
   "unified.marker": "→ {name}",
-  "unified.everyone": "@everyone",
   "unified.everyone_sub": "to every open character",
   "unified.hint": "@ picks who answers",
   "unified.remove_mention": "Remove mention",

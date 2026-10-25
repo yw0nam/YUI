@@ -2,6 +2,7 @@
 
 import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
 import type { PresetEntry } from "../../settings/preset/active-preset";
+import { SEND_TIMEOUT_MS } from "./sequence";
 
 export type Transcript = PresetEntry & { entries: ChatHistoryEntry[] };
 
@@ -24,9 +25,6 @@ export interface Row {
   to?: string;
   pending?: true;
 }
-
-/** How long a send stays a pending row when no record arrives. */
-export const PENDING_MS = 60_000;
 
 export function mergeTranscripts(
   transcripts: readonly Transcript[],
@@ -69,7 +67,7 @@ export function mergeTranscripts(
     }
   }
   for (const p of pending) {
-    if (bySend.has(p.sendId) || now - p.at >= PENDING_MS) continue;
+    if (bySend.has(p.sendId) || now - p.at >= SEND_TIMEOUT_MS) continue;
     const row: Row = {
       key: `send:${p.sendId}`,
       who: "user",

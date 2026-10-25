@@ -2,7 +2,7 @@
 
 import { createPersistedStore, localStorageStore, type PersistedStorage } from "../persisted-store";
 import type { PresetEntry } from "./active-preset";
-import { readActivePresetId, readPresetName } from "./active-preset";
+import { readActivePresetId, readPresetList, readPresetName } from "./active-preset";
 
 export const PET_WINDOWS_KEY = "yui.windows";
 export const LIVE_KEY_PREFIX = "yui.live-window.";
@@ -59,6 +59,13 @@ export function readOpenPetWindowIds(): string[] {
 /** Main's active preset and every preset with an open pet window, each once. */
 export function readOpenPresetIds(): string[] {
   return [...new Set([readActivePresetId(), ...readOpenPetWindowIds()])];
+}
+/** `readOpenPresetIds`, each with its registry entry (thumbnail included); an unlisted id is named by itself. */
+export function readOpenPresets(): PresetEntry[] {
+  const list = readPresetList();
+  return readOpenPresetIds().map(
+    (id) => list.find((e) => e.id === id) ?? { id, name: readPresetName(id) },
+  );
 }
 /** `readOpenPresetIds` but `exceptId`, each with its registry name. */
 export function readOpenPresetEntries(exceptId: string): PresetEntry[] {

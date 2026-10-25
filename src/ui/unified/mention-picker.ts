@@ -8,6 +8,7 @@
 import type { PresetEntry } from "../../settings/preset/active-preset";
 import { t } from "../i18n";
 import { avatarEl } from "./avatar";
+import { EVERYONE, type Mention } from "./targets";
 
 const LIST_ID = "yui-uc-mention-list";
 /** Matches the `@fragment` that ends the text before the caret. */
@@ -24,8 +25,7 @@ export function createMentionPicker(deps: {
   /** Where the list sits; a positioned ancestor of the field. */
   mount: HTMLElement;
   cast: () => PresetEntry[];
-  /** A preset id, or "everyone". */
-  onPick: (mention: string) => void;
+  onPick: (mention: Mention) => void;
 }): MentionPicker {
   const { field, mount, onPick } = deps;
 
@@ -89,7 +89,7 @@ export function createMentionPicker(deps: {
       options.push({ id, el });
     };
     for (const e of matches) add(e.id, e.name, avatarEl(e, 14));
-    add("everyone", t("unified.everyone"), null, t("unified.everyone_sub"));
+    add(EVERYONE, `@${EVERYONE}`, null, t("unified.everyone_sub"));
     list.hidden = false;
     field.setAttribute("aria-expanded", "true");
     // Enter picks the first match; with none, it still sends the text.

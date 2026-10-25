@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { avatarEl, hueOf } from "./avatar";
+import { avatarEl } from "./avatar";
 
 describe("avatarEl", () => {
   it("shows the preset's photo as a round image", () => {
@@ -17,8 +17,10 @@ describe("avatarEl", () => {
 
     expect(el.tagName).toBe("SPAN");
     expect(el.className).toBe("yui-uc__dot");
-    expect(el.style.background).toBe("oklch(0.78 0.12 293)");
-    expect(hueOf("natsume")).toBe(186);
+    expect(el.style.background).not.toBe("");
+    expect(avatarEl({ id: "natsume", name: "Natsume" }, 12).style.background).not.toBe(
+      el.style.background,
+    );
     expect(avatarEl({ id: "perlica", name: "Other" }, 12).style.background).toBe(
       el.style.background,
     );

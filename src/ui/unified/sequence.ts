@@ -1,46 +1,21 @@
-/** Pure routing for the unified chat window: who a message goes to, and the one-at-a-time delivery of a send. */
+/** Delivery of the unified chat window's sends: one at a time, one target at a time. */
 
 import type { UserTurnDone, UserTurnRouted } from "../../io/bridge/settings-bridge";
 import { createLogger } from "../../logger";
-import type { Row } from "./merge";
+import type { Send } from "./targets";
 
-const log = createLogger("router");
+const log = createLogger("sequence");
 
-/** The preset id of the newest row a preset spoke. */
-export function lastSpeakerOf(rows: readonly Row[]): string | undefined {
-  return rows.findLast((r) => r.who !== "user")?.who;
-}
+/** How long a target may stay silent before the sequence moves on, and how long a sent line waits for its record. */
+export const SEND_TIMEOUT_MS = 60_000;
 
-/** The presets a message goes to: everyone in a shuffled order, a picked preset, or the last speaker. */
-export function targetsFor(p: {
-  /** A preset id, "everyone", or no mention. */
-  mention: string | null;
-  cast: readonly string[];
-  lastSpeaker: string | undefined;
-  mainId: string;
-  shuffle: (ids: string[]) => string[];
-}): string[] {
-  if (p.mention === "everyone") return p.shuffle([...p.cast]);
-  if (p.mention) return [p.mention];
-  return [[p.lastSpeaker, p.mainId].find((id) => id && p.cast.includes(id)) ?? p.cast[0]!];
-}
-
-export interface Send {
-  sendId: string;
-  targets: string[];
-  text: string;
-  mention?: UserTurnRouted["mention"];
-}
-
-/** Delivers one send at a time, one target at a time; a done for the current send and target, or 60 s, moves on. */
+/** A done for the current send and target, or SEND_TIMEOUT_MS, moves on; a send that arrives meanwhile queues. */
 // ponytail: one queue, one timeout; no per-target retry while the backend answers nearly every turn
 export function createSequence(deps: {
   emit: (event: UserTurnRouted) => void;
   /** A queued send reached the front and is about to be emitted. */
   onStart?: (sendId: string) => void;
-  timeoutMs?: number;
 }): { run(send: Send): void; turnDone(done: UserTurnDone): void; dispose(): void } {
-  const timeoutMs = deps.timeoutMs ?? 60_000;
   const queue: Send[] = [];
   let current: { send: Send; index: number } | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -57,7 +32,7 @@ export function createSequence(deps: {
     timer = setTimeout(() => {
       log.info("sequence_timeout", { preset: to });
       advance();
-    }, timeoutMs);
+    }, SEND_TIMEOUT_MS);
   }
 
   function startNext(): void {

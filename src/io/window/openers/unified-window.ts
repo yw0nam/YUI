@@ -11,7 +11,7 @@ import { isTauri } from "../../../tauri-env";
 
 const log = createLogger("unified-window");
 
-const UNIFIED_WINDOW_LABEL = "unified";
+export const UNIFIED_WINDOW_LABEL = "unified";
 
 interface UnifiedWindowEnv {
   isTauri: boolean;

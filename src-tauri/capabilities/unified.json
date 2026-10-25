@@ -1,23 +1,12 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "unified",
-  "description": "unified chat window — a decorated window listing every open preset's transcript and routing the user's messages; creates no windows and opens links in the default browser",
+  "description": "unified chat window — a decorated window listing every open preset's transcript and routing the user's messages; it only logs and uses the bridge, and main opens, focuses and closes it",
   "windows": [
     "unified"
   ],
   "permissions": [
     "core:default",
-    "core:window:allow-close",
-    "core:window:allow-set-focus",
-    "log:default",
-    {
-      "identifier": "opener:allow-open-url",
-      "allow": [
-        { "url": "http://*" },
-        { "url": "https://*" },
-        { "url": "mailto:*" },
-        { "url": "tel:*" }
-      ]
-    }
+    "log:default"
   ]
 }

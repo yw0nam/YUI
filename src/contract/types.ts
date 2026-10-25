@@ -255,7 +255,7 @@ export interface TriggerMeta {
   kind: "user" | "schedule" | "proactive" | "agent" | "signals" | "milestone" | "addressed";
   /** user only: the in-app help button that asked, naming the guide that answers it. */
   guide?: GuideKey;
-  /** user only: the unified chat window's recipient pick — one character, or everyone. */
+  /** user only: the unified chat window's recipient pick — one preset, or everyone. */
   mention?: "character" | "everyone";
   cue?: CueMeta;
   /** time_milestone.* — a once-per-day client clock fact. */

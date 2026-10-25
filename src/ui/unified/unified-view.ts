@@ -2,19 +2,19 @@
  * The unified chat window's view — every open preset's current-session transcript in one list,
  * and the composer that routes a message to one preset or, in sequence, to all of them.
  *
- * Draws what the transcripts record and carries the user's pick; the presets' backends decide
- * what to say (firing ≠ judgment).
+ * Wires the modules and keeps the pending sends with their expiry timer; the presets' backends
+ * decide what to say (firing ≠ judgment).
  */
 
 import type { UserTurnDone, UserTurnRouted } from "../../io/bridge/settings-bridge";
 import { createLogger } from "../../logger";
 import type { PresetEntry } from "../../settings/preset/active-preset";
 import { subscribe as subscribeLocale, t } from "../i18n";
-import { ageText } from "../quick-controls/preset/relations/relation-glyph";
-import { avatarEl, colorOf } from "./avatar";
 import { createComposer } from "./composer";
-import { mergeTranscripts, PENDING_MS, type PendingSend, type Row, type Transcript } from "./merge";
-import { createSequence, lastSpeakerOf, targetsFor } from "./router";
+import { castChipEl, lineEl } from "./log-rows";
+import { mergeTranscripts, type PendingSend, type Transcript } from "./merge";
+import { createSequence, SEND_TIMEOUT_MS } from "./sequence";
+import { buildSend, fallbackTarget, lastSpeakerOf } from "./targets";
 
 const log = createLogger("unified-view");
 
@@ -70,103 +70,47 @@ export function createUnifiedView(deps: {
     cast: deps.cast,
   });
 
-  function entryOf(id: string, cast: PresetEntry[]): PresetEntry | undefined {
-    return cast.find((c) => c.id === id);
-  }
-
-  function lineEl(row: Row, cast: PresetEntry[], now: number): HTMLElement {
-    const li = document.createElement("li");
-    li.className = "yui-uc__line";
-    li.classList.toggle("is-pending", row.pending === true);
-    const who = document.createElement("span");
-    who.className = "yui-uc__who";
-    const speaker = row.who === "user" ? undefined : entryOf(row.who, cast);
-    if (speaker) {
-      who.append(avatarEl(speaker, 20));
-      who.style.color = colorOf(speaker.id);
-    }
-    who.append(row.who === "user" ? t("history.who_user") : row.name);
-    const say = document.createElement("p");
-    say.className = "yui-uc__say";
-    if (row.to) {
-      const to = document.createElement("span");
-      to.className = "yui-uc__to";
-      to.style.color = colorOf(row.to);
-      to.append(t("unified.marker", { name: entryOf(row.to, cast)?.name ?? row.to }));
-      say.append(to);
-    }
-    say.append(row.text);
-    if (row.pending) {
-      const sr = document.createElement("span");
-      sr.className = "yui-uc__sr";
-      sr.textContent = t("unified.pending");
-      say.append(sr);
-    }
-    const ago = document.createElement("time");
-    ago.className = "yui-uc__ago";
-    const ms = now - row.ts;
-    ago.textContent = ms < 60_000 ? t("unified.just_now") : ageText(ms);
-    li.append(who, say, ago);
-    return li;
-  }
-
   function refresh(): void {
     const now = deps.now();
     const cast = deps.cast();
-    pending = pending.filter((p) => now - p.at < PENDING_MS);
+    pending = pending.filter((p) => now - p.at < SEND_TIMEOUT_MS);
     const rows = mergeTranscripts(deps.transcripts(), pending, now);
 
     title.textContent = t("unified.title");
-    castEl.replaceChildren(
-      ...cast.map((c) => {
-        const li = document.createElement("li");
-        li.className = "yui-uc__chip";
-        li.append(avatarEl(c, 7), c.name);
-        return li;
-      }),
-    );
+    castEl.replaceChildren(...cast.map(castChipEl));
 
     const atEnd = logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight < 8;
     logEl.replaceChildren(...rows.map((r) => lineEl(r, cast, now)));
     if (atEnd) logEl.scrollTop = logEl.scrollHeight;
 
-    const ids = cast.map((c) => c.id);
-    const [fallback] = targetsFor({
-      mention: null,
-      cast: ids,
+    const target = fallbackTarget({
+      cast: cast.map((c) => c.id),
       lastSpeaker: lastSpeakerOf(rows),
       mainId: deps.mainId(),
-      shuffle: shuffled,
     });
-    composer.setTarget(fallback ? entryOf(fallback, cast) : undefined);
+    composer.setTarget(cast.find((c) => c.id === target));
 
     // One timer for the earliest pending expiry, so the row leaves without another event.
     clearTimeout(expiry);
-    const soonest = Math.min(...pending.map((p) => p.at + PENDING_MS));
+    const soonest = Math.min(...pending.map((p) => p.at + SEND_TIMEOUT_MS));
     if (pending.length > 0) expiry = setTimeout(refresh, Math.max(soonest - now, 0) + 1);
   }
 
   composer.onSubmit((text) => {
-    const cast = deps.cast();
-    const picked = composer.getMention();
-    const entry = picked && picked !== "everyone" ? entryOf(picked, cast) : undefined;
-    const everyone = picked === "everyone";
-    const mention = everyone ? "everyone" : entry ? "character" : undefined;
-    const rows = mergeTranscripts(deps.transcripts(), pending, deps.now());
-    const targets = targetsFor({
-      mention: everyone ? "everyone" : (entry?.id ?? null),
-      cast: cast.map((c) => c.id),
-      lastSpeaker: lastSpeakerOf(rows),
+    const send = buildSend({
+      text,
+      mention: composer.getMention(),
+      cast: deps.cast(),
+      lastSpeaker: lastSpeakerOf(mergeTranscripts(deps.transcripts(), pending, deps.now())),
       mainId: deps.mainId(),
       shuffle: shuffled,
+      sendId: deps.randomId(),
     });
-    if (cast.length === 0) return;
-    const sendId = deps.randomId();
-    const sent = everyone ? `@everyone ${text}` : entry ? `@${entry.name} ${text}` : text;
-    pending.push({ sendId, text: sent, at: deps.now() });
-    sequence.run({ sendId, targets, text: sent, ...(mention ? { mention } : {}) });
+    if (!send) return;
+    pending.push({ sendId: send.sendId, text: send.text, at: deps.now() });
+    sequence.run(send);
     composer.setMention(null);
-    log.info("route", { targets: targets.length, mention: mention ?? "none" });
+    log.info("route", { targets: send.targets.length, mention: send.mention ?? "none" });
     refresh();
   });
 

@@ -13,8 +13,8 @@ import { createSettingsBridge } from "../io/bridge/settings-bridge";
 import { readTranscriptAfterBoundary } from "../io/chat/conversation/chat-history-store";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
-import { readActivePresetId, readPresetName } from "../settings/preset/active-preset";
-import { readOpenPresetIds } from "../settings/preset/pet-windows";
+import { readActivePresetId } from "../settings/preset/active-preset";
+import { readOpenPresets } from "../settings/preset/pet-windows";
 import { createPresetRegistry } from "../settings/preset/preset-registry";
 import { reloadFromStorage as reloadLocale } from "../ui/i18n";
 import { createUnifiedView } from "../ui/unified/unified-view";
@@ -31,14 +31,11 @@ async function bootstrap(): Promise<void> {
   const settingsBridge = createSettingsBridge(undefined, { windowKind: "unified" });
   const registry = createPresetRegistry();
 
-  const cast = () =>
-    readOpenPresetIds().map(
-      (id) => registry.get().list.find((e) => e.id === id) ?? { id, name: readPresetName(id) },
-    );
   const view = createUnifiedView({
     mount: app,
-    cast,
-    transcripts: () => cast().map((c) => ({ ...c, entries: readTranscriptAfterBoundary(c.id) })),
+    cast: readOpenPresets,
+    transcripts: () =>
+      readOpenPresets().map((c) => ({ ...c, entries: readTranscriptAfterBoundary(c.id) })),
     mainId: readActivePresetId,
     now: Date.now,
     randomId: () => crypto.randomUUID(),
