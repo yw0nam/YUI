@@ -82,6 +82,9 @@ describe("createCharacterTab — relations", () => {
     expect(klukai.classList.contains("is-unrated")).toBe(true);
     expect(klukai.querySelector(".yui-relations__value")?.textContent).toBe("0");
     expect(klukai.querySelector(".yui-row__sub")?.textContent).toBe("Not rated yet");
+    expect(klukai.querySelector(".yui-relations__slider")?.getAttribute("aria-valuetext")).toBe(
+      "Not rated yet",
+    );
     tab.dispose();
   });
 
@@ -132,6 +135,7 @@ describe("createCharacterTab — relations", () => {
     expect(row("cccc0003").classList.contains("is-unrated")).toBe(true);
     expect(row("cccc0003").querySelector(".yui-row__sub")?.textContent).toBe("Not rated yet");
     expect(row("cccc0003").querySelector<HTMLElement>(".yui-glyph")?.dataset.band).toBe("none");
+    expect(slider.getAttribute("aria-valuetext")).toBe("Not rated yet");
     expect(log.info).not.toHaveBeenCalledWith("relation_set", expect.anything());
     tab.dispose();
   });
