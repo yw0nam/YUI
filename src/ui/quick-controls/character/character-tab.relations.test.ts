@@ -35,7 +35,7 @@ const OWN: Relations = {
 };
 
 describe("createCharacterTab — relations", () => {
-  const log = { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} };
+  const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
   beforeEach(() => {
     vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
@@ -115,6 +115,24 @@ describe("createCharacterTab — relations", () => {
     );
     expect(row("cccc0003").querySelector(".yui-relations__slider")).toBe(slider);
     expect(document.activeElement).toBe(slider);
+    tab.dispose();
+  });
+
+  it("restores an unrated row released at 0 without writing or logging", () => {
+    const { tab, store, row } = build();
+    const slider = row("cccc0003").querySelector<HTMLInputElement>(".yui-relations__slider")!;
+
+    for (const value of ["5", "0"]) {
+      slider.value = value;
+      slider.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    slider.dispatchEvent(new Event("change", { bubbles: true }));
+
+    expect(store.all().cccc0003).toBeUndefined();
+    expect(row("cccc0003").classList.contains("is-unrated")).toBe(true);
+    expect(row("cccc0003").querySelector(".yui-row__sub")?.textContent).toBe("Not rated yet");
+    expect(row("cccc0003").querySelector<HTMLElement>(".yui-glyph")?.dataset.band).toBe("none");
+    expect(log.info).not.toHaveBeenCalledWith("relation_set", expect.anything());
     tab.dispose();
   });
 
