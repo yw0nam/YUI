@@ -46,7 +46,7 @@ Applies to all TypeScript in `src/` and all Rust in `src-tauri/src/`.
 |---|---|---|
 | `relation_rated` | `target`, `delta`, `band`, `clamped` | A `rate_relation` call reached the store. `target` is `user` or a preset id, `delta` the change applied after the daily cap and the range, `band` the band after it. |
 | `relations_replaced` | `targets` | An ingress `PUT /relations` replaced the window's store; `targets` lists its keys. |
-| `relation_set` | `target`, `value`, `band` | The user released a Relations slider. `value` is the slider's value, `band` the band the store holds after the set. |
+| `relation_set` | `target`, `value`, `band` | The user released a Relations slider at a value other than the stored one. `value` is the slider's value, `band` the band the store holds after the set. |
 | `relations_toggle` | `enabled` | The user flipped the Relations switch. |
 
 ## TypeScript Usage

@@ -85,8 +85,10 @@ export function createRelationsEditSection(deps: {
       );
     });
     slider.addEventListener("change", () => {
-      const { band } = store.set(target, Number(slider.value), SET_BY_USER, Date.now());
-      log.info("relation_set", { target, value: Number(slider.value), band });
+      const { band, applied } = store.set(target, Number(slider.value), SET_BY_USER, Date.now());
+      // A write repaints through the store subscription; a release at the stored value repaints here.
+      if (applied > 0) log.info("relation_set", { target, value: Number(slider.value), band });
+      else render();
     });
     return row;
   }
