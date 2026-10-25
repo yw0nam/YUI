@@ -10,8 +10,14 @@ function setup(
 ) {
   const store = { rate: vi.fn(() => outcome) };
   const list = { targets };
-  const tool = createRateRelationTool({ store, targets: () => list.targets, now: () => NOW });
-  return { tool, store, list };
+  const relations = { on: true };
+  const tool = createRateRelationTool({
+    store,
+    targets: () => list.targets,
+    now: () => NOW,
+    enabled: () => relations.on,
+  });
+  return { tool, store, list, relations };
 }
 
 describe("createRateRelationTool — definition", () => {
@@ -34,9 +40,28 @@ describe("createRateRelationTool — definition", () => {
     await tool.execute({ toward: "User (character)", delta: 1, why: "x" });
     expect(store.rate).toHaveBeenCalledWith("cccc0003", 1, "x", NOW);
   });
+
+  it("declares the relations switch, read when a call runs", () => {
+    const { tool, relations } = setup();
+
+    expect(tool.switch?.id).toBe("relations");
+    expect(tool.switch?.on()).toBe(true);
+    relations.on = false;
+    expect(tool.switch?.on()).toBe(false);
+  });
 });
 
 describe("createRateRelationTool — execute", () => {
+  it("answers error: relations are off and writes nothing while the switch is off", async () => {
+    const { tool, store, relations } = setup();
+    relations.on = false;
+
+    expect(await tool.execute({ toward: "user", delta: 1, why: "x" })).toBe(
+      "error: relations are off",
+    );
+    expect(store.rate).not.toHaveBeenCalled();
+  });
+
   it.each([
     { args: { toward: "user", delta: 2, why: "x" }, id: "user" },
     { args: { toward: "perlica", delta: -1, why: "x" }, id: "aaaa0001" },
