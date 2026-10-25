@@ -46,13 +46,15 @@ export function relationLineEl(view: RelationsView, isOpen: (id: string) => bool
   more.className = "yui-relation yui-relation--more";
   moreButton(more, folded);
   more.setAttribute("aria-expanded", "false");
-  more.addEventListener("click", () => {
-    const open = !line.classList.contains("is-unfolded");
-    line.classList.toggle("is-unfolded", open);
-    more.setAttribute("aria-expanded", String(open));
-  });
+  more.addEventListener("click", () => setUnfolded(line, !line.classList.contains("is-unfolded")));
   line.append(more);
   return line;
+}
+
+/** Shows every folded chip, the line wrapping, or folds them back. */
+export function setUnfolded(line: HTMLElement, open: boolean): void {
+  line.classList.toggle("is-unfolded", open);
+  line.querySelector(".yui-relation--more")?.setAttribute("aria-expanded", String(open));
 }
 
 /** Folds the last shown chips but `user` into the `+N` chip until the line fits one row; a line not laid out is left as is. */

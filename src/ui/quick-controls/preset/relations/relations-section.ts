@@ -10,7 +10,7 @@ import {
 import { t } from "../../../i18n";
 import { createReasonsCard } from "./reasons-card";
 import { bandShift, restart } from "./relation-glyph";
-import { foldToWidth, relationLineEl } from "./relation-line";
+import { foldToWidth, relationLineEl, setUnfolded } from "./relation-line";
 import type { RelationsView } from "./view";
 
 export function createPresetRelations(deps: {
@@ -58,16 +58,14 @@ export function createPresetRelations(deps: {
     card.close();
     view = buildView();
     const nextLine = relationLineEl(view, deps.isOpen);
-    // A re-render keeps the fold the user opened.
-    if (line?.classList.contains("is-unfolded")) {
-      nextLine.classList.add("is-unfolded");
-      nextLine.querySelector(".yui-relation--more")?.setAttribute("aria-expanded", "true");
-    }
+    const unfolded = line?.classList.contains("is-unfolded") ?? false;
     if (line) line.replaceWith(nextLine);
     else deps.anchor.after(nextLine);
     line = nextLine;
     line.hidden = !deps.enabled();
+    // Measured folded, so the width fold holds; then the fold the user opened is restored.
     foldToWidth(line);
+    setUnfolded(line, unfolded);
   }
 
   /** Moves the relations of every pair of this preset whose value changed since the last write. */
