@@ -38,7 +38,7 @@ export function createAddressedSource(deps: {
           payload: { from: event.from, name: event.name, line: event.text },
         });
         if (!pushed) {
-          log.warn("push rejected", { from: event.from });
+          log.info("push rejected", { from: event.from });
           return;
         }
         log.info("fire", { from: event.from });
