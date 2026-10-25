@@ -37,6 +37,8 @@ const DAILY_POINTS = 4;
 const LOG_LENGTH = 20;
 export const WHY_LENGTH = 80;
 const NOTE_LENGTH = 200;
+/** The reason logged with a value the user sets by hand; such a change spends none of the daily cap. */
+export const SET_BY_USER = "set by the user";
 /** The accepted step sizes of one change. */
 export const DELTAS: readonly number[] = [-2, -1, 1, 2];
 
@@ -56,7 +58,7 @@ function dayKey(ms: number): string {
 function parseChange(raw: unknown): RelationChange | null {
   const { at, delta, why } = (raw ?? {}) as Record<string, unknown>;
   if (typeof at !== "number" || typeof why !== "string") return null;
-  if (!Number.isInteger(delta) || delta === 0 || !DELTAS.includes(delta as number)) return null;
+  if (!Number.isInteger(delta) || delta === 0 || Math.abs(delta as number) > 2 * MAX) return null;
   return { at, delta: delta as number, why: why.slice(0, WHY_LENGTH) };
 }
 
@@ -95,7 +97,7 @@ export function createRelationsStore(opts?: { storage?: RelationsStorage }) {
       const record = core.current()[target] ?? { value: 0, updated_at: 0, log: [] };
       const today = dayKey(nowMs);
       const spent = record.log
-        .filter((c) => dayKey(c.at) === today)
+        .filter((c) => c.why !== SET_BY_USER && dayKey(c.at) === today)
         .reduce((sum, c) => sum + Math.abs(c.delta), 0);
       const sign = Math.sign(delta);
       const allowed = Math.min(Math.abs(delta), DAILY_POINTS - spent, MAX - sign * record.value);
@@ -112,6 +114,28 @@ export function createRelationsStore(opts?: { storage?: RelationsStorage }) {
         },
       });
       return { band: bandOf(value), applied: allowed, clamped: allowed < Math.abs(delta) };
+    },
+    /** Sets the value outright, clamped to the range; no daily cap. Logs the jump as one change. */
+    set(target: string, value: number, why: string, nowMs: number): RateOutcome {
+      const record = core.current()[target] ?? { value: 0, updated_at: 0, log: [] };
+      if (!Number.isFinite(value))
+        return { band: bandOf(record.value), applied: 0, clamped: false };
+      const next = Math.min(MAX, Math.max(-MAX, Math.round(value)));
+      const delta = next - record.value;
+      if (delta === 0) return { band: bandOf(next), applied: 0, clamped: next !== value };
+      core.commit({
+        ...core.current(),
+        [target]: {
+          ...record,
+          value: next,
+          updated_at: nowMs,
+          log: [{ at: nowMs, delta, why: why.trim().slice(0, WHY_LENGTH) }, ...record.log].slice(
+            0,
+            LOG_LENGTH,
+          ),
+        },
+      });
+      return { band: bandOf(next), applied: Math.abs(delta), clamped: next !== value };
     },
     /** Replaces the whole store; false and no write when `next` does not parse. */
     replace(next: unknown): boolean {

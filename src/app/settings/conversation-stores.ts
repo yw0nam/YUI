@@ -61,18 +61,20 @@ export function createConversationStores() {
 export type ConversationStores = ReturnType<typeof createConversationStores>;
 
 /**
- * Every store reloads on a remote change; the transcript and the signal history broadcast their own
- * edits, so the settings window's History tab updates as turns land in the pet window.
+ * Every store reloads on a remote change; the transcript, the signal history and the relations broadcast
+ * their own edits, so the settings window's History tab updates as turns land in the pet window and a
+ * relation set in the settings window reaches the pet window.
  */
 export function conversationSyncStores(bag: ConversationStores): {
   extraReload: ConversationStores[keyof ConversationStores][];
   extraBroadcast: (
     | ConversationStores["chatHistoryStore"]
     | ConversationStores["signalHistoryStore"]
+    | ConversationStores["relationsStore"]
   )[];
 } {
   return {
     extraReload: Object.values(bag),
-    extraBroadcast: [bag.chatHistoryStore, bag.signalHistoryStore],
+    extraBroadcast: [bag.chatHistoryStore, bag.signalHistoryStore, bag.relationsStore],
   };
 }

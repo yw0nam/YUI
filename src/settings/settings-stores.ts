@@ -49,6 +49,7 @@ import {
   localStorageStore,
   type PersistedStorage,
 } from "./persisted-store";
+import { createRelationsSwitch } from "./relations/relations-switch";
 import { createFillerSettings, localStorageFillerStorage } from "./voice/filler-settings";
 import { createVadSettings, localStorageVadStorage } from "./voice/vad-settings";
 
@@ -174,6 +175,8 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   });
   // Browser tool on/off. Default OFF. Edited in either window, read by the pet window's tool.
   const browserSettings = createBrowserSettings();
+  // Relations on/off. Default ON. Device-wide: every preset's relations follow one switch.
+  const relationsSwitch = createRelationsSwitch();
 
   return {
     screenshotSettings,
@@ -210,6 +213,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     expressMotionSettings,
     bedSceneSettings,
     browserSettings,
+    relationsSwitch,
   };
 }
 
@@ -260,6 +264,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   expressMotionSettings: "broadcast",
   bedSceneSettings: "broadcast",
   browserSettings: "broadcast",
+  relationsSwitch: "broadcast",
 };
 
 /** Stores that reload on a remote signal — the `storage` event and a bridge settings-changed alike. */

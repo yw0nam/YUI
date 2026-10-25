@@ -3,12 +3,14 @@ import type { PresetEntry } from "../preset/active-preset";
 import { targetLabel } from "./relation-targets";
 import { bandOf, type Relations } from "./relations-store";
 
-/** This preset's relation entries: `user` first, then the other presets in registry order; unrated targets skipped. */
+/** This preset's relation entries: `user` first, then the other presets in registry order; unrated targets skipped; none while relations are off. */
 export function readRelationLines(
   relations: Relations,
   selfId: string,
   presets: readonly PresetEntry[],
+  enabled = true,
 ): NonNullable<ClientContext["relations"]> {
+  if (!enabled) return [];
   const targets = [
     { id: "user", name: "user" },
     ...presets
