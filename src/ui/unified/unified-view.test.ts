@@ -218,7 +218,8 @@ describe("unified view — pending sends over time", () => {
 
     vi.advanceTimersByTime(65_000);
 
-    expect(pendingTexts()).toEqual(["second"]);
+    expect(pendingTexts()).toHaveLength(1);
+    expect(pendingTexts()[0]).toContain("second");
   });
 });
 

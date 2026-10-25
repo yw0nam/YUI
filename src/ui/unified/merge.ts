@@ -11,6 +11,8 @@ export interface PendingSend {
   sendId: string;
   text: string;
   at: number;
+  /** Still waiting behind another send: it never expires, and `at` is when it was typed. */
+  queued?: boolean;
 }
 
 export interface Row {
@@ -67,7 +69,7 @@ export function mergeTranscripts(
     }
   }
   for (const p of pending) {
-    if (bySend.has(p.sendId) || now - p.at >= SEND_TIMEOUT_MS) continue;
+    if (bySend.has(p.sendId) || (!p.queued && now - p.at >= SEND_TIMEOUT_MS)) continue;
     const row: Row = {
       key: `send:${p.sendId}`,
       who: "user",

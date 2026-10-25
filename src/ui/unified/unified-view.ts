@@ -62,7 +62,9 @@ export function createUnifiedView(deps: {
     },
     // The clock of a send that waited in the queue starts when it is sent.
     onStart: (sendId) => {
-      pending = pending.map((p) => (p.sendId === sendId ? { ...p, at: deps.now() } : p));
+      pending = pending.map((p) =>
+        p.sendId === sendId ? { sendId, text: p.text, at: deps.now() } : p,
+      );
     },
   });
   const composer = createComposer({
@@ -73,7 +75,7 @@ export function createUnifiedView(deps: {
   function refresh(): void {
     const now = deps.now();
     const cast = deps.cast();
-    pending = pending.filter((p) => now - p.at < SEND_TIMEOUT_MS);
+    pending = pending.filter((p) => p.queued || now - p.at < SEND_TIMEOUT_MS);
     const rows = mergeTranscripts(deps.transcripts(), pending, now);
 
     title.textContent = t("unified.title");
@@ -92,8 +94,11 @@ export function createUnifiedView(deps: {
 
     // One timer for the earliest pending expiry, so the row leaves without another event.
     clearTimeout(expiry);
-    const soonest = Math.min(...pending.map((p) => p.at + SEND_TIMEOUT_MS));
-    if (pending.length > 0) expiry = setTimeout(refresh, Math.max(soonest - now, 0) + 1);
+    const running = pending.filter((p) => !p.queued);
+    if (running.length > 0) {
+      const soonest = Math.min(...running.map((p) => p.at + SEND_TIMEOUT_MS));
+      expiry = setTimeout(refresh, Math.max(soonest - now, 0) + 1);
+    }
   }
 
   composer.onSubmit((text) => {
@@ -107,7 +112,7 @@ export function createUnifiedView(deps: {
       sendId: deps.randomId(),
     });
     if (!send) return;
-    pending.push({ sendId: send.sendId, text: send.text, at: deps.now() });
+    pending.push({ sendId: send.sendId, text: send.text, at: deps.now(), queued: true });
     sequence.run(send);
     composer.setMention(null);
     log.info("route", { targets: send.targets.length, mention: send.mention ?? "none" });
