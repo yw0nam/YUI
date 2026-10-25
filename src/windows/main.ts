@@ -275,6 +275,8 @@ async function bootstrap(): Promise<BootstrapHandle> {
       onSessionReset: windowBridge.onSessionReset,
       emitCharacterAddressed: windowBridge.emitCharacterAddressed,
       onCharacterAddressed: windowBridge.onCharacterAddressed,
+      emitUserTurnDone: windowBridge.emitUserTurnDone,
+      onUserTurnRouted: windowBridge.onUserTurnRouted,
       pushSocket: push.pushSocket,
       delegations: push.delegations,
       delegationHistory: push.delegationHistory,

@@ -31,8 +31,10 @@ import {
   createSignalsSource,
   type SignalsSource,
 } from "../../dispatcher/sources/inbox/signals-source";
+import { createRoutedUserSource } from "../../dispatcher/sources/routed/routed-user-source";
+import type { UserInputSource } from "../../dispatcher/sources/user-input-source";
 import { createWakeSource, type WakeSource } from "../../dispatcher/sources/wake/wake-source";
-import type { CharacterAddressed } from "../../io/bridge/settings-bridge";
+import type { CharacterAddressed, UserTurnRouted } from "../../io/bridge/settings-bridge";
 import { appendRecord } from "../../io/chat/record/turn-record-log";
 import type { AgentNotifySettings } from "../../settings/backend/agent-notify-settings";
 import type { ProactiveSettings } from "../../settings/cues/proactive-settings";
@@ -63,7 +65,11 @@ export function wireDispatcherSources(deps: {
   isFirstActivityHeld: () => boolean;
   /** Subscribes to the character-addressed bridge events this preset is named in. */
   onCharacterAddressed: (cb: (event: CharacterAddressed) => void) => () => void;
-  /** This window's preset id — the addressed source keeps only events naming it. */
+  /** Subscribes to the unified chat window's messages routed to this preset. */
+  onUserTurnRouted: (cb: (event: UserTurnRouted) => void) => () => void;
+  /** Where a routed message enters as a user turn. */
+  submitUser: UserInputSource["submit"];
+  /** This window's preset id — the addressed and routed sources keep only events naming it. */
   selfPresetId: string;
   /** Called with each parsed signal group as it arrives. */
   onSignalArrival?: (group: SignalGroup) => void;
@@ -76,6 +82,7 @@ export function wireDispatcherSources(deps: {
   screenSource: ScreenSource;
   wakeSource: WakeSource;
   addressedSource: AddressedSource;
+  routedUserSource: ReturnType<typeof createRoutedUserSource>;
 } {
   const {
     bus,
@@ -153,6 +160,12 @@ export function wireDispatcherSources(deps: {
     subscribe: deps.onCharacterAddressed,
   });
   addressedSource.start();
+  const routedUserSource = createRoutedUserSource({
+    selfPresetId: deps.selfPresetId,
+    subscribe: deps.onUserTurnRouted,
+    submit: deps.submitUser,
+  });
+  routedUserSource.start();
   return {
     proactiveSource,
     scheduleSource,
@@ -162,5 +175,6 @@ export function wireDispatcherSources(deps: {
     screenSource,
     wakeSource,
     addressedSource,
+    routedUserSource,
   };
 }

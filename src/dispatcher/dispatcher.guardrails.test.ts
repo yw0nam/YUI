@@ -13,7 +13,7 @@ import type { Logger } from "../logger";
 import type { BackendCaller } from "./backend/backend-caller";
 import { type BusEnvelope, createEventBus, type EventBus } from "./core/event-bus";
 import { createGuardrails, type Guardrails } from "./core/guardrails";
-import { createDispatcher, type Dispatcher } from "./dispatcher";
+import { createDispatcher, type Dispatcher, type DispatcherDeps } from "./dispatcher";
 import {
   createDefaultAddressedChain,
   type DeferredCall,
@@ -287,8 +287,8 @@ describe("dispatcher — routed user turns", () => {
   }
 
   function make(hooks: {
-    onTurnClosed?: ReturnType<typeof vi.fn>;
-    onTurnDropped?: ReturnType<typeof vi.fn>;
+    onTurnClosed?: DispatcherDeps["onTurnClosed"];
+    onTurnDropped?: DispatcherDeps["onTurnDropped"];
   }): Dispatcher {
     const d = createDispatcher({
       bus,

@@ -7,8 +7,13 @@ import type { Guardrails } from "../dispatcher/core/guardrails";
 import type { Dispatcher } from "../dispatcher/dispatcher";
 import { createAddressedProducer } from "../dispatcher/sources/addressed/addressed-producer";
 import type { SignalsSource } from "../dispatcher/sources/inbox/signals-source";
+import { createUserTurnDone } from "../dispatcher/sources/routed/user-turn-done";
 import { onAvatarRpc, respondAvatarRpc } from "../io/bridge/inbox/avatar-rpc";
-import type { CharacterAddressed } from "../io/bridge/settings-bridge";
+import type {
+  CharacterAddressed,
+  UserTurnDone,
+  UserTurnRouted,
+} from "../io/bridge/settings-bridge";
 import type { ClientTool } from "../io/chat/tools/client-tools";
 import { createPetWindowTools } from "../io/chat/tools/pet-window-tools";
 import type { ScreenCapturer } from "../io/window/capture/screen-source-provider";
@@ -56,6 +61,10 @@ interface Phase1Handles extends TurnCorePhase1 {
   emitCharacterAddressed(event: CharacterAddressed): void;
   /** Subscribes to the replies another character addressed to this preset. */
   onCharacterAddressed(cb: (event: CharacterAddressed) => void): () => void;
+  /** Emits that this preset's user turn for a send id is over, or never started. */
+  emitUserTurnDone(event: UserTurnDone): void;
+  /** Subscribes to the unified chat window's messages routed to a preset. */
+  onUserTurnRouted(cb: (event: UserTurnRouted) => void): () => void;
   isDisposed(): boolean;
   bedSceneHold: BedSceneHold;
 }
@@ -181,14 +190,20 @@ const realFactories: ConfiguredBootstrapFactories = {
     });
     let signals: Pick<SignalsSource, "restore"> | null = null;
     const restoreSignals = (env: BusEnvelope): void => signals?.restore(env);
+    const userTurnDone = createUserTurnDone({
+      presetId: presetIdForWindow,
+      emit: phase1.emitUserTurnDone,
+      onTurnClosed: addressed.onTurnClosed,
+      onTurnDropped: restoreSignals,
+    });
     const core = await wireTurnCore(cfg, phase1, {
-      restoreSignals,
+      restoreSignals: userTurnDone.onTurnDropped,
       getCardText: card.getCardText,
       getFrontmost: () => frontmostTracker.get(),
       screenCapturer: phase1.screenCapturer,
       openQuickControls: (tab) => getQuickControls().open(undefined, { tab }),
       windowTools,
-      onTurnClosed: addressed.onTurnClosed,
+      onTurnClosed: userTurnDone.onTurnClosed,
       addressedTo: addressed.targetOf,
       voicePersistence: {
         get: () => settings.sttSettings.get().enabled,
@@ -229,6 +244,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       screenSource,
       wakeSource,
       addressedSource,
+      routedUserSource,
     } = wireDispatcherSources({
       bus,
       presenceSettings,
@@ -245,6 +261,8 @@ const realFactories: ConfiguredBootstrapFactories = {
       pacer,
       isFirstActivityHeld: bedScene.isHeld,
       onCharacterAddressed: phase1.onCharacterAddressed,
+      onUserTurnRouted: phase1.onUserTurnRouted,
+      submitUser: phase1.userInput.submit,
       selfPresetId: presetIdForWindow(),
       onSignalArrival: signalChips.onArrival,
     });
@@ -257,6 +275,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     register(milestoneSource.stop);
     register(screenSource.stop);
     register(addressedSource.stop);
+    register(routedUserSource.stop);
     const hitTest = wireHitTest({
       root,
       renderer,

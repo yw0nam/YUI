@@ -1071,6 +1071,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "dispatcher/sources/routed",
+      "module": "sources",
+      "label": "routed user source",
+      "role": "Turns a user-turn-routed bridge event for this preset into a user turn that carries its send id and mention, and reports the done signal for that send id once the turn closes or is dropped.",
+      "paths": [
+        "src/dispatcher/sources/routed"
+      ]
+    },
+    {
       "id": "ambient/liveliness",
       "module": "ambient",
       "label": "liveliness",

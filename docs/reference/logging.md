@@ -90,6 +90,14 @@ and the pump goes on.
 | `addressed-source` | `fire` | `from` | The addressed source pushed an `addressed.character` candidate for this preset. |
 | `addressed-source` | `push_rejected` | `from` | The bus refused the addressed candidate. |
 
+## Routed user turns
+
+`dispatcher/sources/routed/routed-user-source.ts` (namespace `routed-user-source`) logs at `info`. The done signal logs nothing.
+
+| Namespace | Event | Fields | When |
+|---|---|---|---|
+| `routed-user-source` | `fire` | `mention` | The routed source submitted a user turn for a message the unified chat window sent to this preset. `mention` is `character`, `everyone` or `none`. |
+
 ## TypeScript Usage
 
 ```ts

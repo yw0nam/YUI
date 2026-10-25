@@ -30,6 +30,8 @@ const CH_HELP_GUIDE = "yui://help-guide";
 const CH_PET_WINDOWS_CHANGED = "yui://pet-windows-changed";
 const CH_PRESET_CHANGED = "yui://preset-changed";
 const CH_CHARACTER_ADDRESSED = "yui://character-addressed";
+const CH_USER_TURN_ROUTED = "yui://user-turn-routed";
+const CH_USER_TURN_DONE = "yui://user-turn-done";
 
 interface VoiceStateSnapshot {
   state: VoiceInputState;
@@ -55,6 +57,22 @@ export interface CharacterAddressed {
   to: string;
   text: string;
   ts: number;
+}
+
+/** The unified chat window routes one user message to one preset's pet window. */
+export interface UserTurnRouted {
+  sendId: string;
+  /** The receiving preset id. */
+  to: string;
+  text: string;
+  mention?: "character" | "everyone";
+}
+
+/** A pet window's user turn for one send id is over, or never started. */
+export interface UserTurnDone {
+  sendId: string;
+  /** The reporting preset id. */
+  preset: string;
 }
 
 export interface SettingsBridge {
@@ -104,6 +122,12 @@ export interface SettingsBridge {
   /** A character's reply named this preset; delivered to every window, receivers filter on `to`. */
   emitCharacterAddressed(event: CharacterAddressed): void;
   onCharacterAddressed(cb: (event: CharacterAddressed) => void): () => void;
+  /** The unified chat window's message for one preset; delivered to every window, receivers filter on `to`. */
+  emitUserTurnRouted(event: UserTurnRouted): void;
+  onUserTurnRouted(cb: (event: UserTurnRouted) => void): () => void;
+  /** A pet window's user turn for one send id is over; the unified chat window advances its sequence. */
+  emitUserTurnDone(event: UserTurnDone): void;
+  onUserTurnDone(cb: (event: UserTurnDone) => void): () => void;
   dispose(): void;
 }
 
@@ -120,6 +144,8 @@ export function createSettingsBridge(
     CH_VOICE_SET,
     CH_VOICE_STATE,
     CH_CHARACTER_ADDRESSED,
+    CH_USER_TURN_ROUTED,
+    CH_USER_TURN_DONE,
   ]);
   const on: typeof core.on = (name, cb) => core.on(name, cb, { scoped: !shared.has(name) });
 
@@ -248,6 +274,33 @@ export function createSettingsBridge(
           typeof e.ts === "number"
         ) {
           cb({ from: e.from, name: e.name, to: e.to, text: e.text, ts: e.ts });
+        }
+      });
+    },
+    emitUserTurnRouted(event) {
+      safeEmit(CH_USER_TURN_ROUTED, event);
+    },
+    onUserTurnRouted(cb) {
+      return on<unknown>(CH_USER_TURN_ROUTED, (event) => {
+        if (event === null || typeof event !== "object") return;
+        const e = event as Partial<UserTurnRouted>;
+        if (typeof e.sendId !== "string" || typeof e.to !== "string" || typeof e.text !== "string")
+          return;
+        const mention =
+          e.mention === "character" || e.mention === "everyone" ? e.mention : undefined;
+        if (e.mention !== undefined && mention === undefined) return;
+        cb({ sendId: e.sendId, to: e.to, text: e.text, ...(mention ? { mention } : {}) });
+      });
+    },
+    emitUserTurnDone(event) {
+      safeEmit(CH_USER_TURN_DONE, event);
+    },
+    onUserTurnDone(cb) {
+      return on<unknown>(CH_USER_TURN_DONE, (event) => {
+        if (event === null || typeof event !== "object") return;
+        const e = event as Partial<UserTurnDone>;
+        if (typeof e.sendId === "string" && typeof e.preset === "string") {
+          cb({ sendId: e.sendId, preset: e.preset });
         }
       });
     },

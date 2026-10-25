@@ -46,6 +46,7 @@ import {
   classify,
   isAddressedEvent,
   PACED_SOURCES,
+  sendIdOf,
   type UserTurnSource,
   userTurnSourceOf,
 } from "./core/classify";
@@ -58,7 +59,7 @@ import type { Turn, TurnLog } from "./turn/turn";
 
 const baseLog = createLogger("dispatcher");
 
-interface DispatcherDeps {
+export interface DispatcherDeps {
   bus: EventBus;
   renderer: Pick<
     Renderer,
@@ -115,7 +116,13 @@ interface DispatcherDeps {
   /** The chain cap on addressed turns: an over-cap fire drops at the routing gate, a begun one counts. */
   addressedChain: AddressedChain;
   /** A turn is over — the over edge, or the next begin displacing it — with the facts the `turn` log line holds. */
-  onTurnClosed?: (turn: { id: number; outcome: TurnOutcome; spokeText: boolean }) => void;
+  onTurnClosed?: (turn: {
+    id: number;
+    outcome: TurnOutcome;
+    spokeText: boolean;
+    /** The unified chat window's send id when the turn answered a routed message. */
+    sendId?: string;
+  }) => void;
   /** Structured logging (defaults to the dispatcher namespace logger). */
   logger?: Logger;
 }
@@ -208,6 +215,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     trigger: string;
     started_at: number;
     outcome: TurnOutcome | null;
+    sendId: string | undefined;
   } | null = null;
   // A turn passed the gate; cleared when the pipeline goes idle.
   let gateHeld = false;
@@ -247,7 +255,12 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       spoke: deps.turnLog.didOweAudio(),
       spoke_text: spokeText,
     });
-    const closed = { id: openTurn.id, outcome, spokeText };
+    const closed = {
+      id: openTurn.id,
+      outcome,
+      spokeText,
+      ...(openTurn.sendId ? { sendId: openTurn.sendId } : {}),
+    };
     openTurn = null;
     try {
       deps.onTurnClosed?.(closed);
@@ -357,7 +370,13 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     closeTurn();
     const turn = deps.turnLog.begin(env);
     if (isAddressedEvent(env)) deps.addressedChain.count();
-    openTurn = { id: turn.id, trigger: env.event_name, started_at, outcome: null };
+    openTurn = {
+      id: turn.id,
+      trigger: env.event_name,
+      started_at,
+      outcome: null,
+      sendId: sendIdOf(env),
+    };
     deps.onTurnAdmitted?.(turn);
     // Server-side HTTP error detail, kept per call so a superseded turn's late detail
     // can never bleed into the next one.
