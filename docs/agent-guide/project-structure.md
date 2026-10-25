@@ -19,6 +19,7 @@ YUI/
   settings.html                      # Settings-window Vite entry
   devtools.html                      # Developer Tools Vite entry
   message.html                       # Message-window Vite entry
+  unified.html                       # Unified-chat-window Vite entry
   phone.html                         # Phone-window Vite entry, the Android window
   vite.config.ts                     # Dev port YUI_DEV_PORT|1420, strictPort, host 127.0.0.1, backend proxy plugin
   biome.json                         # Format and lint config (curated rule set)
@@ -99,6 +100,8 @@ YUI/
       message/                       # The message window's wiring
         wire-message-surface-ops.ts  # Draws each surface op from the pet window onto the surfaces and the plate
         wire-message-tauri-window.ts # Window focus, the OS drag, the content-height resize, and the moved-position record
+      unified/                       # The unified chat window's wiring
+        wire-unified-window.ts       # Opens the window while its switch is on and two or more presets are open, and closes it otherwise
       settings-window/               # The settings window's wiring
         wire-settings-window.ts      # Stores, config, cross-window sync, and the quick controls remounted on locale change, bound to the query's preset when it names one, and editing the preset `?edit=` names
         edit-target-url.ts           # The settings URL with its `edit` param set to the picked preset, or dropped for the window's own
@@ -126,6 +129,7 @@ YUI/
       settings-main.ts               # Settings window: mounts the settings window wiring, with the companion guard when the query binds a preset
       devtools-main.ts               # Developer Tools window
       message-main.ts                # Message window: the bubble, input, and plate, with the companion guard when the query binds a preset
+      unified-main.ts                # Unified chat window: every open preset's transcript in one list and the composer that routes a message
       phone-main.ts                  # Phone window: stage, persistent composer, and push chat
     styles.css                       # Pet-window base stylesheet
     vite-env.d.ts                    # Vite client types and build-time env declarations
@@ -276,6 +280,9 @@ YUI/
         addressed/                   # The character-addressed firing source and the speaking half
           addressed-source.ts        # Turns a character-addressed bridge event for this preset into the addressed.character candidate
           addressed-producer.ts      # Emits the character-addressed event for this window's reply once its turn is over
+        routed/                      # The unified chat window's messages arriving as user turns
+          routed-user-source.ts      # Submits a user-turn-routed event naming this preset as a user turn with its send id and mention
+          user-turn-done.ts          # Reports user-turn-done for a closed or dropped turn's send id
     ambient/                         # Backend-independent local liveliness and movement
       bed-scene/                     # Bed scene
         bed-scene.ts                 # Asleep on a bed at launch or lying down on command, the wake, the bed's fade, and the one exit that releases the hold and the frame; runs again after it ends
@@ -338,7 +345,7 @@ YUI/
         preset-keys.ts               # The per-preset key list and where a key lives under a given preset
         active-preset.ts             # The registry's stored shape and the id a window resolves its keys under: the preset query, else the active preset
         bound-preset.ts              # The page queries that bind a window to one preset (`?preset=`) and name the preset a settings window edits (`?edit=`)
-        preset-registry.ts           # Preset list and active preset under yui.presets: create, rename, remove, activate, setThumbnail
+        preset-registry.ts           # Preset list and active preset under yui.presets: create, rename (everyone, here and all are refused), remove, activate, setThumbnail
         import-card-preset.ts        # Creates a preset from an imported card and rolls it back on any failure
         pet-windows.ts               # The desired open set under yui.windows, the open presets with names, and the live key each window holds under yui.live-window.<label>
       relations/                     # Each preset's relation toward the user and the other presets
@@ -346,6 +353,8 @@ YUI/
         relations-switch.ts          # The device-wide Relations switch under yui.relations-enabled, on by default
         relation-lines.ts            # The relation entries a turn carries: user first, then the other presets in registry order; none while the switch is off
         relation-targets.ts          # The label a prompt line or the rate_relation enum shows for a preset: one named `user` is disambiguated
+      unified/                       # The unified chat window's switch
+        unified-chat-switch.ts       # The device-wide Unified chat switch under yui.unified-chat, off by default
       identity/                      # Who the user is to the character
         user-name-settings.ts        # Device-wide "Your name", what {{user}} resolves to
       panels/                        # Panel and window state
@@ -450,6 +459,7 @@ YUI/
           devtools-window.ts           # Developer Tools window opener
           message-window.ts            # Message-window opener, message-<id> for a bound id, and its placement rule
           message-window-mode.ts       # Keeps the message window in step with the stored mode and the dock request
+          unified-window.ts            # Unified chat window opener: shows the one window labelled unified, or creates it
           pet-window.ts                # Bound pet window opener: creates pet-<id> and lists the windows that exist
           companion-windows.ts         # Closes a bound pet window's settings-<id> and message-<id>, and watches a companion's owner window
           current-window.ts            # Closes the current window and listens for its close request
@@ -493,7 +503,7 @@ YUI/
         vrm-import.ts                  # VRM import: OS picker, native copy, avatar-option registration
         card/                          # The card's file steps: import, export, and the thumbnail URL
           card-import.ts               # Card import: OS picker, native read/parse, rollback of the temp thumbnail
-          card-thumbnail.ts            # Thumbnail retain (temp id → preset id) and remove, through the shell
+          card-thumbnail.ts            # Thumbnail retain (temp id → preset id), remove, and the photo pick that stores a preset's thumbnail, through the shell
           card-export.ts               # Card export: OS save dialog, native write, and the export file-name sanitizer
         user-asset-import.ts           # Lazy invoke loader and orphan cleanup shared by the voice and VRM imports
         vrm-selection.ts               # Owns the active VRM selection
@@ -544,6 +554,14 @@ YUI/
         message-plate.css            # Name-plate chip styles: state dot, name, state label, and dock button
         message-window.css           # Message-window layout and name-plate styles
         cue-list.css                 # Cue-list section styles
+      unified/                       # The unified chat window
+        unified-view.ts              # Head, log and composer; sends a message as a routed event and draws the pending line
+        merge.ts                     # Pure: the open presets' transcripts and the pending sends as one time-ordered list
+        router.ts                    # Pure: the targets of a message and the one-at-a-time delivery of a send
+        composer.ts                  # The message window's field under the text input, with the mention pill, target chip and hint
+        mention-picker.ts            # The @ list over the field: a combobox of the open presets and @everyone
+        avatar.ts                    # A preset's photo, else a dot in a hue taken from its id
+        unified-window.css           # The window's layout, log rows, pill, target chip and list
       signals/                       # The source line of a signal group, shared by the bubble and History
         source-line.ts               # Renders one source line: delivery-class dot, source, label
         source-line.css              # Source-line styles: filled urgent dot, ring batched dot
@@ -733,7 +751,7 @@ YUI/
       import_fs.rs                   # Shared import filesystem helpers: sanitize, hash, dest stem candidates, bounded streamed copy, signature sniff
       vrm_import.rs                  # Native copy of a user-picked .vrm into app data
       voice_import.rs                # Native copy of a user-picked reference clip into app data
-      card_import.rs                 # Card file import (JSON or a PNG's tEXt card JSON), the thumbnail copy, and the exported card write
+      card_import.rs                 # Card file import (JSON or a PNG's tEXt card JSON), the thumbnail copy, the preset photo pick (a PNG or a JPEG fitted and re-encoded), and the exported card write
       tray.rs                        # System tray menu and its show and hide actions
       os_event_watcher/
         mod.rs                       # OS polling loop that emits os_event to the webview

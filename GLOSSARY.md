@@ -95,6 +95,18 @@ _Avoid_: level, tier, mood
 A floating piece of chrome the character speaks or listens through (speech bubble, status pill, text input) that appears only when it has something to show, then recedes.
 _Avoid_: widget, overlay, panel
 
+**Unified chat window**:
+The window `unified` that lists every open preset's current-session transcript in one time order and routes the user's messages to the open presets. Main opens it while the Unified chat switch is on and two or more presets are open.
+_Avoid_: group chat, merged chat, lobby, multi chat
+
+**Mention**:
+The user's pick of a recipient in the unified chat window's composer: a pill carrying one preset id, or `@everyone`. A typed `@name` without a pick is plain text. The names `everyone`, `here` and `all` are reserved, so no preset is created or renamed to one.
+_Avoid_: tag, call-out, ping
+
+**Target chip**:
+The composer's button naming the preset a message with no mention goes to: the last speaker, else main's preset.
+_Avoid_: recipient badge
+
 **Signals**:
 A burst of events from an external producer POSTed to the `/signals` ingress, flushed as one turn.
 

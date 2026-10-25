@@ -840,7 +840,7 @@ globalThis.YUI_MAP =
       "id": "io/window/openers",
       "module": "window",
       "label": "window openers",
-      "role": "Opens and places the message, settings, devtools, and pet windows, and a bound pet window's settings-<id> and message-<id> by its preset id; closes those companions and watches their owner window.",
+      "role": "Opens and places the message, settings, devtools, unified chat, and pet windows, and a bound pet window's settings-<id> and message-<id> by its preset id; closes those companions and watches their owner window.",
       "paths": [
         "src/io/window/openers"
       ]
@@ -867,7 +867,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/settings",
       "module": "bridge",
       "label": "settings bridge",
-      "role": "Typed cross-window settings bus: its channels scoped to the sender's preset, and the unscoped settings-changed, preset-changed, pet-windows-changed and character-addressed.",
+      "role": "Typed cross-window settings bus: its channels scoped to the sender's preset, and the unscoped settings-changed, preset-changed, pet-windows-changed, character-addressed, user-turn-routed and user-turn-done.",
       "paths": [
         "src/io/bridge/settings-bridge.ts"
       ]
@@ -2817,6 +2817,51 @@ globalThis.YUI_MAP =
       "wiring": "src/app/turn/wire-dispatcher.ts"
     },
     {
+      "id": "user-turn-routed",
+      "from": "ui/unified",
+      "to": "dispatcher/sources/routed",
+      "carries": "yui://user-turn-routed {sendId, to, text, mention?}, unscoped, one per target in sequence, filtered on `to`; the next target waits for the previous one's user-turn-done",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/windows/unified-main.ts"
+    },
+    {
+      "id": "user-turn-done",
+      "from": "dispatcher/sources/routed",
+      "to": "ui/unified",
+      "carries": "yui://user-turn-done {sendId, preset}, unscoped, when the turn for a send id closed or was dropped before it began",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/bootstrap-configured.ts"
+    },
+    {
+      "id": "unified-transcripts",
+      "from": "io/chat/conversation",
+      "to": "ui/unified",
+      "carries": "every open preset's yui.<id>.chat_transcript \u2192 readTranscriptAfterBoundary, read-only, re-read on settings-changed, pet-windows-changed, preset-changed, focus and storage",
+      "kind": "storage",
+      "transport": "shared",
+      "wiring": "src/windows/unified-main.ts"
+    },
+    {
+      "id": "unified-open",
+      "from": "app/unified",
+      "to": "io/window/openers",
+      "carries": "open() while the Unified chat switch is on and two or more presets are open, close() otherwise; one window labelled unified",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/bootstrap-configured.ts"
+    },
+    {
+      "id": "mention-trigger",
+      "from": "dispatcher/sources/routed",
+      "to": "dispatcher/core",
+      "carries": "bus.push: user.text_submitted {text, send_id, mention?} \u2192 client_context trigger.mention \u2192 the `trigger: user message (addressed to the character|everyone)` suffix",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-sources.ts"
+    },
+    {
       "id": "settings-push",
       "from": "settings",
       "to": "io/chat/push",
@@ -4289,6 +4334,11 @@ globalThis.YUI_MAP =
         "role": "The message window of one bound pet window, message.html?preset=<id>: the same bubble, input, and plate, drawn from pet-<id>'s surface ops."
       },
       {
+        "id": "unified",
+        "label": "unified",
+        "role": "The unified chat window, unified.html: every open preset's current-session transcript in one list, and the composer that routes a message to one preset or, in sequence, to all"
+      },
+      {
         "id": "devtools",
         "label": "devtools",
         "role": "Context inspector, advanced settings, and motion preview over reloaded stores."
@@ -4710,6 +4760,48 @@ globalThis.YUI_MAP =
         "to": "pet-<id>",
         "carries": "yui://character-addressed {from, name, to, text, ts}; unscoped: every pet window receives it and keeps the one naming its preset",
         "kind": "bridge"
+      },
+      {
+        "id": "user-turn-routed-unified-pet",
+        "from": "unified",
+        "to": "pet",
+        "carries": "yui://user-turn-routed {sendId, to, text, mention?}; unscoped: every pet window receives it and keeps the one naming its preset",
+        "kind": "bridge"
+      },
+      {
+        "id": "user-turn-routed-unified-pet-bound",
+        "from": "unified",
+        "to": "pet-<id>",
+        "carries": "yui://user-turn-routed {sendId, to, text, mention?}; unscoped: every pet window receives it and keeps the one naming its preset",
+        "kind": "bridge"
+      },
+      {
+        "id": "user-turn-done-pet-unified",
+        "from": "pet",
+        "to": "unified",
+        "carries": "yui://user-turn-done {sendId, preset}",
+        "kind": "bridge"
+      },
+      {
+        "id": "user-turn-done-pet-bound-unified",
+        "from": "pet-<id>",
+        "to": "unified",
+        "carries": "yui://user-turn-done {sendId, preset}",
+        "kind": "bridge"
+      },
+      {
+        "id": "settings-changed-pet-unified",
+        "from": "pet",
+        "to": "unified",
+        "carries": "yui://settings-changed, preset-changed and pet-windows-changed: the unified chat window re-reads the open presets' transcripts",
+        "kind": "bridge"
+      },
+      {
+        "id": "unified-open-pet",
+        "from": "pet",
+        "to": "unified",
+        "carries": "WebviewWindow unified: created or shown and focused while the Unified chat switch is on and two or more presets are open, closed otherwise",
+        "kind": "tauri-command"
       },
       {
         "id": "character-addressed-bound-pet",
