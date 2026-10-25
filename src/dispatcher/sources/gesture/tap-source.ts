@@ -67,7 +67,7 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
   function regionAt(pos: CssPoint): TapRegion | null {
     let points = deps.renderer.getTapPoints();
     if (points !== null && !isTapPoints(points)) {
-      log.warn("invalid tap projection", points);
+      log.warn("invalid_tap_projection", points);
       points = null;
     }
     return points
@@ -117,7 +117,7 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
         },
       });
     } catch (error) {
-      log.warn("pat end failed", error);
+      log.warn("pat_end_failed", error);
     }
   }
 
@@ -142,7 +142,7 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
             try {
               signals = deps.drainSignals?.() ?? [];
             } catch (error) {
-              log.warn("signal drain failed", error);
+              log.warn("signal_drain_failed", error);
             }
             deps.bus.push({
               source: "os_event_watcher",
@@ -187,7 +187,7 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
         try {
           currentMotion = deps.renderer.getCurrentMotion();
         } catch (error) {
-          log.warn("current motion read failed", error);
+          log.warn("current_motion_read_failed", error);
         }
         if (currentMotion?.id === motionId) return;
 
@@ -199,7 +199,7 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
           payload: { motion_id: motionId, ...(emotionId ? { emotion_id: emotionId } : {}) },
         });
       } catch (error) {
-        log.warn("tap handling failed", error);
+        log.warn("tap_handling_failed", error);
       }
     },
 
@@ -207,7 +207,7 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
       try {
         return regionAt(pos) === "head";
       } catch (error) {
-        log.warn("head classification failed", error);
+        log.warn("head_classification_failed", error);
         return false;
       }
     },
@@ -226,7 +226,7 @@ export function createTapSource(deps: TapSourceDeps): TapSource {
           },
         });
       } catch (error) {
-        log.warn("pat start failed", error);
+        log.warn("pat_start_failed", error);
       }
     },
 

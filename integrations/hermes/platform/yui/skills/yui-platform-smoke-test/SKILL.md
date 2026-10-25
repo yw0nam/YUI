@@ -105,7 +105,7 @@ uv run python skills/yui-platform-smoke-test/smoke.py --profile <profile> --port
 
 Client A publishes `motion_ids: [idle_lively, dance]`, client B `[idle_lively]`, both connect
 before any turn, and the turns run A, B, A. The script reads the gateway log written during the
-run and fails when a turn ends without a `render`, when the `generate_express schema declared`
+run and fails when a turn ends without a `render`, when a chat's turn does not declare its own `address_character` schema again (each client names the other as its only target; Hermes keeps one schema per name, so the adapter re-declares at turn start), when the `generate_express schema declared`
 lines do not name each turn's chat with its own motion count, or when a gate logs `dropped input`.
 Each turn takes one model call, so the run needs a minute or more.
 

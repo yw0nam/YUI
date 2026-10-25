@@ -1,5 +1,6 @@
 // Every `createLogger("<ns>")` names the file it sits in: `<ns>` equals the file's
-// basename without `.ts` (`docs/reference/logging.md`). Exits 1 and lists each mismatch.
+// basename without `.ts`, and every log event name is snake_case, dots between segments
+// (`docs/reference/logging.md`). Exits 1 and lists each mismatch.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 
@@ -40,15 +41,26 @@ const KNOWN = new Set([
   "src/windows/settings-main.ts:settings-bootstrap",
 ]);
 
+const EVENT = /^[a-z0-9_]+(\.[a-z0-9_]+)*$/;
+
 const bad = [];
+const badEvents = [];
 for (const file of files) {
   const stem = basename(file, ".ts");
-  for (const m of readFileSync(file, "utf8").matchAll(/createLogger\(\s*"([^"]*)"/g)) {
+  const text = readFileSync(file, "utf8");
+  for (const m of text.matchAll(/createLogger\(\s*"([^"]*)"/g)) {
     if (m[1] !== stem && !KNOWN.has(`${file}:${m[1]}`))
       bad.push(`${file}: createLogger("${m[1]}") in ${stem}.ts`);
+  }
+  // A space in an event name made `push rejected` ungreppable beside `push_rejected` (#1546).
+  for (const m of text.matchAll(/\blog\.(?:debug|info|warn|error)\(\s*"([^"]*)"/g)) {
+    if (!EVENT.test(m[1])) badEvents.push(`${file}: log event "${m[1]}"`);
   }
 }
 if (bad.length) {
   console.error(`logger namespace must equal the file name (${bad.length}):\n${bad.join("\n")}`);
-  process.exit(1);
 }
+if (badEvents.length) {
+  console.error(`log event names are snake_case (${badEvents.length}):\n${badEvents.join("\n")}`);
+}
+if (bad.length || badEvents.length) process.exit(1);

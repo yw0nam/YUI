@@ -39,7 +39,7 @@ export function createWakeSource(deps: {
         try {
           signals = deps.drainSignals();
         } catch (error) {
-          log.warn("signal drain failed", error);
+          log.warn("signal_drain_failed", error);
         }
       }
       const pushed = deps.bus.push({
@@ -53,7 +53,7 @@ export function createWakeSource(deps: {
         },
       });
       if (!pushed) {
-        log.warn("push rejected", { cause });
+        log.warn("push_rejected", { cause });
         return;
       }
       if (first) deps.firstActivity.latch(ts);

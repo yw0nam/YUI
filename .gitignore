@@ -28,6 +28,9 @@ resources/vrma/
 # Local-only Claude Code setup: a directory in the main checkout, a symlink in worktrees
 /.claude
 
+# any-subagent session logs and frozen specs; never committed
+.any-subagent/
+
 # Playwright MCP run artifacts
 .playwright-mcp/
 # Screenshots taken with a relative filename land at the repo root

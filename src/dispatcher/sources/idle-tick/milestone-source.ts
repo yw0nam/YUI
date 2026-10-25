@@ -102,7 +102,7 @@ export function createMilestoneSource(deps: MilestoneSourceDeps): MilestoneSourc
     try {
       signals = drainSignals();
     } catch (error) {
-      log.warn("signal drain failed", error);
+      log.warn("signal_drain_failed", error);
     }
     // A dropped candidate's groups come back through the dispatcher's onTurnDropped or the bus's onDrop.
     const env: BusEnvelope = {
@@ -115,7 +115,7 @@ export function createMilestoneSource(deps: MilestoneSourceDeps): MilestoneSourc
       },
     };
     if (!bus.push(env)) {
-      log.warn("push rejected", { name: MILESTONE_NAME });
+      log.warn("push_rejected", { name: MILESTONE_NAME });
       return;
     }
     log.info("fire", first);

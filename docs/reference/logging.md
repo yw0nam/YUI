@@ -5,7 +5,7 @@ Applies to all TypeScript in `src/` and all Rust in `src-tauri/src/`.
 ## Principles
 
 - Every log line goes through the project logger. TypeScript: `createLogger(namespace)` from `src/logger.ts`. Rust: `log` crate macros (`log::info!`, etc.). Raw `console.*`, `println!`, and `eprintln!` are forbidden.
-- The message is a stable **event name**: `snake_case`, no spaces, present-tense identifier (e.g. `backend_call`, `vrm_loaded`, `state_change`).
+- The message is a stable **event name**: `snake_case`, no spaces, present-tense identifier (e.g. `backend_call`, `vrm_loaded`, `state_change`). `pnpm logger:check` (CI) refuses any other shape.
 - Context is a single structured object of named fields — not interpolated prose. Errors are carried as `error: String(err)` (TypeScript).
 - Messages and field values use English. Free-text sentences do not appear in the message position; fields carry the detail.
 - Failure variants use a dotted sub-event name (e.g. `tier1.render_error`, `backend_call.unexpected_error`).
