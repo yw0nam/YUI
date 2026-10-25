@@ -76,6 +76,10 @@ describe("createRateRelationTool — execute", () => {
     { args: { toward: "nobody", delta: 1, why: "x" }, result: "error: unknown target" },
     { args: { toward: "user", delta: 3, why: "x" }, result: "error: invalid field delta" },
     { args: { toward: "user", delta: 1, why: 5 }, result: "error: invalid field why" },
+    {
+      args: { toward: "user", delta: 1, why: " set by the user " },
+      result: "error: reserved reason",
+    },
   ])("answers $result and rates nothing", async ({ args, result }) => {
     const { tool, store } = setup();
 
