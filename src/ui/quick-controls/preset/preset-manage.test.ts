@@ -90,3 +90,47 @@ it("a rejected thumbnail removal logs a warning and keeps the removal", async ()
   expect(log.info).toHaveBeenCalledWith("preset_remove", { preset: "abcd1234" });
   registry.dispose();
 });
+
+it.each([
+  "everyone",
+  "Here",
+  "ALL",
+])("a reserved name %j shows as a taken one in the new-name field", (name) => {
+  localStorage.clear();
+  const registry = createPresetRegistry({ newId: () => "abcd1234" });
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
+  const manage = createPresetManage({ el, registry, log });
+  manage.render();
+  el.querySelector<HTMLButtonElement>(".yui-add-btn")!.click();
+  const input = el.querySelector<HTMLInputElement>("#yui-preset-new-name")!;
+
+  input.value = name;
+  input.dispatchEvent(new Event("input"));
+
+  expect(el.querySelector(".yui-preset-new")?.classList.contains("is-invalid")).toBe(true);
+  expect(input.getAttribute("aria-invalid")).toBe("true");
+  registry.dispose();
+});
+
+it("a reserved name typed into a rename field shows as a taken one", () => {
+  localStorage.clear();
+  const registry = createPresetRegistry({ newId: () => "abcd1234" });
+  registry.create("companion");
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
+  const manage = createPresetManage({ el, registry, log });
+  manage.render();
+  el.querySelector<HTMLButtonElement>(
+    '[data-preset-id="abcd1234"] .yui-preset-row__rename',
+  )!.click();
+  const input = el.querySelector<HTMLInputElement>(".is-renaming input")!;
+
+  input.value = "everyone";
+  input.dispatchEvent(new Event("input"));
+
+  expect(el.querySelector(".is-renaming")?.classList.contains("is-invalid")).toBe(true);
+  registry.dispose();
+});

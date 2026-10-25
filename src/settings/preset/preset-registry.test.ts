@@ -112,6 +112,22 @@ describe("createPresetRegistry", () => {
     expect(registry.get().list).toHaveLength(2);
   });
 
+  it.each([
+    "everyone",
+    "Here",
+    " ALL ",
+  ])("create and rename refuse the reserved name %j", (name) => {
+    seedPresets("default", [
+      { id: "default", name: "default" },
+      { id: "aaaa0001", name: "natsume" },
+    ]);
+    const registry = createPresetRegistry({ newId: () => "bbbb0002" });
+
+    expect(registry.create(name)).toBeNull();
+    expect(registry.rename("aaaa0001", name)).toBe(false);
+    expect(registry.get().list.map((e) => e.name)).toEqual(["default", "natsume"]);
+  });
+
   it("rename changes a preset's name, the default one included, and refuses a taken name", () => {
     seedPresets("default", [
       { id: "default", name: "default" },
