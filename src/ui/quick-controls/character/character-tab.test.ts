@@ -15,6 +15,7 @@ const PHONE_ROWS: CharacterRows = {
   expressMotion: false,
   bedScene: false,
   viewpoint: true,
+  relations: false,
 };
 
 describe("createCharacterTab", () => {
