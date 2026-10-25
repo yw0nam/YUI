@@ -83,6 +83,7 @@ export function wireDispatcher(deps: {
   overheardStore: ConversationStores["overheardStore"];
   relationsStore: ConversationStores["relationsStore"];
   agentSettings: SettingsStores["agentSettings"];
+  relationsSwitch: SettingsStores["relationsSwitch"];
   /** The assembled card for each turn; absent in a window that sends no card. */
   getCardText?: () => { system: string; postHistory: string } | null;
   guardrailsSettings: SettingsStores["guardrailsSettings"];
@@ -134,6 +135,7 @@ export function wireDispatcher(deps: {
     overheardStore,
     relationsStore,
     agentSettings,
+    relationsSwitch,
     getCardText,
     guardrailsSettings,
     pacerGapSettings,
@@ -214,7 +216,12 @@ export function wireDispatcher(deps: {
     takeMessageWake,
     getOverheard: overheard.read,
     getRelations: () =>
-      readRelationLines(relationsStore.all(), presetIdForWindow(), readPresetList()),
+      readRelationLines(
+        relationsStore.all(),
+        presetIdForWindow(),
+        readPresetList(),
+        relationsSwitch.get().enabled,
+      ),
     commitOverheard: overheard.commit,
     isBodyHeld,
     contextHistory,

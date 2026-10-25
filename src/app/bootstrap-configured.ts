@@ -155,6 +155,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         capturer: phase1.screenCapturer,
       },
       browserEnabled: () => settings.browserSettings.get().enabled,
+      relationsEnabled: () => settings.relationsSwitch.get().enabled,
       relations: phase1.conversation.relationsStore,
       targets: relations.targets,
     });

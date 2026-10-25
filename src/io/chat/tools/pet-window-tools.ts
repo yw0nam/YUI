@@ -18,10 +18,16 @@ export function createPetWindowTools(deps: {
   /** The browser switch, read when a call runs. */
   browserEnabled: () => boolean;
   relations: RelationsStore;
+  /** The Relations switch, read when a call runs. */
+  relationsEnabled: () => boolean;
   /** The other open presets rate_relation can name. */
   targets: () => PresetEntry[];
 }): ClientTool[] {
-  const rate = createRateRelationTool({ store: deps.relations, targets: deps.targets });
+  const rate = createRateRelationTool({
+    store: deps.relations,
+    targets: deps.targets,
+    enabled: deps.relationsEnabled,
+  });
   if (!isTauri()) return [rate];
   return [
     rate,

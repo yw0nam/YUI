@@ -195,6 +195,7 @@ export async function wireTurnCore(
     overheardStore,
     relationsStore,
     agentSettings: settings.agentSettings,
+    relationsSwitch: settings.relationsSwitch,
     getCardText: deps.getCardText,
     guardrailsSettings: settings.guardrailsSettings,
     pacerGapSettings: settings.pacerGapSettings,

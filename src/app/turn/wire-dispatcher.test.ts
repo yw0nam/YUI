@@ -81,6 +81,7 @@ describe("wireDispatcher", () => {
       overheardStore: {} as never,
       relationsStore: {} as never,
       agentSettings: {} as never,
+      relationsSwitch: {} as never,
       guardrailsSettings: {
         subscribe: vi.fn(() => guardrailsOverrideDisposer),
       } as never,
