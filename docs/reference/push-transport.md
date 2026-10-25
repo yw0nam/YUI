@@ -45,6 +45,7 @@ The client renders what arrives and judges nothing. Everything the backend must 
 | `tool_call` wait, body action | 15 s on the client, 20 s on the backend adapter |
 | `tool_call` wait, query | 2 s on the client, 7 s on the backend adapter |
 | `tool_call` wait, rate_relation | 2 s on the client, 7 s on the backend adapter |
+| `tool_call` wait, address_character | 2 s on the client, 7 s on the backend adapter |
 | `tool_call` wait, browser | 32 s on the client, 40 s on the backend adapter |
 | Text-only `tool_result` frame size | 256 KiB |
 | `tool_result` frame size with a non-empty list of image data URLs | `max_turn_bytes` from `ready`, or 256 KiB when absent |
@@ -102,7 +103,7 @@ The client reconnects with the delay schedule in the limits table on every close
 | `chat_id` | The conversation the backend keeps state under. Generated once per installation, stored in settings, reused on every connection |
 | `accepts` | The frame types the client reads beyond the base set. The base set is `ready`, `render`, `speech`, `turn_end`, `tool_status`, `tool_call`, `reasoning` and `delegations`; this client sends `["error"]`. Absent means the base set only. A backend sends a client no frame type outside the base set and its `accepts`, and reads a value that is not a list of strings as absent. The latest `hello` of the chat decides, including for frames the backend holds while the client is away |
 | `vocabulary` | What the client renders right now. `emotion_text_mode` is `"free"` or `"enum"`; `emotion_text_map` is the tag table used in `enum` mode |
-| `tools` | The function schemas the client declares on this connection, in the OpenAI function-tool shape. Absent when the client declares none. Fixed for the connection. Every pet window declares `rate_relation`; a pet window under Tauri also declares `browser`, and `main` also declares `body_action` and `look` |
+| `tools` | The function schemas the client declares on this connection, in the OpenAI function-tool shape. Absent when the client declares none. Fixed for the connection. Every pet window declares `rate_relation` and `address_character`; a pet window under Tauri also declares `browser`, and `main` also declares `body_action` and `look` |
 
 A backend that does not read `accepts` sends no `error` frame and renders its failure line. A client that sends no `accepts` gets the rendered failure line.
 
