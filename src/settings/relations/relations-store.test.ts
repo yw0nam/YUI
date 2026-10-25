@@ -84,12 +84,94 @@ describe("createRelationsStore", () => {
       expected: {},
     },
     {
-      name: "a log entry with delta 3",
-      stored: { user: { value: 1, updated_at: 1, log: [{ at: 1, delta: 3, why: "x" }] } },
+      name: "a log entry with delta 41",
+      stored: { user: { value: 1, updated_at: 1, log: [{ at: 1, delta: 41, why: "x" }] } },
       expected: { user: { value: 1, updated_at: 1, log: [] } },
     },
   ])("drops $name from storage", ({ stored, expected }) => {
     expect(createRelationsStore({ storage: memory(stored) }).all()).toEqual(expected);
+  });
+
+  const SPENT_TODAY = {
+    value: 4,
+    updated_at: t0,
+    log: [
+      { at: t0, delta: 2, why: "a" },
+      { at: t0, delta: 2, why: "b" },
+    ],
+  };
+
+  it.each([
+    {
+      name: "sets a fresh target to 9 and logs one +9 change with the manual reason",
+      stored: null,
+      value: 9,
+      outcome: { band: "warm", applied: 9, clamped: false },
+      record: {
+        value: 9,
+        updated_at: t0 + HOUR,
+        log: [{ at: t0 + HOUR, delta: 9, why: "set by the user" }],
+      },
+    },
+    {
+      name: "sets a target whose daily cap is spent to -6 without the cap holding it",
+      stored: { user: SPENT_TODAY },
+      value: -6,
+      outcome: { band: "cold", applied: 10, clamped: false },
+      record: {
+        value: -6,
+        updated_at: t0 + HOUR,
+        log: [{ at: t0 + HOUR, delta: -10, why: "set by the user" }, ...SPENT_TODAY.log],
+      },
+    },
+    {
+      name: "clamps 25 to 20",
+      stored: null,
+      value: 25,
+      outcome: { band: "close", applied: 20, clamped: true },
+      record: {
+        value: 20,
+        updated_at: t0 + HOUR,
+        log: [{ at: t0 + HOUR, delta: 20, why: "set by the user" }],
+      },
+    },
+    {
+      name: "keeps the note on set",
+      stored: { user: { value: 2, updated_at: 1, log: [], note: "trusts the work" } },
+      value: 5,
+      outcome: { band: "warm", applied: 3, clamped: false },
+      record: {
+        value: 5,
+        updated_at: t0 + HOUR,
+        log: [{ at: t0 + HOUR, delta: 3, why: "set by the user" }],
+        note: "trusts the work",
+      },
+    },
+  ])("$name", ({ stored, value, outcome, record }) => {
+    const store = createRelationsStore({ storage: memory(stored) });
+
+    expect(store.set("user", value, "set by the user", t0 + HOUR)).toEqual(outcome);
+    expect(store.all().user).toEqual(record);
+  });
+
+  it("spends none of the daily cap with a manual change", () => {
+    const store = createRelationsStore({ storage: memory() });
+
+    store.set("user", 9, "set by the user", t0);
+
+    expect(store.rate("user", 1, "listened", t0 + HOUR)).toEqual({
+      band: "warm",
+      applied: 1,
+      clamped: false,
+    });
+  });
+
+  it("keeps a stored manual jump of +9 on load", () => {
+    const stored = {
+      user: { value: 9, updated_at: 1, log: [{ at: 1, delta: 9, why: "set by the user" }] },
+    };
+
+    expect(createRelationsStore({ storage: memory(stored) }).all()).toEqual(stored);
   });
 
   it("replaces the whole store with a valid body and refuses an invalid one", () => {

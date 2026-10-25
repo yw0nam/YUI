@@ -34,4 +34,12 @@ describe("readRelationLines", () => {
       { target: "user (character)", band: "neutral", delta: 2, why: "said hi", at: 9 },
     ]);
   });
+
+  it("returns no line while relations are off", () => {
+    const relations = {
+      user: { value: 5, updated_at: 7, log: [{ at: 7, delta: 1, why: "stayed up" }] },
+    };
+
+    expect(readRelationLines(relations, "default", PRESETS, false)).toEqual([]);
+  });
 });

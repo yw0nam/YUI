@@ -54,6 +54,7 @@ describe("createSettingsStores", () => {
       "expressMotionSettings",
       "bedSceneSettings",
       "browserSettings",
+      "relationsSwitch",
     ]);
   });
 
@@ -77,6 +78,7 @@ describe("createSettingsStores", () => {
     ["presenceSettings", "yui.presence", 180000, 200000],
     ["pacerGapSettings", "yui.proactive-pacer-gap", 600000, 0],
     ["browserSettings", "yui.browser", false, true],
+    ["relationsSwitch", "yui.relations-enabled", true, false],
   ] as const)("binds %s to %s with default %s", (storeName, key, defaultValue, nextValue) => {
     localStorage.clear();
     const store = createSettingsStores()[storeName] as FlagSettingsStore | ClampedIntSettingsStore;
@@ -130,6 +132,7 @@ describe("createSettingsStores", () => {
     const stores = createSettingsStores();
 
     expect(broadcastSyncStores(stores)).toContain(stores.browserSettings);
+    expect(broadcastSyncStores(stores)).toContain(stores.relationsSwitch);
   });
 
   it("broadcasts the express-motion selection so both windows curate the same vocabulary", () => {
