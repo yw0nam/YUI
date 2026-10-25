@@ -173,7 +173,7 @@ describe("preset strip — relations", () => {
     ).toEqual(["user", "bbbb0002", "aaaa0001", "cccc0003"]);
   });
 
-  it("folds the rated targets whose window is closed behind a +N chip", () => {
+  it("folds the rated targets whose window is closed behind a +N chip, unfolded across a re-render", () => {
     const petWindows = createPetWindows({
       storage: { load: () => ({ open: ["aaaa0001"] }), save: () => {} },
     });
@@ -206,13 +206,14 @@ describe("preset strip — relations", () => {
       expect(line.classList.contains("is-unfolded")).toBe(true);
       expect(more.getAttribute("aria-expanded")).toBe("true");
 
-      // The next render on the same strip folds again; a store write triggers one.
+      // A store write re-renders the line; it stays unfolded.
       store.rate("user", 1, "kept a promise", NOW);
       const next = root.querySelector<HTMLElement>(".yui-preset__rel")!;
-      expect(next.classList.contains("is-unfolded")).toBe(false);
+      expect(next).not.toBe(line);
+      expect(next.classList.contains("is-unfolded")).toBe(true);
       expect(
         next.querySelector<HTMLButtonElement>(".yui-relation--more")!.getAttribute("aria-expanded"),
-      ).toBe("false");
+      ).toBe("true");
     } finally {
       petWindows.dispose();
     }
