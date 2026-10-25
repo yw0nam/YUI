@@ -310,6 +310,24 @@ describe("createQuickControls — presets", () => {
     if (key) input.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
   }
 
+  it("a photo picked in the manage list shows in the strip", async () => {
+    const url = "asset://localhost/app-data/cards/aaaa0001.png?v=1";
+    const pickPresetPhoto = vi.fn(async () => url);
+    qc.dispose();
+    qc = createQuickControls({
+      ...defaultQcArgs(mount),
+      presetRegistry: registry,
+      pickPresetPhoto,
+    });
+    qc.open();
+
+    openManage();
+    rowOf("natsume").querySelector<HTMLButtonElement>(".yui-preset-row__photo")!.click();
+
+    await vi.waitFor(() => expect($<HTMLImageElement>(".yui-preset__thumb").src).toBe(url));
+    expect(pickPresetPhoto).toHaveBeenCalledWith("aaaa0001");
+  });
+
   it("shows the active preset in the strip and names it on each per-preset tab", () => {
     const select = $<HTMLSelectElement>(".yui-preset__select");
     expect(select.value).toBe("aaaa0001");

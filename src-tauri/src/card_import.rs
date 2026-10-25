@@ -352,4 +352,70 @@ mod tests {
         remove_thumbnail_at(&cards, "abcd1234").unwrap(); // idempotent
         std::fs::remove_dir_all(&cards).ok();
     }
+
+    fn encoded(w: u32, h: u32, format: image::ImageFormat) -> Vec<u8> {
+        let mut out = Vec::new();
+        image::DynamicImage::new_rgb8(w, h)
+            .write_to(&mut std::io::Cursor::new(&mut out), format)
+            .unwrap();
+        out
+    }
+
+    #[test]
+    fn a_picked_png_is_stored_as_the_presets_thumbnail() {
+        let cards = unique_dir("photo_png");
+        let png = encoded(8, 8, image::ImageFormat::Png);
+
+        let dest = store_preset_photo(&cards, "abcd1234", "file:///me.png", png.clone()).unwrap();
+
+        assert_eq!(
+            dest,
+            cards.join("abcd1234.png").to_string_lossy().into_owned()
+        );
+        assert_eq!(std::fs::read(cards.join("abcd1234.png")).unwrap(), png);
+        assert_eq!(std::fs::read_dir(&cards).unwrap().count(), 1); // no temp copy left behind
+        std::fs::remove_dir_all(&cards).ok();
+    }
+
+    #[test]
+    fn a_second_pick_replaces_the_first() {
+        let cards = unique_dir("photo_twice");
+        let first = encoded(8, 8, image::ImageFormat::Png);
+        let second = encoded(9, 9, image::ImageFormat::Png);
+
+        store_preset_photo(&cards, "abcd1234", "file:///a.png", first).unwrap();
+        store_preset_photo(&cards, "abcd1234", "file:///b.png", second.clone()).unwrap();
+
+        assert_eq!(std::fs::read(cards.join("abcd1234.png")).unwrap(), second);
+        assert_eq!(std::fs::read_dir(&cards).unwrap().count(), 1);
+        std::fs::remove_dir_all(&cards).ok();
+    }
+
+    #[test]
+    fn a_jpeg_is_stored_as_a_png_fitted_to_the_photo_edge() {
+        let cards = unique_dir("photo_jpeg");
+        let jpeg = encoded(1024, 512, image::ImageFormat::Jpeg);
+
+        store_preset_photo(&cards, "abcd1234", "file:///me.jpg", jpeg).unwrap();
+
+        let stored = std::fs::read(cards.join("abcd1234.png")).unwrap();
+        assert!(stored.starts_with(PNG_SIGNATURE));
+        let (w, h) = image::load_from_memory(&stored)
+            .map(|i| (i.width(), i.height()))
+            .unwrap();
+        assert_eq!((w, h), (PHOTO_EDGE, PHOTO_EDGE / 2));
+        std::fs::remove_dir_all(&cards).ok();
+    }
+
+    #[test]
+    fn a_file_that_is_no_png_or_jpeg_is_refused_and_stores_nothing() {
+        let cards = unique_dir("photo_refused");
+
+        let err = store_preset_photo(&cards, "abcd1234", "file:///me.txt", b"hello".to_vec())
+            .unwrap_err();
+
+        assert_eq!(err, "unsupported file".to_string());
+        assert!(!cards.join("abcd1234.png").exists());
+        std::fs::remove_dir_all(&cards).ok();
+    }
 }

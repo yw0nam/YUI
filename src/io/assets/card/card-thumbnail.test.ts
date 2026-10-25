@@ -5,9 +5,9 @@
  * commands, and the convertFileSrc URL a retained thumbnail hands back.
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CardThumbnailDeps } from "./card-thumbnail";
-import { removeCardThumbnail, retainCardThumbnail } from "./card-thumbnail";
+import { pickPresetPhoto, removeCardThumbnail, retainCardThumbnail } from "./card-thumbnail";
 
 function makeDeps(over: Partial<CardThumbnailDeps> = {}): CardThumbnailDeps {
   return {
@@ -38,5 +38,29 @@ describe("removeCardThumbnail", () => {
     expect(deps.invoke).toHaveBeenCalledWith("remove_card_thumbnail", {
       id: "mio-1a2b3c",
     });
+  });
+});
+
+describe("pickPresetPhoto", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("asks the picker for the preset and returns a file URL that changes with each pick", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000);
+    const deps = makeDeps();
+
+    const url = await pickPresetPhoto("abcd1234", deps);
+
+    expect(deps.invoke).toHaveBeenCalledWith("pick_preset_photo", { presetId: "abcd1234" });
+    expect(url).toBe("asset://localhost/app-data/cards/abcd1234.png?v=1000");
+  });
+
+  it("returns null when the picker is dismissed", async () => {
+    const deps = makeDeps({
+      invoke: vi.fn(async () => null) as unknown as CardThumbnailDeps["invoke"],
+    });
+
+    expect(await pickPresetPhoto("abcd1234", deps)).toBeNull();
+    expect(deps.convertFileSrc).not.toHaveBeenCalled();
   });
 });

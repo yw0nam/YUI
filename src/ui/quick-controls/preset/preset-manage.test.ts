@@ -132,3 +132,43 @@ it("a reserved name typed into a rename field shows as a taken one", () => {
   expect(el.querySelector(".is-renaming")?.classList.contains("is-invalid")).toBe(true);
   registry.dispose();
 });
+
+function photoSetup(pickPhoto?: (id: string) => Promise<string | null>) {
+  localStorage.clear();
+  const registry = createPresetRegistry({ newId: () => "abcd1234" });
+  registry.create("companion");
+  const el = document.createElement("div");
+  const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
+  createPresetManage({ el, registry, log, pickPhoto }).render();
+  const button = () =>
+    el.querySelector<HTMLButtonElement>('[data-preset-id="abcd1234"] .yui-preset-row__photo');
+  const thumbnail = () => registry.get().list.find((e) => e.id === "abcd1234")?.thumbnail;
+  return { registry, button, thumbnail };
+}
+
+it("offers a photo button on every row only where a picker is passed", () => {
+  const without = photoSetup();
+  expect(without.button()).toBeNull();
+  without.registry.dispose();
+
+  const withPicker = photoSetup(async () => null);
+  expect(withPicker.button()?.getAttribute("aria-label")).toBe("Choose a photo for companion");
+  withPicker.registry.dispose();
+});
+
+it("stores the picked photo as the preset's thumbnail and leaves it when the picker is dismissed", async () => {
+  const pick = vi.fn<(id: string) => Promise<string | null>>(
+    async () => "asset://x/abcd1234.png?v=1",
+  );
+  const { registry, button, thumbnail } = photoSetup(pick);
+
+  button()!.click();
+  await vi.waitFor(() => expect(thumbnail()).toBe("asset://x/abcd1234.png?v=1"));
+  expect(pick).toHaveBeenCalledWith("abcd1234");
+
+  pick.mockResolvedValueOnce(null);
+  button()!.click();
+  await Promise.resolve();
+  expect(thumbnail()).toBe("asset://x/abcd1234.png?v=1");
+  registry.dispose();
+});
