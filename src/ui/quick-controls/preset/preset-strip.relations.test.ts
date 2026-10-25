@@ -228,9 +228,9 @@ describe("preset strip — relations", () => {
     expect(root.querySelector(".yui-preset__rel")!.hasAttribute("hidden")).toBe(false);
   });
 
-  it("folds the chips past the line's width into +N", () => {
+  it("folds the chips past the line's width into +N, and folds them again under an unfolded re-render", () => {
     const proto = HTMLElement.prototype;
-    // A 180px line; each shown child is 60px wide.
+    // A 180px line; each shown child is 60px wide; an unfolded line wraps, so nothing overflows.
     Object.defineProperty(proto, "clientWidth", {
       configurable: true,
       get(this: HTMLElement) {
@@ -240,6 +240,7 @@ describe("preset strip — relations", () => {
     Object.defineProperty(proto, "scrollWidth", {
       configurable: true,
       get(this: HTMLElement) {
+        if (this.classList.contains("is-unfolded")) return this.clientWidth;
         return 60 * [...this.children].filter((c) => !c.hasAttribute("data-folded")).length;
       },
     });
@@ -266,6 +267,17 @@ describe("preset strip — relations", () => {
       ]);
       expect(more.textContent).toBe("+1");
       expect(more.getAttribute("aria-label")).toBe("Show 1 more");
+
+      more.click();
+      store.rate("user", 1, "kept a promise", NOW);
+      const next = root.querySelector<HTMLElement>(".yui-preset__rel")!;
+      const nextMore = next.querySelector<HTMLButtonElement>(".yui-relation--more")!;
+      expect(next.classList.contains("is-unfolded")).toBe(true);
+      expect(
+        next.querySelector('.yui-relation[data-target="bbbb0002"]')?.hasAttribute("data-folded"),
+      ).toBe(true);
+      expect(nextMore.textContent).toBe("+1");
+      expect(nextMore.hidden).toBe(false);
     } finally {
       petWindows.dispose();
       delete (proto as { clientWidth?: number }).clientWidth;
