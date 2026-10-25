@@ -459,7 +459,7 @@ YUI/
           devtools-window.ts           # Developer Tools window opener
           message-window.ts            # Message-window opener, message-<id> for a bound id, and its placement rule
           message-window-mode.ts       # Keeps the message window in step with the stored mode and the dock request
-          unified-window.ts            # Unified chat window opener: shows the one window labelled unified, or creates it
+          unified-window.ts            # Unified chat window opener: shows the one window labelled unified, or creates it; its permissions are src-tauri/capabilities/unified.json
           pet-window.ts                # Bound pet window opener: creates pet-<id> and lists the windows that exist
           companion-windows.ts         # Closes a bound pet window's settings-<id> and message-<id>, and watches a companion's owner window
           current-window.ts            # Closes the current window and listens for its close request
@@ -555,9 +555,11 @@ YUI/
         message-window.css           # Message-window layout and name-plate styles
         cue-list.css                 # Cue-list section styles
       unified/                       # The unified chat window
-        unified-view.ts              # Head, log and composer; sends a message as a routed event and draws the pending line
+        unified-view.ts              # Wires the modules; keeps the pending sends and their expiry timer
         merge.ts                     # Pure: the open presets' transcripts and the pending sends as one time-ordered list
-        router.ts                    # Pure: the targets of a message and the one-at-a-time delivery of a send
+        targets.ts                   # Pure: the fallback target, the targets of a message, and the send built from what the user typed
+        sequence.ts                  # One-at-a-time delivery of a send, target by target, with its queue, 60 s timeout and log line
+        log-rows.ts                  # DOM only: one log line and one cast chip
         composer.ts                  # The message window's field under the text input, with the mention pill, target chip and hint
         mention-picker.ts            # The @ list over the field: a combobox of the open presets and @everyone
         avatar.ts                    # A preset's photo, else a dot in a hue taken from its id
