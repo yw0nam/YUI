@@ -56,6 +56,8 @@ import type { VoicePipeline } from "./voice/wire-voice-pipeline";
 export function wireDispatcher(deps: {
   bus: EventBus;
   onTurnDropped?: Parameters<typeof createDispatcher>[0]["onTurnDropped"];
+  /** A turn is over — the over edge, or the next begin displacing it. */
+  onTurnClosed?: Parameters<typeof createDispatcher>[0]["onTurnClosed"];
   renderer: Renderer;
   surfaces: Pick<
     Surfaces,
@@ -268,6 +270,7 @@ export function wireDispatcher(deps: {
     appendSkipRecord: appendTurnRecord,
     onTurnAdmitted: quotedTurn.admitted,
     onTurnDropped: deps.onTurnDropped,
+    onTurnClosed: deps.onTurnClosed,
     onTurnFailed: (turn, reason) => {
       previousTurn.callFailed(turn, reason);
       quotedTurn.failed(turn);

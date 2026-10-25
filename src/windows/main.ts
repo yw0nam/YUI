@@ -273,6 +273,8 @@ async function bootstrap(): Promise<BootstrapHandle> {
       stage,
       getQuickControls: controls.get,
       onSessionReset: windowBridge.onSessionReset,
+      emitCharacterAddressed: windowBridge.emitCharacterAddressed,
+      onCharacterAddressed: windowBridge.onCharacterAddressed,
       pushSocket: push.pushSocket,
       delegations: push.delegations,
       delegationHistory: push.delegationHistory,

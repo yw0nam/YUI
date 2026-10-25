@@ -1062,6 +1062,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "dispatcher/sources/addressed",
+      "module": "sources",
+      "label": "addressed source",
+      "role": "Turns a character-addressed bridge event for this preset into the addressed.character candidate, and emits that event for this window's reply once it is over.",
+      "paths": [
+        "src/dispatcher/sources/addressed"
+      ]
+    },
+    {
       "id": "ambient/liveliness",
       "module": "ambient",
       "label": "liveliness",

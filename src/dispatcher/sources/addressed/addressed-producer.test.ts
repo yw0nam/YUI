@@ -81,7 +81,7 @@ describe("createAddressedProducer", () => {
     producer.onTurnClosed({ id: 7, outcome: "ok", spokeText: true });
 
     expect(emit).not.toHaveBeenCalled();
-    expect(consoleInfo).toHaveBeenCalledWith(NO_TEXT_LINE, expect.stringContaining("perlica"));
+    expect(consoleInfo).toHaveBeenCalledWith(NO_TEXT_LINE, { to: "perlica" });
   });
 
   it("emits nothing for a turn with no recorded target", () => {

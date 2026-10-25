@@ -7,6 +7,10 @@ import {
 } from "../../dispatcher/core/paced-pipeline-busy";
 import type { ProactivePacer } from "../../dispatcher/core/proactive-pacer";
 import {
+  type AddressedSource,
+  createAddressedSource,
+} from "../../dispatcher/sources/addressed/addressed-source";
+import {
   createMilestoneSource,
   type MilestoneSource,
 } from "../../dispatcher/sources/idle-tick/milestone-source";
@@ -28,6 +32,7 @@ import {
   type SignalsSource,
 } from "../../dispatcher/sources/inbox/signals-source";
 import { createWakeSource, type WakeSource } from "../../dispatcher/sources/wake/wake-source";
+import type { CharacterAddressed } from "../../io/bridge/settings-bridge";
 import { appendRecord } from "../../io/chat/record/turn-record-log";
 import type { AgentNotifySettings } from "../../settings/backend/agent-notify-settings";
 import type { ProactiveSettings } from "../../settings/cues/proactive-settings";
@@ -56,6 +61,10 @@ export function wireDispatcherSources(deps: {
   pacer: Pick<ProactivePacer, "isHolding" | "subscribe">;
   /** True while the day's first-activity candidate waits. */
   isFirstActivityHeld: () => boolean;
+  /** Subscribes to the character-addressed bridge events this preset is named in. */
+  onCharacterAddressed: (cb: (event: CharacterAddressed) => void) => () => void;
+  /** This window's preset id — the addressed source keeps only events naming it. */
+  selfPresetId: string;
   /** Called with each parsed signal group as it arrives. */
   onSignalArrival?: (group: SignalGroup) => void;
 }): {
@@ -66,6 +75,7 @@ export function wireDispatcherSources(deps: {
   milestoneSource: MilestoneSource;
   screenSource: ScreenSource;
   wakeSource: WakeSource;
+  addressedSource: AddressedSource;
 } {
   const {
     bus,
@@ -137,6 +147,12 @@ export function wireDispatcherSources(deps: {
     appendSkipRecord: (record) => appendRecord(record),
   });
   void screenSource.start();
+  const addressedSource = createAddressedSource({
+    bus,
+    selfPresetId: deps.selfPresetId,
+    subscribe: deps.onCharacterAddressed,
+  });
+  addressedSource.start();
   return {
     proactiveSource,
     scheduleSource,
@@ -145,5 +161,6 @@ export function wireDispatcherSources(deps: {
     milestoneSource,
     screenSource,
     wakeSource,
+    addressedSource,
   };
 }

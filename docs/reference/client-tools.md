@@ -9,8 +9,9 @@ The tools the client exposes to the backend model.
 | `look` | Reads the character's body state, perch targets, or a display screenshot | Argument `at`: `body`, `perch_targets`, or `screen`; optional integer `monitor` for `screen`, using the same display number as `body_action.monitor`. Omitted `monitor` selects the character's display; other targets ignore it. Body and perch results are JSON strings. Screen success is `{ text: "screenshot of display <n>", images: [dataUrl] }`; refusal is `error: screen capture is off`, and an invalid monitor is `error: invalid field monitor` | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createAvatarTools` in `src/io/chat/tools/avatar.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
 | `browser` | Runs backend-written JavaScript against the ego lite browser on the user's computer, in this character's own task space | Arguments `code` (string: the body of an async function that runs after the client's prelude) and `guide` (boolean). `guide: true` returns the installed ego lite's guide text; otherwise `code` runs and the result is the untrusted-content line, the script's output and any screenshot notes, with up to 4 screenshots as JPEG data URLs in `images`. Failures answer the strings in [browser](#browser) | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createBrowserTool` in `src/io/chat/tools/browser/` | Tauri commands `browser_run` and `browser_guide` in `src-tauri/src/browser/`, invoked through `src/io/browser/browser-relay.ts` |
 | `rate_relation` | Moves this character's relation toward the user or another open character by one small step, with the reason | Arguments `toward` (enum: `user` and the other open presets' names), `delta` (enum: -2, -1, 1, 2), `why` (string, at most 80 characters). Result: the new band word (`hostile`, `cold`, `neutral`, `warm`, `close`), `clamped: <band>` when the daily cap or the range held the value, `ignored: already rated <toward> this turn`, `error: unknown target`, `error: invalid field delta` for a `delta` outside the enum, `error: invalid field why` for a non-string `why`, `error: reserved reason` for the `why` `set by the user`, or `error: relations are off` while the Relations switch is off | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createRateRelationTool` in `src/io/chat/tools/relation.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
+| `address_character` | Names the character this reply is for, so that character receives a turn after the reply's playback | Argument `to` (enum: the other open presets' names). Result: `ok`, `ignored: already addressed <name> this turn`, `error: unknown target` | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createAddressCharacterTool` in `src/io/chat/tools/address-character.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
 
-`createClientTools` in `src/io/chat/tools/client-tools.ts` lists `generate_express` followed by the tools a window hands it, and `src/io/chat/tools/pet-window-tools.ts` builds that list per window. Every pet window hands it `rate_relation`, and under Tauri `browser`; `main` also hands it `body_action` and `look`, the avatar tools over the avatar executor, which only `main` creates. A bound pet window declares `rate_relation` and `browser`. The browser build hands it `rate_relation` alone, and the phone window hands it none. `src/app/turn/wire-dispatcher.ts` builds the registry from that list for each turn, as the `clientTools` dependency of the backend caller. The registry reads the vocabulary loaded at that moment, so a vocabulary edit (a new emotion, a new motion, a different voice engine, a changed motion selection) reaches the schema on the next turn.
+`createClientTools` in `src/io/chat/tools/client-tools.ts` lists `generate_express` followed by the tools a window hands it, and `src/io/chat/tools/pet-window-tools.ts` builds that list per window. Every pet window hands it `rate_relation` and `address_character`, and under Tauri `browser`; `main` also hands it `body_action` and `look`, the avatar tools over the avatar executor, which only `main` creates. A bound pet window declares `rate_relation`, `address_character` and `browser`. The browser build hands those two, and the phone window hands it none. `src/app/turn/wire-dispatcher.ts` builds the registry from that list for each turn, as the `clientTools` dependency of the backend caller. The registry reads the vocabulary loaded at that moment, so a vocabulary edit (a new emotion, a new motion, a different voice engine, a changed motion selection) reaches the schema on the next turn.
 
 `look` declaration is independent of both screenshot settings. `main` alone declares `look`; the phone window, the browser build, and a bound pet window declare none, so a push call there answers `error: unknown tool`. A declared `look` whose executor is not yet available answers `error: unsupported`.
 
@@ -259,6 +260,26 @@ the switch id `relations`, and answers `error: relations are off`; the turn carr
 hand with a slider: the change is logged as one jump with the reason `set by the user`, spends
 none of the daily cap, and is held only by the range. That reason is reserved for the user: a
 call whose `why` is `set by the user` answers `error: reserved reason` and changes nothing.
+
+## address_character
+
+The backend names, per reply, which other open character the reply speaks to: the tool's `to`
+lists the names of the presets open at that moment (main's active preset and the other open
+pet windows), read when the schema is built, like `rate_relation`'s `toward`; the push
+transport reads it at `hello`, so a preset opened later joins the list at the next connect.
+The entry maps to the preset id; an entry outside the list answers `error: unknown target`.
+The user is never a target.
+
+One call per reply: a second call in the same turn answers
+`ignored: already addressed <name> this turn` and changes nothing. The call records the
+recipient on the turn; when the turn ends `ok` having spoken and the reply's playback has
+finished, the client emits the `yui://character-addressed` bridge event, which the named
+character's window turns into an `addressed` turn ([client-context.md](client-context.md#addressed))
+held by the chain cap `rate_limit.addressed_chain_max`. The client routes; the named
+character's backend decides whether to answer, and a `[SILENT]` reply ends the exchange.
+
+The tool has no switch, so `tool switches:` does not list it, and it stays declared whatever
+the Relations switch holds.
 
 ## Backend capability
 

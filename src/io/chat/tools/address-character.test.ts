@@ -14,8 +14,7 @@ describe("createAddressCharacterTool — definition", () => {
   it("lists the open presets as targets and never the bare user, read each time the schema is built", () => {
     const targets = [{ id: "aaaa0001", name: "perlica" }];
     const { tool } = setup(targets);
-    const to = () =>
-      (tool.definition.function.parameters.properties.to as { enum: string[] }).enum;
+    const to = () => (tool.definition.function.parameters.properties.to as { enum: string[] }).enum;
 
     expect(to()).toEqual(["perlica"]);
     targets.push({ id: "bbbb0002", name: "shino" });

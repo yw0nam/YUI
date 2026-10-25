@@ -12,28 +12,36 @@ const EVENT: CharacterAddressed = {
 };
 
 function setup(selfPresetId = "natsume") {
-  const bus = { push: vi.fn(() => true) } as Pick<EventBus, "push"> & { push: ReturnType<typeof vi.fn> };
-  let deliver: ((event: CharacterAddressed) => void) | null = null;
-  let unsubscribed = false;
+  const bus = { push: vi.fn(() => true) } as Pick<EventBus, "push"> & {
+    push: ReturnType<typeof vi.fn>;
+  };
+  const listeners = new Set<(event: CharacterAddressed) => void>();
   const source = createAddressedSource({
     bus,
     selfPresetId,
     subscribe: (cb) => {
-      deliver = cb;
+      listeners.add(cb);
       return () => {
-        unsubscribed = true;
+        listeners.delete(cb);
       };
     },
   });
-  return { bus, source, deliver: () => deliver!, isUnsubscribed: () => unsubscribed };
+  return {
+    bus,
+    source,
+    emit: (event: CharacterAddressed) => {
+      for (const cb of [...listeners]) cb(event);
+    },
+    isUnsubscribed: () => listeners.size === 0,
+  };
 }
 
 describe("createAddressedSource", () => {
   it("pushes one addressed.character envelope for an event naming this preset", () => {
-    const { bus, source, deliver } = setup();
+    const { bus, source, emit } = setup();
     source.start();
 
-    deliver()(EVENT);
+    emit(EVENT);
 
     expect(bus.push).toHaveBeenCalledExactlyOnceWith({
       source: "addressed_source",
@@ -46,21 +54,21 @@ describe("createAddressedSource", () => {
   });
 
   it("pushes nothing for an event addressed to another preset", () => {
-    const { bus, source, deliver } = setup("shino");
+    const { bus, source, emit } = setup("shino");
     source.start();
 
-    deliver()(EVENT);
+    emit(EVENT);
 
     expect(bus.push).not.toHaveBeenCalled();
   });
 
   it("stop unsubscribes, so a later event pushes nothing", () => {
-    const { bus, source, deliver, isUnsubscribed } = setup();
+    const { bus, source, emit, isUnsubscribed } = setup();
     source.start();
     source.stop();
 
     expect(isUnsubscribed()).toBe(true);
-    deliver()(EVENT);
+    emit(EVENT);
     expect(bus.push).not.toHaveBeenCalled();
   });
 });

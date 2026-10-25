@@ -106,6 +106,8 @@ export async function wireTurnCore(
     onVoiceTurnStart?: () => void;
     /** The tools beside generate_express, declared on every transport; none outside Tauri. */
     windowTools?: readonly ClientTool[];
+    /** A turn is over — the over edge, or the next begin displacing it. */
+    onTurnClosed?: DispatcherDeps["onTurnClosed"];
     register: (dispose: () => void) => void;
     ensureActive: () => void;
   },
@@ -213,6 +215,7 @@ export async function wireTurnCore(
     pushSocket: pushSocket ?? null,
     getVocabulary: () => vocabulary!.vocabulary(),
     windowTools: deps.windowTools,
+    onTurnClosed: deps.onTurnClosed,
     openQuickControls: deps.openQuickControls,
     showVoiceError: voiceErrorDwell.show,
     appendTurnRecord: (record) => appendRecord(record),

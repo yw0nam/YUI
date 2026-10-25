@@ -5,8 +5,10 @@ import { isChatConfigured } from "../dispatcher/backend/backend-caller";
 import type { BusEnvelope } from "../dispatcher/core/event-bus";
 import type { Guardrails } from "../dispatcher/core/guardrails";
 import type { Dispatcher } from "../dispatcher/dispatcher";
+import { createAddressedProducer } from "../dispatcher/sources/addressed/addressed-producer";
 import type { SignalsSource } from "../dispatcher/sources/inbox/signals-source";
 import { onAvatarRpc, respondAvatarRpc } from "../io/bridge/inbox/avatar-rpc";
+import type { CharacterAddressed } from "../io/bridge/settings-bridge";
 import type { ClientTool } from "../io/chat/tools/client-tools";
 import { createPetWindowTools } from "../io/chat/tools/pet-window-tools";
 import type { ScreenCapturer } from "../io/window/capture/screen-source-provider";
@@ -16,7 +18,7 @@ import { subscribeOsEvent } from "../io/window/tauri-listen";
 import { createLogger } from "../logger";
 import { mergeScreen } from "../settings/capture/screen-settings";
 import type { DelegationChipSettingsStore } from "../settings/panels/delegation-chip-settings";
-import { presetIdForWindow } from "../settings/preset/active-preset";
+import { presetIdForWindow, readPresetName } from "../settings/preset/active-preset";
 import { isMacOS, isWindows } from "../tauri-env";
 import { t } from "../ui/i18n";
 import { maybeShowFirstRunHint } from "../ui/notices/first-run-hint";
@@ -50,6 +52,10 @@ interface Phase1Handles extends TurnCorePhase1 {
   getQuickControls(): ReturnType<typeof createQuickControls>;
   /** Subscribes to resets the preset's other windows announce. */
   onSessionReset(cb: (presetId: string) => void): () => void;
+  /** Emits this window's replies that named another open character, once their playback ended. */
+  emitCharacterAddressed(event: CharacterAddressed): void;
+  /** Subscribes to the replies another character addressed to this preset. */
+  onCharacterAddressed(cb: (event: CharacterAddressed) => void): () => void;
   isDisposed(): boolean;
   bedSceneHold: BedSceneHold;
 }
@@ -144,6 +150,13 @@ const realFactories: ConfiguredBootstrapFactories = {
       respondAvatarRpc,
       register,
     });
+    // The producer needs nothing from the turn core, so it exists before the tools that feed it.
+    const addressed = createAddressedProducer({
+      transcript: phase1.conversation.chatHistoryStore,
+      selfPresetId: presetIdForWindow(),
+      selfName: () => readPresetName(presetIdForWindow()),
+      emit: phase1.emitCharacterAddressed,
+    });
     const windowTools = createPetWindowTools({
       bound: phase1.bound === true,
       getExecutor: () => locomotion?.getAvatarExecutor() ?? null,
@@ -158,6 +171,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       relationsEnabled: () => settings.relationsSwitch.get().enabled,
       relations: phase1.conversation.relationsStore,
       targets: relations.targets,
+      recordAddressed: addressed.record,
     });
     const card = wireCard({
       agentSettings: settings.agentSettings,
@@ -174,6 +188,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       screenCapturer: phase1.screenCapturer,
       openQuickControls: (tab) => getQuickControls().open(undefined, { tab }),
       windowTools,
+      onTurnClosed: addressed.onTurnClosed,
       voicePersistence: {
         get: () => settings.sttSettings.get().enabled,
         set: settings.sttSettings.setEnabled,
@@ -212,6 +227,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       milestoneSource,
       screenSource,
       wakeSource,
+      addressedSource,
     } = wireDispatcherSources({
       bus,
       presenceSettings,
@@ -227,6 +243,8 @@ const realFactories: ConfiguredBootstrapFactories = {
       },
       pacer,
       isFirstActivityHeld: bedScene.isHeld,
+      onCharacterAddressed: phase1.onCharacterAddressed,
+      selfPresetId: presetIdForWindow(),
       onSignalArrival: signalChips.onArrival,
     });
     signals = signalsSource;
@@ -237,6 +255,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     register(signalsSource.stop);
     register(milestoneSource.stop);
     register(screenSource.stop);
+    register(addressedSource.stop);
     const hitTest = wireHitTest({
       root,
       renderer,

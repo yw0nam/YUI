@@ -1,10 +1,11 @@
-/** The tools a pet window declares beside generate_express: rate_relation everywhere, browser under Tauri, the avatar tools in main only. */
+/** The tools a pet window declares beside generate_express: rate_relation and address_character everywhere, browser under Tauri, the avatar tools in main only. */
 
 import { type PresetEntry, presetIdForWindow } from "../../../settings/preset/active-preset";
 import type { RelationsStore } from "../../../settings/relations/relations-store";
 import { isTauri } from "../../../tauri-env";
 import type { AvatarExecutor } from "../../bridge/inbox/avatar-executor";
 import { createBrowserRelay } from "../../browser/browser-relay";
+import { createAddressCharacterTool } from "./address-character";
 import { createAvatarTools } from "./avatar";
 import { createBrowserTool } from "./browser/browser-tool";
 import type { ClientTool } from "./client-tools";
@@ -22,15 +23,22 @@ export function createPetWindowTools(deps: {
   relationsEnabled: () => boolean;
   /** The other open presets rate_relation can name. */
   targets: () => PresetEntry[];
+  /** Records the reply's recipient for the addressed producer. */
+  recordAddressed: (turnId: string, to: string) => void;
 }): ClientTool[] {
   const rate = createRateRelationTool({
     store: deps.relations,
     targets: deps.targets,
     enabled: deps.relationsEnabled,
   });
-  if (!isTauri()) return [rate];
+  const address = createAddressCharacterTool({
+    targets: deps.targets,
+    record: deps.recordAddressed,
+  });
+  if (!isTauri()) return [rate, address];
   return [
     rate,
+    address,
     ...(deps.bound ? [] : createAvatarTools(deps.getExecutor, deps.screen)),
     createBrowserTool({
       relay: createBrowserRelay(),

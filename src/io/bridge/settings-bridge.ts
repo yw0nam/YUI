@@ -29,6 +29,7 @@ const CH_REASONING_ASK = "yui://reasoning-ask";
 const CH_HELP_GUIDE = "yui://help-guide";
 const CH_PET_WINDOWS_CHANGED = "yui://pet-windows-changed";
 const CH_PRESET_CHANGED = "yui://preset-changed";
+const CH_CHARACTER_ADDRESSED = "yui://character-addressed";
 
 interface VoiceStateSnapshot {
   state: VoiceInputState;
@@ -42,6 +43,18 @@ export interface HelpGuideRequest {
 
 export interface PresetChange {
   active: string;
+}
+
+/** One character's reply named another open character; emitted once that reply's playback ended. */
+export interface CharacterAddressed {
+  /** The speaker's preset id. */
+  from: string;
+  /** The speaker's preset name. */
+  name: string;
+  /** The named character's preset id. */
+  to: string;
+  text: string;
+  ts: number;
 }
 
 export interface SettingsBridge {
@@ -88,6 +101,9 @@ export interface SettingsBridge {
   onPresetChanged(cb: (change: PresetChange) => void): () => void;
   emitPetWindowsChanged(): Promise<void>;
   onPetWindowsChanged(cb: () => void): () => void;
+  /** A character's reply named this preset; delivered to every window, receivers filter on `to`. */
+  emitCharacterAddressed(event: CharacterAddressed): void;
+  onCharacterAddressed(cb: (event: CharacterAddressed) => void): () => void;
   dispose(): void;
 }
 
@@ -103,6 +119,7 @@ export function createSettingsBridge(
     CH_PET_WINDOWS_CHANGED,
     CH_VOICE_SET,
     CH_VOICE_STATE,
+    CH_CHARACTER_ADDRESSED,
   ]);
   const on: typeof core.on = (name, cb) => core.on(name, cb, { scoped: !shared.has(name) });
 
@@ -215,6 +232,24 @@ export function createSettingsBridge(
     },
     onPetWindowsChanged(cb) {
       return on(CH_PET_WINDOWS_CHANGED, () => cb());
+    },
+    emitCharacterAddressed(event) {
+      safeEmit(CH_CHARACTER_ADDRESSED, event);
+    },
+    onCharacterAddressed(cb) {
+      return on<unknown>(CH_CHARACTER_ADDRESSED, (event) => {
+        if (event === null || typeof event !== "object") return;
+        const e = event as Partial<CharacterAddressed>;
+        if (
+          typeof e.from === "string" &&
+          typeof e.name === "string" &&
+          typeof e.to === "string" &&
+          typeof e.text === "string" &&
+          typeof e.ts === "number"
+        ) {
+          cb({ from: e.from, name: e.name, to: e.to, text: e.text, ts: e.ts });
+        }
+      });
     },
     dispose: core.dispose,
   };
