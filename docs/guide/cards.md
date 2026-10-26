@@ -4,7 +4,7 @@ The **Card** section of the **Talk** tab holds who she is.
 
 ## What a card is
 
-A card is the persona text of a preset: her name, who she is, how she talks, and how her conversations open. The client sends it to the backend with every turn on Chat Completions and Responses. The backend reads it and decides what she says; the client never writes her words. A push backend brings its own persona, so a preset on push has no card section.
+A card is the persona text of a preset: her name, who she is, how she talks, and how her conversations open. The client sends it to the backend with every turn on Chat Completions and Responses. The backend reads it and decides what she says; the client never writes her words. A push backend brings its own persona, so on push the card section keeps only **Import card…** and **Export card**.
 
 ::: v-pre
 

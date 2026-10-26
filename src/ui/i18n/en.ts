@@ -254,6 +254,7 @@ const en: Record<string, string> = {
   "card.import": "Import card…",
   "card.export": "Export card",
   "card.io_note": "JSON or PNG card in · V2 JSON out",
+  "card.push_note": "On push the backend uses its own persona; the card text is not sent.",
   "card.import_failed": "Could not import that card",
   "card.import_error": "That file holds no card",
   "card.export_error": "Could not write the file",
