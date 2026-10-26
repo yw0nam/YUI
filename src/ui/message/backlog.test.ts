@@ -41,6 +41,7 @@ describe("createBacklog", () => {
 
     expect(panel.hidden).toBe(false);
     expect(panel.nextElementSibling).toBe(frame);
+    expect(toggle.parentElement).toBe(frame);
     expect(rows()).toEqual([
       ["You", "Hi"],
       ["Perlica", "Hello!"],

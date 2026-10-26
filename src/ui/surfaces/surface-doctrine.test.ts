@@ -342,6 +342,47 @@ describe("surfaces.css — the dialogue box floats while it shows", () => {
   });
 });
 
+// The longest common reply must fit the cap in force, so the box's floor never rises above it.
+describe("surfaces.css — the box's floor stays under its cap", () => {
+  it("bounds the min-height by the cap, with the input closed and open", () => {
+    const c = read("surfaces.css");
+    expect(extractBlock(c, ".yui-bubble__box")).toMatch(
+      /min-height:\s*min\(132px,\s*var\(--yui-bubble-max-h, 34vh\)\)/,
+    );
+    expect(extractBlock(c, ".yui-bubble.is-above-input .yui-bubble__box")).toMatch(
+      /min-height:\s*min\(132px,[^;]*28vh\)/,
+    );
+  });
+});
+
+// In the message window the plate sits in its own row, so it floats with the box and stays clear of an open backlog.
+describe("message-window.css — the plate rides the floating box", () => {
+  const css = (): string => read("../message/message-window.css");
+
+  it("floats the plate only while the bubble shows", () => {
+    expect(
+      extractBlock(
+        css(),
+        ".yui-ui--message .yui-plate-row:has(+ .yui-bubble.is-visible) > .yui-plate",
+      ),
+    ).toMatch(/animation:\s*yui-bob\b/);
+  });
+
+  it("holds the plate still under reduced motion", () => {
+    const c = css();
+    const reduced = c.slice(c.indexOf("@media (prefers-reduced-motion: reduce)"));
+    expect(reduced).toMatch(
+      /\.yui-plate-row:has\(\+ \.yui-bubble\.is-visible\) > \.yui-plate\s*\{\s*animation:\s*none/,
+    );
+  });
+
+  it("tucks the box under the plate only while the backlog is closed", () => {
+    expect(css()).toMatch(
+      /\+ \.yui-bubble:not\(:has\(\.yui-bubble__backlog:not\(\[hidden\]\)\)\)\s*\{\s*margin-top:\s*-23px/,
+    );
+  });
+});
+
 // The scrim alpha carries contrast on the bubble, composer and plate; none adds a text shadow.
 describe("bubble, composer and plate — no text shadow", () => {
   for (const file of [
