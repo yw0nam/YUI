@@ -141,17 +141,19 @@ export function createSurfaces({
   el.className = "yui-ui";
   el.innerHTML = `
     <div class="yui-bubble" hidden>
-      <div class="yui-bubble__tools">
-        <button class="yui-bubble__pop" type="button">${POP_ICON}</button>
-        <button class="yui-bubble__close" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true">
-            <path d="M6 6l12 12M18 6L6 18"/>
-          </svg>
-        </button>
-      </div>
-      <div class="yui-bubble__frame">
-        <div class="yui-bubble__box"><div class="yui-bubble__quote" hidden></div><span class="yui-bubble__text"></span><span class="yui-bubble__caret" aria-hidden="true">|</span><span class="yui-bubble__speech-action" hidden></span></div>
-        <span class="yui-bubble__next" aria-hidden="true" hidden>▼</span>
+      <div class="yui-bubble__float">
+        <div class="yui-bubble__tools">
+          <button class="yui-bubble__pop" type="button">${POP_ICON}</button>
+          <button class="yui-bubble__close" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="yui-bubble__frame">
+          <div class="yui-bubble__box"><div class="yui-bubble__quote" hidden></div><span class="yui-bubble__text"></span><span class="yui-bubble__caret" aria-hidden="true">|</span><span class="yui-bubble__speech-action" hidden></span></div>
+          <span class="yui-bubble__next" aria-hidden="true" hidden>▼</span>
+        </div>
       </div>
     </div>
     <div class="yui-chip-column"></div>

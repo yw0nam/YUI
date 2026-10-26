@@ -47,6 +47,7 @@
   }
   .yui-bubble__caret,
   .yui-bubble__next,
+  .yui-bubble__float,
   .yui-bubble__think-text.is-live::after {
     animation: none !important;
   }
@@ -134,6 +135,21 @@
 .yui-bubble.is-visible {
   opacity: 1;
   transform: translate(-50%, 0) scale(1);
+}
+
+/* The whole dialogue floats while it shows; the wrapper's own transform places and fades it. */
+.yui-bubble.is-visible .yui-bubble__float {
+  animation: yui-bob 6s ease-in-out infinite;
+}
+
+@keyframes yui-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
 }
 
 /* A click on the box completes the line; around it the wrapper still passes pointers through. */
