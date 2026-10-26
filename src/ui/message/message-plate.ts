@@ -1,5 +1,5 @@
 /**
- * Name plate — the preset's face, its name, the state dot and label on the dialogue box's edge.
+ * Name plate — the preset's face, its name, the state dot and label on the edge of the bubble's box.
  *
  * In the message window it is also the window's handle: the dock button, and the grab
  * target the OS window drag starts from.

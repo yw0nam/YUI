@@ -2,7 +2,7 @@
 
 import type { SentenceStart } from "../../io/voice/tts/tts-pipeline";
 
-export const FIXED_MS_PER_CHAR = 40;
+const FIXED_MS_PER_CHAR = 40;
 
 export interface Typewriter {
   /** Starts a line; a paced line types each sentence only once its audio starts. */

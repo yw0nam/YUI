@@ -1,4 +1,4 @@
-/** Backlog — the current session's earlier lines, opened above the dialogue box by a toggle under it. */
+/** Backlog — the current session's earlier lines, opened above the bubble's box by a toggle on its bottom edge. */
 
 import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
 import { subscribe as subscribeLocale, t } from "../i18n";

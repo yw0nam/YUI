@@ -24,7 +24,12 @@ vi.mock("../ui/chips/status-pill", () => ({
   createStatusPill: vi.fn(() => ({ dispose: vi.fn() })),
 }));
 vi.mock("../ui/surfaces/wire", () => ({
-  wireMessageSurfaces: vi.fn(() => ({ surfaces: {}, local: {}, remote: {}, getMode: vi.fn() })),
+  wireMessageSurfaces: vi.fn(() => ({
+    surfaces: {},
+    local: { plate: { setName: vi.fn(), setFace: vi.fn() } },
+    remote: {},
+    getMode: vi.fn(),
+  })),
 }));
 vi.mock("../io/window/capture/tauri-screen", () => ({
   resolveScreenCapturer: vi.fn(),

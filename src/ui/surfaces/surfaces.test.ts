@@ -126,7 +126,7 @@ describe("name plate — on the docked bubble", () => {
     const mount = document.createElement("div");
     const s = createSurfaces({ mount, tool: noTool });
     expect(mount.querySelector(".yui-plate")).toBeNull();
-    expect(s.plate).toBeUndefined();
+    expect("plate" in s).toBe(false);
     s.dispose();
   });
 });

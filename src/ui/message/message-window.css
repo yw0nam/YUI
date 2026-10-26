@@ -82,8 +82,7 @@
 .yui-ui--message .yui-bubble.is-visible {
   transform: none;
 }
-/* The bubble tucks up under the plate's row so the 30px plate rides the box's top-left edge, half over it:
-   15px over the box plus the column's 8px gap. An open delegation list keeps the row clear of the box. */
+/* The bubble tucks 23px (15px over the box plus the column's 8px gap) under the plate's row, unless the delegation list or the backlog is open. */
 .yui-plate-row:not(:has(.yui-deleg__list.is-open))
 + .yui-bubble:not(:has(.yui-bubble__backlog:not([hidden]))) {
   margin-top: -23px;

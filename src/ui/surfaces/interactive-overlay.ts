@@ -1,9 +1,9 @@
 /**
  * Overlay elements that must take OS pointer events while shown — everything else in the overlay
- * stays click-through. Of the bubble, the box (a click completes the line), the buttons on its edge
- * and the speech action button under the text are targets; the area around them passes through to
- * the character. The backlog's toggle and its open panel are targets too. The status pill takes them on its capture button, and as a whole only while it
- * offers the voice fix.
+ * stays click-through. Of the bubble, the box (a click completes the line), the buttons on its edge,
+ * the speech action button under the text, and the backlog's toggle and open panel are targets; the
+ * area around them passes through to the character. The status pill takes them on its capture
+ * button, and as a whole only while it offers the voice fix.
  */
 export const INTERACTIVE_OVERLAY_SELECTORS = [
   ".yui-input.is-open",

@@ -14,6 +14,7 @@ import { presetIdForWindow } from "../../settings/preset/active-preset";
 import type { SettingsStores } from "../../settings/settings-stores";
 import { isTauri } from "../../tauri-env";
 import type { ToolStatus } from "../chips/status-pill";
+import type { MessagePlate } from "../message/message-plate";
 import { createSpeechStream } from "./speech-stream";
 import { createSurfaces, type Surfaces } from "./surfaces";
 import { createSurfacesRouter } from "./surfaces-router";
@@ -34,7 +35,7 @@ export function wireMessageSurfaces(deps: {
   register: (fn: () => void) => void;
 }): {
   surfaces: Surfaces;
-  local: Surfaces;
+  local: Surfaces & { readonly plate: MessagePlate };
   remote: RemoteSurfaces | null;
   getMode(): MessageWindowMode;
 } {

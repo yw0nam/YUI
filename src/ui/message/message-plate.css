@@ -1,4 +1,4 @@
-/* Name plate — the chip on the dialogue box's edge: face, name, state dot, state label, dock button.
+/* Name plate — the chip on the bubble's box edge: face, name, state dot, state label, dock button.
    Layout rules that tie it to a window (the plate row, the ember siblings) stay in
    message-window.css and surfaces.css. Tokens live in ../tokens.css. */
 

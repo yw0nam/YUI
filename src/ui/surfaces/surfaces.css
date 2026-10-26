@@ -141,7 +141,7 @@
   transform: translate(-50%, 0) scale(1);
 }
 
-/* The whole dialogue floats while it shows; the wrapper's own transform places and fades it. */
+/* The whole bubble floats while it shows; the wrapper's own transform places and fades it. */
 .yui-bubble.is-visible .yui-bubble__float {
   animation: yui-bob 6s ease-in-out infinite;
 }
@@ -490,8 +490,7 @@
   content: none;
 }
 
-/* ── Backlog — the session's earlier lines above the box, opened by a pill under it.
-   The bubble passes pointers through, so the pill and the open panel take their own. ── */
+/* ── Backlog — the session's earlier lines above the box; its panel and toggle take their own pointers ── */
 .yui-bubble__backlog {
   margin-bottom: 8px;
   padding: 12px 14px;

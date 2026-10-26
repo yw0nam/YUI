@@ -38,8 +38,6 @@ export interface Surfaces {
   readonly el: HTMLElement;
   /** Where the chips beside the avatar mount, signal chips first and the delegation chip after. */
   readonly chipColumn: HTMLElement;
-  /** The name plate on the bubble's edge, when the surfaces were asked for one. */
-  readonly plate?: MessagePlate;
 
   // ── speech bubble (output) ──
   /** Reveal the bubble (empty) + caret ON. Called before streaming starts; a paced line types each sentence as its audio starts. */
@@ -127,6 +125,11 @@ interface SurfacesOptions {
   backlog?: BacklogSource;
 }
 
+/** Surfaces asked for a name plate carry it. */
+export function createSurfaces(
+  options: SurfacesOptions & { namePlate: true },
+): Surfaces & { readonly plate: MessagePlate };
+export function createSurfaces(options: SurfacesOptions): Surfaces;
 export function createSurfaces({
   mount,
   tool,

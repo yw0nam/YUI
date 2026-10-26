@@ -37,7 +37,7 @@ import {
   localStorageMessageWindowStorage,
 } from "../settings/panels/message-window-settings";
 import { createFlagSettings, localStorageStore } from "../settings/persisted-store";
-import { presetEntryFor } from "../settings/preset/active-preset";
+import { presetEntryFor, presetNameFor } from "../settings/preset/active-preset";
 import { isTauri } from "../tauri-env";
 import { createDelegationChip } from "../ui/chips/delegation-chip";
 import { reloadFromStorage as reloadLocale } from "../ui/i18n";
@@ -97,7 +97,7 @@ async function bootstrap(): Promise<void> {
     reasoning,
     backlog: {
       read: () => readTranscriptAfterBoundary(presetEntryFor(presetRegistry.get(), boundId).id),
-      characterName: () => presetEntryFor(presetRegistry.get(), boundId).name,
+      characterName: () => presetNameFor(presetRegistry.get(), boundId),
     },
   });
   surfaces.el.classList.add("yui-ui--message");

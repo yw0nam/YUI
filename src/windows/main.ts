@@ -156,9 +156,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     messageWindowSettings: settingsStores.messageWindowSettings,
     register,
   });
-  if (local.plate) {
-    register(wirePlateName({ registry: presetRegistry, plate: local.plate, boundId }));
-  }
+  register(wirePlateName({ registry: presetRegistry, plate: local.plate, boundId }));
   register(
     wireInputAnchor({
       renderer,
