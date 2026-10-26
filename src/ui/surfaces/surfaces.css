@@ -54,7 +54,8 @@
   .yui-bubble__think svg {
     transition: none;
   }
-  .yui-bubble__speech-action button {
+  .yui-bubble__speech-action button,
+  .yui-bubble__box {
     transition: none;
   }
 }
@@ -84,8 +85,9 @@
 
 .yui-bubble__box {
   box-sizing: border-box;
-  padding: 0.7rem 0.95rem;
-  border-radius: var(--yui-radius);
+  min-height: 132px;
+  padding: 26px 20px 30px;
+  border-radius: 16px;
   background: var(--yui-scrim);
   border: 1px solid var(--yui-edge);
   box-shadow: var(--yui-float);
@@ -94,8 +96,10 @@
 
   color: var(--yui-text);
   font-size: var(--yui-fs-speech);
-  line-height: 1.5;
+  line-height: 1.75;
   text-wrap: pretty;
+  /* The border swells to amber while the line types. */
+  transition: border-color var(--yui-dur) var(--yui-ease);
 
   /* Long utterance height cap + internal scroll — does not grow upward over model even when overflowing. */
   max-height: var(--yui-bubble-max-h, 34vh);
@@ -177,6 +181,11 @@
    Pack block/inline elements tightly to fit small caption panel. Remove first/last margins. */
 .yui-bubble__text p {
   margin: 0.4em 0;
+}
+/* A line's own newlines show; the markup's newlines between blocks stay collapsed. */
+.yui-bubble__text p,
+.yui-bubble__text li {
+  white-space: pre-wrap;
 }
 .yui-bubble__text > :first-child {
   margin-top: 0;
@@ -286,6 +295,9 @@
 .yui-bubble.is-typing .yui-bubble__caret {
   display: inline;
 }
+.yui-bubble.is-typing .yui-bubble__box {
+  border-color: var(--yui-accent-soft);
+}
 
 /* The box scrolls, so what rides its edges hangs on this frame instead. */
 .yui-bubble__frame {
@@ -298,9 +310,6 @@
   top: -15px;
   left: 14px;
   z-index: 1;
-}
-.yui-bubble__frame:has(> .yui-plate) .yui-bubble__box {
-  padding-top: 26px;
 }
 
 /* ▼ — the line finished. An indicator only. */

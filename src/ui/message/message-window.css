@@ -13,8 +13,8 @@
   align-items: flex-start;
   gap: 8px;
   width: 340px;
-  /* 12 lines of 1.425rem (0.95rem at line-height 1.5) + 1.4rem padding + 2px border */
-  --yui-bubble-max-h: calc(12 * 1.425rem + 1.4rem + 2px);
+  /* 12 lines at the speech size and line-height 1.75 + 56px padding + 2px border */
+  --yui-bubble-max-h: calc(12 * 1.75 * var(--yui-fs-speech) + 58px);
   padding: 8px;
   pointer-events: auto;
 }
@@ -86,9 +86,6 @@
    15px over the box plus the column's 8px gap. An open delegation list keeps the row clear of the box. */
 .yui-plate-row:not(:has(.yui-deleg__list.is-open)) + .yui-bubble {
   margin-top: -23px;
-}
-.yui-ui--message .yui-bubble__box {
-  padding-top: 26px;
 }
 /* The lift above the input is a pet-window trick; in flow the column already separates them. */
 .yui-ui--message .yui-bubble.is-above-input .yui-bubble__box {
