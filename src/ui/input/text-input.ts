@@ -202,7 +202,6 @@ export function createTextInput(
     inFlight = 0;
     epoch++;
     trayEl.replaceChildren();
-    actionButton.refresh();
     if (!formEl.hidden) liftBubbleAboveInput();
   }
 
@@ -227,7 +226,6 @@ export function createTextInput(
         continue;
       }
       inFlight++;
-      actionButton.refresh();
       const batch = epoch;
       void downscaleToJpeg(file)
         .then((url) => {
@@ -242,7 +240,6 @@ export function createTextInput(
         .finally(() => {
           if (batch !== epoch) return;
           inFlight--;
-          actionButton.refresh();
         });
     }
   }
@@ -265,12 +262,10 @@ export function createTextInput(
       const idx = Array.from(trayEl.children).indexOf(chip);
       if (idx !== -1) attachments.splice(idx, 1);
       chip.remove();
-      actionButton.refresh();
       if (!formEl.hidden) liftBubbleAboveInput();
     });
     chip.append(img, remove);
     trayEl.append(chip);
-    actionButton.refresh();
     if (!formEl.hidden) liftBubbleAboveInput();
   }
 
@@ -314,14 +309,12 @@ export function createTextInput(
     for (const cb of submitHandlers) cb(text, images);
     clearAttachments();
     field.value = "";
-    actionButton.refresh();
     fitField();
   }
 
   function restoreInput(text: string, images: string[]): void {
     if (!isInputOpen() || field.value !== "" || attachments.length > 0 || inFlight > 0) return;
     field.value = text;
-    actionButton.refresh();
     for (const url of images) {
       attachments.push(url);
       addChip(url);
@@ -390,7 +383,6 @@ export function createTextInput(
   field.addEventListener("keydown", handleFieldKey);
   field.addEventListener("input", clearErrorOnInput);
   field.addEventListener("input", fitField);
-  field.addEventListener("input", actionButton.refresh);
   field.addEventListener("paste", onFieldPaste);
   attachBtn.addEventListener("click", onAttachClick);
   picker.addEventListener("change", onPickerChange);
@@ -405,7 +397,6 @@ export function createTextInput(
     field.removeEventListener("keydown", handleFieldKey);
     field.removeEventListener("input", clearErrorOnInput);
     field.removeEventListener("input", fitField);
-    field.removeEventListener("input", actionButton.refresh);
     field.removeEventListener("paste", onFieldPaste);
     attachBtn.removeEventListener("click", onAttachClick);
     picker.removeEventListener("change", onPickerChange);

@@ -33,7 +33,6 @@ describe("resolveStorageKey", () => {
     "yui.stt",
     "yui.stt-key",
     "yui.vad",
-    "yui.voice-mode",
     "yui.locale",
     "yui.presets",
     "yui.delegation_history",

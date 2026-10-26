@@ -47,7 +47,7 @@ interface SwitchRowOptions {
   unifiedChatSwitch?: FlagSettingsStore;
 }
 
-/** The speech bubble's keep-until-dismissed row */
+/** The speech bubble's keep-until-dismissed row. */
 export function createBubblePersistRow(bubblePersistSettings?: FlagSettingsStore): SwitchRow {
   return {
     selector: ".yui-bubble-persist-switch",
