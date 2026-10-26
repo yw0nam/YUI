@@ -270,11 +270,10 @@ transport reads it at `hello`, so a preset opened later joins the list at the ne
 The entry maps to the preset id; an entry outside the list answers `error: unknown target`.
 The user is never a target.
 
-Optional boolean `handoff` passes the user's last message to the named character, who takes it
+Optional boolean `handoff` passes the user's message on this turn to the named character, who takes it
 and answers the user. Use it when the user's message is better answered by that character.
 The receiving trigger carries `user_message` verbatim from the admitted user turn; a turn
 without a user message produces a plain address even when `handoff` is true.
-Once per reply; leave it out when you are talking to the user.
 
 One call per reply: a second call in the same turn answers
 `ignored: already addressed <name>` — the character named first — and changes nothing. The call records the

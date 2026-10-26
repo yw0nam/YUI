@@ -27,7 +27,7 @@ export function createAddressedProducer(deps: {
   emit: (event: CharacterAddressed) => void;
   now?: () => number;
 }): {
-  record(turnId: string, to: string, handoff?: boolean): string | undefined;
+  record(turnId: string, to: string, handoff: boolean): string | undefined;
   /** The preset a still-open turn's reply was addressed to. */
   targetOf(turnId: string): string | undefined;
   /** The dispatcher's onTurnClosed. */
@@ -42,7 +42,7 @@ export function createAddressedProducer(deps: {
   const targets = new Map<string, { to: string; handoff: boolean }>();
 
   return {
-    record(turnId, to, handoff = false) {
+    record(turnId, to, handoff) {
       const known = targets.get(turnId);
       if (known !== undefined) return known.to;
       targets.delete(turnId);
@@ -73,7 +73,7 @@ export function createAddressedProducer(deps: {
         to,
         text,
         ts: now(),
-        ...(handoff && userText !== undefined ? { user_message: userText } : {}),
+        ...(handoff && userText ? { user_message: userText } : {}),
       });
       log.info("fire", { to });
     },

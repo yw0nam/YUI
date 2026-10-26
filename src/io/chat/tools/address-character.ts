@@ -9,7 +9,7 @@ const log = createLogger("address-character");
 
 const DESCRIPTION =
   "Speak to another character: name who this reply is for. They hear this reply and may answer. " +
-  "With handoff, this reply passes the user's last message to that character, who takes it and answers the user. " +
+  "With handoff, this reply passes the user's message on this turn to that character, who takes it and answers the user. " +
   "Use handoff when the user's message is better answered by that character. " +
   "Once per reply; leave it out when you are talking to the user.";
 
@@ -38,7 +38,7 @@ export function createAddressCharacterTool(deps: {
               handoff: {
                 type: "boolean",
                 description:
-                  "Pass the user's last message to this character, who takes it and answers the user. Use it when the user's message is better answered by this character.",
+                  "true: pass the user's message on this turn to that character, who answers the user.",
               },
             },
             additionalProperties: false as const,
