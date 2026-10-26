@@ -20,10 +20,9 @@ YUI/
   devtools.html                      # Developer Tools Vite entry
   message.html                       # Message-window Vite entry
   unified.html                       # Unified-chat-window Vite entry
-  phone.html                         # Phone-window Vite entry, the Android window
   vite.config.ts                     # Dev port YUI_DEV_PORT|1420, strictPort, host 127.0.0.1, backend proxy plugin
   biome.json                         # Format and lint config (curated rule set)
-  scripts/                           # Dev launchers (dev-port.mjs, tauri-dev.mjs for tauri:dev and android:dev, dev-auto.mjs) and their shared package-manager.mjs helper, dev-backend-proxy.mjs, release.sh, worktree-setup.sh, ci/test-guard.sh, architecture-map-base.mjs (writes the map of origin/main beside the data file for the viewer's Compare view), ci/architecture-map.mjs (checks the client and plugin architecture maps against the tree)
+  scripts/                           # Dev launchers (dev-port.mjs, tauri-dev.mjs for tauri:dev, dev-auto.mjs) and their shared package-manager.mjs helper, dev-backend-proxy.mjs, release.sh, worktree-setup.sh, ci/test-guard.sh, architecture-map-base.mjs (writes the map of origin/main beside the data file for the viewer's Compare view), ci/architecture-map.mjs (checks the client and plugin architecture maps against the tree)
   configs/                           # Runtime-loaded config (no hardcoding)
     endpoints.json                   # chat/stt/tts/broker base urls + chat_instructions, chat_api, chat_model_context_window + stt_model/stt_language/tts_provider/tts_model/tts_speaker/tts_max_inflight; the shipped configs/endpoints.json omits the url and speaker keys, and the settings panel overrides per device
     emotion_registry.json            # emotion id -> vrm_expression + fallback
@@ -60,7 +59,7 @@ YUI/
           wire-voice.ts              # The voice-input and turn-voice wiring; a bound window builds no capture
           wire-voice-pipeline.ts     # Wires filler, TTS, and speech playback to the turn lifecycle
       stage/                         # What is bound to the pet window's stage and overlay
-        stage-renderer.ts            # The renderer on the stage with its persisted camera and idle throttle, plus Tier 1 liveliness, for the pet and phone windows
+        stage-renderer.ts            # The renderer on the stage with its persisted camera and idle throttle, plus Tier 1 liveliness, for the pet window
         bed-scene-hold.ts            # The flag the bed scene takes while it holds the body; the camera lock and the movers read it
         create-avatar-bed.ts         # The bed as the avatar commands see it: phase, the lie-down sequence with the hold, floor placement and perch pins, and getting up
         scene-frame.ts               # The bed scene's window frame over the real window, which is wired later than the scene starts
@@ -84,7 +83,7 @@ YUI/
         config-defaults.ts           # The quick-controls getters over the bundled config, shared by the pet and settings windows
         conversation-stores.ts       # Constructs the shared io/chat conversation stores each window owns and disposes
         dev-key-fallback.ts          # The VITE_YUI_*_KEY build-time key values, read in dev builds only
-        window-stores.ts             # Creates the settings and conversation store bags and the preset registry of the pet, settings, and phone windows and registers each store's teardown
+        window-stores.ts             # Creates the settings and conversation store bags and the preset registry of the pet and settings windows and registers each store's teardown
         wire-avatar.ts               # VRM and speaker selection stores, their swap and import flows, the voice-list refresh on override commits, and the avatar config applied at boot
         wire-config.ts               # The config store over the bundled configs, the runtime key stores, the live endpoint/guardrail merges, and the reload/watch wiring
         wire-cue-locale-sync.ts      # Reseeds untouched built-in cues when the display language changes
@@ -108,20 +107,6 @@ YUI/
         wire-voice-mirror.ts         # Mirrors the voice toggle to the pet window and the pet window's voice state back; main only
       voice/                         # Desktop voice wiring
         voice-fix.ts                 # The desktop pill's setup-needed tap: open Connection, then back to listening
-      phone/                         # The phone window's config-derived half
-        bootstrap-phone.ts           # Phone window's config-derived bootstrap: starts and connects the turn core under one teardown bag
-        endpoints/                   # The phone's chat_api forced to the push transport
-          push-only.ts               # Endpoint getter that pins chat_api to push whatever the settings store says
-        settings/                    # The phone's settings view wiring
-          wire-phone-settings.ts     # The settings view: connection, character, history, and general tabs over the phone's stores, and the Android back claim that closes it
-        stage/                       # The phone stage's touch camera and tap
-          wire-phone-stage.ts        # Upper-body fit band, the tap source and the stage touch gesture composed for the phone
-          touch-camera.ts            # Binds orbit, pinch and tap callbacks to the camera store and the tap
-          stage-tap.ts               # Hands a tap to the tap source in stage-local px
-        top-row/                     # The phone's top row inside the safe area
-          create-phone-top-row.ts    # Name plate, delegation chip, and view openers in one row, with the status pill centred beneath
-        voice/                       # The phone's voice input
-          voice-controller.ts        # Capture intent over the mic button, the voice mode, the foreground and the STT setting
     logger.ts                        # Namespaced frontend logger with a runtime level
     tauri-env.ts                     # Tauri runtime detection
     windows/                         # One entry file per window, loaded by the matching HTML file
@@ -130,7 +115,6 @@ YUI/
       devtools-main.ts               # Developer Tools window
       message-main.ts                # Message window: the bubble, input, and plate, with the companion guard when the query binds a preset
       unified-main.ts                # Unified chat window: every open preset's transcript in one list and the composer that routes a message
-      phone-main.ts                  # Phone window: stage, persistent composer, and push chat
     styles.css                       # Pet-window base stylesheet
     vite-env.d.ts                    # Vite client types and build-time env declarations
     contract/                        # TS contract types — the wire schema source of truth
@@ -180,7 +164,6 @@ YUI/
       vrm-participant.ts             # The per-frame lifecycle every VRM-bound sub-controller implements
       camera/                        # Camera framing, zoom, and orbit state
         camera-fit.ts                # Pure fit-to-bounds framing math
-        fit-band.ts                  # Pure height-bound fit of a vertical band of the model box
         pixel-ratio.ts               # Pure devicePixelRatio clamp
         rig.ts                       # Fit-to-bounds framing, wheel zoom, the eased orbit polar, and the travel view window
         view-window.ts               # Draws the reference-size framing at an offset inside a parked canvas
@@ -340,7 +323,6 @@ YUI/
       voice/                         # Filler speech and voice activity detection
         filler-settings.ts           # Filler phrase pools and behaviour flags
         vad-settings.ts              # VAD silence window
-        voice-mode.ts                # The phone's mic mode: tap to toggle or keep listening
       preset/                        # Presets: which keys belong to one, the active one, the registry, and the windows bound to one
         preset-keys.ts               # The per-preset key list and where a key lives under a given preset
         active-preset.ts             # The registry's stored shape and the id a window resolves its keys under: the preset query, else the active preset
@@ -435,9 +417,6 @@ YUI/
           speaker-selection.ts         # Owns the active TTS speaker selection
       stage/                           # What every stage surface shares for pointer gestures
         press-travel.ts                # Pointer travel past which a press is a drag
-        touch/                         # Touch gestures on the stage
-          touch-gesture.ts             # Pure orbit, pinch and tap recognizer over pointer ids
-          stage-touch.ts               # Feeds the stage's pointer events into the recognizer
       window/
         tauri-listen.ts                # Shared os_event channel payload shape and listen resolver
         frontmost-tracker.ts           # Latest frontmost-window sample off the os_event channel
@@ -509,10 +488,6 @@ YUI/
         vrm-selection.ts               # Owns the active VRM selection
         selection-store.ts             # Generic selection store behind VRM and speaker selection
         safe-id.ts                     # TS mirror of the native stem sanitizer for persisted option ids
-        stage/                         # The phone stage's background image: store, import, and decode check
-          decode-image.ts              # Fetches and decodes an image at a URL, rejecting when the browser cannot
-          stage-background.ts          # Persisted store of which backdrop the phone's stage shows: the default or a stored user image
-          stage-image-import.ts        # Stage background import: OS picker, native copy, decode check, and the store switch
       guide/                           # The bundled guide docs handed to the backend on an Ask press
         guide-docs.ts                  # The guide docs bundled with the app and the guide: block of the client context
       image/                           # The bitmap → JPEG data URL encode the image paths share
@@ -520,9 +495,6 @@ YUI/
       locks/                           # The exclusive Web Lock a window holds across windows
         exclusive-hold.ts              # Takes a named Web Lock, holds it until release, and frees it when the window dies
         fake-lock-manager.ts           # The in-memory exclusive lock the gate tests share
-      lifecycle/                       # Page-lifecycle seams: the Android back gesture and page visibility
-        back-button.ts                 # Android back-button claim: the open surface that should swallow the gesture holds it
-        page-visibility.ts             # Page visibility as a suspension port: hidden means nothing background should run
     ui/                              # Floating surfaces, panels, and indicators
       i18n.ts                        # Locale type, persisted locale, lookup, and subscriber notification
       tokens.css                     # Design tokens: colour, radius, shadow, duration
@@ -538,17 +510,15 @@ YUI/
         surfaces.css                 # Speech bubble and text input styles
       input/                         # Text entry and its supporting transforms
         text-input.ts                # Text input: submit, busy, error, and feet anchoring
-        action-button.ts             # The composer's stop, send and mic button
+        action-button.ts             # The composer's stop and send button
         image-resize.ts              # Downscales and re-encodes user-attached images
         format-accel.ts              # Renders an accelerator string for display
       message/                       # Message-window plate, bubble, and cue-list rendering
         speech-bubble.ts             # Speech bubble: dwell, scroll, markdown, and aria for streamed speech
         user-quote.ts                # The user's message quoted on the bubble's first line
         signal-source-lines.ts       # A signal turn's source lines in the bubble's quote slot
-        reasoning-disclosure.ts      # Backend reasoning folded under the quoted line at the top of the bubble in the message and phone windows
+        reasoning-disclosure.ts      # Backend reasoning folded under the quoted line at the top of the bubble in the message window
         message-plate.ts             # Message-window name plate and OS drag handle
-        plate-connection.ts          # Binds the push socket's state onto the plate's connection tell
-        plate-surfaces.ts            # Wraps a Surfaces so speech and busy mirror into the name plate
         markdown.ts                  # Speech markdown rendering through marked and DOMPurify
         cue-list.ts                  # Reusable cue-list section for schedule and proactive cues
         message-plate.css            # Name-plate chip styles: state dot, name, state label, and dock button
@@ -585,26 +555,6 @@ YUI/
         ingress-dead-notice.ts       # One-off notice when the Rust agent ingress listener dies
         first-run-hint.ts            # First-run controls hint through the speech bubble
         boot-error.css               # Boot-failure notice styles
-      phone/                         # Phone-window layout, settings sheet, and stage backdrop
-        phone-viewport.ts            # Sizes the phone root to the visual viewport and writes the keyboard overlap
-        phone.css                    # Phone root, safe area, stage background, and touch-sized composer and bubble
-        settings/                    # The phone's full-screen settings view and its General tab
-          phone-settings-view.ts     # The settings sheet: head with back button, icon rail, and tab bodies, with open, close, and focus hand-off
-          phone-settings.css         # Settings-sheet layout and the touch-sized icon rail styles
-          general/                   # The General tab's sections: voice mode, stage background, and bubble persistence
-            general-tab.ts           # Mounts the voice, stage, and bubble sections of the General tab
-            segment/                 # Radiogroup behavior over one segmented control
-              radio-segment.ts       # Roving-focus radiogroup over a segmented control: arrows move, Space, Enter, and click commit
-            bubble/                  # The speech bubble's keep-until-dismissed switch
-              bubble-section.ts      # The keep-until-dismissed switch bound to its flag store
-            stage/                   # The stage background's Default/Image pick and its image import
-              stage-section.ts       # The Default/Image segment over the background store and the Choose row that runs the import
-              stage-section.css      # The stage section's import-error foot styles
-            voice/                   # The voice-input mode segment
-              voice-section.ts       # The Tap to toggle / Keep listening segment that follows the mode store
-              voice-section.css      # Voice-input-section note and touch-sized segment styles
-        stage/                       # The stage backdrop drawn behind the phone's character
-          stage-backdrop.ts          # Mirrors the stage background store onto the phone root, applying an image once it decodes
       quick-controls/                # Quick-controls shell parts and sections
         quick-controls.ts            # Quick-controls panel: header, tab rail, and tab body
         quick-controls.css           # Quick-controls shell, tab rail, sections, groups, and rows
@@ -639,7 +589,7 @@ YUI/
           viewpoint/                 # Camera view reset
             viewpoint-row.ts         # Camera view reset button
         connection/                  # Connection tab and its endpoint/API-key section
-          connection-tab.ts          # The Connection tab the desktop panel and the phone settings view share
+          connection-tab.ts          # The Connection tab
           chat-type.ts               # The chat type row: long names in the open list, short name over the closed select, description line
           chat-type.css              # The overlay, option colours and description line of that row
           endpoints-section.ts       # Endpoint URL fields, API-key rows, chat-API picker, and resets
@@ -662,7 +612,7 @@ YUI/
             reasons-card.ts          # The band, the engine's note, and the last three reasons of a hovered or focused relation
             view.ts                  # What the two read: this preset's relations as stored now, a target's name, and the rated targets' order
         history/                     # History tab and its session accordion section
-          history-tab.ts             # The History tab the desktop panel and the phone settings view share, with its start-fresh row
+          history-tab.ts             # The History tab, with its start-fresh row
           history-section.ts         # History tab session accordion over the persisted transcript and the signal records
           history-rows.ts            # Merges a session's chat entries with the signal records of the turns that ran in it
           history-section.css        # Session history accordion styles
@@ -696,9 +646,9 @@ YUI/
             speaker-list.css         # Speaker list styles
           user-asset-list.ts         # Shared scaffolding for the VRM and speaker asset radiogroups
           user-asset-list.css        # Radio row, tick, and state styles shared by the monitor, VRM, and speaker lists
-        switches/                    # Switch rows shared with the phone settings view
+        switches/                    # Switch rows
           switch-rows.ts             # Row markup, click binding, repaint, and the store following while open
-        tabs/                        # The tablist the desktop panel and the phone settings view share
+        tabs/                        # The tablist
           tab-rail.ts                # Tab rail: selection, roving tabindex, arrow keyboard, and the button/panel markup pairs
       i18n/                          # Locale catalogs
         en.ts                        # English strings, the source of truth for the key set
@@ -722,9 +672,7 @@ YUI/
         devtools.css                 # Developer Tools shell styles
   src-tauri/
     tauri.conf.json                  # Transparent always-on-top pet window
-    tauri.android.conf.json          # Android overrides: com.yui.mobile identifier, bundled configs and the default VRM only
     capabilities/                    # Per-window permissions; desktop.json holds the desktop-only plugin permissions
-    gen/android/                     # Android Studio project generated by `tauri android init`
     src/                             # Rust shell
       main.rs                        # Binary entry that calls into lib.rs
       lib.rs                         # Module declarations and run(), which chains plugins, setup, and commands
