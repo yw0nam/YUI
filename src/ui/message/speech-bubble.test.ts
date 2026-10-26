@@ -1100,10 +1100,7 @@ describe("backlog — holds the bubble while open", () => {
       tool: noTool,
       mount,
       dwellMs: DWELL,
-      backlog: {
-        read: () => [{ role: "user", text: "Hi", ts: 1 }],
-        characterName: () => "Perlica",
-      },
+      backlog: { read: () => [{ who: "You", text: "Hi" }] },
     });
     s.beginSpeech();
     s.pushSpeech("Hello!");

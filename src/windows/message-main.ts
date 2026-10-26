@@ -42,6 +42,7 @@ import { presetEntryFor } from "../settings/preset/active-preset";
 import { isTauri } from "../tauri-env";
 import { createDelegationChip } from "../ui/chips/delegation-chip";
 import { reloadFromStorage as reloadLocale } from "../ui/i18n";
+import { transcriptBacklog } from "../ui/message/backlog";
 import { createMessagePlate } from "../ui/message/message-plate";
 import { withPlateState } from "../ui/message/plate-state";
 import { attachSummonKey } from "../ui/surfaces/summon-key";
@@ -98,10 +99,10 @@ async function bootstrap(): Promise<void> {
     keepBubbleUntilDismissed: () => bubblePersistSettings.get().enabled,
     onInputOpenChange: (open) => bridge.emitControl({ op: "input-open", open }),
     reasoning,
-    backlog: {
-      read: () => readTranscriptAfterBoundary(presetEntryFor(presetRegistry.get(), boundId).id),
-      characterName: characterName.get,
-    },
+    backlog: transcriptBacklog(
+      () => readTranscriptAfterBoundary(presetEntryFor(presetRegistry.get(), boundId).id),
+      characterName.get,
+    ),
   });
   surfaces.el.classList.add("yui-ui--message");
   surfaces.onSubmit((text, images) => bridge.emitControl({ op: "submit", text, images }));

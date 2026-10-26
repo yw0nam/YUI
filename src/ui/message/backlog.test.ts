@@ -4,7 +4,7 @@ import {
   type ChatHistoryEntry,
   createChatHistoryStore,
 } from "../../io/chat/conversation/chat-history-store";
-import { createBacklog } from "./backlog";
+import { createBacklog, transcriptBacklog } from "./backlog";
 
 function setup(read: () => ChatHistoryEntry[]) {
   const bubble = document.createElement("div");
@@ -13,8 +13,7 @@ function setup(read: () => ChatHistoryEntry[]) {
   let shown: (shown: boolean) => void = () => {};
   createBacklog({
     mount: frame,
-    read,
-    characterName: () => "Perlica",
+    ...transcriptBacklog(read, () => "Perlica"),
     bubble: {
       keepOpen: vi.fn(),
       onShown: (listener) => {
@@ -82,6 +81,21 @@ describe("createBacklog", () => {
       ["You", "Hi"],
       ["Perlica", "Hello!"],
     ]);
+  });
+
+  it("labels each line with the who its source gives", () => {
+    const bubble = document.createElement("div");
+    const frame = document.createElement("div");
+    bubble.append(frame);
+    createBacklog({
+      mount: frame,
+      read: () => [{ who: "You → everyone", text: "Hi all" }],
+      bubble: { keepOpen: vi.fn(), onShown: () => () => {} },
+    });
+
+    bubble.querySelector<HTMLButtonElement>(".yui-bubble__backlog-toggle")!.click();
+
+    expect(bubble.querySelector(".yui-bubble__backlog-who")?.textContent).toBe("You → everyone");
   });
 
   it("hides the toggle while the session has no lines", () => {

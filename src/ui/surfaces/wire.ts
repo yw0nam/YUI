@@ -19,6 +19,7 @@ import type { SettingsStores } from "../../settings/settings-stores";
 import type { UnifiedShown } from "../../settings/unified/unified-chat-switch";
 import { isTauri } from "../../tauri-env";
 import type { ToolStatus } from "../chips/status-pill";
+import { transcriptBacklog } from "../message/backlog";
 import type { MessagePlate } from "../message/message-plate";
 import { createSurfaces, type Surfaces } from "./surfaces";
 import { createSurfacesRouter } from "./surfaces-router";
@@ -53,10 +54,7 @@ export function wireMessageSurfaces(deps: {
     keepBubbleUntilDismissed: () => deps.bubblePersistSettings.get().enabled,
     onPop: isTauri() ? () => deps.messageWindowSettings.setMode("popped") : undefined,
     namePlate: true,
-    backlog: {
-      read: deps.transcript.entriesAfterLastBoundary,
-      characterName: deps.characterName.get,
-    },
+    backlog: transcriptBacklog(deps.transcript.entriesAfterLastBoundary, deps.characterName.get),
   });
   const messageBridge = createMessageBridge(undefined, { windowKind: "pet" });
   const remote = createRemoteSurfaces(messageBridge);
