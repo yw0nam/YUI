@@ -130,16 +130,18 @@ describe("createQuickControls — settings layout", () => {
         '[data-svc="broker"]',
       ],
     ],
-    [
-      "voice",
-      [".yui-tts-switch", ".yui-spks", ".yui-filler", ".yui-message-window-switch"],
-    ],
+    ["voice", [".yui-tts-switch", ".yui-spks", ".yui-filler", ".yui-message-window-switch"]],
     ["persona", [".yui-card-switch", '[data-card-field="description"]', ".yui-card-import"]],
     ["body", [".yui-vrms", ".yui-relations__rows", ".yui-viewpoint-reset"]],
     ["hist", [".yui-hist__action", ".yui-session"]],
     [
       "together",
-      [".yui-unified-switch", ".yui-one-voice-switch", ".yui-relations-switch", "#yui-rate-addressed"],
+      [
+        ".yui-unified-switch",
+        ".yui-one-voice-switch",
+        ".yui-relations-switch",
+        "#yui-rate-addressed",
+      ],
     ],
     [
       "listening",
@@ -246,8 +248,8 @@ describe("createQuickControls — settings layout", () => {
 
     const details = Array.from(qc.el.querySelectorAll("details"));
     expect(details.map((d) => d.closest(".yui-sec")?.classList.contains("yui-card"))).toEqual([
-      true,
       false,
+      true,
     ]);
     expect(details.every((d) => d.classList.contains("yui-more"))).toBe(true);
 
@@ -495,21 +497,17 @@ describe("createQuickControls — Reactions tab layout", () => {
     };
   }
 
-  it("renders the four rate-limit rows inside #yui-panel-react", () => {
+  it.each([
+    ["#yui-rate-tier2", "react"],
+    ["#yui-rate-urgent", "react"],
+    ["#yui-rate-overall", "react"],
+    ["#yui-rate-addressed", "together"],
+  ])("renders the rate-limit row %s on the %s page", (id, page) => {
     const { qc } = buildRateQc();
     qc.open();
-    const panel = qc.el.querySelector<HTMLElement>("#yui-panel-react")!;
-    for (const id of [
-      "#yui-rate-tier2",
-      "#yui-rate-urgent",
-      "#yui-rate-overall",
-      "#yui-rate-addressed",
-    ]) {
-      const input = qc.el.querySelector<HTMLInputElement>(id);
-      expect(input).not.toBeNull();
-      expect(input!.type).toBe("number");
-      expect(panel.contains(input)).toBe(true);
-    }
+    const input = qc.el.querySelector<HTMLInputElement>(id);
+    expect(input?.type).toBe("number");
+    expect(qc.el.querySelector(`#yui-panel-${page}`)!.contains(input)).toBe(true);
     qc.dispose();
   });
 });

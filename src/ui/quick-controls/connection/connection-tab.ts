@@ -72,7 +72,6 @@ function sttSectionHtml(): string {
             ${endpointRowHtml("stt_base_url")}
             ${endpointRowHtml("stt_model")}
             ${endpointRowHtml("stt_language", { suggestions: STT_LANGUAGE_SUGGESTIONS, subKey: "endpoints.stt_language.sub" })}
-            ${keyRowHtml("sttkey")}
             ${svcResetRowHtml("stt")}
           </div>
         </section>`;
@@ -112,8 +111,6 @@ export function createConnectionTab(deps: {
   endpointsSettings: EndpointsSettingsStore;
   /** chat API key overrides store. Value is secret — no logging. */
   chatKeySettings: ChatKeySettingsStore;
-  /** STT API key overrides store. Value is secret — no logging. */
-  sttKeySettings: ApiKeySettingsStore;
   /** TTS (openai-compatible) API key overrides store. Value is secret — no logging. */
   ttsKeySettings: ApiKeySettingsStore;
   /** Default bundled-config endpoints to show as placeholder (undefined if not loaded). */
@@ -129,14 +126,13 @@ export function createConnectionTab(deps: {
   getChatApiKey?: () => Promise<string | undefined>;
   /** Environment fetch for the model list read (selectFetch()), undefined → globalThis.fetch. */
   getFetch?: () => Promise<typeof globalThis.fetch | undefined>;
-  /** Extra element mounted after the TTS group (the desktop's speaker picker `.yui-group`). */
-  ttsExtra?: HTMLElement;
+  /** Extra section mounted right after the chat section (the reasoning-effort row). */
+  chatExtra?: HTMLElement;
   log: Logger;
 }): ConnectionTab {
   const {
     endpointsSettings,
     chatKeySettings,
-    sttKeySettings,
     ttsKeySettings,
     getEndpointDefaults,
     getDefaultChatApi,
@@ -145,7 +141,7 @@ export function createConnectionTab(deps: {
     isOpen,
     getChatApiKey,
     getFetch,
-    ttsExtra,
+    chatExtra,
     log,
   } = deps;
 
@@ -161,19 +157,16 @@ export function createConnectionTab(deps: {
     getFetch,
   });
   el.append(chatSection.el);
+  if (chatExtra) el.append(chatExtra);
   el.insertAdjacentHTML(
     "beforeend",
     `${sttSectionHtml()}${ttsSectionHtml()}${rows.broker ? brokerSectionHtml() : ""}`,
   );
-  if (ttsExtra) {
-    el.querySelector<HTMLElement>('.yui-svc[data-svc="tts"]')!.append(ttsExtra);
-  }
 
   const endpointsSection = createEndpointsSection({
     root: el,
     endpointsSettings,
     chatKeySettings,
-    sttKeySettings,
     ttsKeySettings,
     getEndpointDefaults,
     reflectEndpoints: () => reflectEndpoints(),

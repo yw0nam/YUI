@@ -2,7 +2,7 @@
  * Preset strip — the active preset's picker and the dots button that opens the manage popover,
  * above the tab rail and body, with the preset's relation line under it. Picking another preset activates it and holds the panel inert
  * until the window reloads (wire-preset); in edit mode (the settings window) it hands the picked
- * id to `onEditTarget` instead. Also fills each tab's scope line.
+ * id to `onEditTarget` instead. Also fills each page's scope line and the rail's character group heading.
  */
 
 import "./preset.css";
@@ -154,6 +154,8 @@ export function createPresetStrip(deps: {
     for (const line of root.querySelectorAll<HTMLElement>("[data-scope-tab]")) {
       line.textContent = presetScopeText(line.dataset.scopeTab!, name);
     }
+    const group = root.querySelector<HTMLElement>('[data-rail-group="character"]');
+    if (group) group.textContent = name;
     relations?.render();
     if (!popEl.hidden) manage.render();
   }

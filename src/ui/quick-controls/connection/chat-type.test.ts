@@ -8,7 +8,6 @@ import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   createChatKeySettings,
-  createSttKeySettings,
   createTtsKeySettings,
 } from "../../../settings/backend/api-key-settings";
 import { createEndpointsSettings } from "../../../settings/backend/endpoints-settings";
@@ -49,7 +48,6 @@ describe("chat type row", () => {
     const tab = createConnectionTab({
       endpointsSettings,
       chatKeySettings: createChatKeySettings(),
-      sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
       ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
       rows: { broker: false },
       isOpen: () => true,

@@ -1,5 +1,5 @@
 /**
- * Reading dictionary section of the Input tab: the markup, the textarea edits and the line that
+ * Reading dictionary section of the Listening page: the markup, the textarea edits and the line that
  * names skipped lines. It owns its subscription and teardown.
  */
 

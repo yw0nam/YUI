@@ -398,8 +398,10 @@ describe("createQuickControls — session section", () => {
   });
 
   function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
+    // The session section sits on the History page, which renders with a transcript.
     return createQuickControls({
       ...defaultQcArgs(mount),
+      transcript: createChatHistoryStore(),
       sessionDiagnostics,
       sessionStore,
       ...extra,

@@ -693,14 +693,14 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.dispose();
   });
 
-  it("shows the TTS URL row, the speaker picker and the TTS key row side by side", () => {
+  it("shows the TTS URL row and the TTS key row together, and the speaker picker on the Voice page", () => {
     const qc = buildQc();
     qc.open();
 
     const tts = qc.el.querySelector<HTMLElement>('#yui-panel-conn .yui-svc[data-svc="tts"]')!;
     expect(tts.querySelector('.yui-input-row[data-ep-field="tts_base_url"]')).not.toBeNull();
-    expect(tts.querySelector(".yui-spk-scroll")).not.toBeNull();
     expect(tts.querySelector('[data-key-prefix="ttskey"]')).not.toBeNull();
+    expect(qc.el.querySelector("#yui-panel-voice .yui-spk-scroll")).not.toBeNull();
 
     qc.dispose();
   });

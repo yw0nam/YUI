@@ -12,8 +12,8 @@ export interface SwitchRow {
   labelKey: string;
   subKey?: string;
   ariaKey: string;
-  tab: "talk" | "input" | "react" | "general";
-  position?: "after-vad" | "filler" | "screen";
+  tab: "voice" | "together" | "listening" | "react" | "motion";
+  position?: "after-vad" | "after-filler" | "filler" | "screen";
   accessory?: "agent-port";
   labelIcon?: string;
   isVisible: boolean;
@@ -45,6 +45,7 @@ interface SwitchRowOptions {
   screenSettings?: FlagSettingsStore;
   screenKnobSettings?: ScreenKnobSettingsStore;
   unifiedChatSwitch?: FlagSettingsStore;
+  relationsSwitch?: FlagSettingsStore;
 }
 
 /** The speech bubble's keep-until-dismissed row. */
@@ -54,7 +55,7 @@ export function createBubblePersistRow(bubblePersistSettings?: FlagSettingsStore
     labelKey: "bubble_persist.label",
     subKey: "bubble_persist.sub",
     ariaKey: "bubble_persist.aria",
-    tab: "input",
+    tab: "listening",
     position: "after-vad",
     isVisible: !!bubblePersistSettings,
     isAvailable: !!bubblePersistSettings,
@@ -81,6 +82,7 @@ export function createSwitchRows({
   screenSettings,
   screenKnobSettings,
   unifiedChatSwitch,
+  relationsSwitch,
 }: SwitchRowOptions): SwitchRow[] {
   return [
     {
@@ -100,25 +102,11 @@ export function createSwitchRows({
       logKey: "screen_watch_toggle",
     },
     {
-      selector: ".yui-idle-throttle-switch",
-      labelKey: "perf.idle_label",
-      subKey: "perf.idle_sub",
-      ariaKey: "perf.idle_aria",
-      tab: "general",
-      isVisible: true,
-      isAvailable: true,
-      initialEnabled: false,
-      getEnabled: () => idleThrottleSettings.get().enabled,
-      setEnabled: (v) => idleThrottleSettings.setEnabled(v),
-      logKey: "idle_throttle_toggle",
-      subscribe: (cb) => idleThrottleSettings.subscribe(cb),
-    },
-    {
       selector: ".yui-tts-switch",
       labelKey: "tts_output.label",
       subKey: "tts_output.sub",
       ariaKey: "tts_output.aria",
-      tab: "input",
+      tab: "voice",
       labelIcon: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
   <rect x="4" y="6" width="16" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/>
   <path d="M9 10l2.5 2.5L15 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -133,24 +121,10 @@ export function createSwitchRows({
       subscribe: ttsSettings ? (cb) => ttsSettings.subscribe(cb) : undefined,
     },
     {
-      selector: ".yui-one-voice-switch",
-      labelKey: "one_voice.label",
-      subKey: "one_voice.sub",
-      ariaKey: "one_voice.aria",
-      tab: "input",
-      isVisible: !!oneVoiceSettings,
-      isAvailable: !!oneVoiceSettings,
-      initialEnabled: oneVoiceSettings?.get().enabled ?? true,
-      getEnabled: () => oneVoiceSettings!.get().enabled,
-      setEnabled: (v) => oneVoiceSettings!.setEnabled(v),
-      logKey: "one_voice_toggle",
-      subscribe: oneVoiceSettings ? (cb) => oneVoiceSettings.subscribe(cb) : undefined,
-    },
-    {
       selector: ".yui-bargein-switch",
       labelKey: "voice_input.bargein_label",
       ariaKey: "voice_input.bargein_aria",
-      tab: "input",
+      tab: "listening",
       position: "after-vad",
       isVisible: true,
       isAvailable: true,
@@ -165,8 +139,8 @@ export function createSwitchRows({
       labelKey: "message_window.label",
       subKey: "message_window.sub",
       ariaKey: "message_window.aria",
-      tab: "input",
-      position: "after-vad",
+      tab: "voice",
+      position: "after-filler",
       // The browser dev build has one window, so there is nothing to pop the surfaces into.
       isVisible: !!messageWindowSettings && isTauri(),
       isAvailable: !!messageWindowSettings && isTauri(),
@@ -181,7 +155,7 @@ export function createSwitchRows({
       labelKey: "gaze.label",
       subKey: "gaze.sub",
       ariaKey: "gaze.aria",
-      tab: "general",
+      tab: "motion",
       isVisible: !!gazeSettings,
       isAvailable: !!gazeSettings,
       initialEnabled: gazeSettings?.get().enabled ?? false,
@@ -195,7 +169,7 @@ export function createSwitchRows({
       labelKey: "climb.label",
       subKey: "climb.sub",
       ariaKey: "climb.aria",
-      tab: "general",
+      tab: "motion",
       isVisible: !!climbSettings,
       isAvailable: !!climbSettings,
       initialEnabled: climbSettings?.get().enabled ?? true,
@@ -209,7 +183,7 @@ export function createSwitchRows({
       labelKey: "fall.label",
       subKey: "fall.sub",
       ariaKey: "fall.aria",
-      tab: "general",
+      tab: "motion",
       isVisible: !!fallSettings,
       isAvailable: !!fallSettings,
       initialEnabled: fallSettings?.get().enabled ?? true,
@@ -217,6 +191,20 @@ export function createSwitchRows({
       setEnabled: (v) => fallSettings!.setEnabled(v),
       logKey: "fall_toggle",
       subscribe: fallSettings ? (cb) => fallSettings.subscribe(cb) : undefined,
+    },
+    {
+      selector: ".yui-idle-throttle-switch",
+      labelKey: "perf.idle_label",
+      subKey: "perf.idle_sub",
+      ariaKey: "perf.idle_aria",
+      tab: "motion",
+      isVisible: true,
+      isAvailable: true,
+      initialEnabled: false,
+      getEnabled: () => idleThrottleSettings.get().enabled,
+      setEnabled: (v) => idleThrottleSettings.setEnabled(v),
+      logKey: "idle_throttle_toggle",
+      subscribe: (cb) => idleThrottleSettings.subscribe(cb),
     },
     {
       selector: ".yui-agentnotify-switch",
@@ -237,7 +225,7 @@ export function createSwitchRows({
       labelKey: "filler.enable_label",
       subKey: "filler.enable_sub",
       ariaKey: "filler.enable_label",
-      tab: "talk",
+      tab: "voice",
       position: "filler",
       isVisible: true,
       isAvailable: true,
@@ -250,7 +238,7 @@ export function createSwitchRows({
       labelKey: "unified.enable_label",
       subKey: "unified.enable_sub",
       ariaKey: "unified.enable_label",
-      tab: "talk",
+      tab: "together",
       isVisible: !!unifiedChatSwitch,
       isAvailable: !!unifiedChatSwitch,
       initialEnabled: false,
@@ -258,6 +246,33 @@ export function createSwitchRows({
       setEnabled: (v) => unifiedChatSwitch!.setEnabled(v),
       logKey: "unified_chat_toggle",
       subscribe: unifiedChatSwitch ? (cb) => unifiedChatSwitch.subscribe(cb) : undefined,
+    },
+    {
+      selector: ".yui-one-voice-switch",
+      labelKey: "one_voice.label",
+      subKey: "one_voice.sub",
+      ariaKey: "one_voice.aria",
+      tab: "together",
+      isVisible: !!oneVoiceSettings,
+      isAvailable: !!oneVoiceSettings,
+      initialEnabled: oneVoiceSettings?.get().enabled ?? true,
+      getEnabled: () => oneVoiceSettings!.get().enabled,
+      setEnabled: (v) => oneVoiceSettings!.setEnabled(v),
+      logKey: "one_voice_toggle",
+      subscribe: oneVoiceSettings ? (cb) => oneVoiceSettings.subscribe(cb) : undefined,
+    },
+    {
+      selector: ".yui-relations-switch",
+      labelKey: "relations.section",
+      ariaKey: "relations.aria",
+      tab: "together",
+      isVisible: !!relationsSwitch,
+      isAvailable: !!relationsSwitch,
+      initialEnabled: relationsSwitch?.get().enabled ?? true,
+      getEnabled: () => relationsSwitch!.get().enabled,
+      setEnabled: (v) => relationsSwitch!.setEnabled(v),
+      logKey: "relations_toggle",
+      subscribe: relationsSwitch ? (cb) => relationsSwitch.subscribe(cb) : undefined,
     },
   ];
 }

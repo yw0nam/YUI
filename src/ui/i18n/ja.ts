@@ -141,13 +141,21 @@ const ja: Record<string, string> = {
 
   // tabs
   "tabs.conn": "接続",
-  "tabs.talk": "会話",
-  "tabs.char": "キャラクター",
-  "tabs.input": "入力",
+  "tabs.voice": "声",
+  "tabs.persona": "ペルソナ",
+  "tabs.body": "ボディ",
   "tabs.react": "話しかけ",
   "tabs.react_hint": "ユイの方から話しかけるときのルール",
   "tabs.hist": "履歴",
   "tabs.general": "一般",
+  "tabs.together": "みんなで",
+  "tabs.listening": "聞き取りと吹き出し",
+  "tabs.perms": "権限",
+  "tabs.motion": "動きとデスクトップ",
+  "rail.group_character": "このキャラクター",
+  "rail.group_app": "すべてのキャラクター",
+  "scope.only": "{name}だけ",
+  "scope.every": "すべてのキャラクター",
 
   // preset strip, manage popover, and the scope line above each tab title
   "preset.open_window": "ウィンドウを開く",
@@ -179,9 +187,6 @@ const ja: Record<string, string> = {
   "preset.new_ph": "名前",
   "preset.taken": "{name}はすでにあります",
   "preset.switching": "{name}に切り替え中…",
-  "preset.scope_tab": "{name} · {tab}",
-  "preset.scope_char": "{name} · VRMの選択と関係だけがプリセットごと",
-  "preset.scope_shared": "すべてのプリセットで共通の設定",
   "relation.group": "{name}の気持ち",
   "relation.to_you": "あなた",
   "relation.none": "まだ誰も評価していません",
@@ -389,7 +394,7 @@ const ja: Record<string, string> = {
   "express_motion.dance.label": "ダンス",
   "express_motion.dance.sub": "短いステップから長い振り付けまでランダム",
 
-  // launch bed scene (Character tab)
+  // launch bed scene (Motion page)
   "bed_scene.label": "ベッドで目覚める",
   "bed_scene.sub": "起動時にベッドで眠っています",
   "bed_scene.aria": "ベッドで目覚める",
@@ -400,7 +405,7 @@ const ja: Record<string, string> = {
   "viewpoint.sub": "Shift + ドラッグで回転、スクロールでズーム",
   "viewpoint.reset": "正面に戻す",
 
-  // screenshot / input tab
+  // screenshot (Permissions page)
   "screenshot.label": "スクリーンショットを添付",
   "screenshot.source_label": "送る画面",
   "screenshot.source_aria": "送る画面",
@@ -615,7 +620,7 @@ const ja: Record<string, string> = {
   // screen watch (proactive tab)
   "screen.section": "画面の検知",
   "screen.hint":
-    "アプリを切り替えたり、ひとつの作業を長く続けているのに気づいて話しかけます。画面のピクセルを送るかどうかは入力タブのスクリーンショット設定に従います。",
+    "アプリを切り替えたり、ひとつの作業を長く続けているのに気づいて話しかけます。画面のピクセルを送るかどうかは権限ページのスクリーンショット設定に従います。",
   "screen.label": "画面の変化に反応",
   "screen.sub": "アプリを切り替えたり長く続けていると気づいて話しかけます",
   "screen.aria": "画面の変化に反応",
@@ -636,7 +641,7 @@ const ja: Record<string, string> = {
   "screen.recent_cap_sub": "保留中に溜まったアプリ切り替えを次の画面ターンに何件まで含めるか",
   "screen.count_suffix": "件",
   "screen.foot":
-    "画面のピクセルを送るかどうかは入力タブのスクリーンショット設定に従います。おやすみモード中は話しかけません。",
+    "画面のピクセルを送るかどうかは権限ページのスクリーンショット設定に従います。おやすみモード中は話しかけません。",
 
   // reading dictionary
   "reading.section": "読み方辞書",

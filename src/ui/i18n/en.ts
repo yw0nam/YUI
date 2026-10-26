@@ -140,13 +140,21 @@ const en: Record<string, string> = {
 
   // tabs
   "tabs.conn": "Connection",
-  "tabs.talk": "Talk",
-  "tabs.char": "Character",
-  "tabs.input": "Input",
+  "tabs.voice": "Voice",
+  "tabs.persona": "Persona",
+  "tabs.body": "Body",
   "tabs.react": "Proactive",
   "tabs.react_hint": "Rules for when YUI speaks up first",
   "tabs.hist": "History",
   "tabs.general": "General",
+  "tabs.together": "Together",
+  "tabs.listening": "Listening and bubble",
+  "tabs.perms": "Permissions",
+  "tabs.motion": "Motion and desktop",
+  "rail.group_character": "This character",
+  "rail.group_app": "Every character",
+  "scope.only": "Only {name}",
+  "scope.every": "Every character",
 
   // preset strip, manage popover, and the scope line above each tab title
   "preset.open_window": "Open window",
@@ -177,9 +185,6 @@ const en: Record<string, string> = {
   "preset.new_ph": "Name",
   "preset.taken": "{name} already exists",
   "preset.switching": "Switching to {name}…",
-  "preset.scope_tab": "{name} · {tab}",
-  "preset.scope_char": "{name} · Only the VRM selection and relations are per preset",
-  "preset.scope_shared": "Shared by every preset",
   "relation.group": "How {name} feels",
   "relation.to_you": "you",
   "relation.none": "No one rated yet",
@@ -387,7 +392,7 @@ const en: Record<string, string> = {
   "express_motion.dance.label": "Dance",
   "express_motion.dance.sub": "Random, from a short step to a full routine",
 
-  // launch bed scene (Character tab)
+  // launch bed scene (Motion page)
   "bed_scene.label": "Wake up in bed",
   "bed_scene.sub": "Starts asleep on a bed at launch",
   "bed_scene.aria": "Wake up in bed",
@@ -398,7 +403,7 @@ const en: Record<string, string> = {
   "viewpoint.sub": "Shift + drag to orbit, scroll to zoom",
   "viewpoint.reset": "Reset to front",
 
-  // screenshot / input tab
+  // screenshot (Permissions page)
   "screenshot.label": "Attach screenshot",
   "screenshot.source_label": "Screen to send",
   "screenshot.source_aria": "Screen to send",
@@ -615,7 +620,7 @@ const en: Record<string, string> = {
   // screen watch (proactive tab)
   "screen.section": "Screen watch",
   "screen.hint":
-    "Notices when you move between apps or stay on one thing for a long stretch, and speaks up. Whether screen pixels are sent still follows the screenshot toggle in the Input tab.",
+    "Notices when you move between apps or stay on one thing for a long stretch, and speaks up. Whether screen pixels are sent still follows the screenshot toggle on the Permissions page.",
   "screen.label": "React to screen changes",
   "screen.sub": "Notices app switches and long stretches, then speaks up first",
   "screen.aria": "React to screen changes",
@@ -637,7 +642,7 @@ const en: Record<string, string> = {
     "How many app switches held during a pause carry into the next screen turn",
   "screen.count_suffix": "entries",
   "screen.foot":
-    "Sending screen pixels follows the screenshot toggle in the Input tab. Nothing is said while do-not-disturb is on.",
+    "Sending screen pixels follows the screenshot toggle on the Permissions page. Nothing is said while do-not-disturb is on.",
 
   // reading dictionary
   "reading.section": "Reading dictionary",

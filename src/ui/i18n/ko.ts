@@ -140,13 +140,21 @@ const ko: Record<string, string> = {
 
   // tabs
   "tabs.conn": "연결",
-  "tabs.talk": "대화",
-  "tabs.char": "캐릭터",
-  "tabs.input": "입력",
+  "tabs.voice": "음성",
+  "tabs.persona": "페르소나",
+  "tabs.body": "몸",
   "tabs.react": "말걸기",
   "tabs.react_hint": "유이가 먼저 말을 거는 규칙",
   "tabs.hist": "기록",
   "tabs.general": "일반",
+  "tabs.together": "함께",
+  "tabs.listening": "듣기와 말풍선",
+  "tabs.perms": "권한",
+  "tabs.motion": "동작과 데스크톱",
+  "rail.group_character": "이 캐릭터",
+  "rail.group_app": "모든 캐릭터",
+  "scope.only": "{name}만",
+  "scope.every": "모든 캐릭터",
 
   // preset strip, manage popover, and the scope line above each tab title
   "preset.open_window": "창 열기",
@@ -178,9 +186,6 @@ const ko: Record<string, string> = {
   "preset.new_ph": "이름",
   "preset.taken": "이미 있는 이름이에요",
   "preset.switching": "{name} 프리셋으로 바꾸는 중…",
-  "preset.scope_tab": "{name} · {tab}",
-  "preset.scope_char": "{name} · VRM 선택과 관계만 프리셋별",
-  "preset.scope_shared": "모든 프리셋이 함께 쓰는 설정",
   "relation.group": "{name}의 마음",
   "relation.to_you": "나",
   "relation.none": "아직 평가한 상대가 없어요",
@@ -387,7 +392,7 @@ const ko: Record<string, string> = {
   "express_motion.dance.label": "춤",
   "express_motion.dance.sub": "짧은 스텝부터 긴 안무까지 무작위",
 
-  // launch bed scene (Character tab)
+  // launch bed scene (Motion page)
   "bed_scene.label": "침대에서 일어나기",
   "bed_scene.sub": "앱을 켜면 침대에서 자고 있어요",
   "bed_scene.aria": "침대에서 일어나기",
@@ -398,7 +403,7 @@ const ko: Record<string, string> = {
   "viewpoint.sub": "Shift + 드래그로 회전, 스크롤로 확대",
   "viewpoint.reset": "정면으로 초기화",
 
-  // screenshot / input tab
+  // screenshot (Permissions page)
   "screenshot.label": "스크린샷 첨부",
   "screenshot.source_label": "보낼 화면",
   "screenshot.source_aria": "보낼 화면",
@@ -612,7 +617,7 @@ const ko: Record<string, string> = {
   // screen watch (proactive tab)
   "screen.section": "화면 감지",
   "screen.hint":
-    "화면에서 앱을 옮기거나 한 가지를 오래 하는 걸 알아채고 먼저 말을 걸어요. 화면 픽셀을 보낼지는 입력 탭의 스크린샷 토글을 따라요.",
+    "화면에서 앱을 옮기거나 한 가지를 오래 하는 걸 알아채고 먼저 말을 걸어요. 화면 픽셀을 보낼지는 권한 페이지의 스크린샷 토글을 따라요.",
   "screen.label": "화면 변화에 반응",
   "screen.sub": "앱을 옮기거나 오래 붙잡고 있으면 알아채고 먼저 말을 걸어요",
   "screen.aria": "화면 변화에 반응",
@@ -633,7 +638,7 @@ const ko: Record<string, string> = {
   "screen.recent_cap_sub": "쉬는 동안 쌓인 앱 전환을 다음 화면 턴에 몇 개까지 담을지",
   "screen.count_suffix": "개",
   "screen.foot":
-    "화면 픽셀 전송 여부는 입력 탭의 스크린샷 토글을 따라요. 방해금지 중에는 말을 걸지 않아요.",
+    "화면 픽셀 전송 여부는 권한 페이지의 스크린샷 토글을 따라요. 방해금지 중에는 말을 걸지 않아요.",
 
   // reading dictionary
   "reading.section": "읽기 사전",

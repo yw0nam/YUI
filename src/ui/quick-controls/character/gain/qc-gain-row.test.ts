@@ -141,7 +141,7 @@ describe("createQuickControls — gain row", () => {
     const qc = buildQc();
     qc.open();
 
-    const readout = qc.el.querySelector(".yui-gain__value");
+    const readout = qc.el.querySelector(".yui-lipsync-gain__value");
     expect(readout).not.toBeNull();
     expect(readout!.textContent).toBe("2.0×");
 
@@ -154,7 +154,9 @@ describe("createQuickControls — gain row", () => {
     const qc = buildQc();
     qc.open();
 
-    const slider = qc.el.querySelector<HTMLInputElement>("input.yui-gain__slider[type=range]")!;
+    const slider = qc.el.querySelector<HTMLInputElement>(
+      "input.yui-lipsync-gain__slider[type=range]",
+    )!;
     slider.value = "3";
     slider.dispatchEvent(new Event("input", { bubbles: true }));
 
@@ -164,7 +166,7 @@ describe("createQuickControls — gain row", () => {
     expect(onGainPreview).toHaveBeenCalledOnce();
     expect(onGainPreview.mock.calls[0][0]).toBeCloseTo(3 * PREVIEW_PEAK_RMS);
 
-    const readout = qc.el.querySelector(".yui-gain__value");
+    const readout = qc.el.querySelector(".yui-lipsync-gain__value");
     expect(readout!.textContent).toBe("3.0×");
 
     qc.dispose();
@@ -176,7 +178,9 @@ describe("createQuickControls — gain row", () => {
     const qc = buildQc();
     qc.open();
 
-    const slider = qc.el.querySelector<HTMLInputElement>("input.yui-gain__slider[type=range]")!;
+    const slider = qc.el.querySelector<HTMLInputElement>(
+      "input.yui-lipsync-gain__slider[type=range]",
+    )!;
     slider.value = "3";
     slider.dispatchEvent(new Event("input", { bubbles: true }));
     slider.dispatchEvent(new Event("pointerup", { bubbles: true }));
@@ -192,7 +196,9 @@ describe("createQuickControls — gain row", () => {
     const qc = buildQc();
     qc.open();
 
-    const slider = qc.el.querySelector<HTMLInputElement>("input.yui-gain__slider[type=range]")!;
+    const slider = qc.el.querySelector<HTMLInputElement>(
+      "input.yui-lipsync-gain__slider[type=range]",
+    )!;
     slider.value = "1.5";
     slider.dispatchEvent(new Event("input", { bubbles: true }));
 
@@ -221,10 +227,12 @@ describe("createQuickControls — gain row", () => {
 
     lipsync.setGain(1.5);
 
-    const slider = qc.el.querySelector<HTMLInputElement>("input.yui-gain__slider[type=range]")!;
+    const slider = qc.el.querySelector<HTMLInputElement>(
+      "input.yui-lipsync-gain__slider[type=range]",
+    )!;
     expect(slider.value).toBe("1.5");
 
-    const readout = qc.el.querySelector(".yui-gain__value");
+    const readout = qc.el.querySelector(".yui-lipsync-gain__value");
     expect(readout!.textContent).toBe("1.5×");
 
     qc.dispose();

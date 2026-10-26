@@ -1,4 +1,4 @@
-/** Idle motion cluster — per-variant on/off switches for the ambient idle pool in the Character tab. */
+/** Idle motion cluster — per-variant on/off switches for the ambient idle pool on the Motion page. */
 
 import type { Logger } from "../../../../logger";
 import {

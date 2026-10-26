@@ -11,9 +11,29 @@ import {
   REASONING_EFFORTS,
 } from "../../../../settings/backend/agent-settings";
 import type { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
-import { getLocale, type Locale, setLocale } from "../../../i18n";
-import { LANG_PICKER_ORDER } from "../../constants";
+import { getLocale, type Locale, setLocale, t } from "../../../i18n";
+import { LANG_PICKER_ORDER, SEG_LABEL_KEYS } from "../../constants";
 import { handleSegmentKeydown } from "../../seg-keyboard";
+
+/** The reasoning-effort row in a section of its own. */
+export function effortSectionHtml(): string {
+  const buttons = REASONING_EFFORTS.map(
+    (e) =>
+      `<button class="yui-seg__btn" type="button" role="radio" data-effort="${e}" aria-checked="false" tabindex="-1">${t(SEG_LABEL_KEYS[e])}</button>`,
+  ).join("");
+  return `
+        <div class="yui-sec">
+          <div class="yui-group">
+            <div class="yui-row">
+              <div class="yui-row__main">
+                <span class="yui-row__label">${t("reasoning.label")}</span>
+                <span class="yui-row__sub">${t("reasoning.sub")}</span>
+              </div>
+              <div class="yui-seg yui-effort-seg" role="radiogroup" aria-label="${t("reasoning.label")}">${buttons}</div>
+            </div>
+          </div>
+        </div>`;
+}
 
 type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
 type EndpointsSettingsStore = Pick<ReturnType<typeof createEndpointsSettings>, "subscribe">;

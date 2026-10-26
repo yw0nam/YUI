@@ -37,7 +37,8 @@ vi.mock("./sections/screen/screen-section", () => ({
 vi.mock("./sections/voice-input/voice-input-section", () => ({
   createVoiceInputSection: () => ({ reflect: rec("voiceInput", "reflect"), dispose: () => {} }),
 }));
-vi.mock("./sections/agent/agent-section", () => ({
+vi.mock("./sections/agent/agent-section", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./sections/agent/agent-section")>()),
   createAgentSection: () => ({
     reflect: rec("agent", "reflect"),
     reflectLanguage: rec("agent", "reflectLanguage"),
@@ -68,6 +69,7 @@ vi.mock("./history/history-tab", () => ({
 vi.mock("./character/character-tab", () => ({
   createCharacterTab: () => ({
     el: document.createElement("div"),
+    motionEl: document.createElement("div"),
     refresh: rec("characterTab", "refresh"),
     close: () => {},
     dispose: () => {},

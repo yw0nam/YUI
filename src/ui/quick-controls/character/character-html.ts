@@ -1,4 +1,4 @@
-/** Character tab markup — the rows the tab renders, in panel order. */
+/** Body and Motion page markup — the rows the character tab renders, in page order. */
 
 import {
   WAKE_TIMEOUT_MAX_S,
@@ -53,7 +53,7 @@ const vrmsHtml = (): string => `
 
 const relationsHtml = (): string => `
         <div class="yui-sec yui-relations">
-          ${secHeadHtml(t("relations.section"), `<button class="yui-switch yui-relations__switch" type="button" role="switch" aria-label="${t("relations.aria")}" aria-checked="true"></button>`)}
+          ${secHeadHtml(t("relations.section"))}
           <p class="yui-sec__note yui-relations__note"></p>
           <p class="yui-sec__note yui-relations__off" hidden>${t("relations.off_note")}</p>
           <div class="yui-group yui-relations__rows" role="group" aria-label="${t("relations.section")}"></div>
@@ -117,14 +117,21 @@ const viewpointHtml = (): string => `
           <p class="yui-sec__note">${t("viewpoint.sub")}</p>
         </div>`;
 
-export function characterHtml(rows: CharacterRows): string {
+/** The Body page: the VRM list, the relations rows and the view reset. */
+export function bodyHtml(rows: CharacterRows): string {
   return [
     vrmsHtml(),
     rows.relations ? relationsHtml() : "",
+    rows.viewpoint ? viewpointHtml() : "",
+  ].join("");
+}
+
+/** The Motion page's character rows: mouth gain, idle and express motions, the bed scene. */
+export function motionHtml(rows: CharacterRows): string {
+  return [
     rows.gain ? gainHtml() : "",
     rows.idleMotion ? idleMotionHtml() : "",
     rows.expressMotion ? expressMotionHtml() : "",
     rows.bedScene ? bedSceneHtml() : "",
-    rows.viewpoint ? viewpointHtml() : "",
   ].join("");
 }

@@ -277,9 +277,9 @@ describe("createQuickControls — toggles", () => {
 
     const row = qc.el.querySelector(".yui-one-voice-switch")!.closest(".yui-row")!;
     expect(qc.el.querySelector("#yui-panel-together")!.contains(row)).toBe(true);
-    expect(qc.el.querySelector("#yui-panel-voice")!.contains(qc.el.querySelector(".yui-tts-switch"))).toBe(
-      true,
-    );
+    expect(
+      qc.el.querySelector("#yui-panel-voice")!.contains(qc.el.querySelector(".yui-tts-switch")),
+    ).toBe(true);
 
     qc.dispose();
   });
