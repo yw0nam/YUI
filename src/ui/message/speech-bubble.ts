@@ -412,8 +412,11 @@ export function createSpeechBubble(
   }
 
   function liftAboveInput(totalOffsetPx: number): void {
+    // The lift shrinks the box's cap; a box at its end stays there.
+    const pin = isPinnedToEnd();
     bubbleEl.style.setProperty("--yui-bubble-bottom", `${totalOffsetPx}px`);
     bubbleEl.classList.add("is-above-input");
+    scrollBubbleToEnd(pin);
   }
 
   function resetPosition(): void {
