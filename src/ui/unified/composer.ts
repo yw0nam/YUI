@@ -23,7 +23,8 @@ export interface Composer {
   /** While busy, send becomes stop and Enter sends nothing. */
   setBusy(busy: boolean): void;
   onStop(cb: () => void): void;
-  showError(message: string): void;
+  /** The inline error, with a button that fixes it in place when given. */
+  showError(message: string, action?: { label: string; onClick(): void }): void;
   focus(): void;
   dispose(): void;
 }
@@ -136,7 +137,7 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
       }),
     setBusy: input.setBusy,
     onStop: input.onStop,
-    showError: (message) => input.showInputError(message),
+    showError: (message, action) => input.showInputError(message, action),
     focus: () => field.focus(),
     dispose() {
       unsubscribeLocale();

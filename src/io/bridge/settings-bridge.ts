@@ -11,7 +11,7 @@ import type { PushSocketState } from "../chat/push/push-socket";
 import { isGuideKey } from "../guide/guide-docs";
 import type { VoiceInputState } from "../voice/stt-vad";
 import { type BridgeTransport, createBridgeCore, type WindowKind } from "./core/bridge-core";
-import type { MessageSurfaceOp } from "./message/message-bridge";
+import type { MessageControlOp, MessageSurfaceOp } from "./message/message-bridge";
 import type { ReasoningState } from "./reasoning/reasoning-store";
 
 const CH_SETTINGS_CHANGED = "yui://settings-changed";
@@ -35,6 +35,7 @@ const CH_USER_TURN_ROUTED = "yui://user-turn-routed";
 const CH_SPEECH_STREAM = "yui://speech-stream";
 const CH_SPEECH_STREAM_ASK = "yui://speech-stream-ask";
 const CH_STOP_TURNS = "yui://stop-turns";
+const CH_SPEECH_STREAM_CONTROL = "yui://speech-stream-control";
 const CH_USER_TURN_DONE = "yui://user-turn-done";
 
 interface VoiceStateSnapshot {
@@ -84,6 +85,12 @@ export interface UserTurnDone {
 export interface SpeechStream {
   preset: string;
   op: MessageSurfaceOp;
+}
+
+/** The unified chat window's click on an error's fix, back to the preset whose window showed it. */
+export interface SpeechStreamControl {
+  preset: string;
+  op: Extract<MessageControlOp, { op: "input-error-action" }>;
 }
 
 const isString = (v: unknown): v is string => typeof v === "string";
@@ -160,6 +167,9 @@ export interface SettingsBridge {
   /** The unified chat window's stop: every pet window stops its running turn and speech. */
   emitStopTurns(): void;
   onStopTurns(cb: () => void): () => void;
+  /** The unified chat window's click on an error's fix; delivered to every window, receivers filter on `preset`. */
+  emitSpeechStreamControl(event: SpeechStreamControl): void;
+  onSpeechStreamControl(cb: (event: SpeechStreamControl) => void): () => void;
   emitSettingsChanged(): void;
   onSettingsChanged(cb: (from: WindowKind) => void): () => void;
   emitMouthPreview(mouthOpen: number | null): void;
@@ -233,6 +243,7 @@ export function createSettingsBridge(
     CH_SPEECH_STREAM,
     CH_SPEECH_STREAM_ASK,
     CH_STOP_TURNS,
+    CH_SPEECH_STREAM_CONTROL,
   ]);
   const on: typeof core.on = (name, cb) => core.on(name, cb, { scoped: !shared.has(name) });
 
@@ -419,6 +430,17 @@ export function createSettingsBridge(
     },
     onStopTurns(cb) {
       return on<unknown>(CH_STOP_TURNS, () => cb());
+    },
+    emitSpeechStreamControl(event) {
+      safeEmit(CH_SPEECH_STREAM_CONTROL, event);
+    },
+    onSpeechStreamControl(cb) {
+      return on<unknown>(CH_SPEECH_STREAM_CONTROL, (event) => {
+        if (event === null || typeof event !== "object") return;
+        const { preset, op } = event as Partial<SpeechStreamControl>;
+        if (isString(preset) && preset && op?.op === "input-error-action")
+          cb({ preset, op: { op: "input-error-action" } });
+      });
     },
     dispose: core.dispose,
   };

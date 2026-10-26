@@ -494,7 +494,7 @@ describe("createSurfacesRouter", () => {
       router.paceSpeech({ text: "world", durationMs: 300 });
       router.endSpeech({ defer: true }, identity);
 
-      expect(local.pushSpeech.mock.calls).toEqual([["hello ", identity]]);
+      expect(vi.mocked(local.pushSpeech).mock.calls).toEqual([["hello ", identity]]);
       expect(local.endSpeech).not.toHaveBeenCalled();
       for (const name of ["pushSpeech", "paceSpeech", "endSpeech"] as const)
         expect(stream[name]).not.toHaveBeenCalled();
@@ -510,7 +510,7 @@ describe("createSurfacesRouter", () => {
       router.endSpeech({ defer: true }, identity);
       router.finishSpeech();
 
-      expect(stream.pushSpeech.mock.calls).toEqual([
+      expect(vi.mocked(stream.pushSpeech).mock.calls).toEqual([
         ["hello ", identity],
         ["world", identity],
       ]);

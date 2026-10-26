@@ -74,6 +74,9 @@ async function bootstrap(): Promise<void> {
   });
   view.onRoute((event) => settingsBridge.emitUserTurnRouted(event));
   view.onStop(settingsBridge.emitStopTurns);
+  view.onInputErrorAction((preset) =>
+    settingsBridge.emitSpeechStreamControl({ preset, op: { op: "input-error-action" } }),
+  );
 
   // A photo picked in another window reaches the registry through storage, so it reloads first.
   const refresh = (): void => {

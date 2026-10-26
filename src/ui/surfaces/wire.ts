@@ -26,7 +26,10 @@ import { createSurfacesRouter } from "./surfaces-router";
 
 export function wireMessageSurfaces(deps: {
   boundId?: string | null;
-  settingsBridge: Pick<SettingsBridge, "emitSpeechStream" | "onSpeechStreamAsk">;
+  settingsBridge: Pick<
+    SettingsBridge,
+    "emitSpeechStream" | "onSpeechStreamAsk" | "onSpeechStreamControl"
+  >;
   transcript: { entriesAfterLastBoundary(): readonly ChatHistoryEntry[] };
   /** The character's name, for the backlog's lines here and the message window's plate and backlog. */
   characterName: { get(): string; subscribe(cb: () => void): () => void };

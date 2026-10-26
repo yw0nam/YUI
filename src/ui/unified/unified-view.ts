@@ -30,6 +30,8 @@ export interface UnifiedView {
   onRoute(cb: (event: UserTurnRouted) => void): void;
   /** The stop button: every pet window stops its running turn. */
   onStop(cb: () => void): void;
+  /** A click on an error's fix, for the preset whose window showed the error. */
+  onInputErrorAction(cb: (preset: string) => void): void;
   dispose(): void;
 }
 
@@ -58,6 +60,7 @@ export function createUnifiedView(deps: {
   deps.mount.append(root);
   const routeCbs: Array<(event: UserTurnRouted) => void> = [];
   const stopCbs: Array<() => void> = [];
+  const errorActionCbs: Array<(preset: string) => void> = [];
   // Each preset's turn state and the name its window last sent.
   const busy = new Map<string, boolean>();
   const names = new Map<string, string>();
@@ -187,7 +190,15 @@ export function createUnifiedView(deps: {
           void deps.focusWindow().then(composer.focus);
           break;
         case "input-error":
-          composer.showError(op.message);
+          composer.showError(
+            op.message,
+            op.action && {
+              label: op.action.label,
+              onClick: () => {
+                for (const cb of errorActionCbs) cb(preset);
+              },
+            },
+          );
           break;
         case "begin":
         case "push":
@@ -210,6 +221,7 @@ export function createUnifiedView(deps: {
     },
     onRoute: (cb) => void routeCbs.push(cb),
     onStop: (cb) => void stopCbs.push(cb),
+    onInputErrorAction: (cb) => void errorActionCbs.push(cb),
     dispose() {
       unsubscribeLocale();
       sequence.dispose();

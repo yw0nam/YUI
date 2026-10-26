@@ -62,6 +62,7 @@ function setup(mode: MessageWindowMode, bound = false) {
     dispose: vi.fn(),
     emitSpeechStream: vi.fn(),
     onSpeechStreamAsk: vi.fn(() => () => {}),
+    onSpeechStreamControl: vi.fn(() => () => {}),
   };
   const modeDisposer = vi.fn();
   createSurfaces.mockReturnValue(local);
