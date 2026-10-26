@@ -57,6 +57,20 @@ describe("createBacklog", () => {
     expect(toggle.textContent).toBe("Hide backlog");
   });
 
+  it("renders each line's markdown, links keeping their address", () => {
+    const { toggle, rows, panel } = setup(() => [
+      {
+        role: "assistant",
+        text: "See **this part** and [the guide](https://example.com/x) with `code`.",
+        ts: 1,
+      },
+    ]);
+    toggle.click();
+    expect(rows()).toEqual([["Perlica", "See this part and the guide with code."]]);
+    expect(panel.querySelector("strong")?.textContent).toBe("this part");
+    expect(panel.querySelector("a")?.getAttribute("href")).toBe("https://example.com/x");
+  });
+
   it("reads the transcript again on each open", () => {
     const entries: ChatHistoryEntry[] = [{ role: "user", text: "Hi", ts: 1 }];
     const { toggle, rows } = setup(() => entries);
