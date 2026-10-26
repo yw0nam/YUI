@@ -57,7 +57,9 @@
   border: 1px solid transparent;
   border-radius: var(--yui-radius-control);
   cursor: pointer;
-
+  background-image: var(--yui-chevron);
+  background-repeat: no-repeat;
+  background-position: right 0.625rem center;
   transition:
     border-color var(--yui-dur-fast) var(--yui-ease),
     box-shadow var(--yui-dur-fast) var(--yui-ease);
@@ -76,6 +78,7 @@
 .yui-select--single {
   cursor: default;
   color: var(--yui-text-dim);
+  background-image: none;
   padding-right: 0.625rem;
 }
 
@@ -124,33 +127,4 @@
 .yui-session__deleg-lost-dot {
   background: var(--yui-danger);
   box-shadow: 0 0 0 3px var(--yui-danger-faint);
-}
-
-.yui-row:has(> .yui-select) {
-  position: relative;
-}
-
-.yui-row:has(> .yui-select)::after,
-.yui-select-wrap:has(> .yui-select)::after {
-  content: "";
-  position: absolute;
-  right: 0.625rem;
-  top: calc(50% - 6px);
-  width: 12px;
-  height: 12px;
-  pointer-events: none;
-  background-color: var(--yui-text-mute);
-  mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='currentColor' stroke-width='1.4' stroke-linecap='round'><path d='M3 4.5 6 7.5 9 4.5'/></svg>");
-  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='currentColor' stroke-width='1.4' stroke-linecap='round'><path d='M3 4.5 6 7.5 9 4.5'/></svg>");
-  mask-repeat: no-repeat;
-  -webkit-mask-repeat: no-repeat;
-  mask-position: center;
-  -webkit-mask-position: center;
-  mask-size: 12px 12px;
-  -webkit-mask-size: 12px 12px;
-}
-
-.yui-row:has(> .yui-select--single)::after,
-.yui-select-wrap:has(> .yui-select--single)::after {
-  content: none;
 }

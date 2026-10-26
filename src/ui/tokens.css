@@ -3,6 +3,8 @@
 
 :root {
   color-scheme: light;
+  /* Select chevron in the theme's Text mute; the one colour a data URI cannot read from a token */
+  --yui-chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%2361564d' stroke-width='1.4' stroke-linecap='round'><path d='M3 4.5 6 7.5 9 4.5'/></svg>");
   --yui-accent: oklch(0.68 0.15 62);
   --yui-accent-soft: oklch(0.68 0.15 62 / 0.45);
   --yui-accent-faint: oklch(0.68 0.15 62 / 0.16);
@@ -58,6 +60,8 @@
 
 :root[data-theme="hearth"] {
   color-scheme: dark;
+  /* Select chevron in the theme's Text mute; the one colour a data URI cannot read from a token */
+  --yui-chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%23989189' stroke-width='1.4' stroke-linecap='round'><path d='M3 4.5 6 7.5 9 4.5'/></svg>");
   --yui-accent: oklch(0.8 0.13 75);
   --yui-accent-soft: oklch(0.8 0.13 75 / 0.45);
   --yui-accent-faint: oklch(0.8 0.13 75 / 0.16);
