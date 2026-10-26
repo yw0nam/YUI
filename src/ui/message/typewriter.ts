@@ -17,6 +17,7 @@ export interface Typewriter {
   flush(): void;
   /** No more audio comes: the rest of the line types at the fixed rate. */
   release(): void;
+  /** Drops the line: nothing reveals again until the next begin. */
   stop(): void;
 }
 
@@ -30,6 +31,7 @@ export function createTypewriter(
   let paced = false;
   let skip = false;
   let ended = false;
+  let stopped = true;
   let timer: ReturnType<typeof setTimeout> | null = null;
 
   const limit = (): number => (paced ? Math.min(ceiling, raw.length) : raw.length);
@@ -39,7 +41,7 @@ export function createTypewriter(
   }
 
   function schedule(): void {
-    if (timer !== null || cursor >= limit()) return;
+    if (stopped || timer !== null || cursor >= limit()) return;
     timer = setTimeout(() => {
       timer = null;
       cursor++;
@@ -51,6 +53,7 @@ export function createTypewriter(
   function stop(): void {
     if (timer !== null) clearTimeout(timer);
     timer = null;
+    stopped = true;
   }
 
   return {
@@ -63,8 +66,10 @@ export function createTypewriter(
       paced = opts.paced;
       skip = false;
       ended = false;
+      stopped = false;
     },
     received(text) {
+      if (stopped) return;
       raw = text;
       if (!skip) {
         schedule();
@@ -84,12 +89,15 @@ export function createTypewriter(
       schedule();
     },
     end() {
+      if (stopped) return;
       ended = true;
       if (cursor === raw.length) emit();
       else schedule();
     },
     flush() {
-      stop();
+      if (stopped) return;
+      if (timer !== null) clearTimeout(timer);
+      timer = null;
       skip = true;
       cursor = raw.length;
       emit();
