@@ -110,6 +110,28 @@ describe("scripts/worktree-setup.sh", () => {
     expect(readFileSync(join(wt, "resources/vrms/carlotta.vrm"), "utf8")).toBe("vrm-bytes");
   });
 
+  it.skipIf(process.platform === "win32")(
+    "installs node_modules from the lockfile when the worktree has none",
+    () => {
+      const main = makeMainCheckout();
+      const wt = tmp("yui-wt-");
+      writeFileSync(join(wt, "package.json"), "{}");
+      const bin = tmp("yui-bin-");
+      const calls = join(bin, "calls.txt");
+      writeFileSync(join(bin, "pnpm"), `#!/bin/sh\necho "$PWD $*" >> "${calls}"\n`, {
+        mode: 0o755,
+      });
+      const r = spawnSync(BASH, [SETUP, wt, main], {
+        encoding: "utf8",
+        env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+      });
+      expect(r.status).toBe(0);
+      expect(readFileSync(calls, "utf8")).toBe(
+        `${wt} install --frozen-lockfile --prefer-offline\n`,
+      );
+    },
+  );
+
   it("exits non-zero with usage when called without arguments", () => {
     const r = spawnSync(BASH, [SETUP], { encoding: "utf8" });
     expect(r.status).not.toBe(0);

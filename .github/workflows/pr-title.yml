@@ -1,0 +1,48 @@
+name: PR title
+
+# Runs on a title or body edit too, so a fixed title or body clears the check without a new push.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+concurrency:
+  group: pr-title-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr-title:
+    name: pr-title (conventional + english)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Conventional-commit type set; PR titles become squash-merge commit subjects.
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+            revert
+          requireScope: false
+          # Tracker content is English: the subject must be printable ASCII.
+          subjectPattern: ^[\x20-\x7E]+$
+          subjectPatternError: |
+            The PR title subject must be written in English (printable ASCII).
+            GitHub tracker content is English-only (AGENTS.md).
+
+      - name: PR body carries no AI attribution
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if printf '%s' "$BODY" | grep -qiE 'Co-Authored-By|Claude-Session|Generated with|🤖'; then
+            echo '::error::The PR body carries an AI attribution line (AGENTS.md § No AI attribution). Remove it; editing the body reruns this check. The squash commit is built from this body.'
+            exit 1
+          fi

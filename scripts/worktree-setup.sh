@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Links gitignored runtime assets (VRM, purchased motions, a local .claude/) and
-# copies .env.local from the main checkout into a worktree. Idempotent; missing sources are
+# Links gitignored runtime assets (VRM, purchased motions, a local .claude/), copies
+# .env.local from the main checkout, and installs node_modules from the lockfile. Idempotent; missing sources are
 # skipped with a warning. Run it after `git worktree add`:
 #   bash scripts/worktree-setup.sh <worktree-path> [main-checkout-path]
 set -u
@@ -81,6 +81,17 @@ if [ -f "$MAIN/.env.local" ]; then
   echo "worktree-setup: copied .env.local"
 else
   echo "worktree-setup: skip (missing): $MAIN/.env.local" >&2
+fi
+
+# A new worktree has no node_modules; tests and gates need them.
+if [ -f "$WT/package.json" ] && [ ! -d "$WT/node_modules" ]; then
+  if ! command -v pnpm >/dev/null 2>&1; then
+    echo "worktree-setup: skip (pnpm not found): node_modules" >&2
+  elif (cd "$WT" && pnpm install --frozen-lockfile --prefer-offline >/dev/null); then
+    echo "worktree-setup: installed node_modules"
+  else
+    echo "worktree-setup: pnpm install failed in $WT" >&2
+  fi
 fi
 
 exit 0
