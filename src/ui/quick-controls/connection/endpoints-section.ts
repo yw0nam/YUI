@@ -220,8 +220,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
   }
 
   // ── Per-service resets ──
-  // Each section clears its endpoint fields and its own key store; the STT key is shared by every
-  // preset, so the STT reset leaves it.
+  // Each section clears its fields and its own key; the shared STT key is cleared on the Listening page.
   const SVC_RESET_KEY: Record<string, ApiKeySettingsStore | undefined> = {
     chat: chatKeySettings,
     tts: ttsKeySettings,

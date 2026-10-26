@@ -139,7 +139,7 @@ const ja: Record<string, string> = {
   "devtools.advanced.context_window_sub": "空欄の場合は同梱のエンドポイント設定を使用",
   "devtools.advanced.context_window_default": "デフォルト",
 
-  // tabs
+  // settings pages, rail groups, search, and the scope line above each page title
   "tabs.conn": "接続",
   "tabs.voice": "声",
   "tabs.persona": "ペルソナ",
@@ -158,7 +158,7 @@ const ja: Record<string, string> = {
   "scope.only": "{name}だけ",
   "scope.every": "すべてのキャラクター",
 
-  // preset strip, manage popover, and the scope line above each tab title
+  // Together page: the Characters list and its "On the desktop" switches
   "chars.section": "キャラクター",
   "chars.in_main": "メイン · 常にオン",
   "chars.on": "デスクトップに表示中",
@@ -167,13 +167,17 @@ const ja: Record<string, string> = {
   "chars.this_window": "このウィンドウのキャラクター",
   "chars.count": "デスクトップに{n}/{cap}人",
   "chars.switch_aria": "{name}をデスクトップに表示",
+
+  // settings window character header: each character's transport and window state
+  "head.meta": "{transport} · {state}",
+  "head.main": "メイン",
+  "head.off": "オフ",
+
+  // preset strip and manage popover
   "preset.in_window": "{name} · ウィンドウで表示中",
   "preset.label": "プリセット",
   "preset.manage": "プリセットを管理",
   "preset.in_use": "mainに表示中",
-  "head.meta": "{transport} · {state}",
-  "head.main": "メイン",
-  "head.off": "オフ",
   "preset.note_main": "{name}はmainに表示中です。",
   "preset.note_window": "{name}は自分のウィンドウで開いています。変更はすぐに反映されます。",
   "preset.note_idle":

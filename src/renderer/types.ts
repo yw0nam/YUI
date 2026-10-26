@@ -113,7 +113,7 @@ export interface Renderer {
    */
   setMotionRegistry(registry: MotionRegistry): void;
   /**
-   * Restrict the ambient idle pool to these variant paths (the user's Character-tab selection).
+   * Restrict the ambient idle pool to these variant paths (the user's selection on the Motion and desktop page).
    * Applies to the next rotation — a variant already playing finishes its cycle first.
    */
   setIdleVariants(paths: readonly string[]): void;

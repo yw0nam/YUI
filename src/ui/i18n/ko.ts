@@ -138,7 +138,7 @@ const ko: Record<string, string> = {
   "devtools.advanced.context_window_sub": "비워 두면 내장 엔드포인트 설정을 사용해요",
   "devtools.advanced.context_window_default": "기본값",
 
-  // tabs
+  // settings pages, rail groups, search, and the scope line above each page title
   "tabs.conn": "연결",
   "tabs.voice": "음성",
   "tabs.persona": "페르소나",
@@ -157,7 +157,7 @@ const ko: Record<string, string> = {
   "scope.only": "{name}만",
   "scope.every": "모든 캐릭터",
 
-  // preset strip, manage popover, and the scope line above each tab title
+  // Together page: the Characters list and its "On the desktop" switches
   "chars.section": "캐릭터",
   "chars.in_main": "메인 · 항상 켜짐",
   "chars.on": "데스크톱에 있음",
@@ -166,13 +166,17 @@ const ko: Record<string, string> = {
   "chars.this_window": "이 창의 캐릭터",
   "chars.count": "데스크톱에 {n}/{cap}명",
   "chars.switch_aria": "{name} 데스크톱에 띄우기",
+
+  // settings window character header: each character's transport and window state
+  "head.meta": "{transport} · {state}",
+  "head.main": "메인",
+  "head.off": "꺼짐",
+
+  // preset strip and manage popover
   "preset.in_window": "{name} · 창으로 열림",
   "preset.label": "프리셋",
   "preset.manage": "프리셋 관리",
   "preset.in_use": "main에 표시 중",
-  "head.meta": "{transport} · {state}",
-  "head.main": "메인",
-  "head.off": "꺼짐",
   "preset.note_main": "{name}은(는) main 창에 떠 있어요.",
   "preset.note_window": "{name}은(는) 자기 창에 열려 있어요. 바꾼 설정은 그 창에 바로 적용돼요.",
   "preset.note_idle":

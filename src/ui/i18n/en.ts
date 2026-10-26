@@ -138,7 +138,7 @@ const en: Record<string, string> = {
   "devtools.advanced.context_window_sub": "Empty uses the bundled endpoint configuration",
   "devtools.advanced.context_window_default": "Default",
 
-  // tabs
+  // settings pages, rail groups, search, and the scope line above each page title
   "tabs.conn": "Connection",
   "tabs.voice": "Voice",
   "tabs.persona": "Persona",
@@ -157,7 +157,7 @@ const en: Record<string, string> = {
   "scope.only": "Only {name}",
   "scope.every": "Every character",
 
-  // preset strip, manage popover, and the scope line above each tab title
+  // Together page: the Characters list and its "On the desktop" switches
   "chars.section": "Characters",
   "chars.in_main": "In main · always on",
   "chars.on": "On the desktop",
@@ -166,13 +166,17 @@ const en: Record<string, string> = {
   "chars.this_window": "This window's character",
   "chars.count": "{n} of {cap} on the desktop",
   "chars.switch_aria": "{name} on the desktop",
+
+  // settings window character header: each character's transport and window state
+  "head.meta": "{transport} · {state}",
+  "head.main": "In main",
+  "head.off": "Off",
+
+  // preset strip and manage popover
   "preset.in_window": "{name} · open as a window",
   "preset.label": "Preset",
   "preset.manage": "Manage presets",
   "preset.in_use": "Shown in main",
-  "head.meta": "{transport} · {state}",
-  "head.main": "In main",
-  "head.off": "Off",
   "preset.note_main": "{name} is shown in main.",
   "preset.note_window": "{name} is open in its own window. Changes apply there at once.",
   "preset.note_idle": "{name} is in no window now. Changes are saved and apply when it opens.",

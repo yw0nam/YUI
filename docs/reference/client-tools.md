@@ -253,7 +253,7 @@ that day: a call that would pass the cap, or push the value past -20 or 20, is c
 fits and answers `clamped: <band>`; a call cut to nothing is not logged. The result is the
 band after the change, so the model knows where it stands without a number.
 
-The Relations switch (settings → Character → Relations, on by default, one switch for every
+The Relations switch (settings → Together → Relations, on by default, one switch for every
 preset) turns relations off as a whole. While it is off, `rate_relation` stays declared, carries
 the switch id `relations`, and answers `error: relations are off`; the turn carries no
 `relation:` line, and the stored values are kept. In the same section the user sets a value by
