@@ -95,20 +95,23 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
     pill.append(remove);
   }
 
+  // The chip names where Enter sends: a typed leading @name, else the fallback target.
+  const chipTarget = (): PresetEntry | typeof EVERYONE | undefined => {
+    const cast = deps.cast();
+    const typed = mention === null ? typedMention(field.value, cast) : null;
+    if (typed === null) return target;
+    if (typed === EVERYONE) return EVERYONE;
+    return cast.find((e) => e.id === typed);
+  };
+
   function paintTarget(): void {
-    // The chip names where Enter sends, so a typed leading @name shows before any pick.
-    const typed = mention === null ? typedMention(field.value, deps.cast()) : null;
-    const entry = typed && typed !== EVERYONE ? deps.cast().find((e) => e.id === typed) : undefined;
+    const shown = chipTarget();
     targetBtn.replaceChildren();
-    targetBtn.hidden = typed === null && !target;
+    targetBtn.hidden = !shown;
     targetBtn.setAttribute("aria-disabled", String(mention !== null));
-    if (targetBtn.hidden) return;
-    if (typed === EVERYONE) targetBtn.append(t("unified.to", { name: `@${EVERYONE}` }));
-    else {
-      const shown = entry ?? target;
-      if (!shown) return;
-      targetBtn.append(avatarEl(shown, 14), t("unified.to", { name: shown.name }));
-    }
+    if (!shown) return;
+    if (shown === EVERYONE) targetBtn.append(t("unified.to", { name: `@${EVERYONE}` }));
+    else targetBtn.append(avatarEl(shown, 14), t("unified.to", { name: shown.name }));
     targetBtn.insertAdjacentHTML("beforeend", CHEVRON);
   }
 

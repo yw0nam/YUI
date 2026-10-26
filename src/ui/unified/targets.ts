@@ -62,22 +62,25 @@ export function buildSend(p: {
   sendId: string;
 }): Send | null {
   if (p.cast.length === 0) return null;
-  const everyone = p.mention === EVERYONE;
-  const picked = everyone ? undefined : p.cast.find((c) => c.id === p.mention);
-  const typed = p.mention === null ? typedMention(p.text, p.cast) : null;
-  const typedEveryone = typed === EVERYONE;
-  const typedPicked =
-    typed === null || typedEveryone ? undefined : p.cast.find((c) => c.id === typed);
-  const mention =
-    everyone || typedEveryone ? EVERYONE : picked || typedPicked ? "character" : undefined;
+  const m = p.mention ?? typedMention(p.text, p.cast);
+  const everyone = m === EVERYONE;
+  const picked = everyone ? undefined : p.cast.find((c) => c.id === m);
+  const mention = everyone ? EVERYONE : picked ? "character" : undefined;
   const targets = targetsFor({
-    mention: everyone || typedEveryone ? EVERYONE : ((picked ?? typedPicked)?.id ?? null),
+    mention: everyone ? EVERYONE : (picked?.id ?? null),
     cast: p.cast.map((c) => c.id),
     lastSpeaker: p.lastSpeaker,
     mainId: p.mainId,
     shuffle: p.shuffle,
   });
-  const text = everyone ? `@${EVERYONE} ${p.text}` : picked ? `@${picked.name} ${p.text}` : p.text;
+  const text =
+    p.mention === null
+      ? p.text
+      : everyone
+        ? `@${EVERYONE} ${p.text}`
+        : picked
+          ? `@${picked.name} ${p.text}`
+          : p.text;
   return { sendId: p.sendId, targets, text, ...(mention ? { mention } : {}) };
 }
 
