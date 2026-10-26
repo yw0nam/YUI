@@ -497,6 +497,9 @@ describe("speech stream", () => {
     { preset: "yui", op: { op: "restore-input", text: "x", images: [] } },
     { preset: "yui", op: { op: "push", delta: 7 } },
     { preset: "yui", op: { op: "pace", text: "Hi.", durationMs: "1200" } },
+    { preset: "yui", op: { op: "pace", text: "Hi.", durationMs: Number.NaN } },
+    { preset: "yui", op: { op: "pace", text: "Hi.", durationMs: Number.POSITIVE_INFINITY } },
+    { preset: "yui", op: { op: "pace", text: "Hi.", durationMs: -1 } },
     { preset: "yui", op: { op: "begin", paced: "yes" } },
     { preset: "yui", op: { op: "quote", quote: { text: "x", via: "fax", images: 0 } } },
     {
