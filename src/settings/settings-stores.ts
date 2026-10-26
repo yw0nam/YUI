@@ -1,3 +1,4 @@
+import { createThemeSettings, localStorageThemeStorage } from "./appearance/theme-settings";
 import { BED_SCENE_STORAGE_KEY, createBedSceneSettings } from "./avatar/bed-scene-settings";
 import { createCameraSettings, localStorageCameraStorage } from "./avatar/camera-settings";
 import {
@@ -122,6 +123,8 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   });
   // Device-wide "Your name": what {{user}} resolves to in every preset's card.
   const userNameSettings = createUserNameSettings({ storage: localStorageUserNameStorage() });
+  // Device-wide theme: Dawn, Hearth, or the OS appearance.
+  const themeSettings = createThemeSettings({ storage: localStorageThemeStorage() });
   // TTFT filler (thinking motion + filler utterance) settings. Both windows sync via wireStorageSync.
   const fillerSettings = createFillerSettings({
     storage: localStorageFillerStorage(),
@@ -202,6 +205,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     vadSettings,
     agentSettings,
     userNameSettings,
+    themeSettings,
     fillerSettings,
     readingsSettings,
     bubblePersistSettings,
@@ -255,6 +259,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   vadSettings: "broadcast",
   agentSettings: "broadcast",
   userNameSettings: "broadcast",
+  themeSettings: "broadcast",
   fillerSettings: "broadcast",
   readingsSettings: "broadcast",
   bubblePersistSettings: "broadcast",
