@@ -108,7 +108,7 @@ The user's pick of a recipient in the unified chat window's composer: a pill car
 _Avoid_: tag, call-out, ping
 
 **Target chip**:
-The composer's button naming where a message goes: the preset a typed leading `@name` resolves to, else the last speaker, else main's preset.
+The composer's button naming where a message goes: the picked pill's preset while a pill is set, else the preset a typed leading `@name` resolves to, else the last speaker, else main's preset.
 _Avoid_: recipient badge
 
 **Signals**:

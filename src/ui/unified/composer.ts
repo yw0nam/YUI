@@ -95,10 +95,15 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
     pill.append(remove);
   }
 
-  // The chip names where Enter sends: a typed leading @name, else the fallback target.
+  // The chip names where Enter sends: the picked pill, else a typed leading @name, else the fallback.
   const chipTarget = (): PresetEntry | typeof EVERYONE | undefined => {
     const cast = deps.cast();
-    const typed = mention === null ? typedMention(field.value, cast) : null;
+    if (mention !== null) {
+      if (mention === EVERYONE) return EVERYONE;
+      const pickedEntry = cast.find((e) => e.id === mention);
+      if (pickedEntry) return pickedEntry;
+    }
+    const typed = typedMention(field.value, cast);
     if (typed === null) return target;
     if (typed === EVERYONE) return EVERYONE;
     return cast.find((e) => e.id === typed);
