@@ -72,7 +72,6 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
     (open) => {
       if (!open) input.summonInput();
     },
-    { persistentInput: false },
   );
   input.summonInput();
 

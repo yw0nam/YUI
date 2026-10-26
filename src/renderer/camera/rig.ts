@@ -1,6 +1,6 @@
 /** Camera rig: fit-to-bounds framing, wheel zoom, the eased orbit polar, and the travel view window. */
 import type * as THREE from "three";
-import type { FitBandConfig, FramingConfig } from "../../config/validators/avatar/types";
+import type { FramingConfig } from "../../config/validators/avatar/types";
 import {
   CAMERA_AZIMUTH_DEFAULT,
   CAMERA_POLAR_DEFAULT,
@@ -9,7 +9,6 @@ import {
   type OrbitAngles,
   orbitPosition,
 } from "./camera-fit";
-import { computeBandFit } from "./fit-band";
 import { applyViewWindow, type ViewWindow } from "./view-window";
 
 /**
@@ -37,8 +36,6 @@ export interface CameraRig {
   /** Mark the polar as easing so the next frame renders uncapped (perch set/cleared). */
   startEase(): void;
   setFraming(next: FramingConfig): void;
-  /** Frames this vertical band of the model by height; null returns to the full-body fit. */
-  setFitBand(next: FitBandConfig | null): void;
   /** Stores the view window; the caller runs its resize to apply it. */
   setViewWindow(next: ViewWindow | null): void;
   setZoom(z: number): void;
@@ -54,8 +51,6 @@ export function createCameraRig(deps: CameraRigDeps): CameraRig {
   // configs/avatar.json framing — null until setFraming delivers it (the renderer is
   // built before the config loads), and nothing is framed before then.
   let framing: FramingConfig | null = deps.framing;
-  // Kept apart from framing so a later setFraming never drops it.
-  let band: FitBandConfig | null = null;
   // Mouse-wheel zoom factor on top of the fit distance: >1 ⇒ closer ⇒ bigger.
   // Bounds/persistence live in src/io + main.ts (setZoom just applies). Default 1 = exact fit.
   let zoom = 1;
@@ -73,13 +68,11 @@ export function createCameraRig(deps: CameraRigDeps): CameraRig {
   function fitCamera(): void {
     const modelBox = getModelBox();
     if (!modelBox || !framing) return;
-    const fit = band
-      ? computeBandFit(modelBox, band, { fov: framing.fov, margin: framing.margin })
-      : computeCameraFit(modelBox, {
-          fov: framing.fov,
-          aspect: camera.aspect,
-          margin: framing.margin,
-        });
+    const fit = computeCameraFit(modelBox, {
+      fov: framing.fov,
+      aspect: camera.aspect,
+      margin: framing.margin,
+    });
     if (!fit) return;
     const d = fit.distance / zoom; // zoom>1 ⇒ camera closer ⇒ character bigger.
     camera.fov = framing.fov;
@@ -137,11 +130,6 @@ export function createCameraRig(deps: CameraRigDeps): CameraRig {
     fitCamera();
   }
 
-  function setFitBand(next: FitBandConfig | null): void {
-    band = next;
-    fitCamera();
-  }
-
   function setViewWindow(next: ViewWindow | null): void {
     view = next;
   }
@@ -175,7 +163,6 @@ export function createCameraRig(deps: CameraRigDeps): CameraRig {
     isConverging,
     startEase,
     setFraming,
-    setFitBand,
     setViewWindow,
     setZoom,
     setOrbit,

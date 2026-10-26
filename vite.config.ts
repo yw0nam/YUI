@@ -56,7 +56,7 @@ export default defineConfig(() => ({
     strictPort: true,
     host: "127.0.0.1",
     watch: {
-      // Rust rebuilds replace locked DLLs under target/ on Windows; Gradle writes build reports under gen/.
+      // Rust rebuilds replace locked DLLs under target/ on Windows; Tauri writes schemas under gen/.
       ignored: ["**/src-tauri/target/**", "**/src-tauri/gen/**"],
     },
   },
@@ -74,7 +74,6 @@ export default defineConfig(() => ({
         message: resolve(__dirname, "message.html"),
         unified: resolve(__dirname, "unified.html"),
         devtools: resolve(__dirname, "devtools.html"),
-        phone: resolve(__dirname, "phone.html"),
       },
     },
   },

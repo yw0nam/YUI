@@ -51,7 +51,7 @@ describe("chat type row", () => {
       chatKeySettings: createChatKeySettings(),
       sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
       ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
-      rows: { chat: "full", tts: "full", broker: false },
+      rows: { broker: false },
       isOpen: () => true,
       log: { debug() {}, info() {}, warn() {}, error() {} },
     });

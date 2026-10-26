@@ -49,27 +49,6 @@ const ja: Record<string, string> = {
   "aria.pop_message": "吹き出しをメッセージウィンドウへ",
   "aria.dismiss_error": "エラーを閉じる",
 
-  // phone top-row openers
-  "phone.open_history": "会話履歴",
-  "phone.open_settings": "設定",
-  "phone.voice.start_aria": "音声入力を開始",
-  "phone.voice.stop_aria": "音声入力を停止",
-  "phone.voice.section": "音声入力",
-  "phone.voice.mode_tap": "タップで切り替え",
-  "phone.voice.mode_always": "聞き続ける",
-  "phone.voice.mode_aria": "音声入力の方式",
-  "phone.voice.note": "聞き続けるはYUIを開いている間だけ動作し、バックグラウンドでは停止します。",
-  "phone.general.stage_section": "ステージ",
-  "phone.general.bubble_section": "吹き出し",
-  "phone.general.stage_aria": "ステージの背景",
-  "phone.general.stage_default": "デフォルト",
-  "phone.general.stage_image": "画像",
-  "phone.general.image_label": "背景画像",
-  "phone.general.image_sub": "文字が読めるよう暗く重ねます。",
-  "phone.general.image_choose": "選ぶ",
-  "phone.general.import_error":
-    "この画像は使えません。PNG、JPEG、WebP のファイルを選んでください。",
-
   "input.placeholder": "話しかけてみて…",
   "input.error_auth": "認証失敗 · APIキー確認",
   "input.error_network": "応答なし · 接続確認",

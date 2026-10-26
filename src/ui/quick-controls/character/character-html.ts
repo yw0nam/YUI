@@ -19,12 +19,9 @@ export interface CharacterRows {
   bedScene: boolean;
   /** The camera view reset. */
   viewpoint: boolean;
-  /** The relations rows with their switch; the settings window and the pet popover render it, the phone does not. */
+  /** The relations rows with their switch; the settings window and the pet popover render it. */
   relations: boolean;
 }
-
-/** The surface the tab sits on: the desktop panel, or the phone's full-screen settings view. */
-export type CharacterVariant = "panel" | "phone";
 
 const GAIN_EYE_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <path d="M4 10c2.4-2.4 4.9-3.6 8-3.6s5.6 1.2 8 3.6c-2.4 1.1-4.9 1.7-8 1.7s-5.6-.6-8-1.7Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
@@ -114,29 +111,13 @@ const bedSceneHtml = (): string => `
           </div>
         </div>`;
 
-// The panel keeps a link in the section head; the phone shows a labelled row with a touch button.
-const viewpointHtml = (variant: CharacterVariant): string =>
-  variant === "phone"
-    ? `
-        <div class="yui-sec">
-          ${secHeadHtml(t("viewpoint.view_section"))}
-          <div class="yui-group">
-            <div class="yui-row">
-              <div class="yui-row__main">
-                <span class="yui-row__label">${t("viewpoint.reset_view_label")}</span>
-                <span class="yui-row__sub">${t("viewpoint.reset_view_sub")}</span>
-              </div>
-              <button class="yui-link-btn yui-viewpoint-reset" type="button">${t("viewpoint.reset_view_button")}</button>
-            </div>
-          </div>
-        </div>`
-    : `
+const viewpointHtml = (): string => `
         <div class="yui-sec">
           ${secHeadHtml(t("viewpoint.section"), `<button class="yui-link-btn yui-viewpoint-reset" type="button">${t("viewpoint.reset")}</button>`)}
           <p class="yui-sec__note">${t("viewpoint.sub")}</p>
         </div>`;
 
-export function characterHtml(rows: CharacterRows, variant: CharacterVariant): string {
+export function characterHtml(rows: CharacterRows): string {
   return [
     vrmsHtml(),
     rows.relations ? relationsHtml() : "",
@@ -144,6 +125,6 @@ export function characterHtml(rows: CharacterRows, variant: CharacterVariant): s
     rows.idleMotion ? idleMotionHtml() : "",
     rows.expressMotion ? expressMotionHtml() : "",
     rows.bedScene ? bedSceneHtml() : "",
-    rows.viewpoint ? viewpointHtml(variant) : "",
+    rows.viewpoint ? viewpointHtml() : "",
   ].join("");
 }

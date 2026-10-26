@@ -245,8 +245,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
   }
 
   // ── TTS section: provider dropdown (tts_provider + tts_base_url/tts_model autofill) ──
-  // One store write, so the voice list and vocabulary reload once for the switch. A row the
-  // section does not render (the phone's model) still takes the preset's value.
+  // One store write, so the voice list and vocabulary reload once for the switch.
   function handleTtsProviderChange(): void {
     const preset = TTS_PROVIDER_PRESETS.find((p) => p.id === ttsProviderEl.value);
     if (!preset) return;

@@ -7,7 +7,6 @@
     "dev": "vite",
     "dev:auto": "node scripts/dev-auto.mjs",
     "tauri:dev": "node scripts/tauri-dev.mjs dev",
-    "android:dev": "node scripts/tauri-dev.mjs android dev --no-watch",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",

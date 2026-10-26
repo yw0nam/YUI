@@ -52,7 +52,6 @@ describe("createCharacterTab — relations", () => {
     const relationsSwitch = createRelationsSwitch({ load: () => null, save() {} });
     const tab = createCharacterTab({
       rows: ROWS,
-      variant: "panel",
       vrmSelection: makeVrmSelection(),
       swapVrm: async () => {},
       importVrm: async () => {},

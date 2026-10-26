@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
- * connection-tab.test.ts — the extracted Connection tab: the phone rows render and bind only the
- * push fields; the shared STT model field persists and resets with the service; dispose commits.
+ * connection-tab.test.ts — the extracted Connection tab: the TTS provider select, the STT model
+ * field persisting and resetting with the service, the model list read, and dispose committing.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PushSocketState } from "../../../io/chat/push/push-socket";
@@ -23,8 +23,7 @@ import {
   type PushSocketPanelPort,
 } from "./connection-tab";
 
-const DESKTOP_ROWS: ConnectionRows = { chat: "full", tts: "full", broker: true };
-const PHONE_ROWS: ConnectionRows = { chat: "push", tts: "provider-url-key", broker: false };
+const ROWS: ConnectionRows = { broker: true };
 
 describe("createConnectionTab", () => {
   let endpointsSettings: ReturnType<typeof createEndpointsSettings>;
@@ -81,56 +80,10 @@ describe("createConnectionTab", () => {
     };
   }
 
-  // ── Phone rows (push chat, no protocol/provider/model/broker rows) ────────────────────────
-
-  it("with the phone rows, renders and binds only push URL/key/status, STT URL/model/language/key, TTS provider/URL/key", () => {
-    // Constructing alone must not throw, even though fields like chat_model have no node here.
-    const tab = build(PHONE_ROWS);
-
-    expect(tab.el.querySelector("#yui-ep-chat_base_url")).not.toBeNull();
-    expect(tab.el.querySelector('[data-key-prefix="chatkey"]')).not.toBeNull();
-    expect(tab.el.querySelector(".yui-chat-status")).not.toBeNull();
-    expect(tab.el.querySelector("#yui-ep-stt_base_url")).not.toBeNull();
-    expect(tab.el.querySelector("#yui-ep-stt_model")).not.toBeNull();
-    expect(tab.el.querySelector('[data-key-prefix="sttkey"]')).not.toBeNull();
-    expect(tab.el.querySelector("#yui-svc-tts-provider")).not.toBeNull();
-    expect(tab.el.querySelector("#yui-ep-tts_base_url")).not.toBeNull();
-    expect(tab.el.querySelector('[data-key-prefix="ttskey"]')).not.toBeNull();
-
-    expect(tab.el.querySelector(".yui-chat-type")).toBeNull();
-    expect(tab.el.querySelector(".yui-chat-preset")).toBeNull();
-    expect(tab.el.querySelector('[data-ep-field="chat_model"]')).toBeNull();
-    expect(tab.el.querySelector('[data-svc="broker"]')).toBeNull();
-    expect(tab.el.querySelector('[data-ep-field="tts_model"]')).toBeNull();
-    // The disabled type row is desktop-only.
-    expect(tab.el.querySelector("#yui-svc-stt-type")).toBeNull();
-
-    // A rendered field binds; the old all-fields reflection would have thrown on the missing ones.
-    const url = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!;
-    url.value = "wss://example.test/ws";
-    url.dispatchEvent(new Event("change", { bubbles: true }));
-    expect(endpointsSettings.get().chat_base_url).toBe("wss://example.test/ws");
-
-    tab.dispose();
-  });
-
-  it("shows the push status line on the phone rows", () => {
-    const tab = build(PHONE_ROWS, {
-      pushSocket: fakeSocket({ kind: "ready", chat_id: "yui-7731" }),
-    });
-    tab.refresh();
-
-    const status = tab.el.querySelector<HTMLElement>(".yui-chat-status")!;
-    expect(status.hidden).toBe(false);
-    expect(status.textContent).toContain("yui-7731");
-
-    tab.dispose();
-  });
-
   // ── TTS provider ──────────────────────────────────────────────────────────────────────────
 
-  it("offers Irodori, OpenAI and Fish as TTS providers above a model field (desktop rows)", () => {
-    const tab = build(DESKTOP_ROWS);
+  it("offers Irodori, OpenAI and Fish as TTS providers above a model field", () => {
+    const tab = build(ROWS);
 
     const select = tab.el.querySelector<HTMLSelectElement>("#yui-svc-tts-provider")!;
     expect(select.disabled).toBe(false);
@@ -141,7 +94,7 @@ describe("createConnectionTab", () => {
   });
 
   it("selecting Fish writes the provider, its URL and default model in one store write", () => {
-    const tab = build(DESKTOP_ROWS);
+    const tab = build(ROWS);
 
     const select = tab.el.querySelector<HTMLSelectElement>("#yui-svc-tts-provider")!;
     select.value = "fish";
@@ -163,7 +116,7 @@ describe("createConnectionTab", () => {
   });
 
   it("selecting OpenAI writes the provider, its URL and default model in one store write", () => {
-    const tab = build(DESKTOP_ROWS);
+    const tab = build(ROWS);
     const writes = vi.fn();
     endpointsSettings.subscribe(writes);
 
@@ -187,18 +140,6 @@ describe("createConnectionTab", () => {
     tab.dispose();
   });
 
-  it("selecting a provider on the phone also sets the model it shows no field for", () => {
-    const tab = build(PHONE_ROWS);
-
-    const select = tab.el.querySelector<HTMLSelectElement>("#yui-svc-tts-provider")!;
-    select.value = "openai";
-    select.dispatchEvent(new Event("change", { bubbles: true }));
-
-    expect(endpointsSettings.get().tts_model).toBe("gpt-4o-mini-tts");
-
-    tab.dispose();
-  });
-
   it("the provider select shows the override, else the bundled default", () => {
     const defaults = endpointDefaultsFromConfig({
       chat_base_url: "",
@@ -206,7 +147,7 @@ describe("createConnectionTab", () => {
       tts_base_url: "",
       tts_provider: "openai",
     });
-    const tab = build(DESKTOP_ROWS, { getEndpointDefaults: () => defaults });
+    const tab = build(ROWS, { getEndpointDefaults: () => defaults });
     tab.refresh();
     const select = tab.el.querySelector<HTMLSelectElement>("#yui-svc-tts-provider")!;
     expect(select.value).toBe("openai");
@@ -219,8 +160,8 @@ describe("createConnectionTab", () => {
 
   // ── Shared STT model field ────────────────────────────────────────────────────────────────
 
-  it("persists stt_model to the store and resets it with the STT service (desktop rows)", () => {
-    const tab = build(DESKTOP_ROWS);
+  it("persists stt_model to the store and resets it with the STT service", () => {
+    const tab = build(ROWS);
 
     const model = tab.el.querySelector<HTMLInputElement>("#yui-ep-stt_model")!;
     model.value = "whisper-large-v3-turbo";
@@ -235,7 +176,7 @@ describe("createConnectionTab", () => {
   });
 
   it("offers Auto / en / ja for the STT language field and says an empty field auto-detects", () => {
-    const tab = build(PHONE_ROWS);
+    const tab = build(ROWS);
 
     const lang = tab.el.querySelector<HTMLInputElement>("#yui-ep-stt_language")!;
     const options = [
@@ -251,7 +192,7 @@ describe("createConnectionTab", () => {
   // ── Close contract ────────────────────────────────────────────────────────────────────────
 
   it("dispose() commits dirty key and endpoint inputs", () => {
-    const tab = build(PHONE_ROWS);
+    const tab = build(ROWS);
 
     const url = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!;
     url.value = "wss://example.test/ws";
@@ -268,7 +209,7 @@ describe("createConnectionTab", () => {
 
   describe("focusStt", () => {
     it("scrolls the STT section into view and focuses its URL field", () => {
-      const tab = build(PHONE_ROWS);
+      const tab = build(ROWS);
       document.body.append(tab.el);
       const scroll = vi.fn();
       const section = tab.el.querySelector<HTMLElement>('[data-svc="stt"]')!;
@@ -284,7 +225,7 @@ describe("createConnectionTab", () => {
     });
 
     it("still focuses where the webview has no scrollIntoView", () => {
-      const tab = build(PHONE_ROWS);
+      const tab = build(ROWS);
       document.body.append(tab.el);
 
       tab.focusStt();
@@ -332,7 +273,7 @@ describe("createConnectionTab", () => {
 
     it("reads when the tab is entered — effective URL, chat key, status shows the result", async () => {
       const deps = modelReadDeps();
-      const tab = build(DESKTOP_ROWS, { ...deps, getEndpointDefaults: () => defaults });
+      const tab = build(ROWS, { ...deps, getEndpointDefaults: () => defaults });
 
       tab.entered();
       await tick();
@@ -349,7 +290,7 @@ describe("createConnectionTab", () => {
 
     it("reads after the URL input commits, with the committed value", async () => {
       const deps = modelReadDeps();
-      const tab = build(DESKTOP_ROWS, { ...deps, getEndpointDefaults: () => defaults });
+      const tab = build(ROWS, { ...deps, getEndpointDefaults: () => defaults });
 
       const url = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!;
       url.value = "https://typed.test/v1";
@@ -365,7 +306,7 @@ describe("createConnectionTab", () => {
 
     it("reads after the chat key input commits on blur", async () => {
       const deps = modelReadDeps();
-      const tab = build(DESKTOP_ROWS, {
+      const tab = build(ROWS, {
         ...deps,
         getEndpointDefaults: () => defaults,
         // The key resolves the way a turn's would: from the key store the SecretProvider reads.
@@ -390,7 +331,7 @@ describe("createConnectionTab", () => {
 
     it("reads when a provider preset commits its URL", async () => {
       const deps = modelReadDeps();
-      const tab = build(DESKTOP_ROWS, { ...deps });
+      const tab = build(ROWS, { ...deps });
 
       const preset = tab.el.querySelector<HTMLSelectElement>(".yui-chat-preset")!;
       preset.value = "ollama";
@@ -404,7 +345,7 @@ describe("createConnectionTab", () => {
 
     it("picking from the combobox commits the id through the model input", async () => {
       const deps = modelReadDeps();
-      const tab = build(DESKTOP_ROWS, { ...deps, getEndpointDefaults: () => defaults });
+      const tab = build(ROWS, { ...deps, getEndpointDefaults: () => defaults });
       document.body.append(tab.el);
       tab.entered();
       await tick();
@@ -424,7 +365,7 @@ describe("createConnectionTab", () => {
 
     it("choosing the push preset aborts the read and shows the push state", async () => {
       const deps = modelReadDeps();
-      const tab = build(DESKTOP_ROWS, {
+      const tab = build(ROWS, {
         ...deps,
         getEndpointDefaults: () => defaults,
         pushSocket: fakeSocket({ kind: "ready", chat_id: "yui-7731" }),
@@ -446,7 +387,7 @@ describe("createConnectionTab", () => {
 
     it("resetting the Chat service re-reads against the default URL", async () => {
       const deps = modelReadDeps();
-      const tab = build(DESKTOP_ROWS, { ...deps, getEndpointDefaults: () => defaults });
+      const tab = build(ROWS, { ...deps, getEndpointDefaults: () => defaults });
 
       const url = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!;
       url.value = "https://typed.test/v1";
@@ -467,7 +408,7 @@ describe("createConnectionTab", () => {
 
     it("reads the trimmed effective URL a chat turn would use", async () => {
       const deps = modelReadDeps();
-      const tab = build(DESKTOP_ROWS, { ...deps });
+      const tab = build(ROWS, { ...deps });
 
       const url = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!;
       url.value = "https://typed.test/v1 ";
@@ -481,7 +422,7 @@ describe("createConnectionTab", () => {
 
     it("the status follows the model input while typing, without a new request", async () => {
       const deps = modelReadDeps();
-      const tab = build(DESKTOP_ROWS, {
+      const tab = build(ROWS, {
         ...deps,
         getEndpointDefaults: () => ({ ...defaults, chat_model: "" }),
       });
@@ -505,7 +446,7 @@ describe("createConnectionTab", () => {
 
     it("typing two absent names keeps the status text node untouched (announced once)", async () => {
       const deps = modelReadDeps();
-      const tab = build(DESKTOP_ROWS, {
+      const tab = build(ROWS, {
         ...deps,
         getEndpointDefaults: () => ({ ...defaults, chat_model: "" }),
       });
@@ -532,7 +473,7 @@ describe("createConnectionTab", () => {
 
     it("clears an invalid URL instead of reading", async () => {
       const deps = modelReadDeps();
-      const tab = build(DESKTOP_ROWS, { ...deps, getEndpointDefaults: () => defaults });
+      const tab = build(ROWS, { ...deps, getEndpointDefaults: () => defaults });
       tab.entered();
       await tick();
       await tick();
@@ -551,7 +492,7 @@ describe("createConnectionTab", () => {
 
     it("switching to push aborts the read and shows the push state", async () => {
       const deps = modelReadDeps();
-      const tab = build(DESKTOP_ROWS, {
+      const tab = build(ROWS, {
         ...deps,
         getEndpointDefaults: () => defaults,
         pushSocket: fakeSocket({ kind: "ready", chat_id: "yui-7731" }),
@@ -574,32 +515,13 @@ describe("createConnectionTab", () => {
 
     it("aborting on panel close drops the in-flight read", async () => {
       const deps = modelReadDeps();
-      const tab = build(DESKTOP_ROWS, { ...deps, getEndpointDefaults: () => defaults });
+      const tab = build(ROWS, { ...deps, getEndpointDefaults: () => defaults });
       tab.entered();
       await tick();
 
       tab.close();
 
       expect((deps.calls[0]?.init.signal as AbortSignal).aborted).toBe(true);
-      tab.dispose();
-    });
-
-    it("the phone rows start no read", async () => {
-      const deps = modelReadDeps();
-      const tab = build(PHONE_ROWS, { ...deps, getEndpointDefaults: () => defaults });
-
-      tab.entered();
-      const url = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!;
-      url.value = "https://typed.test/v1";
-      url.dispatchEvent(new Event("change", { bubbles: true }));
-      const key = tab.el.querySelector<HTMLInputElement>("#yui-chatkey-input")!;
-      key.value = "typed-key";
-      key.dispatchEvent(new Event("input", { bubbles: true }));
-      key.dispatchEvent(new Event("blur"));
-      await tick();
-      await tick();
-
-      expect(deps.calls).toHaveLength(0);
       tab.dispose();
     });
   });

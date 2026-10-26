@@ -1,7 +1,6 @@
 /**
- * Connection tab — the chat/STT/TTS(/broker) endpoint sections shared by the desktop panel and
- * the phone settings view. `rows` picks, per service, which fields render; the same rows drive
- * markup, handlers and reflection, so only rendered fields are bound.
+ * Connection tab — the chat/STT/TTS(/broker) endpoint sections. `rows` picks the optional
+ * sections; the same rows drive markup, handlers and reflection, so only rendered fields are bound.
  */
 
 import type { PushSocketState } from "../../../io/chat/push/push-socket";
@@ -37,12 +36,8 @@ export interface PushSocketPanelPort {
   reconnectNow(): void;
 }
 
-/** Which rows each service's section renders — and binds, and reflects. */
+/** Which sections render beyond chat, STT and TTS — and bind, and reflect. */
 export interface ConnectionRows {
-  /** full: protocol/provider/model rows + URL/key; push: URL/key and the live status line. */
-  chat: "full" | "push";
-  /** full: provider dropdown + URL/model/key; provider-url-key: no model row. Also gates the disabled STT type row. */
-  tts: "full" | "provider-url-key";
   // Deprecated: removed in v0.6.0. Use client-declared tools (src/io/chat/tools/client-tools.ts).
   broker: boolean;
 }
@@ -62,16 +57,13 @@ export interface ConnectionTab {
   dispose(): void;
 }
 
-function sttSectionHtml(rows: ConnectionRows): string {
-  // The disabled type row names the protocol; the desktop rows render it, the phone drops it.
-  const typeRow =
-    rows.tts === "full"
-      ? selectRowHtml(
-          "yui-svc-stt-type",
-          "svc.type_label",
-          `<select class="yui-select yui-select--single" id="yui-svc-stt-type" disabled><option>${t("svc.stt_type")}</option></select>`,
-        )
-      : "";
+function sttSectionHtml(): string {
+  // The disabled type row names the protocol.
+  const typeRow = selectRowHtml(
+    "yui-svc-stt-type",
+    "svc.type_label",
+    `<select class="yui-select yui-select--single" id="yui-svc-stt-type" disabled><option>${t("svc.stt_type")}</option></select>`,
+  );
   return `
         <section class="yui-sec yui-endpoints yui-svc" data-svc="stt">
           ${secHeadHtml(t("svc.stt"), `<span class="yui-endpoints__hint">${t("svc.stt_hint")}</span>`)}
@@ -86,7 +78,7 @@ function sttSectionHtml(rows: ConnectionRows): string {
         </section>`;
 }
 
-function ttsSectionHtml(rows: ConnectionRows): string {
+function ttsSectionHtml(): string {
   const providerOptionsHtml = TTS_PROVIDER_PRESETS.map(
     (p) => `<option value="${p.id}">${p.name}</option>`,
   ).join("");
@@ -96,7 +88,7 @@ function ttsSectionHtml(rows: ConnectionRows): string {
           <div class="yui-group">
             ${selectRowHtml("yui-svc-tts-provider", "svc.tts_type", `<select class="yui-select yui-tts-provider" id="yui-svc-tts-provider" aria-label="${t("svc.tts_preset_aria")}">${providerOptionsHtml}</select>`)}
             ${endpointRowHtml("tts_base_url")}
-            ${rows.tts === "full" ? endpointRowHtml("tts_model") : ""}
+            ${endpointRowHtml("tts_model")}
             ${keyRowHtml("ttskey")}
             ${svcResetRowHtml("tts")}
           </div>
@@ -160,7 +152,6 @@ export function createConnectionTab(deps: {
   const el = document.createElement("div");
   el.className = "yui-tab-stack";
   const chatSection = createChatSection({
-    chatRows: rows.chat,
     endpointsSettings,
     getEndpointDefaults,
     getDefaultChatApi,
@@ -172,7 +163,7 @@ export function createConnectionTab(deps: {
   el.append(chatSection.el);
   el.insertAdjacentHTML(
     "beforeend",
-    `${sttSectionHtml(rows)}${ttsSectionHtml(rows)}${rows.broker ? brokerSectionHtml() : ""}`,
+    `${sttSectionHtml()}${ttsSectionHtml()}${rows.broker ? brokerSectionHtml() : ""}`,
   );
   if (ttsExtra) {
     el.querySelector<HTMLElement>('.yui-svc[data-svc="tts"]')!.append(ttsExtra);

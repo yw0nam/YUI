@@ -6,7 +6,6 @@
 //! Platform support:
 //!   macOS  — fully implemented (CGEventSource, CGWindowList)
 //!   Windows — fully implemented (GetLastInputInfo, EnumWindows)
-//!   Android — cfg-gated no-op degrade
 //!   other  — idle-source error emitted, no panic
 
 use serde::Serialize;

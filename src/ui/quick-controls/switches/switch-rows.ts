@@ -1,7 +1,7 @@
 /**
- * Switch rows shared by the desktop panel and the phone settings view: the row markup, the click
- * binding that flips a row's store and logs it, the repaint from the stores, and, given an open
- * state, the store following that repaints while the panel is open.
+ * Switch rows: the row markup, the click binding that flips a row's store and logs it, the repaint
+ * from the stores, and, given an open state, the store following that repaints while the panel is
+ * open.
  */
 
 import type { Logger } from "../../../logger";
