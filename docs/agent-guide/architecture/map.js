@@ -668,7 +668,7 @@ globalThis.YUI_MAP =
       "id": "settings",
       "module": "settings",
       "label": "settings",
-      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, the device-wide yui.user-name holds what {{user}} resolves to, the device-wide yui.tts-readings holds the reading dictionary, the device-wide yui.theme holds the theme (dawn, hearth or system), and the device-wide yui.unified-chat holds the Unified chat switch and yui.unified-window the unified window's position.",
+      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, the device-wide yui.user-name holds what {{user}} resolves to, the device-wide yui.tts-readings holds the reading dictionary, the device-wide yui.theme holds the theme (dawn, hearth or system), and the device-wide yui.unified-chat holds the Unified chat switch, with the rule every pet and settings window reads for whether the unified chat window shows (the switch on, two or more open presets, a window can exist), and yui.unified-window the unified window's position.",
       "paths": [
         "src/settings"
       ]
@@ -866,7 +866,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/settings",
       "module": "bridge",
       "label": "settings bridge",
-      "role": "Typed cross-window settings bus: its channels scoped to the sender's preset, and the unscoped settings-changed, preset-changed, pet-windows-changed, character-addressed, user-turn-routed, user-turn-done, speech-stream, speech-stream-ask and stop-turns.",
+      "role": "Typed cross-window settings bus: its channels scoped to the sender's preset, and the unscoped settings-changed, preset-changed, pet-windows-changed, character-addressed, user-turn-routed, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control and stop-turns.",
       "paths": [
         "src/io/bridge/settings-bridge.ts"
       ]
@@ -1309,7 +1309,7 @@ globalThis.YUI_MAP =
       "id": "app/unified",
       "module": "wiring",
       "label": "unified-window wiring",
-      "role": "Whether the unified chat window shows (the switch on, two or more open presets, a window can exist), which every pet and settings window reads; main opens the window while it shows and destroys it otherwise, and the window closing itself turns the switch off.",
+      "role": "Main opens the unified chat window while it shows and destroys it otherwise, and the window closing itself turns the Unified chat switch off.",
       "paths": [
         "src/app/unified"
       ]
@@ -3386,7 +3386,7 @@ globalThis.YUI_MAP =
     },
     {
       "id": "unified-shown",
-      "from": "app/unified",
+      "from": "settings",
       "to": "ui/surfaces",
       "carries": "the shown predicate (get, subscribe): the router's suppression, getMode docked and the message window hidden while it shows",
       "kind": "call",
@@ -3395,12 +3395,39 @@ globalThis.YUI_MAP =
     },
     {
       "id": "unified-shown-controls",
-      "from": "app/unified",
+      "from": "settings",
       "to": "ui/quick-controls",
-      "carries": "the shown predicate: the Separate message window row disabled with its reason while it shows",
+      "carries": "the pet window's shown predicate, built in main.ts: the Separate message window row disabled with its reason while it shows",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/controls/wire-pet-controls.ts"
+    },
+    {
+      "id": "unified-shown-settings-controls",
+      "from": "settings",
+      "to": "ui/quick-controls",
+      "carries": "the settings window's own shown predicate: the Separate message window row disabled with its reason while it shows",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/settings-window/wire-settings-window.ts"
+    },
+    {
+      "id": "unified-shown-open",
+      "from": "settings",
+      "to": "app/unified",
+      "carries": "the shown predicate main opens and destroys the window on",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/bootstrap-configured.ts"
+    },
+    {
+      "id": "speech-stream-control",
+      "from": "ui/unified",
+      "to": "io/bridge/message",
+      "carries": "yui://speech-stream-control {preset, op: input-error-action}, unscoped: a click on an error's fix in the unified window; the stream half of the window whose preset it names runs the fix",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/windows/unified-main.ts"
     },
     {
       "id": "unified-close-switch",
@@ -4831,14 +4858,14 @@ globalThis.YUI_MAP =
         "id": "speech-stream-pet-unified",
         "from": "pet",
         "to": "unified",
-        "carries": "yui://speech-stream {preset, op}: the message-window ops of the pet's lines, quotes, busy, name, summons and input errors while the unified chat window shows",
+        "carries": "yui://speech-stream {preset, op}: the message-window ops of the pet's lines, quotes, summons and input errors while the unified chat window shows; busy and name always",
         "kind": "bridge"
       },
       {
         "id": "speech-stream-pet-bound-unified",
         "from": "pet-<id>",
         "to": "unified",
-        "carries": "yui://speech-stream {preset, op}: the message-window ops of the pet's lines, quotes, busy, name, summons and input errors while the unified chat window shows",
+        "carries": "yui://speech-stream {preset, op}: the message-window ops of the pet's lines, quotes, summons and input errors while the unified chat window shows; busy and name always",
         "kind": "bridge"
       },
       {
@@ -4888,6 +4915,20 @@ globalThis.YUI_MAP =
         "from": "unified",
         "to": "pet-<id>",
         "carries": "yui://speech-stream-ask: the pet's stream half restates its name and busy state",
+        "kind": "bridge"
+      },
+      {
+        "id": "speech-stream-control-unified-pet",
+        "from": "unified",
+        "to": "pet",
+        "carries": "yui://speech-stream-control {preset, op: input-error-action}: the pet whose preset it names runs the error's fix",
+        "kind": "bridge"
+      },
+      {
+        "id": "speech-stream-control-unified-pet-bound",
+        "from": "unified",
+        "to": "pet-<id>",
+        "carries": "yui://speech-stream-control {preset, op: input-error-action}: the pet whose preset it names runs the error's fix",
         "kind": "bridge"
       },
       {

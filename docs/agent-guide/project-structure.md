@@ -101,7 +101,6 @@ YUI/
         character-name.ts            # In the pet window: the character's effective name, the card's while the built-in preset is unnamed, else the preset's
         mirrored-name.ts             # In the message window: the character's name as the pet window last sent it
       unified/                       # The unified chat window's wiring
-        unified-shown.ts             # Whether the window shows: the switch on, two or more open presets, a window can exist; every pet and settings window reads it
         wire-unified-window.ts       # Main opens the window while it shows and destroys it otherwise
         wire-unified-close.ts        # The window closing itself turns the Unified chat switch off
       settings-window/               # The settings window's wiring
@@ -339,7 +338,8 @@ YUI/
         relation-lines.ts            # The relation entries a turn carries: user first, then the other presets in registry order; none while the switch is off
         relation-targets.ts          # The label a prompt line or the rate_relation enum shows for a preset: one named `user` is disambiguated
       unified/                       # The unified chat window's switch and position
-        unified-chat-switch.ts       # The device-wide Unified chat switch under yui.unified-chat, off by default, and the shown predicate's type
+        unified-chat-switch.ts       # The device-wide Unified chat switch under yui.unified-chat, off by default
+        unified-shown.ts             # Whether the unified window shows: the switch on, two or more open presets, a window can exist; every pet and settings window reads it
         unified-window-settings.ts   # The unified window's last position under yui.unified-window, device-wide
       identity/                      # Who the user is to the character
         user-name-settings.ts        # Device-wide "Your name", what {{user}} resolves to
@@ -467,7 +467,7 @@ YUI/
         message/                       # The pet ↔ message window bus and its remote half
           message-bridge.ts            # Cross-window bus linking the pet window and the message window
           message-remote.ts            # The message window's bubble and input as a remote Surfaces half
-          stream-bridge.ts             # The speech stream as a message bridge: the pet's ops stamped with its preset, the unified window's ask as `ready`
+          stream-bridge.ts             # The speech stream as a message bridge: the pet's ops stamped with its preset, the unified window's ask as `ready`, and a click on an error's fix that names this preset
         delegations/                   # The backend's background-work list, live and persisted
           delegations-store.ts         # Background work the backend reports on the push socket
           delegations-bridge.ts        # Delegations list as seen from a window that does not own the push socket
