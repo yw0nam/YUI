@@ -73,8 +73,8 @@
   bottom: var(--yui-bubble-bottom, 16%);
   left: 50%;
   transform: translate(-50%, 6px) scale(0.98);
-  width: max-content;
-  max-width: min(34ch, 78%);
+  /* One width while it shows, so what rides the box's edges never moves with its text. */
+  width: min(34ch, 78%);
 
   opacity: 0;
   pointer-events: none; /* Display-only — passthrough for character drag */

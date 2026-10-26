@@ -77,7 +77,7 @@
   inset: auto;
   box-sizing: border-box;
   transform: none;
-  max-width: 100%;
+  width: 100%;
 }
 .yui-ui--message .yui-bubble.is-visible {
   transform: none;
