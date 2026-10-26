@@ -51,7 +51,7 @@
 .yui-spk__preview:hover,
 .yui-spk__refresh:hover {
   background: var(--yui-accent-faint);
-  color: var(--yui-accent);
+  color: var(--yui-accent-ink);
 }
 
 .yui-spk__preview:focus-visible,
@@ -84,20 +84,20 @@
 
 /* Playing: amber-filled glyph pulses softly */
 .yui-spk__preview.is-playing {
-  color: var(--yui-accent);
+  color: var(--yui-accent-ink);
   opacity: 1;
 }
 
 /* refreshing: inactive + ↻ glyph rotates in place (same vocabulary as swap spinner) */
 .yui-spk__refresh.is-refreshing {
-  color: var(--yui-accent-soft);
+  color: var(--yui-accent-ink);
   opacity: 1;
   cursor: progress;
 }
 
 /* success: check glyph gets momentary warm-accent tint */
 .yui-spk__refresh.is-done {
-  color: var(--yui-accent);
+  color: var(--yui-accent-ink);
   opacity: 1;
 }
 
@@ -116,7 +116,7 @@
   width: 0.8rem;
   height: 0.8rem;
   flex: 0 0 auto;
-  color: var(--yui-accent);
+  color: var(--yui-accent-ink);
 }
 
 /* ── Paste-a-voice-id field ── */

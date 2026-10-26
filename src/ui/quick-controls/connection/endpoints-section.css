@@ -39,7 +39,7 @@
 }
 
 .yui-chatkey__toggle[aria-pressed="true"] {
-  color: var(--yui-accent);
+  color: var(--yui-accent-ink);
 }
 
 /* ── yui-select — dropdown without OS chrome (type · provider) ── */
@@ -57,7 +57,7 @@
   border: 1px solid transparent;
   border-radius: var(--yui-radius-control);
   cursor: pointer;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%23b9ae99' stroke-width='1.4' stroke-linecap='round'><path d='M3 4.5 6 7.5 9 4.5'/></svg>");
+  background-image: var(--yui-chevron);
   background-repeat: no-repeat;
   background-position: right 0.625rem center;
   transition:

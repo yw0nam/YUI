@@ -290,6 +290,12 @@ const ja: Record<string, string> = {
   "language.label": "言語",
   "language.sub": "このアプリの表示言語",
   "language.aria": "表示言語",
+  "appearance.label": "外観",
+  "appearance.sub": "Dawnは明るいガラス、Hearthは暗いスクリーン",
+  "appearance.aria": "外観",
+  "appearance.dawn": "Dawn",
+  "appearance.hearth": "Hearth",
+  "appearance.system": "システムに従う",
 
   // VRM section
   "vrm.section": "VRM",

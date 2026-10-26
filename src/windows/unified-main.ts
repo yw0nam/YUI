@@ -6,6 +6,14 @@
  * windows' backends answer, and their transcripts are what this window reads.
  */
 
+import { getCurrentWindow } from "@tauri-apps/api/window";
+
+import {
+  createThemeSettings,
+  localStorageThemeStorage,
+} from "../settings/appearance/theme-settings";
+import { isTauri } from "../tauri-env";
+import { applyTheme } from "../ui/theme/apply-theme";
 import "../styles.css";
 import "../ui/unified/unified-window.css";
 import { createDisposers } from "../app/disposers";
@@ -28,6 +36,15 @@ async function bootstrap(): Promise<void> {
   if (!app) throw new Error("#app mount point not found");
 
   const disposers = createDisposers();
+  const themeSettings = createThemeSettings({ storage: localStorageThemeStorage() });
+  disposers.register(() => themeSettings.dispose());
+  disposers.register(
+    applyTheme({
+      store: themeSettings,
+      root: document.documentElement,
+      setNativeTheme: isTauri() ? (t) => getCurrentWindow().setTheme(t) : undefined,
+    }),
+  );
   const settingsBridge = createSettingsBridge(undefined, { windowKind: "unified" });
   const registry = createPresetRegistry();
 
@@ -44,6 +61,7 @@ async function bootstrap(): Promise<void> {
 
   // A photo picked in another window reaches the registry through storage, so it reloads first.
   const refresh = (): void => {
+    themeSettings.reloadFromStorage();
     registry.reloadFromStorage();
     view.refresh();
   };

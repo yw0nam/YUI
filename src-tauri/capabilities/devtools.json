@@ -5,6 +5,7 @@
   "windows": ["devtools"],
   "permissions": [
     "core:default",
+    "core:window:allow-set-theme",
     "cors-fetch:default",
     "log:default"
   ]

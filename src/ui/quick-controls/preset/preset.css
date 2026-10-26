@@ -185,7 +185,7 @@
 .yui-preset-row__url:hover {
   opacity: 1;
   background: var(--yui-accent-faint);
-  color: var(--yui-accent);
+  color: var(--yui-accent-ink);
 }
 
 .yui-preset-row__remove:hover {

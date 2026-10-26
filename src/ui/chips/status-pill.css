@@ -217,13 +217,13 @@
 
 .yui-status[data-fix="settings"]:hover .yui-status__label,
 .yui-status[data-fix="settings"]:has(:focus-visible) .yui-status__label {
-  color: var(--yui-accent);
+  color: var(--yui-accent-ink);
   text-decoration-color: var(--yui-accent);
 }
 
 .yui-status[data-fix="settings"]:hover .yui-status__fix-glyph,
 .yui-status[data-fix="settings"]:has(:focus-visible) .yui-status__fix-glyph {
-  color: var(--yui-accent);
+  color: var(--yui-accent-ink);
 }
 
 @media (prefers-reduced-motion: reduce) {

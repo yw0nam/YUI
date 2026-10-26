@@ -12,6 +12,7 @@ import {
   createSpeakerSelection,
   type SpeakerOption,
 } from "../../io/voice/voices/speaker-selection";
+import { createThemeSettings } from "../../settings/appearance/theme-settings";
 import { createLipsyncSettings } from "../../settings/avatar/lipsync-settings";
 import {
   type AgentSettings,
@@ -178,6 +179,7 @@ export function defaultQcArgs(mount: HTMLElement) {
     onGainPreviewEnd: vi.fn(),
     agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
     userNameSettings: createUserNameSettings({ storage: undefined }),
+    themeSettings: createThemeSettings(),
     endpointsSettings: createEndpointsSettings(),
     proactiveSettings: createProactiveSettings(),
     scheduleSettings: createScheduleSettings(),

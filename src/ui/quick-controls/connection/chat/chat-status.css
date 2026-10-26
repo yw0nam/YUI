@@ -48,7 +48,7 @@
 }
 
 .yui-chat-status__action:hover {
-  color: var(--yui-accent);
+  color: var(--yui-accent-ink);
 }
 
 .yui-chat-status__action:active {

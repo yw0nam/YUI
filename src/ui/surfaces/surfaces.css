@@ -256,7 +256,7 @@
   display: none;
   width: 0.06em;
   margin-left: 0.1em;
-  color: var(--yui-accent);
+  color: var(--yui-accent-ink);
   font-weight: 600;
   /* Speech onset warmth moment — blinking amber caret */
   animation: yui-caret-blink 1s steps(2, jump-none) infinite;
@@ -359,7 +359,7 @@
 }
 .yui-bubble__speech-action button:hover,
 .yui-bubble__speech-action button:focus-visible {
-  color: var(--yui-accent);
+  color: var(--yui-accent-ink);
   text-decoration-color: var(--yui-accent);
 }
 .yui-bubble__speech-action button:focus-visible {
@@ -507,7 +507,7 @@
 }
 .yui-bubble__text a:hover,
 .yui-bubble__text a:focus-visible {
-  color: var(--yui-accent);
+  color: var(--yui-accent-ink);
   text-decoration-color: var(--yui-accent);
 }
 .yui-bubble__text a:focus-visible {
@@ -537,7 +537,7 @@
   max-height: none;
   height: auto;
   padding: 0.5rem 0.7rem;
-  background: oklch(0.97 0.01 80 / 0.04);
+  background: var(--yui-group-bg);
   border: 1px dashed var(--yui-edge-strong);
   color: var(--yui-text-dim);
   font-size: 0.82rem;
@@ -620,7 +620,7 @@
   padding: 0;
   border: 0;
   border-radius: var(--yui-radius-chip);
-  background: oklch(0.15 0.01 70 / 0.78);
+  background: var(--yui-scrim-strong);
   color: var(--yui-text);
   cursor: pointer;
   transition: background var(--yui-dur-fast) var(--yui-ease);
@@ -662,7 +662,7 @@
 /* A touch leaves :hover stuck after the tap, which would read as the live state. */
 @media (hover: hover) {
   .yui-input__btn:hover {
-    color: var(--yui-accent);
+    color: var(--yui-accent-ink);
     background: var(--yui-accent-faint);
   }
 }
@@ -745,7 +745,7 @@
 
 /* running/stop: icon swap + always amber */
 .yui-input.is-running .yui-input__send {
-  color: var(--yui-accent);
+  color: var(--yui-accent-ink);
   background: var(--yui-accent-faint);
 }
 .yui-input.is-running .yui-input__send .icon-send {
@@ -756,7 +756,7 @@
 }
 .yui-input.is-running .yui-input__send:hover,
 .yui-input.is-running .yui-input__send:focus-visible {
-  color: var(--yui-accent);
+  color: var(--yui-accent-ink);
   background: var(--yui-accent-soft);
   outline: none;
 }
@@ -809,7 +809,7 @@
 }
 .yui-input__error-action:hover,
 .yui-input__error-action:focus-visible {
-  color: var(--yui-accent);
+  color: var(--yui-accent-ink);
   text-decoration-color: var(--yui-accent);
 }
 .yui-input__error-action:focus-visible {

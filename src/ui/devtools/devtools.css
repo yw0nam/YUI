@@ -5,7 +5,7 @@ body,
   height: 100%;
   margin: 0;
   overflow: hidden;
-  background: oklch(0.16 0.014 70);
+  background: var(--yui-panel-bg);
 }
 
 .devtools {
@@ -14,7 +14,7 @@ body,
   width: 100%;
   height: 100%;
   color: var(--yui-text);
-  background: oklch(0.16 0.014 70);
+  background: var(--yui-panel-bg);
   font-family: var(--yui-font);
 }
 
@@ -55,7 +55,7 @@ body,
 
 .devtools-nav .yui-tab.is-active {
   color: var(--yui-text);
-  background: oklch(0.97 0.01 80 / 0.08);
+  background: var(--yui-selected);
 }
 
 .devtools-content,
@@ -98,7 +98,7 @@ body,
 
 .devtools-turn:hover,
 .devtools-turn[aria-selected="true"] {
-  background: oklch(0.97 0.01 80 / 0.065);
+  background: var(--yui-hover);
 }
 
 .devtools-turn[aria-selected="true"] {
@@ -126,7 +126,7 @@ body,
   border: 1px solid var(--yui-edge);
   border-radius: var(--yui-radius-chip);
   color: var(--yui-text-dim);
-  background: oklch(0.97 0.01 80 / 0.045);
+  background: var(--yui-group-bg);
   font-size: 0.68rem;
 }
 
@@ -169,7 +169,7 @@ body,
   border: 1px solid var(--yui-edge);
   border-radius: var(--yui-radius-input);
   color: var(--yui-text-dim);
-  background: oklch(0.12 0.01 70);
+  background: var(--yui-field);
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
   font-size: 0.72rem;
   line-height: 1.55;
@@ -221,7 +221,7 @@ body,
   border: 1px solid var(--yui-edge-strong);
   border-radius: 8px;
   outline: none;
-  background: oklch(0.13 0.01 70);
+  background: var(--yui-field);
   color: var(--yui-text);
   font: inherit;
   font-variant-numeric: tabular-nums;

@@ -42,7 +42,7 @@
 
 .yui-wf__fire:hover {
   background: var(--yui-accent-faint);
-  color: var(--yui-accent);
+  color: var(--yui-accent-ink);
 }
 
 .yui-wf__fire:focus-visible,
@@ -58,7 +58,7 @@
 
 .yui-wf--fired-ok .yui-wf__fire {
   background: var(--yui-accent-faint);
-  color: var(--yui-accent);
+  color: var(--yui-accent-ink);
 }
 
 .yui-wf--fired-err .yui-wf__fire {

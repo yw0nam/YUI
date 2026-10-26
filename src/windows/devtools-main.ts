@@ -1,3 +1,4 @@
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import "../styles.css";
 import "../ui/quick-controls/quick-controls.css";
 import "../ui/devtools/devtools.css";
@@ -9,9 +10,11 @@ import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
 import { createPresetRegistry } from "../settings/preset/preset-registry";
 import { createSettingsStores } from "../settings/settings-stores";
+import { isTauri } from "../tauri-env";
 import { createDevtoolsShell } from "../ui/devtools/shell";
 import { createLocaleRebuilder } from "../ui/devtools/shell-rebuild";
 import { getLocale, subscribe as subscribeLocale, t } from "../ui/i18n";
+import { applyTheme } from "../ui/theme/apply-theme";
 
 const log = createLogger("devtools-bootstrap");
 
@@ -22,6 +25,11 @@ async function bootstrap(): Promise<void> {
   if (!mount) throw new Error("#app mount point not found");
 
   const settingsStores = createSettingsStores({ locale: getLocale() });
+  const disposeTheme = applyTheme({
+    store: settingsStores.themeSettings,
+    root: document.documentElement,
+    setNativeTheme: isTauri() ? (t) => getCurrentWindow().setTheme(t) : undefined,
+  });
   const conversationStores = createConversationStores();
   const { contextHistory } = conversationStores;
   const { endpointsSettings } = settingsStores;
@@ -63,6 +71,7 @@ async function bootstrap(): Promise<void> {
   const disposePresetSwitch = wirePresetSwitch({ registry: presetRegistry, bridge });
   window.addEventListener("focus", reload);
   window.addEventListener("beforeunload", () => {
+    disposeTheme();
     disposePresetSwitch();
     presetRegistry.dispose();
     // Keeps the bridge alive until disposeSync flushes any pending broadcast.

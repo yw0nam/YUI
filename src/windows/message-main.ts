@@ -7,6 +7,11 @@
  * the message bridge, and what the user typed travels back the same way.
  */
 
+import {
+  createThemeSettings,
+  localStorageThemeStorage,
+} from "../settings/appearance/theme-settings";
+import { applyTheme } from "../ui/theme/apply-theme";
 import "../styles.css";
 import "../ui/message/message-window.css";
 import { createDisposers } from "../app/disposers";
@@ -61,6 +66,9 @@ async function bootstrap(): Promise<void> {
   const bubblePersistSettings = createFlagSettings(false, {
     storage: localStorageStore("yui.bubble-persist"),
   });
+  const themeSettings = createThemeSettings({ storage: localStorageThemeStorage() });
+  disposers.register(() => themeSettings.dispose());
+  disposers.register(applyTheme({ store: themeSettings, root: document.documentElement }));
 
   const bridge = createMessageBridge(undefined, { windowKind: "message" });
   const settingsBridge = createSettingsBridge(undefined, { windowKind: "message" });
@@ -119,6 +127,7 @@ async function bootstrap(): Promise<void> {
   // re-read it on the change signal, and again on focus where the signal is unreliable.
   const reloadShared = (): void => {
     reloadLocale();
+    themeSettings.reloadFromStorage();
     bubblePersistSettings.reloadFromStorage();
     pushSocket.refresh();
     delegations.refresh();

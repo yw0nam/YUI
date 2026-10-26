@@ -37,6 +37,7 @@ describe("createSettingsStores", () => {
       "vadSettings",
       "agentSettings",
       "userNameSettings",
+      "themeSettings",
       "fillerSettings",
       "readingsSettings",
       "bubblePersistSettings",

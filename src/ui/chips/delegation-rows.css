@@ -69,7 +69,7 @@
 }
 
 .yui-deleg__item--toggle:hover {
-  background: oklch(0.97 0.01 80 / 0.04);
+  background: var(--yui-hover);
 }
 
 .yui-deleg__item--toggle:focus-visible {

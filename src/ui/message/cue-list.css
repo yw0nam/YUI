@@ -137,10 +137,6 @@
     box-shadow var(--yui-dur-fast) var(--yui-ease);
 }
 
-.yui-time-input {
-  color-scheme: dark;
-}
-
 .yui-num-input {
   width: 4rem;
   text-align: right;

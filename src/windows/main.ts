@@ -13,6 +13,7 @@
  *   - .yui-ui:    overlay — speech bubble, text input (invisible-by-default).
  */
 
+import { applyTheme } from "../ui/theme/apply-theme";
 import "../styles.css";
 import { createConfiguredBootstrap } from "../app/bootstrap-configured";
 import { wireHelpGuide } from "../app/controls/wire-help-guide";
@@ -102,6 +103,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     register,
     role,
   );
+  register(applyTheme({ store: settingsStores.themeSettings, root: document.documentElement }));
   const petConfig = createPetConfig({ ...settingsStores, log });
   const config = petConfig.config;
   const bedSceneHold = createBedSceneHold();

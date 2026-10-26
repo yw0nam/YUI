@@ -1,3 +1,4 @@
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../../config/secrets";
 import { createConfigStore } from "../../config/store";
 import { importVrmFromFile, removeUserVrm } from "../../io/assets/vrm-import";
@@ -18,9 +19,11 @@ import { createLogger } from "../../logger";
 import { presetIdForWindow } from "../../settings/preset/active-preset";
 import { readBoundPresetId } from "../../settings/preset/bound-preset";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
+import { isTauri } from "../../tauri-env";
 import { createVoiceInputStatus } from "../../ui/chips/voice-input-status";
 import { subscribe as subscribeLocale, t } from "../../ui/i18n";
 import { createQuickControls } from "../../ui/quick-controls/quick-controls";
+import { applyTheme } from "../../ui/theme/apply-theme";
 import { wireCardIo } from "../card-io/wire-card-io";
 import { wireSettingsWindowSync } from "../cross-window/wire-cross-window";
 import type { Disposers } from "../disposers";
@@ -51,6 +54,13 @@ export async function wireSettingsWindow(deps: {
     register,
     { presetRegistry: deps.presetRegistry },
   );
+  register(
+    applyTheme({
+      store: settingsStores.themeSettings,
+      root: document.documentElement,
+      setNativeTheme: isTauri() ? (t) => getCurrentWindow().setTheme(t) : undefined,
+    }),
+  );
   const {
     screenshotSettings,
     idleThrottleSettings,
@@ -70,6 +80,7 @@ export async function wireSettingsWindow(deps: {
     ttsSettings,
     agentSettings,
     userNameSettings,
+    themeSettings,
     endpointsSettings,
     chatKeySettings,
     sttKeySettings,
@@ -228,6 +239,7 @@ export async function wireSettingsWindow(deps: {
       onCloseWindow: closeSettingsWindow,
       agentSettings,
       userNameSettings,
+      themeSettings,
       settings: screenshotSettings,
       idleThrottleSettings,
       gazeSettings,

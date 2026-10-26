@@ -289,6 +289,12 @@ const ko: Record<string, string> = {
   "language.label": "언어",
   "language.sub": "이 앱의 표시 언어",
   "language.aria": "표시 언어",
+  "appearance.label": "외관",
+  "appearance.sub": "Dawn은 밝은 유리, Hearth는 어두운 스크림",
+  "appearance.aria": "외관",
+  "appearance.dawn": "Dawn",
+  "appearance.hearth": "Hearth",
+  "appearance.system": "시스템 따르기",
 
   // VRM section
   "vrm.section": "VRM",

@@ -269,7 +269,7 @@
 
 .yui-vrm--add.is-ready:hover,
 .yui-spk--add.is-ready:hover {
-  color: var(--yui-accent);
+  color: var(--yui-accent-ink);
 }
 
 .yui-vrm--add.is-ready:active,
@@ -317,7 +317,7 @@
 .yui-spk__rename:hover {
   opacity: 1;
   background: var(--yui-accent-faint);
-  color: var(--yui-accent);
+  color: var(--yui-accent-ink);
 }
 
 /* Delete is destructive — warm-red on hover (not amber) */

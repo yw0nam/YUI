@@ -1,4 +1,6 @@
 /** Quick-controls panel markup — pure string construction (no DOM, no state). */
+
+import { THEMES } from "../../settings/appearance/theme-settings";
 import "./sections/session/session-section.css";
 import { REASONING_EFFORTS } from "../../settings/backend/agent-settings";
 import { RATE_LIMIT_MAX } from "../../settings/backend/guardrails-settings";
@@ -427,6 +429,13 @@ ${
                 <span class="yui-row__sub">${t("language.sub")}</span>
               </div>
               <div class="yui-seg yui-lang-seg" role="radiogroup" aria-label="${t("language.aria")}">${langButtonsHtml}</div>
+            </div>
+            <div class="yui-row">
+              <div class="yui-row__main">
+                <span class="yui-row__label">${t("appearance.label")}</span>
+                <span class="yui-row__sub">${t("appearance.sub")}</span>
+              </div>
+              <div class="yui-seg yui-theme-seg" role="radiogroup" aria-label="${t("appearance.aria")}">${THEMES.map((theme) => `<button class="yui-seg__btn" type="button" role="radio" data-theme="${theme}" aria-checked="false" tabindex="-1">${t(`appearance.${theme}`)}</button>`).join("")}</div>
             </div>${switchRowsHtml("general")}${
               showDevtools
                 ? `

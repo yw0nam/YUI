@@ -288,6 +288,12 @@ const en: Record<string, string> = {
   "language.label": "Language",
   "language.sub": "Display language for this app",
   "language.aria": "Display language",
+  "appearance.label": "Appearance",
+  "appearance.sub": "Dawn is light glass, Hearth is the dark scrim",
+  "appearance.aria": "Appearance",
+  "appearance.dawn": "Dawn",
+  "appearance.hearth": "Hearth",
+  "appearance.system": "Follow system",
 
   // VRM section
   "vrm.section": "VRM",

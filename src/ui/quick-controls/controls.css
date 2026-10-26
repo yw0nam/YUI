@@ -231,13 +231,13 @@
 /* Help rows ask for something, so their button rests in the accent color. */
 .yui-help-btn {
   flex: none;
-  color: var(--yui-accent);
+  color: var(--yui-accent-ink);
 }
 
 .yui-reset:hover,
 .yui-link-btn:hover,
 .yui-add-btn:hover {
-  color: var(--yui-accent);
+  color: var(--yui-accent-ink);
 }
 
 .yui-reset:active,
