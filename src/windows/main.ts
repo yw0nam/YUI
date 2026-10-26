@@ -183,7 +183,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
   const screenSourceProvider = resolveScreenSourceProvider();
   const screenCapturer = resolveScreenCapturer();
   // Settings opens the current pet window's companion in Tauri or a browser popup.
-  const openSettings = createSettingsWindowOpener(boundId);
+  const openSettings = createSettingsWindowOpener(boundId, windowBridge.emitSettingsPage);
   const openDevtools = createDevtoolsWindowOpener();
   const { vrm, speaker } = wireAvatarSelection({
     renderer,

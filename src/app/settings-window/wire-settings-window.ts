@@ -16,8 +16,9 @@ import { wireVoiceListAutoRefresh } from "../../io/voice/voices/voice-list-refre
 import { resolveScreenSourceProvider } from "../../io/window/capture/tauri-screen";
 import { closeSettingsWindow, titleSettingsWindow } from "../../io/window/openers/settings-window";
 import { createLogger } from "../../logger";
+import type { QuickControlsTab } from "../../settings/panels/settings-pages";
 import { presetIdForWindow } from "../../settings/preset/active-preset";
-import { readBoundPresetId } from "../../settings/preset/bound-preset";
+import { readBoundPresetId, readSettingsPage } from "../../settings/preset/bound-preset";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import { createUnifiedShown } from "../../settings/unified/unified-shown";
 import { isTauri } from "../../tauri-env";
@@ -37,6 +38,7 @@ import { wireCueLocaleSync } from "../settings/wire-cue-locale-sync";
 import { wirePresetSwitch } from "../settings/wire-preset";
 import { createSessionResetAnnouncer } from "../turn/session-reset-announcer";
 import { editTargetUrl } from "./edit-target-url";
+import { wireSettingsPage } from "./wire-settings-page";
 import { wireVoiceMirror } from "./wire-voice-mirror";
 
 const log = createLogger("settings-bootstrap");
@@ -229,6 +231,11 @@ export async function wireSettingsWindow(deps: {
   };
   window.addEventListener("focus", onWindowFocus);
 
+  const reloadOnCharacter = (id: string, page?: QuickControlsTab): void =>
+    location.replace(
+      editTargetUrl(location.href, id, boundId ?? presetRegistry.get().active, page),
+    );
+
   const buildQuickControls = (): ReturnType<typeof createQuickControls> => {
     titleSettingsWindow(t("settings.title"));
     return createQuickControls({
@@ -313,8 +320,7 @@ export async function wireSettingsWindow(deps: {
       unifiedChatSwitch,
       unifiedShown,
       boundId,
-      onEditTarget: (id) =>
-        location.replace(editTargetUrl(location.href, id, boundId ?? presetRegistry.get().active)),
+      onEditTarget: (id) => reloadOnCharacter(id),
       showVoiceInput: boundId === null,
     });
   };
@@ -323,7 +329,18 @@ export async function wireSettingsWindow(deps: {
   // Defer to microtask so component doesn't destroy itself during its own click handler.
   let quickControls = buildQuickControls();
   // window variant auto-opens on creation but is idempotent, so defensively call once more.
-  quickControls.open();
+  const requestedPage = readSettingsPage();
+  quickControls.open(undefined, requestedPage ? { tab: requestedPage } : undefined);
+  register(
+    wireSettingsPage({
+      bridge,
+      boundId,
+      editing: presetIdForWindow,
+      active: () => presetRegistry.get().active,
+      select: (tab) => quickControls.open(undefined, { tab }),
+      retarget: reloadOnCharacter,
+    }),
+  );
 
   const unsubscribeCueSync = wireCueLocaleSync(settingsStores);
   const unsubscribeLocale = subscribeLocale(() => {

@@ -6,6 +6,8 @@
  */
 
 import type { GuideKey } from "../../contract";
+import type { QuickControlsTab } from "../../settings/panels/settings-pages";
+import { isSettingsPage } from "../../settings/panels/settings-pages";
 import type { DelegationItem } from "../chat/push/push-frames";
 import type { PushSocketState } from "../chat/push/push-socket";
 import { isGuideKey } from "../guide/guide-docs";
@@ -37,6 +39,7 @@ const CH_SPEECH_STREAM_ASK = "yui://speech-stream-ask";
 const CH_STOP_TURNS = "yui://stop-turns";
 const CH_SPEECH_STREAM_CONTROL = "yui://speech-stream-control";
 const CH_USER_TURN_DONE = "yui://user-turn-done";
+const CH_SETTINGS_PAGE = "yui://settings-page";
 
 interface VoiceStateSnapshot {
   state: VoiceInputState;
@@ -50,6 +53,12 @@ export interface HelpGuideRequest {
 
 export interface PresetChange {
   active: string;
+}
+
+/** A pet window asking the open settings window of `preset` (null: the main one) to show that character, on `page` when given. */
+export interface SettingsPageRequest {
+  preset: string | null;
+  page?: QuickControlsTab;
 }
 
 /** One character's reply named another open character; emitted once that reply's playback ended. */
@@ -174,6 +183,9 @@ export interface SettingsBridge {
   /** The unified chat window's click on an error's fix; delivered to every window, receivers filter on `preset`. */
   emitSpeechStreamControl(event: SpeechStreamControl): void;
   onSpeechStreamControl(cb: (event: SpeechStreamControl) => void): () => void;
+  /** A pet window asking an open settings window to show its character and page; delivered to every window, receivers filter on `preset`. */
+  emitSettingsPage(request: SettingsPageRequest): void;
+  onSettingsPage(cb: (request: SettingsPageRequest) => void): () => void;
   emitSettingsChanged(): void;
   onSettingsChanged(cb: (from: WindowKind) => void): () => void;
   emitMouthPreview(mouthOpen: number | null): void;
@@ -248,10 +260,23 @@ export function createSettingsBridge(
     CH_SPEECH_STREAM_ASK,
     CH_STOP_TURNS,
     CH_SPEECH_STREAM_CONTROL,
+    CH_SETTINGS_PAGE,
   ]);
   const on: typeof core.on = (name, cb) => core.on(name, cb, { scoped: !shared.has(name) });
 
   return {
+    emitSettingsPage(request) {
+      safeEmit(CH_SETTINGS_PAGE, request);
+    },
+    onSettingsPage(cb) {
+      return on<unknown>(CH_SETTINGS_PAGE, (request) => {
+        if (request === null || typeof request !== "object") return;
+        const { preset, page } = request as Partial<Record<keyof SettingsPageRequest, unknown>>;
+        if (preset !== null && !isString(preset)) return;
+        if (page === undefined) cb({ preset });
+        else if (isSettingsPage(page)) cb({ preset, page });
+      });
+    },
     emitSettingsChanged() {
       safeEmit(CH_SETTINGS_CHANGED);
     },
