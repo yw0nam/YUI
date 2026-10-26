@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { createThemeSettings, type Theme } from "../../settings/appearance/theme-settings";
 import { applyTheme } from "./apply-theme";
 
@@ -50,6 +50,19 @@ it("follows OS appearance and store changes", () => {
   expect(root.dataset.theme).toBe("hearth");
   store.setTheme("dawn");
   expect(root.dataset.theme).toBe("dawn");
+  dispose();
+  store.dispose();
+});
+
+it("hands the native title bar the resolved theme", () => {
+  const store = createThemeSettings();
+  store.setTheme("hearth");
+  const setNativeTheme = vi.fn<(theme: "light" | "dark") => Promise<void>>(async () => {});
+  const deps = { store, root: document.createElement("div"), setNativeTheme };
+  const dispose = applyTheme(deps);
+  expect(setNativeTheme).toHaveBeenLastCalledWith("dark");
+  store.setTheme("dawn");
+  expect(setNativeTheme).toHaveBeenLastCalledWith("light");
   dispose();
   store.dispose();
 });
