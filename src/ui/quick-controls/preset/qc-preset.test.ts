@@ -140,7 +140,7 @@ describe("createQuickControls — presets", () => {
     );
   });
 
-  it("edit mode: a non-active row keeps its window button and adds Use in main, disabled while its window is open", () => {
+  it("edit mode: a non-active row offers Use in main, disabled while its window is open", () => {
     const { petWindows } = editMode("bbbb0002");
     petWindows.open("default");
     openManage();
@@ -148,11 +148,10 @@ describe("createQuickControls — presets", () => {
       Array.from(rowOf(name).querySelectorAll<HTMLButtonElement>(".yui-preset-row__window"));
 
     expect(buttons("default").map((b) => [b.textContent, b.disabled])).toEqual([
-      ["Close window", false],
       ["Use in main", true],
     ]);
     expect(buttons("natsume")).toEqual([]);
-    buttons("perlica")[1]!.click();
+    buttons("perlica")[0]!.click();
 
     expect(registry.get().active).toBe("bbbb0002");
   });
@@ -250,11 +249,10 @@ describe("createQuickControls — presets", () => {
     }
   });
 
-  it("opens windows and refreshes controls after the live key clears", () => {
+  it("refreshes controls when a window opens and after the live key clears", () => {
     const petWindows = rebuild();
     openManage();
-    rowOf("perlica").querySelector<HTMLButtonElement>(".yui-preset-row__window")!.click();
-    expect(JSON.parse(localStorage.getItem("yui.windows")!)).toEqual({ open: ["bbbb0002"] });
+    petWindows.open("bbbb0002");
     const option = () =>
       $<HTMLSelectElement>(".yui-preset__select").querySelector<HTMLOptionElement>(
         'option[value="bbbb0002"]',
@@ -269,11 +267,6 @@ describe("createQuickControls — presets", () => {
     petWindows.invalidate();
     expect(option().disabled).toBe(false);
     expect(rowOf("perlica").querySelector(".yui-preset-row__remove")).not.toBeNull();
-  });
-  it("shows window actions without a feature flag", () => {
-    rebuild();
-    openManage();
-    expect(qc.el.querySelectorAll(".yui-preset-row__window")).toHaveLength(2);
   });
   it("shows the bound name and protects that row", () => {
     rebuild("bbbb0002");

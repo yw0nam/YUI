@@ -26,6 +26,7 @@ import { createProactiveSettings } from "../../settings/cues/proactive-settings"
 import { createScheduleSettings } from "../../settings/cues/schedule-settings";
 import { createMessageWindowSettings } from "../../settings/panels/message-window-settings";
 import { createFlagSettings } from "../../settings/persisted-store";
+import { createPetWindows } from "../../settings/preset/pet-windows";
 import { createPresetRegistry } from "../../settings/preset/preset-registry";
 import { createRelationsStore } from "../../settings/relations/relations-store";
 import { createPacerGapStore, createPresenceStore } from "../../settings/settings-stores";
@@ -141,6 +142,7 @@ describe("createQuickControls — settings layout", () => {
         ".yui-one-voice-switch",
         ".yui-relations-switch",
         "#yui-rate-addressed",
+        ".yui-chars__rows",
       ],
     ],
     [
@@ -202,6 +204,7 @@ describe("createQuickControls — settings layout", () => {
     const qc = buildFullQc({
       transcript: createChatHistoryStore(),
       presetRegistry: registry,
+      petWindows: createPetWindows(),
       relationsStore: createRelationsStore({ storage: { load: () => ({}), save: () => {} } }),
       unifiedChatSwitch: createFlagSettings(false),
       oneVoiceSettings: createFlagSettings(true),
