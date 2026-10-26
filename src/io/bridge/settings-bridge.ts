@@ -34,6 +34,7 @@ const CH_CHARACTER_ADDRESSED = "yui://character-addressed";
 const CH_USER_TURN_ROUTED = "yui://user-turn-routed";
 const CH_SPEECH_STREAM = "yui://speech-stream";
 const CH_SPEECH_STREAM_ASK = "yui://speech-stream-ask";
+const CH_STOP_TURNS = "yui://stop-turns";
 const CH_USER_TURN_DONE = "yui://user-turn-done";
 
 interface VoiceStateSnapshot {
@@ -156,6 +157,9 @@ export interface SettingsBridge {
   /** The unified chat window asking every pet window to restate its name and busy state. */
   emitSpeechStreamAsk(): void;
   onSpeechStreamAsk(cb: () => void): () => void;
+  /** The unified chat window's stop: every pet window stops its running turn and speech. */
+  emitStopTurns(): void;
+  onStopTurns(cb: () => void): () => void;
   emitSettingsChanged(): void;
   onSettingsChanged(cb: (from: WindowKind) => void): () => void;
   emitMouthPreview(mouthOpen: number | null): void;
@@ -228,6 +232,7 @@ export function createSettingsBridge(
     CH_USER_TURN_DONE,
     CH_SPEECH_STREAM,
     CH_SPEECH_STREAM_ASK,
+    CH_STOP_TURNS,
   ]);
   const on: typeof core.on = (name, cb) => core.on(name, cb, { scoped: !shared.has(name) });
 
@@ -408,6 +413,12 @@ export function createSettingsBridge(
     },
     onSpeechStreamAsk(cb) {
       return on<unknown>(CH_SPEECH_STREAM_ASK, () => cb());
+    },
+    emitStopTurns() {
+      safeEmit(CH_STOP_TURNS);
+    },
+    onStopTurns(cb) {
+      return on<unknown>(CH_STOP_TURNS, () => cb());
     },
     dispose: core.dispose,
   };
