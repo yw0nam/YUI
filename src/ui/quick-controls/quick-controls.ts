@@ -214,8 +214,8 @@ interface QuickControlsOptions {
   signalHistory?: Pick<SignalHistoryStore, "records" | "subscribe">;
   /** Thinking filler settings store. If absent, section won't render (injected by unified agent). */
   fillerSettings?: FillerSettingsStore;
-  /** Reading dictionary store. If absent, that section won't render. */
-  readingsSettings?: ReadingsSettingsStore;
+  /** Reading dictionary store. */
+  readingsSettings: ReadingsSettingsStore;
   /** TTS speech output on/off store. */
   ttsSettings?: FlagSettingsStore;
   /** One-voice-at-a-time store. If absent, that toggle row won't render. */
@@ -429,7 +429,6 @@ export function createQuickControls({
     showMessage: !!onMessage,
     showHistory: !!transcript,
     showBrowser: !!browserSettings,
-    showReadings: !!readingsSettings,
     showPreset: !!presetRegistry,
   });
 

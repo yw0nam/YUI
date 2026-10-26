@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createReadingsSettings } from "../../../../settings/voice/readings-settings";
 import { setLocale } from "../../../i18n";
 import { createQuickControls } from "../../quick-controls";
 import { defaultQcArgs } from "../../test-helpers";
@@ -23,17 +22,10 @@ describe("createQuickControls — reading dictionary section", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders as the last section of the Input tab, and only with a store", () => {
-    const withStore = createQuickControls({
-      ...defaultQcArgs(mount),
-      readingsSettings: createReadingsSettings(),
-    });
-    const input = withStore.el.querySelector("#yui-panel-input")!;
+  it("renders as the last section of the Input tab", () => {
+    const qc = createQuickControls(defaultQcArgs(mount));
+    const input = qc.el.querySelector("#yui-panel-input")!;
     expect(input.querySelector(".yui-reading")).toBe(input.querySelector(".yui-sec:last-child"));
-    withStore.dispose();
-
-    const without = createQuickControls(defaultQcArgs(mount));
-    expect(without.el.querySelector(".yui-reading")).toBeNull();
-    without.dispose();
+    qc.dispose();
   });
 });

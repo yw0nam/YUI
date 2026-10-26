@@ -29,6 +29,7 @@ import { createProactiveSettings } from "../../settings/cues/proactive-settings"
 import { createScheduleSettings } from "../../settings/cues/schedule-settings";
 import { createUserNameSettings } from "../../settings/identity/user-name-settings";
 import { createFlagSettings } from "../../settings/persisted-store";
+import { createReadingsSettings } from "../../settings/voice/readings-settings";
 import { createVadSettings } from "../../settings/voice/vad-settings";
 
 // jsdom 29 lacks CSS.escape (browsers have it) — polyfill so selector-escaping paths run.
@@ -171,6 +172,7 @@ export function defaultQcArgs(mount: HTMLElement) {
     voiceStatus: makeVoiceStatus(),
     lipsync: createLipsyncSettings(),
     vad: createVadSettings(),
+    readingsSettings: createReadingsSettings(),
     onGainPreview: vi.fn(),
     onGainPreviewEnd: vi.fn(),
     agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),

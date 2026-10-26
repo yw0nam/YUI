@@ -14,8 +14,7 @@ type ReadingsSettingsStore = ReturnType<typeof createReadingsSettings>;
 interface ReadingsSectionDeps {
   /** Panel root (el) — the section's nodes are queried here. */
   root: HTMLElement;
-  /** Absent when the section is not rendered. */
-  readingsSettings?: ReadingsSettingsStore;
+  readingsSettings: ReadingsSettingsStore;
 }
 
 // The same example in every language: the Korean bundle carries no Japanese script.
@@ -39,15 +38,14 @@ export function readingsSectionHtml(): string {
 
 export function createReadingsSection(deps: ReadingsSectionDeps): { dispose(): void } {
   const { root, readingsSettings: store } = deps;
-  const textareaEl = root.querySelector<HTMLTextAreaElement>(".yui-reading textarea");
-  const entryEl = root.querySelector<HTMLElement>(".yui-reading__entry");
-  const skippedEl = root.querySelector<HTMLElement>(".yui-reading__skipped");
-  if (!store || !textareaEl || !entryEl || !skippedEl) return { dispose() {} };
+  const textareaEl = root.querySelector<HTMLTextAreaElement>(".yui-reading textarea")!;
+  const entryEl = root.querySelector<HTMLElement>(".yui-reading__entry")!;
+  const skippedEl = root.querySelector<HTMLElement>(".yui-reading__skipped")!;
 
   function showSkipped(): void {
-    const { skipped } = parseReadings(textareaEl!.value);
-    entryEl!.classList.toggle("is-invalid", skipped.length > 0);
-    skippedEl!.textContent =
+    const { skipped } = parseReadings(textareaEl.value);
+    entryEl.classList.toggle("is-invalid", skipped.length > 0);
+    skippedEl.textContent =
       skipped.length === 0
         ? ""
         : t(skipped.length === 1 ? "reading.skipped" : "reading.skipped_many", {
@@ -56,12 +54,12 @@ export function createReadingsSection(deps: ReadingsSectionDeps): { dispose(): v
   }
 
   function reflect(): void {
-    textareaEl!.value = store!.get().text;
+    textareaEl.value = store.get().text;
     showSkipped();
   }
 
   function handleInput(): void {
-    store!.setText(textareaEl!.value);
+    store.setText(textareaEl.value);
     showSkipped();
   }
 

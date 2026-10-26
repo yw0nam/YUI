@@ -60,6 +60,8 @@ const surfaces = {
   finishSpeech: vi.fn(),
 };
 
+const readingListeners = new Set<(s: { text: string }) => void>();
+
 // Disposed after every case, so a failed assertion can't leave the filler loop running into the next.
 const wired: VoicePipeline[] = [];
 
@@ -101,7 +103,13 @@ function setup(
     fillerSettings: {
       get: () => ({ enabled: true, language: "ja" as const, customPools: { ja: pool() } }),
     },
-    readingsSettings: { get: () => ({ text: getReadings() }) },
+    readingsSettings: {
+      get: () => ({ text: getReadings() }),
+      subscribe: (cb) => {
+        readingListeners.add(cb);
+        return () => readingListeners.delete(cb);
+      },
+    },
     vadSettings: { get: () => ({ silenceMs: 1_500, bargeIn: false }) },
     speakerSelection: { getActive: getSpeaker },
     voiceInputStatus: { set: vi.fn() },
@@ -293,5 +301,30 @@ describe("reading dictionary", () => {
     await speak(voice, "秧秧、待ってね。", 1);
 
     expect(synthInputs()).toEqual(["ヤンヤン、待ってね。", "ヨウヨウ、待ってね。"]);
+  });
+
+  it("prewarms a failure line again with the new reading after an edit", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      let readings = READINGS;
+      setup(
+        fillerPool({ timeout: ["秧秧、ごめんね。"] }),
+        1_000,
+        () => SPEAKER,
+        () => readings,
+      );
+      await vi.waitFor(() => expect(synthInputs()).toEqual(["ヤンヤン、ごめんね。"]));
+
+      readings = "秧秧=ヨウヨウ";
+      for (const notify of readingListeners) notify({ text: readings });
+      await vi.advanceTimersByTimeAsync(2_000);
+
+      await vi.waitFor(() =>
+        expect(synthInputs()).toEqual(["ヤンヤン、ごめんね。", "ヨウヨウ、ごめんね。"]),
+      );
+    } finally {
+      vi.useRealTimers();
+      readingListeners.clear();
+    }
   });
 });

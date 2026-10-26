@@ -15,10 +15,32 @@ export function parseReadings(text: string): { pairs: ReadingPair[]; skipped: nu
   return { pairs: [...map].sort((a, b) => b[0].length - a[0].length), skipped };
 }
 
-/** One left-to-right pass, so a reading is never replaced again. */
-export function applyReadings(text: string, pairs: readonly ReadingPair[]): string {
-  if (pairs.length === 0) return text;
-  const lookup = new Map(pairs);
-  const alternation = pairs.map(([s]) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
-  return text.replace(new RegExp(alternation, "g"), (m) => lookup.get(m) ?? m);
+/** The dictionary of `getText()`, rebuilt only when the text changes; `apply` is one left-to-right pass, so a reading is never replaced again. */
+export function createReadings(getText: () => string): {
+  apply(text: string): string;
+  text(): string;
+} {
+  let source: string | undefined;
+  let lookup = new Map<string, string>();
+  let pattern: RegExp | undefined;
+  const current = (): string => {
+    const text = getText();
+    if (text !== source) {
+      source = text;
+      const pairs: ReadingPair[] = parseReadings(text).pairs;
+      lookup = new Map(pairs);
+      pattern =
+        pairs.length === 0
+          ? undefined
+          : new RegExp(pairs.map(([s]) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "g");
+    }
+    return text;
+  };
+  return {
+    text: current,
+    apply(text) {
+      current();
+      return pattern ? text.replace(pattern, (m) => lookup.get(m) ?? m) : text;
+    },
+  };
 }

@@ -32,10 +32,6 @@ describe("createReadingsSection", () => {
     expect(store.get()).toEqual({ text: "秧秧=ヤンヤン" });
   });
 
-  it("shows the stored text on creation", () => {
-    expect(setup("秧秧=ヤンヤン").textarea.value).toBe("秧秧=ヤンヤン");
-  });
-
   it("redraws a store change when the textarea is not focused", () => {
     const { store, textarea } = setup();
     store.setText("穂穂=スイスイ");
@@ -50,9 +46,9 @@ describe("createReadingsSection", () => {
     expect(textarea.value).toBe("typing");
   });
 
-  it("names a skipped line and flags the entry until it is fixed", () => {
-    const { entry, message, type } = setup();
-    type("a=b\nnoequals");
+  it("shows the stored text and flags its skipped line, until it is fixed", () => {
+    const { textarea, entry, message, type } = setup("a=b\nnoequals");
+    expect(textarea.value).toBe("a=b\nnoequals");
     expect(entry.classList.contains("is-invalid")).toBe(true);
     expect(message.textContent).toBe("Line 2 is skipped: write it as word=reading");
 
@@ -65,9 +61,5 @@ describe("createReadingsSection", () => {
     const { message, type } = setup();
     type("x\na=b\n=y");
     expect(message.textContent).toBe("Lines 1, 3 are skipped: write each as word=reading");
-  });
-
-  it("flags skipped lines already in the stored text", () => {
-    expect(setup("x=").entry.classList.contains("is-invalid")).toBe(true);
   });
 });
