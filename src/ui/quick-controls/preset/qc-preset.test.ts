@@ -113,31 +113,55 @@ describe("createQuickControls — presets", () => {
     expect(thumb.src).toBe("asset://localhost/app-data/cards/bbbb0002.png");
   });
 
-  it("edit mode: picking a preset hands its id over without activating, open windows included", () => {
-    const { petWindows, onEditTarget } = editMode("aaaa0001");
+  const heads = () => [...qc.el.querySelectorAll<HTMLButtonElement>(".yui-chead__item")];
+  const head = (name: string) =>
+    heads().find((b) => b.querySelector(".yui-chead__name")?.textContent === name)!;
+
+  it("edit mode: the header lists every character with its transport and window state", () => {
+    localStorage.setItem("yui.endpoints", JSON.stringify({ chat_api: "push" }));
+    localStorage.setItem(
+      "yui.bbbb0002.endpoints",
+      JSON.stringify({ chat_api: "chat_completions" }),
+    );
+    const { petWindows } = editMode("aaaa0001");
     petWindows.open("bbbb0002");
-    const select = $<HTMLSelectElement>(".yui-preset__select");
-    expect(Array.from(select.options).map((o) => [o.textContent, o.disabled])).toEqual([
-      ["default", false],
-      ["natsume", false],
-      ["perlica", false],
+
+    expect($(".yui-preset__select")).toBeNull();
+    expect(
+      heads().map((b) => [
+        b.querySelector(".yui-chead__name")!.textContent,
+        b.querySelector(".yui-chead__meta")!.textContent,
+      ]),
+    ).toEqual([
+      ["default", "Push · Off"],
+      ["natsume", "Responses · In main"],
+      ["perlica", "Chat Completions · Window open"],
     ]);
-    select.value = "bbbb0002";
-    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+
+  it("edit mode: clicking a character hands its id over without activating; an off one is dimmed and clickable", () => {
+    const { onEditTarget } = editMode("aaaa0001");
+
+    expect(head("natsume").getAttribute("aria-current")).toBe("true");
+    expect([head("default").classList.contains("is-off"), head("default").disabled]).toEqual([
+      true,
+      false,
+    ]);
+    head("perlica").click();
 
     expect(onEditTarget).toHaveBeenCalledWith("bbbb0002");
     expect(registry.get().active).toBe("aaaa0001");
-    expect(select.disabled).toBe(false);
   });
 
-  it("edit mode: the select and the scope lines name the ?edit= preset, not the active one", () => {
+  it("edit mode: the header and the scope lines name the ?edit= preset, not the active one", () => {
     editMode("bbbb0002");
 
-    expect($<HTMLSelectElement>(".yui-preset__select").value).toBe("bbbb0002");
-    expect($(".yui-preset__label").textContent).toBe("Editing");
+    expect(head("perlica").getAttribute("aria-current")).toBe("true");
     expect(qc.el.querySelector("#yui-panel-conn .yui-tabpanel__scope")?.textContent).toBe(
       "Only perlica",
     );
+
+    expect(registry.get().active).toBe("aaaa0001");
   });
 
   it("edit mode: a non-active row offers Use in main, disabled while its window is open", () => {
