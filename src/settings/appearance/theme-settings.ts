@@ -15,7 +15,7 @@ export type ThemeStorage = PersistedStorage<ThemeSettings>;
 export function createThemeSettings(opts?: { storage?: ThemeStorage }) {
   const core = createPersistedStore<ThemeSettings>({
     storage: opts?.storage,
-    defaults: { theme: "dawn" },
+    defaults: { theme: "system" },
     parse: (value) => {
       if (!isPlainObject(value)) return null;
       const theme = (value as ThemeSettings).theme;
