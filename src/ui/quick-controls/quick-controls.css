@@ -200,6 +200,7 @@
 
 /* Rail group heading: the edited character's name, then "Every character". */
 .yui-tabs__group {
+  flex: none;
   margin: 0.75rem 0 0.25rem;
   padding: 0 0.625rem;
   overflow: hidden;
