@@ -1068,6 +1068,15 @@ describe("typing — speech types out", () => {
     expect(seen.filter((t) => /[*[]|\]\(|http/.test(t))).toEqual([]);
   });
 
+  it("marks an image that fails to load as broken while the line still types", () => {
+    s.beginSpeech();
+    s.pushSpeech("![Cat](https://example.com/cat.png) and a few more words");
+    vi.advanceTimersByTime(200);
+    const img = mount.querySelector<HTMLImageElement>(".yui-bubble__text img")!;
+    img.dispatchEvent(new Event("error"));
+    expect(img.classList.contains("is-broken")).toBe(true);
+  });
+
   it("shows the whole line at once under reduced motion", () => {
     vi.stubGlobal("matchMedia", (query: string) => ({
       matches: query === "(prefers-reduced-motion: reduce)",
