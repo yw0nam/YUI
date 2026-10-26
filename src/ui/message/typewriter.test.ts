@@ -52,6 +52,18 @@ describe("createTypewriter", () => {
     expect(last()).toEqual([4, false]);
   });
 
+  it("types what an earlier sentence still owes at the next sentence's rate, landing with its voice", () => {
+    const { typer, last } = setup(true);
+    typer.received("One. Two.");
+    typer.pace({ text: "One.", durationMs: null });
+    vi.advanceTimersByTime(80);
+    expect(last()).toEqual([2, false]);
+    // One more character at the old rate, then the remaining six over the 600 ms left.
+    typer.pace({ text: "Two.", durationMs: 700 });
+    vi.advanceTimersByTime(640);
+    expect(last()).toEqual([9, false]);
+  });
+
   it("lands each sentence of a push-style line on its own end", () => {
     const { typer, last } = setup(true);
     typer.received("One\nTwo\nThree\n");
