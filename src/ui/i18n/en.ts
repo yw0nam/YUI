@@ -138,24 +138,45 @@ const en: Record<string, string> = {
   "devtools.advanced.context_window_sub": "Empty uses the bundled endpoint configuration",
   "devtools.advanced.context_window_default": "Default",
 
-  // tabs
+  // settings pages, rail groups, search, and the scope line above each page title
   "tabs.conn": "Connection",
-  "tabs.talk": "Talk",
-  "tabs.char": "Character",
-  "tabs.input": "Input",
+  "tabs.voice": "Voice",
+  "tabs.persona": "Persona",
+  "tabs.body": "Body",
   "tabs.react": "Proactive",
   "tabs.react_hint": "Rules for when YUI speaks up first",
   "tabs.hist": "History",
   "tabs.general": "General",
+  "tabs.together": "Together",
+  "tabs.listening": "Listening and bubble",
+  "tabs.perms": "Permissions",
+  "tabs.motion": "Motion and desktop",
+  "rail.group_character": "This character",
+  "rail.group_app": "Every character",
+  "search.placeholder": "Search settings",
+  "scope.only": "Only {name}",
+  "scope.every": "Every character",
 
-  // preset strip, manage popover, and the scope line above each tab title
-  "preset.open_window": "Open window",
-  "preset.close_window": "Close window",
+  // Together page: the Characters list and its "On the desktop" switches
+  "chars.section": "Characters",
+  "chars.in_main": "In main · always on",
+  "chars.on": "On the desktop",
+  "chars.off": "Off · settings kept",
+  "chars.cap_reason": "Up to {cap} at once. Turn one off first.",
+  "chars.this_window": "This window's character",
+  "chars.count": "{n} of {cap} on the desktop",
+  "chars.switch_aria": "{name} on the desktop",
+
+  // settings window character header: each character's transport and window state
+  "head.meta": "{transport} · {state}",
+  "head.main": "In main",
+  "head.off": "Off",
+
+  // preset strip and manage popover
   "preset.in_window": "{name} · open as a window",
   "preset.label": "Preset",
   "preset.manage": "Manage presets",
   "preset.in_use": "Shown in main",
-  "preset.edit_label": "Editing",
   "preset.note_main": "{name} is shown in main.",
   "preset.note_window": "{name} is open in its own window. Changes apply there at once.",
   "preset.note_idle": "{name} is in no window now. Changes are saved and apply when it opens.",
@@ -177,9 +198,6 @@ const en: Record<string, string> = {
   "preset.new_ph": "Name",
   "preset.taken": "{name} already exists",
   "preset.switching": "Switching to {name}…",
-  "preset.scope_tab": "{name} · {tab}",
-  "preset.scope_char": "{name} · Only the VRM selection and relations are per preset",
-  "preset.scope_shared": "Shared by every preset",
   "relation.group": "How {name} feels",
   "relation.to_you": "you",
   "relation.none": "No one rated yet",
@@ -234,7 +252,11 @@ const en: Record<string, string> = {
   "card.import": "Import card…",
   "card.export": "Export card",
   "card.io_note": "JSON or PNG card in · V2 JSON out",
-  "card.push_note": "On push the backend uses its own persona; the card text is not sent.",
+  "push.reason_model": "The backend picks the model on push.",
+  "push.reason_effort": "The backend decides how long to think on push.",
+  "push.reason_card":
+    "On push the backend uses its own persona; this card, greetings included, is not used.",
+  "push.to_transport": "Change transport",
   "card.import_failed": "Could not import that card",
   "card.import_error": "That file holds no card",
   "card.export_error": "Could not write the file",
@@ -387,7 +409,7 @@ const en: Record<string, string> = {
   "express_motion.dance.label": "Dance",
   "express_motion.dance.sub": "Random, from a short step to a full routine",
 
-  // launch bed scene (Character tab)
+  // launch bed scene (Motion page)
   "bed_scene.label": "Wake up in bed",
   "bed_scene.sub": "Starts asleep on a bed at launch",
   "bed_scene.aria": "Wake up in bed",
@@ -398,7 +420,7 @@ const en: Record<string, string> = {
   "viewpoint.sub": "Shift + drag to orbit, scroll to zoom",
   "viewpoint.reset": "Reset to front",
 
-  // screenshot / input tab
+  // screenshot (Permissions page)
   "screenshot.label": "Attach screenshot",
   "screenshot.source_label": "Screen to send",
   "screenshot.source_aria": "Screen to send",
@@ -615,7 +637,7 @@ const en: Record<string, string> = {
   // screen watch (proactive tab)
   "screen.section": "Screen watch",
   "screen.hint":
-    "Notices when you move between apps or stay on one thing for a long stretch, and speaks up. Whether screen pixels are sent still follows the screenshot toggle in the Input tab.",
+    "Notices when you move between apps or stay on one thing for a long stretch, and speaks up. Whether screen pixels are sent still follows the screenshot toggle on the Permissions page.",
   "screen.label": "React to screen changes",
   "screen.sub": "Notices app switches and long stretches, then speaks up first",
   "screen.aria": "React to screen changes",
@@ -637,7 +659,7 @@ const en: Record<string, string> = {
     "How many app switches held during a pause carry into the next screen turn",
   "screen.count_suffix": "entries",
   "screen.foot":
-    "Sending screen pixels follows the screenshot toggle in the Input tab. Nothing is said while do-not-disturb is on.",
+    "Sending screen pixels follows the screenshot toggle on the Permissions page. Nothing is said while do-not-disturb is on.",
 
   // reading dictionary
   "reading.section": "Reading dictionary",

@@ -1,6 +1,6 @@
 /**
- * Agent section — owns the locale picker segment and the reasoning-effort segment. The effort
- * segment shows on the request transports only.
+ * Agent section — owns the locale picker segment and the reasoning-effort segment. On push the
+ * effort segment is disabled with its reason.
  * Same pattern as sibling sections: explicit deps + wired from shell.
  * This module owns handlers, subscriptions, redraws, teardown.
  */
@@ -11,9 +11,30 @@ import {
   REASONING_EFFORTS,
 } from "../../../../settings/backend/agent-settings";
 import type { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
-import { getLocale, type Locale, setLocale } from "../../../i18n";
-import { LANG_PICKER_ORDER } from "../../constants";
+import { getLocale, type Locale, setLocale, t } from "../../../i18n";
+import { LANG_PICKER_ORDER, SEG_LABEL_KEYS } from "../../constants";
 import { handleSegmentKeydown } from "../../seg-keyboard";
+import { pushReasonHtml } from "../push-reason/push-reason";
+
+/** The reasoning-effort row in a section of its own. */
+export function effortSectionHtml(): string {
+  const buttons = REASONING_EFFORTS.map(
+    (e) =>
+      `<button class="yui-seg__btn" type="button" role="radio" data-effort="${e}" aria-checked="false" tabindex="-1">${t(SEG_LABEL_KEYS[e])}</button>`,
+  ).join("");
+  return `
+        <div class="yui-sec">
+          <div class="yui-group">
+            <div class="yui-row">
+              <div class="yui-row__main">
+                <span class="yui-row__label">${t("reasoning.label")}</span>
+                <span class="yui-row__sub">${t("reasoning.sub")}</span>${pushReasonHtml("push.reason_effort")}
+              </div>
+              <div class="yui-seg yui-effort-seg" role="radiogroup" aria-label="${t("reasoning.label")}">${buttons}</div>
+            </div>
+          </div>
+        </div>`;
+}
 
 type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
 type EndpointsSettingsStore = Pick<ReturnType<typeof createEndpointsSettings>, "subscribe">;
@@ -25,7 +46,7 @@ interface AgentSectionDeps {
   agentSettings: AgentSettingsStore;
   /** Endpoint overrides store — its subscription re-evaluates which transport is selected. */
   endpointsSettings: EndpointsSettingsStore;
-  /** Whether push chat is the effective mode; the effort segment is hidden then. */
+  /** Whether push chat is the effective mode; the effort segment is disabled then. */
   isPushMode: () => boolean;
   /** Popover open state — the store subscription redraws only while the panel is open. */
   isOpen: () => boolean;
@@ -34,7 +55,7 @@ interface AgentSectionDeps {
 }
 
 interface AgentSection {
-  /** Render the effort segment from the store and show it on request transports only. */
+  /** Render the effort segment from the store; disabled with its reason on push. */
   reflect(): void;
   /** Render the locale segment from the current display language. */
   reflectLanguage(): void;
@@ -47,13 +68,15 @@ export function createAgentSection(deps: AgentSectionDeps): AgentSection {
 
   const segEl = el.querySelector<HTMLDivElement>(".yui-effort-seg")!;
   const segButtons = Array.from(segEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
-  const effortSecEl = segEl.closest<HTMLElement>(".yui-sec")!;
+  const effortReasonEl = segEl.closest(".yui-row")!.querySelector<HTMLElement>(".yui-push-reason")!;
   // Language picker segment (3 buttons) node.
   const langSegEl = el.querySelector<HTMLDivElement>(".yui-lang-seg")!;
   const langSegButtons = Array.from(langSegEl.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
 
   function reflectAgent(): void {
-    effortSecEl.hidden = isPushMode();
+    const push = isPushMode();
+    effortReasonEl.hidden = !push;
+    for (const btn of segButtons) btn.disabled = push;
     const a = agentSettings.get();
     const idx = Math.max(0, REASONING_EFFORTS.indexOf(a.reasoning_effort));
     segButtons.forEach((btn, i) => {

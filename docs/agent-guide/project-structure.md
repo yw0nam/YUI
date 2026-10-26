@@ -533,6 +533,7 @@ YUI/
         composer.ts                  # The message window's field under the text input, with the mention pill, target chip and hint
         mention-picker.ts            # The @ list over the field: a combobox of the open presets and @everyone
         avatar.ts                    # A preset's photo, else a dot in a hue taken from its id
+        avatar.css                   # The face's size and shape
         unified-window.css           # The window's layout, log rows, pill, target chip and list
       signals/                       # The source line of a signal group, shared by the bubble and History
         source-line.ts               # Renders one source line: delivery-class dot, source, label
@@ -556,7 +557,7 @@ YUI/
         first-run-hint.ts            # First-run controls hint through the speech bubble
         boot-error.css               # Boot-failure notice styles
       quick-controls/                # Quick-controls shell parts and sections
-        quick-controls.ts            # Quick-controls panel: header, tab rail, and tab body
+        quick-controls.ts            # Quick-controls panel: header, the rail of the character's pages then every character's pages, and the page body
         quick-controls.css           # Quick-controls shell, tab rail, sections, groups, and rows
         controls.css                 # Switch, segment, field, text-button, disclosure, slider, and confirm styles
         template.ts                  # Panel markup as pure string construction
@@ -568,9 +569,9 @@ YUI/
         slider-binding.ts            # Input and release wiring shared by the range sliders
         hint-tooltip.ts              # Shared hover, focus, and click tooltip for data-tip elements
         hint-tooltip.css             # Hint tooltip styles
-        character/                   # Character tab
-          character-tab.ts           # Character tab shell
-          character-html.ts          # Character tab markup
+        character/                   # The Body page and the Motion and desktop page's character rows
+          character-tab.ts           # Builds both stacks: VRM list, relations rows and view reset; mouth gain, motions and bed scene
+          character-html.ts          # Markup of the two stacks
           vrm/                       # VRM list
             vrm-list.ts              # VRM asset list
             vrm-list.css             # VRM list styles
@@ -582,28 +583,29 @@ YUI/
           bed-scene/                 # Launch bed scene
             bed-scene-section.ts     # Bed scene switch and wake timeout
           relations/                 # Relations section
-            relations-edit-section.ts  # One slider row per target that sets the relation by hand, and the Relations switch
+            relations-edit-section.ts  # One slider row per target that sets the relation by hand, shown while the Relations switch is on
             relations-edit.css       # Relations rows, the centre-out slider fill, and the number
           gain/                      # Mouth gain
             gain-row.ts              # Mouth gain preview
           viewpoint/                 # Camera view reset
             viewpoint-row.ts         # Camera view reset button
-        connection/                  # Connection tab and its endpoint/API-key section
-          connection-tab.ts          # The Connection tab
+        connection/                  # Connection page and its endpoint/API-key section
+          connection-tab.ts          # The Connection page, with the reasoning-effort row after the chat section
           chat-type.ts               # The chat type row: long names in the open list, short name over the closed select, description line
           chat-type.css              # The overlay, option colours and description line of that row
-          endpoints-section.ts       # Endpoint URL fields, API-key rows, chat-API picker, and resets
+          endpoints-section.ts       # Endpoint URL fields, the chat and TTS key rows, chat-API picker, and resets
           endpoints-section.css      # Endpoints section and yui-select dropdown styles
-        cue-lists/                   # Schedule and proactive cue lists of the Proactive tab
+        cue-lists/                   # Schedule and proactive cue lists of the Proactive page
           cue-lists.ts               # Mounts and tears down the two cue lists
         delegations/                 # Delegated-work refresh for the session section
           delegation-sync.ts         # Minute refresh timer that follows the running delegated items
         header/                      # Popover header bar buttons
           header-buttons.ts          # Pop-out, message, devtools and close buttons with their listeners
-        preset/                      # Preset strip above the tab rail
-          preset-strip.ts            # Active-preset picker, the switching state, and the tab scope lines it fills; in the settings window it picks the preset to edit (`?edit=`)
-          preset-manage.ts           # Manage popover: rows with inline rename, delete confirm, the open or close window action, "Use in main" in the settings window (it switches main's preset), and the new-preset field
-          preset-scope.ts            # Scope line text: the preset a tab edits, or that its settings are shared
+        preset/                      # Preset strip above the rail
+          preset-strip.ts            # Active-preset picker, the switching state, the page scope lines and the rail's character heading it fills; in the settings window the character header picks the preset to edit (`?edit=`)
+          character-header.ts        # The settings window's header: every preset with its face, transport and window state; a click edits it
+          preset-manage.ts           # Manage popover: rows with inline rename, delete confirm, "Use in main" in the settings window (it switches main's preset), and the new-preset field
+          preset-scope.ts            # Scope line text: only the edited character, or every character
           preset.css                 # Strip, manage popover, scope line, relation line, and reasons card styles
           relations/                 # The relation line under the preset row, and the reasons card
             relations-section.ts     # Composes the two, re-renders on the store's notifications, and moves the changed relations
@@ -611,15 +613,29 @@ YUI/
             relation-line.ts         # This preset's relation toward each rated target, sorted by strength, on one row: the closed presets and the chips past its width folded into a +N chip, refolded on a width change
             reasons-card.ts          # The band, the engine's note, and the last three reasons of a hovered or focused relation
             view.ts                  # What the two read: this preset's relations as stored now, a target's name, and the rated targets' order
-        history/                     # History tab and its session accordion section
-          history-tab.ts             # The History tab, with its start-fresh row
-          history-section.ts         # History tab session accordion over the persisted transcript and the signal records
+        history/                     # History page and its session accordion section
+          history-tab.ts             # The History page's session list, with its start-fresh row
+          history-section.ts         # History page session accordion over the persisted transcript and the signal records
           history-rows.ts            # Merges a session's chat entries with the signal records of the turns that ran in it
           history-section.css        # Session history accordion styles
-        sections/                    # The tab sections the shell mounts and the list helpers only they use
+        search/                      # Settings search
+          settings-search.ts         # The field over the rail: per-page match counts, dimmed pages and matched rows
+          settings-search.css        # Field, count badge and matched-row styles
+        together/                    # The Together page's character list
+          characters-section.ts      # One row per preset with an "On the desktop" switch, main locked on, the open-preset cap
+          characters-section.css     # Character row styles
+          together-rows.ts           # The page's switch rows and the chain cap
+        sections/                    # The page sections the shell mounts, the rows and lines the Connection page and other sections share, and the list helpers
           agent/                     # Locale, reasoning-effort, and instructions controls
             agent-section.ts         # Locale segment, reasoning-effort segment, the card's system-prompt textarea, and their redraw
-          help/                      # Help section of the General tab
+          help/                      # Help section of the General page
+          key-row/                   # One secret API key row
+            key-row.ts               # Masked input, reveal and clear, sub line, commit on blur; the chat and TTS rows and the Listening page's STT row
+          push-reason/               # Controls the push transport cannot use
+            push-reason.ts           # The reason line under such a control and its link to the chat protocol select
+            push-reason.css          # Reason line styles
+          user-name/                 # "Your name" on the General page
+            user-name-section.ts     # The device-wide user name row, its fallback placeholder and redraw
             help-section.ts          # One Ask button per bundled guide
           monitors/                  # Screen-source radiogroup of the screenshot section
             monitors-section.ts      # Screen-source list and its load state
@@ -633,7 +649,7 @@ YUI/
             screen-section.ts        # Screen-watch threshold knobs, the min-gap slider, and their redraw
           reactions/                 # Agent notification, presence, pacer gap, and rate-limit cap rows
             reactions-section.ts     # Agent-port, presence, pacer-gap, and rate-limit cap inputs and their redraw
-          workflows/                 # Saved webhook workflows of the Reactions tab
+          workflows/                 # Saved webhook workflows of the Proactive page
             workflows-section.ts     # Workflow entry list editing
             workflows-section.css    # Workflows section styles
           voice-input/               # Voice input switch and silence slider
@@ -641,7 +657,7 @@ YUI/
           filler/                    # Thinking-filler section
             filler-section.ts        # Language segment and phrase-pool textareas, with their store subscription and reflect
             filler-tool-lines.ts     # Textarea round-trip for the filler pool's tool tier
-          speaker/                   # TTS speaker picker of the Connection tab
+          speaker/                   # TTS speaker picker of the Voice page
             speaker-list.ts          # Speaker radiogroup with reference-voice refresh and audition
             speaker-list.css         # Speaker list styles
           user-asset-list.ts         # Shared scaffolding for the VRM and speaker asset radiogroups
@@ -649,7 +665,7 @@ YUI/
         switches/                    # Switch rows
           switch-rows.ts             # Row markup, click binding, repaint, and the store following while open
         tabs/                        # The tablist
-          tab-rail.ts                # Tab rail: selection, roving tabindex, arrow keyboard, and the button/panel markup pairs
+          tab-rail.ts                # Rail: selection, roving tabindex, arrow keyboard, and the button/panel markup pairs
       i18n/                          # Locale catalogs
         en.ts                        # English strings, the source of truth for the key set
         ja.ts                        # Japanese strings

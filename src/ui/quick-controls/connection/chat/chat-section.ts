@@ -11,16 +11,13 @@ import type {
   EndpointOverrides,
 } from "../../../../settings/backend/endpoints-settings";
 import {
+  type ChatTransport,
+  effectiveChatApi,
   isValidEndpointUrl,
   mergeEndpoints,
 } from "../../../../settings/backend/endpoints-settings";
 import { t } from "../../../i18n";
-import {
-  CHAT_APIS,
-  CHAT_PRESET_CUSTOM,
-  CHAT_PROVIDER_PRESETS,
-  type ChatApi,
-} from "../../constants";
+import { CHAT_PRESET_CUSTOM, CHAT_PROVIDER_PRESETS } from "../../constants";
 import {
   endpointRowHtml,
   keyRowHtml,
@@ -28,6 +25,7 @@ import {
   selectRowHtml,
   svcResetRowHtml,
 } from "../../markup";
+import { pushReasonHtml } from "../../sections/push-reason/push-reason";
 import { chatTypeRowHtml, createChatTypeView } from "../chat-type";
 import { createChatStatus } from "./chat-status";
 import { createModelCombobox } from "./model-combobox";
@@ -112,6 +110,10 @@ export function createChatSection(deps: {
   );
   const urlInput = el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url");
   const modelInput = el.querySelector<HTMLInputElement>("#yui-ep-chat_model");
+  chatModelRowEl
+    ?.querySelector(".yui-row__main")
+    ?.insertAdjacentHTML("beforeend", pushReasonHtml("push.reason_model"));
+  const modelReasonEl = chatModelRowEl?.querySelector<HTMLElement>(".yui-push-reason");
 
   const status = createChatStatus(el, { onAction: () => pushSocket?.reconnectNow() });
 
@@ -151,20 +153,11 @@ export function createChatSection(deps: {
     },
   });
 
-  function isChatApi(v: string | undefined): v is ChatApi {
-    return v !== undefined && (CHAT_APIS as readonly string[]).includes(v);
-  }
-
-  // Effective chat API — use valid override if present, else bundled default, else fall back to responses.
-  function effectiveChatApi(): ChatApi {
-    const ov = endpointsSettings.get().chat_api;
-    if (isChatApi(ov)) return ov;
-    const def = getDefaultChatApi?.();
-    return isChatApi(def) ? def : "responses";
-  }
+  const chatApi = (): ChatTransport =>
+    effectiveChatApi(endpointsSettings.get().chat_api, getDefaultChatApi?.());
 
   function isPush(): boolean {
-    return effectiveChatApi() === "push";
+    return chatApi() === "push";
   }
 
   /** Where the socket stands, or undefined outside push mode. */
@@ -209,12 +202,13 @@ export function createChatSection(deps: {
   }
 
   // Chat API dropdown value + summary hint, matching effective chat_api.
-  // The model row belongs to the request-shaped modes — push carries no model of its own.
+  // Push carries no model of its own, so the model input is disabled there with its reason.
   function reflectChatType(): void {
-    const eff = effectiveChatApi();
+    const eff = chatApi();
     if (chatTypeEl && chatTypeEl.value !== eff) chatTypeEl.value = eff;
     chatTypeView.reflect(eff);
-    if (chatModelRowEl) chatModelRowEl.hidden = eff === "push";
+    if (modelInput) modelInput.disabled = eff === "push";
+    if (modelReasonEl) modelReasonEl.hidden = eff !== "push";
     renderStatus();
   }
 
@@ -222,7 +216,7 @@ export function createChatSection(deps: {
   // that names a protocol is matched on it; the rest are matched on the chat_base_url override.
   function reflectChatPreset(): void {
     if (!chatPresetEl) return;
-    const api = effectiveChatApi();
+    const api = chatApi();
     const url = endpointsSettings.get().chat_base_url.trim();
     const match = CHAT_PROVIDER_PRESETS.find((p) =>
       p.chatApi !== undefined ? p.chatApi === api : p.url === url && api !== "push",

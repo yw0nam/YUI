@@ -1,0 +1,12 @@
+/* ── Faces: a photo, else a dot in the preset's hue ── */
+.yui-uc__avatar,
+.yui-uc__dot {
+  display: block;
+  flex: none;
+  width: var(--yui-uc-size, 1.25rem);
+  height: var(--yui-uc-size, 1.25rem);
+  border-radius: 50%;
+}
+.yui-uc__avatar {
+  object-fit: cover;
+}

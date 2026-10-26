@@ -66,7 +66,7 @@ and the pump goes on.
 
 ## Relation events
 
-`io/chat/tools/relation.ts` (namespace `relation`), `io/bridge/inbox/relations-rpc.ts` (namespace `relations-rpc`), and the Character tab's Relations section (namespace `quick-ui` in the pet window, `settings-ui` in the settings window) log at `info`.
+`io/chat/tools/relation.ts` (namespace `relation`), `io/bridge/inbox/relations-rpc.ts` (namespace `relations-rpc`), the Body page's Relations section and the Together page's Relations switch (namespace `quick-ui` in the pet window, `settings-ui` in the settings window) log at `info`.
 
 | Event | Fields | When |
 |---|---|---|
@@ -100,7 +100,7 @@ and the pump goes on.
 
 ## Unified chat window
 
-`ui/unified/unified-view.ts` (namespace `unified-view`), `ui/unified/sequence.ts` (namespace `sequence`), `io/window/openers/unified-window.ts` (namespace `unified-window`), and the Talk tab's switch row (namespace `quick-ui` in the pet window, `settings-ui` in the settings window) log at `info` unless a row says otherwise.
+`ui/unified/unified-view.ts` (namespace `unified-view`), `ui/unified/sequence.ts` (namespace `sequence`), `io/window/openers/unified-window.ts` (namespace `unified-window`), and the Together page's switch row and Characters list (namespace `quick-ui` in the pet window, `settings-ui` in the settings window) log at `info` unless a row says otherwise.
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
@@ -110,6 +110,7 @@ and the pump goes on.
 | `unified-window` | `unified_window_open_failed` | `error` | Showing or creating the window threw (`warn` level). |
 | `unified-window` | `unified_window_close_failed` | `error` | Closing the window threw (`warn` level). |
 | `quick-ui`, `settings-ui` | `unified_chat_toggle` | `enabled` | The user flipped the Unified chat switch. |
+| `quick-ui`, `settings-ui` | `character_desktop_toggle` | `preset`, `on` | A flip of a character's On the desktop switch took effect; `on` is the new state. A turn-on the open-preset cap refused logs nothing. |
 
 ## TypeScript Usage
 

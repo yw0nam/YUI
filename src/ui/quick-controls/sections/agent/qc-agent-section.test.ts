@@ -206,16 +206,24 @@ describe("createQuickControls — agent section", () => {
     function agentControls(qc: ReturnType<typeof buildQc>) {
       const effortSec = qc.el.querySelector(".yui-effort-seg")!.closest<HTMLElement>(".yui-sec")!;
       const localeRow = qc.el.querySelector(".yui-lang-seg")!.closest<HTMLElement>(".yui-row")!;
-      return { effortSec, localeRow };
+      const reason = effortSec.querySelector<HTMLElement>(".yui-push-reason")!;
+      const disabled = () =>
+        [...effortSec.querySelectorAll<HTMLButtonElement>(".yui-seg__btn")].every(
+          (b) => b.disabled,
+        );
+      return { effortSec, localeRow, reason, disabled };
     }
 
-    it("hides the effort segment on the push transport, keeps the locale picker", () => {
+    it("disables the effort segment on the push transport with its reason, keeps the locale picker", () => {
       endpointsSettings.set({ chat_api: "push" });
       const qc = buildQc();
       qc.open();
 
-      const { effortSec, localeRow } = agentControls(qc);
-      expect(effortSec.hidden).toBe(true);
+      const { effortSec, localeRow, reason, disabled } = agentControls(qc);
+      expect(effortSec.hidden).toBe(false);
+      expect(disabled()).toBe(true);
+      expect(reason.hidden).toBe(false);
+      expect(reason.textContent).toContain("푸시에서는 얼마나 생각할지 백엔드가 정해요.");
       expect(localeRow.hidden).toBe(false);
 
       qc.dispose();
@@ -225,23 +233,22 @@ describe("createQuickControls — agent section", () => {
       endpointsSettings.set({ chat_api: "responses" });
       const qc = buildQc();
       qc.open();
-      const { effortSec } = agentControls(qc);
+      const { reason, disabled } = agentControls(qc);
 
       endpointsSettings.set({ chat_api: "push" });
-      expect(effortSec.hidden).toBe(true);
+      expect([disabled(), reason.hidden]).toEqual([true, false]);
 
       endpointsSettings.set({ chat_api: "responses" });
-      expect(effortSec.hidden).toBe(false);
+      expect([disabled(), reason.hidden]).toEqual([false, true]);
 
       qc.dispose();
     });
 
-    it("hides both controls when the bundled default transport is push", () => {
+    it("disables the segment when the bundled default transport is push", () => {
       const qc = buildQc({ getDefaultChatApi: () => "push" });
       qc.open();
 
-      const { effortSec } = agentControls(qc);
-      expect(effortSec.hidden).toBe(true);
+      expect(agentControls(qc).disabled()).toBe(true);
 
       qc.dispose();
     });
@@ -250,18 +257,18 @@ describe("createQuickControls — agent section", () => {
       const qc = buildQc();
       qc.open();
       qc.close();
-      const { effortSec } = agentControls(qc);
+      const { disabled } = agentControls(qc);
 
       endpointsSettings.set({ chat_api: "push" });
-      expect(effortSec.hidden).toBe(false);
+      expect(disabled()).toBe(false);
 
       qc.open();
-      expect(effortSec.hidden).toBe(true);
+      expect(disabled()).toBe(true);
 
       qc.dispose();
     });
 
-    it("keeps the stored effort while the control is hidden", () => {
+    it("keeps the stored effort while the control is disabled", () => {
       agentSettings.setReasoningEffort("medium");
       endpointsSettings.set({ chat_api: "push" });
       const qc = buildQc();
@@ -362,7 +369,10 @@ describe("createQuickControls — language picker", () => {
     const qc = buildQc();
     qc.open();
     // The reasoning-effort field label is keyed; ko renders the Korean copy.
-    const label = qc.el.querySelector<HTMLElement>("#yui-panel-talk .yui-row__label")!;
+    const label = qc.el
+      .querySelector(".yui-effort-seg")!
+      .closest(".yui-row")!
+      .querySelector<HTMLElement>(".yui-row__label")!;
     expect(label.textContent).toBe("추론 강도");
     qc.dispose();
   });

@@ -1,8 +1,8 @@
 /**
- * Character tab — the VRM list with import, the relations rows, the mouth-gain row, the idle and
- * express motion rows and the camera view reset. `rows`
- * picks which render; the same rows drive markup, handlers and subscriptions, so only rendered
- * rows are bound.
+ * Character tab — two stacks: the Body page's VRM list with import, relations rows and camera view
+ * reset, and the Motion page's mouth-gain, idle and express motion and bed scene rows. `rows` picks
+ * which render; the same rows drive markup, handlers and subscriptions, so only rendered rows are
+ * bound.
  */
 
 import type { AvatarOption } from "../../../config/validators/avatar/types";
@@ -19,7 +19,7 @@ import type { FlagSettingsStore } from "../../../settings/persisted-store";
 import type { PresetEntry } from "../../../settings/preset/active-preset";
 import type { RelationsStore } from "../../../settings/relations/relations-store";
 import { createBedSceneSection } from "./bed-scene/bed-scene-section";
-import { type CharacterRows, characterHtml } from "./character-html";
+import { bodyHtml, type CharacterRows, motionHtml } from "./character-html";
 import { createExpressMotionList } from "./express-motion/express-motion-section";
 import { createGainRow } from "./gain/gain-row";
 import { createIdleMotionList } from "./idle-motion/idle-motion-section";
@@ -30,7 +30,10 @@ import { createVrmList } from "./vrm/vrm-list";
 export type { CharacterRows } from "./character-html";
 
 export interface CharacterTab {
+  /** The Body page's stack. */
   el: HTMLElement;
+  /** The Motion page's stack. */
+  motionEl: HTMLElement;
   /** Repaint every rendered row from its store — the open hook. */
   refresh(): void;
   /** End a running gain preview — the close hook. */
@@ -88,7 +91,10 @@ export function createCharacterTab(deps: {
 
   const el = document.createElement("div");
   el.className = "yui-tab-stack";
-  el.innerHTML = characterHtml(rows);
+  el.innerHTML = bodyHtml(rows);
+  const motionEl = document.createElement("div");
+  motionEl.className = "yui-tab-stack";
+  motionEl.innerHTML = motionHtml(rows);
 
   const vrmList = createVrmList({
     root: el,
@@ -109,18 +115,20 @@ export function createCharacterTab(deps: {
   });
 
   const gainRow = rows.gain
-    ? createGainRow({ root: el, ...required(deps.gain, "gain"), isOpen, log })
+    ? createGainRow({ root: motionEl, ...required(deps.gain, "gain"), isOpen, log })
     : null;
 
   const idleMotion = rows.idleMotion ? required(deps.idleMotion, "idleMotion") : null;
-  const idleMotionList = idleMotion ? createIdleMotionList({ root: el, ...idleMotion, log }) : null;
+  const idleMotionList = idleMotion
+    ? createIdleMotionList({ root: motionEl, ...idleMotion, log })
+    : null;
   const unsubscribeIdleMotion = idleMotion?.settings.subscribe(() => {
     if (isOpen()) idleMotionList?.render();
   });
 
   const expressMotion = rows.expressMotion ? required(deps.expressMotion, "expressMotion") : null;
   const expressMotionList = expressMotion
-    ? createExpressMotionList({ root: el, ...expressMotion, log })
+    ? createExpressMotionList({ root: motionEl, ...expressMotion, log })
     : null;
   const unsubscribeExpressMotion = expressMotion?.settings.subscribe(() => {
     if (isOpen()) expressMotionList?.render();
@@ -128,7 +136,7 @@ export function createCharacterTab(deps: {
 
   const bedScene = rows.bedScene ? required(deps.bedScene, "bedScene") : null;
   const bedSceneSection = bedScene
-    ? createBedSceneSection({ root: el, settings: bedScene.settings, isOpen, log })
+    ? createBedSceneSection({ root: motionEl, settings: bedScene.settings, isOpen, log })
     : null;
 
   const relationsSection = rows.relations
@@ -146,6 +154,7 @@ export function createCharacterTab(deps: {
 
   return {
     el,
+    motionEl,
     refresh(): void {
       gainRow?.refresh();
       vrmList.render();
@@ -170,6 +179,7 @@ export function createCharacterTab(deps: {
       vrmsEl.removeEventListener("keydown", vrmList.handleKeydown);
       addBtn.removeEventListener("click", vrmList.handleAddClick);
       el.remove();
+      motionEl.remove();
     },
   };
 }

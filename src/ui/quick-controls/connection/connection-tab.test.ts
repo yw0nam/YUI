@@ -7,7 +7,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PushSocketState } from "../../../io/chat/push/push-socket";
 import {
   createChatKeySettings,
-  createSttKeySettings,
   createTtsKeySettings,
 } from "../../../settings/backend/api-key-settings";
 import {
@@ -57,7 +56,6 @@ describe("createConnectionTab", () => {
     return createConnectionTab({
       endpointsSettings,
       chatKeySettings,
-      sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
       ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
       rows,
       isOpen: () => true,

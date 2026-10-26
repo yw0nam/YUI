@@ -649,3 +649,60 @@
     transform: none;
   }
 }
+
+/* The settings window's character header: every preset in a scrolling row, the edited one selected. */
+.yui-chead {
+  display: flex;
+  flex: 1;
+  gap: 0.25rem;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.yui-chead__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: none;
+  padding: 0.25rem 0.625rem 0.25rem 0.375rem;
+  border: 0;
+  border-radius: var(--yui-radius-control);
+  background: transparent;
+  color: var(--yui-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.yui-chead__item:hover {
+  background: var(--yui-hover);
+}
+
+.yui-chead__item[aria-current="true"] {
+  background: var(--yui-selected);
+}
+
+.yui-chead__item:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+.yui-chead__item.is-off {
+  opacity: 0.55;
+}
+
+.yui-chead__text {
+  display: flex;
+  flex-direction: column;
+}
+
+.yui-chead__name {
+  font-size: var(--yui-fs-body);
+  font-weight: 600;
+}
+
+.yui-chead__meta {
+  font-size: var(--yui-fs-caption);
+  color: var(--yui-text-mute);
+}

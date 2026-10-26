@@ -12,9 +12,12 @@ import {
 } from "../../settings/capture/screen-settings";
 import type { Locale } from "../i18n";
 
-// Tab identity — the suffix of each tab button's `yui-tab-*` element id.
+// Page identity — the suffix of each rail button's `yui-tab-*` element id.
 // "hist" renders only when a transcript is injected; the rest are always present.
-export type QuickControlsTab = "conn" | "talk" | "char" | "input" | "react" | "hist" | "general";
+export const CHARACTER_PAGES = ["conn", "voice", "persona", "body", "hist"] as const;
+export const APP_PAGES = ["together", "listening", "perms", "react", "motion", "general"] as const;
+export type QuickControlsTab = (typeof CHARACTER_PAGES)[number] | (typeof APP_PAGES)[number];
+export const DEFAULT_PAGE: QuickControlsTab = "persona";
 
 // Language picker display order (Japanese / English / Korean). Fixed independently of LOCALES.
 export const LANG_PICKER_ORDER: readonly Locale[] = ["ja", "en", "ko"];
@@ -44,16 +47,17 @@ export const ENDPOINT_FIELDS: readonly EndpointFieldDef[] = ENDPOINT_FIELD_SPECS
   isTextFieldSpec,
 ).map((s) => ({ key: s.key, labelKey: s.labelKey, url: s.kind === "url" }));
 
-// Reactions tab: the editable rolling-window caps (io/guardrails-settings's RateLimitOverrides).
+// Proactive and Together pages: the editable rolling-window caps (io/guardrails-settings's RateLimitOverrides).
 // Each row renders as a numeric input; an empty field means "no override, use the config default".
-interface RateLimitFieldDef {
+export interface RateLimitFieldDef {
   key: keyof RateLimitOverrides;
   id: string;
   labelKey: string;
   subKey: string;
 }
 
-export const RATE_LIMIT_FIELDS: readonly RateLimitFieldDef[] = [
+/** The caps on the Proactive page. */
+export const PROACTIVE_CAP_FIELDS: readonly RateLimitFieldDef[] = [
   {
     key: "tier2_max",
     id: "yui-rate-tier2",
@@ -72,12 +76,19 @@ export const RATE_LIMIT_FIELDS: readonly RateLimitFieldDef[] = [
     labelKey: "reactions.rate_overall_label",
     subKey: "reactions.rate_overall_sub",
   },
-  {
-    key: "addressed_chain_max",
-    id: "yui-rate-addressed",
-    labelKey: "reactions.rate_addressed_label",
-    subKey: "reactions.rate_addressed_sub",
-  },
+];
+
+/** The chain cap governs characters addressing each other, so it sits on the Together page. */
+export const CHAIN_CAP_FIELD: RateLimitFieldDef = {
+  key: "addressed_chain_max",
+  id: "yui-rate-addressed",
+  labelKey: "reactions.rate_addressed_label",
+  subKey: "reactions.rate_addressed_sub",
+};
+
+export const RATE_LIMIT_FIELDS: readonly RateLimitFieldDef[] = [
+  ...PROACTIVE_CAP_FIELDS,
+  CHAIN_CAP_FIELD,
 ];
 
 // Proactive tab, screen-watch section: the editable configs/screen.json thresholds
@@ -233,13 +244,18 @@ export const STT_LANGUAGE_SUGGESTIONS = [
 ] as const;
 
 // Tab icons — same line-icon vocabulary as other icon buttons (1.5 stroke, 24x24 viewBox).
-// Input icon reuses the same path as the voice_input row icon in the input tab.
+// The Listening icon reuses the same path as the voice_input row icon on that page.
 export const TAB_ICON_CONN = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 7.5V4M15 7.5V4M12 16.5V20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M7 7.5h10v4a5 5 0 0 1-10 0v-4Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
-export const TAB_ICON_TALK = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6.8A2.3 2.3 0 0 1 6.3 4.5h11.4A2.3 2.3 0 0 1 20 6.8v6.4a2.3 2.3 0 0 1-2.3 2.3H10l-4.3 3.3v-3.3H6.3A2.3 2.3 0 0 1 4 13.2V6.8Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
-export const TAB_ICON_CHAR = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8.3" r="3.1" stroke="currentColor" stroke-width="1.5"/><path d="M5.2 19c1.15-3.4 3.9-5 6.8-5s5.65 1.6 6.8 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-export const TAB_ICON_INPUT = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4.5v7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M8 9.5v1.8a4 4 0 0 0 8 0V9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12 15.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M9.5 18.5h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+export const TAB_ICON_PERSONA = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6.8A2.3 2.3 0 0 1 6.3 4.5h11.4A2.3 2.3 0 0 1 20 6.8v6.4a2.3 2.3 0 0 1-2.3 2.3H10l-4.3 3.3v-3.3H6.3A2.3 2.3 0 0 1 4 13.2V6.8Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+export const TAB_ICON_BODY = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8.3" r="3.1" stroke="currentColor" stroke-width="1.5"/><path d="M5.2 19c1.15-3.4 3.9-5 6.8-5s5.65 1.6 6.8 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+export const TAB_ICON_LISTENING = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4.5v7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M8 9.5v1.8a4 4 0 0 0 8 0V9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12 15.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M9.5 18.5h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
 export const TAB_ICON_GENERAL = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="4" y1="18" x2="20" y2="18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="6" r="1.7" fill="var(--yui-panel-bg)" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="12" r="1.7" fill="var(--yui-panel-bg)" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="18" r="1.7" fill="var(--yui-panel-bg)" stroke="currentColor" stroke-width="1.5"/></svg>`;
 export const TAB_ICON_REACT = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M13 3 5.5 13h4.7l-1 8L18 11h-4.7l1-8Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+
+export const TAB_ICON_VOICE = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4.5 9.5h3l4.5-3.5v12l-4.5-3.5h-3v-5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M15.5 9.5a3.5 3.5 0 0 1 0 5M18 7a7 7 0 0 1 0 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+export const TAB_ICON_TOGETHER = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="9" cy="8.5" r="2.8" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 18.5c.9-2.9 3-4.3 5.5-4.3s4.6 1.4 5.5 4.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M15.5 6.2a2.8 2.8 0 0 1 0 5.4M17.2 14.4c1.6.6 2.7 1.9 3.3 4.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+export const TAB_ICON_PERMS = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.8 5.5 6.3v5.1c0 4.1 2.7 7.4 6.5 8.8 3.8-1.4 6.5-4.7 6.5-8.8V6.3L12 3.8Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="m9.3 12 1.9 1.9 3.6-3.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+export const TAB_ICON_MOTION = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="13.5" cy="5" r="1.8" stroke="currentColor" stroke-width="1.5"/><path d="m8 20 2.6-5 2.9 2.2V21M10.6 15l1.4-6 3.5 2.6 2.5-.8M12 9l-3.2 1.4L7.5 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 export const TAB_ICON_HIST = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 8v4l2.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4.5 12a7.5 7.5 0 1 1 2.2 5.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4.5 17v-4h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 

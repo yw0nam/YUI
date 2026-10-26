@@ -113,34 +113,58 @@ describe("createQuickControls — presets", () => {
     expect(thumb.src).toBe("asset://localhost/app-data/cards/bbbb0002.png");
   });
 
-  it("edit mode: picking a preset hands its id over without activating, open windows included", () => {
-    const { petWindows, onEditTarget } = editMode("aaaa0001");
+  const heads = () => [...qc.el.querySelectorAll<HTMLButtonElement>(".yui-chead__item")];
+  const head = (name: string) =>
+    heads().find((b) => b.querySelector(".yui-chead__name")?.textContent === name)!;
+
+  it("edit mode: the header lists every character with its transport and window state", () => {
+    localStorage.setItem("yui.endpoints", JSON.stringify({ chat_api: "push" }));
+    localStorage.setItem(
+      "yui.bbbb0002.endpoints",
+      JSON.stringify({ chat_api: "chat_completions" }),
+    );
+    const { petWindows } = editMode("aaaa0001");
     petWindows.open("bbbb0002");
-    const select = $<HTMLSelectElement>(".yui-preset__select");
-    expect(Array.from(select.options).map((o) => [o.textContent, o.disabled])).toEqual([
-      ["default", false],
-      ["natsume", false],
-      ["perlica", false],
+
+    expect($(".yui-preset__select")).toBeNull();
+    expect(
+      heads().map((b) => [
+        b.querySelector(".yui-chead__name")!.textContent,
+        b.querySelector(".yui-chead__meta")!.textContent,
+      ]),
+    ).toEqual([
+      ["default", "Push · Off"],
+      ["natsume", "Responses · In main"],
+      ["perlica", "Chat Completions · Window open"],
     ]);
-    select.value = "bbbb0002";
-    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+
+  it("edit mode: clicking a character hands its id over without activating; an off one is dimmed and clickable", () => {
+    const { onEditTarget } = editMode("aaaa0001");
+
+    expect(head("natsume").getAttribute("aria-current")).toBe("true");
+    expect([head("default").classList.contains("is-off"), head("default").disabled]).toEqual([
+      true,
+      false,
+    ]);
+    head("perlica").click();
 
     expect(onEditTarget).toHaveBeenCalledWith("bbbb0002");
     expect(registry.get().active).toBe("aaaa0001");
-    expect(select.disabled).toBe(false);
   });
 
-  it("edit mode: the select and the scope lines name the ?edit= preset, not the active one", () => {
+  it("edit mode: the header and the scope lines name the ?edit= preset, not the active one", () => {
     editMode("bbbb0002");
 
-    expect($<HTMLSelectElement>(".yui-preset__select").value).toBe("bbbb0002");
-    expect($(".yui-preset__label").textContent).toBe("Editing");
+    expect(head("perlica").getAttribute("aria-current")).toBe("true");
     expect(qc.el.querySelector("#yui-panel-conn .yui-tabpanel__scope")?.textContent).toBe(
-      "perlica · Connection",
+      "Only perlica",
     );
+
+    expect(registry.get().active).toBe("aaaa0001");
   });
 
-  it("edit mode: a non-active row keeps its window button and adds Use in main, disabled while its window is open", () => {
+  it("edit mode: a non-active row offers Use in main, disabled while its window is open", () => {
     const { petWindows } = editMode("bbbb0002");
     petWindows.open("default");
     openManage();
@@ -148,11 +172,10 @@ describe("createQuickControls — presets", () => {
       Array.from(rowOf(name).querySelectorAll<HTMLButtonElement>(".yui-preset-row__window"));
 
     expect(buttons("default").map((b) => [b.textContent, b.disabled])).toEqual([
-      ["Close window", false],
       ["Use in main", true],
     ]);
     expect(buttons("natsume")).toEqual([]);
-    buttons("perlica")[1]!.click();
+    buttons("perlica")[0]!.click();
 
     expect(registry.get().active).toBe("bbbb0002");
   });
@@ -250,11 +273,10 @@ describe("createQuickControls — presets", () => {
     }
   });
 
-  it("opens windows and refreshes controls after the live key clears", () => {
+  it("refreshes controls when a window opens and after the live key clears", () => {
     const petWindows = rebuild();
     openManage();
-    rowOf("perlica").querySelector<HTMLButtonElement>(".yui-preset-row__window")!.click();
-    expect(JSON.parse(localStorage.getItem("yui.windows")!)).toEqual({ open: ["bbbb0002"] });
+    petWindows.open("bbbb0002");
     const option = () =>
       $<HTMLSelectElement>(".yui-preset__select").querySelector<HTMLOptionElement>(
         'option[value="bbbb0002"]',
@@ -269,11 +291,6 @@ describe("createQuickControls — presets", () => {
     petWindows.invalidate();
     expect(option().disabled).toBe(false);
     expect(rowOf("perlica").querySelector(".yui-preset-row__remove")).not.toBeNull();
-  });
-  it("shows window actions without a feature flag", () => {
-    rebuild();
-    openManage();
-    expect(qc.el.querySelectorAll(".yui-preset-row__window")).toHaveLength(2);
   });
   it("shows the bound name and protects that row", () => {
     rebuild("bbbb0002");
@@ -328,7 +345,7 @@ describe("createQuickControls — presets", () => {
     expect(pickPresetPhoto).toHaveBeenCalledWith("aaaa0001");
   });
 
-  it("shows the active preset in the strip and names it on each per-preset tab", () => {
+  it("shows the active preset in the strip, names it on each character page and the rail group", () => {
     const select = $<HTMLSelectElement>(".yui-preset__select");
     expect(select.value).toBe("aaaa0001");
     expect(Array.from(select.options).map((o) => o.textContent)).toEqual([
@@ -338,10 +355,14 @@ describe("createQuickControls — presets", () => {
     ]);
     const scope = (tab: string): string | null | undefined =>
       qc.el.querySelector(`#yui-panel-${tab} .yui-tabpanel__scope`)?.textContent;
-    expect(scope("conn")).toBe("natsume · Connection");
-    expect(scope("talk")).toBe("natsume · Talk");
-    expect(scope("char")).toBe("natsume · Only the VRM selection and relations are per preset");
-    expect(scope("general")).toBe("Shared by every preset");
+    expect(scope("conn")).toBe("Only natsume");
+    expect(scope("persona")).toBe("Only natsume");
+    expect(scope("body")).toBe("Only natsume");
+    expect(scope("together")).toBe("Every character");
+    expect(scope("general")).toBe("Every character");
+    expect(qc.el.querySelector("#yui-tab-conn")?.previousElementSibling?.textContent).toBe(
+      "natsume",
+    );
   });
 
   it("activates the picked preset and holds the panel inert while it switches", () => {

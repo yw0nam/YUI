@@ -1,0 +1,45 @@
+/* The search field over the rail, the per-page match count, and the matched rows. */
+.yui-search__input {
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 0.25rem;
+  padding: 0.375rem 0.625rem;
+  border: 1px solid var(--yui-edge);
+  border-radius: var(--yui-radius-control);
+  background: transparent;
+  color: var(--yui-text);
+  font: inherit;
+  font-size: var(--yui-fs-sub);
+}
+
+.yui-search__input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+.yui-tab__count {
+  margin-left: auto;
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-caption);
+}
+
+.yui-tab__count[hidden] {
+  display: none;
+}
+
+.yui-tab.is-dim {
+  opacity: 0.45;
+}
+
+.is-match {
+  border-radius: var(--yui-radius-control);
+  background: var(--yui-selected);
+}
+
+/* Icons only: no room for the field or the counts. */
+@container (width < 30rem) {
+  .yui-search__input,
+  .yui-tab__count {
+    display: none;
+  }
+}

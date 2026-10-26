@@ -4,6 +4,7 @@
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { AvatarOption } from "../../config/validators/avatar/types";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
+import { createChatHistoryStore } from "../../io/chat/conversation/chat-history-store";
 import { createSessionDiagnosticsStore } from "../../io/chat/conversation/session-diagnostics";
 import { createSessionStore } from "../../io/chat/conversation/session-store";
 import type {
@@ -11,6 +12,7 @@ import type {
   SpeakerOption,
 } from "../../io/voice/voices/speaker-selection";
 import type { PickedVoiceImport } from "../../io/voice/voices/voice-import-flow";
+import { createBedSceneSettings } from "../../settings/avatar/bed-scene-settings";
 import { createExpressMotionSettings } from "../../settings/avatar/express-motion-settings";
 import { createIdleMotionSettings } from "../../settings/avatar/idle-motion-settings";
 import { createLipsyncSettings } from "../../settings/avatar/lipsync-settings";
@@ -22,10 +24,13 @@ import { createScreenKnobSettings } from "../../settings/capture/screen-settings
 import { createScreenshotSettings } from "../../settings/capture/screenshot-settings";
 import { createProactiveSettings } from "../../settings/cues/proactive-settings";
 import { createScheduleSettings } from "../../settings/cues/schedule-settings";
+import { createMessageWindowSettings } from "../../settings/panels/message-window-settings";
 import { createFlagSettings } from "../../settings/persisted-store";
+import { createPetWindows } from "../../settings/preset/pet-windows";
+import { createPresetRegistry } from "../../settings/preset/preset-registry";
+import { createRelationsStore } from "../../settings/relations/relations-store";
 import { createPacerGapStore, createPresenceStore } from "../../settings/settings-stores";
-import { createFillerSettings, type FillerSettings } from "../../settings/voice/filler-settings";
-import { createVadSettings } from "../../settings/voice/vad-settings";
+import { createFillerSettings } from "../../settings/voice/filler-settings";
 import { setLocale, t } from "../i18n";
 import { createQuickControls } from "./quick-controls";
 import {
@@ -34,11 +39,6 @@ import {
   makeSpeakerSelection,
   makeVrmSelection,
 } from "./test-helpers";
-
-/** A filler store hydrated from storage with the given settings. */
-function seededFiller(settings: FillerSettings) {
-  return createFillerSettings({ storage: { load: () => settings, save: () => {} } });
-}
 
 const inMemoryValueStorage = () => {
   let value: { value: number } | null = null;
@@ -113,25 +113,128 @@ describe("createQuickControls — settings layout", () => {
     return qc.el.querySelector<HTMLElement>(`#yui-panel-${tab}`)!;
   }
 
-  it("puts the four endpoint sections in the Connection tab", () => {
-    const qc = buildFullQc();
+  // Every page lists its sections in rail order; a marker is one element each section renders.
+  const PAGES: readonly (readonly [string, readonly string[]])[] = [
+    [
+      "conn",
+      [
+        '[data-svc="chat"] [data-ep-field="chat_model"]',
+        ".yui-effort-seg",
+        '[data-svc="stt"] [data-ep-field="stt_base_url"]',
+        '[data-svc="tts"] .yui-tts-provider',
+        '[data-svc="broker"]',
+      ],
+    ],
+    ["voice", [".yui-tts-switch", ".yui-spks", ".yui-filler", ".yui-message-window-switch"]],
+    ["persona", [".yui-card-switch", '[data-card-field="description"]', ".yui-card-import"]],
+    ["body", [".yui-vrms", ".yui-relations__rows", ".yui-viewpoint-reset"]],
+    ["hist", [".yui-hist__action", ".yui-session"]],
+    [
+      "together",
+      [
+        ".yui-unified-switch",
+        ".yui-one-voice-switch",
+        ".yui-relations-switch",
+        "#yui-rate-addressed",
+        ".yui-chars__rows",
+      ],
+    ],
+    [
+      "listening",
+      [
+        ".yui-voice-switch",
+        "#yui-sttkey-input",
+        ".yui-vad__slider",
+        ".yui-bargein-switch",
+        ".yui-bubble-persist-switch",
+        ".yui-reading",
+      ],
+    ],
+    [
+      "perms",
+      [
+        ".yui-screenshot-switch",
+        ".yui-monitors",
+        ".yui-screenshot-requests-switch",
+        ".yui-browser-switch",
+      ],
+    ],
+    [
+      "react",
+      [
+        ".yui-screen-switch",
+        ".yui-loop-cue-section",
+        ".yui-cue-sections",
+        ".yui-agentnotify-switch",
+        "#yui-agent-port",
+        "#yui-ingress-url",
+        ".yui-wf-list",
+        "#yui-presence",
+        "#yui-pacer-gap",
+        "#yui-rate-tier2",
+        "#yui-rate-urgent",
+        "#yui-rate-overall",
+      ],
+    ],
+    [
+      "motion",
+      [
+        ".yui-lipsync-gain__slider",
+        ".yui-idle-motion",
+        ".yui-express-motion",
+        ".yui-bed-scene",
+        ".yui-gaze-switch",
+        ".yui-climb-switch",
+        ".yui-fall-switch",
+        ".yui-idle-throttle-switch",
+      ],
+    ],
+    ["general", [".yui-lang-seg", ".yui-theme-seg", "#yui-user-name", ".yui-help-btn"]],
+  ];
+
+  it.each(PAGES)("the %s page holds its sections in order", (page, markers) => {
+    (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+    const registry = createPresetRegistry();
+    const qc = buildFullQc({
+      transcript: createChatHistoryStore(),
+      presetRegistry: registry,
+      petWindows: createPetWindows(),
+      relationsStore: createRelationsStore({ storage: { load: () => ({}), save: () => {} } }),
+      unifiedChatSwitch: createFlagSettings(false),
+      oneVoiceSettings: createFlagSettings(true),
+      ttsSettings: createFlagSettings(true),
+      gazeSettings: createFlagSettings(true),
+      climbSettings: createFlagSettings(true),
+      fallSettings: createFlagSettings(true),
+      bedSceneSettings: createBedSceneSettings(),
+      agentNotifySettings: createAgentNotifySettings(),
+      presenceSettings: inMemoryPresenceStore(),
+      pacerGapSettings: inMemoryPacerGapStore(),
+      browserSettings: createFlagSettings(false),
+      messageWindowSettings: createMessageWindowSettings(),
+      bubblePersistSettings: createFlagSettings(false),
+      onGuide: vi.fn(),
+    });
     qc.open();
 
-    const svcs = Array.from(panel(qc, "conn").querySelectorAll<HTMLElement>(".yui-endpoints"));
-    expect(svcs.map((s) => s.dataset.svc)).toEqual(["chat", "stt", "tts", "broker"]);
+    const el = panel(qc, page);
+    const nodes = Array.from(el.querySelectorAll("*"));
+    const at = (sel: string): number => nodes.indexOf(el.querySelector(sel)!);
+    const present = markers.filter((sel) => el.querySelector(sel));
+    expect([...present].sort((a, b) => at(a) - at(b))).toEqual(markers);
 
     qc.dispose();
+    delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
   });
 
-  it("puts the display language, performance switches and session in the General tab", () => {
-    const qc = buildFullQc();
-    qc.open();
+  it("renders the Unified chat row on a push preset", () => {
+    const endpointsSettings = createEndpointsSettings();
+    endpointsSettings.set({ chat_api: "push" });
+    const qc = buildFullQc({ endpointsSettings, unifiedChatSwitch: createFlagSettings(false) });
+    qc.open(undefined, { tab: "together" });
 
-    const general = panel(qc, "general");
-    expect(general.querySelector(".yui-lang-seg")).not.toBeNull();
-    expect(general.querySelector(".yui-idle-throttle-switch")).not.toBeNull();
-    expect(general.querySelector(".yui-session")).not.toBeNull();
-    expect(panel(qc, "talk").querySelector(".yui-lang-seg")).toBeNull();
+    const row = panel(qc, "together").querySelector(".yui-unified-switch");
+    expect(row?.closest("[hidden]")).toBeNull();
 
     qc.dispose();
   });
@@ -142,8 +245,8 @@ describe("createQuickControls — settings layout", () => {
 
     const details = Array.from(qc.el.querySelectorAll("details"));
     expect(details.map((d) => d.closest(".yui-sec")?.classList.contains("yui-card"))).toEqual([
-      true,
       false,
+      true,
     ]);
     expect(details.every((d) => d.classList.contains("yui-more"))).toBe(true);
 
@@ -237,28 +340,6 @@ describe("createQuickControls — proactive tab layout", () => {
   });
 
   // ── Cue-section relocation ────────────────────────────────────────────────
-
-  it("mounts the cue-sections block in the proactive tab, not the input tab", () => {
-    const qc = buildQc();
-    qc.open();
-    const reactPanel = qc.el.querySelector<HTMLElement>("#yui-panel-react")!;
-    const inputPanel = qc.el.querySelector<HTMLElement>("#yui-panel-input")!;
-    const cueSections = reactPanel.querySelector(".yui-cue-sections");
-    expect(cueSections).not.toBeNull();
-    expect(cueSections!.querySelector("[data-testid='cue-section']")).not.toBeNull();
-    expect(inputPanel.querySelector(".yui-cue-sections")).toBeNull();
-    expect(inputPanel.querySelector(".yui-loop-cue-section")).toBeNull();
-    qc.dispose();
-  });
-
-  it("keeps the screenshot and voice rows in the input tab", () => {
-    const qc = buildQc();
-    qc.open();
-    const inputPanel = qc.el.querySelector<HTMLElement>("#yui-panel-input")!;
-    expect(inputPanel.querySelector(".yui-screenshot-switch")).not.toBeNull();
-    expect(inputPanel.querySelector(".yui-voice-switch")).not.toBeNull();
-    qc.dispose();
-  });
 
   // ── Section order ─────────────────────────────────────────────────────────
 
@@ -400,78 +481,16 @@ describe("createQuickControls — Reactions tab layout", () => {
     };
   }
 
-  it("renders the four rate-limit rows inside #yui-panel-react", () => {
+  it("renders every rate-limit cap as a number input", () => {
     const { qc } = buildRateQc();
     qc.open();
-    const panel = qc.el.querySelector<HTMLElement>("#yui-panel-react")!;
-    for (const id of [
-      "#yui-rate-tier2",
-      "#yui-rate-urgent",
-      "#yui-rate-overall",
-      "#yui-rate-addressed",
-    ]) {
-      const input = qc.el.querySelector<HTMLInputElement>(id);
-      expect(input).not.toBeNull();
-      expect(input!.type).toBe("number");
-      expect(panel.contains(input)).toBe(true);
-    }
-    qc.dispose();
-  });
-});
-
-describe("createQuickControls — filler tab layout", () => {
-  let mount: HTMLElement;
-  let vad: ReturnType<typeof createVadSettings>;
-
-  beforeEach(() => {
-    let rafId = 0;
-    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
-      cb(0);
-      return ++rafId;
-    });
-    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
-    mount = document.createElement("div");
-    document.body.appendChild(mount);
-    vad = createVadSettings();
-    try {
-      globalThis.localStorage?.clear();
-    } catch {
-      /* Ignore environments without localStorage */
-    }
-    // Existing assertions pin Korean copy/selectors; render the panel in ko.
-    setLocale("ko");
-  });
-
-  afterEach(() => {
-    document.body.innerHTML = "";
-    vi.restoreAllMocks();
-  });
-
-  function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
-    return createQuickControls({
-      ...defaultQcArgs(mount),
-      vad,
-      ...extra,
-    });
-  }
-
-  // ── Thinking filler section ──────────────────────────────────────────────────
-
-  function makeFillerSettings(over?: { enabled?: boolean; language?: "ja" | "en" | "ko" }) {
-    return seededFiller({ enabled: true, language: "ja", customPools: {}, ...over });
-  }
-
-  it("renders filler section in the talk tab when fillerSettings is provided", () => {
-    const fs = makeFillerSettings();
-    const qc = buildQc({ fillerSettings: fs });
-    qc.open();
-
-    const section = qc.el.querySelector(".yui-filler");
-    expect(section).not.toBeNull();
-    // Must be inside the talk panel
-    const talkPanel = qc.el.querySelector<HTMLElement>("#yui-panel-talk")!;
-    expect(talkPanel.contains(section)).toBe(true);
-
+    const ids = ["#yui-rate-tier2", "#yui-rate-urgent", "#yui-rate-overall", "#yui-rate-addressed"];
+    expect(ids.map((id) => qc.el.querySelector<HTMLInputElement>(id)?.type)).toEqual([
+      "number",
+      "number",
+      "number",
+      "number",
+    ]);
     qc.dispose();
   });
 });

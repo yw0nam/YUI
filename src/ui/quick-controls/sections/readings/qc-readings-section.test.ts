@@ -22,9 +22,9 @@ describe("createQuickControls — reading dictionary section", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders as the last section of the Input tab", () => {
+  it("renders as the last section of the Listening page", () => {
     const qc = createQuickControls(defaultQcArgs(mount));
-    const input = qc.el.querySelector("#yui-panel-input")!;
+    const input = qc.el.querySelector("#yui-panel-listening")!;
     expect(input.querySelector(".yui-reading")).toBe(input.querySelector(".yui-sec:last-child"));
     qc.dispose();
   });

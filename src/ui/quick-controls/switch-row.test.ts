@@ -33,6 +33,7 @@ function makeSwitchRows(): SwitchRow[] {
     screenSettings: createFlagSettings(false),
     screenKnobSettings: createScreenKnobSettings(),
     unifiedChatSwitch: createFlagSettings(false),
+    relationsSwitch: createFlagSettings(true),
   });
 }
 
@@ -90,7 +91,7 @@ describe("SwitchRow descriptor", () => {
     }
   });
 
-  it("puts the Unified chat row in the Talk tab, off, and a click flips its store", () => {
+  it("puts the Unified chat row in the Together page, off, and a click flips its store", () => {
     const unifiedChatSwitch = createFlagSettings(false);
     const rows = createSwitchRows({
       idleThrottleSettings: createFlagSettings(true),
@@ -101,7 +102,7 @@ describe("SwitchRow descriptor", () => {
     const root = render(rows);
     const button = root.querySelector<HTMLButtonElement>(".yui-unified-switch");
 
-    expect(button?.closest("[role=tabpanel]")?.id).toBe("yui-panel-talk");
+    expect(button?.closest("[role=tabpanel]")?.id).toBe("yui-panel-together");
     expect(button?.getAttribute("aria-checked")).toBe("false");
 
     const bound = bindSwitchRows(root, rows, { debug() {}, info() {}, warn() {}, error() {} });

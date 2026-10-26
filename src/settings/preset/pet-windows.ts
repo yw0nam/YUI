@@ -6,6 +6,8 @@ import { readActivePresetId, readPresetList, readPresetName } from "./active-pre
 
 export const PET_WINDOWS_KEY = "yui.windows";
 export const LIVE_KEY_PREFIX = "yui.live-window.";
+/** Most presets open at once, main's included. */
+export const OPEN_PRESET_CAP = 4;
 export type PresetWindowKind = "pet" | "settings" | "message";
 export const windowLabel = (kind: PresetWindowKind, id: string): string => `${kind}-${id}`;
 export const liveKey = (label: string): string => `${LIVE_KEY_PREFIX}${label}`;
@@ -92,7 +94,20 @@ export function createPetWindows(deps?: { storage?: PersistedStorage<{ open: str
   }
   return {
     get: () => core.get().open,
-    open: (id: string) => edit((ids) => (id && !ids.includes(id) ? [...ids, id] : ids)),
+    /** False, with nothing written, when `OPEN_PRESET_CAP` presets are already open without `id`. */
+    open: (id: string): boolean => {
+      let opened = true;
+      edit((ids) => {
+        const openIds = new Set([readActivePresetId(), ...ids]);
+        if (!id || openIds.has(id)) return ids;
+        if (openIds.size >= OPEN_PRESET_CAP) {
+          opened = false;
+          return ids;
+        }
+        return [...ids, id];
+      });
+      return opened;
+    },
     close: (id: string) => edit((ids) => ids.filter((v) => v !== id)),
     prune: (listed: string[]) => edit((ids) => ids.filter((id) => listed.includes(id))),
     reloadFromStorage: core.reloadFromStorage,

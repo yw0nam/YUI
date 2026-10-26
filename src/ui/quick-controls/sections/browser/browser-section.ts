@@ -1,5 +1,5 @@
 /**
- * Browser section of the Input tab — owns the browser-use switch: its markup, the click that flips
+ * Browser section of the Permissions page — owns the browser-use switch: its markup, the click that flips
  * the store, and the redraw of the switch and its sub text while the panel is open.
  */
 

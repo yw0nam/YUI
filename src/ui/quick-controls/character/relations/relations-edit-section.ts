@@ -1,6 +1,6 @@
 /**
  * Relations section — one row per target with a slider that sets this preset's relation by hand,
- * and the Relations switch in the section head. This module owns the handlers, the store and switch
+ * shown while the Relations switch is on. This module owns the handlers, the store and switch
  * subscriptions, the repaints and teardown; the tab only constructs it.
  */
 
@@ -37,7 +37,6 @@ export function createRelationsEditSection(deps: {
 }): { refresh(): void; dispose(): void } {
   const { root, store, relationsSwitch, self, log } = deps;
   const sectionEl = root.querySelector<HTMLElement>(".yui-relations")!;
-  const switchEl = sectionEl.querySelector<HTMLButtonElement>(".yui-relations__switch")!;
   const noteEl = sectionEl.querySelector<HTMLElement>(".yui-relations__note")!;
   const offEl = sectionEl.querySelector<HTMLElement>(".yui-relations__off")!;
   const rowsEl = sectionEl.querySelector<HTMLElement>(".yui-relations__rows")!;
@@ -94,7 +93,6 @@ export function createRelationsEditSection(deps: {
 
   function render(): void {
     const on = relationsSwitch.get().enabled;
-    switchEl.setAttribute("aria-checked", String(on));
     rowsEl.hidden = !on;
     noteEl.hidden = !on;
     offEl.hidden = on;
@@ -149,16 +147,9 @@ export function createRelationsEditSection(deps: {
     } else rowsEl.append(...ordered);
   }
 
-  function handleSwitchClick(): void {
-    const enabled = !relationsSwitch.get().enabled;
-    relationsSwitch.setEnabled(enabled);
-    log.info("relations_toggle", { enabled });
-  }
-
   const repaint = (): void => {
     if (deps.isOpen()) render();
   };
-  switchEl.addEventListener("click", handleSwitchClick);
   const offStore = store.subscribe(repaint);
   const offSwitch = relationsSwitch.subscribe(repaint);
 
@@ -167,7 +158,6 @@ export function createRelationsEditSection(deps: {
     dispose(): void {
       offStore();
       offSwitch();
-      switchEl.removeEventListener("click", handleSwitchClick);
     },
   };
 }

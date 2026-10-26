@@ -12,6 +12,7 @@ import {
   type PersistedStorage,
   projectOverrides,
 } from "../persisted-store";
+import { resolveStorageKey } from "../preset/preset-keys";
 
 /** Max length per field (overly long storage values are capped, not reset to ""). */
 export const ENDPOINT_VALUE_MAX_LEN = 2048;
@@ -38,6 +39,7 @@ export type EndpointsStorage = PersistedStorage<EndpointOverrides>;
 
 /** Valid chat_api values that mergeEndpoints applies. Anything else (including empty) means no override. */
 const VALID_CHAT_APIS = ["responses", "chat_completions", "push"] as const;
+export type ChatTransport = (typeof VALID_CHAT_APIS)[number];
 
 interface EndpointFieldBase {
   key: keyof EndpointOverrides;
@@ -219,6 +221,23 @@ export function createEndpointsSettings(opts?: { storage?: EndpointsStorage }) {
     // Every value coerces, so an invalid one clears the field rather than keeping the old override.
     accept: coerceFor,
   });
+}
+
+/** The chat transport in effect: a valid override, else a valid bundled default, else Responses. */
+export function effectiveChatApi(override: string, bundled: string | undefined): ChatTransport {
+  if (isOneOf(VALID_CHAT_APIS, override)) return override;
+  return bundled !== undefined && isOneOf(VALID_CHAT_APIS, bundled) ? bundled : "responses";
+}
+
+/** `presetId`'s stored chat_api override, coerced as the store coerces it; "" when it has none. */
+export function readChatApiOverride(presetId: string): string {
+  const stored = localStorageStore<EndpointOverrides>(
+    resolveStorageKey("yui.endpoints", presetId),
+    {
+      resolve: false,
+    },
+  ).load();
+  return coerceFor("chat_api", stored?.chat_api);
 }
 
 /** localStorage-based EndpointsStorage adapter. Gracefully ignored in environments without localStorage. */

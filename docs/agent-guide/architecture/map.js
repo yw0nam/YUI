@@ -1163,7 +1163,7 @@ globalThis.YUI_MAP =
       "id": "ui/quick-controls",
       "module": "settings",
       "label": "quick controls",
-      "role": "The settings panel, shown as a popover in the pet window and as the whole settings window; the preset manage row's copy button copies a character's ingress URL and the Reactions URL line shows this window's; the preset strip shows this preset's relation line and the reasons card; the Talk tab's Card section edits the preset's card, its send switch, the preset's name and the device-wide user name; the General tab's Appearance row picks the theme.",
+      "role": "The settings panel, shown as a popover in the pet window and as the whole settings window: a search field over a rail of the edited character's pages (Connection, Voice, Persona, Body, History) then every character's pages (Together, Listening and bubble, Permissions, Proactive, Motion and desktop, General), each page's scope line naming which; the settings window heads with every character and its transport and window state, and a click edits it; a control the push transport cannot use stays, disabled, with its reason and a link to the chat protocol select; the Together page's Characters list turns each character on or off the desktop; the preset manage row's copy button copies a character's ingress URL and the Proactive URL line shows this window's; the preset strip shows this preset's relation line and the reasons card; the Persona page's Card section edits the preset's card, its send switch and the preset's name; the General page holds the device-wide user name and the Appearance row that picks the theme.",
       "paths": [
         "src/ui/quick-controls"
       ]
@@ -2685,7 +2685,7 @@ globalThis.YUI_MAP =
       "id": "controls-settings",
       "from": "ui/quick-controls",
       "to": "settings",
-      "carries": "store commit → localStorage yui.*, or yui.<preset-id>.* for a per-preset key; the preset strip writes yui.windows, the manage popover's Use in main writes the active id, and activate returns false while a preset is open or live; the Card section writes the card and send switch into yui.agent, the user name into yui.user-name, and renames the preset in yui.presets",
+      "carries": "store commit → localStorage yui.*, or yui.<preset-id>.* for a per-preset key; the Characters list writes yui.windows, and open returns false with nothing written while 4 presets, main's included, are open; the manage popover's Use in main writes the active id, and activate returns false while a preset is open or live; the Card section writes the card and send switch into yui.agent and renames the preset in yui.presets; the General page writes the user name into yui.user-name",
       "kind": "storage",
       "transport": "shared"
     },
@@ -3009,7 +3009,7 @@ globalThis.YUI_MAP =
       "id": "controls-models",
       "from": "ui/quick-controls",
       "to": "io/chat/models",
-      "carries": "read the model list for the Connection tab",
+      "carries": "read the model list for the Connection page",
       "kind": "call",
       "transport": "request"
     },

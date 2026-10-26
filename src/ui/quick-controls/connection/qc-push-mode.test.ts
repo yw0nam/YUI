@@ -140,36 +140,59 @@ describe("createQuickControls — push mode", () => {
 
   // ── Model row ──────────────────────────────────────────────────────────────
 
-  it("hides the chat model row in push mode", () => {
+  function modelReason(qc: { el: HTMLElement }): HTMLElement {
+    return modelRow(qc).querySelector<HTMLElement>(".yui-push-reason")!;
+  }
+
+  it("disables the chat model input in push mode and says why under it", () => {
     endpointsSettings.set({ chat_api: "push" });
     const qc = buildQc();
-    qc.open();
-
-    expect(modelRow(qc).hidden).toBe(true);
-
-    qc.dispose();
-  });
-
-  it("keeps the chat model row in the other modes", () => {
-    const qc = buildQc({ getDefaultChatApi: () => "responses" });
     qc.open();
 
     expect(modelRow(qc).hidden).toBe(false);
+    expect(modelRow(qc).querySelector<HTMLInputElement>("input")!.disabled).toBe(true);
+    expect(modelReason(qc).hidden).toBe(false);
+    expect(modelReason(qc).textContent).toContain("The backend picks the model on push.");
 
     qc.dispose();
   });
 
-  it("brings the model row back when the mode leaves push", () => {
+  it("keeps the chat model input enabled, with no reason, in the other modes", () => {
+    const qc = buildQc({ getDefaultChatApi: () => "responses" });
+    qc.open();
+
+    expect(modelRow(qc).querySelector<HTMLInputElement>("input")!.disabled).toBe(false);
+    expect(modelReason(qc).hidden).toBe(true);
+
+    qc.dispose();
+  });
+
+  it("enables the model input again when the mode leaves push", () => {
     endpointsSettings.set({ chat_api: "push" });
     const qc = buildQc();
     qc.open();
-    expect(modelRow(qc).hidden).toBe(true);
+    expect(modelRow(qc).querySelector<HTMLInputElement>("input")!.disabled).toBe(true);
 
     const type = qc.el.querySelector<HTMLSelectElement>(".yui-chat-type")!;
     type.value = "responses";
     type.dispatchEvent(new Event("change"));
 
-    expect(modelRow(qc).hidden).toBe(false);
+    expect(modelRow(qc).querySelector<HTMLInputElement>("input")!.disabled).toBe(false);
+    expect(modelReason(qc).hidden).toBe(true);
+
+    qc.dispose();
+  });
+
+  it("the reason's link opens Connection and focuses the chat protocol select, keeping push", () => {
+    endpointsSettings.set({ chat_api: "push" });
+    const qc = buildQc();
+    qc.open(undefined, { tab: "persona" });
+
+    qc.el.querySelector<HTMLButtonElement>(".yui-card .yui-push-reason button")!.click();
+
+    expect(qc.selectedTab()).toBe("conn");
+    expect(document.activeElement).toBe(qc.el.querySelector(".yui-chat-type"));
+    expect(endpointsSettings.get().chat_api).toBe("push");
 
     qc.dispose();
   });

@@ -283,7 +283,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.dispose();
   });
 
-  it("the stt reset clears stt_base_url and the stt key", () => {
+  it("the stt reset clears stt_base_url and leaves the shared stt key", () => {
     const sttKeySettings = createSttKeySettings({ storage: inMemoryApiKeyStorage() });
     sttKeySettings.setApiKey("sk-stt-1");
     const qc = buildQc({ sttKeySettings });
@@ -293,7 +293,7 @@ describe("createQuickControls — endpoints + API keys", () => {
 
     qc.el.querySelector<HTMLButtonElement>('.yui-svc-reset[data-svc-reset="stt"]')!.click();
     expect(endpointsSettings.get().stt_base_url).toBe("");
-    expect(sttKeySettings.get().apiKey).toBe("");
+    expect(sttKeySettings.get().apiKey).toBe("sk-stt-1");
 
     qc.dispose();
   });
@@ -601,7 +601,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     )!;
   }
 
-  it("renders a masked STT key row in the STT section wired to the stt store", () => {
+  it("renders a masked STT key row on the Listening page wired to the stt store", () => {
     const sttKeySettings = createSttKeySettings({ storage: inMemoryApiKeyStorage() });
     const setSpy = vi.spyOn(sttKeySettings, "setApiKey");
     const clearSpy = vi.spyOn(sttKeySettings, "clear");
@@ -610,7 +610,11 @@ describe("createQuickControls — endpoints + API keys", () => {
 
     const input = keyInput(qc, "sttkey");
     expect(input.type).toBe("password");
-    expect(qc.el.querySelector('.yui-svc[data-svc="stt"]')!.contains(input)).toBe(true);
+    expect(qc.el.querySelector("#yui-panel-listening")!.contains(input)).toBe(true);
+    expect(qc.el.querySelector('.yui-svc[data-svc="stt"]')!.contains(input)).toBe(false);
+
+    sttKeySettings.setApiKey("sk-stt-elsewhere");
+    expect(input.value).toBe("sk-stt-elsewhere");
 
     input.value = "sk-stt-abc";
     input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -689,14 +693,14 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.dispose();
   });
 
-  it("shows the TTS URL row, the speaker picker and the TTS key row side by side", () => {
+  it("shows the TTS URL row and the TTS key row together, and the speaker picker on the Voice page", () => {
     const qc = buildQc();
     qc.open();
 
     const tts = qc.el.querySelector<HTMLElement>('#yui-panel-conn .yui-svc[data-svc="tts"]')!;
     expect(tts.querySelector('.yui-input-row[data-ep-field="tts_base_url"]')).not.toBeNull();
-    expect(tts.querySelector(".yui-spk-scroll")).not.toBeNull();
     expect(tts.querySelector('[data-key-prefix="ttskey"]')).not.toBeNull();
+    expect(qc.el.querySelector("#yui-panel-voice .yui-spk-scroll")).not.toBeNull();
 
     qc.dispose();
   });

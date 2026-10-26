@@ -1,5 +1,6 @@
 /** A preset's face in the unified chat window: its photo, else a dot in a hue taken from its id. */
 
+import "./avatar.css";
 import type { PresetEntry } from "../../settings/preset/active-preset";
 
 /** djb2 over the id, mod 360. */

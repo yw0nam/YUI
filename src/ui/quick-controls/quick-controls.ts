@@ -1,6 +1,8 @@
 /**
  * Quick-controls panel — settings panel summoned by right-click.
- * Comprises a draggable header (popover variant only; the window variant uses the native titlebar) + tab rail (connection · talk · character · input · proactive · history · general) + tab panel body.
+ * Comprises a draggable header (popover variant only; the window variant uses the native titlebar) + a rail of the
+ * character's pages (connection · voice · persona · body · history) then every character's pages (together ·
+ * listening · permissions · proactive · motion · general) + the page body.
  * variant: "popover" (default, docked in pet window + draggable) | "window" (separate OS window, full fill).
  */
 
@@ -38,9 +40,10 @@ import type {
   ApiKeySettingsStore,
   ChatKeySettingsStore,
 } from "../../settings/backend/api-key-settings";
-import type {
-  createEndpointsSettings,
-  EndpointOverrides,
+import {
+  type createEndpointsSettings,
+  type EndpointOverrides,
+  effectiveChatApi,
 } from "../../settings/backend/endpoints-settings";
 import type {
   GuardrailsSettingsStore,
@@ -68,30 +71,35 @@ import type { VoiceInputStatus } from "../chips/voice-input-status";
 import { t } from "../i18n";
 import { createCharacterTab } from "./character/character-tab";
 import { createConnectionTab, type PushSocketPanelPort } from "./connection/connection-tab";
-import type { QuickControlsTab } from "./constants";
+import { DEFAULT_PAGE, type QuickControlsTab } from "./constants";
 import { mountCueLists } from "./cue-lists/cue-lists";
 import { createHeaderButtons } from "./header/header-buttons";
 import { createHintTooltip } from "./hint-tooltip";
 import { createHistoryTab } from "./history/history-tab";
 import { createPopover } from "./popover";
 import { createPresetStrip } from "./preset/preset-strip";
+import { bindSettingsSearch } from "./search/settings-search";
 import { createAgentSection } from "./sections/agent/agent-section";
 import { createBrowserSection } from "./sections/browser/browser-section";
 import { createCardSection } from "./sections/card/card-section";
 import { createFillerSection } from "./sections/filler/filler-section";
 import { bindHelpSection } from "./sections/help/help-section";
+import { createKeyRow } from "./sections/key-row/key-row";
+import { bindTransportLinks } from "./sections/push-reason/push-reason";
 import { createReactionsSection } from "./sections/reactions/reactions-section";
 import { createReadingsSection } from "./sections/readings/readings-section";
 import { createScreenSection } from "./sections/screen/screen-section";
 import { createScreenshotSection } from "./sections/screenshot/screenshot-section";
 import { createSessionSection } from "./sections/session/session-section";
-import { createSpeakerList, speakerPickerHtml } from "./sections/speaker/speaker-list";
+import { createSpeakerList } from "./sections/speaker/speaker-list";
+import { createUserNameSection } from "./sections/user-name/user-name-section";
 import { createVoiceInputSection } from "./sections/voice-input/voice-input-section";
 import { createWorkflowsSection } from "./sections/workflows/workflows-section";
 import { createSwitchRows } from "./switch-row";
 import { bindSwitchRows } from "./switches/switch-rows";
 import { createTabRail } from "./tabs/tab-rail";
 import { buildPanelHtml } from "./template";
+import { createCharactersSection } from "./together/characters-section";
 
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
 type AgentNotifySettingsStore = ReturnType<typeof createAgentNotifySettings>;
@@ -135,7 +143,7 @@ interface QuickControlsOptions {
   sourceProvider: ScreenSourceProvider;
   voiceStatus: VoiceInputStatus;
   lipsync: LipsyncSettingsStore;
-  /** STT silence threshold (ms) single-value store. Input tab slider drives it. */
+  /** STT silence threshold (ms) single-value store. The Listening page slider drives it. */
   vad: VadSettingsStore;
   agentSettings: AgentSettingsStore;
   vrmSelection: VrmSelectionStore;
@@ -181,7 +189,7 @@ interface QuickControlsOptions {
   visibleViewport?: { get(): number; refresh(): Promise<void> };
   /** The bundled default cards and `{{user}}` fallback words (undefined if not loaded). */
   getPersona?: () => PersonaConfig | undefined;
-  /** Device-wide "Your name" store for the Card section. */
+  /** Device-wide "Your name" store for the General page. */
   userNameSettings: UserNameSettingsStore;
   /** Device-wide theme store for the General tab's Appearance row. */
   themeSettings: ThemeSettingsStore;
@@ -277,12 +285,19 @@ interface QuickControlsOptions {
   relationsStore?: RelationsStore;
   /** The Relations switch: the Relations section's toggle and the relation line's gate. */
   relationsSwitch: FlagSettingsStore;
-  /** The Unified chat switch: a Talk-tab row; absent where the window cannot be opened. */
+  /** The Unified chat switch: a Together-page row; absent where the window cannot be opened. */
   unifiedChatSwitch?: FlagSettingsStore;
   boundId?: string | null;
   /** Set in the settings window: the preset strip picks the preset the window edits. */
   onEditTarget?: (id: string) => void;
   showVoiceInput?: boolean;
+}
+
+/** A part of the panel the shell redraws on open, closes, and disposes. */
+interface PanelSection {
+  reflect?(): void;
+  close?(): void;
+  dispose?(): void;
 }
 
 interface QuickControls {
@@ -418,6 +433,7 @@ export function createQuickControls({
     screenSettings,
     screenKnobSettings,
     unifiedChatSwitch,
+    relationsSwitch,
   });
 
   el.innerHTML = buildPanelHtml({
@@ -436,6 +452,7 @@ export function createQuickControls({
     showHistory: !!transcript,
     showBrowser: !!browserSettings,
     showPreset: !!presetRegistry,
+    showCharacters: !!presetRegistry && !!petWindows,
   });
 
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
@@ -443,17 +460,10 @@ export function createQuickControls({
   const tabButtons = Array.from(el.querySelectorAll<HTMLButtonElement>(".yui-tab"));
   const barEl = el.querySelector<HTMLDivElement>(".yui-quick__bar");
 
-  // ── Speaker picker — the shell keeps its lifecycle; the connection tab mounts the element. ──
-  const speakerHost = document.createElement("div");
-  speakerHost.innerHTML = speakerPickerHtml();
-  // The picker's own .yui-group, so `.yui-group + .yui-group` spaces it under the TTS group.
-  const ttsExtra = speakerHost.firstElementChild as HTMLElement;
-
-  // ── Connection tab (URL fields · API key rows · TTS/Chat dropdowns · status line · resets) ──
+  // ── Connection page (URL fields · API key rows · TTS/Chat dropdowns · status line · resets) ──
   const connectionTab = createConnectionTab({
     endpointsSettings,
     chatKeySettings,
-    sttKeySettings,
     ttsKeySettings,
     getEndpointDefaults,
     getDefaultChatApi,
@@ -462,7 +472,6 @@ export function createQuickControls({
     isOpen: () => popover.isOpen(),
     getChatApiKey,
     getFetch,
-    ttsExtra,
     log,
   });
   el.querySelector("#yui-panel-conn")!.append(connectionTab.el);
@@ -482,7 +491,7 @@ export function createQuickControls({
         log,
       })
     : null;
-  if (historyTab) el.querySelector("#yui-panel-hist")!.append(historyTab.el);
+  if (historyTab) el.querySelector("#yui-panel-hist .yui-tabpanel__title")!.after(historyTab.el);
   const workflows = createWorkflowsSection({ root: el, store: workflowSettings, log });
   const presetStrip = presetRegistry
     ? createPresetStrip({
@@ -497,14 +506,19 @@ export function createQuickControls({
         relationsSwitch,
         removeCardThumbnail,
         pickPhoto: pickPresetPhoto,
+        getDefaultChatApi,
       })
     : null;
+  const characters =
+    presetRegistry && petWindows
+      ? createCharactersSection({ root: el, registry: presetRegistry, petWindows, boundId, log })
+      : null;
   const hintTooltip = createHintTooltip({ root: el });
 
   // After dispose, prevent in-flight refresh from repainting/timering on destroyed DOM.
   let disposed = false;
 
-  // ── Character tab — the tab owns its rows; the shell mounts it and relays open/close. ──
+  // ── Character tab — owns the Body and Motion rows; the shell mounts both stacks and relays open/close. ──
   const characterTab = createCharacterTab({
     rows: {
       vrms: true,
@@ -547,7 +561,8 @@ export function createQuickControls({
         }
       : {}),
   });
-  el.querySelector("#yui-panel-char")!.append(characterTab.el);
+  el.querySelector("#yui-panel-body")!.append(characterTab.el);
+  el.querySelector("#yui-panel-motion .yui-motion-switches")!.before(characterTab.motionEl);
 
   // ── Speaker section ──
   const speakerList = createSpeakerList({
@@ -577,35 +592,16 @@ export function createQuickControls({
     closeWindow: onCloseWindow,
     visibleHeight: visibleViewport ? () => visibleViewport.get() : undefined,
     onOpen: () => {
-      screenshot.reflect();
-      browser?.reflect();
-      switchRows.reflect();
-      reactions.reflect();
-      screen.reflect();
-      voiceInput.reflect();
-      agent.reflect();
-      card.reflect();
-      filler.reflect();
-      agent.reflectLanguage();
-      appearance.reflect();
-      connectionTab.refresh();
-      // Opening on the Connection tab counts as entering it — the model list read follows.
+      for (const section of sections) section.reflect?.();
+      // Opening on the Connection page counts as entering it — the model list read follows.
       if (tabRail.selected() === "conn") connectionTab.entered();
-      session.reflect();
-      historyTab?.refresh();
-      characterTab.refresh();
-      speakerList.render();
       // Server may have come up after the app — refetch its voice list (store subscription re-renders).
       refreshVoiceList?.();
+      // Last, so the list the monitors fill is already redrawn.
       screenshot.loadMonitorsIfEnabled();
     },
     onClose: () => {
-      hintTooltip.hide();
-      characterTab.close();
-      speakerList.stopAudition();
-      connectionTab.commit();
-      connectionTab.close();
-      presetStrip?.close();
+      for (const section of sections) section.close?.();
     },
   });
 
@@ -651,11 +647,10 @@ export function createQuickControls({
     log,
   });
 
-  // ── Card section (send switch · card fields · greetings · import/export · user name) ──
+  // ── Card section (send switch · card fields · greetings · import/export) ──
   const card = createCardSection({
     root: el,
     agentSettings,
-    userNameSettings,
     endpointsSettings,
     fillerSettings,
     registry: presetRegistry,
@@ -665,6 +660,21 @@ export function createQuickControls({
     importCard,
     exportCard,
     createPresetFromCard,
+    log,
+  });
+
+  // ── Your name (General page) · the shared STT key (Listening page) ──
+  const userName = createUserNameSection({
+    root: el,
+    userNameSettings,
+    getPersona,
+    isOpen: popover.isOpen,
+  });
+  const sttKeyRow = createKeyRow({
+    root: el,
+    idPrefix: "sttkey",
+    store: sttKeySettings,
+    isOpen: popover.isOpen,
     log,
   });
 
@@ -715,7 +725,7 @@ export function createQuickControls({
 
   // Effective chat protocol: the user's override, else the bundled default.
   function isPushMode(): boolean {
-    return (endpointsSettings.get().chat_api || getDefaultChatApi?.()) === "push";
+    return effectiveChatApi(endpointsSettings.get().chat_api, getDefaultChatApi?.()) === "push";
   }
 
   // ── Tab rail (selection, ARIA, keyboard) ──
@@ -723,11 +733,14 @@ export function createQuickControls({
     rail: tablistEl,
     buttons: tabButtons,
     panels: Array.from(el.querySelectorAll<HTMLElement>(".yui-tabpanel")),
-    initial: "talk",
+    initial: DEFAULT_PAGE,
     onSelect: (id) => {
       if (id === "conn") connectionTab.entered();
     },
   });
+
+  const unbindTransportLinks = bindTransportLinks(el, (id) => tabRail.select(id));
+  const unbindSearch = bindSettingsSearch(el);
 
   function openPanel(anchor?: { x: number; y: number }, opts?: { tab?: QuickControlsTab }): void {
     if (!visibleViewport) {
@@ -754,7 +767,7 @@ export function createQuickControls({
     return tabRail.selected() as QuickControlsTab;
   }
 
-  // Cue-list components — both in the Proactive tab: proactive in .yui-loop-cue-section, schedule in .yui-cue-sections.
+  // Cue-list components — both on the Proactive page: proactive in .yui-loop-cue-section, schedule in .yui-cue-sections.
   const loopCueMountEl = el.querySelector<HTMLDivElement>(".yui-loop-cue-section")!;
 
   const cueLists = mountCueLists({
@@ -780,35 +793,54 @@ export function createQuickControls({
         onGuide(guide, text);
       })
     : undefined;
+  // Every section the panel redraws on open, closes and disposes, in redraw order.
+  const parts: (PanelSection | null | undefined)[] = [
+    screenshot,
+    browser,
+    switchRows,
+    reactions,
+    screen,
+    voiceInput,
+    agent,
+    card,
+    userName,
+    { reflect: sttKeyRow.reflect, close: sttKeyRow.commitIfDirty, dispose: sttKeyRow.dispose },
+    filler,
+    { reflect: agent.reflectLanguage },
+    appearance,
+    {
+      reflect: connectionTab.refresh,
+      close: () => {
+        connectionTab.commit();
+        connectionTab.close();
+      },
+      dispose: connectionTab.dispose,
+    },
+    session,
+    historyTab && { reflect: historyTab.refresh, dispose: historyTab.dispose },
+    characters && { reflect: characters.refresh, dispose: characters.dispose },
+    { reflect: characterTab.refresh, close: characterTab.close, dispose: characterTab.dispose },
+    { reflect: speakerList.render, close: speakerList.stopAudition, dispose: speakerList.dispose },
+    { close: hintTooltip.hide, dispose: hintTooltip.dispose },
+    presetStrip,
+    readings,
+    workflows,
+    { dispose: cueLists.destroy },
+    headerButtons,
+    { dispose: unbindHelp },
+    { dispose: unbindTransportLinks },
+    { dispose: unbindSearch },
+    tabRail,
+  ];
+  const sections = parts.filter((section): section is PanelSection => !!section);
+
   // window variant is always visible, so open it immediately.
   if (isWindow) popover.open();
 
   function dispose(): void {
     disposed = true;
-    connectionTab.dispose();
-    workflows.dispose();
-    screenshot.dispose();
-    browser?.dispose();
-    screen.dispose();
-    reactions.dispose();
-    agent.dispose();
-    appearance.dispose();
-    card.dispose();
-    filler.dispose();
-    readings.dispose();
-    voiceInput.dispose();
-    session.dispose();
-    hintTooltip.dispose();
-    historyTab?.dispose();
-    cueLists.destroy();
-    switchRows.dispose();
-    characterTab.dispose();
-    speakerList.dispose();
-    headerButtons.dispose();
-    unbindHelp?.();
+    for (const section of sections) section.dispose?.();
     popover.dispose();
-    tabRail.dispose();
-    presetStrip?.dispose();
     el.remove();
     scrimEl.remove();
   }

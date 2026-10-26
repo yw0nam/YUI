@@ -153,15 +153,23 @@
   padding-top: 28px;
 }
 
-/* ── Tab rail (role=tablist) — general sits at the bottom ── */
-.yui-tabs {
+/* ── Rail: the search field over the tablist — general sits at the bottom ── */
+.yui-rail {
   display: flex;
   box-sizing: border-box;
   flex: 0 0 10rem;
   flex-direction: column;
-  gap: 2px;
+  min-height: 0;
   padding: 0.5rem 0.5rem 1rem;
   border-right: 1px solid var(--yui-edge);
+}
+
+.yui-tabs {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -188,6 +196,23 @@
 
 #yui-tab-general {
   margin-top: auto;
+}
+
+/* Rail group heading: the edited character's name, then "Every character". */
+.yui-tabs__group {
+  flex: none;
+  margin: 0.75rem 0 0.25rem;
+  padding: 0 0.625rem;
+  overflow: hidden;
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-caption);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yui-tabs__group:first-child {
+  margin-top: 0.25rem;
 }
 
 .yui-tab svg {
@@ -469,10 +494,10 @@
   color: var(--yui-text-mute);
 }
 
-/* A narrow panel (the pet window's popover, a settings window near its 380px minimum) keeps its
+/* A narrow panel (the pet window's popover, a settings window near its 480px minimum) keeps its
    content width: the rail drops to icons. */
 @container (width < 30rem) {
-  .yui-tabs {
+  .yui-rail {
     flex-basis: 3rem;
     padding-inline: 0.375rem;
   }
@@ -483,6 +508,19 @@
   }
 
   .yui-tab__label {
+    display: none;
+  }
+
+  /* Icons only: the heading shrinks to a rule between the groups. */
+  .yui-tabs__group {
+    height: 0;
+    margin: 0.375rem 0.25rem;
+    padding: 0;
+    border-top: 1px solid var(--yui-edge);
+    color: transparent;
+  }
+
+  .yui-tabs__group:first-child {
     display: none;
   }
 }

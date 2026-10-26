@@ -73,8 +73,8 @@ fn open_settings(app: &AppHandle) {
                 WebviewUrl::App("settings.html".into()),
             )
             .title("YUI Settings")
-            .inner_size(480.0, 660.0)
-            .min_inner_size(380.0, 480.0)
+            .inner_size(760.0, 680.0)
+            .min_inner_size(480.0, 480.0)
             .resizable(true)
             .decorations(true)
             .transparent(false)

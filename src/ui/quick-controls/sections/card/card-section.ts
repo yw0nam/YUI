@@ -1,6 +1,6 @@
 /**
- * Card section of the Talk tab: the markup, the field edits, the send switch, Reset to default, the
- * greeting list and the device-wide user name. It owns its subscriptions, redraws and teardown.
+ * Card section of the Persona page: the markup, the field edits, the send switch, Reset to default
+ * and the greeting list. It owns its subscriptions, redraws and teardown.
  */
 
 import {
@@ -14,7 +14,6 @@ import { cardName, isUnnamedBuiltIn } from "../../../../io/chat/card/resolve-car
 import type { Logger } from "../../../../logger";
 import type { createAgentSettings } from "../../../../settings/backend/agent-settings";
 import type { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
-import type { createUserNameSettings } from "../../../../settings/identity/user-name-settings";
 import {
   presetIdForWindow,
   readPresetName,
@@ -25,6 +24,7 @@ import type { createFillerSettings } from "../../../../settings/voice/filler-set
 import { getLocale, LOCALE_DISPLAY_NAMES, subscribe as subscribeLocale, t } from "../../../i18n";
 import { CARD_GUIDE_URL } from "../../constants";
 import { escapeAttr, secHeadHtml } from "../../markup";
+import { pushReasonHtml } from "../push-reason/push-reason";
 import { createCardIo } from "./card-io";
 import "./card-section.css";
 
@@ -43,14 +43,9 @@ const stackHtml = (field: TextField, labelKey: string, rows: number, subKey?: st
             <textarea class="yui-textarea" id="yui-card-${field}" data-card-field="${field}" spellcheck="false" rows="${rows}" maxlength="${CARD_FIELD_MAX_LEN}"></textarea>${subKey ? `<p class="yui-row__sub">${t(subKey)}</p>` : ""}
           </div>`;
 
-const inputRowHtml = (
-  id: string,
-  labelKey: string,
-  inputAttrs: string,
-  subKey?: string,
-): string => `
+const inputRowHtml = (id: string, labelKey: string, inputAttrs: string): string => `
           <div class="yui-row yui-input-row">
-            <div class="yui-row__main"><label class="yui-input-row__label" for="${id}">${t(labelKey)}</label>${subKey ? `<span class="yui-row__sub">${t(subKey)}</span>` : ""}</div>
+            <div class="yui-row__main"><label class="yui-input-row__label" for="${id}">${t(labelKey)}</label></div>
             <div class="yui-input-wrap"><input class="yui-ep-input ${id}" id="${id}" type="text" spellcheck="false" autocomplete="off" ${inputAttrs} /></div>
           </div>`;
 
@@ -79,7 +74,7 @@ export function cardSectionHtml(): string {
             <div class="yui-row">
               <div class="yui-row__main">
                 <span class="yui-row__label">${t("card.send_label")}</span>
-                <span class="yui-row__sub">${t("card.send_sub")}</span>
+                <span class="yui-row__sub">${t("card.send_sub")}</span>${pushReasonHtml("push.reason_card")}
               </div>
               <button class="yui-switch yui-card-switch" type="button" role="switch" aria-checked="true" aria-label="${t("card.send_label")}"></button>
             </div>
@@ -96,14 +91,11 @@ export function cardSectionHtml(): string {
               </div>
             </details>
             <p class="yui-sec__foot">${t("card.macros")}</p>
-            <div class="yui-group yui-group--you">${inputRowHtml("yui-card-username", "card.user_name", "", "card.user_name_sub")}
-            </div>
           </div>
           <div class="yui-row yui-row--action yui-card__io">
             <button class="yui-link-btn yui-card-import" type="button">${t("card.import")}</button>
             <button class="yui-link-btn yui-card-export" type="button">${t("card.export")}</button>
           </div>
-          <p class="yui-sec__note yui-card__push-note" hidden>${t("card.push_note")}</p>
           <p class="yui-row__sub yui-card__io-note">${t("card.io_note")}</p>
           <p class="yui-card__io-error" role="status" hidden></p>
         </div>`;
@@ -111,14 +103,12 @@ export function cardSectionHtml(): string {
 
 type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
 type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
-type UserNameSettingsStore = ReturnType<typeof createUserNameSettings>;
 type FillerSettingsStore = ReturnType<typeof createFillerSettings>;
 
 interface CardSectionDeps {
   /** Panel root holding the section's markup. */
   root: HTMLElement;
   agentSettings: AgentSettingsStore;
-  userNameSettings: UserNameSettingsStore;
   endpointsSettings: Pick<EndpointsSettingsStore, "subscribe">;
   /** Renames the preset; absent where the panel shows no preset strip. */
   registry?: Pick<PresetRegistry, "rename" | "subscribe">;
@@ -145,27 +135,16 @@ interface CardSection {
 }
 
 export function createCardSection(deps: CardSectionDeps): CardSection {
-  const {
-    root,
-    agentSettings,
-    userNameSettings,
-    endpointsSettings,
-    registry,
-    getPersona,
-    isPushMode,
-    isOpen,
-    log,
-  } = deps;
+  const { root, agentSettings, endpointsSettings, registry, getPersona, isPushMode, isOpen, log } =
+    deps;
   const sec = root.querySelector<HTMLElement>(".yui-card")!;
   const q = <T extends HTMLElement>(sel: string): T => sec.querySelector<T>(sel)!;
   const body = q<HTMLElement>(".yui-card-body");
   const switchBtn = q<HTMLButtonElement>(".yui-card-switch");
-  const pushNote = q<HTMLElement>(".yui-card__push-note");
-  const switchGroup = q<HTMLElement>(".yui-group--switch");
+  const pushReason = q<HTMLElement>(".yui-push-reason");
   const stateEl = q<HTMLElement>(".yui-sec__state");
   const resetBtn = q<HTMLButtonElement>(".yui-reset");
   const nameEl = q<HTMLInputElement>('[data-card-field="name"]');
-  const userEl = q<HTMLInputElement>(".yui-card-username");
   const addRow = q<HTMLElement>(".yui-card-add-row");
   const fields = Array.from(sec.querySelectorAll<HTMLTextAreaElement>("textarea[data-card-field]"));
 
@@ -186,8 +165,10 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
 
   function reflect(): void {
     const push = isPushMode();
-    pushNote.hidden = !push;
-    switchGroup.hidden = push;
+    pushReason.hidden = !push;
+    switchBtn.disabled = push;
+    // Push never sends the card, greetings included; the name is the preset's own and stays.
+    for (const el of fields) el.disabled = push;
     const a = agentSettings.get();
     const card = a.card ?? base();
     const own = a.card !== null;
@@ -196,11 +177,12 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
     thumb.hidden = !shown.thumbnail;
     if (shown.thumbnail) thumb.src = shown.thumbnail;
     switchBtn.setAttribute("aria-checked", String(a.send_card));
-    const sends = !push && a.send_card;
-    body.hidden = !sends;
-    stateEl.hidden = !sends || own;
+    // The user's Send card switch folds the body; on push the greetings stay reachable.
+    const open = push || a.send_card;
+    body.hidden = !open;
+    stateEl.hidden = !open || own;
     stateEl.textContent = t("card.default_state", { language: LOCALE_DISPLAY_NAMES[getLocale()] });
-    resetBtn.hidden = !sends || !own;
+    resetBtn.hidden = !open || !own;
     if (nameEl.getAttribute("aria-invalid") !== "true") setValue(nameEl, cardName(card, shown));
     for (const el of fields) setValue(el, card[el.dataset.cardField as TextField]);
     const list = card.alternate_greetings;
@@ -210,9 +192,12 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
     }
     greetings().forEach((el, i) => {
       setValue(el, list[i] ?? "");
+      el.disabled = push;
     });
-    setValue(userEl, userNameSettings.get().name);
-    userEl.placeholder = getPersona?.()?.user_fallback[getLocale()] ?? "";
+    for (const btn of sec.querySelectorAll<HTMLButtonElement>(
+      ".yui-card-greeting__remove, .yui-card-add",
+    ))
+      btn.disabled = push;
   }
 
   const currentCard = (): Card => agentSettings.get().card ?? base();
@@ -238,9 +223,7 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
   function handleInput(e: Event): void {
     const el = e.target as HTMLInputElement | HTMLTextAreaElement;
     const field = el.dataset.cardField as TextField | "name" | undefined;
-    if (el === userEl) {
-      userNameSettings.setName(el.value);
-    } else if (field && field !== "name") {
+    if (field && field !== "name") {
       agentSettings.updateCard({ [field]: el.value }, base());
     } else if (el.dataset.greetingIndex !== undefined) {
       const next = [...currentCard().alternate_greetings];
@@ -298,7 +281,6 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
   };
   const unsubscribes = [
     agentSettings.subscribe(redraw),
-    userNameSettings.subscribe(redraw),
     endpointsSettings.subscribe(redraw),
     registry?.subscribe(redraw),
     subscribeLocale(redraw),

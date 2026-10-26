@@ -1,5 +1,5 @@
 /**
- * Endpoints section — owns endpoint URL fields in the Connection tab, chat/STT/TTS API key rows (secret),
+ * Endpoints section — owns endpoint URL fields in the Connection tab, chat/TTS API key rows (secret),
  * the Chat API (chat_api) and TTS provider (tts_provider) dropdowns, and per-service resets.
  * Same pattern as VRM/speaker sections: explicit deps + wired from the connection tab. reflect (store→DOM)
  * handled by the tab's reflect; this module owns inputs, handlers, teardown only.
@@ -17,16 +17,14 @@ import {
   type EndpointOverrides,
   isValidEndpointUrl,
 } from "../../../settings/backend/endpoints-settings";
-import { t } from "../../i18n";
 import {
   CHAT_APIS,
   CHAT_PROVIDER_PRESETS,
-  CHATKEY_EYE_OFF_SVG,
-  CHATKEY_EYE_SVG,
   type ChatApi,
   ENDPOINT_FIELDS,
   TTS_PROVIDER_PRESETS,
 } from "../constants";
+import { createKeyRow, type KeyRow } from "../sections/key-row/key-row";
 
 // Toggle invalid state for one URL field (empty value = no error). Shared by the tab's
 // endpoint reflect and the section's own input handler.
@@ -48,8 +46,6 @@ interface EndpointsSectionDeps {
   endpointsSettings: EndpointsSettingsStore;
   /** chat API key overrides store. Value is secret — no logging. */
   chatKeySettings: ChatKeySettingsStore;
-  /** STT API key overrides store. Value is secret — no logging. */
-  sttKeySettings: ApiKeySettingsStore;
   /** TTS (openai-compatible) API key overrides store. Value is secret — no logging. */
   ttsKeySettings: ApiKeySettingsStore;
   /** Default bundled-config endpoints to show as placeholder (undefined if not loaded). */
@@ -61,16 +57,6 @@ interface EndpointsSectionDeps {
   /** After a chat URL/key/protocol commit lands — the chat section re-evaluates its model list read. */
   onChatCommit?: () => void;
   log: Logger;
-}
-
-// Per-service API key row (secret). Value lives only in input.value; sublabel/aria only expose state.
-// Typing doesn't commit to store (prevents mid-prefix becoming live key). Commit once on blur/close/dispose.
-interface KeyRow {
-  reflect(): void;
-  commitIfDirty(): void;
-  subscribe(): () => void;
-  addListeners(): void;
-  removeListeners(): void;
 }
 
 interface EndpointsSection {
@@ -93,7 +79,6 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     root: el,
     endpointsSettings,
     chatKeySettings,
-    sttKeySettings,
     ttsKeySettings,
     getEndpointDefaults,
     reflectEndpoints,
@@ -121,82 +106,17 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     svcResetBtns.set(btn.dataset.svcReset ?? "", btn);
   }
 
-  function createKeyRow(
-    idPrefix: string,
-    store: ApiKeySettingsStore,
-    onCommit?: () => void,
-  ): KeyRow {
-    const row = el.querySelector<HTMLDivElement>(`.yui-input-row[data-key-prefix="${idPrefix}"]`)!;
-    const input = row.querySelector<HTMLInputElement>(".yui-chatkey__input")!;
-    const subEl = row.querySelector<HTMLSpanElement>(".yui-input-row__sub")!;
-    const toggleBtn = row.querySelector<HTMLButtonElement>(".yui-chatkey__toggle")!;
-    const clearBtn = row.querySelector<HTMLButtonElement>(".yui-chatkey__clear")!;
-    let dirty = false;
-
-    function reflect(): void {
-      const key = store.get().apiKey;
-      if ((!document.hasFocus() || document.activeElement !== input) && input.value !== key) {
-        input.value = key;
-        dirty = false;
-      }
-      subEl.textContent = key ? t(`${idPrefix}.sub_override`) : t(`${idPrefix}.sub_default`);
-    }
-    function commitIfDirty(): void {
-      if (!dirty) return;
-      dirty = false;
-      const v = input.value;
-      if (v) store.setApiKey(v);
-      else store.clear();
-    }
-    function handleInput(): void {
-      dirty = true;
-    }
-    function handleBlur(): void {
-      const wasDirty = dirty;
-      commitIfDirty();
-      reflect();
-      if (wasDirty) onCommit?.();
-    }
-    function handleToggle(): void {
-      const show = toggleBtn.getAttribute("aria-pressed") !== "true";
-      toggleBtn.setAttribute("aria-pressed", String(show));
-      input.type = show ? "text" : "password";
-      toggleBtn.innerHTML = show ? CHATKEY_EYE_OFF_SVG : CHATKEY_EYE_SVG;
-      const label = show ? t(`${idPrefix}.hide`) : t(`${idPrefix}.show`);
-      toggleBtn.setAttribute("aria-label", label);
-      toggleBtn.dataset.tip = label;
-    }
-    function handleClear(): void {
-      dirty = false;
-      input.value = "";
-      store.clear();
-      log.info(`${idPrefix}_clear`);
-    }
-    return {
-      reflect,
-      commitIfDirty,
-      subscribe: () =>
-        store.subscribe(() => {
-          if (isOpen()) reflect();
-        }),
-      addListeners() {
-        input.addEventListener("input", handleInput);
-        input.addEventListener("blur", handleBlur);
-        toggleBtn.addEventListener("click", handleToggle);
-        clearBtn.addEventListener("click", handleClear);
-      },
-      removeListeners() {
-        input.removeEventListener("input", handleInput);
-        input.removeEventListener("blur", handleBlur);
-        toggleBtn.removeEventListener("click", handleToggle);
-        clearBtn.removeEventListener("click", handleClear);
-      },
-    };
-  }
-  const chatKeyRow = createKeyRow("chatkey", chatKeySettings, onChatCommit);
-  const sttKeyRow = createKeyRow("sttkey", sttKeySettings);
-  const ttsKeyRow = createKeyRow("ttskey", ttsKeySettings);
-  const keyRows = [chatKeyRow, sttKeyRow, ttsKeyRow];
+  const keyRows = [
+    createKeyRow({
+      root: el,
+      idPrefix: "chatkey",
+      store: chatKeySettings,
+      isOpen,
+      log,
+      onCommit: onChatCommit,
+    }),
+    createKeyRow({ root: el, idPrefix: "ttskey", store: ttsKeySettings, isOpen, log }),
+  ];
 
   // Endpoint placeholder — fill with bundled-config defaults (greyed) or leave empty if not loaded.
   const epDefaults = getEndpointDefaults?.();
@@ -300,10 +220,9 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
   }
 
   // ── Per-service resets ──
-  // Each section clears its endpoint fields + key store. URLs/models reset to "", keys call .clear().
+  // Each section clears its fields and its own key; the shared STT key is cleared on the Listening page.
   const SVC_RESET_KEY: Record<string, ApiKeySettingsStore | undefined> = {
     chat: chatKeySettings,
-    stt: sttKeySettings,
     tts: ttsKeySettings,
   };
 
@@ -345,8 +264,6 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     svcResetListeners.set(btn, handler);
     btn.addEventListener("click", handler);
   }
-  for (const r of keyRows) r.addListeners();
-  const unsubscribeKeyRows = keyRows.map((r) => r.subscribe());
 
   function commitDirtyKeys(): void {
     for (const r of keyRows) r.commitIfDirty();
@@ -364,8 +281,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
       input.removeEventListener("blur", handleEndpointBlur);
     }
     for (const [btn, handler] of svcResetListeners) btn.removeEventListener("click", handler);
-    for (const r of keyRows) r.removeListeners();
-    for (const unsub of unsubscribeKeyRows) unsub();
+    for (const r of keyRows) r.dispose();
   }
 
   return { keyRows, commitDirtyKeys, commitDirtyEndpoints, dispose };

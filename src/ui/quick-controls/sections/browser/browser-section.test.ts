@@ -55,13 +55,13 @@ describe("createBrowserSection", () => {
     setLocale("en");
   });
 
-  it("renders the switch row and its caution in the Input tab only with the store", () => {
+  it("renders the switch row and its caution in the Permissions page only with the store", () => {
     const without = panel(false);
     expect(without.querySelector(".yui-browser-switch")).toBeNull();
     without.remove();
 
     const root = panel(true);
-    const switchBtn = root.querySelector("#yui-panel-input .yui-browser-switch");
+    const switchBtn = root.querySelector("#yui-panel-perms .yui-browser-switch");
     expect(switchBtn?.getAttribute("aria-label")).toBe("Allow browser use");
     const sec = switchBtn?.closest(".yui-sec");
     const screenshotSec = root.querySelector(".yui-screenshot-switch")?.closest(".yui-sec");

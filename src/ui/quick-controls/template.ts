@@ -2,34 +2,42 @@
 
 import { THEMES } from "../../settings/appearance/theme-settings";
 import "./sections/session/session-section.css";
-import { REASONING_EFFORTS } from "../../settings/backend/agent-settings";
-import { RATE_LIMIT_MAX } from "../../settings/backend/guardrails-settings";
 import { LOCALE_DISPLAY_NAMES, t } from "../i18n";
 import {
+  DEFAULT_PAGE,
   LANG_PICKER_ORDER,
   PLUS_SVG,
-  RATE_LIMIT_FIELDS,
+  PROACTIVE_CAP_FIELDS,
+  type QuickControlsTab,
   SCREEN_KNOB_FIELDS,
   SCREEN_MIN_GAP_MAX,
   SCREEN_MIN_GAP_MIN,
-  SEG_LABEL_KEYS,
-  TAB_ICON_CHAR,
+  TAB_ICON_BODY,
   TAB_ICON_CONN,
   TAB_ICON_GENERAL,
   TAB_ICON_HIST,
-  TAB_ICON_INPUT,
+  TAB_ICON_LISTENING,
+  TAB_ICON_MOTION,
+  TAB_ICON_PERMS,
+  TAB_ICON_PERSONA,
   TAB_ICON_REACT,
-  TAB_ICON_TALK,
+  TAB_ICON_TOGETHER,
+  TAB_ICON_VOICE,
 } from "./constants";
-import { escapeAttr, numRowHtml, secHeadHtml } from "./markup";
+import { capRowHtml, escapeAttr, keyRowHtml, numRowHtml, secHeadHtml } from "./markup";
 import { presetStripHtml } from "./preset/preset-strip";
+import { settingsSearchHtml } from "./search/settings-search";
 import { browserSectionHtml } from "./sections/browser/browser-section";
 import { cardSectionHtml } from "./sections/card/card-section";
 import { helpSectionHtml } from "./sections/help/help-section";
 import { readingsSectionHtml } from "./sections/readings/readings-section";
+import { speakerPickerHtml } from "./sections/speaker/speaker-list";
+import { userNameRowHtml } from "./sections/user-name/user-name-section";
 import type { SwitchRow } from "./switch-row";
 import { switchButtonHtml, switchRowHtml } from "./switches/switch-rows";
 import { tabButtonHtml, tabPanelOpenHtml } from "./tabs/tab-rail";
+import { charactersSectionHtml } from "./together/characters-section";
+import { togetherRowsHtml } from "./together/together-rows";
 
 /**
  * Small round `?` that follows a section label whose name alone is not self-explanatory.
@@ -63,8 +71,10 @@ interface PanelHtmlOptions {
   showHistory: boolean;
   /** Whether the browser-use switch renders — true when the browser store is injected. */
   showBrowser?: boolean;
-  /** Whether the preset strip and each tab's scope line render — true when the registry is injected. */
+  /** Whether the preset strip and each page's scope line render — true when the registry is injected. */
   showPreset?: boolean;
+  /** Whether the Together page lists the characters — true with the registry and the open-window store. */
+  showCharacters?: boolean;
 }
 
 export function buildPanelHtml(o: PanelHtmlOptions): string {
@@ -84,6 +94,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     showHistory,
     showBrowser,
     showPreset,
+    showCharacters,
   } = o;
   const visibleSwitchRows = switchRows.filter((row) => row.isVisible);
 
@@ -108,11 +119,6 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
       )
       .join("");
   }
-  const segButtonsHtml = REASONING_EFFORTS.map(
-    (e) =>
-      `<button class="yui-seg__btn" type="button" role="radio" data-effort="${e}" aria-checked="false" tabindex="-1">${t(SEG_LABEL_KEYS[e])}</button>`,
-  ).join("");
-
   // Language picker seg (3 positions) — display language switch. Host re-mounts via i18n.subscribe.
   const langButtonsHtml = LANG_PICKER_ORDER.map(
     (l) =>
@@ -174,16 +180,14 @@ ${SCREEN_KNOB_FIELDS.map((f) =>
       </div>`
       : "";
 
-  // Rate-limit section (Proactive tab) — the rolling-window caps, one numeric row each.
+  // Rate-limit section (Proactive page) — the rolling-window caps, one numeric row each.
   const rateLimitHtml = showRateLimits
     ? `
       <div class="yui-sec">
         ${secHeadHtml(`${t("reactions.rate_title")}${hintDotHtml("reactions.rate_hint_text")}`)}
         <p class="yui-sec__note">${t("reactions.rate_hint")}</p>
         <div class="yui-group">
-${RATE_LIMIT_FIELDS.map((f) =>
-  numRowHtml({ id: f.id, labelKey: f.labelKey, subKey: f.subKey, min: 1, max: RATE_LIMIT_MAX }),
-).join("")}
+${PROACTIVE_CAP_FIELDS.map(capRowHtml).join("")}
         </div>
       </div>`
     : "";
@@ -209,11 +213,9 @@ ${RATE_LIMIT_FIELDS.map((f) =>
       </div>`
     : "";
 
-  const talkRowsHtml = switchRowsHtml("talk");
-
   // Thinking filler section — its enable switch rides the title row.
   const fillerRow = visibleSwitchRows.find(
-    (row) => row.tab === "talk" && row.position === "filler",
+    (row) => row.tab === "voice" && row.position === "filler",
   );
   function fillerStackHtml(labelKey: string, subKey: string, cls: string, ariaKey: string): string {
     return `
@@ -291,36 +293,80 @@ ${RATE_LIMIT_FIELDS.map((f) =>
     </div>`;
 
   // A narrow panel keeps the label; the icon-only rail drops it with the tooltip.
-  const tabHtml = (id: string, icon: string, opts?: { tipKey?: string }): string =>
-    tabButtonHtml(id, icon, { selected: id === "talk", tipKey: opts?.tipKey });
-  const panelOpenHtml = (id: string): string =>
-    tabPanelOpenHtml(id, { hidden: id !== "talk", scope: showPreset });
+  const tabHtml = (id: QuickControlsTab, icon: string, opts?: { tipKey?: string }): string =>
+    tabButtonHtml(id, icon, { selected: id === DEFAULT_PAGE, tipKey: opts?.tipKey });
+  const panelOpenHtml = (id: QuickControlsTab): string =>
+    tabPanelOpenHtml(id, { hidden: id !== DEFAULT_PAGE, scope: showPreset });
+  // The character group's heading names the edited character once the preset strip fills it.
+  const groupHtml = (group: "character" | "app"): string =>
+    `<p class="yui-tabs__group" role="presentation" data-rail-group="${group}">${t(`rail.group_${group}`)}</p>`;
 
   return `
     ${headerHtml}${showPreset ? presetStripHtml() : ""}
     <div class="yui-quick__cols">
-      <div class="yui-tabs" role="tablist" aria-label="${t("panel.tablist_label")}" aria-orientation="vertical">${tabHtml("conn", TAB_ICON_CONN)}${tabHtml("talk", TAB_ICON_TALK)}${tabHtml("char", TAB_ICON_CHAR)}${tabHtml("input", TAB_ICON_INPUT)}${tabHtml("react", TAB_ICON_REACT, { tipKey: "tabs.react_hint" })}${showHistory ? tabHtml("hist", TAB_ICON_HIST) : ""}${tabHtml("general", TAB_ICON_GENERAL)}
+      <div class="yui-rail">${settingsSearchHtml()}
+      <div class="yui-tabs" role="tablist" aria-label="${t("panel.tablist_label")}" aria-orientation="vertical">${groupHtml("character")}${tabHtml("conn", TAB_ICON_CONN)}${tabHtml("voice", TAB_ICON_VOICE)}${tabHtml("persona", TAB_ICON_PERSONA)}${tabHtml("body", TAB_ICON_BODY)}${showHistory ? tabHtml("hist", TAB_ICON_HIST) : ""}${groupHtml("app")}${tabHtml("together", TAB_ICON_TOGETHER)}${tabHtml("listening", TAB_ICON_LISTENING)}${tabHtml("perms", TAB_ICON_PERMS)}${tabHtml("react", TAB_ICON_REACT, { tipKey: "tabs.react_hint" })}${tabHtml("motion", TAB_ICON_MOTION)}${tabHtml("general", TAB_ICON_GENERAL)}
+      </div>
       </div>
       <div class="yui-quick__body">
 ${panelOpenHtml("conn")}
       </div>
-${panelOpenHtml("talk")}
+${panelOpenHtml("voice")}
         <div class="yui-sec">
-          <div class="yui-group">
-            <div class="yui-row">
-              <div class="yui-row__main">
-                <span class="yui-row__label">${t("reasoning.label")}</span>
-                <span class="yui-row__sub">${t("reasoning.sub")}</span>
-              </div>
-              <div class="yui-seg yui-effort-seg" role="radiogroup" aria-label="${t("reasoning.label")}">${segButtonsHtml}</div>
-            </div>${talkRowsHtml}
+          <div class="yui-group">${switchRowsHtml("voice")}
+          </div>${speakerPickerHtml()}
+        </div>${fillerHtml}
+        <div class="yui-sec">
+          <div class="yui-group">${switchRowsHtml("voice", "after-filler")}
           </div>
         </div>
-${cardSectionHtml()}${fillerHtml}
       </div>
-${panelOpenHtml("char")}
+${panelOpenHtml("persona")}${cardSectionHtml()}
       </div>
-${panelOpenHtml("input")}
+${panelOpenHtml("body")}
+      </div>
+${
+  showHistory
+    ? `${panelOpenHtml("hist")}${sessionHtml}
+      </div>
+`
+    : ""
+}${panelOpenHtml("together")}${togetherRowsHtml(switchRowsHtml("together"), !!showRateLimits)}${showCharacters ? charactersSectionHtml() : ""}
+      </div>
+${panelOpenHtml("listening")}
+        <div class="yui-sec">
+          <div class="yui-group">
+            ${
+              showVoiceInput
+                ? `<div class="yui-row">
+              <div class="yui-row__main">
+                <span class="yui-row__label">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M12 4.5v7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    <path d="M8 9.5v1.8a4 4 0 0 0 8 0V9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    <path d="M12 15.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    <path d="M9.5 18.5h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                  </svg>
+                  ${t("voice_input.label")}
+                </span>
+                <span class="yui-row__sub">${t("voice_input.sub")}</span>
+              </div>
+              <button class="yui-switch yui-voice-switch" type="button" role="switch" aria-checked="false" aria-label="${t("voice_input.label")}"></button>
+            </div>`
+                : ""
+            }${keyRowHtml("sttkey")}${switchRowsHtml("listening")}
+            <div class="yui-gain">
+              <div class="yui-gain__head">
+                <span class="yui-gain__label">${t("voice_input.silence_label")}</span>
+                <span class="yui-gain__value yui-vad__value">1500 ms</span>
+              </div>
+              <span class="yui-gain__sub">${t("voice_input.silence_sub")}</span>
+              <input class="yui-gain__slider yui-vad__slider" type="range" aria-label="${t("voice_input.silence_aria")}" />
+            </div>${switchRowsHtml("listening", "after-vad")}
+          </div>
+        </div>${readingsSectionHtml()}
+      </div>
+${panelOpenHtml("perms")}
         <div class="yui-sec">
           <div class="yui-group">
             <div class="yui-row">
@@ -355,37 +401,6 @@ ${panelOpenHtml("input")}
             </div>
           </div>
         </div>${showBrowser ? browserSectionHtml() : ""}
-        <div class="yui-sec">
-          <div class="yui-group">
-            ${
-              showVoiceInput
-                ? `<div class="yui-row">
-              <div class="yui-row__main">
-                <span class="yui-row__label">
-                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path d="M12 4.5v7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                    <path d="M8 9.5v1.8a4 4 0 0 0 8 0V9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                    <path d="M12 15.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                    <path d="M9.5 18.5h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                  </svg>
-                  ${t("voice_input.label")}
-                </span>
-                <span class="yui-row__sub">${t("voice_input.sub")}</span>
-              </div>
-              <button class="yui-switch yui-voice-switch" type="button" role="switch" aria-checked="false" aria-label="${t("voice_input.label")}"></button>
-            </div>`
-                : ""
-            }${switchRowsHtml("input")}
-            <div class="yui-gain">
-              <div class="yui-gain__head">
-                <span class="yui-gain__label">${t("voice_input.silence_label")}</span>
-                <span class="yui-gain__value yui-vad__value">1500 ms</span>
-              </div>
-              <span class="yui-gain__sub">${t("voice_input.silence_sub")}</span>
-              <input class="yui-gain__slider yui-vad__slider" type="range" aria-label="${t("voice_input.silence_aria")}" />
-            </div>${switchRowsHtml("input", "after-vad")}
-          </div>
-        </div>${readingsSectionHtml()}
       </div>
 ${panelOpenHtml("react")}${screenHtml}
         <div class="yui-loop-cue-section"></div>
@@ -414,13 +429,13 @@ ${panelOpenHtml("react")}${screenHtml}
           </div>
         </div>${sharedHtml}${rateLimitHtml}
       </div>
-${
-  showHistory
-    ? `${panelOpenHtml("hist")}
+${panelOpenHtml("motion")}
+        <div class="yui-sec yui-motion-switches">
+          <div class="yui-group">${switchRowsHtml("motion")}
+          </div>
+        </div>
       </div>
-`
-    : ""
-}${panelOpenHtml("general")}
+${panelOpenHtml("general")}
         <div class="yui-sec">
           <div class="yui-group">
             <div class="yui-row">
@@ -436,7 +451,7 @@ ${
                 <span class="yui-row__sub">${t("appearance.sub")}</span>
               </div>
               <div class="yui-seg yui-theme-seg" role="radiogroup" aria-label="${t("appearance.aria")}">${THEMES.map((theme) => `<button class="yui-seg__btn" type="button" role="radio" data-theme="${theme}" aria-checked="false" tabindex="-1">${t(`appearance.${theme}`)}</button>`).join("")}</div>
-            </div>${switchRowsHtml("general")}${
+            </div>${userNameRowHtml()}${
               showDevtools
                 ? `
             <div class="yui-row">
@@ -449,7 +464,7 @@ ${
                 : ""
             }
           </div>
-        </div>${sessionHtml}${showHelp ? helpSectionHtml() : ""}
+        </div>${showHelp ? helpSectionHtml() : ""}
       </div>
       </div>
     </div>
