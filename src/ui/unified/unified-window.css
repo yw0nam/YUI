@@ -149,9 +149,11 @@
 .yui-uc__recipient:hover {
   color: var(--yui-text);
 }
+/* Amber faint over the chip's Plate: the window is transparent, so the tint alone would show the desktop through. */
 .yui-uc__recipient[aria-checked="true"] {
   border-color: var(--yui-accent-soft);
-  background: var(--yui-accent-faint);
+  background:
+    linear-gradient(var(--yui-accent-faint), var(--yui-accent-faint)), var(--yui-scrim-strong);
   color: var(--yui-text);
 }
 .yui-uc__recipient:focus-visible,
