@@ -220,7 +220,8 @@
   font-style: italic;
 }
 /* Inline code — subtle scrim background, small radius. */
-.yui-bubble__text code {
+.yui-bubble__text code,
+.yui-bubble__backlog-text code {
   font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
   font-size: 0.86em;
   padding: 0.08em 0.34em;
@@ -533,6 +534,11 @@
   margin-right: 0.5em;
   font-weight: 600;
 }
+/* A line runs on after its speaker's name. */
+.yui-bubble__backlog-text p {
+  display: inline;
+  margin: 0;
+}
 /* The toggle rides the box's bottom-left edge, half over it, so it adds no height under the box. */
 .yui-bubble__backlog-toggle {
   position: absolute;
@@ -631,7 +637,8 @@
 /* ── Inline markdown links (inside bubble) ──
    Warm body color + amber-soft underline, ignite to amber on hover/focus (treatment A).
    With pointer-events:auto, only links are clickable inside display-only bubble. */
-.yui-bubble__text a {
+.yui-bubble__text a,
+.yui-bubble__backlog-text a {
   color: var(--yui-text);
   text-decoration: underline;
   text-decoration-color: var(--yui-accent-soft);
@@ -644,11 +651,14 @@
     text-decoration-color var(--yui-dur-fast) var(--yui-ease);
 }
 .yui-bubble__text a:hover,
-.yui-bubble__text a:focus-visible {
+.yui-bubble__text a:focus-visible,
+.yui-bubble__backlog-text a:hover,
+.yui-bubble__backlog-text a:focus-visible {
   color: var(--yui-accent-ink);
   text-decoration-color: var(--yui-accent);
 }
-.yui-bubble__text a:focus-visible {
+.yui-bubble__text a:focus-visible,
+.yui-bubble__backlog-text a:focus-visible {
   outline: 2px solid var(--yui-accent-soft);
   outline-offset: 2px;
 }

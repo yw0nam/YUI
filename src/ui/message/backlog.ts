@@ -2,6 +2,7 @@
 
 import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
 import { subscribe as subscribeLocale, t } from "../i18n";
+import { renderMarkdownInline } from "./markdown";
 import type { SpeechBubble } from "./speech-bubble";
 
 /** Where the backlog reads the session from. */
@@ -43,9 +44,8 @@ export function createBacklog({ mount, read, characterName, bubble }: BacklogOpt
     const who = document.createElement("span");
     who.className = "yui-bubble__backlog-who";
     who.textContent = entry.role === "user" ? t("bubble.you") : characterName();
-    const text = document.createElement("span");
+    const text = renderMarkdownInline(entry.text);
     text.className = "yui-bubble__backlog-text";
-    text.textContent = entry.text;
     li.append(who, text);
     return li;
   }
