@@ -11,16 +11,15 @@
  */
 
 import DOMPurify, { type Config } from "dompurify";
-import { Marked, marked } from "marked";
+import { Marked } from "marked";
+
+// Only `~~text~~` strikes: a single tilde ("~5 minutes") is text. false hands `~~` to marked's own rule.
+const del = (src: string): undefined | false => (/^~(?!~)/.test(src) ? undefined : false);
+
+const fullMarked = new Marked({ tokenizer: { del } });
 
 // A line still arriving links nothing bare: a URL or an address may not have all its characters yet.
-const streamingMarked = new Marked({
-  tokenizer: {
-    url() {
-      return undefined;
-    },
-  },
-});
+const streamingMarked = new Marked({ tokenizer: { del, url: () => undefined } });
 
 let hooksInstalled = false;
 
@@ -69,7 +68,7 @@ export function renderMarkdownInline(
 ): HTMLSpanElement {
   installHooks();
   const container = document.createElement("span");
-  const parser = opts?.streaming ? streamingMarked : marked;
+  const parser = opts?.streaming ? streamingMarked : fullMarked;
   const rawHtml = (parser.parse(text, { async: false }) as string).trim();
   container.innerHTML = DOMPurify.sanitize(rawHtml, PURIFY_CONFIG);
   return container;

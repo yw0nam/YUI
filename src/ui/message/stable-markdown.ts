@@ -7,9 +7,15 @@ const SPACE = /\s/;
 const WORD = /[\p{L}\p{N}]/u;
 const ESCAPABLE = /[!-/:-@[-`{-~]/;
 
-/** The line with escapes and closed code spans blanked so their characters count as text, and where an unclosed code run opens. */
+// A whole line of three or more `*`, `-` or `_` is a rule, not emphasis.
+const RULE_LINE = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*\n/gm;
+
+/** The line with escapes, closed code spans and finished rule lines blanked so their characters count as text, and where an unclosed code run opens. */
 function mask(raw: string): { masked: string; openCode: number } {
   const out = raw.split("");
+  for (const rule of raw.matchAll(RULE_LINE)) {
+    for (let j = rule.index; j < rule.index + rule[0].length - 1; j++) out[j] = "a";
+  }
   for (let i = 0; i < raw.length; i++) {
     if (raw[i] === "\\" && ESCAPABLE.test(raw[i + 1] ?? "")) {
       out[i] = out[i + 1] = "a";
@@ -60,7 +66,7 @@ function openRun(text: string, marker: string): number {
   return count % 2 === 1 ? text.lastIndexOf(marker) : text.length;
 }
 
-/** Where a single `*`, `_` or `~` emphasis that has not closed yet opens. */
+/** Where a single `*` or `_` emphasis that has not closed yet opens. */
 function openEmphasis(text: string, mark: string): number {
   let open = -1;
   for (let i = 0; i < text.length; i++) {
@@ -137,7 +143,6 @@ function cut(raw: string): string {
     openRun(masked, "~~"),
     openEmphasis(masked, "*"),
     openEmphasis(masked, "_"),
-    openEmphasis(masked, "~"),
     openAngle(masked),
     openBlock(masked),
     openTable(masked),
