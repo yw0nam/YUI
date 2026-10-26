@@ -92,6 +92,10 @@ it.each([
   "a **b *c* d** e",
   "tilde ~x~ ok",
   "ok :) (see [a](https://b.c)) end",
+  "It takes ~5 minutes, maybe ~10 if busy, and then a little more.",
+  "Line one\n***\nLine two",
+  "Line one\n---\nLine two",
+  "Line one\n___\nLine two",
 ])("streams %j: each prefix shows a prefix of the final text, and every href is final", (raw) => {
   const final = rendered(raw, false);
   const wrong: string[] = [];
@@ -105,4 +109,16 @@ it.each([
     }
   }
   expect(wrong).toEqual([]);
+});
+
+it.each([
+  ["a single tilde is text", "It takes ~5 minutes, maybe ~10 if busy, and then a little more.", 1],
+  ["a *** rule is no emphasis", "Line one\n***\nLine two", 3],
+  ["a --- rule is no emphasis", "Line one\n---\nLine two", 3],
+  ["a ___ rule is no emphasis", "Line one\n___\nLine two", 3],
+])("%s: no prefix waits more than one construct behind", (_case, raw, most) => {
+  let lag = 0;
+  for (let i = 1; i <= raw.length; i++)
+    lag = Math.max(lag, i - stableMarkdown(raw.slice(0, i)).length);
+  expect(lag).toBeLessThanOrEqual(most);
 });
