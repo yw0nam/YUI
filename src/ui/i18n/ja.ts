@@ -169,7 +169,9 @@ const ja: Record<string, string> = {
   "preset.label": "プリセット",
   "preset.manage": "プリセットを管理",
   "preset.in_use": "mainに表示中",
-  "preset.edit_label": "編集対象",
+  "head.meta": "{transport} · {state}",
+  "head.main": "メイン",
+  "head.off": "オフ",
   "preset.note_main": "{name}はmainに表示中です。",
   "preset.note_window": "{name}は自分のウィンドウで開いています。変更はすぐに反映されます。",
   "preset.note_idle":

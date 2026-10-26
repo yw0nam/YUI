@@ -168,7 +168,9 @@ const ko: Record<string, string> = {
   "preset.label": "프리셋",
   "preset.manage": "프리셋 관리",
   "preset.in_use": "main에 표시 중",
-  "preset.edit_label": "편집 대상",
+  "head.meta": "{transport} · {state}",
+  "head.main": "메인",
+  "head.off": "꺼짐",
   "preset.note_main": "{name}은(는) main 창에 떠 있어요.",
   "preset.note_window": "{name}은(는) 자기 창에 열려 있어요. 바꾼 설정은 그 창에 바로 적용돼요.",
   "preset.note_idle":

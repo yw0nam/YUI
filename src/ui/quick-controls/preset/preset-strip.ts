@@ -17,6 +17,7 @@ import { isPresetWindowLive, type PetWindows } from "../../../settings/preset/pe
 import type { PresetRegistry } from "../../../settings/preset/preset-registry";
 import type { RelationsStore } from "../../../settings/relations/relations-store";
 import { t } from "../../i18n";
+import { createCharacterHeader } from "./character-header";
 import { createPresetManage } from "./preset-manage";
 import { presetScopeText } from "./preset-scope";
 import { createPresetRelations } from "./relations/relations-section";
@@ -65,6 +66,8 @@ export function createPresetStrip(deps: {
   removeCardThumbnail?: (id: string) => Promise<void>;
   /** Opens the photo picker for a preset; injected under Tauri. */
   pickPhoto?: (presetId: string) => Promise<string | null>;
+  /** The bundled chat transport, for a preset without its own; the edit header names it. */
+  getDefaultChatApi?: () => string | undefined;
 }): PresetStrip {
   const { root, registry, log, petWindows, boundId = null, onEditTarget } = deps;
   const edit = !!onEditTarget;
@@ -84,12 +87,22 @@ export function createPresetStrip(deps: {
   }
   const manageBtn = stripEl.querySelector<HTMLButtonElement>(".yui-preset__manage")!;
   const noteEl = stripEl.querySelector<HTMLParagraphElement>(".yui-preset__note")!;
-  if (edit) {
-    stripEl.querySelector("label")!.textContent = t("preset.edit_label");
-    noteEl.hidden = false;
-  }
   const stateEl = stripEl.querySelector<HTMLParagraphElement>(".yui-preset__state")!;
   const thumbEl = stripEl.querySelector<HTMLImageElement>(".yui-preset__thumb")!;
+  // The settings window heads with every character in place of the select and its photo.
+  const header = edit
+    ? createCharacterHeader({
+        shownId,
+        getDefaultChatApi: deps.getDefaultChatApi,
+        onPick: (id) => onEditTarget?.(id),
+      })
+    : null;
+  if (header) {
+    stripEl.querySelector("label")!.remove();
+    thumbEl.remove();
+    select.replaceWith(header.el);
+    noteEl.hidden = false;
+  }
   const popEl = stripEl.querySelector<HTMLDivElement>(".yui-preset-pop")!;
   const colsEl = root.querySelector<HTMLDivElement>(".yui-quick__cols")!;
   const manage = createPresetManage({
@@ -133,7 +146,7 @@ export function createPresetStrip(deps: {
     }
     select.replaceChildren(
       ...state.list.map((e) => {
-        const open = !edit && isOpen(e.id);
+        const open = isOpen(e.id);
         const option = new Option(
           open ? t("preset.in_window", { name: e.name }) : e.name,
           e.id,
@@ -145,6 +158,7 @@ export function createPresetStrip(deps: {
       }),
     );
     const name = presetNameFor(state, shownId);
+    header?.render(state.list, state.active, isOpen);
     if (edit) {
       const open = isOpen(shownId);
       const key = shownId === state.active ? "main" : open ? "window" : "idle";
@@ -161,10 +175,6 @@ export function createPresetStrip(deps: {
   }
 
   function handleChange(): void {
-    if (edit) {
-      if (select.value !== shownId) onEditTarget?.(select.value);
-      return;
-    }
     const target = registry.get().list.find((e) => e.id === select.value);
     if (!target || target.id === registry.get().active) return;
     if (boundId !== null) return;

@@ -502,6 +502,7 @@ export function createQuickControls({
         relationsSwitch,
         removeCardThumbnail,
         pickPhoto: pickPresetPhoto,
+        getDefaultChatApi,
       })
     : null;
   const characters =
