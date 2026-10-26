@@ -1,22 +1,28 @@
 import type { MessageBridge } from "../../io/bridge/message/message-bridge";
 import { createLogger } from "../../logger";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
+import type { MirroredName } from "./mirrored-name";
 import { focusWindow } from "./wire-message-tauri-window";
 
 const log = createLogger("message-bootstrap");
 
-/** Draws each surface op the pet window sends onto this window's surfaces. */
+/** Draws each surface op the pet window sends onto this window's surfaces, and takes the character's name it sends. */
 export function wireMessageSurfaceOps({
   bridge,
   surfaces,
+  name,
 }: {
   bridge: MessageBridge;
   surfaces: Surfaces;
+  name: Pick<MirroredName, "set">;
 }): void {
   bridge.onSurface((op) => {
     switch (op.op) {
       case "begin":
         surfaces.beginSpeech(undefined, { paced: op.paced === true });
+        break;
+      case "name":
+        name.set(op.name);
         break;
       case "push":
         surfaces.pushSpeech(op.delta);

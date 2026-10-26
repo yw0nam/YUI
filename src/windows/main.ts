@@ -155,7 +155,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     boundId,
     settingsBridge: windowBridge,
     transcript: conversationStores.chatHistoryStore,
-    characterName: characterName.get,
+    characterName,
     mount: root,
     tool: statusPill,
     bubblePersistSettings: settingsStores.bubblePersistSettings,

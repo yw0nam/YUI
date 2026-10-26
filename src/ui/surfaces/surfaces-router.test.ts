@@ -71,6 +71,7 @@ function makeRemote(): RemoteSurfaces {
     dismissInput: vi.fn(),
     isInputOpen: vi.fn(() => false),
     setBusy: vi.fn(),
+    setName: vi.fn(),
     showInputError: vi.fn(),
     setAttachmentLimits: vi.fn(),
     restoreInput: vi.fn(),

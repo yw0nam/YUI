@@ -23,8 +23,8 @@ export function wireMessageSurfaces(deps: {
   boundId?: string | null;
   settingsBridge: Pick<SettingsBridge, "emitSpeechStream">;
   transcript: { entriesAfterLastBoundary(): readonly ChatHistoryEntry[] };
-  /** The name the backlog gives this window's character lines. */
-  characterName(): string;
+  /** The character's name, for the backlog's lines here and the message window's plate and backlog. */
+  characterName: { get(): string; subscribe(cb: () => void): () => void };
   mount: HTMLElement;
   tool: ToolStatus;
   bubblePersistSettings: Pick<SettingsStores["bubblePersistSettings"], "get">;
@@ -45,10 +45,15 @@ export function wireMessageSurfaces(deps: {
     keepBubbleUntilDismissed: () => deps.bubblePersistSettings.get().enabled,
     onPop: isTauri() ? () => deps.messageWindowSettings.setMode("popped") : undefined,
     namePlate: true,
-    backlog: { read: deps.transcript.entriesAfterLastBoundary, characterName: deps.characterName },
+    backlog: {
+      read: deps.transcript.entriesAfterLastBoundary,
+      characterName: deps.characterName.get,
+    },
   });
   const messageBridge = createMessageBridge(undefined, { windowKind: "pet" });
   const remote = createRemoteSurfaces(messageBridge);
+  const sendName = (): void => remote.setName(deps.characterName.get());
+  sendName();
   // A stale popped mode must not strand speech in a window the browser build cannot open.
   const getMode = (): MessageWindowMode =>
     isTauri() ? deps.messageWindowSettings.get().mode : "docked";
@@ -71,6 +76,7 @@ export function wireMessageSurfaces(deps: {
     listenTrayToggle: deps.boundId == null ? listenTrayToggle : undefined,
     getMode,
   });
+  deps.register(deps.characterName.subscribe(sendName));
   deps.register(() => messageBridge.dispose());
   deps.register(() => surfaces.dispose());
   deps.register(disposeMessageWindowMode);

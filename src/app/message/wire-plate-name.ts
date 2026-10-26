@@ -1,22 +1,24 @@
-/** The name plate carries the bound window's preset face and name, or the active preset's when unbound; a name source names it instead. */
+/** The name plate carries the character's name and the bound window's preset face, or the active preset's when unbound. */
 
 import { presetEntryFor } from "../../settings/preset/active-preset";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import type { MessagePlate } from "../../ui/message/message-plate";
-import type { CharacterName } from "./character-name";
 
 export function wirePlateName(deps: {
   registry: Pick<PresetRegistry, "get" | "subscribe">;
   plate: MessagePlate;
   boundId: string | null;
-  name?: Pick<CharacterName, "get" | "subscribe">;
+  name: { get(): string; subscribe(cb: () => void): () => void };
 }): () => void {
   const render = (): void => {
-    const entry = presetEntryFor(deps.registry.get(), deps.boundId);
-    deps.plate.setName(deps.name?.get() ?? entry.name);
-    deps.plate.setFace(entry);
+    deps.plate.setName(deps.name.get());
+    deps.plate.setFace(presetEntryFor(deps.registry.get(), deps.boundId));
   };
   render();
-  // The name source also follows the registry.
-  return (deps.name ?? deps.registry).subscribe(render);
+  const offRegistry = deps.registry.subscribe(render);
+  const offName = deps.name.subscribe(render);
+  return () => {
+    offRegistry();
+    offName();
+  };
 }

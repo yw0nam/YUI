@@ -47,6 +47,8 @@ export interface RemoteSurfaces {
   /** The last open state the message window reported. */
   isInputOpen(): boolean;
   setBusy(busy: boolean): void;
+  /** The character's name the message window's plate and backlog show. */
+  setName(name: string): void;
   showInputError(message: string, action?: InputErrorAction): void;
   /** Offers an in-place fix under the current speech; without an action, drops the one shown. */
   showSpeechAction(action?: SpeechAction): void;
@@ -70,6 +72,7 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
   const openSettingsHandlers: Array<() => void> = [];
   let inputOpen = false;
   let busy = false;
+  let name: string | null = null;
   let limits: AttachmentLimits | null = null;
   let pendingErrorAction: (() => void) | null = null;
   let pendingSpeechAction: (() => void) | null = null;
@@ -99,6 +102,7 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
         break;
       case "ready":
         if (limits) bridge.emitSurface({ op: "attachment-limits", limits });
+        if (name !== null) bridge.emitSurface({ op: "name", name });
         bridge.emitSurface({ op: "busy", busy });
         break;
       default: {
@@ -149,6 +153,10 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
     },
     isInputOpen() {
       return inputOpen;
+    },
+    setName(value) {
+      name = value;
+      bridge.emitSurface({ op: "name", name: value });
     },
     setBusy(value) {
       log.info("busy_emit", { busy: value });

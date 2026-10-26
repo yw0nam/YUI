@@ -42,11 +42,12 @@ function fakeMessageWindowSettings(mode: MessageWindowMode) {
 function setup(mode: MessageWindowMode, bound = false) {
   let name = "Yui";
   const nameListeners: Array<() => void> = [];
+  const offName = vi.fn();
   const characterName = {
     get: () => name,
     subscribe: (cb: () => void) => {
       nameListeners.push(cb);
-      return () => {};
+      return offName;
     },
   };
   const rename = (next: string): void => {
@@ -89,6 +90,7 @@ function setup(mode: MessageWindowMode, bound = false) {
     modeDisposer,
     messageWindowSettings,
     rename,
+    offName,
   };
 }
 
@@ -122,13 +124,14 @@ describe("wireMessageSurfaces", () => {
     expect(wireMessageWindowMode.mock.calls[0]![0].listenTrayToggle).toBe(listenTrayToggle);
   });
 
-  it("registers the bridge, the router, then the window-mode teardown", () => {
-    const { register, local, surfaces, bridge, modeDisposer } = setup("docked");
+  it("registers the name subscription, the bridge, the router, then the window-mode teardown", () => {
+    const { register, local, surfaces, bridge, modeDisposer, offName } = setup("docked");
 
-    expect(register).toHaveBeenCalledTimes(3);
-    const [bridgeTeardown, surfacesTeardown, modeTeardown] = register.mock.calls.map(
+    expect(register).toHaveBeenCalledTimes(4);
+    const [nameTeardown, bridgeTeardown, surfacesTeardown, modeTeardown] = register.mock.calls.map(
       (call) => call[0],
     );
+    expect(nameTeardown).toBe(offName);
 
     bridgeTeardown();
     expect(bridge.dispose).toHaveBeenCalledOnce();
