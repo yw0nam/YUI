@@ -9,6 +9,9 @@ import { createAgentSettings } from "../../../../settings/backend/agent-settings
 import { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
 import { createUserNameSettings } from "../../../../settings/identity/user-name-settings";
 import { createPresetRegistry } from "../../../../settings/preset/preset-registry";
+import { createFillerSettings } from "../../../../settings/voice/filler-settings";
+import { readCard } from "../../../../config/validators/persona/read-card";
+import { createPresetFromCard } from "../../../../settings/preset/import-card-preset";
 import { setLocale } from "../../../i18n";
 import { CARD_GUIDE_URL } from "../../constants";
 import { createQuickControls } from "../../quick-controls";
@@ -248,6 +251,70 @@ describe("createQuickControls — card section", () => {
       spec_version: "2.0",
       data: { name: "Yui", description: "English text" },
     });
+  });
+
+  it("export carries the preset's filler pools under extensions.yui.filler", async () => {
+    const fillerSettings = createFillerSettings();
+    fillerSettings.setCustomPool("ja", { first: ["A"] });
+    const exportCard = vi.fn(async (_text: string, _fileName: string) => "written" as const);
+    build({ fillerSettings, exportCard });
+    sec().querySelector<HTMLButtonElement>(".yui-card-export")!.click();
+    await vi.waitFor(() => expect(exportCard).toHaveBeenCalledTimes(1));
+    const [text] = exportCard.mock.calls[0];
+    expect(JSON.parse(text).data.extensions.yui).toEqual({
+      filler: { ja: { first: ["A"] } },
+    });
+  });
+
+  it("an all-empty filler store omits extensions.yui.filler from the export", async () => {
+    const exportCard = vi.fn(async (_text: string, _fileName: string) => "written" as const);
+    build({ exportCard });
+    sec().querySelector<HTMLButtonElement>(".yui-card-export")!.click();
+    await vi.waitFor(() => expect(exportCard).toHaveBeenCalledTimes(1));
+    const [text] = exportCard.mock.calls[0];
+    expect(JSON.parse(text).data.extensions.yui).toBeUndefined();
+  });
+
+  it("exported filler pools import back into the new preset identically", async () => {
+    const fillerSettings = createFillerSettings();
+    fillerSettings.setCustomPool("ja", { first: ["A"] });
+    let written = "";
+    const exportCard = vi.fn(async (text: string, _fileName: string) => {
+      written = text;
+      return "written" as const;
+    });
+    build({ fillerSettings, exportCard });
+    sec().querySelector<HTMLButtonElement>(".yui-card-export")!.click();
+    await vi.waitFor(() => expect(exportCard).toHaveBeenCalledTimes(1));
+
+    const storage = (() => {
+      const map = new Map<string, string>();
+      return {
+        getItem: (key: string) => map.get(key) ?? null,
+        setItem: (key: string, value: string) => void map.set(key, value),
+        removeItem: (key: string) => void map.delete(key),
+        clear: () => map.clear(),
+        key: () => null,
+        get length() {
+          return map.size;
+        },
+      } as Storage;
+    })();
+    // The copied filler value registry.create seeds the new preset with before the import runs.
+    storage.setItem("yui.n1.filler", JSON.stringify({ enabled: true, language: "en", customPools: { en: { first: ["hi"] } } }));
+    const id = await createPresetFromCard({
+      registry: {
+        create: () => "n1",
+        setThumbnail: () => true,
+        activate: () => true,
+        remove: () => true,
+      },
+      card: readCard(JSON.parse(written)).card,
+      storage,
+    });
+    expect(JSON.parse(storage.getItem("yui.n1.filler")!).customPools).toEqual(
+      JSON.parse(written).data.extensions.yui.filler,
+    );
   });
 
   it("an export cancelled at the save dialog logs nothing", async () => {

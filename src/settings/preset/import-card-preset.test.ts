@@ -13,6 +13,21 @@ import type { Card } from "../../config/validators/persona/types";
 import { createPresetFromCard } from "./import-card-preset";
 import { resolveStorageKey } from "./preset-keys";
 
+/** A card whose extensions.yui holds the given keys; `other_ext` stands for every other extension. */
+const fillerCard = (yui: Record<string, unknown>): Card =>
+  readCard({
+    spec: "chara_card_v2",
+    spec_version: "2.0",
+    data: { name: "Mio", extensions: { ...yui, other_ext: { kept: true } } },
+  }).card;
+
+/** The filler value registry.create copies onto the new preset before the import runs. */
+const copiedFiller = { enabled: true, language: "en", customPools: { en: { first: ["hi"] } } };
+
+function seedFiller(storage: Storage, id: string): void {
+  storage.setItem(resolveStorageKey("yui.filler", id), JSON.stringify(copiedFiller));
+}
+
 /** A card as a V3 import produces it: V3-only extras under extensions.chara_card_v3. */
 const v3Card = (): Card =>
   readCard({
@@ -181,6 +196,71 @@ describe("createPresetFromCard", () => {
         }),
       }),
     ).rejects.toThrow("thumbnail retain failed");
+  });
+
+  it("imports the card's filler pools into the new preset's filler value", async () => {
+    const { registry } = fakeRegistry([{ id: "default", name: "default" }], ["n1"]);
+    const storage = memoryStorage();
+    seedFiller(storage, "n1");
+    const card = fillerCard({ yui: { filler: { ja: { first: ["A"] } }, keep: "x" } });
+    const id = await createPresetFromCard({ registry, card, storage, fillerLocale: "ko" });
+    expect(JSON.parse(storage.getItem(resolveStorageKey("yui.filler", id))!)).toEqual({
+      enabled: true,
+      language: "en",
+      customPools: { ja: { first: ["A"] } },
+    });
+    const agentCard = JSON.parse(storage.getItem(resolveStorageKey("yui.agent", id))!).card;
+    expect(agentCard.extensions).toEqual({ yui: { keep: "x" }, other_ext: { kept: true } });
+  });
+
+  it("removes extensions.yui from the stored card when the filler was its only key", async () => {
+    const { registry } = fakeRegistry([{ id: "default", name: "default" }], ["n1"]);
+    const storage = memoryStorage();
+    seedFiller(storage, "n1");
+    const card = fillerCard({ yui: { filler: { ja: { first: ["A"] } } } });
+    const id = await createPresetFromCard({ registry, card, storage });
+    const agentCard = JSON.parse(storage.getItem(resolveStorageKey("yui.agent", id))!).card;
+    expect(agentCard.extensions).toEqual({ other_ext: { kept: true } });
+  });
+
+  it("a failing filler write rolls the preset back and rethrows", async () => {
+    const { registry, removed } = fakeRegistry([{ id: "default", name: "default" }], ["n1"]);
+    const storage = memoryStorage();
+    seedFiller(storage, "n1");
+    const raw = storage.setItem.bind(storage);
+    vi.spyOn(storage, "setItem").mockImplementation((key, value) => {
+      if (key === resolveStorageKey("yui.filler", "n1")) throw new Error("quota");
+      raw(key, value);
+    });
+    await expect(
+      createPresetFromCard({
+        registry,
+        card: fillerCard({ yui: { filler: { ja: { first: ["A"] } } } }),
+        storage,
+      }),
+    ).rejects.toThrow("quota");
+    expect(removed).toEqual(["n1"]);
+  });
+
+  it("a card without extensions.yui keeps the copied pools", async () => {
+    const { registry } = fakeRegistry([{ id: "default", name: "default" }], ["n1"]);
+    const storage = memoryStorage();
+    seedFiller(storage, "n1");
+    const id = await createPresetFromCard({ registry, card: v3Card(), storage });
+    expect(JSON.parse(storage.getItem(resolveStorageKey("yui.filler", id))!)).toEqual(copiedFiller);
+  });
+
+  it("an invalid filler keeps the copied pools and logs card_import_filler_invalid", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { registry } = fakeRegistry([{ id: "default", name: "default" }], ["n1"]);
+    const storage = memoryStorage();
+    seedFiller(storage, "n1");
+    const card = fillerCard({ yui: { filler: { ja: { first: 42 } } } });
+    const id = await createPresetFromCard({ registry, card, storage });
+    expect(JSON.parse(storage.getItem(resolveStorageKey("yui.filler", id))!)).toEqual(copiedFiller);
+    expect(
+      warn.mock.calls.filter((c) => String(c[0]).includes("card_import_filler_invalid")),
+    ).toHaveLength(1);
   });
 
   it("a refused thumbnail entry removes the preset and discards the thumbnail", async () => {
