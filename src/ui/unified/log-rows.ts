@@ -28,7 +28,7 @@ export function lineEl(row: Row, cast: readonly PresetEntry[], now: number): HTM
   who.append(row.who === "user" ? t("history.who_user") : row.name);
   const say = document.createElement("p");
   say.className = "yui-uc__say";
-  if (row.to) {
+  if (row.to && row.who !== "user") {
     const to = document.createElement("span");
     to.className = "yui-uc__to";
     to.style.color = colorOf(row.to);

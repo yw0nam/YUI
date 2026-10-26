@@ -52,12 +52,12 @@ export function createLogView(deps: {
 
   return {
     refresh,
-    addSend(sendId: string, text: string): void {
-      pending.push({ sendId, text, at: deps.now(), queued: true });
+    addSend(sendId: string, text: string, to: string): void {
+      pending.push({ sendId, text, to, at: deps.now(), queued: true });
     },
     startSend(sendId: string): void {
       pending = pending.map((p) =>
-        p.sendId === sendId ? { sendId, text: p.text, at: deps.now() } : p,
+        p.sendId === sendId ? { sendId, text: p.text, to: p.to, at: deps.now() } : p,
       );
     },
     lastSpeaker(): string | undefined {

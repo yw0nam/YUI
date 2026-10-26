@@ -70,7 +70,11 @@ export function createUnifiedView(deps: {
       sendId: deps.randomId(),
     });
     if (!send) return;
-    logView.addSend(send.sendId, send.text);
+    logView.addSend(
+      send.sendId,
+      send.text,
+      send.mention === "everyone" ? "everyone" : (send.targets[0] ?? ""),
+    );
     sequence.run(send);
     composer.setMention(null);
     log.info("route", { targets: send.targets.length, mention: send.mention ?? "none" });

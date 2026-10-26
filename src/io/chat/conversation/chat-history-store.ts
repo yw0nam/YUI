@@ -27,6 +27,8 @@ export interface ChatHistoryEntry {
   greeting?: true;
   /** A user entry routed from the unified chat window: the send id every recipient preset shares. */
   send_id?: string;
+  /** A user entry routed to every open character; a routed entry without it went to the preset whose transcript holds it. */
+  mention?: "everyone";
   /** An assistant entry whose turn called address_character: the recipient's preset id. */
   to?: string;
 }
@@ -79,6 +81,7 @@ function coerceItem(v: unknown): ChatHistoryItem | null {
     ...(typeof e.turn_id === "string" ? { turn_id: e.turn_id } : {}),
     ...(e.greeting === true ? { greeting: true as const } : {}),
     ...(typeof e.send_id === "string" ? { send_id: e.send_id } : {}),
+    ...(e.mention === "everyone" ? { mention: "everyone" as const } : {}),
     ...(typeof e.to === "string" ? { to: e.to } : {}),
   };
 }
@@ -108,6 +111,7 @@ function equalItems(a: ChatHistoryItem[], b: ChatHistoryItem[]): boolean {
       item.turn_id === other.turn_id &&
       item.greeting === other.greeting &&
       item.send_id === other.send_id &&
+      item.mention === other.mention &&
       item.to === other.to
     );
   });

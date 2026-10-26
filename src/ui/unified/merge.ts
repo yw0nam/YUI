@@ -3,6 +3,7 @@
 import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
 import type { PresetEntry } from "../../settings/preset/active-preset";
 import { SEND_TIMEOUT_MS } from "./sequence";
+import { EVERYONE } from "./targets";
 
 /** One open preset's current-session transcript. */
 export type Transcript = PresetEntry & { entries: ChatHistoryEntry[] };
@@ -12,6 +13,8 @@ export interface PendingSend {
   sendId: string;
   text: string;
   at: number;
+  /** A preset id, or EVERYONE. */
+  to: string;
   /** Still waiting behind another send: it never expires, and `at` is when it was typed. */
   queued?: boolean;
 }
@@ -24,7 +27,7 @@ export interface Row {
   name: string;
   text: string;
   ts: number;
-  /** An assistant row whose turn called address_character: the recipient's preset id. */
+  /** A user row's recipient (a preset id, or EVERYONE); an assistant row whose turn called address_character: the recipient's preset id. */
   to?: string;
   pending?: true;
 }
@@ -42,6 +45,7 @@ export function mergeTranscripts(
         const known = bySend.get(e.send_id);
         if (known) {
           known.ts = Math.min(known.ts, e.ts);
+          if (e.mention === EVERYONE) known.to = EVERYONE;
           continue;
         }
         const row: Row = {
@@ -50,6 +54,7 @@ export function mergeTranscripts(
           name: "",
           text: e.text,
           ts: e.ts,
+          to: e.mention === EVERYONE ? EVERYONE : preset.id,
         };
         bySend.set(e.send_id, row);
         sorted.push({ row, order: [castIndex, i] });
@@ -57,7 +62,14 @@ export function mergeTranscripts(
       }
       const row: Row =
         e.role === "user"
-          ? { key: `${preset.id}:${i}:${e.ts}`, who: "user", name: "", text: e.text, ts: e.ts }
+          ? {
+              key: `${preset.id}:${i}:${e.ts}`,
+              who: "user",
+              name: "",
+              text: e.text,
+              ts: e.ts,
+              to: preset.id,
+            }
           : {
               key: `${preset.id}:${i}:${e.ts}`,
               who: preset.id,
@@ -77,6 +89,7 @@ export function mergeTranscripts(
       name: "",
       text: p.text,
       ts: p.at,
+      to: p.to,
       pending: true,
     };
     sorted.push({ row, order: [Number.MAX_SAFE_INTEGER, 0] });
