@@ -1029,6 +1029,32 @@ describe("typing — speech types out", () => {
     expect(mount.querySelector(".yui-bubble")!.classList.contains("is-typing")).toBe(false);
   });
 
+  it("types the rendered line, never its markdown syntax or a partial link", () => {
+    const raw = "Here is **bold** and [label](https://example.com/x) now.";
+    const seen: string[] = [];
+    const look = () => {
+      const el = mount.querySelector(".yui-bubble__text")!;
+      seen.push(el.textContent ?? "");
+      for (const a of el.querySelectorAll("a")) {
+        expect(a.getAttribute("href")).toBe("https://example.com/x");
+      }
+    };
+    s.beginSpeech();
+    for (let i = 0; i < raw.length; i += 3) {
+      s.pushSpeech(raw.slice(i, i + 3));
+      vi.advanceTimersByTime(30);
+      look();
+    }
+    s.endSpeech();
+    for (let i = 0; i < 100; i++) {
+      vi.advanceTimersByTime(20);
+      look();
+    }
+
+    expect(seen.at(-1)).toBe("Here is bold and label now.");
+    expect(seen.filter((t) => /[*[]|\]\(|http/.test(t))).toEqual([]);
+  });
+
   it("shows the whole line at once under reduced motion", () => {
     vi.stubGlobal("matchMedia", (query: string) => ({
       matches: query === "(prefers-reduced-motion: reduce)",
