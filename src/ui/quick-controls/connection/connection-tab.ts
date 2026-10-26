@@ -22,6 +22,7 @@ import {
   selectRowHtml,
   svcResetRowHtml,
 } from "../markup";
+import { effortSectionHtml } from "../sections/agent/agent-section";
 import { createChatSection } from "./chat/chat-section";
 import { createEndpointsSection, validateEndpointInput } from "./endpoints-section";
 
@@ -126,8 +127,6 @@ export function createConnectionTab(deps: {
   getChatApiKey?: () => Promise<string | undefined>;
   /** Environment fetch for the model list read (selectFetch()), undefined → globalThis.fetch. */
   getFetch?: () => Promise<typeof globalThis.fetch | undefined>;
-  /** Extra section mounted right after the chat section (the reasoning-effort row). */
-  chatExtra?: HTMLElement;
   log: Logger;
 }): ConnectionTab {
   const {
@@ -141,7 +140,6 @@ export function createConnectionTab(deps: {
     isOpen,
     getChatApiKey,
     getFetch,
-    chatExtra,
     log,
   } = deps;
 
@@ -157,10 +155,10 @@ export function createConnectionTab(deps: {
     getFetch,
   });
   el.append(chatSection.el);
-  if (chatExtra) el.append(chatExtra);
+  // The reasoning-effort row follows chat; the agent section binds it.
   el.insertAdjacentHTML(
     "beforeend",
-    `${sttSectionHtml()}${ttsSectionHtml()}${rows.broker ? brokerSectionHtml() : ""}`,
+    `${effortSectionHtml()}${sttSectionHtml()}${ttsSectionHtml()}${rows.broker ? brokerSectionHtml() : ""}`,
   );
 
   const endpointsSection = createEndpointsSection({

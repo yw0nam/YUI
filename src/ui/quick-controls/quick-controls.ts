@@ -79,7 +79,7 @@ import { createHistoryTab } from "./history/history-tab";
 import { createPopover } from "./popover";
 import { createPresetStrip } from "./preset/preset-strip";
 import { bindSettingsSearch } from "./search/settings-search";
-import { createAgentSection, effortSectionHtml } from "./sections/agent/agent-section";
+import { createAgentSection } from "./sections/agent/agent-section";
 import { createBrowserSection } from "./sections/browser/browser-section";
 import { createCardSection } from "./sections/card/card-section";
 import { createFillerSection } from "./sections/filler/filler-section";
@@ -293,6 +293,13 @@ interface QuickControlsOptions {
   showVoiceInput?: boolean;
 }
 
+/** A part of the panel the shell redraws on open, closes, and disposes. */
+interface PanelSection {
+  reflect?(): void;
+  close?(): void;
+  dispose?(): void;
+}
+
 interface QuickControls {
   el: HTMLElement;
   /** Summon the panel. `tab` lands on that tab instead of the one last left selected. */
@@ -453,10 +460,6 @@ export function createQuickControls({
   const tabButtons = Array.from(el.querySelectorAll<HTMLButtonElement>(".yui-tab"));
   const barEl = el.querySelector<HTMLDivElement>(".yui-quick__bar");
 
-  // ── Reasoning effort — the agent section binds it; the connection tab mounts it after chat. ──
-  const effortHost = document.createElement("div");
-  effortHost.innerHTML = effortSectionHtml();
-
   // ── Connection page (URL fields · API key rows · TTS/Chat dropdowns · status line · resets) ──
   const connectionTab = createConnectionTab({
     endpointsSettings,
@@ -469,7 +472,6 @@ export function createQuickControls({
     isOpen: () => popover.isOpen(),
     getChatApiKey,
     getFetch,
-    chatExtra: effortHost.firstElementChild as HTMLElement,
     log,
   });
   el.querySelector("#yui-panel-conn")!.append(connectionTab.el);
@@ -590,39 +592,16 @@ export function createQuickControls({
     closeWindow: onCloseWindow,
     visibleHeight: visibleViewport ? () => visibleViewport.get() : undefined,
     onOpen: () => {
-      screenshot.reflect();
-      browser?.reflect();
-      switchRows.reflect();
-      reactions.reflect();
-      screen.reflect();
-      voiceInput.reflect();
-      agent.reflect();
-      card.reflect();
-      userName.reflect();
-      sttKeyRow.reflect();
-      filler.reflect();
-      agent.reflectLanguage();
-      appearance.reflect();
-      connectionTab.refresh();
-      // Opening on the Connection tab counts as entering it — the model list read follows.
+      for (const section of sections) section.reflect?.();
+      // Opening on the Connection page counts as entering it — the model list read follows.
       if (tabRail.selected() === "conn") connectionTab.entered();
-      session.reflect();
-      historyTab?.refresh();
-      characters?.refresh();
-      characterTab.refresh();
-      speakerList.render();
       // Server may have come up after the app — refetch its voice list (store subscription re-renders).
       refreshVoiceList?.();
+      // Last, so the list the monitors fill is already redrawn.
       screenshot.loadMonitorsIfEnabled();
     },
     onClose: () => {
-      hintTooltip.hide();
-      characterTab.close();
-      speakerList.stopAudition();
-      connectionTab.commit();
-      sttKeyRow.commitIfDirty();
-      connectionTab.close();
-      presetStrip?.close();
+      for (const section of sections) section.close?.();
     },
   });
 
@@ -814,40 +793,54 @@ export function createQuickControls({
         onGuide(guide, text);
       })
     : undefined;
+  // Every section the panel redraws on open, closes and disposes, in redraw order.
+  const parts: (PanelSection | null | undefined)[] = [
+    screenshot,
+    browser,
+    switchRows,
+    reactions,
+    screen,
+    voiceInput,
+    agent,
+    card,
+    userName,
+    { reflect: sttKeyRow.reflect, close: sttKeyRow.commitIfDirty, dispose: sttKeyRow.dispose },
+    filler,
+    { reflect: agent.reflectLanguage },
+    appearance,
+    {
+      reflect: connectionTab.refresh,
+      close: () => {
+        connectionTab.commit();
+        connectionTab.close();
+      },
+      dispose: connectionTab.dispose,
+    },
+    session,
+    historyTab && { reflect: historyTab.refresh, dispose: historyTab.dispose },
+    characters && { reflect: characters.refresh, dispose: characters.dispose },
+    { reflect: characterTab.refresh, close: characterTab.close, dispose: characterTab.dispose },
+    { reflect: speakerList.render, close: speakerList.stopAudition, dispose: speakerList.dispose },
+    { close: hintTooltip.hide, dispose: hintTooltip.dispose },
+    presetStrip,
+    readings,
+    workflows,
+    { dispose: cueLists.destroy },
+    headerButtons,
+    { dispose: unbindHelp },
+    { dispose: unbindTransportLinks },
+    { dispose: unbindSearch },
+    tabRail,
+  ];
+  const sections = parts.filter((section): section is PanelSection => !!section);
+
   // window variant is always visible, so open it immediately.
   if (isWindow) popover.open();
 
   function dispose(): void {
     disposed = true;
-    connectionTab.dispose();
-    workflows.dispose();
-    screenshot.dispose();
-    browser?.dispose();
-    screen.dispose();
-    reactions.dispose();
-    agent.dispose();
-    appearance.dispose();
-    card.dispose();
-    userName.dispose();
-    sttKeyRow.dispose();
-    filler.dispose();
-    readings.dispose();
-    voiceInput.dispose();
-    session.dispose();
-    hintTooltip.dispose();
-    historyTab?.dispose();
-    cueLists.destroy();
-    switchRows.dispose();
-    characterTab.dispose();
-    speakerList.dispose();
-    headerButtons.dispose();
-    unbindHelp?.();
+    for (const section of sections) section.dispose?.();
     popover.dispose();
-    tabRail.dispose();
-    unbindTransportLinks();
-    unbindSearch();
-    presetStrip?.dispose();
-    characters?.dispose();
     el.remove();
     scrimEl.remove();
   }
