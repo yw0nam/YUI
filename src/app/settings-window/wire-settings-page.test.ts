@@ -1,6 +1,7 @@
-import { expect, it, vi } from "vitest";
+// @vitest-environment jsdom
+import { afterEach, expect, it, vi } from "vitest";
 import type { SettingsBridge } from "../../io/bridge/settings-bridge";
-import { wireSettingsPage } from "./wire-settings-page";
+import { takeRequestedPage, wireSettingsPage } from "./wire-settings-page";
 
 type Request = Parameters<Parameters<SettingsBridge["onSettingsPage"]>[0]>[0];
 
@@ -15,19 +16,23 @@ function setup(opts: { boundId: string | null; editing: string; active?: string 
   };
   const select = vi.fn();
   const retarget = vi.fn();
-  const dispose = wireSettingsPage({
+  const wired = wireSettingsPage({
     bridge,
     boundId: opts.boundId,
     editing: () => opts.editing,
     active: () => opts.active ?? "main-char",
-    select,
     retarget,
   });
-  return { select, retarget, dispose, off, remote: (r: Request) => remote(r) };
+  return { select, retarget, wired, off, remote: (r: Request) => remote(r) };
 }
 
+afterEach(() => {
+  history.replaceState(null, "", "/");
+});
+
 it("selects the requested page for the character the window edits", () => {
-  const { select, retarget, remote } = setup({ boundId: "a", editing: "a" });
+  const { select, retarget, wired, remote } = setup({ boundId: "a", editing: "a" });
+  wired.attach(select);
 
   remote({ preset: "a", page: "hist" });
 
@@ -36,7 +41,8 @@ it("selects the requested page for the character the window edits", () => {
 });
 
 it("does nothing for a request without a page when it already edits that character", () => {
-  const { select, retarget, remote } = setup({ boundId: "a", editing: "a" });
+  const { select, retarget, wired, remote } = setup({ boundId: "a", editing: "a" });
+  wired.attach(select);
 
   remote({ preset: "a" });
 
@@ -45,7 +51,8 @@ it("does nothing for a request without a page when it already edits that charact
 });
 
 it("switches back to the opener's character, carrying the page", () => {
-  const { select, retarget, remote } = setup({ boundId: "a", editing: "b" });
+  const { select, retarget, wired, remote } = setup({ boundId: "a", editing: "b" });
+  wired.attach(select);
 
   remote({ preset: "a", page: "conn" });
 
@@ -54,11 +61,12 @@ it("switches back to the opener's character, carrying the page", () => {
 });
 
 it("resolves the main window's request to the active character", () => {
-  const { select, retarget, remote } = setup({
+  const { select, retarget, wired, remote } = setup({
     boundId: null,
     editing: "other",
     active: "main-char",
   });
+  wired.attach(select);
 
   remote({ preset: null });
 
@@ -67,7 +75,8 @@ it("resolves the main window's request to the active character", () => {
 });
 
 it("ignores a request for another window's character", () => {
-  const { select, retarget, remote } = setup({ boundId: "a", editing: "a" });
+  const { select, retarget, wired, remote } = setup({ boundId: "a", editing: "a" });
+  wired.attach(select);
 
   remote({ preset: "b", page: "conn" });
   remote({ preset: null, page: "conn" });
@@ -76,10 +85,29 @@ it("ignores a request for another window's character", () => {
   expect(retarget).not.toHaveBeenCalled();
 });
 
-it("stops listening on dispose", () => {
-  const { dispose, off } = setup({ boundId: null, editing: "x" });
+it("keeps the latest page asked for before the panel exists and selects it on attach", () => {
+  const { select, wired, remote } = setup({ boundId: "a", editing: "a" });
 
-  dispose();
+  remote({ preset: "a", page: "voice" });
+  remote({ preset: "a", page: "hist" });
+  expect(select).not.toHaveBeenCalled();
+  wired.attach(select);
+
+  expect(select).toHaveBeenCalledExactlyOnceWith("hist");
+});
+
+it("stops listening on dispose", () => {
+  const { wired, off } = setup({ boundId: null, editing: "x" });
+
+  wired.dispose();
 
   expect(off).toHaveBeenCalledOnce();
+});
+
+it("takes the page of the URL and leaves the rest of the query", () => {
+  history.replaceState(null, "", "/settings.html?preset=a&page=conn&edit=b");
+
+  expect(takeRequestedPage()).toBe("conn");
+  expect(location.search).toBe("?preset=a&edit=b");
+  expect(takeRequestedPage()).toBeNull();
 });

@@ -14,7 +14,7 @@ it.each([
     "http://localhost/settings.html?preset=a&page=conn",
     "b",
     "a",
-    "http://localhost/settings.html?preset=a&edit=b",
+    "http://localhost/settings.html?preset=a&page=conn&edit=b",
   ],
 ])("editTargetUrl of %s to %s over own %s is %s", (href, id, own, expected) => {
   expect(editTargetUrl(href, id, own)).toBe(expected);

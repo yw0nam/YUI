@@ -307,6 +307,7 @@ describe("createSettingsBridge", () => {
     ["onSpeechStreamControl", { preset: "p2", op: { op: "input-error-action" } }, false],
     ["onUserTurnDone", { sendId: "s1", preset: "p2" }, false],
     ["onSettingsPage", { preset: "p2", page: "conn" }, false],
+    ["onOpenDevtools", undefined, false],
   ] as const)("%s uses its declared preset scope", (method, payload, scoped) => {
     history.replaceState(null, "", "/?preset=a");
     const t = createFakeTransport();
@@ -433,6 +434,18 @@ describe("createSettingsBridge", () => {
     pet.emitSettingsPage(payload as never);
 
     expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("delivers an open-devtools request from the settings window to the pet window", () => {
+    const t = createFakeTransport();
+    const settings = createSettingsBridge(t, { windowKind: "settings" });
+    const pet = createSettingsBridge(t, { windowKind: "pet" });
+    const cb = vi.fn();
+    pet.onOpenDevtools(cb);
+
+    settings.emitOpenDevtools();
+
+    expect(cb).toHaveBeenCalledOnce();
   });
 
   it("delivers a stop from the unified window to every pet window", () => {
