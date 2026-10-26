@@ -354,6 +354,18 @@ describe("surfaces.css — the box's floor stays under its cap", () => {
   });
 });
 
+// The toggle hangs under the box, so a bubble lifted above the input clears that overhang too.
+describe("surfaces.css — the backlog toggle clears the input", () => {
+  it("lifts the bubble by the toggle's overhang while the toggle shows above the open input", () => {
+    expect(
+      extractBlock(
+        read("surfaces.css"),
+        ".yui-ui:not(.yui-ui--message) .yui-bubble.is-above-input:has(.yui-bubble__backlog-toggle:not([hidden]))",
+      ),
+    ).toMatch(/bottom:\s*calc\(var\(--yui-bubble-bottom\) \+ 15px\)/);
+  });
+});
+
 // In the message window the plate sits in its own row, so it floats with the box and stays clear of an open backlog.
 describe("message-window.css — the plate rides the floating box", () => {
   const css = (): string => read("../message/message-window.css");
