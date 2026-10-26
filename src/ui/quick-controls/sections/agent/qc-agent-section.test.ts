@@ -242,21 +242,6 @@ describe("createQuickControls — agent section", () => {
       qc.dispose();
     });
 
-    it("applies a transport change made while the panel is closed on the next open", () => {
-      const qc = buildQc();
-      qc.open();
-      qc.close();
-      const { disabled } = agentControls(qc);
-
-      endpointsSettings.set({ chat_api: "push" });
-      expect(disabled()).toBe(false);
-
-      qc.open();
-      expect(disabled()).toBe(true);
-
-      qc.dispose();
-    });
-
     it("keeps the stored effort while the control is disabled", () => {
       agentSettings.setReasoningEffort("medium");
       endpointsSettings.set({ chat_api: "push" });

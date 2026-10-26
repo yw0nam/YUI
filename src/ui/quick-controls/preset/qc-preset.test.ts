@@ -25,6 +25,7 @@ describe("createQuickControls — presets", () => {
   let mount: HTMLElement;
   let registry: PresetRegistry;
   let qc: ReturnType<typeof createQuickControls>;
+  let onCloseWindow: ReturnType<typeof vi.fn<() => void>>;
 
   beforeEach(() => {
     vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
@@ -48,7 +49,8 @@ describe("createQuickControls — presets", () => {
     mount = document.createElement("div");
     document.body.appendChild(mount);
     registry = createPresetRegistry({ newId: () => "cccc0003" });
-    qc = createQuickControls({ ...defaultQcArgs(mount), presetRegistry: registry });
+    onCloseWindow = vi.fn<() => void>();
+    qc = createQuickControls({ ...defaultQcArgs(mount), presetRegistry: registry, onCloseWindow });
     qc.open();
   });
 
@@ -354,7 +356,7 @@ describe("createQuickControls — presets", () => {
     expect($<HTMLElement>(".yui-preset-pop").hidden).toBe(true);
     expect($(".yui-preset__manage").getAttribute("aria-expanded")).toBe("false");
     expect(document.activeElement).toBe($(focusSel));
-    expect(qc.isOpen()).toBe(true);
+    expect(onCloseWindow).not.toHaveBeenCalled();
   });
 
   it("offers delete on neither the default nor the active preset", () => {

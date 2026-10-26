@@ -179,10 +179,10 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
-  // ── close() ends preview if active ───────────────────────────────────────
+  // ── Escape, the window's close, ends preview if active ─────────────────────
 
-  it("close() while preview active calls onGainPreviewEnd", () => {
-    const qc = buildQc();
+  it("Escape while preview active calls onGainPreviewEnd", () => {
+    const qc = buildQc({ onCloseWindow: vi.fn() });
     qc.open();
 
     const slider = qc.el.querySelector<HTMLInputElement>(
@@ -191,17 +191,17 @@ describe("createQuickControls — gain row", () => {
     slider.value = "1.5";
     slider.dispatchEvent(new Event("input", { bubbles: true }));
 
-    qc.close();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 
     expect(onGainPreviewEnd).toHaveBeenCalledOnce();
 
     qc.dispose();
   });
 
-  it("close() without prior input does NOT call onGainPreviewEnd", () => {
-    const qc = buildQc();
+  it("Escape without prior input does NOT call onGainPreviewEnd", () => {
+    const qc = buildQc({ onCloseWindow: vi.fn() });
     qc.open();
-    qc.close();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 
     expect(onGainPreviewEnd).not.toHaveBeenCalled();
 

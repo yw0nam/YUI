@@ -63,7 +63,6 @@ it.each(["clear", "Escape"])("%s restores the rail and the rows", (how) => {
   expect([count("motion"), count("perms")]).toEqual([null, null]);
   expect(tab("perms").classList.contains("is-dim")).toBe(false);
   expect(gazeRow().classList.contains("is-match")).toBe(false);
-  expect(qc.isOpen()).toBe(true);
   qc.dispose();
 });
 

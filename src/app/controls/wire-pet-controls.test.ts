@@ -171,11 +171,18 @@ describe("wirePetControls", () => {
       wired.stores.endpointsSettings.set({ chat_api: "push" });
       wired.deps.conversation.chatHistoryStore.append({ role: "user", text: "hi", ts: 1 });
 
+      const calls: string[] = [];
+      wired.deps.stopTurn.mockImplementation(() => void calls.push("stopTurn"));
+      wired.deps.pushSocket.sendReset.mockImplementation(() => {
+        calls.push("sendReset");
+        return true;
+      });
+
       wired.options().resetConversation();
 
-      expect(wired.deps.stopTurn).toHaveBeenCalledOnce();
+      // A turn still running stops before the reset frame goes out.
+      expect(calls).toEqual(["stopTurn", "sendReset"]);
       expect(wired.deps.announceSessionReset).toHaveBeenCalledOnce();
-      expect(wired.deps.pushSocket.sendReset).toHaveBeenCalledOnce();
       expect(wired.deps.conversation.chatHistoryStore.sessions()).toHaveLength(2);
     } finally {
       teardownDeps(wired);

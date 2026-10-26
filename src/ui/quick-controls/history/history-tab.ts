@@ -49,8 +49,6 @@ export function createHistoryTab(deps: {
   sessionDiagnostics?: ReturnType<typeof createSessionDiagnosticsStore>;
   /** Current session id pointer. "Start fresh" clears it along with diagnostics. */
   sessionStore?: ReturnType<typeof createSessionStore>;
-  /** Stops the in-flight turn the way the stop button does, before the reset frame goes out. */
-  stopTurn?: () => void;
   /** Tells the preset's other windows, and this window's greeting, that a new session opened. */
   announceSessionReset?: () => void;
   /** The push transport — "Start fresh" resets the conversation on it in push mode. */
@@ -66,7 +64,6 @@ export function createHistoryTab(deps: {
     signalHistory,
     sessionDiagnostics,
     sessionStore,
-    stopTurn,
     announceSessionReset,
     pushSocket,
     getChatApi,
@@ -107,7 +104,6 @@ export function createHistoryTab(deps: {
       transcript,
       sessionStore,
       sessionDiagnostics,
-      stopTurn,
       announceSessionReset,
       push: getChatApi() === "push" ? pushSocket : undefined,
       log,

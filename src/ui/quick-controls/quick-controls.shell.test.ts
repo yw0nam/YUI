@@ -438,7 +438,6 @@ describe("createQuickControls — construction and disposal", () => {
       expect(qc.selectedTab()).toBe(tabBefore);
       expect(onGuide).not.toHaveBeenCalled();
       expect(document.getElementById("yui-hint-tip")).toBeNull();
-      expect(qc.isOpen()).toBe(true);
     });
 
     it("stops at the first cleanup that throws: dispose() throws and the panel stays mounted", () => {

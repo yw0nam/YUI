@@ -454,7 +454,8 @@ describe("createQuickControls — VRM section", () => {
 
   it("Esc cancels inline rename without changing the label", () => {
     withUserOption();
-    const qc = buildQc();
+    const onCloseWindow = vi.fn();
+    const qc = buildQc({ onCloseWindow });
     qc.open();
 
     userRow(qc).querySelector<HTMLButtonElement>(".yui-vrm__rename")!.click();
@@ -464,8 +465,8 @@ describe("createQuickControls — VRM section", () => {
 
     expect(vrmSelection.list().find((o) => o.id === "cat")!.label).toBe("깜냥이");
     expect(userRow(qc).querySelector(".yui-ep-input")).toBeNull();
-    // Esc cancels the rename only — it must NOT close the whole panel
-    expect(qc.isOpen()).toBe(true);
+    // Esc cancels the rename only — it must NOT close the settings window
+    expect(onCloseWindow).not.toHaveBeenCalled();
 
     qc.dispose();
   });

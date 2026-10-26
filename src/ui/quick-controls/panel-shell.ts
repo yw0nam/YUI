@@ -13,13 +13,12 @@ interface PanelShellDeps {
   closeWindow?: () => void;
   /** Refresh content on open (reflect/render/monitor load). */
   onOpen: () => void;
-  /** Cleanup on close (gain preview, audition, key commit). Called before openState=false. */
+  /** Cleanup before the window closes (gain preview, audition, key commit). */
   onClose: () => void;
 }
 
 interface PanelShell {
   open(): void;
-  close(): void;
   isOpen(): boolean;
   dispose(): void;
 }
@@ -63,13 +62,6 @@ export function createPanelShell(deps: PanelShellDeps): PanelShell {
     focusFirst();
   }
 
-  // The panel stays in its window; closing the window is the host's job.
-  function close(): void {
-    if (!openState) return;
-    onClose();
-    openState = false;
-  }
-
   function isOpen(): boolean {
     return openState;
   }
@@ -89,5 +81,5 @@ export function createPanelShell(deps: PanelShellDeps): PanelShell {
     document.removeEventListener("keydown", handleDocKeydown);
   }
 
-  return { open, close, isOpen, dispose };
+  return { open, isOpen, dispose };
 }

@@ -153,7 +153,6 @@ describe("createQuickControls — tab rail", () => {
     const conn = tabs(qc).find((tab) => tab.id === "yui-tab-conn")!;
     expect(conn.getAttribute("aria-selected")).toBe("true");
     expect(panelFor(qc, conn).hidden).toBe(false);
-    expect(qc.isOpen()).toBe(true);
     // Focus follows the requested tab, not the first control the panel would land on.
     expect(document.activeElement).toBe(conn);
 

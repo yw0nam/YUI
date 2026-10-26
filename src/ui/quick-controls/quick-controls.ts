@@ -205,8 +205,6 @@ interface QuickControlsOptions {
   getFetch?: () => Promise<typeof globalThis.fetch | undefined>;
   /** Push transport — the chat section shows its state, and "Start fresh" resets the conversation on it. */
   pushSocket?: PushSocketPanelPort;
-  /** Stops the in-flight turn the way the stop button does, before the reset frame goes out. */
-  stopTurn?: () => void;
   /** "Start fresh" calls it after the transcript boundary is written. */
   announceSessionReset?: () => void;
   /** Delegated-work list for the session section. The pet window publishes it. */
@@ -302,8 +300,6 @@ interface QuickControls {
   open(opts?: { tab?: SettingsPage }): void;
   /** The tab the panel shows now. */
   selectedTab(): SettingsPage;
-  close(): void;
-  isOpen(): boolean;
   dispose(): void;
 }
 
@@ -351,7 +347,6 @@ export function createQuickControls({
   getChatApiKey,
   getFetch,
   pushSocket,
-  stopTurn,
   announceSessionReset,
   delegations,
   sessionDiagnostics,
@@ -467,7 +462,6 @@ export function createQuickControls({
         signalHistory,
         sessionDiagnostics,
         sessionStore,
-        stopTurn,
         announceSessionReset,
         pushSocket,
         getChatApi: () => (isPushMode() ? "push" : undefined),
@@ -804,8 +798,6 @@ export function createQuickControls({
     el,
     open: openPanel,
     selectedTab,
-    close: shell.close,
-    isOpen: shell.isOpen,
     dispose,
   };
 }
