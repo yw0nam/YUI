@@ -1,3 +1,5 @@
+import type { createThemeSettings } from "../../settings/appearance/theme-settings";
+import { createAppearanceSection } from "./sections/appearance/appearance-section";
 /**
  * Quick-controls panel — settings panel summoned by right-click.
  * Comprises a draggable header (popover variant only; the window variant uses the native titlebar) + tab rail (connection · talk · character · input · proactive · history · general) + tab panel body.
@@ -98,6 +100,7 @@ type ScheduleSettingsStore = ReturnType<typeof createScheduleSettings>;
 type WorkflowSettingsStore = ReturnType<typeof createWorkflowSettings>;
 type LipsyncSettingsStore = ReturnType<typeof createLipsyncSettings>;
 type VadSettingsStore = ReturnType<typeof createVadSettings>;
+type ThemeSettingsStore = ReturnType<typeof createThemeSettings>;
 type UserNameSettingsStore = ReturnType<typeof createUserNameSettings>;
 type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
 type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
@@ -180,6 +183,7 @@ interface QuickControlsOptions {
   getPersona?: () => PersonaConfig | undefined;
   /** Device-wide "Your name" store for the Card section. */
   userNameSettings: UserNameSettingsStore;
+  themeSettings: ThemeSettingsStore;
   /** User-edited endpoint overrides store. Empty value = fallback. */
   endpointsSettings: EndpointsSettingsStore;
   /** chat API key overrides store. Empty value = use build-time key. Value is secret — no logging. */
@@ -329,6 +333,7 @@ export function createQuickControls({
   visibleViewport,
   getPersona,
   userNameSettings,
+  themeSettings,
   endpointsSettings,
   chatKeySettings,
   sttKeySettings,
@@ -581,6 +586,7 @@ export function createQuickControls({
       card.reflect();
       filler.reflect();
       agent.reflectLanguage();
+      appearance.reflect();
       connectionTab.refresh();
       // Opening on the Connection tab counts as entering it — the model list read follows.
       if (tabRail.selected() === "conn") connectionTab.entered();
@@ -634,6 +640,12 @@ export function createQuickControls({
     agentSettings,
     endpointsSettings,
     isPushMode,
+    isOpen: popover.isOpen,
+    log,
+  });
+  const appearance = createAppearanceSection({
+    root: el,
+    themeSettings,
     isOpen: popover.isOpen,
     log,
   });
@@ -779,6 +791,7 @@ export function createQuickControls({
     screen.dispose();
     reactions.dispose();
     agent.dispose();
+    appearance.dispose();
     card.dispose();
     filler.dispose();
     readings.dispose();

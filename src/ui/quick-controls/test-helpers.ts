@@ -1,3 +1,4 @@
+import { createThemeSettings } from "../../settings/appearance/theme-settings";
 // @vitest-environment jsdom
 /**
  * Shared setup for the quick-controls test suite (split from quick-controls.test.ts):
@@ -178,6 +179,7 @@ export function defaultQcArgs(mount: HTMLElement) {
     onGainPreviewEnd: vi.fn(),
     agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
     userNameSettings: createUserNameSettings({ storage: undefined }),
+    themeSettings: createThemeSettings(),
     endpointsSettings: createEndpointsSettings(),
     proactiveSettings: createProactiveSettings(),
     scheduleSettings: createScheduleSettings(),
