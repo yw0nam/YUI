@@ -97,8 +97,12 @@ describe("yui-daily-briefing skill files", () => {
     expect(text).toContain(`"${en["cue.schedule_title"]}"`);
     expect(text).toContain("YUI_BRIEFING_SPOOL=");
     expect(text).toContain('| python3 "$SKILL_DIR/scripts/briefing.py" write --source ');
-    expect(text).toContain('python3 "$SKILL_DIR/scripts/briefing.py" --spool "$YUI_BRIEFING_SPOOL" pending');
-    expect(text).toContain('python3 "$SKILL_DIR/scripts/briefing.py" --spool "$YUI_BRIEFING_SPOOL" mark-spoken');
+    expect(text).toContain(
+      'python3 "$SKILL_DIR/scripts/briefing.py" --spool "$YUI_BRIEFING_SPOOL" pending',
+    );
+    expect(text).toContain(
+      'python3 "$SKILL_DIR/scripts/briefing.py" --spool "$YUI_BRIEFING_SPOOL" mark-spoken',
+    );
     expect(text).toContain('python3 "$SKILL_DIR/scripts/briefing.py" migrate');
     expect(text).toContain("references/delivery/spoken.md");
     expect(text).toContain("references/delivery/link.md");
