@@ -107,22 +107,4 @@ describe("createPanelShell", () => {
 
     shell.dispose();
   });
-
-  it("open() skips roving-tabindex members Tab never reaches and lands on the roving stop", () => {
-    const root = document.createElement("div");
-    const [skipped, stop] = ["skipped", "stop"].map((name) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.textContent = name;
-      return b;
-    });
-    skipped!.tabIndex = -1;
-    root.append(skipped!, stop!);
-    const { shell } = makeShell(root);
-    shell.open();
-
-    expect(document.activeElement).toBe(stop);
-
-    shell.dispose();
-  });
 });

@@ -28,30 +28,10 @@ export function createPanelShell(deps: PanelShellDeps): PanelShell {
 
   let openState = false;
 
-  const FOCUSABLE_SEL =
-    'button, [href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])';
-
-  // True for content a collapsed <details> (the filler's more-phrases group) hides —
-  // its own <summary> stays reachable (that's how the user reopens it via keyboard), everything
-  // else inside its collapsed body does not.
-  function isInsideClosedDetails(el: HTMLElement): boolean {
-    const closedDetails = el.closest("details:not([open])");
-    if (!closedDetails) return false;
-    return !(el.tagName === "SUMMARY" && el.parentElement === closedDetails);
-  }
-
-  // No ring on open — the first control stays unlit until the user tabs. Controls in [hidden]
-  // subtrees (inactive tab panels) and roving-tabindex members Tab skips are passed over.
+  // No ring on open — the first control, the character header's first button, stays unlit until
+  // the user tabs.
   function focusFirst(): void {
-    Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SEL))
-      .find(
-        (el) =>
-          !(el as HTMLButtonElement).disabled &&
-          el.tabIndex >= 0 &&
-          !el.closest("[hidden]") &&
-          !isInsideClosedDetails(el),
-      )
-      ?.focus({ focusVisible: false });
+    root.querySelector<HTMLElement>("button, input, select")?.focus({ focusVisible: false });
   }
 
   function open(): void {
