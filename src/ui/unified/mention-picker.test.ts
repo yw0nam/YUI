@@ -17,8 +17,8 @@ function type(text: string): void {
   field.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-function press(key: string): KeyboardEvent {
-  const e = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+function press(key: string, mods: KeyboardEventInit = {}): KeyboardEvent {
+  const e = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...mods });
   field.dispatchEvent(e);
   return e;
 }
@@ -99,6 +99,25 @@ describe("createMentionPicker", () => {
 
     press("Escape");
     expect(reachesInput).toHaveBeenCalledOnce();
+  });
+
+  it("Tab on an active option picks it like Enter", () => {
+    type("@na");
+
+    const e = press("Tab");
+
+    expect(onPick).toHaveBeenCalledExactlyOnceWith("natsume");
+    expect(e.defaultPrevented).toBe(true);
+    expect(reachesInput).not.toHaveBeenCalled();
+  });
+
+  it("Shift+Tab with an active option keeps moving focus", () => {
+    type("@na");
+
+    const e = press("Tab", { shiftKey: true });
+
+    expect(onPick).not.toHaveBeenCalled();
+    expect(e.defaultPrevented).toBe(false);
   });
 
   it("ignores Enter while an IME commits", () => {

@@ -2,6 +2,7 @@
 
 import type { UserTurnRouted } from "../../io/bridge/settings-bridge";
 import type { PresetEntry } from "../../settings/preset/active-preset";
+import { RESERVED_NAMES } from "../../settings/preset/preset-registry";
 import type { Row } from "./merge";
 
 /** The mention that picks every open preset. */
@@ -46,9 +47,21 @@ export function targetsFor(p: {
   return target ? [target] : [];
 }
 
+/** The pill's mention that still counts: EVERYONE or an id still open, else null — a closed pick is
+ * no pick. */
+export function countedMention(
+  mention: Mention | null,
+  cast: readonly PresetEntry[],
+): Mention | null {
+  if (mention === null) return null;
+  if (mention === EVERYONE || cast.some((e) => e.id === mention)) return mention;
+  return null;
+}
+
 /**
- * The send for what the user typed. The visible mention stays in the text the backend reads.
- * A pick of a preset that is no longer open counts as no pick. Null while no preset is open.
+ * The send for what the user typed. The visible mention stays in the text the backend reads, and a
+ * leading typed `@name` routes like a pick with its text unchanged. A pick of a preset that is no
+ * longer open counts as no pick. Null while no preset is open.
  */
 export function buildSend(p: {
   text: string;
@@ -60,8 +73,10 @@ export function buildSend(p: {
   sendId: string;
 }): Send | null {
   if (p.cast.length === 0) return null;
-  const everyone = p.mention === EVERYONE;
-  const picked = everyone ? undefined : p.cast.find((c) => c.id === p.mention);
+  const counted = countedMention(p.mention, p.cast);
+  const m = counted ?? typedMention(p.text, p.cast);
+  const everyone = m === EVERYONE;
+  const picked = everyone ? undefined : p.cast.find((c) => c.id === m);
   const mention = everyone ? EVERYONE : picked ? "character" : undefined;
   const targets = targetsFor({
     mention: everyone ? EVERYONE : (picked?.id ?? null),
@@ -70,6 +85,32 @@ export function buildSend(p: {
     mainId: p.mainId,
     shuffle: p.shuffle,
   });
-  const text = everyone ? `@${EVERYONE} ${p.text}` : picked ? `@${picked.name} ${p.text}` : p.text;
+  const text =
+    counted === null
+      ? p.text
+      : everyone
+        ? `@${EVERYONE} ${p.text}`
+        : picked
+          ? `@${picked.name} ${p.text}`
+          : p.text;
   return { sendId: p.sendId, targets, text, ...(mention ? { mention } : {}) };
+}
+
+/** The mention a leading typed `@name` names: the longest of the open preset names and the
+ * reserved words ending at whitespace or the text's end, a reserved word giving EVERYONE; empty
+ * names are skipped, and null when nothing matches. */
+export function typedMention(text: string, cast: readonly PresetEntry[]): Mention | null {
+  if (!text.startsWith("@")) return null;
+  const rest = text.slice(1);
+  const isNamed = (name: string): boolean =>
+    rest.slice(0, name.length).toLowerCase() === name.toLowerCase() &&
+    (rest.length === name.length || /\s/.test(rest[name.length]!));
+  const named: Array<{ mention: Mention; length: number }> = [];
+  for (const e of cast)
+    if (e.name !== "" && isNamed(e.name)) named.push({ mention: e.id, length: e.name.length });
+  for (const r of RESERVED_NAMES)
+    if (isNamed(r)) named.push({ mention: EVERYONE, length: r.length });
+  let longest: { mention: Mention; length: number } | undefined;
+  for (const n of named) if (longest === undefined || n.length > longest.length) longest = n;
+  return longest?.mention ?? null;
 }

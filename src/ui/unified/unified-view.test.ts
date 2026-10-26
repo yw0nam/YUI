@@ -179,13 +179,62 @@ describe("unified view — routing", () => {
     expect(routed[1]).toMatchObject({ sendId: "send-1", to: second, mention: "everyone" });
   });
 
-  it("a typed @natsume without a pick routes to the last speaker as plain text", () => {
+  it("a typed leading @name routes like a pick even when it names the fallback speaker", () => {
     mount();
 
     type("@natsume hi");
     press("Enter");
 
-    expect(routed).toEqual([{ sendId: "send-1", to: "natsume", text: "@natsume hi" }]);
+    expect(routed).toEqual([
+      { sendId: "send-1", to: "natsume", text: "@natsume hi", mention: "character" },
+    ]);
+  });
+
+  it("a typed leading @name names its preset on the chip and routes to it, text as typed", () => {
+    mount();
+
+    type("@perlica hi");
+    expect(document.querySelector(".yui-uc__target")?.textContent).toContain("to Perlica");
+
+    press("Enter");
+
+    expect(routed).toEqual([
+      { sendId: "send-1", to: "perlica", text: "@perlica hi", mention: "character" },
+    ]);
+  });
+
+  it("Tab picks the highlighted @ option like Enter", () => {
+    mount();
+
+    type("@per");
+    press("Tab");
+    type("hi");
+    press("Enter");
+
+    expect(routed).toEqual([
+      { sendId: "send-1", to: "perlica", text: "@Perlica hi", mention: "character" },
+    ]);
+  });
+
+  it("the chip returns to the fallback target once a send clears the field", async () => {
+    mount();
+
+    type("@perlica hi");
+    press("Enter");
+    await Promise.resolve();
+
+    expect(document.querySelector(".yui-uc__target")?.textContent).toContain("to Natsume");
+  });
+
+  it("the chip names the pill's target while it is set and the fallback once it is gone", () => {
+    mount();
+
+    type("@per");
+    press("Tab");
+    expect(document.querySelector(".yui-uc__target")?.textContent).toContain("to Perlica");
+
+    press("Backspace");
+    expect(document.querySelector(".yui-uc__target")?.textContent).toContain("to Natsume");
   });
 });
 

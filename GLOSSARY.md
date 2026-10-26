@@ -104,11 +104,11 @@ The window `unified` that lists every open preset's current-session transcript i
 _Avoid_: group chat, merged chat, lobby, multi chat
 
 **Mention**:
-The user's pick of a recipient in the unified chat window's composer: a pill carrying one preset id, or `@everyone`. A typed `@name` without a pick is plain text. The names `everyone`, `here` and `all` are reserved, so no preset is created or renamed to one.
+The user's pick of a recipient in the unified chat window's composer: a pill carrying one preset id, or `@everyone` (aliased by `@here` and `@all`). A leading typed `@name` that matches an open preset's name, or `@everyone`, routes like a pick; any other typed `@` is plain text. The names `everyone`, `here` and `all` are reserved, so no preset is created or renamed to one.
 _Avoid_: tag, call-out, ping
 
 **Target chip**:
-The composer's button naming the preset a message with no mention goes to: the last speaker, else main's preset.
+The composer's button naming where a message goes: the picked pill's preset while a pill is set, else the preset a typed leading `@name` resolves to, else the last speaker, else main's preset.
 _Avoid_: recipient badge
 
 **Signals**:
