@@ -580,8 +580,9 @@ YUI/
         first-run-hint.ts            # First-run controls hint through the speech bubble
         boot-error.css               # Boot-failure notice styles
       quick-card/                    # The pet window's right-click card beside the character
-        quick-card.ts                # The card: head, tiles, Body and Reference voice selects, the reset that asks first, Turn off, All settings…, and how it opens and closes
+        quick-card.ts                # The card: its head and All settings…, and how it opens, places and closes
         tiles.ts                     # The toggle tiles: each writes its store and follows it
+        rows.ts                      # The Body and Reference voice selects, the reset that asks first, and Turn off
         transport-line.ts            # The head line: the transport's name, and on push the socket's state
         place.ts                     # Where the card goes: at the click point, flipped and kept 12px inside the visible window
         quick-card.css               # Card, tile, row, and confirm styles
