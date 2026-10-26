@@ -47,6 +47,17 @@ export function targetsFor(p: {
   return target ? [target] : [];
 }
 
+/** The pill's mention that still counts: EVERYONE or an id still open, else null — a closed pick is
+ * no pick. */
+export function countedMention(
+  mention: Mention | null,
+  cast: readonly PresetEntry[],
+): Mention | null {
+  if (mention === null) return null;
+  if (mention === EVERYONE || cast.some((e) => e.id === mention)) return mention;
+  return null;
+}
+
 /**
  * The send for what the user typed. The visible mention stays in the text the backend reads, and a
  * leading typed `@name` routes like a pick with its text unchanged. A pick of a preset that is no
@@ -62,7 +73,8 @@ export function buildSend(p: {
   sendId: string;
 }): Send | null {
   if (p.cast.length === 0) return null;
-  const m = p.mention ?? typedMention(p.text, p.cast);
+  const counted = countedMention(p.mention, p.cast);
+  const m = counted ?? typedMention(p.text, p.cast);
   const everyone = m === EVERYONE;
   const picked = everyone ? undefined : p.cast.find((c) => c.id === m);
   const mention = everyone ? EVERYONE : picked ? "character" : undefined;
@@ -74,7 +86,7 @@ export function buildSend(p: {
     shuffle: p.shuffle,
   });
   const text =
-    p.mention === null
+    counted === null
       ? p.text
       : everyone
         ? `@${EVERYONE} ${p.text}`

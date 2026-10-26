@@ -10,7 +10,7 @@ import { createTextInput } from "../input/text-input";
 import "../surfaces/surfaces.css";
 import { avatarEl } from "./avatar";
 import { createMentionPicker } from "./mention-picker";
-import { EVERYONE, type Mention, typedMention } from "./targets";
+import { countedMention, EVERYONE, type Mention, typedMention } from "./targets";
 
 const CHEVRON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>`;
 const CROSS = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"></path></svg>`;
@@ -95,25 +95,20 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
     pill.append(remove);
   }
 
-  // The chip names where Enter sends: the picked pill, else a typed leading @name, else the fallback.
+  // The chip names where Enter sends: the counted pick, else a typed leading @name, else the fallback.
   const chipTarget = (): PresetEntry | typeof EVERYONE | undefined => {
     const cast = deps.cast();
-    if (mention !== null) {
-      if (mention === EVERYONE) return EVERYONE;
-      const pickedEntry = cast.find((e) => e.id === mention);
-      if (pickedEntry) return pickedEntry;
-    }
-    const typed = typedMention(field.value, cast);
-    if (typed === null) return target;
-    if (typed === EVERYONE) return EVERYONE;
-    return cast.find((e) => e.id === typed);
+    const m = countedMention(mention, cast) ?? typedMention(field.value, cast);
+    if (m === null) return target;
+    if (m === EVERYONE) return EVERYONE;
+    return cast.find((e) => e.id === m);
   };
 
   function paintTarget(): void {
     const shown = chipTarget();
     targetBtn.replaceChildren();
     targetBtn.hidden = !shown;
-    targetBtn.setAttribute("aria-disabled", String(mention !== null));
+    targetBtn.setAttribute("aria-disabled", String(countedMention(mention, deps.cast()) !== null));
     if (!shown) return;
     if (shown === EVERYONE) targetBtn.append(t("unified.to", { name: `@${EVERYONE}` }));
     else targetBtn.append(avatarEl(shown, 14), t("unified.to", { name: shown.name }));
