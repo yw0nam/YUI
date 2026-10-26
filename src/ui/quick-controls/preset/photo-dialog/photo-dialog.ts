@@ -166,7 +166,10 @@ export function openPhotoDialog(deps: PhotoDialogDeps): void {
       return;
     }
     if (superseded()) return;
-    if (picked) deps.save(next, defaultCrop(measured));
+    if (picked) {
+      deps.save(next, defaultCrop(measured));
+      log.info("photo_default_framed", { preset: entry.id });
+    }
     size = measured;
     measuring = false;
     img.src = next;
@@ -201,6 +204,7 @@ export function openPhotoDialog(deps: PhotoDialogDeps): void {
     if (!size || !stage) return;
     bumpWrite(entry.id);
     deps.save(url, cropOf(stage, size));
+    log.info("photo_crop_saved", { preset: entry.id });
     dialog.close();
   });
   slider.addEventListener("input", () => {
