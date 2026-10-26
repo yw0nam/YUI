@@ -1029,6 +1029,19 @@ describe("typing — speech types out", () => {
     expect(mount.querySelector(".yui-bubble")!.classList.contains("is-typing")).toBe(false);
   });
 
+  it("paces a line whose sentences carry markdown by their rendered text", () => {
+    s.beginSpeech(undefined, { paced: true });
+    s.pushSpeech("Here is **bold**. Next one. And `x` last.");
+    s.endSpeech({ defer: true });
+
+    s.paceSpeech({ text: "Here is **bold**.", durationMs: 1000 });
+    vi.advanceTimersByTime(1100);
+    expect(text()).toBe("Here is bold.");
+    s.paceSpeech({ text: "Next one.", durationMs: 1000 });
+    vi.advanceTimersByTime(1100);
+    expect(text()).toBe("Here is bold. Next one.");
+  });
+
   it("types the rendered line, never its markdown syntax or a partial link", () => {
     const raw = "Here is **bold** and [label](https://example.com/x) now.";
     const seen: string[] = [];
