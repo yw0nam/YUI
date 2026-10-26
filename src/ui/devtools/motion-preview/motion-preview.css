@@ -386,7 +386,7 @@
   .cb-wrap input[type="checkbox"] {
     width: 14px;
     height: 14px;
-    accent-color: var(--yui-accent-ink);
+    accent-color: var(--yui-accent);
     cursor: pointer;
   }
 
@@ -468,7 +468,7 @@
   }
 
   select:focus {
-    border-color: var(--yui-accent-ink);
+    border-color: var(--yui-accent);
   }
 
   /* Action buttons */
@@ -514,7 +514,7 @@
 
   .btn-primary:hover {
     background: var(--yui-selected);
-    border-color: var(--yui-accent-ink);
+    border-color: var(--yui-accent);
   }
 
   .btn-stop {

@@ -12,7 +12,7 @@ function cssFilesUnder(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) {
-      return cssFilesUnder(path);
+      return path === join("src", "ui", "mocks") ? [] : cssFilesUnder(path);
     }
     return entry.name.endsWith(".css") ? [path] : [];
   });

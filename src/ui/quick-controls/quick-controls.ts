@@ -1,11 +1,11 @@
-import type { createThemeSettings } from "../../settings/appearance/theme-settings";
-import { createAppearanceSection } from "./sections/appearance/appearance-section";
 /**
  * Quick-controls panel — settings panel summoned by right-click.
  * Comprises a draggable header (popover variant only; the window variant uses the native titlebar) + tab rail (connection · talk · character · input · proactive · history · general) + tab panel body.
  * variant: "popover" (default, docked in pet window + draggable) | "window" (separate OS window, full fill).
  */
 
+import type { createThemeSettings } from "../../settings/appearance/theme-settings";
+import { createAppearanceSection } from "./sections/appearance/appearance-section";
 import "./quick-controls.css";
 import "./controls.css";
 import type { AvatarOption } from "../../config/validators/avatar/types";
@@ -183,6 +183,7 @@ interface QuickControlsOptions {
   getPersona?: () => PersonaConfig | undefined;
   /** Device-wide "Your name" store for the Card section. */
   userNameSettings: UserNameSettingsStore;
+  /** Device-wide theme store for the General tab's Appearance row. */
   themeSettings: ThemeSettingsStore;
   /** User-edited endpoint overrides store. Empty value = fallback. */
   endpointsSettings: EndpointsSettingsStore;

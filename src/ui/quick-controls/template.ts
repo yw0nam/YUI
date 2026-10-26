@@ -1,5 +1,6 @@
-import { THEMES } from "../../settings/appearance/theme-settings";
 /** Quick-controls panel markup — pure string construction (no DOM, no state). */
+
+import { THEMES } from "../../settings/appearance/theme-settings";
 import "./sections/session/session-section.css";
 import { REASONING_EFFORTS } from "../../settings/backend/agent-settings";
 import { RATE_LIMIT_MAX } from "../../settings/backend/guardrails-settings";

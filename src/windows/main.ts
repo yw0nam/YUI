@@ -1,4 +1,3 @@
-import { applyTheme } from "../ui/theme/apply-theme";
 /**
  * YUI bootstrap.
  *
@@ -14,6 +13,7 @@ import { applyTheme } from "../ui/theme/apply-theme";
  *   - .yui-ui:    overlay — speech bubble, text input (invisible-by-default).
  */
 
+import { applyTheme } from "../ui/theme/apply-theme";
 import "../styles.css";
 import { createConfiguredBootstrap } from "../app/bootstrap-configured";
 import { wireHelpGuide } from "../app/controls/wire-help-guide";

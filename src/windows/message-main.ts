@@ -1,8 +1,3 @@
-import {
-  createThemeSettings,
-  localStorageThemeStorage,
-} from "../settings/appearance/theme-settings";
-import { applyTheme } from "../ui/theme/apply-theme";
 /**
  * Message window (pop-out) bootstrap — message.html entry point.
  *
@@ -12,6 +7,11 @@ import { applyTheme } from "../ui/theme/apply-theme";
  * the message bridge, and what the user typed travels back the same way.
  */
 
+import {
+  createThemeSettings,
+  localStorageThemeStorage,
+} from "../settings/appearance/theme-settings";
+import { applyTheme } from "../ui/theme/apply-theme";
 import "../styles.css";
 import "../ui/message/message-window.css";
 import { createDisposers } from "../app/disposers";

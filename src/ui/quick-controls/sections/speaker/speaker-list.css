@@ -90,7 +90,7 @@
 
 /* refreshing: inactive + ↻ glyph rotates in place (same vocabulary as swap spinner) */
 .yui-spk__refresh.is-refreshing {
-  color: var(--yui-accent-soft);
+  color: var(--yui-accent-ink);
   opacity: 1;
   cursor: progress;
 }

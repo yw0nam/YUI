@@ -1,8 +1,3 @@
-import {
-  createThemeSettings,
-  localStorageThemeStorage,
-} from "../settings/appearance/theme-settings";
-import { applyTheme } from "../ui/theme/apply-theme";
 /**
  * Unified chat window — unified.html entry point.
  *
@@ -11,6 +6,11 @@ import { applyTheme } from "../ui/theme/apply-theme";
  * windows' backends answer, and their transcripts are what this window reads.
  */
 
+import {
+  createThemeSettings,
+  localStorageThemeStorage,
+} from "../settings/appearance/theme-settings";
+import { applyTheme } from "../ui/theme/apply-theme";
 import "../styles.css";
 import "../ui/unified/unified-window.css";
 import { createDisposers } from "../app/disposers";
@@ -57,7 +57,6 @@ async function bootstrap(): Promise<void> {
     view.refresh();
   };
   const onSettingsChanged = (): void => {
-    themeSettings.reloadFromStorage();
     reloadLocale();
     refresh();
   };

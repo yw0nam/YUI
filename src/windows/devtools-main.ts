@@ -1,4 +1,3 @@
-import { applyTheme } from "../ui/theme/apply-theme";
 import "../styles.css";
 import "../ui/quick-controls/quick-controls.css";
 import "../ui/devtools/devtools.css";
@@ -13,6 +12,7 @@ import { createSettingsStores } from "../settings/settings-stores";
 import { createDevtoolsShell } from "../ui/devtools/shell";
 import { createLocaleRebuilder } from "../ui/devtools/shell-rebuild";
 import { getLocale, subscribe as subscribeLocale, t } from "../ui/i18n";
+import { applyTheme } from "../ui/theme/apply-theme";
 
 const log = createLogger("devtools-bootstrap");
 

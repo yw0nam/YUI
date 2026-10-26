@@ -1,4 +1,3 @@
-import { createThemeSettings } from "../../settings/appearance/theme-settings";
 // @vitest-environment jsdom
 /**
  * Shared setup for the quick-controls test suite (split from quick-controls.test.ts):
@@ -13,6 +12,7 @@ import {
   createSpeakerSelection,
   type SpeakerOption,
 } from "../../io/voice/voices/speaker-selection";
+import { createThemeSettings } from "../../settings/appearance/theme-settings";
 import { createLipsyncSettings } from "../../settings/avatar/lipsync-settings";
 import {
   type AgentSettings,
