@@ -3,13 +3,13 @@
  * routing. Firing ≠ judgment: the presets' backends decide whether and what to say; the view renders it.
  */
 
-import type { SpeechStream, UserTurnDone, UserTurnRouted } from "../../io/bridge/settings-bridge";
+import type { UserTurnDone, UserTurnRouted } from "../../io/bridge/settings-bridge";
 import { createLogger } from "../../logger";
 import type { PresetEntry } from "../../settings/preset/active-preset";
 import { subscribe as subscribeLocale } from "../i18n";
 import { createComposer } from "./composer";
 import { createLogView } from "./log-view";
-import type { Transcript } from "./open-lines";
+import type { Transcript } from "./merge";
 import { createSequence } from "./sequence";
 import { buildSend } from "./targets";
 
@@ -17,7 +17,6 @@ const log = createLogger("unified-view");
 
 export interface UnifiedView {
   refresh(): void;
-  speechStream(event: SpeechStream): void;
   /** A pet window's user turn for a send id is over. */
   turnDone(done: UserTurnDone): void;
   onRoute(cb: (event: UserTurnRouted) => void): void;
@@ -82,7 +81,6 @@ export function createUnifiedView(deps: {
 
   return {
     refresh: logView.refresh,
-    speechStream: logView.speechStream,
     turnDone: sequence.turnDone,
     onRoute: (cb) => void routeCbs.push(cb),
     dispose() {

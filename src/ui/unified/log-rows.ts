@@ -36,7 +36,7 @@ export function lineEl(row: Row, cast: readonly PresetEntry[], now: number): HTM
     say.append(to);
   }
   say.append(row.text);
-  if (row.pending && !row.open) {
+  if (row.pending) {
     const sr = document.createElement("span");
     sr.className = "yui-uc__sr";
     sr.textContent = t("unified.pending");

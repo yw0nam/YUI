@@ -1,10 +1,8 @@
-import type { SpeechStream } from "../../io/bridge/settings-bridge";
 import type { PresetEntry } from "../../settings/preset/active-preset";
 import { t } from "../i18n";
 import type { createComposer } from "./composer";
 import { castChipEl, lineEl } from "./log-rows";
-import { mergeTranscripts, type PendingSend } from "./merge";
-import { createOpenLines, type Transcript } from "./open-lines";
+import { mergeTranscripts, type PendingSend, type Transcript } from "./merge";
 import { SEND_TIMEOUT_MS } from "./sequence";
 import { fallbackTarget, lastSpeakerOf } from "./targets";
 
@@ -20,7 +18,6 @@ export function createLogView(deps: {
   const castEl = deps.root.querySelector<HTMLElement>(".yui-uc__cast")!;
   const logEl = deps.root.querySelector<HTMLElement>(".yui-uc__log")!;
   const composer = deps.composer;
-  const open = createOpenLines();
   let pending: PendingSend[] = [];
   let expiry: ReturnType<typeof setTimeout> | undefined;
 
@@ -29,8 +26,7 @@ export function createLogView(deps: {
     const cast = deps.cast();
     pending = pending.filter((p) => p.queued || now - p.at < SEND_TIMEOUT_MS);
     const transcripts = deps.transcripts();
-    open.reconcile(transcripts, now);
-    const rows = mergeTranscripts(transcripts, pending, now, open.snapshot());
+    const rows = mergeTranscripts(transcripts, pending, now);
 
     title.textContent = t("unified.title");
     castEl.replaceChildren(...cast.map(castChipEl));
@@ -46,12 +42,8 @@ export function createLogView(deps: {
     });
     composer.setTarget(cast.find((c) => c.id === target));
 
-    // One timer covers pending sends and ended speech awaiting a record.
     clearTimeout(expiry);
-    const running = pending.filter((p) => !p.queued);
-    const deadlines = running.map((p) => p.at + SEND_TIMEOUT_MS);
-    const speechExpiry = open.expiresAt();
-    if (speechExpiry !== undefined) deadlines.push(speechExpiry);
+    const deadlines = pending.filter((p) => !p.queued).map((p) => p.at + SEND_TIMEOUT_MS);
     if (deadlines.length > 0) {
       const soonest = Math.min(...deadlines);
       expiry = setTimeout(refresh, Math.max(soonest - now, 0) + 1);
@@ -60,10 +52,6 @@ export function createLogView(deps: {
 
   return {
     refresh,
-    speechStream(event: SpeechStream): void {
-      open.accept(event, deps.now());
-      refresh();
-    },
     addSend(sendId: string, text: string): void {
       pending.push({ sendId, text, at: deps.now(), queued: true });
     },
@@ -73,9 +61,7 @@ export function createLogView(deps: {
       );
     },
     lastSpeaker(): string | undefined {
-      return lastSpeakerOf(
-        mergeTranscripts(deps.transcripts(), pending, deps.now(), open.snapshot()),
-      );
+      return lastSpeakerOf(mergeTranscripts(deps.transcripts(), pending, deps.now()));
     },
     dispose(): void {
       clearTimeout(expiry);

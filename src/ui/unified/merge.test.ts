@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
 import { mergeTranscripts } from "./merge";
-import { createOpenLines } from "./open-lines";
 
 const user = (text: string, ts: number, send_id?: string): ChatHistoryEntry => ({
   role: "user",
@@ -93,38 +92,4 @@ describe("mergeTranscripts", () => {
     expect(mergeTranscripts([perlica([])], pending, 150 + 59_999)).toHaveLength(1);
     expect(mergeTranscripts([perlica([])], pending, 150 + 60_000)).toEqual([]);
   });
-});
-
-it("appends the open assistant line and hands it off to exactly one recorded row", () => {
-  const lines = createOpenLines();
-  const transcripts = [perlica([]), natsume([reply("Earlier", 500)])];
-  lines.accept({ preset: "perlica", turn_id: "7", op: "begin", baseline: 0 }, 100);
-  lines.accept({ preset: "perlica", turn_id: "7", op: "push", delta: "Hello" }, 100);
-  expect(mergeTranscripts(transcripts, [], 200, lines.snapshot()).at(-1)).toEqual({
-    key: "perlica:open",
-    who: "perlica",
-    name: "Perlica",
-    text: "Hello",
-    ts: 200,
-    pending: true,
-    open: true,
-  });
-  const landed = [perlica([{ role: "assistant", turn_id: "7", text: "Hello", ts: 600 }])];
-  lines.reconcile(landed, 700);
-  expect(mergeTranscripts(landed, [], 700, lines.snapshot())).toEqual([
-    { key: "perlica:0:600", who: "perlica", name: "Perlica", text: "Hello", ts: 600 },
-  ]);
-});
-
-it("drops an open line immediately when its record precedes bridge delivery", () => {
-  const lines = createOpenLines();
-  const transcripts = [perlica([{ role: "assistant", turn_id: "7", text: "Hello", ts: 100 }])];
-  lines.accept({ preset: "perlica", turn_id: "7", op: "begin", baseline: 0 }, 200);
-  lines.reconcile(transcripts, 200);
-  expect(lines.snapshot()).toEqual([]);
-  lines.accept({ preset: "perlica", turn_id: "7", op: "push", delta: "Hello" }, 201);
-  lines.accept({ preset: "perlica", turn_id: "7", op: "end" }, 202);
-  expect(mergeTranscripts(transcripts, [], 203, lines.snapshot())).toEqual([
-    { key: "perlica:0:100", who: "perlica", name: "Perlica", text: "Hello", ts: 100 },
-  ]);
 });

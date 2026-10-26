@@ -58,7 +58,11 @@ function setup(mode: MessageWindowMode, bound = false) {
   const remote = { dispose: vi.fn(), setName: vi.fn() };
   const surfaces = { dispose: vi.fn() };
   const bridge = { dispose: vi.fn() };
-  const settings = { dispose: vi.fn(), emitSpeechStream: vi.fn() };
+  const settings = {
+    dispose: vi.fn(),
+    emitSpeechStream: vi.fn(),
+    onSpeechStreamAsk: vi.fn(() => () => {}),
+  };
   const modeDisposer = vi.fn();
   createSurfaces.mockReturnValue(local);
   createRemoteSurfaces.mockReturnValue(remote);
@@ -124,13 +128,12 @@ describe("wireMessageSurfaces", () => {
     expect(wireMessageWindowMode.mock.calls[0]![0].listenTrayToggle).toBe(listenTrayToggle);
   });
 
-  it("registers the name subscription, the bridge, the router, then the window-mode teardown", () => {
-    const { register, local, surfaces, bridge, modeDisposer, offName } = setup("docked");
+  it("registers the name subscription, the bridge, the router, the stream, then the window-mode teardown", () => {
+    const { register, local, remote, surfaces, bridge, modeDisposer, offName } = setup("docked");
 
-    expect(register).toHaveBeenCalledTimes(4);
-    const [nameTeardown, bridgeTeardown, surfacesTeardown, modeTeardown] = register.mock.calls.map(
-      (call) => call[0],
-    );
+    expect(register).toHaveBeenCalledTimes(5);
+    const [nameTeardown, bridgeTeardown, surfacesTeardown, streamTeardown, modeTeardown] =
+      register.mock.calls.map((call) => call[0]);
     expect(nameTeardown).toBe(offName);
 
     bridgeTeardown();
@@ -141,23 +144,24 @@ describe("wireMessageSurfaces", () => {
     expect(surfaces.dispose).toHaveBeenCalledOnce();
     expect(local.dispose).not.toHaveBeenCalled();
 
+    streamTeardown();
+    expect(remote.dispose).toHaveBeenCalledOnce();
+
     modeTeardown();
     expect(modeDisposer).toHaveBeenCalledOnce();
   });
 });
 
-it("uses the window's existing bridge for identified speech without disposing it", () => {
+it("sends the stream half's ops over the window's bridge, stamped with the preset, without disposing it", () => {
   const { settings, register } = setup("docked", true);
-  const stream = createSurfacesRouter.mock.calls[0]![0].stream;
-  const identity = { turn_id: "7", event_name: "user.text_submitted" };
-  stream.beginSpeech(identity);
-  stream.pushSpeech("hi", identity);
-  stream.endSpeech(undefined, identity);
-  expect(settings.emitSpeechStream.mock.calls).toEqual([
-    [{ preset: "a", turn_id: "7", op: "begin", baseline: 0 }],
-    [{ preset: "a", turn_id: "7", op: "push", delta: "hi" }],
-    [{ preset: "a", turn_id: "7", op: "end" }],
-  ]);
+  const streamBridge = createRemoteSurfaces.mock.calls[1]![0];
+
+  streamBridge.emitSurface({ op: "begin" });
+
+  expect(settings.emitSpeechStream).toHaveBeenCalledExactlyOnceWith({
+    preset: "a",
+    op: { op: "begin" },
+  });
   for (const [dispose] of register.mock.calls) dispose();
   expect(settings.dispose).not.toHaveBeenCalled();
 });

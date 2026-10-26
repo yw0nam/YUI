@@ -2,6 +2,7 @@
 
 import { createMessageBridge } from "../../io/bridge/message/message-bridge";
 import { createRemoteSurfaces, type RemoteSurfaces } from "../../io/bridge/message/message-remote";
+import { createStreamBridge } from "../../io/bridge/message/stream-bridge";
 import type { SettingsBridge } from "../../io/bridge/settings-bridge";
 import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
 import {
@@ -15,13 +16,12 @@ import type { SettingsStores } from "../../settings/settings-stores";
 import { isTauri } from "../../tauri-env";
 import type { ToolStatus } from "../chips/status-pill";
 import type { MessagePlate } from "../message/message-plate";
-import { createSpeechStream } from "./speech-stream";
 import { createSurfaces, type Surfaces } from "./surfaces";
 import { createSurfacesRouter } from "./surfaces-router";
 
 export function wireMessageSurfaces(deps: {
   boundId?: string | null;
-  settingsBridge: Pick<SettingsBridge, "emitSpeechStream">;
+  settingsBridge: Pick<SettingsBridge, "emitSpeechStream" | "onSpeechStreamAsk">;
   transcript: { entriesAfterLastBoundary(): readonly ChatHistoryEntry[] };
   /** The character's name, for the backlog's lines here and the message window's plate and backlog. */
   characterName: { get(): string; subscribe(cb: () => void): () => void };
@@ -52,16 +52,20 @@ export function wireMessageSurfaces(deps: {
   });
   const messageBridge = createMessageBridge(undefined, { windowKind: "pet" });
   const remote = createRemoteSurfaces(messageBridge);
-  const sendName = (): void => remote.setName(deps.characterName.get());
+  const stream = createRemoteSurfaces(
+    createStreamBridge({
+      presetId: deps.boundId ?? presetIdForWindow(),
+      settingsBridge: deps.settingsBridge,
+    }),
+  );
+  const sendName = (): void => {
+    remote.setName(deps.characterName.get());
+    stream.setName(deps.characterName.get());
+  };
   sendName();
   // A stale popped mode must not strand speech in a window the browser build cannot open.
   const getMode = (): MessageWindowMode =>
     isTauri() ? deps.messageWindowSettings.get().mode : "docked";
-  const stream = createSpeechStream({
-    presetId: deps.boundId ?? presetIdForWindow(),
-    emit: deps.settingsBridge.emitSpeechStream,
-    readTranscript: deps.transcript.entriesAfterLastBoundary,
-  });
   const surfaces = createSurfacesRouter({
     local,
     remote,
@@ -79,6 +83,7 @@ export function wireMessageSurfaces(deps: {
   deps.register(deps.characterName.subscribe(sendName));
   deps.register(() => messageBridge.dispose());
   deps.register(() => surfaces.dispose());
+  deps.register(() => stream.dispose());
   deps.register(disposeMessageWindowMode);
   return { surfaces, local, remote, getMode };
 }

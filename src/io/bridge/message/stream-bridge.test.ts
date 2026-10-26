@@ -18,7 +18,13 @@ function setup() {
       },
     }),
   );
-  return { remote, emitted, ask: () => [...asks].forEach((cb) => cb()) };
+  return {
+    remote,
+    emitted,
+    ask: () => {
+      for (const cb of asks) cb();
+    },
+  };
 }
 
 describe("createStreamBridge", () => {

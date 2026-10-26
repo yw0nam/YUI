@@ -124,10 +124,3 @@ it("stops following the signals after unload", async () => {
 
   expect(says()).not.toContain("After unload.");
 });
-
-it("forwards pet speech stream events into the unified view", async () => {
-  await boot();
-  petBridge.emitSpeechStream({ preset: "natsume", turn_id: "7", op: "begin", baseline: 0 });
-  petBridge.emitSpeechStream({ preset: "natsume", turn_id: "7", op: "push", delta: "Running" });
-  await vi.waitFor(() => expect(says()).toContain("Running"));
-});

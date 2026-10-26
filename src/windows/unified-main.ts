@@ -76,7 +76,6 @@ async function bootstrap(): Promise<void> {
   disposers.register(() => registry.dispose());
   disposers.register(() => settingsBridge.dispose());
   disposers.register(() => view.dispose());
-  disposers.register(settingsBridge.onSpeechStream(view.speechStream));
   disposers.register(settingsBridge.onUserTurnDone(view.turnDone));
   disposers.register(settingsBridge.onSettingsChanged(onSettingsChanged));
   disposers.register(settingsBridge.onPetWindowsChanged(refresh));

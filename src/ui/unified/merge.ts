@@ -1,7 +1,11 @@
-/** Pure: recorded lines and pending sends in time order, followed by open replies. */
+/** Pure: recorded lines and pending sends in time order. */
 
-import type { OpenLine, Transcript } from "./open-lines";
+import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
+import type { PresetEntry } from "../../settings/preset/active-preset";
 import { SEND_TIMEOUT_MS } from "./sequence";
+
+/** One open preset's current-session transcript. */
+export type Transcript = PresetEntry & { entries: ChatHistoryEntry[] };
 
 /** A message the window sent that no transcript records yet. */
 export interface PendingSend {
@@ -23,14 +27,12 @@ export interface Row {
   /** An assistant row whose turn called address_character: the recipient's preset id. */
   to?: string;
   pending?: true;
-  open?: true;
 }
 
 export function mergeTranscripts(
   transcripts: readonly Transcript[],
   pending: readonly PendingSend[],
   now: number,
-  open: readonly OpenLine[] = [],
 ): Row[] {
   const sorted: Array<{ row: Row; order: [number, number] }> = [];
   const bySend = new Map<string, Row>();
@@ -79,21 +81,7 @@ export function mergeTranscripts(
     };
     sorted.push({ row, order: [Number.MAX_SAFE_INTEGER, 0] });
   }
-  const rows = sorted
+  return sorted
     .sort((a, b) => a.row.ts - b.row.ts || a.order[0] - b.order[0] || a.order[1] - b.order[1])
     .map((s) => s.row);
-  for (const line of open) {
-    const preset = transcripts.find((t) => t.id === line.preset);
-    if (preset)
-      rows.push({
-        key: `${line.preset}:open`,
-        who: line.preset,
-        name: preset.name,
-        text: line.text,
-        ts: now,
-        pending: true,
-        open: true,
-      });
-  }
-  return rows;
 }

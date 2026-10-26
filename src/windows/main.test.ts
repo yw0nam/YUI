@@ -4,7 +4,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => {
-  const windowBridge = { name: "pet window settings bridge" };
+  const windowBridge = { name: "pet window settings bridge", onPetWindowsChanged: () => () => {} };
   const stopTurn = (): void => {};
   return { windowBridge, stopTurn };
 });
