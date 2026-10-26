@@ -328,8 +328,9 @@ export function createSpeechBubble(
     parseThrottled();
   }
 
-  function paceSpeech(sentence: SentenceStart): void {
-    typer.pace(sentence);
+  // The voice reads the raw sentence; the typewriter counts what the bubble draws.
+  function paceSpeech({ text, durationMs }: SentenceStart): void {
+    typer.pace({ text: renderMarkdownInline(text).textContent ?? "", durationMs });
   }
 
   function endSpeech(opts?: { defer?: boolean }): void {
