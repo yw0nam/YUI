@@ -25,12 +25,13 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-function build() {
+function build(boundId: string | null = null) {
   const root = document.body.appendChild(document.createElement("div"));
   root.innerHTML = charactersSectionHtml();
   const registry = createPresetRegistry();
   const petWindows = createPetWindows();
-  const section = createCharactersSection({ root, registry, petWindows, log });
+  if (boundId) petWindows.open(boundId);
+  const section = createCharactersSection({ root, registry, petWindows, boundId, log });
   section.refresh();
   const row = (name: string) =>
     [...root.querySelectorAll<HTMLElement>(".yui-chars__row")].find(
@@ -86,4 +87,17 @@ it("at the cap an off row's switch is disabled with the reason, and the four sta
   expect(petWindows.open("eeee0005")).toBe(false);
   expect(petWindows.get()).toEqual(["bbbb0002", "cccc0003", "dddd0004"]);
   expect(row("perlica").querySelector<HTMLElement>(".yui-chars__reason")!.hidden).toBe(true);
+});
+
+it("in a bound window its own character is locked on, with the reason", () => {
+  const { sw, row, petWindows } = build("bbbb0002");
+
+  expect([sw("perlica").getAttribute("aria-checked"), sw("perlica").disabled]).toEqual([
+    "true",
+    true,
+  ]);
+  const reason = row("perlica").querySelector<HTMLElement>(".yui-chars__reason")!;
+  expect([reason.hidden, reason.textContent]).toEqual([false, "This window's character"]);
+  sw("perlica").click();
+  expect(petWindows.get()).toEqual(["bbbb0002"]);
 });
