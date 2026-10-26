@@ -111,44 +111,6 @@ jobs:
           fi
           TEST_GUARD_SKIP="$skip" bash scripts/ci/test-guard.sh "origin/${{ github.event.pull_request.base.ref }}"
 
-  pr-title:
-    name: pr-title (conventional + english)
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-      - uses: amannn/action-semantic-pull-request@v5
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          # Conventional-commit type set; PR titles become squash-merge commit subjects.
-          types: |
-            feat
-            fix
-            docs
-            style
-            refactor
-            perf
-            test
-            build
-            ci
-            chore
-            revert
-          requireScope: false
-          # Tracker content is English: the subject must be printable ASCII.
-          subjectPattern: ^[\x20-\x7E]+$
-          subjectPatternError: |
-            The PR title subject must be written in English (printable ASCII).
-            GitHub tracker content is English-only (AGENTS.md).
-
-      - name: PR body carries no AI attribution
-        env:
-          BODY: ${{ github.event.pull_request.body }}
-        run: |
-          if printf '%s' "$BODY" | grep -qiE 'Co-Authored-By|Claude-Session|Generated with|🤖'; then
-            echo '::error::The PR body carries an AI attribution line (AGENTS.md § No AI attribution). Remove it, then push a commit or close and reopen the PR: a rerun replays the event payload and keeps reading the old body. The squash commit is built from this body.'
-            exit 1
-          fi
-
   rust:
     name: rust (cargo test)
     runs-on: ubuntu-latest

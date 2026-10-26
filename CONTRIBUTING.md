@@ -37,8 +37,9 @@ and removed in v0.6.0) — see
   bash scripts/worktree-setup.sh ../YUI-my-topic
   ```
 
-  The setup script links gitignored runtime assets (VRM, motions) and copies
-  `.env.local` from the main checkout; a missing source is skipped.
+  The setup script links gitignored runtime assets (VRM, motions), copies
+  `.env.local` from the main checkout, and installs `node_modules` from the
+  lockfile; a missing source is skipped.
 
 - **Tests accompany behavior.** New or changed behavior ships its test in the
   same PR. Write the failing test first (`test:`), then the implementation

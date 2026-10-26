@@ -9,7 +9,7 @@ Claude Code hooks under `.claude/` are gitignored, so they gate only a checkout 
 | No direct commits to `main`; PR + green CI required | GitHub ruleset `main-protection`; locally also by `.claude/hooks/pretool-bash-guard.sh`, which denies `git commit`/`git push` while the command's cwd repo is on `main` |
 | Required PR checks | GitHub ruleset `main: required PR checks` requires `web`, `lint`, `rust`, `rust-windows`, `test-guard`, `pr-title`; `mods` and `mods-lint` run but are not required |
 | New/changed behavior ships a test | `test-guard` CI job (`skip-tests` label bypass; the job reads the PR's labels at run time, so the label takes effect on the next `test-guard` run — re-run the job after labelling) |
-| Conventional, printable-ASCII PR titles | `pr-title` CI job (checks the conventional type and `subjectPattern ^[\x20-\x7E]+$`; English itself is working practice) |
+| Conventional, printable-ASCII PR titles | `pr-title` job in `.github/workflows/pr-title.yml` (checks the conventional type and `subjectPattern ^[\x20-\x7E]+$`, and the body for an AI attribution line; English itself is working practice). It also runs on a title or body edit, so a fixed title clears the check without a new push |
 | Format + lint | `lint` CI job (`pnpm lint`, Biome) |
 | No raw `console.*` in `src/` | `lint` CI job (Biome `noConsole`) |
 | No committed `.skip` or `.only` in a test | `lint` CI job (Biome `noSkippedTests`, `noFocusedTests`) |
@@ -24,5 +24,5 @@ Claude Code hooks under `.claude/` are gitignored, so they gate only a checkout 
 | Restricted `.env.local` reads | local hooks deny the Read tool on `.env.local` (`.claude/hooks/pretool-read-guard.sh`) and the shell-read command patterns `.claude/hooks/pretool-bash-guard.sh` recognises; both fail open |
 | Purchased motions are read-only for the agent | local hooks `.claude/hooks/pretool-write-guard.sh` and `.claude/hooks/pretool-bash-guard.sh`; `YUI_ALLOW_MOTIONS=1` bypasses for human-approved curation; rules in `public/purchased_motions/AGENTS.md` |
 | Runtime verification of UI/DOM/runtime change | PR template Runtime-evidence section |
-| Worktree runtime assets | local hook `.claude/hooks/worktree-create.sh` runs `scripts/worktree-setup.sh` for worktrees Claude Code creates; a worktree made by hand runs the script by hand |
+| Worktree runtime assets and dependencies | local hook `.claude/hooks/worktree-create.sh` runs `scripts/worktree-setup.sh` for worktrees Claude Code creates; a worktree made by hand runs the script by hand. The script links the assets, copies `.env.local`, and runs `pnpm install --frozen-lockfile --prefer-offline` when the worktree has no `node_modules` |
 | TDD ordering, UI mock approval, flat-folder rule (judgment), chore-size rule | Working style (no machine gate) |
