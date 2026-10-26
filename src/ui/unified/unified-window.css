@@ -94,9 +94,6 @@
   column-gap: 0.875rem;
   align-items: start;
 }
-.yui-uc__line.is-pending {
-  opacity: 0.55;
-}
 .yui-uc__who {
   display: flex;
   align-items: center;
@@ -119,6 +116,9 @@
   overflow-wrap: anywhere;
   white-space: pre-wrap;
   text-wrap: pretty;
+}
+.yui-uc__line.is-pending .yui-uc__say {
+  color: var(--yui-text-dim);
 }
 .yui-uc__ago {
   font-size: var(--yui-fs-caption);

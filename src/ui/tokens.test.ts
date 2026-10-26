@@ -12,7 +12,7 @@ function cssFilesUnder(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) {
-      return path === join("src", "ui", "mocks") ? [] : cssFilesUnder(path);
+      return cssFilesUnder(path);
     }
     return entry.name.endsWith(".css") ? [path] : [];
   });
@@ -47,10 +47,19 @@ describe("redesign foundation tokens", () => {
     }
   });
 
-  it("leaves no raw oklch literal in the quick-controls stylesheets", () => {
-    const offenders = cssFilesUnder(join("src", "ui", "quick-controls")).filter((path) =>
-      readFileSync(path, "utf8").includes("oklch("),
-    );
+  it("leaves no literal colour outside the theme tokens", () => {
+    const offenders = cssFilesUnder(join("src", "ui"))
+      .filter((path) => path !== join("src", "ui", "tokens.css"))
+      .flatMap((path) =>
+        readFileSync(path, "utf8")
+          .split("\n")
+          .filter(
+            (line) =>
+              line.includes("%23") ||
+              (line.includes("oklch(") && !/^\s*(?:-webkit-)?mask-image:/.test(line)),
+          )
+          .map((line) => `${path}: ${line.trim()}`),
+      );
     expect(offenders).toEqual([]);
   });
 

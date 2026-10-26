@@ -9,7 +9,8 @@ export function hueOf(presetId: string): number {
   return (h >>> 0) % 360;
 }
 
-export const colorOf = (presetId: string): string => `oklch(0.78 0.12 ${hueOf(presetId)})`;
+export const colorOf = (presetId: string): string =>
+  `oklch(var(--yui-avatar-l) var(--yui-avatar-c) ${hueOf(presetId)})`;
 
 export function avatarEl(entry: PresetEntry, sizePx: number): HTMLElement {
   const el = document.createElement(entry.thumbnail ? "img" : "span");

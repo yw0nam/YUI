@@ -537,7 +537,7 @@
   max-height: none;
   height: auto;
   padding: 0.5rem 0.7rem;
-  background: oklch(0.97 0.01 80 / 0.04);
+  background: var(--yui-group-bg);
   border: 1px dashed var(--yui-edge-strong);
   color: var(--yui-text-dim);
   font-size: 0.82rem;
@@ -620,7 +620,7 @@
   padding: 0;
   border: 0;
   border-radius: var(--yui-radius-chip);
-  background: oklch(0.15 0.01 70 / 0.78);
+  background: var(--yui-scrim-strong);
   color: var(--yui-text);
   cursor: pointer;
   transition: background var(--yui-dur-fast) var(--yui-ease);
