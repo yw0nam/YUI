@@ -30,7 +30,7 @@ export function createUnifiedShown(deps: {
   const offSwitch = deps.switch.subscribe(recompute);
   const offWindows = deps.onPetWindowsChanged(recompute);
   return {
-    get: compute,
+    get: () => last,
     subscribe(cb) {
       listeners.add(cb);
       return () => listeners.delete(cb);
