@@ -83,6 +83,7 @@ function makeRemote(): RemoteSurfaces {
 describe("createSurfacesRouter", () => {
   let local: Surfaces;
   let remote: RemoteSurfaces;
+  let stream: Pick<Surfaces, "beginSpeech" | "pushSpeech" | "endSpeech">;
   let mode: MessageWindowMode;
   let listeners: Array<(m: MessageWindowMode) => void>;
   let router: Surfaces;
@@ -95,11 +96,13 @@ describe("createSurfacesRouter", () => {
   beforeEach(() => {
     local = makeLocal();
     remote = makeRemote();
+    stream = makeLocal();
     mode = "docked";
     listeners = [];
     router = createSurfacesRouter({
       local,
       remote,
+      stream,
       getMode: () => mode,
       subscribeMode: (cb) => {
         listeners.push(cb);
@@ -143,6 +146,28 @@ describe("createSurfacesRouter", () => {
     expect(local.beginSpeech).not.toHaveBeenCalled();
     expect(local.pushSpeech).not.toHaveBeenCalled();
     expect(local.hideSpeech).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "docked",
+    "popped",
+  ] as const)("streams identified speech beside the selected %s destination", (next) => {
+    setMode(next);
+    const identity = { turn_id: "7", event_name: "user.text_submitted" };
+    router.beginSpeech(identity);
+    router.pushSpeech("Hello", identity);
+    router.endSpeech({ defer: true }, identity);
+    const selected = next === "docked" ? local : remote;
+    const other = next === "docked" ? remote : local;
+    expect(stream.beginSpeech).toHaveBeenCalledWith(identity);
+    expect(stream.pushSpeech).toHaveBeenCalledWith("Hello", identity);
+    expect(stream.endSpeech).toHaveBeenCalledWith({ defer: true }, identity);
+    expect(selected.beginSpeech).toHaveBeenCalledWith(identity);
+    expect(selected.pushSpeech).toHaveBeenCalledWith("Hello", identity);
+    expect(selected.endSpeech).toHaveBeenCalledWith({ defer: true }, identity);
+    expect(other.beginSpeech).not.toHaveBeenCalled();
+    expect(other.pushSpeech).not.toHaveBeenCalled();
+    expect(other.endSpeech).not.toHaveBeenCalled();
   });
 
   it("quoteUser, settleQuote and clearQuote reach the side the mode names", () => {
@@ -379,6 +404,7 @@ describe("createSurfacesRouter over the message bridge", () => {
     const router = createSurfacesRouter({
       local: makeLocal(),
       remote: createRemoteSurfaces(petBridge),
+      stream: makeLocal(),
       getMode: () => mode,
       subscribeMode: (cb) => {
         listeners.push(cb);

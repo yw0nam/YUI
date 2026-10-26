@@ -2029,3 +2029,50 @@ describe("playback — per-utterance identity", () => {
     expect(end).toHaveBeenCalledWith("complete", undefined, identity);
   });
 });
+
+describe("speech display identity", () => {
+  it.each([
+    "complete",
+    "interrupt",
+    "abort",
+    "muted",
+  ] as const)("keeps the reply identity through %s", (ending) => {
+    const surfaces = spySurfaces();
+    const playback = createSpeechPlayback({
+      renderer: spyRenderer(),
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stubPipelineFactory().factory,
+      isStrolling: () => false,
+    });
+    const identity = { turn_id: "7", event_name: "user.text_submitted" };
+    if (ending === "muted") playback.interrupt({ muteCurrentTurn: true });
+    playback.onSpeechDelta("Hello", identity);
+    expect(surfaces.beginSpeech).toHaveBeenLastCalledWith(identity);
+    expect(surfaces.pushSpeech).toHaveBeenLastCalledWith("Hello", identity);
+    if (ending === "interrupt") playback.interrupt();
+    else if (ending === "abort") playback.abort();
+    else playback.onSpeechEnd();
+    expect(surfaces.endSpeech).toHaveBeenLastCalledWith(
+      ending === "interrupt" || ending === "abort" ? undefined : { defer: true },
+      identity,
+    );
+    playback.dispose();
+  });
+
+  it("keeps client-side phrases unidentified", () => {
+    const surfaces = spySurfaces();
+    const playback = createSpeechPlayback({
+      renderer: spyRenderer(),
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stubPipelineFactory().factory,
+      isStrolling: () => false,
+    });
+    playback.speakAside("Wait.");
+    expect(surfaces.beginSpeech.mock.calls).toEqual([[undefined]]);
+    expect(surfaces.pushSpeech.mock.calls).toEqual([["Wait.", undefined]]);
+    expect(surfaces.endSpeech.mock.calls).toEqual([[{ defer: true }, undefined]]);
+    playback.dispose();
+  });
+});

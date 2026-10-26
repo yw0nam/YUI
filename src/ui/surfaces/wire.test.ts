@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { MessageWindowMode } from "../../settings/panels/message-window-settings";
 
 const {
+  createSettingsBridge,
   createSurfaces,
   createSurfacesRouter,
   createMessageBridge,
@@ -10,15 +11,23 @@ const {
   listenTrayToggle,
   wireMessageWindowMode,
 } = vi.hoisted(() => ({
-  createSurfaces: vi.fn(),
-  createSurfacesRouter: vi.fn(),
-  createMessageBridge: vi.fn(),
-  createRemoteSurfaces: vi.fn(),
-  createMessageWindowController: vi.fn(),
-  listenTrayToggle: vi.fn(),
-  wireMessageWindowMode: vi.fn(),
+  createSettingsBridge:
+    vi.fn<typeof import("../../io/bridge/settings-bridge").createSettingsBridge>(),
+  createSurfaces: vi.fn<typeof import("./surfaces").createSurfaces>(),
+  createSurfacesRouter: vi.fn<typeof import("./surfaces-router").createSurfacesRouter>(),
+  createMessageBridge:
+    vi.fn<typeof import("../../io/bridge/message/message-bridge").createMessageBridge>(),
+  createRemoteSurfaces:
+    vi.fn<typeof import("../../io/bridge/message/message-remote").createRemoteSurfaces>(),
+  createMessageWindowController:
+    vi.fn<typeof import("../../io/window/openers/message-window").createMessageWindowController>(),
+  listenTrayToggle:
+    vi.fn<typeof import("../../io/window/openers/message-window").listenTrayToggle>(),
+  wireMessageWindowMode:
+    vi.fn<typeof import("../../io/window/openers/message-window-mode").wireMessageWindowMode>(),
 }));
 
+vi.mock("../../io/bridge/settings-bridge", () => ({ createSettingsBridge }));
 vi.mock("./surfaces", () => ({ createSurfaces }));
 vi.mock("./surfaces-router", () => ({ createSurfacesRouter }));
 vi.mock("../../io/bridge/message/message-bridge", () => ({ createMessageBridge }));
@@ -44,11 +53,13 @@ function setup(mode: MessageWindowMode, bound = false) {
   const remote = { dispose: vi.fn() };
   const surfaces = { dispose: vi.fn() };
   const bridge = { dispose: vi.fn() };
+  const settings = { dispose: vi.fn(), emitSpeechStream: vi.fn() };
+  createSettingsBridge.mockReturnValue(settings as never);
   const modeDisposer = vi.fn();
-  createSurfaces.mockReturnValue(local);
-  createRemoteSurfaces.mockReturnValue(remote);
-  createSurfacesRouter.mockReturnValue(surfaces);
-  createMessageBridge.mockReturnValue(bridge);
+  createSurfaces.mockReturnValue(local as never);
+  createRemoteSurfaces.mockReturnValue(remote as never);
+  createSurfacesRouter.mockReturnValue(surfaces as never);
+  createMessageBridge.mockReturnValue(bridge as never);
   createMessageWindowController.mockReturnValue({ open: vi.fn(), hide: vi.fn() });
   wireMessageWindowMode.mockReturnValue(modeDisposer);
   const messageWindowSettings = fakeMessageWindowSettings(mode);
@@ -61,7 +72,17 @@ function setup(mode: MessageWindowMode, bound = false) {
     messageWindowSettings,
     register,
   });
-  return { result, register, local, remote, surfaces, bridge, modeDisposer, messageWindowSettings };
+  return {
+    settings,
+    result,
+    register,
+    local,
+    remote,
+    surfaces,
+    bridge,
+    modeDisposer,
+    messageWindowSettings,
+  };
 }
 
 describe("wireMessageSurfaces", () => {
@@ -90,11 +111,11 @@ describe("wireMessageSurfaces", () => {
   it("registers the bridge, the router, then the window-mode teardown", () => {
     const { register, local, surfaces, bridge, modeDisposer } = setup("docked");
 
-    expect(register).toHaveBeenCalledTimes(3);
-    const [bridgeTeardown, surfacesTeardown, modeTeardown] = register.mock.calls.map(
-      (call) => call[0],
-    );
+    expect(register).toHaveBeenCalledTimes(4);
+    const [settingsTeardown, bridgeTeardown, surfacesTeardown, modeTeardown] =
+      register.mock.calls.map((call) => call[0]);
 
+    settingsTeardown();
     bridgeTeardown();
     expect(bridge.dispose).toHaveBeenCalledOnce();
     expect(surfaces.dispose).not.toHaveBeenCalled();
@@ -106,4 +127,20 @@ describe("wireMessageSurfaces", () => {
     modeTeardown();
     expect(modeDisposer).toHaveBeenCalledOnce();
   });
+});
+
+it("wires the bound preset's stream destination and disposes its settings bridge", () => {
+  const { settings, register } = setup("docked", true);
+  const stream = createSurfacesRouter.mock.calls[0]![0].stream;
+  const identity = { turn_id: "7", event_name: "user.text_submitted" };
+  stream.beginSpeech(identity);
+  stream.pushSpeech("hi", identity);
+  stream.endSpeech(undefined, identity);
+  expect(settings.emitSpeechStream.mock.calls).toEqual([
+    [{ preset: "a", turn_id: "7", op: "begin" }],
+    [{ preset: "a", turn_id: "7", op: "push", delta: "hi" }],
+    [{ preset: "a", turn_id: "7", op: "end" }],
+  ]);
+  for (const [dispose] of register.mock.calls) dispose();
+  expect(settings.dispose).toHaveBeenCalledOnce();
 });

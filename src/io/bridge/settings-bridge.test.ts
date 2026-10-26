@@ -300,6 +300,7 @@ describe("createSettingsBridge", () => {
     ["onHelpGuide", { guide: "controls", text: "help" }, true],
     ["onCharacterAddressed", { from: "p1", name: "Perlica", to: "p2", text: "x", ts: 1 }, false],
     ["onUserTurnRouted", { sendId: "s1", to: "p2", text: "x" }, false],
+    ["onSpeechStream", { preset: "p2", turn_id: "7", op: "push", delta: "hi" }, false],
     ["onUserTurnDone", { sendId: "s1", preset: "p2" }, false],
   ] as const)("%s uses its declared preset scope", (method, payload, scoped) => {
     history.replaceState(null, "", "/?preset=a");
@@ -426,4 +427,38 @@ describe("createSettingsBridge", () => {
 
     expect(cb).not.toHaveBeenCalled();
   });
+});
+
+it("rebuilds valid speech stream events and drops malformed payloads", () => {
+  const transport = createFakeTransport();
+  const pet = createSettingsBridge(transport, { windowKind: "pet" });
+  const unified = createSettingsBridge(transport, { windowKind: "unified" });
+  const received = vi.fn();
+  unified.onSpeechStream(received);
+  for (const payload of [
+    null,
+    {},
+    { preset: "p", turn_id: "7", op: "push", delta: 7 },
+    { preset: "", turn_id: "7", op: "end" },
+    { preset: "p", turn_id: "", op: "begin" },
+    { preset: "p", turn_id: "7", op: "other" },
+  ])
+    pet.emitSpeechStream(payload as never);
+  expect(received.mock.calls).toEqual([]);
+  pet.emitSpeechStream({ preset: "p", turn_id: "7", op: "begin", extra: true } as never);
+  pet.emitSpeechStream({
+    preset: "p",
+    turn_id: "7",
+    op: "push",
+    delta: "hi",
+    extra: true,
+  } as never);
+  pet.emitSpeechStream({ preset: "p", turn_id: "7", op: "end", extra: true } as never);
+  expect(received.mock.calls).toEqual([
+    [{ preset: "p", turn_id: "7", op: "begin" }],
+    [{ preset: "p", turn_id: "7", op: "push", delta: "hi" }],
+    [{ preset: "p", turn_id: "7", op: "end" }],
+  ]);
+  pet.dispose();
+  unified.dispose();
 });
