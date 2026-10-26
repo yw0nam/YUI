@@ -192,10 +192,11 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
     thumb.hidden = !shown.thumbnail;
     if (shown.thumbnail) thumb.src = shown.thumbnail;
     switchBtn.setAttribute("aria-checked", String(a.send_card));
-    body.hidden = push || !a.send_card;
-    stateEl.hidden = push || !a.send_card || own;
+    const sends = !push && a.send_card;
+    body.hidden = !sends;
+    stateEl.hidden = !sends || own;
     stateEl.textContent = t("card.default_state", { language: LOCALE_DISPLAY_NAMES[getLocale()] });
-    resetBtn.hidden = push || !a.send_card || !own;
+    resetBtn.hidden = !sends || !own;
     if (nameEl.getAttribute("aria-invalid") !== "true") setValue(nameEl, cardName(card, shown));
     for (const el of fields) setValue(el, card[el.dataset.cardField as TextField]);
     const list = card.alternate_greetings;
