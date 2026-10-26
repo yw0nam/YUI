@@ -77,7 +77,7 @@ describe("createQuickControls — card section", () => {
   const visible = (sel: string) => !sec().querySelector<HTMLElement>(sel)!.hidden;
   const enabled = (sel: string) =>
     !sec().querySelector<HTMLInputElement | HTMLButtonElement>(sel)!.disabled;
-  it("on push shows the body, disables the switch with its reason and every text field but the greetings", () => {
+  it("on push shows the body, disables the switch with its reason and every card field, keeps the name and the file buttons", () => {
     agentSettings.updateCard({ alternate_greetings: ["hey"] }, persona.cards.en);
     agentSettings.setSendCard(false);
     build({ getDefaultChatApi: () => "push" });
@@ -86,22 +86,25 @@ describe("createQuickControls — card section", () => {
     expect(enabled(".yui-card-switch")).toBe(false);
     expect(visible(".yui-card .yui-push-reason")).toBe(true);
     expect(sec().querySelector(".yui-push-reason")!.textContent).toContain(
-      "On push the backend's own profile is the persona; this card supplies only the greetings.",
+      "On push the backend uses its own persona; this card, greetings included, is not used.",
     );
     expect(
-      ["name", "description", "personality", "scenario", "mes_example", "system_prompt"].map((f) =>
-        enabled(`[data-card-field="${f}"]`),
-      ),
-    ).toEqual([false, false, false, false, false, false]);
-    expect(
       [
-        '[data-card-field="first_mes"]',
-        "[data-greeting-index]",
-        ".yui-card-add",
-        ".yui-card-import",
-        ".yui-card-export",
-      ].map(enabled),
-    ).toEqual([true, true, true, true, true]);
+        "description",
+        "personality",
+        "scenario",
+        "first_mes",
+        "mes_example",
+        "system_prompt",
+        "post_history_instructions",
+      ].map((f) => enabled(`[data-card-field="${f}"]`)),
+    ).toEqual([false, false, false, false, false, false, false]);
+    expect(
+      ["[data-greeting-index]", ".yui-card-greeting__remove", ".yui-card-add"].map(enabled),
+    ).toEqual([false, false, false]);
+    expect(
+      ['[data-card-field="name"]', ".yui-card-import", ".yui-card-export"].map(enabled),
+    ).toEqual([true, true, true]);
   });
 
   it("keeps Reset to default on push with an own card", () => {
