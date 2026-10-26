@@ -15,6 +15,7 @@ function setup() {
   } as unknown as MessageBridge;
   const surfaces = {
     beginSpeech: vi.fn(),
+    paceSpeech: vi.fn(),
     endSpeech: vi.fn(),
     setBusy: vi.fn(),
     showInputError: vi.fn(),
@@ -36,6 +37,16 @@ it("marks the plate live and begins speech on begin, and ends both on end", () =
   expect(surfaces.beginSpeech).toHaveBeenCalledOnce();
   expect(plate.setLive).toHaveBeenNthCalledWith(2, false);
   expect(surfaces.endSpeech).toHaveBeenCalledWith({ defer: true });
+});
+
+it("begins a paced line and paces each of its sentences", () => {
+  const { send, surfaces } = setup();
+
+  send({ op: "begin", paced: true });
+  send({ op: "pace", text: "Hi.", durationMs: 500 });
+
+  expect(surfaces.beginSpeech).toHaveBeenCalledWith(undefined, { paced: true });
+  expect(surfaces.paceSpeech).toHaveBeenCalledWith({ text: "Hi.", durationMs: 500 });
 });
 
 it("sets busy on the plate and the surfaces", () => {
