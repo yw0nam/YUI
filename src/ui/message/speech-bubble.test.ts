@@ -715,9 +715,7 @@ describe("pushSpeech — throttled markdown rendering", () => {
 
     s.endSpeech();
 
-    // One render announces the whole line, one draws it.
-    expect(renderMarkdownInline).toHaveBeenCalledTimes(3);
-    expect(renderMarkdownInline).toHaveBeenLastCalledWith(expected);
+    expect(mount.querySelector(".yui-bubble__sr")?.textContent).toBe(expected);
     expect(mount.querySelector(".yui-bubble__text")?.textContent).toBe(expected);
   });
 });

@@ -138,8 +138,8 @@ describe("bubble structure — edge tools outside the scrolling box", () => {
     const tools = bubble.querySelector<HTMLElement>(".yui-bubble__tools")!;
     const box = bubble.querySelector<HTMLElement>(".yui-bubble__box")!;
 
-    expect(bubble.contains(tools)).toBe(true);
-    expect(bubble.contains(box)).toBe(true);
+    expect(tools.parentElement?.className).toBe("yui-bubble__float");
+    expect(box.parentElement?.className).toBe("yui-bubble__frame");
     expect(box.contains(tools)).toBe(false);
     expect(box.querySelector(".yui-bubble__text")).not.toBeNull();
     expect(box.querySelector(".yui-bubble__caret")).not.toBeNull();

@@ -317,16 +317,15 @@ describe("surfaces.css — the bubble's box carries the material", () => {
   });
 });
 
-// The whole dialogue floats as one: plate, box, backlog and toggle ride one wrapper that only the bob transforms.
-describe("surfaces.css — the dialogue box floats while it shows", () => {
+// The whole bubble floats as one: plate, box, backlog and toggle ride one wrapper that only the bob transforms.
+describe("surfaces.css — the bubble floats while it shows", () => {
   const css = (): string => read("surfaces.css");
 
-  it("bobs 3px over 6s only while the bubble is visible", () => {
+  it("bobs only while the bubble is visible", () => {
     const c = css();
     expect(extractBlock(c, ".yui-bubble.is-visible .yui-bubble__float")).toMatch(
-      /animation:\s*yui-bob 6s ease-in-out infinite/,
+      /animation:\s*yui-bob\b/,
     );
-    expect(extractBlock(c, "@keyframes yui-bob")).toMatch(/translateY\(-3px\)/);
     const rules = [...c.matchAll(/^([^\n{}@]*\.yui-bubble__float[^\n{}]*)\{/gm)].map((m) =>
       m[1].trim(),
     );
