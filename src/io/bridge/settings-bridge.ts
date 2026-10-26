@@ -11,6 +11,7 @@ import type { PushSocketState } from "../chat/push/push-socket";
 import { isGuideKey } from "../guide/guide-docs";
 import type { VoiceInputState } from "../voice/stt-vad";
 import { type BridgeTransport, createBridgeCore, type WindowKind } from "./core/bridge-core";
+import type { MessageControlOp, MessageSurfaceOp } from "./message/message-bridge";
 import type { ReasoningState } from "./reasoning/reasoning-store";
 
 const CH_SETTINGS_CHANGED = "yui://settings-changed";
@@ -32,6 +33,9 @@ const CH_PRESET_CHANGED = "yui://preset-changed";
 const CH_CHARACTER_ADDRESSED = "yui://character-addressed";
 const CH_USER_TURN_ROUTED = "yui://user-turn-routed";
 const CH_SPEECH_STREAM = "yui://speech-stream";
+const CH_SPEECH_STREAM_ASK = "yui://speech-stream-ask";
+const CH_STOP_TURNS = "yui://stop-turns";
+const CH_SPEECH_STREAM_CONTROL = "yui://speech-stream-control";
 const CH_USER_TURN_DONE = "yui://user-turn-done";
 
 interface VoiceStateSnapshot {
@@ -77,14 +81,99 @@ export interface UserTurnDone {
   preset: string;
 }
 
-export type SpeechStream =
-  | { preset: string; turn_id: string; op: "begin"; baseline: number }
-  | { preset: string; turn_id: string; op: "end" }
-  | { preset: string; turn_id: string; op: "push"; delta: string };
+/** One message-window op a pet window sent, stamped with its preset. */
+export interface SpeechStream {
+  preset: string;
+  op: MessageSurfaceOp;
+}
+
+/** The unified chat window's click on an error's fix, back to the preset whose window showed it. */
+export interface SpeechStreamControl {
+  preset: string;
+  op: Extract<MessageControlOp, { op: "input-error-action" }>;
+}
+
+const isString = (v: unknown): v is string => typeof v === "string";
+const isOptional = (v: unknown, test: (v: unknown) => boolean): boolean =>
+  v === undefined || test(v);
+const isBool = (v: unknown): v is boolean => typeof v === "boolean";
+
+function isQuote(v: unknown): boolean {
+  if (v === null || typeof v !== "object") return false;
+  const q = v as Record<string, unknown>;
+  return (
+    isString(q.text) &&
+    (q.via === "text" || q.via === "voice") &&
+    typeof q.images === "number" &&
+    isOptional(q.mention, (m) => m === "character" || m === "everyone")
+  );
+}
+
+function isSourceLine(v: unknown): boolean {
+  if (v === null || typeof v !== "object") return false;
+  const l = v as Record<string, unknown>;
+  return (
+    (l.delivery === "urgent" || l.delivery === "batched") && isString(l.source) && isString(l.text)
+  );
+}
+
+/** The ops the speech stream carries, each with its fields' declared types. */
+function isStreamOp(v: unknown): v is MessageSurfaceOp {
+  if (v === null || typeof v !== "object") return false;
+  const o = v as Record<string, unknown>;
+  switch (o.op) {
+    case "begin":
+      return isOptional(o.paced, isBool);
+    case "push":
+      return isString(o.delta);
+    case "pace":
+      return (
+        isString(o.text) &&
+        (o.durationMs === null ||
+          (typeof o.durationMs === "number" && Number.isFinite(o.durationMs) && o.durationMs >= 0))
+      );
+    case "end":
+      return isOptional(o.defer, isBool);
+    case "finish":
+    case "hide":
+    case "settle-quote":
+    case "clear-quote":
+    case "summon-input":
+      return true;
+    case "quote":
+      return isQuote(o.quote);
+    case "quote-signals":
+      return Array.isArray(o.lines) && o.lines.every(isSourceLine);
+    case "busy":
+      return isBool(o.busy);
+    case "name":
+      return isString(o.name);
+    case "input-error":
+      return (
+        isString(o.message) &&
+        isOptional(
+          o.action,
+          (a) => a !== null && typeof a === "object" && isString((a as { label?: unknown }).label),
+        )
+      );
+    default:
+      return false;
+  }
+}
 
 export interface SettingsBridge {
+  /** A pet window's message ops for the unified chat window; delivered to every window. */
   emitSpeechStream(event: SpeechStream): void;
   onSpeechStream(cb: (event: SpeechStream) => void): () => void;
+  /** The unified chat window asking every pet window to restate its name and busy state. */
+  emitSpeechStreamAsk(): void;
+  onSpeechStreamAsk(cb: () => void): () => void;
+  /** The unified chat window's stop: every pet window stops its running turn and speech. */
+  emitStopTurns(): void;
+  onStopTurns(cb: () => void): () => void;
+  /** The unified chat window's click on an error's fix; delivered to every window, receivers filter on `preset`. */
+  emitSpeechStreamControl(event: SpeechStreamControl): void;
+  onSpeechStreamControl(cb: (event: SpeechStreamControl) => void): () => void;
   emitSettingsChanged(): void;
   onSettingsChanged(cb: (from: WindowKind) => void): () => void;
   emitMouthPreview(mouthOpen: number | null): void;
@@ -156,6 +245,9 @@ export function createSettingsBridge(
     CH_USER_TURN_ROUTED,
     CH_USER_TURN_DONE,
     CH_SPEECH_STREAM,
+    CH_SPEECH_STREAM_ASK,
+    CH_STOP_TURNS,
+    CH_SPEECH_STREAM_CONTROL,
   ]);
   const on: typeof core.on = (name, cb) => core.on(name, cb, { scoped: !shared.has(name) });
 
@@ -327,21 +419,31 @@ export function createSettingsBridge(
     onSpeechStream(cb) {
       return on<unknown>(CH_SPEECH_STREAM, (event) => {
         if (event === null || typeof event !== "object") return;
-        const e = event as Partial<SpeechStream>;
-        if (
-          typeof e.preset !== "string" ||
-          !e.preset ||
-          typeof e.turn_id !== "string" ||
-          !e.turn_id
-        )
-          return;
-        const { preset, turn_id, op } = e;
-        if (op === "begin") {
-          if (typeof e.baseline === "number" && Number.isInteger(e.baseline) && e.baseline >= 0)
-            cb({ preset, turn_id, op, baseline: e.baseline });
-        } else if (op === "end") cb({ preset, turn_id, op });
-        else if (op === "push" && typeof e.delta === "string")
-          cb({ preset, turn_id, op, delta: e.delta });
+        const { preset, op } = event as Partial<SpeechStream>;
+        if (isString(preset) && preset && isStreamOp(op)) cb({ preset, op });
+      });
+    },
+    emitSpeechStreamAsk() {
+      safeEmit(CH_SPEECH_STREAM_ASK);
+    },
+    onSpeechStreamAsk(cb) {
+      return on<unknown>(CH_SPEECH_STREAM_ASK, () => cb());
+    },
+    emitStopTurns() {
+      safeEmit(CH_STOP_TURNS);
+    },
+    onStopTurns(cb) {
+      return on<unknown>(CH_STOP_TURNS, () => cb());
+    },
+    emitSpeechStreamControl(event) {
+      safeEmit(CH_SPEECH_STREAM_CONTROL, event);
+    },
+    onSpeechStreamControl(cb) {
+      return on<unknown>(CH_SPEECH_STREAM_CONTROL, (event) => {
+        if (event === null || typeof event !== "object") return;
+        const { preset, op } = event as Partial<SpeechStreamControl>;
+        if (isString(preset) && preset && op?.op === "input-error-action")
+          cb({ preset, op: { op: "input-error-action" } });
       });
     },
     dispose: core.dispose,

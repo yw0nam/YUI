@@ -100,9 +100,9 @@ YUI/
         wire-message-surface-ops.ts  # Draws each surface op from the pet window onto the surfaces, which the plate follows
         character-name.ts            # In the pet window: the character's effective name, the card's while the built-in preset is unnamed, else the preset's
         mirrored-name.ts             # In the message window: the character's name as the pet window last sent it
-        wire-message-tauri-window.ts # Window focus, the OS drag, the content-height resize, and the moved-position record
       unified/                       # The unified chat window's wiring
-        wire-unified-window.ts       # Opens the window while its switch is on and two or more presets are open, and closes it otherwise
+        wire-unified-window.ts       # Main opens the window while it shows and destroys it otherwise
+        wire-unified-close.ts        # The window closing itself turns the Unified chat switch off
       settings-window/               # The settings window's wiring
         wire-settings-window.ts      # Stores, config, cross-window sync, and the quick controls remounted on locale change, bound to the query's preset when it names one, and editing the preset `?edit=` names
         edit-target-url.ts           # The settings URL with its `edit` param set to the picked preset, or dropped for the window's own
@@ -116,7 +116,7 @@ YUI/
       settings-main.ts               # Settings window: mounts the settings window wiring, with the companion guard when the query binds a preset
       devtools-main.ts               # Developer Tools window
       message-main.ts                # Message window: the bubble, input, and plate, with the companion guard when the query binds a preset
-      unified-main.ts                # Unified chat window: every open preset's transcript in one list and the composer that routes a message
+      unified-main.ts                # Unified chat window: the frameless 340 px column, the speech stream into its box, and the composer that routes a message
     styles.css                       # Pet-window base stylesheet
     vite-env.d.ts                    # Vite client types and build-time env declarations
     contract/                        # TS contract types — the wire schema source of truth
@@ -337,8 +337,10 @@ YUI/
         relations-switch.ts          # The device-wide Relations switch under yui.relations-enabled, on by default
         relation-lines.ts            # The relation entries a turn carries: user first, then the other presets in registry order; none while the switch is off
         relation-targets.ts          # The label a prompt line or the rate_relation enum shows for a preset: one named `user` is disambiguated
-      unified/                       # The unified chat window's switch
+      unified/                       # The unified chat window's switch and position
         unified-chat-switch.ts       # The device-wide Unified chat switch under yui.unified-chat, off by default
+        unified-shown.ts             # Whether the unified window shows: the switch on, two or more open presets, a window can exist; every pet and settings window reads it
+        unified-window-settings.ts   # The unified window's last position under yui.unified-window, device-wide
       identity/                      # Who the user is to the character
         user-name-settings.ts        # Device-wide "Your name", what {{user}} resolves to
       panels/                        # Panel and window state
@@ -429,6 +431,8 @@ YUI/
           screenshot-context.ts        # Pure encoder for the screenshot context block
         geometry/                      # Monitor and floor math the window movers share
           screen-geometry.ts           # Monitor containment, work-area floor math, and window clamping shared by every window mover
+          companion-position.ts        # Where a companion window (message, unified) opens: its stored position, else beside the pet window, kept on screen; the column's width and handle height
+          companion-column.ts          # A companion column window's focus, OS drag, content-height resize and moved-position report
           keep-on-screen.ts            # Pushes a window back until its centre lands on a monitor
           travel-frame.ts              # Parks the real window once for a scale-seam crossing
           stationary-frame.ts          # Widens the real window around a character that stays where she is
@@ -438,9 +442,9 @@ YUI/
         openers/                       # Openers and placement of the message, settings, devtools, and pet windows, the first two bound to a pet window's preset
           settings-window.ts           # Settings window opener, settings-<id> for a bound id, and cross-window settings sync
           devtools-window.ts           # Developer Tools window opener
-          message-window.ts            # Message-window opener, message-<id> for a bound id, and its placement rule
-          message-window-mode.ts       # Keeps the message window in step with the stored mode and the dock request
-          unified-window.ts            # Unified chat window opener: shows the one window labelled unified, or creates it; its permissions are src-tauri/capabilities/unified.json
+          message-window.ts            # Message-window opener, message-<id> for a bound id
+          message-window-mode.ts       # Keeps the message window in step with the stored mode, the unified chat window and the dock request
+          unified-window.ts            # Unified chat window opener: shows the one frameless window labelled unified, or creates it at its stored position, and destroys it; its permissions are src-tauri/capabilities/unified.json
           pet-window.ts                # Bound pet window opener: creates pet-<id> and lists the windows that exist
           companion-windows.ts         # Closes a bound pet window's settings-<id> and message-<id>, and watches a companion's owner window
           current-window.ts            # Closes the current window and listens for its close request
@@ -463,6 +467,7 @@ YUI/
         message/                       # The pet ↔ message window bus and its remote half
           message-bridge.ts            # Cross-window bus linking the pet window and the message window
           message-remote.ts            # The message window's bubble and input as a remote Surfaces half
+          stream-bridge.ts             # The speech stream as a message bridge: the pet's ops stamped with its preset, the unified window's ask as `ready`, and a click on an error's fix that names this preset
         delegations/                   # The backend's background-work list, live and persisted
           delegations-store.ts         # Background work the backend reports on the push socket
           delegations-bridge.ts        # Delegations list as seen from a window that does not own the push socket
@@ -502,8 +507,9 @@ YUI/
       tokens.css                     # Design tokens: colour, radius, shadow, duration
       surfaces/                      # Speech-bubble and text-input host surface
         surfaces.ts                  # Mounts the speech bubble and text input as one system, with the name plate and backlog when asked, forwarding tool status
-        surfaces-router.ts           # One Surfaces handle over the pet window and the message window
-        wire.ts                      # Local surfaces plus the message-window bridge, routed by the stored window mode and scoped to the window's preset
+        surfaces-router.ts           # One Surfaces handle over the pet window, the message window and the speech stream, which takes the chat while the unified window shows
+        wire.ts                      # Local surfaces plus the message-window bridge and the speech stream, routed by the stored window mode and the unified window, scoped to the window's preset
+        apply-speech-op.ts           # Draws one bubble op on a Surfaces, for the message window and the unified box
         summon-key.ts                # Binds the focused window's "/" key to open the text input
         anchor.ts                    # Pure mapping from the on-screen feet to the input's bottom offset
         reflect-unless-editing.ts    # Writes a store value onto an input unless the user is editing it
@@ -532,16 +538,19 @@ YUI/
         message-window.css           # Message-window layout and name-plate styles
         cue-list.css                 # Cue-list section styles
       unified/                       # The unified chat window
-        unified-view.ts              # Wires the modules; keeps the pending sends and their expiry timer
-        merge.ts                     # Pure: the open presets' transcripts and the pending sends as one time-ordered list
+        unified-view.ts              # Wires the modules; keeps the pending sends
+        lane-queue.ts                # One lane per preset: one line holds the box until done, the next lane replays what it buffered
+        cast-state.ts                # Each preset's turn state and sent name, and the talk/think/idle rule for its chip
+        cast-chips.ts                # The head row: a chip per open preset with its line state, the × and the drag handle
+        backlog-lines.ts             # The backlog's lines: the user's under "You → <recipient>", a character's under its name
+        merge.ts                     # Pure: the open presets' transcripts and the pending sends as one time-ordered list, each user row with its recipient
         targets.ts                   # Pure: the fallback target, the targets of a message, and the send built from what the user typed
-        sequence.ts                  # One-at-a-time delivery of a send, target by target, with its queue, 60 s timeout and log line
-        log-rows.ts                  # DOM only: one log line and one cast chip
-        composer.ts                  # The message window's field under the text input, with the mention pill, target chip and hint
+        sequence.ts                  # One-at-a-time delivery of a send, target by target, with its queue, 60 s timeout, cancel and log line
+        composer.ts                  # The message window's field under the text input, with the recipient chips, send and stop, and the inline error
         mention-picker.ts            # The @ list over the field: a combobox of the open presets and @everyone
         avatar.ts                    # A preset's photo, else a dot in a hue taken from its id
         avatar.css                   # The face's size and shape, for every window that draws one
-        unified-window.css           # The window's layout, log rows, pill, target chip and list
+        unified-window.css           # The 340 px column: cast row, box, recipient chips, composer and @ list
       signals/                       # The source line of a signal group, shared by the bubble and History
         source-line.ts               # Renders one source line: delivery-class dot, source, label
         source-line.css              # Source-line styles: filled urgent dot, ring batched dot

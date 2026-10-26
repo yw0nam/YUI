@@ -18,6 +18,8 @@ describe("wireMessageWindowMode", () => {
   let messageWindow: { open: Mock<() => void>; hide: Mock<() => void> };
   let dockHandlers: Array<() => void>;
   let trayHandlers: Array<(visible: boolean) => void>;
+  let shown: boolean;
+  let shownHandlers: Array<(shown: boolean) => void>;
 
   const wire = (): (() => void) =>
     wireMessageWindowMode({
@@ -34,14 +36,41 @@ describe("wireMessageWindowMode", () => {
           trayHandlers = trayHandlers.filter((h) => h !== cb);
         };
       },
-      getMode: () => store.get().mode,
+      shown: {
+        subscribe: (cb) => {
+          shownHandlers.push(cb);
+          return () => {
+            shownHandlers = shownHandlers.filter((h) => h !== cb);
+          };
+        },
+      },
+      getMode: () => (shown ? "docked" : store.get().mode),
     });
+  const setShown = (next: boolean): void => {
+    shown = next;
+    for (const cb of shownHandlers) cb(next);
+  };
 
   beforeEach(() => {
     store = createMessageWindowSettings();
     messageWindow = { open: vi.fn<() => void>(), hide: vi.fn<() => void>() };
     dockHandlers = [];
     trayHandlers = [];
+    shown = false;
+    shownHandlers = [];
+  });
+
+  it("hides a popped window while the unified window shows, and shows it again after", () => {
+    store.setMode("popped");
+    wire();
+    messageWindow.open.mockClear();
+
+    setShown(true);
+    expect(messageWindow.hide).toHaveBeenCalledTimes(1);
+    expect(store.get().mode).toBe("popped");
+
+    setShown(false);
+    expect(messageWindow.open).toHaveBeenCalledTimes(1);
   });
 
   it("hides the window at boot when the stored mode is docked", () => {

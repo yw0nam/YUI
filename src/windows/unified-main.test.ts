@@ -8,6 +8,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 vi.mock("../styles.css", () => ({}));
 vi.mock("../ui/unified/unified-window.css", () => ({}));
+vi.mock("../ui/message/message-window.css", () => ({}));
 vi.mock("../ui/surfaces/surfaces.css", () => ({}));
 vi.mock("../ui/tokens.css", () => ({}));
 
@@ -45,11 +46,11 @@ function seedStorage(): void {
 async function boot(): Promise<void> {
   document.body.innerHTML = '<div id="app"></div>';
   await import("./unified-main");
-  await vi.waitFor(() => expect(document.querySelector(".yui-uc__line")).not.toBeNull());
+  await vi.waitFor(() => expect(document.querySelector(".yui-uc__chip")).not.toBeNull());
 }
 
-const says = () =>
-  [...document.querySelectorAll(".yui-uc__say")].map((el) => el.textContent as string);
+const chipNames = () =>
+  [...document.querySelectorAll(".yui-uc__chip-name")].map((el) => el.textContent as string);
 
 beforeEach(() => {
   vi.resetModules();
@@ -73,32 +74,35 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-it("lists the transcripts of every open preset in time order", async () => {
+it("shows a chip for every open preset", async () => {
   await boot();
 
-  expect(says()).toEqual(["Hello from default.", "Hello from Natsume."]);
+  expect(chipNames()).toEqual(["Default", "Natsume"]);
 }, 15_000);
 
-it("draws a reply that a pet window announces through the settings-changed signal", async () => {
+it("renames a chip when a pet window announces a settings change", async () => {
   await boot();
   localStorage.setItem(
-    "yui.natsume.chat_transcript",
-    JSON.stringify([
-      { role: "assistant", text: "Hello from Natsume.", ts: 2_000 },
-      { role: "assistant", text: "One more.", ts: 3_000 },
-    ]),
+    "yui.presets",
+    JSON.stringify({
+      active: "default",
+      list: [
+        { id: "default", name: "Default" },
+        { id: "natsume", name: "Natsu" },
+      ],
+    }),
   );
 
   petBridge.emitSettingsChanged();
 
-  await vi.waitFor(() => expect(says()).toContain("One more."));
+  await vi.waitFor(() => expect(chipNames()).toContain("Natsu"));
 });
 
 it("routes a typed message to the last speaker over the bridge", async () => {
   const routed: UserTurnRouted[] = [];
   petBridge.onUserTurnRouted((e) => routed.push(e));
   await boot();
-  const field = document.querySelector<HTMLTextAreaElement>(".yui-input__field")!;
+  const field = document.querySelector<HTMLTextAreaElement>(".yui-uc__dock .yui-input__field")!;
 
   field.value = "hi";
   field.dispatchEvent(new Event("input", { bubbles: true }));
@@ -111,23 +115,43 @@ it("routes a typed message to the last speaker over the bridge", async () => {
   );
 });
 
+it("asks the pet windows to restate themselves, and draws the line a pet window streams", async () => {
+  const asks = vi.fn();
+  petBridge.onSpeechStreamAsk(asks);
+  await boot();
+  await vi.waitFor(() => expect(asks).toHaveBeenCalledOnce());
+
+  petBridge.emitSpeechStream({ preset: "natsume", op: { op: "begin" } });
+  petBridge.emitSpeechStream({ preset: "natsume", op: { op: "push", delta: "Running" } });
+
+  await vi.waitFor(() =>
+    expect(document.querySelector(".yui-bubble__text")?.textContent).toBe("Running"),
+  );
+});
+
+it("sends the stop to every pet window", async () => {
+  const stops = vi.fn();
+  petBridge.onStopTurns(stops);
+  await boot();
+  petBridge.emitSpeechStream({ preset: "natsume", op: { op: "busy", busy: true } });
+  await vi.waitFor(() =>
+    expect(
+      document.querySelector(".yui-uc__dock .yui-input")?.classList.contains("is-running"),
+    ).toBe(true),
+  );
+
+  document.querySelector<HTMLButtonElement>(".yui-uc__dock .yui-input__send")!.click();
+
+  await vi.waitFor(() => expect(stops).toHaveBeenCalledOnce());
+});
+
 it("stops following the signals after unload", async () => {
   await boot();
   window.dispatchEvent(new Event("beforeunload"));
-  localStorage.setItem(
-    "yui.natsume.chat_transcript",
-    JSON.stringify([{ role: "assistant", text: "After unload.", ts: 4_000 }]),
-  );
 
-  petBridge.emitSettingsChanged();
+  petBridge.emitSpeechStream({ preset: "natsume", op: { op: "begin" } });
+  petBridge.emitSpeechStream({ preset: "natsume", op: { op: "push", delta: "After unload." } });
   await Promise.resolve();
 
-  expect(says()).not.toContain("After unload.");
-});
-
-it("forwards pet speech stream events into the unified view", async () => {
-  await boot();
-  petBridge.emitSpeechStream({ preset: "natsume", turn_id: "7", op: "begin", baseline: 0 });
-  petBridge.emitSpeechStream({ preset: "natsume", turn_id: "7", op: "push", delta: "Running" });
-  await vi.waitFor(() => expect(says()).toContain("Running"));
+  expect(document.querySelector(".yui-bubble__text")?.textContent ?? "").toBe("");
 });

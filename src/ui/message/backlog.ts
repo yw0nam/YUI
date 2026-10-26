@@ -5,11 +5,30 @@ import { subscribe as subscribeLocale, t } from "../i18n";
 import { renderMarkdownInline } from "./markdown";
 import type { SpeechBubble } from "./speech-bubble";
 
+/** One earlier line: who said it, as the backlog labels it, and what was said. */
+export interface BacklogLine {
+  who: string;
+  text: string;
+}
+
 /** Where the backlog reads the session from. */
 export interface BacklogSource {
   /** The current session's lines, oldest first; read again on each open. */
-  read(): readonly ChatHistoryEntry[];
-  characterName(): string;
+  read(): readonly BacklogLine[];
+}
+
+/** One character's transcript as backlog lines: the user's under "You", the character's under its name. */
+export function transcriptBacklog(
+  read: () => readonly ChatHistoryEntry[],
+  characterName: () => string,
+): BacklogSource {
+  return {
+    read: () =>
+      read().map((entry) => ({
+        who: entry.role === "user" ? t("bubble.you") : characterName(),
+        text: entry.text,
+      })),
+  };
 }
 
 interface BacklogOptions extends BacklogSource {
@@ -23,7 +42,7 @@ export interface Backlog {
   dispose(): void;
 }
 
-export function createBacklog({ mount, read, characterName, bubble }: BacklogOptions): Backlog {
+export function createBacklog({ mount, read, bubble }: BacklogOptions): Backlog {
   const panel = document.createElement("div");
   panel.className = "yui-bubble__backlog";
   panel.hidden = true;
@@ -39,11 +58,11 @@ export function createBacklog({ mount, read, characterName, bubble }: BacklogOpt
   mount.append(toggle);
   let isOpen = false;
 
-  function line(entry: ChatHistoryEntry): HTMLLIElement {
+  function line(entry: BacklogLine): HTMLLIElement {
     const li = document.createElement("li");
     const who = document.createElement("span");
     who.className = "yui-bubble__backlog-who";
-    who.textContent = entry.role === "user" ? t("bubble.you") : characterName();
+    who.textContent = entry.who;
     const text = renderMarkdownInline(entry.text);
     text.className = "yui-bubble__backlog-text";
     li.append(who, text);

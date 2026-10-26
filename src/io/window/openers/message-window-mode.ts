@@ -1,12 +1,13 @@
 /**
  * Pet-side mode wiring — keeps the message window's existence in step with the
- * stored mode, the dock request and the tray's show/hide of the character.
+ * stored mode, the unified chat window, the dock request and the tray's show/hide of the character.
  */
 
 import type {
   MessageWindowMode,
   MessageWindowSettingsStore,
 } from "../../../settings/panels/message-window-settings";
+import type { UnifiedShown } from "../../../settings/unified/unified-shown";
 import type { RemoteSurfaces } from "../../bridge/message/message-remote";
 
 interface MessageWindowModeDeps {
@@ -16,7 +17,9 @@ interface MessageWindowModeDeps {
   window: { open(): void; hide(): void };
   /** Pet-window tray visibility, when the runtime can report it. */
   listenTrayToggle?: (cb: (visible: boolean) => void) => () => void;
-  /** The effective mode — pinned to docked where there is no second window. */
+  /** While the unified chat window shows, the message window hides; the stored mode is left as it is. */
+  shown: Pick<UnifiedShown, "subscribe">;
+  /** The effective mode — pinned to docked where there is no second window or while the unified window shows. */
   getMode(): MessageWindowMode;
 }
 
@@ -25,6 +28,7 @@ export function wireMessageWindowMode({
   remote,
   window: messageWindow,
   listenTrayToggle,
+  shown,
   getMode,
 }: MessageWindowModeDeps): () => void {
   const apply = (mode: MessageWindowMode): void => {
@@ -34,6 +38,7 @@ export function wireMessageWindowMode({
 
   apply(getMode());
   const unsubscribe = store.subscribe(() => apply(getMode()));
+  const unsubscribeShown = shown.subscribe(() => apply(getMode()));
   remote.onDock(() => store.setMode("docked"));
   // The character's own hide takes the message window with it; showing brings back only what was popped.
   const unlistenTray = listenTrayToggle?.((visible) => {
@@ -43,6 +48,7 @@ export function wireMessageWindowMode({
 
   return () => {
     unsubscribe();
+    unsubscribeShown();
     unlistenTray?.();
   };
 }

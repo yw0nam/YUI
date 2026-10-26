@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
 import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
 import { mergeTranscripts } from "./merge";
-import { createOpenLines } from "./open-lines";
 
-const user = (text: string, ts: number, send_id?: string): ChatHistoryEntry => ({
+const user = (
+  text: string,
+  ts: number,
+  send_id?: string,
+  mention?: "everyone",
+): ChatHistoryEntry => ({
   role: "user",
   text,
   ts,
   ...(send_id ? { send_id } : {}),
+  ...(mention ? { mention } : {}),
 });
 const reply = (text: string, ts: number, to?: string): ChatHistoryEntry => ({
   role: "assistant",
@@ -69,18 +74,36 @@ describe("mergeTranscripts", () => {
     expect(row).toMatchObject({ who: "perlica", name: "Perlica", to: "natsume" });
   });
 
+  it.each([
+    ["everyone when any copy was routed to everyone", "everyone", "everyone"],
+    ["the preset whose transcript holds it otherwise", undefined, "natsume"],
+  ] as const)("a user row goes to %s", (_case, mention, to) => {
+    const [row] = mergeTranscripts(
+      [perlica([]), natsume([user("hi", 100, "s1", mention)])],
+      [],
+      200,
+    );
+
+    expect(row).toMatchObject({ who: "user", to });
+  });
+
+  it("a pending send goes to its own recipient", () => {
+    const pending = [{ sendId: "s1", text: "hi", at: 150, to: "everyone" }];
+
+    expect(mergeTranscripts([perlica([])], pending, 160)[0]).toMatchObject({ to: "everyone" });
+  });
+
   it("draws a pending send until a recorded user entry has its send id", () => {
-    const pending = [{ sendId: "s1", text: "hi", at: 150 }];
+    const pending = [{ sendId: "s1", text: "hi", at: 150, to: "perlica" }];
 
     expect(brief(mergeTranscripts([perlica([])], pending, 160))).toEqual([["user", "hi", 150]]);
-    expect(mergeTranscripts([perlica([])], pending, 160)[0]?.pending).toBe(true);
     expect(brief(mergeTranscripts([perlica([user("hi", 170, "s1")])], pending, 180))).toEqual([
       ["user", "hi", 170],
     ]);
   });
 
   it("keeps a queued send however long it waits", () => {
-    const pending = [{ sendId: "s1", text: "hi", at: 150, queued: true }];
+    const pending = [{ sendId: "s1", text: "hi", at: 150, to: "perlica", queued: true }];
 
     expect(brief(mergeTranscripts([perlica([])], pending, 150 + 600_000))).toEqual([
       ["user", "hi", 150],
@@ -88,43 +111,9 @@ describe("mergeTranscripts", () => {
   });
 
   it("drops a pending send after 60 seconds", () => {
-    const pending = [{ sendId: "s1", text: "hi", at: 150 }];
+    const pending = [{ sendId: "s1", text: "hi", at: 150, to: "perlica" }];
 
     expect(mergeTranscripts([perlica([])], pending, 150 + 59_999)).toHaveLength(1);
     expect(mergeTranscripts([perlica([])], pending, 150 + 60_000)).toEqual([]);
   });
-});
-
-it("appends the open assistant line and hands it off to exactly one recorded row", () => {
-  const lines = createOpenLines();
-  const transcripts = [perlica([]), natsume([reply("Earlier", 500)])];
-  lines.accept({ preset: "perlica", turn_id: "7", op: "begin", baseline: 0 }, 100);
-  lines.accept({ preset: "perlica", turn_id: "7", op: "push", delta: "Hello" }, 100);
-  expect(mergeTranscripts(transcripts, [], 200, lines.snapshot()).at(-1)).toEqual({
-    key: "perlica:open",
-    who: "perlica",
-    name: "Perlica",
-    text: "Hello",
-    ts: 200,
-    pending: true,
-    open: true,
-  });
-  const landed = [perlica([{ role: "assistant", turn_id: "7", text: "Hello", ts: 600 }])];
-  lines.reconcile(landed, 700);
-  expect(mergeTranscripts(landed, [], 700, lines.snapshot())).toEqual([
-    { key: "perlica:0:600", who: "perlica", name: "Perlica", text: "Hello", ts: 600 },
-  ]);
-});
-
-it("drops an open line immediately when its record precedes bridge delivery", () => {
-  const lines = createOpenLines();
-  const transcripts = [perlica([{ role: "assistant", turn_id: "7", text: "Hello", ts: 100 }])];
-  lines.accept({ preset: "perlica", turn_id: "7", op: "begin", baseline: 0 }, 200);
-  lines.reconcile(transcripts, 200);
-  expect(lines.snapshot()).toEqual([]);
-  lines.accept({ preset: "perlica", turn_id: "7", op: "push", delta: "Hello" }, 201);
-  lines.accept({ preset: "perlica", turn_id: "7", op: "end" }, 202);
-  expect(mergeTranscripts(transcripts, [], 203, lines.snapshot())).toEqual([
-    { key: "perlica:0:100", who: "perlica", name: "Perlica", text: "Hello", ts: 100 },
-  ]);
 });

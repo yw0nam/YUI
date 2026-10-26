@@ -275,9 +275,9 @@ export function createTextInput(
 
   // When busy: swap send→stop icon + amber, dim the field, block submit.
   function setBusy(value: boolean): void {
+    // A turn reaching the backend falsifies a standing error, whatever source started it; a busy already on starts none.
+    if (value && !busy) clearInputError();
     busy = value;
-    // A turn reaching the backend falsifies a standing error, whatever source started it.
-    if (value) clearInputError();
     formEl.classList.toggle("is-running", value);
     actionButton.refresh();
   }

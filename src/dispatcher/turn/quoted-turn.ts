@@ -7,7 +7,7 @@
  */
 import type { SourceLine, UserQuote } from "../../io/bridge/message/message-bridge";
 import { guideKeyOf, userImagesOf, userTextOf } from "../backend/context-builder";
-import { userTurnSourceOf } from "../core/classify";
+import { mentionOf, userTurnSourceOf } from "../core/classify";
 import { sourceLinesOf } from "./signal-lines";
 import type { Turn, TurnLog } from "./turn";
 
@@ -80,7 +80,8 @@ export function createQuotedTurn(deps: {
         guide: guideKeyOf(turn.trigger) !== undefined,
         spoke: false,
       };
-      surfaces.quoteUser({ text, via, images: images.length });
+      const mention = mentionOf(turn.trigger);
+      surfaces.quoteUser({ text, via, images: images.length, ...(mention ? { mention } : {}) });
     },
     utteranceStart() {
       if (!quoted) return;

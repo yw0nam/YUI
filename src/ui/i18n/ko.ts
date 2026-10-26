@@ -270,14 +270,11 @@ const ko: Record<string, string> = {
   "unified.enable_label": "통합 채팅창",
   "unified.enable_sub":
     "열린 캐릭터가 둘 이상이면 한 창에서 함께 대화해요. @로 받는 캐릭터를 고르고, 없으면 마지막으로 말한 캐릭터가 받아요",
-  "unified.title": "통합 채팅창",
-  "unified.to": "{name}에게",
-  "unified.marker": "→ {name}",
   "unified.everyone_sub": "열린 캐릭터 전원에게",
-  "unified.hint": "@로 받는 캐릭터를 고를 수 있어요",
-  "unified.remove_mention": "받는 캐릭터 지우기",
-  "unified.just_now": "방금",
-  "unified.pending": "보내는 중",
+  "unified.close": "통합 채팅창 닫기",
+  "unified.you_to": "나 → {name}",
+  "unified.everyone": "모두",
+  "unified.recipients": "받는 사람",
 
   // filler (thinking interjections)
   "filler.section": "생각중 추임새",
@@ -457,6 +454,7 @@ const ko: Record<string, string> = {
   "message_window.label": "메시지 창 분리",
   "message_window.sub": "말풍선과 입력창을 원하는 자리에 두는 창으로 옮깁니다",
   "message_window.aria": "메시지 창 분리",
+  "message_window.locked_unified": "통합 채팅창이 떠 있는 동안은 꺼져 있어요",
 
   // history tab
   "history.current": "현재 대화",

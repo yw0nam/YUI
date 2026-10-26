@@ -64,6 +64,7 @@ import { presetIdForWindow } from "../../settings/preset/active-preset";
 import type { PetWindows } from "../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import type { RelationsStore } from "../../settings/relations/relations-store";
+import type { UnifiedShown } from "../../settings/unified/unified-shown";
 import type { createFillerSettings } from "../../settings/voice/filler-settings";
 import type { createReadingsSettings } from "../../settings/voice/readings-settings";
 import type { createVadSettings } from "../../settings/voice/vad-settings";
@@ -287,6 +288,8 @@ interface QuickControlsOptions {
   relationsSwitch: FlagSettingsStore;
   /** The Unified chat switch: a Together-page row; absent where the window cannot be opened. */
   unifiedChatSwitch?: FlagSettingsStore;
+  /** Whether the unified chat window shows; the message window row is locked off meanwhile. */
+  unifiedShown?: UnifiedShown;
   boundId?: string | null;
   /** Set in the settings window: the preset strip picks the preset the window edits. */
   onEditTarget?: (id: string) => void;
@@ -399,6 +402,7 @@ export function createQuickControls({
   relationsStore,
   relationsSwitch,
   unifiedChatSwitch,
+  unifiedShown,
   boundId,
   onEditTarget,
   showVoiceInput = true,
@@ -433,6 +437,7 @@ export function createQuickControls({
     screenSettings,
     screenKnobSettings,
     unifiedChatSwitch,
+    unifiedShown,
     relationsSwitch,
   });
 

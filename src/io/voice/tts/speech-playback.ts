@@ -54,7 +54,7 @@ interface PlaybackRenderer {
 }
 
 interface PlaybackSurfaces {
-  beginSpeech(identity?: UtteranceIdentity, opts?: { paced?: boolean }): void;
+  beginSpeech(identity?: UtteranceIdentity, opts?: { paced?: boolean; aside?: boolean }): void;
   pushSpeech(delta: string, identity?: UtteranceIdentity): void;
   paceSpeech(sentence: SentenceStart): void;
   endSpeech(opts?: { defer?: boolean }, identity?: UtteranceIdentity): void;
@@ -199,11 +199,12 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
     options.reportAudioOwed?.(pipeline.hasOutstandingWork());
   }
 
-  function delta(text: string, identity?: UtteranceIdentity): void {
+  function delta(text: string, identity?: UtteranceIdentity, aside = false): void {
     const clean = stripper.push(text);
     if (open === null) {
       // A muted remainder is never voiced, and a line behind owed audio would take that audio's sentence starts.
-      surfaces.beginSpeech(identity, { paced: !muted && queued.length === 0 });
+      const paced = !muted && queued.length === 0;
+      surfaces.beginSpeech(identity, aside ? { paced, aside } : { paced });
       // A muted remainder still shows in the bubble, and stays out of the record.
       open = {
         identity: !muted && identity ? { ...identity } : undefined,
@@ -254,7 +255,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       end();
     },
     speakAside(text) {
-      delta(text);
+      delta(text, undefined, true);
       end();
     },
     setCue(cue, options) {

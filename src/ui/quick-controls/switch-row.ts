@@ -2,6 +2,7 @@ import type { createAgentNotifySettings } from "../../settings/backend/agent-not
 import type { ScreenKnobSettingsStore } from "../../settings/capture/screen-settings";
 import type { MessageWindowSettingsStore } from "../../settings/panels/message-window-settings";
 import type { FlagSettingsStore } from "../../settings/persisted-store";
+import type { UnifiedShown } from "../../settings/unified/unified-shown";
 import type { createFillerSettings } from "../../settings/voice/filler-settings";
 import type { createVadSettings } from "../../settings/voice/vad-settings";
 import { isTauri } from "../../tauri-env";
@@ -24,6 +25,8 @@ export interface SwitchRow {
   logKey?: string;
   /** Follows the row's store, for a store that feeds nothing else on the panel. */
   subscribe?: (onChange: () => void) => () => void;
+  /** While `get()`, the switch is disabled and the row's sub line gives the reason. */
+  lock?: { reasonKey: string; get(): boolean; subscribe(onChange: () => void): () => void };
 }
 
 type VadSettingsStore = ReturnType<typeof createVadSettings>;
@@ -45,6 +48,8 @@ interface SwitchRowOptions {
   screenSettings?: FlagSettingsStore;
   screenKnobSettings?: ScreenKnobSettingsStore;
   unifiedChatSwitch?: FlagSettingsStore;
+  /** While the unified chat window shows, the message window row is locked off. */
+  unifiedShown?: UnifiedShown;
   relationsSwitch?: FlagSettingsStore;
 }
 
@@ -82,6 +87,7 @@ export function createSwitchRows({
   screenSettings,
   screenKnobSettings,
   unifiedChatSwitch,
+  unifiedShown,
   relationsSwitch,
 }: SwitchRowOptions): SwitchRow[] {
   return [
@@ -149,6 +155,11 @@ export function createSwitchRows({
       setEnabled: (v) => messageWindowSettings!.setMode(v ? "popped" : "docked"),
       logKey: "message_window_toggle",
       subscribe: messageWindowSettings ? (cb) => messageWindowSettings.subscribe(cb) : undefined,
+      lock: unifiedShown && {
+        reasonKey: "message_window.locked_unified",
+        get: unifiedShown.get,
+        subscribe: (cb) => unifiedShown.subscribe(() => cb()),
+      },
     },
     {
       selector: ".yui-gaze-switch",

@@ -17,6 +17,7 @@ import type { Renderer } from "../../renderer";
 import type { PetWindows } from "../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import type { SettingsStores } from "../../settings/settings-stores";
+import type { UnifiedShown } from "../../settings/unified/unified-shown";
 import { isTauri } from "../../tauri-env";
 import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
 import { subscribe as subscribeLocale } from "../../ui/i18n";
@@ -77,6 +78,7 @@ export function wirePetControls(deps: {
   openSettings: () => void;
   onGuide: (guide: GuideKey, text: string) => void;
   openDevtools: () => void;
+  unifiedShown: UnifiedShown;
   register: (teardown: () => void) => void;
 }): { get(): QuickControls } {
   const {
@@ -242,6 +244,7 @@ export function wirePetControls(deps: {
       relationsStore,
       relationsSwitch,
       unifiedChatSwitch,
+      unifiedShown: deps.unifiedShown,
       boundId: deps.boundId,
     });
   // Re-mounted on locale change (see i18n subscriber below); consumers read the live binding.

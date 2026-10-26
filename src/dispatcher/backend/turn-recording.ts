@@ -52,6 +52,7 @@ export function recordSentTurn(deps: TurnRecordingDeps, log: Logger, turn: SentT
           ts: Date.now(),
           ...(clientContext.trigger.guide ? { guide: clientContext.trigger.guide } : {}),
           ...(turn.sendId ? { send_id: turn.sendId } : {}),
+          ...(clientContext.trigger.mention === "everyone" ? { mention: "everyone" as const } : {}),
         });
       }
       // A reply the turn never spoke ([SILENT]) is not transcript text.

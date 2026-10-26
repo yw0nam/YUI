@@ -40,8 +40,11 @@ export interface Surfaces {
   readonly chipColumn: HTMLElement;
 
   // ── speech bubble (output) ──
-  /** Reveal the bubble (empty) + caret ON. Called before streaming starts; a paced line types each sentence as its audio starts. */
-  beginSpeech(identity?: UtteranceIdentity, opts?: { paced?: boolean }): void;
+  /**
+   * Reveal the bubble (empty) + caret ON. Called before streaming starts; a paced line types each sentence as its audio starts.
+   * An aside is a client phrase spoken in the character's voice (filler, a failure apology), routed like the character's lines.
+   */
+  beginSpeech(identity?: UtteranceIdentity, opts?: { paced?: boolean; aside?: boolean }): void;
   /** Append a streaming delta. */
   pushSpeech(delta: string, identity?: UtteranceIdentity): void;
   /** A sentence's audio started: a paced line types that sentence over its duration. */
@@ -103,8 +106,6 @@ export interface Surfaces {
   dispose(): void;
 }
 
-export type SpeechSurfaces = Pick<Surfaces, "beginSpeech" | "pushSpeech" | "endSpeech">;
-
 interface SurfacesOptions {
   mount: HTMLElement;
   /** Where tool status is drawn; the surfaces render no tool tell of their own. */
@@ -123,6 +124,12 @@ interface SurfacesOptions {
   namePlate?: boolean;
   /** The current session's lines, opened above the box by a toggle under it. */
   backlog?: BacklogSource;
+  /** Called each time a line's typing reports all of it shown. */
+  onAllShown?: () => void;
+  /** Called true when the bubble shows a line or other content, false on every hide. */
+  onShown?: (shown: boolean) => void;
+  /** The label that leads a quoted user line; "You" without it. */
+  quoteLead?: (quote: UserQuote) => string;
 }
 
 /** Surfaces asked for a name plate carry it. */
@@ -140,6 +147,9 @@ export function createSurfaces({
   reasoning,
   namePlate,
   backlog: backlogSource,
+  onAllShown,
+  onShown,
+  quoteLead,
 }: SurfacesOptions): Surfaces {
   const el = document.createElement("div");
   el.className = "yui-ui";
@@ -227,15 +237,16 @@ export function createSurfaces({
       bubbleSr,
       bubbleClose,
     },
-    { dwellMs, keepUntilDismissed: keepBubbleUntilDismissed },
+    { dwellMs, keepUntilDismissed: keepBubbleUntilDismissed, onAllShown },
   );
+  const unsubscribeShown = onShown ? bubble.onShown(onShown) : () => {};
   const backlog = backlogSource && createBacklog({ mount: bubbleFrame, ...backlogSource, bubble });
   // A reasoning cycle's first delta shows the bubble and holds off its fade until the cycle ends; the end hands
   // a bubble with no speech in flight to the dwell, or hides it when nothing is left to show.
   const think = reasoning
     ? createReasoningDisclosure({ before: bubbleText, source: reasoning, bubble })
     : null;
-  const quote = createUserQuote({ el: bubbleQuote, bubble });
+  const quote = createUserQuote({ el: bubbleQuote, bubble, lead: quoteLead });
   const sources = createSignalSourceLines({ el: bubbleQuote, bubble });
   const input = createTextInput(
     { formEl, field, errorEl, trayEl, attachBtn, picker, sendBtn },
@@ -264,6 +275,7 @@ export function createSurfaces({
   function dispose(): void {
     unsubscribeLocale();
     for (const button of popButtons) button.removeEventListener("click", onPopClick);
+    unsubscribeShown();
     think?.dispose();
     plate?.dispose();
     backlog?.dispose();

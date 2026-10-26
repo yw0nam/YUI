@@ -1077,6 +1077,24 @@ describe("typing — speech types out", () => {
     expect(img.classList.contains("is-broken")).toBe(true);
   });
 
+  it.each([
+    ["it types out", "typed"],
+    ["a click completes it", "click"],
+  ] as const)("reports all of a line shown once %s", (_how, how) => {
+    const onAllShown = vi.fn();
+    const box = createSurfaces({ tool: noTool, mount, onAllShown });
+    box.beginSpeech();
+    box.pushSpeech("Hello there");
+    box.endSpeech({ defer: true });
+    expect(onAllShown).not.toHaveBeenCalled();
+
+    if (how === "click") box.el.querySelector<HTMLElement>(".yui-bubble__box")!.click();
+    else vi.advanceTimersByTime(1000);
+
+    expect(onAllShown).toHaveBeenCalled();
+    box.dispose();
+  });
+
   it("shows the whole line at once under reduced motion", () => {
     vi.stubGlobal("matchMedia", (query: string) => ({
       matches: query === "(prefers-reduced-motion: reduce)",
@@ -1100,10 +1118,7 @@ describe("backlog — holds the bubble while open", () => {
       tool: noTool,
       mount,
       dwellMs: DWELL,
-      backlog: {
-        read: () => [{ role: "user", text: "Hi", ts: 1 }],
-        characterName: () => "Perlica",
-      },
+      backlog: { read: () => [{ who: "You", text: "Hi" }] },
     });
     s.beginSpeech();
     s.pushSpeech("Hello!");

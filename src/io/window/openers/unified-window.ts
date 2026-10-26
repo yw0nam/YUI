@@ -1,5 +1,5 @@
 /**
- * Unified chat window opener — one decorated, resizable window labelled `unified`.
+ * Unified chat window opener — one frameless, always-on-top 340 px window labelled `unified`.
  *
  * openUnifiedWindow branches on injected env for the Tauri/browser paths only (pure, testable).
  * createUnifiedWindowController wires the real implementation, dynamic-imported inside the Tauri
@@ -7,7 +7,13 @@
  */
 
 import { createLogger } from "../../../logger";
+import type { UnifiedWindowSettings } from "../../../settings/unified/unified-window-settings";
 import { isTauri } from "../../../tauri-env";
+import {
+  COMPANION_COLUMN_WIDTH,
+  COMPANION_HANDLE_HEIGHT,
+  resolveCompanionPosition,
+} from "../geometry/companion-position";
 
 const log = createLogger("unified-window");
 
@@ -32,25 +38,35 @@ export async function openUnifiedWindow(env: UnifiedWindowEnv): Promise<void> {
   await env.create();
 }
 
+/** Destroy the unified window: no close request is emitted, so its own close handler leaves the switch alone. */
+export async function closeUnifiedWindow(env: {
+  getExisting(): Promise<{ destroy(): Promise<void> } | null>;
+}): Promise<void> {
+  await (await env.getExisting())?.destroy();
+}
+
 async function tauriUnifiedWindow() {
   const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
   return WebviewWindow.getByLabel(UNIFIED_WINDOW_LABEL);
 }
 
-async function createTauriUnifiedWindow(): Promise<void> {
+async function createTauriUnifiedWindow(stored: UnifiedWindowSettings): Promise<void> {
   const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
+  const { x, y } = await resolveCompanionPosition(stored);
   const win = new WebviewWindow(UNIFIED_WINDOW_LABEL, {
     url: "unified.html",
     title: "YUI",
-    width: 760,
-    height: 640,
-    minWidth: 480,
-    minHeight: 360,
-    resizable: true,
-    decorations: true,
-    alwaysOnTop: false,
-    skipTaskbar: false,
-    focus: true,
+    width: COMPANION_COLUMN_WIDTH,
+    height: COMPANION_HANDLE_HEIGHT,
+    resizable: false,
+    decorations: false,
+    transparent: true,
+    shadow: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    focus: false,
+    x,
+    y,
   });
   void win.once("tauri://error", (event) =>
     log.error("unified_window_create_error", { error: String(event) }),
@@ -58,7 +74,13 @@ async function createTauriUnifiedWindow(): Promise<void> {
 }
 
 /** Open/close handle for the unified chat window; both halves run on one chain, since a second create while the first is in flight is refused for the duplicate label. */
-export function createUnifiedWindowController(): { open(): void; close(): void } {
+export function createUnifiedWindowController(store: {
+  get(): UnifiedWindowSettings;
+  reloadFromStorage(): void;
+}): {
+  open(): void;
+  close(): void;
+} {
   let chain: Promise<void> = Promise.resolve();
   const queue = (step: () => Promise<void>): void => {
     chain = chain.then(step, step);
@@ -71,7 +93,11 @@ export function createUnifiedWindowController(): { open(): void; close(): void }
           await openUnifiedWindow({
             isTauri: isTauri(),
             getExisting: tauriUnifiedWindow,
-            create: createTauriUnifiedWindow,
+            create: () => {
+              // The unified window writes its position; this window reads what it last wrote.
+              store.reloadFromStorage();
+              return createTauriUnifiedWindow(store.get());
+            },
           });
         } catch (error) {
           log.warn("unified_window_open_failed", { error: String(error) });
@@ -82,7 +108,7 @@ export function createUnifiedWindowController(): { open(): void; close(): void }
       if (!isTauri()) return;
       queue(async () => {
         try {
-          await (await tauriUnifiedWindow())?.close();
+          await closeUnifiedWindow({ getExisting: tauriUnifiedWindow });
         } catch (error) {
           log.warn("unified_window_close_failed", { error: String(error) });
         }

@@ -100,17 +100,29 @@ and the pump goes on.
 
 ## Unified chat window
 
-`ui/unified/unified-view.ts` (namespace `unified-view`), `ui/unified/sequence.ts` (namespace `sequence`), `io/window/openers/unified-window.ts` (namespace `unified-window`), and the Together page's switch row and Characters list (namespace `quick-ui` in the pet window, `settings-ui` in the settings window) log at `info` unless a row says otherwise.
+`ui/unified/unified-view.ts` (namespace `unified-view`), `app/unified/wire-unified-close.ts` (namespace `wire-unified-close`), `ui/unified/sequence.ts` (namespace `sequence`), `io/window/openers/unified-window.ts` (namespace `unified-window`), and the Together page's switch row and Characters list (namespace `quick-ui` in the pet window, `settings-ui` in the settings window) log at `info` unless a row says otherwise.
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
 | `unified-view` | `route` | `targets`, `mention` | The window sent a message. `targets` is how many presets it goes to, `mention` is `character`, `everyone` or `none`. |
+| `unified-view` | `stop` | — | The user pressed stop: the window dropped its sends and lines and asked every pet window to stop. |
 | `sequence` | `sequence_timeout` | `preset` | A preset gave no done signal for the current send in 60 seconds, so the sequence moved on. |
 | `unified-window` | `unified_window_create_error` | `error` | The window could not be created (`error` level). |
 | `unified-window` | `unified_window_open_failed` | `error` | Showing or creating the window threw (`warn` level). |
-| `unified-window` | `unified_window_close_failed` | `error` | Closing the window threw (`warn` level). |
+| `unified-window` | `unified_window_close_failed` | `error` | Destroying the window threw (`warn` level). |
 | `quick-ui`, `settings-ui` | `unified_chat_toggle` | `enabled` | The user flipped the Unified chat switch. |
+| `wire-unified-close` | `unified_chat_toggle` | `enabled`, `via` | The unified chat window closed itself (× or Cmd+W) and turned the switch off; `enabled` is `false`, `via` is `close`. |
 | `quick-ui`, `settings-ui` | `character_desktop_toggle` | `preset`, `on` | A flip of a character's On the desktop switch took effect; `on` is the new state. A turn-on the open-preset cap refused logs nothing. |
+
+## Companion column windows
+
+`io/window/geometry/companion-column.ts` (namespace `companion-column`) logs at `warn`. `window` is `message` or `unified`.
+
+| Namespace | Event | Fields | When |
+|---|---|---|---|
+| `companion-column` | `focus_failed` | `window`, `error` | Taking OS focus threw. |
+| `companion-column` | `drag_failed` | `window`, `error` | Starting the OS drag threw. |
+| `companion-column` | `resize_failed` | `window`, `error` | Setting the window's height to its column threw. |
 
 ## TypeScript Usage
 

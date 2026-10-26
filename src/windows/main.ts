@@ -54,6 +54,7 @@ import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
 import { presetIdForWindow } from "../settings/preset/active-preset";
 import { readBoundPresetId } from "../settings/preset/bound-preset";
+import { createUnifiedShown } from "../settings/unified/unified-shown";
 import { createStatusPill } from "../ui/chips/status-pill";
 import { createVoiceInputStatus } from "../ui/chips/voice-input-status";
 import { showBootError } from "../ui/notices/boot-error";
@@ -146,12 +147,17 @@ async function bootstrap(): Promise<BootstrapHandle> {
     log,
   });
   register(() => disposeCrossWindowSync());
+  const unifiedShown = createUnifiedShown({
+    switch: settingsStores.unifiedChatSwitch,
+    onPetWindowsChanged: windowBridge.onPetWindowsChanged,
+  });
+  register(unifiedShown.dispose);
   const characterName = createCharacterName({
     registry: presetRegistry,
     boundId,
     agentSettings: settingsStores.agentSettings,
   });
-  const { surfaces, local, remote, getMode } = wireMessageSurfaces({
+  const { surfaces, local, remote, getMode, subscribeMode } = wireMessageSurfaces({
     boundId,
     settingsBridge: windowBridge,
     transcript: conversationStores.chatHistoryStore,
@@ -160,6 +166,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     tool: statusPill,
     bubblePersistSettings: settingsStores.bubblePersistSettings,
     messageWindowSettings: settingsStores.messageWindowSettings,
+    shown: unifiedShown,
     register,
   });
   register(
@@ -254,6 +261,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     openSettings,
     onGuide: help.ask,
     openDevtools,
+    unifiedShown,
     register,
   });
 
@@ -291,9 +299,10 @@ async function bootstrap(): Promise<BootstrapHandle> {
       onSessionReset: windowBridge.onSessionReset,
       emitCharacterAddressed: windowBridge.emitCharacterAddressed,
       onCharacterAddressed: windowBridge.onCharacterAddressed,
-      onPetWindowsChanged: windowBridge.onPetWindowsChanged,
+      unifiedShown,
       emitUserTurnDone: windowBridge.emitUserTurnDone,
       onUserTurnRouted: windowBridge.onUserTurnRouted,
+      onStopTurns: windowBridge.onStopTurns,
       pushSocket: push.pushSocket,
       delegations: push.delegations,
       delegationHistory: push.delegationHistory,
@@ -321,10 +330,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
           store: push.delegations,
           pushState: push.pushSocket,
           onOpenSettings: () => controls.get().open(undefined, { tab: "conn" }),
-          suppression: messageWindowSuppression({
-            getMode,
-            subscribe: settingsStores.messageWindowSettings.subscribe,
-          }),
+          suppression: messageWindowSuppression({ getMode, subscribe: subscribeMode }),
         }),
         getEndpoints: petConfig.getEndpoints,
         endpointsSettings: settingsStores.endpointsSettings,

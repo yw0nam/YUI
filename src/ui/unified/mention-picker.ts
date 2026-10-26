@@ -19,8 +19,6 @@ const isTabPick = (e: KeyboardEvent): boolean =>
   e.key === "Tab" && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey;
 
 export interface MentionPicker {
-  /** Opens the list with every preset, as the target chip asks. */
-  openAll(): void;
   dispose(): void;
 }
 
@@ -159,10 +157,6 @@ export function createMentionPicker(deps: {
   list.addEventListener("mousedown", onListMousedown);
 
   return {
-    openAll() {
-      field.focus();
-      open("");
-    },
     dispose() {
       field.removeEventListener("keydown", onKeydown, true);
       field.removeEventListener("input", refresh);

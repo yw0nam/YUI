@@ -1,21 +1,14 @@
-import type { FlagSettingsStore } from "../../settings/persisted-store";
+import type { UnifiedShown } from "../../settings/unified/unified-shown";
 
-/** Main opens the unified chat window while its switch is on and two or more presets are open, and closes it otherwise. */
+/** Main opens the unified chat window while it is shown, and closes it otherwise. */
 export function wireUnifiedWindow(deps: {
-  switch: Pick<FlagSettingsStore, "get" | "subscribe">;
-  openPresetIds: () => string[];
-  onPetWindowsChanged: (cb: () => void) => () => void;
+  shown: UnifiedShown;
   window: { open(): void; close(): void };
 }): () => void {
-  const apply = (): void => {
-    if (deps.switch.get().enabled && deps.openPresetIds().length >= 2) deps.window.open();
+  const apply = (shown: boolean): void => {
+    if (shown) deps.window.open();
     else deps.window.close();
   };
-  apply();
-  const offSwitch = deps.switch.subscribe(apply);
-  const offWindows = deps.onPetWindowsChanged(apply);
-  return () => {
-    offSwitch();
-    offWindows();
-  };
+  apply(deps.shown.get());
+  return deps.shown.subscribe(apply);
 }

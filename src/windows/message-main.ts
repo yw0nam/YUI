@@ -17,7 +17,6 @@ import "../ui/message/message-window.css";
 import { createDisposers } from "../app/disposers";
 import { createMirroredName } from "../app/message/mirrored-name";
 import { wireMessageSurfaceOps } from "../app/message/wire-message-surface-ops";
-import { startDragging, wireTauriWindow } from "../app/message/wire-message-tauri-window";
 import { wirePlateName } from "../app/message/wire-plate-name";
 import { bootCompanion } from "../app/pet-windows/companion-window";
 import { wirePresetSwitch } from "../app/settings/wire-preset";
@@ -27,6 +26,7 @@ import { createMirroredPushSocket } from "../io/bridge/push/push-socket-bridge";
 import { createMirroredReasoning } from "../io/bridge/reasoning/reasoning-bridge";
 import { createSettingsBridge } from "../io/bridge/settings-bridge";
 import { readTranscriptAfterBoundary } from "../io/chat/conversation/chat-history-store";
+import { startDragging, wireCompanionColumn } from "../io/window/geometry/companion-column";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
 import {
@@ -42,6 +42,7 @@ import { presetEntryFor } from "../settings/preset/active-preset";
 import { isTauri } from "../tauri-env";
 import { createDelegationChip } from "../ui/chips/delegation-chip";
 import { reloadFromStorage as reloadLocale } from "../ui/i18n";
+import { transcriptBacklog } from "../ui/message/backlog";
 import { createMessagePlate } from "../ui/message/message-plate";
 import { withPlateState } from "../ui/message/plate-state";
 import { attachSummonKey } from "../ui/surfaces/summon-key";
@@ -98,10 +99,10 @@ async function bootstrap(): Promise<void> {
     keepBubbleUntilDismissed: () => bubblePersistSettings.get().enabled,
     onInputOpenChange: (open) => bridge.emitControl({ op: "input-open", open }),
     reasoning,
-    backlog: {
-      read: () => readTranscriptAfterBoundary(presetEntryFor(presetRegistry.get(), boundId).id),
-      characterName: characterName.get,
-    },
+    backlog: transcriptBacklog(
+      () => readTranscriptAfterBoundary(presetEntryFor(presetRegistry.get(), boundId).id),
+      characterName.get,
+    ),
   });
   surfaces.el.classList.add("yui-ui--message");
   surfaces.onSubmit((text, images) => bridge.emitControl({ op: "submit", text, images }));
@@ -114,7 +115,7 @@ async function bootstrap(): Promise<void> {
   const plate = createMessagePlate({
     mount: plateRow,
     onDock: () => bridge.emitControl({ op: "dock" }),
-    startDragging: () => void startDragging(),
+    startDragging: () => void startDragging("message"),
   });
 
   const chipCollapsed = createDelegationChipSettings({
@@ -168,7 +169,12 @@ async function bootstrap(): Promise<void> {
   disposers.register(detachSummonKey);
   window.addEventListener("beforeunload", disposers.dispose);
   const disposeWindowWiring = isTauri()
-    ? await wireTauriWindow(surfaces.el, messageWindowSettings, disposers.isDisposed)
+    ? await wireCompanionColumn(
+        "message",
+        surfaces.el,
+        messageWindowSettings.setPosition,
+        disposers.isDisposed,
+      )
     : () => {};
   disposers.register(disposeWindowWiring);
   if (disposers.isDisposed()) return;

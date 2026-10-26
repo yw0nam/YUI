@@ -1,5 +1,5 @@
 /**
- * Message-window opener and its placement rule.
+ * Message-window opener.
  *
  * openMessageWindow branches on injected env for the Tauri/browser paths only
  * (pure, testable). createMessageWindowController wires the real implementation —
@@ -12,71 +12,16 @@ import type { MessageWindowSettingsStore } from "../../../settings/panels/messag
 import { windowLabel } from "../../../settings/preset/pet-windows";
 import { isTauri } from "../../../tauri-env";
 import {
-  clampToWorkArea,
-  monitorAt,
-  type ScreenMonitor,
-  toScreenMonitor,
-} from "../geometry/screen-geometry";
+  COMPANION_COLUMN_WIDTH,
+  COMPANION_HANDLE_HEIGHT,
+  resolveCompanionPosition,
+} from "../geometry/companion-position";
 
 const log = createLogger("message-window");
 
 const MESSAGE_WINDOW_LABEL = "message";
 const MESSAGE_WINDOW_URL = "message.html";
 const MESSAGE_WINDOW_TITLE = "YUI";
-/** Fixed column width (logical px) — the bubble and the input size to it. */
-export const MESSAGE_WINDOW_WIDTH = 340;
-/** Height (logical px) of the idle window — the 26px plate and its border inside the column's 8px padding. */
-export const MESSAGE_WINDOW_HANDLE_HEIGHT = 44;
-/** Gap (logical px) between the pet window's right edge and the message window. */
-const MESSAGE_WINDOW_GAP_PX = 12;
-
-interface MessageWindowPlacement {
-  /** Last stored outer position (physical px), null until the window has been moved. */
-  stored: { x: number | null; y: number | null };
-  /** Pet window outer bounds (physical px). */
-  pet: { position: { x: number; y: number }; size: { width: number; height: number } };
-  monitors: ScreenMonitor[];
-  scale: number;
-  /** Message window box (logical px) the position must keep on screen. */
-  size: { width: number; height: number };
-}
-
-/**
- * Where the message window opens, in physical px: the stored position when there
- * is one, else beside the pet window's top-right corner — clamped either way into
- * the work area of the monitor holding the pet window.
- */
-export function initialMessageWindowPosition({
-  stored,
-  pet,
-  monitors,
-  scale,
-  size,
-}: MessageWindowPlacement): { x: number; y: number } {
-  const candidate =
-    stored.x !== null && stored.y !== null
-      ? { x: stored.x, y: stored.y }
-      : {
-          x: pet.position.x + pet.size.width + MESSAGE_WINDOW_GAP_PX * scale,
-          y: pet.position.y,
-        };
-  // A window parked on a second display must be clamped there, not dragged back to the pet's.
-  const monitor =
-    monitorAt(monitors, candidate.x, candidate.y) ??
-    monitorAt(monitors, pet.position.x, pet.position.y);
-  if (!monitor || scale <= 0) return candidate;
-  const clamped = clampToWorkArea(
-    candidate.x / scale,
-    candidate.y / scale,
-    size.width,
-    size.height,
-    monitor.workArea.position.x / scale,
-    monitor.workArea.position.y / scale,
-    monitor.workArea.size.width / scale,
-    monitor.workArea.size.height / scale,
-  );
-  return { x: Math.round(clamped.x * scale), y: Math.round(clamped.y * scale) };
-}
 
 interface MessageWindowEnv {
   isTauri: boolean;
@@ -108,31 +53,6 @@ async function tauriMessageWindow(boundId?: string | null): Promise<{
   );
 }
 
-async function resolveTauriPosition(
-  store: Pick<MessageWindowSettingsStore, "get">,
-): Promise<{ x: number; y: number } | null> {
-  const { availableMonitors, getCurrentWindow } = await import("@tauri-apps/api/window");
-  const win = getCurrentWindow();
-  const [position, size, scale, monitors] = await Promise.all([
-    win.outerPosition(),
-    win.outerSize(),
-    win.scaleFactor(),
-    availableMonitors(),
-  ]);
-  const state = store.get();
-  const physical = initialMessageWindowPosition({
-    stored: { x: state.x, y: state.y },
-    pet: {
-      position: { x: position.x, y: position.y },
-      size: { width: size.width, height: size.height },
-    },
-    monitors: monitors.map(toScreenMonitor),
-    scale,
-    size: { width: MESSAGE_WINDOW_WIDTH, height: MESSAGE_WINDOW_HANDLE_HEIGHT },
-  });
-  return { x: physical.x / scale, y: physical.y / scale };
-}
-
 async function createTauriMessageWindow(
   position: { x: number; y: number } | null,
   boundId?: string | null,
@@ -146,8 +66,8 @@ async function createTauriMessageWindow(
           ? MESSAGE_WINDOW_URL
           : `${MESSAGE_WINDOW_URL}?preset=${encodeURIComponent(boundId)}`,
       title: MESSAGE_WINDOW_TITLE,
-      width: MESSAGE_WINDOW_WIDTH,
-      height: MESSAGE_WINDOW_HANDLE_HEIGHT,
+      width: COMPANION_COLUMN_WIDTH,
+      height: COMPANION_HANDLE_HEIGHT,
       resizable: false,
       decorations: false,
       transparent: true,
@@ -207,7 +127,7 @@ export function createMessageWindowController(
             isTauri: isTauri(),
             getExisting: () => tauriMessageWindow(boundId),
             create: (position) => createTauriMessageWindow(position, boundId),
-            resolvePosition: () => resolveTauriPosition(store),
+            resolvePosition: () => resolveCompanionPosition(store.get()),
           });
         } catch (error) {
           // Speech routed to a window that never opened would vanish with no tell.

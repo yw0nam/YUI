@@ -25,7 +25,8 @@ import { createLogger } from "../logger";
 import { mergeScreen } from "../settings/capture/screen-settings";
 import type { DelegationChipSettingsStore } from "../settings/panels/delegation-chip-settings";
 import { presetIdForWindow, readPresetName } from "../settings/preset/active-preset";
-import { readOpenPresetIds } from "../settings/preset/pet-windows";
+import type { UnifiedShown } from "../settings/unified/unified-shown";
+import { createUnifiedWindowSettings } from "../settings/unified/unified-window-settings";
 import { isMacOS, isWindows } from "../tauri-env";
 import { t } from "../ui/i18n";
 import { maybeShowFirstRunHint } from "../ui/notices/first-run-hint";
@@ -64,8 +65,8 @@ interface Phase1Handles extends TurnCorePhase1 {
   emitCharacterAddressed(event: CharacterAddressed): void;
   /** Subscribes to the replies another character addressed to this preset. */
   onCharacterAddressed(cb: (event: CharacterAddressed) => void): () => void;
-  /** Subscribes to the pet windows opening and closing. */
-  onPetWindowsChanged(cb: () => void): () => void;
+  /** Whether the unified chat window is shown; main opens and closes it on this. */
+  unifiedShown: UnifiedShown;
   /** Emits that this preset's user turn for a send id is over, or never started. */
   emitUserTurnDone(event: UserTurnDone): void;
   /** Subscribes to the unified chat window's messages routed to a preset. */
@@ -356,10 +357,8 @@ const realFactories: ConfiguredBootstrapFactories = {
     if (phase1.bound !== true) {
       register(
         wireUnifiedWindow({
-          switch: settings.unifiedChatSwitch,
-          openPresetIds: readOpenPresetIds,
-          onPetWindowsChanged: phase1.onPetWindowsChanged,
-          window: createUnifiedWindowController(),
+          shown: phase1.unifiedShown,
+          window: createUnifiedWindowController(createUnifiedWindowSettings()),
         }),
       );
     }

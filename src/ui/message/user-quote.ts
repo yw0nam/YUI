@@ -16,6 +16,8 @@ interface UserQuoteOptions {
   /** The quote slot inside the bubble's box; the bubble hides it when the quote no longer applies. */
   el: HTMLElement;
   bubble: Pick<SpeechBubble, "reveal" | "release" | "measure" | "holdForTurn">;
+  /** The label that leads the line; "You" without it. */
+  lead?: (quote: UserQuote) => string;
 }
 
 export interface UserQuoteLine {
@@ -28,15 +30,15 @@ export interface UserQuoteLine {
   dispose(): void;
 }
 
-export function createUserQuote({ el, bubble }: UserQuoteOptions): UserQuoteLine {
+export function createUserQuote({ el, bubble, lead }: UserQuoteOptions): UserQuoteLine {
   el.innerHTML = `<span class="yui-bubble__quote-who"></span><span class="yui-bubble__quote-text"></span>`;
   const whoEl = el.querySelector<HTMLElement>(".yui-bubble__quote-who")!;
   const textEl = el.querySelector<HTMLElement>(".yui-bubble__quote-text")!;
-  let via: UserQuote["via"] = "text";
+  let shown: UserQuote | null = null;
 
   function renderWho(): void {
-    whoEl.innerHTML = via === "voice" ? MIC_ICON : "";
-    whoEl.append(t("bubble.you"));
+    whoEl.innerHTML = shown?.via === "voice" ? MIC_ICON : "";
+    whoEl.append(shown && lead ? lead(shown) : t("bubble.you"));
   }
 
   function quoteText(quote: UserQuote): string {
@@ -46,7 +48,7 @@ export function createUserQuote({ el, bubble }: UserQuoteOptions): UserQuoteLine
   }
 
   function show(quote: UserQuote): void {
-    via = quote.via;
+    shown = quote;
     // The slot may hold source lines, so the two spans are put back.
     el.classList.remove("is-sources");
     el.replaceChildren(whoEl, textEl);

@@ -84,6 +84,8 @@ interface SpeechBubbleOptions {
   dwellMs?: number;
   /** When it returns true, speech never auto-fades — the bubble holds until dismissed or replaced. */
   keepUntilDismissed?: () => boolean;
+  /** Called each time a line's typing reports all of it shown, a click-to-complete included. */
+  onAllShown?: () => void;
 }
 
 export function createSpeechBubble(
@@ -98,7 +100,7 @@ export function createSpeechBubble(
     bubbleSr,
     bubbleClose,
   }: SpeechBubbleElements,
-  { dwellMs, keepUntilDismissed }: SpeechBubbleOptions = {},
+  { dwellMs, keepUntilDismissed, onAllShown }: SpeechBubbleOptions = {},
 ): SpeechBubble {
   const dwell = dwellMs ?? readDwellToken(root) ?? DEFAULT_DWELL;
   const holdOpen = (): boolean => keepUntilDismissed?.() ?? false;
@@ -150,6 +152,7 @@ export function createSpeechBubble(
     bubbleEl.classList.remove("is-typing");
     bubbleNext.hidden = speechRaw === "";
     settleIntoDwell();
+    onAllShown?.();
   });
 
   function clearDwell(): void {

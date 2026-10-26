@@ -1,12 +1,18 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "unified",
-  "description": "unified chat window — a decorated window listing every open preset's transcript and routing the user's messages; it only logs and uses the bridge, and main opens, focuses and closes it",
+  "description": "unified chat window — a frameless always-on-top surface showing every open preset's lines and routing the user's messages; drags, resizes, repositions, focuses and closes itself, and main opens and destroys it",
   "windows": [
     "unified"
   ],
   "permissions": [
     "core:default",
+    "core:window:allow-close",
+    "core:window:allow-destroy",
+    "core:window:allow-start-dragging",
+    "core:window:allow-set-size",
+    "core:window:allow-set-position",
+    "core:window:allow-set-focus",
     "core:window:allow-set-theme",
     "log:default"
   ]

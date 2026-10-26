@@ -1,8 +1,9 @@
 import type { MessageBridge } from "../../io/bridge/message/message-bridge";
+import { focusWindow } from "../../io/window/geometry/companion-column";
 import { createLogger } from "../../logger";
+import { applySpeechOp } from "../../ui/surfaces/apply-speech-op";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
 import type { MirroredName } from "./mirrored-name";
-import { focusWindow } from "./wire-message-tauri-window";
 
 const log = createLogger("message-bootstrap");
 
@@ -19,41 +20,23 @@ export function wireMessageSurfaceOps({
   bridge.onSurface((op) => {
     switch (op.op) {
       case "begin":
-        surfaces.beginSpeech(undefined, { paced: op.paced === true });
+      case "push":
+      case "pace":
+      case "end":
+      case "finish":
+      case "hide":
+      case "quote":
+      case "quote-signals":
+      case "settle-quote":
+      case "clear-quote":
+        applySpeechOp(op, surfaces);
         break;
       case "name":
         name.set(op.name);
         break;
-      case "push":
-        surfaces.pushSpeech(op.delta);
-        break;
-      case "pace":
-        surfaces.paceSpeech({ text: op.text, durationMs: op.durationMs });
-        break;
-      case "end":
-        surfaces.endSpeech(op.defer ? { defer: true } : undefined);
-        break;
-      case "finish":
-        surfaces.finishSpeech();
-        break;
-      case "hide":
-        surfaces.hideSpeech();
-        break;
-      case "quote":
-        surfaces.quoteUser(op.quote);
-        break;
-      case "quote-signals":
-        surfaces.quoteSignals(op.lines);
-        break;
-      case "settle-quote":
-        surfaces.settleQuote();
-        break;
-      case "clear-quote":
-        surfaces.clearQuote();
-        break;
       case "summon-input":
         // A document focus in an unfocused webview leaves the keystrokes with the pet window.
-        void focusWindow().then(() => surfaces.summonInput());
+        void focusWindow("message").then(() => surfaces.summonInput());
         break;
       case "dismiss-input":
         surfaces.dismissInput();

@@ -18,6 +18,8 @@ export interface UserQuote {
   text: string;
   via: "text" | "voice";
   images: number;
+  /** A turn the unified chat window routed: one character, or everyone. */
+  mention?: "character" | "everyone";
 }
 
 /** One signal group as the bubble quotes it: its delivery class, its source, and its label. */

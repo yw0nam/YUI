@@ -1,9 +1,9 @@
 /**
  * Unified chat window — unified.html entry point.
  *
- * Draws every open preset's current-session transcript in one list and routes the user's
- * messages to the pet windows over the bridge. No renderer and no judgment live here: the pet
- * windows' backends answer, and their transcripts are what this window reads.
+ * Shows every open preset's lines, one at a time, in one dialogue box as the pet windows stream
+ * them, and routes the user's messages to the pet windows over the bridge. No renderer and no
+ * judgment live here: the pet windows' backends answer.
  */
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -15,15 +15,25 @@ import {
 import { isTauri } from "../tauri-env";
 import { applyTheme } from "../ui/theme/apply-theme";
 import "../styles.css";
+import "../ui/message/message-window.css";
 import "../ui/unified/unified-window.css";
 import { createDisposers } from "../app/disposers";
+import { wireUnifiedClose } from "../app/unified/wire-unified-close";
 import { createSettingsBridge } from "../io/bridge/settings-bridge";
 import { readTranscriptAfterBoundary } from "../io/chat/conversation/chat-history-store";
+import { closeCurrentWindow, listenCurrentWindowCloseRequested } from "../io/window/current-window";
+import {
+  focusWindow,
+  startDragging,
+  wireCompanionColumn,
+} from "../io/window/geometry/companion-column";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
 import { readActivePresetId } from "../settings/preset/active-preset";
 import { readOpenPresets } from "../settings/preset/pet-windows";
 import { createPresetRegistry } from "../settings/preset/preset-registry";
+import { createUnifiedChatSwitch } from "../settings/unified/unified-chat-switch";
+import { createUnifiedWindowSettings } from "../settings/unified/unified-window-settings";
 import { reloadFromStorage as reloadLocale } from "../ui/i18n";
 import { createUnifiedView } from "../ui/unified/unified-view";
 
@@ -56,8 +66,15 @@ async function bootstrap(): Promise<void> {
     mainId: readActivePresetId,
     now: Date.now,
     randomId: () => crypto.randomUUID(),
+    focusWindow: () => focusWindow("unified"),
+    closeWindow: () => void closeCurrentWindow(),
+    startDragging: () => void startDragging("unified"),
   });
   view.onRoute((event) => settingsBridge.emitUserTurnRouted(event));
+  view.onStop(settingsBridge.emitStopTurns);
+  view.onInputErrorAction((preset) =>
+    settingsBridge.emitSpeechStreamControl({ preset, op: { op: "input-error-action" } }),
+  );
 
   // A photo picked in another window reaches the registry through storage, so it reloads first.
   const refresh = (): void => {
@@ -86,6 +103,25 @@ async function bootstrap(): Promise<void> {
   disposers.register(() => window.removeEventListener("storage", refresh));
   window.addEventListener("beforeunload", disposers.dispose);
   view.refresh();
+  // A pet window answers with its character's name and turn state; a line already under way shows from its next line.
+  settingsBridge.emitSpeechStreamAsk();
+
+  const unifiedChatSwitch = createUnifiedChatSwitch();
+  disposers.register(() => unifiedChatSwitch.dispose());
+  disposers.register(
+    await wireUnifiedClose({
+      listenCloseRequested: listenCurrentWindowCloseRequested,
+      switch: unifiedChatSwitch,
+      emitSettingsChanged: settingsBridge.emitSettingsChanged,
+    }),
+  );
+
+  if (!isTauri()) return;
+  const windowSettings = createUnifiedWindowSettings();
+  disposers.register(() => windowSettings.dispose());
+  disposers.register(
+    await wireCompanionColumn("unified", view.el, windowSettings.setPosition, disposers.isDisposed),
+  );
 }
 
 void bootstrap().catch((error) => {

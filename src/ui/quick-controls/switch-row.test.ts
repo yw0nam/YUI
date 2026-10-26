@@ -111,6 +111,85 @@ describe("SwitchRow descriptor", () => {
     bound.dispose();
   });
 
+  it("locks the message window row with its reason while the unified window shows", () => {
+    const messageWindowSettings = createMessageWindowSettings();
+    let shown = true;
+    const listeners = new Set<(shown: boolean) => void>();
+    const rows = createSwitchRows({
+      idleThrottleSettings: createFlagSettings(true),
+      vad: createVadSettings(),
+      fillerSettings: createFillerSettings(),
+      messageWindowSettings,
+      unifiedShown: {
+        get: () => shown,
+        subscribe: (cb) => {
+          listeners.add(cb);
+          return () => listeners.delete(cb);
+        },
+      },
+    });
+    const root = render(rows);
+    const bound = bindSwitchRows(
+      root,
+      rows,
+      { debug() {}, info() {}, warn() {}, error() {} },
+      () => true,
+    );
+    const button = root.querySelector<HTMLButtonElement>(".yui-message-window-switch")!;
+    const sub = () => button.closest(".yui-row")?.querySelector(".yui-row__sub")?.textContent;
+    bound.reflect();
+
+    expect(button.disabled).toBe(true);
+    expect(sub()).toBe("Off while the unified chat window shows");
+    button.click();
+    expect(messageWindowSettings.get().mode).toBe("docked");
+
+    shown = false;
+    for (const cb of listeners) cb(false);
+
+    expect(button.disabled).toBe(false);
+    expect(sub()).toBe("Speech and typing live in a window you can drag anywhere");
+    bound.dispose();
+  });
+
+  it("shows a locked message window row off and its stored popped mode again once unlocked", () => {
+    const messageWindowSettings = createMessageWindowSettings();
+    messageWindowSettings.setMode("popped");
+    let shown = true;
+    const listeners = new Set<(shown: boolean) => void>();
+    const rows = createSwitchRows({
+      idleThrottleSettings: createFlagSettings(true),
+      vad: createVadSettings(),
+      fillerSettings: createFillerSettings(),
+      messageWindowSettings,
+      unifiedShown: {
+        get: () => shown,
+        subscribe: (cb) => {
+          listeners.add(cb);
+          return () => listeners.delete(cb);
+        },
+      },
+    });
+    const root = render(rows);
+    const bound = bindSwitchRows(
+      root,
+      rows,
+      { debug() {}, info() {}, warn() {}, error() {} },
+      () => true,
+    );
+    const button = root.querySelector<HTMLButtonElement>(".yui-message-window-switch")!;
+    bound.reflect();
+
+    expect(button.getAttribute("aria-checked")).toBe("false");
+    expect(messageWindowSettings.get().mode).toBe("popped");
+
+    shown = false;
+    for (const cb of listeners) cb(false);
+
+    expect(button.getAttribute("aria-checked")).toBe("true");
+    bound.dispose();
+  });
+
   it("omits an invisible, unavailable row and skips reflection", () => {
     const getEnabled = vi.fn(() => true);
     const hiddenRow: SwitchRow = {

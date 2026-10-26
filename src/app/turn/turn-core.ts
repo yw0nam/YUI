@@ -65,6 +65,8 @@ export interface TurnCorePhase1 {
   getGuardrails(): GuardrailsConfig;
   /** The hold a scene takes on the body, in a window that runs one. */
   bedSceneHold?: Pick<BedSceneHold, "isHeld" | "onTake">;
+  /** Subscribes to the unified chat window's stop, which every pet window obeys. */
+  onStopTurns(cb: () => void): () => void;
 }
 
 export interface TurnCore {
@@ -305,7 +307,15 @@ export async function wireTurnCore(
         voice.speechPlayback.interrupt();
         return cut;
       };
-      wireStopButton({ onStop: (cb) => surfaces.onStop(cb), stopTurn, socket: pushSocket, log });
+      wireStopButton({
+        onStop: (cb) => {
+          surfaces.onStop(cb);
+          register(phase1.onStopTurns(cb));
+        },
+        stopTurn,
+        socket: pushSocket,
+        log,
+      });
       surfaces.onSubmit((text, images) => {
         userInput.submit(text, images);
         hooks.onSubmit();

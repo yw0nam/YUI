@@ -271,14 +271,11 @@ const ja: Record<string, string> = {
   "unified.enable_label": "統合チャット",
   "unified.enable_sub":
     "キャラクターが2人以上開いているとき、ひとつのウィンドウでまとめて話せます。@で相手を選び、なければ最後に話したキャラクターが答えます",
-  "unified.title": "統合チャット",
-  "unified.to": "{name}に",
-  "unified.marker": "→ {name}",
   "unified.everyone_sub": "開いているキャラクター全員に",
-  "unified.hint": "@で答えるキャラクターを選べます",
-  "unified.remove_mention": "宛先を外す",
-  "unified.just_now": "たった今",
-  "unified.pending": "送信中",
+  "unified.close": "統合チャットを閉じる",
+  "unified.you_to": "あなた → {name}",
+  "unified.everyone": "みんな",
+  "unified.recipients": "送り先",
 
   // filler (thinking interjections)
   "filler.section": "考え中のあいづち",
@@ -460,6 +457,7 @@ const ja: Record<string, string> = {
   "message_window.label": "メッセージウィンドウを分離",
   "message_window.sub": "吹き出しと入力欄を自由に置ける別ウィンドウに移します",
   "message_window.aria": "メッセージウィンドウを分離",
+  "message_window.locked_unified": "統合チャットを表示している間はオフです",
 
   // history tab
   "history.current": "現在の会話",

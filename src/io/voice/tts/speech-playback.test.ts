@@ -2148,7 +2148,7 @@ describe("speech display identity", () => {
       isStrolling: () => false,
     });
     playback.speakAside("Wait.");
-    expect(surfaces.beginSpeech.mock.calls).toEqual([[undefined, { paced: true }]]);
+    expect(surfaces.beginSpeech.mock.calls).toEqual([[undefined, { paced: true, aside: true }]]);
     expect(surfaces.pushSpeech.mock.calls).toEqual([["Wait.", undefined]]);
     expect(surfaces.endSpeech.mock.calls).toEqual([[{ defer: true }, undefined]]);
     playback.dispose();

@@ -1,13 +1,20 @@
-/** Pure: recorded lines and pending sends in time order, followed by open replies. */
+/** Pure: recorded lines and pending sends in time order. */
 
-import type { OpenLine, Transcript } from "./open-lines";
+import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
+import type { PresetEntry } from "../../settings/preset/active-preset";
 import { SEND_TIMEOUT_MS } from "./sequence";
+import { EVERYONE } from "./targets";
+
+/** One open preset's current-session transcript. */
+export type Transcript = PresetEntry & { entries: ChatHistoryEntry[] };
 
 /** A message the window sent that no transcript records yet. */
 export interface PendingSend {
   sendId: string;
   text: string;
   at: number;
+  /** A preset id, or EVERYONE. */
+  to: string;
   /** Still waiting behind another send: it never expires, and `at` is when it was typed. */
   queued?: boolean;
 }
@@ -20,17 +27,14 @@ export interface Row {
   name: string;
   text: string;
   ts: number;
-  /** An assistant row whose turn called address_character: the recipient's preset id. */
+  /** A user row's recipient (a preset id, or EVERYONE); an assistant row whose turn called address_character: the recipient's preset id. */
   to?: string;
-  pending?: true;
-  open?: true;
 }
 
 export function mergeTranscripts(
   transcripts: readonly Transcript[],
   pending: readonly PendingSend[],
   now: number,
-  open: readonly OpenLine[] = [],
 ): Row[] {
   const sorted: Array<{ row: Row; order: [number, number] }> = [];
   const bySend = new Map<string, Row>();
@@ -40,6 +44,7 @@ export function mergeTranscripts(
         const known = bySend.get(e.send_id);
         if (known) {
           known.ts = Math.min(known.ts, e.ts);
+          if (e.mention === EVERYONE) known.to = EVERYONE;
           continue;
         }
         const row: Row = {
@@ -48,6 +53,7 @@ export function mergeTranscripts(
           name: "",
           text: e.text,
           ts: e.ts,
+          to: e.mention === EVERYONE ? EVERYONE : preset.id,
         };
         bySend.set(e.send_id, row);
         sorted.push({ row, order: [castIndex, i] });
@@ -55,7 +61,14 @@ export function mergeTranscripts(
       }
       const row: Row =
         e.role === "user"
-          ? { key: `${preset.id}:${i}:${e.ts}`, who: "user", name: "", text: e.text, ts: e.ts }
+          ? {
+              key: `${preset.id}:${i}:${e.ts}`,
+              who: "user",
+              name: "",
+              text: e.text,
+              ts: e.ts,
+              to: preset.id,
+            }
           : {
               key: `${preset.id}:${i}:${e.ts}`,
               who: preset.id,
@@ -75,25 +88,11 @@ export function mergeTranscripts(
       name: "",
       text: p.text,
       ts: p.at,
-      pending: true,
+      to: p.to,
     };
     sorted.push({ row, order: [Number.MAX_SAFE_INTEGER, 0] });
   }
-  const rows = sorted
+  return sorted
     .sort((a, b) => a.row.ts - b.row.ts || a.order[0] - b.order[0] || a.order[1] - b.order[1])
     .map((s) => s.row);
-  for (const line of open) {
-    const preset = transcripts.find((t) => t.id === line.preset);
-    if (preset)
-      rows.push({
-        key: `${line.preset}:open`,
-        who: line.preset,
-        name: preset.name,
-        text: line.text,
-        ts: now,
-        pending: true,
-        open: true,
-      });
-  }
-  return rows;
 }
