@@ -275,6 +275,25 @@ describe("createQuickControls — card section", () => {
     expect(JSON.parse(text).data.extensions.yui).toBeUndefined();
   });
 
+  it("export keeps other extensions keys and an existing yui object beside the filler", async () => {
+    agentSettings.setCard({
+      ...EMPTY_CARD,
+      name: "Yui",
+      extensions: { other: { kept: 1 }, yui: { keep: "x" } },
+    });
+    const fillerSettings = createFillerSettings();
+    fillerSettings.setCustomPool("ja", { first: ["A"] });
+    const exportCard = vi.fn(async (_text: string, _fileName: string) => "written" as const);
+    build({ fillerSettings, exportCard });
+    sec().querySelector<HTMLButtonElement>(".yui-card-export")!.click();
+    await vi.waitFor(() => expect(exportCard).toHaveBeenCalledTimes(1));
+    const [text] = exportCard.mock.calls[0];
+    expect(JSON.parse(text).data.extensions).toEqual({
+      other: { kept: 1 },
+      yui: { keep: "x", filler: { ja: { first: ["A"] } } },
+    });
+  });
+
   it("exported filler pools import back into the new preset identically", async () => {
     const fillerSettings = createFillerSettings();
     fillerSettings.setCustomPool("ja", { first: ["A"] });
