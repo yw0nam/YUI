@@ -11,6 +11,7 @@ import { subscribe as subscribeLocale } from "../i18n";
 import { createSurfaces } from "../surfaces/surfaces";
 import { backlogLines, youTo } from "./backlog-lines";
 import { createCastChips } from "./cast-chips";
+import { createCastState } from "./cast-state";
 import { createComposer } from "./composer";
 import { createLaneQueue } from "./lane-queue";
 import { mergeTranscripts, type PendingSend, type Transcript } from "./merge";
@@ -61,13 +62,10 @@ export function createUnifiedView(deps: {
   const routeCbs: Array<(event: UserTurnRouted) => void> = [];
   const stopCbs: Array<() => void> = [];
   const errorActionCbs: Array<(preset: string) => void> = [];
-  // Each preset's turn state and the name its window last sent.
-  const busy = new Map<string, boolean>();
-  const names = new Map<string, string>();
   let pending: PendingSend[] = [];
 
   const entryOf = (id: string): PresetEntry | undefined => deps.cast().find((e) => e.id === id);
-  const nameOf = (id: string): string => names.get(id) ?? entryOf(id)?.name ?? id;
+  const nameOf = (id: string): string => castState.nameOf(id);
   const rows = () => {
     const now = deps.now();
     pending = pending.filter((p) => p.queued || now - p.at < SEND_TIMEOUT_MS);
@@ -98,6 +96,7 @@ export function createUnifiedView(deps: {
   });
   box.el.classList.add("yui-ui--message");
   const lanes = createLaneQueue({ box });
+  const castState = createCastState({ cast: deps.cast, lanes });
   const composer = createComposer({ mount: dock, cast: deps.cast });
   const sequence = createSequence({
     emit: (event) => {
@@ -112,16 +111,8 @@ export function createUnifiedView(deps: {
   });
 
   function paint(): void {
-    const cast = deps.cast();
-    const speaker = lanes.speaker();
-    chips.render(cast, (id) =>
-      speaker === id ? "talk" : busy.get(id) || lanes.waiting(id) ? "think" : "idle",
-    );
-    composer.setBusy(
-      speaker !== null ||
-        sequence.running() ||
-        cast.some((e) => busy.get(e.id) || lanes.waiting(e.id)),
-    );
+    chips.render(deps.cast(), castState.stateOf);
+    composer.setBusy(castState.running() || sequence.running());
   }
 
   lanes.onSpeaker((preset) => {
@@ -134,7 +125,7 @@ export function createUnifiedView(deps: {
   function refresh(): void {
     const cast = deps.cast();
     const ids = cast.map((e) => e.id);
-    for (const id of busy.keys()) if (!ids.includes(id)) busy.delete(id);
+    castState.prune();
     lanes.setCast(ids);
     const target = fallbackTarget({
       cast: ids,
@@ -179,10 +170,10 @@ export function createUnifiedView(deps: {
     speechStream({ preset, op }) {
       switch (op.op) {
         case "busy":
-          busy.set(preset, op.busy);
+          castState.setBusy(preset, op.busy);
           break;
         case "name":
-          names.set(preset, op.name);
+          castState.setName(preset, op.name);
           if (lanes.speaker() === preset) box.plate.setName(op.name);
           break;
         case "summon-input":

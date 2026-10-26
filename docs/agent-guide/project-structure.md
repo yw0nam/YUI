@@ -538,8 +538,9 @@ YUI/
         message-window.css           # Message-window layout and name-plate styles
         cue-list.css                 # Cue-list section styles
       unified/                       # The unified chat window
-        unified-view.ts              # Wires the modules; keeps the pending sends, each preset's busy state and name
+        unified-view.ts              # Wires the modules; keeps the pending sends
         lane-queue.ts                # One lane per preset: one line holds the box until done, the next lane replays what it buffered
+        cast-state.ts                # Each preset's turn state and sent name, and the talk/think/idle rule for its chip
         cast-chips.ts                # The head row: a chip per open preset with its line state, the × and the drag handle
         backlog-lines.ts             # The backlog's lines: the user's under "You → <recipient>", a character's under its name
         merge.ts                     # Pure: the open presets' transcripts and the pending sends as one time-ordered list, each user row with its recipient
