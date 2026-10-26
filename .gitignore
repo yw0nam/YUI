@@ -30,6 +30,7 @@ resources/vrma/
 
 # any-subagent session logs and frozen specs; never committed
 .any-subagent/
+.hallmark/
 
 # Playwright MCP run artifacts
 .playwright-mcp/
