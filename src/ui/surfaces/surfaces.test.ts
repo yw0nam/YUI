@@ -107,6 +107,30 @@ describe("bubble ↔ input coordination — input must not obscure the bubble", 
   });
 });
 
+describe("name plate — on the docked bubble", () => {
+  it("rides the bubble when asked for: responding while speech streams, thinking while busy", () => {
+    const mount = document.createElement("div");
+    const s = createSurfaces({ mount, tool: noTool, namePlate: true });
+    const plate = mount.querySelector<HTMLElement>(".yui-bubble .yui-plate")!;
+    expect(s.plate?.el).toBe(plate);
+
+    s.beginSpeech();
+    expect(plate.dataset.state).toBe("responding");
+    s.endSpeech();
+    s.setBusy(true);
+    expect(plate.dataset.state).toBe("thinking");
+    s.dispose();
+  });
+
+  it("is absent unless asked for", () => {
+    const mount = document.createElement("div");
+    const s = createSurfaces({ mount, tool: noTool });
+    expect(mount.querySelector(".yui-plate")).toBeNull();
+    expect(s.plate).toBeUndefined();
+    s.dispose();
+  });
+});
+
 describe("bubble structure — edge tools outside the scrolling box", () => {
   it("keeps the tools out of the box, and the box holds the text", () => {
     const { s, mount } = makeSurfaces();
