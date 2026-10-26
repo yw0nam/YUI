@@ -135,6 +135,12 @@ describe("buildSend with a typed @name", () => {
       "@Natsume hi",
       { sendId: "s1", targets: ["perlica"], text: "@Perlica @Natsume hi", mention: "character" },
     ],
+    [
+      "a stale pick yields to a typed name",
+      "gone",
+      "@Perlica hi",
+      { sendId: "s1", targets: ["perlica"], text: "@Perlica hi", mention: "character" },
+    ],
   ])("%s", (_name, mention, text, expected) => {
     expect(buildSend({ ...base, mention, text })).toEqual(expected);
   });
