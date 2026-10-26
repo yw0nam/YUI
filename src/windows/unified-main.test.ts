@@ -102,7 +102,7 @@ it("routes a typed message to the last speaker over the bridge", async () => {
   const routed: UserTurnRouted[] = [];
   petBridge.onUserTurnRouted((e) => routed.push(e));
   await boot();
-  const field = document.querySelector<HTMLTextAreaElement>(".yui-input__field")!;
+  const field = document.querySelector<HTMLTextAreaElement>(".yui-uc__dock .yui-input__field")!;
 
   field.value = "hi";
   field.dispatchEvent(new Event("input", { bubbles: true }));
@@ -135,10 +135,12 @@ it("sends the stop to every pet window", async () => {
   await boot();
   petBridge.emitSpeechStream({ preset: "natsume", op: { op: "busy", busy: true } });
   await vi.waitFor(() =>
-    expect(document.querySelector(".yui-input")?.classList.contains("is-running")).toBe(true),
+    expect(
+      document.querySelector(".yui-uc__dock .yui-input")?.classList.contains("is-running"),
+    ).toBe(true),
   );
 
-  document.querySelector<HTMLButtonElement>(".yui-input__send")!.click();
+  document.querySelector<HTMLButtonElement>(".yui-uc__dock .yui-input__send")!.click();
 
   await vi.waitFor(() => expect(stops).toHaveBeenCalledOnce());
 });

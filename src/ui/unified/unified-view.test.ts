@@ -43,7 +43,7 @@ function mount(): void {
   view.refresh();
 }
 
-const field = () => document.querySelector<HTMLTextAreaElement>(".yui-input__field")!;
+const field = () => document.querySelector<HTMLTextAreaElement>(".yui-uc__dock .yui-input__field")!;
 const stream = (preset: string, op: MessageSurfaceOp) => view.speechStream({ preset, op });
 const recipients = () =>
   [...document.querySelectorAll<HTMLElement>("[role=radio]")].map((r) => [

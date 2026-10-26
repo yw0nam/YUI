@@ -1,9 +1,9 @@
 /**
  * Unified chat window — unified.html entry point.
  *
- * Draws every open preset's current-session transcript in one list and routes the user's
- * messages to the pet windows over the bridge. No renderer and no judgment live here: the pet
- * windows' backends answer, and their transcripts are what this window reads.
+ * Shows every open preset's lines, one at a time, in one dialogue box as the pet windows stream
+ * them, and routes the user's messages to the pet windows over the bridge. No renderer and no
+ * judgment live here: the pet windows' backends answer.
  */
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -15,9 +15,14 @@ import {
 import { isTauri } from "../tauri-env";
 import { applyTheme } from "../ui/theme/apply-theme";
 import "../styles.css";
+import "../ui/message/message-window.css";
 import "../ui/unified/unified-window.css";
 import { createDisposers } from "../app/disposers";
-import { wireTauriWindow } from "../app/message/wire-message-tauri-window";
+import {
+  focusWindow,
+  startDragging,
+  wireTauriWindow,
+} from "../app/message/wire-message-tauri-window";
 import { wireUnifiedClose } from "../app/unified/wire-unified-close";
 import { createSettingsBridge } from "../io/bridge/settings-bridge";
 import { readTranscriptAfterBoundary } from "../io/chat/conversation/chat-history-store";
@@ -61,8 +66,14 @@ async function bootstrap(): Promise<void> {
     mainId: readActivePresetId,
     now: Date.now,
     randomId: () => crypto.randomUUID(),
+    focusWindow,
+    closeWindow: () => {
+      if (isTauri()) void getCurrentWindow().close();
+    },
+    startDragging: () => void startDragging(),
   });
   view.onRoute((event) => settingsBridge.emitUserTurnRouted(event));
+  view.onStop(settingsBridge.emitStopTurns);
 
   // A photo picked in another window reaches the registry through storage, so it reloads first.
   const refresh = (): void => {
@@ -81,6 +92,7 @@ async function bootstrap(): Promise<void> {
   disposers.register(() => registry.dispose());
   disposers.register(() => settingsBridge.dispose());
   disposers.register(() => view.dispose());
+  disposers.register(settingsBridge.onSpeechStream(view.speechStream));
   disposers.register(settingsBridge.onUserTurnDone(view.turnDone));
   disposers.register(settingsBridge.onSettingsChanged(onSettingsChanged));
   disposers.register(settingsBridge.onPetWindowsChanged(refresh));
@@ -90,6 +102,8 @@ async function bootstrap(): Promise<void> {
   disposers.register(() => window.removeEventListener("storage", refresh));
   window.addEventListener("beforeunload", disposers.dispose);
   view.refresh();
+  // A pet window answers with its character's name and turn state; a line already under way shows from its next line.
+  settingsBridge.emitSpeechStreamAsk();
 
   if (!isTauri()) return;
   wireUnifiedClose({
@@ -101,7 +115,7 @@ async function bootstrap(): Promise<void> {
   disposers.register(() => windowSettings.dispose());
   disposers.register(
     await wireTauriWindow(
-      app,
+      view.el,
       { width: MESSAGE_WINDOW_WIDTH, onMoved: windowSettings.setPosition },
       disposers.isDisposed,
     ),

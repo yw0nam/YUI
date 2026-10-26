@@ -1,25 +1,35 @@
 /**
- * The unified chat window wires every open preset's log, running replies, composer and one-at-a-time
- * routing. Firing ≠ judgment: the presets' backends decide whether and what to say; the view renders it.
+ * The unified chat window: the cast row, one dialogue box that shows one character's line at a
+ * time, and the composer with one-at-a-time routing. Firing ≠ judgment: the presets' backends
+ * decide whether and what to say; the view renders what their windows stream.
  */
 
-import type { UserTurnDone, UserTurnRouted } from "../../io/bridge/settings-bridge";
+import type { SpeechStream, UserTurnDone, UserTurnRouted } from "../../io/bridge/settings-bridge";
 import { createLogger } from "../../logger";
 import type { PresetEntry } from "../../settings/preset/active-preset";
 import { subscribe as subscribeLocale } from "../i18n";
+import { createSurfaces } from "../surfaces/surfaces";
+import { backlogLines, youTo } from "./backlog-lines";
+import { createCastChips } from "./cast-chips";
 import { createComposer } from "./composer";
-import { createLogView } from "./log-view";
-import type { Transcript } from "./merge";
-import { createSequence } from "./sequence";
-import { buildSend } from "./targets";
+import { createLaneQueue } from "./lane-queue";
+import { mergeTranscripts, type PendingSend, type Transcript } from "./merge";
+import { createSequence, SEND_TIMEOUT_MS } from "./sequence";
+import { buildSend, EVERYONE, fallbackTarget, lastSpeakerOf } from "./targets";
 
 const log = createLogger("unified-view");
 
 export interface UnifiedView {
+  /** The window's column; the window takes its height. */
+  readonly el: HTMLElement;
   refresh(): void;
+  /** One op a pet window streamed. */
+  speechStream(event: SpeechStream): void;
   /** A pet window's user turn for a send id is over. */
   turnDone(done: UserTurnDone): void;
   onRoute(cb: (event: UserTurnRouted) => void): void;
+  /** The stop button: every pet window stops its running turn. */
+  onStop(cb: () => void): void;
   dispose(): void;
 }
 
@@ -38,60 +48,174 @@ export function createUnifiedView(deps: {
   mainId: () => string;
   now: () => number;
   randomId: () => string;
+  /** Takes OS focus, so typing lands in this window's field. */
+  focusWindow: () => Promise<void>;
+  closeWindow: () => void;
+  startDragging: () => void;
 }): UnifiedView {
   const root = document.createElement("div");
   root.className = "yui-uc";
-  root.innerHTML = `
-    <header class="yui-uc__head"><h1 class="yui-uc__title"></h1><ul class="yui-uc__cast"></ul></header>
-    <ol class="yui-uc__log"></ol>
-    <div class="yui-uc__dock"></div>`;
   deps.mount.append(root);
   const routeCbs: Array<(event: UserTurnRouted) => void> = [];
-  const composer = createComposer({
-    mount: root.querySelector<HTMLElement>(".yui-uc__dock")!,
-    cast: deps.cast,
+  const stopCbs: Array<() => void> = [];
+  // Each preset's turn state and the name its window last sent.
+  const busy = new Map<string, boolean>();
+  const names = new Map<string, string>();
+  let pending: PendingSend[] = [];
+
+  const entryOf = (id: string): PresetEntry | undefined => deps.cast().find((e) => e.id === id);
+  const nameOf = (id: string): string => names.get(id) ?? entryOf(id)?.name ?? id;
+  const rows = () => {
+    const now = deps.now();
+    pending = pending.filter((p) => p.queued || now - p.at < SEND_TIMEOUT_MS);
+    return mergeTranscripts(deps.transcripts(), pending, now);
+  };
+
+  const chips = createCastChips({
+    mount: root,
+    onClose: deps.closeWindow,
+    startDragging: deps.startDragging,
   });
-  const logView = createLogView({ ...deps, root, composer });
+  const boxMount = document.createElement("div");
+  boxMount.className = "yui-uc__box";
+  const dock = document.createElement("div");
+  dock.className = "yui-uc__dock";
+  root.append(boxMount, dock);
+
+  const box = createSurfaces({
+    mount: boxMount,
+    tool: { showTool() {}, finishTool() {}, hideTool() {} },
+    namePlate: true,
+    keepBubbleUntilDismissed: () => false,
+    backlog: { read: () => backlogLines(rows(), nameOf) },
+    onAllShown: () => lanes.allShown(),
+    onShown: (shown) => lanes.boxShown(shown),
+    quoteLead: (quote) =>
+      youTo(quote.mention === EVERYONE ? EVERYONE : (lanes.speaker() ?? ""), nameOf),
+  });
+  box.el.classList.add("yui-ui--message");
+  const lanes = createLaneQueue({ box });
+  const composer = createComposer({ mount: dock, cast: deps.cast });
   const sequence = createSequence({
     emit: (event) => {
       for (const cb of routeCbs) cb(event);
     },
-    onStart: logView.startSend,
+    onStart: (sendId) => {
+      pending = pending.map((p) =>
+        p.sendId === sendId ? { sendId, text: p.text, to: p.to, at: deps.now() } : p,
+      );
+    },
+    onIdle: () => paint(),
   });
+
+  function paint(): void {
+    const cast = deps.cast();
+    const speaker = lanes.speaker();
+    chips.render(cast, (id) =>
+      speaker === id ? "talk" : busy.get(id) || lanes.waiting(id) ? "think" : "idle",
+    );
+    composer.setBusy(
+      speaker !== null ||
+        sequence.running() ||
+        cast.some((e) => busy.get(e.id) || lanes.waiting(e.id)),
+    );
+  }
+
+  lanes.onSpeaker((preset) => {
+    const entry = preset === null ? undefined : entryOf(preset);
+    if (preset !== null) box.plate.setName(nameOf(preset));
+    if (entry) box.plate.setFace(entry);
+    paint();
+  });
+
+  function refresh(): void {
+    const cast = deps.cast();
+    const ids = cast.map((e) => e.id);
+    for (const id of busy.keys()) if (!ids.includes(id)) busy.delete(id);
+    lanes.setCast(ids);
+    const target = fallbackTarget({
+      cast: ids,
+      lastSpeaker: lastSpeakerOf(rows()),
+      mainId: deps.mainId(),
+    });
+    composer.setTarget(entryOf(target ?? ""));
+    paint();
+  }
 
   composer.onSubmit((text) => {
     const send = buildSend({
       text,
       mention: composer.getMention(),
       cast: deps.cast(),
-      lastSpeaker: logView.lastSpeaker(),
+      lastSpeaker: lastSpeakerOf(rows()),
       mainId: deps.mainId(),
       shuffle: shuffled,
       sendId: deps.randomId(),
     });
     if (!send) return;
-    logView.addSend(
-      send.sendId,
-      send.text,
-      send.mention === "everyone" ? "everyone" : (send.targets[0] ?? ""),
-    );
+    const to = send.mention === "everyone" ? EVERYONE : (send.targets[0] ?? "");
+    pending.push({ sendId: send.sendId, text: send.text, to, at: deps.now(), queued: true });
     sequence.run(send);
     composer.setMention(null);
     log.info("route", { targets: send.targets.length, mention: send.mention ?? "none" });
-    logView.refresh();
+    paint();
+  });
+  composer.onStop(() => {
+    sequence.cancel();
+    lanes.stopAll();
+    for (const cb of stopCbs) cb();
+    log.info("stop");
+    paint();
   });
 
-  const unsubscribeLocale = subscribeLocale(logView.refresh);
+  const unsubscribeLocale = subscribeLocale(refresh);
 
   return {
-    refresh: logView.refresh,
-    turnDone: sequence.turnDone,
+    el: root,
+    refresh,
+    speechStream({ preset, op }) {
+      switch (op.op) {
+        case "busy":
+          busy.set(preset, op.busy);
+          break;
+        case "name":
+          names.set(preset, op.name);
+          if (lanes.speaker() === preset) box.plate.setName(op.name);
+          break;
+        case "summon-input":
+          // A document focus in an unfocused webview leaves the keystrokes with the pet window.
+          void deps.focusWindow().then(composer.focus);
+          break;
+        case "input-error":
+          composer.showError(op.message);
+          break;
+        case "begin":
+        case "push":
+        case "pace":
+        case "end":
+        case "finish":
+        case "hide":
+        case "quote":
+        case "quote-signals":
+        case "settle-quote":
+        case "clear-quote":
+          lanes.accept(preset, op);
+          break;
+      }
+      paint();
+    },
+    turnDone(done) {
+      sequence.turnDone(done);
+      paint();
+    },
     onRoute: (cb) => void routeCbs.push(cb),
+    onStop: (cb) => void stopCbs.push(cb),
     dispose() {
-      logView.dispose();
       unsubscribeLocale();
       sequence.dispose();
       composer.dispose();
+      box.dispose();
+      chips.dispose();
       root.remove();
     },
   };

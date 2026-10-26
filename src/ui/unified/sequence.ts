@@ -15,7 +15,17 @@ export function createSequence(deps: {
   emit: (event: UserTurnRouted) => void;
   /** A queued send reached the front and is about to be emitted. */
   onStart?: (sendId: string) => void;
-}): { run(send: Send): void; turnDone(done: UserTurnDone): void; dispose(): void } {
+  /** The last send is over and nothing waits. */
+  onIdle?: () => void;
+}): {
+  run(send: Send): void;
+  turnDone(done: UserTurnDone): void;
+  /** Whether a send is under way. */
+  running(): boolean;
+  /** Drops the send under way and every queued one. */
+  cancel(): void;
+  dispose(): void;
+} {
   const queue: Send[] = [];
   let current: { send: Send; index: number } | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -39,11 +49,18 @@ export function createSequence(deps: {
     const send = queue.shift();
     if (!send) {
       current = null;
+      deps.onIdle?.();
       return;
     }
     current = { send, index: 0 };
     deps.onStart?.(send.sendId);
     emitCurrent();
+  }
+
+  function cancel(): void {
+    clearTimeout(timer);
+    queue.length = 0;
+    current = null;
   }
 
   function advance(): void {
@@ -63,10 +80,8 @@ export function createSequence(deps: {
       if (current?.send.sendId === sendId && current.send.targets[current.index] === preset)
         advance();
     },
-    dispose() {
-      clearTimeout(timer);
-      queue.length = 0;
-      current = null;
-    },
+    running: () => current !== null,
+    cancel,
+    dispose: cancel,
   };
 }
