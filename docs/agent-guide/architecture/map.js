@@ -1118,7 +1118,7 @@ globalThis.YUI_MAP =
       "id": "ui/message",
       "module": "display",
       "label": "bubble and plate",
-      "role": "The speech bubble, the quoted user line or signal source lines, the reasoning disclosure, and the message-window plate.",
+      "role": "The speech bubble, the typewriter that types each line out paced by its sentences' audio, the quoted user line or signal source lines, the reasoning disclosure, the backlog of the session's earlier lines, and the name plate.",
       "paths": [
         "src/ui/message"
       ]
@@ -1809,7 +1809,7 @@ globalThis.YUI_MAP =
       "id": "speech-bubble",
       "from": "io/voice/tts",
       "to": "ui/surfaces",
-      "carries": "beginSpeech, pushSpeech, endSpeech, finishSpeech",
+      "carries": "beginSpeech (paced when no earlier line still owes audio), pushSpeech, paceSpeech at each sentence start (its text and audio duration, null without audio), endSpeech, finishSpeech",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
@@ -2814,6 +2814,15 @@ globalThis.YUI_MAP =
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"
+    },
+    {
+      "id": "backlog-transcript",
+      "from": "io/chat/conversation",
+      "to": "ui/message",
+      "carries": "the current session's chat_transcript entries → the backlog, read on each open: the pet window's chat-history store, the message window's readTranscriptAfterBoundary",
+      "kind": "storage",
+      "transport": "shared",
+      "wiring": "src/windows/message-main.ts"
     },
     {
       "id": "unified-transcripts",
