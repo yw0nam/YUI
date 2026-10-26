@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { Logger } from "../../../../logger";
-import type { PhotoSize } from "../../../../settings/preset/photo-crop";
+import type { PhotoCrop, PhotoSize } from "../../../../settings/preset/photo-crop";
 import { openPhotoDialog } from "./photo-dialog";
 
 const SIZE: PhotoSize = { width: 900, height: 1000 };
@@ -28,13 +28,13 @@ const deferred = <T>() => {
   return { promise, resolve, reject };
 };
 
-let save: ReturnType<typeof vi.fn>;
-let saveUrl: ReturnType<typeof vi.fn>;
+let save: Mock<(url: string, crop: PhotoCrop) => void>;
+let saveUrl: Mock<(url: string) => void>;
 let warn: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
-  save = vi.fn();
-  saveUrl = vi.fn();
+  save = vi.fn<(url: string, crop: PhotoCrop) => void>();
+  saveUrl = vi.fn<(url: string) => void>();
   warn = vi.fn();
 });
 
