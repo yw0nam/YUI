@@ -27,9 +27,11 @@ export function reflectSwitchRows(root: HTMLElement, rows: readonly SwitchRow[])
   for (const row of rows) {
     if (!row.isVisible || !row.isAvailable) continue;
     const button = root.querySelector<HTMLButtonElement>(row.selector);
-    button?.setAttribute("aria-checked", String(row.getEnabled()));
-    if (!button || !row.lock) continue;
-    const locked = row.lock.get();
+    if (!button) continue;
+    // The store keeps its value while locked, so unlocking shows it again.
+    const locked = row.lock?.get() === true;
+    button.setAttribute("aria-checked", String(!locked && row.getEnabled()));
+    if (!row.lock) continue;
     button.disabled = locked;
     const sub = button.closest(".yui-row")?.querySelector(".yui-row__sub");
     if (sub) sub.textContent = locked ? t(row.lock.reasonKey) : row.subKey ? t(row.subKey) : "";
