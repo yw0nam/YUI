@@ -22,10 +22,13 @@
 /* ── Plate row — the handle and the delegation chip, side by side, with the
    list wrapping onto its own full-width line beneath them ── */
 .yui-plate-row {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: flex-start;
   gap: 6px;
   flex-wrap: wrap;
+  padding-left: 14px;
 }
 
 /* Beside the character the chip sits in the chip column; here display: contents unwraps it
@@ -79,8 +82,13 @@
 .yui-ui--message .yui-bubble.is-visible {
   transform: none;
 }
+/* The bubble tucks up under the plate's row so the 30px plate rides the box's top-left edge, half over it:
+   15px over the box plus the column's 8px gap. An open delegation list keeps the row clear of the box. */
+.yui-plate-row:not(:has(.yui-deleg__list.is-open)) + .yui-bubble {
+  margin-top: -23px;
+}
 .yui-ui--message .yui-bubble__box {
-  border-top-left-radius: 6px;
+  padding-top: 26px;
 }
 /* The lift above the input is a pet-window trick; in flow the column already separates them. */
 .yui-ui--message .yui-bubble.is-above-input .yui-bubble__box {

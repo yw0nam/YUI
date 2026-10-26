@@ -276,6 +276,17 @@
   position: relative;
 }
 
+/* The name plate rides the box's top-left edge, half over it; the box's text starts under it. */
+.yui-bubble__frame > .yui-plate {
+  position: absolute;
+  top: -15px;
+  left: 14px;
+  z-index: 1;
+}
+.yui-bubble__frame:has(> .yui-plate) .yui-bubble__box {
+  padding-top: 26px;
+}
+
 /* ▼ — the line finished. An indicator only. */
 .yui-bubble__next {
   position: absolute;

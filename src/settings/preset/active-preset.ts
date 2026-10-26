@@ -77,10 +77,15 @@ export function readPresetThumbnail(id: string): string | undefined {
   return readPresetState()?.list.find((e) => e.id === id)?.thumbnail;
 }
 
+/** The preset a window shows: the bound one when bound, else the active one; an unlisted id is named by itself. */
+export function presetEntryFor(state: PresetState, boundId: string | null): PresetEntry {
+  const id = boundId ?? state.active;
+  return state.list.find((e) => e.id === id) ?? { id, name: id };
+}
+
 /** The name a window shows: the bound preset's when bound, else the active preset's. */
 export function presetNameFor(state: PresetState, boundId: string | null): string {
-  const id = boundId ?? state.active;
-  return state.list.find((e) => e.id === id)?.name ?? id;
+  return presetEntryFor(state, boundId).name;
 }
 
 /** The key `key` is stored under for this window's edited, bound or active preset. */

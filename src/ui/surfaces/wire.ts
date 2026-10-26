@@ -41,6 +41,7 @@ export function wireMessageSurfaces(deps: {
     tool: deps.tool,
     keepBubbleUntilDismissed: () => deps.bubblePersistSettings.get().enabled,
     onPop: isTauri() ? () => deps.messageWindowSettings.setMode("popped") : undefined,
+    namePlate: true,
   });
   const messageBridge = createMessageBridge(undefined, { windowKind: "pet" });
   const remote = createRemoteSurfaces(messageBridge);

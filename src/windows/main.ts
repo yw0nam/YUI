@@ -23,6 +23,7 @@ import { wireSettingsReload } from "../app/cross-window/wire-window-sync";
 import { wireCspViolationLog } from "../app/csp-violation";
 import { wireDevGlobals } from "../app/dev/wire-dev-globals";
 import { createDisposers } from "../app/disposers";
+import { wirePlateName } from "../app/message/wire-plate-name";
 import { createPetWindowRole } from "../app/pet-windows/pet-window-role";
 import { createWindowStores } from "../app/settings/window-stores";
 import { wireAvatarSelection } from "../app/settings/wire-avatar";
@@ -154,6 +155,9 @@ async function bootstrap(): Promise<BootstrapHandle> {
     messageWindowSettings: settingsStores.messageWindowSettings,
     register,
   });
+  if (local.plate) {
+    register(wirePlateName({ registry: presetRegistry, plate: local.plate, boundId }));
+  }
   register(
     wireInputAnchor({
       renderer,

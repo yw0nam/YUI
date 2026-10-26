@@ -21,6 +21,7 @@ import type { SentenceStart } from "../../io/voice/tts/tts-pipeline";
 import type { ToolStatus } from "../chips/status-pill";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { createTextInput } from "../input/text-input";
+import { createMessagePlate, type MessagePlate } from "../message/message-plate";
 import { createReasoningDisclosure, type ReasoningSource } from "../message/reasoning-disclosure";
 import { createSignalSourceLines } from "../message/signal-source-lines";
 import { createSpeechBubble } from "../message/speech-bubble";
@@ -35,6 +36,8 @@ export interface Surfaces {
   readonly el: HTMLElement;
   /** Where the chips beside the avatar mount, signal chips first and the delegation chip after. */
   readonly chipColumn: HTMLElement;
+  /** The name plate on the bubble's edge, when the surfaces were asked for one. */
+  readonly plate?: MessagePlate;
 
   // ── speech bubble (output) ──
   /** Reveal the bubble (empty) + caret ON. Called before streaming starts; a paced line types each sentence as its audio starts. */
@@ -116,6 +119,8 @@ interface SurfacesOptions {
   onInputOpenChange?: (open: boolean) => void;
   /** The backend's reasoning, folded at the top of the bubble under the quoted line. */
   reasoning?: ReasoningSource;
+  /** Mounts a name plate on the bubble's edge: responding while speech streams, thinking while busy. */
+  namePlate?: boolean;
 }
 
 export function createSurfaces({
@@ -126,6 +131,7 @@ export function createSurfaces({
   onPop,
   onInputOpenChange,
   reasoning,
+  namePlate,
 }: SurfacesOptions): Surfaces {
   const el = document.createElement("div");
   el.className = "yui-ui";
@@ -181,6 +187,7 @@ export function createSurfaces({
 
   const chipColumn = el.querySelector<HTMLDivElement>(".yui-chip-column")!;
   const bubbleEl = el.querySelector<HTMLDivElement>(".yui-bubble")!;
+  const bubbleFrame = el.querySelector<HTMLDivElement>(".yui-bubble__frame")!;
   const bubbleBox = el.querySelector<HTMLDivElement>(".yui-bubble__box")!;
   const bubbleNext = el.querySelector<HTMLSpanElement>(".yui-bubble__next")!;
   const bubbleQuote = el.querySelector<HTMLDivElement>(".yui-bubble__quote")!;
@@ -226,6 +233,8 @@ export function createSurfaces({
     onInputOpenChange,
   );
 
+  const plate = namePlate ? createMessagePlate({ mount: bubbleFrame }) : undefined;
+
   const popButtons = [bubblePop, inputPop];
   for (const button of popButtons) button.hidden = onPop === undefined;
 
@@ -246,6 +255,7 @@ export function createSurfaces({
     unsubscribeLocale();
     for (const button of popButtons) button.removeEventListener("click", onPopClick);
     think?.dispose();
+    plate?.dispose();
     quote.dispose();
     bubble.dispose();
     input.dispose();
@@ -255,12 +265,22 @@ export function createSurfaces({
   return {
     el,
     chipColumn,
-    beginSpeech: (_identity, opts) => bubble.beginSpeech(opts),
+    plate,
+    beginSpeech(_identity, opts) {
+      plate?.setLive(true);
+      bubble.beginSpeech(opts);
+    },
     pushSpeech: bubble.pushSpeech,
     paceSpeech: bubble.paceSpeech,
-    endSpeech: bubble.endSpeech,
+    endSpeech(opts) {
+      plate?.setLive(false);
+      bubble.endSpeech(opts);
+    },
     finishSpeech: bubble.finishSpeech,
-    hideSpeech: bubble.hideSpeech,
+    hideSpeech() {
+      plate?.setLive(false);
+      bubble.hideSpeech();
+    },
     showSpeechAction: bubble.showSpeechAction,
     quoteUser: quote.show,
     quoteSignals: sources.show,
@@ -274,7 +294,10 @@ export function createSurfaces({
     isInputOpen: input.isInputOpen,
     onSubmit: input.onSubmit,
     onStop: input.onStop,
-    setBusy: input.setBusy,
+    setBusy(busy) {
+      plate?.setBusy(busy);
+      input.setBusy(busy);
+    },
     showInputError: input.showInputError,
     setAttachmentLimits: input.setAttachmentLimits,
     restoreInput: input.restoreInput,
