@@ -21,7 +21,7 @@ import type { SentenceStart } from "../../io/voice/tts/tts-pipeline";
 import type { ToolStatus } from "../chips/status-pill";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { createTextInput } from "../input/text-input";
-import { type Backlog, type BacklogSource, createBacklog } from "../message/backlog";
+import { type BacklogSource, createBacklog } from "../message/backlog";
 import { createMessagePlate, type MessagePlate } from "../message/message-plate";
 import { withPlateState } from "../message/plate-state";
 import { createReasoningDisclosure, type ReasoningSource } from "../message/reasoning-disclosure";
@@ -212,7 +212,6 @@ export function createSurfaces({
   const picker = el.querySelector<HTMLInputElement>(".yui-input__picker")!;
   const sendBtn = el.querySelector<HTMLButtonElement>(".yui-input__send")!;
 
-  let backlog: Backlog | undefined;
   const bubble = createSpeechBubble(
     {
       root: el,
@@ -225,11 +224,9 @@ export function createSurfaces({
       bubbleSr,
       bubbleClose,
     },
-    dwellMs,
-    keepBubbleUntilDismissed,
-    () => backlog?.close(),
+    { dwellMs, keepUntilDismissed: keepBubbleUntilDismissed },
   );
-  backlog = backlogSource && createBacklog({ mount: bubbleFrame, ...backlogSource, bubble });
+  const backlog = backlogSource && createBacklog({ mount: bubbleFrame, ...backlogSource, bubble });
   // A reasoning cycle's first delta shows the bubble and holds off its fade until the cycle ends; the end hands
   // a bubble with no speech in flight to the dwell, or hides it when nothing is left to show.
   const think = reasoning
@@ -276,20 +273,14 @@ export function createSurfaces({
   const surfaces: Surfaces = {
     el,
     chipColumn,
-    beginSpeech(_identity, opts) {
-      backlog?.refresh();
-      bubble.beginSpeech(opts);
-    },
+    beginSpeech: (_identity, opts) => bubble.beginSpeech(opts),
     pushSpeech: bubble.pushSpeech,
     paceSpeech: bubble.paceSpeech,
     endSpeech: bubble.endSpeech,
     finishSpeech: bubble.finishSpeech,
     hideSpeech: bubble.hideSpeech,
     showSpeechAction: bubble.showSpeechAction,
-    quoteUser(q) {
-      backlog?.refresh();
-      quote.show(q);
-    },
+    quoteUser: quote.show,
     quoteSignals: sources.show,
     settleQuote: quote.settle,
     clearQuote: quote.clear,

@@ -43,6 +43,8 @@ export interface SpeechBubble {
   holdForTurn(on: boolean): void;
   /** While on (the backlog shows), no dwell is armed; turning it off settles the bubble into its dwell. A hide turns it off. */
   keepOpen(on: boolean): void;
+  /** Calls back true when a line begins or other content shows, false on every hide; returns the unsubscribe. */
+  onShown(listener: (shown: boolean) => void): () => void;
   /** Lift the bubble above the input by totalOffsetPx (input bottom + input height + gap). */
   liftAboveInput(totalOffsetPx: number): void;
   /** Restore the bubble's default (input-closed) position. */
@@ -75,6 +77,13 @@ const SPEECH_RENDER_INTERVAL_MS = 50;
 // If the user is within this many px of the bottom, treat as pinned for auto-scroll.
 const SCROLL_PIN_SLACK_PX = 8;
 
+interface SpeechBubbleOptions {
+  /** dwell (config value) override. Default = --yui-dwell token. */
+  dwellMs?: number;
+  /** When it returns true, speech never auto-fades — the bubble holds until dismissed or replaced. */
+  keepUntilDismissed?: () => boolean;
+}
+
 export function createSpeechBubble(
   {
     root,
@@ -87,11 +96,7 @@ export function createSpeechBubble(
     bubbleSr,
     bubbleClose,
   }: SpeechBubbleElements,
-  dwellMs?: number,
-  /** When it returns true, speech never auto-fades — the bubble holds until dismissed or replaced. */
-  keepUntilDismissed?: () => boolean,
-  /** Called on every hide, whatever hid the bubble. */
-  onHide?: () => void,
+  { dwellMs, keepUntilDismissed }: SpeechBubbleOptions = {},
 ): SpeechBubble {
   const dwell = dwellMs ?? readDwellToken(root) ?? DEFAULT_DWELL;
   const holdOpen = (): boolean => keepUntilDismissed?.() ?? false;
@@ -115,6 +120,10 @@ export function createSpeechBubble(
   let turnHeld = false;
   // Whether the backlog shows — the bubble arms no dwell meanwhile.
   let keptOpen = false;
+  const shownListeners = new Set<(shown: boolean) => void>();
+  const notifyShown = (shown: boolean): void => {
+    for (const listener of shownListeners) listener(shown);
+  };
   let cancelFade: (() => void) | null = null;
   let showFrame: number | null = null;
   // The current speech action's click — nulled with the slot so a stale button click does nothing.
@@ -235,6 +244,7 @@ export function createSpeechBubble(
     bubbleEl.hidden = false;
     bubbleEl.classList.add("is-streaming", "is-typing");
     showNextFrame();
+    notifyShown(true);
   }
 
   function reveal(opts?: { clearSpeech?: boolean }): void {
@@ -254,6 +264,7 @@ export function createSpeechBubble(
     if (!turnHeld) bubbleQuote.hidden = true;
     bubbleEl.hidden = false;
     showNextFrame();
+    notifyShown(true);
   }
 
   function release(hasContent: boolean): void {
@@ -338,7 +349,7 @@ export function createSpeechBubble(
     deferred = false;
     turnHeld = false;
     keptOpen = false;
-    onHide?.();
+    notifyShown(false);
     stopTyping();
     lastRenderAt = Number.NEGATIVE_INFINITY;
     cancelShowFrame();
@@ -475,6 +486,10 @@ export function createSpeechBubble(
     measure,
     holdForTurn,
     keepOpen,
+    onShown(listener) {
+      shownListeners.add(listener);
+      return () => shownListeners.delete(listener);
+    },
     liftAboveInput,
     resetPosition,
     dispose,

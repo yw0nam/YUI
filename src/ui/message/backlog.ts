@@ -14,14 +14,11 @@ export interface BacklogSource {
 interface BacklogOptions extends BacklogSource {
   /** The box's frame: the panel opens above it and the toggle rides its bottom edge. */
   mount: HTMLElement;
-  /** Held open while the backlog shows. */
-  bubble: Pick<SpeechBubble, "keepOpen">;
+  /** Held open while the backlog shows; each show re-checks the toggle and each hide closes the backlog. */
+  bubble: Pick<SpeechBubble, "keepOpen" | "onShown">;
 }
 
 export interface Backlog {
-  /** Shows the toggle only while the session has lines. */
-  refresh(): void;
-  close(): void;
   dispose(): void;
 }
 
@@ -71,18 +68,18 @@ export function createBacklog({ mount, read, characterName, bubble }: BacklogOpt
 
   const onToggle = (): void => setOpen(!isOpen);
   toggle.addEventListener("click", onToggle);
+  // The toggle shows only while the session has lines.
+  const unsubscribeBubble = bubble.onShown((shown) => {
+    if (shown) toggle.hidden = read().length === 0;
+    else setOpen(false);
+  });
   // Surfaces aren't remounted on locale change, so the labels are (re)applied here.
   applyLabels();
   const unsubscribeLocale = subscribeLocale(applyLabels);
 
   return {
-    refresh() {
-      toggle.hidden = read().length === 0;
-    },
-    close() {
-      setOpen(false);
-    },
     dispose() {
+      unsubscribeBubble();
       unsubscribeLocale();
       toggle.removeEventListener("click", onToggle);
       panel.remove();

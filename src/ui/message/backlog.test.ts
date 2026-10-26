@@ -10,13 +10,20 @@ function setup(read: () => ChatHistoryEntry[]) {
   const bubble = document.createElement("div");
   const frame = document.createElement("div");
   bubble.append(frame);
-  const backlog = createBacklog({
+  let shown: (shown: boolean) => void = () => {};
+  createBacklog({
     mount: frame,
     read,
     characterName: () => "Perlica",
-    bubble: { keepOpen: vi.fn() },
+    bubble: {
+      keepOpen: vi.fn(),
+      onShown: (listener) => {
+        shown = listener;
+        return () => {};
+      },
+    },
   });
-  backlog.refresh();
+  shown(true);
   const toggle = bubble.querySelector<HTMLButtonElement>(".yui-bubble__backlog-toggle")!;
   const panel = bubble.querySelector<HTMLElement>(".yui-bubble__backlog")!;
   const rows = () =>
