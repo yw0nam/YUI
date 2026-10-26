@@ -1,6 +1,7 @@
 /**
  * Settings search: the field over the rail. A row matches when every whitespace-separated term of
- * the query, case-folded, is in its label and sub-line as rendered. While a query is set each rail
+ * the query, case-folded, is in its shown label and sub-line; a section head is a row of its title,
+ * its switch, its button and the note under it. While a query is set each rail
  * item shows its page's match count, a page with none dims, and matching rows carry `.is-match`.
  * Escape on a set query or an empty field restores everything.
  */
@@ -8,9 +9,9 @@
 import "./settings-search.css";
 import { t } from "../../i18n";
 
-const ROWS = ".yui-row, .yui-stack, .yui-gain";
+const ROWS = ".yui-row, .yui-stack, .yui-gain, .yui-sec__head";
 const TEXTS =
-  ".yui-row__label, .yui-input-row__label, .yui-gain__label, .yui-row__sub, .yui-input-row__sub, .yui-gain__sub";
+  ".yui-row__label, .yui-input-row__label, .yui-gain__label, .yui-row__sub, .yui-input-row__sub, .yui-gain__sub, .yui-sec__title, .yui-sec__head .yui-link-btn";
 
 export function settingsSearchHtml(): string {
   return `<input class="yui-search__input" type="search" placeholder="${t("search.placeholder")}" aria-label="${t("search.placeholder")}" autocomplete="off" spellcheck="false" />`;
@@ -24,12 +25,25 @@ export function bindSettingsSearch(root: HTMLElement): () => void {
     tab.insertAdjacentHTML("beforeend", `<span class="yui-tab__count" hidden></span>`);
   }
 
-  // Rows are read at query time, so lists that render after the panel opens are found too.
-  function rowText(row: Element): string {
-    return [...row.querySelectorAll(TEXTS)]
-      .map((el) => el.textContent ?? "")
-      .join(" ")
-      .toLocaleLowerCase();
+  // Inside the page: its own panel is hidden while another page shows, so it does not count.
+  const shown = (el: Element, panel: Element): boolean => {
+    const hidden = el.closest("[hidden]");
+    return !hidden || hidden === panel;
+  };
+
+  // Read at query time, so lists that render after the panel opens are found too.
+  function rowText(row: Element, panel: Element): string {
+    const note = row.matches(".yui-sec__head") ? row.nextElementSibling : null;
+    const parts = [
+      ...[...row.querySelectorAll(TEXTS)]
+        .filter((el) => shown(el, panel))
+        .map((el) => el.textContent),
+      ...[...row.querySelectorAll(".yui-sec__head [role=switch]")].map((el) =>
+        el.getAttribute("aria-label"),
+      ),
+      note?.matches(".yui-sec__note") && shown(note, panel) ? note.textContent : "",
+    ];
+    return parts.join(" ").toLocaleLowerCase();
   }
 
   function apply(): void {
@@ -44,7 +58,7 @@ export function bindSettingsSearch(root: HTMLElement): () => void {
         continue;
       }
       const matches = [...panel.querySelectorAll(ROWS)].filter((row) => {
-        const text = rowText(row);
+        const text = rowText(row, panel);
         return text !== "" && terms.every((term) => text.includes(term));
       });
       for (const row of matches) row.classList.add("is-match");
