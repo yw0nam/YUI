@@ -393,6 +393,7 @@ YUI/
             overheard-store.ts         # Per other preset, the cursor up to which this window has heard its transcript
           session-store.ts             # Holds the last Responses response.id for conversation continuation
           session-diagnostics.ts       # Used tokens and context window for the settings window
+          reset-conversation.ts        # Start fresh: the one conversation reset the History page and the quick card call
         record/                        # The turn-record JSONL log
           turn-record-log.ts           # Appends one JSONL record per completed turn or skipped fire
       browser/                         # The browser tool's adapter to the Rust relay
@@ -645,7 +646,6 @@ YUI/
             view.ts                  # What the two read: this preset's relations as stored now, a target's name, and the rated targets' order
         history/                     # History page and its session accordion section
           history-tab.ts             # The History page's session list, with its start-fresh row
-          reset-conversation.ts      # Start fresh: the one conversation reset the History page and the quick card call
           history-section.ts         # History page session accordion over the persisted transcript and the signal records
           history-rows.ts            # Merges a session's chat entries with the signal records of the turns that ran in it
           history-section.css        # Session history accordion styles

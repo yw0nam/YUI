@@ -1,6 +1,7 @@
 /** The quick card's ports over this pet window's stores: what each tile, select and action reads and writes. */
 
 import type { ConfigStore } from "../../config/store";
+import { resetConversation } from "../../io/chat/conversation/reset-conversation";
 import type { PushSocket } from "../../io/chat/push/push-socket";
 import { createLogger } from "../../logger";
 import { effectiveChatApi } from "../../settings/backend/endpoints-settings";
@@ -10,7 +11,6 @@ import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import type { SettingsStores } from "../../settings/settings-stores";
 import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
 import type { createQuickCard, PickerPort } from "../../ui/quick-card/quick-card";
-import { resetConversation } from "../../ui/quick-controls/history/reset-conversation";
 import { createSwitchRows } from "../../ui/quick-controls/switch-row";
 import { quickControlsConfigDefaults } from "../settings/config-defaults";
 import type { ConversationStores } from "../settings/conversation-stores";

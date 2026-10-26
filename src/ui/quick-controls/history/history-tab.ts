@@ -5,12 +5,12 @@
 import type { createChatHistoryStore } from "../../../io/chat/conversation/chat-history-store";
 import type { createSessionDiagnosticsStore } from "../../../io/chat/conversation/session-diagnostics";
 import type { createSessionStore } from "../../../io/chat/conversation/session-store";
+import { resetConversation } from "../../../io/chat/conversation/reset-conversation";
 import type { createSignalHistoryStore } from "../../../io/chat/conversation/signal-history-store";
 import type { Logger } from "../../../logger";
 import { t } from "../../i18n";
 import type { PushSocketPanelPort } from "../connection/connection-tab";
 import { createHistorySection } from "./history-section";
-import { resetConversation } from "./reset-conversation";
 
 export interface HistoryTab {
   el: HTMLElement;

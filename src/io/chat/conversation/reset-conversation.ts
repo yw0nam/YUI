@@ -1,9 +1,9 @@
 /** Start fresh — the one path the History page and the quick card reset the conversation by. */
 
-import type { createChatHistoryStore } from "../../../io/chat/conversation/chat-history-store";
-import type { createSessionDiagnosticsStore } from "../../../io/chat/conversation/session-diagnostics";
-import type { createSessionStore } from "../../../io/chat/conversation/session-store";
 import type { Logger } from "../../../logger";
+import type { createChatHistoryStore } from "./chat-history-store";
+import type { createSessionDiagnosticsStore } from "./session-diagnostics";
+import type { createSessionStore } from "./session-store";
 
 /**
  * Closes the running conversation: the id pointer and diagnostics reset, the transcript keeps
