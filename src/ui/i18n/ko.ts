@@ -153,6 +153,7 @@ const ko: Record<string, string> = {
   "tabs.motion": "동작과 데스크톱",
   "rail.group_character": "이 캐릭터",
   "rail.group_app": "모든 캐릭터",
+  "search.placeholder": "설정 검색",
   "scope.only": "{name}만",
   "scope.every": "모든 캐릭터",
 

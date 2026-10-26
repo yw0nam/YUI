@@ -27,6 +27,7 @@ import {
 } from "./constants";
 import { escapeAttr, keyRowHtml, numRowHtml, secHeadHtml } from "./markup";
 import { presetStripHtml } from "./preset/preset-strip";
+import { settingsSearchHtml } from "./search/settings-search";
 import { browserSectionHtml } from "./sections/browser/browser-section";
 import { cardSectionHtml } from "./sections/card/card-section";
 import { helpSectionHtml } from "./sections/help/help-section";
@@ -309,7 +310,9 @@ ${proactiveCaps.map(capRowHtml).join("")}
   return `
     ${headerHtml}${showPreset ? presetStripHtml() : ""}
     <div class="yui-quick__cols">
+      <div class="yui-rail">${settingsSearchHtml()}
       <div class="yui-tabs" role="tablist" aria-label="${t("panel.tablist_label")}" aria-orientation="vertical">${groupHtml("character")}${tabHtml("conn", TAB_ICON_CONN)}${tabHtml("voice", TAB_ICON_VOICE)}${tabHtml("persona", TAB_ICON_PERSONA)}${tabHtml("body", TAB_ICON_BODY)}${showHistory ? tabHtml("hist", TAB_ICON_HIST) : ""}${groupHtml("app")}${tabHtml("together", TAB_ICON_TOGETHER)}${tabHtml("listening", TAB_ICON_LISTENING)}${tabHtml("perms", TAB_ICON_PERMS)}${tabHtml("react", TAB_ICON_REACT, { tipKey: "tabs.react_hint" })}${tabHtml("motion", TAB_ICON_MOTION)}${tabHtml("general", TAB_ICON_GENERAL)}
+      </div>
       </div>
       <div class="yui-quick__body">
 ${panelOpenHtml("conn")}

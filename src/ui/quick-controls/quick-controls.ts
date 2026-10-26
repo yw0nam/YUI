@@ -77,6 +77,7 @@ import { createHintTooltip } from "./hint-tooltip";
 import { createHistoryTab } from "./history/history-tab";
 import { createPopover } from "./popover";
 import { createPresetStrip } from "./preset/preset-strip";
+import { bindSettingsSearch } from "./search/settings-search";
 import { createAgentSection, effortSectionHtml } from "./sections/agent/agent-section";
 import { createBrowserSection } from "./sections/browser/browser-section";
 import { createCardSection } from "./sections/card/card-section";
@@ -759,6 +760,7 @@ export function createQuickControls({
   });
 
   const unbindTransportLinks = bindTransportLinks(el, (id) => tabRail.select(id));
+  const unbindSearch = bindSettingsSearch(el);
 
   function openPanel(anchor?: { x: number; y: number }, opts?: { tab?: QuickControlsTab }): void {
     if (!visibleViewport) {
@@ -842,6 +844,7 @@ export function createQuickControls({
     popover.dispose();
     tabRail.dispose();
     unbindTransportLinks();
+    unbindSearch();
     presetStrip?.dispose();
     characters?.dispose();
     el.remove();

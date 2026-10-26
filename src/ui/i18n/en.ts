@@ -153,6 +153,7 @@ const en: Record<string, string> = {
   "tabs.motion": "Motion and desktop",
   "rail.group_character": "This character",
   "rail.group_app": "Every character",
+  "search.placeholder": "Search settings",
   "scope.only": "Only {name}",
   "scope.every": "Every character",
 

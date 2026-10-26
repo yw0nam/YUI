@@ -154,6 +154,7 @@ const ja: Record<string, string> = {
   "tabs.motion": "動きとデスクトップ",
   "rail.group_character": "このキャラクター",
   "rail.group_app": "すべてのキャラクター",
+  "search.placeholder": "設定を検索",
   "scope.only": "{name}だけ",
   "scope.every": "すべてのキャラクター",
 
