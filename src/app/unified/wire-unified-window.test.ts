@@ -1,79 +1,57 @@
 import { describe, expect, it, vi } from "vitest";
 import { wireUnifiedWindow } from "./wire-unified-window";
 
-function setup(initial: { enabled: boolean; open: string[] }) {
-  const state = { ...initial };
-  const switchListeners = new Set<(s: { enabled: boolean }) => void>();
-  const windowListeners = new Set<() => void>();
+function setup(initial: boolean) {
+  let value = initial;
+  const listeners = new Set<(shown: boolean) => void>();
   const win = { open: vi.fn(), close: vi.fn() };
   const dispose = wireUnifiedWindow({
-    switch: {
-      get: () => ({ enabled: state.enabled }),
+    shown: {
+      get: () => value,
       subscribe: (cb) => {
-        switchListeners.add(cb);
-        return () => switchListeners.delete(cb);
+        listeners.add(cb);
+        return () => listeners.delete(cb);
       },
-    },
-    openPresetIds: () => state.open,
-    onPetWindowsChanged: (cb) => {
-      windowListeners.add(cb);
-      return () => windowListeners.delete(cb);
     },
     window: win,
   });
   return {
     win,
     dispose,
-    flip: (enabled: boolean) => {
-      state.enabled = enabled;
-      for (const cb of switchListeners) cb({ enabled });
+    set: (next: boolean) => {
+      value = next;
+      for (const cb of listeners) cb(next);
     },
-    setOpen: (open: string[]) => {
-      state.open = open;
-      for (const cb of windowListeners) cb();
-    },
-    listeners: () => switchListeners.size + windowListeners.size,
+    listeners: () => listeners.size,
   };
 }
 
 describe("wireUnifiedWindow", () => {
-  it("opens when the switch turns on with two presets open", () => {
-    const s = setup({ enabled: false, open: ["a", "b"] });
+  it("opens when the window becomes shown", () => {
+    const s = setup(false);
     expect(s.win.open).not.toHaveBeenCalled();
 
-    s.flip(true);
+    s.set(true);
 
     expect(s.win.open).toHaveBeenCalledOnce();
   });
 
-  it("opens when a second preset opens while the switch is on", () => {
-    const s = setup({ enabled: true, open: ["a"] });
-    expect(s.win.open).not.toHaveBeenCalled();
-
-    s.setOpen(["a", "b"]);
+  it("opens at once when it is shown from the start", () => {
+    const s = setup(true);
 
     expect(s.win.open).toHaveBeenCalledOnce();
   });
 
-  it("closes when one preset is left", () => {
-    const s = setup({ enabled: true, open: ["a", "b"] });
-    expect(s.win.open).toHaveBeenCalledOnce();
+  it("closes when it stops being shown", () => {
+    const s = setup(true);
 
-    s.setOpen(["a"]);
+    s.set(false);
 
     expect(s.win.close).toHaveBeenCalled();
   });
 
-  it("closes when the switch turns off", () => {
-    const s = setup({ enabled: true, open: ["a", "b"] });
-
-    s.flip(false);
-
-    expect(s.win.close).toHaveBeenCalled();
-  });
-
-  it("stops following both sources once disposed", () => {
-    const s = setup({ enabled: false, open: ["a", "b"] });
+  it("stops following the predicate once disposed", () => {
+    const s = setup(false);
 
     s.dispose();
 
