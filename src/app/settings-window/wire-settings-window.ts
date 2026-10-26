@@ -18,6 +18,7 @@ import { closeSettingsWindow, titleSettingsWindow } from "../../io/window/opener
 import { createLogger } from "../../logger";
 import { presetIdForWindow } from "../../settings/preset/active-preset";
 import { readBoundPresetId } from "../../settings/preset/bound-preset";
+import { readOpenPresetIds } from "../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import { isTauri } from "../../tauri-env";
 import { createVoiceInputStatus } from "../../ui/chips/voice-input-status";
@@ -35,6 +36,7 @@ import { createEffectiveEndpoints, wireSpeakerSelection } from "../settings/wire
 import { wireCueLocaleSync } from "../settings/wire-cue-locale-sync";
 import { wirePresetSwitch } from "../settings/wire-preset";
 import { createSessionResetAnnouncer } from "../turn/session-reset-announcer";
+import { createUnifiedShown } from "../unified/unified-shown";
 import { editTargetUrl } from "./edit-target-url";
 import { wireVoiceMirror } from "./wire-voice-mirror";
 
@@ -204,6 +206,13 @@ export async function wireSettingsWindow(deps: {
     log,
   });
   broadcastSpeaker = broadcastSettings;
+  const unifiedShown = createUnifiedShown({
+    switch: unifiedChatSwitch,
+    openPresetIds: readOpenPresetIds,
+    onPetWindowsChanged: bridge.onPetWindowsChanged,
+    canOpen: isTauri,
+  });
+  register(unifiedShown.dispose);
   // The push socket lives in the pet window; this window mirrors it and asks it to reset.
   const pushSocket = createMirroredPushSocket({ bridge });
   // This window runs no turn: the preset's pet window stops its reply and greets when it hears the reset.
@@ -305,6 +314,7 @@ export async function wireSettingsWindow(deps: {
       relationsStore: conversationStores.relationsStore,
       relationsSwitch,
       unifiedChatSwitch,
+      unifiedShown,
       boundId,
       onEditTarget: (id) =>
         location.replace(editTargetUrl(location.href, id, boundId ?? presetRegistry.get().active)),

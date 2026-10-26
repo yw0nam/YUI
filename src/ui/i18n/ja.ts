@@ -457,6 +457,7 @@ const ja: Record<string, string> = {
   "message_window.label": "メッセージウィンドウを分離",
   "message_window.sub": "吹き出しと入力欄を自由に置ける別ウィンドウに移します",
   "message_window.aria": "メッセージウィンドウを分離",
+  "message_window.locked_unified": "統合チャットを表示している間はオフです",
 
   // history tab
   "history.current": "現在の会話",

@@ -22,13 +22,17 @@ export function switchRowHtml(row: SwitchRow): string {
           </div>`;
 }
 
-/** Set each visible, available row's switch from its store. */
+/** Set each visible, available row's switch from its store, and a locked row's switch off with its reason. */
 export function reflectSwitchRows(root: HTMLElement, rows: readonly SwitchRow[]): void {
   for (const row of rows) {
     if (!row.isVisible || !row.isAvailable) continue;
-    root
-      .querySelector<HTMLButtonElement>(row.selector)
-      ?.setAttribute("aria-checked", String(row.getEnabled()));
+    const button = root.querySelector<HTMLButtonElement>(row.selector);
+    button?.setAttribute("aria-checked", String(row.getEnabled()));
+    if (!button || !row.lock) continue;
+    const locked = row.lock.get();
+    button.disabled = locked;
+    const sub = button.closest(".yui-row")?.querySelector(".yui-row__sub");
+    if (sub) sub.textContent = locked ? t(row.lock.reasonKey) : row.subKey ? t(row.subKey) : "";
   }
 }
 
@@ -43,7 +47,7 @@ export function bindSwitchRows(
   isOpen?: () => boolean,
 ): { reflect(): void; dispose(): void } {
   const handleClick = (row: SwitchRow): void => {
-    if (!row.isAvailable) return;
+    if (!row.isAvailable || row.lock?.get()) return;
     const next = !row.getEnabled();
     row.setEnabled(next);
     if (row.logKey) log.info(row.logKey, { enabled: next });
@@ -56,13 +60,15 @@ export function bindSwitchRows(
   });
   const followed = isOpen
     ? rows.flatMap((row) =>
-        row.subscribe
-          ? [
-              row.subscribe(() => {
-                if (isOpen()) reflectSwitchRows(root, rows);
-              }),
-            ]
-          : [],
+        [row.subscribe, row.lock?.subscribe].flatMap((subscribe) =>
+          subscribe
+            ? [
+                subscribe(() => {
+                  if (isOpen()) reflectSwitchRows(root, rows);
+                }),
+              ]
+            : [],
+        ),
       )
     : [];
   return {

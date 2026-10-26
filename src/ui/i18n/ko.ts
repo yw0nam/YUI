@@ -454,6 +454,7 @@ const ko: Record<string, string> = {
   "message_window.label": "메시지 창 분리",
   "message_window.sub": "말풍선과 입력창을 원하는 자리에 두는 창으로 옮깁니다",
   "message_window.aria": "메시지 창 분리",
+  "message_window.locked_unified": "통합 채팅창이 떠 있는 동안은 꺼져 있어요",
 
   // history tab
   "history.current": "현재 대화",

@@ -265,6 +265,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     openSettings,
     onGuide: help.ask,
     openDevtools,
+    unifiedShown,
     register,
   });
 

@@ -455,6 +455,7 @@ const en: Record<string, string> = {
   "message_window.label": "Separate message window",
   "message_window.sub": "Speech and typing live in a window you can drag anywhere",
   "message_window.aria": "Separate message window",
+  "message_window.locked_unified": "Off while the unified chat window shows",
 
   // history tab
   "history.current": "Current conversation",
