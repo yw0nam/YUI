@@ -71,7 +71,7 @@ describe("openSettingsWindow", () => {
     const globals = globalThis as { __TAURI_INTERNALS__?: unknown };
     globals.__TAURI_INTERNALS__ = {};
     try {
-      createSettingsWindowOpener()();
+      createSettingsWindowOpener(undefined, vi.fn())();
       await vi.waitFor(() => expect(WebviewWindow).toHaveBeenCalledOnce());
       expect(WebviewWindow).toHaveBeenCalledWith(
         "settings",
@@ -86,7 +86,7 @@ describe("openSettingsWindow", () => {
     const globals = globalThis as { __TAURI_INTERNALS__?: unknown };
     globals.__TAURI_INTERNALS__ = {};
     try {
-      createSettingsWindowOpener()();
+      createSettingsWindowOpener(undefined, vi.fn())();
       await vi.waitFor(() => expect(WebviewWindow).toHaveBeenCalledOnce());
       const win = vi.mocked(WebviewWindow).mock.instances[0] as unknown as {
         once: ReturnType<typeof vi.fn>;
@@ -105,7 +105,7 @@ describe("openSettingsWindow", () => {
   it("creates and reuses the bound settings singleton", async () => {
     vi.stubGlobal("__TAURI_INTERNALS__", {});
     try {
-      createSettingsWindowOpener("a")();
+      createSettingsWindowOpener("a", vi.fn())();
       await vi.waitFor(() =>
         expect(WebviewWindow).toHaveBeenCalledWith(
           "settings-a",
@@ -115,12 +115,73 @@ describe("openSettingsWindow", () => {
       const show = vi.fn(async () => {}),
         setFocus = vi.fn(async () => {});
       WebviewWindow.getByLabel.mockResolvedValue({ show, setFocus } as never);
-      createSettingsWindowOpener("a")();
+      createSettingsWindowOpener("a", vi.fn())();
       await vi.waitFor(() => expect(setFocus).toHaveBeenCalledTimes(1));
       expect(WebviewWindow).toHaveBeenCalledTimes(1);
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// createSettingsWindowOpener — page request
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createSettingsWindowOpener page request", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    [undefined, "conn", "settings.html?page=conn"],
+    ["a", "hist", "settings.html?preset=a&page=hist"],
+    ["a", undefined, "settings.html?preset=a"],
+    [undefined, undefined, "settings.html"],
+  ] as const)("creates the Tauri window for %s on page %s at %s", async (boundId, page, url) => {
+    vi.stubGlobal("__TAURI_INTERNALS__", {});
+    const emit = vi.fn();
+
+    createSettingsWindowOpener(boundId, emit)(page);
+
+    await vi.waitFor(() =>
+      expect(WebviewWindow).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ url }),
+      ),
+    );
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [undefined, "general", "/settings.html?page=general"],
+    ["a", "conn", "/settings.html?preset=a&page=conn"],
+  ] as const)("opens the browser window for %s on page %s at %s", (boundId, page, url) => {
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+
+    createSettingsWindowOpener(boundId, vi.fn())(page);
+
+    expect(open).toHaveBeenCalledWith(url, expect.any(String), "width=760,height=680");
+  });
+
+  it.each([
+    [null, "conn", { preset: null, page: "conn" }],
+    ["a", "hist", { preset: "a", page: "hist" }],
+    ["a", undefined, { preset: "a" }],
+  ] as const)("an open window of %s is asked for page %s with %j after it is focused", async (boundId, page, request) => {
+    vi.stubGlobal("__TAURI_INTERNALS__", {});
+    const order: string[] = [];
+    const show = vi.fn(async () => void order.push("show"));
+    const setFocus = vi.fn(async () => void order.push("focus"));
+    WebviewWindow.getByLabel.mockResolvedValue({ show, setFocus } as never);
+    const emit = vi.fn(() => void order.push("emit"));
+
+    createSettingsWindowOpener(boundId, emit)(page);
+
+    await vi.waitFor(() => expect(emit).toHaveBeenCalledExactlyOnceWith(request));
+    expect(order).toEqual(["show", "focus", "emit"]);
+    expect(WebviewWindow).not.toHaveBeenCalled();
   });
 });
 

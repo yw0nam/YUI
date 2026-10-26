@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { readBoundPresetId, readEditPresetId } from "./bound-preset";
+import { readBoundPresetId, readEditPresetId, readSettingsPage } from "./bound-preset";
 
 it.each([
   ["?preset=3f9a1c2e", "3f9a1c2e"],
@@ -16,4 +16,14 @@ it.each([
   ["?preset=a", null],
 ])("reads the edit target of %s", (search, id) => {
   expect(readEditPresetId(search)).toBe(id);
+});
+
+it.each([
+  ["?page=conn", "conn"],
+  ["?preset=a&page=general", "general"],
+  ["?page=nope", null],
+  ["?page=", null],
+  ["", null],
+])("reads the settings page of %s", (search, page) => {
+  expect(readSettingsPage(search)).toBe(page);
 });

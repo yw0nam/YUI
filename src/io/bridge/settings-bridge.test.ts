@@ -306,6 +306,7 @@ describe("createSettingsBridge", () => {
     ["onStopTurns", undefined, false],
     ["onSpeechStreamControl", { preset: "p2", op: { op: "input-error-action" } }, false],
     ["onUserTurnDone", { sendId: "s1", preset: "p2" }, false],
+    ["onSettingsPage", { preset: "p2", page: "conn" }, false],
   ] as const)("%s uses its declared preset scope", (method, payload, scoped) => {
     history.replaceState(null, "", "/?preset=a");
     const t = createFakeTransport();
@@ -400,6 +401,36 @@ describe("createSettingsBridge", () => {
     b.onUserTurnRouted(cb);
 
     a.emitUserTurnRouted(payload as never);
+
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("delivers a settings page request from a pet window to the settings window", () => {
+    const t = createFakeTransport();
+    const pet = createSettingsBridge(t, { windowKind: "pet" });
+    const settings = createSettingsBridge(t, { windowKind: "settings" });
+    const cb = vi.fn();
+    settings.onSettingsPage(cb);
+
+    pet.emitSettingsPage({ preset: "a", page: "hist" });
+    pet.emitSettingsPage({ preset: null });
+
+    expect(cb.mock.calls).toEqual([[{ preset: "a", page: "hist" }], [{ preset: null }]]);
+  });
+
+  it.each([
+    [{ preset: 3, page: "conn" }],
+    [{ preset: "a", page: "nope" }],
+    [{ page: "conn" }],
+    ["conn"],
+  ])("ignores a malformed settings page request %j", (payload) => {
+    const t = createFakeTransport();
+    const pet = createSettingsBridge(t, { windowKind: "pet" });
+    const settings = createSettingsBridge(t, { windowKind: "settings" });
+    const cb = vi.fn();
+    settings.onSettingsPage(cb);
+
+    pet.emitSettingsPage(payload as never);
 
     expect(cb).not.toHaveBeenCalled();
   });
