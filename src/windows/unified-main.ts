@@ -26,6 +26,7 @@ import {
 import { wireUnifiedClose } from "../app/unified/wire-unified-close";
 import { createSettingsBridge } from "../io/bridge/settings-bridge";
 import { readTranscriptAfterBoundary } from "../io/chat/conversation/chat-history-store";
+import { closeCurrentWindow, listenCurrentWindowCloseRequested } from "../io/window/current-window";
 import { MESSAGE_WINDOW_WIDTH } from "../io/window/openers/message-window";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
@@ -67,9 +68,7 @@ async function bootstrap(): Promise<void> {
     now: Date.now,
     randomId: () => crypto.randomUUID(),
     focusWindow,
-    closeWindow: () => {
-      if (isTauri()) void getCurrentWindow().close();
-    },
+    closeWindow: () => void closeCurrentWindow(),
     startDragging: () => void startDragging(),
   });
   view.onRoute((event) => settingsBridge.emitUserTurnRouted(event));
@@ -108,12 +107,17 @@ async function bootstrap(): Promise<void> {
   // A pet window answers with its character's name and turn state; a line already under way shows from its next line.
   settingsBridge.emitSpeechStreamAsk();
 
+  const unifiedChatSwitch = createUnifiedChatSwitch();
+  disposers.register(() => unifiedChatSwitch.dispose());
+  disposers.register(
+    await wireUnifiedClose({
+      listenCloseRequested: listenCurrentWindowCloseRequested,
+      switch: unifiedChatSwitch,
+      emitSettingsChanged: settingsBridge.emitSettingsChanged,
+    }),
+  );
+
   if (!isTauri()) return;
-  wireUnifiedClose({
-    onCloseRequested: (cb) => void getCurrentWindow().onCloseRequested(() => cb()),
-    switch: createUnifiedChatSwitch(),
-    emitSettingsChanged: settingsBridge.emitSettingsChanged,
-  });
   const windowSettings = createUnifiedWindowSettings();
   disposers.register(() => windowSettings.dispose());
   disposers.register(
