@@ -87,7 +87,10 @@ describe("speech-playback integration (real pipeline + real sink)", () => {
     });
 
     sp.onSpeech("Hello.", { turn_id: "7", event_name: "user.text_submitted" });
-    expect(surfaces.endSpeech).toHaveBeenCalledWith({ defer: true });
+    expect(surfaces.endSpeech).toHaveBeenCalledWith(
+      { defer: true },
+      { turn_id: "7", event_name: "user.text_submitted" },
+    );
     expect(surfaces.finishSpeech).not.toHaveBeenCalled();
 
     // Drain microtasks (synth resolve → pump → decodeAudioData → source.start)
@@ -191,7 +194,10 @@ describe("speech-playback integration (real pipeline + real sink)", () => {
     await tick();
 
     expect(synth).not.toHaveBeenCalled();
-    expect(surfaces.endSpeech).toHaveBeenCalledWith({ defer: true });
+    expect(surfaces.endSpeech).toHaveBeenCalledWith(
+      { defer: true },
+      { turn_id: "7", event_name: "user.text_submitted" },
+    );
     expect(surfaces.finishSpeech).toHaveBeenCalledTimes(1);
 
     sp.dispose();

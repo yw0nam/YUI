@@ -45,7 +45,7 @@ export function lineEl(row: Row, cast: readonly PresetEntry[], now: number): HTM
   const ago = document.createElement("time");
   ago.className = "yui-uc__ago";
   const ms = now - row.ts;
-  ago.textContent = ms < 60_000 ? t("unified.just_now") : ageText(ms);
+  ago.textContent = row.open || ms < 60_000 ? t("unified.just_now") : ageText(ms);
   li.append(who, say, ago);
   return li;
 }

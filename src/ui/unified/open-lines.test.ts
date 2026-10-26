@@ -52,7 +52,10 @@ describe("open reply lines", () => {
     expect(lines.expiresAt()).toBeUndefined();
   });
 
-  it.each(["7", "8"])("matches assistant records by preset and turn id %s", (turn_id) => {
+  it.each([
+    ["7", 0],
+    ["8", 1],
+  ] as const)("matches assistant records by preset and turn id %s", (turn_id, count) => {
     const { lines, transcripts } = setup();
     push(lines, transcripts);
     transcripts[1]!.entries.push({ role: "assistant", turn_id: "7", text: "Other preset", ts: 2 });
@@ -61,7 +64,7 @@ describe("open reply lines", () => {
     expect(lines.snapshot()).toHaveLength(1);
     transcripts[0]!.entries.push({ role: "assistant", turn_id, text: "Recorded", ts: 3 });
     lines.reconcile(transcripts, 3);
-    expect(lines.snapshot()).toHaveLength(turn_id === "7" ? 0 : 1);
+    expect(lines.snapshot()).toHaveLength(count);
   });
 
   it("replaces the preset's old line on a new begin and ignores stale pushes and ends", () => {

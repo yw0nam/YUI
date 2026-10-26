@@ -65,6 +65,11 @@ beforeEach(() => {
   vi.spyOn(console, "info").mockImplementation(() => {});
 });
 
+afterEach(() => {
+  view?.dispose();
+  vi.useRealTimers();
+});
+
 describe("unified view — the log", () => {
   it("lists both transcripts in time order with speaker, photo or dot, marker and age", () => {
     mount();
@@ -242,11 +247,11 @@ describe("unified view — running replies", () => {
     view.speechStream({ preset: "perlica", turn_id: "7", op: "begin" });
     expect(lines()).toHaveLength(4);
     view.speechStream({ preset: "perlica", turn_id: "7", op: "push", delta: "Hello" });
-    expect(lines().at(-1)?.querySelector(".yui-uc__say")?.textContent).toBe("HelloPending");
+    expect(lines().at(-1)?.querySelector(".yui-uc__say")?.textContent).toBe("Hellosending");
     expect(lines().at(-1)?.classList.contains("is-pending")).toBe(true);
     expect(lines().at(-1)?.querySelector("img")?.getAttribute("src")).toBe("asset://perlica.png");
     view.speechStream({ preset: "perlica", turn_id: "7", op: "push", delta: " there" });
-    expect(lines().at(-1)?.querySelector(".yui-uc__say")?.textContent).toBe("Hello therePending");
+    expect(lines().at(-1)?.querySelector(".yui-uc__say")?.textContent).toBe("Hello theresending");
     view.speechStream({ preset: "perlica", turn_id: "7", op: "end" });
     transcripts.perlica!.push({ role: "assistant", turn_id: "7", text: "Hello there", ts: T + 1 });
     view.refresh();

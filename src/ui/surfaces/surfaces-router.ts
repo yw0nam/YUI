@@ -1,13 +1,4 @@
-/**
- * One `Surfaces` over two destinations — the pet window's own surfaces and the
- * message window's, reached over the bridge.
- *
- * Every consumer keeps its single `Surfaces` handle: the router picks the side
- * the current mode names for the bubble and the input, and keeps tool status,
- * the feet anchor and the overlay element local, since those belong to the
- * character. Submit and stop callbacks are registered once here and fire
- * whichever side the user typed on.
- */
+/** Routes local or remote presentation and sends reply speech to the unified stream. */
 
 import type { RemoteSurfaces } from "../../io/bridge/message/message-remote";
 import type { MessageWindowMode } from "../../settings/panels/message-window-settings";

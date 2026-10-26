@@ -22,8 +22,12 @@ const mocks = vi.hoisted(() => {
   return {
     sink,
     fetchImpl,
-    createWebAudioSink: vi.fn(() => sink),
-    selectFetch: vi.fn(async () => fetchImpl),
+    createWebAudioSink: vi.fn<
+      typeof import("../../../io/voice/tts/audio-player").createWebAudioSink
+    >(() => sink),
+    selectFetch: vi.fn<typeof import("../../../io/chat/stream/chat-client").selectFetch>(
+      async () => fetchImpl as typeof globalThis.fetch,
+    ),
   };
 });
 
@@ -164,7 +168,7 @@ describe("speakFailure", () => {
     voice.speakFailure("network_stall");
     await vi.waitFor(() => expect(surfaces.finishSpeech).toHaveBeenCalled());
     expect(surfaces.beginSpeech).toHaveBeenCalled();
-    expect(surfaces.pushSpeech).toHaveBeenCalledWith(TIMEOUT_PHRASE);
+    expect(surfaces.pushSpeech).toHaveBeenCalledWith(TIMEOUT_PHRASE, undefined);
     expect(mocks.sink.play).not.toHaveBeenCalled();
   });
 });
