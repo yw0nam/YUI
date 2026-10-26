@@ -29,13 +29,21 @@ import { renderMarkdownInline } from "./markdown";
 const TOOLS_SELECTOR = ".yui-bubble.is-visible .yui-bubble__tools button";
 const BOX_SELECTOR = ".yui-bubble.is-visible .yui-bubble__box";
 const SPEECH_ACTION_SELECTOR = ".yui-bubble.is-visible .yui-bubble__speech-action button";
+const BACKLOG_TOGGLE_SELECTOR = ".yui-bubble.is-visible .yui-bubble__backlog-toggle";
+const BACKLOG_PANEL_SELECTOR = ".yui-bubble.is-visible .yui-bubble__backlog:not([hidden])";
 
-// The edge buttons, the box and the speech action button take OS pointer events; markdown links do not.
+// The edge buttons, the box, the speech action button and the backlog take OS pointer events; markdown links do not.
 describe("hit-test registration", () => {
-  it("lists the tools, the box and the speech action button, no per-link entries", () => {
+  it("lists the tools, the box, the speech action button and the backlog, no per-link entries", () => {
     expect(INTERACTIVE_OVERLAY_SELECTORS).toContain(TOOLS_SELECTOR);
     const bubbleEntries = INTERACTIVE_OVERLAY_SELECTORS.filter((s) => s.includes("yui-bubble"));
-    expect(bubbleEntries).toEqual([TOOLS_SELECTOR, BOX_SELECTOR, SPEECH_ACTION_SELECTOR]);
+    expect(bubbleEntries).toEqual([
+      TOOLS_SELECTOR,
+      BOX_SELECTOR,
+      SPEECH_ACTION_SELECTOR,
+      BACKLOG_TOGGLE_SELECTOR,
+      BACKLOG_PANEL_SELECTOR,
+    ]);
   });
 });
 
@@ -994,5 +1002,56 @@ describe("typing — speech types out", () => {
     s.beginSpeech();
     s.pushSpeech("Hello there");
     expect(text()).toBe("Hello there");
+  });
+});
+
+describe("backlog — holds the bubble while open", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+  const DWELL = 1000;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+    s = createSurfaces({
+      tool: noTool,
+      mount,
+      dwellMs: DWELL,
+      backlog: {
+        read: () => [{ role: "user", text: "Hi", ts: 1 }],
+        characterName: () => "Perlica",
+      },
+    });
+    s.beginSpeech();
+    s.pushSpeech("Hello!");
+    s.endSpeech();
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+    vi.useRealTimers();
+  });
+
+  const bubble = () => mount.querySelector<HTMLElement>(".yui-bubble")!;
+  const toggle = () => mount.querySelector<HTMLButtonElement>(".yui-bubble__backlog-toggle")!;
+  const panel = () => mount.querySelector<HTMLElement>(".yui-bubble__backlog")!;
+
+  it("takes no dwell while the backlog is open, and its dwell again once closed", () => {
+    toggle().click();
+    vi.advanceTimersByTime(DWELL * 3);
+    expect(bubble().classList.contains("is-visible")).toBe(true);
+
+    toggle().click();
+    vi.advanceTimersByTime(DWELL);
+    expect(bubble().classList.contains("is-visible")).toBe(false);
+  });
+
+  it("closes the backlog when the bubble hides", () => {
+    toggle().click();
+    s.hideSpeech();
+    expect(panel().hidden).toBe(true);
+    expect(toggle().getAttribute("aria-expanded")).toBe("false");
   });
 });
