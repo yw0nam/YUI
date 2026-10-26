@@ -22,6 +22,7 @@ import {
 import type { PresetRegistry } from "../../../../settings/preset/preset-registry";
 import type { createFillerSettings } from "../../../../settings/voice/filler-settings";
 import { getLocale, LOCALE_DISPLAY_NAMES, subscribe as subscribeLocale, t } from "../../../i18n";
+import { avatarEl } from "../../../unified/avatar";
 import { CARD_GUIDE_URL } from "../../constants";
 import { escapeAttr, secHeadHtml } from "../../markup";
 import { pushReasonHtml } from "../push-reason/push-reason";
@@ -80,7 +81,7 @@ export function cardSectionHtml(): string {
             </div>
           </div>
           <div class="yui-card-body">
-            <div class="yui-group"><div class="yui-card__namerow"><img class="yui-card-thumb" alt="" hidden />${inputRowHtml("yui-card-name", "card.name", 'data-card-field="name"')}</div>${stackHtml("description", "card.description", 4)}${stackHtml("personality", "card.personality", 2)}${stackHtml("scenario", "card.scenario", 2)}${stackHtml("first_mes", "card.greeting", 2)}
+            <div class="yui-group"><div class="yui-card__namerow"><span class="yui-card-thumb" hidden></span>${inputRowHtml("yui-card-name", "card.name", 'data-card-field="name"')}</div>${stackHtml("description", "card.description", 4)}${stackHtml("personality", "card.personality", 2)}${stackHtml("scenario", "card.scenario", 2)}${stackHtml("first_mes", "card.greeting", 2)}
               <div class="yui-row yui-row--action yui-card-add-row">
                 <button class="yui-add-btn yui-card-add" type="button">${PLUS_SVG}${t("card.greeting_add")}</button>
               </div>
@@ -173,9 +174,9 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
     const card = a.card ?? base();
     const own = a.card !== null;
     const shown = entry();
-    const thumb = q<HTMLImageElement>(".yui-card-thumb");
+    const thumb = q<HTMLElement>(".yui-card-thumb");
     thumb.hidden = !shown.thumbnail;
-    if (shown.thumbnail) thumb.src = shown.thumbnail;
+    if (shown.thumbnail) thumb.replaceChildren(avatarEl(shown, 36));
     switchBtn.setAttribute("aria-checked", String(a.send_card));
     // The user's Send card switch folds the body; on push the greetings stay reachable.
     const open = push || a.send_card;

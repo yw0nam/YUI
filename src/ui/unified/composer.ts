@@ -128,6 +128,7 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
     setTarget(entry) {
       target = entry;
       paint();
+      picker.refresh();
     },
     onSubmit: (cb) =>
       input.onSubmit((text) => {

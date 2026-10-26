@@ -19,6 +19,8 @@ const isTabPick = (e: KeyboardEvent): boolean =>
   e.key === "Tab" && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey;
 
 export interface MentionPicker {
+  /** Rebuilds the open list from the current cast, keeping the highlight; a closed list stays closed. */
+  refresh(): void;
   dispose(): void;
 }
 
@@ -45,6 +47,7 @@ export function createMentionPicker(deps: {
 
   let options: Array<{ id: string; el: HTMLElement }> = [];
   let active = -1;
+  let fragment = "";
 
   const isOpen = (): boolean => !list.hidden;
   const fragmentBeforeCaret = (): RegExpExecArray | null =>
@@ -65,7 +68,8 @@ export function createMentionPicker(deps: {
     field.setAttribute("aria-activedescendant", options[active]!.el.id);
   }
 
-  function open(fragment: string): void {
+  function open(next: string): void {
+    fragment = next;
     const prefix = fragment.toLowerCase();
     const matches = deps.cast().filter((e) => e.name.toLowerCase().startsWith(prefix));
     options = [];
@@ -112,7 +116,7 @@ export function createMentionPicker(deps: {
     onPick(id);
   }
 
-  function refresh(): void {
+  function onCaret(): void {
     const m = fragmentBeforeCaret();
     if (m) open(m[2]!);
     else close();
@@ -151,16 +155,22 @@ export function createMentionPicker(deps: {
 
   // Capture, registered before the text input's own handler, so a consumed Enter or Escape never reaches it.
   field.addEventListener("keydown", onKeydown, true);
-  field.addEventListener("input", refresh);
-  field.addEventListener("click", refresh);
+  field.addEventListener("input", onCaret);
+  field.addEventListener("click", onCaret);
   field.addEventListener("blur", close);
   list.addEventListener("mousedown", onListMousedown);
 
   return {
+    refresh() {
+      if (!isOpen()) return;
+      const keep = active;
+      open(fragment);
+      if (keep !== -1 && options.length > 0) activate(keep);
+    },
     dispose() {
       field.removeEventListener("keydown", onKeydown, true);
-      field.removeEventListener("input", refresh);
-      field.removeEventListener("click", refresh);
+      field.removeEventListener("input", onCaret);
+      field.removeEventListener("click", onCaret);
       field.removeEventListener("blur", close);
       list.remove();
     },

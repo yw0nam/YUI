@@ -5,6 +5,7 @@
  * id to `onEditTarget` instead. Also fills each page's scope line and the rail's character group heading.
  */
 
+import { avatarEl } from "../../unified/avatar";
 import "./preset.css";
 import type { Logger } from "../../../logger";
 import {
@@ -29,7 +30,7 @@ export function presetStripHtml(): string {
     <div class="yui-preset">
       <div class="yui-preset__row">
         <label class="yui-preset__label" for="yui-preset-select">${t("preset.label")}</label>
-        <img class="yui-preset__thumb" alt="" hidden />
+        <span class="yui-preset__thumb" hidden></span>
         <select class="yui-select yui-preset__select" id="yui-preset-select"></select>
         <button class="yui-iconbtn yui-preset__manage" type="button" aria-label="${t("preset.manage")}" data-tip="${t("preset.manage")}" aria-haspopup="dialog" aria-expanded="false">${DOTS_SVG}</button>
       </div>
@@ -88,7 +89,7 @@ export function createPresetStrip(deps: {
   const manageBtn = stripEl.querySelector<HTMLButtonElement>(".yui-preset__manage")!;
   const noteEl = stripEl.querySelector<HTMLParagraphElement>(".yui-preset__note")!;
   const stateEl = stripEl.querySelector<HTMLParagraphElement>(".yui-preset__state")!;
-  const thumbEl = stripEl.querySelector<HTMLImageElement>(".yui-preset__thumb")!;
+  const thumbEl = stripEl.querySelector<HTMLElement>(".yui-preset__thumb")!;
   // The settings window heads with every character in place of the select and its photo.
   const header = edit
     ? createCharacterHeader({
@@ -138,7 +139,7 @@ export function createPresetStrip(deps: {
     const state = registry.get();
     const shown = state.list.find((e) => e.id === shownId);
     thumbEl.hidden = !shown?.thumbnail;
-    if (shown?.thumbnail) thumbEl.src = shown.thumbnail;
+    if (shown?.thumbnail) thumbEl.replaceChildren(avatarEl(shown, 24));
     if (edit && !state.list.some((e) => e.id === shownId)) {
       left = true;
       onEditTarget?.(boundId ?? state.active);
