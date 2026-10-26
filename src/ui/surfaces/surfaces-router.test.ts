@@ -15,7 +15,7 @@ import { createMessageBridge } from "../../io/bridge/message/message-bridge";
 import { createRemoteSurfaces, type RemoteSurfaces } from "../../io/bridge/message/message-remote";
 import type { MessageWindowMode } from "../../settings/panels/message-window-settings";
 import { createMessagePlate } from "../message/message-plate";
-import { createSurfaces, type SpeechSurfaces, type Surfaces } from "./surfaces";
+import { createSurfaces, type Surfaces } from "./surfaces";
 import { createSurfacesRouter } from "./surfaces-router";
 import { noTool } from "./test-helpers";
 
@@ -86,22 +86,30 @@ function makeRemote(): RemoteSurfaces {
 describe("createSurfacesRouter", () => {
   let local: Surfaces;
   let remote: RemoteSurfaces;
-  let stream: SpeechSurfaces;
+  let stream: RemoteSurfaces;
   let mode: MessageWindowMode;
   let listeners: Array<(m: MessageWindowMode) => void>;
+  let shown: boolean;
+  let shownListeners: Array<(shown: boolean) => void>;
   let router: Surfaces;
 
   const setMode = (next: MessageWindowMode): void => {
     mode = next;
     for (const cb of listeners) cb(next);
   };
+  const setShown = (next: boolean): void => {
+    shown = next;
+    for (const cb of shownListeners) cb(next);
+  };
 
   beforeEach(() => {
     local = makeLocal();
     remote = makeRemote();
-    stream = makeLocal();
+    stream = makeRemote();
     mode = "docked";
     listeners = [];
+    shown = false;
+    shownListeners = [];
     router = createSurfacesRouter({
       local,
       remote,
@@ -112,6 +120,15 @@ describe("createSurfacesRouter", () => {
         return () => {
           listeners = listeners.filter((l) => l !== cb);
         };
+      },
+      shown: {
+        get: () => shown,
+        subscribe: (cb) => {
+          shownListeners.push(cb);
+          return () => {
+            shownListeners = shownListeners.filter((l) => l !== cb);
+          };
+        },
       },
     });
   });
@@ -154,15 +171,20 @@ describe("createSurfacesRouter", () => {
   it.each([
     "docked",
     "popped",
-  ] as const)("streams identified speech beside the selected %s destination", (next) => {
+  ] as const)("sends nothing but busy to the stream while the unified window is not shown (%s)", (next) => {
     setMode(next);
     const identity = { turn_id: "7", event_name: "user.text_submitted" };
     router.beginSpeech(identity);
     router.pushSpeech("Hello", identity);
     router.endSpeech({ defer: true }, identity);
-    expect(stream.beginSpeech).toHaveBeenCalledWith(identity);
-    expect(stream.pushSpeech).toHaveBeenCalledWith("Hello", identity);
-    expect(stream.endSpeech).toHaveBeenCalledWith({ defer: true }, identity);
+    router.quoteUser({ text: "hi", via: "text", images: 0 });
+    router.summonInput();
+    router.setBusy(true);
+
+    const called = Object.entries(stream)
+      .filter(([, fn]) => vi.isMockFunction(fn) && fn.mock.calls.length > 0)
+      .map(([name]) => name);
+    expect(called).toEqual(["setBusy"]);
   });
 
   it("quoteUser, settleQuote and clearQuote reach the side the mode names", () => {
@@ -217,15 +239,17 @@ describe("createSurfacesRouter", () => {
     expect(local.summonInput).toHaveBeenCalledTimes(1);
   });
 
-  it("sends busy to both sides in either mode", () => {
+  it("sends busy to both sides and the stream in either mode", () => {
     router.setBusy(true);
     expect(local.setBusy).toHaveBeenCalledWith(true);
     expect(remote.setBusy).toHaveBeenCalledWith(true);
+    expect(stream.setBusy).toHaveBeenCalledWith(true);
 
     setMode("popped");
     router.setBusy(false);
     expect(remote.setBusy).toHaveBeenLastCalledWith(false);
     expect(local.setBusy).toHaveBeenLastCalledWith(false);
+    expect(stream.setBusy).toHaveBeenLastCalledWith(false);
   });
 
   it("leaves neither side busy when a turn started popped ends after a dock", () => {
@@ -358,6 +382,107 @@ describe("createSurfacesRouter", () => {
     router.dispose();
     setMode("popped");
     expect(local.hideSpeech).not.toHaveBeenCalled();
+  });
+
+  describe("while the unified window shows", () => {
+    const identity = { turn_id: "7", event_name: "user.text_submitted" };
+
+    it("sends a turn's line to the stream only", () => {
+      setShown(true);
+      vi.mocked(local.hideSpeech).mockClear();
+
+      router.beginSpeech(identity, { paced: true });
+      router.pushSpeech("Hello", identity);
+      router.paceSpeech({ text: "Hello", durationMs: 800 });
+      router.endSpeech({ defer: true }, identity);
+      router.finishSpeech();
+      router.hideSpeech();
+
+      expect(stream.beginSpeech).toHaveBeenCalledWith(identity, { paced: true });
+      expect(stream.pushSpeech).toHaveBeenCalledWith("Hello", identity);
+      expect(stream.paceSpeech).toHaveBeenCalledWith({ text: "Hello", durationMs: 800 });
+      expect(stream.endSpeech).toHaveBeenCalledWith({ defer: true }, identity);
+      expect(stream.finishSpeech).toHaveBeenCalledOnce();
+      expect(stream.hideSpeech).toHaveBeenCalledOnce();
+      for (const side of [local, remote]) {
+        expect(side.beginSpeech).not.toHaveBeenCalled();
+        expect(side.pushSpeech).not.toHaveBeenCalled();
+        expect(side.hideSpeech).not.toHaveBeenCalled();
+      }
+    });
+
+    it("sends an aside to the stream", () => {
+      setShown(true);
+
+      router.beginSpeech(undefined, { paced: true, aside: true });
+      router.pushSpeech("Wait.");
+
+      expect(stream.beginSpeech).toHaveBeenCalledWith(undefined, { paced: true, aside: true });
+      expect(stream.pushSpeech).toHaveBeenCalledWith("Wait.");
+      expect(local.beginSpeech).not.toHaveBeenCalled();
+    });
+
+    it("keeps a notice and its action on the character's own bubble", () => {
+      setShown(true);
+      const action = { label: "Open Connection", onClick: () => {} };
+
+      router.beginSpeech();
+      router.pushSpeech("Connect a backend first.");
+      router.showSpeechAction(action);
+      router.endSpeech();
+
+      expect(local.beginSpeech).toHaveBeenCalledOnce();
+      expect(local.pushSpeech).toHaveBeenCalledWith("Connect a backend first.");
+      expect(local.showSpeechAction).toHaveBeenCalledWith(action);
+      expect(local.endSpeech).toHaveBeenCalledOnce();
+      expect(stream.beginSpeech).not.toHaveBeenCalled();
+    });
+
+    it("sends the quote ops to the stream", () => {
+      setShown(true);
+      const quote = { text: "hi", via: "text" as const, images: 0, mention: "everyone" as const };
+      const lines = [{ delivery: "urgent" as const, source: "ci", text: "Build failed" }];
+
+      router.quoteUser(quote);
+      router.quoteSignals(lines);
+      router.settleQuote();
+      router.clearQuote();
+
+      expect(stream.quoteUser).toHaveBeenCalledWith(quote);
+      expect(stream.quoteSignals).toHaveBeenCalledWith(lines);
+      expect(stream.settleQuote).toHaveBeenCalledOnce();
+      expect(stream.clearQuote).toHaveBeenCalledOnce();
+      expect(local.quoteUser).not.toHaveBeenCalled();
+    });
+
+    it("summons the unified composer, reports it open and shows its errors there", () => {
+      setShown(true);
+
+      router.summonInput();
+      router.showInputError("Could not reach the backend");
+      router.dismissInput();
+      router.restoreInput("hi", []);
+
+      expect(stream.summonInput).toHaveBeenCalledOnce();
+      expect(router.isInputOpen()).toBe(true);
+      expect(stream.showInputError).toHaveBeenCalledWith("Could not reach the backend", undefined);
+      for (const side of [local, remote, stream]) {
+        expect(side.dismissInput).not.toHaveBeenCalled();
+        expect(side.restoreInput).not.toHaveBeenCalled();
+      }
+      expect(local.summonInput).not.toHaveBeenCalled();
+    });
+
+    it("hides both bubbles and closes the open input when it starts showing", () => {
+      vi.mocked(local.isInputOpen).mockReturnValue(true);
+
+      setShown(true);
+
+      expect(local.hideSpeech).toHaveBeenCalledOnce();
+      expect(remote.hideSpeech).toHaveBeenCalledOnce();
+      expect(local.dismissInput).toHaveBeenCalledOnce();
+      expect(remote.dismissInput).not.toHaveBeenCalled();
+    });
   });
 });
 
