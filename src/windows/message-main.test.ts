@@ -169,13 +169,13 @@ it("asks the character window for the settings surface when the lost chip is tap
 });
 
 // The reasoning opens at the top of the bubble; it draws the mirror's text whatever the socket does.
-it("opens the mirrored reasoning at the top of the bubble", async () => {
+it("shows the mirrored reasoning, closed, at the top of the bubble", async () => {
   await boot();
   answer({ kind: "ready", chat_id: "yui-3f9a2c1d" });
   answerReasoning({ text: "checking the logs", live: true });
 
   await vi.waitFor(() => expect(thinkEl().hidden).toBe(false));
-  expect(thinkEl().open).toBe(true);
+  expect(thinkEl().open).toBe(false);
   expect(document.querySelector<HTMLElement>(".yui-bubble__think-text")!.textContent).toBe(
     "checking the logs",
   );

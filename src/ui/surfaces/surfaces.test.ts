@@ -228,7 +228,7 @@ describe("reasoning disclosure — only when a reasoning source is given", () =>
     s.dispose();
   });
 
-  it("shows the bubble with the disclosure open on the first live delta, before any speech", () => {
+  it("shows the bubble on the first live delta with the disclosure closed and its summary showing", () => {
     const { s, reasoning } = build();
 
     reasoning.append("checking the logs");
@@ -236,7 +236,7 @@ describe("reasoning disclosure — only when a reasoning source is given", () =>
 
     expect(shown()).toBe(true);
     expect(think().hidden).toBe(false);
-    expect(think().open).toBe(true);
+    expect(think().open).toBe(false);
     expect(thinkText().textContent).toBe("checking the logs");
     expect(mount.querySelector(".yui-bubble__text")!.textContent).toBe("");
     s.dispose();
@@ -324,7 +324,7 @@ describe("reasoning disclosure — only when a reasoning source is given", () =>
     reasoning.append(" goes on");
 
     expect(shown()).toBe(true);
-    expect(think().open).toBe(true);
+    expect(think().open).toBe(false);
     s.dispose();
   });
 
@@ -359,27 +359,16 @@ describe("reasoning disclosure — only when a reasoning source is given", () =>
     s.dispose();
   });
 
-  it("reopens the disclosure for a new cycle after a finished one", () => {
-    const { s, reasoning } = build();
-    reasoning.append("first");
-    reasoning.finish("first");
-    expect(think().open).toBe(false);
-
-    reasoning.append("second");
-
-    expect(think().open).toBe(true);
-    expect(thinkText().textContent).toBe("second");
-    s.dispose();
-  });
-
-  it("lets the summary close it, and a later delta keeps it closed", () => {
+  it("lets the summary open it, keeps it open through the live cycle, and closes it when the cycle ends", () => {
     const { s, reasoning } = build();
     reasoning.append("hmm");
 
     think().querySelector<HTMLElement>("summary")!.click();
-    expect(think().open).toBe(false);
+    expect(think().open).toBe(true);
     reasoning.append(" more");
+    expect(think().open).toBe(true);
 
+    reasoning.finish("hmm more");
     expect(think().open).toBe(false);
     s.dispose();
   });
