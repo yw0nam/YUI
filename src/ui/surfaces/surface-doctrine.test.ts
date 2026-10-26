@@ -317,6 +317,31 @@ describe("surfaces.css — the bubble's box carries the material", () => {
   });
 });
 
+// The whole dialogue floats as one: plate, box, backlog and toggle ride one wrapper that only the bob transforms.
+describe("surfaces.css — the dialogue box floats while it shows", () => {
+  const css = (): string => read("surfaces.css");
+
+  it("bobs 3px over 6s only while the bubble is visible", () => {
+    const c = css();
+    expect(extractBlock(c, ".yui-bubble.is-visible .yui-bubble__float")).toMatch(
+      /animation:\s*yui-bob 6s ease-in-out infinite/,
+    );
+    expect(extractBlock(c, "@keyframes yui-bob")).toMatch(/translateY\(-3px\)/);
+    const rules = [...c.matchAll(/^([^\n{}@]*\.yui-bubble__float[^\n{}]*)\{/gm)].map((m) =>
+      m[1].trim(),
+    );
+    expect(rules).toEqual([".yui-bubble.is-visible .yui-bubble__float"]);
+  });
+
+  it("holds still under reduced motion", () => {
+    const c = css();
+    const reduced = c.slice(c.indexOf("@media (prefers-reduced-motion: reduce)"));
+    expect(reduced.slice(0, reduced.indexOf("\n}"))).toMatch(
+      /\.yui-bubble__float[^{]*\{\s*animation:\s*none/,
+    );
+  });
+});
+
 // The scrim alpha carries contrast on the bubble, composer and plate; none adds a text shadow.
 describe("bubble, composer and plate — no text shadow", () => {
   for (const file of [
