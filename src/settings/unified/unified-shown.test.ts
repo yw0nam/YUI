@@ -30,6 +30,9 @@ function setup(initial: { enabled: boolean; open: string[]; canOpen?: boolean })
       state.open = open;
       for (const cb of windowListeners) cb();
     },
+    setOpenSilently: (open: string[]) => {
+      state.open = open;
+    },
     listeners: () => switchListeners.size + windowListeners.size,
   };
 }
@@ -54,6 +57,19 @@ describe("createUnifiedShown", () => {
     s.setOpen(["a"]);
 
     expect(cb.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it("keeps the value it last computed until a source changes", () => {
+    const s = setup({ enabled: true, open: ["a", "b"] });
+    const cb = vi.fn();
+    s.shown.subscribe(cb);
+
+    s.setOpenSilently(["a"]);
+    expect(s.shown.get()).toBe(true);
+
+    s.flip(true);
+    expect(s.shown.get()).toBe(false);
+    expect(cb.mock.calls).toEqual([[false]]);
   });
 
   it("stops following both sources once disposed", () => {
