@@ -177,8 +177,8 @@
 .yui-uc__dock .yui-input__attach {
   display: none;
 }
+/* The row wraps, so an error takes its own line under the field and send. */
 .yui-uc__dock .yui-input__row {
-  flex-wrap: nowrap;
   align-items: center;
 }
 .yui-uc__dock .yui-input__field {
