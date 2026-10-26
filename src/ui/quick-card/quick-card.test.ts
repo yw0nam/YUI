@@ -254,8 +254,7 @@ describe("createQuickCard", () => {
     ],
     [
       "a pointerdown outside the card",
-      (h: ReturnType<typeof build>) =>
-        document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })),
+      () => document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })),
     ],
     ["the window's blur", () => window.dispatchEvent(new Event("blur"))],
   ])("closes on %s and hands focus back", (_name, act) => {

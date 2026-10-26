@@ -1,0 +1,290 @@
+/* The quick card — the pet window's right-click card beside the character. Tokens in ../tokens.css. */
+
+.yui-qcard {
+  position: fixed;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-sizing: border-box;
+  width: min(272px, 100vw - 24px);
+  max-height: var(--yui-qcard-max-h, calc(100vh - 24px));
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid var(--yui-edge);
+  background: var(--yui-scrim-strong);
+  backdrop-filter: blur(10px) saturate(1.1);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  box-shadow: var(--yui-float);
+  color: var(--yui-text);
+  font-family: var(--yui-font);
+  pointer-events: auto;
+  outline: none;
+  animation: yui-pop 0.22s var(--yui-ease) both;
+}
+
+@keyframes yui-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-qcard {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .yui-qcard {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* ── head ── */
+.yui-qcard__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.yui-qcard__face {
+  display: flex;
+  flex: 0 0 auto;
+}
+
+.yui-qcard__id {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.yui-qcard__name,
+.yui-qcard__transport {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yui-qcard__name {
+  font-size: var(--yui-fs-head);
+  font-weight: 600;
+}
+
+.yui-qcard__transport {
+  font-size: var(--yui-fs-caption);
+  color: var(--yui-text-mute);
+}
+
+.yui-qcard__close {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--yui-radius-pill);
+  background: transparent;
+  color: var(--yui-text-dim);
+  cursor: pointer;
+}
+
+.yui-qcard__close svg {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+/* ── body: scrolls inside a card the window cuts short ── */
+.yui-qcard__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* ── tiles ── */
+.yui-qcard__tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.yui-qcard__tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  box-sizing: border-box;
+  min-height: 64px;
+  padding: 10px 12px;
+  border: 1px solid var(--yui-edge);
+  border-radius: var(--yui-radius-group);
+  background: transparent;
+  color: var(--yui-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background var(--yui-dur-fast) var(--yui-ease),
+    border-color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-qcard__tile-label {
+  font-size: var(--yui-fs-body);
+  font-weight: 600;
+}
+
+.yui-qcard__tile-state {
+  font-size: var(--yui-fs-caption);
+  color: var(--yui-text-mute);
+}
+
+.yui-qcard__tile[aria-checked="true"] {
+  border-color: var(--yui-accent-soft);
+  background: var(--yui-accent-faint);
+}
+
+.yui-qcard__tile[aria-checked="true"] .yui-qcard__tile-state {
+  color: var(--yui-accent-ink);
+}
+
+.yui-qcard__tile:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* ── rows ── */
+.yui-qcard__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 8px;
+  border-top: 1px solid var(--yui-edge);
+}
+
+.yui-qcard__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 0 8px;
+  border-radius: var(--yui-radius-row);
+  font-size: var(--yui-fs-body);
+}
+
+.yui-qcard__select {
+  appearance: none;
+  -webkit-appearance: none;
+  min-width: 0;
+  max-width: 60%;
+  height: 28px;
+  padding: 0 1.5rem 0 0.5rem;
+  border: 1px solid transparent;
+  border-radius: var(--yui-radius-control);
+  background: var(--yui-chevron) no-repeat right 0.4rem center;
+  color: var(--yui-text-dim);
+  font: inherit;
+  font-size: var(--yui-fs-sub);
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.yui-qcard__reset,
+.yui-qcard__turnoff {
+  border: 0;
+  background: transparent;
+  color: var(--yui-text-dim);
+  font: inherit;
+  cursor: pointer;
+}
+
+.yui-qcard__reset {
+  padding: 0;
+  font-size: var(--yui-fs-sub);
+}
+
+.yui-qcard__turnoff {
+  width: 100%;
+  text-align: left;
+}
+
+.yui-qcard__confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 6px;
+}
+
+.yui-qcard__confirm[hidden] {
+  display: none;
+}
+
+.yui-qcard__confirm-q {
+  flex: 1 1 100%;
+  font-size: var(--yui-fs-sub);
+}
+
+.yui-qcard__pill {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--yui-edge-strong);
+  border-radius: var(--yui-radius-pill);
+  background: transparent;
+  color: var(--yui-text-dim);
+  font: inherit;
+  font-size: var(--yui-fs-sub);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.yui-qcard__confirm-go {
+  border-color: var(--yui-danger-soft);
+  color: var(--yui-danger);
+}
+
+.yui-qcard__all {
+  flex: 0 0 auto;
+  height: 36px;
+  border: 1px solid var(--yui-edge-strong);
+  border-radius: var(--yui-radius-row);
+  background: transparent;
+  color: var(--yui-text);
+  font: inherit;
+  font-size: var(--yui-fs-body);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* ── hover and focus ── */
+.yui-qcard__close:hover,
+.yui-qcard__tile[aria-checked="false"]:enabled:hover,
+.yui-qcard__select:hover,
+.yui-qcard__turnoff:hover,
+.yui-qcard__pill:hover,
+.yui-qcard__all:hover {
+  background-color: var(--yui-hover);
+}
+
+.yui-qcard__confirm-go:hover {
+  background: var(--yui-danger-faint);
+}
+
+.yui-qcard__reset:hover {
+  color: var(--yui-accent-ink);
+}
+
+.yui-qcard button:focus-visible,
+.yui-qcard__select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
