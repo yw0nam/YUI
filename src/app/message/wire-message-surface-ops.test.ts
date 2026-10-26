@@ -1,6 +1,5 @@
 import { expect, it, vi } from "vitest";
 import type { MessageBridge, MessageSurfaceOp } from "../../io/bridge/message/message-bridge";
-import type { MessagePlate } from "../../ui/message/message-plate";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
 import { wireMessageSurfaceOps } from "./wire-message-surface-ops";
 
@@ -22,20 +21,17 @@ function setup() {
     showSpeechAction: vi.fn(),
     quoteSignals: vi.fn(),
   } as unknown as Surfaces;
-  const plate = { setLive: vi.fn(), setBusy: vi.fn() } as unknown as MessagePlate;
-  wireMessageSurfaceOps({ bridge, surfaces, plate });
-  return { send, bridge, surfaces, plate };
+  wireMessageSurfaceOps({ bridge, surfaces });
+  return { send, bridge, surfaces };
 }
 
-it("marks the plate live and begins speech on begin, and ends both on end", () => {
-  const { send, surfaces, plate } = setup();
+it("begins speech on begin and ends it on end", () => {
+  const { send, surfaces } = setup();
 
   send({ op: "begin" });
   send({ op: "end", defer: true });
 
-  expect(plate.setLive).toHaveBeenNthCalledWith(1, true);
   expect(surfaces.beginSpeech).toHaveBeenCalledOnce();
-  expect(plate.setLive).toHaveBeenNthCalledWith(2, false);
   expect(surfaces.endSpeech).toHaveBeenCalledWith({ defer: true });
 });
 
@@ -49,12 +45,11 @@ it("begins a paced line and paces each of its sentences", () => {
   expect(surfaces.paceSpeech).toHaveBeenCalledWith({ text: "Hi.", durationMs: 500 });
 });
 
-it("sets busy on the plate and the surfaces", () => {
-  const { send, surfaces, plate } = setup();
+it("sets busy on the surfaces", () => {
+  const { send, surfaces } = setup();
 
   send({ op: "busy", busy: true });
 
-  expect(plate.setBusy).toHaveBeenCalledWith(true);
   expect(surfaces.setBusy).toHaveBeenCalledWith(true);
 });
 

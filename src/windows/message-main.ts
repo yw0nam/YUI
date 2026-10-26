@@ -42,6 +42,7 @@ import { isTauri } from "../tauri-env";
 import { createDelegationChip } from "../ui/chips/delegation-chip";
 import { reloadFromStorage as reloadLocale } from "../ui/i18n";
 import { createMessagePlate } from "../ui/message/message-plate";
+import { withPlateState } from "../ui/message/plate-state";
 import { attachSummonKey } from "../ui/surfaces/summon-key";
 import { createSurfaces } from "../ui/surfaces/surfaces";
 
@@ -125,7 +126,7 @@ async function bootstrap(): Promise<void> {
     onOpenSettings: () => bridge.emitControl({ op: "open-settings" }),
   });
 
-  wireMessageSurfaceOps({ bridge, surfaces, plate });
+  wireMessageSurfaceOps({ bridge, surfaces: withPlateState(plate, surfaces) });
 
   const detachSummonKey = attachSummonKey(surfaces);
 

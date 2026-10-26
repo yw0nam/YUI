@@ -23,6 +23,7 @@ import { subscribe as subscribeLocale, t } from "../i18n";
 import { createTextInput } from "../input/text-input";
 import { type Backlog, type BacklogSource, createBacklog } from "../message/backlog";
 import { createMessagePlate, type MessagePlate } from "../message/message-plate";
+import { withPlateState } from "../message/plate-state";
 import { createReasoningDisclosure, type ReasoningSource } from "../message/reasoning-disclosure";
 import { createSignalSourceLines } from "../message/signal-source-lines";
 import { createSpeechBubble } from "../message/speech-bubble";
@@ -272,26 +273,18 @@ export function createSurfaces({
     el.remove();
   }
 
-  return {
+  const surfaces: Surfaces = {
     el,
     chipColumn,
-    plate,
     beginSpeech(_identity, opts) {
-      plate?.setLive(true);
       backlog?.refresh();
       bubble.beginSpeech(opts);
     },
     pushSpeech: bubble.pushSpeech,
     paceSpeech: bubble.paceSpeech,
-    endSpeech(opts) {
-      plate?.setLive(false);
-      bubble.endSpeech(opts);
-    },
+    endSpeech: bubble.endSpeech,
     finishSpeech: bubble.finishSpeech,
-    hideSpeech() {
-      plate?.setLive(false);
-      bubble.hideSpeech();
-    },
+    hideSpeech: bubble.hideSpeech,
     showSpeechAction: bubble.showSpeechAction,
     quoteUser(q) {
       backlog?.refresh();
@@ -308,14 +301,12 @@ export function createSurfaces({
     isInputOpen: input.isInputOpen,
     onSubmit: input.onSubmit,
     onStop: input.onStop,
-    setBusy(busy) {
-      plate?.setBusy(busy);
-      input.setBusy(busy);
-    },
+    setBusy: input.setBusy,
     showInputError: input.showInputError,
     setAttachmentLimits: input.setAttachmentLimits,
     restoreInput: input.restoreInput,
     setInputAnchor: input.setInputAnchor,
     dispose,
   };
+  return plate ? withPlateState(plate, { ...surfaces, plate }) : surfaces;
 }
