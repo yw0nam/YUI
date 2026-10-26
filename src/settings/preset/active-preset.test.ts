@@ -50,6 +50,30 @@ describe("presetNameFor", () => {
 });
 
 describe("parsePresetState", () => {
+  it("keeps a valid crop on an entry with a thumbnail and drops the rest", () => {
+    const crop = { x: 0.2, y: 0.05, size: 0.5 };
+    expect(
+      parsePresetState({
+        active: "aaaa0001",
+        list: [
+          { id: "aaaa0001", name: "Alpha", thumbnail: "asset://x/a.png", crop },
+          { id: "bbbb0002", name: "Beta", crop },
+          {
+            id: "cccc0003",
+            name: "Gamma",
+            thumbnail: "asset://x/c.png",
+            crop: { ...crop, size: 2 },
+          },
+        ],
+      })?.list,
+    ).toEqual([
+      { id: "default", name: "default" },
+      { id: "aaaa0001", name: "Alpha", thumbnail: "asset://x/a.png", crop },
+      { id: "bbbb0002", name: "Beta" },
+      { id: "cccc0003", name: "Gamma", thumbnail: "asset://x/c.png" },
+    ]);
+  });
+
   it("keeps a string thumbnail on the entry and drops any other value", () => {
     expect(
       parsePresetState({

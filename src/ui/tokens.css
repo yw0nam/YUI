@@ -34,6 +34,10 @@
   --yui-text-shadow: none;
   --yui-avatar-l: 0.5;
   --yui-avatar-c: 0.12;
+  /* The photo dialog's stage reads the same in both themes: it judges the photo, not the panel */
+  --yui-crop-stage: oklch(0.32 0.005 250);
+  --yui-crop-shade: oklch(0.15 0.01 70 / 0.62);
+  --yui-crop-ring: oklch(0.99 0.004 85 / 0.9);
 
   --yui-font: "Pretendard JP Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
   --yui-fs-caption: 0.6875rem; /* 11px: units, footnotes */
@@ -91,4 +95,7 @@
   --yui-accent-ink: oklch(0.85 0.11 75);
   --yui-avatar-l: 0.78;
   --yui-avatar-c: 0.12;
+  --yui-crop-stage: oklch(0.32 0.005 250);
+  --yui-crop-shade: oklch(0.15 0.01 70 / 0.62);
+  --yui-crop-ring: oklch(0.99 0.004 85 / 0.9);
 }

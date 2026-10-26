@@ -11,6 +11,7 @@ import { describe, expect, it, vi } from "vitest";
 import { readCard } from "../../config/validators/persona/read-card";
 import type { Card } from "../../config/validators/persona/types";
 import { createPresetFromCard } from "./import-card-preset";
+import type { PhotoCrop } from "./photo-crop";
 import { resolveStorageKey } from "./preset-keys";
 
 /** A card whose extensions.yui holds the given keys; `other_ext` stands for every other extension. */
@@ -58,16 +59,16 @@ function memoryStorage(): Storage {
 }
 
 function fakeRegistry(
-  seed: Array<{ id: string; name: string; thumbnail?: string }> = [],
+  seed: Array<{ id: string; name: string; thumbnail?: string; crop?: PhotoCrop }> = [],
   ids: string[] = [],
 ): {
   registry: {
     create(name: string): string | null;
-    setThumbnail(id: string, url: string | undefined): boolean;
+    setThumbnail(id: string, url: string | undefined, crop?: PhotoCrop): boolean;
     activate(id: string): boolean;
     remove(id: string): boolean;
   };
-  list: Array<{ id: string; name: string; thumbnail?: string }>;
+  list: Array<{ id: string; name: string; thumbnail?: string; crop?: PhotoCrop }>;
   removed: string[];
   activated: string[];
 } {
@@ -85,11 +86,12 @@ function fakeRegistry(
         list.push({ id, name: trimmed });
         return id;
       },
-      setThumbnail: vi.fn((id: string, url: string | undefined): boolean => {
+      setThumbnail: vi.fn((id: string, url: string | undefined, crop?: PhotoCrop): boolean => {
         const entry = list.find((e) => e.id === id);
         if (!entry) return false;
         if (url === undefined) delete entry.thumbnail;
         else entry.thumbnail = url;
+        entry.crop = crop;
         return true;
       }),
       activate: vi.fn((id: string): boolean => {
@@ -165,7 +167,9 @@ describe("createPresetFromCard", () => {
 
   it("stores the retained thumbnail URL on the new entry", async () => {
     const { registry, list } = fakeRegistry([{ id: "default", name: "default" }], ["n1"]);
-    const retainThumbnail = vi.fn(async () => "asset://localhost/app-data/cards/n1.png");
+    const retainThumbnail = vi.fn(async () => ({
+      url: "asset://localhost/app-data/cards/n1.png",
+    }));
     const id = await createPresetFromCard({
       registry,
       card: v3Card(),
@@ -177,6 +181,22 @@ describe("createPresetFromCard", () => {
     expect(list.find((e) => e.id === id)?.thumbnail).toBe(
       "asset://localhost/app-data/cards/n1.png",
     );
+  });
+
+  it("stores the retained photo's crop with its URL", async () => {
+    const { registry, list } = fakeRegistry([{ id: "default", name: "default" }], ["n1"]);
+    const crop = { x: 0.25, y: 0, size: 0.5 };
+    const id = await createPresetFromCard({
+      registry,
+      card: v3Card(),
+      retainThumbnail: async () => ({ url: "asset://localhost/app-data/cards/n1.png", crop }),
+      storage: memoryStorage(),
+      fillerLocale: "ja",
+    });
+    expect(list.find((e) => e.id === id)).toMatchObject({
+      thumbnail: "asset://localhost/app-data/cards/n1.png",
+      crop,
+    });
   });
 
   it("a failing retention removes the preset and discards the thumbnail", async () => {
@@ -297,7 +317,7 @@ describe("createPresetFromCard", () => {
         card: v3Card(),
         storage: memoryStorage(),
         fillerLocale: "ja",
-        retainThumbnail: vi.fn(async () => "asset://localhost/app-data/cards/n1.png"),
+        retainThumbnail: vi.fn(async () => ({ url: "asset://localhost/app-data/cards/n1.png" })),
         discardThumbnail,
       }),
     ).rejects.toThrow("preset_create_failed");

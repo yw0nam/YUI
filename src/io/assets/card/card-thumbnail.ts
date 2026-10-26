@@ -4,7 +4,12 @@
  * touch a real Tauri runtime; the real Tauri APIs are lazily imported.
  */
 
+import { createLogger } from "../../../logger";
+import { defaultCrop, type PhotoCrop } from "../../../settings/preset/photo-crop";
 import { type InvokeFn, loadInvoke } from "../user-asset-import";
+import { loadPhotoSize } from "./photo-size";
+
+const log = createLogger("card-thumbnail");
 
 export interface CardThumbnailDeps {
   /** `@tauri-apps/api/core` invoke. */
@@ -27,6 +32,20 @@ export async function retainCardThumbnail(
   const d = deps ?? (await defaultDeps());
   const destPath = await d.invoke<string>("retain_card_thumbnail", { tempId, presetId });
   return d.convertFileSrc(destPath);
+}
+
+/** Retains the thumbnail and frames it by default; the photo shows centred when its size cannot be read. */
+export async function retainFramedThumbnail(
+  tempId: string,
+  presetId: string,
+): Promise<{ url: string; crop?: PhotoCrop }> {
+  const url = await retainCardThumbnail(tempId, presetId);
+  try {
+    return { url, crop: defaultCrop(await loadPhotoSize(url)) };
+  } catch (error) {
+    log.warn("photo_size_failed", { preset: presetId, error: String(error) });
+    return { url };
+  }
 }
 
 /** Delete a thumbnail file by temp id or preset id. Idempotent on the native side. */

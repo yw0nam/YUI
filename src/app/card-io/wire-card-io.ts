@@ -9,7 +9,7 @@ import { type ImportedCard, importCardFromFile } from "../../io/assets/card/card
 import {
   pickPresetPhoto,
   removeCardThumbnail,
-  retainCardThumbnail,
+  retainFramedThumbnail,
 } from "../../io/assets/card/card-thumbnail";
 import { createPresetFromCard } from "../../settings/preset/import-card-preset";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
@@ -36,7 +36,8 @@ export function wireCardIo(registry: PresetRegistry): CardIoPorts {
         fillerLocale: getLocale(),
         ...(thumbnailTempId
           ? {
-              retainThumbnail: (presetId: string) => retainCardThumbnail(thumbnailTempId, presetId),
+              retainThumbnail: (presetId: string) =>
+                retainFramedThumbnail(thumbnailTempId, presetId),
               discardThumbnail: async (presetId: string) => {
                 // One failed removal must not skip the other.
                 await Promise.allSettled([

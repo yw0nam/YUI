@@ -4,6 +4,7 @@
  */
 
 import { readBoundPresetId, readEditPresetId } from "./bound-preset";
+import { coercePhotoCrop, type PhotoCrop } from "./photo-crop";
 import { DEFAULT_PRESET_ID, resolveStorageKey } from "./preset-keys";
 
 /** Device-wide key holding the registry. */
@@ -14,6 +15,8 @@ export interface PresetEntry {
   name: string;
   /** The file URL of the preset thumbnail; a PNG card import sets it, JSON never does. */
   thumbnail?: string;
+  /** The photo's framing; only an entry with a thumbnail keeps one. */
+  crop?: PhotoCrop;
 }
 
 export interface PresetState {
@@ -29,14 +32,20 @@ export function parsePresetState(v: unknown): PresetState | null {
   const raw = v as { active?: unknown; list?: unknown };
   const list: PresetEntry[] = [];
   for (const item of Array.isArray(raw.list) ? raw.list : []) {
-    const { id, name, thumbnail } = (item ?? {}) as {
+    const { id, name, thumbnail, crop } = (item ?? {}) as {
       id?: unknown;
       name?: unknown;
       thumbnail?: unknown;
+      crop?: unknown;
     };
     if (typeof id !== "string" || !id || typeof name !== "string" || !name.trim()) continue;
     if (list.some((e) => e.id === id)) continue;
-    list.push(typeof thumbnail === "string" && thumbnail ? { id, name, thumbnail } : { id, name });
+    if (typeof thumbnail !== "string" || !thumbnail) {
+      list.push({ id, name });
+      continue;
+    }
+    const kept = coercePhotoCrop(crop);
+    list.push({ id, name, thumbnail, ...(kept ? { crop: kept } : {}) });
   }
   if (!list.some((e) => e.id === DEFAULT_PRESET_ID)) list.unshift({ ...DEFAULT_PRESET });
   const active =
@@ -72,9 +81,9 @@ export function readPresetName(id: string): string {
   return state ? presetNameFor(state, id) : id;
 }
 
-/** The thumbnail a stored preset id carries; undefined when it has none. */
-export function readPresetThumbnail(id: string): string | undefined {
-  return readPresetState()?.list.find((e) => e.id === id)?.thumbnail;
+/** The stored entry of a preset id; undefined when unlisted. */
+export function readPresetEntry(id: string): PresetEntry | undefined {
+  return readPresetState()?.list.find((e) => e.id === id);
 }
 
 /** The preset a window shows: the bound one when bound, else the active one; an unlisted id is named by itself. */

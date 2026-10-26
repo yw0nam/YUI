@@ -246,6 +246,45 @@ describe("createPresetRegistry", () => {
     });
   });
 
+  it("rename keeps the crop, and a later pick without one drops it", () => {
+    seedPresets("default", [
+      { id: "default", name: "default" },
+      { id: "aaaa0001", name: "natsume" },
+    ]);
+    const registry = createPresetRegistry();
+    registry.setThumbnail("aaaa0001", "asset://x/a.png", { x: 0.1, y: 0.2, size: 0.5 });
+
+    registry.rename("aaaa0001", "mio");
+    expect(registry.get().list[1]).toEqual({
+      id: "aaaa0001",
+      name: "mio",
+      thumbnail: "asset://x/a.png",
+      crop: { x: 0.1, y: 0.2, size: 0.5 },
+    });
+
+    registry.setThumbnail("aaaa0001", "asset://x/b.png");
+    expect(registry.get().list[1]).toEqual({
+      id: "aaaa0001",
+      name: "mio",
+      thumbnail: "asset://x/b.png",
+    });
+  });
+
+  it("keeps the stored crop isolated from the passed and the read copies", () => {
+    seedPresets("default", [
+      { id: "default", name: "default" },
+      { id: "aaaa0001", name: "natsume" },
+    ]);
+    const registry = createPresetRegistry();
+    const crop = { x: 0.1, y: 0.2, size: 0.5 };
+    registry.setThumbnail("aaaa0001", "asset://x/a.png", crop);
+
+    crop.x = 0.9;
+    registry.get().list[1].crop!.y = 0.9;
+
+    expect(registry.get().list[1].crop).toEqual({ x: 0.1, y: 0.2, size: 0.5 });
+  });
+
   it("remove deletes the preset's pending greeting key", () => {
     seedPresets("default", [
       { id: "default", name: "default" },

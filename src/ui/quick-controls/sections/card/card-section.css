@@ -50,12 +50,9 @@
 }
 
 .yui-card-thumb {
-  width: 2.25rem;
-  height: 2.25rem;
+  display: flex;
+  margin-left: 0.875rem;
   flex: none;
-  border: 1px solid var(--yui-edge);
-  border-radius: var(--yui-radius-img);
-  object-fit: cover;
 }
 
 .yui-card__io {

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MessageSurfaceOp } from "../../io/bridge/message/message-bridge";
 import type { UserTurnRouted } from "../../io/bridge/settings-bridge";
 import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
+import type { PresetEntry } from "../../settings/preset/active-preset";
 import { createUnifiedView } from "./unified-view";
 
 vi.mock("../surfaces/surfaces.css", () => ({}));
@@ -17,6 +18,8 @@ let nextId: number;
 let focusWindow: ReturnType<typeof vi.fn<() => Promise<void>>>;
 let view: ReturnType<typeof createUnifiedView>;
 
+let cast: PresetEntry[];
+
 const CAST = [
   { id: "perlica", name: "Perlica", thumbnail: "asset://perlica.png" },
   { id: "natsume", name: "Natsume" },
@@ -27,8 +30,8 @@ function mount(): void {
   focusWindow = vi.fn(async () => {});
   view = createUnifiedView({
     mount: document.querySelector("#app")!,
-    cast: () => CAST,
-    transcripts: () => CAST.map((c) => ({ ...c, entries: transcripts[c.id] ?? [] })),
+    cast: () => cast,
+    transcripts: () => cast.map((c) => ({ ...c, entries: transcripts[c.id] ?? [] })),
     mainId: () => "perlica",
     now: () => T,
     randomId: () => `send-${++nextId}`,
@@ -67,6 +70,7 @@ beforeEach(() => {
     perlica: [{ role: "assistant", text: "Hello.", ts: T - 110_000, turn_id: "1" }],
     natsume: [{ role: "assistant", text: "Yes.", ts: T - 50_000, turn_id: "3" }],
   };
+  cast = CAST;
   nextId = 0;
   vi.spyOn(console, "info").mockImplementation(() => {});
   vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
@@ -152,6 +156,33 @@ describe("unified view — sending", () => {
     expect(routed).toEqual([
       { sendId: "send-1", to: "perlica", text: "@Perlica hi", mention: "character" },
     ]);
+  });
+});
+
+describe("unified view — a face that changes", () => {
+  const framed = {
+    id: "natsume",
+    name: "Natsume",
+    thumbnail: "asset://n.png",
+    crop: { x: 0.2, y: 0.05, size: 0.5 },
+  };
+
+  it("repaints the cast chip, the recipient chip and an open @ list with the new crop", () => {
+    mount();
+    type("@");
+    cast = [CAST[0]!, framed];
+
+    view.refresh();
+
+    for (const root of [
+      ".yui-uc__chip:nth-child(2)",
+      "[role=radio][data-id=natsume]",
+      "[role=option]:nth-child(2)",
+    ]) {
+      const img = document.querySelector(`${root} .yui-uc__avatar > img`);
+      expect(img?.getAttribute("src"), root).toBe("asset://n.png");
+      expect((img as HTMLElement).style.getPropertyValue("--yui-crop-size"), root).toBe("0.5");
+    }
   });
 });
 

@@ -436,12 +436,12 @@ describe("createQuickControls — card section", () => {
     );
     registry = createPresetRegistry();
     build();
-    expect(sec().querySelector<HTMLImageElement>(".yui-card-thumb")!.hidden).toBe(true);
+    expect(sec().querySelector<HTMLElement>(".yui-card-thumb")!.hidden).toBe(true);
     history.replaceState(null, "", "/?preset=aaaa0001");
     qc.dispose();
     build();
-    const thumb = sec().querySelector<HTMLImageElement>(".yui-card-thumb")!;
+    const thumb = sec().querySelector<HTMLElement>(".yui-card-thumb")!;
     expect(thumb.hidden).toBe(false);
-    expect(thumb.src).toBe("asset://localhost/app-data/cards/aaaa0001.png");
+    expect(thumb.querySelector("img")!.src).toBe("asset://localhost/app-data/cards/aaaa0001.png");
   });
 });
