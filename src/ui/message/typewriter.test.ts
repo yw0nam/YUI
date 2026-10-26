@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTypewriter } from "./typewriter";
 
-function setup(paced: boolean) {
+function setup(paced: boolean, now?: () => number) {
   const reveals: Array<[number, boolean]> = [];
-  const typer = createTypewriter((revealed, { done }) => reveals.push([revealed, done]));
+  const typer = createTypewriter((revealed, { done }) => reveals.push([revealed, done]), now);
   typer.begin({ paced });
   const last = () => reveals.at(-1);
   return { typer, reveals, last };
@@ -58,10 +58,35 @@ describe("createTypewriter", () => {
     typer.pace({ text: "One.", durationMs: null });
     vi.advanceTimersByTime(80);
     expect(last()).toEqual([2, false]);
-    // One more character at the old rate, then the remaining six over the 600 ms left.
+    // The seven characters left share the sentence's 700 ms and land with its end.
     typer.pace({ text: "Two.", durationMs: 700 });
-    vi.advanceTimersByTime(640);
+    vi.advanceTimersByTime(699);
+    expect(last()).toEqual([8, false]);
+    vi.advanceTimersByTime(1);
     expect(last()).toEqual([9, false]);
+  });
+
+  it("catches up from the clock when its ticks come late, several characters per tick", () => {
+    let t = 0;
+    const { typer, last } = setup(false, () => t);
+    typer.received("Hello world!");
+    t = 400;
+    vi.advanceTimersByTime(40);
+    expect(last()).toEqual([10, false]);
+  });
+
+  it("finishes a paced sentence at its duration however late its ticks come", () => {
+    let t = 0;
+    const { typer, last } = setup(true, () => t);
+    const sentence = "A forty-four character sentence, voiced now.";
+    typer.received(sentence);
+    typer.pace({ text: sentence, durationMs: 2000 });
+    t = 1000;
+    vi.advanceTimersByTime(46);
+    expect(last()).toEqual([22, false]);
+    t = 2000;
+    vi.advanceTimersByTime(46);
+    expect(last()).toEqual([44, false]);
   });
 
   it("lands each sentence of a push-style line on its own end", () => {
