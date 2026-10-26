@@ -83,6 +83,29 @@ describe("createPopover — focus management", () => {
     pop.dispose();
   });
 
+  it("window variant: an Escape inside an open dialog leaves the window open", () => {
+    const closeWindow = vi.fn();
+    const pop = createPopover({
+      mount,
+      root: buildRoot(),
+      scrim: document.createElement("div"),
+      bar: null,
+      isWindow: true,
+      closeWindow,
+      onOpen: () => {},
+      onClose: () => {},
+    });
+    pop.open();
+    const dialog = document.body.appendChild(document.createElement("dialog"));
+    dialog.setAttribute("open", "");
+
+    dialog.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+    expect(closeWindow).not.toHaveBeenCalled();
+    dialog.remove();
+    pop.dispose();
+  });
+
   it("open(anchor) keeps the panel inside the visible height and exposes it to CSS", () => {
     localStorage.removeItem("yui.quick.pos");
     vi.stubGlobal("innerHeight", 600);

@@ -3,20 +3,12 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi }
 import type { Logger } from "../../../../logger";
 import type { PhotoCrop, PhotoSize } from "../../../../settings/preset/photo-crop";
 import { openPhotoDialog } from "./photo-dialog";
+import { stubModalDialog } from "./test-helpers";
 
 const SIZE: PhotoSize = { width: 900, height: 1000 };
 const entry = { id: "aaaa0001", name: "Natsume", thumbnail: "asset://a.png" };
 
-// jsdom has no modal dialog: the stubs open and close the element and fire its close event.
-beforeAll(() => {
-  HTMLDialogElement.prototype.showModal = function showModal() {
-    this.setAttribute("open", "");
-  };
-  HTMLDialogElement.prototype.close = function close() {
-    this.removeAttribute("open");
-    this.dispatchEvent(new Event("close"));
-  };
-});
+beforeAll(stubModalDialog);
 
 const deferred = <T>() => {
   let resolve!: (v: T) => void;
@@ -117,6 +109,10 @@ describe("openPhotoDialog", () => {
     await vi.waitFor(() => expect(act("use").disabled).toBe(true));
     expect(saveUrl).toHaveBeenCalledWith("asset://b.png");
     expect(save).not.toHaveBeenCalled();
+    expect(document.querySelector<HTMLImageElement>(".yui-photo-dialog__stage > img")?.hidden).toBe(
+      true,
+    );
+    expect(document.querySelectorAll(".yui-photo-dialog__preview")).toHaveLength(0);
     expect(document.querySelector(".yui-photo-dialog__error")?.textContent).toBe(
       "Could not use that photo. Choose a PNG or JPEG.",
     );
@@ -165,17 +161,52 @@ describe("openPhotoDialog", () => {
     expect(save).toHaveBeenCalledTimes(1);
   });
 
-  it("an Escape inside the dialog does not reach the document", async () => {
+  it("Escape closes the dialog and no document listener sees it, wherever focus is", async () => {
     open();
     await ready();
     const onDoc = vi.fn();
     document.addEventListener("keydown", onDoc);
 
-    document
-      .querySelector("dialog")!
-      .dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    document.body.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+    );
 
     document.removeEventListener("keydown", onDoc);
     expect(onDoc).not.toHaveBeenCalled();
+    expect(document.querySelector("dialog")).toBeNull();
+  });
+
+  it("any save for a preset supersedes an older pick's pending default", async () => {
+    const first = deferred<PhotoSize>();
+    open({ picked: true, url: "asset://a.png", measure: () => first.promise });
+    act("cancel").click();
+    open({ entry: { ...entry, crop: { x: 0.1, y: 0.2, size: 0.5 } } });
+    await ready();
+    act("use").click();
+    save.mockClear();
+
+    first.resolve(SIZE);
+    await new Promise((r) => setTimeout(r));
+
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("a drag ends on pointercancel", async () => {
+    Element.prototype.setPointerCapture = () => {};
+    open({ entry: { ...entry, crop: { x: 0.1, y: 0.2, size: 0.5 } } });
+    await ready();
+    const stage = document.querySelector<HTMLElement>(".yui-photo-dialog__stage")!;
+    const img = stage.querySelector("img")!;
+    const at = (type: string, x: number) =>
+      stage.dispatchEvent(new MouseEvent(type, { clientX: x, clientY: 100, bubbles: true }));
+    const left0 = parseFloat(img.style.left);
+
+    at("pointerdown", 100);
+    at("pointermove", 110);
+    expect(parseFloat(img.style.left)).toBeCloseTo(left0 + 10, 6);
+    stage.dispatchEvent(new Event("pointercancel"));
+    at("pointermove", 150);
+
+    expect(parseFloat(img.style.left)).toBeCloseTo(left0 + 10, 6);
   });
 });

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Preset strip, manage popover, and per-tab scope line, through the panel mount.
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAgentNotifySettings } from "../../../settings/backend/agent-notify-settings";
 import {
   clearWindowLive,
@@ -16,9 +16,12 @@ import { createRelationsSwitch } from "../../../settings/relations/relations-swi
 import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
 import { defaultQcArgs } from "../test-helpers";
+import { stubModalDialog } from "./photo-dialog/test-helpers";
 import { createPresetStrip, presetStripHtml } from "./preset-strip";
 
 describe("createQuickControls — presets", () => {
+  beforeAll(stubModalDialog);
+
   let mount: HTMLElement;
   let registry: PresetRegistry;
   let qc: ReturnType<typeof createQuickControls>;
@@ -337,6 +340,7 @@ describe("createQuickControls — presets", () => {
       pickPresetPhoto,
     });
     qc.open();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     openManage();
     rowOf("natsume").querySelector<HTMLButtonElement>(".yui-preset-row__photo")!.click();
@@ -345,6 +349,20 @@ describe("createQuickControls — presets", () => {
       expect($<HTMLElement>(".yui-preset__thumb").querySelector("img")?.src).toBe(url),
     );
     expect(pickPresetPhoto).toHaveBeenCalledWith("aaaa0001");
+    expect(document.querySelector("dialog.yui-photo-dialog")).not.toBeNull();
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("a press inside an open dialog leaves the manage popover open", () => {
+    openManage();
+    const dialog = document.body.appendChild(document.createElement("dialog"));
+    dialog.setAttribute("open", "");
+    const inner = dialog.appendChild(document.createElement("button"));
+
+    inner.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+
+    expect($<HTMLElement>(".yui-preset-pop").hidden).toBe(false);
+    dialog.remove();
   });
 
   it("shows the active preset in the strip, names it on each character page and the rail group", () => {

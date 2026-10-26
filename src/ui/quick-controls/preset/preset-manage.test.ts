@@ -1,18 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, beforeAll, expect, it, vi } from "vitest";
 import { createPresetRegistry } from "../../../settings/preset/preset-registry";
+import { stubModalDialog } from "./photo-dialog/test-helpers";
 import { createPresetManage } from "./preset-manage";
 
-// jsdom has no modal dialog: the stubs open and close the element and fire its close event.
-beforeAll(() => {
-  HTMLDialogElement.prototype.showModal = function showModal() {
-    this.setAttribute("open", "");
-  };
-  HTMLDialogElement.prototype.close = function close() {
-    this.removeAttribute("open");
-    this.dispatchEvent(new Event("close"));
-  };
-});
+beforeAll(stubModalDialog);
 
 afterEach(() => {
   vi.unstubAllGlobals();

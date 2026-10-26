@@ -9,7 +9,7 @@ describe("avatarEl", () => {
 
     expect(el.tagName).toBe("SPAN");
     expect(el.className).toBe("yui-uc__avatar");
-    expect(el.style.background).toBe(avatarEl({ id: "perlica", name: "P" }, 20).style.background);
+    expect(el.style.background).toBe("oklch(var(--yui-avatar-l) var(--yui-avatar-c) 293)");
     expect(el.children).toHaveLength(1);
     expect(img.getAttribute("src")).toBe("asset://p.png");
     expect(img.getAttribute("alt")).toBe("");
