@@ -8,6 +8,10 @@ import { clampToWorkArea, monitorAt, type ScreenMonitor, toScreenMonitor } from 
 
 /** Gap (logical px) between the pet window's right edge and the companion window. */
 const COMPANION_GAP_PX = 12;
+/** Fixed width (logical px) of a companion column window; its bubble and input size to it. */
+export const COMPANION_COLUMN_WIDTH = 340;
+/** Height (logical px) of an idle companion window — a 26px handle and its border inside the column's 8px padding. */
+export const COMPANION_HANDLE_HEIGHT = 44;
 
 interface CompanionPlacement {
   /** Last stored outer position (physical px), null until the window has been moved. */
@@ -58,10 +62,10 @@ export function initialCompanionPosition({
 }
 
 /** Where to open, in logical px — the unit the window constructor takes — beside the current window. */
-export async function resolveCompanionPosition(
-  stored: { x: number | null; y: number | null },
-  size: { width: number; height: number },
-): Promise<{ x: number; y: number }> {
+export async function resolveCompanionPosition(stored: {
+  x: number | null;
+  y: number | null;
+}): Promise<{ x: number; y: number }> {
   const { availableMonitors, getCurrentWindow } = await import("@tauri-apps/api/window");
   const win = getCurrentWindow();
   const [position, outer, scale, monitors] = await Promise.all([
@@ -78,7 +82,7 @@ export async function resolveCompanionPosition(
     },
     monitors: monitors.map(toScreenMonitor),
     scale,
-    size,
+    size: { width: COMPANION_COLUMN_WIDTH, height: COMPANION_HANDLE_HEIGHT },
   });
   return { x: physical.x / scale, y: physical.y / scale };
 }

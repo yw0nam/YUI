@@ -17,7 +17,6 @@ import "../ui/message/message-window.css";
 import { createDisposers } from "../app/disposers";
 import { createMirroredName } from "../app/message/mirrored-name";
 import { wireMessageSurfaceOps } from "../app/message/wire-message-surface-ops";
-import { startDragging, wireTauriWindow } from "../app/message/wire-message-tauri-window";
 import { wirePlateName } from "../app/message/wire-plate-name";
 import { bootCompanion } from "../app/pet-windows/companion-window";
 import { wirePresetSwitch } from "../app/settings/wire-preset";
@@ -27,7 +26,7 @@ import { createMirroredPushSocket } from "../io/bridge/push/push-socket-bridge";
 import { createMirroredReasoning } from "../io/bridge/reasoning/reasoning-bridge";
 import { createSettingsBridge } from "../io/bridge/settings-bridge";
 import { readTranscriptAfterBoundary } from "../io/chat/conversation/chat-history-store";
-import { MESSAGE_WINDOW_WIDTH } from "../io/window/openers/message-window";
+import { startDragging, wireCompanionColumn } from "../io/window/geometry/companion-column";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
 import {
@@ -116,7 +115,7 @@ async function bootstrap(): Promise<void> {
   const plate = createMessagePlate({
     mount: plateRow,
     onDock: () => bridge.emitControl({ op: "dock" }),
-    startDragging: () => void startDragging(),
+    startDragging: () => void startDragging("message"),
   });
 
   const chipCollapsed = createDelegationChipSettings({
@@ -170,9 +169,10 @@ async function bootstrap(): Promise<void> {
   disposers.register(detachSummonKey);
   window.addEventListener("beforeunload", disposers.dispose);
   const disposeWindowWiring = isTauri()
-    ? await wireTauriWindow(
+    ? await wireCompanionColumn(
+        "message",
         surfaces.el,
-        { width: MESSAGE_WINDOW_WIDTH, onMoved: messageWindowSettings.setPosition },
+        messageWindowSettings.setPosition,
         disposers.isDisposed,
       )
     : () => {};

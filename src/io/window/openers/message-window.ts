@@ -11,17 +11,17 @@ import { createLogger } from "../../../logger";
 import type { MessageWindowSettingsStore } from "../../../settings/panels/message-window-settings";
 import { windowLabel } from "../../../settings/preset/pet-windows";
 import { isTauri } from "../../../tauri-env";
-import { resolveCompanionPosition } from "../geometry/companion-position";
+import {
+  COMPANION_COLUMN_WIDTH,
+  COMPANION_HANDLE_HEIGHT,
+  resolveCompanionPosition,
+} from "../geometry/companion-position";
 
 const log = createLogger("message-window");
 
 const MESSAGE_WINDOW_LABEL = "message";
 const MESSAGE_WINDOW_URL = "message.html";
 const MESSAGE_WINDOW_TITLE = "YUI";
-/** Fixed column width (logical px) — the bubble and the input size to it. */
-export const MESSAGE_WINDOW_WIDTH = 340;
-/** Height (logical px) of the idle window — the 26px plate and its border inside the column's 8px padding. */
-export const MESSAGE_WINDOW_HANDLE_HEIGHT = 44;
 
 interface MessageWindowEnv {
   isTauri: boolean;
@@ -66,8 +66,8 @@ async function createTauriMessageWindow(
           ? MESSAGE_WINDOW_URL
           : `${MESSAGE_WINDOW_URL}?preset=${encodeURIComponent(boundId)}`,
       title: MESSAGE_WINDOW_TITLE,
-      width: MESSAGE_WINDOW_WIDTH,
-      height: MESSAGE_WINDOW_HANDLE_HEIGHT,
+      width: COMPANION_COLUMN_WIDTH,
+      height: COMPANION_HANDLE_HEIGHT,
       resizable: false,
       decorations: false,
       transparent: true,
@@ -127,11 +127,7 @@ export function createMessageWindowController(
             isTauri: isTauri(),
             getExisting: () => tauriMessageWindow(boundId),
             create: (position) => createTauriMessageWindow(position, boundId),
-            resolvePosition: () =>
-              resolveCompanionPosition(store.get(), {
-                width: MESSAGE_WINDOW_WIDTH,
-                height: MESSAGE_WINDOW_HANDLE_HEIGHT,
-              }),
+            resolvePosition: () => resolveCompanionPosition(store.get()),
           });
         } catch (error) {
           // Speech routed to a window that never opened would vanish with no tell.

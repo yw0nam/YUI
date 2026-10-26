@@ -830,7 +830,7 @@ globalThis.YUI_MAP =
       "id": "io/window/geometry",
       "module": "window",
       "label": "window geometry",
-      "role": "Monitor and floor math, the travel and stationary frames, and keep-on-screen.",
+      "role": "Monitor and floor math, the travel and stationary frames, keep-on-screen, and the companion column windows' placement, width, focus, drag and content-height resize.",
       "paths": [
         "src/io/window/geometry"
       ]
@@ -1300,7 +1300,7 @@ globalThis.YUI_MAP =
       "id": "app/message",
       "module": "wiring",
       "label": "message-window wiring",
-      "role": "Draws surface ops from the pet window and binds the message window's drag, focus, and resize; names the character for both windows' plates and backlogs: the pet window resolves the effective name and sends it, the message window mirrors it.",
+      "role": "Draws surface ops from the pet window; names the character for both windows' plates and backlogs: the pet window resolves the effective name and sends it, the message window mirrors it.",
       "paths": [
         "src/app/message"
       ]

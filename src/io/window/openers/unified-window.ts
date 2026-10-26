@@ -9,8 +9,11 @@
 import { createLogger } from "../../../logger";
 import type { UnifiedWindowSettings } from "../../../settings/unified/unified-window-settings";
 import { isTauri } from "../../../tauri-env";
-import { resolveCompanionPosition } from "../geometry/companion-position";
-import { MESSAGE_WINDOW_HANDLE_HEIGHT, MESSAGE_WINDOW_WIDTH } from "./message-window";
+import {
+  COMPANION_COLUMN_WIDTH,
+  COMPANION_HANDLE_HEIGHT,
+  resolveCompanionPosition,
+} from "../geometry/companion-position";
 
 const log = createLogger("unified-window");
 
@@ -51,15 +54,12 @@ async function tauriUnifiedWindow() {
 
 async function createTauriUnifiedWindow(stored: UnifiedWindowSettings): Promise<void> {
   const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-  const { x, y } = await resolveCompanionPosition(stored, {
-    width: MESSAGE_WINDOW_WIDTH,
-    height: MESSAGE_WINDOW_HANDLE_HEIGHT,
-  });
+  const { x, y } = await resolveCompanionPosition(stored);
   const win = new WebviewWindow(UNIFIED_WINDOW_LABEL, {
     url: "unified.html",
     title: "YUI",
-    width: MESSAGE_WINDOW_WIDTH,
-    height: MESSAGE_WINDOW_HANDLE_HEIGHT,
+    width: COMPANION_COLUMN_WIDTH,
+    height: COMPANION_HANDLE_HEIGHT,
     resizable: false,
     decorations: false,
     transparent: true,

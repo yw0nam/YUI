@@ -5,7 +5,6 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { MESSAGE_WINDOW_HANDLE_HEIGHT, MESSAGE_WINDOW_WIDTH } from "../openers/message-window";
 import { initialCompanionPosition } from "./companion-position";
 import type { ScreenMonitor } from "./screen-geometry";
 
@@ -17,7 +16,8 @@ const MONITOR: ScreenMonitor = {
   scaleFactor: 1,
 };
 
-const SIZE = { width: MESSAGE_WINDOW_WIDTH, height: MESSAGE_WINDOW_HANDLE_HEIGHT };
+/** The column box every companion window keeps on screen, logical px. */
+const SIZE = { width: 340, height: 44 };
 
 function place(overrides: {
   stored?: { x: number | null; y: number | null };
@@ -42,8 +42,8 @@ describe("initialCompanionPosition", () => {
   it("clamps a stored position that fell outside the work area", () => {
     expect(place({ stored: { x: -200, y: 5 } })).toEqual({ x: 0, y: 25 });
     expect(place({ stored: { x: 5000, y: 5000 } })).toEqual({
-      x: 1440 - MESSAGE_WINDOW_WIDTH,
-      y: 900 - MESSAGE_WINDOW_HANDLE_HEIGHT,
+      x: 1100,
+      y: 856,
     });
   });
 
@@ -56,7 +56,7 @@ describe("initialCompanionPosition", () => {
   it("clamps back to the right edge when the pet window sits near it", () => {
     expect(
       place({ pet: { position: { x: 1300, y: 300 }, size: { width: 120, height: 460 } } }),
-    ).toEqual({ x: 1440 - MESSAGE_WINDOW_WIDTH, y: 300 });
+    ).toEqual({ x: 1100, y: 300 });
   });
 
   it("works in physical pixels on a scaled monitor", () => {
@@ -85,8 +85,8 @@ describe("initialCompanionPosition", () => {
       scaleFactor: 1,
     };
     expect(place({ stored: { x: 2400, y: 780 }, monitors: [MONITOR, second] })).toEqual({
-      x: 1440 + 1000 - MESSAGE_WINDOW_WIDTH,
-      y: 800 - MESSAGE_WINDOW_HANDLE_HEIGHT,
+      x: 2100,
+      y: 756,
     });
   });
 

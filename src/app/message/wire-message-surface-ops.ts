@@ -1,9 +1,9 @@
 import type { MessageBridge } from "../../io/bridge/message/message-bridge";
+import { focusWindow } from "../../io/window/geometry/companion-column";
 import { createLogger } from "../../logger";
 import { applySpeechOp } from "../../ui/surfaces/apply-speech-op";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
 import type { MirroredName } from "./mirrored-name";
-import { focusWindow } from "./wire-message-tauri-window";
 
 const log = createLogger("message-bootstrap");
 
@@ -36,7 +36,7 @@ export function wireMessageSurfaceOps({
         break;
       case "summon-input":
         // A document focus in an unfocused webview leaves the keystrokes with the pet window.
-        void focusWindow().then(() => surfaces.summonInput());
+        void focusWindow("message").then(() => surfaces.summonInput());
         break;
       case "dismiss-input":
         surfaces.dismissInput();

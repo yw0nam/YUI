@@ -18,16 +18,15 @@ import "../styles.css";
 import "../ui/message/message-window.css";
 import "../ui/unified/unified-window.css";
 import { createDisposers } from "../app/disposers";
-import {
-  focusWindow,
-  startDragging,
-  wireTauriWindow,
-} from "../app/message/wire-message-tauri-window";
 import { wireUnifiedClose } from "../app/unified/wire-unified-close";
 import { createSettingsBridge } from "../io/bridge/settings-bridge";
 import { readTranscriptAfterBoundary } from "../io/chat/conversation/chat-history-store";
 import { closeCurrentWindow, listenCurrentWindowCloseRequested } from "../io/window/current-window";
-import { MESSAGE_WINDOW_WIDTH } from "../io/window/openers/message-window";
+import {
+  focusWindow,
+  startDragging,
+  wireCompanionColumn,
+} from "../io/window/geometry/companion-column";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
 import { readActivePresetId } from "../settings/preset/active-preset";
@@ -67,9 +66,9 @@ async function bootstrap(): Promise<void> {
     mainId: readActivePresetId,
     now: Date.now,
     randomId: () => crypto.randomUUID(),
-    focusWindow,
+    focusWindow: () => focusWindow("unified"),
     closeWindow: () => void closeCurrentWindow(),
-    startDragging: () => void startDragging(),
+    startDragging: () => void startDragging("unified"),
   });
   view.onRoute((event) => settingsBridge.emitUserTurnRouted(event));
   view.onStop(settingsBridge.emitStopTurns);
@@ -121,11 +120,7 @@ async function bootstrap(): Promise<void> {
   const windowSettings = createUnifiedWindowSettings();
   disposers.register(() => windowSettings.dispose());
   disposers.register(
-    await wireTauriWindow(
-      view.el,
-      { width: MESSAGE_WINDOW_WIDTH, onMoved: windowSettings.setPosition },
-      disposers.isDisposed,
-    ),
+    await wireCompanionColumn("unified", view.el, windowSettings.setPosition, disposers.isDisposed),
   );
 }
 

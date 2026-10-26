@@ -100,7 +100,6 @@ YUI/
         wire-message-surface-ops.ts  # Draws each surface op from the pet window onto the surfaces, which the plate follows
         character-name.ts            # In the pet window: the character's effective name, the card's while the built-in preset is unnamed, else the preset's
         mirrored-name.ts             # In the message window: the character's name as the pet window last sent it
-        wire-message-tauri-window.ts # Window focus, the OS drag, the content-height resize at a fixed width, and the moved-position report, for the message and unified windows
       unified/                       # The unified chat window's wiring
         unified-shown.ts             # Whether the window shows: the switch on, two or more open presets, a window can exist; every pet and settings window reads it
         wire-unified-window.ts       # Main opens the window while it shows and destroys it otherwise
@@ -432,7 +431,8 @@ YUI/
           screenshot-context.ts        # Pure encoder for the screenshot context block
         geometry/                      # Monitor and floor math the window movers share
           screen-geometry.ts           # Monitor containment, work-area floor math, and window clamping shared by every window mover
-          companion-position.ts        # Where a companion window (message, unified) opens: its stored position, else beside the pet window, kept on screen
+          companion-position.ts        # Where a companion window (message, unified) opens: its stored position, else beside the pet window, kept on screen; the column's width and handle height
+          companion-column.ts          # A companion column window's focus, OS drag, content-height resize and moved-position report
           keep-on-screen.ts            # Pushes a window back until its centre lands on a monitor
           travel-frame.ts              # Parks the real window once for a scale-seam crossing
           stationary-frame.ts          # Widens the real window around a character that stays where she is
