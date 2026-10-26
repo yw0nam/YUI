@@ -63,7 +63,7 @@
 
 .yui-chat-type__link:hover,
 .yui-chat-type__link:focus-visible {
-  color: var(--yui-accent);
+  color: var(--yui-accent-ink);
   text-decoration-color: var(--yui-accent);
 }
 

@@ -39,7 +39,7 @@
 }
 
 .yui-chatkey__toggle[aria-pressed="true"] {
-  color: var(--yui-accent);
+  color: var(--yui-accent-ink);
 }
 
 /* ── yui-select — dropdown without OS chrome (type · provider) ── */

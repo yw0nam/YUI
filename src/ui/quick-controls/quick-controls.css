@@ -138,7 +138,7 @@
 
 /* pop-out is primary affordance — warm up slightly on hover */
 .yui-iconbtn--popout:hover {
-  color: var(--yui-accent);
+  color: var(--yui-accent-ink);
 }
 
 /* ── Two-column layout — tab rail + scrollable content ── */
@@ -457,7 +457,7 @@
 
 .yui-hint-dot:hover,
 .yui-hint-dot:focus-visible {
-  color: var(--yui-accent);
+  color: var(--yui-accent-ink);
   border-color: var(--yui-accent-soft);
 }
 
