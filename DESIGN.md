@@ -116,7 +116,7 @@ The canonical token source is [`src/ui/tokens.css`](src/ui/tokens.css); the fron
 
 YUI's interface is the glow of a fireplace: it burns warmly in a corner of the room without stealing the gaze. The character owns the stage; the chrome lights up only when it has something to say, then recedes. Color is near-achromatic neutral, warmth carried by a single point of amber. Type is a warm humanist sans; motion is feedback, never choreography. The whole system's purpose is to *step back*.
 
-The glow comes in two themes. **Dawn** is the default: warm frosted paper over the desktop, dark ink on it, the blur keeping it readable over any window. **Hearth** is the dark option: the dying embers, a dark scrim under light warm text.
+The glow comes in two themes, and the app follows the OS appearance until the user picks one. **Dawn** is the light theme: warm frosted paper over the desktop, dark ink on it, the blur keeping it readable over any window. **Hearth** is the dark theme: the dying embers, a dark scrim under light warm text.
 
 Every surface floats over an arbitrary desktop background in a transparent, always-on-top window, so each must be legible against any backdrop without a heavy container. The surfaces that ever appear (speech bubble, text input, status pill, delegation chip, signal chips, message window, boot-failure notice) are the system's entirety and its signature.
 
