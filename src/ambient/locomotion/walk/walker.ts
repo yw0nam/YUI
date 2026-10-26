@@ -204,7 +204,7 @@ export interface WalkerDeps {
   currentMotionKind(): MotionKind | null;
   isPeeking(): boolean;
   isDragging(): boolean;
-  /** Whether the quick-controls panel is open right now. */
+  /** Whether the quick card is open right now. */
   isPanelOpen(): boolean;
   /** Defaults to the global document; injected in tests. */
   doc?: WalkerDoc;

@@ -25,6 +25,7 @@ export function wireWalker(deps: {
   getMotionKind: (id: string) => MotionKind | undefined;
   isPeeking: () => boolean;
   isDragging: () => boolean;
+  /** Whether the quick card is open: no stroll starts meanwhile. */
   isPanelOpen: () => boolean;
   /** Keep the hit-test cursor mapping accurate while the window translates. */
   setHitTestMoving: (moving: boolean) => void;
@@ -104,5 +105,18 @@ export function wireStrollReflexCancel(deps: {
   return deps.dispatcher.subscribeBusy((busy) => {
     const trigger = deps.dispatcher.inFlight()?.trigger.event_name;
     if (busy && trigger !== undefined && isReflexTurn(trigger)) deps.walker.cancel();
+  });
+}
+
+/**
+ * Opening the quick card ends an ambient stroll so she stands where she is. A directed walk is
+ * a leg of a climb under way, which runs to its end.
+ */
+export function wireStrollCardCancel(deps: {
+  onCardOpen: (cb: () => void) => () => void;
+  walker: { isStrolling(): boolean; cancel(): void };
+}): () => void {
+  return deps.onCardOpen(() => {
+    if (deps.walker.isStrolling()) deps.walker.cancel();
   });
 }

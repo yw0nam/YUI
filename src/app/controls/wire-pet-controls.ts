@@ -1,40 +1,30 @@
 /**
- * The pet window's local control surfaces: the quick-controls panel, rebuilt when the display
- * language changes, and the stage context menu.
+ * The pet window's local control surface: the quick card, rebuilt when the display language
+ * changes, and the stage context menu that opens it.
  */
 
 import { availableMonitors, getCurrentWindow } from "@tauri-apps/api/window";
 import type { ConfigStore } from "../../config/store";
-import type { GuideKey } from "../../contract";
-import { removeUserVrm } from "../../io/assets/vrm-import";
 import type { RemoteSurfaces } from "../../io/bridge/message/message-remote";
 import type { PushSocket } from "../../io/chat/push/push-socket";
-import { selectFetch } from "../../io/chat/stream/chat-client";
-import type { ScreenSourceProvider } from "../../io/window/capture/screen-source-provider";
 import { toScreenMonitor } from "../../io/window/geometry/screen-geometry";
 import { createVisibleViewport } from "../../io/window/geometry/visible-viewport";
-import type { Renderer } from "../../renderer";
 import type { SettingsPage } from "../../settings/panels/settings-pages";
 import type { PetWindows } from "../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import type { SettingsStores } from "../../settings/settings-stores";
-import type { UnifiedShown } from "../../settings/unified/unified-shown";
 import { isTauri } from "../../tauri-env";
 import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
 import { subscribe as subscribeLocale } from "../../ui/i18n";
-import { createQuickControls } from "../../ui/quick-controls/quick-controls";
-import type { Surfaces } from "../../ui/surfaces/surfaces";
-import { wireCardIo } from "../card-io/wire-card-io";
-import { quickControlsConfigDefaults } from "../settings/config-defaults";
+import { createQuickCard, type QuickCard } from "../../ui/quick-card/quick-card";
 import type { ConversationStores } from "../settings/conversation-stores";
 import type { wireSpeakerSelection, wireVrmSelection } from "../settings/wire-avatar";
 import { wireCueLocaleSync } from "../settings/wire-cue-locale-sync";
-
-export type QuickControls = ReturnType<typeof createQuickControls>;
+import { createQuickCardPorts } from "./quick-card-ports";
 
 /**
- * Wires the panel and the context menu, and hands back the live panel: `get()`
- * follows the instance across a locale remount, so consumers read it at use time.
+ * Wires the card and the context menu, and hands back the live card: `get()` follows the
+ * instance across a locale remount, so consumers read it at use time; `onOpen` outlives it.
  */
 export function wirePetControls(deps: {
   root: HTMLElement;
@@ -42,237 +32,71 @@ export function wirePetControls(deps: {
   stores: SettingsStores;
   conversation: Pick<
     ConversationStores,
-    | "sessionStore"
-    | "sessionDiagnostics"
-    | "chatHistoryStore"
-    | "signalHistoryStore"
-    | "relationsStore"
+    "sessionStore" | "sessionDiagnostics" | "chatHistoryStore"
   >;
   config: Pick<ConfigStore, "get">;
-  /** Resolves the chat key the chat turn would send, per request (SecretProvider path). */
-  getChatApiKey: () => Promise<string | undefined>;
-  renderer: Pick<Renderer, "setMouthOpen" | "stopMouth">;
-  vrm: Pick<ReturnType<typeof wireVrmSelection>, "vrmSelection" | "swapVrm" | "importVrm">;
-  speaker: Pick<
-    ReturnType<typeof wireSpeakerSelection>,
-    | "speakerSelection"
-    | "swapSpeaker"
-    | "refreshSpeaker"
-    | "pickVoiceImport"
-    | "commitVoiceImport"
-    | "removeVoice"
-    | "refreshVoiceList"
-    | "canManageVoices"
-    | "canReuploadVoices"
-    | "canPasteVoiceId"
-  >;
-  pushSocket: Pick<PushSocket, "getState" | "onState" | "sendReset" | "reconnectNow">;
+  vrm: Pick<ReturnType<typeof wireVrmSelection>, "vrmSelection" | "swapVrm">;
+  speaker: Pick<ReturnType<typeof wireSpeakerSelection>, "speakerSelection" | "swapSpeaker">;
+  pushSocket: Pick<PushSocket, "getState" | "onState" | "sendReset">;
   stopTurn: () => void;
   announceSessionReset: () => void;
   presetRegistry: PresetRegistry;
   petWindows: PetWindows;
   boundId: string | null;
   voiceInputStatus: VoiceInputStatus;
-  screenSourceProvider: ScreenSourceProvider;
-  surfaces: Pick<Surfaces, "summonInput">;
   remoteSurfaces: Pick<RemoteSurfaces, "onOpenSettings"> | null;
   openSettings: (page?: SettingsPage) => void;
-  onGuide: (guide: GuideKey, text: string) => void;
-  openDevtools: () => void;
-  unifiedShown: UnifiedShown;
   register: (teardown: () => void) => void;
-}): { get(): QuickControls } {
-  const {
-    root,
-    stage,
-    stores,
-    conversation,
-    config,
-    getChatApiKey,
-    renderer,
-    vrm,
-    speaker,
-    pushSocket,
-    stopTurn,
-    presetRegistry,
-    voiceInputStatus,
-    screenSourceProvider,
-    surfaces,
-    remoteSurfaces: remote,
-    openSettings,
-    onGuide,
-    openDevtools,
-    register,
-  } = deps;
-  const { vrmSelection, swapVrm, importVrm } = vrm;
-  const {
-    speakerSelection,
-    swapSpeaker,
-    refreshSpeaker,
-    pickVoiceImport,
-    commitVoiceImport,
-    removeVoice,
-    refreshVoiceList,
-    canManageVoices,
-    canReuploadVoices,
-    canPasteVoiceId,
-  } = speaker;
-  const {
-    screenshotSettings,
-    ttsSettings,
-    idleThrottleSettings,
-    proactiveSettings,
-    scheduleSettings,
-    workflowSettings,
-    agentNotifySettings,
-    presenceSettings,
-    pacerGapSettings,
-    screenSettings,
-    screenKnobSettings,
-    lipsyncSettings,
-    vadSettings,
-    agentSettings,
-    userNameSettings,
-    themeSettings,
-    fillerSettings,
-    readingsSettings,
-    endpointsSettings,
-    chatKeySettings,
-    sttKeySettings,
-    ttsKeySettings,
-    cameraSettings,
-    gazeSettings,
-    climbSettings,
-    fallSettings,
-    guardrailsSettings,
-    bubblePersistSettings,
-    oneVoiceSettings,
-    messageWindowSettings,
-    idleMotionSettings,
-    expressMotionSettings,
-    bedSceneSettings,
-    browserSettings,
-    relationsSwitch,
-    unifiedChatSwitch,
-  } = stores;
-  // The quick-controls session reset writes the same instances the dispatcher reads through.
-  const { sessionStore, sessionDiagnostics, chatHistoryStore, relationsStore } = conversation;
+}): { get(): QuickCard; onOpen(cb: () => void): () => void } {
+  const { root, stage, stores, openSettings, register } = deps;
 
-  // The pet window exists only under Tauri; a plain browser bounds the panel by the webview.
+  // The pet window exists only under Tauri; a plain browser bounds the card by the webview.
   const visibleViewport = isTauri()
     ? createVisibleViewport(getCurrentWindow(), async () =>
         (await availableMonitors()).map(toScreenMonitor),
       )
     : undefined;
+  const ports = createQuickCardPorts({ ...deps, openSettings: () => openSettings() });
+  const openListeners = new Set<() => void>();
 
-  const buildQuickControls = (): ReturnType<typeof createQuickControls> =>
-    createQuickControls({
+  const buildCard = (): QuickCard =>
+    createQuickCard({
       mount: root,
-      pushSocket,
-      stopTurn,
-      announceSessionReset: deps.announceSessionReset,
-      settings: screenshotSettings,
-      idleThrottleSettings,
-      gazeSettings,
-      climbSettings,
-      fallSettings,
-      proactiveSettings,
-      scheduleSettings,
-      workflowSettings,
-      agentNotifySettings,
-      bubblePersistSettings,
-      oneVoiceSettings,
-      messageWindowSettings,
-      presenceSettings,
-      pacerGapSettings,
-      rateLimitSettings: guardrailsSettings,
-      screenSettings,
-      screenKnobSettings,
-      transcript: chatHistoryStore,
-      signalHistory: conversation.signalHistoryStore,
-      // Same instances the dispatcher reads through, so "start fresh" takes effect on the next turn.
-      sessionStore,
-      sessionDiagnostics,
-      getChatApiKey,
-      getFetch: selectFetch,
-      sourceProvider: screenSourceProvider,
-      voiceStatus: voiceInputStatus,
-      lipsync: lipsyncSettings,
-      vad: vadSettings,
-      fillerSettings,
-      readingsSettings,
-      ttsSettings,
-      agentSettings,
-      userNameSettings,
-      themeSettings,
-      vrmSelection,
-      swapVrm,
-      importVrm,
-      removeUserVrm,
-      speakerSelection,
-      swapSpeaker,
-      refreshSpeaker,
-      pickVoiceImport,
-      commitVoiceImport,
-      removeVoice,
-      refreshVoiceList,
-      canManageVoices,
-      canReuploadVoices,
-      canPasteVoiceId,
-      ...wireCardIo(presetRegistry),
-      onGainPreview: (mouthOpen) => renderer.setMouthOpen(mouthOpen),
-      onGainPreviewEnd: () => renderer.stopMouth(),
-      onOpenDevtools: openDevtools,
-      // Reset the camera viewpoint to head-on (store drives renderer.setOrbit).
-      onResetViewpoint: () => cameraSettings.resetOrbit(),
-      endpointsSettings,
-      chatKeySettings,
-      sttKeySettings,
-      ttsKeySettings,
-      ...quickControlsConfigDefaults(config),
-      idleMotionSettings,
-      expressMotionSettings,
-      bedSceneSettings,
-      // The browser tool exists only in the main pet window under Tauri.
-      browserSettings: deps.boundId == null && isTauri() ? browserSettings : undefined,
-      onPopOut: () => openSettings(),
-      showVoiceInput: deps.boundId == null,
-      onMessage: () => surfaces.summonInput(),
-      onGuide,
+      ...ports,
       visibleViewport,
-      presetRegistry,
-      petWindows: deps.petWindows,
-      relationsStore,
-      relationsSwitch,
-      unifiedChatSwitch,
-      unifiedShown: deps.unifiedShown,
-      boundId: deps.boundId,
+      onOpen: () => {
+        for (const cb of openListeners) cb();
+      },
     });
   // Re-mounted on locale change (see i18n subscriber below); consumers read the live binding.
-  let quickControls = buildQuickControls();
-  register(() => quickControls.dispose());
+  let card = buildCard();
+  register(() => card.dispose());
   // A popped-out surface has no settings panel of its own; it asks this window to open the settings window on Connection.
-  remote?.onOpenSettings(() => openSettings("conn"));
+  deps.remoteSurfaces?.onOpenSettings(() => openSettings("conn"));
 
-  // Re-mount localized DOM surfaces when display language changes.
-  // Defer to microtask so triggering click handler (picker inside quick-controls) unwinds
-  // before its host is disposed. Long-lived non-UI singletons (renderer, TTS pipeline, VAD,
-  // voiceStatus store) and dispatcher-wired `surfaces` instance intentionally NOT re-created.
+  // Defer to a microtask so the click handler that changed the language unwinds before its host
+  // is disposed.
   register(wireCueLocaleSync(stores));
   const unsubscribeLocale = subscribeLocale(() => {
     queueMicrotask(() => {
-      quickControls.dispose();
-      quickControls = buildQuickControls();
+      card.dispose();
+      card = buildCard();
     });
   });
   register(() => unsubscribeLocale());
 
   function onContextMenu(e: MouseEvent): void {
     e.preventDefault();
-    quickControls.open({ x: e.clientX, y: e.clientY });
+    card.open({ x: e.clientX, y: e.clientY });
   }
   stage.addEventListener("contextmenu", onContextMenu);
   register(() => stage.removeEventListener("contextmenu", onContextMenu));
 
-  return { get: () => quickControls };
+  return {
+    get: () => card,
+    onOpen: (cb) => {
+      openListeners.add(cb);
+      return () => openListeners.delete(cb);
+    },
+  };
 }

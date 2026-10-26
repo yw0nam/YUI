@@ -28,12 +28,12 @@ function setup() {
   const settingsBridge = createSettingsBridge(transport, { windowKind: "settings" });
   const userInput = { submitGuide: vi.fn() };
   const disposers: Array<() => void> = [];
-  const { ask, bindInteraction } = wireHelpGuide({
+  const { bindInteraction } = wireHelpGuide({
     userInput,
     bridge: petBridge,
     register: (fn) => disposers.push(fn),
   });
-  return { settingsBridge, userInput, disposers, ask, bindInteraction };
+  return { settingsBridge, userInput, disposers, bindInteraction };
 }
 
 describe("wireHelpGuide", () => {
@@ -57,25 +57,21 @@ describe("wireHelpGuide", () => {
     expect(userInput.submitGuide).not.toHaveBeenCalled();
   });
 
-  it("a press in the pet window submits directly, and the registered teardown detaches the listener", () => {
-    const { settingsBridge, userInput, disposers, ask } = setup();
-
-    ask("controls", "How do I control YUI?");
-    expect(userInput.submitGuide).toHaveBeenCalledWith("controls", "How do I control YUI?");
+  it("the registered teardown detaches the listener", () => {
+    const { settingsBridge, userInput, disposers } = setup();
 
     for (const dispose of disposers) dispose();
     settingsBridge.emitHelpGuide({ guide: "controls", text: "late" });
-    expect(userInput.submitGuide).toHaveBeenCalledTimes(1);
+    expect(userInput.submitGuide).not.toHaveBeenCalled();
   });
 
-  it("a press from either window counts as a user interaction once the hook is bound", () => {
-    const { settingsBridge, ask, bindInteraction } = setup();
+  it("a press counts as a user interaction once the hook is bound", () => {
+    const { settingsBridge, bindInteraction } = setup();
     const noteInteraction = vi.fn();
     bindInteraction(noteInteraction);
 
-    ask("controls", "How do I control YUI?");
     settingsBridge.emitHelpGuide({ guide: "capabilities", text: "hi" });
 
-    expect(noteInteraction).toHaveBeenCalledTimes(2);
+    expect(noteInteraction).toHaveBeenCalledOnce();
   });
 });

@@ -45,10 +45,7 @@ import { createVoiceFix } from "../app/voice/voice-fix";
 import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/secrets";
 import { type BusEnvelope, createEventBus } from "../dispatcher/core/event-bus";
 import { createUserInputSource } from "../dispatcher/sources/user-input-source";
-import {
-  resolveScreenCapturer,
-  resolveScreenSourceProvider,
-} from "../io/window/capture/tauri-screen";
+import { resolveScreenCapturer } from "../io/window/capture/tauri-screen";
 import { createDevtoolsWindowOpener } from "../io/window/openers/devtools-window";
 import { createSettingsWindowOpener } from "../io/window/openers/settings-window";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
@@ -181,7 +178,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
     }),
   );
 
-  const screenSourceProvider = resolveScreenSourceProvider();
   const screenCapturer = resolveScreenCapturer();
   // Settings opens the current pet window's companion in Tauri or a browser popup.
   const openSettings = createSettingsWindowOpener(boundId, windowBridge.emitSettingsPage);
@@ -246,8 +242,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
     stores: settingsStores,
     conversation: conversationStores,
     config,
-    getChatApiKey: () => config.secrets.get(CHAT_API_KEY_SECRET),
-    renderer,
     vrm,
     speaker,
     pushSocket: push.pushSocket,
@@ -257,13 +251,8 @@ async function bootstrap(): Promise<BootstrapHandle> {
     petWindows,
     boundId,
     voiceInputStatus,
-    screenSourceProvider,
-    surfaces,
     remoteSurfaces: remote,
     openSettings,
-    onGuide: help.ask,
-    openDevtools,
-    unifiedShown,
     register,
   });
 
@@ -297,7 +286,8 @@ async function bootstrap(): Promise<BootstrapHandle> {
       speaker,
       root,
       stage,
-      getQuickControls: controls.get,
+      getQuickCard: controls.get,
+      onQuickCardOpen: controls.onOpen,
       openSettings,
       onSessionReset: windowBridge.onSessionReset,
       emitCharacterAddressed: windowBridge.emitCharacterAddressed,
@@ -349,7 +339,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
           screenshotSettings: settingsStores.screenshotSettings,
           lipsyncSettings: settingsStores.lipsyncSettings,
           agentSettings: settingsStores.agentSettings,
-          quickControls: controls.get(),
+          getQuickCard: controls.get,
           speechPlayback: configured.voice.speechPlayback,
           voiceInputStatus,
           userInput,

@@ -32,7 +32,7 @@ import { isMacOS, isWindows } from "../tauri-env";
 import { t } from "../ui/i18n";
 import { maybeShowFirstRunHint } from "../ui/notices/first-run-hint";
 import { wireIngressDeadNotice } from "../ui/notices/ingress-dead-notice";
-import type { createQuickControls } from "../ui/quick-controls/quick-controls";
+import type { QuickCard } from "../ui/quick-card/quick-card";
 import { wireRelations } from "./relations/wire-relations";
 import { wireSignalChips } from "./signal-chips/wire-signal-chips";
 import type { BedSceneHold } from "./stage/bed-scene-hold";
@@ -59,7 +59,9 @@ interface Phase1Handles extends TurnCorePhase1 {
   screenCapturer: ScreenCapturer;
   root: HTMLElement;
   stage: HTMLElement;
-  getQuickControls(): ReturnType<typeof createQuickControls>;
+  getQuickCard(): QuickCard;
+  /** Runs the callback each time the quick card opens. */
+  onQuickCardOpen(cb: () => void): () => void;
   /** Opens the settings window on a page, on the main character or this window's own. */
   openSettings(page?: SettingsPage): void;
   /** Subscribes to resets the preset's other windows announce. */
@@ -126,7 +128,7 @@ function drain(disposers: Array<() => void>, rethrow: boolean): void {
 
 const realFactories: ConfiguredBootstrapFactories = {
   async create(cfg, phase1, register) {
-    const { config, renderer, surfaces, settings, bus, root, stage, getQuickControls } = phase1;
+    const { config, renderer, surfaces, settings, bus, root, stage, getQuickCard } = phase1;
     const ensureActive = (): void => {
       if (phase1.isDisposed()) throw new Error("bootstrap disposed during configured construction");
     };
@@ -288,7 +290,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     const hitTest = wireHitTest({
       root,
       renderer,
-      getQuickControls,
+      getQuickCard,
       getConfig: () => config.get().avatar.hit_test,
     });
     register(hitTest.stop);
@@ -305,7 +307,8 @@ const realFactories: ConfiguredBootstrapFactories = {
       dispatcher,
       hitTest,
       peekActive: () => peekState?.active() ?? false,
-      isPanelOpen: () => getQuickControls().isOpen(),
+      isPanelOpen: () => getQuickCard().isOpen(),
+      onCardOpen: phase1.onQuickCardOpen,
       isHeld: bedScene.isHeld,
       bed: bedScene.bed,
       fallSettings,

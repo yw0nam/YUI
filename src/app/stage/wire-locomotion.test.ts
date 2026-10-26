@@ -372,7 +372,7 @@ describe("wireLocomotion", () => {
   it("registers the teardowns in composition order", () => {
     const s = setup();
 
-    expect(s.registered).toHaveLength(9);
+    expect(s.registered).toHaveLength(10);
     for (const teardown of s.registered) teardown();
 
     expect(s.teardowns).toEqual([

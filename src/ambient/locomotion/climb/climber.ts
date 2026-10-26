@@ -143,6 +143,8 @@ export interface ClimberDeps {
   isDragging(): boolean;
   /** A turn is in flight or speech is still playing. */
   isBusy(): boolean;
+  /** Whether the quick card is open: no climb starts meanwhile; one under way runs to its end. */
+  isPanelOpen(): boolean;
   walker: {
     walkTo(toX: number, onAccepted?: () => void, holdClip?: boolean): Promise<"arrived" | "lost">;
     cancel(): void;
@@ -438,8 +440,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       perched: renderer.isPerched(),
       peeking: deps.isPeeking(),
       dragging: deps.isDragging(),
-      // The quick-controls panel does not gate a climb.
-      panelOpen: false,
+      panelOpen: deps.isPanelOpen(),
       // A climb still yields to a turn: a directed leg cannot stop mid-wall for a response motion.
       bodyFree: deps.currentMotionKind() === "ambient" && !deps.isBusy(),
       reducedMotion: false,
@@ -812,8 +813,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       perched: renderer.isPerched(),
       peeking: deps.isPeeking(),
       dragging: deps.isDragging(),
-      // The quick-controls panel does not gate a climb.
-      panelOpen: false,
+      panelOpen: deps.isPanelOpen(),
       bodyFree: deps.currentMotionKind() === "ambient" && !deps.isBusy(),
       reducedMotion: false,
     };

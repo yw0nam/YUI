@@ -5,16 +5,17 @@ import { createCursorTracker } from "../../io/window/pet/cursor-tracker";
 import { createHitTestController, type HitTestController } from "../../io/window/pet/hit-test";
 import type { Renderer } from "../../renderer";
 import type { FlagSettingsStore } from "../../settings/persisted-store";
-import type { createQuickControls } from "../../ui/quick-controls/quick-controls";
+import type { QuickCard } from "../../ui/quick-card/quick-card";
 import { INTERACTIVE_OVERLAY_SELECTORS } from "../../ui/surfaces/interactive-overlay";
 
 export function wireHitTest(deps: {
   root: HTMLElement;
   renderer: Pick<Renderer, "hitTest">;
-  getQuickControls: () => Pick<ReturnType<typeof createQuickControls>, "isOpen" | "el">;
+  /** While it is open, the whole window takes the pointer, so a click anywhere reaches the page and closes it. */
+  getQuickCard: () => Pick<QuickCard, "isOpen">;
   getConfig: () => HitTestKnobs;
 }): HitTestController {
-  const { root, renderer, getQuickControls, getConfig } = deps;
+  const { root, renderer, getQuickCard, getConfig } = deps;
   const interactiveRects = (): DOMRect[] => {
     const rects: DOMRect[] = [];
     for (const selector of INTERACTIVE_OVERLAY_SELECTORS) {
@@ -22,8 +23,6 @@ export function wireHitTest(deps: {
         rects.push(el.getBoundingClientRect());
       }
     }
-    const quickControls = getQuickControls();
-    if (quickControls.isOpen()) rects.push(quickControls.el.getBoundingClientRect());
     return rects;
   };
   const pointInRect = (x: number, y: number, rect: DOMRect, margin: number): boolean =>
@@ -33,7 +32,7 @@ export function wireHitTest(deps: {
     y <= rect.bottom + margin;
   const hitTest = createHitTestController({
     isOverInteractive: (xClient, yClient, marginPx) => {
-      if (renderer.hitTest(xClient, yClient)) return true;
+      if (getQuickCard().isOpen() || renderer.hitTest(xClient, yClient)) return true;
       return interactiveRects().some((rect) => pointInRect(xClient, yClient, rect, marginPx));
     },
     moveTarget: window,

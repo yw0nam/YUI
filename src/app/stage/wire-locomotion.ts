@@ -4,7 +4,11 @@ import { wireFaller } from "../../ambient/locomotion/fall/wire-fall";
 import { wirePercher } from "../../ambient/locomotion/perch/wire-perch";
 import { createSitter, type Sitter } from "../../ambient/locomotion/sitter";
 import { wireTravelFrame } from "../../ambient/locomotion/travel/wire-travel-frame";
-import { wireStrollReflexCancel, wireWalker } from "../../ambient/locomotion/walk/wire-walk";
+import {
+  wireStrollCardCancel,
+  wireStrollReflexCancel,
+  wireWalker,
+} from "../../ambient/locomotion/walk/wire-walk";
 import type { AppConfig } from "../../config/load";
 import type { DescendConfig, FallConfig } from "../../config/validators/avatar/types";
 import type { WindowRect } from "../../contract";
@@ -53,7 +57,10 @@ export function wireLocomotion(deps: {
   dispatcher: Dispatcher;
   hitTest: Pick<HitTestController, "setMoving">;
   peekActive: () => boolean;
+  /** Whether the quick card is open: no stroll or climb starts meanwhile. */
   isPanelOpen: () => boolean;
+  /** Runs the callback each time the quick card opens. */
+  onCardOpen: (cb: () => void) => () => void;
   /** A scene holds the body and the window. */
   isHeld: () => boolean;
   /** The bed the avatar commands lay her on. */
@@ -120,8 +127,8 @@ export function wireLocomotion(deps: {
   });
   register(travelFrame.dispose);
 
-  // Ambient walking outranks nothing: a drag, an agent command or a reflex turn cancels a
-  // stroll at once; an ordinary turn walks on.
+  // Ambient walking outranks nothing: a drag, an agent command, a reflex turn or the quick
+  // card opening cancels a stroll at once; an ordinary turn walks on.
   let dragging = false;
   let climberRef: { cancel(): void; descend(edge: DescentEdge): Promise<void> } | null = null;
   const walker = wireWalker({
@@ -141,6 +148,7 @@ export function wireLocomotion(deps: {
   });
   register(walker.dispose);
   register(wireStrollReflexCancel({ dispatcher, walker }));
+  register(wireStrollCardCancel({ onCardOpen: deps.onCardOpen, walker }));
 
   // Set once each loop exists — the drop source and the faller are built before them.
   let percherRef: { cancel(): void; landOn(target: WindowRect): void } | null = null;
@@ -247,6 +255,7 @@ export function wireLocomotion(deps: {
     isPeeking: () => peekActive(),
     isDragging: () => dragging || isHeld(),
     isBusy: dispatcher.isPipelineBusy,
+    isPanelOpen: deps.isPanelOpen,
     walker,
     faller,
     sitter,

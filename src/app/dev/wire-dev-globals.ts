@@ -6,6 +6,7 @@ import type { UserInputSource } from "../../dispatcher/sources/user-input-source
 import type { Renderer } from "../../renderer";
 import { isTauri } from "../../tauri-env";
 import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
+import type { QuickCard } from "../../ui/quick-card/quick-card";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
 
 /**
@@ -20,7 +21,7 @@ export async function wireDevGlobals(deps: {
   screenshotSettings: unknown;
   lipsyncSettings: unknown;
   agentSettings: unknown;
-  quickControls: unknown;
+  getQuickCard: () => Pick<QuickCard, "open" | "close" | "isOpen">;
   speechPlayback: unknown;
   voiceInputStatus: VoiceInputStatus;
   userInput: Pick<UserInputSource, "submit">;
@@ -36,7 +37,7 @@ export async function wireDevGlobals(deps: {
     screenshotSettings,
     lipsyncSettings,
     agentSettings,
-    quickControls,
+    getQuickCard,
     speechPlayback,
     voiceInputStatus,
     userInput,
@@ -55,7 +56,12 @@ export async function wireDevGlobals(deps: {
     __yuiScreenshot: screenshotSettings,
     __yuiLipsync: lipsyncSettings,
     __yuiAgent: agentSettings,
-    __yuiQuick: quickControls,
+    // The card the window shows now; open() with no point opens it at the window's centre.
+    __yuiQuick: {
+      open: (at?: { x: number; y: number }) => getQuickCard().open(at),
+      close: () => getQuickCard().close(),
+      isOpen: () => getQuickCard().isOpen(),
+    },
     __yuiVoiceInputStatus: voiceInputStatus,
     // DEV-ONLY trigger: fire E2E loop directly from console.
     //   window.__yui_send("hello") → user.text_submitted → dispatcher → backend_caller →
