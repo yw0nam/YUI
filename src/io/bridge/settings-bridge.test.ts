@@ -14,6 +14,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { BridgeTransport } from "./core/bridge-core";
+import type { MessageSurfaceOp } from "./message/message-bridge";
 import { createSettingsBridge } from "./settings-bridge";
 
 // In-memory pub/sub transport shared by two bridges (= two windows).
@@ -300,7 +301,8 @@ describe("createSettingsBridge", () => {
     ["onHelpGuide", { guide: "controls", text: "help" }, true],
     ["onCharacterAddressed", { from: "p1", name: "Perlica", to: "p2", text: "x", ts: 1 }, false],
     ["onUserTurnRouted", { sendId: "s1", to: "p2", text: "x" }, false],
-    ["onSpeechStream", { preset: "p2", turn_id: "7", op: "push", delta: "hi" }, false],
+    ["onSpeechStream", { preset: "p2", op: { op: "push", delta: "hi" } }, false],
+    ["onSpeechStreamAsk", undefined, false],
     ["onUserTurnDone", { sendId: "s1", preset: "p2" }, false],
   ] as const)("%s uses its declared preset scope", (method, payload, scoped) => {
     history.replaceState(null, "", "/?preset=a");
@@ -429,48 +431,79 @@ describe("createSettingsBridge", () => {
   });
 });
 
-it("rebuilds valid speech stream events and drops malformed payloads", () => {
-  const transport = createFakeTransport();
-  const pet = createSettingsBridge(transport, { windowKind: "pet" });
-  const unified = createSettingsBridge(transport, { windowKind: "unified" });
-  const received = vi.fn();
-  unified.onSpeechStream(received);
-  for (const payload of [
+describe("speech stream", () => {
+  function pair() {
+    const transport = createFakeTransport();
+    const pet = createSettingsBridge(transport, { windowKind: "pet" });
+    const unified = createSettingsBridge(transport, { windowKind: "unified" });
+    const received = vi.fn();
+    unified.onSpeechStream(received);
+    return { pet, unified, received };
+  }
+
+  it.each<MessageSurfaceOp>([
+    { op: "begin" },
+    { op: "begin", paced: true },
+    { op: "push", delta: "hi" },
+    { op: "pace", text: "Hi.", durationMs: 1200 },
+    { op: "pace", text: "Hi.", durationMs: null },
+    { op: "end" },
+    { op: "end", defer: true },
+    { op: "finish" },
+    { op: "hide" },
+    { op: "quote", quote: { text: "hey", via: "voice", images: 1 } },
+    { op: "quote", quote: { text: "hey", via: "text", images: 0, mention: "everyone" } },
+    { op: "quote-signals", lines: [{ delivery: "urgent", source: "ci", text: "Build failed" }] },
+    { op: "settle-quote" },
+    { op: "clear-quote" },
+    { op: "busy", busy: true },
+    { op: "name", name: "Yui" },
+    { op: "summon-input" },
+    { op: "input-error", message: "Could not reach the backend" },
+  ])("carries %j with its preset", (op) => {
+    const { pet, received } = pair();
+
+    pet.emitSpeechStream({ preset: "yui", op });
+
+    expect(received).toHaveBeenCalledExactlyOnceWith({ preset: "yui", op });
+  });
+
+  it.each([
     null,
-    {},
-    { preset: "p", turn_id: "7", op: "push", delta: 7 },
-    { preset: "", turn_id: "7", op: "end" },
-    { preset: "p", turn_id: "", op: "begin", baseline: 0 },
-    { preset: "p", turn_id: "7", op: "other" },
-    ...[undefined, -1, 0.5, NaN, Infinity, "0"].map((baseline) => ({
-      preset: "p",
-      turn_id: "7",
-      op: "begin",
-      baseline,
-    })),
-  ])
+    { preset: "", op: { op: "end" } },
+    { preset: "yui", op: "end" },
+    { preset: "yui", op: { op: "other" } },
+    { preset: "yui", op: { op: "dismiss-input" } },
+    { preset: "yui", op: { op: "restore-input", text: "x", images: [] } },
+    { preset: "yui", op: { op: "push", delta: 7 } },
+    { preset: "yui", op: { op: "pace", text: "Hi.", durationMs: "1200" } },
+    { preset: "yui", op: { op: "begin", paced: "yes" } },
+    { preset: "yui", op: { op: "quote", quote: { text: "x", via: "fax", images: 0 } } },
+    {
+      preset: "yui",
+      op: { op: "quote", quote: { text: "x", via: "text", images: 0, mention: "all" } },
+    },
+    {
+      preset: "yui",
+      op: { op: "quote-signals", lines: [{ delivery: "now", source: "ci", text: "x" }] },
+    },
+    { preset: "yui", op: { op: "busy", busy: 1 } },
+    { preset: "yui", op: { op: "input-error" } },
+  ])("drops the malformed event %j", (payload) => {
+    const { pet, received } = pair();
+
     pet.emitSpeechStream(payload as never);
-  expect(received.mock.calls).toEqual([]);
-  pet.emitSpeechStream({
-    preset: "p",
-    turn_id: "7",
-    op: "begin",
-    baseline: 0,
-    extra: true,
-  } as never);
-  pet.emitSpeechStream({
-    preset: "p",
-    turn_id: "7",
-    op: "push",
-    delta: "hi",
-    extra: true,
-  } as never);
-  pet.emitSpeechStream({ preset: "p", turn_id: "7", op: "end", extra: true } as never);
-  expect(received.mock.calls).toEqual([
-    [{ preset: "p", turn_id: "7", op: "begin", baseline: 0 }],
-    [{ preset: "p", turn_id: "7", op: "push", delta: "hi" }],
-    [{ preset: "p", turn_id: "7", op: "end" }],
-  ]);
-  pet.dispose();
-  unified.dispose();
+
+    expect(received).not.toHaveBeenCalled();
+  });
+
+  it("delivers an ask from the unified window to a pet window", () => {
+    const { pet, unified } = pair();
+    const ask = vi.fn();
+    pet.onSpeechStreamAsk(ask);
+
+    unified.emitSpeechStreamAsk();
+
+    expect(ask).toHaveBeenCalledOnce();
+  });
 });

@@ -77,6 +77,17 @@ describe("createQuotedTurn", () => {
     expect(surfaces.quoteUser).toHaveBeenCalledWith({ text: "hi", via: "text", images: 1 });
   });
 
+  it("quotes a turn routed to everyone with its mention", () => {
+    admit({ ...userEnv("hi"), payload: { text: "hi", mention: "everyone", send_id: "s1" } });
+
+    expect(surfaces.quoteUser).toHaveBeenCalledWith({
+      text: "hi",
+      via: "text",
+      images: 0,
+      mention: "everyone",
+    });
+  });
+
   it("quotes an admitted voice turn as voice", () => {
     admit(voiceEnv("hello"));
 
