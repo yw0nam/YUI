@@ -159,9 +159,14 @@ function wakeOf(env: BusEnvelope, messageWake: boolean): TriggerMeta["wake"] | u
 
 function addressedOf(env: BusEnvelope): TriggerMeta["addressed"] | undefined {
   if (env.event_name !== ADDRESSED_EVENT) return undefined;
-  const { name, line } = env.payload ?? {};
+  const { name, line, user_message } = env.payload ?? {};
   return typeof name === "string" && typeof line === "string"
-    ? { from: name, text: line, ts: env.ts }
+    ? {
+        from: name,
+        text: line,
+        ts: env.ts,
+        ...(typeof user_message === "string" ? { user_message } : {}),
+      }
     : undefined;
 }
 

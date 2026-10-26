@@ -548,11 +548,22 @@ trigger: addressed by perlica: "natsume, you took my chair" (0min ago)
 Another open character's reply called `address_character` naming this character, and that
 reply's playback has ended. The headline names the speaker, quotes what she said, and
 gives the minutes since it was spoken. The `ClientContext` field is
-`trigger.addressed?: { from, text, ts }`, with `from` the speaker's preset name, `text`
+`trigger.addressed?: { from, text, ts, user_message? }`, with `from` the speaker's preset name, `text`
 the reply's spoken text, and `ts` the epoch-ms moment the reply was spoken. When the
 cursor has not passed the exchange yet, the same lines also ride in the
 [`overheard`](#overheard) block. The client routes the turn; whether this character
 answers is the backend's judgment, and a `[SILENT]` reply ends the exchange.
+
+With `address_character` `handoff: true` on a user turn, `user_message` carries that turn's
+user message verbatim. The receiver takes it and answers the user; the headline reads:
+
+```text
+trigger: handed over by perlica: the user said "Can Natsume help?"; perlica said "Natsume, can you help?" (0min ago)
+```
+
+The headline sanitizes each quoted value to one line. Without a user message the event is
+a plain address. The receiver's transcript records the background marker as the turn's user half,
+so the user's message appears once in the unified chat window. Handoffs count toward the chain cap.
 
 ### Milestone
 

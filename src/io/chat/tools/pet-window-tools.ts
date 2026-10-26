@@ -24,7 +24,7 @@ export function createPetWindowTools(deps: {
   /** The other open presets rate_relation can name. */
   targets: () => PresetEntry[];
   /** Records the reply's recipient for the addressed producer; returns the id recorded earlier, if any. */
-  recordAddressed: (turnId: string, to: string) => string | undefined;
+  recordAddressed: Parameters<typeof createAddressCharacterTool>[0]["record"];
 }): ClientTool[] {
   const rate = createRateRelationTool({
     store: deps.relations,

@@ -41,6 +41,7 @@ import type {
   TurnFailure,
   TurnOutcome,
 } from "./backend/backend-caller";
+import { userTextOf } from "./backend/context-builder";
 import type { AddressedChain } from "./core/addressed-chain";
 import {
   classify,
@@ -122,6 +123,7 @@ export interface DispatcherDeps {
     spokeText: boolean;
     /** The unified chat window's send id when the turn answered a routed message. */
     sendId?: string;
+    userText?: string;
   }) => void;
   /** Structured logging (defaults to the dispatcher namespace logger). */
   logger?: Logger;
@@ -216,6 +218,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
     started_at: number;
     outcome: TurnOutcome | null;
     sendId: string | undefined;
+    userText: string | undefined;
   } | null = null;
   // A turn passed the gate; cleared when the pipeline goes idle.
   let gateHeld = false;
@@ -260,6 +263,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       outcome,
       spokeText,
       ...(openTurn.sendId ? { sendId: openTurn.sendId } : {}),
+      ...(openTurn.userText !== undefined ? { userText: openTurn.userText } : {}),
     };
     openTurn = null;
     try {
@@ -376,6 +380,7 @@ export function createDispatcher(deps: DispatcherDeps): Dispatcher {
       started_at,
       outcome: null,
       sendId: sendIdOf(env),
+      userText: userTextOf(env),
     };
     deps.onTurnAdmitted?.(turn);
     // Server-side HTTP error detail, kept per call so a superseded turn's late detail

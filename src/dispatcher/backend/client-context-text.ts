@@ -201,7 +201,9 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
   } else if (trigger.addressed) {
     const a = trigger.addressed;
     lines.push(
-      `trigger: addressed by ${oneLine(a.from)}: "${oneLine(a.text)}" (${minutesSince(a.ts, nowMs)}min ago)`,
+      a.user_message !== undefined
+        ? `trigger: handed over by ${oneLine(a.from)}: the user said "${oneLine(a.user_message)}"; ${oneLine(a.from)} said "${oneLine(a.text)}" (${minutesSince(a.ts, nowMs)}min ago)`
+        : `trigger: addressed by ${oneLine(a.from)}: "${oneLine(a.text)}" (${minutesSince(a.ts, nowMs)}min ago)`,
     );
   } else if (trigger.kind === "user") {
     const addressed =

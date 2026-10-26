@@ -319,6 +319,26 @@ describe("dispatcher — routed user turns", () => {
     d.stop();
   });
 
+  it.each([
+    ["user.text_submitted", { text: "  user\nquestion  " }, { userText: "  user\nquestion  " }],
+    ["proactive.idle", {}, {}],
+  ])("closes %s with its admitted user text", async (eventName, payload, extra) => {
+    const onTurnClosed = vi.fn();
+    const d = make({ onTurnClosed });
+    bus.push({ ...userEnv(""), event_name: eventName, payload });
+    await vi.advanceTimersByTimeAsync(20);
+    const id = turnLog.current()!.id;
+    callDeferred.at(-1)?.resolve("ok");
+    await vi.advanceTimersByTimeAsync(20);
+    expect(onTurnClosed).toHaveBeenCalledExactlyOnceWith({
+      id,
+      outcome: "ok",
+      spokeText: false,
+      ...extra,
+    });
+    d.stop();
+  });
+
   it("reports no send id for a user turn typed in the window", async () => {
     const onTurnClosed = vi.fn();
     const d = make({ onTurnClosed });
