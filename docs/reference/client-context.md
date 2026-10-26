@@ -562,9 +562,9 @@ trigger: handed over by perlica: the user said "Can Natsume help?"; perlica said
 ```
 
 The headline sanitizes each quoted value to one line. Without a user message the event is
-a plain address. The receiver's request carries the background marker as its user message, and
-her transcript records no user half, so the user's message appears once in the unified chat window.
-Handoffs count toward the chain cap.
+a plain address. On Chat Completions and Responses the receiver's request carries the background
+marker as its user message; on push it carries no user text. Her transcript records no user half,
+so the user's message appears once in the unified chat window. Handoffs count toward the chain cap.
 
 ### Milestone
 
