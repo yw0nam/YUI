@@ -11,7 +11,7 @@ import { subscribe as subscribeLocale, t } from "../i18n";
 import { afterFadeOut } from "../notices/fade-out";
 import { renderMarkdownInline } from "./markdown";
 import { stableMarkdown } from "./stable-markdown";
-import { keepTextPrefix } from "./text-prefix";
+import { keepTextPrefix, visibleText } from "./text-prefix";
 import { createTypewriter } from "./typewriter";
 
 export interface SpeechBubble {
@@ -105,7 +105,7 @@ export function createSpeechBubble(
   let dwellTimer: ReturnType<typeof setTimeout> | null = null;
   // Whether the fade is being held by endSpeech({ defer:true }) — finishSpeech() releases it.
   let deferred = false;
-  // Raw accumulated speech text — its typed-out prefix is rendered as markdown at a bounded cadence.
+  // The line's markdown as received.
   let speechRaw = "";
   // The received line rendered — its stable part while it streams, all of it once it ends — and that rendering's text.
   let parsed: HTMLElement | null = null;
@@ -216,8 +216,8 @@ export function createSpeechBubble(
     clearParseTimer();
     lastParseAt = performance.now();
     const source = final ? speechRaw : stableMarkdown(speechRaw);
-    parsed = source === "" ? null : renderMarkdownInline(source);
-    parsedText = parsed?.textContent ?? "";
+    parsed = source === "" ? null : renderMarkdownInline(source, { streaming: !final });
+    parsedText = parsed === null ? "" : visibleText(parsed);
     const before = revealed;
     typer.received(parsedText);
     // A rendering that revealed nothing new (an image has no text) still draws.
@@ -330,7 +330,7 @@ export function createSpeechBubble(
 
   // The voice reads the raw sentence; the typewriter counts what the bubble draws.
   function paceSpeech({ text, durationMs }: SentenceStart): void {
-    typer.pace({ text: renderMarkdownInline(text).textContent ?? "", durationMs });
+    typer.pace({ text: visibleText(renderMarkdownInline(text, { streaming: true })), durationMs });
   }
 
   function endSpeech(opts?: { defer?: boolean }): void {
@@ -343,7 +343,8 @@ export function createSpeechBubble(
     scrollBubbleToEnd(pin);
     // The line is whole now: render all of it, and announce it once — not on every delta or barge-in re-call.
     parse(true);
-    if (bubbleSr.textContent !== parsedText) bubbleSr.textContent = parsedText;
+    const announced = parsed?.textContent ?? "";
+    if (bubbleSr.textContent !== announced) bubbleSr.textContent = announced;
     clearDwell();
     // A deferred line holds the fade until playback ends — finishSpeech() arms the dwell.
     deferred = opts?.defer === true;
