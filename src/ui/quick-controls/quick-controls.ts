@@ -396,7 +396,7 @@ export function createQuickControls({
   const log = createLogger("quick-controls");
 
   const el = document.createElement("div");
-  el.className = "yui-quick yui-quick--window";
+  el.className = "yui-quick";
   el.setAttribute("role", "dialog");
   el.setAttribute("aria-label", t("panel.dialog_label"));
 

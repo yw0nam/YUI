@@ -1,17 +1,13 @@
 /* ── Preset strip — spanning rail and body; the one place the edited preset is picked ── */
+/* The strip, not the columns, sits below the native macOS titlebar (28px). */
 .yui-preset {
   position: relative;
   flex: 0 0 auto;
-  padding: 0.5rem 0.55rem 0.5rem 0.7rem;
+  padding: calc(28px + 0.5rem) 0.55rem 0.5rem 0.7rem;
   border-bottom: 1px solid var(--yui-edge);
 }
 
-/* The strip, not the columns, sits below the native macOS titlebar (28px). */
-.yui-quick--window .yui-preset {
-  padding-top: calc(28px + 0.5rem);
-}
-
-.yui-quick--window .yui-preset + .yui-quick__cols {
+.yui-preset + .yui-quick__cols {
   padding-top: 0;
 }
 
@@ -40,7 +36,7 @@
   right: 0.55rem;
   z-index: 3;
   box-sizing: border-box;
-  width: min(19rem, calc(100% - 1.1rem));
+  width: min(26rem, calc(100% - 1.1rem));
   padding: 0.375rem;
   border: 1px solid var(--yui-edge-strong);
   border-radius: var(--yui-radius-group);
@@ -49,10 +45,6 @@
   animation: yui-preset-in var(--yui-dur-fast) var(--yui-ease);
   max-height: min(24rem, calc(100vh - 8rem));
   overflow-y: auto;
-}
-
-.yui-quick--window .yui-preset-pop {
-  width: min(26rem, calc(100% - 1.1rem));
 }
 
 .yui-preset-pop[hidden] {

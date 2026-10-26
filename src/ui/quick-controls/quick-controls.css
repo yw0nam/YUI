@@ -3,7 +3,7 @@
    Tokens in ../tokens.css. */
 
 /* ── panel — fills the settings window; the OS window owns the opaque background ── */
-.yui-quick--window {
+.yui-quick {
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -46,14 +46,11 @@
 }
 
 /* ── Two-column layout — tab rail + scrollable content ── */
+/* The row sits below the native macOS titlebar (28px). */
 .yui-quick__cols {
   display: flex;
   flex: 1 1 auto;
   min-height: 0;
-}
-
-/* The row sits below the native macOS titlebar (28px). */
-.yui-quick--window .yui-quick__cols {
   padding-top: 28px;
 }
 
@@ -162,13 +159,9 @@
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
-  padding: 0.5rem 1rem 1.5rem;
+  padding: 0.5rem 1.75rem 2.5rem;
   scrollbar-width: thin;
   scrollbar-color: var(--yui-edge-strong) transparent;
-}
-
-.yui-quick--window .yui-quick__body {
-  padding: 0.5rem 1.75rem 2.5rem;
 }
 
 .yui-quick__body::-webkit-scrollbar {
