@@ -111,7 +111,7 @@ and the pump goes on.
 | `unified-window` | `unified_window_open_failed` | `error` | Showing or creating the window threw (`warn` level). |
 | `unified-window` | `unified_window_close_failed` | `error` | Destroying the window threw (`warn` level). |
 | `quick-ui`, `settings-ui` | `unified_chat_toggle` | `enabled` | The user flipped the Unified chat switch. |
-| `wire-unified-close` | `unified_chat_toggle` | `enabled`, `via` | The unified chat window closed itself (× or Cmd+W) and turned the switch off; `enabled` is `false`, `via` is `close`. |
+| `wire-unified-close` | `unified_chat_toggle` | `enabled`, `via` | The unified chat window closed itself (its ×) and turned the switch off; `enabled` is `false`, `via` is `close`. |
 | `quick-ui`, `settings-ui` | `character_desktop_toggle` | `preset`, `on` | A flip of a character's On the desktop switch took effect; `on` is the new state. A turn-on the open-preset cap refused logs nothing. |
 | `quick-ui`, `settings-ui` | `photo_crop_saved` | `preset` | The photo dialog's Use photo stored the preset's crop. |
 | `quick-ui`, `settings-ui` | `photo_default_framed` | `preset` | A picked photo's default framing was stored once its size was measured. |

@@ -1,5 +1,48 @@
-import { describe, expect, it, vi } from "vitest";
-import { closeUnifiedWindow, openUnifiedWindow } from "./unified-window";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+const { WebviewWindow, getByLabel } = vi.hoisted(() => ({
+  WebviewWindow: vi.fn(
+    class {
+      once = vi.fn();
+    },
+  ),
+  getByLabel: vi.fn(async () => null),
+}));
+vi.mock("@tauri-apps/api/webviewWindow", () => ({
+  WebviewWindow: Object.assign(WebviewWindow, { getByLabel }),
+}));
+vi.mock("@tauri-apps/api/window", () => ({
+  getCurrentWindow: () => ({
+    outerPosition: async () => ({ x: 1, y: 2 }),
+    outerSize: async () => ({ width: 400, height: 600 }),
+    scaleFactor: async () => 1,
+  }),
+  availableMonitors: async () => [],
+}));
+
+import {
+  closeUnifiedWindow,
+  createUnifiedWindowController,
+  openUnifiedWindow,
+} from "./unified-window";
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe("createUnifiedWindowController", () => {
+  it("creates the window taking the click that activates it", async () => {
+    vi.stubGlobal("__TAURI_INTERNALS__", {});
+    createUnifiedWindowController({
+      get: () => ({ x: null, y: null }) as never,
+      reloadFromStorage() {},
+    }).open();
+    await vi.waitFor(() =>
+      expect(WebviewWindow).toHaveBeenCalledWith(
+        "unified",
+        expect.objectContaining({ url: "unified.html", acceptFirstMouse: true }),
+      ),
+    );
+  });
+});
 
 describe("openUnifiedWindow", () => {
   it("shows and focuses the window that exists instead of creating another", async () => {

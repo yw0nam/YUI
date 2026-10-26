@@ -3,7 +3,7 @@ import type { FlagSettingsStore } from "../../settings/persisted-store";
 
 const log = createLogger("wire-unified-close");
 
-/** The window closing itself (× or Cmd+W) turns the Unified chat switch off; a destroy by main's open rule asks nothing. */
+/** The window closing itself (×) turns the Unified chat switch off; a destroy by main's open rule asks nothing. */
 export async function wireUnifiedClose(deps: {
   listenCloseRequested(onRequest: () => void): Promise<() => void>;
   switch: Pick<FlagSettingsStore, "setEnabled">;
