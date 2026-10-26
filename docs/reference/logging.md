@@ -110,7 +110,7 @@ and the pump goes on.
 | `unified-window` | `unified_window_open_failed` | `error` | Showing or creating the window threw (`warn` level). |
 | `unified-window` | `unified_window_close_failed` | `error` | Closing the window threw (`warn` level). |
 | `quick-ui`, `settings-ui` | `unified_chat_toggle` | `enabled` | The user flipped the Unified chat switch. |
-| `quick-ui`, `settings-ui` | `character_desktop_toggle` | `preset`, `on` | The user flipped a character's On the desktop switch; `on` is the state asked for. |
+| `quick-ui`, `settings-ui` | `character_desktop_toggle` | `preset`, `on` | A flip of a character's On the desktop switch took effect; `on` is the new state. A turn-on the open-preset cap refused logs nothing. |
 
 ## TypeScript Usage
 

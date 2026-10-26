@@ -43,7 +43,11 @@ export function createCharactersSection(deps: {
     sw.addEventListener("click", () => {
       const on = petWindows.get().includes(entry.id);
       if (on) petWindows.close(entry.id);
-      else if (!petWindows.open(entry.id)) render();
+      else if (!petWindows.open(entry.id)) {
+        // Another window took the last place first; the repaint shows the reason.
+        render();
+        return;
+      }
       log.info("character_desktop_toggle", { preset: entry.id, on: !on });
     });
     return row;
