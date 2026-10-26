@@ -15,5 +15,11 @@ it("loads, persists and validates the theme", () => {
   expect(saved).toEqual({ theme: "system" });
   expect(createThemeSettings({ storage }).get()).toEqual({ theme: "system" });
   saved = { theme: "neon" };
-  expect(createThemeSettings({ storage }).get()).toEqual({ theme: "dawn" });
+  expect(createThemeSettings({ storage }).get()).toEqual({ theme: "system" });
+});
+
+it("follows the OS appearance until the user picks a theme", () => {
+  expect(createThemeSettings({ storage: { load: () => null, save: () => {} } }).get()).toEqual({
+    theme: "system",
+  });
 });
