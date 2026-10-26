@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatHistoryStore } from "../../../io/chat/conversation/chat-history-store";
 import { createVadSettings } from "../../../settings/voice/vad-settings";
@@ -299,3 +301,10 @@ describe("createQuickControls — tab rail", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Language picker (i18n)
 // ─────────────────────────────────────────────────────────────────────────────
+
+// jsdom lays nothing out; in the scrolling column rail a shrinkable heading collapses to 0px.
+it("keeps the rail group headings from shrinking when the rail overflows", () => {
+  const css = readFileSync(resolve(__dirname, "../quick-controls.css"), "utf-8");
+  const start = css.indexOf("\n.yui-tabs__group {");
+  expect(css.slice(start, css.indexOf("\n}", start + 1))).toMatch(/\n\s*flex: none;/);
+});
