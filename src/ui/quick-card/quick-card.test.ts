@@ -141,6 +141,30 @@ describe("createQuickCard", () => {
     ]);
   });
 
+  it("tells each open listener when it opens, until the listener unsubscribes", () => {
+    const { card } = build();
+    const onOpen = vi.fn();
+    const off = card.onOpen(onOpen);
+
+    card.open({ x: 0, y: 0 });
+    card.open({ x: 5, y: 5 });
+    card.close();
+    off();
+    card.open({ x: 0, y: 0 });
+
+    expect(onOpen).toHaveBeenCalledOnce();
+  });
+
+  it("closes and reads the new language when the display language changes", () => {
+    const { card, tile } = build();
+    card.open({ x: 0, y: 0 });
+
+    setLocale("ko");
+
+    expect(card.isOpen()).toBe(false);
+    expect(tile(0).querySelector(".yui-qcard__tile-label")!.textContent).toBe("음성");
+  });
+
   it("disables Listen and reads Main only on another character's card", () => {
     const { card, tile } = build({ listen: null });
     card.open({ x: 0, y: 0 });

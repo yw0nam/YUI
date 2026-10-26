@@ -1,23 +1,13 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createQuickCard, wireCueLocaleSync, localeSubscribers } = vi.hoisted(() => ({
+const { createQuickCard, wireCueLocaleSync } = vi.hoisted(() => ({
   createQuickCard: vi.fn<typeof import("../../ui/quick-card/quick-card").createQuickCard>(),
   wireCueLocaleSync: vi.fn(),
-  localeSubscribers: [] as Array<() => void>,
 }));
 
 vi.mock("../../ui/quick-card/quick-card", () => ({ createQuickCard }));
 vi.mock("../settings/wire-cue-locale-sync", () => ({ wireCueLocaleSync }));
-vi.mock("../../ui/i18n", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../ui/i18n")>()),
-  subscribe: (cb: () => void) => {
-    localeSubscribers.push(cb);
-    return () => {
-      localeSubscribers.splice(localeSubscribers.indexOf(cb), 1);
-    };
-  },
-}));
 
 import { createSettingsStores, type SettingsStores } from "../../settings/settings-stores";
 import { createVoiceInputStatus } from "../../ui/chips/voice-input-status";
@@ -36,6 +26,7 @@ beforeEach(() => {
       open: vi.fn(),
       close: vi.fn(),
       isOpen: vi.fn(() => false),
+      onOpen: vi.fn(() => () => {}),
       dispose: vi.fn(() => void events.push("card.dispose")),
     };
   });
@@ -113,18 +104,12 @@ describe("wirePetControls", () => {
   it.each([
     null,
     "a",
-  ])("gives main the Listen tile and a bound card its Turn off, across a remount (bound: %s)", async (boundId) => {
+  ])("gives main the Listen tile and a bound card its Turn off (bound: %s)", (boundId) => {
     const wired = makeDeps(boundId);
     try {
-      for (const remount of [false, true]) {
-        if (remount) {
-          localeSubscribers[0]!();
-          await Promise.resolve();
-        }
-        const options = wired.options();
-        expect(options.listen === null).toBe(boundId !== null);
-        expect(options.turnOff === null).toBe(boundId === null);
-      }
+      const options = wired.options();
+      expect(options.listen === null).toBe(boundId !== null);
+      expect(options.turnOff === null).toBe(boundId === null);
       wired.options().turnOff?.();
       expect(wired.deps.petWindows.close.mock.calls).toEqual(boundId ? [[boundId]] : []);
       wired.options().openAllSettings();
@@ -202,61 +187,21 @@ describe("wirePetControls", () => {
     }
   });
 
-  it("registers the four teardowns in the baseline boot order", () => {
+  it("registers the three teardowns in the baseline boot order", () => {
     const wired = makeDeps();
 
-    expect(wired.registered).toHaveLength(4);
-    // The card binding drains a disposed-then-rebuilt instance live, so its slot is identified
-    // by behavior, not identity.
+    expect(wired.registered).toHaveLength(3);
+    // Slot 1 disposes the card, slot 2 is the cue-locale sync disposer, slot 3 the context-menu remover.
     wired.registered[0]!();
-    expect(events.filter((e) => e.endsWith(".dispose"))).toEqual(["card.dispose"]);
-    // Slot 2 is the cue-locale sync disposer, slot 3 the locale unsubscriber, slot 4 the
-    // context-menu remover.
+    expect(events).toEqual(["card.build", "card.dispose"]);
     expect(wired.registered[1]).toBe(wireCueLocaleSync.mock.results[0]?.value);
-    expect(localeSubscribers).toHaveLength(1);
     wired.registered[2]!();
-    expect(localeSubscribers).toHaveLength(0);
-    wired.registered[3]!();
     expect(wired.removeEventListener).toHaveBeenCalledWith("contextmenu", expect.any(Function));
 
     teardownDeps(wired);
   });
 
-  it("defers the locale remount by exactly one microtask", async () => {
-    const wired = makeDeps();
-    expect(events).toEqual(["card.build"]);
-
-    localeSubscribers[0]!();
-    expect(events).toEqual(["card.build"]);
-
-    await Promise.resolve();
-    expect(events).toEqual(["card.build", "card.dispose", "card.build"]);
-    await Promise.resolve();
-    expect(events).toHaveLength(3);
-
-    teardownDeps(wired);
-  });
-
-  it("get() drives the rebuilt card after a locale remount", async () => {
-    const wired = makeDeps();
-    const first = built(0).card;
-    localeSubscribers[0]!();
-    await Promise.resolve();
-    const rebuilt = built(-1).card;
-
-    wired.controls.get().open({ x: 1, y: 2 });
-    wired.stage.dispatchEvent(
-      new MouseEvent("contextmenu", { clientX: 5, clientY: 6, cancelable: true }),
-    );
-
-    expect(first.open).not.toHaveBeenCalled();
-    expect(rebuilt.open.mock.calls).toEqual([[{ x: 1, y: 2 }], [{ x: 5, y: 6 }]]);
-    expect(wired.controls.get().el).toBe(rebuilt.el);
-
-    teardownDeps(wired);
-  });
-
-  it("opens the live card at the pointer from the stage context menu", () => {
+  it("opens the card at the pointer from the stage context menu, and hands it back", () => {
     const wired = makeDeps();
 
     const event = new MouseEvent("contextmenu", { clientX: 12, clientY: 34, cancelable: true });
@@ -264,20 +209,7 @@ describe("wirePetControls", () => {
 
     expect(event.defaultPrevented).toBe(true);
     expect(built(0).card.open).toHaveBeenCalledWith({ x: 12, y: 34 });
-
-    teardownDeps(wired);
-  });
-
-  it("tells each open listener when the card opens, across a remount", async () => {
-    const wired = makeDeps();
-    const onOpen = vi.fn();
-    wired.controls.onOpen(onOpen);
-    wired.options().onOpen?.();
-    localeSubscribers[0]!();
-    await Promise.resolve();
-    wired.options().onOpen?.();
-
-    expect(onOpen).toHaveBeenCalledTimes(2);
+    expect(wired.controls).toBe(built(0).card);
 
     teardownDeps(wired);
   });

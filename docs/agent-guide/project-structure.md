@@ -77,7 +77,7 @@ YUI/
         wire-cross-window.ts         # Per-window sync for the pet, settings, and devtools windows
         wire-window-sync.ts          # Settings broadcast, guardrail overrides, and the shared cross-window sync core
       controls/                      # The pet window's summonable control surface
-        wire-pet-controls.ts         # The quick card, remounted on locale change, and the stage context menu that opens it
+        wire-pet-controls.ts         # The quick card and the stage context menu that opens it
         quick-card-ports.ts          # The quick card's ports over the window's stores: tiles, selects, transport line, reset, Turn off, All settings…
         wire-devtools-request.ts     # Main's pet window opens Developer Tools when the settings window asks
         wire-help-guide.ts           # Guide requests the settings window sends over the bridge, submitted as user turns
@@ -580,7 +580,7 @@ YUI/
         first-run-hint.ts            # First-run controls hint through the speech bubble
         boot-error.css               # Boot-failure notice styles
       quick-card/                    # The pet window's right-click card beside the character
-        quick-card.ts                # The card: its head and All settings…, and how it opens, places and closes
+        quick-card.ts                # The card: its head and All settings…, how it opens, places and closes, and its rebuild in a new language
         tiles.ts                     # The toggle tiles: each writes its store and follows it
         rows.ts                      # The Body and Reference voice selects, the reset that asks first, and Turn off
         transport-line.ts            # The head line: the transport's name, and on push the socket's state

@@ -5,7 +5,7 @@ import type { PushSocketState } from "../../io/chat/push/push-socket";
 import { createLogger } from "../../logger";
 import type { ChatTransport } from "../../settings/backend/endpoints-settings";
 import type { PresetEntry } from "../../settings/preset/active-preset";
-import { t } from "../i18n";
+import { subscribe as subscribeLocale, t } from "../i18n";
 import { CROSS_SVG } from "../quick-controls/constants";
 import type { SwitchRow } from "../quick-controls/switch-row";
 import { avatarEl } from "../unified/avatar";
@@ -22,6 +22,8 @@ export interface QuickCard {
   open(at?: { x: number; y: number }): void;
   close(): void;
   isOpen(): boolean;
+  /** Runs the callback each time the card opens. */
+  onOpen(cb: () => void): () => void;
   dispose(): void;
 }
 
@@ -42,7 +44,6 @@ export function createQuickCard(deps: {
   openAllSettings(): void;
   /** The on-screen height of the window, refreshed before each open; the card stays inside it. */
   visibleViewport?: { get(): number; refresh(): Promise<void> };
-  onOpen?: () => void;
 }): QuickCard {
   const el = document.createElement("div");
   el.className = "yui-qcard";
@@ -52,7 +53,11 @@ export function createQuickCard(deps: {
   let open = false;
   let anchor: { x: number; y: number } | undefined;
   let disposed = false;
-  el.innerHTML = `
+  const openListeners = new Set<() => void>();
+
+  // The card's contents, rebuilt in the new language on a locale change.
+  function build() {
+    el.innerHTML = `
     <div class="yui-qcard__head">
       <span class="yui-qcard__face"></span>
       <span class="yui-qcard__id">
@@ -64,34 +69,42 @@ export function createQuickCard(deps: {
     <div class="yui-qcard__body">
       <button class="yui-qcard__all" type="button">${t("quick_card.all_settings")}</button>
     </div>`;
-  const q = <T extends Element>(selector: string): T => el.querySelector<T>(selector)!;
-  const face = q<HTMLElement>(".yui-qcard__face");
-  const name = q<HTMLElement>(".yui-qcard__name");
-  const transportEl = q<HTMLElement>(".yui-qcard__transport");
-
-  const tiles = createTiles({ rows: deps.tiles, listen: deps.listen, log });
-  const rows = createRows({
-    body: deps.body,
-    voice: deps.voice,
-    resetConversation: deps.resetConversation,
-    turnOff: deps.turnOff,
-    // The confirmation grows the card; it stays inside the window.
-    onResize: () => {
-      if (open) place();
-    },
-    log,
-  });
-  q(".yui-qcard__body").prepend(tiles.el, rows.el);
+    const q = <T extends Element>(selector: string): T => el.querySelector<T>(selector)!;
+    const tiles = createTiles({ rows: deps.tiles, listen: deps.listen, log });
+    const rows = createRows({
+      body: deps.body,
+      voice: deps.voice,
+      resetConversation: deps.resetConversation,
+      turnOff: deps.turnOff,
+      // The confirmation grows the card; it stays inside the window.
+      onResize: () => {
+        if (open) place();
+      },
+      log,
+    });
+    q(".yui-qcard__body").prepend(tiles.el, rows.el);
+    q(".yui-qcard__all").addEventListener("click", () => deps.openAllSettings());
+    q(".yui-qcard__close").addEventListener("click", () => close());
+    return {
+      face: q<HTMLElement>(".yui-qcard__face"),
+      name: q<HTMLElement>(".yui-qcard__name"),
+      transport: q<HTMLElement>(".yui-qcard__transport"),
+      rows,
+      dispose: () => {
+        tiles.dispose();
+        rows.dispose();
+      },
+    };
+  }
+  let parts = build();
 
   function paintHead(): void {
     const entry = deps.entry();
-    face.replaceChildren(avatarEl(entry, 30));
-    name.textContent = entry.name;
-    transportEl.textContent = transportLine(deps.transport());
+    parts.face.replaceChildren(avatarEl(entry, 30));
+    parts.name.textContent = entry.name;
+    parts.transport.textContent = transportLine(deps.transport());
   }
 
-  q(".yui-qcard__all").addEventListener("click", () => deps.openAllSettings());
-  q(".yui-qcard__close").addEventListener("click", () => close());
   // Escape closes the card only, never the window or a surface behind it.
   el.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
@@ -100,7 +113,15 @@ export function createQuickCard(deps: {
     close();
   });
 
-  const unsubscribes = [deps.subscribeEntry(paintHead), deps.onTransport(paintHead)];
+  const unsubscribes = [
+    deps.subscribeEntry(paintHead),
+    deps.onTransport(paintHead),
+    subscribeLocale(() => {
+      close();
+      parts.dispose();
+      parts = build();
+    }),
+  ];
 
   function place(): void {
     const view = {
@@ -130,12 +151,12 @@ export function createQuickCard(deps: {
     if (!open) {
       open = true;
       paintHead();
-      rows.paint();
+      parts.rows.paint();
       deps.mount.append(el);
       document.addEventListener("pointerdown", onOutsidePointer, true);
       window.addEventListener("blur", onBlur);
       el.focus({ preventScroll: true });
-      deps.onOpen?.();
+      for (const cb of openListeners) cb();
     }
     place();
   }
@@ -145,7 +166,7 @@ export function createQuickCard(deps: {
     open = false;
     document.removeEventListener("pointerdown", onOutsidePointer, true);
     window.removeEventListener("blur", onBlur);
-    rows.disarm();
+    parts.rows.disarm();
     if (el.contains(document.activeElement)) (document.activeElement as HTMLElement).blur();
     el.remove();
   }
@@ -162,11 +183,14 @@ export function createQuickCard(deps: {
     },
     close,
     isOpen: () => open,
+    onOpen(cb) {
+      openListeners.add(cb);
+      return () => openListeners.delete(cb);
+    },
     dispose() {
       close();
       disposed = true;
-      tiles.dispose();
-      rows.dispose();
+      parts.dispose();
       for (const unsubscribe of unsubscribes) unsubscribe();
     },
   };

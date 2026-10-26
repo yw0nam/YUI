@@ -60,8 +60,6 @@ interface Phase1Handles extends TurnCorePhase1 {
   root: HTMLElement;
   stage: HTMLElement;
   getQuickCard(): QuickCard;
-  /** Runs the callback each time the quick card opens. */
-  onQuickCardOpen(cb: () => void): () => void;
   /** Opens the settings window on a page, on the main character or this window's own. */
   openSettings(page?: SettingsPage): void;
   /** Subscribes to resets the preset's other windows announce. */
@@ -308,7 +306,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       hitTest,
       peekActive: () => peekState?.active() ?? false,
       isCardOpen: () => getQuickCard().isOpen(),
-      onCardOpen: phase1.onQuickCardOpen,
+      onCardOpen: (cb) => getQuickCard().onOpen(cb),
       isHeld: bedScene.isHeld,
       bed: bedScene.bed,
       fallSettings,
