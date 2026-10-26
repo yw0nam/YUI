@@ -163,6 +163,7 @@ const ko: Record<string, string> = {
   "chars.on": "데스크톱에 있음",
   "chars.off": "꺼짐 · 설정 유지",
   "chars.cap_reason": "한 번에 4명까지예요. 먼저 한 명을 꺼 주세요.",
+  "chars.this_window": "이 창의 캐릭터",
   "chars.count": "데스크톱에 {n}/{cap}명",
   "chars.switch_aria": "{name} 데스크톱에 띄우기",
   "preset.in_window": "{name} · 창으로 열림",

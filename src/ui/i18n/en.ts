@@ -163,6 +163,7 @@ const en: Record<string, string> = {
   "chars.on": "On the desktop",
   "chars.off": "Off · settings kept",
   "chars.cap_reason": "Up to 4 at once. Turn one off first.",
+  "chars.this_window": "This window's character",
   "chars.count": "{n} of {cap} on the desktop",
   "chars.switch_aria": "{name} on the desktop",
   "preset.in_window": "{name} · open as a window",

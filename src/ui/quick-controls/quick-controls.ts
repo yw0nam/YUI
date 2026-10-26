@@ -508,7 +508,7 @@ export function createQuickControls({
     : null;
   const characters =
     presetRegistry && petWindows
-      ? createCharactersSection({ root: el, registry: presetRegistry, petWindows, log })
+      ? createCharactersSection({ root: el, registry: presetRegistry, petWindows, boundId, log })
       : null;
   const hintTooltip = createHintTooltip({ root: el });
 
