@@ -257,8 +257,7 @@ const ja: Record<string, string> = {
   "card.import": "カードを読み込む…",
   "card.export": "カードを書き出す",
   "card.io_note": "JSON か PNG のカードを読み込み、V2 JSON で書き出します",
-  "card.push_note":
-    "プッシュ接続ではバックエンド自身のペルソナが使われ、カードのテキストは送られません",
+  "card.push_note": "Push ではバックエンド自身のペルソナが使われ、カードのテキストは送られません",
   "card.import_failed": "そのカードは読み込めませんでした",
   "card.import_error": "このファイルにカードが入っていません",
   "card.export_error": "ファイルを書き出せませんでした",
