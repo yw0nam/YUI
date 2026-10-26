@@ -44,9 +44,8 @@ describe("createMessagePlate", () => {
   it("shows the preset's photo as its face", () => {
     plate.setFace({ id: "perlica", name: "Perlica", thumbnail: "data:image/png;base64,x" });
     const face = el().querySelector(".yui-plate__face")!.firstElementChild!;
-    expect(face.tagName).toBe("IMG");
     expect(face.className).toBe("yui-uc__avatar");
-    expect(face.getAttribute("src")).toBe("data:image/png;base64,x");
+    expect(face.querySelector("img")!.getAttribute("src")).toBe("data:image/png;base64,x");
   });
 
   it("shows a dot in the preset's hue as its face when it has no photo", () => {

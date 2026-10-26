@@ -108,9 +108,9 @@ describe("createQuickControls — presets", () => {
     qc.dispose();
     qc = createQuickControls({ ...defaultQcArgs(mount), presetRegistry: registry });
     qc.open();
-    const thumb = document.querySelector<HTMLImageElement>(".yui-preset__thumb")!;
+    const thumb = document.querySelector<HTMLElement>(".yui-preset__thumb")!;
     expect(thumb.hidden).toBe(false);
-    expect(thumb.src).toBe("asset://localhost/app-data/cards/bbbb0002.png");
+    expect(thumb.querySelector("img")!.src).toBe("asset://localhost/app-data/cards/bbbb0002.png");
   });
 
   const heads = () => [...qc.el.querySelectorAll<HTMLButtonElement>(".yui-chead__item")];
@@ -341,7 +341,9 @@ describe("createQuickControls — presets", () => {
     openManage();
     rowOf("natsume").querySelector<HTMLButtonElement>(".yui-preset-row__photo")!.click();
 
-    await vi.waitFor(() => expect($<HTMLImageElement>(".yui-preset__thumb").src).toBe(url));
+    await vi.waitFor(() =>
+      expect($<HTMLElement>(".yui-preset__thumb").querySelector("img")?.src).toBe(url),
+    );
     expect(pickPresetPhoto).toHaveBeenCalledWith("aaaa0001");
   });
 
