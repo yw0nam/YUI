@@ -6,6 +6,7 @@ import {
   type PersonaConfig,
 } from "../../../../config/validators/persona/types";
 import { createAgentSettings } from "../../../../settings/backend/agent-settings";
+import { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
 import { createUserNameSettings } from "../../../../settings/identity/user-name-settings";
 import { createPresetRegistry } from "../../../../settings/preset/preset-registry";
 import { setLocale } from "../../../i18n";
@@ -70,9 +71,30 @@ describe("createQuickControls — card section", () => {
     vi.restoreAllMocks();
   });
 
-  it("hides the whole section on the push transport", () => {
+  const visible = (sel: string) => !sec().querySelector<HTMLElement>(sel)!.hidden;
+  const pushOnly = [".yui-card__push-note"];
+  const requestOnly = [".yui-card-body", ".yui-group--switch", ".yui-sec__state"];
+
+  it("keeps only import, export and the push note on the push transport", () => {
     build({ getDefaultChatApi: () => "push" });
-    expect(sec().hidden).toBe(true);
+    expect(sec().hidden).toBe(false);
+    expect(sec().querySelector<HTMLElement>(".yui-card__io")!.hidden).toBe(false);
+    for (const s of pushOnly) expect(visible(s)).toBe(true);
+    for (const s of [...requestOnly, ".yui-reset"]) expect(visible(s)).toBe(false);
+  });
+
+  it("follows a live transport change without reopening", () => {
+    const endpointsSettings = createEndpointsSettings();
+    endpointsSettings.set({ chat_api: "responses" });
+    build({ endpointsSettings });
+    expect(visible(".yui-card__push-note")).toBe(false);
+    expect(visible(".yui-card-body")).toBe(true);
+    endpointsSettings.set({ chat_api: "push" });
+    expect(visible(".yui-card__push-note")).toBe(true);
+    expect(visible(".yui-card-body")).toBe(false);
+    endpointsSettings.set({ chat_api: "responses" });
+    expect(visible(".yui-card__push-note")).toBe(false);
+    expect(visible(".yui-card-body")).toBe(true);
   });
 
   it("shows the default card of the UI language and the state hint", () => {
