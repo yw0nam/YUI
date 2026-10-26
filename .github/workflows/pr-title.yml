@@ -5,6 +5,9 @@ on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
 
+permissions:
+  pull-requests: read
+
 concurrency:
   group: pr-title-${{ github.ref }}
   cancel-in-progress: true

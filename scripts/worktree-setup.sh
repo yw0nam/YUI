@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Links gitignored runtime assets (VRM, purchased motions, a local .claude/), copies
-# .env.local from the main checkout, and installs node_modules from the lockfile. Idempotent; missing sources are
+# Links gitignored runtime assets (VRM, purchased motions, a local .claude/), copies .env.local
+# from the main checkout, and installs node_modules from the lockfile. Idempotent; missing sources are
 # skipped with a warning. Run it after `git worktree add`:
 #   bash scripts/worktree-setup.sh <worktree-path> [main-checkout-path]
 set -u
