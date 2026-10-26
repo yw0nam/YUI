@@ -109,3 +109,16 @@ it("hides a reason line whose hidden attribute is set", () => {
   const css = readFileSync(resolve(__dirname, "characters-section.css"), "utf-8");
   expect(css).toMatch(/\n\.yui-chars__reason\[hidden\] \{\s*display: none;\s*\}/);
 });
+
+it("a switch another window beat to the last place logs nothing and shows the reason", () => {
+  const { sw, row, petWindows } = build();
+  for (const name of ["perlica", "shino"]) sw(name).click();
+  log.info.mockClear();
+  createPetWindows().open("dddd0004");
+
+  sw("carlotta").click();
+
+  expect(petWindows.get()).toEqual(["bbbb0002", "cccc0003", "dddd0004"]);
+  expect(log.info).not.toHaveBeenCalled();
+  expect(row("carlotta").querySelector<HTMLElement>(".yui-chars__reason")!.hidden).toBe(false);
+});
