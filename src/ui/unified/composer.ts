@@ -10,7 +10,7 @@ import { createTextInput } from "../input/text-input";
 import "../surfaces/surfaces.css";
 import { avatarEl } from "./avatar";
 import { createMentionPicker } from "./mention-picker";
-import { EVERYONE, type Mention } from "./targets";
+import { EVERYONE, type Mention, typedMention } from "./targets";
 
 const CHEVRON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>`;
 const CROSS = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"></path></svg>`;
@@ -96,11 +96,19 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
   }
 
   function paintTarget(): void {
+    // The chip names where Enter sends, so a typed leading @name shows before any pick.
+    const typed = mention === null ? typedMention(field.value, deps.cast()) : null;
+    const entry = typed && typed !== EVERYONE ? deps.cast().find((e) => e.id === typed) : undefined;
     targetBtn.replaceChildren();
-    targetBtn.hidden = !target;
+    targetBtn.hidden = typed === null && !target;
     targetBtn.setAttribute("aria-disabled", String(mention !== null));
-    if (!target) return;
-    targetBtn.append(avatarEl(target, 14), t("unified.to", { name: target.name }));
+    if (targetBtn.hidden) return;
+    if (typed === EVERYONE) targetBtn.append(t("unified.to", { name: `@${EVERYONE}` }));
+    else {
+      const shown = entry ?? target;
+      if (!shown) return;
+      targetBtn.append(avatarEl(shown, 14), t("unified.to", { name: shown.name }));
+    }
     targetBtn.insertAdjacentHTML("beforeend", CHEVRON);
   }
 
@@ -130,6 +138,7 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
     if (mention === null) picker.openAll();
   };
   field.addEventListener("keydown", onFieldKeydown);
+  field.addEventListener("input", paintTarget);
   targetBtn.addEventListener("click", onTargetClick);
 
   return {
@@ -145,6 +154,7 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
       picker.dispose();
       input.dispose();
       field.removeEventListener("keydown", onFieldKeydown);
+      field.removeEventListener("input", paintTarget);
       targetBtn.removeEventListener("click", onTargetClick);
       form.remove();
     },

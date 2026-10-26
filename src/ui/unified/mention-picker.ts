@@ -1,8 +1,8 @@
 /**
  * The @ list over the unified chat window's field — a combobox listbox after the model combobox:
  * it opens on an `@` fragment before the caret, filters the open presets by name and offers
- * @everyone. A pick removes the fragment and reports the choice; a typed name without a pick
- * stays text.
+ * @everyone. Enter and Tab pick the highlighted option; a pick removes the fragment and reports
+ * the choice.
  */
 
 import type { PresetEntry } from "../../settings/preset/active-preset";
@@ -13,6 +13,10 @@ import { EVERYONE, type Mention } from "./targets";
 const LIST_ID = "yui-uc-mention-list";
 /** Matches the `@fragment` that ends the text before the caret. */
 const FRAGMENT = /(^|\s)@([^\s@]*)$/;
+
+/** Plain Tab picks the highlighted option; Shift+Tab and modified Tabs keep their other jobs. */
+const isTabPick = (e: KeyboardEvent): boolean =>
+  e.key === "Tab" && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey;
 
 export interface MentionPicker {
   /** Opens the list with every preset, as the target chip asks. */
@@ -134,7 +138,7 @@ export function createMentionPicker(deps: {
             : -1
           : active + (e.key === "ArrowDown" ? 1 : -1),
       );
-    } else if (e.key === "Enter" && active !== -1) {
+    } else if ((e.key === "Enter" || isTabPick(e)) && active !== -1) {
       consume();
       pick(options[active]!.id);
     }
