@@ -668,7 +668,7 @@ globalThis.YUI_MAP =
       "id": "settings",
       "module": "settings",
       "label": "settings",
-      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, the device-wide yui.user-name holds what {{user}} resolves to, and the device-wide yui.tts-readings holds the reading dictionary.",
+      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, the device-wide yui.user-name holds what {{user}} resolves to, the device-wide yui.tts-readings holds the reading dictionary, and the device-wide yui.theme holds the theme (dawn, hearth or system).",
       "paths": [
         "src/settings"
       ]
@@ -1163,7 +1163,7 @@ globalThis.YUI_MAP =
       "id": "ui/quick-controls",
       "module": "settings",
       "label": "quick controls",
-      "role": "The settings panel, shown as a popover in the pet window and as the whole settings window; the preset manage row's copy button copies a character's ingress URL and the Reactions URL line shows this window's; the preset strip shows this preset's relation line and the reasons card; the Talk tab's Card section edits the preset's card, its send switch, the preset's name and the device-wide user name.",
+      "role": "The settings panel, shown as a popover in the pet window and as the whole settings window; the preset manage row's copy button copies a character's ingress URL and the Reactions URL line shows this window's; the preset strip shows this preset's relation line and the reasons card; the Talk tab's Card section edits the preset's card, its send switch, the preset's name and the device-wide user name; the General tab's Appearance row picks the theme.",
       "paths": [
         "src/ui/quick-controls"
       ]
@@ -1185,6 +1185,15 @@ globalThis.YUI_MAP =
       "paths": [
         "src/ui/i18n.ts",
         "src/ui/i18n"
+      ]
+    },
+    {
+      "id": "ui/theme",
+      "module": "settings",
+      "label": "theme",
+      "role": "Writes the theme the store resolves, `system` through the OS appearance, as `data-theme` on each window's root.",
+      "paths": [
+        "src/ui/theme"
       ]
     },
     {
@@ -3338,6 +3347,15 @@ globalThis.YUI_MAP =
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/ui/surfaces/wire.ts"
+    },
+    {
+      "id": "settings-theme",
+      "from": "settings",
+      "to": "ui/theme",
+      "carries": "themeSettings.subscribe → data-theme on the window root; the pet, settings, message, unified and devtools windows each call applyTheme",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/windows/main.ts"
     }
   ],
   "flows": [
