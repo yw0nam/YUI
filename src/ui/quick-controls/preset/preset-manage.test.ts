@@ -1,9 +1,23 @@
 // @vitest-environment jsdom
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, expect, it, vi } from "vitest";
 import { createPresetRegistry } from "../../../settings/preset/preset-registry";
 import { createPresetManage } from "./preset-manage";
 
-afterEach(() => vi.unstubAllGlobals());
+// jsdom has no modal dialog: the stubs open and close the element and fire its close event.
+beforeAll(() => {
+  HTMLDialogElement.prototype.showModal = function showModal() {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.close = function close() {
+    this.removeAttribute("open");
+    this.dispatchEvent(new Event("close"));
+  };
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  for (const d of document.querySelectorAll("dialog")) d.remove();
+});
 it("copies the current preset URL, hides when disabled and shows fallback on failure", async () => {
   localStorage.clear();
   const registry = createPresetRegistry({ newId: () => "abcd1234" });
@@ -139,11 +153,12 @@ function photoSetup(pickPhoto?: (id: string) => Promise<string | null>) {
   registry.create("companion");
   const el = document.createElement("div");
   const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
-  createPresetManage({ el, registry, log, pickPhoto }).render();
+  const manage = createPresetManage({ el, registry, log, pickPhoto });
+  manage.render();
   const button = () =>
     el.querySelector<HTMLButtonElement>('[data-preset-id="abcd1234"] .yui-preset-row__photo');
   const thumbnail = () => registry.get().list.find((e) => e.id === "abcd1234")?.thumbnail;
-  return { registry, button, thumbnail };
+  return { registry, manage, button, thumbnail };
 }
 
 it("offers a photo button on every row only where a picker is passed", () => {
@@ -156,20 +171,46 @@ it("offers a photo button on every row only where a picker is passed", () => {
   withPicker.registry.dispose();
 });
 
-it("stores the picked photo as the preset's thumbnail and leaves it when the picker is dismissed", async () => {
+const dialog = () => document.querySelector("dialog.yui-photo-dialog");
+
+it("a row without a photo picks one, stores it with no crop and opens the dialog", async () => {
   const pick = vi.fn<(id: string) => Promise<string | null>>(
     async () => "asset://x/abcd1234.png?v=1",
   );
   const { registry, button, thumbnail } = photoSetup(pick);
 
   button()!.click();
-  await vi.waitFor(() => expect(thumbnail()).toBe("asset://x/abcd1234.png?v=1"));
-  expect(pick).toHaveBeenCalledWith("abcd1234");
 
-  pick.mockResolvedValueOnce(null);
-  button()!.click();
-  await Promise.resolve();
+  await vi.waitFor(() => expect(dialog()).not.toBeNull());
+  expect(pick).toHaveBeenCalledWith("abcd1234");
   expect(thumbnail()).toBe("asset://x/abcd1234.png?v=1");
+  expect(registry.get().list.find((e) => e.id === "abcd1234")?.crop).toBeUndefined();
+  registry.dispose();
+});
+
+it("a dismissed picker stores nothing and opens no dialog", async () => {
+  const pick = vi.fn<(id: string) => Promise<string | null>>(async () => null);
+  const { registry, button, thumbnail } = photoSetup(pick);
+
+  button()!.click();
+  await vi.waitFor(() => expect(pick).toHaveBeenCalled());
+  await Promise.resolve();
+
+  expect(thumbnail()).toBeUndefined();
+  expect(dialog()).toBeNull();
+  registry.dispose();
+});
+
+it("a row with a photo opens the dialog without picking", () => {
+  const pick = vi.fn<(id: string) => Promise<string | null>>(async () => null);
+  const { registry, manage, button } = photoSetup(pick);
+  registry.setThumbnail("abcd1234", "asset://x/abcd1234.png");
+  manage.render();
+
+  button()!.click();
+
+  expect(pick).not.toHaveBeenCalled();
+  expect(dialog()).not.toBeNull();
   registry.dispose();
 });
 
