@@ -59,8 +59,9 @@ export async function wireSettingsWindow(deps: {
       editTargetUrl(location.href, id, boundId ?? deps.presetRegistry.get().active, page),
     );
   // Listens from the start: an opener may ask for a page while this window still boots.
+  const bridge = createSettingsBridge(undefined, { windowKind: "settings" });
   const settingsPage = wireSettingsPage({
-    bridge: createSettingsBridge(undefined, { windowKind: "settings" }),
+    bridge,
     boundId,
     editing: presetIdForWindow,
     active: () => deps.presetRegistry.get().active,
@@ -210,11 +211,11 @@ export async function wireSettingsWindow(deps: {
   // Real-time wiring with main window (Tauri events). This window has no renderer/STT, so send controls
   // to main window, receive voice state from main window and reflect. Storage fallback rides the core.
   const {
-    bridge,
     broadcastSettings,
     reload: reloadOnFocus,
     dispose: disposeSync,
   } = wireSettingsWindowSync({
+    bridge,
     stores: settingsStores,
     conversation: conversationStores,
     vrmSelection,

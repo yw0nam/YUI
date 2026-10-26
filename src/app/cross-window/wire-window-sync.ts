@@ -94,6 +94,8 @@ export function wireGuardrailsOverrides(deps: {
 export function wireWindowSync(deps: {
   stores: SettingsStores;
   windowKind: WindowKind;
+  /** The window's bridge when it made one before this wiring; disposed with it. */
+  bridge?: SettingsBridge;
   /** Stores reloaded with the registry set on a storage event, a remote change, and focus. */
   extraReload?: ReadonlyArray<{ reloadFromStorage(): void }>;
   /** Stores whose local edits broadcast with the settings broadcast set. */
@@ -118,7 +120,7 @@ export function wireWindowSync(deps: {
     // Display language changed in the other window → i18n.subscribe remount callback redraws UI.
     reloadLocaleFromStorage();
   };
-  const bridge = createSettingsBridge(undefined, { windowKind });
+  const bridge = deps.bridge ?? createSettingsBridge(undefined, { windowKind });
   const {
     broadcastSettings,
     runApplyingRemote,

@@ -62,6 +62,8 @@ export function wireCrossWindowSync(deps: {
  * here too — this window commits them store-only, so it has to pick up the pet window's picks.
  */
 export function wireSettingsWindowSync(deps: {
+  /** The window's bridge when it made one before this wiring. */
+  bridge?: SettingsBridge;
   stores: SettingsStores;
   conversation: ConversationStores;
   vrmSelection: { reloadFromStorage(): void };
@@ -78,6 +80,7 @@ export function wireSettingsWindowSync(deps: {
   const { bridge, broadcastSettings, reload, dispose } = wireWindowSync({
     stores,
     windowKind: "settings",
+    bridge: deps.bridge,
     extraReload: [...conversationSync.extraReload, vrmSelection, speakerSelection],
     extraBroadcast: conversationSync.extraBroadcast,
     log,
