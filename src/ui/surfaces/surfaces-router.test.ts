@@ -484,6 +484,40 @@ describe("createSurfacesRouter", () => {
       expect(local.dismissInput).toHaveBeenCalledOnce();
       expect(remote.dismissInput).not.toHaveBeenCalled();
     });
+
+    it("drops the rest of a line begun on the character's bubble once it starts showing", () => {
+      router.beginSpeech(identity);
+      router.pushSpeech("hello ", identity);
+
+      setShown(true);
+      router.pushSpeech("world", identity);
+      router.paceSpeech({ text: "world", durationMs: 300 });
+      router.endSpeech({ defer: true }, identity);
+
+      expect(local.pushSpeech.mock.calls).toEqual([["hello ", identity]]);
+      expect(local.endSpeech).not.toHaveBeenCalled();
+      for (const name of ["pushSpeech", "paceSpeech", "endSpeech"] as const)
+        expect(stream[name]).not.toHaveBeenCalled();
+    });
+
+    it("keeps a line begun on the stream there until its end once it stops showing", () => {
+      setShown(true);
+      router.beginSpeech(identity);
+      router.pushSpeech("hello ", identity);
+
+      setShown(false);
+      router.pushSpeech("world", identity);
+      router.endSpeech({ defer: true }, identity);
+      router.finishSpeech();
+
+      expect(stream.pushSpeech.mock.calls).toEqual([
+        ["hello ", identity],
+        ["world", identity],
+      ]);
+      expect(stream.endSpeech).toHaveBeenCalledWith({ defer: true }, identity);
+      expect(stream.finishSpeech).toHaveBeenCalledOnce();
+      expect(local.pushSpeech).not.toHaveBeenCalled();
+    });
   });
 });
 
