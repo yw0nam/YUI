@@ -36,6 +36,11 @@ vi.mock("./wire-dispatcher", () => ({
   },
 }));
 vi.mock("../settings/wire-avatar", () => ({ applyAvatarConfig: () => {} }));
+vi.mock("./push/playback", () => ({ wirePlayback: () => () => {} }));
+vi.mock("./push/wire-push", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./push/wire-push")>()),
+  wirePushTransport: () => () => {},
+}));
 
 import { createBedSceneHold } from "../stage/bed-scene-hold";
 import { type TurnCorePhase1, wireTurnCore } from "./turn-core";
@@ -95,6 +100,18 @@ describe("wireTurnCore", () => {
 
     expect(dispatcher.cancel).toHaveBeenCalledOnce();
     expect(speechPlayback.interrupt).toHaveBeenCalledOnce();
+  });
+
+  it("sends the backend no stop when the unified window's stop reaches a window with nothing running", async () => {
+    pushTurns.cut.mockReturnValueOnce([]);
+    const sendStop = vi.fn(() => true);
+    const h = wire({ pushSocket: { sendStop, sendVocabulary: () => {} } as never });
+    const core = await h.core;
+    await core.connect({ onSubmit: () => {} });
+
+    h.stopFromUnified();
+
+    expect(sendStop).not.toHaveBeenCalled();
   });
 
   it("gives the dispatcher the body hold, and ends the thinking bridge each time the hold is taken", async () => {
