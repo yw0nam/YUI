@@ -101,6 +101,18 @@ describe("openPhotoDialog", () => {
     expect(Number(fill())).toBeCloseTo((900 / 495 - 1) / 6, 6);
   });
 
+  it("logs the saved crop and a picked photo's default framing", async () => {
+    open({ picked: true });
+    await vi.waitFor(() =>
+      expect(info).toHaveBeenCalledWith("photo_default_framed", { preset: "aaaa0001" }),
+    );
+    await ready();
+
+    act("use").click();
+
+    expect(info).toHaveBeenCalledWith("photo_crop_saved", { preset: "aaaa0001" });
+  });
+
   it("a picked photo saves its default framing once, and Cancel adds nothing", async () => {
     open({ picked: true });
     await vi.waitFor(() =>
