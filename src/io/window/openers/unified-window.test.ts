@@ -36,7 +36,7 @@ describe("closeUnifiedWindow", () => {
   it("destroys the window, so no close request reaches the window's own close handler", async () => {
     const existing = { destroy: vi.fn(async () => {}), close: vi.fn(async () => {}) };
 
-    await closeUnifiedWindow({ isTauri: true, getExisting: async () => existing });
+    await closeUnifiedWindow({ getExisting: async () => existing });
 
     expect(existing.destroy).toHaveBeenCalledOnce();
     expect(existing.close).not.toHaveBeenCalled();

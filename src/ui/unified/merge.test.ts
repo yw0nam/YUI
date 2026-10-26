@@ -97,7 +97,6 @@ describe("mergeTranscripts", () => {
     const pending = [{ sendId: "s1", text: "hi", at: 150, to: "perlica" }];
 
     expect(brief(mergeTranscripts([perlica([])], pending, 160))).toEqual([["user", "hi", 150]]);
-    expect(mergeTranscripts([perlica([])], pending, 160)[0]?.pending).toBe(true);
     expect(brief(mergeTranscripts([perlica([user("hi", 170, "s1")])], pending, 180))).toEqual([
       ["user", "hi", 170],
     ]);

@@ -40,10 +40,8 @@ export async function openUnifiedWindow(env: UnifiedWindowEnv): Promise<void> {
 
 /** Destroy the unified window: no close request is emitted, so its own close handler leaves the switch alone. */
 export async function closeUnifiedWindow(env: {
-  isTauri: boolean;
   getExisting(): Promise<{ destroy(): Promise<void> } | null>;
 }): Promise<void> {
-  if (!env.isTauri) return;
   await (await env.getExisting())?.destroy();
 }
 
@@ -110,7 +108,7 @@ export function createUnifiedWindowController(store: {
       if (!isTauri()) return;
       queue(async () => {
         try {
-          await closeUnifiedWindow({ isTauri: true, getExisting: tauriUnifiedWindow });
+          await closeUnifiedWindow({ getExisting: tauriUnifiedWindow });
         } catch (error) {
           log.warn("unified_window_close_failed", { error: String(error) });
         }

@@ -29,7 +29,6 @@ export interface Row {
   ts: number;
   /** A user row's recipient (a preset id, or EVERYONE); an assistant row whose turn called address_character: the recipient's preset id. */
   to?: string;
-  pending?: true;
 }
 
 export function mergeTranscripts(
@@ -90,7 +89,6 @@ export function mergeTranscripts(
       text: p.text,
       ts: p.at,
       to: p.to,
-      pending: true,
     };
     sorted.push({ row, order: [Number.MAX_SAFE_INTEGER, 0] });
   }
