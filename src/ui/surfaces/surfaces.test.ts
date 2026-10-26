@@ -115,7 +115,7 @@ describe("bubble structure — edge tools outside the scrolling box", () => {
     const box = bubble.querySelector<HTMLElement>(".yui-bubble__box")!;
 
     expect(tools.parentElement).toBe(bubble);
-    expect(box.parentElement).toBe(bubble);
+    expect(bubble.contains(box)).toBe(true);
     expect(box.contains(tools)).toBe(false);
     expect(box.querySelector(".yui-bubble__text")).not.toBeNull();
     expect(box.querySelector(".yui-bubble__caret")).not.toBeNull();
@@ -328,6 +328,7 @@ describe("reasoning disclosure — only when a reasoning source is given", () =>
     reasoning.append("hmm");
     vi.advanceTimersByTime(60);
     s.pushSpeech(" world");
+    vi.advanceTimersByTime(1000);
 
     expect(mount.querySelector(".yui-bubble__text")!.textContent).toBe("hello world");
     expect(bubble().classList.contains("is-streaming")).toBe(true);

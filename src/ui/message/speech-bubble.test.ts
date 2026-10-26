@@ -38,6 +38,17 @@ describe("hit-test registration", () => {
   });
 });
 
+// A line shows whole under reduced motion, so the blocks about rendering, scrolling and dwell see each delta at once.
+// The typing block lifts this to watch speech type out.
+beforeEach(() => {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: query === "(prefers-reduced-motion: reduce)",
+  }));
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 function makeSurfaces() {
   const mount = document.createElement("div");
   document.body.appendChild(mount);
@@ -695,7 +706,8 @@ describe("pushSpeech — throttled markdown rendering", () => {
 
     s.endSpeech();
 
-    expect(renderMarkdownInline).toHaveBeenCalledTimes(2);
+    // One render announces the whole line, one draws it.
+    expect(renderMarkdownInline).toHaveBeenCalledTimes(3);
     expect(renderMarkdownInline).toHaveBeenLastCalledWith(expected);
     expect(mount.querySelector(".yui-bubble__text")?.textContent).toBe(expected);
   });
@@ -940,6 +952,7 @@ describe("typing — speech types out", () => {
   let s: ReturnType<typeof createSurfaces>;
 
   beforeEach(() => {
+    vi.unstubAllGlobals();
     vi.useFakeTimers();
     ({ s, mount } = makeSurfaces());
   });
@@ -947,7 +960,6 @@ describe("typing — speech types out", () => {
   afterEach(() => {
     s.dispose();
     mount.remove();
-    vi.unstubAllGlobals();
     vi.useRealTimers();
   });
 
@@ -957,7 +969,7 @@ describe("typing — speech types out", () => {
   it("a click on the box shows the whole received line while it types", () => {
     s.beginSpeech();
     s.pushSpeech("Hello there");
-    vi.advanceTimersByTime(80);
+    vi.advanceTimersByTime(100);
     expect(text()).toBe("He");
     mount.querySelector<HTMLElement>(".yui-bubble__box")!.click();
     expect(text()).toBe("Hello there");

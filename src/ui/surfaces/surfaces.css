@@ -46,6 +46,7 @@
     transform: translateX(-50%) !important;
   }
   .yui-bubble__caret,
+  .yui-bubble__next,
   .yui-bubble__think-text.is-live::after {
     animation: none !important;
   }
@@ -261,8 +262,35 @@
   /* Speech onset warmth moment — blinking amber caret */
   animation: yui-caret-blink 1s steps(2, jump-none) infinite;
 }
-.yui-bubble.is-streaming .yui-bubble__caret {
+.yui-bubble.is-typing .yui-bubble__caret {
   display: inline;
+}
+
+/* The box scrolls, so what rides its edges hangs on this frame instead. */
+.yui-bubble__frame {
+  position: relative;
+}
+
+/* ▼ — the line finished. An indicator only. */
+.yui-bubble__next {
+  position: absolute;
+  right: 14px;
+  bottom: 8px;
+  color: var(--yui-accent-ink);
+  font-size: 12px;
+  line-height: 1;
+  pointer-events: none;
+  animation: yui-nudge 1.4s ease-in-out infinite;
+}
+
+@keyframes yui-nudge {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(3px);
+  }
 }
 
 @keyframes yui-caret-blink {
