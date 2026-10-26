@@ -40,8 +40,11 @@ export interface Surfaces {
   readonly chipColumn: HTMLElement;
 
   // ── speech bubble (output) ──
-  /** Reveal the bubble (empty) + caret ON. Called before streaming starts; a paced line types each sentence as its audio starts. */
-  beginSpeech(identity?: UtteranceIdentity, opts?: { paced?: boolean }): void;
+  /**
+   * Reveal the bubble (empty) + caret ON. Called before streaming starts; a paced line types each sentence as its audio starts.
+   * An aside is a client phrase spoken in the character's voice (filler, a failure apology), routed like the character's lines.
+   */
+  beginSpeech(identity?: UtteranceIdentity, opts?: { paced?: boolean; aside?: boolean }): void;
   /** Append a streaming delta. */
   pushSpeech(delta: string, identity?: UtteranceIdentity): void;
   /** A sentence's audio started: a paced line types that sentence over its duration. */
@@ -102,8 +105,6 @@ export interface Surfaces {
 
   dispose(): void;
 }
-
-export type SpeechSurfaces = Pick<Surfaces, "beginSpeech" | "pushSpeech" | "endSpeech">;
 
 interface SurfacesOptions {
   mount: HTMLElement;

@@ -390,6 +390,7 @@ describe("createSurfacesRouter", () => {
     it("sends a turn's line to the stream only", () => {
       setShown(true);
       vi.mocked(local.hideSpeech).mockClear();
+      vi.mocked(remote.hideSpeech).mockClear();
 
       router.beginSpeech(identity, { paced: true });
       router.pushSpeech("Hello", identity);
@@ -524,12 +525,13 @@ describe("createSurfacesRouter over the message bridge", () => {
     const router = createSurfacesRouter({
       local: makeLocal(),
       remote: createRemoteSurfaces(petBridge),
-      stream: makeLocal(),
+      stream: makeRemote(),
       getMode: () => mode,
       subscribeMode: (cb) => {
         listeners.push(cb);
         return () => {};
       },
+      shown: { get: () => false, subscribe: () => () => {} },
     });
     disposers.push(router.dispose, petBridge.dispose, messageBridge.dispose);
 

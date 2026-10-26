@@ -161,7 +161,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     boundId,
     agentSettings: settingsStores.agentSettings,
   });
-  const { surfaces, local, remote, getMode } = wireMessageSurfaces({
+  const { surfaces, local, remote, getMode, subscribeMode } = wireMessageSurfaces({
     boundId,
     settingsBridge: windowBridge,
     transcript: conversationStores.chatHistoryStore,
@@ -170,6 +170,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     tool: statusPill,
     bubblePersistSettings: settingsStores.bubblePersistSettings,
     messageWindowSettings: settingsStores.messageWindowSettings,
+    shown: unifiedShown,
     register,
   });
   register(
@@ -331,10 +332,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
           store: push.delegations,
           pushState: push.pushSocket,
           onOpenSettings: () => controls.get().open(undefined, { tab: "conn" }),
-          suppression: messageWindowSuppression({
-            getMode,
-            subscribe: settingsStores.messageWindowSettings.subscribe,
-          }),
+          suppression: messageWindowSuppression({ getMode, subscribe: subscribeMode }),
         }),
         getEndpoints: petConfig.getEndpoints,
         endpointsSettings: settingsStores.endpointsSettings,

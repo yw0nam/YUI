@@ -81,6 +81,7 @@ function setup(mode: MessageWindowMode, bound = false) {
     tool: { showTool: vi.fn(), finishTool: vi.fn(), hideTool: vi.fn() },
     bubblePersistSettings: { get: () => ({ enabled: false }) },
     messageWindowSettings,
+    shown: { get: () => false, subscribe: () => () => {} },
     register,
   });
   return {

@@ -25,6 +25,7 @@ import { createLogger } from "../logger";
 import { mergeScreen } from "../settings/capture/screen-settings";
 import type { DelegationChipSettingsStore } from "../settings/panels/delegation-chip-settings";
 import { presetIdForWindow, readPresetName } from "../settings/preset/active-preset";
+import type { UnifiedShown } from "../settings/unified/unified-chat-switch";
 import { isMacOS, isWindows } from "../tauri-env";
 import { t } from "../ui/i18n";
 import { maybeShowFirstRunHint } from "../ui/notices/first-run-hint";
@@ -45,7 +46,6 @@ import type { VoicePipeline } from "./turn/voice/wire-voice-pipeline";
 import { wireCard } from "./turn/wire-card";
 import { wireGreeting } from "./turn/wire-greeting";
 import { wireDispatcherSources } from "./turn/wire-sources";
-import type { UnifiedShown } from "./unified/unified-shown";
 import { wireUnifiedWindow } from "./unified/wire-unified-window";
 
 const log = createLogger("bootstrap");

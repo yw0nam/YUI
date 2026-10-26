@@ -1,4 +1,7 @@
-/** One Surfaces for every consumer — local DOM plus the message window over the bridge, routed by the stored mode. */
+/**
+ * One Surfaces for every consumer — local DOM, the message window over the bridge, and the speech
+ * stream to the unified chat window, routed by the stored mode and whether the unified window shows.
+ */
 
 import { createMessageBridge } from "../../io/bridge/message/message-bridge";
 import { createRemoteSurfaces, type RemoteSurfaces } from "../../io/bridge/message/message-remote";
@@ -13,6 +16,7 @@ import { wireMessageWindowMode } from "../../io/window/openers/message-window-mo
 import type { MessageWindowMode } from "../../settings/panels/message-window-settings";
 import { presetIdForWindow } from "../../settings/preset/active-preset";
 import type { SettingsStores } from "../../settings/settings-stores";
+import type { UnifiedShown } from "../../settings/unified/unified-chat-switch";
 import { isTauri } from "../../tauri-env";
 import type { ToolStatus } from "../chips/status-pill";
 import type { MessagePlate } from "../message/message-plate";
@@ -32,12 +36,16 @@ export function wireMessageSurfaces(deps: {
     SettingsStores["messageWindowSettings"],
     "get" | "setMode" | "subscribe"
   >;
+  /** While it shows, chat goes to the unified chat window and the message window hides. */
+  shown: UnifiedShown;
   register: (fn: () => void) => void;
 }): {
   surfaces: Surfaces;
   local: Surfaces & { readonly plate: MessagePlate };
   remote: RemoteSurfaces | null;
   getMode(): MessageWindowMode;
+  /** Follows every change getMode can make. */
+  subscribeMode(cb: () => void): () => void;
 } {
   const local = createSurfaces({
     mount: deps.mount,
@@ -65,19 +73,29 @@ export function wireMessageSurfaces(deps: {
   sendName();
   // A stale popped mode must not strand speech in a window the browser build cannot open.
   const getMode = (): MessageWindowMode =>
-    isTauri() ? deps.messageWindowSettings.get().mode : "docked";
+    isTauri() && !deps.shown.get() ? deps.messageWindowSettings.get().mode : "docked";
+  const subscribeMode = (cb: () => void): (() => void) => {
+    const offStore = deps.messageWindowSettings.subscribe(cb);
+    const offShown = deps.shown.subscribe(cb);
+    return () => {
+      offStore();
+      offShown();
+    };
+  };
   const surfaces = createSurfacesRouter({
     local,
     remote,
     stream,
     getMode,
-    subscribeMode: (cb) => deps.messageWindowSettings.subscribe(() => cb(getMode())),
+    subscribeMode: (cb) => subscribeMode(() => cb(getMode())),
+    shown: deps.shown,
   });
   const disposeMessageWindowMode = wireMessageWindowMode({
     store: deps.messageWindowSettings,
     remote,
     window: createMessageWindowController(deps.messageWindowSettings, deps.boundId),
     listenTrayToggle: deps.boundId == null ? listenTrayToggle : undefined,
+    shown: deps.shown,
     getMode,
   });
   deps.register(deps.characterName.subscribe(sendName));
@@ -85,5 +103,5 @@ export function wireMessageSurfaces(deps: {
   deps.register(() => surfaces.dispose());
   deps.register(() => stream.dispose());
   deps.register(disposeMessageWindowMode);
-  return { surfaces, local, remote, getMode };
+  return { surfaces, local, remote, getMode, subscribeMode };
 }

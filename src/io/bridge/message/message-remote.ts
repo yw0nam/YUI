@@ -28,7 +28,7 @@ export interface SpeechAction {
 
 /** The half of `Surfaces` the message window owns, plus the dock request it can raise. */
 export interface RemoteSurfaces {
-  beginSpeech(identity?: UtteranceIdentity, opts?: { paced?: boolean }): void;
+  beginSpeech(identity?: UtteranceIdentity, opts?: { paced?: boolean; aside?: boolean }): void;
   pushSpeech(delta: string): void;
   paceSpeech(sentence: SentenceStart): void;
   endSpeech(opts?: { defer?: boolean }): void;

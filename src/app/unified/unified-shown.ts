@@ -1,11 +1,5 @@
 import type { FlagSettingsStore } from "../../settings/persisted-store";
-
-/** Whether the unified chat window is shown, for every window that follows it. */
-export interface UnifiedShown {
-  get(): boolean;
-  /** Fires only when the value changes. */
-  subscribe(cb: (shown: boolean) => void): () => void;
-}
+import type { UnifiedShown } from "../../settings/unified/unified-chat-switch";
 
 /** Shown while the Unified chat switch is on, two or more presets are open and a window can exist. */
 export function createUnifiedShown(deps: {
