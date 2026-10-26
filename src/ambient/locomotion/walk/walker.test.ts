@@ -658,7 +658,18 @@ describe("createWalker", () => {
     expect(h.travelBeginCalls).toEqual([]);
   });
 
-  it("releases the walk clip when the stroll is cancelled during a pending begin", async () => {
+  it.each([
+    [
+      "the stroll is cancelled",
+      (h: ReturnType<typeof makeHarness>, _over: { cardOpen?: boolean }) => h.walker.cancel(),
+    ],
+    [
+      "the quick card opens",
+      (_h: ReturnType<typeof makeHarness>, over: { cardOpen?: boolean }) => {
+        over.cardOpen = true;
+      },
+    ],
+  ])("releases the walk clip and starts no stroll when %s during a pending begin", async (_label, interrupt) => {
     const BUILTIN: ScreenMonitor = {
       position: { x: 0, y: 0 },
       size: { width: 3456, height: 2234 },
@@ -677,12 +688,13 @@ describe("createWalker", () => {
       workArea: { position: { x: 928, y: -1055 }, size: { width: 1920, height: 1055 } },
       scaleFactor: 1,
     };
-    const h = makeHarness({
+    const over: Parameters<typeof makeHarness>[0] = {
       position: { x: -200, y: -447 },
       feetY: 447,
       monitors: [BUILTIN, UPPER_LEFT, UPPER_RIGHT],
       rng: seqRng(0, 0, 1),
-    });
+    };
+    const h = makeHarness(over);
     let resolveBegin!: (t: { win: PetWindow; end: () => Promise<void> }) => void;
     h.fakeTravel.begin.mockImplementationOnce(
       () =>
@@ -694,8 +706,9 @@ describe("createWalker", () => {
     await h.skipInterval();
     expect(h.motions).toEqual([{ id: WALK_MOTION_ID }]);
 
-    h.walker.cancel();
-    resolveBegin({ win: {} as PetWindow, end: async () => {} });
+    interrupt(h, over);
+    const win = { setPositionLogical: async () => {} } as unknown as PetWindow;
+    resolveBegin({ win, end: async () => {} });
     for (let i = 0; i < 10; i++) await h.frame();
 
     expect(h.motions.at(-1)).toBeNull();

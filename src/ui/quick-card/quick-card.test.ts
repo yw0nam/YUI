@@ -202,6 +202,24 @@ describe("createQuickCard", () => {
     expect(q<HTMLElement>(".yui-qcard__confirm").hidden).toBe(true);
   });
 
+  it("hands focus to Cancel when the confirm opens and back to Reset… when it closes", () => {
+    const { card, q } = build();
+    card.open({ x: 0, y: 0 });
+
+    q<HTMLButtonElement>(".yui-qcard__reset").click();
+    expect(document.activeElement).toBe(q(".yui-qcard__cancel"));
+    q<HTMLButtonElement>(".yui-qcard__cancel").click();
+    expect(document.activeElement).toBe(q(".yui-qcard__reset"));
+  });
+
+  it("names no voice None when the voice list is empty", () => {
+    const { card } = build({ voice: picker([]) });
+    card.open({ x: 0, y: 0 });
+    const voice = card.el.querySelectorAll<HTMLSelectElement>("select")[1]!;
+
+    expect([...voice.options].map((o) => [o.value, o.text])).toEqual([["", "None"]]);
+  });
+
   it("refreshes the visible height before it opens and caps its own height 12px inside it", async () => {
     let finish: () => void = () => {};
     const refresh = vi.fn(
