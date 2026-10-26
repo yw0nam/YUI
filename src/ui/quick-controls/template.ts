@@ -304,7 +304,7 @@ ${proactiveCaps.map(capRowHtml).join("")}
     tabPanelOpenHtml(id, { hidden: id !== DEFAULT_PAGE, scope: showPreset });
   // The character group's heading names the edited character once the preset strip fills it.
   const groupHtml = (group: "character" | "app"): string =>
-    `<p class="yui-tabs__group" data-rail-group="${group}">${t(`rail.group_${group}`)}</p>`;
+    `<p class="yui-tabs__group" role="presentation" data-rail-group="${group}">${t(`rail.group_${group}`)}</p>`;
   const together = switchRowsHtml("together");
 
   return `
