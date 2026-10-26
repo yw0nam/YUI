@@ -332,7 +332,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
           collapsed: configured.chipFold,
           store: push.delegations,
           pushState: push.pushSocket,
-          onOpenSettings: () => openSettings("hist"),
+          onOpenSettings: () => openSettings("conn"),
           suppression: messageWindowSuppression({ getMode, subscribe: subscribeMode }),
         }),
         getEndpoints: petConfig.getEndpoints,

@@ -2668,7 +2668,7 @@ globalThis.YUI_MAP =
       "id": "settings-open-windows",
       "from": "windows",
       "to": "io/window/openers",
-      "carries": "openSettings(page?): the status pill's capture button opens no page, the voice-setup fix Connection, the delegation chip History; a new settings window at settings.html with `?preset=<id>` and `&page=<page>`, else the open one is shown, focused and asked for the page",
+      "carries": "openSettings(page?): the status pill's capture button opens no page, the voice-setup fix and the delegation chip Connection; a new settings window at settings.html with `?preset=<id>` and `&page=<page>`, else the open one is shown, focused and asked for the page",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/windows/main.ts"
