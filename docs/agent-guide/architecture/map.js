@@ -3496,7 +3496,7 @@ globalThis.YUI_MAP =
       "id": "unified-close-switch",
       "from": "app/unified",
       "to": "settings",
-      "carries": "the window's close request (× or Cmd+W) → yui.unified-chat {enabled: false}, then yui://settings-changed",
+      "carries": "the window's close request (×) → yui.unified-chat {enabled: false}, then yui://settings-changed",
       "kind": "storage",
       "transport": "shared",
       "wiring": "src/windows/unified-main.ts"
