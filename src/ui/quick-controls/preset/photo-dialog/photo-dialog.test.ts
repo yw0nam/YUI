@@ -66,6 +66,25 @@ describe("openPhotoDialog", () => {
     expect(document.querySelector("dialog")).toBeNull();
   });
 
+  it("previews the face at the sizes the app draws it, each with its place", async () => {
+    open();
+    await ready();
+
+    const rows = [...document.querySelectorAll<HTMLElement>(".yui-photo-dialog__preview")];
+
+    expect(
+      rows.map((r) => [
+        r.querySelector<HTMLElement>(".yui-uc__avatar")!.style.getPropertyValue("--yui-uc-size"),
+        r.querySelector("span:not(.yui-uc__avatar)")!.textContent,
+      ]),
+    ).toEqual([
+      ["36px", "Card · 36 px"],
+      ["28px", "Character header · 28 px"],
+      ["22px", "Unified chat · 22 px"],
+      ["20px", "Name plate · 20 px"],
+    ]);
+  });
+
   it("a picked photo saves its default framing once, and Cancel adds nothing", async () => {
     open({ picked: true });
     await vi.waitFor(() =>
