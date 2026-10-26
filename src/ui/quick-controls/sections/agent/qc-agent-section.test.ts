@@ -223,7 +223,7 @@ describe("createQuickControls — agent section", () => {
       expect(effortSec.hidden).toBe(false);
       expect(disabled()).toBe(true);
       expect(reason.hidden).toBe(false);
-      expect(reason.textContent).toContain("The backend decides how long to think on push.");
+      expect(reason.textContent).toContain("푸시에서는 얼마나 생각할지 백엔드가 정해요.");
       expect(localeRow.hidden).toBe(false);
 
       qc.dispose();

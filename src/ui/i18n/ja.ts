@@ -241,7 +241,11 @@ const ja: Record<string, string> = {
   "card.import": "カードを読み込む…",
   "card.export": "カードを書き出す",
   "card.io_note": "JSON か PNG のカードを読み込み、V2 JSON で書き出します",
-  "card.push_note": "Push ではバックエンド自身のペルソナが使われ、カードのテキストは送られません",
+  "push.reason_model": "プッシュではバックエンドがモデルを選びます。",
+  "push.reason_effort": "プッシュではどれだけ考えるかをバックエンドが決めます。",
+  "push.reason_card":
+    "プッシュではバックエンド自身のプロフィールがペルソナです。このカードはあいさつだけを渡します。",
+  "push.to_transport": "トランスポートを変更",
   "card.import_failed": "そのカードは読み込めませんでした",
   "card.import_error": "このファイルにカードが入っていません",
   "card.export_error": "ファイルを書き出せませんでした",

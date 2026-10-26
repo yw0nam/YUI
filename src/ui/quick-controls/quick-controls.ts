@@ -83,6 +83,7 @@ import { createCardSection } from "./sections/card/card-section";
 import { createFillerSection } from "./sections/filler/filler-section";
 import { bindHelpSection } from "./sections/help/help-section";
 import { createKeyRow } from "./sections/key-row/key-row";
+import { bindTransportLinks } from "./sections/push-reason/push-reason";
 import { createReactionsSection } from "./sections/reactions/reactions-section";
 import { createReadingsSection } from "./sections/readings/readings-section";
 import { createScreenSection } from "./sections/screen/screen-section";
@@ -749,6 +750,8 @@ export function createQuickControls({
     },
   });
 
+  const unbindTransportLinks = bindTransportLinks(el, (id) => tabRail.select(id));
+
   function openPanel(anchor?: { x: number; y: number }, opts?: { tab?: QuickControlsTab }): void {
     if (!visibleViewport) {
       openNow(anchor, opts?.tab);
@@ -830,6 +833,7 @@ export function createQuickControls({
     unbindHelp?.();
     popover.dispose();
     tabRail.dispose();
+    unbindTransportLinks();
     presetStrip?.dispose();
     el.remove();
     scrimEl.remove();

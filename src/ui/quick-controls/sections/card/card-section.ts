@@ -24,6 +24,7 @@ import type { createFillerSettings } from "../../../../settings/voice/filler-set
 import { getLocale, LOCALE_DISPLAY_NAMES, subscribe as subscribeLocale, t } from "../../../i18n";
 import { CARD_GUIDE_URL } from "../../constants";
 import { escapeAttr, secHeadHtml } from "../../markup";
+import { pushReasonHtml } from "../push-reason/push-reason";
 import { createCardIo } from "./card-io";
 import "./card-section.css";
 
@@ -73,7 +74,7 @@ export function cardSectionHtml(): string {
             <div class="yui-row">
               <div class="yui-row__main">
                 <span class="yui-row__label">${t("card.send_label")}</span>
-                <span class="yui-row__sub">${t("card.send_sub")}</span>
+                <span class="yui-row__sub">${t("card.send_sub")}</span>${pushReasonHtml("push.reason_card")}
               </div>
               <button class="yui-switch yui-card-switch" type="button" role="switch" aria-checked="true" aria-label="${t("card.send_label")}"></button>
             </div>
@@ -95,7 +96,6 @@ export function cardSectionHtml(): string {
             <button class="yui-link-btn yui-card-import" type="button">${t("card.import")}</button>
             <button class="yui-link-btn yui-card-export" type="button">${t("card.export")}</button>
           </div>
-          <p class="yui-sec__note yui-card__push-note" hidden>${t("card.push_note")}</p>
           <p class="yui-row__sub yui-card__io-note">${t("card.io_note")}</p>
           <p class="yui-card__io-error" role="status" hidden></p>
         </div>`;
@@ -141,8 +141,7 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
   const q = <T extends HTMLElement>(sel: string): T => sec.querySelector<T>(sel)!;
   const body = q<HTMLElement>(".yui-card-body");
   const switchBtn = q<HTMLButtonElement>(".yui-card-switch");
-  const pushNote = q<HTMLElement>(".yui-card__push-note");
-  const switchGroup = q<HTMLElement>(".yui-group--switch");
+  const pushReason = q<HTMLElement>(".yui-push-reason");
   const stateEl = q<HTMLElement>(".yui-sec__state");
   const resetBtn = q<HTMLButtonElement>(".yui-reset");
   const nameEl = q<HTMLInputElement>('[data-card-field="name"]');
@@ -166,8 +165,11 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
 
   function reflect(): void {
     const push = isPushMode();
-    pushNote.hidden = !push;
-    switchGroup.hidden = push;
+    pushReason.hidden = !push;
+    switchBtn.disabled = push;
+    // On push only the greetings reach the backend; the other text fields stay, disabled.
+    nameEl.disabled = push;
+    for (const el of fields) el.disabled = push && el.dataset.cardField !== "first_mes";
     const a = agentSettings.get();
     const card = a.card ?? base();
     const own = a.card !== null;
@@ -176,11 +178,12 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
     thumb.hidden = !shown.thumbnail;
     if (shown.thumbnail) thumb.src = shown.thumbnail;
     switchBtn.setAttribute("aria-checked", String(a.send_card));
-    const sends = !push && a.send_card;
-    body.hidden = !sends;
-    stateEl.hidden = !sends || own;
+    // The user's Send card switch folds the body; on push the greetings stay reachable.
+    const open = push || a.send_card;
+    body.hidden = !open;
+    stateEl.hidden = !open || own;
     stateEl.textContent = t("card.default_state", { language: LOCALE_DISPLAY_NAMES[getLocale()] });
-    resetBtn.hidden = !sends || !own;
+    resetBtn.hidden = !open || !own;
     if (nameEl.getAttribute("aria-invalid") !== "true") setValue(nameEl, cardName(card, shown));
     for (const el of fields) setValue(el, card[el.dataset.cardField as TextField]);
     const list = card.alternate_greetings;

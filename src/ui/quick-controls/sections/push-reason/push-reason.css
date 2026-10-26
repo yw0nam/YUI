@@ -1,0 +1,9 @@
+/* The reason a control is disabled on push, with its link to the transport select. */
+.yui-push-reason[hidden] {
+  display: none;
+}
+
+.yui-push-reason__link {
+  padding: 0;
+  color: var(--yui-accent-ink);
+}

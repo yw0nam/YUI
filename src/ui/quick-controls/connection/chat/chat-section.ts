@@ -28,6 +28,7 @@ import {
   selectRowHtml,
   svcResetRowHtml,
 } from "../../markup";
+import { pushReasonHtml } from "../../sections/push-reason/push-reason";
 import { chatTypeRowHtml, createChatTypeView } from "../chat-type";
 import { createChatStatus } from "./chat-status";
 import { createModelCombobox } from "./model-combobox";
@@ -112,6 +113,10 @@ export function createChatSection(deps: {
   );
   const urlInput = el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url");
   const modelInput = el.querySelector<HTMLInputElement>("#yui-ep-chat_model");
+  chatModelRowEl
+    ?.querySelector(".yui-row__main")
+    ?.insertAdjacentHTML("beforeend", pushReasonHtml("push.reason_model"));
+  const modelReasonEl = chatModelRowEl?.querySelector<HTMLElement>(".yui-push-reason");
 
   const status = createChatStatus(el, { onAction: () => pushSocket?.reconnectNow() });
 
@@ -209,12 +214,13 @@ export function createChatSection(deps: {
   }
 
   // Chat API dropdown value + summary hint, matching effective chat_api.
-  // The model row belongs to the request-shaped modes — push carries no model of its own.
+  // Push carries no model of its own, so the model input is disabled there with its reason.
   function reflectChatType(): void {
     const eff = effectiveChatApi();
     if (chatTypeEl && chatTypeEl.value !== eff) chatTypeEl.value = eff;
     chatTypeView.reflect(eff);
-    if (chatModelRowEl) chatModelRowEl.hidden = eff === "push";
+    if (modelInput) modelInput.disabled = eff === "push";
+    if (modelReasonEl) modelReasonEl.hidden = eff !== "push";
     renderStatus();
   }
 
