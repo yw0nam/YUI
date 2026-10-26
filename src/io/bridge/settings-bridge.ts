@@ -127,7 +127,11 @@ function isStreamOp(v: unknown): v is MessageSurfaceOp {
     case "push":
       return isString(o.delta);
     case "pace":
-      return isString(o.text) && (o.durationMs === null || typeof o.durationMs === "number");
+      return (
+        isString(o.text) &&
+        (o.durationMs === null ||
+          (typeof o.durationMs === "number" && Number.isFinite(o.durationMs) && o.durationMs >= 0))
+      );
     case "end":
       return isOptional(o.defer, isBool);
     case "finish":
