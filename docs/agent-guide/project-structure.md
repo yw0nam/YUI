@@ -98,6 +98,7 @@ YUI/
         close-if-orphan.ts           # Closes a bound window whose preset is no longer in the registry
       message/                       # The message window's wiring
         wire-message-surface-ops.ts  # Draws each surface op from the pet window onto the surfaces, which the plate follows
+        character-name.ts            # The character's effective name: the card's while the built-in preset is unnamed, else the preset's
         wire-message-tauri-window.ts # Window focus, the OS drag, the content-height resize, and the moved-position record
       unified/                       # The unified chat window's wiring
         wire-unified-window.ts       # Opens the window while its switch is on and two or more presets are open, and closes it otherwise
@@ -515,7 +516,9 @@ YUI/
         format-accel.ts              # Renders an accelerator string for display
       message/                       # The bubble, the name plate riding its box in both modes, and cue-list rendering
         speech-bubble.ts             # Speech bubble: dwell, scroll, markdown, and aria for streamed speech
-        typewriter.ts                # Pure reveal cursor: types a line at 40 ms per character or paced by each sentence's audio
+        typewriter.ts                # Pure reveal cursor: types a line at 40 ms per character or paced by each sentence's audio, from elapsed time
+        stable-markdown.ts           # The prefix of a streaming line whose rendering later text cannot change
+        text-prefix.ts               # Keeps the first characters of a rendered line's text, dropping what follows
         backlog.ts                   # The current session's earlier lines, opened above the box by a toggle on its bottom edge
         user-quote.ts                # The user's message quoted on the bubble's first line
         signal-source-lines.ts       # A signal turn's source lines in the bubble's quote slot
