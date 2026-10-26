@@ -49,6 +49,7 @@ function pair() {
 const SURFACE_OPS: MessageSurfaceOp[] = [
   { op: "begin" },
   { op: "begin", paced: true },
+  { op: "name", name: "Yui" },
   { op: "push", delta: "hello" },
   { op: "pace", text: "Hello.", durationMs: 800 },
   { op: "pace", text: "Hello.", durationMs: null },

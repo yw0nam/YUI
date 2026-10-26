@@ -21,8 +21,9 @@ function setup() {
     showSpeechAction: vi.fn(),
     quoteSignals: vi.fn(),
   } as unknown as Surfaces;
-  wireMessageSurfaceOps({ bridge, surfaces });
-  return { send, bridge, surfaces };
+  const name = { set: vi.fn() };
+  wireMessageSurfaceOps({ bridge, surfaces, name });
+  return { send, bridge, surfaces, name };
 }
 
 it("begins speech on begin and ends it on end", () => {
@@ -43,6 +44,14 @@ it("begins a paced line and paces each of its sentences", () => {
 
   expect(surfaces.beginSpeech).toHaveBeenCalledWith(undefined, { paced: true });
   expect(surfaces.paceSpeech).toHaveBeenCalledWith({ text: "Hi.", durationMs: 500 });
+});
+
+it("takes the character's name the pet window sends", () => {
+  const { send, name } = setup();
+
+  send({ op: "name", name: "Yui" });
+
+  expect(name.set).toHaveBeenCalledWith("Yui");
 });
 
 it("sets busy on the surfaces", () => {

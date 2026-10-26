@@ -101,6 +101,18 @@ afterEach(() => {
   setLocale("en");
 });
 
+it("names the plate with the character's name the pet window sends", async () => {
+  const pet = createMessageBridge(undefined, { windowKind: "pet" });
+  await boot();
+
+  pet.emitSurface({ op: "name", name: "Yui" });
+
+  await vi.waitFor(() =>
+    expect(document.querySelector(".yui-plate-row .yui-plate__name")?.textContent).toBe("Yui"),
+  );
+  pet.dispose();
+});
+
 it("mounts the plate and the delegation chip in the plate's row", async () => {
   await boot();
 
