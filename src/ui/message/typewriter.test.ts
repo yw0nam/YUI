@@ -89,6 +89,16 @@ describe("createTypewriter", () => {
     expect(last()).toEqual([44, false]);
   });
 
+  it("counts a character that falls due exactly on its tick", () => {
+    let t = 0;
+    const { typer, last } = setup(true, () => t);
+    typer.received("123456789");
+    typer.pace({ text: "123456789", durationMs: 100 });
+    t = 3 * (100 / 9);
+    vi.advanceTimersByTime(12);
+    expect(last()).toEqual([3, false]);
+  });
+
   it("lands each sentence of a push-style line on its own end", () => {
     const { typer, last } = setup(true);
     typer.received("One\nTwo\nThree\n");
