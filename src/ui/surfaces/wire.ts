@@ -22,6 +22,8 @@ export function wireMessageSurfaces(deps: {
   boundId?: string | null;
   settingsBridge: Pick<SettingsBridge, "emitSpeechStream">;
   transcript: { entriesAfterLastBoundary(): readonly ChatHistoryEntry[] };
+  /** The name the backlog gives this window's character lines. */
+  characterName(): string;
   mount: HTMLElement;
   tool: ToolStatus;
   bubblePersistSettings: Pick<SettingsStores["bubblePersistSettings"], "get">;
@@ -42,6 +44,7 @@ export function wireMessageSurfaces(deps: {
     keepBubbleUntilDismissed: () => deps.bubblePersistSettings.get().enabled,
     onPop: isTauri() ? () => deps.messageWindowSettings.setMode("popped") : undefined,
     namePlate: true,
+    backlog: { read: deps.transcript.entriesAfterLastBoundary, characterName: deps.characterName },
   });
   const messageBridge = createMessageBridge(undefined, { windowKind: "pet" });
   const remote = createRemoteSurfaces(messageBridge);

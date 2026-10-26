@@ -41,6 +41,8 @@ export interface SpeechBubble {
   measure(): void;
   /** While on, no dwell is armed: a turn the user started is still running. Turning it off arms nothing by itself; the caller releases. */
   holdForTurn(on: boolean): void;
+  /** While on (the backlog shows), no dwell is armed; turning it off settles the bubble into its dwell. A hide turns it off. */
+  keepOpen(on: boolean): void;
   /** Lift the bubble above the input by totalOffsetPx (input bottom + input height + gap). */
   liftAboveInput(totalOffsetPx: number): void;
   /** Restore the bubble's default (input-closed) position. */
@@ -88,6 +90,8 @@ export function createSpeechBubble(
   dwellMs?: number,
   /** When it returns true, speech never auto-fades — the bubble holds until dismissed or replaced. */
   keepUntilDismissed?: () => boolean,
+  /** Called on every hide, whatever hid the bubble. */
+  onHide?: () => void,
 ): SpeechBubble {
   const dwell = dwellMs ?? readDwellToken(root) ?? DEFAULT_DWELL;
   const holdOpen = (): boolean => keepUntilDismissed?.() ?? false;
@@ -109,6 +113,8 @@ export function createSpeechBubble(
   let revealHeld = false;
   // Whether a turn the user started is still running — the bubble arms no dwell meanwhile.
   let turnHeld = false;
+  // Whether the backlog shows — the bubble arms no dwell meanwhile.
+  let keptOpen = false;
   let cancelFade: (() => void) | null = null;
   let showFrame: number | null = null;
   // The current speech action's click — nulled with the slot so a stale button click does nothing.
@@ -316,6 +322,7 @@ export function createSpeechBubble(
       deferred ||
       revealHeld ||
       turnHeld ||
+      keptOpen ||
       bubbleEl.classList.contains("is-streaming") ||
       bubbleEl.classList.contains("is-typing")
     ) {
@@ -330,6 +337,8 @@ export function createSpeechBubble(
     dwellArmed = false;
     deferred = false;
     turnHeld = false;
+    keptOpen = false;
+    onHide?.();
     stopTyping();
     lastRenderAt = Number.NEGATIVE_INFINITY;
     cancelShowFrame();
@@ -349,6 +358,17 @@ export function createSpeechBubble(
 
   function holdForTurn(on: boolean): void {
     turnHeld = on;
+  }
+
+  function keepOpen(on: boolean): void {
+    if (keptOpen === on) return;
+    keptOpen = on;
+    if (!on) {
+      settleIntoDwell();
+      return;
+    }
+    clearDwell();
+    dwellArmed = false;
   }
 
   function clearSpeechAction(): void {
@@ -454,6 +474,7 @@ export function createSpeechBubble(
     release,
     measure,
     holdForTurn,
+    keepOpen,
     liftAboveInput,
     resetPosition,
     dispose,

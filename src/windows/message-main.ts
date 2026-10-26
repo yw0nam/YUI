@@ -25,6 +25,7 @@ import { createMessageBridge } from "../io/bridge/message/message-bridge";
 import { createMirroredPushSocket } from "../io/bridge/push/push-socket-bridge";
 import { createMirroredReasoning } from "../io/bridge/reasoning/reasoning-bridge";
 import { createSettingsBridge } from "../io/bridge/settings-bridge";
+import { readTranscriptAfterBoundary } from "../io/chat/conversation/chat-history-store";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
 import {
@@ -36,6 +37,7 @@ import {
   localStorageMessageWindowStorage,
 } from "../settings/panels/message-window-settings";
 import { createFlagSettings, localStorageStore } from "../settings/persisted-store";
+import { presetEntryFor } from "../settings/preset/active-preset";
 import { isTauri } from "../tauri-env";
 import { createDelegationChip } from "../ui/chips/delegation-chip";
 import { reloadFromStorage as reloadLocale } from "../ui/i18n";
@@ -92,6 +94,10 @@ async function bootstrap(): Promise<void> {
     keepBubbleUntilDismissed: () => bubblePersistSettings.get().enabled,
     onInputOpenChange: (open) => bridge.emitControl({ op: "input-open", open }),
     reasoning,
+    backlog: {
+      read: () => readTranscriptAfterBoundary(presetEntryFor(presetRegistry.get(), boundId).id),
+      characterName: () => presetEntryFor(presetRegistry.get(), boundId).name,
+    },
   });
   surfaces.el.classList.add("yui-ui--message");
   surfaces.onSubmit((text, images) => bridge.emitControl({ op: "submit", text, images }));

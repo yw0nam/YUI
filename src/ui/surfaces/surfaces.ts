@@ -21,6 +21,7 @@ import type { SentenceStart } from "../../io/voice/tts/tts-pipeline";
 import type { ToolStatus } from "../chips/status-pill";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { createTextInput } from "../input/text-input";
+import { type Backlog, type BacklogSource, createBacklog } from "../message/backlog";
 import { createMessagePlate, type MessagePlate } from "../message/message-plate";
 import { createReasoningDisclosure, type ReasoningSource } from "../message/reasoning-disclosure";
 import { createSignalSourceLines } from "../message/signal-source-lines";
@@ -121,6 +122,8 @@ interface SurfacesOptions {
   reasoning?: ReasoningSource;
   /** Mounts a name plate on the bubble's edge: responding while speech streams, thinking while busy. */
   namePlate?: boolean;
+  /** The current session's lines, opened above the box by a toggle under it. */
+  backlog?: BacklogSource;
 }
 
 export function createSurfaces({
@@ -132,6 +135,7 @@ export function createSurfaces({
   onInputOpenChange,
   reasoning,
   namePlate,
+  backlog: backlogSource,
 }: SurfacesOptions): Surfaces {
   const el = document.createElement("div");
   el.className = "yui-ui";
@@ -205,6 +209,7 @@ export function createSurfaces({
   const picker = el.querySelector<HTMLInputElement>(".yui-input__picker")!;
   const sendBtn = el.querySelector<HTMLButtonElement>(".yui-input__send")!;
 
+  let backlog: Backlog | undefined;
   const bubble = createSpeechBubble(
     {
       root: el,
@@ -219,7 +224,9 @@ export function createSurfaces({
     },
     dwellMs,
     keepBubbleUntilDismissed,
+    () => backlog?.close(),
   );
+  backlog = backlogSource && createBacklog({ mount: bubbleFrame, ...backlogSource, bubble });
   // A reasoning cycle's first delta shows the bubble and holds off its fade until the cycle ends; the end hands
   // a bubble with no speech in flight to the dwell, or hides it when nothing is left to show.
   const think = reasoning
@@ -256,6 +263,7 @@ export function createSurfaces({
     for (const button of popButtons) button.removeEventListener("click", onPopClick);
     think?.dispose();
     plate?.dispose();
+    backlog?.dispose();
     quote.dispose();
     bubble.dispose();
     input.dispose();
@@ -268,6 +276,7 @@ export function createSurfaces({
     plate,
     beginSpeech(_identity, opts) {
       plate?.setLive(true);
+      backlog?.refresh();
       bubble.beginSpeech(opts);
     },
     pushSpeech: bubble.pushSpeech,
@@ -282,7 +291,10 @@ export function createSurfaces({
       bubble.hideSpeech();
     },
     showSpeechAction: bubble.showSpeechAction,
-    quoteUser: quote.show,
+    quoteUser(q) {
+      backlog?.refresh();
+      quote.show(q);
+    },
     quoteSignals: sources.show,
     settleQuote: quote.settle,
     clearQuote: quote.clear,

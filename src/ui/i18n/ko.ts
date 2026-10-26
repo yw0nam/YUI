@@ -41,6 +41,8 @@ const ko: Record<string, string> = {
   "aria.remove_attachment": "첨부 제거",
   "aria.dismiss_bubble": "말풍선 닫기",
   "bubble.you": "나",
+  "bubble.backlog": "백로그",
+  "bubble.backlog_hide": "백로그 닫기",
   "bubble.quote_attached": "첨부 {count}장",
   "bubble.sources_more": "+{n}개",
   "signals.delivery_urgent": "긴급 신호",

@@ -51,7 +51,7 @@ import { createDevtoolsWindowOpener } from "../io/window/openers/devtools-window
 import { createSettingsWindowOpener } from "../io/window/openers/settings-window";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
-import { presetIdForWindow } from "../settings/preset/active-preset";
+import { presetIdForWindow, presetNameFor } from "../settings/preset/active-preset";
 import { readBoundPresetId } from "../settings/preset/bound-preset";
 import { createStatusPill } from "../ui/chips/status-pill";
 import { createVoiceInputStatus } from "../ui/chips/voice-input-status";
@@ -149,6 +149,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     boundId,
     settingsBridge: windowBridge,
     transcript: conversationStores.chatHistoryStore,
+    characterName: () => presetNameFor(presetRegistry.get(), boundId),
     mount: root,
     tool: statusPill,
     bubblePersistSettings: settingsStores.bubblePersistSettings,

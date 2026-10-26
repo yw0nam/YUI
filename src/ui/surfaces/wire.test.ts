@@ -58,6 +58,7 @@ function setup(mode: MessageWindowMode, bound = false) {
     boundId: bound ? "a" : null,
     settingsBridge: settings,
     transcript: { entriesAfterLastBoundary: () => [] },
+    characterName: () => "YUI",
     mount: {} as HTMLElement,
     tool: { showTool: vi.fn(), finishTool: vi.fn(), hideTool: vi.fn() },
     bubblePersistSettings: { get: () => ({ enabled: false }) },
