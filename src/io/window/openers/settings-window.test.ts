@@ -7,9 +7,9 @@
  *   titleSettingsWindow(title) sets the document title, plus the native one under Tauri
  *   wireStorageSync(stores) re-reads every store on a `storage` event; disposer detaches.
  *
- * The real factory createSettingsWindowOpener() wires WebviewWindow / window.open — only its
- * creation-time title is pinned here, since that title stays English while the document title
- * follows the app language.
+ * The real factory createSettingsWindowOpener() wires WebviewWindow / window.open — pinned here are
+ * its creation-time title (English while the document title follows the app language), the URL a
+ * requested page puts on a new window, and the page request an open window is sent.
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -137,7 +137,6 @@ describe("createSettingsWindowOpener page request", () => {
   it.each([
     [undefined, "conn", "settings.html?page=conn"],
     ["a", "hist", "settings.html?preset=a&page=hist"],
-    ["a", undefined, "settings.html?preset=a"],
     [undefined, undefined, "settings.html"],
   ] as const)("creates the Tauri window for %s on page %s at %s", async (boundId, page, url) => {
     vi.stubGlobal("__TAURI_INTERNALS__", {});

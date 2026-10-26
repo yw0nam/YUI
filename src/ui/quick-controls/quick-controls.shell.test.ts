@@ -203,7 +203,10 @@ describe("createQuickControls — shell", () => {
     qc.el.querySelector<HTMLButtonElement>("#yui-panel-general .yui-devtools-open")!.click();
 
     expect(onOpenDevtools).toHaveBeenCalledOnce();
+    const button = qc.el.querySelector<HTMLButtonElement>(".yui-devtools-open")!;
     qc.dispose();
+    button.click();
+    expect(onOpenDevtools).toHaveBeenCalledOnce();
   });
 
   it("clicking the header close button closes the panel", () => {

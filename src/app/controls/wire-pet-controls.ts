@@ -251,7 +251,7 @@ export function wirePetControls(deps: {
   // Re-mounted on locale change (see i18n subscriber below); consumers read the live binding.
   let quickControls = buildQuickControls();
   register(() => quickControls.dispose());
-  // A popped-out surface has no settings panel of its own; it asks this window for one.
+  // A popped-out surface has no settings panel of its own; it asks this window to open the settings window on Connection.
   remote?.onOpenSettings(() => openSettings("conn"));
 
   // Re-mount localized DOM surfaces when display language changes.

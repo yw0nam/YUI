@@ -784,16 +784,16 @@ export function createQuickControls({
     proactiveSettings,
   });
 
-  // ── Header buttons (pop-out · message · devtools · close) ──
+  // ── Header buttons (pop-out · message · close) ──
   const headerButtons = createHeaderButtons({
     root: el,
     close: popover.close,
     onPopOut,
     onMessage,
   });
+  const unbindDevtools = onOpenDevtools ? bindDevtoolsRow(el, onOpenDevtools) : undefined;
   // The popover closes first, as for the message button, so the reply is what the user sees next.
   // The separate settings window stays open.
-  const unbindDevtools = onOpenDevtools ? bindDevtoolsRow(el, onOpenDevtools) : undefined;
   const unbindHelp = onGuide
     ? bindHelpSection(el, (guide, text) => {
         if (!isWindow) popover.close();

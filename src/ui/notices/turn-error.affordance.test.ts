@@ -33,7 +33,7 @@ describe("not_configured → open the Connection tab", () => {
     setLocale("en");
   });
 
-  it("clicking the inline error's button opens quick controls on Connection", () => {
+  it("the inline error's fix button opens the panel it is given on the Connection page", () => {
     const surfaces = createSurfaces({ tool: noTool, mount });
     const quickControls = createQuickControls(defaultQcArgs(mount));
 
