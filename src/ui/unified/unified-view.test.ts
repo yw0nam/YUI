@@ -183,6 +183,19 @@ describe("unified view — running replies", () => {
     );
   });
 
+  it("keeps a failed routed turn's error while the send still waits for its turn to close", () => {
+    mount();
+    type("hi");
+    press("Enter");
+
+    stream("natsume", { op: "input-error", message: "Backend not configured" });
+    stream("natsume", { op: "busy", busy: false });
+
+    expect(document.querySelector(".yui-uc__dock .yui-input__error")?.textContent).toBe(
+      "Backend not configured",
+    );
+  });
+
   it("offers an error's fix and sends its click back to the preset that failed", () => {
     mount();
     const clicked: string[] = [];

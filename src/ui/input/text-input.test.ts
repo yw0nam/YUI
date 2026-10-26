@@ -719,6 +719,18 @@ describe("showInputError — inline fix affordance", () => {
     return mount.querySelector(".yui-input__error") as HTMLElement;
   }
 
+  it("keeps the error through a busy that was already on, and clears it when a new turn starts", () => {
+    s.setBusy(true);
+    s.showInputError("boom");
+
+    s.setBusy(true);
+    expect(errorEl().textContent).toBe("boom");
+
+    s.setBusy(false);
+    s.setBusy(true);
+    expect(errorEl().textContent).toBe("");
+  });
+
   it("shows the message alone when no action is given", () => {
     s.showInputError("boom");
 
