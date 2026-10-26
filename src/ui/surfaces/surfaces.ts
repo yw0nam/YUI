@@ -98,6 +98,8 @@ export interface Surfaces {
   dispose(): void;
 }
 
+export type SpeechSurfaces = Pick<Surfaces, "beginSpeech" | "pushSpeech" | "endSpeech">;
+
 interface SurfacesOptions {
   mount: HTMLElement;
   /** Where tool status is drawn; the surfaces render no tool tell of their own. */

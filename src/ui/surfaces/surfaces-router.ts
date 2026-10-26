@@ -1,13 +1,18 @@
-/** Routes local or remote presentation and sends reply speech to the unified stream. */
+/**
+ * One Surfaces selects the local pet or remote message window for speech and input, and also
+ * sends identified speech to the unified stream. Tool status, the feet anchor and the overlay
+ * element stay local because they belong to the character. Submit and stop callbacks register
+ * once and fire from whichever side the user types on.
+ */
 
 import type { RemoteSurfaces } from "../../io/bridge/message/message-remote";
 import type { MessageWindowMode } from "../../settings/panels/message-window-settings";
-import type { Surfaces } from "./surfaces";
+import type { SpeechSurfaces, Surfaces } from "./surfaces";
 
 interface SurfacesRouterOptions {
   local: Surfaces;
   remote: RemoteSurfaces;
-  stream: Pick<Surfaces, "beginSpeech" | "pushSpeech" | "endSpeech">;
+  stream: SpeechSurfaces;
   getMode(): MessageWindowMode;
   subscribeMode(cb: (mode: MessageWindowMode) => void): () => void;
 }

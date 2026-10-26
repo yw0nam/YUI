@@ -15,7 +15,7 @@ import { createMessageBridge } from "../../io/bridge/message/message-bridge";
 import { createRemoteSurfaces, type RemoteSurfaces } from "../../io/bridge/message/message-remote";
 import type { MessageWindowMode } from "../../settings/panels/message-window-settings";
 import { createMessagePlate } from "../message/message-plate";
-import { createSurfaces, type Surfaces } from "./surfaces";
+import { createSurfaces, type SpeechSurfaces, type Surfaces } from "./surfaces";
 import { createSurfacesRouter } from "./surfaces-router";
 import { noTool } from "./test-helpers";
 
@@ -83,7 +83,7 @@ function makeRemote(): RemoteSurfaces {
 describe("createSurfacesRouter", () => {
   let local: Surfaces;
   let remote: RemoteSurfaces;
-  let stream: Pick<Surfaces, "beginSpeech" | "pushSpeech" | "endSpeech">;
+  let stream: SpeechSurfaces;
   let mode: MessageWindowMode;
   let listeners: Array<(m: MessageWindowMode) => void>;
   let router: Surfaces;

@@ -126,8 +126,26 @@ async function bootstrap(): Promise<BootstrapHandle> {
   });
   register(() => statusPill.dispose());
 
+  // Cross-window settings sync is wired before VRM/speaker selection so those stores can broadcast
+  // through the returned callback; the reload half is wired after those selections exist.
+  const {
+    broadcastSettings,
+    onRemoteChange,
+    bridge: windowBridge,
+    dispose: disposeCrossWindowSync,
+  } = wireCrossWindowSync({
+    bound,
+    renderer,
+    voiceInputStatus,
+    stores: settingsStores,
+    conversation: conversationStores,
+    log,
+  });
+  register(() => disposeCrossWindowSync());
   const { surfaces, local, remote, getMode } = wireMessageSurfaces({
     boundId,
+    settingsBridge: windowBridge,
+    transcript: conversationStores.chatHistoryStore,
     mount: root,
     tool: statusPill,
     bubblePersistSettings: settingsStores.bubblePersistSettings,
@@ -147,22 +165,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
   // Settings opens the current pet window's companion in Tauri or a browser popup.
   const openSettings = createSettingsWindowOpener(boundId);
   const openDevtools = createDevtoolsWindowOpener();
-  // Cross-window settings sync is wired before VRM/speaker selection so those stores can broadcast
-  // through the returned callback; the reload half is wired after those selections exist.
-  const {
-    broadcastSettings,
-    onRemoteChange,
-    bridge: windowBridge,
-    dispose: disposeCrossWindowSync,
-  } = wireCrossWindowSync({
-    bound,
-    renderer,
-    voiceInputStatus,
-    stores: settingsStores,
-    conversation: conversationStores,
-    log,
-  });
-  register(() => disposeCrossWindowSync());
   const { vrm, speaker } = wireAvatarSelection({
     renderer,
     getEndpoints: petConfig.getEndpoints,

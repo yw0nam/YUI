@@ -1,5 +1,8 @@
 import type { SpeechStream } from "../../io/bridge/settings-bridge";
-import type { Transcript } from "./merge";
+import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
+import type { PresetEntry } from "../../settings/preset/active-preset";
+
+export type Transcript = PresetEntry & { entries: ChatHistoryEntry[] };
 
 const ENDED_LINE_TIMEOUT_MS = 60_000;
 
@@ -22,7 +25,7 @@ function recordCount(transcripts: readonly Transcript[], preset: string, turnId:
 export function createOpenLines() {
   const lines = new Map<string, OpenLine>();
   return {
-    accept(event: SpeechStream, transcripts: readonly Transcript[], now: number): void {
+    accept(event: SpeechStream, now: number): void {
       const line = lines.get(event.preset);
       if (event.op === "begin") {
         if (line?.turnId === event.turn_id && line.endedAt === undefined) return;
@@ -30,7 +33,7 @@ export function createOpenLines() {
           preset: event.preset,
           turnId: event.turn_id,
           text: "",
-          baseline: recordCount(transcripts, event.preset, event.turn_id),
+          baseline: event.baseline,
         });
       } else if (line?.turnId === event.turn_id) {
         if (event.op === "push") line.text += event.delta;

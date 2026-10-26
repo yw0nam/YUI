@@ -1,12 +1,15 @@
-/** The unified chat window wires its log, composer and one-at-a-time routing. */
+/**
+ * The unified chat window wires every open preset's log, running replies, composer and one-at-a-time
+ * routing. Firing ≠ judgment: the presets' backends decide whether and what to say; the view renders it.
+ */
 
 import type { SpeechStream, UserTurnDone, UserTurnRouted } from "../../io/bridge/settings-bridge";
 import { createLogger } from "../../logger";
 import type { PresetEntry } from "../../settings/preset/active-preset";
 import { subscribe as subscribeLocale } from "../i18n";
 import { createComposer } from "./composer";
-import { createUnifiedLog } from "./log-view";
-import type { Transcript } from "./merge";
+import { createLogView } from "./log-view";
+import type { Transcript } from "./open-lines";
 import { createSequence } from "./sequence";
 import { buildSend } from "./targets";
 
@@ -49,7 +52,7 @@ export function createUnifiedView(deps: {
     mount: root.querySelector<HTMLElement>(".yui-uc__dock")!,
     cast: deps.cast,
   });
-  const logView = createUnifiedLog({ ...deps, root, composer });
+  const logView = createLogView({ ...deps, root, composer });
   const sequence = createSequence({
     emit: (event) => {
       for (const cb of routeCbs) cb(event);

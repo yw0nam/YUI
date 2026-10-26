@@ -1,11 +1,7 @@
-/** Pure: every open preset's transcript, and the sends still waiting for their record, as one time-ordered list. */
+/** Pure: recorded lines and pending sends in time order, followed by open replies. */
 
-import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
-import type { PresetEntry } from "../../settings/preset/active-preset";
-import type { OpenLine } from "./open-lines";
+import type { OpenLine, Transcript } from "./open-lines";
 import { SEND_TIMEOUT_MS } from "./sequence";
-
-export type Transcript = PresetEntry & { entries: ChatHistoryEntry[] };
 
 /** A message the window sent that no transcript records yet. */
 export interface PendingSend {

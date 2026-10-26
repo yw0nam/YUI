@@ -2,7 +2,8 @@
 
 import { createMessageBridge } from "../../io/bridge/message/message-bridge";
 import { createRemoteSurfaces, type RemoteSurfaces } from "../../io/bridge/message/message-remote";
-import { createSettingsBridge } from "../../io/bridge/settings-bridge";
+import type { SettingsBridge } from "../../io/bridge/settings-bridge";
+import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
 import {
   createMessageWindowController,
   listenTrayToggle,
@@ -19,6 +20,8 @@ import { createSurfacesRouter } from "./surfaces-router";
 
 export function wireMessageSurfaces(deps: {
   boundId?: string | null;
+  settingsBridge: Pick<SettingsBridge, "emitSpeechStream">;
+  transcript: { entriesAfterLastBoundary(): readonly ChatHistoryEntry[] };
   mount: HTMLElement;
   tool: ToolStatus;
   bubblePersistSettings: Pick<SettingsStores["bubblePersistSettings"], "get">;
@@ -44,10 +47,10 @@ export function wireMessageSurfaces(deps: {
   // A stale popped mode must not strand speech in a window the browser build cannot open.
   const getMode = (): MessageWindowMode =>
     isTauri() ? deps.messageWindowSettings.get().mode : "docked";
-  const settingsBridge = createSettingsBridge(undefined, { windowKind: "pet" });
   const stream = createSpeechStream({
     presetId: deps.boundId ?? presetIdForWindow(),
-    emit: settingsBridge.emitSpeechStream,
+    emit: deps.settingsBridge.emitSpeechStream,
+    readTranscript: deps.transcript.entriesAfterLastBoundary,
   });
   const surfaces = createSurfacesRouter({
     local,
@@ -63,7 +66,6 @@ export function wireMessageSurfaces(deps: {
     listenTrayToggle: deps.boundId == null ? listenTrayToggle : undefined,
     getMode,
   });
-  deps.register(() => settingsBridge.dispose());
   deps.register(() => messageBridge.dispose());
   deps.register(() => surfaces.dispose());
   deps.register(disposeMessageWindowMode);

@@ -78,7 +78,8 @@ export interface UserTurnDone {
 }
 
 export type SpeechStream =
-  | { preset: string; turn_id: string; op: "begin" | "end" }
+  | { preset: string; turn_id: string; op: "begin"; baseline: number }
+  | { preset: string; turn_id: string; op: "end" }
   | { preset: string; turn_id: string; op: "push"; delta: string };
 
 export interface SettingsBridge {
@@ -335,7 +336,10 @@ export function createSettingsBridge(
         )
           return;
         const { preset, turn_id, op } = e;
-        if (op === "begin" || op === "end") cb({ preset, turn_id, op });
+        if (op === "begin") {
+          if (typeof e.baseline === "number" && Number.isInteger(e.baseline) && e.baseline >= 0)
+            cb({ preset, turn_id, op, baseline: e.baseline });
+        } else if (op === "end") cb({ preset, turn_id, op });
         else if (op === "push" && typeof e.delta === "string")
           cb({ preset, turn_id, op, delta: e.delta });
       });

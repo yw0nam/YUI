@@ -3362,7 +3362,7 @@ globalThis.YUI_MAP =
       "id": "speech-stream",
       "from": "ui/surfaces",
       "to": "ui/unified",
-      "carries": "yui://speech-stream {preset, turn_id, op: begin|push|end, delta?}, unscoped: the router's added destination streams a reply's text into a pending row until its transcript record arrives",
+      "carries": "yui://speech-stream {preset, turn_id, op: begin|push|end, delta?, baseline on begin}, unscoped: the pet snapshots the assistant-record count at begin; the router's added destination streams a reply's text into a pending row until its transcript record arrives",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/ui/surfaces/wire.ts"
@@ -4774,14 +4774,14 @@ globalThis.YUI_MAP =
         "id": "speech-stream-pet-unified",
         "from": "pet",
         "to": "unified",
-        "carries": "yui://speech-stream {preset, turn_id, op: begin|push|end, delta?}, unscoped: the router's added destination streams a reply's text into a pending row until its transcript record arrives",
+        "carries": "yui://speech-stream {preset, turn_id, op: begin|push|end, delta?, baseline on begin}, unscoped: the pet snapshots the assistant-record count at begin; the router's added destination streams a reply's text into a pending row until its transcript record arrives",
         "kind": "bridge"
       },
       {
         "id": "speech-stream-pet-bound-unified",
         "from": "pet-<id>",
         "to": "unified",
-        "carries": "yui://speech-stream {preset, turn_id, op: begin|push|end, delta?}, unscoped: the router's added destination streams a reply's text into a pending row until its transcript record arrives",
+        "carries": "yui://speech-stream {preset, turn_id, op: begin|push|end, delta?, baseline on begin}, unscoped: the pet snapshots the assistant-record count at begin; the router's added destination streams a reply's text into a pending row until its transcript record arrives",
         "kind": "bridge"
       },
       {

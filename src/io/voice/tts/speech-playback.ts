@@ -130,6 +130,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
   let heardAudio = false;
   let muted = false;
   // An identity marks backend speech; client-side phrases carry none.
+  // displayIdentity includes muted text; identity excludes it from playback records.
   let open: { identity?: UtteranceIdentity; displayIdentity?: UtteranceIdentity } | null = null;
   // One entry per end() whose playback boundary has not fired yet — mirrors the pipeline's boundary queue.
   const queued: Array<{ identity?: UtteranceIdentity }> = [];

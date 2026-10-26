@@ -3,12 +3,12 @@ import type { PresetEntry } from "../../settings/preset/active-preset";
 import { t } from "../i18n";
 import type { createComposer } from "./composer";
 import { castChipEl, lineEl } from "./log-rows";
-import { mergeTranscripts, type PendingSend, type Transcript } from "./merge";
-import { createOpenLines } from "./open-lines";
+import { mergeTranscripts, type PendingSend } from "./merge";
+import { createOpenLines, type Transcript } from "./open-lines";
 import { SEND_TIMEOUT_MS } from "./sequence";
 import { fallbackTarget, lastSpeakerOf } from "./targets";
 
-export function createUnifiedLog(deps: {
+export function createLogView(deps: {
   root: HTMLElement;
   cast: () => PresetEntry[];
   transcripts: () => Transcript[];
@@ -61,7 +61,7 @@ export function createUnifiedLog(deps: {
   return {
     refresh,
     speechStream(event: SpeechStream): void {
-      open.accept(event, deps.transcripts(), deps.now());
+      open.accept(event, deps.now());
       refresh();
     },
     addSend(sendId: string, text: string): void {
