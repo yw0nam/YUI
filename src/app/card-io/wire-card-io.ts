@@ -1,6 +1,6 @@
 /**
- * The card's quick-controls ports: io's file steps and settings' preset creator, bound to
- * one registry. Both windows' control wiring spreads this result.
+ * The card's settings-panel ports: io's file steps and settings' preset creator, bound to one
+ * registry. The settings window's wiring spreads this result.
  */
 
 import type { Card } from "../../config/validators/persona/types";

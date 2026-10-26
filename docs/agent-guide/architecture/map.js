@@ -1236,7 +1236,7 @@ globalThis.YUI_MAP =
       "id": "app/card-io",
       "module": "wiring",
       "label": "card io wiring",
-      "role": "The card's quick-controls ports: io's file steps and settings' preset creator, bound to one registry, shared by the pet and settings windows' control wiring.",
+      "role": "The card's settings-panel ports: io's file steps and settings' preset creator, bound to one registry, spread by the settings window's wiring.",
       "paths": [
         "src/app/card-io"
       ]
@@ -2668,7 +2668,7 @@ globalThis.YUI_MAP =
       "id": "settings-edit-target",
       "from": "ui/quick-controls",
       "to": "app/settings-window",
-      "carries": "the preset id picked in the strip's edit mode; the window navigates to settings.html with `?edit=<id>` and rebuilds over that preset's stores and bridge stamp; main's active preset and every pet window are untouched",
+      "carries": "the preset id picked in the strip's character header; the window navigates to settings.html with `?edit=<id>` and rebuilds over that preset's stores and bridge stamp; main's active preset and every pet window are untouched",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/settings-window/wire-settings-window.ts"

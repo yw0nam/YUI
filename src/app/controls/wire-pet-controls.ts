@@ -74,10 +74,10 @@ export function wirePetControls(deps: {
   // A popped-out surface has no settings panel of its own; it asks this window to open the settings window on Connection.
   deps.remoteSurfaces?.onOpenSettings(() => openSettings("conn"));
 
-  // Defer to a microtask so the click handler that changed the language unwinds before its host
-  // is disposed.
   register(wireCueLocaleSync(stores));
   const unsubscribeLocale = subscribeLocale(() => {
+    // Defer to a microtask so the click handler that changed the language unwinds before its
+    // host is disposed.
     queueMicrotask(() => {
       card.dispose();
       card = buildCard();

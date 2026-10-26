@@ -77,7 +77,7 @@ describe("createQuickControls — presets", () => {
     return petWindows;
   }
 
-  function editMode(edit: string, onEditTarget = vi.fn(), boundId: string | null = null) {
+  function editing(edit: string, onEditTarget = vi.fn(), boundId: string | null = null) {
     history.replaceState(null, "", `/?${boundId ? `preset=${boundId}&` : ""}edit=${edit}`);
     qc.dispose();
     const petWindows = createPetWindows();
@@ -96,13 +96,13 @@ describe("createQuickControls — presets", () => {
   const head = (name: string) =>
     heads().find((b) => b.querySelector(".yui-chead__name")?.textContent === name)!;
 
-  it("edit mode: the header lists every character with its transport and window state", () => {
+  it("the header lists every character with its transport and window state", () => {
     localStorage.setItem("yui.endpoints", JSON.stringify({ chat_api: "push" }));
     localStorage.setItem(
       "yui.bbbb0002.endpoints",
       JSON.stringify({ chat_api: "chat_completions" }),
     );
-    const { petWindows } = editMode("aaaa0001");
+    const { petWindows } = editing("aaaa0001");
     petWindows.open("bbbb0002");
 
     expect(
@@ -117,8 +117,8 @@ describe("createQuickControls — presets", () => {
     ]);
   });
 
-  it("edit mode: clicking a character hands its id over without activating; an off one is dimmed and clickable", () => {
-    const { onEditTarget } = editMode("aaaa0001");
+  it("clicking a character hands its id over without activating; an off one is dimmed and clickable", () => {
+    const { onEditTarget } = editing("aaaa0001");
 
     expect(head("natsume").getAttribute("aria-current")).toBe("true");
     expect([head("default").classList.contains("is-off"), head("default").disabled]).toEqual([
@@ -131,8 +131,8 @@ describe("createQuickControls — presets", () => {
     expect(registry.get().active).toBe("aaaa0001");
   });
 
-  it("edit mode: the header and the scope lines name the ?edit= preset, not the active one", () => {
-    editMode("bbbb0002");
+  it("the header and the scope lines name the ?edit= preset, not the active one", () => {
+    editing("bbbb0002");
 
     expect(head("perlica").getAttribute("aria-current")).toBe("true");
     expect(qc.el.querySelector("#yui-panel-conn .yui-tabpanel__scope")?.textContent).toBe(
@@ -142,8 +142,8 @@ describe("createQuickControls — presets", () => {
     expect(registry.get().active).toBe("aaaa0001");
   });
 
-  it("edit mode: a non-active row offers Use in main, disabled while its window is open", () => {
-    const { petWindows } = editMode("bbbb0002");
+  it("a non-active row offers Use in main, disabled while its window is open", () => {
+    const { petWindows } = editing("bbbb0002");
     petWindows.open("default");
     openManage();
     const buttons = (name: string) =>
@@ -158,18 +158,18 @@ describe("createQuickControls — presets", () => {
     expect(registry.get().active).toBe("bbbb0002");
   });
 
-  it("edit mode: the note says where the edited preset lives", () => {
+  it("the note says where the edited preset lives", () => {
     const note = () => $(".yui-preset__note").textContent;
-    editMode("aaaa0001");
+    editing("aaaa0001");
     expect(note()).toBe("natsume is shown in main.");
-    const { petWindows } = editMode("bbbb0002");
+    const { petWindows } = editing("bbbb0002");
     expect(note()).toBe("perlica is in no window now. Changes are saved and apply when it opens.");
     petWindows.open("bbbb0002");
     expect(note()).toBe("perlica is open in its own window. Changes apply there at once.");
   });
 
-  it("edit mode: the edited preset leaving the registry sends the window to the active one", () => {
-    const { onEditTarget } = editMode("bbbb0002");
+  it("the edited preset leaving the registry sends the window to the active one", () => {
+    const { onEditTarget } = editing("bbbb0002");
 
     registry.remove("bbbb0002");
 
@@ -177,8 +177,8 @@ describe("createQuickControls — presets", () => {
     expect(onEditTarget).toHaveBeenCalledWith("aaaa0001");
   });
 
-  it("edit mode: a bound window whose edited preset is deleted returns to its bound preset", () => {
-    const { onEditTarget } = editMode("bbbb0002", vi.fn(), "default");
+  it("a bound window whose edited preset is deleted returns to its bound preset", () => {
+    const { onEditTarget } = editing("bbbb0002", vi.fn(), "default");
 
     registry.remove("bbbb0002");
 
@@ -186,8 +186,8 @@ describe("createQuickControls — presets", () => {
     expect(onEditTarget).toHaveBeenCalledWith("default");
   });
 
-  it("edit mode: a new preset is seeded from the edited preset", () => {
-    editMode("bbbb0002");
+  it("a new preset is seeded from the edited preset", () => {
+    editing("bbbb0002");
     openManage();
     $<HTMLButtonElement>(".yui-preset-pop .yui-add-btn").click();
 
