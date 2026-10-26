@@ -31,7 +31,6 @@ describe("createQuickControls — speaker section", () => {
   let endpointsSettings: ReturnType<typeof createEndpointsSettings>;
   let proactiveSettings: ReturnType<typeof createProactiveSettings>;
   let scheduleSettings: ReturnType<typeof createScheduleSettings>;
-  let onPopOut: Mock<() => void>;
   let vrmSelection: ReturnType<typeof createVrmSelection>;
   let swapVrm: Mock<(option: AvatarOption) => Promise<void>>;
   let importVrm: Mock<() => Promise<void>>;
@@ -51,14 +50,6 @@ describe("createQuickControls — speaker section", () => {
   });
 
   beforeEach(() => {
-    // Make rAF synchronous so open() → is-open transition happens immediately in tests
-    let rafId = 0;
-    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
-      cb(0);
-      return ++rafId;
-    });
-    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
-
     mount = document.createElement("div");
     document.body.appendChild(mount);
 
@@ -69,7 +60,6 @@ describe("createQuickControls — speaker section", () => {
     endpointsSettings = createEndpointsSettings();
     proactiveSettings = createProactiveSettings();
     scheduleSettings = createScheduleSettings();
-    onPopOut = vi.fn<() => void>();
     vrmSelection = makeVrmSelection();
     // default fake: commit the store on success (mirrors the real settings-window impl)
     swapVrm = vi.fn<(option: AvatarOption) => Promise<void>>(async (option) => {
@@ -111,7 +101,6 @@ describe("createQuickControls — speaker section", () => {
       endpointsSettings,
       proactiveSettings,
       scheduleSettings,
-      onPopOut,
       vrmSelection,
       swapVrm,
       importVrm,
@@ -614,7 +603,7 @@ describe("createQuickControls — speaker section", () => {
 
   it("disarms a voice delete when the panel is closed and reopened", async () => {
     withUserVoice();
-    const qc = buildQc({ variant: "popover" });
+    const qc = buildQc();
     qc.open();
     userSpkRow(qc).querySelector<HTMLButtonElement>(".yui-spk__remove")!.click();
     expect(userSpkRow(qc).classList).toContain("is-remove-armed");
@@ -1243,16 +1232,6 @@ describe("createQuickControls — speaker section", () => {
     const active = after.find((r) => r.getAttribute("aria-checked") === "true")!;
     expect(active.dataset.spkId).toBe(evilId);
     expect(speakerSelection.getActiveId()).toBe(evilId);
-
-    qc.dispose();
-  });
-
-  it("window variant also renders the speaker section", () => {
-    const qc = buildQc({ variant: "window" });
-    qc.open();
-
-    expect(qc.el.querySelector(".yui-spks[role=radiogroup]")).not.toBeNull();
-    expect(qc.el.querySelector(".yui-spk--add")).not.toBeNull();
 
     qc.dispose();
   });

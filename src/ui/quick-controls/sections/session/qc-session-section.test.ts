@@ -102,11 +102,10 @@ describe("createQuickControls — session section delegated list", () => {
   });
 
   function buildQc(delegations: ReturnType<typeof fakeDelegations>) {
-    // The occupancy readout and the delegated list share the session section — window variant,
-    // and the three stores the section needs before it renders.
+    // The occupancy readout and the delegated list share the session section, which renders
+    // once the three stores it needs are given.
     return createQuickControls({
       ...defaultQcArgs(mount),
-      variant: "window",
       transcript: createChatHistoryStore(),
       sessionStore: createSessionStore(),
       sessionDiagnostics: createSessionDiagnosticsStore(),
@@ -226,7 +225,6 @@ describe("createQuickControls — session section delegated list", () => {
       endpointsSettings.set({ chat_api: "push" });
       return createQuickControls({
         ...defaultQcArgs(mount),
-        variant: "window",
         transcript: createChatHistoryStore(),
         sessionStore: createSessionStore(),
         sessionDiagnostics: createSessionDiagnosticsStore(),
@@ -408,15 +406,15 @@ describe("createQuickControls — session section", () => {
     });
   }
 
-  it("renders the session section in the window variant", () => {
-    const qc = buildQc({ variant: "window" });
+  it("renders the session section", () => {
+    const qc = buildQc();
     qc.open();
     expect(qc.el.querySelector(".yui-session")).not.toBeNull();
     qc.dispose();
   });
 
   it("keeps only the occupancy stat — the start-fresh action left for the History tab", () => {
-    const qc = buildQc({ variant: "window" });
+    const qc = buildQc();
     qc.open();
 
     const section = qc.el.querySelector<HTMLElement>(".yui-session")!;
@@ -428,16 +426,9 @@ describe("createQuickControls — session section", () => {
     qc.dispose();
   });
 
-  it("does NOT render the session section in the popover (pet) variant", () => {
-    const qc = buildQc({ variant: "popover" });
-    qc.open();
-    expect(qc.el.querySelector(".yui-session")).toBeNull();
-    qc.dispose();
-  });
-
   it("renders used/max and percent from the diagnostics store", () => {
     sessionDiagnostics.setUsage(18200, 200000);
-    const qc = buildQc({ variant: "window" });
+    const qc = buildQc();
     qc.open();
 
     const value = qc.el.querySelector<HTMLElement>(".yui-session__value")!;
@@ -453,7 +444,7 @@ describe("createQuickControls — session section", () => {
 
   it("handles a null contextWindow gracefully (no bar, muted readout)", () => {
     sessionDiagnostics.setUsage(18200, null);
-    const qc = buildQc({ variant: "window" });
+    const qc = buildQc();
     qc.open();
 
     expect(qc.el.querySelector(".yui-meter")).toBeNull();
@@ -466,7 +457,7 @@ describe("createQuickControls — session section", () => {
   });
 
   it("live-updates the readout when the diagnostics store notifies while open", () => {
-    const qc = buildQc({ variant: "window" });
+    const qc = buildQc();
     qc.open();
 
     sessionDiagnostics.setUsage(100000, 200000);

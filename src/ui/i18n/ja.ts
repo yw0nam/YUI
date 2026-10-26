@@ -108,12 +108,7 @@ const ja: Record<string, string> = {
 
   // panel chrome
   "panel.dialog_label": "設定",
-  "panel.title": "設定",
   "panel.tablist_label": "設定エリア",
-  "panel.drag_hint": "ドラッグで移動",
-  "panel.pop_out": "ウィンドウに切り出す",
-  "panel.message": "メッセージを入力",
-  "panel.close": "閉じる",
   // quick card
   "quick_card.voice": "音声",
   "quick_card.listen": "聞き取り",
@@ -194,8 +189,6 @@ const ja: Record<string, string> = {
   "head.off": "オフ",
 
   // preset strip and manage popover
-  "preset.in_window": "{name} · ウィンドウで表示中",
-  "preset.label": "プリセット",
   "preset.manage": "プリセットを管理",
   "preset.in_use": "mainに表示中",
   "preset.note_main": "{name}はmainに表示中です。",
@@ -231,7 +224,6 @@ const ja: Record<string, string> = {
   "preset.new_sub": "{name}の設定をコピーします。会話は空の状態から始まります。",
   "preset.new_ph": "名前",
   "preset.taken": "{name}はすでにあります",
-  "preset.switching": "{name}に切り替え中…",
   "relation.group": "{name}の気持ち",
   "relation.to_you": "あなた",
   "relation.none": "まだ誰も評価していません",

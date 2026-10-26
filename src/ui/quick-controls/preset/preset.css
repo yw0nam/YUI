@@ -1,4 +1,4 @@
-/* ── Preset strip — under the drag bar, spanning rail and body; the one place the preset is picked ── */
+/* ── Preset strip — spanning rail and body; the one place the edited preset is picked ── */
 .yui-preset {
   position: relative;
   flex: 0 0 auto;
@@ -6,7 +6,7 @@
   border-bottom: 1px solid var(--yui-edge);
 }
 
-/* window variant: the strip, not the columns, sits below the native macOS titlebar (28px). */
+/* The strip, not the columns, sits below the native macOS titlebar (28px). */
 .yui-quick--window .yui-preset {
   padding-top: calc(28px + 0.5rem);
 }
@@ -21,50 +21,9 @@
   gap: 0.5rem;
 }
 
-.yui-preset__label {
-  flex: none;
-  font-size: var(--yui-fs-sub);
-  font-weight: 500;
-  color: var(--yui-text-mute);
-}
-
-.yui-preset__thumb {
-  display: flex;
-  flex: none;
-}
-
-.yui-preset__select {
-  display: block;
-  flex: 1 1 auto;
-  min-width: 0;
-  width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .yui-preset__manage.is-pressed {
   background: var(--yui-selected);
   color: var(--yui-text);
-}
-
-.yui-preset__manage:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-/* Switching — the field holds the target name in Ash; one waiting line under it. */
-.yui-preset.is-busy .yui-preset__select {
-  color: var(--yui-text-dim);
-  cursor: default;
-}
-
-.yui-preset.is-busy .yui-preset__select:hover {
-  border-color: transparent;
-}
-
-.yui-preset__state {
-  margin: 0.4rem 0 0.05rem 0.1rem;
 }
 
 .yui-preset__note {
@@ -72,12 +31,6 @@
   font-size: var(--yui-fs-caption);
   line-height: 1.4;
   color: var(--yui-text-mute);
-}
-
-.yui-quick__cols.is-busy {
-  opacity: 0.4;
-  pointer-events: none;
-  transition: opacity var(--yui-dur-fast) var(--yui-ease);
 }
 
 /* Manage popover — anchored under the dots button; Esc and an outside press close it, focus returns. */
@@ -268,7 +221,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .yui-quick__cols.is-busy,
   .yui-preset-row__photo,
   .yui-preset-row__rename,
   .yui-preset-row__remove {
@@ -279,15 +231,6 @@
   }
 }
 
-.yui-preset__bound {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--yui-fs-body);
-  color: var(--yui-text);
-}
 .yui-preset-row__window {
   font: inherit;
   font-size: var(--yui-fs-sub);

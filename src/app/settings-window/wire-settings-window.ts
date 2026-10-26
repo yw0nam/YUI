@@ -251,7 +251,6 @@ export async function wireSettingsWindow(deps: {
     titleSettingsWindow(t("settings.title"));
     return createQuickControls({
       mount: app,
-      variant: "window",
       pushSocket,
       announceSessionReset: sessionReset.announce,
       delegations: {
@@ -259,7 +258,7 @@ export async function wireSettingsWindow(deps: {
         subscribe: delegationHistory.subscribe,
         refresh: delegationHistory.reloadFromStorage,
       },
-      // Close settings window with Escape — closing for window variant is OS window's job.
+      // Escape closes the settings window.
       onCloseWindow: closeSettingsWindow,
       agentSettings,
       userNameSettings,
@@ -340,9 +339,9 @@ export async function wireSettingsWindow(deps: {
   // quick-controls fully re-mounts on display language change (setLocale → i18n.subscribe).
   // Defer to microtask so component doesn't destroy itself during its own click handler.
   let quickControls = buildQuickControls();
-  // window variant auto-opens on creation but is idempotent, so defensively call once more.
-  quickControls.open(undefined, requestedPage ? { tab: requestedPage } : undefined);
-  settingsPage.attach((page) => quickControls.open(undefined, { tab: page }));
+  // The panel opens on creation; open() is idempotent and lands on the requested page.
+  quickControls.open(requestedPage ? { tab: requestedPage } : undefined);
+  settingsPage.attach((page) => quickControls.open({ tab: page }));
 
   const unsubscribeCueSync = wireCueLocaleSync(settingsStores);
   const unsubscribeLocale = subscribeLocale(() => {
@@ -351,7 +350,7 @@ export async function wireSettingsWindow(deps: {
       const tab = quickControls.selectedTab();
       quickControls.dispose();
       quickControls = buildQuickControls();
-      quickControls.open(undefined, { tab });
+      quickControls.open({ tab });
     });
   });
 

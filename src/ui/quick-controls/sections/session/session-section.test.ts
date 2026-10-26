@@ -31,7 +31,6 @@ function build({ open = true, pushMode = true }: { open?: boolean; pushMode?: bo
   const log: string[] = [];
   const root = document.createElement("div");
   root.innerHTML = buildPanelHtml({
-    isWindow: true,
     hasSession: true,
     switchRows: createSwitchRows({
       idleThrottleSettings: createFlagSettings(false),
@@ -44,7 +43,6 @@ function build({ open = true, pushMode = true }: { open?: boolean; pushMode?: bo
     showRateLimits: false,
     showDevtools: false,
     showHelp: false,
-    showMessage: false,
     showHistory: true,
   });
   document.body.append(root);

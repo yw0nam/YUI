@@ -1,108 +1,17 @@
-/* YUI quick-controls panel — settings panel summoned by right-click ("The Hearthlight" 4th surface).
+/* YUI settings panel — fills the settings window.
    Shell, tab rail, scrollable body, and the section/group/row primitives; controls in controls.css.
    Tokens in ../tokens.css. */
 
-/* ── scrim overlay (popover variant only) ── */
-.yui-quick-scrim {
-  position: fixed;
-  inset: 0;
-  pointer-events: auto;
-  /* No background darkening — anchored popover, not modal */
-  background: transparent;
-  z-index: 99;
-}
-
-/* ── panel ── */
-.yui-quick {
-  position: fixed;
+/* ── panel — fills the settings window; the OS window owns the opaque background ── */
+.yui-quick--window {
   display: flex;
   flex-direction: column;
-  width: min(25rem, 88vw);
-  max-height: min(88vh, var(--yui-quick-visible-h, 100vh));
-  border-radius: var(--yui-radius);
-  background: var(--yui-panel-bg);
-  border: 1px solid var(--yui-edge);
-  box-shadow: var(--yui-float);
+  width: 100%;
+  height: 100%;
   color: var(--yui-text);
   font-family: var(--yui-font);
   pointer-events: auto;
-  z-index: 100;
   container-type: inline-size;
-
-  /* Animation start state — bottom anchor default */
-  opacity: 0;
-  transform: translate(0, 8px) scale(0.985);
-  transition:
-    opacity var(--yui-dur) var(--yui-ease),
-    transform var(--yui-dur) var(--yui-ease);
-}
-
-.yui-quick.is-open {
-  opacity: 1;
-  transform: translate(0, 0) scale(1);
-}
-
-/* ── window variant — fills OS window (no scrim/drag/animation) ── */
-.yui-quick--window {
-  position: static;
-  width: 100%;
-  max-height: none;
-  height: 100%;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-  background: transparent; /* OS window owns the opaque background */
-  opacity: 1;
-  transform: none;
-  transition: none;
-}
-
-/* ── Draggable header — thin grab strip ── */
-.yui-quick__bar {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex: 0 0 auto;
-  padding: 0.5rem 0.55rem 0.5rem 0.7rem;
-  border-bottom: 1px solid var(--yui-edge);
-  cursor: grab;
-  user-select: none;
-}
-
-.yui-quick__bar.is-dragging,
-.yui-quick__bar:active {
-  cursor: grabbing;
-}
-
-.yui-quick__grip {
-  display: inline-grid;
-  grid-template-columns: repeat(2, 3px);
-  grid-template-rows: repeat(3, 3px);
-  gap: 3px;
-  flex: 0 0 auto;
-  opacity: 0.55;
-}
-
-.yui-quick__grip i {
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: var(--yui-text-mute);
-}
-
-.yui-quick__title {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--yui-fs-sub);
-  font-weight: 600;
-  color: var(--yui-text-dim);
-}
-
-.yui-quick__bar-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.15rem;
-  flex: 0 0 auto;
 }
 
 .yui-iconbtn {
@@ -136,11 +45,6 @@
   box-shadow: 0 0 0 2px var(--yui-accent-soft);
 }
 
-/* pop-out is primary affordance — warm up slightly on hover */
-.yui-iconbtn--popout:hover {
-  color: var(--yui-accent-ink);
-}
-
 /* ── Two-column layout — tab rail + scrollable content ── */
 .yui-quick__cols {
   display: flex;
@@ -148,7 +52,7 @@
   min-height: 0;
 }
 
-/* window variant: no custom bar — the row sits below the native macOS titlebar (28px). */
+/* The row sits below the native macOS titlebar (28px). */
 .yui-quick--window .yui-quick__cols {
   padding-top: 28px;
 }
@@ -526,9 +430,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .yui-quick {
-    transform: translate(0, 0) !important;
-  }
   .yui-tabpanel {
     animation: none;
   }

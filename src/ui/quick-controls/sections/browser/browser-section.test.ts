@@ -17,7 +17,6 @@ import { createBrowserSection } from "./browser-section";
 function panel(showBrowser: boolean): HTMLElement {
   const root = document.createElement("div");
   root.innerHTML = buildPanelHtml({
-    isWindow: false,
     hasSession: false,
     switchRows: createSwitchRows({
       idleThrottleSettings: createFlagSettings(false),
@@ -30,7 +29,6 @@ function panel(showBrowser: boolean): HTMLElement {
     showRateLimits: false,
     showDevtools: false,
     showHelp: false,
-    showMessage: false,
     showHistory: false,
     showBrowser,
   });

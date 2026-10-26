@@ -187,7 +187,7 @@ export function defaultQcArgs(mount: HTMLElement) {
     chatKeySettings: createChatKeySettings(),
     sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
     ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
-    onPopOut: vi.fn(),
+    onEditTarget: vi.fn(),
     vrmSelection: createVrmSelection({
       available: [
         { id: "carlotta", label: "Carlotta", url: "/vrms/carlotta.vrm", source: "bundled" },

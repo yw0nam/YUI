@@ -107,12 +107,7 @@ const ko: Record<string, string> = {
 
   // panel chrome
   "panel.dialog_label": "설정",
-  "panel.title": "설정",
   "panel.tablist_label": "설정 영역",
-  "panel.drag_hint": "드래그해서 옮기기",
-  "panel.pop_out": "창으로 빼기",
-  "panel.message": "메시지 입력",
-  "panel.close": "닫기",
   // quick card
   "quick_card.voice": "음성",
   "quick_card.listen": "듣기",
@@ -193,8 +188,6 @@ const ko: Record<string, string> = {
   "head.off": "꺼짐",
 
   // preset strip and manage popover
-  "preset.in_window": "{name} · 창으로 열림",
-  "preset.label": "프리셋",
   "preset.manage": "프리셋 관리",
   "preset.in_use": "main에 표시 중",
   "preset.note_main": "{name}은(는) main 창에 떠 있어요.",
@@ -230,7 +223,6 @@ const ko: Record<string, string> = {
   "preset.new_sub": "{name}의 설정을 복사해요. 대화는 비어 있는 상태로 시작해요.",
   "preset.new_ph": "이름",
   "preset.taken": "이미 있는 이름이에요",
-  "preset.switching": "{name} 프리셋으로 바꾸는 중…",
   "relation.group": "{name}의 마음",
   "relation.to_you": "나",
   "relation.none": "아직 평가한 상대가 없어요",

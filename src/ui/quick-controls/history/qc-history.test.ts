@@ -396,11 +396,8 @@ describe("createQuickControls — start fresh action in the History tab", () => 
     });
   }
 
-  it.each([
-    ["popover"],
-    ["window"],
-  ] as const)("renders the action under the session list in the %s variant", (variant) => {
-    const qc = buildQc({ variant });
+  it("renders the action under the session list", () => {
+    const qc = buildQc();
     qc.open();
 
     const panel = qc.el.querySelector<HTMLElement>("#yui-panel-hist")!;
@@ -438,7 +435,7 @@ describe("createQuickControls — start fresh action in the History tab", () => 
     const transcript = seedStore();
     const startNewSession = vi.spyOn(transcript, "startNewSession");
 
-    const qc = buildQc({ variant: "popover", transcript });
+    const qc = buildQc({ transcript });
     qc.open();
 
     const confirm = qc.el.querySelector<HTMLElement>(".yui-hist__action .yui-confirm")!;
@@ -480,7 +477,7 @@ describe("createQuickControls — start fresh action in the History tab", () => 
     const transcript = seedStore();
     const startNewSession = vi.spyOn(transcript, "startNewSession");
 
-    const qc = buildQc({ variant: "popover", transcript });
+    const qc = buildQc({ transcript });
     qc.open();
 
     qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.click();
@@ -494,7 +491,7 @@ describe("createQuickControls — start fresh action in the History tab", () => 
   });
 
   it("disarms the confirm when the panel is closed and reopened", () => {
-    const qc = buildQc({ variant: "popover" });
+    const qc = buildQc();
     qc.open();
 
     qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.click();
@@ -514,7 +511,7 @@ describe("createQuickControls — start fresh action in the History tab", () => 
 
   it("shows the new boundary in the list right after a confirmed reset", () => {
     const transcript = seedStore();
-    const qc = buildQc({ variant: "popover", transcript });
+    const qc = buildQc({ transcript });
     qc.open();
     expect(qc.el.querySelectorAll(".yui-hist__sess")).toHaveLength(2);
 
@@ -557,7 +554,6 @@ describe("createQuickControls — start fresh keeps the transcript", () => {
     store.append({ role: "user", text: "keep me", ts: 1 });
     const qc = createQuickControls({
       ...defaultQcArgs(mount),
-      variant: "window",
       sessionStore: createSessionStore(),
       sessionDiagnostics: createSessionDiagnosticsStore(),
       transcript: store,

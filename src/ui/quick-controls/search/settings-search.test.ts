@@ -16,7 +16,6 @@ function build() {
   const mount = document.body.appendChild(document.createElement("div"));
   const qc = createQuickControls({
     ...defaultQcArgs(mount),
-    variant: "window",
     gazeSettings: createFlagSettings(true),
     onResetViewpoint: vi.fn(),
     presetRegistry: createPresetRegistry(),

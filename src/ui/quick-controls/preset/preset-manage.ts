@@ -43,8 +43,6 @@ export function createPresetManage(deps: {
   log: Logger;
   petWindows?: PetWindows;
   boundId?: string | null;
-  /** The settings window: rows also offer "Use in main". */
-  edit?: boolean;
   presetUrl?: (id: string) => string | null;
   /** Deletes a removed preset's thumbnail file; idempotent, so JSON-card presets are fine. */
   removeCardThumbnail?: (id: string) => Promise<void>;
@@ -52,7 +50,6 @@ export function createPresetManage(deps: {
   pickPhoto?: (presetId: string) => Promise<string | null>;
 }): PresetManage {
   const { el, registry, log, petWindows, boundId } = deps;
-  const edit = !!deps.edit;
   let renamingId: string | null = null;
   let confirmId: string | null = null;
   let naming = false;
@@ -83,7 +80,7 @@ export function createPresetManage(deps: {
       !desired &&
       !live;
     row.innerHTML = `
-          <span class="yui-preset-row__name"></span>${entry.id === active ? `<span class="yui-preset-row__badge">${t("preset.in_use")}</span>` : ""}${edit && (desired || live) ? `<span class="yui-preset-row__badge">${t("preset.window_open")}</span>` : ""}
+          <span class="yui-preset-row__name"></span>${entry.id === active ? `<span class="yui-preset-row__badge">${t("preset.in_use")}</span>` : ""}${desired || live ? `<span class="yui-preset-row__badge">${t("preset.window_open")}</span>` : ""}
           <span class="yui-preset-row__acts">
             ${deps.pickPhoto ? `<button class="yui-preset-row__photo" type="button">${PHOTO_SVG}</button>` : ""}<button class="yui-preset-row__rename" type="button">${RENAME_SVG}</button>${removable ? `<button class="yui-preset-row__remove" type="button">${REMOVE_SVG}</button>` : ""}
           </span>`;
@@ -131,7 +128,7 @@ export function createPresetManage(deps: {
       focusSel = ".yui-preset-row__confirm .yui-pill:not(.yui-pill--go)";
       render();
     });
-    if (edit && entry.id !== active) {
+    if (entry.id !== active) {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "yui-preset-row__window";

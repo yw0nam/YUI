@@ -36,7 +36,6 @@ describe("createQuickControls — endpoints + API keys", () => {
   let endpointsSettings: ReturnType<typeof createEndpointsSettings>;
   let proactiveSettings: ReturnType<typeof createProactiveSettings>;
   let scheduleSettings: ReturnType<typeof createScheduleSettings>;
-  let onPopOut: Mock<() => void>;
   let vrmSelection: ReturnType<typeof createVrmSelection>;
   let swapVrm: Mock<(option: AvatarOption) => Promise<void>>;
   let importVrm: Mock<() => Promise<void>>;
@@ -49,14 +48,6 @@ describe("createQuickControls — endpoints + API keys", () => {
   let removeVoice: Mock<(id: string) => Promise<void>>;
 
   beforeEach(() => {
-    // Make rAF synchronous so open() → is-open transition happens immediately in tests
-    let rafId = 0;
-    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
-      cb(0);
-      return ++rafId;
-    });
-    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
-
     mount = document.createElement("div");
     document.body.appendChild(mount);
 
@@ -67,7 +58,6 @@ describe("createQuickControls — endpoints + API keys", () => {
     endpointsSettings = createEndpointsSettings();
     proactiveSettings = createProactiveSettings();
     scheduleSettings = createScheduleSettings();
-    onPopOut = vi.fn<() => void>();
     vrmSelection = makeVrmSelection();
     // default fake: commit the store on success (mirrors the real settings-window impl)
     swapVrm = vi.fn<(option: AvatarOption) => Promise<void>>(async (option) => {
@@ -109,7 +99,6 @@ describe("createQuickControls — endpoints + API keys", () => {
       endpointsSettings,
       proactiveSettings,
       scheduleSettings,
-      onPopOut,
       vrmSelection,
       swapVrm,
       importVrm,
@@ -155,18 +144,14 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.dispose();
   });
 
-  it("populates endpoint placeholders from getEndpointDefaults() on open even when defaults arrive after construction", () => {
-    // Panel is created before config is loaded — defaults are absent at creation time and must be filled at open() time.
-    let defaults: Record<string, string> | undefined;
-    const qc = buildQc({ getEndpointDefaults: () => defaults as never });
-    // Simulate config being loaded after creation.
-    defaults = {
+  it("populates endpoint placeholders from getEndpointDefaults()", () => {
+    const defaults = {
       chat_base_url: "http://localhost:8643/v1",
       stt_base_url: "http://localhost:5517/v1",
       tts_base_url: "http://localhost:8092",
       chat_model: "natsume",
     };
-    qc.open();
+    const qc = buildQc({ getEndpointDefaults: () => defaults as never });
 
     const ph = (key: string): string =>
       qc.el.querySelector<HTMLInputElement>(`.yui-input-row[data-ep-field="${key}"] .yui-ep-input`)!
@@ -437,10 +422,10 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.dispose();
   });
 
-  it("flushes a dirty typed key on close() in the window variant", () => {
+  it("flushes a dirty typed key on close()", () => {
     const chatKeySettings = createChatKeySettings();
     const setSpy = vi.spyOn(chatKeySettings, "setApiKey");
-    const qc = buildQc({ chatKeySettings, variant: "window" });
+    const qc = buildQc({ chatKeySettings });
     qc.open();
 
     const input = chatKeyInput(qc);

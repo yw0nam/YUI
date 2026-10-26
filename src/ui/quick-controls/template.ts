@@ -50,10 +50,8 @@ function hintDotHtml(textKey: string): string {
 
 /** Initial flags/states the panel HTML needs — computed by the entry where the stores live. */
 interface PanelHtmlOptions {
-  isWindow: boolean;
-  showPopOut?: boolean;
   showVoiceInput?: boolean;
-  /** Whether the window-only context-occupancy readout renders. */
+  /** Whether the context-occupancy readout renders. */
   hasSession: boolean;
   switchRows: readonly SwitchRow[];
   /** Whether the screen-watch section renders — true when the screen flag store is injected. */
@@ -65,8 +63,6 @@ interface PanelHtmlOptions {
   showDevtools: boolean;
   /** Whether the Help section renders — true when a guide handler is injected. */
   showHelp: boolean;
-  /** Whether the header carries the button that opens the text input. */
-  showMessage: boolean;
   /** Whether the History tab renders — true when a transcript store is injected. */
   showHistory: boolean;
   /** Whether the browser-use switch renders — true when the browser store is injected. */
@@ -79,8 +75,6 @@ interface PanelHtmlOptions {
 
 export function buildPanelHtml(o: PanelHtmlOptions): string {
   const {
-    isWindow,
-    showPopOut,
     showVoiceInput = true,
     hasSession,
     switchRows,
@@ -90,7 +84,6 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     showRateLimits,
     showDevtools,
     showHelp,
-    showMessage,
     showHistory,
     showBrowser,
     showPreset,
@@ -192,7 +185,7 @@ ${PROACTIVE_CAP_FIELDS.map(capRowHtml).join("")}
       </div>`
     : "";
 
-  // Session section (window-only) — token occupancy readout.
+  // Session section — token occupancy readout.
   const sessionHtml = hasSession
     ? `
       <div class="yui-sec">
@@ -252,46 +245,6 @@ ${PROACTIVE_CAP_FIELDS.map(capRowHtml).join("")}
       </div>`
     : "";
 
-  // Window variant: native titlebar owns the header — no custom bar rendered.
-  const headerHtml = isWindow
-    ? ""
-    : `
-    <div class="yui-quick__bar">
-      <span class="yui-quick__grip" aria-hidden="true" title="${t("panel.drag_hint")}">
-        <i></i><i></i><i></i><i></i><i></i><i></i>
-      </span>
-      <span class="yui-quick__title" title="${t("panel.drag_hint")}">${t("panel.title")}</span>
-      <span class="yui-quick__bar-actions">
-        ${
-          showPopOut !== false
-            ? `
-        <button class="yui-iconbtn yui-iconbtn--popout" type="button" aria-label="${t("panel.pop_out")}" data-tip="${t("panel.pop_out")}">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M14 5h5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M19 5l-7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M18 13v4a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>`
-            : ""
-        }
-        ${
-          showMessage
-            ? `
-        <button class="yui-iconbtn yui-iconbtn--message" type="button" aria-label="${t("panel.message")}" data-tip="${t("panel.message")}">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M5 6h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-4 3v-3H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>`
-            : ""
-        }
-        <button class="yui-iconbtn yui-iconbtn--close" type="button" aria-label="${t("panel.close")}" data-tip="${t("panel.close")}">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
-        </button>
-      </span>
-    </div>`;
-
   // A narrow panel keeps the label; the icon-only rail drops it with the tooltip.
   const tabHtml = (id: SettingsPage, icon: string, opts?: { tipKey?: string }): string =>
     tabButtonHtml(id, icon, { selected: id === DEFAULT_PAGE, tipKey: opts?.tipKey });
@@ -302,7 +255,7 @@ ${PROACTIVE_CAP_FIELDS.map(capRowHtml).join("")}
     `<p class="yui-tabs__group" role="presentation" data-rail-group="${group}">${t(`rail.group_${group}`)}</p>`;
 
   return `
-    ${headerHtml}${showPreset ? presetStripHtml() : ""}
+    ${showPreset ? presetStripHtml() : ""}
     <div class="yui-quick__cols">
       <div class="yui-rail">${settingsSearchHtml()}
       <div class="yui-tabs" role="tablist" aria-label="${t("panel.tablist_label")}" aria-orientation="vertical">${groupHtml("character")}${tabHtml("conn", TAB_ICON_CONN)}${tabHtml("voice", TAB_ICON_VOICE)}${tabHtml("persona", TAB_ICON_PERSONA)}${tabHtml("body", TAB_ICON_BODY)}${showHistory ? tabHtml("hist", TAB_ICON_HIST) : ""}${groupHtml("app")}${tabHtml("together", TAB_ICON_TOGETHER)}${tabHtml("listening", TAB_ICON_LISTENING)}${tabHtml("perms", TAB_ICON_PERMS)}${tabHtml("react", TAB_ICON_REACT, { tipKey: "tabs.react_hint" })}${tabHtml("motion", TAB_ICON_MOTION)}${tabHtml("general", TAB_ICON_GENERAL)}

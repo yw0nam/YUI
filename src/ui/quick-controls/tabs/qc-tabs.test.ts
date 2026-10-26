@@ -148,13 +148,13 @@ describe("createQuickControls — tab rail", () => {
 
   it("open({ tab }) lands directly on the requested tab", () => {
     const qc = buildQc();
-    qc.open(undefined, { tab: "conn" });
+    qc.open({ tab: "conn" });
 
     const conn = tabs(qc).find((tab) => tab.id === "yui-tab-conn")!;
     expect(conn.getAttribute("aria-selected")).toBe("true");
     expect(panelFor(qc, conn).hidden).toBe(false);
     expect(qc.isOpen()).toBe(true);
-    // Focus follows the requested tab, not the first control the popover would land on.
+    // Focus follows the requested tab, not the first control the panel would land on.
     expect(document.activeElement).toBe(conn);
 
     qc.dispose();
@@ -163,7 +163,7 @@ describe("createQuickControls — tab rail", () => {
   it("open({ tab }) moves focus to that tab without a visible focus ring", () => {
     const qc = buildQc();
     const focus = vi.spyOn(HTMLElement.prototype, "focus");
-    qc.open(undefined, { tab: "conn" });
+    qc.open({ tab: "conn" });
 
     expect(focus).toHaveBeenLastCalledWith(expect.objectContaining({ focusVisible: false }));
     expect(focus.mock.contexts.at(-1)).toBe(qc.el.querySelector("#yui-tab-conn"));
@@ -172,11 +172,8 @@ describe("createQuickControls — tab rail", () => {
   });
 
   // The narrow-panel container query hides the label; aria-label and the tooltip name the icon then.
-  it.each([
-    "popover",
-    "window",
-  ] as const)("the %s rail gives every tab a label, an aria-label and a tooltip", (variant) => {
-    const qc = buildQc({ variant });
+  it("the rail gives every tab a label, an aria-label and a tooltip", () => {
+    const qc = buildQc();
 
     for (const tab of tabs(qc)) {
       const name = tab.getAttribute("aria-label");
@@ -202,7 +199,7 @@ describe("createQuickControls — tab rail", () => {
   it("open({ tab }) switches an already-open panel to that tab", () => {
     const qc = buildQc();
     qc.open();
-    qc.open(undefined, { tab: "conn" });
+    qc.open({ tab: "conn" });
 
     const conn = tabs(qc).find((tab) => tab.id === "yui-tab-conn")!;
     expect(conn.getAttribute("aria-selected")).toBe("true");
@@ -231,7 +228,7 @@ describe("createQuickControls — tab rail", () => {
     expect(tabs(qc).map((tab) => tab.id)).toEqual(names.map((name) => `yui-tab-${name}`));
 
     for (const name of names) {
-      qc.open(undefined, { tab: name });
+      qc.open({ tab: name });
       const target = tabs(qc).find((tab) => tab.id === `yui-tab-${name}`)!;
       expect(target.getAttribute("aria-selected")).toBe("true");
       expect(panelFor(qc, target).hidden).toBe(false);

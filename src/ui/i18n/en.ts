@@ -108,12 +108,7 @@ const en: Record<string, string> = {
 
   // panel chrome
   "panel.dialog_label": "Settings",
-  "panel.title": "Settings",
   "panel.tablist_label": "Settings area",
-  "panel.drag_hint": "Drag to move",
-  "panel.pop_out": "Pop out to window",
-  "panel.message": "Type a message",
-  "panel.close": "Close",
   // quick card
   "quick_card.voice": "Voice",
   "quick_card.listen": "Listen",
@@ -193,8 +188,6 @@ const en: Record<string, string> = {
   "head.off": "Off",
 
   // preset strip and manage popover
-  "preset.in_window": "{name} · open as a window",
-  "preset.label": "Preset",
   "preset.manage": "Manage presets",
   "preset.in_use": "Shown in main",
   "preset.note_main": "{name} is shown in main.",
@@ -229,7 +222,6 @@ const en: Record<string, string> = {
   "preset.new_sub": "Copies {name}'s settings. Starts with an empty conversation.",
   "preset.new_ph": "Name",
   "preset.taken": "{name} already exists",
-  "preset.switching": "Switching to {name}…",
   "relation.group": "How {name} feels",
   "relation.to_you": "you",
   "relation.none": "No one rated yet",
