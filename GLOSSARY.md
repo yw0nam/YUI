@@ -100,11 +100,11 @@ A floating piece of chrome the character speaks or listens through (speech bubbl
 _Avoid_: widget, overlay, panel
 
 **Unified chat window**:
-The window `unified` that lists every open preset's current-session transcript in one time order and routes the user's messages to the open presets. Main opens it while the Unified chat switch is on and two or more presets are open.
+The window `unified` that shows every open preset's lines one at a time in one dialogue box and routes the user's messages to the open presets. It shows while the Unified chat switch is on, two or more presets are open and a window can exist; while it shows it is the only chat path: no pet window shows its own bubble or input for chat, and every separate message window is hidden. Its own × (or Cmd+W) turns the switch off.
 _Avoid_: group chat, merged chat, lobby, multi chat
 
 **Mention**:
-The user's pick of a recipient in the unified chat window's composer: a pill carrying one preset id, or `@everyone` (aliased by `@here` and `@all`). A leading typed `@name` that matches an open preset's name, or `@everyone`, routes like a pick; any other typed `@` is plain text. The names `everyone`, `here` and `all` are reserved, so no preset is created or renamed to one.
+The user's pick of a recipient in the unified chat window's composer: a recipient chip carrying one preset id, or `@everyone` (aliased by `@here` and `@all`). A leading typed `@name` that matches an open preset's name, or `@everyone`, routes like a pick; any other typed `@` is plain text. The names `everyone`, `here` and `all` are reserved, so no preset is created or renamed to one.
 _Avoid_: tag, call-out, ping
 
 **Target chip**:

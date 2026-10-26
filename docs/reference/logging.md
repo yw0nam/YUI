@@ -105,10 +105,11 @@ and the pump goes on.
 | Namespace | Event | Fields | When |
 |---|---|---|---|
 | `unified-view` | `route` | `targets`, `mention` | The window sent a message. `targets` is how many presets it goes to, `mention` is `character`, `everyone` or `none`. |
+| `unified-view` | `stop` | — | The user pressed stop: the window dropped its sends and lines and asked every pet window to stop. |
 | `sequence` | `sequence_timeout` | `preset` | A preset gave no done signal for the current send in 60 seconds, so the sequence moved on. |
 | `unified-window` | `unified_window_create_error` | `error` | The window could not be created (`error` level). |
 | `unified-window` | `unified_window_open_failed` | `error` | Showing or creating the window threw (`warn` level). |
-| `unified-window` | `unified_window_close_failed` | `error` | Closing the window threw (`warn` level). |
+| `unified-window` | `unified_window_close_failed` | `error` | Destroying the window threw (`warn` level). |
 | `quick-ui`, `settings-ui` | `unified_chat_toggle` | `enabled` | The user flipped the Unified chat switch. |
 | `quick-ui`, `settings-ui` | `character_desktop_toggle` | `preset`, `on` | A flip of a character's On the desktop switch took effect; `on` is the new state. A turn-on the open-preset cap refused logs nothing. |
 
