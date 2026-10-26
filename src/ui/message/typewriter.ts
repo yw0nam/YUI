@@ -46,7 +46,8 @@ export function createTypewriter(
 
   function catchUp(): void {
     if (stopped) return;
-    const due = Math.min(limit(), base + Math.floor((now() - t0) / msPerChar));
+    // The epsilon keeps a tick that fires exactly on time from rounding down to the character before.
+    const due = Math.min(limit(), base + Math.floor((now() - t0) / msPerChar + 1e-9));
     if (due <= cursor) return;
     cursor = due;
     emit();
