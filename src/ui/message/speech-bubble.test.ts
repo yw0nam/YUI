@@ -934,3 +934,52 @@ describe("pop-out button — moving speech to the message window", () => {
     expect(onPop).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("typing — speech types out", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    ({ s, mount } = makeSurfaces());
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  const text = () => mount.querySelector(".yui-bubble__text")?.textContent;
+  const next = () => mount.querySelector<HTMLElement>(".yui-bubble__next")!;
+
+  it("a click on the box shows the whole received line while it types", () => {
+    s.beginSpeech();
+    s.pushSpeech("Hello there");
+    vi.advanceTimersByTime(80);
+    expect(text()).toBe("He");
+    mount.querySelector<HTMLElement>(".yui-bubble__box")!.click();
+    expect(text()).toBe("Hello there");
+  });
+
+  it("shows the ▼ marker only once the line ended and all of it shows", () => {
+    s.beginSpeech();
+    s.pushSpeech("Hi");
+    vi.advanceTimersByTime(1000);
+    expect(next().hidden).toBe(true);
+    s.endSpeech();
+    expect(next().hidden).toBe(false);
+    s.beginSpeech();
+    expect(next().hidden).toBe(true);
+  });
+
+  it("shows the whole line at once under reduced motion", () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(prefers-reduced-motion: reduce)",
+    }));
+    s.beginSpeech();
+    s.pushSpeech("Hello there");
+    expect(text()).toBe("Hello there");
+  });
+});
