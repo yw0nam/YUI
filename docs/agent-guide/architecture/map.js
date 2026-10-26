@@ -866,7 +866,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/settings",
       "module": "bridge",
       "label": "settings bridge",
-      "role": "Typed cross-window settings bus: its channels scoped to the sender's preset, and the unscoped settings-changed, preset-changed, pet-windows-changed, character-addressed, user-turn-routed, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control and stop-turns.",
+      "role": "Typed cross-window settings bus: its channels scoped to the sender's preset, and the unscoped settings-changed, preset-changed, pet-windows-changed, character-addressed, user-turn-routed, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control, stop-turns and settings-page.",
       "paths": [
         "src/io/bridge/settings-bridge.ts"
       ]
@@ -1318,7 +1318,7 @@ globalThis.YUI_MAP =
       "id": "app/settings-window",
       "module": "wiring",
       "label": "settings-window wiring",
-      "role": "Composes the settings window over the stores of the preset it edits (`?edit=`, else its own) and mirrors the voice toggle in main only.",
+      "role": "Composes the settings window over the stores of the preset it edits (`?edit=`, else its own), opens it on the page of `?page=` and on later page requests, and mirrors the voice toggle in main only.",
       "paths": [
         "src/app/settings-window"
       ]
@@ -2661,6 +2661,42 @@ globalThis.YUI_MAP =
       "to": "app/settings-window",
       "carries": "the preset id picked in the strip's edit mode; the window navigates to settings.html with `?edit=<id>` and rebuilds over that preset's stores and bridge stamp; main's active preset and every pet window are untouched",
       "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/settings-window/wire-settings-window.ts"
+    },
+    {
+      "id": "settings-open",
+      "from": "app/controls",
+      "to": "io/window/openers",
+      "carries": "openSettings(page?): a new settings window at settings.html with `?preset=<id>` and `&page=<page>`, else the open one is shown and focused and asked for the page; the message window's settings button, the connection, turn-error, voice-setup and first-run fixes open Connection, the delegation chip History, the capture button no page",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/windows/main.ts"
+    },
+    {
+      "id": "settings-page-emit",
+      "from": "io/window/openers",
+      "to": "io/bridge/settings",
+      "carries": "an open settings window shown → yui://settings-page {preset: id or null, page?}",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/windows/main.ts"
+    },
+    {
+      "id": "settings-page",
+      "from": "io/bridge/settings",
+      "to": "app/settings-window",
+      "carries": "yui://settings-page {preset, page?}, unscoped: the window whose preset is `preset` (main's for null) switches to the character, by reloading with `?edit=` when it edits another, and selects the page; other windows drop it",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/settings-window/wire-settings-page.ts"
+    },
+    {
+      "id": "settings-devtools-open",
+      "from": "ui/quick-controls",
+      "to": "io/window/openers",
+      "carries": "the General page's Developer Tools button → open the devtools window",
+      "kind": "call",
       "transport": "shared",
       "wiring": "src/app/settings-window/wire-settings-window.ts"
     },
@@ -4698,6 +4734,20 @@ globalThis.YUI_MAP =
         "from": "settings",
         "to": "pet",
         "carries": "yui://help-guide: {guide, text}",
+        "kind": "bridge"
+      },
+      {
+        "id": "settings-page-window",
+        "from": "pet",
+        "to": "settings",
+        "carries": "yui://settings-page: {preset, page?}; unscoped, the settings window of that preset acts on it",
+        "kind": "bridge"
+      },
+      {
+        "id": "settings-page-companion",
+        "from": "pet-<id>",
+        "to": "settings-<id>",
+        "carries": "yui://settings-page: {preset, page?}; unscoped, the settings window of that preset acts on it",
         "kind": "bridge"
       },
       {
