@@ -14,8 +14,8 @@ type FillerSettingsStore = ReturnType<typeof createFillerSettings>;
 interface FillerSectionDeps {
   /** Panel root (el) — query the language segment and the pool textareas here. */
   root: HTMLElement;
-  /** Thinking filler settings store. Absent when the section is not rendered. */
-  fillerSettings?: FillerSettingsStore;
+  /** Thinking filler settings store. */
+  fillerSettings: FillerSettingsStore;
   /** Popover open state — the store subscription redraws only while the panel is open. */
   isOpen: () => boolean;
   /** Switch-row redraw — the store subscription calls it before reflect(). */
@@ -39,9 +39,7 @@ function parseFillerLines(el: HTMLTextAreaElement | null): string[] {
 }
 
 export function createFillerSection(deps: FillerSectionDeps): FillerSection {
-  const { root: el, fillerSettings, isOpen, reflectSwitchRows } = deps;
-  if (!fillerSettings) return { reflect() {}, dispose() {} };
-  const store = fillerSettings;
+  const { root: el, fillerSettings: store, isOpen, reflectSwitchRows } = deps;
 
   // Section nodes — null when the markup is not rendered.
   const langSegEl = el.querySelector<HTMLDivElement>(".yui-filler-lang-seg");

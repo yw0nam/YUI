@@ -95,6 +95,7 @@ describe("SwitchRow descriptor", () => {
     const rows = createSwitchRows({
       idleThrottleSettings: createFlagSettings(true),
       vad: createVadSettings(),
+      fillerSettings: createFillerSettings(),
       unifiedChatSwitch,
     });
     const root = render(rows);

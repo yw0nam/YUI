@@ -9,6 +9,7 @@ import { createSessionDiagnosticsStore } from "../../../../io/chat/conversation/
 import type { DelegationItem } from "../../../../io/chat/push/push-frames";
 import type { PushSocketState } from "../../../../io/chat/push/push-socket";
 import { createFlagSettings } from "../../../../settings/persisted-store";
+import { createFillerSettings } from "../../../../settings/voice/filler-settings";
 import { createVadSettings } from "../../../../settings/voice/vad-settings";
 import { DELEGATION_REFRESH_MS } from "../../../chips/delegation-rows";
 import { setLocale } from "../../../i18n";
@@ -35,6 +36,7 @@ function build({ open = true, pushMode = true }: { open?: boolean; pushMode?: bo
     switchRows: createSwitchRows({
       idleThrottleSettings: createFlagSettings(false),
       vad: createVadSettings(),
+      fillerSettings: createFillerSettings(),
     }),
     showScreen: false,
     showPresence: false,

@@ -7,6 +7,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Logger } from "../../../../logger";
 import { createFlagSettings } from "../../../../settings/persisted-store";
+import { createFillerSettings } from "../../../../settings/voice/filler-settings";
 import { createVadSettings } from "../../../../settings/voice/vad-settings";
 import { setLocale } from "../../../i18n";
 import { createSwitchRows } from "../../switch-row";
@@ -21,6 +22,7 @@ function panel(showBrowser: boolean): HTMLElement {
     switchRows: createSwitchRows({
       idleThrottleSettings: createFlagSettings(false),
       vad: createVadSettings(),
+      fillerSettings: createFillerSettings(),
     }),
     showScreen: false,
     showPresence: false,

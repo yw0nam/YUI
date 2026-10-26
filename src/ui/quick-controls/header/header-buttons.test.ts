@@ -6,6 +6,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createFlagSettings } from "../../../settings/persisted-store";
+import { createFillerSettings } from "../../../settings/voice/filler-settings";
 import { createVadSettings } from "../../../settings/voice/vad-settings";
 import { setLocale } from "../../i18n";
 import { createSwitchRows } from "../switch-row";
@@ -20,6 +21,7 @@ function build() {
     switchRows: createSwitchRows({
       idleThrottleSettings: createFlagSettings(false),
       vad: createVadSettings(),
+      fillerSettings: createFillerSettings(),
     }),
     showScreen: false,
     showPresence: false,

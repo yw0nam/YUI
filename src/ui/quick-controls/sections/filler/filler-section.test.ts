@@ -25,8 +25,8 @@ function seededFiller(over: Partial<FillerSettings> = {}): FillerSettingsStore {
   return createFillerSettings({ storage: { load: () => settings, save: () => {} } });
 }
 
-/** The panel markup as the shell renders it; the filler section renders only with a store. */
-function buildRoot(fillerSettings?: FillerSettingsStore): HTMLElement {
+/** The panel markup as the shell renders it. */
+function buildRoot(fillerSettings: FillerSettingsStore): HTMLElement {
   const root = document.createElement("div");
   root.innerHTML = buildPanelHtml({
     isWindow: false,
@@ -221,27 +221,12 @@ describe("createFillerSection", () => {
     section.dispose();
   });
 
-  it("is inert without a store: no listener, no throw", () => {
-    const root = buildRoot(seededFiller());
-    const seg = root.querySelector<HTMLDivElement>(".yui-filler-lang-seg")!;
-    const segSpy = vi.spyOn(seg, "addEventListener");
-    const textareaSpy = vi.spyOn(textarea(root, "first"), "addEventListener");
-
-    const section = createFillerSection({ root, isOpen: () => true, reflectSwitchRows: () => {} });
-    section.reflect();
-    langButtons(root)[1].click();
-    section.dispose();
-
-    expect(segSpy).not.toHaveBeenCalled();
-    expect(textareaSpy).not.toHaveBeenCalled();
-    expect(langButtons(root)[1].getAttribute("aria-checked")).toBe("false");
-  });
-
   it("is inert without the section markup: no throw, the store is left alone", () => {
     const fs = seededFiller();
     const commit = vi.fn();
     fs.subscribe(commit);
-    const root = buildRoot();
+    const root = document.createElement("div");
+    document.body.append(root);
     expect(root.querySelector(".yui-filler")).toBeNull();
 
     const section = createFillerSection({

@@ -4,6 +4,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Logger } from "../../../../logger";
 import { createFlagSettings } from "../../../../settings/persisted-store";
+import { createFillerSettings } from "../../../../settings/voice/filler-settings";
 import {
   createVadSettings,
   VAD_SILENCE_DEFAULT,
@@ -24,7 +25,11 @@ function build() {
   root.innerHTML = buildPanelHtml({
     isWindow: false,
     hasSession: false,
-    switchRows: createSwitchRows({ idleThrottleSettings: createFlagSettings(false), vad }),
+    switchRows: createSwitchRows({
+      idleThrottleSettings: createFlagSettings(false),
+      vad,
+      fillerSettings: createFillerSettings(),
+    }),
     showScreen: false,
     showPresence: false,
     showPacerGap: false,
