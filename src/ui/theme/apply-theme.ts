@@ -7,8 +7,8 @@ export function applyTheme(deps: {
   store: ThemeStore;
   root: HTMLElement;
   matchMedia?: (q: string) => MediaQueryList;
-  // Decorated windows hand in the native title-bar setter.
-  setNativeTheme?: (theme: "light" | "dark") => Promise<void>;
+  // Decorated windows hand in the native title-bar setter; null follows the OS.
+  setNativeTheme?: (theme: "light" | "dark" | null) => Promise<void>;
 }): () => void {
   const { store, root } = deps;
   const matchMedia = deps.matchMedia ?? globalThis.matchMedia?.bind(globalThis);
@@ -17,7 +17,10 @@ export function applyTheme(deps: {
     const { theme } = store.get();
     const resolved = theme === "system" ? (media?.matches ? "hearth" : "dawn") : theme;
     root.dataset.theme = resolved;
-    void deps.setNativeTheme?.(resolved === "hearth" ? "dark" : "light");
+    // A forced window appearance also forces the webview's prefers-color-scheme.
+    void deps.setNativeTheme?.(
+      theme === "system" ? null : resolved === "hearth" ? "dark" : "light",
+    );
   };
   reflect();
   const unsubscribe = store.subscribe(reflect);
