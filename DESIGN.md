@@ -186,7 +186,7 @@ The opaque windows (settings panel, unified chat window) and the switch use thes
 ### Named Rules
 **The 10% Warmth Rule.** Amber occupies ≤10% of any surface. Scarcity is the warmth; once common it reads as branding and breaks invisible-by-default.
 
-**The Legible-on-Anything Rule.** Every text-bearing surface owns its contrast through its surface material. In Dawn that is light glass (0.85 alpha) plus the bubble's blur under dark ink. In Hearth it is a dark scrim (0.8, Plate 0.9) under light text. In both, Text, Text dim, Text mute, Amber ink, Danger and Ok hold at least 4.5:1 over the Surface composited on a white and on a black desktop window; the values above are chosen for that. Legibility never depends on the desktop background.
+**The Legible-on-Anything Rule.** Every text-bearing surface owns its contrast through its surface material. In Dawn that is light glass (0.85 alpha) plus the bubble's blur under dark ink. In Hearth it is a dark scrim (0.8, Plate 0.9) under light text. The Dawn values of Text, Text dim, Text mute, Amber ink, Danger and Ok hold at least 4.5:1 over the Surface composited on a white and on a black desktop window and are chosen for that; Hearth keeps its settled values, whose Text mute reads 3.1:1 over a white window. Legibility never depends on the desktop background.
 
 ## 3. Typography
 
@@ -218,7 +218,7 @@ Flat by default. Depth comes from a single soft ambient shadow on the one floati
 
 ### Shadow Vocabulary
 - **Float** (`--yui-float`): the single ambient layer under every floating surface. Dawn `box-shadow: 0 10px 30px oklch(0.2 0.03 60 / 0.22)`, Hearth `box-shadow: 0 8px 32px oklch(0.12 0.02 70 / 0.4)`. No neon glow, no hard drop shadow.
-- **Text Shadow** (`--yui-text-shadow`): exists in Hearth only, `text-shadow: 0 1px 2px oklch(0.1 0.01 70 / 0.55)`, and is `none` in Dawn. The settings panel and the boot-failure notice wear it. The speech bubble, the text input, the name plate, the status pill and the delegation chip take their contrast from the Surface or Plate alone.
+- **Text Shadow** (`--yui-text-shadow`): exists in Hearth only, `text-shadow: 0 1px 2px oklch(0.1 0.01 70 / 0.55)`, and is `none` in Dawn. The unified chat window and the boot-failure notice wear it. The speech bubble, the text input, the name plate, the status pill and the delegation chip take their contrast from the Surface or Plate alone.
 
 ### Named Rules
 **The Float Rule.** A surface floats with exactly one soft ambient shadow. Multiple shadows, hard drop shadows, and neon glows are forbidden.
