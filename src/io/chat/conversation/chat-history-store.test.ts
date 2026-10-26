@@ -773,7 +773,7 @@ describe("estimateTokens", () => {
 
 describe("createChatHistoryStore — send id and recipient", () => {
   const routed: ChatHistoryEntry[] = [
-    { role: "user", text: "hi", ts: 1, send_id: "s1" },
+    { role: "user", text: "hi", ts: 1, send_id: "s1", mention: "everyone" },
     { role: "assistant", text: "Hello.", ts: 2, turn_id: "t1", to: "perlica" },
   ];
 
@@ -785,7 +785,8 @@ describe("createChatHistoryStore — send id and recipient", () => {
   });
 
   it.each([
-    ["send_id", { role: "user", text: "hi", ts: 1, send_id: "s2" }],
+    ["send_id", { role: "user", text: "hi", ts: 1, send_id: "s2", mention: "everyone" }],
+    ["mention", { role: "user", text: "hi", ts: 1, send_id: "s1" }],
     ["to", { role: "assistant", text: "Hello.", ts: 2, turn_id: "t1", to: "natsume" }],
   ] as const)("a stored change of only %s counts as a change", (_field, changed) => {
     const storage = makeMemStorage();
@@ -799,6 +800,17 @@ describe("createChatHistoryStore — send id and recipient", () => {
 
     expect(cb).toHaveBeenCalledOnce();
   });
+});
+
+it.each([
+  "character",
+  7,
+])("drops a stored mention that is not everyone (%j) and keeps the entry", (mention) => {
+  const storage = seeded([{ role: "user", text: "hi", ts: 1, send_id: "s1", mention } as never]);
+
+  expect(createChatHistoryStore({ storage }).get()).toEqual([
+    { role: "user", text: "hi", ts: 1, send_id: "s1" },
+  ]);
 });
 
 describe("createChatHistoryStore — greeting flag", () => {

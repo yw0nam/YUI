@@ -2,11 +2,17 @@ import { describe, expect, it } from "vitest";
 import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
 import { mergeTranscripts } from "./merge";
 
-const user = (text: string, ts: number, send_id?: string): ChatHistoryEntry => ({
+const user = (
+  text: string,
+  ts: number,
+  send_id?: string,
+  mention?: "everyone",
+): ChatHistoryEntry => ({
   role: "user",
   text,
   ts,
   ...(send_id ? { send_id } : {}),
+  ...(mention ? { mention } : {}),
 });
 const reply = (text: string, ts: number, to?: string): ChatHistoryEntry => ({
   role: "assistant",
@@ -68,8 +74,27 @@ describe("mergeTranscripts", () => {
     expect(row).toMatchObject({ who: "perlica", name: "Perlica", to: "natsume" });
   });
 
+  it.each([
+    ["everyone when any copy was routed to everyone", "everyone", "everyone"],
+    ["the preset whose transcript holds it otherwise", undefined, "natsume"],
+  ] as const)("a user row goes to %s", (_case, mention, to) => {
+    const [row] = mergeTranscripts(
+      [perlica([]), natsume([user("hi", 100, "s1", mention)])],
+      [],
+      200,
+    );
+
+    expect(row).toMatchObject({ who: "user", to });
+  });
+
+  it("a pending send goes to its own recipient", () => {
+    const pending = [{ sendId: "s1", text: "hi", at: 150, to: "everyone" }];
+
+    expect(mergeTranscripts([perlica([])], pending, 160)[0]).toMatchObject({ to: "everyone" });
+  });
+
   it("draws a pending send until a recorded user entry has its send id", () => {
-    const pending = [{ sendId: "s1", text: "hi", at: 150 }];
+    const pending = [{ sendId: "s1", text: "hi", at: 150, to: "perlica" }];
 
     expect(brief(mergeTranscripts([perlica([])], pending, 160))).toEqual([["user", "hi", 150]]);
     expect(mergeTranscripts([perlica([])], pending, 160)[0]?.pending).toBe(true);
@@ -79,7 +104,7 @@ describe("mergeTranscripts", () => {
   });
 
   it("keeps a queued send however long it waits", () => {
-    const pending = [{ sendId: "s1", text: "hi", at: 150, queued: true }];
+    const pending = [{ sendId: "s1", text: "hi", at: 150, to: "perlica", queued: true }];
 
     expect(brief(mergeTranscripts([perlica([])], pending, 150 + 600_000))).toEqual([
       ["user", "hi", 150],
@@ -87,7 +112,7 @@ describe("mergeTranscripts", () => {
   });
 
   it("drops a pending send after 60 seconds", () => {
-    const pending = [{ sendId: "s1", text: "hi", at: 150 }];
+    const pending = [{ sendId: "s1", text: "hi", at: 150, to: "perlica" }];
 
     expect(mergeTranscripts([perlica([])], pending, 150 + 59_999)).toHaveLength(1);
     expect(mergeTranscripts([perlica([])], pending, 150 + 60_000)).toEqual([]);

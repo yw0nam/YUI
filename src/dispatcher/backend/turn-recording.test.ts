@@ -78,6 +78,25 @@ describe("recordSentTurn — routed turns", () => {
     ]);
   });
 
+  it.each([
+    ["everyone", { mention: "everyone" }],
+    ["one character", {}],
+  ] as const)("a turn routed to %s records its user entry with that recipient", (_to, extra) => {
+    const a = setup();
+    const mention = "mention" in extra ? "everyone" : "character";
+    recordSentTurn(
+      a.deps,
+      a.log,
+      turnOf({
+        sendId: "s1",
+        clientContext: { trigger: { kind: "user", mention } } as SentTurn["clientContext"],
+      }),
+    );
+    expect(a.entries).toEqual([
+      { role: "user", text: "hi", ts: expect.any(Number), send_id: "s1", ...extra },
+    ]);
+  });
+
   it("adds neither field to an unrouted turn", () => {
     const a = setup();
     recordSentTurn(a.deps, a.log, turnOf({ assistantText: "Hello." }));
