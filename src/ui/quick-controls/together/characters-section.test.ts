@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createPetWindows } from "../../../settings/preset/pet-windows";
 import { createPresetRegistry } from "../../../settings/preset/preset-registry";
@@ -100,4 +102,10 @@ it("in a bound window its own character is locked on, with the reason", () => {
   expect([reason.hidden, reason.textContent]).toEqual([false, "This window's character"]);
   sw("perlica").click();
   expect(petWindows.get()).toEqual(["bbbb0002"]);
+});
+
+// jsdom computes no stylesheet display; `.yui-row__sub { display: block }` would beat the attribute.
+it("hides a reason line whose hidden attribute is set", () => {
+  const css = readFileSync(resolve(__dirname, "characters-section.css"), "utf-8");
+  expect(css).toMatch(/\n\.yui-chars__reason\[hidden\] \{\s*display: none;\s*\}/);
 });
