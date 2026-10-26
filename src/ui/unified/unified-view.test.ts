@@ -225,6 +225,17 @@ describe("unified view — routing", () => {
 
     expect(document.querySelector(".yui-uc__target")?.textContent).toContain("to Natsume");
   });
+
+  it("the chip names the pill's target while it is set and the fallback once it is gone", () => {
+    mount();
+
+    type("@per");
+    press("Tab");
+    expect(document.querySelector(".yui-uc__target")?.textContent).toContain("to Perlica");
+
+    press("Backspace");
+    expect(document.querySelector(".yui-uc__target")?.textContent).toContain("to Natsume");
+  });
 });
 
 describe("unified view — pending sends over time", () => {
