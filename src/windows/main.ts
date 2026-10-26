@@ -16,6 +16,7 @@
 import { applyTheme } from "../ui/theme/apply-theme";
 import "../styles.css";
 import { createConfiguredBootstrap } from "../app/bootstrap-configured";
+import { wireDevtoolsRequest } from "../app/controls/wire-devtools-request";
 import { wireHelpGuide } from "../app/controls/wire-help-guide";
 import { wirePetControls } from "../app/controls/wire-pet-controls";
 import { wireCrossWindowSync } from "../app/cross-window/wire-cross-window";
@@ -185,6 +186,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
   // Settings opens the current pet window's companion in Tauri or a browser popup.
   const openSettings = createSettingsWindowOpener(boundId, windowBridge.emitSettingsPage);
   const openDevtools = createDevtoolsWindowOpener();
+  register(wireDevtoolsRequest({ bridge: windowBridge, boundId, open: openDevtools }));
   const { vrm, speaker } = wireAvatarSelection({
     renderer,
     getEndpoints: petConfig.getEndpoints,

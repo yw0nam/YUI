@@ -40,6 +40,7 @@ const CH_STOP_TURNS = "yui://stop-turns";
 const CH_SPEECH_STREAM_CONTROL = "yui://speech-stream-control";
 const CH_USER_TURN_DONE = "yui://user-turn-done";
 const CH_SETTINGS_PAGE = "yui://settings-page";
+const CH_OPEN_DEVTOOLS = "yui://open-devtools";
 
 interface VoiceStateSnapshot {
   state: VoiceInputState;
@@ -186,6 +187,9 @@ export interface SettingsBridge {
   /** A pet window asking an open settings window to show its character and page; delivered to every window, receivers filter on `preset`. */
   emitSettingsPage(request: SettingsPageRequest): void;
   onSettingsPage(cb: (request: SettingsPageRequest) => void): () => void;
+  /** The settings window asking main's pet window to open Developer Tools; delivered to every window, bound pet windows ignore it. */
+  emitOpenDevtools(): void;
+  onOpenDevtools(cb: () => void): () => void;
   emitSettingsChanged(): void;
   onSettingsChanged(cb: (from: WindowKind) => void): () => void;
   emitMouthPreview(mouthOpen: number | null): void;
@@ -261,6 +265,7 @@ export function createSettingsBridge(
     CH_STOP_TURNS,
     CH_SPEECH_STREAM_CONTROL,
     CH_SETTINGS_PAGE,
+    CH_OPEN_DEVTOOLS,
   ]);
   const on: typeof core.on = (name, cb) => core.on(name, cb, { scoped: !shared.has(name) });
 
@@ -276,6 +281,12 @@ export function createSettingsBridge(
         if (page === undefined) cb({ preset });
         else if (isSettingsPage(page)) cb({ preset, page });
       });
+    },
+    emitOpenDevtools() {
+      safeEmit(CH_OPEN_DEVTOOLS);
+    },
+    onOpenDevtools(cb) {
+      return on<unknown>(CH_OPEN_DEVTOOLS, () => cb());
     },
     emitSettingsChanged() {
       safeEmit(CH_SETTINGS_CHANGED);
