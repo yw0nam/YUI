@@ -54,15 +54,17 @@ it("follows OS appearance and store changes", () => {
   store.dispose();
 });
 
-it("hands the native title bar the resolved theme", () => {
+it("hands the native title bar the resolved theme, and the OS's under Follow system", () => {
   const store = createThemeSettings();
   store.setTheme("hearth");
-  const setNativeTheme = vi.fn<(theme: "light" | "dark") => Promise<void>>(async () => {});
+  const setNativeTheme = vi.fn<(theme: "light" | "dark" | null) => Promise<void>>(async () => {});
   const deps = { store, root: document.createElement("div"), setNativeTheme };
   const dispose = applyTheme(deps);
   expect(setNativeTheme).toHaveBeenLastCalledWith("dark");
   store.setTheme("dawn");
   expect(setNativeTheme).toHaveBeenLastCalledWith("light");
+  store.setTheme("system");
+  expect(setNativeTheme).toHaveBeenLastCalledWith(null);
   dispose();
   store.dispose();
 });
