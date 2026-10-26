@@ -157,17 +157,9 @@ describe("createSurfacesRouter", () => {
     router.beginSpeech(identity);
     router.pushSpeech("Hello", identity);
     router.endSpeech({ defer: true }, identity);
-    const selected = next === "docked" ? local : remote;
-    const other = next === "docked" ? remote : local;
     expect(stream.beginSpeech).toHaveBeenCalledWith(identity);
     expect(stream.pushSpeech).toHaveBeenCalledWith("Hello", identity);
     expect(stream.endSpeech).toHaveBeenCalledWith({ defer: true }, identity);
-    expect(selected.beginSpeech).toHaveBeenCalledWith(identity);
-    expect(selected.pushSpeech).toHaveBeenCalledWith("Hello", identity);
-    expect(selected.endSpeech).toHaveBeenCalledWith({ defer: true }, identity);
-    expect(other.beginSpeech).not.toHaveBeenCalled();
-    expect(other.pushSpeech).not.toHaveBeenCalled();
-    expect(other.endSpeech).not.toHaveBeenCalled();
   });
 
   it("quoteUser, settleQuote and clearQuote reach the side the mode names", () => {

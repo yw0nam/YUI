@@ -440,12 +440,24 @@ it("rebuilds valid speech stream events and drops malformed payloads", () => {
     {},
     { preset: "p", turn_id: "7", op: "push", delta: 7 },
     { preset: "", turn_id: "7", op: "end" },
-    { preset: "p", turn_id: "", op: "begin" },
+    { preset: "p", turn_id: "", op: "begin", baseline: 0 },
     { preset: "p", turn_id: "7", op: "other" },
+    ...[undefined, -1, 0.5, NaN, Infinity, "0"].map((baseline) => ({
+      preset: "p",
+      turn_id: "7",
+      op: "begin",
+      baseline,
+    })),
   ])
     pet.emitSpeechStream(payload as never);
   expect(received.mock.calls).toEqual([]);
-  pet.emitSpeechStream({ preset: "p", turn_id: "7", op: "begin", extra: true } as never);
+  pet.emitSpeechStream({
+    preset: "p",
+    turn_id: "7",
+    op: "begin",
+    baseline: 0,
+    extra: true,
+  } as never);
   pet.emitSpeechStream({
     preset: "p",
     turn_id: "7",
@@ -455,7 +467,7 @@ it("rebuilds valid speech stream events and drops malformed payloads", () => {
   } as never);
   pet.emitSpeechStream({ preset: "p", turn_id: "7", op: "end", extra: true } as never);
   expect(received.mock.calls).toEqual([
-    [{ preset: "p", turn_id: "7", op: "begin" }],
+    [{ preset: "p", turn_id: "7", op: "begin", baseline: 0 }],
     [{ preset: "p", turn_id: "7", op: "push", delta: "hi" }],
     [{ preset: "p", turn_id: "7", op: "end" }],
   ]);

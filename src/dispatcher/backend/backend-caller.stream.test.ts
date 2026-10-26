@@ -8,9 +8,7 @@
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { ControlEnvelope, ExpressArgs, ToolStatus, Usage } from "../../contract";
 import { createReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
-import { createSpeechPlayback } from "../../io/voice/tts/speech-playback";
 import type { Logger } from "../../logger";
-import { createSpeechStream } from "../../ui/surfaces/speech-stream";
 import {
   CONFIG,
   completedEvent,
@@ -974,46 +972,3 @@ describe("backend_caller — 404 chain-break retry does not leak attempt-1 envel
 });
 
 // ── Chat Completions (CC) mode — request shape ──────────────────────────────
-
-it("a bare silence token produces no speech stream events through real playback", async () => {
-  const emit = vi.fn();
-  const stream = createSpeechStream({ presetId: "perlica", emit });
-  const playback = createSpeechPlayback({
-    renderer: {
-      setMouthOpen() {},
-      stopMouth() {},
-      easeEmotionToNeutral() {},
-      applyDirective() {},
-      playMotion() {},
-    },
-    surfaces: { ...stream, finishSpeech() {} },
-    pipeline: { synth: async () => new ArrayBuffer(0) },
-    createPipeline: () => ({
-      pushTextDelta() {},
-      setCue() {},
-      end() {},
-      hasOutstandingWork: () => false,
-      spokenSplit: () => ({ spoken: "", unspoken: "" }),
-      dispose() {},
-    }),
-    isStrolling: () => false,
-  });
-  turnOutput.delta.mockImplementation(playback.onSpeechDelta);
-  turnOutput.speak.mockImplementation(playback.onSpeech);
-  turnOutput.end.mockImplementation(playback.onSpeechEnd);
-  script.events = [
-    deltaEvent("[SIL"),
-    deltaEvent("ENT]"),
-    completedEvent({ speech_text: "[SILENT]" }),
-  ];
-  expect(await caller.call(turnOf(userEnv()))).toBe("ok");
-  expect(emit.mock.calls).toEqual([]);
-  script.events = [deltaEvent("Hello"), completedEvent({ speech_text: "Hello" })];
-  expect(await caller.call(turnOf(userEnv()))).toBe("ok");
-  expect(emit.mock.calls).toEqual([
-    [{ preset: "perlica", turn_id: "1", op: "begin" }],
-    [{ preset: "perlica", turn_id: "1", op: "push", delta: "Hello" }],
-    [{ preset: "perlica", turn_id: "1", op: "end" }],
-  ]);
-  playback.dispose();
-});

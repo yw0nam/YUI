@@ -98,7 +98,7 @@ describe("mergeTranscripts", () => {
 it("appends the open assistant line and hands it off to exactly one recorded row", () => {
   const lines = createOpenLines();
   const transcripts = [perlica([]), natsume([reply("Earlier", 500)])];
-  lines.accept({ preset: "perlica", turn_id: "7", op: "begin" }, transcripts, 100);
+  lines.accept({ preset: "perlica", turn_id: "7", op: "begin", baseline: 0 }, transcripts, 100);
   lines.accept({ preset: "perlica", turn_id: "7", op: "push", delta: "Hello" }, transcripts, 100);
   expect(mergeTranscripts(transcripts, [], 200, lines.snapshot()).at(-1)).toEqual({
     key: "perlica:open",
@@ -113,5 +113,18 @@ it("appends the open assistant line and hands it off to exactly one recorded row
   lines.reconcile(landed, 700);
   expect(mergeTranscripts(landed, [], 700, lines.snapshot())).toEqual([
     { key: "perlica:0:600", who: "perlica", name: "Perlica", text: "Hello", ts: 600 },
+  ]);
+});
+
+it("drops an open line immediately when its record precedes bridge delivery", () => {
+  const lines = createOpenLines();
+  const transcripts = [perlica([{ role: "assistant", turn_id: "7", text: "Hello", ts: 100 }])];
+  lines.accept({ preset: "perlica", turn_id: "7", op: "begin", baseline: 0 }, transcripts, 200);
+  lines.reconcile(transcripts, 200);
+  expect(lines.snapshot()).toEqual([]);
+  lines.accept({ preset: "perlica", turn_id: "7", op: "push", delta: "Hello" }, transcripts, 201);
+  lines.accept({ preset: "perlica", turn_id: "7", op: "end" }, transcripts, 202);
+  expect(mergeTranscripts(transcripts, [], 203, lines.snapshot())).toEqual([
+    { key: "perlica:0:100", who: "perlica", name: "Perlica", text: "Hello", ts: 100 },
   ]);
 });

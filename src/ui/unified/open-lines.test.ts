@@ -9,7 +9,7 @@ const cast = (): Transcript[] => [
 function setup() {
   const transcripts = cast();
   const lines = createOpenLines();
-  lines.accept({ preset: "p", turn_id: "7", op: "begin" }, transcripts, 0);
+  lines.accept({ preset: "p", turn_id: "7", op: "begin", baseline: 0 }, transcripts, 0);
   return { lines, transcripts };
 }
 function push(
@@ -28,7 +28,7 @@ describe("open reply lines", () => {
     expect(lines.snapshot()).toEqual([]);
     push(lines, transcripts);
     expect(lines.snapshot()).toEqual([{ preset: "p", turnId: "7", text: "Hello", baseline: 0 }]);
-    lines.accept({ preset: "p", turn_id: "7", op: "begin" }, transcripts, 2);
+    lines.accept({ preset: "p", turn_id: "7", op: "begin", baseline: 0 }, transcripts, 2);
     push(lines, transcripts, " there");
     expect(lines.snapshot()).toEqual([
       { preset: "p", turnId: "7", text: "Hello there", baseline: 0 },
@@ -70,7 +70,7 @@ describe("open reply lines", () => {
   it("replaces the preset's old line on a new begin and ignores stale pushes and ends", () => {
     const { lines, transcripts } = setup();
     push(lines, transcripts);
-    lines.accept({ preset: "p", turn_id: "8", op: "begin" }, transcripts, 2);
+    lines.accept({ preset: "p", turn_id: "8", op: "begin", baseline: 0 }, transcripts, 2);
     push(lines, transcripts, "stale");
     lines.accept({ preset: "p", turn_id: "7", op: "end" }, transcripts, 3);
     expect(lines.snapshot()).toEqual([]);
@@ -90,7 +90,7 @@ describe("open reply lines", () => {
     push(lines, transcripts);
     lines.accept({ preset: "p", turn_id: "7", op: "end" }, transcripts, 2);
     transcripts[0]!.entries.push({ role: "assistant", turn_id: "7", text: "Hello", ts: 3 });
-    lines.accept({ preset: "p", turn_id: "7", op: "begin" }, transcripts, 4);
+    lines.accept({ preset: "p", turn_id: "7", op: "begin", baseline: 1 }, transcripts, 4);
     push(lines, transcripts, "Again");
     lines.reconcile(transcripts, 5);
     expect(lines.snapshot()).toEqual([{ preset: "p", turnId: "7", text: "Again", baseline: 1 }]);

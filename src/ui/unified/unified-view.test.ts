@@ -244,14 +244,14 @@ describe("unified view — the mention pill", () => {
 describe("unified view — running replies", () => {
   it("draws growing pending speech with the preset's face, then replaces it with its record", () => {
     mount();
-    view.speechStream({ preset: "perlica", turn_id: "7", op: "begin" });
+    view.speechStream({ preset: "perlica", turn_id: "7", op: "begin", baseline: 0 });
     expect(lines()).toHaveLength(4);
     view.speechStream({ preset: "perlica", turn_id: "7", op: "push", delta: "Hello" });
-    expect(lines().at(-1)?.querySelector(".yui-uc__say")?.textContent).toBe("Hellosending");
+    expect(lines().at(-1)?.querySelector(".yui-uc__say")?.textContent).toBe("Hello");
     expect(lines().at(-1)?.classList.contains("is-pending")).toBe(true);
     expect(lines().at(-1)?.querySelector("img")?.getAttribute("src")).toBe("asset://perlica.png");
     view.speechStream({ preset: "perlica", turn_id: "7", op: "push", delta: " there" });
-    expect(lines().at(-1)?.querySelector(".yui-uc__say")?.textContent).toBe("Hello theresending");
+    expect(lines().at(-1)?.querySelector(".yui-uc__say")?.textContent).toBe("Hello there");
     view.speechStream({ preset: "perlica", turn_id: "7", op: "end" });
     transcripts.perlica!.push({ role: "assistant", turn_id: "7", text: "Hello there", ts: T + 1 });
     view.refresh();
@@ -268,7 +268,7 @@ describe("unified view — running replies", () => {
       clientHeight: { value: 300 },
     });
     log.scrollTop = 120;
-    view.speechStream({ preset: "perlica", turn_id: "7", op: "begin" });
+    view.speechStream({ preset: "perlica", turn_id: "7", op: "begin", baseline: 0 });
     view.speechStream({ preset: "perlica", turn_id: "7", op: "push", delta: "Hello" });
     expect(log.scrollTop).toBe(120);
     Object.defineProperty(log, "scrollHeight", { value: 1200 });
@@ -280,7 +280,7 @@ describe("unified view — running replies", () => {
     vi.useFakeTimers();
     let now = T;
     mount({ now: () => now });
-    view.speechStream({ preset: "perlica", turn_id: "7", op: "begin" });
+    view.speechStream({ preset: "perlica", turn_id: "7", op: "begin", baseline: 0 });
     view.speechStream({ preset: "perlica", turn_id: "7", op: "push", delta: "Partial" });
     now += 120_000;
     view.refresh();

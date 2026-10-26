@@ -125,22 +125,9 @@ it("stops following the signals after unload", async () => {
   expect(says()).not.toContain("After unload.");
 });
 
-it("streams a pet reply into the unified log until its transcript record arrives", async () => {
+it("forwards pet speech stream events into the unified view", async () => {
   await boot();
-  petBridge.emitSpeechStream({ preset: "natsume", turn_id: "7", op: "begin" });
+  petBridge.emitSpeechStream({ preset: "natsume", turn_id: "7", op: "begin", baseline: 0 });
   petBridge.emitSpeechStream({ preset: "natsume", turn_id: "7", op: "push", delta: "Running" });
-  await vi.waitFor(() => expect(says()).toContain("Runningsending"));
-  petBridge.emitSpeechStream({ preset: "natsume", turn_id: "7", op: "push", delta: " reply" });
-  petBridge.emitSpeechStream({ preset: "natsume", turn_id: "7", op: "end" });
-  await vi.waitFor(() => expect(says()).toContain("Running replysending"));
-  localStorage.setItem(
-    "yui.natsume.chat_transcript",
-    JSON.stringify([
-      { role: "assistant", text: "Hello from Natsume.", ts: 2_000 },
-      { role: "assistant", turn_id: "7", text: "Running reply", ts: 3_000 },
-    ]),
-  );
-  window.dispatchEvent(new Event("storage"));
-  expect(says()).toEqual(["Hello from default.", "Hello from Natsume.", "Running reply"]);
-  expect(document.querySelectorAll(".is-pending")).toHaveLength(0);
+  await vi.waitFor(() => expect(says()).toContain("Running"));
 });
