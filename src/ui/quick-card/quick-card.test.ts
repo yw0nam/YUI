@@ -13,7 +13,7 @@ vi.mock("./quick-card.css", () => ({}));
 vi.mock("../unified/avatar.css", () => ({}));
 
 function picker(options: { id: string; label: string }[]) {
-  let current = options[0]!.id;
+  let current = options[0]?.id ?? "";
   const subs = new Set<() => void>();
   return {
     options: () => options,
@@ -200,6 +200,25 @@ describe("createQuickCard", () => {
     q<HTMLButtonElement>(".yui-qcard__confirm-go").click();
     expect(deps.resetConversation).toHaveBeenCalledOnce();
     expect(q<HTMLElement>(".yui-qcard__confirm").hidden).toBe(true);
+  });
+
+  it("refreshes the visible height before it opens and caps its own height 12px inside it", async () => {
+    let finish: () => void = () => {};
+    const refresh = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const { card } = build({ visibleViewport: { get: () => 300, refresh } });
+
+    card.open({ x: 10, y: 10 });
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(card.isOpen()).toBe(false);
+    finish();
+
+    await vi.waitFor(() => expect(card.isOpen()).toBe(true));
+    expect(card.el.style.getPropertyValue("--yui-qcard-max-h")).toBe("276px");
   });
 
   it("turns this character off and opens every setting; main's card has no Turn off", () => {
