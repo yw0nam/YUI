@@ -6,3 +6,8 @@
 .yui-chars__row.is-off .yui-row__label {
   color: var(--yui-text-dim);
 }
+
+/* The row sub-line's display would otherwise beat the hidden attribute. */
+.yui-chars__reason[hidden] {
+  display: none;
+}
