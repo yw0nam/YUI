@@ -97,7 +97,7 @@ it("opens the settings window from the pill's capture button and lands the voice
   await vi.waitFor(() => expect(showBootError).toHaveBeenCalledOnce());
   const pill = vi.mocked(createStatusPill).mock.calls[0]![0];
 
-  pill.onOpenSettings();
+  pill.onOpenSettings?.();
   expect(openSettings).toHaveBeenLastCalledWith();
   pill.onFixVoice?.();
   expect(openSettings).toHaveBeenLastCalledWith("conn");

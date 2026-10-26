@@ -123,9 +123,9 @@ async function bootstrap(): Promise<BootstrapHandle> {
     mount: root,
     settings: settingsStores.screenshotSettings,
     voice: voiceInputStatus,
-    onOpenSettings: () => controls.get().open(),
+    onOpenSettings: () => openSettings(),
     onFixVoice: createVoiceFix({
-      openConnection: () => controls.get().open(undefined, { tab: "conn" }),
+      openConnection: () => openSettings("conn"),
       status: voiceInputStatus,
     }),
   });
@@ -296,6 +296,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       root,
       stage,
       getQuickControls: controls.get,
+      openSettings,
       onSessionReset: windowBridge.onSessionReset,
       emitCharacterAddressed: windowBridge.emitCharacterAddressed,
       onCharacterAddressed: windowBridge.onCharacterAddressed,
@@ -329,7 +330,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
           collapsed: configured.chipFold,
           store: push.delegations,
           pushState: push.pushSocket,
-          onOpenSettings: () => controls.get().open(undefined, { tab: "conn" }),
+          onOpenSettings: () => openSettings("hist"),
           suppression: messageWindowSuppression({ getMode, subscribe: subscribeMode }),
         }),
         getEndpoints: petConfig.getEndpoints,

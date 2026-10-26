@@ -68,7 +68,7 @@ function wire(over: Partial<TurnCorePhase1> = {}) {
   const core = wireTurnCore({} as never, phase1, {
     getFrontmost: () => undefined,
     screenCapturer: {} as never,
-    openQuickControls: () => {},
+    openSettings: () => {},
     register: (teardown) => teardowns.push(teardown),
     ensureActive: () => {},
   });

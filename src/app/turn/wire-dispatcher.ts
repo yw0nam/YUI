@@ -110,7 +110,7 @@ export function wireDispatcher(deps: {
   getVocabulary: () => ExpressVocabulary;
   /** The tools this window declares beside generate_express; empty outside Tauri. */
   windowTools?: readonly ClientTool[];
-  openQuickControls?: (tab: QuickControlsTab) => void;
+  openSettings?: (tab: QuickControlsTab) => void;
   showVoiceError: (reason: string, message?: string) => void;
   appendTurnRecord: (record: TurnRecord | PacerSkipRecord) => void;
   t: (key: string, vars?: Record<string, string | number>) => string;
@@ -158,7 +158,7 @@ export function wireDispatcher(deps: {
     pushSocket,
     getVocabulary,
     windowTools,
-    openQuickControls,
+    openSettings,
     showVoiceError,
     appendTurnRecord,
     t,
@@ -284,7 +284,7 @@ export function wireDispatcher(deps: {
       if (!message) return;
       const action = routeTurnFailure(source, surfaces.isInputOpen());
       if (action.kind === "show_input_error") {
-        surfaces.showInputError(message, turnErrorFixAction(reason, openQuickControls));
+        surfaces.showInputError(message, turnErrorFixAction(reason, openSettings));
       } else if (action.kind === "voice_error") {
         showVoiceError(reason, detail ? message : undefined);
       }

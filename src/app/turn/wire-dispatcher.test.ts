@@ -106,7 +106,7 @@ describe("wireDispatcher", () => {
         emotionText: { mode: "free", table: null },
       }),
       windowTools,
-      openQuickControls: vi.fn(),
+      openSettings: vi.fn(),
       showVoiceError,
       appendTurnRecord: vi.fn(),
       t: (key: string) => key,

@@ -24,6 +24,7 @@ import { subscribeOsEvent } from "../io/window/tauri-listen";
 import { createLogger } from "../logger";
 import { mergeScreen } from "../settings/capture/screen-settings";
 import type { DelegationChipSettingsStore } from "../settings/panels/delegation-chip-settings";
+import type { QuickControlsTab } from "../settings/panels/settings-pages";
 import { presetIdForWindow, readPresetName } from "../settings/preset/active-preset";
 import type { UnifiedShown } from "../settings/unified/unified-shown";
 import { createUnifiedWindowSettings } from "../settings/unified/unified-window-settings";
@@ -59,6 +60,8 @@ interface Phase1Handles extends TurnCorePhase1 {
   root: HTMLElement;
   stage: HTMLElement;
   getQuickControls(): ReturnType<typeof createQuickControls>;
+  /** Opens the settings window on a page, on the main character or this window's own. */
+  openSettings(page?: QuickControlsTab): void;
   /** Subscribes to resets the preset's other windows announce. */
   onSessionReset(cb: (presetId: string) => void): () => void;
   /** Emits this window's replies that named another open character, once their playback ended. */
@@ -207,7 +210,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       getCardText: card.getCardText,
       getFrontmost: () => frontmostTracker.get(),
       screenCapturer: phase1.screenCapturer,
-      openQuickControls: (tab) => getQuickControls().open(undefined, { tab }),
+      openSettings: phase1.openSettings,
       windowTools,
       onTurnClosed: userTurnDone.onTurnClosed,
       addressedTo: addressed.targetOf,
@@ -228,7 +231,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       hotkey: cfg.hotkeys.summon_global,
       isMac: isMacOS(),
       chatConfigured: isChatConfigured(phase1.getEndpoints()),
-      openSettings: (tab) => getQuickControls().open(undefined, { tab }),
+      openSettings: phase1.openSettings,
       t,
     });
 
