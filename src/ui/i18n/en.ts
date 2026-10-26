@@ -250,7 +250,7 @@ const en: Record<string, string> = {
   "push.reason_model": "The backend picks the model on push.",
   "push.reason_effort": "The backend decides how long to think on push.",
   "push.reason_card":
-    "On push the backend's own profile is the persona; this card supplies only the greetings.",
+    "On push the backend uses its own persona; this card, greetings included, is not used.",
   "push.to_transport": "Change transport",
   "card.import_failed": "Could not import that card",
   "card.import_error": "That file holds no card",

@@ -252,7 +252,7 @@ const ja: Record<string, string> = {
   "push.reason_model": "プッシュではバックエンドがモデルを選びます。",
   "push.reason_effort": "プッシュではどれだけ考えるかをバックエンドが決めます。",
   "push.reason_card":
-    "プッシュではバックエンド自身のプロフィールがペルソナです。このカードはあいさつだけを渡します。",
+    "プッシュではバックエンドが自身のペルソナを使います。あいさつを含め、このカードは使われません。",
   "push.to_transport": "トランスポートを変更",
   "card.import_failed": "そのカードは読み込めませんでした",
   "card.import_error": "このファイルにカードが入っていません",

@@ -167,9 +167,8 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
     const push = isPushMode();
     pushReason.hidden = !push;
     switchBtn.disabled = push;
-    // On push only the greetings reach the backend; the other text fields stay, disabled.
-    nameEl.disabled = push;
-    for (const el of fields) el.disabled = push && el.dataset.cardField !== "first_mes";
+    // Push never sends the card, greetings included; the name is the preset's own and stays.
+    for (const el of fields) el.disabled = push;
     const a = agentSettings.get();
     const card = a.card ?? base();
     const own = a.card !== null;
@@ -193,7 +192,12 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
     }
     greetings().forEach((el, i) => {
       setValue(el, list[i] ?? "");
+      el.disabled = push;
     });
+    for (const btn of sec.querySelectorAll<HTMLButtonElement>(
+      ".yui-card-greeting__remove, .yui-card-add",
+    ))
+      btn.disabled = push;
   }
 
   const currentCard = (): Card => agentSettings.get().card ?? base();

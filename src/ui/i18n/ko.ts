@@ -250,7 +250,8 @@ const ko: Record<string, string> = {
   "card.io_note": "JSON이나 PNG 카드를 가져오고, V2 JSON으로 내보내요",
   "push.reason_model": "푸시에서는 백엔드가 모델을 골라요.",
   "push.reason_effort": "푸시에서는 얼마나 생각할지 백엔드가 정해요.",
-  "push.reason_card": "푸시에서는 백엔드 자신의 프로필이 페르소나예요. 이 카드는 인사말만 건네요.",
+  "push.reason_card":
+    "푸시에서는 백엔드가 자신의 페르소나를 써요. 인사말을 포함해 이 카드는 쓰이지 않아요.",
   "push.to_transport": "전송 방식 바꾸기",
   "card.import_failed": "그 카드를 가져오지 못했어요",
   "card.import_error": "이 파일에는 카드가 없어요",
