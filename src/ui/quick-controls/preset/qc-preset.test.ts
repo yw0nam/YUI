@@ -136,7 +136,7 @@ describe("createQuickControls — presets", () => {
     expect($<HTMLSelectElement>(".yui-preset__select").value).toBe("bbbb0002");
     expect($(".yui-preset__label").textContent).toBe("Editing");
     expect(qc.el.querySelector("#yui-panel-conn .yui-tabpanel__scope")?.textContent).toBe(
-      "perlica · Connection",
+      "Only perlica",
     );
   });
 
@@ -328,7 +328,7 @@ describe("createQuickControls — presets", () => {
     expect(pickPresetPhoto).toHaveBeenCalledWith("aaaa0001");
   });
 
-  it("shows the active preset in the strip and names it on each per-preset tab", () => {
+  it("shows the active preset in the strip, names it on each character page and the rail group", () => {
     const select = $<HTMLSelectElement>(".yui-preset__select");
     expect(select.value).toBe("aaaa0001");
     expect(Array.from(select.options).map((o) => o.textContent)).toEqual([
@@ -338,10 +338,14 @@ describe("createQuickControls — presets", () => {
     ]);
     const scope = (tab: string): string | null | undefined =>
       qc.el.querySelector(`#yui-panel-${tab} .yui-tabpanel__scope`)?.textContent;
-    expect(scope("conn")).toBe("natsume · Connection");
-    expect(scope("talk")).toBe("natsume · Talk");
-    expect(scope("char")).toBe("natsume · Only the VRM selection and relations are per preset");
-    expect(scope("general")).toBe("Shared by every preset");
+    expect(scope("conn")).toBe("Only natsume");
+    expect(scope("persona")).toBe("Only natsume");
+    expect(scope("body")).toBe("Only natsume");
+    expect(scope("together")).toBe("Every character");
+    expect(scope("general")).toBe("Every character");
+    expect(qc.el.querySelector("#yui-tab-conn")?.previousElementSibling?.textContent).toBe(
+      "natsume",
+    );
   });
 
   it("activates the picked preset and holds the panel inert while it switches", () => {

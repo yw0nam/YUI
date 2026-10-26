@@ -223,14 +223,6 @@ describe("createQuickControls — card section", () => {
     expect(ta.value).toBe("remote");
   });
 
-  it("stores the user's name and shows the language's fallback word as placeholder", () => {
-    build();
-    const input = sec().querySelector<HTMLInputElement>(".yui-card-username")!;
-    expect(input.placeholder).toBe("User");
-    type(input, "Ren");
-    expect(userNameSettings.get().name).toBe("Ren");
-  });
-
   it("opens the cards guide from the ? button", () => {
     build();
     const help = sec().querySelector<HTMLAnchorElement>(".yui-card__help")!;

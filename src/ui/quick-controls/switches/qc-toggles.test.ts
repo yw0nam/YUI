@@ -126,7 +126,7 @@ describe("createQuickControls — toggles", () => {
   // Unlike the gated rows below, idleThrottleSettings is part of defaultQcArgs, so this row
   // always renders — it has no "absent" case to check.
 
-  it("renders the idle-throttle toggle row in the General tab, ON by default", () => {
+  it("renders the idle-throttle toggle row in the Motion page, ON by default", () => {
     const qc = buildQc();
     qc.open();
 
@@ -271,14 +271,14 @@ describe("createQuickControls — toggles", () => {
     qc.dispose();
   });
 
-  it("places the one-voice switch directly after the voice-output switch in the Input tab", () => {
+  it("places the one-voice switch in the Together page, apart from the voice-output switch", () => {
     const qc = buildQc({ oneVoiceSettings: createFlagSettings(true) });
     qc.open();
 
     const row = qc.el.querySelector(".yui-one-voice-switch")!.closest(".yui-row")!;
-    expect(qc.el.querySelector("#yui-panel-input")!.contains(row)).toBe(true);
-    expect(row.previousElementSibling).toBe(
-      qc.el.querySelector(".yui-tts-switch")!.closest(".yui-row"),
+    expect(qc.el.querySelector("#yui-panel-together")!.contains(row)).toBe(true);
+    expect(qc.el.querySelector("#yui-panel-voice")!.contains(qc.el.querySelector(".yui-tts-switch"))).toBe(
+      true,
     );
 
     qc.dispose();
@@ -438,13 +438,13 @@ describe("createQuickControls — message-window row", () => {
     delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
   });
 
-  it("renders in the Input tab and flips the stored mode", () => {
+  it("renders in the Voice page and flips the stored mode", () => {
     const messageWindowSettings = createMessageWindowSettings();
     const qc = createQuickControls({ ...defaultQcArgs(mount), messageWindowSettings });
     qc.open();
 
     const sw = qc.el.querySelector<HTMLButtonElement>(".yui-message-window-switch")!;
-    expect(qc.el.querySelector<HTMLElement>("#yui-panel-input")!.contains(sw)).toBe(true);
+    expect(qc.el.querySelector<HTMLElement>("#yui-panel-voice")!.contains(sw)).toBe(true);
     expect(sw.getAttribute("aria-checked")).toBe("false");
 
     sw.click();
@@ -518,13 +518,13 @@ describe("createQuickControls — keep bubble until dismissed switch", () => {
     qc.dispose();
   });
 
-  it("renders in the Input tab, off by default, and toggles the store", () => {
+  it("renders in the Listening page, off by default, and toggles the store", () => {
     const bubblePersistSettings = createFlagSettings(false);
     const qc = createQuickControls({ ...defaultQcArgs(mount), bubblePersistSettings });
     qc.open();
 
     const sw = qc.el.querySelector<HTMLButtonElement>(".yui-bubble-persist-switch")!;
-    expect(qc.el.querySelector<HTMLElement>("#yui-panel-input")!.contains(sw)).toBe(true);
+    expect(qc.el.querySelector<HTMLElement>("#yui-panel-listening")!.contains(sw)).toBe(true);
     expect(sw.getAttribute("aria-checked")).toBe("false");
 
     sw.click();

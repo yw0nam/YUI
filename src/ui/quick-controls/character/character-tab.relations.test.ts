@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The Character tab's Relations section: the rows, the slider's preview and commit, and the switch.
+// The Body page's Relations section: the rows, the slider's preview and commit, and the switch's effect.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createRelationsStore, type Relations } from "../../../settings/relations/relations-store";
@@ -65,7 +65,7 @@ describe("createCharacterTab — relations", () => {
     const rows = () => [...tab.el.querySelectorAll<HTMLElement>(".yui-relations__row")];
     const row = (target: string) =>
       tab.el.querySelector<HTMLElement>(`.yui-relations__row[data-target="${target}"]`)!;
-    return { tab, store, rows, row };
+    return { tab, store, relationsSwitch, rows, row };
   }
 
   it("lists rated targets first, you first then close first, and unrated targets after", () => {
@@ -140,19 +140,17 @@ describe("createCharacterTab — relations", () => {
   });
 
   it("hides the rows while the switch is off and shows them again", () => {
-    const { tab } = build();
-    const toggle = tab.el.querySelector<HTMLButtonElement>(".yui-relations__switch")!;
+    const { tab, relationsSwitch } = build();
     const shown = () =>
       [".yui-relations__rows", ".yui-relations__note", ".yui-relations__off"].map(
         (s) => !tab.el.querySelector<HTMLElement>(s)!.hidden,
       );
 
-    toggle.click();
-    expect(toggle.getAttribute("aria-checked")).toBe("false");
+    relationsSwitch.setEnabled(false);
+    expect(tab.el.querySelector(".yui-relations__switch")).toBeNull();
     expect(shown()).toEqual([false, false, true]);
 
-    toggle.click();
-    expect(toggle.getAttribute("aria-checked")).toBe("true");
+    relationsSwitch.setEnabled(true);
     expect(shown()).toEqual([true, true, false]);
     tab.dispose();
   });

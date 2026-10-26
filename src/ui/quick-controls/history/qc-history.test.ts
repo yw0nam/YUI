@@ -70,15 +70,15 @@ describe("createQuickControls — history tab", () => {
     return createQuickControls({ ...defaultQcArgs(mount), ...extra });
   }
 
-  it("adds a history tab before general, wired to its own panel, when a transcript is injected", () => {
+  it("closes the character's pages with a history tab, wired to its own panel, when a transcript is injected", () => {
     const qc = buildQc({ transcript: seedStore() });
     qc.open();
 
     const tabs = Array.from(qc.el.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
-    expect(tabs).toHaveLength(7);
-    expect(qc.el.querySelectorAll('[role="tabpanel"]')).toHaveLength(7);
+    expect(tabs).toHaveLength(11);
+    expect(qc.el.querySelectorAll('[role="tabpanel"]')).toHaveLength(11);
 
-    const histTab = tabs[5];
+    const histTab = tabs[4];
     expect(histTab.id).toBe("yui-tab-hist");
     expect(histTab.getAttribute("aria-label")).toBe("History");
     expect(histTab.getAttribute("aria-label")).toBeTruthy();
@@ -94,13 +94,13 @@ describe("createQuickControls — history tab", () => {
     const qc = buildQc();
     qc.open();
 
-    expect(qc.el.querySelectorAll('[role="tab"]')).toHaveLength(6);
+    expect(qc.el.querySelectorAll('[role="tab"]')).toHaveLength(10);
     expect(qc.el.querySelector(".yui-hist")).toBeNull();
 
     qc.dispose();
   });
 
-  it("End key selects the general tab, which sits after history", () => {
+  it("End key selects the general tab, which closes the rail after history", () => {
     const qc = buildQc({ transcript: seedStore() });
     qc.open();
 
@@ -109,8 +109,8 @@ describe("createQuickControls — history tab", () => {
     tabs[0].focus();
     tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
 
-    expect(tabs.map((tab) => tab.id).slice(-2)).toEqual(["yui-tab-hist", "yui-tab-general"]);
-    expect(tabs[6].getAttribute("aria-selected")).toBe("true");
+    expect(tabs.map((tab) => tab.id).at(-1)).toBe("yui-tab-general");
+    expect(tabs[10].getAttribute("aria-selected")).toBe("true");
 
     qc.dispose();
   });

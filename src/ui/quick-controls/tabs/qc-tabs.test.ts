@@ -54,20 +54,30 @@ describe("createQuickControls — tab rail", () => {
     return qc.el.querySelector<HTMLElement>(`#${tab.getAttribute("aria-controls")}`)!;
   }
 
-  it("renders the tabs conn, talk, char, input, react, general in order, each wired to its panel", () => {
+  it("renders the character's pages, then every character's pages, each wired to its panel", () => {
     const qc = buildQc();
     qc.open();
 
     const t = tabs(qc);
     expect(t.map((tab) => tab.id)).toEqual([
       "yui-tab-conn",
-      "yui-tab-talk",
-      "yui-tab-char",
-      "yui-tab-input",
+      "yui-tab-voice",
+      "yui-tab-persona",
+      "yui-tab-body",
+      "yui-tab-together",
+      "yui-tab-listening",
+      "yui-tab-perms",
       "yui-tab-react",
+      "yui-tab-motion",
       "yui-tab-general",
     ]);
-    expect(qc.el.querySelectorAll('[role="tabpanel"]').length).toBe(6);
+    expect(qc.el.querySelectorAll('[role="tabpanel"]').length).toBe(10);
+    expect(qc.el.querySelector("#yui-tab-conn")?.previousElementSibling?.textContent).toBe(
+      "이 캐릭터",
+    );
+    expect(qc.el.querySelector("#yui-tab-together")?.previousElementSibling?.textContent).toBe(
+      "모든 캐릭터",
+    );
 
     // Each tab is wired to a panel and each panel back to its tab.
     for (const tab of t) {
@@ -90,14 +100,14 @@ describe("createQuickControls — tab rail", () => {
     qc.dispose();
   });
 
-  it("defaults to the 대화 tab active; its panel visible, others hidden", () => {
+  it("defaults to the 페르소나 page active; its panel visible, others hidden", () => {
     const qc = buildQc();
     qc.open();
 
     const t = tabs(qc);
     const active = t.find((tab) => tab.getAttribute("aria-selected") === "true")!;
-    expect(active.id).toBe("yui-tab-talk");
-    expect(active.getAttribute("aria-label")).toBe("대화");
+    expect(active.id).toBe("yui-tab-persona");
+    expect(active.getAttribute("aria-label")).toBe("페르소나");
 
     for (const tab of t) {
       const on = tab === active;
@@ -173,7 +183,7 @@ describe("createQuickControls — tab rail", () => {
   it("selectedTab() names the tab the user is on", () => {
     const qc = buildQc();
     qc.open();
-    expect(qc.selectedTab()).toBe("talk");
+    expect(qc.selectedTab()).toBe("persona");
 
     qc.el.querySelector<HTMLButtonElement>("#yui-tab-general")!.click();
     expect(qc.selectedTab()).toBe("general");
@@ -193,9 +203,21 @@ describe("createQuickControls — tab rail", () => {
     qc.dispose();
   });
 
-  it("open({ tab }) reaches every tab the tablist renders, hist sitting before general", () => {
+  it("open({ tab }) reaches every tab the tablist renders, hist closing the character's pages", () => {
     // The tab union is the panel's public vocabulary — it must not omit a rendered tab.
-    const names: QuickControlsTab[] = ["conn", "talk", "char", "input", "react", "hist", "general"];
+    const names: QuickControlsTab[] = [
+      "conn",
+      "voice",
+      "persona",
+      "body",
+      "hist",
+      "together",
+      "listening",
+      "perms",
+      "react",
+      "motion",
+      "general",
+    ];
     // A transcript is what renders the history tab, so inject one to get the full rail.
     const qc = buildQc({ transcript: createChatHistoryStore() });
     expect(tabs(qc).map((tab) => tab.id)).toEqual(names.map((name) => `yui-tab-${name}`));
@@ -216,18 +238,18 @@ describe("createQuickControls — tab rail", () => {
 
     const tablist = qc.el.querySelector<HTMLElement>('[role="tablist"]')!;
     const t = tabs(qc);
-    // Arrows step from the selected tab — talk, the default, sits second.
-    t[1].focus();
+    // Arrows step from the selected tab — persona, the default, sits third.
+    t[2].focus();
 
     tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
-    expect(t[2].getAttribute("aria-selected")).toBe("true");
-    expect(t[2].tabIndex).toBe(0);
-    expect(t[1].tabIndex).toBe(-1);
-    expect(panelFor(qc, t[2]).hidden).toBe(false);
+    expect(t[3].getAttribute("aria-selected")).toBe("true");
+    expect(t[3].tabIndex).toBe(0);
+    expect(t[2].tabIndex).toBe(-1);
+    expect(panelFor(qc, t[3]).hidden).toBe(false);
 
     tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
-    expect(t[1].getAttribute("aria-selected")).toBe("true");
-    expect(panelFor(qc, t[1]).hidden).toBe(false);
+    expect(t[2].getAttribute("aria-selected")).toBe("true");
+    expect(panelFor(qc, t[2]).hidden).toBe(false);
 
     qc.dispose();
   });
@@ -241,9 +263,9 @@ describe("createQuickControls — tab rail", () => {
     t[0].focus();
 
     tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
-    expect(t[5].id).toBe("yui-tab-general");
-    expect(t[5].getAttribute("aria-selected")).toBe("true");
-    expect(panelFor(qc, t[5]).hidden).toBe(false);
+    expect(t[9].id).toBe("yui-tab-general");
+    expect(t[9].getAttribute("aria-selected")).toBe("true");
+    expect(panelFor(qc, t[9]).hidden).toBe(false);
 
     tablist.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
     expect(t[0].getAttribute("aria-selected")).toBe("true");

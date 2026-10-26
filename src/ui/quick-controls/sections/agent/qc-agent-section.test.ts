@@ -362,7 +362,10 @@ describe("createQuickControls — language picker", () => {
     const qc = buildQc();
     qc.open();
     // The reasoning-effort field label is keyed; ko renders the Korean copy.
-    const label = qc.el.querySelector<HTMLElement>("#yui-panel-talk .yui-row__label")!;
+    const label = qc.el
+      .querySelector(".yui-effort-seg")!
+      .closest(".yui-row")!
+      .querySelector<HTMLElement>(".yui-row__label")!;
     expect(label.textContent).toBe("추론 강도");
     qc.dispose();
   });
