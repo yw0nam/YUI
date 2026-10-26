@@ -9,6 +9,7 @@ import { sanitizeFileStem } from "../../../../io/assets/card/card-export";
 import type { ImportedCard } from "../../../../io/assets/card/card-import";
 import { cardName } from "../../../../io/chat/card/resolve-card";
 import type { Logger } from "../../../../logger";
+import { type FillerSettings, isEmptyPool } from "../../../../settings/voice/filler-settings";
 import { t } from "../../../i18n";
 
 export interface CardIoPorts {
@@ -27,6 +28,8 @@ export function createCardIo(deps: {
   ports: CardIoPorts;
   currentCard: () => Card;
   entry: () => { id: string; name: string };
+  /** The active preset's custom filler pools, carried in the export's extensions.yui. */
+  fillerPools: () => FillerSettings["customPools"];
   log: Logger;
 }): CardIo {
   const showError = (message: string): void => {
@@ -64,8 +67,19 @@ export function createCardIo(deps: {
     try {
       const card = deps.currentCard();
       const name = cardName(card, deps.entry());
+      const envelope = toV2Envelope(card, name);
+      const pools = deps.fillerPools();
+      // Filler pools ride only while one pool holds a phrase; an all-empty store exports none.
+      if (Object.values(pools).some((p) => p !== undefined && !isEmptyPool(p))) {
+        const extensions = { ...(envelope.data.extensions as Record<string, unknown>) };
+        extensions.yui = {
+          ...(extensions.yui as Record<string, unknown> | undefined),
+          filler: pools,
+        };
+        envelope.data.extensions = extensions;
+      }
       const result = await deps.ports.exportCard(
-        JSON.stringify(toV2Envelope(card, name)),
+        JSON.stringify(envelope),
         `${sanitizeFileStem(name)}.json`,
       );
       if (result === "written") {

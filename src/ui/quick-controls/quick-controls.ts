@@ -645,6 +645,7 @@ export function createQuickControls({
     agentSettings,
     userNameSettings,
     endpointsSettings,
+    fillerSettings,
     registry: presetRegistry,
     getPersona,
     isPushMode,

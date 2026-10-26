@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { readCard } from "../../../../config/validators/persona/read-card";
 import {
   type Card,
   EMPTY_CARD,
@@ -8,10 +9,9 @@ import {
 import { createAgentSettings } from "../../../../settings/backend/agent-settings";
 import { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
 import { createUserNameSettings } from "../../../../settings/identity/user-name-settings";
+import { createPresetFromCard } from "../../../../settings/preset/import-card-preset";
 import { createPresetRegistry } from "../../../../settings/preset/preset-registry";
 import { createFillerSettings } from "../../../../settings/voice/filler-settings";
-import { readCard } from "../../../../config/validators/persona/read-card";
-import { createPresetFromCard } from "../../../../settings/preset/import-card-preset";
 import { setLocale } from "../../../i18n";
 import { CARD_GUIDE_URL } from "../../constants";
 import { createQuickControls } from "../../quick-controls";
@@ -301,8 +301,11 @@ describe("createQuickControls — card section", () => {
       } as Storage;
     })();
     // The copied filler value registry.create seeds the new preset with before the import runs.
-    storage.setItem("yui.n1.filler", JSON.stringify({ enabled: true, language: "en", customPools: { en: { first: ["hi"] } } }));
-    const id = await createPresetFromCard({
+    storage.setItem(
+      "yui.n1.filler",
+      JSON.stringify({ enabled: true, language: "en", customPools: { en: { first: ["hi"] } } }),
+    );
+    await createPresetFromCard({
       registry: {
         create: () => "n1",
         setThumbnail: () => true,

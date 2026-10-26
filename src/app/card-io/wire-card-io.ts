@@ -14,6 +14,7 @@ import {
 import { createPresetFromCard } from "../../settings/preset/import-card-preset";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import { isTauri } from "../../tauri-env";
+import { getLocale } from "../../ui/i18n";
 
 export interface CardIoPorts {
   importCard: () => Promise<ImportedCard | null>;
@@ -32,6 +33,7 @@ export function wireCardIo(registry: PresetRegistry): CardIoPorts {
       createPresetFromCard({
         registry,
         card,
+        fillerLocale: getLocale(),
         ...(thumbnailTempId
           ? {
               retainThumbnail: (presetId: string) => retainCardThumbnail(thumbnailTempId, presetId),

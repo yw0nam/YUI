@@ -21,6 +21,7 @@ import {
   readPresetThumbnail,
 } from "../../../../settings/preset/active-preset";
 import type { PresetRegistry } from "../../../../settings/preset/preset-registry";
+import type { createFillerSettings } from "../../../../settings/voice/filler-settings";
 import { getLocale, LOCALE_DISPLAY_NAMES, subscribe as subscribeLocale, t } from "../../../i18n";
 import { CARD_GUIDE_URL } from "../../constants";
 import { escapeAttr, secHeadHtml } from "../../markup";
@@ -111,6 +112,7 @@ export function cardSectionHtml(): string {
 type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
 type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
 type UserNameSettingsStore = ReturnType<typeof createUserNameSettings>;
+type FillerSettingsStore = ReturnType<typeof createFillerSettings>;
 
 interface CardSectionDeps {
   /** Panel root holding the section's markup. */
@@ -130,6 +132,8 @@ interface CardSectionDeps {
   importCard: () => Promise<ImportedCard | null>;
   exportCard: (text: string, fileName: string) => Promise<"written" | "cancelled">;
   createPresetFromCard: (card: Card, thumbnailTempId?: string) => Promise<string>;
+  /** Filler pools the card export carries; absent where the panel has no filler section. */
+  fillerSettings?: Pick<FillerSettingsStore, "get">;
   log: Logger;
 }
 
@@ -222,6 +226,7 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
     },
     currentCard,
     entry,
+    fillerPools: () => deps.fillerSettings?.get().customPools ?? {},
     log,
   });
 
