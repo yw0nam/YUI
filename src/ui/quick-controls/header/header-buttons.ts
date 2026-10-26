@@ -1,5 +1,5 @@
 /**
- * Header buttons — owns the panel header's pop-out, message, devtools and close buttons: node
+ * Header buttons — owns the panel header's pop-out, message and close buttons: node
  * queries, handlers, listeners, teardown.
  */
 
@@ -11,7 +11,6 @@ interface HeaderButtonsDeps {
   onPopOut?: () => void;
   /** Opens the text input. */
   onMessage?: () => void;
-  onOpenDevtools?: () => void;
 }
 
 interface HeaderButtons {
@@ -20,11 +19,10 @@ interface HeaderButtons {
 }
 
 export function createHeaderButtons(deps: HeaderButtonsDeps): HeaderButtons {
-  const { root: el, close, onPopOut, onMessage, onOpenDevtools } = deps;
+  const { root: el, close, onPopOut, onMessage } = deps;
 
   const popOutBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--popout");
   const messageBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--message");
-  const devtoolsBtn = el.querySelector<HTMLButtonElement>(".yui-devtools-open");
   const closeBtn = el.querySelector<HTMLButtonElement>(".yui-iconbtn--close");
 
   function handlePopOut(): void {
@@ -39,7 +37,6 @@ export function createHeaderButtons(deps: HeaderButtonsDeps): HeaderButtons {
 
   popOutBtn?.addEventListener("click", handlePopOut);
   messageBtn?.addEventListener("click", handleMessage);
-  devtoolsBtn?.addEventListener("click", () => onOpenDevtools?.());
   closeBtn?.addEventListener("click", close);
 
   return {

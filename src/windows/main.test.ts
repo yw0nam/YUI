@@ -4,7 +4,11 @@
 import { afterEach, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => {
-  const windowBridge = { name: "pet window settings bridge", onPetWindowsChanged: () => () => {} };
+  const windowBridge = {
+    name: "pet window settings bridge",
+    onPetWindowsChanged: () => () => {},
+    onOpenDevtools: () => () => {},
+  };
   const stopTurn = (): void => {};
   return { windowBridge, stopTurn };
 });
@@ -82,4 +86,23 @@ it("hands the preset switch the stop button's stopTurn and the window's settings
   expect(wirePresetSwitch).toHaveBeenCalledWith(
     expect.objectContaining({ bridge: h.windowBridge, onBeforeReload: h.stopTurn }),
   );
+});
+
+it("opens the settings window from the pill's capture button and lands the voice fix on Connection", async () => {
+  vi.resetModules();
+  document.body.innerHTML = '<div id="app"></div>';
+  const { createSettingsWindowOpener } = await import("../io/window/openers/settings-window");
+  const { createStatusPill } = await import("../ui/chips/status-pill");
+  const { showBootError } = await import("../ui/notices/boot-error");
+  const openSettings = vi.fn();
+  vi.mocked(createSettingsWindowOpener).mockReturnValue(openSettings);
+
+  await import("./main");
+  await vi.waitFor(() => expect(showBootError).toHaveBeenCalledOnce());
+  const pill = vi.mocked(createStatusPill).mock.calls[0]![0];
+
+  pill.onOpenSettings?.();
+  expect(openSettings).toHaveBeenLastCalledWith();
+  pill.onFixVoice?.();
+  expect(openSettings).toHaveBeenLastCalledWith("conn");
 });

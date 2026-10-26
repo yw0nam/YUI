@@ -866,7 +866,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/settings",
       "module": "bridge",
       "label": "settings bridge",
-      "role": "Typed cross-window settings bus: its channels scoped to the sender's preset, and the unscoped settings-changed, preset-changed, pet-windows-changed, character-addressed, user-turn-routed, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control and stop-turns.",
+      "role": "Typed cross-window settings bus: its channels scoped to the sender's preset, and the unscoped settings-changed, preset-changed, pet-windows-changed, character-addressed, user-turn-routed, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control, stop-turns, settings-page and open-devtools.",
       "paths": [
         "src/io/bridge/settings-bridge.ts"
       ]
@@ -1318,7 +1318,7 @@ globalThis.YUI_MAP =
       "id": "app/settings-window",
       "module": "wiring",
       "label": "settings-window wiring",
-      "role": "Composes the settings window over the stores of the preset it edits (`?edit=`, else its own) and mirrors the voice toggle in main only.",
+      "role": "Composes the settings window over the stores of the preset it edits (`?edit=`, else its own), opens it on the page of `?page=` and on later page requests, and mirrors the voice toggle in main only.",
       "paths": [
         "src/app/settings-window"
       ]
@@ -2663,6 +2663,69 @@ globalThis.YUI_MAP =
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/settings-window/wire-settings-window.ts"
+    },
+    {
+      "id": "settings-open-windows",
+      "from": "windows",
+      "to": "io/window/openers",
+      "carries": "openSettings(page?): the status pill's capture button opens no page, the voice-setup fix and the delegation chip Connection; a new settings window at settings.html with `?preset=<id>` and `&page=<page>`, else the open one is shown, focused and asked for the page",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/windows/main.ts"
+    },
+    {
+      "id": "settings-open-bootstrap",
+      "from": "app/bootstrap",
+      "to": "io/window/openers",
+      "carries": "openSettings(\"conn\"): the turn error's fix button and the first-run hint's action",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/bootstrap-configured.ts"
+    },
+    {
+      "id": "settings-open-controls",
+      "from": "app/controls",
+      "to": "io/window/openers",
+      "carries": "openSettings(\"conn\"): the message window's settings button",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/controls/wire-pet-controls.ts"
+    },
+    {
+      "id": "settings-page-emit",
+      "from": "io/window/openers",
+      "to": "io/bridge/settings",
+      "carries": "an open settings window shown → yui://settings-page {preset: id or null, page?}",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/windows/main.ts"
+    },
+    {
+      "id": "settings-page",
+      "from": "io/bridge/settings",
+      "to": "app/settings-window",
+      "carries": "yui://settings-page {preset, page?}, unscoped: the window whose preset is `preset` (main's for null) switches to the character, by reloading without `?edit=` when it edits another, and selects the page; other windows drop it",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/settings-window/wire-settings-page.ts"
+    },
+    {
+      "id": "settings-devtools-request",
+      "from": "ui/quick-controls",
+      "to": "io/bridge/settings",
+      "carries": "the General page's Developer Tools button → yui://open-devtools, no payload",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/settings-window/wire-settings-window.ts"
+    },
+    {
+      "id": "devtools-open",
+      "from": "io/bridge/settings",
+      "to": "io/window/openers",
+      "carries": "yui://open-devtools, unscoped: main's pet window opens the devtools window; a bound pet window does not listen",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/controls/wire-devtools-request.ts"
     },
     {
       "id": "settings-camera",
@@ -4698,6 +4761,34 @@ globalThis.YUI_MAP =
         "from": "settings",
         "to": "pet",
         "carries": "yui://help-guide: {guide, text}",
+        "kind": "bridge"
+      },
+      {
+        "id": "settings-page-window",
+        "from": "pet",
+        "to": "settings",
+        "carries": "yui://settings-page: {preset, page?}; unscoped, the settings window of that preset acts on it",
+        "kind": "bridge"
+      },
+      {
+        "id": "open-devtools-window",
+        "from": "settings",
+        "to": "pet",
+        "carries": "yui://open-devtools: no payload; unscoped, only main's pet window opens the devtools window",
+        "kind": "bridge"
+      },
+      {
+        "id": "open-devtools-companion",
+        "from": "settings-<id>",
+        "to": "pet",
+        "carries": "yui://open-devtools: no payload; unscoped, only main's pet window opens the devtools window",
+        "kind": "bridge"
+      },
+      {
+        "id": "settings-page-companion",
+        "from": "pet-<id>",
+        "to": "settings-<id>",
+        "carries": "yui://settings-page: {preset, page?}; unscoped, the settings window of that preset acts on it",
         "kind": "bridge"
       },
       {

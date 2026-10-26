@@ -118,6 +118,19 @@ describe("wirePetControls", () => {
     }
   });
 
+  it("opens the settings window on Connection when a popped-out surface asks for settings", () => {
+    const wired = makeDeps();
+    try {
+      const ask = wired.deps.remoteSurfaces.onOpenSettings.mock.calls[0]![0];
+
+      ask();
+
+      expect(wired.deps.openSettings).toHaveBeenCalledExactlyOnceWith("conn");
+    } finally {
+      teardownDeps(wired);
+    }
+  });
+
   it("registers the four teardowns in the baseline boot order", () => {
     const wired = makeDeps();
 

@@ -59,6 +59,7 @@ import type { createProactiveSettings } from "../../settings/cues/proactive-sett
 import type { createScheduleSettings } from "../../settings/cues/schedule-settings";
 import type { createUserNameSettings } from "../../settings/identity/user-name-settings";
 import type { MessageWindowSettingsStore } from "../../settings/panels/message-window-settings";
+import type { SettingsPage } from "../../settings/panels/settings-pages";
 import type { ClampedIntSettingsStore, FlagSettingsStore } from "../../settings/persisted-store";
 import { presetIdForWindow } from "../../settings/preset/active-preset";
 import type { PetWindows } from "../../settings/preset/pet-windows";
@@ -72,7 +73,7 @@ import type { VoiceInputStatus } from "../chips/voice-input-status";
 import { t } from "../i18n";
 import { createCharacterTab } from "./character/character-tab";
 import { createConnectionTab, type PushSocketPanelPort } from "./connection/connection-tab";
-import { DEFAULT_PAGE, type QuickControlsTab } from "./constants";
+import { DEFAULT_PAGE } from "./constants";
 import { mountCueLists } from "./cue-lists/cue-lists";
 import { createHeaderButtons } from "./header/header-buttons";
 import { createHintTooltip } from "./hint-tooltip";
@@ -83,6 +84,7 @@ import { bindSettingsSearch } from "./search/settings-search";
 import { createAgentSection } from "./sections/agent/agent-section";
 import { createBrowserSection } from "./sections/browser/browser-section";
 import { createCardSection } from "./sections/card/card-section";
+import { bindDevtoolsRow } from "./sections/devtools/devtools-row";
 import { createFillerSection } from "./sections/filler/filler-section";
 import { bindHelpSection } from "./sections/help/help-section";
 import { createKeyRow } from "./sections/key-row/key-row";
@@ -306,9 +308,9 @@ interface PanelSection {
 interface QuickControls {
   el: HTMLElement;
   /** Summon the panel. `tab` lands on that tab instead of the one last left selected. */
-  open(anchor?: { x: number; y: number }, opts?: { tab?: QuickControlsTab }): void;
+  open(anchor?: { x: number; y: number }, opts?: { tab?: SettingsPage }): void;
   /** The tab the panel shows now. */
-  selectedTab(): QuickControlsTab;
+  selectedTab(): SettingsPage;
   close(): void;
   isOpen(): boolean;
   dispose(): void;
@@ -451,7 +453,7 @@ export function createQuickControls({
     showPresence: !!presenceSettings,
     showPacerGap: !!pacerGapSettings,
     showRateLimits: !!rateLimitSettings,
-    showDevtools: !isWindow && !!onOpenDevtools,
+    showDevtools: !!onOpenDevtools,
     showHelp: !!onGuide,
     showMessage: !!onMessage,
     showHistory: !!transcript,
@@ -747,7 +749,7 @@ export function createQuickControls({
   const unbindTransportLinks = bindTransportLinks(el, (id) => tabRail.select(id));
   const unbindSearch = bindSettingsSearch(el);
 
-  function openPanel(anchor?: { x: number; y: number }, opts?: { tab?: QuickControlsTab }): void {
+  function openPanel(anchor?: { x: number; y: number }, opts?: { tab?: SettingsPage }): void {
     if (!visibleViewport) {
       openNow(anchor, opts?.tab);
       return;
@@ -757,7 +759,7 @@ export function createQuickControls({
     });
   }
 
-  function openNow(anchor?: { x: number; y: number }, tab?: QuickControlsTab): void {
+  function openNow(anchor?: { x: number; y: number }, tab?: SettingsPage): void {
     // Select before opening so the panel is positioned around the tab the caller asked for.
     if (tab && tabRail.select(tab)) {
       popover.open(anchor);
@@ -768,8 +770,8 @@ export function createQuickControls({
     }
   }
 
-  function selectedTab(): QuickControlsTab {
-    return tabRail.selected() as QuickControlsTab;
+  function selectedTab(): SettingsPage {
+    return tabRail.selected() as SettingsPage;
   }
 
   // Cue-list components — both on the Proactive page: proactive in .yui-loop-cue-section, schedule in .yui-cue-sections.
@@ -782,14 +784,14 @@ export function createQuickControls({
     proactiveSettings,
   });
 
-  // ── Header buttons (pop-out · message · devtools · close) ──
+  // ── Header buttons (pop-out · message · close) ──
   const headerButtons = createHeaderButtons({
     root: el,
     close: popover.close,
     onPopOut,
     onMessage,
-    onOpenDevtools,
   });
+  const unbindDevtools = onOpenDevtools ? bindDevtoolsRow(el, onOpenDevtools) : undefined;
   // The popover closes first, as for the message button, so the reply is what the user sees next.
   // The separate settings window stays open.
   const unbindHelp = onGuide
@@ -832,6 +834,7 @@ export function createQuickControls({
     workflows,
     { dispose: cueLists.destroy },
     headerButtons,
+    unbindDevtools && { dispose: unbindDevtools },
     { dispose: unbindHelp },
     { dispose: unbindTransportLinks },
     { dispose: unbindSearch },

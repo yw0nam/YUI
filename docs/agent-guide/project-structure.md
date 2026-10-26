@@ -78,6 +78,7 @@ YUI/
         wire-window-sync.ts          # Settings broadcast, guardrail overrides, and the shared cross-window sync core
       controls/                      # The pet window's summonable control surfaces
         wire-pet-controls.ts         # Quick-controls panel, remounted on locale change, and the stage context menu
+        wire-devtools-request.ts     # Main's pet window opens Developer Tools when the settings window asks
         wire-help-guide.ts           # Guide requests submitted as user turns, from the panel's Ask buttons or the settings bridge
       settings/                      # Selections and conversation state applied to the running app
         config-defaults.ts           # The quick-controls getters over the bundled config, shared by the pet and settings windows
@@ -105,7 +106,8 @@ YUI/
         wire-unified-close.ts        # The window closing itself turns the Unified chat switch off
       settings-window/               # The settings window's wiring
         wire-settings-window.ts      # Stores, config, cross-window sync, and the quick controls remounted on locale change, bound to the query's preset when it names one, and editing the preset `?edit=` names
-        edit-target-url.ts           # The settings URL with its `edit` param set to the picked preset, or dropped for the window's own
+        edit-target-url.ts           # The settings URL with its `edit` param set to the picked preset, or dropped for the window's own, and its `page` param set to the requested page
+        wire-settings-page.ts        # Takes the URL's page, and answers an opener's page request: switches to the opener's character, then selects the page
         wire-voice-mirror.ts         # Mirrors the voice toggle to the pet window and the pet window's voice state back; main only
       voice/                         # Desktop voice wiring
         voice-fix.ts                 # The desktop pill's setup-needed tap: open Connection, then back to listening
@@ -328,7 +330,7 @@ YUI/
       preset/                        # Presets: which keys belong to one, the active one, the registry, and the windows bound to one
         preset-keys.ts               # The per-preset key list and where a key lives under a given preset
         active-preset.ts             # The registry's stored shape and the id a window resolves its keys under: the preset query, else the active preset
-        bound-preset.ts              # The page queries that bind a window to one preset (`?preset=`) and name the preset a settings window edits (`?edit=`)
+        bound-preset.ts              # The page queries that bind a window to one preset (`?preset=`), name the preset a settings window edits (`?edit=`), and the page it opens on (`?page=`)
         preset-registry.ts           # Preset list and active preset under yui.presets: create, rename (everyone, here and all are refused), remove, activate, setThumbnail (with crop)
         photo-crop.ts                # A photo's crop area as ratios, its validator, and the default, whole-photo and face framings
         import-card-preset.ts        # Creates a preset from an imported card and rolls it back on any failure
@@ -346,6 +348,7 @@ YUI/
         user-name-settings.ts        # Device-wide "Your name", what {{user}} resolves to
       panels/                        # Panel and window state
         delegation-chip-settings.ts  # Per-device fold state of the delegation chip
+        settings-pages.ts            # The settings page ids, character pages and app pages, and the check for one
         message-window-settings.ts   # Message-window mode and last outer position under the window's preset key
         window-geometry-settings.ts  # Per-window-label size and position the user's drags and resizes leave
     io/                              # I/O layer: chat, voice, window and OS seams
@@ -441,7 +444,7 @@ YUI/
           perch.ts                     # Perch values, perch-target and placement types, and the host-edge span shared by the drop source, avatar RPC and locomotion
           visible-viewport.ts          # Cached height of the pet window part above the work-area bottom
         openers/                       # Openers and placement of the message, settings, devtools, and pet windows, the first two bound to a pet window's preset
-          settings-window.ts           # Settings window opener, settings-<id> for a bound id, and cross-window settings sync
+          settings-window.ts           # Settings window opener, settings-<id> for a bound id, landing on a page or asking the open window for it, and cross-window settings sync
           devtools-window.ts           # Developer Tools window opener
           message-window.ts            # Message-window opener, message-<id> for a bound id
           message-window-mode.ts       # Keeps the message window in step with the stored mode, the unified chat window and the dock request
@@ -618,7 +621,7 @@ YUI/
         delegations/                 # Delegated-work refresh for the session section
           delegation-sync.ts         # Minute refresh timer that follows the running delegated items
         header/                      # Popover header bar buttons
-          header-buttons.ts          # Pop-out, message, devtools and close buttons with their listeners
+          header-buttons.ts          # Pop-out, message and close buttons with their listeners
         preset/                      # Preset strip above the rail
           preset-strip.ts            # Active-preset picker, the switching state, the page scope lines and the rail's character heading it fills; in the settings window the character header picks the preset to edit (`?edit=`)
           character-header.ts        # The settings window's header: every preset with its face, transport and window state; a click edits it
@@ -656,6 +659,8 @@ YUI/
           push-reason/               # Controls the push transport cannot use
             push-reason.ts           # The reason line under such a control and its link to the chat protocol select
             push-reason.css          # Reason line styles
+          devtools/                  # Developer Tools row on the General page
+            devtools-row.ts          # Binds the row's button to the devtools window opener
           user-name/                 # "Your name" on the General page
             user-name-section.ts     # The device-wide user name row, its fallback placeholder and redraw
             help-section.ts          # One Ask button per bundled guide

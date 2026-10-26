@@ -9,8 +9,8 @@
  */
 
 import type { SpeechAction } from "../../io/bridge/message/message-remote";
+import type { SettingsPage } from "../../settings/panels/settings-pages";
 import { formatAccel } from "../input/format-accel";
-import type { QuickControlsTab } from "../quick-controls/constants";
 
 type TranslateFn = (key: string, vars?: Record<string, string | number>) => string;
 
@@ -29,7 +29,7 @@ export interface FirstRunHintDeps {
   /** Whether a chat backend address is set. False switches the hint to setup guidance. */
   chatConfigured: boolean;
   /** Opens the settings panel; the setup hint's button lands on the Connection tab. */
-  openSettings(tab: QuickControlsTab): void;
+  openSettings(tab: SettingsPage): void;
   t: TranslateFn;
 }
 

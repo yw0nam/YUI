@@ -11,8 +11,8 @@
 import type { TurnErrorDetail, TurnFailure } from "../../dispatcher/backend/backend-caller";
 import type { UserTurnSource } from "../../dispatcher/core/classify";
 import type { InputErrorAction } from "../../io/bridge/message/message-remote";
+import type { SettingsPage } from "../../settings/panels/settings-pages";
 import { t } from "../i18n";
-import type { QuickControlsTab } from "../quick-controls/constants";
 
 /** Rendered server-message budget — one line, cut with an ellipsis past this. */
 const SERVER_MESSAGE_MAX_CHARS = 200;
@@ -69,7 +69,7 @@ export function isSettingsFixable(reason: string): boolean {
  */
 export function turnErrorFixAction(
   reason: TurnFailure,
-  openSettings?: (tab: QuickControlsTab) => void,
+  openSettings?: (tab: SettingsPage) => void,
 ): InputErrorAction | undefined {
   if (!openSettings || !isSettingsFixable(reason)) return undefined;
   return { label: t("input.error_open_connection"), onClick: () => openSettings("conn") };

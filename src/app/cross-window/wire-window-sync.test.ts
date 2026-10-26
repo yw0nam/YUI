@@ -330,6 +330,28 @@ describe("wireWindowSync", () => {
     sync.dispose();
   });
 
+  it("uses the bridge it is given instead of creating one", () => {
+    const { bag } = makeBag([]);
+    const given = {
+      emitSettingsChanged: vi.fn(),
+      onSettingsChanged: vi.fn(() => vi.fn()),
+      dispose: vi.fn(),
+    };
+    createSettingsBridge.mockClear();
+
+    const sync = wireWindowSync({
+      stores: bag as never,
+      windowKind: "settings",
+      bridge: given as never,
+      log: noopLog,
+    });
+    sync.dispose();
+
+    expect(sync.bridge).toBe(given);
+    expect(createSettingsBridge).not.toHaveBeenCalled();
+    expect(given.dispose).toHaveBeenCalledOnce();
+  });
+
   it("runs the reload and every remote hook under the loop guard", () => {
     const order: string[] = [];
     const { bag } = makeBag(order);
