@@ -35,6 +35,11 @@ type SpeechSide = Pick<
   | "clearQuote"
 >;
 
+type LineSide = Pick<
+  Surfaces,
+  "beginSpeech" | "pushSpeech" | "paceSpeech" | "endSpeech" | "finishSpeech" | "hideSpeech"
+>;
+
 export function createSurfacesRouter({
   local,
   remote,
@@ -49,9 +54,19 @@ export function createSurfacesRouter({
     Surfaces,
     "summonInput" | "dismissInput" | "isInputOpen" | "showInputError" | "restoreInput"
   > => (getMode() === "popped" ? remote : local);
-  // Whether the current line is the character's chat (a turn's utterance or an aside), not a notice.
+  // The side the current line began on: the stream, the pet side (local or remote by the mode), or none once dropped.
+  let lineSide: "stream" | "pet" | "none" = "pet";
   let chatLine = false;
-  const line = (): SpeechSide => (shown.get() && chatLine ? stream : speech());
+  const noLine: LineSide = {
+    beginSpeech() {},
+    pushSpeech() {},
+    paceSpeech() {},
+    endSpeech() {},
+    finishSpeech() {},
+    hideSpeech() {},
+  };
+  const line = (): LineSide =>
+    lineSide === "stream" ? stream : lineSide === "pet" ? speech() : noLine;
   const quote = (): SpeechSide => (shown.get() ? stream : speech());
 
   // Speech left behind on the side being abandoned would hang there with nothing to dismiss it,
@@ -74,6 +89,8 @@ export function createSurfacesRouter({
   });
   const unsubscribeShown = shown.subscribe((on) => {
     if (!on) return;
+    // A chat line already under way on the character's bubble shows from its next line, in the unified window.
+    if (lineSide === "pet" && chatLine) lineSide = "none";
     for (const side of [local, remote]) {
       side.hideSpeech();
       if (side.isInputOpen()) side.dismissInput();
@@ -86,6 +103,7 @@ export function createSurfacesRouter({
 
     beginSpeech(...args) {
       chatLine = args[0] !== undefined || args[1]?.aside === true;
+      lineSide = shown.get() && chatLine ? "stream" : "pet";
       line().beginSpeech(...args);
     },
     pushSpeech: (...args) => line().pushSpeech(...args),
