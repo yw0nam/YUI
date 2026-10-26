@@ -13,6 +13,7 @@ import { createLogger } from "../../logger";
 import { coerceAgentSettings } from "../backend/agent-settings";
 import { cardWithoutFiller, readCardFiller } from "../voice/card-filler";
 import { isValidCustomPools, withCustomPools } from "../voice/filler-settings";
+import type { PhotoCrop } from "./photo-crop";
 import { resolveStorageKey } from "./preset-keys";
 
 const log = createLogger("import-card-preset");
@@ -20,13 +21,13 @@ const log = createLogger("import-card-preset");
 export interface CreatePresetFromCardInput {
   registry: {
     create(name: string): string | null;
-    setThumbnail(id: string, url: string): boolean;
+    setThumbnail(id: string, url: string, crop?: PhotoCrop): boolean;
     activate(id: string): boolean;
     remove(id: string): boolean;
   };
   card: Card;
-  /** Renames the temp thumbnail copy to the preset id and returns its file URL. */
-  retainThumbnail?: (presetId: string) => Promise<string>;
+  /** Renames the temp thumbnail copy to the preset id and returns its file URL and default crop. */
+  retainThumbnail?: (presetId: string) => Promise<{ url: string; crop?: PhotoCrop }>;
   /** Removes both thumbnail copies (temp id and preset id). Idempotent. */
   discardThumbnail?: (presetId: string) => Promise<void>;
   /** The key-value storage the copied `yui.agent` and the greeting marker live in. */
@@ -81,8 +82,8 @@ export async function createPresetFromCard(input: CreatePresetFromCardInput): Pr
     if (filler !== undefined) applyCardFiller(kv, id, filler, input.fillerLocale);
 
     if (retainThumbnail) {
-      const url = await retainThumbnail(id);
-      if (!registry.setThumbnail(id, url)) throw new Error("preset_create_failed");
+      const { url, crop } = await retainThumbnail(id);
+      if (!registry.setThumbnail(id, url, crop)) throw new Error("preset_create_failed");
     }
 
     kv?.setItem(resolveStorageKey("yui.greeting-pending", id), "1");
