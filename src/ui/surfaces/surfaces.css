@@ -136,6 +136,11 @@
   transform: translate(-50%, 0) scale(1);
 }
 
+/* A click on the box completes the line; around it the wrapper still passes pointers through. */
+.yui-bubble.is-visible .yui-bubble__box {
+  pointer-events: auto;
+}
+
 /* Screen-reader-only narration area — not visible on screen. */
 .yui-bubble__sr {
   position: absolute;
