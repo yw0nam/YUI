@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { createFlagSettings } from "../../../settings/persisted-store";
+import { createPetWindows } from "../../../settings/preset/pet-windows";
+import { createPresetRegistry } from "../../../settings/preset/preset-registry";
 import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
 import { defaultQcArgs } from "../test-helpers";
@@ -16,6 +18,9 @@ function build() {
     ...defaultQcArgs(mount),
     variant: "window",
     gazeSettings: createFlagSettings(true),
+    onResetViewpoint: vi.fn(),
+    presetRegistry: createPresetRegistry(),
+    petWindows: createPetWindows(),
   });
   const input = qc.el.querySelector<HTMLInputElement>(".yui-search__input")!;
   const search = (q: string) => {
@@ -60,5 +65,30 @@ it.each(["clear", "Escape"])("%s restores the rail and the rows", (how) => {
   expect(tab("perms").classList.contains("is-dim")).toBe(false);
   expect(gazeRow().classList.contains("is-match")).toBe(false);
   expect(qc.isOpen()).toBe(true);
+  qc.dispose();
+});
+
+it.each([
+  ["Use interjections", "voice", ".yui-filler .yui-sec__head"],
+  ["Reset to front", "body", ".yui-viewpoint-reset"],
+])("finds %s, which rides a section head", (query, page, sel) => {
+  const { qc, search, count } = build();
+
+  search(query);
+
+  expect(count(page)).toBe("1");
+  expect(qc.el.querySelector(sel)!.closest(".is-match")).not.toBeNull();
+  qc.dispose();
+});
+
+it.each([
+  ["backend picks the model", "conn"],
+  ["Turn one off first", "together"],
+])("skips the hidden reason line %s", (query, page) => {
+  const { qc, search, count } = build();
+
+  search(query);
+
+  expect(count(page)).toBe("0");
   qc.dispose();
 });
