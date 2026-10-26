@@ -304,6 +304,7 @@ describe("createSettingsBridge", () => {
     ["onSpeechStream", { preset: "p2", op: { op: "push", delta: "hi" } }, false],
     ["onSpeechStreamAsk", undefined, false],
     ["onStopTurns", undefined, false],
+    ["onSpeechStreamControl", { preset: "p2", op: { op: "input-error-action" } }, false],
     ["onUserTurnDone", { sendId: "s1", preset: "p2" }, false],
   ] as const)("%s uses its declared preset scope", (method, payload, scoped) => {
     history.replaceState(null, "", "/?preset=a");
@@ -514,6 +515,22 @@ describe("speech stream", () => {
     pet.emitSpeechStream(payload as never);
 
     expect(received).not.toHaveBeenCalled();
+  });
+
+  it("carries the unified window's click on an error's fix back, stamped with the preset", () => {
+    const { pet, unified } = pair();
+    const control = vi.fn();
+    pet.onSpeechStreamControl(control);
+
+    unified.emitSpeechStreamControl({ preset: "yui", op: { op: "input-error-action" } });
+    for (const bad of [
+      { preset: "", op: { op: "input-error-action" } },
+      { preset: "yui", op: { op: "submit", text: "x", images: [] } },
+      { preset: "yui" },
+    ])
+      unified.emitSpeechStreamControl(bad as never);
+
+    expect(control.mock.calls).toEqual([[{ preset: "yui", op: { op: "input-error-action" } }]]);
   });
 
   it("delivers an ask from the unified window to a pet window", () => {

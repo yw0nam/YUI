@@ -183,6 +183,25 @@ describe("unified view — running replies", () => {
     );
   });
 
+  it("offers an error's fix and sends its click back to the preset that failed", () => {
+    mount();
+    const clicked: string[] = [];
+    view.onInputErrorAction((preset) => clicked.push(preset));
+
+    stream("natsume", {
+      op: "input-error",
+      message: "Connect a backend first.",
+      action: { label: "Open Connection" },
+    });
+    const fix = document.querySelector<HTMLButtonElement>(
+      ".yui-uc__dock .yui-input__error-action",
+    )!;
+    expect(fix.textContent).toBe("Open Connection");
+    fix.click();
+
+    expect(clicked).toEqual(["natsume"]);
+  });
+
   it("focuses the window and the field on a summon", async () => {
     mount();
 
