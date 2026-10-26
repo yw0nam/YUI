@@ -24,7 +24,7 @@ import { subscribeOsEvent } from "../io/window/tauri-listen";
 import { createLogger } from "../logger";
 import { mergeScreen } from "../settings/capture/screen-settings";
 import type { DelegationChipSettingsStore } from "../settings/panels/delegation-chip-settings";
-import type { QuickControlsTab } from "../settings/panels/settings-pages";
+import type { SettingsPage } from "../settings/panels/settings-pages";
 import { presetIdForWindow, readPresetName } from "../settings/preset/active-preset";
 import type { UnifiedShown } from "../settings/unified/unified-shown";
 import { createUnifiedWindowSettings } from "../settings/unified/unified-window-settings";
@@ -61,7 +61,7 @@ interface Phase1Handles extends TurnCorePhase1 {
   stage: HTMLElement;
   getQuickControls(): ReturnType<typeof createQuickControls>;
   /** Opens the settings window on a page, on the main character or this window's own. */
-  openSettings(page?: QuickControlsTab): void;
+  openSettings(page?: SettingsPage): void;
   /** Subscribes to resets the preset's other windows announce. */
   onSessionReset(cb: (presetId: string) => void): () => void;
   /** Emits this window's replies that named another open character, once their playback ended. */

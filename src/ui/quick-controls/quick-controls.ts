@@ -59,7 +59,7 @@ import type { createProactiveSettings } from "../../settings/cues/proactive-sett
 import type { createScheduleSettings } from "../../settings/cues/schedule-settings";
 import type { createUserNameSettings } from "../../settings/identity/user-name-settings";
 import type { MessageWindowSettingsStore } from "../../settings/panels/message-window-settings";
-import type { QuickControlsTab } from "../../settings/panels/settings-pages";
+import type { SettingsPage } from "../../settings/panels/settings-pages";
 import type { ClampedIntSettingsStore, FlagSettingsStore } from "../../settings/persisted-store";
 import { presetIdForWindow } from "../../settings/preset/active-preset";
 import type { PetWindows } from "../../settings/preset/pet-windows";
@@ -308,9 +308,9 @@ interface PanelSection {
 interface QuickControls {
   el: HTMLElement;
   /** Summon the panel. `tab` lands on that tab instead of the one last left selected. */
-  open(anchor?: { x: number; y: number }, opts?: { tab?: QuickControlsTab }): void;
+  open(anchor?: { x: number; y: number }, opts?: { tab?: SettingsPage }): void;
   /** The tab the panel shows now. */
-  selectedTab(): QuickControlsTab;
+  selectedTab(): SettingsPage;
   close(): void;
   isOpen(): boolean;
   dispose(): void;
@@ -749,7 +749,7 @@ export function createQuickControls({
   const unbindTransportLinks = bindTransportLinks(el, (id) => tabRail.select(id));
   const unbindSearch = bindSettingsSearch(el);
 
-  function openPanel(anchor?: { x: number; y: number }, opts?: { tab?: QuickControlsTab }): void {
+  function openPanel(anchor?: { x: number; y: number }, opts?: { tab?: SettingsPage }): void {
     if (!visibleViewport) {
       openNow(anchor, opts?.tab);
       return;
@@ -759,7 +759,7 @@ export function createQuickControls({
     });
   }
 
-  function openNow(anchor?: { x: number; y: number }, tab?: QuickControlsTab): void {
+  function openNow(anchor?: { x: number; y: number }, tab?: SettingsPage): void {
     // Select before opening so the panel is positioned around the tab the caller asked for.
     if (tab && tabRail.select(tab)) {
       popover.open(anchor);
@@ -770,8 +770,8 @@ export function createQuickControls({
     }
   }
 
-  function selectedTab(): QuickControlsTab {
-    return tabRail.selected() as QuickControlsTab;
+  function selectedTab(): SettingsPage {
+    return tabRail.selected() as SettingsPage;
   }
 
   // Cue-list components — both on the Proactive page: proactive in .yui-loop-cue-section, schedule in .yui-cue-sections.

@@ -17,7 +17,7 @@ import { resolveScreenSourceProvider } from "../../io/window/capture/tauri-scree
 import { createDevtoolsWindowOpener } from "../../io/window/openers/devtools-window";
 import { closeSettingsWindow, titleSettingsWindow } from "../../io/window/openers/settings-window";
 import { createLogger } from "../../logger";
-import type { QuickControlsTab } from "../../settings/panels/settings-pages";
+import type { SettingsPage } from "../../settings/panels/settings-pages";
 import { presetIdForWindow } from "../../settings/preset/active-preset";
 import { readBoundPresetId, readSettingsPage } from "../../settings/preset/bound-preset";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
@@ -232,7 +232,7 @@ export async function wireSettingsWindow(deps: {
   };
   window.addEventListener("focus", onWindowFocus);
 
-  const reloadOnCharacter = (id: string, page?: QuickControlsTab): void =>
+  const reloadOnCharacter = (id: string, page?: SettingsPage): void =>
     location.replace(
       editTargetUrl(location.href, id, boundId ?? presetRegistry.get().active, page),
     );
@@ -341,7 +341,7 @@ export async function wireSettingsWindow(deps: {
       boundId,
       editing: presetIdForWindow,
       active: () => presetRegistry.get().active,
-      select: (tab) => quickControls.open(undefined, { tab }),
+      select: (page) => quickControls.open(undefined, { tab: page }),
       retarget: reloadOnCharacter,
     }),
   );

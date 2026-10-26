@@ -1,9 +1,10 @@
 /** Settings opens the main or bound companion window and shares storage change notifications. */
 
 import { createLogger } from "../../../logger";
-import type { QuickControlsTab } from "../../../settings/panels/settings-pages";
+import type { SettingsPage } from "../../../settings/panels/settings-pages";
 import { windowLabel } from "../../../settings/preset/pet-windows";
 import { isTauri } from "../../../tauri-env";
+import type { SettingsBridge } from "../../bridge/settings-bridge";
 
 const log = createLogger("settings-window");
 
@@ -11,11 +12,10 @@ const SETTINGS_LABEL = "settings";
 const SETTINGS_URL = "settings.html";
 const SETTINGS_TITLE = "YUI Settings";
 
-/** Forwards a request to an already open settings window (the settings bridge's emitter). */
-type EmitSettingsPage = (request: { preset: string | null; page?: QuickControlsTab }) => void;
+type EmitSettingsPage = SettingsBridge["emitSettingsPage"];
 
 /** `settings.html` with the preset and page the window opens on. */
-function settingsUrl(boundId?: string | null, page?: QuickControlsTab): string {
+function settingsUrl(boundId?: string | null, page?: SettingsPage): string {
   const query = [
     ...(boundId == null ? [] : [`preset=${encodeURIComponent(boundId)}`]),
     ...(page ? [`page=${page}`] : []),
@@ -43,7 +43,7 @@ export function openSettingsWindow(env: SettingsWindowEnv): void {
 /** If already open, focus and show; else create new. No step throws. */
 async function openTauriSettingsWindow(
   boundId: string | null | undefined,
-  page: QuickControlsTab | undefined,
+  page: SettingsPage | undefined,
   emitSettingsPage: EmitSettingsPage,
 ): Promise<void> {
   const label = boundId == null ? SETTINGS_LABEL : windowLabel("settings", boundId);
@@ -82,7 +82,7 @@ async function openTauriSettingsWindow(
   }
 }
 
-function openBrowserSettingsWindow(boundId?: string | null, page?: QuickControlsTab): void {
+function openBrowserSettingsWindow(boundId?: string | null, page?: SettingsPage): void {
   try {
     window.open(
       `/${settingsUrl(boundId, page)}`,
@@ -128,7 +128,7 @@ export function closeSettingsWindow(): void {
 export function createSettingsWindowOpener(
   boundId: string | null | undefined,
   emitSettingsPage: EmitSettingsPage,
-): (page?: QuickControlsTab) => void {
+): (page?: SettingsPage) => void {
   return (page) => {
     openSettingsWindow({
       isTauri: isTauri(),

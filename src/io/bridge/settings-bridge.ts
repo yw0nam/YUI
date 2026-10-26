@@ -6,7 +6,7 @@
  */
 
 import type { GuideKey } from "../../contract";
-import type { QuickControlsTab } from "../../settings/panels/settings-pages";
+import type { SettingsPage } from "../../settings/panels/settings-pages";
 import { isSettingsPage } from "../../settings/panels/settings-pages";
 import type { DelegationItem } from "../chat/push/push-frames";
 import type { PushSocketState } from "../chat/push/push-socket";
@@ -58,7 +58,7 @@ export interface PresetChange {
 /** A pet window asking the open settings window of `preset` (null: the main one) to show that character, on `page` when given. */
 export interface SettingsPageRequest {
   preset: string | null;
-  page?: QuickControlsTab;
+  page?: SettingsPage;
 }
 
 /** One character's reply named another open character; emitted once that reply's playback ended. */

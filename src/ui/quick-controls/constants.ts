@@ -10,10 +10,10 @@ import {
   SCREEN_RECENT_CAP_MAX,
   type ScreenOverrides,
 } from "../../settings/capture/screen-settings";
-import type { QuickControlsTab } from "../../settings/panels/settings-pages";
+import type { SettingsPage } from "../../settings/panels/settings-pages";
 import type { Locale } from "../i18n";
 
-export const DEFAULT_PAGE: QuickControlsTab = "persona";
+export const DEFAULT_PAGE: SettingsPage = "persona";
 
 // Language picker display order (Japanese / English / Korean). Fixed independently of LOCALES.
 export const LANG_PICKER_ORDER: readonly Locale[] = ["ja", "en", "ko"];

@@ -33,7 +33,7 @@ import type { ExpressVocabulary } from "../../io/chat/vocabulary/express-vocabul
 import type { ScreenCapturer } from "../../io/window/capture/screen-source-provider";
 import { buildScreenshotBlock } from "../../io/window/capture/screenshot-context";
 import type { Renderer } from "../../renderer";
-import type { QuickControlsTab } from "../../settings/panels/settings-pages";
+import type { SettingsPage } from "../../settings/panels/settings-pages";
 import {
   presetIdForWindow,
   readPresetList,
@@ -110,7 +110,7 @@ export function wireDispatcher(deps: {
   getVocabulary: () => ExpressVocabulary;
   /** The tools this window declares beside generate_express; empty outside Tauri. */
   windowTools?: readonly ClientTool[];
-  openSettings?: (tab: QuickControlsTab) => void;
+  openSettings?: (tab: SettingsPage) => void;
   showVoiceError: (reason: string, message?: string) => void;
   appendTurnRecord: (record: TurnRecord | PacerSkipRecord) => void;
   t: (key: string, vars?: Record<string, string | number>) => string;

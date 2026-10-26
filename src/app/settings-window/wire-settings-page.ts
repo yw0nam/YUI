@@ -1,5 +1,5 @@
 import type { SettingsBridge } from "../../io/bridge/settings-bridge";
-import type { QuickControlsTab } from "../../settings/panels/settings-pages";
+import type { SettingsPage } from "../../settings/panels/settings-pages";
 
 /** Answers an opener's page request: show the opener's character (reloading when another is edited), then its page. */
 export function wireSettingsPage(deps: {
@@ -10,8 +10,8 @@ export function wireSettingsPage(deps: {
   editing: () => string;
   /** The main character's preset id. */
   active: () => string;
-  select: (page: QuickControlsTab) => void;
-  retarget: (id: string, page?: QuickControlsTab) => void;
+  select: (page: SettingsPage) => void;
+  retarget: (id: string, page?: SettingsPage) => void;
 }): () => void {
   return deps.bridge.onSettingsPage(({ preset, page }) => {
     if (preset !== deps.boundId) return;

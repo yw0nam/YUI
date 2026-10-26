@@ -1,7 +1,7 @@
 /** Quick-controls panel markup — pure string construction (no DOM, no state). */
 
 import { THEMES } from "../../settings/appearance/theme-settings";
-import type { QuickControlsTab } from "../../settings/panels/settings-pages";
+import type { SettingsPage } from "../../settings/panels/settings-pages";
 import "./sections/session/session-section.css";
 import { LOCALE_DISPLAY_NAMES, t } from "../i18n";
 import {
@@ -293,9 +293,9 @@ ${PROACTIVE_CAP_FIELDS.map(capRowHtml).join("")}
     </div>`;
 
   // A narrow panel keeps the label; the icon-only rail drops it with the tooltip.
-  const tabHtml = (id: QuickControlsTab, icon: string, opts?: { tipKey?: string }): string =>
+  const tabHtml = (id: SettingsPage, icon: string, opts?: { tipKey?: string }): string =>
     tabButtonHtml(id, icon, { selected: id === DEFAULT_PAGE, tipKey: opts?.tipKey });
-  const panelOpenHtml = (id: QuickControlsTab): string =>
+  const panelOpenHtml = (id: SettingsPage): string =>
     tabPanelOpenHtml(id, { hidden: id !== DEFAULT_PAGE, scope: showPreset });
   // The character group's heading names the edited character once the preset strip fills it.
   const groupHtml = (group: "character" | "app"): string =>

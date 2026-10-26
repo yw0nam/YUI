@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatHistoryStore } from "../../../io/chat/conversation/chat-history-store";
-import type { QuickControlsTab } from "../../../settings/panels/settings-pages";
+import type { SettingsPage } from "../../../settings/panels/settings-pages";
 import { createVadSettings } from "../../../settings/voice/vad-settings";
 import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
@@ -213,7 +213,7 @@ describe("createQuickControls — tab rail", () => {
 
   it("open({ tab }) reaches every tab the tablist renders, hist closing the character's pages", () => {
     // The tab union is the panel's public vocabulary — it must not omit a rendered tab.
-    const names: QuickControlsTab[] = [
+    const names: SettingsPage[] = [
       "conn",
       "voice",
       "persona",

@@ -14,7 +14,7 @@ import type { ScreenSourceProvider } from "../../io/window/capture/screen-source
 import { toScreenMonitor } from "../../io/window/geometry/screen-geometry";
 import { createVisibleViewport } from "../../io/window/geometry/visible-viewport";
 import type { Renderer } from "../../renderer";
-import type { QuickControlsTab } from "../../settings/panels/settings-pages";
+import type { SettingsPage } from "../../settings/panels/settings-pages";
 import type { PetWindows } from "../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import type { SettingsStores } from "../../settings/settings-stores";
@@ -76,7 +76,7 @@ export function wirePetControls(deps: {
   screenSourceProvider: ScreenSourceProvider;
   surfaces: Pick<Surfaces, "summonInput">;
   remoteSurfaces: Pick<RemoteSurfaces, "onOpenSettings"> | null;
-  openSettings: (page?: QuickControlsTab) => void;
+  openSettings: (page?: SettingsPage) => void;
   onGuide: (guide: GuideKey, text: string) => void;
   openDevtools: () => void;
   unifiedShown: UnifiedShown;
