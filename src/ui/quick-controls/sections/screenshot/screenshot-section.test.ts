@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Logger } from "../../../../logger";
 import { createScreenshotSettings } from "../../../../settings/capture/screenshot-settings";
 import { createFlagSettings } from "../../../../settings/persisted-store";
+import { createFillerSettings } from "../../../../settings/voice/filler-settings";
 import { createVadSettings } from "../../../../settings/voice/vad-settings";
 import { setLocale } from "../../../i18n";
 import { createSwitchRows } from "../../switch-row";
@@ -26,6 +27,7 @@ function build({ enabled = false, open = true }: { enabled?: boolean; open?: boo
     switchRows: createSwitchRows({
       idleThrottleSettings: createFlagSettings(false),
       vad: createVadSettings(),
+      fillerSettings: createFillerSettings(),
     }),
     showScreen: false,
     showPresence: false,

@@ -38,23 +38,47 @@ function isValidPool(p: unknown): p is Partial<FillerPool> {
   return true;
 }
 
-function isValidSettings(v: unknown): v is FillerSettings {
-  if (v === null || typeof v !== "object") return false;
-  const s = v as Record<string, unknown>;
-  if (typeof s.enabled !== "boolean") return false;
-  if (typeof s.language !== "string" || !(FILLER_LANGS as readonly string[]).includes(s.language))
-    return false;
-  if (s.customPools === null || typeof s.customPools !== "object" || Array.isArray(s.customPools))
-    return false;
+/** Any language's pools may hold a value only when every present tier is a string[] (or tool a dict). */
+export function isValidCustomPools(v: unknown): v is FillerSettings["customPools"] {
+  if (v === null || typeof v !== "object" || Array.isArray(v)) return false;
   // Each present entry must be {first: string[]; repeat: string[]}, not the old string[] shape.
-  const pools = s.customPools as Record<string, unknown>;
+  const pools = v as Record<string, unknown>;
   for (const lang of FILLER_LANGS) {
     if (pools[lang] !== undefined && !isValidPool(pools[lang])) return false;
   }
   return true;
 }
 
+function isValidSettings(v: unknown): v is FillerSettings {
+  if (v === null || typeof v !== "object") return false;
+  const s = v as Record<string, unknown>;
+  if (typeof s.enabled !== "boolean") return false;
+  if (typeof s.language !== "string" || !(FILLER_LANGS as readonly string[]).includes(s.language))
+    return false;
+  return isValidCustomPools(s.customPools);
+}
+
+/** True while at least one list tier or tool entry across the pools holds a phrase. */
+export function hasAnyPhrase(pools: FillerSettings["customPools"]): boolean {
+  return Object.values(pools).some(
+    (p) =>
+      p !== undefined &&
+      (LIST_TIERS.some((tier) => (p[tier]?.length ?? 0) > 0) ||
+        Object.values(p.tool ?? {}).some((list) => list.length > 0)),
+  );
+}
+
 const DEFAULTS: FillerSettings = { enabled: true, language: "ja", customPools: {} };
+
+/** The stored filler value with `customPools` replaced; an absent or invalid stored value starts from the defaults. */
+export function withCustomPools(
+  stored: unknown,
+  pools: FillerSettings["customPools"],
+  locale?: FillerLang,
+): FillerSettings {
+  if (isValidSettings(stored)) return { ...stored, customPools: pools };
+  return { ...DEFAULTS, language: locale ?? DEFAULTS.language, customPools: pools };
+}
 
 // Copies only the tiers actually present — an absent tier stays absent (means "use config pool").
 function copyPool(p: Partial<FillerPool>): Partial<FillerPool> {

@@ -212,8 +212,8 @@ interface QuickControlsOptions {
   transcript?: Pick<ChatHistoryStore, "startNewSession" | "sessions" | "subscribe">;
   /** Signal records. Feed the History tab beside the turns they ran in. */
   signalHistory?: Pick<SignalHistoryStore, "records" | "subscribe">;
-  /** Thinking filler settings store. If absent, section won't render (injected by unified agent). */
-  fillerSettings?: FillerSettingsStore;
+  /** Thinking filler settings store. Gates the filler section and the card export's filler pools. */
+  fillerSettings: FillerSettingsStore;
   /** Reading dictionary store. */
   readingsSettings: ReadingsSettingsStore;
   /** TTS speech output on/off store. */
@@ -645,6 +645,7 @@ export function createQuickControls({
     agentSettings,
     userNameSettings,
     endpointsSettings,
+    fillerSettings,
     registry: presetRegistry,
     getPersona,
     isPushMode,

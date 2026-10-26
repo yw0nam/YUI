@@ -39,7 +39,7 @@ interface SwitchRowOptions {
   climbSettings?: FlagSettingsStore;
   fallSettings?: FlagSettingsStore;
   agentNotifySettings?: AgentNotifySettingsStore;
-  fillerSettings?: FillerSettingsStore;
+  fillerSettings: FillerSettingsStore;
   bubblePersistSettings?: FlagSettingsStore;
   messageWindowSettings?: MessageWindowSettingsStore;
   screenSettings?: FlagSettingsStore;
@@ -239,11 +239,11 @@ export function createSwitchRows({
       ariaKey: "filler.enable_label",
       tab: "talk",
       position: "filler",
-      isVisible: !!fillerSettings,
-      isAvailable: !!fillerSettings,
-      initialEnabled: false,
-      getEnabled: () => fillerSettings!.get().enabled,
-      setEnabled: (v) => fillerSettings!.setEnabled(v),
+      isVisible: true,
+      isAvailable: true,
+      initialEnabled: fillerSettings.get().enabled,
+      getEnabled: () => fillerSettings.get().enabled,
+      setEnabled: (v) => fillerSettings.setEnabled(v),
     },
     {
       selector: ".yui-unified-switch",

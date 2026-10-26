@@ -57,13 +57,6 @@ describe("createQuickControls — thinking filler section", () => {
     return seededFiller({ enabled: true, language: "ja", customPools: {}, ...over });
   }
 
-  it("does not render filler section when fillerSettings is absent", () => {
-    const qc = buildQc();
-    qc.open();
-    expect(qc.el.querySelector(".yui-filler")).toBeNull();
-    qc.dispose();
-  });
-
   it("reflectFiller: enable toggle reflects initial enabled=true", () => {
     const fs = makeFillerSettings({ enabled: true });
     const qc = buildQc({ fillerSettings: fs });
