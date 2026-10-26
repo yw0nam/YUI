@@ -23,6 +23,7 @@ export interface Typewriter {
 
 export function createTypewriter(
   onReveal: (revealed: number, state: { done: boolean }) => void,
+  now: () => number = () => performance.now(),
 ): Typewriter {
   let raw = "";
   let cursor = 0;
@@ -32,6 +33,9 @@ export function createTypewriter(
   let skip = false;
   let ended = false;
   let stopped = true;
+  // The cursor is due at base + elapsed / msPerChar since t0, so a late tick catches up.
+  let base = 0;
+  let t0 = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
 
   const limit = (): number => (paced ? Math.min(ceiling, raw.length) : raw.length);
@@ -40,19 +44,39 @@ export function createTypewriter(
     onReveal(cursor, { done: ended && cursor === raw.length });
   }
 
+  function catchUp(): void {
+    if (stopped) return;
+    const due = Math.min(limit(), base + Math.floor((now() - t0) / msPerChar));
+    if (due <= cursor) return;
+    cursor = due;
+    emit();
+  }
+
   function schedule(): void {
     if (stopped || timer !== null || cursor >= limit()) return;
+    const wait = Math.max(0, t0 + (cursor + 1 - base) * msPerChar - now());
     timer = setTimeout(() => {
       timer = null;
-      cursor++;
-      emit();
+      catchUp();
       schedule();
-    }, msPerChar);
+    }, wait);
+  }
+
+  function clearTimer(): void {
+    if (timer !== null) clearTimeout(timer);
+    timer = null;
+  }
+
+  // The rate changed, or typing resumes from a wait: count on from here, from now.
+  function restart(): void {
+    clearTimer();
+    base = cursor;
+    t0 = now();
+    schedule();
   }
 
   function stop(): void {
-    if (timer !== null) clearTimeout(timer);
-    timer = null;
+    clearTimer();
     stopped = true;
   }
 
@@ -72,7 +96,7 @@ export function createTypewriter(
       if (stopped) return;
       raw = text;
       if (!skip) {
-        schedule();
+        if (timer === null) restart();
         return;
       }
       cursor = raw.length;
@@ -80,13 +104,14 @@ export function createTypewriter(
     },
     pace({ text, durationMs }) {
       if (!paced) return;
+      catchUp();
       // Separators the voice skips (a push line's newlines) are passed over; text the voice reads differently is counted by length.
       const at = raw.indexOf(text, ceiling);
       const next = at >= 0 ? at + text.length : ceiling + text.length;
       // Characters an earlier sentence still owes type with this one, so the text keeps up with the voice.
       msPerChar = durationMs === null ? FIXED_MS_PER_CHAR : durationMs / Math.max(1, next - cursor);
       ceiling = next;
-      schedule();
+      restart();
     },
     end() {
       if (stopped) return;
@@ -96,16 +121,16 @@ export function createTypewriter(
     },
     flush() {
       if (stopped) return;
-      if (timer !== null) clearTimeout(timer);
-      timer = null;
+      clearTimer();
       skip = true;
       cursor = raw.length;
       emit();
     },
     release() {
+      catchUp();
       paced = false;
       msPerChar = FIXED_MS_PER_CHAR;
-      schedule();
+      restart();
     },
     stop,
   };
