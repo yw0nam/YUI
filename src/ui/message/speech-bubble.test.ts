@@ -98,6 +98,23 @@ describe("pushSpeech — auto-scroll to newest line", () => {
     expect(boxEl.scrollTop).toBe(240);
   });
 
+  it("keeps a box that sat at its end scrolled to its end when the opening input shrinks its cap", () => {
+    s.beginSpeech();
+    s.pushSpeech("A reply that fits the box until the input opens.");
+    s.endSpeech();
+    const boxEl = box();
+    const bubbleEl = mount.querySelector<HTMLElement>(".yui-bubble")!;
+    Object.defineProperty(boxEl, "scrollHeight", { value: 195, configurable: true });
+    Object.defineProperty(boxEl, "clientHeight", {
+      get: () => (bubbleEl.classList.contains("is-above-input") ? 166 : 195),
+      configurable: true,
+    });
+
+    s.summonInput();
+
+    expect(boxEl.scrollTop).toBe(195);
+  });
+
   it("re-scrolls to the new end as more text arrives", () => {
     s.beginSpeech();
     const boxEl = box();
