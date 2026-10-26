@@ -20,7 +20,7 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 | Overlay | Transparent, frameless, always-on-top window with click-through on empty pixels |
 | Drag and resize | OS-native drag across monitors, and Ctrl+wheel resize anchored at the feet |
 | Perch and peek | A seat on a window's top edge or a spot behind its side edge after a drop there, released when the window moves, closes, or covers her |
-| Locomotion | Floor walks, strolls and jumps across window tops, and falls with a landing; climbing up window sides and onto the monitor above, labelled in development; switches for climbing and falling in the General tab |
+| Locomotion | Floor walks, strolls and jumps across window tops, and falls with a landing; climbing up window sides and onto the monitor above, labelled in development; switches for climbing and falling on the Motion and desktop page |
 | Touch | Reactions to taps on the head, chest, and hips and a press-and-hold head pat, with one touch cue a minute to the agent (`configs/avatar.json`) |
 | Summon and tray | Global `CmdOrCtrl+Shift+Y` shortcut that brings her forward and focuses the text input (`configs/hotkeys.json`), and a tray menu with show/hide, Settings, and Quit |
 
@@ -56,7 +56,7 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 | Guardrails | Per-source debounce, hourly caps of 24 cues and 40 self-started turns (`configs/guardrails.json`), and a 10-minute default quiet gap after each turn |
 | Loopback ingress | Local listener on port 8770 for coding-agent hooks, `/signals`, and the `avatar` Mod, active while the External signals switch in the Proactive tab is on (off by default, applied at next launch); the bare paths serve the main window and `/presets/<id>/` paths serve the pet window bound to that preset |
 | Coding-agent hooks | `POST /agent-event` (deprecated: removed in v0.6.0; use `POST /signals`) for finished tasks and input requests from coding agents ([hooks guide](https://github.com/yw0nam/YUI/blob/main/docs/agent-guide/agent-completion-hooks.md)) |
-| Signals ingress | `POST /signals` for batches of external signals ([envelope](../reference/signals-ingress.md)); to wake one character, turn External signals on, open that character's window, copy its URL from its row in the preset list, and give the URL to the producer |
+| Signals ingress | `POST /signals` for batches of external signals ([envelope](../reference/signals-ingress.md)); to wake one character, turn External signals on, turn that character on the desktop (Together → Characters), copy its URL from its row in the preset list, and give the URL to the producer |
 | Daily briefing | Skill for a backend agent that runs scheduled producers on its own machine and speaks their dated briefings on the first activity of the day or on request, with the Scheduled greeting switch on ([skill](https://github.com/yw0nam/YUI/blob/main/integrations/skills/yui-daily-briefing/SKILL.md)) |
 | Witness log | Local JSONL of app switches and idle periods, kept for 14 days ([format](../reference/witness-log.md)) |
 | Workflows | Saved endpoints fired from a button in the Proactive tab |

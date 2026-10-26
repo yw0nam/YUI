@@ -58,7 +58,7 @@ Done when: the response code is read.
 |---|---|---|
 | 200 | Accepted for the character | Nothing. The character speaks under the delivery rules. |
 | 404 | No preset has this id, or the path after the id is not one of the six routes | Ask the user for the URL again (step 1). |
-| 503 | The preset exists but its window is closed | Ask the user to open the character's window (preset list → "Open window"), then send again. |
+| 503 | The preset exists but its window is closed | Ask the user to turn the character on (settings, Together → Characters, "On the desktop"), then send again. |
 | 400 | The body is not a valid envelope, one signal item is over 16 KiB, the body is over 64 KiB, or a bare path without `/presets/<id>/` is unknown | Fix the body against the envelope table and the limits in `signals-ingress.md`. |
 | 405 | Wrong method | Use POST. |
 | 421 or 403 | The `Host` is missing or names another host, the `Origin` names another host, or the request did not come from this machine | Send from the same machine as YUI, or through an SSH tunnel to 127.0.0.1. |

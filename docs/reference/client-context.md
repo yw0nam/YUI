@@ -602,7 +602,7 @@ wake: the character just woke from the bed, woken by this message
 
 The bed has two entries. With the launch bed scene on, the character starts asleep on a
 bed; a `go_to_bed` avatar command lies her on a bed at the spot she stands on, while the
-app runs. Both sleep until the wake timeout set in the Character tab, a click on her or
+app runs. Both sleep until the wake timeout set on the Motion and desktop page, a click on her or
 the bed, the press that starts a head pat, a chat or voice message, or the backend's own
 `stand`. The launch-scene switch governs the launch entry only, and the backend passes no
 duration.

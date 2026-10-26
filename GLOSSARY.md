@@ -40,7 +40,7 @@ The gate a trigger passes before it becomes a turn: cooldown, do-not-disturb, de
 _Avoid_: filter, policy, throttle
 
 **Chain cap**:
-The most addressed turns one window answers in a row without a user turn in between; `addressed_chain_max` in configs/guardrails.json, overridable in the Reactions tab. The next one is dropped with reason `addressed_cap`.
+The most addressed turns one window answers in a row without a user turn in between; `addressed_chain_max` in configs/guardrails.json, overridable on the Together page. The next one is dropped with reason `addressed_cap`.
 _Avoid_: ping-pong cap, chain limit, addressed limit
 
 **Tier**:
