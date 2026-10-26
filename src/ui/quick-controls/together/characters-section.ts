@@ -71,7 +71,7 @@ export function createCharactersSection(deps: {
         );
         const reason = row.querySelector<HTMLElement>(".yui-chars__reason")!;
         reason.hidden = !(capped || (own && !main));
-        reason.textContent = own ? t("chars.this_window") : t("chars.cap_reason");
+        reason.textContent = own ? t("chars.this_window") : t("chars.cap_reason", { cap: OPEN_PRESET_CAP });
         return row;
       }),
     );

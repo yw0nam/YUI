@@ -163,7 +163,7 @@ const ja: Record<string, string> = {
   "chars.in_main": "メイン · 常にオン",
   "chars.on": "デスクトップに表示中",
   "chars.off": "オフ · 設定は保持",
-  "chars.cap_reason": "同時に4人まで。先にひとりをオフにしてください。",
+  "chars.cap_reason": "同時に{cap}人まで。先にひとりをオフにしてください。",
   "chars.this_window": "このウィンドウのキャラクター",
   "chars.count": "デスクトップに{n}/{cap}人",
   "chars.switch_aria": "{name}をデスクトップに表示",
