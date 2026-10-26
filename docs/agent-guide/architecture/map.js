@@ -1300,7 +1300,7 @@ globalThis.YUI_MAP =
       "id": "app/message",
       "module": "wiring",
       "label": "message-window wiring",
-      "role": "Draws surface ops from the pet window and binds the message window's drag, focus, and resize.",
+      "role": "Draws surface ops from the pet window and binds the message window's drag, focus, and resize; names the character for both windows' plates and backlogs: the pet window resolves the effective name and sends it, the message window mirrors it.",
       "paths": [
         "src/app/message"
       ]

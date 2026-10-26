@@ -96,9 +96,10 @@ YUI/
         wire-preset-ids-sync.ts      # Main publishes the registry's preset ids to the shell, so a prefixed ingress route can tell a closed window from an unknown id
         wire-bound-window.ts         # A bound pet window's live key, its companions closed first, and its store teardown and close when its preset leaves the list
         close-if-orphan.ts           # Closes a bound window whose preset is no longer in the registry
-      message/                       # The message window's wiring
+      message/                       # The message window's wiring, and the character's name both windows' plates and backlogs show
         wire-message-surface-ops.ts  # Draws each surface op from the pet window onto the surfaces, which the plate follows
-        character-name.ts            # The character's effective name: the card's while the built-in preset is unnamed, else the preset's
+        character-name.ts            # In the pet window: the character's effective name, the card's while the built-in preset is unnamed, else the preset's
+        mirrored-name.ts             # In the message window: the character's name as the pet window last sent it
         wire-message-tauri-window.ts # Window focus, the OS drag, the content-height resize, and the moved-position record
       unified/                       # The unified chat window's wiring
         wire-unified-window.ts       # Opens the window while its switch is on and two or more presets are open, and closes it otherwise
@@ -518,7 +519,7 @@ YUI/
         speech-bubble.ts             # Speech bubble: dwell, scroll, markdown, and aria for streamed speech
         typewriter.ts                # Pure reveal cursor: types a line at 40 ms per character or paced by each sentence's audio, from elapsed time
         stable-markdown.ts           # The prefix of a streaming line whose rendering later text cannot change
-        text-prefix.ts               # Keeps the first characters of a rendered line's text, dropping what follows
+        text-prefix.ts               # A rendered line's text as the typewriter counts it, and cutting a rendering to its first characters
         backlog.ts                   # The current session's earlier lines, opened above the box by a toggle on its bottom edge
         user-quote.ts                # The user's message quoted on the bubble's first line
         signal-source-lines.ts       # A signal turn's source lines in the bubble's quote slot
