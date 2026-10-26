@@ -58,6 +58,7 @@ function startClimber() {
     getMotionKind: () => undefined,
     isPeeking: () => false,
     isDragging: () => false,
+    isPanelOpen: () => false,
     isBusy: () => false,
     walker: {} as never,
     faller: {} as never,

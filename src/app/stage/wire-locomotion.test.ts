@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   wireTravelFrame: vi.fn(),
   wireWalker: vi.fn(),
   wireStrollReflexCancel: vi.fn(),
+  wireStrollCardCancel: vi.fn(),
   wireFaller: vi.fn(),
   wirePercher: vi.fn(),
   wireClimber: vi.fn(),
@@ -24,6 +25,7 @@ vi.mock("../../ambient/locomotion/travel/wire-travel-frame", () => ({
 vi.mock("../../ambient/locomotion/walk/wire-walk", () => ({
   wireWalker: mocks.wireWalker,
   wireStrollReflexCancel: mocks.wireStrollReflexCancel,
+  wireStrollCardCancel: mocks.wireStrollCardCancel,
 }));
 
 vi.mock("../../ambient/locomotion/fall/wire-fall", () => ({
@@ -123,7 +125,7 @@ describe("wireLocomotion", () => {
     let windowSourcesDeps:
       | { onRelocated(): Promise<void>; isHeld(): boolean; bed: AvatarBed }
       | undefined;
-    let climberDeps: { isDragging(): boolean } | undefined;
+    let climberDeps: { isDragging(): boolean; isPanelOpen(): boolean } | undefined;
     mocks.wireTravelFrame.mockImplementation((deps) => {
       travelFrameDeps = deps;
       return travelFrame;
@@ -135,6 +137,7 @@ describe("wireLocomotion", () => {
     mocks.wireStrollReflexCancel.mockImplementation(
       () => () => teardowns.push("stroll-reflex-cancel"),
     );
+    mocks.wireStrollCardCancel.mockImplementation(() => () => teardowns.push("stroll-card-cancel"));
     mocks.createSitter.mockImplementation(() => sitter);
     mocks.wireFaller.mockImplementation((deps) => {
       fallerDeps = deps;
@@ -166,6 +169,7 @@ describe("wireLocomotion", () => {
       dispose: vi.fn(),
     };
 
+    const onCardOpen = vi.fn(() => () => {});
     const locomotion = wireLocomotion({
       bus: { push: vi.fn() } as never,
       renderer: {} as never,
@@ -174,6 +178,7 @@ describe("wireLocomotion", () => {
       hitTest: { setMoving: vi.fn() },
       peekActive: () => false,
       isPanelOpen: over.isPanelOpen ?? (() => false),
+      onCardOpen,
       isHeld: over.isHeld ?? (() => false),
       bed: over.bed ?? {
         phase: () => "off",
@@ -210,6 +215,7 @@ describe("wireLocomotion", () => {
       percher,
       climber,
       travelFrame,
+      onCardOpen,
     };
   };
 
@@ -231,13 +237,17 @@ describe("wireLocomotion", () => {
     expect(s.percher.landOn).toHaveBeenCalledWith(target);
   });
 
-  it("hands the panel-open getter to the walker", () => {
+  it("hands the card-open getter to the walker and the climber, and the card's opening to the stroll", () => {
     let open = true;
     const s = setup({ isPanelOpen: () => open });
 
-    expect(s.walkerDeps.isPanelOpen()).toBe(true);
+    expect([s.walkerDeps.isPanelOpen(), s.climberDeps.isPanelOpen()]).toEqual([true, true]);
     open = false;
-    expect(s.walkerDeps.isPanelOpen()).toBe(false);
+    expect([s.walkerDeps.isPanelOpen(), s.climberDeps.isPanelOpen()]).toEqual([false, false]);
+    expect(mocks.wireStrollCardCancel).toHaveBeenCalledWith({
+      onCardOpen: s.onCardOpen,
+      walker: s.walker,
+    });
   });
 
   it("hands a walker descent to the climber", () => {
@@ -369,6 +379,7 @@ describe("wireLocomotion", () => {
       "travelFrame.dispose",
       "walker.dispose",
       "stroll-reflex-cancel",
+      "stroll-card-cancel",
       "sitter.stop",
       "faller.dispose",
       "windowSources.dispose",

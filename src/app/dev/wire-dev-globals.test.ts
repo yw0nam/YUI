@@ -33,6 +33,7 @@ describe("wireDevGlobals", () => {
     createMockDriver.mockClear();
   });
 
+  const card = { open: vi.fn(), close: vi.fn(), isOpen: vi.fn(() => true) };
   const makeDeps = () => {
     const dispatcher = { id: "dispatcher" };
     return {
@@ -42,7 +43,7 @@ describe("wireDevGlobals", () => {
       screenshotSettings: { id: "screenshot" },
       lipsyncSettings: { id: "lipsync" },
       agentSettings: { id: "agent" },
-      quickControls: { id: "quick" },
+      getQuickCard: () => card,
       speechPlayback: { id: "speech" },
       voiceInputStatus: createVoiceInputStatus(),
       userInput: { submit: vi.fn() },
@@ -59,16 +60,30 @@ describe("wireDevGlobals", () => {
     expect(g.__yuiRenderer).toBe(deps.renderer);
     expect(g.__yuiSurfaces).toBe(deps.surfaces);
     expect(g.__yuiMock).toBe(mockDriver);
-    expect(g.__yuiQuick).toBe(deps.quickControls);
     expect((g.__yui_dispatcher as () => unknown)()).toEqual({ id: "dispatcher" });
   });
 
-  it("publishes the supplied speech playback as __yuiSpeech and keeps quick controls by value", async () => {
+  it("publishes the supplied speech playback as __yuiSpeech", async () => {
     const deps = makeDeps();
     await wireDevGlobals(deps as never);
     const g = globalThis as Record<string, unknown>;
     expect(g.__yuiSpeech).toBe(deps.speechPlayback);
-    expect(g.__yuiQuick).toBe(deps.quickControls);
+  });
+
+  it("__yuiQuick drives the quick card that is live at call time", async () => {
+    let live = card;
+    const deps = { ...makeDeps(), getQuickCard: () => live };
+    await wireDevGlobals(deps as never);
+    const quick = (globalThis as Record<string, unknown>).__yuiQuick as typeof card;
+    live = { open: vi.fn(), close: vi.fn(), isOpen: vi.fn(() => false) };
+
+    quick.open({ x: 1, y: 2 });
+    quick.close();
+
+    expect(live.open).toHaveBeenCalledWith({ x: 1, y: 2 });
+    expect(live.close).toHaveBeenCalledOnce();
+    expect(quick.isOpen()).toBe(false);
+    expect(card.open).not.toHaveBeenCalled();
   });
 
   it("__yui_send submits text through userInput", async () => {

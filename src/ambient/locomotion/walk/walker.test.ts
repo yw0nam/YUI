@@ -94,7 +94,7 @@ describe("canStartStroll", () => {
     ["perched", { perched: true }],
     ["peeking", { peeking: true }],
     ["dragging", { dragging: true }],
-    ["the quick-controls panel is open", { panelOpen: true }],
+    ["the quick card is open", { panelOpen: true }],
     ["a clip other than idle, thinking or walk holds the body", { bodyFree: false }],
     ["reduced motion", { reducedMotion: true }],
   ])("blocks on %s", (_label, blocker) => {
@@ -773,7 +773,7 @@ describe("createWalker", () => {
     ["perched", { perched: true }],
     ["peeking", { peeking: true }],
     ["dragging", { dragging: true }],
-    ["the quick-controls panel is open", { panelOpen: true }],
+    ["the quick card is open", { panelOpen: true }],
     [
       "a reactive motion holds the body",
       {

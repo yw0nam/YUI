@@ -1,15 +1,16 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createQuickControls, wireCueLocaleSync, localeSubscribers } = vi.hoisted(() => ({
-  createQuickControls: vi.fn(),
+const { createQuickCard, wireCueLocaleSync, localeSubscribers } = vi.hoisted(() => ({
+  createQuickCard: vi.fn<typeof import("../../ui/quick-card/quick-card").createQuickCard>(),
   wireCueLocaleSync: vi.fn(),
   localeSubscribers: [] as Array<() => void>,
 }));
 
-vi.mock("../../ui/quick-controls/quick-controls", () => ({ createQuickControls }));
+vi.mock("../../ui/quick-card/quick-card", () => ({ createQuickCard }));
 vi.mock("../settings/wire-cue-locale-sync", () => ({ wireCueLocaleSync }));
-vi.mock("../../ui/i18n", () => ({
+vi.mock("../../ui/i18n", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../ui/i18n")>()),
   subscribe: (cb: () => void) => {
     localeSubscribers.push(cb);
     return () => {
@@ -23,18 +24,32 @@ import { createVoiceInputStatus } from "../../ui/chips/voice-input-status";
 import { createConversationStores } from "../settings/conversation-stores";
 import { wirePetControls } from "./wire-pet-controls";
 
-/** The build/dispose event trail of the mocked panel factory. */
+/** The build/dispose event trail of the mocked card factory. */
 const events: string[] = [];
 
 beforeEach(() => {
   events.length = 0;
-  createQuickControls.mockImplementation(() => {
-    const panel = { open: vi.fn(), dispose: vi.fn(() => void events.push("quick.dispose")) };
-    events.push("quick.build");
-    return panel;
+  createQuickCard.mockImplementation(() => {
+    events.push("card.build");
+    return {
+      el: document.createElement("div"),
+      open: vi.fn(),
+      close: vi.fn(),
+      isOpen: vi.fn(() => false),
+      dispose: vi.fn(() => void events.push("card.dispose")),
+    };
   });
   wireCueLocaleSync.mockImplementation(() => vi.fn());
 });
+
+/** The card the wiring built at `index` (negative counts from the last), with its options. */
+function built(index: number) {
+  expect(createQuickCard).toHaveBeenCalled();
+  return {
+    options: createQuickCard.mock.calls.at(index)![0],
+    card: createQuickCard.mock.results.at(index)!.value,
+  };
+}
 
 describe("wirePetControls", () => {
   function makeDeps(boundId: string | null = null) {
@@ -54,36 +69,39 @@ describe("wirePetControls", () => {
           throw new Error("config not loaded");
         },
       },
-      renderer: { setMouthOpen: vi.fn(), stopMouth: vi.fn() },
-      vrm: { vrmSelection: {}, swapVrm: vi.fn(), importVrm: vi.fn() },
+      vrm: {
+        vrmSelection: { list: () => [], getActiveId: () => "", subscribe: () => () => {} },
+        swapVrm: vi.fn(),
+      },
       speaker: {
-        speakerSelection: {},
+        speakerSelection: { list: () => [], getActiveId: () => "", subscribe: () => () => {} },
         swapSpeaker: vi.fn(),
-        refreshSpeaker: vi.fn(),
-        pickVoiceImport: vi.fn(),
-        commitVoiceImport: vi.fn(),
-        removeVoice: vi.fn(),
-        refreshVoiceList: vi.fn(),
+        canManageVoices: () => false,
+        canReuploadVoices: () => false,
+        canPasteVoiceId: () => false,
       },
       pushSocket: {
-        getState: vi.fn(),
+        getState: vi.fn(() => ({ kind: "connecting" as const })),
         onState: vi.fn(() => () => {}),
-        sendReset: vi.fn(),
-        reconnectNow: vi.fn(),
+        sendReset: vi.fn(() => true),
       },
       stopTurn: vi.fn(),
+      announceSessionReset: vi.fn(),
+      presetRegistry: {
+        get: () => ({ active: "default", list: [] }),
+        subscribe: () => () => {},
+      },
+      petWindows: { close: vi.fn(), get: () => [], subscribe: () => () => {} },
       voiceInputStatus: createVoiceInputStatus(),
-      screenSourceProvider: { listMonitors: vi.fn(async () => []) },
-      surfaces: { summonInput: vi.fn() },
       remoteSurfaces: { onOpenSettings: vi.fn() },
       openSettings: vi.fn(),
-      openDevtools: vi.fn(),
       register: (teardown: () => void) => {
         registered.push(teardown);
       },
     };
     const controls = wirePetControls(deps as never);
-    return { controls, deps, stores, registered, stage, removeEventListener };
+    const options = () => built(-1).options;
+    return { controls, deps, stores, registered, stage, removeEventListener, options };
   }
 
   function teardownDeps(wired: ReturnType<typeof makeDeps>) {
@@ -95,26 +113,72 @@ describe("wirePetControls", () => {
   it.each([
     null,
     "a",
-  ])("opens settings and keeps voice ownership across remount (bound: %s)", async (boundId) => {
-    vi.stubGlobal("__TAURI_INTERNALS__", { metadata: { currentWindow: { label: "main" } } });
+  ])("gives main the Listen tile and a bound card its Turn off, across a remount (bound: %s)", async (boundId) => {
     const wired = makeDeps(boundId);
     try {
-      const options = createQuickControls.mock.calls[0][0];
-      options.onPopOut();
-      expect(wired.deps.openSettings).toHaveBeenCalledTimes(1);
-      expect(options.showVoiceInput).toBe(boundId === null);
-      expect(options.browserSettings).toBe(
-        boundId === null ? wired.stores.browserSettings : undefined,
-      );
-      localeSubscribers[0]!();
-      await Promise.resolve();
-      expect(createQuickControls.mock.calls.at(-1)![0].showVoiceInput).toBe(boundId === null);
-      expect(createQuickControls.mock.calls.at(-1)![0].browserSettings).toBe(
-        boundId === null ? wired.stores.browserSettings : undefined,
-      );
+      for (const remount of [false, true]) {
+        if (remount) {
+          localeSubscribers[0]!();
+          await Promise.resolve();
+        }
+        const options = wired.options();
+        expect(options.listen === null).toBe(boundId !== null);
+        expect(options.turnOff === null).toBe(boundId === null);
+      }
+      wired.options().turnOff?.();
+      expect(wired.deps.petWindows.close.mock.calls).toEqual(boundId ? [[boundId]] : []);
+      wired.options().openAllSettings();
+      expect(wired.deps.openSettings).toHaveBeenCalledExactlyOnceWith();
     } finally {
       teardownDeps(wired);
-      vi.unstubAllGlobals();
+    }
+  });
+
+  it("listens through the voice input status", () => {
+    const wired = makeDeps();
+    try {
+      const listen = wired.options().listen!;
+      listen.set(true);
+      expect(wired.deps.voiceInputStatus.get().state).toBe("listening");
+      expect(listen.get()).toBe(true);
+      listen.set(false);
+      expect(wired.deps.voiceInputStatus.get().state).toBe("idle");
+    } finally {
+      teardownDeps(wired);
+    }
+  });
+
+  it("heads the card with the transport in effect and, on push, the socket's state", () => {
+    const wired = makeDeps();
+    try {
+      const options = wired.options();
+      const repaint = vi.fn();
+      options.onTransport(repaint);
+      expect(options.transport()).toEqual({ api: "responses" });
+
+      wired.stores.endpointsSettings.set({ chat_api: "push" });
+
+      expect(repaint).toHaveBeenCalled();
+      expect(options.transport()).toEqual({ api: "push", push: { kind: "connecting" } });
+    } finally {
+      teardownDeps(wired);
+    }
+  });
+
+  it("resets the conversation the way History's start fresh does, with the frame on push", () => {
+    const wired = makeDeps();
+    try {
+      wired.stores.endpointsSettings.set({ chat_api: "push" });
+      wired.deps.conversation.chatHistoryStore.append({ role: "user", text: "hi", ts: 1 });
+
+      wired.options().resetConversation();
+
+      expect(wired.deps.stopTurn).toHaveBeenCalledOnce();
+      expect(wired.deps.announceSessionReset).toHaveBeenCalledOnce();
+      expect(wired.deps.pushSocket.sendReset).toHaveBeenCalledOnce();
+      expect(wired.deps.conversation.chatHistoryStore.sessions()).toHaveLength(2);
+    } finally {
+      teardownDeps(wired);
     }
   });
 
@@ -135,10 +199,10 @@ describe("wirePetControls", () => {
     const wired = makeDeps();
 
     expect(wired.registered).toHaveLength(4);
-    // The panel binding drains a disposed-then-rebuilt instance live, so its slot is identified
+    // The card binding drains a disposed-then-rebuilt instance live, so its slot is identified
     // by behavior, not identity.
     wired.registered[0]!();
-    expect(events.filter((e) => e.endsWith(".dispose"))).toEqual(["quick.dispose"]);
+    expect(events.filter((e) => e.endsWith(".dispose"))).toEqual(["card.dispose"]);
     // Slot 2 is the cue-locale sync disposer, slot 3 the locale unsubscriber, slot 4 the
     // context-menu remover.
     expect(wired.registered[1]).toBe(wireCueLocaleSync.mock.results[0]?.value);
@@ -153,59 +217,60 @@ describe("wirePetControls", () => {
 
   it("defers the locale remount by exactly one microtask", async () => {
     const wired = makeDeps();
-    expect(events).toEqual(["quick.build"]);
+    expect(events).toEqual(["card.build"]);
 
     localeSubscribers[0]!();
-    expect(events).toEqual(["quick.build"]);
+    expect(events).toEqual(["card.build"]);
 
     await Promise.resolve();
-    expect(events).toEqual(["quick.build", "quick.dispose", "quick.build"]);
+    expect(events).toEqual(["card.build", "card.dispose", "card.build"]);
     await Promise.resolve();
     expect(events).toHaveLength(3);
 
     teardownDeps(wired);
   });
 
-  it("get() returns the rebuilt panel after a locale remount", async () => {
+  it("get() drives the rebuilt card after a locale remount", async () => {
     const wired = makeDeps();
-    const first = wired.controls.get();
+    const first = built(0).card;
     localeSubscribers[0]!();
     await Promise.resolve();
+    const rebuilt = built(-1).card;
 
-    expect(wired.controls.get()).not.toBe(first);
-    expect(wired.controls.get()).toBe(createQuickControls.mock.results.at(-1)?.value);
+    wired.controls.get().open({ x: 1, y: 2 });
     wired.stage.dispatchEvent(
       new MouseEvent("contextmenu", { clientX: 5, clientY: 6, cancelable: true }),
     );
+
     expect(first.open).not.toHaveBeenCalled();
-    expect(wired.controls.get().open).toHaveBeenCalledWith({ x: 5, y: 6 });
+    expect(rebuilt.open.mock.calls).toEqual([[{ x: 1, y: 2 }], [{ x: 5, y: 6 }]]);
+    expect(wired.controls.get().el).toBe(rebuilt.el);
 
     teardownDeps(wired);
   });
 
-  it("opens the live panel at the pointer from the stage context menu", () => {
+  it("opens the live card at the pointer from the stage context menu", () => {
     const wired = makeDeps();
 
     const event = new MouseEvent("contextmenu", { clientX: 12, clientY: 34, cancelable: true });
     wired.stage.dispatchEvent(event);
 
     expect(event.defaultPrevented).toBe(true);
-    expect(wired.controls.get().open).toHaveBeenCalledWith({ x: 12, y: 34 });
+    expect(built(0).card.open).toHaveBeenCalledWith({ x: 12, y: 34 });
 
     teardownDeps(wired);
   });
 
-  it("guarded config readers fall back before the config loads", () => {
+  it("tells each open listener when the card opens, across a remount", async () => {
     const wired = makeDeps();
-    const options = createQuickControls.mock.calls[0]?.[0] as Record<string, () => unknown>;
+    const onOpen = vi.fn();
+    wired.controls.onOpen(onOpen);
+    wired.options().onOpen?.();
+    localeSubscribers[0]!();
+    await Promise.resolve();
+    wired.options().onOpen?.();
 
-    expect(options.getRateLimitDefaults()).toBeUndefined();
-    expect(options.getScreenDefaults()).toBeUndefined();
-    expect(options.getPersona()).toBeUndefined();
-    expect(options.getEndpointDefaults()).toBeUndefined();
-    expect(options.getDefaultChatApi()).toBeUndefined();
-    expect(options.getIdlePool()).toBeUndefined();
-    expect(options.getExpressMotions()).toEqual([]);
+    expect(onOpen).toHaveBeenCalledTimes(2);
 
     teardownDeps(wired);
   });

@@ -19,7 +19,7 @@ vi.mock("@tauri-apps/api/window", () => ({ availableMonitors: vi.fn(async () => 
 
 import type { Logger } from "../../../logger";
 import type { TravelFrameHandle } from "../travel/wire-travel-frame";
-import { wireStrollReflexCancel, wireWalker } from "./wire-walk";
+import { wireStrollCardCancel, wireStrollReflexCancel, wireWalker } from "./wire-walk";
 
 describe("wireStrollReflexCancel", () => {
   function fakeDispatcher(trigger: string) {
@@ -60,6 +60,37 @@ describe("wireStrollReflexCancel", () => {
     dispatcher.fire(true);
     dispatcher.fire(false);
     expect(walker.cancel).not.toHaveBeenCalled();
+  });
+});
+
+describe("wireStrollCardCancel", () => {
+  function setup(strolling: boolean) {
+    let open: (() => void) | null = null;
+    const unsubscribe = vi.fn();
+    const walker = { isStrolling: () => strolling, cancel: vi.fn() };
+    const stop = wireStrollCardCancel({
+      onCardOpen: (cb) => {
+        open = cb;
+        return unsubscribe;
+      },
+      walker,
+    });
+    return { walker, stop, unsubscribe, open: () => open?.() };
+  }
+
+  it("ends an ambient stroll when the quick card opens, so she stands where she is", () => {
+    const s = setup(true);
+    s.open();
+    expect(s.walker.cancel).toHaveBeenCalledOnce();
+    s.stop();
+    expect(s.unsubscribe).toHaveBeenCalledOnce();
+  });
+
+  // A directed walk is a leg of a climb under way, which runs to its end.
+  it("leaves a directed walk alone", () => {
+    const s = setup(false);
+    s.open();
+    expect(s.walker.cancel).not.toHaveBeenCalled();
   });
 });
 
