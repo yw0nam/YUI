@@ -2,14 +2,16 @@ import { describe, expect, it } from "vitest";
 import type { PersistedStorage } from "../persisted-store";
 import { createUnifiedWindowSettings, type UnifiedWindowSettings } from "./unified-window-settings";
 
-function inMemoryStorage(initial: unknown = null) {
+function inMemoryStorage(
+  initial: unknown = null,
+): PersistedStorage<UnifiedWindowSettings> & { saved: unknown } {
   const box = {
     saved: initial,
     load: () => box.saved as UnifiedWindowSettings | null,
     save: (s: UnifiedWindowSettings) => {
       box.saved = { ...s };
     },
-  } satisfies PersistedStorage<UnifiedWindowSettings> & { saved: unknown };
+  };
   return box;
 }
 

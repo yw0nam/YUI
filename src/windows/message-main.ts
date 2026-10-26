@@ -27,6 +27,7 @@ import { createMirroredPushSocket } from "../io/bridge/push/push-socket-bridge";
 import { createMirroredReasoning } from "../io/bridge/reasoning/reasoning-bridge";
 import { createSettingsBridge } from "../io/bridge/settings-bridge";
 import { readTranscriptAfterBoundary } from "../io/chat/conversation/chat-history-store";
+import { MESSAGE_WINDOW_WIDTH } from "../io/window/openers/message-window";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
 import {
@@ -169,7 +170,11 @@ async function bootstrap(): Promise<void> {
   disposers.register(detachSummonKey);
   window.addEventListener("beforeunload", disposers.dispose);
   const disposeWindowWiring = isTauri()
-    ? await wireTauriWindow(surfaces.el, messageWindowSettings, disposers.isDisposed)
+    ? await wireTauriWindow(
+        surfaces.el,
+        { width: MESSAGE_WINDOW_WIDTH, onMoved: messageWindowSettings.setPosition },
+        disposers.isDisposed,
+      )
     : () => {};
   disposers.register(disposeWindowWiring);
   if (disposers.isDisposed()) return;

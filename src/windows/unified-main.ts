@@ -17,13 +17,18 @@ import { applyTheme } from "../ui/theme/apply-theme";
 import "../styles.css";
 import "../ui/unified/unified-window.css";
 import { createDisposers } from "../app/disposers";
+import { wireTauriWindow } from "../app/message/wire-message-tauri-window";
+import { wireUnifiedClose } from "../app/unified/wire-unified-close";
 import { createSettingsBridge } from "../io/bridge/settings-bridge";
 import { readTranscriptAfterBoundary } from "../io/chat/conversation/chat-history-store";
+import { MESSAGE_WINDOW_WIDTH } from "../io/window/openers/message-window";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
 import { readActivePresetId } from "../settings/preset/active-preset";
 import { readOpenPresets } from "../settings/preset/pet-windows";
 import { createPresetRegistry } from "../settings/preset/preset-registry";
+import { createUnifiedChatSwitch } from "../settings/unified/unified-chat-switch";
+import { createUnifiedWindowSettings } from "../settings/unified/unified-window-settings";
 import { reloadFromStorage as reloadLocale } from "../ui/i18n";
 import { createUnifiedView } from "../ui/unified/unified-view";
 
@@ -85,6 +90,22 @@ async function bootstrap(): Promise<void> {
   disposers.register(() => window.removeEventListener("storage", refresh));
   window.addEventListener("beforeunload", disposers.dispose);
   view.refresh();
+
+  if (!isTauri()) return;
+  wireUnifiedClose({
+    onCloseRequested: (cb) => void getCurrentWindow().onCloseRequested(() => cb()),
+    switch: createUnifiedChatSwitch(),
+    emitSettingsChanged: settingsBridge.emitSettingsChanged,
+  });
+  const windowSettings = createUnifiedWindowSettings();
+  disposers.register(() => windowSettings.dispose());
+  disposers.register(
+    await wireTauriWindow(
+      app,
+      { width: MESSAGE_WINDOW_WIDTH, onMoved: windowSettings.setPosition },
+      disposers.isDisposed,
+    ),
+  );
 }
 
 void bootstrap().catch((error) => {

@@ -26,6 +26,7 @@ import { mergeScreen } from "../settings/capture/screen-settings";
 import type { DelegationChipSettingsStore } from "../settings/panels/delegation-chip-settings";
 import { presetIdForWindow, readPresetName } from "../settings/preset/active-preset";
 import type { UnifiedShown } from "../settings/unified/unified-chat-switch";
+import { createUnifiedWindowSettings } from "../settings/unified/unified-window-settings";
 import { isMacOS, isWindows } from "../tauri-env";
 import { t } from "../ui/i18n";
 import { maybeShowFirstRunHint } from "../ui/notices/first-run-hint";
@@ -357,7 +358,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       register(
         wireUnifiedWindow({
           shown: phase1.unifiedShown,
-          window: createUnifiedWindowController(),
+          window: createUnifiedWindowController(createUnifiedWindowSettings()),
         }),
       );
     }

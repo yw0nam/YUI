@@ -52,7 +52,7 @@ it.each([
   const setPosition = vi.fn();
   const dispose = await wireTauriWindow(
     document.createElement("div"),
-    { setPosition },
+    { width: 340, onMoved: setPosition },
     () => disposed,
   );
 
