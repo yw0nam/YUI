@@ -2,8 +2,8 @@
  * Reasoning disclosure — the backend's reasoning folded at the top of the speech bubble, under the quoted line.
  *
  * Pure renderer — firing ≠ judgment: this only *draws* the state the store holds. The disclosure
- * opens on the first delta of a live cycle, closes on every finalized render, and the summary
- * toggles it. The text is never spoken and never stored.
+ * starts closed, the summary toggles it, and every finalized render closes it. The text is never
+ * spoken and never stored.
  */
 
 import type { ReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
@@ -50,10 +50,8 @@ export function createReasoningDisclosure({ before, source, bubble }: ReasoningD
     el.hidden = state.text === "";
     textEl.classList.toggle("is-live", state.live);
     textEl.textContent = state.text;
-    if (cycleStart) {
-      el.open = true;
-      bubble.reveal();
-    } else if (!state.live) el.open = false;
+    if (cycleStart) bubble.reveal();
+    else if (!state.live) el.open = false;
     if (state.live) textEl.scrollTop = textEl.scrollHeight;
     bubble.measure();
     if (cycleEnd) bubble.release(state.text !== "");
