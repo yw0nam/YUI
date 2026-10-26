@@ -3,7 +3,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi }
 import type { Logger } from "../../../../logger";
 import type { PhotoCrop, PhotoSize } from "../../../../settings/preset/photo-crop";
 import { openPhotoDialog } from "./photo-dialog";
-import { stubModalDialog } from "./test-helpers";
+import { closeDialogs, stubModalDialog } from "./test-helpers";
 
 const SIZE: PhotoSize = { width: 900, height: 1000 };
 const entry = { id: "aaaa0001", name: "Natsume", thumbnail: "asset://a.png" };
@@ -31,7 +31,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  for (const d of document.querySelectorAll("dialog")) d.remove();
+  closeDialogs();
 });
 
 function open(over: Partial<Parameters<typeof openPhotoDialog>[0]> = {}) {

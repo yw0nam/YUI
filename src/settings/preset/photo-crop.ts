@@ -13,7 +13,7 @@ export interface PhotoSize {
   height: number;
 }
 
-/** The crop in `v`; undefined unless it is a square inside the photo. */
+/** The crop in `v`; undefined unless it is a square inside the photo's width, starting above its bottom. */
 export function coercePhotoCrop(v: unknown): PhotoCrop | undefined {
   if (v === null || typeof v !== "object") return undefined;
   const { x, y, size } = v as Record<string, unknown>;

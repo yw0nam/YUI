@@ -8,3 +8,8 @@ export function stubModalDialog(): void {
     this.dispatchEvent(new Event("close"));
   };
 }
+
+/** Closes every open dialog so each drops its document listener. */
+export function closeDialogs(): void {
+  for (const d of document.querySelectorAll("dialog")) d.close();
+}

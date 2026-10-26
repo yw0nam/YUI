@@ -16,7 +16,7 @@ import { createRelationsSwitch } from "../../../settings/relations/relations-swi
 import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
 import { defaultQcArgs } from "../test-helpers";
-import { stubModalDialog } from "./photo-dialog/test-helpers";
+import { closeDialogs, stubModalDialog } from "./photo-dialog/test-helpers";
 import { createPresetStrip, presetStripHtml } from "./preset-strip";
 
 describe("createQuickControls — presets", () => {
@@ -53,6 +53,7 @@ describe("createQuickControls — presets", () => {
   });
 
   afterEach(() => {
+    closeDialogs();
     history.replaceState(null, "", "/");
     qc.dispose();
     registry.dispose();

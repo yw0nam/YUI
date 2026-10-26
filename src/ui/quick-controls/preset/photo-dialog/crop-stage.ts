@@ -2,9 +2,9 @@
 
 import type { PhotoCrop, PhotoSize } from "../../../../settings/preset/photo-crop";
 
-export const STAGE = 360;
 export const CIRCLE = 300;
 export const MARGIN = 30;
+export const STAGE = CIRCLE + 2 * MARGIN;
 export const MIN_ZOOM = 1;
 export const MAX_ZOOM = 7;
 

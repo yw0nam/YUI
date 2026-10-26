@@ -133,6 +133,7 @@ export function createUnifiedView(deps: {
       mainId: deps.mainId(),
     });
     composer.setTarget(entryOf(target ?? ""));
+    composer.refreshCast();
     paint();
   }
 

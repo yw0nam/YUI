@@ -11,7 +11,7 @@
 }
 
 .yui-photo-dialog::backdrop {
-  background: var(--yui-scrim);
+  background: var(--yui-crop-shade);
 }
 
 .yui-photo-dialog__head {
@@ -48,9 +48,9 @@
 
 .yui-photo-dialog__stage {
   position: relative;
-  width: 360px;
-  height: 360px;
-  border-radius: 14px;
+  width: var(--yui-photo-stage);
+  height: var(--yui-photo-stage);
+  border-radius: var(--yui-radius);
   overflow: hidden;
   background: var(--yui-crop-stage);
   cursor: grab;
@@ -70,13 +70,13 @@
 
 .yui-photo-dialog__mask {
   position: absolute;
-  left: 30px;
-  top: 30px;
-  width: 300px;
-  height: 300px;
+  left: var(--yui-photo-margin);
+  top: var(--yui-photo-margin);
+  width: var(--yui-photo-circle);
+  height: var(--yui-photo-circle);
   box-sizing: border-box;
   border: 2px solid var(--yui-crop-ring);
-  border-radius: 999px;
+  border-radius: var(--yui-radius-pill);
   box-shadow: 0 0 0 400px var(--yui-crop-shade);
   pointer-events: none;
 }
@@ -143,13 +143,12 @@
   margin-top: 1.25rem;
 }
 
-/* "Use photo" is the dialog's confirm, not a destructive action. */
-.yui-photo-dialog .yui-pill--go {
+.yui-photo-dialog__use {
   color: var(--yui-accent-ink);
   border-color: var(--yui-accent-soft);
 }
 
-.yui-photo-dialog .yui-pill--go:hover:not(:disabled) {
+.yui-photo-dialog__use:hover:not(:disabled) {
   background: var(--yui-accent-faint);
   border-color: var(--yui-accent);
   color: var(--yui-accent-ink);

@@ -18,6 +18,8 @@ export interface Composer {
   setMention(mention: Mention | null): void;
   /** The preset a message with no mention goes to; undefined while the cast is empty. */
   setTarget(entry: PresetEntry | undefined): void;
+  /** Refreshes an open @ list from the current cast; the recipient chips repaint on setTarget. */
+  refreshCast(): void;
   /** text is trimmed and never empty. */
   onSubmit(cb: (text: string) => void): void;
   /** While busy, send becomes stop and Enter sends nothing. */
@@ -128,6 +130,8 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
     setTarget(entry) {
       target = entry;
       paint();
+    },
+    refreshCast() {
       picker.refresh();
     },
     onSubmit: (cb) =>

@@ -91,7 +91,7 @@ export function createPresetManage(deps: {
     row.querySelector(".yui-preset-row__name")!.textContent = entry.name;
     const photoBtn = row.querySelector<HTMLButtonElement>(".yui-preset-row__photo");
     photoBtn?.setAttribute("aria-label", t("preset.photo", { name: entry.name }));
-    photoBtn?.addEventListener("click", () => {
+    photoBtn?.addEventListener("click", async () => {
       const save = (url: string, crop: PhotoCrop) => registry.setThumbnail(entry.id, url, crop);
       const saveUrl = (url: string) => registry.setThumbnail(entry.id, url);
       const pick = () => deps.pickPhoto!(entry.id);
@@ -99,20 +99,21 @@ export function createPresetManage(deps: {
         openPhotoDialog({ entry, url: entry.thumbnail, picked: false, pick, save, saveUrl, log });
         return;
       }
-      pick()
-        .then((url) => {
-          photoError = false;
-          if (url !== null) {
-            saveUrl(url);
-            openPhotoDialog({ entry, url, picked: true, pick, save, saveUrl, log });
-          }
-          render();
-        })
-        .catch((err) => {
-          log.warn("photo_pick_failed", { preset: entry.id, error: String(err) });
-          photoError = true;
-          render();
-        });
+      let url: string | null;
+      try {
+        url = await pick();
+      } catch (err) {
+        log.warn("photo_pick_failed", { preset: entry.id, error: String(err) });
+        photoError = true;
+        render();
+        return;
+      }
+      photoError = false;
+      if (url !== null) {
+        saveUrl(url);
+        openPhotoDialog({ entry, url, picked: true, pick, save, saveUrl, log });
+      }
+      render();
     });
     const renameBtn = row.querySelector<HTMLButtonElement>(".yui-preset-row__rename")!;
     renameBtn.setAttribute("aria-label", t("preset.rename", { name: entry.name }));

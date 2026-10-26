@@ -218,7 +218,8 @@ export function createPresetStrip(deps: {
   }
 
   function handleOutsidePointer(e: PointerEvent): void {
-    const target = e.target as Node;
+    const target = e.target as Element;
+    if (target.closest?.("dialog[open]")) return;
     if (!popEl.contains(target) && !manageBtn.contains(target)) closeManage(false);
   }
 

@@ -297,6 +297,8 @@ export function createPopover(deps: PopoverDeps): Popover {
 
   function handleDocKeydown(e: KeyboardEvent): void {
     if (!openState) return;
+    // A modal dialog over the panel owns its keys.
+    if ((e.target as Element | null)?.closest?.("dialog[open]")) return;
     if (e.key === "Escape") {
       if (isWindow) {
         // In the window variant, internal close() doesn't remove the panel (always shown) — closing the OS window is the host's job.

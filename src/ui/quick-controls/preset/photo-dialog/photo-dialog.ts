@@ -1,5 +1,5 @@
 /**
- * The profile-photo dialog — a modal `<dialog>` that frames a preset's photo under a circular mask
+ * The photo dialog — a modal `<dialog>` that frames a preset's photo under a circular mask
  * with live previews at the sizes a face is drawn. "Use photo" saves the framing; Cancel and Escape
  * save nothing beyond the framing of a photo just picked.
  */
@@ -17,7 +17,18 @@ import {
 } from "../../../../settings/preset/photo-crop";
 import { t } from "../../../i18n";
 import { applyCrop, avatarEl } from "../../../unified/avatar";
-import { CIRCLE, clampStage, cropOf, type Stage, stageOf, zoomAbout } from "./crop-stage";
+import {
+  CIRCLE,
+  clampStage,
+  cropOf,
+  MARGIN,
+  MAX_ZOOM,
+  MIN_ZOOM,
+  STAGE,
+  type Stage,
+  stageOf,
+  zoomAbout,
+} from "./crop-stage";
 
 /** The sizes a face is drawn at, with the place each one shows. */
 const PREVIEWS = [
@@ -27,8 +38,13 @@ const PREVIEWS = [
   { px: 14, where: "photo.at_chat" },
 ];
 
-/** The newest picked load per preset; an older one that resolves later saves nothing. */
-const latestPick = new Map<string, number>();
+/** The newest write per preset; a pick's default framing that resolves after a later write is dropped. */
+const writes = new Map<string, number>();
+const bumpWrite = (id: string): number => {
+  const n = (writes.get(id) ?? 0) + 1;
+  writes.set(id, n);
+  return n;
+};
 
 export interface PhotoDialogDeps {
   entry: PresetEntry;
@@ -54,7 +70,7 @@ export function openPhotoDialog(deps: PhotoDialogDeps): void {
     <div class="yui-photo-dialog__body">
       <div class="yui-photo-dialog__stagecol">
         <div class="yui-photo-dialog__stage"><img alt="" draggable="false" hidden /><div class="yui-photo-dialog__mask" aria-hidden="true"></div></div>
-        <label class="yui-photo-dialog__zoom"><span>${t("photo.zoom")}</span><input class="yui-gain__slider" type="range" min="100" max="700" step="5" value="100" /><output></output></label>
+        <label class="yui-photo-dialog__zoom"><span>${t("photo.zoom")}</span><input class="yui-gain__slider" type="range" step="5" /><output></output></label>
         <div class="yui-photo-dialog__tools">
           <button class="yui-pill" type="button" data-act="face">${t("photo.fit_face")}</button>
           <button class="yui-pill" type="button" data-act="whole">${t("photo.whole")}</button>
@@ -66,9 +82,15 @@ export function openPhotoDialog(deps: PhotoDialogDeps): void {
     </div>
     <div class="yui-photo-dialog__foot">
       <button class="yui-pill" type="button" data-act="cancel">${t("photo.cancel")}</button>
-      <button class="yui-pill yui-pill--go" type="button" data-act="use" disabled>${t("photo.use")}</button>
+      <button class="yui-pill yui-photo-dialog__use" type="button" data-act="use" disabled>${t("photo.use")}</button>
     </div>`;
   dialog.querySelector("h2")!.textContent = t("preset.photo", { name: entry.name });
+  for (const [name, px] of [
+    ["stage", STAGE],
+    ["margin", MARGIN],
+    ["circle", CIRCLE],
+  ] as const)
+    dialog.style.setProperty(`--yui-photo-${name}`, `${px}px`);
   const q = <T extends HTMLElement>(sel: string): T => dialog.querySelector<T>(sel)!;
   const stageEl = q(".yui-photo-dialog__stage");
   const img = q<HTMLImageElement>(".yui-photo-dialog__stage > img");
@@ -76,6 +98,9 @@ export function openPhotoDialog(deps: PhotoDialogDeps): void {
   const zoomOut = q<HTMLOutputElement>("output");
   const errorEl = q(".yui-photo-dialog__error");
   const previewsEl = q(".yui-photo-dialog__previews");
+  slider.min = String(MIN_ZOOM * 100);
+  slider.max = String(MAX_ZOOM * 100);
+  slider.value = slider.min;
   const btn = (act: string) => q<HTMLButtonElement>(`[data-act=${act}]`);
 
   let url = deps.url;
@@ -124,15 +149,17 @@ export function openPhotoDialog(deps: PhotoDialogDeps): void {
     measuring = true;
     errorEl.hidden = true;
     syncButtons();
-    const token = (latestPick.get(entry.id) ?? 0) + 1;
-    if (picked) latestPick.set(entry.id, token);
-    const superseded = (): boolean => picked && latestPick.get(entry.id) !== token;
+    const mine = picked ? bumpWrite(entry.id) : 0;
+    const superseded = (): boolean => picked && writes.get(entry.id) !== mine;
     let measured: PhotoSize;
     try {
       measured = await measure(next);
     } catch {
       if (superseded()) return;
       measuring = false;
+      img.hidden = true;
+      previewsEl.replaceChildren();
+      previewImgs = [];
       errorEl.hidden = false;
       syncButtons();
       return;
@@ -171,6 +198,7 @@ export function openPhotoDialog(deps: PhotoDialogDeps): void {
   btn("cancel").addEventListener("click", () => dialog.close());
   btn("use").addEventListener("click", () => {
     if (!size || !stage) return;
+    bumpWrite(entry.id);
     deps.save(url, cropOf(stage, size));
     dialog.close();
   });
@@ -191,14 +219,22 @@ export function openPhotoDialog(deps: PhotoDialogDeps): void {
       clampStage({ ...from, left: from.left + e.clientX - x, top: from.top + e.clientY - y }, size),
     );
   });
-  stageEl.addEventListener("pointerup", () => {
-    drag = null;
+  for (const type of ["pointerup", "pointercancel", "lostpointercapture"])
+    stageEl.addEventListener(type, () => {
+      drag = null;
+    });
+  // Escape closes the dialog and reaches no other listener: the settings window closes on a document Escape.
+  const onEscape = (e: KeyboardEvent): void => {
+    if (e.key !== "Escape") return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    dialog.close();
+  };
+  document.addEventListener("keydown", onEscape, true);
+  dialog.addEventListener("close", () => {
+    document.removeEventListener("keydown", onEscape, true);
+    dialog.remove();
   });
-  // The settings window closes on a document Escape; this one closes only the dialog.
-  dialog.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") e.stopPropagation();
-  });
-  dialog.addEventListener("close", () => dialog.remove());
 
   document.body.append(dialog);
   dialog.showModal();

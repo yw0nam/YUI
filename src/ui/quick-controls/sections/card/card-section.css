@@ -51,6 +51,7 @@
 
 .yui-card-thumb {
   display: flex;
+  margin-left: 0.875rem;
   flex: none;
 }
 

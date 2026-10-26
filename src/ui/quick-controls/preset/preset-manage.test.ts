@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 import { afterEach, beforeAll, expect, it, vi } from "vitest";
 import { createPresetRegistry } from "../../../settings/preset/preset-registry";
-import { stubModalDialog } from "./photo-dialog/test-helpers";
+import { closeDialogs, stubModalDialog } from "./photo-dialog/test-helpers";
 import { createPresetManage } from "./preset-manage";
 
 beforeAll(stubModalDialog);
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  for (const d of document.querySelectorAll("dialog")) d.remove();
+  closeDialogs();
 });
 it("copies the current preset URL, hides when disabled and shows fallback on failure", async () => {
   localStorage.clear();
