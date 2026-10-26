@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { MessageSurfaceOp } from "../../io/bridge/message/message-bridge";
 import type { UserTurnRouted } from "../../io/bridge/settings-bridge";
 import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
 import { createUnifiedView } from "./unified-view";
@@ -11,7 +12,9 @@ const T = 1_789_365_900_000;
 
 let transcripts: Record<string, ChatHistoryEntry[]>;
 let routed: UserTurnRouted[];
+let stops: number;
 let nextId: number;
+let focusWindow: ReturnType<typeof vi.fn<() => Promise<void>>>;
 let view: ReturnType<typeof createUnifiedView>;
 
 const CAST = [
@@ -19,37 +22,37 @@ const CAST = [
   { id: "natsume", name: "Natsume" },
 ];
 
-function seed(): Record<string, ChatHistoryEntry[]> {
-  return {
-    perlica: [
-      { role: "user", text: "hi", ts: T - 120_000, send_id: "s0" },
-      { role: "assistant", text: "Hello.", ts: T - 110_000, turn_id: "1" },
-      { role: "assistant", text: "Are you there?", ts: T - 60_000, turn_id: "2", to: "natsume" },
-    ],
-    natsume: [
-      { role: "user", text: "hi", ts: T - 119_000, send_id: "s0" },
-      { role: "assistant", text: "Yes.", ts: T - 50_000, turn_id: "3" },
-    ],
-  };
-}
-
-function mount(opts: { mainId?: string; now?: () => number } = {}): void {
+function mount(): void {
   document.body.innerHTML = '<div id="app"></div>';
+  focusWindow = vi.fn(async () => {});
   view = createUnifiedView({
     mount: document.querySelector("#app")!,
     cast: () => CAST,
     transcripts: () => CAST.map((c) => ({ ...c, entries: transcripts[c.id] ?? [] })),
-    mainId: () => opts.mainId ?? "perlica",
-    now: opts.now ?? (() => T),
+    mainId: () => "perlica",
+    now: () => T,
     randomId: () => `send-${++nextId}`,
+    focusWindow,
+    closeWindow: () => {},
+    startDragging: () => {},
   });
   routed = [];
+  stops = 0;
   view.onRoute((e) => routed.push(e));
+  view.onStop(() => stops++);
   view.refresh();
 }
 
 const field = () => document.querySelector<HTMLTextAreaElement>(".yui-input__field")!;
-const lines = () => [...document.querySelectorAll<HTMLElement>(".yui-uc__line")];
+const stream = (preset: string, op: MessageSurfaceOp) => view.speechStream({ preset, op });
+const recipients = () =>
+  [...document.querySelectorAll<HTMLElement>("[role=radio]")].map((r) => [
+    r.textContent,
+    r.getAttribute("aria-checked"),
+  ]);
+const chipStates = () =>
+  [...document.querySelectorAll<HTMLElement>(".yui-uc__chip")].map((c) => c.dataset.state);
+const boxText = () => document.querySelector(".yui-bubble__text")?.textContent;
 
 function type(text: string): void {
   field().value = text;
@@ -60,150 +63,85 @@ function press(key: string): void {
 }
 
 beforeEach(() => {
-  transcripts = seed();
+  transcripts = {
+    perlica: [{ role: "assistant", text: "Hello.", ts: T - 110_000, turn_id: "1" }],
+    natsume: [{ role: "assistant", text: "Yes.", ts: T - 50_000, turn_id: "3" }],
+  };
   nextId = 0;
   vi.spyOn(console, "info").mockImplementation(() => {});
+  vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+    cb(0);
+    return 1;
+  });
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: query === "(prefers-reduced-motion: reduce)",
+  }));
 });
 
 afterEach(() => {
   view?.dispose();
+  vi.unstubAllGlobals();
   vi.useRealTimers();
 });
 
-describe("unified view — the log", () => {
-  it("lists both transcripts in time order with speaker, photo or dot, marker and age", () => {
+describe("unified view — sending", () => {
+  it("routes a typed message to the last speaker", () => {
     mount();
 
-    expect(lines().map((l) => l.querySelector(".yui-uc__who")?.textContent)).toEqual([
-      "You",
-      "Perlica",
-      "Perlica",
-      "Natsume",
-    ]);
-    expect(lines().map((l) => l.querySelector(".yui-uc__say")?.textContent)).toEqual([
-      "hi",
-      "Hello.",
-      "→ NatsumeAre you there?",
-      "Yes.",
-    ]);
-    expect(lines().map((l) => l.querySelector(".yui-uc__ago")?.textContent)).toEqual([
-      "2min",
-      "2min",
-      "1min",
-      "now",
-    ]);
-    expect(lines()[1]?.querySelector("img.yui-uc__avatar")?.getAttribute("src")).toBe(
-      "asset://perlica.png",
-    );
-    expect(lines()[3]?.querySelector("span.yui-uc__dot")).not.toBeNull();
-    expect(lines()[0]?.querySelector(".yui-uc__avatar, .yui-uc__dot")).toBeNull();
-    expect(document.querySelectorAll(".yui-uc__cast li")).toHaveLength(2);
-    expect(document.querySelector(".yui-uc__title")?.textContent).toBe("Unified chat");
-  });
-
-  it("names main's preset on the target chip before anyone spoke, then the last speaker", () => {
-    transcripts = { perlica: [], natsume: [] };
-    mount({ mainId: "natsume" });
-    expect(document.querySelector(".yui-uc__target")?.textContent).toContain("to Natsume");
-
-    transcripts = seed();
-    view.refresh();
-    expect(document.querySelector(".yui-uc__target")?.textContent).toContain("to Natsume");
-    transcripts.perlica = [
-      ...transcripts.perlica!,
-      { role: "assistant", text: "Back.", ts: T - 10_000, turn_id: "4" },
-    ];
-    view.refresh();
-    expect(document.querySelector(".yui-uc__target")?.textContent).toContain("to Perlica");
-  });
-});
-
-describe("unified view — routing", () => {
-  it("a picked mention shows as a pill and the send routes to it with its text and a send id", () => {
-    mount();
-    type("@nat");
-    press("Enter");
-    expect(document.querySelector(".yui-uc__pill")?.textContent).toContain("@Natsume");
-
-    type("hello");
-    press("Enter");
-
-    expect(routed).toEqual([
-      { sendId: "send-1", to: "natsume", text: "@Natsume hello", mention: "character" },
-    ]);
-    expect(document.querySelector(".yui-uc__pill")?.hasAttribute("hidden")).toBe(true);
-    expect(field().value).toBe("");
-  });
-
-  it("draws the sent line at once as a pending row and replaces it by the recorded one", () => {
-    mount();
-    type("@nat");
-    press("Enter");
-    type("hello");
-    press("Enter");
-
-    expect(lines().at(-1)?.classList.contains("is-pending")).toBe(true);
-    expect(lines().at(-1)?.querySelector(".yui-uc__say")?.textContent).toContain("@Natsume hello");
-
-    transcripts.natsume = [
-      ...transcripts.natsume!,
-      { role: "user", text: "@Natsume hello", ts: T - 1_000, send_id: "send-1" },
-    ];
-    view.refresh();
-
-    expect(document.querySelectorAll(".is-pending")).toHaveLength(0);
-    expect(lines().filter((l) => l.textContent?.includes("@Natsume hello"))).toHaveLength(1);
-  });
-
-  it("@everyone emits to the first target only, then to the second once the first is done", () => {
-    mount();
-    type("@");
-    [...document.querySelectorAll<HTMLElement>("[role=option]")]
-      .find((o) => o.querySelector(".yui-uc__opt-name")?.textContent === "@everyone")
-      ?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
     type("hi");
     press("Enter");
 
+    expect(routed).toEqual([{ sendId: "send-1", to: "natsume", text: "hi" }]);
+  });
+
+  it("checks the fallback recipient, then the one a click or a typed @name picks", () => {
+    mount();
+    expect(recipients()).toEqual([
+      ["Perlica", "false"],
+      ["Natsume", "true"],
+      ["everyone", "false"],
+    ]);
+
+    type("@perlica hi");
+    expect(recipients()[0]).toEqual(["Perlica", "true"]);
+
+    type("");
+    document.querySelectorAll<HTMLElement>("[role=radio]")[2]!.click();
+    expect(recipients()[2]).toEqual(["everyone", "true"]);
+  });
+
+  it("routes to the recipient a click picked, with its mention in the text", () => {
+    mount();
+    document.querySelectorAll<HTMLElement>("[role=radio]")[0]!.click();
+
+    type("hello");
+    press("Enter");
+
+    expect(routed).toEqual([
+      { sendId: "send-1", to: "perlica", text: "@Perlica hello", mention: "character" },
+    ]);
+    expect(recipients()[1]).toEqual(["Natsume", "true"]);
+  });
+
+  it("routes everyone one character at a time", () => {
+    mount();
+    document.querySelectorAll<HTMLElement>("[role=radio]")[2]!.click();
+    type("hi");
+    press("Enter");
     expect(routed).toHaveLength(1);
-    expect(routed[0]).toMatchObject({
-      sendId: "send-1",
-      text: "@everyone hi",
-      mention: "everyone",
-    });
     const first = routed[0]!.to;
-    const second = first === "perlica" ? "natsume" : "perlica";
 
     view.turnDone({ sendId: "send-1", preset: first });
 
-    expect(routed).toHaveLength(2);
-    expect(routed[1]).toMatchObject({ sendId: "send-1", to: second, mention: "everyone" });
+    expect(routed[1]).toMatchObject({
+      sendId: "send-1",
+      to: first === "perlica" ? "natsume" : "perlica",
+      text: "@everyone hi",
+      mention: "everyone",
+    });
   });
 
-  it("a typed leading @name routes like a pick even when it names the fallback speaker", () => {
-    mount();
-
-    type("@natsume hi");
-    press("Enter");
-
-    expect(routed).toEqual([
-      { sendId: "send-1", to: "natsume", text: "@natsume hi", mention: "character" },
-    ]);
-  });
-
-  it("a typed leading @name names its preset on the chip and routes to it, text as typed", () => {
-    mount();
-
-    type("@perlica hi");
-    expect(document.querySelector(".yui-uc__target")?.textContent).toContain("to Perlica");
-
-    press("Enter");
-
-    expect(routed).toEqual([
-      { sendId: "send-1", to: "perlica", text: "@perlica hi", mention: "character" },
-    ]);
-  });
-
-  it("Tab picks the highlighted @ option like Enter", () => {
+  it("Tab picks the highlighted @ option", () => {
     mount();
 
     type("@per");
@@ -215,77 +153,103 @@ describe("unified view — routing", () => {
       { sendId: "send-1", to: "perlica", text: "@Perlica hi", mention: "character" },
     ]);
   });
+});
 
-  it("the chip returns to the fallback target once a send clears the field", async () => {
+describe("unified view — running replies", () => {
+  it("turns send into stop while a reply runs, and stop ends every turn and the sequence", () => {
     mount();
-
-    type("@perlica hi");
+    document.querySelectorAll<HTMLElement>("[role=radio]")[2]!.click();
+    type("hi");
     press("Enter");
-    await Promise.resolve();
+    const first = routed[0]!.to;
+    stream(first, { op: "busy", busy: true });
+    const form = document.querySelector(".yui-uc__dock .yui-input")!;
+    expect(form.classList.contains("is-running")).toBe(true);
 
-    expect(document.querySelector(".yui-uc__target")?.textContent).toContain("to Natsume");
+    document.querySelector<HTMLButtonElement>(".yui-uc__dock .yui-input__send")!.click();
+    view.turnDone({ sendId: "send-1", preset: first });
+
+    expect(stops).toBe(1);
+    expect(routed).toHaveLength(1);
   });
 
-  it("the chip names the pill's target while it is set and the fallback once it is gone", () => {
+  it("shows a routed turn's error under the composer", () => {
     mount();
 
-    type("@per");
-    press("Tab");
-    expect(document.querySelector(".yui-uc__target")?.textContent).toContain("to Perlica");
+    stream("natsume", { op: "input-error", message: "Could not reach the backend" });
 
-    press("Backspace");
-    expect(document.querySelector(".yui-uc__target")?.textContent).toContain("to Natsume");
+    expect(document.querySelector(".yui-uc__dock .yui-input__error")?.textContent).toBe(
+      "Could not reach the backend",
+    );
+  });
+
+  it("focuses the window and the field on a summon", async () => {
+    mount();
+
+    stream("perlica", { op: "summon-input" });
+
+    await vi.waitFor(() => expect(document.activeElement).toBe(field()));
+    expect(focusWindow).toHaveBeenCalledOnce();
+  });
+
+  it("shows one character's line at a time, the other waiting", () => {
+    mount();
+
+    stream("perlica", { op: "begin" });
+    stream("perlica", { op: "push", delta: "First." });
+    stream("natsume", { op: "begin" });
+    stream("natsume", { op: "push", delta: "Second." });
+
+    expect(boxText()).toBe("First.");
+    expect(document.querySelector(".yui-plate__name")?.textContent).toBe("Perlica");
+    expect(chipStates()).toEqual(["talk", "think"]);
+
+    stream("perlica", { op: "end" });
+
+    expect(boxText()).toBe("Second.");
+    expect(document.querySelector(".yui-plate__name")?.textContent).toBe("Natsume");
+    expect(chipStates()).toEqual(["idle", "talk"]);
+  });
+
+  it("leads a quote routed to everyone with You → everyone", () => {
+    mount();
+
+    stream("natsume", {
+      op: "quote",
+      quote: { text: "hi all", via: "text", images: 0, mention: "everyone" },
+    });
+
+    expect(document.querySelector(".yui-bubble__quote-who")?.textContent).toBe("You → everyone");
   });
 });
 
-describe("unified view — pending sends over time", () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(T);
-    mount({ now: () => Date.now() });
-  });
-  afterEach(() => vi.useRealTimers());
-
-  const pendingTexts = () =>
-    [...document.querySelectorAll(".is-pending .yui-uc__say")].map((el) => el.textContent);
-
-  it("removes a pending row through its own timer 60 seconds after the send", () => {
-    type("hello");
-    press("Enter");
-    expect(pendingTexts()).toHaveLength(1);
-
-    vi.advanceTimersByTime(59_000);
-    expect(pendingTexts()).toHaveLength(1);
-    vi.advanceTimersByTime(2_000);
-    expect(pendingTexts()).toEqual([]);
-  });
-
-  it("keeps the row of a send that still waits behind a running sequence", () => {
-    type("@");
-    [...document.querySelectorAll<HTMLElement>("[role=option]")]
-      .find((o) => o.querySelector(".yui-uc__opt-name")?.textContent === "@everyone")
-      ?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
-    type("first");
-    press("Enter");
-    type("second");
-    press("Enter");
-
-    vi.advanceTimersByTime(65_000);
-
-    expect(pendingTexts()).toHaveLength(1);
-    expect(pendingTexts()[0]).toContain("second");
-  });
-});
-
-describe("unified view — the mention pill", () => {
-  it("Backspace in an empty field removes it", () => {
+describe("unified view — the backlog", () => {
+  it("labels the user's lines with who they went to", () => {
+    transcripts = {
+      perlica: [
+        { role: "user", text: "hi all", ts: T - 90_000, send_id: "s1", mention: "everyone" },
+        { role: "assistant", text: "Hello.", ts: T - 80_000 },
+      ],
+      natsume: [
+        { role: "user", text: "hi all", ts: T - 89_000, send_id: "s1", mention: "everyone" },
+        { role: "user", text: "just you", ts: T - 70_000, send_id: "s2" },
+      ],
+    };
     mount();
-    type("@nat");
-    press("Enter");
-    expect(document.querySelector(".yui-uc__pill")?.hasAttribute("hidden")).toBe(false);
+    stream("perlica", { op: "begin" });
+    stream("perlica", { op: "push", delta: "Now." });
 
-    press("Backspace");
+    document.querySelector<HTMLButtonElement>(".yui-bubble__backlog-toggle")!.click();
 
-    expect(document.querySelector(".yui-uc__pill")?.hasAttribute("hidden")).toBe(true);
+    expect(
+      [...document.querySelectorAll(".yui-bubble__backlog-list li")].map((li) => [
+        li.querySelector(".yui-bubble__backlog-who")?.textContent,
+        li.querySelector(".yui-bubble__backlog-text")?.textContent,
+      ]),
+    ).toEqual([
+      ["You → everyone", "hi all"],
+      ["Perlica", "Hello."],
+      ["You → Natsume", "just you"],
+    ]);
   });
 });
