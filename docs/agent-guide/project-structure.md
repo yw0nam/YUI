@@ -624,6 +624,7 @@ YUI/
         together/                    # The Together page's character list
           characters-section.ts      # One row per preset with an "On the desktop" switch, main locked on, the open-preset cap
           characters-section.css     # Character row styles
+          together-rows.ts           # The page's switch rows and the chain cap
         sections/                    # The page sections the shell mounts, the rows and lines the Connection page and other sections share, and the list helpers
           agent/                     # Locale, reasoning-effort, and instructions controls
             agent-section.ts         # Locale segment, reasoning-effort segment, the card's system-prompt textarea, and their redraw
