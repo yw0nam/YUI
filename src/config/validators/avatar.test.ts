@@ -221,23 +221,6 @@ describe("validateAvatar — framing", () => {
       "framing.fov must be a finite number in (0, 180)",
     );
   });
-
-  it("rejects a missing upper_body", () => {
-    const raw = avatarFixture() as unknown as Record<string, unknown>;
-    raw.framing = { margin: 0.1, fov: 30 };
-    expectIssue(raw, "framing.upper_body must be an object");
-  });
-
-  it("rejects an upper_body band out of order or out of [0, 1]", () => {
-    expectIssue(
-      avatarWith({ framing: { upper_body: { from_frac: 0.6, to_frac: 0.5 } } }),
-      "framing.upper_body.from_frac must be <",
-    );
-    expectIssue(
-      avatarWith({ framing: { upper_body: { from_frac: -0.1, to_frac: 1 } } }),
-      "framing.upper_body.from_frac must be a finite number in [0, 1]",
-    );
-  });
 });
 
 describe("validateAvatar — hit_test", () => {
@@ -1018,7 +1001,7 @@ const BROKEN_EVERYWHERE = {
     { id: "dup", label: "A", url: "u" },
     { id: "dup", label: "B", url: "u", source: "user" },
   ],
-  framing: { margin: -1, fov: 180, upper_body: { from_frac: 0.9, to_frac: 0.5 } },
+  framing: { margin: -1, fov: 180 },
   hit_test: {
     hysteresis_margin_px: -1,
     poll_interval_ms: 0,
@@ -1110,7 +1093,6 @@ describe("validateAvatar — characterization", () => {
       'available[2].id is a duplicate (got: "dup")',
       "framing.margin must be a finite number >= 0 (got: -1)",
       "framing.fov must be a finite number in (0, 180) (got: 180)",
-      "framing.upper_body.from_frac must be < framing.upper_body.to_frac (got: 0.9 >= 0.5)",
       "hit_test.hysteresis_margin_px must be a finite number >= 0 (got: -1)",
       "hit_test.poll_interval_ms must be a finite number > 0 (got: 0)",
       "hit_test.debounce_samples must be an integer >= 1 (got: 1.5)",
@@ -1186,10 +1168,6 @@ describe("validateAvatar — characterization", () => {
       framing: {
         margin: 0.1,
         fov: 30,
-        upper_body: {
-          from_frac: 0.4,
-          to_frac: 1,
-        },
       },
       hit_test: {
         hysteresis_margin_px: 8,

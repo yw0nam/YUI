@@ -8,11 +8,11 @@
 import type { AttachmentLimits } from "../../config/validators/guardrails";
 import type { InputErrorAction } from "../../io/bridge/message/message-remote";
 import { subscribe as subscribeLocale, t } from "../i18n";
-import { type ActionButton, createActionButton, type MicPort } from "./action-button";
+import { type ActionButton, createActionButton } from "./action-button";
 import { downscaleToJpeg } from "./image-resize";
 
 interface TextInput {
-  /** Hotkey summon — slide up + focus; a no-op while the input is already open. A persistent input only takes focus. */
+  /** Hotkey summon — slide up + focus; a no-op while the input is already open. */
   summonInput(): void;
   /** Close the input. */
   dismissInput(): void;
@@ -68,10 +68,7 @@ export function createTextInput(
   { formEl, field, errorEl, trayEl, attachBtn, picker, sendBtn }: TextInputElements,
   bubble: TextInputBubbleAnchor,
   onOpenChange?: (open: boolean) => void,
-  options?: { persistentInput?: boolean; mic?: MicPort },
 ): TextInput {
-  // Always shown, never summoned or dismissed: the button sends and Enter is a newline.
-  const persistent = options?.persistentInput ?? false;
   const submitHandlers: Array<(text: string, images: string[]) => void> = [];
   const stopHandlers: Array<() => void> = [];
   const attachments: string[] = [];
@@ -89,8 +86,6 @@ export function createTextInput(
   const actionButton: ActionButton = createActionButton({
     button: sendBtn,
     busy: () => busy,
-    hasContent: () => field.value.trim() !== "" || attachments.length > 0 || inFlight > 0,
-    mic: options?.mic,
     onStop: () => {
       for (const cb of stopHandlers) cb();
     },
@@ -111,10 +106,6 @@ export function createTextInput(
   }
 
   function summonInput(): void {
-    if (persistent) {
-      field.focus();
-      return;
-    }
     // Idempotent: a re-summon on an open input must not reset the error state or replay the reveal.
     if (isInputOpen()) return;
     formEl.hidden = false;
@@ -129,10 +120,6 @@ export function createTextInput(
   }
 
   function dismissInput(): void {
-    if (persistent) {
-      field.blur();
-      return;
-    }
     formEl.classList.remove("is-open");
     field.blur();
     const onEnd = (e: TransitionEvent): void => {
@@ -215,7 +202,6 @@ export function createTextInput(
     inFlight = 0;
     epoch++;
     trayEl.replaceChildren();
-    actionButton.refresh();
     if (!formEl.hidden) liftBubbleAboveInput();
   }
 
@@ -240,7 +226,6 @@ export function createTextInput(
         continue;
       }
       inFlight++;
-      actionButton.refresh();
       const batch = epoch;
       void downscaleToJpeg(file)
         .then((url) => {
@@ -255,7 +240,6 @@ export function createTextInput(
         .finally(() => {
           if (batch !== epoch) return;
           inFlight--;
-          actionButton.refresh();
         });
     }
   }
@@ -278,12 +262,10 @@ export function createTextInput(
       const idx = Array.from(trayEl.children).indexOf(chip);
       if (idx !== -1) attachments.splice(idx, 1);
       chip.remove();
-      actionButton.refresh();
       if (!formEl.hidden) liftBubbleAboveInput();
     });
     chip.append(img, remove);
     trayEl.append(chip);
-    actionButton.refresh();
     if (!formEl.hidden) liftBubbleAboveInput();
   }
 
@@ -327,14 +309,12 @@ export function createTextInput(
     for (const cb of submitHandlers) cb(text, images);
     clearAttachments();
     field.value = "";
-    actionButton.refresh();
     fitField();
   }
 
   function restoreInput(text: string, images: string[]): void {
     if (!isInputOpen() || field.value !== "" || attachments.length > 0 || inFlight > 0) return;
     field.value = text;
-    actionButton.refresh();
     for (const url of images) {
       attachments.push(url);
       addChip(url);
@@ -353,7 +333,6 @@ export function createTextInput(
       dismissInput();
       return;
     }
-    if (persistent) return;
     // Textarea has no implicit submit; WebKit reports the IME-committing Enter as keyCode 229.
     if (e.key === "Enter" && !e.shiftKey && !e.isComposing && e.keyCode !== 229) {
       e.preventDefault();
@@ -400,17 +379,10 @@ export function createTextInput(
     if (e.dataTransfer) addFiles(e.dataTransfer.files);
   }
 
-  if (persistent) {
-    formEl.hidden = false;
-    formEl.classList.add("is-open");
-    fitField();
-  }
-
   formEl.addEventListener("submit", handleSubmit);
   field.addEventListener("keydown", handleFieldKey);
   field.addEventListener("input", clearErrorOnInput);
   field.addEventListener("input", fitField);
-  field.addEventListener("input", actionButton.refresh);
   field.addEventListener("paste", onFieldPaste);
   attachBtn.addEventListener("click", onAttachClick);
   picker.addEventListener("change", onPickerChange);
@@ -425,7 +397,6 @@ export function createTextInput(
     field.removeEventListener("keydown", handleFieldKey);
     field.removeEventListener("input", clearErrorOnInput);
     field.removeEventListener("input", fitField);
-    field.removeEventListener("input", actionButton.refresh);
     field.removeEventListener("paste", onFieldPaste);
     attachBtn.removeEventListener("click", onAttachClick);
     picker.removeEventListener("change", onPickerChange);

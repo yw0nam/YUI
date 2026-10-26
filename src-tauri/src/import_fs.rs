@@ -55,7 +55,6 @@ pub(crate) enum SniffKind {
     Webm,
     Png,
     Jpeg,
-    Webp,
 }
 
 /// Bytes read from the source head to recognize a container signature.
@@ -72,16 +71,6 @@ pub(crate) fn audio_sniff_kind(ext_lower: &str) -> Option<SniffKind> {
         "aac" => Some(SniffKind::Aac),
         "opus" => Some(SniffKind::Opus),
         "webm" => Some(SniffKind::Webm),
-        _ => None,
-    }
-}
-
-/// Map an image extension (any case) to its stored extension and sniff kind.
-pub(crate) fn image_ext(ext: &str) -> Option<(&'static str, SniffKind)> {
-    match ext.to_ascii_lowercase().as_str() {
-        "png" => Some(("png", SniffKind::Png)),
-        "jpg" | "jpeg" => Some(("jpg", SniffKind::Jpeg)),
-        "webp" => Some(("webp", SniffKind::Webp)),
         _ => None,
     }
 }
@@ -106,9 +95,6 @@ pub(crate) fn sniff_ok(header: &[u8], kind: SniffKind) -> bool {
         SniffKind::Webm => header.starts_with(&[0x1A, 0x45, 0xDF, 0xA3]),
         SniffKind::Png => header.starts_with(b"\x89PNG\r\n\x1a\n"),
         SniffKind::Jpeg => header.starts_with(&[0xFF, 0xD8, 0xFF]),
-        SniffKind::Webp => {
-            header.len() >= 12 && &header[0..4] == b"RIFF" && &header[8..12] == b"WEBP"
-        }
     }
 }
 
@@ -853,8 +839,6 @@ mod tests {
     fn sniff_images_reject_each_others_signatures() {
         assert!(!sniff_ok(JPEG, SniffKind::Png));
         assert!(!sniff_ok(PNG, SniffKind::Jpeg));
-        assert!(!sniff_ok(b"RIFF\x24\x00\x00\x00WAVEfmt ", SniffKind::Webp));
-        assert!(!sniff_ok(b"RIFF\x24\x00", SniffKind::Webp));
     }
 
     #[test]

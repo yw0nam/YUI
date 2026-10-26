@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import viteConfig from "../vite.config";
 
 describe("Vite development configuration", () => {
-  it("does not watch Rust or Android build output", async () => {
+  it("does not watch Rust build output or Tauri's gen folder", async () => {
     const config =
       typeof viteConfig === "function"
         ? await viteConfig({ command: "serve", mode: "development" })

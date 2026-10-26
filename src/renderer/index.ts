@@ -325,7 +325,6 @@ export function createRenderer(options: RendererOptions): Renderer {
     setIdleVariants: motion.setIdleVariants,
     setEmotionRegistry,
     setFraming: rig.setFraming,
-    setFitBand: rig.setFitBand,
     setViewWindow,
     setZoom: rig.setZoom,
     setOrbit: rig.setOrbit,

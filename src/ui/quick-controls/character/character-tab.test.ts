@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 /**
- * character-tab.test.ts — the extracted Character tab: the phone rows render and bind only the
- * VRM list and the view reset; the desktop rows add the gain slider.
+ * character-tab.test.ts — the extracted Character tab: the rows render and bind only the
+ * VRM list and the view reset; further rows add the gain slider and the motion lists.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setLocale, t } from "../../i18n";
 import { makeVrmSelection } from "../test-helpers";
 import { type CharacterRows, createCharacterTab } from "./character-tab";
 
-const PHONE_ROWS: CharacterRows = {
+const ROWS: CharacterRows = {
   vrms: true,
   gain: false,
   idleMotion: false,
@@ -35,8 +35,7 @@ describe("createCharacterTab", () => {
     const onResetView = vi.fn();
     const importVrm = vi.fn(async () => {});
     const tab = createCharacterTab({
-      rows: PHONE_ROWS,
-      variant: "phone",
+      rows: ROWS,
       vrmSelection,
       swapVrm: async () => {},
       importVrm,
@@ -50,7 +49,7 @@ describe("createCharacterTab", () => {
     return { tab, vrmSelection, onResetView, importVrm };
   }
 
-  it("phone rows render the VRM list and the view reset, and nothing else", () => {
+  it("renders the VRM list and the view reset, and nothing else", () => {
     const { tab } = build();
     expect(tab.el.querySelector(".yui-vrms")).not.toBeNull();
     expect(tab.el.querySelector(".yui-vrm--add")).not.toBeNull();
@@ -58,10 +57,8 @@ describe("createCharacterTab", () => {
     expect(tab.el.querySelector(".yui-lipsync-gain__slider")).toBeNull();
     expect(tab.el.querySelector(".yui-idle-motion")).toBeNull();
     expect(tab.el.querySelector(".yui-express-motion")).toBeNull();
-    // The phone's reset section carries its own heading and row copy.
-    expect(tab.el.textContent).toContain(t("viewpoint.view_section"));
-    expect(tab.el.textContent).toContain(t("viewpoint.reset_view_label"));
-    expect(tab.el.textContent).toContain(t("viewpoint.reset_view_sub"));
+    expect(tab.el.textContent).toContain(t("viewpoint.section"));
+    expect(tab.el.textContent).toContain(t("viewpoint.reset"));
     tab.dispose();
   });
 

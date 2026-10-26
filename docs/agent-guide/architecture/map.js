@@ -388,7 +388,7 @@ globalThis.YUI_MAP =
       "id": "user",
       "module": "user",
       "label": "user",
-      "role": "The person at the desktop or the phone.",
+      "role": "The person at the desktop.",
       "paths": [],
       "external": true
     },
@@ -566,12 +566,11 @@ globalThis.YUI_MAP =
       "id": "shell/imports",
       "module": "shell",
       "label": "asset imports",
-      "role": "Native copy of user-picked VRM, voice clip, and stage image files into app data, and the card file steps: a JSON or PNG card read, the PNG kept as the thumbnail copy, and the exported card write.",
+      "role": "Native copy of user-picked VRM and voice clip files into app data, and the card file steps: a JSON or PNG card read, the PNG kept as the thumbnail copy, and the exported card write.",
       "paths": [
         "src-tauri/src/import_fs.rs",
         "src-tauri/src/vrm_import.rs",
         "src-tauri/src/voice_import.rs",
-        "src-tauri/src/stage_image.rs",
         "src-tauri/src/card_import.rs"
       ]
     },
@@ -921,7 +920,7 @@ globalThis.YUI_MAP =
       "id": "io/assets",
       "module": "settings",
       "label": "assets",
-      "role": "VRM selection and import, the phone stage background, and the card's file steps: the OS pickers for import and export, the V2 export envelope, and the thumbnail file URL the preset entry carries.",
+      "role": "VRM selection and import, and the card's file steps: the OS pickers for import and export, the V2 export envelope, and the thumbnail file URL the preset entry carries.",
       "paths": [
         "src/io/assets"
       ]
@@ -954,19 +953,10 @@ globalThis.YUI_MAP =
       ]
     },
     {
-      "id": "io/lifecycle",
-      "module": "window",
-      "label": "page lifecycle",
-      "role": "The Android back-button claim and page visibility.",
-      "paths": [
-        "src/io/lifecycle"
-      ]
-    },
-    {
       "id": "io/stage",
       "module": "input",
       "label": "stage pointer",
-      "role": "Press travel and the touch gesture recognizer every stage surface shares.",
+      "role": "Press travel every stage surface shares.",
       "paths": [
         "src/io/stage"
       ]
@@ -1179,15 +1169,6 @@ globalThis.YUI_MAP =
       ]
     },
     {
-      "id": "ui/phone",
-      "module": "display",
-      "label": "phone ui",
-      "role": "Phone-window layout, settings sheet, and stage backdrop.",
-      "paths": [
-        "src/ui/phone"
-      ]
-    },
-    {
       "id": "ui/devtools",
       "module": "settings",
       "label": "devtools ui",
@@ -1331,15 +1312,6 @@ globalThis.YUI_MAP =
       "role": "Composes the settings window over the stores of the preset it edits (`?edit=`, else its own) and mirrors the voice toggle in main only.",
       "paths": [
         "src/app/settings-window"
-      ]
-    },
-    {
-      "id": "app/phone",
-      "module": "wiring",
-      "label": "phone wiring",
-      "role": "The phone window's turn core, settings view, stage, top row, and voice controller.",
-      "paths": [
-        "src/app/phone"
       ]
     },
     {
@@ -2696,7 +2668,7 @@ globalThis.YUI_MAP =
       "id": "renderer-camera",
       "from": "renderer",
       "to": "renderer/camera",
-      "carries": "setFraming, setFitBand, setViewWindow",
+      "carries": "setFraming, setViewWindow",
       "kind": "call",
       "transport": "shared"
     },
@@ -2928,7 +2900,7 @@ globalThis.YUI_MAP =
       "id": "assets-shell",
       "from": "io/assets",
       "to": "shell/imports",
-      "carries": "import_vrm_file, remove_user_vrm, import_stage_image, remove_stage_image",
+      "carries": "import_vrm_file, remove_user_vrm",
       "kind": "tauri-command",
       "transport": "shared"
     },
@@ -4351,11 +4323,6 @@ globalThis.YUI_MAP =
         "id": "devtools",
         "label": "devtools",
         "role": "Context inspector, advanced settings, and motion preview over reloaded stores."
-      },
-      {
-        "id": "phone",
-        "label": "phone",
-        "role": "The Android window. It runs the same turn core on the push transport alone, with no avatar tools and no screen capture, and opens no bridge."
       },
       {
         "id": "ingress",

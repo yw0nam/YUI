@@ -16,8 +16,6 @@ async function expectAvatarError(p: Promise<unknown>): Promise<void> {
   expect((err as ConfigError).issues.length).toBeGreaterThan(0);
 }
 
-const UPPER_BODY = { from_frac: 0.4, to_frac: 1 };
-
 /** Loads the good fixture with avatar.json replaced. */
 async function loadWithAvatar(avatar: unknown): Promise<Awaited<ReturnType<typeof loadConfig>>> {
   const map = goodFixture();
@@ -73,10 +71,8 @@ describe("loadConfig — avatar.available", () => {
 
 describe("loadConfig — avatar.framing", () => {
   it("preserves a valid framing {margin, fov} as-is", async () => {
-    const cfg = await loadWithAvatar(
-      avatarWith({ framing: { margin: 0.2, fov: 45, upper_body: UPPER_BODY } }),
-    );
-    expect(cfg.avatar.framing).toEqual({ margin: 0.2, fov: 45, upper_body: UPPER_BODY });
+    const cfg = await loadWithAvatar(avatarWith({ framing: { margin: 0.2, fov: 45 } }));
+    expect(cfg.avatar.framing).toEqual({ margin: 0.2, fov: 45 });
   });
 
   it("fails when framing is missing", async () => {
@@ -86,40 +82,28 @@ describe("loadConfig — avatar.framing", () => {
   });
 
   it("fails on fov: 0 (outside the open interval)", async () => {
-    await expectAvatarError(
-      loadWithAvatar(avatarWith({ framing: { margin: 0.1, fov: 0, upper_body: UPPER_BODY } })),
-    );
+    await expectAvatarError(loadWithAvatar(avatarWith({ framing: { margin: 0.1, fov: 0 } })));
   });
 
   it("fails on fov: 180 (outside the open interval)", async () => {
-    await expectAvatarError(
-      loadWithAvatar(avatarWith({ framing: { margin: 0.1, fov: 180, upper_body: UPPER_BODY } })),
-    );
+    await expectAvatarError(loadWithAvatar(avatarWith({ framing: { margin: 0.1, fov: 180 } })));
   });
 
   it("fails on fov: -5 (negative)", async () => {
-    await expectAvatarError(
-      loadWithAvatar(avatarWith({ framing: { margin: 0.1, fov: -5, upper_body: UPPER_BODY } })),
-    );
+    await expectAvatarError(loadWithAvatar(avatarWith({ framing: { margin: 0.1, fov: -5 } })));
   });
 
   it('fails on fov: "30" (string)', async () => {
-    await expectAvatarError(
-      loadWithAvatar(avatarWith({ framing: { margin: 0.1, fov: "30", upper_body: UPPER_BODY } })),
-    );
+    await expectAvatarError(loadWithAvatar(avatarWith({ framing: { margin: 0.1, fov: "30" } })));
   });
 
   it("fails on margin: -0.1 (negative)", async () => {
-    await expectAvatarError(
-      loadWithAvatar(avatarWith({ framing: { margin: -0.1, fov: 30, upper_body: UPPER_BODY } })),
-    );
+    await expectAvatarError(loadWithAvatar(avatarWith({ framing: { margin: -0.1, fov: 30 } })));
   });
 
   it("fails on margin: NaN (non-finite)", async () => {
     await expectAvatarError(
-      loadWithAvatar(
-        avatarWith({ framing: { margin: Number.NaN, fov: 30, upper_body: UPPER_BODY } }),
-      ),
+      loadWithAvatar(avatarWith({ framing: { margin: Number.NaN, fov: 30 } })),
     );
   });
 });

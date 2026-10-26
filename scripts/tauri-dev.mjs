@@ -4,7 +4,7 @@ import os from "node:os";
 import { buildDevUrl, findFreePort, resolvePort, tauriConfigArg } from "./dev-port.mjs";
 import { packageManagerCommand, stopProcessTree } from "./package-manager.mjs";
 
-// argv carries the tauri subcommand: `dev`, or `android dev --no-watch`.
+// argv carries the tauri subcommand: `dev`.
 const tauriArgs = process.argv.slice(2);
 const label = `tauri ${tauriArgs.join(" ")}`;
 const port = await resolvePort({ env: process.env, isPortFree: findFreePort });

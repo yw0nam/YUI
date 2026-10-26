@@ -227,7 +227,7 @@ The line names the switch state only. The switch gates the tool's execution, rea
 the call runs, so a state line the request outlives can still end in a refusal. The line is
 omitted when the turn declares no switchable tool: every pet window and the browser build declare
 `relations`; under Tauri `main` also declares `look.screen` and `browser`, and a bound pet window
-also declares `browser`; the phone window declares none; and on Responses with `broker_base_url`
+also declares `browser`; and on Responses with `broker_base_url`
 set the client declares no tools. Tool ids carry the same
 sanitization as the other sampled fields.
 

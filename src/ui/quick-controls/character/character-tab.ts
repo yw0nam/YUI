@@ -1,6 +1,6 @@
 /**
  * Character tab — the VRM list with import, the relations rows, the mouth-gain row, the idle and
- * express motion rows and the camera view reset, shared by the desktop panel and the phone settings view. `rows`
+ * express motion rows and the camera view reset. `rows`
  * picks which render; the same rows drive markup, handlers and subscriptions, so only rendered
  * rows are bound.
  */
@@ -19,7 +19,7 @@ import type { FlagSettingsStore } from "../../../settings/persisted-store";
 import type { PresetEntry } from "../../../settings/preset/active-preset";
 import type { RelationsStore } from "../../../settings/relations/relations-store";
 import { createBedSceneSection } from "./bed-scene/bed-scene-section";
-import { type CharacterRows, type CharacterVariant, characterHtml } from "./character-html";
+import { type CharacterRows, characterHtml } from "./character-html";
 import { createExpressMotionList } from "./express-motion/express-motion-section";
 import { createGainRow } from "./gain/gain-row";
 import { createIdleMotionList } from "./idle-motion/idle-motion-section";
@@ -40,7 +40,6 @@ export interface CharacterTab {
 
 export function createCharacterTab(deps: {
   rows: CharacterRows;
-  variant: CharacterVariant;
   vrmSelection: ReturnType<typeof createVrmSelection>;
   /** Load the model, then commit the selection. The list never selects on its own. */
   swapVrm: (option: AvatarOption) => Promise<void>;
@@ -51,7 +50,7 @@ export function createCharacterTab(deps: {
   /** Skip repaints while the tab is closed. */
   isOpen: () => boolean;
   log: Logger;
-  /** Re-measure hover hints after a row's label changes; the phone has none. */
+  /** Re-measure hover hints after a row's label changes. */
   refreshTooltip?: () => void;
   /** The view reset; required with `rows.viewpoint`. */
   onResetView?: () => void;
@@ -89,7 +88,7 @@ export function createCharacterTab(deps: {
 
   const el = document.createElement("div");
   el.className = "yui-tab-stack";
-  el.innerHTML = characterHtml(rows, deps.variant);
+  el.innerHTML = characterHtml(rows);
 
   const vrmList = createVrmList({
     root: el,

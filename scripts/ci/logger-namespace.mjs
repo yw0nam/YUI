@@ -19,8 +19,6 @@ const KNOWN = new Set([
   "src/app/bootstrap-configured.ts:bootstrap",
   "src/app/message/wire-message-surface-ops.ts:message-bootstrap",
   "src/app/message/wire-message-tauri-window.ts:message-bootstrap",
-  "src/app/phone/bootstrap-phone.ts:phone-bootstrap",
-  "src/app/phone/settings/wire-phone-settings.ts:phone-settings",
   "src/app/settings-window/wire-settings-window.ts:settings-bootstrap",
   "src/app/stage/wire-window-geometry.ts:window-geometry",
   "src/app/turn/turn-core.ts:bootstrap",
@@ -37,7 +35,6 @@ const KNOWN = new Set([
   "src/windows/devtools-main.ts:devtools-bootstrap",
   "src/windows/main.ts:bootstrap",
   "src/windows/message-main.ts:message-bootstrap",
-  "src/windows/phone-main.ts:phone-bootstrap",
   "src/windows/settings-main.ts:settings-bootstrap",
 ]);
 

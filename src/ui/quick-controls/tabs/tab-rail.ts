@@ -1,7 +1,6 @@
 /**
- * Tab rail — the tablist shared by the desktop panel and the phone settings view: one visible
- * panel per selected button, roving tabindex, arrow/Home/End keyboard. Also renders the
- * button/panel markup pairs it wires.
+ * Tab rail — the tablist: one visible panel per selected button, roving tabindex, arrow/Home/End
+ * keyboard. Also renders the button/panel markup pairs it wires.
  */
 
 import { t } from "../../i18n";
@@ -27,8 +26,7 @@ interface TabRailDeps {
 }
 
 /**
- * One rail button — labeled (desktop panel) or icon-only (phone view); icon-only drops the
- * tooltip, whose hover affordance a touch screen has no use for.
+ * One rail button — labeled or icon-only; icon-only drops the tooltip.
  */
 export function tabButtonHtml(
   id: string,

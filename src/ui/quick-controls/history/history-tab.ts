@@ -1,6 +1,5 @@
 /**
- * History tab — the session accordion plus the start-fresh action, shared by the desktop panel
- * and the phone settings view. Read-only viewer over the persisted transcript.
+ * History tab — the session accordion plus the start-fresh action. Read-only viewer over the persisted transcript.
  */
 
 import type { createChatHistoryStore } from "../../../io/chat/conversation/chat-history-store";

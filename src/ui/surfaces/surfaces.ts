@@ -19,7 +19,6 @@ import type { SourceLine, UserQuote } from "../../io/bridge/message/message-brid
 import type { InputErrorAction, SpeechAction } from "../../io/bridge/message/message-remote";
 import type { ToolStatus } from "../chips/status-pill";
 import { subscribe as subscribeLocale, t } from "../i18n";
-import type { MicPort } from "../input/action-button";
 import { createTextInput } from "../input/text-input";
 import { createReasoningDisclosure, type ReasoningSource } from "../message/reasoning-disclosure";
 import { createSignalSourceLines } from "../message/signal-source-lines";
@@ -114,10 +113,6 @@ interface SurfacesOptions {
   onInputOpenChange?: (open: boolean) => void;
   /** The backend's reasoning, folded at the top of the bubble under the quoted line. */
   reasoning?: ReasoningSource;
-  /** The input stays open from construction; the send button sends and Enter is a newline. */
-  persistentInput?: boolean;
-  /** The mic the action button becomes while the composer is empty and no turn runs; without it the button only sends and stops. */
-  mic?: MicPort;
 }
 
 export function createSurfaces({
@@ -128,8 +123,6 @@ export function createSurfaces({
   onPop,
   onInputOpenChange,
   reasoning,
-  persistentInput,
-  mic,
 }: SurfacesOptions): Surfaces {
   const el = document.createElement("div");
   el.className = "yui-ui";
@@ -166,10 +159,6 @@ export function createSurfaces({
         <span class="yui-input__error" role="alert"></span>
         <button type="button" class="yui-input__btn yui-input__pop">${POP_ICON}</button>
         <button class="yui-input__btn yui-input__send" type="submit">
-          <span class="icon-mic" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4"/></svg>
-          </span>
           <span class="icon-send" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
@@ -218,7 +207,6 @@ export function createSurfaces({
     { formEl, field, errorEl, trayEl, attachBtn, picker, sendBtn },
     { liftAboveInput: bubble.liftAboveInput, resetPosition: bubble.resetPosition },
     onInputOpenChange,
-    { persistentInput, mic },
   );
 
   const popButtons = [bubblePop, inputPop];

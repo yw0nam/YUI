@@ -36,20 +36,19 @@ import { type ModelStatusPhase, modelStatusView } from "./model-status";
 
 type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
 
-function chatSectionHtml(chatRows: "full" | "push"): string {
-  const full = chatRows === "full";
+function chatSectionHtml(): string {
   // Chat provider preset dropdown options — brand names + Custom. value=preset id reflects chat_base_url.
   const chatPresetOptionsHtml = `${CHAT_PROVIDER_PRESETS.map(
     (p) => `<option value="${p.id}">${p.name}</option>`,
   ).join("")}<option value="${CHAT_PRESET_CUSTOM}">${t("svc.chat_preset_custom")}</option>`;
   return `
         <section class="yui-sec yui-endpoints yui-svc" data-svc="chat">
-          ${secHeadHtml(t("svc.chat"), full ? `<span class="yui-endpoints__hint yui-chat-summary-hint"></span>` : "")}
+          ${secHeadHtml(t("svc.chat"), `<span class="yui-endpoints__hint yui-chat-summary-hint"></span>`)}
           <div class="yui-group">
-            ${full ? chatTypeRowHtml() : ""}
-            ${full ? selectRowHtml("yui-svc-chat-preset", "svc.chat_preset_label", `<select class="yui-select yui-chat-preset" id="yui-svc-chat-preset" aria-label="${t("svc.chat_preset_aria")}">${chatPresetOptionsHtml}</select>`) : ""}
+            ${chatTypeRowHtml()}
+            ${selectRowHtml("yui-svc-chat-preset", "svc.chat_preset_label", `<select class="yui-select yui-chat-preset" id="yui-svc-chat-preset" aria-label="${t("svc.chat_preset_aria")}">${chatPresetOptionsHtml}</select>`)}
             ${endpointRowHtml("chat_base_url")}
-            ${full ? endpointRowHtml("chat_model") : ""}
+            ${endpointRowHtml("chat_model")}
             ${keyRowHtml("chatkey")}
             <p class="yui-chat-status" hidden><span class="yui-chat-status__dot" aria-hidden="true"></span><span class="yui-chat-status__text" role="status" aria-live="polite" aria-atomic="true"></span><button class="yui-chat-status__action" type="button" hidden></button></p>
             ${svcResetRowHtml("chat")}
@@ -71,8 +70,6 @@ export interface ChatSection {
 }
 
 export function createChatSection(deps: {
-  /** "full" renders the protocol/preset/model rows; "push" is the phone's URL/key + status line. */
-  chatRows: "full" | "push";
   endpointsSettings: EndpointsSettingsStore;
   /** Default bundled-config endpoints — the effective URL/model when the override is empty. */
   getEndpointDefaults?: () => EndpointOverrides | undefined;
@@ -92,7 +89,6 @@ export function createChatSection(deps: {
   getFetch?: () => Promise<typeof globalThis.fetch | undefined>;
 }): ChatSection {
   const {
-    chatRows,
     endpointsSettings,
     getEndpointDefaults,
     getDefaultChatApi,
@@ -101,14 +97,13 @@ export function createChatSection(deps: {
     getChatApiKey,
     getFetch,
   } = deps;
-  const full = chatRows === "full";
 
   // A <template> parses the section markup without a throwaway wrapper in the DOM.
   const template = document.createElement("template");
-  template.innerHTML = chatSectionHtml(chatRows);
+  template.innerHTML = chatSectionHtml();
   const el = template.content.firstElementChild as HTMLElement;
 
-  // Chat protocol nodes — the push-only rows render none of the selects/hint/model row.
+  // Chat protocol nodes.
   const chatTypeEl = el.querySelector<HTMLSelectElement>(".yui-chat-type");
   const chatTypeView = createChatTypeView(el);
   const chatPresetEl = el.querySelector<HTMLSelectElement>(".yui-chat-preset");
@@ -116,7 +111,7 @@ export function createChatSection(deps: {
     '.yui-input-row[data-ep-field="chat_model"]',
   );
   const urlInput = el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url");
-  const modelInput = full ? el.querySelector<HTMLInputElement>("#yui-ep-chat_model") : null;
+  const modelInput = el.querySelector<HTMLInputElement>("#yui-ep-chat_model");
 
   const status = createChatStatus(el, { onAction: () => pushSocket?.reconnectNow() });
 
@@ -168,9 +163,8 @@ export function createChatSection(deps: {
     return isChatApi(def) ? def : "responses";
   }
 
-  // Push rows are push whatever the store says (the phone's endpoint accessor is the source, not this store).
   function isPush(): boolean {
-    return chatRows === "push" || effectiveChatApi() === "push";
+    return effectiveChatApi() === "push";
   }
 
   /** Where the socket stands, or undefined outside push mode. */
@@ -243,7 +237,7 @@ export function createChatSection(deps: {
   }
 
   function canRead(): boolean {
-    return full && getChatApiKey !== undefined && getFetch !== undefined;
+    return getChatApiKey !== undefined && getFetch !== undefined;
   }
 
   // After a trigger (tab entry, URL/key/protocol commit): read, clear, or hand over to push.

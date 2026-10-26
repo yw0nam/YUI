@@ -49,26 +49,6 @@ const ko: Record<string, string> = {
   "aria.pop_message": "말풍선을 메시지 창으로 분리",
   "aria.dismiss_error": "오류 닫기",
 
-  // phone top-row openers
-  "phone.open_history": "대화 기록",
-  "phone.open_settings": "설정",
-  "phone.voice.start_aria": "음성 입력 켜기",
-  "phone.voice.stop_aria": "음성 입력 끄기",
-  "phone.voice.section": "음성 입력",
-  "phone.voice.mode_tap": "탭해서 켜고 끄기",
-  "phone.voice.mode_always": "계속 듣기",
-  "phone.voice.mode_aria": "음성 입력 방식",
-  "phone.voice.note": "계속 듣기는 YUI가 열려 있는 동안 동작하고, 백그라운드로 가면 멈춥니다.",
-  "phone.general.stage_section": "무대",
-  "phone.general.bubble_section": "말풍선",
-  "phone.general.stage_aria": "무대 배경",
-  "phone.general.stage_default": "기본",
-  "phone.general.stage_image": "이미지",
-  "phone.general.image_label": "배경 이미지",
-  "phone.general.image_sub": "어둡게 덮어 글자 대비를 유지합니다.",
-  "phone.general.image_choose": "선택",
-  "phone.general.import_error": "이 이미지를 쓸 수 없습니다. PNG, JPEG, WebP 파일을 골라 주세요.",
-
   "input.placeholder": "말 걸기…",
   "input.error_auth": "인증 실패 · API 키 확인",
   "input.error_network": "응답 없음 · 연결 확인",
@@ -411,10 +391,6 @@ const ko: Record<string, string> = {
   "viewpoint.section": "시점",
   "viewpoint.sub": "Shift + 드래그로 회전, 스크롤로 확대",
   "viewpoint.reset": "정면으로 초기화",
-  "viewpoint.view_section": "보기",
-  "viewpoint.reset_view_label": "시점 초기화",
-  "viewpoint.reset_view_sub": "회전과 확대를 처음 상태로 되돌립니다.",
-  "viewpoint.reset_view_button": "초기화",
 
   // screenshot / input tab
   "screenshot.label": "스크린샷 첨부",

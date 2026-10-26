@@ -360,7 +360,7 @@ describe("status pill — voice toggle", () => {
   });
 });
 
-describe("status pill — phone, no capture setting", () => {
+describe("status pill — no capture setting", () => {
   it("renders no capture button at all", () => {
     const p = setup({ withCaptureSetting: false });
     p.voice.set("listening");

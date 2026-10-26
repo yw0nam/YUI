@@ -11,7 +11,7 @@ import { createDelegationChip } from "../../../ui/chips/delegation-chip";
 /**
  * The delegation chip's lazy mount — wirePushMode's chip seam. Created only for push mode and
  * disposed when the mode leaves; suppressed while a host port says so (the pet: the popped
- * message window carries the surfaces; the phone: never). A fold store the host passes in is
+ * message window carries the surfaces). A fold store the host passes in is
  * the host's to dispose; without one the mount creates and disposes its own.
  */
 export function createDelegationChipMount(deps: {
