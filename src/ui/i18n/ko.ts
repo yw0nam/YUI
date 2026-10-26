@@ -653,6 +653,13 @@ const ko: Record<string, string> = {
     "화면 픽셀 전송 여부는 입력 탭의 스크린샷 토글을 따라요. 방해금지 중에는 말을 걸지 않아요.",
 
   // workflows
+  "reading.section": "읽기 사전",
+  "reading.note": "음성으로 읽는 방법만 바꿔요. 말풍선에는 원래 글자를 보여줘요.",
+  "reading.sub": "한 줄에 하나씩 단어=읽기 형식으로 입력해요. 답변, 인사, 추임새에 적용돼요",
+  "reading.aria": "읽기 사전 항목",
+  "reading.foot": "대소문자를 구분해요. 겹치는 단어는 긴 것부터 바꿔요.",
+  "reading.skipped": "{lines}번째 줄은 건너뛰어요. 단어=읽기 형식으로 써 주세요",
+  "reading.skipped_many": "{lines}번째 줄은 건너뛰어요. 각각 단어=읽기 형식으로 써 주세요",
   "workflows.title": "워크플로",
   "workflows.sub": "저장한 엔드포인트를 바로 실행해요. ▶ 첫 실행으로 연결 상태도 확인할 수 있어요.",
   "workflows.label_label": "이름",

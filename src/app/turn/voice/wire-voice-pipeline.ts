@@ -18,7 +18,7 @@ import {
 import { createShuffleBag } from "../../../io/voice/filler/shuffle-bag";
 import type { SttVad } from "../../../io/voice/stt-vad";
 import { createWebAudioSink } from "../../../io/voice/tts/audio-player";
-import { parseReadings, applyReadings } from "../../../io/voice/tts/readings";
+import { applyReadings, parseReadings } from "../../../io/voice/tts/readings";
 import { createSpeechPlayback, type SpeechPlayback } from "../../../io/voice/tts/speech-playback";
 import { type SpokenSplit, TTS_SKIP } from "../../../io/voice/tts/tts-pipeline";
 import { createTtsProvider, type TtsSynthCallOptions } from "../../../io/voice/tts/tts-synth";

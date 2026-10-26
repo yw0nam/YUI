@@ -24,6 +24,7 @@ import { presetStripHtml } from "./preset/preset-strip";
 import { browserSectionHtml } from "./sections/browser/browser-section";
 import { cardSectionHtml } from "./sections/card/card-section";
 import { helpSectionHtml } from "./sections/help/help-section";
+import { readingsSectionHtml } from "./sections/readings/readings-section";
 import type { SwitchRow } from "./switch-row";
 import { switchButtonHtml, switchRowHtml } from "./switches/switch-rows";
 import { tabButtonHtml, tabPanelOpenHtml } from "./tabs/tab-rail";
@@ -60,6 +61,8 @@ interface PanelHtmlOptions {
   showHistory: boolean;
   /** Whether the browser-use switch renders — true when the browser store is injected. */
   showBrowser?: boolean;
+  /** Whether the reading dictionary section renders — true when its store is injected. */
+  showReadings?: boolean;
   /** Whether the preset strip and each tab's scope line render — true when the registry is injected. */
   showPreset?: boolean;
 }
@@ -80,6 +83,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     showMessage,
     showHistory,
     showBrowser,
+    showReadings,
     showPreset,
   } = o;
   const visibleSwitchRows = switchRows.filter((row) => row.isVisible);
@@ -382,7 +386,7 @@ ${panelOpenHtml("input")}
               <input class="yui-gain__slider yui-vad__slider" type="range" aria-label="${t("voice_input.silence_aria")}" />
             </div>${switchRowsHtml("input", "after-vad")}
           </div>
-        </div>
+        </div>${showReadings ? readingsSectionHtml() : ""}
       </div>
 ${panelOpenHtml("react")}${screenHtml}
         <div class="yui-loop-cue-section"></div>

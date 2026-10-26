@@ -657,6 +657,13 @@ const en: Record<string, string> = {
     "Sending screen pixels follows the screenshot toggle in the Input tab. Nothing is said while do-not-disturb is on.",
 
   // workflows
+  "reading.section": "Reading dictionary",
+  "reading.note": "Changes how the voice reads a word; the speech bubble keeps the original text.",
+  "reading.sub": "One per line as word=reading. Applies to replies, greetings and interjections",
+  "reading.aria": "Reading dictionary entries",
+  "reading.foot": "Case-sensitive. Where words overlap, the longest one is replaced first.",
+  "reading.skipped": "Line {lines} is skipped: write it as word=reading",
+  "reading.skipped_many": "Lines {lines} are skipped: write each as word=reading",
   "workflows.title": "Workflows",
   "workflows.sub":
     "Fire a saved endpoint on demand; ▶ runs it, and the first run doubles as your connection test.",
