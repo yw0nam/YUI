@@ -995,6 +995,25 @@ describe("typing — speech types out", () => {
     expect(next().hidden).toBe(true);
   });
 
+  it("types nothing more once the bubble hides, whatever the voice still reports", () => {
+    s.beginSpeech(undefined, { paced: true });
+    s.pushSpeech("One. Two.");
+    s.endSpeech({ defer: true });
+    s.paceSpeech({ text: "One.", durationMs: 400 });
+    vi.advanceTimersByTime(100);
+    mount.querySelector<HTMLElement>(".yui-bubble__close")!.click();
+    const shown = text();
+
+    s.paceSpeech({ text: "Two.", durationMs: 100 });
+    s.finishSpeech();
+    s.endSpeech();
+    vi.advanceTimersByTime(300);
+
+    expect(text()).toBe(shown);
+    expect(next().hidden).toBe(true);
+    expect(mount.querySelector(".yui-bubble")!.classList.contains("is-typing")).toBe(false);
+  });
+
   it("shows the whole line at once under reduced motion", () => {
     vi.stubGlobal("matchMedia", (query: string) => ({
       matches: query === "(prefers-reduced-motion: reduce)",
