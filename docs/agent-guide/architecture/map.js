@@ -2969,7 +2969,7 @@ globalThis.YUI_MAP =
       "id": "preset-photo",
       "from": "ui/quick-controls",
       "to": "settings",
-      "carries": "the manage row's photo button \u2192 pickPresetPhoto (pick_preset_photo stores cards/<id>.png) \u2192 registry.setThumbnail(file URL with ?v=<time>) \u2192 the strip and the unified chat window's avatar",
+      "carries": "the manage row's photo button \u2192 the photo dialog (pickPresetPhoto \u2192 pick_preset_photo stores cards/<id>.png) \u2192 registry.setThumbnail(file URL with ?v=<time>, crop)",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/card-io/wire-card-io.ts"
@@ -2978,7 +2978,7 @@ globalThis.YUI_MAP =
       "id": "card-thumb-ui",
       "from": "settings",
       "to": "ui/quick-controls",
-      "carries": "PresetEntry.thumbnail on the registry state \u2192 the strip's and the card section's thumbnail img",
+      "carries": "PresetEntry.thumbnail and crop \u2192 the strip's and the card section's face (avatarEl)",
       "kind": "callback",
       "transport": "shared"
     },

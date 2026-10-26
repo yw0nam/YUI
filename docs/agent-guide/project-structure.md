@@ -329,7 +329,8 @@ YUI/
         preset-keys.ts               # The per-preset key list and where a key lives under a given preset
         active-preset.ts             # The registry's stored shape and the id a window resolves its keys under: the preset query, else the active preset
         bound-preset.ts              # The page queries that bind a window to one preset (`?preset=`) and name the preset a settings window edits (`?edit=`)
-        preset-registry.ts           # Preset list and active preset under yui.presets: create, rename (everyone, here and all are refused), remove, activate, setThumbnail
+        preset-registry.ts           # Preset list and active preset under yui.presets: create, rename (everyone, here and all are refused), remove, activate, setThumbnail (with crop)
+        photo-crop.ts                # A photo's crop area as ratios, its validator, and the default, whole-photo and face framings
         import-card-preset.ts        # Creates a preset from an imported card and rolls it back on any failure
         pet-windows.ts               # The desired open set under yui.windows, the open presets with names, and the live key each window holds under yui.live-window.<label>
       relations/                     # Each preset's relation toward the user and the other presets
@@ -490,6 +491,7 @@ YUI/
         card/                          # The card's file steps: import, export, and the thumbnail URL
           card-import.ts               # Card import: OS picker, native read/parse, rollback of the temp thumbnail
           card-thumbnail.ts            # Thumbnail retain (temp id → preset id), remove, and the photo pick that stores a preset's thumbnail, through the shell
+          photo-size.ts                # The natural size of a photo, read by decoding it
           card-export.ts               # Card export: OS save dialog, native write, and the export file-name sanitizer
         user-asset-import.ts           # Lazy invoke loader and orphan cleanup shared by the voice and VRM imports
         vrm-selection.ts               # Owns the active VRM selection
@@ -548,7 +550,7 @@ YUI/
         sequence.ts                  # One-at-a-time delivery of a send, target by target, with its queue, 60 s timeout, cancel and log line
         composer.ts                  # The message window's field under the text input, with the recipient chips, send and stop, and the inline error
         mention-picker.ts            # The @ list over the field: a combobox of the open presets and @everyone
-        avatar.ts                    # A preset's photo, else a dot in a hue taken from its id
+        avatar.ts                    # A preset's face, drawn by every window: its photo framed on the stored crop in a circle over the preset's hue, else a dot; the plate and the unified window reuse it
         avatar.css                   # The face's size and shape, for every window that draws one
         unified-window.css           # The 340 px column: cast row, box, recipient chips, composer and @ list
       signals/                       # The source line of a signal group, shared by the bubble and History
@@ -623,6 +625,10 @@ YUI/
           preset-manage.ts           # Manage popover: rows with inline rename, delete confirm, "Use in main" in the settings window (it switches main's preset), and the new-preset field
           preset-scope.ts            # Scope line text: only the edited character, or every character
           preset.css                 # Strip, manage popover, scope line, relation line, and reasons card styles
+          photo-dialog/              # The profile-photo dialog
+            photo-dialog.ts          # The modal dialog: the photo under a circular mask, zoom, the fixed framings, Choose another, and the previews at the sizes a face is drawn
+            crop-stage.ts            # The stage geometry: a photo's position and zoom under the mask, and its conversion to and from a crop
+            photo-dialog.css         # The dialog's layout
           relations/                 # The relation line under the preset row, and the reasons card
             relations-section.ts     # Composes the two, re-renders on the store's notifications, and moves the changed relations
             relation-glyph.ts        # The five-step glyph and its band motion, the relation chip, the direction mark, and the age text
