@@ -81,18 +81,21 @@ export function buildSend(p: {
   return { sendId: p.sendId, targets, text, ...(mention ? { mention } : {}) };
 }
 
-/** The mention a leading typed `@name` names: the longest open preset name ending at whitespace or
- * the text's end, EVERYONE for a reserved word, null when nothing matches. */
+/** The mention a leading typed `@name` names: the longest of the open preset names and the
+ * reserved words ending at whitespace or the text's end, a reserved word giving EVERYONE; empty
+ * names are skipped, and null when nothing matches. */
 export function typedMention(text: string, cast: readonly PresetEntry[]): Mention | null {
   if (!text.startsWith("@")) return null;
   const rest = text.slice(1);
   const isNamed = (name: string): boolean =>
     rest.slice(0, name.length).toLowerCase() === name.toLowerCase() &&
     (rest.length === name.length || /\s/.test(rest[name.length]!));
-  if ([...RESERVED_NAMES].some(isNamed)) return EVERYONE;
-  let longest: PresetEntry | undefined;
+  const named: Array<{ mention: Mention; length: number }> = [];
   for (const e of cast)
-    if (isNamed(e.name) && (longest === undefined || e.name.length > longest.name.length))
-      longest = e;
-  return longest?.id ?? null;
+    if (e.name !== "" && isNamed(e.name)) named.push({ mention: e.id, length: e.name.length });
+  for (const r of RESERVED_NAMES)
+    if (isNamed(r)) named.push({ mention: EVERYONE, length: r.length });
+  let longest: { mention: Mention; length: number } | undefined;
+  for (const n of named) if (longest === undefined || n.length > longest.length) longest = n;
+  return longest?.mention ?? null;
 }

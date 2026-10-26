@@ -148,7 +148,12 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
       target = entry;
       paintTarget();
     },
-    onSubmit: (cb) => input.onSubmit((text) => cb(text)),
+    onSubmit: (cb) =>
+      input.onSubmit((text) => {
+        cb(text);
+        // The field clears after the submit handlers, with no input event — the chip follows then.
+        queueMicrotask(paintTarget);
+      }),
     dispose() {
       unsubscribeLocale();
       picker.dispose();
