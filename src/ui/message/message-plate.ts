@@ -1,18 +1,21 @@
 /**
- * Message-window name plate — the window's handle.
+ * Name plate — the preset's face, its name, the state dot and label on the edge of the bubble's box.
  *
- * The one surface that never leaves: a chip carrying the state dot, the name,
- * the state label and the dock button, and the grab target the OS window drag
- * starts from.
+ * In the message window it is also the window's handle: the dock button, and the grab
+ * target the OS window drag starts from.
  */
 
+import type { PresetEntry } from "../../settings/preset/active-preset";
 import { subscribe as subscribeLocale, t } from "../i18n";
+import { avatarEl } from "../unified/avatar";
 import "./message-plate.css";
 
 export interface MessagePlate {
   readonly el: HTMLElement;
   /** Sets the name the plate shows. */
   setName(name: string): void;
+  /** Shows the preset's face: its photo, else a dot in its hue. */
+  setFace(entry: PresetEntry): void;
   /** Speech streams — "responding" while set, outranking busy. */
   setLive(live: boolean): void;
   /** A turn runs — "thinking" while set, unless speech streams. */
@@ -38,8 +41,9 @@ export function createMessagePlate({
   const el = document.createElement("div");
   el.className = "yui-plate";
   el.innerHTML = `
-    <span class="yui-plate__dot" aria-hidden="true"></span>
+    <span class="yui-plate__face" aria-hidden="true"></span>
     <span class="yui-plate__name">YUI</span>
+    <span class="yui-plate__dot" aria-hidden="true"></span>
     <span class="yui-plate__state"></span>
     ${
       onDock
@@ -55,6 +59,7 @@ export function createMessagePlate({
   `;
   mount.prepend(el);
 
+  const faceEl = el.querySelector<HTMLSpanElement>(".yui-plate__face")!;
   const nameEl = el.querySelector<HTMLSpanElement>(".yui-plate__name")!;
   const dockBtn = el.querySelector<HTMLButtonElement>(".yui-plate__dock");
   const stateEl = el.querySelector<HTMLSpanElement>(".yui-plate__state")!;
@@ -105,6 +110,9 @@ export function createMessagePlate({
     el,
     setName(value) {
       nameEl.textContent = value;
+    },
+    setFace(entry) {
+      faceEl.replaceChildren(avatarEl(entry, 20));
     },
     setLive(value) {
       live = value;

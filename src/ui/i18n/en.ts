@@ -42,6 +42,8 @@ const en: Record<string, string> = {
   "aria.remove_attachment": "Remove attachment",
   "aria.dismiss_bubble": "Dismiss speech bubble",
   "bubble.you": "You",
+  "bubble.backlog": "Backlog",
+  "bubble.backlog_hide": "Hide backlog",
   "bubble.quote_attached": "{count} attached",
   "bubble.sources_more": "+{n} more",
   "signals.delivery_urgent": "Urgent signal",

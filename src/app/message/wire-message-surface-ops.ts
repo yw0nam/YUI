@@ -1,39 +1,42 @@
 import type { MessageBridge } from "../../io/bridge/message/message-bridge";
 import { createLogger } from "../../logger";
-import type { MessagePlate } from "../../ui/message/message-plate";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
+import type { MirroredName } from "./mirrored-name";
 import { focusWindow } from "./wire-message-tauri-window";
 
 const log = createLogger("message-bootstrap");
 
-/** Draws each surface op the pet window sends onto this window's surfaces and plate. */
+/** Draws each surface op the pet window sends onto this window's surfaces, and takes the character's name it sends. */
 export function wireMessageSurfaceOps({
   bridge,
   surfaces,
-  plate,
+  name,
 }: {
   bridge: MessageBridge;
   surfaces: Surfaces;
-  plate: MessagePlate;
+  name: Pick<MirroredName, "set">;
 }): void {
   bridge.onSurface((op) => {
     switch (op.op) {
       case "begin":
-        plate.setLive(true);
-        surfaces.beginSpeech();
+        surfaces.beginSpeech(undefined, { paced: op.paced === true });
+        break;
+      case "name":
+        name.set(op.name);
         break;
       case "push":
         surfaces.pushSpeech(op.delta);
         break;
+      case "pace":
+        surfaces.paceSpeech({ text: op.text, durationMs: op.durationMs });
+        break;
       case "end":
-        plate.setLive(false);
         surfaces.endSpeech(op.defer ? { defer: true } : undefined);
         break;
       case "finish":
         surfaces.finishSpeech();
         break;
       case "hide":
-        plate.setLive(false);
         surfaces.hideSpeech();
         break;
       case "quote":
@@ -57,7 +60,6 @@ export function wireMessageSurfaceOps({
         break;
       case "busy":
         log.info("busy_recv", { busy: op.busy });
-        plate.setBusy(op.busy);
         surfaces.setBusy(op.busy);
         break;
       case "input-error":

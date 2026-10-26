@@ -6,21 +6,27 @@
  */
 
 import type { SpeechAction } from "../../io/bridge/message/message-remote";
+import type { SentenceStart } from "../../io/voice/tts/tts-pipeline";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { afterFadeOut } from "../notices/fade-out";
 import { renderMarkdownInline } from "./markdown";
+import { stableMarkdown } from "./stable-markdown";
+import { keepTextPrefix, visibleText } from "./text-prefix";
+import { createTypewriter } from "./typewriter";
 
 export interface SpeechBubble {
-  /** Reveal the bubble (empty) + caret ON. Called before streaming starts. */
-  beginSpeech(): void;
+  /** Reveal the bubble (empty) + caret ON. Called before streaming starts; a paced line types each sentence as its audio starts. */
+  beginSpeech(opts?: { paced?: boolean }): void;
   /** Append a streaming delta. */
   pushSpeech(delta: string): void;
+  /** A sentence's audio started: a paced line types that sentence over its duration. */
+  paceSpeech(sentence: SentenceStart): void;
   /**
    * Caret OFF. By default, auto-fades after dwell (also used when the full text arrives at once).
    * When defer=true, the fade is held — the bubble stays until TTS playback ends and finishSpeech() is called.
    */
   endSpeech(opts?: { defer?: boolean }): void;
-  /** Release a deferred bubble (endSpeech defer) into dwell→fade. No-op if not deferred/hidden. */
+  /** Playback ended: the rest of the line types at the fixed rate, and a deferred bubble takes its dwell once all of it shows. */
   finishSpeech(): void;
   /** Hide the bubble immediately (ignoring dwell). */
   hideSpeech(): void;
@@ -37,6 +43,10 @@ export interface SpeechBubble {
   measure(): void;
   /** While on, no dwell is armed: a turn the user started is still running. Turning it off arms nothing by itself; the caller releases. */
   holdForTurn(on: boolean): void;
+  /** While on (the backlog shows), no dwell is armed; turning it off settles the bubble into its dwell. A hide turns it off. */
+  keepOpen(on: boolean): void;
+  /** Calls back true when a line begins or other content shows, false on every hide; returns the unsubscribe. */
+  onShown(listener: (shown: boolean) => void): () => void;
   /** Lift the bubble above the input by totalOffsetPx (input bottom + input height + gap). */
   liftAboveInput(totalOffsetPx: number): void;
   /** Restore the bubble's default (input-closed) position. */
@@ -49,8 +59,10 @@ interface SpeechBubbleElements {
   root: HTMLElement;
   /** Positioning wrapper — carries the state classes and the fade. */
   bubbleEl: HTMLElement;
-  /** The scrolling panel inside the wrapper. */
+  /** The scrolling panel inside the wrapper; a click on it shows the rest of the line. */
   bubbleBox: HTMLElement;
+  /** The ▼ marker at the box's bottom-right; shows once the line ended and all of it shows. */
+  bubbleNext: HTMLElement;
   /** The quoted user line, the box's first child; user-quote.ts fills it, the bubble drops it. */
   bubbleQuote: HTMLElement;
   bubbleText: HTMLElement;
@@ -67,29 +79,43 @@ const SPEECH_RENDER_INTERVAL_MS = 50;
 // If the user is within this many px of the bottom, treat as pinned for auto-scroll.
 const SCROLL_PIN_SLACK_PX = 8;
 
+interface SpeechBubbleOptions {
+  /** dwell (config value) override. Default = --yui-dwell token. */
+  dwellMs?: number;
+  /** When it returns true, speech never auto-fades — the bubble holds until dismissed or replaced. */
+  keepUntilDismissed?: () => boolean;
+}
+
 export function createSpeechBubble(
   {
     root,
     bubbleEl,
     bubbleBox,
+    bubbleNext,
     bubbleQuote,
     bubbleText,
     bubbleAction,
     bubbleSr,
     bubbleClose,
   }: SpeechBubbleElements,
-  dwellMs?: number,
-  /** When it returns true, speech never auto-fades — the bubble holds until dismissed or replaced. */
-  keepUntilDismissed?: () => boolean,
+  { dwellMs, keepUntilDismissed }: SpeechBubbleOptions = {},
 ): SpeechBubble {
   const dwell = dwellMs ?? readDwellToken(root) ?? DEFAULT_DWELL;
   const holdOpen = (): boolean => keepUntilDismissed?.() ?? false;
   let dwellTimer: ReturnType<typeof setTimeout> | null = null;
   // Whether the fade is being held by endSpeech({ defer:true }) — finishSpeech() releases it.
   let deferred = false;
-  // Raw accumulated speech text — rendered as markdown at a bounded cadence.
+  // The line's markdown as received.
   let speechRaw = "";
+  // The received line rendered — its stable part while it streams, all of it once it ends — and that rendering's text.
+  let parsed: HTMLElement | null = null;
+  let parsedText = "";
+  let lastParseAt = Number.NEGATIVE_INFINITY;
+  let parseTimer: ReturnType<typeof setTimeout> | null = null;
+  // How many characters of the rendered text show.
+  let revealed = 0;
   let lastRenderAt = Number.NEGATIVE_INFINITY;
+  let renderTimer: ReturnType<typeof setTimeout> | null = null;
   // Whether the user is hovering over the bubble to read it.
   let hovering = false;
   // Whether a dwell debt remains (timer-arming can be held).
@@ -100,10 +126,31 @@ export function createSpeechBubble(
   let revealHeld = false;
   // Whether a turn the user started is still running — the bubble arms no dwell meanwhile.
   let turnHeld = false;
+  // Whether the backlog shows — the bubble arms no dwell meanwhile.
+  let keptOpen = false;
+  const shownListeners = new Set<(shown: boolean) => void>();
+  const notifyShown = (shown: boolean): void => {
+    for (const listener of shownListeners) listener(shown);
+  };
   let cancelFade: (() => void) | null = null;
   let showFrame: number | null = null;
   // The current speech action's click — nulled with the slot so a stale button click does nothing.
   let speechActionClick: (() => void) | null = null;
+
+  const typer = createTypewriter((count, { done }) => {
+    if (!done) {
+      if (count !== revealed) {
+        revealed = count;
+        renderThrottled();
+      }
+      return;
+    }
+    revealed = count;
+    renderSpeech();
+    bubbleEl.classList.remove("is-typing");
+    bubbleNext.hidden = speechRaw === "";
+    settleIntoDwell();
+  });
 
   function clearDwell(): void {
     if (dwellTimer !== null) {
@@ -154,21 +201,91 @@ export function createSpeechBubble(
     bubbleEl.classList.toggle("is-scrollable", bubbleBox.scrollHeight > bubbleBox.clientHeight);
   }
 
-  function beginSpeech(): void {
+  function clearRenderTimer(): void {
+    if (renderTimer !== null) clearTimeout(renderTimer);
+    renderTimer = null;
+  }
+
+  function clearParseTimer(): void {
+    if (parseTimer !== null) clearTimeout(parseTimer);
+    parseTimer = null;
+  }
+
+  // Hands the typewriter the rendered text; a line still streaming renders only what later text cannot change.
+  function parse(final = false): void {
+    clearParseTimer();
+    lastParseAt = performance.now();
+    const source = final ? speechRaw : stableMarkdown(speechRaw);
+    parsed = source === "" ? null : renderMarkdownInline(source, { streaming: !final });
+    parsedText = parsed === null ? "" : visibleText(parsed);
+    const before = revealed;
+    typer.received(parsedText);
+    // A rendering that revealed nothing new (an image has no text) still draws.
+    if (revealed === before) renderThrottled();
+  }
+
+  function parseThrottled(): void {
+    const wait = lastParseAt + SPEECH_RENDER_INTERVAL_MS - performance.now();
+    if (wait <= 0) parse();
+    else parseTimer ??= setTimeout(parse, wait);
+  }
+
+  function renderSpeech(): void {
+    clearRenderTimer();
+    // Measure before updating — don't yank down a user who has scrolled up to read.
+    const pin = isPinnedToEnd();
+    if (parsed === null) bubbleText.replaceChildren();
+    else if (revealed >= parsedText.length) bubbleText.replaceChildren(parsed);
+    else {
+      const shown = parsed.cloneNode(true);
+      keepTextPrefix(shown, revealed);
+      bubbleText.replaceChildren(shown);
+    }
+    lastRenderAt = performance.now();
+    scrollBubbleToEnd(pin);
+  }
+
+  // The last reveal inside the interval still renders once the interval passes.
+  function renderThrottled(): void {
+    const wait = lastRenderAt + SPEECH_RENDER_INTERVAL_MS - performance.now();
+    if (wait <= 0) renderSpeech();
+    else renderTimer ??= setTimeout(renderSpeech, wait);
+  }
+
+  // Drops the line's typing: no reveal, caret or marker outlives it.
+  function stopTyping(): void {
+    typer.stop();
+    clearRenderTimer();
+    clearParseTimer();
+    bubbleEl.classList.remove("is-typing");
+    bubbleNext.hidden = true;
+  }
+
+  function beginSpeech(opts?: { paced?: boolean }): void {
     clearDwell();
     deferred = false;
     dismissed = false;
     revealHeld = false;
     bubbleEl.classList.remove("is-held");
     speechRaw = "";
+    parsed = null;
+    parsedText = "";
+    revealed = 0;
     lastRenderAt = Number.NEGATIVE_INFINITY;
+    lastParseAt = Number.NEGATIVE_INFINITY;
+    clearRenderTimer();
+    clearParseTimer();
     bubbleText.replaceChildren();
     bubbleSr.textContent = "";
+    bubbleNext.hidden = true;
     clearSpeechAction();
+    typer.begin({ paced: opts?.paced === true });
+    if (globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches) typer.flush();
     if (!turnHeld) bubbleQuote.hidden = true;
     bubbleEl.hidden = false;
-    bubbleEl.classList.add("is-streaming");
+    bubbleEl.classList.add("is-streaming", "is-typing");
     showNextFrame();
+    notifyShown(true);
   }
 
   function reveal(opts?: { clearSpeech?: boolean }): void {
@@ -179,7 +296,9 @@ export function createSpeechBubble(
       // The fade was about to drop this speech; drop it now so it doesn't return beside the new content.
       cancelFade?.();
       cancelFade = null;
+      stopTyping();
       speechRaw = "";
+      parsed = null;
       bubbleText.replaceChildren();
       clearSpeechAction();
       bubbleEl.classList.remove("is-streaming");
@@ -187,6 +306,7 @@ export function createSpeechBubble(
     if (!turnHeld) bubbleQuote.hidden = true;
     bubbleEl.hidden = false;
     showNextFrame();
+    notifyShown(true);
   }
 
   function release(hasContent: boolean): void {
@@ -205,39 +325,37 @@ export function createSpeechBubble(
     if (dismissed) return;
     if (bubbleEl.hidden) beginSpeech();
     speechRaw += delta;
-    const now = performance.now();
-    if (now - lastRenderAt < SPEECH_RENDER_INTERVAL_MS) return;
-    // Measure before updating — don't yank down a user who has scrolled up to read.
-    const pin = isPinnedToEnd();
-    bubbleText.replaceChildren(renderMarkdownInline(speechRaw));
-    lastRenderAt = now;
-    scrollBubbleToEnd(pin);
+    parseThrottled();
+  }
+
+  // The voice reads the raw sentence; the typewriter counts what the bubble draws.
+  function paceSpeech({ text, durationMs }: SentenceStart): void {
+    typer.pace({ text: visibleText(renderMarkdownInline(text, { streaming: true })), durationMs });
   }
 
   function endSpeech(opts?: { defer?: boolean }): void {
     if (dismissed) return;
     if (bubbleEl.hidden && speechRaw === "") return;
     const pin = isPinnedToEnd();
-    if (speechRaw !== "") bubbleText.replaceChildren(renderMarkdownInline(speechRaw));
     bubbleEl.hidden = false;
     bubbleEl.classList.add("is-visible");
     bubbleEl.classList.remove("is-streaming");
     scrollBubbleToEnd(pin);
-    // Announce once, when speech settles — not on every delta or barge-in re-call.
-    if (bubbleSr.textContent !== bubbleText.textContent) {
-      bubbleSr.textContent = bubbleText.textContent;
-    }
+    // The line is whole now: render all of it, and announce it once — not on every delta or barge-in re-call.
+    parse(true);
+    const announced = parsed?.textContent ?? "";
+    if (bubbleSr.textContent !== announced) bubbleSr.textContent = announced;
     clearDwell();
-    if (opts?.defer) {
-      // Hold the fade until playback ends — finishSpeech() arms the dwell.
-      deferred = true;
-      return;
-    }
-    deferred = false;
-    settleIntoDwell();
+    // A deferred line holds the fade until playback ends — finishSpeech() arms the dwell.
+    deferred = opts?.defer === true;
+    // No audio follows a line that ends undeferred, so no sentence start comes to pace the rest.
+    if (!deferred) typer.release();
+    // Reports done at once when all of it already shows, which settles the bubble into its dwell.
+    typer.end();
   }
 
   function finishSpeech(): void {
+    typer.release();
     if (!deferred) return;
     deferred = false;
     if (bubbleEl.hidden) return;
@@ -259,7 +377,9 @@ export function createSpeechBubble(
       deferred ||
       revealHeld ||
       turnHeld ||
-      bubbleEl.classList.contains("is-streaming")
+      keptOpen ||
+      bubbleEl.classList.contains("is-streaming") ||
+      bubbleEl.classList.contains("is-typing")
     ) {
       return;
     }
@@ -272,6 +392,9 @@ export function createSpeechBubble(
     dwellArmed = false;
     deferred = false;
     turnHeld = false;
+    keptOpen = false;
+    notifyShown(false);
+    stopTyping();
     lastRenderAt = Number.NEGATIVE_INFINITY;
     cancelShowFrame();
     bubbleEl.classList.remove("is-visible", "is-streaming", "is-held");
@@ -282,6 +405,7 @@ export function createSpeechBubble(
       if (!bubbleEl.classList.contains("is-visible")) {
         bubbleEl.hidden = true;
         speechRaw = "";
+        parsed = null;
         bubbleText.replaceChildren();
         bubbleQuote.hidden = true;
       }
@@ -290,6 +414,17 @@ export function createSpeechBubble(
 
   function holdForTurn(on: boolean): void {
     turnHeld = on;
+  }
+
+  function keepOpen(on: boolean): void {
+    if (keptOpen === on) return;
+    keptOpen = on;
+    if (!on) {
+      settleIntoDwell();
+      return;
+    }
+    clearDwell();
+    dwellArmed = false;
   }
 
   function clearSpeechAction(): void {
@@ -322,8 +457,11 @@ export function createSpeechBubble(
   }
 
   function liftAboveInput(totalOffsetPx: number): void {
+    // The lift shrinks the box's cap; a box at its end stays there.
+    const pin = isPinnedToEnd();
     bubbleEl.style.setProperty("--yui-bubble-bottom", `${totalOffsetPx}px`);
     bubbleEl.classList.add("is-above-input");
+    scrollBubbleToEnd(pin);
   }
 
   function resetPosition(): void {
@@ -339,6 +477,19 @@ export function createSpeechBubble(
   function onBubbleLeave(): void {
     hovering = false;
     if (dwellArmed) armDwell();
+  }
+
+  // A click on the line shows the rest of it at once; links, buttons and the reasoning disclosure keep their own click.
+  function onBoxClick(event: MouseEvent): void {
+    if (!bubbleEl.classList.contains("is-typing")) return;
+    if ((event.target as Element).closest("a, button, details")) return;
+    typer.flush();
+    // A click answers at once, inside the render interval too.
+    renderSpeech();
+  }
+
+  function onImageError(event: Event): void {
+    if (event.target instanceof HTMLImageElement) event.target.classList.add("is-broken");
   }
 
   // Dismissal outlives the utterance: the rest of a still-streaming reply must not re-open the bubble.
@@ -358,8 +509,12 @@ export function createSpeechBubble(
   bubbleEl.addEventListener("pointerenter", onBubbleEnter);
   bubbleEl.addEventListener("pointerleave", onBubbleLeave);
   bubbleClose.addEventListener("click", onCloseClick);
+  // On the persistent text slot, so it outlives the renderings and copies swapped into it; error does not bubble.
+  bubbleText.addEventListener("error", onImageError, true);
+  bubbleBox.addEventListener("click", onBoxClick);
 
   function dispose(): void {
+    stopTyping();
     clearDwell();
     cancelShowFrame();
     cancelFade?.();
@@ -369,11 +524,14 @@ export function createSpeechBubble(
     bubbleEl.removeEventListener("pointerenter", onBubbleEnter);
     bubbleEl.removeEventListener("pointerleave", onBubbleLeave);
     bubbleClose.removeEventListener("click", onCloseClick);
+    bubbleBox.removeEventListener("click", onBoxClick);
+    bubbleText.removeEventListener("error", onImageError, true);
   }
 
   return {
     beginSpeech,
     pushSpeech,
+    paceSpeech,
     endSpeech,
     finishSpeech,
     hideSpeech,
@@ -382,6 +540,11 @@ export function createSpeechBubble(
     release,
     measure,
     holdForTurn,
+    keepOpen,
+    onShown(listener) {
+      shownListeners.add(listener);
+      return () => shownListeners.delete(listener);
+    },
     liftAboveInput,
     resetPosition,
     dispose,

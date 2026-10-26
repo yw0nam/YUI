@@ -28,6 +28,7 @@ function makeLocal(): Surfaces {
     chipColumn: document.createElement("div"),
     beginSpeech: vi.fn(),
     pushSpeech: vi.fn(),
+    paceSpeech: vi.fn(),
     endSpeech: vi.fn(),
     finishSpeech: vi.fn(),
     hideSpeech: vi.fn(),
@@ -57,6 +58,7 @@ function makeRemote(): RemoteSurfaces {
   return {
     beginSpeech: vi.fn(),
     pushSpeech: vi.fn(),
+    paceSpeech: vi.fn(),
     endSpeech: vi.fn(),
     finishSpeech: vi.fn(),
     hideSpeech: vi.fn(),
@@ -69,6 +71,7 @@ function makeRemote(): RemoteSurfaces {
     dismissInput: vi.fn(),
     isInputOpen: vi.fn(() => false),
     setBusy: vi.fn(),
+    setName: vi.fn(),
     showInputError: vi.fn(),
     setAttachmentLimits: vi.fn(),
     restoreInput: vi.fn(),
@@ -441,8 +444,22 @@ describe("createSurfacesRouter over the message bridge", () => {
       };
     };
 
-    return { router, setMode, mountMessageWindow };
+    return { router, setMode, mountMessageWindow, messageBridge };
   }
+
+  it("carries a paced line and its sentence starts to the message window while popped", () => {
+    const { router, messageBridge } = setup("popped");
+    const ops = vi.fn();
+    messageBridge.onSurface(ops);
+
+    router.beginSpeech(undefined, { paced: true });
+    router.paceSpeech({ text: "Hi.", durationMs: 500 });
+
+    expect(ops.mock.calls).toEqual([
+      [{ op: "begin", paced: true }],
+      [{ op: "pace", text: "Hi.", durationMs: 500 }],
+    ]);
+  });
 
   it("unlocks the message window when a turn started popped ends while docked", () => {
     const { router, setMode, mountMessageWindow } = setup("popped");

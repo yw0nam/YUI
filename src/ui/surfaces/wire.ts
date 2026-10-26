@@ -14,6 +14,7 @@ import { presetIdForWindow } from "../../settings/preset/active-preset";
 import type { SettingsStores } from "../../settings/settings-stores";
 import { isTauri } from "../../tauri-env";
 import type { ToolStatus } from "../chips/status-pill";
+import type { MessagePlate } from "../message/message-plate";
 import { createSpeechStream } from "./speech-stream";
 import { createSurfaces, type Surfaces } from "./surfaces";
 import { createSurfacesRouter } from "./surfaces-router";
@@ -22,6 +23,8 @@ export function wireMessageSurfaces(deps: {
   boundId?: string | null;
   settingsBridge: Pick<SettingsBridge, "emitSpeechStream">;
   transcript: { entriesAfterLastBoundary(): readonly ChatHistoryEntry[] };
+  /** The character's name, for the backlog's lines here and the message window's plate and backlog. */
+  characterName: { get(): string; subscribe(cb: () => void): () => void };
   mount: HTMLElement;
   tool: ToolStatus;
   bubblePersistSettings: Pick<SettingsStores["bubblePersistSettings"], "get">;
@@ -32,7 +35,7 @@ export function wireMessageSurfaces(deps: {
   register: (fn: () => void) => void;
 }): {
   surfaces: Surfaces;
-  local: Surfaces;
+  local: Surfaces & { readonly plate: MessagePlate };
   remote: RemoteSurfaces | null;
   getMode(): MessageWindowMode;
 } {
@@ -41,9 +44,16 @@ export function wireMessageSurfaces(deps: {
     tool: deps.tool,
     keepBubbleUntilDismissed: () => deps.bubblePersistSettings.get().enabled,
     onPop: isTauri() ? () => deps.messageWindowSettings.setMode("popped") : undefined,
+    namePlate: true,
+    backlog: {
+      read: deps.transcript.entriesAfterLastBoundary,
+      characterName: deps.characterName.get,
+    },
   });
   const messageBridge = createMessageBridge(undefined, { windowKind: "pet" });
   const remote = createRemoteSurfaces(messageBridge);
+  const sendName = (): void => remote.setName(deps.characterName.get());
+  sendName();
   // A stale popped mode must not strand speech in a window the browser build cannot open.
   const getMode = (): MessageWindowMode =>
     isTauri() ? deps.messageWindowSettings.get().mode : "docked";
@@ -66,6 +76,7 @@ export function wireMessageSurfaces(deps: {
     listenTrayToggle: deps.boundId == null ? listenTrayToggle : undefined,
     getMode,
   });
+  deps.register(deps.characterName.subscribe(sendName));
   deps.register(() => messageBridge.dispose());
   deps.register(() => surfaces.dispose());
   deps.register(disposeMessageWindowMode);

@@ -107,6 +107,30 @@ describe("bubble ↔ input coordination — input must not obscure the bubble", 
   });
 });
 
+describe("name plate — on the docked bubble", () => {
+  it("rides the bubble when asked for: responding while speech streams, thinking while busy", () => {
+    const mount = document.createElement("div");
+    const s = createSurfaces({ mount, tool: noTool, namePlate: true });
+    const plate = mount.querySelector<HTMLElement>(".yui-bubble .yui-plate")!;
+    expect(s.plate?.el).toBe(plate);
+
+    s.beginSpeech();
+    expect(plate.dataset.state).toBe("responding");
+    s.endSpeech();
+    s.setBusy(true);
+    expect(plate.dataset.state).toBe("thinking");
+    s.dispose();
+  });
+
+  it("is absent unless asked for", () => {
+    const mount = document.createElement("div");
+    const s = createSurfaces({ mount, tool: noTool });
+    expect(mount.querySelector(".yui-plate")).toBeNull();
+    expect("plate" in s).toBe(false);
+    s.dispose();
+  });
+});
+
 describe("bubble structure — edge tools outside the scrolling box", () => {
   it("keeps the tools out of the box, and the box holds the text", () => {
     const { s, mount } = makeSurfaces();
@@ -114,8 +138,8 @@ describe("bubble structure — edge tools outside the scrolling box", () => {
     const tools = bubble.querySelector<HTMLElement>(".yui-bubble__tools")!;
     const box = bubble.querySelector<HTMLElement>(".yui-bubble__box")!;
 
-    expect(tools.parentElement).toBe(bubble);
-    expect(box.parentElement).toBe(bubble);
+    expect(tools.parentElement?.className).toBe("yui-bubble__float");
+    expect(box.parentElement?.className).toBe("yui-bubble__frame");
     expect(box.contains(tools)).toBe(false);
     expect(box.querySelector(".yui-bubble__text")).not.toBeNull();
     expect(box.querySelector(".yui-bubble__caret")).not.toBeNull();
@@ -204,7 +228,7 @@ describe("reasoning disclosure — only when a reasoning source is given", () =>
     s.dispose();
   });
 
-  it("shows the bubble with the disclosure open on the first live delta, before any speech", () => {
+  it("shows the bubble on the first live delta with the disclosure closed and its summary showing", () => {
     const { s, reasoning } = build();
 
     reasoning.append("checking the logs");
@@ -212,7 +236,7 @@ describe("reasoning disclosure — only when a reasoning source is given", () =>
 
     expect(shown()).toBe(true);
     expect(think().hidden).toBe(false);
-    expect(think().open).toBe(true);
+    expect(think().open).toBe(false);
     expect(thinkText().textContent).toBe("checking the logs");
     expect(mount.querySelector(".yui-bubble__text")!.textContent).toBe("");
     s.dispose();
@@ -300,7 +324,7 @@ describe("reasoning disclosure — only when a reasoning source is given", () =>
     reasoning.append(" goes on");
 
     expect(shown()).toBe(true);
-    expect(think().open).toBe(true);
+    expect(think().open).toBe(false);
     s.dispose();
   });
 
@@ -328,33 +352,23 @@ describe("reasoning disclosure — only when a reasoning source is given", () =>
     reasoning.append("hmm");
     vi.advanceTimersByTime(60);
     s.pushSpeech(" world");
+    vi.advanceTimersByTime(1000);
 
     expect(mount.querySelector(".yui-bubble__text")!.textContent).toBe("hello world");
     expect(bubble().classList.contains("is-streaming")).toBe(true);
     s.dispose();
   });
 
-  it("reopens the disclosure for a new cycle after a finished one", () => {
-    const { s, reasoning } = build();
-    reasoning.append("first");
-    reasoning.finish("first");
-    expect(think().open).toBe(false);
-
-    reasoning.append("second");
-
-    expect(think().open).toBe(true);
-    expect(thinkText().textContent).toBe("second");
-    s.dispose();
-  });
-
-  it("lets the summary close it, and a later delta keeps it closed", () => {
+  it("lets the summary open it, keeps it open through the live cycle, and closes it when the cycle ends", () => {
     const { s, reasoning } = build();
     reasoning.append("hmm");
 
     think().querySelector<HTMLElement>("summary")!.click();
-    expect(think().open).toBe(false);
+    expect(think().open).toBe(true);
     reasoning.append(" more");
+    expect(think().open).toBe(true);
 
+    reasoning.finish("hmm more");
     expect(think().open).toBe(false);
     s.dispose();
   });

@@ -17,9 +17,13 @@ import type { AttachmentLimits } from "../../config/validators/guardrails";
 import type { UtteranceIdentity } from "../../contract";
 import type { SourceLine, UserQuote } from "../../io/bridge/message/message-bridge";
 import type { InputErrorAction, SpeechAction } from "../../io/bridge/message/message-remote";
+import type { SentenceStart } from "../../io/voice/tts/tts-pipeline";
 import type { ToolStatus } from "../chips/status-pill";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { createTextInput } from "../input/text-input";
+import { type BacklogSource, createBacklog } from "../message/backlog";
+import { createMessagePlate, type MessagePlate } from "../message/message-plate";
+import { withPlateState } from "../message/plate-state";
 import { createReasoningDisclosure, type ReasoningSource } from "../message/reasoning-disclosure";
 import { createSignalSourceLines } from "../message/signal-source-lines";
 import { createSpeechBubble } from "../message/speech-bubble";
@@ -36,10 +40,12 @@ export interface Surfaces {
   readonly chipColumn: HTMLElement;
 
   // ── speech bubble (output) ──
-  /** Reveal the bubble (empty) + caret ON. Called before streaming starts. */
-  beginSpeech(identity?: UtteranceIdentity): void;
+  /** Reveal the bubble (empty) + caret ON. Called before streaming starts; a paced line types each sentence as its audio starts. */
+  beginSpeech(identity?: UtteranceIdentity, opts?: { paced?: boolean }): void;
   /** Append a streaming delta. */
   pushSpeech(delta: string, identity?: UtteranceIdentity): void;
+  /** A sentence's audio started: a paced line types that sentence over its duration. */
+  paceSpeech(sentence: SentenceStart): void;
   /**
    * Caret OFF. By default, auto-fades after dwell (also used when the full text arrives at once).
    * When defer=true, the fade is held — the bubble stays until TTS playback ends and finishSpeech() is called.
@@ -113,8 +119,17 @@ interface SurfacesOptions {
   onInputOpenChange?: (open: boolean) => void;
   /** The backend's reasoning, folded at the top of the bubble under the quoted line. */
   reasoning?: ReasoningSource;
+  /** Mounts a name plate on the bubble's edge: responding while speech streams, thinking while busy. */
+  namePlate?: boolean;
+  /** The current session's lines, opened above the box by a toggle under it. */
+  backlog?: BacklogSource;
 }
 
+/** Surfaces asked for a name plate carry it. */
+export function createSurfaces(
+  options: SurfacesOptions & { namePlate: true },
+): Surfaces & { readonly plate: MessagePlate };
+export function createSurfaces(options: SurfacesOptions): Surfaces;
 export function createSurfaces({
   mount,
   tool,
@@ -123,20 +138,27 @@ export function createSurfaces({
   onPop,
   onInputOpenChange,
   reasoning,
+  namePlate,
+  backlog: backlogSource,
 }: SurfacesOptions): Surfaces {
   const el = document.createElement("div");
   el.className = "yui-ui";
   el.innerHTML = `
     <div class="yui-bubble" hidden>
-      <div class="yui-bubble__tools">
-        <button class="yui-bubble__pop" type="button">${POP_ICON}</button>
-        <button class="yui-bubble__close" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true">
-            <path d="M6 6l12 12M18 6L6 18"/>
-          </svg>
-        </button>
+      <div class="yui-bubble__float">
+        <div class="yui-bubble__tools">
+          <button class="yui-bubble__pop" type="button">${POP_ICON}</button>
+          <button class="yui-bubble__close" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="yui-bubble__frame">
+          <div class="yui-bubble__box"><div class="yui-bubble__quote" hidden></div><span class="yui-bubble__text"></span><span class="yui-bubble__caret" aria-hidden="true">|</span><span class="yui-bubble__speech-action" hidden></span></div>
+          <span class="yui-bubble__next" aria-hidden="true" hidden>▼</span>
+        </div>
       </div>
-      <div class="yui-bubble__box"><div class="yui-bubble__quote" hidden></div><span class="yui-bubble__text"></span><span class="yui-bubble__caret" aria-hidden="true">|</span><span class="yui-bubble__speech-action" hidden></span></div>
     </div>
     <div class="yui-chip-column"></div>
     <span class="yui-bubble__sr" role="status" aria-live="polite"></span>
@@ -175,7 +197,9 @@ export function createSurfaces({
 
   const chipColumn = el.querySelector<HTMLDivElement>(".yui-chip-column")!;
   const bubbleEl = el.querySelector<HTMLDivElement>(".yui-bubble")!;
+  const bubbleFrame = el.querySelector<HTMLDivElement>(".yui-bubble__frame")!;
   const bubbleBox = el.querySelector<HTMLDivElement>(".yui-bubble__box")!;
+  const bubbleNext = el.querySelector<HTMLSpanElement>(".yui-bubble__next")!;
   const bubbleQuote = el.querySelector<HTMLDivElement>(".yui-bubble__quote")!;
   const bubbleText = el.querySelector<HTMLSpanElement>(".yui-bubble__text")!;
   const bubbleAction = el.querySelector<HTMLSpanElement>(".yui-bubble__speech-action")!;
@@ -192,10 +216,20 @@ export function createSurfaces({
   const sendBtn = el.querySelector<HTMLButtonElement>(".yui-input__send")!;
 
   const bubble = createSpeechBubble(
-    { root: el, bubbleEl, bubbleBox, bubbleQuote, bubbleText, bubbleAction, bubbleSr, bubbleClose },
-    dwellMs,
-    keepBubbleUntilDismissed,
+    {
+      root: el,
+      bubbleEl,
+      bubbleBox,
+      bubbleNext,
+      bubbleQuote,
+      bubbleText,
+      bubbleAction,
+      bubbleSr,
+      bubbleClose,
+    },
+    { dwellMs, keepUntilDismissed: keepBubbleUntilDismissed },
   );
+  const backlog = backlogSource && createBacklog({ mount: bubbleFrame, ...backlogSource, bubble });
   // A reasoning cycle's first delta shows the bubble and holds off its fade until the cycle ends; the end hands
   // a bubble with no speech in flight to the dwell, or hides it when nothing is left to show.
   const think = reasoning
@@ -208,6 +242,8 @@ export function createSurfaces({
     { liftAboveInput: bubble.liftAboveInput, resetPosition: bubble.resetPosition },
     onInputOpenChange,
   );
+
+  const plate = namePlate ? createMessagePlate({ mount: bubbleFrame }) : undefined;
 
   const popButtons = [bubblePop, inputPop];
   for (const button of popButtons) button.hidden = onPop === undefined;
@@ -229,17 +265,20 @@ export function createSurfaces({
     unsubscribeLocale();
     for (const button of popButtons) button.removeEventListener("click", onPopClick);
     think?.dispose();
+    plate?.dispose();
+    backlog?.dispose();
     quote.dispose();
     bubble.dispose();
     input.dispose();
     el.remove();
   }
 
-  return {
+  const surfaces: Surfaces = {
     el,
     chipColumn,
-    beginSpeech: bubble.beginSpeech,
+    beginSpeech: (_identity, opts) => bubble.beginSpeech(opts),
     pushSpeech: bubble.pushSpeech,
+    paceSpeech: bubble.paceSpeech,
     endSpeech: bubble.endSpeech,
     finishSpeech: bubble.finishSpeech,
     hideSpeech: bubble.hideSpeech,
@@ -263,4 +302,5 @@ export function createSurfaces({
     setInputAnchor: input.setInputAnchor,
     dispose,
   };
+  return plate ? withPlateState(plate, { ...surfaces, plate }) : surfaces;
 }

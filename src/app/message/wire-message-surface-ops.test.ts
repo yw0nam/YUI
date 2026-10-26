@@ -1,6 +1,5 @@
 import { expect, it, vi } from "vitest";
 import type { MessageBridge, MessageSurfaceOp } from "../../io/bridge/message/message-bridge";
-import type { MessagePlate } from "../../ui/message/message-plate";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
 import { wireMessageSurfaceOps } from "./wire-message-surface-ops";
 
@@ -15,35 +14,51 @@ function setup() {
   } as unknown as MessageBridge;
   const surfaces = {
     beginSpeech: vi.fn(),
+    paceSpeech: vi.fn(),
     endSpeech: vi.fn(),
     setBusy: vi.fn(),
     showInputError: vi.fn(),
     showSpeechAction: vi.fn(),
     quoteSignals: vi.fn(),
   } as unknown as Surfaces;
-  const plate = { setLive: vi.fn(), setBusy: vi.fn() } as unknown as MessagePlate;
-  wireMessageSurfaceOps({ bridge, surfaces, plate });
-  return { send, bridge, surfaces, plate };
+  const name = { set: vi.fn() };
+  wireMessageSurfaceOps({ bridge, surfaces, name });
+  return { send, bridge, surfaces, name };
 }
 
-it("marks the plate live and begins speech on begin, and ends both on end", () => {
-  const { send, surfaces, plate } = setup();
+it("begins speech on begin and ends it on end", () => {
+  const { send, surfaces } = setup();
 
   send({ op: "begin" });
   send({ op: "end", defer: true });
 
-  expect(plate.setLive).toHaveBeenNthCalledWith(1, true);
   expect(surfaces.beginSpeech).toHaveBeenCalledOnce();
-  expect(plate.setLive).toHaveBeenNthCalledWith(2, false);
   expect(surfaces.endSpeech).toHaveBeenCalledWith({ defer: true });
 });
 
-it("sets busy on the plate and the surfaces", () => {
-  const { send, surfaces, plate } = setup();
+it("begins a paced line and paces each of its sentences", () => {
+  const { send, surfaces } = setup();
+
+  send({ op: "begin", paced: true });
+  send({ op: "pace", text: "Hi.", durationMs: 500 });
+
+  expect(surfaces.beginSpeech).toHaveBeenCalledWith(undefined, { paced: true });
+  expect(surfaces.paceSpeech).toHaveBeenCalledWith({ text: "Hi.", durationMs: 500 });
+});
+
+it("takes the character's name the pet window sends", () => {
+  const { send, name } = setup();
+
+  send({ op: "name", name: "Yui" });
+
+  expect(name.set).toHaveBeenCalledWith("Yui");
+});
+
+it("sets busy on the surfaces", () => {
+  const { send, surfaces } = setup();
 
   send({ op: "busy", busy: true });
 
-  expect(plate.setBusy).toHaveBeenCalledWith(true);
   expect(surfaces.setBusy).toHaveBeenCalledWith(true);
 });
 

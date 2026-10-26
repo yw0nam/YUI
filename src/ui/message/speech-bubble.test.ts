@@ -27,15 +27,35 @@ import { noTool } from "../surfaces/test-helpers";
 import { renderMarkdownInline } from "./markdown";
 
 const TOOLS_SELECTOR = ".yui-bubble.is-visible .yui-bubble__tools button";
+const BOX_SELECTOR = ".yui-bubble.is-visible .yui-bubble__box";
 const SPEECH_ACTION_SELECTOR = ".yui-bubble.is-visible .yui-bubble__speech-action button";
+const BACKLOG_TOGGLE_SELECTOR = ".yui-bubble.is-visible .yui-bubble__backlog-toggle:not([hidden])";
+const BACKLOG_PANEL_SELECTOR = ".yui-bubble.is-visible .yui-bubble__backlog:not([hidden])";
 
-// The edge buttons and the speech action button take OS pointer events; markdown links do not.
+// The edge buttons, the box, the speech action button and the backlog take OS pointer events; markdown links do not.
 describe("hit-test registration", () => {
-  it("lists the tools selector and the speech action button, no per-link entries", () => {
+  it("lists the tools, the box, the speech action button and the backlog, no per-link entries", () => {
     expect(INTERACTIVE_OVERLAY_SELECTORS).toContain(TOOLS_SELECTOR);
     const bubbleEntries = INTERACTIVE_OVERLAY_SELECTORS.filter((s) => s.includes("yui-bubble"));
-    expect(bubbleEntries).toEqual([TOOLS_SELECTOR, SPEECH_ACTION_SELECTOR]);
+    expect(bubbleEntries).toEqual([
+      TOOLS_SELECTOR,
+      BOX_SELECTOR,
+      SPEECH_ACTION_SELECTOR,
+      BACKLOG_TOGGLE_SELECTOR,
+      BACKLOG_PANEL_SELECTOR,
+    ]);
   });
+});
+
+// A line shows whole under reduced motion, so the blocks about rendering, scrolling and dwell see each delta at once.
+// The typing block lifts this to watch speech type out.
+beforeEach(() => {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: query === "(prefers-reduced-motion: reduce)",
+  }));
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 function makeSurfaces() {
@@ -76,6 +96,23 @@ describe("pushSpeech — auto-scroll to newest line", () => {
     stub(boxEl, 240, 240); // scrollTop 0 → at the bottom before the delta
     s.pushSpeech("A long line that overflows the capped bubble height.");
     expect(boxEl.scrollTop).toBe(240);
+  });
+
+  it("keeps a box that sat at its end scrolled to its end when the opening input shrinks its cap", () => {
+    s.beginSpeech();
+    s.pushSpeech("A reply that fits the box until the input opens.");
+    s.endSpeech();
+    const boxEl = box();
+    const bubbleEl = mount.querySelector<HTMLElement>(".yui-bubble")!;
+    Object.defineProperty(boxEl, "scrollHeight", { value: 195, configurable: true });
+    Object.defineProperty(boxEl, "clientHeight", {
+      get: () => (bubbleEl.classList.contains("is-above-input") ? 166 : 195),
+      configurable: true,
+    });
+
+    s.summonInput();
+
+    expect(boxEl.scrollTop).toBe(195);
   });
 
   it("re-scrolls to the new end as more text arrives", () => {
@@ -695,8 +732,7 @@ describe("pushSpeech — throttled markdown rendering", () => {
 
     s.endSpeech();
 
-    expect(renderMarkdownInline).toHaveBeenCalledTimes(2);
-    expect(renderMarkdownInline).toHaveBeenLastCalledWith(expected);
+    expect(mount.querySelector(".yui-bubble__sr")?.textContent).toBe(expected);
     expect(mount.querySelector(".yui-bubble__text")?.textContent).toBe(expected);
   });
 });
@@ -932,5 +968,172 @@ describe("pop-out button — moving speech to the message window", () => {
   it("reports the pop request on click", () => {
     popBtn().click();
     expect(onPop).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("typing — speech types out", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+    vi.useFakeTimers();
+    ({ s, mount } = makeSurfaces());
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+    vi.useRealTimers();
+  });
+
+  const text = () => mount.querySelector(".yui-bubble__text")?.textContent;
+  const next = () => mount.querySelector<HTMLElement>(".yui-bubble__next")!;
+
+  it("a click on the box shows the whole received line while it types", () => {
+    s.beginSpeech();
+    s.pushSpeech("Hello there");
+    vi.advanceTimersByTime(100);
+    expect(text()).toBe("He");
+    mount.querySelector<HTMLElement>(".yui-bubble__box")!.click();
+    expect(text()).toBe("Hello there");
+  });
+
+  it("shows the ▼ marker only once the line ended and all of it shows", () => {
+    s.beginSpeech();
+    s.pushSpeech("Hi");
+    vi.advanceTimersByTime(1000);
+    expect(next().hidden).toBe(true);
+    s.endSpeech();
+    expect(next().hidden).toBe(false);
+    s.beginSpeech();
+    expect(next().hidden).toBe(true);
+  });
+
+  it("types nothing more once the bubble hides, whatever the voice still reports", () => {
+    s.beginSpeech(undefined, { paced: true });
+    s.pushSpeech("One. Two.");
+    s.endSpeech({ defer: true });
+    s.paceSpeech({ text: "One.", durationMs: 400 });
+    vi.advanceTimersByTime(100);
+    mount.querySelector<HTMLElement>(".yui-bubble__close")!.click();
+    const shown = text();
+
+    s.paceSpeech({ text: "Two.", durationMs: 100 });
+    s.finishSpeech();
+    s.endSpeech();
+    vi.advanceTimersByTime(300);
+
+    expect(text()).toBe(shown);
+    expect(next().hidden).toBe(true);
+    expect(mount.querySelector(".yui-bubble")!.classList.contains("is-typing")).toBe(false);
+  });
+
+  it("paces a line whose sentences carry markdown by their rendered text", () => {
+    s.beginSpeech(undefined, { paced: true });
+    s.pushSpeech("Here is **bold**. Next one. And `x` last.");
+    s.endSpeech({ defer: true });
+
+    s.paceSpeech({ text: "Here is **bold**.", durationMs: 1000 });
+    vi.advanceTimersByTime(1100);
+    expect(text()).toBe("Here is bold.");
+    s.paceSpeech({ text: "Next one.", durationMs: 1000 });
+    vi.advanceTimersByTime(1100);
+    expect(text()).toBe("Here is bold. Next one.");
+  });
+
+  it("types the rendered line, never its markdown syntax or a partial link", () => {
+    const raw = "Here is **bold** and [label](https://example.com/x) now.";
+    const seen: string[] = [];
+    const look = () => {
+      const el = mount.querySelector(".yui-bubble__text")!;
+      seen.push(el.textContent ?? "");
+      for (const a of el.querySelectorAll("a")) {
+        expect(a.getAttribute("href")).toBe("https://example.com/x");
+      }
+    };
+    s.beginSpeech();
+    for (let i = 0; i < raw.length; i += 3) {
+      s.pushSpeech(raw.slice(i, i + 3));
+      vi.advanceTimersByTime(30);
+      look();
+    }
+    s.endSpeech();
+    for (let i = 0; i < 100; i++) {
+      vi.advanceTimersByTime(20);
+      look();
+    }
+
+    expect(seen.at(-1)).toBe("Here is bold and label now.");
+    expect(seen.filter((t) => /[*[]|\]\(|http/.test(t))).toEqual([]);
+  });
+
+  it("marks an image that fails to load as broken while the line still types", () => {
+    s.beginSpeech();
+    s.pushSpeech("![Cat](https://example.com/cat.png) and a few more words");
+    vi.advanceTimersByTime(200);
+    const img = mount.querySelector<HTMLImageElement>(".yui-bubble__text img")!;
+    img.dispatchEvent(new Event("error"));
+    expect(img.classList.contains("is-broken")).toBe(true);
+  });
+
+  it("shows the whole line at once under reduced motion", () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(prefers-reduced-motion: reduce)",
+    }));
+    s.beginSpeech();
+    s.pushSpeech("Hello there");
+    expect(text()).toBe("Hello there");
+  });
+});
+
+describe("backlog — holds the bubble while open", () => {
+  let mount: HTMLElement;
+  let s: ReturnType<typeof createSurfaces>;
+  const DWELL = 1000;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    mount = document.createElement("div");
+    document.body.appendChild(mount);
+    s = createSurfaces({
+      tool: noTool,
+      mount,
+      dwellMs: DWELL,
+      backlog: {
+        read: () => [{ role: "user", text: "Hi", ts: 1 }],
+        characterName: () => "Perlica",
+      },
+    });
+    s.beginSpeech();
+    s.pushSpeech("Hello!");
+    s.endSpeech();
+  });
+
+  afterEach(() => {
+    s.dispose();
+    mount.remove();
+    vi.useRealTimers();
+  });
+
+  const bubble = () => mount.querySelector<HTMLElement>(".yui-bubble")!;
+  const toggle = () => mount.querySelector<HTMLButtonElement>(".yui-bubble__backlog-toggle")!;
+  const panel = () => mount.querySelector<HTMLElement>(".yui-bubble__backlog")!;
+
+  it("takes no dwell while the backlog is open, and its dwell again once closed", () => {
+    toggle().click();
+    vi.advanceTimersByTime(DWELL * 3);
+    expect(bubble().classList.contains("is-visible")).toBe(true);
+
+    toggle().click();
+    vi.advanceTimersByTime(DWELL);
+    expect(bubble().classList.contains("is-visible")).toBe(false);
+  });
+
+  it("closes the backlog when the bubble hides", () => {
+    toggle().click();
+    s.hideSpeech();
+    expect(panel().hidden).toBe(true);
+    expect(toggle().getAttribute("aria-expanded")).toBe("false");
   });
 });

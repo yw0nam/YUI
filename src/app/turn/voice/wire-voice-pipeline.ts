@@ -35,7 +35,10 @@ type VoiceRenderer = Pick<
   "setMouthOpen" | "stopMouth" | "easeEmotionToNeutral" | "applyDirective" | "playMotion"
 >;
 
-type VoiceSurfaces = Pick<Surfaces, "beginSpeech" | "pushSpeech" | "endSpeech" | "finishSpeech">;
+type VoiceSurfaces = Pick<
+  Surfaces,
+  "beginSpeech" | "pushSpeech" | "paceSpeech" | "endSpeech" | "finishSpeech"
+>;
 
 interface VoicePipelineDeps {
   renderer: VoiceRenderer;

@@ -1118,7 +1118,7 @@ globalThis.YUI_MAP =
       "id": "ui/message",
       "module": "display",
       "label": "bubble and plate",
-      "role": "The speech bubble, the quoted user line or signal source lines, the reasoning disclosure, and the message-window plate.",
+      "role": "The speech bubble, the typewriter that types each line out paced by its sentences' audio, the quoted user line or signal source lines, the reasoning disclosure, the backlog of the session's earlier lines, and the name plate and its turn state.",
       "paths": [
         "src/ui/message"
       ]
@@ -1300,7 +1300,7 @@ globalThis.YUI_MAP =
       "id": "app/message",
       "module": "wiring",
       "label": "message-window wiring",
-      "role": "Draws surface ops from the pet window and binds the message window's drag, focus, and resize.",
+      "role": "Draws surface ops from the pet window and binds the message window's drag, focus, and resize; names the character for both windows' plates and backlogs: the pet window resolves the effective name and sends it, the message window mirrors it.",
       "paths": [
         "src/app/message"
       ]
@@ -1809,7 +1809,7 @@ globalThis.YUI_MAP =
       "id": "speech-bubble",
       "from": "io/voice/tts",
       "to": "ui/surfaces",
-      "carries": "beginSpeech, pushSpeech, endSpeech, finishSpeech",
+      "carries": "beginSpeech (paced, except for a muted remainder or while an earlier line still owes audio), pushSpeech, paceSpeech at each sentence start (its text and audio duration, null without audio), endSpeech, finishSpeech",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
@@ -2814,6 +2814,24 @@ globalThis.YUI_MAP =
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"
+    },
+    {
+      "id": "backlog-transcript-pet",
+      "from": "io/chat/conversation",
+      "to": "ui/message",
+      "carries": "the pet window's chat-history store: entriesAfterLastBoundary → the backlog, read on each open",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/surfaces/wire.ts"
+    },
+    {
+      "id": "backlog-transcript-message",
+      "from": "io/chat/conversation",
+      "to": "ui/message",
+      "carries": "yui.<id>.chat_transcript → readTranscriptAfterBoundary → the message window's backlog, read on each open",
+      "kind": "storage",
+      "transport": "shared",
+      "wiring": "src/windows/message-main.ts"
     },
     {
       "id": "unified-transcripts",

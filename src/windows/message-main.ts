@@ -15,6 +15,7 @@ import { applyTheme } from "../ui/theme/apply-theme";
 import "../styles.css";
 import "../ui/message/message-window.css";
 import { createDisposers } from "../app/disposers";
+import { createMirroredName } from "../app/message/mirrored-name";
 import { wireMessageSurfaceOps } from "../app/message/wire-message-surface-ops";
 import { startDragging, wireTauriWindow } from "../app/message/wire-message-tauri-window";
 import { wirePlateName } from "../app/message/wire-plate-name";
@@ -25,6 +26,7 @@ import { createMessageBridge } from "../io/bridge/message/message-bridge";
 import { createMirroredPushSocket } from "../io/bridge/push/push-socket-bridge";
 import { createMirroredReasoning } from "../io/bridge/reasoning/reasoning-bridge";
 import { createSettingsBridge } from "../io/bridge/settings-bridge";
+import { readTranscriptAfterBoundary } from "../io/chat/conversation/chat-history-store";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
 import {
@@ -36,10 +38,12 @@ import {
   localStorageMessageWindowStorage,
 } from "../settings/panels/message-window-settings";
 import { createFlagSettings, localStorageStore } from "../settings/persisted-store";
+import { presetEntryFor } from "../settings/preset/active-preset";
 import { isTauri } from "../tauri-env";
 import { createDelegationChip } from "../ui/chips/delegation-chip";
 import { reloadFromStorage as reloadLocale } from "../ui/i18n";
 import { createMessagePlate } from "../ui/message/message-plate";
+import { withPlateState } from "../ui/message/plate-state";
 import { attachSummonKey } from "../ui/surfaces/summon-key";
 import { createSurfaces } from "../ui/surfaces/surfaces";
 
@@ -85,6 +89,8 @@ async function bootstrap(): Promise<void> {
   const delegations = createMirroredDelegations({ bridge: settingsBridge });
   const reasoning = createMirroredReasoning({ bridge: settingsBridge });
 
+  // The pet window owns the character's name and sends it; this window shows what it last sent.
+  const characterName = createMirroredName();
   const surfaces = createSurfaces({
     mount: app,
     // Tool tells stay with the character; this window draws none.
@@ -92,6 +98,10 @@ async function bootstrap(): Promise<void> {
     keepBubbleUntilDismissed: () => bubblePersistSettings.get().enabled,
     onInputOpenChange: (open) => bridge.emitControl({ op: "input-open", open }),
     reasoning,
+    backlog: {
+      read: () => readTranscriptAfterBoundary(presetEntryFor(presetRegistry.get(), boundId).id),
+      characterName: characterName.get,
+    },
   });
   surfaces.el.classList.add("yui-ui--message");
   surfaces.onSubmit((text, images) => bridge.emitControl({ op: "submit", text, images }));
@@ -119,7 +129,7 @@ async function bootstrap(): Promise<void> {
     onOpenSettings: () => bridge.emitControl({ op: "open-settings" }),
   });
 
-  wireMessageSurfaceOps({ bridge, surfaces, plate });
+  wireMessageSurfaceOps({ bridge, surfaces: withPlateState(plate, surfaces), name: characterName });
 
   const detachSummonKey = attachSummonKey(surfaces);
 
@@ -146,7 +156,9 @@ async function bootstrap(): Promise<void> {
   disposers.register(() => surfaces.dispose());
   disposers.register(() => plateRow.remove());
   disposers.register(() => plate.dispose());
-  disposers.register(wirePlateName({ registry: presetRegistry, plate, boundId }));
+  disposers.register(
+    wirePlateName({ registry: presetRegistry, plate, boundId, name: characterName }),
+  );
   disposers.register(() => delegations.dispose());
   disposers.register(() => pushSocket.dispose());
   disposers.register(() => chipCollapsed.dispose());

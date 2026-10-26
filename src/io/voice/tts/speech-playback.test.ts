@@ -63,6 +63,8 @@ function stubPipelineFactory() {
     emitAmplitude: (v: number) => captured?.onAmplitude?.(v),
     emitPlaybackEnd: () => captured?.onPlaybackEnd?.(),
     emitCuePlay: (cue: ExpressArgs | null) => captured?.onCuePlay?.(cue),
+    emitSentenceStart: (s: { text: string; durationMs: number | null }) =>
+      captured?.onSentenceStart?.(s),
   };
 }
 
@@ -112,6 +114,7 @@ function spySurfaces() {
   return {
     beginSpeech: vi.fn(),
     pushSpeech: vi.fn(),
+    paceSpeech: vi.fn(),
     endSpeech: vi.fn(),
     finishSpeech: vi.fn(),
   };
@@ -496,6 +499,50 @@ describe("createSpeechPlayback — onSpeechDelta streams text into bubble + pipe
     // streaming deltas must NOT flush/finish mid-run.
     expect(stub.calls.ended).toBe(0);
     expect(surfaces.finishSpeech).not.toHaveBeenCalled();
+  });
+});
+
+describe("createSpeechPlayback — the bubble's typing pace", () => {
+  const id = { turn_id: "7", event_name: "user.text_submitted" };
+
+  it.each([
+    ["a line that begins with no audio owed", true, () => {}],
+    [
+      "a muted remainder",
+      false,
+      (sp: ReturnType<typeof createSpeechPlayback>) => sp.interrupt({ muteCurrentTurn: true }),
+    ],
+    [
+      "a line that begins while the previous one still plays",
+      false,
+      (sp: ReturnType<typeof createSpeechPlayback>) => sp.onSpeech("Before.", id),
+    ],
+  ])("%s begins with paced %s", (_case, paced, before) => {
+    const surfaces = spySurfaces();
+    const sp = createSpeechPlayback({
+      renderer: spyRenderer(),
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stubPipelineFactory().factory,
+      isStrolling: () => false,
+    });
+    before(sp);
+    sp.onSpeechDelta("Hello.", id);
+    expect(surfaces.beginSpeech).toHaveBeenLastCalledWith(id, { paced });
+  });
+
+  it("hands each sentence start to the bubble", () => {
+    const stub = stubPipelineFactory();
+    const surfaces = spySurfaces();
+    createSpeechPlayback({
+      renderer: spyRenderer(),
+      surfaces,
+      pipeline: NO_PIPELINE,
+      createPipeline: stub.factory,
+      isStrolling: () => false,
+    });
+    stub.emitSentenceStart({ text: "Hello.", durationMs: 900 });
+    expect(surfaces.paceSpeech).toHaveBeenCalledWith({ text: "Hello.", durationMs: 900 });
   });
 });
 
@@ -2079,7 +2126,7 @@ describe("speech display identity", () => {
     const identity = { turn_id: "7", event_name: "user.text_submitted" };
     if (ending === "muted") playback.interrupt({ muteCurrentTurn: true });
     playback.onSpeechDelta("Hello", identity);
-    expect(surfaces.beginSpeech).toHaveBeenLastCalledWith(identity);
+    expect(surfaces.beginSpeech).toHaveBeenLastCalledWith(identity, { paced: ending !== "muted" });
     expect(surfaces.pushSpeech).toHaveBeenLastCalledWith("Hello", identity);
     if (ending === "interrupt") playback.interrupt();
     else if (ending === "abort") playback.abort();
@@ -2101,7 +2148,7 @@ describe("speech display identity", () => {
       isStrolling: () => false,
     });
     playback.speakAside("Wait.");
-    expect(surfaces.beginSpeech.mock.calls).toEqual([[undefined]]);
+    expect(surfaces.beginSpeech.mock.calls).toEqual([[undefined, { paced: true }]]);
     expect(surfaces.pushSpeech.mock.calls).toEqual([["Wait.", undefined]]);
     expect(surfaces.endSpeech.mock.calls).toEqual([[{ defer: true }, undefined]]);
     playback.dispose();

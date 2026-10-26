@@ -152,6 +152,7 @@ describe("dispatcher — turn admission across the amplitude flag (#512)", () =>
       surfaces: {
         beginSpeech: vi.fn(),
         pushSpeech: vi.fn(),
+        paceSpeech: vi.fn(),
         endSpeech: vi.fn(),
         finishSpeech: vi.fn(),
       },

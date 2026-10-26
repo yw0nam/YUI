@@ -28,6 +28,7 @@ export function createSurfacesRouter({
     Surfaces,
     | "beginSpeech"
     | "pushSpeech"
+    | "paceSpeech"
     | "endSpeech"
     | "finishSpeech"
     | "hideSpeech"
@@ -71,6 +72,7 @@ export function createSurfacesRouter({
       speech().pushSpeech(...args);
       stream.pushSpeech(...args);
     },
+    paceSpeech: (sentence) => speech().paceSpeech(sentence),
     endSpeech(...args) {
       speech().endSpeech(...args);
       stream.endSpeech(...args);

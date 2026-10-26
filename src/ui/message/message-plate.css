@@ -1,18 +1,22 @@
-/* Message-window name plate — the handle chip: state dot, name, state label, dock button.
-   Layout rules that tie it to the window (the plate row, the ember siblings) stay in
-   message-window.css. Tokens live in ../tokens.css. */
+/* Name plate — the chip on the bubble's box edge: face, name, state dot, state label, dock button.
+   Layout rules that tie it to a window (the plate row, the ember siblings) stay in
+   message-window.css and surfaces.css. Tokens live in ../tokens.css. */
 
 /* ── Name plate — the handle, the state tell and the way back to the character ── */
 .yui-plate {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  height: 26px;
-  padding: 0 0.3rem 0 0.6rem;
+  height: 30px;
+  box-sizing: border-box;
+  padding: 0 14px 0 6px;
   border-radius: var(--yui-radius-chip);
   background: var(--yui-scrim-strong);
   border: 1px solid var(--yui-edge);
   box-shadow: var(--yui-float);
+}
+.yui-plate:has(> .yui-plate__dock) {
+  padding-right: 0.3rem;
 }
 .yui-plate[data-draggable] {
   cursor: grab;
@@ -21,9 +25,13 @@
   cursor: grabbing;
 }
 
+.yui-plate__face:empty {
+  display: none;
+}
+
 .yui-plate__dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--yui-text-mute);
   opacity: 0.55;

@@ -41,6 +41,23 @@ describe("createMessagePlate", () => {
     expect(dock().getAttribute("aria-label")).toBeTruthy();
   });
 
+  it("shows the preset's photo as its face", () => {
+    plate.setFace({ id: "perlica", name: "Perlica", thumbnail: "data:image/png;base64,x" });
+    const face = el().querySelector(".yui-plate__face")!.firstElementChild!;
+    expect(face.tagName).toBe("IMG");
+    expect(face.className).toBe("yui-uc__avatar");
+    expect(face.getAttribute("src")).toBe("data:image/png;base64,x");
+  });
+
+  it("shows a dot in the preset's hue as its face when it has no photo", () => {
+    plate.setFace({ id: "perlica", name: "Perlica", thumbnail: "data:image/png;base64,x" });
+    plate.setFace({ id: "perlica", name: "Perlica" });
+    const faces = el().querySelector(".yui-plate__face")!.children;
+    expect(faces).toHaveLength(1);
+    expect(faces[0].tagName).toBe("SPAN");
+    expect(faces[0].className).toBe("yui-uc__dot");
+  });
+
   it("shows YUI before setName and the set name after", () => {
     const fresh = document.createElement("div");
     document.body.appendChild(fresh);

@@ -41,6 +41,8 @@ const ja: Record<string, string> = {
   "aria.remove_attachment": "添付を削除",
   "aria.dismiss_bubble": "吹き出しを閉じる",
   "bubble.you": "自分",
+  "bubble.backlog": "バックログ",
+  "bubble.backlog_hide": "バックログを閉じる",
   "bubble.quote_attached": "添付 {count}件",
   "bubble.sources_more": "+{n}件",
   "signals.delivery_urgent": "緊急シグナル",

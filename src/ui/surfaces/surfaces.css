@@ -46,13 +46,16 @@
     transform: translateX(-50%) !important;
   }
   .yui-bubble__caret,
+  .yui-bubble__next,
+  .yui-bubble__float,
   .yui-bubble__think-text.is-live::after {
     animation: none !important;
   }
   .yui-bubble__think svg {
     transition: none;
   }
-  .yui-bubble__speech-action button {
+  .yui-bubble__speech-action button,
+  .yui-bubble__box {
     transition: none;
   }
 }
@@ -70,8 +73,8 @@
   bottom: var(--yui-bubble-bottom, 16%);
   left: 50%;
   transform: translate(-50%, 6px) scale(0.98);
-  width: max-content;
-  max-width: min(34ch, 78%);
+  /* One width while it shows, so what rides the box's edges never moves with its text. */
+  width: min(34ch, 78%);
 
   opacity: 0;
   pointer-events: none; /* Display-only — passthrough for character drag */
@@ -82,7 +85,8 @@
 
 .yui-bubble__box {
   box-sizing: border-box;
-  padding: 0.7rem 0.95rem;
+  min-height: min(132px, var(--yui-bubble-max-h, 34vh));
+  padding: 26px 20px 30px;
   border-radius: var(--yui-radius);
   background: var(--yui-scrim);
   border: 1px solid var(--yui-edge);
@@ -92,8 +96,10 @@
 
   color: var(--yui-text);
   font-size: var(--yui-fs-speech);
-  line-height: 1.5;
+  line-height: 1.75;
   text-wrap: pretty;
+  /* The border swells to amber while the line types. */
+  transition: border-color var(--yui-dur) var(--yui-ease);
 
   /* Long utterance height cap + internal scroll — does not grow upward over model even when overflowing. */
   max-height: var(--yui-bubble-max-h, 34vh);
@@ -135,6 +141,26 @@
   transform: translate(-50%, 0) scale(1);
 }
 
+/* The whole bubble floats while it shows; the wrapper's own transform places and fades it. */
+.yui-bubble.is-visible .yui-bubble__float {
+  animation: yui-bob 6s ease-in-out infinite;
+}
+
+@keyframes yui-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+/* A click on the box completes the line; around it the wrapper still passes pointers through. */
+.yui-bubble.is-visible .yui-bubble__box {
+  pointer-events: auto;
+}
+
 /* Screen-reader-only narration area — not visible on screen. */
 .yui-bubble__sr {
   position: absolute;
@@ -147,14 +173,23 @@
 
 /* While input is open — lift the bubble above input (--yui-bubble-bottom is set to px by JS),
    constrain height further to prevent growing downward and encroaching on input area. */
+/* biome-ignore format: one-line selector. Lifted above the input, the bubble also clears the backlog toggle's 15px overhang. */
+.yui-ui:not(.yui-ui--message) .yui-bubble.is-above-input:has(.yui-bubble__backlog-toggle:not([hidden])) {
+  bottom: calc(var(--yui-bubble-bottom) + 15px);
+}
 .yui-bubble.is-above-input .yui-bubble__box {
   max-height: min(var(--yui-bubble-max-h, 34vh), 28vh);
+  min-height: min(132px, var(--yui-bubble-max-h, 34vh), 28vh);
 }
 
 /* ── Markdown inside bubble ──
    Pack block/inline elements tightly to fit small caption panel. Remove first/last margins. */
 .yui-bubble__text p {
   margin: 0.4em 0;
+}
+/* A line's own newlines show; the markup's newlines between blocks and list items stay collapsed. */
+.yui-bubble__text p {
+  white-space: pre-wrap;
 }
 .yui-bubble__text > :first-child {
   margin-top: 0;
@@ -185,7 +220,8 @@
   font-style: italic;
 }
 /* Inline code — subtle scrim background, small radius. */
-.yui-bubble__text code {
+.yui-bubble__text code,
+.yui-bubble__backlog-text code {
   font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
   font-size: 0.86em;
   padding: 0.08em 0.34em;
@@ -261,8 +297,46 @@
   /* Speech onset warmth moment — blinking amber caret */
   animation: yui-caret-blink 1s steps(2, jump-none) infinite;
 }
-.yui-bubble.is-streaming .yui-bubble__caret {
+.yui-bubble.is-typing .yui-bubble__caret {
   display: inline;
+}
+.yui-bubble.is-typing .yui-bubble__box {
+  border-color: var(--yui-accent-soft);
+}
+
+/* The box scrolls, so what rides its edges hangs on this frame instead. */
+.yui-bubble__frame {
+  position: relative;
+}
+
+/* The name plate rides the box's top-left edge, half over it; the box's text starts under it. */
+.yui-bubble__frame > .yui-plate {
+  position: absolute;
+  top: -15px;
+  left: 14px;
+  z-index: 1;
+}
+
+/* ▼ — the line finished. An indicator only. */
+.yui-bubble__next {
+  position: absolute;
+  right: 14px;
+  bottom: 8px;
+  color: var(--yui-accent-ink);
+  font-size: var(--yui-fs-sub);
+  line-height: 1;
+  pointer-events: none;
+  animation: yui-nudge 1.4s ease-in-out infinite;
+}
+
+@keyframes yui-nudge {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(3px);
+  }
 }
 
 @keyframes yui-caret-blink {
@@ -421,6 +495,76 @@
   content: none;
 }
 
+/* ── Backlog — the session's earlier lines above the box; its panel and toggle take their own pointers ── */
+.yui-bubble__backlog {
+  margin-bottom: 8px;
+  padding: 12px 14px;
+  border-radius: var(--yui-radius);
+  background: var(--yui-scrim-strong);
+  border: 1px solid var(--yui-edge);
+  box-shadow: var(--yui-float);
+  pointer-events: auto;
+}
+/* Clear of the docked plate, which rides 15px above the box. */
+.yui-bubble:has(.yui-bubble__frame > .yui-plate) .yui-bubble__backlog {
+  margin-bottom: 23px;
+}
+.yui-bubble__backlog-title {
+  margin-bottom: 6px;
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-caption);
+  font-weight: 500;
+}
+.yui-bubble__backlog-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 12em;
+  overflow-y: auto;
+  color: var(--yui-text-dim);
+  font-size: var(--yui-fs-body);
+  line-height: 1.6;
+  scrollbar-width: thin;
+  scrollbar-color: var(--yui-edge-strong) transparent;
+}
+.yui-bubble__backlog-who {
+  margin-right: 0.5em;
+  font-weight: 600;
+}
+/* A line runs on after its speaker's name. */
+.yui-bubble__backlog-text p {
+  display: inline;
+  margin: 0;
+}
+/* The toggle rides the box's bottom-left edge, half over it, so it adds no height under the box. */
+.yui-bubble__backlog-toggle {
+  position: absolute;
+  bottom: -15px;
+  left: 14px;
+  z-index: 1;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--yui-radius-pill);
+  border: 1px solid var(--yui-edge);
+  background: var(--yui-scrim-strong);
+  color: var(--yui-text-dim);
+  font: inherit;
+  font-size: var(--yui-fs-sub);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: color var(--yui-dur-fast) var(--yui-ease);
+}
+.yui-bubble__backlog-toggle:hover {
+  color: var(--yui-text);
+}
+.yui-bubble__backlog-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
 /* ── Edge tools — pop-out and dismiss, riding the bubble's top edge, revealed on hover/focus ──
    The bubble itself is pointer-events:none (drag passthrough), so the tools carry their own
    pointer target: hovering them is what puts the bubble in :hover and fades them in; an overflowing
@@ -493,7 +637,8 @@
 /* ── Inline markdown links (inside bubble) ──
    Warm body color + amber-soft underline, ignite to amber on hover/focus (treatment A).
    With pointer-events:auto, only links are clickable inside display-only bubble. */
-.yui-bubble__text a {
+.yui-bubble__text a,
+.yui-bubble__backlog-text a {
   color: var(--yui-text);
   text-decoration: underline;
   text-decoration-color: var(--yui-accent-soft);
@@ -506,11 +651,14 @@
     text-decoration-color var(--yui-dur-fast) var(--yui-ease);
 }
 .yui-bubble__text a:hover,
-.yui-bubble__text a:focus-visible {
+.yui-bubble__text a:focus-visible,
+.yui-bubble__backlog-text a:hover,
+.yui-bubble__backlog-text a:focus-visible {
   color: var(--yui-accent-ink);
   text-decoration-color: var(--yui-accent);
 }
-.yui-bubble__text a:focus-visible {
+.yui-bubble__text a:focus-visible,
+.yui-bubble__backlog-text a:focus-visible {
   outline: 2px solid var(--yui-accent-soft);
   outline-offset: 2px;
 }

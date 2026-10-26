@@ -6,8 +6,12 @@ const audioGlobal = globalThis as unknown as {
 };
 
 export interface AudioSink {
-  /** onAmplitude receives the normalized, smoothed mouth-open value (0..1) every frame. */
-  play(wav: ArrayBuffer, onAmplitude?: (mouthOpen: number) => void): Promise<void>;
+  /** onAmplitude receives the normalized, smoothed mouth-open value (0..1) every frame; onStart the clip's length as it starts. */
+  play(
+    wav: ArrayBuffer,
+    onAmplitude?: (mouthOpen: number) => void,
+    onStart?: (durationMs: number) => void,
+  ): Promise<void>;
   stop(): void;
 }
 
@@ -83,7 +87,7 @@ export function createWebAudioSink(opts?: { getGain?: () => number }): AudioSink
   }
 
   return {
-    async play(wav, onAmplitude) {
+    async play(wav, onAmplitude, onStart) {
       const audioCtx = ensureCtx();
       // decodeAudioData detaches the ArrayBuffer, so pass a copy.
       const buffer = await audioCtx.decodeAudioData(wav.slice(0));
@@ -131,6 +135,7 @@ export function createWebAudioSink(opts?: { getGain?: () => number }): AudioSink
           resolve();
         };
 
+        onStart?.(buffer.duration * 1000);
         source.start();
         rafId = requestAnimationFrame(sample);
       });

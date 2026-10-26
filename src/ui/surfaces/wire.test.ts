@@ -40,8 +40,22 @@ function fakeMessageWindowSettings(mode: MessageWindowMode) {
 }
 
 function setup(mode: MessageWindowMode, bound = false) {
+  let name = "Yui";
+  const nameListeners: Array<() => void> = [];
+  const offName = vi.fn();
+  const characterName = {
+    get: () => name,
+    subscribe: (cb: () => void) => {
+      nameListeners.push(cb);
+      return offName;
+    },
+  };
+  const rename = (next: string): void => {
+    name = next;
+    for (const cb of nameListeners) cb();
+  };
   const local = { dispose: vi.fn() };
-  const remote = { dispose: vi.fn() };
+  const remote = { dispose: vi.fn(), setName: vi.fn() };
   const surfaces = { dispose: vi.fn() };
   const bridge = { dispose: vi.fn() };
   const settings = { dispose: vi.fn(), emitSpeechStream: vi.fn() };
@@ -58,6 +72,7 @@ function setup(mode: MessageWindowMode, bound = false) {
     boundId: bound ? "a" : null,
     settingsBridge: settings,
     transcript: { entriesAfterLastBoundary: () => [] },
+    characterName,
     mount: {} as HTMLElement,
     tool: { showTool: vi.fn(), finishTool: vi.fn(), hideTool: vi.fn() },
     bubblePersistSettings: { get: () => ({ enabled: false }) },
@@ -74,10 +89,19 @@ function setup(mode: MessageWindowMode, bound = false) {
     bridge,
     modeDisposer,
     messageWindowSettings,
+    rename,
+    offName,
   };
 }
 
 describe("wireMessageSurfaces", () => {
+  it("sends the character's name to the message window, and again when it changes", () => {
+    const { remote, rename } = setup("popped");
+    expect(remote.setName).toHaveBeenLastCalledWith("Yui");
+    rename("Perlica");
+    expect(remote.setName).toHaveBeenLastCalledWith("Perlica");
+  });
+
   it("builds the bound remote half and targets its companion", () => {
     const { result, remote, surfaces, messageWindowSettings } = setup("popped", true);
     expect(result.surfaces).toBe(surfaces);
@@ -100,13 +124,14 @@ describe("wireMessageSurfaces", () => {
     expect(wireMessageWindowMode.mock.calls[0]![0].listenTrayToggle).toBe(listenTrayToggle);
   });
 
-  it("registers the bridge, the router, then the window-mode teardown", () => {
-    const { register, local, surfaces, bridge, modeDisposer } = setup("docked");
+  it("registers the name subscription, the bridge, the router, then the window-mode teardown", () => {
+    const { register, local, surfaces, bridge, modeDisposer, offName } = setup("docked");
 
-    expect(register).toHaveBeenCalledTimes(3);
-    const [bridgeTeardown, surfacesTeardown, modeTeardown] = register.mock.calls.map(
+    expect(register).toHaveBeenCalledTimes(4);
+    const [nameTeardown, bridgeTeardown, surfacesTeardown, modeTeardown] = register.mock.calls.map(
       (call) => call[0],
     );
+    expect(nameTeardown).toBe(offName);
 
     bridgeTeardown();
     expect(bridge.dispose).toHaveBeenCalledOnce();

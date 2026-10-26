@@ -317,6 +317,98 @@ describe("surfaces.css — the bubble's box carries the material", () => {
   });
 });
 
+// The whole bubble floats as one: plate, box, backlog and toggle ride one wrapper that only the bob transforms.
+describe("surfaces.css — the bubble floats while it shows", () => {
+  const css = (): string => read("surfaces.css");
+
+  it("bobs only while the bubble is visible", () => {
+    const c = css();
+    expect(extractBlock(c, ".yui-bubble.is-visible .yui-bubble__float")).toMatch(
+      /animation:\s*yui-bob\b/,
+    );
+    const rules = [...c.matchAll(/^([^\n{}@]*\.yui-bubble__float[^\n{}]*)\{/gm)].map((m) =>
+      m[1].trim(),
+    );
+    expect(rules).toEqual([".yui-bubble.is-visible .yui-bubble__float"]);
+  });
+
+  it("holds still under reduced motion", () => {
+    const c = css();
+    const reduced = c.slice(c.indexOf("@media (prefers-reduced-motion: reduce)"));
+    expect(reduced.slice(0, reduced.indexOf("\n}"))).toMatch(
+      /\.yui-bubble__float[^{]*\{\s*animation:\s*none/,
+    );
+  });
+});
+
+// The plate, the toggle and the ▼ ride the box's edges, so the box never shrinks or grows with its text.
+describe("surfaces.css — the box keeps one width while it shows", () => {
+  it("takes the bubble's full width cap in the character window, never its content's width", () => {
+    const block = extractBlock(read("surfaces.css"), ".yui-bubble");
+    expect(block).toMatch(/(?:^|\s)width:\s*min\(34ch, 78%\)/m);
+    expect(block).not.toMatch(/max-content/);
+  });
+
+  it("takes the column's width in the message window", () => {
+    expect(
+      extractBlock(read("../message/message-window.css"), ".yui-ui--message .yui-bubble"),
+    ).toMatch(/(?:^|\s)width:\s*100%/m);
+  });
+});
+
+// The longest common reply must fit the cap in force, so the box's floor never rises above it.
+describe("surfaces.css — the box's floor stays under its cap", () => {
+  it("bounds the min-height by the cap, with the input closed and open", () => {
+    const c = read("surfaces.css");
+    expect(extractBlock(c, ".yui-bubble__box")).toMatch(
+      /min-height:\s*min\(132px,\s*var\(--yui-bubble-max-h, 34vh\)\)/,
+    );
+    expect(extractBlock(c, ".yui-bubble.is-above-input .yui-bubble__box")).toMatch(
+      /min-height:\s*min\(132px,[^;]*28vh\)/,
+    );
+  });
+});
+
+// The toggle hangs under the box, so a bubble lifted above the input clears that overhang too.
+describe("surfaces.css — the backlog toggle clears the input", () => {
+  it("lifts the bubble by the toggle's overhang while the toggle shows above the open input", () => {
+    expect(
+      extractBlock(
+        read("surfaces.css"),
+        ".yui-ui:not(.yui-ui--message) .yui-bubble.is-above-input:has(.yui-bubble__backlog-toggle:not([hidden]))",
+      ),
+    ).toMatch(/bottom:\s*calc\(var\(--yui-bubble-bottom\) \+ 15px\)/);
+  });
+});
+
+// In the message window the plate sits in its own row, so it floats with the box and stays clear of an open backlog.
+describe("message-window.css — the plate rides the floating box", () => {
+  const css = (): string => read("../message/message-window.css");
+
+  it("floats the plate only while the bubble shows", () => {
+    expect(
+      extractBlock(
+        css(),
+        ".yui-ui--message .yui-plate-row:has(+ .yui-bubble.is-visible) > .yui-plate",
+      ),
+    ).toMatch(/animation:\s*yui-bob\b/);
+  });
+
+  it("holds the plate still under reduced motion", () => {
+    const c = css();
+    const reduced = c.slice(c.indexOf("@media (prefers-reduced-motion: reduce)"));
+    expect(reduced).toMatch(
+      /\.yui-plate-row:has\(\+ \.yui-bubble\.is-visible\) > \.yui-plate\s*\{\s*animation:\s*none/,
+    );
+  });
+
+  it("tucks the box under the plate only while the backlog is closed", () => {
+    expect(css()).toMatch(
+      /\+ \.yui-bubble:not\(:has\(\.yui-bubble__backlog:not\(\[hidden\]\)\)\)\s*\{\s*margin-top:\s*-23px/,
+    );
+  });
+});
+
 // The scrim alpha carries contrast on the bubble, composer and plate; none adds a text shadow.
 describe("bubble, composer and plate — no text shadow", () => {
   for (const file of [
