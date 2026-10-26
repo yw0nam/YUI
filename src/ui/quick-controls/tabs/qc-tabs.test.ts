@@ -78,6 +78,12 @@ describe("createQuickControls — tab rail", () => {
     expect(qc.el.querySelector("#yui-tab-together")?.previousElementSibling?.textContent).toBe(
       "모든 캐릭터",
     );
+    // Only tabs carry a role in the tablist; the group headings are presentation.
+    expect(
+      [...qc.el.querySelectorAll('[role="tablist"] > :not([role="tab"])')].map((e) =>
+        e.getAttribute("role"),
+      ),
+    ).toEqual(["presentation", "presentation"]);
 
     // Each tab is wired to a panel and each panel back to its tab.
     for (const tab of t) {
