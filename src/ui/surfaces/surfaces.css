@@ -173,6 +173,10 @@
 
 /* While input is open — lift the bubble above input (--yui-bubble-bottom is set to px by JS),
    constrain height further to prevent growing downward and encroaching on input area. */
+/* biome-ignore format: one-line selector. Lifted above the input, the bubble also clears the backlog toggle's 15px overhang. */
+.yui-ui:not(.yui-ui--message) .yui-bubble.is-above-input:has(.yui-bubble__backlog-toggle:not([hidden])) {
+  bottom: calc(var(--yui-bubble-bottom) + 15px);
+}
 .yui-bubble.is-above-input .yui-bubble__box {
   max-height: min(var(--yui-bubble-max-h, 34vh), 28vh);
   min-height: min(132px, var(--yui-bubble-max-h, 34vh), 28vh);
