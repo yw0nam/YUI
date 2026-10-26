@@ -108,7 +108,7 @@ export function createQuickCard(deps: {
       height: Math.min(window.innerHeight, deps.visibleViewport?.get() ?? Number.POSITIVE_INFINITY),
     };
     el.style.setProperty("--yui-qcard-max-h", `${view.height - 2 * CARD_MARGIN}px`);
-    // Layout size: the pop animation's scale must not shrink the measured card.
+    // Layout size: the entry animation's scale must not shrink the measured card.
     const size = { width: el.offsetWidth, height: el.offsetHeight };
     const at = anchor ?? {
       x: (view.width - size.width) / 2,

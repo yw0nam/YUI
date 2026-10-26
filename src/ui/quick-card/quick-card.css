@@ -10,36 +10,34 @@
   width: min(272px, 100vw - 24px);
   max-height: var(--yui-qcard-max-h, calc(100vh - 24px));
   padding: 14px;
-  border-radius: 18px;
+  border-radius: var(--yui-radius);
   border: 1px solid var(--yui-edge);
   background: var(--yui-scrim-strong);
-  backdrop-filter: blur(10px) saturate(1.1);
-  -webkit-backdrop-filter: blur(10px) saturate(1.1);
   box-shadow: var(--yui-float);
   color: var(--yui-text);
   font-family: var(--yui-font);
   pointer-events: auto;
   outline: none;
-  animation: yui-pop 0.22s var(--yui-ease) both;
+  animation: yui-qcard-in var(--yui-dur) var(--yui-ease) both;
 }
 
-@keyframes yui-pop {
+@keyframes yui-qcard-in {
   from {
     opacity: 0;
     transform: translateY(6px) scale(0.98);
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .yui-qcard {
-    animation: none;
+@keyframes yui-qcard-fade {
+  from {
+    opacity: 0;
   }
 }
 
-@media (prefers-reduced-transparency: reduce) {
+/* Reduced motion: an opacity-only fade, no rise or scale. */
+@media (prefers-reduced-motion: reduce) {
   .yui-qcard {
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+    animation: yui-qcard-fade var(--yui-dur-fast) var(--yui-ease) both;
   }
 }
 
@@ -156,7 +154,7 @@
 }
 
 .yui-qcard__tile:disabled {
-  opacity: 0.55;
+  opacity: 0.45;
   cursor: default;
 }
 
