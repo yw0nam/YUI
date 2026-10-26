@@ -35,7 +35,10 @@ it.each([null, "a"])("targets and reuses companion (bound: %s)", async (id) => {
   await vi.waitFor(() =>
     expect(WebviewWindow).toHaveBeenCalledWith(
       id ? "message-a" : "message",
-      expect.objectContaining({ url: id ? "message.html?preset=a" : "message.html" }),
+      expect.objectContaining({
+        url: id ? "message.html?preset=a" : "message.html",
+        acceptFirstMouse: true,
+      }),
     ),
   );
   const show = vi.fn(async () => {}),
