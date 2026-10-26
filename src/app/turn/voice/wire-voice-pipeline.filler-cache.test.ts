@@ -273,7 +273,10 @@ describe("reading dictionary", () => {
     await speak(voice, "秧秧、おはよう。", 1);
 
     expect(synthInputs()).toEqual(["ヤンヤン、おはよう。"]);
-    expect(surfaces.pushSpeech).toHaveBeenCalledWith("秧秧、おはよう。");
+    expect(surfaces.pushSpeech).toHaveBeenCalledWith("秧秧、おはよう。", {
+      turn_id: "7",
+      event_name: "user.text_submitted",
+    });
   });
 
   it("reads a prewarmed failure line through the dictionary", async () => {
