@@ -7,7 +7,7 @@ colors:
   accent-faint: "oklch(0.68 0.15 62 / 0.16)"
   accent-ink: "oklch(0.45 0.12 60)"
   text: "oklch(0.27 0.02 60)"
-  text-dim: "oklch(0.40 0.02 60)"
+  text-dim: "oklch(0.4 0.02 60)"
   text-mute: "oklch(0.46 0.02 60)"
   ink: "oklch(0.22 0.01 70)"
   scrim: "oklch(0.985 0.008 85 / 0.85)"
@@ -139,7 +139,7 @@ Components name a colour by its role, never by a value. Each role below has one 
 | Surface | `--yui-scrim` | `oklch(0.985 0.008 85 / 0.85)` | `oklch(0.2 0.014 70 / 0.8)` |
 | Plate | `--yui-scrim-strong` | `oklch(0.99 0.006 85 / 0.92)` | `oklch(0.18 0.014 70 / 0.9)` |
 | Text | `--yui-text` | `oklch(0.27 0.02 60)` | `oklch(0.95 0.012 80)` |
-| Text dim | `--yui-text-dim` | `oklch(0.40 0.02 60)` | `oklch(0.78 0.016 75)` |
+| Text dim | `--yui-text-dim` | `oklch(0.4 0.02 60)` | `oklch(0.78 0.016 75)` |
 | Text mute | `--yui-text-mute` | `oklch(0.46 0.02 60)` | `oklch(0.66 0.014 72)` |
 | Hairline | `--yui-edge` | `oklch(0.35 0.03 60 / 0.14)` | `oklch(0.97 0.01 80 / 0.1)` |
 | Hairline strong | `--yui-edge-strong` | `oklch(0.35 0.03 60 / 0.24)` | `oklch(0.97 0.01 80 / 0.16)` |
