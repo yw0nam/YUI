@@ -20,10 +20,13 @@ export function wireMessageSurfaceOps({
     switch (op.op) {
       case "begin":
         plate.setLive(true);
-        surfaces.beginSpeech();
+        surfaces.beginSpeech(undefined, { paced: op.paced === true });
         break;
       case "push":
         surfaces.pushSpeech(op.delta);
+        break;
+      case "pace":
+        surfaces.paceSpeech({ text: op.text, durationMs: op.durationMs });
         break;
       case "end":
         plate.setLive(false);
