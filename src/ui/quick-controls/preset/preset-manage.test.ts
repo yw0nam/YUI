@@ -152,7 +152,7 @@ it("offers a photo button on every row only where a picker is passed", () => {
   without.registry.dispose();
 
   const withPicker = photoSetup(async () => null);
-  expect(withPicker.button()?.getAttribute("aria-label")).toBe("Choose a photo for companion");
+  expect(withPicker.button()?.getAttribute("aria-label")).toBe("Profile photo for companion");
   withPicker.registry.dispose();
 });
 

@@ -1,0 +1,161 @@
+.yui-photo-dialog {
+  width: min(44rem, calc(100vw - 2rem));
+  padding: 1.5rem 1.75rem;
+  box-sizing: border-box;
+  border: 1px solid var(--yui-edge);
+  border-radius: var(--yui-radius);
+  background: var(--yui-panel-bg);
+  box-shadow: var(--yui-float);
+  color: var(--yui-text);
+  font-family: var(--yui-font);
+}
+
+.yui-photo-dialog::backdrop {
+  background: var(--yui-scrim);
+}
+
+.yui-photo-dialog__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  margin-bottom: 1.125rem;
+}
+
+.yui-photo-dialog__head h2 {
+  margin: 0;
+  font-size: var(--yui-fs-title);
+  font-weight: 600;
+}
+
+.yui-photo-dialog__head span {
+  font-size: var(--yui-fs-caption);
+  color: var(--yui-text-mute);
+}
+
+.yui-photo-dialog__body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.75rem;
+}
+
+.yui-photo-dialog__stagecol {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.yui-photo-dialog__stage {
+  position: relative;
+  width: 360px;
+  height: 360px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--yui-crop-stage);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.yui-photo-dialog__stage:active {
+  cursor: grabbing;
+}
+
+.yui-photo-dialog__stage > img {
+  position: absolute;
+  max-width: none;
+  pointer-events: none;
+}
+
+.yui-photo-dialog__mask {
+  position: absolute;
+  left: 30px;
+  top: 30px;
+  width: 300px;
+  height: 300px;
+  box-sizing: border-box;
+  border: 2px solid var(--yui-crop-ring);
+  border-radius: 999px;
+  box-shadow: 0 0 0 400px var(--yui-crop-shade);
+  pointer-events: none;
+}
+
+.yui-photo-dialog__zoom {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: var(--yui-fs-sub);
+  color: var(--yui-text-dim);
+}
+
+.yui-photo-dialog__zoom input {
+  flex: 1;
+}
+
+.yui-photo-dialog__zoom output {
+  width: 2.5rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.yui-photo-dialog__tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.yui-photo-dialog__error {
+  margin: 0;
+  font-size: var(--yui-fs-sub);
+  color: var(--yui-danger);
+}
+
+.yui-photo-dialog__where {
+  flex: 1;
+  min-width: 10rem;
+}
+
+.yui-photo-dialog__where h3 {
+  margin: 0 0 0.625rem;
+  font-size: var(--yui-fs-head);
+  font-weight: 600;
+}
+
+.yui-photo-dialog__previews {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.yui-photo-dialog__preview {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: var(--yui-fs-sub);
+  color: var(--yui-text-dim);
+}
+
+.yui-photo-dialog__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+/* "Use photo" is the dialog's confirm, not a destructive action. */
+.yui-photo-dialog .yui-pill--go {
+  color: var(--yui-accent-ink);
+  border-color: var(--yui-accent-soft);
+}
+
+.yui-photo-dialog .yui-pill--go:hover:not(:disabled) {
+  background: var(--yui-accent-faint);
+  border-color: var(--yui-accent);
+  color: var(--yui-accent-ink);
+}
+
+.yui-photo-dialog .yui-pill:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
