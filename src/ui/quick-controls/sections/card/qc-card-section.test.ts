@@ -75,35 +75,59 @@ describe("createQuickControls — card section", () => {
   });
 
   const visible = (sel: string) => !sec().querySelector<HTMLElement>(sel)!.hidden;
-  it("keeps only import, export and the notes on the push transport", () => {
+  const enabled = (sel: string) =>
+    !sec().querySelector<HTMLInputElement | HTMLButtonElement>(sel)!.disabled;
+  it("on push shows the body, disables the switch with its reason and every text field but the greetings", () => {
+    agentSettings.updateCard({ alternate_greetings: ["hey"] }, persona.cards.en);
+    agentSettings.setSendCard(false);
     build({ getDefaultChatApi: () => "push" });
-    expect(sec().hidden).toBe(false);
-    expect(visible(".yui-card__io")).toBe(true);
-    expect(visible(".yui-card__io-note")).toBe(true);
-    expect(visible(".yui-card__push-note")).toBe(true);
-    expect(visible(".yui-card-body")).toBe(false);
-    expect(visible(".yui-group--switch")).toBe(false);
-    expect(visible(".yui-sec__state")).toBe(false);
+    expect(visible(".yui-card-body")).toBe(true);
+    expect(visible(".yui-group--switch")).toBe(true);
+    expect(enabled(".yui-card-switch")).toBe(false);
+    expect(visible(".yui-card .yui-push-reason")).toBe(true);
+    expect(sec().querySelector(".yui-push-reason")!.textContent).toContain(
+      "On push the backend's own profile is the persona; this card supplies only the greetings.",
+    );
+    expect(
+      ["name", "description", "personality", "scenario", "mes_example", "system_prompt"].map((f) =>
+        enabled(`[data-card-field="${f}"]`),
+      ),
+    ).toEqual([false, false, false, false, false, false]);
+    expect(
+      [
+        '[data-card-field="first_mes"]',
+        "[data-greeting-index]",
+        ".yui-card-add",
+        ".yui-card-import",
+        ".yui-card-export",
+      ].map(enabled),
+    ).toEqual([true, true, true, true, true]);
   });
 
-  it("hides Reset to default on push even with an own card", () => {
+  it("keeps Reset to default on push with an own card", () => {
     agentSettings.updateCard({ description: "mine" }, persona.cards.en);
     build({ getDefaultChatApi: () => "push" });
-    expect(visible(".yui-reset")).toBe(false);
+    expect(visible(".yui-reset")).toBe(true);
   });
 
   it("follows a live transport change without reopening", () => {
     const endpointsSettings = createEndpointsSettings();
     endpointsSettings.set({ chat_api: "responses" });
     build({ endpointsSettings });
-    expect(visible(".yui-card__push-note")).toBe(false);
-    expect(visible(".yui-card-body")).toBe(true);
+    expect([
+      visible(".yui-card .yui-push-reason"),
+      enabled('[data-card-field="description"]'),
+    ]).toEqual([false, true]);
     endpointsSettings.set({ chat_api: "push" });
-    expect(visible(".yui-card__push-note")).toBe(true);
-    expect(visible(".yui-card-body")).toBe(false);
+    expect([
+      visible(".yui-card .yui-push-reason"),
+      enabled('[data-card-field="description"]'),
+    ]).toEqual([true, false]);
     endpointsSettings.set({ chat_api: "responses" });
-    expect(visible(".yui-card__push-note")).toBe(false);
-    expect(visible(".yui-card-body")).toBe(true);
+    expect([
+      visible(".yui-card .yui-push-reason"),
+      enabled('[data-card-field="description"]'),
+    ]).toEqual([false, true]);
   });
 
   it("shows the default card of the UI language and the state hint", () => {
