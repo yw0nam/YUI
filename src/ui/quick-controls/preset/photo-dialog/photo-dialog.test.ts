@@ -23,11 +23,13 @@ const deferred = <T>() => {
 let save: Mock<(url: string, crop: PhotoCrop) => void>;
 let saveUrl: Mock<(url: string) => void>;
 let warn: ReturnType<typeof vi.fn>;
+let info: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   save = vi.fn<(url: string, crop: PhotoCrop) => void>();
   saveUrl = vi.fn<(url: string) => void>();
   warn = vi.fn();
+  info = vi.fn();
 });
 
 afterEach(() => {
@@ -42,7 +44,7 @@ function open(over: Partial<Parameters<typeof openPhotoDialog>[0]> = {}) {
     pick: async () => null,
     save,
     saveUrl,
-    log: { warn } as unknown as Logger,
+    log: { warn, info } as unknown as Logger,
     measure: async () => SIZE,
     ...over,
   });
@@ -83,6 +85,20 @@ describe("openPhotoDialog", () => {
       ["22px", "Unified chat · 22 px"],
       ["20px", "Name plate · 20 px"],
     ]);
+  });
+
+  it("the zoom slider's fill follows the zoom", async () => {
+    open({ entry: { ...entry, crop: { x: 0, y: 0, size: 1 } } });
+    await ready();
+    const slider = document.querySelector<HTMLInputElement>('input[type="range"]')!;
+    const fill = () => slider.style.getPropertyValue("--fill");
+
+    expect(fill()).toBe("0");
+    slider.value = "700";
+    slider.dispatchEvent(new Event("input"));
+    expect(fill()).toBe("1");
+    act("face").click();
+    expect(Number(fill())).toBeCloseTo((900 / 495 - 1) / 6, 6);
   });
 
   it("a picked photo saves its default framing once, and Cancel adds nothing", async () => {
