@@ -53,9 +53,9 @@ interface PlaybackRenderer {
 }
 
 interface PlaybackSurfaces {
-  beginSpeech(): void;
-  pushSpeech(delta: string): void;
-  endSpeech(opts?: { defer?: boolean }): void;
+  beginSpeech(identity?: UtteranceIdentity): void;
+  pushSpeech(delta: string, identity?: UtteranceIdentity): void;
+  endSpeech(opts?: { defer?: boolean }, identity?: UtteranceIdentity): void;
   finishSpeech(): void;
 }
 
@@ -130,7 +130,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
   let heardAudio = false;
   let muted = false;
   // An identity marks backend speech; client-side phrases carry none.
-  let open: { identity?: UtteranceIdentity } | null = null;
+  let open: { identity?: UtteranceIdentity; displayIdentity?: UtteranceIdentity } | null = null;
   // One entry per end() whose playback boundary has not fired yet — mirrors the pipeline's boundary queue.
   const queued: Array<{ identity?: UtteranceIdentity }> = [];
   // The current mute window already reported its cut-off backend utterance. Clears with `muted`.
@@ -195,9 +195,12 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
   function delta(text: string, identity?: UtteranceIdentity): void {
     const clean = stripper.push(text);
     if (open === null) {
-      surfaces.beginSpeech();
+      surfaces.beginSpeech(identity);
       // A muted remainder still shows in the bubble, and stays out of the record.
-      open = { identity: !muted && identity ? { ...identity } : undefined };
+      open = {
+        identity: !muted && identity ? { ...identity } : undefined,
+        displayIdentity: identity ? { ...identity } : undefined,
+      };
       if (open.identity) {
         options.onUtteranceStart?.(open.identity);
       } else if (identity && !mutedReported) {
@@ -208,7 +211,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
         options.onUtteranceEnd?.("interrupted", undefined, snapshot);
       }
     }
-    surfaces.pushSpeech(clean);
+    surfaces.pushSpeech(clean, open.displayIdentity);
     if (!muted) pipeline.pushTextDelta(links.push(clean), identity !== undefined);
     reportAudioOwed();
   }
@@ -223,7 +226,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
     // flush held-back emoji carry (discards it — it's all emoji).
     stripper.flush();
     // Keep the bubble until playback ends — onPlaybackEnd releases it via finishSpeech.
-    surfaces.endSpeech({ defer: true });
+    surfaces.endSpeech({ defer: true }, open.displayIdentity);
     // Queued before end(), which fires the boundary inline when nothing was submitted.
     queued.push(open);
     open = null;
@@ -291,7 +294,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       drainedCallbacks = [];
       heldSilentCue = null;
       // Release the held bubble immediately (not deferred).
-      surfaces.endSpeech();
+      surfaces.endSpeech(undefined, open?.displayIdentity);
       const reported = closeTracked(split);
       // Also runs as routine pre-turn cleanup when nothing was speaking — only ease if it cut off real audio.
       if (heardAudio) renderer.easeEmotionToNeutral(EMOTION_REVERT_MS);
@@ -309,7 +312,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
       // No next turn to drain them, and nothing here should still speak.
       drainedCallbacks = [];
       heldSilentCue = null;
-      surfaces.endSpeech();
+      surfaces.endSpeech(undefined, open?.displayIdentity);
       closeTracked(split);
       // Terminal like onPlaybackEnd — no next turn to re-assert an expression, so always ease.
       renderer.easeEmotionToNeutral(EMOTION_REVERT_MS);

@@ -867,7 +867,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/settings",
       "module": "bridge",
       "label": "settings bridge",
-      "role": "Typed cross-window settings bus: its channels scoped to the sender's preset, and the unscoped settings-changed, preset-changed, pet-windows-changed, character-addressed, user-turn-routed and user-turn-done.",
+      "role": "Typed cross-window settings bus: its channels scoped to the sender's preset, and the unscoped settings-changed, preset-changed, pet-windows-changed, character-addressed, user-turn-routed, user-turn-done and speech-stream.",
       "paths": [
         "src/io/bridge/settings-bridge.ts"
       ]
@@ -3357,6 +3357,15 @@ globalThis.YUI_MAP =
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/turn/wire-sources.ts"
+    },
+    {
+      "id": "speech-stream",
+      "from": "ui/surfaces",
+      "to": "ui/unified",
+      "carries": "yui://speech-stream {preset, turn_id, op: begin|push|end, delta?}, unscoped: the router's added destination streams a reply's text into a pending row until its transcript record arrives",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/ui/surfaces/wire.ts"
     }
   ],
   "flows": [
@@ -4759,6 +4768,20 @@ globalThis.YUI_MAP =
         "from": "pet",
         "to": "pet-<id>",
         "carries": "yui://character-addressed {from, name, to, text, ts, user_message?}; unscoped: every pet window receives it and keeps the one naming its preset",
+        "kind": "bridge"
+      },
+      {
+        "id": "speech-stream-pet-unified",
+        "from": "pet",
+        "to": "unified",
+        "carries": "yui://speech-stream {preset, turn_id, op: begin|push|end, delta?}, unscoped: the router's added destination streams a reply's text into a pending row until its transcript record arrives",
+        "kind": "bridge"
+      },
+      {
+        "id": "speech-stream-pet-bound-unified",
+        "from": "pet-<id>",
+        "to": "unified",
+        "carries": "yui://speech-stream {preset, turn_id, op: begin|push|end, delta?}, unscoped: the router's added destination streams a reply's text into a pending row until its transcript record arrives",
         "kind": "bridge"
       },
       {

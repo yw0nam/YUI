@@ -301,8 +301,14 @@ describe("createSpeechPlayback — bubble defers until playback ends", () => {
 
     sp.onSpeech("Hello there.", { turn_id: "7", event_name: "user.text_submitted" });
     expect(surfaces.beginSpeech).toHaveBeenCalledTimes(1);
-    expect(surfaces.pushSpeech).toHaveBeenCalledWith("Hello there.");
-    expect(surfaces.endSpeech).toHaveBeenCalledWith({ defer: true });
+    expect(surfaces.pushSpeech).toHaveBeenCalledWith("Hello there.", {
+      turn_id: "7",
+      event_name: "user.text_submitted",
+    });
+    expect(surfaces.endSpeech).toHaveBeenCalledWith(
+      { defer: true },
+      { turn_id: "7", event_name: "user.text_submitted" },
+    );
     // bubble must NOT be released yet — TTS hasn't finished.
     expect(surfaces.finishSpeech).not.toHaveBeenCalled();
     // pipeline driven with the text + flushed.
@@ -508,7 +514,10 @@ describe("createSpeechPlayback — onSpeechEnd finalizes a run", () => {
 
     sp.onSpeechDelta("Hello.", { turn_id: "7", event_name: "user.text_submitted" });
     sp.onSpeechEnd();
-    expect(surfaces.endSpeech).toHaveBeenCalledWith({ defer: true });
+    expect(surfaces.endSpeech).toHaveBeenCalledWith(
+      { defer: true },
+      { turn_id: "7", event_name: "user.text_submitted" },
+    );
     expect(stub.calls.ended).toBe(1);
     // bubble not released yet — TTS hasn't finished.
     expect(surfaces.finishSpeech).not.toHaveBeenCalled();
@@ -937,7 +946,7 @@ describe("createSpeechPlayback — interrupt swaps the pipeline and releases the
     // a FRESH pipeline was built.
     expect(multi.instances.length).toBe(2);
     // bubble released immediately (non-defer) to clear any stuck bubble.
-    expect(surfaces.endSpeech).toHaveBeenCalledWith();
+    expect(surfaces.endSpeech).toHaveBeenCalledWith(undefined, undefined);
   });
 
   it("after interrupt, the next delta starts a new run and routes to the NEW pipeline", () => {
@@ -999,7 +1008,10 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
     sp.interrupt({ muteCurrentTurn: true });
     sp.onSpeechDelta("late", { turn_id: "7", event_name: "user.text_submitted" });
 
-    expect(surfaces.pushSpeech).toHaveBeenCalledWith("late");
+    expect(surfaces.pushSpeech).toHaveBeenCalledWith("late", {
+      turn_id: "7",
+      event_name: "user.text_submitted",
+    });
     expect(multi.instances[1].pushTextDelta).not.toHaveBeenCalled();
   });
 
@@ -1018,7 +1030,10 @@ describe("createSpeechPlayback — muted interrupted turn", () => {
     sp.onSpeechDelta("late", { turn_id: "7", event_name: "user.text_submitted" });
     sp.onSpeechEnd();
 
-    expect(surfaces.endSpeech).toHaveBeenCalledWith({ defer: true });
+    expect(surfaces.endSpeech).toHaveBeenCalledWith(
+      { defer: true },
+      { turn_id: "7", event_name: "user.text_submitted" },
+    );
     expect(multi.instances[1].end).toHaveBeenCalledTimes(1);
   });
 
@@ -1134,7 +1149,7 @@ describe("createSpeechPlayback — abort tears down without rebuilding", () => {
     // NO fresh pipeline (no new run is coming).
     expect(multi.instances.length).toBe(1);
     // bubble released immediately (non-defer) to clear the stuck bubble.
-    expect(surfaces.endSpeech).toHaveBeenCalledWith();
+    expect(surfaces.endSpeech).toHaveBeenCalledWith(undefined, undefined);
   });
 
   it("releases the bubble dwell so a frozen bubble does not stay forever", () => {
@@ -1151,7 +1166,10 @@ describe("createSpeechPlayback — abort tears down without rebuilding", () => {
 
     sp.onSpeechDelta("partial", { turn_id: "7", event_name: "user.text_submitted" });
     sp.abort();
-    expect(surfaces.endSpeech).toHaveBeenCalledWith();
+    expect(surfaces.endSpeech).toHaveBeenCalledWith(undefined, {
+      turn_id: "7",
+      event_name: "user.text_submitted",
+    });
     expect(stub.calls.disposed).toBe(1);
   });
 });
@@ -1352,9 +1370,15 @@ describe("createSpeechPlayback — onSpeech is sugar over delta+end", () => {
 
     sp.onSpeech("Whole thing.", { turn_id: "7", event_name: "user.text_submitted" });
     expect(surfaces.beginSpeech).toHaveBeenCalledTimes(1);
-    expect(surfaces.pushSpeech).toHaveBeenCalledWith("Whole thing.");
+    expect(surfaces.pushSpeech).toHaveBeenCalledWith("Whole thing.", {
+      turn_id: "7",
+      event_name: "user.text_submitted",
+    });
     expect(stub.calls.pushTextDelta).toEqual(["Whole thing."]);
-    expect(surfaces.endSpeech).toHaveBeenCalledWith({ defer: true });
+    expect(surfaces.endSpeech).toHaveBeenCalledWith(
+      { defer: true },
+      { turn_id: "7", event_name: "user.text_submitted" },
+    );
     expect(stub.calls.ended).toBe(1);
     expect(surfaces.finishSpeech).not.toHaveBeenCalled();
   });
@@ -1376,7 +1400,10 @@ describe("createSpeechPlayback — emoji sanitization in delta", () => {
     // trailing emoji is held in carry and discarded when the run ends (flush on onSpeechEnd).
     sp.onSpeechDelta("잘 왔어 ✨", { turn_id: "7", event_name: "user.text_submitted" });
     // the stripper holds back trailing emoji-class run, so both sinks see the clean prefix.
-    expect(surfaces.pushSpeech).toHaveBeenCalledWith("잘 왔어 ");
+    expect(surfaces.pushSpeech).toHaveBeenCalledWith("잘 왔어 ", {
+      turn_id: "7",
+      event_name: "user.text_submitted",
+    });
     expect(stub.calls.pushTextDelta).toEqual(["잘 왔어 "]);
   });
 
@@ -1393,7 +1420,10 @@ describe("createSpeechPlayback — emoji sanitization in delta", () => {
     });
 
     sp.onSpeechDelta("hello world", { turn_id: "7", event_name: "user.text_submitted" });
-    expect(surfaces.pushSpeech).toHaveBeenCalledWith("hello world");
+    expect(surfaces.pushSpeech).toHaveBeenCalledWith("hello world", {
+      turn_id: "7",
+      event_name: "user.text_submitted",
+    });
     expect(stub.calls.pushTextDelta).toEqual(["hello world"]);
   });
 });
@@ -1418,6 +1448,7 @@ describe("createSpeechPlayback — markdown links in delta", () => {
     // the bubble renders markdown itself, so it gets the raw text.
     expect(surfaces.pushSpeech).toHaveBeenCalledWith(
       "Docs: [Example](https://example.com) 확인해봐",
+      { turn_id: "7", event_name: "user.text_submitted" },
     );
     expect(stub.calls.pushTextDelta).toEqual(["Docs: Example 확인해봐"]);
   });

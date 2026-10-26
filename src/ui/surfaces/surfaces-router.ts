@@ -16,6 +16,7 @@ import type { Surfaces } from "./surfaces";
 interface SurfacesRouterOptions {
   local: Surfaces;
   remote: RemoteSurfaces;
+  stream: Pick<Surfaces, "beginSpeech" | "pushSpeech" | "endSpeech">;
   getMode(): MessageWindowMode;
   subscribeMode(cb: (mode: MessageWindowMode) => void): () => void;
 }
@@ -23,6 +24,7 @@ interface SurfacesRouterOptions {
 export function createSurfacesRouter({
   local,
   remote,
+  stream,
   getMode,
   subscribeMode,
 }: SurfacesRouterOptions): Surfaces {
@@ -65,9 +67,18 @@ export function createSurfacesRouter({
     el: local.el,
     chipColumn: local.chipColumn,
 
-    beginSpeech: () => speech().beginSpeech(),
-    pushSpeech: (delta) => speech().pushSpeech(delta),
-    endSpeech: (opts) => speech().endSpeech(opts),
+    beginSpeech(...args) {
+      speech().beginSpeech(...args);
+      stream.beginSpeech(...args);
+    },
+    pushSpeech(...args) {
+      speech().pushSpeech(...args);
+      stream.pushSpeech(...args);
+    },
+    endSpeech(...args) {
+      speech().endSpeech(...args);
+      stream.endSpeech(...args);
+    },
     finishSpeech: () => speech().finishSpeech(),
     hideSpeech: () => speech().hideSpeech(),
     showSpeechAction: (action) => speech().showSpeechAction(action),

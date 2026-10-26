@@ -2,15 +2,18 @@
 
 import { createMessageBridge } from "../../io/bridge/message/message-bridge";
 import { createRemoteSurfaces, type RemoteSurfaces } from "../../io/bridge/message/message-remote";
+import { createSettingsBridge } from "../../io/bridge/settings-bridge";
 import {
   createMessageWindowController,
   listenTrayToggle,
 } from "../../io/window/openers/message-window";
 import { wireMessageWindowMode } from "../../io/window/openers/message-window-mode";
 import type { MessageWindowMode } from "../../settings/panels/message-window-settings";
+import { presetIdForWindow } from "../../settings/preset/active-preset";
 import type { SettingsStores } from "../../settings/settings-stores";
 import { isTauri } from "../../tauri-env";
 import type { ToolStatus } from "../chips/status-pill";
+import { createSpeechStream } from "./speech-stream";
 import { createSurfaces, type Surfaces } from "./surfaces";
 import { createSurfacesRouter } from "./surfaces-router";
 
@@ -41,9 +44,15 @@ export function wireMessageSurfaces(deps: {
   // A stale popped mode must not strand speech in a window the browser build cannot open.
   const getMode = (): MessageWindowMode =>
     isTauri() ? deps.messageWindowSettings.get().mode : "docked";
+  const settingsBridge = createSettingsBridge(undefined, { windowKind: "pet" });
+  const stream = createSpeechStream({
+    presetId: deps.boundId ?? presetIdForWindow(),
+    emit: settingsBridge.emitSpeechStream,
+  });
   const surfaces = createSurfacesRouter({
     local,
     remote,
+    stream,
     getMode,
     subscribeMode: (cb) => deps.messageWindowSettings.subscribe(() => cb(getMode())),
   });
@@ -54,6 +63,7 @@ export function wireMessageSurfaces(deps: {
     listenTrayToggle: deps.boundId == null ? listenTrayToggle : undefined,
     getMode,
   });
+  deps.register(() => settingsBridge.dispose());
   deps.register(() => messageBridge.dispose());
   deps.register(() => surfaces.dispose());
   deps.register(disposeMessageWindowMode);
