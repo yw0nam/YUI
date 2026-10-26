@@ -27,14 +27,15 @@ import { noTool } from "../surfaces/test-helpers";
 import { renderMarkdownInline } from "./markdown";
 
 const TOOLS_SELECTOR = ".yui-bubble.is-visible .yui-bubble__tools button";
+const BOX_SELECTOR = ".yui-bubble.is-visible .yui-bubble__box";
 const SPEECH_ACTION_SELECTOR = ".yui-bubble.is-visible .yui-bubble__speech-action button";
 
-// The edge buttons and the speech action button take OS pointer events; markdown links do not.
+// The edge buttons, the box and the speech action button take OS pointer events; markdown links do not.
 describe("hit-test registration", () => {
-  it("lists the tools selector and the speech action button, no per-link entries", () => {
+  it("lists the tools, the box and the speech action button, no per-link entries", () => {
     expect(INTERACTIVE_OVERLAY_SELECTORS).toContain(TOOLS_SELECTOR);
     const bubbleEntries = INTERACTIVE_OVERLAY_SELECTORS.filter((s) => s.includes("yui-bubble"));
-    expect(bubbleEntries).toEqual([TOOLS_SELECTOR, SPEECH_ACTION_SELECTOR]);
+    expect(bubbleEntries).toEqual([TOOLS_SELECTOR, BOX_SELECTOR, SPEECH_ACTION_SELECTOR]);
   });
 });
 
