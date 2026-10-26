@@ -303,6 +303,7 @@ describe("createSettingsBridge", () => {
     ["onUserTurnRouted", { sendId: "s1", to: "p2", text: "x" }, false],
     ["onSpeechStream", { preset: "p2", op: { op: "push", delta: "hi" } }, false],
     ["onSpeechStreamAsk", undefined, false],
+    ["onStopTurns", undefined, false],
     ["onUserTurnDone", { sendId: "s1", preset: "p2" }, false],
   ] as const)("%s uses its declared preset scope", (method, payload, scoped) => {
     history.replaceState(null, "", "/?preset=a");
@@ -400,6 +401,24 @@ describe("createSettingsBridge", () => {
     a.emitUserTurnRouted(payload as never);
 
     expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("delivers a stop from the unified window to every pet window", () => {
+    const t = createFakeTransport();
+    const unified = createSettingsBridge(t, { windowKind: "unified" });
+    const pets = [
+      createSettingsBridge(t, { windowKind: "pet" }),
+      createSettingsBridge(t, { windowKind: "pet" }),
+    ];
+    const stops = pets.map((pet) => {
+      const cb = vi.fn();
+      pet.onStopTurns(cb);
+      return cb;
+    });
+
+    unified.emitStopTurns();
+
+    for (const cb of stops) expect(cb).toHaveBeenCalledOnce();
   });
 
   it("delivers a user-turn-done event from a pet window to the unified window", () => {

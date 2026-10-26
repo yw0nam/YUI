@@ -42,10 +42,15 @@ import { type TurnCorePhase1, wireTurnCore } from "./turn-core";
 
 function wire(over: Partial<TurnCorePhase1> = {}) {
   let onStop: () => void = () => {};
+  let onStopTurns: () => void = () => {};
   const teardowns: Array<() => void> = [];
   const phase1 = {
     config: { get: () => ({}) },
     surfaces: { onStop: (cb: () => void) => (onStop = cb), onSubmit: () => {} },
+    onStopTurns: (cb: () => void) => {
+      onStopTurns = cb;
+      return () => {};
+    },
     settings: {},
     conversation: {},
     vrm: {
@@ -62,7 +67,7 @@ function wire(over: Partial<TurnCorePhase1> = {}) {
     register: (teardown) => teardowns.push(teardown),
     ensureActive: () => {},
   });
-  return { core, teardowns, stop: () => onStop() };
+  return { core, teardowns, stop: () => onStop(), stopFromUnified: () => onStopTurns() };
 }
 
 describe("wireTurnCore", () => {
@@ -77,6 +82,19 @@ describe("wireTurnCore", () => {
     expect(dispatcher.cancel).toHaveBeenCalledOnce();
     expect(speechPlayback.interrupt).toHaveBeenCalledOnce();
     expect(stopTurn()).toEqual(["t1"]);
+  });
+
+  it("stops the turn the same way when the unified window asks every window to stop", async () => {
+    const h = wire();
+    const core = await h.core;
+    await core.connect({ onSubmit: () => {} });
+    dispatcher.cancel.mockClear();
+    speechPlayback.interrupt.mockClear();
+
+    h.stopFromUnified();
+
+    expect(dispatcher.cancel).toHaveBeenCalledOnce();
+    expect(speechPlayback.interrupt).toHaveBeenCalledOnce();
   });
 
   it("gives the dispatcher the body hold, and ends the thinking bridge each time the hold is taken", async () => {
