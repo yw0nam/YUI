@@ -58,7 +58,12 @@ describe("parsePresetState", () => {
         list: [
           { id: "aaaa0001", name: "Alpha", thumbnail: "asset://x/a.png", crop },
           { id: "bbbb0002", name: "Beta", crop },
-          { id: "cccc0003", name: "Gamma", thumbnail: "asset://x/c.png", crop: { ...crop, size: 2 } },
+          {
+            id: "cccc0003",
+            name: "Gamma",
+            thumbnail: "asset://x/c.png",
+            crop: { ...crop, size: 2 },
+          },
         ],
       })?.list,
     ).toEqual([

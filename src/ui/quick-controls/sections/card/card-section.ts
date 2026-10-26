@@ -16,8 +16,8 @@ import type { createAgentSettings } from "../../../../settings/backend/agent-set
 import type { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
 import {
   presetIdForWindow,
+  readPresetEntry,
   readPresetName,
-  readPresetThumbnail,
 } from "../../../../settings/preset/active-preset";
 import type { PresetRegistry } from "../../../../settings/preset/preset-registry";
 import type { createFillerSettings } from "../../../../settings/voice/filler-settings";
@@ -150,7 +150,7 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
 
   const entry = () => {
     const id = presetIdForWindow();
-    return { id, name: readPresetName(id), thumbnail: readPresetThumbnail(id) };
+    return readPresetEntry(id) ?? { id, name: readPresetName(id) };
   };
   // The default card of the UI language: what a first edit starts from.
   const base = (): Card => getPersona?.()?.cards[getLocale()] ?? EMPTY_CARD;

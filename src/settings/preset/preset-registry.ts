@@ -14,6 +14,7 @@ import {
   presetIdForWindow,
 } from "./active-preset";
 import { isPresetWindowLive, readOpenPetWindowIds } from "./pet-windows";
+import type { PhotoCrop } from "./photo-crop";
 import {
   DEFAULT_PRESET_ID,
   PRESET_COPIED_KEYS,
@@ -39,7 +40,10 @@ export function createPresetRegistry(deps?: {
     defaults: { active: DEFAULT_PRESET_ID, list: [{ ...DEFAULT_PRESET }] },
     parse: parsePresetState,
     equals: (a, b) => JSON.stringify(a) === JSON.stringify(b),
-    clone: (v) => ({ active: v.active, list: v.list.map((e) => ({ ...e })) }),
+    clone: (v) => ({
+      active: v.active,
+      list: v.list.map((e) => (e.crop ? { ...e, crop: { ...e.crop } } : { ...e })),
+    }),
   });
 
   // Raw values move between namespaces as stored; each store parses its own on load.
@@ -90,21 +94,22 @@ export function createPresetRegistry(deps?: {
       if (!trimmed || !list.some((e) => e.id === id) || !nameFree(trimmed, id)) return false;
       core.commit({
         active,
-        list: list.map(
-          (e): PresetEntry => (e.id === id ? { id, name: trimmed, thumbnail: e.thumbnail } : e),
-        ),
+        list: list.map((e): PresetEntry => (e.id === id ? { ...e, name: trimmed } : e)),
       });
       return true;
     },
 
-    /** Stores the thumbnail's file URL on the entry; false for an unknown id. */
-    setThumbnail(id: string, url: string): boolean {
+    /** Stores the thumbnail's file URL and its crop on the entry, dropping any earlier crop; false for an unknown id. */
+    setThumbnail(id: string, url: string, crop?: PhotoCrop): boolean {
       const { active, list } = latest();
       if (!list.some((e) => e.id === id)) return false;
       core.commit({
         active,
         list: list.map(
-          (e): PresetEntry => (e.id === id ? { id, name: e.name, thumbnail: url } : e),
+          (e): PresetEntry =>
+            e.id === id
+              ? { id, name: e.name, thumbnail: url, ...(crop ? { crop: { ...crop } } : {}) }
+              : e,
         ),
       });
       return true;
