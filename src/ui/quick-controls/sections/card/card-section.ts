@@ -13,6 +13,7 @@ import type { ImportedCard } from "../../../../io/assets/card/card-import";
 import { cardName, isUnnamedBuiltIn } from "../../../../io/chat/card/resolve-card";
 import type { Logger } from "../../../../logger";
 import type { createAgentSettings } from "../../../../settings/backend/agent-settings";
+import type { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
 import type { createUserNameSettings } from "../../../../settings/identity/user-name-settings";
 import {
   presetIdForWindow,
@@ -101,12 +102,14 @@ export function cardSectionHtml(): string {
             <button class="yui-link-btn yui-card-import" type="button">${t("card.import")}</button>
             <button class="yui-link-btn yui-card-export" type="button">${t("card.export")}</button>
           </div>
+          <p class="yui-sec__note yui-card__push-note" hidden>${t("card.push_note")}</p>
           <p class="yui-row__sub yui-card__io-note">${t("card.io_note")}</p>
           <p class="yui-card__io-error" role="status" hidden></p>
         </div>`;
 }
 
 type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
+type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
 type UserNameSettingsStore = ReturnType<typeof createUserNameSettings>;
 
 interface CardSectionDeps {
@@ -114,11 +117,12 @@ interface CardSectionDeps {
   root: HTMLElement;
   agentSettings: AgentSettingsStore;
   userNameSettings: UserNameSettingsStore;
+  endpointsSettings: Pick<EndpointsSettingsStore, "subscribe">;
   /** Renames the preset; absent where the panel shows no preset strip. */
   registry?: Pick<PresetRegistry, "rename" | "subscribe">;
   /** The bundled config's default cards and fallback words; undefined until the config loads. */
   getPersona?: () => PersonaConfig | undefined;
-  /** Whether push chat is the effective mode; the whole section is hidden then. */
+  /** Whether push chat is the effective mode; on push only the card import and export stay. */
   isPushMode: () => boolean;
   /** Popover open state: store subscriptions redraw only while the panel is open. */
   isOpen: () => boolean;
@@ -137,12 +141,23 @@ interface CardSection {
 }
 
 export function createCardSection(deps: CardSectionDeps): CardSection {
-  const { root, agentSettings, userNameSettings, registry, getPersona, isPushMode, isOpen, log } =
-    deps;
+  const {
+    root,
+    agentSettings,
+    userNameSettings,
+    endpointsSettings,
+    registry,
+    getPersona,
+    isPushMode,
+    isOpen,
+    log,
+  } = deps;
   const sec = root.querySelector<HTMLElement>(".yui-card")!;
   const q = <T extends HTMLElement>(sel: string): T => sec.querySelector<T>(sel)!;
   const body = q<HTMLElement>(".yui-card-body");
   const switchBtn = q<HTMLButtonElement>(".yui-card-switch");
+  const pushNote = q<HTMLElement>(".yui-card__push-note");
+  const switchGroup = q<HTMLElement>(".yui-group--switch");
   const stateEl = q<HTMLElement>(".yui-sec__state");
   const resetBtn = q<HTMLButtonElement>(".yui-reset");
   const nameEl = q<HTMLInputElement>('[data-card-field="name"]');
@@ -166,7 +181,9 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
   }
 
   function reflect(): void {
-    sec.hidden = isPushMode();
+    const push = isPushMode();
+    pushNote.hidden = !push;
+    switchGroup.hidden = push;
     const a = agentSettings.get();
     const card = a.card ?? base();
     const own = a.card !== null;
@@ -175,10 +192,11 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
     thumb.hidden = !shown.thumbnail;
     if (shown.thumbnail) thumb.src = shown.thumbnail;
     switchBtn.setAttribute("aria-checked", String(a.send_card));
-    body.hidden = !a.send_card;
-    stateEl.hidden = !a.send_card || own;
+    const sends = !push && a.send_card;
+    body.hidden = !sends;
+    stateEl.hidden = !sends || own;
     stateEl.textContent = t("card.default_state", { language: LOCALE_DISPLAY_NAMES[getLocale()] });
-    resetBtn.hidden = !a.send_card || !own;
+    resetBtn.hidden = !sends || !own;
     if (nameEl.getAttribute("aria-invalid") !== "true") setValue(nameEl, cardName(card, shown));
     for (const el of fields) setValue(el, card[el.dataset.cardField as TextField]);
     const list = card.alternate_greetings;
@@ -276,6 +294,7 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
   const unsubscribes = [
     agentSettings.subscribe(redraw),
     userNameSettings.subscribe(redraw),
+    endpointsSettings.subscribe(redraw),
     registry?.subscribe(redraw),
     subscribeLocale(redraw),
   ];
