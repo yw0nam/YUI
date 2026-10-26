@@ -493,7 +493,7 @@
   color: var(--yui-text-mute);
 }
 
-/* A narrow panel (the pet window's popover, a settings window near its 380px minimum) keeps its
+/* A narrow panel (the pet window's popover, a settings window near its 480px minimum) keeps its
    content width: the rail drops to icons. */
 @container (width < 30rem) {
   .yui-rail {
