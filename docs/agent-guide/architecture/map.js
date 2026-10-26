@@ -669,7 +669,7 @@ globalThis.YUI_MAP =
       "id": "settings",
       "module": "settings",
       "label": "settings",
-      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, and the device-wide yui.user-name holds what {{user}} resolves to.",
+      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, the device-wide yui.user-name holds what {{user}} resolves to, and the device-wide yui.tts-readings holds the reading dictionary.",
       "paths": [
         "src/settings"
       ]
@@ -786,7 +786,7 @@ globalThis.YUI_MAP =
       "id": "io/voice/tts",
       "module": "speech",
       "label": "speech output",
-      "role": "Sentence segmentation, synthesis, in-order playback held to one voice across pet windows, and the glue to the mouth and the bubble.",
+      "role": "Sentence segmentation, synthesis, in-order playback held to one voice across pet windows, the reading dictionary applied to the TTS text, and the glue to the mouth and the bubble.",
       "paths": [
         "src/io/voice/tts"
       ]

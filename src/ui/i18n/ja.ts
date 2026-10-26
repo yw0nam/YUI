@@ -657,6 +657,15 @@ const ja: Record<string, string> = {
   "screen.foot":
     "画面のピクセルを送るかどうかは入力タブのスクリーンショット設定に従います。おやすみモード中は話しかけません。",
 
+  // reading dictionary
+  "reading.section": "読み方辞書",
+  "reading.note": "声での読み方だけを置き換えます。吹き出しには元の文字を表示します。",
+  "reading.sub": "1行に1つ、単語=読み の形で入力します。返答・あいさつ・あいづちに使われます",
+  "reading.aria": "読み方辞書の項目",
+  "reading.foot": "大文字と小文字を区別します。重なる単語は長いものから置き換えます。",
+  "reading.skipped": "{lines}行目は使われません。単語=読み の形で書いてください",
+  "reading.skipped_many": "{lines}行目は使われません。それぞれ単語=読み の形で書いてください",
+
   // workflows
   "workflows.title": "ワークフロー",
   "workflows.sub": "保存したエンドポイントをすぐに実行します。▶ の初回実行で接続も確認できます。",

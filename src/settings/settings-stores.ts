@@ -52,6 +52,7 @@ import {
 import { createRelationsSwitch } from "./relations/relations-switch";
 import { createUnifiedChatSwitch } from "./unified/unified-chat-switch";
 import { createFillerSettings, localStorageFillerStorage } from "./voice/filler-settings";
+import { createReadingsSettings, localStorageReadingsStorage } from "./voice/readings-settings";
 import { createVadSettings, localStorageVadStorage } from "./voice/vad-settings";
 
 export const createPresenceStore = (
@@ -126,6 +127,8 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     storage: localStorageFillerStorage(),
     locale: opts?.locale,
   });
+  // Device-wide reading dictionary: rewrites the text sent to the TTS service, never the bubble.
+  const readingsSettings = createReadingsSettings({ storage: localStorageReadingsStorage() });
   // Speech bubble persistence: when on, speech holds until dismissed instead of fading after dwell. Default OFF.
   const bubblePersistSettings = createFlagSettings(false, {
     storage: localStorageStore("yui.bubble-persist"),
@@ -200,6 +203,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     agentSettings,
     userNameSettings,
     fillerSettings,
+    readingsSettings,
     bubblePersistSettings,
     messageWindowSettings,
     endpointsSettings,
@@ -252,6 +256,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   agentSettings: "broadcast",
   userNameSettings: "broadcast",
   fillerSettings: "broadcast",
+  readingsSettings: "broadcast",
   bubblePersistSettings: "broadcast",
   messageWindowSettings: "broadcast",
   endpointsSettings: "broadcast",

@@ -53,6 +53,7 @@ export function wireTurnVoice(deps: {
   oneVoiceSettings: { get(): { enabled: boolean } };
   lipsyncSettings: { get(): { gain: number } };
   fillerSettings: SettingsStores["fillerSettings"];
+  readingsSettings: SettingsStores["readingsSettings"];
   vadSettings: { get(): { silenceMs: number; bargeIn: boolean } };
   speakerSelection: { getActive(): SpeakerOption };
   getEndpoints: () => EndpointsConfig;
@@ -82,6 +83,7 @@ export function wireTurnVoice(deps: {
     ttsSettings,
     lipsyncSettings,
     fillerSettings,
+    readingsSettings,
     vadSettings,
     speakerSelection,
     getEndpoints,
@@ -124,6 +126,7 @@ export function wireTurnVoice(deps: {
     oneVoiceSettings: deps.oneVoiceSettings,
     lipsyncSettings,
     fillerSettings,
+    readingsSettings,
     vadSettings,
     speakerSelection,
     voiceInputStatus,

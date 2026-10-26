@@ -1,0 +1,4 @@
+/* Reading dictionary section: the skipped-lines message sits under a full-width textarea. */
+.yui-reading .yui-stack > .yui-input-row__error {
+  margin-top: 0.5rem;
+}

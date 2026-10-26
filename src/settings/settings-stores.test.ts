@@ -38,6 +38,7 @@ describe("createSettingsStores", () => {
       "agentSettings",
       "userNameSettings",
       "fillerSettings",
+      "readingsSettings",
       "bubblePersistSettings",
       "messageWindowSettings",
       "endpointsSettings",

@@ -138,6 +138,10 @@ _Avoid_: profile, character (for this bundle)
 The persona text of a preset in Tavern Card V2 shape. Sent as the first system message on Chat Completions and as `instructions` on Responses. Never sent on push.
 _Avoid_: character card (as a YUI term), profile, persona file
 
+**Reading dictionary**:
+The device-wide list of `surface=reading` pairs the client applies to the text it sends to the TTS service, never to the bubble.
+_Avoid_: lexicon, pronunciation dictionary, user dictionary
+
 **Greeting**:
 The card's `first_mes` or one of its `alternate_greetings`, performed by the client after a session reset — and once at the first boot of a preset a card import created — and recorded as an assistant entry.
 _Avoid_: first message, opener

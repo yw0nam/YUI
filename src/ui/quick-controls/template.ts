@@ -24,6 +24,7 @@ import { presetStripHtml } from "./preset/preset-strip";
 import { browserSectionHtml } from "./sections/browser/browser-section";
 import { cardSectionHtml } from "./sections/card/card-section";
 import { helpSectionHtml } from "./sections/help/help-section";
+import { readingsSectionHtml } from "./sections/readings/readings-section";
 import type { SwitchRow } from "./switch-row";
 import { switchButtonHtml, switchRowHtml } from "./switches/switch-rows";
 import { tabButtonHtml, tabPanelOpenHtml } from "./tabs/tab-rail";
@@ -382,7 +383,7 @@ ${panelOpenHtml("input")}
               <input class="yui-gain__slider yui-vad__slider" type="range" aria-label="${t("voice_input.silence_aria")}" />
             </div>${switchRowsHtml("input", "after-vad")}
           </div>
-        </div>
+        </div>${readingsSectionHtml()}
       </div>
 ${panelOpenHtml("react")}${screenHtml}
         <div class="yui-loop-cue-section"></div>

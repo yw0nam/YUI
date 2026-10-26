@@ -60,6 +60,7 @@ import type { PetWindows } from "../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import type { RelationsStore } from "../../settings/relations/relations-store";
 import type { createFillerSettings } from "../../settings/voice/filler-settings";
+import type { createReadingsSettings } from "../../settings/voice/readings-settings";
 import type { createVadSettings } from "../../settings/voice/vad-settings";
 import type { VoiceInputStatus } from "../chips/voice-input-status";
 import { t } from "../i18n";
@@ -78,6 +79,7 @@ import { createCardSection } from "./sections/card/card-section";
 import { createFillerSection } from "./sections/filler/filler-section";
 import { bindHelpSection } from "./sections/help/help-section";
 import { createReactionsSection } from "./sections/reactions/reactions-section";
+import { createReadingsSection } from "./sections/readings/readings-section";
 import { createScreenSection } from "./sections/screen/screen-section";
 import { createScreenshotSection } from "./sections/screenshot/screenshot-section";
 import { createSessionSection } from "./sections/session/session-section";
@@ -100,6 +102,7 @@ type UserNameSettingsStore = ReturnType<typeof createUserNameSettings>;
 type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
 type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
 type FillerSettingsStore = ReturnType<typeof createFillerSettings>;
+type ReadingsSettingsStore = ReturnType<typeof createReadingsSettings>;
 type VrmSelectionStore = ReturnType<typeof createVrmSelection>;
 type SpeakerSelectionStore = ReturnType<typeof createSpeakerSelection>;
 type SessionDiagnosticsStore = ReturnType<typeof createSessionDiagnosticsStore>;
@@ -211,6 +214,8 @@ interface QuickControlsOptions {
   signalHistory?: Pick<SignalHistoryStore, "records" | "subscribe">;
   /** Thinking filler settings store. If absent, section won't render (injected by unified agent). */
   fillerSettings?: FillerSettingsStore;
+  /** Reading dictionary store. */
+  readingsSettings: ReadingsSettingsStore;
   /** TTS speech output on/off store. */
   ttsSettings?: FlagSettingsStore;
   /** One-voice-at-a-time store. If absent, that toggle row won't render. */
@@ -341,6 +346,7 @@ export function createQuickControls({
   transcript,
   signalHistory,
   fillerSettings,
+  readingsSettings,
   ttsSettings,
   oneVoiceSettings,
   gazeSettings,
@@ -657,6 +663,9 @@ export function createQuickControls({
     reflectSwitchRows: () => switchRows.reflect(),
   });
 
+  // ── Reading dictionary section (word=reading textarea · skipped-line message) ──
+  const readings = createReadingsSection({ root: el, readingsSettings });
+
   // ── Voice input section (voice switch · silence threshold slider) ──
   const voiceInput = createVoiceInputSection({
     root: el,
@@ -772,6 +781,7 @@ export function createQuickControls({
     agent.dispose();
     card.dispose();
     filler.dispose();
+    readings.dispose();
     voiceInput.dispose();
     session.dispose();
     hintTooltip.dispose();

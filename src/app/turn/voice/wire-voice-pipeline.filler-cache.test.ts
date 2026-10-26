@@ -53,6 +53,15 @@ function synthCalls(): number {
     .length;
 }
 
+const surfaces = {
+  beginSpeech: vi.fn(),
+  pushSpeech: vi.fn(),
+  endSpeech: vi.fn(),
+  finishSpeech: vi.fn(),
+};
+
+const readingListeners = new Set<(s: { text: string }) => void>();
+
 // Disposed after every case, so a failed assertion can't leave the filler loop running into the next.
 const wired: VoicePipeline[] = [];
 
@@ -60,6 +69,7 @@ function setup(
   customPool: FillerPool | (() => FillerPool),
   gapMs = 1_000,
   getSpeaker: () => SpeakerOption = () => SPEAKER,
+  getReadings: () => string = () => "",
 ): VoicePipeline {
   const pool = typeof customPool === "function" ? customPool : () => customPool;
   const voice = wireVoicePipeline({
@@ -70,12 +80,7 @@ function setup(
       applyDirective: vi.fn(),
       playMotion: vi.fn(),
     },
-    surfaces: {
-      beginSpeech: vi.fn(),
-      pushSpeech: vi.fn(),
-      endSpeech: vi.fn(),
-      finishSpeech: vi.fn(),
-    },
+    surfaces,
     turnLog: createTurnLog(),
     getEndpoints: () => ({
       chat_base_url: "http://chat.test/v1",
@@ -97,6 +102,13 @@ function setup(
     lipsyncSettings: { get: () => ({ gain: 1 }) },
     fillerSettings: {
       get: () => ({ enabled: true, language: "ja" as const, customPools: { ja: pool() } }),
+    },
+    readingsSettings: {
+      get: () => ({ text: getReadings() }),
+      subscribe: (cb) => {
+        readingListeners.add(cb);
+        return () => readingListeners.delete(cb);
+      },
     },
     vadSettings: { get: () => ({ silenceMs: 1_500, bargeIn: false }) },
     speakerSelection: { getActive: getSpeaker },
@@ -234,5 +246,85 @@ describe("filler audio cache invalidation", () => {
 
     await speak(voice, PHRASE_B, 1);
     expect(synthCalls()).toBe(3);
+  });
+});
+
+describe("reading dictionary", () => {
+  const READINGS = "秧秧=ヤンヤン";
+
+  function synthInputs(): string[] {
+    return mocks.fetchImpl.mock.calls
+      .filter(([url]) => String(url).endsWith("/v1/audio/speech"))
+      .map(([, init]) => JSON.parse(init.body as string).input);
+  }
+
+  afterEach(() => {
+    for (const voice of wired.splice(0)) voice.dispose();
+  });
+
+  it("sends the reading to the TTS service and the original text to the bubble", async () => {
+    const voice = setup(
+      fillerPool(),
+      1_000,
+      () => SPEAKER,
+      () => READINGS,
+    );
+
+    await speak(voice, "秧秧、おはよう。", 1);
+
+    expect(synthInputs()).toEqual(["ヤンヤン、おはよう。"]);
+    expect(surfaces.pushSpeech).toHaveBeenCalledWith("秧秧、おはよう。");
+  });
+
+  it("reads a prewarmed failure line through the dictionary", async () => {
+    setup(
+      fillerPool({ timeout: ["秧秧、ごめんね。"] }),
+      1_000,
+      () => SPEAKER,
+      () => READINGS,
+    );
+
+    await vi.waitFor(() => expect(synthInputs()).toEqual(["ヤンヤン、ごめんね。"]));
+  });
+
+  it("applies an edit to the next request and stales the cached filler audio", async () => {
+    let readings = READINGS;
+    const voice = setup(
+      fillerPool({ first: ["秧秧、待ってね。"] }),
+      1_000,
+      () => SPEAKER,
+      () => readings,
+    );
+
+    await speak(voice, "秧秧、待ってね。", 1);
+    readings = "秧秧=ヨウヨウ";
+    await speak(voice, "秧秧、待ってね。", 1);
+
+    expect(synthInputs()).toEqual(["ヤンヤン、待ってね。", "ヨウヨウ、待ってね。"]);
+  });
+
+  it("prewarms a failure line again with the new reading after an edit", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      let readings = READINGS;
+      setup(
+        fillerPool({ timeout: ["秧秧、ごめんね。"] }),
+        1_000,
+        () => SPEAKER,
+        () => readings,
+      );
+      await vi.waitFor(() => expect(synthInputs()).toEqual(["ヤンヤン、ごめんね。"]));
+
+      readings = "秧秧=ヨウヨウ";
+      for (const notify of readingListeners) notify({ text: readings });
+      await vi.advanceTimersByTimeAsync(2_000);
+
+      await vi.waitFor(() =>
+        expect(synthInputs()).toEqual(["ヤンヤン、ごめんね。", "ヨウヨウ、ごめんね。"]),
+      );
+    } finally {
+      vi.useRealTimers();
+      readingListeners.clear();
+    }
   });
 });

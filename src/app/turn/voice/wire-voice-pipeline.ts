@@ -18,6 +18,7 @@ import {
 import { createShuffleBag } from "../../../io/voice/filler/shuffle-bag";
 import type { SttVad } from "../../../io/voice/stt-vad";
 import { createWebAudioSink } from "../../../io/voice/tts/audio-player";
+import { createReadings } from "../../../io/voice/tts/readings";
 import { createSpeechPlayback, type SpeechPlayback } from "../../../io/voice/tts/speech-playback";
 import { type SpokenSplit, TTS_SKIP } from "../../../io/voice/tts/tts-pipeline";
 import { createTtsProvider, type TtsSynthCallOptions } from "../../../io/voice/tts/tts-synth";
@@ -25,6 +26,7 @@ import { createVoiceGate } from "../../../io/voice/tts/voice-gate";
 import type { SpeakerOption } from "../../../io/voice/voices/speaker-selection";
 import type { Renderer } from "../../../renderer";
 import type { FillerSettings } from "../../../settings/voice/filler-settings";
+import type { ReadingsSettings } from "../../../settings/voice/readings-settings";
 import type { VoiceInputStatus } from "../../../ui/chips/voice-input-status";
 import type { Surfaces } from "../../../ui/surfaces/surfaces";
 
@@ -49,6 +51,10 @@ interface VoicePipelineDeps {
   fillerSettings: {
     get(): FillerSettings;
     subscribe?(cb: (s: FillerSettings) => void): () => void;
+  };
+  readingsSettings: {
+    get(): ReadingsSettings;
+    subscribe?(cb: (s: ReadingsSettings) => void): () => void;
   };
   vadSettings: { get(): { silenceMs: number; bargeIn: boolean } };
   speakerSelection: { getActive(): SpeakerOption };
@@ -102,8 +108,10 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
   const effectiveFiller = () =>
     effectiveFillerPool(deps.fillerSettings.get(), deps.getFillerConfig());
 
+  const readings = createReadings(() => deps.readingsSettings.get().text);
+
   const fillerCache = createFillerAudioCache({
-    synth: (input, signal, opts) => provider.synth(input, signal, opts),
+    synth: (input, signal, opts) => provider.synth(readings.apply(input), signal, opts),
     // Filler is spoken under motion-hold, which withholds cues from the pipeline, so a filler
     // submission never carries a voice tag and matching the plain sentences is enough; a tagged
     // response sentence bypasses the cache.
@@ -115,7 +123,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     // settings window — invalidates this window's cache too.
     paramsKey: () => {
       const revision = deps.speakerSelection.getActive().revision ?? 0;
-      return [provider.paramsKey(), revision].join("\n");
+      return [provider.paramsKey(), revision, readings.text()].join("\n");
     },
   });
 
@@ -151,7 +159,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     for (const phrase of [...pool.timeout, ...pool.unreachable]) {
       for (const sentence of phraseSentences(phrase)) sentences.add(sentence);
     }
-    const key = [...sentences].sort().join("\n");
+    const key = [readings.text(), ...[...sentences].sort()].join("\n");
     if (key === lastPrewarmedKey) return;
     if (prewarmTimer !== undefined) clearTimeout(prewarmTimer);
     const run = (): void => {
@@ -171,6 +179,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
   }
   prewarmFailureLines();
   const unsubscribeFillerSettings = deps.fillerSettings.subscribe?.(() => prewarmFailureLines());
+  const unsubscribeReadings = deps.readingsSettings.subscribe?.(() => prewarmFailureLines());
 
   // Filler loop speaks via speechPlayback (speak), playback completion (onPlaybackEnd) triggers
   // the loop's next iteration — mutual reference, break the cycle with a forward let.
@@ -329,6 +338,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
       fillerLoop?.stop();
       speechPlayback.dispose();
       unsubscribeFillerSettings?.();
+      unsubscribeReadings?.();
       if (prewarmTimer !== undefined) clearTimeout(prewarmTimer);
     },
   };

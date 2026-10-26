@@ -105,6 +105,7 @@ function setup(): { voice: VoicePipeline; turnLog: ReturnType<typeof createTurnL
         customPools: { ja: { first: [PHRASE], repeat: [PHRASE] } },
       }),
     },
+    readingsSettings: { get: () => ({ text: "" }) },
     vadSettings: { get: () => ({ silenceMs: 1_500, bargeIn: true }) },
     speakerSelection: { getActive: () => ({ id: "speaker-a", ref_url: "/speaker-a.wav" }) },
     voiceInputStatus: { set: vi.fn() },
