@@ -27,29 +27,35 @@ export function createAddressedProducer(deps: {
   emit: (event: CharacterAddressed) => void;
   now?: () => number;
 }): {
-  record(turnId: string, to: string): string | undefined;
+  record(turnId: string, to: string, handoff?: boolean): string | undefined;
   /** The preset a still-open turn's reply was addressed to. */
   targetOf(turnId: string): string | undefined;
   /** The dispatcher's onTurnClosed. */
-  onTurnClosed(turn: { id: number; outcome: TurnOutcome; spokeText: boolean }): void;
+  onTurnClosed(turn: {
+    id: number;
+    outcome: TurnOutcome;
+    spokeText: boolean;
+    userText?: string;
+  }): void;
 } {
   const now = deps.now ?? Date.now;
-  const targets = new Map<string, string>();
+  const targets = new Map<string, { to: string; handoff: boolean }>();
 
   return {
-    record(turnId, to) {
+    record(turnId, to, handoff = false) {
       const known = targets.get(turnId);
-      if (known !== undefined) return known;
+      if (known !== undefined) return known.to;
       targets.delete(turnId);
-      targets.set(turnId, to);
+      targets.set(turnId, { to, handoff });
       if (targets.size > TARGETS_KEPT) targets.delete(targets.keys().next().value as string);
       return undefined;
     },
-    targetOf: (turnId) => targets.get(turnId),
-    onTurnClosed({ id, outcome, spokeText }) {
+    targetOf: (turnId) => targets.get(turnId)?.to,
+    onTurnClosed({ id, outcome, spokeText, userText }) {
       const key = String(id);
-      const to = targets.get(key);
-      if (to === undefined) return;
+      const target = targets.get(key);
+      if (target === undefined) return;
+      const { to, handoff } = target;
       targets.delete(key);
       if (outcome !== "ok" || !spokeText) return;
       const text = deps.transcript
@@ -61,7 +67,14 @@ export function createAddressedProducer(deps: {
         log.info("no_text", { to });
         return;
       }
-      deps.emit({ from: deps.selfPresetId, name: deps.selfName(), to, text, ts: now() });
+      deps.emit({
+        from: deps.selfPresetId,
+        name: deps.selfName(),
+        to,
+        text,
+        ts: now(),
+        ...(handoff && userText !== undefined ? { user_message: userText } : {}),
+      });
       log.info("fire", { to });
     },
   };

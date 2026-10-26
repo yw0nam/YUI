@@ -31,6 +31,10 @@ _Avoid_: request, exchange, interaction
 The event that makes a turn a candidate — typed text, a voice segment, a physical poke, a schedule tick, another open character's reply naming this character through `address_character`. Carried as one of `user`, `schedule`, `proactive`, `agent`, `signals`, `milestone`, `addressed`. Firing a trigger is not a decision to speak.
 _Avoid_: intent, command, prompt
 
+**Handoff**:
+An addressed turn whose sender passed the user's message on with `address_character` `handoff`; the receiver's trigger carries that message verbatim, and her reply answers the user.
+_Avoid_: transfer, delegation, forward
+
 **Guardrails**:
 The gate a trigger passes before it becomes a turn: cooldown, do-not-disturb, debounce, rate limit. It answers whether to _bother_ the brain, never what the brain should say.
 _Avoid_: filter, policy, throttle

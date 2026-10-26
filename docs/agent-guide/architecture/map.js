@@ -3317,7 +3317,7 @@ globalThis.YUI_MAP =
       "id": "address-character",
       "from": "io/chat/tools",
       "to": "dispatcher/sources/addressed",
-      "carries": "address_character → record(turnId, to); refused for an unknown or closed target and for a second call in one turn",
+      "carries": "address_character → record(turnId, to, handoff); refused for an unknown or closed target and for a second call in one turn",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"
@@ -3326,7 +3326,7 @@ globalThis.YUI_MAP =
       "id": "turn-closed-addressed",
       "from": "dispatcher/core",
       "to": "dispatcher/sources/addressed",
-      "carries": "onTurnClosed {id, trigger, outcome, spokeText} once per turn, at the over edge or when the next turn displaces it",
+      "carries": "onTurnClosed {id, outcome, spokeText, sendId?, userText?} once per turn, at the over edge or when the next turn displaces it",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/wire-dispatcher.ts"
@@ -3335,7 +3335,7 @@ globalThis.YUI_MAP =
       "id": "character-addressed-emit",
       "from": "dispatcher/sources/addressed",
       "to": "io/bridge/settings",
-      "carries": "yui://character-addressed {from, name, to, text, ts}, unscoped, after the reply's turn ended with speech and its playback finished",
+      "carries": "yui://character-addressed {from, name, to, text, ts, user_message?}, unscoped, after the reply's turn ended with speech and its playback finished",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/windows/main.ts"
@@ -3344,7 +3344,7 @@ globalThis.YUI_MAP =
       "id": "character-addressed-receive",
       "from": "io/bridge/settings",
       "to": "dispatcher/sources/addressed",
-      "carries": "yui://character-addressed {from, name, to, text, ts}, unscoped, filtered on `to`",
+      "carries": "yui://character-addressed {from, name, to, text, ts, user_message?}, unscoped, filtered on `to`",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/turn/wire-sources.ts"
@@ -3353,7 +3353,7 @@ globalThis.YUI_MAP =
       "id": "addressed-bus",
       "from": "dispatcher/sources/addressed",
       "to": "dispatcher/core",
-      "carries": "bus.push: addressed.character {from, name, line}; the chain cap addressed_chain_max drops the third in a row without a user turn",
+      "carries": "bus.push: addressed.character {from, name, line, user_message?}; the chain cap addressed_chain_max drops the third in a row without a user turn",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/turn/wire-sources.ts"
@@ -4758,7 +4758,7 @@ globalThis.YUI_MAP =
         "id": "character-addressed-pet-bound",
         "from": "pet",
         "to": "pet-<id>",
-        "carries": "yui://character-addressed {from, name, to, text, ts}; unscoped: every pet window receives it and keeps the one naming its preset",
+        "carries": "yui://character-addressed {from, name, to, text, ts, user_message?}; unscoped: every pet window receives it and keeps the one naming its preset",
         "kind": "bridge"
       },
       {
@@ -4807,7 +4807,7 @@ globalThis.YUI_MAP =
         "id": "character-addressed-bound-pet",
         "from": "pet-<id>",
         "to": "pet",
-        "carries": "yui://character-addressed {from, name, to, text, ts}; unscoped: every pet window receives it and keeps the one naming its preset",
+        "carries": "yui://character-addressed {from, name, to, text, ts, user_message?}; unscoped: every pet window receives it and keeps the one naming its preset",
         "kind": "bridge"
       }
     ]

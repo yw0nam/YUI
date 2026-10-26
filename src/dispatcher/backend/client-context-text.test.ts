@@ -979,10 +979,16 @@ describe("renderClientContext — exhaustiveness", () => {
       "handoff",
       {
         kind: "addressed",
-        addressed: { from: "perlica\n", text: "Ask\nNatsume.", ts: NOW,
-          user_message: 'Why\n"this"?' },
+        addressed: {
+          from: "perlica\n",
+          text: "Ask\nNatsume.",
+          ts: NOW,
+          user_message: 'Why\n"this"?',
+        },
       },
-      ['trigger: handed over by perlica: the user said "Why \"this\"?"; perlica said "Ask Natsume." (0min ago)'],
+      [
+        'trigger: handed over by perlica: the user said "Why "this"?"; perlica said "Ask Natsume." (0min ago)',
+      ],
     ],
     [
       "milestone",

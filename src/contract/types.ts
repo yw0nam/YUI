@@ -263,7 +263,7 @@ export interface TriggerMeta {
   /** proactive only: Math.round(gap_ms / 60000). */
   idle_elapsed_min?: number;
   /** addressed.* — another open character's reply named this character through address_character. */
-  addressed?: { from: string; text: string; ts: number };
+  addressed?: { from: string; text: string; ts: number; user_message?: string };
   /** agent.done / agent.needs_input — single coding-agent lifecycle event. */
   agent?: {
     tool: string; // "claude-code" | "opencode" | <string>

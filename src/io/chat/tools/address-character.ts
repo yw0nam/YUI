@@ -9,13 +9,15 @@ const log = createLogger("address-character");
 
 const DESCRIPTION =
   "Speak to another character: name who this reply is for. They hear this reply and may answer. " +
+  "With handoff, this reply passes the user's last message to that character, who takes it and answers the user. " +
+  "Use handoff when the user's message is better answered by that character. " +
   "Once per reply; leave it out when you are talking to the user.";
 
 export function createAddressCharacterTool(deps: {
   /** The other open presets, read each time the schema is built and when a call runs. */
   targets: () => PresetEntry[];
   /** Records the reply's recipient on its turn; returns the id recorded earlier, if any. */
-  record: (turnId: string, to: string) => string | undefined;
+  record: (turnId: string, to: string, handoff: boolean) => string | undefined;
 }): ClientTool {
   /** Label to target id — the other open presets only; the user is not a target. */
   const labels = (): Map<string, string> =>
@@ -33,6 +35,11 @@ export function createAddressCharacterTool(deps: {
             type: "object" as const,
             properties: {
               to: { type: "string", enum: [...labels().keys()] },
+              handoff: {
+                type: "boolean",
+                description:
+                  "Pass the user's last message to this character, who takes it and answers the user. Use it when the user's message is better answered by this character.",
+              },
             },
             additionalProperties: false as const,
             required: ["to"],
@@ -46,7 +53,7 @@ export function createAddressCharacterTool(deps: {
       const id = labels().get(to);
       if (id === undefined) return "error: unknown target";
       const key = call?.turnId ?? "";
-      const known = deps.record(key, id);
+      const known = deps.record(key, id, args.handoff === true);
       if (known !== undefined) {
         const preset = deps.targets().find(({ id: targetId }) => targetId === known);
         return `ignored: already addressed ${preset ? targetLabel(preset.name) : known}`;

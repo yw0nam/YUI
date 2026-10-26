@@ -79,7 +79,11 @@ describe("createAddressedProducer", () => {
     producer.onTurnClosed({ id: 7, outcome: "ok", spokeText: true, userText });
 
     expect(emit).toHaveBeenCalledExactlyOnceWith({
-      from: "natsume", name: "Natsume", to: "perlica", text: "Ask Perlica.", ts: 5_000,
+      from: "natsume",
+      name: "Natsume",
+      to: "perlica",
+      text: "Ask Perlica.",
+      ts: 5_000,
       ...extra,
     });
   });

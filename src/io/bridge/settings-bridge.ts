@@ -57,6 +57,7 @@ export interface CharacterAddressed {
   to: string;
   text: string;
   ts: number;
+  user_message?: string;
 }
 
 /** The unified chat window routes one user message to one preset's pet window. */
@@ -273,7 +274,14 @@ export function createSettingsBridge(
           typeof e.text === "string" &&
           typeof e.ts === "number"
         ) {
-          cb({ from: e.from, name: e.name, to: e.to, text: e.text, ts: e.ts });
+          cb({
+            from: e.from,
+            name: e.name,
+            to: e.to,
+            text: e.text,
+            ts: e.ts,
+            ...(typeof e.user_message === "string" ? { user_message: e.user_message } : {}),
+          });
         }
       });
     },

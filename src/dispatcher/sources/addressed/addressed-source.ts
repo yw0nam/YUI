@@ -36,7 +36,12 @@ export function createAddressedSource(deps: {
           source: "addressed_source",
           event_name: ADDRESSED_EVENT,
           ts: event.ts,
-          payload: { from: event.from, name: event.name, line: event.text },
+          payload: {
+            from: event.from,
+            name: event.name,
+            line: event.text,
+            ...(event.user_message !== undefined ? { user_message: event.user_message } : {}),
+          },
         });
         if (!pushed) {
           log.info("push_rejected", { from: event.from });

@@ -37,7 +37,10 @@ function setup(selfPresetId = "natsume") {
 }
 
 describe("createAddressedSource", () => {
-  it.each([{}, { user_message: "  User\nquestion  " }])("pushes the addressed payload with %j", (extra) => {
+  it.each([
+    {},
+    { user_message: "  User\nquestion  " },
+  ])("pushes the addressed payload with %j", (extra) => {
     const { bus, source, emit } = setup();
     source.start();
 

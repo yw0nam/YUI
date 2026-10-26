@@ -315,7 +315,9 @@ describe("dispatcher — routed user turns", () => {
     callDeferred.at(-1)?.resolve("ok");
     await vi.advanceTimersByTimeAsync(20);
 
-    expect(onTurnClosed).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ sendId: "s1", userText: "hi" }));
+    expect(onTurnClosed).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ sendId: "s1", userText: "hi" }),
+    );
     d.stop();
   });
 
@@ -330,7 +332,12 @@ describe("dispatcher — routed user turns", () => {
     const id = turnLog.current()!.id;
     callDeferred.at(-1)?.resolve("ok");
     await vi.advanceTimersByTimeAsync(20);
-    expect(onTurnClosed).toHaveBeenCalledExactlyOnceWith({ id, outcome: "ok", spokeText: false, ...extra });
+    expect(onTurnClosed).toHaveBeenCalledExactlyOnceWith({
+      id,
+      outcome: "ok",
+      spokeText: false,
+      ...extra,
+    });
     d.stop();
   });
 
