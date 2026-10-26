@@ -10,6 +10,7 @@ import type { Logger } from "../../../logger";
 import { t } from "../../i18n";
 import type { PushSocketPanelPort } from "../connection/connection-tab";
 import { createHistorySection } from "./history-section";
+import { resetConversation } from "./reset-conversation";
 
 export interface HistoryTab {
   el: HTMLElement;
@@ -101,19 +102,17 @@ export function createHistoryTab(deps: {
     if (sessionResetBtn) sessionResetBtn.hidden = false;
   }
 
-  // Closes the running conversation: the id pointer and diagnostics reset, the transcript keeps
-  // its turns behind a session boundary so the History tab can still read them.
   function handleSessionReset(): void {
-    // A turn still running stops with the conversation, before the reset frame goes out.
-    stopTurn?.();
-    sessionStore?.clear();
-    sessionDiagnostics?.clear();
-    transcript.startNewSession();
-    announceSessionReset?.();
-    // Push mode keeps its conversation on the backend — it ends only when the frame lands.
-    if (getChatApi() === "push") pushSocket?.sendReset();
+    resetConversation({
+      transcript,
+      sessionStore,
+      sessionDiagnostics,
+      stopTurn,
+      announceSessionReset,
+      push: getChatApi() === "push" ? pushSocket : undefined,
+      log,
+    });
     hideSessionConfirm();
-    log.info("session_reset");
   }
 
   sessionResetBtn?.addEventListener("click", showSessionConfirm);
