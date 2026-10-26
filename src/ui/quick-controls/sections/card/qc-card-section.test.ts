@@ -72,15 +72,21 @@ describe("createQuickControls — card section", () => {
   });
 
   const visible = (sel: string) => !sec().querySelector<HTMLElement>(sel)!.hidden;
-  const pushOnly = [".yui-card__push-note"];
-  const requestOnly = [".yui-card-body", ".yui-group--switch", ".yui-sec__state"];
-
-  it("keeps only import, export and the push note on the push transport", () => {
+  it("keeps only import, export and the notes on the push transport", () => {
     build({ getDefaultChatApi: () => "push" });
     expect(sec().hidden).toBe(false);
-    expect(sec().querySelector<HTMLElement>(".yui-card__io")!.hidden).toBe(false);
-    for (const s of pushOnly) expect(visible(s)).toBe(true);
-    for (const s of [...requestOnly, ".yui-reset"]) expect(visible(s)).toBe(false);
+    expect(visible(".yui-card__io")).toBe(true);
+    expect(visible(".yui-card__io-note")).toBe(true);
+    expect(visible(".yui-card__push-note")).toBe(true);
+    expect(visible(".yui-card-body")).toBe(false);
+    expect(visible(".yui-group--switch")).toBe(false);
+    expect(visible(".yui-sec__state")).toBe(false);
+  });
+
+  it("hides Reset to default on push even with an own card", () => {
+    agentSettings.updateCard({ description: "mine" }, persona.cards.en);
+    build({ getDefaultChatApi: () => "push" });
+    expect(visible(".yui-reset")).toBe(false);
   });
 
   it("follows a live transport change without reopening", () => {
