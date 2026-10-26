@@ -4,25 +4,13 @@
  * stays editable.
  */
 
+import {
+  effectiveChatApi,
+  readChatApiOverride,
+} from "../../../settings/backend/endpoints-settings";
 import type { PresetEntry } from "../../../settings/preset/active-preset";
-import { resolveStorageKey } from "../../../settings/preset/preset-keys";
 import { t } from "../../i18n";
 import { avatarEl } from "../../unified/avatar";
-import { CHAT_APIS, type ChatApi } from "../constants";
-
-/** The preset's own stored chat transport, else the bundled default, else Responses. */
-function chatApiOf(id: string, fallback: string | undefined): ChatApi {
-  const isApi = (v: unknown): v is ChatApi => (CHAT_APIS as readonly unknown[]).includes(v);
-  try {
-    const stored = JSON.parse(
-      globalThis.localStorage?.getItem(resolveStorageKey("yui.endpoints", id)) ?? "null",
-    )?.chat_api;
-    if (isApi(stored)) return stored;
-  } catch {
-    /* A malformed entry reads as no override. */
-  }
-  return isApi(fallback) ? fallback : "responses";
-}
 
 export function createCharacterHeader(deps: {
   /** The preset the window edits. */
@@ -60,7 +48,9 @@ export function createCharacterHeader(deps: {
           item.prepend(avatarEl(entry, 28));
           item.querySelector(".yui-chead__name")!.textContent = entry.name;
           item.querySelector(".yui-chead__meta")!.textContent = t("head.meta", {
-            transport: t(`svc.chat_name_${chatApiOf(entry.id, deps.getDefaultChatApi?.())}`),
+            transport: t(
+              `svc.chat_name_${effectiveChatApi(readChatApiOverride(entry.id), deps.getDefaultChatApi?.())}`,
+            ),
             state: t(state),
           });
           return item;

@@ -40,9 +40,10 @@ import type {
   ApiKeySettingsStore,
   ChatKeySettingsStore,
 } from "../../settings/backend/api-key-settings";
-import type {
-  createEndpointsSettings,
-  EndpointOverrides,
+import {
+  type createEndpointsSettings,
+  type EndpointOverrides,
+  effectiveChatApi,
 } from "../../settings/backend/endpoints-settings";
 import type {
   GuardrailsSettingsStore,
@@ -745,7 +746,7 @@ export function createQuickControls({
 
   // Effective chat protocol: the user's override, else the bundled default.
   function isPushMode(): boolean {
-    return (endpointsSettings.get().chat_api || getDefaultChatApi?.()) === "push";
+    return effectiveChatApi(endpointsSettings.get().chat_api, getDefaultChatApi?.()) === "push";
   }
 
   // ── Tab rail (selection, ARIA, keyboard) ──
