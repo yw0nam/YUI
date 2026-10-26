@@ -34,8 +34,8 @@ import {
 const PREVIEWS = [
   { px: 36, where: "photo.at_card" },
   { px: 28, where: "photo.at_header" },
+  { px: 22, where: "photo.at_chat" },
   { px: 20, where: "photo.at_plate" },
-  { px: 14, where: "photo.at_chat" },
 ];
 
 /** The newest write per preset; a pick's default framing that resolves after a later write is dropped. */
