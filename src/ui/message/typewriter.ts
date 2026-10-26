@@ -95,6 +95,11 @@ export function createTypewriter(
     received(text) {
       if (stopped) return;
       raw = text;
+      // Text that came back shorter never shows past its end.
+      if (cursor > raw.length) {
+        cursor = raw.length;
+        emit();
+      }
       if (!skip) {
         if (timer === null) restart();
         return;

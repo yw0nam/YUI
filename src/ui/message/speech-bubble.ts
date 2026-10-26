@@ -10,6 +10,8 @@ import type { SentenceStart } from "../../io/voice/tts/tts-pipeline";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { afterFadeOut } from "../notices/fade-out";
 import { renderMarkdownInline } from "./markdown";
+import { stableMarkdown } from "./stable-markdown";
+import { keepTextPrefix } from "./text-prefix";
 import { createTypewriter } from "./typewriter";
 
 export interface SpeechBubble {
@@ -105,6 +107,12 @@ export function createSpeechBubble(
   let deferred = false;
   // Raw accumulated speech text — its typed-out prefix is rendered as markdown at a bounded cadence.
   let speechRaw = "";
+  // The received line rendered — its stable part while it streams, all of it once it ends — and that rendering's text.
+  let parsed: HTMLElement | null = null;
+  let parsedText = "";
+  let lastParseAt = Number.NEGATIVE_INFINITY;
+  let parseTimer: ReturnType<typeof setTimeout> | null = null;
+  // How many characters of the rendered text show.
   let revealed = 0;
   let lastRenderAt = Number.NEGATIVE_INFINITY;
   let renderTimer: ReturnType<typeof setTimeout> | null = null;
@@ -198,13 +206,41 @@ export function createSpeechBubble(
     renderTimer = null;
   }
 
+  function clearParseTimer(): void {
+    if (parseTimer !== null) clearTimeout(parseTimer);
+    parseTimer = null;
+  }
+
+  // Hands the typewriter the rendered text; a line still streaming renders only what later text cannot change.
+  function parse(final = false): void {
+    clearParseTimer();
+    lastParseAt = performance.now();
+    const source = final ? speechRaw : stableMarkdown(speechRaw);
+    parsed = source === "" ? null : renderMarkdownInline(source);
+    parsedText = parsed?.textContent ?? "";
+    const before = revealed;
+    typer.received(parsedText);
+    // A rendering that revealed nothing new (an image has no text) still draws.
+    if (revealed === before) renderThrottled();
+  }
+
+  function parseThrottled(): void {
+    const wait = lastParseAt + SPEECH_RENDER_INTERVAL_MS - performance.now();
+    if (wait <= 0) parse();
+    else parseTimer ??= setTimeout(parse, wait);
+  }
+
   function renderSpeech(): void {
     clearRenderTimer();
     // Measure before updating — don't yank down a user who has scrolled up to read.
     const pin = isPinnedToEnd();
-    if (revealed > 0)
-      bubbleText.replaceChildren(renderMarkdownInline(speechRaw.slice(0, revealed)));
-    else bubbleText.replaceChildren();
+    if (parsed === null) bubbleText.replaceChildren();
+    else if (revealed >= parsedText.length) bubbleText.replaceChildren(parsed);
+    else {
+      const shown = parsed.cloneNode(true);
+      keepTextPrefix(shown, revealed);
+      bubbleText.replaceChildren(shown);
+    }
     lastRenderAt = performance.now();
     scrollBubbleToEnd(pin);
   }
@@ -220,6 +256,7 @@ export function createSpeechBubble(
   function stopTyping(): void {
     typer.stop();
     clearRenderTimer();
+    clearParseTimer();
     bubbleEl.classList.remove("is-typing");
     bubbleNext.hidden = true;
   }
@@ -231,9 +268,13 @@ export function createSpeechBubble(
     revealHeld = false;
     bubbleEl.classList.remove("is-held");
     speechRaw = "";
+    parsed = null;
+    parsedText = "";
     revealed = 0;
     lastRenderAt = Number.NEGATIVE_INFINITY;
+    lastParseAt = Number.NEGATIVE_INFINITY;
     clearRenderTimer();
+    clearParseTimer();
     bubbleText.replaceChildren();
     bubbleSr.textContent = "";
     bubbleNext.hidden = true;
@@ -257,6 +298,7 @@ export function createSpeechBubble(
       cancelFade = null;
       stopTyping();
       speechRaw = "";
+      parsed = null;
       bubbleText.replaceChildren();
       clearSpeechAction();
       bubbleEl.classList.remove("is-streaming");
@@ -283,7 +325,7 @@ export function createSpeechBubble(
     if (dismissed) return;
     if (bubbleEl.hidden) beginSpeech();
     speechRaw += delta;
-    typer.received(speechRaw);
+    parseThrottled();
   }
 
   function paceSpeech(sentence: SentenceStart): void {
@@ -298,9 +340,9 @@ export function createSpeechBubble(
     bubbleEl.classList.add("is-visible");
     bubbleEl.classList.remove("is-streaming");
     scrollBubbleToEnd(pin);
-    // Announce the whole line once, when speech settles — not on every delta or barge-in re-call.
-    const full = speechRaw === "" ? "" : (renderMarkdownInline(speechRaw).textContent ?? "");
-    if (bubbleSr.textContent !== full) bubbleSr.textContent = full;
+    // The line is whole now: render all of it, and announce it once — not on every delta or barge-in re-call.
+    parse(true);
+    if (bubbleSr.textContent !== parsedText) bubbleSr.textContent = parsedText;
     clearDwell();
     // A deferred line holds the fade until playback ends — finishSpeech() arms the dwell.
     deferred = opts?.defer === true;
@@ -361,6 +403,7 @@ export function createSpeechBubble(
       if (!bubbleEl.classList.contains("is-visible")) {
         bubbleEl.hidden = true;
         speechRaw = "";
+        parsed = null;
         bubbleText.replaceChildren();
         bubbleQuote.hidden = true;
       }
