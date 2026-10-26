@@ -35,6 +35,10 @@ describe("createAddressCharacterTool — definition", () => {
     expect(to()).toEqual(["perlica"]);
     targets.push({ id: "bbbb0002", name: "shino" });
     expect(to()).toEqual(["perlica", "shino"]);
+    expect(tool.definition.function.parameters.properties.handoff).toEqual({
+      type: "boolean",
+      description: expect.any(String),
+    });
     expect(tool.definition.function.parameters.required).toEqual(["to"]);
     expect(tool.definition.function.parameters.additionalProperties).toBe(false);
     expect(tool.switch).toBeUndefined();
@@ -50,11 +54,11 @@ describe("createAddressCharacterTool — execute", () => {
     expect(record).not.toHaveBeenCalled();
   });
 
-  it("records (turnId, id) on the first call and answers ok", async () => {
+  it.each([false, true])("records the target and handoff=%s on the first call", async (handoff) => {
     const { tool, record } = setup();
 
-    expect(await tool.execute({ to: "perlica" }, undefined, { turnId: "t1" })).toBe("ok");
-    expect(record).toHaveBeenCalledExactlyOnceWith("t1", "aaaa0001");
+    expect(await tool.execute({ to: "perlica", handoff }, undefined, { turnId: "t1" })).toBe("ok");
+    expect(record).toHaveBeenCalledExactlyOnceWith("t1", "aaaa0001", handoff);
   });
 
   it.each([
@@ -85,6 +89,6 @@ describe("createAddressCharacterTool — execute", () => {
     await tool.execute({ to: "perlica" }, undefined, { turnId: "t1" });
     await tool.execute({ to: "shino" }, undefined, { turnId: "t2" });
     expect(record).toHaveBeenCalledTimes(2);
-    expect(record).toHaveBeenLastCalledWith("t2", "bbbb0002");
+    expect(record).toHaveBeenLastCalledWith("t2", "bbbb0002", false);
   });
 });

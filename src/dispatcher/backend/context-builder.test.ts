@@ -165,10 +165,10 @@ describe("buildClientContext — addressed forwarding", () => {
     };
   }
 
-  it("forwards the speaker, her line and the envelope ts as the addressed field", () => {
+  it.each([{}, { user_message: "  User\nquestion  " }])("carries addressed metadata with %j", (extra) => {
     const client = buildClientContext(
       CTX,
-      addressedEnv({ from: "perlica", name: "Perlica", line: "natsume, you took my chair" }),
+      addressedEnv({ from: "perlica", name: "Perlica", line: "natsume, you took my chair", ...extra }),
     );
 
     expect(client.trigger.kind).toBe("addressed");
@@ -176,6 +176,7 @@ describe("buildClientContext — addressed forwarding", () => {
       from: "Perlica",
       text: "natsume, you took my chair",
       ts: 1_717_000_000_000,
+      ...extra,
     });
   });
 

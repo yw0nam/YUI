@@ -37,17 +37,17 @@ function setup(selfPresetId = "natsume") {
 }
 
 describe("createAddressedSource", () => {
-  it("pushes one addressed.character envelope for an event naming this preset", () => {
+  it.each([{}, { user_message: "  User\nquestion  " }])("pushes the addressed payload with %j", (extra) => {
     const { bus, source, emit } = setup();
     source.start();
 
-    emit(EVENT);
+    emit({ ...EVENT, ...extra });
 
     expect(bus.push).toHaveBeenCalledExactlyOnceWith({
       source: "addressed_source",
       event_name: "addressed.character",
       ts: EVENT.ts,
-      payload: { from: "perlica", name: "Perlica", line: "natsume, you took my chair" },
+      payload: { from: "perlica", name: "Perlica", line: "natsume, you took my chair", ...extra },
     });
     // The spoken text rides as `line`; no payload field carries it verbatim.
     expect(bus.push.mock.calls[0]![0].payload).not.toHaveProperty("text");

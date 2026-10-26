@@ -67,6 +67,23 @@ describe("createAddressedProducer", () => {
     });
   });
 
+  it.each([
+    [true, "  Ask me\nverbatim.  ", { user_message: "  Ask me\nverbatim.  " }],
+    [true, undefined, {}],
+    [false, "Ask me", {}],
+    [true, "", { user_message: "" }],
+  ])("emits handoff=%s with userText=%j", (handoff, userText, extra) => {
+    const { producer, emit } = setup([assistantEntry("Ask Perlica.", "7", 1)]);
+    producer.record("7", "perlica", handoff);
+    producer.record("7", "shino", !handoff);
+    producer.onTurnClosed({ id: 7, outcome: "ok", spokeText: true, userText });
+
+    expect(emit).toHaveBeenCalledExactlyOnceWith({
+      from: "natsume", name: "Natsume", to: "perlica", text: "Ask Perlica.", ts: 5_000,
+      ...extra,
+    });
+  });
+
   it("emits nothing when the same turn closes again", () => {
     const { producer, emit } = setup([assistantEntry("hi", "7", 1)]);
     producer.record("7", "perlica");

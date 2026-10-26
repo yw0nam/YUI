@@ -315,7 +315,11 @@ describe("createSettingsBridge", () => {
     history.replaceState(null, "", "/");
   });
 
-  it("delivers a character-addressed event from A to B with the payload", () => {
+  it.each([
+    [undefined, {}],
+    ["  user\nmessage  ", { user_message: "  user\nmessage  " }],
+    [42, {}],
+  ])("delivers a character-addressed event with user_message=%j", (userMessage, extra) => {
     const t = createFakeTransport();
     const a = createSettingsBridge(t, { windowKind: "pet" });
     const b = createSettingsBridge(t, { windowKind: "pet" });
@@ -328,7 +332,8 @@ describe("createSettingsBridge", () => {
       to: "natsume",
       text: "natsume, you took my chair",
       ts: 1_717_000_000_000,
-    });
+      user_message: userMessage,
+    } as never);
 
     expect(cb).toHaveBeenCalledWith({
       from: "perlica",
@@ -336,6 +341,7 @@ describe("createSettingsBridge", () => {
       to: "natsume",
       text: "natsume, you took my chair",
       ts: 1_717_000_000_000,
+      ...extra,
     });
   });
 
