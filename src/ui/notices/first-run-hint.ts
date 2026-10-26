@@ -9,8 +9,8 @@
  */
 
 import type { SpeechAction } from "../../io/bridge/message/message-remote";
+import type { QuickControlsTab } from "../../settings/panels/settings-pages";
 import { formatAccel } from "../input/format-accel";
-import type { QuickControlsTab } from "../quick-controls/constants";
 
 type TranslateFn = (key: string, vars?: Record<string, string | number>) => string;
 

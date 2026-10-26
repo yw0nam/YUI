@@ -1,5 +1,5 @@
+import { CHARACTER_PAGES } from "../../../settings/panels/settings-pages";
 import { t } from "../../i18n";
-import { CHARACTER_PAGES } from "../constants";
 
 /** The line above a page's title: only the edited character, or every character. */
 export function presetScopeText(page: string, presetName: string): string {

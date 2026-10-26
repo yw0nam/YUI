@@ -59,6 +59,7 @@ import type { createProactiveSettings } from "../../settings/cues/proactive-sett
 import type { createScheduleSettings } from "../../settings/cues/schedule-settings";
 import type { createUserNameSettings } from "../../settings/identity/user-name-settings";
 import type { MessageWindowSettingsStore } from "../../settings/panels/message-window-settings";
+import type { QuickControlsTab } from "../../settings/panels/settings-pages";
 import type { ClampedIntSettingsStore, FlagSettingsStore } from "../../settings/persisted-store";
 import { presetIdForWindow } from "../../settings/preset/active-preset";
 import type { PetWindows } from "../../settings/preset/pet-windows";
@@ -72,7 +73,7 @@ import type { VoiceInputStatus } from "../chips/voice-input-status";
 import { t } from "../i18n";
 import { createCharacterTab } from "./character/character-tab";
 import { createConnectionTab, type PushSocketPanelPort } from "./connection/connection-tab";
-import { DEFAULT_PAGE, type QuickControlsTab } from "./constants";
+import { DEFAULT_PAGE } from "./constants";
 import { mountCueLists } from "./cue-lists/cue-lists";
 import { createHeaderButtons } from "./header/header-buttons";
 import { createHintTooltip } from "./hint-tooltip";

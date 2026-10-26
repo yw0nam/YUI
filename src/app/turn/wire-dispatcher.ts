@@ -33,6 +33,7 @@ import type { ExpressVocabulary } from "../../io/chat/vocabulary/express-vocabul
 import type { ScreenCapturer } from "../../io/window/capture/screen-source-provider";
 import { buildScreenshotBlock } from "../../io/window/capture/screenshot-context";
 import type { Renderer } from "../../renderer";
+import type { QuickControlsTab } from "../../settings/panels/settings-pages";
 import {
   presetIdForWindow,
   readPresetList,
@@ -47,7 +48,6 @@ import {
   turnErrorFixAction,
   turnErrorMessage,
 } from "../../ui/notices/turn-error";
-import type { QuickControlsTab } from "../../ui/quick-controls/constants";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
 import { wireGuardrailsOverrides } from "../cross-window/wire-window-sync";
 import type { ConversationStores } from "../settings/conversation-stores";

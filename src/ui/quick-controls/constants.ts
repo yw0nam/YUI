@@ -10,13 +10,9 @@ import {
   SCREEN_RECENT_CAP_MAX,
   type ScreenOverrides,
 } from "../../settings/capture/screen-settings";
+import type { QuickControlsTab } from "../../settings/panels/settings-pages";
 import type { Locale } from "../i18n";
 
-// Page identity — the suffix of each rail button's `yui-tab-*` element id.
-// "hist" renders only when a transcript is injected; the rest are always present.
-export const CHARACTER_PAGES = ["conn", "voice", "persona", "body", "hist"] as const;
-export const APP_PAGES = ["together", "listening", "perms", "react", "motion", "general"] as const;
-export type QuickControlsTab = (typeof CHARACTER_PAGES)[number] | (typeof APP_PAGES)[number];
 export const DEFAULT_PAGE: QuickControlsTab = "persona";
 
 // Language picker display order (Japanese / English / Korean). Fixed independently of LOCALES.

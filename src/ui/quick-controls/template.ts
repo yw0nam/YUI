@@ -1,6 +1,7 @@
 /** Quick-controls panel markup — pure string construction (no DOM, no state). */
 
 import { THEMES } from "../../settings/appearance/theme-settings";
+import type { QuickControlsTab } from "../../settings/panels/settings-pages";
 import "./sections/session/session-section.css";
 import { LOCALE_DISPLAY_NAMES, t } from "../i18n";
 import {
@@ -8,7 +9,6 @@ import {
   LANG_PICKER_ORDER,
   PLUS_SVG,
   PROACTIVE_CAP_FIELDS,
-  type QuickControlsTab,
   SCREEN_KNOB_FIELDS,
   SCREEN_MIN_GAP_MAX,
   SCREEN_MIN_GAP_MIN,
