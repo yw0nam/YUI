@@ -83,8 +83,9 @@ export function createTypewriter(
       // Separators the voice skips (a push line's newlines) are passed over; text the voice reads differently is counted by length.
       const at = raw.indexOf(text, ceiling);
       const next = at >= 0 ? at + text.length : ceiling + text.length;
+      // Characters an earlier sentence still owes type with this one, so the text keeps up with the voice.
       msPerChar =
-        durationMs === null ? FIXED_MS_PER_CHAR : durationMs / Math.max(1, next - ceiling);
+        durationMs === null ? FIXED_MS_PER_CHAR : durationMs / Math.max(1, next - cursor);
       ceiling = next;
       schedule();
     },
