@@ -1,3 +1,4 @@
+import { applyTheme } from "../ui/theme/apply-theme";
 import "../styles.css";
 import "../ui/quick-controls/quick-controls.css";
 import "../ui/devtools/devtools.css";
@@ -22,6 +23,10 @@ async function bootstrap(): Promise<void> {
   if (!mount) throw new Error("#app mount point not found");
 
   const settingsStores = createSettingsStores({ locale: getLocale() });
+  const disposeTheme = applyTheme({
+    store: settingsStores.themeSettings,
+    root: document.documentElement,
+  });
   const conversationStores = createConversationStores();
   const { contextHistory } = conversationStores;
   const { endpointsSettings } = settingsStores;
@@ -63,6 +68,7 @@ async function bootstrap(): Promise<void> {
   const disposePresetSwitch = wirePresetSwitch({ registry: presetRegistry, bridge });
   window.addEventListener("focus", reload);
   window.addEventListener("beforeunload", () => {
+    disposeTheme();
     disposePresetSwitch();
     presetRegistry.dispose();
     // Keeps the bridge alive until disposeSync flushes any pending broadcast.

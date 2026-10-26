@@ -1,3 +1,4 @@
+import { applyTheme } from "../ui/theme/apply-theme";
 /**
  * YUI bootstrap.
  *
@@ -102,6 +103,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     register,
     role,
   );
+  register(applyTheme({ store: settingsStores.themeSettings, root: document.documentElement }));
   const petConfig = createPetConfig({ ...settingsStores, log });
   const config = petConfig.config;
   const bedSceneHold = createBedSceneHold();

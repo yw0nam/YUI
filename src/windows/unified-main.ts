@@ -1,3 +1,8 @@
+import {
+  createThemeSettings,
+  localStorageThemeStorage,
+} from "../settings/appearance/theme-settings";
+import { applyTheme } from "../ui/theme/apply-theme";
 /**
  * Unified chat window — unified.html entry point.
  *
@@ -28,6 +33,9 @@ async function bootstrap(): Promise<void> {
   if (!app) throw new Error("#app mount point not found");
 
   const disposers = createDisposers();
+  const themeSettings = createThemeSettings({ storage: localStorageThemeStorage() });
+  disposers.register(() => themeSettings.dispose());
+  disposers.register(applyTheme({ store: themeSettings, root: document.documentElement }));
   const settingsBridge = createSettingsBridge(undefined, { windowKind: "unified" });
   const registry = createPresetRegistry();
 
@@ -44,10 +52,12 @@ async function bootstrap(): Promise<void> {
 
   // A photo picked in another window reaches the registry through storage, so it reloads first.
   const refresh = (): void => {
+    themeSettings.reloadFromStorage();
     registry.reloadFromStorage();
     view.refresh();
   };
   const onSettingsChanged = (): void => {
+    themeSettings.reloadFromStorage();
     reloadLocale();
     refresh();
   };

@@ -21,6 +21,7 @@ import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import { createVoiceInputStatus } from "../../ui/chips/voice-input-status";
 import { subscribe as subscribeLocale, t } from "../../ui/i18n";
 import { createQuickControls } from "../../ui/quick-controls/quick-controls";
+import { applyTheme } from "../../ui/theme/apply-theme";
 import { wireCardIo } from "../card-io/wire-card-io";
 import { wireSettingsWindowSync } from "../cross-window/wire-cross-window";
 import type { Disposers } from "../disposers";
@@ -51,6 +52,7 @@ export async function wireSettingsWindow(deps: {
     register,
     { presetRegistry: deps.presetRegistry },
   );
+  register(applyTheme({ store: settingsStores.themeSettings, root: document.documentElement }));
   const {
     screenshotSettings,
     idleThrottleSettings,
