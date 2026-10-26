@@ -14,6 +14,7 @@ import { createSettingsSecretProvider } from "../../io/chat/secret-provider";
 import { selectFetch } from "../../io/chat/stream/chat-client";
 import { wireVoiceListAutoRefresh } from "../../io/voice/voices/voice-list-refresh";
 import { resolveScreenSourceProvider } from "../../io/window/capture/tauri-screen";
+import { createDevtoolsWindowOpener } from "../../io/window/openers/devtools-window";
 import { closeSettingsWindow, titleSettingsWindow } from "../../io/window/openers/settings-window";
 import { createLogger } from "../../logger";
 import type { QuickControlsTab } from "../../settings/panels/settings-pages";
@@ -236,6 +237,8 @@ export async function wireSettingsWindow(deps: {
       editTargetUrl(location.href, id, boundId ?? presetRegistry.get().active, page),
     );
 
+  const openDevtools = createDevtoolsWindowOpener();
+
   const buildQuickControls = (): ReturnType<typeof createQuickControls> => {
     titleSettingsWindow(t("settings.title"));
     return createQuickControls({
@@ -322,6 +325,7 @@ export async function wireSettingsWindow(deps: {
       boundId,
       onEditTarget: (id) => reloadOnCharacter(id),
       showVoiceInput: boundId === null,
+      onOpenDevtools: openDevtools,
     });
   };
 

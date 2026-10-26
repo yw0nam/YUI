@@ -84,6 +84,7 @@ import { bindSettingsSearch } from "./search/settings-search";
 import { createAgentSection } from "./sections/agent/agent-section";
 import { createBrowserSection } from "./sections/browser/browser-section";
 import { createCardSection } from "./sections/card/card-section";
+import { bindDevtoolsRow } from "./sections/devtools/devtools-row";
 import { createFillerSection } from "./sections/filler/filler-section";
 import { bindHelpSection } from "./sections/help/help-section";
 import { createKeyRow } from "./sections/key-row/key-row";
@@ -452,7 +453,7 @@ export function createQuickControls({
     showPresence: !!presenceSettings,
     showPacerGap: !!pacerGapSettings,
     showRateLimits: !!rateLimitSettings,
-    showDevtools: !isWindow && !!onOpenDevtools,
+    showDevtools: !!onOpenDevtools,
     showHelp: !!onGuide,
     showMessage: !!onMessage,
     showHistory: !!transcript,
@@ -789,10 +790,10 @@ export function createQuickControls({
     close: popover.close,
     onPopOut,
     onMessage,
-    onOpenDevtools,
   });
   // The popover closes first, as for the message button, so the reply is what the user sees next.
   // The separate settings window stays open.
+  const unbindDevtools = onOpenDevtools ? bindDevtoolsRow(el, onOpenDevtools) : undefined;
   const unbindHelp = onGuide
     ? bindHelpSection(el, (guide, text) => {
         if (!isWindow) popover.close();
@@ -833,6 +834,7 @@ export function createQuickControls({
     workflows,
     { dispose: cueLists.destroy },
     headerButtons,
+    unbindDevtools && { dispose: unbindDevtools },
     { dispose: unbindHelp },
     { dispose: unbindTransportLinks },
     { dispose: unbindSearch },

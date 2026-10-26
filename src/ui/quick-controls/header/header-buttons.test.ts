@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * header-buttons.test.ts — the popover header's pop-out, message, devtools and close buttons on the
+ * header-buttons.test.ts — the popover header's pop-out, message and close buttons on the
  * panel's real markup: each click's callback, the message button's close-first order, and teardown.
  */
 
@@ -27,7 +27,7 @@ function build() {
     showPresence: false,
     showPacerGap: false,
     showRateLimits: false,
-    showDevtools: true,
+    showDevtools: false,
     showHelp: false,
     showMessage: true,
     showHistory: false,
@@ -39,7 +39,6 @@ function build() {
     close: () => calls.push("close"),
     onPopOut: () => calls.push("popOut"),
     onMessage: () => calls.push("message"),
-    onOpenDevtools: () => calls.push("devtools"),
   });
   const click = (selector: string): void =>
     root.querySelector<HTMLButtonElement>(selector)!.click();
@@ -57,24 +56,22 @@ describe("createHeaderButtons", () => {
     const { calls, click } = build();
 
     click(".yui-iconbtn--popout");
-    click(".yui-devtools-open");
     click(".yui-iconbtn--close");
-    expect(calls).toEqual(["popOut", "devtools", "close"]);
+    expect(calls).toEqual(["popOut", "close"]);
 
     calls.length = 0;
     click(".yui-iconbtn--message");
     expect(calls).toEqual(["close", "message"]);
   });
 
-  it("after dispose() the pop-out, message and close clicks do nothing and devtools still opens", () => {
+  it("after dispose() the pop-out, message and close clicks do nothing", () => {
     const { calls, buttons, click } = build();
 
     buttons.dispose();
     click(".yui-iconbtn--popout");
     click(".yui-iconbtn--message");
     click(".yui-iconbtn--close");
-    click(".yui-devtools-open");
 
-    expect(calls).toEqual(["devtools"]);
+    expect(calls).toEqual([]);
   });
 });
