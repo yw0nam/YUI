@@ -97,7 +97,7 @@ YUI/
         wire-bound-window.ts         # A bound pet window's live key, its companions closed first, and its store teardown and close when its preset leaves the list
         close-if-orphan.ts           # Closes a bound window whose preset is no longer in the registry
       message/                       # The message window's wiring
-        wire-message-surface-ops.ts  # Draws each surface op from the pet window onto the surfaces and the plate
+        wire-message-surface-ops.ts  # Draws each surface op from the pet window onto the surfaces, which the plate follows
         wire-message-tauri-window.ts # Window focus, the OS drag, the content-height resize, and the moved-position record
       unified/                       # The unified chat window's wiring
         wire-unified-window.ts       # Opens the window while its switch is on and two or more presets are open, and closes it otherwise
@@ -499,7 +499,7 @@ YUI/
       i18n.ts                        # Locale type, persisted locale, lookup, and subscriber notification
       tokens.css                     # Design tokens: colour, radius, shadow, duration
       surfaces/                      # Speech-bubble and text-input host surface
-        surfaces.ts                  # Mounts the speech bubble and text input as one system, forwarding tool status
+        surfaces.ts                  # Mounts the speech bubble and text input as one system, with the name plate and backlog when asked, forwarding tool status
         surfaces-router.ts           # One Surfaces handle over the pet window and the message window
         wire.ts                      # Local surfaces plus the message-window bridge, routed by the stored window mode and scoped to the window's preset
         summon-key.ts                # Binds the focused window's "/" key to open the text input
@@ -513,15 +513,18 @@ YUI/
         action-button.ts             # The composer's stop and send button
         image-resize.ts              # Downscales and re-encodes user-attached images
         format-accel.ts              # Renders an accelerator string for display
-      message/                       # Message-window plate, bubble, and cue-list rendering
+      message/                       # The bubble, the name plate riding its box in both modes, and cue-list rendering
         speech-bubble.ts             # Speech bubble: dwell, scroll, markdown, and aria for streamed speech
+        typewriter.ts                # Pure reveal cursor: types a line at 40 ms per character or paced by each sentence's audio
+        backlog.ts                   # The current session's earlier lines, opened above the box by a toggle on its bottom edge
         user-quote.ts                # The user's message quoted on the bubble's first line
         signal-source-lines.ts       # A signal turn's source lines in the bubble's quote slot
         reasoning-disclosure.ts      # Backend reasoning folded under the quoted line at the top of the bubble in the message window
-        message-plate.ts             # Message-window name plate and OS drag handle
+        message-plate.ts             # Name plate on the box's top-left edge in both modes: face, name, state; the message window's OS drag handle
+        plate-state.ts               # The plate's turn state in both modes: responding from a line's begin to its end or hide, thinking while busy
         markdown.ts                  # Speech markdown rendering through marked and DOMPurify
         cue-list.ts                  # Reusable cue-list section for schedule and proactive cues
-        message-plate.css            # Name-plate chip styles: state dot, name, state label, and dock button
+        message-plate.css            # Name-plate chip styles: face, name, state dot, state label, and dock button
         message-window.css           # Message-window layout and name-plate styles
         cue-list.css                 # Cue-list section styles
       unified/                       # The unified chat window
@@ -533,7 +536,7 @@ YUI/
         composer.ts                  # The message window's field under the text input, with the mention pill, target chip and hint
         mention-picker.ts            # The @ list over the field: a combobox of the open presets and @everyone
         avatar.ts                    # A preset's photo, else a dot in a hue taken from its id
-        avatar.css                   # The face's size and shape
+        avatar.css                   # The face's size and shape, for every window that draws one
         unified-window.css           # The window's layout, log rows, pill, target chip and list
       signals/                       # The source line of a signal group, shared by the bubble and History
         source-line.ts               # Renders one source line: delivery-class dot, source, label
