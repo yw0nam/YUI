@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { Row } from "./merge";
-import { buildSend, fallbackTarget, lastSpeakerOf, targetsFor } from "./targets";
+import {
+  buildSend,
+  EVERYONE,
+  fallbackTarget,
+  lastSpeakerOf,
+  targetsFor,
+  typedMention,
+} from "./targets";
 
 const reverse = (ids: string[]) => [...ids].reverse();
 
@@ -86,5 +93,77 @@ describe("buildSend", () => {
 
   it("is null while no preset is open", () => {
     expect(buildSend({ ...base, cast: [], mention: null })).toBeNull();
+  });
+});
+
+describe("buildSend with a typed @name", () => {
+  const cast = [
+    { id: "perlica", name: "Perlica" },
+    { id: "natsume", name: "Natsume" },
+  ];
+  const base = {
+    text: "hi",
+    cast,
+    lastSpeaker: "natsume",
+    mainId: "perlica",
+    shuffle: reverse,
+    sendId: "s1",
+  };
+
+  it.each([
+    [
+      "a typed leading name routes like a pick and the text stays as typed",
+      null,
+      "@Perlica hello",
+      { sendId: "s1", targets: ["perlica"], text: "@Perlica hello", mention: "character" },
+    ],
+    [
+      "a typed everyone sends to all",
+      null,
+      "@everyone hi",
+      { sendId: "s1", targets: ["natsume", "perlica"], text: "@everyone hi", mention: "everyone" },
+    ],
+    [
+      "a typed name that matches nothing falls back with no mention",
+      null,
+      "@nobody hello",
+      { sendId: "s1", targets: ["natsume"], text: "@nobody hello" },
+    ],
+    [
+      "a pick wins over a typed name",
+      "perlica",
+      "@Natsume hi",
+      { sendId: "s1", targets: ["perlica"], text: "@Perlica @Natsume hi", mention: "character" },
+    ],
+  ])("%s", (_name, mention, text, expected) => {
+    expect(buildSend({ ...base, mention, text })).toEqual(expected);
+  });
+});
+
+describe("typedMention", () => {
+  const cast = [
+    { id: "perlica", name: "Perlica" },
+    { id: "natsume", name: "Natsume" },
+  ];
+  const nested = [
+    { id: "natsume", name: "Natsume" },
+    { id: "shiki", name: "Natsume Shiki" },
+  ];
+
+  it.each([
+    ["a full name before a space", "@Perlica hello", cast, "perlica"],
+    ["a name alone at the end", "@perlica", cast, "perlica"],
+    ["a name in any case", "@PERLICA hi", cast, "perlica"],
+    ["everyone", "@everyone hi", cast, EVERYONE],
+    ["here", "@here hi", cast, EVERYONE],
+    ["all in any case", "@ALL hi", cast, EVERYONE],
+    ["the longest of two open names", "@Natsume Shiki hi", nested, "shiki"],
+    ["a name before an ideographic space", "@Perlica\u3000hi", cast, "perlica"],
+    ["an @ inside the text", "hello @perlica", cast, null],
+    ["an @ in an address", "mail me at a@b.c", cast, null],
+    ["a name no preset carries", "@nobody hello", cast, null],
+    ["a name that runs into more letters", "@PerlicaX", cast, null],
+  ])("%s", (_name, text, use, expected) => {
+    expect(typedMention(text, use)).toBe(expected);
   });
 });
