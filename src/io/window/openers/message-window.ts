@@ -75,6 +75,7 @@ async function createTauriMessageWindow(
       alwaysOnTop: true,
       skipTaskbar: true,
       focus: false,
+      acceptFirstMouse: true,
       ...(position ? { x: position.x, y: position.y } : {}),
     },
   );

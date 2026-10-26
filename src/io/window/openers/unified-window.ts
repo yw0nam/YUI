@@ -65,6 +65,7 @@ async function createTauriUnifiedWindow(stored: UnifiedWindowSettings): Promise<
     alwaysOnTop: true,
     skipTaskbar: true,
     focus: false,
+    acceptFirstMouse: true,
     x,
     y,
   });

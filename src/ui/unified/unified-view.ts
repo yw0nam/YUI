@@ -12,6 +12,7 @@ import { createSurfaces } from "../surfaces/surfaces";
 import { backlogLines, youTo } from "./backlog-lines";
 import { createCastChips } from "./cast-chips";
 import { createCastState } from "./cast-state";
+import { installCloseShortcut } from "./close-shortcut";
 import { createComposer } from "./composer";
 import { createLaneQueue } from "./lane-queue";
 import { mergeTranscripts, type PendingSend, type Transcript } from "./merge";
@@ -77,6 +78,7 @@ export function createUnifiedView(deps: {
     onClose: deps.closeWindow,
     startDragging: deps.startDragging,
   });
+  const removeCloseShortcut = installCloseShortcut(deps.closeWindow);
   const boxMount = document.createElement("div");
   boxMount.className = "yui-uc__box";
   const dock = document.createElement("div");
@@ -215,6 +217,7 @@ export function createUnifiedView(deps: {
     onStop: (cb) => void stopCbs.push(cb),
     onInputErrorAction: (cb) => void errorActionCbs.push(cb),
     dispose() {
+      removeCloseShortcut();
       unsubscribeLocale();
       sequence.dispose();
       composer.dispose();
