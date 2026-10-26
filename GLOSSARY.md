@@ -115,6 +115,10 @@ _Avoid_: recipient badge, target chip
 The unified chat window's chip for one open preset in its head row: the preset's face, its name and a dot for its line — talk while its line holds the box, think while its turn runs or its line waits for the box, else idle.
 _Avoid_: avatar pill, presence badge
 
+**Quick card**:
+The card a right-click on the character opens beside her in the pet window: her face, name and transport line, four tiles (Voice, Listen, Keep bubble, Unified chat) that write the same stores as their settings rows, the Body and Reference voice selects, a conversation reset that asks first, Turn off for a bound pet window, and All settings…, which opens the settings window on her. Listen works in the main window only. Escape, a click outside it and the window's blur close it; while it is open she starts no stroll or climb.
+_Avoid_: quick panel, popover
+
 **Aside**:
 A line the client speaks in the character's voice outside a turn's utterance: filler, a failure apology, the card's greeting. While the unified chat window shows, an aside goes there with the character's lines; an app notice (the first-run hint, a hotkey failure) stays on the character's own bubble.
 _Avoid_: client line, system line

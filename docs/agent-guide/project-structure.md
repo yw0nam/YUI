@@ -76,10 +76,11 @@ YUI/
       cross-window/                  # State the windows share
         wire-cross-window.ts         # Per-window sync for the pet, settings, and devtools windows
         wire-window-sync.ts          # Settings broadcast, guardrail overrides, and the shared cross-window sync core
-      controls/                      # The pet window's summonable control surfaces
-        wire-pet-controls.ts         # Quick-controls panel, remounted on locale change, and the stage context menu
+      controls/                      # The pet window's summonable control surface
+        wire-pet-controls.ts         # The quick card, remounted on locale change, and the stage context menu that opens it
+        quick-card-ports.ts          # The quick card's ports over the window's stores: tiles, selects, transport line, reset, Turn off, All settings…
         wire-devtools-request.ts     # Main's pet window opens Developer Tools when the settings window asks
-        wire-help-guide.ts           # Guide requests submitted as user turns, from the panel's Ask buttons or the settings bridge
+        wire-help-guide.ts           # Guide requests the settings window sends over the bridge, submitted as user turns
       settings/                      # Selections and conversation state applied to the running app
         config-defaults.ts           # The quick-controls getters over the bundled config, shared by the pet and settings windows
         conversation-stores.ts       # Constructs the shared io/chat conversation stores each window owns and disposes
@@ -105,7 +106,7 @@ YUI/
         wire-unified-window.ts       # Main opens the window while it shows and destroys it otherwise
         wire-unified-close.ts        # The window closing itself turns the Unified chat switch off
       settings-window/               # The settings window's wiring
-        wire-settings-window.ts      # Stores, config, cross-window sync, and the quick controls remounted on locale change, bound to the query's preset when it names one, and editing the preset `?edit=` names
+        wire-settings-window.ts      # Stores, config, cross-window sync, and the settings panel remounted on locale change, bound to the query's preset when it names one, and editing the preset `?edit=` names
         edit-target-url.ts           # The settings URL with its `edit` param set to the picked preset, or dropped for the window's own, and its `page` param set to the requested page
         wire-settings-page.ts        # Takes the URL's page, and answers an opener's page request: switches to the opener's character, then selects the page
         wire-voice-mirror.ts         # Mirrors the voice toggle to the pet window and the pet window's voice state back; main only
@@ -577,13 +578,19 @@ YUI/
         ingress-dead-notice.ts       # One-off notice when the Rust agent ingress listener dies
         first-run-hint.ts            # First-run controls hint through the speech bubble
         boot-error.css               # Boot-failure notice styles
-      quick-controls/                # Quick-controls shell parts and sections
-        quick-controls.ts            # Quick-controls panel: header, the rail of the character's pages then every character's pages, and the page body
-        quick-controls.css           # Quick-controls shell, tab rail, sections, groups, and rows
+      quick-card/                    # The pet window's right-click card beside the character
+        quick-card.ts                # The card: head, tiles, Body and Reference voice selects, the reset that asks first, Turn off, All settings…, and how it opens and closes
+        tiles.ts                     # The toggle tiles: each writes its store and follows it
+        transport-line.ts            # The head line: the transport's name, and on push the socket's state
+        place.ts                     # Where the card goes: at the click point, flipped and kept 12px inside the visible window
+        quick-card.css               # Card, tile, row, and confirm styles
+      quick-controls/                # Settings panel shell parts and sections
+        quick-controls.ts            # Settings panel: the rail of the character's pages then every character's pages, and the page body
+        quick-controls.css           # Settings panel shell, tab rail, sections, groups, and rows
         controls.css                 # Switch, segment, field, text-button, disclosure, slider, and confirm styles
         template.ts                  # Panel markup as pure string construction
         markup.ts                    # Panel markup primitives the template and the tab modules share
-        popover.ts                   # Popover shell: positioning, dragging, open and close lifecycle
+        popover.ts                   # Panel shell: the open and close lifecycle, and Escape closing the settings window
         constants.ts                 # Display constants shared by the panel, its sections, and the chips that reuse its glyphs
         switch-row.ts                # Switch-row element contract, the row table filling it, and each row's store follower
         seg-keyboard.ts              # Arrow, Home, End and commit keyboard handling shared by the segmented controls
@@ -620,12 +627,10 @@ YUI/
           cue-lists.ts               # Mounts and tears down the two cue lists
         delegations/                 # Delegated-work refresh for the session section
           delegation-sync.ts         # Minute refresh timer that follows the running delegated items
-        header/                      # Popover header bar buttons
-          header-buttons.ts          # Pop-out, message and close buttons with their listeners
         preset/                      # Preset strip above the rail
-          preset-strip.ts            # Active-preset picker, the switching state, the page scope lines and the rail's character heading it fills; in the settings window the character header picks the preset to edit (`?edit=`)
+          preset-strip.ts            # The character header that picks the preset to edit (`?edit=`), the edited preset's note, the page scope lines and the rail's character heading it fills
           character-header.ts        # The settings window's header: every preset with its face, transport and window state; a click edits it
-          preset-manage.ts           # Manage popover: rows with inline rename, delete confirm, "Use in main" in the settings window (it switches main's preset), and the new-preset field
+          preset-manage.ts           # Manage popover: rows with inline rename, delete confirm, "Use in main" (it switches main's preset), and the new-preset field
           preset-scope.ts            # Scope line text: only the edited character, or every character
           preset.css                 # Strip, manage popover, scope line, relation line, and reasons card styles
           photo-dialog/              # The photo dialog
@@ -640,6 +645,7 @@ YUI/
             view.ts                  # What the two read: this preset's relations as stored now, a target's name, and the rated targets' order
         history/                     # History page and its session accordion section
           history-tab.ts             # The History page's session list, with its start-fresh row
+          reset-conversation.ts      # Start fresh: the one conversation reset the History page and the quick card call
           history-section.ts         # History page session accordion over the persisted transcript and the signal records
           history-rows.ts            # Merges a session's chat entries with the signal records of the turns that ran in it
           history-section.css        # Session history accordion styles

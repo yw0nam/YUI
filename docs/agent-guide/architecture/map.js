@@ -1163,9 +1163,18 @@ globalThis.YUI_MAP =
       "id": "ui/quick-controls",
       "module": "settings",
       "label": "quick controls",
-      "role": "The settings panel, shown as a popover in the pet window and as the whole settings window: a search field over a rail of the edited character's pages (Connection, Voice, Persona, Body, History) then every character's pages (Together, Listening and bubble, Permissions, Proactive, Motion and desktop, General), each page's scope line naming which; the settings window heads with every character and its transport and window state, and a click edits it; a control the push transport cannot use stays, disabled, with its reason and a link to the chat protocol select; the Together page's Characters list turns each character on or off the desktop; the preset manage row's copy button copies a character's ingress URL and the Proactive URL line shows this window's; the preset strip shows this preset's relation line and the reasons card; the Persona page's Card section edits the preset's card, its send switch and the preset's name; the General page holds the device-wide user name and the Appearance row that picks the theme.",
+      "role": "The settings panel that fills the settings window: a search field over a rail of the edited character's pages (Connection, Voice, Persona, Body, History) then every character's pages (Together, Listening and bubble, Permissions, Proactive, Motion and desktop, General), each page's scope line naming which; it heads with every character and its transport and window state, and a click edits it; a control the push transport cannot use stays, disabled, with its reason and a link to the chat protocol select; the Together page's Characters list turns each character on or off the desktop; the preset manage row's copy button copies a character's ingress URL and the Proactive URL line shows this window's; the preset strip shows this preset's relation line and the reasons card; the Persona page's Card section edits the preset's card, its send switch and the preset's name; the General page holds the device-wide user name and the Appearance row that picks the theme.",
       "paths": [
         "src/ui/quick-controls"
+      ]
+    },
+    {
+      "id": "ui/quick-card",
+      "module": "settings",
+      "label": "quick card",
+      "role": "The pet window's right-click card beside the character: the face, name and transport line (on push, the socket's state), the Voice, Listen (main only), Keep bubble and Unified chat tiles over the same stores as their settings rows, the Body and Reference voice selects, a conversation reset that asks first, Turn off for a bound character, and All settings…; Escape, a click outside and the window's blur close it, and it stays inside the window's visible area.",
+      "paths": [
+        "src/ui/quick-card"
       ]
     },
     {
@@ -1291,7 +1300,7 @@ globalThis.YUI_MAP =
       "id": "app/controls",
       "module": "wiring",
       "label": "controls wiring",
-      "role": "The pet window's quick-controls panel, context menu, and guide requests.",
+      "role": "The pet window's quick card, its ports over the window's stores, the context menu that opens it, and the settings window's guide and Developer Tools requests.",
       "paths": [
         "src/app/controls"
       ]
@@ -2162,7 +2171,7 @@ globalThis.YUI_MAP =
       "carries": "this preset's store.all() and subscribe, re-rendered with motion on a write, and again on a cross-window reload of the store",
       "kind": "callback",
       "transport": "shared",
-      "wiring": "src/app/controls/wire-pet-controls.ts"
+      "wiring": "src/app/settings-window/wire-settings-window.ts"
     },
     {
       "id": "relations-set",
@@ -2683,10 +2692,99 @@ globalThis.YUI_MAP =
       "wiring": "src/app/bootstrap-configured.ts"
     },
     {
+      "id": "user-quick-card",
+      "from": "user",
+      "to": "ui/quick-card",
+      "carries": "a right-click on the stage opens the card at the pointer; a tile, a select, Reset, Turn off or All settings… press; Escape, a click outside or the window's blur closes it",
+      "kind": "user",
+      "transport": "shared"
+    },
+    {
+      "id": "quick-card-stores",
+      "from": "ui/quick-card",
+      "to": "settings",
+      "carries": "a tile flips the store of its settings row (TTS on, keep bubble, the Unified chat switch) and repaints on its change; Turn off → petWindows.close(id)",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/controls/quick-card-ports.ts"
+    },
+    {
+      "id": "quick-card-registry",
+      "from": "settings",
+      "to": "ui/quick-card",
+      "carries": "the window's preset entry (name, face) and the chat transport in effect, repainted on a registry or endpoints change",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/controls/quick-card-ports.ts"
+    },
+    {
+      "id": "quick-card-push",
+      "from": "io/chat/push",
+      "to": "ui/quick-card",
+      "carries": "on push, getState() and onState → the head's connected, connecting, reconnecting, refused or offline line",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/controls/quick-card-ports.ts"
+    },
+    {
+      "id": "quick-card-vrm",
+      "from": "io/assets",
+      "to": "ui/quick-card",
+      "carries": "vrmSelection list, active id and subscribe → the Body select; a pick → swapVrm(option)",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/controls/quick-card-ports.ts"
+    },
+    {
+      "id": "quick-card-voice",
+      "from": "io/voice/voices",
+      "to": "ui/quick-card",
+      "carries": "speakerSelection list, active id and subscribe → the Reference voice select; a pick → swapSpeaker(option)",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/controls/quick-card-ports.ts"
+    },
+    {
+      "id": "quick-card-listen",
+      "from": "ui/chips",
+      "to": "ui/quick-card",
+      "carries": "main only: voiceInputStatus get, set(listening or idle) and subscribe → the Listen tile",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/controls/quick-card-ports.ts"
+    },
+    {
+      "id": "quick-card-reset",
+      "from": "ui/quick-card",
+      "to": "io/chat/conversation",
+      "carries": "Reset, once confirmed → resetConversation, the History page's start fresh: stopTurn, the session id and diagnostics cleared, transcript.startNewSession, announceSessionReset, and on push sendReset",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/controls/quick-card-ports.ts"
+    },
+    {
+      "id": "quick-card-locomotion",
+      "from": "ui/quick-card",
+      "to": "ambient/locomotion",
+      "carries": "isOpen() gates a new stroll or climb; opening ends an ambient stroll, and a climb under way runs to its end",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/stage/wire-locomotion.ts"
+    },
+    {
+      "id": "quick-card-hit-test",
+      "from": "ui/quick-card",
+      "to": "io/window/pet",
+      "carries": "while the card is open every point of the window counts as interactive, so a click outside it reaches the page and closes it",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/stage/wire-stage.ts"
+    },
+    {
       "id": "settings-open-controls",
       "from": "app/controls",
       "to": "io/window/openers",
-      "carries": "openSettings(\"conn\"): the message window's settings button",
+      "carries": "openSettings(\"conn\"): the message window's settings button; openSettings(): the quick card's All settings…, which lands the settings window on this character",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/controls/wire-pet-controls.ts"
@@ -3098,8 +3196,8 @@ globalThis.YUI_MAP =
       "id": "controls-guide",
       "from": "ui/quick-controls",
       "to": "dispatcher/sources/user-input",
-      "carries": "Ask press → submitGuide(guide, text)",
-      "kind": "callback",
+      "carries": "the settings window's Ask press → yui://help-guide {guide, text} → the pet window's submitGuide(guide, text)",
+      "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/controls/wire-help-guide.ts"
     },
@@ -3455,15 +3553,6 @@ globalThis.YUI_MAP =
       "kind": "call",
       "transport": "shared",
       "wiring": "src/windows/main.ts"
-    },
-    {
-      "id": "unified-shown-controls",
-      "from": "settings",
-      "to": "ui/quick-controls",
-      "carries": "the pet window's shown predicate, built in main.ts: the Separate message window row disabled with its reason while it shows",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/controls/wire-pet-controls.ts"
     },
     {
       "id": "unified-shown-settings-controls",
@@ -4477,7 +4566,7 @@ globalThis.YUI_MAP =
       {
         "id": "settings",
         "label": "settings",
-        "role": "The quick-controls panel as a window, over its own store instances and mirrors of the pet window's push state and delegations."
+        "role": "The settings panel as a window, over its own store instances and mirrors of the pet window's push state and delegations."
       },
       {
         "id": "settings-<id>",

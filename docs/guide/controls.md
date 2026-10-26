@@ -10,7 +10,7 @@ How to move around YUI with the keyboard and the mouse.
 | `/` | Opens the text input while the YUI window has focus |
 | `Enter` | Sends the message |
 | `Shift+Enter` | Starts a new line |
-| `Esc` | Closes the text input, or the settings panel when that is open |
+| `Esc` | Closes the text input, or the quick card when that is open |
 
 ## Mouse on the character
 
@@ -24,7 +24,7 @@ How to move around YUI with the keyboard and the mouse.
 | Wheel | Zooms in and out |
 | `Ctrl` + wheel | Resizes her while her feet stay in place |
 | `Shift` + drag | Orbits the camera around her |
-| Right-click | Opens the settings panel |
+| Right-click | Opens the quick card beside her: Voice, Listen, Keep bubble and Unified chat toggles, her body and reference voice, a conversation reset, Turn off for a character other than the main one, and All settings… for the settings window |
 
 ## Speech bubble and text input
 
@@ -37,7 +37,7 @@ How to move around YUI with the keyboard and the mouse.
 
 ## Voice
 
-Turn on the voice input switch in the settings panel to talk to her. With barge-in on, speaking while she talks cuts her off.
+Turn on Listen in the main character's quick card, or the voice input switch on the settings window's Listening page, to talk to her. With barge-in on, speaking while she talks cuts her off.
 
 ## Tray menu and status chips
 

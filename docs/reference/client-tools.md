@@ -128,7 +128,7 @@ Tool traffic lives in the in-flight request. The next Chat Completions turn is r
 
 The `browser` tool runs JavaScript that the backend writes against the ego lite browser on the user's computer, in this character's own task space of it. ego lite (`ego-browser`) runs a local browser that holds the user's sign-ins; the script reaches and acts on pages through ego lite's browser SDK, and `guide: true` returns the installed version's own guide to that SDK.
 
-The switch `yui.browser` (`{enabled: boolean}`, default off) gates execution and is read when a call runs; a call while off answers `error: browser is off`. The switch is device-wide and is toggled in `main`'s settings window and quick controls; a bound pet window reads the same value. The tool is declared in every switch state and in every pet window under Tauri, `main` and bound windows alike.
+The switch `yui.browser` (`{enabled: boolean}`, default off) gates execution and is read when a call runs; a call while off answers `error: browser is off`. The switch is device-wide and is toggled in `main`'s settings window; a bound pet window reads the same value. The tool is declared in every switch state and in every pet window under Tauri, `main` and bound windows alike.
 
 ### Arguments
 
@@ -236,7 +236,7 @@ neutral, warm ≥ 4, close ≥ 12. The store is `yui.<id>.relations` (shape in
 [signals-ingress.md](signals-ingress.md#relations)). The backend moves the value; the client
 holds it, caps it, renders it as the `relation:` line of every turn
 ([client-context.md](client-context.md#relation)) and shows the band in the preset row of the
-quick controls. The client never changes the value on its own: no decay, no rule of its own.
+settings window. The client never changes the value on its own: no decay, no rule of its own.
 
 `toward` lists `user` and the names of the other presets open at that moment (main's active
 preset and the open pet windows), read when the schema is built, like the expression
