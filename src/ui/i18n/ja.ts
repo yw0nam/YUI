@@ -187,7 +187,7 @@ const ja: Record<string, string> = {
   "preset.use_in_main": "mainに表示",
   "preset.window_open": "ウィンドウあり",
   "preset.rename": "{name}の名前を変更",
-  "preset.photo": "{name}のプロフィール写真",
+  "preset.photo": "{name}の写真",
   "preset.photo_failed": "この写真は使えません。PNGかJPEGを選んでください。",
   "photo.hint": "ドラッグで動かし、ズームで顔に合わせます。",
   "photo.zoom": "ズーム",

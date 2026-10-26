@@ -186,7 +186,7 @@ const ko: Record<string, string> = {
   "preset.use_in_main": "main에 띄우기",
   "preset.window_open": "창 열림",
   "preset.rename": "{name} 이름 바꾸기",
-  "preset.photo": "{name}의 프로필 사진",
+  "preset.photo": "{name}의 사진",
   "preset.photo_failed": "이 사진을 쓸 수 없어요. PNG 또는 JPEG를 골라 주세요.",
   "photo.hint": "끌어서 옮기고, 확대해 얼굴을 맞추세요.",
   "photo.zoom": "확대",

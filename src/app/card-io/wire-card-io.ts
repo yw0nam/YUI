@@ -9,31 +9,12 @@ import { type ImportedCard, importCardFromFile } from "../../io/assets/card/card
 import {
   pickPresetPhoto,
   removeCardThumbnail,
-  retainCardThumbnail,
+  retainFramedThumbnail,
 } from "../../io/assets/card/card-thumbnail";
-import { loadPhotoSize } from "../../io/assets/card/photo-size";
-import { createLogger } from "../../logger";
 import { createPresetFromCard } from "../../settings/preset/import-card-preset";
-import { defaultCrop, type PhotoCrop } from "../../settings/preset/photo-crop";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import { isTauri } from "../../tauri-env";
 import { getLocale } from "../../ui/i18n";
-
-const log = createLogger("card-io");
-
-/** Retains the thumbnail and frames it by default; the photo shows centred when its size cannot be read. */
-async function retainFramed(
-  tempId: string,
-  presetId: string,
-): Promise<{ url: string; crop?: PhotoCrop }> {
-  const url = await retainCardThumbnail(tempId, presetId);
-  try {
-    return { url, crop: defaultCrop(await loadPhotoSize(url)) };
-  } catch (error) {
-    log.warn("photo_size_failed", { preset: presetId, error: String(error) });
-    return { url };
-  }
-}
 
 export interface CardIoPorts {
   importCard: () => Promise<ImportedCard | null>;
@@ -55,7 +36,8 @@ export function wireCardIo(registry: PresetRegistry): CardIoPorts {
         fillerLocale: getLocale(),
         ...(thumbnailTempId
           ? {
-              retainThumbnail: (presetId: string) => retainFramed(thumbnailTempId, presetId),
+              retainThumbnail: (presetId: string) =>
+                retainFramedThumbnail(thumbnailTempId, presetId),
               discardThumbnail: async (presetId: string) => {
                 // One failed removal must not skip the other.
                 await Promise.allSettled([

@@ -185,7 +185,7 @@ const en: Record<string, string> = {
   "preset.use_in_main": "Use in main",
   "preset.window_open": "Window open",
   "preset.rename": "Rename {name}",
-  "preset.photo": "Profile photo for {name}",
+  "preset.photo": "Photo for {name}",
   "preset.photo_failed": "Could not use that photo. Choose a PNG or JPEG.",
   "photo.hint": "Drag to move. Zoom to frame the face.",
   "photo.zoom": "Zoom",

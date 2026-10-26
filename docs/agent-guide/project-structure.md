@@ -490,7 +490,7 @@ YUI/
         vrm-import.ts                  # VRM import: OS picker, native copy, avatar-option registration
         card/                          # The card's file steps: import, export, and the thumbnail URL
           card-import.ts               # Card import: OS picker, native read/parse, rollback of the temp thumbnail
-          card-thumbnail.ts            # Thumbnail retain (temp id → preset id), remove, and the photo pick that stores a preset's thumbnail, through the shell
+          card-thumbnail.ts            # Thumbnail retain (temp id → preset id, framed by its default crop), remove, and the photo pick that stores a preset's thumbnail, through the shell
           photo-size.ts                # The natural size of a photo, read by decoding it
           card-export.ts               # Card export: OS save dialog, native write, and the export file-name sanitizer
         user-asset-import.ts           # Lazy invoke loader and orphan cleanup shared by the voice and VRM imports
@@ -625,7 +625,7 @@ YUI/
           preset-manage.ts           # Manage popover: rows with inline rename, delete confirm, "Use in main" in the settings window (it switches main's preset), and the new-preset field
           preset-scope.ts            # Scope line text: only the edited character, or every character
           preset.css                 # Strip, manage popover, scope line, relation line, and reasons card styles
-          photo-dialog/              # The profile-photo dialog
+          photo-dialog/              # The photo dialog
             photo-dialog.ts          # The modal dialog: the photo under a circular mask, zoom, the fixed framings, Choose another, and the previews at the sizes a face is drawn
             crop-stage.ts            # The stage geometry: a photo's position and zoom under the mask, and its conversion to and from a crop
             photo-dialog.css         # The dialog's layout

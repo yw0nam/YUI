@@ -2935,7 +2935,7 @@ globalThis.YUI_MAP =
       "id": "card-io-ui",
       "from": "ui/quick-controls",
       "to": "io/assets",
-      "carries": "Import card\u2026 \u2192 importCardFromFile (JSON or PNG in); Export card \u2192 exportCardToFile (V2 JSON out, extensions.yui.filler \u2190 the preset's filler pools, omitted while every pool is empty)",
+      "carries": "Import card\u2026 \u2192 importCardFromFile (JSON or PNG in); Export card \u2192 exportCardToFile (V2 JSON out, extensions.yui.filler \u2190 the preset's filler pools, omitted while every pool is empty); the photo dialog \u2192 loadPhotoSize (a photo's natural size)",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/card-io/wire-card-io.ts"
@@ -2944,7 +2944,7 @@ globalThis.YUI_MAP =
       "id": "card-preset-ui",
       "from": "ui/quick-controls",
       "to": "settings",
-      "carries": "Import card\u2026 \u2192 settings/preset/import-card-preset.ts createPresetFromCard: the preset from the card, the card's extensions.yui.filler \u2192 the new preset's filler value, the thumbnail retained onto the entry, the pending greeting, and activation; a failure removes both",
+      "carries": "Import card\u2026 \u2192 settings/preset/import-card-preset.ts createPresetFromCard: the preset from the card, the card's extensions.yui.filler \u2192 the new preset's filler value, the thumbnail retained and framed by default (retainFramedThumbnail \u2192 loadPhotoSize \u2192 defaultCrop) onto the entry with its crop, the pending greeting, and activation; a failure removes both",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/card-io/wire-card-io.ts"
