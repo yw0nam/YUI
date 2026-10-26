@@ -49,14 +49,15 @@ export const ENDPOINT_FIELDS: readonly EndpointFieldDef[] = ENDPOINT_FIELD_SPECS
 
 // Proactive and Together pages: the editable rolling-window caps (io/guardrails-settings's RateLimitOverrides).
 // Each row renders as a numeric input; an empty field means "no override, use the config default".
-interface RateLimitFieldDef {
+export interface RateLimitFieldDef {
   key: keyof RateLimitOverrides;
   id: string;
   labelKey: string;
   subKey: string;
 }
 
-export const RATE_LIMIT_FIELDS: readonly RateLimitFieldDef[] = [
+/** The caps on the Proactive page. */
+export const PROACTIVE_CAP_FIELDS: readonly RateLimitFieldDef[] = [
   {
     key: "tier2_max",
     id: "yui-rate-tier2",
@@ -75,12 +76,19 @@ export const RATE_LIMIT_FIELDS: readonly RateLimitFieldDef[] = [
     labelKey: "reactions.rate_overall_label",
     subKey: "reactions.rate_overall_sub",
   },
-  {
-    key: "addressed_chain_max",
-    id: "yui-rate-addressed",
-    labelKey: "reactions.rate_addressed_label",
-    subKey: "reactions.rate_addressed_sub",
-  },
+];
+
+/** The chain cap governs characters addressing each other, so it sits on the Together page. */
+export const CHAIN_CAP_FIELD: RateLimitFieldDef = {
+  key: "addressed_chain_max",
+  id: "yui-rate-addressed",
+  labelKey: "reactions.rate_addressed_label",
+  subKey: "reactions.rate_addressed_sub",
+};
+
+export const RATE_LIMIT_FIELDS: readonly RateLimitFieldDef[] = [
+  ...PROACTIVE_CAP_FIELDS,
+  CHAIN_CAP_FIELD,
 ];
 
 // Proactive tab, screen-watch section: the editable configs/screen.json thresholds

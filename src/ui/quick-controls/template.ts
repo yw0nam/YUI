@@ -2,14 +2,13 @@
 
 import { THEMES } from "../../settings/appearance/theme-settings";
 import "./sections/session/session-section.css";
-import { RATE_LIMIT_MAX } from "../../settings/backend/guardrails-settings";
 import { LOCALE_DISPLAY_NAMES, t } from "../i18n";
 import {
   DEFAULT_PAGE,
   LANG_PICKER_ORDER,
   PLUS_SVG,
+  PROACTIVE_CAP_FIELDS,
   type QuickControlsTab,
-  RATE_LIMIT_FIELDS,
   SCREEN_KNOB_FIELDS,
   SCREEN_MIN_GAP_MAX,
   SCREEN_MIN_GAP_MIN,
@@ -25,7 +24,7 @@ import {
   TAB_ICON_TOGETHER,
   TAB_ICON_VOICE,
 } from "./constants";
-import { escapeAttr, keyRowHtml, numRowHtml, secHeadHtml } from "./markup";
+import { capRowHtml, escapeAttr, keyRowHtml, numRowHtml, secHeadHtml } from "./markup";
 import { presetStripHtml } from "./preset/preset-strip";
 import { settingsSearchHtml } from "./search/settings-search";
 import { browserSectionHtml } from "./sections/browser/browser-section";
@@ -38,6 +37,7 @@ import type { SwitchRow } from "./switch-row";
 import { switchButtonHtml, switchRowHtml } from "./switches/switch-rows";
 import { tabButtonHtml, tabPanelOpenHtml } from "./tabs/tab-rail";
 import { charactersSectionHtml } from "./together/characters-section";
+import { togetherRowsHtml } from "./together/together-rows";
 
 /**
  * Small round `?` that follows a section label whose name alone is not self-explanatory.
@@ -180,19 +180,14 @@ ${SCREEN_KNOB_FIELDS.map((f) =>
       </div>`
       : "";
 
-  // Rate-limit section (Proactive page) — the rolling-window caps, one numeric row each. The chain
-  // cap governs characters addressing each other, so it sits on the Together page.
-  const capRowHtml = (f: (typeof RATE_LIMIT_FIELDS)[number]): string =>
-    numRowHtml({ id: f.id, labelKey: f.labelKey, subKey: f.subKey, min: 1, max: RATE_LIMIT_MAX });
-  const proactiveCaps = RATE_LIMIT_FIELDS.filter((f) => f.key !== "addressed_chain_max");
-  const chainCap = RATE_LIMIT_FIELDS.find((f) => f.key === "addressed_chain_max")!;
+  // Rate-limit section (Proactive page) — the rolling-window caps, one numeric row each.
   const rateLimitHtml = showRateLimits
     ? `
       <div class="yui-sec">
         ${secHeadHtml(`${t("reactions.rate_title")}${hintDotHtml("reactions.rate_hint_text")}`)}
         <p class="yui-sec__note">${t("reactions.rate_hint")}</p>
         <div class="yui-group">
-${proactiveCaps.map(capRowHtml).join("")}
+${PROACTIVE_CAP_FIELDS.map(capRowHtml).join("")}
         </div>
       </div>`
     : "";
@@ -305,7 +300,6 @@ ${proactiveCaps.map(capRowHtml).join("")}
   // The character group's heading names the edited character once the preset strip fills it.
   const groupHtml = (group: "character" | "app"): string =>
     `<p class="yui-tabs__group" role="presentation" data-rail-group="${group}">${t(`rail.group_${group}`)}</p>`;
-  const together = switchRowsHtml("together");
 
   return `
     ${headerHtml}${showPreset ? presetStripHtml() : ""}
@@ -337,15 +331,7 @@ ${
       </div>
 `
     : ""
-}${panelOpenHtml("together")}${
-  together || showRateLimits
-    ? `
-        <div class="yui-sec">
-          <div class="yui-group">${together}${showRateLimits ? capRowHtml(chainCap) : ""}
-          </div>
-        </div>`
-    : ""
-}${showCharacters ? charactersSectionHtml() : ""}
+}${panelOpenHtml("together")}${togetherRowsHtml(switchRowsHtml("together"), !!showRateLimits)}${showCharacters ? charactersSectionHtml() : ""}
       </div>
 ${panelOpenHtml("listening")}
         <div class="yui-sec">

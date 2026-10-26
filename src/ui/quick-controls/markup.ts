@@ -1,7 +1,13 @@
 /** Panel markup primitives shared by the template and the extracted tab modules. */
 import type { EndpointOverrides } from "../../settings/backend/endpoints-settings";
+import { RATE_LIMIT_MAX } from "../../settings/backend/guardrails-settings";
 import { t } from "../i18n";
-import { CHATKEY_CLEAR_SVG, CHATKEY_EYE_SVG, ENDPOINT_FIELDS } from "./constants";
+import {
+  CHATKEY_CLEAR_SVG,
+  CHATKEY_EYE_SVG,
+  ENDPOINT_FIELDS,
+  type RateLimitFieldDef,
+} from "./constants";
 
 // Escapes the characters that would otherwise break out of an HTML attribute.
 export function escapeAttr(text: string): string {
@@ -113,4 +119,15 @@ export function numRowHtml(opts: {
               ${suffixHtml}
             </div>
           </div>`;
+}
+
+// One rate-limit cap as a numeric row.
+export function capRowHtml(f: RateLimitFieldDef): string {
+  return numRowHtml({
+    id: f.id,
+    labelKey: f.labelKey,
+    subKey: f.subKey,
+    min: 1,
+    max: RATE_LIMIT_MAX,
+  });
 }
