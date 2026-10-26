@@ -341,6 +341,21 @@ describe("surfaces.css — the bubble floats while it shows", () => {
   });
 });
 
+// The plate, the toggle and the ▼ ride the box's edges, so the box never shrinks or grows with its text.
+describe("surfaces.css — the box keeps one width while it shows", () => {
+  it("takes the bubble's full width cap in the character window, never its content's width", () => {
+    const block = extractBlock(read("surfaces.css"), ".yui-bubble");
+    expect(block).toMatch(/(?:^|\s)width:\s*min\(34ch, 78%\)/m);
+    expect(block).not.toMatch(/max-content/);
+  });
+
+  it("takes the column's width in the message window", () => {
+    expect(
+      extractBlock(read("../message/message-window.css"), ".yui-ui--message .yui-bubble"),
+    ).toMatch(/(?:^|\s)width:\s*100%/m);
+  });
+});
+
 // The longest common reply must fit the cap in force, so the box's floor never rises above it.
 describe("surfaces.css — the box's floor stays under its cap", () => {
   it("bounds the min-height by the cap, with the input closed and open", () => {
