@@ -23,6 +23,7 @@ import { wireSettingsReload } from "../app/cross-window/wire-window-sync";
 import { wireCspViolationLog } from "../app/csp-violation";
 import { wireDevGlobals } from "../app/dev/wire-dev-globals";
 import { createDisposers } from "../app/disposers";
+import { createCharacterName } from "../app/message/character-name";
 import { wirePlateName } from "../app/message/wire-plate-name";
 import { createPetWindowRole } from "../app/pet-windows/pet-window-role";
 import { createWindowStores } from "../app/settings/window-stores";
@@ -51,7 +52,7 @@ import { createDevtoolsWindowOpener } from "../io/window/openers/devtools-window
 import { createSettingsWindowOpener } from "../io/window/openers/settings-window";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
-import { presetIdForWindow, presetNameFor } from "../settings/preset/active-preset";
+import { presetIdForWindow } from "../settings/preset/active-preset";
 import { readBoundPresetId } from "../settings/preset/bound-preset";
 import { createStatusPill } from "../ui/chips/status-pill";
 import { createVoiceInputStatus } from "../ui/chips/voice-input-status";
@@ -145,18 +146,25 @@ async function bootstrap(): Promise<BootstrapHandle> {
     log,
   });
   register(() => disposeCrossWindowSync());
+  const characterName = createCharacterName({
+    registry: presetRegistry,
+    boundId,
+    agentSettings: settingsStores.agentSettings,
+  });
   const { surfaces, local, remote, getMode } = wireMessageSurfaces({
     boundId,
     settingsBridge: windowBridge,
     transcript: conversationStores.chatHistoryStore,
-    characterName: () => presetNameFor(presetRegistry.get(), boundId),
+    characterName: characterName.get,
     mount: root,
     tool: statusPill,
     bubblePersistSettings: settingsStores.bubblePersistSettings,
     messageWindowSettings: settingsStores.messageWindowSettings,
     register,
   });
-  register(wirePlateName({ registry: presetRegistry, plate: local.plate, boundId }));
+  register(
+    wirePlateName({ registry: presetRegistry, plate: local.plate, boundId, name: characterName }),
+  );
   register(
     wireInputAnchor({
       renderer,
@@ -259,6 +267,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
   // consumed during dispatcher·tts wiring. VRM displayed via avatar.vrm_url.
   try {
     const cfg = await config.load();
+    characterName.setPersona(cfg.persona);
     if (isDisposed()) return { dispose };
     surfaces.setAttachmentLimits(cfg.guardrails.attachments);
     const configured = await createConfiguredBootstrap(cfg, {
