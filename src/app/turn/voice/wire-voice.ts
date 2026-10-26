@@ -38,6 +38,7 @@ export function wireTurnVoice(deps: {
     Surfaces,
     | "beginSpeech"
     | "pushSpeech"
+    | "paceSpeech"
     | "endSpeech"
     | "finishSpeech"
     | "quoteUser"

@@ -79,6 +79,7 @@ describe("TurnOutput — backend-caller → tts-pipeline ordering", () => {
       surfaces: {
         beginSpeech: vi.fn(),
         pushSpeech: vi.fn(),
+        paceSpeech: vi.fn(),
         endSpeech: vi.fn(),
         finishSpeech: vi.fn(),
       },

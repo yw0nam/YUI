@@ -75,6 +75,7 @@ describe("speech-playback integration (real pipeline + real sink)", () => {
     const surfaces = {
       beginSpeech: vi.fn(),
       pushSpeech: vi.fn(),
+      paceSpeech: vi.fn(),
       endSpeech: vi.fn(),
       finishSpeech: vi.fn(),
     };
@@ -128,6 +129,7 @@ describe("speech-playback integration (real pipeline + real sink)", () => {
     const surfaces = {
       beginSpeech: vi.fn(),
       pushSpeech: vi.fn(),
+      paceSpeech: vi.fn(),
       endSpeech: vi.fn(),
       finishSpeech: vi.fn(),
     };
@@ -177,6 +179,7 @@ describe("speech-playback integration (real pipeline + real sink)", () => {
     const surfaces = {
       beginSpeech: vi.fn(),
       pushSpeech: vi.fn(),
+      paceSpeech: vi.fn(),
       endSpeech: vi.fn(),
       finishSpeech: vi.fn(),
     };

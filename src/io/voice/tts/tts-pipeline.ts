@@ -13,6 +13,12 @@ import type { VoiceGate } from "./voice-gate";
 /** When synth rejects with this value it's a silent skip — takes the failed-skip path with no error log. */
 export const TTS_SKIP: unique symbol = Symbol("TTS_SKIP");
 
+/** A sentence as its playback starts: its text, and its audio length, or null when it plays no audio. */
+export interface SentenceStart {
+  text: string;
+  durationMs: number | null;
+}
+
 export interface TtsPipelineOptions {
   synth: TtsSynth;
   sink?: AudioSink;
@@ -21,6 +27,8 @@ export interface TtsPipelineOptions {
   onPlaybackEnd?: () => void;
   // Fires once when each sentence starts playing (or on synth-failure skip). null = no cue for this sentence.
   onCuePlay?: (cue: ExpressArgs | null) => void;
+  // Fires once per sentence in index order as it starts playing; durationMs is null when no audio started.
+  onSentenceStart?: (sentence: SentenceStart) => void;
   // Fires when a sentence's synth rejects for real (TTS_SKIP does not count) — the synth request failed.
   onSynthFailure?: () => void;
   // Concurrent-synth cap. Default 1 = serial. The function form is evaluated per drain, reading config lazily.
@@ -113,6 +121,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
           failed.delete(idx);
           options.onCuePlay?.(cues.get(idx) ?? null);
           cues.delete(idx);
+          options.onSentenceStart?.({ text: entries.get(idx)?.text ?? "", durationMs: null });
           nextToPlay++;
           continue;
         }
@@ -130,6 +139,12 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
         if (entry) entry.played = true;
         options.onCuePlay?.(cues.get(idx) ?? null);
         cues.delete(idx);
+        const text = entry?.text ?? "";
+        let started = false;
+        const onStart = (durationMs: number) => {
+          started = true;
+          if (!disposed) options.onSentenceStart?.({ text, durationMs });
+        };
         try {
           log.debug("playback", { index: idx, state: "start" });
           let peak = 0;
@@ -137,12 +152,13 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
             if (v > peak) peak = v;
             options.onAmplitude?.(v);
           };
-          await sink.play(wav, onAmp);
+          await sink.play(wav, onAmp, onStart);
           log.debug("playback", { index: idx, state: "end", peak_mouth: peak });
         } catch (err) {
           if (disposed) break;
           log.error("playback", { index: idx, error: String(err) });
         }
+        if (!started && !disposed) options.onSentenceStart?.({ text, durationMs: null });
       }
     } finally {
       pumping = false;

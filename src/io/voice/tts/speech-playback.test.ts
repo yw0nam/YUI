@@ -2126,7 +2126,7 @@ describe("speech display identity", () => {
     const identity = { turn_id: "7", event_name: "user.text_submitted" };
     if (ending === "muted") playback.interrupt({ muteCurrentTurn: true });
     playback.onSpeechDelta("Hello", identity);
-    expect(surfaces.beginSpeech).toHaveBeenLastCalledWith(identity);
+    expect(surfaces.beginSpeech).toHaveBeenLastCalledWith(identity, { paced: ending !== "muted" });
     expect(surfaces.pushSpeech).toHaveBeenLastCalledWith("Hello", identity);
     if (ending === "interrupt") playback.interrupt();
     else if (ending === "abort") playback.abort();
@@ -2148,7 +2148,7 @@ describe("speech display identity", () => {
       isStrolling: () => false,
     });
     playback.speakAside("Wait.");
-    expect(surfaces.beginSpeech.mock.calls).toEqual([[undefined]]);
+    expect(surfaces.beginSpeech.mock.calls).toEqual([[undefined, { paced: true }]]);
     expect(surfaces.pushSpeech.mock.calls).toEqual([["Wait.", undefined]]);
     expect(surfaces.endSpeech.mock.calls).toEqual([[{ defer: true }, undefined]]);
     playback.dispose();
