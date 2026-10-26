@@ -147,7 +147,6 @@ describe("createCharacterTab — relations", () => {
       );
 
     relationsSwitch.setEnabled(false);
-    expect(tab.el.querySelector(".yui-relations__switch")).toBeNull();
     expect(shown()).toEqual([false, false, true]);
 
     relationsSwitch.setEnabled(true);

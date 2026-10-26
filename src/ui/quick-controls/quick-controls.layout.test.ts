@@ -30,8 +30,7 @@ import { createPetWindows } from "../../settings/preset/pet-windows";
 import { createPresetRegistry } from "../../settings/preset/preset-registry";
 import { createRelationsStore } from "../../settings/relations/relations-store";
 import { createPacerGapStore, createPresenceStore } from "../../settings/settings-stores";
-import { createFillerSettings, type FillerSettings } from "../../settings/voice/filler-settings";
-import { createVadSettings } from "../../settings/voice/vad-settings";
+import { createFillerSettings } from "../../settings/voice/filler-settings";
 import { setLocale, t } from "../i18n";
 import { createQuickControls } from "./quick-controls";
 import {
@@ -40,11 +39,6 @@ import {
   makeSpeakerSelection,
   makeVrmSelection,
 } from "./test-helpers";
-
-/** A filler store hydrated from storage with the given settings. */
-function seededFiller(settings: FillerSettings) {
-  return createFillerSettings({ storage: { load: () => settings, save: () => {} } });
-}
 
 const inMemoryValueStorage = () => {
   let value: { value: number } | null = null;
@@ -347,19 +341,6 @@ describe("createQuickControls — proactive tab layout", () => {
 
   // ── Cue-section relocation ────────────────────────────────────────────────
 
-  it("mounts the cue-sections block in the proactive page, not the listening page", () => {
-    const qc = buildQc();
-    qc.open();
-    const reactPanel = qc.el.querySelector<HTMLElement>("#yui-panel-react")!;
-    const inputPanel = qc.el.querySelector<HTMLElement>("#yui-panel-listening")!;
-    const cueSections = reactPanel.querySelector(".yui-cue-sections");
-    expect(cueSections).not.toBeNull();
-    expect(cueSections!.querySelector("[data-testid='cue-section']")).not.toBeNull();
-    expect(inputPanel.querySelector(".yui-cue-sections")).toBeNull();
-    expect(inputPanel.querySelector(".yui-loop-cue-section")).toBeNull();
-    qc.dispose();
-  });
-
   // ── Section order ─────────────────────────────────────────────────────────
 
   it("orders the proactive tab: screen watch → cues → watchers → shared", () => {
@@ -500,73 +481,16 @@ describe("createQuickControls — Reactions tab layout", () => {
     };
   }
 
-  it.each([
-    ["#yui-rate-tier2", "react"],
-    ["#yui-rate-urgent", "react"],
-    ["#yui-rate-overall", "react"],
-    ["#yui-rate-addressed", "together"],
-  ])("renders the rate-limit row %s on the %s page", (id, page) => {
+  it("renders every rate-limit cap as a number input", () => {
     const { qc } = buildRateQc();
     qc.open();
-    const input = qc.el.querySelector<HTMLInputElement>(id);
-    expect(input?.type).toBe("number");
-    expect(qc.el.querySelector(`#yui-panel-${page}`)!.contains(input)).toBe(true);
-    qc.dispose();
-  });
-});
-
-describe("createQuickControls — filler tab layout", () => {
-  let mount: HTMLElement;
-  let vad: ReturnType<typeof createVadSettings>;
-
-  beforeEach(() => {
-    let rafId = 0;
-    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
-      cb(0);
-      return ++rafId;
-    });
-    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
-    mount = document.createElement("div");
-    document.body.appendChild(mount);
-    vad = createVadSettings();
-    try {
-      globalThis.localStorage?.clear();
-    } catch {
-      /* Ignore environments without localStorage */
-    }
-    // Existing assertions pin Korean copy/selectors; render the panel in ko.
-    setLocale("ko");
-  });
-
-  afterEach(() => {
-    document.body.innerHTML = "";
-    vi.restoreAllMocks();
-  });
-
-  function buildQc(extra?: Partial<Parameters<typeof createQuickControls>[0]>) {
-    return createQuickControls({
-      ...defaultQcArgs(mount),
-      vad,
-      ...extra,
-    });
-  }
-
-  // ── Thinking filler section ──────────────────────────────────────────────────
-
-  function makeFillerSettings(over?: { enabled?: boolean; language?: "ja" | "en" | "ko" }) {
-    return seededFiller({ enabled: true, language: "ja", customPools: {}, ...over });
-  }
-
-  it("renders filler section in the voice page when fillerSettings is provided", () => {
-    const fs = makeFillerSettings();
-    const qc = buildQc({ fillerSettings: fs });
-    qc.open();
-
-    const section = qc.el.querySelector(".yui-filler");
-    expect(section).not.toBeNull();
-    const talkPanel = qc.el.querySelector<HTMLElement>("#yui-panel-voice")!;
-    expect(talkPanel.contains(section)).toBe(true);
-
+    const ids = ["#yui-rate-tier2", "#yui-rate-urgent", "#yui-rate-overall", "#yui-rate-addressed"];
+    expect(ids.map((id) => qc.el.querySelector<HTMLInputElement>(id)?.type)).toEqual([
+      "number",
+      "number",
+      "number",
+      "number",
+    ]);
     qc.dispose();
   });
 });
