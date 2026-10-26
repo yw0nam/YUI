@@ -107,6 +107,7 @@ function setup(customPool: FillerPool): VoicePipeline {
     fillerSettings: {
       get: () => ({ enabled: true, language: "ja" as const, customPools: { ja: customPool } }),
     },
+    readingsSettings: { get: () => ({ text: "" }) },
     vadSettings: { get: () => ({ silenceMs: 1_500, bargeIn: false }) },
     speakerSelection: { getActive: () => ({ id: "speaker-a", ref_url: "/speaker-a.wav" }) },
     voiceInputStatus: { set: vi.fn() },

@@ -255,7 +255,12 @@ describe("reading dictionary", () => {
   });
 
   it("sends the reading to the TTS service and the original text to the bubble", async () => {
-    const voice = setup(fillerPool(), 1_000, () => SPEAKER, () => READINGS);
+    const voice = setup(
+      fillerPool(),
+      1_000,
+      () => SPEAKER,
+      () => READINGS,
+    );
 
     await speak(voice, "秧秧、おはよう。", 1);
 
@@ -264,7 +269,12 @@ describe("reading dictionary", () => {
   });
 
   it("reads a prewarmed failure line through the dictionary", async () => {
-    setup(fillerPool({ timeout: ["秧秧、ごめんね。"] }), 1_000, () => SPEAKER, () => READINGS);
+    setup(
+      fillerPool({ timeout: ["秧秧、ごめんね。"] }),
+      1_000,
+      () => SPEAKER,
+      () => READINGS,
+    );
 
     await vi.waitFor(() => expect(synthInputs()).toEqual(["ヤンヤン、ごめんね。"]));
   });

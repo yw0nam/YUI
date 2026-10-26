@@ -18,6 +18,7 @@ import {
 import { createShuffleBag } from "../../../io/voice/filler/shuffle-bag";
 import type { SttVad } from "../../../io/voice/stt-vad";
 import { createWebAudioSink } from "../../../io/voice/tts/audio-player";
+import { parseReadings, applyReadings } from "../../../io/voice/tts/readings";
 import { createSpeechPlayback, type SpeechPlayback } from "../../../io/voice/tts/speech-playback";
 import { type SpokenSplit, TTS_SKIP } from "../../../io/voice/tts/tts-pipeline";
 import { createTtsProvider, type TtsSynthCallOptions } from "../../../io/voice/tts/tts-synth";
@@ -25,6 +26,7 @@ import { createVoiceGate } from "../../../io/voice/tts/voice-gate";
 import type { SpeakerOption } from "../../../io/voice/voices/speaker-selection";
 import type { Renderer } from "../../../renderer";
 import type { FillerSettings } from "../../../settings/voice/filler-settings";
+import type { ReadingsSettings } from "../../../settings/voice/readings-settings";
 import type { VoiceInputStatus } from "../../../ui/chips/voice-input-status";
 import type { Surfaces } from "../../../ui/surfaces/surfaces";
 
@@ -50,6 +52,7 @@ interface VoicePipelineDeps {
     get(): FillerSettings;
     subscribe?(cb: (s: FillerSettings) => void): () => void;
   };
+  readingsSettings: { get(): ReadingsSettings };
   vadSettings: { get(): { silenceMs: number; bargeIn: boolean } };
   speakerSelection: { getActive(): SpeakerOption };
   voiceInputStatus: Pick<VoiceInputStatus, "set">;
@@ -102,8 +105,20 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
   const effectiveFiller = () =>
     effectiveFillerPool(deps.fillerSettings.get(), deps.getFillerConfig());
 
+  // Parsed once per edit; the cache keys on the original sentence, so the key below carries the text.
+  let parsedText: string | undefined;
+  let readingPairs: ReturnType<typeof parseReadings>["pairs"] = [];
+  const readings = () => {
+    const { text } = deps.readingsSettings.get();
+    if (text !== parsedText) {
+      parsedText = text;
+      readingPairs = parseReadings(text).pairs;
+    }
+    return readingPairs;
+  };
+
   const fillerCache = createFillerAudioCache({
-    synth: (input, signal, opts) => provider.synth(input, signal, opts),
+    synth: (input, signal, opts) => provider.synth(applyReadings(input, readings()), signal, opts),
     // Filler is spoken under motion-hold, which withholds cues from the pipeline, so a filler
     // submission never carries a voice tag and matching the plain sentences is enough; a tagged
     // response sentence bypasses the cache.
@@ -115,7 +130,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     // settings window — invalidates this window's cache too.
     paramsKey: () => {
       const revision = deps.speakerSelection.getActive().revision ?? 0;
-      return [provider.paramsKey(), revision].join("\n");
+      return [provider.paramsKey(), revision, deps.readingsSettings.get().text].join("\n");
     },
   });
 

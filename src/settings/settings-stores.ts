@@ -52,10 +52,7 @@ import {
 import { createRelationsSwitch } from "./relations/relations-switch";
 import { createUnifiedChatSwitch } from "./unified/unified-chat-switch";
 import { createFillerSettings, localStorageFillerStorage } from "./voice/filler-settings";
-import {
-  createReadingsSettings,
-  localStorageReadingsStorage,
-} from "./voice/readings-settings";
+import { createReadingsSettings, localStorageReadingsStorage } from "./voice/readings-settings";
 import { createVadSettings, localStorageVadStorage } from "./voice/vad-settings";
 
 export const createPresenceStore = (

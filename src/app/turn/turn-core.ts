@@ -159,6 +159,7 @@ export async function wireTurnCore(
     oneVoiceSettings: settings.oneVoiceSettings,
     lipsyncSettings: settings.lipsyncSettings,
     fillerSettings: settings.fillerSettings,
+    readingsSettings: settings.readingsSettings,
     vadSettings: settings.vadSettings,
     speakerSelection,
     getEndpoints,
