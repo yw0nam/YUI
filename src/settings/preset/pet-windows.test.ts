@@ -93,3 +93,12 @@ it("readOpenPresets maps the open ids to their registry entries, thumbnail inclu
     { id: "cccc0003", name: "cccc0003" },
   ]);
 });
+
+it("refuses a fifth open preset and keeps four, while reopening a listed id is not refused", () => {
+  const s = createPetWindows();
+  expect(["b", "c", "d"].map((id) => s.open(id))).toEqual([true, true, true]);
+  expect(s.open("e")).toBe(false);
+  expect(readOpenPetWindowIds()).toEqual(["b", "c", "d"]);
+  expect(s.open("c")).toBe(true);
+  expect(readOpenPresetIds()).toEqual(["default", "b", "c", "d"]);
+});
