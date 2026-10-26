@@ -2,15 +2,16 @@
  * Creates a preset from an imported card: the name with a numeric suffix, the card merged
  * into the copied `yui.agent` with the send switch on, the card's filler pools onto the
  * copied filler value, the PNG thumbnail retained onto the entry, the one-shot greeting
- * marker, and activation. The two thumbnail steps are ports
- * the app wiring supplies from io, so this module imports no io. Any failure removes the
- * created preset and discards the thumbnail before the original error rethrows.
+ * marker, and activation. The two thumbnail steps are ports the app wiring supplies from
+ * io, so this module imports no io. Any failure removes the created preset and discards
+ * the thumbnail before the original error rethrows.
  */
 
 import type { FillerLang } from "../../config/validators/filler";
 import type { Card } from "../../config/validators/persona/types";
 import { createLogger } from "../../logger";
 import { coerceAgentSettings } from "../backend/agent-settings";
+import { cardWithoutFiller, readCardFiller } from "../voice/card-filler";
 import { isValidCustomPools, withCustomPools } from "../voice/filler-settings";
 import { resolveStorageKey } from "./preset-keys";
 
@@ -31,25 +32,28 @@ export interface CreatePresetFromCardInput {
   /** The key-value storage the copied `yui.agent` and the greeting marker live in. */
   storage?: Storage;
   /** The filler language a preset without a copied filler value starts from. */
-  fillerLocale?: FillerLang;
+  fillerLocale: FillerLang;
 }
 
-/** The card's `extensions.yui` when it is an object holding a `filler` entry. */
-function cardYuiFiller(card: Card): Record<string, unknown> | null {
-  const yui = (card.extensions as Record<string, unknown> | undefined)?.yui;
-  return yui !== null && typeof yui === "object" && "filler" in yui
-    ? (yui as Record<string, unknown>)
-    : null;
-}
-
-/** The stored card copy with `filler` dropped from `extensions.yui`; an emptied `yui` goes too. */
-function withoutCardFiller(card: Card, yui: Record<string, unknown>): Card {
-  const rest = { ...yui };
-  delete rest.filler;
-  const extensions = { ...(card.extensions as Record<string, unknown>) };
-  if (Object.keys(rest).length === 0) delete extensions.yui;
-  else extensions.yui = rest;
-  return { ...card, extensions };
+/** Writes the card's pools onto the copied filler value; an invalid filler keeps the copy with a warning. */
+function applyCardFiller(
+  kv: Pick<Storage, "getItem" | "setItem"> | undefined,
+  presetId: string,
+  filler: unknown,
+  locale: FillerLang,
+): void {
+  if (!isValidCustomPools(filler)) {
+    log.warn("card_import_filler_invalid", { preset: presetId });
+    return;
+  }
+  const key = resolveStorageKey("yui.filler", presetId);
+  let copied: unknown = null;
+  try {
+    copied = JSON.parse(kv?.getItem(key) ?? "null") as unknown;
+  } catch {
+    // An unparsable copied filler value starts the preset from the defaults
+  }
+  kv?.setItem(key, JSON.stringify(withCustomPools(copied, filler, locale)));
 }
 
 export async function createPresetFromCard(input: CreatePresetFromCardInput): Promise<string> {
@@ -71,27 +75,10 @@ export async function createPresetFromCard(input: CreatePresetFromCardInput): Pr
     }
     const agent = coerceAgentSettings(raw);
     agent.send_card = true;
-    const yui = cardYuiFiller(card);
-    agent.card = yui ? withoutCardFiller(card, yui) : card;
+    const filler = readCardFiller(card);
+    agent.card = filler === undefined ? card : cardWithoutFiller(card);
     kv?.setItem(key, JSON.stringify(agent));
-
-    if (yui) {
-      if (isValidCustomPools(yui.filler)) {
-        const fillerKey = resolveStorageKey("yui.filler", id);
-        let copied: unknown = null;
-        try {
-          copied = JSON.parse(kv?.getItem(fillerKey) ?? "null") as unknown;
-        } catch {
-          // An unparsable copied filler value starts the preset from the defaults
-        }
-        kv?.setItem(
-          fillerKey,
-          JSON.stringify(withCustomPools(copied, yui.filler, input.fillerLocale)),
-        );
-      } else {
-        log.warn("card_import_filler_invalid", { preset: id });
-      }
-    }
+    if (filler !== undefined) applyCardFiller(kv, id, filler, input.fillerLocale);
 
     if (retainThumbnail) {
       const url = await retainThumbnail(id);

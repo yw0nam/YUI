@@ -58,6 +58,16 @@ function isValidSettings(v: unknown): v is FillerSettings {
   return isValidCustomPools(s.customPools);
 }
 
+/** True while at least one list tier or tool entry across the pools holds a phrase. */
+export function hasAnyPhrase(pools: FillerSettings["customPools"]): boolean {
+  return Object.values(pools).some(
+    (p) =>
+      p !== undefined &&
+      (LIST_TIERS.some((tier) => (p[tier]?.length ?? 0) > 0) ||
+        Object.values(p.tool ?? {}).some((list) => list.length > 0)),
+  );
+}
+
 const DEFAULTS: FillerSettings = { enabled: true, language: "ja", customPools: {} };
 
 /** The stored filler value with `customPools` replaced; an absent or invalid stored value starts from the defaults. */
@@ -122,7 +132,7 @@ function poolEqual(a: Partial<FillerPool>, b: Partial<FillerPool>): boolean {
   );
 }
 
-export function isEmptyPool(p: Partial<FillerPool>): boolean {
+function isEmptyPool(p: Partial<FillerPool>): boolean {
   return poolEqual(p, {});
 }
 

@@ -333,6 +333,7 @@ describe("createQuickControls — card section", () => {
       },
       card: readCard(JSON.parse(written)).card,
       storage,
+      fillerLocale: "ja",
     });
     expect(JSON.parse(storage.getItem("yui.n1.filler")!).customPools).toEqual(
       JSON.parse(written).data.extensions.yui.filler,

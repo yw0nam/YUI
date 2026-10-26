@@ -29,6 +29,7 @@ import { createProactiveSettings } from "../../settings/cues/proactive-settings"
 import { createScheduleSettings } from "../../settings/cues/schedule-settings";
 import { createUserNameSettings } from "../../settings/identity/user-name-settings";
 import { createFlagSettings } from "../../settings/persisted-store";
+import { createFillerSettings } from "../../settings/voice/filler-settings";
 import { createReadingsSettings } from "../../settings/voice/readings-settings";
 import { createVadSettings } from "../../settings/voice/vad-settings";
 
@@ -210,5 +211,6 @@ export function defaultQcArgs(mount: HTMLElement) {
     exportCard: vi.fn(async () => "cancelled" as const),
     createPresetFromCard: vi.fn(async () => ""),
     removeCardThumbnail: vi.fn(async () => {}),
+    fillerSettings: createFillerSettings(),
   };
 }

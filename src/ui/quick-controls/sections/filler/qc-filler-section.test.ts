@@ -58,7 +58,7 @@ describe("createQuickControls — thinking filler section", () => {
   }
 
   it("does not render filler section when fillerSettings is absent", () => {
-    const qc = buildQc();
+    const qc = buildQc({ fillerSettings: undefined });
     qc.open();
     expect(qc.el.querySelector(".yui-filler")).toBeNull();
     qc.dispose();

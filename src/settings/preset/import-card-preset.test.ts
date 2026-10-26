@@ -121,7 +121,12 @@ describe("createPresetFromCard", () => {
       ],
       ["n1", "n2", "n3"],
     );
-    const id = await createPresetFromCard({ registry, card: v3Card(), storage: memoryStorage() });
+    const id = await createPresetFromCard({
+      registry,
+      card: v3Card(),
+      storage: memoryStorage(),
+      fillerLocale: "ja",
+    });
     expect(id).toBe("n1");
     expect(list.at(-1)).toEqual({ id: "n1", name: "Mio 3" });
   });
@@ -133,7 +138,12 @@ describe("createPresetFromCard", () => {
       resolveStorageKey("yui.agent", "n1"),
       JSON.stringify({ reasoning_effort: "low", send_card: true, card: null }),
     );
-    const id = await createPresetFromCard({ registry, card: v3Card(), storage });
+    const id = await createPresetFromCard({
+      registry,
+      card: v3Card(),
+      storage,
+      fillerLocale: "ja",
+    });
     const agent = JSON.parse(storage.getItem(resolveStorageKey("yui.agent", id))!);
     expect(agent.reasoning_effort).toBe("low");
     expect(agent.send_card).toBe(true);
@@ -143,7 +153,12 @@ describe("createPresetFromCard", () => {
   it("writes the pending greeting and activates the new preset", async () => {
     const { registry, activated } = fakeRegistry([{ id: "default", name: "default" }], ["n1"]);
     const storage = memoryStorage();
-    const id = await createPresetFromCard({ registry, card: v3Card(), storage });
+    const id = await createPresetFromCard({
+      registry,
+      card: v3Card(),
+      storage,
+      fillerLocale: "ja",
+    });
     expect(storage.getItem(resolveStorageKey("yui.greeting-pending", id))).toBe("1");
     expect(activated).toEqual([id]);
   });
@@ -156,6 +171,7 @@ describe("createPresetFromCard", () => {
       card: v3Card(),
       retainThumbnail,
       storage: memoryStorage(),
+      fillerLocale: "ja",
     });
     expect(retainThumbnail).toHaveBeenCalledWith(id);
     expect(list.find((e) => e.id === id)?.thumbnail).toBe(
@@ -171,6 +187,7 @@ describe("createPresetFromCard", () => {
         registry,
         card: v3Card(),
         storage: memoryStorage(),
+        fillerLocale: "ja",
         retainThumbnail: vi.fn(async () => {
           throw new Error("thumbnail retain failed");
         }),
@@ -188,6 +205,7 @@ describe("createPresetFromCard", () => {
         registry,
         card: v3Card(),
         storage: memoryStorage(),
+        fillerLocale: "ja",
         retainThumbnail: vi.fn(async () => {
           throw new Error("thumbnail retain failed");
         }),
@@ -218,7 +236,7 @@ describe("createPresetFromCard", () => {
     const storage = memoryStorage();
     seedFiller(storage, "n1");
     const card = fillerCard({ yui: { filler: { ja: { first: ["A"] } } } });
-    const id = await createPresetFromCard({ registry, card, storage });
+    const id = await createPresetFromCard({ registry, card, storage, fillerLocale: "ja" });
     const agentCard = JSON.parse(storage.getItem(resolveStorageKey("yui.agent", id))!).card;
     expect(agentCard.extensions).toEqual({ other_ext: { kept: true } });
   });
@@ -237,6 +255,7 @@ describe("createPresetFromCard", () => {
         registry,
         card: fillerCard({ yui: { filler: { ja: { first: ["A"] } } } }),
         storage,
+        fillerLocale: "ja",
       }),
     ).rejects.toThrow("quota");
     expect(removed).toEqual(["n1"]);
@@ -246,7 +265,12 @@ describe("createPresetFromCard", () => {
     const { registry } = fakeRegistry([{ id: "default", name: "default" }], ["n1"]);
     const storage = memoryStorage();
     seedFiller(storage, "n1");
-    const id = await createPresetFromCard({ registry, card: v3Card(), storage });
+    const id = await createPresetFromCard({
+      registry,
+      card: v3Card(),
+      storage,
+      fillerLocale: "ja",
+    });
     expect(JSON.parse(storage.getItem(resolveStorageKey("yui.filler", id))!)).toEqual(copiedFiller);
   });
 
@@ -256,7 +280,7 @@ describe("createPresetFromCard", () => {
     const storage = memoryStorage();
     seedFiller(storage, "n1");
     const card = fillerCard({ yui: { filler: { ja: { first: 42 } } } });
-    const id = await createPresetFromCard({ registry, card, storage });
+    const id = await createPresetFromCard({ registry, card, storage, fillerLocale: "ja" });
     expect(JSON.parse(storage.getItem(resolveStorageKey("yui.filler", id))!)).toEqual(copiedFiller);
     expect(
       warn.mock.calls.filter((c) => String(c[0]).includes("card_import_filler_invalid")),
@@ -272,6 +296,7 @@ describe("createPresetFromCard", () => {
         registry: fake.registry,
         card: v3Card(),
         storage: memoryStorage(),
+        fillerLocale: "ja",
         retainThumbnail: vi.fn(async () => "asset://localhost/app-data/cards/n1.png"),
         discardThumbnail,
       }),

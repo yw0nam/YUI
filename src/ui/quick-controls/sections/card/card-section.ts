@@ -132,8 +132,8 @@ interface CardSectionDeps {
   importCard: () => Promise<ImportedCard | null>;
   exportCard: (text: string, fileName: string) => Promise<"written" | "cancelled">;
   createPresetFromCard: (card: Card, thumbnailTempId?: string) => Promise<string>;
-  /** Filler pools the card export carries; absent where the panel has no filler section. */
-  fillerSettings?: Pick<FillerSettingsStore, "get">;
+  /** Filler pools the card export carries. */
+  fillerSettings: Pick<FillerSettingsStore, "get">;
   log: Logger;
 }
 
@@ -226,7 +226,7 @@ export function createCardSection(deps: CardSectionDeps): CardSection {
     },
     currentCard,
     entry,
-    fillerPools: () => deps.fillerSettings?.get().customPools ?? {},
+    fillerPools: () => deps.fillerSettings.get().customPools,
     log,
   });
 

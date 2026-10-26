@@ -29,7 +29,8 @@ describe("card-filler", () => {
     },
     {
       name: "without strips filler and keeps the yui siblings and every other extension",
-      run: () => cardWithoutFiller(card({ yui: { filler: pools, keep: "x" }, other: {} })).extensions,
+      run: () =>
+        cardWithoutFiller(card({ yui: { filler: pools, keep: "x" }, other: {} })).extensions,
       want: { yui: { keep: "x" }, other: {} },
     },
     {
