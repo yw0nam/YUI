@@ -8,7 +8,7 @@
 
 import type { RemoteSurfaces } from "../../io/bridge/message/message-remote";
 import type { MessageWindowMode } from "../../settings/panels/message-window-settings";
-import type { UnifiedShown } from "../../settings/unified/unified-chat-switch";
+import type { UnifiedShown } from "../../settings/unified/unified-shown";
 import type { Surfaces } from "./surfaces";
 
 interface SurfacesRouterOptions {

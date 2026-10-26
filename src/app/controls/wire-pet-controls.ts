@@ -17,7 +17,7 @@ import type { Renderer } from "../../renderer";
 import type { PetWindows } from "../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import type { SettingsStores } from "../../settings/settings-stores";
-import type { UnifiedShown } from "../../settings/unified/unified-chat-switch";
+import type { UnifiedShown } from "../../settings/unified/unified-shown";
 import { isTauri } from "../../tauri-env";
 import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
 import { subscribe as subscribeLocale } from "../../ui/i18n";

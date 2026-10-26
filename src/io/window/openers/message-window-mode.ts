@@ -7,7 +7,7 @@ import type {
   MessageWindowMode,
   MessageWindowSettingsStore,
 } from "../../../settings/panels/message-window-settings";
-import type { UnifiedShown } from "../../../settings/unified/unified-chat-switch";
+import type { UnifiedShown } from "../../../settings/unified/unified-shown";
 import type { RemoteSurfaces } from "../../bridge/message/message-remote";
 
 interface MessageWindowModeDeps {

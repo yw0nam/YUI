@@ -40,7 +40,6 @@ import {
 import { createPushStores, publishPushStores } from "../app/turn/push/push-stores";
 import { wirePushMode } from "../app/turn/push/wire-push";
 import { createSessionResetAnnouncer } from "../app/turn/session-reset-announcer";
-import { createUnifiedShown } from "../app/unified/unified-shown";
 import { createVoiceFix } from "../app/voice/voice-fix";
 import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/secrets";
 import { type BusEnvelope, createEventBus } from "../dispatcher/core/event-bus";
@@ -55,8 +54,7 @@ import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
 import { presetIdForWindow } from "../settings/preset/active-preset";
 import { readBoundPresetId } from "../settings/preset/bound-preset";
-import { readOpenPresetIds } from "../settings/preset/pet-windows";
-import { isTauri } from "../tauri-env";
+import { createUnifiedShown } from "../settings/unified/unified-shown";
 import { createStatusPill } from "../ui/chips/status-pill";
 import { createVoiceInputStatus } from "../ui/chips/voice-input-status";
 import { showBootError } from "../ui/notices/boot-error";
@@ -151,9 +149,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
   register(() => disposeCrossWindowSync());
   const unifiedShown = createUnifiedShown({
     switch: settingsStores.unifiedChatSwitch,
-    openPresetIds: readOpenPresetIds,
     onPetWindowsChanged: windowBridge.onPetWindowsChanged,
-    canOpen: isTauri,
   });
   register(unifiedShown.dispose);
   const characterName = createCharacterName({

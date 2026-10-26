@@ -25,7 +25,7 @@ import { createLogger } from "../logger";
 import { mergeScreen } from "../settings/capture/screen-settings";
 import type { DelegationChipSettingsStore } from "../settings/panels/delegation-chip-settings";
 import { presetIdForWindow, readPresetName } from "../settings/preset/active-preset";
-import type { UnifiedShown } from "../settings/unified/unified-chat-switch";
+import type { UnifiedShown } from "../settings/unified/unified-shown";
 import { createUnifiedWindowSettings } from "../settings/unified/unified-window-settings";
 import { isMacOS, isWindows } from "../tauri-env";
 import { t } from "../ui/i18n";

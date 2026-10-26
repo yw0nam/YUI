@@ -2,7 +2,7 @@ import type { createAgentNotifySettings } from "../../settings/backend/agent-not
 import type { ScreenKnobSettingsStore } from "../../settings/capture/screen-settings";
 import type { MessageWindowSettingsStore } from "../../settings/panels/message-window-settings";
 import type { FlagSettingsStore } from "../../settings/persisted-store";
-import type { UnifiedShown } from "../../settings/unified/unified-chat-switch";
+import type { UnifiedShown } from "../../settings/unified/unified-shown";
 import type { createFillerSettings } from "../../settings/voice/filler-settings";
 import type { createVadSettings } from "../../settings/voice/vad-settings";
 import { isTauri } from "../../tauri-env";

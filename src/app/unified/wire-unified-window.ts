@@ -1,4 +1,4 @@
-import type { UnifiedShown } from "../../settings/unified/unified-chat-switch";
+import type { UnifiedShown } from "../../settings/unified/unified-shown";
 
 /** Main opens the unified chat window while it is shown, and closes it otherwise. */
 export function wireUnifiedWindow(deps: {

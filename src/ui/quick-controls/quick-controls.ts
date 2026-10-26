@@ -64,7 +64,7 @@ import { presetIdForWindow } from "../../settings/preset/active-preset";
 import type { PetWindows } from "../../settings/preset/pet-windows";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import type { RelationsStore } from "../../settings/relations/relations-store";
-import type { UnifiedShown } from "../../settings/unified/unified-chat-switch";
+import type { UnifiedShown } from "../../settings/unified/unified-shown";
 import type { createFillerSettings } from "../../settings/voice/filler-settings";
 import type { createReadingsSettings } from "../../settings/voice/readings-settings";
 import type { createVadSettings } from "../../settings/voice/vad-settings";
