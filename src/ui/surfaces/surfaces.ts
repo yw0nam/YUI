@@ -14,6 +14,7 @@
 
 import "./surfaces.css";
 import type { AttachmentLimits } from "../../config/validators/guardrails";
+import type { UtteranceIdentity } from "../../contract";
 import type { SourceLine, UserQuote } from "../../io/bridge/message/message-bridge";
 import type { InputErrorAction, SpeechAction } from "../../io/bridge/message/message-remote";
 import type { ToolStatus } from "../chips/status-pill";
@@ -37,14 +38,14 @@ export interface Surfaces {
 
   // ── speech bubble (output) ──
   /** Reveal the bubble (empty) + caret ON. Called before streaming starts. */
-  beginSpeech(): void;
+  beginSpeech(identity?: UtteranceIdentity): void;
   /** Append a streaming delta. */
-  pushSpeech(delta: string): void;
+  pushSpeech(delta: string, identity?: UtteranceIdentity): void;
   /**
    * Caret OFF. By default, auto-fades after dwell (also used when the full text arrives at once).
    * When defer=true, the fade is held — the bubble stays until TTS playback ends and finishSpeech() is called.
    */
-  endSpeech(opts?: { defer?: boolean }): void;
+  endSpeech(opts?: { defer?: boolean }, identity?: UtteranceIdentity): void;
   /** Release a deferred bubble (endSpeech defer) into dwell→fade. No-op if not deferred/hidden. */
   finishSpeech(): void;
   /** Hide the bubble immediately (ignoring dwell). */
@@ -96,6 +97,8 @@ export interface Surfaces {
 
   dispose(): void;
 }
+
+export type SpeechSurfaces = Pick<Surfaces, "beginSpeech" | "pushSpeech" | "endSpeech">;
 
 interface SurfacesOptions {
   mount: HTMLElement;

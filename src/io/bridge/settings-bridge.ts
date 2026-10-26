@@ -31,6 +31,7 @@ const CH_PET_WINDOWS_CHANGED = "yui://pet-windows-changed";
 const CH_PRESET_CHANGED = "yui://preset-changed";
 const CH_CHARACTER_ADDRESSED = "yui://character-addressed";
 const CH_USER_TURN_ROUTED = "yui://user-turn-routed";
+const CH_SPEECH_STREAM = "yui://speech-stream";
 const CH_USER_TURN_DONE = "yui://user-turn-done";
 
 interface VoiceStateSnapshot {
@@ -76,7 +77,14 @@ export interface UserTurnDone {
   preset: string;
 }
 
+export type SpeechStream =
+  | { preset: string; turn_id: string; op: "begin"; baseline: number }
+  | { preset: string; turn_id: string; op: "end" }
+  | { preset: string; turn_id: string; op: "push"; delta: string };
+
 export interface SettingsBridge {
+  emitSpeechStream(event: SpeechStream): void;
+  onSpeechStream(cb: (event: SpeechStream) => void): () => void;
   emitSettingsChanged(): void;
   onSettingsChanged(cb: (from: WindowKind) => void): () => void;
   emitMouthPreview(mouthOpen: number | null): void;
@@ -147,6 +155,7 @@ export function createSettingsBridge(
     CH_CHARACTER_ADDRESSED,
     CH_USER_TURN_ROUTED,
     CH_USER_TURN_DONE,
+    CH_SPEECH_STREAM,
   ]);
   const on: typeof core.on = (name, cb) => core.on(name, cb, { scoped: !shared.has(name) });
 
@@ -310,6 +319,29 @@ export function createSettingsBridge(
         if (typeof e.sendId === "string" && typeof e.preset === "string") {
           cb({ sendId: e.sendId, preset: e.preset });
         }
+      });
+    },
+    emitSpeechStream(event) {
+      safeEmit(CH_SPEECH_STREAM, event);
+    },
+    onSpeechStream(cb) {
+      return on<unknown>(CH_SPEECH_STREAM, (event) => {
+        if (event === null || typeof event !== "object") return;
+        const e = event as Partial<SpeechStream>;
+        if (
+          typeof e.preset !== "string" ||
+          !e.preset ||
+          typeof e.turn_id !== "string" ||
+          !e.turn_id
+        )
+          return;
+        const { preset, turn_id, op } = e;
+        if (op === "begin") {
+          if (typeof e.baseline === "number" && Number.isInteger(e.baseline) && e.baseline >= 0)
+            cb({ preset, turn_id, op, baseline: e.baseline });
+        } else if (op === "end") cb({ preset, turn_id, op });
+        else if (op === "push" && typeof e.delta === "string")
+          cb({ preset, turn_id, op, delta: e.delta });
       });
     },
     dispose: core.dispose,

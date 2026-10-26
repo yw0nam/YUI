@@ -44,6 +44,7 @@ function setup(mode: MessageWindowMode, bound = false) {
   const remote = { dispose: vi.fn() };
   const surfaces = { dispose: vi.fn() };
   const bridge = { dispose: vi.fn() };
+  const settings = { dispose: vi.fn(), emitSpeechStream: vi.fn() };
   const modeDisposer = vi.fn();
   createSurfaces.mockReturnValue(local);
   createRemoteSurfaces.mockReturnValue(remote);
@@ -55,13 +56,25 @@ function setup(mode: MessageWindowMode, bound = false) {
   const register = vi.fn();
   const result = wireMessageSurfaces({
     boundId: bound ? "a" : null,
+    settingsBridge: settings,
+    transcript: { entriesAfterLastBoundary: () => [] },
     mount: {} as HTMLElement,
     tool: { showTool: vi.fn(), finishTool: vi.fn(), hideTool: vi.fn() },
     bubblePersistSettings: { get: () => ({ enabled: false }) },
     messageWindowSettings,
     register,
   });
-  return { result, register, local, remote, surfaces, bridge, modeDisposer, messageWindowSettings };
+  return {
+    settings,
+    result,
+    register,
+    local,
+    remote,
+    surfaces,
+    bridge,
+    modeDisposer,
+    messageWindowSettings,
+  };
 }
 
 describe("wireMessageSurfaces", () => {
@@ -106,4 +119,20 @@ describe("wireMessageSurfaces", () => {
     modeTeardown();
     expect(modeDisposer).toHaveBeenCalledOnce();
   });
+});
+
+it("uses the window's existing bridge for identified speech without disposing it", () => {
+  const { settings, register } = setup("docked", true);
+  const stream = createSurfacesRouter.mock.calls[0]![0].stream;
+  const identity = { turn_id: "7", event_name: "user.text_submitted" };
+  stream.beginSpeech(identity);
+  stream.pushSpeech("hi", identity);
+  stream.endSpeech(undefined, identity);
+  expect(settings.emitSpeechStream.mock.calls).toEqual([
+    [{ preset: "a", turn_id: "7", op: "begin", baseline: 0 }],
+    [{ preset: "a", turn_id: "7", op: "push", delta: "hi" }],
+    [{ preset: "a", turn_id: "7", op: "end" }],
+  ]);
+  for (const [dispose] of register.mock.calls) dispose();
+  expect(settings.dispose).not.toHaveBeenCalled();
 });

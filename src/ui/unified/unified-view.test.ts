@@ -65,6 +65,11 @@ beforeEach(() => {
   vi.spyOn(console, "info").mockImplementation(() => {});
 });
 
+afterEach(() => {
+  view?.dispose();
+  vi.useRealTimers();
+});
+
 describe("unified view — the log", () => {
   it("lists both transcripts in time order with speaker, photo or dot, marker and age", () => {
     mount();
@@ -233,5 +238,59 @@ describe("unified view — the mention pill", () => {
     press("Backspace");
 
     expect(document.querySelector(".yui-uc__pill")?.hasAttribute("hidden")).toBe(true);
+  });
+});
+
+describe("unified view — running replies", () => {
+  it("draws growing pending speech with the preset's face, then replaces it with its record", () => {
+    mount();
+    view.speechStream({ preset: "perlica", turn_id: "7", op: "begin", baseline: 0 });
+    expect(lines()).toHaveLength(4);
+    view.speechStream({ preset: "perlica", turn_id: "7", op: "push", delta: "Hello" });
+    expect(lines().at(-1)?.querySelector(".yui-uc__say")?.textContent).toBe("Hello");
+    expect(lines().at(-1)?.classList.contains("is-pending")).toBe(true);
+    expect(lines().at(-1)?.querySelector("img")?.getAttribute("src")).toBe("asset://perlica.png");
+    view.speechStream({ preset: "perlica", turn_id: "7", op: "push", delta: " there" });
+    expect(lines().at(-1)?.querySelector(".yui-uc__say")?.textContent).toBe("Hello there");
+    view.speechStream({ preset: "perlica", turn_id: "7", op: "end" });
+    transcripts.perlica!.push({ role: "assistant", turn_id: "7", text: "Hello there", ts: T + 1 });
+    view.refresh();
+    expect(lines()).toHaveLength(5);
+    expect(document.querySelectorAll(".is-pending")).toHaveLength(0);
+    expect(lines().at(-1)?.querySelector(".yui-uc__say")?.textContent).toBe("Hello there");
+  });
+
+  it("does not move a scrolled-up log when speech grows", () => {
+    mount();
+    const log = document.querySelector<HTMLElement>(".yui-uc__log")!;
+    Object.defineProperties(log, {
+      scrollHeight: { value: 1000, configurable: true },
+      clientHeight: { value: 300 },
+    });
+    log.scrollTop = 120;
+    view.speechStream({ preset: "perlica", turn_id: "7", op: "begin", baseline: 0 });
+    view.speechStream({ preset: "perlica", turn_id: "7", op: "push", delta: "Hello" });
+    expect(log.scrollTop).toBe(120);
+    Object.defineProperty(log, "scrollHeight", { value: 1200 });
+    view.speechStream({ preset: "perlica", turn_id: "7", op: "push", delta: " there" });
+    expect(log.scrollTop).toBe(120);
+  });
+
+  it("expires ended speech with the existing expiry timer and keeps its age at now", () => {
+    vi.useFakeTimers();
+    let now = T;
+    mount({ now: () => now });
+    view.speechStream({ preset: "perlica", turn_id: "7", op: "begin", baseline: 0 });
+    view.speechStream({ preset: "perlica", turn_id: "7", op: "push", delta: "Partial" });
+    now += 120_000;
+    view.refresh();
+    expect(lines().at(-1)?.querySelector("time")?.textContent).toBe("now");
+    view.speechStream({ preset: "perlica", turn_id: "7", op: "end" });
+    now += 59_999;
+    vi.advanceTimersByTime(59_999);
+    expect(document.querySelectorAll(".is-pending")).toHaveLength(1);
+    now += 2;
+    vi.advanceTimersByTime(2);
+    expect(document.querySelectorAll(".is-pending")).toHaveLength(0);
   });
 });

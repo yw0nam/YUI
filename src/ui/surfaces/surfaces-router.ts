@@ -1,21 +1,18 @@
 /**
- * One `Surfaces` over two destinations — the pet window's own surfaces and the
- * message window's, reached over the bridge.
- *
- * Every consumer keeps its single `Surfaces` handle: the router picks the side
- * the current mode names for the bubble and the input, and keeps tool status,
- * the feet anchor and the overlay element local, since those belong to the
- * character. Submit and stop callbacks are registered once here and fire
- * whichever side the user typed on.
+ * One Surfaces selects the local pet or remote message window for speech and input, and also
+ * sends identified speech to the unified stream. Tool status, the feet anchor and the overlay
+ * element stay local because they belong to the character. Submit and stop callbacks register
+ * once and fire from whichever side the user types on.
  */
 
 import type { RemoteSurfaces } from "../../io/bridge/message/message-remote";
 import type { MessageWindowMode } from "../../settings/panels/message-window-settings";
-import type { Surfaces } from "./surfaces";
+import type { SpeechSurfaces, Surfaces } from "./surfaces";
 
 interface SurfacesRouterOptions {
   local: Surfaces;
   remote: RemoteSurfaces;
+  stream: SpeechSurfaces;
   getMode(): MessageWindowMode;
   subscribeMode(cb: (mode: MessageWindowMode) => void): () => void;
 }
@@ -23,6 +20,7 @@ interface SurfacesRouterOptions {
 export function createSurfacesRouter({
   local,
   remote,
+  stream,
   getMode,
   subscribeMode,
 }: SurfacesRouterOptions): Surfaces {
@@ -65,9 +63,18 @@ export function createSurfacesRouter({
     el: local.el,
     chipColumn: local.chipColumn,
 
-    beginSpeech: () => speech().beginSpeech(),
-    pushSpeech: (delta) => speech().pushSpeech(delta),
-    endSpeech: (opts) => speech().endSpeech(opts),
+    beginSpeech(...args) {
+      speech().beginSpeech(...args);
+      stream.beginSpeech(...args);
+    },
+    pushSpeech(...args) {
+      speech().pushSpeech(...args);
+      stream.pushSpeech(...args);
+    },
+    endSpeech(...args) {
+      speech().endSpeech(...args);
+      stream.endSpeech(...args);
+    },
     finishSpeech: () => speech().finishSpeech(),
     hideSpeech: () => speech().hideSpeech(),
     showSpeechAction: (action) => speech().showSpeechAction(action),

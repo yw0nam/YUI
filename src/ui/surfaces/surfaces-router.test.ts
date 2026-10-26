@@ -15,7 +15,7 @@ import { createMessageBridge } from "../../io/bridge/message/message-bridge";
 import { createRemoteSurfaces, type RemoteSurfaces } from "../../io/bridge/message/message-remote";
 import type { MessageWindowMode } from "../../settings/panels/message-window-settings";
 import { createMessagePlate } from "../message/message-plate";
-import { createSurfaces, type Surfaces } from "./surfaces";
+import { createSurfaces, type SpeechSurfaces, type Surfaces } from "./surfaces";
 import { createSurfacesRouter } from "./surfaces-router";
 import { noTool } from "./test-helpers";
 
@@ -83,6 +83,7 @@ function makeRemote(): RemoteSurfaces {
 describe("createSurfacesRouter", () => {
   let local: Surfaces;
   let remote: RemoteSurfaces;
+  let stream: SpeechSurfaces;
   let mode: MessageWindowMode;
   let listeners: Array<(m: MessageWindowMode) => void>;
   let router: Surfaces;
@@ -95,11 +96,13 @@ describe("createSurfacesRouter", () => {
   beforeEach(() => {
     local = makeLocal();
     remote = makeRemote();
+    stream = makeLocal();
     mode = "docked";
     listeners = [];
     router = createSurfacesRouter({
       local,
       remote,
+      stream,
       getMode: () => mode,
       subscribeMode: (cb) => {
         listeners.push(cb);
@@ -143,6 +146,20 @@ describe("createSurfacesRouter", () => {
     expect(local.beginSpeech).not.toHaveBeenCalled();
     expect(local.pushSpeech).not.toHaveBeenCalled();
     expect(local.hideSpeech).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "docked",
+    "popped",
+  ] as const)("streams identified speech beside the selected %s destination", (next) => {
+    setMode(next);
+    const identity = { turn_id: "7", event_name: "user.text_submitted" };
+    router.beginSpeech(identity);
+    router.pushSpeech("Hello", identity);
+    router.endSpeech({ defer: true }, identity);
+    expect(stream.beginSpeech).toHaveBeenCalledWith(identity);
+    expect(stream.pushSpeech).toHaveBeenCalledWith("Hello", identity);
+    expect(stream.endSpeech).toHaveBeenCalledWith({ defer: true }, identity);
   });
 
   it("quoteUser, settleQuote and clearQuote reach the side the mode names", () => {
@@ -379,6 +396,7 @@ describe("createSurfacesRouter over the message bridge", () => {
     const router = createSurfacesRouter({
       local: makeLocal(),
       remote: createRemoteSurfaces(petBridge),
+      stream: makeLocal(),
       getMode: () => mode,
       subscribeMode: (cb) => {
         listeners.push(cb);
