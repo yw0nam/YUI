@@ -307,7 +307,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       dispatcher,
       hitTest,
       peekActive: () => peekState?.active() ?? false,
-      isPanelOpen: () => getQuickCard().isOpen(),
+      isCardOpen: () => getQuickCard().isOpen(),
       onCardOpen: phase1.onQuickCardOpen,
       isHeld: bedScene.isHeld,
       bed: bedScene.bed,

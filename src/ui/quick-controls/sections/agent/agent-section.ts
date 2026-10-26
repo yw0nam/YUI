@@ -48,7 +48,7 @@ interface AgentSectionDeps {
   endpointsSettings: EndpointsSettingsStore;
   /** Whether push chat is the effective mode; the effort segment is disabled then. */
   isPushMode: () => boolean;
-  /** Popover open state — the store subscription redraws only while the panel is open. */
+  /** Panel open state — the store subscription redraws only while the panel is open. */
   isOpen: () => boolean;
   /** Logger — section-scoped changes report here. */
   log: Logger;

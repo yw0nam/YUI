@@ -58,7 +58,7 @@ export function wireLocomotion(deps: {
   hitTest: Pick<HitTestController, "setMoving">;
   peekActive: () => boolean;
   /** Whether the quick card is open: no stroll or climb starts meanwhile. */
-  isPanelOpen: () => boolean;
+  isCardOpen: () => boolean;
   /** Runs the callback each time the quick card opens. */
   onCardOpen: (cb: () => void) => () => void;
   /** A scene holds the body and the window. */
@@ -140,7 +140,7 @@ export function wireLocomotion(deps: {
     getMotionKind: (id) => getConfig().motions[id]?.kind,
     isPeeking: () => peekActive(),
     isDragging: () => dragging || isHeld(),
-    isPanelOpen: deps.isPanelOpen,
+    isCardOpen: deps.isCardOpen,
     setHitTestMoving: (moving) => hitTest.setMoving(moving),
     onStrollEnd,
     onDescend: (edge) => climberRef?.descend(edge),
@@ -255,7 +255,7 @@ export function wireLocomotion(deps: {
     isPeeking: () => peekActive(),
     isDragging: () => dragging || isHeld(),
     isBusy: dispatcher.isPipelineBusy,
-    isPanelOpen: deps.isPanelOpen,
+    isCardOpen: deps.isCardOpen,
     walker,
     faller,
     sitter,

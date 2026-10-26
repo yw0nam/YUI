@@ -37,7 +37,7 @@ export function wireClimber(deps: {
   /** A turn is in flight or speech is still playing — ambient movement stays out of the way. */
   isBusy: () => boolean;
   /** Whether the quick card is open: no climb starts meanwhile. */
-  isPanelOpen: () => boolean;
+  isCardOpen: () => boolean;
   walker: { walkTo(toX: number): Promise<"arrived" | "lost">; cancel(): void };
   faller: { drop(): Promise<void>; cancel(): void };
   sitter: Pick<Sitter, "sitDown" | "standUp" | "cancel">;
@@ -106,7 +106,7 @@ export function wireClimber(deps: {
       isPeeking: deps.isPeeking,
       isDragging: deps.isDragging,
       isBusy: deps.isBusy,
-      isPanelOpen: deps.isPanelOpen,
+      isCardOpen: deps.isCardOpen,
       walker: deps.walker,
       faller: deps.faller,
       sitter: deps.sitter,

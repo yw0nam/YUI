@@ -31,7 +31,7 @@ interface ReactionsSectionDeps {
   getRateLimitDefaults?: () => RateLimitOverrides | undefined;
   /** Switch-row redraw — the agent-notify subscription calls both. */
   reflectSwitchRows: () => void;
-  /** Popover open state — store subscriptions redraw only while the panel is open. */
+  /** Panel open state — store subscriptions redraw only while the panel is open. */
   isOpen: () => boolean;
 }
 

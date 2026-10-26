@@ -144,7 +144,7 @@ export interface ClimberDeps {
   /** A turn is in flight or speech is still playing. */
   isBusy(): boolean;
   /** Whether the quick card is open: no climb starts meanwhile; one under way runs to its end. */
-  isPanelOpen(): boolean;
+  isCardOpen(): boolean;
   walker: {
     walkTo(toX: number, onAccepted?: () => void, holdClip?: boolean): Promise<"arrived" | "lost">;
     cancel(): void;
@@ -440,7 +440,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       perched: renderer.isPerched(),
       peeking: deps.isPeeking(),
       dragging: deps.isDragging(),
-      panelOpen: deps.isPanelOpen(),
+      cardOpen: deps.isCardOpen(),
       // A climb still yields to a turn: a directed leg cannot stop mid-wall for a response motion.
       bodyFree: deps.currentMotionKind() === "ambient" && !deps.isBusy(),
       reducedMotion: false,
@@ -813,7 +813,7 @@ export function createClimber(deps: ClimberDeps): Climber {
       perched: renderer.isPerched(),
       peeking: deps.isPeeking(),
       dragging: deps.isDragging(),
-      panelOpen: deps.isPanelOpen(),
+      cardOpen: deps.isCardOpen(),
       bodyFree: deps.currentMotionKind() === "ambient" && !deps.isBusy(),
       reducedMotion: false,
     };

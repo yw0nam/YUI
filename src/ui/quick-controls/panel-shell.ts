@@ -4,7 +4,7 @@
  * gain/audition/key-commit cleanup is delegated to the onClose callback.
  */
 
-interface PopoverDeps {
+interface PanelShellDeps {
   /** Mount container the panel attaches to. */
   mount: HTMLElement;
   /** Panel root node (el). */
@@ -17,14 +17,14 @@ interface PopoverDeps {
   onClose: () => void;
 }
 
-interface Popover {
+interface PanelShell {
   open(): void;
   close(): void;
   isOpen(): boolean;
   dispose(): void;
 }
 
-export function createPopover(deps: PopoverDeps): Popover {
+export function createPanelShell(deps: PanelShellDeps): PanelShell {
   const { mount, root, closeWindow, onOpen, onClose } = deps;
 
   let openState = false;

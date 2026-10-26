@@ -75,7 +75,7 @@ import { DEFAULT_PAGE } from "./constants";
 import { mountCueLists } from "./cue-lists/cue-lists";
 import { createHintTooltip } from "./hint-tooltip";
 import { createHistoryTab } from "./history/history-tab";
-import { createPopover } from "./popover";
+import { createPanelShell } from "./panel-shell";
 import { createPresetStrip } from "./preset/preset-strip";
 import { bindSettingsSearch } from "./search/settings-search";
 import { createAgentSection } from "./sections/agent/agent-section";
@@ -453,7 +453,7 @@ export function createQuickControls({
     getDefaultChatApi,
     rows: { broker: true },
     pushSocket,
-    isOpen: () => popover.isOpen(),
+    isOpen: () => shell.isOpen(),
     getChatApiKey,
     getFetch,
     log,
@@ -471,7 +471,7 @@ export function createQuickControls({
         announceSessionReset,
         pushSocket,
         getChatApi: () => (isPushMode() ? "push" : undefined),
-        isOpen: () => popover.isOpen(),
+        isOpen: () => shell.isOpen(),
         log,
       })
     : null;
@@ -517,7 +517,7 @@ export function createQuickControls({
     swapVrm,
     importVrm,
     removeUserVrm,
-    isOpen: () => popover.isOpen(),
+    isOpen: () => shell.isOpen(),
     log,
     refreshTooltip: hintTooltip.refresh,
     onResetView: onResetViewpoint,
@@ -563,11 +563,11 @@ export function createQuickControls({
     log,
     refreshTooltip: hintTooltip.refresh,
     isDisposed: () => disposed,
-    isOpen: () => popover.isOpen(),
+    isOpen: () => shell.isOpen(),
   });
 
   // ── shell (open/close lifecycle) ──
-  const popover = createPopover({
+  const shell = createPanelShell({
     mount,
     root: el,
     closeWindow: onCloseWindow,
@@ -586,7 +586,7 @@ export function createQuickControls({
   });
 
   // ── Switch rows (click binding · store following while open) ──
-  const switchRows = bindSwitchRows(el, TOGGLE_SPECS, log, popover.isOpen);
+  const switchRows = bindSwitchRows(el, TOGGLE_SPECS, log, shell.isOpen);
 
   // ── Screen section (screen-watch threshold knobs · min-gap slider) ──
   const screen = createScreenSection({
@@ -595,7 +595,7 @@ export function createQuickControls({
     screenKnobSettings,
     getScreenDefaults,
     reflectSwitchRows: () => switchRows.reflect(),
-    isOpen: popover.isOpen,
+    isOpen: shell.isOpen,
   });
 
   // ── Reactions section (agent port · presence · pacer gap · rate-limit caps) ──
@@ -608,7 +608,7 @@ export function createQuickControls({
     rateLimitSettings,
     getRateLimitDefaults,
     reflectSwitchRows: () => switchRows.reflect(),
-    isOpen: popover.isOpen,
+    isOpen: shell.isOpen,
   });
 
   // ── Agent section (locale segment · reasoning-effort segment) ──
@@ -617,13 +617,13 @@ export function createQuickControls({
     agentSettings,
     endpointsSettings,
     isPushMode,
-    isOpen: popover.isOpen,
+    isOpen: shell.isOpen,
     log,
   });
   const appearance = createAppearanceSection({
     root: el,
     themeSettings,
-    isOpen: popover.isOpen,
+    isOpen: shell.isOpen,
     log,
   });
 
@@ -636,7 +636,7 @@ export function createQuickControls({
     registry: presetRegistry,
     getPersona,
     isPushMode,
-    isOpen: popover.isOpen,
+    isOpen: shell.isOpen,
     importCard,
     exportCard,
     createPresetFromCard,
@@ -648,13 +648,13 @@ export function createQuickControls({
     root: el,
     userNameSettings,
     getPersona,
-    isOpen: popover.isOpen,
+    isOpen: shell.isOpen,
   });
   const sttKeyRow = createKeyRow({
     root: el,
     idPrefix: "sttkey",
     store: sttKeySettings,
-    isOpen: popover.isOpen,
+    isOpen: shell.isOpen,
     log,
   });
 
@@ -662,7 +662,7 @@ export function createQuickControls({
   const filler = createFillerSection({
     root: el,
     fillerSettings,
-    isOpen: popover.isOpen,
+    isOpen: shell.isOpen,
     reflectSwitchRows: () => switchRows.reflect(),
   });
 
@@ -675,7 +675,7 @@ export function createQuickControls({
     voiceStatus,
     vad,
     reflectSwitchRows: () => switchRows.reflect(),
-    isOpen: popover.isOpen,
+    isOpen: shell.isOpen,
     log,
   });
 
@@ -686,7 +686,7 @@ export function createQuickControls({
     pushSocket,
     isPushMode,
     delegations,
-    isOpen: popover.isOpen,
+    isOpen: shell.isOpen,
   });
 
   // ── Screenshot section (attach switch · monitor list) ──
@@ -695,12 +695,12 @@ export function createQuickControls({
     settings,
     sourceProvider,
     log,
-    isOpen: popover.isOpen,
+    isOpen: shell.isOpen,
   });
 
   // ── Browser section (browser-use switch) ──
   const browser = browserSettings
-    ? createBrowserSection({ root: el, settings: browserSettings, log, isOpen: popover.isOpen })
+    ? createBrowserSection({ root: el, settings: browserSettings, log, isOpen: shell.isOpen })
     : undefined;
 
   // Effective chat protocol: the user's override, else the bundled default.
@@ -725,11 +725,11 @@ export function createQuickControls({
   function openPanel(opts?: { tab?: SettingsPage }): void {
     const tab = opts?.tab;
     if (tab && tabRail.select(tab)) {
-      popover.open();
+      shell.open();
       // open() lands focus on the first control; move it to the tab the caller asked for.
       tabRail.select(tab, { focusVisible: false });
     } else {
-      popover.open();
+      shell.open();
     }
   }
 
@@ -791,12 +791,12 @@ export function createQuickControls({
   const sections = parts.filter((section): section is PanelSection => !!section);
 
   // The panel fills its window, so it opens at once.
-  popover.open();
+  shell.open();
 
   function dispose(): void {
     disposed = true;
     for (const section of sections) section.dispose?.();
-    popover.dispose();
+    shell.dispose();
     el.remove();
   }
 
@@ -804,8 +804,8 @@ export function createQuickControls({
     el,
     open: openPanel,
     selectedTab,
-    close: popover.close,
-    isOpen: popover.isOpen,
+    close: shell.close,
+    isOpen: shell.isOpen,
     dispose,
   };
 }

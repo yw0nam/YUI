@@ -105,7 +105,7 @@ function deferred() {
 }
 
 // readRead resolves after the dynamic imports reach the readiness await.
-function startWalker(isPanelOpen: () => boolean = () => false) {
+function startWalker(isCardOpen: () => boolean = () => false) {
   vi.stubGlobal("__TAURI_INTERNALS__", {});
   createWalker.mockClear();
   walkerStub.start.mockClear();
@@ -133,7 +133,7 @@ function startWalker(isPanelOpen: () => boolean = () => false) {
     getMotionKind: () => undefined,
     isPeeking: () => false,
     isDragging: () => false,
-    isPanelOpen,
+    isCardOpen,
     setHitTestMoving: () => {},
     onStrollEnd: () => {},
     onDescend: () => {},
@@ -173,9 +173,9 @@ describe("wireWalker", () => {
     await readRead.promise;
     ready.resolve();
     await vi.waitFor(() => expect(walkerStub.start).toHaveBeenCalledTimes(1));
-    const walkerDeps = createWalker.mock.calls[0][0] as { isPanelOpen(): boolean };
-    expect(walkerDeps.isPanelOpen()).toBe(true);
+    const walkerDeps = createWalker.mock.calls[0][0] as { isCardOpen(): boolean };
+    expect(walkerDeps.isCardOpen()).toBe(true);
     open = false;
-    expect(walkerDeps.isPanelOpen()).toBe(false);
+    expect(walkerDeps.isCardOpen()).toBe(false);
   });
 });

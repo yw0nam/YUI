@@ -23,7 +23,7 @@ interface VoiceInputSectionDeps {
   vad: VadSettingsStore;
   /** Switch-row redraw — the vad subscription calls it before the slider redraw. */
   reflectSwitchRows: () => void;
-  /** Popover open state — the vad subscription redraws only while the panel is open. */
+  /** Panel open state — the vad subscription redraws only while the panel is open. */
   isOpen: () => boolean;
   /** Logger — the switch click and the slider release report here. */
   log: Logger;

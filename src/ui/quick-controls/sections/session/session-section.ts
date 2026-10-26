@@ -24,7 +24,7 @@ interface SessionSectionDeps {
     subscribe(cb: () => void): () => void;
     refresh?(): void;
   };
-  /** Popover open state — the diagnostics and push-state subscriptions redraw only while open. */
+  /** Panel open state — the diagnostics and push-state subscriptions redraw only while open. */
   isOpen: () => boolean;
 }
 

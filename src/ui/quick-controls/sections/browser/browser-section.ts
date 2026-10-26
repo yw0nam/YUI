@@ -43,7 +43,7 @@ export function createBrowserSection(deps: {
   root: HTMLElement;
   settings: Pick<FlagSettingsStore, "get" | "setEnabled" | "subscribe">;
   log: Logger;
-  /** Popover open state — the store subscription redraws only while the panel is open. */
+  /** Panel open state — the store subscription redraws only while the panel is open. */
   isOpen: () => boolean;
 }): BrowserSection {
   const { root, settings, log, isOpen } = deps;

@@ -59,7 +59,7 @@ describe("wireLocomotion", () => {
   });
 
   const setup = (
-    over: { isPanelOpen?: () => boolean; isHeld?: () => boolean; bed?: AvatarBed } = {},
+    over: { isCardOpen?: () => boolean; isHeld?: () => boolean; bed?: AvatarBed } = {},
   ) => {
     const cancelOrder: string[] = [];
     const teardowns: string[] = [];
@@ -119,13 +119,13 @@ describe("wireLocomotion", () => {
 
     let travelFrameDeps: { setKeepOnScreenPaused(paused: boolean): void } | undefined;
     let walkerDeps:
-      | { onDescend(edge: DescentEdge): void; isPanelOpen(): boolean; isDragging(): boolean }
+      | { onDescend(edge: DescentEdge): void; isCardOpen(): boolean; isDragging(): boolean }
       | undefined;
     let fallerDeps: { onWindowLand(target: WindowRect): void; isEnabled(): boolean } | undefined;
     let windowSourcesDeps:
       | { onRelocated(): Promise<void>; isHeld(): boolean; bed: AvatarBed }
       | undefined;
-    let climberDeps: { isDragging(): boolean; isPanelOpen(): boolean } | undefined;
+    let climberDeps: { isDragging(): boolean; isCardOpen(): boolean } | undefined;
     mocks.wireTravelFrame.mockImplementation((deps) => {
       travelFrameDeps = deps;
       return travelFrame;
@@ -177,7 +177,7 @@ describe("wireLocomotion", () => {
       dispatcher: {} as never,
       hitTest: { setMoving: vi.fn() },
       peekActive: () => false,
-      isPanelOpen: over.isPanelOpen ?? (() => false),
+      isCardOpen: over.isCardOpen ?? (() => false),
       onCardOpen,
       isHeld: over.isHeld ?? (() => false),
       bed: over.bed ?? {
@@ -239,11 +239,11 @@ describe("wireLocomotion", () => {
 
   it("hands the card-open getter to the walker and the climber, and the card's opening to the stroll", () => {
     let open = true;
-    const s = setup({ isPanelOpen: () => open });
+    const s = setup({ isCardOpen: () => open });
 
-    expect([s.walkerDeps.isPanelOpen(), s.climberDeps.isPanelOpen()]).toEqual([true, true]);
+    expect([s.walkerDeps.isCardOpen(), s.climberDeps.isCardOpen()]).toEqual([true, true]);
     open = false;
-    expect([s.walkerDeps.isPanelOpen(), s.climberDeps.isPanelOpen()]).toEqual([false, false]);
+    expect([s.walkerDeps.isCardOpen(), s.climberDeps.isCardOpen()]).toEqual([false, false]);
     expect(mocks.wireStrollCardCancel).toHaveBeenCalledWith({
       onCardOpen: s.onCardOpen,
       walker: s.walker,

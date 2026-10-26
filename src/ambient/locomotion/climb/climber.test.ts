@@ -130,7 +130,7 @@ function makeHarness(
     peeking?: boolean;
     dragging?: boolean;
     busy?: boolean;
-    panelOpen?: boolean;
+    cardOpen?: boolean;
     reducedMotion?: boolean;
     /** null models an unloaded VRM. */
     anchor?: { x: number; y: number } | null;
@@ -360,7 +360,7 @@ function makeHarness(
     isPeeking: () => over.peeking ?? false,
     isDragging: () => over.dragging ?? false,
     isBusy: () => over.busy ?? false,
-    isPanelOpen: () => over.panelOpen ?? false,
+    isCardOpen: () => over.cardOpen ?? false,
     reducedMotion: () => over.reducedMotion ?? false,
     walker: {
       walkTo: async (toX: number, _onAccepted?: () => void, holdClip?: boolean) => {
@@ -755,7 +755,7 @@ describe("createClimber — up", () => {
     ["peeking", { peeking: true }],
     ["dragging", { dragging: true }],
     ["a turn is in flight", { busy: true }],
-    ["the quick card is open", { panelOpen: true }],
+    ["the quick card is open", { cardOpen: true }],
     ["the feet anchor is unavailable", { anchor: null }],
     ["the perch probe is unavailable", { charHpx: null }],
     ["the framing cannot be measured", { pxPerMetre: null }],

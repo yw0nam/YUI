@@ -26,7 +26,7 @@ export function wireWalker(deps: {
   isPeeking: () => boolean;
   isDragging: () => boolean;
   /** Whether the quick card is open: no stroll starts meanwhile. */
-  isPanelOpen: () => boolean;
+  isCardOpen: () => boolean;
   /** Keep the hit-test cursor mapping accurate while the window translates. */
   setHitTestMoving: (moving: boolean) => void;
   /** An ambient stroll ended — bodyReleased is true only when the walker itself handed the
@@ -77,7 +77,7 @@ export function wireWalker(deps: {
       },
       isPeeking: deps.isPeeking,
       isDragging: deps.isDragging,
-      isPanelOpen: deps.isPanelOpen,
+      isCardOpen: deps.isCardOpen,
       onStart: () => {
         deps.setHitTestMoving(true);
         push("avatar.walk_start");
