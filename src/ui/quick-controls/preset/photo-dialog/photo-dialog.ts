@@ -123,6 +123,7 @@ export function openPhotoDialog(deps: PhotoDialogDeps): void {
     img.style.left = `${next.left}px`;
     img.style.top = `${next.top}px`;
     slider.value = String(Math.round(next.zoom * 100));
+    slider.style.setProperty("--fill", String((next.zoom - MIN_ZOOM) / (MAX_ZOOM - MIN_ZOOM)));
     zoomOut.textContent = `${next.zoom.toFixed(1)}×`;
     const crop = cropOf(next, size);
     for (const p of previewImgs) applyCrop(p, crop);
