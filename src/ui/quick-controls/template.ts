@@ -36,6 +36,7 @@ import { userNameRowHtml } from "./sections/user-name/user-name-section";
 import type { SwitchRow } from "./switch-row";
 import { switchButtonHtml, switchRowHtml } from "./switches/switch-rows";
 import { tabButtonHtml, tabPanelOpenHtml } from "./tabs/tab-rail";
+import { charactersSectionHtml } from "./together/characters-section";
 
 /**
  * Small round `?` that follows a section label whose name alone is not self-explanatory.
@@ -71,6 +72,8 @@ interface PanelHtmlOptions {
   showBrowser?: boolean;
   /** Whether the preset strip and each page's scope line render — true when the registry is injected. */
   showPreset?: boolean;
+  /** Whether the Together page lists the characters — true with the registry and the open-window store. */
+  showCharacters?: boolean;
 }
 
 export function buildPanelHtml(o: PanelHtmlOptions): string {
@@ -90,6 +93,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     showHistory,
     showBrowser,
     showPreset,
+    showCharacters,
   } = o;
   const visibleSwitchRows = switchRows.filter((row) => row.isVisible);
 
@@ -338,7 +342,7 @@ ${
           </div>
         </div>`
     : ""
-}
+}${showCharacters ? charactersSectionHtml() : ""}
       </div>
 ${panelOpenHtml("listening")}
         <div class="yui-sec">

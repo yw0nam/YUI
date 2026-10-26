@@ -158,8 +158,13 @@ const ja: Record<string, string> = {
   "scope.every": "すべてのキャラクター",
 
   // preset strip, manage popover, and the scope line above each tab title
-  "preset.open_window": "ウィンドウを開く",
-  "preset.close_window": "ウィンドウを閉じる",
+  "chars.section": "キャラクター",
+  "chars.in_main": "メイン · 常にオン",
+  "chars.on": "デスクトップに表示中",
+  "chars.off": "オフ · 設定は保持",
+  "chars.cap_reason": "同時に4人まで。先にひとりをオフにしてください。",
+  "chars.count": "デスクトップに{n}/{cap}人",
+  "chars.switch_aria": "{name}をデスクトップに表示",
   "preset.in_window": "{name} · ウィンドウで表示中",
   "preset.label": "プリセット",
   "preset.manage": "プリセットを管理",

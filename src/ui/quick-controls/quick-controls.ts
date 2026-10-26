@@ -97,6 +97,7 @@ import { createSwitchRows } from "./switch-row";
 import { bindSwitchRows } from "./switches/switch-rows";
 import { createTabRail } from "./tabs/tab-rail";
 import { buildPanelHtml } from "./template";
+import { createCharactersSection } from "./together/characters-section";
 
 type ScreenshotSettingsStore = ReturnType<typeof createScreenshotSettings>;
 type AgentNotifySettingsStore = ReturnType<typeof createAgentNotifySettings>;
@@ -442,6 +443,7 @@ export function createQuickControls({
     showHistory: !!transcript,
     showBrowser: !!browserSettings,
     showPreset: !!presetRegistry,
+    showCharacters: !!presetRegistry && !!petWindows,
   });
 
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
@@ -502,6 +504,10 @@ export function createQuickControls({
         pickPhoto: pickPresetPhoto,
       })
     : null;
+  const characters =
+    presetRegistry && petWindows
+      ? createCharactersSection({ root: el, registry: presetRegistry, petWindows, log })
+      : null;
   const hintTooltip = createHintTooltip({ root: el });
 
   // After dispose, prevent in-flight refresh from repainting/timering on destroyed DOM.
@@ -599,6 +605,7 @@ export function createQuickControls({
       if (tabRail.selected() === "conn") connectionTab.entered();
       session.reflect();
       historyTab?.refresh();
+      characters?.refresh();
       characterTab.refresh();
       speakerList.render();
       // Server may have come up after the app — refetch its voice list (store subscription re-renders).
@@ -835,6 +842,7 @@ export function createQuickControls({
     tabRail.dispose();
     unbindTransportLinks();
     presetStrip?.dispose();
+    characters?.dispose();
     el.remove();
     scrimEl.remove();
   }

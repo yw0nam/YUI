@@ -1,0 +1,8 @@
+/* The Together page's character rows: face, name and state, the switch at the end. */
+.yui-chars__row {
+  gap: 0.75rem;
+}
+
+.yui-chars__row.is-off .yui-row__label {
+  color: var(--yui-text-dim);
+}

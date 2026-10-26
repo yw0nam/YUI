@@ -157,8 +157,13 @@ const en: Record<string, string> = {
   "scope.every": "Every character",
 
   // preset strip, manage popover, and the scope line above each tab title
-  "preset.open_window": "Open window",
-  "preset.close_window": "Close window",
+  "chars.section": "Characters",
+  "chars.in_main": "In main · always on",
+  "chars.on": "On the desktop",
+  "chars.off": "Off · settings kept",
+  "chars.cap_reason": "Up to 4 at once. Turn one off first.",
+  "chars.count": "{n} of {cap} on the desktop",
+  "chars.switch_aria": "{name} on the desktop",
   "preset.in_window": "{name} · open as a window",
   "preset.label": "Preset",
   "preset.manage": "Manage presets",

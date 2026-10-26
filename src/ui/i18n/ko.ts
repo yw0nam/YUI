@@ -157,8 +157,13 @@ const ko: Record<string, string> = {
   "scope.every": "모든 캐릭터",
 
   // preset strip, manage popover, and the scope line above each tab title
-  "preset.open_window": "창 열기",
-  "preset.close_window": "창 닫기",
+  "chars.section": "캐릭터",
+  "chars.in_main": "메인 · 항상 켜짐",
+  "chars.on": "데스크톱에 있음",
+  "chars.off": "꺼짐 · 설정 유지",
+  "chars.cap_reason": "한 번에 4명까지예요. 먼저 한 명을 꺼 주세요.",
+  "chars.count": "데스크톱에 {n}/{cap}명",
+  "chars.switch_aria": "{name} 데스크톱에 띄우기",
   "preset.in_window": "{name} · 창으로 열림",
   "preset.label": "프리셋",
   "preset.manage": "프리셋 관리",

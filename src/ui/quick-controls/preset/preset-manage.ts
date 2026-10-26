@@ -119,17 +119,6 @@ export function createPresetManage(deps: {
       focusSel = ".yui-preset-row__confirm .yui-pill:not(.yui-pill--go)";
       render();
     });
-    if (petWindows && entry.id !== active && entry.id !== boundId) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "yui-preset-row__window";
-      button.textContent = t(desired || live ? "preset.close_window" : "preset.open_window");
-      button.disabled = live && !desired;
-      button.addEventListener("click", () =>
-        desired ? petWindows.close(entry.id) : petWindows.open(entry.id),
-      );
-      row.querySelector(".yui-preset-row__acts")!.append(button);
-    }
     if (edit && entry.id !== active) {
       const button = document.createElement("button");
       button.type = "button";
