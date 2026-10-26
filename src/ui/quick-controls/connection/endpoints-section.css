@@ -152,6 +152,5 @@
 
 .yui-row:has(> .yui-select--single)::after,
 .yui-select-wrap:has(> .yui-select--single)::after {
-  mask-image: none;
-  -webkit-mask-image: none;
+  content: none;
 }
