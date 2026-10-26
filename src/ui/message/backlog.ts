@@ -12,7 +12,7 @@ export interface BacklogSource {
 }
 
 interface BacklogOptions extends BacklogSource {
-  /** The box's frame: the panel opens above it and the toggle sits under it. */
+  /** The box's frame: the panel opens above it and the toggle rides its bottom edge. */
   mount: HTMLElement;
   /** Held open while the backlog shows. */
   bubble: Pick<SpeechBubble, "keepOpen">;
@@ -38,7 +38,7 @@ export function createBacklog({ mount, read, characterName, bubble }: BacklogOpt
   toggle.type = "button";
   toggle.className = "yui-bubble__backlog-toggle";
   mount.before(panel);
-  mount.after(toggle);
+  mount.append(toggle);
   let isOpen = false;
 
   function line(entry: ChatHistoryEntry): HTMLLIElement {

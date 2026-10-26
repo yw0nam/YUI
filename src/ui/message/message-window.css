@@ -84,12 +84,22 @@
 }
 /* The bubble tucks up under the plate's row so the 30px plate rides the box's top-left edge, half over it:
    15px over the box plus the column's 8px gap. An open delegation list keeps the row clear of the box. */
-.yui-plate-row:not(:has(.yui-deleg__list.is-open)) + .yui-bubble {
+.yui-plate-row:not(:has(.yui-deleg__list.is-open))
++ .yui-bubble:not(:has(.yui-bubble__backlog:not([hidden]))) {
   margin-top: -23px;
+}
+/* The plate floats with the box it rides. */
+.yui-ui--message .yui-plate-row:has(+ .yui-bubble.is-visible) > .yui-plate {
+  animation: yui-bob 6s ease-in-out infinite;
+}
+/* The backlog toggle hangs 15px under the box; the column's 8px gap takes the rest. */
+.yui-ui--message .yui-bubble:has(.yui-bubble__backlog-toggle:not([hidden])) {
+  margin-bottom: 7px;
 }
 /* The lift above the input is a pet-window trick; in flow the column already separates them. */
 .yui-ui--message .yui-bubble.is-above-input .yui-bubble__box {
   max-height: var(--yui-bubble-max-h, 34vh);
+  min-height: min(132px, var(--yui-bubble-max-h, 34vh));
 }
 
 .yui-ui--message .yui-input {
@@ -164,5 +174,8 @@
   .yui-plate-row:has(.yui-plate[data-state="responding"]) ~ .yui-bubble .yui-bubble__box {
     animation: none;
     border-color: var(--yui-accent-soft);
+  }
+  .yui-ui--message .yui-plate-row:has(+ .yui-bubble.is-visible) > .yui-plate {
+    animation: none;
   }
 }

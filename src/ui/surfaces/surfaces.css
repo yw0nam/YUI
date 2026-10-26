@@ -85,7 +85,7 @@
 
 .yui-bubble__box {
   box-sizing: border-box;
-  min-height: 132px;
+  min-height: min(132px, var(--yui-bubble-max-h, 34vh));
   padding: 26px 20px 30px;
   border-radius: 16px;
   background: var(--yui-scrim);
@@ -175,6 +175,7 @@
    constrain height further to prevent growing downward and encroaching on input area. */
 .yui-bubble.is-above-input .yui-bubble__box {
   max-height: min(var(--yui-bubble-max-h, 34vh), 28vh);
+  min-height: min(132px, var(--yui-bubble-max-h, 34vh), 28vh);
 }
 
 /* ── Markdown inside bubble ──
@@ -493,14 +494,17 @@
 /* ── Backlog — the session's earlier lines above the box, opened by a pill under it.
    The bubble passes pointers through, so the pill and the open panel take their own. ── */
 .yui-bubble__backlog {
-  /* Clear of the name plate that rides the box's top edge 15px above it. */
-  margin-bottom: 23px;
+  margin-bottom: 8px;
   padding: 12px 14px;
   border-radius: var(--yui-radius);
   background: var(--yui-scrim-strong);
   border: 1px solid var(--yui-edge);
   box-shadow: var(--yui-float);
   pointer-events: auto;
+}
+/* Clear of the docked plate, which rides 15px above the box. */
+.yui-bubble:has(.yui-bubble__frame > .yui-plate) .yui-bubble__backlog {
+  margin-bottom: 23px;
 }
 .yui-bubble__backlog-title {
   margin-bottom: 6px;
@@ -527,10 +531,13 @@
   margin-right: 0.5em;
   font-weight: 600;
 }
+/* The toggle rides the box's bottom-left edge, half over it, so it adds no height under the box. */
 .yui-bubble__backlog-toggle {
-  display: block;
+  position: absolute;
+  bottom: -15px;
+  left: 14px;
+  z-index: 1;
   height: 30px;
-  margin: 8px 0 0 auto;
   padding: 0 12px;
   border-radius: var(--yui-radius-pill);
   border: 1px solid var(--yui-edge);
@@ -541,9 +548,6 @@
   cursor: pointer;
   pointer-events: auto;
   transition: color var(--yui-dur-fast) var(--yui-ease);
-}
-.yui-bubble__backlog-toggle[hidden] {
-  display: none;
 }
 .yui-bubble__backlog-toggle:hover {
   color: var(--yui-text);

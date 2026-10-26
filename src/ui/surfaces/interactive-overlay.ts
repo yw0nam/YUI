@@ -10,7 +10,7 @@ export const INTERACTIVE_OVERLAY_SELECTORS = [
   ".yui-bubble.is-visible .yui-bubble__tools button",
   ".yui-bubble.is-visible .yui-bubble__box",
   ".yui-bubble.is-visible .yui-bubble__speech-action button",
-  ".yui-bubble.is-visible .yui-bubble__backlog-toggle",
+  ".yui-bubble.is-visible .yui-bubble__backlog-toggle:not([hidden])",
   ".yui-bubble.is-visible .yui-bubble__backlog:not([hidden])",
   ".yui-status.is-visible .yui-status__capture:not([hidden])",
   '.yui-status.is-visible[data-fix="settings"]',
