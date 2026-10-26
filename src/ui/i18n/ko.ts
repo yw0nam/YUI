@@ -278,6 +278,10 @@ const ko: Record<string, string> = {
   "unified.remove_mention": "받는 캐릭터 지우기",
   "unified.just_now": "방금",
   "unified.pending": "보내는 중",
+  "unified.close": "통합 채팅창 닫기",
+  "unified.you_to": "나 → {name}",
+  "unified.everyone": "모두",
+  "unified.recipients": "받는 사람",
 
   // filler (thinking interjections)
   "filler.section": "생각중 추임새",

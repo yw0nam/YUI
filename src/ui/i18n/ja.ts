@@ -279,6 +279,10 @@ const ja: Record<string, string> = {
   "unified.remove_mention": "宛先を外す",
   "unified.just_now": "たった今",
   "unified.pending": "送信中",
+  "unified.close": "統合チャットを閉じる",
+  "unified.you_to": "あなた → {name}",
+  "unified.everyone": "みんな",
+  "unified.recipients": "送り先",
 
   // filler (thinking interjections)
   "filler.section": "考え中のあいづち",

@@ -277,6 +277,10 @@ const en: Record<string, string> = {
   "unified.remove_mention": "Remove mention",
   "unified.just_now": "now",
   "unified.pending": "sending",
+  "unified.close": "Close unified chat",
+  "unified.you_to": "You → {name}",
+  "unified.everyone": "everyone",
+  "unified.recipients": "Send to",
 
   // filler (thinking interjections)
   "filler.section": "Thinking interjections",
