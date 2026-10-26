@@ -45,8 +45,18 @@ export function createRows(deps: {
   ];
   function paintPicker({ select, port }: (typeof pickers)[number]): void {
     const current = port.current();
+    const options = port.options();
+    // No voice set: the empty id reads None instead of a blank select.
     select.replaceChildren(
-      ...port.options().map((o) => new Option(o.label, o.id, false, o.id === current)),
+      ...(options.length > 0 ? options : [{ id: "", label: "" }]).map(
+        (o) =>
+          new Option(
+            o.id === "" ? t("quick_card.voice_none") : o.label,
+            o.id,
+            false,
+            o.id === current,
+          ),
+      ),
     );
   }
   for (const picker of pickers) {
@@ -58,10 +68,12 @@ export function createRows(deps: {
     });
   }
 
+  // Focus follows the button that stays visible, so Escape still reaches the card.
   function showConfirm(show: boolean): void {
     confirmEl.hidden = !show;
     resetBtn.hidden = show;
     deps.onResize();
+    (show ? q<HTMLButtonElement>(".yui-qcard__cancel") : resetBtn).focus();
   }
   resetBtn.addEventListener("click", () => showConfirm(true));
   q(".yui-qcard__cancel").addEventListener("click", () => showConfirm(false));

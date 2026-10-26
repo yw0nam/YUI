@@ -387,7 +387,8 @@ export function createWalker(deps: WalkerDeps): Walker {
         if (renderer.getCurrentMotion()?.id === WALK_MOTION_ID) renderer.playMotion(null);
         throw err;
       }
-      if (stopped || generation !== startedAt) {
+      // The quick card may have opened while the window parked.
+      if (stopped || generation !== startedAt || deps.isCardOpen()) {
         if (renderer.getCurrentMotion()?.id === WALK_MOTION_ID) renderer.playMotion(null);
         void started.end();
         return;

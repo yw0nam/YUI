@@ -719,7 +719,8 @@ export function createClimber(deps: ClimberDeps): Climber {
 
   async function runDown(): Promise<void> {
     const startedAt = generation;
-    if (reducedMotion() || deps.isDragging() || deps.isPeeking()) return;
+    // While the quick card is open she stays seated; the descent waits for the next dwell.
+    if (reducedMotion() || deps.isDragging() || deps.isPeeking() || deps.isCardOpen()) return;
     const cfg = deps.getConfig();
     const walkCfg = deps.getWalkConfig();
     const sit = deps.dropSource.armedSit();

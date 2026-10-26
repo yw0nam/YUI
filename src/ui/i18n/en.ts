@@ -119,6 +119,7 @@ const en: Record<string, string> = {
   "quick_card.main_only": "Main only",
   "quick_card.body": "Body",
   "quick_card.voice_ref": "Reference voice",
+  "quick_card.voice_none": "None",
   "quick_card.conversation": "Conversation",
   "quick_card.reset": "Reset…",
   "quick_card.reset_confirm": "Reset this conversation?",

@@ -119,6 +119,7 @@ const ja: Record<string, string> = {
   "quick_card.main_only": "メインのみ",
   "quick_card.body": "体",
   "quick_card.voice_ref": "参照ボイス",
+  "quick_card.voice_none": "なし",
   "quick_card.conversation": "会話",
   "quick_card.reset": "リセット…",
   "quick_card.reset_confirm": "この会話をリセットしますか？",

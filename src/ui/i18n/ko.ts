@@ -118,6 +118,7 @@ const ko: Record<string, string> = {
   "quick_card.main_only": "메인만",
   "quick_card.body": "몸",
   "quick_card.voice_ref": "참조 음성",
+  "quick_card.voice_none": "없음",
   "quick_card.conversation": "대화",
   "quick_card.reset": "초기화…",
   "quick_card.reset_confirm": "이 대화를 초기화할까요?",
