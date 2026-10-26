@@ -1,5 +1,5 @@
 /**
- * Unified chat window opener — one decorated, resizable window labelled `unified`.
+ * Unified chat window opener — one frameless, always-on-top 340 px window labelled `unified`.
  *
  * openUnifiedWindow branches on injected env for the Tauri/browser paths only (pure, testable).
  * createUnifiedWindowController wires the real implementation, dynamic-imported inside the Tauri
@@ -8,6 +8,7 @@
 
 import { createLogger } from "../../../logger";
 import { isTauri } from "../../../tauri-env";
+import { MESSAGE_WINDOW_HANDLE_HEIGHT, MESSAGE_WINDOW_WIDTH } from "./message-window";
 
 const log = createLogger("unified-window");
 
@@ -32,6 +33,15 @@ export async function openUnifiedWindow(env: UnifiedWindowEnv): Promise<void> {
   await env.create();
 }
 
+/** Destroy the unified window: no close request is emitted, so its own close handler leaves the switch alone. */
+export async function closeUnifiedWindow(env: {
+  isTauri: boolean;
+  getExisting(): Promise<{ destroy(): Promise<void> } | null>;
+}): Promise<void> {
+  if (!env.isTauri) return;
+  await (await env.getExisting())?.destroy();
+}
+
 async function tauriUnifiedWindow() {
   const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
   return WebviewWindow.getByLabel(UNIFIED_WINDOW_LABEL);
@@ -42,15 +52,15 @@ async function createTauriUnifiedWindow(): Promise<void> {
   const win = new WebviewWindow(UNIFIED_WINDOW_LABEL, {
     url: "unified.html",
     title: "YUI",
-    width: 760,
-    height: 640,
-    minWidth: 480,
-    minHeight: 360,
-    resizable: true,
-    decorations: true,
-    alwaysOnTop: false,
-    skipTaskbar: false,
-    focus: true,
+    width: MESSAGE_WINDOW_WIDTH,
+    height: MESSAGE_WINDOW_HANDLE_HEIGHT,
+    resizable: false,
+    decorations: false,
+    transparent: true,
+    shadow: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    focus: false,
   });
   void win.once("tauri://error", (event) =>
     log.error("unified_window_create_error", { error: String(event) }),
@@ -82,7 +92,7 @@ export function createUnifiedWindowController(): { open(): void; close(): void }
       if (!isTauri()) return;
       queue(async () => {
         try {
-          await (await tauriUnifiedWindow())?.close();
+          await closeUnifiedWindow({ isTauri: true, getExisting: tauriUnifiedWindow });
         } catch (error) {
           log.warn("unified_window_close_failed", { error: String(error) });
         }
