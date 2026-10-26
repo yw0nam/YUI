@@ -72,8 +72,5 @@ export function renderMarkdownInline(
   const parser = opts?.streaming ? streamingMarked : marked;
   const rawHtml = (parser.parse(text, { async: false }) as string).trim();
   container.innerHTML = DOMPurify.sanitize(rawHtml, PURIFY_CONFIG);
-  for (const img of container.querySelectorAll("img")) {
-    img.addEventListener("error", () => img.classList.add("is-broken"));
-  }
   return container;
 }

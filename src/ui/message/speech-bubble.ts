@@ -488,6 +488,10 @@ export function createSpeechBubble(
     renderSpeech();
   }
 
+  function onImageError(event: Event): void {
+    if (event.target instanceof HTMLImageElement) event.target.classList.add("is-broken");
+  }
+
   // Dismissal outlives the utterance: the rest of a still-streaming reply must not re-open the bubble.
   function onCloseClick(): void {
     dismissed = true;
@@ -505,6 +509,8 @@ export function createSpeechBubble(
   bubbleEl.addEventListener("pointerenter", onBubbleEnter);
   bubbleEl.addEventListener("pointerleave", onBubbleLeave);
   bubbleClose.addEventListener("click", onCloseClick);
+  // On the persistent text slot, so it outlives the renderings and copies swapped into it; error does not bubble.
+  bubbleText.addEventListener("error", onImageError, true);
   bubbleBox.addEventListener("click", onBoxClick);
 
   function dispose(): void {
@@ -519,6 +525,7 @@ export function createSpeechBubble(
     bubbleEl.removeEventListener("pointerleave", onBubbleLeave);
     bubbleClose.removeEventListener("click", onCloseClick);
     bubbleBox.removeEventListener("click", onBoxClick);
+    bubbleText.removeEventListener("error", onImageError, true);
   }
 
   return {
