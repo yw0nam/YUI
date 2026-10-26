@@ -36,10 +36,15 @@ Two turns start this section:
 2. A user asking for the briefing, in any wording ("what's new this morning?",
    "브리핑 해줘").
 
+Resolve the spool path before the first call: `$YUI_BRIEFING_SPOOL` when it is set,
+otherwise the absolute path that the agent's profile or scheduler configuration sets. An
+agent tool shell may not inherit the profile environment, so pass the path with `--spool`
+on every call, `pending` and `mark-spoken` included.
+
 Run:
 
 ```bash
-python3 "$SKILL_DIR/scripts/briefing.py" pending
+python3 "$SKILL_DIR/scripts/briefing.py" --spool "$YUI_BRIEFING_SPOOL" pending
 ```
 
 It prints every briefing not yet spoken, oldest day first, each under a line
@@ -50,8 +55,9 @@ It prints every briefing not yet spoken, oldest day first, each under a line
    on it stays your call.
 2. On a `first_activity` turn with briefings printed, the greeting and the briefing go in
    one reply.
-3. Exit 2 means the spool is misconfigured. On a `first_activity` turn, greet as usual and
-   mention the misconfiguration once. Settle the environment, as in step 7 of Install,
+3. Exit 2 means the helper found no usable spool. Check the configured path and retry with
+   `--spool <path>` before you report a problem. On a `first_activity` turn, greet as usual
+   and mention a confirmed problem once. Settle the environment, as in step 7 of Install,
    only when the user asks.
 
 Done when: you hold the text and the path of every file `pending` printed.
@@ -78,7 +84,7 @@ After composing the briefing and before giving the final answer, record every pa
 covered, exactly as `pending` printed it:
 
 ```bash
-python3 "$SKILL_DIR/scripts/briefing.py" mark-spoken reports/2026/10/W1/02/world-news.md reports/2026/10/W1/02/papers.md
+python3 "$SKILL_DIR/scripts/briefing.py" --spool "$YUI_BRIEFING_SPOOL" mark-spoken reports/2026/10/W1/02/world-news.md reports/2026/10/W1/02/papers.md
 ```
 
 The helper keeps the record in `$YUI_BRIEFING_SPOOL/spoken.json`. Only the helper writes
