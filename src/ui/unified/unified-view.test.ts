@@ -215,6 +215,16 @@ describe("unified view — routing", () => {
       { sendId: "send-1", to: "perlica", text: "@Perlica hi", mention: "character" },
     ]);
   });
+
+  it("the chip returns to the fallback target once a send clears the field", async () => {
+    mount();
+
+    type("@perlica hi");
+    press("Enter");
+    await Promise.resolve();
+
+    expect(document.querySelector(".yui-uc__target")?.textContent).toContain("to Natsume");
+  });
 });
 
 describe("unified view — pending sends over time", () => {

@@ -163,6 +163,13 @@ describe("typedMention", () => {
     ["an @ in an address", "mail me at a@b.c", cast, null],
     ["a name no preset carries", "@nobody hello", cast, null],
     ["a name that runs into more letters", "@PerlicaX", cast, null],
+    [
+      "a stored name that starts with a reserved word",
+      "@All Stars hi",
+      [{ id: "allstars", name: "All Stars" }],
+      "allstars",
+    ],
+    ["an empty preset name", "@", [{ id: "blank", name: "" }], null],
   ])("%s", (_name, text, use, expected) => {
     expect(typedMention(text, use)).toBe(expected);
   });
