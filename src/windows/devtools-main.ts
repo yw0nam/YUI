@@ -1,3 +1,4 @@
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import "../styles.css";
 import "../ui/quick-controls/quick-controls.css";
 import "../ui/devtools/devtools.css";
@@ -9,6 +10,7 @@ import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
 import { createPresetRegistry } from "../settings/preset/preset-registry";
 import { createSettingsStores } from "../settings/settings-stores";
+import { isTauri } from "../tauri-env";
 import { createDevtoolsShell } from "../ui/devtools/shell";
 import { createLocaleRebuilder } from "../ui/devtools/shell-rebuild";
 import { getLocale, subscribe as subscribeLocale, t } from "../ui/i18n";
@@ -26,6 +28,7 @@ async function bootstrap(): Promise<void> {
   const disposeTheme = applyTheme({
     store: settingsStores.themeSettings,
     root: document.documentElement,
+    setNativeTheme: isTauri() ? (t) => getCurrentWindow().setTheme(t) : undefined,
   });
   const conversationStores = createConversationStores();
   const { contextHistory } = conversationStores;
