@@ -77,10 +77,10 @@ describe("wireDevGlobals", () => {
     const quick = (globalThis as Record<string, unknown>).__yuiQuick as typeof card;
     live = { open: vi.fn(), close: vi.fn(), isOpen: vi.fn(() => false) };
 
-    quick.open({ x: 1, y: 2 });
+    quick.open();
     quick.close();
 
-    expect(live.open).toHaveBeenCalledWith({ x: 1, y: 2 });
+    expect(live.open).toHaveBeenCalledOnce();
     expect(live.close).toHaveBeenCalledOnce();
     expect(quick.isOpen()).toBe(false);
     expect(card.open).not.toHaveBeenCalled();
