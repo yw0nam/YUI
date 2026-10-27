@@ -82,7 +82,6 @@ export async function wireQuickCardWindow(deps: {
     },
     seedListen: (listening) => voiceMirror?.applyRemote(listening ? "listening" : "idle"),
     ownerLabel: boundId === null ? "main" : windowLabel("pet", boundId),
-    onShown: () => closeControl.watch(),
   });
 
   const disposeVoiceMirror = voiceMirror?.dispose ?? ((): void => {});

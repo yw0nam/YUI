@@ -10,12 +10,12 @@ import {
   quickCardBox,
   snapTarget,
 } from "../../io/window/geometry/quick-card-position";
-import { invokeDragWindow } from "../../io/window/pet/gesture/window-drag";
 import {
   logicalWorkArea,
   monitorAtLogical,
   toScreenMonitor,
 } from "../../io/window/geometry/screen-geometry";
+import { invokeDragWindow } from "../../io/window/pet/gesture/window-drag";
 import { createLogger } from "../../logger";
 import { isTauri } from "../../tauri-env";
 
@@ -40,8 +40,6 @@ export function wireQuickCardDock(deps: {
   seedListen(listening: boolean): void;
   /** The owner pet window's label. */
   ownerLabel: string;
-  /** The card's window is shown and has taken focus. */
-  onShown(): void;
 }): void {
   let lastRequest: QuickCardOpen | null = null;
   let lastOwnerLog: { x: number; y: number } | null = null;
@@ -123,7 +121,6 @@ export function wireQuickCardDock(deps: {
     const win = await ownWindow();
     await win.show();
     await win.setFocus();
-    deps.onShown();
     lastRequest = request;
     lastOwnerLog = owner.log;
     docked = true;
