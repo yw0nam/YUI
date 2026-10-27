@@ -59,7 +59,8 @@ pub(super) fn parse_route(method: &str, url: &str, body: &str) -> Result<Route, 
             let request = parse_signals_request(method, &path, body)?;
             RouteKind::Signals(SignalsPayload {
                 signals: request.signals,
-                envelope: request.envelope.ok_or(400u16)?,
+                // Deprecated: removed in v0.6.0. Use an envelope.
+                envelope: request.envelope.unwrap_or(serde_json::Value::Null),
                 ts: epoch_ms(),
             })
         }
@@ -230,7 +231,7 @@ mod tests {
             assert_eq!(parse_route("POST", path, "{}").unwrap_err(), 404, "{path}");
         }
         assert_eq!(
-            parse_route("POST", "/presets/x/signals", r#"{"signals":[]}"#).unwrap_err(),
+            parse_route("POST", "/presets/x/signals", r#"{"envelope":{}}"#).unwrap_err(),
             400
         );
         assert_eq!(parse_route("POST", "/unknown", "").unwrap_err(), 400);

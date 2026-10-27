@@ -83,6 +83,8 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
   let nextSequence = 0;
   let frontSequence = 0;
   let warnedImmediate = false;
+  let warnedLegacy = false;
+  let nextLegacyId = 0;
   let batchTimer: ReturnType<typeof setTimeout> | undefined;
 
   function groupsInArrivalOrder(): SignalGroup[] {
@@ -112,18 +114,39 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     if (buffer.length > BUFFER_CAP) buffer.shift();
   }
 
+  // Deprecated: removed in v0.6.0. Use an envelope. A batch without one is delivered as
+  // `immediate`, as v0.4.0 delivered it.
+  function withLegacyEnvelope(raw: SignalsBatch): unknown {
+    if (raw.envelope != null) return raw.envelope;
+    if (!warnedLegacy) {
+      warnedLegacy = true;
+      log.warn("deprecated", {
+        what: "signals without an envelope",
+        removed_in: "v0.6.0",
+        use: "an envelope",
+      });
+    }
+    return {
+      source: "legacy",
+      event_type: "signals",
+      delivery: "immediate",
+      event_id: `legacy-${nextLegacyId++}`,
+      occurred_at: raw.ts,
+    };
+  }
+
   function parse(raw: SignalsBatch): RoutedGroup | undefined {
     if (!Array.isArray((raw as unknown as { signals?: unknown })?.signals)) {
       log.debug("inbox_malformed", { degrade: true });
       return undefined;
     }
-    const envelope = (raw as SignalsBatch).envelope;
+    const envelope = withLegacyEnvelope(raw as SignalsBatch);
     if (!validEnvelope(envelope)) {
       log.warn("envelope_invalid", { dropped_items: raw.signals.length });
       return undefined;
     }
     // Deprecated: removed in v0.6.0. Use urgent or batched.
-    if (envelope.delivery === "immediate" && !warnedImmediate) {
+    if (envelope.delivery === "immediate" && raw.envelope != null && !warnedImmediate) {
       warnedImmediate = true;
       log.warn("deprecated", {
         what: "delivery immediate",

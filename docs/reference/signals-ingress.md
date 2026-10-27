@@ -143,12 +143,10 @@ still buffered there and leaves a bound window's buffers untouched.
 
 ## Validation
 
-The HTTP ingress requires `POST /signals`, valid JSON, a `signals` array, and a
-non-null `envelope`. A request with another method on `/signals` or
-`/presets/<id>/signals` receives HTTP 405.
-Invalid JSON, a missing `signals` array, a missing `envelope`, or an explicit
-`"envelope": null` receives HTTP 400. A request whose `envelope` is any other JSON
-value receives HTTP 200. A request under `/presets/` whose id no preset has, or whose path
+The HTTP ingress requires `POST /signals`, valid JSON, and a `signals` array. A request
+with another method on `/signals` or `/presets/<id>/signals` receives HTTP 405.
+Invalid JSON or a missing `signals` array receives HTTP 400. A request whose `envelope`
+is any JSON value, or is absent, receives HTTP 200. A request under `/presets/` whose id no preset has, or whose path
 after the id is none of the six routes, receives HTTP 404. An unknown path under `/avatar/`
 receives HTTP 404; any other unknown bare path receives HTTP 400. A request for a preset id
 that exists while its pet window is not open receives HTTP 503; it is never passed to `main`.
@@ -158,7 +156,11 @@ batch to its target window. It does not confirm receipt or delivery. A non-null 
 forwarded unchanged and stamped with server time.
 
 While signals are enabled, a group whose envelope is not an object or fails the field
-rules is dropped as a whole and one warning is logged with the item count. While
+rules is dropped as a whole and one warning is logged with the item count.
+
+A request with no `envelope`, or with `"envelope": null`, is delivered as an `immediate`
+group with source `legacy` and event type `signals`, and the first one in a launch logs a
+`deprecated` warning. Deprecated: removed in v0.6.0. Use an envelope. While
 signals are disabled, the source drops incoming batches before envelope validation and
 logs no envelope warning.
 
