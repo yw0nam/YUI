@@ -34,6 +34,7 @@ const SELF_MOVE_TOLERANCE_PX = 1;
 
 interface DockCard {
   open(): void;
+  isOpen(): boolean;
   cardSize(): { width: number; height: number };
   el: HTMLElement;
   onHeadPointerDown(cb: (event: PointerEvent) => void): () => void;
@@ -140,7 +141,7 @@ export function wireQuickCardDock(deps: {
   }
 
   async function followOwnerMove(): Promise<void> {
-    if (!docked || !lastRequest || !lastOwnerLog || !placement) return;
+    if (!deps.card.isOpen() || !docked || !lastRequest || !lastOwnerLog || !placement) return;
     const owner = await readOwner();
     const delta = { dx: owner.log.x - lastOwnerLog.x, dy: owner.log.y - lastOwnerLog.y };
     if (!delta.dx && !delta.dy) return;

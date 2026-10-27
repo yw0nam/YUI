@@ -164,6 +164,7 @@ export async function wireQuickCardWindow(deps: {
     bridge,
     card: {
       open: () => card.open(),
+      isOpen: () => card.isOpen(),
       el: card.el,
       cardSize: () => ({ width: card.el.offsetWidth, height: card.el.offsetHeight }),
       onHeadPointerDown: card.onHeadPointerDown,
