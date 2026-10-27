@@ -434,6 +434,21 @@ describe("unified view — running replies", () => {
 
     expect(document.querySelector(".yui-bubble__quote-who")?.textContent).toBe("You → everyone");
   });
+
+  it("drops the leading @name that a routed quote's lead repeats", () => {
+    mount();
+
+    stream("natsume", {
+      op: "quote",
+      quote: { text: "@Natsume are you up?", via: "text", images: 0, mention: "character" },
+    });
+
+    expect(
+      [".yui-bubble__quote-who", ".yui-bubble__quote-text"].map(
+        (sel) => document.querySelector(sel)?.textContent,
+      ),
+    ).toEqual(["You → Natsume", "are you up?"]);
+  });
 });
 
 describe("unified view — the backlog", () => {
@@ -446,6 +461,7 @@ describe("unified view — the backlog", () => {
       natsume: [
         { role: "user", text: "hi all", ts: T - 89_000, send_id: "s1", mention: "everyone" },
         { role: "user", text: "just you", ts: T - 70_000, send_id: "s2" },
+        { role: "user", text: "@natsume still there?", ts: T - 60_000, send_id: "s3" },
       ],
     };
     mount();
@@ -463,6 +479,7 @@ describe("unified view — the backlog", () => {
       ["You → everyone", "hi all"],
       ["Perlica", "Hello."],
       ["You → Natsume", "just you"],
+      ["You → Natsume", "still there?"],
     ]);
   });
 });
