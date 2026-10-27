@@ -1,40 +1,14 @@
 /** The pet window's control surface: the stage context menu that opens the quick-card window. */
 
 import type { RemoteSurfaces } from "../../io/bridge/message/message-remote";
-import type { QuickCardOpen, SettingsBridge } from "../../io/bridge/settings-bridge";
+import type { SettingsBridge } from "../../io/bridge/settings-bridge";
 import { createQuickCardWindowController } from "../../io/window/openers/quick-card-window";
 import type { Renderer } from "../../renderer";
 import type { SettingsPage } from "../../settings/panels/settings-pages";
 import type { SettingsStores } from "../../settings/settings-stores";
 import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
 import { wireCueLocaleSync } from "../settings/wire-cue-locale-sync";
-
-/** The quick-card open request for a click: her on-screen extent plus the click's y. */
-export function quickCardRequest(deps: {
-  renderer: Pick<Renderer, "getCharacterAnchor" | "getCharacterWidthPx">;
-  point: { x: number; y: number };
-  /** Main only: whether voice input is live right now. */
-  listening?: boolean;
-}): QuickCardOpen {
-  const anchor = deps.renderer.getCharacterAnchor();
-  // No anchor yet: the click's x stands for both edges of her.
-  if (!anchor) {
-    return {
-      left: deps.point.x,
-      right: deps.point.x,
-      y: deps.point.y,
-      ...(deps.listening === undefined ? {} : { listening: deps.listening }),
-    };
-  }
-  const width = deps.renderer.getCharacterWidthPx();
-  const half = width !== null ? width / 2 : 0;
-  return {
-    left: anchor.x - half,
-    right: anchor.x + half,
-    y: deps.point.y,
-    ...(deps.listening === undefined ? {} : { listening: deps.listening }),
-  };
-}
+import { quickCardRequest } from "./quick-card-request";
 
 /** Wires the context menu, and hands back the quick-card window controller it opens through. */
 export function wirePetControls(deps: {

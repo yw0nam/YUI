@@ -1,8 +1,4 @@
-/**
- * wire-quick-card-window — the quick-card window's wiring: the same stores and ports the settings
- * window builds, the card mounted on #app, and the dock and close that move and hide the window.
- * No renderer, no STT, no turn runs here; effects travel the settings window's cross-window paths.
- */
+/** Wires the quick-card window: the shared settings side, the card on #app, and its dock and close. */
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createSettingsBridge } from "../../io/bridge/settings-bridge";
@@ -24,7 +20,6 @@ import { createQuickCardPorts } from "./quick-card-ports";
 
 const log = createLogger("wire-quick-card-window");
 
-/** Wires the quick-card window: stores, mirrored paths, the card, and its window motion. */
 export async function wireQuickCardWindow(deps: {
   app: HTMLElement;
   lifecycle: Disposers;
@@ -82,7 +77,7 @@ export async function wireQuickCardWindow(deps: {
       open: () => card.open(),
       isOpen: () => card.isOpen(),
       el: card.el,
-      cardSize: () => ({ width: card.el.offsetWidth, height: card.el.offsetHeight }),
+      contentSize: () => ({ width: card.el.offsetWidth, height: card.el.offsetHeight }),
       onHeadPointerDown: card.onHeadPointerDown,
     },
     seedListen: (listening) => voiceMirror?.applyRemote(listening ? "listening" : "idle"),

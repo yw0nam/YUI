@@ -1,10 +1,4 @@
-/**
- * Quick-card window bootstrap — quick-card.html entry point.
- *
- * Mounts the quick card filling the transparent frameless window, docked beside its character.
- * No renderer and no judgment live here: tiles and rows write the preset's stores the way the
- * settings window does, and the pet window's own cross-window paths carry every effect.
- */
+/** quick-card.html entry: boots the companion window and wires the quick card into it. */
 
 import "../styles.css";
 import { createDisposers } from "../app/disposers";

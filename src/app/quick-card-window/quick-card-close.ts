@@ -1,9 +1,4 @@
-/**
- * quick-card-close — the quick-card window's close side: the focus poll that closes the card
- * when no YUI window holds focus, from the window's focus on open until the card closes, and the
- * window hide that follows every close of the card.
- * Escape, the margin click, ×, All settings… and Turn off close through the card itself.
- */
+/** Closes the quick card when no YUI window holds focus, and hides its window on every close. */
 
 import { createLogger } from "../../logger";
 import type { QuickCard } from "../../ui/quick-card/quick-card";

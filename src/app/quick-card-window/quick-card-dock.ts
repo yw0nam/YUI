@@ -1,19 +1,14 @@
-/**
- * quick-card-dock — the quick-card window's placement and motion: docked placement beside the
- * character on an open request, travel with the owner pet window while docked, the head drag
- * that detaches it, and the magnet that snaps a near drop back beside her.
- *
- * All placement math runs in screen logical px (see io/window/geometry/quick-card-position);
- * the physical window reads are converted with each window's own scale factor.
- */
+/** The quick-card window's placement and motion: docked beside her, following her, detached by a head drag, snapped back. */
 
 import type { QuickCardOpen, SettingsBridge } from "../../io/bridge/settings-bridge";
 import { startDragging } from "../../io/window/geometry/companion-column";
 import {
+  clampQuickCard,
   followOwner,
   type QuickCardPlacement,
   type QuickCardWorkArea,
   quickCardBeside,
+  quickCardBox,
   snapTarget,
 } from "../../io/window/geometry/quick-card-position";
 import {
@@ -26,23 +21,21 @@ import { isTauri } from "../../tauri-env";
 
 const log = createLogger("quick-card-dock");
 
-/** Transparent margin around the card inside its window, for the shadow; matches the CSS. */
-export const QUICK_CARD_MARGIN_PX = 8;
-
 /** Self-moves land within a logical px of the placed position; a drag leaves it. */
 const SELF_MOVE_TOLERANCE_PX = 1;
 
-interface DockCard {
+export interface QuickCardDockCard {
   open(): void;
   isOpen(): boolean;
-  cardSize(): { width: number; height: number };
+  /** The card's content size in logical px. */
+  contentSize(): { width: number; height: number };
   el: HTMLElement;
   onHeadPointerDown(cb: (event: PointerEvent) => void): () => void;
 }
 
 export function wireQuickCardDock(deps: {
   bridge: Pick<SettingsBridge, "onQuickCardOpen" | "emitQuickCardReady">;
-  card: DockCard;
+  card: QuickCardDockCard;
   /** Applies the request's listening flag to the Listen tile without echoing it back. */
   seedListen(listening: boolean): void;
   /** The owner pet window's label. */
@@ -50,12 +43,6 @@ export function wireQuickCardDock(deps: {
   /** The card's window is shown and has taken focus. */
   onShown(): void;
 }): void {
-  const margin = QUICK_CARD_MARGIN_PX;
-  const box = () => {
-    const size = deps.card.cardSize();
-    return { width: size.width + margin * 2, height: size.height + margin * 2 };
-  };
-
   let lastRequest: QuickCardOpen | null = null;
   let lastOwnerLog: { x: number; y: number } | null = null;
   let placement: QuickCardPlacement | null = null;
@@ -81,7 +68,6 @@ export function wireQuickCardDock(deps: {
     return {
       log: { x: position.x / scale, y: position.y / scale },
       height: size.height / scale,
-      scale,
       onMoved: owner.onMoved.bind(owner),
     };
   }
@@ -101,40 +87,40 @@ export function wireQuickCardDock(deps: {
     return getCurrentWindow();
   }
 
-  function characterOf(ownerLog: { x: number; y: number }, request: QuickCardOpen) {
-    return {
+  /** Her on-screen extent for the request against the owner's position, and the work area she stands in. */
+  async function characterArea(ownerLog: { x: number; y: number }, request: QuickCardOpen) {
+    const character = {
       left: ownerLog.x + request.left,
       right: ownerLog.x + request.right,
       y: ownerLog.y + request.y,
     };
+    const workArea = await workAreaAt({
+      x: (character.left + character.right) / 2,
+      y: character.y,
+    });
+    return { character, workArea };
+  }
+
+  async function resizeToCard(): Promise<{ width: number; height: number }> {
+    const box = quickCardBox(deps.card.contentSize());
+    const { LogicalSize } = await import("@tauri-apps/api/dpi");
+    await (await ownWindow()).setSize(new LogicalSize(box.width, box.height));
+    return box;
   }
 
   async function moveTo(next: QuickCardPlacement): Promise<void> {
-    const win = await ownWindow();
     const { LogicalPosition } = await import("@tauri-apps/api/dpi");
-    await win.setPosition(new LogicalPosition(next.x, next.y));
+    await (await ownWindow()).setPosition(new LogicalPosition(next.x, next.y));
     placement = next;
     expected = { x: next.x, y: next.y };
   }
 
   async function placeDocked(request: QuickCardOpen): Promise<void> {
     const owner = await readOwner();
-    const character = characterOf(owner.log, request);
-    const workArea = await workAreaAt({
-      x: (character.left + character.right) / 2,
-      y: character.y,
-    });
-    const next = quickCardBeside({
-      character,
-      window: deps.card.cardSize(),
-      margin,
-      workArea,
-    });
+    const { character, workArea } = await characterArea(owner.log, request);
+    await resizeToCard();
+    await moveTo(quickCardBeside({ character, content: deps.card.contentSize(), workArea }));
     const win = await ownWindow();
-    const { LogicalSize } = await import("@tauri-apps/api/dpi");
-    const size = box();
-    await win.setSize(new LogicalSize(size.width, size.height));
-    await moveTo(next);
     await win.show();
     await win.setFocus();
     deps.onShown();
@@ -148,18 +134,13 @@ export function wireQuickCardDock(deps: {
     const owner = await readOwner();
     const delta = { dx: owner.log.x - lastOwnerLog.x, dy: owner.log.y - lastOwnerLog.y };
     if (!delta.dx && !delta.dy) return;
-    const character = characterOf(owner.log, lastRequest);
-    const workArea = await workAreaAt({
-      x: (character.left + character.right) / 2,
-      y: character.y,
-    });
+    const { character, workArea } = await characterArea(owner.log, lastRequest);
     await moveTo(
       followOwner({
         character,
         card: placement,
         delta,
-        window: deps.card.cardSize(),
-        margin,
+        content: deps.card.contentSize(),
         workArea,
       }),
     );
@@ -172,17 +153,12 @@ export function wireQuickCardDock(deps: {
     if (docked || !lastRequest) return;
     const [win, owner] = await Promise.all([ownWindow(), readOwner()]);
     const [position, scale] = await Promise.all([win.outerPosition(), win.scaleFactor()]);
-    const character = characterOf(owner.log, lastRequest);
-    const workArea = await workAreaAt({
-      x: (character.left + character.right) / 2,
-      y: character.y,
-    });
+    const { character, workArea } = await characterArea(owner.log, lastRequest);
     const snap = snapTarget({
       character,
       owner: { y: owner.log.y, height: owner.height },
       card: { x: position.x / scale, y: position.y / scale },
-      window: deps.card.cardSize(),
-      margin,
+      content: deps.card.contentSize(),
       workArea,
     });
     if (!snap) return;
@@ -230,30 +206,19 @@ export function wireQuickCardDock(deps: {
   if (typeof ResizeObserver !== "undefined") {
     let lastHeight = 0;
     const observer = new ResizeObserver(() => {
-      const height = deps.card.cardSize().height;
+      const height = deps.card.contentSize().height;
       if (height === lastHeight || !placement) return;
       lastHeight = height;
       queue(async () => {
         const current = placement;
         if (!current) return;
-        const size = box();
-        const win = await ownWindow();
-        const { LogicalSize } = await import("@tauri-apps/api/dpi");
-        await win.setSize(new LogicalSize(size.width, size.height));
+        const box = await resizeToCard();
         const workArea = await workAreaAt({
-          x: current.x + size.width / 2,
-          y: current.y + size.height / 2,
+          x: current.x + box.width / 2,
+          y: current.y + box.height / 2,
         });
-        const clampedX = Math.min(
-          Math.max(current.x, workArea.x),
-          Math.max(workArea.x, workArea.x + workArea.width - size.width),
-        );
-        const clampedY = Math.min(
-          Math.max(current.y, workArea.y),
-          Math.max(workArea.y, workArea.y + workArea.height - size.height),
-        );
-        if (clampedX !== current.x || clampedY !== current.y)
-          await moveTo({ x: clampedX, y: clampedY, side: current.side });
+        const at = clampQuickCard(current, box, workArea);
+        if (at.x !== current.x || at.y !== current.y) await moveTo({ ...at, side: current.side });
       });
     });
     observer.observe(deps.card.el);

@@ -5,7 +5,7 @@ import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
 /**
  * Voice toggle (this window → main STT) and voice state reflection (main → this window).
  * Component drives local voiceInputStatus, so send changes to main, receive actual STT state and reflect.
- * `applyRemote` seeds a state with the echo suppressed — the quick-card open request uses it.
+ * `applyRemote` sets a state from outside with the echo suppressed.
  */
 export function wireVoiceMirror(deps: {
   voiceInputStatus: VoiceInputStatus;

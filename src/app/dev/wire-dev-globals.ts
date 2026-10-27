@@ -8,10 +8,7 @@ import type { Renderer } from "../../renderer";
 import { isTauri } from "../../tauri-env";
 import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
-import { quickCardRequest } from "../controls/wire-pet-controls";
-
-/** The quick-card window handle the pet window holds. */
-type QuickCardOpener = { open(request: QuickCardOpen): void };
+import { quickCardRequest } from "../controls/quick-card-request";
 
 /**
  * DEV-only console/global handles for the screenshot validation loop and manual exploration:
@@ -25,7 +22,8 @@ export async function wireDevGlobals(deps: {
   screenshotSettings: unknown;
   lipsyncSettings: unknown;
   agentSettings: unknown;
-  getQuickCard: () => Pick<QuickCardOpener, "open">;
+  /** The pet window's quick-card window controller. */
+  quickCardWindow: { open(request: QuickCardOpen): void };
   speechPlayback: unknown;
   voiceInputStatus: VoiceInputStatus;
   userInput: Pick<UserInputSource, "submit">;
@@ -41,7 +39,7 @@ export async function wireDevGlobals(deps: {
     screenshotSettings,
     lipsyncSettings,
     agentSettings,
-    getQuickCard,
+    quickCardWindow,
     speechPlayback,
     voiceInputStatus,
     userInput,
@@ -63,7 +61,7 @@ export async function wireDevGlobals(deps: {
     // The quick-card window; open() with no point targets the window's centre.
     __yuiQuick: {
       open: (at?: { x: number; y: number }) =>
-        getQuickCard().open(
+        quickCardWindow.open(
           quickCardRequest({
             renderer,
             point: at ?? { x: window.innerWidth / 2, y: window.innerHeight / 2 },

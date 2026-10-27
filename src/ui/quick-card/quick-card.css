@@ -1,7 +1,6 @@
 /* The quick card — fills its own window: the card at 272px inside the transparent 8px margin. Tokens in ../tokens.css. */
 
 .yui-qcard {
-  position: static;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;

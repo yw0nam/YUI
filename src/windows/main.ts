@@ -233,7 +233,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     presetIdForWindow(),
   );
 
-  const quickCard = wirePetControls({
+  const quickCardWindow = wirePetControls({
     stage,
     stores: settingsStores,
     renderer,
@@ -326,7 +326,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
           screenshotSettings: settingsStores.screenshotSettings,
           lipsyncSettings: settingsStores.lipsyncSettings,
           agentSettings: settingsStores.agentSettings,
-          getQuickCard: () => quickCard,
+          quickCardWindow,
           speechPlayback: configured.voice.speechPlayback,
           voiceInputStatus,
           userInput,

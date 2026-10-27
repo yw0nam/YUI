@@ -78,7 +78,7 @@ function fakeCard() {
   return {
     open: vi.fn(),
     isOpen: vi.fn(() => true),
-    cardSize: () => ({ width: 272, height: 400 }),
+    contentSize: () => ({ width: 272, height: 400 }),
     el: document.createElement("div"),
     onHeadPointerDown: (cb: (e: PointerEvent) => void) => {
       headCbs.add(cb);

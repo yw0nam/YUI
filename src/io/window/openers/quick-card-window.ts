@@ -1,23 +1,16 @@
-/**
- * Quick-card window opener.
- *
- * createQuickCardWindowController creates the preset's quick-card window on the first open
- * request (hidden — placement happens in the card window itself), keeps it for later requests,
- * and holds a request made before the window reports ready until the report arrives. A window
- * left over from a pet window reload is destroyed and created again, so a fresh ready report
- * always follows.
- */
+/** Creates the preset's hidden quick-card window once, recreating a leftover one, and sends it open requests once it is ready. */
 
 import { createLogger } from "../../../logger";
 import { windowLabel } from "../../../settings/preset/pet-windows";
 import { isTauri } from "../../../tauri-env";
 import type { QuickCardOpen, SettingsBridge } from "../../bridge/settings-bridge";
+import { QUICK_CARD_MARGIN_PX, QUICK_CARD_WIDTH_PX } from "../geometry/quick-card-position";
 
 const log = createLogger("quick-card-window");
 
-/** The card (272px) plus the transparent 8px margin its window adds on every side. */
-const CARD_WINDOW_WIDTH = 288;
-const CARD_WINDOW_HEIGHT = 120;
+/** The card plus the transparent margin its window adds on every side; the card window sizes itself on open. */
+const QUICK_CARD_WINDOW_WIDTH = QUICK_CARD_WIDTH_PX + QUICK_CARD_MARGIN_PX * 2;
+const QUICK_CARD_WINDOW_HEIGHT = 120;
 
 interface QuickCardWindowEnv {
   isTauri: boolean;
@@ -52,8 +45,8 @@ function createTauriQuickCardWindow(boundId: string | null): void {
             ? "quick-card.html"
             : `quick-card.html?preset=${encodeURIComponent(boundId)}`,
         title: "YUI",
-        width: CARD_WINDOW_WIDTH,
-        height: CARD_WINDOW_HEIGHT,
+        width: QUICK_CARD_WINDOW_WIDTH,
+        height: QUICK_CARD_WINDOW_HEIGHT,
         resizable: false,
         decorations: false,
         transparent: true,
