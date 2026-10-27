@@ -7,7 +7,6 @@
 import "./history-section.css";
 import type { ChatSession } from "../../../io/chat/conversation/chat-history-store";
 import type { SignalRecord } from "../../../io/chat/conversation/signal-history-store";
-import { presetIdForWindow, readPresetName } from "../../../settings/preset/active-preset";
 import { getLocale, t } from "../../i18n";
 import { renderSourceLine, sourceLineOf } from "../../signals/source-line";
 import { HIST_CHEVRON_SVG } from "../constants";
@@ -23,6 +22,8 @@ interface HistorySectionDeps {
   transcript: HistoryTranscript;
   /** The signal records shown beside the turns they ran in. */
   signalHistory?: { records(): SignalRecord[]; subscribe(cb: () => void): () => void };
+  /** The name the character's lines go under; read once per render. */
+  characterName: () => string;
   /** Skip repaints while the panel is closed. */
   isOpen: () => boolean;
 }
@@ -58,6 +59,7 @@ export function createHistorySection({
   root,
   transcript,
   signalHistory,
+  characterName,
   isOpen,
 }: HistorySectionDeps): HistorySection {
   const listEl = root.querySelector<HTMLElement>(".yui-hist");
@@ -68,7 +70,7 @@ export function createHistorySection({
     return session.startedAt === null ? `empty-${index}` : String(session.startedAt);
   }
 
-  function turnEl(row: HistoryRow): HTMLElement {
+  function turnEl(row: HistoryRow, name: string): HTMLElement {
     const records = row.kind === "chat" ? row.signals : row.records;
     const isYui = row.kind === "signal" || row.entry.role === "assistant";
     const silent = row.kind === "signal" && row.records[0].said === null;
@@ -84,7 +86,7 @@ export function createHistorySection({
     }
     const who = document.createElement("span");
     who.className = "yui-hist__who";
-    who.textContent = isYui ? readPresetName(presetIdForWindow()) : t("history.who_user");
+    who.textContent = isYui ? name : t("history.who_user");
     const say = document.createElement("span");
     say.className = silent ? "yui-hist__say is-silent" : "yui-hist__say";
     say.textContent = text;
@@ -100,6 +102,7 @@ export function createHistorySection({
     rows: HistoryRow[],
     index: number,
     now: number,
+    name: string,
   ): HTMLElement {
     const key = keyOf(session, index);
     const open = toggled.get(key) ?? index === 0;
@@ -160,7 +163,7 @@ export function createHistorySection({
         empty.textContent = t("history.empty");
         log.append(empty);
       } else {
-        for (const row of rows) log.append(turnEl(row));
+        for (const row of rows) log.append(turnEl(row, name));
       }
       group.append(log);
     }
@@ -172,7 +175,8 @@ export function createHistorySection({
     const now = Date.now();
     const sessions = transcript.sessions();
     const rows = mergeSessionRows(sessions, signalHistory?.records() ?? []);
-    listEl.replaceChildren(...sessions.map((s, i) => sessionEl(s, rows[i], i, now)));
+    const name = characterName();
+    listEl.replaceChildren(...sessions.map((s, i) => sessionEl(s, rows[i], i, now, name)));
   }
 
   function handleClick(e: MouseEvent): void {
