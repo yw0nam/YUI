@@ -231,5 +231,13 @@ export function wireQuickCardDock(deps: {
     observer.observe(deps.card.el);
   }
 
-  void deps.bridge.emitQuickCardReady();
+  // A reload while the card showed would leave its window shown with no card in it.
+  queue(async () => {
+    if (isTauri()) {
+      await (await ownWindow())
+        .hide()
+        .catch((error) => log.warn("quick_card_boot_hide_failed", { error: String(error) }));
+    }
+    void deps.bridge.emitQuickCardReady();
+  });
 }
