@@ -132,6 +132,7 @@ export function createQuickCard(deps: {
       if (wasOpen) {
         paintHead();
         parts.rows.paint();
+        if (!el.contains(document.activeElement)) el.focus({ preventScroll: true });
       }
     }),
   ];
