@@ -1,7 +1,6 @@
 /** The quick-card window's placement and motion: docked beside her, following her, detached by a head drag, snapped back. */
 
 import type { QuickCardOpen, SettingsBridge } from "../../io/bridge/settings-bridge";
-import { startDragging } from "../../io/window/geometry/companion-column";
 import {
   clampQuickCard,
   followOwner,
@@ -11,6 +10,7 @@ import {
   quickCardBox,
   snapTarget,
 } from "../../io/window/geometry/quick-card-position";
+import { invokeDragWindow } from "../../io/window/pet/gesture/window-drag";
 import {
   logicalWorkArea,
   monitorAtLogical,
@@ -166,12 +166,13 @@ export function wireQuickCardDock(deps: {
     docked = true;
   }
 
+  // Started from the pointerdown itself: the OS drag needs the button still held.
   deps.card.onHeadPointerDown(() => {
     if (!isTauri()) return;
     dragArmed = true;
-    queue(async () => {
-      await startDragging("quick-card");
-      await settleDrop();
+    invokeDragWindow().catch((error) => {
+      dragArmed = false;
+      log.warn("quick_card_drag_failed", { error: String(error) });
     });
   });
 
@@ -194,6 +195,11 @@ export function wireQuickCardDock(deps: {
     });
     const owner = await readOwner();
     owner.onMoved(() => queue(followOwnerMove));
+    // Every window hears the release of any native drag; only a drag this card started settles here.
+    const { listen } = await import("@tauri-apps/api/event");
+    await listen("window_drop_release", () => {
+      if (dragArmed) queue(settleDrop);
+    });
   });
 
   deps.bridge.onQuickCardOpen((request) => {
