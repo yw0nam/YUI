@@ -7,7 +7,7 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 | Feature | What it does |
 | --- | --- |
 | Models | VRM 1.0 and 0.x loading with hot-swap, the bundled Sendagaya Shino as the default, and import, rename, and delete for your own `.vrm` files |
-| Emotions and motions | 10 emotions and 25 motions, 9 of them agent-selectable, with a per-emotion fallback chain ending at `neutral` ([motion catalog](../reference/motions.md)) |
+| Emotions and motions | 10 emotions and 27 motions, 8 of them agent-selectable, with a per-emotion fallback chain ending at `neutral` ([motion catalog](../reference/motions.md)) |
 | Cursor gaze | Head and eyes that follow the OS cursor anywhere on screen, with an on/off switch |
 | Lipsync | Mouth movement from speech amplitude, with a gain slider |
 | Idle liveliness | Blink, sway, breathing, and look-around on the client, reduced to blinking under `prefers-reduced-motion` |
@@ -32,7 +32,7 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 | Text input | Text box with up to 6 image attachments by paste, drag-and-drop, or file picker |
 | Voice input | Silero VAD speech detection, transcription on any OpenAI-compatible STT endpoint, and barge-in over her speech |
 | Voice output | Sentence-by-sentence TTS on Irodori, OpenAI, or Fish Audio with the `emotion_text` voice tag ([vocabulary](../reference/tts-emotion/)). Irodori lists the TTS server's voices and imports your own reference clip; OpenAI lists its built-in voices; Fish lists your voice models, imports a clip as a new model, and accepts any library voice id |
-| Waiting filler | Thinking motion and short localized lines while a reply is pending, including tool-specific lines, and a spoken line when a turn times out or the backend can't be reached. Defaults come from `configs/filler.json`; every list is editable per language under Settings → **Talk** → **Thinking interjections** (**More phrases** for the long-wait, timeout, connection-lost, and tool lines) |
+| Waiting filler | Thinking motion and short localized lines while a reply is pending, including tool-specific lines, and a spoken line when a turn times out or the backend can't be reached. Defaults come from `configs/filler.json`; every list is editable per language on the **Voice** page under **Thinking interjections** (**More phrases** for the long-wait, timeout, connection-lost, and tool lines) |
 | History and message window | History tab stored on the device, and an optional separate message window |
 
 ## Backend
@@ -53,7 +53,7 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 | Greetings and check-ins | Scheduled greetings (09:00, 12:00, 18:00, 23:00 by default) and idle check-ins after 5, 10, and 30 quiet minutes, all editable in the Proactive tab |
 | Screen watch | Cues on a switch to another app after 10 minutes in the previous one, and on every 45 minutes in one app, off by default (`configs/screen.json`) |
 | First activity of the day | Cue on the first activity of each local day |
-| Guardrails | Per-source debounce, hourly caps of 24 cues and 40 self-started turns (`configs/guardrails.json`), and a 10-minute default quiet gap after each turn |
+| Guardrails | Per-source debounce, hourly caps of 24 cues, 40 self-started turns and 120 urgent signals, the Chain cap of 2 addressed turns in a row without a user turn (`configs/guardrails.json`), and a 10-minute default quiet gap after each turn |
 | Loopback ingress | Local listener on port 8770 for coding-agent hooks, `/signals`, and the `avatar` Mod, active while the External signals switch in the Proactive tab is on (off by default, applied at next launch); the bare paths serve the main window and `/presets/<id>/` paths serve the pet window bound to that preset |
 | Coding-agent hooks | `POST /agent-event` (deprecated: removed in v0.6.0; use `POST /signals`) for finished tasks and input requests from coding agents ([hooks guide](https://github.com/yw0nam/YUI/blob/main/docs/agent-guide/agent-completion-hooks.md)) |
 | Signals ingress | `POST /signals` for batches of external signals ([envelope](../reference/signals-ingress.md)); to wake one character, turn External signals on, turn that character on the desktop (Together → Characters), copy its URL from its row in the preset list, and give the URL to the producer |

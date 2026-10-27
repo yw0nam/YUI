@@ -28,7 +28,7 @@ With YUI running (§1), one OpenAI key covers chat and voice: Chat Completions f
 3. TTS section: pick the **OpenAI** provider and paste the same key into **TTS API key**.
 4. Close Settings and press `/` to type a message.
 
-Her personality is the **Card** section of the **Talk** tab, sent on Chat Completions and Responses. Each preset starts with the default card in the UI language; edit any field to make the card your own.
+Her personality is the **Card** section of the **Persona** page, sent on Chat Completions and Responses. Each preset starts with the default card in the UI language; edit any field to make the card your own.
 
 ---
 
@@ -245,7 +245,7 @@ Key reference:
 | `tts_base_url` | unset | TTS server root without `/v1` |
 | `tts_model` | `irodori-tts` | Model sent to the TTS server — Irodori/OpenAI as the request's `model` field (must match the server's configured name), Fish as a `model` HTTP header (an S2-family id) |
 | `tts_speaker` | unset | Default voice id, until another is picked in the panel |
-| `tts_max_inflight` | `1` | Concurrent TTS synthesis requests |
+| `tts_max_inflight` | `3` | Concurrent TTS synthesis requests |
 | `broker_base_url` | unset | Expression broker MCP URL. Deprecated, removed in v0.6.0: the client declares its tools on the request |
 
 All service addresses come from this file or the in-app overrides.
