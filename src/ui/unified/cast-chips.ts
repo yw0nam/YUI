@@ -113,18 +113,25 @@ export function createCastChips(deps: {
     render(cast, stateOf, checked) {
       // Rebuilt only when the cast changes, so a press and its click land on the same button.
       const key = JSON.stringify(cast);
+      let focused: string | undefined;
       if (key !== built) {
         built = key;
+        if (chips.contains(document.activeElement))
+          focused = (document.activeElement as HTMLElement).dataset.id;
         chips.replaceChildren(...cast.map((e) => chip(e.id, e.name, e)), chip(EVERYONE, ""));
       }
-      for (const r of radios()) {
+      const all = radios();
+      const stop = all.find((r) => r.dataset.id === checked) ?? all[0];
+      for (const r of all) {
         const id = r.dataset.id!;
         if (id === EVERYONE)
           r.querySelector(".yui-uc__chip-name")!.textContent = t("unified.everyone");
         else r.dataset.state = stateOf(id);
         r.setAttribute("aria-checked", String(id === checked));
-        r.tabIndex = id === checked ? 0 : -1;
+        r.tabIndex = r === stop ? 0 : -1;
       }
+      // A rebuild keeps focus on the same chip, else on the tab stop when its preset left.
+      if (focused !== undefined) (all.find((r) => r.dataset.id === focused) ?? stop)?.focus();
     },
     dispose() {
       unsubscribeLocale();
