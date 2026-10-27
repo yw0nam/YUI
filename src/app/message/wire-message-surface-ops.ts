@@ -21,7 +21,6 @@ export function wireMessageSurfaceOps({
     switch (op.op) {
       case "begin":
       case "push":
-      case "pace":
       case "end":
       case "finish":
       case "hide":

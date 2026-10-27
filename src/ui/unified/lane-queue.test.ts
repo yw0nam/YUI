@@ -10,7 +10,6 @@ function setup(cast = ["perlica", "natsume"]) {
   const box = {
     beginSpeech: vi.fn(draw("begin")),
     pushSpeech: vi.fn(draw("push")),
-    paceSpeech: vi.fn(draw("pace")),
     endSpeech: vi.fn(draw("end")),
     finishSpeech: vi.fn(draw("finish")),
     hideSpeech: vi.fn(draw("hide")),
@@ -59,7 +58,7 @@ describe("createLaneQueue", () => {
 
   it("keeps a deferred line through a click-to-complete until its playback finishes", () => {
     const { lanes } = setup();
-    lanes.accept("perlica", { op: "begin", paced: true });
+    lanes.accept("perlica", { op: "begin" });
     lanes.accept("natsume", { op: "begin" });
     lanes.accept("perlica", { op: "end", defer: true });
 

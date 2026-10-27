@@ -17,7 +17,6 @@ import type { AttachmentLimits } from "../../config/validators/guardrails";
 import type { UtteranceIdentity } from "../../contract";
 import type { SourceLine, UserQuote } from "../../io/bridge/message/message-bridge";
 import type { InputErrorAction, SpeechAction } from "../../io/bridge/message/message-remote";
-import type { SentenceStart } from "../../io/voice/tts/tts-pipeline";
 import type { ToolStatus } from "../chips/status-pill";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { createTextInput } from "../input/text-input";
@@ -41,14 +40,12 @@ export interface Surfaces {
 
   // ── speech bubble (output) ──
   /**
-   * Reveal the bubble (empty) + caret ON. Called before streaming starts; a paced line types each sentence as its audio starts.
+   * Reveal the bubble (empty) + caret ON. Called before streaming starts.
    * An aside is a client phrase spoken in the character's voice (filler, a failure apology), routed like the character's lines.
    */
-  beginSpeech(identity?: UtteranceIdentity, opts?: { paced?: boolean; aside?: boolean }): void;
+  beginSpeech(identity?: UtteranceIdentity, opts?: { aside?: boolean }): void;
   /** Append a streaming delta. */
   pushSpeech(delta: string, identity?: UtteranceIdentity): void;
-  /** A sentence's audio started: a paced line types that sentence over its duration. */
-  paceSpeech(sentence: SentenceStart): void;
   /**
    * Caret OFF. By default, auto-fades after dwell (also used when the full text arrives at once).
    * When defer=true, the fade is held — the bubble stays until TTS playback ends and finishSpeech() is called.
@@ -288,9 +285,8 @@ export function createSurfaces({
   const surfaces: Surfaces = {
     el,
     chipColumn,
-    beginSpeech: (_identity, opts) => bubble.beginSpeech(opts),
+    beginSpeech: bubble.beginSpeech,
     pushSpeech: bubble.pushSpeech,
-    paceSpeech: bubble.paceSpeech,
     endSpeech: bubble.endSpeech,
     finishSpeech: bubble.finishSpeech,
     hideSpeech: bubble.hideSpeech,

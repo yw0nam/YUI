@@ -59,7 +59,6 @@ const wired: VoicePipeline[] = [];
 interface SetupSurfaces {
   beginSpeech: Mock<Surfaces["beginSpeech"]>;
   pushSpeech: Mock<Surfaces["pushSpeech"]>;
-  paceSpeech: Mock<Surfaces["paceSpeech"]>;
   endSpeech: Mock<Surfaces["endSpeech"]>;
   finishSpeech: Mock<Surfaces["finishSpeech"]>;
 }
@@ -72,7 +71,6 @@ function setup(
   const surfaces: SetupSurfaces = {
     beginSpeech: vi.fn(),
     pushSpeech: vi.fn(),
-    paceSpeech: vi.fn(),
     endSpeech: vi.fn(),
     finishSpeech: vi.fn(),
   };

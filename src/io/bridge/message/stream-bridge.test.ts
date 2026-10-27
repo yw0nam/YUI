@@ -39,9 +39,9 @@ describe("createStreamBridge", () => {
   it("stamps each op the remote sends with its preset", () => {
     const { remote, emitted } = setup();
 
-    remote.beginSpeech(undefined, { paced: true });
+    remote.beginSpeech();
 
-    expect(emitted).toEqual([{ preset: "yui", op: { op: "begin", paced: true } }]);
+    expect(emitted).toEqual([{ preset: "yui", op: { op: "begin" } }]);
   });
 
   it("answers an ask with the name and the busy state", () => {

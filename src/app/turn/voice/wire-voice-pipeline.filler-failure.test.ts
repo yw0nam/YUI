@@ -65,7 +65,6 @@ function setup(): VoicePipeline {
     surfaces: {
       beginSpeech: vi.fn(),
       pushSpeech: vi.fn(),
-      paceSpeech: vi.fn(),
       endSpeech: vi.fn(),
       finishSpeech: vi.fn(),
     },

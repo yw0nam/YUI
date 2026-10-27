@@ -1176,40 +1176,6 @@ describe("createTtsPipeline — TTS_SKIP sentinel (silent skip)", () => {
   });
 });
 
-describe("createTtsPipeline — onSentenceStart", () => {
-  it("reports each sentence's text with its audio duration, or null when no audio started, in index order", async () => {
-    const synth = (input: string): Promise<ArrayBuffer> =>
-      input === "Skip."
-        ? Promise.reject(TTS_SKIP)
-        : Promise.resolve(bufFor(input === "Timed." ? 1 : 2));
-    // Index 1 starts with a known duration; index 2 settles without ever starting.
-    const sink: AudioSink = {
-      play: async (wav, _onAmplitude, onStart) => {
-        if (bufId(wav) === 1) onStart?.(1500);
-      },
-      stop: vi.fn(),
-    };
-    const starts: Array<{ text: string; durationMs: number | null }> = [];
-    const pipe = createTtsPipeline({
-      synth,
-      sink,
-      maxInflight: 3,
-      onSentenceStart: (s) => starts.push(s),
-    });
-
-    pipe.pushTextDelta("Skip. Timed. Untimed.", true);
-    pipe.end();
-    await tick();
-    await tick();
-
-    expect(starts).toEqual([
-      { text: "Skip.", durationMs: null },
-      { text: "Timed.", durationMs: 1500 },
-      { text: "Untimed.", durationMs: null },
-    ]);
-  });
-});
-
 describe("createTtsPipeline — hasOutstandingWork (audio still owed)", () => {
   it("stays true from end() until the last chunk finishes, including before the first audio frame", async () => {
     const { synth, resolvers } = deferredSynth();
