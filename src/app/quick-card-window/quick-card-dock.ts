@@ -1,6 +1,7 @@
 /** The quick-card window's placement and motion: docked beside her, following her, detached by a head drag, snapped back. */
 
 import type { QuickCardOpen, SettingsBridge } from "../../io/bridge/settings-bridge";
+import { attachQuickCard, detachQuickCard } from "../../io/window/geometry/quick-card-link";
 import {
   clampQuickCard,
   followOwner,
@@ -40,13 +41,15 @@ export function wireQuickCardDock(deps: {
   seedListen(listening: boolean): void;
   /** The owner pet window's label. */
   ownerLabel: string;
-}): void {
+}): { hide(): Promise<void> } {
   let lastRequest: QuickCardOpen | null = null;
   let lastOwnerLog: { x: number; y: number } | null = null;
   let placement: QuickCardPlacement | null = null;
   let expected: { x: number; y: number } | null = null;
   let docked = true;
   let dragArmed = false;
+  // While linked, AppKit moves the window with hers; the dock only switches sides.
+  let linked = false;
   let chain: Promise<void> = Promise.resolve();
   const queue = (step: () => Promise<void>): void => {
     chain = chain
@@ -106,6 +109,19 @@ export function wireQuickCardDock(deps: {
     return box;
   }
 
+  async function link(): Promise<void> {
+    linked = await attachQuickCard(deps.ownerLabel);
+  }
+
+  /** A linked child the pet window could order back in, so it unlinks first. */
+  async function hide(): Promise<void> {
+    if (isTauri()) {
+      linked = false;
+      await detachQuickCard();
+    }
+    await (await ownWindow()).hide();
+  }
+
   async function moveTo(next: QuickCardPlacement): Promise<void> {
     const { LogicalPosition } = await import("@tauri-apps/api/dpi");
     await (await ownWindow()).setPosition(new LogicalPosition(next.x, next.y));
@@ -122,6 +138,7 @@ export function wireQuickCardDock(deps: {
     if (!deps.card.isOpen()) return;
     const win = await ownWindow();
     await win.show();
+    await link();
     await win.setFocus();
     lastRequest = request;
     lastOwnerLog = owner.log;
@@ -134,22 +151,29 @@ export function wireQuickCardDock(deps: {
     const delta = { dx: owner.log.x - lastOwnerLog.x, dy: owner.log.y - lastOwnerLog.y };
     if (!delta.dx && !delta.dy) return;
     const { character, workArea } = await characterArea(owner.log, lastRequest);
-    await moveTo(
-      followOwner({
-        character,
-        card: placement,
-        delta,
-        content: deps.card.contentSize(),
-        workArea,
-      }),
-    );
+    const next = followOwner({
+      character,
+      card: placement,
+      delta,
+      content: deps.card.contentSize(),
+      workArea,
+    });
+    if (linked && next.side === placement.side) {
+      // AppKit already moved it with her; only the record follows.
+      placement = { x: placement.x + delta.dx, y: placement.y + delta.dy, side: placement.side };
+      expected = { x: placement.x, y: placement.y };
+    } else {
+      await moveTo(next);
+    }
     lastOwnerLog = owner.log;
   }
 
   /** A drop after a detach snaps back beside her when it landed near one of her edges. */
   async function settleDrop(): Promise<void> {
     dragArmed = false;
-    if (docked || !lastRequest) return;
+    if (!lastRequest) return;
+    // A head click that never moved: still docked, linked again.
+    if (docked) return link();
     const [win, owner] = await Promise.all([ownWindow(), readOwner()]);
     const [position, scale] = await Promise.all([win.outerPosition(), win.scaleFactor()]);
     const { character, workArea } = await characterArea(owner.log, lastRequest);
@@ -164,13 +188,19 @@ export function wireQuickCardDock(deps: {
     await moveTo(snap);
     lastOwnerLog = owner.log;
     docked = true;
+    await link();
   }
 
   // Started from the pointerdown itself: the OS drag needs the button still held.
   deps.card.onHeadPointerDown(() => {
     if (!isTauri()) return;
     dragArmed = true;
-    invokeDragWindow().catch((error) => {
+    linked = false;
+    // Unlinked first: a child window's drag would otherwise still answer to her moves.
+    void (async () => {
+      await detachQuickCard();
+      await invokeDragWindow();
+    })().catch((error) => {
       dragArmed = false;
       log.warn("quick_card_drag_failed", { error: String(error) });
     });
@@ -242,10 +272,12 @@ export function wireQuickCardDock(deps: {
   // A reload while the card showed would leave its window shown with no card in it.
   queue(async () => {
     if (isTauri()) {
-      await (await ownWindow())
-        .hide()
-        .catch((error) => log.warn("quick_card_boot_hide_failed", { error: String(error) }));
+      await hide().catch((error) =>
+        log.warn("quick_card_boot_hide_failed", { error: String(error) }),
+      );
     }
     void deps.bridge.emitQuickCardReady();
   });
+
+  return { hide };
 }

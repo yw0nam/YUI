@@ -69,6 +69,9 @@ function dropRelease(): void {
   for (const [event, cb] of listen.mock.calls) if (event === "window_drop_release") cb();
 }
 
+/** The native drag has started; its release can only come after it. */
+const dragStarted = () => vi.waitFor(() => expect(invoke).toHaveBeenCalledWith("drag_window"));
+
 /** Lets the dock's queued steps run. */
 const settle = () => new Promise((r) => setTimeout(r, 20));
 
@@ -274,7 +277,7 @@ describe("wireQuickCardDock", () => {
     win.setPosition.mockClear();
 
     card.headPointerDown();
-    expect(invoke).toHaveBeenCalledWith("drag_window");
+    await dragStarted();
     win.outerPosition.mockImplementation(async () => ({ x: 1200, y: 400 }));
     for (const x of xs) win.onMoved.mock.calls[0][0]({ payload: { x, y: DOCKED.y } });
     dropRelease();
@@ -481,6 +484,7 @@ describe("wireQuickCardDock", () => {
       win.setPosition.mockClear();
 
       card.headPointerDown();
+      await dragStarted();
       dropRelease();
       await settle();
       owner.outerPosition.mockImplementation(async () => ({ x: 600, y: 320 }));
@@ -498,6 +502,7 @@ describe("wireQuickCardDock", () => {
 
       win.outerPosition.mockImplementation(async () => ({ x: 240, y: 400 }));
       card.headPointerDown();
+      await dragStarted();
       win.onMoved.mock.calls[0][0]({ payload: { x: 240, y: 400 } });
       dropRelease();
       await settle();
@@ -513,6 +518,7 @@ describe("wireQuickCardDock", () => {
 
       win.outerPosition.mockImplementation(async () => ({ x: 1200, y: 400 }));
       card.headPointerDown();
+      await dragStarted();
       win.onMoved.mock.calls[0][0]({ payload: { x: 1200, y: 400 } });
       dropRelease();
       await settle();

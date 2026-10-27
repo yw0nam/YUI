@@ -1,6 +1,5 @@
 /** Wires the quick-card window: the shared settings side, the card on #app, and its dock and close. */
 
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createSettingsBridge } from "../../io/bridge/settings-bridge";
 import { createSettingsWindowOpener } from "../../io/window/openers/settings-window";
 import { createLogger } from "../../logger";
@@ -65,13 +64,7 @@ export async function wireQuickCardWindow(deps: {
   });
   register(() => card.dispose());
 
-  const closeControl = wireQuickCardClose({
-    card,
-    hide: () => getCurrentWindow().hide(),
-  });
-  register(() => closeControl.dispose());
-
-  wireQuickCardDock({
+  const dock = wireQuickCardDock({
     bridge,
     card: {
       open: () => card.open(),
@@ -83,6 +76,12 @@ export async function wireQuickCardWindow(deps: {
     seedListen: (listening) => voiceMirror?.applyRemote(listening ? "listening" : "idle"),
     ownerLabel: boundId === null ? "main" : windowLabel("pet", boundId),
   });
+
+  const closeControl = wireQuickCardClose({
+    card,
+    hide: dock.hide,
+  });
+  register(() => closeControl.dispose());
 
   const disposeVoiceMirror = voiceMirror?.dispose ?? ((): void => {});
 
