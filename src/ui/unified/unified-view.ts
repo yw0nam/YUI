@@ -148,9 +148,10 @@ export function createUnifiedView(deps: {
   }
 
   function route(text: string, via?: "voice"): void {
+    // A spoken send follows the checked chip, where Enter would send; a typed send routes by the pick and its text.
     const send = buildSend({
       text,
-      mention: composer.getMention(),
+      mention: (via ? composer.getChecked() : composer.getMention()) ?? null,
       cast: deps.cast(),
       lastSpeaker: lastSpeakerOf(rows()),
       mainId: deps.mainId(),

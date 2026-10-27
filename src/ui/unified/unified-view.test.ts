@@ -103,7 +103,10 @@ describe("unified view — sending", () => {
 
     view.voiceSegment("hi");
 
-    expect(routed).toEqual([{ sendId: "send-1", to: "natsume", text: "hi", via: "voice" }]);
+    // The checked chip (here the fallback target) rides along as the mention, as with a picked send.
+    expect(routed).toEqual([
+      { sendId: "send-1", to: "natsume", text: "@Natsume hi", via: "voice", mention: "character" },
+    ]);
   });
 
   it("routes a spoken message to the checked recipient: a typed @name in the field", () => {

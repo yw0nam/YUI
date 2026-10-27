@@ -128,6 +128,7 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
 
   return {
     getMention: () => mention,
+    getChecked: () => checked(),
     setMention,
     setTarget(entry) {
       target = entry;
