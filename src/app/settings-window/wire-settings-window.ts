@@ -1,14 +1,9 @@
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../../config/secrets";
-import { createConfigStore } from "../../config/store";
+import { CHAT_API_KEY_SECRET } from "../../config/secrets";
 import { importVrmFromFile, removeUserVrm } from "../../io/assets/vrm-import";
 import { createDelegationHistory } from "../../io/bridge/delegations/delegation-history";
 import { createMirroredDelegations } from "../../io/bridge/delegations/delegations-bridge";
-import { createMirroredPushSocket } from "../../io/bridge/push/push-socket-bridge";
 import { createSettingsBridge } from "../../io/bridge/settings-bridge";
-import { createSettingsSecretProvider } from "../../io/chat/secret-provider";
 import { selectFetch } from "../../io/chat/stream/chat-client";
-import { wireVoiceListAutoRefresh } from "../../io/voice/voices/voice-list-refresh";
 import { resolveScreenSourceProvider } from "../../io/window/capture/tauri-screen";
 import { closeSettingsWindow, titleSettingsWindow } from "../../io/window/openers/settings-window";
 import { createLogger } from "../../logger";
@@ -17,23 +12,16 @@ import { presetIdForWindow } from "../../settings/preset/active-preset";
 import { readBoundPresetId } from "../../settings/preset/bound-preset";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import { createUnifiedShown } from "../../settings/unified/unified-shown";
-import { isTauri } from "../../tauri-env";
 import { createVoiceInputStatus } from "../../ui/chips/voice-input-status";
 import { subscribe as subscribeLocale, t } from "../../ui/i18n";
 import { createQuickControls } from "../../ui/quick-controls/quick-controls";
-import { applyTheme } from "../../ui/theme/apply-theme";
 import { wireCardIo } from "../card-io/wire-card-io";
-import { wireSettingsWindowSync } from "../cross-window/wire-cross-window";
 import type { Disposers } from "../disposers";
 import { wirePetWindowsSync } from "../pet-windows/wire-pet-windows-sync";
 import { quickControlsConfigDefaults } from "../settings/config-defaults";
-import { devKeyFallback } from "../settings/dev-key-fallback";
-import { createWindowStores } from "../settings/window-stores";
-import { createWindowVrmSelection } from "../settings/window-vrm-selection";
-import { createEffectiveEndpoints, wireSpeakerSelection } from "../settings/wire-avatar";
 import { wireCueLocaleSync } from "../settings/wire-cue-locale-sync";
 import { wirePresetSwitch } from "../settings/wire-preset";
-import { createSessionResetAnnouncer } from "../turn/session-reset-announcer";
+import { wireWindowSettings } from "../settings/wire-window-settings";
 import { editTargetUrl } from "./edit-target-url";
 import { takeRequestedPage, wireSettingsPage } from "./wire-settings-page";
 import { wireVoiceMirror } from "./wire-voice-mirror";
@@ -65,17 +53,37 @@ export async function wireSettingsWindow(deps: {
   });
   register(settingsPage.dispose);
 
-  const { settingsStores, conversationStores, presetRegistry, petWindows } = createWindowStores(
+  const shared = await wireWindowSettings({
+    bridge,
     register,
-    { presetRegistry: deps.presetRegistry },
-  );
-  register(
-    applyTheme({
-      store: settingsStores.themeSettings,
-      root: document.documentElement,
-      setNativeTheme: isTauri() ? (t) => getCurrentWindow().setTheme(t) : undefined,
-    }),
-  );
+    isDisposed: deps.lifecycle.isDisposed,
+    presetRegistry: deps.presetRegistry,
+    log,
+  });
+  if (!shared) return;
+  const {
+    settingsStores,
+    conversationStores,
+    presetRegistry,
+    petWindows,
+    config,
+    vrmSelection,
+    swapVrm,
+    pushSocket,
+    sessionReset,
+  } = shared;
+  const {
+    speakerSelection,
+    swapSpeaker,
+    refreshSpeaker,
+    pickVoiceImport,
+    commitVoiceImport,
+    removeVoice,
+    refreshVoiceList,
+    canManageVoices,
+    canReuploadVoices,
+    canPasteVoiceId,
+  } = shared.speaker;
   const {
     screenshotSettings,
     idleThrottleSettings,
@@ -120,31 +128,6 @@ export async function wireSettingsWindow(deps: {
   const voiceInputStatus = createVoiceInputStatus();
   const sourceProvider = resolveScreenSourceProvider();
 
-  // Config for the Card section's default cards loaded best-effort only (failure → empty fields).
-  // The TTS key rides along so this window's voice uploads reach a gated server too.
-  const config = createConfigStore({
-    secrets: createSettingsSecretProvider({
-      stores: { [CHAT_API_KEY_SECRET]: chatKeySettings, [TTS_API_KEY_SECRET]: ttsKeySettings },
-      fallback: devKeyFallback(),
-    }),
-  });
-  const getTtsApiKey = (): Promise<string | undefined> => config.secrets.get(TTS_API_KEY_SECRET);
-  let configLoaded = false;
-  try {
-    await config.load();
-    configLoaded = true;
-  } catch (err) {
-    log.warn("config_load_failed", { error: String(err) });
-  }
-
-  if (deps.lifecycle.isDisposed()) return;
-
-  // VRM selection store + swap. This window has no renderer, so store-only commit.
-  // Main window hot-swaps actual VRM via storage reload.
-  const { vrmSelection, swapVrm } = createWindowVrmSelection({
-    config: configLoaded ? config : null,
-    log,
-  });
   // BYO-VRM import (settings window) — no renderer, delegate load/metadata to pet window. Copy file,
   // add option with filename stem label, select only. Pet window performs actual load cross-window.
   // Cancel (null) silently ignored.
@@ -155,66 +138,11 @@ export async function wireSettingsWindow(deps: {
     vrmSelection.select(option.id);
   };
 
-  // Every network consumer reads endpoints through here: a server the user set only as an
-  // override is invisible in the bundled config, and this window would issue no requests at all.
-  const getEndpoints = createEffectiveEndpoints({
-    getBundled: () => (configLoaded ? config.get().endpoints : null),
-    getOverrides: () => endpointsSettings.get(),
-  });
-
-  // Same speaker wiring the pet window runs — voices live on the server, so neither window
-  // needs a synth to list, upload or pick one. The broadcast is late-bound: wireSettingsWindowSync
-  // below needs the store this call creates, so it cannot hand back broadcastSettings until after.
-  let broadcastSpeaker: (() => void) | null = null;
-  const {
-    speakerSelection,
-    swapSpeaker,
-    refreshSpeaker,
-    pickVoiceImport,
-    commitVoiceImport,
-    removeVoice,
-    refreshVoiceList,
-    canManageVoices,
-    canReuploadVoices,
-    canPasteVoiceId,
-  } = wireSpeakerSelection({
-    getEndpoints,
-    getApiKey: getTtsApiKey,
-    log,
-    broadcastSettings: () => broadcastSpeaker?.(),
-  });
-  void refreshVoiceList();
-  const unsubscribeVoiceRefresh = wireVoiceListAutoRefresh({
-    subscribe: endpointsSettings.subscribe,
-    subscribeKey: ttsKeySettings.subscribe,
-    getEndpoints,
-    refresh: refreshVoiceList,
-  });
-
-  // Real-time wiring with main window (Tauri events). This window has no renderer/STT, so send controls
-  // to main window, receive voice state from main window and reflect. Storage fallback rides the core.
-  const {
-    broadcastSettings,
-    reload: reloadOnFocus,
-    dispose: disposeSync,
-  } = wireSettingsWindowSync({
-    bridge,
-    stores: settingsStores,
-    conversation: conversationStores,
-    vrmSelection,
-    speakerSelection,
-    log,
-  });
-  broadcastSpeaker = broadcastSettings;
   const unifiedShown = createUnifiedShown({
     switch: unifiedChatSwitch,
     onPetWindowsChanged: bridge.onPetWindowsChanged,
   });
   register(unifiedShown.dispose);
-  // The push socket lives in the pet window; this window mirrors it and asks it to reset.
-  const pushSocket = createMirroredPushSocket({ bridge });
-  // This window runs no turn: the preset's pet window stops its reply and greets when it hears the reset.
-  const sessionReset = createSessionResetAnnouncer(bridge.emitSessionReset, presetIdForWindow());
   // The delegations list rides the same bridge; this window mirrors it, never a second socket.
   const delegations = createMirroredDelegations({ bridge });
   // The pet window writes the history to storage before it emits the live list, so each emit is the cue to re-read it.
@@ -223,8 +151,6 @@ export async function wireSettingsWindow(deps: {
     delegationHistory.reloadFromStorage(),
   );
   const onWindowFocus = (): void => {
-    reloadOnFocus();
-    pushSocket.refresh();
     delegations.refresh();
     delegationHistory.reloadFromStorage();
   };
@@ -340,9 +266,6 @@ export async function wireSettingsWindow(deps: {
   const disposeVoiceMirror =
     boundId === null ? wireVoiceMirror({ voiceInputStatus, bridge }).dispose : () => {};
 
-  // VRM selection also signaled cross-window → pet window receives and hot-swaps renderer (backup for Tauri storage event instability).
-  vrmSelection.subscribe(broadcastSettings);
-
   // The pet window stops the turn on the same switch; this window only follows it.
   const disposePresetSwitch = wirePresetSwitch({ registry: presetRegistry, bridge, boundId });
 
@@ -350,16 +273,11 @@ export async function wireSettingsWindow(deps: {
   register(wirePetWindowsSync({ petWindows, bridge }));
   register(disposePresetSwitch);
   register(() => voiceInputStatus.dispose());
-  register(() => speakerSelection.dispose());
-  register(() => vrmSelection.dispose());
   register(() => window.removeEventListener("focus", onWindowFocus));
-  register(() => disposeSync());
   register(disposeVoiceMirror);
   register(() => delegationHistory.dispose());
   register(unsubscribeDelegationHistory);
   register(() => delegations.dispose());
-  register(() => pushSocket.dispose());
-  register(unsubscribeVoiceRefresh);
   register(unsubscribeLocale);
   register(unsubscribeCueSync);
   // Runs first: disposing the controls commits dirty endpoint/key fields, which must still
