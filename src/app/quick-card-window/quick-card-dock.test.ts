@@ -46,7 +46,7 @@ vi.mock("@tauri-apps/api/webviewWindow", () => ({
 }));
 
 const { invoke, listen } = vi.hoisted(() => ({
-  invoke: vi.fn(async (_cmd: string) => {}),
+  invoke: vi.fn(async (_cmd: string, _args?: unknown): Promise<unknown> => undefined),
   listen: vi.fn(async (_event: string, _cb: () => void) => () => {}),
 }));
 vi.mock("@tauri-apps/api/core", async (importOriginal) => ({
@@ -404,5 +404,120 @@ describe("wireQuickCardDock", () => {
     await settle();
 
     expect(positions()).toEqual([]);
+  });
+
+  describe("with the native child link (macOS)", () => {
+    beforeEach(() => {
+      invoke.mockImplementation(async (cmd: string) =>
+        cmd === "quick_card_attach" ? true : cmd === "quick_card_detach" ? false : undefined,
+      );
+    });
+
+    /** The link commands and the drag, in the order the dock invoked them. */
+    const commands = () => invoke.mock.calls.map(([cmd]) => cmd);
+    const order = (mock: { mock: { invocationCallOrder: number[] } }, i = 0) =>
+      mock.mock.invocationCallOrder[i]!;
+
+    async function opened() {
+      const h = wired();
+      h.bridge.open(REQUEST);
+      await vi.waitFor(() => expect(win.setFocus).toHaveBeenCalledOnce());
+      return h;
+    }
+
+    it("unlinks its window before it hides it at boot", async () => {
+      const { bridge } = wired();
+      await vi.waitFor(() => expect(bridge.emitQuickCardReady).toHaveBeenCalledOnce());
+
+      expect(invoke).toHaveBeenCalledWith("quick_card_detach");
+      expect(order(invoke)).toBeLessThan(order(win.hide));
+    });
+
+    it("links its window to her pet window after placing it on open", async () => {
+      await opened();
+
+      expect(invoke).toHaveBeenCalledWith("quick_card_attach", { parentLabel: "pet-a" });
+      const attach = commands().indexOf("quick_card_attach");
+      expect(invoke.mock.invocationCallOrder[attach]!).toBeGreaterThan(order(win.setPosition));
+    });
+
+    it("leaves a docked card's travel with her to the link", async () => {
+      await opened();
+      win.setPosition.mockClear();
+
+      owner.outerPosition.mockImplementation(async () => ({ x: 600, y: 320 }));
+      owner.onMoved.mock.calls[0][0]({ payload: { x: 600, y: 320 } });
+      await settle();
+
+      expect(positions()).toEqual([]);
+    });
+
+    it("switches sides with one move when travelling with her would carry it off the work area", async () => {
+      await opened();
+      win.setPosition.mockClear();
+
+      // Moved with her by 900, the window would end at 864 + 900 + 288 = 2052, past 2000;
+      // docked on her left instead: her left edge 1400 + 40, less 12, 272 and 8.
+      owner.outerPosition.mockImplementation(async () => ({ x: 1400, y: 300 }));
+      owner.onMoved.mock.calls[0][0]({ payload: { x: 1400, y: 300 } });
+      await settle();
+
+      expect(positions()).toEqual([{ x: 1148, y: 468 }]);
+    });
+
+    it("unlinks before the head drag starts", async () => {
+      const { card } = await opened();
+      invoke.mockClear();
+
+      card.headPointerDown();
+      await settle();
+
+      expect(commands()).toEqual(["quick_card_detach", "drag_window"]);
+    });
+
+    it("links a head click that never moved again, and keeps it docked", async () => {
+      const { card } = await opened();
+      invoke.mockClear();
+      win.setPosition.mockClear();
+
+      card.headPointerDown();
+      dropRelease();
+      await settle();
+      owner.outerPosition.mockImplementation(async () => ({ x: 600, y: 320 }));
+      owner.onMoved.mock.calls[0][0]({ payload: { x: 600, y: 320 } });
+      await settle();
+
+      expect(commands()).toEqual(["quick_card_detach", "drag_window", "quick_card_attach"]);
+      expect(positions()).toEqual([]);
+    });
+
+    it("links a snapped card after placing it", async () => {
+      const { card } = await opened();
+      invoke.mockClear();
+      win.setPosition.mockClear();
+
+      win.outerPosition.mockImplementation(async () => ({ x: 240, y: 400 }));
+      card.headPointerDown();
+      win.onMoved.mock.calls[0][0]({ payload: { x: 240, y: 400 } });
+      dropRelease();
+      await settle();
+
+      expect(positions()).toEqual([{ x: 248, y: 400 }]);
+      expect(commands()).toEqual(["quick_card_detach", "drag_window", "quick_card_attach"]);
+      expect(order(invoke, 2)).toBeGreaterThan(order(win.setPosition));
+    });
+
+    it("stays unlinked when the drop leaves it detached", async () => {
+      const { card } = await opened();
+      invoke.mockClear();
+
+      win.outerPosition.mockImplementation(async () => ({ x: 1200, y: 400 }));
+      card.headPointerDown();
+      win.onMoved.mock.calls[0][0]({ payload: { x: 1200, y: 400 } });
+      dropRelease();
+      await settle();
+
+      expect(commands()).toEqual(["quick_card_detach", "drag_window"]);
+    });
   });
 });
