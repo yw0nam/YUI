@@ -20,6 +20,11 @@ export interface Send {
   via?: UserTurnRouted["via"];
 }
 
+/** Who a send goes to: EVERYONE, or its one target. */
+export function recipientOf(send: Send): Mention {
+  return send.mention === EVERYONE ? EVERYONE : (send.targets[0] ?? "");
+}
+
 /** The preset id of the newest row a preset spoke. */
 export function lastSpeakerOf(rows: readonly Row[]): string | undefined {
   return rows.findLast((r) => r.who !== "user")?.who;

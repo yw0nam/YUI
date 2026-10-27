@@ -20,8 +20,8 @@ export function createSequence(deps: {
 }): {
   run(send: Send): void;
   turnDone(done: UserTurnDone): void;
-  /** Whether a send is under way. */
-  running(): boolean;
+  /** The send under way, or null. */
+  current(): Send | null;
   /** Drops the send under way and every queued one. */
   cancel(): void;
   dispose(): void;
@@ -81,7 +81,7 @@ export function createSequence(deps: {
       if (current?.send.sendId === sendId && current.send.targets[current.index] === preset)
         advance();
     },
-    running: () => current !== null,
+    current: () => current?.send ?? null,
     cancel,
     dispose: cancel,
   };

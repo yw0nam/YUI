@@ -74,10 +74,10 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-it("shows a chip for every open preset", async () => {
+it("shows a chip for every open preset, then everyone", async () => {
   await boot();
 
-  expect(chipNames()).toEqual(["Default", "Natsume"]);
+  expect(chipNames()).toEqual(["Default", "Natsume", "everyone"]);
 }, 15_000);
 
 it("renames a chip when a pet window announces a settings change", async () => {

@@ -1,6 +1,6 @@
-/* Unified chat window — a frameless 340px column on a transparent page: the cast row (the window's
-   drag handle and its ×), one dialogue box, and the composer under its recipient chips. The window
-   takes the column's height. */
+/* Unified chat window — a frameless 340px column on a transparent page: the cast row (the recipient
+   picker, the window's drag handle and its ×), one dialogue box, and the composer. The window takes
+   the column's height. */
 
 .yui-uc {
   box-sizing: border-box;
@@ -19,7 +19,7 @@
   box-sizing: border-box;
 }
 
-/* ── Cast row: a chip per open character, wrapping, and the × at its end ── */
+/* ── Cast row: a radio chip per open character and one for everyone, wrapping, and the × at its end ── */
 .yui-uc__cast {
   display: flex;
   align-items: flex-start;
@@ -35,24 +35,40 @@
   flex-wrap: wrap;
   gap: 5px;
   min-width: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }
 .yui-uc__chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   height: 28px;
+  margin: 0;
   padding: 0 10px 0 3px;
   border: 1px solid var(--yui-edge);
   border-radius: var(--yui-radius-chip);
   background: var(--yui-scrim-strong);
   box-shadow: var(--yui-float);
-  transition: border-color var(--yui-dur) var(--yui-ease);
+  color: var(--yui-text-dim);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color var(--yui-dur) var(--yui-ease),
+    color var(--yui-dur-fast) var(--yui-ease);
+}
+.yui-uc__chip:not(:has(.yui-uc__avatar, .yui-uc__dot)) {
+  padding-left: 10px;
+}
+.yui-uc__chip:hover {
+  color: var(--yui-text);
 }
 .yui-uc__chip[data-state="talk"] {
   border-color: var(--yui-accent-soft);
+}
+/* Amber faint over the chip's Plate: the window is transparent, so the tint alone would show the desktop through. */
+.yui-uc__chip[aria-checked="true"] {
+  border-color: var(--yui-accent-soft);
+  background:
+    linear-gradient(var(--yui-accent-faint), var(--yui-accent-faint)), var(--yui-scrim-strong);
+  color: var(--yui-text);
 }
 .yui-uc__chip-name {
   font-size: var(--yui-fs-sub);
@@ -99,6 +115,11 @@
 .yui-uc__close:hover {
   color: var(--yui-text);
 }
+.yui-uc__chip:focus-visible,
+.yui-uc__close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
 
 /* ── Box: the message window's bubble in flow, its plate riding the top edge ── */
 .yui-uc .yui-ui.yui-ui--message {
@@ -109,57 +130,21 @@
 .yui-uc .yui-ui--message:not(:has(> .yui-bubble:not([hidden]))) {
   display: none;
 }
+/* The cast chip carries the state, so the plate shows the face and the name alone. */
+.yui-uc .yui-plate__dot,
+.yui-uc .yui-plate__state {
+  display: none;
+}
 /* Room for the plate, which rides 15px above the box. */
 .yui-uc .yui-ui--message > .yui-bubble {
   margin-top: 15px;
 }
 
-/* ── Composer: the recipient chips over the message window's field ── */
+/* ── Composer: the message window's field and the @ list ── */
 .yui-uc__dock {
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-.yui-uc__to {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-.yui-uc__recipient {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 28px;
-  margin: 0;
-  padding: 0 10px 0 4px;
-  border: 1px solid var(--yui-edge);
-  border-radius: var(--yui-radius-pill);
-  background: var(--yui-scrim-strong);
-  box-shadow: var(--yui-float);
-  color: var(--yui-text-dim);
-  font: inherit;
-  font-size: var(--yui-fs-sub);
-  font-weight: 500;
-  cursor: pointer;
-  transition: color var(--yui-dur-fast) var(--yui-ease);
-}
-.yui-uc__recipient:not(:has(.yui-uc__avatar, .yui-uc__dot)) {
-  padding-left: 10px;
-}
-.yui-uc__recipient:hover {
-  color: var(--yui-text);
-}
-/* Amber faint over the chip's Plate: the window is transparent, so the tint alone would show the desktop through. */
-.yui-uc__recipient[aria-checked="true"] {
-  border-color: var(--yui-accent-soft);
-  background:
-    linear-gradient(var(--yui-accent-faint), var(--yui-accent-faint)), var(--yui-scrim-strong);
-  color: var(--yui-text);
-}
-.yui-uc__recipient:focus-visible,
-.yui-uc__close:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--yui-accent-soft);
 }
 .yui-uc__dock .yui-input,
 .yui-uc__dock .yui-input.is-open {
@@ -185,7 +170,7 @@
   max-height: calc(8 * 1.33rem + 1.1rem);
 }
 
-/* The @ list, in flow above the recipient chips so the window grows to hold it. */
+/* The @ list, in flow above the field so the window grows to hold it. */
 .yui-uc__pop {
   display: flex;
   flex-direction: column;
