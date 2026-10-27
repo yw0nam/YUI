@@ -9,6 +9,7 @@ import {
   createSignalHistoryStore,
   type SignalRecord,
 } from "../../../io/chat/conversation/signal-history-store";
+import { EMPTY_CARD, type PersonaConfig } from "../../../config/validators/persona/types";
 import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
 import { defaultQcArgs } from "../test-helpers";
@@ -284,19 +285,28 @@ describe("createQuickControls — history tab", () => {
     qc.dispose();
   });
 
-  it("labels the character's turns with the shown preset's name, in the accent color", () => {
-    localStorage.setItem(
-      "yui.presets",
-      JSON.stringify({ active: "yangyang", list: [{ id: "yangyang", name: "Yangyang" }] }),
-    );
-    const qc = buildQc({ transcript: seedStore() });
+  it.each([
+    { preset: { id: "yangyang", name: "Yangyang" }, who: "Yangyang" },
+    { preset: { id: "default", name: "default" }, who: "Yui" },
+  ])("labels the character's turns with its effective name ($who), in the accent color", ({
+    preset,
+    who,
+  }) => {
+    localStorage.setItem("yui.presets", JSON.stringify({ active: preset.id, list: [preset] }));
+    const card = { ...EMPTY_CARD, name: "Yui" };
+    const persona: PersonaConfig = {
+      framing: { en: "f", ja: "f", ko: "f" },
+      user_fallback: { en: "User", ja: "User", ko: "User" },
+      cards: { en: card, ja: card, ko: card },
+    };
+    const qc = buildQc({ transcript: seedStore(), getPersona: () => persona });
     qc.open();
 
     const turns = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-hist__turn"));
     expect(turns[0].classList.contains("is-yui")).toBe(false);
     expect(turns[1].classList.contains("is-yui")).toBe(true);
     expect(turns[0].querySelector(".yui-hist__who")!.textContent).toBe("You");
-    expect(turns[1].querySelector(".yui-hist__who")!.textContent).toBe("Yangyang");
+    expect(turns[1].querySelector(".yui-hist__who")!.textContent).toBe(who);
     expect(turns[0].querySelector(".yui-hist__say")!.textContent).toBe("방금 그 빌드 왜 실패했어?");
     expect(turns[0].querySelector(".yui-hist__ts")!.textContent).toMatch(/^\d{2}:\d{2}$/);
 
