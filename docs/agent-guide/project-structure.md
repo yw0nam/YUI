@@ -767,7 +767,7 @@ YUI/
       os_event_watcher/
         mod.rs                       # OS polling loop that emits os_event to the webview
         witness.rs                   # Transition-only log of frontmost app and idle state
-        drop_release.rs              # Drop-release probe that emits window_drop_release
+        drop_release.rs              # Drop-release probe that emits window_drop_release with the dragged window's label
         pure_helpers.rs              # Idle conversion and frontmost-window pick
         macos.rs                     # macOS idle, window enumeration, and camera polling
         windows.rs                   # Windows idle, foreground window, and window enumeration polling

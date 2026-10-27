@@ -2291,7 +2291,7 @@ globalThis.YUI_MAP =
       "id": "drop-release-pet",
       "from": "shell/os-event-watcher",
       "to": "io/window/pet",
-      "carries": "window_drop_release",
+      "carries": "window_drop_release: the dragged window's label, heard by every window",
       "kind": "tauri-event",
       "transport": "shared"
     },
@@ -2299,7 +2299,7 @@ globalThis.YUI_MAP =
       "id": "drop-release-source",
       "from": "shell/os-event-watcher",
       "to": "dispatcher/sources/gesture",
-      "carries": "window_drop_release",
+      "carries": "window_drop_release: the dragged window's label; a quick-card window's release settles nothing in a pet window",
       "kind": "tauri-event",
       "transport": "shared",
       "wiring": "src/app/stage/wire-window-sources.ts"
@@ -2812,7 +2812,7 @@ globalThis.YUI_MAP =
       "id": "drop-release-quick-card",
       "from": "shell/os-event-watcher",
       "to": "app/quick-card-window",
-      "carries": "window_drop_release: the drop of a drag the card started, then the 24px magnet",
+      "carries": "window_drop_release {label}: the drop of a drag the card started, then the 24px magnet",
       "kind": "tauri-event",
       "transport": "shared",
       "wiring": "src/app/quick-card-window/quick-card-dock.ts"
