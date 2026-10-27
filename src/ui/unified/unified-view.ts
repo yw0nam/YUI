@@ -107,16 +107,7 @@ export function createUnifiedView(deps: {
   box.el.classList.add("yui-ui--message");
   const lanes = createLaneQueue({ box });
   const castState = createCastState({ cast: deps.cast, lanes });
-  const composer = createComposer({
-    mount: dock,
-    cast: deps.cast,
-    fallback: () =>
-      fallbackTarget({
-        cast: deps.cast().map((e) => e.id),
-        lastSpeaker: lastSpeakerOf(rows()),
-        mainId: deps.mainId(),
-      }),
-  });
+  const composer = createComposer({ mount: dock, cast: deps.cast });
   const sequence = createSequence({
     emit: (event) => {
       for (const cb of routeCbs) cb(event);
@@ -134,11 +125,21 @@ export function createUnifiedView(deps: {
     return castState.running() || sequence.current() !== null;
   }
 
-  // While a send runs, the row and the placeholder name its recipient; otherwise where Enter sends.
+  // The recipient the row and the placeholder name: a pick or typed @name, else the running send's, else the fallback.
   function shown(): Mention | undefined {
     const send = sequence.current();
-    if (!send) return composer.checked();
-    return send.mention === EVERYONE ? EVERYONE : send.targets[0];
+    return (
+      composer.getExplicitMention() ??
+      (send
+        ? send.mention === EVERYONE
+          ? EVERYONE
+          : send.targets[0]
+        : fallbackTarget({
+            cast: deps.cast().map((e) => e.id),
+            lastSpeaker: lastSpeakerOf(rows()),
+            mainId: deps.mainId(),
+          }))
+    );
   }
 
   function paint(): void {

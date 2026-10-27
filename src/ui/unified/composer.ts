@@ -23,9 +23,7 @@ export interface Composer {
   /** The recipient a send names: the picked chip, else a typed leading @name; null leaves the fallback target to the routing. */
   getExplicitMention(): Mention | null;
   setMention(mention: Mention | null): void;
-  /** Where Enter sends: the named recipient, else the fallback. */
-  checked(): Mention | undefined;
-  /** Fires when what checked() returns may have changed through the composer: a pick, the field's text. */
+  /** Fires when getExplicitMention() may have changed: a pick, the field's text. */
   onChange(cb: () => void): void;
   /** Names a recipient in the field's placeholder; undefined, or an empty cast, names none. */
   showRecipient(mention: Mention | undefined): void;
@@ -46,12 +44,7 @@ export interface Composer {
   dispose(): void;
 }
 
-export function createComposer(deps: {
-  mount: HTMLElement;
-  cast: () => PresetEntry[];
-  /** The recipient a message with no mention goes to; undefined while the cast is empty. */
-  fallback: () => Mention | undefined;
-}): Composer {
+export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEntry[] }): Composer {
   const dock = deps.mount;
   dock.insertAdjacentHTML(
     "beforeend",
@@ -102,10 +95,6 @@ export function createComposer(deps: {
     return countedMention(mention, cast) ?? typedMention(field.value, cast);
   }
 
-  function checked(): Mention | undefined {
-    return named() ?? deps.fallback();
-  }
-
   function changed(): void {
     for (const cb of changeCbs) cb();
   }
@@ -121,7 +110,6 @@ export function createComposer(deps: {
     getMention: () => mention,
     getExplicitMention: () => named(),
     setMention,
-    checked,
     onChange: (cb) => void changeCbs.push(cb),
     showRecipient(on) {
       const cast = deps.cast();
