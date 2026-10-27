@@ -61,7 +61,7 @@ She greets you at set times, checks in after you have been idle, and, if you tur
 
 ### Several characters, one conversation
 
-Each character keeps her own brain, persona, voice, model, and history, and up to four can share your desktop. One chat window holds the conversation and shows one line at a time: pick who you are talking to, everyone at once, or type `@name`; your voice goes to the same pick. They can also pass your message on to each other.
+Each character keeps her own brain, persona, voice, VRM model, and history, and up to four can share your desktop. One chat window holds the conversation and shows one line at a time: pick who you are talking to, everyone at once, or type `@name`; your voice goes to the same pick. They can also pass your message on to each other.
 
 **And more:** your own VRM model, Tavern Card import and export, voice chat you can interrupt, image attachments, a chat history, how each character feels about you and the others, a Quick card on right-click, Dawn and Hearth themes, English, Japanese, and Korean UI, and tools your agent can use on your computer. See the [full feature list](docs/guide/features.md).
 
