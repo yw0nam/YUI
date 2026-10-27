@@ -45,6 +45,13 @@ it("keeps independent live keys", () => {
   expect(isPresetWindowLive("b")).toBe(true);
 });
 
+it("counts the quick-card window as live for its preset", () => {
+  setWindowLive("quick-card-a");
+  expect(isPresetWindowLive("a")).toBe(true);
+  clearWindowLive("quick-card-a");
+  expect(isPresetWindowLive("a")).toBe(false);
+});
+
 it("clears only stale live keys while iteration remains stable", () => {
   setWindowLive("pet-gone-a");
   setWindowLive("pet-gone-b");

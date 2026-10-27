@@ -110,12 +110,14 @@ it("still closes when lifecycle cleanup throws", async () => {
 });
 
 it.each([
-  false,
-  true,
-])("preserves companion deletion guards after timeout or a failed close (failure: %s)", async (failed) => {
+  ["settings-a", false],
+  ["settings-a", true],
+  ["quick-card-a", false],
+  ["quick-card-a", true],
+])("preserves companion deletion guards after timeout or a failed close (live: %s, failure: %s)", async (liveLabel, failed) => {
   vi.useFakeTimers();
   vi.stubGlobal("__TAURI_INTERNALS__", {});
-  localStorage.setItem("yui.live-window.settings-a", "1");
+  localStorage.setItem(`yui.live-window.${liveLabel}`, "1");
   const calls: string[] = [];
   const log = createLogger("test"),
     warn = vi.spyOn(log, "warn");
@@ -139,6 +141,6 @@ it.each([
   expect(calls).toEqual(["companions"]);
   await vi.advanceTimersByTimeAsync(1000);
   expect(calls).toEqual(["companions", "stores", "close"]);
-  expect(localStorage.getItem("yui.live-window.settings-a")).toBe("1");
+  expect(localStorage.getItem(`yui.live-window.${liveLabel}`)).toBe("1");
   expect(warn).toHaveBeenCalledWith("companion_close_timeout", { preset: "a" });
 });
