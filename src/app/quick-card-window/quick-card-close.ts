@@ -1,6 +1,7 @@
 /**
  * quick-card-close — the quick-card window's close side: the focus poll that closes the card
- * when no YUI window holds focus, and the window hide that follows every close of the card.
+ * when no YUI window holds focus, from the window's focus on open until the card closes, and the
+ * window hide that follows every close of the card.
  * Escape, the margin click, ×, All settings… and Turn off close through the card itself.
  */
 
@@ -13,18 +14,16 @@ const log = createLogger("quick-card-close");
 const FOCUS_POLL_MS = 300;
 
 export function wireQuickCardClose(deps: {
-  card: Pick<QuickCard, "close" | "isOpen" | "onClose">;
+  card: Pick<QuickCard, "close" | "onClose">;
   hide(): void | Promise<void>;
-}): { dispose(): void } {
-  const hideWindow = (): void => {
-    void Promise.resolve(deps.hide()).catch((error) =>
-      log.warn("quick_card_hide_failed", { error: String(error) }),
-    );
+}): { watch(): void; dispose(): void } {
+  let timer: ReturnType<typeof setInterval> | null = null;
+  const stop = (): void => {
+    if (timer !== null) clearInterval(timer);
+    timer = null;
   };
-  const offClose = deps.card.onClose(hideWindow);
-  const timer = setInterval(() => {
+  const tick = (): void => {
     void (async () => {
-      if (!deps.card.isOpen()) return;
       const { getAllWindows } = await import("@tauri-apps/api/window");
       const windows = await getAllWindows();
       for (const win of windows) {
@@ -34,10 +33,20 @@ export function wireQuickCardClose(deps: {
       log.info("quick_card_focus_lost");
       deps.card.close();
     })().catch((error) => log.debug("quick_card_focus_poll_failed", { error: String(error) }));
-  }, FOCUS_POLL_MS);
+  };
+  const offClose = deps.card.onClose(() => {
+    stop();
+    void Promise.resolve(deps.hide()).catch((error) =>
+      log.warn("quick_card_hide_failed", { error: String(error) }),
+    );
+  });
   return {
+    /** Starts the poll once the card's window has taken focus; the card's close stops it. */
+    watch() {
+      if (timer === null) timer = setInterval(tick, FOCUS_POLL_MS);
+    },
     dispose() {
-      clearInterval(timer);
+      stop();
       offClose();
     },
   };

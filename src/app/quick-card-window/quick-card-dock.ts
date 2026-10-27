@@ -47,6 +47,8 @@ export function wireQuickCardDock(deps: {
   seedListen(listening: boolean): void;
   /** The owner pet window's label. */
   ownerLabel: string;
+  /** The card's window is shown and has taken focus. */
+  onShown(): void;
 }): void {
   const margin = QUICK_CARD_MARGIN_PX;
   const box = () => {
@@ -135,6 +137,7 @@ export function wireQuickCardDock(deps: {
     await moveTo(next);
     await win.show();
     await win.setFocus();
+    deps.onShown();
     lastRequest = request;
     lastOwnerLog = owner.log;
     docked = true;
