@@ -284,15 +284,19 @@ describe("createQuickControls — history tab", () => {
     qc.dispose();
   });
 
-  it("marks YUI turns so its name renders in the accent color", () => {
+  it("labels the character's turns with the shown preset's name, in the accent color", () => {
+    localStorage.setItem(
+      "yui.presets",
+      JSON.stringify({ active: "yangyang", list: [{ id: "yangyang", name: "Yangyang" }] }),
+    );
     const qc = buildQc({ transcript: seedStore() });
     qc.open();
 
     const turns = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-hist__turn"));
     expect(turns[0].classList.contains("is-yui")).toBe(false);
     expect(turns[1].classList.contains("is-yui")).toBe(true);
-    expect(turns[0].querySelector(".yui-hist__who")!.textContent).toBeTruthy();
-    expect(turns[1].querySelector(".yui-hist__who")!.textContent).toBeTruthy();
+    expect(turns[0].querySelector(".yui-hist__who")!.textContent).toBe("You");
+    expect(turns[1].querySelector(".yui-hist__who")!.textContent).toBe("Yangyang");
     expect(turns[0].querySelector(".yui-hist__say")!.textContent).toBe("방금 그 빌드 왜 실패했어?");
     expect(turns[0].querySelector(".yui-hist__ts")!.textContent).toMatch(/^\d{2}:\d{2}$/);
 
