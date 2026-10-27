@@ -5,7 +5,7 @@ The tools the client exposes to the backend model.
 | Name | Purpose | Arguments and result | Transports | Schema built in | Call executed in |
 |---|---|---|---|---|---|
 | `generate_express` | Places an expression cue (face, body motion, voice tone) on the speech around the call | Arguments `emotion_id`, `motion_id`, `emotion_text`, `caption`, each optional ([cue contract](client-context.md#tool-arguments)). Result: the string `ok` | Responses and Chat Completions as a declared tool. Push as cues inside `render` and `speech` segments | `createGenerateExpressTool` in `src/io/chat/tools/express.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts` |
-| `body_action` | Moves the body: sit on a window's top edge, peek around its edge, move to a named spot, stand up, or lie down on a bed | Arguments `action` plus the field it needs: `app` for `sit_on_window`, `side` for `peek`, `spot` and an optional `monitor` for `move_to`; `stand` and `go_to_bed` need none. Result: `ok`, or one word — `not_found`, `blocked`, `interrupted`, `busy`, `unsupported`, `timeout` | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createAvatarTools` in `src/io/chat/tools/avatar.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
+| `body_action` | Moves the body: sit on a window's top edge, peek around its edge, move to a named spot, stand up, or lie down on a bed | Arguments `action` plus the field it needs: `app` for `sit_on_window`, `side` for `peek`, `spot` and an optional `monitor` for `move_to`; `stand` and `go_to_bed` need none. Result: `ok`, or one word — `not_found`, `blocked`, `interrupted`, `busy`, `unsupported`, `timeout` — or `error: missing field <app\|side\|spot>` and `error: invalid field <app\|side\|spot>` for an absent or invalid argument | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createAvatarTools` in `src/io/chat/tools/avatar.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
 | `look` | Reads the character's body state, perch targets, or a display screenshot | Argument `at`: `body`, `perch_targets`, or `screen`; optional integer `monitor` for `screen`, using the same display number as `body_action.monitor`. Omitted `monitor` selects the character's display; other targets ignore it. Body and perch results are JSON strings. Screen success is `{ text: "screenshot of display <n>", images: [dataUrl] }`; refusal is `error: screen capture is off`, and an invalid monitor is `error: invalid field monitor` | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createAvatarTools` in `src/io/chat/tools/avatar.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
 | `browser` | Runs backend-written JavaScript against the ego lite browser on the user's computer, in this character's own task space | Arguments `code` (string: the body of an async function that runs after the client's prelude) and `guide` (boolean). `guide: true` returns the installed ego lite's guide text; otherwise `code` runs and the result is the untrusted-content line, the script's output and any screenshot notes, with up to 4 screenshots as JPEG data URLs in `images`. Failures answer the strings in [browser](#browser) | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createBrowserTool` in `src/io/chat/tools/browser/` | Tauri commands `browser_run` and `browser_guide` in `src-tauri/src/browser/`, invoked through `src/io/browser/browser-relay.ts` |
 | `rate_relation` | Moves this character's relation toward the user or another open character by one small step, with the reason | Arguments `toward` (enum: `user` and the other open presets' names), `delta` (enum: -2, -1, 1, 2), `why` (string, at most 80 characters). Result: the new band word (`hostile`, `cold`, `neutral`, `warm`, `close`), `clamped: <band>` when the daily cap or the range held the value, `ignored: already rated <toward> this turn`, `error: unknown target`, `error: invalid field delta` for a `delta` outside the enum, `error: invalid field why` for a non-string `why`, `error: reserved reason` for the `why` `set by the user`, or `error: relations are off` while the Relations switch is off | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createRateRelationTool` in `src/io/chat/tools/relation.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
@@ -159,7 +159,7 @@ const __yuiDeadline = setTimeout(() => { console.error("[yui] deadline"); proces
 try {
   const task = await taskSpace("yui-<presetId>");
   let __yuiShot = 0;
-  const screenshot = (page) => page.screenshot({ path: `<shot folder>/${String(++__yuiShot).padStart(3, "0")}.png` });
+  const screenshot = (page) => __yuiScreenshot(page, `<shot folder>/${String(++__yuiShot).padStart(3, "0")}.png`);
   // code follows here, from line 6
 } catch (e) {
   console.error(String(e?.stack ?? e));
@@ -168,6 +168,8 @@ try {
   clearTimeout(__yuiDeadline);
 }
 ```
+
+`__yuiScreenshot` is declared after `code` and hoists, so adding it shifts no line of the caller's code. It captures the page's viewport; when the capture fails because ego lite's window is minimized, it restores the window through CDP and retries the capture every 100 ms for up to 2 s. Any other failure is rethrown.
 
 `code` starts on line 6, which is where the stated line offset comes from. The space is `yui-<presetId>` of the calling window's preset. No profile id is part of it: ego lite holds one profile, "YUI", and it is the default. A syntax error fails before the `try` runs and returns as a script failure with ego lite's message.
 
@@ -201,7 +203,7 @@ Each call gets a folder under the OS temp directory named `yui-browser-<pid>-<na
 
 The text states the count of earlier screenshots dropped by the cap and the names of unreadable files when either is non-zero.
 
-At app start, Rust deletes every leftover `yui-browser-*` folder in the temp directory, which a backstop-killed script can recreate late.
+At app start, Rust deletes every `yui-browser-*` folder in the temp directory older than ten minutes, which a backstop-killed script can recreate late. A younger folder is left alone, so another running YUI instance keeps its own.
 
 ### Task-space lifetime
 

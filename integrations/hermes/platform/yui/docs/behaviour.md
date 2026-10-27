@@ -113,11 +113,17 @@
   and again when it compacts its context, so a turn that reaches either point after another chat's
   turn opened runs with the other chat's ids. Each switch between chats whose vocabularies differ
   rebuilds the gateway's cached agents.
-- Registers the tools the client declares in its `hello.tools` frame — once per schema fingerprint,
-  under the `yui` toolset — so the model calls `body_action` to move the character and `look` to
-  read her state. Each call sends one `tool_call` frame and blocks the handler's worker thread on
-  the `tool_result`: 20 s for `body_action`, 7 s for `look`, 40 s for `browser`, counted from the
-  send (the client bounds its own execution 5 s below the first two and 8 s below `browser`'s). One call runs at a time per chat; a second waits for
+- Registers the tools the client declares in its `hello.tools` frame under the `yui` toolset:
+  `rate_relation` and `address_character` from every pet window, `browser` from a Tauri pet
+  window, and `body_action` and `look` from `main` alone. Registration is once per schema
+  fingerprint, and a name whose schema differs per chat is registered again at turn start with
+  that chat's schema, because Hermes keeps one schema per tool name. So the model calls
+  `body_action` to move the character and `look` to read her state. Each call sends one
+  `tool_call` frame and blocks the handler's worker thread on
+  the `tool_result`: 20 s for `body_action`, 7 s for `look`, `rate_relation` and
+  `address_character`, and 40 s for `browser`, counted from the send; the client's own bound is
+  5 s lower for every tool but `browser`, which is 8 s lower. One call runs at a time per chat;
+  a second waits for
   the first. A call answers `error: client disconnected` at once when no ready socket can take it,
   when the socket closes, or when a second hello replaces it, and `error: turn stopped` when the
   client stops the turn the call belongs to; a wait that passes answers

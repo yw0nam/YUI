@@ -20,7 +20,7 @@ Not a mod, but lives here: [browser-cdp](https://github.com/yw0nam/YUI/blob/main
 
 ## Exposure
 
-Every mod binds `127.0.0.1` only — there is no transport auth, so any local process that can reach the port gets the mod's full capability. Reach a mod from the remote agent over an SSH reverse tunnel, never by binding `0.0.0.0`. Over HTTP, every mod and the router refuse a request whose `Host` is not a loopback name (`127.0.0.1`, `localhost`, `::1`) with 421 and a request with a non-loopback `Origin` with 403, while a local process that sends no browser headers can still use them. The [router](#router) collapses all mods onto one tunnel (`8080`), so you forward one port instead of one per mod:
+Every mod is reachable on loopback only — there is no transport auth, so any local process that can reach the port gets the mod's full capability. A mod run on the host binds `127.0.0.1`. shell-sandbox's container binds `0.0.0.0:9001` inside it, and the compose entry publishes that to `127.0.0.1:9001` on the host. Reach a mod from the remote agent over an SSH reverse tunnel, never by publishing it on `0.0.0.0`. Over HTTP, every mod and the router refuse a request whose `Host` is not a loopback name (`127.0.0.1`, `localhost`, `::1`) with 421 and a request with a non-loopback `Origin` with 403, while a local process that sends no browser headers can still use them. The [router](#router) collapses all mods onto one tunnel (`8080`), so you forward one port instead of one per mod:
 
 ```bash
 ssh -R 8080:localhost:8080 <remote-host>      # all mods, via the router

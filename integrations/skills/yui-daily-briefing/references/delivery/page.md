@@ -128,10 +128,10 @@ Times on the page read `HH:MM` for the briefing day and `MM-DD HH:MM` for an ear
 in the user's time zone; counts are bare numbers. The labels outside the slots come from
 the template: "Daily briefing", the "Projects" heading, "Needs attention", "All days",
 "Next day" and "No next day yet". The labels inside the slots come from the filled
-example: the "Projects" label of `contents`, "Previous day", the fold label ("3 more"),
-"No items this run.", the status words "Failed" and "Stale", "Last success", "No success
-on record" and "Run record". The example holds no `disabled` source; its status word is
-"Disabled" (꺼짐 in Korean) on the class `status-disabled`.
+example: the "Projects" label of `contents`, "Previous day", the fold label (a bare count,
+then " more"), "No items this run.", the status words "Failed" and "Stale", "Last
+success", "No success on record" and "Run record". The example holds no `disabled` source;
+its status word is "Disabled" (꺼짐 in Korean) on the class `status-disabled`.
 
 ## Speak
 

@@ -220,7 +220,7 @@ The on/off state of every switchable in-app tool the window declares, rendered e
 `id=state` entry per tool, comma-separated, in declaration order; values are `on` and `off`:
 
 ```text
-tool switches: look.screen=on, browser=off, relations=on
+tool switches: relations=on, look.screen=on, browser=off
 ```
 
 The line names the switch state only. The switch gates the tool's execution, read at the moment

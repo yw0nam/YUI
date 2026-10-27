@@ -130,7 +130,7 @@ _Avoid_: tier, urgency, priority
 The pill beside the avatar for one signal group, with a details sheet on tap and a cross to dismiss; in memory only.
 
 **Mod**:
-A standalone MCP server the brain uses (avatar, browser-cdp, desktop-control, shell-sandbox). Not part of the app runtime.
+A standalone MCP server the brain uses (router, desktop-control, shell-sandbox, avatar, factorio). Not part of the app runtime.
 
 ### Configuration
 
@@ -159,5 +159,5 @@ An ego lite tab workspace the `browser` tool works in, named `yui-<presetId>`: o
 _Avoid_: tab group, browser session
 
 **Bound pet window**:
-A pet window opened for one preset by label `pet-<id>` and URL query `preset=<id>`. Its per-preset keys resolve under that preset (`yui.<id>.*`; the built-in default keeps the unprefixed keys) and it keeps the preset while `main`, the window without the query, follows the active one. It opens its own settings window `settings-<id>` and message window `message-<id>`, which resolve the same preset's keys and close when it closes or its preset leaves the registry. `yui.windows` is the device-wide list of ids the user wants open, and each of the three windows holds its live key `yui.live-window.<label>` from boot until it closes; the registry refuses to remove or activate a preset while any of the three is live, and `main` clears keys whose window no longer exists at boot.
+A pet window opened for one preset by label `pet-<id>` and URL query `preset=<id>`. Its per-preset keys resolve under that preset (`yui.<id>.*`; the built-in default keeps the unprefixed keys) and it keeps the preset while `main`, the window without the query, follows the active one. It opens its own settings window `settings-<id>`, message window `message-<id>` and quick-card window `quick-card-<id>`, which resolve the same preset's keys and close when it closes or its preset leaves the registry. `yui.windows` is the device-wide list of ids the user wants open, and each of the four windows holds its live key `yui.live-window.<label>` from boot until it closes; the registry refuses to remove or activate a preset while any of the four is live, and `main` clears keys whose window no longer exists at boot.
 _Avoid_: secondary window, companion window, extra window, sub-window
