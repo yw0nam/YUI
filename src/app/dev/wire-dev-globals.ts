@@ -24,6 +24,8 @@ export async function wireDevGlobals(deps: {
   agentSettings: unknown;
   /** The pet window's quick-card window controller. */
   quickCardWindow: { open(request: QuickCardOpen): void };
+  /** Null in main's window; voice input and its listening flag are main's only. */
+  boundId: string | null;
   speechPlayback: unknown;
   voiceInputStatus: VoiceInputStatus;
   userInput: Pick<UserInputSource, "submit">;
@@ -40,6 +42,7 @@ export async function wireDevGlobals(deps: {
     lipsyncSettings,
     agentSettings,
     quickCardWindow,
+    boundId,
     speechPlayback,
     voiceInputStatus,
     userInput,
@@ -65,7 +68,7 @@ export async function wireDevGlobals(deps: {
           quickCardRequest({
             renderer,
             point: at ?? { x: window.innerWidth / 2, y: window.innerHeight / 2 },
-            listening: voiceInputStatus.get().state !== "idle",
+            listening: boundId === null ? voiceInputStatus.get().state !== "idle" : undefined,
           }),
         ),
     },

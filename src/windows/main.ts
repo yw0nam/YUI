@@ -327,6 +327,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
           lipsyncSettings: settingsStores.lipsyncSettings,
           agentSettings: settingsStores.agentSettings,
           quickCardWindow,
+          boundId,
           speechPlayback: configured.voice.speechPlayback,
           voiceInputStatus,
           userInput,
