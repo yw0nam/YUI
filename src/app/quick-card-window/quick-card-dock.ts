@@ -29,7 +29,7 @@ const log = createLogger("quick-card-dock");
 /** Transparent margin around the card inside its window, for the shadow; matches the CSS. */
 export const QUICK_CARD_MARGIN_PX = 8;
 
-/** Self-moves land within a logical px of the placed position; a drag goes further at once. */
+/** Self-moves land within a logical px of the placed position; a drag leaves it. */
 const SELF_MOVE_TOLERANCE_PX = 1;
 
 interface DockCard {
@@ -204,10 +204,8 @@ export function wireQuickCardDock(deps: {
         expected &&
         Math.abs(logical.x - expected.x) <= SELF_MOVE_TOLERANCE_PX &&
         Math.abs(logical.y - expected.y) <= SELF_MOVE_TOLERANCE_PX
-      ) {
-        expected = logical;
+      )
         return;
-      }
       // The first move of the window itself after a head pointerdown is the drag leaving the dock.
       if (dragArmed && docked) {
         docked = false;
