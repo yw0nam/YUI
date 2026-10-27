@@ -15,11 +15,6 @@
     "core:window:allow-set-size",
     "core:window:allow-set-position",
     "core:window:allow-set-focus",
-    "core:window:allow-outer-position",
-    "core:window:allow-is-focused",
-    "core:window:allow-available-monitors",
-    "core:window:allow-primary-monitor",
-    "core:window:allow-get-all-windows",
     "core:webview:allow-create-webview-window",
     "log:default",
     "cors-fetch:default"
