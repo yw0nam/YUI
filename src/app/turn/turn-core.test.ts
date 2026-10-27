@@ -8,18 +8,24 @@ const { dispatcher, dispatcherDeps, endThinking, pushTurns, speechPlayback } = v
   speechPlayback: { interrupt: vi.fn() },
 }));
 
-const { createSttEngine } = vi.hoisted(() => ({ createSttEngine: vi.fn(async () => ({})) }));
+const { createSttEngine, voiceDeps } = vi.hoisted(() => ({
+  createSttEngine: vi.fn(async () => ({})),
+  voiceDeps: [] as Array<Parameters<typeof import("./voice/wire-voice").wireTurnVoice>[0]>,
+}));
 
 vi.mock("./voice/wire-voice", () => ({
-  wireTurnVoice: () => ({
-    voice: { speechPlayback, endThinking, createSttEngine },
-    voiceInput: { setStt: () => {} },
-    voiceErrorDwell: { show: () => {} },
-    pushTurns,
-    quotedTurn: {},
-    setProactiveSource: () => {},
-    setStrolling: () => {},
-  }),
+  wireTurnVoice: (deps: (typeof voiceDeps)[number]) => {
+    voiceDeps.push(deps);
+    return {
+      voice: { speechPlayback, endThinking, createSttEngine },
+      voiceInput: { setStt: () => {} },
+      voiceErrorDwell: { show: () => {} },
+      pushTurns,
+      quotedTurn: {},
+      setProactiveSource: () => {},
+      setStrolling: () => {},
+    };
+  },
 }));
 vi.mock("./broker/wire-broker", () => ({ wireBroker: async () => ({ dispose: () => {} }) }));
 vi.mock("./vocabulary/wire-vocabulary", () => ({
@@ -99,6 +105,31 @@ describe("wireTurnCore", () => {
     h.stopFromUnified();
 
     expect(dispatcher.cancel).toHaveBeenCalledOnce();
+    expect(speechPlayback.interrupt).toHaveBeenCalledOnce();
+  });
+
+  it("sends speech to the unified window while it shows, and speaking stops this window and asks every window to stop", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    const emitVoiceSegment = vi.fn();
+    const emitStopTurns = vi.fn();
+    const h = wire({
+      unifiedShown: { get: () => true },
+      emitVoiceSegment,
+      emitStopTurns,
+      userInput: { submitVoice: () => {} } as never,
+      settings: { vadSettings: { get: () => ({ bargeIn: true }) } } as never,
+    });
+    const core = await h.core;
+    await core.connect({ onSubmit: () => {} });
+    const voice = voiceDeps.at(-1)!;
+
+    voice.submitVoice("hi");
+    voice.onVoiceTurnStart?.();
+
+    expect(emitVoiceSegment).toHaveBeenCalledExactlyOnceWith({ text: "hi" });
+    expect(emitStopTurns).toHaveBeenCalledOnce();
+    expect(dispatcher.cancel).toHaveBeenCalledOnce();
+    expect(pushTurns.cut).toHaveBeenCalledOnce();
     expect(speechPlayback.interrupt).toHaveBeenCalledOnce();
   });
 
