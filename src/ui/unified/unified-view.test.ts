@@ -199,6 +199,21 @@ describe("unified view — sending", () => {
     expect(recipients()[2]).toEqual(["everyone", "true"]);
   });
 
+  it("an arrow key on the cast row picks and keeps focus there, off the field", () => {
+    mount();
+    let fieldFocused = 0;
+    field().addEventListener("focus", () => fieldFocused++);
+    castRadios()[1]!.focus();
+
+    castRadios()[1]!.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }),
+    );
+
+    expect(recipients()[0]).toEqual(["Perlica", "true"]);
+    expect((document.activeElement as HTMLElement).dataset.id).toBe("perlica");
+    expect(fieldFocused).toBe(0);
+  });
+
   it("names the checked recipient in the field's placeholder, in the current language", () => {
     mount();
     expect(field().placeholder).toBe("Say something to Natsume…");

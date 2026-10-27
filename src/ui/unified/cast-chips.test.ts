@@ -16,9 +16,10 @@ function setup(onPick: (id: string) => void = () => {}) {
   document.body.append(mount);
   const onClose = vi.fn();
   const startDragging = vi.fn();
-  const chips = createCastChips({ mount, onClose, startDragging, onPick });
+  const focusField = vi.fn();
+  const chips = createCastChips({ mount, onClose, startDragging, onPick, focusField });
   const radios = () => [...mount.querySelectorAll<HTMLElement>("[role=radio]")];
-  return { mount, chips, onClose, startDragging, radios };
+  return { mount, chips, onClose, startDragging, focusField, radios };
 }
 
 it("shows each open character with the state of its line, then everyone", () => {
@@ -43,9 +44,9 @@ it("shows each open character with the state of its line, then everyone", () => 
   ]);
 });
 
-it("is a radio group whose checked chip holds the tab stop, and a click picks", () => {
+it("is a radio group whose checked chip holds the tab stop, and a click picks and moves to the field", () => {
   const picked: string[] = [];
-  const { chips, mount, radios } = setup((id) => picked.push(id));
+  const { chips, mount, radios, focusField } = setup((id) => picked.push(id));
 
   chips.render(CAST, () => "idle", "natsume");
   radios()[3]!.click();
@@ -58,6 +59,7 @@ it("is a radio group whose checked chip holds the tab stop, and a click picks", 
     ["everyone", "false", -1],
   ]);
   expect(picked).toEqual(["everyone"]);
+  expect(focusField).toHaveBeenCalledOnce();
 });
 
 it("picks on a click whose press came before a state repaint", () => {
