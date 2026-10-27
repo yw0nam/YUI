@@ -118,6 +118,8 @@ export function wireQuickCardDock(deps: {
     const { character, workArea } = await characterArea(owner.log, request);
     await resizeToCard();
     await moveTo(quickCardBeside({ character, content: deps.card.contentSize(), workArea }));
+    // Closed meanwhile (Escape): its close already hid the window.
+    if (!deps.card.isOpen()) return;
     const win = await ownWindow();
     await win.show();
     await win.setFocus();
