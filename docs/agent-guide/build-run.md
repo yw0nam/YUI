@@ -57,11 +57,12 @@ Frontend (`src/logger.ts` → `[YUI][namespace] …`) and Rust (`log` crate) lin
 
 ### Turn records
 
-Alongside the app log, `turns_YYYY-MM-DD.jsonl` accumulates one JSON line per completed backend turn and one per fire skipped before becoming a turn — the long-horizon source for speak-rate/suppression measurement, readable with `jq` while the app runs. Same directory, rotation, and 14-day retention as the app log: dev `<repo>/logs/`, release `~/Library/Logs/com.yui.desktop/` (macOS). Written via the Rust `append_turn_record(line)` command; `src/io/chat/record/turn-record-log.ts` builds each line and calls it fire-and-forget, so a failed write never breaks the turn or the fire path.
+Alongside the app log, `turns_YYYY-MM-DD.jsonl` accumulates one JSON line per completed backend turn, one per push `render` frame the client played, and one per fire skipped before becoming a turn — the long-horizon source for speak-rate/suppression measurement, readable with `jq` while the app runs. Same directory, rotation, and 14-day retention as the app log: dev `<repo>/logs/`, release `~/Library/Logs/com.yui.desktop/` (macOS). Written via the Rust `append_turn_record(line)` command; `src/io/chat/record/turn-record-log.ts` builds each line and calls it fire-and-forget, so a failed write never breaks the turn or the fire path.
 
-Two record shapes, distinguished by `type`:
+Three record shapes, distinguished by `type` and `event_name`:
 
 - `{"type":"turn","ts","event_name","trigger_kind","client_context",spoke_text}` — one per completed turn, `ts` the moment the turn completed. `client_context` is the same object sent to the backend; `spoke_text` is `false` when the backend returned no/empty speech or the bare `[SILENT]` token.
+- `{"type":"turn","ts","event_name":"push.render","trigger_kind":"push","source","turn_id","segments","spoke_text","queued_behind"}` — one per push `render` frame the client played, `ts` the moment it played. No trigger started it, so it carries no `client_context`: `source` names the backend, `turn_id` the backend's turn, `segments` the frame's segment count, `spoke_text` whether any of them spoke, and `queued_behind` whether speech was still owed and played behind what was already queued.
 - `{"type":"skip","ts","source","reason",…}` — one per fire suppressed before it became a turn, `ts` the moment the suppressed candidate arose. `source` names the gate that refused it and decides the remaining field: `"screen"` records carry `transition` (`app_switched` / `long_session`) and a `reason` of `disabled` / `not_present` / `min_gap` / `quiet_after_turn` / `global_gap`; `"dispatcher"` records carry `event_name` and always the reason `global_gap` — the global proactive gap held that fire back.
 
 The capped `yui.context-history` (localStorage, last 20 entries) stays the DevTools Context Inspector's source; this file is the disk-backed, uncapped one.

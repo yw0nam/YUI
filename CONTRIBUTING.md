@@ -247,9 +247,10 @@ an accepted idea becomes a `help wanted` issue.
 
 ## Commits & PRs
 
-- Conventional commits: `feat:`, `fix:`, `test:`, `refactor:`, `docs:`,
-  `chore:`. The PR title is the squash-merge subject and must be
-  conventional-commit format; the `pr-title` CI job enforces it.
+- Conventional commits: `feat:`, `fix:`, `docs:`, `style:`, `refactor:`,
+  `perf:`, `test:`, `build:`, `ci:`, `chore:`, `revert:`. The PR title is the
+  squash-merge subject and must be conventional-commit format in one of those
+  types; the `pr-title` CI job enforces it.
 - Fill the [PR template](.github/PULL_REQUEST_TEMPLATE.md) — Summary (with the
   why-this-value line for every new constant, threshold, or special-cased
   status), related issues, Runtime evidence, Merge danger, and the
