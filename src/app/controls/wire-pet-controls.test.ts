@@ -1,157 +1,92 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from "vitest";
-
-const { createQuickCardWindowController, wireCueLocaleSync } = vi.hoisted(() => ({
-  createQuickCardWindowController:
-    vi.fn<
-      typeof import("../../io/window/openers/quick-card-window").createQuickCardWindowController
-    >(),
-  wireCueLocaleSync: vi.fn<() => () => void>(() => () => {}),
-}));
-
-vi.mock("../../io/window/openers/quick-card-window", () => ({ createQuickCardWindowController }));
-vi.mock("../settings/wire-cue-locale-sync", () => ({ wireCueLocaleSync }));
-
-import { createSettingsStores, type SettingsStores } from "../../settings/settings-stores";
-import { createVoiceInputStatus, type VoiceInputStatus } from "../../ui/chips/voice-input-status";
+import { afterEach, expect, it, vi } from "vitest";
+import { createSettingsStores } from "../../settings/settings-stores";
+import { createVoiceInputStatus } from "../../ui/chips/voice-input-status";
 import { wirePetControls } from "./wire-pet-controls";
 
-describe("wirePetControls", () => {
-  function makeDeps(boundId: string | null = null, over: Record<string, unknown> = {}) {
-    const stores: SettingsStores = createSettingsStores();
-    const registered: Array<() => void> = [];
-    const stage = document.createElement("div");
-    const removeEventListener = vi.spyOn(stage, "removeEventListener");
-    const controller = {
-      open: vi.fn(),
-      dispose: vi.fn(),
-    };
-    createQuickCardWindowController.mockReturnValue(controller);
-    const deps = {
-      boundId,
-      stage,
-      stores,
-      renderer: {
-        getCharacterAnchor: vi.fn(() => ({ x: 200, y: 300 })),
-        getCharacterWidthPx: vi.fn(() => 100),
-      },
-      voiceInputStatus: createVoiceInputStatus() as VoiceInputStatus,
-      remoteSurfaces: { onOpenSettings: vi.fn() },
-      openSettings: vi.fn(),
-      bridge: { emitQuickCardOpen: vi.fn(), onQuickCardReady: vi.fn(() => () => {}) },
-      register: (teardown: () => void) => {
-        registered.push(teardown);
-      },
-      ...over,
-    };
-    const controls = wirePetControls(deps as never);
-    return { controls, deps, stores, registered, stage, removeEventListener, controller };
-  }
+const registered: Array<() => void> = [];
+afterEach(() => {
+  for (const teardown of registered.splice(0)) teardown();
+});
 
-  function teardownDeps(wired: ReturnType<typeof makeDeps>) {
-    for (const fn of wired.registered) fn();
-    for (const store of Object.values(wired.stores)) store.dispose();
-  }
-
-  it("sends the character's extent and the click to the quick-card window from the stage context menu", () => {
-    const wired = makeDeps();
-
+function wired(over: { boundId?: string | null; anchor?: { x: number; y: number } | null } = {}) {
+  const stores = createSettingsStores();
+  registered.push(() => {
+    for (const store of Object.values(stores)) store.dispose();
+  });
+  const deps = {
+    stage: document.createElement("div"),
+    stores,
+    renderer: {
+      getCharacterAnchor: () => (over.anchor === undefined ? { x: 200, y: 300 } : over.anchor),
+      getCharacterWidthPx: () => 100,
+    },
+    boundId: over.boundId ?? null,
+    voiceInputStatus: createVoiceInputStatus(),
+    remoteSurfaces: { onOpenSettings: vi.fn() },
+    openSettings: vi.fn(),
+    quickCardWindow: { open: vi.fn() },
+    register: (teardown: () => void) => void registered.push(teardown),
+  };
+  wirePetControls(deps);
+  const rightClick = () => {
     const event = new MouseEvent("contextmenu", { clientX: 12, clientY: 34, cancelable: true });
-    wired.stage.dispatchEvent(event);
+    deps.stage.dispatchEvent(event);
+    return event;
+  };
+  return { deps, rightClick };
+}
 
-    expect(event.defaultPrevented).toBe(true);
-    // Her anchor x 200 with width 100 spans 150..250; the click's y rides along.
-    expect(wired.controller.open).toHaveBeenCalledExactlyOnceWith({
-      left: 150,
-      right: 250,
-      y: 34,
-      listening: false,
-    });
-    expect(wired.controls).toBe(wired.controller);
+it.each([
+  // Her anchor x 200 with width 100 spans 150..250; the click's y rides along.
+  [
+    "main's, with its idle voice input",
+    {},
+    false,
+    { left: 150, right: 250, y: 34, listening: false },
+  ],
+  [
+    "main's, with its live voice input",
+    {},
+    true,
+    { left: 150, right: 250, y: 34, listening: true },
+  ],
+  [
+    "a bound character's, with no listening flag",
+    { boundId: "a" },
+    true,
+    { left: 150, right: 250, y: 34 },
+  ],
+  [
+    "main's, at the click's x when the renderer has no anchor",
+    { anchor: null },
+    false,
+    { left: 12, right: 12, y: 34, listening: false },
+  ],
+])("a stage right-click sends %s extent to the quick-card window", (_name, over, live, request) => {
+  const { deps, rightClick } = wired(over);
+  if (live) deps.voiceInputStatus.set("listening");
 
-    teardownDeps(wired);
-  });
+  const event = rightClick();
 
-  it("names no listening flag on another character's card", () => {
-    const wired = makeDeps("a");
+  expect(event.defaultPrevented).toBe(true);
+  expect(deps.quickCardWindow.open).toHaveBeenCalledExactlyOnceWith(request);
+});
 
-    wired.stage.dispatchEvent(
-      new MouseEvent("contextmenu", { clientX: 12, clientY: 34, cancelable: true }),
-    );
+it("opens the settings window on Connection when a popped-out surface asks for settings", () => {
+  const { deps } = wired();
+  const ask = deps.remoteSurfaces.onOpenSettings.mock.calls[0]![0];
 
-    expect(wired.controller.open).toHaveBeenCalledExactlyOnceWith({
-      left: 150,
-      right: 250,
-      y: 34,
-    });
+  ask();
 
-    teardownDeps(wired);
-  });
+  expect(deps.openSettings).toHaveBeenCalledExactlyOnceWith("conn");
+});
 
-  it("falls back to the click's x for both edges when the renderer has no anchor", () => {
-    const wired = makeDeps(null, {
-      renderer: {
-        getCharacterAnchor: vi.fn(() => null),
-        getCharacterWidthPx: vi.fn(() => 100),
-      },
-    });
+it("stops sending right-clicks once torn down", () => {
+  const { deps, rightClick } = wired();
 
-    wired.stage.dispatchEvent(
-      new MouseEvent("contextmenu", { clientX: 12, clientY: 34, cancelable: true }),
-    );
+  for (const teardown of registered.splice(0)) teardown();
+  rightClick();
 
-    expect(wired.controller.open).toHaveBeenCalledExactlyOnceWith({
-      left: 12,
-      right: 12,
-      y: 34,
-      listening: false,
-    });
-
-    teardownDeps(wired);
-  });
-
-  it("reports main's live voice input as the listening flag", () => {
-    const wired = makeDeps();
-    wired.deps.voiceInputStatus.set("listening");
-
-    wired.stage.dispatchEvent(
-      new MouseEvent("contextmenu", { clientX: 12, clientY: 34, cancelable: true }),
-    );
-
-    expect(wired.controller.open).toHaveBeenCalledExactlyOnceWith({
-      left: 150,
-      right: 250,
-      y: 34,
-      listening: true,
-    });
-
-    teardownDeps(wired);
-  });
-
-  it("opens the settings window on Connection when a popped-out surface asks for settings", () => {
-    const wired = makeDeps();
-    try {
-      const ask = wired.deps.remoteSurfaces.onOpenSettings.mock.calls[0]![0];
-
-      ask();
-
-      expect(wired.deps.openSettings).toHaveBeenCalledExactlyOnceWith("conn");
-    } finally {
-      teardownDeps(wired);
-    }
-  });
-
-  it("registers the three teardowns in the baseline boot order", () => {
-    const wired = makeDeps();
-
-    expect(wired.registered).toHaveLength(3);
-    // Slot 1 disposes the controller, slot 2 is the cue-locale sync disposer, slot 3 the context-menu remover.
-    wired.registered[0]!();
-    expect(wired.controller.dispose).toHaveBeenCalledOnce();
-    expect(wired.registered[1]).toBe(wireCueLocaleSync.mock.results[0]?.value);
-    wired.registered[2]!();
-    expect(wired.removeEventListener).toHaveBeenCalledWith("contextmenu", expect.any(Function));
-
-    teardownDeps(wired);
-  });
+  expect(deps.quickCardWindow.open).not.toHaveBeenCalled();
 });

@@ -47,6 +47,7 @@ import { type BusEnvelope, createEventBus } from "../dispatcher/core/event-bus";
 import { createUserInputSource } from "../dispatcher/sources/user-input-source";
 import { resolveScreenCapturer } from "../io/window/capture/tauri-screen";
 import { createDevtoolsWindowOpener } from "../io/window/openers/devtools-window";
+import { createQuickCardWindowController } from "../io/window/openers/quick-card-window";
 import { createSettingsWindowOpener } from "../io/window/openers/settings-window";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
@@ -233,7 +234,9 @@ async function bootstrap(): Promise<BootstrapHandle> {
     presetIdForWindow(),
   );
 
-  const quickCardWindow = wirePetControls({
+  const quickCardWindow = createQuickCardWindowController({ boundId, bridge: windowBridge });
+  register(() => quickCardWindow.dispose());
+  wirePetControls({
     stage,
     stores: settingsStores,
     renderer,
@@ -241,7 +244,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     voiceInputStatus,
     remoteSurfaces: remote,
     openSettings,
-    bridge: windowBridge,
+    quickCardWindow,
     register,
   });
 

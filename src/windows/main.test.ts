@@ -41,6 +41,9 @@ vi.mock("../io/window/capture/tauri-screen", () => ({
 }));
 vi.mock("../io/window/openers/settings-window", () => ({ createSettingsWindowOpener: vi.fn() }));
 vi.mock("../io/window/openers/devtools-window", () => ({ createDevtoolsWindowOpener: vi.fn() }));
+vi.mock("../io/window/openers/quick-card-window", () => ({
+  createQuickCardWindowController: vi.fn(() => ({ open: vi.fn(), dispose: vi.fn() })),
+}));
 vi.mock("../app/cross-window/wire-cross-window", () => ({
   wireCrossWindowSync: vi.fn(() => ({
     broadcastSettings: vi.fn(),
@@ -59,7 +62,7 @@ vi.mock("../app/turn/push/push-stores", () => ({
 }));
 vi.mock("../app/settings/wire-preset", () => ({ wirePresetSwitch: vi.fn(() => () => {}) }));
 vi.mock("../app/controls/wire-help-guide", () => ({ wireHelpGuide: vi.fn(() => ({})) }));
-vi.mock("../app/controls/wire-pet-controls", () => ({ wirePetControls: vi.fn(() => ({})) }));
+vi.mock("../app/controls/wire-pet-controls", () => ({ wirePetControls: vi.fn() }));
 vi.mock("../ui/surfaces/summon-key", () => ({ attachSummonKey: vi.fn(() => () => {}) }));
 // Config load fails, so the boot ends on the error card right after the wiring under test.
 vi.mock("../app/settings/wire-config", () => ({
