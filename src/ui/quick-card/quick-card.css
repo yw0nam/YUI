@@ -16,27 +16,6 @@
   font-family: var(--yui-font);
   pointer-events: auto;
   outline: none;
-  animation: yui-qcard-in var(--yui-dur) var(--yui-ease) both;
-}
-
-@keyframes yui-qcard-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px) scale(0.98);
-  }
-}
-
-@keyframes yui-qcard-fade {
-  from {
-    opacity: 0;
-  }
-}
-
-/* Reduced motion: an opacity-only fade, no rise or scale. */
-@media (prefers-reduced-motion: reduce) {
-  .yui-qcard {
-    animation: yui-qcard-fade var(--yui-dur-fast) var(--yui-ease) both;
-  }
 }
 
 /* ── head: the drag handle ── */
@@ -97,13 +76,11 @@
   height: 0.75rem;
 }
 
-/* ── body: scrolls when the card is taller than the window ── */
+/* ── body ── */
 .yui-qcard__body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  min-height: 0;
-  overflow-y: auto;
 }
 
 /* ── tiles ── */
