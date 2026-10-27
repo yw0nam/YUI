@@ -179,6 +179,18 @@ describe("wireQuickCardDock", () => {
     expect(getByLabel).toHaveBeenCalledWith("pet-a");
   });
 
+  it("leaves the window hidden when the card closes while it is being placed", async () => {
+    const { bridge, card } = wired();
+
+    bridge.open(REQUEST);
+    // Escape before the placement's window reads return.
+    card.isOpen.mockReturnValue(false);
+    await settle();
+
+    expect(win.show).not.toHaveBeenCalled();
+    expect(win.setFocus).not.toHaveBeenCalled();
+  });
+
   it("moves a docked card by the owner's delta and keeps its side", async () => {
     const { bridge } = wired();
     bridge.open(REQUEST);
