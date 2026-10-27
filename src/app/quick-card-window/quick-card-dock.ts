@@ -163,6 +163,7 @@ export function wireQuickCardDock(deps: {
     });
     if (!snap) return;
     await moveTo(snap);
+    lastOwnerLog = owner.log;
     docked = true;
   }
 
