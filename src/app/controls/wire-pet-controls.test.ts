@@ -9,7 +9,13 @@ afterEach(() => {
   for (const teardown of registered.splice(0)) teardown();
 });
 
-function wired(over: { boundId?: string | null; anchor?: { x: number; y: number } | null } = {}) {
+function wired(
+  over: {
+    boundId?: string | null;
+    anchor?: { x: number; y: number } | null;
+    silhouette?: { left: number; right: number; top: number; bottom: number } | null;
+  } = {},
+) {
   const stores = createSettingsStores();
   registered.push(() => {
     for (const store of Object.values(stores)) store.dispose();
@@ -20,6 +26,7 @@ function wired(over: { boundId?: string | null; anchor?: { x: number; y: number 
     renderer: {
       getCharacterAnchor: () => (over.anchor === undefined ? { x: 200, y: 300 } : over.anchor),
       getCharacterWidthPx: () => 100,
+      getSilhouetteBounds: () => over.silhouette ?? null,
     },
     boundId: over.boundId ?? null,
     voiceInputStatus: createVoiceInputStatus(),
@@ -38,7 +45,13 @@ function wired(over: { boundId?: string | null; anchor?: { x: number; y: number 
 }
 
 it.each([
-  // Her anchor x 200 with width 100 spans 150..250; the click's y rides along.
+  [
+    "main's live-silhouette, not model-box,",
+    { silhouette: { left: 180, right: 226, top: 40, bottom: 390 } },
+    false,
+    { left: 180, right: 226, y: 34, listening: false },
+  ],
+  // Without a silhouette, her anchor x 200 with width 100 spans 150..250; the click's y rides along.
   [
     "main's, with its idle voice input",
     {},

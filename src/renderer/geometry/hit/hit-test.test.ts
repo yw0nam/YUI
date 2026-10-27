@@ -8,10 +8,11 @@
  *    Y-FLIP that maps DOM top-left to the bottom-left grab origin.
  *  - sampleAlphaHit: alpha-threshold decision with 3×3 dilation against a small
  *    synthetic RGBA grab grid.
+ *  - silhouetteBounds: the stage CSS-px box of every opaque cell in the grab.
  */
 
 import { describe, expect, it } from "vitest";
-import { cssToGrabCell, grabDimensions, sampleAlphaHit } from "./hit-test";
+import { cssToGrabCell, grabDimensions, sampleAlphaHit, silhouetteBounds } from "./hit-test";
 
 /**
  * Build an RGBA Uint8Array grab of size gw×gh where `opaque(col,row)` decides the
@@ -123,5 +124,37 @@ describe("sampleAlphaHit — threshold + 3×3 dilation", () => {
 
   it("empty / undersized grab → false", () => {
     expect(sampleAlphaHit(new Uint8Array(0), gw, gh, 4, 4, threshold255)).toBe(false);
+  });
+});
+
+describe("silhouetteBounds — the opaque cells' box in stage CSS px", () => {
+  const gw = 8;
+  const gh = 8;
+  const threshold255 = 26;
+
+  it("spans an opaque block's outer cell edges, rows flipped to top-down", () => {
+    // Columns 2..4, grab rows 1..5 (bottom-up) = rows 2..6 from the top; 10 CSS px per cell.
+    const grab = makeGrab(gw, gh, (c, r) => c >= 2 && c <= 4 && r >= 1 && r <= 5);
+    grab[(7 * gw + 7) * 4 + 3] = 10; // a faint corner pixel below the threshold.
+
+    expect(silhouetteBounds(grab, gw, gh, threshold255, 80, 80)).toEqual({
+      left: 20,
+      right: 50,
+      top: 20,
+      bottom: 70,
+    });
+  });
+
+  it("is null when no cell is opaque", () => {
+    expect(
+      silhouetteBounds(
+        makeGrab(gw, gh, () => false),
+        gw,
+        gh,
+        threshold255,
+        80,
+        80,
+      ),
+    ).toBeNull();
   });
 });
