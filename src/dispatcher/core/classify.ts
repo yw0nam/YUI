@@ -82,6 +82,11 @@ export function sendIdOf(env: Pick<BusEnvelope, "payload">): string | undefined 
   return typeof id === "string" ? id : undefined;
 }
 
+/** A routed user envelope the user spoke rather than typed. */
+export function routedViaOf(env: Pick<BusEnvelope, "payload">): "voice" | undefined {
+  return env.payload?.via === "voice" ? "voice" : undefined;
+}
+
 /** The unified chat window's recipient pick on a routed user envelope. */
 export function mentionOf(env: Pick<BusEnvelope, "payload">): TriggerMeta["mention"] | undefined {
   const m = env.payload?.mention;

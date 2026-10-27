@@ -7,7 +7,7 @@
  */
 import type { SourceLine, UserQuote } from "../../io/bridge/message/message-bridge";
 import { guideKeyOf, userImagesOf, userTextOf } from "../backend/context-builder";
-import { mentionOf, userTurnSourceOf } from "../core/classify";
+import { mentionOf, routedViaOf, userTurnSourceOf } from "../core/classify";
 import { sourceLinesOf } from "./signal-lines";
 import type { Turn, TurnLog } from "./turn";
 
@@ -56,8 +56,8 @@ export function createQuotedTurn(deps: {
 
   return {
     admitted(turn) {
-      const via = userTurnSourceOf(turn.trigger);
-      if (via === undefined) {
+      const source = userTurnSourceOf(turn.trigger);
+      if (source === undefined) {
         const lines = sourceLinesOf(turn.trigger);
         if (lines.length > 0) {
           // Nothing shows until the utterance opens — the quote holds the lines for it.
@@ -71,6 +71,7 @@ export function createQuotedTurn(deps: {
       }
       const text = userTextOf(turn.trigger) ?? "";
       const images = userImagesOf(turn.trigger) ?? [];
+      const via = routedViaOf(turn.trigger) ?? source;
       quoted = {
         kind: "user",
         id: turn.id,
