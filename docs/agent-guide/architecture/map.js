@@ -1282,7 +1282,7 @@ globalThis.YUI_MAP =
       "id": "app/settings",
       "module": "wiring",
       "label": "settings wiring",
-      "role": "Store bags, the config store with its live merges and reload, and avatar selection.",
+      "role": "Store bags, the config store with its live merges and reload, avatar selection, and the settings side the settings and quick-card windows share.",
       "paths": [
         "src/app/settings"
       ]
@@ -1309,7 +1309,7 @@ globalThis.YUI_MAP =
       "id": "app/quick-card-window",
       "module": "wiring",
       "label": "quick-card window wiring",
-      "role": "The quick-card window's wiring: the stores and ports the settings window builds, the mirrored push socket and voice state, the dock that places the window docked beside the character, follows her window, detaches on a head drag and snaps a near drop back, and the close that hides the window when no YUI window holds focus.",
+      "role": "The quick-card window's wiring: the settings side it shares with the settings window, the card's ports, the mirrored push socket and voice state, the dock that places the window docked beside the character, follows her window, detaches on a head drag and snaps a near drop back, and the close that hides the window when no YUI window holds focus.",
       "paths": [
         "src/app/quick-card-window"
       ]
@@ -2793,8 +2793,26 @@ globalThis.YUI_MAP =
       "id": "quick-card-placement",
       "from": "app/quick-card-window",
       "to": "io/window/geometry",
-      "carries": "quickCardBeside, followOwner and snapTarget: the docked placement 12px from her roomier side, the follow of the owner window's moves, and the 24px drop magnet",
+      "carries": "quickCardBeside, followOwner, snapTarget and clampQuickCard: the docked placement 12px from her roomier side, the follow of the owner window's moves, the 24px drop magnet, and the work-area clamp of a grown card",
       "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/quick-card-window/quick-card-dock.ts"
+    },
+    {
+      "id": "quick-card-drag-shell",
+      "from": "app/quick-card-window",
+      "to": "shell/window",
+      "carries": "drag_window from a head pointerdown: the OS drag of the card window",
+      "kind": "tauri-command",
+      "transport": "shared",
+      "wiring": "src/app/quick-card-window/quick-card-dock.ts"
+    },
+    {
+      "id": "drop-release-quick-card",
+      "from": "shell/os-event-watcher",
+      "to": "app/quick-card-window",
+      "carries": "window_drop_release: the drop of a drag the card started, then the 24px magnet",
+      "kind": "tauri-event",
       "transport": "shared",
       "wiring": "src/app/quick-card-window/quick-card-dock.ts"
     },
@@ -4768,6 +4786,146 @@ globalThis.YUI_MAP =
         "from": "quick-card-<id>",
         "to": "pet-<id>",
         "carries": "yui://quick-card-ready: the controller sends a request it held since the create",
+        "kind": "bridge"
+      },
+      {
+        "id": "quick-card-owner-move",
+        "from": "pet",
+        "to": "quick-card",
+        "carries": "the owner window's tauri://move: a docked card moves by her delta",
+        "kind": "tauri-event"
+      },
+      {
+        "id": "quick-card-owner-move-bound",
+        "from": "pet-<id>",
+        "to": "quick-card-<id>",
+        "carries": "the owner window's tauri://move: a docked card moves by her delta",
+        "kind": "tauri-event"
+      },
+      {
+        "id": "settings-changed-quick-card",
+        "from": "quick-card",
+        "to": "pet",
+        "carries": "yui://settings-changed: reload stores from localStorage (a tile, Body, Reference voice)",
+        "kind": "bridge"
+      },
+      {
+        "id": "settings-changed-to-quick-card",
+        "from": "pet",
+        "to": "quick-card",
+        "carries": "yui://settings-changed",
+        "kind": "bridge"
+      },
+      {
+        "id": "settings-changed-quick-card-bound",
+        "from": "quick-card-<id>",
+        "to": "pet-<id>",
+        "carries": "yui://settings-changed: reload stores from localStorage (a tile, Body, Reference voice)",
+        "kind": "bridge"
+      },
+      {
+        "id": "settings-changed-to-quick-card-bound",
+        "from": "pet-<id>",
+        "to": "quick-card-<id>",
+        "carries": "yui://settings-changed",
+        "kind": "bridge"
+      },
+      {
+        "id": "voice-set-quick-card",
+        "from": "quick-card",
+        "to": "pet",
+        "carries": "yui://voice-set: boolean, the Listen tile; main only",
+        "kind": "bridge"
+      },
+      {
+        "id": "voice-state-quick-card",
+        "from": "pet",
+        "to": "quick-card",
+        "carries": "yui://voice-state: {state}, mirrored on the Listen tile; main only",
+        "kind": "bridge"
+      },
+      {
+        "id": "session-reset-quick-card",
+        "from": "quick-card",
+        "to": "pet",
+        "carries": "yui://session-reset: {presetId}; the pet window stops its reply and greets",
+        "kind": "bridge"
+      },
+      {
+        "id": "session-reset-quick-card-bound",
+        "from": "quick-card-<id>",
+        "to": "pet-<id>",
+        "carries": "yui://session-reset: {presetId}; the pet window stops its reply and greets",
+        "kind": "bridge"
+      },
+      {
+        "id": "push-reset-quick-card",
+        "from": "quick-card",
+        "to": "pet",
+        "carries": "yui://push-reset: Reset conversation on push; filtered by preset id",
+        "kind": "bridge"
+      },
+      {
+        "id": "push-reset-quick-card-bound",
+        "from": "quick-card-<id>",
+        "to": "pet-<id>",
+        "carries": "yui://push-reset: Reset conversation on push; filtered by preset id",
+        "kind": "bridge"
+      },
+      {
+        "id": "push-state-quick-card",
+        "from": "pet",
+        "to": "quick-card",
+        "carries": "yui://push-state, answered on yui://push-state-ask; the head's transport line",
+        "kind": "bridge"
+      },
+      {
+        "id": "push-state-quick-card-bound",
+        "from": "pet-<id>",
+        "to": "quick-card-<id>",
+        "carries": "yui://push-state, answered on yui://push-state-ask; the head's transport line",
+        "kind": "bridge"
+      },
+      {
+        "id": "pet-windows-changed-quick-card-bound",
+        "from": "quick-card-<id>",
+        "to": "pet",
+        "carries": "yui://pet-windows-changed: Turn off; main reconciles and closes pet-<id>",
+        "kind": "bridge"
+      },
+      {
+        "id": "pet-windows-changed-to-quick-card",
+        "from": "pet",
+        "to": "quick-card",
+        "carries": "yui://pet-windows-changed: reload yui.windows",
+        "kind": "bridge"
+      },
+      {
+        "id": "preset-changed-pet-quick-card",
+        "from": "pet",
+        "to": "quick-card",
+        "carries": "yui://preset-changed {active}: another active preset reloads",
+        "kind": "bridge"
+      },
+      {
+        "id": "preset-changed-settings-quick-card",
+        "from": "settings",
+        "to": "quick-card",
+        "carries": "yui://preset-changed {active}: another active preset reloads",
+        "kind": "bridge"
+      },
+      {
+        "id": "settings-page-quick-card",
+        "from": "quick-card",
+        "to": "settings",
+        "carries": "yui://settings-page: {preset}; All settings… on an open settings window",
+        "kind": "bridge"
+      },
+      {
+        "id": "settings-page-quick-card-bound",
+        "from": "quick-card-<id>",
+        "to": "settings-<id>",
+        "carries": "yui://settings-page: {preset}; All settings… on an open settings window",
         "kind": "bridge"
       },
       {

@@ -128,15 +128,24 @@ and the pump goes on.
 
 ## Quick-card window
 
-`io/window/openers/quick-card-window.ts` (namespace `quick-card-window`), `app/quick-card-window/quick-card-dock.ts` (namespace `quick-card-dock`) and `app/quick-card-window/quick-card-close.ts` (namespace `quick-card-close`) keep the window alive, place and move it, and close it.
+`io/window/openers/quick-card-window.ts` (namespace `quick-card-window`, in the pet window) creates the window. In the quick-card window, `windows/quick-card-main.ts` (namespace `quick-card-main`) boots it, `app/quick-card-window/wire-quick-card-window.ts` (namespace `wire-quick-card-window`) wires its settings side, `ui/quick-card/` (namespace `quick-card`) is the card, `app/quick-card-window/quick-card-ports.ts` (namespace `quick-card-ports`) writes its stores, `app/quick-card-window/quick-card-dock.ts` (namespace `quick-card-dock`) places and moves the window, and `app/quick-card-window/quick-card-close.ts` (namespace `quick-card-close`) closes it. They log at `info` unless a row says otherwise. The card's Voice, Keep bubble and Unified chat tiles log the toggle events of their settings rows under `quick-card`.
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
+| `quick-card-window` | `quick_card_window_destroy_timeout` | — | A leftover card window did not report destroyed within 500ms; the new one is created anyway (`warn` level). |
 | `quick-card-window` | `quick_card_window_create_error` | `error` | The card window could not be created (`error` level). |
 | `quick-card-window` | `quick_card_window_open_failed` | `error` | Creating or reusing the card window threw (`error` level). |
+| `quick-card-main` | `boot_failed` | `error` | The window's boot threw (`error` level). |
+| `wire-quick-card-window` | `config_load_failed` | `error` | The bundled config did not load; the card runs on the stored settings (`warn` level). |
+| `wire-quick-card-window` | `avatar_config_read_failed` | `fallback`, `error` | The config's VRM list could not be read; the VRM selection keeps its built-in default (`warn` level). |
+| `quick-card` | `select_failed` | `error` | Applying a Body or Reference voice choice threw (`warn` level). |
+| `quick-card-ports` | `session_reset` | — | Reset conversation started a new session. |
 | `quick-card-dock` | `quick_card_detached` | — | The first move of the card window after a head pointerdown detached it. |
+| `quick-card-dock` | `quick_card_drag_failed` | `error` | The `drag_window` command for a head drag failed (`warn` level). |
+| `quick-card-dock` | `quick_card_boot_hide_failed` | `error` | Hiding the window at boot threw; the ready report still goes out (`warn` level). |
 | `quick-card-dock` | `dock_step_failed` | `error` | A placement, follow or drop step threw (`warn` level). |
 | `quick-card-close` | `quick_card_focus_lost` | — | A poll tick found no YUI window holding focus, so the card closed. |
+| `quick-card-close` | `quick_card_focus_listen_failed` | `error` | Listening to the window's focus failed, so the focus poll never starts (`warn` level). |
 | `quick-card-close` | `quick_card_hide_failed` | `error` | Hiding the card window threw (`warn` level). |
 | `quick-card-close` | `quick_card_focus_poll_failed` | `error` | A focus poll tick threw (`debug` level). |
 
