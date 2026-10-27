@@ -11,17 +11,44 @@ const log = createLogger("quick-card-window");
 /** The card plus the transparent margin its window adds on every side; the card window sizes itself on open. */
 const QUICK_CARD_WINDOW_WIDTH = QUICK_CARD_WIDTH_PX + QUICK_CARD_MARGIN_PX * 2;
 const QUICK_CARD_WINDOW_HEIGHT = 120;
+/** How long a leftover window gets to report destroyed before the new one is created anyway. */
+const DESTROY_WAIT_MS = 500;
+
+type LeftoverWindow = {
+  destroy(): Promise<void>;
+  once(event: "tauri://destroyed", cb: () => void): Promise<() => void>;
+};
 
 interface QuickCardWindowEnv {
   isTauri: boolean;
   /** The already-open card window, or null. */
-  getExisting(): Promise<{ destroy(): Promise<void> } | null>;
+  getExisting(): Promise<LeftoverWindow | null>;
   create(): void;
+}
+
+/** Destroys the window and waits for its label to free, or for the timeout. */
+async function destroyAndWait(win: LeftoverWindow): Promise<void> {
+  let done: () => void = () => {};
+  const gone = new Promise<void>((resolve) => {
+    done = resolve;
+  });
+  const timer = setTimeout(() => {
+    log.warn("quick_card_window_destroy_timeout");
+    done();
+  }, DESTROY_WAIT_MS);
+  const off = await win.once("tauri://destroyed", done);
+  await win.destroy();
+  await gone;
+  clearTimeout(timer);
+  off();
 }
 
 async function openQuickCardWindow(env: QuickCardWindowEnv, fresh: boolean): Promise<boolean> {
   if (!env.isTauri) return false;
-  if (fresh) await (await env.getExisting())?.destroy();
+  if (fresh) {
+    const leftover = await env.getExisting();
+    if (leftover) await destroyAndWait(leftover);
+  }
   const existing = fresh ? null : await env.getExisting();
   if (!existing) env.create();
   return true;
