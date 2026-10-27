@@ -122,17 +122,8 @@ it("routes main's spoken message to the last speaker over the bridge, marked as 
 
   petBridge.emitVoiceSegment({ text: "hi" });
 
-  // The checked chip (here the fallback target) rides along as the mention, as with a picked send.
   await vi.waitFor(() =>
-    expect(routed).toEqual([
-      {
-        sendId: expect.any(String),
-        to: "natsume",
-        text: "@Natsume hi",
-        via: "voice",
-        mention: "character",
-      },
-    ]),
+    expect(routed).toEqual([{ sendId: expect.any(String), to: "natsume", text: "hi", via: "voice" }]),
   );
 });
 
