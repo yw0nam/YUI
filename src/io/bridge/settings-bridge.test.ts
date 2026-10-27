@@ -405,6 +405,18 @@ describe("createSettingsBridge", () => {
     expect(cb.mock.calls).toEqual([[{ text: "hello there" }]]);
   });
 
+  it("delivers a speech onset from one window to another", () => {
+    const t = createFakeTransport();
+    const main = createSettingsBridge(t, { windowKind: "pet" });
+    const unified = createSettingsBridge(t, { windowKind: "unified" });
+    const cb = vi.fn();
+    unified.onSpeechOnset(cb);
+
+    main.emitSpeechOnset();
+
+    expect(cb).toHaveBeenCalledOnce();
+  });
+
   it.each([
     { sendId: "s1", to: "natsume" },
     { sendId: 7, to: "natsume", text: "x" },

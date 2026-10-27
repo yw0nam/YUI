@@ -159,6 +159,35 @@ it("sends the stop to every pet window", async () => {
   await vi.waitFor(() => expect(stops).toHaveBeenCalledOnce());
 });
 
+it("answers a speech onset like the stop button while a send runs, and not while idle", async () => {
+  const stops = vi.fn();
+  petBridge.onStopTurns(stops);
+  await boot();
+  petBridge.emitSpeechOnset();
+  await Promise.resolve();
+  expect(stops).not.toHaveBeenCalled();
+
+  const field = document.querySelector<HTMLTextAreaElement>(".yui-uc__dock .yui-input__field")!;
+  field.value = "hi";
+  field.dispatchEvent(
+    new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
+  );
+  await vi.waitFor(() =>
+    expect(
+      document.querySelector(".yui-uc__dock .yui-input")!.classList.contains("is-running"),
+    ).toBe(true),
+  );
+
+  petBridge.emitSpeechOnset();
+
+  await vi.waitFor(() => expect(stops).toHaveBeenCalledOnce());
+  await vi.waitFor(() =>
+    expect(
+      document.querySelector(".yui-uc__dock .yui-input")!.classList.contains("is-running"),
+    ).toBe(false),
+  );
+});
+
 it("ends its send on another window's stop without sending a stop of its own", async () => {
   const stops = vi.fn();
   petBridge.onStopTurns(stops);

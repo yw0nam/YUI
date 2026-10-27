@@ -7,12 +7,10 @@ function setup(shown: boolean, bargeIn = true) {
     bargeIn: () => bargeIn,
     sendSegment: vi.fn(),
     submitHere: vi.fn(),
-    emitStopTurns: vi.fn(),
+    emitSpeechOnset: vi.fn(),
   };
-  const localStop = vi.fn();
   const voice = createUnifiedVoice(deps);
-  voice.onStop(localStop);
-  return { ...deps, localStop, voice };
+  return { ...deps, voice };
 }
 
 describe("createUnifiedVoice", () => {
@@ -30,16 +28,15 @@ describe("createUnifiedVoice", () => {
   });
 
   it.each([
-    { shown: true, bargeIn: true, stops: 1 },
-    { shown: true, bargeIn: false, stops: 0 },
-    { shown: false, bargeIn: true, stops: 0 },
-  ])("speech onset with %j asks every window to stop and stops here that many times", (row) => {
+    { shown: true, bargeIn: true, onsets: 1 },
+    { shown: true, bargeIn: false, onsets: 0 },
+    { shown: false, bargeIn: true, onsets: 0 },
+  ])("speech onset with %j tells the unified window only while it shows and barge-in is on", (row) => {
     vi.spyOn(console, "info").mockImplementation(() => {});
     const h = setup(row.shown, row.bargeIn);
 
     h.voice.speechActive();
 
-    expect(h.emitStopTurns).toHaveBeenCalledTimes(row.stops);
-    expect(h.localStop).toHaveBeenCalledTimes(row.stops);
+    expect(h.emitSpeechOnset).toHaveBeenCalledTimes(row.onsets);
   });
 });

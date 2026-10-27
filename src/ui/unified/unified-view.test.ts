@@ -226,6 +226,24 @@ describe("unified view — running replies", () => {
     expect(routed).toHaveLength(1);
   });
 
+  it("a speech onset acts as the stop button while a send runs, and does nothing while idle", () => {
+    mount();
+    view.speechOnset();
+    expect(stops).toBe(0);
+
+    document.querySelectorAll<HTMLElement>("[role=radio]")[2]!.click();
+    type("hi");
+    press("Enter");
+
+    view.speechOnset();
+
+    expect(stops).toBe(1);
+    expect(routed).toHaveLength(1);
+    expect(
+      document.querySelector(".yui-uc__dock .yui-input")!.classList.contains("is-running"),
+    ).toBe(false);
+  });
+
   it("another window's stop ends the sequence without sending a stop of its own", () => {
     mount();
     document.querySelectorAll<HTMLElement>("[role=radio]")[2]!.click();

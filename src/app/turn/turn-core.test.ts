@@ -108,14 +108,14 @@ describe("wireTurnCore", () => {
     expect(speechPlayback.interrupt).toHaveBeenCalledOnce();
   });
 
-  it("sends speech to the unified window while it shows, and speaking stops this window and asks every window to stop", async () => {
+  it("sends speech to the unified window while it shows, and a speech onset only tells that window, without stopping here", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {});
     const emitVoiceSegment = vi.fn();
-    const emitStopTurns = vi.fn();
+    const emitSpeechOnset = vi.fn();
     const h = wire({
       unifiedShown: { get: () => true },
       emitVoiceSegment,
-      emitStopTurns,
+      emitSpeechOnset,
       userInput: { submitVoice: () => {} } as never,
       settings: { vadSettings: { get: () => ({ bargeIn: true }) } } as never,
     });
@@ -127,10 +127,10 @@ describe("wireTurnCore", () => {
     voice.onVoiceTurnStart?.();
 
     expect(emitVoiceSegment).toHaveBeenCalledExactlyOnceWith({ text: "hi" });
-    expect(emitStopTurns).toHaveBeenCalledOnce();
-    expect(dispatcher.cancel).toHaveBeenCalledOnce();
-    expect(pushTurns.cut).toHaveBeenCalledOnce();
-    expect(speechPlayback.interrupt).toHaveBeenCalledOnce();
+    expect(emitSpeechOnset).toHaveBeenCalledOnce();
+    expect(dispatcher.cancel).not.toHaveBeenCalled();
+    expect(pushTurns.cut).not.toHaveBeenCalled();
+    expect(speechPlayback.interrupt).not.toHaveBeenCalled();
   });
 
   it("sends the backend no stop when the unified window's stop reaches a window with nothing running", async () => {
