@@ -7,6 +7,7 @@
 import "./history-section.css";
 import type { ChatSession } from "../../../io/chat/conversation/chat-history-store";
 import type { SignalRecord } from "../../../io/chat/conversation/signal-history-store";
+import { presetIdForWindow, readPresetName } from "../../../settings/preset/active-preset";
 import { getLocale, t } from "../../i18n";
 import { renderSourceLine, sourceLineOf } from "../../signals/source-line";
 import { HIST_CHEVRON_SVG } from "../constants";
@@ -83,7 +84,7 @@ export function createHistorySection({
     }
     const who = document.createElement("span");
     who.className = "yui-hist__who";
-    who.textContent = t(isYui ? "history.who_yui" : "history.who_user");
+    who.textContent = isYui ? readPresetName(presetIdForWindow()) : t("history.who_user");
     const say = document.createElement("span");
     say.className = silent ? "yui-hist__say is-silent" : "yui-hist__say";
     say.textContent = text;

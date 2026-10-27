@@ -488,7 +488,6 @@ const ja: Record<string, string> = {
   "history.messages": "メッセージ{n}件",
   "history.messages_one": "メッセージ1件",
   "history.who_user": "あなた",
-  "history.who_yui": "ユイ",
   "history.empty": "まだ会話がありません",
   "history.signal_silent": "話さなかった",
   "history.foot": "直近200件のメッセージ · この端末にのみ保存",
