@@ -162,7 +162,7 @@ The [connection guide](docs/guide/getting-started.md) covers each setup. Missing
 
 Motions come from [Mate Engine](https://github.com/shinyflvre/Mate-Engine) by Shiny, necocoya's [EmoteSet_Free_v130](https://booth.pm/ja/items/1065089), [Mixamo](https://www.mixamo.com/), and clips made for YUI by AI. The default character is **Sendagaya Shino** by [pixiv Inc.](https://vroid.pixiv.help/hc/en-us/articles/360013482714), converted to VRM 1.0 by [Coatie](https://hub.vroid.com/en/characters/4593660874193246717).
 
-The scenario clips in [What she does](#what-she-does) show Yangyang and Suisui from *Wuthering Waves*. Their characters, models, and voices belong to Kuro Games, and this project holds no rights to them. The voices are AI-synthesized with Irodori-TTS. YUI does not include or distribute these assets.
+The demo videos and GIFs use other VRM models and voices, which YUI does not include. You can load your own VRM.
 
 <details>
 <summary>Full asset credits and terms</summary>

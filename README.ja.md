@@ -166,7 +166,7 @@ YUI自体はモデルを内蔵していません。何ができるかで頭脳�
 
 モーションはShiny氏の[Mate Engine](https://github.com/shinyflvre/Mate-Engine)、necocoya氏の[EmoteSet_Free_v130](https://booth.pm/ja/items/1065089)、[Mixamo](https://www.mixamo.com/)、そしてYUIのためにAIで作ったクリップのものを使っています。既定のキャラクターは[ピクシブ株式会社](https://vroid.pixiv.help/hc/en-us/articles/360013482714)の **千駄ヶ谷 篠(Sendagaya Shino)** を、[Coatie](https://hub.vroid.com/en/characters/4593660874193246717)氏がVRM 1.0に変換したものです。
 
-「[できること](#できること)」のシナリオクリップには、『鳴潮』のYangyang(秧秧)とSuisui(穂穂)が登場します。キャラクター、モデル、音声の権利はKuro Gamesに帰属し、このプロジェクトは一切の権利を持ちません。音声はIrodori-TTSで合成したAI音声です。YUIはこれらの素材を同梱も配布もしていません。
+デモ動画とGIFでは、YUIに含まれていない別のVRMモデルと音声を使っています。自分のVRMを読み込んで使えます。
 
 <details>
 <summary>アセットのクレジットと利用条件の全文</summary>
