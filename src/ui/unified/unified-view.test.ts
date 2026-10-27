@@ -49,13 +49,13 @@ function mount(): void {
 
 const field = () => document.querySelector<HTMLTextAreaElement>(".yui-uc__dock .yui-input__field")!;
 const stream = (preset: string, op: MessageSurfaceOp) => view.speechStream({ preset, op });
-const recipients = () =>
-  [...document.querySelectorAll<HTMLElement>("[role=radio]")].map((r) => [
-    r.textContent,
-    r.getAttribute("aria-checked"),
-  ]);
+const castRadios = () => [...document.querySelectorAll<HTMLElement>(".yui-uc__cast [role=radio]")];
+const pick = (i: number) => castRadios()[i]!.click();
+const recipients = () => castRadios().map((r) => [r.textContent, r.getAttribute("aria-checked")]);
 const chipStates = () =>
-  [...document.querySelectorAll<HTMLElement>(".yui-uc__chip")].map((c) => c.dataset.state);
+  [...document.querySelectorAll<HTMLElement>(".yui-uc__chip[data-state]")].map(
+    (c) => c.dataset.state,
+  );
 const boxText = () => document.querySelector(".yui-bubble__text")?.textContent;
 
 function type(text: string): void {
@@ -146,7 +146,7 @@ describe("unified view — sending", () => {
   it("a spoken send with a picked chip leaves the field as it is", () => {
     mount();
 
-    document.querySelectorAll<HTMLElement>("[role=radio]")[0]!.click();
+    pick(0);
     type("draft");
     view.voiceSegment("hi");
 
@@ -195,7 +195,7 @@ describe("unified view — sending", () => {
     expect(recipients()[0]).toEqual(["Perlica", "true"]);
 
     type("");
-    document.querySelectorAll<HTMLElement>("[role=radio]")[2]!.click();
+    pick(2);
     expect(recipients()[2]).toEqual(["everyone", "true"]);
   });
 
@@ -207,7 +207,7 @@ describe("unified view — sending", () => {
     expect(field().placeholder).toBe("Say something to Perlica…");
 
     type("");
-    document.querySelectorAll<HTMLElement>("[role=radio]")[2]!.click();
+    pick(2);
     expect(field().placeholder).toBe("Say something to everyone…");
 
     setLocale("ko");
@@ -216,7 +216,7 @@ describe("unified view — sending", () => {
 
   it("routes to the recipient a click picked, with its mention in the text", () => {
     mount();
-    document.querySelectorAll<HTMLElement>("[role=radio]")[0]!.click();
+    pick(0);
 
     type("hello");
     press("Enter");
@@ -224,12 +224,31 @@ describe("unified view — sending", () => {
     expect(routed).toEqual([
       { sendId: "send-1", to: "perlica", text: "@Perlica hello", mention: "character" },
     ]);
+    expect(recipients()[0]).toEqual(["Perlica", "true"]);
+
+    view.turnDone({ sendId: "send-1", preset: "perlica" });
     expect(recipients()[1]).toEqual(["Natsume", "true"]);
+  });
+
+  it("checks everyone while an everyone send runs, then the last speaker without a refresh", () => {
+    mount();
+    pick(2);
+    type("hi");
+    press("Enter");
+    const [first, second] =
+      routed[0]!.to === "perlica" ? ["perlica", "natsume"] : ["natsume", "perlica"];
+
+    view.turnDone({ sendId: "send-1", preset: first! });
+    expect(recipients()[2]).toEqual(["everyone", "true"]);
+
+    transcripts.perlica!.push({ role: "assistant", text: "Me.", ts: T - 1_000, turn_id: "9" });
+    view.turnDone({ sendId: "send-1", preset: second! });
+    expect(recipients()[0]).toEqual(["Perlica", "true"]);
   });
 
   it("routes everyone one character at a time", () => {
     mount();
-    document.querySelectorAll<HTMLElement>("[role=radio]")[2]!.click();
+    pick(2);
     type("hi");
     press("Enter");
     expect(routed).toHaveLength(1);
@@ -267,18 +286,14 @@ describe("unified view — a face that changes", () => {
     crop: { x: 0.2, y: 0.05, size: 0.5 },
   };
 
-  it("repaints the cast chip, the recipient chip and an open @ list with the new crop", () => {
+  it("repaints the cast chip and an open @ list with the new crop", () => {
     mount();
     type("@");
     cast = [CAST[0]!, framed];
 
     view.refresh();
 
-    for (const root of [
-      ".yui-uc__chip:nth-child(2)",
-      "[role=radio][data-id=natsume]",
-      "[role=option]:nth-child(2)",
-    ]) {
+    for (const root of [".yui-uc__chip:nth-child(2)", "[role=option]:nth-child(2)"]) {
       const img = document.querySelector(`${root} .yui-uc__avatar > img`);
       expect(img?.getAttribute("src"), root).toBe("asset://n.png");
       expect((img as HTMLElement).style.getPropertyValue("--yui-crop-size"), root).toBe("0.5");
@@ -289,7 +304,7 @@ describe("unified view — a face that changes", () => {
 describe("unified view — running replies", () => {
   it("turns send into stop while a reply runs, and stop ends every turn and the sequence", () => {
     mount();
-    document.querySelectorAll<HTMLElement>("[role=radio]")[2]!.click();
+    pick(2);
     type("hi");
     press("Enter");
     const first = routed[0]!.to;
@@ -309,7 +324,7 @@ describe("unified view — running replies", () => {
     view.speechOnset();
     expect(stops).toBe(0);
 
-    document.querySelectorAll<HTMLElement>("[role=radio]")[2]!.click();
+    pick(2);
     type("hi");
     press("Enter");
 
@@ -324,7 +339,7 @@ describe("unified view — running replies", () => {
 
   it("another window's stop ends the sequence without sending a stop of its own", () => {
     mount();
-    document.querySelectorAll<HTMLElement>("[role=radio]")[2]!.click();
+    pick(2);
     type("hi");
     press("Enter");
     const first = routed[0]!.to;
