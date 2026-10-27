@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const { mockDriver, createMockDriver } = vi.hoisted(() => {
@@ -33,11 +34,15 @@ describe("wireDevGlobals", () => {
     createMockDriver.mockClear();
   });
 
-  const card = { open: vi.fn(), close: vi.fn(), isOpen: vi.fn(() => true) };
+  const card = { open: vi.fn() };
   const makeDeps = () => {
     const dispatcher = { id: "dispatcher" };
     return {
-      renderer: { id: "renderer" },
+      renderer: {
+        id: "renderer",
+        getCharacterAnchor: vi.fn(() => ({ x: 200, y: 300 })),
+        getCharacterWidthPx: vi.fn(() => 100),
+      },
       ambient: { trigger: vi.fn() },
       surfaces: { summonInput: vi.fn(), showTool: vi.fn() },
       screenshotSettings: { id: "screenshot" },
@@ -70,19 +75,22 @@ describe("wireDevGlobals", () => {
     expect(g.__yuiSpeech).toBe(deps.speechPlayback);
   });
 
-  it("__yuiQuick drives the quick card that is live at call time", async () => {
+  it("__yuiQuick opens the quick-card window at a point, or at the window's centre", async () => {
     let live = card;
     const deps = { ...makeDeps(), getQuickCard: () => live };
     await wireDevGlobals(deps as never);
     const quick = (globalThis as Record<string, unknown>).__yuiQuick as typeof card;
-    live = { open: vi.fn(), close: vi.fn(), isOpen: vi.fn(() => false) };
+    live = { open: vi.fn() };
 
+    quick.open({ x: 40, y: 60 });
+    expect(live.open).toHaveBeenCalledWith({ left: 150, right: 250, y: 60, listening: false });
+
+    live.open.mockClear();
+    deps.voiceInputStatus.set("listening");
     quick.open();
-    quick.close();
-
-    expect(live.open).toHaveBeenCalledOnce();
-    expect(live.close).toHaveBeenCalledOnce();
-    expect(quick.isOpen()).toBe(false);
+    const request = live.open.mock.calls[0][0] as { y: number; listening: boolean };
+    expect(request.listening).toBe(true);
+    expect(request.y).toBe(window.innerHeight / 2);
     expect(card.open).not.toHaveBeenCalled();
   });
 

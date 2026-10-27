@@ -100,10 +100,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
   const root = app.querySelector<HTMLDivElement>(".yui-root")!;
   const stage = root.querySelector<HTMLDivElement>(".yui-stage")!;
 
-  const { settingsStores, conversationStores, presetRegistry, petWindows } = createWindowStores(
-    register,
-    role,
-  );
+  const { settingsStores, conversationStores, presetRegistry } = createWindowStores(register, role);
   register(applyTheme({ store: settingsStores.themeSettings, root: document.documentElement }));
   const petConfig = createPetConfig({ ...settingsStores, log });
   const config = petConfig.config;
@@ -237,21 +234,14 @@ async function bootstrap(): Promise<BootstrapHandle> {
   );
 
   const quickCard = wirePetControls({
-    root,
     stage,
     stores: settingsStores,
-    conversation: conversationStores,
-    config,
-    vrm,
-    speaker,
-    pushSocket: push.pushSocket,
-    announceSessionReset: sessionReset.announce,
-    presetRegistry,
-    petWindows,
+    renderer,
     boundId,
     voiceInputStatus,
     remoteSurfaces: remote,
     openSettings,
+    bridge: windowBridge,
     register,
   });
 
@@ -285,7 +275,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
       speaker,
       root,
       stage,
-      getQuickCard: () => quickCard,
       openSettings,
       onSessionReset: windowBridge.onSessionReset,
       emitCharacterAddressed: windowBridge.emitCharacterAddressed,

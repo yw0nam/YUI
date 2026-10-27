@@ -3,11 +3,15 @@ import type { WindowRect } from "../../contract";
 import type { EventBus } from "../../dispatcher/core/event-bus";
 import type { Dispatcher } from "../../dispatcher/dispatcher";
 import type { UserInputSource } from "../../dispatcher/sources/user-input-source";
+import type { QuickCardOpen } from "../../io/bridge/settings-bridge";
 import type { Renderer } from "../../renderer";
 import { isTauri } from "../../tauri-env";
 import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
-import type { QuickCard } from "../../ui/quick-card/quick-card";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
+import { quickCardRequest } from "../controls/wire-pet-controls";
+
+/** The quick-card window handle the pet window holds. */
+type QuickCardOpener = { open(request: QuickCardOpen): void };
 
 /**
  * DEV-only console/global handles for the screenshot validation loop and manual exploration:
@@ -21,7 +25,7 @@ export async function wireDevGlobals(deps: {
   screenshotSettings: unknown;
   lipsyncSettings: unknown;
   agentSettings: unknown;
-  getQuickCard: () => Pick<QuickCard, "open" | "close" | "isOpen">;
+  getQuickCard: () => Pick<QuickCardOpener, "open">;
   speechPlayback: unknown;
   voiceInputStatus: VoiceInputStatus;
   userInput: Pick<UserInputSource, "submit">;
@@ -56,11 +60,16 @@ export async function wireDevGlobals(deps: {
     __yuiScreenshot: screenshotSettings,
     __yuiLipsync: lipsyncSettings,
     __yuiAgent: agentSettings,
-    // The card the window shows now; open() with no point opens it at the window's centre.
+    // The quick-card window; open() with no point targets the window's centre.
     __yuiQuick: {
-      open: () => getQuickCard().open(),
-      close: () => getQuickCard().close(),
-      isOpen: () => getQuickCard().isOpen(),
+      open: (at?: { x: number; y: number }) =>
+        getQuickCard().open(
+          quickCardRequest({
+            renderer,
+            point: at ?? { x: window.innerWidth / 2, y: window.innerHeight / 2 },
+            listening: voiceInputStatus.get().state !== "idle",
+          }),
+        ),
     },
     __yuiVoiceInputStatus: voiceInputStatus,
     // DEV-ONLY trigger: fire E2E loop directly from console.

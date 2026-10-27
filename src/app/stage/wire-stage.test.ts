@@ -46,7 +46,6 @@ const setupHitTest = (opts: {
     setMoving: vi.fn(),
   };
   createHitTestController.mockImplementation(() => controller);
-  let cardOpen = false;
   const querySelectorAll = vi.fn((selector: string) =>
     (opts.overlays?.[selector] ?? []).map(
       (rect) => ({ getBoundingClientRect: () => rect }) as unknown as HTMLElement,
@@ -55,16 +54,12 @@ const setupHitTest = (opts: {
   const hitTest = wireHitTest({
     root: { querySelectorAll } as unknown as HTMLElement,
     renderer: { hitTest: opts.hit ?? (() => false) },
-    getQuickCard: () => ({ isOpen: () => cardOpen }),
     getConfig: knobs,
   });
   return {
     hitTest,
     controller,
     querySelectorAll,
-    setCardOpen: (open: boolean) => {
-      cardOpen = open;
-    },
     isOverInteractive: createHitTestController.mock.calls[0][0].isOverInteractive,
   };
 };
@@ -133,15 +128,6 @@ describe("wireHitTest", () => {
       },
     });
     expect(s.isOverInteractive(140, 110, 0)).toBe(true);
-  });
-
-  // A click anywhere in the window then reaches the page, which closes the card.
-  it("counts every point of the window while the quick card is open", () => {
-    const s = setupHitTest({});
-    s.setCardOpen(true);
-    expect(s.isOverInteractive(310, 320, 0)).toBe(true);
-    s.setCardOpen(false);
-    expect(s.isOverInteractive(310, 320, 0)).toBe(false);
   });
 
   it("starts the controller and returns it", () => {

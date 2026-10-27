@@ -5,17 +5,14 @@ import { createCursorTracker } from "../../io/window/pet/cursor-tracker";
 import { createHitTestController, type HitTestController } from "../../io/window/pet/hit-test";
 import type { Renderer } from "../../renderer";
 import type { FlagSettingsStore } from "../../settings/persisted-store";
-import type { QuickCard } from "../../ui/quick-card/quick-card";
 import { INTERACTIVE_OVERLAY_SELECTORS } from "../../ui/surfaces/interactive-overlay";
 
 export function wireHitTest(deps: {
   root: HTMLElement;
   renderer: Pick<Renderer, "hitTest">;
-  /** While it is open, the whole window takes the pointer, so a click anywhere reaches the page and closes it. */
-  getQuickCard: () => Pick<QuickCard, "isOpen">;
   getConfig: () => HitTestKnobs;
 }): HitTestController {
-  const { root, renderer, getQuickCard, getConfig } = deps;
+  const { root, renderer, getConfig } = deps;
   const interactiveRects = (): DOMRect[] => {
     const rects: DOMRect[] = [];
     for (const selector of INTERACTIVE_OVERLAY_SELECTORS) {
@@ -32,7 +29,7 @@ export function wireHitTest(deps: {
     y <= rect.bottom + margin;
   const hitTest = createHitTestController({
     isOverInteractive: (xClient, yClient, marginPx) => {
-      if (getQuickCard().isOpen() || renderer.hitTest(xClient, yClient)) return true;
+      if (renderer.hitTest(xClient, yClient)) return true;
       return interactiveRects().some((rect) => pointInRect(xClient, yClient, rect, marginPx));
     },
     moveTarget: window,

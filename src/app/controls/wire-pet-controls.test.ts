@@ -6,7 +6,7 @@ const { createQuickCardWindowController, wireCueLocaleSync } = vi.hoisted(() => 
     vi.fn<
       typeof import("../../io/window/openers/quick-card-window").createQuickCardWindowController
     >(),
-  wireCueLocaleSync: vi.fn(),
+  wireCueLocaleSync: vi.fn<() => () => void>(() => () => {}),
 }));
 
 vi.mock("../../io/window/openers/quick-card-window", () => ({ createQuickCardWindowController }));
@@ -14,13 +14,11 @@ vi.mock("../settings/wire-cue-locale-sync", () => ({ wireCueLocaleSync }));
 
 import { createSettingsStores, type SettingsStores } from "../../settings/settings-stores";
 import { createVoiceInputStatus, type VoiceInputStatus } from "../../ui/chips/voice-input-status";
-import { createConversationStores } from "../settings/conversation-stores";
 import { wirePetControls } from "./wire-pet-controls";
 
 describe("wirePetControls", () => {
   function makeDeps(boundId: string | null = null, over: Record<string, unknown> = {}) {
     const stores: SettingsStores = createSettingsStores();
-    const conversation = createConversationStores();
     const registered: Array<() => void> = [];
     const stage = document.createElement("div");
     const removeEventListener = vi.spyOn(stage, "removeEventListener");
@@ -33,7 +31,6 @@ describe("wirePetControls", () => {
       boundId,
       stage,
       stores,
-      conversation,
       renderer: {
         getCharacterAnchor: vi.fn(() => ({ x: 200, y: 300 })),
         getCharacterWidthPx: vi.fn(() => 100),
@@ -54,7 +51,6 @@ describe("wirePetControls", () => {
   function teardownDeps(wired: ReturnType<typeof makeDeps>) {
     for (const fn of wired.registered) fn();
     for (const store of Object.values(wired.stores)) store.dispose();
-    for (const store of Object.values(wired.deps.conversation)) store.dispose();
   }
 
   it("sends the character's extent and the click to the quick-card window from the stage context menu", () => {

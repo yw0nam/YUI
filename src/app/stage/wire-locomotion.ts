@@ -4,11 +4,7 @@ import { wireFaller } from "../../ambient/locomotion/fall/wire-fall";
 import { wirePercher } from "../../ambient/locomotion/perch/wire-perch";
 import { createSitter, type Sitter } from "../../ambient/locomotion/sitter";
 import { wireTravelFrame } from "../../ambient/locomotion/travel/wire-travel-frame";
-import {
-  wireStrollCardCancel,
-  wireStrollReflexCancel,
-  wireWalker,
-} from "../../ambient/locomotion/walk/wire-walk";
+import { wireStrollReflexCancel, wireWalker } from "../../ambient/locomotion/walk/wire-walk";
 import type { AppConfig } from "../../config/load";
 import type { DescendConfig, FallConfig } from "../../config/validators/avatar/types";
 import type { WindowRect } from "../../contract";
@@ -57,10 +53,6 @@ export function wireLocomotion(deps: {
   dispatcher: Dispatcher;
   hitTest: Pick<HitTestController, "setMoving">;
   peekActive: () => boolean;
-  /** Whether the quick card is open: no stroll or climb starts meanwhile. */
-  isCardOpen: () => boolean;
-  /** Runs the callback each time the quick card opens. */
-  onCardOpen: (cb: () => void) => () => void;
   /** A scene holds the body and the window. */
   isHeld: () => boolean;
   /** The bed the avatar commands lay her on. */
@@ -140,7 +132,8 @@ export function wireLocomotion(deps: {
     getMotionKind: (id) => getConfig().motions[id]?.kind,
     isPeeking: () => peekActive(),
     isDragging: () => dragging || isHeld(),
-    isCardOpen: deps.isCardOpen,
+    // The quick card left this window; the gate stays shut until the loops drop it.
+    isCardOpen: () => false,
     setHitTestMoving: (moving) => hitTest.setMoving(moving),
     onStrollEnd,
     onDescend: (edge) => climberRef?.descend(edge),
@@ -148,7 +141,6 @@ export function wireLocomotion(deps: {
   });
   register(walker.dispose);
   register(wireStrollReflexCancel({ dispatcher, walker }));
-  register(wireStrollCardCancel({ onCardOpen: deps.onCardOpen, walker }));
 
   // Set once each loop exists — the drop source and the faller are built before them.
   let percherRef: { cancel(): void; landOn(target: WindowRect): void } | null = null;
@@ -255,7 +247,8 @@ export function wireLocomotion(deps: {
     isPeeking: () => peekActive(),
     isDragging: () => dragging || isHeld(),
     isBusy: dispatcher.isPipelineBusy,
-    isCardOpen: deps.isCardOpen,
+    // The quick card left this window; the gate stays shut until the loops drop it.
+    isCardOpen: () => false,
     walker,
     faller,
     sitter,
