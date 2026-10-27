@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PushSocketState } from "../../io/chat/push/push-socket";
 import type { ChatTransport } from "../../settings/backend/endpoints-settings";
@@ -312,6 +314,15 @@ describe("createQuickCard", () => {
     expect(h.card.isOpen()).toBe(false);
     expect(h.mount.contains(h.card.el)).toBe(false);
     expect(document.activeElement).toBe(document.body);
+  });
+
+  it("selects no text on its head, the drag handle", () => {
+    // A head drag swept the name and transport line into a text selection (rung 4).
+    const css = readFileSync(resolve(__dirname, "quick-card.css"), "utf-8");
+    const head = css.match(/\n\.yui-qcard__head \{([^}]*)\}/)?.[1] ?? "";
+
+    expect(head).toContain("-webkit-user-select: none;");
+    expect(head).toMatch(/\n\s*user-select: none;/);
   });
 
   it("hands a pointerdown on its head, not on its ×, to the head listeners", () => {
