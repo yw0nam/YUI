@@ -73,10 +73,7 @@ export function createQuickCard(deps: {
     const rows = createRows({
       body: deps.body,
       voice: deps.voice,
-      resetConversation: () => {
-        deps.resetConversation();
-        close();
-      },
+      resetConversation: deps.resetConversation,
       turnOff: deps.turnOff
         ? () => {
             deps.turnOff?.();
