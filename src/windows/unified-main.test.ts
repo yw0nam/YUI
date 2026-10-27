@@ -123,7 +123,9 @@ it("routes main's spoken message to the last speaker over the bridge, marked as 
   petBridge.emitVoiceSegment({ text: "hi" });
 
   await vi.waitFor(() =>
-    expect(routed).toEqual([{ sendId: expect.any(String), to: "natsume", text: "hi", via: "voice" }]),
+    expect(routed).toEqual([
+      { sendId: expect.any(String), to: "natsume", text: "hi", via: "voice" },
+    ]),
   );
 });
 

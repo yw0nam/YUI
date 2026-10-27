@@ -129,6 +129,7 @@ describe("unified view — sending", () => {
     type("hi");
     press("Enter");
     const typed = routed[0]!;
+    view.turnDone({ sendId: "send-1", preset: typed.to });
 
     view.voiceSegment("hi");
 

@@ -150,10 +150,10 @@ export function createUnifiedView(deps: {
   }
 
   function route(text: string, via?: UserTurnRouted["via"]): void {
-    // A spoken send follows the checked chip, where Enter would send; a typed send routes by the pick and its text.
+    // A spoken send names the pick or a typed @name; the fallback picks the target as for a typed send.
     const send = buildSend({
       text,
-      mention: (via ? composer.getChecked() : composer.getMention()) ?? null,
+      mention: via ? composer.getExplicitMention() : composer.getMention(),
       cast: deps.cast(),
       lastSpeaker: lastSpeakerOf(rows()),
       mainId: deps.mainId(),
