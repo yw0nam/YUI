@@ -293,6 +293,36 @@ describe("wireQuickCardDock", () => {
     expect(positions()).toEqual(followed);
   });
 
+  it("follows her from where she stood at the snap, however far she went while it was detached", async () => {
+    const { bridge, card } = wired();
+    bridge.open(REQUEST);
+    await vi.waitFor(() => expect(win.show).toHaveBeenCalledOnce());
+    const dragTo = async (x: number) => {
+      win.outerPosition.mockImplementation(async () => ({ x, y: 400 }));
+      card.headPointerDown();
+      win.onMoved.mock.calls[0][0]({ payload: { x, y: 400 } });
+      dropRelease();
+      await settle();
+    };
+    const moveOwner = async (x: number) => {
+      owner.outerPosition.mockImplementation(async () => ({ x, y: 300 }));
+      owner.onMoved.mock.calls[0][0]({ payload: { x, y: 300 } });
+      await settle();
+    };
+
+    await dragTo(1200);
+    await moveOwner(800);
+    win.setPosition.mockClear();
+    // Her left edge is now 840; the card's visible right edge 540 + 8 + 272 = 820 sits 20px short.
+    await dragTo(540);
+    await moveOwner(805);
+
+    expect(positions()).toEqual([
+      { x: 548, y: 400 },
+      { x: 553, y: 400 },
+    ]);
+  });
+
   it("does not snap a detached card when her own drag ends beside it", async () => {
     const { bridge, card } = wired();
     bridge.open(REQUEST);
