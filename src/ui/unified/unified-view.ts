@@ -9,7 +9,7 @@ import { createLogger } from "../../logger";
 import type { PresetEntry } from "../../settings/preset/active-preset";
 import { subscribe as subscribeLocale } from "../i18n";
 import { createSurfaces } from "../surfaces/surfaces";
-import { backlogLines, youTo } from "./backlog-lines";
+import { backlogLines, withoutMention, youTo } from "./backlog-lines";
 import { createCastChips } from "./cast-chips";
 import { createCastState } from "./cast-state";
 import { createComposer } from "./composer";
@@ -100,7 +100,7 @@ export function createUnifiedView(deps: {
     tool: { showTool() {}, finishTool() {}, hideTool() {} },
     namePlate: true,
     keepBubbleUntilDismissed: () => false,
-    backlog: { read: () => backlogLines(rows(), nameOf) },
+    backlog: { read: () => backlogLines(rows(), nameOf, deps.cast()) },
     onAllShown: () => lanes.allShown(),
     onShown: (shown) => lanes.boxShown(shown),
     quoteLead: (quote) =>
@@ -235,13 +235,20 @@ export function createUnifiedView(deps: {
             },
           );
           break;
+        case "quote":
+          lanes.accept(
+            preset,
+            op.quote.mention
+              ? { ...op, quote: { ...op.quote, text: withoutMention(op.quote.text, deps.cast()) } }
+              : op,
+          );
+          break;
         case "begin":
         case "push":
         case "pace":
         case "end":
         case "finish":
         case "hide":
-        case "quote":
         case "quote-signals":
         case "settle-quote":
         case "clear-quote":
