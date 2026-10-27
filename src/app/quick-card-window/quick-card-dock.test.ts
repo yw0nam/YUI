@@ -12,6 +12,7 @@ const { win, getCurrentWindow, availableMonitors, primaryMonitor } = vi.hoisted(
     setSize: vi.fn(async (_arg: unknown) => {}),
     setPosition: vi.fn(async (_arg: unknown) => {}),
     show: vi.fn(async () => {}),
+    hide: vi.fn(async () => {}),
     setFocus: vi.fn(async () => {}),
     outerPosition: vi.fn(async () => ({ x: 1000, y: 200 })),
     scaleFactor: vi.fn(async () => 1),
@@ -125,6 +126,7 @@ beforeEach(() => {
   win.setSize.mockClear();
   win.setPosition.mockClear();
   win.show.mockClear();
+  win.hide.mockClear();
   win.setFocus.mockClear();
   invoke.mockClear();
   listen.mockClear();
@@ -156,9 +158,15 @@ function wired() {
 }
 
 describe("wireQuickCardDock", () => {
-  it("reports ready at boot", () => {
+  it("hides its window at boot, then reports ready", async () => {
     const { bridge } = wired();
-    expect(bridge.emitQuickCardReady).toHaveBeenCalledOnce();
+
+    // A reload while the card showed leaves the window shown with no card in it.
+    await vi.waitFor(() => expect(bridge.emitQuickCardReady).toHaveBeenCalledOnce());
+    expect(win.hide).toHaveBeenCalledOnce();
+    expect(win.hide.mock.invocationCallOrder[0]).toBeLessThan(
+      bridge.emitQuickCardReady.mock.invocationCallOrder[0]!,
+    );
   });
 
   it("opens the card docked 12px right of her roomier side, sized to the card, shown and focused", async () => {
