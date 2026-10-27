@@ -53,7 +53,6 @@ export function wireLocomotion(deps: {
   dispatcher: Dispatcher;
   hitTest: Pick<HitTestController, "setMoving">;
   peekActive: () => boolean;
-  isPanelOpen: () => boolean;
   /** A scene holds the body and the window. */
   isHeld: () => boolean;
   /** The bed the avatar commands lay her on. */
@@ -133,7 +132,6 @@ export function wireLocomotion(deps: {
     getMotionKind: (id) => getConfig().motions[id]?.kind,
     isPeeking: () => peekActive(),
     isDragging: () => dragging || isHeld(),
-    isPanelOpen: deps.isPanelOpen,
     setHitTestMoving: (moving) => hitTest.setMoving(moving),
     onStrollEnd,
     onDescend: (edge) => climberRef?.descend(edge),

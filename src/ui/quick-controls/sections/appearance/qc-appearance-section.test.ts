@@ -25,9 +25,7 @@ it("reflects and sets the theme while open and on reopening", () => {
   expect(button("hearth")?.getAttribute("aria-checked")).toBe("false");
   themeSettings.setTheme("dawn");
   expect(button("dawn")?.getAttribute("aria-checked")).toBe("true");
-  qc.close();
   themeSettings.setTheme("system");
-  qc.open();
   expect(button("system")?.getAttribute("aria-checked")).toBe("true");
   qc.dispose();
   themeSettings.dispose();

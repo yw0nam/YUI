@@ -42,7 +42,6 @@ describe("createQuickControls — shell", () => {
   let endpointsSettings: ReturnType<typeof createEndpointsSettings>;
   let proactiveSettings: ReturnType<typeof createProactiveSettings>;
   let scheduleSettings: ReturnType<typeof createScheduleSettings>;
-  let onPopOut: Mock<() => void>;
   let vrmSelection: ReturnType<typeof createVrmSelection>;
   let swapVrm: Mock<(option: AvatarOption) => Promise<void>>;
   let importVrm: Mock<() => Promise<void>>;
@@ -55,14 +54,6 @@ describe("createQuickControls — shell", () => {
   let removeVoice: Mock<(id: string) => Promise<void>>;
 
   beforeEach(() => {
-    // Make rAF synchronous so open() → is-open transition happens immediately in tests
-    let rafId = 0;
-    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
-      cb(0);
-      return ++rafId;
-    });
-    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
-
     mount = document.createElement("div");
     document.body.appendChild(mount);
 
@@ -73,7 +64,6 @@ describe("createQuickControls — shell", () => {
     endpointsSettings = createEndpointsSettings();
     proactiveSettings = createProactiveSettings();
     scheduleSettings = createScheduleSettings();
-    onPopOut = vi.fn<() => void>();
     vrmSelection = makeVrmSelection();
     // default fake: commit the store on success (mirrors the real settings-window impl)
     swapVrm = vi.fn<(option: AvatarOption) => Promise<void>>(async (option) => {
@@ -115,7 +105,6 @@ describe("createQuickControls — shell", () => {
       endpointsSettings,
       proactiveSettings,
       scheduleSettings,
-      onPopOut,
       vrmSelection,
       swapVrm,
       importVrm,
@@ -129,57 +118,6 @@ describe("createQuickControls — shell", () => {
       ...extra,
     });
   }
-
-  // ── pop-out button ────────────────────────────────────────────────────────
-
-  it("clicking the pop-out button invokes onPopOut", () => {
-    const qc = buildQc();
-    qc.open();
-
-    const popout = qc.el.querySelector<HTMLButtonElement>(".yui-iconbtn--popout")!;
-    popout.click();
-
-    expect(onPopOut).toHaveBeenCalledOnce();
-
-    qc.dispose();
-  });
-
-  // ── message button ────────────────────────────────────────────────────────
-
-  it("renders the header Message button only when onMessage is provided", () => {
-    const qc = buildQc({ onMessage: vi.fn() });
-    expect(qc.el.querySelector(".yui-quick__bar .yui-iconbtn--message")).not.toBeNull();
-    qc.dispose();
-
-    const without = buildQc();
-    expect(without.el.querySelector(".yui-iconbtn--message")).toBeNull();
-    without.dispose();
-  });
-
-  it("clicking the Message button closes the panel, then calls onMessage", () => {
-    let openWhenCalled: boolean | undefined;
-    const qc = buildQc({ onMessage: () => (openWhenCalled = qc.isOpen()) });
-    qc.open();
-
-    qc.el.querySelector<HTMLButtonElement>(".yui-iconbtn--message")!.click();
-
-    expect(openWhenCalled).toBe(false);
-    qc.dispose();
-  });
-
-  it("keeps the pop-out button as the first focus stop when onMessage is set", () => {
-    const qc = buildQc({ onMessage: vi.fn() });
-    qc.open();
-
-    expect(document.activeElement).toBe(qc.el.querySelector(".yui-iconbtn--popout"));
-    qc.dispose();
-  });
-
-  it("the window variant renders no Message button", () => {
-    const qc = buildQc({ variant: "window", onMessage: vi.fn() });
-    expect(qc.el.querySelector(".yui-iconbtn--message")).toBeNull();
-    qc.dispose();
-  });
 
   it("renders the Developer Tools row only when its opener is provided", () => {
     const onOpenDevtools = vi.fn();
@@ -198,7 +136,7 @@ describe("createQuickControls — shell", () => {
 
   it("the settings window shows the Developer Tools row on General and opens it", () => {
     const onOpenDevtools = vi.fn();
-    const qc = buildQc({ variant: "window", onOpenDevtools });
+    const qc = buildQc({ onOpenDevtools });
 
     qc.el.querySelector<HTMLButtonElement>("#yui-panel-general .yui-devtools-open")!.click();
 
@@ -209,141 +147,18 @@ describe("createQuickControls — shell", () => {
     expect(onOpenDevtools).toHaveBeenCalledOnce();
   });
 
-  it("clicking the header close button closes the panel", () => {
+  it("puts no native title over a tooltip target", () => {
     const qc = buildQc();
-    qc.open();
-    expect(qc.isOpen()).toBe(true);
-
-    const closeBtn = qc.el.querySelector<HTMLButtonElement>(".yui-iconbtn--close")!;
-    closeBtn.click();
-
-    expect(qc.isOpen()).toBe(false);
-
-    qc.dispose();
-  });
-
-  it("with a visible viewport, open() waits for its refresh before opening", async () => {
-    let finishRefresh: () => void = () => {};
-    const refresh = vi.fn(
-      () =>
-        new Promise<void>((resolve) => {
-          finishRefresh = resolve;
-        }),
-    );
-    const qc = buildQc({ visibleViewport: { get: () => 300, refresh } });
-
-    qc.open({ x: 10, y: 10 });
-    expect(refresh).toHaveBeenCalledTimes(1);
-    expect(qc.isOpen()).toBe(false);
-
-    finishRefresh();
-    await vi.waitFor(() => expect(qc.isOpen()).toBe(true));
-
-    qc.dispose();
-  });
-
-  // ── drag persistence ──────────────────────────────────────────────────────
-
-  it("dragging the header persists position to localStorage and moves the panel", () => {
-    const qc = buildQc();
-    qc.open({ x: 100, y: 100 });
-
-    const bar = qc.el.querySelector<HTMLElement>(".yui-quick__bar")!;
-    bar.dispatchEvent(
-      new PointerEvent("pointerdown", { bubbles: true, clientX: 120, clientY: 110, button: 0 }),
-    );
-    document.dispatchEvent(
-      new PointerEvent("pointermove", { bubbles: true, clientX: 170, clientY: 160 }),
-    );
-    document.dispatchEvent(
-      new PointerEvent("pointerup", { bubbles: true, clientX: 170, clientY: 160 }),
-    );
-
-    // moved by (+50, +50) from the open anchor (100,100) → (150,150)
-    expect(qc.el.style.left).toBe("150px");
-    expect(qc.el.style.top).toBe("150px");
-
-    const raw = globalThis.localStorage?.getItem("yui.quick.pos");
-    expect(raw).toBeTruthy();
-    const pos = JSON.parse(raw!);
-    expect(pos.x).toBe(150);
-    expect(pos.y).toBe(150);
-
-    qc.dispose();
-  });
-
-  it("open() with a saved position uses it over the cursor anchor", () => {
-    globalThis.localStorage?.setItem("yui.quick.pos", JSON.stringify({ x: 222, y: 188 }));
-
-    const qc = buildQc();
-    qc.open({ x: 10, y: 10 });
-
-    expect(qc.el.style.left).toBe("222px");
-    expect(qc.el.style.top).toBe("188px");
-
-    qc.dispose();
-  });
-
-  // ── window variant ────────────────────────────────────────────────────────
-
-  it("variant 'window' renders no scrim and no pop-out button", () => {
-    const qc = buildQc({ variant: "window" });
-    qc.open();
-
-    expect(mount.querySelector(".yui-quick-scrim")).toBeNull();
-    expect(qc.el.querySelector(".yui-iconbtn--popout")).toBeNull();
-
-    // still has the agent controls
-    expect(qc.el.querySelector(".yui-seg")).not.toBeNull();
-    expect(qc.el.querySelector(".yui-textarea")).not.toBeNull();
-
-    qc.dispose();
-  });
-
-  // ── window variant: native titlebar is the only header ───────────────────
-
-  it("window variant renders NO custom .yui-quick__bar (native titlebar owns the header)", () => {
-    const qc = buildQc({ variant: "window" });
-    qc.open();
-
-    expect(qc.el.querySelector(".yui-quick__bar")).toBeNull();
-
-    qc.dispose();
-  });
-
-  it("popover variant retains the .yui-quick__bar with grip + title + popout + close", () => {
-    const qc = buildQc({ variant: "popover" });
-    qc.open();
-
-    const bar = qc.el.querySelector<HTMLElement>(".yui-quick__bar");
-    expect(bar).not.toBeNull();
-    expect(bar!.querySelector(".yui-quick__grip")).not.toBeNull();
-    expect(bar!.querySelector(".yui-quick__title")).not.toBeNull();
-    expect(bar!.querySelector(".yui-iconbtn--popout")).not.toBeNull();
-    expect(bar!.querySelector(".yui-iconbtn--close")).not.toBeNull();
-
-    qc.dispose();
-  });
-
-  it("keeps the drag title on the grip and panel title without leaking onto tooltip targets", () => {
-    const qc = buildQc({ variant: "popover" });
-    qc.open();
 
     for (const target of qc.el.querySelectorAll<HTMLElement>("[data-tip]")) {
       expect(target.parentElement?.closest("[title]")).toBeNull();
     }
-    const titled = Array.from(qc.el.querySelectorAll<HTMLElement>("[title]"));
-    expect(titled).toHaveLength(2);
-    expect(titled.map((element) => element.className)).toEqual([
-      "yui-quick__grip",
-      "yui-quick__title",
-    ]);
 
     qc.dispose();
   });
 
   it("does not show a tooltip for programmatic panel focus but does for keyboard focus", () => {
-    const qc = buildQc({ variant: "popover" });
+    const qc = buildQc();
 
     document.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
     qc.open();
@@ -357,9 +172,9 @@ describe("createQuickControls — shell", () => {
     qc.dispose();
   });
 
-  it("closes both a keyboard-focused tab tooltip and the panel on Escape", () => {
-    const qc = buildQc({ variant: "popover" });
-    qc.open();
+  it("closes both a keyboard-focused tab tooltip and the window on Escape", () => {
+    const onCloseWindow = vi.fn<() => void>();
+    const qc = buildQc({ onCloseWindow });
     const tab = qc.el.querySelector<HTMLButtonElement>("#yui-tab-react")!;
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
     tab.focus();
@@ -368,27 +183,12 @@ describe("createQuickControls — shell", () => {
     tab.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 
     expect(document.querySelector(".yui-hint-tip.is-open")).toBeNull();
-    expect(qc.isOpen()).toBe(false);
-    qc.dispose();
-  });
-
-  it("hides an open tooltip when the panel closes via the header close button", () => {
-    const qc = buildQc({ variant: "popover" });
-    qc.open();
-    const tab = qc.el.querySelector<HTMLButtonElement>("#yui-tab-react")!;
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
-    tab.focus();
-    expect(document.querySelector(".yui-hint-tip.is-open")).not.toBeNull();
-
-    qc.el.querySelector<HTMLButtonElement>(".yui-iconbtn--close")!.click();
-
-    expect(document.querySelector(".yui-hint-tip.is-open")).toBeNull();
+    expect(onCloseWindow).toHaveBeenCalledOnce();
     qc.dispose();
   });
 
   it("opens a tooltip when Home or End is the first keyboard-modality key after a pointer click", () => {
-    const qc = buildQc({ variant: "popover" });
-    qc.open();
+    const qc = buildQc();
 
     const tabs = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-tab"));
     const firstTab = tabs[0]!;
@@ -410,22 +210,11 @@ describe("createQuickControls — shell", () => {
     qc.dispose();
   });
 
-  // ── Escape — both variants must close ─────────────────────────────────────
+  // ── Escape closes the window ──
 
-  it("Escape closes the popover variant", () => {
-    const qc = buildQc({ variant: "popover" });
-    qc.open();
-    expect(qc.isOpen()).toBe(true);
-
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-    expect(qc.isOpen()).toBe(false);
-
-    qc.dispose();
-  });
-
-  it("Escape in the window variant invokes the host's OS-window close path", () => {
+  it("Escape invokes the host's OS-window close path", () => {
     const onCloseWindow = vi.fn<() => void>();
-    const qc = buildQc({ variant: "window", onCloseWindow });
+    const qc = buildQc({ onCloseWindow });
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     expect(onCloseWindow).toHaveBeenCalledTimes(1);
@@ -433,10 +222,10 @@ describe("createQuickControls — shell", () => {
     qc.dispose();
   });
 
-  it("Escape in the window variant flushes a dirty typed key before closing", () => {
+  it("Escape flushes a dirty typed key before closing", () => {
     const chatKeySettings = createChatKeySettings();
     const onCloseWindow = vi.fn<() => void>();
-    const qc = buildQc({ chatKeySettings, variant: "window", onCloseWindow });
+    const qc = buildQc({ chatKeySettings, onCloseWindow });
 
     const input = qc.el.querySelector<HTMLInputElement>(
       ".yui-input-row[data-key-prefix='chatkey'] .yui-chatkey__input",
@@ -518,11 +307,7 @@ describe("createQuickControls — construction and disposal", () => {
   };
 
   function build(
-    opts: {
-      variant?: "popover" | "window";
-      delegations?: ReturnType<typeof makeDelegations>;
-      refreshVoiceList?: () => void;
-    } = {},
+    opts: { delegations?: ReturnType<typeof makeDelegations>; refreshVoiceList?: () => void } = {},
   ) {
     watchDelegationTimer();
     // A plain subscribe, so the trace wraps it instead of the mock's own implementation.
@@ -546,7 +331,6 @@ describe("createQuickControls — construction and disposal", () => {
       proactiveSettings,
       messageWindowSettings,
       voiceStatus,
-      variant: opts.variant ?? "popover",
       transcript: createChatHistoryStore(),
       sessionStore: createSessionStore(),
       sessionDiagnostics: createSessionDiagnosticsStore(),
@@ -571,10 +355,9 @@ describe("createQuickControls — construction and disposal", () => {
     }) as never);
   }
 
-  it("window variant opens the panel only after both cue lists have mounted", () => {
+  it("opens the panel only after both cue lists have mounted", () => {
     const seen: { log: string[]; cueSections: number }[] = [];
     const qc = build({
-      variant: "window",
       refreshVoiceList: () =>
         seen.push({
           log: [...log],
@@ -594,7 +377,7 @@ describe("createQuickControls — construction and disposal", () => {
   describe("teardown", () => {
     it("without a throw: releases each traced store and the delegation timer once", () => {
       const delegations = makeDelegations([RUNNING]);
-      const qc = build({ variant: "window", delegations });
+      const qc = build({ delegations });
       log.length = 0;
 
       qc.dispose();
@@ -614,22 +397,18 @@ describe("createQuickControls — construction and disposal", () => {
       expect(log).toHaveLength(8);
     });
 
-    it("releases the speaker store and detaches the header buttons", () => {
+    it("releases the speaker store", () => {
       const base = defaultQcArgs(mount);
       const counts = countSubscriptions(base.speakerSelection);
-      const onPopOut = vi.fn();
-      const qc = createQuickControls({ ...base, onPopOut });
-      const popOut = qc.el.querySelector<HTMLButtonElement>(".yui-iconbtn--popout")!;
+      const qc = createQuickControls(base);
 
       qc.dispose();
-      popOut.click();
 
       expect(counts.taken).toBeGreaterThan(0);
       expect(counts.released).toBe(counts.taken);
-      expect(onPopOut).not.toHaveBeenCalled();
     });
 
-    it("releases the filler and transcript stores and detaches the panel, scrim and every root listener", () => {
+    it("releases the filler and transcript stores and detaches the panel and every root listener", () => {
       const base = defaultQcArgs(mount);
       const fillerSettings = createFillerSettings();
       const transcript = createChatHistoryStore();
@@ -643,9 +422,6 @@ describe("createQuickControls — construction and disposal", () => {
         onGuide,
         rateLimitSettings: createGuardrailsSettings(),
       });
-      qc.open();
-      const scrim = mount.querySelector(".yui-quick-scrim");
-      expect(scrim).not.toBeNull();
       const tabBefore = qc.selectedTab();
 
       qc.dispose();
@@ -655,7 +431,6 @@ describe("createQuickControls — construction and disposal", () => {
       document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 
       expect(qc.el.isConnected).toBe(false);
-      expect(scrim!.isConnected).toBe(false);
       expect(fillerCounts.taken).toBeGreaterThan(0);
       expect(fillerCounts.released).toBe(fillerCounts.taken);
       expect(transcriptCounts.taken).toBeGreaterThan(0);
@@ -663,7 +438,6 @@ describe("createQuickControls — construction and disposal", () => {
       expect(qc.selectedTab()).toBe(tabBefore);
       expect(onGuide).not.toHaveBeenCalled();
       expect(document.getElementById("yui-hint-tip")).toBeNull();
-      expect(qc.isOpen()).toBe(true);
     });
 
     it("stops at the first cleanup that throws: dispose() throws and the panel stays mounted", () => {
@@ -671,7 +445,7 @@ describe("createQuickControls — construction and disposal", () => {
       vi.spyOn(base.workflowSettings, "subscribe").mockImplementation((() => () => {
         throw new Error("workflows unsubscribe failed");
       }) as never);
-      const qc = createQuickControls({ ...base, variant: "window" });
+      const qc = createQuickControls({ ...base });
       expect(qc.el.isConnected).toBe(true);
 
       expect(() => qc.dispose()).toThrow("workflows unsubscribe failed");

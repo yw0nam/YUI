@@ -1,0 +1,22 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "quick-card",
+  "description": "quick-card window — a frameless always-on-top card docked beside its character; places, follows, drags and snaps itself, mirrors the preset's push socket and voice state, and opens the settings window on its character",
+  "windows": [
+    "quick-card",
+    "quick-card-*"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-set-theme",
+    "core:window:allow-destroy",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-set-size",
+    "core:window:allow-set-position",
+    "core:window:allow-set-focus",
+    "core:webview:allow-create-webview-window",
+    "log:default",
+    "cors-fetch:default"
+  ]
+}

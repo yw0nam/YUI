@@ -49,10 +49,11 @@ windows = { version = "0.61", features = ["Win32_UI_Input_KeyboardAndMouse", "Wi
 
 # macOS OS API bindings (cfg-gated, compile-only on other platforms)
 [target.'cfg(target_os = "macos")'.dependencies]
-# Runtime NSWindow subclassing to lift constrainFrameRect:toScreen: (window_frame.rs).
+# Runtime NSWindow subclassing to lift constrainFrameRect:toScreen: (window_frame.rs) and the
+# quick card's child-window link (quick_card_dock.rs).
 # Versions pinned to what tao already resolves in Cargo.lock — no new crates downloaded.
 objc2 = "0.6"
-objc2-app-kit = { version = "0.3", features = ["NSWindow", "NSResponder", "NSScreen"] }
+objc2-app-kit = { version = "0.3", features = ["NSWindow", "NSResponder", "NSScreen", "NSGraphics"] }
 objc2-foundation = { version = "0.3", features = ["NSGeometry"] }
 
 # Release builds use Cargo's default profile; LTO and strip are unmeasured for this app, so nothing is tuned.

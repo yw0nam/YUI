@@ -66,7 +66,7 @@ and the pump goes on.
 
 ## Relation events
 
-`io/chat/tools/relation.ts` (namespace `relation`), `io/bridge/inbox/relations-rpc.ts` (namespace `relations-rpc`), the Body page's Relations section and the Together page's Relations switch (namespace `quick-ui` in the pet window, `settings-ui` in the settings window) log at `info`.
+`io/chat/tools/relation.ts` (namespace `relation`), `io/bridge/inbox/relations-rpc.ts` (namespace `relations-rpc`), the Body page's Relations section and the Together page's Relations switch (namespace `quick-controls`, in the settings window) log at `info`.
 
 | Event | Fields | When |
 |---|---|---|
@@ -100,7 +100,7 @@ and the pump goes on.
 
 ## Unified chat window
 
-`ui/unified/unified-view.ts` (namespace `unified-view`), `app/turn/voice/unified-voice.ts` (namespace `unified-voice`), `app/unified/wire-unified-close.ts` (namespace `wire-unified-close`), `ui/unified/sequence.ts` (namespace `sequence`), `io/window/openers/unified-window.ts` (namespace `unified-window`), and the Together page's switch row and Characters list (namespace `quick-ui` in the pet window, `settings-ui` in the settings window) log at `info` unless a row says otherwise.
+`ui/unified/unified-view.ts` (namespace `unified-view`), `app/turn/voice/unified-voice.ts` (namespace `unified-voice`), `app/unified/wire-unified-close.ts` (namespace `wire-unified-close`), `ui/unified/sequence.ts` (namespace `sequence`), `io/window/openers/unified-window.ts` (namespace `unified-window`), the Together page's switch row and Characters list (namespace `quick-controls`, in the settings window), and the quick card's Unified chat tile (namespace `quick-card`, in the quick-card window) log at `info` unless a row says otherwise.
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
@@ -112,11 +112,11 @@ and the pump goes on.
 | `unified-window` | `unified_window_create_error` | `error` | The window could not be created (`error` level). |
 | `unified-window` | `unified_window_open_failed` | `error` | Showing or creating the window threw (`warn` level). |
 | `unified-window` | `unified_window_close_failed` | `error` | Destroying the window threw (`warn` level). |
-| `quick-ui`, `settings-ui` | `unified_chat_toggle` | `enabled` | The user flipped the Unified chat switch. |
+| `quick-controls`, `quick-card` | `unified_chat_toggle` | `enabled` | The user flipped the Unified chat switch or tile. |
 | `wire-unified-close` | `unified_chat_toggle` | `enabled`, `via` | The unified chat window closed itself (its ×) and turned the switch off; `enabled` is `false`, `via` is `close`. |
-| `quick-ui`, `settings-ui` | `character_desktop_toggle` | `preset`, `on` | A flip of a character's On the desktop switch took effect; `on` is the new state. A turn-on the open-preset cap refused logs nothing. |
-| `quick-ui`, `settings-ui` | `photo_crop_saved` | `preset` | The photo dialog's Use photo stored the preset's crop. |
-| `quick-ui`, `settings-ui` | `photo_default_framed` | `preset` | A picked photo's default framing was stored once its size was measured. |
+| `quick-controls` | `character_desktop_toggle` | `preset`, `on` | A flip of a character's On the desktop switch took effect; `on` is the new state. A turn-on the open-preset cap refused logs nothing. |
+| `quick-controls` | `photo_crop_saved` | `preset` | The photo dialog's Use photo stored the preset's crop. |
+| `quick-controls` | `photo_default_framed` | `preset` | A picked photo's default framing was stored once its size was measured. |
 
 ## Companion column windows
 
@@ -127,6 +127,29 @@ and the pump goes on.
 | `companion-column` | `focus_failed` | `window`, `error` | Taking OS focus threw. |
 | `companion-column` | `drag_failed` | `window`, `error` | Starting the OS drag threw. |
 | `companion-column` | `resize_failed` | `window`, `error` | Setting the window's height to its column threw. |
+
+## Quick-card window
+
+`io/window/openers/quick-card-window.ts` (namespace `quick-card-window`, in the pet window) creates the window. In the quick-card window, `windows/quick-card-main.ts` (namespace `quick-card-main`) boots it, `app/quick-card-window/wire-quick-card-window.ts` (namespace `wire-quick-card-window`) wires its settings side, `ui/quick-card/` (namespace `quick-card`) is the card, `app/quick-card-window/quick-card-ports.ts` (namespace `quick-card-ports`) writes its stores, `app/quick-card-window/quick-card-dock.ts` (namespace `quick-card-dock`) places and moves the window, and `app/quick-card-window/quick-card-close.ts` (namespace `quick-card-close`) closes it. They log at `info` unless a row says otherwise. The card's Voice, Keep bubble and Unified chat tiles log the toggle events of their settings rows under `quick-card`.
+
+| Namespace | Event | Fields | When |
+|---|---|---|---|
+| `quick-card-window` | `quick_card_window_destroy_timeout` | — | A leftover card window did not report destroyed within 500ms; the new one is created anyway (`warn` level). |
+| `quick-card-window` | `quick_card_window_create_error` | `error` | The card window could not be created (`error` level). |
+| `quick-card-window` | `quick_card_window_open_failed` | `error` | Creating or reusing the card window threw (`error` level). |
+| `quick-card-main` | `boot_failed` | `error` | The window's boot threw (`error` level). |
+| `wire-quick-card-window` | `config_load_failed` | `error` | The bundled config did not load; the card runs on the stored settings (`warn` level). |
+| `wire-quick-card-window` | `avatar_config_read_failed` | `fallback`, `error` | The config's VRM list could not be read; the VRM selection keeps its built-in default (`warn` level). |
+| `quick-card` | `select_failed` | `error` | Applying a Body or Reference voice choice threw (`warn` level). |
+| `quick-card-ports` | `session_reset` | — | Reset conversation started a new session. |
+| `quick-card-dock` | `quick_card_detached` | — | The first move of the card window after a head pointerdown detached it. |
+| `quick-card-dock` | `quick_card_drag_failed` | `error` | Unlinking the window or the `drag_window` command for a head drag failed (`warn` level). |
+| `quick-card-dock` | `quick_card_boot_hide_failed` | `error` | Unlinking or hiding the window at boot threw; the ready report still goes out (`warn` level). |
+| `quick-card-dock` | `dock_step_failed` | `error` | A placement, follow or drop step threw (`warn` level). |
+| `quick-card-close` | `quick_card_focus_lost` | — | A poll tick found no YUI window holding focus, so the card closed. |
+| `quick-card-close` | `quick_card_focus_listen_failed` | `error` | Listening to the window's focus failed, so the focus poll never starts (`warn` level). |
+| `quick-card-close` | `quick_card_hide_failed` | `error` | Hiding the card window threw (`warn` level). |
+| `quick-card-close` | `quick_card_focus_poll_failed` | `error` | A focus poll tick threw (`debug` level). |
 
 ## TypeScript Usage
 

@@ -216,6 +216,21 @@ describe("createAlphaHitTest — publish on resolve", () => {
   });
 });
 
+describe("createAlphaHitTest — silhouette bounds", () => {
+  it("has none until a grab is published, then spans its opaque cell", async () => {
+    const fixture = createFixture();
+    const { hitTest } = fixture;
+    expect(hitTest.bounds()).toBeNull();
+
+    hitTest.refresh();
+    await fixture.settleRead();
+
+    // The 800×600 buffer grabs at 100×75; its centre cell (50, 37) spans x 50..51 of the 100px mount.
+    expect(hitTest.bounds()).toMatchObject({ left: 50, right: 51 });
+    hitTest.dispose();
+  });
+});
+
 describe("createAlphaHitTest — staleness guards", () => {
   it("publishes nothing from a read issued before clearGrab", async () => {
     const fixture = createFixture();

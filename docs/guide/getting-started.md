@@ -1,6 +1,6 @@
 # YUI — Install and Wiring Guide
 
-YUI is the frontend (body): VRM character rendering, desktop-pet behavior, and I/O surfaces. The brain and voice services — backend agent, TTS, STT — run as separate, config-swappable processes that YUI points at via `configs/endpoints.json` or the in-app panel (right-click the character → Settings → **Connection** tab).
+YUI is the frontend (body): VRM character rendering, desktop-pet behavior, and I/O surfaces. The brain and voice services — backend agent, TTS, STT — run as separate, config-swappable processes that YUI points at via `configs/endpoints.json` or the settings window (right-click the character → **All settings…** → **Connection** page).
 
 ## What you need
 
@@ -23,7 +23,7 @@ One VRM model — and one ships in the repo (`resources/vrms/Sendagaya_Shino.vrm
 
 With YUI running (§1), one OpenAI key covers chat and voice: Chat Completions for chat and OpenAI for TTS. Neither service runs on your machine.
 
-1. Right-click the character → Settings → **Connection** tab.
+1. Right-click the character → **All settings…** → **Connection** page.
 2. Chat section: keep **Chat Completions** as the chat API, pick the **OpenAI** provider, paste the key into **Chat API key**, set **Chat model** (`gpt-5-mini`).
 3. TTS section: pick the **OpenAI** provider and paste the same key into **TTS API key**.
 4. Close Settings and press `/` to type a message.
@@ -76,7 +76,7 @@ Every tunable section in that file is required — the client reads each value f
 
 ## 3. Chat backend
 
-The shortest path to a first chat needs no config file: right-click the character to open Settings, switch to the **Connection** tab (plug icon), and pick a **Provider** preset in the Chat section, fill in **Chat model** (and **Chat API key** for OpenAI or Groq), close the panel, press `/` (or `Cmd/Ctrl+Shift+Y`) to open the text input, and send a message.
+The shortest path to a first chat needs no config file: right-click the character and choose **All settings…** to open the settings window, switch to the **Connection** page (plug icon), and pick a **Provider** preset in the Chat section, fill in **Chat model** (and **Chat API key** for OpenAI or Groq), close the settings window, press `/` (or `Cmd/Ctrl+Shift+Y`) to open the text input, and send a message.
 The preset — OpenAI, Ollama, LM Studio, or Groq — autofills the endpoint URL; the prerequisite is a running Ollama or LM Studio, or an OpenAI or Groq key.
 Chat Completions, the shipped default, needs a tool-calling model because the client always declares its `generate_express` tool (`src/io/chat/tools/client-tools.ts`): [`gpt-5-mini`](https://platform.openai.com/docs/models/gpt-5-mini) on OpenAI, [`qwen3`](https://ollama.com/library/qwen3) on Ollama (pull it first with `ollama pull qwen3`), [`llama-3.3-70b-versatile`](https://console.groq.com/docs/tool-use) on Groq.
 

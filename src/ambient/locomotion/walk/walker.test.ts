@@ -76,7 +76,6 @@ describe("canStartStroll", () => {
     perched: false,
     peeking: false,
     dragging: false,
-    panelOpen: false,
     bodyFree: true,
     reducedMotion: false,
   };
@@ -94,7 +93,6 @@ describe("canStartStroll", () => {
     ["perched", { perched: true }],
     ["peeking", { peeking: true }],
     ["dragging", { dragging: true }],
-    ["the quick-controls panel is open", { panelOpen: true }],
     ["a clip other than idle, thinking or walk holds the body", { bodyFree: false }],
     ["reduced motion", { reducedMotion: true }],
   ])("blocks on %s", (_label, blocker) => {
@@ -198,7 +196,6 @@ function makeHarness(
     perched?: boolean;
     peeking?: boolean;
     dragging?: boolean;
-    panelOpen?: boolean;
     /** Duration (s) the walk clip loops on. null models a clip still loading. */
     clipDuration?: number | null;
     /** Models playMotion silently dropping the walk request (perch suppression, dead clip). */
@@ -314,7 +311,6 @@ function makeHarness(
     currentMotionKind: over.motionKind ?? (() => "ambient"),
     isPeeking: () => over.peeking ?? false,
     isDragging: () => over.dragging ?? false,
-    isPanelOpen: () => over.panelOpen ?? false,
     doc,
     onStart: starts,
     onEnd: ends,
@@ -658,7 +654,7 @@ describe("createWalker", () => {
     expect(h.travelBeginCalls).toEqual([]);
   });
 
-  it("releases the walk clip when the stroll is cancelled during a pending begin", async () => {
+  it("releases the walk clip and starts no stroll when the stroll is cancelled during a pending begin", async () => {
     const BUILTIN: ScreenMonitor = {
       position: { x: 0, y: 0 },
       size: { width: 3456, height: 2234 },
@@ -677,12 +673,13 @@ describe("createWalker", () => {
       workArea: { position: { x: 928, y: -1055 }, size: { width: 1920, height: 1055 } },
       scaleFactor: 1,
     };
-    const h = makeHarness({
+    const over: Parameters<typeof makeHarness>[0] = {
       position: { x: -200, y: -447 },
       feetY: 447,
       monitors: [BUILTIN, UPPER_LEFT, UPPER_RIGHT],
       rng: seqRng(0, 0, 1),
-    });
+    };
+    const h = makeHarness(over);
     let resolveBegin!: (t: { win: PetWindow; end: () => Promise<void> }) => void;
     h.fakeTravel.begin.mockImplementationOnce(
       () =>
@@ -695,7 +692,8 @@ describe("createWalker", () => {
     expect(h.motions).toEqual([{ id: WALK_MOTION_ID }]);
 
     h.walker.cancel();
-    resolveBegin({ win: {} as PetWindow, end: async () => {} });
+    const win = { setPositionLogical: async () => {} } as unknown as PetWindow;
+    resolveBegin({ win, end: async () => {} });
     for (let i = 0; i < 10; i++) await h.frame();
 
     expect(h.motions.at(-1)).toBeNull();
@@ -773,7 +771,6 @@ describe("createWalker", () => {
     ["perched", { perched: true }],
     ["peeking", { peeking: true }],
     ["dragging", { dragging: true }],
-    ["the quick-controls panel is open", { panelOpen: true }],
     [
       "a reactive motion holds the body",
       {

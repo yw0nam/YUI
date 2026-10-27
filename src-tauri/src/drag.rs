@@ -6,7 +6,7 @@
 //!   pointer travelled past its threshold). The command starts the OS-native window drag. A
 //!   press-release below that threshold is a click and never reaches this command.
 //! - After the drag starts on macOS and Windows, it spawns a probe that emits
-//!   `window_drop_release` when the pointer is released.
+//!   `window_drop_release`, naming the dragged window's label, when the pointer is released.
 //!
 //! # Multi-monitor / DPI correctness
 //! Tauri v2 `Window::start_dragging()` is OS-native and moves the window in *physical* pixels
@@ -41,7 +41,10 @@ pub fn drag_window<R: Runtime>(window: WebviewWindow<R>) -> Result<(), String> {
     // is needed because the OS-modal drag loop does not surface a release to
     // the webview.
     #[cfg(any(target_os = "macos", target_os = "windows"))]
-    crate::os_event_watcher::drop_release::spawn_drop_release_probe(window.app_handle().clone());
+    crate::os_event_watcher::drop_release::spawn_drop_release_probe(
+        window.app_handle().clone(),
+        window.label().to_string(),
+    );
 
     Ok(())
 }

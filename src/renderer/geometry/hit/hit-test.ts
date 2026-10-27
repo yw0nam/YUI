@@ -91,3 +91,47 @@ export function sampleAlphaHit(
   }
   return false;
 }
+
+/** A box in stage CSS px (top-left origin). */
+export interface SilhouetteBounds {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+/**
+ * The stage CSS-px box spanning every grab cell whose alpha reaches `threshold255`,
+ * outer cell edges included; null when no cell does. Rows are flipped back to top-down.
+ */
+export function silhouetteBounds(
+  grab: Uint8Array,
+  grabW: number,
+  grabH: number,
+  threshold255: number,
+  cssW: number,
+  cssH: number,
+): SilhouetteBounds | null {
+  let minCol = grabW;
+  let maxCol = -1;
+  let minRow = grabH;
+  let maxRow = -1;
+  for (let row = 0; row < grabH; row++) {
+    for (let col = 0; col < grabW; col++) {
+      if (grab[(row * grabW + col) * 4 + 3]! < threshold255) continue;
+      if (col < minCol) minCol = col;
+      if (col > maxCol) maxCol = col;
+      if (row < minRow) minRow = row;
+      if (row > maxRow) maxRow = row;
+    }
+  }
+  if (maxCol < 0) return null;
+  const cellW = cssW / grabW;
+  const cellH = cssH / grabH;
+  return {
+    left: minCol * cellW,
+    right: (maxCol + 1) * cellW,
+    top: (grabH - 1 - maxRow) * cellH,
+    bottom: (grabH - minRow) * cellH,
+  };
+}

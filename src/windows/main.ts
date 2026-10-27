@@ -45,11 +45,9 @@ import { createVoiceFix } from "../app/voice/voice-fix";
 import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/secrets";
 import { type BusEnvelope, createEventBus } from "../dispatcher/core/event-bus";
 import { createUserInputSource } from "../dispatcher/sources/user-input-source";
-import {
-  resolveScreenCapturer,
-  resolveScreenSourceProvider,
-} from "../io/window/capture/tauri-screen";
+import { resolveScreenCapturer } from "../io/window/capture/tauri-screen";
 import { createDevtoolsWindowOpener } from "../io/window/openers/devtools-window";
+import { createQuickCardWindowController } from "../io/window/openers/quick-card-window";
 import { createSettingsWindowOpener } from "../io/window/openers/settings-window";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
@@ -103,10 +101,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
   const root = app.querySelector<HTMLDivElement>(".yui-root")!;
   const stage = root.querySelector<HTMLDivElement>(".yui-stage")!;
 
-  const { settingsStores, conversationStores, presetRegistry, petWindows } = createWindowStores(
-    register,
-    role,
-  );
+  const { settingsStores, conversationStores, presetRegistry } = createWindowStores(register, role);
   register(applyTheme({ store: settingsStores.themeSettings, root: document.documentElement }));
   const petConfig = createPetConfig({ ...settingsStores, log });
   const config = petConfig.config;
@@ -181,7 +176,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
     }),
   );
 
-  const screenSourceProvider = resolveScreenSourceProvider();
   const screenCapturer = resolveScreenCapturer();
   // Settings opens the current pet window's companion in Tauri or a browser popup.
   const openSettings = createSettingsWindowOpener(boundId, windowBridge.emitSettingsPage);
@@ -240,30 +234,17 @@ async function bootstrap(): Promise<BootstrapHandle> {
     presetIdForWindow(),
   );
 
-  const controls = wirePetControls({
-    root,
+  const quickCardWindow = createQuickCardWindowController({ boundId, bridge: windowBridge });
+  register(() => quickCardWindow.dispose());
+  wirePetControls({
     stage,
     stores: settingsStores,
-    conversation: conversationStores,
-    config,
-    getChatApiKey: () => config.secrets.get(CHAT_API_KEY_SECRET),
     renderer,
-    vrm,
-    speaker,
-    pushSocket: push.pushSocket,
-    stopTurn: push.stopTurn,
-    announceSessionReset: sessionReset.announce,
-    presetRegistry,
-    petWindows,
     boundId,
     voiceInputStatus,
-    screenSourceProvider,
-    surfaces,
     remoteSurfaces: remote,
     openSettings,
-    onGuide: help.ask,
-    openDevtools,
-    unifiedShown,
+    quickCardWindow,
     register,
   });
 
@@ -297,7 +278,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
       speaker,
       root,
       stage,
-      getQuickControls: controls.get,
       openSettings,
       onSessionReset: windowBridge.onSessionReset,
       emitCharacterAddressed: windowBridge.emitCharacterAddressed,
@@ -351,7 +331,8 @@ async function bootstrap(): Promise<BootstrapHandle> {
           screenshotSettings: settingsStores.screenshotSettings,
           lipsyncSettings: settingsStores.lipsyncSettings,
           agentSettings: settingsStores.agentSettings,
-          quickControls: controls.get(),
+          quickCardWindow,
+          boundId,
           speechPlayback: configured.voice.speechPlayback,
           voiceInputStatus,
           userInput,

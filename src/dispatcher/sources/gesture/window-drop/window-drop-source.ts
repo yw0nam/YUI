@@ -59,7 +59,7 @@ import { createPlacement } from "./placement";
 
 const log = createLogger("window-drop");
 
-/** Tauri event channel carrying the drag-release point (payload unused by the seat hit-test). */
+/** Tauri event channel every window hears at a native drag's release; the payload is the dragged window's label. */
 const RELEASE_EVENT = "window_drop_release";
 
 /** Tauri `listen` (injectable for tests). */
@@ -418,7 +418,9 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
     async start() {
       if (unlisten) return;
       try {
-        unlisten = await listen(RELEASE_EVENT, () => {
+        unlisten = await listen(RELEASE_EVENT, ({ payload }) => {
+          // The quick card's drop moved no pet window; it settles in the card's own window.
+          if (typeof payload === "string" && payload.startsWith("quick-card")) return;
           const dragged = deps.wasDragging?.() ?? true;
           if (deps.isHeld?.()) return;
           void settle()

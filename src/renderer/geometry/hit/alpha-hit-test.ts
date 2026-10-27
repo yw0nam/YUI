@@ -9,7 +9,13 @@
  */
 
 import * as THREE from "three";
-import { cssToGrabCell, grabDimensions, sampleAlphaHit } from "./hit-test";
+import {
+  cssToGrabCell,
+  grabDimensions,
+  type SilhouetteBounds,
+  sampleAlphaHit,
+  silhouetteBounds,
+} from "./hit-test";
 
 // ── Per-pixel alpha hit-test ─────────────────────────────────────────────────
 /** Downscale factor (linear) of the drawing buffer for the CPU-side alpha grab. */
@@ -53,6 +59,8 @@ export interface AlphaHitTest {
    * first read resolves and until a threshold is set.
    */
   hitTest(x: number, y: number): boolean;
+  /** The opaque silhouette's box in canvas CSS px from the last published grab; null without one or a threshold. */
+  bounds(): SilhouetteBounds | null;
   /**
    * Set the alpha threshold (0..1) the hit test compares against. Non-finite or
    * out-of-(0,1] values are ignored.
@@ -170,6 +178,18 @@ export function createAlphaHitTest(deps: AlphaHitTestDeps): AlphaHitTest {
     return sampleAlphaHit(alphaGrab, alphaGrabW, alphaGrabH, cell.col, cell.row, threshold255);
   }
 
+  function bounds(): SilhouetteBounds | null {
+    if (alphaThreshold === null || !alphaGrab || alphaGrabW === 0 || alphaGrabH === 0) return null;
+    return silhouetteBounds(
+      alphaGrab,
+      alphaGrabW,
+      alphaGrabH,
+      Math.round(alphaThreshold * 255),
+      mountWidth(),
+      mountHeight(),
+    );
+  }
+
   function setThreshold(threshold: number): void {
     if (!Number.isFinite(threshold) || threshold <= 0 || threshold > 1) return;
     alphaThreshold = threshold;
@@ -186,5 +206,5 @@ export function createAlphaHitTest(deps: AlphaHitTestDeps): AlphaHitTest {
     grabGeneration++;
   }
 
-  return { refresh, hitTest, setThreshold, clearGrab, dispose };
+  return { refresh, hitTest, bounds, setThreshold, clearGrab, dispose };
 }

@@ -183,8 +183,8 @@ unsafe fn make_cfstring(s: &str) -> CFStringRef {
 // ─── Drop-release detection + window enumeration ─────────────────────────────
 //
 // After `start_dragging()` hands control to the OS-modal drag loop, a poll
-// thread detects the mouse release and emits a bare `window_drop_release`
-// signal; `list_all_windows` enumerates the foreign on-screen windows.
+// thread detects the mouse release and emits `window_drop_release` with the
+// dragged window's label; `list_all_windows` enumerates the foreign on-screen windows.
 
 // kCGEventSourceStateCombinedSessionState = 0; left mouse button = 0.
 const CG_EVENT_SOURCE_STATE_COMBINED: i32 = 0;

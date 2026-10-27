@@ -41,7 +41,7 @@
 2. エージェントに起動を頼んでください。自分で起動する場合は、ターミナルでYUIのフォルダを開いて `pnpm tauri dev` を実行します。初回は数分かかり、そのあと画面にキャラクターが現れます。
 3. `/`(または `Cmd/Ctrl+Shift+Y`)を押して、話しかけてみてください。
 
-声で話すには、**設定 → 接続** で音声認識と音声合成も設定してください(キャラクターを右クリックすると設定が開きます)。チャットモデルの変更も同じ画面でできます。OpenAI、Ollama、LM Studio、GroqはChat Completions方式で接続するため、ツール呼び出し(tool calling)に対応したモデルが必要です。たとえばOpenAIなら `gpt-5-mini`、Ollamaなら `qwen3`、Groqなら `llama-3.3-70b-versatile` が使えます。
+声で話すには、**設定 → 接続** で音声認識と音声合成も設定してください(キャラクターを右クリックして **すべての設定…** を選ぶと設定が開きます)。チャットモデルの変更も同じ画面でできます。OpenAI、Ollama、LM Studio、GroqはChat Completions方式で接続するため、ツール呼び出し(tool calling)に対応したモデルが必要です。たとえばOpenAIなら `gpt-5-mini`、Ollamaなら `qwen3`、Groqなら `llama-3.3-70b-versatile` が使えます。
 
 ## できること
 

@@ -16,7 +16,6 @@ function build() {
   const mount = document.body.appendChild(document.createElement("div"));
   const qc = createQuickControls({
     ...defaultQcArgs(mount),
-    variant: "window",
     gazeSettings: createFlagSettings(true),
     onResetViewpoint: vi.fn(),
     presetRegistry: createPresetRegistry(),
@@ -64,7 +63,6 @@ it.each(["clear", "Escape"])("%s restores the rail and the rows", (how) => {
   expect([count("motion"), count("perms")]).toEqual([null, null]);
   expect(tab("perms").classList.contains("is-dim")).toBe(false);
   expect(gazeRow().classList.contains("is-match")).toBe(false);
-  expect(qc.isOpen()).toBe(true);
   qc.dispose();
 });
 

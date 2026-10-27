@@ -47,8 +47,9 @@ pub(crate) fn step_release_detector(saw_down: bool, is_down: bool) -> (bool, boo
 }
 
 // Drop-release probe, invoked by drag.rs after start_dragging().
-// Emits `window_drop_release` as a bare signal (no payload).
-pub fn spawn_drop_release_probe<R: Runtime>(app: AppHandle<R>) {
+// Emits `window_drop_release` to every window with the dragged window's label as the payload,
+// so a window can tell its own drag's release from another's.
+pub fn spawn_drop_release_probe<R: Runtime>(app: AppHandle<R>, label: String) {
     let Some(guard) = ProbeGuard::try_acquire() else {
         log::debug!("drop_release_probe_skipped reason=already_active");
         return;
@@ -82,7 +83,7 @@ pub fn spawn_drop_release_probe<R: Runtime>(app: AppHandle<R>) {
 
             log::info!("drop_release_detected");
 
-            if let Err(e) = app.emit(WINDOW_DROP_RELEASE_CHANNEL, ()) {
+            if let Err(e) = app.emit(WINDOW_DROP_RELEASE_CHANNEL, label) {
                 log::warn!("window_drop_release_emit_failed error={e}");
             }
         })

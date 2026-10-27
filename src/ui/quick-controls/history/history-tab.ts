@@ -3,6 +3,7 @@
  */
 
 import type { createChatHistoryStore } from "../../../io/chat/conversation/chat-history-store";
+import { resetConversation } from "../../../io/chat/conversation/reset-conversation";
 import type { createSessionDiagnosticsStore } from "../../../io/chat/conversation/session-diagnostics";
 import type { createSessionStore } from "../../../io/chat/conversation/session-store";
 import type { createSignalHistoryStore } from "../../../io/chat/conversation/signal-history-store";
@@ -48,8 +49,6 @@ export function createHistoryTab(deps: {
   sessionDiagnostics?: ReturnType<typeof createSessionDiagnosticsStore>;
   /** Current session id pointer. "Start fresh" clears it along with diagnostics. */
   sessionStore?: ReturnType<typeof createSessionStore>;
-  /** Stops the in-flight turn the way the stop button does, before the reset frame goes out. */
-  stopTurn?: () => void;
   /** Tells the preset's other windows, and this window's greeting, that a new session opened. */
   announceSessionReset?: () => void;
   /** The push transport — "Start fresh" resets the conversation on it in push mode. */
@@ -65,7 +64,6 @@ export function createHistoryTab(deps: {
     signalHistory,
     sessionDiagnostics,
     sessionStore,
-    stopTurn,
     announceSessionReset,
     pushSocket,
     getChatApi,
@@ -101,19 +99,16 @@ export function createHistoryTab(deps: {
     if (sessionResetBtn) sessionResetBtn.hidden = false;
   }
 
-  // Closes the running conversation: the id pointer and diagnostics reset, the transcript keeps
-  // its turns behind a session boundary so the History tab can still read them.
   function handleSessionReset(): void {
-    // A turn still running stops with the conversation, before the reset frame goes out.
-    stopTurn?.();
-    sessionStore?.clear();
-    sessionDiagnostics?.clear();
-    transcript.startNewSession();
-    announceSessionReset?.();
-    // Push mode keeps its conversation on the backend — it ends only when the frame lands.
-    if (getChatApi() === "push") pushSocket?.sendReset();
+    resetConversation({
+      transcript,
+      sessionStore,
+      sessionDiagnostics,
+      announceSessionReset,
+      push: getChatApi() === "push" ? pushSocket : undefined,
+      log,
+    });
     hideSessionConfirm();
-    log.info("session_reset");
   }
 
   sessionResetBtn?.addEventListener("click", showSessionConfirm);

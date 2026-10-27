@@ -224,29 +224,4 @@ describe("createQuickControls — monitor picker error/empty state", () => {
 
     qc.dispose();
   });
-
-  it("retries loading on the next open after a failure", async () => {
-    let fail = true;
-    const qc = buildQc({
-      sourceProvider: {
-        listMonitors: async () => {
-          if (fail) throw new Error("enumeration failed");
-          return [{ index: 0, primary: true }];
-        },
-      },
-    });
-    qc.open();
-    await flush();
-    expect(qc.el.querySelector(".yui-mon__error")).not.toBeNull();
-
-    fail = false;
-    qc.close();
-    qc.open();
-    await flush();
-
-    expect(qc.el.querySelector(".yui-mon__error")).toBeNull();
-    expect(qc.el.querySelectorAll(".yui-mon[role=radio]")).toHaveLength(1);
-
-    qc.dispose();
-  });
 });

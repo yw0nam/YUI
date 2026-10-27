@@ -29,7 +29,7 @@ interface ScreenSectionDeps {
   getScreenDefaults?: () => ScreenOverrides | undefined;
   /** Switch-row redraw — the flag subscription calls both. */
   reflectSwitchRows: () => void;
-  /** Popover open state — store subscriptions redraw only while the panel is open. */
+  /** Panel open state — store subscriptions redraw only while the panel is open. */
   isOpen: () => boolean;
 }
 

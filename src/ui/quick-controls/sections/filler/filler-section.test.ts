@@ -29,7 +29,6 @@ function seededFiller(over: Partial<FillerSettings> = {}): FillerSettingsStore {
 function buildRoot(fillerSettings: FillerSettingsStore): HTMLElement {
   const root = document.createElement("div");
   root.innerHTML = buildPanelHtml({
-    isWindow: false,
     hasSession: false,
     switchRows: createSwitchRows({
       idleThrottleSettings: createFlagSettings(false),
@@ -42,7 +41,6 @@ function buildRoot(fillerSettings: FillerSettingsStore): HTMLElement {
     showRateLimits: false,
     showDevtools: false,
     showHelp: false,
-    showMessage: false,
     showHistory: false,
   });
   document.body.append(root);

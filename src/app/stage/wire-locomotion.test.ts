@@ -56,9 +56,7 @@ describe("wireLocomotion", () => {
     for (const mock of Object.values(mocks)) mock.mockReset();
   });
 
-  const setup = (
-    over: { isPanelOpen?: () => boolean; isHeld?: () => boolean; bed?: AvatarBed } = {},
-  ) => {
+  const setup = (over: { isHeld?: () => boolean; bed?: AvatarBed } = {}) => {
     const cancelOrder: string[] = [];
     const teardowns: string[] = [];
     const registered: Array<() => void> = [];
@@ -116,9 +114,7 @@ describe("wireLocomotion", () => {
     };
 
     let travelFrameDeps: { setKeepOnScreenPaused(paused: boolean): void } | undefined;
-    let walkerDeps:
-      | { onDescend(edge: DescentEdge): void; isPanelOpen(): boolean; isDragging(): boolean }
-      | undefined;
+    let walkerDeps: { onDescend(edge: DescentEdge): void; isDragging(): boolean } | undefined;
     let fallerDeps: { onWindowLand(target: WindowRect): void; isEnabled(): boolean } | undefined;
     let windowSourcesDeps:
       | { onRelocated(): Promise<void>; isHeld(): boolean; bed: AvatarBed }
@@ -173,7 +169,6 @@ describe("wireLocomotion", () => {
       dispatcher: {} as never,
       hitTest: { setMoving: vi.fn() },
       peekActive: () => false,
-      isPanelOpen: over.isPanelOpen ?? (() => false),
       isHeld: over.isHeld ?? (() => false),
       bed: over.bed ?? {
         phase: () => "off",
@@ -229,15 +224,6 @@ describe("wireLocomotion", () => {
     s.fallerDeps.onWindowLand(target);
 
     expect(s.percher.landOn).toHaveBeenCalledWith(target);
-  });
-
-  it("hands the panel-open getter to the walker", () => {
-    let open = true;
-    const s = setup({ isPanelOpen: () => open });
-
-    expect(s.walkerDeps.isPanelOpen()).toBe(true);
-    open = false;
-    expect(s.walkerDeps.isPanelOpen()).toBe(false);
   });
 
   it("hands a walker descent to the climber", () => {

@@ -32,7 +32,6 @@ describe("createQuickControls — gain row", () => {
   let endpointsSettings: ReturnType<typeof createEndpointsSettings>;
   let proactiveSettings: ReturnType<typeof createProactiveSettings>;
   let scheduleSettings: ReturnType<typeof createScheduleSettings>;
-  let onPopOut: Mock<() => void>;
   let vrmSelection: ReturnType<typeof createVrmSelection>;
   let swapVrm: Mock<(option: AvatarOption) => Promise<void>>;
   let importVrm: Mock<() => Promise<void>>;
@@ -45,14 +44,6 @@ describe("createQuickControls — gain row", () => {
   let removeVoice: Mock<(id: string) => Promise<void>>;
 
   beforeEach(() => {
-    // Make rAF synchronous so open() → is-open transition happens immediately in tests
-    let rafId = 0;
-    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
-      cb(0);
-      return ++rafId;
-    });
-    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
-
     mount = document.createElement("div");
     document.body.appendChild(mount);
 
@@ -63,7 +54,6 @@ describe("createQuickControls — gain row", () => {
     endpointsSettings = createEndpointsSettings();
     proactiveSettings = createProactiveSettings();
     scheduleSettings = createScheduleSettings();
-    onPopOut = vi.fn<() => void>();
     vrmSelection = makeVrmSelection();
     // default fake: commit the store on success (mirrors the real settings-window impl)
     swapVrm = vi.fn<(option: AvatarOption) => Promise<void>>(async (option) => {
@@ -105,7 +95,6 @@ describe("createQuickControls — gain row", () => {
       endpointsSettings,
       proactiveSettings,
       scheduleSettings,
-      onPopOut,
       vrmSelection,
       swapVrm,
       importVrm,
@@ -190,10 +179,10 @@ describe("createQuickControls — gain row", () => {
     qc.dispose();
   });
 
-  // ── close() ends preview if active ───────────────────────────────────────
+  // ── Escape, the window's close, ends preview if active ─────────────────────
 
-  it("close() while preview active calls onGainPreviewEnd", () => {
-    const qc = buildQc();
+  it("Escape while preview active calls onGainPreviewEnd", () => {
+    const qc = buildQc({ onCloseWindow: vi.fn() });
     qc.open();
 
     const slider = qc.el.querySelector<HTMLInputElement>(
@@ -202,17 +191,17 @@ describe("createQuickControls — gain row", () => {
     slider.value = "1.5";
     slider.dispatchEvent(new Event("input", { bubbles: true }));
 
-    qc.close();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 
     expect(onGainPreviewEnd).toHaveBeenCalledOnce();
 
     qc.dispose();
   });
 
-  it("close() without prior input does NOT call onGainPreviewEnd", () => {
-    const qc = buildQc();
+  it("Escape without prior input does NOT call onGainPreviewEnd", () => {
+    const qc = buildQc({ onCloseWindow: vi.fn() });
     qc.open();
-    qc.close();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 
     expect(onGainPreviewEnd).not.toHaveBeenCalled();
 

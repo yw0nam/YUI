@@ -83,7 +83,7 @@ interface SpeakerListDeps {
   refreshTooltip: () => void;
   /** After dispose, prevent in-flight refresh from re-rendering/timering on torn-down DOM. */
   isDisposed: () => boolean;
-  /** Popover open state — the store subscription re-renders only while the panel is open. */
+  /** Panel open state — the store subscription re-renders only while the panel is open. */
   isOpen: () => boolean;
 }
 

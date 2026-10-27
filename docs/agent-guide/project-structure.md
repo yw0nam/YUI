@@ -19,6 +19,7 @@ YUI/
   settings.html                      # Settings-window Vite entry
   devtools.html                      # Developer Tools Vite entry
   message.html                       # Message-window Vite entry
+  quick-card.html                    # Quick-card-window Vite entry
   unified.html                       # Unified-chat-window Vite entry
   vite.config.ts                     # Dev port YUI_DEV_PORT|1420, strictPort, host 127.0.0.1, backend proxy plugin
   biome.json                         # Format and lint config (curated rule set)
@@ -76,15 +77,18 @@ YUI/
       cross-window/                  # State the windows share
         wire-cross-window.ts         # Per-window sync for the pet, settings, and devtools windows
         wire-window-sync.ts          # Settings broadcast, guardrail overrides, and the shared cross-window sync core
-      controls/                      # The pet window's summonable control surfaces
-        wire-pet-controls.ts         # Quick-controls panel, remounted on locale change, and the stage context menu
+      controls/                      # The pet window's summonable control surface
+        wire-pet-controls.ts         # The stage context menu that sends her extent and the click to the quick-card window
+        quick-card-request.ts        # The quick-card open request for a click: her live silhouette's left and right edges, the click's y, and main's listening flag
         wire-devtools-request.ts     # Main's pet window opens Developer Tools when the settings window asks
-        wire-help-guide.ts           # Guide requests submitted as user turns, from the panel's Ask buttons or the settings bridge
+        wire-help-guide.ts           # Guide requests the settings window sends over the bridge, submitted as user turns
       settings/                      # Selections and conversation state applied to the running app
         config-defaults.ts           # The quick-controls getters over the bundled config, shared by the pet and settings windows
         conversation-stores.ts       # Constructs the shared io/chat conversation stores each window owns and disposes
         dev-key-fallback.ts          # The VITE_YUI_*_KEY build-time key values, read in dev builds only
-        window-stores.ts             # Creates the settings and conversation store bags and the preset registry of the pet and settings windows and registers each store's teardown
+        window-stores.ts             # Creates the settings and conversation store bags and the preset registry of the pet, settings and quick-card windows and registers each store's teardown
+        window-vrm-selection.ts      # The store-only VRM selection of a window without a renderer
+        wire-window-settings.ts      # The settings side the settings and quick-card windows share: stores, theme, config, voices, settings-window sync, the mirrored push socket and the reset announcer
         wire-avatar.ts               # VRM and speaker selection stores, their swap and import flows, the voice-list refresh on override commits, and the avatar config applied at boot
         wire-config.ts               # The config store over the bundled configs, the runtime key stores, the live endpoint/guardrail merges, and the reload/watch wiring
         wire-cue-locale-sync.ts      # Reseeds untouched built-in cues when the display language changes
@@ -104,8 +108,13 @@ YUI/
       unified/                       # The unified chat window's wiring
         wire-unified-window.ts       # Main opens the window while it shows and destroys it otherwise
         wire-unified-close.ts        # The window closing itself turns the Unified chat switch off
+      quick-card-window/             # The quick-card window's wiring
+        wire-quick-card-window.ts    # The shared settings side, the card on #app, and its dock and close
+        quick-card-ports.ts          # The quick card's ports over the window's stores: tiles, selects, transport line, reset, Turn off, All settings…
+        quick-card-dock.ts           # Places the window docked beside her, follows her window, detaches on a head drag and snaps a near drop back
+        quick-card-close.ts          # Closes the card when no YUI window holds focus, and hides the window on every close
       settings-window/               # The settings window's wiring
-        wire-settings-window.ts      # Stores, config, cross-window sync, and the quick controls remounted on locale change, bound to the query's preset when it names one, and editing the preset `?edit=` names
+        wire-settings-window.ts      # Stores, config, cross-window sync, and the settings panel remounted on locale change, bound to the query's preset when it names one, and editing the preset `?edit=` names
         edit-target-url.ts           # The settings URL with its `edit` param set to the picked preset, or dropped for the window's own, and its `page` param set to the requested page
         wire-settings-page.ts        # Takes the URL's page, and answers an opener's page request: switches to the opener's character, then selects the page
         wire-voice-mirror.ts         # Mirrors the voice toggle to the pet window and the pet window's voice state back; main only
@@ -118,6 +127,7 @@ YUI/
       settings-main.ts               # Settings window: mounts the settings window wiring, with the companion guard when the query binds a preset
       devtools-main.ts               # Developer Tools window
       message-main.ts                # Message window: the bubble, input, and plate, with the companion guard when the query binds a preset
+      quick-card-main.ts             # Quick-card window: the companion guard when the query binds a preset, then the quick-card window wiring
       unified-main.ts                # Unified chat window: the frameless 340 px column, the speech stream into its box, and the composer that routes a message
     styles.css                       # Pet-window base stylesheet
     vite-env.d.ts                    # Vite client types and build-time env declarations
@@ -173,8 +183,8 @@ YUI/
         view-window.ts               # Draws the reference-size framing at an offset inside a parked canvas
       geometry/                      # Silhouette hit-testing and read-only model probes
         hit/                         # Alpha-silhouette hit-testing, stage coordinates, and tap regions
-          alpha-hit-test.ts          # CPU-side low-res silhouette grab and sampling
-          hit-test.ts                # Pure helpers for the alpha silhouette predicate
+          alpha-hit-test.ts          # CPU-side low-res silhouette grab, its sampling and its bounds
+          hit-test.ts                # Pure helpers for the alpha silhouette predicate and its bounds
           stage-coords.ts            # Client CSS px to stage-local coordinate conversion
           tap-region.ts              # Classifies a tap point into a body region
         probe/                       # Read-only model probes, anchor projection, and perch math
@@ -392,6 +402,7 @@ YUI/
             overheard-store.ts         # Per other preset, the cursor up to which this window has heard its transcript
           session-store.ts             # Holds the last Responses response.id for conversation continuation
           session-diagnostics.ts       # Used tokens and context window for the settings window
+          reset-conversation.ts        # Start fresh: the one conversation reset the History page and the quick card call
         record/                        # The turn-record JSONL log
           turn-record-log.ts           # Appends one JSONL record per completed turn or skipped fire
       browser/                         # The browser tool's adapter to the Rust relay
@@ -437,20 +448,22 @@ YUI/
           screen-geometry.ts           # Monitor containment, work-area floor math, and window clamping shared by every window mover
           companion-position.ts        # Where a companion window (message, unified) opens: its stored position, else beside the pet window, kept on screen; the column's width and handle height
           companion-column.ts          # A companion column window's focus, OS drag, content-height resize and moved-position report
+          quick-card-position.ts       # Where the quick-card window sits: docked beside her on the roomier side, following her, snapped back, clamped into the work area
+          quick-card-link.ts           # Links and unlinks the quick-card window as a native child of its pet window (macOS; false elsewhere)
           keep-on-screen.ts            # Pushes a window back until its centre lands on a monitor
           travel-frame.ts              # Parks the real window once for a scale-seam crossing
           stationary-frame.ts          # Widens the real window around a character that stays where she is
           tauri-frame-window.ts        # The real pet window as one FrameWindow seam, built once for the movers
           perch.ts                     # Perch values, perch-target and placement types, and the host-edge span shared by the drop source, avatar RPC and locomotion
-          visible-viewport.ts          # Cached height of the pet window part above the work-area bottom
-        openers/                       # Openers and placement of the message, settings, devtools, and pet windows, the first two bound to a pet window's preset
+        openers/                       # Openers and placement of the message, settings, quick-card, devtools, and pet windows, the first three bound to a pet window's preset
           settings-window.ts           # Settings window opener, settings-<id> for a bound id, landing on a page or asking the open window for it, and cross-window settings sync
           devtools-window.ts           # Developer Tools window opener
           message-window.ts            # Message-window opener, message-<id> for a bound id
+          quick-card-window.ts         # Quick-card window opener, quick-card-<id> for a bound id: created hidden once, a leftover recreated, a request held until the window reports ready; its permissions are src-tauri/capabilities/quick-card.json
           message-window-mode.ts       # Keeps the message window in step with the stored mode, the unified chat window and the dock request
           unified-window.ts            # Unified chat window opener: shows the one frameless window labelled unified, or creates it at its stored position, and destroys it; its permissions are src-tauri/capabilities/unified.json
           pet-window.ts                # Bound pet window opener: creates pet-<id> and lists the windows that exist
-          companion-windows.ts         # Closes a bound pet window's settings-<id> and message-<id>, and watches a companion's owner window
+          companion-windows.ts         # Closes a bound pet window's settings-<id>, message-<id> and quick-card-<id>, and watches a companion's owner window
           current-window.ts            # Closes the current window and listens for its close request
         pet/                           # The pet window's own gestures, hit-test, gaze cursor, and peek
           window-statics.ts            # Cached window origin and scale factors for the global-cursor poll loops
@@ -577,13 +590,19 @@ YUI/
         ingress-dead-notice.ts       # One-off notice when the Rust agent ingress listener dies
         first-run-hint.ts            # First-run controls hint through the speech bubble
         boot-error.css               # Boot-failure notice styles
-      quick-controls/                # Quick-controls shell parts and sections
-        quick-controls.ts            # Quick-controls panel: header, the rail of the character's pages then every character's pages, and the page body
-        quick-controls.css           # Quick-controls shell, tab rail, sections, groups, and rows
+      quick-card/                    # The right-click card, in its own window beside the character
+        quick-card.ts                # The card: its head (the drag handle) and All settings…, how it opens and closes, and its rebuild in a new language
+        tiles.ts                     # The toggle tiles: each writes its store and follows it
+        rows.ts                      # The Body and Reference voice selects, the reset that asks first, and Turn off
+        transport-line.ts            # The head line: the transport's name, and on push the socket's state
+        quick-card.css               # Card, tile, row, and confirm styles
+      quick-controls/                # Settings panel shell parts and sections
+        quick-controls.ts            # Settings panel: the rail of the character's pages then every character's pages, and the page body
+        quick-controls.css           # Settings panel shell, tab rail, sections, groups, and rows
         controls.css                 # Switch, segment, field, text-button, disclosure, slider, and confirm styles
         template.ts                  # Panel markup as pure string construction
         markup.ts                    # Panel markup primitives the template and the tab modules share
-        popover.ts                   # Popover shell: positioning, dragging, open and close lifecycle
+        panel-shell.ts               # Panel shell: the open and close lifecycle, and Escape closing the settings window
         constants.ts                 # Display constants shared by the panel, its sections, and the chips that reuse its glyphs
         switch-row.ts                # Switch-row element contract, the row table filling it, and each row's store follower
         seg-keyboard.ts              # Arrow, Home, End and commit keyboard handling shared by the segmented controls
@@ -620,12 +639,10 @@ YUI/
           cue-lists.ts               # Mounts and tears down the two cue lists
         delegations/                 # Delegated-work refresh for the session section
           delegation-sync.ts         # Minute refresh timer that follows the running delegated items
-        header/                      # Popover header bar buttons
-          header-buttons.ts          # Pop-out, message and close buttons with their listeners
         preset/                      # Preset strip above the rail
-          preset-strip.ts            # Active-preset picker, the switching state, the page scope lines and the rail's character heading it fills; in the settings window the character header picks the preset to edit (`?edit=`)
+          preset-strip.ts            # The character header that picks the preset to edit (`?edit=`), the edited preset's note, the page scope lines and the rail's character heading it fills
           character-header.ts        # The settings window's header: every preset with its face, transport and window state; a click edits it
-          preset-manage.ts           # Manage popover: rows with inline rename, delete confirm, "Use in main" in the settings window (it switches main's preset), and the new-preset field
+          preset-manage.ts           # Manage popover: rows with inline rename, delete confirm, "Use in main" (it switches main's preset), and the new-preset field
           preset-scope.ts            # Scope line text: only the edited character, or every character
           preset.css                 # Strip, manage popover, scope line, relation line, and reasons card styles
           photo-dialog/              # The photo dialog
@@ -725,6 +742,7 @@ YUI/
       app_log.rs                     # Log plugin sink, timezone, line format, and log directory
       drag.rs                        # OS-native window drag with multi-monitor and DPI correction
       window_frame.rs                # Lifts AppKit frame constraining and applies logical window frames
+      quick_card_dock.rs             # The quick-card window's macOS child-window link to its pet window: quick_card_attach, quick_card_detach
       passthrough.rs                 # Click-through toggle over the transparent overlay
       screenshot.rs                  # Screen-source enumeration and off-thread display capture
       image_encode.rs                # Long-edge resize and JPEG data-URL encode shared by capture and the browser relay
@@ -749,7 +767,7 @@ YUI/
       os_event_watcher/
         mod.rs                       # OS polling loop that emits os_event to the webview
         witness.rs                   # Transition-only log of frontmost app and idle state
-        drop_release.rs              # Drop-release probe that emits window_drop_release
+        drop_release.rs              # Drop-release probe that emits window_drop_release with the dragged window's label
         pure_helpers.rs              # Idle conversion and frontmost-window pick
         macos.rs                     # macOS idle, window enumeration, and camera polling
         windows.rs                   # Windows idle, foreground window, and window enumeration polling

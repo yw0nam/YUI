@@ -1,7 +1,7 @@
 /* ── `?` hint tooltip — floating explanation shown by hint-tooltip.ts ── */
 .yui-hint-tip {
   position: fixed;
-  z-index: 101; /* above .yui-quick panel (100) */
+  z-index: 101; /* above the panel's popovers */
   max-width: 16rem;
   padding: 0.4rem 0.6rem;
   border-radius: var(--yui-radius-control);

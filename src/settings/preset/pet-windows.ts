@@ -8,14 +8,14 @@ export const PET_WINDOWS_KEY = "yui.windows";
 export const LIVE_KEY_PREFIX = "yui.live-window.";
 /** Most presets open at once, main's included. */
 export const OPEN_PRESET_CAP = 4;
-export type PresetWindowKind = "pet" | "settings" | "message";
+export type PresetWindowKind = "pet" | "settings" | "message" | "quick-card";
 export const windowLabel = (kind: PresetWindowKind, id: string): string => `${kind}-${id}`;
 export const liveKey = (label: string): string => `${LIVE_KEY_PREFIX}${label}`;
 export function isWindowLive(label: string): boolean {
   return globalThis.localStorage?.getItem(liveKey(label)) === "1";
 }
 export function isPresetWindowLive(id: string): boolean {
-  return (["pet", "settings", "message"] as const).some((kind) =>
+  return (["pet", "settings", "message", "quick-card"] as const).some((kind) =>
     isWindowLive(windowLabel(kind, id)),
   );
 }

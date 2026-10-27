@@ -111,6 +111,10 @@ _Avoid_: tag, call-out, ping
 The unified chat window's chip for one open preset in its head row, the recipient picker: the preset's face, its name and a dot for its line — talk while its line holds the box, think while its turn runs or its line waits for the box, else idle. The cast chips and the everyone chip after them are one radio group; a click picks the chip's recipient. The checked chip is the counted pick, else the preset a typed leading `@name` resolves to, else, while a send runs, that send's recipient, else the last speaker, else main's preset, else the first open preset.
 _Avoid_: avatar pill, presence badge, recipient chip
 
+**Quick card**:
+The card a right-click on the character opens beside her in its own window: her face, name and transport line, four tiles (Voice, Listen, Keep bubble, Unified chat) that write the same stores as their settings rows, the Body and Reference voice selects, a conversation reset that asks first, Turn off for a bound pet window, and All settings…, which opens the settings window on her. Listen works in the main window only. It docks 12px from her on the roomier side and travels with her until dragged off her side; Escape, × and a click in another app close it.
+_Avoid_: quick panel, popover
+
 **Aside**:
 A line the client speaks in the character's voice outside a turn's utterance: filler, a failure apology, the card's greeting. While the unified chat window shows, an aside goes there with the character's lines; an app notice (the first-run hint, a hotkey failure) stays on the character's own bubble.
 _Avoid_: client line, system line

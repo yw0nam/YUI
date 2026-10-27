@@ -16,7 +16,7 @@ interface FillerSectionDeps {
   root: HTMLElement;
   /** Thinking filler settings store. */
   fillerSettings: FillerSettingsStore;
-  /** Popover open state — the store subscription redraws only while the panel is open. */
+  /** Panel open state — the store subscription redraws only while the panel is open. */
   isOpen: () => boolean;
   /** Switch-row redraw — the store subscription calls it before reflect(). */
   reflectSwitchRows: () => void;

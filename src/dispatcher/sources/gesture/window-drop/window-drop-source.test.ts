@@ -53,7 +53,7 @@ const AUTHORED_CUES = {
   dropped: { label: "dropped from mid-air", context: "say something startled" },
 };
 
-/** A fake Tauri `listen` that captures the handler so the test can fire releases. */
+/** A fake Tauri `listen` that captures the handler so the test can fire releases, each naming the dragged window. */
 function makeListen() {
   const handlers: Array<(e: { payload: unknown }) => void> = [];
   const unlisten = vi.fn();
@@ -90,7 +90,7 @@ describe("window-drop-source — perch hit", () => {
 
     const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
     await source.start();
-    fire({ point: { x: 123, y: 456 } });
+    fire("main");
     await settleRelease();
 
     expect(invoke).toHaveBeenCalledWith("list_windows");
@@ -115,7 +115,7 @@ describe("window-drop-source — perch hit", () => {
 
     const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
     await source.start();
-    fire({ point: { x: 123, y: 456 } });
+    fire("main");
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
@@ -149,7 +149,7 @@ describe("window-drop-source — perch hit", () => {
       getGestureCues: () => AUTHORED_CUES,
     });
     await source.start();
-    fire({ point: { x: 123, y: 456 } });
+    fire("main");
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
@@ -177,7 +177,7 @@ describe("window-drop-source — perch hit", () => {
       getGestureCues: () => AUTHORED_CUES,
     });
     await source.start();
-    fire({ point: { x: 123, y: 456 } });
+    fire("main");
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
@@ -202,7 +202,7 @@ describe("window-drop-source — perch hit", () => {
 
     const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
     await source.start();
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease();
 
     expect(pushed).toHaveLength(2);
@@ -234,7 +234,7 @@ describe("window-drop-source — sit-down before the drop", () => {
 
     const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen, sitDown });
     await source.start();
-    fire({ point: { x: 123, y: 456 } });
+    fire("main");
     await settleRelease();
 
     expect(sitDown).toHaveBeenCalledTimes(1);
@@ -272,7 +272,7 @@ describe("window-drop-source — sit-down before the drop", () => {
       sitDown: () => sit.promise,
     });
     await source.start();
-    fire({ point: { x: 123, y: 456 } });
+    fire("main");
     await settleRelease();
     stack = [win({ y: 430 })];
     sit.resolve("done");
@@ -314,7 +314,7 @@ describe("window-drop-source — sit-down before the drop", () => {
       sitDown: () => sit.promise,
     });
     await source.start();
-    fire({ point: { x: 123, y: 456 } });
+    fire("main");
     await settleRelease();
     stack = [];
     sit.resolve("done");
@@ -348,7 +348,7 @@ describe("window-drop-source — sit-down before the drop", () => {
       sitDown: async () => "lost",
     });
     await source.start();
-    fire({ point: { x: 123, y: 456 } });
+    fire("main");
     await settleRelease();
 
     expect(pushed.map((e) => e.event_name)).toEqual(["proactive.window_sit"]);
@@ -377,7 +377,7 @@ describe("window-drop-source — no perch", () => {
     await source.start();
     source.adoptSit(1, { x: 0, y: 0 }, 200, "adopt");
     source.notePickup();
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
@@ -401,7 +401,7 @@ describe("window-drop-source — no perch", () => {
     await source.start();
     source.adoptSit(1, { x: 0, y: 0 }, 200, "adopt");
     source.notePickup();
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
@@ -421,7 +421,7 @@ describe("window-drop-source — no perch", () => {
     await source.start();
     source.adoptSit(1, { x: 0, y: 0 }, 200, "adopt");
     source.notePickup();
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await Promise.resolve();
     await Promise.resolve();
 
@@ -443,7 +443,7 @@ describe("window-drop-source — no perch", () => {
 
     const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen, onDragMiss });
     await source.start();
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease();
 
     expect(pushed).toEqual([]);
@@ -458,7 +458,7 @@ describe("window-drop-source — no perch", () => {
 
     const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
     await source.start();
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease();
 
     expect(pushed).toEqual([]);
@@ -486,7 +486,7 @@ describe("window-drop-source — held by a scene", () => {
       isHeld: () => true,
     });
     await source.start();
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
@@ -525,7 +525,7 @@ describe("window-drop-source — side peek drop", () => {
     });
 
     await source.start();
-    fire({});
+    fire("main");
     await settleRelease();
     expect(pushed.at(-1)).toMatchObject({
       event_name: "user.peek_drop",
@@ -569,12 +569,12 @@ describe("window-drop-source — side peek drop", () => {
     await source.start();
     source.adoptSit(1, { x: 0, y: 0 }, 200, "adopt");
     source.notePickup();
-    fire({});
+    fire("main");
     await settleRelease();
     expect(pushed.at(-1)?.event_name).toBe("user.window_sit_exit");
 
     peek.side_out_frac = 0.3;
-    fire({});
+    fire("main");
     await settleRelease();
     expect(pushed.at(-1)).toMatchObject({
       event_name: "user.peek_drop",
@@ -600,7 +600,7 @@ describe("window-drop-source — side peek drop", () => {
     });
 
     await source.start();
-    fire({});
+    fire("main");
     await settleRelease();
     expect(pushed).toHaveLength(2);
     expect(pushed.find((e) => e.event_name === "user.window_sit_drop")).toBeDefined();
@@ -634,7 +634,7 @@ describe("window-drop-source — side peek drop", () => {
     });
 
     await source.start();
-    fire({});
+    fire("main");
     await settleRelease();
 
     const env = pushed.find((e) => e.event_name === "proactive.peek")!;
@@ -669,7 +669,7 @@ describe("window-drop-source — side peek drop", () => {
     });
 
     await source.start();
-    fire({});
+    fire("main");
     await settleRelease();
 
     const env = pushed.find((e) => e.event_name === "proactive.peek")!;
@@ -708,7 +708,7 @@ describe("window-drop-source — side peek drop", () => {
     });
 
     await source.start();
-    fire({});
+    fire("main");
     await settleRelease();
 
     const env = pushed.find((e) => e.event_name === "proactive.peek")!;
@@ -736,7 +736,7 @@ describe("window-drop-source — side peek drop", () => {
     await source.start();
     source.adoptSit(1, { x: 0, y: 0 }, 200, "adopt");
     source.notePickup();
-    fire({});
+    fire("main");
     await settleRelease();
     expect(pushed).toHaveLength(1);
     expect(pushed[0].event_name).toBe("user.window_sit_exit");
@@ -780,7 +780,7 @@ describe("window-drop-source — lifecycle + degrade", () => {
 
     const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
     await source.start();
-    expect(() => fire({ point: { x: 0, y: 0 } })).not.toThrow();
+    expect(() => fire("main")).not.toThrow();
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
@@ -849,7 +849,7 @@ describe("window-drop-source — peek loss poll", () => {
       peekActive: () => state.active,
     });
     await source.start();
-    fire({});
+    fire("main");
     await settleRelease();
     expect(pushed.at(-1)?.event_name).toBe("user.peek_drop");
     return { source, state, renderer, armed, invoke };
@@ -936,14 +936,14 @@ describe("window-drop-source — peek loss poll", () => {
       clearInterval: fakeClearInterval,
     });
     await source.start();
-    fire({});
+    fire("main");
     await settleRelease();
 
     (tickCb as (() => void) | null)?.();
     await Promise.resolve();
     await Promise.resolve();
     source.notePickup();
-    fire({});
+    fire("main");
     await settleRelease();
     expect(pushed.filter((e) => e.event_name.endsWith("_exit"))).toHaveLength(1);
 
@@ -970,7 +970,7 @@ describe("window-drop-source — occlusion poll arm/hold (J1)", () => {
     const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
 
     await source.start();
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease();
     expect(pushed.at(-1)?.event_name).toBe("user.window_sit_drop");
 
@@ -988,7 +988,7 @@ describe("window-drop-source — occlusion poll arm/hold (J1)", () => {
     const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
 
     await source.start();
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease();
 
     await tick();
@@ -1015,7 +1015,7 @@ describe("window-drop-source — occlusion poll default cadence (J1b)", () => {
     const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
 
     await source.start();
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease();
     expect(pushed.at(-1)?.event_name).toBe("user.window_sit_drop");
 
@@ -1048,7 +1048,7 @@ describe("window-drop-source — occlusion poll loss + debounce (J2)", () => {
     const source = createWindowDropSource({ bus, renderer, invoke, getWindow, listen });
     await source.start();
     invoke.mockImplementation(async () => lists[0]);
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease();
     return { invoke, lists };
   }
@@ -1130,7 +1130,7 @@ describe("window-drop-source — occlusion poll lifecycle + races (J3)", () => {
     await source.start();
     source.adoptSit(1, { x: 0, y: 0 }, 200, "adopt");
     source.notePickup();
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease();
     expect(pushed.filter((e) => e.event_name === "user.window_sit_exit")).toHaveLength(1);
 
@@ -1164,12 +1164,12 @@ describe("window-drop-source — occlusion poll lifecycle + races (J3)", () => {
     expect(pushed).toEqual([]);
 
     invoke.mockImplementation(async () => [win({ x: 5000, y: 5000 })]);
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease();
     expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_exit"]);
 
     // The capture belongs to one release; the next miss without a pickup stays silent.
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease();
     expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_exit"]);
   });
@@ -1193,7 +1193,7 @@ describe("window-drop-source — occlusion poll lifecycle + races (J3)", () => {
 
     source.notePickup();
     source.abandonSit();
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease();
 
     expect(pushed.map((e) => e.event_name)).toEqual(["user.window_sit_exit"]);
@@ -1210,11 +1210,11 @@ describe("window-drop-source — occlusion poll lifecycle + races (J3)", () => {
     await source.start();
 
     invoke.mockImplementation(async () => [winA]);
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease(); // armed on 1.
 
     invoke.mockImplementation(async () => [winB]); // re-drop onto B.
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease(); // re-armed on 2.
 
     // Only B present now → armed on 2 holds; remove 2 to prove the new arm is live.
@@ -1237,7 +1237,7 @@ describe("window-drop-source — occlusion poll lifecycle + races (J3)", () => {
       listen,
     });
     await source.start();
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease();
 
     // perch ended elsewhere (manual re-grab / dev exit).
@@ -1291,7 +1291,7 @@ describe("window-drop-source — occlusion poll lifecycle + races (J3)", () => {
     });
     await source.start();
 
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease(); // armed on 42, gen = 1, tickCb captured.
 
     // Fire one poll tick — it reaches the blocked list_windows (call #2) and awaits.
@@ -1301,7 +1301,7 @@ describe("window-drop-source — occlusion poll lifecycle + races (J3)", () => {
     await Promise.resolve();
 
     // A fresh drop arrives mid-await → re-arms on 77, bumping pollGen to 2.
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease(); // re-armed on 77, gen = 2.
 
     // Resolve the STALE (gen-1) list as EMPTY → would detach the live 77, but the
@@ -1327,7 +1327,7 @@ describe("window-drop-source — occlusion poll lifecycle + races (J3)", () => {
       listen,
     });
     await source.start();
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease();
 
     // probe still ok, but the armed window is absent from the fresh list → first-tick detach.
@@ -1350,7 +1350,7 @@ describe("window-drop-source — occlusion poll lifecycle + races (J3)", () => {
       listen,
     });
     await source.start();
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease();
 
     // Mid-drag: perch still true on screen but the armed window has gone (re-grab) →
@@ -1360,7 +1360,7 @@ describe("window-drop-source — occlusion poll lifecycle + races (J3)", () => {
     // The release then resolves over no window → onRelease pushes its own exit, but the
     // poll already disarmed, so no poll double-fire.
     invoke.mockImplementation(async () => [win({ x: 5000, y: 5000, windowNumber: 1 })]);
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease();
 
     // Exactly: one poll exit + one release exit = 2, never a poll double-fire on later ticks.
@@ -1385,7 +1385,7 @@ describe("window-drop-source — occlusion poll lifecycle + races (J3)", () => {
       listen,
     });
     await source.start();
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease();
 
     source.stop();
@@ -1429,7 +1429,7 @@ describe("window-drop-source — arm-baseline detach policy (#191)", () => {
       listen,
     });
     await source.start();
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease();
     expect(pushed.at(-1)?.event_name).toBe("user.window_sit_drop");
     return { source, invoke, armed };
@@ -1451,7 +1451,7 @@ describe("window-drop-source — arm-baseline detach policy (#191)", () => {
       listen,
     });
     await source.start();
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease();
     expect(pushed.at(-1)?.event_name).toBe("user.window_sit_drop");
 
@@ -1872,7 +1872,7 @@ describe("window-drop-source — drag miss", () => {
       onDragMiss,
     });
     await source.start();
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease();
 
     expect(onDragMiss).toHaveBeenCalledTimes(1);
@@ -1894,7 +1894,7 @@ describe("window-drop-source — drag miss", () => {
       onDragMiss,
     });
     await source.start();
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease();
 
     expect(onDragMiss).toHaveBeenCalledTimes(1);
@@ -1916,7 +1916,7 @@ describe("window-drop-source — drag miss", () => {
       onDragMiss,
     });
     await source.start();
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease();
 
     expect(pushed.some((e) => e.event_name === "user.window_sit_drop")).toBe(true);
@@ -1967,7 +1967,7 @@ describe("window-drop-source — drag miss", () => {
         onDragMiss,
       });
       await source.start();
-      fire({ point: { x: 0, y: 0 } });
+      fire("main");
       await settleRelease();
       onDragMiss.mockClear();
 
@@ -2101,7 +2101,7 @@ describe("window-drop-source — host loss fall", () => {
       onSitLost,
     });
     await source.start();
-    fire({ point: { x: 0, y: 0 } });
+    fire("main");
     await settleRelease();
     expect(pushed.at(-1)?.event_name).toBe("user.window_sit_drop");
     order.length = 0;
@@ -2187,7 +2187,7 @@ describe("window-drop-source — host loss fall", () => {
       onSitLost,
     });
     await source.start();
-    fire({});
+    fire("main");
     await settleRelease();
     expect(pushed.at(-1)?.event_name).toBe("user.peek_drop");
 
@@ -2239,7 +2239,7 @@ describe("window-drop-source — geometry save gating", () => {
       wasDragging: () => true,
     });
     await source.start();
-    fire({ point: { x: 123, y: 456 } });
+    fire("main");
     await settleRelease();
 
     expect(order).toEqual(["released", "miss"]);
@@ -2262,10 +2262,39 @@ describe("window-drop-source — geometry save gating", () => {
       wasDragging: () => true,
     });
     await source.start();
-    fire({ point: { x: 123, y: 456 } });
+    fire("main");
     await settleRelease();
 
     expect(onReleased).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "quick-card",
+    "quick-card-a",
+  ])("settles nothing on the release of a %s window's drag", async (label) => {
+    const invoke = vi.fn(async () => []);
+    const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
+    const { listen, fire } = makeListen();
+    const onReleased = vi.fn();
+    const onDragMiss = vi.fn();
+
+    const source = createWindowDropSource({
+      bus,
+      renderer: idleRenderer,
+      invoke,
+      getWindow,
+      listen,
+      onReleased,
+      onDragMiss,
+      wasDragging: () => true,
+    });
+    await source.start();
+    fire(label);
+    await settleRelease();
+
+    expect(invoke).not.toHaveBeenCalled();
+    expect(onReleased).not.toHaveBeenCalled();
+    expect(onDragMiss).not.toHaveBeenCalled();
   });
 
   it("does not save when this window was not dragging", async () => {
@@ -2284,7 +2313,7 @@ describe("window-drop-source — geometry save gating", () => {
       wasDragging: () => false,
     });
     await source.start();
-    fire({ point: { x: 123, y: 456 } });
+    fire("main");
     await settleRelease();
 
     expect(onReleased).not.toHaveBeenCalled();

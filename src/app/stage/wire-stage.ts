@@ -5,16 +5,14 @@ import { createCursorTracker } from "../../io/window/pet/cursor-tracker";
 import { createHitTestController, type HitTestController } from "../../io/window/pet/hit-test";
 import type { Renderer } from "../../renderer";
 import type { FlagSettingsStore } from "../../settings/persisted-store";
-import type { createQuickControls } from "../../ui/quick-controls/quick-controls";
 import { INTERACTIVE_OVERLAY_SELECTORS } from "../../ui/surfaces/interactive-overlay";
 
 export function wireHitTest(deps: {
   root: HTMLElement;
   renderer: Pick<Renderer, "hitTest">;
-  getQuickControls: () => Pick<ReturnType<typeof createQuickControls>, "isOpen" | "el">;
   getConfig: () => HitTestKnobs;
 }): HitTestController {
-  const { root, renderer, getQuickControls, getConfig } = deps;
+  const { root, renderer, getConfig } = deps;
   const interactiveRects = (): DOMRect[] => {
     const rects: DOMRect[] = [];
     for (const selector of INTERACTIVE_OVERLAY_SELECTORS) {
@@ -22,8 +20,6 @@ export function wireHitTest(deps: {
         rects.push(el.getBoundingClientRect());
       }
     }
-    const quickControls = getQuickControls();
-    if (quickControls.isOpen()) rects.push(quickControls.el.getBoundingClientRect());
     return rects;
   };
   const pointInRect = (x: number, y: number, rect: DOMRect, margin: number): boolean =>

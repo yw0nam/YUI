@@ -8,7 +8,7 @@ export async function closeCompanions(id: string): Promise<void> {
   if (!isTauri()) return;
   const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
   await Promise.all(
-    (["settings", "message"] as const).map(async (kind) => {
+    (["settings", "message", "quick-card"] as const).map(async (kind) => {
       try {
         await (await WebviewWindow.getByLabel(windowLabel(kind, id)))?.close();
       } catch (error) {

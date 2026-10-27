@@ -37,7 +37,6 @@ const knobs = (): HitTestKnobs => ({
 const setupHitTest = (opts: {
   hit?: (x: number, y: number) => boolean;
   overlays?: Record<string, DOMRect[]>;
-  quickControls?: { rect: DOMRect };
 }) => {
   const controller = {
     start: vi.fn(),
@@ -47,7 +46,6 @@ const setupHitTest = (opts: {
     setMoving: vi.fn(),
   };
   createHitTestController.mockImplementation(() => controller);
-  let quickOpen = false;
   const querySelectorAll = vi.fn((selector: string) =>
     (opts.overlays?.[selector] ?? []).map(
       (rect) => ({ getBoundingClientRect: () => rect }) as unknown as HTMLElement,
@@ -56,21 +54,12 @@ const setupHitTest = (opts: {
   const hitTest = wireHitTest({
     root: { querySelectorAll } as unknown as HTMLElement,
     renderer: { hitTest: opts.hit ?? (() => false) },
-    getQuickControls: () => ({
-      isOpen: () => quickOpen,
-      el: {
-        getBoundingClientRect: () => opts.quickControls?.rect ?? rectOf(0, 0, 0, 0),
-      } as HTMLElement,
-    }),
     getConfig: knobs,
   });
   return {
     hitTest,
     controller,
     querySelectorAll,
-    setQuickControlsOpen: (open: boolean) => {
-      quickOpen = open;
-    },
     isOverInteractive: createHitTestController.mock.calls[0][0].isOverInteractive,
   };
 };
@@ -139,14 +128,6 @@ describe("wireHitTest", () => {
       },
     });
     expect(s.isOverInteractive(140, 110, 0)).toBe(true);
-  });
-
-  it("counts the quick-controls rect only while it is open", () => {
-    const s = setupHitTest({ quickControls: { rect: rectOf(300, 300, 400, 340) } });
-    s.setQuickControlsOpen(true);
-    expect(s.isOverInteractive(310, 320, 0)).toBe(true);
-    s.setQuickControlsOpen(false);
-    expect(s.isOverInteractive(310, 320, 0)).toBe(false);
   });
 
   it("starts the controller and returns it", () => {

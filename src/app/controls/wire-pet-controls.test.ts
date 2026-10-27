@@ -1,212 +1,105 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const { createQuickControls, wireCueLocaleSync, localeSubscribers } = vi.hoisted(() => ({
-  createQuickControls: vi.fn(),
-  wireCueLocaleSync: vi.fn(),
-  localeSubscribers: [] as Array<() => void>,
-}));
-
-vi.mock("../../ui/quick-controls/quick-controls", () => ({ createQuickControls }));
-vi.mock("../settings/wire-cue-locale-sync", () => ({ wireCueLocaleSync }));
-vi.mock("../../ui/i18n", () => ({
-  subscribe: (cb: () => void) => {
-    localeSubscribers.push(cb);
-    return () => {
-      localeSubscribers.splice(localeSubscribers.indexOf(cb), 1);
-    };
-  },
-}));
-
-import { createSettingsStores, type SettingsStores } from "../../settings/settings-stores";
+import { afterEach, expect, it, vi } from "vitest";
+import { createSettingsStores } from "../../settings/settings-stores";
 import { createVoiceInputStatus } from "../../ui/chips/voice-input-status";
-import { createConversationStores } from "../settings/conversation-stores";
 import { wirePetControls } from "./wire-pet-controls";
 
-/** The build/dispose event trail of the mocked panel factory. */
-const events: string[] = [];
-
-beforeEach(() => {
-  events.length = 0;
-  createQuickControls.mockImplementation(() => {
-    const panel = { open: vi.fn(), dispose: vi.fn(() => void events.push("quick.dispose")) };
-    events.push("quick.build");
-    return panel;
-  });
-  wireCueLocaleSync.mockImplementation(() => vi.fn());
+const registered: Array<() => void> = [];
+afterEach(() => {
+  for (const teardown of registered.splice(0)) teardown();
 });
 
-describe("wirePetControls", () => {
-  function makeDeps(boundId: string | null = null) {
-    const stores: SettingsStores = createSettingsStores();
-    const conversation = createConversationStores();
-    const registered: Array<() => void> = [];
-    const stage = document.createElement("div");
-    const removeEventListener = vi.spyOn(stage, "removeEventListener");
-    const deps = {
-      boundId,
-      root: document.createElement("div"),
-      stage,
-      stores,
-      conversation,
-      config: {
-        get: () => {
-          throw new Error("config not loaded");
-        },
-      },
-      renderer: { setMouthOpen: vi.fn(), stopMouth: vi.fn() },
-      vrm: { vrmSelection: {}, swapVrm: vi.fn(), importVrm: vi.fn() },
-      speaker: {
-        speakerSelection: {},
-        swapSpeaker: vi.fn(),
-        refreshSpeaker: vi.fn(),
-        pickVoiceImport: vi.fn(),
-        commitVoiceImport: vi.fn(),
-        removeVoice: vi.fn(),
-        refreshVoiceList: vi.fn(),
-      },
-      pushSocket: {
-        getState: vi.fn(),
-        onState: vi.fn(() => () => {}),
-        sendReset: vi.fn(),
-        reconnectNow: vi.fn(),
-      },
-      stopTurn: vi.fn(),
-      voiceInputStatus: createVoiceInputStatus(),
-      screenSourceProvider: { listMonitors: vi.fn(async () => []) },
-      surfaces: { summonInput: vi.fn() },
-      remoteSurfaces: { onOpenSettings: vi.fn() },
-      openSettings: vi.fn(),
-      openDevtools: vi.fn(),
-      register: (teardown: () => void) => {
-        registered.push(teardown);
-      },
-    };
-    const controls = wirePetControls(deps as never);
-    return { controls, deps, stores, registered, stage, removeEventListener };
-  }
-
-  function teardownDeps(wired: ReturnType<typeof makeDeps>) {
-    for (const fn of wired.registered) fn();
-    for (const store of Object.values(wired.stores)) store.dispose();
-    for (const store of Object.values(wired.deps.conversation)) store.dispose();
-  }
-
-  it.each([
-    null,
-    "a",
-  ])("opens settings and keeps voice ownership across remount (bound: %s)", async (boundId) => {
-    vi.stubGlobal("__TAURI_INTERNALS__", { metadata: { currentWindow: { label: "main" } } });
-    const wired = makeDeps(boundId);
-    try {
-      const options = createQuickControls.mock.calls[0][0];
-      options.onPopOut();
-      expect(wired.deps.openSettings).toHaveBeenCalledTimes(1);
-      expect(options.showVoiceInput).toBe(boundId === null);
-      expect(options.browserSettings).toBe(
-        boundId === null ? wired.stores.browserSettings : undefined,
-      );
-      localeSubscribers[0]!();
-      await Promise.resolve();
-      expect(createQuickControls.mock.calls.at(-1)![0].showVoiceInput).toBe(boundId === null);
-      expect(createQuickControls.mock.calls.at(-1)![0].browserSettings).toBe(
-        boundId === null ? wired.stores.browserSettings : undefined,
-      );
-    } finally {
-      teardownDeps(wired);
-      vi.unstubAllGlobals();
-    }
+function wired(
+  over: {
+    boundId?: string | null;
+    anchor?: { x: number; y: number } | null;
+    silhouette?: { left: number; right: number; top: number; bottom: number } | null;
+  } = {},
+) {
+  const stores = createSettingsStores();
+  registered.push(() => {
+    for (const store of Object.values(stores)) store.dispose();
   });
-
-  it("opens the settings window on Connection when a popped-out surface asks for settings", () => {
-    const wired = makeDeps();
-    try {
-      const ask = wired.deps.remoteSurfaces.onOpenSettings.mock.calls[0]![0];
-
-      ask();
-
-      expect(wired.deps.openSettings).toHaveBeenCalledExactlyOnceWith("conn");
-    } finally {
-      teardownDeps(wired);
-    }
-  });
-
-  it("registers the four teardowns in the baseline boot order", () => {
-    const wired = makeDeps();
-
-    expect(wired.registered).toHaveLength(4);
-    // The panel binding drains a disposed-then-rebuilt instance live, so its slot is identified
-    // by behavior, not identity.
-    wired.registered[0]!();
-    expect(events.filter((e) => e.endsWith(".dispose"))).toEqual(["quick.dispose"]);
-    // Slot 2 is the cue-locale sync disposer, slot 3 the locale unsubscriber, slot 4 the
-    // context-menu remover.
-    expect(wired.registered[1]).toBe(wireCueLocaleSync.mock.results[0]?.value);
-    expect(localeSubscribers).toHaveLength(1);
-    wired.registered[2]!();
-    expect(localeSubscribers).toHaveLength(0);
-    wired.registered[3]!();
-    expect(wired.removeEventListener).toHaveBeenCalledWith("contextmenu", expect.any(Function));
-
-    teardownDeps(wired);
-  });
-
-  it("defers the locale remount by exactly one microtask", async () => {
-    const wired = makeDeps();
-    expect(events).toEqual(["quick.build"]);
-
-    localeSubscribers[0]!();
-    expect(events).toEqual(["quick.build"]);
-
-    await Promise.resolve();
-    expect(events).toEqual(["quick.build", "quick.dispose", "quick.build"]);
-    await Promise.resolve();
-    expect(events).toHaveLength(3);
-
-    teardownDeps(wired);
-  });
-
-  it("get() returns the rebuilt panel after a locale remount", async () => {
-    const wired = makeDeps();
-    const first = wired.controls.get();
-    localeSubscribers[0]!();
-    await Promise.resolve();
-
-    expect(wired.controls.get()).not.toBe(first);
-    expect(wired.controls.get()).toBe(createQuickControls.mock.results.at(-1)?.value);
-    wired.stage.dispatchEvent(
-      new MouseEvent("contextmenu", { clientX: 5, clientY: 6, cancelable: true }),
-    );
-    expect(first.open).not.toHaveBeenCalled();
-    expect(wired.controls.get().open).toHaveBeenCalledWith({ x: 5, y: 6 });
-
-    teardownDeps(wired);
-  });
-
-  it("opens the live panel at the pointer from the stage context menu", () => {
-    const wired = makeDeps();
-
+  const deps = {
+    stage: document.createElement("div"),
+    stores,
+    renderer: {
+      getCharacterAnchor: () => (over.anchor === undefined ? { x: 200, y: 300 } : over.anchor),
+      getCharacterWidthPx: () => 100,
+      getSilhouetteBounds: () => over.silhouette ?? null,
+    },
+    boundId: over.boundId ?? null,
+    voiceInputStatus: createVoiceInputStatus(),
+    remoteSurfaces: { onOpenSettings: vi.fn() },
+    openSettings: vi.fn(),
+    quickCardWindow: { open: vi.fn() },
+    register: (teardown: () => void) => void registered.push(teardown),
+  };
+  wirePetControls(deps);
+  const rightClick = () => {
     const event = new MouseEvent("contextmenu", { clientX: 12, clientY: 34, cancelable: true });
-    wired.stage.dispatchEvent(event);
+    deps.stage.dispatchEvent(event);
+    return event;
+  };
+  return { deps, rightClick };
+}
 
-    expect(event.defaultPrevented).toBe(true);
-    expect(wired.controls.get().open).toHaveBeenCalledWith({ x: 12, y: 34 });
+it.each([
+  [
+    "main's live-silhouette, not model-box,",
+    { silhouette: { left: 180, right: 226, top: 40, bottom: 390 } },
+    false,
+    { left: 180, right: 226, y: 34, listening: false },
+  ],
+  // Without a silhouette, her anchor x 200 with width 100 spans 150..250; the click's y rides along.
+  [
+    "main's, with its idle voice input",
+    {},
+    false,
+    { left: 150, right: 250, y: 34, listening: false },
+  ],
+  [
+    "main's, with its live voice input",
+    {},
+    true,
+    { left: 150, right: 250, y: 34, listening: true },
+  ],
+  [
+    "a bound character's, with no listening flag",
+    { boundId: "a" },
+    true,
+    { left: 150, right: 250, y: 34 },
+  ],
+  [
+    "main's, at the click's x when the renderer has no anchor",
+    { anchor: null },
+    false,
+    { left: 12, right: 12, y: 34, listening: false },
+  ],
+])("a stage right-click sends %s extent to the quick-card window", (_name, over, live, request) => {
+  const { deps, rightClick } = wired(over);
+  if (live) deps.voiceInputStatus.set("listening");
 
-    teardownDeps(wired);
-  });
+  const event = rightClick();
 
-  it("guarded config readers fall back before the config loads", () => {
-    const wired = makeDeps();
-    const options = createQuickControls.mock.calls[0]?.[0] as Record<string, () => unknown>;
+  expect(event.defaultPrevented).toBe(true);
+  expect(deps.quickCardWindow.open).toHaveBeenCalledExactlyOnceWith(request);
+});
 
-    expect(options.getRateLimitDefaults()).toBeUndefined();
-    expect(options.getScreenDefaults()).toBeUndefined();
-    expect(options.getPersona()).toBeUndefined();
-    expect(options.getEndpointDefaults()).toBeUndefined();
-    expect(options.getDefaultChatApi()).toBeUndefined();
-    expect(options.getIdlePool()).toBeUndefined();
-    expect(options.getExpressMotions()).toEqual([]);
+it("opens the settings window on Connection when a popped-out surface asks for settings", () => {
+  const { deps } = wired();
+  const ask = deps.remoteSurfaces.onOpenSettings.mock.calls[0]![0];
 
-    teardownDeps(wired);
-  });
+  ask();
+
+  expect(deps.openSettings).toHaveBeenCalledExactlyOnceWith("conn");
+});
+
+it("stops sending right-clicks once torn down", () => {
+  const { deps, rightClick } = wired();
+
+  for (const teardown of registered.splice(0)) teardown();
+  rightClick();
+
+  expect(deps.quickCardWindow.open).not.toHaveBeenCalled();
 });

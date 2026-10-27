@@ -1,27 +1,19 @@
 // @vitest-environment jsdom
 /**
- * not_configured affordance, end to end: the inline input error carries a button
- * that opens the quick-controls panel on the Connection tab (real surfaces + real panel).
+ * not_configured affordance, end to end: the inline input error carries a button that opens the
+ * settings window on the Connection page (real surfaces, the opener stubbed).
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setLocale } from "../i18n";
-import { createQuickControls } from "../quick-controls/quick-controls";
-import { defaultQcArgs } from "../quick-controls/test-helpers";
 import { createSurfaces } from "../surfaces/surfaces";
 import { noTool } from "../surfaces/test-helpers";
 import { turnErrorFixAction, turnErrorMessage } from "./turn-error";
 
-describe("not_configured → open the Connection tab", () => {
+describe("not_configured → open the Connection page", () => {
   let mount: HTMLElement;
 
   beforeEach(() => {
-    let rafId = 0;
-    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
-      cb(0);
-      return ++rafId;
-    });
-    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
     mount = document.createElement("div");
     document.body.appendChild(mount);
     setLocale("en");
@@ -29,35 +21,27 @@ describe("not_configured → open the Connection tab", () => {
 
   afterEach(() => {
     document.body.innerHTML = "";
-    vi.restoreAllMocks();
     setLocale("en");
   });
 
-  it("the inline error's fix button opens the panel it is given on the Connection page", () => {
+  it("the inline error's fix button opens the settings window on the Connection page", () => {
     const surfaces = createSurfaces({ tool: noTool, mount });
-    const quickControls = createQuickControls(defaultQcArgs(mount));
+    const openSettings = vi.fn();
 
     // The bootstrap wiring: message + optional fix action for the failed turn.
-    const message = turnErrorMessage("not_configured")!;
     surfaces.showInputError(
-      message,
-      turnErrorFixAction("not_configured", (tab) => quickControls.open(undefined, { tab })),
+      turnErrorMessage("not_configured")!,
+      turnErrorFixAction("not_configured", openSettings),
     );
 
     const button = surfaces.el.querySelector<HTMLButtonElement>(".yui-input__error-action")!;
     expect(button).not.toBeNull();
-    expect(quickControls.isOpen()).toBe(false);
+    expect(openSettings).not.toHaveBeenCalled();
 
     button.click();
 
-    expect(quickControls.isOpen()).toBe(true);
-    const conn = quickControls.el.querySelector<HTMLButtonElement>("#yui-tab-conn")!;
-    expect(conn.getAttribute("aria-selected")).toBe("true");
-    expect(
-      quickControls.el.querySelector<HTMLElement>(`#${conn.getAttribute("aria-controls")}`)!.hidden,
-    ).toBe(false);
+    expect(openSettings).toHaveBeenCalledExactlyOnceWith("conn");
 
-    quickControls.dispose();
     surfaces.dispose();
   });
 

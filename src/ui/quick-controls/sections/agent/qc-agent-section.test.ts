@@ -36,7 +36,6 @@ describe("createQuickControls — agent section", () => {
   let endpointsSettings: ReturnType<typeof createEndpointsSettings>;
   let proactiveSettings: ReturnType<typeof createProactiveSettings>;
   let scheduleSettings: ReturnType<typeof createScheduleSettings>;
-  let onPopOut: Mock<() => void>;
   let vrmSelection: ReturnType<typeof createVrmSelection>;
   let swapVrm: Mock<(option: AvatarOption) => Promise<void>>;
   let importVrm: Mock<() => Promise<void>>;
@@ -49,14 +48,6 @@ describe("createQuickControls — agent section", () => {
   let removeVoice: Mock<(id: string) => Promise<void>>;
 
   beforeEach(() => {
-    // Make rAF synchronous so open() → is-open transition happens immediately in tests
-    let rafId = 0;
-    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
-      cb(0);
-      return ++rafId;
-    });
-    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
-
     mount = document.createElement("div");
     document.body.appendChild(mount);
 
@@ -67,7 +58,6 @@ describe("createQuickControls — agent section", () => {
     endpointsSettings = createEndpointsSettings();
     proactiveSettings = createProactiveSettings();
     scheduleSettings = createScheduleSettings();
-    onPopOut = vi.fn<() => void>();
     vrmSelection = makeVrmSelection();
     // default fake: commit the store on success (mirrors the real settings-window impl)
     swapVrm = vi.fn<(option: AvatarOption) => Promise<void>>(async (option) => {
@@ -109,7 +99,6 @@ describe("createQuickControls — agent section", () => {
       endpointsSettings,
       proactiveSettings,
       scheduleSettings,
-      onPopOut,
       vrmSelection,
       swapVrm,
       importVrm,
@@ -249,21 +238,6 @@ describe("createQuickControls — agent section", () => {
       qc.open();
 
       expect(agentControls(qc).disabled()).toBe(true);
-
-      qc.dispose();
-    });
-
-    it("applies a transport change made while the panel is closed on the next open", () => {
-      const qc = buildQc();
-      qc.open();
-      qc.close();
-      const { disabled } = agentControls(qc);
-
-      endpointsSettings.set({ chat_api: "push" });
-      expect(disabled()).toBe(false);
-
-      qc.open();
-      expect(disabled()).toBe(true);
 
       qc.dispose();
     });

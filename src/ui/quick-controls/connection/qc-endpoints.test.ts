@@ -36,7 +36,6 @@ describe("createQuickControls — endpoints + API keys", () => {
   let endpointsSettings: ReturnType<typeof createEndpointsSettings>;
   let proactiveSettings: ReturnType<typeof createProactiveSettings>;
   let scheduleSettings: ReturnType<typeof createScheduleSettings>;
-  let onPopOut: Mock<() => void>;
   let vrmSelection: ReturnType<typeof createVrmSelection>;
   let swapVrm: Mock<(option: AvatarOption) => Promise<void>>;
   let importVrm: Mock<() => Promise<void>>;
@@ -49,14 +48,6 @@ describe("createQuickControls — endpoints + API keys", () => {
   let removeVoice: Mock<(id: string) => Promise<void>>;
 
   beforeEach(() => {
-    // Make rAF synchronous so open() → is-open transition happens immediately in tests
-    let rafId = 0;
-    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
-      cb(0);
-      return ++rafId;
-    });
-    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
-
     mount = document.createElement("div");
     document.body.appendChild(mount);
 
@@ -67,7 +58,6 @@ describe("createQuickControls — endpoints + API keys", () => {
     endpointsSettings = createEndpointsSettings();
     proactiveSettings = createProactiveSettings();
     scheduleSettings = createScheduleSettings();
-    onPopOut = vi.fn<() => void>();
     vrmSelection = makeVrmSelection();
     // default fake: commit the store on success (mirrors the real settings-window impl)
     swapVrm = vi.fn<(option: AvatarOption) => Promise<void>>(async (option) => {
@@ -109,7 +99,6 @@ describe("createQuickControls — endpoints + API keys", () => {
       endpointsSettings,
       proactiveSettings,
       scheduleSettings,
-      onPopOut,
       vrmSelection,
       swapVrm,
       importVrm,
@@ -155,18 +144,14 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.dispose();
   });
 
-  it("populates endpoint placeholders from getEndpointDefaults() on open even when defaults arrive after construction", () => {
-    // Panel is created before config is loaded — defaults are absent at creation time and must be filled at open() time.
-    let defaults: Record<string, string> | undefined;
-    const qc = buildQc({ getEndpointDefaults: () => defaults as never });
-    // Simulate config being loaded after creation.
-    defaults = {
+  it("populates endpoint placeholders from getEndpointDefaults()", () => {
+    const defaults = {
       chat_base_url: "http://localhost:8643/v1",
       stt_base_url: "http://localhost:5517/v1",
       tts_base_url: "http://localhost:8092",
       chat_model: "natsume",
     };
-    qc.open();
+    const qc = buildQc({ getEndpointDefaults: () => defaults as never });
 
     const ph = (key: string): string =>
       qc.el.querySelector<HTMLInputElement>(`.yui-input-row[data-ep-field="${key}"] .yui-ep-input`)!
@@ -417,10 +402,10 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.dispose();
   });
 
-  it("flushes a dirty typed key once on close() (never before close)", () => {
+  it("flushes a dirty typed key once on Escape (never before it)", () => {
     const chatKeySettings = createChatKeySettings();
     const setSpy = vi.spyOn(chatKeySettings, "setApiKey");
-    const qc = buildQc({ chatKeySettings });
+    const qc = buildQc({ chatKeySettings, onCloseWindow: vi.fn() });
     qc.open();
 
     const input = chatKeyInput(qc);
@@ -429,29 +414,10 @@ describe("createQuickControls — endpoints + API keys", () => {
     // Typing without blur persists nothing yet.
     expect(setSpy).not.toHaveBeenCalled();
 
-    qc.close();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     expect(setSpy).toHaveBeenCalledTimes(1);
     expect(setSpy).toHaveBeenCalledWith("sk-unblurred-789");
     expect(chatKeySettings.get().apiKey).toBe("sk-unblurred-789");
-
-    qc.dispose();
-  });
-
-  it("flushes a dirty typed key on close() in the window variant", () => {
-    const chatKeySettings = createChatKeySettings();
-    const setSpy = vi.spyOn(chatKeySettings, "setApiKey");
-    const qc = buildQc({ chatKeySettings, variant: "window" });
-    qc.open();
-
-    const input = chatKeyInput(qc);
-    input.value = "sk-window-321";
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    expect(setSpy).not.toHaveBeenCalled();
-
-    qc.close();
-    expect(setSpy).toHaveBeenCalledTimes(1);
-    expect(setSpy).toHaveBeenCalledWith("sk-window-321");
-    expect(chatKeySettings.get().apiKey).toBe("sk-window-321");
 
     qc.dispose();
   });
@@ -473,11 +439,11 @@ describe("createQuickControls — endpoints + API keys", () => {
     expect(chatKeySettings.get().apiKey).toBe("sk-disposed-654");
   });
 
-  it("emptying a set key then close() clears the override", () => {
+  it("emptying a set key then Escape clears the override", () => {
     const chatKeySettings = createChatKeySettings();
     chatKeySettings.setApiKey("sk-secret-123");
     const clearSpy = vi.spyOn(chatKeySettings, "clear");
-    const qc = buildQc({ chatKeySettings });
+    const qc = buildQc({ chatKeySettings, onCloseWindow: vi.fn() });
     qc.open();
 
     const input = chatKeyInput(qc);
@@ -486,22 +452,22 @@ describe("createQuickControls — endpoints + API keys", () => {
     // Emptying without blur does not clear yet.
     expect(clearSpy).not.toHaveBeenCalled();
 
-    qc.close();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     expect(clearSpy).toHaveBeenCalled();
     expect(chatKeySettings.get().apiKey).toBe("");
 
     qc.dispose();
   });
 
-  it("close() does not commit when no typing occurred", () => {
+  it("Escape does not commit when no typing occurred", () => {
     const chatKeySettings = createChatKeySettings();
     chatKeySettings.setApiKey("sk-secret-123");
     const setSpy = vi.spyOn(chatKeySettings, "setApiKey");
     const clearSpy = vi.spyOn(chatKeySettings, "clear");
-    const qc = buildQc({ chatKeySettings });
+    const qc = buildQc({ chatKeySettings, onCloseWindow: vi.fn() });
     qc.open();
 
-    qc.close();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     expect(setSpy).not.toHaveBeenCalled();
     expect(clearSpy).not.toHaveBeenCalled();
     expect(chatKeySettings.get().apiKey).toBe("sk-secret-123");
@@ -559,7 +525,7 @@ describe("createQuickControls — endpoints + API keys", () => {
   it("reflects a cross-window chat API key change while the focused document is blurred and clears dirty state", () => {
     const chatKeySettings = createChatKeySettings();
     const setSpy = vi.spyOn(chatKeySettings, "setApiKey");
-    const qc = buildQc({ chatKeySettings });
+    const qc = buildQc({ chatKeySettings, onCloseWindow: vi.fn() });
     qc.open();
 
     const input = chatKeyInput(qc);
@@ -573,7 +539,7 @@ describe("createQuickControls — endpoints + API keys", () => {
 
     expect(input.value).toBe("sk-from-other-window");
     setSpy.mockClear();
-    qc.close();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     expect(setSpy).not.toHaveBeenCalled();
 
     qc.dispose();
@@ -967,8 +933,8 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.dispose();
   });
 
-  it("commits a pending endpoint edit when the panel closes without a change event", () => {
-    const qc = buildQc();
+  it("commits a pending endpoint edit when the window closes without a change event", () => {
+    const qc = buildQc({ onCloseWindow: vi.fn() });
     qc.open();
 
     const input = qc.el.querySelector<HTMLInputElement>("#yui-ep-broker_base_url")!;
@@ -976,7 +942,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     input.dispatchEvent(new Event("input", { bubbles: true }));
     expect(endpointsSettings.get().broker_base_url).toBe("");
 
-    qc.close();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     expect(endpointsSettings.get().broker_base_url).toBe("http://localhost:3201/mcp");
 
     qc.dispose();

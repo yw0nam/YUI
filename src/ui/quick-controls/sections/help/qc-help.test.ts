@@ -31,26 +31,14 @@ describe("createQuickControls — help section", () => {
     qc.el.querySelector<HTMLButtonElement>(`[data-guide="${guide}"]`)!.click();
   }
 
-  it("a button submits the current-locale request text with its guide key, after the popover closed", () => {
+  it("a button submits the current-locale request text with its guide key", () => {
     const qc = createQuickControls({ ...defaultQcArgs(mount), onGuide });
     qc.open();
-    onGuide.mockImplementation(() => expect(qc.isOpen()).toBe(false));
 
     press(qc, "controls");
     expect(onGuide).toHaveBeenLastCalledWith("controls", "YUI 조작법 알려줘");
 
-    qc.open();
     press(qc, "capabilities");
     expect(onGuide).toHaveBeenLastCalledWith("capabilities", "YUI로 뭘 할 수 있는지 알려줘");
-  });
-
-  it("the separate settings window stays open after a press", () => {
-    const qc = createQuickControls({ ...defaultQcArgs(mount), variant: "window", onGuide });
-    qc.open();
-
-    press(qc, "controls");
-
-    expect(onGuide).toHaveBeenCalledOnce();
-    expect(qc.isOpen()).toBe(true);
   });
 });

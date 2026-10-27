@@ -31,6 +31,10 @@ pub fn handler() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         crate::turn_log::append_turn_record,
         crate::window_frame::set_frame_logical,
         #[cfg(desktop)]
+        crate::quick_card_dock::quick_card_attach,
+        #[cfg(desktop)]
+        crate::quick_card_dock::quick_card_detach,
+        #[cfg(desktop)]
         crate::browser::browser_run,
         #[cfg(desktop)]
         crate::browser::browser_guide,

@@ -186,7 +186,7 @@ describe("createQuickControls — push mode", () => {
   it("the reason's link opens Connection and focuses the chat protocol select, keeping push", () => {
     endpointsSettings.set({ chat_api: "push" });
     const qc = buildQc();
-    qc.open(undefined, { tab: "persona" });
+    qc.open({ tab: "persona" });
 
     qc.el.querySelector<HTMLButtonElement>(".yui-card .yui-push-reason button")!.click();
 
@@ -376,7 +376,7 @@ describe("createQuickControls — push mode", () => {
 
   it("sends a reset frame when the conversation is reset in push mode", () => {
     endpointsSettings.set({ chat_api: "push" });
-    const qc = buildQc({ variant: "popover", pushSocket: pushSocket(), ...sessionArgs() });
+    const qc = buildQc({ pushSocket: pushSocket(), ...sessionArgs() });
     qc.open();
 
     qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.click();
@@ -387,34 +387,8 @@ describe("createQuickControls — push mode", () => {
     qc.dispose();
   });
 
-  it("stops the running turn before the reset frame goes out", () => {
-    endpointsSettings.set({ chat_api: "push" });
-    const calls: string[] = [];
-    sendReset.mockImplementation(() => {
-      calls.push("sendReset");
-      return true;
-    });
-    const stopTurn = vi.fn(() => {
-      calls.push("stopTurn");
-    });
-    const qc = buildQc({
-      variant: "popover",
-      pushSocket: pushSocket(),
-      stopTurn,
-      ...sessionArgs(),
-    });
-    qc.open();
-
-    qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.click();
-    qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__confirm")!.click();
-
-    expect(calls).toEqual(["stopTurn", "sendReset"]);
-
-    qc.dispose();
-  });
-
   it("sends no reset frame outside push mode", () => {
-    const qc = buildQc({ variant: "popover", pushSocket: pushSocket(), ...sessionArgs() });
+    const qc = buildQc({ pushSocket: pushSocket(), ...sessionArgs() });
     qc.open();
 
     qc.el.querySelector<HTMLButtonElement>(".yui-hist__action .yui-session__reset")!.click();

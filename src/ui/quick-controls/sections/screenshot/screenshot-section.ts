@@ -21,7 +21,7 @@ interface ScreenshotSectionDeps {
   sourceProvider: ScreenSourceProvider;
   /** Logger — the switch click and the monitor list failures report here. */
   log: Logger;
-  /** Popover open state — the store subscription redraws and loads only while the panel is open. */
+  /** Panel open state — the store subscription redraws and loads only while the panel is open. */
   isOpen: () => boolean;
 }
 

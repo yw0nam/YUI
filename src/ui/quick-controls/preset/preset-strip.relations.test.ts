@@ -62,6 +62,7 @@ describe("preset strip — relations", () => {
       petWindows,
       relationsStore: store,
       relationsSwitch,
+      onEditTarget: vi.fn(),
     });
   }
 

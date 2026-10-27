@@ -1,9 +1,7 @@
 /**
- * Quick-controls panel — settings panel summoned by right-click.
- * Comprises a draggable header (popover variant only; the window variant uses the native titlebar) + a rail of the
- * character's pages (connection · voice · persona · body · history) then every character's pages (together ·
- * listening · permissions · proactive · motion · general) + the page body.
- * variant: "popover" (default, docked in pet window + draggable) | "window" (separate OS window, full fill).
+ * Settings panel — fills the settings window: a rail of the character's pages (connection · voice ·
+ * persona · body · history) then every character's pages (together · listening · permissions ·
+ * proactive · motion · general) beside the page body.
  */
 
 import type { createThemeSettings } from "../../settings/appearance/theme-settings";
@@ -75,10 +73,9 @@ import { createCharacterTab } from "./character/character-tab";
 import { createConnectionTab, type PushSocketPanelPort } from "./connection/connection-tab";
 import { DEFAULT_PAGE } from "./constants";
 import { mountCueLists } from "./cue-lists/cue-lists";
-import { createHeaderButtons } from "./header/header-buttons";
 import { createHintTooltip } from "./hint-tooltip";
 import { createHistoryTab } from "./history/history-tab";
-import { createPopover } from "./popover";
+import { createPanelShell } from "./panel-shell";
 import { createPresetStrip } from "./preset/preset-strip";
 import { bindSettingsSearch } from "./search/settings-search";
 import { createAgentSection } from "./sections/agent/agent-section";
@@ -179,17 +176,11 @@ interface QuickControlsOptions {
   onGainPreviewEnd: () => void;
   /** Reset the camera viewpoint (orbit angles) to head-on. Renders the section when set. */
   onResetViewpoint?: () => void;
-  onPopOut?: () => void;
-  /** Opens the text input. Renders the header button when set. */
-  onMessage?: () => void;
   onOpenDevtools?: () => void;
   /** Asks the character to explain from a bundled guide. Renders the Help section when set. */
   onGuide?: (guide: GuideKey, text: string) => void;
-  variant?: "popover" | "window";
-  /** In window variant, path for Escape to close OS window (host injected). Without it, Escape is no-op. */
+  /** Escape closes the OS window through it (host injected). Without it, Escape is a no-op. */
   onCloseWindow?: () => void;
-  /** Popover variant: the on-screen height of the pet window, re-read before each open; the panel stays inside it. */
-  visibleViewport?: { get(): number; refresh(): Promise<void> };
   /** The bundled default cards and `{{user}}` fallback words (undefined if not loaded). */
   getPersona?: () => PersonaConfig | undefined;
   /** Device-wide "Your name" store for the General page. */
@@ -214,13 +205,11 @@ interface QuickControlsOptions {
   getFetch?: () => Promise<typeof globalThis.fetch | undefined>;
   /** Push transport — the chat section shows its state, and "Start fresh" resets the conversation on it. */
   pushSocket?: PushSocketPanelPort;
-  /** Stops the in-flight turn the way the stop button does, before the reset frame goes out. */
-  stopTurn?: () => void;
   /** "Start fresh" calls it after the transcript boundary is written. */
   announceSessionReset?: () => void;
-  /** Delegated-work list for the session section (window variant). The pet window publishes it. */
+  /** Delegated-work list for the session section. The pet window publishes it. */
   delegations?: DelegationsPanelPort;
-  /** Session diagnostics (context usage · last compression). The occupancy readout renders in the window variant only. */
+  /** Session diagnostics (context usage · last compression), read by the occupancy readout. */
   sessionDiagnostics?: SessionDiagnosticsStore;
   /** Current session id pointer. "Start fresh" clears it along with diagnostics. */
   sessionStore?: SessionStore;
@@ -293,8 +282,8 @@ interface QuickControlsOptions {
   /** Whether the unified chat window shows; the message window row is locked off meanwhile. */
   unifiedShown?: UnifiedShown;
   boundId?: string | null;
-  /** Set in the settings window: the preset strip picks the preset the window edits. */
-  onEditTarget?: (id: string) => void;
+  /** The preset strip picks the preset the window edits. */
+  onEditTarget: (id: string) => void;
   showVoiceInput?: boolean;
 }
 
@@ -307,12 +296,10 @@ interface PanelSection {
 
 interface QuickControls {
   el: HTMLElement;
-  /** Summon the panel. `tab` lands on that tab instead of the one last left selected. */
-  open(anchor?: { x: number; y: number }, opts?: { tab?: SettingsPage }): void;
+  /** Shows the panel. `tab` lands on that tab instead of the one last left selected. */
+  open(opts?: { tab?: SettingsPage }): void;
   /** The tab the panel shows now. */
   selectedTab(): SettingsPage;
-  close(): void;
-  isOpen(): boolean;
   dispose(): void;
 }
 
@@ -345,13 +332,9 @@ export function createQuickControls({
   onGainPreview,
   onGainPreviewEnd,
   onResetViewpoint,
-  onPopOut,
-  onMessage,
   onOpenDevtools,
   onGuide,
-  variant = "popover",
   onCloseWindow,
-  visibleViewport,
   getPersona,
   userNameSettings,
   themeSettings,
@@ -364,7 +347,6 @@ export function createQuickControls({
   getChatApiKey,
   getFetch,
   pushSocket,
-  stopTurn,
   announceSessionReset,
   delegations,
   sessionDiagnostics,
@@ -409,18 +391,12 @@ export function createQuickControls({
   onEditTarget,
   showVoiceInput = true,
 }: QuickControlsOptions): QuickControls {
-  const isWindow = variant === "window";
-  // Context-occupancy readout renders only in the settings window, when both stores are injected.
-  const hasSession = isWindow && !!sessionDiagnostics && !!sessionStore;
-  // Use variant tag to distinguish which window created logs (Tauri merges both window logs to one file).
-  const log = createLogger(isWindow ? "settings-ui" : "quick-ui");
-
-  // scrim (outer click detection) only used in popover variant.
-  const scrimEl = document.createElement("div");
-  scrimEl.className = "yui-quick-scrim";
+  // The context-occupancy readout renders when both stores are injected.
+  const hasSession = !!sessionDiagnostics && !!sessionStore;
+  const log = createLogger("quick-controls");
 
   const el = document.createElement("div");
-  el.className = isWindow ? "yui-quick yui-quick--window" : "yui-quick";
+  el.className = "yui-quick";
   el.setAttribute("role", "dialog");
   el.setAttribute("aria-label", t("panel.dialog_label"));
 
@@ -444,10 +420,8 @@ export function createQuickControls({
   });
 
   el.innerHTML = buildPanelHtml({
-    isWindow,
     hasSession,
     switchRows: TOGGLE_SPECS,
-    showPopOut: !!onPopOut,
     showVoiceInput,
     showScreen: !!screenSettings && !!screenKnobSettings,
     showPresence: !!presenceSettings,
@@ -455,7 +429,6 @@ export function createQuickControls({
     showRateLimits: !!rateLimitSettings,
     showDevtools: !!onOpenDevtools,
     showHelp: !!onGuide,
-    showMessage: !!onMessage,
     showHistory: !!transcript,
     showBrowser: !!browserSettings,
     showPreset: !!presetRegistry,
@@ -465,7 +438,6 @@ export function createQuickControls({
   const cueSectionsMountEl = el.querySelector<HTMLDivElement>(".yui-cue-sections")!;
   const tablistEl = el.querySelector<HTMLDivElement>(".yui-tabs")!;
   const tabButtons = Array.from(el.querySelectorAll<HTMLButtonElement>(".yui-tab"));
-  const barEl = el.querySelector<HTMLDivElement>(".yui-quick__bar");
 
   // ── Connection page (URL fields · API key rows · TTS/Chat dropdowns · status line · resets) ──
   const connectionTab = createConnectionTab({
@@ -476,7 +448,7 @@ export function createQuickControls({
     getDefaultChatApi,
     rows: { broker: true },
     pushSocket,
-    isOpen: () => popover.isOpen(),
+    isOpen: () => shell.isOpen(),
     getChatApiKey,
     getFetch,
     log,
@@ -490,11 +462,10 @@ export function createQuickControls({
         signalHistory,
         sessionDiagnostics,
         sessionStore,
-        stopTurn,
         announceSessionReset,
         pushSocket,
         getChatApi: () => (isPushMode() ? "push" : undefined),
-        isOpen: () => popover.isOpen(),
+        isOpen: () => shell.isOpen(),
         log,
       })
     : null;
@@ -540,7 +511,7 @@ export function createQuickControls({
     swapVrm,
     importVrm,
     removeUserVrm,
-    isOpen: () => popover.isOpen(),
+    isOpen: () => shell.isOpen(),
     log,
     refreshTooltip: hintTooltip.refresh,
     onResetView: onResetViewpoint,
@@ -586,18 +557,14 @@ export function createQuickControls({
     log,
     refreshTooltip: hintTooltip.refresh,
     isDisposed: () => disposed,
-    isOpen: () => popover.isOpen(),
+    isOpen: () => shell.isOpen(),
   });
 
-  // ── popover shell (position/drag/open-close lifecycle) ──
-  const popover = createPopover({
+  // ── shell (open/close lifecycle) ──
+  const shell = createPanelShell({
     mount,
     root: el,
-    scrim: scrimEl,
-    bar: barEl,
-    isWindow,
     closeWindow: onCloseWindow,
-    visibleHeight: visibleViewport ? () => visibleViewport.get() : undefined,
     onOpen: () => {
       for (const section of sections) section.reflect?.();
       // Opening on the Connection page counts as entering it — the model list read follows.
@@ -613,7 +580,7 @@ export function createQuickControls({
   });
 
   // ── Switch rows (click binding · store following while open) ──
-  const switchRows = bindSwitchRows(el, TOGGLE_SPECS, log, popover.isOpen);
+  const switchRows = bindSwitchRows(el, TOGGLE_SPECS, log, shell.isOpen);
 
   // ── Screen section (screen-watch threshold knobs · min-gap slider) ──
   const screen = createScreenSection({
@@ -622,7 +589,7 @@ export function createQuickControls({
     screenKnobSettings,
     getScreenDefaults,
     reflectSwitchRows: () => switchRows.reflect(),
-    isOpen: popover.isOpen,
+    isOpen: shell.isOpen,
   });
 
   // ── Reactions section (agent port · presence · pacer gap · rate-limit caps) ──
@@ -635,7 +602,7 @@ export function createQuickControls({
     rateLimitSettings,
     getRateLimitDefaults,
     reflectSwitchRows: () => switchRows.reflect(),
-    isOpen: popover.isOpen,
+    isOpen: shell.isOpen,
   });
 
   // ── Agent section (locale segment · reasoning-effort segment) ──
@@ -644,13 +611,13 @@ export function createQuickControls({
     agentSettings,
     endpointsSettings,
     isPushMode,
-    isOpen: popover.isOpen,
+    isOpen: shell.isOpen,
     log,
   });
   const appearance = createAppearanceSection({
     root: el,
     themeSettings,
-    isOpen: popover.isOpen,
+    isOpen: shell.isOpen,
     log,
   });
 
@@ -663,7 +630,7 @@ export function createQuickControls({
     registry: presetRegistry,
     getPersona,
     isPushMode,
-    isOpen: popover.isOpen,
+    isOpen: shell.isOpen,
     importCard,
     exportCard,
     createPresetFromCard,
@@ -675,13 +642,13 @@ export function createQuickControls({
     root: el,
     userNameSettings,
     getPersona,
-    isOpen: popover.isOpen,
+    isOpen: shell.isOpen,
   });
   const sttKeyRow = createKeyRow({
     root: el,
     idPrefix: "sttkey",
     store: sttKeySettings,
-    isOpen: popover.isOpen,
+    isOpen: shell.isOpen,
     log,
   });
 
@@ -689,7 +656,7 @@ export function createQuickControls({
   const filler = createFillerSection({
     root: el,
     fillerSettings,
-    isOpen: popover.isOpen,
+    isOpen: shell.isOpen,
     reflectSwitchRows: () => switchRows.reflect(),
   });
 
@@ -702,7 +669,7 @@ export function createQuickControls({
     voiceStatus,
     vad,
     reflectSwitchRows: () => switchRows.reflect(),
-    isOpen: popover.isOpen,
+    isOpen: shell.isOpen,
     log,
   });
 
@@ -713,7 +680,7 @@ export function createQuickControls({
     pushSocket,
     isPushMode,
     delegations,
-    isOpen: popover.isOpen,
+    isOpen: shell.isOpen,
   });
 
   // ── Screenshot section (attach switch · monitor list) ──
@@ -722,12 +689,12 @@ export function createQuickControls({
     settings,
     sourceProvider,
     log,
-    isOpen: popover.isOpen,
+    isOpen: shell.isOpen,
   });
 
   // ── Browser section (browser-use switch) ──
   const browser = browserSettings
-    ? createBrowserSection({ root: el, settings: browserSettings, log, isOpen: popover.isOpen })
+    ? createBrowserSection({ root: el, settings: browserSettings, log, isOpen: shell.isOpen })
     : undefined;
 
   // Effective chat protocol: the user's override, else the bundled default.
@@ -749,24 +716,14 @@ export function createQuickControls({
   const unbindTransportLinks = bindTransportLinks(el, (id) => tabRail.select(id));
   const unbindSearch = bindSettingsSearch(el);
 
-  function openPanel(anchor?: { x: number; y: number }, opts?: { tab?: SettingsPage }): void {
-    if (!visibleViewport) {
-      openNow(anchor, opts?.tab);
-      return;
-    }
-    void visibleViewport.refresh().then(() => {
-      if (!disposed) openNow(anchor, opts?.tab);
-    });
-  }
-
-  function openNow(anchor?: { x: number; y: number }, tab?: SettingsPage): void {
-    // Select before opening so the panel is positioned around the tab the caller asked for.
+  function openPanel(opts?: { tab?: SettingsPage }): void {
+    const tab = opts?.tab;
     if (tab && tabRail.select(tab)) {
-      popover.open(anchor);
+      shell.open();
       // open() lands focus on the first control; move it to the tab the caller asked for.
       tabRail.select(tab, { focusVisible: false });
     } else {
-      popover.open(anchor);
+      shell.open();
     }
   }
 
@@ -784,22 +741,8 @@ export function createQuickControls({
     proactiveSettings,
   });
 
-  // ── Header buttons (pop-out · message · close) ──
-  const headerButtons = createHeaderButtons({
-    root: el,
-    close: popover.close,
-    onPopOut,
-    onMessage,
-  });
   const unbindDevtools = onOpenDevtools ? bindDevtoolsRow(el, onOpenDevtools) : undefined;
-  // The popover closes first, as for the message button, so the reply is what the user sees next.
-  // The separate settings window stays open.
-  const unbindHelp = onGuide
-    ? bindHelpSection(el, (guide, text) => {
-        if (!isWindow) popover.close();
-        onGuide(guide, text);
-      })
-    : undefined;
+  const unbindHelp = onGuide ? bindHelpSection(el, onGuide) : undefined;
   // Every section the panel redraws on open, closes and disposes, in redraw order.
   const parts: (PanelSection | null | undefined)[] = [
     screenshot,
@@ -833,7 +776,6 @@ export function createQuickControls({
     readings,
     workflows,
     { dispose: cueLists.destroy },
-    headerButtons,
     unbindDevtools && { dispose: unbindDevtools },
     { dispose: unbindHelp },
     { dispose: unbindTransportLinks },
@@ -842,23 +784,20 @@ export function createQuickControls({
   ];
   const sections = parts.filter((section): section is PanelSection => !!section);
 
-  // window variant is always visible, so open it immediately.
-  if (isWindow) popover.open();
+  // The panel fills its window, so it opens at once.
+  shell.open();
 
   function dispose(): void {
     disposed = true;
     for (const section of sections) section.dispose?.();
-    popover.dispose();
+    shell.dispose();
     el.remove();
-    scrimEl.remove();
   }
 
   return {
     el,
     open: openPanel,
     selectedTab,
-    close: popover.close,
-    isOpen: popover.isOpen,
     dispose,
   };
 }

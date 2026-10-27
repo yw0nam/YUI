@@ -7,6 +7,7 @@
 import type { PushSocketState } from "../../../../io/chat/push/push-socket";
 import { t } from "../../../i18n";
 import type { ModelStatusView } from "./model-status";
+import { pushStateText } from "./push-state-text";
 import "./chat-status.css";
 
 export interface ChatStatus {
@@ -33,31 +34,24 @@ export function createChatStatus(section: HTMLElement, deps: { onAction: () => v
       textEl.textContent = "";
       return;
     }
+    textEl.textContent = pushStateText(state);
     switch (state.kind) {
       case "ready":
         line.classList.add("is-ready");
-        textEl.textContent = t("svc.chat_status_connected", { id: state.chat_id });
         return;
       case "connecting":
         line.classList.add("is-waiting");
-        textEl.textContent = t("svc.chat_status_connecting");
         return;
       case "reconnecting":
         line.classList.add("is-waiting");
-        textEl.textContent = t("svc.chat_status_reconnecting", {
-          seconds: Math.ceil(state.delay_ms / 1000),
-        });
         actionEl.textContent = t("svc.chat_status_connect_now");
         actionEl.hidden = false;
         return;
       case "failed":
         line.classList.add("is-failed");
-        textEl.textContent = t("svc.chat_status_refused");
         actionEl.textContent = t("svc.chat_status_reconnect");
         actionEl.hidden = false;
         return;
-      default:
-        textEl.textContent = t("svc.chat_status_offline");
     }
   }
 

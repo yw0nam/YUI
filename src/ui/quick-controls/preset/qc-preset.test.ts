@@ -25,6 +25,7 @@ describe("createQuickControls — presets", () => {
   let mount: HTMLElement;
   let registry: PresetRegistry;
   let qc: ReturnType<typeof createQuickControls>;
+  let onCloseWindow: ReturnType<typeof vi.fn<() => void>>;
 
   beforeEach(() => {
     vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
@@ -48,7 +49,8 @@ describe("createQuickControls — presets", () => {
     mount = document.createElement("div");
     document.body.appendChild(mount);
     registry = createPresetRegistry({ newId: () => "cccc0003" });
-    qc = createQuickControls({ ...defaultQcArgs(mount), presetRegistry: registry });
+    onCloseWindow = vi.fn<() => void>();
+    qc = createQuickControls({ ...defaultQcArgs(mount), presetRegistry: registry, onCloseWindow });
     qc.open();
   });
 
@@ -67,7 +69,6 @@ describe("createQuickControls — presets", () => {
     const args = defaultQcArgs(mount);
     qc = createQuickControls({
       ...args,
-      onPopOut: args.onPopOut,
       presetRegistry: registry,
       petWindows,
       boundId,
@@ -76,7 +77,7 @@ describe("createQuickControls — presets", () => {
     return petWindows;
   }
 
-  function editMode(edit: string, onEditTarget = vi.fn(), boundId: string | null = null) {
+  function editing(edit: string, onEditTarget = vi.fn(), boundId: string | null = null) {
     history.replaceState(null, "", `/?${boundId ? `preset=${boundId}&` : ""}edit=${edit}`);
     qc.dispose();
     const petWindows = createPetWindows();
@@ -91,46 +92,19 @@ describe("createQuickControls — presets", () => {
     return { petWindows, onEditTarget };
   }
 
-  it("shows the shown entry's thumbnail beside the select", () => {
-    localStorage.clear();
-    localStorage.setItem(
-      "yui.presets",
-      JSON.stringify({
-        active: "bbbb0002",
-        list: [
-          { id: "default", name: "default" },
-          { id: "aaaa0001", name: "natsume" },
-          {
-            id: "bbbb0002",
-            name: "perlica",
-            thumbnail: "asset://localhost/app-data/cards/bbbb0002.png",
-          },
-        ],
-      }),
-    );
-    registry = createPresetRegistry();
-    qc.dispose();
-    qc = createQuickControls({ ...defaultQcArgs(mount), presetRegistry: registry });
-    qc.open();
-    const thumb = document.querySelector<HTMLElement>(".yui-preset__thumb")!;
-    expect(thumb.hidden).toBe(false);
-    expect(thumb.querySelector("img")!.src).toBe("asset://localhost/app-data/cards/bbbb0002.png");
-  });
-
   const heads = () => [...qc.el.querySelectorAll<HTMLButtonElement>(".yui-chead__item")];
   const head = (name: string) =>
     heads().find((b) => b.querySelector(".yui-chead__name")?.textContent === name)!;
 
-  it("edit mode: the header lists every character with its transport and window state", () => {
+  it("the header lists every character with its transport and window state", () => {
     localStorage.setItem("yui.endpoints", JSON.stringify({ chat_api: "push" }));
     localStorage.setItem(
       "yui.bbbb0002.endpoints",
       JSON.stringify({ chat_api: "chat_completions" }),
     );
-    const { petWindows } = editMode("aaaa0001");
+    const { petWindows } = editing("aaaa0001");
     petWindows.open("bbbb0002");
 
-    expect($(".yui-preset__select")).toBeNull();
     expect(
       heads().map((b) => [
         b.querySelector(".yui-chead__name")!.textContent,
@@ -143,8 +117,8 @@ describe("createQuickControls — presets", () => {
     ]);
   });
 
-  it("edit mode: clicking a character hands its id over without activating; an off one is dimmed and clickable", () => {
-    const { onEditTarget } = editMode("aaaa0001");
+  it("clicking a character hands its id over without activating; an off one is dimmed and clickable", () => {
+    const { onEditTarget } = editing("aaaa0001");
 
     expect(head("natsume").getAttribute("aria-current")).toBe("true");
     expect([head("default").classList.contains("is-off"), head("default").disabled]).toEqual([
@@ -157,8 +131,8 @@ describe("createQuickControls — presets", () => {
     expect(registry.get().active).toBe("aaaa0001");
   });
 
-  it("edit mode: the header and the scope lines name the ?edit= preset, not the active one", () => {
-    editMode("bbbb0002");
+  it("the header and the scope lines name the ?edit= preset, not the active one", () => {
+    editing("bbbb0002");
 
     expect(head("perlica").getAttribute("aria-current")).toBe("true");
     expect(qc.el.querySelector("#yui-panel-conn .yui-tabpanel__scope")?.textContent).toBe(
@@ -168,8 +142,8 @@ describe("createQuickControls — presets", () => {
     expect(registry.get().active).toBe("aaaa0001");
   });
 
-  it("edit mode: a non-active row offers Use in main, disabled while its window is open", () => {
-    const { petWindows } = editMode("bbbb0002");
+  it("a non-active row offers Use in main, disabled while its window is open", () => {
+    const { petWindows } = editing("bbbb0002");
     petWindows.open("default");
     openManage();
     const buttons = (name: string) =>
@@ -184,18 +158,18 @@ describe("createQuickControls — presets", () => {
     expect(registry.get().active).toBe("bbbb0002");
   });
 
-  it("edit mode: the note says where the edited preset lives", () => {
+  it("the note says where the edited preset lives", () => {
     const note = () => $(".yui-preset__note").textContent;
-    editMode("aaaa0001");
+    editing("aaaa0001");
     expect(note()).toBe("natsume is shown in main.");
-    const { petWindows } = editMode("bbbb0002");
+    const { petWindows } = editing("bbbb0002");
     expect(note()).toBe("perlica is in no window now. Changes are saved and apply when it opens.");
     petWindows.open("bbbb0002");
     expect(note()).toBe("perlica is open in its own window. Changes apply there at once.");
   });
 
-  it("edit mode: the edited preset leaving the registry sends the window to the active one", () => {
-    const { onEditTarget } = editMode("bbbb0002");
+  it("the edited preset leaving the registry sends the window to the active one", () => {
+    const { onEditTarget } = editing("bbbb0002");
 
     registry.remove("bbbb0002");
 
@@ -203,8 +177,8 @@ describe("createQuickControls — presets", () => {
     expect(onEditTarget).toHaveBeenCalledWith("aaaa0001");
   });
 
-  it("edit mode: a bound window whose edited preset is deleted returns to its bound preset", () => {
-    const { onEditTarget } = editMode("bbbb0002", vi.fn(), "default");
+  it("a bound window whose edited preset is deleted returns to its bound preset", () => {
+    const { onEditTarget } = editing("bbbb0002", vi.fn(), "default");
 
     registry.remove("bbbb0002");
 
@@ -212,8 +186,8 @@ describe("createQuickControls — presets", () => {
     expect(onEditTarget).toHaveBeenCalledWith("default");
   });
 
-  it("edit mode: a new preset is seeded from the edited preset", () => {
-    editMode("bbbb0002");
+  it("a new preset is seeded from the edited preset", () => {
+    editing("bbbb0002");
     openManage();
     $<HTMLButtonElement>(".yui-preset-pop .yui-add-btn").click();
 
@@ -242,6 +216,7 @@ describe("createQuickControls — presets", () => {
       log,
       agentNotifySettings,
       relationsSwitch: createRelationsSwitch({ load: () => null, save() {} }),
+      onEditTarget: vi.fn(),
     });
     root.querySelector<HTMLButtonElement>(".yui-preset__manage")!.click();
     expect(root.querySelector(".yui-preset-row__url")).toBeNull();
@@ -281,42 +256,18 @@ describe("createQuickControls — presets", () => {
     const petWindows = rebuild();
     openManage();
     petWindows.open("bbbb0002");
-    const option = () =>
-      $<HTMLSelectElement>(".yui-preset__select").querySelector<HTMLOptionElement>(
-        'option[value="bbbb0002"]',
-      )!;
-    expect(option().disabled).toBe(true);
-    expect(option().textContent).toBe("perlica · open as a window");
     expect(rowOf("perlica").querySelector(".yui-preset-row__remove")).toBeNull();
     setWindowLive("pet-bbbb0002");
     petWindows.close("bbbb0002");
-    expect(option().disabled).toBe(true);
+    expect(rowOf("perlica").querySelector(".yui-preset-row__remove")).toBeNull();
     clearWindowLive("pet-bbbb0002");
     petWindows.invalidate();
-    expect(option().disabled).toBe(false);
     expect(rowOf("perlica").querySelector(".yui-preset-row__remove")).not.toBeNull();
   });
-  it("shows the bound name and protects that row", () => {
+  it("protects a bound window's own row", () => {
     rebuild("bbbb0002");
     openManage();
-    expect(qc.el.querySelector(".yui-preset__select")).toBeNull();
-    expect(qc.el.querySelectorAll(".yui-iconbtn--popout")).toHaveLength(1);
-    expect(qc.el.querySelector(".yui-preset__bound")!.getAttribute("aria-label")).toBe("Preset");
-    expect(qc.el.querySelector(".yui-preset__bound")!.textContent).toBe("perlica");
     expect(rowOf("perlica").querySelector(".yui-preset-row__remove")).toBeNull();
-    expect(rowOf("perlica").querySelector(".yui-preset-row__window")).toBeNull();
-    registry.rename("bbbb0002", "Perlica");
-    expect(qc.el.querySelector(".yui-preset__bound")!.textContent).toBe("Perlica");
-  });
-  it("leaves controls enabled when activation is refused", () => {
-    rebuild();
-    setWindowLive("pet-bbbb0002");
-    const select = $<HTMLSelectElement>(".yui-preset__select");
-    select.value = "bbbb0002";
-    select.dispatchEvent(new Event("change"));
-    expect(select.disabled).toBe(false);
-    expect(qc.el.querySelector(".yui-quick__cols")!.hasAttribute("inert")).toBe(false);
-    expect(registry.get().active).toBe("aaaa0001");
   });
 
   const $ = <T extends Element>(sel: string): T => qc.el.querySelector<T>(sel)!;
@@ -331,7 +282,7 @@ describe("createQuickControls — presets", () => {
     if (key) input.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
   }
 
-  it("a photo picked in the manage list shows in the strip", async () => {
+  it("a photo picked in the manage list shows in the character header", async () => {
     const url = "asset://localhost/app-data/cards/aaaa0001.png?v=1";
     const pickPresetPhoto = vi.fn(async () => url);
     qc.dispose();
@@ -346,9 +297,7 @@ describe("createQuickControls — presets", () => {
     openManage();
     rowOf("natsume").querySelector<HTMLButtonElement>(".yui-preset-row__photo")!.click();
 
-    await vi.waitFor(() =>
-      expect($<HTMLElement>(".yui-preset__thumb").querySelector("img")?.src).toBe(url),
-    );
+    await vi.waitFor(() => expect(head("natsume").querySelector("img")?.src).toBe(url));
     expect(pickPresetPhoto).toHaveBeenCalledWith("aaaa0001");
     expect(document.querySelector("dialog.yui-photo-dialog")).not.toBeNull();
     expect(warn).not.toHaveBeenCalled();
@@ -366,14 +315,7 @@ describe("createQuickControls — presets", () => {
     dialog.remove();
   });
 
-  it("shows the active preset in the strip, names it on each character page and the rail group", () => {
-    const select = $<HTMLSelectElement>(".yui-preset__select");
-    expect(select.value).toBe("aaaa0001");
-    expect(Array.from(select.options).map((o) => o.textContent)).toEqual([
-      "default",
-      "natsume",
-      "perlica",
-    ]);
+  it("names the shown preset on each character page and the rail group", () => {
     const scope = (tab: string): string | null | undefined =>
       qc.el.querySelector(`#yui-panel-${tab} .yui-tabpanel__scope`)?.textContent;
     expect(scope("conn")).toBe("Only natsume");
@@ -384,16 +326,6 @@ describe("createQuickControls — presets", () => {
     expect(qc.el.querySelector("#yui-tab-conn")?.previousElementSibling?.textContent).toBe(
       "natsume",
     );
-  });
-
-  it("activates the picked preset and holds the panel inert while it switches", () => {
-    const select = $<HTMLSelectElement>(".yui-preset__select");
-    select.value = "bbbb0002";
-    select.dispatchEvent(new Event("change", { bubbles: true }));
-
-    expect(registry.get().active).toBe("bbbb0002");
-    expect($(".yui-preset__state").textContent).toBe("Switching to perlica…");
-    expect($(".yui-quick__cols").hasAttribute("inert")).toBe(true);
   });
 
   // Esc hands focus back to the dots button; an outside press leaves it on the control pressed.
@@ -424,7 +356,7 @@ describe("createQuickControls — presets", () => {
     expect($<HTMLElement>(".yui-preset-pop").hidden).toBe(true);
     expect($(".yui-preset__manage").getAttribute("aria-expanded")).toBe("false");
     expect(document.activeElement).toBe($(focusSel));
-    expect(qc.isOpen()).toBe(true);
+    expect(onCloseWindow).not.toHaveBeenCalled();
   });
 
   it("offers delete on neither the default nor the active preset", () => {

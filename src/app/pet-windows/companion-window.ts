@@ -64,7 +64,10 @@ export async function wireCompanionWindow(deps: {
   )
     return role;
   const watcher = await watchOwner(deps.boundId, () => {
-    deps.log.info("companion_orphan", { preset: deps.boundId, kind: deps.label.split("-")[0] });
+    deps.log.info("companion_orphan", {
+      preset: deps.boundId,
+      kind: deps.label.slice(0, -deps.boundId.length - 1),
+    });
     return close();
   });
   offOwner = watcher.dispose;
@@ -90,7 +93,7 @@ export async function wireCompanionWindow(deps: {
 }
 
 export async function bootCompanion(
-  kind: "settings" | "message",
+  kind: "settings" | "message" | "quick-card",
   lifecycle: Disposers,
   log: Logger,
 ) {

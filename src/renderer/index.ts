@@ -334,6 +334,16 @@ export function createRenderer(options: RendererOptions): Renderer {
       const stage = clientToStage(x, y, mountRect);
       return alphaHitTest.hitTest(stage.x, stage.y);
     },
+    getSilhouetteBounds() {
+      const box = alphaHitTest.bounds();
+      if (!box) return null;
+      return {
+        left: box.left + mountRect.left,
+        right: box.right + mountRect.left,
+        top: box.top + mountRect.top,
+        bottom: box.bottom + mountRect.top,
+      };
+    },
     setHitTestThreshold(threshold) {
       alphaHitTest.setThreshold(threshold);
     },

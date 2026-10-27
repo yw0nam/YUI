@@ -25,7 +25,6 @@ export function wireWalker(deps: {
   getMotionKind: (id: string) => MotionKind | undefined;
   isPeeking: () => boolean;
   isDragging: () => boolean;
-  isPanelOpen: () => boolean;
   /** Keep the hit-test cursor mapping accurate while the window translates. */
   setHitTestMoving: (moving: boolean) => void;
   /** An ambient stroll ended — bodyReleased is true only when the walker itself handed the
@@ -76,7 +75,6 @@ export function wireWalker(deps: {
       },
       isPeeking: deps.isPeeking,
       isDragging: deps.isDragging,
-      isPanelOpen: deps.isPanelOpen,
       onStart: () => {
         deps.setHitTestMoving(true);
         push("avatar.walk_start");

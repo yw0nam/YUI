@@ -117,7 +117,7 @@ interface CardSectionDeps {
   getPersona?: () => PersonaConfig | undefined;
   /** Whether push chat is the effective mode; on push only the card import and export stay. */
   isPushMode: () => boolean;
-  /** Popover open state: store subscriptions redraw only while the panel is open. */
+  /** Panel open state: store subscriptions redraw only while the panel is open. */
   isOpen: () => boolean;
   /** Card file steps and the preset creator, wired by the app layer. */
   importCard: () => Promise<ImportedCard | null>;

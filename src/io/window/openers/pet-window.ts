@@ -92,7 +92,7 @@ export function createPetWindowOpener(): PetWindowOpener {
       if (!isTauri()) return null;
       const { getAllWebviewWindows } = await import("@tauri-apps/api/webviewWindow");
       return (await getAllWebviewWindows())
-        .filter((w) => /^(pet|settings|message)-/.test(w.label))
+        .filter((w) => /^(pet|settings|message|quick-card)-/.test(w.label))
         .map((w) => w.label);
     },
     async onDestroyed(id, cb) {

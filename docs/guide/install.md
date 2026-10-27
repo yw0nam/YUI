@@ -49,7 +49,7 @@ curl -s --max-time 3 http://localhost:1234/v1/models   # LM Studio
 
 Both addresses are the OpenAI-compatible model-list endpoints documented for [Ollama](https://docs.ollama.com/api/openai-compatibility) and [LM Studio](https://lmstudio.ai/docs/developer/openai-compat); the YUI provider presets use the same two URLs. A server answers when the probe returns JSON with a `data` array. A model list can carry embedding models (LM Studio's does), and a chat request to one fails, so leave out ids naming an embedding model (for example `text-embedding-...`); LM Studio answers such a request with HTTP 404 (`Model is not llm`). For each server that answers, show the user the remaining model ids and ask whether to use that server and which model. An answer whose `data` array is empty means the server lists no model, and step 4 reports that as its own result. Picking one sets `chat_base_url` to `http://localhost:11434/v1` for Ollama or `http://localhost:1234/v1` for LM Studio, sets `chat_model` to the chosen id, and leaves `chat_api` at `chat_completions`. When neither server answers, or the user declines both, continue with the question below.
 
-Ask once: "Do you want to connect a chat backend, TTS, or STT now, or set them later in the app (right-click the character → Connection)?" On "later", go to step 4.
+Ask once: "Do you want to connect a chat backend, TTS, or STT now, or set them later in the app (right-click the character → All settings… → Connection)?" On "later", go to step 4.
 
 Otherwise collect what the user has. Every URL starts with `http://` or `https://`; the config validator rejects anything else at launch, and the window shows an error card that names the file and the key.
 
@@ -105,7 +105,7 @@ Report to the user:
 
 1. The paths written, never a key value.
 2. The tool-call test result, one of the seven results above.
-3. What was skipped, with the place to set it later: right-click the character → Connection.
+3. What was skipped, with the place to set it later: right-click the character → All settings… → Connection.
 4. The launch command, run from the checkout: `pnpm tauri dev`. The first run compiles the Rust side for several minutes, then opens a transparent window with the character. With no backend she idles, and a chat turn answers with a pointer to the Connection tab.
 5. What the connection keeps across turns and where long-term memory comes from: [what the connection remembers](https://github.com/yw0nam/YUI/blob/main/docs/guide/getting-started.md#what-the-connection-remembers).
 6. The optional services (TTS, STT, backend agents) are covered in the [install and wiring guide](getting-started.md).

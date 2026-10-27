@@ -1,7 +1,7 @@
 /**
- * Settings window (pop-out) bootstrap — settings.html entry point.
+ * Settings window bootstrap — settings.html entry point.
  *
- * Mounts the pet window's quick-controls standalone with variant:"window". No renderer/VRM (settings only).
+ * Mounts the settings panel filling the window. No renderer/VRM (settings only).
  * Sync with the main window: receive localStorage writes via the `storage` event and reload the store,
  * plus reload once on focus (Tauri may not emit cross-window storage events).
  */
