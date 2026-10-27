@@ -49,6 +49,7 @@ describe("wireDevGlobals", () => {
       lipsyncSettings: { id: "lipsync" },
       agentSettings: { id: "agent" },
       quickCardWindow,
+      boundId: null as string | null,
       speechPlayback: { id: "speech" },
       voiceInputStatus: createVoiceInputStatus(),
       userInput: { submit: vi.fn() },
@@ -75,8 +76,22 @@ describe("wireDevGlobals", () => {
     expect(g.__yuiSpeech).toBe(deps.speechPlayback);
   });
 
-  it("__yuiQuick opens the quick-card window at a point, or at the window's centre", async () => {
-    const deps = makeDeps();
+  it.each([
+    [
+      "main's",
+      null,
+      [
+        [{ left: 150, right: 250, y: 60, listening: false }],
+        [{ left: 150, right: 250, y: 384, listening: true }],
+      ],
+    ],
+    [
+      "a bound character's",
+      "a",
+      [[{ left: 150, right: 250, y: 60 }], [{ left: 150, right: 250, y: 384 }]],
+    ],
+  ])("__yuiQuick opens %s quick-card window at a point or the window's centre; only main's names listening", async (_name, boundId, calls) => {
+    const deps = { ...makeDeps(), boundId };
     await wireDevGlobals(deps as never);
     const quick = (globalThis as Record<string, unknown>).__yuiQuick as {
       open(at?: { x: number; y: number }): void;
@@ -87,10 +102,7 @@ describe("wireDevGlobals", () => {
     quick.open();
 
     // jsdom's window is 1024×768, so its centre is at y 384.
-    expect(quickCardWindow.open.mock.calls).toEqual([
-      [{ left: 150, right: 250, y: 60, listening: false }],
-      [{ left: 150, right: 250, y: 384, listening: true }],
-    ]);
+    expect(quickCardWindow.open.mock.calls).toEqual(calls);
   });
 
   it("__yui_send submits text through userInput", async () => {
