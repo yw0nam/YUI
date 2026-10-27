@@ -11,7 +11,7 @@ import { afterFadeOut } from "../notices/fade-out";
 import { renderMarkdownInline } from "./markdown";
 import { stableMarkdown } from "./stable-markdown";
 import { keepTextPrefix, visibleText } from "./text-prefix";
-import { createTypewriter } from "./typewriter";
+import { createTypewriter, TYPE_MS_PER_CHAR } from "./typewriter";
 
 export interface SpeechBubble {
   /** Reveal the bubble (empty) + caret ON. Called before streaming starts. */
@@ -72,7 +72,8 @@ interface SpeechBubbleElements {
 }
 
 const DEFAULT_DWELL = 5000;
-const SPEECH_RENDER_INTERVAL_MS = 40;
+// Rendering keeps pace with the typing.
+const SPEECH_RENDER_INTERVAL_MS = TYPE_MS_PER_CHAR;
 // If the user is within this many px of the bottom, treat as pinned for auto-scroll.
 const SCROLL_PIN_SLACK_PX = 8;
 

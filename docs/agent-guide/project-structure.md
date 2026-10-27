@@ -541,7 +541,7 @@ YUI/
         format-accel.ts              # Renders an accelerator string for display
       message/                       # The bubble, the name plate riding its box in both modes, and cue-list rendering
         speech-bubble.ts             # Speech bubble: dwell, scroll, markdown, and aria for streamed speech
-        typewriter.ts                # Pure reveal cursor: types a line at 40 ms per character or paced by each sentence's audio, from elapsed time
+        typewriter.ts                # Pure reveal cursor: types a line at 40 ms per character, from elapsed time
         stable-markdown.ts           # The prefix of a streaming line whose rendering later text cannot change
         text-prefix.ts               # A rendered line's text as the typewriter counts it, and cutting a rendering to its first characters
         backlog.ts                   # The current session's earlier lines, opened above the box by a toggle on its bottom edge

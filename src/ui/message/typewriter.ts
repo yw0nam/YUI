@@ -1,6 +1,6 @@
 /** Reveal cursor for one line of speech: how many received characters show, typed at 40 ms per character. */
 
-const FIXED_MS_PER_CHAR = 40;
+export const TYPE_MS_PER_CHAR = 40;
 
 export interface Typewriter {
   /** Starts a line. */
@@ -24,7 +24,7 @@ export function createTypewriter(
   let skip = false;
   let ended = false;
   let stopped = true;
-  // The cursor is due at base + elapsed / FIXED_MS_PER_CHAR since t0, so a late tick catches up.
+  // The cursor is due at base + elapsed / TYPE_MS_PER_CHAR since t0, so a late tick catches up.
   let base = 0;
   let t0 = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -36,7 +36,7 @@ export function createTypewriter(
   function catchUp(): void {
     if (stopped) return;
     // The epsilon keeps a tick that fires exactly on time from rounding down to the character before.
-    const due = Math.min(raw.length, base + Math.floor((now() - t0) / FIXED_MS_PER_CHAR + 1e-9));
+    const due = Math.min(raw.length, base + Math.floor((now() - t0) / TYPE_MS_PER_CHAR + 1e-9));
     if (due <= cursor) return;
     cursor = due;
     emit();
@@ -44,7 +44,7 @@ export function createTypewriter(
 
   function schedule(): void {
     if (stopped || timer !== null || cursor >= raw.length) return;
-    const wait = Math.max(0, t0 + (cursor + 1 - base) * FIXED_MS_PER_CHAR - now());
+    const wait = Math.max(0, t0 + (cursor + 1 - base) * TYPE_MS_PER_CHAR - now());
     timer = setTimeout(() => {
       timer = null;
       catchUp();

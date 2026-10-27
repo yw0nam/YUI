@@ -44,12 +44,12 @@ describe("createTypewriter", () => {
   });
 
   it("counts a character that falls due exactly on its tick", () => {
-    let t = 0;
+    let t = 24.1;
     const { typer, last } = setup(() => t);
     typer.received("123456789");
-    t = 120;
+    t = 64.1;
     vi.advanceTimersByTime(40);
-    expect(last()).toEqual([3, false]);
+    expect(last()).toEqual([1, false]);
   });
 
   it("reveals everything on flush, and the rest of the line as it arrives", () => {
