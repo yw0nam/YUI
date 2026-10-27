@@ -26,6 +26,10 @@ She can start a conversation herself, within limits you control in the settings.
 
 With External signals turned on, she tells you when a coding agent finishes a task or needs your input.
 
+## On the web
+
+With **Allow browser use** on the Permissions page, she can search and read web pages for you in [ego lite](../reference/client-tools.md#browser), the only browser this works with, in a tab workspace of her own that you can watch. The switch is off by default. While it is on, the backend runs JavaScript on this computer through ego lite with your rights; there is no sandbox, so a script can read your files, run programs, and reach every site signed in on ego lite's YUI profile.
+
 ## Delegated work
 
 When her backend runs work in the background for you, a chip near her lists that work. Tap the chip to see the list.
