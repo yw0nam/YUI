@@ -8,7 +8,11 @@ She stands on your desktop as a transparent character over your other windows. S
 
 ## Talk to her
 
-Type to her, or speak to her with voice input. You can attach images to a message by pasting them, dragging them in, or picking them with the clip button. She answers in a speech bubble, and the message window keeps the conversation apart from her if you prefer that. While she replies, you can stop her, and with barge-in on you can also cut her off by speaking.
+Type to her, or speak to her with voice input. You can attach images to a message by pasting them, dragging them in, or picking them with the clip button. She answers in a speech bubble, and the message window keeps the conversation apart from her if you prefer that. With two or more characters on the desktop, turn on **Unified chat** and talk to all of them in one window: the cast row or a leading `@name` picks who answers, and your voice goes to that pick. While she replies, you can stop her, and with barge-in on you can also cut her off by speaking.
+
+## How she feels about you
+
+Each character keeps a Relation toward you and toward every other character, from hostile to close. Her backend moves it with the `rate_relation` tool, and you can set it by hand on the Body page. With the **Relations** switch on the Together page turned off, no one is rated and the backend is told no relation.
 
 ## Her voice and expressions
 
@@ -28,7 +32,7 @@ When her backend runs work in the background for you, a chip near her lists that
 
 ## Conversation history
 
-The History tab keeps your past conversations on your device, and you can start a fresh conversation at any time.
+The History tab keeps your past conversations on your device, along with every Signal she received, spoken or silent, and you can start a fresh conversation at any time.
 
 ## Choose her mind
 

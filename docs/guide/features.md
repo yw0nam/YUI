@@ -12,6 +12,8 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 | Lipsync | Mouth movement from speech amplitude, with a gain slider |
 | Idle liveliness | Blink, sway, breathing, and look-around on the client, reduced to blinking under `prefers-reduced-motion` |
 | Camera | Auto-framing, wheel zoom, Shift+drag orbit, and a reset to the front view |
+| Relations | Each character's Relation toward you and the other characters, −20 to 20 with a band and a change log, shown on a relation line under the preset row, set by the backend's `rate_relation` tool or by hand on the Body page, and off for every character from the **Relations** switch on the Together page |
+| Bed scene | At launch she can start asleep on a bed with **Wake up in bed** on the Motion and desktop page, and her backend can lay her down with `body_action` `go_to_bed`; a click, a message, the wake timeout, or `stand` wakes her |
 
 ## Desktop pet
 
@@ -28,12 +30,14 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 
 | Feature | What it does |
 | --- | --- |
-| Speech bubble | Streaming markdown with links in the default browser; in the message window the backend's reasoning folds open at its top; the running tool shows in the status pill above the character |
+| Speech bubble | Streaming markdown with links in the default browser, in a dialogue box with a name plate; the text types out, paced by each sentence's audio when her voice is on, **Backlog** opens the current session's earlier lines, and her reasoning folds open at the top of a reply; the running tool shows in the status pill above the character |
 | Text input | Text box with up to 6 image attachments by paste, drag-and-drop, or file picker |
 | Voice input | Silero VAD speech detection, transcription on any OpenAI-compatible STT endpoint, and barge-in over her speech |
 | Voice output | Sentence-by-sentence TTS on Irodori, OpenAI, or Fish Audio with the `emotion_text` voice tag ([vocabulary](../reference/tts-emotion/)). Irodori lists the TTS server's voices and imports your own reference clip; OpenAI lists its built-in voices; Fish lists your voice models, imports a clip as a new model, and accepts any library voice id |
+| Reading dictionary | `word=reading` pairs on the Listening and bubble page that change how the voice reads a word, and never the text on screen |
 | Waiting filler | Thinking motion and short localized lines while a reply is pending, including tool-specific lines, and a spoken line when a turn times out or the backend can't be reached. Defaults come from `configs/filler.json`; every list is editable per language on the **Voice** page under **Thinking interjections** (**More phrases** for the long-wait, timeout, connection-lost, and tool lines) |
-| History and message window | History tab stored on the device, and an optional separate message window |
+| History and message window | History tab stored on the device, every Signal group among it, spoken or silent, and an optional separate message window |
+| Unified chat window | One window for every open character while two or more are on the desktop: one line at a time, the cast row or a leading `@name` picks who answers, voice goes to that pick, and stop ends the reply in every window; while it shows, the message window is off |
 
 ## Backend
 
@@ -73,6 +77,7 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 | Feature | What it does |
 | --- | --- |
 | Languages | English, Japanese, and Korean UI, with the OS language as the first-run default |
+| Appearance | Dawn (light) and Hearth (dark), on the General page, following the OS appearance by default |
 | Configuration | Runtime settings in `configs/`, validated at load, with hot-reload in development |
 | Logs | One log file per day shared by frontend and Rust lines ([location](https://github.com/yw0nam/YUI/blob/main/docs/agent-guide/build-run.md#logs), [convention](../reference/logging.md)) |
 | Platforms | macOS on Apple Silicon and Windows x64 (official); Intel Mac and Linux are not officially supported |

@@ -40,6 +40,7 @@ export default defineConfig({
           { text: 'Controls', link: '/guide/controls' },
           { text: 'What she can do', link: '/guide/capabilities' },
           { text: 'Cards', link: '/guide/cards' },
+          { text: 'Send signals from a producer', link: '/guide/signals-producer' },
         ],
       },
       {
