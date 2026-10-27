@@ -186,7 +186,8 @@ export interface SettingsBridge {
   /** The unified chat window asking every pet window to restate its name and busy state. */
   emitSpeechStreamAsk(): void;
   onSpeechStreamAsk(cb: () => void): () => void;
-  /** The unified chat window's stop: every pet window stops its running turn and speech. */
+  /** The unified chat window's stop button or its answer to speech onset: every pet window stops its
+   * running turn and speech. */
   emitStopTurns(): void;
   onStopTurns(cb: () => void): () => void;
   /** The user started speaking, with barge-in on, while the unified chat window shows; that window answers like its stop button while a character runs. */

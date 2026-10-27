@@ -68,7 +68,8 @@ export interface TurnCorePhase1 {
   getGuardrails(): GuardrailsConfig;
   /** The hold a scene takes on the body, in a window that runs one. */
   bedSceneHold?: Pick<BedSceneHold, "isHeld" | "onTake">;
-  /** Subscribes to the unified chat window's stop, which every pet window obeys. */
+  /** Subscribes to the unified chat window's stop button or its answer to speech onset; every pet
+   * window stops its running turn and speech. */
   onStopTurns(cb: () => void): () => void;
   /** Whether the unified chat window is shown; while it is, speech goes to it. */
   unifiedShown: Pick<UnifiedShown, "get">;

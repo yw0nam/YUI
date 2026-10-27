@@ -28,9 +28,11 @@ export interface UnifiedView {
   speechStream(event: SpeechStream): void;
   /** A pet window's user turn for a send id is over. */
   turnDone(done: UserTurnDone): void;
-  /** Main's recognized speech: routed like a typed message, or put in the field while a send runs. */
+  /** Main's recognized speech: routed like a typed message, or put in the field while any turn runs
+   * or a line holds or waits for the box. */
   voiceSegment(text: string): void;
-  /** The user started speaking: while a send runs, the stop button's path. */
+  /** The user started speaking: while any turn runs or a line holds or waits for the box, the stop
+   * button's path. */
   speechOnset(): void;
   /** Another window's stop: ends the send under way and the lines, sending no stop of its own. */
   stop(): void;
