@@ -264,9 +264,9 @@ pnpm gates                        # every app check CI runs, one line per gate w
 (cd <project> && uv run pytest)   # each Python project under Mods/ or integrations/ the PR touches
 ```
 
-`scripts/ci/gates.sh` lists the gates; a failed gate's line names its log. CI runs `cargo test` only for `src-tauri/**` changes (and when `.github/workflows/ci.yml` itself changes). `uv run pytest` is needed only for
-the Python projects the PR touches; `docs/agent-guide/mods.md` lists the full
-per-project check.
+`scripts/ci/gates.sh` lists the gates; a failed gate's line names its log.
+`uv run pytest` is needed only for the Python projects the PR touches;
+`docs/agent-guide/mods.md` lists the full per-project check.
 
 ## License of contributions
 
