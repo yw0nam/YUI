@@ -2,8 +2,8 @@
  * Unified chat window — unified.html entry point.
  *
  * Shows every open preset's lines, one at a time, in one dialogue box as the pet windows stream
- * them, and routes the user's typed and spoken messages to the pet windows over the bridge. No renderer and no
- * judgment live here: the pet windows' backends answer.
+ * them, and routes the user's typed and spoken messages to the pet windows over the bridge. No
+ * renderer and no judgment live here: the pet windows' backends answer.
  */
 
 import { getCurrentWindow } from "@tauri-apps/api/window";

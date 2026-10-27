@@ -8,6 +8,7 @@
  */
 
 import type { GuideKey, TriggerMeta } from "../../contract";
+import type { UserTurnRouted } from "../../io/bridge/settings-bridge";
 import type { BusEnvelope, EventBus } from "../core/event-bus";
 
 export interface UserInputSource {
@@ -18,7 +19,7 @@ export interface UserInputSource {
   submit(
     text: string,
     images?: string[],
-    routed?: { mention?: TriggerMeta["mention"]; sendId: string; via?: "voice" },
+    routed?: { mention?: TriggerMeta["mention"]; sendId: string; via?: UserTurnRouted["via"] },
   ): void;
   /** Help-button submit: the request text plus the guide that answers it → bus push, as a text turn. */
   submitGuide(guide: GuideKey, text: string): void;

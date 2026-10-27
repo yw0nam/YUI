@@ -147,7 +147,7 @@ export function createUnifiedView(deps: {
     paint();
   }
 
-  function route(text: string, via?: "voice"): void {
+  function route(text: string, via?: UserTurnRouted["via"]): void {
     // A spoken send follows the checked chip, where Enter would send; a typed send routes by the pick and its text.
     const send = buildSend({
       text,

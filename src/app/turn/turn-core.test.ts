@@ -13,20 +13,35 @@ const { createSttEngine, voiceDeps } = vi.hoisted(() => ({
   voiceDeps: [] as Array<Parameters<typeof import("./voice/wire-voice").wireTurnVoice>[0]>,
 }));
 
-vi.mock("./voice/wire-voice", () => ({
-  wireTurnVoice: (deps: (typeof voiceDeps)[number]) => {
-    voiceDeps.push(deps);
-    return {
-      voice: { speechPlayback, endThinking, createSttEngine },
-      voiceInput: { setStt: () => {} },
-      voiceErrorDwell: { show: () => {} },
-      pushTurns,
-      quotedTurn: {},
-      setProactiveSource: () => {},
-      setStrolling: () => {},
-    };
-  },
-}));
+vi.mock("./voice/wire-voice", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./voice/wire-voice")>();
+  type TurnVoice = ReturnType<typeof actual.wireTurnVoice>;
+  return {
+    ...actual,
+    wireTurnVoice: (deps: (typeof voiceDeps)[number]): TurnVoice => {
+      voiceDeps.push(deps);
+      return {
+        voice: {
+          speechPlayback: speechPlayback as unknown as TurnVoice["voice"]["speechPlayback"],
+          turnOutput: {} as TurnVoice["voice"]["turnOutput"],
+          speakFailure: () => {},
+          resumeThinking: () => {},
+          endThinking,
+          createSttEngine: createSttEngine as unknown as TurnVoice["voice"]["createSttEngine"],
+          dispose: () => {},
+        },
+        voiceInput: { setStt: () => {} } as unknown as TurnVoice["voiceInput"],
+        voiceErrorDwell: { show: () => {} } as unknown as TurnVoice["voiceErrorDwell"],
+        turnLog: {} as TurnVoice["turnLog"],
+        previousTurn: {} as TurnVoice["previousTurn"],
+        quotedTurn: {} as TurnVoice["quotedTurn"],
+        pushTurns: pushTurns as unknown as TurnVoice["pushTurns"],
+        setProactiveSource: () => {},
+        setStrolling: () => {},
+      };
+    },
+  };
+});
 vi.mock("./broker/wire-broker", () => ({ wireBroker: async () => ({ dispose: () => {} }) }));
 vi.mock("./vocabulary/wire-vocabulary", () => ({
   wireVocabulary: async () => ({

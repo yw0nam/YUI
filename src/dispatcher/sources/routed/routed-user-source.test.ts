@@ -26,7 +26,7 @@ function setup(selfPresetId = "natsume") {
 }
 
 describe("createRoutedUserSource", () => {
-  it("submits the text with its mention and send id for a message routed to this preset", () => {
+  it("submits the text with its mention, send id and via for a message routed to this preset", () => {
     vi.spyOn(console, "info").mockImplementation(() => {});
     const { source, submit, emit } = setup();
     source.start();

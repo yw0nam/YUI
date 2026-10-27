@@ -15,6 +15,8 @@ import { countedMention, EVERYONE, type Mention, typedMention } from "./targets"
 export interface Composer {
   /** The picked recipient, or null. */
   getMention(): Mention | null;
+  /** Where Enter sends: the picked chip, else a typed leading @name, else the fallback target. */
+  getChecked(): Mention | undefined;
   setMention(mention: Mention | null): void;
   /** The preset a message with no mention goes to; undefined while the cast is empty. */
   setTarget(entry: PresetEntry | undefined): void;
