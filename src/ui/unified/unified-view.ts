@@ -104,6 +104,7 @@ export function createUnifiedView(deps: {
     mount: boxMount,
     tool: { showTool() {}, finishTool() {}, hideTool() {} },
     namePlate: true,
+    startDragging: deps.startDragging,
     keepBubbleUntilDismissed: () => false,
     backlog: { read: () => backlogLines(rows(), nameOf, deps.cast()) },
     onAllShown: () => lanes.allShown(),
