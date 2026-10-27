@@ -451,30 +451,54 @@ describe("unified view — running replies", () => {
     expect(chipStates()).toEqual(["idle", "talk"]);
   });
 
-  it("leads a quote routed to everyone with You → everyone", () => {
+  it.each([
+    { preset: "natsume", text: "hi all", mention: "everyone", shown: ["You → everyone", "hi all"] },
+    {
+      preset: "natsume",
+      text: "@everyone hi all",
+      mention: "everyone",
+      shown: ["You → everyone", "hi all"],
+    },
+    {
+      preset: "natsume",
+      text: "@Natsume are you up?",
+      mention: "character",
+      shown: ["You → Natsume", "are you up?"],
+    },
+    {
+      preset: "natsume",
+      text: "@Natsume @natsume hi",
+      mention: "character",
+      shown: ["You → Natsume", "hi"],
+    },
+    {
+      preset: "perlica",
+      text: "@Natsume what do you think?",
+      mention: "character",
+      shown: ["You → Perlica", "@Natsume what do you think?"],
+    },
+    {
+      preset: "natsume",
+      text: "@Natsume Two hi",
+      mention: "character",
+      shown: ["You → Natsume", "Two hi"],
+    },
+  ] as const)("leads a quote with who it went to, dropping only an @name that repeats it: $text", ({
+    preset,
+    text,
+    mention,
+    shown,
+  }) => {
+    cast = [...CAST, { id: "natsume-two", name: "Natsume Two" }];
     mount();
 
-    stream("natsume", {
-      op: "quote",
-      quote: { text: "hi all", via: "text", images: 0, mention: "everyone" },
-    });
-
-    expect(document.querySelector(".yui-bubble__quote-who")?.textContent).toBe("You → everyone");
-  });
-
-  it("drops the leading @name that a routed quote's lead repeats", () => {
-    mount();
-
-    stream("natsume", {
-      op: "quote",
-      quote: { text: "@Natsume are you up?", via: "text", images: 0, mention: "character" },
-    });
+    stream(preset, { op: "quote", quote: { text, via: "text", images: 0, mention } });
 
     expect(
       [".yui-bubble__quote-who", ".yui-bubble__quote-text"].map(
         (sel) => document.querySelector(sel)?.textContent,
       ),
-    ).toEqual(["You → Natsume", "are you up?"]);
+    ).toEqual(shown);
   });
 });
 
@@ -484,6 +508,7 @@ describe("unified view — the backlog", () => {
       perlica: [
         { role: "user", text: "hi all", ts: T - 90_000, send_id: "s1", mention: "everyone" },
         { role: "assistant", text: "Hello.", ts: T - 80_000 },
+        { role: "user", text: "@Natsume what do you think?", ts: T - 55_000, send_id: "s4" },
       ],
       natsume: [
         { role: "user", text: "hi all", ts: T - 89_000, send_id: "s1", mention: "everyone" },
@@ -507,6 +532,7 @@ describe("unified view — the backlog", () => {
       ["Perlica", "Hello."],
       ["You → Natsume", "just you"],
       ["You → Natsume", "still there?"],
+      ["You → Perlica", "@Natsume what do you think?"],
     ]);
   });
 });
