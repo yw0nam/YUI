@@ -60,6 +60,19 @@ it("is a radio group whose checked chip holds the tab stop, and a click picks", 
   expect(picked).toEqual(["everyone"]);
 });
 
+it("picks on a click whose press came before a state repaint", () => {
+  const picked: string[] = [];
+  const { chips, radios } = setup((id) => picked.push(id));
+  chips.render(CAST, () => "idle", "perlica");
+  const chip = radios()[1]!;
+
+  chip.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0 }));
+  chips.render(CAST, (id) => (id === "natsume" ? "talk" : "idle"), "perlica");
+  chip.click();
+
+  expect(picked).toEqual(["natsume"]);
+});
+
 it("closes on its ×, and drags the window from the row's empty space only", () => {
   const { chips, mount, onClose, startDragging, radios } = setup();
   chips.render(CAST, () => "idle", "perlica");
