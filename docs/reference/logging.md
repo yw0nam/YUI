@@ -107,6 +107,7 @@ and the pump goes on.
 | `unified-view` | `route` | `targets`, `mention`, `via` | The window sent a message. `targets` is how many presets it goes to, `mention` is `character`, `everyone` or `none`, `via` is `text` or `voice`. |
 | `unified-view` | `stop` | — | The user pressed stop: the window dropped its sends and lines and asked every pet window to stop. |
 | `unified-voice` | `barge_in_all` | — | The user started speaking while the unified chat window shows: main asked every window to stop and stopped its own turn. |
+| `unified-voice` | `segment_to_unified` | — | Main sent a recognized segment to the unified chat window. |
 | `sequence` | `sequence_timeout` | `preset` | A preset gave no done signal for the current send in 60 seconds, so the sequence moved on. |
 | `unified-window` | `unified_window_create_error` | `error` | The window could not be created (`error` level). |
 | `unified-window` | `unified_window_open_failed` | `error` | Showing or creating the window threw (`warn` level). |

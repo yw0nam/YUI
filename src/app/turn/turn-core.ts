@@ -74,8 +74,8 @@ export interface TurnCorePhase1 {
   unifiedShown: Pick<UnifiedShown, "get">;
   /** Sends a recognized segment to the unified chat window. */
   emitVoiceSegment(event: VoiceSegment): void;
-  /** Asks every window to stop its running turn and speech. */
-  emitStopTurns(): void;
+  /** Tells the unified chat window the user started speaking, with barge-in on. */
+  emitSpeechOnset(): void;
 }
 
 export interface TurnCore {
@@ -164,7 +164,7 @@ export async function wireTurnCore(
     bargeIn: () => settings.vadSettings.get().bargeIn,
     sendSegment: (text) => phase1.emitVoiceSegment({ text }),
     submitHere: (text) => userInput.submitVoice(text),
-    emitStopTurns: phase1.emitStopTurns,
+    emitSpeechOnset: phase1.emitSpeechOnset,
   });
   const turnVoice = wireTurnVoice({
     renderer,
@@ -330,7 +330,6 @@ export async function wireTurnCore(
         onStop: (cb) => {
           surfaces.onStop(cb);
           register(phase1.onStopTurns(cb));
-          register(unifiedVoice.onStop(cb));
         },
         stopTurn,
         socket: pushSocket,

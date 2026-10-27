@@ -97,6 +97,7 @@ async function bootstrap(): Promise<void> {
   disposers.register(settingsBridge.onUserTurnDone(view.turnDone));
   disposers.register(settingsBridge.onVoiceSegment(({ text }) => view.voiceSegment(text)));
   disposers.register(settingsBridge.onStopTurns(view.stop));
+  disposers.register(settingsBridge.onSpeechOnset(view.speechOnset));
   disposers.register(settingsBridge.onSettingsChanged(onSettingsChanged));
   disposers.register(settingsBridge.onPetWindowsChanged(refresh));
   disposers.register(settingsBridge.onPresetChanged(refresh));

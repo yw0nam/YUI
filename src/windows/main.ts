@@ -307,7 +307,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       onUserTurnRouted: windowBridge.onUserTurnRouted,
       onStopTurns: windowBridge.onStopTurns,
       emitVoiceSegment: windowBridge.emitVoiceSegment,
-      emitStopTurns: windowBridge.emitStopTurns,
+      emitSpeechOnset: windowBridge.emitSpeechOnset,
       pushSocket: push.pushSocket,
       delegations: push.delegations,
       delegationHistory: push.delegationHistory,

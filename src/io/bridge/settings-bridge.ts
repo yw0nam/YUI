@@ -35,6 +35,7 @@ const CH_PRESET_CHANGED = "yui://preset-changed";
 const CH_CHARACTER_ADDRESSED = "yui://character-addressed";
 const CH_USER_TURN_ROUTED = "yui://user-turn-routed";
 const CH_VOICE_SEGMENT = "yui://voice-segment";
+const CH_SPEECH_ONSET = "yui://speech-onset";
 const CH_SPEECH_STREAM = "yui://speech-stream";
 const CH_SPEECH_STREAM_ASK = "yui://speech-stream-ask";
 const CH_STOP_TURNS = "yui://stop-turns";
@@ -188,6 +189,9 @@ export interface SettingsBridge {
   /** The unified chat window's stop: every pet window stops its running turn and speech. */
   emitStopTurns(): void;
   onStopTurns(cb: () => void): () => void;
+  /** The user started speaking, with barge-in on, while the unified chat window shows; that window answers like its stop button while a character runs. */
+  emitSpeechOnset(): void;
+  onSpeechOnset(cb: () => void): () => void;
   /** The unified chat window's click on an error's fix; delivered to every window, receivers filter on `preset`. */
   emitSpeechStreamControl(event: SpeechStreamControl): void;
   onSpeechStreamControl(cb: (event: SpeechStreamControl) => void): () => void;
@@ -270,6 +274,7 @@ export function createSettingsBridge(
     CH_CHARACTER_ADDRESSED,
     CH_USER_TURN_ROUTED,
     CH_VOICE_SEGMENT,
+    CH_SPEECH_ONSET,
     CH_USER_TURN_DONE,
     CH_SPEECH_STREAM,
     CH_SPEECH_STREAM_ASK,
@@ -497,6 +502,12 @@ export function createSettingsBridge(
     },
     onStopTurns(cb) {
       return on<unknown>(CH_STOP_TURNS, () => cb());
+    },
+    emitSpeechOnset() {
+      safeEmit(CH_SPEECH_ONSET);
+    },
+    onSpeechOnset(cb) {
+      return on<unknown>(CH_SPEECH_ONSET, () => cb());
     },
     emitSpeechStreamControl(event) {
       safeEmit(CH_SPEECH_STREAM_CONTROL, event);

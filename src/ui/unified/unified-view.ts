@@ -30,6 +30,8 @@ export interface UnifiedView {
   turnDone(done: UserTurnDone): void;
   /** Main's recognized speech: routed like a typed message, or put in the field while a send runs. */
   voiceSegment(text: string): void;
+  /** The user started speaking: while a send runs, the stop button's path. */
+  speechOnset(): void;
   /** Another window's stop: ends the send under way and the lines, sending no stop of its own. */
   stop(): void;
   onRoute(cb: (event: UserTurnRouted) => void): void;
@@ -174,12 +176,14 @@ export function createUnifiedView(deps: {
     paint();
   }
 
-  composer.onSubmit((text) => route(text));
-  composer.onStop(() => {
+  function stopButton(): void {
     stop();
     for (const cb of stopCbs) cb();
     log.info("stop");
-  });
+  }
+
+  composer.onSubmit((text) => route(text));
+  composer.onStop(stopButton);
 
   const unsubscribeLocale = subscribeLocale(refresh);
 
@@ -232,6 +236,9 @@ export function createUnifiedView(deps: {
     voiceSegment(text) {
       if (busy()) composer.fill(text);
       else route(text, "voice");
+    },
+    speechOnset() {
+      if (busy()) stopButton();
     },
     stop,
     onRoute: (cb) => void routeCbs.push(cb),
