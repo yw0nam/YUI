@@ -866,7 +866,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/settings",
       "module": "bridge",
       "label": "settings bridge",
-      "role": "Typed cross-window settings bus: its channels scoped to the sender's preset, and the unscoped settings-changed, preset-changed, pet-windows-changed, character-addressed, user-turn-routed, voice-segment, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control, stop-turns, settings-page and open-devtools.",
+      "role": "Typed cross-window settings bus: its channels scoped to the sender's preset, and the unscoped settings-changed, preset-changed, pet-windows-changed, character-addressed, user-turn-routed, voice-segment, speech-onset, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control, stop-turns, settings-page and open-devtools.",
       "paths": [
         "src/io/bridge/settings-bridge.ts"
       ]
@@ -1127,7 +1127,7 @@ globalThis.YUI_MAP =
       "id": "ui/unified",
       "module": "display",
       "label": "unified chat",
-      "role": "The unified chat window: the cast chips with each character's line state, one dialogue box that shows one character's line at a time from per-preset lanes, the backlog labelled by recipient, the composer with recipient chips, the @ list and stop, the one-at-a-time routing of a typed or spoken message to one preset or to all, a spoken message put in the field while a send runs, and another window's stop.",
+      "role": "The unified chat window: the cast chips with each character's line state, one dialogue box that shows one character's line at a time from per-preset lanes, the backlog labelled by recipient, the composer with recipient chips, the @ list and stop, the one-at-a-time routing of a typed or spoken message to one preset or to all, a spoken message put in the field while any turn runs or a line holds or waits for the box, and another window's stop.",
       "paths": [
         "src/ui/unified"
       ]
@@ -1218,7 +1218,7 @@ globalThis.YUI_MAP =
       "id": "app/turn",
       "module": "wiring",
       "label": "turn wiring",
-      "role": "Connects voice, dispatcher, sources, vocabulary, broker, and the push transport into the chat turn; while the unified chat window shows, main's speech goes to that window and the user starting to speak stops every window.",
+      "role": "Connects voice, dispatcher, sources, vocabulary, broker, and the push transport into the chat turn; while the unified chat window shows, main's speech goes to that window and the user starting to speak has it answer like its stop button while a character runs.",
       "paths": [
         "src/app/turn"
       ]
@@ -1381,7 +1381,7 @@ globalThis.YUI_MAP =
       "id": "stt-submit",
       "from": "io/voice/stt",
       "to": "dispatcher/sources/user-input",
-      "carries": "onVoiceSegment(text) → submitVoice",
+      "carries": "onVoiceSegment(text) → submitVoice while the unified chat window is hidden; while it shows, the voice-segment exchange carries the text",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/voice/wire-voice.ts"
@@ -2873,7 +2873,16 @@ globalThis.YUI_MAP =
       "id": "voice-segment",
       "from": "app/turn",
       "to": "ui/unified",
-      "carries": "yui://voice-segment {text}, unscoped: main's recognized speech while the unified chat window shows; that window routes it like a typed message, or puts it in the field while a send runs",
+      "carries": "yui://voice-segment {text}, unscoped: main's recognized speech while the unified chat window shows; that window routes it like a typed message, or puts it in the field while any turn runs or a line holds or waits for the box",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/turn/turn-core.ts"
+    },
+    {
+      "id": "speech-onset",
+      "from": "app/turn",
+      "to": "ui/unified",
+      "carries": "yui://speech-onset, unscoped, when the user starts speaking while the unified chat window shows and barge-in is on: that window answers like its stop button while a character runs",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/turn/turn-core.ts"
@@ -3170,7 +3179,7 @@ globalThis.YUI_MAP =
       "id": "barge-in-speech",
       "from": "io/voice/stt",
       "to": "io/voice/tts",
-      "carries": "onSpeechActive with speech outstanding → speechPlayback.interrupt({muteCurrentTurn}), fillerLoop.stop()",
+      "carries": "onSpeechActive with speech outstanding → speechPlayback.interrupt({muteCurrentTurn}), fillerLoop.stop(); while the unified chat window shows and barge-in is on, onSpeechActive → speech-onset",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
@@ -3451,19 +3460,10 @@ globalThis.YUI_MAP =
       "id": "stop-turns",
       "from": "ui/unified",
       "to": "app/turn",
-      "carries": "yui://stop-turns, unscoped: every pet window runs the stop button's stopTurn",
+      "carries": "yui://stop-turns, unscoped, from the unified chat window's stop button or its answer to speech onset: every pet window runs the stop button's stopTurn",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/windows/unified-main.ts"
-    },
-    {
-      "id": "stop-turns-speech",
-      "from": "app/turn",
-      "to": "ui/unified",
-      "carries": "yui://stop-turns, unscoped, when the user starts speaking in main while the unified chat window shows and barge-in is on: the unified window ends its send and lines, every other pet window runs the stop button's stopTurn, and main runs its own",
-      "kind": "bridge",
-      "transport": "shared",
-      "wiring": "src/app/turn/turn-core.ts"
     },
     {
       "id": "unified-shown",
@@ -5044,14 +5044,14 @@ globalThis.YUI_MAP =
         "id": "stop-turns-unified-pet",
         "from": "unified",
         "to": "pet",
-        "carries": "yui://stop-turns: the pet window stops its running turn and speech",
+        "carries": "yui://stop-turns from the stop button or a speech-onset answer: the pet window stops its running turn and speech",
         "kind": "bridge"
       },
       {
         "id": "stop-turns-unified-pet-bound",
         "from": "unified",
         "to": "pet-<id>",
-        "carries": "yui://stop-turns: the pet window stops its running turn and speech",
+        "carries": "yui://stop-turns from the stop button or a speech-onset answer: the pet window stops its running turn and speech",
         "kind": "bridge"
       },
       {
@@ -5062,17 +5062,10 @@ globalThis.YUI_MAP =
         "kind": "bridge"
       },
       {
-        "id": "stop-turns-pet-unified",
+        "id": "speech-onset-pet-unified",
         "from": "pet",
         "to": "unified",
-        "carries": "yui://stop-turns when the user starts speaking with barge-in on: the unified chat window ends its send and lines",
-        "kind": "bridge"
-      },
-      {
-        "id": "stop-turns-pet-pet-bound",
-        "from": "pet",
-        "to": "pet-<id>",
-        "carries": "yui://stop-turns when the user starts speaking with barge-in on while the unified chat window shows: the pet window stops its running turn and speech",
+        "carries": "yui://speech-onset when the user starts speaking with barge-in on: the unified chat window answers like its stop button while a character runs",
         "kind": "bridge"
       },
       {

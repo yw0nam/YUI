@@ -170,7 +170,7 @@ The backend starts a new conversation under the same `chat_id`. Long-term memory
 { "type": "stop", "turn_ids": ["1789365854947", "1789365854950"] }
 ```
 
-The user pressed stop. `turn_ids` are the turns the client just stopped — every turn that was outstanding on the chat at that moment. The backend stops generating for those of them that are still running and sends each its `turn_end`; an id it no longer holds is ignored, and a turn that is not named — one the backend started after the client's stop — keeps running. A backend that cannot stop the named turns without also stopping an unnamed one ignores the frame. A backend that ignores `stop` stays correct: the client drops the stopped turns' frames until their `turn_end`, as it does without it. Whether stopping a turn also ends work that turn delegated is the backend's decision; a delegation it ends is reported through `delegations`. Sent only while the socket is `ready`.
+The user pressed stop, or the user started speaking, with barge-in on, while the unified chat window shows and a character was running — that window then sends the same stop its stop button sends. `turn_ids` are the turns the client just stopped — every turn that was outstanding on the chat at that moment. The backend stops generating for those of them that are still running and sends each its `turn_end`; an id it no longer holds is ignored, and a turn that is not named — one the backend started after the client's stop — keeps running. A backend that cannot stop the named turns without also stopping an unnamed one ignores the frame. A backend that ignores `stop` stays correct: the client drops the stopped turns' frames until their `turn_end`, as it does without it. Whether stopping a turn also ends work that turn delegated is the backend's decision; a delegation it ends is reported through `delegations`. Sent only while the socket is `ready`.
 
 ### `playback` (client → backend)
 
@@ -212,11 +212,12 @@ A cue is a `generate_express` argument object as defined in [client-context.md](
 
 Silence is a `render` whose segments carry no speech: every `speech` is empty or the bare `[SILENT]` token. Cues on a silent render still play. A turn with cues and no speech is one `render` whose single segment carries the cues and an empty `speech`; a turn with nothing to render sends only its `turn_end`. A cue on a silent segment renders as it arrives when nothing is playing, and at the next playback boundary when speech is still owed. Every cue waiting on a boundary fires at the first one playback reaches, so a cue belonging to a reply still being synthesised lands before that reply's speech. A cue that arrives while the character plays the thinking motion of another running turn lands when that motion ends.
 
-A `render` plays after the speech already queued, in the order the frames arrived. Three user actions stop speech:
+A `render` plays after the speech already queued, in the order the frames arrived. Four user actions stop speech:
 
 1. A turn the user typed or spoke.
 2. Voice barge-in.
 3. The stop button.
+4. The user started speaking, with barge-in on, while the unified chat window shows and a character was running.
 
 The `render`, `speech` and `tool_status` frames still to come for a turn stopped that way are dropped, and its `turn_end` is the frame on which the client forgets the turn.
 
