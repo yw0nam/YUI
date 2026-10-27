@@ -1,7 +1,7 @@
 /**
  * The unified chat window's head row — the recipient picker: one radio chip per open character (its
- * face, its name, a dot for the state of its line), one for everyone, and the window's × button.
- * The row's empty space is the window's drag handle.
+ * face, its name, a dot for the state of its line), one for everyone, a grip, and the window's ×
+ * button. The grip and the row's empty space are the window's drag handle.
  */
 
 import type { PresetEntry } from "../../settings/preset/active-preset";
@@ -13,6 +13,8 @@ import { EVERYONE, type Mention } from "./targets";
 export type CastState = "talk" | "think" | "idle";
 
 const CROSS = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>`;
+
+const GRIP = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>`;
 
 const STEP: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
 
@@ -39,11 +41,15 @@ export function createCastChips(deps: {
   const chips = document.createElement("div");
   chips.className = "yui-uc__chips";
   chips.setAttribute("role", "radiogroup");
+  // Keeps its width however many chips wrap beside it, so the window always has a grab target.
+  const grip = document.createElement("span");
+  grip.className = "yui-uc__grip";
+  grip.innerHTML = GRIP;
   const close = document.createElement("button");
   close.type = "button";
   close.className = "yui-uc__close";
   close.innerHTML = CROSS;
-  row.append(chips, close);
+  row.append(chips, grip, close);
   deps.mount.append(row);
 
   const applyLabels = (): void => {

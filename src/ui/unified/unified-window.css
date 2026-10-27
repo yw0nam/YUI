@@ -1,5 +1,5 @@
 /* Unified chat window — a frameless 340px column on a transparent page: the cast row (the recipient
-   picker, the window's drag handle and its ×), one dialogue box, and the composer. The window takes
+   picker, the grip that with the row's empty space drags the window, and its ×), one dialogue box, and the composer. The window takes
    the column's height. */
 
 .yui-uc {
@@ -19,7 +19,7 @@
   box-sizing: border-box;
 }
 
-/* ── Cast row: a radio chip per open character and one for everyone, wrapping, and the × at its end ── */
+/* ── Cast row: a radio chip per open character and one for everyone, wrapping, then the grip and the × ── */
 .yui-uc__cast {
   display: flex;
   align-items: flex-start;
@@ -93,6 +93,7 @@
   opacity: 1;
   animation: yui-plate-pulse 1.6s var(--yui-ease) infinite;
 }
+.yui-uc__grip,
 .yui-uc__close {
   display: grid;
   flex: none;
@@ -105,9 +106,12 @@
   background: var(--yui-scrim-strong);
   box-shadow: var(--yui-float);
   color: var(--yui-text-dim);
+}
+.yui-uc__close {
   cursor: pointer;
   transition: color var(--yui-dur-fast) var(--yui-ease);
 }
+.yui-uc__grip svg,
 .yui-uc__close svg {
   width: 12px;
   height: 12px;
@@ -134,6 +138,10 @@
 .yui-uc .yui-plate__dot,
 .yui-uc .yui-plate__state {
   display: none;
+}
+/* The plate drags the window; the bubble around it passes pointers through. */
+.yui-uc .yui-bubble.is-visible .yui-plate {
+  pointer-events: auto;
 }
 /* Room for the plate, which rides 15px above the box. */
 .yui-uc .yui-ui--message > .yui-bubble {

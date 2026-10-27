@@ -119,6 +119,8 @@ interface SurfacesOptions {
   reasoning?: ReasoningSource;
   /** Mounts a name plate on the bubble's edge: responding while speech streams, thinking while busy. */
   namePlate?: boolean;
+  /** Makes the name plate the grab target the OS window drag starts from. */
+  startDragging?: () => void;
   /** The current session's lines, opened above the box by a toggle under it. */
   backlog?: BacklogSource;
   /** Called each time a line's typing reports all of it shown. */
@@ -143,6 +145,7 @@ export function createSurfaces({
   onInputOpenChange,
   reasoning,
   namePlate,
+  startDragging,
   backlog: backlogSource,
   onAllShown,
   onShown,
@@ -251,7 +254,7 @@ export function createSurfaces({
     onInputOpenChange,
   );
 
-  const plate = namePlate ? createMessagePlate({ mount: bubbleFrame }) : undefined;
+  const plate = namePlate ? createMessagePlate({ mount: bubbleFrame, startDragging }) : undefined;
 
   const popButtons = [bubblePop, inputPop];
   for (const button of popButtons) button.hidden = onPop === undefined;
