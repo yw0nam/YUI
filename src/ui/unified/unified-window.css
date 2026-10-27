@@ -139,6 +139,10 @@
 .yui-uc .yui-plate__state {
   display: none;
 }
+/* The plate drags the window; the bubble around it passes pointers through. */
+.yui-uc .yui-bubble.is-visible .yui-plate {
+  pointer-events: auto;
+}
 /* Room for the plate, which rides 15px above the box. */
 .yui-uc .yui-ui--message > .yui-bubble {
   margin-top: 15px;
