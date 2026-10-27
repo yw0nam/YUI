@@ -5,7 +5,7 @@
  * The drag runs through the `drag_window` command; its drop is the `window_drop_release` event.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { win, getCurrentWindow, availableMonitors, primaryMonitor } = vi.hoisted(() => {
   const win = {
@@ -87,10 +87,12 @@ function fakeBridge() {
 
 function fakeCard() {
   const headCbs = new Set<(e: PointerEvent) => void>();
+  const size = { width: 272, height: 400 };
   return {
+    size,
     open: vi.fn(),
     isOpen: vi.fn(() => true),
-    contentSize: () => ({ width: 272, height: 400 }),
+    contentSize: () => ({ ...size }),
     el: document.createElement("div"),
     onHeadPointerDown: (cb: (e: PointerEvent) => void) => {
       headCbs.add(cb);
@@ -139,6 +141,8 @@ beforeEach(() => {
   getByLabel.mockClear();
   getByLabel.mockImplementation(async () => owner);
 });
+
+afterEach(() => vi.unstubAllGlobals());
 
 function wired() {
   const bridge = fakeBridge();
@@ -215,6 +219,35 @@ describe("wireQuickCardDock", () => {
 
     expect(owner.outerPosition).toHaveBeenCalledOnce();
     expect(positions()).toEqual([{ x: 964, y: 488 }]);
+  });
+
+  it("re-sizes its window to a grown card and pulls it back into the work area", async () => {
+    let resized: (() => void) | null = null;
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(cb: () => void) {
+          resized = cb;
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    const { bridge, card } = wired();
+    bridge.open(REQUEST);
+    await vi.waitFor(() => expect(win.show).toHaveBeenCalledOnce());
+    win.setSize.mockClear();
+    win.setPosition.mockClear();
+
+    // The reset confirm grows the card 200px; docked at y 468 its window would end at 1084.
+    card.size.height = 600;
+    resized!();
+    await settle();
+
+    expect(win.setSize.mock.calls.map(([s]) => ({ ...(s as object) }))).toEqual([
+      expect.objectContaining({ width: 288, height: 616 }),
+    ]);
+    expect(positions()).toEqual([{ x: 864, y: 384 }]);
   });
 
   it("leaves a closed card where it is when the owner moves", async () => {

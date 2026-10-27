@@ -294,6 +294,14 @@ describe("createQuickCard", () => {
       "a pointerdown outside the card",
       () => document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })),
     ],
+    [
+      "All settings…",
+      (h: ReturnType<typeof build>) => h.q<HTMLButtonElement>(".yui-qcard__all").click(),
+    ],
+    [
+      "Turn off",
+      (h: ReturnType<typeof build>) => h.q<HTMLButtonElement>(".yui-qcard__turnoff").click(),
+    ],
   ])("closes on %s and hands focus back", (_name, act) => {
     const h = build();
     h.card.open();
@@ -304,6 +312,18 @@ describe("createQuickCard", () => {
     expect(h.card.isOpen()).toBe(false);
     expect(h.mount.contains(h.card.el)).toBe(false);
     expect(document.activeElement).toBe(document.body);
+  });
+
+  it("hands a pointerdown on its head, not on its ×, to the head listeners", () => {
+    const { card, q } = build();
+    card.open();
+    const onHead = vi.fn();
+    card.onHeadPointerDown(onHead);
+
+    q(".yui-qcard__close").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    q(".yui-qcard__name").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+
+    expect(onHead).toHaveBeenCalledOnce();
   });
 
   it("stays open on a pointerdown inside it, and its Escape never reaches the document", () => {
