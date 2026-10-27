@@ -32,10 +32,9 @@ export interface SourceLine {
 
 /** Pet → message: one call on the message window's local `Surfaces`. */
 export type MessageSurfaceOp =
-  | { op: "begin"; paced?: boolean }
+  | { op: "begin" }
   | { op: "name"; name: string }
   | { op: "push"; delta: string }
-  | { op: "pace"; text: string; durationMs: number | null }
   | { op: "end"; defer?: boolean }
   | { op: "finish" }
   | { op: "hide" }

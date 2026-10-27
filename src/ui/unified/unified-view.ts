@@ -252,7 +252,6 @@ export function createUnifiedView(deps: {
           break;
         case "begin":
         case "push":
-        case "pace":
         case "end":
         case "finish":
         case "hide":

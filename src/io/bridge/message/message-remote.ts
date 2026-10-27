@@ -11,7 +11,6 @@
 import type { AttachmentLimits } from "../../../config/validators/guardrails";
 import type { UtteranceIdentity } from "../../../contract";
 import { createLogger } from "../../../logger";
-import type { SentenceStart } from "../../voice/tts/tts-pipeline";
 import type { MessageBridge, SourceLine, UserQuote } from "./message-bridge";
 
 /** In-place fix offered next to an inline error (e.g. "Open Advanced" on an unconfigured backend). */
@@ -28,9 +27,8 @@ export interface SpeechAction {
 
 /** The half of `Surfaces` the message window owns, plus the dock request it can raise. */
 export interface RemoteSurfaces {
-  beginSpeech(identity?: UtteranceIdentity, opts?: { paced?: boolean; aside?: boolean }): void;
+  beginSpeech(identity?: UtteranceIdentity, opts?: { aside?: boolean }): void;
   pushSpeech(delta: string): void;
-  paceSpeech(sentence: SentenceStart): void;
   endSpeech(opts?: { defer?: boolean }): void;
   finishSpeech(): void;
   hideSpeech(): void;
@@ -113,15 +111,12 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
   });
 
   return {
-    beginSpeech(_identity, opts) {
+    beginSpeech() {
       pendingSpeechAction = null;
-      bridge.emitSurface(opts?.paced ? { op: "begin", paced: true } : { op: "begin" });
+      bridge.emitSurface({ op: "begin" });
     },
     pushSpeech(delta) {
       bridge.emitSurface({ op: "push", delta });
-    },
-    paceSpeech({ text, durationMs }) {
-      bridge.emitSurface({ op: "pace", text, durationMs });
     },
     endSpeech(opts) {
       bridge.emitSurface(opts?.defer ? { op: "end", defer: true } : { op: "end" });

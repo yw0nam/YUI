@@ -18,7 +18,6 @@ import { createEmojiStripper } from "./strip-emoji";
 import { createLinkStripper } from "./strip-links";
 import {
   createTtsPipeline,
-  type SentenceStart,
   type SpokenSplit,
   type TtsPipeline,
   type TtsPipelineOptions,
@@ -54,9 +53,8 @@ interface PlaybackRenderer {
 }
 
 interface PlaybackSurfaces {
-  beginSpeech(identity?: UtteranceIdentity, opts?: { paced?: boolean; aside?: boolean }): void;
+  beginSpeech(identity?: UtteranceIdentity, opts?: { aside?: boolean }): void;
   pushSpeech(delta: string, identity?: UtteranceIdentity): void;
-  paceSpeech(sentence: SentenceStart): void;
   endSpeech(opts?: { defer?: boolean }, identity?: UtteranceIdentity): void;
   finishSpeech(): void;
 }
@@ -65,10 +63,7 @@ export interface SpeechPlaybackOptions {
   renderer: PlaybackRenderer;
   surfaces: PlaybackSurfaces;
   /** Base options injected when building the pipeline (synth, sink, …). onAmplitude/onPlaybackEnd are overridden here. */
-  pipeline: Omit<
-    TtsPipelineOptions,
-    "onAmplitude" | "onPlaybackEnd" | "onCuePlay" | "onSentenceStart"
-  >;
+  pipeline: Omit<TtsPipelineOptions, "onAmplitude" | "onPlaybackEnd" | "onCuePlay">;
   /** Pipeline factory injection for tests. */
   createPipeline?: (opts: TtsPipelineOptions) => TtsPipeline;
   /** Called after stopMouth/finishSpeech/easeEmotionToNeutral on each playback-end. */
@@ -163,7 +158,6 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
         renderer.setMouthOpen(rms);
       },
       onCuePlay: (cue) => applyCue(cue),
-      onSentenceStart: (sentence) => surfaces.paceSpeech(sentence),
       onPlaybackEnd: () => {
         renderer.stopMouth();
         surfaces.finishSpeech();
@@ -202,9 +196,7 @@ export function createSpeechPlayback(options: SpeechPlaybackOptions): SpeechPlay
   function delta(text: string, identity?: UtteranceIdentity, aside = false): void {
     const clean = stripper.push(text);
     if (open === null) {
-      // A muted remainder is never voiced, and a line behind owed audio would take that audio's sentence starts.
-      const paced = !muted && queued.length === 0;
-      surfaces.beginSpeech(identity, aside ? { paced, aside } : { paced });
+      surfaces.beginSpeech(identity, aside ? { aside } : undefined);
       // A muted remainder still shows in the bubble, and stays out of the record.
       open = {
         identity: !muted && identity ? { ...identity } : undefined,

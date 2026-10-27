@@ -25,7 +25,6 @@ type SpeechSide = Pick<
   Surfaces,
   | "beginSpeech"
   | "pushSpeech"
-  | "paceSpeech"
   | "endSpeech"
   | "finishSpeech"
   | "hideSpeech"
@@ -37,7 +36,7 @@ type SpeechSide = Pick<
 
 type LineSide = Pick<
   Surfaces,
-  "beginSpeech" | "pushSpeech" | "paceSpeech" | "endSpeech" | "finishSpeech" | "hideSpeech"
+  "beginSpeech" | "pushSpeech" | "endSpeech" | "finishSpeech" | "hideSpeech"
 >;
 
 export function createSurfacesRouter({
@@ -60,7 +59,6 @@ export function createSurfacesRouter({
   const noLine: LineSide = {
     beginSpeech() {},
     pushSpeech() {},
-    paceSpeech() {},
     endSpeech() {},
     finishSpeech() {},
     hideSpeech() {},
@@ -107,7 +105,6 @@ export function createSurfacesRouter({
       line().beginSpeech(...args);
     },
     pushSpeech: (...args) => line().pushSpeech(...args),
-    paceSpeech: (sentence) => line().paceSpeech(sentence),
     endSpeech: (...args) => line().endSpeech(...args),
     finishSpeech: () => line().finishSpeech(),
     hideSpeech: () => line().hideSpeech(),

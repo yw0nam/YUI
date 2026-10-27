@@ -6,27 +6,24 @@
  */
 
 import type { SpeechAction } from "../../io/bridge/message/message-remote";
-import type { SentenceStart } from "../../io/voice/tts/tts-pipeline";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { afterFadeOut } from "../notices/fade-out";
 import { renderMarkdownInline } from "./markdown";
 import { stableMarkdown } from "./stable-markdown";
 import { keepTextPrefix, visibleText } from "./text-prefix";
-import { createTypewriter } from "./typewriter";
+import { createTypewriter, TYPE_MS_PER_CHAR } from "./typewriter";
 
 export interface SpeechBubble {
-  /** Reveal the bubble (empty) + caret ON. Called before streaming starts; a paced line types each sentence as its audio starts. */
-  beginSpeech(opts?: { paced?: boolean }): void;
+  /** Reveal the bubble (empty) + caret ON. Called before streaming starts. */
+  beginSpeech(): void;
   /** Append a streaming delta. */
   pushSpeech(delta: string): void;
-  /** A sentence's audio started: a paced line types that sentence over its duration. */
-  paceSpeech(sentence: SentenceStart): void;
   /**
    * Caret OFF. By default, auto-fades after dwell (also used when the full text arrives at once).
    * When defer=true, the fade is held — the bubble stays until TTS playback ends and finishSpeech() is called.
    */
   endSpeech(opts?: { defer?: boolean }): void;
-  /** Playback ended: the rest of the line types at the fixed rate, and a deferred bubble takes its dwell once all of it shows. */
+  /** Playback ended: a deferred bubble takes its dwell once all of the line shows. */
   finishSpeech(): void;
   /** Hide the bubble immediately (ignoring dwell). */
   hideSpeech(): void;
@@ -75,7 +72,8 @@ interface SpeechBubbleElements {
 }
 
 const DEFAULT_DWELL = 5000;
-const SPEECH_RENDER_INTERVAL_MS = 50;
+// Rendering keeps pace with the typing.
+const SPEECH_RENDER_INTERVAL_MS = TYPE_MS_PER_CHAR;
 // If the user is within this many px of the bottom, treat as pinned for auto-scroll.
 const SCROLL_PIN_SLACK_PX = 8;
 
@@ -264,7 +262,7 @@ export function createSpeechBubble(
     bubbleNext.hidden = true;
   }
 
-  function beginSpeech(opts?: { paced?: boolean }): void {
+  function beginSpeech(): void {
     clearDwell();
     deferred = false;
     dismissed = false;
@@ -282,7 +280,7 @@ export function createSpeechBubble(
     bubbleSr.textContent = "";
     bubbleNext.hidden = true;
     clearSpeechAction();
-    typer.begin({ paced: opts?.paced === true });
+    typer.begin();
     if (globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches) typer.flush();
     if (!turnHeld) bubbleQuote.hidden = true;
     bubbleEl.hidden = false;
@@ -331,11 +329,6 @@ export function createSpeechBubble(
     parseThrottled();
   }
 
-  // The voice reads the raw sentence; the typewriter counts what the bubble draws.
-  function paceSpeech({ text, durationMs }: SentenceStart): void {
-    typer.pace({ text: visibleText(renderMarkdownInline(text, { streaming: true })), durationMs });
-  }
-
   function endSpeech(opts?: { defer?: boolean }): void {
     if (dismissed) return;
     if (bubbleEl.hidden && speechRaw === "") return;
@@ -351,14 +344,11 @@ export function createSpeechBubble(
     clearDwell();
     // A deferred line holds the fade until playback ends — finishSpeech() arms the dwell.
     deferred = opts?.defer === true;
-    // No audio follows a line that ends undeferred, so no sentence start comes to pace the rest.
-    if (!deferred) typer.release();
     // Reports done at once when all of it already shows, which settles the bubble into its dwell.
     typer.end();
   }
 
   function finishSpeech(): void {
-    typer.release();
     if (!deferred) return;
     deferred = false;
     if (bubbleEl.hidden) return;
@@ -534,7 +524,6 @@ export function createSpeechBubble(
   return {
     beginSpeech,
     pushSpeech,
-    paceSpeech,
     endSpeech,
     finishSpeech,
     hideSpeech,

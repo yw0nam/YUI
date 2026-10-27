@@ -61,7 +61,6 @@ function setup() {
     surfaces: {
       beginSpeech: () => {},
       pushSpeech: () => {},
-      paceSpeech: () => {},
       endSpeech: () => {},
       finishSpeech: () => {},
     },

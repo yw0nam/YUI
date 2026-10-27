@@ -1011,15 +1011,13 @@ describe("typing — speech types out", () => {
   });
 
   it("types nothing more once the bubble hides, whatever the voice still reports", () => {
-    s.beginSpeech(undefined, { paced: true });
+    s.beginSpeech();
     s.pushSpeech("One. Two.");
     s.endSpeech({ defer: true });
-    s.paceSpeech({ text: "One.", durationMs: 400 });
     vi.advanceTimersByTime(100);
     mount.querySelector<HTMLElement>(".yui-bubble__close")!.click();
     const shown = text();
 
-    s.paceSpeech({ text: "Two.", durationMs: 100 });
     s.finishSpeech();
     s.endSpeech();
     vi.advanceTimersByTime(300);
@@ -1027,19 +1025,6 @@ describe("typing — speech types out", () => {
     expect(text()).toBe(shown);
     expect(next().hidden).toBe(true);
     expect(mount.querySelector(".yui-bubble")!.classList.contains("is-typing")).toBe(false);
-  });
-
-  it("paces a line whose sentences carry markdown by their rendered text", () => {
-    s.beginSpeech(undefined, { paced: true });
-    s.pushSpeech("Here is **bold**. Next one. And `x` last.");
-    s.endSpeech({ defer: true });
-
-    s.paceSpeech({ text: "Here is **bold**.", durationMs: 1000 });
-    vi.advanceTimersByTime(1100);
-    expect(text()).toBe("Here is bold.");
-    s.paceSpeech({ text: "Next one.", durationMs: 1000 });
-    vi.advanceTimersByTime(1100);
-    expect(text()).toBe("Here is bold. Next one.");
   });
 
   it("types the rendered line, never its markdown syntax or a partial link", () => {

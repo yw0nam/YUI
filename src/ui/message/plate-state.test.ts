@@ -11,9 +11,9 @@ it("keeps the plate responding from a line's begin to its end or hide, and think
   };
   const driven = withPlateState(plate, surfaces);
 
-  driven.beginSpeech(undefined, { paced: true });
+  driven.beginSpeech();
   expect(plate.setLive.mock.calls).toEqual([[true]]);
-  expect(surfaces.beginSpeech).toHaveBeenCalledWith(undefined, { paced: true });
+  expect(surfaces.beginSpeech).toHaveBeenCalledWith();
   driven.endSpeech({ defer: true });
   expect(plate.setLive.mock.calls).toEqual([[true], [false]]);
   expect(surfaces.endSpeech).toHaveBeenCalledWith({ defer: true });

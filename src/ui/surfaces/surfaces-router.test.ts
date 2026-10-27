@@ -28,7 +28,6 @@ function makeLocal(): Surfaces {
     chipColumn: document.createElement("div"),
     beginSpeech: vi.fn(),
     pushSpeech: vi.fn(),
-    paceSpeech: vi.fn(),
     endSpeech: vi.fn(),
     finishSpeech: vi.fn(),
     hideSpeech: vi.fn(),
@@ -58,7 +57,6 @@ function makeRemote(): RemoteSurfaces {
   return {
     beginSpeech: vi.fn(),
     pushSpeech: vi.fn(),
-    paceSpeech: vi.fn(),
     endSpeech: vi.fn(),
     finishSpeech: vi.fn(),
     hideSpeech: vi.fn(),
@@ -392,16 +390,14 @@ describe("createSurfacesRouter", () => {
       vi.mocked(local.hideSpeech).mockClear();
       vi.mocked(remote.hideSpeech).mockClear();
 
-      router.beginSpeech(identity, { paced: true });
+      router.beginSpeech(identity);
       router.pushSpeech("Hello", identity);
-      router.paceSpeech({ text: "Hello", durationMs: 800 });
       router.endSpeech({ defer: true }, identity);
       router.finishSpeech();
       router.hideSpeech();
 
-      expect(stream.beginSpeech).toHaveBeenCalledWith(identity, { paced: true });
+      expect(stream.beginSpeech).toHaveBeenCalledWith(identity);
       expect(stream.pushSpeech).toHaveBeenCalledWith("Hello", identity);
-      expect(stream.paceSpeech).toHaveBeenCalledWith({ text: "Hello", durationMs: 800 });
       expect(stream.endSpeech).toHaveBeenCalledWith({ defer: true }, identity);
       expect(stream.finishSpeech).toHaveBeenCalledOnce();
       expect(stream.hideSpeech).toHaveBeenCalledOnce();
@@ -415,10 +411,10 @@ describe("createSurfacesRouter", () => {
     it("sends an aside to the stream", () => {
       setShown(true);
 
-      router.beginSpeech(undefined, { paced: true, aside: true });
+      router.beginSpeech(undefined, { aside: true });
       router.pushSpeech("Wait.");
 
-      expect(stream.beginSpeech).toHaveBeenCalledWith(undefined, { paced: true, aside: true });
+      expect(stream.beginSpeech).toHaveBeenCalledWith(undefined, { aside: true });
       expect(stream.pushSpeech).toHaveBeenCalledWith("Wait.");
       expect(local.beginSpeech).not.toHaveBeenCalled();
     });
@@ -491,12 +487,11 @@ describe("createSurfacesRouter", () => {
 
       setShown(true);
       router.pushSpeech("world", identity);
-      router.paceSpeech({ text: "world", durationMs: 300 });
       router.endSpeech({ defer: true }, identity);
 
       expect(vi.mocked(local.pushSpeech).mock.calls).toEqual([["hello ", identity]]);
       expect(local.endSpeech).not.toHaveBeenCalled();
-      for (const name of ["pushSpeech", "paceSpeech", "endSpeech"] as const)
+      for (const name of ["pushSpeech", "endSpeech"] as const)
         expect(stream[name]).not.toHaveBeenCalled();
     });
 
@@ -608,18 +603,14 @@ describe("createSurfacesRouter over the message bridge", () => {
     return { router, setMode, mountMessageWindow, messageBridge };
   }
 
-  it("carries a paced line and its sentence starts to the message window while popped", () => {
+  it("carries a line to the message window while popped", () => {
     const { router, messageBridge } = setup("popped");
     const ops = vi.fn();
     messageBridge.onSurface(ops);
 
-    router.beginSpeech(undefined, { paced: true });
-    router.paceSpeech({ text: "Hi.", durationMs: 500 });
+    router.beginSpeech();
 
-    expect(ops.mock.calls).toEqual([
-      [{ op: "begin", paced: true }],
-      [{ op: "pace", text: "Hi.", durationMs: 500 }],
-    ]);
+    expect(ops.mock.calls).toEqual([[{ op: "begin" }]]);
   });
 
   it("unlocks the message window when a turn started popped ends while docked", () => {

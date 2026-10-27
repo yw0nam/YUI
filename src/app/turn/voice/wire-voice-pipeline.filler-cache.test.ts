@@ -56,7 +56,6 @@ function synthCalls(): number {
 const surfaces = {
   beginSpeech: vi.fn(),
   pushSpeech: vi.fn(),
-  paceSpeech: vi.fn(),
   endSpeech: vi.fn(),
   finishSpeech: vi.fn(),
 };

@@ -1119,7 +1119,7 @@ globalThis.YUI_MAP =
       "id": "ui/message",
       "module": "display",
       "label": "bubble and plate",
-      "role": "The speech bubble, the typewriter that types each line out paced by its sentences' audio, the quoted user line or signal source lines, the reasoning disclosure, the backlog of the session's earlier lines, and the name plate and its turn state.",
+      "role": "The speech bubble, the typewriter that types each line at 40 ms per character as text arrives, the quoted user line or signal source lines, the reasoning disclosure, the backlog of the session's earlier lines, and the name plate and its turn state.",
       "paths": [
         "src/ui/message"
       ]
@@ -1828,7 +1828,7 @@ globalThis.YUI_MAP =
       "id": "speech-bubble",
       "from": "io/voice/tts",
       "to": "ui/surfaces",
-      "carries": "beginSpeech (paced, except for a muted remainder or while an earlier line still owes audio), pushSpeech, paceSpeech at each sentence start (its text and audio duration, null without audio), endSpeech, finishSpeech",
+      "carries": "beginSpeech, pushSpeech, endSpeech, finishSpeech",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
@@ -3586,7 +3586,7 @@ globalThis.YUI_MAP =
       "id": "speech-stream",
       "from": "ui/surfaces",
       "to": "ui/unified",
-      "carries": "yui://speech-stream {preset, op}, unscoped: op is a message-window op (begin, push, pace, end, finish, hide, quote, quote-signals, settle-quote, clear-quote, busy, name, summon-input, input-error) the pet's stream half sends while the unified chat window shows; busy and name always",
+      "carries": "yui://speech-stream {preset, op}, unscoped: op is a message-window op (begin, push, end, finish, hide, quote, quote-signals, settle-quote, clear-quote, busy, name, summon-input, input-error) the pet's stream half sends while the unified chat window shows; busy and name always",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/ui/surfaces/wire.ts"
