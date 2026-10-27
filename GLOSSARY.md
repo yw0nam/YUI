@@ -100,7 +100,7 @@ A floating piece of chrome the character speaks or listens through (speech bubbl
 _Avoid_: widget, overlay, panel
 
 **Unified chat window**:
-The window `unified` that shows every open preset's lines one at a time in one dialogue box and routes the user's messages to the open presets. It shows while the Unified chat switch is on, two or more presets are open and a window can exist; while it shows it is the only chat path: no pet window shows its own bubble or input for chat, and every separate message window is hidden. Its own × turns the switch off.
+The window `unified` that shows every open preset's lines one at a time in one dialogue box and routes the user's typed and spoken messages to the open presets. It shows while the Unified chat switch is on, two or more presets are open and a window can exist; while it shows it is the only chat path: no pet window shows its own bubble or input for chat, and every separate message window is hidden. Its own × turns the switch off.
 _Avoid_: group chat, merged chat, lobby, multi chat
 
 **Mention**:

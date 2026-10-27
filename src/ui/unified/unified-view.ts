@@ -28,6 +28,14 @@ export interface UnifiedView {
   speechStream(event: SpeechStream): void;
   /** A pet window's user turn for a send id is over. */
   turnDone(done: UserTurnDone): void;
+  /** Main's recognized speech: routed like a typed message, or put in the field while any turn runs
+   * or a line holds or waits for the box. */
+  voiceSegment(text: string): void;
+  /** The user started speaking: while any turn runs or a line holds or waits for the box, the stop
+   * button's path. */
+  speechOnset(): void;
+  /** Another window's stop: ends the send under way and the lines, sending no stop of its own. */
+  stop(): void;
   onRoute(cb: (event: UserTurnRouted) => void): void;
   /** The stop button: every pet window stops its running turn. */
   onStop(cb: () => void): void;
@@ -110,9 +118,13 @@ export function createUnifiedView(deps: {
     onIdle: () => paint(),
   });
 
+  function busy(): boolean {
+    return castState.running() || sequence.running();
+  }
+
   function paint(): void {
     chips.render(deps.cast(), castState.stateOf);
-    composer.setBusy(castState.running() || sequence.running());
+    composer.setBusy(busy());
   }
 
   lanes.onSpeaker((preset) => {
@@ -137,10 +149,11 @@ export function createUnifiedView(deps: {
     paint();
   }
 
-  composer.onSubmit((text) => {
+  function route(text: string, via?: UserTurnRouted["via"]): void {
+    // A spoken send names the pick or a typed @name; the fallback picks the target as for a typed send.
     const send = buildSend({
       text,
-      mention: composer.getMention(),
+      mention: via ? composer.getExplicitMention() : composer.getMention(),
       cast: deps.cast(),
       lastSpeaker: lastSpeakerOf(rows()),
       mainId: deps.mainId(),
@@ -150,18 +163,32 @@ export function createUnifiedView(deps: {
     if (!send) return;
     const to = send.mention === "everyone" ? EVERYONE : (send.targets[0] ?? "");
     pending.push({ sendId: send.sendId, text: send.text, to, at: deps.now(), queued: true });
-    sequence.run(send);
+    sequence.run({ ...send, via });
+    // A picked chip is cleared by the send; a typed @name leaves the field only when the send used it.
+    if (via && composer.getMention() === null) composer.consumeMentionToken();
     composer.setMention(null);
-    log.info("route", { targets: send.targets.length, mention: send.mention ?? "none" });
+    log.info("route", {
+      targets: send.targets.length,
+      mention: send.mention ?? "none",
+      via: via ?? "text",
+    });
     paint();
-  });
-  composer.onStop(() => {
+  }
+
+  function stop(): void {
     sequence.cancel();
     lanes.stopAll();
+    paint();
+  }
+
+  function stopButton(): void {
+    stop();
     for (const cb of stopCbs) cb();
     log.info("stop");
-    paint();
-  });
+  }
+
+  composer.onSubmit((text) => route(text));
+  composer.onStop(stopButton);
 
   const unsubscribeLocale = subscribeLocale(refresh);
 
@@ -211,6 +238,14 @@ export function createUnifiedView(deps: {
       sequence.turnDone(done);
       paint();
     },
+    voiceSegment(text) {
+      if (busy()) composer.fill(text);
+      else route(text, "voice");
+    },
+    speechOnset() {
+      if (busy()) stopButton();
+    },
+    stop,
     onRoute: (cb) => void routeCbs.push(cb),
     onStop: (cb) => void stopCbs.push(cb),
     onInputErrorAction: (cb) => void errorActionCbs.push(cb),

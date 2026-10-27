@@ -98,6 +98,89 @@ describe("unified view — sending", () => {
     expect(routed).toEqual([{ sendId: "send-1", to: "natsume", text: "hi" }]);
   });
 
+  it("routes a spoken message like a typed one, marked as spoken", () => {
+    mount();
+
+    view.voiceSegment("hi");
+
+    expect(routed).toEqual([{ sendId: "send-1", to: "natsume", text: "hi", via: "voice" }]);
+  });
+
+  it("routes a spoken message to the checked recipient: a typed @name in the field", () => {
+    mount();
+
+    type("@perlica ");
+    view.voiceSegment("hello");
+
+    expect(routed).toEqual([
+      {
+        sendId: "send-1",
+        to: "perlica",
+        text: "@Perlica hello",
+        via: "voice",
+        mention: "character",
+      },
+    ]);
+  });
+
+  it.each([
+    { field: "@perlica ", rest: "" },
+    { field: "@perlica tell me", rest: "tell me" },
+  ])("a spoken send consumes the field's leading @name, leaving the rest (%j)", ({
+    field: text,
+    rest,
+  }) => {
+    mount();
+
+    type(text);
+    view.voiceSegment("hi");
+
+    expect(routed).toEqual([
+      { sendId: "send-1", to: "perlica", text: "@Perlica hi", via: "voice", mention: "character" },
+    ]);
+    expect(field().value).toBe(rest);
+  });
+
+  it("a spoken send with a picked chip leaves the field as it is", () => {
+    mount();
+
+    document.querySelectorAll<HTMLElement>("[role=radio]")[0]!.click();
+    type("draft");
+    view.voiceSegment("hi");
+
+    expect(routed).toEqual([
+      { sendId: "send-1", to: "perlica", text: "@Perlica hi", via: "voice", mention: "character" },
+    ]);
+    expect(field().value).toBe("draft");
+  });
+
+  it("a spoken send with no pick and no typed @name equals the typed send of the same text but via", () => {
+    mount();
+
+    type("hi");
+    press("Enter");
+    const typed = routed[0]!;
+    view.turnDone({ sendId: "send-1", preset: typed.to });
+
+    view.voiceSegment("hi");
+
+    expect(routed[1]).toEqual({ ...typed, sendId: "send-2", via: "voice" });
+  });
+
+  it("puts a spoken message that arrives during a send into the field, unsent and unfocused", () => {
+    mount();
+    type("hi");
+    press("Enter");
+    field().blur();
+
+    view.voiceSegment("wait");
+    view.voiceSegment("and this");
+
+    expect(routed).toHaveLength(1);
+    expect(field().value).toBe("wait and this");
+    expect(document.activeElement).not.toBe(field());
+  });
+
   it("checks the fallback recipient, then the one a click or a typed @name picks", () => {
     mount();
     expect(recipients()).toEqual([
@@ -202,6 +285,41 @@ describe("unified view — running replies", () => {
 
     expect(stops).toBe(1);
     expect(routed).toHaveLength(1);
+  });
+
+  it("a speech onset acts as the stop button while a send runs, and does nothing while idle", () => {
+    mount();
+    view.speechOnset();
+    expect(stops).toBe(0);
+
+    document.querySelectorAll<HTMLElement>("[role=radio]")[2]!.click();
+    type("hi");
+    press("Enter");
+
+    view.speechOnset();
+
+    expect(stops).toBe(1);
+    expect(routed).toHaveLength(1);
+    expect(
+      document.querySelector(".yui-uc__dock .yui-input")!.classList.contains("is-running"),
+    ).toBe(false);
+  });
+
+  it("another window's stop ends the sequence without sending a stop of its own", () => {
+    mount();
+    document.querySelectorAll<HTMLElement>("[role=radio]")[2]!.click();
+    type("hi");
+    press("Enter");
+    const first = routed[0]!.to;
+
+    view.stop();
+    view.turnDone({ sendId: "send-1", preset: first });
+
+    expect(stops).toBe(0);
+    expect(routed).toHaveLength(1);
+    expect(
+      document.querySelector(".yui-uc__dock .yui-input")!.classList.contains("is-running"),
+    ).toBe(false);
   });
 
   it("shows a routed turn's error under the composer", () => {

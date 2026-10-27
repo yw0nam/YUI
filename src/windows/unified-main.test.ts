@@ -115,6 +115,20 @@ it("routes a typed message to the last speaker over the bridge", async () => {
   );
 });
 
+it("routes main's spoken message to the last speaker over the bridge, marked as spoken", async () => {
+  const routed: UserTurnRouted[] = [];
+  petBridge.onUserTurnRouted((e) => routed.push(e));
+  await boot();
+
+  petBridge.emitVoiceSegment({ text: "hi" });
+
+  await vi.waitFor(() =>
+    expect(routed).toEqual([
+      { sendId: expect.any(String), to: "natsume", text: "hi", via: "voice" },
+    ]),
+  );
+});
+
 it("asks the pet windows to restate themselves, and draws the line a pet window streams", async () => {
   const asks = vi.fn();
   petBridge.onSpeechStreamAsk(asks);
@@ -143,6 +157,53 @@ it("sends the stop to every pet window", async () => {
   document.querySelector<HTMLButtonElement>(".yui-uc__dock .yui-input__send")!.click();
 
   await vi.waitFor(() => expect(stops).toHaveBeenCalledOnce());
+});
+
+it("answers a speech onset like the stop button while a send runs, and not while idle", async () => {
+  const stops = vi.fn();
+  petBridge.onStopTurns(stops);
+  await boot();
+  petBridge.emitSpeechOnset();
+  await Promise.resolve();
+  expect(stops).not.toHaveBeenCalled();
+
+  const field = document.querySelector<HTMLTextAreaElement>(".yui-uc__dock .yui-input__field")!;
+  field.value = "hi";
+  field.dispatchEvent(
+    new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
+  );
+  await vi.waitFor(() =>
+    expect(
+      document.querySelector(".yui-uc__dock .yui-input")!.classList.contains("is-running"),
+    ).toBe(true),
+  );
+
+  petBridge.emitSpeechOnset();
+
+  await vi.waitFor(() => expect(stops).toHaveBeenCalledOnce());
+  await vi.waitFor(() =>
+    expect(
+      document.querySelector(".yui-uc__dock .yui-input")!.classList.contains("is-running"),
+    ).toBe(false),
+  );
+});
+
+it("ends its send on another window's stop without sending a stop of its own", async () => {
+  const stops = vi.fn();
+  petBridge.onStopTurns(stops);
+  await boot();
+  const field = document.querySelector<HTMLTextAreaElement>(".yui-uc__dock .yui-input__field")!;
+  const form = document.querySelector(".yui-uc__dock .yui-input")!;
+  field.value = "hi";
+  field.dispatchEvent(
+    new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
+  );
+  expect(form.classList.contains("is-running")).toBe(true);
+
+  petBridge.emitStopTurns();
+
+  await vi.waitFor(() => expect(form.classList.contains("is-running")).toBe(false));
+  expect(stops).not.toHaveBeenCalled();
 });
 
 it("stops following the signals after unload", async () => {

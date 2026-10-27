@@ -10,16 +10,28 @@ import { createTextInput } from "../input/text-input";
 import "../surfaces/surfaces.css";
 import { avatarEl } from "./avatar";
 import { createMentionPicker } from "./mention-picker";
-import { countedMention, EVERYONE, type Mention, typedMention } from "./targets";
+import {
+  countedMention,
+  EVERYONE,
+  type Mention,
+  typedMention,
+  typedMentionLength,
+} from "./targets";
 
 export interface Composer {
   /** The picked recipient, or null. */
   getMention(): Mention | null;
+  /** The recipient a send names: the picked chip, else a typed leading @name; null leaves the fallback target to the routing. */
+  getExplicitMention(): Mention | null;
   setMention(mention: Mention | null): void;
   /** The preset a message with no mention goes to; undefined while the cast is empty. */
   setTarget(entry: PresetEntry | undefined): void;
   /** Refreshes an open @ list from the current cast; the recipient chips repaint on setTarget. */
   refreshCast(): void;
+  /** Puts text in the field, after what it holds, the way typing does; focus stays where it is. */
+  fill(text: string): void;
+  /** Drops the field's leading @name token, with its space, the way typing does; the rest stays. */
+  consumeMentionToken(): void;
   /** text is trimmed and never empty. */
   onSubmit(cb: (text: string) => void): void;
   /** While busy, send becomes stop and Enter sends nothing. */
@@ -78,10 +90,15 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
   );
   input.summonInput();
 
-  // The checked chip is where Enter sends: the counted pick, else a typed leading @name, else the fallback.
-  function checked(): Mention | undefined {
+  // The recipient a send names before the fallback: the counted pick, else a typed leading @name.
+  function named(): Mention | null {
     const cast = deps.cast();
-    return countedMention(mention, cast) ?? typedMention(field.value, cast) ?? target?.id;
+    return countedMention(mention, cast) ?? typedMention(field.value, cast);
+  }
+
+  // The checked chip is where Enter sends: the named recipient, else the fallback target.
+  function checked(): Mention | undefined {
+    return named() ?? target?.id;
   }
 
   function chip(id: Mention, label: string, entry?: PresetEntry): HTMLButtonElement {
@@ -126,6 +143,7 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
 
   return {
     getMention: () => mention,
+    getExplicitMention: () => named(),
     setMention,
     setTarget(entry) {
       target = entry;
@@ -133,6 +151,16 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
     },
     refreshCast() {
       picker.refresh();
+    },
+    fill(text) {
+      field.value = field.value ? `${field.value} ${text}` : text;
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    },
+    consumeMentionToken() {
+      const length = typedMentionLength(field.value, deps.cast());
+      if (length === null) return;
+      field.value = field.value.slice(length);
+      field.dispatchEvent(new Event("input", { bubbles: true }));
     },
     onSubmit: (cb) =>
       input.onSubmit((text) => {

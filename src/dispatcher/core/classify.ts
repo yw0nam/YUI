@@ -1,5 +1,6 @@
 /** Pure classification of a bus envelope into tier and target, plus the paced-source table. */
 import type { TriggerMeta } from "../../contract";
+import type { UserTurnRouted } from "../../io/bridge/settings-bridge";
 import type { BusEnvelope } from "./event-bus";
 
 export type Classification =
@@ -80,6 +81,11 @@ export function userTurnSourceOf(env: BusEnvelope): UserTurnSource | undefined {
 export function sendIdOf(env: Pick<BusEnvelope, "payload">): string | undefined {
   const id = env.payload?.send_id;
   return typeof id === "string" ? id : undefined;
+}
+
+/** A routed user envelope the user spoke rather than typed. */
+export function routedViaOf(env: Pick<BusEnvelope, "payload">): UserTurnRouted["via"] {
+  return env.payload?.via === "voice" ? "voice" : undefined;
 }
 
 /** The unified chat window's recipient pick on a routed user envelope. */

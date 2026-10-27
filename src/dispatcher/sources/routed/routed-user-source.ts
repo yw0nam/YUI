@@ -2,7 +2,7 @@
  * routed-user-source — the receiving half of the unified chat window's messages.
  *
  * Subscribes to the user-turn-routed bridge events, keeps the ones naming this preset, and submits
- * each as a user turn that carries its send id and mention.
+ * each as a user turn that carries its send id, mention, and whether the user spoke it.
  *
  * firing ≠ judgment: this only submits the user's text; the backend decides whether/what to speak.
  */
@@ -24,7 +24,11 @@ export function createRoutedUserSource(deps: {
     start() {
       unsubscribe = deps.subscribe((event) => {
         if (event.to !== deps.selfPresetId) return;
-        deps.submit(event.text, [], { mention: event.mention, sendId: event.sendId });
+        deps.submit(event.text, [], {
+          mention: event.mention,
+          sendId: event.sendId,
+          ...(event.via ? { via: event.via } : {}),
+        });
         log.info("fire", { mention: event.mention ?? "none" });
       });
     },
