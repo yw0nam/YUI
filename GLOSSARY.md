@@ -108,7 +108,7 @@ The user's pick of a recipient in the unified chat window: a cast chip carrying 
 _Avoid_: tag, call-out, ping
 
 **Cast chip**:
-The unified chat window's chip for one open preset in its head row, the recipient picker: the preset's face, its name and a dot for its line — talk while its line holds the box, think while its turn runs or its line waits for the box, else idle. The cast chips and the everyone chip after them are one radio group; a click picks the chip's recipient. The checked chip is where Enter sends: the counted pick, else the preset a typed leading `@name` resolves to, else the last speaker, else main's preset; while a send runs, it is that send's recipient.
+The unified chat window's chip for one open preset in its head row, the recipient picker: the preset's face, its name and a dot for its line — talk while its line holds the box, think while its turn runs or its line waits for the box, else idle. The cast chips and the everyone chip after them are one radio group; a click picks the chip's recipient. The checked chip is the counted pick, else the preset a typed leading `@name` resolves to, else, while a send runs, that send's recipient, else the last speaker, else main's preset, else the first open preset.
 _Avoid_: avatar pill, presence badge, recipient chip
 
 **Aside**:
