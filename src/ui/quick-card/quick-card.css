@@ -25,6 +25,9 @@
   gap: 10px;
   flex: 0 0 auto;
   cursor: grab;
+  /* A drag of the window by its head selects nothing. */
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .yui-qcard__face {
