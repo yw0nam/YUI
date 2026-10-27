@@ -126,7 +126,10 @@ describe("unified view — sending", () => {
   it.each([
     { field: "@perlica ", rest: "" },
     { field: "@perlica tell me", rest: "tell me" },
-  ])("a spoken send consumes the field's leading @name, leaving the rest (%j)", ({ field: text, rest }) => {
+  ])("a spoken send consumes the field's leading @name, leaving the rest (%j)", ({
+    field: text,
+    rest,
+  }) => {
     mount();
 
     type(text);

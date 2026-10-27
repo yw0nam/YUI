@@ -10,7 +10,13 @@ import { createTextInput } from "../input/text-input";
 import "../surfaces/surfaces.css";
 import { avatarEl } from "./avatar";
 import { createMentionPicker } from "./mention-picker";
-import { countedMention, EVERYONE, type Mention, typedMention } from "./targets";
+import {
+  countedMention,
+  EVERYONE,
+  type Mention,
+  typedMention,
+  typedMentionLength,
+} from "./targets";
 
 export interface Composer {
   /** The picked recipient, or null. */
@@ -24,6 +30,8 @@ export interface Composer {
   refreshCast(): void;
   /** Puts text in the field, after what it holds, the way typing does; focus stays where it is. */
   fill(text: string): void;
+  /** Drops the field's leading @name token, with its space, the way typing does; the rest stays. */
+  consumeMentionToken(): void;
   /** text is trimmed and never empty. */
   onSubmit(cb: (text: string) => void): void;
   /** While busy, send becomes stop and Enter sends nothing. */
@@ -146,6 +154,12 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
     },
     fill(text) {
       field.value = field.value ? `${field.value} ${text}` : text;
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    },
+    consumeMentionToken() {
+      const length = typedMentionLength(field.value, deps.cast());
+      if (length === null) return;
+      field.value = field.value.slice(length);
       field.dispatchEvent(new Event("input", { bubbles: true }));
     },
     onSubmit: (cb) =>

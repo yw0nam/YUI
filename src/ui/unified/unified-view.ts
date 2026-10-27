@@ -164,6 +164,8 @@ export function createUnifiedView(deps: {
     const to = send.mention === "everyone" ? EVERYONE : (send.targets[0] ?? "");
     pending.push({ sendId: send.sendId, text: send.text, to, at: deps.now(), queued: true });
     sequence.run({ ...send, via });
+    // A picked chip is cleared by the send; a typed @name leaves the field only when the send used it.
+    if (via && composer.getMention() === null) composer.consumeMentionToken();
     composer.setMention(null);
     log.info("route", {
       targets: send.targets.length,
