@@ -74,6 +74,7 @@ export default defineConfig(() => ({
         message: resolve(__dirname, "message.html"),
         unified: resolve(__dirname, "unified.html"),
         devtools: resolve(__dirname, "devtools.html"),
+        quickCard: resolve(__dirname, "quick-card.html"),
       },
     },
   },

@@ -338,7 +338,7 @@ export async function wireSettingsWindow(deps: {
   });
 
   const disposeVoiceMirror =
-    boundId === null ? wireVoiceMirror({ voiceInputStatus, bridge }) : () => {};
+    boundId === null ? wireVoiceMirror({ voiceInputStatus, bridge }).dispose : () => {};
 
   // VRM selection also signaled cross-window → pet window receives and hot-swaps renderer (backup for Tauri storage event instability).
   vrmSelection.subscribe(broadcastSettings);

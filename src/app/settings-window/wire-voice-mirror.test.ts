@@ -16,7 +16,7 @@ function setup() {
       return unsubscribeRemote;
     }),
   };
-  const dispose = wireVoiceMirror({ voiceInputStatus, bridge });
+  const dispose = wireVoiceMirror({ voiceInputStatus, bridge }).dispose;
   return {
     voiceInputStatus,
     bridge,
