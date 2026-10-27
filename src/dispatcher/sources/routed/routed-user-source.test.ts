@@ -33,10 +33,12 @@ describe("createRoutedUserSource", () => {
 
     emit({ sendId: "s1", to: "natsume", text: "@Natsume hi", mention: "character" });
     emit({ sendId: "s2", to: "natsume", text: "hello" });
+    emit({ sendId: "s3", to: "natsume", text: "hey", via: "voice" });
 
     expect(submit.mock.calls).toEqual([
       ["@Natsume hi", [], { mention: "character", sendId: "s1" }],
       ["hello", [], { mention: undefined, sendId: "s2" }],
+      ["hey", [], { mention: undefined, sendId: "s3", via: "voice" }],
     ]);
   });
 

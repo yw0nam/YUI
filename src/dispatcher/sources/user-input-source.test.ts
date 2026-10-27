@@ -47,10 +47,16 @@ describe("user_input_source — submit", () => {
     expect(pushed[0].ts).toBeGreaterThanOrEqual(before);
   });
 
-  it("a routed message without a mention carries only the send id", () => {
+  it.each([
+    [{ sendId: "s1" }, { text: "hi", send_id: "s1" }],
+    [
+      { sendId: "s1", via: "voice" as const },
+      { text: "hi", send_id: "s1", via: "voice" },
+    ],
+  ])("a routed message without a mention carries only its send id and via %j", (routed, payload) => {
     const { bus, pushed } = fakeBus();
-    createUserInputSource(bus).submit("hi", [], { sendId: "s1" });
-    expect(pushed[0].payload).toEqual({ text: "hi", send_id: "s1" });
+    createUserInputSource(bus).submit("hi", [], routed);
+    expect(pushed[0].payload).toEqual(payload);
   });
 
   it("ignores empty / whitespace-only text", () => {
