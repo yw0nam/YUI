@@ -143,8 +143,8 @@ and the pump goes on.
 | `quick-card` | `select_failed` | `error` | Applying a Body or Reference voice choice threw (`warn` level). |
 | `quick-card-ports` | `session_reset` | — | Reset conversation started a new session. |
 | `quick-card-dock` | `quick_card_detached` | — | The first move of the card window after a head pointerdown detached it. |
-| `quick-card-dock` | `quick_card_drag_failed` | `error` | The `drag_window` command for a head drag failed (`warn` level). |
-| `quick-card-dock` | `quick_card_boot_hide_failed` | `error` | Hiding the window at boot threw; the ready report still goes out (`warn` level). |
+| `quick-card-dock` | `quick_card_drag_failed` | `error` | Unlinking the window or the `drag_window` command for a head drag failed (`warn` level). |
+| `quick-card-dock` | `quick_card_boot_hide_failed` | `error` | Unlinking or hiding the window at boot threw; the ready report still goes out (`warn` level). |
 | `quick-card-dock` | `dock_step_failed` | `error` | A placement, follow or drop step threw (`warn` level). |
 | `quick-card-close` | `quick_card_focus_lost` | — | A poll tick found no YUI window holding focus, so the card closed. |
 | `quick-card-close` | `quick_card_focus_listen_failed` | `error` | Listening to the window's focus failed, so the focus poll never starts (`warn` level). |

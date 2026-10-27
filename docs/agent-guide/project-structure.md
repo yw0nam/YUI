@@ -449,6 +449,7 @@ YUI/
           companion-position.ts        # Where a companion window (message, unified) opens: its stored position, else beside the pet window, kept on screen; the column's width and handle height
           companion-column.ts          # A companion column window's focus, OS drag, content-height resize and moved-position report
           quick-card-position.ts       # Where the quick-card window sits: docked beside her on the roomier side, following her, snapped back, clamped into the work area
+          quick-card-link.ts           # Links and unlinks the quick-card window as a native child of its pet window (macOS; false elsewhere)
           keep-on-screen.ts            # Pushes a window back until its centre lands on a monitor
           travel-frame.ts              # Parks the real window once for a scale-seam crossing
           stationary-frame.ts          # Widens the real window around a character that stays where she is
@@ -741,6 +742,7 @@ YUI/
       app_log.rs                     # Log plugin sink, timezone, line format, and log directory
       drag.rs                        # OS-native window drag with multi-monitor and DPI correction
       window_frame.rs                # Lifts AppKit frame constraining and applies logical window frames
+      quick_card_dock.rs             # The quick-card window's macOS child-window link to its pet window: quick_card_attach, quick_card_detach
       passthrough.rs                 # Click-through toggle over the transparent overlay
       screenshot.rs                  # Screen-source enumeration and off-thread display capture
       image_encode.rs                # Long-edge resize and JPEG data-URL encode shared by capture and the browser relay

@@ -535,11 +535,12 @@ globalThis.YUI_MAP =
       "id": "shell/window",
       "module": "shell",
       "label": "window control",
-      "role": "OS-native window drag, logical window frames, and the click-through toggle.",
+      "role": "OS-native window drag, logical window frames, the click-through toggle, and the quick-card window's macOS child-window link to its pet window.",
       "paths": [
         "src-tauri/src/drag.rs",
         "src-tauri/src/window_frame.rs",
-        "src-tauri/src/passthrough.rs"
+        "src-tauri/src/passthrough.rs",
+        "src-tauri/src/quick_card_dock.rs"
       ]
     },
     {
@@ -2802,7 +2803,7 @@ globalThis.YUI_MAP =
       "id": "quick-card-drag-shell",
       "from": "app/quick-card-window",
       "to": "shell/window",
-      "carries": "drag_window from a head pointerdown: the OS drag of the card window",
+      "carries": "drag_window from a head pointerdown: the OS drag of the card window; quick_card_attach {parentLabel} and quick_card_detach: the macOS child-window link that moves the docked card with her pet window (false elsewhere)",
       "kind": "tauri-command",
       "transport": "shared",
       "wiring": "src/app/quick-card-window/quick-card-dock.ts"
@@ -4810,14 +4811,14 @@ globalThis.YUI_MAP =
         "id": "quick-card-owner-move",
         "from": "pet",
         "to": "quick-card",
-        "carries": "the owner window's tauri://move: a docked card moves by her delta",
+        "carries": "the owner window's tauri://move: on macOS AppKit moves the linked child card with her and the dock only switches sides; elsewhere a docked card moves by her delta",
         "kind": "tauri-event"
       },
       {
         "id": "quick-card-owner-move-bound",
         "from": "pet-<id>",
         "to": "quick-card-<id>",
-        "carries": "the owner window's tauri://move: a docked card moves by her delta",
+        "carries": "the owner window's tauri://move: on macOS AppKit moves the linked child card with her and the dock only switches sides; elsewhere a docked card moves by her delta",
         "kind": "tauri-event"
       },
       {
