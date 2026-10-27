@@ -10,7 +10,6 @@ const mocks = vi.hoisted(() => ({
   wireTravelFrame: vi.fn(),
   wireWalker: vi.fn(),
   wireStrollReflexCancel: vi.fn(),
-  wireStrollCardCancel: vi.fn(),
   wireFaller: vi.fn(),
   wirePercher: vi.fn(),
   wireClimber: vi.fn(),
@@ -25,7 +24,6 @@ vi.mock("../../ambient/locomotion/travel/wire-travel-frame", () => ({
 vi.mock("../../ambient/locomotion/walk/wire-walk", () => ({
   wireWalker: mocks.wireWalker,
   wireStrollReflexCancel: mocks.wireStrollReflexCancel,
-  wireStrollCardCancel: mocks.wireStrollCardCancel,
 }));
 
 vi.mock("../../ambient/locomotion/fall/wire-fall", () => ({
@@ -116,9 +114,7 @@ describe("wireLocomotion", () => {
     };
 
     let travelFrameDeps: { setKeepOnScreenPaused(paused: boolean): void } | undefined;
-    let walkerDeps:
-      | { onDescend(edge: DescentEdge): void; isCardOpen(): boolean; isDragging(): boolean }
-      | undefined;
+    let walkerDeps: { onDescend(edge: DescentEdge): void; isDragging(): boolean } | undefined;
     let fallerDeps: { onWindowLand(target: WindowRect): void; isEnabled(): boolean } | undefined;
     let windowSourcesDeps:
       | { onRelocated(): Promise<void>; isHeld(): boolean; bed: AvatarBed }

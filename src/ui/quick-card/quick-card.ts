@@ -21,8 +21,6 @@ export interface QuickCard {
   open(): void;
   close(): void;
   isOpen(): boolean;
-  /** Runs the callback each time the card opens. */
-  onOpen(cb: () => void): () => void;
   /** Runs the callback each time the card closes, whatever closed it. */
   onClose(cb: () => void): () => void;
   /** The card's head: the drag handle the window moves by. */
@@ -54,7 +52,6 @@ export function createQuickCard(deps: {
   let open = false;
   let disposed = false;
   const closeListeners = new Set<() => void>();
-  const openListeners = new Set<() => void>();
   const headListeners = new Set<(event: PointerEvent) => void>();
 
   // The card's contents, rebuilt in the new language on a locale change.
@@ -154,7 +151,6 @@ export function createQuickCard(deps: {
     deps.mount.append(el);
     document.addEventListener("pointerdown", onOutsidePointer, true);
     el.focus({ preventScroll: true });
-    for (const cb of openListeners) cb();
   }
 
   function close(): void {
@@ -174,10 +170,6 @@ export function createQuickCard(deps: {
     },
     close,
     isOpen: () => open,
-    onOpen(cb) {
-      openListeners.add(cb);
-      return () => openListeners.delete(cb);
-    },
     onClose(cb) {
       closeListeners.add(cb);
       return () => closeListeners.delete(cb);

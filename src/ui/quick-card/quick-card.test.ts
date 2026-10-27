@@ -141,20 +141,6 @@ describe("createQuickCard", () => {
     ]);
   });
 
-  it("tells each open listener when it opens, until the listener unsubscribes", () => {
-    const { card } = build();
-    const onOpen = vi.fn();
-    const off = card.onOpen(onOpen);
-
-    card.open();
-    card.open();
-    card.close();
-    off();
-    card.open();
-
-    expect(onOpen).toHaveBeenCalledOnce();
-  });
-
   it("closes and reads the new language when the display language changes", () => {
     const { card, tile } = build();
     card.open();
