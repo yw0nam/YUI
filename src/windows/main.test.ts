@@ -10,7 +10,8 @@ const h = vi.hoisted(() => {
     onOpenDevtools: () => () => {},
   };
   const stopTurn = (): void => {};
-  return { windowBridge, stopTurn };
+  const setTheme = vi.fn(async () => {});
+  return { windowBridge, stopTurn, setTheme };
 });
 
 vi.mock("../styles.css", () => ({}));
@@ -73,6 +74,11 @@ vi.mock("../app/settings/wire-config", () => ({
   wireConfigWatch: vi.fn(),
 }));
 vi.mock("../ui/notices/boot-error", () => ({ showBootError: vi.fn() }));
+// Any other native window call resolves to nothing; the test reads setTheme only.
+vi.mock("@tauri-apps/api/window", () => ({
+  getCurrentWindow: () =>
+    new Proxy({ setTheme: h.setTheme }, { get: (t, k) => (t as never)[k] ?? (async () => {}) }),
+}));
 
 afterEach(() => {
   localStorage.clear();
@@ -108,4 +114,20 @@ it("opens the settings window from the pill's capture button and lands the voice
   expect(openSettings).toHaveBeenLastCalledWith();
   pill.onFixVoice?.();
   expect(openSettings).toHaveBeenLastCalledWith("conn");
+});
+
+it("hands its native window the stored theme, which the tray's settings window reads", async () => {
+  vi.resetModules();
+  document.body.innerHTML = '<div id="app"></div>';
+  localStorage.setItem("yui.theme", JSON.stringify({ theme: "hearth" }));
+  const globals = globalThis as { __TAURI_INTERNALS__?: unknown };
+  globals.__TAURI_INTERNALS__ = {};
+  try {
+    const { showBootError } = await import("../ui/notices/boot-error");
+    await import("./main");
+    await vi.waitFor(() => expect(showBootError).toHaveBeenCalled());
+    expect(h.setTheme).toHaveBeenCalledWith("dark");
+  } finally {
+    delete globals.__TAURI_INTERNALS__;
+  }
 });
