@@ -261,6 +261,18 @@ describe("unified view — sending", () => {
     expect(recipients()[0]).toEqual(["Perlica", "true"]);
   });
 
+  it("checks a pick made while an everyone send runs, and names it in the placeholder", () => {
+    mount();
+    pick(2);
+    type("hi");
+    press("Enter");
+
+    pick(0);
+
+    expect(recipients()[0]).toEqual(["Perlica", "true"]);
+    expect(field().placeholder).toBe("Say something to Perlica…");
+  });
+
   it("routes everyone one character at a time", () => {
     mount();
     pick(2);
