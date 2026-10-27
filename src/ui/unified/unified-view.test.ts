@@ -98,6 +98,28 @@ describe("unified view — sending", () => {
     expect(routed).toEqual([{ sendId: "send-1", to: "natsume", text: "hi" }]);
   });
 
+  it("routes a spoken message like a typed one, marked as spoken", () => {
+    mount();
+
+    view.voiceSegment("hi");
+
+    expect(routed).toEqual([{ sendId: "send-1", to: "natsume", text: "hi", via: "voice" }]);
+  });
+
+  it("puts a spoken message that arrives during a send into the field, unsent and unfocused", () => {
+    mount();
+    type("hi");
+    press("Enter");
+    field().blur();
+
+    view.voiceSegment("wait");
+    view.voiceSegment("and this");
+
+    expect(routed).toHaveLength(1);
+    expect(field().value).toBe("wait and this");
+    expect(document.activeElement).not.toBe(field());
+  });
+
   it("checks the fallback recipient, then the one a click or a typed @name picks", () => {
     mount();
     expect(recipients()).toEqual([
@@ -202,6 +224,23 @@ describe("unified view — running replies", () => {
 
     expect(stops).toBe(1);
     expect(routed).toHaveLength(1);
+  });
+
+  it("another window's stop ends the sequence without sending a stop of its own", () => {
+    mount();
+    document.querySelectorAll<HTMLElement>("[role=radio]")[2]!.click();
+    type("hi");
+    press("Enter");
+    const first = routed[0]!.to;
+
+    view.stop();
+    view.turnDone({ sendId: "send-1", preset: first });
+
+    expect(stops).toBe(0);
+    expect(routed).toHaveLength(1);
+    expect(
+      document.querySelector(".yui-uc__dock .yui-input")!.classList.contains("is-running"),
+    ).toBe(false);
   });
 
   it("shows a routed turn's error under the composer", () => {
