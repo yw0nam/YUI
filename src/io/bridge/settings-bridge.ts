@@ -41,6 +41,8 @@ const CH_SPEECH_STREAM_CONTROL = "yui://speech-stream-control";
 const CH_USER_TURN_DONE = "yui://user-turn-done";
 const CH_SETTINGS_PAGE = "yui://settings-page";
 const CH_OPEN_DEVTOOLS = "yui://open-devtools";
+const CH_QUICK_CARD_OPEN = "yui://quick-card-open";
+const CH_QUICK_CARD_READY = "yui://quick-card-ready";
 
 interface VoiceStateSnapshot {
   state: VoiceInputState;
@@ -95,6 +97,17 @@ export interface UserTurnDone {
 export interface SpeechStream {
   preset: string;
   op: MessageSurfaceOp;
+}
+
+/** A pet window telling its quick-card window where to open, in window-relative logical px. */
+export interface QuickCardOpen {
+  /** The character's left and right edge x in the pet window. */
+  left: number;
+  right: number;
+  /** The click's y in the pet window. */
+  y: number;
+  /** Main only: whether voice input is live right now, so the Listen tile opens seeded. */
+  listening?: boolean;
 }
 
 /** The unified chat window's click on an error's fix, back to the preset whose window showed it. */
@@ -190,6 +203,12 @@ export interface SettingsBridge {
   /** The settings window asking main's pet window to open Developer Tools; delivered to every window, bound pet windows ignore it. */
   emitOpenDevtools(): void;
   onOpenDevtools(cb: () => void): () => void;
+  /** A pet window opening its quick-card window; scoped to the preset. */
+  emitQuickCardOpen(request: QuickCardOpen): void;
+  onQuickCardOpen(cb: (request: QuickCardOpen) => void): () => void;
+  /** A quick-card window reporting it has booted; scoped to the preset. */
+  emitQuickCardReady(): void;
+  onQuickCardReady(cb: () => void): () => void;
   emitSettingsChanged(): void;
   onSettingsChanged(cb: (from: WindowKind) => void): () => void;
   emitMouthPreview(mouthOpen: number | null): void;
@@ -287,6 +306,30 @@ export function createSettingsBridge(
     },
     onOpenDevtools(cb) {
       return on<unknown>(CH_OPEN_DEVTOOLS, () => cb());
+    },
+    emitQuickCardOpen(request) {
+      safeEmit(CH_QUICK_CARD_OPEN, request);
+    },
+    onQuickCardOpen(cb) {
+      return on<unknown>(CH_QUICK_CARD_OPEN, (request) => {
+        if (request === null || typeof request !== "object") return;
+        const r = request as Partial<QuickCardOpen>;
+        const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+        if (!finite(r.left) || !finite(r.right) || !finite(r.y)) return;
+        if (r.listening !== undefined && typeof r.listening !== "boolean") return;
+        cb({
+          left: r.left,
+          right: r.right,
+          y: r.y,
+          ...(r.listening === undefined ? {} : { listening: r.listening }),
+        });
+      });
+    },
+    emitQuickCardReady() {
+      safeEmit(CH_QUICK_CARD_READY);
+    },
+    onQuickCardReady(cb) {
+      return on<unknown>(CH_QUICK_CARD_READY, () => cb());
     },
     emitSettingsChanged() {
       safeEmit(CH_SETTINGS_CHANGED);
