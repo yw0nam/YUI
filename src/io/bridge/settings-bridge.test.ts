@@ -236,6 +236,40 @@ describe("createSettingsBridge", () => {
     expect(ask).toHaveBeenCalledTimes(1);
   });
 
+  it("delivers a quick-card open request from A to B, with and without the listening flag", () => {
+    const t = createFakeTransport();
+    const a = createSettingsBridge(t, { windowKind: "pet" });
+    const b = createSettingsBridge(t, { windowKind: "quick-card" });
+    const cb = vi.fn();
+    b.onQuickCardOpen(cb);
+
+    a.emitQuickCardOpen({ left: 64, right: 336, y: 120 });
+    a.emitQuickCardOpen({ left: 64, right: 336, y: 120, listening: true });
+
+    expect(cb.mock.calls).toEqual([
+      [{ left: 64, right: 336, y: 120 }],
+      [{ left: 64, right: 336, y: 120, listening: true }],
+    ]);
+  });
+
+  it.each([
+    [{ left: Number.NaN, right: 200, y: 30 }],
+    [{ left: 64, right: Number.POSITIVE_INFINITY, y: 30 }],
+    [{ left: 64, right: 200, y: Number.NaN }],
+    [{ left: "64", right: 200, y: 30 }],
+    [{ left: 64, right: 200, y: 30, listening: "yes" }],
+  ])("ignores a quick-card open request %j with a field outside the contract", (payload) => {
+    const t = createFakeTransport();
+    const a = createSettingsBridge(t, { windowKind: "pet" });
+    const b = createSettingsBridge(t, { windowKind: "quick-card" });
+    const cb = vi.fn();
+    b.onQuickCardOpen(cb);
+
+    a.emitQuickCardOpen(payload as never);
+
+    expect(cb).not.toHaveBeenCalled();
+  });
+
   it("delivers the active preset id from A to B", () => {
     const t = createFakeTransport();
     const a = createSettingsBridge(t, { windowKind: "settings" });
@@ -308,6 +342,8 @@ describe("createSettingsBridge", () => {
     ["onUserTurnDone", { sendId: "s1", preset: "p2" }, false],
     ["onSettingsPage", { preset: "p2", page: "conn" }, false],
     ["onOpenDevtools", undefined, false],
+    ["onQuickCardOpen", { left: 1, right: 200, y: 30 }, true],
+    ["onQuickCardReady", undefined, true],
   ] as const)("%s uses its declared preset scope", (method, payload, scoped) => {
     history.replaceState(null, "", "/?preset=a");
     const t = createFakeTransport();
