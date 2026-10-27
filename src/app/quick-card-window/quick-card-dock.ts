@@ -194,7 +194,16 @@ export function wireQuickCardDock(deps: {
       }
     });
     const owner = await readOwner();
-    owner.onMoved(() => queue(followOwnerMove));
+    // Latest wins: a follow step not yet started already reads her newest position.
+    let followQueued = false;
+    owner.onMoved(() => {
+      if (followQueued) return;
+      followQueued = true;
+      queue(() => {
+        followQueued = false;
+        return followOwnerMove();
+      });
+    });
     // Every window hears the release of any native drag; only a drag this card started settles here.
     const { listen } = await import("@tauri-apps/api/event");
     await listen("window_drop_release", () => {
