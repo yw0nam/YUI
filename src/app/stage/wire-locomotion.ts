@@ -119,8 +119,8 @@ export function wireLocomotion(deps: {
   });
   register(travelFrame.dispose);
 
-  // Ambient walking outranks nothing: a drag, an agent command, a reflex turn or the quick
-  // card opening cancels a stroll at once; an ordinary turn walks on.
+  // Ambient walking outranks nothing: a drag, an agent command or a reflex turn cancels a
+  // stroll at once; an ordinary turn walks on.
   let dragging = false;
   let climberRef: { cancel(): void; descend(edge: DescentEdge): Promise<void> } | null = null;
   const walker = wireWalker({
@@ -132,8 +132,6 @@ export function wireLocomotion(deps: {
     getMotionKind: (id) => getConfig().motions[id]?.kind,
     isPeeking: () => peekActive(),
     isDragging: () => dragging || isHeld(),
-    // The quick card left this window; the gate stays shut until the loops drop it.
-    isCardOpen: () => false,
     setHitTestMoving: (moving) => hitTest.setMoving(moving),
     onStrollEnd,
     onDescend: (edge) => climberRef?.descend(edge),
@@ -247,8 +245,6 @@ export function wireLocomotion(deps: {
     isPeeking: () => peekActive(),
     isDragging: () => dragging || isHeld(),
     isBusy: dispatcher.isPipelineBusy,
-    // The quick card left this window; the gate stays shut until the loops drop it.
-    isCardOpen: () => false,
     walker,
     faller,
     sitter,

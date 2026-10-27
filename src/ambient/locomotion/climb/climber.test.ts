@@ -130,7 +130,6 @@ function makeHarness(
     peeking?: boolean;
     dragging?: boolean;
     busy?: boolean;
-    cardOpen?: boolean;
     reducedMotion?: boolean;
     /** null models an unloaded VRM. */
     anchor?: { x: number; y: number } | null;
@@ -360,7 +359,6 @@ function makeHarness(
     isPeeking: () => over.peeking ?? false,
     isDragging: () => over.dragging ?? false,
     isBusy: () => over.busy ?? false,
-    isCardOpen: () => over.cardOpen ?? false,
     reducedMotion: () => over.reducedMotion ?? false,
     walker: {
       walkTo: async (toX: number, _onAccepted?: () => void, holdClip?: boolean) => {
@@ -755,7 +753,6 @@ describe("createClimber — up", () => {
     ["peeking", { peeking: true }],
     ["dragging", { dragging: true }],
     ["a turn is in flight", { busy: true }],
-    ["the quick card is open", { cardOpen: true }],
     ["the feet anchor is unavailable", { anchor: null }],
     ["the perch probe is unavailable", { charHpx: null }],
     ["the framing cannot be measured", { pxPerMetre: null }],
@@ -955,16 +952,6 @@ function perchedHarness(over: Parameters<typeof makeHarness>[0] = {}) {
 describe("createClimber — down", () => {
   it("does not dwell or descend a commit-origin perch", async () => {
     const h = perchedHarness({ perchOrigin: "commit" });
-    h.climber.start();
-    await h.skipDwell();
-
-    expect(h.release).not.toHaveBeenCalled();
-    expect(h.starts).not.toHaveBeenCalled();
-    expect(h.walkTargets).toEqual([]);
-  });
-
-  it("stays seated while the quick card is open", async () => {
-    const h = perchedHarness({ cardOpen: true });
     h.climber.start();
     await h.skipDwell();
 

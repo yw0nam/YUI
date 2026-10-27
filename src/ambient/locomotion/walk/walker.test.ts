@@ -76,7 +76,6 @@ describe("canStartStroll", () => {
     perched: false,
     peeking: false,
     dragging: false,
-    cardOpen: false,
     bodyFree: true,
     reducedMotion: false,
   };
@@ -94,7 +93,6 @@ describe("canStartStroll", () => {
     ["perched", { perched: true }],
     ["peeking", { peeking: true }],
     ["dragging", { dragging: true }],
-    ["the quick card is open", { cardOpen: true }],
     ["a clip other than idle, thinking or walk holds the body", { bodyFree: false }],
     ["reduced motion", { reducedMotion: true }],
   ])("blocks on %s", (_label, blocker) => {
@@ -198,7 +196,6 @@ function makeHarness(
     perched?: boolean;
     peeking?: boolean;
     dragging?: boolean;
-    cardOpen?: boolean;
     /** Duration (s) the walk clip loops on. null models a clip still loading. */
     clipDuration?: number | null;
     /** Models playMotion silently dropping the walk request (perch suppression, dead clip). */
@@ -314,7 +311,6 @@ function makeHarness(
     currentMotionKind: over.motionKind ?? (() => "ambient"),
     isPeeking: () => over.peeking ?? false,
     isDragging: () => over.dragging ?? false,
-    isCardOpen: () => over.cardOpen ?? false,
     doc,
     onStart: starts,
     onEnd: ends,
@@ -658,18 +654,8 @@ describe("createWalker", () => {
     expect(h.travelBeginCalls).toEqual([]);
   });
 
-  it.each([
-    [
-      "the stroll is cancelled",
-      (h: ReturnType<typeof makeHarness>, _over: { cardOpen?: boolean }) => h.walker.cancel(),
-    ],
-    [
-      "the quick card opens",
-      (_h: ReturnType<typeof makeHarness>, over: { cardOpen?: boolean }) => {
-        over.cardOpen = true;
-      },
-    ],
-  ])("releases the walk clip and starts no stroll when %s during a pending begin", async (_label, interrupt) => {
+  it("releases the walk clip and starts no stroll when the stroll is cancelled during a pending begin", async () => {
+    const interrupt = (h: ReturnType<typeof makeHarness>) => h.walker.cancel();
     const BUILTIN: ScreenMonitor = {
       position: { x: 0, y: 0 },
       size: { width: 3456, height: 2234 },
@@ -706,7 +692,7 @@ describe("createWalker", () => {
     await h.skipInterval();
     expect(h.motions).toEqual([{ id: WALK_MOTION_ID }]);
 
-    interrupt(h, over);
+    interrupt(h);
     const win = { setPositionLogical: async () => {} } as unknown as PetWindow;
     resolveBegin({ win, end: async () => {} });
     for (let i = 0; i < 10; i++) await h.frame();
@@ -786,7 +772,6 @@ describe("createWalker", () => {
     ["perched", { perched: true }],
     ["peeking", { peeking: true }],
     ["dragging", { dragging: true }],
-    ["the quick card is open", { cardOpen: true }],
     [
       "a reactive motion holds the body",
       {

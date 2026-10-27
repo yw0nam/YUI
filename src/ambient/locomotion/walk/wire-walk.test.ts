@@ -19,7 +19,7 @@ vi.mock("@tauri-apps/api/window", () => ({ availableMonitors: vi.fn(async () => 
 
 import type { Logger } from "../../../logger";
 import type { TravelFrameHandle } from "../travel/wire-travel-frame";
-import { wireStrollCardCancel, wireStrollReflexCancel, wireWalker } from "./wire-walk";
+import { wireStrollReflexCancel, wireWalker } from "./wire-walk";
 
 describe("wireStrollReflexCancel", () => {
   function fakeDispatcher(trigger: string) {
@@ -63,37 +63,6 @@ describe("wireStrollReflexCancel", () => {
   });
 });
 
-describe("wireStrollCardCancel", () => {
-  function setup(strolling: boolean) {
-    let open: (() => void) | null = null;
-    const unsubscribe = vi.fn();
-    const walker = { isStrolling: () => strolling, cancel: vi.fn() };
-    const stop = wireStrollCardCancel({
-      onCardOpen: (cb) => {
-        open = cb;
-        return unsubscribe;
-      },
-      walker,
-    });
-    return { walker, stop, unsubscribe, open: () => open?.() };
-  }
-
-  it("ends an ambient stroll when the quick card opens, so she stands where she is", () => {
-    const s = setup(true);
-    s.open();
-    expect(s.walker.cancel).toHaveBeenCalledOnce();
-    s.stop();
-    expect(s.unsubscribe).toHaveBeenCalledOnce();
-  });
-
-  // A directed walk is a leg of a climb under way, which runs to its end.
-  it("leaves a directed walk alone", () => {
-    const s = setup(false);
-    s.open();
-    expect(s.walker.cancel).not.toHaveBeenCalled();
-  });
-});
-
 const noopLog: Logger = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };
 
 function deferred() {
@@ -105,7 +74,7 @@ function deferred() {
 }
 
 // readRead resolves after the dynamic imports reach the readiness await.
-function startWalker(isCardOpen: () => boolean = () => false) {
+function startWalker() {
   vi.stubGlobal("__TAURI_INTERNALS__", {});
   createWalker.mockClear();
   walkerStub.start.mockClear();
@@ -133,7 +102,6 @@ function startWalker(isCardOpen: () => boolean = () => false) {
     getMotionKind: () => undefined,
     isPeeking: () => false,
     isDragging: () => false,
-    isCardOpen,
     setHitTestMoving: () => {},
     onStrollEnd: () => {},
     onDescend: () => {},
@@ -165,17 +133,5 @@ describe("wireWalker", () => {
     ready.resolve();
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(createWalker).not.toHaveBeenCalled();
-  });
-
-  it("hands the panel-open getter through to the walker", async () => {
-    let open = true;
-    const { readRead, ready } = startWalker(() => open);
-    await readRead.promise;
-    ready.resolve();
-    await vi.waitFor(() => expect(walkerStub.start).toHaveBeenCalledTimes(1));
-    const walkerDeps = createWalker.mock.calls[0][0] as { isCardOpen(): boolean };
-    expect(walkerDeps.isCardOpen()).toBe(true);
-    open = false;
-    expect(walkerDeps.isCardOpen()).toBe(false);
   });
 });

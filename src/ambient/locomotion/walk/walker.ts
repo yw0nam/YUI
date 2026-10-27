@@ -78,8 +78,6 @@ interface WalkGateState {
   perched: boolean;
   peeking: boolean;
   dragging: boolean;
-  /** The quick-controls panel rides the window, so an open one outranks a stroll. */
-  cardOpen: boolean;
   /** Whether the body is free to take the walk clip — the caller decides what counts as free. */
   bodyFree: boolean;
   reducedMotion: boolean;
@@ -87,15 +85,7 @@ interface WalkGateState {
 
 /** The body decides, not the pipeline: a turn in flight or speech playing is not a gate. */
 export function canStartStroll(s: WalkGateState): boolean {
-  return (
-    s.onFloor &&
-    !s.perched &&
-    !s.peeking &&
-    !s.dragging &&
-    !s.cardOpen &&
-    s.bodyFree &&
-    !s.reducedMotion
-  );
+  return s.onFloor && !s.perched && !s.peeking && !s.dragging && s.bodyFree && !s.reducedMotion;
 }
 
 interface StrollPlan {
@@ -204,8 +194,6 @@ export interface WalkerDeps {
   currentMotionKind(): MotionKind | null;
   isPeeking(): boolean;
   isDragging(): boolean;
-  /** Whether the quick card is open right now. */
-  isCardOpen(): boolean;
   /** Defaults to the global document; injected in tests. */
   doc?: WalkerDoc;
   /** A stroll began — posture goes walking and the hit test follows the moving window. */
@@ -331,7 +319,6 @@ export function createWalker(deps: WalkerDeps): Walker {
       perched: renderer.isPerched(),
       peeking: deps.isPeeking(),
       dragging: deps.isDragging(),
-      cardOpen: deps.isCardOpen(),
       bodyFree:
         deps.currentMotionKind() === "ambient" ||
         bodyId === THINKING_MOTION_ID ||
@@ -387,8 +374,7 @@ export function createWalker(deps: WalkerDeps): Walker {
         if (renderer.getCurrentMotion()?.id === WALK_MOTION_ID) renderer.playMotion(null);
         throw err;
       }
-      // The quick card may have opened while the window parked.
-      if (stopped || generation !== startedAt || deps.isCardOpen()) {
+      if (stopped || generation !== startedAt) {
         if (renderer.getCurrentMotion()?.id === WALK_MOTION_ID) renderer.playMotion(null);
         void started.end();
         return;

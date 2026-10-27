@@ -143,8 +143,6 @@ export interface ClimberDeps {
   isDragging(): boolean;
   /** A turn is in flight or speech is still playing. */
   isBusy(): boolean;
-  /** Whether the quick card is open: no climb starts meanwhile; one under way runs to its end. */
-  isCardOpen(): boolean;
   walker: {
     walkTo(toX: number, onAccepted?: () => void, holdClip?: boolean): Promise<"arrived" | "lost">;
     cancel(): void;
@@ -440,7 +438,6 @@ export function createClimber(deps: ClimberDeps): Climber {
       perched: renderer.isPerched(),
       peeking: deps.isPeeking(),
       dragging: deps.isDragging(),
-      cardOpen: deps.isCardOpen(),
       // A climb still yields to a turn: a directed leg cannot stop mid-wall for a response motion.
       bodyFree: deps.currentMotionKind() === "ambient" && !deps.isBusy(),
       reducedMotion: false,
@@ -719,8 +716,7 @@ export function createClimber(deps: ClimberDeps): Climber {
 
   async function runDown(): Promise<void> {
     const startedAt = generation;
-    // While the quick card is open she stays seated; the descent waits for the next dwell.
-    if (reducedMotion() || deps.isDragging() || deps.isPeeking() || deps.isCardOpen()) return;
+    if (reducedMotion() || deps.isDragging() || deps.isPeeking()) return;
     const cfg = deps.getConfig();
     const walkCfg = deps.getWalkConfig();
     const sit = deps.dropSource.armedSit();
@@ -814,7 +810,6 @@ export function createClimber(deps: ClimberDeps): Climber {
       perched: renderer.isPerched(),
       peeking: deps.isPeeking(),
       dragging: deps.isDragging(),
-      cardOpen: deps.isCardOpen(),
       bodyFree: deps.currentMotionKind() === "ambient" && !deps.isBusy(),
       reducedMotion: false,
     };
