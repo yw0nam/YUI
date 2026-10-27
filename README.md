@@ -25,7 +25,7 @@
 
 ## Quickstart
 
-You need a Mac with Apple Silicon or a Windows x64 PC, and a coding agent (Claude Code, Codex, OpenCode, Cursor). The chat model is what she needs to talk, and you can connect it during install or later: an OpenAI or Groq API key, or [Ollama](https://ollama.com) or [LM Studio](https://lmstudio.ai) running locally.
+You need a Mac with Apple Silicon or a Windows x64 PC, and a coding agent (Claude Code, Codex, OpenCode, Cursor). To talk with her, connect a chat model during install or later: an OpenAI or Groq API key, or [Ollama](https://ollama.com) or [LM Studio](https://lmstudio.ai) running locally.
 
 1. Paste this into your coding agent:
 
@@ -61,9 +61,9 @@ She greets you at set times, checks in after you have been idle, and, if you tur
 
 ### Several characters, one conversation
 
-Each character is a Preset with her own connection, Card, voice, VRM, camera, and conversation history, and up to four can be open on the desktop at once. The Unified chat window shows one character's line at a time: a Cast chip in its cast row, the everyone chip beside them, or a leading `@name` in what you type picks who receives your message, and a spoken message goes to the same pick. Characters can also pass your message to each other with `address_character`.
+Each character keeps her own brain, persona, voice, model, and history, and up to four can share your desktop. One chat window holds the conversation and shows one line at a time: pick who you are talking to, everyone at once, or type `@name`; your voice goes to the same pick. They can also pass your message on to each other.
 
-**And more:** your own VRM model, Tavern Card import and export, voice chat you can interrupt, image attachments, a chat history, Relations for each character, a Quick card on right-click, Dawn and Hearth themes, English, Japanese, and Korean UI, and tools your agent can use on your computer. See the [full feature list](docs/guide/features.md).
+**And more:** your own VRM model, Tavern Card import and export, voice chat you can interrupt, image attachments, a chat history, how each character feels about you and the others, a Quick card on right-click, Dawn and Hearth themes, English, Japanese, and Korean UI, and tools your agent can use on your computer. See the [full feature list](docs/guide/features.md).
 
 ## How it works
 
