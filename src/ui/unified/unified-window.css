@@ -130,6 +130,11 @@
 .yui-uc .yui-ui--message:not(:has(> .yui-bubble:not([hidden]))) {
   display: none;
 }
+/* The cast chip carries the state, so the plate shows the face and the name alone. */
+.yui-uc .yui-plate__dot,
+.yui-uc .yui-plate__state {
+  display: none;
+}
 /* Room for the plate, which rides 15px above the box. */
 .yui-uc .yui-ui--message > .yui-bubble {
   margin-top: 15px;
