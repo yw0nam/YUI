@@ -16,7 +16,7 @@ import { createComposer } from "./composer";
 import { createLaneQueue } from "./lane-queue";
 import { mergeTranscripts, type PendingSend, type Transcript } from "./merge";
 import { createSequence, SEND_TIMEOUT_MS } from "./sequence";
-import { buildSend, EVERYONE, fallbackTarget, lastSpeakerOf } from "./targets";
+import { buildSend, EVERYONE, fallbackTarget, lastSpeakerOf, type Mention } from "./targets";
 
 const log = createLogger("unified-view");
 
@@ -84,6 +84,10 @@ export function createUnifiedView(deps: {
     mount: root,
     onClose: deps.closeWindow,
     startDragging: deps.startDragging,
+    onPick: (id) => {
+      composer.setMention(id);
+      composer.focus();
+    },
   });
   const boxMount = document.createElement("div");
   boxMount.className = "yui-uc__box";
@@ -123,17 +127,26 @@ export function createUnifiedView(deps: {
       pending = pending.map((p) =>
         p.sendId === sendId ? { sendId, text: p.text, to: p.to, at: deps.now() } : p,
       );
+      paint();
     },
     onIdle: () => paint(),
   });
 
   function busy(): boolean {
-    return castState.running() || sequence.running();
+    return castState.running() || sequence.current() !== null;
+  }
+
+  // While a send runs, the row and the placeholder name its recipient; otherwise where Enter sends.
+  function shown(): Mention | undefined {
+    const send = sequence.current();
+    if (!send) return composer.checked();
+    return send.mention === EVERYONE ? EVERYONE : send.targets[0];
   }
 
   function paint(): void {
-    chips.render(deps.cast(), castState.stateOf);
-    composer.showRecipient(composer.checked());
+    const recipient = shown();
+    chips.render(deps.cast(), castState.stateOf, recipient);
+    composer.showRecipient(recipient);
     composer.setBusy(busy());
   }
 
