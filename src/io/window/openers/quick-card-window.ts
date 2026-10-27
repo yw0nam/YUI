@@ -22,13 +22,13 @@ const CARD_WINDOW_HEIGHT = 120;
 interface QuickCardWindowEnv {
   isTauri: boolean;
   /** The already-open card window, or null. */
-  getExisting(): Promise<{ close(): Promise<void> } | null>;
+  getExisting(): Promise<{ destroy(): Promise<void> } | null>;
   create(): void;
 }
 
 async function openQuickCardWindow(env: QuickCardWindowEnv, fresh: boolean): Promise<boolean> {
   if (!env.isTauri) return false;
-  if (fresh) await (await env.getExisting())?.close();
+  if (fresh) await (await env.getExisting())?.destroy();
   const existing = fresh ? null : await env.getExisting();
   if (!existing) env.create();
   return true;
