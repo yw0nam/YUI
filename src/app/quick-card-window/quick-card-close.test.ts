@@ -1,16 +1,21 @@
 // @vitest-environment jsdom
 /**
  * quick-card-close.test.ts — the focus poll that closes the quick card when no YUI window
- * has focus once its window has taken focus, and the hide that follows every close of the card.
+ * has focus, from its window's first focus after the open, and the hide that follows every close.
  */
 
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-const { getAllWindows, getCurrentWindow, hide } = vi.hoisted(() => {
-  const hide = vi.fn(async () => {});
+const { getAllWindows, getCurrentWindow, focusChanged } = vi.hoisted(() => {
+  const focusChanged: Array<(event: { payload: boolean }) => void> = [];
   return {
-    hide,
-    getCurrentWindow: vi.fn(() => ({ hide })),
+    focusChanged,
+    getCurrentWindow: vi.fn(() => ({
+      onFocusChanged: vi.fn(async (cb: (event: { payload: boolean }) => void) => {
+        focusChanged.push(cb);
+        return () => {};
+      }),
+    })),
     getAllWindows: vi.fn(async (): Promise<Array<{ isFocused(): Promise<boolean> }>> => []),
   };
 });
@@ -19,9 +24,12 @@ vi.mock("@tauri-apps/api/window", () => ({ getAllWindows, getCurrentWindow }));
 import { wireQuickCardClose } from "./quick-card-close";
 
 function fakeCard() {
+  let open = true;
   const closeCbs = new Set<() => void>();
   return {
+    isOpen: () => open,
     close: vi.fn(() => {
+      open = false;
       for (const cb of [...closeCbs]) cb();
     }),
     onClose: (cb: () => void) => {
@@ -31,28 +39,33 @@ function fakeCard() {
   };
 }
 
+/** The card's window gains or loses OS focus. */
+function windowFocus(focused: boolean): void {
+  for (const cb of focusChanged) cb({ payload: focused });
+}
+
 beforeEach(() => {
   vi.stubGlobal("__TAURI_INTERNALS__", {});
   vi.useFakeTimers();
-  hide.mockClear();
-  getAllWindows.mockClear();
+  focusChanged.length = 0;
 });
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
-/** The card open and its window just focused: the dock has called watch(). */
-function watched() {
+/** An open card whose window has just gained focus. */
+async function focused() {
   const card = fakeCard();
   const hideWindow = vi.fn(async () => {});
   const control = wireQuickCardClose({ card, hide: hideWindow });
-  control.watch();
+  await vi.waitFor(() => expect(focusChanged).toHaveLength(1));
+  windowFocus(true);
   return { card, control, hideWindow };
 }
 
 it("hides and closes when a tick finds no YUI window focused", async () => {
-  const { card, hideWindow } = watched();
+  const { card, hideWindow } = await focused();
   getAllWindows.mockImplementation(async () => [{ isFocused: async () => false }]);
 
   await vi.advanceTimersByTimeAsync(300);
@@ -63,7 +76,7 @@ it("hides and closes when a tick finds no YUI window focused", async () => {
 });
 
 it("does not hide while any YUI window has focus", async () => {
-  const { card, hideWindow } = watched();
+  const { card, hideWindow } = await focused();
   getAllWindows.mockImplementation(async () => [
     { isFocused: async () => false },
     { isFocused: async () => true },
@@ -76,7 +89,7 @@ it("does not hide while any YUI window has focus", async () => {
 });
 
 it("closes on the first none-focused tick after focus went card → pet window → none", async () => {
-  const { card, hideWindow } = watched();
+  const { card, hideWindow } = await focused();
   getAllWindows.mockImplementation(async () => [{ isFocused: async () => true }]);
 
   await vi.advanceTimersByTimeAsync(300);
@@ -89,26 +102,27 @@ it("closes on the first none-focused tick after focus went card → pet window �
   expect(hideWindow).toHaveBeenCalledOnce();
 });
 
-it("scans only from the window's focus until the card closes", async () => {
+it("scans only from its window's first focus until the card closes", async () => {
   const card = fakeCard();
-  const control = wireQuickCardClose({ card, hide: vi.fn(async () => {}) });
-  getAllWindows.mockImplementation(async () => [{ isFocused: async () => true }]);
+  wireQuickCardClose({ card, hide: vi.fn(async () => {}) });
+  await vi.waitFor(() => expect(focusChanged).toHaveLength(1));
+  getAllWindows.mockImplementation(async () => [{ isFocused: async () => false }]);
 
-  // Opened, but its window has not taken focus yet: nothing focused must not close it.
+  // Open, but its window never gained focus: only the card's other triggers close it.
   await vi.advanceTimersByTimeAsync(900);
   expect(getAllWindows).not.toHaveBeenCalled();
+  expect(card.close).not.toHaveBeenCalled();
 
-  control.watch();
+  windowFocus(true);
   await vi.advanceTimersByTimeAsync(300);
-  expect(getAllWindows).toHaveBeenCalledOnce();
+  expect(card.close).toHaveBeenCalledOnce();
 
-  card.close();
   await vi.advanceTimersByTimeAsync(900);
   expect(getAllWindows).toHaveBeenCalledOnce();
 });
 
 it("hides the window when the card closes by any other trigger", async () => {
-  const { card, hideWindow } = watched();
+  const { card, hideWindow } = await focused();
 
   card.close();
 
@@ -116,7 +130,7 @@ it("hides the window when the card closes by any other trigger", async () => {
 });
 
 it("stops polling on dispose", async () => {
-  const { control } = watched();
+  const { control } = await focused();
 
   control.dispose();
   await vi.advanceTimersByTimeAsync(900);
