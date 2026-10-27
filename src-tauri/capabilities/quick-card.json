@@ -9,8 +9,6 @@
   "permissions": [
     "core:default",
     "core:window:allow-set-theme",
-    "core:window:allow-set-title",
-    "core:window:allow-close",
     "core:window:allow-destroy",
     "core:window:allow-show",
     "core:window:allow-hide",
@@ -25,13 +23,6 @@
     "core:window:allow-get-all-windows",
     "core:webview:allow-create-webview-window",
     "log:default",
-    "cors-fetch:default",
-    {
-      "identifier": "opener:allow-open-url",
-      "allow": [
-        { "url": "https://github.com/NousResearch/hermes-agent" },
-        { "url": "https://yw0nam.github.io/YUI/guide/cards" }
-      ]
-    }
+    "cors-fetch:default"
   ]
 }
