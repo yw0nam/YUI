@@ -9,10 +9,10 @@ import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import type { SettingsStores } from "../../settings/settings-stores";
 import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
 import { createQuickCard, type QuickCard } from "../../ui/quick-card/quick-card";
+import { createQuickCardPorts } from "../quick-card-window/quick-card-ports";
 import type { ConversationStores } from "../settings/conversation-stores";
 import type { wireSpeakerSelection, wireVrmSelection } from "../settings/wire-avatar";
 import { wireCueLocaleSync } from "../settings/wire-cue-locale-sync";
-import { createQuickCardPorts } from "../quick-card-window/quick-card-ports";
 
 /** Wires the card and the context menu, and hands back the card. */
 export function wirePetControls(deps: {

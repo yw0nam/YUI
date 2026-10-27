@@ -10,29 +10,31 @@ vi.mock("../styles.css", () => ({}));
 vi.mock("../ui/quick-card/quick-card.css", () => ({}));
 vi.mock("../ui/unified/avatar.css", () => ({}));
 
-const { win, getCurrentWindow, availableMonitors, primaryMonitor, getAllWindows } = vi.hoisted(() => {
-  const win = {
-    setSize: vi.fn(async () => {}),
-    setPosition: vi.fn(async () => {}),
-    show: vi.fn(async () => {}),
-    setFocus: vi.fn(async () => {}),
-    setTheme: vi.fn(async () => {}),
-    startDragging: vi.fn(async () => {}),
-    outerPosition: vi.fn(async () => ({ x: 1000, y: 200 })),
-    scaleFactor: vi.fn(async () => 1),
-    onMoved: vi.fn(() => () => {}),
-    hide: vi.fn(async () => {}),
-  };
-  return {
-    win,
-    getCurrentWindow: vi.fn(() => win),
-    availableMonitors: vi.fn(async () => [MONITOR]),
-    primaryMonitor: vi.fn(async () => MONITOR),
-    getAllWindows: vi.fn(async () => [{ isFocused: async () => true }]),
-  };
-});
+const { win, getCurrentWindow, availableMonitors, primaryMonitor, getAllWindows } = vi.hoisted(
+  () => {
+    const win = {
+      setSize: vi.fn(async () => {}),
+      setPosition: vi.fn(async () => {}),
+      show: vi.fn(async () => {}),
+      setFocus: vi.fn(async () => {}),
+      setTheme: vi.fn(async () => {}),
+      startDragging: vi.fn(async () => {}),
+      outerPosition: vi.fn(async () => ({ x: 1000, y: 200 })),
+      scaleFactor: vi.fn(async () => 1),
+      onMoved: vi.fn(() => () => {}),
+      hide: vi.fn(async () => {}),
+    };
+    return {
+      win,
+      getCurrentWindow: vi.fn(() => win),
+      availableMonitors: vi.fn(async () => [MONITOR]),
+      primaryMonitor: vi.fn(async () => MONITOR),
+      getAllWindows: vi.fn(async () => [{ isFocused: async () => true }]),
+    };
+  },
+);
 
-const { getByLabel, owner } = vi.hoisted(() => {
+const { getByLabel } = vi.hoisted(() => {
   const owner = {
     outerPosition: vi.fn(async () => ({ x: 500, y: 300 })),
     outerSize: vi.fn(async () => ({ width: 400, height: 600 })),

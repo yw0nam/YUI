@@ -1,5 +1,5 @@
-import type { VoiceInputState } from "../../io/voice/stt-vad";
 import type { SettingsBridge } from "../../io/bridge/settings-bridge";
+import type { VoiceInputState } from "../../io/voice/stt-vad";
 import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
 
 /**

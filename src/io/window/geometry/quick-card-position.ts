@@ -110,8 +110,7 @@ export function followOwner({
 }): QuickCardPlacement {
   const box = boxSize(cardSize, margin);
   const movedX = card.x + delta.dx;
-  const keepsSide =
-    movedX >= workArea.x && movedX + box.width <= workArea.x + workArea.width;
+  const keepsSide = movedX >= workArea.x && movedX + box.width <= workArea.x + workArea.width;
   if (keepsSide) {
     const clamped = clampToWorkArea(
       movedX,

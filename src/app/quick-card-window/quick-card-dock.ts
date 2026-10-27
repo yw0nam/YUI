@@ -8,14 +8,14 @@
  */
 
 import type { QuickCardOpen, SettingsBridge } from "../../io/bridge/settings-bridge";
+import { startDragging } from "../../io/window/geometry/companion-column";
 import {
   followOwner,
-  quickCardBeside,
-  snapTarget,
   type QuickCardPlacement,
   type QuickCardWorkArea,
+  quickCardBeside,
+  snapTarget,
 } from "../../io/window/geometry/quick-card-position";
-import { startDragging } from "../../io/window/geometry/companion-column";
 import {
   logicalWorkArea,
   monitorAtLogical,
@@ -61,7 +61,9 @@ export function wireQuickCardDock(deps: {
   let dragArmed = false;
   let chain: Promise<void> = Promise.resolve();
   const queue = (step: () => Promise<void>): void => {
-    chain = chain.then(step).catch((error) => log.warn("dock_step_failed", { error: String(error) }));
+    chain = chain
+      .then(step)
+      .catch((error) => log.warn("dock_step_failed", { error: String(error) }));
   };
 
   async function readOwner() {

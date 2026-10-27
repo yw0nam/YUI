@@ -16,7 +16,9 @@ const CHARACTER = { left: 500, right: 600, y: 300 };
 
 describe("quickCardBeside", () => {
   it("docks right of R when the right side is roomier", () => {
-    expect(quickCardBeside({ character: CHARACTER, window: CARD, margin: MARGIN, workArea: WORK_AREA })).toEqual({
+    expect(
+      quickCardBeside({ character: CHARACTER, window: CARD, margin: MARGIN, workArea: WORK_AREA }),
+    ).toEqual({
       x: 604,
       y: 268,
       side: "right",
@@ -25,7 +27,9 @@ describe("quickCardBeside", () => {
 
   it("docks left of L when the left side is roomier", () => {
     const character = { left: 1600, right: 1700, y: 300 };
-    expect(quickCardBeside({ character, window: CARD, margin: MARGIN, workArea: WORK_AREA })).toEqual({
+    expect(
+      quickCardBeside({ character, window: CARD, margin: MARGIN, workArea: WORK_AREA }),
+    ).toEqual({
       x: 1308,
       y: 268,
       side: "left",
@@ -34,18 +38,28 @@ describe("quickCardBeside", () => {
 
   it("docks right on a tie", () => {
     const character = { left: 950, right: 1050, y: 300 };
-    expect(quickCardBeside({ character, window: CARD, margin: MARGIN, workArea: WORK_AREA }).side).toBe("right");
+    expect(
+      quickCardBeside({ character, window: CARD, margin: MARGIN, workArea: WORK_AREA }).side,
+    ).toBe("right");
   });
 
   it("takes a forced side over the roomier one", () => {
     expect(
-      quickCardBeside({ character: CHARACTER, window: CARD, margin: MARGIN, workArea: WORK_AREA, side: "left" }),
+      quickCardBeside({
+        character: CHARACTER,
+        window: CARD,
+        margin: MARGIN,
+        workArea: WORK_AREA,
+        side: "left",
+      }),
     ).toEqual({ x: 208, y: 268, side: "left" });
   });
 
   it("clamps the top into the work area", () => {
     const character = { left: 500, right: 600, y: 10 };
-    expect(quickCardBeside({ character, window: CARD, margin: MARGIN, workArea: WORK_AREA }).y).toBe(0);
+    expect(
+      quickCardBeside({ character, window: CARD, margin: MARGIN, workArea: WORK_AREA }).y,
+    ).toBe(0);
   });
 });
 

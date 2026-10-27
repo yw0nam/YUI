@@ -3,12 +3,12 @@
  * commit and cross-window reload only; the pet window hot-swaps the model on the change.
  */
 
+import type { ConfigStore } from "../../config/store";
 import {
   createVrmSelection,
   localStorageUserVrmStorage,
   localStorageVrmStorage,
 } from "../../io/assets/vrm-selection";
-import type { ConfigStore } from "../../config/store";
 import type { Logger } from "../../logger";
 
 export function createWindowVrmSelection(deps: {

@@ -4,8 +4,8 @@
  * Escape, the margin click, ×, All settings… and Turn off close through the card itself.
  */
 
-import type { QuickCard } from "../../ui/quick-card/quick-card";
 import { createLogger } from "../../logger";
+import type { QuickCard } from "../../ui/quick-card/quick-card";
 
 const log = createLogger("quick-card-close");
 

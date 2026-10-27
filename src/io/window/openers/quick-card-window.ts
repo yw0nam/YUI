@@ -8,10 +8,10 @@
  * always follows.
  */
 
-import type { QuickCardOpen, SettingsBridge } from "../../bridge/settings-bridge";
 import { createLogger } from "../../../logger";
 import { windowLabel } from "../../../settings/preset/pet-windows";
 import { isTauri } from "../../../tauri-env";
+import type { QuickCardOpen, SettingsBridge } from "../../bridge/settings-bridge";
 
 const log = createLogger("quick-card-window");
 
