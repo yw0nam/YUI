@@ -6,10 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>YUI Settings</title>
     <style>
-      /* The settings window is a real OS window (not a transparent overlay) — fill it with the panel surface.
+      /* The settings window is a real OS window (not a transparent overlay) — fill it with the panel surface
+         once the theme is set; before that the window's native background, already the panel colour, shows.
          styles.css leaves body transparent, so override it with !important. */
-      html,
-      body {
+      html[data-theme],
+      html[data-theme] body {
         background: var(--yui-panel-bg) !important;
       }
     </style>

@@ -1,6 +1,7 @@
 /** Settings opens the main or bound companion window and shares storage change notifications. */
 
 import { createLogger } from "../../../logger";
+import { panelBackground } from "../../../settings/appearance/panel-background";
 import type { SettingsPage } from "../../../settings/panels/settings-pages";
 import { windowLabel } from "../../../settings/preset/pet-windows";
 import { isTauri } from "../../../tauri-env";
@@ -72,6 +73,8 @@ async function openTauriSettingsWindow(
       resizable: true,
       decorations: true,
       transparent: false,
+      // This window's own theme is the one the new window will apply; its first frame takes that panel colour.
+      backgroundColor: panelBackground(document.documentElement.dataset.theme),
     });
     win.once("tauri://error", (e) =>
       log.error("settings_window_create_error", { error: String(e) }),

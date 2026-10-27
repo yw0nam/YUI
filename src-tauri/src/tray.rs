@@ -51,6 +51,15 @@ fn toggle_visibility(app: &AppHandle) {
     }
 }
 
+/// The panel surface (`--yui-panel-bg` in src/ui/tokens.css) of the theme in effect, so the window's
+/// first frame is neither the webview's white nor Dawn under Hearth.
+fn settings_background(theme: Option<tauri::Theme>) -> tauri::window::Color {
+    match theme {
+        Some(tauri::Theme::Dark) => tauri::window::Color(17, 12, 7, 255),
+        _ => tauri::window::Color(249, 246, 242, 255),
+    }
+}
+
 fn open_settings(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("settings") {
         if let Err(error) = window.show() {
@@ -63,6 +72,11 @@ fn open_settings(app: &AppHandle) {
     }
 
     // Window params mirror src/io/window/openers/settings-window.ts — keep both in sync.
+    // Main's native theme follows the stored theme (applyTheme sets it), else the OS.
+    let background = settings_background(
+        app.get_webview_window("main")
+            .and_then(|main| main.theme().ok()),
+    );
     let handle = app.clone();
     if let Err(error) = std::thread::Builder::new()
         .name("yui-settings-window".into())
@@ -78,6 +92,7 @@ fn open_settings(app: &AppHandle) {
             .resizable(true)
             .decorations(true)
             .transparent(false)
+            .background_color(background)
             .build()
             {
                 log::warn!("tray_create_settings_window_failed error={error}");
