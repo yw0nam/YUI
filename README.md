@@ -25,7 +25,7 @@
 
 ## Quickstart
 
-You need a Mac with Apple Silicon or a Windows x64 PC, a coding agent (Claude Code, Codex, OpenCode, Cursor), and a chat model: an OpenAI or Groq API key, or [Ollama](https://ollama.com) or [LM Studio](https://lmstudio.ai) running locally.
+You need a Mac with Apple Silicon or a Windows x64 PC, and a coding agent (Claude Code, Codex, OpenCode, Cursor). To talk with her, connect a chat model during install or later: an OpenAI or Groq API key, or [Ollama](https://ollama.com) or [LM Studio](https://lmstudio.ai) running locally.
 
 1. Paste this into your coding agent:
 
@@ -37,7 +37,7 @@ You need a Mac with Apple Silicon or a Windows x64 PC, a coding agent (Claude Co
 2. Ask the agent to start her (`pnpm tauri dev`), or run that yourself in the YUI folder. The first start takes a few minutes, then she appears on your screen.
 3. Press `/` (or `Cmd/Ctrl+Shift+Y`) and say hello.
 
-To talk by voice, also set up speech recognition and a voice in **Settings → Connection** (right-click her and choose **All settings…**). You can change the chat model there too. OpenAI, Ollama, LM Studio, and Groq use the Chat Completions format, which needs a model with tool-calling support: for example `gpt-5-mini` on OpenAI, `qwen3` on Ollama, or `llama-3.3-70b-versatile` on Groq.
+To talk by voice, set up speech recognition and a voice provider in **Settings → Connection**, then choose her voice in **Settings → Voice** (right-click her and choose **All settings…**). You can change the chat model on Connection too. OpenAI, Ollama, LM Studio, and Groq use the Chat Completions format, which needs a model with tool-calling support: for example `gpt-5-mini` on OpenAI, `qwen3` on Ollama, or `llama-3.3-70b-versatile` on Groq.
 
 ## What she does
 
@@ -59,7 +59,25 @@ Her brain picks an expression, a gesture, and a tone of voice for each reply, so
 
 She greets you at set times, checks in after you have been idle, and, if you turn it on, notices when you switch apps. You set how often she may speak up on her own, and she says nothing when nothing is worth saying.
 
-**And more:** your own VRM model, voice chat you can interrupt, image attachments, a chat history, English, Japanese, and Korean UI, and tools your agent can use on your computer. See the [full feature list](docs/guide/features.md).
+### She looks things up in your browser
+
+<a href="https://youtu.be/XB-jRXspJ_E"><img src="docs/public/yui-scenario-browse.gif" alt="The user asks Yangyang in the chat window to search for yw0nam/YUI; ego lite opens the Google results beside her, and she answers that she found the GitHub project" width="560"></a>
+
+Turn on **Allow browser use** on the Permissions page, and she searches the web and opens pages in [ego lite](docs/reference/client-tools.md#browser), then tells you what she found. ego lite is the only supported browser.
+
+### Several characters, one conversation
+
+Each character keeps her own brain, persona, voice, VRM model, and history, and up to four can share your desktop. One chat window holds the conversation and shows one line at a time: pick who you are talking to, everyone at once, or type `@name`; your voice goes to the same pick. They can also pass your message on to each other.
+
+<a href="https://youtu.be/m8myp8pT4Yw"><img src="docs/public/yui-scenario-together.gif" alt="Yangyang and Suisui stand on the desktop beside a browser page; the user asks both of them to look themselves up, and each answers in turn in the chat window" width="400"></a> <a href="https://youtu.be/LQpZq9HcIuk"><img src="docs/public/yui-scenario-address.gif" alt="In the chat window, Yangyang passes the user's question to Suisui, and Suisui answers her" width="400"></a>
+
+### She tells you when your coding agent is done
+
+<a href="https://youtu.be/T3-B642x0Yw"><img src="docs/public/yui-scenario-signals.gif" alt="A Signal chip labelled claude-code appears beside Yangyang; its details show the kind agent.needs_input and the signal's message: a Claude Code session waits for permission" width="560"></a>
+
+The [yui-notify](integrations/yui-notify/README.md) plugin for Claude Code and Codex sends a signal when the agent finishes or waits for your permission, and the character tells you. Turn on **External signals** in **Settings → Proactive → Watchers** first, then restart YUI.
+
+**And more:** your own VRM model, Tavern Card import and export, voice chat you can interrupt, image attachments, a chat history, how each character feels about you and the others, a Quick card on right-click, Dawn and Hearth themes, English, Japanese, and Korean UI, and tools your agent can use on your computer. See the [full feature list](docs/guide/features.md).
 
 ## How it works
 
@@ -142,12 +160,14 @@ The [connection guide](docs/guide/getting-started.md) covers each setup. Missing
 
 ## Credits
 
-Motions come from [Mate Engine](https://github.com/shinyflvre/Mate-Engine) by Shiny, necocoya's [EmoteSet_Free_v130](https://booth.pm/ja/items/1065089), and [Mixamo](https://www.mixamo.com/). The default character is **Sendagaya Shino** by [pixiv Inc.](https://vroid.pixiv.help/hc/en-us/articles/360013482714), converted to VRM 1.0 by [Coatie](https://hub.vroid.com/en/characters/4593660874193246717).
+Motions come from [Mate Engine](https://github.com/shinyflvre/Mate-Engine) by Shiny, necocoya's [EmoteSet_Free_v130](https://booth.pm/ja/items/1065089), [Mixamo](https://www.mixamo.com/), and clips made for YUI by AI. The default character is **Sendagaya Shino** by [pixiv Inc.](https://vroid.pixiv.help/hc/en-us/articles/360013482714), converted to VRM 1.0 by [Coatie](https://hub.vroid.com/en/characters/4593660874193246717).
+
+The demo videos and GIFs use other VRM models and voices, which YUI does not include. You can load your own VRM.
 
 <details>
 <summary>Full asset credits and terms</summary>
 
-The motion assets (`public/motions/*.vrma`) come from three sources.
+The motion assets (`public/motions/*.vrma`) come from four sources.
 
 Most clips are extracted from the
 [Mate Engine](https://github.com/shinyflvre/Mate-Engine) project by Shiny, used
@@ -165,6 +185,16 @@ The locomotion clips `walk`, `jump`, `falling`, `landing`, the climb set
 (`climb_up`, `climb_up_done`, `climb_down`, `climb_down_landing`), `sit_down`
 and `stand_up` are from [Mixamo](https://www.mixamo.com/), royalty-free under
 the Mixamo terms.
+
+The `bed_lie`, `bed_sleep`, and `bed_wake` clips were made for YUI by AI: a
+reference video and pose extraction, post-edited to lie and rise cleanly on the
+bed, and a held lying pose composed by hand from joint angles.
+
+The bed itself (`public/props/bed.glb`) is **Cute stylized bed - low poly - game
+ready** by [Pricey](https://sketchfab.com/siddharthkuthal), used under
+[CC BY 4.0](http://creativecommons.org/licenses/by/4.0/) and scaled and edited
+for YUI — see [`public/props/bed.PROVENANCE.md`](public/props/bed.PROVENANCE.md)
+for the full notice.
 
 The bundled default VRM model
 (`resources/vrms/Sendagaya_Shino.vrm`) is **Sendagaya Shino**, originally by

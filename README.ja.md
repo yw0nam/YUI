@@ -18,7 +18,7 @@
 </div>
 
 - **デスクトップで暮らす** — お気に入りのVRMキャラクターがウィンドウの上に立ち、カーソルを目で追いかけます。ウィンドウの上を歩いたり、縁にちょこんと腰かけたり、別のウィンドウへ飛び移ったりも。
-- **「頭脳」は自由に選べる** — ローカルモデル、クラウドのAPI、自作のエージェントまで。考えて話すのはつないだAIなので、賢さも性格も選び方しだいです。
+- **「頭脳」は自由に選べる** — ローカルモデル、クラウドのAPI、自作のエージェントまで。彼女のペルソナはアプリで書いても、エージェントが持ってきてもかまいません。何を話すかを決めるのは頭脳です。
 - **自分から話しかける。でも、控えめに** — あいさつやちょっとした声かけは自分から。話すことがないときは、静かに見守ってくれます。
 
 *名前の由来は[『ソードアート・オンライン』のユイ](https://swordartonline.fandom.com/wiki/Yui)。ただのプログラムから、「おかえり」と迎えてくれる存在になったAIです。*
@@ -29,7 +29,7 @@
 
 - Apple Silicon搭載のMac、またはWindows x64のPC
 - コーディングエージェント(Claude Code、Codex、OpenCode、Cursorなど)
-- チャットモデル(OpenAIかGroqのAPIキー、またはローカルで動く[Ollama](https://ollama.com)か[LM Studio](https://lmstudio.ai))
+- 彼女と話すためのチャットモデル(OpenAIかGroqのAPIキー、またはローカルで動く[Ollama](https://ollama.com)か[LM Studio](https://lmstudio.ai))。インストールのときに接続しても、あとからでもかまいません
 
 1. 下の一文をコーディングエージェントに貼り付けます。
 
@@ -41,7 +41,7 @@
 2. エージェントに起動を頼んでください。自分で起動する場合は、ターミナルでYUIのフォルダを開いて `pnpm tauri dev` を実行します。初回は数分かかり、そのあと画面にキャラクターが現れます。
 3. `/`(または `Cmd/Ctrl+Shift+Y`)を押して、話しかけてみてください。
 
-声で話すには、**設定 → 接続** で音声認識と音声合成も設定してください(キャラクターを右クリックして **すべての設定…** を選ぶと設定が開きます)。チャットモデルの変更も同じ画面でできます。OpenAI、Ollama、LM Studio、GroqはChat Completions方式で接続するため、ツール呼び出し(tool calling)に対応したモデルが必要です。たとえばOpenAIなら `gpt-5-mini`、Ollamaなら `qwen3`、Groqなら `llama-3.3-70b-versatile` が使えます。
+声で話すには、**設定 → 接続** で音声認識と音声合成を設定し、**設定 → 声** で声(話者)を選んでください(キャラクターを右クリックして **すべての設定…** を選ぶと設定が開きます)。チャットモデルの変更は接続の画面でできます。OpenAI、Ollama、LM Studio、GroqはChat Completions方式で接続するため、ツール呼び出し(tool calling)に対応したモデルが必要です。たとえばOpenAIなら `gpt-5-mini`、Ollamaなら `qwen3`、Groqなら `llama-3.3-70b-versatile` が使えます。
 
 ## できること
 
@@ -63,7 +63,25 @@
 
 決まった時間のあいさつ、しばらく手が止まったときの声かけ、オンにすればアプリを切り替えたときの反応も。自分から話しかける回数や間隔は設定で調整できます。話すことがなければ、静かに見守ってくれます。
 
-**ほかにも:** 自分のVRMモデル、話の途中でも声で割り込める音声会話、画像の添付、会話履歴、日本語・英語・韓国語のUI、エージェントがPC上で使えるツールなど。詳しくは[機能一覧](docs/guide/features.md)をご覧ください。
+### ブラウザで調べものをしてくれる
+
+<a href="https://youtu.be/XB-jRXspJ_E"><img src="docs/public/yui-scenario-browse.gif" alt="チャットウィンドウでユーザーがYangyangにyw0nam/YUIの検索を頼むと、ego liteで開いたGoogle検索結果が彼女の横に表示され、GitHubのプロジェクトが見つかったと彼女が答える" width="560"></a>
+
+権限ページで **ブラウザの使用を許可** をオンにすると、[ego lite](docs/reference/client-tools.md#browser)でWebを検索し、ページを開いて、見つけたことを教えてくれます。対応ブラウザはego liteのみです。
+
+### 何人ものキャラクターを、ひとつの会話で
+
+キャラクターはそれぞれ、頭脳、ペルソナ、声、VRMモデル、履歴を自分だけのものとして持ち、デスクトップには4人まで一緒に置けます。会話はひとつのウィンドウにまとまり、一度にひとりのセリフだけが表示されます。話す相手はひとりでも全員でも選べて `@名前` でも指定でき、声で話しかけたときも同じ相手に届きます。キャラクターどうしでメッセージを渡すこともできます。
+
+<a href="https://youtu.be/m8myp8pT4Yw"><img src="docs/public/yui-scenario-together.gif" alt="ブラウザのページの横に立つYangyangとSuisui。ユーザーがふたりにそれぞれ自分のことを調べるよう頼み、ふたりがチャットウィンドウで順番に答える" width="400"></a> <a href="https://youtu.be/LQpZq9HcIuk"><img src="docs/public/yui-scenario-address.gif" alt="チャットウィンドウで、Yangyangがユーザーの質問をSuisuiに渡し、Suisuiが彼女に答える" width="400"></a>
+
+### コーディングエージェントの完了を教えてくれる
+
+<a href="https://youtu.be/T3-B642x0Yw"><img src="docs/public/yui-scenario-signals.gif" alt="Yangyangの横にclaude-codeというシグナルチップが出て、詳細には種類agent.needs_inputと、Claude Codeのセッションが許可を待っているというシグナルのメッセージが表示されている" width="560"></a>
+
+[Claude CodeとCodex向けのyui-notify](integrations/yui-notify/README.md)を入れておくと、エージェントの作業が終わったときや許可を待っているときにシグナルが届き、キャラクターが知らせてくれます。先に **設定 → 話しかけ → ウォッチャー** で **外部シグナル** をオンにして、YUIを再起動してください。
+
+**ほかにも:** 自分のVRMモデル、Tavernカードのインポートと書き出し、話の途中でも声で割り込める音声会話、画像の添付、会話履歴、キャラクターがあなたやほかのキャラクターに抱く気持ち、右クリックで開くクイックカード、DawnとHearthのテーマ、日本語・英語・韓国語のUI、エージェントがPC上で使えるツールなど。詳しくは[機能一覧](docs/guide/features.md)をご覧ください。
 
 ## 仕組み
 
@@ -71,7 +89,14 @@ YUIは「体」、つないだモデルやエージェントが「頭脳」で�
 
 ## 「頭脳」をつなぐ
 
-YUI自体はモデルを内蔵していません。プロバイダーは **設定 → 接続** で選びます。
+YUI自体はモデルを内蔵していません。何ができるかで頭脳を選んでください。
+
+| 頭脳 | 得られるもの |
+| --- | --- |
+| **OpenAI互換の任意のエンドポイント**(OpenAI · Ollama · LM Studio · Groq · 自前のエンドポイント) | チャット、アプリで書くペルソナ、ツール呼び出し対応モデルでの表情。音声と音声認識は別の接続です。 |
+| **記憶を持つオートメーションエージェントとプッシュトランスポート** | バックエンドが自分から始めるターン、エージェントが保持する長期記憶、バックエンドが報告したときの委任ステータス。フル機能にはこちらがおすすめです。実例: [Hermes Agent](integrations/hermes/README.md)。ほかのエージェントは[プッシュ契約](docs/reference/push-transport.md)で接続します。 |
+
+プロバイダーは **設定 → 接続** で選びます。
 
 | | プロバイダー |
 | --- | --- |
@@ -123,7 +148,7 @@ YUI自体はモデルを内蔵していません。プロバイダーは **設�
 
 **使う人向け**
 
-- [機能一覧](docs/guide/features.md) · [操作方法](docs/guide/controls.md) · [YUIと一緒にできること](docs/guide/capabilities.md)
+- [機能一覧](docs/guide/features.md) · [操作方法](docs/guide/controls.md) · [YUIと一緒にできること](docs/guide/capabilities.md) · [プロデューサーからシグナルを送る](docs/guide/signals-producer.md)
 - [コーディングエージェントでインストール](docs/guide/install.md) · [接続ガイド](docs/guide/getting-started.md)(チャット、音声、自分のVRM)
 
 **開発する人向け**
@@ -139,12 +164,14 @@ YUI自体はモデルを内蔵していません。プロバイダーは **設�
 
 ## クレジット
 
-モーションはShiny氏の[Mate Engine](https://github.com/shinyflvre/Mate-Engine)、necocoya氏の[EmoteSet_Free_v130](https://booth.pm/ja/items/1065089)、[Mixamo](https://www.mixamo.com/)のものを使っています。既定のキャラクターは[ピクシブ株式会社](https://vroid.pixiv.help/hc/en-us/articles/360013482714)の **千駄ヶ谷 篠(Sendagaya Shino)** を、[Coatie](https://hub.vroid.com/en/characters/4593660874193246717)氏がVRM 1.0に変換したものです。
+モーションはShiny氏の[Mate Engine](https://github.com/shinyflvre/Mate-Engine)、necocoya氏の[EmoteSet_Free_v130](https://booth.pm/ja/items/1065089)、[Mixamo](https://www.mixamo.com/)、そしてYUIのためにAIで作ったクリップのものを使っています。既定のキャラクターは[ピクシブ株式会社](https://vroid.pixiv.help/hc/en-us/articles/360013482714)の **千駄ヶ谷 篠(Sendagaya Shino)** を、[Coatie](https://hub.vroid.com/en/characters/4593660874193246717)氏がVRM 1.0に変換したものです。
+
+デモ動画とGIFでは、YUIに含まれていない別のVRMモデルと音声を使っています。自分のVRMを読み込んで使えます。
 
 <details>
 <summary>アセットのクレジットと利用条件の全文</summary>
 
-モーションアセット(`public/motions/*.vrma`)は、次の3つの提供元のものを使っています。
+モーションアセット(`public/motions/*.vrma`)は、次の4つの提供元のものを使っています。
 
 大半のクリップは、Shiny氏の
 [Mate Engine](https://github.com/shinyflvre/Mate-Engine)プロジェクトから抽出した
@@ -162,6 +189,16 @@ Shiny氏から別途許可を得る必要があります。
 (`climb_up`、`climb_up_done`、`climb_down`、`climb_down_landing`)、`sit_down`、
 `stand_up` は[Mixamo](https://www.mixamo.com/)のもので、Mixamoの規約に基づき
 ロイヤリティフリーです。
+
+`bed_lie`、`bed_sleep`、`bed_wake` のクリップは、YUIのためにAIで作りました。
+参照動画からのポーズ抽出をもとに、ベッドの上で自然に横になり、起き上がれるよう
+手を加えたものです。`bed_sleep` は関節角度から手作業で組んだ横たわりポーズです。
+
+ベッド本体(`public/props/bed.glb`)は[Pricey](https://sketchfab.com/siddharthkuthal)氏の
+**Cute stylized bed - low poly - game ready** で、
+[CC BY 4.0](http://creativecommons.org/licenses/by/4.0/)のもとで使用し、YUI向けに
+サイズと形を調整しています。表記の全文は
+[`public/props/bed.PROVENANCE.md`](public/props/bed.PROVENANCE.md)をご覧ください。
 
 同梱している既定のVRMモデル
 (`resources/vrms/Sendagaya_Shino.vrm`)は **千駄ヶ谷 篠(Sendagaya Shino)** です。原作は
