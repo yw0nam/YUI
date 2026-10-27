@@ -130,7 +130,7 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
       source: "legacy",
       event_type: "signals",
       delivery: "immediate",
-      event_id: `legacy-${nextLegacyId++}`,
+      event_id: `legacy-${raw.ts}-${nextLegacyId++}`,
       occurred_at: raw.ts,
     };
   }
