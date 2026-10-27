@@ -741,8 +741,6 @@ describe("signals_source — delivery envelopes", () => {
     ["non-finite occurred_at", { ...ENVELOPE, occurred_at: Number.POSITIVE_INFINITY }],
     ["out-of-range occurred_at", { ...ENVELOPE, occurred_at: 8.64e15 + 1 }],
     ["non-string label", { ...ENVELOPE, label: 7 }],
-    ["null", null],
-    ["absent", undefined],
   ])("%s envelope drops the group and warns once", async (_name, invalid) => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const s = setup();
@@ -753,6 +751,26 @@ describe("signals_source — delivery envelopes", () => {
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn).toHaveBeenCalledWith("[YUI][signals-source] envelope_invalid", {
       dropped_items: 2,
+    });
+    warn.mockRestore();
+  });
+
+  it.each([
+    ["null", null],
+    ["absent", undefined],
+  ])("a batch whose envelope is %s is delivered as immediate and logs the deprecation once", async (_name, missing) => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const s = setup();
+    await s.src.start();
+    s.emitIdle(idleTick(LOW_IDLE));
+    s.emitInbox(batch([{ id: 1 }], 1, missing));
+    s.emitInbox(batch([{ id: 2 }], 2, missing));
+    expect(s.pushed).toHaveLength(2);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith("[YUI][signals-source] deprecated", {
+      what: "signals without an envelope",
+      removed_in: "v0.6.0",
+      use: "an envelope",
     });
     warn.mockRestore();
   });

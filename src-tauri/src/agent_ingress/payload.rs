@@ -584,20 +584,15 @@ mod tests {
     }
 
     #[test]
-    fn parse_signals_request_absent_envelope_returns_400() {
-        assert_eq!(
-            parse_signals_request("POST", "/signals", r#"{"signals":[]}"#).unwrap_err(),
-            400u16
-        );
-    }
-
-    #[test]
-    fn parse_signals_request_null_envelope_returns_400() {
-        assert_eq!(
-            parse_signals_request("POST", "/signals", r#"{"signals":[],"envelope":null}"#)
-                .unwrap_err(),
-            400u16
-        );
+    fn parse_signals_request_accepts_an_absent_or_null_envelope() {
+        for body in [
+            r#"{"signals":[{"id":1}]}"#,
+            r#"{"signals":[{"id":1}],"envelope":null}"#,
+        ] {
+            let request = parse_signals_request("POST", "/signals", body).unwrap();
+            assert_eq!(request.signals.len(), 1);
+            assert!(request.envelope.is_none());
+        }
     }
 
     // ── handle_request routing (/signals emits signals-inbox) ────────────────

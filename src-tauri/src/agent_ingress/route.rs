@@ -136,6 +136,17 @@ mod tests {
     use super::*;
     use std::collections::HashSet;
     #[test]
+    fn an_absent_envelope_reaches_the_window_as_null() {
+        match parse_route("POST", "/signals", r#"{"signals":[{"id":1}]}"#)
+            .unwrap()
+            .kind
+        {
+            RouteKind::Signals(payload) => assert_eq!(payload.envelope, serde_json::Value::Null),
+            other => panic!("expected a signals route, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn routes_all_families_and_preserves_payloads() {
         for (method, path, body) in [
             ("POST", "/signals", r#"{"signals":[1],"envelope":{"x":1}}"#),
