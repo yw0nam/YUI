@@ -2,6 +2,7 @@
 /**
  * quick-card-dock.test.ts — how the quick-card window places itself docked beside the character,
  * follows her window while docked, detaches on a head drag and snaps back on a near drop.
+ * The drag runs through the `drag_window` command; its drop is the `window_drop_release` event.
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -12,7 +13,6 @@ const { win, getCurrentWindow, availableMonitors, primaryMonitor } = vi.hoisted(
     setPosition: vi.fn(async (_arg: unknown) => {}),
     show: vi.fn(async () => {}),
     setFocus: vi.fn(async () => {}),
-    startDragging: vi.fn(async () => {}),
     outerPosition: vi.fn(async () => ({ x: 1000, y: 200 })),
     scaleFactor: vi.fn(async () => 1),
     onMoved: vi.fn((_cb: (event: { payload: { x: number; y: number } }) => void) => () => {}),
@@ -44,6 +44,16 @@ vi.mock("@tauri-apps/api/webviewWindow", () => ({
   WebviewWindow: { getByLabel },
 }));
 
+const { invoke, listen } = vi.hoisted(() => ({
+  invoke: vi.fn(async (_cmd: string) => {}),
+  listen: vi.fn(async (_event: string, _cb: () => void) => () => {}),
+}));
+vi.mock("@tauri-apps/api/core", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tauri-apps/api/core")>()),
+  invoke,
+}));
+vi.mock("@tauri-apps/api/event", () => ({ listen }));
+
 const MONITOR = {
   position: { x: 0, y: 0 },
   size: { width: 2000, height: 1000 },
@@ -53,12 +63,13 @@ const MONITOR = {
 
 import { wireQuickCardDock } from "./quick-card-dock";
 
-/** The native drag resolves at mouse-up; the tests hold it until the drop. */
-let releaseDrag: (() => void) | null = null;
-function dropDrag(): void {
-  releaseDrag?.();
-  releaseDrag = null;
+/** The release poll's `window_drop_release`, which every window hears after any native drag. */
+function dropRelease(): void {
+  for (const [event, cb] of listen.mock.calls) if (event === "window_drop_release") cb();
 }
+
+/** Lets the dock's queued steps run. */
+const settle = () => new Promise((r) => setTimeout(r, 20));
 
 function fakeBridge() {
   let onOpen: ((request: never) => void) | null = null;
@@ -115,13 +126,8 @@ beforeEach(() => {
   win.setPosition.mockClear();
   win.show.mockClear();
   win.setFocus.mockClear();
-  win.startDragging.mockClear();
-  win.startDragging.mockImplementation(
-    () =>
-      new Promise<void>((resolve) => {
-        releaseDrag = resolve;
-      }),
-  );
+  invoke.mockClear();
+  listen.mockClear();
   win.outerPosition.mockClear();
   win.outerPosition.mockImplementation(async () => ({ x: 1000, y: 200 }));
   win.onMoved.mockClear();
@@ -204,16 +210,15 @@ describe("wireQuickCardDock", () => {
     win.setPosition.mockClear();
 
     card.headPointerDown();
-    await vi.waitFor(() => expect(win.startDragging).toHaveBeenCalledOnce());
-
+    expect(invoke).toHaveBeenCalledWith("drag_window");
     win.outerPosition.mockImplementation(async () => ({ x: 1200, y: 400 }));
     for (const x of xs) win.onMoved.mock.calls[0][0]({ payload: { x, y: DOCKED.y } });
-    dropDrag();
-    await new Promise((r) => setTimeout(r, 20));
+    dropRelease();
+    await settle();
 
     owner.outerPosition.mockImplementation(async () => ({ x: 600, y: 320 }));
     owner.onMoved.mock.calls[0][0]({ payload: { x: 600, y: 320 } });
-    await new Promise((r) => setTimeout(r, 20));
+    await settle();
     expect(positions()).toEqual([]);
   });
 
@@ -224,19 +229,50 @@ describe("wireQuickCardDock", () => {
     win.setPosition.mockClear();
 
     card.headPointerDown();
-    await vi.waitFor(() => expect(win.startDragging).toHaveBeenCalledOnce());
-    dropDrag();
-    await new Promise((r) => setTimeout(r, 20));
+    dropRelease();
+    await settle();
 
     owner.outerPosition.mockImplementation(async () => ({ x: 600, y: 320 }));
     owner.onMoved.mock.calls[0][0]({ payload: { x: 600, y: 320 } });
     await vi.waitFor(() => expect(positions()).toEqual([{ x: 964, y: 488 }]));
   });
 
+  it("settles a drop on the release, not when the drag call returns", async () => {
+    const { bridge, card } = wired();
+    bridge.open(REQUEST);
+    await vi.waitFor(() => expect(win.show).toHaveBeenCalledOnce());
+    win.setPosition.mockClear();
+
+    // The drag call returns at once; the window then moves under the held button.
+    win.outerPosition.mockImplementation(async () => ({ x: 240, y: 400 }));
+    card.headPointerDown();
+    await settle();
+    win.onMoved.mock.calls[0][0]({ payload: { x: 240, y: 400 } });
+    await settle();
+    expect(positions()).toEqual([]);
+
+    dropRelease();
+    await vi.waitFor(() => expect(positions()).toEqual([{ x: 248, y: 400 }]));
+  });
+
   it.each([
-    ["left", 240, { x: 248, y: 400 }],
-    ["right", 872, { x: 864, y: 400 }],
-  ])("snaps a drop whose visible edge sits within 24px of her %s side", async (_side, droppedX, snapped) => {
+    // Visible right edge 240 + 8 + 272 = 520, 20px short of her left edge 540.
+    [
+      "within 24px of her left side snaps and docks",
+      240,
+      [{ x: 248, y: 400 }],
+      [{ x: 348, y: 420 }],
+    ],
+    // Visible left edge 872 + 8 = 880, 20px past her right edge 860.
+    [
+      "within 24px of her right side snaps and docks",
+      872,
+      [{ x: 864, y: 400 }],
+      [{ x: 964, y: 420 }],
+    ],
+    // Visible right edge 235 + 8 + 272 = 515, 25px short of her left edge 540.
+    ["25px from her edge stays detached", 235, [], []],
+  ])("a drop %s", async (_name, droppedX, snapped, followed) => {
     const { bridge, card } = wired();
     bridge.open(REQUEST);
     await vi.waitFor(() => expect(win.show).toHaveBeenCalledOnce());
@@ -244,33 +280,34 @@ describe("wireQuickCardDock", () => {
 
     win.outerPosition.mockImplementation(async () => ({ x: droppedX, y: 400 }));
     card.headPointerDown();
-    await vi.waitFor(() => expect(win.startDragging).toHaveBeenCalledTimes(1));
     win.onMoved.mock.calls[0][0]({ payload: { x: droppedX, y: 400 } });
-    dropDrag();
-    await vi.waitFor(() => expect(positions()).toEqual([snapped]));
+    dropRelease();
+    await settle();
+    expect(positions()).toEqual(snapped);
 
-    // Docked again: the owner's next move carries the snapped card along.
+    // Docked again, the owner's next move carries the card along; detached, it stays.
     win.setPosition.mockClear();
     owner.outerPosition.mockImplementation(async () => ({ x: 600, y: 320 }));
     owner.onMoved.mock.calls[0][0]({ payload: { x: 600, y: 320 } });
-    await vi.waitFor(() =>
-      expect(positions()).toEqual([{ x: snapped.x + 100, y: snapped.y + 20 }]),
-    );
+    await settle();
+    expect(positions()).toEqual(followed);
   });
 
-  it("leaves a drop 25px from her edge detached", async () => {
+  it("does not snap a detached card when her own drag ends beside it", async () => {
     const { bridge, card } = wired();
     bridge.open(REQUEST);
     await vi.waitFor(() => expect(win.show).toHaveBeenCalledOnce());
+    win.outerPosition.mockImplementation(async () => ({ x: 1200, y: 400 }));
+    card.headPointerDown();
+    win.onMoved.mock.calls[0][0]({ payload: { x: 1200, y: 400 } });
+    dropRelease();
+    await settle();
     win.setPosition.mockClear();
 
-    // Visible right edge 235 + 288 - 8 = 515, 25px short of her left edge 540.
-    win.outerPosition.mockImplementation(async () => ({ x: 235, y: 400 }));
-    card.headPointerDown();
-    await vi.waitFor(() => expect(win.startDragging).toHaveBeenCalledTimes(1));
-    win.onMoved.mock.calls[0][0]({ payload: { x: 235, y: 400 } });
-    dropDrag();
-    await new Promise((r) => setTimeout(r, 20));
+    // She is dragged so her right edge (830 + 360) sits 18px from the card's visible left edge.
+    owner.outerPosition.mockImplementation(async () => ({ x: 830, y: 300 }));
+    dropRelease();
+    await settle();
 
     expect(positions()).toEqual([]);
   });
