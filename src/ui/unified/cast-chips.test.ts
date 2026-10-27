@@ -123,3 +123,14 @@ it("keeps a focused chip focused when the states repaint", () => {
 
   expect((document.activeElement as HTMLElement).dataset.id).toBe("natsume");
 });
+
+it("keeps a tab stop with nothing checked, and focus when the focused chip's preset leaves", () => {
+  const { chips, radios } = setup();
+  chips.render(CAST, () => "idle", undefined);
+  expect(radios().map((r) => r.tabIndex)).toEqual([0, -1, -1, -1]);
+
+  radios()[1]!.focus();
+  chips.render([CAST[0]!, CAST[2]!], () => "idle", "yui");
+
+  expect((document.activeElement as HTMLElement).dataset.id).toBe("yui");
+});
