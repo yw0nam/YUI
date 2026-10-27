@@ -17,6 +17,7 @@ let routed: UserTurnRouted[];
 let stops: number;
 let nextId: number;
 let focusWindow: ReturnType<typeof vi.fn<() => Promise<void>>>;
+let startDragging: ReturnType<typeof vi.fn<() => void>>;
 let view: ReturnType<typeof createUnifiedView>;
 
 let cast: PresetEntry[];
@@ -29,6 +30,7 @@ const CAST = [
 function mount(): void {
   document.body.innerHTML = '<div id="app"></div>';
   focusWindow = vi.fn(async () => {});
+  startDragging = vi.fn();
   view = createUnifiedView({
     mount: document.querySelector("#app")!,
     cast: () => cast,
@@ -38,7 +40,7 @@ function mount(): void {
     randomId: () => `send-${++nextId}`,
     focusWindow,
     closeWindow: () => {},
-    startDragging: () => {},
+    startDragging,
   });
   routed = [];
   stops = 0;
@@ -440,6 +442,18 @@ describe("unified view — running replies", () => {
     expect(boxText()).toBe("Second.");
     expect(document.querySelector(".yui-plate__name")?.textContent).toBe("Natsume");
     expect(chipStates()).toEqual(["idle", "talk"]);
+  });
+
+  it("drags the window from the box's name plate", () => {
+    mount();
+    stream("perlica", { op: "begin" });
+    stream("perlica", { op: "push", delta: "First." });
+
+    document
+      .querySelector(".yui-plate")!
+      .dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
+
+    expect(startDragging).toHaveBeenCalledOnce();
   });
 
   it.each([

@@ -75,7 +75,7 @@ it("picks on a click whose press came before a state repaint", () => {
   expect(picked).toEqual(["natsume"]);
 });
 
-it("closes on its ×, and drags the window from the row's empty space only", () => {
+it("closes on its ×, and drags the window from its grip and the row's empty space only", () => {
   const { chips, mount, onClose, startDragging, radios } = setup();
   chips.render(CAST, () => "idle", "perlica");
   const down = () => new PointerEvent("pointerdown", { bubbles: true, button: 0 });
@@ -87,9 +87,10 @@ it("closes on its ×, and drags the window from the row's empty space only", () 
   expect(startDragging).not.toHaveBeenCalled();
 
   mount.querySelector(".yui-uc__cast")!.dispatchEvent(down());
+  mount.querySelector(".yui-uc__grip")?.dispatchEvent(down());
 
   expect(onClose).toHaveBeenCalledOnce();
-  expect(startDragging).toHaveBeenCalledOnce();
+  expect(startDragging).toHaveBeenCalledTimes(2);
 });
 
 it.each([
