@@ -257,24 +257,16 @@ an accepted idea becomes a `help wanted` issue.
 
 ## Before you open a PR
 
-Run the same checks CI does — paste the block from the repo root:
+Run the same checks CI does from the repo root:
 
 ```bash
-pnpm test                         # vitest
-pnpm map:check                    # architecture map matches the tree
-pnpm css:check                    # a bare class selector is declared in one stylesheet
-pnpm typecheck:test               # tsc over the test files
-pnpm build                        # tsc + vite build
-pnpm docs:build                   # vitepress build + dead-link check
-pnpm lint                         # biome check (format + lint)
-(cd src-tauri && cargo test)      # Rust unit tests
+pnpm gates                        # every app check CI runs, one line per gate with its exit code
 (cd <project> && uv run pytest)   # each Python project under Mods/ or integrations/ the PR touches
 ```
 
-`cargo test` is needed only for `src-tauri/**` changes — CI also runs it when
-`.github/workflows/ci.yml` itself changes. `uv run pytest` is needed only for
-the Python projects the PR touches; `docs/agent-guide/mods.md` lists the full
-per-project check.
+`scripts/ci/gates.sh` lists the gates; a failed gate's line names its log.
+`uv run pytest` is needed only for the Python projects the PR touches;
+`docs/agent-guide/mods.md` lists the full per-project check.
 
 ## License of contributions
 
