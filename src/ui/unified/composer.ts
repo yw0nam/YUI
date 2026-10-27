@@ -1,25 +1,32 @@
 /**
- * The unified chat window's composer — recipient chips over the message window's field under
- * createTextInput, and the @ list. It collects text and a recipient pick, and turns send into stop
- * while a reply runs; routing stays with the view.
+ * The unified chat window's composer — the message window's field under createTextInput, and the @
+ * list. It collects text and a recipient pick, names a recipient in its placeholder, and turns send
+ * into stop while a reply runs; routing stays with the view.
  */
 
 import type { PresetEntry } from "../../settings/preset/active-preset";
-import { subscribe as subscribeLocale, t } from "../i18n";
+import { t } from "../i18n";
 import { createTextInput } from "../input/text-input";
 import "../surfaces/surfaces.css";
-import { avatarEl } from "./avatar";
 import { createMentionPicker } from "./mention-picker";
-import { countedMention, EVERYONE, type Mention, typedMention } from "./targets";
+import { countedMention, type Mention, typedMention, typedMentionLength } from "./targets";
 
 export interface Composer {
   /** The picked recipient, or null. */
   getMention(): Mention | null;
+  /** The recipient a send names: the picked chip, else a typed leading @name; null leaves the fallback target to the routing. */
+  getExplicitMention(): Mention | null;
   setMention(mention: Mention | null): void;
-  /** The preset a message with no mention goes to; undefined while the cast is empty. */
-  setTarget(entry: PresetEntry | undefined): void;
-  /** Refreshes an open @ list from the current cast; the recipient chips repaint on setTarget. */
+  /** Fires when getExplicitMention() may have changed: a pick, the field's text. */
+  onChange(cb: () => void): void;
+  /** Names a recipient in the field's placeholder; undefined, or an empty cast, names none. */
+  showRecipient(name: string | undefined): void;
+  /** Refreshes an open @ list from the current cast. */
   refreshCast(): void;
+  /** Puts text in the field, after what it holds, the way typing does; focus stays where it is. */
+  fill(text: string): void;
+  /** Drops the field's leading @name token, with its space, the way typing does; the rest stays. */
+  consumeMentionToken(): void;
   /** text is trimmed and never empty. */
   onSubmit(cb: (text: string) => void): void;
   /** While busy, send becomes stop and Enter sends nothing. */
@@ -35,8 +42,7 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
   const dock = deps.mount;
   dock.insertAdjacentHTML(
     "beforeend",
-    `<div class="yui-uc__to" role="radiogroup"></div>
-    <form class="yui-input" novalidate hidden>
+    `<form class="yui-input" novalidate hidden>
       <div class="yui-input__tray"></div>
       <div class="yui-input__row">
         <button type="button" class="yui-input__btn yui-input__attach" hidden></button>
@@ -53,10 +59,9 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
   const q = <T extends HTMLElement>(sel: string): T => dock.querySelector<T>(sel)!;
   const form = q<HTMLFormElement>(".yui-input");
   const field = q<HTMLTextAreaElement>(".yui-input__field");
-  const chipsEl = q<HTMLElement>(".yui-uc__to");
 
   let mention: Mention | null = null;
-  let target: PresetEntry | undefined;
+  const changeCbs: Array<() => void> = [];
 
   // The picker's capture listener is added first, so it sees Enter and Escape before the text input.
   const picker = createMentionPicker({ field, mount: dock, cast: deps.cast, onPick: setMention });
@@ -78,79 +83,59 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
   );
   input.summonInput();
 
-  // The checked chip is where Enter sends: the counted pick, else a typed leading @name, else the fallback.
-  function checked(): Mention | undefined {
+  // The recipient a send names before the fallback: the counted pick, else a typed leading @name.
+  function named(): Mention | null {
     const cast = deps.cast();
-    return countedMention(mention, cast) ?? typedMention(field.value, cast) ?? target?.id;
+    return countedMention(mention, cast) ?? typedMention(field.value, cast);
   }
 
-  function chip(id: Mention, label: string, entry?: PresetEntry): HTMLButtonElement {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "yui-uc__recipient";
-    button.setAttribute("role", "radio");
-    button.dataset.id = id;
-    if (entry) button.append(avatarEl(entry, 18));
-    const name = document.createElement("span");
-    name.textContent = label;
-    button.append(name);
-    return button;
-  }
-
-  function paint(): void {
-    const on = checked();
-    chipsEl.setAttribute("aria-label", t("unified.recipients"));
-    chipsEl.replaceChildren(
-      ...deps.cast().map((e) => chip(e.id, e.name, e)),
-      chip(EVERYONE, t("unified.everyone")),
-    );
-    for (const button of chipsEl.querySelectorAll<HTMLElement>("[role=radio]"))
-      button.setAttribute("aria-checked", String(button.dataset.id === on));
+  function changed(): void {
+    for (const cb of changeCbs) cb();
   }
 
   function setMention(next: Mention | null): void {
     mention = next;
-    paint();
+    changed();
   }
 
-  const unsubscribeLocale = subscribeLocale(paint);
-  const onChipClick = (e: MouseEvent): void => {
-    const id = (e.target as Element).closest<HTMLElement>("[role=radio]")?.dataset.id;
-    if (id === undefined) return;
-    setMention(id);
-    field.focus();
-  };
-  chipsEl.addEventListener("click", onChipClick);
-  field.addEventListener("input", paint);
-  paint();
+  field.addEventListener("input", changed);
 
   return {
     getMention: () => mention,
+    getExplicitMention: () => named(),
     setMention,
-    setTarget(entry) {
-      target = entry;
-      paint();
+    onChange: (cb) => void changeCbs.push(cb),
+    showRecipient(name) {
+      field.placeholder =
+        name === undefined ? t("input.placeholder") : t("unified.placeholder_to", { name });
     },
     refreshCast() {
       picker.refresh();
     },
+    fill(text) {
+      field.value = field.value ? `${field.value} ${text}` : text;
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    },
+    consumeMentionToken() {
+      const length = typedMentionLength(field.value, deps.cast());
+      if (length === null) return;
+      field.value = field.value.slice(length);
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    },
     onSubmit: (cb) =>
       input.onSubmit((text) => {
         cb(text);
-        // The field clears after the submit handlers, with no input event — the chips follow then.
-        queueMicrotask(paint);
+        // The field clears after the submit handlers, with no input event — the recipient follows then.
+        queueMicrotask(changed);
       }),
     setBusy: input.setBusy,
     onStop: input.onStop,
     showError: (message, action) => input.showInputError(message, action),
     focus: () => field.focus(),
     dispose() {
-      unsubscribeLocale();
       picker.dispose();
       input.dispose();
-      chipsEl.removeEventListener("click", onChipClick);
-      field.removeEventListener("input", paint);
-      chipsEl.remove();
+      field.removeEventListener("input", changed);
       form.remove();
     },
   };

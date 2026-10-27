@@ -191,7 +191,8 @@ export function wirePushTransport(deps: {
 /**
  * The stop button: ends the turns outstanding on the chat and tells the backend which ones went,
  * so the ones it still runs for the user stop with them. A typed or spoken turn and a barge-in
- * reach the backend as `turn` frames instead, and a session reset sends `reset`.
+ * reach the backend as `turn` frames instead — except that while the unified chat window shows, a
+ * barge-in also follows that window's stop — and a session reset sends `reset`.
  */
 export function wireStopButton(deps: {
   onStop(cb: () => void): void;

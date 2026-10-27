@@ -299,6 +299,7 @@ const ja: Record<string, string> = {
   "unified.you_to": "あなた → {name}",
   "unified.everyone": "みんな",
   "unified.recipients": "送り先",
+  "unified.placeholder_to": "{name}に話しかけてみて…",
 
   // filler (thinking interjections)
   "filler.section": "考え中のあいづち",

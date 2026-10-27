@@ -94,6 +94,12 @@ describe("createQuotedTurn", () => {
     expect(surfaces.quoteUser).toHaveBeenCalledWith({ text: "hello", via: "voice", images: 0 });
   });
 
+  it("quotes a routed spoken message as voice", () => {
+    admit({ ...userEnv("hello"), payload: { text: "hello", send_id: "s1", via: "voice" } });
+
+    expect(surfaces.quoteUser).toHaveBeenCalledWith({ text: "hello", via: "voice", images: 0 });
+  });
+
   it("an admitted turn the user did not start settles the quote", () => {
     admit(userEnv("hi"));
 

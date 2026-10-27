@@ -418,17 +418,46 @@ describe("createSettingsBridge", () => {
       mention: "character",
     });
     unified.emitUserTurnRouted({ sendId: "s2", to: "natsume", text: "hi" });
+    unified.emitUserTurnRouted({ sendId: "s3", to: "natsume", text: "hey", via: "voice" });
 
     expect(cb.mock.calls).toEqual([
       [{ sendId: "s1", to: "natsume", text: "@Natsume hi", mention: "character" }],
       [{ sendId: "s2", to: "natsume", text: "hi" }],
+      [{ sendId: "s3", to: "natsume", text: "hey", via: "voice" }],
     ]);
+  });
+
+  it("delivers main's voice segment to the unified window and drops one with no text", () => {
+    const t = createFakeTransport();
+    const main = createSettingsBridge(t, { windowKind: "pet" });
+    const unified = createSettingsBridge(t, { windowKind: "unified" });
+    const cb = vi.fn();
+    unified.onVoiceSegment(cb);
+
+    main.emitVoiceSegment({ text: "hello there" });
+    main.emitVoiceSegment({ text: "" });
+    main.emitVoiceSegment({ text: 7 } as never);
+
+    expect(cb.mock.calls).toEqual([[{ text: "hello there" }]]);
+  });
+
+  it("delivers a speech onset from one window to another", () => {
+    const t = createFakeTransport();
+    const main = createSettingsBridge(t, { windowKind: "pet" });
+    const unified = createSettingsBridge(t, { windowKind: "unified" });
+    const cb = vi.fn();
+    unified.onSpeechOnset(cb);
+
+    main.emitSpeechOnset();
+
+    expect(cb).toHaveBeenCalledOnce();
   });
 
   it.each([
     { sendId: "s1", to: "natsume" },
     { sendId: 7, to: "natsume", text: "x" },
     { sendId: "s1", to: "natsume", text: "x", mention: "all" },
+    { sendId: "s1", to: "natsume", text: "x", via: "text" },
     "garbage",
   ])("ignores a malformed user-turn-routed payload %j", (payload) => {
     const t = createFakeTransport();

@@ -9,6 +9,7 @@ import type { UserInputSource } from "../../dispatcher/sources/user-input-source
 import type { DelegationHistory } from "../../io/bridge/delegations/delegation-history";
 import type { DelegationsStore } from "../../io/bridge/delegations/delegations-store";
 import type { ReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
+import type { VoiceSegment } from "../../io/bridge/settings-bridge";
 import type { PushSocket } from "../../io/chat/push/push-socket";
 import { appendRecord } from "../../io/chat/record/turn-record-log";
 import { selectFetch } from "../../io/chat/stream/chat-client";
@@ -16,6 +17,7 @@ import { type ClientTool, createClientToolRegistry } from "../../io/chat/tools/c
 import { createLogger } from "../../logger";
 import type { Renderer } from "../../renderer";
 import type { SettingsStores } from "../../settings/settings-stores";
+import type { UnifiedShown } from "../../settings/unified/unified-shown";
 import type { VoiceInputStatus } from "../../ui/chips/voice-input-status";
 import { t } from "../../ui/i18n";
 import type { Surfaces } from "../../ui/surfaces/surfaces";
@@ -30,6 +32,7 @@ import { wireBroker } from "./broker/wire-broker";
 import { wirePlayback } from "./push/playback";
 import { wirePushTransport, wireStopButton } from "./push/wire-push";
 import { wireVocabulary } from "./vocabulary/wire-vocabulary";
+import { createUnifiedVoice } from "./voice/unified-voice";
 import { type VoiceHost, type VoicePersistence, wireTurnVoice } from "./voice/wire-voice";
 import type { VoicePipeline } from "./voice/wire-voice-pipeline";
 import { wireDispatcher } from "./wire-dispatcher";
@@ -65,8 +68,15 @@ export interface TurnCorePhase1 {
   getGuardrails(): GuardrailsConfig;
   /** The hold a scene takes on the body, in a window that runs one. */
   bedSceneHold?: Pick<BedSceneHold, "isHeld" | "onTake">;
-  /** Subscribes to the unified chat window's stop, which every pet window obeys. */
+  /** Subscribes to the unified chat window's stop button or its answer to speech onset; every pet
+   * window stops its running turn and speech. */
   onStopTurns(cb: () => void): () => void;
+  /** Whether the unified chat window is shown; while it is, speech goes to it. */
+  unifiedShown: Pick<UnifiedShown, "get">;
+  /** Sends a recognized segment to the unified chat window. */
+  emitVoiceSegment(event: VoiceSegment): void;
+  /** Tells the unified chat window the user started speaking, with barge-in on. */
+  emitSpeechOnset(): void;
 }
 
 export interface TurnCore {
@@ -150,6 +160,13 @@ export async function wireTurnCore(
   // Published by connect(); a turn reads it when it builds its client tools.
   let vocabulary: Vocabulary | undefined;
 
+  const unifiedVoice = createUnifiedVoice({
+    shown: phase1.unifiedShown,
+    bargeIn: () => settings.vadSettings.get().bargeIn,
+    sendSegment: (text) => phase1.emitVoiceSegment({ text }),
+    submitHere: (text) => userInput.submitVoice(text),
+    emitSpeechOnset: phase1.emitSpeechOnset,
+  });
   const turnVoice = wireTurnVoice({
     renderer,
     surfaces,
@@ -167,8 +184,11 @@ export async function wireTurnCore(
     getEndpoints,
     getConfig: () => config.get(),
     getSecret: (name) => config.secrets.get(name),
-    submitVoice: (text) => userInput.submitVoice(text),
-    onVoiceTurnStart: deps.onVoiceTurnStart,
+    submitVoice: unifiedVoice.segment,
+    onVoiceTurnStart: () => {
+      deps.onVoiceTurnStart?.();
+      unifiedVoice.speechActive();
+    },
     register,
   });
   const { voice, voiceInput, voiceErrorDwell, turnLog, previousTurn, quotedTurn, pushTurns } =

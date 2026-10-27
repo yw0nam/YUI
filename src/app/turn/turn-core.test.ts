@@ -8,19 +8,40 @@ const { dispatcher, dispatcherDeps, endThinking, pushTurns, speechPlayback } = v
   speechPlayback: { interrupt: vi.fn() },
 }));
 
-const { createSttEngine } = vi.hoisted(() => ({ createSttEngine: vi.fn(async () => ({})) }));
-
-vi.mock("./voice/wire-voice", () => ({
-  wireTurnVoice: () => ({
-    voice: { speechPlayback, endThinking, createSttEngine },
-    voiceInput: { setStt: () => {} },
-    voiceErrorDwell: { show: () => {} },
-    pushTurns,
-    quotedTurn: {},
-    setProactiveSource: () => {},
-    setStrolling: () => {},
-  }),
+const { createSttEngine, voiceDeps } = vi.hoisted(() => ({
+  createSttEngine: vi.fn(async () => ({})),
+  voiceDeps: [] as Array<Parameters<typeof import("./voice/wire-voice").wireTurnVoice>[0]>,
 }));
+
+vi.mock("./voice/wire-voice", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./voice/wire-voice")>();
+  type TurnVoice = ReturnType<typeof actual.wireTurnVoice>;
+  return {
+    ...actual,
+    wireTurnVoice: (deps: (typeof voiceDeps)[number]): TurnVoice => {
+      voiceDeps.push(deps);
+      return {
+        voice: {
+          speechPlayback: speechPlayback as unknown as TurnVoice["voice"]["speechPlayback"],
+          turnOutput: {} as TurnVoice["voice"]["turnOutput"],
+          speakFailure: () => {},
+          resumeThinking: () => {},
+          endThinking,
+          createSttEngine: createSttEngine as unknown as TurnVoice["voice"]["createSttEngine"],
+          dispose: () => {},
+        },
+        voiceInput: { setStt: () => {} } as unknown as TurnVoice["voiceInput"],
+        voiceErrorDwell: { show: () => {} } as unknown as TurnVoice["voiceErrorDwell"],
+        turnLog: {} as TurnVoice["turnLog"],
+        previousTurn: {} as TurnVoice["previousTurn"],
+        quotedTurn: {} as TurnVoice["quotedTurn"],
+        pushTurns: pushTurns as unknown as TurnVoice["pushTurns"],
+        setProactiveSource: () => {},
+        setStrolling: () => {},
+      };
+    },
+  };
+});
 vi.mock("./broker/wire-broker", () => ({ wireBroker: async () => ({ dispose: () => {} }) }));
 vi.mock("./vocabulary/wire-vocabulary", () => ({
   wireVocabulary: async () => ({
@@ -100,6 +121,31 @@ describe("wireTurnCore", () => {
 
     expect(dispatcher.cancel).toHaveBeenCalledOnce();
     expect(speechPlayback.interrupt).toHaveBeenCalledOnce();
+  });
+
+  it("sends speech to the unified window while it shows, and a speech onset only tells that window, without stopping here", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    const emitVoiceSegment = vi.fn();
+    const emitSpeechOnset = vi.fn();
+    const h = wire({
+      unifiedShown: { get: () => true },
+      emitVoiceSegment,
+      emitSpeechOnset,
+      userInput: { submitVoice: () => {} } as never,
+      settings: { vadSettings: { get: () => ({ bargeIn: true }) } } as never,
+    });
+    const core = await h.core;
+    await core.connect({ onSubmit: () => {} });
+    const voice = voiceDeps.at(-1)!;
+
+    voice.submitVoice("hi");
+    voice.onVoiceTurnStart?.();
+
+    expect(emitVoiceSegment).toHaveBeenCalledExactlyOnceWith({ text: "hi" });
+    expect(emitSpeechOnset).toHaveBeenCalledOnce();
+    expect(dispatcher.cancel).not.toHaveBeenCalled();
+    expect(pushTurns.cut).not.toHaveBeenCalled();
+    expect(speechPlayback.interrupt).not.toHaveBeenCalled();
   });
 
   it("sends the backend no stop when the unified window's stop reaches a window with nothing running", async () => {

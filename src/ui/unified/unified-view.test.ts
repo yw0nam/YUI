@@ -4,6 +4,7 @@ import type { MessageSurfaceOp } from "../../io/bridge/message/message-bridge";
 import type { UserTurnRouted } from "../../io/bridge/settings-bridge";
 import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
 import type { PresetEntry } from "../../settings/preset/active-preset";
+import { setLocale } from "../i18n";
 import { createUnifiedView } from "./unified-view";
 
 vi.mock("../surfaces/surfaces.css", () => ({}));
@@ -48,13 +49,13 @@ function mount(): void {
 
 const field = () => document.querySelector<HTMLTextAreaElement>(".yui-uc__dock .yui-input__field")!;
 const stream = (preset: string, op: MessageSurfaceOp) => view.speechStream({ preset, op });
-const recipients = () =>
-  [...document.querySelectorAll<HTMLElement>("[role=radio]")].map((r) => [
-    r.textContent,
-    r.getAttribute("aria-checked"),
-  ]);
+const castRadios = () => [...document.querySelectorAll<HTMLElement>(".yui-uc__cast [role=radio]")];
+const pick = (i: number) => castRadios()[i]!.click();
+const recipients = () => castRadios().map((r) => [r.textContent, r.getAttribute("aria-checked")]);
 const chipStates = () =>
-  [...document.querySelectorAll<HTMLElement>(".yui-uc__chip")].map((c) => c.dataset.state);
+  [...document.querySelectorAll<HTMLElement>(".yui-uc__chip[data-state]")].map(
+    (c) => c.dataset.state,
+  );
 const boxText = () => document.querySelector(".yui-bubble__text")?.textContent;
 
 function type(text: string): void {
@@ -84,6 +85,7 @@ beforeEach(() => {
 
 afterEach(() => {
   view?.dispose();
+  setLocale("en");
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
@@ -98,25 +100,129 @@ describe("unified view — sending", () => {
     expect(routed).toEqual([{ sendId: "send-1", to: "natsume", text: "hi" }]);
   });
 
-  it("checks the fallback recipient, then the one a click or a typed @name picks", () => {
+  it("routes a spoken message like a typed one, marked as spoken", () => {
+    mount();
+
+    view.voiceSegment("hi");
+
+    expect(routed).toEqual([{ sendId: "send-1", to: "natsume", text: "hi", via: "voice" }]);
+  });
+
+  it("routes a spoken message to the checked recipient: a typed @name in the field", () => {
+    mount();
+
+    type("@perlica ");
+    view.voiceSegment("hello");
+
+    expect(routed).toEqual([
+      {
+        sendId: "send-1",
+        to: "perlica",
+        text: "@Perlica hello",
+        via: "voice",
+        mention: "character",
+      },
+    ]);
+  });
+
+  it.each([
+    { field: "@perlica ", rest: "" },
+    { field: "@perlica tell me", rest: "tell me" },
+  ])("a spoken send consumes the field's leading @name, leaving the rest (%j)", ({
+    field: text,
+    rest,
+  }) => {
+    mount();
+
+    type(text);
+    view.voiceSegment("hi");
+
+    expect(routed).toEqual([
+      { sendId: "send-1", to: "perlica", text: "@Perlica hi", via: "voice", mention: "character" },
+    ]);
+    expect(field().value).toBe(rest);
+  });
+
+  it("a spoken send with a picked chip leaves the field as it is", () => {
+    mount();
+
+    pick(0);
+    type("draft");
+    view.voiceSegment("hi");
+
+    expect(routed).toEqual([
+      { sendId: "send-1", to: "perlica", text: "@Perlica hi", via: "voice", mention: "character" },
+    ]);
+    expect(field().value).toBe("draft");
+  });
+
+  it("a spoken send with no pick and no typed @name equals the typed send of the same text but via", () => {
+    mount();
+
+    type("hi");
+    press("Enter");
+    const typed = routed[0]!;
+    view.turnDone({ sendId: "send-1", preset: typed.to });
+
+    view.voiceSegment("hi");
+
+    expect(routed[1]).toEqual({ ...typed, sendId: "send-2", via: "voice" });
+  });
+
+  it("puts a spoken message that arrives during a send into the field, unsent and unfocused", () => {
+    mount();
+    type("hi");
+    press("Enter");
+    field().blur();
+
+    view.voiceSegment("wait");
+    view.voiceSegment("and this");
+
+    expect(routed).toHaveLength(1);
+    expect(field().value).toBe("wait and this");
+    expect(document.activeElement).not.toBe(field());
+  });
+
+  it("checks the fallback recipient, then the one a typed @name or a click picks, and names it in the placeholder", () => {
     mount();
     expect(recipients()).toEqual([
       ["Perlica", "false"],
       ["Natsume", "true"],
       ["everyone", "false"],
     ]);
+    expect(field().placeholder).toBe("Say something to Natsume…");
 
     type("@perlica hi");
     expect(recipients()[0]).toEqual(["Perlica", "true"]);
+    expect(field().placeholder).toBe("Say something to Perlica…");
 
     type("");
-    document.querySelectorAll<HTMLElement>("[role=radio]")[2]!.click();
+    pick(2);
     expect(recipients()[2]).toEqual(["everyone", "true"]);
+    expect(field().placeholder).toBe("Say something to everyone…");
+
+    setLocale("ko");
+    expect(field().placeholder).toBe("모두에게 말 걸기…");
+  });
+
+  it("an arrow key on the cast row picks and keeps focus there, off the field", () => {
+    mount();
+    let fieldFocused = 0;
+    field().addEventListener("focus", () => fieldFocused++);
+    castRadios()[1]!.focus();
+
+    castRadios()[1]!.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }),
+    );
+
+    expect(recipients()[0]).toEqual(["Perlica", "true"]);
+    expect((document.activeElement as HTMLElement).dataset.id).toBe("perlica");
+    expect(fieldFocused).toBe(0);
   });
 
   it("routes to the recipient a click picked, with its mention in the text", () => {
     mount();
-    document.querySelectorAll<HTMLElement>("[role=radio]")[0]!.click();
+    pick(0);
 
     type("hello");
     press("Enter");
@@ -124,12 +230,43 @@ describe("unified view — sending", () => {
     expect(routed).toEqual([
       { sendId: "send-1", to: "perlica", text: "@Perlica hello", mention: "character" },
     ]);
+    expect(recipients()[0]).toEqual(["Perlica", "true"]);
+
+    view.turnDone({ sendId: "send-1", preset: "perlica" });
     expect(recipients()[1]).toEqual(["Natsume", "true"]);
+  });
+
+  it("checks everyone while an everyone send runs, then the last speaker without a refresh", () => {
+    mount();
+    pick(2);
+    type("hi");
+    press("Enter");
+    const [first, second] =
+      routed[0]!.to === "perlica" ? ["perlica", "natsume"] : ["natsume", "perlica"];
+
+    view.turnDone({ sendId: "send-1", preset: first! });
+    expect(recipients()[2]).toEqual(["everyone", "true"]);
+
+    transcripts.perlica!.push({ role: "assistant", text: "Me.", ts: T - 1_000, turn_id: "9" });
+    view.turnDone({ sendId: "send-1", preset: second! });
+    expect(recipients()[0]).toEqual(["Perlica", "true"]);
+  });
+
+  it("checks a pick made while an everyone send runs, and names it in the placeholder", () => {
+    mount();
+    pick(2);
+    type("hi");
+    press("Enter");
+
+    pick(0);
+
+    expect(recipients()[0]).toEqual(["Perlica", "true"]);
+    expect(field().placeholder).toBe("Say something to Perlica…");
   });
 
   it("routes everyone one character at a time", () => {
     mount();
-    document.querySelectorAll<HTMLElement>("[role=radio]")[2]!.click();
+    pick(2);
     type("hi");
     press("Enter");
     expect(routed).toHaveLength(1);
@@ -167,18 +304,14 @@ describe("unified view — a face that changes", () => {
     crop: { x: 0.2, y: 0.05, size: 0.5 },
   };
 
-  it("repaints the cast chip, the recipient chip and an open @ list with the new crop", () => {
+  it("repaints the cast chip and an open @ list with the new crop", () => {
     mount();
     type("@");
     cast = [CAST[0]!, framed];
 
     view.refresh();
 
-    for (const root of [
-      ".yui-uc__chip:nth-child(2)",
-      "[role=radio][data-id=natsume]",
-      "[role=option]:nth-child(2)",
-    ]) {
+    for (const root of [".yui-uc__chip:nth-child(2)", "[role=option]:nth-child(2)"]) {
       const img = document.querySelector(`${root} .yui-uc__avatar > img`);
       expect(img?.getAttribute("src"), root).toBe("asset://n.png");
       expect((img as HTMLElement).style.getPropertyValue("--yui-crop-size"), root).toBe("0.5");
@@ -189,7 +322,7 @@ describe("unified view — a face that changes", () => {
 describe("unified view — running replies", () => {
   it("turns send into stop while a reply runs, and stop ends every turn and the sequence", () => {
     mount();
-    document.querySelectorAll<HTMLElement>("[role=radio]")[2]!.click();
+    pick(2);
     type("hi");
     press("Enter");
     const first = routed[0]!.to;
@@ -202,6 +335,41 @@ describe("unified view — running replies", () => {
 
     expect(stops).toBe(1);
     expect(routed).toHaveLength(1);
+  });
+
+  it("a speech onset acts as the stop button while a send runs, and does nothing while idle", () => {
+    mount();
+    view.speechOnset();
+    expect(stops).toBe(0);
+
+    pick(2);
+    type("hi");
+    press("Enter");
+
+    view.speechOnset();
+
+    expect(stops).toBe(1);
+    expect(routed).toHaveLength(1);
+    expect(
+      document.querySelector(".yui-uc__dock .yui-input")!.classList.contains("is-running"),
+    ).toBe(false);
+  });
+
+  it("another window's stop ends the sequence without sending a stop of its own", () => {
+    mount();
+    pick(2);
+    type("hi");
+    press("Enter");
+    const first = routed[0]!.to;
+
+    view.stop();
+    view.turnDone({ sendId: "send-1", preset: first });
+
+    expect(stops).toBe(0);
+    expect(routed).toHaveLength(1);
+    expect(
+      document.querySelector(".yui-uc__dock .yui-input")!.classList.contains("is-running"),
+    ).toBe(false);
   });
 
   it("shows a routed turn's error under the composer", () => {
@@ -274,15 +442,54 @@ describe("unified view — running replies", () => {
     expect(chipStates()).toEqual(["idle", "talk"]);
   });
 
-  it("leads a quote routed to everyone with You → everyone", () => {
+  it.each([
+    { preset: "natsume", text: "hi all", mention: "everyone", shown: ["You → everyone", "hi all"] },
+    {
+      preset: "natsume",
+      text: "@everyone hi all",
+      mention: "everyone",
+      shown: ["You → everyone", "hi all"],
+    },
+    {
+      preset: "natsume",
+      text: "@Natsume are you up?",
+      mention: "character",
+      shown: ["You → Natsume", "are you up?"],
+    },
+    {
+      preset: "natsume",
+      text: "@Natsume @natsume hi",
+      mention: "character",
+      shown: ["You → Natsume", "hi"],
+    },
+    {
+      preset: "perlica",
+      text: "@Natsume what do you think?",
+      mention: "character",
+      shown: ["You → Perlica", "@Natsume what do you think?"],
+    },
+    {
+      preset: "natsume",
+      text: "@Natsume Two hi",
+      mention: "character",
+      shown: ["You → Natsume", "Two hi"],
+    },
+  ] as const)("leads a quote with who it went to, dropping only an @name that repeats it: $text", ({
+    preset,
+    text,
+    mention,
+    shown,
+  }) => {
+    cast = [...CAST, { id: "natsume-two", name: "Natsume Two" }];
     mount();
 
-    stream("natsume", {
-      op: "quote",
-      quote: { text: "hi all", via: "text", images: 0, mention: "everyone" },
-    });
+    stream(preset, { op: "quote", quote: { text, via: "text", images: 0, mention } });
 
-    expect(document.querySelector(".yui-bubble__quote-who")?.textContent).toBe("You → everyone");
+    expect(
+      [".yui-bubble__quote-who", ".yui-bubble__quote-text"].map(
+        (sel) => document.querySelector(sel)?.textContent,
+      ),
+    ).toEqual(shown);
   });
 });
 
@@ -292,10 +499,12 @@ describe("unified view — the backlog", () => {
       perlica: [
         { role: "user", text: "hi all", ts: T - 90_000, send_id: "s1", mention: "everyone" },
         { role: "assistant", text: "Hello.", ts: T - 80_000 },
+        { role: "user", text: "@Natsume what do you think?", ts: T - 55_000, send_id: "s4" },
       ],
       natsume: [
         { role: "user", text: "hi all", ts: T - 89_000, send_id: "s1", mention: "everyone" },
         { role: "user", text: "just you", ts: T - 70_000, send_id: "s2" },
+        { role: "user", text: "@natsume still there?", ts: T - 60_000, send_id: "s3" },
       ],
     };
     mount();
@@ -313,6 +522,8 @@ describe("unified view — the backlog", () => {
       ["You → everyone", "hi all"],
       ["Perlica", "Hello."],
       ["You → Natsume", "just you"],
+      ["You → Natsume", "still there?"],
+      ["You → Perlica", "@Natsume what do you think?"],
     ]);
   });
 });

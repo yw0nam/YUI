@@ -17,6 +17,12 @@ export interface Send {
   targets: string[];
   text: string;
   mention?: UserTurnRouted["mention"];
+  via?: UserTurnRouted["via"];
+}
+
+/** Who a send goes to: EVERYONE, or its one target. */
+export function recipientOf(send: Send): Mention {
+  return send.mention === EVERYONE ? EVERYONE : (send.targets[0] ?? "");
 }
 
 /** The preset id of the newest row a preset spoke. */
@@ -100,6 +106,22 @@ export function buildSend(p: {
  * reserved words ending at whitespace or the text's end, a reserved word giving EVERYONE; empty
  * names are skipped, and null when nothing matches. */
 export function typedMention(text: string, cast: readonly PresetEntry[]): Mention | null {
+  return typedMentionMatch(text, cast)?.mention ?? null;
+}
+
+/** The length of the leading typed `@name` token, with one space after it when present; null when
+ * the text names no one. */
+export function typedMentionLength(text: string, cast: readonly PresetEntry[]): number | null {
+  const match = typedMentionMatch(text, cast);
+  if (match === null) return null;
+  const token = match.length + 1;
+  return /^\s/.test(text.slice(token)) ? token + 1 : token;
+}
+
+function typedMentionMatch(
+  text: string,
+  cast: readonly PresetEntry[],
+): { mention: Mention; length: number } | null {
   if (!text.startsWith("@")) return null;
   const rest = text.slice(1);
   const isNamed = (name: string): boolean =>
@@ -112,5 +134,5 @@ export function typedMention(text: string, cast: readonly PresetEntry[]): Mentio
     if (isNamed(r)) named.push({ mention: EVERYONE, length: r.length });
   let longest: { mention: Mention; length: number } | undefined;
   for (const n of named) if (longest === undefined || n.length > longest.length) longest = n;
-  return longest?.mention ?? null;
+  return longest ?? null;
 }

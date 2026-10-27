@@ -9,14 +9,21 @@ import { createLogger } from "../../logger";
 import type { PresetEntry } from "../../settings/preset/active-preset";
 import { subscribe as subscribeLocale } from "../i18n";
 import { createSurfaces } from "../surfaces/surfaces";
-import { backlogLines, youTo } from "./backlog-lines";
+import { backlogLines, recipientName, shownQuote, youTo } from "./backlog-lines";
 import { createCastChips } from "./cast-chips";
 import { createCastState } from "./cast-state";
 import { createComposer } from "./composer";
 import { createLaneQueue } from "./lane-queue";
 import { mergeTranscripts, type PendingSend, type Transcript } from "./merge";
 import { createSequence, SEND_TIMEOUT_MS } from "./sequence";
-import { buildSend, EVERYONE, fallbackTarget, lastSpeakerOf } from "./targets";
+import {
+  buildSend,
+  EVERYONE,
+  fallbackTarget,
+  lastSpeakerOf,
+  type Mention,
+  recipientOf,
+} from "./targets";
 
 const log = createLogger("unified-view");
 
@@ -28,6 +35,14 @@ export interface UnifiedView {
   speechStream(event: SpeechStream): void;
   /** A pet window's user turn for a send id is over. */
   turnDone(done: UserTurnDone): void;
+  /** Main's recognized speech: routed like a typed message, or put in the field while any turn runs
+   * or a line holds or waits for the box. */
+  voiceSegment(text: string): void;
+  /** The user started speaking: while any turn runs or a line holds or waits for the box, the stop
+   * button's path. */
+  speechOnset(): void;
+  /** Another window's stop: ends the send under way and the lines, sending no stop of its own. */
+  stop(): void;
   onRoute(cb: (event: UserTurnRouted) => void): void;
   /** The stop button: every pet window stops its running turn. */
   onStop(cb: () => void): void;
@@ -76,6 +91,8 @@ export function createUnifiedView(deps: {
     mount: root,
     onClose: deps.closeWindow,
     startDragging: deps.startDragging,
+    onPick: (id) => composer.setMention(id),
+    focusField: () => composer.focus(),
   });
   const boxMount = document.createElement("div");
   boxMount.className = "yui-uc__box";
@@ -88,7 +105,7 @@ export function createUnifiedView(deps: {
     tool: { showTool() {}, finishTool() {}, hideTool() {} },
     namePlate: true,
     keepBubbleUntilDismissed: () => false,
-    backlog: { read: () => backlogLines(rows(), nameOf) },
+    backlog: { read: () => backlogLines(rows(), nameOf, deps.cast()) },
     onAllShown: () => lanes.allShown(),
     onShown: (shown) => lanes.boxShown(shown),
     quoteLead: (quote) =>
@@ -110,9 +127,34 @@ export function createUnifiedView(deps: {
     onIdle: () => paint(),
   });
 
+  function busy(): boolean {
+    return castState.running() || sequence.current() !== null;
+  }
+
+  // The recipient the row and the placeholder name: a pick or typed @name, else the running send's, else the fallback.
+  function shown(): Mention | undefined {
+    const send = sequence.current();
+    return (
+      composer.getExplicitMention() ??
+      (send
+        ? recipientOf(send)
+        : fallbackTarget({
+            cast: deps.cast().map((e) => e.id),
+            lastSpeaker: lastSpeakerOf(rows()),
+            mainId: deps.mainId(),
+          }))
+    );
+  }
+
   function paint(): void {
-    chips.render(deps.cast(), castState.stateOf);
-    composer.setBusy(castState.running() || sequence.running());
+    const recipient = shown();
+    chips.render(deps.cast(), castState.stateOf, recipient);
+    composer.showRecipient(
+      recipient === undefined || deps.cast().length === 0
+        ? undefined
+        : recipientName(recipient, nameOf),
+    );
+    composer.setBusy(busy());
   }
 
   lanes.onSpeaker((preset) => {
@@ -123,24 +165,17 @@ export function createUnifiedView(deps: {
   });
 
   function refresh(): void {
-    const cast = deps.cast();
-    const ids = cast.map((e) => e.id);
     castState.prune();
-    lanes.setCast(ids);
-    const target = fallbackTarget({
-      cast: ids,
-      lastSpeaker: lastSpeakerOf(rows()),
-      mainId: deps.mainId(),
-    });
-    composer.setTarget(entryOf(target ?? ""));
+    lanes.setCast(deps.cast().map((e) => e.id));
     composer.refreshCast();
     paint();
   }
 
-  composer.onSubmit((text) => {
+  function route(text: string, via?: UserTurnRouted["via"]): void {
+    // A spoken send names the pick or a typed @name; the fallback picks the target as for a typed send.
     const send = buildSend({
       text,
-      mention: composer.getMention(),
+      mention: via ? composer.getExplicitMention() : composer.getMention(),
       cast: deps.cast(),
       lastSpeaker: lastSpeakerOf(rows()),
       mainId: deps.mainId(),
@@ -148,20 +183,40 @@ export function createUnifiedView(deps: {
       sendId: deps.randomId(),
     });
     if (!send) return;
-    const to = send.mention === "everyone" ? EVERYONE : (send.targets[0] ?? "");
-    pending.push({ sendId: send.sendId, text: send.text, to, at: deps.now(), queued: true });
-    sequence.run(send);
+    pending.push({
+      sendId: send.sendId,
+      text: send.text,
+      to: recipientOf(send),
+      at: deps.now(),
+      queued: true,
+    });
+    sequence.run({ ...send, via });
+    // A picked chip is cleared by the send; a typed @name leaves the field only when the send used it.
+    if (via && composer.getMention() === null) composer.consumeMentionToken();
     composer.setMention(null);
-    log.info("route", { targets: send.targets.length, mention: send.mention ?? "none" });
+    log.info("route", {
+      targets: send.targets.length,
+      mention: send.mention ?? "none",
+      via: via ?? "text",
+    });
     paint();
-  });
-  composer.onStop(() => {
+  }
+
+  function stop(): void {
     sequence.cancel();
     lanes.stopAll();
+    paint();
+  }
+
+  function stopButton(): void {
+    stop();
     for (const cb of stopCbs) cb();
     log.info("stop");
-    paint();
-  });
+  }
+
+  composer.onSubmit((text) => route(text));
+  composer.onChange(paint);
+  composer.onStop(stopButton);
 
   const unsubscribeLocale = subscribeLocale(refresh);
 
@@ -192,13 +247,15 @@ export function createUnifiedView(deps: {
             },
           );
           break;
+        case "quote":
+          lanes.accept(preset, shownQuote(op, preset, deps.cast()));
+          break;
         case "begin":
         case "push":
         case "pace":
         case "end":
         case "finish":
         case "hide":
-        case "quote":
         case "quote-signals":
         case "settle-quote":
         case "clear-quote":
@@ -211,6 +268,14 @@ export function createUnifiedView(deps: {
       sequence.turnDone(done);
       paint();
     },
+    voiceSegment(text) {
+      if (busy()) composer.fill(text);
+      else route(text, "voice");
+    },
+    speechOnset() {
+      if (busy()) stopButton();
+    },
+    stop,
     onRoute: (cb) => void routeCbs.push(cb),
     onStop: (cb) => void stopCbs.push(cb),
     onInputErrorAction: (cb) => void errorActionCbs.push(cb),

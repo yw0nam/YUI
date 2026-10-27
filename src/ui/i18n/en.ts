@@ -297,6 +297,7 @@ const en: Record<string, string> = {
   "unified.you_to": "You → {name}",
   "unified.everyone": "everyone",
   "unified.recipients": "Send to",
+  "unified.placeholder_to": "Say something to {name}…",
 
   // filler (thinking interjections)
   "filler.section": "Thinking interjections",
