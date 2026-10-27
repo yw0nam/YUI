@@ -77,6 +77,7 @@ function fakeCard() {
   const headCbs = new Set<(e: PointerEvent) => void>();
   return {
     open: vi.fn(),
+    isOpen: vi.fn(() => true),
     cardSize: () => ({ width: 272, height: 400 }),
     el: document.createElement("div"),
     onHeadPointerDown: (cb: (e: PointerEvent) => void) => {
@@ -173,6 +174,20 @@ describe("wireQuickCardDock", () => {
     owner.outerPosition.mockImplementation(async () => ({ x: 600, y: 320 }));
     owner.onMoved.mock.calls[0][0]({ payload: { x: 600, y: 320 } });
     await vi.waitFor(() => expect(positions()).toEqual([{ x: 964, y: 488 }]));
+  });
+
+  it("leaves a closed card where it is when the owner moves", async () => {
+    const { bridge, card } = wired();
+    bridge.open(REQUEST);
+    await vi.waitFor(() => expect(win.show).toHaveBeenCalledOnce());
+    win.setPosition.mockClear();
+    card.isOpen.mockReturnValue(false);
+
+    owner.outerPosition.mockImplementation(async () => ({ x: 600, y: 320 }));
+    owner.onMoved.mock.calls[0][0]({ payload: { x: 600, y: 320 } });
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(positions()).toEqual([]);
   });
 
   it.each([
