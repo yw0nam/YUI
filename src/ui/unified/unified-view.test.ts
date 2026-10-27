@@ -106,6 +106,23 @@ describe("unified view — sending", () => {
     expect(routed).toEqual([{ sendId: "send-1", to: "natsume", text: "hi", via: "voice" }]);
   });
 
+  it("routes a spoken message to the checked recipient: a typed @name in the field", () => {
+    mount();
+
+    type("@perlica ");
+    view.voiceSegment("hello");
+
+    expect(routed).toEqual([
+      {
+        sendId: "send-1",
+        to: "perlica",
+        text: "@Perlica hello",
+        via: "voice",
+        mention: "character",
+      },
+    ]);
+  });
+
   it("puts a spoken message that arrives during a send into the field, unsent and unfocused", () => {
     mount();
     type("hi");
