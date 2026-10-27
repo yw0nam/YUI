@@ -51,6 +51,7 @@ export function createCastChips(deps: {
   applyLabels();
   const unsubscribeLocale = subscribeLocale(applyLabels);
 
+  let built: string | undefined;
   const radios = (): HTMLElement[] => [...chips.querySelectorAll<HTMLElement>("[role=radio]")];
   const focusChip = (id: string | undefined): void =>
     radios()
@@ -110,22 +111,20 @@ export function createCastChips(deps: {
 
   return {
     render(cast, stateOf, checked) {
-      const focused = chips.contains(document.activeElement)
-        ? (document.activeElement as HTMLElement).dataset.id
-        : undefined;
-      chips.replaceChildren(
-        ...cast.map((entry) => {
-          const button = chip(entry.id, entry.name, entry);
-          button.dataset.state = stateOf(entry.id);
-          return button;
-        }),
-        chip(EVERYONE, t("unified.everyone")),
-      );
-      for (const r of radios()) {
-        r.setAttribute("aria-checked", String(r.dataset.id === checked));
-        r.tabIndex = r.dataset.id === checked ? 0 : -1;
+      // Rebuilt only when the cast changes, so a press and its click land on the same button.
+      const key = JSON.stringify(cast);
+      if (key !== built) {
+        built = key;
+        chips.replaceChildren(...cast.map((e) => chip(e.id, e.name, e)), chip(EVERYONE, ""));
       }
-      if (focused !== undefined) focusChip(focused);
+      for (const r of radios()) {
+        const id = r.dataset.id!;
+        if (id === EVERYONE)
+          r.querySelector(".yui-uc__chip-name")!.textContent = t("unified.everyone");
+        else r.dataset.state = stateOf(id);
+        r.setAttribute("aria-checked", String(id === checked));
+        r.tabIndex = id === checked ? 0 : -1;
+      }
     },
     dispose() {
       unsubscribeLocale();
