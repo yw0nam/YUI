@@ -51,8 +51,7 @@ fn toggle_visibility(app: &AppHandle) {
     }
 }
 
-/// The panel surface (`--yui-panel-bg` in src/ui/tokens.css) of the theme in effect, so the window's
-/// first frame is neither the webview's white nor Dawn under Hearth.
+/// `--yui-panel-bg` (src/ui/tokens.css) in sRGB for the theme in effect: the window's first frame.
 fn settings_background(theme: Option<tauri::Theme>) -> tauri::window::Color {
     match theme {
         Some(tauri::Theme::Dark) => tauri::window::Color(17, 12, 7, 255),
@@ -72,7 +71,7 @@ fn open_settings(app: &AppHandle) {
     }
 
     // Window params mirror src/io/window/openers/settings-window.ts — keep both in sync.
-    // Main's native theme follows the stored theme (applyTheme sets it), else the OS.
+    // Main's native theme is the stored theme (main.ts hands it to applyTheme), or the OS under Follow system.
     let background = settings_background(
         app.get_webview_window("main")
             .and_then(|main| main.theme().ok()),

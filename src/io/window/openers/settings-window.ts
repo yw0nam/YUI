@@ -1,7 +1,6 @@
 /** Settings opens the main or bound companion window and shares storage change notifications. */
 
 import { createLogger } from "../../../logger";
-import { panelBackground } from "../../../settings/appearance/panel-background";
 import type { SettingsPage } from "../../../settings/panels/settings-pages";
 import { windowLabel } from "../../../settings/preset/pet-windows";
 import { isTauri } from "../../../tauri-env";
@@ -12,6 +11,11 @@ const log = createLogger("settings-window");
 const SETTINGS_LABEL = "settings";
 const SETTINGS_URL = "settings.html";
 const SETTINGS_TITLE = "YUI Settings";
+
+/** `--yui-panel-bg` (src/ui/tokens.css) in sRGB: the window's native background until its page paints. */
+function panelBackground(theme: string | undefined): [number, number, number] {
+  return theme === "hearth" ? [17, 12, 7] : [249, 246, 242];
+}
 
 type EmitSettingsPage = SettingsBridge["emitSettingsPage"];
 
@@ -73,7 +77,7 @@ async function openTauriSettingsWindow(
       resizable: true,
       decorations: true,
       transparent: false,
-      // This window's own theme is the one the new window will apply; its first frame takes that panel colour.
+      // Every window applies the same stored theme, so this window's is the new one's.
       backgroundColor: panelBackground(document.documentElement.dataset.theme),
     });
     win.once("tauri://error", (e) =>

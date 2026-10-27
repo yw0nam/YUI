@@ -13,6 +13,8 @@
  *   - .yui-ui:    overlay — speech bubble, text input (invisible-by-default).
  */
 
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { isTauri } from "../tauri-env";
 import { applyTheme } from "../ui/theme/apply-theme";
 import "../styles.css";
 import { createConfiguredBootstrap } from "../app/bootstrap-configured";
@@ -102,7 +104,13 @@ async function bootstrap(): Promise<BootstrapHandle> {
   const stage = root.querySelector<HTMLDivElement>(".yui-stage")!;
 
   const { settingsStores, conversationStores, presetRegistry } = createWindowStores(register, role);
-  register(applyTheme({ store: settingsStores.themeSettings, root: document.documentElement }));
+  register(
+    applyTheme({
+      store: settingsStores.themeSettings,
+      root: document.documentElement,
+      setNativeTheme: isTauri() ? (t) => getCurrentWindow().setTheme(t) : undefined,
+    }),
+  );
   const petConfig = createPetConfig({ ...settingsStores, log });
   const config = petConfig.config;
   const bedSceneHold = createBedSceneHold();
