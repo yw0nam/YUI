@@ -245,7 +245,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
     vrm,
     speaker,
     pushSocket: push.pushSocket,
-    stopTurn: push.stopTurn,
     announceSessionReset: sessionReset.announce,
     presetRegistry,
     petWindows,

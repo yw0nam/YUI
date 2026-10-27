@@ -1,4 +1,4 @@
-/** The quick card's ports over this pet window's stores: what each tile, select and action reads and writes. */
+/** The quick card's ports over this window's stores: what each tile, select and action reads and writes. */
 
 import type { ConfigStore } from "../../config/store";
 import { resetConversation } from "../../io/chat/conversation/reset-conversation";
@@ -64,7 +64,6 @@ export function createQuickCardPorts(deps: {
   vrm: Pick<ReturnType<typeof wireVrmSelection>, "vrmSelection" | "swapVrm">;
   speaker: Pick<ReturnType<typeof wireSpeakerSelection>, "speakerSelection" | "swapSpeaker">;
   pushSocket: Pick<PushSocket, "getState" | "onState" | "sendReset">;
-  stopTurn: () => void;
   announceSessionReset: () => void;
   presetRegistry: Pick<PresetRegistry, "get" | "subscribe">;
   petWindows: Pick<PetWindows, "close">;
@@ -118,7 +117,6 @@ export function createQuickCardPorts(deps: {
         transcript: deps.conversation.chatHistoryStore,
         sessionStore: deps.conversation.sessionStore,
         sessionDiagnostics: deps.conversation.sessionDiagnostics,
-        stopTurn: deps.stopTurn,
         announceSessionReset: deps.announceSessionReset,
         push: api() === "push" ? pushSocket : undefined,
         log,

@@ -76,7 +76,6 @@ describe("wirePetControls", () => {
         onState: vi.fn(() => () => {}),
         sendReset: vi.fn(() => true),
       },
-      stopTurn: vi.fn(),
       announceSessionReset: vi.fn(),
       presetRegistry: {
         get: () => ({ active: "default", list: [] }),
@@ -157,7 +156,6 @@ describe("wirePetControls", () => {
       wired.deps.conversation.chatHistoryStore.append({ role: "user", text: "hi", ts: 1 });
 
       const calls: string[] = [];
-      wired.deps.stopTurn.mockImplementation(() => void calls.push("stopTurn"));
       wired.deps.pushSocket.sendReset.mockImplementation(() => {
         calls.push("sendReset");
         return true;
@@ -165,8 +163,8 @@ describe("wirePetControls", () => {
 
       wired.options().resetConversation();
 
-      // A turn still running stops before the reset frame goes out.
-      expect(calls).toEqual(["stopTurn", "sendReset"]);
+      // The reset frame goes out; the pet window stops its reply when it hears the announcement.
+      expect(calls).toEqual(["sendReset"]);
       expect(wired.deps.announceSessionReset).toHaveBeenCalledOnce();
       expect(wired.deps.conversation.chatHistoryStore.sessions()).toHaveLength(2);
     } finally {

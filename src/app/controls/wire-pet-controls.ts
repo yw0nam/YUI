@@ -16,7 +16,7 @@ import { createQuickCard, type QuickCard } from "../../ui/quick-card/quick-card"
 import type { ConversationStores } from "../settings/conversation-stores";
 import type { wireSpeakerSelection, wireVrmSelection } from "../settings/wire-avatar";
 import { wireCueLocaleSync } from "../settings/wire-cue-locale-sync";
-import { createQuickCardPorts } from "./quick-card-ports";
+import { createQuickCardPorts } from "../quick-card-window/quick-card-ports";
 
 /** Wires the card and the context menu, and hands back the card. */
 export function wirePetControls(deps: {
@@ -31,7 +31,6 @@ export function wirePetControls(deps: {
   vrm: Pick<ReturnType<typeof wireVrmSelection>, "vrmSelection" | "swapVrm">;
   speaker: Pick<ReturnType<typeof wireSpeakerSelection>, "speakerSelection" | "swapSpeaker">;
   pushSocket: Pick<PushSocket, "getState" | "onState" | "sendReset">;
-  stopTurn: () => void;
   announceSessionReset: () => void;
   presetRegistry: PresetRegistry;
   petWindows: PetWindows;

@@ -2,11 +2,6 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../../config/secrets";
 import { createConfigStore } from "../../config/store";
 import { importVrmFromFile, removeUserVrm } from "../../io/assets/vrm-import";
-import {
-  createVrmSelection,
-  localStorageUserVrmStorage,
-  localStorageVrmStorage,
-} from "../../io/assets/vrm-selection";
 import { createDelegationHistory } from "../../io/bridge/delegations/delegation-history";
 import { createMirroredDelegations } from "../../io/bridge/delegations/delegations-bridge";
 import { createMirroredPushSocket } from "../../io/bridge/push/push-socket-bridge";
@@ -37,6 +32,7 @@ import { createWindowStores } from "../settings/window-stores";
 import { createEffectiveEndpoints, wireSpeakerSelection } from "../settings/wire-avatar";
 import { wireCueLocaleSync } from "../settings/wire-cue-locale-sync";
 import { wirePresetSwitch } from "../settings/wire-preset";
+import { createWindowVrmSelection } from "../settings/window-vrm-selection";
 import { createSessionResetAnnouncer } from "../turn/session-reset-announcer";
 import { editTargetUrl } from "./edit-target-url";
 import { takeRequestedPage, wireSettingsPage } from "./wire-settings-page";
@@ -145,23 +141,10 @@ export async function wireSettingsWindow(deps: {
 
   // VRM selection store + swap. This window has no renderer, so store-only commit.
   // Main window hot-swaps actual VRM via storage reload.
-  // Create with fallback default, inject actual available[] if config loaded (same as main window).
-  const vrmSelection = createVrmSelection({
-    defaultValue: "/vrms/Sendagaya_Shino.vrm",
-    storage: localStorageVrmStorage(),
-    userStorage: localStorageUserVrmStorage(),
+  const { vrmSelection, swapVrm } = createWindowVrmSelection({
+    config: configLoaded ? config : null,
+    log,
   });
-  if (configLoaded) {
-    try {
-      const avatar = config.get().avatar;
-      vrmSelection.setManifest({ available: avatar.available, defaultValue: avatar.vrm_url });
-    } catch (err) {
-      log.warn("avatar_config_read_failed", { fallback: true, error: String(err) });
-    }
-  }
-  const swapVrm = async (option: { id: string }): Promise<void> => {
-    vrmSelection.select(option.id);
-  };
   // BYO-VRM import (settings window) — no renderer, delegate load/metadata to pet window. Copy file,
   // add option with filename stem label, select only. Pet window performs actual load cross-window.
   // Cancel (null) silently ignored.

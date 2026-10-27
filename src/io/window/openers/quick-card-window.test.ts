@@ -73,9 +73,12 @@ it.each([
   );
 
   b.ready();
+  const existing = { close: vi.fn(async () => {}) };
+  getByLabel.mockResolvedValue(existing);
   controller.open({ left: 1, right: 2, y: 3 });
-  await vi.waitFor(() => expect(b.sent).toEqual([{ left: 1, right: 2, y: 3 }]));
+  await vi.waitFor(() => expect(b.sent).toEqual([REQUEST, { left: 1, right: 2, y: 3 }]));
   expect(WebviewWindow).toHaveBeenCalledTimes(1);
+  expect(existing.close).not.toHaveBeenCalled();
 });
 
 it("holds a request made before the ready report and sends it on the report", async () => {
