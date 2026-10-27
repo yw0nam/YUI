@@ -4,6 +4,7 @@ import type { MessageSurfaceOp } from "../../io/bridge/message/message-bridge";
 import type { UserTurnRouted } from "../../io/bridge/settings-bridge";
 import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
 import type { PresetEntry } from "../../settings/preset/active-preset";
+import { setLocale } from "../i18n";
 import { createUnifiedView } from "./unified-view";
 
 vi.mock("../surfaces/surfaces.css", () => ({}));
@@ -84,6 +85,7 @@ beforeEach(() => {
 
 afterEach(() => {
   view?.dispose();
+  setLocale("en");
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
@@ -195,6 +197,21 @@ describe("unified view — sending", () => {
     type("");
     document.querySelectorAll<HTMLElement>("[role=radio]")[2]!.click();
     expect(recipients()[2]).toEqual(["everyone", "true"]);
+  });
+
+  it("names the checked recipient in the field's placeholder, in the current language", () => {
+    mount();
+    expect(field().placeholder).toBe("Say something to Natsume…");
+
+    type("@perlica ");
+    expect(field().placeholder).toBe("Say something to Perlica…");
+
+    type("");
+    document.querySelectorAll<HTMLElement>("[role=radio]")[2]!.click();
+    expect(field().placeholder).toBe("Say something to everyone…");
+
+    setLocale("ko");
+    expect(field().placeholder).toBe("모두에게 말 걸기…");
   });
 
   it("routes to the recipient a click picked, with its mention in the text", () => {
