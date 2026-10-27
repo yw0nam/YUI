@@ -104,16 +104,12 @@ The window `unified` that shows every open preset's lines one at a time in one d
 _Avoid_: group chat, merged chat, lobby, multi chat
 
 **Mention**:
-The user's pick of a recipient in the unified chat window's composer: a recipient chip carrying one preset id, or `@everyone` (aliased by `@here` and `@all`). A leading typed `@name` that matches an open preset's name, or `@everyone`, routes like a pick; any other typed `@` is plain text. The names `everyone`, `here` and `all` are reserved, so no preset is created or renamed to one.
+The user's pick of a recipient in the unified chat window: a cast chip carrying one preset id, or everyone: the everyone chip, or `@everyone` (aliased by `@here` and `@all`). A leading typed `@name` that matches an open preset's name, or `@everyone`, routes like a pick; any other typed `@` is plain text. The names `everyone`, `here` and `all` are reserved, so no preset is created or renamed to one.
 _Avoid_: tag, call-out, ping
 
-**Recipient chip**:
-One of the radio chips above the unified chat window's composer: one per open preset and one for everyone. The checked chip is where Enter sends: the counted pick, else the preset a typed leading `@name` resolves to, else the last speaker, else main's preset. A click picks it.
-_Avoid_: recipient badge, target chip
-
 **Cast chip**:
-The unified chat window's chip for one open preset in its head row: the preset's face, its name and a dot for its line — talk while its line holds the box, think while its turn runs or its line waits for the box, else idle.
-_Avoid_: avatar pill, presence badge
+The unified chat window's chip for one open preset in its head row, the recipient picker: the preset's face, its name and a dot for its line — talk while its line holds the box, think while its turn runs or its line waits for the box, else idle. The cast chips and the everyone chip after them are one radio group; a click picks the chip's recipient. The checked chip is where Enter sends: the counted pick, else the preset a typed leading `@name` resolves to, else the last speaker, else main's preset; while a send runs, it is that send's recipient.
+_Avoid_: avatar pill, presence badge, recipient chip
 
 **Aside**:
 A line the client speaks in the character's voice outside a turn's utterance: filler, a failure apology, the card's greeting. While the unified chat window shows, an aside goes there with the character's lines; an app notice (the first-run hint, a hotkey failure) stays on the character's own bubble.

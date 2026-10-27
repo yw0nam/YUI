@@ -546,16 +546,16 @@ YUI/
         unified-view.ts              # Wires the modules; keeps the pending sends
         lane-queue.ts                # One lane per preset: one line holds the box until done, the next lane replays what it buffered
         cast-state.ts                # Each preset's turn state and sent name, and the talk/think/idle rule for its chip
-        cast-chips.ts                # The head row: a chip per open preset with its line state, the × and the drag handle
-        backlog-lines.ts             # The backlog's lines: the user's under "You → <recipient>", a character's under its name
+        cast-chips.ts                # The head row and recipient picker: a radio chip per open preset with its line state and one for everyone, the × and the drag handle
+        backlog-lines.ts             # The backlog's lines: the user's under "You → <recipient>" without the @name it repeats, a character's under its name
         merge.ts                     # Pure: the open presets' transcripts and the pending sends as one time-ordered list, each user row with its recipient
         targets.ts                   # Pure: the fallback target, the targets of a message, and the send built from what the user typed
         sequence.ts                  # One-at-a-time delivery of a send, target by target, with its queue, 60 s timeout, cancel and log line
-        composer.ts                  # The message window's field under the text input, with the recipient chips, send and stop, and the inline error
+        composer.ts                  # The message window's field under the text input, with the recipient in its placeholder, send and stop, and the inline error
         mention-picker.ts            # The @ list over the field: a combobox of the open presets and @everyone
         avatar.ts                    # A preset's face, drawn by every window: its photo framed on the stored crop in a circle over the preset's hue, else a dot; the plate and the unified window reuse it
         avatar.css                   # The face's size and shape, for every window that draws one
-        unified-window.css           # The 340 px column: cast row, box, recipient chips, composer and @ list
+        unified-window.css           # The 340 px column: cast row, box, composer and @ list
       signals/                       # The source line of a signal group, shared by the bubble and History
         source-line.ts               # Renders one source line: delivery-class dot, source, label
         source-line.css              # Source-line styles: filled urgent dot, ring batched dot

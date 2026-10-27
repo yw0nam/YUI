@@ -1127,7 +1127,7 @@ globalThis.YUI_MAP =
       "id": "ui/unified",
       "module": "display",
       "label": "unified chat",
-      "role": "The unified chat window: the cast chips with each character's line state, one dialogue box that shows one character's line at a time from per-preset lanes, the backlog labelled by recipient, the composer with recipient chips, the @ list and stop, the one-at-a-time routing of a typed or spoken message to one preset or to all, a spoken message put in the field while any turn runs or a line holds or waits for the box, and another window's stop.",
+      "role": "The unified chat window: the cast chips with each character's line state, which pick the recipient, one dialogue box that shows one character's line at a time from per-preset lanes, the backlog labelled by recipient, the composer with the recipient in its placeholder, the @ list and stop, the one-at-a-time routing of a typed or spoken message to one preset or to all, a spoken message put in the field while any turn runs or a line holds or waits for the box, and another window's stop.",
       "paths": [
         "src/ui/unified"
       ]
