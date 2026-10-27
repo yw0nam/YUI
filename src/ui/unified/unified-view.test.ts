@@ -123,6 +123,34 @@ describe("unified view — sending", () => {
     ]);
   });
 
+  it.each([
+    { field: "@perlica ", rest: "" },
+    { field: "@perlica tell me", rest: "tell me" },
+  ])("a spoken send consumes the field's leading @name, leaving the rest (%j)", ({ field: text, rest }) => {
+    mount();
+
+    type(text);
+    view.voiceSegment("hi");
+
+    expect(routed).toEqual([
+      { sendId: "send-1", to: "perlica", text: "@Perlica hi", via: "voice", mention: "character" },
+    ]);
+    expect(field().value).toBe(rest);
+  });
+
+  it("a spoken send with a picked chip leaves the field as it is", () => {
+    mount();
+
+    document.querySelectorAll<HTMLElement>("[role=radio]")[0]!.click();
+    type("draft");
+    view.voiceSegment("hi");
+
+    expect(routed).toEqual([
+      { sendId: "send-1", to: "perlica", text: "@Perlica hi", via: "voice", mention: "character" },
+    ]);
+    expect(field().value).toBe("draft");
+  });
+
   it("a spoken send with no pick and no typed @name equals the typed send of the same text but via", () => {
     mount();
 
