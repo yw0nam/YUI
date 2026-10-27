@@ -73,12 +73,12 @@ it.each([
   );
 
   b.ready();
-  const existing = { close: vi.fn(async () => {}) };
+  const existing = { destroy: vi.fn(async () => {}) };
   getByLabel.mockResolvedValue(existing);
   controller.open({ left: 1, right: 2, y: 3 });
   await vi.waitFor(() => expect(b.sent).toEqual([REQUEST, { left: 1, right: 2, y: 3 }]));
   expect(WebviewWindow).toHaveBeenCalledTimes(1);
-  expect(existing.close).not.toHaveBeenCalled();
+  expect(existing.destroy).not.toHaveBeenCalled();
 });
 
 it("holds a request made before the ready report and sends it on the report", async () => {
@@ -94,7 +94,7 @@ it("holds a request made before the ready report and sends it on the report", as
 });
 
 it("destroys a leftover window and creates its own on the first open", async () => {
-  const leftover = { close: vi.fn(async () => {}) };
+  const leftover = { close: vi.fn(async () => {}), destroy: vi.fn(async () => {}) };
   getByLabel.mockResolvedValue(leftover);
   const b = bridge();
   const controller = createQuickCardWindowController({ boundId: null, bridge: b });
@@ -102,7 +102,9 @@ it("destroys a leftover window and creates its own on the first open", async () 
   controller.open(REQUEST);
   await vi.waitFor(() => expect(WebviewWindow).toHaveBeenCalledTimes(1));
 
-  expect(leftover.close).toHaveBeenCalledTimes(1);
+  // close() would only request it; the new window's label needs the old one gone at once.
+  expect(leftover.destroy).toHaveBeenCalledTimes(1);
+  expect(leftover.close).not.toHaveBeenCalled();
   b.ready();
   await vi.waitFor(() => expect(b.sent).toEqual([REQUEST]));
 });
