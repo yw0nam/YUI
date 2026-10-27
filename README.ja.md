@@ -63,11 +63,25 @@
 
 決まった時間のあいさつ、しばらく手が止まったときの声かけ、オンにすればアプリを切り替えたときの反応も。自分から話しかける回数や間隔は設定で調整できます。話すことがなければ、静かに見守ってくれます。
 
+### ブラウザで調べものをしてくれる
+
+<a href="https://youtu.be/XB-jRXspJ_E"><img src="docs/public/yui-scenario-browse.gif" alt="チャットウィンドウでユーザーがYangyangにyw0nam/YUIの検索を頼むと、ego liteで開いたGoogle検索結果が彼女の横に表示され、GitHubのプロジェクトが見つかったと彼女が答える" width="560"></a>
+
+権限ページで **ブラウザの使用を許可** をオンにすると、[ego lite](docs/reference/client-tools.md#browser)でWebを検索し、ページを開いて、見つけたことを教えてくれます。対応ブラウザはego liteのみです。
+
 ### 何人ものキャラクターを、ひとつの会話で
 
 キャラクターはそれぞれ、頭脳、ペルソナ、声、VRMモデル、履歴を自分だけのものとして持ち、デスクトップには4人まで一緒に置けます。会話はひとつのウィンドウにまとまり、一度にひとりのセリフだけが表示されます。話す相手はひとりでも全員でも選べて `@名前` でも指定でき、声で話しかけたときも同じ相手に届きます。キャラクターどうしでメッセージを渡すこともできます。
 
-**ほかにも:** 自分のVRMモデル、Tavernカードのインポートと書き出し、話の途中でも声で割り込める音声会話、画像の添付、会話履歴、キャラクターがあなたやほかのキャラクターに抱く気持ち、右クリックで開くクイックカード、DawnとHearthのテーマ、日本語・英語・韓国語のUI、[ego lite](docs/reference/client-tools.md#browser)でのWeb検索・閲覧(対応ブラウザはego liteのみ)、エージェントがPC上で使えるそのほかのツールなど。詳しくは[機能一覧](docs/guide/features.md)をご覧ください。
+<a href="https://youtu.be/m8myp8pT4Yw"><img src="docs/public/yui-scenario-together.gif" alt="ブラウザのページの横に立つYangyangとSuisui。ユーザーがふたりにそれぞれ自分のことを調べるよう頼み、ふたりがチャットウィンドウで順番に答える" width="400"></a> <a href="https://youtu.be/LQpZq9HcIuk"><img src="docs/public/yui-scenario-address.gif" alt="チャットウィンドウで、Yangyangがユーザーの質問をSuisuiに渡し、Suisuiが彼女に答える" width="400"></a>
+
+### コーディングエージェントの完了を教えてくれる
+
+<a href="https://youtu.be/T3-B642x0Yw"><img src="docs/public/yui-scenario-signals.gif" alt="Yangyangの横にclaude-codeというシグナルチップが出て、詳細には種類agent.needs_inputと、Claude Codeのセッションが許可を待っているというシグナルのメッセージが表示されている" width="560"></a>
+
+[Claude CodeとCodex向けのyui-notify](integrations/yui-notify/README.md)を入れておくと、エージェントの作業が終わったときや許可を待っているときにシグナルが届き、キャラクターが知らせてくれます。先に **設定 → 話しかけ → ウォッチャー** で **外部シグナル** をオンにして、YUIを再起動してください。
+
+**ほかにも:** 自分のVRMモデル、Tavernカードのインポートと書き出し、話の途中でも声で割り込める音声会話、画像の添付、会話履歴、キャラクターがあなたやほかのキャラクターに抱く気持ち、右クリックで開くクイックカード、DawnとHearthのテーマ、日本語・英語・韓国語のUI、エージェントがPC上で使えるツールなど。詳しくは[機能一覧](docs/guide/features.md)をご覧ください。
 
 ## 仕組み
 
@@ -151,6 +165,8 @@ YUI自体はモデルを内蔵していません。何ができるかで頭脳�
 ## クレジット
 
 モーションはShiny氏の[Mate Engine](https://github.com/shinyflvre/Mate-Engine)、necocoya氏の[EmoteSet_Free_v130](https://booth.pm/ja/items/1065089)、[Mixamo](https://www.mixamo.com/)、そしてYUIのためにAIで作ったクリップのものを使っています。既定のキャラクターは[ピクシブ株式会社](https://vroid.pixiv.help/hc/en-us/articles/360013482714)の **千駄ヶ谷 篠(Sendagaya Shino)** を、[Coatie](https://hub.vroid.com/en/characters/4593660874193246717)氏がVRM 1.0に変換したものです。
+
+「[できること](#できること)」のシナリオクリップには、『鳴潮』のYangyang(秧秧)とSuisui(穂穂)が登場します。キャラクター、モデル、音声の権利はKuro Gamesに帰属し、このプロジェクトは一切の権利を持ちません。音声はIrodori-TTSで合成したAI音声です。YUIはこれらの素材を同梱も配布もしていません。
 
 <details>
 <summary>アセットのクレジットと利用条件の全文</summary>

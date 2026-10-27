@@ -59,11 +59,25 @@ Her brain picks an expression, a gesture, and a tone of voice for each reply, so
 
 She greets you at set times, checks in after you have been idle, and, if you turn it on, notices when you switch apps. You set how often she may speak up on her own, and she says nothing when nothing is worth saying.
 
+### She looks things up in your browser
+
+<a href="https://youtu.be/XB-jRXspJ_E"><img src="docs/public/yui-scenario-browse.gif" alt="The user asks Yangyang in the chat window to search for yw0nam/YUI; ego lite opens the Google results beside her, and she answers that she found the GitHub project" width="560"></a>
+
+Turn on **Allow browser use** on the Permissions page, and she searches the web and opens pages in [ego lite](docs/reference/client-tools.md#browser), then tells you what she found. ego lite is the only supported browser.
+
 ### Several characters, one conversation
 
 Each character keeps her own brain, persona, voice, VRM model, and history, and up to four can share your desktop. One chat window holds the conversation and shows one line at a time: pick who you are talking to, everyone at once, or type `@name`; your voice goes to the same pick. They can also pass your message on to each other.
 
-**And more:** your own VRM model, Tavern Card import and export, voice chat you can interrupt, image attachments, a chat history, how each character feels about you and the others, a Quick card on right-click, Dawn and Hearth themes, English, Japanese, and Korean UI, web search and browsing in [ego lite](docs/reference/client-tools.md#browser) (the only supported browser), and other tools your agent can use on your computer. See the [full feature list](docs/guide/features.md).
+<a href="https://youtu.be/m8myp8pT4Yw"><img src="docs/public/yui-scenario-together.gif" alt="Yangyang and Suisui stand on the desktop beside a browser page; the user asks both of them to look themselves up, and each answers in turn in the chat window" width="400"></a> <a href="https://youtu.be/LQpZq9HcIuk"><img src="docs/public/yui-scenario-address.gif" alt="In the chat window, Yangyang passes the user's question to Suisui, and Suisui answers her" width="400"></a>
+
+### She tells you when your coding agent is done
+
+<a href="https://youtu.be/T3-B642x0Yw"><img src="docs/public/yui-scenario-signals.gif" alt="A Signal chip labelled claude-code appears beside Yangyang; its details show the kind agent.needs_input and the signal's message: a Claude Code session waits for permission" width="560"></a>
+
+The [yui-notify](integrations/yui-notify/README.md) plugin for Claude Code and Codex sends a signal when the agent finishes or waits for your permission, and the character tells you. Turn on **External signals** in **Settings → Proactive → Watchers** first, then restart YUI.
+
+**And more:** your own VRM model, Tavern Card import and export, voice chat you can interrupt, image attachments, a chat history, how each character feels about you and the others, a Quick card on right-click, Dawn and Hearth themes, English, Japanese, and Korean UI, and tools your agent can use on your computer. See the [full feature list](docs/guide/features.md).
 
 ## How it works
 
@@ -147,6 +161,8 @@ The [connection guide](docs/guide/getting-started.md) covers each setup. Missing
 ## Credits
 
 Motions come from [Mate Engine](https://github.com/shinyflvre/Mate-Engine) by Shiny, necocoya's [EmoteSet_Free_v130](https://booth.pm/ja/items/1065089), [Mixamo](https://www.mixamo.com/), and clips made for YUI by AI. The default character is **Sendagaya Shino** by [pixiv Inc.](https://vroid.pixiv.help/hc/en-us/articles/360013482714), converted to VRM 1.0 by [Coatie](https://hub.vroid.com/en/characters/4593660874193246717).
+
+The scenario clips in [What she does](#what-she-does) show Yangyang and Suisui from *Wuthering Waves*. Their characters, models, and voices belong to Kuro Games, and this project holds no rights to them. The voices are AI-synthesized with Irodori-TTS. YUI does not include or distribute these assets.
 
 <details>
 <summary>Full asset credits and terms</summary>
