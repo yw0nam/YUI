@@ -31,6 +31,8 @@ export function createCastChips(deps: {
   onClose: () => void;
   startDragging: () => void;
   onPick: (id: Mention) => void;
+  /** A click's pick moves on to the field; a key's stays on the row. */
+  focusField: () => void;
 }): CastChips {
   const row = document.createElement("div");
   row.className = "yui-uc__cast";
@@ -84,7 +86,9 @@ export function createCastChips(deps: {
   };
   const onClick = (e: MouseEvent): void => {
     const id = (e.target as Element).closest<HTMLElement>("[role=radio]")?.dataset.id;
-    if (id !== undefined) deps.onPick(id);
+    if (id === undefined) return;
+    deps.onPick(id);
+    deps.focusField();
   };
   const onKeyDown = (e: KeyboardEvent): void => {
     const all = radios();

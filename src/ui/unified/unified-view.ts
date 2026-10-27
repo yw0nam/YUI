@@ -84,10 +84,8 @@ export function createUnifiedView(deps: {
     mount: root,
     onClose: deps.closeWindow,
     startDragging: deps.startDragging,
-    onPick: (id) => {
-      composer.setMention(id);
-      composer.focus();
-    },
+    onPick: (id) => composer.setMention(id),
+    focusField: () => composer.focus(),
   });
   const boxMount = document.createElement("div");
   boxMount.className = "yui-uc__box";
