@@ -202,6 +202,21 @@ describe("wireQuickCardDock", () => {
     await vi.waitFor(() => expect(positions()).toEqual([{ x: 964, y: 488 }]));
   });
 
+  it("reads her window once for a burst of moves, so a stroll never queues a backlog", async () => {
+    const { bridge } = wired();
+    bridge.open(REQUEST);
+    await vi.waitFor(() => expect(win.show).toHaveBeenCalledOnce());
+    win.setPosition.mockClear();
+    owner.outerPosition.mockClear();
+
+    owner.outerPosition.mockImplementation(async () => ({ x: 600, y: 320 }));
+    for (let i = 0; i < 5; i++) owner.onMoved.mock.calls[0][0]({ payload: { x: 600, y: 320 } });
+    await settle();
+
+    expect(owner.outerPosition).toHaveBeenCalledOnce();
+    expect(positions()).toEqual([{ x: 964, y: 488 }]);
+  });
+
   it("leaves a closed card where it is when the owner moves", async () => {
     const { bridge, card } = wired();
     bridge.open(REQUEST);
