@@ -53,6 +53,13 @@ const MONITOR = {
 
 import { wireQuickCardDock } from "./quick-card-dock";
 
+/** The native drag resolves at mouse-up; the tests hold it until the drop. */
+let releaseDrag: (() => void) | null = null;
+function dropDrag(): void {
+  releaseDrag?.();
+  releaseDrag = null;
+}
+
 function fakeBridge() {
   let onOpen: ((request: never) => void) | null = null;
   return {
@@ -104,6 +111,12 @@ beforeEach(() => {
   win.show.mockClear();
   win.setFocus.mockClear();
   win.startDragging.mockClear();
+  win.startDragging.mockImplementation(
+    () =>
+      new Promise<void>((resolve) => {
+        releaseDrag = resolve;
+      }),
+  );
   win.outerPosition.mockClear();
   win.outerPosition.mockImplementation(async () => ({ x: 1000, y: 200 }));
   win.onMoved.mockClear();
@@ -159,14 +172,18 @@ describe("wireQuickCardDock", () => {
   });
 
   it("stops following once a move of its own window detaches it", async () => {
-    const { bridge } = wired();
+    const { bridge, card } = wired();
     bridge.open(REQUEST);
     await vi.waitFor(() => expect(win.show).toHaveBeenCalledOnce());
     win.setPosition.mockClear();
 
+    card.headPointerDown();
+    await vi.waitFor(() => expect(win.startDragging).toHaveBeenCalledOnce());
+
     win.outerPosition.mockImplementation(async () => ({ x: 1200, y: 400 }));
     win.onMoved.mock.calls[0][0]({ payload: { x: 1200, y: 400 } });
-    await vi.waitFor(() => expect(win.startDragging).toHaveBeenCalledOnce());
+    dropDrag();
+    await new Promise((r) => setTimeout(r, 20));
 
     owner.outerPosition.mockImplementation(async () => ({ x: 600, y: 320 }));
     owner.onMoved.mock.calls[0][0]({ payload: { x: 600, y: 320 } });
@@ -182,6 +199,7 @@ describe("wireQuickCardDock", () => {
 
     card.headPointerDown();
     await vi.waitFor(() => expect(win.startDragging).toHaveBeenCalledOnce());
+    dropDrag();
     await new Promise((r) => setTimeout(r, 20));
 
     owner.outerPosition.mockImplementation(async () => ({ x: 600, y: 320 }));
@@ -200,8 +218,9 @@ describe("wireQuickCardDock", () => {
 
     win.outerPosition.mockImplementation(async () => ({ x: droppedX, y: 400 }));
     card.headPointerDown();
-    win.onMoved.mock.calls[0][0]({ payload: { x: droppedX, y: 400 } });
     await vi.waitFor(() => expect(win.startDragging).toHaveBeenCalledTimes(1));
+    win.onMoved.mock.calls[0][0]({ payload: { x: droppedX, y: 400 } });
+    dropDrag();
     await vi.waitFor(() => expect(positions()).toEqual([snapped]));
 
     // Docked again: the owner's next move carries the snapped card along.
@@ -222,8 +241,9 @@ describe("wireQuickCardDock", () => {
     // Visible right edge 235 + 288 - 8 = 515, 25px short of her left edge 540.
     win.outerPosition.mockImplementation(async () => ({ x: 235, y: 400 }));
     card.headPointerDown();
-    win.onMoved.mock.calls[0][0]({ payload: { x: 235, y: 400 } });
     await vi.waitFor(() => expect(win.startDragging).toHaveBeenCalledTimes(1));
+    win.onMoved.mock.calls[0][0]({ payload: { x: 235, y: 400 } });
+    dropDrag();
     await new Promise((r) => setTimeout(r, 20));
 
     expect(positions()).toEqual([]);

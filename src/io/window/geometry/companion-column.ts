@@ -13,7 +13,7 @@ import { toScreenMonitor } from "./screen-geometry";
 const log = createLogger("companion-column");
 
 /** The companion window a log line names. */
-export type CompanionWindow = "message" | "unified";
+export type CompanionWindow = "message" | "unified" | "quick-card";
 
 /** Take OS focus so typing lands in this window's field. */
 export async function focusWindow(window: CompanionWindow): Promise<void> {
