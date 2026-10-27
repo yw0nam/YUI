@@ -47,8 +47,8 @@ warning) — speech is never blocked. If the table cannot be loaded, YUI publish
 `update_emotion_text("free", null)` instead, so a missing file degrades to
 pass-through rather than silencing the channel. Every other provider publishes
 `free` mode, and a `tts_provider` change reloads the table and publishes the new
-mode to the broker, the Chat Completions tool schema, and push `vocabulary`
-frames without a restart.
+mode to the broker, the declared `generate_express` tool schema (both request
+transports), and push `vocabulary` frames without a restart.
 
 The broker keeps this state in-memory and ephemeral, so YUI re-publishes on
 every boot and on every broker reconnect. The publish is gated only on
