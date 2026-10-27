@@ -93,20 +93,46 @@ it("holds a request made before the ready report and sends it on the report", as
   await vi.waitFor(() => expect(b.sent).toEqual([REQUEST]));
 });
 
-it("destroys a leftover window and creates its own on the first open", async () => {
-  const leftover = { close: vi.fn(async () => {}), destroy: vi.fn(async () => {}) };
+function leftoverWindow() {
+  let destroyed: (() => void) | null = null;
+  return {
+    close: vi.fn(async () => {}),
+    destroy: vi.fn(async () => {}),
+    once: vi.fn(async (event: string, cb: () => void) => {
+      if (event === "tauri://destroyed") destroyed = cb;
+      return () => {};
+    }),
+    fireDestroyed: () => destroyed?.(),
+  };
+}
+
+it("destroys a leftover window and creates its own once the old one is gone", async () => {
+  const leftover = leftoverWindow();
   getByLabel.mockResolvedValue(leftover);
   const b = bridge();
   const controller = createQuickCardWindowController({ boundId: null, bridge: b });
 
   controller.open(REQUEST);
-  await vi.waitFor(() => expect(WebviewWindow).toHaveBeenCalledTimes(1));
-
-  // close() would only request it; the new window's label needs the old one gone at once.
-  expect(leftover.destroy).toHaveBeenCalledTimes(1);
+  // close() would only request it; destroy() frees the label once the window is gone.
+  await vi.waitFor(() => expect(leftover.destroy).toHaveBeenCalledTimes(1));
   expect(leftover.close).not.toHaveBeenCalled();
+  await new Promise((r) => setTimeout(r, 20));
+  expect(WebviewWindow).not.toHaveBeenCalled();
+
+  leftover.fireDestroyed();
+  await vi.waitFor(() => expect(WebviewWindow).toHaveBeenCalledTimes(1));
   b.ready();
   await vi.waitFor(() => expect(b.sent).toEqual([REQUEST]));
+});
+
+it("creates its own window after a short wait when the leftover never reports destroyed", async () => {
+  const leftover = leftoverWindow();
+  getByLabel.mockResolvedValue(leftover);
+  const controller = createQuickCardWindowController({ boundId: null, bridge: bridge() });
+
+  controller.open(REQUEST);
+
+  await vi.waitFor(() => expect(WebviewWindow).toHaveBeenCalledTimes(1), { timeout: 2000 });
 });
 
 it("does nothing outside Tauri", async () => {
