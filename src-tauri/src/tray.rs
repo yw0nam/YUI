@@ -145,6 +145,22 @@ mod tests {
     }
 
     #[test]
+    fn settings_background_is_the_panel_colour_of_the_theme_in_effect() {
+        assert_eq!(
+            settings_background(Some(tauri::Theme::Dark)),
+            tauri::window::Color(17, 12, 7, 255)
+        );
+        assert_eq!(
+            settings_background(Some(tauri::Theme::Light)),
+            tauri::window::Color(249, 246, 242, 255)
+        );
+        assert_eq!(
+            settings_background(None),
+            tauri::window::Color(249, 246, 242, 255)
+        );
+    }
+
+    #[test]
     fn action_for_maps_toggle_visibility() {
         assert_eq!(
             action_for("toggle-visibility"),
