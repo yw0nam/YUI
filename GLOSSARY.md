@@ -116,7 +116,7 @@ The unified chat window's chip for one open preset in its head row: the preset's
 _Avoid_: avatar pill, presence badge
 
 **Quick card**:
-The card a right-click on the character opens beside her in the pet window: her face, name and transport line, four tiles (Voice, Listen, Keep bubble, Unified chat) that write the same stores as their settings rows, the Body and Reference voice selects, a conversation reset that asks first, Turn off for a bound pet window, and All settings…, which opens the settings window on her. Listen works in the main window only. Escape, a click outside it and the window's blur close it; while it is open she starts no stroll or climb.
+The card a right-click on the character opens beside her in its own window: her face, name and transport line, four tiles (Voice, Listen, Keep bubble, Unified chat) that write the same stores as their settings rows, the Body and Reference voice selects, a conversation reset that asks first, Turn off for a bound pet window, and All settings…, which opens the settings window on her. Listen works in the main window only. It docks 12px from her on the roomier side and travels with her until dragged off her side; Escape, × and a click in another app close it.
 _Avoid_: quick panel, popover
 
 **Aside**:

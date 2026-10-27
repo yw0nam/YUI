@@ -13,7 +13,7 @@ import { wireQuickCardWindow } from "../app/quick-card-window/wire-quick-card-wi
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
 
-const log = createLogger("quick-card-bootstrap");
+const log = createLogger("quick-card-main");
 
 async function bootstrap(): Promise<void> {
   excludeOwnOriginFromCorsFetch();

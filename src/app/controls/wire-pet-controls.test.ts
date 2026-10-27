@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const { createQuickCardWindowController, wireCueLocaleSync } = vi.hoisted(() => ({
   createQuickCardWindowController:

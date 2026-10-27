@@ -100,7 +100,7 @@ and the pump goes on.
 
 ## Unified chat window
 
-`ui/unified/unified-view.ts` (namespace `unified-view`), `app/unified/wire-unified-close.ts` (namespace `wire-unified-close`), `ui/unified/sequence.ts` (namespace `sequence`), `io/window/openers/unified-window.ts` (namespace `unified-window`), the Together page's switch row and Characters list (namespace `quick-controls`, in the settings window), and the quick card's Unified chat tile (namespace `quick-card`, in the pet window) log at `info` unless a row says otherwise.
+`ui/unified/unified-view.ts` (namespace `unified-view`), `app/unified/wire-unified-close.ts` (namespace `wire-unified-close`), `ui/unified/sequence.ts` (namespace `sequence`), `io/window/openers/unified-window.ts` (namespace `unified-window`), the Together page's switch row and Characters list (namespace `quick-controls`, in the settings window), and the quick card's Unified chat tile (namespace `quick-card`, in the quick-card window) log at `info` unless a row says otherwise.
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
@@ -125,6 +125,20 @@ and the pump goes on.
 | `companion-column` | `focus_failed` | `window`, `error` | Taking OS focus threw. |
 | `companion-column` | `drag_failed` | `window`, `error` | Starting the OS drag threw. |
 | `companion-column` | `resize_failed` | `window`, `error` | Setting the window's height to its column threw. |
+
+## Quick-card window
+
+`io/window/openers/quick-card-window.ts` (namespace `quick-card-window`), `app/quick-card-window/quick-card-dock.ts` (namespace `quick-card-dock`) and `app/quick-card-window/quick-card-close.ts` (namespace `quick-card-close`) keep the window alive, place and move it, and close it.
+
+| Namespace | Event | Fields | When |
+|---|---|---|---|
+| `quick-card-window` | `quick_card_window_create_error` | `error` | The card window could not be created (`error` level). |
+| `quick-card-window` | `quick_card_window_open_failed` | `error` | Creating or reusing the card window threw (`error` level). |
+| `quick-card-dock` | `quick_card_detached` | — | The first move of the card window after a head pointerdown detached it. |
+| `quick-card-dock` | `dock_step_failed` | `error` | A placement, follow or drop step threw (`warn` level). |
+| `quick-card-close` | `quick_card_focus_lost` | — | A poll tick found no YUI window holding focus, so the card closed. |
+| `quick-card-close` | `quick_card_hide_failed` | `error` | Hiding the card window threw (`warn` level). |
+| `quick-card-close` | `quick_card_focus_poll_failed` | `error` | A focus poll tick threw (`debug` level). |
 
 ## TypeScript Usage
 

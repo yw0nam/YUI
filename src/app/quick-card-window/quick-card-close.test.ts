@@ -11,7 +11,7 @@ const { getAllWindows, getCurrentWindow, hide } = vi.hoisted(() => {
   return {
     hide,
     getCurrentWindow: vi.fn(() => ({ hide })),
-    getAllWindows: vi.fn(async () => []),
+    getAllWindows: vi.fn(async (): Promise<Array<{ isFocused(): Promise<boolean> }>> => []),
   };
 });
 vi.mock("@tauri-apps/api/window", () => ({ getAllWindows, getCurrentWindow }));

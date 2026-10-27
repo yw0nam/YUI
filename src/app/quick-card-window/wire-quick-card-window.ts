@@ -35,7 +35,7 @@ import { wireQuickCardClose } from "./quick-card-close";
 import { wireQuickCardDock } from "./quick-card-dock";
 import { createQuickCardPorts } from "./quick-card-ports";
 
-const log = createLogger("quick-card-bootstrap");
+const log = createLogger("wire-quick-card-window");
 
 /** Wires the quick-card window: stores, mirrored paths, the card, and its window motion. */
 export async function wireQuickCardWindow(deps: {

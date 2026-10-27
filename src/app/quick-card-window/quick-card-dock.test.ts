@@ -8,14 +8,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { win, getCurrentWindow, availableMonitors, primaryMonitor } = vi.hoisted(() => {
   const win = {
-    setSize: vi.fn(async () => {}),
-    setPosition: vi.fn(async () => {}),
+    setSize: vi.fn(async (_arg: unknown) => {}),
+    setPosition: vi.fn(async (_arg: unknown) => {}),
     show: vi.fn(async () => {}),
     setFocus: vi.fn(async () => {}),
     startDragging: vi.fn(async () => {}),
     outerPosition: vi.fn(async () => ({ x: 1000, y: 200 })),
     scaleFactor: vi.fn(async () => 1),
-    onMoved: vi.fn(() => () => {}),
+    onMoved: vi.fn((_cb: (event: { payload: { x: number; y: number } }) => void) => () => {}),
   };
   return {
     win,
@@ -30,7 +30,7 @@ const { getByLabel, owner } = vi.hoisted(() => {
     outerPosition: vi.fn(async () => ({ x: 500, y: 300 })),
     outerSize: vi.fn(async () => ({ width: 400, height: 600 })),
     scaleFactor: vi.fn(async () => 1),
-    onMoved: vi.fn(() => () => {}),
+    onMoved: vi.fn((_cb: (event: { payload: { x: number; y: number } }) => void) => () => {}),
   };
   return { owner, getByLabel: vi.fn(async () => owner) };
 });
@@ -78,6 +78,7 @@ function fakeCard() {
   return {
     open: vi.fn(),
     cardSize: () => ({ width: 272, height: 400 }),
+    el: document.createElement("div"),
     onHeadPointerDown: (cb: (e: PointerEvent) => void) => {
       headCbs.add(cb);
       return () => headCbs.delete(cb);
@@ -88,9 +89,12 @@ function fakeCard() {
   };
 }
 
-function seedListen(): boolean[] {
+function seedListen() {
   const seen: boolean[] = [];
-  return Object.assign((listening: boolean) => void seen.push(listening), { seen });
+  const listen = (listening: boolean): void => {
+    seen.push(listening);
+  };
+  return Object.assign(listen, { seen });
 }
 
 /** The docked window box for a card opened from the owner at (500, 300) with the test request. */
