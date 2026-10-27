@@ -183,20 +183,26 @@ describe("unified view — sending", () => {
     expect(document.activeElement).not.toBe(field());
   });
 
-  it("checks the fallback recipient, then the one a click or a typed @name picks", () => {
+  it("checks the fallback recipient, then the one a typed @name or a click picks, and names it in the placeholder", () => {
     mount();
     expect(recipients()).toEqual([
       ["Perlica", "false"],
       ["Natsume", "true"],
       ["everyone", "false"],
     ]);
+    expect(field().placeholder).toBe("Say something to Natsume…");
 
     type("@perlica hi");
     expect(recipients()[0]).toEqual(["Perlica", "true"]);
+    expect(field().placeholder).toBe("Say something to Perlica…");
 
     type("");
     pick(2);
     expect(recipients()[2]).toEqual(["everyone", "true"]);
+    expect(field().placeholder).toBe("Say something to everyone…");
+
+    setLocale("ko");
+    expect(field().placeholder).toBe("모두에게 말 걸기…");
   });
 
   it("an arrow key on the cast row picks and keeps focus there, off the field", () => {
@@ -212,21 +218,6 @@ describe("unified view — sending", () => {
     expect(recipients()[0]).toEqual(["Perlica", "true"]);
     expect((document.activeElement as HTMLElement).dataset.id).toBe("perlica");
     expect(fieldFocused).toBe(0);
-  });
-
-  it("names the checked recipient in the field's placeholder, in the current language", () => {
-    mount();
-    expect(field().placeholder).toBe("Say something to Natsume…");
-
-    type("@perlica ");
-    expect(field().placeholder).toBe("Say something to Perlica…");
-
-    type("");
-    pick(2);
-    expect(field().placeholder).toBe("Say something to everyone…");
-
-    setLocale("ko");
-    expect(field().placeholder).toBe("모두에게 말 걸기…");
   });
 
   it("routes to the recipient a click picked, with its mention in the text", () => {
