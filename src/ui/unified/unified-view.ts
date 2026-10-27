@@ -9,14 +9,21 @@ import { createLogger } from "../../logger";
 import type { PresetEntry } from "../../settings/preset/active-preset";
 import { subscribe as subscribeLocale } from "../i18n";
 import { createSurfaces } from "../surfaces/surfaces";
-import { backlogLines, shownQuote, youTo } from "./backlog-lines";
+import { backlogLines, recipientName, shownQuote, youTo } from "./backlog-lines";
 import { createCastChips } from "./cast-chips";
 import { createCastState } from "./cast-state";
 import { createComposer } from "./composer";
 import { createLaneQueue } from "./lane-queue";
 import { mergeTranscripts, type PendingSend, type Transcript } from "./merge";
 import { createSequence, SEND_TIMEOUT_MS } from "./sequence";
-import { buildSend, EVERYONE, fallbackTarget, lastSpeakerOf, type Mention } from "./targets";
+import {
+  buildSend,
+  EVERYONE,
+  fallbackTarget,
+  lastSpeakerOf,
+  type Mention,
+  recipientOf,
+} from "./targets";
 
 const log = createLogger("unified-view");
 
@@ -116,7 +123,6 @@ export function createUnifiedView(deps: {
       pending = pending.map((p) =>
         p.sendId === sendId ? { sendId, text: p.text, to: p.to, at: deps.now() } : p,
       );
-      paint();
     },
     onIdle: () => paint(),
   });
@@ -131,9 +137,7 @@ export function createUnifiedView(deps: {
     return (
       composer.getExplicitMention() ??
       (send
-        ? send.mention === EVERYONE
-          ? EVERYONE
-          : send.targets[0]
+        ? recipientOf(send)
         : fallbackTarget({
             cast: deps.cast().map((e) => e.id),
             lastSpeaker: lastSpeakerOf(rows()),
@@ -145,7 +149,11 @@ export function createUnifiedView(deps: {
   function paint(): void {
     const recipient = shown();
     chips.render(deps.cast(), castState.stateOf, recipient);
-    composer.showRecipient(recipient);
+    composer.showRecipient(
+      recipient === undefined || deps.cast().length === 0
+        ? undefined
+        : recipientName(recipient, nameOf),
+    );
     composer.setBusy(busy());
   }
 
@@ -175,8 +183,13 @@ export function createUnifiedView(deps: {
       sendId: deps.randomId(),
     });
     if (!send) return;
-    const to = send.mention === "everyone" ? EVERYONE : (send.targets[0] ?? "");
-    pending.push({ sendId: send.sendId, text: send.text, to, at: deps.now(), queued: true });
+    pending.push({
+      sendId: send.sendId,
+      text: send.text,
+      to: recipientOf(send),
+      at: deps.now(),
+      queued: true,
+    });
     sequence.run({ ...send, via });
     // A picked chip is cleared by the send; a typed @name leaves the field only when the send used it.
     if (via && composer.getMention() === null) composer.consumeMentionToken();

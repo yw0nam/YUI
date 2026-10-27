@@ -9,13 +9,7 @@ import { t } from "../i18n";
 import { createTextInput } from "../input/text-input";
 import "../surfaces/surfaces.css";
 import { createMentionPicker } from "./mention-picker";
-import {
-  countedMention,
-  EVERYONE,
-  type Mention,
-  typedMention,
-  typedMentionLength,
-} from "./targets";
+import { countedMention, type Mention, typedMention, typedMentionLength } from "./targets";
 
 export interface Composer {
   /** The picked recipient, or null. */
@@ -26,7 +20,7 @@ export interface Composer {
   /** Fires when getExplicitMention() may have changed: a pick, the field's text. */
   onChange(cb: () => void): void;
   /** Names a recipient in the field's placeholder; undefined, or an empty cast, names none. */
-  showRecipient(mention: Mention | undefined): void;
+  showRecipient(name: string | undefined): void;
   /** Refreshes an open @ list from the current cast. */
   refreshCast(): void;
   /** Puts text in the field, after what it holds, the way typing does; focus stays where it is. */
@@ -111,13 +105,9 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
     getExplicitMention: () => named(),
     setMention,
     onChange: (cb) => void changeCbs.push(cb),
-    showRecipient(on) {
-      const cast = deps.cast();
-      const name = on === EVERYONE ? t("unified.everyone") : cast.find((e) => e.id === on)?.name;
+    showRecipient(name) {
       field.placeholder =
-        name === undefined || cast.length === 0
-          ? t("input.placeholder")
-          : t("unified.placeholder_to", { name });
+        name === undefined ? t("input.placeholder") : t("unified.placeholder_to", { name });
     },
     refreshCast() {
       picker.refresh();

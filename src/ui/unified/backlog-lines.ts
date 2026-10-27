@@ -5,9 +5,14 @@ import type { SpeechOp } from "../surfaces/apply-speech-op";
 import type { Row } from "./merge";
 import { EVERYONE, typedMention, typedMentionLength } from "./targets";
 
+/** A recipient's name: a preset id's by nameOf, or "everyone" for EVERYONE. */
+export function recipientName(to: string, nameOf: (id: string) => string): string {
+  return to === EVERYONE ? t("unified.everyone") : nameOf(to);
+}
+
 /** "You → <recipient>": a preset id by its name, or EVERYONE. */
 export function youTo(to: string, nameOf: (id: string) => string): string {
-  return t("unified.you_to", { name: to === EVERYONE ? t("unified.everyone") : nameOf(to) });
+  return t("unified.you_to", { name: recipientName(to, nameOf) });
 }
 
 /** The text without its leading typed @name tokens that name `to` (a preset id or EVERYONE), which

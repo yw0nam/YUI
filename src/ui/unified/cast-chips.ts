@@ -17,7 +17,7 @@ const CROSS = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke
 const STEP: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
 
 export interface CastChips {
-  /** checked: the recipient the row shows as where Enter sends. */
+  /** checked: the recipient the row names; undefined checks no chip. */
   render(
     cast: readonly PresetEntry[],
     stateOf: (id: string) => CastState,
@@ -99,7 +99,7 @@ export function createCastChips(deps: {
         ? 0
         : e.key === "End"
           ? all.length - 1
-          : e.key in STEP
+          : Object.hasOwn(STEP, e.key)
             ? (at + STEP[e.key]! + all.length) % all.length
             : null;
     if (next === null) return;
