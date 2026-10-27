@@ -216,6 +216,8 @@ describe("createQuickCard", () => {
     q<HTMLButtonElement>(".yui-qcard__confirm-go").click();
     expect(deps.resetConversation).toHaveBeenCalledOnce();
     expect(q<HTMLElement>(".yui-qcard__confirm").hidden).toBe(true);
+    // A reset is not one of the card's closes.
+    expect(card.isOpen()).toBe(true);
   });
 
   it("hands focus to Cancel when the confirm opens and back to Reset… when it closes", () => {
