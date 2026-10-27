@@ -2,7 +2,7 @@
  * Unified chat window — unified.html entry point.
  *
  * Shows every open preset's lines, one at a time, in one dialogue box as the pet windows stream
- * them, and routes the user's messages to the pet windows over the bridge. No renderer and no
+ * them, and routes the user's typed and spoken messages to the pet windows over the bridge. No renderer and no
  * judgment live here: the pet windows' backends answer.
  */
 
@@ -95,6 +95,8 @@ async function bootstrap(): Promise<void> {
   disposers.register(() => view.dispose());
   disposers.register(settingsBridge.onSpeechStream(view.speechStream));
   disposers.register(settingsBridge.onUserTurnDone(view.turnDone));
+  disposers.register(settingsBridge.onVoiceSegment(({ text }) => view.voiceSegment(text)));
+  disposers.register(settingsBridge.onStopTurns(view.stop));
   disposers.register(settingsBridge.onSettingsChanged(onSettingsChanged));
   disposers.register(settingsBridge.onPetWindowsChanged(refresh));
   disposers.register(settingsBridge.onPresetChanged(refresh));

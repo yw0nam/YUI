@@ -38,6 +38,7 @@ export function createSequence(deps: {
       to,
       text: send.text,
       ...(send.mention ? { mention: send.mention } : {}),
+      ...(send.via ? { via: send.via } : {}),
     });
     timer = setTimeout(() => {
       log.info("sequence_timeout", { preset: to });

@@ -17,6 +17,7 @@ export interface Send {
   targets: string[];
   text: string;
   mention?: UserTurnRouted["mention"];
+  via?: UserTurnRouted["via"];
 }
 
 /** The preset id of the newest row a preset spoke. */

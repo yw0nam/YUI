@@ -28,6 +28,10 @@ export interface UnifiedView {
   speechStream(event: SpeechStream): void;
   /** A pet window's user turn for a send id is over. */
   turnDone(done: UserTurnDone): void;
+  /** Main's recognized speech: routed like a typed message, or put in the field while a send runs. */
+  voiceSegment(text: string): void;
+  /** Another window's stop: ends the send under way and the lines, sending no stop of its own. */
+  stop(): void;
   onRoute(cb: (event: UserTurnRouted) => void): void;
   /** The stop button: every pet window stops its running turn. */
   onStop(cb: () => void): void;
@@ -110,9 +114,13 @@ export function createUnifiedView(deps: {
     onIdle: () => paint(),
   });
 
+  function busy(): boolean {
+    return castState.running() || sequence.running();
+  }
+
   function paint(): void {
     chips.render(deps.cast(), castState.stateOf);
-    composer.setBusy(castState.running() || sequence.running());
+    composer.setBusy(busy());
   }
 
   lanes.onSpeaker((preset) => {
@@ -137,7 +145,7 @@ export function createUnifiedView(deps: {
     paint();
   }
 
-  composer.onSubmit((text) => {
+  function route(text: string, via?: "voice"): void {
     const send = buildSend({
       text,
       mention: composer.getMention(),
@@ -150,17 +158,27 @@ export function createUnifiedView(deps: {
     if (!send) return;
     const to = send.mention === "everyone" ? EVERYONE : (send.targets[0] ?? "");
     pending.push({ sendId: send.sendId, text: send.text, to, at: deps.now(), queued: true });
-    sequence.run(send);
+    sequence.run({ ...send, via });
     composer.setMention(null);
-    log.info("route", { targets: send.targets.length, mention: send.mention ?? "none" });
+    log.info("route", {
+      targets: send.targets.length,
+      mention: send.mention ?? "none",
+      via: via ?? "text",
+    });
     paint();
-  });
-  composer.onStop(() => {
+  }
+
+  function stop(): void {
     sequence.cancel();
     lanes.stopAll();
+    paint();
+  }
+
+  composer.onSubmit((text) => route(text));
+  composer.onStop(() => {
+    stop();
     for (const cb of stopCbs) cb();
     log.info("stop");
-    paint();
   });
 
   const unsubscribeLocale = subscribeLocale(refresh);
@@ -211,6 +229,11 @@ export function createUnifiedView(deps: {
       sequence.turnDone(done);
       paint();
     },
+    voiceSegment(text) {
+      if (busy()) composer.fill(text);
+      else route(text, "voice");
+    },
+    stop,
     onRoute: (cb) => void routeCbs.push(cb),
     onStop: (cb) => void stopCbs.push(cb),
     onInputErrorAction: (cb) => void errorActionCbs.push(cb),

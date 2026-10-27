@@ -20,6 +20,8 @@ export interface Composer {
   setTarget(entry: PresetEntry | undefined): void;
   /** Refreshes an open @ list from the current cast; the recipient chips repaint on setTarget. */
   refreshCast(): void;
+  /** Puts text in the field, after what it holds, the way typing does; focus stays where it is. */
+  fill(text: string): void;
   /** text is trimmed and never empty. */
   onSubmit(cb: (text: string) => void): void;
   /** While busy, send becomes stop and Enter sends nothing. */
@@ -133,6 +135,10 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
     },
     refreshCast() {
       picker.refresh();
+    },
+    fill(text) {
+      field.value = field.value ? `${field.value} ${text}` : text;
+      field.dispatchEvent(new Event("input", { bubbles: true }));
     },
     onSubmit: (cb) =>
       input.onSubmit((text) => {
