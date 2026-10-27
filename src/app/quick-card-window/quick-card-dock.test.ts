@@ -136,13 +136,17 @@ function wired() {
   const bridge = fakeBridge();
   const card = fakeCard();
   const listen = seedListen();
+  const onShown = vi.fn(() => {
+    expect(win.setFocus).toHaveBeenCalled();
+  });
   wireQuickCardDock({
     bridge,
     card,
     seedListen: listen,
     ownerLabel: "pet-a",
+    onShown,
   });
-  return { bridge, card, listen };
+  return { bridge, card, listen, onShown };
 }
 
 describe("wireQuickCardDock", () => {
@@ -152,10 +156,10 @@ describe("wireQuickCardDock", () => {
   });
 
   it("opens the card docked 12px right of her roomier side, sized to the card, shown and focused", async () => {
-    const { bridge, card, listen } = wired();
+    const { bridge, card, listen, onShown } = wired();
 
     bridge.open(REQUEST);
-    await vi.waitFor(() => expect(win.show).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(onShown).toHaveBeenCalledOnce());
 
     expect(card.open).toHaveBeenCalledOnce();
     expect(listen.seen).toEqual([true]);

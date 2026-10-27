@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * quick-card-close.test.ts — the focus poll that closes the quick card when no YUI window
- * has focus, and the hide that follows every close of the card.
+ * has focus once its window has taken focus, and the hide that follows every close of the card.
  */
 
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -19,20 +19,14 @@ vi.mock("@tauri-apps/api/window", () => ({ getAllWindows, getCurrentWindow }));
 import { wireQuickCardClose } from "./quick-card-close";
 
 function fakeCard() {
-  let open = false;
   const closeCbs = new Set<() => void>();
   return {
-    isOpen: vi.fn(() => open),
     close: vi.fn(() => {
-      open = false;
       for (const cb of [...closeCbs]) cb();
     }),
     onClose: (cb: () => void) => {
       closeCbs.add(cb);
       return () => closeCbs.delete(cb);
-    },
-    setOpen(next: boolean) {
-      open = next;
     },
   };
 }
@@ -48,16 +42,17 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function wired(card: ReturnType<typeof fakeCard>) {
+/** The card open and its window just focused: the dock has called watch(). */
+function watched() {
+  const card = fakeCard();
   const hideWindow = vi.fn(async () => {});
   const control = wireQuickCardClose({ card, hide: hideWindow });
-  return { control, hideWindow };
+  control.watch();
+  return { card, control, hideWindow };
 }
 
 it("hides and closes when a tick finds no YUI window focused", async () => {
-  const card = fakeCard();
-  card.setOpen(true);
-  const { hideWindow } = wired(card);
+  const { card, hideWindow } = watched();
   getAllWindows.mockImplementation(async () => [{ isFocused: async () => false }]);
 
   await vi.advanceTimersByTimeAsync(300);
@@ -68,9 +63,7 @@ it("hides and closes when a tick finds no YUI window focused", async () => {
 });
 
 it("does not hide while any YUI window has focus", async () => {
-  const card = fakeCard();
-  card.setOpen(true);
-  const { hideWindow } = wired(card);
+  const { card, hideWindow } = watched();
   getAllWindows.mockImplementation(async () => [
     { isFocused: async () => false },
     { isFocused: async () => true },
@@ -83,9 +76,7 @@ it("does not hide while any YUI window has focus", async () => {
 });
 
 it("closes on the first none-focused tick after focus went card → pet window → none", async () => {
-  const card = fakeCard();
-  card.setOpen(true);
-  const { hideWindow } = wired(card);
+  const { card, hideWindow } = watched();
   getAllWindows.mockImplementation(async () => [{ isFocused: async () => true }]);
 
   await vi.advanceTimersByTimeAsync(300);
@@ -98,19 +89,26 @@ it("closes on the first none-focused tick after focus went card → pet window �
   expect(hideWindow).toHaveBeenCalledOnce();
 });
 
-it("skips the focus scan while the card is closed", async () => {
+it("scans only from the window's focus until the card closes", async () => {
   const card = fakeCard();
-  wired(card);
+  const control = wireQuickCardClose({ card, hide: vi.fn(async () => {}) });
+  getAllWindows.mockImplementation(async () => [{ isFocused: async () => true }]);
 
+  // Opened, but its window has not taken focus yet: nothing focused must not close it.
   await vi.advanceTimersByTimeAsync(900);
-
   expect(getAllWindows).not.toHaveBeenCalled();
+
+  control.watch();
+  await vi.advanceTimersByTimeAsync(300);
+  expect(getAllWindows).toHaveBeenCalledOnce();
+
+  card.close();
+  await vi.advanceTimersByTimeAsync(900);
+  expect(getAllWindows).toHaveBeenCalledOnce();
 });
 
 it("hides the window when the card closes by any other trigger", async () => {
-  const card = fakeCard();
-  card.setOpen(true);
-  const { hideWindow } = wired(card);
+  const { card, hideWindow } = watched();
 
   card.close();
 
@@ -118,9 +116,7 @@ it("hides the window when the card closes by any other trigger", async () => {
 });
 
 it("stops polling on dispose", async () => {
-  const card = fakeCard();
-  card.setOpen(true);
-  const { control } = wired(card);
+  const { control } = watched();
 
   control.dispose();
   await vi.advanceTimersByTimeAsync(900);
