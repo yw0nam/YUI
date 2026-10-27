@@ -2,6 +2,7 @@
 // History tab session accordion over the persisted transcript.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { EMPTY_CARD, type PersonaConfig } from "../../../config/validators/persona/types";
 import { createChatHistoryStore } from "../../../io/chat/conversation/chat-history-store";
 import { createSessionDiagnosticsStore } from "../../../io/chat/conversation/session-diagnostics";
 import { createSessionStore } from "../../../io/chat/conversation/session-store";
@@ -9,7 +10,6 @@ import {
   createSignalHistoryStore,
   type SignalRecord,
 } from "../../../io/chat/conversation/signal-history-store";
-import { EMPTY_CARD, type PersonaConfig } from "../../../config/validators/persona/types";
 import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
 import { defaultQcArgs } from "../test-helpers";
