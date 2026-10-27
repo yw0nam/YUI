@@ -465,6 +465,8 @@ export function createQuickControls({
         announceSessionReset,
         pushSocket,
         getChatApi: () => (isPushMode() ? "push" : undefined),
+        agentSettings,
+        getPersona,
         isOpen: () => shell.isOpen(),
         log,
       })

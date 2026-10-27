@@ -2,6 +2,7 @@
 // History tab session accordion over the persisted transcript.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { EMPTY_CARD, type PersonaConfig } from "../../../config/validators/persona/types";
 import { createChatHistoryStore } from "../../../io/chat/conversation/chat-history-store";
 import { createSessionDiagnosticsStore } from "../../../io/chat/conversation/session-diagnostics";
 import { createSessionStore } from "../../../io/chat/conversation/session-store";
@@ -284,15 +285,28 @@ describe("createQuickControls — history tab", () => {
     qc.dispose();
   });
 
-  it("marks YUI turns so its name renders in the accent color", () => {
-    const qc = buildQc({ transcript: seedStore() });
+  it.each([
+    { preset: { id: "yangyang", name: "Yangyang" }, who: "Yangyang" },
+    { preset: { id: "default", name: "default" }, who: "Yui" },
+  ])("labels the character's turns with its effective name ($who), in the accent color", ({
+    preset,
+    who,
+  }) => {
+    localStorage.setItem("yui.presets", JSON.stringify({ active: preset.id, list: [preset] }));
+    const card = { ...EMPTY_CARD, name: "Yui" };
+    const persona: PersonaConfig = {
+      framing: { en: "f", ja: "f", ko: "f" },
+      user_fallback: { en: "User", ja: "User", ko: "User" },
+      cards: { en: card, ja: card, ko: card },
+    };
+    const qc = buildQc({ transcript: seedStore(), getPersona: () => persona });
     qc.open();
 
     const turns = Array.from(qc.el.querySelectorAll<HTMLElement>(".yui-hist__turn"));
     expect(turns[0].classList.contains("is-yui")).toBe(false);
     expect(turns[1].classList.contains("is-yui")).toBe(true);
-    expect(turns[0].querySelector(".yui-hist__who")!.textContent).toBeTruthy();
-    expect(turns[1].querySelector(".yui-hist__who")!.textContent).toBeTruthy();
+    expect(turns[0].querySelector(".yui-hist__who")!.textContent).toBe("You");
+    expect(turns[1].querySelector(".yui-hist__who")!.textContent).toBe(who);
     expect(turns[0].querySelector(".yui-hist__say")!.textContent).toBe("방금 그 빌드 왜 실패했어?");
     expect(turns[0].querySelector(".yui-hist__ts")!.textContent).toMatch(/^\d{2}:\d{2}$/);
 

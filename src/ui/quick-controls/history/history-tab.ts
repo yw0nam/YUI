@@ -2,14 +2,17 @@
  * History tab — the session accordion plus the start-fresh action. Read-only viewer over the persisted transcript.
  */
 
+import type { PersonaConfig } from "../../../config/validators/persona/types";
 import type { createChatHistoryStore } from "../../../io/chat/conversation/chat-history-store";
 import { resetConversation } from "../../../io/chat/conversation/reset-conversation";
 import type { createSessionDiagnosticsStore } from "../../../io/chat/conversation/session-diagnostics";
 import type { createSessionStore } from "../../../io/chat/conversation/session-store";
 import type { createSignalHistoryStore } from "../../../io/chat/conversation/signal-history-store";
 import type { Logger } from "../../../logger";
+import type { createAgentSettings } from "../../../settings/backend/agent-settings";
 import { t } from "../../i18n";
 import type { PushSocketPanelPort } from "../connection/connection-tab";
+import { editedCharacterName } from "./character-name";
 import { createHistorySection } from "./history-section";
 
 export interface HistoryTab {
@@ -55,6 +58,9 @@ export function createHistoryTab(deps: {
   pushSocket?: PushSocketPanelPort;
   /** Effective chat protocol — push resets the conversation with a frame, not in place. */
   getChatApi: () => string | undefined;
+  /** With the persona, names the character's lines. */
+  agentSettings: Pick<ReturnType<typeof createAgentSettings>, "get">;
+  getPersona?: () => PersonaConfig | undefined;
   /** Skip repaints while the tab is closed. */
   isOpen: () => boolean;
   log: Logger;
@@ -67,6 +73,8 @@ export function createHistoryTab(deps: {
     announceSessionReset,
     pushSocket,
     getChatApi,
+    agentSettings,
+    getPersona,
     isOpen,
     log,
   } = deps;
@@ -81,7 +89,13 @@ export function createHistoryTab(deps: {
           <p class="yui-hist__foot">${t("history.foot")}</p>
         </div>${startFresh ? startFreshHtml() : ""}`;
 
-  const list = createHistorySection({ root: el, transcript, signalHistory, isOpen });
+  const list = createHistorySection({
+    root: el,
+    transcript,
+    signalHistory,
+    characterName: () => editedCharacterName(agentSettings.get(), getPersona?.()),
+    isOpen,
+  });
 
   const sessionResetBtn = el.querySelector<HTMLButtonElement>(".yui-session__reset");
   // Cue rows also use the .yui-confirm pattern, so scope the session's specifically.

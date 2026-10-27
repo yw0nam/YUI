@@ -486,7 +486,6 @@ const en: Record<string, string> = {
   "history.messages": "{n} messages",
   "history.messages_one": "1 message",
   "history.who_user": "You",
-  "history.who_yui": "YUI",
   "history.empty": "Nothing has been said yet",
   "history.signal_silent": "Did not speak",
   "history.foot": "Last 200 messages · stored on this device only",

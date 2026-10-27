@@ -485,7 +485,6 @@ const ko: Record<string, string> = {
   "history.messages": "메시지 {n}개",
   "history.messages_one": "메시지 1개",
   "history.who_user": "나",
-  "history.who_yui": "유이",
   "history.empty": "아직 나눈 대화가 없어요",
   "history.signal_silent": "말하지 않음",
   "history.foot": "최근 메시지 200개 · 이 기기에만 저장",
