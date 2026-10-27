@@ -210,7 +210,7 @@ onMounted(() => {
             <b>Standalone Mods</b>
             <span
               >Independent MCP servers: router, desktop control, shell sandbox,
-              avatar.</span
+              avatar, factorio.</span
             >
           </div>
           <div>

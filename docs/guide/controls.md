@@ -28,11 +28,11 @@ How to move around YUI with the keyboard and the mouse.
 
 ## Speech bubble and text input
 
-- The speech bubble is a dialogue box with a name plate: the plate names the speaker, the text types out, paced by each sentence's audio when her voice is on, and the **Backlog** toggle opens the current session's earlier lines.
+- The speech bubble is a dialogue box with a name plate: the plate names the speaker, the text types out at 40 ms per character whether her voice is on or off, and the **Backlog** toggle opens the current session's earlier lines.
 - The **×** on the speech bubble closes it for the rest of that reply.
 - The **pop-out** button moves the speech bubble and the text input to a separate message window, where the name plate drags the window; the dock button moves them back to the character.
 - Hovering over a long reply pauses its auto-hide so you can read it.
-- Her reasoning folds open at the top of a reply, in the speech bubble and in the message window.
+- Her reasoning folds open at the top of a reply in the message window.
 - While she replies, the send button turns into a stop button that ends the reply.
 - Attach images with the clip button, by pasting, or by drag-and-drop.
 
@@ -41,6 +41,7 @@ How to move around YUI with the keyboard and the mouse.
 - With two or more characters on the desktop, turn on **Unified chat** on the Together page to talk to all of them in one window.
 - The cast row picks who answers: a cast chip, the everyone chip, or a leading `@name` you type.
 - Your voice goes to the picked recipient.
+- Drag the window by the grip in the cast row, the row's empty space, or the dialogue box's name plate.
 - The stop button ends the reply in every window.
 - While the window shows, the message window is off.
 

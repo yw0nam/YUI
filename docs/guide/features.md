@@ -30,13 +30,13 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 
 | Feature | What it does |
 | --- | --- |
-| Speech bubble | Streaming markdown with links in the default browser, in a dialogue box with a name plate; the text types out, paced by each sentence's audio when her voice is on, **Backlog** opens the current session's earlier lines, and her reasoning folds open at the top of a reply; the running tool shows in the status pill above the character |
+| Speech bubble | Streaming markdown with links in the default browser, in a dialogue box with a name plate; the text types out at 40 ms per character whether her voice is on or off, and **Backlog** opens the current session's earlier lines; the running tool shows in the status pill above the character |
 | Text input | Text box with up to 6 image attachments by paste, drag-and-drop, or file picker |
 | Voice input | Silero VAD speech detection, transcription on any OpenAI-compatible STT endpoint, and barge-in over her speech |
 | Voice output | Sentence-by-sentence TTS on Irodori, OpenAI, or Fish Audio with the `emotion_text` voice tag ([vocabulary](../reference/tts-emotion/)). Irodori lists the TTS server's voices and imports your own reference clip; OpenAI lists its built-in voices; Fish lists your voice models, imports a clip as a new model, and accepts any library voice id |
 | Reading dictionary | `word=reading` pairs on the Listening and bubble page that change how the voice reads a word, and never the text on screen |
 | Waiting filler | Thinking motion and short localized lines while a reply is pending, including tool-specific lines, and a spoken line when a turn times out or the backend can't be reached. Defaults come from `configs/filler.json`; every list is editable per language on the **Voice** page under **Thinking interjections** (**More phrases** for the long-wait, timeout, connection-lost, and tool lines) |
-| History and message window | History tab stored on the device, every Signal group among it, spoken or silent, and an optional separate message window |
+| History and message window | History tab stored on the device, every Signal group among it, spoken or silent; an optional separate message window, which folds her reasoning open at the top of a reply |
 | Unified chat window | One window for every open character while two or more are on the desktop: one line at a time, the cast row or a leading `@name` picks who answers, voice goes to that pick, and stop ends the reply in every window; while it shows, the message window is off |
 
 ## Backend
@@ -70,7 +70,7 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 
 | Feature | What it does |
 | --- | --- |
-| Mods | Standalone MCP servers `router`, `desktop-control`, `shell-sandbox`, and `avatar`; the `avatar` Mod seats her on a window, makes her peek, or moves her to a screen spot through the loopback ingress ([Mods](https://github.com/yw0nam/YUI/blob/main/Mods/README.md), [tool reference](../reference/mods.md)) |
+| Mods | Standalone MCP servers `router`, `desktop-control`, `shell-sandbox`, `avatar`, and `factorio`; the `avatar` Mod seats her on a window, makes her peek, or moves her to a screen spot through the loopback ingress ([Mods](https://github.com/yw0nam/YUI/blob/main/Mods/README.md), [tool reference](../reference/mods.md)) |
 | Integrations | Backend-agent adapters and backend-agnostic skills under [`integrations/`](https://github.com/yw0nam/YUI/tree/main/integrations), for example the Hermes Agent plugins |
 
 ## Platform
