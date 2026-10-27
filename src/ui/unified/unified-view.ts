@@ -105,7 +105,16 @@ export function createUnifiedView(deps: {
   box.el.classList.add("yui-ui--message");
   const lanes = createLaneQueue({ box });
   const castState = createCastState({ cast: deps.cast, lanes });
-  const composer = createComposer({ mount: dock, cast: deps.cast });
+  const composer = createComposer({
+    mount: dock,
+    cast: deps.cast,
+    fallback: () =>
+      fallbackTarget({
+        cast: deps.cast().map((e) => e.id),
+        lastSpeaker: lastSpeakerOf(rows()),
+        mainId: deps.mainId(),
+      }),
+  });
   const sequence = createSequence({
     emit: (event) => {
       for (const cb of routeCbs) cb(event);
@@ -124,6 +133,7 @@ export function createUnifiedView(deps: {
 
   function paint(): void {
     chips.render(deps.cast(), castState.stateOf);
+    composer.showRecipient(composer.checked());
     composer.setBusy(busy());
   }
 
@@ -135,16 +145,8 @@ export function createUnifiedView(deps: {
   });
 
   function refresh(): void {
-    const cast = deps.cast();
-    const ids = cast.map((e) => e.id);
     castState.prune();
-    lanes.setCast(ids);
-    const target = fallbackTarget({
-      cast: ids,
-      lastSpeaker: lastSpeakerOf(rows()),
-      mainId: deps.mainId(),
-    });
-    composer.setTarget(entryOf(target ?? ""));
+    lanes.setCast(deps.cast().map((e) => e.id));
     composer.refreshCast();
     paint();
   }
@@ -188,6 +190,7 @@ export function createUnifiedView(deps: {
   }
 
   composer.onSubmit((text) => route(text));
+  composer.onChange(paint);
   composer.onStop(stopButton);
 
   const unsubscribeLocale = subscribeLocale(refresh);

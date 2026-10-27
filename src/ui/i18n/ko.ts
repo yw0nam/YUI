@@ -287,6 +287,7 @@ const ko: Record<string, string> = {
   "unified.you_to": "나 → {name}",
   "unified.everyone": "모두",
   "unified.recipients": "받는 사람",
+  "unified.placeholder_to": "{name}에게 말 걸기…",
 
   // filler (thinking interjections)
   "filler.section": "생각중 추임새",

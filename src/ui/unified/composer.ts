@@ -24,9 +24,13 @@ export interface Composer {
   /** The recipient a send names: the picked chip, else a typed leading @name; null leaves the fallback target to the routing. */
   getExplicitMention(): Mention | null;
   setMention(mention: Mention | null): void;
-  /** The preset a message with no mention goes to; undefined while the cast is empty. */
-  setTarget(entry: PresetEntry | undefined): void;
-  /** Refreshes an open @ list from the current cast; the recipient chips repaint on setTarget. */
+  /** Where Enter sends: the named recipient, else the fallback. */
+  checked(): Mention | undefined;
+  /** Fires when what checked() returns may have changed through the composer: a pick, the field's text. */
+  onChange(cb: () => void): void;
+  /** Names a recipient in the field's placeholder; undefined, or an empty cast, names none. */
+  showRecipient(mention: Mention | undefined): void;
+  /** Refreshes an open @ list and the recipient chips from the current cast. */
   refreshCast(): void;
   /** Puts text in the field, after what it holds, the way typing does; focus stays where it is. */
   fill(text: string): void;
@@ -43,7 +47,12 @@ export interface Composer {
   dispose(): void;
 }
 
-export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEntry[] }): Composer {
+export function createComposer(deps: {
+  mount: HTMLElement;
+  cast: () => PresetEntry[];
+  /** The recipient a message with no mention goes to; undefined while the cast is empty. */
+  fallback: () => Mention | undefined;
+}): Composer {
   const dock = deps.mount;
   dock.insertAdjacentHTML(
     "beforeend",
@@ -68,7 +77,7 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
   const chipsEl = q<HTMLElement>(".yui-uc__to");
 
   let mention: Mention | null = null;
-  let target: PresetEntry | undefined;
+  const changeCbs: Array<() => void> = [];
 
   // The picker's capture listener is added first, so it sees Enter and Escape before the text input.
   const picker = createMentionPicker({ field, mount: dock, cast: deps.cast, onPick: setMention });
@@ -98,7 +107,7 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
 
   // The checked chip is where Enter sends: the named recipient, else the fallback target.
   function checked(): Mention | undefined {
-    return named() ?? target?.id;
+    return named() ?? deps.fallback();
   }
 
   function chip(id: Mention, label: string, entry?: PresetEntry): HTMLButtonElement {
@@ -123,6 +132,7 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
     );
     for (const button of chipsEl.querySelectorAll<HTMLElement>("[role=radio]"))
       button.setAttribute("aria-checked", String(button.dataset.id === on));
+    for (const cb of changeCbs) cb();
   }
 
   function setMention(next: Mention | null): void {
@@ -145,12 +155,19 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
     getMention: () => mention,
     getExplicitMention: () => named(),
     setMention,
-    setTarget(entry) {
-      target = entry;
-      paint();
+    checked,
+    onChange: (cb) => void changeCbs.push(cb),
+    showRecipient(on) {
+      const cast = deps.cast();
+      const name = on === EVERYONE ? t("unified.everyone") : cast.find((e) => e.id === on)?.name;
+      field.placeholder =
+        name === undefined || cast.length === 0
+          ? t("input.placeholder")
+          : t("unified.placeholder_to", { name });
     },
     refreshCast() {
       picker.refresh();
+      paint();
     },
     fill(text) {
       field.value = field.value ? `${field.value} ${text}` : text;
