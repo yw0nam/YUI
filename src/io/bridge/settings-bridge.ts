@@ -34,6 +34,7 @@ const CH_PET_WINDOWS_CHANGED = "yui://pet-windows-changed";
 const CH_PRESET_CHANGED = "yui://preset-changed";
 const CH_CHARACTER_ADDRESSED = "yui://character-addressed";
 const CH_USER_TURN_ROUTED = "yui://user-turn-routed";
+const CH_VOICE_SEGMENT = "yui://voice-segment";
 const CH_SPEECH_STREAM = "yui://speech-stream";
 const CH_SPEECH_STREAM_ASK = "yui://speech-stream-ask";
 const CH_STOP_TURNS = "yui://stop-turns";
@@ -82,6 +83,12 @@ export interface UserTurnRouted {
   to: string;
   text: string;
   mention?: "character" | "everyone";
+  via?: "voice";
+}
+
+/** Main's recognized speech for the unified chat window. */
+export interface VoiceSegment {
+  text: string;
 }
 
 /** A pet window's user turn for one send id is over, or never started. */
@@ -239,6 +246,9 @@ export interface SettingsBridge {
   /** The unified chat window's message for one preset; delivered to every window, receivers filter on `to`. */
   emitUserTurnRouted(event: UserTurnRouted): void;
   onUserTurnRouted(cb: (event: UserTurnRouted) => void): () => void;
+  /** Main's recognized speech while the unified chat window shows; that window routes it. */
+  emitVoiceSegment(event: VoiceSegment): void;
+  onVoiceSegment(cb: (event: VoiceSegment) => void): () => void;
   /** A pet window's user turn for one send id is over; the unified chat window advances its sequence. */
   emitUserTurnDone(event: UserTurnDone): void;
   onUserTurnDone(cb: (event: UserTurnDone) => void): () => void;
@@ -259,6 +269,7 @@ export function createSettingsBridge(
     CH_VOICE_STATE,
     CH_CHARACTER_ADDRESSED,
     CH_USER_TURN_ROUTED,
+    CH_VOICE_SEGMENT,
     CH_USER_TURN_DONE,
     CH_SPEECH_STREAM,
     CH_SPEECH_STREAM_ASK,
@@ -434,7 +445,23 @@ export function createSettingsBridge(
         const mention =
           e.mention === "character" || e.mention === "everyone" ? e.mention : undefined;
         if (e.mention !== undefined && mention === undefined) return;
-        cb({ sendId: e.sendId, to: e.to, text: e.text, ...(mention ? { mention } : {}) });
+        if (e.via !== undefined && e.via !== "voice") return;
+        cb({
+          sendId: e.sendId,
+          to: e.to,
+          text: e.text,
+          ...(mention ? { mention } : {}),
+          ...(e.via ? { via: e.via } : {}),
+        });
+      });
+    },
+    emitVoiceSegment(event) {
+      safeEmit(CH_VOICE_SEGMENT, event);
+    },
+    onVoiceSegment(cb) {
+      return on<unknown>(CH_VOICE_SEGMENT, (event) => {
+        const text = (event as Partial<VoiceSegment> | null)?.text;
+        if (isString(text) && text) cb({ text });
       });
     },
     emitUserTurnDone(event) {
