@@ -67,18 +67,23 @@ describe("openSettingsWindow", () => {
     expect(createTauriWindow).not.toHaveBeenCalled();
   });
 
-  it("creates the Tauri window with an English title", async () => {
+  it.each([
+    ["hearth", [17, 12, 7]],
+    ["dawn", [249, 246, 242]],
+  ])("creates the Tauri window with an English title on the %s panel colour", async (theme, rgb) => {
     const globals = globalThis as { __TAURI_INTERNALS__?: unknown };
     globals.__TAURI_INTERNALS__ = {};
+    document.documentElement.dataset.theme = theme;
     try {
       createSettingsWindowOpener(undefined, vi.fn())();
       await vi.waitFor(() => expect(WebviewWindow).toHaveBeenCalledOnce());
       expect(WebviewWindow).toHaveBeenCalledWith(
         "settings",
-        expect.objectContaining({ title: "YUI Settings" }),
+        expect.objectContaining({ title: "YUI Settings", backgroundColor: rgb }),
       );
     } finally {
       delete globals.__TAURI_INTERNALS__;
+      delete document.documentElement.dataset.theme;
     }
   });
 

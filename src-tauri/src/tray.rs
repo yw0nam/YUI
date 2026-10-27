@@ -51,6 +51,14 @@ fn toggle_visibility(app: &AppHandle) {
     }
 }
 
+/// `--yui-panel-bg` (src/ui/tokens.css) in sRGB for the theme in effect: the window's first frame.
+fn settings_background(theme: Option<tauri::Theme>) -> tauri::window::Color {
+    match theme {
+        Some(tauri::Theme::Dark) => tauri::window::Color(17, 12, 7, 255),
+        _ => tauri::window::Color(249, 246, 242, 255),
+    }
+}
+
 fn open_settings(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("settings") {
         if let Err(error) = window.show() {
@@ -63,6 +71,11 @@ fn open_settings(app: &AppHandle) {
     }
 
     // Window params mirror src/io/window/openers/settings-window.ts — keep both in sync.
+    // Main's native theme is the stored theme (main.ts hands it to applyTheme), or the OS under Follow system.
+    let background = settings_background(
+        app.get_webview_window("main")
+            .and_then(|main| main.theme().ok()),
+    );
     let handle = app.clone();
     if let Err(error) = std::thread::Builder::new()
         .name("yui-settings-window".into())
@@ -78,6 +91,7 @@ fn open_settings(app: &AppHandle) {
             .resizable(true)
             .decorations(true)
             .transparent(false)
+            .background_color(background)
             .build()
             {
                 log::warn!("tray_create_settings_window_failed error={error}");
@@ -141,6 +155,22 @@ mod tests {
         assert!(
             opaque.iter().all(|p| p[0] == p[1] && p[1] == p[2]),
             "template images keep only alpha; RGB must be monochrome"
+        );
+    }
+
+    #[test]
+    fn settings_background_is_the_panel_colour_of_the_theme_in_effect() {
+        assert_eq!(
+            settings_background(Some(tauri::Theme::Dark)),
+            tauri::window::Color(17, 12, 7, 255)
+        );
+        assert_eq!(
+            settings_background(Some(tauri::Theme::Light)),
+            tauri::window::Color(249, 246, 242, 255)
+        );
+        assert_eq!(
+            settings_background(None),
+            tauri::window::Color(249, 246, 242, 255)
         );
     }
 

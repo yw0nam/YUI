@@ -12,6 +12,11 @@ const SETTINGS_LABEL = "settings";
 const SETTINGS_URL = "settings.html";
 const SETTINGS_TITLE = "YUI Settings";
 
+/** `--yui-panel-bg` (src/ui/tokens.css) in sRGB: the window's native background until its page paints. */
+function panelBackground(theme: string | undefined): [number, number, number] {
+  return theme === "hearth" ? [17, 12, 7] : [249, 246, 242];
+}
+
 type EmitSettingsPage = SettingsBridge["emitSettingsPage"];
 
 /** `settings.html` with the preset and page the window opens on. */
@@ -72,6 +77,8 @@ async function openTauriSettingsWindow(
       resizable: true,
       decorations: true,
       transparent: false,
+      // Every window applies the same stored theme, so this window's is the new one's.
+      backgroundColor: panelBackground(document.documentElement.dataset.theme),
     });
     win.once("tauri://error", (e) =>
       log.error("settings_window_create_error", { error: String(e) }),
