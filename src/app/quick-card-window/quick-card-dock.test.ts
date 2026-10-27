@@ -175,7 +175,10 @@ describe("wireQuickCardDock", () => {
     await vi.waitFor(() => expect(positions()).toEqual([{ x: 964, y: 488 }]));
   });
 
-  it("stops following once a move of its own window detaches it", async () => {
+  it.each([
+    ["one long step", [1200]],
+    ["1px steps", Array.from({ length: 336 }, (_, i) => DOCKED.x + 1 + i)],
+  ])("stops following once a move of its own window detaches it (%s)", async (_name, xs) => {
     const { bridge, card } = wired();
     bridge.open(REQUEST);
     await vi.waitFor(() => expect(win.show).toHaveBeenCalledOnce());
@@ -185,7 +188,7 @@ describe("wireQuickCardDock", () => {
     await vi.waitFor(() => expect(win.startDragging).toHaveBeenCalledOnce());
 
     win.outerPosition.mockImplementation(async () => ({ x: 1200, y: 400 }));
-    win.onMoved.mock.calls[0][0]({ payload: { x: 1200, y: 400 } });
+    for (const x of xs) win.onMoved.mock.calls[0][0]({ payload: { x, y: DOCKED.y } });
     dropDrag();
     await new Promise((r) => setTimeout(r, 20));
 
