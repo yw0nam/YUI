@@ -79,7 +79,7 @@ YUI/
         wire-window-sync.ts          # Settings broadcast, guardrail overrides, and the shared cross-window sync core
       controls/                      # The pet window's summonable control surface
         wire-pet-controls.ts         # The stage context menu that sends her extent and the click to the quick-card window
-        quick-card-request.ts        # The quick-card open request for a click: her on-screen extent, the click's y, and main's listening flag
+        quick-card-request.ts        # The quick-card open request for a click: her live silhouette's left and right edges, the click's y, and main's listening flag
         wire-devtools-request.ts     # Main's pet window opens Developer Tools when the settings window asks
         wire-help-guide.ts           # Guide requests the settings window sends over the bridge, submitted as user turns
       settings/                      # Selections and conversation state applied to the running app
@@ -183,8 +183,8 @@ YUI/
         view-window.ts               # Draws the reference-size framing at an offset inside a parked canvas
       geometry/                      # Silhouette hit-testing and read-only model probes
         hit/                         # Alpha-silhouette hit-testing, stage coordinates, and tap regions
-          alpha-hit-test.ts          # CPU-side low-res silhouette grab and sampling
-          hit-test.ts                # Pure helpers for the alpha silhouette predicate
+          alpha-hit-test.ts          # CPU-side low-res silhouette grab, its sampling and its bounds
+          hit-test.ts                # Pure helpers for the alpha silhouette predicate and its bounds
           stage-coords.ts            # Client CSS px to stage-local coordinate conversion
           tap-region.ts              # Classifies a tap point into a body region
         probe/                       # Read-only model probes, anchor projection, and perch math

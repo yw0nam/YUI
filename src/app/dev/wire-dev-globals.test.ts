@@ -42,6 +42,7 @@ describe("wireDevGlobals", () => {
         id: "renderer",
         getCharacterAnchor: vi.fn(() => ({ x: 200, y: 300 })),
         getCharacterWidthPx: vi.fn(() => 100),
+        getSilhouetteBounds: vi.fn(() => null),
       },
       ambient: { trigger: vi.fn() },
       surfaces: { summonInput: vi.fn(), showTool: vi.fn() },

@@ -13,7 +13,7 @@ import { quickCardRequest } from "./quick-card-request";
 export function wirePetControls(deps: {
   stage: HTMLElement;
   stores: SettingsStores;
-  renderer: Pick<Renderer, "getCharacterAnchor" | "getCharacterWidthPx">;
+  renderer: Pick<Renderer, "getSilhouetteBounds" | "getCharacterAnchor" | "getCharacterWidthPx">;
   boundId: string | null;
   voiceInputStatus: VoiceInputStatus;
   remoteSurfaces: Pick<RemoteSurfaces, "onOpenSettings"> | null;

@@ -162,6 +162,12 @@ export interface Renderer {
    */
   hitTest(x: number, y: number): boolean;
   /**
+   * Her live silhouette's box in window-local client CSS px — hitTest's space — from the
+   * same low-res alpha grab: the outer edges of every opaque cell. null until a grab and a
+   * threshold exist.
+   */
+  getSilhouetteBounds(): { left: number; right: number; top: number; bottom: number } | null;
+  /**
    * Set the alpha threshold (0..1) the per-pixel hit test compares against.
    * Sourced from configs/avatar.json `hit_test.alpha_threshold` via main.ts.
    * Non-finite or out-of-(0,1] values are ignored.

@@ -1301,7 +1301,7 @@ globalThis.YUI_MAP =
       "id": "app/controls",
       "module": "wiring",
       "label": "controls wiring",
-      "role": "The pet window's stage context menu that sends the quick-card open request from the character's on-screen extent, the popped-out surfaces' settings asks, and the settings window's guide and Developer Tools requests.",
+      "role": "The pet window's stage context menu that sends the quick-card open request from the character's live silhouette (the renderer's alpha grab), the popped-out surfaces' settings asks, and the settings window's guide and Developer Tools requests.",
       "paths": [
         "src/app/controls"
       ]
