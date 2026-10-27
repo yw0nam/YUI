@@ -78,7 +78,7 @@ export function wireBoundWindow(deps: {
 
 async function waitForCompanions(id: string, log: Logger): Promise<void> {
   const live = () =>
-    (["settings", "message"] as const).some((kind) => isWindowLive(windowLabel(kind, id)));
+    (["settings", "message", "quick-card"] as const).some((kind) => isWindowLive(windowLabel(kind, id)));
   for (let elapsed = 0; elapsed < COMPANION_CLOSE_WAIT_MS; elapsed += COMPANION_POLL_MS) {
     if (!live()) return;
     await new Promise<void>((resolve) => setTimeout(resolve, COMPANION_POLL_MS));
