@@ -11,12 +11,12 @@ hint and the readiness probes, beside `plugin.yaml` and the uv project files.
 
 | Path | Holds |
 |---|---|
-| `src/transport/` | `adapter.py`, the WebSocket server and the gateway hooks; `frames.py`, the frame size cap and the trimming that fits a frame under it |
+| `src/transport/` | `adapter.py`, the WebSocket server and the gateway hooks; `frames.py`, the frame size cap and the trimming that fits a frame under it; `playback.py`, the one-line notices a client's failed `playback` frame starts; `turn_images.py`, a turn's image data URLs decoded into gateway media-cache files |
 | `src/turns/` | The per-chat turn state and the session lookup that finds its chat |
 | `src/express/` | The client vocabulary, the `generate_express` tool, and cue placement on sentences |
 | `src/speech/` | The streamed answer, cut into the sentences `speech` frames carry |
 | `src/activity/` | Reasoning, tool status, token usage, delegations, and the away-report queue |
-| `src/tools/` | The client-declared tools: registration from `hello.tools`, declared again with the chat's own schema when its turn starts (Hermes keeps one schema per name), the blocking handler, and the per-chat pending calls |
+| `src/tools/` | The client-declared tools: registration from `hello.tools`, declared again with the chat's own schema when its turn starts (Hermes keeps one schema per name), the blocking handler, the per-chat pending calls, and `image_result.py`, an image-bearing result as Hermes's `_multimodal` envelope |
 | `skills/` | The install and smoke-test skills |
 | `tests/` | The suite, run against stubbed gateway modules |
 
