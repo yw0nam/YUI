@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 /**
  * quick-card-main.test.ts — the quick-card window boots its wiring: the open request seeds the
- * Listen tile without echoing it back, and the dock places the window beside the character.
+ * Listen tile without echoing it back and reaches the dock, which shows the window.
  */
 
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 
 vi.mock("../styles.css", () => ({}));
 vi.mock("../ui/quick-card/quick-card.css", () => ({}));
@@ -18,7 +18,6 @@ const { win, getCurrentWindow, availableMonitors, primaryMonitor, getAllWindows 
       show: vi.fn(async () => {}),
       setFocus: vi.fn(async () => {}),
       setTheme: vi.fn(async () => {}),
-      startDragging: vi.fn(async () => {}),
       outerPosition: vi.fn(async () => ({ x: 1000, y: 200 })),
       scaleFactor: vi.fn(async () => 1),
       onMoved: vi.fn(() => () => {}),
@@ -65,23 +64,9 @@ import { createSettingsBridge, type SettingsBridge } from "../io/bridge/settings
 
 let petBridge: SettingsBridge;
 
-beforeEach(() => {
-  // jsdom has no layout: the card measures 272×400 like the stylesheet says.
-  Object.defineProperty(HTMLElement.prototype, "offsetWidth", {
-    get: () => 272,
-    configurable: true,
-  });
-  Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
-    get: () => 400,
-    configurable: true,
-  });
-});
-
 afterEach(async () => {
   petBridge?.dispose();
   petBridge = undefined as never;
-  delete (HTMLElement.prototype as { offsetWidth?: unknown }).offsetWidth;
-  delete (HTMLElement.prototype as { offsetHeight?: unknown }).offsetHeight;
   document.body.innerHTML = "";
 });
 
@@ -94,7 +79,7 @@ async function boot(): Promise<void> {
   await vi.waitFor(() => expect(ready).toHaveBeenCalledOnce());
 }
 
-it("seeds the Listen tile from the open request without echoing it back, and docks beside her", async () => {
+it("seeds the Listen tile from the open request without echoing it back, and shows the window by her", async () => {
   await boot();
   const voiceSet = vi.fn();
   petBridge.onVoiceSet(voiceSet);
@@ -102,11 +87,7 @@ it("seeds the Listen tile from the open request without echoing it back, and doc
   petBridge.emitQuickCardOpen({ left: 40, right: 360, y: 200, listening: true });
   await vi.waitFor(() => expect(win.show).toHaveBeenCalledOnce());
 
-  // Docked 12px right of her roomier side: her right edge 860 (owner 500 + right 360),
-  // window x 860 + 12 − 8, top = click 500 − 24 − 8, box = card 272×400 + 8px margin.
-  expect(win.setSize.mock.calls[0][0]).toMatchObject({ width: 288, height: 416 });
-  expect(win.setPosition.mock.calls[0][0]).toMatchObject({ x: 864, y: 468 });
-  expect(win.setFocus).toHaveBeenCalledOnce();
+  // The dock placed it against main's pet window; quick-card-dock.test.ts pins where.
   expect(getByLabel).toHaveBeenCalledWith("main");
 
   // The Listen tile took the request's flag; the mirror stayed silent.

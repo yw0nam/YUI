@@ -655,7 +655,6 @@ describe("createWalker", () => {
   });
 
   it("releases the walk clip and starts no stroll when the stroll is cancelled during a pending begin", async () => {
-    const interrupt = (h: ReturnType<typeof makeHarness>) => h.walker.cancel();
     const BUILTIN: ScreenMonitor = {
       position: { x: 0, y: 0 },
       size: { width: 3456, height: 2234 },
@@ -692,7 +691,7 @@ describe("createWalker", () => {
     await h.skipInterval();
     expect(h.motions).toEqual([{ id: WALK_MOTION_ID }]);
 
-    interrupt(h);
+    h.walker.cancel();
     const win = { setPositionLogical: async () => {} } as unknown as PetWindow;
     resolveBegin({ win, end: async () => {} });
     for (let i = 0; i < 10; i++) await h.frame();
