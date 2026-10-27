@@ -28,7 +28,7 @@ With YUI running (§1), one OpenAI key covers chat and voice: Chat Completions f
 3. TTS section: pick the **OpenAI** provider and paste the same key into **TTS API key**.
 4. Close Settings and press `/` to type a message.
 
-Her personality is the **Card** section of the **Talk** tab, sent on Chat Completions and Responses. Each preset starts with the default card in the UI language; edit any field to make the card your own.
+Her personality is the **Card** section of the **Persona** page, sent on Chat Completions and Responses. Each preset starts with the default card in the UI language; edit any field to make the card your own.
 
 ---
 
@@ -219,7 +219,7 @@ Serve any OpenAI-compatible transcription server at the configured URL, then set
 "stt_base_url": "http://localhost:5517/v1"
 ```
 
-YUI sends audio to `<stt_base_url>/audio/transcriptions`. If the server requires auth, set `VITE_YUI_STT_KEY` in `.env.local` (dev runs; a release build reads the key entered on the Listening page) — YUI sends it as `Authorization: Bearer`. A hosted API such as Groq also needs a model: set `stt_model` in `configs/endpoints.json` (for example `"stt_model": "whisper-large-v3-turbo"`) or in the Connection tab's STT model field, which overrides the file. To fix the spoken language, set `stt_language` the same way; the Connection tab's STT language field suggests Auto, English, and Japanese and takes any other ISO-639-1 code.
+YUI sends audio to `<stt_base_url>/audio/transcriptions`. If the server requires auth, set `VITE_YUI_STT_KEY` in `.env.local` (dev runs; a release build reads the key entered on the Listening and bubble page) — YUI sends it as `Authorization: Bearer`. A hosted API such as Groq also needs a model: set `stt_model` in `configs/endpoints.json` (for example `"stt_model": "whisper-large-v3-turbo"`) or in the Connection tab's STT model field, which overrides the file. To fix the spoken language, set `stt_language` the same way; the Connection tab's STT language field suggests Auto, English, and Japanese and takes any other ISO-639-1 code.
 
 ---
 
@@ -245,7 +245,7 @@ Key reference:
 | `tts_base_url` | unset | TTS server root without `/v1` |
 | `tts_model` | `irodori-tts` | Model sent to the TTS server — Irodori/OpenAI as the request's `model` field (must match the server's configured name), Fish as a `model` HTTP header (an S2-family id) |
 | `tts_speaker` | unset | Default voice id, until another is picked in the panel |
-| `tts_max_inflight` | `1` | Concurrent TTS synthesis requests |
+| `tts_max_inflight` | `3` | Concurrent TTS synthesis requests |
 | `broker_base_url` | unset | Expression broker MCP URL. Deprecated, removed in v0.6.0: the client declares its tools on the request |
 
 All service addresses come from this file or the in-app overrides.

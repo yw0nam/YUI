@@ -7,11 +7,13 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 | Feature | What it does |
 | --- | --- |
 | Models | VRM 1.0 and 0.x loading with hot-swap, the bundled Sendagaya Shino as the default, and import, rename, and delete for your own `.vrm` files |
-| Emotions and motions | 10 emotions and 25 motions, 9 of them agent-selectable, with a per-emotion fallback chain ending at `neutral` ([motion catalog](../reference/motions.md)) |
+| Emotions and motions | 10 emotions and 27 motions, 8 of them agent-selectable, with a per-emotion fallback chain ending at `neutral` ([motion catalog](../reference/motions.md)) |
 | Cursor gaze | Head and eyes that follow the OS cursor anywhere on screen, with an on/off switch |
 | Lipsync | Mouth movement from speech amplitude, with a gain slider |
 | Idle liveliness | Blink, sway, breathing, and look-around on the client, reduced to blinking under `prefers-reduced-motion` |
 | Camera | Auto-framing, wheel zoom, Shift+drag orbit, and a reset to the front view |
+| Relations | Each character's Relation toward you and the other characters, −20 to 20 with a band and a change log, shown on a relation line under the preset row, set by the backend's `rate_relation` tool or by hand on the Body page, and off for every character from the **Relations** switch on the Together page |
+| Bed scene | At launch she can start asleep on a bed with **Wake up in bed** on the Motion and desktop page, and her backend can lay her down with `body_action` `go_to_bed`; a click, a message, the wake timeout, or `stand` wakes her |
 
 ## Desktop pet
 
@@ -28,12 +30,14 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 
 | Feature | What it does |
 | --- | --- |
-| Speech bubble | Streaming markdown with links in the default browser; in the message window the backend's reasoning folds open at its top; the running tool shows in the status pill above the character |
+| Speech bubble | Streaming markdown with links in the default browser, in a dialogue box with a name plate; the text types out at 40 ms per character whether her voice is on or off, and **Backlog** opens the current session's earlier lines; the running tool shows in the status pill above the character |
 | Text input | Text box with up to 6 image attachments by paste, drag-and-drop, or file picker |
 | Voice input | Silero VAD speech detection, transcription on any OpenAI-compatible STT endpoint, and barge-in over her speech |
 | Voice output | Sentence-by-sentence TTS on Irodori, OpenAI, or Fish Audio with the `emotion_text` voice tag ([vocabulary](../reference/tts-emotion/)). Irodori lists the TTS server's voices and imports your own reference clip; OpenAI lists its built-in voices; Fish lists your voice models, imports a clip as a new model, and accepts any library voice id |
-| Waiting filler | Thinking motion and short localized lines while a reply is pending, including tool-specific lines, and a spoken line when a turn times out or the backend can't be reached. Defaults come from `configs/filler.json`; every list is editable per language under Settings → **Talk** → **Thinking interjections** (**More phrases** for the long-wait, timeout, connection-lost, and tool lines) |
-| History and message window | History tab stored on the device, and an optional separate message window |
+| Reading dictionary | `word=reading` pairs on the Listening and bubble page that change how the voice reads a word, and never the text on screen |
+| Waiting filler | Thinking motion and short localized lines while a reply is pending, including tool-specific lines, and a spoken line when a turn times out or the backend can't be reached. Defaults come from `configs/filler.json`; every list is editable per language on the **Voice** page under **Thinking interjections** (**More phrases** for the long-wait, timeout, connection-lost, and tool lines) |
+| History and message window | History tab stored on the device, every Signal group among it, spoken or silent; an optional separate message window, which folds her reasoning open at the top of a reply |
+| Unified chat window | One window for every open character while two or more are on the desktop: one line at a time, the cast row or a leading `@name` picks who answers, voice goes to that pick, and stop ends the reply in every window; while it shows, the message window is off |
 
 ## Backend
 
@@ -41,6 +45,7 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 | --- | --- |
 | Chat protocols | `chat_completions`, `responses`, and `push`, selected by `chat_api` in `configs/endpoints.json` ([push transport](../reference/push-transport.md)) |
 | Expression cues | `generate_express` cues for emotion, motion, voice tag, and caption; the renderable vocabulary travels in the tool schema on Responses and Chat Completions, in the `hello` and `vocabulary` frames on push, and to the Expression Broker (MCP) when `broker_base_url` is set, a path deprecated and removed in v0.6.0 ([cue contract](../reference/client-context.md)) |
+| Browser tool | The backend drives web pages in [ego lite](../reference/client-tools.md#browser), the only browser this tool works with, in a task space of its own per character (`yui-<presetId>`), and sees screenshots of the pages it opened. Off by default; turn it on with **Allow browser use** on the Permissions page |
 | Provider presets | OpenAI, Ollama, LM Studio, Groq, and Hermes Agent presets, plus a custom endpoint |
 | Per-turn context | `client_context` text with local time, frontmost app and window title, an optional screenshot, body posture, and the outcome of the previous turn ([format](../reference/client-context.md)) |
 | Silence | An empty reply or a bare `[SILENT]` token as a silent turn |
@@ -53,7 +58,7 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 | Greetings and check-ins | Scheduled greetings (09:00, 12:00, 18:00, 23:00 by default) and idle check-ins after 5, 10, and 30 quiet minutes, all editable in the Proactive tab |
 | Screen watch | Cues on a switch to another app after 10 minutes in the previous one, and on every 45 minutes in one app, off by default (`configs/screen.json`) |
 | First activity of the day | Cue on the first activity of each local day |
-| Guardrails | Per-source debounce, hourly caps of 24 cues and 40 self-started turns (`configs/guardrails.json`), and a 10-minute default quiet gap after each turn |
+| Guardrails | Per-source debounce, hourly caps of 24 cues, 40 self-started turns and 120 urgent signals, the Chain cap of 2 addressed turns in a row without a user turn (`configs/guardrails.json`), and a 10-minute default quiet gap after each turn |
 | Loopback ingress | Local listener on port 8770 for coding-agent hooks, `/signals`, and the `avatar` Mod, active while the External signals switch in the Proactive tab is on (off by default, applied at next launch); the bare paths serve the main window and `/presets/<id>/` paths serve the pet window bound to that preset |
 | Coding-agent hooks | `POST /agent-event` (deprecated: removed in v0.6.0; use `POST /signals`) for finished tasks and input requests from coding agents ([hooks guide](https://github.com/yw0nam/YUI/blob/main/docs/agent-guide/agent-completion-hooks.md)) |
 | Signals ingress | `POST /signals` for batches of external signals ([envelope](../reference/signals-ingress.md)); to wake one character, turn External signals on, turn that character on the desktop (Together → Characters), copy its URL from its row in the preset list, and give the URL to the producer |
@@ -65,7 +70,7 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 
 | Feature | What it does |
 | --- | --- |
-| Mods | Standalone MCP servers `router`, `desktop-control`, `shell-sandbox`, and `avatar`; the `avatar` Mod seats her on a window, makes her peek, or moves her to a screen spot through the loopback ingress ([Mods](https://github.com/yw0nam/YUI/blob/main/Mods/README.md), [tool reference](../reference/mods.md)) |
+| Mods | Standalone MCP servers `router`, `desktop-control`, `shell-sandbox`, `avatar`, and `factorio`; the `avatar` Mod seats her on a window, makes her peek, or moves her to a screen spot through the loopback ingress ([Mods](https://github.com/yw0nam/YUI/blob/main/Mods/README.md), [tool reference](../reference/mods.md)) |
 | Integrations | Backend-agent adapters and backend-agnostic skills under [`integrations/`](https://github.com/yw0nam/YUI/tree/main/integrations), for example the Hermes Agent plugins |
 
 ## Platform
@@ -73,6 +78,7 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 | Feature | What it does |
 | --- | --- |
 | Languages | English, Japanese, and Korean UI, with the OS language as the first-run default |
+| Appearance | Dawn (light) and Hearth (dark), on the General page, following the OS appearance by default |
 | Configuration | Runtime settings in `configs/`, validated at load, with hot-reload in development |
 | Logs | One log file per day shared by frontend and Rust lines ([location](https://github.com/yw0nam/YUI/blob/main/docs/agent-guide/build-run.md#logs), [convention](../reference/logging.md)) |
 | Platforms | macOS on Apple Silicon and Windows x64 (official); Intel Mac and Linux are not officially supported |

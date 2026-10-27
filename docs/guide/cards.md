@@ -1,6 +1,6 @@
 # Cards
 
-The **Card** section of the **Talk** tab holds who she is.
+The **Card** section of the **Persona** page holds who she is.
 
 ## What a card is
 

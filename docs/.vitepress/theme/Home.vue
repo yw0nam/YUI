@@ -134,9 +134,9 @@ onMounted(() => {
           YUI is the body. Your agent is the brain.
         </h2>
         <p class="sub">
-          YUI ships no model. It renders, senses and fires; judgment, persona
-          and memory belong to whatever you plug in, so she is exactly as smart
-          and as yours as that backend.
+          YUI ships no model. It renders, senses and fires; judgment and memory
+          belong to the backend you plug in. Who she is comes from the card text
+          you write in the app, or from the persona the agent brings.
         </p>
         <div class="split">
           <div class="col">
@@ -152,7 +152,6 @@ onMounted(() => {
             <h3>Your agent does</h3>
             <ul>
               <li>The agent loop, memory and tools</li>
-              <li>Persona and mood</li>
               <li>Emotion and motion cues</li>
               <li>Deciding whether to speak at all</li>
             </ul>
@@ -191,10 +190,7 @@ onMounted(() => {
           </div>
           <div>
             <b>TTS provider</b>
-            <span
-              >Irodori TTS Server or any OpenAI-compatible speech
-              endpoint.</span
-            >
+            <span>Irodori TTS Server, OpenAI, or Fish Audio.</span>
           </div>
           <div>
             <b>STT and VAD</b>
@@ -214,7 +210,7 @@ onMounted(() => {
             <b>Standalone Mods</b>
             <span
               >Independent MCP servers: router, desktop control, shell sandbox,
-              avatar.</span
+              avatar, factorio.</span
             >
           </div>
           <div>
