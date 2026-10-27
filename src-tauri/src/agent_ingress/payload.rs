@@ -53,7 +53,7 @@ pub struct AgentEventPayload {
 
 /// `signals-inbox` event payload — fired when the remote n8n workflow posts to
 /// `/signals`. `signals` is treated as opaque JSON; the client does not
-/// interpret its contents. An `envelope` is required.
+/// interpret its contents. A request without an `envelope` carries JSON null here.
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct SignalsPayload {
     pub signals: Vec<serde_json::Value>,
@@ -212,12 +212,12 @@ pub(super) fn parse_request(
     serde_json::from_str(body).map_err(|_| 400u16)
 }
 
-/// Validates and parses a raw HTTP request into a `signals` array. An `envelope`
-/// is required.
+/// Validates and parses a raw HTTP request into a `signals` array and its optional
+/// `envelope`.
 ///
 /// Returns `Err(405)` when the method is not POST, and `Err(400)` when the path
 /// (before any query string) is not `/signals`, the body is not valid JSON
-/// shaped `{"signals": [...]}`, the `envelope` is missing or null, or an item
+/// shaped `{"signals": [...]}`, or an item
 /// exceeds `ITEM_CEILING_BYTES`. Each element of `signals` is passed through as
 /// opaque JSON.
 pub(super) fn parse_signals_request(
@@ -233,7 +233,6 @@ pub(super) fn parse_signals_request(
         return Err(400);
     }
     let request = serde_json::from_str::<SignalsRequest>(body).map_err(|_| 400u16)?;
-    request.envelope.as_ref().ok_or(400u16)?;
     for item in &request.signals {
         let bytes = serde_json::to_vec(item).map_err(|_| 400u16)?;
         if bytes.len() > ITEM_CEILING_BYTES {
@@ -584,20 +583,15 @@ mod tests {
     }
 
     #[test]
-    fn parse_signals_request_absent_envelope_returns_400() {
-        assert_eq!(
-            parse_signals_request("POST", "/signals", r#"{"signals":[]}"#).unwrap_err(),
-            400u16
-        );
-    }
-
-    #[test]
-    fn parse_signals_request_null_envelope_returns_400() {
-        assert_eq!(
-            parse_signals_request("POST", "/signals", r#"{"signals":[],"envelope":null}"#)
-                .unwrap_err(),
-            400u16
-        );
+    fn parse_signals_request_accepts_an_absent_or_null_envelope() {
+        for body in [
+            r#"{"signals":[{"id":1}]}"#,
+            r#"{"signals":[{"id":1}],"envelope":null}"#,
+        ] {
+            let request = parse_signals_request("POST", "/signals", body).unwrap();
+            assert_eq!(request.signals.len(), 1);
+            assert!(request.envelope.is_none());
+        }
     }
 
     // ── handle_request routing (/signals emits signals-inbox) ────────────────

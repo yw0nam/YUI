@@ -59,7 +59,8 @@ pub(super) fn parse_route(method: &str, url: &str, body: &str) -> Result<Route, 
             let request = parse_signals_request(method, &path, body)?;
             RouteKind::Signals(SignalsPayload {
                 signals: request.signals,
-                envelope: request.envelope.ok_or(400u16)?,
+                // Deprecated: removed in v0.6.0. Use an envelope.
+                envelope: request.envelope.unwrap_or(serde_json::Value::Null),
                 ts: epoch_ms(),
             })
         }
@@ -135,6 +136,17 @@ pub(super) fn dispatch(
 mod tests {
     use super::*;
     use std::collections::HashSet;
+    #[test]
+    fn an_absent_envelope_reaches_the_window_as_null() {
+        match parse_route("POST", "/signals", r#"{"signals":[{"id":1}]}"#)
+            .unwrap()
+            .kind
+        {
+            RouteKind::Signals(payload) => assert_eq!(payload.envelope, serde_json::Value::Null),
+            other => panic!("expected a signals route, got {other:?}"),
+        }
+    }
+
     #[test]
     fn routes_all_families_and_preserves_payloads() {
         for (method, path, body) in [
@@ -219,7 +231,7 @@ mod tests {
             assert_eq!(parse_route("POST", path, "{}").unwrap_err(), 404, "{path}");
         }
         assert_eq!(
-            parse_route("POST", "/presets/x/signals", r#"{"signals":[]}"#).unwrap_err(),
+            parse_route("POST", "/presets/x/signals", r#"{"envelope":{}}"#).unwrap_err(),
             400
         );
         assert_eq!(parse_route("POST", "/unknown", "").unwrap_err(), 400);
