@@ -1,4 +1,4 @@
-/** The quick card beside the character: its head, tiles and rows, and how it opens, places and closes. */
+/** The quick card in its own window beside the character: its head, tiles and rows, and how it opens and closes. */
 
 import "./quick-card.css";
 import type { PushSocketState } from "../../io/chat/push/push-socket";
@@ -9,7 +9,6 @@ import { subscribe as subscribeLocale, t } from "../i18n";
 import { CROSS_SVG } from "../quick-controls/constants";
 import type { SwitchRow } from "../quick-controls/switch-row";
 import { avatarEl } from "../unified/avatar";
-import { CARD_MARGIN, placeCard } from "./place";
 import { createRows, type PickerPort } from "./rows";
 import { createTiles, type ListenPort } from "./tiles";
 import { transportLine } from "./transport-line";
@@ -18,12 +17,16 @@ const log = createLogger("quick-card");
 
 export interface QuickCard {
   el: HTMLElement;
-  /** Opens at the point, or at the window's centre without one. */
-  open(at?: { x: number; y: number }): void;
+  /** Shows the card, painting the current store values. */
+  open(): void;
   close(): void;
   isOpen(): boolean;
   /** Runs the callback each time the card opens. */
   onOpen(cb: () => void): () => void;
+  /** Runs the callback each time the card closes, whatever closed it. */
+  onClose(cb: () => void): () => void;
+  /** The card's head: the drag handle the window moves by. */
+  onHeadPointerDown(cb: (event: PointerEvent) => void): () => void;
   dispose(): void;
 }
 
@@ -42,8 +45,6 @@ export function createQuickCard(deps: {
   /** Null for main, which cannot be turned off. */
   turnOff: (() => void) | null;
   openAllSettings(): void;
-  /** The on-screen height of the window, refreshed before each open; the card stays inside it. */
-  visibleViewport?: { get(): number; refresh(): Promise<void> };
 }): QuickCard {
   const el = document.createElement("div");
   el.className = "yui-qcard";
@@ -51,9 +52,10 @@ export function createQuickCard(deps: {
   el.setAttribute("aria-labelledby", "yui-qcard-name");
   el.tabIndex = -1;
   let open = false;
-  let anchor: { x: number; y: number } | undefined;
   let disposed = false;
+  const closeListeners = new Set<() => void>();
   const openListeners = new Set<() => void>();
+  const headListeners = new Set<(event: PointerEvent) => void>();
 
   // The card's contents, rebuilt in the new language on a locale change.
   function build() {
@@ -74,17 +76,29 @@ export function createQuickCard(deps: {
     const rows = createRows({
       body: deps.body,
       voice: deps.voice,
-      resetConversation: deps.resetConversation,
-      turnOff: deps.turnOff,
-      // The confirmation grows the card; it stays inside the window.
-      onResize: () => {
-        if (open) place();
+      resetConversation: () => {
+        deps.resetConversation();
+        close();
       },
+      turnOff: deps.turnOff
+        ? () => {
+            deps.turnOff?.();
+            close();
+          }
+        : null,
       log,
     });
     q(".yui-qcard__body").prepend(tiles.el, rows.el);
-    q(".yui-qcard__all").addEventListener("click", () => deps.openAllSettings());
+    q(".yui-qcard__all").addEventListener("click", () => {
+      deps.openAllSettings();
+      close();
+    });
     q(".yui-qcard__close").addEventListener("click", () => close());
+    // The head drags the window; its × keeps its click.
+    q(".yui-qcard__head").addEventListener("pointerdown", (event) => {
+      if ((event.target as HTMLElement).closest("button")) return;
+      for (const cb of headListeners) cb(event as PointerEvent);
+    });
     return {
       face: q<HTMLElement>(".yui-qcard__face"),
       name: q<HTMLElement>(".yui-qcard__name"),
@@ -116,76 +130,61 @@ export function createQuickCard(deps: {
   const unsubscribes = [
     deps.subscribeEntry(paintHead),
     deps.onTransport(paintHead),
+    // An open card rebuilds in place; a closed one picks the language up at the next open.
     subscribeLocale(() => {
-      close();
+      const wasOpen = open;
       parts.dispose();
       parts = build();
+      if (wasOpen) {
+        paintHead();
+        parts.rows.paint();
+      }
     }),
   ];
-
-  function place(): void {
-    const view = {
-      width: window.innerWidth,
-      height: Math.min(window.innerHeight, deps.visibleViewport?.get() ?? Number.POSITIVE_INFINITY),
-    };
-    el.style.setProperty("--yui-qcard-max-h", `${view.height - 2 * CARD_MARGIN}px`);
-    // Layout size: the entry animation's scale must not shrink the measured card.
-    const size = { width: el.offsetWidth, height: el.offsetHeight };
-    const at = anchor ?? {
-      x: (view.width - size.width) / 2,
-      y: (view.height - size.height) / 2,
-    };
-    const p = placeCard(at, size, view);
-    el.style.left = `${p.x}px`;
-    el.style.top = `${p.y}px`;
-  }
 
   const onOutsidePointer = (e: PointerEvent): void => {
     if (!el.contains(e.target as Node)) close();
   };
-  const onBlur = (): void => close();
 
-  function show(at?: { x: number; y: number }): void {
-    if (disposed) return;
-    anchor = at;
-    if (!open) {
-      open = true;
-      paintHead();
-      parts.rows.paint();
-      deps.mount.append(el);
-      document.addEventListener("pointerdown", onOutsidePointer, true);
-      window.addEventListener("blur", onBlur);
-      el.focus({ preventScroll: true });
-      for (const cb of openListeners) cb();
-    }
-    place();
+  function show(): void {
+    if (disposed || open) return;
+    open = true;
+    paintHead();
+    parts.rows.paint();
+    deps.mount.append(el);
+    document.addEventListener("pointerdown", onOutsidePointer, true);
+    el.focus({ preventScroll: true });
+    for (const cb of openListeners) cb();
   }
 
   function close(): void {
     if (!open) return;
     open = false;
     document.removeEventListener("pointerdown", onOutsidePointer, true);
-    window.removeEventListener("blur", onBlur);
     parts.rows.disarm();
     if (el.contains(document.activeElement)) (document.activeElement as HTMLElement).blur();
     el.remove();
+    for (const cb of closeListeners) cb();
   }
 
   return {
     el,
-    open(at) {
-      const viewport = deps.visibleViewport;
-      if (!viewport) {
-        show(at);
-        return;
-      }
-      void viewport.refresh().then(() => show(at));
+    open() {
+      show();
     },
     close,
     isOpen: () => open,
     onOpen(cb) {
       openListeners.add(cb);
       return () => openListeners.delete(cb);
+    },
+    onClose(cb) {
+      closeListeners.add(cb);
+      return () => closeListeners.delete(cb);
+    },
+    onHeadPointerDown(cb) {
+      headListeners.add(cb);
+      return () => headListeners.delete(cb);
     },
     dispose() {
       close();

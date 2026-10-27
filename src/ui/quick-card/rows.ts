@@ -17,8 +17,6 @@ export function createRows(deps: {
   resetConversation(): void;
   /** Null for main, which cannot be turned off. */
   turnOff: (() => void) | null;
-  /** The confirmation grew or shrank the rows. */
-  onResize(): void;
   log: Logger;
 }): { el: HTMLElement; paint(): void; disarm(): void; dispose(): void } {
   const { log } = deps;
@@ -72,7 +70,6 @@ export function createRows(deps: {
   function showConfirm(show: boolean): void {
     confirmEl.hidden = !show;
     resetBtn.hidden = show;
-    deps.onResize();
     (show ? q<HTMLButtonElement>(".yui-qcard__cancel") : resetBtn).focus();
   }
   resetBtn.addEventListener("click", () => showConfirm(true));

@@ -199,14 +199,14 @@ describe("wirePetControls", () => {
     teardownDeps(wired);
   });
 
-  it("opens the card at the pointer from the stage context menu, and hands it back", () => {
+  it("opens the card from the stage context menu, and hands it back", () => {
     const wired = makeDeps();
 
     const event = new MouseEvent("contextmenu", { clientX: 12, clientY: 34, cancelable: true });
     wired.stage.dispatchEvent(event);
 
     expect(event.defaultPrevented).toBe(true);
-    expect(built(0).card.open).toHaveBeenCalledWith({ x: 12, y: 34 });
+    expect(built(0).card.open).toHaveBeenCalledOnce();
     expect(wired.controls).toBe(built(0).card);
 
     teardownDeps(wired);

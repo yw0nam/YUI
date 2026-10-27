@@ -1,14 +1,13 @@
-/* The quick card — the pet window's right-click card beside the character. Tokens in ../tokens.css. */
+/* The quick card — fills its own window: the card at 272px inside the transparent 8px margin. Tokens in ../tokens.css. */
 
 .yui-qcard {
-  position: fixed;
-  z-index: 100;
+  position: static;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  box-sizing: border-box;
-  width: min(272px, 100vw - 24px);
-  max-height: var(--yui-qcard-max-h, calc(100vh - 24px));
+  width: 272px;
+  margin: 8px;
   padding: 14px;
   border-radius: var(--yui-radius);
   border: 1px solid var(--yui-edge);
@@ -41,12 +40,13 @@
   }
 }
 
-/* ── head ── */
+/* ── head: the drag handle ── */
 .yui-qcard__head {
   display: flex;
   align-items: center;
   gap: 10px;
   flex: 0 0 auto;
+  cursor: grab;
 }
 
 .yui-qcard__face {
@@ -98,7 +98,7 @@
   height: 0.75rem;
 }
 
-/* ── body: scrolls inside a card the window cuts short ── */
+/* ── body: scrolls when the card is taller than the window ── */
 .yui-qcard__body {
   display: flex;
   flex-direction: column;

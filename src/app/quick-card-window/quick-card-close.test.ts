@@ -63,8 +63,8 @@ it("hides and closes when a tick finds no YUI window focused", async () => {
   await vi.advanceTimersByTimeAsync(300);
 
   expect(card.close).toHaveBeenCalledOnce();
+  // The hide rides the card's close edge, not a second call from the poll.
   expect(hideWindow).toHaveBeenCalledOnce();
-  expect(hide).toHaveBeenCalledOnce();
 });
 
 it("does not hide while any YUI window has focus", async () => {

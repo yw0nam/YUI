@@ -58,7 +58,7 @@ export async function wireDevGlobals(deps: {
     __yuiAgent: agentSettings,
     // The card the window shows now; open() with no point opens it at the window's centre.
     __yuiQuick: {
-      open: (at?: { x: number; y: number }) => getQuickCard().open(at),
+      open: () => getQuickCard().open(),
       close: () => getQuickCard().close(),
       isOpen: () => getQuickCard().isOpen(),
     },

@@ -19,10 +19,7 @@ import type { wireSpeakerSelection, wireVrmSelection } from "../settings/wire-av
 
 const log = createLogger("quick-card-ports");
 
-type CardPorts = Omit<
-  Parameters<typeof createQuickCard>[0],
-  "mount" | "visibleViewport" | "onOpen"
->;
+type CardPorts = Omit<Parameters<typeof createQuickCard>[0], "mount">;
 
 interface Selection<T> {
   list(): T[];
