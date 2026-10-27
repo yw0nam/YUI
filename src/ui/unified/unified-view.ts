@@ -9,7 +9,7 @@ import { createLogger } from "../../logger";
 import type { PresetEntry } from "../../settings/preset/active-preset";
 import { subscribe as subscribeLocale } from "../i18n";
 import { createSurfaces } from "../surfaces/surfaces";
-import { backlogLines, withoutMention, youTo } from "./backlog-lines";
+import { backlogLines, shownQuote, youTo } from "./backlog-lines";
 import { createCastChips } from "./cast-chips";
 import { createCastState } from "./cast-state";
 import { createComposer } from "./composer";
@@ -235,12 +235,7 @@ export function createUnifiedView(deps: {
           );
           break;
         case "quote":
-          lanes.accept(
-            preset,
-            op.quote.mention
-              ? { ...op, quote: { ...op.quote, text: withoutMention(op.quote.text, deps.cast()) } }
-              : op,
-          );
+          lanes.accept(preset, shownQuote(op, preset, deps.cast()));
           break;
         case "begin":
         case "push":
