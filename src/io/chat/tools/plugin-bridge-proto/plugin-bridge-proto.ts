@@ -114,6 +114,15 @@ function wording(): "A" | "B" {
   }
 }
 
+/** Bad-argument answer under test: "schema" (reason and schema, default) or "bare" (the error alone). */
+function errorShape(): "schema" | "bare" {
+  try {
+    return JSON.parse(localStorage.getItem("yui.proto-bridge-error") ?? '"schema"') === "bare" ? "bare" : "schema";
+  } catch {
+    return "schema";
+  }
+}
+
 const summary = (tool: FakeTool): string => (tool.description.split("\n")[0] ?? "").slice(0, 120);
 
 /** The per-turn client-context line naming each enabled plugin tool. */
@@ -205,7 +214,10 @@ export function createPluginBridgeTools(): ClientTool[] {
         }
       }
       const bad = violation(tool.inputSchema, toolArgs, "arguments");
-      if (bad) return `error: invalid arguments (${bad})\ninput schema: ${schemaText(tool)}`;
+      if (bad)
+        return errorShape() === "bare"
+          ? "error: invalid arguments"
+          : `error: invalid arguments (${bad})\ninput schema: ${schemaText(tool)}`;
       return tool.run(toolArgs as Record<string, unknown>);
     },
   };
