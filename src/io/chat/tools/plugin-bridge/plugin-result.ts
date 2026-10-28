@@ -13,6 +13,7 @@ export function pluginToolResult(result: PluginToolResult): ClientToolResult {
     else parts.push(JSON.stringify(block));
   }
   const joined = parts.join("\n");
-  const text = result.isError ? `error: ${joined}` : joined;
+  const prefixed = joined.startsWith("error:") || joined.startsWith("unknown:");
+  const text = result.isError && !prefixed ? `error: ${joined}` : joined;
   return images.length > 0 ? { text, images } : text;
 }

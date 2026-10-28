@@ -81,6 +81,7 @@ export function createPluginBridgeTools(deps: {
     waitMs: 121_000,
     localStatus: true,
     statusId: (args) => String(args.name ?? ""),
+    failed: (result) => result.startsWith("error:") || result.startsWith("unknown:"),
   };
 
   const skill: ClientTool = {
