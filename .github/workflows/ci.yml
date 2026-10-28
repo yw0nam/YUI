@@ -199,7 +199,9 @@ jobs:
         if: github.event_name != 'pull_request' || steps.chg.outputs.rust == 'true'
         run: |
           rc=0
+          found=0
           while IFS= read -r -d '' manifest; do
+            found=$((found + 1))
             echo "::group::$(dirname "$manifest")"
             {
               cargo fmt --manifest-path "$manifest" --check &&
@@ -208,6 +210,10 @@ jobs:
             } || rc=1
             echo "::endgroup::"
           done < <(git ls-files -z -- ':(glob)plugins/*/Cargo.toml')
+          if [ "$found" -eq 0 ]; then
+            echo "::error::no tracked plugins/*/Cargo.toml"
+            exit 1
+          fi
           exit $rc
 
   # Runs unfiltered: 42 s on main (run 38855786059) and not a required check.
