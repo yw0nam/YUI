@@ -15,8 +15,9 @@ export interface PluginCatalog {
 function summaryOf(tool: PluginHostTool): string {
   const meta = tool.meta?.[SUMMARY_META];
   if (typeof meta === "string" && meta.trim() !== "") return meta.trim().slice(0, SUMMARY_MAX);
-  const firstLine = (tool.description ?? "").trim().split("\n")[0] ?? "";
-  const sentence = /^.*?[.!?](?=\s|$)/.exec(firstLine)?.[0] ?? firstLine;
+  const paragraph = (tool.description ?? "").split(/\n\s*\n/)[0] ?? "";
+  const collapsed = paragraph.replace(/\s+/g, " ").trim();
+  const sentence = /^.*?[.!?](?=\s|$)/.exec(collapsed)?.[0] ?? collapsed;
   return sentence.slice(0, SUMMARY_MAX);
 }
 
