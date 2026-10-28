@@ -33,7 +33,7 @@ Her personality is the **Card** section of the **Persona** page, sent on Chat Co
 
 ## 1. Run YUI itself
 
-A coding agent can run sections 1–2 and the wiring in 5–7 for you from [Install with a coding agent](install.md). The rest of this page is the manual path and the reference for the external services.
+A coding agent can run sections 1–2 and the wiring in 4–6 for you from [Install with a coding agent](install.md). The rest of this page is the manual path and the reference for the external services.
 
 ### Prerequisites
 
@@ -113,7 +113,7 @@ Any tool-calling OpenAI-compatible `/v1/chat/completions` endpoint drives expres
 
 `generate_express` tool-call deltas are accumulated from the `chat.completion.chunk` stream, and each call's cue plays when a chunk carries a `finish_reason` or the stream ends. A model that stops on its cue calls without speaking gets the tool results back and re-requests, so the turn still reaches speech — up to three round trips. A model that speaks alongside its cues finishes in one request. See [CC mode transport](../reference/client-context.md#cc-mode-transport-chat-completions) for the request shape and [Tool-call round trip](../reference/client-tools.md#tool-call-round-trip) for the round trip.
 
-Backend capability still varies: a plain OpenAI-compatible server (e.g. vLLM) speaks standard tool-call streaming, while the Hermes api-server's `/v1/chat/completions` never surfaces tool calls. With Hermes, use Responses mode.
+Backend capability still varies: a plain OpenAI-compatible server (e.g. vLLM) speaks standard tool-call streaming, while the Hermes api-server's `/v1/chat/completions` never surfaces tool calls. With Hermes, use push mode; Chat Completions and Responses carry no expression cues there.
 
 ### Option B — Responses mode (`"chat_api": "responses"`)
 
@@ -152,7 +152,7 @@ The reasoning-effort control is shown in Chat Completions and Responses modes on
 
 ---
 
-## 5. TTS — Voice Output (optional)
+## 4. TTS — Voice Output (optional)
 
 Without TTS, YUI displays text in the speech bubble but produces no audio. `tts_provider` names the engine at `tts_base_url`: `irodori` (the shipped default), `openai`, or `fish`. Each provider has its own endpoint shape and decides how the cue's `emotion_text` and `caption` ride in the request and where the voice list comes from. The **Provider** select in the Connection tab's TTS section sets the provider and fills in its server URL and default model.
 
@@ -196,7 +196,7 @@ YUI sends the spoken text as `text` to `POST <tts_base_url>/v1/tts` and the mode
 
 ---
 
-## 6. STT — Voice Input (optional)
+## 5. STT — Voice Input (optional)
 
 Without STT, text input still works. VAD (Silero + ONNX) runs client-side; STT sends segmented audio to a transcription server.
 
@@ -209,7 +209,7 @@ YUI sends audio to `<stt_base_url>/audio/transcriptions`. If the server requires
 
 ---
 
-## 7. Wire It All Together — `configs/endpoints.json`
+## 6. Wire It All Together — `configs/endpoints.json`
 
 YUI ships with no service addresses: every URL in the bundled `configs/endpoints.json` is unset, and an unset URL means that feature is off — STT and TTS stay quiet, and a chat turn with no `chat_base_url` answers with an inline "Backend not configured" error pointing at **Connection**.
 
@@ -237,7 +237,7 @@ All service addresses come from this file or the in-app overrides.
 
 ---
 
-## 8. Platform Notes
+## 7. Platform Notes
 
 - **Idle watching works on both.** `os_idle_ms` polling is implemented on both macOS and Windows, so idle-triggered and co-working proactive cues fire on either platform.
 - **macOS TCC grants.** The optional screenshot context feature and the `desktop-control` Mod (if used) require Screen Recording permission. App control via the `desktop-control` Mod additionally requires Automation / Apple Events permission. Grant these in System Settings → Privacy & Security.

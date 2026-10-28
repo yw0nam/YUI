@@ -107,8 +107,8 @@ Check: prints `True`, a list that holds `hermes-cli`, `delegation`, `skills` and
 python3 -c "import yaml,os;d=yaml.safe_load(open(os.path.expanduser('~/.hermes/profiles/<profile>/config.yaml')));y=[str(t) for t in d['platform_toolsets']['yui']];m={str(k) for k,v in (d.get('mcp_servers') or {}).items() if isinstance(v,dict) and str(v.get('enabled',True)).strip().lower() not in ('false','0','no','off')};print(sorted(set() if 'no_mcp' in y else (m&set(y) or m)))"
 ```
 
-Check: the printed MCP servers match the character's configured selection. MCP servers a plugin
-registers are outside this check.
+Check: prints only the MCP servers the character uses, and nothing when the list has `no_mcp`.
+MCP servers a plugin registers are outside this check.
 
 ## 4. Set the key
 

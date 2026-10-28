@@ -291,7 +291,7 @@ the Relations switch holds.
 
 Cue delivery over a request transport needs an endpoint that serves the declared tool back as a call. A plain OpenAI-compatible server (e.g. vLLM) does: on Chat Completions as `delta.tool_calls` fragments, on Responses as `function_call` output items.
 
-On Chat Completions and Responses every declared schema rides every request, and the model reads it on every turn. The Hermes api-server does not pass a request's `tools` to its model on either transport, so its backend receives `body_action` and `look` on the push transport only. Its `/v1/chat/completions` surfaces no tool calls and emits a `hermes.tool.progress` telemetry event with name and status. On Hermes, expression cues arrive on the push transport only; Chat Completions and Responses carry none, because the Hermes API server does not pass a request's tools to its model.
+On Chat Completions and Responses every declared schema rides every request, and the model reads it on every turn. The Hermes api-server does not pass a request's `tools` to its model on either transport, so its backend receives `generate_express`, `body_action` and `look` on the push transport only. Its `/v1/chat/completions` surfaces no tool calls and emits a `hermes.tool.progress` telemetry event with name and status.
 
 ## Adding a tool
 
