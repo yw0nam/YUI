@@ -390,6 +390,11 @@ globalThis.YUI_MAP =
       "label": "signal events"
     },
     {
+      "from": "tools",
+      "to": "shell",
+      "label": "plugin host calls, plugin snapshot"
+    },
+    {
       "from": "shell",
       "to": "window",
       "label": "os_event every 5 s, drop release, tray",
@@ -710,7 +715,7 @@ globalThis.YUI_MAP =
       "id": "io/chat/tools",
       "module": "tools",
       "label": "client tools",
-      "role": "The tools the client declares to the backend and runs itself: generate_express, rate_relation, address_character, body_action, look, browser.",
+      "role": "The tools the client declares to the backend and runs itself: generate_express, rate_relation, address_character, body_action, look, browser, plugin_describe, plugin_call, plugin_skill.",
       "paths": [
         "src/io/chat/tools"
       ]
@@ -2098,6 +2103,40 @@ globalThis.YUI_MAP =
       "carries": "browser_run {space, code}, browser_guide",
       "kind": "tauri-command",
       "transport": "shared"
+    },
+    {
+      "id": "tools-mcp-host",
+      "from": "io/chat/tools",
+      "to": "io/mcp-host",
+      "carries": "snapshot() for a name lookup, plugin_host_call {callId, name, arguments, presetId}, plugin_host_cancel {callId}, plugin_host_skill {name}",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/io/chat/tools/pet-window-tools.ts"
+    },
+    {
+      "id": "mcp-host-shell",
+      "from": "io/mcp-host",
+      "to": "shell/mcp-host",
+      "carries": "plugin_host_call, plugin_host_cancel, plugin_host_skill, plugin_host_snapshot",
+      "kind": "tauri-command",
+      "transport": "shared"
+    },
+    {
+      "id": "shell-mcp-host",
+      "from": "shell/mcp-host",
+      "to": "io/mcp-host",
+      "carries": "plugin-host-snapshot: the revisioned snapshot on every change",
+      "kind": "tauri-event",
+      "transport": "shared"
+    },
+    {
+      "id": "mcp-host-backend",
+      "from": "io/mcp-host",
+      "to": "dispatcher/backend",
+      "carries": "the plugin catalog per turn: each enabled plugin's tools with their summaries, and its skills with their descriptions",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/bootstrap-configured.ts"
     },
     {
       "id": "push-image",
