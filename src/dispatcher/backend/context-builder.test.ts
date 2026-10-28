@@ -174,6 +174,15 @@ describe("context builder — open characters", () => {
   });
 });
 
+describe("context builder — plugin catalog", () => {
+  it("sets neither field when the provider returns empty lists", async () => {
+    const built = await buildContext(ENV, { getPluginCatalog: () => ({ tools: [], skills: [] }) });
+
+    expect("plugin_tools" in built.clientContext).toBe(false);
+    expect("plugin_skills" in built.clientContext).toBe(false);
+  });
+});
+
 describe("buildClientContext — addressed forwarding", () => {
   const CTX: InputContext = { env: { timestamp: "2026-07-31T14:22:33+09:00", timezone: "UTC" } };
 
