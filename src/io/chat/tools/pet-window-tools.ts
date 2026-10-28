@@ -9,6 +9,7 @@ import { createAddressCharacterTool } from "./address-character";
 import { createAvatarTools } from "./avatar";
 import { createBrowserTool } from "./browser/browser-tool";
 import type { ClientTool } from "./client-tools";
+import { createPluginBridgeTools } from "./plugin-bridge-proto/plugin-bridge-proto";
 import { createRateRelationTool } from "./relation";
 import type { ScreenQueryPorts } from "./screen/screen-query";
 
@@ -35,10 +36,13 @@ export function createPetWindowTools(deps: {
     targets: deps.targets,
     record: deps.recordAddressed,
   });
-  if (!isTauri()) return [rate, address];
+  // PROTOTYPE #1661: the plugin bridge tools in every window.
+  const bridge = createPluginBridgeTools();
+  if (!isTauri()) return [rate, address, ...bridge];
   return [
     rate,
     address,
+    ...bridge,
     ...(deps.bound ? [] : createAvatarTools(deps.getExecutor, deps.screen)),
     createBrowserTool({
       relay: createBrowserRelay(),

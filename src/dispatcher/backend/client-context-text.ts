@@ -6,6 +6,7 @@
  */
 
 import type { ClientContext, TriggerMeta, TurnEnded, WakeCause } from "../../contract";
+import { pluginToolsLine } from "../../io/chat/tools/plugin-bridge-proto/plugin-bridge-proto";
 import { renderGuideBlock } from "../../io/guide/guide-docs";
 
 /** Collapses embedded newlines/whitespace runs to a single space and strips any
@@ -232,6 +233,8 @@ export function renderClientContext(clientContext: ClientContext, nowMs: number)
 
   const tools = renderToolSwitches(clientContext.tool_switches);
   if (tools) lines.push(tools);
+  // PROTOTYPE #1661: the enabled plugin tools, one line per turn.
+  lines.push(pluginToolsLine());
 
   const previous = renderPrevious(clientContext.previous, nowMs);
   if (previous) lines.push(previous);
