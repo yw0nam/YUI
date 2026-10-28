@@ -2,6 +2,7 @@
 
 use super::catalog::{self, CatalogEntry, Release};
 use super::host::{listed, unknown, writable, Host, Live};
+use super::launch;
 use super::manifest;
 use super::store::{Source, StoredPlugin};
 use sha2::{Digest, Sha256};
@@ -55,7 +56,7 @@ impl Host {
                     approved_path: None,
                     enabled_seq: None,
                 };
-                let live = Live::read(&plugin, &self.log_dir, self.offset);
+                let live = Live::read(&plugin, &self.dir, &self.log_dir, self.offset);
                 state.plugins.push(plugin);
                 self.save(&mut inner, state)?;
                 inner.live.insert(plugin_id.to_string(), live);
@@ -72,7 +73,7 @@ impl Host {
             plugin.source = release.source;
             let old = std::mem::replace(&mut plugin.path, path.clone());
             let run = plugin.enabled && plugin.consented();
-            let live = Live::read(plugin, &self.log_dir, self.offset);
+            let live = Live::read(plugin, &self.dir, &self.log_dir, self.offset);
             self.save(&mut inner, state)?;
             let stopping = inner.stop_servers(|id, _| id == plugin_id);
             inner.live.insert(plugin_id.to_string(), live);
@@ -118,7 +119,7 @@ impl Host {
             (stopping, removed.source)
         };
         self.stop(stopping).await;
-        let mut folders = vec![self.dir.join("data").join(plugin_id)];
+        let mut folders = vec![launch::data_dir(&self.dir, plugin_id)];
         if source != Source::Local {
             folders.push(self.dir.join("installed").join(plugin_id));
         }

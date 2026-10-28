@@ -2,20 +2,20 @@
 
 use super::manifest::ServerSpec;
 use process_wrap::tokio::CommandWrap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 
 /// Expands `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PLUGIN_DATA}` only, and creates the data folder.
 pub fn command(spec: &ServerSpec, root: &Path, data: &Path) -> std::io::Result<CommandWrap> {
     std::fs::create_dir_all(data)?;
     let (root_text, data_text) = (root.to_string_lossy(), data.to_string_lossy());
-    let expand = |s: &str| {
-        s.replace("${CLAUDE_PLUGIN_ROOT}", &root_text)
-            .replace("${CLAUDE_PLUGIN_DATA}", &data_text)
-    };
-    let mut command = CommandWrap::with_new(expand(&spec.command), |c| {
-        c.args(spec.args.iter().map(|a| expand(a)))
-            .envs(spec.env.iter().map(|(k, v)| (k, expand(v))))
+    let mut command = CommandWrap::with_new(expand(&spec.command, &root_text, &data_text), |c| {
+        c.args(spec.args.iter().map(|a| expand(a, &root_text, &data_text)))
+            .envs(
+                spec.env
+                    .iter()
+                    .map(|(k, v)| (k, expand(v, &root_text, &data_text))),
+            )
             .current_dir(root)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -31,4 +31,23 @@ pub fn command(spec: &ServerSpec, root: &Path, data: &Path) -> std::io::Result<C
             windows_process::Win32::System::Threading::CREATE_NO_WINDOW,
         ));
     Ok(command)
+}
+
+/// The launch command and its arguments after placeholder expansion, joined by spaces.
+pub fn display(spec: &ServerSpec, root: &Path, data: &Path) -> String {
+    let (root_text, data_text) = (root.to_string_lossy(), data.to_string_lossy());
+    let mut parts = vec![expand(&spec.command, &root_text, &data_text)];
+    parts.extend(spec.args.iter().map(|a| expand(a, &root_text, &data_text)));
+    parts.join(" ")
+}
+
+/// The folder a plugin's data lives in: `<plugins dir>/data/<plugin id>`.
+pub fn data_dir(plugins_dir: &Path, plugin_id: &str) -> PathBuf {
+    plugins_dir.join("data").join(plugin_id)
+}
+
+/// Replaces the plugin root and data placeholders in `s`.
+fn expand(s: &str, root: &str, data: &str) -> String {
+    s.replace("${CLAUDE_PLUGIN_ROOT}", root)
+        .replace("${CLAUDE_PLUGIN_DATA}", data)
 }

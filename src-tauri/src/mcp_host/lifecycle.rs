@@ -1,10 +1,11 @@
 //! Server starts and stops: tickets tagged with an epoch, start results, exits, and stops.
 
 use super::host::{Host, Inner};
+use super::launch;
 use super::manifest::ServerSpec;
 use super::server::{self, PluginLog, Server, Stopper};
 use super::snapshot::{ServerEntry, Status};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -22,12 +23,13 @@ pub struct LiveServer {
 }
 
 impl LiveServer {
-    pub fn new(plugin_id: &str, spec: &ServerSpec) -> Self {
+    pub fn new(plugin_id: &str, spec: &ServerSpec, root: &Path, data: &Path) -> Self {
         Self {
             spec: spec.clone(),
             entry: ServerEntry {
                 id: format!("{plugin_id}/{}", spec.name),
                 name: spec.name.clone(),
+                command: launch::display(spec, root, data),
                 status: Status::Stopped,
                 phase: None,
                 reason: None,
@@ -171,7 +173,7 @@ impl Host {
             ticket.server_id.clone(),
             ticket.epoch,
         );
-        let data = self.dir.join("data").join(&ticket.plugin_id);
+        let data = launch::data_dir(&self.dir, &ticket.plugin_id);
         let started = match server::spawn(&ticket.spec, &ticket.root, &data, ticket.log) {
             Ok(spawned) => {
                 match self

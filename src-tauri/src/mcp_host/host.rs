@@ -3,6 +3,7 @@
 
 use super::calls::Calls;
 use super::catalog;
+use super::launch;
 use super::lifecycle::LiveServer;
 use super::manifest::{self, Manifest};
 use super::server::PluginLog;
@@ -67,7 +68,7 @@ impl Host {
         let live = state
             .iter()
             .flat_map(|s| &s.plugins)
-            .map(|p| (p.id.clone(), Live::read(p, &log_dir, offset)))
+            .map(|p| (p.id.clone(), Live::read(p, &dir, &log_dir, offset)))
             .collect();
         let mut inner = Inner {
             state,
@@ -123,7 +124,7 @@ impl Host {
             approved_path: None,
             enabled_seq: None,
         };
-        let live = Live::new(&plugin, Ok(manifest), &self.log_dir, self.offset);
+        let live = Live::new(&plugin, Ok(manifest), &self.dir, &self.log_dir, self.offset);
         state.plugins.push(plugin);
         self.save(&mut inner, state)?;
         inner.live.insert(id.clone(), live);
@@ -147,7 +148,7 @@ impl Host {
             plugin.enabled = true;
             plugin.approved_path = Some(plugin.path.clone());
             plugin.enabled_seq = Some(next_seq);
-            let live = Live::read(plugin, &self.log_dir, self.offset);
+            let live = Live::read(plugin, &self.dir, &self.log_dir, self.offset);
             state.next_seq += 1;
             self.save(&mut inner, state)?;
             inner.live.insert(plugin_id.to_string(), live);
@@ -353,20 +354,27 @@ impl Inner {
 }
 
 impl Live {
-    pub(super) fn read(plugin: &StoredPlugin, log_dir: &Path, offset: UtcOffset) -> Self {
-        Self::new(plugin, manifest::read(&plugin.path), log_dir, offset)
+    pub(super) fn read(
+        plugin: &StoredPlugin,
+        dir: &Path,
+        log_dir: &Path,
+        offset: UtcOffset,
+    ) -> Self {
+        Self::new(plugin, manifest::read(&plugin.path), dir, log_dir, offset)
     }
 
     fn new(
         plugin: &StoredPlugin,
         manifest: Result<Manifest, String>,
+        dir: &Path,
         log_dir: &Path,
         offset: UtcOffset,
     ) -> Self {
+        let data = launch::data_dir(dir, &plugin.id);
         let servers = manifest
             .iter()
             .flat_map(|m| &m.servers)
-            .map(|spec| LiveServer::new(&plugin.id, spec))
+            .map(|spec| LiveServer::new(&plugin.id, spec, &plugin.path, &data))
             .collect();
         Self {
             manifest,
