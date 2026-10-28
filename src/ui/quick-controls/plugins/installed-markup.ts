@@ -137,7 +137,7 @@ function stepOneHtml(p: PluginHostPlugin): string {
     : "";
   const question =
     p.enabled && !p.consented ? t("plugins.consent_q_reapprove") : t("plugins.consent_q", { id });
-  return `<div class="yui-plg-consent" data-k="${id}:c1" role="group" aria-label="${esc(t("plugins.consent_aria", { id: p.id }))}">
+  return `<div class="yui-plg-consent" data-k="${id}:consent" role="group" aria-label="${esc(t("plugins.consent_aria", { id: p.id }))}">
       ${stepHtml(1)}
       <p class="yui-plg-consent__q">${question}</p>
       <dl class="yui-plg-facts">
@@ -169,7 +169,7 @@ function consentHtml(p: PluginHostPlugin, flow: PluginUi["flow"]): string {
         <button class="yui-pill" type="button" data-act="off" data-id="${id}" data-fk="off:${id}">${t("plugins.turn_off")}</button>
         <button class="yui-pill yui-pill--ok" type="button" data-act="done" data-id="${id}" data-fk="done:${id}">${t(okKey)}</button></div>`;
   if (panel === "starting")
-    return `<div class="yui-plg-consent" data-k="${id}:c2s">${stepHtml(2)}<div class="yui-plg-wait" role="status">${SPIN}${t("plugins.starting")}</div></div>`;
+    return `<div class="yui-plg-consent" data-k="${id}:starting">${stepHtml(2)}<div class="yui-plg-wait" role="status">${SPIN}${t("plugins.starting")}</div></div>`;
   if (panel === "started") {
     const any = p.tools.length || p.skills.length;
     const question = !any
@@ -177,10 +177,10 @@ function consentHtml(p: PluginHostPlugin, flow: PluginUi["flow"]): string {
       : p.skills.length
         ? t("plugins.started_both", { n: p.tools.length, m: p.skills.length })
         : t("plugins.started_tools", { n: p.tools.length });
-    return `<div class="yui-plg-consent" data-k="${id}:c2" role="group" aria-label="${esc(t("plugins.step2_aria", { id: p.id }))}">
+    return `<div class="yui-plg-consent" data-k="${id}:started" role="group" aria-label="${esc(t("plugins.step2_aria", { id: p.id }))}">
       ${stepHtml(2)}<p class="yui-plg-consent__q">${question}</p>${any ? itemsHtml(p) : ""}${hiddenHtml(p)}${btns("plugins.backend_decides", "plugins.ok")}</div>`;
   }
-  return `<div class="yui-plg-consent" data-k="${id}:c2f" role="group" aria-label="${esc(t("plugins.failed_aria", { id: p.id }))}">
+  return `<div class="yui-plg-consent" data-k="${id}:failed" role="group" aria-label="${esc(t("plugins.failed_aria", { id: p.id }))}">
       ${stepHtml(2)}<p class="yui-plg-consent__q">${t("plugins.failed_q")}</p><div class="yui-group">${p.servers.map((sv) => serverHtml(p, sv, false)).join("")}</div>${btns("plugins.keep_on_note", "plugins.keep_on")}</div>`;
 }
 
@@ -201,9 +201,9 @@ function logHtml(p: PluginHostPlugin, ui: PluginUi): string {
 function pluginHtml(p: PluginHostPlugin, v: InstalledView): string {
   const ui = v.ui(p.id);
   const id = esc(p.id);
-  const reap = p.enabled && !p.consented;
+  const awaitsReapproval = p.enabled && !p.consented;
   const busy = !!ui.updating;
-  const off = busy ? " disabled" : "";
+  const disabledWhileUpdating = busy ? " disabled" : "";
   const checked = ui.flow === "step1" ? "mixed" : String(p.enabled && p.consented);
   let html = `<div class="yui-group" data-k="${id}:g" data-pid="${id}">
     <div class="yui-row">
@@ -215,13 +215,13 @@ function pluginHtml(p: PluginHostPlugin, v: InstalledView): string {
     </div>`;
   if (p.error) html += `<div>${errLineHtml(t("plugins.manifest_error"), p.error)}</div>`;
   else {
-    if (reap && !ui.flow) {
-      html += `<div class="yui-plg-reap" data-k="${id}:reap"><p>${t("plugins.reapprove_note")}</p><button class="yui-pill yui-pill--ok" type="button" data-act="reapprove" data-id="${id}" data-fk="reapprove:${id}"${off}>${t("plugins.reapprove")}</button></div>`;
+    if (awaitsReapproval && !ui.flow) {
+      html += `<div class="yui-plg-reap" data-k="${id}:reapproval"><p>${t("plugins.reapprove_note")}</p><button class="yui-pill yui-pill--ok" type="button" data-act="reapprove" data-id="${id}" data-fk="reapprove:${id}"${disabledWhileUpdating}>${t("plugins.reapprove")}</button></div>`;
     }
     html += consentHtml(p, ui.flow);
     if (!ui.flow) {
       // Without consent nothing runs; the notice row says so.
-      if (!reap) html += p.servers.map((sv) => serverHtml(p, sv, busy)).join("");
+      if (!awaitsReapproval) html += p.servers.map((sv) => serverHtml(p, sv, busy)).join("");
       html += hiddenHtml(p);
       if (p.tools.length || p.skills.length) {
         html += `<button class="yui-plg-disc" type="button" aria-expanded="${!!ui.toolsOpen}" data-act="tools" data-id="${id}" data-fk="tools:${id}">${ICON_CHEV}${countLabel(p)}</button>`;
@@ -237,15 +237,16 @@ function pluginHtml(p: PluginHostPlugin, v: InstalledView): string {
       <button class="yui-pill yui-pill--go" type="button" data-act="rm-go" data-id="${id}" data-fk="rm-go:${id}">${t(source.confirmGo)}</button></div></div>`;
   }
   const to = v.updateTo(p);
-  let mid = "";
-  if (busy) mid = `<span class="yui-plg-busy" role="status">${SPIN}${t("plugins.updating")}</span>`;
+  let updateOrPath = "";
+  if (busy)
+    updateOrPath = `<span class="yui-plg-busy" role="status">${SPIN}${t("plugins.updating")}</span>`;
   else if (to)
-    mid = `<button class="yui-link-btn yui-help-btn" type="button" data-act="update" data-id="${id}" data-fk="update:${id}">${t("plugins.update_to", { v: esc(to) })}</button>`;
+    updateOrPath = `<button class="yui-link-btn yui-help-btn" type="button" data-act="update" data-id="${id}" data-fk="update:${id}">${t("plugins.update_to", { v: esc(to) })}</button>`;
   else if (!SOURCES[p.source].fromCatalog)
-    mid = `<span class="yui-plg-path" title="${esc(p.path)}">${esc(p.path)}</span>`;
+    updateOrPath = `<span class="yui-plg-path" title="${esc(p.path)}">${esc(p.path)}</span>`;
   html += `<div class="yui-row yui-row--action"><div class="yui-plg-acts">
-      <button class="yui-link-btn" type="button" aria-expanded="${!!ui.logOpen}" data-act="log" data-id="${id}" data-fk="log:${id}">${ICON_CHEV}${t("plugins.log")}</button>${mid}
-      <button class="yui-link-btn yui-plg-acts__end" type="button" data-act="remove" data-id="${id}" data-fk="remove:${id}"${off}>${t(SOURCES[p.source].removeLabel)}</button></div></div>`;
+      <button class="yui-link-btn" type="button" aria-expanded="${!!ui.logOpen}" data-act="log" data-id="${id}" data-fk="log:${id}">${ICON_CHEV}${t("plugins.log")}</button>${updateOrPath}
+      <button class="yui-link-btn yui-plg-acts__end" type="button" data-act="remove" data-id="${id}" data-fk="remove:${id}"${disabledWhileUpdating}>${t(SOURCES[p.source].removeLabel)}</button></div></div>`;
   if (ui.error) {
     const retry = ui.error.retry
       ? `<button class="yui-link-btn" type="button" data-act="${ui.error.retry}" data-id="${id}" data-fk="again:${id}">${t("plugins.retry")}</button>`
