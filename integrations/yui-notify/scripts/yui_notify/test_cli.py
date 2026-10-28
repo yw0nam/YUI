@@ -113,6 +113,14 @@ def test_drop_posts_nothing(tmp_path, server):
     assert received == []
 
 
+@pytest.mark.parametrize("fixture", ["claude-stop.json", "claude-permission.json"])
+def test_host_app_in_front_posts_nothing(tmp_path, server, monkeypatch, fixture):
+    endpoint, received = server
+    monkeypatch.setattr("yui_notify.hook.host_app_in_front", lambda env: True)
+    run_hook(tmp_path, endpoint, fixture)
+    assert received == []
+
+
 def test_unreachable_endpoint_exits_zero_and_records_error(tmp_path):
     assert run_hook(tmp_path, "http://127.0.0.1:1", "claude-stop.json") == 0
     err = json.loads((tmp_path / "state" / "yui-notify" / "last-error.json").read_text())

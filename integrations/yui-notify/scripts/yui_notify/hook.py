@@ -9,6 +9,7 @@ from yui_notify import config
 from yui_notify.adapters import parse_event
 from yui_notify.envelope import build_signal
 from yui_notify.excerpt import excerpt
+from yui_notify.focus import host_app_in_front
 from yui_notify.label import context
 from yui_notify.post import post
 
@@ -19,7 +20,7 @@ def run_hook(env: Mapping[str, str], stdin: TextIO) -> None:
     except ValueError:
         return
     cfg = config.load(env)
-    if event is None or cfg["events"][event.phase] == "drop":
+    if event is None or cfg["events"][event.phase] == "drop" or host_app_in_front(env):
         return
     summary = excerpt(event.text) if event.phase == "done" else ""
     body = build_signal(
