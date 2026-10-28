@@ -57,6 +57,15 @@ impl PluginLog {
         tail.push_back(line);
     }
 
+    /// The stop line in the plugin log and the app log.
+    fn stopped(&self, server: &str) {
+        self.line(server, "stopped");
+        log::info!(
+            "mcp_server_stopped plugin={} server={server}",
+            self.plugin_id
+        );
+    }
+
     pub fn tail(&self) -> Vec<String> {
         let guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         guard.1.iter().cloned().collect()
@@ -126,12 +135,7 @@ impl Server {
         if !exited {
             kill_group(self.pgid);
         }
-        self.log.line(&self.name, "stopped");
-        log::info!(
-            "mcp_server_stopped plugin={} server={}",
-            self.log.plugin_id,
-            self.name
-        );
+        self.log.stopped(&self.name);
     }
 }
 
@@ -142,15 +146,33 @@ pub struct Spawned {
     pgid: Option<u32>,
     name: String,
     log: Arc<PluginLog>,
+    stopped: Arc<AtomicBool>,
 }
 
 impl Spawned {
-    pub fn leader(&self) -> Option<u32> {
-        self.pgid
+    pub fn stopper(&self) -> Stopper {
+        Stopper {
+            pgid: self.pgid,
+            stopped: self.stopped.clone(),
+        }
     }
 
-    pub fn kill(self) {
+    pub fn stop(self) {
         kill_tree(self.pgid, self.child);
+        self.log.stopped(&self.name);
+    }
+}
+
+/// Stops a server that is still starting, so its start ends as a stop and not a failure.
+pub struct Stopper {
+    pgid: Option<u32>,
+    stopped: Arc<AtomicBool>,
+}
+
+impl Stopper {
+    pub fn stop(&self) {
+        self.stopped.store(true, Ordering::SeqCst);
+        kill_group(self.pgid);
     }
 }
 
@@ -172,6 +194,7 @@ pub fn spawn(
         child,
         name: spec.name.clone(),
         log,
+        stopped: Arc::default(),
     })
 }
 
@@ -187,7 +210,16 @@ pub async fn connect(
         pgid,
         name,
         log,
+        stopped,
     } = spawned;
+    let end = |phase: Phase, reason: String| {
+        if stopped.load(Ordering::SeqCst) {
+            log.stopped(&name);
+            Failure { phase, reason }
+        } else {
+            failed(&log, &name, phase, reason)
+        }
+    };
     let until = tokio::time::Instant::now() + deadline;
     let stdout = child.stdout().take().expect("launch pipes stdout");
     let stdin = child.stdin().take().expect("launch pipes stdin");
@@ -196,7 +228,7 @@ pub async fn connect(
         Ok(client) => client,
         Err(reason) => {
             kill_tree(pgid, child);
-            return Err(failed(&log, &name, Phase::Initialize, reason));
+            return Err(end(Phase::Initialize, reason));
         }
     };
     let listing = tokio::time::timeout_at(until, client.peer().list_all_tools()).await;
@@ -205,7 +237,7 @@ pub async fn connect(
         Err(reason) => {
             let _ = client.close().await;
             kill_tree(pgid, child);
-            return Err(failed(&log, &name, Phase::List, reason));
+            return Err(end(Phase::List, reason));
         }
     };
     log.line(&name, "started");
@@ -310,7 +342,7 @@ fn kill_tree(pgid: Option<u32>, child: Box<dyn ChildWrapper>) {
 
 /// SIGKILL to the group; on Windows the job object ends the tree when the child drops.
 #[cfg(unix)]
-pub fn kill_group(pgid: Option<u32>) {
+fn kill_group(pgid: Option<u32>) {
     use nix::sys::signal::{killpg, Signal};
     let Some(pgid) = pgid else {
         return;
@@ -322,7 +354,7 @@ pub fn kill_group(pgid: Option<u32>) {
 }
 
 #[cfg(not(unix))]
-pub fn kill_group(_pgid: Option<u32>) {}
+fn kill_group(_pgid: Option<u32>) {}
 
 #[cfg(all(test, unix))]
 mod tests {

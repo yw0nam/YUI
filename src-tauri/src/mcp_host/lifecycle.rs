@@ -2,7 +2,7 @@
 
 use super::host::{Host, Inner};
 use super::manifest::ServerSpec;
-use super::server::{self, PluginLog, Server};
+use super::server::{self, PluginLog, Server, Stopper};
 use super::snapshot::{ServerEntry, Status};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -17,8 +17,8 @@ pub struct LiveServer {
     /// Tags the latest start or stop; a start or exit with another tag is dropped.
     epoch: u64,
     pub running: Option<Server>,
-    /// The leader pid of a server that is spawned but not running yet.
-    starting: Option<u32>,
+    /// Stops a server that is spawned but not running yet.
+    starting: Option<Stopper>,
 }
 
 impl LiveServer {
@@ -44,7 +44,7 @@ impl LiveServer {
 #[derive(Default)]
 pub struct Stopping {
     running: Vec<(String, Server)>,
-    starting: Vec<u32>,
+    starting: Vec<Stopper>,
 }
 
 /// One server start, prepared under the lock and run outside it.
@@ -150,8 +150,8 @@ impl Host {
     /// Kills the trees of servers still starting, cancels the running servers' calls, then
     /// stops those servers together.
     pub(super) async fn stop(&self, stopping: Stopping) {
-        for leader in stopping.starting {
-            server::kill_group(Some(leader));
+        for starting in stopping.starting {
+            starting.stop();
         }
         for (server_id, _) in &stopping.running {
             self.calls.cancel_server(server_id).await;
@@ -180,9 +180,9 @@ impl Host {
                     .lock()
                     .server_mut(&ticket.plugin_id, &ticket.server_id, epoch)
                 {
-                    Some(ls) => ls.starting = spawned.leader(),
+                    Some(ls) => ls.starting = Some(spawned.stopper()),
                     // Stopped while spawning.
-                    None => return spawned.kill(),
+                    None => return spawned.stop(),
                 }
                 server::connect(spawned, STARTUP_DEADLINE, move |reason| {
                     if let Some(host) = host.upgrade() {
