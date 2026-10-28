@@ -71,6 +71,19 @@ describe("plugin_call", () => {
     expect(host.call).not.toHaveBeenCalled();
   });
 
+  it("rejects arguments that arrived as a string", async () => {
+    const host = fakeHost();
+    const [, call] = createPluginBridgeTools({ host, presetId: () => "p1" });
+
+    const result = await call.execute({ name: "echo_args", arguments: '{"n":1}' });
+
+    expect(result).toBe(
+      'error: invalid arguments (#: Instance type "string" is invalid. Expected "object".)\n' +
+        'input schema: {"type":"object","properties":{"n":{"type":"integer"}},"required":["n"]}',
+    );
+    expect(host.call).not.toHaveBeenCalled();
+  });
+
   it("calls the host with the tool's name, arguments and the window's preset", async () => {
     const host = fakeHost();
     const [, call] = createPluginBridgeTools({ host, presetId: () => "p1" });
