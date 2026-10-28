@@ -238,6 +238,27 @@ describe("createQuickControls — tab rail", () => {
     qc.dispose();
   });
 
+  it("entering the Plugins page shows its sections and loads the plugin catalog", () => {
+    const { host, manage } = fakePlugins();
+    const qc = buildQc({ plugins: { host, manage } });
+    qc.open();
+    expect(manage.catalog).not.toHaveBeenCalled();
+
+    tabs(qc)
+      .find((tab) => tab.id === "yui-tab-plugins")!
+      .click();
+
+    expect(manage.catalog).toHaveBeenCalledTimes(1);
+    expect(
+      Array.from(
+        qc.el.querySelectorAll("#yui-panel-plugins .yui-sec__title"),
+        (h) => h.textContent,
+      ),
+    ).toEqual(["설치된 플러그인", "설치할 수 있는 플러그인"]);
+
+    qc.dispose();
+  });
+
   it("ArrowRight / ArrowLeft move the active tab (roving tabindex)", () => {
     const qc = buildQc();
     qc.open();
