@@ -449,6 +449,22 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_server_entry_names_its_expanded_launch_command() {
+        let app_data = temp_dir();
+        let (host, _) = host_at(&app_data);
+        let root = fixture_copy("yui-test");
+        let expected = format!("python3 {}/server.py literal;$(not-run)", root.display());
+        host.add(root).unwrap();
+        let snapshot = host.snapshot();
+        let entry = plugin(&snapshot, "yui-test");
+        let main = entry.servers.iter().find(|s| s.name == "main").unwrap();
+        assert_eq!(
+            serde_json::to_value(main).unwrap()["command"],
+            json!(expected)
+        );
+    }
+
+    #[tokio::test]
     async fn a_later_plugin_runs_but_its_colliding_names_stay_hidden_until_the_holder_turns_off() {
         require_python();
         let app_data = temp_dir();
