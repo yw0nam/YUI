@@ -1,6 +1,6 @@
 import type { PresetEntry } from "../preset/active-preset";
 
-/** The name the open characters line and the tools show for a preset: a preset named `user` is disambiguated. */
+/** The name the client-context lines and the tools show for a preset: a preset named `user` is disambiguated. */
 export function targetLabel(name: string): string {
   return name.toLowerCase() === "user" ? `${name} (character)` : name;
 }
