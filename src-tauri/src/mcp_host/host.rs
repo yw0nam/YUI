@@ -41,12 +41,12 @@ pub(super) struct Live {
 
 impl Host {
     pub fn new(
-        app_data: &Path,
+        app_data: Result<PathBuf, String>,
         log_dir: &Path,
         offset: UtcOffset,
         emit: impl Fn(&Snapshot) + Send + Sync + 'static,
     ) -> Arc<Self> {
-        let dir = app_data.join("plugins");
+        let dir = app_data.unwrap_or_default().join("plugins");
         let log_dir = log_dir.join("plugins");
         let state = store::load(&dir.join("state.json"));
         if let Err(e) = &state {
@@ -545,5 +545,19 @@ mod tests {
             Err("unknown plugin tool: look".to_string())
         );
         host.shutdown().await;
+    }
+
+    #[tokio::test]
+    async fn without_an_app_data_dir_the_host_lists_nothing_and_refuses_every_write() {
+        let host = Host::new(
+            Err("no home folder".into()),
+            &temp_dir(),
+            UtcOffset::UTC,
+            |_| {},
+        );
+        assert!(host.snapshot().plugins.is_empty());
+        let refused = Err("plugin state unreadable: no home folder".to_string());
+        assert_eq!(host.enable("yui-test").await, refused);
+        assert_eq!(host.add(fixture_copy("yui-test")).map(|_| ()), refused);
     }
 }

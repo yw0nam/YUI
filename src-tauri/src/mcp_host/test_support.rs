@@ -82,9 +82,12 @@ pub type Emitted = Arc<Mutex<Vec<Snapshot>>>;
 pub fn host_at(app_data: &Path) -> (Arc<Host>, Emitted) {
     let emitted = Emitted::default();
     let sink = emitted.clone();
-    let host = Host::new(app_data, &app_data.join("logs"), UtcOffset::UTC, move |s| {
-        sink.lock().unwrap().push(s.clone())
-    });
+    let host = Host::new(
+        Ok(app_data.to_path_buf()),
+        &app_data.join("logs"),
+        UtcOffset::UTC,
+        move |s| sink.lock().unwrap().push(s.clone()),
+    );
     (host, emitted)
 }
 
