@@ -12,10 +12,7 @@ export function pluginToolResult(result: PluginToolResult): ClientToolResult {
       images.push(`data:${String(block.mimeType ?? "")};base64,${String(block.data ?? "")}`);
     else parts.push(JSON.stringify(block));
   }
-  const text = parts.join("\n");
-  return images.length > 0
-    ? { text: result.isError ? `error: ${text}` : text, images }
-    : result.isError
-      ? `error: ${text}`
-      : text;
+  const joined = parts.join("\n");
+  const text = result.isError ? `error: ${joined}` : joined;
+  return images.length > 0 ? { text, images } : text;
 }
