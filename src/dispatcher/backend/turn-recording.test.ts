@@ -56,7 +56,7 @@ function signalsTurn(over: Partial<SentTurn> = {}): SentTurn {
         kind: "signals",
         signals: [
           groupOf({ source: "a", delivery: "urgent", event_id: "ea" }),
-          groupOf({ source: "b", label: "CI failed", delivery: "immediate", event_id: "eb" }),
+          groupOf({ source: "b", label: "CI failed", delivery: "batched", event_id: "eb" }),
         ],
       },
     } as SentTurn["clientContext"],
@@ -166,7 +166,7 @@ describe("recordSentTurn", () => {
     });
   });
 
-  it("appends one record per signal group, delivery kept or folded to batched, said = what was spoken", () => {
+  it("appends one record per signal group, delivery kept, said = what was spoken", () => {
     const a = setup();
     recordSentTurn(a.deps, a.log, signalsTurn({ assistantText: "Two came.", spokeText: true }));
 

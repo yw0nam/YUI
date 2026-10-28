@@ -247,7 +247,7 @@ mod tests {
     // ── parse_signals_request ─────────────────────────────────────────────────
 
     fn valid_signals_body() -> &'static str {
-        r#"{"signals":[{"kind":"reminder","payload":{"foo":"bar"}},{"kind":"alert"}],"envelope":{"source":"n8n","event_type":"workflow_done","delivery":"immediate","event_id":"run-1","occurred_at":1787449000000}}"#
+        r#"{"signals":[{"kind":"reminder","payload":{"foo":"bar"}},{"kind":"alert"}],"envelope":{"source":"n8n","event_type":"workflow_done","delivery":"batched","event_id":"run-1","occurred_at":1787449000000}}"#
     }
 
     #[test]
@@ -303,7 +303,7 @@ mod tests {
         let request = parse_signals_request(
             "POST",
             "/signals",
-            r#"{"signals":[],"envelope":{"source":"n8n","event_type":"workflow_done","delivery":"immediate","event_id":"run-1","occurred_at":1787449000000}}"#,
+            r#"{"signals":[],"envelope":{"source":"n8n","event_type":"workflow_done","delivery":"batched","event_id":"run-1","occurred_at":1787449000000}}"#,
         )
         .unwrap();
         assert!(request.signals.is_empty());
@@ -342,15 +342,24 @@ mod tests {
     }
 
     #[test]
-    fn parse_signals_request_accepts_an_absent_or_null_envelope() {
-        for body in [
-            r#"{"signals":[{"id":1}]}"#,
-            r#"{"signals":[{"id":1}],"envelope":null}"#,
-        ] {
-            let request = parse_signals_request("POST", "/signals", body).unwrap();
-            assert_eq!(request.signals.len(), 1);
-            assert!(request.envelope.is_none());
-        }
+    fn parse_signals_request_absent_envelope_returns_400() {
+        assert_eq!(
+            parse_signals_request("POST", "/signals", r#"{"signals":[{"id":1}]}"#).unwrap_err(),
+            400u16
+        );
+    }
+
+    #[test]
+    fn parse_signals_request_null_envelope_returns_400() {
+        assert_eq!(
+            parse_signals_request(
+                "POST",
+                "/signals",
+                r#"{"signals":[{"id":1}],"envelope":null}"#
+            )
+            .unwrap_err(),
+            400u16
+        );
     }
 
     // ── handle_request routing (/signals emits signals-inbox) ────────────────

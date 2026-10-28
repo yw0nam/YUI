@@ -224,13 +224,13 @@ it("restores groups ahead of existing groups by delivery and keeps newer duplica
   const s = setupRestore();
   await s.src.start();
   s.emitIdle(20_000);
-  const away = { envelope: envelopeOf(1), items: [{ id: 1 }] };
-  const batched = {
+  const firstBatched = { envelope: envelopeOf(1), items: [{ id: 1 }] };
+  const secondBatched = {
     envelope: { ...envelopeOf(2), delivery: "batched" as const },
     items: [{ id: 2 }],
   };
-  s.emitInbox(away);
-  s.emitInbox(batched);
+  s.emitInbox(firstBatched);
+  s.emitInbox(secondBatched);
   const bufferedUrgent = {
     envelope: { ...envelopeOf(6), delivery: "urgent" as const },
     items: [{ id: 6 }],
@@ -244,16 +244,18 @@ it("restores groups ahead of existing groups by delivery and keeps newer duplica
     envelope: { ...envelopeOf(4), delivery: "batched" as const },
     items: [{ id: 4 }],
   };
-  const restoredAway = { envelope: envelopeOf(5), items: [{ id: 5 }] };
+  const thirdBatched = { envelope: envelopeOf(5), items: [{ id: 5 }] };
   s.src.restore({
     source: "timer_scheduler",
     event_name: "signals.catchup",
     ts: NOW,
-    payload: { signals: [urgent, restoredBatch, restoredAway, { ...away, items: [{ id: 99 }] }] },
+    payload: {
+      signals: [urgent, restoredBatch, thirdBatched, { ...firstBatched, items: [{ id: 99 }] }],
+    },
   });
   s.emitIdle(100);
   expect(s.pushed.map((env) => [env.event_name, env.payload?.signals])).toEqual([
-    ["signals.catchup", [restoredBatch, restoredAway, away, batched]],
+    ["signals.catchup", [restoredBatch, thirdBatched, firstBatched, secondBatched]],
     ["signals.urgent_catchup", [urgent, bufferedUrgent]],
   ]);
   s.src.stop();

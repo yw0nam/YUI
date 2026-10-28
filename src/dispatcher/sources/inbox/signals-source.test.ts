@@ -1,7 +1,7 @@
 /**
  * signals-source.test.ts — grouped signal delivery and buffering.
  *
- * Covers enveloped groups, immediate and batched routing, independent
+ * Covers enveloped groups, batched and urgent routing, independent
  * drop-oldest buffers, arrival-ordered catch-up and drain, lazy timer behavior,
  * envelope drop, and enable/presence/busy/lifecycle transitions. Signal item
  * contents remain opaque. All dependencies are injected; tests use no network or Tauri.
@@ -62,7 +62,7 @@ function idleTick(os_idle_ms: number | null, ts = 0): OsEventPayload {
 const ENVELOPE = {
   source: "n8n",
   event_type: "workflow_done",
-  delivery: "immediate" as const,
+  delivery: "batched" as const,
   event_id: "run-8812",
   occurred_at: 1_787_449_000_000,
 };
@@ -80,63 +80,6 @@ function batch(
     envelope: envelope.length > 0 ? envelope[0] : ENVELOPE,
   } satisfies SignalsBatch;
 }
-
-describe("signals_source — present: immediate signals.push (spec §1)", () => {
-  it("inbox arrival while present → pushes signals.push with signals verbatim", async () => {
-    const { bus, pushed } = fakeBus();
-    const { listen, emit: emitIdle } = fakeListen();
-    const { onInbox, emit: emitInbox } = fakeInbox();
-    const now = vi.fn(() => 9000);
-
-    const src = createSignalsSource({
-      bus,
-      present_max_idle_ms: PRESENT_MAX,
-      isEnabled: () => true,
-      onInbox,
-      listen,
-      now,
-    });
-    await src.start();
-
-    emitIdle(idleTick(LOW_IDLE));
-    emitInbox(batch([{ kind: "reminder", foo: "bar" }], 8500));
-
-    expect(pushed).toHaveLength(1);
-    const e = pushed[0];
-    expect(e.source).toBe("timer_scheduler");
-    expect(e.event_name).toBe("signals.push");
-    expect(e.payload).toEqual({
-      signals: [{ envelope: ENVELOPE, items: [{ kind: "reminder", foo: "bar" }] }],
-    });
-
-    src.stop();
-  });
-
-  it("does not inspect or reshape item contents — heterogeneous items pass through as-is (spec §9)", async () => {
-    const { bus, pushed } = fakeBus();
-    const { listen, emit: emitIdle } = fakeListen();
-    const { onInbox, emit: emitInbox } = fakeInbox();
-
-    const src = createSignalsSource({
-      bus,
-      present_max_idle_ms: PRESENT_MAX,
-      isEnabled: () => true,
-      onInbox,
-      listen,
-    });
-    await src.start();
-
-    emitIdle(idleTick(LOW_IDLE));
-    const weird = [{ a: 1 }, { nested: { b: [1, 2, 3] } }, { c: null }];
-    emitInbox(batch(weird, 1));
-
-    expect((pushed[0].payload as { signals: unknown[] }).signals).toEqual([
-      { envelope: ENVELOPE, items: weird },
-    ]);
-
-    src.stop();
-  });
-});
 
 describe("signals_source — away: buffer + catch-up (spec §2–3)", () => {
   it("drain returns buffered items in arrival order, clears them, and prevents catch-up on return", async () => {
@@ -351,7 +294,7 @@ function fakePipelineBusy(initialBusy: boolean): {
 }
 
 describe("signals_source — pipeline-busy buffering (spec §2b/#451)", () => {
-  it("present + busy: inbox arrival buffers (no signals.push fired)", async () => {
+  it("present + busy: inbox arrival buffers (nothing fired)", async () => {
     const { bus, pushed } = fakeBus();
     const { listen, emit: emitIdle } = fakeListen();
     const { onInbox, emit: emitInbox } = fakeInbox();
@@ -413,29 +356,6 @@ describe("signals_source — pipeline-busy buffering (spec §2b/#451)", () => {
     pipelineBusy.setBusy(true);
     pipelineBusy.setBusy(false);
     expect(pushed).toHaveLength(1);
-
-    src.stop();
-  });
-
-  it("present + idle (isPipelineBusy: () => false): fires immediately (existing behavior preserved)", async () => {
-    const { bus, pushed } = fakeBus();
-    const { listen, emit: emitIdle } = fakeListen();
-    const { onInbox, emit: emitInbox } = fakeInbox();
-
-    const src = createSignalsSource({
-      bus,
-      present_max_idle_ms: PRESENT_MAX,
-      isEnabled: () => true,
-      onInbox,
-      listen,
-      isPipelineBusy: () => false,
-    });
-    await src.start();
-
-    emitIdle(idleTick(LOW_IDLE));
-    emitInbox(batch([{ id: 1 }], 1000));
-    expect(pushed).toHaveLength(1);
-    expect(pushed[0].event_name).toBe("signals.push");
 
     src.stop();
   });
@@ -537,7 +457,7 @@ describe("signals_source — global pacer composed into the busy predicate (#689
 describe("signals_source — urgent delivery class", () => {
   const URGENT_ENVELOPE = { ...ENVELOPE, delivery: "urgent" as const, event_id: "run-urgent-1" };
 
-  /** Wires one source the way wire-sources.ts does: paced busy for the non-urgent core, raw for urgent. */
+  /** Wires one source the way wire-sources.ts does: paced busy for the batched core, raw for urgent. */
   function setupUrgentDelivery(pacerHolding: boolean) {
     const { bus, pushed } = fakeBus();
     const { listen, emit: emitIdle } = fakeListen();
@@ -567,27 +487,12 @@ describe("signals_source — urgent delivery class", () => {
 
   const urgentArrival = [{ envelope: URGENT_ENVELOPE, items: [{ id: 1 }] }];
 
-  it.each([
-    {
-      delivery: "urgent",
-      title:
-        "an urgent-delivery envelope validates and fires at once as signals.urgent under urgent_signal_source",
-      fired: [
-        { source: "urgent_signal_source", event_name: "signals.urgent", signals: urgentArrival },
-      ],
-    },
-    {
-      delivery: "immediate",
-      title:
-        "an immediate-delivery group in the same state stays buffered — the pacer still holds the non-urgent core",
-      fired: [],
-    },
-  ])("$title", async ({ delivery, fired }) => {
+  it("an urgent-delivery envelope validates and fires at once as signals.urgent under urgent_signal_source", async () => {
     const s = setupUrgentDelivery(true);
     await s.src.start();
 
     s.emitIdle(idleTick(LOW_IDLE)); // present, pipeline idle, pacer holding
-    s.emitInbox(batch([{ id: 1 }], 1000, { ...URGENT_ENVELOPE, delivery } as never));
+    s.emitInbox(batch([{ id: 1 }], 1000, URGENT_ENVELOPE));
 
     expect(
       s.pushed.map((e) => ({
@@ -595,12 +500,14 @@ describe("signals_source — urgent delivery class", () => {
         event_name: e.event_name,
         signals: (e.payload as { signals: unknown[] }).signals,
       })),
-    ).toEqual(fired);
+    ).toEqual([
+      { source: "urgent_signal_source", event_name: "signals.urgent", signals: urgentArrival },
+    ]);
 
     s.src.stop();
   });
 
-  it("three urgent-delivery groups during a busy pipeline fire as one signals.urgent_catchup on the busy→idle edge, while the buffered immediate group fires its own signals.catchup", async () => {
+  it("three urgent-delivery groups during a busy pipeline fire as one signals.urgent_catchup on the busy→idle edge, while the buffered batched group fires its own signals.catchup", async () => {
     const s = setupUrgentDelivery(false);
     await s.src.start();
 
@@ -609,7 +516,7 @@ describe("signals_source — urgent delivery class", () => {
     for (const id of [1, 2, 3]) {
       s.emitInbox(batch([{ id }], id, { ...URGENT_ENVELOPE, event_id: `run-urgent-${id}` }));
     }
-    s.emitInbox(batch([{ id: 9 }], 9)); // immediate — buffered by the paced busy state
+    s.emitInbox(batch([{ id: 9 }], 9)); // batched — buffered by the paced busy state
     expect(s.pushed).toHaveLength(0);
 
     s.pipelineBusy.setBusy(false); // raw busy→idle edge reaches both instances
@@ -634,7 +541,7 @@ describe("signals_source — urgent delivery class", () => {
     s.src.stop();
   });
 
-  it("drain returns non-urgent groups only and leaves an urgent-delivery group to its own catch-up", async () => {
+  it("drain returns batched groups only and leaves an urgent-delivery group to its own catch-up", async () => {
     const s = setupUrgentDelivery(false);
     await s.src.start();
 
@@ -741,6 +648,9 @@ describe("signals_source — delivery envelopes", () => {
     ["non-finite occurred_at", { ...ENVELOPE, occurred_at: Number.POSITIVE_INFINITY }],
     ["out-of-range occurred_at", { ...ENVELOPE, occurred_at: 8.64e15 + 1 }],
     ["non-string label", { ...ENVELOPE, label: 7 }],
+    ["immediate delivery", { ...ENVELOPE, delivery: "immediate" }],
+    ["null", null],
+    ["absent", undefined],
   ])("%s envelope drops the group and warns once", async (_name, invalid) => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const s = setup();
@@ -751,42 +661,6 @@ describe("signals_source — delivery envelopes", () => {
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn).toHaveBeenCalledWith("[YUI][signals-source] envelope_invalid", {
       dropped_items: 2,
-    });
-    warn.mockRestore();
-  });
-
-  it.each([
-    ["null", null],
-    ["absent", undefined],
-  ])("a batch whose envelope is %s is delivered as immediate and logs the deprecation once", async (_name, missing) => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const s = setup();
-    await s.src.start();
-    s.emitIdle(idleTick(LOW_IDLE));
-    s.emitInbox(batch([{ id: 1 }], 1, missing));
-    s.emitInbox(batch([{ id: 2 }], 2, missing));
-    expect(s.pushed).toHaveLength(2);
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn).toHaveBeenCalledWith("[YUI][signals-source] deprecated", {
-      what: "signals without an envelope",
-      removed_in: "v0.6.0",
-      use: "an envelope",
-    });
-    warn.mockRestore();
-  });
-
-  it("two immediate arrivals log the deprecation once", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const s = setup();
-    await s.src.start();
-    s.emitIdle(idleTick(LOW_IDLE));
-    s.emitInbox(batch([{ id: 1 }], 1, envelopeOf(1)));
-    s.emitInbox(batch([{ id: 2 }], 2, envelopeOf(2)));
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn).toHaveBeenCalledWith("[YUI][signals-source] deprecated", {
-      what: "delivery immediate",
-      removed_in: "v0.6.0",
-      use: "urgent or batched",
     });
     warn.mockRestore();
   });
@@ -802,35 +676,12 @@ describe("signals_source — delivery envelopes", () => {
     warn.mockRestore();
   });
 
-  it("valid immediate envelope is preserved on a live push", async () => {
-    const s = setup();
-    await s.src.start();
-    s.emitIdle(idleTick(LOW_IDLE));
-    s.emitInbox(batch([{ id: 1 }], 1, ENVELOPE));
-    expect(s.pushed).toHaveLength(1);
-    expect(s.pushed[0].event_name).toBe("signals.push");
-    expect(s.pushed[0].payload).toEqual({
-      signals: [{ envelope: ENVELOPE, items: [{ id: 1 }] }],
-    });
-  });
-
-  it("immediate envelope buffers while away and survives catch-up", async () => {
-    const s = setup();
-    await s.src.start();
-    s.emitIdle(idleTick(HIGH_IDLE));
-    s.emitInbox(batch([{ id: 1 }], 1, ENVELOPE));
-    s.emitIdle(idleTick(LOW_IDLE));
-    expect(s.pushed[0].event_name).toBe("signals.catchup");
-    expect(s.pushed[0]!.payload!.signals).toEqual([{ envelope: ENVELOPE, items: [{ id: 1 }] }]);
-  });
-
   it("batched delivery fires once at five minutes and re-arms only after a new arrival", async () => {
     const s = setup();
     await s.src.start();
     s.emitIdle(idleTick(LOW_IDLE));
-    const batched = { ...ENVELOPE, delivery: "batched" as const };
-    s.emitInbox(batch([{ id: 1 }], 1, batched));
-    s.emitInbox(batch([{ id: 2 }], 2, { ...batched, event_id: "run-2" }));
+    s.emitInbox(batch([{ id: 1 }], 1, ENVELOPE));
+    s.emitInbox(batch([{ id: 2 }], 2, { ...ENVELOPE, event_id: "run-2" }));
     expect(s.pushed).toEqual([]);
     await vi.advanceTimersByTimeAsync(300_000);
     expect(s.pushed).toHaveLength(1);
@@ -838,18 +689,17 @@ describe("signals_source — delivery envelopes", () => {
     expect(s.pushed[0]!.payload!.signals).toHaveLength(2);
     await vi.advanceTimersByTimeAsync(300_000);
     expect(s.pushed).toHaveLength(1);
-    s.emitInbox(batch([{ id: 3 }], 3, { ...batched, event_id: "run-3" }));
+    s.emitInbox(batch([{ id: 3 }], 3, { ...ENVELOPE, event_id: "run-3" }));
     await vi.advanceTimersByTimeAsync(300_000);
     expect(s.pushed).toHaveLength(2);
   });
 
-  it("an ineligible timer holds batched groups, then one catch-up merges both buffers by arrival", async () => {
+  it("an ineligible timer holds batched groups, then one catch-up carries them all in arrival order", async () => {
     const s = setup();
     await s.src.start();
-    const batched = { ...ENVELOPE, delivery: "batched" as const };
     s.emitIdle(idleTick(HIGH_IDLE));
     s.emitInbox(batch([{ id: 1 }], 1, envelopeOf(1)));
-    s.emitInbox(batch([{ id: 2 }], 2, { ...batched, event_id: "run-2" }));
+    s.emitInbox(batch([{ id: 2 }], 2, envelopeOf(2)));
     s.emitInbox(batch([{ id: 3 }], 3, envelopeOf(3)));
     await vi.advanceTimersByTimeAsync(300_000);
     expect(s.pushed).toEqual([]);
@@ -901,6 +751,7 @@ describe("signals_source — delivery envelopes", () => {
     await s.src.start();
     s.emitIdle(idleTick(LOW_IDLE));
     s.emitInbox(batch([], 1, ENVELOPE));
+    await vi.advanceTimersByTimeAsync(300_000);
     expect(s.pushed[0]!.payload!.signals).toEqual([{ envelope: ENVELOPE, items: [] }]);
   });
 
@@ -909,14 +760,17 @@ describe("signals_source — delivery envelopes", () => {
     await s.src.start();
     s.emitIdle(idleTick(HIGH_IDLE));
     s.emitInbox(batch([{ id: 1 }], 1, { ...ENVELOPE, event_id: "x" }));
-    s.emitInbox(batch([{ id: 2 }], 2, { ...ENVELOPE, delivery: "batched", event_id: "x" }));
+    s.emitInbox(batch([{ id: 2 }], 2, { ...ENVELOPE, delivery: "urgent", event_id: "x" }));
     expect(s.src.drain()).toEqual([
       { envelope: { ...ENVELOPE, event_id: "x" }, items: [{ id: 1 }] },
-      { envelope: { ...ENVELOPE, delivery: "batched", event_id: "x" }, items: [{ id: 2 }] },
+    ]);
+    s.emitIdle(idleTick(LOW_IDLE));
+    expect(s.pushed[0]!.payload!.signals).toEqual([
+      { envelope: { ...ENVELOPE, delivery: "urgent", event_id: "x" }, items: [{ id: 2 }] },
     ]);
   });
 
-  it("a repeated event id replaces the buffered group in the away buffer", async () => {
+  it("a repeated event id replaces the buffered group in the batch buffer", async () => {
     const s = setup();
     await s.src.start();
     s.emitIdle(idleTick(HIGH_IDLE));
@@ -982,6 +836,7 @@ describe("signals_source — delivery envelopes", () => {
     await s.src.start();
     s.emitIdle(idleTick(LOW_IDLE));
     s.emitInbox(batch([{ id: 1 }], 1, { ...ENVELOPE, label }));
+    await vi.advanceTimersByTimeAsync(300_000);
     expect(s.pushed[0]!.payload!.signals).toEqual([
       { envelope: { ...ENVELOPE, label: delivered }, items: [{ id: 1 }] },
     ]);
@@ -1005,7 +860,7 @@ describe("signals_source — delivery envelopes", () => {
     expect(s.pushed).toHaveLength(1);
   });
 
-  it("drain merges both buffers, clears the timer, and suppresses later firing", async () => {
+  it("drain empties the batch buffer, clears the timer, and suppresses later firing", async () => {
     const s = setup();
     await s.src.start();
     s.emitIdle(idleTick(HIGH_IDLE));
@@ -1068,7 +923,7 @@ describe("signals_source — onArrival", () => {
     return { src, emitIdle, emitInbox };
   }
 
-  it("reports a live group and a group buffered while away", async () => {
+  it("reports a group arriving while present and one arriving while away", async () => {
     const onArrival = vi.fn();
     const { src, emitIdle, emitInbox } = await started(() => true, onArrival);
 

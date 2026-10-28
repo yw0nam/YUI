@@ -115,7 +115,7 @@ export function createDefaultAddressedChain(): AddressedChain {
 export const SIGNAL_ENVELOPE: SignalEnvelope = {
   source: "n8n",
   event_type: "workflow_done",
-  delivery: "immediate",
+  delivery: "batched",
   event_id: "run-8812",
   occurred_at: 1_787_449_000_000,
 };

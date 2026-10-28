@@ -43,12 +43,6 @@ describe("sourceLinesOf", () => {
     ]);
   });
 
-  it("a deprecated immediate delivery is a batched line", () => {
-    expect(sourceLinesOf(signalsEnv([group("a", { delivery: "immediate" })]))).toEqual([
-      { delivery: "batched", source: "a", text: "a.event" },
-    ]);
-  });
-
   it("a user turn trigger carries no source lines", () => {
     expect(
       sourceLinesOf({
