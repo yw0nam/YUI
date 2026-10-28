@@ -9,6 +9,8 @@
   gap: 0.4rem;
   font-family: var(--yui-font);
   pointer-events: none;
+  /* A flex item of the chip column: its own stacking context, so the sheet paints above the delegation chip. */
+  z-index: 1;
 
   opacity: 0;
   transition: opacity var(--yui-dur) var(--yui-ease);
@@ -177,16 +179,17 @@
   padding: 0.3rem 0.4rem;
 }
 
-/* The details sheet hangs under the whole chip column, its right edge 0.5rem inside the window. */
+/* The details sheet hangs under the whole chip column, its right edge 0.5rem inside the window, lifted or capped by fitSheet to stay inside it. */
 .yui-sigdetails {
   position: absolute;
-  top: calc(100% + 0.4rem);
+  top: calc(100% + 0.4rem - var(--yui-sigdetails-lift, 0px));
   right: 0.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
   box-sizing: border-box;
   width: min(18rem, calc(100vw - 1rem));
+  overflow-y: auto;
   padding: 0.5rem 0.6rem;
   border-radius: var(--yui-radius-control);
   background: var(--yui-scrim-strong);
@@ -243,6 +246,7 @@
 }
 
 .yui-sigdetails__items {
+  flex: none;
   max-height: 110px;
   margin: 0;
   padding: 0.3rem 0.4rem;
