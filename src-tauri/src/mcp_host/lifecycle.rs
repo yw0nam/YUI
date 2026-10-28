@@ -226,7 +226,8 @@ mod tests {
         eventually, fixture_copy, gone, host_at, hung_child, require_python, running,
         server_logged_a_cancel, set_mode, slow_call, temp_dir,
     };
-    use std::time::Duration;
+    use super::*;
+    use serde_json::json;
 
     #[tokio::test]
     async fn disabling_a_plugin_cancels_its_calls_before_the_server_stops() {
@@ -264,5 +265,46 @@ mod tests {
         let killed = eventually(|| gone(pid)).await;
         enabling.abort();
         assert!(killed, "sleep {pid} still runs");
+    }
+
+    #[tokio::test]
+    async fn one_hanging_plugin_does_not_hold_back_another_at_app_start() {
+        require_python();
+        let app_data = temp_dir();
+        let (hanging, other) = (fixture_copy("yui-a"), fixture_copy("yui-b"));
+        set_mode(&hanging, "hang");
+        let stored = |id: &str, path: &PathBuf, seq: u64| {
+            json!({"id": id, "source": "local", "path": path, "enabled": true,
+                "approvedPath": path, "enabledSeq": seq})
+        };
+        std::fs::create_dir_all(app_data.join("plugins")).unwrap();
+        std::fs::write(
+            app_data.join("plugins/state.json"),
+            json!({"plugins": [stored("yui-a", &hanging, 0), stored("yui-b", &other, 1)],
+                "nextSeq": 2})
+            .to_string(),
+        )
+        .unwrap();
+        let (host, _) = host_at(&app_data);
+        let starting = tokio::spawn({
+            let host = host.clone();
+            async move { host.start_enabled().await }
+        });
+        let status = |id: &str| {
+            let snapshot = host.snapshot();
+            snapshot
+                .plugins
+                .iter()
+                .find(|p| p.id == id)
+                .unwrap()
+                .servers[0]
+                .status
+        };
+        let other_ran = eventually(|| status("yui-b") == Status::Running).await;
+        let hanging_status = status("yui-a");
+        host.shutdown().await;
+        starting.abort();
+        assert!(other_ran, "yui-b: {:?}", status("yui-b"));
+        assert_eq!(hanging_status, Status::Starting);
     }
 }
