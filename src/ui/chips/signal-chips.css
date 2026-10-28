@@ -244,6 +244,7 @@
 }
 
 .yui-sigdetails__items {
+  flex: none;
   max-height: 110px;
   margin: 0;
   padding: 0.3rem 0.4rem;
