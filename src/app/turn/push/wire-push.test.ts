@@ -648,9 +648,9 @@ describe("wirePushTransport — tool calls", () => {
 
   it("shows a client-run tool's status from its own run; the backend's still counts as a frame", async () => {
     let finish: ((result: string) => void) | undefined;
-    const browser: ClientTool = {
+    const pluginCall: ClientTool = {
       ...look,
-      name: "browser",
+      name: "plugin_call",
       localStatus: true,
       execute: () =>
         new Promise((resolve) => {
@@ -660,33 +660,33 @@ describe("wirePushTransport — tool calls", () => {
     pushTurns.opened("7", "user.text_submitted");
     const onFrame = vi.fn();
     void pushTurns.awaitTurnEnd("7", { onFrame });
-    wire(turnFeed, [browser]);
-    socket.pushToolCall({ ...frame("c1", "7"), name: "browser", arguments: { code: "x" } });
+    wire(turnFeed, [pluginCall]);
+    socket.pushToolCall({ ...frame("c1", "7"), name: "plugin_call", arguments: { name: "look" } });
     await vi.waitFor(() => expect(finish).toBeDefined());
-    socket.pushToolStatus({ type: "tool_status", turn_id: "7", state: "done", tool_id: "browser" });
+    socket.pushToolStatus({ type: "tool_status", turn_id: "7", state: "done", tool_id: "plugin_call" });
 
-    expect(toolStatusSink.mock.calls).toEqual([[{ state: "running", tool_id: "browser" }]]);
+    expect(toolStatusSink.mock.calls).toEqual([[{ state: "running", tool_id: "plugin_call" }]]);
     expect(onFrame).toHaveBeenCalledTimes(1);
 
-    finish?.("Untrusted page content from the browser.\n{}");
+    finish?.("The tool's result text.\n{}");
     await vi.waitFor(() =>
-      expect(toolStatusSink).toHaveBeenLastCalledWith({ state: "done", tool_id: "browser" }),
+      expect(toolStatusSink).toHaveBeenLastCalledWith({ state: "done", tool_id: "plugin_call" }),
     );
   });
 
   it("a client-run call's terminal state leaves a newer running chip alone", async () => {
     let finish: ((result: string) => void) | undefined;
-    const browser: ClientTool = {
+    const pluginCall: ClientTool = {
       ...look,
-      name: "browser",
+      name: "plugin_call",
       localStatus: true,
       execute: () =>
         new Promise((resolve) => {
           finish = resolve;
         }),
     };
-    wire(turnFeed, [browser]);
-    socket.pushToolCall({ ...frame("c1", "7"), name: "browser", arguments: { code: "x" } });
+    wire(turnFeed, [pluginCall]);
+    socket.pushToolCall({ ...frame("c1", "7"), name: "plugin_call", arguments: { name: "look" } });
     await vi.waitFor(() => expect(finish).toBeDefined());
     socket.pushToolStatus({
       type: "tool_status",

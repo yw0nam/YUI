@@ -309,12 +309,12 @@ describe("createPushToolCalls — abort", () => {
         signal?.addEventListener("abort", () => resolve("cancelled: nothing ran")),
       );
     };
-    const h = harness({ tools: createClientToolRegistry([tool("browser", untilAborted)]) });
+    const h = harness({ tools: createClientToolRegistry([tool("look", untilAborted)]) });
     const frame = (id: string, turnId: string): ToolCallFrame => ({
       type: "tool_call",
       id,
       turn_id: turnId,
-      name: "browser",
+      name: "look",
       arguments: { id },
     });
     h.calls.handle(frame("c1", "t1"));
@@ -338,27 +338,27 @@ describe("createPushToolCalls — abort", () => {
 describe("createPushToolCalls — local status", () => {
   it("reports running and the terminal state of a tool that shows its own status, by call id", async () => {
     const onStatus = vi.fn();
-    const browser: ClientTool = {
-      ...tool("browser", async () => "error: browser is off"),
+    const pluginCall: ClientTool = {
+      ...tool("plugin_call", async () => "error: the script failed"),
       localStatus: true,
     };
     const h = harness({
-      tools: createClientToolRegistry([browser, tool("look", async () => "{}")]),
+      tools: createClientToolRegistry([pluginCall, tool("look", async () => "{}")]),
       onStatus,
     });
     h.calls.handle({
       type: "tool_call",
       id: "c1",
       turn_id: "t",
-      name: "browser",
-      arguments: { code: "x" },
+      name: "plugin_call",
+      arguments: { name: "look" },
     });
     h.calls.handle(call("c2", "t", "look"));
     await flush();
 
     expect(onStatus.mock.calls).toEqual([
-      ["c1", "running", "browser"],
-      ["c1", "failed", "browser"],
+      ["c1", "running", "plugin_call"],
+      ["c1", "failed", "plugin_call"],
     ]);
   });
 
