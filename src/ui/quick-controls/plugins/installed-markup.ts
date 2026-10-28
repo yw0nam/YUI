@@ -97,11 +97,8 @@ function hiddenHtml(p: PluginHostPlugin): string {
   const lines = [...groups.values()].map((hs) => {
     const { kind, holder } = hs[0]!;
     const names = hs.map((h) => `<span class="yui-plg-code">${esc(h.name)}</span>`).join(", ");
-    const who =
-      holder === "builtin"
-        ? t("plugins.hidden_builtin")
-        : t("plugins.hidden_by", { holder: esc(holder) });
-    return `<span>${t(`plugins.hidden_${kind}`)} ${names} — ${who}</span>`;
+    const key = `plugins.hidden_${kind}_${holder === "builtin" ? "builtin" : "by"}`;
+    return `<span>${t(key, { names, holder: esc(holder) })}</span>`;
   });
   return `<div class="yui-plg-hid" data-k="${esc(p.id)}:hid">${lines.join("")}</div>`;
 }
@@ -153,7 +150,7 @@ function stepOneHtml(p: PluginHostPlugin): string {
       <p class="yui-plg-consent__q">${question}</p>
       <dl class="yui-plg-facts">
         <dt>${t("plugins.fact_source")}</dt><dd>${badgeHtml(p.source)} <small>${t(REVIEW_KEY[p.source])}</small><br><span>${esc(p.path)}</span></dd>
-        <dt>${t("plugins.fact_version")}</dt><dd>${p.version ? `v${esc(p.version)}` : `<small>${t("plugins.no_version")}</small>`}</dd>
+        <dt>${t("plugins.fact_version")}</dt><dd>${p.version ? t("plugins.version", { version: esc(p.version) }) : `<small>${t("plugins.no_version")}</small>`}</dd>
         <dt>${t("plugins.fact_command")}</dt><dd>${cmds || `<small>${t("plugins.no_servers")}</small>`}</dd>
       </dl>
       <p class="yui-plg-warn">${ICON_SHIELD}<span>${t("plugins.shield")}</span></p>${extra}

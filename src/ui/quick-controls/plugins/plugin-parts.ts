@@ -32,7 +32,9 @@ export function badgeHtml(source: PluginHostPlugin["source"]): string {
 }
 
 export function versionHtml(version: string | null): string {
-  return version ? `<span class="yui-plg-ver">v${esc(version)}</span>` : "";
+  return version
+    ? `<span class="yui-plg-ver">${t("plugins.version", { version: esc(version) })}</span>`
+    : "";
 }
 
 /** An inline error line: YUI's lead, then the host's string as sent. */
