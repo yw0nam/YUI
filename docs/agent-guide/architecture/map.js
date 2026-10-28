@@ -733,7 +733,7 @@ globalThis.YUI_MAP =
       "id": "io/mcp-host",
       "module": "tools",
       "label": "mcp host client",
-      "role": "the webview side of the MCP host — newest snapshot, call/cancel/skill invokes, plugin catalog",
+      "role": "Keeps the MCP host's newest snapshot, invokes its call, cancel and skill commands, and builds the per-turn plugin tools and plugin skills lines.",
       "paths": [
         "src/io/mcp-host"
       ]
@@ -2013,7 +2013,7 @@ globalThis.YUI_MAP =
       "id": "tools-push",
       "from": "io/chat/tools",
       "to": "io/chat/push",
-      "carries": "hello.tools: the window tools (rate_relation in every pet window, browser in every pet window under Tauri, body_action and look in main)",
+      "carries": "hello.tools: the window tools (rate_relation and address_character in every pet window, browser and the bridge tools in every pet window under Tauri, body_action and look in main)",
       "kind": "callback",
       "transport": "push",
       "wiring": "src/app/turn/push/push-stores.ts"
@@ -2133,7 +2133,7 @@ globalThis.YUI_MAP =
       "id": "mcp-host-backend",
       "from": "io/mcp-host",
       "to": "dispatcher/backend",
-      "carries": "the plugin catalog per turn: each enabled plugin's tools with their summaries, and its skills with their descriptions",
+      "carries": "the plugin tools and plugin skills lines per turn: each enabled plugin's tools with their summaries, and its skills with their descriptions",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"

@@ -436,9 +436,9 @@ YUI/
           turn-record-log.ts           # Appends one JSONL record per completed turn or skipped fire
       browser/                         # The browser tool's adapter to the Rust relay
         browser-relay.ts               # browser_run and browser_guide invocations, and the outcome and guide shapes they answer
-      mcp-host/                        # The MCP host client and the plugins' catalog
+      mcp-host/                        # The MCP host client and the `plugin tools:` and `plugin skills:` lines
         mcp-host.ts                    # The host's newest snapshot, and the call, cancel and skill invocations
-        plugin-catalog.ts              # The enabled plugins' tools with their summaries, their skills with their descriptions, and the tool lookup a call makes
+        enabled-plugins.ts             # The enabled plugins' tools with their summaries, their skills with their descriptions, and the tool lookup a call makes
       voice/
         deadline.ts                    # Per-request deadline and the body-read race that settle a stalled fetch
         stt-vad.ts                     # Voice input pipeline: VAD segmentation then STT upload

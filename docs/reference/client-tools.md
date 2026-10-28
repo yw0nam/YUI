@@ -296,9 +296,9 @@ the Relations switch holds.
 
 `plugin_describe`, `plugin_call` and `plugin_skill` reach the tools and skills of the enabled plugins through the MCP host. Every pet window declares them under Tauri; the browser build declares none of them.
 
-A name resolves against the newest snapshot the window holds. The host publishes one snapshot per change, and the client keeps the highest revision it has seen and reads it on every lookup; the turn's `plugin tools` and `plugin skills` lines and every call read that one, so a plugin enabled after the request went out answers a later call in the same turn. A call's name is looked up again when it runs.
+A name resolves against the newest snapshot the window holds. The host publishes one snapshot per change, and the client keeps the highest revision it has seen; the turn's `plugin tools` and `plugin skills` lines and every `plugin_describe` and `plugin_call` read that one, so a plugin enabled after the request went out answers a later call in the same turn. A call's name is looked up again when it runs. `plugin_skill` is not looked up in the window's snapshot: the host resolves the skill in the snapshot it publishes itself.
 
-The lookup sees enabled plugins only, and a name that two holders answer is hidden by the host: a built-in client tool name stays with the built-in, and a name a plugin declared earlier (in enable order) stays with that plugin. The loser's entry leaves the tools and skills lists, and both `plugin_describe` and `plugin_call` see it as absent.
+The lookup sees enabled plugins only, and the host hides a name another holder keeps. A built-in client tool name stays with the built-in — the built-in names claim tools only, so a skill may carry one — and a name a plugin enabled earlier keeps, in enable order (`enabled_seq`); a second server of the same plugin that declares the same name loses it too. The hidden entry leaves the tools and skills lists, and both `plugin_describe` and `plugin_call` see it as absent.
 
 | Tool | Arguments | Answer |
 |---|---|---|
@@ -306,14 +306,14 @@ The lookup sees enabled plugins only, and a name that two holders answer is hidd
 | `plugin_call` | `name` and `arguments` (object) | The tool's result, converted as below |
 | `plugin_skill` | `name` (string: the plugin skill's name) | The skill's `SKILL.md` body after its frontmatter |
 
-A name no enabled plugin declares answers `error: unknown plugin tool: <name>` — from the client for `plugin_describe` and `plugin_call`, and from the host for `plugin_skill`, whose read goes straight to the host: `error: unknown plugin skill: <name>`.
+An unknown tool name is rejected by the client: `plugin_describe` and `plugin_call` answer `error: unknown plugin tool: <name>` and send nothing to the host. `plugin_skill` goes straight to the host, which resolves the skill in the snapshot it publishes itself and answers `error: unknown plugin skill: <name>`.
 
 ### Arguments
 
 `plugin_call` checks `arguments` against the tool's declared input schema before anything is sent. The check reports the first violation as its instance location and its message, and the answer carries that violation and the tool's input schema, which the turn's `plugin tools` line does not:
 
 ```text
-error: invalid arguments (/app: must be string)
+error: invalid arguments (#/app: Instance type "number" is invalid. Expected "string".)
 input schema: {"type":"object","properties":{"app":{"type":"string"}},"required":["app"]}
 ```
 
@@ -335,7 +335,7 @@ A failure of the call itself reaches the model as `error: <the host's text>`: `e
 
 `plugin_call`'s client wait sits above the host's longest deadline, so the host answers the deadline itself: it sends `notifications/cancelled` to the server and answers `plugin tool timed out after <n> ms` with the wait it used. A client wait that passes anyway answers `error: timed out after 121 s` and cancels the host call.
 
-A stopped turn or a passed wait cancels the host call: `plugin_call` registers the call's id with `plugin_host_cancel` when its execution signal aborts, the host sends `notifications/cancelled` to the server with the reason, and the call answers `error: plugin tool cancelled`. A turn stopped before the call started answers `error: turn stopped` and sends nothing.
+A stopped turn or a passed wait cancels the host call: `plugin_call` sends the call's id to `plugin_host_cancel` when its execution signal aborts, and the host sends `notifications/cancelled` to the server with the reason. A turn stopped while the call runs answers `error: plugin tool cancelled`; a turn stopped before the call started answers `error: turn stopped` and sends nothing.
 
 ### Status and consent
 
