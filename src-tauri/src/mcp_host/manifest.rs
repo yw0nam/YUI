@@ -77,6 +77,12 @@ pub fn read(folder: &Path) -> Result<Manifest, String> {
     })
 }
 
+/// The `SKILL.md` text after its frontmatter, without leading blank lines.
+pub fn skill_body(path: &Path) -> Result<String, String> {
+    let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    Ok(split_frontmatter(&text).1)
+}
+
 /// Skills in folder-name order; one without a `description` is skipped.
 fn read_skills(folder: &Path) -> Vec<Skill> {
     let Ok(entries) = std::fs::read_dir(folder.join("skills")) else {

@@ -1,5 +1,6 @@
 //! The MCP host: runs local plugins' MCP servers.
 
+mod calls;
 mod host;
 mod launch;
 mod manifest;

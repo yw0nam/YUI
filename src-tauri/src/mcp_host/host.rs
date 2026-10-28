@@ -1,5 +1,6 @@
 //! The host: the listed plugins, their servers, the stored state, and the published snapshot.
 
+use super::calls::Calls;
 use super::manifest::{self, Manifest, ServerSpec};
 use super::server::{self, PluginLog, Server};
 use super::snapshot::{self, PluginEntry, ServerEntry, SkillEntry, Snapshot, Status, ToolEntry};
@@ -23,6 +24,7 @@ pub struct Host {
     offset: UtcOffset,
     emit: Emit,
     inner: Mutex<Inner>,
+    calls: Calls,
 }
 
 struct Inner {
@@ -91,6 +93,7 @@ impl Host {
             offset,
             emit: Box::new(emit),
             inner: Mutex::new(inner),
+            calls: Calls::default(),
         })
     }
 
@@ -244,6 +247,7 @@ impl Host {
         }
     }
 
+    /// Calls a declared tool; hidden and unknown names are refused.
     pub async fn call(
         &self,
         window: &str,
@@ -252,21 +256,52 @@ impl Host {
         arguments: serde_json::Value,
         preset_id: &str,
     ) -> Result<serde_json::Value, String> {
-        let _ = (window, call_id, name, arguments, preset_id);
-        Err("unimplemented".into())
+        let (peer, tool) = {
+            let inner = self.lock();
+            inner
+                .published
+                .plugins
+                .iter()
+                .flat_map(|p| p.tools.iter().map(move |t| (&p.id, t)))
+                .find(|(_, t)| t.name == name)
+                .and_then(|(plugin_id, tool)| {
+                    let ls = inner.live.get(plugin_id)?.servers.iter();
+                    let server = ls
+                        .filter(|ls| ls.entry.id == tool.server)
+                        .find_map(|ls| ls.running.as_ref())?;
+                    Some((server.peer().clone(), tool.clone()))
+                })
+                .ok_or_else(|| format!("unknown plugin tool: {name}"))?
+        };
+        self.calls
+            .call(&peer, window, call_id, &tool, arguments, preset_id)
+            .await
     }
 
     pub fn cancel(&self, window: &str, call_id: &str) {
-        let _ = (window, call_id);
+        self.calls.cancel(window, call_id);
     }
 
+    /// Cancels every call the window started; runs when the window is destroyed.
     pub fn cancel_window(&self, window: &str) {
-        let _ = window;
+        self.calls.cancel_window(window);
     }
 
+    /// The body of a declared skill, read from disk now; hidden and unknown names are refused.
     pub fn skill(&self, name: &str) -> Result<String, String> {
-        let _ = name;
-        Err("unimplemented".into())
+        let path = {
+            let inner = self.lock();
+            inner
+                .published
+                .plugins
+                .iter()
+                .find(|p| p.skills.iter().any(|s| s.name == name))
+                .and_then(|p| inner.live.get(&p.id)?.manifest.as_ref().ok())
+                .and_then(|m| m.skills.iter().find(|s| s.name == name))
+                .map(|s| s.path.clone())
+                .ok_or_else(|| format!("unknown plugin skill: {name}"))?
+        };
+        manifest::skill_body(&path)
     }
 
     /// Stops every server without publishing.
