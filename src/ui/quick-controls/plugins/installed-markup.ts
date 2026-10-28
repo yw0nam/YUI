@@ -265,9 +265,9 @@ export function installedHtml(v: InstalledView): string {
   let aside = "";
   if (plugins?.length) {
     if (v.check === "busy")
-      aside = `<span class="yui-sec__aside yui-plg-busy" role="status">${SPIN}${t("plugins.checking")}</span>`;
+      aside = `<span class="yui-plg-busy" role="status">${SPIN}${t("plugins.checking")}</span>`;
     else if (v.check)
-      aside = `<span class="yui-sec__aside" role="status">${v.check.updates ? t("plugins.updates", { n: v.check.updates }) : t("plugins.up_to_date")}</span>`;
+      aside = `<span class="yui-plg-aside" role="status">${v.check.updates ? t("plugins.updates", { n: v.check.updates }) : t("plugins.up_to_date")}</span>`;
     else
       aside = `<button class="yui-link-btn" type="button" data-act="check" data-fk="check">${t("plugins.check")}</button>`;
   }

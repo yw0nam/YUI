@@ -302,7 +302,8 @@
   margin-left: auto;
 }
 
-.yui-plg-acts .yui-link-btn:disabled {
+.yui-plg-acts .yui-link-btn:disabled,
+.yui-plg-sv .yui-link-btn:disabled {
   color: var(--yui-text-mute);
   cursor: default;
   transform: none;
@@ -314,6 +315,12 @@
   gap: 0.5rem;
   font-size: var(--yui-fs-sub);
   color: var(--yui-text-dim);
+  white-space: nowrap;
+}
+
+.yui-plg-aside {
+  font-size: var(--yui-fs-sub);
+  color: var(--yui-text-mute);
   white-space: nowrap;
 }
 
