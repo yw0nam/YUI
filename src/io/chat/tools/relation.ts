@@ -2,7 +2,7 @@
 
 import { createLogger } from "../../../logger";
 import type { PresetEntry } from "../../../settings/preset/active-preset";
-import { targetLabel } from "../../../settings/relations/relation-targets";
+import { targetLabels } from "../../../settings/relations/relation-targets";
 import {
   DELTAS,
   type RelationsStore,
@@ -34,10 +34,7 @@ export function createRateRelationTool(deps: {
 
   /** Label to target id; the bare `user` is always the human. */
   const labels = (): Map<string, string> =>
-    new Map([
-      ["user", "user"],
-      ...deps.targets().map(({ id, name }): [string, string] => [targetLabel(name), id]),
-    ]);
+    new Map([["user", "user"], ...targetLabels(deps.targets())]);
 
   return {
     name: "rate_relation",
