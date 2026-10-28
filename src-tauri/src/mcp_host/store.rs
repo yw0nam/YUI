@@ -29,6 +29,22 @@ pub struct StoredPlugin {
     pub enabled_seq: Option<u64>,
 }
 
+impl State {
+    pub fn plugin(&self, id: &str) -> Option<&StoredPlugin> {
+        self.plugins.iter().find(|p| p.id == id)
+    }
+
+    pub fn plugin_mut(&mut self, id: &str) -> Option<&mut StoredPlugin> {
+        self.plugins.iter_mut().find(|p| p.id == id)
+    }
+}
+
+impl StoredPlugin {
+    pub fn consented(&self) -> bool {
+        self.approved_path.as_ref() == Some(&self.path)
+    }
+}
+
 /// `Err` holds why the file cannot be used; the host then refuses every state write.
 pub fn load(path: &Path) -> Result<State, String> {
     let text = match std::fs::read_to_string(path) {

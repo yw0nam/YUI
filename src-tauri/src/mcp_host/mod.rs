@@ -28,6 +28,7 @@ mod calls;
 pub mod commands;
 mod host;
 mod launch;
+mod lifecycle;
 mod manifest;
 mod server;
 mod snapshot;
@@ -38,7 +39,7 @@ mod test_support;
 use host::Host;
 use std::path::Path;
 use std::sync::Arc;
-use tauri::{App, AppHandle, Emitter, Manager, Window};
+use tauri::{App, AppHandle, Emitter, Manager, RunEvent, Window, WindowEvent};
 use time::UtcOffset;
 
 const SNAPSHOT_EVENT: &str = "plugin-host-snapshot";
@@ -55,15 +56,21 @@ pub fn setup(app: &App, app_data: &Path, log_dir: &Path, offset: UtcOffset) {
     tauri::async_runtime::spawn(async move { host.start_enabled().await });
 }
 
-/// Cancels the destroyed window's calls.
-pub fn window_destroyed(window: &Window) {
+/// Cancels the calls of a window when it is destroyed.
+pub fn on_window_event(window: &Window, event: &WindowEvent) {
+    if !matches!(event, WindowEvent::Destroyed) {
+        return;
+    }
     if let Some(host) = window.try_state::<Arc<Host>>() {
         host.cancel_window(window.label());
     }
 }
 
 /// Stops every server before the app exits.
-pub fn exit(app: &AppHandle) {
+pub fn on_run_event(app: &AppHandle, event: &RunEvent) {
+    if !matches!(event, RunEvent::Exit) {
+        return;
+    }
     if let Some(host) = app.try_state::<Arc<Host>>() {
         tauri::async_runtime::block_on(host.shutdown());
     }

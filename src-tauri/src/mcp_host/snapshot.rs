@@ -1,7 +1,9 @@
 //! The published snapshot, its types, and the name conflict rule.
 
+use super::manifest::Manifest;
 use super::server::Phase;
-use super::store::Source;
+use super::store::{Source, StoredPlugin};
+use rmcp::model::Tool;
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -52,6 +54,15 @@ pub struct ServerEntry {
     pub reason: Option<String>,
 }
 
+impl ServerEntry {
+    /// Sets the status and clears the phase and reason.
+    pub fn reset(&mut self, status: Status) {
+        self.status = status;
+        self.phase = None;
+        self.reason = None;
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ToolEntry {
@@ -80,6 +91,61 @@ pub struct Hidden {
     pub kind: Kind,
     pub name: String,
     pub holder: String,
+}
+
+/// One server as a plugin entry sees it; `tools` is empty unless the server runs.
+pub struct ServerView<'a> {
+    pub entry: &'a ServerEntry,
+    pub tools: &'a [Tool],
+}
+
+/// A plugin's entry before the conflict rule: its running servers' tools and, while it is
+/// enabled and consented, its skills.
+pub fn plugin_entry(
+    plugin: &StoredPlugin,
+    manifest: &Result<Manifest, String>,
+    servers: &[ServerView],
+) -> PluginEntry {
+    let manifest_ok = manifest.as_ref().ok();
+    let tools = servers
+        .iter()
+        .flat_map(|view| {
+            view.tools.iter().map(|tool| ToolEntry {
+                name: tool.name.to_string(),
+                server: view.entry.id.clone(),
+                description: tool.description.as_ref().map(|d| d.to_string()),
+                input_schema: Value::Object((*tool.input_schema).clone()),
+                meta: tool
+                    .meta
+                    .as_ref()
+                    .and_then(|m| serde_json::to_value(m).ok()),
+            })
+        })
+        .collect();
+    let skills = manifest_ok
+        .filter(|_| plugin.enabled && plugin.consented())
+        .iter()
+        .flat_map(|m| &m.skills)
+        .map(|s| SkillEntry {
+            name: s.name.clone(),
+            description: s.description.clone(),
+        })
+        .collect();
+    PluginEntry {
+        id: plugin.id.clone(),
+        version: manifest_ok.and_then(|m| m.version.clone()),
+        description: manifest_ok.and_then(|m| m.description.clone()),
+        source: plugin.source,
+        path: plugin.path.clone(),
+        enabled: plugin.enabled,
+        consented: plugin.consented(),
+        error: manifest.as_ref().err().cloned(),
+        servers: servers.iter().map(|view| view.entry.clone()).collect(),
+        tools,
+        skills,
+        hidden: Vec::new(),
+        enabled_seq: plugin.enabled_seq,
+    }
 }
 
 /// Moves every tool and skill name another holder keeps into the loser's `hidden`: built-in

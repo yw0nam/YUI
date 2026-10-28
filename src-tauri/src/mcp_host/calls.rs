@@ -120,3 +120,90 @@ async fn notify_cancelled(
         log::warn!("mcp_host_cancel_notify_failed error={e}");
     }
 }
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::super::test_support::{eventually, require_python, running, slow_call};
+    use serde_json::{json, Value};
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn a_call_carries_the_preset_in_its_meta() {
+        require_python();
+        let host = running("yui-test").await;
+        let result = host
+            .call("pet-a", "c1", "echo_meta", json!({}), "preset-1")
+            .await
+            .unwrap();
+        host.shutdown().await;
+        assert_eq!(result["isError"], false);
+        let meta: Value =
+            serde_json::from_str(result["content"][0]["text"].as_str().unwrap()).unwrap();
+        assert_eq!(meta["io.github.yw0nam.yui/preset"], "preset-1");
+    }
+
+    #[tokio::test]
+    async fn a_call_times_out_at_the_tools_wait_ms_and_cancels_it() {
+        require_python();
+        let host = running("yui-test").await;
+        let began = std::time::Instant::now();
+        let result = host
+            .call("pet-a", "c1", "slow", json!({}), "preset-1")
+            .await;
+        let took = began.elapsed();
+        assert_eq!(
+            result,
+            Err("plugin tool timed out after 1500 ms".to_string())
+        );
+        assert!(
+            took >= Duration::from_millis(1500) && took < Duration::from_secs(5),
+            "{took:?}"
+        );
+        let cancelled = || {
+            host.log_tail("yui-test")
+                .unwrap()
+                .iter()
+                .any(|l| l.starts_with("[main] cancelled id="))
+        };
+        assert!(
+            eventually(cancelled).await,
+            "{:?}",
+            host.log_tail("yui-test")
+        );
+        host.shutdown().await;
+    }
+
+    #[tokio::test]
+    async fn a_window_cancels_only_its_own_calls() {
+        require_python();
+        let host = running("yui-test").await;
+        let first = slow_call(&host, "pet-a", "c1");
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        host.cancel("pet-b", "c1");
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        assert!(!first.is_finished());
+        host.cancel("pet-a", "c1");
+        let ended = tokio::time::timeout(Duration::from_secs(1), first).await;
+        assert_eq!(
+            ended.unwrap().unwrap(),
+            Err("plugin tool cancelled".to_string())
+        );
+
+        let (second, third, other) = (
+            slow_call(&host, "pet-a", "c2"),
+            slow_call(&host, "pet-a", "c3"),
+            slow_call(&host, "pet-b", "c4"),
+        );
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        host.cancel_window("pet-a");
+        for call in [second, third] {
+            let ended = tokio::time::timeout(Duration::from_secs(1), call).await;
+            assert_eq!(
+                ended.unwrap().unwrap(),
+                Err("plugin tool cancelled".to_string())
+            );
+        }
+        assert!(!other.is_finished());
+        host.shutdown().await;
+    }
+}

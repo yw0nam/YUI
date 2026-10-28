@@ -75,16 +75,12 @@ pub fn run() {
         .invoke_handler(commands::handler())
         .on_window_event(|_window, _event| {
             #[cfg(desktop)]
-            if let tauri::WindowEvent::Destroyed = _event {
-                mcp_host::window_destroyed(_window);
-            }
+            mcp_host::on_window_event(_window, _event);
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|_app, _event| {
             #[cfg(desktop)]
-            if let tauri::RunEvent::Exit = _event {
-                mcp_host::exit(_app);
-            }
+            mcp_host::on_run_event(_app, &_event);
         });
 }

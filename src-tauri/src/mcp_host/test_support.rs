@@ -1,8 +1,13 @@
 //! Shared helpers for the MCP host tests: the fixture plugin, temp folders, polling.
 
-use std::path::PathBuf;
+use super::host::Host;
+use super::snapshot::Snapshot;
+use serde_json::{json, Value};
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use time::UtcOffset;
 
 pub fn fixture() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("fixtures/mcp-test-plugin")
@@ -70,4 +75,34 @@ fn copy_dir(from: &std::path::Path, to: &std::path::Path) {
             std::fs::copy(entry.path(), target).unwrap();
         }
     }
+}
+
+pub type Emitted = Arc<Mutex<Vec<Snapshot>>>;
+
+pub fn host_at(app_data: &Path) -> (Arc<Host>, Emitted) {
+    let emitted = Emitted::default();
+    let sink = emitted.clone();
+    let host = Host::new(app_data, &app_data.join("logs"), UtcOffset::UTC, move |s| {
+        sink.lock().unwrap().push(s.clone())
+    });
+    (host, emitted)
+}
+
+pub async fn running(id: &str) -> Arc<Host> {
+    let (host, _) = host_at(&temp_dir());
+    host.add(fixture_copy(id)).unwrap();
+    host.enable(id).await.unwrap();
+    host
+}
+
+pub fn slow_call(
+    host: &Arc<Host>,
+    window: &'static str,
+    call_id: &'static str,
+) -> tokio::task::JoinHandle<Result<Value, String>> {
+    let host = host.clone();
+    tokio::spawn(async move {
+        host.call(window, call_id, "slow", json!({}), "preset-1")
+            .await
+    })
 }

@@ -3,6 +3,7 @@
 use super::launch;
 use super::manifest::ServerSpec;
 use crate::log_rotation::DateRotatingFile;
+use process_wrap::tokio::ChildWrapper;
 use rmcp::model::Tool;
 use rmcp::service::{Peer, RoleClient, RunningService, ServiceExt};
 use serde::Serialize;
@@ -58,12 +59,27 @@ impl PluginLog {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Phase {
     Spawn,
     Initialize,
     List,
+}
+
+impl Phase {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Phase::Spawn => "spawn",
+            Phase::Initialize => "initialize",
+            Phase::List => "list",
+        }
+    }
+}
+
+impl Serialize for Phase {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.as_str())
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -104,38 +120,58 @@ impl Server {
     }
 }
 
-/// Spawns, initializes and lists tools under `deadline`; `on_exit` gets the reason when the
-/// server ends by itself after that.
-pub async fn start(
+/// A server process whose connection is not initialized yet.
+pub struct Spawned {
+    child: Box<dyn ChildWrapper>,
+    /// The leader's pid, which is the process group id.
+    pgid: Option<u32>,
+    name: String,
+    log: Arc<PluginLog>,
+}
+
+/// Spawns the server and starts copying its stderr into the log.
+pub fn spawn(
     spec: &ServerSpec,
     root: &Path,
     data: &Path,
     log: Arc<PluginLog>,
+) -> Result<Spawned, Failure> {
+    let mut child = launch::command(spec, root, data)
+        .and_then(|mut command| command.spawn())
+        .map_err(|e| failed(&log, &spec.name, Phase::Spawn, e.to_string()))?;
+    if let Some(stderr) = child.stderr().take() {
+        tokio::spawn(read_stderr(stderr, spec.name.clone(), log.clone()));
+    }
+    Ok(Spawned {
+        pgid: child.id(),
+        child,
+        name: spec.name.clone(),
+        log,
+    })
+}
+
+/// Initializes and lists tools under `deadline`; `on_exit` gets the reason when the server
+/// ends by itself after that.
+pub async fn connect(
+    spawned: Spawned,
     deadline: Duration,
     on_exit: impl FnOnce(String) + Send + 'static,
 ) -> Result<Server, Failure> {
-    let name = spec.name.clone();
-    let fail = |phase: Phase, reason: String| {
-        log.line(&name, &format!("failed ({}): {reason}", phase_name(phase)));
-        Failure { phase, reason }
-    };
+    let Spawned {
+        mut child,
+        pgid,
+        name,
+        log,
+    } = spawned;
     let until = tokio::time::Instant::now() + deadline;
-    let mut child = launch::command(spec, root, data)
-        .and_then(|mut command| command.spawn())
-        .map_err(|e| fail(Phase::Spawn, e.to_string()))?;
-    let pgid = child.id();
-    if let Some(stderr) = child.stderr().take() {
-        tokio::spawn(read_stderr(stderr, name.clone(), log.clone()));
-    }
     let stdout = child.stdout().take().expect("launch pipes stdout");
     let stdin = child.stdin().take().expect("launch pipes stdin");
     let serving = tokio::time::timeout_at(until, ().serve((stdout, stdin))).await;
     let mut client = match within(serving, deadline) {
         Ok(client) => client,
         Err(reason) => {
-            kill_group(pgid);
-            drop(child);
-            return Err(fail(Phase::Initialize, reason));
+            kill_tree(pgid, child);
+            return Err(failed(&log, &name, Phase::Initialize, reason));
         }
     };
     let listing = tokio::time::timeout_at(until, client.peer().list_all_tools()).await;
@@ -143,9 +179,8 @@ pub async fn start(
         Ok(tools) => tools,
         Err(reason) => {
             let _ = client.close().await;
-            kill_group(pgid);
-            drop(child);
-            return Err(fail(Phase::List, reason));
+            kill_tree(pgid, child);
+            return Err(failed(&log, &name, Phase::List, reason));
         }
     };
     log.line(&name, "started");
@@ -178,12 +213,9 @@ pub async fn start(
     })
 }
 
-fn phase_name(phase: Phase) -> &'static str {
-    match phase {
-        Phase::Spawn => "spawn",
-        Phase::Initialize => "initialize",
-        Phase::List => "list",
-    }
+fn failed(log: &PluginLog, server: &str, phase: Phase, reason: String) -> Failure {
+    log.line(server, &format!("failed ({}): {reason}", phase.as_str()));
+    Failure { phase, reason }
 }
 
 fn within<T, E: Display>(
@@ -236,9 +268,14 @@ fn decode(bytes: &[u8]) -> String {
     text
 }
 
+fn kill_tree(pgid: Option<u32>, child: Box<dyn ChildWrapper>) {
+    kill_group(pgid);
+    drop(child);
+}
+
 /// SIGKILL to the group; on Windows the job object ends the tree when the child drops.
 #[cfg(unix)]
-fn kill_group(pgid: Option<u32>) {
+pub fn kill_group(pgid: Option<u32>) {
     use nix::sys::signal::{killpg, Signal};
     let Some(pgid) = pgid else {
         return;
@@ -250,7 +287,7 @@ fn kill_group(pgid: Option<u32>) {
 }
 
 #[cfg(not(unix))]
-fn kill_group(_pgid: Option<u32>) {}
+pub fn kill_group(_pgid: Option<u32>) {}
 
 #[cfg(all(test, unix))]
 mod tests {
@@ -284,17 +321,13 @@ mod tests {
         let (log_dir, data) = (base.join("logs"), base.join("data/yui-test"));
         let log = Arc::new(PluginLog::new(log_dir.clone(), "yui-test", UtcOffset::UTC));
         let (tx, exit) = tokio::sync::oneshot::channel();
-        let result = start(
-            &spec,
-            &fixture(),
-            &data,
-            log.clone(),
-            deadline,
-            move |reason| {
-                let _ = tx.send(reason);
-            },
-        )
-        .await;
+        let on_exit = move |reason| {
+            let _ = tx.send(reason);
+        };
+        let result = match spawn(&spec, &fixture(), &data, log.clone()) {
+            Ok(spawned) => connect(spawned, deadline, on_exit).await,
+            Err(failure) => Err(failure),
+        };
         Started {
             result,
             log,
