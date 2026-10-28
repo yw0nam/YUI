@@ -1,11 +1,8 @@
 changelog:
   categories:
-    - title: Deprecations
+    - title: Breaking changes
       labels:
-        - deprecation
-    - title: Removed
-      labels:
-        - removal
+        - breaking
     - title: What's Changed
       labels:
         - "*"
