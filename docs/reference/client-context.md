@@ -616,7 +616,7 @@ plugin tools: echo_args — Echo argv. · slow — Waits before answering. · sp
 
 The `ClientContext` field is `plugin_tools?: { name, summary }[]`, one entry per tool in snapshot order: plugin by plugin, each plugin's servers in manifest order. An entry reads `<name> — <summary>`, or the name alone when the summary is empty, and entries are joined with ` · `.
 
-The summary is the tool's own `io.github.yw0nam.yui/summary` meta when it sets a non-empty one, else the first sentence of the first line of its description. Either is cut at 100 characters. A name or summary goes through the same sanitization as the other sampled fields, so it stays one line.
+The summary is the tool's own `io.github.yw0nam.yui/summary` meta when it sets a non-empty one, else the first sentence of its description's first paragraph — the text up to the first blank line, with every whitespace run collapsed to one space. Either is cut at 100 characters. A name or summary goes through the same sanitization as the other sampled fields, so it stays one line.
 
 The line names the tools only. `plugin_describe` returns a tool's full description and input schema, and `plugin_call` runs it ([client-tools.md](client-tools.md#bridge-tools)).
 

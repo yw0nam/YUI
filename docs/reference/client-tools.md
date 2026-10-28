@@ -310,7 +310,7 @@ A name no enabled plugin declares answers `error: unknown plugin tool: <name>` â
 
 ### Arguments
 
-`plugin_call` checks `arguments` against the tool's declared input schema before anything is sent. An `arguments` value that arrived as a JSON string is parsed first, and one that does not parse is kept as it is. The check reports the first violation as its instance location and its message, and the answer carries that violation and the tool's input schema, which the turn's `plugin tools` line does not:
+`plugin_call` checks `arguments` against the tool's declared input schema before anything is sent. The check reports the first violation as its instance location and its message, and the answer carries that violation and the tool's input schema, which the turn's `plugin tools` line does not:
 
 ```text
 error: invalid arguments (/app: must be string)
