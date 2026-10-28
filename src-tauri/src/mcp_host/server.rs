@@ -137,6 +137,16 @@ pub struct Spawned {
     log: Arc<PluginLog>,
 }
 
+impl Spawned {
+    pub fn leader(&self) -> Option<u32> {
+        self.pgid
+    }
+
+    pub fn kill(self) {
+        kill_tree(self.pgid, self.child);
+    }
+}
+
 /// Spawns the server and starts copying its stderr into the log.
 pub fn spawn(
     spec: &ServerSpec,

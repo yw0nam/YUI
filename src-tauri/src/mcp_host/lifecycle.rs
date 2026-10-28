@@ -17,6 +17,8 @@ pub struct LiveServer {
     /// Tags the latest start or stop; a start or exit with another tag is dropped.
     epoch: u64,
     pub running: Option<Server>,
+    /// The leader pid of a server that is spawned but not running yet.
+    starting: Option<u32>,
 }
 
 impl LiveServer {
@@ -32,8 +34,17 @@ impl LiveServer {
             },
             epoch: 0,
             running: None,
+            starting: None,
         }
     }
+}
+
+/// The servers a stop takes: the running ones with their ids, and the leaders of those still
+/// starting.
+#[derive(Default)]
+pub struct Stopping {
+    running: Vec<(String, Server)>,
+    starting: Vec<u32>,
 }
 
 /// One server start, prepared under the lock and run outside it.
@@ -75,22 +86,19 @@ impl Inner {
         tickets
     }
 
-    /// Marks the matching servers as stopped and hands back the running ones with their ids.
-    pub fn stop_servers(
-        &mut self,
-        which: impl Fn(&str, &LiveServer) -> bool,
-    ) -> Vec<(String, Server)> {
-        let mut stopping = Vec::new();
+    /// Marks the matching servers as stopped and hands back what must be stopped.
+    pub fn stop_servers(&mut self, which: impl Fn(&str, &LiveServer) -> bool) -> Stopping {
+        let mut stopping = Stopping::default();
         for (plugin_id, live) in &mut self.live {
             for ls in live.servers.iter_mut().filter(|ls| which(plugin_id, ls)) {
                 self.next_epoch += 1;
                 ls.epoch = self.next_epoch;
                 ls.entry.reset(Status::Stopped);
-                stopping.extend(
-                    ls.running
-                        .take()
-                        .map(|server| (ls.entry.id.clone(), server)),
-                );
+                let id = ls.entry.id.clone();
+                stopping
+                    .running
+                    .extend(ls.running.take().map(|server| (id, server)));
+                stopping.starting.extend(ls.starting.take());
             }
         }
         stopping
@@ -118,12 +126,17 @@ impl Host {
         }
     }
 
-    /// Cancels the servers' calls, then stops the servers together.
-    pub(super) async fn stop(&self, stopping: Vec<(String, Server)>) {
-        for (server_id, _) in &stopping {
+    /// Kills the trees of servers still starting, cancels the running servers' calls, then
+    /// stops those servers together.
+    pub(super) async fn stop(&self, stopping: Stopping) {
+        for leader in stopping.starting {
+            server::kill_group(Some(leader));
+        }
+        for (server_id, _) in &stopping.running {
             self.calls.cancel_server(server_id).await;
         }
         let stops: Vec<_> = stopping
+            .running
             .into_iter()
             .map(|(_, server)| tokio::spawn(server.stop()))
             .collect();
@@ -142,6 +155,14 @@ impl Host {
         let data = self.dir.join("data").join(&ticket.plugin_id);
         let started = match server::spawn(&ticket.spec, &ticket.root, &data, ticket.log) {
             Ok(spawned) => {
+                match self
+                    .lock()
+                    .server_mut(&ticket.plugin_id, &ticket.server_id, epoch)
+                {
+                    Some(ls) => ls.starting = spawned.leader(),
+                    // Stopped while spawning.
+                    None => return spawned.kill(),
+                }
                 server::connect(spawned, STARTUP_DEADLINE, move |reason| {
                     if let Some(host) = host.upgrade() {
                         host.exited(&plugin_id, &server_id, epoch, reason);
@@ -158,6 +179,7 @@ impl Host {
                     .ok()
                     .map(|server| (ticket.server_id.clone(), server)),
                 Some(ls) => {
+                    ls.starting = None;
                     let stale = match started {
                         // An exit that landed before this point already set `exited`.
                         Ok(server) if ls.entry.status == Status::Starting => {
@@ -178,7 +200,11 @@ impl Host {
                 }
             }
         };
-        self.stop(stale.into_iter().collect()).await;
+        self.stop(Stopping {
+            running: stale.into_iter().collect(),
+            starting: Vec::new(),
+        })
+        .await;
     }
 
     fn exited(&self, plugin_id: &str, server_id: &str, epoch: u64, reason: String) {
