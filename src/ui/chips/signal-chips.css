@@ -9,6 +9,8 @@
   gap: 0.4rem;
   font-family: var(--yui-font);
   pointer-events: none;
+  /* A flex item of the chip column: its own stacking context, so the sheet paints above the delegation chip. */
+  z-index: 1;
 
   opacity: 0;
   transition: opacity var(--yui-dur) var(--yui-ease);
