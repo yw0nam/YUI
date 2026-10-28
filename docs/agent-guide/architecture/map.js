@@ -395,6 +395,11 @@ globalThis.YUI_MAP =
       "label": "plugin host calls, plugin snapshot"
     },
     {
+      "from": "settings",
+      "to": "tools",
+      "label": "plugin page commands, plugin snapshot"
+    },
+    {
       "from": "shell",
       "to": "window",
       "label": "os_event every 5 s, drop release, tray",
@@ -536,7 +541,7 @@ globalThis.YUI_MAP =
       "id": "shell/mcp-host",
       "module": "shell",
       "label": "mcp_host",
-      "role": "Installs, updates, and removes Catalog plugins, runs local and Catalog plugins' MCP servers, keeps their enablement and consent on disk, publishes a revisioned snapshot to every window, and answers plugin tool calls and skill reads.",
+      "role": "Installs, updates, and removes Catalog plugins, runs local and Catalog plugins' MCP servers, keeps their enablement and consent on disk, publishes a revisioned snapshot to every window, answers plugin tool calls and skill reads, names each server's launch command in the snapshot, and opens its plugin log folder.",
       "paths": [
         "src-tauri/src/mcp_host"
       ]
@@ -715,7 +720,7 @@ globalThis.YUI_MAP =
       "id": "io/mcp-host",
       "module": "tools",
       "label": "mcp host client",
-      "role": "Keeps the MCP host's newest snapshot, invokes its call, cancel and skill commands, and builds the per-turn plugin tools and plugin skills lines.",
+      "role": "Keeps the MCP host's newest snapshot and its subscription, invokes its call, cancel and skill commands and the settings window's managing commands, and builds the per-turn plugin tools and plugin skills lines.",
       "paths": [
         "src/io/mcp-host"
       ]
@@ -1165,7 +1170,7 @@ globalThis.YUI_MAP =
       "id": "ui/quick-controls",
       "module": "settings",
       "label": "quick controls",
-      "role": "The settings panel that fills the settings window: a search field over a rail of the edited character's pages (Connection, Voice, Persona, Body, History) then every character's pages (Together, Listening and bubble, Permissions, Proactive, Motion and desktop, General), each page's scope line naming which; it heads with every character and its transport and window state, and a click edits it; a control the push transport cannot use stays, disabled, with its reason and a link to the chat protocol select; the Together page's Characters list turns each character on or off the desktop; the preset manage row's copy button copies a character's ingress URL and the Proactive URL line shows this window's; the preset strip shows this preset's relation line and the reasons card; the Persona page's Card section edits the preset's card, its send switch and the preset's name; the General page holds the device-wide user name and the Appearance row that picks the theme.",
+      "role": "The settings panel that fills the settings window: a search field over a rail of the edited character's pages (Connection, Voice, Persona, Body, History) then every character's pages (Together, Listening and bubble, Permissions, Plugins, Proactive, Motion and desktop, General), each page's scope line naming which; the Plugins page lists the installed plugins with their consent, status and log tail, and the catalog with install and add from folder; it heads with every character and its transport and window state, and a click edits it; a control the push transport cannot use stays, disabled, with its reason and a link to the chat protocol select; the Together page's Characters list turns each character on or off the desktop; the preset manage row's copy button copies a character's ingress URL and the Proactive URL line shows this window's; the preset strip shows this preset's relation line and the reasons card; the Persona page's Card section edits the preset's card, its send switch and the preset's name; the General page holds the device-wide user name and the Appearance row that picks the theme.",
       "paths": [
         "src/ui/quick-controls"
       ]
@@ -2079,10 +2084,19 @@ globalThis.YUI_MAP =
       "wiring": "src/io/chat/tools/pet-window-tools.ts"
     },
     {
+      "id": "settings-mcp-host",
+      "from": "ui/quick-controls",
+      "to": "io/mcp-host",
+      "carries": "snapshot() and subscribe() for the Plugins page; catalog, install, remove, enable, disable, addLocal, retry, logTail, revealLog",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/settings-window/wire-settings-window.ts"
+    },
+    {
       "id": "mcp-host-shell",
       "from": "io/mcp-host",
       "to": "shell/mcp-host",
-      "carries": "plugin_host_call, plugin_host_cancel, plugin_host_skill, plugin_host_snapshot",
+      "carries": "plugin_host_call, plugin_host_cancel, plugin_host_skill, plugin_host_snapshot, plugin_host_catalog, plugin_host_install, plugin_host_remove, plugin_host_enable, plugin_host_disable, plugin_host_add_local, plugin_host_retry, plugin_host_log_tail, plugin_host_reveal_log",
       "kind": "tauri-command",
       "transport": "shared"
     },
