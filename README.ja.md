@@ -67,7 +67,7 @@
 
 <a href="https://youtu.be/XB-jRXspJ_E"><img src="docs/public/yui-scenario-browse.gif" alt="チャットウィンドウでユーザーがYangyangにyw0nam/YUIの検索を頼むと、ego liteで開いたGoogle検索結果が彼女の横に表示され、GitHubのプロジェクトが見つかったと彼女が答える" width="560"></a>
 
-権限ページで **ブラウザの使用を許可** をオンにすると、[ego lite](docs/reference/client-tools.md#browser)でWebを検索し、ページを開いて、見つけたことを教えてくれます。対応ブラウザはego liteのみです。
+プラグインページで公式の `browser` プラグインをインストールして有効にすると、[ego lite](plugins/browser/README.md)でWebを検索し、ページを開いて、見つけたことを教えてくれます。対応ブラウザはego liteのみです。
 
 ### 何人ものキャラクターを、ひとつの会話で
 

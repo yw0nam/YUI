@@ -114,7 +114,7 @@
   turn opened runs with the other chat's ids. Each switch between chats whose vocabularies differ
   rebuilds the gateway's cached agents.
 - Registers the tools the client declares in its `hello.tools` frame under the `yui` toolset:
-  `rate_relation` and `address_character` from every pet window, `browser` and the bridge tools
+  `rate_relation` and `address_character` from every pet window, the bridge tools
   `plugin_describe`, `plugin_call` and `plugin_skill` from a Tauri pet window, and `body_action`
   and `look` from `main` alone. Registration is once per schema
   fingerprint, and a name whose schema differs per chat is registered again at turn start with
@@ -122,9 +122,9 @@
   `body_action` to move the character and `look` to read her state. Each call sends one
   `tool_call` frame and blocks the handler's worker thread on
   the `tool_result`: 20 s for `body_action`, 7 s for `look`, `rate_relation`,
-  `address_character`, `plugin_describe` and `plugin_skill`, 40 s for `browser` and 125 s for
+  `address_character`, `plugin_describe` and `plugin_skill`, and 125 s for
   `plugin_call`, counted from the send; the client's own bound is
-  5 s lower for every tool but `browser`, which is 8 s lower, and `plugin_call`, which is
+  5 s lower for every tool but `plugin_call`, which is
   4 s lower. One call runs at a time per chat;
   a second waits for
   the first. A call answers `error: client disconnected` at once when no ready socket can take it,
