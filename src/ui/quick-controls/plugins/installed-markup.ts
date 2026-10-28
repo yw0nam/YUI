@@ -14,8 +14,7 @@ import {
   esc,
   type Failure,
   ICON_CHEV,
-  ICON_FOLDER,
-  ICON_WARN,
+  SOURCES,
   SPIN,
   versionHtml,
 } from "./plugin-parts";
@@ -123,12 +122,6 @@ function stepHtml(n: 1 | 2): string {
   return `<p class="yui-plg-consent__step"><i class="on"></i><i${n === 2 ? ' class="on"' : ""}></i>${t("plugins.step", { n })}</p>`;
 }
 
-const REVIEW_KEY: Record<PluginHostPlugin["source"], string> = {
-  official: "plugins.reviewed_official",
-  community: "plugins.reviewed_community",
-  local: "plugins.reviewed_local",
-};
-
 function stepOneHtml(p: PluginHostPlugin): string {
   const id = esc(p.id);
   const many = p.servers.length > 1;
@@ -138,19 +131,17 @@ function stepOneHtml(p: PluginHostPlugin): string {
         `<code class="yui-plg-cmd">${many ? `<b>${esc(sv.name)}</b> ` : ""}${esc(sv.command)}</code>`,
     )
     .join("");
-  const extra =
-    p.source === "community"
-      ? `<p class="yui-plg-warn yui-plg-warn--strong">${ICON_WARN}<span>${t("plugins.warn_community")}</span></p>`
-      : p.source === "local"
-        ? `<p class="yui-plg-warn">${ICON_FOLDER}<span>${t("plugins.warn_local")}</span></p>`
-        : "";
+  const { warning } = SOURCES[p.source];
+  const extra = warning
+    ? `<p class="yui-plg-warn${warning.strong ? " yui-plg-warn--strong" : ""}">${warning.icon}<span>${t(warning.key)}</span></p>`
+    : "";
   const question =
     p.enabled && !p.consented ? t("plugins.consent_q_reapprove") : t("plugins.consent_q", { id });
   return `<div class="yui-plg-consent" data-k="${id}:c1" role="group" aria-label="${esc(t("plugins.consent_aria", { id: p.id }))}">
       ${stepHtml(1)}
       <p class="yui-plg-consent__q">${question}</p>
       <dl class="yui-plg-facts">
-        <dt>${t("plugins.fact_source")}</dt><dd>${badgeHtml(p.source)} <small>${t(REVIEW_KEY[p.source])}</small><br><span>${esc(p.path)}</span></dd>
+        <dt>${t("plugins.fact_source")}</dt><dd>${badgeHtml(p.source)} <small>${t(SOURCES[p.source].review)}</small><br><span>${esc(p.path)}</span></dd>
         <dt>${t("plugins.fact_version")}</dt><dd>${p.version ? t("plugins.version", { version: esc(p.version) }) : `<small>${t("plugins.no_version")}</small>`}</dd>
         <dt>${t("plugins.fact_command")}</dt><dd>${cmds || `<small>${t("plugins.no_servers")}</small>`}</dd>
       </dl>
@@ -239,22 +230,22 @@ function pluginHtml(p: PluginHostPlugin, v: InstalledView): string {
     }
   }
   if (ui.confirm) {
-    const local = p.source === "local";
+    const source = SOURCES[p.source];
     return `${html}<div class="yui-confirm" data-k="${id}:confirm" role="group">
-      <span class="yui-confirm__q">${t(local ? "plugins.confirm_remove_local" : "plugins.confirm_delete", { id })}</span>
+      <span class="yui-confirm__q">${t(source.confirm, { id })}</span>
       <button class="yui-pill" type="button" data-act="rm-cancel" data-id="${id}" data-fk="rm-cancel:${id}">${t("plugins.cancel")}</button>
-      <button class="yui-pill yui-pill--go" type="button" data-act="rm-go" data-id="${id}" data-fk="rm-go:${id}">${t(local ? "plugins.remove_go" : "plugins.delete")}</button></div></div>`;
+      <button class="yui-pill yui-pill--go" type="button" data-act="rm-go" data-id="${id}" data-fk="rm-go:${id}">${t(source.confirmGo)}</button></div></div>`;
   }
   const to = v.updateTo(p);
   let mid = "";
   if (busy) mid = `<span class="yui-plg-busy" role="status">${SPIN}${t("plugins.updating")}</span>`;
   else if (to)
     mid = `<button class="yui-link-btn yui-help-btn" type="button" data-act="update" data-id="${id}" data-fk="update:${id}">${t("plugins.update_to", { v: esc(to) })}</button>`;
-  else if (p.source === "local")
+  else if (!SOURCES[p.source].fromCatalog)
     mid = `<span class="yui-plg-path" title="${esc(p.path)}">${esc(p.path)}</span>`;
   html += `<div class="yui-row yui-row--action"><div class="yui-plg-acts">
       <button class="yui-link-btn" type="button" aria-expanded="${!!ui.logOpen}" data-act="log" data-id="${id}" data-fk="log:${id}">${ICON_CHEV}${t("plugins.log")}</button>${mid}
-      <button class="yui-link-btn yui-plg-acts__end" type="button" data-act="remove" data-id="${id}" data-fk="remove:${id}"${off}>${t(p.source === "local" ? "plugins.remove_local" : "plugins.delete")}</button></div></div>`;
+      <button class="yui-link-btn yui-plg-acts__end" type="button" data-act="remove" data-id="${id}" data-fk="remove:${id}"${off}>${t(SOURCES[p.source].removeLabel)}</button></div></div>`;
   if (ui.error) {
     const retry = ui.error.retry
       ? `<button class="yui-link-btn" type="button" data-act="${ui.error.retry}" data-id="${id}" data-fk="again:${id}">${t("plugins.retry")}</button>`

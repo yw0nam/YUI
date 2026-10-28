@@ -6,7 +6,7 @@ import { createKeyedRender } from "../keyed-render";
 import { catalogHtml, type InstallUi } from "./catalog-markup";
 import { createCatalogState } from "./catalog-state";
 import { installedHtml, type PluginUi } from "./installed-markup";
-import type { Failure } from "./plugin-parts";
+import { type Failure, SOURCES } from "./plugin-parts";
 import "../connection/endpoints-section.css";
 import "./plugins-page.css";
 
@@ -162,9 +162,9 @@ export function createPluginsPage(deps: {
     },
     "rm-go": (id) => {
       uiOf(id).confirm = false;
-      const lead =
-        plugin(id)?.source === "local" ? "plugins.err_remove_local" : "plugins.err_remove";
-      void attempt(id, uiOf(id), lead, () => manage.remove(id));
+      const p = plugin(id);
+      if (!p) return;
+      void attempt(id, uiOf(id), SOURCES[p.source].removeFailed, () => manage.remove(id));
     },
     tools: (id) => {
       const state = uiOf(id);

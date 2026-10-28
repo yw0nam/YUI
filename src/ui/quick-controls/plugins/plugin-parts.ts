@@ -14,20 +14,61 @@ export function esc(text: string): string {
 
 export const SPIN = '<span class="yui-plg-spin" aria-hidden="true"></span>';
 
-export const ICON_WARN = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="2"/><path d="M12 7.5v5.5M12 16.2v.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
-export const ICON_FOLDER = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 7.2c0-1 .8-1.7 1.7-1.7h4l2 2.2h7.6c1 0 1.7.8 1.7 1.7v7.9c0 1-.8 1.7-1.7 1.7H5.2c-1 0-1.7-.8-1.7-1.7V7.2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`;
+const ICON_WARN = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="2"/><path d="M12 7.5v5.5M12 16.2v.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+const ICON_FOLDER = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 7.2c0-1 .8-1.7 1.7-1.7h4l2 2.2h7.6c1 0 1.7.8 1.7 1.7v7.9c0 1-.8 1.7-1.7 1.7H5.2c-1 0-1.7-.8-1.7-1.7V7.2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`;
 export const ICON_CHEV = `<svg class="yui-plg-chev" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const ICON_SEAL = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m8.5 12.2 2.4 2.4 4.6-4.8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const ICON_PEOPLE = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="3" stroke="currentColor" stroke-width="2"/><path d="M3.5 19c1-3 3-4.5 5.5-4.5s4.5 1.5 5.5 4.5M16 6.5a3 3 0 0 1 0 5.5M17.5 14.6c1.6.7 2.6 2 3 4.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
 
-const SOURCE_ICON: Record<PluginHostPlugin["source"], string> = {
-  official: ICON_SEAL,
-  community: ICON_PEOPLE,
-  local: ICON_FOLDER,
+/** What differs by where a plugin comes from; string fields are i18n keys. */
+interface SourceInfo {
+  icon: string;
+  review: string;
+  /** Step 1's warning under the shield line. */
+  warning: { key: string; icon: string; strong: boolean } | null;
+  removeLabel: string;
+  confirm: string;
+  confirmGo: string;
+  removeFailed: string;
+  /** Installed from the catalog, which offers its updates; a local plugin shows its folder instead. */
+  fromCatalog: boolean;
+}
+
+const FROM_CATALOG = {
+  removeLabel: "plugins.delete",
+  confirm: "plugins.confirm_delete",
+  confirmGo: "plugins.delete",
+  removeFailed: "plugins.err_remove",
+  fromCatalog: true,
+};
+
+export const SOURCES: Record<PluginHostPlugin["source"], SourceInfo> = {
+  official: {
+    ...FROM_CATALOG,
+    icon: ICON_SEAL,
+    review: "plugins.reviewed_official",
+    warning: null,
+  },
+  community: {
+    ...FROM_CATALOG,
+    icon: ICON_PEOPLE,
+    review: "plugins.reviewed_community",
+    warning: { key: "plugins.warn_community", icon: ICON_WARN, strong: true },
+  },
+  local: {
+    icon: ICON_FOLDER,
+    review: "plugins.reviewed_local",
+    warning: { key: "plugins.warn_local", icon: ICON_FOLDER, strong: false },
+    removeLabel: "plugins.remove_local",
+    confirm: "plugins.confirm_remove_local",
+    confirmGo: "plugins.remove_go",
+    removeFailed: "plugins.err_remove_local",
+    fromCatalog: false,
+  },
 };
 
 export function badgeHtml(source: PluginHostPlugin["source"]): string {
-  return `<span class="yui-plg-badge">${SOURCE_ICON[source]}${t(`plugins.source_${source}`)}</span>`;
+  return `<span class="yui-plg-badge">${SOURCES[source].icon}${t(`plugins.source_${source}`)}</span>`;
 }
 
 export function versionHtml(version: string | null): string {

@@ -3,6 +3,7 @@
 import type { CatalogEntry, McpHostManage, PluginHostPlugin } from "../../../io/mcp-host/mcp-host";
 import type { CatalogView } from "./catalog-markup";
 import type { CheckState } from "./installed-markup";
+import { SOURCES } from "./plugin-parts";
 
 /** How long "Check for updates" shows its result. */
 const CHECK_RESULT_MS = 4000;
@@ -34,7 +35,7 @@ export function createCatalogState(deps: {
   let checkTimer: ReturnType<typeof setTimeout> | undefined;
 
   function updateTo(p: PluginHostPlugin): string | null {
-    if (p.source === "local" || state !== "ok") return null;
+    if (!SOURCES[p.source].fromCatalog || state !== "ok") return null;
     const entry = entries.find((c) => c.id === p.id);
     return entry?.version && p.version && entry.version !== p.version ? entry.version : null;
   }
