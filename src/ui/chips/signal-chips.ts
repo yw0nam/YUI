@@ -11,6 +11,7 @@ import type { DelegationChipSettingsStore } from "../../settings/panels/delegati
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { afterFadeOut } from "../notices/fade-out";
 import { CROSS_SVG } from "../quick-controls/constants";
+import { fitSheet } from "./fit-sheet";
 import { holdToFold } from "./hold-to-fold";
 import type { SignalChipItem, SignalChipsModel } from "./signal-chips-model";
 import { renderSignalDetails } from "./signal-details";
@@ -131,7 +132,7 @@ export function createSignalChips({
   }
 
   function focusIn(selector: string): void {
-    el.querySelector<HTMLElement>(selector)?.focus();
+    el.querySelector<HTMLElement>(selector)?.focus({ preventScroll: true });
   }
 
   /** Puts `node` at `index` among the container's children, moving it only when it is elsewhere. */
@@ -143,7 +144,7 @@ export function createSignalChips({
     const id = openId;
     openId = null;
     render();
-    if (id !== null) pills.get(id)?.open.focus();
+    if (id !== null) pills.get(id)?.open.focus({ preventScroll: true });
   }
 
   function render(): void {
@@ -193,6 +194,7 @@ export function createSignalChips({
 
     renderDetails(opened && !collapsed.get().collapsed ? opened : undefined, shown.length);
     setVisible(true);
+    if (details) fitSheet(details.el);
   }
 
   // The sheet is rebuilt only when what it shows changed, so focus inside it survives.
@@ -217,7 +219,10 @@ export function createSignalChips({
         }),
         item,
       };
-      if (hadFocus) details.el.querySelector<HTMLElement>(".yui-sigdetails__close")?.focus();
+      if (hadFocus)
+        details.el
+          .querySelector<HTMLElement>(".yui-sigdetails__close")
+          ?.focus({ preventScroll: true });
     }
     place(details.el, shownCount + (more.parentNode === el ? 1 : 0));
   }
@@ -226,6 +231,13 @@ export function createSignalChips({
     if (e.key === "Escape" && openId !== null) closeDetails();
   }
   document.addEventListener("keydown", onKeydown);
+
+  // The column's height and the window size move the sheet's anchor.
+  const resizes = new ResizeObserver(() => {
+    if (details) fitSheet(details.el);
+  });
+  resizes.observe(mount);
+  resizes.observe(document.documentElement);
 
   function applyCollapsed(isFolded: boolean): void {
     el.classList.toggle("is-mini", isFolded);
@@ -244,6 +256,7 @@ export function createSignalChips({
       for (const pill of pills.values()) pill.fold.dispose();
       cancelHide?.();
       document.removeEventListener("keydown", onKeydown);
+      resizes.disconnect();
       offModel();
       offCollapsed();
       offLocale();
