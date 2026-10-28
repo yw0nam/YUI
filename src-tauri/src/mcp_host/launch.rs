@@ -51,3 +51,28 @@ fn expand(s: &str, root: &str, data: &str) -> String {
     s.replace("${CLAUDE_PLUGIN_ROOT}", root)
         .replace("${CLAUDE_PLUGIN_DATA}", data)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn a_launch_command_shows_an_argument_with_spaces_in_quotes() {
+        let spec = ServerSpec {
+            name: "main".to_string(),
+            command: "cmd".to_string(),
+            args: vec![
+                "a b".to_string(),
+                "c".to_string(),
+                String::new(),
+                "say \"hi\"".to_string(),
+            ],
+            env: HashMap::new(),
+        };
+        assert_eq!(
+            display(&spec, Path::new("/root"), Path::new("/data")),
+            r##"cmd "a b" c "" "say \"hi\"""##
+        );
+    }
+}
