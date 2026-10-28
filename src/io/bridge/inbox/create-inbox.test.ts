@@ -31,9 +31,9 @@ it.each([
   vi.stubGlobal("__TAURI_INTERNALS__", {});
   windowState.label = label;
   const listen = vi.fn(async () => () => {});
-  const off = createInbox<TestPayload>("agent-inbox")(vi.fn(), { listen });
+  const off = createInbox<TestPayload>("test-inbox")(vi.fn(), { listen });
   await vi.waitFor(() =>
-    expect(listen).toHaveBeenCalledExactlyOnceWith("agent-inbox", expect.any(Function), {
+    expect(listen).toHaveBeenCalledExactlyOnceWith("test-inbox", expect.any(Function), {
       target: { kind: "WebviewWindow", label },
     }),
   );

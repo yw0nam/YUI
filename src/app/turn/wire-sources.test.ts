@@ -31,10 +31,6 @@ vi.mock("../../dispatcher/sources/idle-tick/schedule-source", () => ({
   createScheduleSource: vi.fn(makeSource("schedule")),
 }));
 
-vi.mock("../../dispatcher/sources/inbox/agent-source", () => ({
-  createAgentSource: vi.fn(makeSource("agent")),
-}));
-
 vi.mock("../../dispatcher/sources/inbox/signals-source", () => ({
   createSignalsSource: vi.fn(makeSource("signals")),
 }));
@@ -117,7 +113,6 @@ describe("wireDispatcherSources", () => {
 
     expect(Object.keys(result).sort()).toEqual([
       "addressedSource",
-      "agentSource",
       "milestoneSource",
       "proactiveSource",
       "routedUserSource",
@@ -129,7 +124,6 @@ describe("wireDispatcherSources", () => {
     // Each source is started (fire-and-forget) so candidate events flow once wired.
     expect(started.sort()).toEqual([
       "addressed",
-      "agent",
       "milestone",
       "proactive",
       "routed",
@@ -142,8 +136,7 @@ describe("wireDispatcherSources", () => {
     // isEnabled reads live from the per-feature store.
     expect((created.schedule as { isEnabled: () => boolean }).isEnabled()).toBe(false);
     expect((created.signals as { isEnabled: () => boolean }).isEnabled()).toBe(true);
-    // pipelineBusy reaches both agent + signals sources (not proactive/schedule).
-    expect((created.agent as { isPipelineBusy: () => boolean }).isPipelineBusy()).toBe(false);
+    // pipelineBusy reaches the signals source (not proactive/schedule).
     const signalsDeps = created.signals as {
       subscribePipelineBusy: (cb: (busy: boolean) => void) => void;
     };
@@ -339,16 +332,13 @@ describe("wireDispatcherSources", () => {
     expect(screen.isPacerHolding()).toBe(false);
   });
 
-  // The two buffered-inbox sources hold their items instead of skipping them, so the pacer
-  // reaches them as busy rather than as a gate of their own.
-  const INBOX_SOURCES = ["agent", "signals"] as const;
-  it.each(
-    INBOX_SOURCES,
-  )("composes the pacer into the busy predicate the %s source receives", (name) => {
+  // The buffered-inbox source holds its items instead of skipping them, so the pacer
+  // reaches it as busy rather than as a gate of its own.
+  it("composes the pacer into the busy predicate the signals source receives", () => {
     const pacer = fakePacer(false);
     wireWithPacer(pacer);
 
-    const source = created[name] as {
+    const source = created.signals as {
       isPipelineBusy: () => boolean;
       subscribePipelineBusy: (cb: (busy: boolean) => void) => () => void;
     };

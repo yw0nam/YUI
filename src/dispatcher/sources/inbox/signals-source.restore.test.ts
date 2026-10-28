@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { avatarFixture } from "../../../config/load-test-helpers";
 import type { SignalGroup } from "../../../contract";
-import type { AgentEvent } from "../../../io/bridge/inbox/agent-inbox";
 import type { SignalsBatch } from "../../../io/bridge/inbox/signals-inbox";
 import type { OsEventListen, OsEventPayload } from "../../../io/window/tauri-listen";
 import type { BackendCaller, TurnOutcome } from "../../backend/backend-caller";
@@ -18,8 +17,8 @@ import {
   SIGNAL_ENVELOPE,
 } from "../../test-helpers";
 import { createTurnLog } from "../../turn/turn";
+import { createProactiveSource } from "../idle-tick/proactive-source";
 import { createWakeSource } from "../wake/wake-source";
-import { createAgentSource } from "./agent-source";
 import { createSignalsSource, type SignalsSource } from "./signals-source";
 
 beforeEach(() => {
@@ -28,10 +27,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
-it.each([
-  { mode: "agent catch-up", title: "restores signals after an agent catch-up turn is dropped" },
-  { mode: "failed wake", title: "restores signals after a failed wake turn is dropped" },
-])("$title", async ({ mode }) => {
+it("restores signals after a failed wake turn is dropped", async () => {
   const handlers = new Set<(event: { payload: OsEventPayload }) => void>();
   const listen: OsEventListen = async (_event, handler) => {
     handlers.add(handler);
@@ -43,13 +39,10 @@ it.each([
     for (const handler of handlers)
       handler({ payload: { event_name: "os_idle_tick", ts: Date.now(), data: { os_idle_ms } } });
   };
-  let acceptAgent: ((event: AgentEvent) => void) | undefined;
   let acceptSignals: ((event: SignalsBatch) => void) | undefined;
   const bus = createEventBus();
   const pacer = createProactivePacer({ getIntervalMs: () => 600_000 });
-  const call = vi.fn<BackendCaller["call"]>(
-    async (): Promise<TurnOutcome> => (mode === "failed wake" ? "network_drop" : "ok"),
-  );
+  const call = vi.fn<BackendCaller["call"]>(async (): Promise<TurnOutcome> => "network_drop");
   let signalsSource: SignalsSource;
   const dispatcher = createDispatcher({
     bus,
@@ -70,17 +63,88 @@ it.each([
     subscribe: dispatcher.subscribePipelineBusy,
   };
   const paced = composePacedPipelineBusy({ pipelineBusy, pacer });
-  const agentSource = createAgentSource({
+  signalsSource = createSignalsSource({
     bus,
     present_max_idle_ms: 10_000,
     isEnabled: () => true,
     listen,
     onInbox: (cb) => {
-      acceptAgent = cb;
+      acceptSignals = cb;
       return () => {};
     },
     isPipelineBusy: paced.isBusy,
     subscribePipelineBusy: paced.subscribe,
+    isUrgentPipelineBusy: pipelineBusy.isBusy,
+    subscribeUrgentPipelineBusy: pipelineBusy.subscribe,
+  });
+  await signalsSource.start();
+  dispatcher.start();
+  tick(20_000);
+  const group: SignalGroup = { envelope: SIGNAL_ENVELOPE, items: [{ message: "ready" }] };
+  acceptSignals?.({ signals: group.items, envelope: group.envelope, ts: NOW });
+  const wake = createWakeSource({
+    bus,
+    firstActivity: {
+      owed: () => ({ name: "first_activity", local_time: "2026-10-24T12:00:00" }),
+      latch: () => {},
+    },
+    drainSignals: signalsSource.drain,
+  });
+  wake.fire("click");
+  await vi.advanceTimersByTimeAsync(50);
+  expect(call).toHaveBeenCalledTimes(1);
+  expect(call.mock.calls[0]![0].trigger.event_name).toBe("proactive.wake");
+  expect(
+    dispatcher.recentDrops().map(({ event_name, reason }) => ({ event_name, reason })),
+  ).toEqual([{ event_name: "proactive.wake", reason: "network_drop" }]);
+  expect(signalsSource.drain()).toEqual([group]);
+  dispatcher.stop();
+  signalsSource.stop();
+  pacer.stop();
+});
+
+it("restores a signals catch-up dropped at the global gap", async () => {
+  const handlers = new Set<(event: { payload: OsEventPayload }) => void>();
+  const listen: OsEventListen = async (_event, handler) => {
+    handlers.add(handler);
+    return () => {
+      handlers.delete(handler);
+    };
+  };
+  const tick = (os_idle_ms: number) => {
+    for (const handler of handlers)
+      handler({ payload: { event_name: "os_idle_tick", ts: Date.now(), data: { os_idle_ms } } });
+  };
+  let acceptSignals: ((event: SignalsBatch) => void) | undefined;
+  const bus = createEventBus();
+  const pacer = createProactivePacer({ getIntervalMs: () => 600_000 });
+  const call = vi.fn<BackendCaller["call"]>(async (): Promise<TurnOutcome> => "ok");
+  let signalsSource: SignalsSource;
+  const dispatcher = createDispatcher({
+    bus,
+    peekConfig: () => avatarFixture().peek,
+    tapConfig: () => avatarFixture().tap,
+    pacer,
+    backendCaller: { call },
+    guardrails: createGuardrails(permissiveGuardrailsConfig()),
+    turnLog: createTurnLog(),
+    renderer: {} as never,
+    hasOutstandingSpeech: () => false,
+    addressedChain: createDefaultAddressedChain(),
+    logger: makeLogger(),
+    onTurnDropped: (env) => signalsSource.restore(env),
+  });
+  const pipelineBusy = {
+    isBusy: dispatcher.isPipelineBusy,
+    subscribe: dispatcher.subscribePipelineBusy,
+  };
+  const paced = composePacedPipelineBusy({ pipelineBusy, pacer });
+  const proactive = createProactiveSource({
+    bus,
+    present_max_idle_ms: 10_000,
+    getCues: () => [{ id: "mid_check", label: "mid", context: "", idle_min: 1, enabled: true }],
+    isEnabled: () => true,
+    listen,
   });
   signalsSource = createSignalsSource({
     bus,
@@ -96,48 +160,23 @@ it.each([
     isUrgentPipelineBusy: pipelineBusy.isBusy,
     subscribeUrgentPipelineBusy: pipelineBusy.subscribe,
   });
-  await agentSource.start();
+  await proactive.start();
   await signalsSource.start();
   dispatcher.start();
   tick(20_000);
+  vi.setSystemTime(NOW + 120_000);
   const group: SignalGroup = { envelope: SIGNAL_ENVELOPE, items: [{ message: "ready" }] };
-  if (mode === "agent catch-up")
-    acceptAgent?.({
-      tool: "terminal",
-      project: "YUI",
-      cwd: "/tmp",
-      phase: "done",
-      summary: "done",
-      ts: NOW,
-    });
-  acceptSignals?.({ signals: group.items, envelope: group.envelope, ts: NOW });
-  if (mode === "failed wake") {
-    const wake = createWakeSource({
-      bus,
-      firstActivity: {
-        owed: () => ({ name: "first_activity", local_time: "2026-10-24T12:00:00" }),
-        latch: () => {},
-      },
-      drainSignals: signalsSource.drain,
-    });
-    wake.fire("click");
-  } else tick(100);
+  acceptSignals?.({ signals: group.items, envelope: group.envelope, ts: NOW + 120_000 });
+  tick(100);
   await vi.advanceTimersByTimeAsync(50);
   expect(call).toHaveBeenCalledTimes(1);
-  expect(call.mock.calls[0]![0].trigger.event_name).toBe(
-    mode === "agent catch-up" ? "agent.catchup" : "proactive.wake",
-  );
+  expect(call.mock.calls[0]![0].trigger.event_name).toBe("proactive.mid_check");
   expect(
     dispatcher.recentDrops().map(({ event_name, reason }) => ({ event_name, reason })),
-  ).toEqual([
-    {
-      event_name: mode === "agent catch-up" ? "signals.catchup" : "proactive.wake",
-      reason: mode === "agent catch-up" ? "global_gap" : "network_drop",
-    },
-  ]);
+  ).toEqual([{ event_name: "signals.catchup", reason: "global_gap" }]);
   expect(signalsSource.drain()).toEqual([group]);
   dispatcher.stop();
-  agentSource.stop();
+  proactive.stop();
   signalsSource.stop();
   pacer.stop();
 });

@@ -1,11 +1,11 @@
 /**
  * wireIngressDeadNotice — one-off system notice through the speech bubble when
- * the Rust agent-ingress listener dies (port bind failed after retries). Agent
- * completion events are dead for the session; the user is told instead of the
+ * the Rust agent-ingress listener dies (port bind failed after retries). Every
+ * ingress route is dead for the session; the user is told instead of the
  * failure staying log-only.
  */
 
-import { onIngressDead } from "../../io/bridge/inbox/agent-inbox";
+import { onIngressDead } from "../../io/bridge/inbox/ingress-dead";
 
 interface IngressDeadNoticeDeps {
   surfaces: {

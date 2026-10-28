@@ -39,7 +39,7 @@ mod passthrough;
 #[cfg(desktop)]
 mod browser;
 
-// Loopback HTTP ingress — receives agent lifecycle signals, re-emits as Tauri events.
+// Loopback HTTP ingress — receives signals, re-emits as Tauri events.
 mod agent_ingress;
 
 // System tray controls for window visibility, settings, and quit.

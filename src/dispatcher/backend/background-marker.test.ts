@@ -16,6 +16,15 @@ describe("backgroundMarker — addressed markers", () => {
       "(something just caught your attention)",
     );
   });
+
+  it("collapses newlines and clamps a long speaker name to one line", () => {
+    const from = `perlica\n\n${"x".repeat(60)}`;
+    const marker = backgroundMarker("addressed.character", {
+      addressed: { from, text: "natsume, you took my chair", ts: 1 },
+    } as TriggerMeta);
+    expect(marker).toBe(`(perlica ${"x".repeat(32)} just spoke to you)`);
+    expect(marker).not.toContain("\n");
+  });
 });
 
 describe("backgroundMarker — signals markers", () => {

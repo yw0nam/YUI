@@ -3,7 +3,7 @@
  *
  * Rust bridges each `/avatar/*` HTTP request into the `avatar-rpc` Tauri event
  * channel and waits for the matching `avatar_rpc_response` command. This module is
- * the seam for both halves; like `agent-inbox.ts` it degrades silently off-Tauri so
+ * the seam for both halves; like `ingress-dead.ts` it degrades silently off-Tauri so
  * it is safe in browser / test environments without the runtime.
  */
 

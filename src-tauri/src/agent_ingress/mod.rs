@@ -1,7 +1,6 @@
-//! Loopback HTTP ingress — receives lifecycle signals from external coding-agent
-//! hooks (task done, or the agent needs the user's input) and opaque `signals`
-//! batches from the remote n8n workflow, then re-emits both as Tauri events into
-//! the frontend dispatcher; `/presets/<id>/` delivers to `pet-<id>`.
+//! Loopback HTTP ingress — receives opaque `signals` batches from outside
+//! producers, then re-emits them as Tauri events into the frontend dispatcher;
+//! `/presets/<id>/` delivers to `pet-<id>`.
 //!
 //! Also serves the avatar RPC surface (`/avatar/*`): body state, perch targets, and
 //! semantic movement commands. Those live in the webview, so each request is bridged
@@ -11,8 +10,7 @@
 
 use avatar_rpc::spawn_avatar_request;
 use payload::{
-    rejected_level, AgentEventPayload, SignalsPayload, AGENT_INBOX_CHANNEL, BODY_CEILING_BYTES,
-    INGRESS_DEAD_CHANNEL, SIGNALS_INBOX_CHANNEL,
+    rejected_level, SignalsPayload, BODY_CEILING_BYTES, INGRESS_DEAD_CHANNEL, SIGNALS_INBOX_CHANNEL,
 };
 use route::{dispatch, Dispatch, RouteKind};
 use std::collections::HashSet;
@@ -61,13 +59,6 @@ pub fn sync_preset_ids(
 }
 
 // ─── Emit helper ──────────────────────────────────────────────────────────────
-
-fn emit_agent_event(app: &AppHandle, label: &str, payload: AgentEventPayload) {
-    let result = app.emit_to(label, AGENT_INBOX_CHANNEL, payload);
-    if let Err(e) = &result {
-        log::warn!("agent_ingress_emit_failed error={e}");
-    }
-}
 
 fn emit_signals_event(app: &AppHandle, label: &str, payload: SignalsPayload) {
     log::debug!(
@@ -154,7 +145,6 @@ fn handle_request(app: &AppHandle, mut request: tiny_http::Request) {
             spawn_avatar_request(app, &label, route, request);
             return;
         }
-        RouteKind::AgentEvent(payload) => emit_agent_event(app, &label, payload),
         RouteKind::Signals(payload) => emit_signals_event(app, &label, payload),
     }
     let _ = request.respond(tiny_http::Response::from_string("").with_status_code(200u16));

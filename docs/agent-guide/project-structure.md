@@ -256,7 +256,6 @@ YUI/
         user-input-source.ts         # Normalises typed text and STT results into bus envelopes
         inbox/                       # The inbox-push firing sources
           buffered-inbox-source.ts   # Shared presence-gated core for the inbox-push firing sources
-          agent-source.ts            # Agent-lifecycle firing source
           signals-source.ts          # Grouped signals-ingress firing source
         idle-tick/                   # Idle-gap, clock-time, milestone, and screen firing sources
           proactive-source.ts        # Idle-gap proactive firing source
@@ -493,7 +492,7 @@ YUI/
           avatar-rpc.ts                # Webview end of the loopback avatar RPC surface
           avatar-executor.ts           # Answers the avatar RPCs addressed to its own window from live client state
           relations-rpc.ts             # Answers the relations RPCs from its own window's relation store
-          agent-inbox.ts               # Subscribes to the Rust agent-inbox event channel
+          ingress-dead.ts              # Subscribes to the Rust ingress-dead event channel
           signals-inbox.ts             # Subscribes to the Rust signals-inbox event channel
           preset-ids.ts                # sync_preset_ids: the registry's preset ids published to the shell for ingress routing
           create-inbox.ts              # Generic Tauri event-channel subscription seam
@@ -748,7 +747,7 @@ YUI/
         script.rs                    # The prelude wrapped around the caller's code
         shots.rs                     # The per-call screenshot folder, its collection and encode, and the stale sweep
       agent_ingress/
-        mod.rs                       # Loopback HTTP listener for agent hooks, signals, and the avatar RPC surface, routed to main or the pet window a /presets/<id>/ path names
+        mod.rs                       # Loopback HTTP listener for signals and the avatar RPC surface, routed to main or the pet window a /presets/<id>/ path names
         payload.rs                   # Request parsing, size caps, and event payload types
         route.rs                     # Path parsing into a route family and a target window: bare paths to main, /presets/<id>/ to pet-<id>
         avatar_rpc.rs                # Avatar RPC bridge between HTTP requests and the webview

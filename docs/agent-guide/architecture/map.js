@@ -364,17 +364,17 @@ globalThis.YUI_MAP =
     {
       "from": "senders",
       "to": "shell",
-      "label": "agent events, signals, avatar commands, WebDriver session (verify feature)"
+      "label": "signals, avatar commands, WebDriver session (verify feature)"
     },
     {
       "from": "shell",
       "to": "tools",
-      "label": "agent, signal, avatar-rpc events"
+      "label": "signal, avatar-rpc events"
     },
     {
       "from": "tools",
       "to": "sources",
-      "label": "agent and signal events"
+      "label": "signal events"
     },
     {
       "from": "shell",
@@ -445,7 +445,7 @@ globalThis.YUI_MAP =
       "id": "agent-hooks",
       "module": "senders",
       "label": "coding-agent hooks",
-      "role": "The yui-notify plugin's Claude Code and Codex hooks, which post done and needs-input signals; hand-installed hooks may still post the deprecated /agent-event.",
+      "role": "The yui-notify plugin's Claude Code and Codex hooks, which post done and needs-input signals.",
       "paths": [],
       "external": true
     },
@@ -491,7 +491,7 @@ globalThis.YUI_MAP =
       "id": "shell/agent-ingress",
       "module": "shell",
       "label": "agent_ingress",
-      "role": "Loopback HTTP listener for agent events, signals, and the avatar RPC round trip; routes `/presets/<id>/…` to the window bound to that preset and refuses a signals request holding an item over 16 KiB.",
+      "role": "Loopback HTTP listener for signals and the avatar RPC round trip; routes `/presets/<id>/…` to the window bound to that preset and refuses a signals request holding an item over 16 KiB.",
       "paths": [
         "src-tauri/src/agent_ingress"
       ]
@@ -895,7 +895,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/inbox",
       "module": "tools",
       "label": "inbox",
-      "role": "Subscriptions to the shell's agent, signals, and avatar RPC channels, and the avatar executor that answers body commands addressed to its window, and the relations RPC that answers the relations routes from the window's relation store.",
+      "role": "Subscriptions to the shell's signals and avatar RPC channels, and the avatar executor that answers body commands addressed to its window, and the relations RPC that answers the relations routes from the window's relation store.",
       "paths": [
         "src/io/bridge/inbox"
       ]
@@ -1012,7 +1012,7 @@ globalThis.YUI_MAP =
       "id": "dispatcher/sources/inbox",
       "module": "sources",
       "label": "inbox sources",
-      "role": "Agent-lifecycle and signals firing sources with presence-gated buffering; a signal group routes by its delivery class, replaces a buffered group with the same event_id, and on return the other buffers' catch-up goes out first with the urgent catch-up as the next turn.",
+      "role": "Signals firing source with presence-gated buffering; a signal group routes by its delivery class, replaces a buffered group with the same event_id, and on return the other buffers' catch-up goes out first with the urgent catch-up as the next turn.",
       "paths": [
         "src/dispatcher/sources/inbox"
       ]
@@ -2068,14 +2068,6 @@ globalThis.YUI_MAP =
       "transport": "shared"
     },
     {
-      "id": "hooks-ingress",
-      "from": "agent-hooks",
-      "to": "shell/agent-ingress",
-      "carries": "hand-installed hooks: POST /agent-event {tool, project, phase, summary, …}, or the same path under /presets/<id>/; deprecated, removed in v0.6.0 for POST /signals",
-      "kind": "http",
-      "transport": "shared"
-    },
-    {
       "id": "agent-hooks-signals",
       "from": "agent-hooks",
       "to": "shell/agent-ingress",
@@ -2119,7 +2111,7 @@ globalThis.YUI_MAP =
       "id": "ingress-inbox",
       "from": "shell/agent-ingress",
       "to": "io/bridge/inbox",
-      "carries": "targeted emit_to per window — bare routes → main, /presets/<id>/ → pet-<id>; agent-inbox, signals-inbox (signals, envelope verbatim with its label, and the server ts), avatar-rpc (the avatar and relations routes), ingress-dead; each inbox listens with its own window's label",
+      "carries": "targeted emit_to per window — bare routes → main, /presets/<id>/ → pet-<id>; signals-inbox (signals, envelope verbatim with its label, and the server ts), avatar-rpc (the avatar and relations routes), ingress-dead; each inbox listens with its own window's label",
       "kind": "tauri-event",
       "transport": "shared"
     },
@@ -2180,7 +2172,7 @@ globalThis.YUI_MAP =
       "id": "inbox-sources",
       "from": "io/bridge/inbox",
       "to": "dispatcher/sources/inbox",
-      "carries": "onAgentEvent(AgentEventPayload), onSignals(SignalsPayload)",
+      "carries": "onSignals(SignalsPayload)",
       "kind": "call",
       "transport": "shared"
     },
@@ -2317,7 +2309,7 @@ globalThis.YUI_MAP =
       "id": "inbox-bus",
       "from": "dispatcher/sources/inbox",
       "to": "dispatcher/core",
-      "carries": "bus.push: agent.done, agent.needs_input, agent.catchup, signals.push, signals.batch, signals.catchup, signals.urgent, signals.urgent_catchup",
+      "carries": "bus.push: signals.push, signals.batch, signals.catchup, signals.urgent, signals.urgent_catchup",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/turn/wire-sources.ts"
@@ -4329,9 +4321,8 @@ globalThis.YUI_MAP =
         },
         {
           "from": "senders",
-          "label": "POST /signals, POST /agent-event (deprecated)",
+          "label": "POST /signals",
           "edges": [
-            "hooks-ingress",
             "agent-hooks-signals",
             "signals-ingress",
             "factorio-ingress"
@@ -4340,7 +4331,7 @@ globalThis.YUI_MAP =
         },
         {
           "from": "shell",
-          "label": "agent-inbox and signals-inbox events",
+          "label": "signals-inbox events",
           "edges": [
             "ingress-inbox"
           ],
@@ -4348,7 +4339,7 @@ globalThis.YUI_MAP =
         },
         {
           "from": "tools",
-          "label": "agent and signal events",
+          "label": "signal events",
           "edges": [
             "inbox-sources"
           ],
@@ -5225,14 +5216,14 @@ globalThis.YUI_MAP =
         "id": "ingress-inbox-pet",
         "from": "ingress",
         "to": "pet",
-        "carries": "bare /signals, /agent-event and /avatar/* → agent-inbox, signals-inbox, avatar-rpc, ingress-dead",
+        "carries": "bare /signals and /avatar/* → signals-inbox, avatar-rpc, ingress-dead",
         "kind": "tauri-event"
       },
       {
         "id": "ingress-inbox-pet-bound",
         "from": "ingress",
         "to": "pet-<id>",
-        "carries": "/presets/<id>/signals, /presets/<id>/agent-event and /presets/<id>/avatar/* → agent-inbox, signals-inbox, avatar-rpc, to the window bound to <id> and no other",
+        "carries": "/presets/<id>/signals and /presets/<id>/avatar/* → signals-inbox, avatar-rpc, to the window bound to <id> and no other",
         "kind": "tauri-event"
       },
       {

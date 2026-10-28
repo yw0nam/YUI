@@ -1,9 +1,9 @@
 /**
- * buffered-inbox-source.test.ts — shared presence-gated core (agent-source and
- * signals-source both configure this core; see buffered-inbox-source.ts).
+ * buffered-inbox-source.test.ts — shared presence-gated core (signals-source
+ * configures this core; see buffered-inbox-source.ts).
  *
  * Pins two behaviors on the core itself, previously exercised only indirectly
- * through a consumer's test suite (agent-source.test.ts):
+ * through a consumer's test suite:
  *  1. idle->present edge with no `subscribePipelineBusy` configured: catchup
  *     fires exactly ONCE on the edge, and does NOT re-fire on subsequent present
  *     ticks while the buffer stays empty (edge, not level).
@@ -12,7 +12,7 @@
  *     flush trigger with nothing new buffered does not redeliver the prior batch.
  *
  * All deps injected (fakeBus / fakeListen / fakeInbox / fake buffer closures) —
- * no network, no Tauri, no consumer (agent-source/signals-source) in the loop.
+ * no network, no Tauri, no consumer (signals-source) in the loop.
  */
 
 import { describe, expect, it, vi } from "vitest";

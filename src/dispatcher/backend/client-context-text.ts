@@ -144,10 +144,6 @@ const WOKEN_BY: Record<WakeCause, string> = {
   message: "this message",
 };
 
-function agentDetail(detail: string): string {
-  return `agent detail (quoted from the coding agent): "${oneLine(detail)}"`;
-}
-
 function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
   const lines: string[] = [];
   const idleClause =
@@ -169,29 +165,6 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
     lines.push(`trigger: ${trigger.kind} cue "${oneLine(trigger.cue.label)}"${idleClause}`);
     if (trigger.cue.context) {
       lines.push(`cue note (the user's own intent for this cue): ${oneLine(trigger.cue.context)}`);
-    }
-  } else if (trigger.agent) {
-    // Deprecated: removed in v0.6.0. Use POST /signals.
-    const a = trigger.agent;
-    const status = a.status ? ` (${a.status})` : "";
-    const ago = ` (${minutesSince(a.ts, nowMs)}min ago)`;
-    lines.push(
-      `trigger: agent ${oneLine(a.tool)} ${a.phase}${status}, project "${oneLine(a.project)}"${ago}`,
-    );
-    if (a.summary) lines.push(`agent note (the coding agent's summary): "${oneLine(a.summary)}"`);
-    if (a.detail) lines.push(agentDetail(a.detail));
-  } else if (trigger.agent_catchup) {
-    // Deprecated: removed in v0.6.0. Use POST /signals.
-    const ac = trigger.agent_catchup;
-    lines.push(`trigger: agent catchup (${ac.count} event${ac.count === 1 ? "" : "s"})`);
-    for (const item of ac.items) {
-      const status = item.status ? ` (${item.status})` : "";
-      const summary = item.summary ? ` - "${oneLine(item.summary)}"` : "";
-      const ago = ` (${minutesSince(item.ts, nowMs)}min ago)`;
-      lines.push(
-        `agent event: ${oneLine(item.tool)} ${item.phase}${status}, project "${oneLine(item.project)}"${summary}${ago}`,
-      );
-      if (item.detail) lines.push(agentDetail(item.detail));
     }
   } else if (trigger.milestone) {
     const m = trigger.milestone;
@@ -217,8 +190,8 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
     const count = trigger.signals?.reduce((total, group) => total + group.items.length, 0) ?? 0;
     lines.push(`trigger: signals (${count} signal${count === 1 ? "" : "s"})${idleClause}`);
   } else {
-    // Fallback: kind without a matching structured field (e.g. a malformed agent.* payload
-    // that failed validation, or a bare idle proactive turn without a configured cue).
+    // Fallback: kind without a matching structured field (e.g. a bare idle proactive turn
+    // without a configured cue).
     lines.push(`trigger: ${trigger.kind}${idleClause}`);
   }
 

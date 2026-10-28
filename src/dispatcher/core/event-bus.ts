@@ -7,7 +7,7 @@
  *  - Bus drop conditions: schema invalid / unknown event_name / ts ±60s out of window.
  *
  * Priority (lower = earlier): user.* (0) <
- *   time_milestone.* · proactive.* · schedule.* · agent.* · signals.* (2) < avatar.* (3).
+ *   time_milestone.* · proactive.* · schedule.* · signals.* (2) < avatar.* (3).
  *
  * This module only collects firing + sorts — final tier decision/routing is dispatcher responsibility.
  */
@@ -62,7 +62,6 @@ const KNOWN_PREFIXES: ReadonlyArray<{ prefix: string; priority: number }> = [
   { prefix: "time_milestone.", priority: 2 },
   { prefix: "proactive.", priority: 2 },
   { prefix: "schedule.", priority: 2 },
-  { prefix: "agent.", priority: 2 },
   { prefix: "addressed.", priority: 2 },
   { prefix: "signals.", priority: 2 },
   { prefix: "avatar.", priority: 3 },

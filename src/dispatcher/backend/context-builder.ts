@@ -55,68 +55,6 @@ export function guideKeyOf(env: BusEnvelope): GuideKey | undefined {
   return isGuideKey(guide) ? guide : undefined;
 }
 
-function agentOf(env: BusEnvelope): TriggerMeta["agent"] | undefined {
-  if (env.event_name !== "agent.done" && env.event_name !== "agent.needs_input") return undefined;
-  const payload = env.payload;
-  if (
-    typeof payload?.tool !== "string" ||
-    typeof payload?.project !== "string" ||
-    typeof payload?.cwd !== "string" ||
-    (payload?.phase !== "done" && payload?.phase !== "needs_input") ||
-    typeof payload?.summary !== "string" ||
-    typeof payload?.ts !== "number"
-  ) {
-    return undefined;
-  }
-  return {
-    tool: payload.tool,
-    project: payload.project,
-    cwd: payload.cwd,
-    ...(payload.status === "success" || payload.status === "error"
-      ? { status: payload.status }
-      : {}),
-    phase: payload.phase,
-    ...(typeof payload.session_id === "string" ? { session_id: payload.session_id } : {}),
-    ...(typeof payload.detail === "string" ? { detail: payload.detail } : {}),
-    summary: payload.summary,
-    ts: payload.ts,
-  };
-}
-
-function agentCatchupOf(env: BusEnvelope): TriggerMeta["agent_catchup"] | undefined {
-  if (env.event_name !== "agent.catchup") return undefined;
-  const count = env.payload?.count;
-  const items = env.payload?.items;
-  if (typeof count !== "number" || !Array.isArray(items)) return undefined;
-  const valid = items.every((raw) => {
-    const item = raw as Record<string, unknown>;
-    return (
-      item != null &&
-      typeof item.tool === "string" &&
-      typeof item.project === "string" &&
-      (item.phase === "done" || item.phase === "needs_input") &&
-      typeof item.summary === "string" &&
-      typeof item.ts === "number"
-    );
-  });
-  if (!valid) return undefined;
-  return {
-    count,
-    items: (items as Array<Record<string, unknown>>).map((item) => ({
-      tool: item.tool as string,
-      project: item.project as string,
-      ...(item.status === "success" || item.status === "error"
-        ? { status: item.status as "success" | "error" }
-        : {}),
-      phase: item.phase as "done" | "needs_input",
-      ...(typeof item.session_id === "string" ? { session_id: item.session_id as string } : {}),
-      ...(typeof item.detail === "string" ? { detail: item.detail as string } : {}),
-      summary: item.summary as string,
-      ts: item.ts as number,
-    })),
-  };
-}
-
 const WAKE_EVENT_NAME = "proactive.wake";
 
 function milestoneOf(env: BusEnvelope): TriggerMeta["milestone"] | undefined {
@@ -244,7 +182,6 @@ function localIso(ts: number, timeZone: string): string {
 function triggerKind(eventName: string): TriggerMeta["kind"] {
   if (eventName.startsWith("schedule.")) return "schedule";
   if (eventName.startsWith("proactive.")) return "proactive";
-  if (eventName.startsWith("agent.")) return "agent";
   if (eventName.startsWith("signals.")) return "signals";
   if (eventName.startsWith("time_milestone.")) return "milestone";
   if (eventName.startsWith("addressed.")) return "addressed";
@@ -268,8 +205,6 @@ export function buildClientContext(
         }
       : undefined;
   const gapMs = typeof payload?.gap_ms === "number" ? payload.gap_ms : undefined;
-  const agent = agentOf(env);
-  const agentCatchup = agentCatchupOf(env);
   const milestone = milestoneOf(env);
   const signals = signalsOf(env);
   const screen = screenOf(env);
@@ -298,8 +233,6 @@ export function buildClientContext(
       ...(mention ? { mention } : {}),
       ...(cue ? { cue } : {}),
       ...(gapMs != null ? { idle_elapsed_min: Math.round(gapMs / 60_000) } : {}),
-      ...(agent ? { agent } : {}),
-      ...(agentCatchup ? { agent_catchup: agentCatchup } : {}),
       ...(milestone ? { milestone } : {}),
       ...(signals ? { signals } : {}),
       ...(screen ? { screen } : {}),

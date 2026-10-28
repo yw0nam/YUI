@@ -3,26 +3,19 @@
 import type { TriggerMeta } from "../../contract";
 import { ADDRESSED_EVENT } from "../core/classify";
 
-/** "a" / "a and b" / "a, b and c". */
-function joinNames(names: string[]): string {
-  if (names.length < 2) return names[0] ?? "";
-  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
-}
-
 /**
- * Interpolated into the user turn, so a hostile hook payload can't forge structure: the ingress
- * is unauthenticated and caps `summary`/`detail` but not `tool`. Collapsing whitespace keeps the
- * marker one line and the clamp keeps it a name. `trigger.agent.tool` still carries it verbatim.
+ * Interpolated into the user turn, so a hostile name can't forge structure. Collapsing whitespace
+ * keeps the marker one line and the clamp keeps it a name; `trigger.addressed.from` still carries
+ * it verbatim.
  */
-const TOOL_NAME_MAX = 40;
-const toolName = (raw: string): string => raw.replace(/\s+/g, " ").trim().slice(0, TOOL_NAME_MAX);
+const NAME_MAX = 40;
+const speakerName = (raw: string): string => raw.replace(/\s+/g, " ").trim().slice(0, NAME_MAX);
 
 /**
  * User message for non-user turns (no user_text) — a short, per-trigger notice. Delivered in a
  * role: "user" message, so it is written from the user's POV: "I" is the user, "you" is the
  * agent. Describes what happened, never how to respond (firing ≠ judgment). The only payload
- * interpolation is the coding-agent tool name on `agent.*` turns, which falls back to unnamed
- * wording when validation rejected the payload and the trigger field is absent.
+ * interpolation is the speaking character's name on an addressed turn.
  */
 export function backgroundMarker(eventName: string, trigger: TriggerMeta): string {
   if (eventName === "proactive.tap_bored") return "(I keep poking at you)";
@@ -43,28 +36,13 @@ export function backgroundMarker(eventName: string, trigger: TriggerMeta): strin
   }
   if (eventName.startsWith("proactive.")) return "(I've gone quiet for a while)";
   if (eventName.startsWith("schedule.")) return "(it's the time of day you check in on me)";
-  // Deprecated: removed in v0.6.0. Use POST /signals.
-  if (eventName === "agent.done" || eventName === "agent.needs_input") {
-    const tool = trigger.agent ? toolName(trigger.agent.tool) : "";
-    const subject = tool ? `my ${tool} task` : "one of my coding tasks";
-    return eventName === "agent.done"
-      ? `(${subject} just finished)`
-      : `(${subject} is waiting on my input)`;
-  }
-  // Deprecated: removed in v0.6.0. Use POST /signals.
-  if (eventName === "agent.catchup") {
-    const named = trigger.agent_catchup?.items.map((item) => toolName(item.tool)).filter(Boolean);
-    const tools = [...new Set(named ?? [])];
-    const subject = tools.length ? `my ${joinNames(tools)} tasks` : "my coding tasks";
-    return `(${subject} piled up while I was away)`;
-  }
   if (eventName === "signals.push") return "(a new signal just arrived for you)";
   if (eventName === "signals.batch") return "(a few signals batched up for you)";
   if (eventName === "signals.catchup") return "(signals piled up for you)";
   if (eventName === "signals.urgent") return "(something urgent just came in for you)";
   if (eventName === "signals.urgent_catchup") return "(urgent things piled up for you)";
   if (eventName === ADDRESSED_EVENT && trigger.addressed) {
-    return `(${toolName(trigger.addressed.from)} just spoke to you)`;
+    return `(${speakerName(trigger.addressed.from)} just spoke to you)`;
   }
   if (eventName === "time_milestone.first_activity") return "(I've just started my day)";
   return "(something just caught your attention)";

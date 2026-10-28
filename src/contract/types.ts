@@ -252,7 +252,7 @@ export type WakeCause = "click" | "timeout" | "message";
 
 /** trigger envelope describing what fired this backend turn. */
 export interface TriggerMeta {
-  kind: "user" | "schedule" | "proactive" | "agent" | "signals" | "milestone" | "addressed";
+  kind: "user" | "schedule" | "proactive" | "signals" | "milestone" | "addressed";
   /** user only: the in-app help button that asked, naming the guide that answers it. */
   guide?: GuideKey;
   /** user only: the unified chat window's recipient pick — one preset, or everyone. */
@@ -264,32 +264,6 @@ export interface TriggerMeta {
   idle_elapsed_min?: number;
   /** addressed.* — another open character's reply named this character through address_character. */
   addressed?: { from: string; text: string; ts: number; user_message?: string };
-  /** agent.done / agent.needs_input — single coding-agent lifecycle event. */
-  agent?: {
-    tool: string; // "claude-code" | "opencode" | <string>
-    project: string;
-    cwd: string;
-    status?: "success" | "error"; // meaningful for phase:"done" only
-    phase: "done" | "needs_input";
-    session_id?: string; // opaque pass-through, no client interpretation
-    detail?: string; // judgment material for the backend, e.g. transcript excerpt or pending tool call
-    summary: string; // speech material from the external hook (already summarized or raw)
-    ts: number; // client epoch ms
-  };
-  /** agent.catchup — burst of buffered lifecycle events on return. */
-  agent_catchup?: {
-    count: number;
-    items: Array<{
-      tool: string;
-      project: string;
-      status?: "success" | "error";
-      phase: "done" | "needs_input";
-      session_id?: string;
-      detail?: string;
-      summary: string;
-      ts: number;
-    }>;
-  };
   /** signals.push / signals.batch / signals.catchup / signals.urgent / signals.urgent_catchup — grouped opaque items forwarded from the /signals ingress. */
   signals?: SignalGroup[];
   /** proactive.screen_* — a frontmost-app transition fired this turn. */
