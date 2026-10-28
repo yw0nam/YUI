@@ -1,0 +1,17 @@
+/* A keyed block fades in on the render it first appears in. */
+.yui-keyed-enter {
+  animation: yui-keyed-enter var(--yui-dur) var(--yui-ease) both;
+}
+
+@keyframes yui-keyed-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-keyed-enter {
+    animation: none;
+  }
+}
