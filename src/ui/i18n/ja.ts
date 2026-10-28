@@ -825,6 +825,12 @@ const ja: Record<string, string> = {
   "plugins.err_retry": "サーバーをもう一度起動できませんでした。",
   "plugins.err_install": "インストールできませんでした。",
   "plugins.err_folder": "フォルダを追加できませんでした。",
+  "plugins.confirm_delete": "{id}のコードとデータを削除しますか？",
+  "plugins.confirm_remove_local":
+    "{id}をリストから外しますか？フォルダはそのまま残り、データだけを消します。",
+  "plugins.remove_go": "外す",
+  "plugins.err_remove": "削除できませんでした。",
+  "plugins.err_remove_local": "リストから外せませんでした。",
 
   // reasoning
   "think.chip": "思考",

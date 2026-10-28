@@ -826,6 +826,12 @@ const en: Record<string, string> = {
   "plugins.err_retry": "Could not start the server again.",
   "plugins.err_install": "Could not install.",
   "plugins.err_folder": "Could not add the folder.",
+  "plugins.confirm_delete": "Delete {id}'s code and data?",
+  "plugins.confirm_remove_local":
+    "Remove {id} from the list? The folder stays; only its data is deleted.",
+  "plugins.remove_go": "Remove",
+  "plugins.err_remove": "Could not delete it.",
+  "plugins.err_remove_local": "Could not remove it from the list.",
 
   // reasoning
   "think.chip": "Reasoning",

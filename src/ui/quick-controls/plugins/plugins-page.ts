@@ -65,10 +65,14 @@ export function createPluginsPage(deps: {
   const seen = new Set<string>();
   const switches = new Map<string, string>();
   let rendered = false;
+  /** The control the next render focuses, when not the one focused now. */
+  let focusNext = "";
 
   function render(): void {
     const active = document.activeElement;
-    const focusKey = active instanceof HTMLElement && el.contains(active) ? active.dataset.fk : "";
+    const focusKey =
+      focusNext || (active instanceof HTMLElement && el.contains(active) ? active.dataset.fk : "");
+    focusNext = "";
     const installed = new Set(plugins().map((p) => p.id));
     el.innerHTML =
       installedHtml({ snapshot: host.snapshot(), ui: uiOf, updateTo, check }) +
@@ -249,6 +253,19 @@ export function createPluginsPage(deps: {
     update: (id) => void update(id),
     install: (_, button) => void install(button.dataset.cid ?? ""),
     folder: () => void addLocal(),
+    remove: (id) => {
+      uiOf(id).confirm = true;
+      focusNext = `rm-cancel:${id}`;
+    },
+    "rm-cancel": (id) => {
+      uiOf(id).confirm = false;
+    },
+    "rm-go": (id) => {
+      uiOf(id).confirm = false;
+      const lead =
+        plugin(id)?.source === "local" ? "plugins.err_remove_local" : "plugins.err_remove";
+      void attempt(id, lead, () => manage.remove(id));
+    },
     tools: (id) => {
       const state = uiOf(id);
       state.toolsOpen = !state.toolsOpen;
@@ -294,13 +311,14 @@ export function createPluginsPage(deps: {
     render();
   }
 
-  // Escape closes an open step 1 here, so the panel's own Escape does not close the window.
+  // Escape closes an open step 1 or remove confirm here, so the panel's own Escape does not close the window.
   function onKeydown(e: KeyboardEvent): void {
     if (e.key !== "Escape") return;
     let closed = false;
     for (const state of ui.values()) {
-      if (state.flow !== "step1") continue;
-      state.flow = undefined;
+      if (state.flow !== "step1" && !state.confirm) continue;
+      if (state.flow === "step1") state.flow = undefined;
+      state.confirm = false;
       closed = true;
     }
     if (!closed) return;

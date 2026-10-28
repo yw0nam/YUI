@@ -818,6 +818,11 @@ const ko: Record<string, string> = {
   "plugins.err_retry": "서버를 다시 시작하지 못했어요.",
   "plugins.err_install": "설치하지 못했어요.",
   "plugins.err_folder": "폴더를 추가하지 못했어요.",
+  "plugins.confirm_delete": "{id}의 코드와 데이터를 삭제할까요?",
+  "plugins.confirm_remove_local": "{id}을(를) 목록에서 뺄까요? 폴더는 그대로 두고 데이터만 지워요.",
+  "plugins.remove_go": "빼기",
+  "plugins.err_remove": "삭제하지 못했어요.",
+  "plugins.err_remove_local": "목록에서 빼지 못했어요.",
 
   // reasoning
   "think.chip": "추론",

@@ -23,6 +23,8 @@ import {
 export interface PluginUi {
   /** The consent panel: step 1 asks, then starting, then step 2 or the failed panel. */
   flow?: "step1" | "starting" | "step2" | "failed";
+  /** The inline remove confirm is open. */
+  confirm?: boolean;
   /** An update is in flight. */
   updating?: boolean;
   /** The last managing call's rejection: its lead's i18n key, the host's string, and the action Retry repeats. */
@@ -230,6 +232,13 @@ function pluginHtml(p: PluginHostPlugin, v: InstalledView): string {
         if (ui.toolsOpen) html += `<div data-k="${id}:tools">${itemsHtml(p)}</div>`;
       }
     }
+  }
+  if (ui.confirm) {
+    const local = p.source === "local";
+    return `${html}<div class="yui-confirm" data-k="${id}:confirm" role="group">
+      <span class="yui-confirm__q">${t(local ? "plugins.confirm_remove_local" : "plugins.confirm_delete", { id })}</span>
+      <button class="yui-pill" type="button" data-act="rm-cancel" data-id="${id}" data-fk="rm-cancel:${id}">${t("plugins.cancel")}</button>
+      <button class="yui-pill yui-pill--go" type="button" data-act="rm-go" data-id="${id}" data-fk="rm-go:${id}">${t(local ? "plugins.remove_go" : "plugins.delete")}</button></div></div>`;
   }
   const to = v.updateTo(p);
   let mid = "";
