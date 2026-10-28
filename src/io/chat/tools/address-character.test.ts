@@ -39,15 +39,15 @@ describe("createAddressCharacterTool — definition", () => {
     targets.push({ id: "bbbb0002", name: "bob" });
     expect(JSON.stringify(tool.definition)).toBe(before);
     expect(tool.definition.function.description).toBe(
-      "Speak to another character: name who this reply is for. They hear this reply and may answer. " +
-        "With handoff, this reply passes the user's message on this turn to that character, who takes it and answers the user. " +
-        "Use handoff when the user's message is better answered by that character. " +
+      "Talk to or hand off to another character: name who this reply is for. They hear this reply and may answer. " +
+        "Set handoff only when the user asks you to pass their message to that character; " +
+        "that character then answers the user, and your reply only says briefly that you passed it on. " +
         "Once per reply; leave it out when you are talking to the user.",
     );
     expect(tool.definition.function.parameters.properties.handoff).toEqual({
       type: "boolean",
       description:
-        "true: pass the user's message on this turn to that character, who answers the user.",
+        "true only when the user asked you to pass their message to that character, who then answers the user.",
     });
     expect(tool.definition.function.parameters.required).toEqual(["to"]);
     expect(tool.definition.function.parameters.additionalProperties).toBe(false);
