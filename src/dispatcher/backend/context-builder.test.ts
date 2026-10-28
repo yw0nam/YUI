@@ -175,11 +175,25 @@ describe("context builder — open characters", () => {
 });
 
 describe("context builder — plugin catalog", () => {
-  it("sets neither field when the provider returns empty lists", async () => {
-    const built = await buildContext(ENV, { getPluginCatalog: () => ({ tools: [], skills: [] }) });
+  it.each([
+    {
+      name: "a provider with one tool and one skill sets both fields",
+      catalog: {
+        tools: [{ name: "echo_args", summary: "Echo argv." }],
+        skills: [{ name: "hello", description: "Says hello." }],
+      },
+      sets: true,
+    },
+    {
+      name: "a provider with empty lists sets neither field",
+      catalog: { tools: [], skills: [] },
+      sets: false,
+    },
+  ])("$name", async ({ catalog, sets }) => {
+    const built = await buildContext(ENV, { getPluginCatalog: () => catalog });
 
-    expect("plugin_tools" in built.clientContext).toBe(false);
-    expect("plugin_skills" in built.clientContext).toBe(false);
+    expect(built.clientContext.plugin_tools).toEqual(sets ? catalog.tools : undefined);
+    expect(built.clientContext.plugin_skills).toEqual(sets ? catalog.skills : undefined);
   });
 });
 
