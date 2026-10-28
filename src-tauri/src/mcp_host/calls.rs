@@ -8,6 +8,7 @@ use rmcp::model::{
 use rmcp::service::{Peer, PeerRequestOptions, RoleClient};
 use serde_json::{json, Value};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
 use tokio::sync::oneshot;
@@ -17,9 +18,18 @@ const WAIT_MS_META_KEY: &str = "io.github.yw0nam.yui/wait_ms";
 const DEFAULT_WAIT_MS: u64 = 30_000;
 const MAX_WAIT_MS: u64 = 120_000;
 
+type Key = (String, String);
+
 #[derive(Default)]
 pub struct Calls {
-    pending: Mutex<HashMap<(String, String), oneshot::Sender<()>>>,
+    pending: Mutex<HashMap<Key, Pending>>,
+    next_token: AtomicU64,
+}
+
+struct Pending {
+    /// Tells a call's own entry from a later one under the same key.
+    token: u64,
+    cancel: oneshot::Sender<()>,
 }
 
 impl Calls {
@@ -48,15 +58,25 @@ impl Calls {
             .insert(PRESET_META_KEY.to_string(), Value::String(preset_id.into()));
         let options = PeerRequestOptions::no_options().with_meta(RequestMetaObject(meta));
         let request = ClientRequest::CallToolRequest(Request::new(params));
-        let handle = peer
-            .send_cancellable_request(request, options)
-            .await
-            .map_err(|e| e.to_string())?;
+        let key = (window.to_string(), call_id.to_string());
+        let token = self.next_token.fetch_add(1, Ordering::Relaxed);
+        let (cancel, cancel_rx) = oneshot::channel();
+        {
+            let mut pending = self.lock();
+            if pending.contains_key(&key) {
+                return Err(format!("duplicate call id: {call_id}"));
+            }
+            pending.insert(key.clone(), Pending { token, cancel });
+        }
+        let handle = match peer.send_cancellable_request(request, options).await {
+            Ok(handle) => handle,
+            Err(e) => {
+                self.remove(&key, token);
+                return Err(e.to_string());
+            }
+        };
         // `await_response` consumes the handle, so a cancel works from these clones.
         let (cancel_peer, request_id) = (handle.peer.clone(), handle.id.clone());
-        let key = (window.to_string(), call_id.to_string());
-        let (cancel_tx, cancel_rx) = oneshot::channel();
-        self.lock().insert(key.clone(), cancel_tx);
         let outcome = tokio::select! {
             response = handle.await_response() => Some(response),
             _ = tokio::time::sleep(Duration::from_millis(wait_ms)) => None,
@@ -65,7 +85,7 @@ impl Calls {
                 return Err("plugin tool cancelled".into());
             }
         };
-        self.lock().remove(&key);
+        self.remove(&key, token);
         match outcome {
             Some(Ok(ServerResult::CallToolResult(result))) => Ok(json!({
                 "content": serde_json::to_value(&result.content).map_err(|e| e.to_string())?,
@@ -83,8 +103,8 @@ impl Calls {
     /// Cancels the call only when `window` started it.
     pub fn cancel(&self, window: &str, call_id: &str) {
         let key = (window.to_string(), call_id.to_string());
-        if let Some(cancel) = self.lock().remove(&key) {
-            let _ = cancel.send(());
+        if let Some(pending) = self.lock().remove(&key) {
+            let _ = pending.cancel.send(());
         }
     }
 
@@ -96,13 +116,20 @@ impl Calls {
             .cloned()
             .collect();
         for key in keys {
-            if let Some(cancel) = pending.remove(&key) {
-                let _ = cancel.send(());
+            if let Some(entry) = pending.remove(&key) {
+                let _ = entry.cancel.send(());
             }
         }
     }
 
-    fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<(String, String), oneshot::Sender<()>>> {
+    fn remove(&self, key: &Key, token: u64) {
+        let mut pending = self.lock();
+        if pending.get(key).is_some_and(|p| p.token == token) {
+            pending.remove(key);
+        }
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<Key, Pending>> {
         self.pending.lock().unwrap_or_else(|e| e.into_inner())
     }
 }
