@@ -38,7 +38,6 @@ SLOT = re.compile(r"<!-- slot: (\S+?)(?: lang=([\w-]+))? -->|<!-- /slot -->")
 UNSAFE = re.compile(r"<script|\son[a-z]+\s*=|javascript:", re.I)
 DOUBLE_ESCAPED = re.compile(r"&amp;(amp|lt|gt|quot|#\d+|#x[0-9a-f]+);", re.I)
 BRIEFING_PATH = re.compile(r"reports/\d{4}/\d{2}/W[1-5]/\d{2}/[^./\\][^/\\]*\.md")
-OLD_DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
 def spool_relative(path, spool):
@@ -430,59 +429,6 @@ def publish(spool):
     return git_failed(pushed) if pushed.returncode != 0 else 0
 
 
-def old_days(spool):
-    days = []
-    for name in sorted(os.listdir(spool)):
-        if OLD_DAY.fullmatch(name) and os.path.isdir(os.path.join(spool, name)):
-            try:
-                days.append((name, datetime.date.fromisoformat(name)))
-            except ValueError:
-                continue
-    return days
-
-
-def new_path(path):
-    day, _, rest = path.partition("/")
-    try:
-        return f"{day_folder(datetime.date.fromisoformat(day))}/{rest}" if OLD_DAY.fullmatch(day) and rest else path
-    except ValueError:
-        return path
-
-
-def migrate(spool):
-    with lock(spool):
-        moves = [(f"{name}/{file}", f"{day_folder(date)}/{file}")
-                 for name, date in old_days(spool) for file in sorted(os.listdir(os.path.join(spool, name)))]
-        for _, new in moves:
-            if os.path.lexists(os.path.join(spool, new)):
-                print(f"a file already sits at {new}; nothing was moved", file=sys.stderr)
-                return 2
-        work_tree = own_work_tree(spool)
-        tracked = set(git(spool, "ls-files", "-z").stdout.split("\0")) if work_tree else set()
-        for old, new in moves:
-            os.makedirs(os.path.dirname(os.path.join(spool, new)), exist_ok=True)
-            # git mv records the move as a rename, so `git log --follow` crosses it.
-            moved = git(spool, "mv", "--", old, new) if old in tracked else None
-            if moved is None:
-                os.replace(os.path.join(spool, old), os.path.join(spool, new))
-            elif moved.returncode != 0:
-                return git_failed(moved)
-        for name, _ in old_days(spool):
-            os.rmdir(os.path.join(spool, name))
-        # Every old-form key is rewritten, so a run cut short by a git failure is healed by the next one.
-        ledger = load_ledger(spool, set_aside=False)
-        if any(new_path(path) != path for path in ledger):
-            ledger = {new_path(path): stamp for path, stamp in ledger.items()}
-            write_file(os.path.join(spool, LEDGER), json.dumps(ledger, ensure_ascii=False, indent=1) + "\n")
-        old_in_head = [name for name in git(spool, "ls-tree", "--name-only", "HEAD").stdout.split("\n")
-                       if OLD_DAY.fullmatch(name)] if work_tree else []
-        if old_in_head:
-            committed = git(spool, "commit", "--quiet", "-m", "Move briefings into reports/", "--", *old_in_head, "reports")
-            if committed.returncode != 0:
-                return git_failed(committed)
-    return 0
-
-
 def main():
     if os.name == "nt" and hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", newline="\n")
@@ -496,7 +442,6 @@ def main():
     mark_parser = commands.add_parser("mark-spoken", help="record briefings as spoken")
     mark_parser.add_argument("paths", nargs="+", metavar="PATH", help="path relative to the spool, as pending prints it")
     commands.add_parser("publish", help="commit the briefings and push them to the spool's git remote")
-    commands.add_parser("migrate", help="move <YYYY-MM-DD>/ folders at the spool root into reports/")
     commands.add_parser("board", help="write the list of every day, index.html, at the spool root")
     check_parser = commands.add_parser("page-check", help="check that a day's page has every slot filled")
     check_parser.add_argument("date", metavar="YYYY-MM-DD", help="the day whose page to check")
@@ -520,8 +465,6 @@ def main():
         return pending(spool)
     if args.command == "publish":
         return publish(spool)
-    if args.command == "migrate":
-        return migrate(spool)
     if args.command == "board":
         return board(spool)
     if args.command == "page-check":

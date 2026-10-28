@@ -292,10 +292,6 @@ and 8. List the scheduler's entries (`crontab -l` on cron) and confirm each poin
 7. The delivery matches the answer of step 6, confirmed through § Check of that answer's
    file in `references/delivery/`. Ask the question of step 6 again when the user wants
    to switch, then work through § Install of the new answer's file.
-8. The spool holds no `<YYYY-MM-DD>/` folder at its root. A spool that does is moved
-   under `reports/` once, while no producer or `publish` runs:
-   `python3 "$SKILL_DIR/scripts/briefing.py" migrate`. On a spool kept as a git
-   repository, `publish` then pushes the move.
 
 A spool's day folders can hold `.json` and `.sent.json` files. `pending` reads only
 `.md` files, so they stay out of every briefing. A `.json` file without `.sent` in its name
