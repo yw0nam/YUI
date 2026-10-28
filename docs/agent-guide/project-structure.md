@@ -831,6 +831,7 @@ YUI/
         windows.rs                   # Windows idle, foreground window, and window enumeration polling
   fixtures/                          # JSON case tables the TS and Rust sanitizer tests both read
   plugins/                           # Backend-attached plugins, independent of the app runtime (Python/uv, own `python` and `python-lint` CI jobs)
+    catalog.json                     # The plugins the app installs; the plugin release workflow writes the official entries
     factorio/                        # Factorio RCON poll, event cache, and urgent signals MCP server
       game-mod/                      # The coop-agent Lua game mod; its tests/ uv project runs in the python CI job
       skills/                        # The companion skill the backend agent reads
