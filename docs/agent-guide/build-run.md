@@ -41,9 +41,9 @@ Signing and notarization are driven entirely by environment variables read by th
 | --- | --- |
 | `APPLE_CERTIFICATE` + `APPLE_CERTIFICATE_PASSWORD` | The CLI imports the base64 `.p12` into a temporary keychain and signs the bundle. Both are required together. |
 | `APPLE_SIGNING_IDENTITY` | Optional. Cross-checks the identity of the imported certificate. |
-| `APPLE_ID` + `APPLE_PASSWORD` + `APPLE_TEAM_ID` | Notarizes and staples the signed `.app`. All three are required together. |
+| `APPLE_ID` + `APPLE_PASSWORD` + `APPLE_TEAM_ID` | Notarizes and staples the signed `.app`. All three are required together, and only take effect with the certificate. |
 
-With none of them registered the workflow succeeds and ships an unsigned, un-notarized `.dmg`; users open it once, and when macOS blocks it, allow it under **System Settings → Privacy & Security → Open Anyway**. Registering the secrets turns signing on without touching the workflow.
+Without the certificate the workflow exports `APPLE_SIGNING_IDENTITY=-`, so the CLI signs the bundle ad hoc, and ships an un-notarized `.dmg`. macOS blocks the first open with "Apple could not verify 'YUI' is free of malware"; users close it with **Done** and allow it once under **System Settings → Privacy & Security → Open Anyway**. A bundle that is only linker-signed (no ad hoc bundle signature) is reported as damaged instead, with no Open Anyway. Registering the secrets turns Developer ID signing on without touching the workflow.
 
 `bundle.yml` is a separate smoke check: it bundles macOS on every push to `main` and keeps no artifact. It never touches releases.
 
