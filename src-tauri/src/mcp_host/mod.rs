@@ -45,18 +45,17 @@ use time::UtcOffset;
 const SNAPSHOT_EVENT: &str = "plugin-host-snapshot";
 
 /// Manages the host and starts every enabled plugin whose consent holds.
-pub fn setup(app: &App, app_data: &Path, log_dir: &Path, offset: UtcOffset) {
+pub fn setup(app: &App, log_dir: &Path, offset: UtcOffset) {
+    let app_data = app.path().app_data_dir().map_err(|e| e.to_string());
+    if let Err(e) = &app_data {
+        log::error!("mcp_host_app_data_dir_unavailable error={e}");
+    }
     let handle = app.handle().clone();
-    let host = Host::new(
-        Ok(app_data.to_path_buf()),
-        log_dir,
-        offset,
-        move |snapshot| {
-            if let Err(e) = handle.emit(SNAPSHOT_EVENT, snapshot) {
-                log::warn!("mcp_host_emit_failed error={e}");
-            }
-        },
-    );
+    let host = Host::new(app_data, log_dir, offset, move |snapshot| {
+        if let Err(e) = handle.emit(SNAPSHOT_EVENT, snapshot) {
+            log::warn!("mcp_host_emit_failed error={e}");
+        }
+    });
     app.manage(host.clone());
     tauri::async_runtime::spawn(async move { host.start_enabled().await });
 }

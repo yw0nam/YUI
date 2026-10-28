@@ -46,9 +46,10 @@ impl Host {
         offset: UtcOffset,
         emit: impl Fn(&Snapshot) + Send + Sync + 'static,
     ) -> Arc<Self> {
-        let dir = app_data.unwrap_or_default().join("plugins");
+        // Without an app data dir the state is `Err`, so nothing ever reads or writes `dir`.
+        let dir = app_data.as_deref().unwrap_or(Path::new("")).join("plugins");
         let log_dir = log_dir.join("plugins");
-        let state = store::load(&dir.join("state.json"));
+        let state = app_data.and_then(|_| store::load(&dir.join("state.json")));
         if let Err(e) = &state {
             log::error!("mcp_host_state_unreadable error={e}");
         }
