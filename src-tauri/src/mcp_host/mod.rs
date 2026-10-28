@@ -40,7 +40,7 @@ mod manifest;
 mod server;
 mod snapshot;
 mod store;
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod test_support;
 
 use host::Host;
