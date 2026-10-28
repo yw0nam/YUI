@@ -14,9 +14,10 @@
 //!   `YUI_PLUGIN_CATALOG_URL` instead. Install downloads this platform's release zip, checks its
 //!   sha256 (the catalog's for an official plugin, the release's `checksums.txt` for a community
 //!   one), and unpacks it into `<app_data>/plugins/installed/<id>/<version>/` after checking the
-//!   plugin id and version it holds. An update prepares the new folder first, then stops the old
-//!   servers, switches the stored path, deletes the old folder, and starts the servers again when
-//!   consent holds; while the old servers stop, enable and retry of that plugin are refused.
+//!   plugin id and version it holds. An update prepares the new folder, switches and saves the
+//!   stored path, then stops the old servers, then deletes the old folder and starts the servers
+//!   again when consent holds; while the old servers stop, enable and retry of that plugin are
+//!   refused.
 //!   Remove stops the servers, unlists the plugin, and deletes `<app_data>/plugins/data/<id>/`
 //!   and, for a Catalog plugin, `installed/<id>/`; a local plugin's folder and the logs stay.
 //! - **Servers.** Each `.mcp.json` server is spawned without a shell, in the plugin folder, with

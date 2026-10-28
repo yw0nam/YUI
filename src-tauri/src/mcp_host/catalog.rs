@@ -106,8 +106,7 @@ pub fn client() -> reqwest::Client {
         .expect("the HTTP client builds with its TLS backend")
 }
 
-/// The plugins built for this platform; a community plugin whose `plugin.json` cannot be read is
-/// listed with its error.
+/// This platform's plugins; a community plugin with an unreadable `plugin.json` carries its error.
 pub async fn list(client: &reqwest::Client, config: &Config) -> Result<Vec<CatalogEntry>, String> {
     let Some(platform) = config.platform else {
         return Ok(Vec::new());
@@ -147,7 +146,7 @@ pub async fn list(client: &reqwest::Client, config: &Config) -> Result<Vec<Catal
         })
         .collect();
     for task in community {
-        entries.push(task.await.map_err(|e| e.to_string())?);
+        entries.push(task.await.map_err(unavailable)?);
     }
     Ok(entries)
 }
@@ -217,9 +216,6 @@ pub async fn download(client: &reqwest::Client, url: &str) -> Result<Vec<u8>, St
 }
 
 async fn fetch(client: &reqwest::Client, config: &Config) -> Result<Catalog, String> {
-    fn unavailable(e: impl std::fmt::Display) -> String {
-        format!("plugin catalog unavailable: {e}")
-    }
     let bytes = get(client, &config.catalog_url)
         .await
         .map_err(unavailable)?;
@@ -231,6 +227,10 @@ async fn fetch(client: &reqwest::Client, config: &Config) -> Result<Catalog, Str
         ));
     }
     serde_json::from_slice(&bytes).map_err(unavailable)
+}
+
+fn unavailable(e: impl std::fmt::Display) -> String {
+    format!("plugin catalog unavailable: {e}")
 }
 
 /// The version and description in the default branch's `.claude-plugin/plugin.json`.

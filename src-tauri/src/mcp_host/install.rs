@@ -1,7 +1,7 @@
-//! Installs, updates, and removes plugins: download, sha256 check, unpack, staged switch.
+//! Lists the Catalog and installs, updates, and removes plugins: download, sha256, unpack, switch.
 
 use super::catalog::{self, CatalogEntry, Release};
-use super::host::{unknown, writable, Host, Live};
+use super::host::{listed, unknown, writable, Host, Live};
 use super::manifest;
 use super::store::{Source, StoredPlugin};
 use sha2::{Digest, Sha256};
@@ -13,7 +13,7 @@ impl Host {
         catalog::list(&self.http, &self.catalog).await
     }
 
-    /// Installs the catalog version of the plugin, or switches an installed catalog plugin to it.
+    /// Installs the Catalog version of the plugin, or switches an installed Catalog plugin to it.
     pub async fn install(self: &Arc<Self>, plugin_id: &str) -> Result<(), String> {
         let _installs = self.installs.lock().await;
         if writable(&self.lock().state)?
@@ -99,8 +99,7 @@ impl Host {
         Ok(())
     }
 
-    /// Stops the plugin's servers, unlists it, and deletes its data; a catalog plugin also loses
-    /// its installed versions.
+    /// Stops and unlists the plugin, deletes its data and, for a Catalog plugin, its versions.
     pub async fn remove(&self, plugin_id: &str) -> Result<(), String> {
         let _installs = self.installs.lock().await;
         let (stopping, source) = {
@@ -123,21 +122,21 @@ impl Host {
         if source != Source::Local {
             folders.push(self.dir.join("installed").join(plugin_id));
         }
+        let mut first = Ok(());
         for folder in folders {
             if let Err(e) = remove_dir(&folder) {
-                log::warn!(
+                log::error!(
                     "mcp_host_remove_left_files path={} error={e}",
                     folder.display()
                 );
-                return Err(format!("{}: {e}", folder.display()));
+                first = first.and(Err(format!("{}: {e}", folder.display())));
             }
         }
-        Ok(())
+        first
     }
 }
 
-/// Unpacks the release into `<versions>/<version>/` through a `.partial` folder; it must hold the
-/// release's plugin id and version.
+/// Unpacks via `<version>.partial` into `<versions>/<version>/`; checks its plugin id and version.
 fn unpack(versions: &Path, release: &Release, bytes: &[u8]) -> Result<PathBuf, String> {
     let partial = versions.join(format!("{}.partial", release.version));
     let target = versions.join(&release.version);
@@ -178,27 +177,20 @@ fn remove_dir(path: &Path) -> std::io::Result<()> {
     }
 }
 
-fn listed(plugin_id: &str) -> String {
-    format!("plugin already listed: {plugin_id}")
-}
-
 #[cfg(all(test, unix))]
 mod tests {
     use super::super::snapshot::{PluginEntry, Status};
-    use super::super::store::Source;
     use super::super::test_support::{
         eventually, fixture_copy, host_with, plugin_zip, require_python, temp_dir, TestServer,
     };
     use super::*;
     use serde_json::json;
-    use sha2::{Digest, Sha256};
 
     fn sha256(bytes: &[u8]) -> String {
         format!("{:x}", Sha256::digest(bytes))
     }
 
-    /// Serves `yui-test` `version` and a catalog listing it as official with `sha256`, or the
-    /// zip's own hash.
+    /// Serves `yui-test` `version` as an official plugin with `sha`, or else the zip's own hash.
     fn publish_official(server: &TestServer, version: &str, mode: Option<&str>, sha: Option<&str>) {
         let zip = plugin_zip("yui-test", version, mode);
         let path = format!("/yui-test-{version}.zip");

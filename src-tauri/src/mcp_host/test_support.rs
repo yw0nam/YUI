@@ -110,11 +110,10 @@ pub fn no_catalog() -> catalog::Config {
     }
 }
 
-/// A local HTTP server: answers a path in `files` with its bytes, any other with 404, and
-/// records every requested path.
+/// A local HTTP server that serves `files` by path, else 404, and records each requested path.
 pub struct TestServer {
     pub url: String,
-    pub files: Arc<Mutex<HashMap<String, Vec<u8>>>>,
+    files: Arc<Mutex<HashMap<String, Vec<u8>>>>,
     pub requests: Arc<Mutex<Vec<String>>>,
 }
 

@@ -113,7 +113,7 @@ impl Host {
         let manifest = manifest::read(&folder)?;
         let id = manifest.id.clone();
         if state.plugin(&id).is_some() {
-            return Err(format!("plugin already listed: {id}"));
+            return Err(listed(&id));
         }
         let plugin = StoredPlugin {
             id: id.clone(),
@@ -384,6 +384,10 @@ pub(super) fn writable(state: &Result<State, String>) -> Result<&State, String> 
 
 pub(super) fn unknown(plugin_id: &str) -> String {
     format!("unknown plugin: {plugin_id}")
+}
+
+pub(super) fn listed(plugin_id: &str) -> String {
+    format!("plugin already listed: {plugin_id}")
 }
 
 #[cfg(all(test, unix))]
