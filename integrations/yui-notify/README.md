@@ -72,7 +72,7 @@ The delivery classes and the envelope fields are in the
   its inherited `__CFBundleIdentifier` with the bundle id that `lsappinfo` reports for the
   frontmost app. The check is per app, not per tab or pane: with Orca in front, every agent
   in Orca stays silent, and an agent in another app still posts. A session over SSH, a process
-  without `__CFBundleIdentifier`, and a host without `lsappinfo` always post.
+  without `__CFBundleIdentifier`, and a host without `lsappinfo` skip this check.
 
 ## Configuration
 
