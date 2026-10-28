@@ -11,10 +11,9 @@ import {
 } from "./stream-helpers";
 
 describe("stream-helpers", () => {
-  it("isExpressTool matches plain and MCP-namespaced names only", () => {
+  it("isExpressTool matches generate_express exactly", () => {
     expect(isExpressTool("generate_express")).toBe(true);
-    expect(isExpressTool("mcp_yui_generate_express")).toBe(true);
-    expect(isExpressTool("mcp_yui_get_ids")).toBe(false);
+    expect(isExpressTool("mcp_broker_generate_express")).toBe(false);
     expect(isExpressTool(undefined)).toBe(false);
   });
 

@@ -18,6 +18,7 @@ vi.mock("../../dispatcher/core/proactive-pacer", () => ({
   createProactivePacer: mocks.createProactivePacer,
 }));
 
+import type { EndpointsConfig } from "../../contract";
 import type { TurnErrorDetail, TurnFailure } from "../../dispatcher/backend/backend-caller";
 import type { Turn } from "../../dispatcher/turn/turn";
 import { createAvatarTools } from "../../io/chat/tools/avatar";
@@ -25,7 +26,11 @@ import type { ClientTool } from "../../io/chat/tools/client-tools";
 import { wireDispatcher } from "./wire-dispatcher";
 
 describe("wireDispatcher", () => {
-  const setup = (isBodyHeld?: () => boolean, windowTools?: ClientTool[]) => {
+  const setup = (
+    isBodyHeld?: () => boolean,
+    windowTools?: ClientTool[],
+    endpoints = {} as EndpointsConfig,
+  ) => {
     const registered: Array<() => void> = [];
     const register = vi.fn((teardown: () => void) => {
       registered.push(teardown);
@@ -68,7 +73,7 @@ describe("wireDispatcher", () => {
       renderer: {} as never,
       surfaces: { isInputOpen: () => false } as never,
       reasoning: {} as never,
-      getEndpoints: () => ({}) as never,
+      getEndpoints: () => endpoints,
       getGuardrails: () => ({}) as never,
       getConfig: () => ({}) as never,
       getSecret: () => Promise.resolve(undefined),
@@ -152,6 +157,20 @@ describe("wireDispatcher", () => {
         .definitions()
         .map((d: { function: { name: string } }) => d.function.name),
     ).toEqual(["generate_express"]);
+  });
+
+  it("declares generate_express on Responses with an unknown endpoint key", () => {
+    setup(undefined, undefined, {
+      chat_api: "responses",
+      broker_base_url: "http://localhost:3201/mcp",
+    } as EndpointsConfig);
+
+    const { clientTools } = mocks.createBackendCaller.mock.calls.at(-1)![0];
+    const registry = clientTools();
+    expect(registry).toBeDefined();
+    expect(
+      registry.definitions().map((d: { function: { name: string } }) => d.function.name),
+    ).toContain("generate_express");
   });
 
   it("hands the caller the scene hold, so no turn starts a thinking bridge on the bed", () => {
