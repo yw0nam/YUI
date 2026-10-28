@@ -176,4 +176,18 @@ describe("createPluginsPage", () => {
     button(page.el.querySelector<HTMLElement>(".yui-plg-err")!, "Retry").click();
     expect(manage.install.mock.calls).toEqual([["calendar-ics"], ["calendar-ics"]]);
   });
+
+  it("deletes a plugin only after its inline confirm", () => {
+    const { page, manage } = mountPage();
+
+    button(group(page.el, "browser"), "Delete").click();
+    expect(manage.remove).not.toHaveBeenCalled();
+    const confirm = group(page.el, "browser").querySelector<HTMLElement>(".yui-confirm")!;
+    expect(confirm.querySelector(".yui-confirm__q")?.textContent).toBe(
+      "Delete browser's code and data?",
+    );
+
+    button(confirm, "Delete").click();
+    expect(manage.remove.mock.calls).toEqual([["browser"]]);
+  });
 });
