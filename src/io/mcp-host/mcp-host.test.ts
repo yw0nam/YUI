@@ -109,6 +109,19 @@ describe("createMcpHost", () => {
     await vi.waitFor(() => expect(mocks.invoke).toHaveBeenCalledWith("plugin_host_snapshot"));
   });
 
+  it("tells a subscriber each newer snapshot and not an older one", async () => {
+    const events = mockHost(5);
+    const host = createMcpHost();
+    const seen: number[] = [];
+    host.subscribe((snapshot) => seen.push(snapshot.revision));
+    await vi.waitFor(() => expect(seen).toEqual([5]));
+
+    events.emit(SNAPSHOT(3));
+    events.emit(SNAPSHOT(7));
+
+    expect(seen).toEqual([5, 7]);
+  });
+
   it("calls a plugin tool through the host", async () => {
     mockHost(1);
     const host = createMcpHost();
