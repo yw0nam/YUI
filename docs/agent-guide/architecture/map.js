@@ -1012,7 +1012,7 @@ globalThis.YUI_MAP =
       "id": "dispatcher/sources/inbox",
       "module": "sources",
       "label": "inbox sources",
-      "role": "Signals firing source with presence-gated buffering; a signal group routes by its delivery class, replaces a buffered group with the same event_id, and on return the other buffers' catch-up goes out first with the urgent catch-up as the next turn.",
+      "role": "Signals firing source with presence-gated buffering; a signal group routes by its delivery class, replaces a buffered group with the same event_id, and on return the batch catch-up goes out first with the urgent catch-up as the next turn.",
       "paths": [
         "src/dispatcher/sources/inbox"
       ]
