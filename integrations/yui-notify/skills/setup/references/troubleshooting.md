@@ -1,7 +1,8 @@
 # Troubleshooting
 
-`probe` and `test` print one line and exit 0 on success or 1 on failure. `hook` prints
-nothing; it always exits 0 and records a failed POST in `last-error.json`.
+`probe` and `test` print one line and exit 0 on success or 1 on failure. `hook` always exits
+0 and records a failed POST in `last-error.json`. At session start it shows the probe's
+failure line after `yui-notify: `; the table below maps it.
 
 ## Read the line
 

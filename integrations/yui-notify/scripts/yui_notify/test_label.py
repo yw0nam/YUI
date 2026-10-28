@@ -17,8 +17,8 @@ def runner(branch, tmux):
             {"SSH_CONNECTION": "1 2 3 4", "TMUX": "/tmp/tmux-1/default,1,0", "TMUX_PANE": "%3"},
             "main",
             "yui:2",
-            "dev43",
-            "dev43 · tmux yui:2 · YUI (main)",
+            "devbox",
+            "devbox · tmux yui:2 · YUI (main)",
         ),
         ({}, None, None, None, "YUI"),
         ({}, "main", None, None, "YUI (main)"),
@@ -26,7 +26,7 @@ def runner(branch, tmux):
     ids=["ssh-tmux-branch", "none", "branch-only"],
 )
 def test_label(env, branch, tmux, host, expected):
-    ctx = context("/work/YUI", env, runner(branch, tmux), hostname=lambda: "dev43.example.com")
+    ctx = context("/work/YUI", env, runner(branch, tmux), hostname=lambda: "devbox.example.com")
     assert ctx["host"] == host
     assert make_label(ctx) == expected
     assert ctx["project"] == "YUI"

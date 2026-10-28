@@ -26,7 +26,7 @@ Drop a signal by not sending it. `delivery` carries no drop value.
 ## Write a label
 
 `label` is one optional line that says where the signal came from, in at most 120 code
-points: `dev43 · tmux yui:2 · YUI (main)`. A longer label is cut to 119 code points plus
+points: `devbox · tmux yui:2 · YUI (main)`. A longer label is cut to 119 code points plus
 `…` and the request still succeeds. A label that is present and not a string makes the
 whole envelope invalid, so the group is dropped.
 
@@ -55,7 +55,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST \
   -d '{"signals":[{"kind":"agent","status":"needs_input"}],
        "envelope":{"source":"claude-code","event_type":"agent.needs_input",
                    "delivery":"urgent","event_id":"9f1c:needs_input",
-                   "label":"dev43 · tmux yui:2 · YUI (main)",
+                   "label":"devbox · tmux yui:2 · YUI (main)",
                    "occurred_at":1787449000000}}' \
   http://127.0.0.1:8770/signals
 ```

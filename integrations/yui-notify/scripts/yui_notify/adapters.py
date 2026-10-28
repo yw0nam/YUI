@@ -5,7 +5,12 @@ from collections.abc import Mapping
 from typing import Any, NamedTuple
 
 PENDING_MAX = 1000
-PHASES = {"Stop": "done", "PermissionRequest": "needs_input", "Notification": "needs_input"}
+PHASES = {
+    "Stop": "done",
+    "PermissionRequest": "needs_input",
+    "Notification": "needs_input",
+    "SessionStart": "start",
+}
 
 
 class Event(NamedTuple):
@@ -39,15 +44,18 @@ def _codex_interactive(transcript_path: Any) -> bool:
 def parse_event(data: Any, env: Mapping[str, str]) -> Event | None:
     if not isinstance(data, dict):
         return None
-    # turn_id exists only in Codex input; Codex started from a Claude Code shell inherits CLAUDECODE=1
+    phase = PHASES.get(data.get("hook_event_name"))
+    if phase is None or not isinstance(data.get("session_id"), str):
+        return None
+    # turn_id exists only in Codex input, except SessionStart; Codex started from a Claude Code shell
+    # inherits CLAUDECODE=1
     if "turn_id" in data:
         agent = "codex"
     elif env.get("CLAUDECODE") == "1":
         agent = "claude-code"
+    elif phase == "start":
+        agent = "codex"
     else:
-        return None
-    phase = PHASES.get(data.get("hook_event_name"))
-    if phase is None or not isinstance(data.get("session_id"), str):
         return None
     tasks = data.get("background_tasks")
     running = isinstance(tasks, list) and any(
@@ -55,11 +63,14 @@ def parse_event(data: Any, env: Mapping[str, str]) -> Event | None:
     )
     if (
         agent == "claude-code"
-        and phase == "done"
+        and phase != "needs_input"
         and (running or env.get("CLAUDE_CODE_ENTRYPOINT", "").startswith("sdk"))
     ):
         return None
     if agent == "codex" and phase == "done" and not _codex_interactive(data.get("transcript_path")):
         return None
-    text = (data.get("last_assistant_message") or "") if phase == "done" else _pending(data)
+    if phase == "done":
+        text = data.get("last_assistant_message") or ""
+    else:
+        text = _pending(data) if phase == "needs_input" else ""
     return Event(agent, phase, data["session_id"], str(data.get("cwd") or ""), text)

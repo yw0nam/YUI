@@ -4,7 +4,7 @@ Claude Code and Codex hooks that tell a YUI character when a coding agent finish
 needs input. A `Stop` hook posts `agent.done`; a `PermissionRequest` hook posts
 `agent.needs_input`; a Claude Code `Notification` hook posts `agent.needs_input` when an
 MCP server asks the user a question. Each signal goes to one YUI character over the
-loopback ingress.
+loopback ingress. A `SessionStart` hook warns the user when that character cannot be reached.
 
 ## Install
 
@@ -70,11 +70,22 @@ The delivery classes and the envelope fields are in the
 - An event whose delivery class in the configuration is `drop`.
 - An event while the macOS app that launched the agent is the frontmost app. The hook compares
   its inherited `__CFBundleIdentifier` with the bundle id that `lsappinfo` reports for the
-  frontmost app. The check is per app, not per tab or pane: with Orca in front, every agent
-  in Orca stays silent, and an agent in another app still posts. A session over SSH, a tmux
+  frontmost app. The check is per app, not per tab or pane: with a terminal app in front,
+  every agent in that app stays silent, and an agent in another app still posts. A session over SSH, a tmux
   pane, a process without `__CFBundleIdentifier`, and a host without `lsappinfo` skip this
   check: a remote host cannot see the local focus, and a tmux pane keeps the bundle id of the
   app that started the tmux server.
+
+## Startup check
+
+A synchronous `SessionStart` hook (matcher `startup`, 5 s timeout) posts the same request as
+`yui-notify probe` to the configured endpoint. When the probe fails, Claude Code and Codex
+show one warning line, `yui-notify: <the probe's failure line>`. When it passes, the hook
+prints nothing. Each check makes YUI log one dropped-envelope warning.
+
+A Claude Code session with an SDK entrypoint (`claude -p`) skips the check. A Codex
+`SessionStart` carries no field that marks a non-interactive run, so `codex exec` runs the
+check too.
 
 ## Configuration
 
@@ -113,7 +124,8 @@ yui-notify test [--endpoint URL] [--delivery urgent|batched]
 ```
 
 - `hook` reads the agent's hook JSON on stdin and exits 0 after posting or after any
-  failure. It never writes to stdout.
+  failure. It writes to stdout only the startup check's warning, as
+  `{"systemMessage": "yui-notify: <line>"}`.
 - `probe` posts `{"signals": [], "envelope": "yui-notify-probe"}`; HTTP 200 proves the
   listener is up and the route and preset exist. The client drops the group because the
   envelope is not an object, so nothing is delivered and YUI logs one warning.

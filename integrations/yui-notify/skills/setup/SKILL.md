@@ -10,7 +10,8 @@ license: PolyForm-Noncommercial-1.0.0
 The yui-notify plugin installs hooks in Claude Code and Codex. A `Stop` hook posts
 `agent.done`, a `PermissionRequest` hook posts `agent.needs_input`, and a Claude Code
 `Notification` hook posts `agent.needs_input` when an MCP server asks the user a question.
-Each signal goes to one YUI character over the loopback ingress.
+Each signal goes to one YUI character over the loopback ingress. A `SessionStart` hook
+warns the user when that character cannot be reached.
 
 This skill writes the plugin's configuration and checks the whole path from a hook to the
 character. Read `references/troubleshooting.md` when a probe or a test fails, and
@@ -57,7 +58,8 @@ Run the probe with the chosen endpoint:
 ../../scripts/yui-notify probe --endpoint <url>
 ```
 
-Done when: the probe prints `ok: YUI is listening at <url>`. On any other line, follow
+Done when: the probe prints `ok: YUI is listening at <url>`; on the SSH branch, the probe of
+`references/remote.md` step 3 prints it. On any other line, follow
 `references/troubleshooting.md` before continuing.
 
 ## 3. Choose the delivery classes
@@ -77,8 +79,8 @@ of Claude Code.
 
 Codex: follow `references/codex.md`.
 
-Done when: for each agent the user runs, `/hooks` lists the yui-notify `Stop` and
-`PermissionRequest` hooks (Claude Code also lists the `Notification` hook).
+Done when: for each agent the user runs, `/hooks` lists the yui-notify `SessionStart`,
+`Stop`, and `PermissionRequest` hooks (Claude Code also lists the `Notification` hook).
 
 ## 5. Write the configuration
 

@@ -27,8 +27,8 @@ The trust record belongs to one version of the plugin bundle. After a plugin upd
 hooks show "Modified since last trusted - review required", and Codex blocks them until
 the user trusts them again.
 
-Done when: `/hooks` lists the yui-notify `Stop` and `PermissionRequest` hooks with no
-review warning.
+Done when: `/hooks` lists the yui-notify `SessionStart`, `Stop`, and `PermissionRequest`
+hooks with no review warning.
 
 ## What Codex does not send
 
