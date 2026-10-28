@@ -34,8 +34,8 @@ Then find hand-installed YUI hooks that would double-send. Look for an entry und
 in `~/.claude/settings.json`, `~/.claude/settings.local.json`, the current project's
 `.claude/settings.json` and `.claude/settings.local.json`, `~/.codex/hooks.json`, and the
 hooks tables of `~/.codex/config.toml`, whose command posts to `/signals` on the YUI
-port, or posts to `/agent-event`, which answers 404, or runs a script that does. List
-each entry and offer to remove that entry alone. Change no other hook, and ask before deleting a
+port, or posts to `/agent-event`, which answers 400, or 404 under `/presets/<id>/`, or
+runs a script that does. List each entry and offer to remove that entry alone. Change no other hook, and ask before deleting a
 script file.
 
 Done when: you have told the user the mode (new or update), and the user has answered

@@ -110,7 +110,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const agentNotifySettings = createAgentNotifySettings({
     storage: localStorageAgentNotifyStorage(),
   });
-  // Presence window threshold — "present when idle ≤ N ms". Shared by proactive/agent sources.
+  // Presence window threshold — "present when idle ≤ N ms". Shared by the firing sources.
   const presenceSettings = createPresenceStore();
   // Global quiet gap every proactive source waits out after a turn start.
   const pacerGapSettings = createPacerGapStore();

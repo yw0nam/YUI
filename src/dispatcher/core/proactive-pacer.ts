@@ -3,8 +3,8 @@
  *
  * Any backend turn start (user or proactive, spoken or silent) anchors a window; while it is
  * open, proactive fires are held back. The sources that skip rather than queue — screen, loop
- * cues, schedule — consult `isHolding()` at their own gate; the two buffered-inbox sources
- * (signals, agent) take the window as busy and flush one catchup at the open edge. The
+ * cues, schedule — consult `isHolding()` at their own gate; the buffered-inbox source
+ * (signals) takes the window as busy and flushes one catchup at the open edge. The
  * dispatcher enforces the same window at its routing gate as a backstop.
  *
  * An interval of 0 disables the pacer: nothing is ever held.

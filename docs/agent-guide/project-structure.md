@@ -747,7 +747,7 @@ YUI/
         script.rs                    # The prelude wrapped around the caller's code
         shots.rs                     # The per-call screenshot folder, its collection and encode, and the stale sweep
       agent_ingress/
-        mod.rs                       # Loopback HTTP listener for agent hooks, signals, and the avatar RPC surface, routed to main or the pet window a /presets/<id>/ path names
+        mod.rs                       # Loopback HTTP listener for signals and the avatar RPC surface, routed to main or the pet window a /presets/<id>/ path names
         payload.rs                   # Request parsing, size caps, and event payload types
         route.rs                     # Path parsing into a route family and a target window: bare paths to main, /presets/<id>/ to pet-<id>
         avatar_rpc.rs                # Avatar RPC bridge between HTTP requests and the webview

@@ -65,7 +65,7 @@ export const isAddressedEvent = (env: Pick<BusEnvelope, "event_name">): boolean 
   env.event_name.startsWith("addressed.");
 
 /** Source of a user-initiated turn (typed vs voice) — filters onUserTurnFailed targets and hints routing.
- * Other triggers such as proactive/schedule/agent are undefined (§274, not a UI error-surface target). */
+ * Other triggers such as proactive/schedule are undefined (§274, not a UI error-surface target). */
 export type UserTurnSource = "text" | "voice";
 
 export function userTurnSourceOf(env: BusEnvelope): UserTurnSource | undefined {
@@ -93,7 +93,7 @@ export function mentionOf(env: Pick<BusEnvelope, "payload">): TriggerMeta["menti
 
 /**
  * Which sources the global proactive gap applies to. Loop cues, schedule and the buffered
- * inboxes (signals, agent) all push as timer_scheduler — except the urgent signals instance,
+ * inbox (signals) all push as timer_scheduler — except the urgent signals instance,
  * whose handle-now delivery a hold must not delay; screen transitions as screen_watcher;
  * gesture cues, typed/spoken input and the once-a-day milestone push as os_event_watcher and
  * pass ungated. Record forces a new source value to answer paced-or-not at compile time.

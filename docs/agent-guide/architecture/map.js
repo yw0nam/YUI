@@ -4339,7 +4339,7 @@ globalThis.YUI_MAP =
         },
         {
           "from": "tools",
-          "label": "agent and signal events",
+          "label": "signal events",
           "edges": [
             "inbox-sources"
           ],

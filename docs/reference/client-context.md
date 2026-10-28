@@ -87,7 +87,7 @@ The backend model reads the block as prose. Every line follows one register:
 2. A state is in the present tense with its duration, `(for Nmin)`. An event is in the past
    tense with its age, `(Nmin ago)` or `(fired at HH:MM)`. No line uses a word that reads
    both ways, such as "until".
-3. Every clause names its actor: the character, the user, the reply, or the coding agent.
+3. Every clause names its actor: the character, the user, or the reply.
    The character is "the character" in every line, with no pronoun.
 4. The client states facts and writes no instruction. A line carrying text the user
    authored, which may be phrased as an order, labels it as the user's intent.
