@@ -28,6 +28,11 @@ interface ContextProviders {
   getRelations?: () => ClientContext["relations"];
   /** The other open presets' names, read once per turn. */
   getOpenCharacters?: () => string[];
+  /** The enabled plugins' tools and skills, read once per turn. */
+  getPluginCatalog?: () => {
+    tools: NonNullable<ClientContext["plugin_tools"]>;
+    skills: NonNullable<ClientContext["plugin_skills"]>;
+  };
 }
 
 interface BuiltContext {
@@ -273,6 +278,7 @@ export async function buildContext(
   const overheard = providers.getOverheard?.() ?? [];
   const relations = providers.getRelations?.();
   const openCharacters = providers.getOpenCharacters?.();
+  const pluginCatalog = providers.getPluginCatalog?.();
   const clientContext = {
     ...buildClientContext(
       ctx,
@@ -288,6 +294,8 @@ export async function buildContext(
       : {}),
     ...(relations?.length ? { relations } : {}),
     ...(openCharacters?.length ? { open_characters: openCharacters } : {}),
+    ...(pluginCatalog?.tools.length ? { plugin_tools: pluginCatalog.tools } : {}),
+    ...(pluginCatalog?.skills.length ? { plugin_skills: pluginCatalog.skills } : {}),
   };
 
   return { ctx, clientContext, overheard };

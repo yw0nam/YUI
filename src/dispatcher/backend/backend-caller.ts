@@ -113,6 +113,11 @@ interface BackendCallerDeps extends PushCallDeps, SettleDeps, StreamAttemptDeps 
   getRelations?: () => ClientContext["relations"];
   /** The other open presets' names — read per turn. */
   getOpenCharacters?: () => string[];
+  /** The enabled plugins' tools and skills, read once per turn. */
+  getPluginCatalog?: () => {
+    tools: NonNullable<ClientContext["plugin_tools"]>;
+    skills: NonNullable<ClientContext["plugin_skills"]>;
+  };
   /** Marks a turn's overheard lines heard — called only when that turn ends ok. */
   commitOverheard?: (blocks: OverheardBlock[]) => void;
   /** True while a scene holds the body, which would drop a thinking motion and still speak its filler. Absent means free. */
@@ -233,6 +238,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         getOverheard: deps.getOverheard,
         getRelations: deps.getRelations,
         getOpenCharacters: deps.getOpenCharacters,
+        getPluginCatalog: deps.getPluginCatalog,
         onScreenshotError: (error) => log.warn("screenshot.failed", { error: String(error) }),
       });
       // Single "now" snapshot reused for every duration computed into this turn's rendered

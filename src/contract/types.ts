@@ -344,6 +344,10 @@ export interface ClientContext {
   }[];
   /** The other open presets' names as the tools accept them, read this turn; absent when none. */
   open_characters?: string[];
+  /** Each enabled plugin's tool with its summary, read this turn; absent when none. */
+  plugin_tools?: { name: string; summary: string }[];
+  /** Each enabled plugin's skill with its description, read this turn; absent when none. */
+  plugin_skills?: { name: string; description: string }[];
   trigger: TriggerMeta;
 }
 
