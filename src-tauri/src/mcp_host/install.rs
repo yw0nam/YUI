@@ -1,7 +1,7 @@
 //! Lists the Catalog and installs, updates, and removes plugins: download, sha256, unpack, switch.
 
 use super::catalog::{self, CatalogEntry, Release};
-use super::host::{listed, unknown, writable, Host, Live};
+use super::host::{listed, unknown, writable, Host};
 use super::launch;
 use super::manifest;
 use super::store::{Source, StoredPlugin};
@@ -56,7 +56,7 @@ impl Host {
                     approved_path: None,
                     enabled_seq: None,
                 };
-                let live = Live::read(&plugin, &self.dir, &self.log_dir, self.offset);
+                let live = self.live(&plugin, manifest::read(&plugin.path));
                 state.plugins.push(plugin);
                 self.save(&mut inner, state)?;
                 inner.live.insert(plugin_id.to_string(), live);
@@ -73,7 +73,7 @@ impl Host {
             plugin.source = release.source;
             let old = std::mem::replace(&mut plugin.path, path.clone());
             let run = plugin.enabled && plugin.consented();
-            let live = Live::read(plugin, &self.dir, &self.log_dir, self.offset);
+            let live = self.live(plugin, manifest::read(&plugin.path));
             self.save(&mut inner, state)?;
             let stopping = inner.stop_servers(|id, _| id == plugin_id);
             inner.live.insert(plugin_id.to_string(), live);

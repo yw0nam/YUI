@@ -68,7 +68,10 @@ impl Host {
         let live = state
             .iter()
             .flat_map(|s| &s.plugins)
-            .map(|p| (p.id.clone(), Live::read(p, &dir, &log_dir, offset)))
+            .map(|p| {
+                let live = Live::new(p, manifest::read(&p.path), &dir, &log_dir, offset);
+                (p.id.clone(), live)
+            })
             .collect();
         let mut inner = Inner {
             state,
@@ -107,6 +110,11 @@ impl Host {
         Ok(live.log.tail())
     }
 
+    /// The live servers of one plugin, from the manifest it declares.
+    pub(super) fn live(&self, plugin: &StoredPlugin, manifest: Result<Manifest, String>) -> Live {
+        Live::new(plugin, manifest, &self.dir, &self.log_dir, self.offset)
+    }
+
     /// Lists the plugin in `folder` as disabled and without consent.
     pub fn add(&self, folder: PathBuf) -> Result<String, String> {
         let mut inner = self.lock();
@@ -124,7 +132,7 @@ impl Host {
             approved_path: None,
             enabled_seq: None,
         };
-        let live = Live::new(&plugin, Ok(manifest), &self.dir, &self.log_dir, self.offset);
+        let live = self.live(&plugin, Ok(manifest));
         state.plugins.push(plugin);
         self.save(&mut inner, state)?;
         inner.live.insert(id.clone(), live);
@@ -148,7 +156,7 @@ impl Host {
             plugin.enabled = true;
             plugin.approved_path = Some(plugin.path.clone());
             plugin.enabled_seq = Some(next_seq);
-            let live = Live::read(plugin, &self.dir, &self.log_dir, self.offset);
+            let live = self.live(plugin, manifest::read(&plugin.path));
             state.next_seq += 1;
             self.save(&mut inner, state)?;
             inner.live.insert(plugin_id.to_string(), live);
@@ -354,15 +362,6 @@ impl Inner {
 }
 
 impl Live {
-    pub(super) fn read(
-        plugin: &StoredPlugin,
-        dir: &Path,
-        log_dir: &Path,
-        offset: UtcOffset,
-    ) -> Self {
-        Self::new(plugin, manifest::read(&plugin.path), dir, log_dir, offset)
-    }
-
     fn new(
         plugin: &StoredPlugin,
         manifest: Result<Manifest, String>,
