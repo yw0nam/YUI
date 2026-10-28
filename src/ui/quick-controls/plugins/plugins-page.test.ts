@@ -94,11 +94,9 @@ describe("createPluginsPage", () => {
     page.entered();
     await vi.waitFor(() => expect(page.el.textContent).toContain("calendar-ics"));
 
-    expect(Array.from(page.el.querySelectorAll("[data-pid]"), (g) => g.dataset.pid)).toEqual([
-      "browser",
-      "yui-test",
-      "weather",
-    ]);
+    expect(
+      Array.from(page.el.querySelectorAll<HTMLElement>("[data-pid]"), (g) => g.dataset.pid),
+    ).toEqual(["browser", "yui-test", "weather"]);
     expect(group(page.el, "browser").querySelector(".yui-plg-hid")?.textContent).toBe(
       "Hidden tool browser — a built-in tool uses this name",
     );
@@ -106,8 +104,8 @@ describe("createPluginsPage", () => {
     expect(button(weather, "Allow again…").dataset.act).toBe("reapprove");
     expect(weather.querySelector(".yui-plg-sv")).toBeNull();
     expect(button(weather, "Update to v0.5.0").dataset.act).toBe("update");
-    expect(Array.from(page.el.querySelectorAll("[data-cid]"), (b) => b.dataset.cid)).toEqual([
-      "calendar-ics",
-    ]);
+    expect(
+      Array.from(page.el.querySelectorAll<HTMLElement>("[data-cid]"), (b) => b.dataset.cid),
+    ).toEqual(["calendar-ics"]);
   });
 });

@@ -1,0 +1,435 @@
+/* Plugins page — installed plugins and the catalog. Tokens in ../../tokens.css. */
+
+.yui-plg-ver {
+  font-size: var(--yui-fs-caption);
+  font-weight: 400;
+  color: var(--yui-text-mute);
+  font-variant-numeric: tabular-nums;
+}
+
+.yui-plg-sum {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Source badge */
+.yui-plg-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--yui-edge);
+  border-radius: var(--yui-radius-pill);
+  font-size: var(--yui-fs-caption);
+  font-weight: 500;
+  color: var(--yui-text-dim);
+  white-space: nowrap;
+}
+
+.yui-plg-badge svg {
+  width: 0.7rem;
+  height: 0.7rem;
+}
+
+.yui-plg-spin {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex: none;
+  border-radius: 50%;
+  border: 1.5px solid var(--yui-accent-soft);
+  border-top-color: transparent;
+  animation: yui-plg-spin 0.7s linear infinite;
+}
+
+@keyframes yui-plg-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Server status dot */
+.yui-plg-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--yui-text-mute);
+}
+
+.yui-plg-dot.is-ok {
+  background: var(--yui-ok);
+  box-shadow: 0 0 0 3px var(--yui-ok-soft);
+}
+
+.yui-plg-dot.is-bad {
+  background: var(--yui-danger);
+  box-shadow: 0 0 0 3px var(--yui-danger-faint);
+}
+
+.yui-plg-dot.is-off {
+  opacity: 0.55;
+}
+
+/* Inline error line: YUI's lead, then the host's string */
+.yui-plg-err {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0.5rem 0.875rem 0.625rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: var(--yui-radius-control);
+  background: var(--yui-danger-faint);
+  font-size: var(--yui-fs-sub);
+  line-height: 1.4;
+  color: var(--yui-danger);
+}
+
+.yui-plg-err svg {
+  width: 0.85rem;
+  height: 0.85rem;
+  flex: none;
+  margin-top: 0.08rem;
+}
+
+.yui-plg-err span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.yui-plg-err .yui-link-btn {
+  margin-left: auto;
+  color: var(--yui-danger);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* One server line under its plugin's switch row */
+.yui-plg-sv {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.6rem;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.875rem;
+}
+
+.yui-plg-sv .yui-plg-spin {
+  width: 7px;
+  height: 7px;
+}
+
+.yui-plg-sv__name {
+  font-size: var(--yui-fs-body);
+  font-weight: 500;
+}
+
+.yui-plg-sv__state {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.625rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--yui-fs-sub);
+  color: var(--yui-text-mute);
+  overflow-wrap: anywhere;
+}
+
+.yui-plg-sv__state b {
+  font-weight: 600;
+  color: var(--yui-text-dim);
+}
+
+.yui-plg-sv__state q,
+.yui-plg-sv__detail q {
+  quotes: none;
+  color: var(--yui-text-dim);
+}
+
+.yui-plg-sv__detail {
+  flex-basis: 100%;
+  margin-left: 1.05rem;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.45;
+  color: var(--yui-text-mute);
+  overflow-wrap: anywhere;
+}
+
+.yui-plg-code {
+  font-weight: 600;
+  color: var(--yui-text-dim);
+}
+
+/* Hidden-name note: one muted line per kind and holder */
+.yui-plg-hid {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.5rem 0.875rem;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.45;
+  color: var(--yui-text-mute);
+  overflow-wrap: anywhere;
+}
+
+/* The plugin's log tail, opened from its action row */
+.yui-plg-logbox {
+  display: grid;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem 0.625rem;
+}
+
+.yui-plg-logbox .yui-plg-err {
+  margin: 0;
+}
+
+.yui-plg-log {
+  max-height: 8.5rem;
+  margin: 0;
+  padding: 0.5rem 0.625rem;
+  overflow: auto;
+  border-radius: var(--yui-radius-control);
+  background: var(--yui-field);
+  font: inherit;
+  font-size: var(--yui-fs-caption);
+  line-height: 1.5;
+  color: var(--yui-text-dim);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.yui-plg-log__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: var(--yui-fs-caption);
+  color: var(--yui-text-mute);
+}
+
+/* Disclosure row inside a group; the chevron turns when open */
+.yui-plg-disc {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  width: 100%;
+  min-height: 2.25rem;
+  padding: 0.375rem 0.875rem;
+  border: 0;
+  background: transparent;
+  color: var(--yui-text-dim);
+  font: inherit;
+  font-size: var(--yui-fs-sub);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.yui-plg-disc:hover {
+  color: var(--yui-text);
+}
+
+.yui-plg-disc:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--yui-accent-soft);
+}
+
+.yui-plg-chev {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex: none;
+  transition: transform var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-link-btn .yui-plg-chev {
+  margin-right: 0.1rem;
+  vertical-align: -0.15rem;
+}
+
+[aria-expanded="true"] > .yui-plg-chev {
+  transform: rotate(90deg);
+}
+
+.yui-plg-tools {
+  display: grid;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0 0.875rem 0.625rem 2.05rem;
+  list-style: none;
+}
+
+.yui-plg-tools li {
+  display: grid;
+  gap: 0.05rem;
+}
+
+.yui-plg-tools__name {
+  font-size: var(--yui-fs-body);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.yui-plg-tools__sum {
+  font-size: var(--yui-fs-sub);
+  line-height: 1.4;
+  color: var(--yui-text-mute);
+}
+
+.yui-plg-tools__kind {
+  margin-top: 0.25rem;
+  font-size: var(--yui-fs-caption);
+  font-weight: 600;
+  color: var(--yui-text-mute);
+}
+
+/* Action row closing a plugin's group */
+.yui-plg-acts {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  min-width: 0;
+}
+
+.yui-plg-acts > .yui-link-btn:first-child {
+  margin-left: -0.25rem;
+}
+
+.yui-plg-acts__end {
+  margin-left: auto;
+}
+
+.yui-plg-acts .yui-link-btn:disabled {
+  color: var(--yui-text-mute);
+  cursor: default;
+  transform: none;
+}
+
+.yui-plg-busy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--yui-fs-sub);
+  color: var(--yui-text-dim);
+  white-space: nowrap;
+}
+
+.yui-plg-path {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--yui-fs-sub);
+  color: var(--yui-text-mute);
+}
+
+/* Re-approval notice row */
+.yui-plg-reap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.625rem 0.875rem;
+}
+
+.yui-plg-reap p {
+  flex: 1 1 14rem;
+  margin: 0;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.45;
+  color: var(--yui-text-dim);
+}
+
+/* The affirming pill: Amber ink on an Amber-soft edge, as the photo dialog's Use photo */
+.yui-plg-ok {
+  color: var(--yui-accent-ink);
+  border-color: var(--yui-accent-soft);
+}
+
+.yui-plg-ok:hover {
+  background: var(--yui-accent-faint);
+  border-color: var(--yui-accent);
+  color: var(--yui-accent-ink);
+}
+
+.yui-plg-ok:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Catalog */
+.yui-plg-side {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.625rem;
+  margin-left: auto;
+}
+
+.yui-plg-state {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 3rem;
+  padding: 0.625rem 0.875rem;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.45;
+  color: var(--yui-text-mute);
+}
+
+.yui-plg-skelrow {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.875rem;
+}
+
+.yui-plg-skel {
+  width: 65%;
+  height: 0.6rem;
+  border-radius: 4px;
+  background: var(--yui-hover);
+  animation: yui-plg-breathe 1.6s ease-in-out infinite alternate;
+}
+
+.yui-plg-skel:first-child {
+  width: 30%;
+  height: 0.7rem;
+  background: var(--yui-selected);
+}
+
+@keyframes yui-plg-breathe {
+  to {
+    opacity: 0.45;
+  }
+}
+
+/* A block fades in on the render it first appears in */
+.yui-plg-enter {
+  animation: yui-plg-enter var(--yui-dur) var(--yui-ease) both;
+}
+
+@keyframes yui-plg-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-plg-enter,
+  .yui-plg-skel,
+  .yui-plg-spin {
+    animation: none;
+  }
+
+  .yui-plg-spin {
+    border-top-color: var(--yui-accent-soft);
+  }
+
+  .yui-plg-chev {
+    transition: none;
+  }
+}
