@@ -55,6 +55,7 @@ async function runStream(): Promise<Run> {
     completedEvent({ speech_text: "So." }),
   ];
   const caller = createBackendCaller({
+    clientTools: () => createClientToolRegistry([]),
     config: CONFIG,
     renderer: { applyDirective: vi.fn() } as never,
     getApiKey: async () => "k",

@@ -7,6 +7,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createClientToolRegistry } from "../../io/chat/tools/client-tools";
 import {
   CONFIG,
   completedEvent,
@@ -26,6 +27,7 @@ beforeEach(() => {
   script.reset();
   turnOutput = makeTurnOutput();
   caller = createBackendCaller({
+    clientTools: () => createClientToolRegistry([]),
     config: CONFIG,
     renderer: { applyDirective: vi.fn() } as never,
     getApiKey: async () => "k",
@@ -73,6 +75,7 @@ describe("backend_caller — reply settle timing", () => {
   it("builds a fresh options object for each stream attempt", async () => {
     let stored: string | undefined = "resp_dead";
     caller = createBackendCaller({
+      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective: vi.fn() } as never,
       getApiKey: async () => "k",
@@ -101,6 +104,7 @@ describe("backend_caller — reply settle timing", () => {
     const order: string[] = [];
     let stored: string | undefined = "resp_dead";
     caller = createBackendCaller({
+      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective: vi.fn() } as never,
       getApiKey: async () => "k",
@@ -130,6 +134,7 @@ describe("backend_caller — reply settle timing", () => {
   it("an abort landing during the 404 retry effects does not stop the next attempt from starting", async () => {
     const ac = new AbortController();
     caller = createBackendCaller({
+      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective: vi.fn() } as never,
       getApiKey: async () => "k",

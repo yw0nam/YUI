@@ -19,7 +19,6 @@ import type { QuotedTurn } from "../../dispatcher/turn/quoted-turn";
 import type { TurnLog } from "../../dispatcher/turn/turn";
 import { createTurnFeed, type TurnFeed } from "../../dispatcher/turn/turn-feed";
 import type { ReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
-import { clientToolsUnlessBrokered } from "../../io/chat/broker/broker-tool-owner";
 import { readTranscriptAfterBoundary } from "../../io/chat/conversation/chat-history-store";
 import { createOverheardReader } from "../../io/chat/conversation/overheard/overheard-reader";
 import type { PushSocket } from "../../io/chat/push/push-socket";
@@ -176,11 +175,7 @@ export function wireDispatcher(deps: {
   const turnFeed = createTurnFeed({ onToolStatus: applyToolStatus, reasoning });
 
   // Built per turn from the published vocabulary, so a live edit reaches the next tool schema.
-  const turnTools = () =>
-    clientToolsUnlessBrokered(
-      getEndpoints(),
-      createClientToolRegistry(createClientTools(getVocabulary(), windowTools)),
-    );
+  const turnTools = () => createClientToolRegistry(createClientTools(getVocabulary(), windowTools));
 
   const overheard = createOverheardReader({
     selfPresetId: presetIdForWindow(),
@@ -218,7 +213,7 @@ export function wireDispatcher(deps: {
     getBodyState: () => dispatcher.getBodyState(),
     getFrontmost,
     getPrevious: previousTurn.get,
-    getToolSwitches: () => turnTools()?.switches() ?? [],
+    getToolSwitches: () => turnTools().switches(),
     takeMessageWake,
     getOverheard: overheard.read,
     getRelations: () =>

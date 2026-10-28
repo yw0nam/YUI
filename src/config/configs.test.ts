@@ -32,7 +32,6 @@ describe("configs/endpoints.json", () => {
     "chat_base_url",
     "stt_base_url",
     "tts_base_url",
-    "broker_base_url",
     "chat_model",
     "tts_speaker",
   ])("ships no %s, which stays unset until the user sets one", (key) => {

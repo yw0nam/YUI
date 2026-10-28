@@ -2,7 +2,7 @@
  * emotion-text.ts — per-provider emotion_text emoji table loader.
  *
  * configs/emotion_text/<provider>.json = `{ "<emoji>": "<English meaning hint>" }`.
- * irodori publishes this table to the Expression Broker as enum vocab (broker-client, separate unit).
+ * Irodori declares this table in the expression tool schema.
  * Pure load + validation only (no side effects, reader injectable → testable). fail-loud ConfigError.
  */
 

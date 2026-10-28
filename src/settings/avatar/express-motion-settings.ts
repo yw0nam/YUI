@@ -5,8 +5,8 @@
  * Stored as the *disabled* set, so motions added to the catalog later are selectable without a
  * migration.
  *
- * `enabledExpressMotions` is the read path, applied where the broker payload is derived so the
- * broker publish and the Chat-Completions tool schema follow the same list. All-off is a valid
+ * `enabledExpressMotions` is the read path, applied where the vocabulary is derived so all
+ * transports follow the same list. All-off is a valid
  * selection: the cue then carries expression and voice tone only.
  */
 

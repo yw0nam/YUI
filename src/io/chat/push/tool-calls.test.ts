@@ -69,7 +69,7 @@ async function flush(): Promise<void> {
 describe("createPushToolCalls", () => {
   it("answers an unknown name at once and runs nothing", async () => {
     const h = harness();
-    h.calls.handle(call("c1", "t", "mcp_other_generate_express"));
+    h.calls.handle(call("c1", "t", "unknown_tool"));
     await flush();
 
     expect(h.sent).toEqual([

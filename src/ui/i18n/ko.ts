@@ -520,7 +520,6 @@ const ko: Record<string, string> = {
   "endpoints.stt_language.ja": "일본어",
   "endpoints.tts_base_url.label": "음성 합성(TTS) 서버 URL",
   "endpoints.tts_model.label": "TTS 모델",
-  "endpoints.broker_base_url.label": "표현 브로커(Broker) URL",
   "endpoints.chat_model.label": "채팅 모델",
 
   // per-service sections (connection tab)
@@ -567,13 +566,9 @@ const ko: Record<string, string> = {
   "svc.tts_hint": "OpenAI 호환",
   "svc.tts_type": "제공자",
   "svc.tts_preset_aria": "TTS 제공자 프리셋",
-  "svc.broker": "Broker",
-  "svc.broker_hint": "MCP streamable-http, 지원 중단, v0.6.0에서 제거",
-  "svc.broker_type": "MCP streamable-http",
   "svc.reset_chat": "채팅 되돌리기",
   "svc.reset_stt": "STT 되돌리기",
   "svc.reset_tts": "TTS 되돌리기",
-  "svc.reset_broker": "Broker 되돌리기",
 
   // chat API key
   "chatkey.label": "채팅 API 키",

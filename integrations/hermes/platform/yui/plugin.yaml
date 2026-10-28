@@ -9,8 +9,7 @@ description: >
   plus the user's utterance.
 
   The agent's final reply leaves on the same socket as ordered segments — every sentence with the
-  generate_express cues placed on it — so speech and expression arrive together and the standalone
-  Expression Broker is not in the path.
+  generate_express cues placed on it — so speech and expression arrive together.
 
   Because the socket stays open, the gateway grants this channel async delivery: a
   delegate_task(background=true) completion comes back as a report and is spoken whenever it

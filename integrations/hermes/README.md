@@ -6,8 +6,6 @@
 
 **Responses mode or push mode.** Responses mode is the call-per-turn route described below; push mode is the persistent WebSocket described under [Push mode](#push-mode). For responses mode set `"chat_api": "responses"` in `configs/endpoints.json`. The Hermes api-server's `/v1/chat/completions` does not surface tool calls; it emits a custom `hermes.tool.progress` telemetry event (name + status, no arguments) instead of `tool_calls`, so `generate_express` cues never arrive in Chat Completions mode.
 
-**Streaming shape.** Hermes ships the complete `arguments` JSON inside the `function_call` item of `response.output_item.added` / `response.output_item.done`, and emits one `generate_express` call per expressive beat. Its MCP tools are namespaced `mcp_<server>_<tool>`, so `generate_express` arrives as `mcp_<server>_generate_express`; the client matches the tool by suffix.
-
 **Auth.** The api-server key is its `API_SERVER_KEY` environment variable. YUI sends it as `Authorization: Bearer` from the chat key (settings override, else `VITE_YUI_CHAT_KEY` in `.env.local`). A local Hermes runs unauthenticated by default, so an empty key is normal and sends no header.
 
 **Dev proxy (web dev only, not Tauri).** The browser dev build sends Responses-mode chat through the dev server's same-origin mount, which forwards to the configured chat base URL and removes the `Origin` header. The Hermes api-server serves a request without `Origin` and rejects an `Origin` that is not in `API_SERVER_CORS_ORIGINS`, so the dev server needs no entry there.
@@ -20,13 +18,13 @@ The chat model row is disabled in this mode, with its reason under it — the pl
 
 ## Profile setup
 
-- Responses mode: the Hermes API server does not pass request tools to the model, so the client's declared `generate_express` does not reach it. Install the Expression Broker MCP into Hermes so it can read the published vocabulary and call the broker's `generate_express`; `broker_base_url` is deprecated and is removed in v0.6.0, so use push mode for expression on Hermes.
-- Push mode: the platform plugin takes the vocabulary from the client and carries `generate_express` itself. `platform_toolsets.yui` gives the platform every enabled MCP server until it names some, so name the MCP servers the character uses there, or add `no_mcp`, to keep the Expression Broker off the platform, as the plugin's [Enable](platform/yui/docs/install.md#enable) section describes. The list must include `skills` for the model to read any skill.
+- Responses mode: On Hermes, expression cues arrive on the push transport only; Chat Completions and Responses carry none, because the Hermes API server does not pass a request's tools to its model.
+- Push mode: the platform plugin takes the vocabulary from the client and carries `generate_express` itself. `platform_toolsets.yui` gives the platform every enabled MCP server until it names some, so name the MCP servers the character uses there, or add `no_mcp`, to select the platform's MCP tools, as the plugin's [Enable](platform/yui/docs/install.md#enable) section describes. The list must include `skills` for the model to read any skill.
 - Create a Hermes profile, add `docs/reference/client-context.md` to that profile's context, and instruct it to remember the contract.
 - Two client presets that talk to two personas need one Hermes profile, one port, and one key per persona; each preset's chat server URL and key point at its own profile.
 - The [daily briefing skill](../skills/yui-daily-briefing/SKILL.md) reads `SKILL_DIR`, `YUI_BRIEFING_SPOOL`, and `YUI_BRIEFING_LINK` from the environment its shell commands run in. On Hermes, set them in the profile's `.env` and list the three names under `terminal.env_passthrough` in the profile's `config.yaml`.
 
 ## Pointers
 
-- Protocol-level chat/STT/TTS/broker wiring: [docs/agent-guide/backend-integration.md](../../docs/agent-guide/backend-integration.md)
+- Protocol-level chat/STT/TTS wiring: [docs/agent-guide/backend-integration.md](../../docs/agent-guide/backend-integration.md)
 - Hermes-side desire system: [desire/README.md](desire/README.md)

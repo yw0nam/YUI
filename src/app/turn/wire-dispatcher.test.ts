@@ -161,6 +161,9 @@ describe("wireDispatcher", () => {
 
   it("declares generate_express on Responses with an unknown endpoint key", () => {
     setup(undefined, undefined, {
+      chat_base_url: "http://localhost:8642",
+      stt_base_url: "",
+      tts_base_url: "",
       chat_api: "responses",
       broker_base_url: "http://localhost:3201/mcp",
     } as EndpointsConfig);

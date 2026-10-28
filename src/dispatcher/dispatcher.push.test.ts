@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { guardrailsFixture } from "../config/load-test-helpers";
 import type { PeekConfig, TapConfig } from "../config/validators/avatar/types";
 import type { EndpointsConfig } from "../contract";
+import { createClientToolRegistry } from "../io/chat/tools/client-tools";
 import { createBackendCaller } from "./backend/backend-caller";
 import { type BusEnvelope, createEventBus, type EventBus } from "./core/event-bus";
 import { createGuardrails } from "./core/guardrails";
@@ -58,6 +59,7 @@ beforeEach(() => {
   sentIds = [];
   busyEdges = [];
   const backendCaller = createBackendCaller({
+    clientTools: () => createClientToolRegistry([]),
     config: PUSH_CONFIG,
     renderer: { applyDirective: vi.fn() } as never,
     getApiKey: async () => "k",

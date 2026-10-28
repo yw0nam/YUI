@@ -25,7 +25,7 @@ YUI/
   biome.json                         # Format and lint config (curated rule set)
   scripts/                           # Dev launchers (dev-port.mjs, tauri-dev.mjs for tauri:dev, dev-auto.mjs) and their shared package-manager.mjs helper, dev-backend-proxy.mjs, release.sh, worktree-setup.sh, ci/test-guard.sh, architecture-map-base.mjs (writes the map of origin/main beside the data file for the viewer's Compare view), ci/architecture-map.mjs (checks the client and plugin architecture maps against the tree)
   configs/                           # Runtime-loaded config (no hardcoding)
-    endpoints.json                   # chat/stt/tts/broker base urls + chat_instructions, chat_api, chat_model_context_window + stt_model/stt_language/tts_provider/tts_model/tts_speaker/tts_max_inflight; the shipped configs/endpoints.json omits the url and speaker keys, and the settings panel overrides per device
+    endpoints.json                   # chat/stt/tts base urls + chat_instructions, chat_api, chat_model_context_window + stt_model/stt_language/tts_provider/tts_model/tts_speaker/tts_max_inflight; the shipped configs/endpoints.json omits the url and speaker keys, and the settings panel overrides per device
     emotion_registry.json            # emotion id -> vrm_expression + fallback
     motions.json                     # Motion registry
     avatar.json                      # VRM avatar config
@@ -43,13 +43,11 @@ YUI/
       relations/                     # This window's relations wiring
         wire-relations.ts            # rate_relation's open-preset targets and the ingress relations RPC, over the window's store
       turn/                          # The path of a turn: sources, voice, and push
-        turn-core.ts                 # The chat turn every backend-facing window runs: voice, dispatcher, STT, VRM load, vocabulary, broker, push transport, stop, and submit
+        turn-core.ts                 # The chat turn every backend-facing window runs: voice, dispatcher, STT, VRM load, vocabulary, push transport, stop, and submit
         wire-dispatcher.ts           # Turn feed, backend caller, guardrails, pacer, and the dispatcher
         wire-sources.ts              # The dispatcher's utterance sources, built and started
         wire-card.ts                 # The card module bound to the window's stores, preset, UI language, and config
         wire-greeting.ts             # The greeting after a session reset, and the reset announcement each window's Start fresh makes
-        broker/                      # Expression broker wiring
-          wire-broker.ts             # The broker client: boot publish, override retargeting, and republish when the vocabulary moves
         vocabulary/                  # The express vocabulary every consumer declares
           wire-vocabulary.ts         # The emotion_text table load, the derived vocabulary, and its change announcements
         push/                        # Push socket wiring and its stores
@@ -386,9 +384,6 @@ YUI/
           pet-window-tools.ts          # Builds the tool list a pet window declares: rate_relation and address_character everywhere, browser under Tauri, body_action and look in main
         vocabulary/                    # The emotion, motion, and voice-tone ids the agent may cue with
           express-vocabulary.ts        # Derives the express vocabulary from the loaded config and the motion selection
-        broker/                        # The Expression Broker client and its URL override reconciler
-          broker-client.ts             # Write-only Expression Broker MCP client that publishes the renderable vocabulary
-          broker-override-reconciler.ts # Applies a broker-URL override to the live broker client
         card/                          # The card a preset sends: resolution, assembly with macros, and the greeting pick
           resolve-card.ts              # The preset's card and its effective name; null on push or with the switch off
           assemble-card.ts             # The first system message and the post-history text, with {{char}}, {{user}}, {{original}}

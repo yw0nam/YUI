@@ -227,8 +227,7 @@ The line names the switch state only. The switch gates the tool's execution, rea
 the call runs, so a state line the request outlives can still end in a refusal. The line is
 omitted when the turn declares no switchable tool: every pet window and the browser build declare
 `relations`; under Tauri `main` also declares `look.screen` and `browser`, and a bound pet window
-also declares `browser`; and on Responses with `broker_base_url`
-set the client declares no tools. Tool ids carry the same
+also declares `browser`. Tool ids carry the same
 sanitization as the other sampled fields.
 
 ### `previous turn`
@@ -870,9 +869,9 @@ Use it when the sentence needs a face, body motion, or voice tone cue. If the ne
 
 ### What values are valid?
 
-Take the values from the tool's declared schema, whose `enum`s list the valid ids. A backend attached to the Expression Broker reads the same ids from its `get_ids` tool instead; the broker is deprecated and removed in v0.6.0, and the client-declared tool replaces it.
+Take the values from the tool's declared schema, whose `enum`s list the valid ids.
 
-- Check valid `emotion_id`, `motion_id`, and `emotion_text` values against the schema or `get_ids`.
+- Check valid `emotion_id`, `motion_id`, and `emotion_text` values against the schema.
 - Do not rely on memorized value lists.
 - The valid set can change.
 - `caption` is free text and has no id list to check.

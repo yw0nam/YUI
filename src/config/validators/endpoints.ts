@@ -75,12 +75,6 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   const tts_speaker = optStr("tts_speaker");
   const stt_model = optStr("stt_model");
   const stt_language = optStr("stt_language");
-  // Deprecated: removed in v0.6.0. Use client-declared tools (src/io/chat/tools/client-tools.ts).
-  // broker_base_url: optional. If set, must be an http(s) URL (Expression Broker MCP endpoint).
-  let broker_base_url: string | undefined;
-  if (!unset(raw.broker_base_url)) {
-    broker_base_url = httpUrl("broker_base_url");
-  }
   // tts_max_inflight: optional, integer ≥ 1.
   const tts_max_inflight = raw.tts_max_inflight;
   if (
@@ -122,7 +116,6 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
     ...(tts_model !== undefined ? { tts_model } : {}),
     ...(tts_speaker !== undefined ? { tts_speaker } : {}),
     ...(typeof tts_max_inflight === "number" ? { tts_max_inflight } : {}),
-    ...(broker_base_url ? { broker_base_url } : {}),
     ...(typeof chat_model_context_window === "number" ? { chat_model_context_window } : {}),
   };
 }

@@ -1,12 +1,7 @@
 import type { ControlEnvelope, EmotionId, ExpressArgs } from "../../../contract";
 
-/**
- * Identifies express tool — when backend registers via MCP, name arrives as `mcp_<server>_generate_express`.
- * Matches by suffix to catch both namespaced/plain variants, while sibling tools
- * (`..._get_ids` etc) remain as generic tool_status.
- */
 export function isExpressTool(name: unknown): boolean {
-  return typeof name === "string" && name.endsWith("generate_express");
+  return name === "generate_express";
 }
 
 /** Extracts openai SDK APIError.status (HTTP status code) — undefined if absent (plain Error etc). */

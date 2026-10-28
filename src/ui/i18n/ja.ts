@@ -523,7 +523,6 @@ const ja: Record<string, string> = {
   "endpoints.stt_language.ja": "日本語",
   "endpoints.tts_base_url.label": "音声合成 (TTS) サーバー URL",
   "endpoints.tts_model.label": "TTSモデル",
-  "endpoints.broker_base_url.label": "表現ブローカー URL",
   "endpoints.chat_model.label": "チャットモデル",
 
   // per-service sections (connection tab)
@@ -570,13 +569,9 @@ const ja: Record<string, string> = {
   "svc.tts_hint": "OpenAI 互換",
   "svc.tts_type": "プロバイダー",
   "svc.tts_preset_aria": "TTSプロバイダーのプリセット",
-  "svc.broker": "Broker",
-  "svc.broker_hint": "MCP streamable-http、非推奨、v0.6.0 で削除",
-  "svc.broker_type": "MCP streamable-http",
   "svc.reset_chat": "チャットを戻す",
   "svc.reset_stt": "STT を戻す",
   "svc.reset_tts": "TTS を戻す",
-  "svc.reset_broker": "Broker を戻す",
 
   // chat API key
   "chatkey.label": "チャット API キー",

@@ -62,11 +62,6 @@ describe("validateEndpoints — happy path", () => {
     expect(out.chat_model_context_window).toBe(128000);
     expect(out.tts_max_inflight).toBe(2);
   });
-
-  it("carries through broker_base_url", () => {
-    const out = validateEndpoints(FILE, baseRaw({ broker_base_url: "http://localhost:9100" }));
-    expect(out.broker_base_url).toBe("http://localhost:9100");
-  });
 });
 
 describe("validateEndpoints — unconfigured (empty) endpoints", () => {
@@ -98,11 +93,6 @@ describe("validateEndpoints — unconfigured (empty) endpoints", () => {
     });
     expect(out.chat_api).toBe("responses");
     expect(out.chat_base_url).toBe("");
-  });
-
-  it("reads an empty broker_base_url as unset rather than a malformed URL", () => {
-    const out = validateEndpoints(FILE, baseRaw({ broker_base_url: "" }));
-    expect(out.broker_base_url).toBeUndefined();
   });
 });
 
@@ -198,11 +188,7 @@ describe("validateEndpoints — stt_model / tts_model / tts_speaker", () => {
   });
 });
 
-describe("validateEndpoints — broker_base_url / tts_max_inflight / context window", () => {
-  it("rejects an invalid broker_base_url", () => {
-    expectIssue(baseRaw({ broker_base_url: "ftp://x" }), "broker_base_url must be an http(s) URL");
-  });
-
+describe("validateEndpoints — tts_max_inflight / context window", () => {
   it("rejects a non-integer tts_max_inflight", () => {
     expectIssue(baseRaw({ tts_max_inflight: 1.5 }), "tts_max_inflight must be an integer >= 1");
   });

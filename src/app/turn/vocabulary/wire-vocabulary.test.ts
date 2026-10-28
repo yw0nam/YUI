@@ -45,7 +45,7 @@ describe("wireVocabulary", () => {
 
   const derivedWith = () => deriveExpressVocabulary.mock.calls.at(-1) as unknown as unknown[];
 
-  it("loads the emoji emotion_text table for irodori, with no broker or other consumer needed", async () => {
+  it("loads the emoji emotion_text table for irodori, independently of consumers", async () => {
     vi.mocked(loadEmotionTextTable).mockResolvedValueOnce({ "🤭": "Giggle" });
     const { deps } = makeDeps({ tts_provider: "irodori" });
     const handle = await wireVocabulary(deps);
@@ -135,7 +135,8 @@ describe("wireVocabulary", () => {
     const handle = await wireVocabulary(deps);
 
     endpoints.tts_provider = "openai";
-    await handle.reloadTable();
+    handle.onConfigChange(CFG, new Set(["endpoints"]));
+    await flush();
     let release: (table: Record<string, string>) => void = () => {};
     vi.mocked(loadEmotionTextTable).mockReturnValueOnce(
       new Promise((resolve) => {
@@ -143,12 +144,13 @@ describe("wireVocabulary", () => {
       }),
     );
     endpoints.tts_provider = "irodori";
-    const late = handle.reloadTable();
+    handle.onConfigChange(CFG, new Set(["endpoints"]));
     endpoints.tts_provider = "openai";
-    await handle.reloadTable();
+    handle.onConfigChange(CFG, new Set(["endpoints"]));
+    await flush();
     release({ "😆": "Laugh" });
 
-    expect(await late).toBeNull();
+    await flush();
     handle.vocabulary();
     expect(derivedWith()[1]).toBeNull();
   });

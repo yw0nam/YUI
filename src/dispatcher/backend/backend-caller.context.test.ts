@@ -8,6 +8,7 @@
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { InputContext, PreviousTurn, ToolStatus, Usage } from "../../contract";
 import { createReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
+import { createClientToolRegistry } from "../../io/chat/tools/client-tools";
 import type { Logger } from "../../logger";
 import type { BusEnvelope } from "../core/event-bus";
 import {
@@ -40,6 +41,7 @@ beforeEach(() => {
   usageSink = vi.fn();
   logger = makeLogger();
   caller = createBackendCaller({
+    clientTools: () => createClientToolRegistry([]),
     config: CONFIG,
     renderer: { applyDirective } as never,
     getApiKey: async () => "k",
@@ -99,6 +101,7 @@ describe("backend_caller — sent history", () => {
   it("appends history only after a confirmed successful turn", async () => {
     const contextHistory = { append: vi.fn() };
     caller = createBackendCaller({
+      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -136,6 +139,7 @@ describe("backend_caller — guide turn", () => {
       sessionToken: () => "s",
     };
     caller = createBackendCaller({
+      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -168,6 +172,7 @@ describe("backend_caller — turn record log", () => {
   it("appends one turn record per outcome, with spoke_text reflecting whether speech_text was non-empty", async () => {
     const appendTurnRecord = vi.fn();
     caller = createBackendCaller({
+      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -200,6 +205,7 @@ describe("backend_caller — turn record log", () => {
   it("streaming path (delta drove speech, completed carries empty speech_text) → spoke_text: true", async () => {
     const appendTurnRecord = vi.fn();
     caller = createBackendCaller({
+      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -220,6 +226,7 @@ describe("backend_caller — turn record log", () => {
   it("does not append a turn record for a dropped/unparsed turn (no completed envelope)", async () => {
     const appendTurnRecord = vi.fn();
     caller = createBackendCaller({
+      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -239,6 +246,7 @@ describe("backend_caller — turn record log", () => {
       throw new Error("disk full");
     });
     caller = createBackendCaller({
+      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -270,6 +278,7 @@ describe("backend_caller — screenshot port", () => {
   it("getScreenshot block → user content is array with input_text + input_image (data_url)", async () => {
     script.events = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
+      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -298,6 +307,7 @@ describe("backend_caller — screenshot port", () => {
   it("getScreenshot resolves undefined → user content is a plain string (no image part)", async () => {
     script.events = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
+      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -314,6 +324,7 @@ describe("backend_caller — screenshot port", () => {
   it("getScreenshot rejects → turn still proceeds without an image (reaches streamChat)", async () => {
     script.events = [completedEvent({ speech_text: "hi" })];
     caller = createBackendCaller({
+      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -376,6 +387,7 @@ describe("backend_caller — user_images (chat attachments)", () => {
     script.events = [completedEvent({ speech_text: "" })];
     const SHOT = "data:image/png;base64,SHOT";
     caller = createBackendCaller({
+      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -509,6 +521,7 @@ describe("backend_caller — flat client_context envelope", () => {
   it("(e) getBodyState reports a posture → client_context carries a body line with posture + perched_on app + duration", async () => {
     script.events = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
+      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -528,6 +541,7 @@ describe("backend_caller — flat client_context envelope", () => {
   it("(f) getBodyState reports no posture → client_context omits the body line", async () => {
     script.events = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
+      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -546,6 +560,7 @@ describe("backend_caller — agent settings (reasoning effort)", () => {
   it("getAgentSettings present → reasoning_effort threaded into ChatRequest", async () => {
     script.events = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
+      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -562,6 +577,7 @@ describe("backend_caller — agent settings (reasoning effort)", () => {
   it("getAgentSettings 'none' → reasoning_effort always sent; no instructions without a card", async () => {
     script.events = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
+      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -596,6 +612,7 @@ describe("backend_caller — previous-turn line", () => {
       previous = { event_name: "user.text_submitted", ended: "interrupted", ts: Date.now() };
     });
     const caller2 = createBackendCaller({
+      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -656,6 +673,7 @@ describe("backend_caller — wake", () => {
 
   it("sends the woken-by-message line on the user turn whose message woke her", async () => {
     const woke = createBackendCaller({
+      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -689,6 +707,7 @@ describe("backend_caller — overheard lines", () => {
   ])("sends the lines and commits them only on $outcome", async ({ outcome, error, committed }) => {
     const commitOverheard = vi.fn();
     caller = createBackendCaller({
+      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",

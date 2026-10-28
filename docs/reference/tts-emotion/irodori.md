@@ -2,19 +2,13 @@
 
 | | |
 |---|---|
-| broker mode | `enum` |
+| vocabulary mode | `enum` |
 | table | the 39-row emoji table below |
 
 Emoji are inserted **inline** into the spoken text (prefixed onto the TTS
 segment). **Repeat an emoji to intensify** (e.g. `🥺` → `🥺🥺`); combinations are
-allowed. YUI publishes this exact table to the broker via
-`update_emotion_text("enum", <table>)`, and the broker enum-gates incoming
-`emotion_text` against it (unknown tokens dropped + warning, speech never
-blocked). The canonical machine copy lives under `configs/`.
-
-This table stays aligned with the broker's 39-entry `DEFAULT_EMOTION_TEXT_MAP`. The broker
-is deprecated and is removed in v0.6.0; the client-declared `generate_express` tool carries
-this table as its `emotion_text` enum.
+allowed. The canonical machine copy lives in `configs/emotion_text/irodori.json`; the
+client-declared `generate_express` tool carries this table as its `emotion_text` enum.
 
 ## Emoji table
 

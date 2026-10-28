@@ -28,8 +28,7 @@ export function agentTriggerableMotionIds(motions: MotionRegistry): string[] {
 /**
  * Pure derivation of the vocabulary from loaded config. emotion ids = registry keys; motion ids
  * = agent-triggerable motion keys (see agentTriggerableMotionIds) narrowed by the user's
- * expression-motion selection — the one seam every vocabulary consumer reads, so the broker publish,
- * the generate_express tool schema, and the push hello always carry the same list. The selection is required, so
+ * expression-motion selection — the one seam every vocabulary consumer reads, so the generate_express tool schema and the push hello always carry the same list. The selection is required, so
  * no caller can publish the unfiltered catalog by leaving it out.
  * emotion_text is the emoji enum table (docs/reference/tts-emotion); no table (a provider without
  * one, or a failed load the loader already logged) publishes free mode.

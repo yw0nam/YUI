@@ -49,7 +49,6 @@ describe("chat type row", () => {
       endpointsSettings,
       chatKeySettings: createChatKeySettings(),
       ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
-      rows: { broker: false },
       isOpen: () => true,
       log: { debug() {}, info() {}, warn() {}, error() {} },
     });

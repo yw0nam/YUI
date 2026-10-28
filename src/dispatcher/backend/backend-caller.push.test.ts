@@ -15,6 +15,7 @@ import type { EndpointsConfig, InputContext } from "../../contract";
 import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
 import { fitTurnImages } from "../../io/chat/push/fit-turn-images";
 import type { PushTurnFrame } from "../../io/chat/push/push-frames";
+import { createClientToolRegistry } from "../../io/chat/tools/client-tools";
 import type { Logger } from "../../logger";
 import type { BusEnvelope } from "../core/event-bus";
 import { CONFIG, makeLogger, makeTurnOutput, touchEnv, turnOf, userEnv } from "../test-helpers";
@@ -107,6 +108,7 @@ function callerWith(
     order.push("interrupt");
   });
   return createBackendCaller({
+    clientTools: () => createClientToolRegistry([]),
     transcript: {
       entriesAfterLastBoundary: () => [],
       append: (entry) => transcript.push(entry),

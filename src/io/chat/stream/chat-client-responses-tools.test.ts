@@ -430,20 +430,6 @@ describe("streamChat — Responses tool-call round trip", () => {
     expect(createMock.mock.calls[1][0].input.at(-1)).toMatchObject({ output: "error: boom" });
   });
 
-  it("an MCP-namespaced express call the client did not register plays its cue and is never answered", async () => {
-    createMock.mockResolvedValueOnce(
-      streamOf([...call("mcp_yui_generate_express", "fc_1"), done("resp_1")]),
-    );
-
-    const events = await collect(
-      streamChat(CONFIG, req(), optsFor(oneWayStub("generate_express"))),
-    );
-
-    expect(createMock).toHaveBeenCalledOnce();
-    expect(events.filter((e) => e.type === "express")).toHaveLength(1);
-    expect(events.at(-1)).toMatchObject({ type: "completed", responseId: "resp_1" });
-  });
-
   it("an unregistered non-express call stays a chip and is never answered", async () => {
     createMock.mockResolvedValueOnce(streamOf([...call("web_search", "fc_1"), done("resp_1")]));
 
@@ -579,19 +565,6 @@ describe("streamChat — Responses tool-call round trip", () => {
 
     expect(createMock).toHaveBeenCalledOnce();
     expect(events.some((e) => e.type === "keepalive")).toBe(false);
-  });
-
-  it("a broker-attached backend's plain-name cue is rendered once and never answered when no registry is passed", async () => {
-    createMock.mockResolvedValueOnce(
-      streamOf([...call("generate_express", "fc_1"), done("resp_1")]),
-    );
-
-    const events = await collect(streamChat(CONFIG, req()));
-
-    expect(createMock).toHaveBeenCalledOnce();
-    expect(createMock.mock.calls[0][0]).not.toHaveProperty("tools");
-    expect(events.filter((e) => e.type === "express")).toHaveLength(1);
-    expect(events.at(-1)).not.toHaveProperty("toolOutputs");
   });
 });
 

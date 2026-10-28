@@ -1,9 +1,4 @@
-"""Expression-cue validation gate — the Expression Broker's rules, inlined.
-
-The vocabulary a cue is checked against is the one YUI ships with every pushed turn, so the
-broker process is not in this path. Unknown emotion/motion ids are dropped with a warning and
-the call still succeeds: a bad cue must never block speech.
-"""
+"""Validate pushed cues against the client vocabulary without blocking speech."""
 
 from __future__ import annotations
 
@@ -61,7 +56,7 @@ def tokenize_emotion_text(text: str, table: dict[str, str]) -> tuple[list[str], 
 
 
 def validate_cue(args: dict, vocab: Vocabulary) -> dict:
-    """Apply the gate to one ``generate_express`` call; the ack shape the broker returns."""
+    """Apply the gate to one ``generate_express`` call."""
     warnings: list[str] = []
 
     def text_arg(key: str) -> str | None:

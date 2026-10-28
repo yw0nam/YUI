@@ -521,7 +521,6 @@ const en: Record<string, string> = {
   "endpoints.stt_language.ja": "Japanese",
   "endpoints.tts_base_url.label": "Speech synthesis (TTS) server URL",
   "endpoints.tts_model.label": "TTS model",
-  "endpoints.broker_base_url.label": "Expression broker URL",
   "endpoints.chat_model.label": "Chat model",
 
   // per-service sections (connection tab)
@@ -568,13 +567,9 @@ const en: Record<string, string> = {
   "svc.tts_hint": "OpenAI-compatible",
   "svc.tts_type": "Provider",
   "svc.tts_preset_aria": "TTS provider preset",
-  "svc.broker": "Broker",
-  "svc.broker_hint": "MCP streamable-http, deprecated, removed in v0.6.0",
-  "svc.broker_type": "MCP streamable-http",
   "svc.reset_chat": "Reset Chat",
   "svc.reset_stt": "Reset STT",
   "svc.reset_tts": "Reset TTS",
-  "svc.reset_broker": "Reset Broker",
 
   // chat API key
   "chatkey.label": "Chat API key",

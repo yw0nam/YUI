@@ -12,10 +12,7 @@
  *   message, the response's reasoning output items ahead of its calls, and each call with its
  *   output, so it never depends on the server having kept the tool-calling response.
  *
- * express tool naming: the tool is matched by SUFFIX (`name.endsWith("generate_express")`),
- *   so it recognizes both the plain `generate_express` and the MCP-namespaced
- *   `mcp_<server>_generate_express` form some backends emit. Sibling MCP tools
- *   (e.g. `..._get_ids`) do NOT match → they stay generic tool_status chips.
+ * Express cues match the exact generate_express tool name.
  *
  * express args shape: the spec streams args via response.function_call_arguments.done,
  *   but some backends instead ship the complete `arguments` JSON inside the

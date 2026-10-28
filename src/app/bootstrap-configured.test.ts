@@ -75,14 +75,7 @@ function validConfig(): AppConfig {
 function fakeFactories(disposalOrder: string[] = []): ConfiguredBootstrapFactories {
   return {
     create: vi.fn(async (_cfg, _phase1, register) => {
-      for (const name of [
-        "voice",
-        "dispatcher",
-        "sources",
-        "interactions",
-        "summonHotkey",
-        "broker",
-      ]) {
+      for (const name of ["voice", "dispatcher", "sources", "interactions", "summonHotkey"]) {
         register(() => disposalOrder.push(name));
       }
       return {
@@ -120,14 +113,7 @@ describe("createConfiguredBootstrap", () => {
     configured.dispose();
     configured.dispose();
 
-    expect(order).toEqual([
-      "broker",
-      "summonHotkey",
-      "interactions",
-      "sources",
-      "dispatcher",
-      "voice",
-    ]);
+    expect(order).toEqual(["summonHotkey", "interactions", "sources", "dispatcher", "voice"]);
   });
 
   it("drains partial registrations when construction throws", async () => {

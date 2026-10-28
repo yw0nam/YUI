@@ -11,7 +11,6 @@ One VRM model — and one ships in the repo (`resources/vrms/Sendagaya_Shino.vrm
 | VRM model | **Bundled** — bring your own optional (§2) | — |
 | Chat backend (`chat_base_url`) | Optional | Character appears and idles; a chat turn answers with an inline "Backend not configured" pointer to **Connection** |
 | Chat API key | Optional | Only needed when the endpoint enforces one; set in the panel or `.env.local` |
-| Expression MCP Broker | Deprecated, removed in v0.6.0 | Both request modes bake the vocabulary into the client-declared tool, no broker involved |
 | TTS | Optional | Speech bubble works; no audio output |
 | STT | Optional | Text input works; no voice input |
 | Screenshot context | Optional | Agent receives no screen context |
@@ -34,7 +33,7 @@ Her personality is the **Card** section of the **Persona** page, sent on Chat Co
 
 ## 1. Run YUI itself
 
-A coding agent can run sections 1–2 and the wiring in 4–7 for you from [Install with a coding agent](install.md). The rest of this page is the manual path and the reference for the external services.
+A coding agent can run sections 1–2 and the wiring in 5–7 for you from [Install with a coding agent](install.md). The rest of this page is the manual path and the reference for the external services.
 
 ### Prerequisites
 
@@ -118,7 +117,7 @@ Backend capability still varies: a plain OpenAI-compatible server (e.g. vLLM) sp
 
 ### Option B — Responses mode (`"chat_api": "responses"`)
 
-Any backend served over the OpenAI Responses API (`/v1/responses`). While `broker_base_url` is unset, the client declares `generate_express` on every request with the vocabulary baked into the tool schema, runs the call locally, and sends a follow-up request that re-sends the input items plus the call and its result, so the in-turn round trip does not depend on the server keeping responses (a plain OpenAI-compatible server such as vLLM works). Across turns the client chains on `previous_response_id`; a server that answers 404 for the stored id gets one retry without it, and the conversation context resets. The [Hermes Agent](https://github.com/nousresearch/hermes-agent) API server does not pass a request's tools to its model; on Hermes use push mode, or the Expression Broker (§4) on Responses until v0.6.0.
+Any backend served over the OpenAI Responses API (`/v1/responses`). The client declares `generate_express` on every request with the vocabulary baked into the tool schema, runs the call locally, and sends a follow-up request that re-sends the input items plus the call and its result, so the in-turn round trip does not depend on the server keeping responses (a plain OpenAI-compatible server such as vLLM works). Across turns the client chains on `previous_response_id`; a server that answers 404 for the stored id gets one retry without it, and the conversation context resets. The [Hermes Agent](https://github.com/nousresearch/hermes-agent) API server does not pass a request's tools to its model; on Hermes expression cues arrive on push only, and Chat Completions and Responses carry none.
 
 1. Stand up the backend agent with the Responses API served.
 2. Hand the agent the cue contract so it understands how to drive the character:
@@ -150,19 +149,6 @@ The first two modes work with any server that speaks the corresponding OpenAI AP
 The in-app agent settings expose reasoning effort (`none` · `minimal` · `low` · `medium`). Responses mode sends it as `reasoning.effort`; Chat Completions mode as the top-level `reasoning_effort`.
 
 The reasoning-effort control is shown in Chat Completions and Responses modes only. The **Card** section shows its fields there too; in push mode it keeps only **Import card…** and **Export card**, because push sends no card.
-
----
-
-## 4. Expression MCP Broker (deprecated)
-
-`broker_base_url` is deprecated and is removed in v0.6.0; the client declares its tools on the request, with the vocabulary in the tool schema. While the key is set the broker publishes YUI's renderable emotion/motion/`emotion_text` vocabulary so a backend agent that cannot take request tools (the Hermes API server) learns what the body can express, and the client logs one `deprecated` warning per launch. YUI publishes in every chat mode whenever `broker_base_url` is set, and silently skips it otherwise.
-
-1. Install and serve the broker from [https://github.com/yw0nam/tts_express_broker](https://github.com/yw0nam/tts_express_broker).
-2. The broker listens by default at `http://localhost:3201/mcp` (streamable-http MCP).
-3. In `configs/endpoints.json`, set:
-   ```json
-   "broker_base_url": "http://localhost:3201/mcp"
-   ```
 
 ---
 
@@ -225,7 +211,7 @@ YUI sends audio to `<stt_base_url>/audio/transcriptions`. If the server requires
 
 ## 7. Wire It All Together — `configs/endpoints.json`
 
-YUI ships with no service addresses: every URL in the bundled `configs/endpoints.json` is unset, and an unset URL means that feature is off — STT, TTS, and the expression broker stay quiet, and a chat turn with no `chat_base_url` answers with an inline "Backend not configured" error pointing at **Connection**.
+YUI ships with no service addresses: every URL in the bundled `configs/endpoints.json` is unset, and an unset URL means that feature is off — STT and TTS stay quiet, and a chat turn with no `chat_base_url` answers with an inline "Backend not configured" error pointing at **Connection**.
 
 Point YUI at your services by editing `configs/endpoints.json` or using the in-app Endpoint settings panel, which persists overrides to local storage and leaves the bundled file untouched.
 
@@ -246,7 +232,6 @@ Key reference:
 | `tts_model` | `irodori-tts` | Model sent to the TTS server — Irodori/OpenAI as the request's `model` field (must match the server's configured name), Fish as a `model` HTTP header (an S2-family id) |
 | `tts_speaker` | unset | Default voice id, until another is picked in the panel |
 | `tts_max_inflight` | `3` | Concurrent TTS synthesis requests |
-| `broker_base_url` | unset | Expression broker MCP URL. Deprecated, removed in v0.6.0: the client declares its tools on the request |
 
 All service addresses come from this file or the in-app overrides.
 

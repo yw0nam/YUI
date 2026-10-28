@@ -12,8 +12,6 @@ import type { ExpressMotionSettings } from "../../../settings/avatar/express-mot
 export interface VocabularyWiring {
   /** The renderable vocabulary from the live config, the motion selection, and the loaded emotion_text table. */
   vocabulary: () => ExpressVocabulary;
-  /** Reloads the emotion_text table for the live provider and announces; resolves the newest load's table. */
-  reloadTable: () => Promise<Record<string, string> | null>;
   /** Reloads the table when a config change moved the vocabulary. */
   onConfigChange: (cfg: AppConfig, changed: ReadonlySet<ConfigSection>) => void;
   /** Called whenever the vocabulary may have moved. */
@@ -21,11 +19,7 @@ export interface VocabularyWiring {
   dispose: () => void;
 }
 
-/**
- * Owns the vocabulary every consumer declares: the client-declared tool schema, the push socket,
- * and the broker publish. Effective (override-merged) endpoints pick the TTS provider, so disk
- * edits don't clobber user overrides.
- */
+/** Effective endpoints keep device overrides ahead of disk edits. */
 export async function wireVocabulary(deps: {
   getConfig: () => AppConfig;
   getEndpoints: () => EndpointsConfig;
@@ -82,7 +76,6 @@ export async function wireVocabulary(deps: {
 
   return {
     vocabulary,
-    reloadTable,
     onConfigChange,
     subscribe: (cb) => {
       listeners.add(cb);

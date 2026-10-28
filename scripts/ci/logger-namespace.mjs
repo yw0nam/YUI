@@ -25,7 +25,6 @@ const KNOWN = new Set([
   "src/dispatcher/sources/gesture/window-drop/placement.ts:window-drop",
   "src/dispatcher/sources/gesture/window-drop/window-drop-source.ts:window-drop",
   "src/io/bridge/core/bridge-core.ts:settings-bridge",
-  "src/io/chat/broker/broker-override-reconciler.ts:broker-reconciler",
   "src/io/window/capture/tauri-screen.ts:screen",
   "src/io/window/pet/gesture/click-gesture.ts:drag",
   "src/io/window/pet/gesture/window-drag.ts:drag",

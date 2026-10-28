@@ -194,7 +194,7 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
   }
 
   // Typing only validates — an in-progress prefix must not become a live endpoint (each store
-  // write retargets the broker client and the chat/STT/TTS callers).
+  // write retargets the chat/STT/TTS callers).
   function handleEndpointInput(e: Event): void {
     const key = endpointKeyOf(e);
     if (!key) return;

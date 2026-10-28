@@ -224,7 +224,7 @@ describe("deriveExpressVocabulary", () => {
   });
 
   // The user's expression-motion selection narrows the published vocabulary at this one derive
-  // site, so both consumers — the broker publish and the CC generate_express schema — follow it.
+  // site, so both consumers — the push vocabulary and the declared generate_express schema — follow it.
   describe("expression-motion selection", () => {
     it("publishes the whole agent-triggerable set when nothing is deselected", () => {
       const p = deriveExpressVocabulary(baseConfig(), null, {
