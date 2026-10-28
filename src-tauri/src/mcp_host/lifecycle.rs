@@ -270,7 +270,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn shutdown_kills_a_server_that_is_still_starting() {
+    async fn shutdown_stops_a_server_still_starting_and_kills_its_tree() {
         require_python();
         let (host, _) = host_at(&temp_dir());
         let folder = fixture_copy("yui-test");
@@ -284,8 +284,15 @@ mod tests {
         host.shutdown().await;
         let pid = hung_child(&host, "yui-test").unwrap();
         let killed = eventually(|| gone(pid)).await;
-        enabling.abort();
+        let ended = tokio::time::timeout(Duration::from_secs(5), enabling).await;
         assert!(killed, "sleep {pid} still runs");
+        assert!(ended.is_ok(), "the start did not end");
+        let tail = host.log_tail("yui-test").unwrap();
+        assert!(tail.iter().any(|l| l == "[main] stopped"), "{tail:?}");
+        assert!(
+            !tail.iter().any(|l| l.starts_with("[main] failed")),
+            "{tail:?}"
+        );
     }
 
     #[tokio::test]
