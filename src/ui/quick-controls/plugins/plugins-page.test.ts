@@ -190,4 +190,13 @@ describe("createPluginsPage", () => {
     button(confirm, "Delete").click();
     expect(manage.remove.mock.calls).toEqual([["browser"]]);
   });
+
+  it("shows a plugin's description as text", () => {
+    const description = "<img src=x onerror=alert(1)>";
+    const { page } = mountPage({ revision: 1, plugins: [plugin({ id: "p1", description })] });
+
+    const sum = group(page.el, "p1").querySelector(".yui-plg-sum")!;
+    expect(sum.textContent).toBe(description);
+    expect(page.el.querySelector("img")).toBeNull();
+  });
 });
