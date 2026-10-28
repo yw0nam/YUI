@@ -10,6 +10,7 @@ use std::collections::VecDeque;
 use std::fmt::Display;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use time::UtcOffset;
@@ -80,6 +81,8 @@ pub struct Server {
     pgid: Option<u32>,
     /// Owns the child and waits for its exit.
     watch: tokio::task::JoinHandle<()>,
+    /// Set by stop, so the exit it causes is not reported as `exited`.
+    stopping: Arc<AtomicBool>,
 }
 
 impl Server {
@@ -90,9 +93,10 @@ impl Server {
     /// Closes the connection, then kills the whole process tree.
     pub async fn stop(mut self) {
         let exited = self.watch.is_finished();
+        self.stopping.store(true, Ordering::SeqCst);
+        let _ = self.client.close().await;
         self.watch.abort();
         let _ = (&mut self.watch).await;
-        let _ = self.client.close().await;
         if !exited {
             kill_group(self.pgid);
         }
@@ -146,6 +150,8 @@ pub async fn start(
     };
     log.line(&name, "started");
     let (watch_name, watch_log) = (name.clone(), log.clone());
+    let stopping = Arc::new(AtomicBool::new(false));
+    let watch_stopping = stopping.clone();
     let watch = tokio::spawn(async move {
         // The leader alone: the wrapper's own wait also waits for every orphan in the group.
         let reason = match child.inner_mut().wait().await {
@@ -154,6 +160,9 @@ pub async fn start(
                 .map_or_else(|| status.to_string(), |code| format!("exit code {code}")),
             Err(e) => e.to_string(),
         };
+        if watch_stopping.load(Ordering::SeqCst) {
+            return;
+        }
         kill_group(pgid);
         watch_log.line(&watch_name, &format!("exited: {reason}"));
         on_exit(reason);
@@ -165,6 +174,7 @@ pub async fn start(
         log,
         pgid,
         watch,
+        stopping,
     })
 }
 
