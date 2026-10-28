@@ -108,7 +108,7 @@ briefing files.
 
 `<spool>/spoken.json` is a JSON object that maps each spoken file's path, relative to the
 spool (`reports/2026/10/W1/02/world-news.md`), to the local ISO-8601 time `mark-spoken`
-recorded it. `write`, `mark-spoken`, and `migrate` hold an exclusive lock on `<spool>/.lock` while they read and
+recorded it. `write` and `mark-spoken` hold an exclusive lock on `<spool>/.lock` while they read and
 write it, and the ledger is written through a temporary file and a rename. `pending`
 reads it unlocked. `mark-spoken` renames an unreadable ledger `spoken.json.bad` with one
 line on stderr and reads it as empty. `write` and `pending` read an unreadable ledger as
@@ -125,7 +125,7 @@ the same OS user as the agent.
 
 | Flag | Default |
 |---|---|
-| `--spool <dir>` | `$YUI_BRIEFING_SPOOL`; required when that variable is unset or empty. An absolute path; `pending`, `mark-spoken`, `publish`, and `migrate` need the directory to exist, `write` creates it. It goes before the subcommand |
+| `--spool <dir>` | `$YUI_BRIEFING_SPOOL`; required when that variable is unset or empty. An absolute path; `pending`, `mark-spoken`, and `publish` need the directory to exist, `write` creates it. It goes before the subcommand |
 
 | Command | Does |
 |---|---|
@@ -135,13 +135,12 @@ the same OS user as the agent.
 | `publish` | Stages every `reports/<YYYY>/<MM>/<Wn>/<DD>/<file>.md` file and the spool's `.gitignore` and `.nojekyll` in the spool's git repository. Once a day folder holds an `index.html` page, it also copies the skill's `assets/src/` files into the spool's `src/` where they are missing or differ, writes the board as `board` does, and stages every page, `index.html`, and the `src/` files. It commits them with the local date (`2026-10-02`) as the message when that changes the tree, and pushes the current branch to the first remote `git remote` lists. The commit holds those files only: `spoken.json`, the lock file, a `README.md`, and any other file, staged by hand or not, stay out of it. The spool is the top directory of its own git work tree |
 | `board` | Writes `index.html` at the spool root from `assets/board.html`: one row per day folder, newest first, with the date and weekday, each source's item count from its latest briefing of the day, a source whose briefing lists a `failed` source in the accent colour and one that lists a `stale` source in italics, and the day's `Failed` and `Stale` words. A day whose folder holds an `index.html` page links to it. The same spool always yields the same file |
 | `page-check YYYY-MM-DD` | Reads that day's `index.html` page and checks its slots, the `<!-- slot: NAME [lang=CODE] -->…<!-- /slot -->` pairs of `assets/report.html`. The page languages are the `<option value>` codes of the `languages` slot. `title`, `languages`, `contents`, `producers`, a `date` and a `summary` per language, and an `intro:<source>` per language for every section in `producers` and `personal` hold text; `personal`, `notices`, and `days` may be empty. A slot holds text when something is left after its HTML comments and tags are removed. The check fails on a `languages` slot with no `value`, on a section whose class list holds `producer` but which has no `aria-labelledby`, and on any slot holding `<script`, an `on…=` attribute, or `javascript:` A slot that holds an entity escaped twice (`&amp;amp;`) exits 2. |
-| `migrate` | Moves every file of each `<YYYY-MM-DD>/` folder at the spool root into its day folder under `reports/`, removes the emptied folders, and rewrites the moved paths in `spoken.json`. In a spool that is the top of its own git work tree, tracked files move with `git mv` and one commit records the moves, so `git log --follow` reaches their earlier commits. A spool with no such folder is left as it is, so a second run changes nothing |
 
 | Exit | Output | Meaning |
 |---|---|---|
-| 0 | none from `write`, `mark-spoken`, `publish`, `migrate`, `board`, and `page-check`; the briefings from `pending` | Done |
-| 1 | the reason on stderr | `write` read malformed input, and the error path below applies; or a `publish` or `migrate` step (`git add`, `git mv`, `git commit`, `git push`) failed, with git's first `fatal:` or `error:` line |
-| 2 | the reason on stderr | No spool (`set YUI_BRIEFING_SPOOL or pass --spool`), a relative spool path, a missing spool directory for `pending`, `mark-spoken`, `publish`, or `migrate`, a `migrate` that finds a file already at one of the new paths (nothing is moved), a `page-check` date with no page or a page whose first missing or unfilled slot the line names, a `publish` spool that is not the top of a git work tree, has no remote, or holds a `src/` that leads out of the spool, no `git` on `PATH`, a `--source` outside the rule, a `mark-spoken` path that is absolute, holds `..`, or names no briefing in the spool (nothing is recorded), or an unknown flag |
+| 0 | none from `write`, `mark-spoken`, `publish`, `board`, and `page-check`; the briefings from `pending` | Done |
+| 1 | the reason on stderr | `write` read malformed input, and the error path below applies; or a `publish` step (`git add`, `git commit`, `git push`) failed, with git's first `fatal:` or `error:` line |
+| 2 | the reason on stderr | No spool (`set YUI_BRIEFING_SPOOL or pass --spool`), a relative spool path, a missing spool directory for `pending`, `mark-spoken`, or `publish`, a `page-check` date with no page or a page whose first missing or unfilled slot the line names, a `publish` spool that is not the top of a git work tree, has no remote, or holds a `src/` that leads out of the spool, no `git` on `PATH`, a `--source` outside the rule, a `mark-spoken` path that is absolute, holds `..`, or names no briefing in the spool (nothing is recorded), or an unknown flag |
 
 ## Run time
 

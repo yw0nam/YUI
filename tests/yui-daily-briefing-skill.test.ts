@@ -103,7 +103,6 @@ describe("yui-daily-briefing skill files", () => {
     expect(text).toContain(
       'python3 "$SKILL_DIR/scripts/briefing.py" --spool "$YUI_BRIEFING_SPOOL" mark-spoken',
     );
-    expect(text).toContain('python3 "$SKILL_DIR/scripts/briefing.py" migrate');
     expect(text).toContain("references/delivery/spoken.md");
     expect(text).toContain("references/delivery/link.md");
     expect(text).toContain("references/delivery/page.md");
@@ -171,7 +170,6 @@ describe("yui-daily-briefing skill files", () => {
       "pending",
       "mark-spoken",
       "publish",
-      "migrate",
       "board",
       "page-check",
       "reports/<YYYY>/<MM>/<Wn>/<DD>/<source>.md",

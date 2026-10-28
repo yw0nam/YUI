@@ -355,7 +355,7 @@ describe("briefing.py pending and mark-spoken", () => {
     seed(spool, "reports/2026/10/W1/01/arxiv.md", "arxiv\n");
     seed(spool, "reports/2026/09/W5/29/news.sent.json", "{}");
     seed(spool, "reports/abcd/10/W1/01/news.md", "not a day\n");
-    seed(spool, "2026-10-01/old.md", "not migrated\n");
+    seed(spool, "2026-10-01/old.md", "outside reports\n");
     seed(spool, "reports/2026/10/W1/01/zz.md", Buffer.from([0x7a, 0xff, 0x0a]));
     seed(
       spool,
@@ -540,96 +540,6 @@ describe("briefing.py publish", () => {
     expect(result.status).toBe(1);
     expect(result.stderr.trim().split("\n")).toHaveLength(1);
     expect(result.stderr).toMatch(/^git push failed: fatal: /);
-  });
-});
-
-describe("briefing.py migrate", () => {
-  const STAMP = "2026-10-01T08:00:00+02:00";
-
-  function oldSpool(): string {
-    const spool = repo(tempDir());
-    seed(spool, "2026-09-30/papers.md", "papers\n");
-    seed(spool, "2026-10-01/news.md", "news\n");
-    seed(spool, "2026-10-15/news.md", "news on the 15th\n");
-    git(spool, ["add", "2026-09-30", "2026-10-01", "2026-10-15"]);
-    git(spool, ["commit", "-q", "-m", "old layout"]);
-    seed(spool, "2026-10-15/arxiv.md", "not published yet\n");
-    seed(
-      spool,
-      "spoken.json",
-      JSON.stringify({ "2026-09-30/papers.md": STAMP, "2026-10-01/news.md": STAMP }),
-    );
-    return spool;
-  }
-
-  function workFiles(spool: string): string[] {
-    return filesUnder(spool)
-      .filter((path) => !path.startsWith(".git/"))
-      .sort();
-  }
-
-  it("moves old day folders under reports/, rewrites the ledger, keeps history, and changes nothing on a second run", () => {
-    const spool = oldSpool();
-    expect(run(spool, ["migrate"])).toEqual({ status: 0, stdout: "", stderr: "" });
-
-    expect(workFiles(spool)).toEqual([
-      ".lock",
-      "reports/2026/09/W5/30/papers.md",
-      "reports/2026/10/W1/01/news.md",
-      "reports/2026/10/W3/15/arxiv.md",
-      "reports/2026/10/W3/15/news.md",
-      "spoken.json",
-    ]);
-    expect(JSON.parse(read(spool, "spoken.json"))).toEqual({
-      "reports/2026/09/W5/30/papers.md": STAMP,
-      "reports/2026/10/W1/01/news.md": STAMP,
-    });
-    expect(git(spool, ["ls-files"])).toBe(
-      "reports/2026/09/W5/30/papers.md\nreports/2026/10/W1/01/news.md\nreports/2026/10/W3/15/news.md\n",
-    );
-    expect(
-      git(spool, ["log", "--follow", "--format=%s", "--", "reports/2026/10/W1/01/news.md"]),
-    ).toMatch(/\nold layout\n$/);
-    expect(run(spool, ["pending"]).stdout).toBe(
-      "=== reports/2026/10/W3/15/arxiv.md ===\nnot published yet\n\n=== reports/2026/10/W3/15/news.md ===\nnews on the 15th\n\n",
-    );
-
-    const commits = git(spool, ["rev-list", "--count", "HEAD"]);
-    const ledger = read(spool, "spoken.json");
-    expect(run(spool, ["migrate"])).toEqual({ status: 0, stdout: "", stderr: "" });
-    expect(workFiles(spool)).toHaveLength(6);
-    expect(read(spool, "spoken.json")).toBe(ledger);
-    expect(git(spool, ["rev-list", "--count", "HEAD"])).toBe(commits);
-  });
-
-  it("completes a run cut short after some moves: the rest moves, the ledger heals, one commit records it", () => {
-    const spool = oldSpool();
-    mkdirSync(join(spool, "reports/2026/09/W5/30"), { recursive: true });
-    git(spool, ["mv", "2026-09-30/papers.md", "reports/2026/09/W5/30/papers.md"]);
-
-    expect(run(spool, ["migrate"])).toEqual({ status: 0, stdout: "", stderr: "" });
-    expect(Object.keys(JSON.parse(read(spool, "spoken.json")))).toEqual([
-      "reports/2026/09/W5/30/papers.md",
-      "reports/2026/10/W1/01/news.md",
-    ]);
-    expect(git(spool, ["ls-tree", "-r", "--name-only", "HEAD"])).toBe(
-      "reports/2026/09/W5/30/papers.md\nreports/2026/10/W1/01/news.md\nreports/2026/10/W3/15/news.md\n",
-    );
-    expect(
-      git(spool, ["log", "--follow", "--format=%s", "--", "reports/2026/09/W5/30/papers.md"]),
-    ).toMatch(/\nold layout\n$/);
-  });
-
-  it("exits 2 and moves nothing when a file already sits at a new path", () => {
-    const spool = tempDir();
-    seed(spool, "2026-09-30/papers.md", "old\n");
-    seed(spool, "2026-10-01/news.md", "old\n");
-    seed(spool, "reports/2026/10/W1/01/news.md", "new\n");
-    const result = run(spool, ["migrate"]);
-    expect(result.status).toBe(2);
-    expect(result.stderr.trim().split("\n")).toHaveLength(1);
-    expect(read(spool, "2026-09-30/papers.md")).toBe("old\n");
-    expect(read(spool, "reports/2026/10/W1/01/news.md")).toBe("new\n");
   });
 });
 
