@@ -23,7 +23,6 @@ it.each([
       "address_character",
       "body_action",
       "look",
-      "browser",
       "plugin_describe",
       "plugin_call",
       "plugin_skill",
@@ -35,7 +34,6 @@ it.each([
     [
       "rate_relation",
       "address_character",
-      "browser",
       "plugin_describe",
       "plugin_call",
       "plugin_skill",
