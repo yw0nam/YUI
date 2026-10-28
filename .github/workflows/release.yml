@@ -119,7 +119,7 @@ jobs:
       # The Tauri CLI reads the Apple credentials from the process environment and
       # treats an empty value as a configured one, so unset secrets must not reach
       # the build as empty strings. Exporting through $GITHUB_ENV keeps them absent
-      # until they are registered, which yields an ad hoc signed, un-notarized bundle.
+      # until they are registered; without the certificate the bundle is ad hoc signed and un-notarized.
       - name: Export Apple signing credentials
         if: runner.os == 'macOS'
         shell: bash
