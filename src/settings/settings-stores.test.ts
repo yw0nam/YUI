@@ -130,6 +130,13 @@ describe("createSettingsStores", () => {
     expect(broadcastStores).toContain(stores.cameraSettings);
   });
 
+  it("broadcasts the relations and unified-chat switches so a settings-window toggle reaches the pet window", () => {
+    const stores = createSettingsStores();
+
+    expect(broadcastSyncStores(stores)).toContain(stores.relationsSwitch);
+    expect(broadcastSyncStores(stores)).toContain(stores.unifiedChatSwitch);
+  });
+
   it("broadcasts the express-motion selection so both windows curate the same vocabulary", () => {
     const stores = createSettingsStores();
 
