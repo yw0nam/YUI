@@ -1,4 +1,4 @@
-/** The tools a pet window declares beside generate_express: rate_relation and address_character everywhere, browser under Tauri, the avatar tools in main only. */
+/** The tools a pet window declares beside generate_express: rate_relation and address_character everywhere, browser and the proto MCP bridge under Tauri, the avatar tools in main only. */
 
 import { type PresetEntry, presetIdForWindow } from "../../../settings/preset/active-preset";
 import type { RelationsStore } from "../../../settings/relations/relations-store";
@@ -9,6 +9,8 @@ import { createAddressCharacterTool } from "./address-character";
 import { createAvatarTools } from "./avatar";
 import { createBrowserTool } from "./browser/browser-tool";
 import type { ClientTool } from "./client-tools";
+import { createProtoMcpTools } from "./proto/proto-tools";
+import { createProtoMcpRelay } from "./proto/relay";
 import { createRateRelationTool } from "./relation";
 import type { ScreenQueryPorts } from "./screen/screen-query";
 
@@ -45,5 +47,7 @@ export function createPetWindowTools(deps: {
       enabled: deps.browserEnabled,
       presetId: presetIdForWindow,
     }),
+    // Issue #1648 prototype: the MCP host's bridge tools, declared on every transport.
+    ...createProtoMcpTools({ relay: createProtoMcpRelay(), presetId: presetIdForWindow }),
   ];
 }

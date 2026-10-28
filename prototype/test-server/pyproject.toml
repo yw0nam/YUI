@@ -1,0 +1,6 @@
+[project]
+name = "yui-proto-mcp-test-server"
+version = "0.1.0"
+description = "Throwaway MCP stdio server for the YUI MCP-host prototype (issue #1648)"
+requires-python = ">=3.12"
+dependencies = ["mcp>=1.10,<2"]

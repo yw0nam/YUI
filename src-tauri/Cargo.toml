@@ -38,6 +38,9 @@ tauri-plugin-global-shortcut = "2"
 xcap = "0.4.1"
 tokio = { version = "1", features = ["io-util", "macros", "process", "rt", "sync", "time"] }
 tauri-plugin-wdio-webdriver = { version = "1.5.0", optional = true }
+# Prototype-only MCP host (issue #1648 spike): rmcp stdio client over a spawned child process.
+rmcp = { version = "3.8", features = ["client", "transport-child-process"] }
+process-wrap = { version = "10.0", features = ["tokio1", "process-group"] }
 
 [features]
 # Embedded WebDriver server on 127.0.0.1:4445 for the verify bundle.

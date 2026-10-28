@@ -38,5 +38,9 @@ pub fn handler() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         crate::browser::browser_run,
         #[cfg(desktop)]
         crate::browser::browser_guide,
+        #[cfg(desktop)]
+        crate::proto_mcp::proto_mcp_call,
+        #[cfg(desktop)]
+        crate::proto_mcp::proto_mcp_cancel,
     ]
 }

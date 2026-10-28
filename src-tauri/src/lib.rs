@@ -39,6 +39,10 @@ mod passthrough;
 #[cfg(desktop)]
 mod browser;
 
+// Prototype-only MCP host (issue #1648 spike, never merged).
+#[cfg(desktop)]
+mod proto_mcp;
+
 // Loopback HTTP ingress — receives signals, re-emits as Tauri events.
 mod agent_ingress;
 
@@ -71,5 +75,14 @@ pub fn run() {
         .invoke_handler(commands::handler())
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|_, _| {});
+        .run(|app, event| {
+            // Prototype-only: close the MCP host's child on app exit (graceful stdin close,
+            // then the process-group kill).
+            #[cfg(desktop)]
+            if let tauri::RunEvent::Exit = event {
+                use tauri::Manager;
+                let host = app.state::<crate::proto_mcp::ProtoMcpHost>();
+                tauri::async_runtime::block_on(crate::proto_mcp::shutdown(host.inner()));
+            }
+        });
 }
