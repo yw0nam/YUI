@@ -108,4 +108,53 @@ describe("createPluginsPage", () => {
       Array.from(page.el.querySelectorAll<HTMLElement>("[data-cid]"), (b) => b.dataset.cid),
     ).toEqual(["calendar-ics"]);
   });
+
+  it("asks consent with the launch command, then lists the declared tools once started", async () => {
+    const fresh = plugin({
+      id: "calendar-ics",
+      enabled: false,
+      consented: false,
+      servers: [server("calendar-ics", "calendar-ics", { status: "stopped" })],
+    });
+    const { page, manage, emit } = mountPage({ revision: 1, plugins: [fresh] });
+    manage.enable.mockImplementation(async () => {
+      emit({
+        revision: 2,
+        plugins: [
+          {
+            ...fresh,
+            enabled: true,
+            consented: true,
+            servers: [server("calendar-ics", "calendar-ics")],
+            tools: [
+              {
+                name: "calendar_today",
+                server: "calendar-ics/calendar-ics",
+                description: "Today's events.",
+                inputSchema: {},
+                meta: null,
+              },
+            ],
+          },
+        ],
+      });
+    });
+
+    group(page.el, "calendar-ics").querySelector<HTMLButtonElement>(".yui-switch")!.click();
+    const consent = group(page.el, "calendar-ics").querySelector<HTMLElement>(".yui-plg-consent")!;
+    expect(consent.querySelector(".yui-plg-cmd")?.textContent).toBe(
+      "/plugins/calendar-ics/bin/calendar-ics --stdio",
+    );
+
+    button(consent, "Allow").click();
+    expect(manage.enable).toHaveBeenCalledWith("calendar-ics");
+    await vi.waitFor(() =>
+      expect(
+        Array.from(
+          group(page.el, "calendar-ics").querySelectorAll(".yui-plg-consent .yui-plg-tools__name"),
+          (n) => n.textContent,
+        ),
+      ).toEqual(["calendar_today"]),
+    );
+  });
 });
