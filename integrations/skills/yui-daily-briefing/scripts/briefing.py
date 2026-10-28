@@ -27,6 +27,8 @@ TITLE_MAX = 200
 EXCERPT_MAX = 280
 URL_MAX = 2048
 TIME_MAX = 64
+FIGURE_VALUE_MAX = 16
+FIGURE_LABEL_MAX = 24
 STATUSES = ("ok", "stale", "failed", "disabled")
 LEDGER = "spoken.json"
 ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets")
@@ -83,13 +85,21 @@ def source_entry(raw):
 def ref_entry(raw, now_iso):
     if not isinstance(raw, dict) or not http_url(raw.get("url")):
         return None
-    return {
+    ref = {
         "kind": clip(raw.get("kind"), KIND_MAX) or "other",
         "title": clip(raw.get("title"), TITLE_MAX) or clip(raw["url"], TITLE_MAX),
         "url": raw["url"],
         "at": clip(raw.get("at") or now_iso, TIME_MAX),
         "excerpt": clip(raw.get("excerpt"), EXCERPT_MAX),
     }
+    figure = raw.get("figure")
+    if isinstance(figure, dict):
+        value, label = clip(figure.get("value"), FIGURE_VALUE_MAX), clip(figure.get("label"), FIGURE_LABEL_MAX)
+        if value and label:
+            ref["figure"] = {"value": value, "label": label}
+    if http_url(raw.get("image")):
+        ref["image"] = raw["image"]
+    return ref
 
 
 def compose(raw, now_iso):
@@ -123,8 +133,13 @@ def render(briefing, source, date, now_iso):
     lines += ["---", "", f"# {briefing['summary']}", ""]
     for number, ref in enumerate(briefing["refs"], 1):
         title = re.sub(r"([\[\]\\])", r"\\\1", ref["title"])
-        url = re.sub(r"[\s<>\\]", lambda match: urllib.parse.quote(match.group()), ref["url"])
+        encode = lambda url: re.sub(r"[\s<>\\]", lambda match: urllib.parse.quote(match.group()), url)
+        url = encode(ref["url"])
         lines += [f"{number}. [{title}](<{url}>)", f"   {ref['kind']} · {ref['at']}"]
+        if "figure" in ref:
+            lines.append(f"   figure: {ref['figure']['value']} · {ref['figure']['label']}")
+        if "image" in ref:
+            lines.append(f"   image: <{encode(ref['image'])}>")
         if ref["excerpt"]:
             lines.append(f"   {ref['excerpt']}")
     return "\n".join(lines) + "\n"

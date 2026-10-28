@@ -137,7 +137,8 @@ One source at a time. For each, settle four things with the user and write them 
 1. Its `name` (at most 40 characters), the label the briefing will speak.
 2. Where the data comes from: a URL, an API, a command, a log directory, a file.
 3. What one item looks like: its `title`, its `url`, its `at`, and what goes in
-   `excerpt`. A source with no per-item link (a log count, a market summary) still needs
+   `excerpt`, and, when the source ranks its items by a number or has a picture of each,
+   its `figure` (a value and its unit, such as `239` and `upvotes`) and its `image`. A source with no per-item link (a log count, a market summary) still needs
    one `url` per item, so pick the page the user would open to look further.
 4. The `kind` its items carry, a short label such as `paper`, `news`, `market`, `log`,
    `pull_request`.

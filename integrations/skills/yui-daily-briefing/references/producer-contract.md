@@ -50,6 +50,11 @@ file states the input, the file the helper writes, the ledger, and the helper's 
 | `refs[].url` | `http` or `https` scheme, 2048 characters |
 | `refs[].at` | Timestamp, 64 characters; the moment of the run when absent |
 | `refs[].excerpt` | 280 characters, possibly the empty string |
+| `refs[].figure` | Optional object. `value` is 16 characters and `label` is 24 characters, both not empty. A figure that misses either drops out |
+| `refs[].image` | Optional. `http` or `https` scheme, 2048 characters. One outside the rule drops out and the ref stays |
+
+A figure is the number that ranks the item, with its unit (`239` and `upvotes`, `2,859` and
+`stars today`). An image is a picture of the item; the page shows it for a section's first item.
 
 The gather script emits `refs` newest first; the helper keeps the first 30. A ref whose
 `url` misses the `http` or `https` scheme, runs past 2048 characters, or holds a control
@@ -86,7 +91,8 @@ sources:
 1. The front matter is YAML. Every string value is a JSON-encoded double-quoted string.
    `sources` holds one flow mapping per source, or reads `sources: []`.
 2. The body opens with the summary as a heading, then one numbered item per ref: a link
-   line, a `kind · at` line, and an excerpt line when the excerpt carries text.
+   line, a `kind · at` line, a `figure:` line when the ref has a figure, an `image:` line
+   when it has an image, and an excerpt line when the excerpt carries text.
 3. A title escapes `[`, `]`, and `\`. A url sits inside `<…>`, with whitespace, `<`,
    `>`, and `\` percent-encoded.
 
