@@ -49,11 +49,11 @@ With none of them registered the workflow succeeds and ships an unsigned, un-not
 
 ### Plugin releases
 
-An official plugin is released by pushing the tag `plugin-<id>-v<version>`. The tag, `plugins/<id>/Cargo.toml`, and `plugins/<id>/.claude-plugin/plugin.json` carry the same version, and the workflow rejects the tag when any differs.
+An official plugin is released by pushing the tag `plugin-<id>-v<version>`. The tag, `plugins/<id>/Cargo.toml`, and `plugins/<id>/.claude-plugin/plugin.json` carry the same version, and the workflow rejects the tag when any differs. `plugins/<id>/` holds `Cargo.toml` with the package and binary named `<id>`, a committed `Cargo.lock` (the build runs `--locked`), `.claude-plugin/plugin.json`, and `.mcp.json`.
 
 The `Plugin release` workflow (`.github/workflows/plugin-release.yml`) builds darwin-arm64 and windows-x64 and publishes a release on the tag, not marked latest, so `releases/latest` stays the app. The release holds `<id>-<version>-<platform>.zip` per platform; each zip root is the plugin root: `.claude-plugin/plugin.json`, `.mcp.json`, and `bin/<id>` (`bin/<id>.exe` on Windows).
 
-The workflow then opens a PR that updates the plugin's entry in `plugins/catalog.json`. A PR opened with `GITHUB_TOKEN` starts no checks, so the operator closes and reopens it once (`gh pr close <n> && gh pr reopen <n>`) and then merges it. The repository setting "Allow GitHub Actions to create and approve pull requests" must be on.
+The workflow then opens a PR that updates the plugin's entry in `plugins/catalog.json`. A PR opened with `GITHUB_TOKEN` starts no checks, so the operator closes and reopens it once (`gh pr close <n> && gh pr reopen <n>`) and then merges it. The repository setting "Allow GitHub Actions to create and approve pull requests" must be on. Before rerunning a failed run, delete the release on the tag and the `catalog/plugin-<id>-v<version>` branch, because `gh release create` and `git push` refuse ones that exist.
 
 The macOS binary is signed and notarized with the same secrets as the app; with none registered it ships unsigned and un-notarized.
 

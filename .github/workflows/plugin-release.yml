@@ -33,16 +33,23 @@ jobs:
           id="${BASH_REMATCH[1]}"
           version="${BASH_REMATCH[2]}"
           dir="plugins/${id}"
-          for file in "$dir/Cargo.toml" "$dir/.claude-plugin/plugin.json"; do
+          for file in "$dir/Cargo.toml" "$dir/.claude-plugin/plugin.json" "$dir/.mcp.json"; do
             if [ ! -f "$file" ]; then
               echo "::error::${file} is missing"
               exit 1
             fi
           done
-          cargo_version="$(cargo metadata --no-deps --format-version 1 --manifest-path "$dir/Cargo.toml" | jq -r '.packages[0].version')"
+          cargo_metadata="$(cargo metadata --no-deps --format-version 1 --manifest-path "$dir/Cargo.toml")"
+          cargo_name="$(jq -r '.packages[0].name' <<<"$cargo_metadata")"
+          cargo_version="$(jq -r '.packages[0].version' <<<"$cargo_metadata")"
           manifest_name="$(jq -r '.name' "$dir/.claude-plugin/plugin.json")"
           manifest_version="$(jq -r '.version' "$dir/.claude-plugin/plugin.json")"
           echo "tag=$id@$version Cargo.toml=$cargo_version plugin.json=$manifest_name@$manifest_version"
+          # The build and artifact paths name the binary after the id.
+          if [ "$cargo_name" != "$id" ]; then
+            echo "::error::the Cargo package in ${dir}/Cargo.toml is named ${cargo_name}, not ${id}"
+            exit 1
+          fi
           if [ "$manifest_name" != "$id" ] || [ "$manifest_version" != "$version" ] || [ "$cargo_version" != "$version" ]; then
             echo "::error::tag ${TAG} does not match the plugin (plugin.json: ${manifest_name}@${manifest_version}, Cargo.toml: ${cargo_version})"
             exit 1
@@ -197,15 +204,10 @@ jobs:
       - name: Publish the release
         run: |
           set -euo pipefail
-          args=(--latest=false --verify-tag)
-          # A prerelease suffix lives after the version core.
-          if [[ "$VERSION" == *-* ]]; then
-            args+=(--prerelease)
-          fi
           gh release create "$TAG" "$RUNNER_TEMP"/assets/*.zip \
             --title "${ID} v${VERSION}" \
             --notes "The ${ID} plugin ${VERSION} for darwin-arm64 and windows-x64." \
-            "${args[@]}"
+            --latest=false --verify-tag
 
       # A PR opened with GITHUB_TOKEN starts no checks; the operator closes and reopens it once.
       - name: Open the catalog PR
