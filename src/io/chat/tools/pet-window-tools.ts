@@ -1,14 +1,16 @@
-/** The tools a pet window declares beside generate_express: rate_relation and address_character everywhere, browser under Tauri, the avatar tools in main only. */
+/** The tools a pet window declares beside generate_express: rate_relation and address_character everywhere, browser and the bridge tools under Tauri, the avatar tools in main only. */
 
 import { type PresetEntry, presetIdForWindow } from "../../../settings/preset/active-preset";
 import type { RelationsStore } from "../../../settings/relations/relations-store";
 import { isTauri } from "../../../tauri-env";
 import type { AvatarExecutor } from "../../bridge/inbox/avatar-executor";
 import { createBrowserRelay } from "../../browser/browser-relay";
+import type { McpHost } from "../../mcp-host/mcp-host";
 import { createAddressCharacterTool } from "./address-character";
 import { createAvatarTools } from "./avatar";
 import { createBrowserTool } from "./browser/browser-tool";
 import type { ClientTool } from "./client-tools";
+import { createPluginBridgeTools } from "./plugin-bridge/plugin-bridge";
 import { createRateRelationTool } from "./relation";
 import type { ScreenQueryPorts } from "./screen/screen-query";
 
@@ -25,6 +27,8 @@ export function createPetWindowTools(deps: {
   targets: () => PresetEntry[];
   /** Records the reply's recipient for the addressed producer; returns the id recorded earlier, if any. */
   recordAddressed: Parameters<typeof createAddressCharacterTool>[0]["record"];
+  /** The MCP host client the bridge tools call. */
+  mcpHost: McpHost;
 }): ClientTool[] {
   const rate = createRateRelationTool({
     store: deps.relations,
@@ -45,5 +49,6 @@ export function createPetWindowTools(deps: {
       enabled: deps.browserEnabled,
       presetId: presetIdForWindow,
     }),
+    ...createPluginBridgeTools({ host: deps.mcpHost, presetId: presetIdForWindow }),
   ];
 }

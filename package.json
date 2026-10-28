@@ -38,6 +38,7 @@
     "vitest": "^4.1.11"
   },
   "dependencies": {
+    "@cfworker/json-schema": "4.1.1",
     "@pixiv/three-vrm": "^3.5.3",
     "@pixiv/three-vrm-animation": "^3.5.3",
     "@ricky0123/vad-web": "^0.0.30",
