@@ -21,8 +21,8 @@ import {
 
 /** What the page holds for one installed plugin beside the snapshot. */
 export interface PluginUi {
-  /** The consent panel: step 1 asks, then starting, then step 2 or the failed panel. */
-  flow?: "step1" | "starting" | "step2" | "failed";
+  /** The consent panel: step 1 asks, enable runs, then the snapshot picks the step-2 panel. */
+  flow?: "step1" | "enabling" | "enabled";
   /** The inline remove confirm is open. */
   confirm?: boolean;
   /** An update is in flight. */
@@ -163,16 +163,25 @@ function stepOneHtml(p: PluginHostPlugin): string {
       </div></div>`;
 }
 
+/** Once enabled, the current snapshot picks the panel: starting, failed, or step 2. */
+function stepTwoPanel(p: PluginHostPlugin): "starting" | "failed" | "started" {
+  if (p.servers.some((sv) => sv.status === "starting")) return "starting";
+  if (p.servers.some((sv) => sv.status === "failed" || sv.status === "exited")) return "failed";
+  return "started";
+}
+
 function consentHtml(p: PluginHostPlugin, flow: PluginUi["flow"]): string {
+  if (flow === "step1") return stepOneHtml(p);
+  if (!flow) return "";
+  const panel = flow === "enabling" ? "starting" : stepTwoPanel(p);
   const id = esc(p.id);
   const btns = (note: string, okKey: string): string =>
     `<div class="yui-plg-btns"><span class="yui-plg-btns__note">${t(note)}</span>
         <button class="yui-pill" type="button" data-act="off" data-id="${id}" data-fk="off:${id}">${t("plugins.turn_off")}</button>
         <button class="yui-pill yui-plg-ok" type="button" data-act="done" data-id="${id}" data-fk="done:${id}">${t(okKey)}</button></div>`;
-  if (flow === "step1") return stepOneHtml(p);
-  if (flow === "starting")
+  if (panel === "starting")
     return `<div class="yui-plg-consent" data-k="${id}:c2s">${stepHtml(2)}<div class="yui-plg-wait" role="status">${SPIN}${t("plugins.starting")}</div></div>`;
-  if (flow === "step2") {
+  if (panel === "started") {
     const any = p.tools.length || p.skills.length;
     const question = !any
       ? t("plugins.started_none")
@@ -182,10 +191,8 @@ function consentHtml(p: PluginHostPlugin, flow: PluginUi["flow"]): string {
     return `<div class="yui-plg-consent" data-k="${id}:c2" role="group" aria-label="${esc(t("plugins.step2_aria", { id: p.id }))}">
       ${stepHtml(2)}<p class="yui-plg-consent__q">${question}</p>${any ? itemsHtml(p) : ""}${hiddenHtml(p)}${btns("plugins.backend_decides", "plugins.ok")}</div>`;
   }
-  if (flow === "failed")
-    return `<div class="yui-plg-consent" data-k="${id}:c2f" role="group" aria-label="${esc(t("plugins.failed_aria", { id: p.id }))}">
+  return `<div class="yui-plg-consent" data-k="${id}:c2f" role="group" aria-label="${esc(t("plugins.failed_aria", { id: p.id }))}">
       ${stepHtml(2)}<p class="yui-plg-consent__q">${t("plugins.failed_q")}</p><div class="yui-group">${p.servers.map((sv) => serverHtml(p, sv, false)).join("")}</div>${btns("plugins.keep_on_note", "plugins.keep_on")}</div>`;
-  return "";
 }
 
 function logHtml(p: PluginHostPlugin, ui: PluginUi): string {

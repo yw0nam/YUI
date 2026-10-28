@@ -158,16 +158,12 @@ export function createPluginsPage(deps: {
     }
   }
 
-  // The host resolves once the servers' start attempts settle, so the snapshot then names the outcome.
   async function allow(id: string): Promise<void> {
     const state = uiOf(id);
-    state.flow = "starting";
+    state.flow = "enabling";
     const ok = await attempt(id, "plugins.err_enable", () => manage.enable(id));
-    if (state.flow !== "starting") return;
-    const failed = plugin(id)?.servers.some(
-      (sv) => sv.status === "failed" || sv.status === "exited",
-    );
-    state.flow = !ok ? undefined : failed ? "failed" : "step2";
+    if (state.flow !== "enabling") return;
+    state.flow = ok ? "enabled" : undefined;
     render();
   }
 
