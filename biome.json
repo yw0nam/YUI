@@ -13,6 +13,7 @@
       "*.ts",
       "*.mjs",
       "*.json",
+      "plugins/catalog.json",
       "!**/public/vad",
       "!**/dist",
       "!**/src-tauri/target"
