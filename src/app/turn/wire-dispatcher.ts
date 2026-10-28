@@ -38,8 +38,9 @@ import {
   readPresetList,
   readPresetName,
 } from "../../settings/preset/active-preset";
-import { readOpenPresetIds } from "../../settings/preset/pet-windows";
+import { readOpenPresetEntries, readOpenPresetIds } from "../../settings/preset/pet-windows";
 import { readRelationLines } from "../../settings/relations/relation-lines";
+import { targetLabel } from "../../settings/relations/relation-targets";
 import type { SettingsStores } from "../../settings/settings-stores";
 import { showChainResetNotice } from "../../ui/notices/chain-reset-notice";
 import {
@@ -223,6 +224,8 @@ export function wireDispatcher(deps: {
         readPresetList(),
         relationsSwitch.get().enabled,
       ),
+    getOpenCharacters: () =>
+      readOpenPresetEntries(presetIdForWindow()).map(({ name }) => targetLabel(name)),
     commitOverheard: overheard.commit,
     isBodyHeld,
     contextHistory,

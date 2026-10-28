@@ -22,7 +22,7 @@ const TURNS_KEPT = 8;
 
 export function createRateRelationTool(deps: {
   store: Pick<RelationsStore, "rate">;
-  /** The other open presets, read each time the schema is built. */
+  /** The other open presets, read when a call runs. */
   targets: () => PresetEntry[];
   now?: () => number;
   /** The Relations switch, read when a call runs. */
@@ -41,24 +41,25 @@ export function createRateRelationTool(deps: {
 
   return {
     name: "rate_relation",
-    get definition() {
-      return {
-        type: "function" as const,
-        function: {
-          name: "rate_relation",
-          description: DESCRIPTION,
-          parameters: {
-            type: "object" as const,
-            properties: {
-              toward: { type: "string", enum: [...labels().keys()] },
-              delta: { type: "integer", enum: [...DELTAS] },
-              why: { type: "string", maxLength: WHY_LENGTH },
+    definition: {
+      type: "function" as const,
+      function: {
+        name: "rate_relation",
+        description: DESCRIPTION,
+        parameters: {
+          type: "object" as const,
+          properties: {
+            toward: {
+              type: "string",
+              description: "user, or a name from the open characters: line.",
             },
-            additionalProperties: false as const,
-            required: ["toward", "delta", "why"],
+            delta: { type: "integer", enum: [...DELTAS] },
+            why: { type: "string", maxLength: WHY_LENGTH },
           },
+          additionalProperties: false as const,
+          required: ["toward", "delta", "why"],
         },
-      };
+      },
     },
     execute: async (args, _signal, call) => {
       if (!enabled()) return "error: relations are off";

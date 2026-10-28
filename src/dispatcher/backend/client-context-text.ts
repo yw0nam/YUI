@@ -88,6 +88,11 @@ function renderRelations(relations: ClientContext["relations"], nowMs: number): 
   });
 }
 
+function renderOpenCharacters(names: ClientContext["open_characters"]): string | undefined {
+  if (!names || names.length === 0) return undefined;
+  return `open characters: ${names.map((name) => `"${oneLine(name)}"`).join(", ")}`;
+}
+
 function renderToolSwitches(switches: ClientContext["tool_switches"]): string | undefined {
   if (!switches || switches.length === 0) return undefined;
   const entries = switches.map((entry) => `${oneLine(entry.id)}=${entry.on ? "on" : "off"}`);
@@ -229,6 +234,9 @@ export function renderClientContext(clientContext: ClientContext, nowMs: number)
   if (body) lines.push(body);
 
   lines.push(...renderRelations(clientContext.relations, nowMs));
+
+  const openCharacters = renderOpenCharacters(clientContext.open_characters);
+  if (openCharacters) lines.push(openCharacters);
 
   const tools = renderToolSwitches(clientContext.tool_switches);
   if (tools) lines.push(tools);
