@@ -22,13 +22,15 @@ def _failure(url: str, status: int | None) -> str:
     return FAILURES.get(status, f"unexpected HTTP {status} from {{url}}").format(url=url)
 
 
-def probe(url: str) -> int:
+def probe_failure(url: str) -> str | None:
     status, _ = post(url, PROBE_BODY)
-    if status == 200:
-        print(f"ok: YUI is listening at {url}")
-        return 0
-    print(_failure(url, status))
-    return 1
+    return None if status == 200 else _failure(url, status)
+
+
+def probe(url: str) -> int:
+    failure = probe_failure(url)
+    print(failure or f"ok: YUI is listening at {url}")
+    return 1 if failure else 0
 
 
 def send_test(url: str, delivery: str) -> int:

@@ -1,7 +1,8 @@
 # Troubleshooting
 
-`probe` and `test` print one line and exit 0 on success or 1 on failure. `hook` prints
-nothing; it always exits 0 and records a failed POST in `last-error.json`.
+`probe` and `test` print one line and exit 0 on success or 1 on failure. `hook` always exits
+0 and records a failed signal POST in `last-error.json`. At session start it shows the probe's
+failure line after `yui-notify: `; the table below maps it.
 
 ## Read the line
 
@@ -33,5 +34,5 @@ when `XDG_STATE_HOME` is unset):
 | `status` | The HTTP status, or `null` when no response came |
 | `error` | The transport or HTTP error, or `null` |
 
-`test` and `probe` do not write this file. A stale record is the last failure of a hook;
+`test`, `probe`, and the session-start check do not write this file. A stale record is the last failure of a hook;
 delete it after the cause is fixed.

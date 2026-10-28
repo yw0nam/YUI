@@ -121,6 +121,18 @@ def test_host_app_in_front_posts_nothing(tmp_path, server, monkeypatch, fixture)
     assert received == []
 
 
+def test_session_start_warns_only_when_unreachable(tmp_path, server, capsys):
+    endpoint, received = server
+    run_hook(tmp_path, endpoint, "claude-session-start.json")
+    assert received == [("/signals", {"signals": [], "envelope": "yui-notify-probe"})]
+    assert capsys.readouterr().out == ""
+    run_hook(tmp_path, "http://127.0.0.1:1", "claude-session-start.json")
+    assert json.loads(capsys.readouterr().out) == {
+        "systemMessage": "yui-notify: YUI is not listening at http://127.0.0.1:1/signals "
+        "(External signals off, wrong port, or no tunnel)"
+    }
+
+
 def test_unreachable_endpoint_exits_zero_and_records_error(tmp_path):
     assert run_hook(tmp_path, "http://127.0.0.1:1", "claude-stop.json") == 0
     err = json.loads((tmp_path / "state" / "yui-notify" / "last-error.json").read_text())
