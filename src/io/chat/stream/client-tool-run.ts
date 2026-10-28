@@ -63,12 +63,15 @@ export async function* runClientCall(
   }
   if (!tool) return outcome;
 
-  if (!express_call) yield { type: "tool_status", status: { state: "running", tool_id: name } };
+  const statusId = tool.statusId?.(parsed.args) ?? name;
+  if (!express_call) {
+    yield { type: "tool_status", status: { state: "running", tool_id: statusId } };
+  }
   const result = await executeClientTool(tool, parsed.args, signal, callId, turnId);
   if (!express_call)
     yield {
       type: "tool_status",
-      status: { state: toolFailed(tool, result) ? "failed" : "done", tool_id: name },
+      status: { state: toolFailed(tool, result) ? "failed" : "done", tool_id: statusId },
     };
   outcome.run = { result, oneWay: tool.oneWay === true };
   return outcome;
