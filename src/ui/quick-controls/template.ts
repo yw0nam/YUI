@@ -65,7 +65,7 @@ interface PanelHtmlOptions {
   showHelp: boolean;
   /** Whether the History tab renders — true when a transcript store is injected. */
   showHistory: boolean;
-  /** Whether the Plugins page renders — true when the plugin host is injected. */
+  /** Whether the Plugins page renders — true when the MCP host is injected. */
   showPlugins?: boolean;
   /** Whether the preset strip and each page's scope line render — true when the registry is injected. */
   showPreset?: boolean;

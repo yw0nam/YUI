@@ -223,7 +223,7 @@ describe("createQuickControls — tab rail", () => {
       "motion",
       "general",
     ];
-    // A transcript renders the history tab and the plugin host the plugins tab: the full rail.
+    // A transcript renders the history tab and the MCP host the plugins tab: the full rail.
     const { host, manage } = fakePlugins();
     const qc = buildQc({ transcript: createChatHistoryStore(), plugins: { host, manage } });
     expect(tabs(qc).map((tab) => tab.id)).toEqual(names.map((name) => `yui-tab-${name}`));

@@ -262,7 +262,7 @@ interface QuickControlsOptions {
   getExpressMotions?: () => readonly string[];
   /** Launch bed scene on/off + wake timeout store. If absent, that section won't render. */
   bedSceneSettings?: BedSceneSettingsStore;
-  /** The plugin host and its managing commands. If absent, the Plugins page won't render. */
+  /** The MCP host and its managing commands. If absent, the Plugins page won't render. */
   plugins?: { host: McpHost; manage: McpHostManage };
   /** Card file steps and the preset creator, wired by the app layer. */
   importCard: () => Promise<ImportedCard | null>;

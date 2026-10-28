@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * plugins-page.test.ts — the Plugins page over the plugin host's snapshot, catalog and commands.
+ * plugins-page.test.ts — the Plugins page over the MCP host's snapshot, catalog and commands.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
