@@ -1359,7 +1359,7 @@ describe("createPushSocket — speech frames", () => {
 });
 
 describe("pushVocabularyOf", () => {
-  it("maps the published broker payload to the frame's vocabulary", () => {
+  it("maps the published expression vocabulary to the frame's vocabulary", () => {
     expect(
       pushVocabularyOf({
         emotionIds: ["neutral", "happy"],

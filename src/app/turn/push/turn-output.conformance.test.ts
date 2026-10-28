@@ -11,10 +11,11 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { ControlEnvelope, ExpressArgs } from "../../../contract";
-import { createBackendCaller } from "../../../dispatcher/backend/backend-caller";
+
 import {
   CONFIG,
   completedEvent,
+  createTestBackendCaller as createBackendCaller,
   createScriptedStream,
   deltaEvent,
   expressEvent,

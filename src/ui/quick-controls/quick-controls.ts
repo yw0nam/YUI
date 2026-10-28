@@ -446,7 +446,6 @@ export function createQuickControls({
     ttsKeySettings,
     getEndpointDefaults,
     getDefaultChatApi,
-    rows: { broker: true },
     pushSocket,
     isOpen: () => shell.isOpen(),
     getChatApiKey,

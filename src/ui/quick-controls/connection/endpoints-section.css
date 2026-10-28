@@ -1,4 +1,4 @@
-/* ── Connection tab — per-service sections (chat · STT · TTS · broker), rows from quick-controls.css ── */
+/* ── Connection tab — per-service sections (chat · STT · TTS), rows from quick-controls.css ── */
 
 /* State text at a section title's right. The title keeps its width; the hint wraps in a narrow panel. */
 .yui-sec__head:has(> .yui-endpoints__hint) > .yui-sec__title {

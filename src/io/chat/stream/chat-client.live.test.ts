@@ -9,10 +9,12 @@
  * authenticates against the key-enforcing backend and the streaming response maps to ChatStreamEvent —
  * express is unregistered, so only speech_delta/done/completed arrive (expected).
  */
+
 import { describe, expect, it } from "vitest";
 import { CHAT_API_KEY_SECRET, plainSecretProvider } from "../../../config/secrets";
 import type { EndpointsConfig } from "../../../contract";
-import { type ChatStreamEvent, streamChat } from "./chat-client";
+import type { ChatStreamEvent } from "./chat-client";
+import { streamChatForTest as streamChat } from "./test-helpers";
 
 const LIVE = process.env.YUI_LIVE === "1";
 

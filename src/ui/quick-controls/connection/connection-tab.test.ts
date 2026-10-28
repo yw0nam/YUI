@@ -16,13 +16,7 @@ import {
 } from "../../../settings/backend/endpoints-settings";
 import { setLocale, t } from "../../i18n";
 import { inMemoryApiKeyStorage } from "../test-helpers";
-import {
-  type ConnectionRows,
-  createConnectionTab,
-  type PushSocketPanelPort,
-} from "./connection-tab";
-
-const ROWS: ConnectionRows = { broker: true };
+import { createConnectionTab, type PushSocketPanelPort } from "./connection-tab";
 
 describe("createConnectionTab", () => {
   let endpointsSettings: ReturnType<typeof createEndpointsSettings>;
@@ -44,20 +38,16 @@ describe("createConnectionTab", () => {
     vi.restoreAllMocks();
   });
 
-  function build(
-    rows: ConnectionRows,
-    extra?: {
-      pushSocket?: PushSocketPanelPort;
-      getEndpointDefaults?: () => EndpointOverrides | undefined;
-      getChatApiKey?: () => Promise<string | undefined>;
-      getFetch?: () => Promise<typeof globalThis.fetch>;
-    },
-  ) {
+  function build(extra?: {
+    pushSocket?: PushSocketPanelPort;
+    getEndpointDefaults?: () => EndpointOverrides | undefined;
+    getChatApiKey?: () => Promise<string | undefined>;
+    getFetch?: () => Promise<typeof globalThis.fetch>;
+  }) {
     return createConnectionTab({
       endpointsSettings,
       chatKeySettings,
       ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
-      rows,
       isOpen: () => true,
       ...extra,
       log: {
@@ -81,7 +71,7 @@ describe("createConnectionTab", () => {
   // ── TTS provider ──────────────────────────────────────────────────────────────────────────
 
   it("offers Irodori, OpenAI and Fish as TTS providers above a model field", () => {
-    const tab = build(ROWS);
+    const tab = build();
 
     const select = tab.el.querySelector<HTMLSelectElement>("#yui-svc-tts-provider")!;
     expect(select.disabled).toBe(false);
@@ -92,7 +82,7 @@ describe("createConnectionTab", () => {
   });
 
   it("selecting Fish writes the provider, its URL and default model in one store write", () => {
-    const tab = build(ROWS);
+    const tab = build();
 
     const select = tab.el.querySelector<HTMLSelectElement>("#yui-svc-tts-provider")!;
     select.value = "fish";
@@ -114,7 +104,7 @@ describe("createConnectionTab", () => {
   });
 
   it("selecting OpenAI writes the provider, its URL and default model in one store write", () => {
-    const tab = build(ROWS);
+    const tab = build();
     const writes = vi.fn();
     endpointsSettings.subscribe(writes);
 
@@ -145,7 +135,7 @@ describe("createConnectionTab", () => {
       tts_base_url: "",
       tts_provider: "openai",
     });
-    const tab = build(ROWS, { getEndpointDefaults: () => defaults });
+    const tab = build({ getEndpointDefaults: () => defaults });
     tab.refresh();
     const select = tab.el.querySelector<HTMLSelectElement>("#yui-svc-tts-provider")!;
     expect(select.value).toBe("openai");
@@ -159,7 +149,7 @@ describe("createConnectionTab", () => {
   // ── Shared STT model field ────────────────────────────────────────────────────────────────
 
   it("persists stt_model to the store and resets it with the STT service", () => {
-    const tab = build(ROWS);
+    const tab = build();
 
     const model = tab.el.querySelector<HTMLInputElement>("#yui-ep-stt_model")!;
     model.value = "whisper-large-v3-turbo";
@@ -174,7 +164,7 @@ describe("createConnectionTab", () => {
   });
 
   it("offers Auto / en / ja for the STT language field and says an empty field auto-detects", () => {
-    const tab = build(ROWS);
+    const tab = build();
 
     const lang = tab.el.querySelector<HTMLInputElement>("#yui-ep-stt_language")!;
     const options = [
@@ -190,7 +180,7 @@ describe("createConnectionTab", () => {
   // ── Close contract ────────────────────────────────────────────────────────────────────────
 
   it("dispose() commits dirty key and endpoint inputs", () => {
-    const tab = build(ROWS);
+    const tab = build();
 
     const url = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!;
     url.value = "wss://example.test/ws";
@@ -207,7 +197,7 @@ describe("createConnectionTab", () => {
 
   describe("focusStt", () => {
     it("scrolls the STT section into view and focuses its URL field", () => {
-      const tab = build(ROWS);
+      const tab = build();
       document.body.append(tab.el);
       const scroll = vi.fn();
       const section = tab.el.querySelector<HTMLElement>('[data-svc="stt"]')!;
@@ -223,7 +213,7 @@ describe("createConnectionTab", () => {
     });
 
     it("still focuses where the webview has no scrollIntoView", () => {
-      const tab = build(ROWS);
+      const tab = build();
       document.body.append(tab.el);
 
       tab.focusStt();
@@ -271,7 +261,7 @@ describe("createConnectionTab", () => {
 
     it("reads when the tab is entered — effective URL, chat key, status shows the result", async () => {
       const deps = modelReadDeps();
-      const tab = build(ROWS, { ...deps, getEndpointDefaults: () => defaults });
+      const tab = build({ ...deps, getEndpointDefaults: () => defaults });
 
       tab.entered();
       await tick();
@@ -288,7 +278,7 @@ describe("createConnectionTab", () => {
 
     it("reads after the URL input commits, with the committed value", async () => {
       const deps = modelReadDeps();
-      const tab = build(ROWS, { ...deps, getEndpointDefaults: () => defaults });
+      const tab = build({ ...deps, getEndpointDefaults: () => defaults });
 
       const url = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!;
       url.value = "https://typed.test/v1";
@@ -304,7 +294,7 @@ describe("createConnectionTab", () => {
 
     it("reads after the chat key input commits on blur", async () => {
       const deps = modelReadDeps();
-      const tab = build(ROWS, {
+      const tab = build({
         ...deps,
         getEndpointDefaults: () => defaults,
         // The key resolves the way a turn's would: from the key store the SecretProvider reads.
@@ -329,7 +319,7 @@ describe("createConnectionTab", () => {
 
     it("reads when a provider preset commits its URL", async () => {
       const deps = modelReadDeps();
-      const tab = build(ROWS, { ...deps });
+      const tab = build({ ...deps });
 
       const preset = tab.el.querySelector<HTMLSelectElement>(".yui-chat-preset")!;
       preset.value = "ollama";
@@ -343,7 +333,7 @@ describe("createConnectionTab", () => {
 
     it("picking from the combobox commits the id through the model input", async () => {
       const deps = modelReadDeps();
-      const tab = build(ROWS, { ...deps, getEndpointDefaults: () => defaults });
+      const tab = build({ ...deps, getEndpointDefaults: () => defaults });
       document.body.append(tab.el);
       tab.entered();
       await tick();
@@ -363,7 +353,7 @@ describe("createConnectionTab", () => {
 
     it("choosing the push preset aborts the read and shows the push state", async () => {
       const deps = modelReadDeps();
-      const tab = build(ROWS, {
+      const tab = build({
         ...deps,
         getEndpointDefaults: () => defaults,
         pushSocket: fakeSocket({ kind: "ready", chat_id: "yui-7731" }),
@@ -385,7 +375,7 @@ describe("createConnectionTab", () => {
 
     it("resetting the Chat service re-reads against the default URL", async () => {
       const deps = modelReadDeps();
-      const tab = build(ROWS, { ...deps, getEndpointDefaults: () => defaults });
+      const tab = build({ ...deps, getEndpointDefaults: () => defaults });
 
       const url = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!;
       url.value = "https://typed.test/v1";
@@ -406,7 +396,7 @@ describe("createConnectionTab", () => {
 
     it("reads the trimmed effective URL a chat turn would use", async () => {
       const deps = modelReadDeps();
-      const tab = build(ROWS, { ...deps });
+      const tab = build({ ...deps });
 
       const url = tab.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!;
       url.value = "https://typed.test/v1 ";
@@ -420,7 +410,7 @@ describe("createConnectionTab", () => {
 
     it("the status follows the model input while typing, without a new request", async () => {
       const deps = modelReadDeps();
-      const tab = build(ROWS, {
+      const tab = build({
         ...deps,
         getEndpointDefaults: () => ({ ...defaults, chat_model: "" }),
       });
@@ -444,7 +434,7 @@ describe("createConnectionTab", () => {
 
     it("typing two absent names keeps the status text node untouched (announced once)", async () => {
       const deps = modelReadDeps();
-      const tab = build(ROWS, {
+      const tab = build({
         ...deps,
         getEndpointDefaults: () => ({ ...defaults, chat_model: "" }),
       });
@@ -471,7 +461,7 @@ describe("createConnectionTab", () => {
 
     it("clears an invalid URL instead of reading", async () => {
       const deps = modelReadDeps();
-      const tab = build(ROWS, { ...deps, getEndpointDefaults: () => defaults });
+      const tab = build({ ...deps, getEndpointDefaults: () => defaults });
       tab.entered();
       await tick();
       await tick();
@@ -490,7 +480,7 @@ describe("createConnectionTab", () => {
 
     it("switching to push aborts the read and shows the push state", async () => {
       const deps = modelReadDeps();
-      const tab = build(ROWS, {
+      const tab = build({
         ...deps,
         getEndpointDefaults: () => defaults,
         pushSocket: fakeSocket({ kind: "ready", chat_id: "yui-7731" }),
@@ -513,7 +503,7 @@ describe("createConnectionTab", () => {
 
     it("aborting on panel close drops the in-flight read", async () => {
       const deps = modelReadDeps();
-      const tab = build(ROWS, { ...deps, getEndpointDefaults: () => defaults });
+      const tab = build({ ...deps, getEndpointDefaults: () => defaults });
       tab.entered();
       await tick();
 

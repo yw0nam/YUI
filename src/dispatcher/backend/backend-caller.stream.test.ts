@@ -12,6 +12,7 @@ import type { Logger } from "../../logger";
 import {
   CONFIG,
   completedEvent,
+  createTestBackendCaller as createBackendCaller,
   createScriptedStream,
   deltaEvent,
   dragHeldEnv,
@@ -30,7 +31,7 @@ import {
   windowSitEnv,
 } from "../test-helpers";
 import { createTurnFeed } from "../turn/turn-feed";
-import { type BackendCaller, createBackendCaller } from "./backend-caller";
+import type { BackendCaller } from "./backend-caller";
 
 const script = createScriptedStream();
 let applyDirective: ReturnType<typeof vi.fn>;

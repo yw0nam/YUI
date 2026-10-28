@@ -28,6 +28,7 @@ import {
   CONFIG,
   clientContextTextOf,
   completedEvent,
+  createTestBackendCaller as createBackendCaller,
   createScriptedStream,
   deltaEvent,
   makeLogger,
@@ -37,7 +38,7 @@ import {
   userEnv,
 } from "../test-helpers";
 import { createTurnFeed } from "../turn/turn-feed";
-import { type BackendCaller, createBackendCaller, isChatConfigured } from "./backend-caller";
+import { type BackendCaller, isChatConfigured } from "./backend-caller";
 
 const script = createScriptedStream();
 let applyDirective: ReturnType<typeof vi.fn>;
@@ -1204,21 +1205,6 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
     const [, , opts] = script.spy.mock.calls[0];
     expect(opts?.tools).toBe(registry);
     expect(clientTools).toHaveBeenCalledTimes(2);
-  });
-
-  it("no clientTools dep → the stream gets no tools", async () => {
-    script.events = [completedEvent({ speech_text: "" }, "")];
-    caller = createBackendCaller({
-      config: CC_CONFIG,
-      renderer: { applyDirective } as never,
-      getApiKey: async () => "k",
-      getFetch: async () => undefined,
-      stream: script.stream,
-      turnOutput,
-    });
-    await caller.call(turnOf(userEnv()));
-    const [, , opts] = script.spy.mock.calls[0];
-    expect(opts?.tools).toBeUndefined();
   });
 
   // The declared set is identical in every switch state: the switch gates execution, not the

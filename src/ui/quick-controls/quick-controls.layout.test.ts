@@ -121,7 +121,6 @@ describe("createQuickControls — settings layout", () => {
         ".yui-effort-seg",
         '[data-svc="stt"] [data-ep-field="stt_base_url"]',
         '[data-svc="tts"] .yui-tts-provider',
-        '[data-svc="broker"]',
       ],
     ],
     ["voice", [".yui-tts-switch", ".yui-spks", ".yui-filler", ".yui-message-window-switch"]],

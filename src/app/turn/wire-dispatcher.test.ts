@@ -18,6 +18,7 @@ vi.mock("../../dispatcher/core/proactive-pacer", () => ({
   createProactivePacer: mocks.createProactivePacer,
 }));
 
+import type { EndpointsConfig } from "../../contract";
 import type { TurnErrorDetail, TurnFailure } from "../../dispatcher/backend/backend-caller";
 import type { Turn } from "../../dispatcher/turn/turn";
 import { createAvatarTools } from "../../io/chat/tools/avatar";
@@ -25,7 +26,11 @@ import type { ClientTool } from "../../io/chat/tools/client-tools";
 import { wireDispatcher } from "./wire-dispatcher";
 
 describe("wireDispatcher", () => {
-  const setup = (isBodyHeld?: () => boolean, windowTools?: ClientTool[]) => {
+  const setup = (
+    isBodyHeld?: () => boolean,
+    windowTools?: ClientTool[],
+    endpoints = {} as EndpointsConfig,
+  ) => {
     const registered: Array<() => void> = [];
     const register = vi.fn((teardown: () => void) => {
       registered.push(teardown);
@@ -68,7 +73,7 @@ describe("wireDispatcher", () => {
       renderer: {} as never,
       surfaces: { isInputOpen: () => false } as never,
       reasoning: {} as never,
-      getEndpoints: () => ({}) as never,
+      getEndpoints: () => endpoints,
       getGuardrails: () => ({}) as never,
       getConfig: () => ({}) as never,
       getSecret: () => Promise.resolve(undefined),
@@ -143,8 +148,17 @@ describe("wireDispatcher", () => {
     ).toEqual(["generate_express", "body_action", "look"]);
   });
 
-  it("builds each turn's tools from generate_express alone when given no avatar tools", () => {
-    setup();
+  it.each([
+    {},
+    {
+      chat_base_url: "http://localhost:8642",
+      stt_base_url: "",
+      tts_base_url: "",
+      chat_api: "responses",
+      broker_base_url: "http://localhost:3201/mcp",
+    } as EndpointsConfig,
+  ])("declares generate_express without avatar tools for endpoints %j", (endpoints) => {
+    setup(undefined, undefined, endpoints as EndpointsConfig);
 
     const { clientTools } = mocks.createBackendCaller.mock.calls.at(-1)![0];
     expect(

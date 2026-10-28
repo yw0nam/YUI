@@ -84,7 +84,7 @@ describe("createExpressMotionSettings", () => {
   });
 
   // The master switch calls this on every render-driven click; a no-op commit would publish the
-  // unchanged vocabulary to the broker again.
+  // unchanged vocabulary to the backend again.
   it("setAllEnabled is silent when the group already holds the requested state", () => {
     const store = createExpressMotionSettings({
       storage: memoryStorage({ disabled: ["happy", "laugh"] }),

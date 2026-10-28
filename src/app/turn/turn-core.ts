@@ -28,7 +28,6 @@ import {
   type wireVrmSelection,
 } from "../settings/wire-avatar";
 import type { BedSceneHold } from "../stage/bed-scene-hold";
-import { wireBroker } from "./broker/wire-broker";
 import { wirePlayback } from "./push/playback";
 import { wirePushTransport, wireStopButton } from "./push/wire-push";
 import { wireVocabulary } from "./vocabulary/wire-vocabulary";
@@ -89,7 +88,7 @@ export interface TurnCore {
   setStrolling(walker: { isStrolling(): boolean }): void;
   /** Starts the dispatcher on the bus. */
   start(): void;
-  /** Loads the vocabulary, publishes the broker, routes the push socket, and wires the stop button and the submit path. */
+  /** Loads the vocabulary, routes the push socket, and wires the stop button and the submit path. */
   connect(hooks: {
     onSubmit: () => void;
   }): Promise<{ vocabulary: Vocabulary; stopTurn: () => string[] }>;
@@ -97,7 +96,7 @@ export interface TurnCore {
 
 /**
  * The chat turn every window that talks to the backend runs: voice, dispatcher, STT, the avatar,
- * the broker, the push transport, stop and submit. Built through the VRM load; the host runs
+ * the push transport, stop and submit. Built through the VRM load; the host runs
  * start() and connect() at the points its own wiring leaves for them.
  */
 export async function wireTurnCore(
@@ -288,16 +287,6 @@ export async function wireTurnCore(
       register(published.dispose);
       // The socket advertises the same vocabulary the tools declare; it diffs before it sends.
       register(published.subscribe(() => pushSocket?.sendVocabulary()));
-      register(
-        (
-          await wireBroker({
-            getEndpoints,
-            endpointsSettings: settings.endpointsSettings,
-            vocabulary: published,
-            log,
-          })
-        ).dispose,
-      );
       if (pushSocket) {
         register(wirePlayback({ socket: pushSocket, previousTurn }));
         register(

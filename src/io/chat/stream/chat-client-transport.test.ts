@@ -10,8 +10,8 @@ import {
   type ChatStreamEvent,
   type StreamChatOptions,
   selectFetch,
-  streamChat,
 } from "./chat-client";
+import { streamChatForTest as streamChat } from "./test-helpers";
 
 // ── openai SDK mock (same pattern as chat-client.test.ts) ──────────────────
 const capturedOpts: any[] = [];
@@ -68,7 +68,9 @@ describe("streamChat — fetch injection seam (D-TAURI-FETCH)", () => {
   it("passes injected fetch to the OpenAI constructor when opts.fetch is provided", async () => {
     createMock.mockResolvedValue(streamOf([completed("")]));
     const customFetch = vi.fn();
-    const opts: StreamChatOptions = { fetch: customFetch as unknown as typeof globalThis.fetch };
+    const opts: Partial<StreamChatOptions> = {
+      fetch: customFetch as unknown as typeof globalThis.fetch,
+    };
 
     await collect(streamChat(CONFIG, req(), opts));
 

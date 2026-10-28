@@ -15,7 +15,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../../../contract";
 import { type ClientTool, createClientToolRegistry } from "../tools/client-tools";
-import { type ChatRequest, type ChatStreamEvent, streamChat } from "./chat-client";
+import type { ChatRequest, ChatStreamEvent } from "./chat-client";
+import { streamChatForTest as streamChat } from "./test-helpers";
 
 const { log } = vi.hoisted(() => ({
   log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -137,7 +138,7 @@ describe("streamChat — Chat Completions text streaming", () => {
     expect(ccCreateMock).toHaveBeenCalledOnce();
   });
 
-  it("calls chat.completions.create with messages/stream/stream_options verbatim; no registry means no tools field", async () => {
+  it("calls chat.completions.create with messages/stream/stream_options verbatim; an empty registry means no tools field", async () => {
     ccCreateMock.mockResolvedValueOnce(streamOf([finishChunk("stop")]));
     const messages = [{ role: "user", content: "hi" }] as any;
 
@@ -246,7 +247,7 @@ describe("streamChat — Chat Completions reasoning deltas", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// generate_express capture with no registry — one-way parse, single POST
+// generate_express capture with an empty registry — one-way parse, single POST
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("streamChat — Chat Completions generate_express capture", () => {
@@ -311,24 +312,7 @@ describe("streamChat — Chat Completions generate_express capture", () => {
     expect(final.envelope.caption).toBe("囁くような小さな声で、ゆっくりと。");
   });
 
-  it("recognizes an MCP-namespaced mcp_<server>_generate_express tool name — one call", async () => {
-    ccCreateMock.mockResolvedValueOnce(
-      streamOf([
-        toolCallStart(0, "call_1", "mcp_hermes_generate_express", GEN_EXPRESS_ARGS),
-        finishChunk("stop"),
-      ]),
-    );
-
-    const events = await collect(streamChat(CONFIG, req()));
-
-    expect(events[0]).toEqual({
-      type: "express",
-      args: { emotion_id: "happy", motion_id: "embarrassed", emotion_text: "[whisper]" },
-    });
-    expect(ccCreateMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("malformed generate_express JSON without a registry -> no cue, no error, one call, messages untouched", async () => {
+  it("malformed generate_express JSON with an empty registry -> no cue, no error, one call, messages untouched", async () => {
     const messages = [{ role: "user", content: "hi" }] as any;
     ccCreateMock.mockResolvedValueOnce(
       streamOf([
@@ -348,14 +332,14 @@ describe("streamChat — Chat Completions generate_express capture", () => {
 
   it("a non-express tool call yields tool_status done (not express), one call", async () => {
     ccCreateMock.mockResolvedValueOnce(
-      streamOf([toolCallStart(0, "call_2", "get_ids", "{}"), finishChunk("stop")]),
+      streamOf([toolCallStart(0, "call_2", "web_search", "{}"), finishChunk("stop")]),
     );
 
     const events = await collect(streamChat(CONFIG, req()));
 
     expect(events[0]).toEqual({
       type: "tool_status",
-      status: { state: "done", tool_id: "get_ids" },
+      status: { state: "done", tool_id: "web_search" },
     });
     expect(events.some((e) => e.type === "express")).toBe(false);
     expect(ccCreateMock).toHaveBeenCalledTimes(1);
@@ -366,7 +350,7 @@ describe("streamChat — Chat Completions generate_express capture", () => {
     ccCreateMock.mockResolvedValueOnce(
       streamOf([
         toolCallStart(0, "call_a", "generate_express", GEN_EXPRESS_ARGS),
-        toolCallStart(1, "call_b", "get_ids", "{}"),
+        toolCallStart(1, "call_b", "web_search", "{}"),
         finishChunk("stop"),
       ]),
     );
@@ -647,21 +631,6 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
       content: "22C",
     });
     expect(events.some((e) => e.type === "speech_delta" && e.text === "warm")).toBe(true);
-  });
-
-  it("a call naming an unregistered tool stays one-way — cue plays, no result, single request", async () => {
-    const registry = createClientToolRegistry([oneWayStub("generate_express")]);
-    ccCreateMock.mockResolvedValueOnce(
-      streamOf([
-        toolCallStart(0, "call_1", "mcp_hermes_generate_express", GEN_EXPRESS_ARGS),
-        finishChunk("stop"),
-      ]),
-    );
-
-    const events = await collect(streamChat(CONFIG, req(), { tools: registry }));
-
-    expect(events[0].type).toBe("express");
-    expect(ccCreateMock).toHaveBeenCalledTimes(1);
   });
 
   it("a failing execute returns its error as the tool result and still round-trips", async () => {

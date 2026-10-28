@@ -18,6 +18,7 @@ import type { Logger } from "../../logger";
 import {
   CONFIG,
   completedEvent,
+  createTestBackendCaller as createBackendCaller,
   createScriptedStream,
   deltaEvent,
   makeLogger,
@@ -26,7 +27,7 @@ import {
   userEnv,
 } from "../test-helpers";
 import { createTurnFeed } from "../turn/turn-feed";
-import { type BackendCaller, createBackendCaller } from "./backend-caller";
+import type { BackendCaller } from "./backend-caller";
 
 const script = createScriptedStream();
 const PENDING_OUTPUT = { type: "function_call_output", call_id: "call_1", output: "ok" } as const;

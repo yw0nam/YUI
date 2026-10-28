@@ -28,7 +28,6 @@ export interface EndpointOverrides {
   stt_language: string;
   tts_base_url: string;
   tts_model: string;
-  broker_base_url: string;
   chat_model: string;
   chat_model_context_window: string;
   chat_api: string;
@@ -89,13 +88,6 @@ export const ENDPOINT_FIELD_SPECS = [
   },
   { key: "tts_base_url", kind: "url", labelKey: "endpoints.tts_base_url.label", resetGroup: "tts" },
   { key: "tts_model", kind: "string", labelKey: "endpoints.tts_model.label", resetGroup: "tts" },
-  // Deprecated: removed in v0.6.0. Use client-declared tools (src/io/chat/tools/client-tools.ts).
-  {
-    key: "broker_base_url",
-    kind: "url",
-    labelKey: "endpoints.broker_base_url.label",
-    resetGroup: "broker",
-  },
   { key: "chat_model", kind: "string", labelKey: "endpoints.chat_model.label", resetGroup: "chat" },
   // No resetGroup: no reset button clears this today (the "chat" service reset only clears
   // chat_base_url/chat_model/chat_api) — see endpoints-settings.test.ts's resetGroup pin test.

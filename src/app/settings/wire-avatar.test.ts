@@ -398,7 +398,6 @@ describe("createEffectiveEndpoints", () => {
     stt_language: "",
     tts_base_url: "",
     tts_model: "",
-    broker_base_url: "",
     chat_model: "",
     chat_model_context_window: "",
     chat_api: "",

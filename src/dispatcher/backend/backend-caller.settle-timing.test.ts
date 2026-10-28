@@ -10,13 +10,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CONFIG,
   completedEvent,
+  createTestBackendCaller as createBackendCaller,
   createScriptedStream,
   deltaEvent,
   makeTurnOutput,
   turnOf,
   userEnv,
 } from "../test-helpers";
-import { type BackendCaller, createBackendCaller } from "./backend-caller";
+import type { BackendCaller } from "./backend-caller";
 
 const script = createScriptedStream();
 let turnOutput: ReturnType<typeof makeTurnOutput>;

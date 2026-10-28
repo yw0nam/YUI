@@ -173,7 +173,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const idleMotionSettings = createIdleMotionSettings({
     storage: localStorageIdleMotionStorage(),
   });
-  // Per-motion on/off overlay curating the agent-selectable vocabulary published to the broker.
+  // Per-motion on/off overlay curating the agent-selectable vocabulary declared to the backend.
   const expressMotionSettings = createExpressMotionSettings({
     storage: localStorageExpressMotionStorage(),
   });

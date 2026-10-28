@@ -1,7 +1,4 @@
-/**
- * Connection tab — the chat/STT/TTS(/broker) endpoint sections. `rows` picks the optional
- * sections; the same rows drive markup, handlers and reflection, so only rendered fields are bound.
- */
+/** Connection tab endpoint sections share markup, handlers and reflection. */
 
 import type { PushSocketState } from "../../../io/chat/push/push-socket";
 import type { Logger } from "../../../logger";
@@ -35,12 +32,6 @@ export interface PushSocketPanelPort {
   sendReset(): boolean;
   /** Drop the backoff wait and open now — what the status line's button asks for. */
   reconnectNow(): void;
-}
-
-/** Which sections render beyond chat, STT and TTS — and bind, and reflect. */
-export interface ConnectionRows {
-  // Deprecated: removed in v0.6.0. Use client-declared tools (src/io/chat/tools/client-tools.ts).
-  broker: boolean;
 }
 
 export interface ConnectionTab {
@@ -95,19 +86,6 @@ function ttsSectionHtml(): string {
         </section>`;
 }
 
-// Deprecated: removed in v0.6.0. Use client-declared tools (src/io/chat/tools/client-tools.ts).
-function brokerSectionHtml(): string {
-  return `
-        <section class="yui-sec yui-endpoints yui-svc" data-svc="broker">
-          ${secHeadHtml(t("svc.broker"), `<span class="yui-endpoints__hint">${t("svc.broker_hint")}</span>`)}
-          <div class="yui-group">
-            ${selectRowHtml("yui-svc-broker-type", "svc.type_label", `<select class="yui-select yui-select--single" id="yui-svc-broker-type" disabled><option>${t("svc.broker_type")}</option></select>`)}
-            ${endpointRowHtml("broker_base_url")}
-            ${svcResetRowHtml("broker")}
-          </div>
-        </section>`;
-}
-
 export function createConnectionTab(deps: {
   endpointsSettings: EndpointsSettingsStore;
   /** chat API key overrides store. Value is secret — no logging. */
@@ -118,7 +96,6 @@ export function createConnectionTab(deps: {
   getEndpointDefaults?: () => EndpointOverrides | undefined;
   /** Default bundled-config value for the chat protocol when no override (undefined if not loaded). */
   getDefaultChatApi?: () => string | undefined;
-  rows: ConnectionRows;
   /** Push transport state for the chat status line. Absent where nothing shows it. */
   pushSocket?: PushSocketPanelPort;
   /** Store subscriptions and the status line skip repaints while the tab is closed. */
@@ -135,7 +112,6 @@ export function createConnectionTab(deps: {
     ttsKeySettings,
     getEndpointDefaults,
     getDefaultChatApi,
-    rows,
     pushSocket,
     isOpen,
     getChatApiKey,
@@ -158,7 +134,7 @@ export function createConnectionTab(deps: {
   // The reasoning-effort row follows chat; the agent section binds it.
   el.insertAdjacentHTML(
     "beforeend",
-    `${effortSectionHtml()}${sttSectionHtml()}${ttsSectionHtml()}${rows.broker ? brokerSectionHtml() : ""}`,
+    `${effortSectionHtml()}${sttSectionHtml()}${ttsSectionHtml()}`,
   );
 
   const endpointsSection = createEndpointsSection({

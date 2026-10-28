@@ -22,11 +22,8 @@ Every switchable in-app tool is declared in every switch state: the declared set
 | Transport | Who declares the tool | How a call reaches the client |
 |---|---|---|
 | Chat Completions | The client, in `tools[]` of every request | `delta.tool_calls` fragments |
-| Responses, `broker_base_url` unset | The client, in `tools[]` of every request | `function_call` output items |
-| Responses, `broker_base_url` set | The broker's backend. The client declares none (`src/io/chat/broker/broker-tool-owner.ts`) | `function_call` output items, played as cues and left unanswered |
+| Responses | The client, in `tools[]` of every request | `function_call` output items |
 | Push | The client, in `hello.tools` of the connection | `tool_call` frames ([push-transport.md](push-transport.md)). `generate_express` is not declared there: its cues arrive in `render` and `speech` segments |
-
-`broker_base_url` is deprecated and removed in v0.6.0. The client-declared tool replaces it.
 
 ## Declared schema
 
@@ -118,7 +115,7 @@ A Responses turn ends on a response with unanswered calls in two cases: a cue-on
 
 A tool outside the registry runs on the backend. The client shows it as tool status and sends no result. Responses shows `running` when the call item is added and `done` when it completes. Chat Completions shows `done` alone, when the held call is released.
 
-Any tool name ending in `generate_express` plays its cue, whichever side registered it. `mcp_<server>_generate_express` is the case of a backend-registered one. Only the exact registered name is answered.
+Only the exact `generate_express` tool name plays an expression cue. Only registered tools receive an answer.
 
 ### What the next turn carries
 
@@ -294,7 +291,7 @@ the Relations switch holds.
 
 Cue delivery over a request transport needs an endpoint that serves the declared tool back as a call. A plain OpenAI-compatible server (e.g. vLLM) does: on Chat Completions as `delta.tool_calls` fragments, on Responses as `function_call` output items.
 
-On Chat Completions and Responses every declared schema rides every request, and the model reads it on every turn. The Hermes api-server does not pass a request's `tools` to its model on either transport, so its backend receives `body_action` and `look` on the push transport only. Its `/v1/chat/completions` surfaces no tool calls and emits a `hermes.tool.progress` telemetry event with name and status. A Hermes backend gets expression through the push transport, or through the Expression Broker on Responses until v0.6.0, where its own MCP tool arrives as `mcp_<server>_generate_express`.
+On Chat Completions and Responses every declared schema rides every request, and the model reads it on every turn. The Hermes api-server does not pass a request's `tools` to its model on either transport, so its backend receives `generate_express`, `body_action` and `look` on the push transport only. Its `/v1/chat/completions` surfaces no tool calls and emits a `hermes.tool.progress` telemetry event with name and status.
 
 ## Adding a tool
 

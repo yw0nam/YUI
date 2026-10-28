@@ -19,6 +19,7 @@ import type { BusEnvelope } from "../core/event-bus";
 import {
   CONFIG,
   completedEvent,
+  createTestBackendCaller as createBackendCaller,
   createScriptedStream,
   deltaEvent,
   keepaliveEvent,
@@ -30,7 +31,7 @@ import {
   userEnv,
 } from "../test-helpers";
 import { createTurnFeed } from "../turn/turn-feed";
-import { type BackendCaller, createBackendCaller } from "./backend-caller";
+import type { BackendCaller } from "./backend-caller";
 import { PRE_SPEECH_TIMEOUT_MS, SPEECH_IDLE_TIMEOUT_MS } from "./idle-watchdog";
 
 const script = createScriptedStream();

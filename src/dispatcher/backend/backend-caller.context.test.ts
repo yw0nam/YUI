@@ -14,6 +14,7 @@ import {
   CONFIG,
   clientContextTextOf,
   completedEvent,
+  createTestBackendCaller as createBackendCaller,
   createScriptedStream,
   deltaEvent,
   makeLogger,
@@ -22,7 +23,7 @@ import {
   userEnv,
 } from "../test-helpers";
 import { createTurnFeed } from "../turn/turn-feed";
-import { type BackendCaller, createBackendCaller } from "./backend-caller";
+import type { BackendCaller } from "./backend-caller";
 
 const script = createScriptedStream();
 let applyDirective: ReturnType<typeof vi.fn>;

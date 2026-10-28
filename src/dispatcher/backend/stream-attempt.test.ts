@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ChatStreamEvent } from "../../io/chat/stream/chat-client";
+import { createClientToolRegistry } from "../../io/chat/tools/client-tools";
 import { CONFIG, deltaEvent, makeLogger, makeTurnOutput, turnOf, userEnv } from "../test-helpers";
 import { createStreamAttempt } from "./stream-attempt";
 
@@ -23,7 +24,7 @@ describe("createStreamAttempt", () => {
       owner: "stream:1",
       abort: vi.fn(),
       request: { input: [], signal: new AbortController().signal },
-      streamOpts: {},
+      streamOpts: { tools: createClientToolRegistry([]) },
       endThinking: vi.fn(),
     });
 

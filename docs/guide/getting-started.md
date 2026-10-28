@@ -11,7 +11,6 @@ One VRM model — and one ships in the repo (`resources/vrms/Sendagaya_Shino.vrm
 | VRM model | **Bundled** — bring your own optional (§2) | — |
 | Chat backend (`chat_base_url`) | Optional | Character appears and idles; a chat turn answers with an inline "Backend not configured" pointer to **Connection** |
 | Chat API key | Optional | Only needed when the endpoint enforces one; set in the panel or `.env.local` |
-| Expression MCP Broker | Deprecated, removed in v0.6.0 | Both request modes bake the vocabulary into the client-declared tool, no broker involved |
 | TTS | Optional | Speech bubble works; no audio output |
 | STT | Optional | Text input works; no voice input |
 | Screenshot context | Optional | Agent receives no screen context |
@@ -34,7 +33,7 @@ Her personality is the **Card** section of the **Persona** page, sent on Chat Co
 
 ## 1. Run YUI itself
 
-A coding agent can run sections 1–2 and the wiring in 4–7 for you from [Install with a coding agent](install.md). The rest of this page is the manual path and the reference for the external services.
+A coding agent can run sections 1–2 and the wiring in 4–6 for you from [Install with a coding agent](install.md). The rest of this page is the manual path and the reference for the external services.
 
 ### Prerequisites
 
@@ -114,11 +113,11 @@ Any tool-calling OpenAI-compatible `/v1/chat/completions` endpoint drives expres
 
 `generate_express` tool-call deltas are accumulated from the `chat.completion.chunk` stream, and each call's cue plays when a chunk carries a `finish_reason` or the stream ends. A model that stops on its cue calls without speaking gets the tool results back and re-requests, so the turn still reaches speech — up to three round trips. A model that speaks alongside its cues finishes in one request. See [CC mode transport](../reference/client-context.md#cc-mode-transport-chat-completions) for the request shape and [Tool-call round trip](../reference/client-tools.md#tool-call-round-trip) for the round trip.
 
-Backend capability still varies: a plain OpenAI-compatible server (e.g. vLLM) speaks standard tool-call streaming, while the Hermes api-server's `/v1/chat/completions` never surfaces tool calls. With Hermes, use Responses mode.
+Backend capability still varies: a plain OpenAI-compatible server (e.g. vLLM) speaks standard tool-call streaming, while the Hermes api-server's `/v1/chat/completions` never surfaces tool calls. With Hermes, use push mode; Chat Completions and Responses carry no expression cues there.
 
 ### Option B — Responses mode (`"chat_api": "responses"`)
 
-Any backend served over the OpenAI Responses API (`/v1/responses`). While `broker_base_url` is unset, the client declares `generate_express` on every request with the vocabulary baked into the tool schema, runs the call locally, and sends a follow-up request that re-sends the input items plus the call and its result, so the in-turn round trip does not depend on the server keeping responses (a plain OpenAI-compatible server such as vLLM works). Across turns the client chains on `previous_response_id`; a server that answers 404 for the stored id gets one retry without it, and the conversation context resets. The [Hermes Agent](https://github.com/nousresearch/hermes-agent) API server does not pass a request's tools to its model; on Hermes use push mode, or the Expression Broker (§4) on Responses until v0.6.0.
+Any backend served over the OpenAI Responses API (`/v1/responses`). The client declares `generate_express` on every request with the vocabulary baked into the tool schema, runs the call locally, and sends a follow-up request that re-sends the input items plus the call and its result, so the in-turn round trip does not depend on the server keeping responses (a plain OpenAI-compatible server such as vLLM works). Across turns the client chains on `previous_response_id`; a server that answers 404 for the stored id gets one retry without it, and the conversation context resets. The [Hermes Agent](https://github.com/nousresearch/hermes-agent) API server does not pass a request's tools to its model; on Hermes expression cues arrive on push only, and Chat Completions and Responses carry none.
 
 1. Stand up the backend agent with the Responses API served.
 2. Hand the agent the cue contract so it understands how to drive the character:
@@ -153,20 +152,7 @@ The reasoning-effort control is shown in Chat Completions and Responses modes on
 
 ---
 
-## 4. Expression MCP Broker (deprecated)
-
-`broker_base_url` is deprecated and is removed in v0.6.0; the client declares its tools on the request, with the vocabulary in the tool schema. While the key is set the broker publishes YUI's renderable emotion/motion/`emotion_text` vocabulary so a backend agent that cannot take request tools (the Hermes API server) learns what the body can express, and the client logs one `deprecated` warning per launch. YUI publishes in every chat mode whenever `broker_base_url` is set, and silently skips it otherwise.
-
-1. Install and serve the broker from [https://github.com/yw0nam/tts_express_broker](https://github.com/yw0nam/tts_express_broker).
-2. The broker listens by default at `http://localhost:3201/mcp` (streamable-http MCP).
-3. In `configs/endpoints.json`, set:
-   ```json
-   "broker_base_url": "http://localhost:3201/mcp"
-   ```
-
----
-
-## 5. TTS — Voice Output (optional)
+## 4. TTS — Voice Output (optional)
 
 Without TTS, YUI displays text in the speech bubble but produces no audio. `tts_provider` names the engine at `tts_base_url`: `irodori` (the shipped default), `openai`, or `fish`. Each provider has its own endpoint shape and decides how the cue's `emotion_text` and `caption` ride in the request and where the voice list comes from. The **Provider** select in the Connection tab's TTS section sets the provider and fills in its server URL and default model.
 
@@ -210,7 +196,7 @@ YUI sends the spoken text as `text` to `POST <tts_base_url>/v1/tts` and the mode
 
 ---
 
-## 6. STT — Voice Input (optional)
+## 5. STT — Voice Input (optional)
 
 Without STT, text input still works. VAD (Silero + ONNX) runs client-side; STT sends segmented audio to a transcription server.
 
@@ -223,9 +209,9 @@ YUI sends audio to `<stt_base_url>/audio/transcriptions`. If the server requires
 
 ---
 
-## 7. Wire It All Together — `configs/endpoints.json`
+## 6. Wire It All Together — `configs/endpoints.json`
 
-YUI ships with no service addresses: every URL in the bundled `configs/endpoints.json` is unset, and an unset URL means that feature is off — STT, TTS, and the expression broker stay quiet, and a chat turn with no `chat_base_url` answers with an inline "Backend not configured" error pointing at **Connection**.
+YUI ships with no service addresses: every URL in the bundled `configs/endpoints.json` is unset, and an unset URL means that feature is off — STT and TTS stay quiet, and a chat turn with no `chat_base_url` answers with an inline "Backend not configured" error pointing at **Connection**.
 
 Point YUI at your services by editing `configs/endpoints.json` or using the in-app Endpoint settings panel, which persists overrides to local storage and leaves the bundled file untouched.
 
@@ -246,13 +232,12 @@ Key reference:
 | `tts_model` | `irodori-tts` | Model sent to the TTS server — Irodori/OpenAI as the request's `model` field (must match the server's configured name), Fish as a `model` HTTP header (an S2-family id) |
 | `tts_speaker` | unset | Default voice id, until another is picked in the panel |
 | `tts_max_inflight` | `3` | Concurrent TTS synthesis requests |
-| `broker_base_url` | unset | Expression broker MCP URL. Deprecated, removed in v0.6.0: the client declares its tools on the request |
 
 All service addresses come from this file or the in-app overrides.
 
 ---
 
-## 8. Platform Notes
+## 7. Platform Notes
 
 - **Idle watching works on both.** `os_idle_ms` polling is implemented on both macOS and Windows, so idle-triggered and co-working proactive cues fire on either platform.
 - **macOS TCC grants.** The optional screenshot context feature and the `desktop-control` Mod (if used) require Screen Recording permission. App control via the `desktop-control` Mod additionally requires Automation / Apple Events permission. Grant these in System Settings → Privacy & Security.

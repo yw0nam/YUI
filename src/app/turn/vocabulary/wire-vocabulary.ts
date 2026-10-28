@@ -12,8 +12,6 @@ import type { ExpressMotionSettings } from "../../../settings/avatar/express-mot
 export interface VocabularyWiring {
   /** The renderable vocabulary from the live config, the motion selection, and the loaded emotion_text table. */
   vocabulary: () => ExpressVocabulary;
-  /** Reloads the emotion_text table for the live provider and announces; resolves the newest load's table. */
-  reloadTable: () => Promise<Record<string, string> | null>;
   /** Reloads the table when a config change moved the vocabulary. */
   onConfigChange: (cfg: AppConfig, changed: ReadonlySet<ConfigSection>) => void;
   /** Called whenever the vocabulary may have moved. */
@@ -21,11 +19,7 @@ export interface VocabularyWiring {
   dispose: () => void;
 }
 
-/**
- * Owns the vocabulary every consumer declares: the client-declared tool schema, the push socket,
- * and the broker publish. Effective (override-merged) endpoints pick the TTS provider, so disk
- * edits don't clobber user overrides.
- */
+/** Owns the vocabulary every consumer declares (the tool schema and the push socket); effective endpoints keep device overrides ahead of disk edits. */
 export async function wireVocabulary(deps: {
   getConfig: () => AppConfig;
   getEndpoints: () => EndpointsConfig;
@@ -48,7 +42,7 @@ export async function wireVocabulary(deps: {
   let loads = 0;
   // Best-effort load of the emoji enum table, which only Irodori speaks; any other provider and a
   // failed load both leave the vocabulary in free mode.
-  const reloadTable = async (): Promise<Record<string, string> | null> => {
+  const reloadTable = async (): Promise<void> => {
     const mine = ++loads;
     tableProvider = ttsProviderOf(getEndpoints());
     let next: Record<string, string> | null = null;
@@ -57,10 +51,9 @@ export async function wireVocabulary(deps: {
     } catch (err) {
       log.warn("emotion_text_load_failed", { fallback: "free", error: String(err) });
     }
-    if (mine !== loads) return table;
+    if (mine !== loads) return;
     table = next;
     announce();
-    return table;
   };
   const vocabulary = (): ExpressVocabulary =>
     deriveExpressVocabulary({ ...getConfig(), endpoints: getEndpoints() }, table, {
@@ -82,7 +75,6 @@ export async function wireVocabulary(deps: {
 
   return {
     vocabulary,
-    reloadTable,
     onConfigChange,
     subscribe: (cb) => {
       listeners.add(cb);

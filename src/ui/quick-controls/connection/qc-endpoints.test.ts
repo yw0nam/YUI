@@ -115,21 +115,21 @@ describe("createQuickControls — endpoints + API keys", () => {
 
   // ── Endpoint section ─────────────────────────────────────────────────────
 
-  it("renders four per-service sections (chat/stt/tts/broker), each with a yui-select", () => {
+  it("renders three per-service sections (chat/stt/tts), each with a yui-select", () => {
     const qc = buildQc();
     qc.open();
 
     const sections = Array.from(qc.el.querySelectorAll<HTMLElement>("#yui-panel-conn .yui-svc"));
-    expect(sections.map((s) => s.dataset.svc)).toEqual(["chat", "stt", "tts", "broker"]);
+    expect(sections.map((s) => s.dataset.svc)).toEqual(["chat", "stt", "tts"]);
     // each leads with a type dropdown.
     for (const s of sections) {
       expect(s.querySelector(".yui-select")).not.toBeNull();
     }
-    // Chat (chat_api) and TTS (tts_provider) lead with live dropdowns; STT/broker are inert (--single).
+    // Chat (chat_api) and TTS (tts_provider) lead with live dropdowns; STT is inert (--single).
     const single = sections.map((s) =>
       s.querySelector(".yui-select")!.classList.contains("yui-select--single"),
     );
-    expect(single).toEqual([false, true, false, true]);
+    expect(single).toEqual([false, true, false]);
 
     // each section carries its own URL field(s) inside it.
     const fieldIn = (svc: string, key: string): boolean =>
@@ -139,7 +139,6 @@ describe("createQuickControls — endpoints + API keys", () => {
     expect(fieldIn("stt", "stt_base_url")).toBe(true);
     expect(fieldIn("tts", "tts_base_url")).toBe(true);
     expect(fieldIn("tts", "tts_model")).toBe(true);
-    expect(fieldIn("broker", "broker_base_url")).toBe(true);
 
     qc.dispose();
   });
@@ -882,68 +881,17 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.dispose();
   });
 
-  it("renders a broker_base_url endpoint row that persists and clears on the broker reset", () => {
-    const qc = buildQc();
-    qc.open();
-
-    const row = qc.el.querySelector<HTMLDivElement>(
-      '.yui-input-row[data-ep-field="broker_base_url"]',
-    );
-    expect(row).not.toBeNull();
-    const input = row!.querySelector<HTMLInputElement>(".yui-ep-input")!;
-    expect(input.classList.contains("yui-ep-input--url")).toBe(true);
-
-    input.value = "http://localhost:3201/mcp";
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    input.dispatchEvent(new Event("change", { bubbles: true }));
-    expect(endpointsSettings.get().broker_base_url).toBe("http://localhost:3201/mcp");
-
-    qc.el.querySelector<HTMLButtonElement>('.yui-svc-reset[data-svc-reset="broker"]')!.click();
-    expect(endpointsSettings.get().broker_base_url).toBe("");
-    expect(input.value).toBe("");
-
-    qc.dispose();
-  });
-
-  it("commits the broker URL once on change, not on every keystroke", () => {
-    const qc = buildQc();
-    qc.open();
-
-    const input = qc.el.querySelector<HTMLInputElement>("#yui-ep-broker_base_url")!;
-    const commits: string[] = [];
-    const unsubscribe = endpointsSettings.subscribe(() =>
-      commits.push(endpointsSettings.get().broker_base_url),
-    );
-
-    const url = "http://localhost:3201/mcp";
-    for (let i = 1; i <= url.length; i++) {
-      input.value = url.slice(0, i);
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-    }
-    // Every intermediate prefix would otherwise reach the store, and each store change retargets
-    // the broker client (wire-broker's endpointsSettings.subscribe → reconciler.onChange).
-    expect(commits).toEqual([]);
-    expect(endpointsSettings.get().broker_base_url).toBe("");
-
-    input.dispatchEvent(new Event("change", { bubbles: true }));
-    expect(commits).toEqual([url]);
-    expect(endpointsSettings.get().broker_base_url).toBe(url);
-
-    unsubscribe();
-    qc.dispose();
-  });
-
   it("commits a pending endpoint edit when the window closes without a change event", () => {
     const qc = buildQc({ onCloseWindow: vi.fn() });
     qc.open();
 
-    const input = qc.el.querySelector<HTMLInputElement>("#yui-ep-broker_base_url")!;
-    input.value = "http://localhost:3201/mcp";
+    const input = qc.el.querySelector<HTMLInputElement>("#yui-ep-stt_base_url")!;
+    input.value = "http://localhost:5517";
     input.dispatchEvent(new Event("input", { bubbles: true }));
-    expect(endpointsSettings.get().broker_base_url).toBe("");
+    expect(endpointsSettings.get().stt_base_url).toBe("");
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-    expect(endpointsSettings.get().broker_base_url).toBe("http://localhost:3201/mcp");
+    expect(endpointsSettings.get().stt_base_url).toBe("http://localhost:5517");
 
     qc.dispose();
   });

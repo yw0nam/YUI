@@ -130,7 +130,7 @@ interface BackendCallerDeps extends PushCallDeps, SettleDeps, StreamAttemptDeps 
   /** The assembled card for this turn; null sends config.chat_instructions alone. */
   getCardText?: () => { system: string; postHistory: string } | null;
   /** Client-declared tool registry, resolved per turn so vocabulary edits land on the next call. */
-  clientTools?: () => ClientToolRegistry | undefined;
+  clientTools: () => ClientToolRegistry;
   /** The user typed or spoke, so the push turns still outstanding are stopped with the speech. */
   onPushTurnCut?: () => void;
   /** Structured logging (defaults to backend_caller namespace logger if absent). */
@@ -325,7 +325,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       }
 
       // Tools declared for this turn on both request transports.
-      const clientTools = deps.clientTools?.();
+      const clientTools = deps.clientTools();
 
       // Chain-break 404 recovery: retry at most once, so this flips true before the retry attempt.
       let chainBreakRetried = false;
@@ -342,7 +342,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
           streamOpts: {
             apiKey,
             fetch: fetchImpl,
-            ...(clientTools ? { tools: clientTools } : {}),
+            tools: clientTools,
           },
           endThinking,
         });

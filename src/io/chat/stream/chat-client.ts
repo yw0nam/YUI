@@ -90,8 +90,8 @@ export interface StreamChatOptions {
   apiKey?: string;
   /** Transport fetch override. Tauri uses cors-fetch's fetchCORS, dev/browser undefined (global fetch). */
   fetch?: typeof globalThis.fetch;
-  /** Client-declared tools. Absent/empty ⇒ no tools declared, no round trip. */
-  tools?: ClientToolRegistry;
+  /** Client-declared tools; an empty registry declares none and makes no round trip. */
+  tools: ClientToolRegistry;
 }
 
 /**
@@ -136,7 +136,7 @@ export function selectChatBaseUrl(
 export async function* streamChat(
   config: EndpointsConfig,
   request: ChatRequest,
-  opts: StreamChatOptions = {},
+  opts: StreamChatOptions,
 ): AsyncGenerator<ChatStreamEvent> {
   // Abort immediately without hang if signal already aborted.
   if (request.signal?.aborted) return;

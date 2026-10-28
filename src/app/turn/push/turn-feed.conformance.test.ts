@@ -6,10 +6,11 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { ToolStatus } from "../../../contract";
-import { createBackendCaller } from "../../../dispatcher/backend/backend-caller";
+
 import {
   CONFIG,
   completedEvent,
+  createTestBackendCaller as createBackendCaller,
   createScriptedStream,
   makeLogger,
   makeTurnOutput,

@@ -42,7 +42,6 @@ vi.mock("./voice/wire-voice", async (importOriginal) => {
     },
   };
 });
-vi.mock("./broker/wire-broker", () => ({ wireBroker: async () => ({ dispose: () => {} }) }));
 vi.mock("./vocabulary/wire-vocabulary", () => ({
   wireVocabulary: async () => ({
     vocabulary: () => ({}),

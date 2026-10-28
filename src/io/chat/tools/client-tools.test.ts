@@ -176,7 +176,7 @@ describe("createClientToolRegistry", () => {
 
   it("returns undefined for a name the client did not register", () => {
     const registry = createClientToolRegistry([createGenerateExpressTool(vocab())]);
-    expect(registry.get("mcp_hermes_generate_express")).toBeUndefined();
+    expect(registry.get("unknown_tool")).toBeUndefined();
   });
 
   it("declares nothing when empty", () => {

@@ -28,7 +28,6 @@ const EMPTY: EndpointOverrides = {
   stt_language: "",
   tts_base_url: "",
   tts_model: "",
-  broker_base_url: "",
   chat_model: "",
   chat_model_context_window: "",
   chat_api: "",
@@ -304,13 +303,11 @@ describe("mergeEndpoints", () => {
       chat_base_url: "http://c",
       stt_base_url: "http://s",
       tts_base_url: "http://t",
-      broker_base_url: "http://b",
       chat_model: "model-x",
     });
     expect(out.chat_base_url).toBe("http://c");
     expect(out.stt_base_url).toBe("http://s");
     expect(out.tts_base_url).toBe("http://t");
-    expect(out.broker_base_url).toBe("http://b");
     expect(out.chat_model).toBe("model-x");
   });
 
@@ -353,50 +350,11 @@ describe("mergeEndpoints", () => {
     expect(out.chat_model).toBe(base.chat_model);
   });
 
-  it("sets broker_base_url even when base has none", () => {
-    const base = baseConfig();
-    delete base.broker_base_url;
-    const out = mergeEndpoints(base, { ...EMPTY, broker_base_url: "http://b" });
-    expect(out.broker_base_url).toBe("http://b");
-  });
-
   it("preserves unrelated base fields", () => {
     const base = baseConfig();
     const out = mergeEndpoints(base, { ...EMPTY, chat_base_url: "http://new" });
     expect(out.tts_speaker).toBe(base.tts_speaker);
     expect(out.tts_model).toBe(base.tts_model);
-  });
-
-  // ── broker_base_url override ──
-
-  it("applies a valid broker_base_url override", () => {
-    const out = mergeEndpoints(baseConfig(), {
-      ...EMPTY,
-      broker_base_url: "http://localhost:3201/mcp",
-    });
-    expect(out.broker_base_url).toBe("http://localhost:3201/mcp");
-  });
-
-  it("trims a broker_base_url override before applying", () => {
-    const out = mergeEndpoints(baseConfig(), {
-      ...EMPTY,
-      broker_base_url: "  https://broker.example/mcp  ",
-    });
-    expect(out.broker_base_url).toBe("https://broker.example/mcp");
-  });
-
-  it("ignores an invalid broker_base_url override (keeps base default)", () => {
-    const base = baseConfig();
-    base.broker_base_url = "http://localhost:3201/mcp";
-    const out = mergeEndpoints(base, { ...EMPTY, broker_base_url: "localhost:3201" });
-    expect(out.broker_base_url).toBe("http://localhost:3201/mcp");
-  });
-
-  it("ignores an empty broker_base_url override (keeps base default)", () => {
-    const base = baseConfig();
-    base.broker_base_url = "http://localhost:3201/mcp";
-    const out = mergeEndpoints(base, { ...EMPTY, broker_base_url: "" });
-    expect(out.broker_base_url).toBe("http://localhost:3201/mcp");
   });
 
   // ── chat_api override ──
@@ -448,31 +406,6 @@ describe("mergeEndpoints", () => {
 
   it("ignores an empty tts_provider override (keeps base default)", () => {
     expect(mergeEndpoints(baseConfig(), EMPTY).tts_provider).toBe("irodori");
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// broker_base_url — store set/get/persist/reload
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("createEndpointsSettings — broker_base_url override", () => {
-  it("set/get a broker_base_url override and persist it", () => {
-    const storage: EndpointsStorage = { load: () => null, save: vi.fn() };
-    const store = createEndpointsSettings({ storage });
-    store.set({ broker_base_url: "http://localhost:3201/mcp" });
-    expect(store.get().broker_base_url).toBe("http://localhost:3201/mcp");
-    expect(storage.save).toHaveBeenCalledWith({
-      ...EMPTY,
-      broker_base_url: "http://localhost:3201/mcp",
-    });
-  });
-
-  it("reloadFromStorage applies an externally-changed broker_base_url", () => {
-    const storage = makeMemStorage();
-    const store = createEndpointsSettings({ storage });
-    storage._data = { ...EMPTY, broker_base_url: "http://other:3201/mcp" };
-    store.reloadFromStorage();
-    expect(store.get().broker_base_url).toBe("http://other:3201/mcp");
   });
 });
 
@@ -569,11 +502,9 @@ describe("ENDPOINT_FIELD_SPECS", () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
-  it("assigns kind 'url' to the four base-url fields", () => {
+  it("assigns kind 'url' to the three base-url fields", () => {
     const urlKeys = ENDPOINT_FIELD_SPECS.filter((s) => s.kind === "url").map((s) => s.key);
-    expect(urlKeys.sort()).toEqual(
-      ["chat_base_url", "stt_base_url", "tts_base_url", "broker_base_url"].sort(),
-    );
+    expect(urlKeys.sort()).toEqual(["chat_base_url", "stt_base_url", "tts_base_url"].sort());
   });
 
   it("assigns kind 'string' to stt_model, stt_language, tts_model and chat_model", () => {
@@ -619,10 +550,6 @@ describe("ENDPOINT_FIELD_SPECS — resetGroup (endpoints-section.ts per-service 
 
   it("tts reset group is tts_base_url + tts_model + tts_provider", () => {
     expect(bySvc("tts")).toEqual(["tts_base_url", "tts_model", "tts_provider"].sort());
-  });
-
-  it("broker reset group is broker_base_url only", () => {
-    expect(bySvc("broker")).toEqual(["broker_base_url"]);
   });
 
   it("chat_model_context_window carries no resetGroup (no reset button clears it today)", () => {
@@ -680,7 +607,6 @@ describe("endpointDefaultsFromConfig", () => {
       stt_language: "",
       tts_base_url: "http://localhost:8092",
       tts_model: "irodori-tts",
-      broker_base_url: "",
       chat_model: "natsume",
       chat_model_context_window: "",
       chat_api: "",

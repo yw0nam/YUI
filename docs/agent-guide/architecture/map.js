@@ -118,7 +118,7 @@ globalThis.YUI_MAP =
       "kind": "external",
       "col": 5,
       "row": 1,
-      "desc": "Judges whether and what to speak; Expression Broker"
+      "desc": "Judges whether and what to speak"
     },
     {
       "id": "display",
@@ -426,14 +426,6 @@ globalThis.YUI_MAP =
       "external": true
     },
     {
-      "id": "expression-broker",
-      "module": "backend",
-      "label": "Expression Broker",
-      "role": "The MCP server the client publishes its express vocabulary to.",
-      "paths": [],
-      "external": true
-    },
-    {
       "id": "mods-avatar",
       "module": "senders",
       "label": "Mods/avatar",
@@ -717,15 +709,6 @@ globalThis.YUI_MAP =
       "role": "Derives the emotion, motion, and voice-tone ids the agent may cue with.",
       "paths": [
         "src/io/chat/vocabulary"
-      ]
-    },
-    {
-      "id": "io/chat/broker",
-      "module": "tools",
-      "label": "broker client",
-      "role": "Write-only Expression Broker client and its URL override reconciler.",
-      "paths": [
-        "src/io/chat/broker"
       ]
     },
     {
@@ -1228,7 +1211,7 @@ globalThis.YUI_MAP =
       "id": "app/turn",
       "module": "wiring",
       "label": "turn wiring",
-      "role": "Connects voice, dispatcher, sources, vocabulary, broker, and the push transport into the chat turn; while the unified chat window shows, main's speech goes to that window and the user starting to speak has it answer like its stop button while a character runs.",
+      "role": "Connects voice, dispatcher, sources, vocabulary, and the push transport into the chat turn; while the unified chat window shows, main's speech goes to that window and the user starting to speak has it answer like its stop button while a character runs.",
       "paths": [
         "src/app/turn"
       ]
@@ -1981,23 +1964,6 @@ globalThis.YUI_MAP =
       "kind": "callback",
       "transport": "push",
       "wiring": "src/app/turn/push/push-stores.ts"
-    },
-    {
-      "id": "vocabulary-broker",
-      "from": "io/chat/vocabulary",
-      "to": "io/chat/broker",
-      "carries": "publish(ExpressVocabulary) at boot and on each announce",
-      "kind": "callback",
-      "transport": "request",
-      "wiring": "src/app/turn/broker/wire-broker.ts"
-    },
-    {
-      "id": "broker-http",
-      "from": "io/chat/broker",
-      "to": "expression-broker",
-      "carries": "MCP streamable-http publish of the vocabulary",
-      "kind": "http",
-      "transport": "request"
     },
     {
       "id": "stream-tools",

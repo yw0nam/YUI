@@ -1,9 +1,7 @@
 /**
  * generate_express — the expression-cue tool.
  *
- * Its schema carries the vocabulary the client has loaded (the same ids published to the
- * broker), and its cue plays from the express stream event the engine emits the moment the
- * call arrives, so execute only acknowledges the call.
+ * The cue plays as soon as the stream emits it, so execute only acknowledges the call.
  */
 
 import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
@@ -49,8 +47,7 @@ function emotionTextSchema(emotionText: ExpressVocabulary["emotionText"]): Recor
 }
 
 /**
- * Built from the same vocabulary the broker publishes (deriveExpressVocabulary). A
- * curated-empty motion list drops motion_id rather than declaring an unfillable empty enum.
+ * A curated-empty motion list drops motion_id rather than declaring an unfillable empty enum.
  */
 export function createGenerateExpressTool(vocab: ExpressVocabulary): ClientTool {
   const withMotion = vocab.motionIds.length > 0;

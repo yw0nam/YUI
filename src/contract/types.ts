@@ -80,7 +80,7 @@ export interface MotionRegistryEntry {
   pingpong?: boolean;
   /** [min,max] ping-pong round trips before a multi-variant motion swaps variant. default [1,1]. ignored for single-variant (continuous). */
   loop_cycles?: [number, number];
-  /** If false, excluded from broker (agent) vocabulary — local render only. Default true. */
+  /** If false, excluded from agent vocabulary — local render only. Default true. */
   broker_publish?: boolean;
   /**
    * Level the clip's hips-Y track onto the body's rest height, keeping the curve that
@@ -380,7 +380,7 @@ export type TtsProviderName = "irodori" | "openai" | "fish";
 
 /**
  * configs/endpoints.json. The three base URLs (chat/stt/tts) are separate processes.
- * Every service address is optional: `""` means "not configured" — STT/TTS/broker stay off and a
+ * Every service address is optional: `""` means "not configured" — STT/TTS stay off and a
  * chat turn fails with `not_configured` instead of reaching the network.
  */
 export interface EndpointsConfig {
@@ -423,9 +423,6 @@ export interface EndpointsConfig {
   tts_speaker?: string;
   /** Synthesis concurrency limit. Default 1 (serial) — applied by consumer (tts-pipeline), not loader. */
   tts_max_inflight?: number;
-  // Deprecated: removed in v0.6.0. Use client-declared tools (src/io/chat/tools/client-tools.ts).
-  /** Expression Broker MCP endpoint (streamable-http, example: `http://localhost:3201/mcp`). Skips vocab publish if not set. */
-  broker_base_url?: string;
   /** Maximum context token count for the active chat model. */
   chat_model_context_window?: number;
 }

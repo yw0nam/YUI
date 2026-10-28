@@ -182,13 +182,6 @@ onMounted(() => {
             >
           </div>
           <div>
-            <b>Expression broker</b>
-            <span
-              >Deprecated, removed in v0.6.0: the client declares its tools
-              on the request.</span
-            >
-          </div>
-          <div>
             <b>TTS provider</b>
             <span>Irodori TTS Server, OpenAI, or Fish Audio.</span>
           </div>
