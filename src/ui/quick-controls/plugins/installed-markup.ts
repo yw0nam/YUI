@@ -23,8 +23,10 @@ import {
 export interface PluginUi {
   /** The consent panel: step 1 asks, then starting, then step 2 or the failed panel. */
   flow?: "step1" | "starting" | "step2" | "failed";
-  /** The last managing call's rejection: its lead's i18n key and the host's string. */
-  error?: { lead: string; message: string };
+  /** An update is in flight. */
+  updating?: boolean;
+  /** The last managing call's rejection: its lead's i18n key, the host's string, and the action Retry repeats. */
+  error?: { lead: string; message: string; retry?: string };
   toolsOpen?: boolean;
   logOpen?: boolean;
   /** The log tail once read, or the host's rejection. */
@@ -51,9 +53,9 @@ const DOT_CLASS: Record<PluginHostServer["status"], string> = {
   stopped: "is-off",
 };
 
-function serverHtml(p: PluginHostPlugin, sv: PluginHostServer): string {
+function serverHtml(p: PluginHostPlugin, sv: PluginHostServer, busy: boolean): string {
   const again = (key: string): string =>
-    `<button class="yui-link-btn" type="button" data-act="retry" data-id="${esc(p.id)}" data-sid="${esc(sv.id)}" data-fk="retry:${esc(sv.id)}">${t(key)}</button>`;
+    `<button class="yui-link-btn" type="button" data-act="retry" data-id="${esc(p.id)}" data-sid="${esc(sv.id)}" data-fk="retry:${esc(sv.id)}"${busy ? " disabled" : ""}>${t(key)}</button>`;
   const reason = `<q>${esc(sv.reason ?? "")}</q>`;
   let state = "";
   let detail = "";
@@ -180,7 +182,7 @@ function consentHtml(p: PluginHostPlugin, flow: PluginUi["flow"]): string {
   }
   if (flow === "failed")
     return `<div class="yui-plg-consent" data-k="${id}:c2f" role="group" aria-label="${esc(t("plugins.failed_aria", { id: p.id }))}">
-      ${stepHtml(2)}<p class="yui-plg-consent__q">${t("plugins.failed_q")}</p><div class="yui-group">${p.servers.map((sv) => serverHtml(p, sv)).join("")}</div>${btns("plugins.keep_on_note", "plugins.keep_on")}</div>`;
+      ${stepHtml(2)}<p class="yui-plg-consent__q">${t("plugins.failed_q")}</p><div class="yui-group">${p.servers.map((sv) => serverHtml(p, sv, false)).join("")}</div>${btns("plugins.keep_on_note", "plugins.keep_on")}</div>`;
   return "";
 }
 
@@ -202,6 +204,8 @@ function pluginHtml(p: PluginHostPlugin, v: InstalledView): string {
   const ui = v.ui(p.id);
   const id = esc(p.id);
   const reap = p.enabled && !p.consented;
+  const busy = !!ui.updating;
+  const off = busy ? " disabled" : "";
   const checked = ui.flow === "step1" ? "mixed" : String(p.enabled && p.consented);
   let html = `<div class="yui-group" data-k="${id}:g" data-pid="${id}">
     <div class="yui-row">
@@ -209,17 +213,17 @@ function pluginHtml(p: PluginHostPlugin, v: InstalledView): string {
         <span class="yui-row__label">${id} ${badgeHtml(p.source)} ${versionHtml(p.version)}</span>
         ${p.description ? `<span class="yui-row__sub yui-plg-sum" title="${esc(p.description)}">${esc(p.description)}</span>` : ""}
       </div>
-      <button class="yui-switch" type="button" role="switch" aria-checked="${checked}" aria-label="${esc(t("plugins.switch_aria", { id: p.id }))}" data-act="toggle" data-id="${id}" data-fk="toggle:${id}"${p.error ? " disabled" : ""}></button>
+      <button class="yui-switch" type="button" role="switch" aria-checked="${checked}" aria-label="${esc(t("plugins.switch_aria", { id: p.id }))}" data-act="toggle" data-id="${id}" data-fk="toggle:${id}"${busy || p.error ? " disabled" : ""}></button>
     </div>`;
   if (p.error) html += `<div>${errLineHtml(t("plugins.manifest_error"), p.error)}</div>`;
   else {
     if (reap && !ui.flow) {
-      html += `<div class="yui-plg-reap" data-k="${id}:reap"><p>${t("plugins.reapprove_note")}</p><button class="yui-pill yui-plg-ok" type="button" data-act="reapprove" data-id="${id}" data-fk="reapprove:${id}">${t("plugins.reapprove")}</button></div>`;
+      html += `<div class="yui-plg-reap" data-k="${id}:reap"><p>${t("plugins.reapprove_note")}</p><button class="yui-pill yui-plg-ok" type="button" data-act="reapprove" data-id="${id}" data-fk="reapprove:${id}"${off}>${t("plugins.reapprove")}</button></div>`;
     }
     html += consentHtml(p, ui.flow);
     if (!ui.flow) {
       // Without consent nothing runs; the notice row says so.
-      if (!reap) html += p.servers.map((sv) => serverHtml(p, sv)).join("");
+      if (!reap) html += p.servers.map((sv) => serverHtml(p, sv, busy)).join("");
       html += hiddenHtml(p);
       if (p.tools.length || p.skills.length) {
         html += `<button class="yui-plg-disc" type="button" aria-expanded="${!!ui.toolsOpen}" data-act="tools" data-id="${id}" data-fk="tools:${id}">${ICON_CHEV}${countLabel(p)}</button>`;
@@ -229,14 +233,20 @@ function pluginHtml(p: PluginHostPlugin, v: InstalledView): string {
   }
   const to = v.updateTo(p);
   let mid = "";
-  if (to)
+  if (busy) mid = `<span class="yui-plg-busy" role="status">${SPIN}${t("plugins.updating")}</span>`;
+  else if (to)
     mid = `<button class="yui-link-btn yui-help-btn" type="button" data-act="update" data-id="${id}" data-fk="update:${id}">${t("plugins.update_to", { v: esc(to) })}</button>`;
   else if (p.source === "local")
     mid = `<span class="yui-plg-path" title="${esc(p.path)}">${esc(p.path)}</span>`;
   html += `<div class="yui-row yui-row--action"><div class="yui-plg-acts">
       <button class="yui-link-btn" type="button" aria-expanded="${!!ui.logOpen}" data-act="log" data-id="${id}" data-fk="log:${id}">${ICON_CHEV}${t("plugins.log")}</button>${mid}
-      <button class="yui-link-btn yui-plg-acts__end" type="button" data-act="remove" data-id="${id}" data-fk="remove:${id}">${t(p.source === "local" ? "plugins.remove_local" : "plugins.delete")}</button></div></div>`;
-  if (ui.error) html += `<div>${errLineHtml(t(ui.error.lead), ui.error.message)}</div>`;
+      <button class="yui-link-btn yui-plg-acts__end" type="button" data-act="remove" data-id="${id}" data-fk="remove:${id}"${off}>${t(p.source === "local" ? "plugins.remove_local" : "plugins.delete")}</button></div></div>`;
+  if (ui.error) {
+    const retry = ui.error.retry
+      ? `<button class="yui-link-btn" type="button" data-act="${ui.error.retry}" data-id="${id}" data-fk="again:${id}">${t("plugins.retry")}</button>`
+      : "";
+    html += `<div>${errLineHtml(t(ui.error.lead), ui.error.message, retry)}</div>`;
+  }
   if (ui.logOpen) html += logHtml(p, ui);
   return `${html}</div>`;
 }

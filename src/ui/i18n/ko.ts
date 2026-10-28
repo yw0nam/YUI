@@ -814,6 +814,10 @@ const ko: Record<string, string> = {
   "plugins.keep_on": "켜 두기",
   "plugins.err_enable": "켜지 못했어요.",
   "plugins.err_disable": "끄지 못했어요.",
+  "plugins.err_update": "업데이트하지 못했어요.",
+  "plugins.err_retry": "서버를 다시 시작하지 못했어요.",
+  "plugins.err_install": "설치하지 못했어요.",
+  "plugins.err_folder": "폴더를 추가하지 못했어요.",
 
   // reasoning
   "think.chip": "추론",

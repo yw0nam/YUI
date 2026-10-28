@@ -805,7 +805,8 @@ const en: Record<string, string> = {
   "plugins.no_servers": "No servers",
   "plugins.shield": "Runs on this computer with your permissions. Every character shares it.",
   "plugins.warn_community": "Updates arrive unreviewed too. Allow it only if you trust the author.",
-  "plugins.warn_local": "Runs this folder as it is. It does not ask again when the files in it change.",
+  "plugins.warn_local":
+    "Runs this folder as it is. It does not ask again when the files in it change.",
   "plugins.cancel": "Cancel",
   "plugins.allow": "Allow",
   "plugins.started_tools": "Started. These {n} tools are declared to the backend.",
@@ -821,6 +822,10 @@ const en: Record<string, string> = {
   "plugins.keep_on": "Keep on",
   "plugins.err_enable": "Could not turn it on.",
   "plugins.err_disable": "Could not turn it off.",
+  "plugins.err_update": "Could not update.",
+  "plugins.err_retry": "Could not start the server again.",
+  "plugins.err_install": "Could not install.",
+  "plugins.err_folder": "Could not add the folder.",
 
   // reasoning
   "think.chip": "Reasoning",

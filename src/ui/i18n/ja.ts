@@ -800,9 +800,12 @@ const ja: Record<string, string> = {
   "plugins.reviewed_local": "確認していません",
   "plugins.no_version": "バージョン情報なし",
   "plugins.no_servers": "サーバーなし",
-  "plugins.shield": "このコンピューターであなたの権限で動きます。すべてのキャラクターが共有します。",
-  "plugins.warn_community": "アップデートもレビューなしで届きます。作者を信頼できるときだけ許可してください。",
-  "plugins.warn_local": "このフォルダをそのまま実行します。中のファイルが変わっても、もう一度は確認しません。",
+  "plugins.shield":
+    "このコンピューターであなたの権限で動きます。すべてのキャラクターが共有します。",
+  "plugins.warn_community":
+    "アップデートもレビューなしで届きます。作者を信頼できるときだけ許可してください。",
+  "plugins.warn_local":
+    "このフォルダをそのまま実行します。中のファイルが変わっても、もう一度は確認しません。",
   "plugins.cancel": "キャンセル",
   "plugins.allow": "実行を許可",
   "plugins.started_tools": "起動しました。このツール{n}個をバックエンドに伝えます。",
@@ -818,6 +821,10 @@ const ja: Record<string, string> = {
   "plugins.keep_on": "オンのままにする",
   "plugins.err_enable": "オンにできませんでした。",
   "plugins.err_disable": "オフにできませんでした。",
+  "plugins.err_update": "アップデートできませんでした。",
+  "plugins.err_retry": "サーバーをもう一度起動できませんでした。",
+  "plugins.err_install": "インストールできませんでした。",
+  "plugins.err_folder": "フォルダを追加できませんでした。",
 
   // reasoning
   "think.chip": "思考",

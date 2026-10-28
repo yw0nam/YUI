@@ -38,6 +38,7 @@ export function createPluginsPage(deps: {
     error: "",
   };
   let catalogLoad: Promise<void> | null = null;
+  const folder: { busy: boolean; error?: string } = { busy: false };
   let check: CheckState = null;
   let checkTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -76,7 +77,7 @@ export function createPluginsPage(deps: {
         entries: catalog.entries.filter((c) => !installed.has(c.id)),
         error: catalog.error,
         install: installOf,
-        folder: { busy: false },
+        folder,
       });
 
     // A block fades in only on the render it first shows up in.
@@ -133,14 +134,19 @@ export function createPluginsPage(deps: {
   }
 
   /** Runs one managing call; a rejection becomes the plugin's error line. */
-  async function attempt(id: string, lead: string, call: () => Promise<unknown>): Promise<boolean> {
+  async function attempt(
+    id: string,
+    lead: string,
+    call: () => Promise<unknown>,
+    retry?: string,
+  ): Promise<boolean> {
     const state = uiOf(id);
     state.error = undefined;
     try {
       await call();
       return true;
     } catch (err) {
-      state.error = { lead, message: String(err) };
+      state.error = { lead, message: String(err), retry };
       log.warn("plugins.call_failed", { id, lead, error: String(err) });
       return false;
     } finally {
@@ -164,6 +170,43 @@ export function createPluginsPage(deps: {
   function disable(id: string): void {
     uiOf(id).flow = undefined;
     void attempt(id, "plugins.err_disable", () => manage.disable(id));
+  }
+
+  async function update(id: string): Promise<void> {
+    const state = uiOf(id);
+    state.updating = true;
+    await attempt(id, "plugins.err_update", () => manage.install(id), "update");
+    state.updating = false;
+    render();
+  }
+
+  async function install(id: string): Promise<void> {
+    const state = installOf(id);
+    state.installing = true;
+    state.error = undefined;
+    render();
+    try {
+      await manage.install(id);
+    } catch (err) {
+      state.error = String(err);
+      log.warn("plugins.install_failed", { id, error: String(err) });
+    }
+    state.installing = false;
+    render();
+  }
+
+  async function addLocal(): Promise<void> {
+    folder.busy = true;
+    folder.error = undefined;
+    render();
+    try {
+      await manage.addLocal();
+    } catch (err) {
+      folder.error = String(err);
+      log.warn("plugins.add_local_failed", { error: String(err) });
+    }
+    folder.busy = false;
+    render();
   }
 
   function readLog(id: string): void {
@@ -201,6 +244,11 @@ export function createPluginsPage(deps: {
       uiOf(id).flow = undefined;
     },
     off: disable,
+    retry: (id, button) =>
+      void attempt(id, "plugins.err_retry", () => manage.retry(button.dataset.sid ?? "")),
+    update: (id) => void update(id),
+    install: (_, button) => void install(button.dataset.cid ?? ""),
+    folder: () => void addLocal(),
     tools: (id) => {
       const state = uiOf(id);
       state.toolsOpen = !state.toolsOpen;
