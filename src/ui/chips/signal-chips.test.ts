@@ -30,6 +30,13 @@ describe("createSignalChips", () => {
   let history: { rows: SignalRecord[]; subs: Set<() => void> };
 
   beforeEach(() => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    );
     vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
       cb(0);
       return 1;
@@ -44,6 +51,7 @@ describe("createSignalChips", () => {
   afterEach(() => {
     document.body.innerHTML = "";
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
     vi.useRealTimers();
   });
 
@@ -221,13 +229,17 @@ describe("createSignalChips", () => {
     expect(chipEls()[1]!.isSameNode(first)).toBe(true);
   });
 
-  it("the details take focus on the close button and give it back to the chip", () => {
+  it("the details take focus on the close button and give it back to the chip without scrolling", () => {
     build([group(1)]);
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
 
     click(opener(0));
     expect(document.activeElement).toBe(mount.querySelector(".yui-sigdetails__close"));
+    expect(focus).toHaveBeenLastCalledWith({ preventScroll: true });
 
+    focus.mockClear();
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     expect(document.activeElement).toBe(opener(0));
+    expect(focus).toHaveBeenLastCalledWith({ preventScroll: true });
   });
 });
