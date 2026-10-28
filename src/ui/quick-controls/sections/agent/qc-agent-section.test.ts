@@ -121,9 +121,9 @@ describe("createQuickControls — agent section", () => {
 
     const seg = qc.el.querySelector<HTMLElement>(".yui-seg")!;
     const btns = Array.from(seg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
-    // order: none · minimal · low · medium
-    expect(btns).toHaveLength(4);
-    const medium = btns[3];
+    // order: default · none · minimal · low · medium
+    expect(btns).toHaveLength(5);
+    const medium = btns[4];
 
     medium.click();
 
@@ -142,12 +142,12 @@ describe("createQuickControls — agent section", () => {
 
     const seg = qc.el.querySelector<HTMLElement>(".yui-seg")!;
     const btns = Array.from(seg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
-    // start at none (index 0)
+    // start at default (index 0)
     expect(btns[0].getAttribute("aria-checked")).toBe("true");
 
     btns[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
 
-    expect(agentSettings.get().reasoning_effort).toBe("minimal");
+    expect(agentSettings.get().reasoning_effort).toBe("none");
     expect(btns[1].getAttribute("aria-checked")).toBe("true");
     expect(btns[0].getAttribute("aria-checked")).toBe("false");
 
@@ -163,7 +163,7 @@ describe("createQuickControls — agent section", () => {
     qc.open();
 
     const btns = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
-    expect(btns[3].getAttribute("aria-checked")).toBe("true"); // medium
+    expect(btns[4].getAttribute("aria-checked")).toBe("true"); // medium
     expect(btns[0].getAttribute("aria-checked")).toBe("false");
 
     qc.dispose();
@@ -176,7 +176,7 @@ describe("createQuickControls — agent section", () => {
     agentSettings.setReasoningEffort("low");
 
     const btns = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
-    expect(btns[2].getAttribute("aria-checked")).toBe("true"); // low
+    expect(btns[3].getAttribute("aria-checked")).toBe("true"); // low
 
     qc.dispose();
   });
