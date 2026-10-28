@@ -1,5 +1,21 @@
 {
   "schema": 1,
-  "official": [],
+  "official": [
+    {
+      "id": "browser",
+      "version": "0.1.0",
+      "summary": "Lets each character run JavaScript in its own ego lite browser task space and see screenshots.",
+      "assets": {
+        "darwin-arm64": {
+          "url": "https://github.com/yw0nam/YUI/releases/download/plugin-browser-v0.1.0/browser-0.1.0-darwin-arm64.zip",
+          "sha256": "78fb4374626811a0cef4f2b8ebfff8ea1e7b612652eb6bfcd5a7c795f0a2a718"
+        },
+        "windows-x64": {
+          "url": "https://github.com/yw0nam/YUI/releases/download/plugin-browser-v0.1.0/browser-0.1.0-windows-x64.zip",
+          "sha256": "ca1182ce41a8f75571771bad076749fb8a4e78b0728f2fe0cc999bc080c351c9"
+        }
+      }
+    }
+  ],
   "community": []
 }
