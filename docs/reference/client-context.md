@@ -609,7 +609,6 @@ all situational detail still lives in the trigger lines above.
 | `proactive.wake`, cause `timeout` | `(you just woke up)` |
 | `proactive.*` (other) | `(I've gone quiet for a while)` |
 | `schedule.*` | `(it's the time of day you check in on me)` |
-| `signals.push` | `(a new signal just arrived for you)` |
 | `signals.batch` | `(a few signals batched up for you)` |
 | `signals.catchup` | `(signals piled up for you)` |
 | `signals.urgent` | `(something urgent just came in for you)` |

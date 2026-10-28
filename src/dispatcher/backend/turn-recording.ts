@@ -4,7 +4,6 @@ import type { ContextHistoryEntry } from "../../io/chat/conversation/context-his
 import type { SignalRecord } from "../../io/chat/conversation/signal-history-store";
 import { buildTurnRecord, type TurnRecord } from "../../io/chat/record/turn-record-log";
 import type { Logger } from "../../logger";
-import { deliveryClassOf } from "../turn/signal-lines";
 import type { buildContext } from "./context-builder";
 
 export interface TurnRecordingDeps {
@@ -81,7 +80,7 @@ export function recordSentTurn(deps: TurnRecordingDeps, log: Logger, turn: SentT
           source: group.envelope.source,
           event_type: group.envelope.event_type,
           label: group.envelope.label ?? null,
-          delivery: deliveryClassOf(group.envelope.delivery),
+          delivery: group.envelope.delivery,
           ts: Date.now(),
           said: turn.spokeText && assistantText ? assistantText : null,
         }),

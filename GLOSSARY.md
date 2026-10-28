@@ -119,7 +119,7 @@ _Avoid_: client line, system line
 A burst of events from an external producer POSTed to the `/signals` ingress, flushed as one turn.
 
 **Delivery class**:
-How urgent a signal group is, chosen by the producer: `urgent` (handle now), `batched` (can wait and go out together), or the deprecated `immediate` (removed in v0.6.0; use `urgent` or `batched`). The client routes by it and shows it as the dot and class of a source line, where `immediate` reads as `batched`; it never changes the wire value.
+How urgent a signal group is, chosen by the producer: `urgent` (handle now) or `batched` (can wait and go out together). The client routes by it and shows it as the dot and class of a source line; it never changes the wire value.
 _Avoid_: tier, urgency, priority
 
 **Signal chip**:

@@ -234,8 +234,8 @@ export type SignalItem = Record<string, unknown>;
 export type SignalEnvelope = {
   source: string;
   event_type: string;
-  /** immediate: deprecated, fire at once when eligible; batched: wait for the interval; urgent: handle now, skips the proactive pacer. */
-  delivery: "immediate" | "batched" | "urgent";
+  /** urgent: handle now, skips the proactive pacer; batched: wait for the interval. */
+  delivery: "urgent" | "batched";
   event_id: string;
   occurred_at: number;
   /** producer's one-line origin, at most 120 code points; rendered by the UI, not sent in client_context. */
@@ -264,7 +264,7 @@ export interface TriggerMeta {
   idle_elapsed_min?: number;
   /** addressed.* — another open character's reply named this character through address_character. */
   addressed?: { from: string; text: string; ts: number; user_message?: string };
-  /** signals.push / signals.batch / signals.catchup / signals.urgent / signals.urgent_catchup — grouped opaque items forwarded from the /signals ingress. */
+  /** signals.batch / signals.catchup / signals.urgent / signals.urgent_catchup — grouped opaque items forwarded from the /signals ingress. */
   signals?: SignalGroup[];
   /** proactive.screen_* — a frontmost-app transition fired this turn. */
   screen?: {

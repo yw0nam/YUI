@@ -2,10 +2,10 @@
  * signals_source — grouped `signals` ingress firing source.
  *
  * Two buffered-inbox cores share the presence, busy, enable, and lifecycle skeleton: the
- * non-urgent core delivers `immediate`/`batched` groups behind the paced busy predicate, and
- * the urgent core delivers `urgent` groups (handle now) behind the raw busy predicate — a
- * proactive gap never holds them. Each group routes to exactly one core, so urgent and
- * non-urgent groups never share a catch-up turn.
+ * batched core holds `batched` groups behind the paced busy predicate, and the urgent core
+ * delivers `urgent` groups (handle now) behind the raw busy predicate — a proactive gap never
+ * holds them. Each group routes to exactly one core, so urgent and batched groups never share
+ * a catch-up turn.
  * This module owns envelope validation, delivery routing, buffer caps, and the lazy
  * batched-delivery timer. Signal item contents remain opaque.
  */
@@ -34,7 +34,7 @@ interface SignalsSourceDeps {
   /** Called with every parsed group before routing, buffered or not. */
   onArrival?: (group: SignalGroup) => void;
   now?: () => number;
-  /** Paced busy predicate for immediate/batched groups — the proactive gap reads as busy. */
+  /** Paced busy predicate for batched groups — the proactive gap reads as busy. */
   isPipelineBusy?: () => boolean;
   subscribePipelineBusy?: (cb: (busy: boolean) => void) => () => void;
   /** Raw busy predicate for urgent groups — the proactive gap does not reach them. */
@@ -64,9 +64,7 @@ function validEnvelope(value: unknown): value is SignalEnvelope {
     envelope.source.length > 0 &&
     typeof envelope.event_type === "string" &&
     envelope.event_type.length > 0 &&
-    (envelope.delivery === "immediate" ||
-      envelope.delivery === "batched" ||
-      envelope.delivery === "urgent") &&
+    (envelope.delivery === "batched" || envelope.delivery === "urgent") &&
     (envelope.label === undefined || typeof envelope.label === "string") &&
     typeof envelope.event_id === "string" &&
     envelope.event_id.length > 0 &&
@@ -77,29 +75,18 @@ function validEnvelope(value: unknown): value is SignalEnvelope {
 }
 
 export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
-  const awayBuffer: BufferedGroup[] = [];
   const batchBuffer: BufferedGroup[] = [];
   const urgentBuffer: BufferedGroup[] = [];
   let nextSequence = 0;
   let frontSequence = 0;
-  let warnedImmediate = false;
-  let warnedLegacy = false;
-  let nextLegacyId = 0;
   let batchTimer: ReturnType<typeof setTimeout> | undefined;
-
-  function groupsInArrivalOrder(): SignalGroup[] {
-    return [...awayBuffer, ...batchBuffer]
-      .sort((left, right) => left.sequence - right.sequence)
-      .map(({ group }) => group);
-  }
 
   function clearBatchTimer(): void {
     if (batchTimer !== undefined) clearTimeout(batchTimer);
     batchTimer = undefined;
   }
 
-  function clearBuffers(): void {
-    awayBuffer.length = 0;
+  function clearBatchBuffer(): void {
     batchBuffer.length = 0;
     clearBatchTimer();
   }
@@ -114,45 +101,15 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     if (buffer.length > BUFFER_CAP) buffer.shift();
   }
 
-  // Deprecated: removed in v0.6.0. Use an envelope. A batch without one is delivered as
-  // `immediate`, as v0.4.0 delivered it.
-  function withLegacyEnvelope(raw: SignalsBatch): unknown {
-    if (raw.envelope != null) return raw.envelope;
-    if (!warnedLegacy) {
-      warnedLegacy = true;
-      log.warn("deprecated", {
-        what: "signals without an envelope",
-        removed_in: "v0.6.0",
-        use: "an envelope",
-      });
-    }
-    return {
-      source: "legacy",
-      event_type: "signals",
-      delivery: "immediate",
-      event_id: `legacy-${raw.ts}-${nextLegacyId++}`,
-      occurred_at: raw.ts,
-    };
-  }
-
   function parse(raw: SignalsBatch): RoutedGroup | undefined {
     if (!Array.isArray((raw as unknown as { signals?: unknown })?.signals)) {
       log.debug("inbox_malformed", { degrade: true });
       return undefined;
     }
-    const envelope = withLegacyEnvelope(raw as SignalsBatch);
+    const envelope = raw.envelope;
     if (!validEnvelope(envelope)) {
       log.warn("envelope_invalid", { dropped_items: raw.signals.length });
       return undefined;
-    }
-    // Deprecated: removed in v0.6.0. Use urgent or batched.
-    if (envelope.delivery === "immediate" && raw.envelope != null && !warnedImmediate) {
-      warnedImmediate = true;
-      log.warn("deprecated", {
-        what: "delivery immediate",
-        removed_in: "v0.6.0",
-        use: "urgent or batched",
-      });
     }
     const { label } = envelope;
     const cut =
@@ -199,10 +156,6 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     };
   }
 
-  function buildLive(item: RoutedGroup): InboxFiring {
-    return { event_name: "signals.push", payload: { signals: [item.group] } };
-  }
-
   function buildUrgentDelivery(item: RoutedGroup): InboxFiring {
     return { event_name: "signals.urgent", payload: { signals: [item.group] } };
   }
@@ -221,24 +174,25 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
   }
 
   function bufferFor(delivery: SignalEnvelope["delivery"]): BufferedGroup[] {
-    if (delivery === "urgent") return urgentBuffer;
-    return delivery === "batched" ? batchBuffer : awayBuffer;
+    return delivery === "urgent" ? urgentBuffer : batchBuffer;
   }
 
   function bufferAdd(item: RoutedGroup): void {
-    const buffer = bufferFor(item.delivery);
-    const wasEmpty = buffer.length === 0;
-    appendCapped(buffer, item.group);
-    if (item.delivery === "batched" && wasEmpty) armBatchTimer();
+    const wasEmpty = batchBuffer.length === 0;
+    appendCapped(batchBuffer, item.group);
+    if (wasEmpty) armBatchTimer();
   }
 
   function buildCatchup(): InboxFiring {
-    return { event_name: "signals.catchup", payload: { signals: groupsInArrivalOrder() } };
+    return {
+      event_name: "signals.catchup",
+      payload: { signals: batchBuffer.map(({ group }) => group) },
+    };
   }
 
   function drain(): SignalGroup[] {
-    const groups = groupsInArrivalOrder();
-    clearBuffers();
+    const groups = batchBuffer.map(({ group }) => group);
+    clearBatchBuffer();
     return groups;
   }
 
@@ -290,23 +244,21 @@ export function createSignalsSource(deps: SignalsSourceDeps): SignalsSource {
     bus: deps.bus,
     present_max_idle_ms: deps.present_max_idle_ms,
     isEnabled: deps.isEnabled,
-    onInbox: inboxFor((item) => item.delivery !== "urgent"),
+    onInbox: inboxFor((item) => item.delivery === "batched"),
     listen: deps.listen,
     now: deps.now,
     isPipelineBusy: deps.isPipelineBusy,
     subscribePipelineBusy: deps.subscribePipelineBusy,
     log,
     parse: (item) => item,
-    buildLive,
-    shouldBuffer: (item) => item.delivery === "batched",
     bufferAdd,
-    bufferEmpty: () => awayBuffer.length === 0 && batchBuffer.length === 0,
-    bufferClear: clearBuffers,
+    bufferEmpty: () => batchBuffer.length === 0,
+    bufferClear: clearBatchBuffer,
     buildCatchup,
   });
 
   async function start(): Promise<void> {
-    // Non-urgent first: an urgent turn opens the pacer gap that would drop the paced catch-up.
+    // Batched first: an urgent turn opens the pacer gap that would drop the paced catch-up.
     await core.start();
     await urgentCore.start();
     armBatchTimer();

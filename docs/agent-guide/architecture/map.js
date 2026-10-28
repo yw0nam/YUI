@@ -2079,7 +2079,7 @@ globalThis.YUI_MAP =
       "id": "signals-ingress",
       "from": "signal-producers",
       "to": "shell/agent-ingress",
-      "carries": "POST /signals {signals, envelope {delivery: urgent|batched|immediate (deprecated), event_id, label?}}, or the same path under /presets/<id>/; an item over 16 KiB refuses the request",
+      "carries": "POST /signals {signals, envelope {delivery: urgent|batched, event_id, label?}}, or the same path under /presets/<id>/; a missing envelope or an item over 16 KiB refuses the request",
       "kind": "http",
       "transport": "shared"
     },
@@ -2309,7 +2309,7 @@ globalThis.YUI_MAP =
       "id": "inbox-bus",
       "from": "dispatcher/sources/inbox",
       "to": "dispatcher/core",
-      "carries": "bus.push: signals.push, signals.batch, signals.catchup, signals.urgent, signals.urgent_catchup",
+      "carries": "bus.push: signals.batch, signals.catchup, signals.urgent, signals.urgent_catchup",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/turn/wire-sources.ts"

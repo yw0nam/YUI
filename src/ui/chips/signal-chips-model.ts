@@ -1,14 +1,13 @@
 /** Signal chips model — the signal groups beside the avatar, newest first, in memory only. */
 
 import type { SignalGroup } from "../../contract";
-import { deliveryClassOf } from "../../dispatcher/turn/signal-lines";
 import { DELEGATION_DONE_TTL_MS } from "../../io/bridge/delegations/delegations-store";
 import type { SignalRecord } from "../../io/chat/conversation/signal-history-store";
 import { DELEGATION_REFRESH_MS } from "./delegation-rows";
 
 export interface SignalChipItem {
   group: SignalGroup;
-  /** The group's delivery class; the deprecated `immediate` reads as batched. */
+  /** The group's delivery class. */
   delivery: "urgent" | "batched";
   received_at: number;
   /** What YUI said on the turn that ran this group, null while silent or unknown. */
@@ -31,7 +30,7 @@ export function createSignalChipsModel({
   let timer: ReturnType<typeof setInterval> | null = null;
   const subscribers = new Set<() => void>();
 
-  const deliveryOf = (h: Held) => deliveryClassOf(h.group.envelope.delivery);
+  const deliveryOf = (h: Held) => h.group.envelope.delivery;
   const emit = (): void => {
     for (const cb of subscribers) cb();
   };

@@ -51,8 +51,7 @@ pub(super) fn parse_route(method: &str, url: &str, body: &str) -> Result<Route, 
             let request = parse_signals_request(method, &path, body)?;
             RouteKind::Signals(SignalsPayload {
                 signals: request.signals,
-                // Deprecated: removed in v0.6.0. Use an envelope.
-                envelope: request.envelope.unwrap_or(serde_json::Value::Null),
+                envelope: request.envelope.ok_or(400u16)?,
                 ts: epoch_ms(),
             })
         }
