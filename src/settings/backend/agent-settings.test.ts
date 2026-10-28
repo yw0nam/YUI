@@ -12,7 +12,7 @@ import { type Card, EMPTY_CARD } from "../../config/validators/persona/types";
 import type { AgentSettings, AgentStorage } from "./agent-settings";
 import { createAgentSettings, localStorageAgentStorage, REASONING_EFFORTS } from "./agent-settings";
 
-const DEFAULTS = { reasoning_effort: "none", send_card: true, card: null };
+const DEFAULTS = { reasoning_effort: "default", send_card: true, card: null };
 const OWN: Card = { ...EMPTY_CARD, name: "Mira", alternate_greetings: ["Evening."], tags: [] };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -21,7 +21,7 @@ const OWN: Card = { ...EMPTY_CARD, name: "Mira", alternate_greetings: ["Evening.
 
 describe("agent-settings constants", () => {
   it("REASONING_EFFORTS is the expected ordered list", () => {
-    expect(REASONING_EFFORTS).toEqual(["none", "minimal", "low", "medium"]);
+    expect(REASONING_EFFORTS).toEqual(["default", "none", "minimal", "low", "medium"]);
   });
 });
 
@@ -41,12 +41,12 @@ describe("createAgentSettings — defaults", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createAgentSettings — load coercion", () => {
-  it("coerces invalid stored reasoning_effort to 'none'", () => {
+  it("coerces invalid stored reasoning_effort to 'default'", () => {
     const storage: AgentStorage = {
       load: () => ({ reasoning_effort: "bogus" }) as unknown as AgentSettings,
       save: vi.fn(),
     };
-    expect(createAgentSettings({ storage }).get().reasoning_effort).toBe("none");
+    expect(createAgentSettings({ storage }).get().reasoning_effort).toBe("default");
   });
 
   it("reads a stored instructions string as an own card and never writes it back", () => {
@@ -65,7 +65,7 @@ describe("createAgentSettings — load coercion", () => {
 
   it("reads an empty stored instructions string as the default card", () => {
     const storage: AgentStorage = {
-      load: () => ({ reasoning_effort: "none", instructions: "" }) as never,
+      load: () => ({ reasoning_effort: "default", instructions: "" }) as never,
       save: vi.fn(),
     };
     expect(createAgentSettings({ storage }).get()).toEqual(DEFAULTS);
@@ -95,22 +95,22 @@ describe("createAgentSettings — setReasoningEffort", () => {
     expect(storage.save).toHaveBeenCalledWith({ ...DEFAULTS, reasoning_effort: "medium" });
   });
 
-  it("invalid effort coerces to 'none' (no-op from default state)", () => {
+  it("invalid effort coerces to 'default' (no-op from default state)", () => {
     const store = createAgentSettings();
     const cb = vi.fn();
     store.subscribe(cb);
     store.setReasoningEffort("nope" as unknown as AgentSettings["reasoning_effort"]);
-    expect(store.get().reasoning_effort).toBe("none");
+    expect(store.get().reasoning_effort).toBe("default");
     expect(cb).not.toHaveBeenCalled();
   });
 
-  it("invalid effort coerces to 'none' (notifies when changing from non-default)", () => {
+  it("invalid effort coerces to 'default' (notifies when changing from non-default)", () => {
     const store = createAgentSettings();
     store.setReasoningEffort("medium");
     const cb = vi.fn();
     store.subscribe(cb);
     store.setReasoningEffort("nope" as unknown as AgentSettings["reasoning_effort"]);
-    expect(store.get().reasoning_effort).toBe("none");
+    expect(store.get().reasoning_effort).toBe("default");
     expect(cb).toHaveBeenCalledOnce();
   });
 

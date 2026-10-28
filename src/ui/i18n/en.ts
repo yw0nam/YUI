@@ -248,6 +248,7 @@ const en: Record<string, string> = {
   // reasoning effort segment
   "reasoning.label": "Reasoning effort",
   "reasoning.sub": "How deeply to think before answering",
+  "reasoning.default": "Default",
   "reasoning.none": "None",
   "reasoning.minimal": "Minimal",
   "reasoning.low": "Low",

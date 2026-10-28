@@ -20,6 +20,7 @@ export const LANG_PICKER_ORDER: readonly Locale[] = ["ja", "en", "ko"];
 
 // reasoning effort → i18n key for its segment label.
 export const SEG_LABEL_KEYS: Record<ReasoningEffort, string> = {
+  default: "reasoning.default",
   none: "reasoning.none",
   minimal: "reasoning.minimal",
   low: "reasoning.low",

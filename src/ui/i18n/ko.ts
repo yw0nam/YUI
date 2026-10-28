@@ -249,6 +249,7 @@ const ko: Record<string, string> = {
   // reasoning effort segment
   "reasoning.label": "추론 강도",
   "reasoning.sub": "답변 전 얼마나 깊게 생각할지",
+  "reasoning.default": "기본",
   "reasoning.none": "없음",
   "reasoning.minimal": "최소",
   "reasoning.low": "낮음",

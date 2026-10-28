@@ -560,7 +560,7 @@ describe("backend_caller — agent settings (reasoning effort)", () => {
     expect(request.reasoning_effort).toBe("medium");
   });
 
-  it("getAgentSettings 'none' → reasoning_effort always sent; no instructions without a card", async () => {
+  it("getAgentSettings 'none' → reasoning_effort sent; no instructions without a card", async () => {
     script.events = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
       config: CONFIG,
@@ -576,6 +576,23 @@ describe("backend_caller — agent settings (reasoning effort)", () => {
     const [, request] = script.spy.mock.calls[0];
     expect(request.reasoning_effort).toBe("none");
     expect("instructions" in request).toBe(false);
+  });
+
+  it("getAgentSettings 'default' → no reasoning_effort, so the model's own default applies", async () => {
+    script.events = [completedEvent({ speech_text: "" })];
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      turnOutput,
+      getAgentSettings: () => ({ reasoning_effort: "default", send_card: true, card: null }),
+      getCardText: () => null,
+    });
+    await caller.call(turnOf(userEnv()));
+    const [, request] = script.spy.mock.calls[0];
+    expect("reasoning_effort" in request).toBe(false);
   });
 
   it("getAgentSettings absent → request carries neither (back-compat)", async () => {
