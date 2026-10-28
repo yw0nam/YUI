@@ -143,10 +143,10 @@ _Avoid_: Mod
 How an MCP server reaches the brain through the backend agent's own MCP configuration; the servers under `plugins/` are reached this way, over a loopback port and an SSH reverse tunnel.
 
 **YUI-hosted**:
-How an MCP server reaches the brain when YUI runs it and declares its tools through the bridge tools. Pairs with Backend-attached.
+How an MCP server runs when YUI starts it as its own child process through the MCP host, which publishes the server's tools in the host's snapshot. Pairs with Backend-attached.
 
 **MCP host**:
-The part of the Rust shell that runs YUI-hosted MCP servers (`src-tauri/src/mcp_host/`).
+The part of the Rust shell that runs YUI-hosted MCP servers (`src-tauri/src/mcp_host/`). Its Tauri commands carry the prefix `plugin_host_` and its snapshot event the prefix `plugin-host-`.
 _Avoid_: plugin manager, runtime
 
 **Skill**:

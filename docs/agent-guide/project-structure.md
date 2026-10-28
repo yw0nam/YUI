@@ -815,15 +815,16 @@ YUI/
         script.rs                    # The prelude wrapped around the caller's code
         shots.rs                     # The per-call screenshot folder, its collection and encode, and the stale sweep
       mcp_host/                      # The MCP host: runs local plugins' MCP servers as YUI-hosted servers
-        mod.rs                       # The host's behaviour, its setup, and the window-destroyed and exit hooks
+        mod.rs                       # The host's behaviour, its setup, and the window and run event hooks
         commands.rs                  # The plugin_host_* commands, each forwarding to Host
-        host.rs                      # Host: the listed plugins and their servers, enable, disable, retry, calls, skills, and snapshot publishing
+        host.rs                      # Host: the listed plugins, the stored state, snapshot publishing, and add, enable, disable, retry, calls, skills
+        lifecycle.rs                 # Server starts and stops: epoch-tagged tickets, start results, exits, and stops that cancel calls first
         manifest.rs                  # Reads a plugin folder: plugin.json, .mcp.json servers in file order, and skills/*/SKILL.md
         launch.rs                    # A server's command: placeholder expansion, no shell, process group or job object
-        server.rs                    # One server: start under the deadline, stderr log and tail, exit watch, and tree stop
-        calls.rs                     # In-flight tool calls per window: preset _meta, deadline, and cancel
+        server.rs                    # One server: spawn, connect under the deadline, stderr log and tail, exit watch, and tree stop
+        calls.rs                     # In-flight tool calls per window and server: preset _meta, deadline, and cancel
         store.rs                     # state.json load and save through a temp file and rename
-        snapshot.rs                  # Snapshot types and the name conflict rule
+        snapshot.rs                  # Snapshot types, a plugin's entry, and the name conflict rule
         test_support.rs              # Test helpers: the fixture plugin, temp folders, polling
       agent_ingress/
         mod.rs                       # Loopback HTTP listener for signals and the avatar RPC surface, routed to main or the pet window a /presets/<id>/ path names

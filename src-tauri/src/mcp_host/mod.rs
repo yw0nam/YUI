@@ -5,7 +5,8 @@
 //!   the folder the user consented to, and the order plugins were enabled in. It is written to
 //!   `state.json.tmp` and renamed over the file. A file that is not JSON moves to
 //!   `state.json.bad` and the host starts empty; a file that cannot be read lists nothing and
-//!   every managing command fails, so stored enablement is never overwritten.
+//!   every managing command fails, so stored enablement is never overwritten. Without an app
+//!   data dir the host behaves the same way.
 //! - **Consent.** A plugin runs only when it is enabled and its folder is the one consented to;
 //!   enabling consents to the current folder.
 //! - **Servers.** Each `.mcp.json` server is spawned without a shell, in the plugin folder, with
@@ -20,9 +21,12 @@
 //!   first, keeps a tool name; the plugin enabled first keeps a skill name. A later plugin's
 //!   colliding name is left out of its declared lists and calls and recorded in its `hidden`.
 //! - **Calls.** A call carries the window's preset in `_meta` and ends at the tool's `wait_ms`
-//!   (30 s by default, 120 s at most) or when its window cancels it or is destroyed; either
-//!   sends `notifications/cancelled`.
-//! - **Shutdown.** App exit closes every server's connection and kills its process tree.
+//!   (30 s by default, 120 s at most), when its window cancels it or is destroyed, or when its
+//!   server stops; each sends `notifications/cancelled`. A window cannot reuse the id of its
+//!   call still in flight.
+//! - **Stop.** Disable, retry and app exit cancel the server's calls, close its connection,
+//!   give it 1 s to exit, then kill its process tree; a server still starting has its tree
+//!   killed at once. At app start each enabled plugin starts as its own task.
 
 mod calls;
 pub mod commands;
