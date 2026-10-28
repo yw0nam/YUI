@@ -313,7 +313,9 @@ describe("renderClientContext — open characters line", () => {
       NOW,
     );
     expect(text).not.toContain("</client_context>");
-    expect(text.split("\n").filter((l) => l.startsWith("open characters:"))).toHaveLength(1);
+    expect(text.split("\n").filter((l) => l.startsWith("open characters:"))).toEqual([
+      'open characters: "alice bob"',
+    ]);
   });
 });
 
