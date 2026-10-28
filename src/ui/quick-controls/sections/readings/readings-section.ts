@@ -18,7 +18,7 @@ interface ReadingsSectionDeps {
 }
 
 // The same example in every language: the Korean bundle carries no Japanese script.
-const PLACEHOLDER = "秧秧=ヤンヤン\n穂穂=スイスイ";
+const PLACEHOLDER = "小明=シャオミン\n東雲=しののめ";
 
 export function readingsSectionHtml(): string {
   return `
