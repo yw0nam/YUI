@@ -29,31 +29,31 @@ impl BrowserServer {
         }
     }
 
-    /// Checks arguments in the order the built-in tool does, then reads the guide or runs the code.
+    /// Refuses `guide` with `code` and a call with neither, finds ego lite, then reads the guide or runs `code`.
     async fn answer(&self, space: &str, args: &JsonObject) -> CallToolResult {
+        let guide = args.get("guide") == Some(&Value::Bool(true));
         let code = args.get("code");
-        if args.get("guide") == Some(&Value::Bool(true)) {
-            if code.is_some_and(|c| *c != "") {
-                return failed("error: invalid field code".into());
-            }
-            let Some(bin) = (self.locate)() else {
-                return failed(NOT_FOUND.into());
-            };
-            return match self.relay.guide(&bin, LIMITS.kill_after).await {
-                Ok(guide) => CallToolResult::success(vec![ContentBlock::text(guide)]),
-                Err(e) => failed(e),
-            };
+        if guide && code.is_some_and(|c| *c != "") {
+            return failed("error: invalid field code".into());
         }
-        let Some(code) = code.and_then(Value::as_str).filter(|c| !c.is_empty()) else {
+        let code = code.and_then(Value::as_str).filter(|c| !c.is_empty());
+        if !guide && code.is_none() {
             return failed("error: missing field code".into());
-        };
+        }
         let Some(bin) = (self.locate)() else {
             return failed(NOT_FOUND.into());
         };
-        self.relay
-            .run(&bin, space, code, LIMITS)
-            .await
-            .map_or_else(failed, to_call_result)
+        match code {
+            Some(code) => self
+                .relay
+                .run(&bin, space, code, LIMITS)
+                .await
+                .map_or_else(failed, to_call_result),
+            None => match self.relay.guide(&bin, LIMITS.kill_after).await {
+                Ok(guide) => CallToolResult::success(vec![ContentBlock::text(guide)]),
+                Err(e) => failed(e),
+            },
+        }
     }
 }
 

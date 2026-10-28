@@ -167,8 +167,7 @@ pub(crate) mod tests {
     use std::sync::OnceLock;
     use std::time::Duration;
 
-    /// Mirrors ego's `nodejs` prelude: logs go to stderr, `taskSpace` pages write a 1×1 PNG.
-    /// A minimized window fails screenshots until `Browser.setWindowBounds` restores it, then once more.
+    /// Mirrors ego's `nodejs` prelude (logs on stderr, 1×1 PNG screenshots); a minimized window fails until restored, then once more.
     const FAKE_PRELUDE: &str = r#"import { writeFileSync, writeSync } from "node:fs";
 const __fakeWrite = (prefix, args) => writeSync(2, prefix + args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" ") + "\n");
 console.log = (...a) => __fakeWrite("", a);

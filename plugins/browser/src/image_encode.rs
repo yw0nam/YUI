@@ -10,10 +10,7 @@ const JPEG_QUALITY: u8 = 72;
 /// The media type of what `encode_capture` returns.
 pub const MIME: &str = "image/jpeg";
 
-/// Scale `(width, height)` down so `max(w, h) ≤ max_edge`.
-///
-/// Returns the pair unchanged when already within bounds or when `max_edge == 0`.
-/// Never returns 0 for a non-zero input dimension.
+/// Scales `(width, height)` down to a long edge of `max_edge` (0: unchanged), never to a 0 side.
 pub fn fit_long_edge(width: u32, height: u32, max_edge: u32) -> (u32, u32) {
     if max_edge == 0 || (width <= max_edge && height <= max_edge) {
         return (width, height);
@@ -24,9 +21,7 @@ pub fn fit_long_edge(width: u32, height: u32, max_edge: u32) -> (u32, u32) {
     (w, h)
 }
 
-/// Resize `raw` to long edge ≤ `max_edge`, encode as JPEG, return it base64-encoded.
-///
-/// `max_edge == 0` skips resize entirely.
+/// Resizes `raw` to a long edge of at most `max_edge` (0: no resize) and returns it as base64 JPEG.
 pub fn encode_capture(
     raw: ImageBuffer<Rgba<u8>, Vec<u8>>,
     max_edge: u32,

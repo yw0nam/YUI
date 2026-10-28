@@ -12,10 +12,7 @@ pub fn names_deadline(stderr: &str) -> bool {
         .any(|line| line.trim().ends_with(DEADLINE_MARKER))
 }
 
-/// Wraps `code` so it starts on line 6, runs in task space `space`, and stops itself after `deadline_ms`.
-///
-/// `screenshot` restores a minimized ego lite window, which macOS stops rendering, then retries every
-/// 100 ms for up to 2 s. Its body sits after `code` and is hoisted, so `code` keeps line 6.
+/// Wraps `code` to start on line 6 in task space `space`, stopping after `deadline_ms`; macOS stops rendering a minimized window, so `screenshot` restores it.
 pub fn build_script(space: &str, shot_dir: &Path, code: &str, deadline_ms: u64) -> String {
     let marker = serde_json::to_string(DEADLINE_MARKER).expect("a string serializes");
     let space = serde_json::to_string(space).expect("a string serializes");
