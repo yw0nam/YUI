@@ -17,6 +17,7 @@ import {
   SIGNAL_ENVELOPE,
 } from "../../test-helpers";
 import { createTurnLog } from "../../turn/turn";
+import { createProactiveSource } from "../idle-tick/proactive-source";
 import { createWakeSource } from "../wake/wake-source";
 import { createSignalsSource, type SignalsSource } from "./signals-source";
 
@@ -98,6 +99,84 @@ it("restores signals after a failed wake turn is dropped", async () => {
   ).toEqual([{ event_name: "proactive.wake", reason: "network_drop" }]);
   expect(signalsSource.drain()).toEqual([group]);
   dispatcher.stop();
+  signalsSource.stop();
+  pacer.stop();
+});
+
+it("restores a signals catch-up dropped at the global gap", async () => {
+  const handlers = new Set<(event: { payload: OsEventPayload }) => void>();
+  const listen: OsEventListen = async (_event, handler) => {
+    handlers.add(handler);
+    return () => {
+      handlers.delete(handler);
+    };
+  };
+  const tick = (os_idle_ms: number) => {
+    for (const handler of handlers)
+      handler({ payload: { event_name: "os_idle_tick", ts: Date.now(), data: { os_idle_ms } } });
+  };
+  let acceptSignals: ((event: SignalsBatch) => void) | undefined;
+  const bus = createEventBus();
+  const pacer = createProactivePacer({ getIntervalMs: () => 600_000 });
+  const call = vi.fn<BackendCaller["call"]>(async (): Promise<TurnOutcome> => "ok");
+  let signalsSource: SignalsSource;
+  const dispatcher = createDispatcher({
+    bus,
+    peekConfig: () => avatarFixture().peek,
+    tapConfig: () => avatarFixture().tap,
+    pacer,
+    backendCaller: { call },
+    guardrails: createGuardrails(permissiveGuardrailsConfig()),
+    turnLog: createTurnLog(),
+    renderer: {} as never,
+    hasOutstandingSpeech: () => false,
+    addressedChain: createDefaultAddressedChain(),
+    logger: makeLogger(),
+    onTurnDropped: (env) => signalsSource.restore(env),
+  });
+  const pipelineBusy = {
+    isBusy: dispatcher.isPipelineBusy,
+    subscribe: dispatcher.subscribePipelineBusy,
+  };
+  const paced = composePacedPipelineBusy({ pipelineBusy, pacer });
+  const proactive = createProactiveSource({
+    bus,
+    present_max_idle_ms: 10_000,
+    getCues: () => [{ id: "mid_check", label: "mid", context: "", idle_min: 1, enabled: true }],
+    isEnabled: () => true,
+    listen,
+  });
+  signalsSource = createSignalsSource({
+    bus,
+    present_max_idle_ms: 10_000,
+    isEnabled: () => true,
+    listen,
+    onInbox: (cb) => {
+      acceptSignals = cb;
+      return () => {};
+    },
+    isPipelineBusy: paced.isBusy,
+    subscribePipelineBusy: paced.subscribe,
+    isUrgentPipelineBusy: pipelineBusy.isBusy,
+    subscribeUrgentPipelineBusy: pipelineBusy.subscribe,
+  });
+  await proactive.start();
+  await signalsSource.start();
+  dispatcher.start();
+  tick(20_000);
+  vi.setSystemTime(NOW + 120_000);
+  const group: SignalGroup = { envelope: SIGNAL_ENVELOPE, items: [{ message: "ready" }] };
+  acceptSignals?.({ signals: group.items, envelope: group.envelope, ts: NOW + 120_000 });
+  tick(100);
+  await vi.advanceTimersByTimeAsync(50);
+  expect(call).toHaveBeenCalledTimes(1);
+  expect(call.mock.calls[0]![0].trigger.event_name).toBe("proactive.mid_check");
+  expect(
+    dispatcher.recentDrops().map(({ event_name, reason }) => ({ event_name, reason })),
+  ).toEqual([{ event_name: "signals.catchup", reason: "global_gap" }]);
+  expect(signalsSource.drain()).toEqual([group]);
+  dispatcher.stop();
+  proactive.stop();
   signalsSource.stop();
   pacer.stop();
 });

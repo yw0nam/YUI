@@ -741,6 +741,20 @@ describe("renderClientContext — duration math", () => {
     // clock skew: "since" is after "now" -> clamps to 0, never negative
     expect(renderClientContext(cc, SINCE - 5_000)).toContain("(for 0min)");
   });
+
+  it("raw epoch millis never appear in the rendered output, including frontmost and body_state since", () => {
+    const cc: ClientContext = {
+      env: {
+        timestamp: "2026-08-18T10:17:05+09:00",
+        timezone: "Asia/Seoul",
+        frontmost: { app: "X", since: SINCE },
+      },
+      body_state: { posture: { state: "sitting" }, since: SINCE },
+      trigger: { kind: "user" },
+    };
+    const text = renderClientContext(cc, NOW);
+    expect(text).not.toContain(String(SINCE));
+  });
 });
 
 describe("renderClientContext — exhaustiveness", () => {
