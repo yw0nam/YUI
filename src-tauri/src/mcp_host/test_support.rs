@@ -114,3 +114,19 @@ pub fn server_logged_a_cancel(host: &Host) -> bool {
         .iter()
         .any(|l| l.starts_with("[main] cancelled id="))
 }
+
+/// Sets `FIXTURE_MODE` for the fixture copy's server.
+pub fn set_mode(folder: &Path, mode: &str) {
+    let path = folder.join(".mcp.json");
+    let mut config: Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+    config["mcpServers"]["main"]["env"]["FIXTURE_MODE"] = json!(mode);
+    std::fs::write(path, config.to_string()).unwrap();
+}
+
+/// The pid of the `sleep` a `hang` fixture server logged, once it has.
+pub fn hung_child(host: &Host, plugin_id: &str) -> Option<i32> {
+    host.log_tail(plugin_id)
+        .unwrap()
+        .iter()
+        .find_map(|l| l.strip_prefix("[main] child pid=")?.parse().ok())
+}

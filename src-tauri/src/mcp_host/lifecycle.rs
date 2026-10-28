@@ -197,7 +197,8 @@ impl Host {
 #[cfg(all(test, unix))]
 mod tests {
     use super::super::test_support::{
-        eventually, require_python, running, server_logged_a_cancel, slow_call,
+        eventually, fixture_copy, gone, host_at, hung_child, require_python, running,
+        server_logged_a_cancel, set_mode, slow_call, temp_dir,
     };
     use std::time::Duration;
 
@@ -218,5 +219,24 @@ mod tests {
             "{:?}",
             host.log_tail("yui-test")
         );
+    }
+
+    #[tokio::test]
+    async fn shutdown_kills_a_server_that_is_still_starting() {
+        require_python();
+        let (host, _) = host_at(&temp_dir());
+        let folder = fixture_copy("yui-test");
+        set_mode(&folder, "hang");
+        host.add(folder).unwrap();
+        let enabling = tokio::spawn({
+            let host = host.clone();
+            async move { host.enable("yui-test").await }
+        });
+        assert!(eventually(|| hung_child(&host, "yui-test").is_some()).await);
+        host.shutdown().await;
+        let pid = hung_child(&host, "yui-test").unwrap();
+        let killed = eventually(|| gone(pid)).await;
+        enabling.abort();
+        assert!(killed, "sleep {pid} still runs");
     }
 }
