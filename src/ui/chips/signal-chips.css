@@ -77,12 +77,16 @@
 }
 
 .yui-sigchip__src {
-  flex: none;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-weight: 600;
   color: var(--yui-text);
 }
 
+/* In a narrow strip the label gives way first; the source ellipsizes only once the label is gone. */
 .yui-sigchip__text {
+  flex-shrink: 9999;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
