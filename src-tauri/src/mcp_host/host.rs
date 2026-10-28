@@ -575,7 +575,7 @@ fn unknown(plugin_id: &str) -> String {
 #[cfg(all(test, unix))]
 mod tests {
     use super::super::snapshot::{PluginEntry, Status};
-    use super::super::test_support::{eventually, fixture_copy, has_python, temp_dir};
+    use super::super::test_support::{eventually, fixture_copy, require_python, temp_dir};
     use super::*;
     use serde_json::{json, Value};
     use std::sync::Mutex;
@@ -605,9 +605,7 @@ mod tests {
 
     #[tokio::test]
     async fn enable_records_consent_that_a_new_host_honours_until_the_path_changes() {
-        if !has_python() {
-            return;
-        }
+        require_python();
         let app_data = temp_dir();
         let folder = fixture_copy("yui-test");
         let (host, _) = host_at(&app_data);
@@ -644,9 +642,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_later_plugin_runs_but_its_colliding_names_stay_hidden_until_the_holder_turns_off() {
-        if !has_python() {
-            return;
-        }
+        require_python();
         let app_data = temp_dir();
         let (host, _) = host_at(&app_data);
         for id in ["yui-a", "yui-b"] {
@@ -680,7 +676,6 @@ mod tests {
         host.disable("yui-a").await.unwrap();
         let after = host.snapshot();
         let b = plugin(&after, "yui-b");
-        assert!(after.revision > snapshot.revision);
         assert_eq!(
             tool_names(b),
             ["echo_args", "echo_meta", "slow", "spawn_child"]
@@ -695,9 +690,7 @@ mod tests {
 
     #[tokio::test]
     async fn every_change_emits_one_snapshot_one_revision_higher() {
-        if !has_python() {
-            return;
-        }
+        require_python();
         let app_data = temp_dir();
         let (host, emitted) = host_at(&app_data);
         assert_eq!(host.snapshot().revision, 0);
@@ -783,9 +776,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_call_carries_the_preset_in_its_meta() {
-        if !has_python() {
-            return;
-        }
+        require_python();
         let host = running("yui-test").await;
         let result = host
             .call("pet-a", "c1", "echo_meta", json!({}), "preset-1")
@@ -800,9 +791,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_call_times_out_at_the_tools_wait_ms_and_cancels_it() {
-        if !has_python() {
-            return;
-        }
+        require_python();
         let host = running("yui-test").await;
         let began = std::time::Instant::now();
         let result = host
@@ -833,9 +822,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_window_cancels_only_its_own_calls() {
-        if !has_python() {
-            return;
-        }
+        require_python();
         let host = running("yui-test").await;
         let first = slow_call(&host, "pet-a", "c1");
         tokio::time::sleep(Duration::from_millis(300)).await;
@@ -868,10 +855,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn skill_reads_a_declared_body_and_hidden_or_unknown_names_are_refused() {
-        if !has_python() {
-            return;
-        }
+    async fn skill_reads_a_body_and_an_unknown_skill_or_a_hidden_tool_is_refused() {
+        require_python();
         let host = running("yui-test").await;
         assert_eq!(
             host.skill("hello"),

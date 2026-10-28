@@ -8,16 +8,12 @@ pub fn fixture() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("fixtures/mcp-test-plugin")
 }
 
-/// False, with a printed note, when `python3` is not on PATH.
-pub fn has_python() -> bool {
+pub fn require_python() {
     let found = std::process::Command::new("python3")
         .arg("--version")
         .output()
         .is_ok_and(|o| o.status.success());
-    if !found {
-        eprintln!("skipped: python3 is required on PATH for the MCP host tests");
-    }
-    found
+    assert!(found, "python3 is required on PATH for the MCP host tests");
 }
 
 /// A new empty folder named `yui-mcp-host-<pid>-<nanos>-<counter>`.

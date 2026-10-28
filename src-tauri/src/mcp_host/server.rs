@@ -255,7 +255,7 @@ fn kill_group(_pgid: Option<u32>) {}
 #[cfg(all(test, unix))]
 mod tests {
     use super::super::manifest;
-    use super::super::test_support::{eventually, fixture, gone, has_python, temp_dir};
+    use super::super::test_support::{eventually, fixture, gone, require_python, temp_dir};
     use super::*;
     use rmcp::model::CallToolRequestParams;
     use serde_json::{json, Value};
@@ -316,9 +316,7 @@ mod tests {
 
     #[tokio::test]
     async fn start_lists_tools_and_passes_argv_without_a_shell() {
-        if !has_python() {
-            return;
-        }
+        require_python();
         let started = start_fixture(None, None, Duration::from_secs(30)).await;
         let server = started.result.expect("start failed");
         let names: Vec<&str> = server.tools.iter().map(|t| t.name.as_ref()).collect();
@@ -348,9 +346,7 @@ mod tests {
 
     #[tokio::test]
     async fn start_fails_at_initialize_on_the_deadline_and_kills_the_tree() {
-        if !has_python() {
-            return;
-        }
+        require_python();
         let started = start_fixture(Some("hang"), None, Duration::from_millis(300)).await;
         assert_eq!(
             started.result.err().map(|f| f.phase),
@@ -373,9 +369,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_server_that_ends_after_running_reports_its_exit_code() {
-        if !has_python() {
-            return;
-        }
+        require_python();
         let started = start_fixture(Some("exit"), None, Duration::from_secs(30)).await;
         let _server = started.result.expect("start failed");
         let reason = tokio::time::timeout(Duration::from_secs(5), started.exit).await;
@@ -404,9 +398,7 @@ mod tests {
 
     #[tokio::test]
     async fn stderr_goes_to_the_log_file_and_a_bounded_tail() {
-        if !has_python() {
-            return;
-        }
+        require_python();
         let started = start_fixture(Some("noisy"), None, Duration::from_secs(30)).await;
         let server = started.result.expect("start failed");
         let long = format!("[main] {}", "x".repeat(2000));
@@ -435,9 +427,7 @@ mod tests {
 
     #[tokio::test]
     async fn stop_kills_the_servers_children() {
-        if !has_python() {
-            return;
-        }
+        require_python();
         let started = start_fixture(None, None, Duration::from_secs(30)).await;
         let server = started.result.expect("start failed");
         let pid = call_json(&server, "spawn_child").await.as_i64().unwrap() as i32;
