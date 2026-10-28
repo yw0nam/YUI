@@ -77,6 +77,7 @@ import { mountCueLists } from "./cue-lists/cue-lists";
 import { createHintTooltip } from "./hint-tooltip";
 import { createHistoryTab } from "./history/history-tab";
 import { createPanelShell } from "./panel-shell";
+import { createPluginsPage } from "./plugins/plugins-page";
 import { createPresetStrip } from "./preset/preset-strip";
 import { bindSettingsSearch } from "./search/settings-search";
 import { createAgentSection } from "./sections/agent/agent-section";
@@ -570,6 +571,7 @@ export function createQuickControls({
       for (const section of sections) section.reflect?.();
       // Opening on the Connection page counts as entering it — the model list read follows.
       if (tabRail.selected() === "conn") connectionTab.entered();
+      if (tabRail.selected() === "plugins") pluginsPage?.entered();
       // Server may have come up after the app — refetch its voice list (store subscription re-renders).
       refreshVoiceList?.();
       // Last, so the list the monitors fill is already redrawn.
@@ -693,6 +695,10 @@ export function createQuickControls({
     isOpen: shell.isOpen,
   });
 
+  // ── Plugins page (installed plugins · catalog · consent) ──
+  const pluginsPage = plugins ? createPluginsPage({ ...plugins, log }) : undefined;
+  if (pluginsPage) el.querySelector("#yui-panel-plugins")!.append(pluginsPage.el);
+
   // Effective chat protocol: the user's override, else the bundled default.
   function isPushMode(): boolean {
     return effectiveChatApi(endpointsSettings.get().chat_api, getDefaultChatApi?.()) === "push";
@@ -706,6 +712,7 @@ export function createQuickControls({
     initial: DEFAULT_PAGE,
     onSelect: (id) => {
       if (id === "conn") connectionTab.entered();
+      if (id === "plugins") pluginsPage?.entered();
     },
   });
 
@@ -742,6 +749,7 @@ export function createQuickControls({
   // Every section the panel redraws on open, closes and disposes, in redraw order.
   const parts: (PanelSection | null | undefined)[] = [
     screenshot,
+    pluginsPage,
     switchRows,
     reactions,
     screen,

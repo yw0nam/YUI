@@ -4,6 +4,7 @@ import { createDelegationHistory } from "../../io/bridge/delegations/delegation-
 import { createMirroredDelegations } from "../../io/bridge/delegations/delegations-bridge";
 import { createSettingsBridge } from "../../io/bridge/settings-bridge";
 import { selectFetch } from "../../io/chat/stream/chat-client";
+import { createMcpHost, mcpHostManage } from "../../io/mcp-host/mcp-host";
 import { resolveScreenSourceProvider } from "../../io/window/capture/tauri-screen";
 import { closeSettingsWindow, titleSettingsWindow } from "../../io/window/openers/settings-window";
 import { createLogger } from "../../logger";
@@ -12,6 +13,7 @@ import { presetIdForWindow } from "../../settings/preset/active-preset";
 import { readBoundPresetId } from "../../settings/preset/bound-preset";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import { createUnifiedShown } from "../../settings/unified/unified-shown";
+import { isTauri } from "../../tauri-env";
 import { createVoiceInputStatus } from "../../ui/chips/voice-input-status";
 import { subscribe as subscribeLocale, t } from "../../ui/i18n";
 import { createQuickControls } from "../../ui/quick-controls/quick-controls";
@@ -155,6 +157,10 @@ export async function wireSettingsWindow(deps: {
   };
   window.addEventListener("focus", onWindowFocus);
 
+  // One host across the panel's re-mounts; outside Tauri there is no host and no Plugins page.
+  const mcpHost = isTauri() ? createMcpHost() : undefined;
+  if (mcpHost) register(mcpHost.dispose);
+
   const buildQuickControls = (): ReturnType<typeof createQuickControls> => {
     titleSettingsWindow(t("settings.title"));
     return createQuickControls({
@@ -223,6 +229,7 @@ export async function wireSettingsWindow(deps: {
       idleMotionSettings,
       expressMotionSettings,
       bedSceneSettings,
+      plugins: mcpHost && { host: mcpHost, manage: mcpHostManage },
       sessionDiagnostics,
       sessionStore,
       transcript: chatHistoryStore,
