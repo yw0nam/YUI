@@ -21,7 +21,7 @@ function recordsSource() {
 
 const record: PreviousTurn = {
   turn_id: "7",
-  event_name: "agent.done",
+  event_name: "proactive.tap_bored",
   ended: "failed",
   ts: 123,
   spoken: "Heard.",
@@ -69,7 +69,7 @@ describe("wirePlayback", () => {
     previousTurn.save(record);
     expect(frames).toEqual([]);
     ready = true;
-    previousTurn.save({ event_name: "agent.done", ended: "failed", ts: 123 });
+    previousTurn.save({ event_name: "proactive.tap_bored", ended: "failed", ts: 123 });
     expect(frames).toEqual([]);
     previousTurn.save(record);
     expect(frames).toEqual([{ type: "playback", turn_id: "7", ended: "failed" }]);

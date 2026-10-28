@@ -26,9 +26,6 @@ export function classify(env: BusEnvelope): Classification {
   if (n.startsWith("schedule.")) {
     return { tier: 2, target: "backend_caller" };
   }
-  if (n.startsWith("agent.")) {
-    return { tier: 2, target: "backend_caller" };
-  }
   if (n.startsWith("addressed.")) {
     return { tier: 2, target: "backend_caller" };
   }

@@ -49,7 +49,3 @@ tool call. The envelope fields and delivery rules are in the
 Any tool that runs a command after its work can post a signal itself. The
 [producer guide](../guide/signals-producer.md) holds the envelope, the delivery classes,
 and examples.
-
-## Deprecation
-
-`POST /agent-event` is deprecated: removed in v0.6.0. Use `POST /signals`.

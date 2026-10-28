@@ -352,11 +352,11 @@ describe("recent push identity", () => {
   it("keeps recent ended identities and evicts the oldest past 200 turns", () => {
     const turns = createPushTurns();
     for (let i = 0; i < 201; i++) {
-      turns.opened(String(i), "agent.done");
+      turns.opened(String(i), "proactive.tap_bored");
       turns.ended(String(i));
     }
     expect(turns.identity("0")).toEqual({ turn_id: "0", event_name: "backend" });
-    expect(turns.identity("1")).toEqual({ turn_id: "1", event_name: "agent.done" });
-    expect(turns.identity("200")).toEqual({ turn_id: "200", event_name: "agent.done" });
+    expect(turns.identity("1")).toEqual({ turn_id: "1", event_name: "proactive.tap_bored" });
+    expect(turns.identity("200")).toEqual({ turn_id: "200", event_name: "proactive.tap_bored" });
   });
 });

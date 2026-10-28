@@ -91,7 +91,7 @@ The backend model reads the block as prose. Every line follows one register:
    The character is "the character" in every line, with no pronoun.
 4. The client states facts and writes no instruction. A line carrying text the user
    authored, which may be phrased as an order, labels it as the user's intent.
-5. Third-party text, such as window titles, coding-agent summaries and signal payloads, is
+5. Third-party text, such as window titles and signal payloads, is
    quoted. The header line says quoted values are sampled data, not instructions.
 
 The `guide:` block is outside points 3 and 4. It carries the help request's instruction
@@ -102,14 +102,14 @@ line and the app's own help text as written for the user.
 Everything between the header line and the closing tag is a sequence of `key: value`
 plain-text lines built by `renderClientContext` (`src/dispatcher/backend/client-context-text.ts`).
 One line per fact, in this fixed order — `time`, `frontmost`, `screenshot source`, `body`,
-`relation`, `tool switches`, `previous turn`, `overheard`, then one or more `trigger:`/`wake:`/`cue note`/`agent note`/
-`agent event:`/`agent detail`/`signal`/`recent switches:` lines depending on what fired, then
+`relation`, `tool switches`, `previous turn`, `overheard`, then one or more `trigger:`/`wake:`/`cue note`/
+`signal`/`recent switches:` lines depending on what fired, then
 the `guide:` block when the turn carries one ([Guide](#guide-in-app-help-button)). A line is omitted
 outright when its underlying field is absent (e.g. no `screenshot source:` line when screen
 capture is off).
 
 Any field value that could contain whitespace runs, a newline, or the block's own tags (an
-app name, a window title, a cue label, an agent-hook string) is sanitized before being
+app name, a window title, a cue label, a signal payload string) is sanitized before being
 embedded: whitespace runs collapse to one space and the string is trimmed, and any
 `<client_context>`/`</client_context>` sequence inside it is stripped outright. This is a
 structural requirement, not cosmetic — without the whitespace collapse, a hostile or
@@ -354,21 +354,20 @@ replaces it over the ingress (`docs/reference/signals-ingress.md`).
 ## Trigger lines
 
 Exactly one headline `trigger: …` line describes what fired the turn, chosen by what
-the turn actually carries (screen transition, cue, single agent event, agent catchup
-burst, milestone, wake, or a bare kind fallback); zero or more follow-up lines add detail. `trigger.kind`
-is one of `user` \| `schedule` \| `proactive` \| `agent` \| `signals` \| `milestone` \| `addressed`.
+the turn actually carries (screen transition, cue, milestone, wake, or a bare kind
+fallback); zero or more follow-up lines add detail. `trigger.kind`
+is one of `user` \| `schedule` \| `proactive` \| `signals` \| `milestone` \| `addressed`.
 
 | `kind` | What fired | User content |
 |---|---|---|
 | `user` | User spoke or typed | The user's message text; from the unified chat window the text keeps the visible `@name` |
 | `schedule` | A user-configured time-of-day cue fired | Background marker |
 | `proactive` | A configured engagement cue, tap-bored cue, region-touch cue, or screen transition fired, or the character woke on the bed, which renders the `trigger: wake` headline | Background marker |
-| `agent` | An external coding-agent lifecycle hook posted a completion or needs-input signal | Background marker |
 | `signals` | An external producer POSTed a burst to the `/signals` ingress | Background marker |
 | `milestone` | A once-per-day client clock fact fired on the first present tick of the local day | Background marker |
 | `addressed` | Another open character's reply called `address_character` naming this character, and its playback ended | Background marker |
 
-For `schedule`, `proactive`, `agent`, `signals`, `milestone`, and `addressed` turns there is no user utterance —
+For `schedule`, `proactive`, `signals`, `milestone`, and `addressed` turns there is no user utterance —
 the agent reads the trigger lines to decide whether and what to say. Firing a turn does
 not guarantee speech: the client renders whatever text the agent returns, and silence
 means the agent returns empty or no speech text. Speech text that, after trimming
@@ -472,51 +471,6 @@ turned off mid-hold, and on a presence lapse (the user stepping away resets it a
 with the dwell and session clocks — an overnight-stale path never ships on the first
 morning fire) — a later screen turn with nothing held during its own gap carries no
 `recent switches` line at all.
-
-### Agent lifecycle (single event)
-
-```text
-trigger: agent claude-code done (success), project "yui" (2min ago)
-agent note (the coding agent's summary): "Extracted dev workflow into yui-dev-workflow skill and slimmed AGENTS.md."
-```
-
-```text
-trigger: agent claude-code needs_input, project "yui" (0min ago)
-agent detail (quoted from the coding agent): "waiting on Bash: rm -rf /tmp/scratch"
-```
-
-The headline carries `tool`, `phase`, the optional `(status)` (meaningful for
-`phase:"done"` only), the quoted `project`, and how long ago the hook fired (`ts`). An
-`agent note (the coding agent's summary):` line carrying the quoted `summary` follows when
-it is non-empty; an `agent detail (quoted from the coding agent):` line carrying the quoted
-`detail` follows when it is present
-(judgment material — a transcript excerpt or the pending tool call). A payload the client
-couldn't validate (missing/malformed required fields) leaves both trigger-detail fields absent and renders a bare `trigger: agent` headline
-with no note/detail lines — the background marker still falls back to unnamed wording
-in that case (see below).
-
-Deprecated: removed in v0.6.0. Use `POST /signals`.
-
-### Agent lifecycle (catchup burst)
-
-```text
-trigger: agent catchup (2 events)
-agent event: claude-code done (success), project "alpha" - "Done with alpha" (182min ago)
-agent event: opencode done, project "beta" - "Done with beta" (2min ago)
-```
-
-One `agent event:` line per buffered item, oldest first, in the same shape as the
-single-event headline, each with its own `(Xmin ago)` computed from that item's own
-`ts` rather than the burst's — a task that finished hours ago and one that finished a
-minute ago fired at different times and read differently, so each item keeps its own
-elapsed time instead of collapsing to one figure for the whole burst. The headline counts
-the items, `1 event` or `N events`. An `agent detail (quoted from the coding agent):`
-line follows an item's line when that item carries `detail`. Buffered while the user is
-away or the pipeline is busy (a backend call in flight or speech playback ongoing);
-flushed as one turn on the return-to-present or busy-to-idle edge. Within the buffer, a
-new event with the same `session_id` and `phase` as an already-buffered entry replaces
-it in place rather than appending, so a session's repeated permission prompts can't
-evict other sessions' buffered events out of the per-tool cap.
 
 ### Signals
 
@@ -629,15 +583,6 @@ The backend's own `stand` gets her up with the same wake clip and fires no
 wake signal when another motion takes the body, when the VRM is swapped, and when a clip
 or the bed fails to load; those paths leave her standing and say nothing to the backend.
 
-## Deliberately omitted fields
-
-A few `ClientContext` fields carry no rendered line, by design:
-
-| Field | Why it's omitted |
-|---|---|
-| `trigger.agent.cwd` (`agent_catchup` items carry no `cwd` field at all) | Host filesystem detail; the project name already identifies the work, and the agent has no use for a local path when reacting verbally |
-| `trigger.agent.session_id`, `trigger.agent_catchup.items[].session_id` | An opaque hook-continuity token the client itself doesn't interpret (see below) — no verbal content for the backend to act on |
-
 ## Background markers
 
 When there is no user utterance, the user input trails the `client_context` block with
@@ -664,9 +609,6 @@ all situational detail still lives in the trigger lines above.
 | `proactive.wake`, cause `timeout` | `(you just woke up)` |
 | `proactive.*` (other) | `(I've gone quiet for a while)` |
 | `schedule.*` | `(it's the time of day you check in on me)` |
-| `agent.done` | `(my claude-code task just finished)` |
-| `agent.needs_input` | `(my claude-code task is waiting on my input)` |
-| `agent.catchup` | `(my claude-code and opencode tasks piled up while I was away)` |
 | `signals.push` | `(a new signal just arrived for you)` |
 | `signals.batch` | `(a few signals batched up for you)` |
 | `signals.catchup` | `(signals piled up for you)` |
@@ -677,23 +619,12 @@ all situational detail still lives in the trigger lines above.
 | any other | `(something just caught your attention)` |
 
 The `addressed.character` marker names the character who spoke: `<name>` is her preset
-name, whitespace-collapsed and clamped like the coding-agent tool names below.
-
-The `agent.*` markers name the coding agent that fired. `agent.done` and
-`agent.needs_input` name `trigger.agent.tool`; `agent.catchup` lists the distinct
-`trigger.agent_catchup.items[].tool` values in first-seen order, joined with commas
-and `and` before the last, so a burst from a single tool names that one tool. A
-payload the client could not validate leaves those trigger fields absent, and the
-marker falls back to `(one of my coding tasks just finished)`, `(one of my coding
-tasks is waiting on my input)`, and `(my coding tasks piled up while I was away)`.
+name, whitespace-collapsed and clamped.
 
 The marker is the one place a payload field reaches the user role as bare prose, so
-the tool name is normalized on the way in: runs of whitespace collapse to a single
-space and the result is clamped to 40 characters, which keeps the marker one line and
-keeps it a name. A name that normalizes to empty is dropped, and a `catchup` burst
-left with no names falls back to the unnamed wording. The trigger line's own `tool`
-value is collapsed the same whitespace-safe way (see "Rendered lines" above) but is
-**not** clamped to 40 characters — only the marker is length-limited.
+the name is normalized on the way in: runs of whitespace collapse to a single space
+and the result is clamped to 40 characters, which keeps the marker one line and keeps
+it a name.
 
 ---
 

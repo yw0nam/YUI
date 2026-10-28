@@ -328,7 +328,7 @@ uv run ruff check .
 With `logging.level: DEBUG` in the Hermes profile `config.yaml`, every middleware pass writes one
 `yui-desire llm_request …` line to `~/.hermes/logs/agent.log` carrying only outcome, skip reason, trigger
 class, the trigger kind read off the headline `trigger:` line of the last `<client_context>` block
-(`trigger=user message`, `proactive`, `screen`, `agent`, `signals`, `other` for any headline outside that
+(`trigger=user message`, `proactive`, `screen`, `signals`, `other` for any headline outside that
 vocabulary, or `none` without a block), the channel Hermes named for the turn (`platform=<name>`, or `none` when
 it named none), request shape, cache-hit status, and the Hermes request/turn/session ids, never the desire block
 or user text.

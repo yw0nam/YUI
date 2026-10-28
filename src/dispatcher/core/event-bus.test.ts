@@ -174,60 +174,6 @@ describe("event_bus — avatar.* family", () => {
   });
 });
 
-describe("event_bus — agent.* family", () => {
-  it("accepts agent.done from timer_scheduler (not unknown_event_name-dropped)", () => {
-    expect(
-      bus.push(
-        env({
-          source: "timer_scheduler",
-          event_name: "agent.done",
-          ts: NOW,
-          dnd_override: false,
-        }),
-      ),
-    ).toBe(true);
-    expect(bus.snapshot()).toHaveLength(1);
-  });
-
-  it("accepts agent.catchup from timer_scheduler (not unknown_event_name-dropped)", () => {
-    expect(
-      bus.push(
-        env({
-          source: "timer_scheduler",
-          event_name: "agent.catchup",
-          ts: NOW,
-          dnd_override: false,
-        }),
-      ),
-    ).toBe(true);
-    expect(bus.snapshot()).toHaveLength(1);
-  });
-
-  it("gives agent.* priority 2 — after user.* (0), before avatar.* (3)", () => {
-    bus.push(
-      env({
-        source: "timer_scheduler",
-        event_name: "avatar.walk_start",
-        ts: NOW,
-        dnd_override: false,
-      }),
-    );
-    bus.push(
-      env({
-        source: "timer_scheduler",
-        event_name: "agent.done",
-        ts: NOW,
-        dnd_override: false,
-      }),
-    );
-    bus.push(env({ source: "user_input_source", event_name: "user.text_submitted", ts: NOW }));
-    expect(bus.pop()!.event_name).toBe("user.text_submitted");
-    expect(bus.pop()!.event_name).toBe("agent.done");
-    expect(bus.pop()!.event_name).toBe("avatar.walk_start");
-    expect(bus.pop()).toBeNull();
-  });
-});
-
 describe("event_bus — addressed.* family", () => {
   it("accepts addressed.character from addressed_source (not unknown_event_name-dropped)", () => {
     expect(

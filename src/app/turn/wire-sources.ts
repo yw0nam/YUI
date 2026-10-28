@@ -26,7 +26,6 @@ import {
   createScreenSource,
   type ScreenSource,
 } from "../../dispatcher/sources/idle-tick/screen-source";
-import { createAgentSource } from "../../dispatcher/sources/inbox/agent-source";
 import {
   createSignalsSource,
   type SignalsSource,
@@ -43,7 +42,7 @@ import type { ClampedIntSettingsStore } from "../../settings/persisted-store";
 
 /**
  * tier2 utterance candidate sources: proactive.<id> (idle dramatization) + schedule.<id>
- * (time-of-day greeting) + agent.done/needs_input/catchup + signals.push/batch/catchup/urgent/urgent_catchup +
+ * (time-of-day greeting) + signals.push/batch/catchup/urgent/urgent_catchup +
  * time_milestone.first_activity (first present tick of the local day), all over the
  * presence gate, plus proactive.wake (the character getting out of the bed).
  * Created and started; the started refs are returned for interaction-notes and teardown.
@@ -76,7 +75,6 @@ export function wireDispatcherSources(deps: {
 }): {
   proactiveSource: ProactiveSource;
   scheduleSource: ScheduleSource;
-  agentSource: ReturnType<typeof createAgentSource>;
   signalsSource: SignalsSource;
   milestoneSource: MilestoneSource;
   screenSource: ScreenSource;
@@ -111,14 +109,6 @@ export function wireDispatcherSources(deps: {
     isEnabled: () => scheduleSettings.get().enabled,
   });
   void scheduleSource.start();
-  const agentSource = createAgentSource({
-    bus,
-    present_max_idle_ms: presenceSettings.get().value,
-    isEnabled: () => agentNotifySettings.get().enabled,
-    isPipelineBusy: pacedPipelineBusy.isBusy,
-    subscribePipelineBusy: pacedPipelineBusy.subscribe,
-  });
-  void agentSource.start();
   const signalsSource = createSignalsSource({
     bus,
     present_max_idle_ms: presenceSettings.get().value,
@@ -169,7 +159,6 @@ export function wireDispatcherSources(deps: {
   return {
     proactiveSource,
     scheduleSource,
-    agentSource,
     signalsSource,
     milestoneSource,
     screenSource,

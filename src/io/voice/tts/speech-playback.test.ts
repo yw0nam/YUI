@@ -2019,7 +2019,7 @@ describe("playback — per-utterance identity", () => {
 
   it("reports A identity at its boundary while B is queued", () => {
     const { playback, stub, start, end } = tracked();
-    const a = { turn_id: "7", event_name: "agent.done" };
+    const a = { turn_id: "7", event_name: "proactive.tap_bored" };
     const b = { turn_id: "8", event_name: "user.text_submitted" };
     playback.onSpeechDelta("A.", a);
     playback.onSpeechEnd();
@@ -2037,7 +2037,7 @@ describe("playback — per-utterance identity", () => {
     "abort",
   ] as const)("%s retains the cut utterance identity with B queued", (method) => {
     const { playback, stub, end } = tracked();
-    const a = { turn_id: "7", event_name: "agent.done" };
+    const a = { turn_id: "7", event_name: "proactive.tap_bored" };
     const b = { turn_id: "8", event_name: "user.text_submitted" };
     playback.onSpeechDelta("A.", a);
     playback.onSpeechEnd();

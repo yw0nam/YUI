@@ -10,14 +10,14 @@
  *     · tier1 (drag/window/tap/pat reactions, avatar.* gait cues, user.fall_land) → local
  *       handling (no backend).
  *     · tier2 (user.text_submitted · user.voice_segment_ready · time_milestone.* ·
- *       proactive.* · schedule.* · agent.* · signals.* · addressed.*) → backend_caller.
+ *       proactive.* · schedule.* · signals.* · addressed.*) → backend_caller.
  *
  * Single in-flight backend call. Deferred tier2 keeps only one item in local pending
  * (with two or more deferred, the oldest is dropped). With the turn gate on, a call first waits
  * for the cross-window turn lock, which stays held until the call has ended and its playback is done.
  *
  * Every started turn anchors the global proactive gap. A fire from a paced source (loop cues,
- * schedule, signals, agent, screen) that arrives while that window holds is dropped as
+ * schedule, signals, screen) that arrives while that window holds is dropped as
  * global_gap before the guardrail sees it; gesture cues and user input pass ungated.
  *
  * state: booting → (start) → running → (stop) → stopped. cooldown polls the guardrails'
@@ -96,7 +96,7 @@ export interface DispatcherDeps {
    * superseded_by_user is excluded since it is not an error. detail rides when the backend
    * answered the call with an HTTP error (status + bare server message).
    * main.ts wires this to the UI error surface (showInputError / the status pill's voice segment).
-   * proactive/schedule/agent turn failures are only logged and never surface here (silent by design).
+   * proactive/schedule turn failures are only logged and never surface here (silent by design).
    */
   onUserTurnFailed?: (
     reason: Exclude<TurnFailure, "superseded_by_user">,

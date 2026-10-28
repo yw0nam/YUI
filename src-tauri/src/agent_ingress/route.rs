@@ -1,9 +1,6 @@
 //! Parses ingress routes and resolves their recipient without owning application state.
 
-use super::payload::{
-    cap_detail, cap_summary, parse_avatar_request, parse_request, parse_signals_request,
-    AgentEventPayload, AvatarRoute, SignalsPayload,
-};
+use super::payload::{parse_avatar_request, parse_signals_request, AvatarRoute, SignalsPayload};
 use super::INGRESS_WINDOW;
 use crate::os_event_watcher::epoch_ms;
 
@@ -21,7 +18,6 @@ pub(super) enum Target {
 /// A validated ingress payload ready for its recipient.
 #[derive(Debug)]
 pub(super) enum RouteKind {
-    AgentEvent(AgentEventPayload),
     Signals(SignalsPayload),
     Avatar(AvatarRoute),
 }
@@ -51,10 +47,6 @@ pub(super) fn parse_route(method: &str, url: &str, body: &str) -> Result<Route, 
         (Target::Main, path.to_string())
     };
     let kind = match path.as_str() {
-        // Deprecated: removed in v0.6.0. Use POST /signals.
-        "/agent-event" => {
-            RouteKind::AgentEvent(cap_detail(cap_summary(parse_request(method, &path, body)?)))
-        }
         "/signals" => {
             let request = parse_signals_request(method, &path, body)?;
             RouteKind::Signals(SignalsPayload {
@@ -161,11 +153,6 @@ mod tests {
     fn routes_all_families_and_preserves_payloads() {
         for (method, path, body) in [
             ("POST", "/signals", r#"{"signals":[1],"envelope":{"x":1}}"#),
-            (
-                "POST",
-                "/agent-event",
-                r#"{"tool":"test","project":"test","cwd":"/tmp","phase":"done","summary":"done","ts":0}"#,
-            ),
             ("GET", "/avatar/state", ""),
             ("GET", "/avatar/perch-targets", ""),
             ("POST", "/avatar/command", r#"{"action":"stand"}"#),
@@ -216,16 +203,6 @@ mod tests {
                 405
             );
         }
-    }
-    #[test]
-    fn prefixed_agent_event_caps_summary() {
-        let body = serde_json::json!({"tool":"test", "project":"test", "cwd":"/tmp", "phase":"done", "summary":"a".repeat(9000), "ts":0}).to_string();
-        let route = parse_route("POST", "/presets/x/agent-event", &body).unwrap();
-        let RouteKind::AgentEvent(payload) = route.kind else {
-            panic!("expected agent event")
-        };
-        assert!(payload.summary.ends_with("[truncated]"));
-        assert_eq!(payload.summary.len(), 8192 + "…[truncated]".len());
     }
     #[test]
     fn rejects_malformed_routes_and_payloads() {

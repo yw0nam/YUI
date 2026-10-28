@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-pub const AGENT_INBOX_CHANNEL: &str = "agent-inbox";
 pub const SIGNALS_INBOX_CHANNEL: &str = "signals-inbox";
 pub const AVATAR_RPC_CHANNEL: &str = "avatar-rpc";
 pub const INGRESS_DEAD_CHANNEL: &str = "ingress-dead";
@@ -12,8 +11,6 @@ const AVATAR_QUERY_TIMEOUT: Duration = Duration::from_secs(2);
 /// Deadline for a webview answer to an avatar command — a gesture takes real time.
 const AVATAR_COMMAND_TIMEOUT: Duration = Duration::from_secs(15);
 
-const SUMMARY_MAX_BYTES: usize = 8192;
-const DETAIL_MAX_BYTES: usize = 16384;
 /// Hard body read ceiling; prevents OOM on oversized payloads.
 pub(super) const BODY_CEILING_BYTES: usize = 65536;
 /// One signal item's ceiling; a request holding a larger item is refused whole.
@@ -25,31 +22,6 @@ const DELTA_RANGE: std::ops::RangeInclusive<i64> = -40..=40;
 const LOG_LENGTH: usize = 20;
 const WHY_CHARS: usize = 80;
 const NOTE_CHARS: usize = 200;
-
-/// Lifecycle phase of an external coding-agent session.
-#[derive(Deserialize, Serialize, Clone, Copy, Debug, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum AgentPhase {
-    Done,
-    NeedsInput,
-}
-
-/// `agent-inbox` event payload — fired when an external agent posts to /agent-event.
-#[derive(Deserialize, Serialize, Clone, Debug)]
-pub struct AgentEventPayload {
-    pub tool: String,
-    pub project: String,
-    pub cwd: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub status: Option<String>, // "success" | "error" | absent — meaningful for phase:"done" only
-    pub phase: AgentPhase,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub session_id: Option<String>, // opaque pass-through, no client interpretation
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub detail: Option<String>, // judgment material for the backend
-    pub summary: String,
-    pub ts: i64, // client epoch ms
-}
 
 /// `signals-inbox` event payload — fired when the remote n8n workflow posts to
 /// `/signals`. `signals` is treated as opaque JSON; the client does not
@@ -192,26 +164,6 @@ pub struct AvatarRpcRequest {
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
-/// Validates and parses a raw HTTP request into an `AgentEventPayload`.
-///
-/// Returns `Err(405)` when the method is not POST, and `Err(400)` when the path
-/// (before any query string) is not `/agent-event` or the body is not valid JSON
-/// for `AgentEventPayload`.
-pub(super) fn parse_request(
-    method: &str,
-    path: &str,
-    body: &str,
-) -> Result<AgentEventPayload, u16> {
-    if method != "POST" {
-        return Err(405);
-    }
-    let path_only = path.split('?').next().unwrap_or(path);
-    if path_only != "/agent-event" {
-        return Err(400);
-    }
-    serde_json::from_str(body).map_err(|_| 400u16)
-}
-
 /// Validates and parses a raw HTTP request into a `signals` array and its optional
 /// `envelope`.
 ///
@@ -287,203 +239,10 @@ pub(super) fn rejected_level(code: u16) -> log::Level {
     }
 }
 
-/// Truncates `summary` to at most `SUMMARY_MAX_BYTES` bytes on a valid UTF-8
-/// char boundary and appends a marker. No-op when already within the cap.
-pub(super) fn cap_summary(mut p: AgentEventPayload) -> AgentEventPayload {
-    if p.summary.len() > SUMMARY_MAX_BYTES {
-        let mut end = SUMMARY_MAX_BYTES;
-        while !p.summary.is_char_boundary(end) {
-            end -= 1;
-        }
-        p.summary = format!("{}…[truncated]", &p.summary[..end]);
-    }
-    p
-}
-
-/// Truncates `detail` to at most `DETAIL_MAX_BYTES` bytes on a valid UTF-8
-/// char boundary and appends a marker. No-op when absent or already within the cap.
-pub(super) fn cap_detail(mut p: AgentEventPayload) -> AgentEventPayload {
-    if let Some(detail) = &p.detail {
-        if detail.len() > DETAIL_MAX_BYTES {
-            let mut end = DETAIL_MAX_BYTES;
-            while !detail.is_char_boundary(end) {
-                end -= 1;
-            }
-            p.detail = Some(format!("{}…[truncated]", &detail[..end]));
-        }
-    }
-    p
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::os_event_watcher::epoch_ms;
-
-    fn valid_body() -> &'static str {
-        r#"{"tool":"claude-code","project":"YUI","cwd":"/home/user/YUI","phase":"done","summary":"done","ts":1719811200000}"#
-    }
-
-    // ── parse_request ─────────────────────────────────────────────────────────
-
-    #[test]
-    fn parse_request_valid_returns_payload() {
-        let p = parse_request("POST", "/agent-event", valid_body()).unwrap();
-        assert_eq!(p.tool, "claude-code");
-        assert_eq!(p.project, "YUI");
-        assert_eq!(p.cwd, "/home/user/YUI");
-        assert_eq!(p.phase, AgentPhase::Done);
-        assert_eq!(p.summary, "done");
-        assert_eq!(p.ts, 1719811200000);
-        assert!(p.status.is_none());
-        assert!(p.session_id.is_none());
-        assert!(p.detail.is_none());
-    }
-
-    #[test]
-    fn parse_request_wrong_method_returns_405() {
-        assert_eq!(
-            parse_request("GET", "/agent-event", valid_body()).unwrap_err(),
-            405
-        );
-    }
-
-    #[test]
-    fn parse_request_wrong_path_returns_400() {
-        assert_eq!(
-            parse_request("POST", "/other", valid_body()).unwrap_err(),
-            400
-        );
-    }
-
-    #[test]
-    fn parse_request_malformed_json_returns_400() {
-        assert_eq!(
-            parse_request("POST", "/agent-event", "not json").unwrap_err(),
-            400
-        );
-    }
-
-    #[test]
-    fn parse_request_missing_phase_returns_400() {
-        let body = r#"{"tool":"t","project":"p","cwd":"/","summary":"s","ts":0}"#;
-        assert_eq!(
-            parse_request("POST", "/agent-event", body).unwrap_err(),
-            400
-        );
-    }
-
-    #[test]
-    fn parse_request_needs_input_phase_carries_session_id_and_detail() {
-        let body = r#"{"tool":"claude-code","project":"p","cwd":"/","phase":"needs_input","session_id":"sess-1","detail":"waiting on Bash: rm -rf /tmp/x","summary":"","ts":1}"#;
-        let p = parse_request("POST", "/agent-event", body).unwrap();
-        assert_eq!(p.phase, AgentPhase::NeedsInput);
-        assert_eq!(p.session_id.as_deref(), Some("sess-1"));
-        assert_eq!(p.detail.as_deref(), Some("waiting on Bash: rm -rf /tmp/x"));
-    }
-
-    #[test]
-    fn parse_request_path_with_query_string_is_accepted() {
-        let p = parse_request("POST", "/agent-event?foo=bar", valid_body()).unwrap();
-        assert_eq!(p.tool, "claude-code");
-    }
-
-    // ── cap_summary ───────────────────────────────────────────────────────────
-
-    fn make_payload(summary: &str) -> AgentEventPayload {
-        AgentEventPayload {
-            tool: "t".into(),
-            project: "p".into(),
-            cwd: "/".into(),
-            status: None,
-            phase: AgentPhase::Done,
-            session_id: None,
-            detail: None,
-            summary: summary.to_string(),
-            ts: 0,
-        }
-    }
-
-    #[test]
-    fn cap_summary_under_cap_is_unchanged() {
-        let summary = "a".repeat(100);
-        let p = cap_summary(make_payload(&summary));
-        assert_eq!(p.summary, summary);
-    }
-
-    #[test]
-    fn cap_summary_over_cap_truncated_with_marker() {
-        let summary = "b".repeat(SUMMARY_MAX_BYTES + 100);
-        let p = cap_summary(make_payload(&summary));
-        // Length bounded: truncated body ≤ cap, plus marker overhead
-        assert!(
-            p.summary.len() <= SUMMARY_MAX_BYTES + 20,
-            "too long: {}",
-            p.summary.len()
-        );
-        assert!(p.summary.ends_with("[truncated]"));
-        assert!(std::str::from_utf8(p.summary.as_bytes()).is_ok());
-    }
-
-    #[test]
-    fn cap_summary_multibyte_safe() {
-        // "あ" = 3 bytes. Build a string just over the cap to force a mid-char boundary.
-        // SUMMARY_MAX_BYTES / 3 = 2730 r 2, so 2731 chars = 8193 bytes > 8192.
-        let summary = "あ".repeat(SUMMARY_MAX_BYTES / 3 + 1);
-        let p = cap_summary(make_payload(&summary));
-        // Result must be valid UTF-8 (no split codepoints) and contain the marker.
-        assert!(std::str::from_utf8(p.summary.as_bytes()).is_ok());
-        assert!(p.summary.contains("[truncated]"));
-    }
-
-    // ── cap_detail ────────────────────────────────────────────────────────────
-
-    fn make_detail_payload(detail: Option<&str>) -> AgentEventPayload {
-        AgentEventPayload {
-            tool: "t".into(),
-            project: "p".into(),
-            cwd: "/".into(),
-            status: None,
-            phase: AgentPhase::NeedsInput,
-            session_id: None,
-            detail: detail.map(|d| d.to_string()),
-            summary: String::new(),
-            ts: 0,
-        }
-    }
-
-    #[test]
-    fn cap_detail_absent_is_unchanged() {
-        let p = cap_detail(make_detail_payload(None));
-        assert!(p.detail.is_none());
-    }
-
-    #[test]
-    fn cap_detail_under_cap_is_unchanged() {
-        let detail = "a".repeat(100);
-        let p = cap_detail(make_detail_payload(Some(&detail)));
-        assert_eq!(p.detail.as_deref(), Some(detail.as_str()));
-    }
-
-    #[test]
-    fn cap_detail_over_cap_truncated_with_marker() {
-        let detail = "b".repeat(DETAIL_MAX_BYTES + 100);
-        let p = cap_detail(make_detail_payload(Some(&detail)));
-        let d = p.detail.unwrap();
-        assert!(d.len() <= DETAIL_MAX_BYTES + 20, "too long: {}", d.len());
-        assert!(d.ends_with("[truncated]"));
-        assert!(std::str::from_utf8(d.as_bytes()).is_ok());
-    }
-
-    #[test]
-    fn cap_detail_multibyte_safe() {
-        // "あ" = 3 bytes. DETAIL_MAX_BYTES / 3 = 5461 r 1, so 5462 chars = 16386 bytes > 16384.
-        let detail = "あ".repeat(DETAIL_MAX_BYTES / 3 + 1);
-        let p = cap_detail(make_detail_payload(Some(&detail)));
-        let d = p.detail.unwrap();
-        assert!(std::str::from_utf8(d.as_bytes()).is_ok());
-        assert!(d.contains("[truncated]"));
-    }
 
     // ── parse_signals_request ─────────────────────────────────────────────────
 
@@ -610,10 +369,6 @@ mod tests {
 
     #[test]
     fn unknown_path_returns_400() {
-        assert_eq!(
-            parse_request("POST", "/unknown", valid_body()).unwrap_err(),
-            400
-        );
         assert_eq!(
             parse_signals_request("POST", "/unknown", valid_signals_body()).unwrap_err(),
             400

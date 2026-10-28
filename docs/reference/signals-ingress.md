@@ -28,12 +28,10 @@ One listener on one port serves every window. The path chooses the recipient.
 | Path | Recipient |
 |---|---|
 | `/signals` | `main`: the main window's character, whichever preset is active |
-| `/agent-event` | `main` (deprecated: removed in v0.6.0; use `/signals`) |
 | `/avatar/state`, `/avatar/perch-targets`, `/avatar/command`, `/relations` | `main` |
 | `/presets/<id>/signals` | `pet-<id>`: the pet window bound to preset `<id>`, and no other window |
-| `/presets/<id>/agent-event` | `pet-<id>` (deprecated: removed in v0.6.0; use `/presets/<id>/signals`) |
 | `/presets/<id>/avatar/state`, `/presets/<id>/avatar/perch-targets`, `/presets/<id>/avatar/command`, `/presets/<id>/relations` | `pet-<id>`; that window answers the request |
-| any other path under `/presets/`, including a route name outside the six above | none: HTTP 404 |
+| any other path under `/presets/`, including a route name outside the routes above | none: HTTP 404 |
 | an unknown path under `/avatar/` | none: HTTP 404 |
 | any other unknown bare path | none: HTTP 400 |
 | a preset id that exists while its pet window is closed | none: HTTP 503 |
@@ -147,7 +145,7 @@ The HTTP ingress requires `POST /signals`, valid JSON, and a `signals` array. A 
 with another method on `/signals` or `/presets/<id>/signals` receives HTTP 405.
 Invalid JSON or a missing `signals` array receives HTTP 400. A request whose `envelope`
 is any JSON value, or is absent, receives HTTP 200. A request under `/presets/` whose id
-no preset has, or whose path after the id is none of the six routes, receives HTTP 404. An unknown path under `/avatar/`
+no preset has, or whose path after the id is none of the routes above, receives HTTP 404. An unknown path under `/avatar/`
 receives HTTP 404; any other unknown bare path receives HTTP 400. A request for a preset id
 that exists while its pet window is not open receives HTTP 503; it is never passed to `main`.
 

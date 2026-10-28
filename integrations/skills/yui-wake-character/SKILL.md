@@ -78,7 +78,7 @@ Done when: the code is 200, or the user has been told the one action that the ta
 ## Reference
 
 - Route table, envelope fields, delivery and buffering rules: `docs/reference/signals-ingress.md`.
-- Coding-agent lifecycle hooks (the `yui-notify` plugin posts to `/signals`; `/agent-event` is deprecated, removed in v0.6.0, same prefix rule): `docs/agent-guide/agent-completion-hooks.md`.
+- Coding-agent lifecycle hooks (the `yui-notify` plugin posts to `/signals`, same prefix rule): `docs/agent-guide/agent-completion-hooks.md`.
 - The avatar routes `/presets/<id>/avatar/state`, `/presets/<id>/avatar/perch-targets`,
   `/presets/<id>/avatar/command` follow the same prefix rule and move that character's body.
 - `/presets/<id>/relations` follows the same prefix rule and reads or replaces that character's

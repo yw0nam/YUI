@@ -90,13 +90,13 @@ describe("createPreviousTurn — a call that failed before any speech", () => {
     "http_4xx_drop",
     "parse_error",
   ] as const)("saves failed for %s", (reason) => {
-    const turn = turnOf(3, "agent.done");
+    const turn = turnOf(3, "proactive.tap_bored");
     const { slot, storage } = makeSlot();
 
     slot.callFailed(turn, reason);
 
     expect(storage.saved).toEqual([
-      { turn_id: "3", event_name: "agent.done", ended: "failed", ts: NOW },
+      { turn_id: "3", event_name: "proactive.tap_bored", ended: "failed", ts: NOW },
     ]);
   });
 
@@ -338,7 +338,7 @@ describe("createPreviousTurn — the stored split at creation", () => {
 describe("playback records — utterance identity", () => {
   it("retains A identity when B opens before A completes", () => {
     const { slot, storage } = makeSlot();
-    const a = { turn_id: "7", event_name: "agent.done" };
+    const a = { turn_id: "7", event_name: "proactive.tap_bored" };
     const b = { turn_id: "8", event_name: "user.text_submitted" };
     slot.utteranceStart(a);
     slot.utteranceStart(b);
@@ -362,10 +362,10 @@ describe("playback records — utterance identity", () => {
 
   it("records the exact failing client turn id", () => {
     const { slot } = makeSlot();
-    slot.callFailed(turnOf(7, "agent.done"), "network_drop");
+    slot.callFailed(turnOf(7, "proactive.tap_bored"), "network_drop");
     expect(slot.get()).toEqual({
       turn_id: "7",
-      event_name: "agent.done",
+      event_name: "proactive.tap_bored",
       ended: "failed",
       ts: NOW,
     });
@@ -384,7 +384,7 @@ describe("playback records — utterance identity", () => {
   });
 
   it("loads a legacy record without turn_id", () => {
-    const record = { event_name: "agent.done", ended: "failed", ts: NOW };
+    const record = { event_name: "proactive.tap_bored", ended: "failed", ts: NOW };
     expect(makeSlot(record).slot.get()).toEqual(record);
   });
 
@@ -392,7 +392,7 @@ describe("playback records — utterance identity", () => {
     const { slot } = makeSlot();
     const records: PreviousTurn[] = [];
     const off = slot.subscribe((record) => records.push(record));
-    const identity = { turn_id: "7", event_name: "agent.done" };
+    const identity = { turn_id: "7", event_name: "proactive.tap_bored" };
     slot.utteranceStart(identity);
     slot.utteranceEnd("complete", undefined, identity);
     slot.utteranceStart(identity);
@@ -414,7 +414,7 @@ describe("playback records — utterance identity", () => {
       { turn_id: "8", event_name: "user.text_submitted", ended: "failed", ts: NOW },
     ]);
     off();
-    slot.callFailed(turnOf(9, "agent.done"), "network_drop");
+    slot.callFailed(turnOf(9, "proactive.tap_bored"), "network_drop");
     expect(records).toHaveLength(3);
   });
 });

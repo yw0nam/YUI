@@ -245,7 +245,6 @@ const realFactories: ConfiguredBootstrapFactories = {
     const {
       proactiveSource,
       scheduleSource,
-      agentSource,
       signalsSource,
       milestoneSource,
       screenSource,
@@ -277,7 +276,6 @@ const realFactories: ConfiguredBootstrapFactories = {
     core.setProactiveSource(proactiveSource);
     register(proactiveSource.stop);
     register(scheduleSource.stop);
-    register(agentSource.stop);
     register(signalsSource.stop);
     register(milestoneSource.stop);
     register(screenSource.stop);
