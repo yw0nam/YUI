@@ -36,6 +36,13 @@ export function versionHtml(version: string | null): string {
     : "";
 }
 
+/** A managing call's rejection: its lead's i18n key, the host's string, and the action Retry repeats. */
+export interface Failure {
+  lead: string;
+  message: string;
+  retry?: string;
+}
+
 /** An inline error line: YUI's lead, then the host's string as sent. */
 export function errLineHtml(lead: string, message: string | null, tail = ""): string {
   return `<p class="yui-plg-err" role="alert">${ICON_WARN}<span>${lead}${message ? ` ${esc(message)}` : ""}</span>${tail}</p>`;

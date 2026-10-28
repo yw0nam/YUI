@@ -12,6 +12,7 @@ import {
   badgeHtml,
   errLineHtml,
   esc,
+  type Failure,
   ICON_CHEV,
   ICON_FOLDER,
   ICON_WARN,
@@ -27,8 +28,8 @@ export interface PluginUi {
   confirm?: boolean;
   /** An update is in flight. */
   updating?: boolean;
-  /** The last managing call's rejection: its lead's i18n key, the host's string, and the action Retry repeats. */
-  error?: { lead: string; message: string; retry?: string };
+  /** The last managing call's rejection. */
+  error?: Failure;
   toolsOpen?: boolean;
   logOpen?: boolean;
   /** The log tail once read, or the host's rejection. */

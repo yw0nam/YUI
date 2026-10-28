@@ -6,8 +6,16 @@ import { createKeyedRender } from "../keyed-render";
 import { catalogHtml, type InstallUi } from "./catalog-markup";
 import { createCatalogState } from "./catalog-state";
 import { installedHtml, type PluginUi } from "./installed-markup";
+import type { Failure } from "./plugin-parts";
 import "../connection/endpoints-section.css";
 import "./plugins-page.css";
+
+/** The entry for `id`, made empty on first use. */
+function stateOf<T extends object>(map: Map<string, T>, id: string): T {
+  let state = map.get(id);
+  if (!state) map.set(id, (state = {} as T));
+  return state;
+}
 
 export interface PluginsPage {
   el: HTMLElement;
@@ -27,18 +35,10 @@ export function createPluginsPage(deps: {
 
   const ui = new Map<string, PluginUi>();
   const installs = new Map<string, InstallUi>();
-  const folder: { busy: boolean; error?: string } = { busy: false };
+  const folder: { busy: boolean; error?: Failure } = { busy: false };
 
-  const uiOf = (id: string): PluginUi => {
-    let state = ui.get(id);
-    if (!state) ui.set(id, (state = {}));
-    return state;
-  };
-  const installOf = (id: string): InstallUi => {
-    let state = installs.get(id);
-    if (!state) installs.set(id, (state = {}));
-    return state;
-  };
+  const uiOf = (id: string): PluginUi => stateOf(ui, id);
+  const installOf = (id: string): InstallUi => stateOf(installs, id);
   const plugins = (): PluginHostPlugin[] => host.snapshot()?.plugins ?? [];
   const plugin = (id: string): PluginHostPlugin | undefined => plugins().find((p) => p.id === id);
 
@@ -55,21 +55,21 @@ export function createPluginsPage(deps: {
     );
   });
 
-  /** Runs one managing call; a rejection becomes the plugin's error line. */
+  /** Runs one managing call for `subject`; a rejection becomes `holder`'s error line. */
   async function attempt(
-    id: string,
+    subject: string,
+    holder: { error?: Failure },
     lead: string,
     call: () => Promise<unknown>,
     retry?: string,
   ): Promise<boolean> {
-    const state = uiOf(id);
-    state.error = undefined;
+    holder.error = undefined;
     try {
       await call();
       return true;
     } catch (err) {
-      state.error = { lead, message: String(err), retry };
-      log.warn("plugins.call_failed", { id, lead, error: String(err) });
+      holder.error = { lead, message: String(err), retry };
+      log.warn("plugins.call_failed", { subject, lead, error: String(err) });
       return false;
     } finally {
       render();
@@ -79,7 +79,7 @@ export function createPluginsPage(deps: {
   async function allow(id: string): Promise<void> {
     const state = uiOf(id);
     state.flow = "enabling";
-    const ok = await attempt(id, "plugins.err_enable", () => manage.enable(id));
+    const ok = await attempt(id, state, "plugins.err_enable", () => manage.enable(id));
     if (state.flow !== "enabling") return;
     state.flow = ok ? "enabled" : undefined;
     render();
@@ -87,13 +87,13 @@ export function createPluginsPage(deps: {
 
   function disable(id: string): void {
     uiOf(id).flow = undefined;
-    void attempt(id, "plugins.err_disable", () => manage.disable(id));
+    void attempt(id, uiOf(id), "plugins.err_disable", () => manage.disable(id));
   }
 
   async function update(id: string): Promise<void> {
     const state = uiOf(id);
     state.updating = true;
-    await attempt(id, "plugins.err_update", () => manage.install(id), "update");
+    await attempt(id, state, "plugins.err_update", () => manage.install(id), "update");
     state.updating = false;
     render();
   }
@@ -101,28 +101,14 @@ export function createPluginsPage(deps: {
   async function install(id: string): Promise<void> {
     const state = installOf(id);
     state.installing = true;
-    state.error = undefined;
-    render();
-    try {
-      await manage.install(id);
-    } catch (err) {
-      state.error = String(err);
-      log.warn("plugins.install_failed", { id, error: String(err) });
-    }
+    await attempt(id, state, "plugins.err_install", () => manage.install(id));
     state.installing = false;
     render();
   }
 
   async function addLocal(): Promise<void> {
     folder.busy = true;
-    folder.error = undefined;
-    render();
-    try {
-      await manage.addLocal();
-    } catch (err) {
-      folder.error = String(err);
-      log.warn("plugins.add_local_failed", { error: String(err) });
-    }
+    await attempt("folder", folder, "plugins.err_folder", () => manage.addLocal());
     folder.busy = false;
     render();
   }
@@ -148,7 +134,7 @@ export function createPluginsPage(deps: {
       if (state.flow === "step1") state.flow = undefined;
       else if (p.enabled && p.consented) disable(id);
       // The host keeps an approved path's consent across a disable.
-      else if (p.consented) void attempt(id, "plugins.err_enable", () => manage.enable(id));
+      else if (p.consented) void attempt(id, state, "plugins.err_enable", () => manage.enable(id));
       else state.flow = "step1";
     },
     reapprove: (id) => {
@@ -163,7 +149,7 @@ export function createPluginsPage(deps: {
     },
     off: disable,
     retry: (id, button) =>
-      void attempt(id, "plugins.err_retry", () => manage.retry(button.dataset.sid ?? "")),
+      void attempt(id, uiOf(id), "plugins.err_retry", () => manage.retry(button.dataset.sid ?? "")),
     update: (id) => void update(id),
     install: (_, button) => void install(button.dataset.cid ?? ""),
     folder: () => void addLocal(),
@@ -178,7 +164,7 @@ export function createPluginsPage(deps: {
       uiOf(id).confirm = false;
       const lead =
         plugin(id)?.source === "local" ? "plugins.err_remove_local" : "plugins.err_remove";
-      void attempt(id, lead, () => manage.remove(id));
+      void attempt(id, uiOf(id), lead, () => manage.remove(id));
     },
     tools: (id) => {
       const state = uiOf(id);
