@@ -19,13 +19,13 @@ Open the settings window, then **Plugins** in the rail under **Every character**
 
 ## Turn on with consent
 
-The switch asks before anything runs, in two steps.
+The first time you turn a plugin on, the switch asks before anything runs, in two steps.
 
 1. The first step shows the plugin's **Source** (badge, review note, and folder), **Version**, and **Launch command**: one line per server, naming the server when the plugin has more than one. **Allow** records your approval and starts the servers with your permissions; every character shares them. **Cancel** closes the step without running anything.
 
-2. The second step lists the tools and skills the backend now sees, with each description. **OK** closes it; the plugin's server lines and its tool list then show under the switch.
+2. The second step lists the tools and skills the backend now sees, with each description. **OK** closes it; the plugin's server lines and a **Tools: n** disclosure then show under the switch.
 
-A local plugin is approved once for its folder. Changing the files in that folder does not ask again; an update from the catalog does.
+A local plugin is approved once for its folder. Changing the files in that folder does not ask again. A Community update from the catalog does; an Official update does not.
 
 ## Update
 
@@ -48,7 +48,7 @@ Each server of an installed plugin shows one line:
 | State | What it means |
 | --- | --- |
 | **Running** | The server answered and declared its tools; the line adds **Tools: n** when it declared any |
-| **Starting** | The server is launching and connecting |
+| **Starting…** | The server is launching and connecting |
 | **Unavailable** | The server stopped at a start step, which the line names — launch, initialize, or tool list — with the reason. **Retry** starts that server again |
 | **Exited** | The server ran and then ended; the line gives the reason, and **Restart** starts it again |
 | **Off** | The plugin is off, so nothing runs |
@@ -57,7 +57,7 @@ A plugin that fails to start stays on, and the app tries its servers again the n
 
 ## Hidden names
 
-A tool or skill name belongs to one holder: a built-in tool first, then each plugin in the order it was turned on. When a later plugin declares a name that is already taken, that name is hidden there and the plugin keeps running with its other names. The page names every hidden name and the holder that keeps it, so a name is never silently missing.
+A tool or skill name belongs to one holder: a built-in tool first, then each plugin in the order it was turned on. When a later plugin declares a name that is already taken, that name is hidden there and the plugin keeps running with its other names. The page names every hidden name; it names the plugin that keeps it, or says a built-in tool uses it.
 
 ## Log
 
