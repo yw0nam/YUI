@@ -14,9 +14,8 @@
   border-radius: var(--yui-radius-pill);
   background: var(--yui-track);
   cursor: pointer;
-  transition:
-    background var(--yui-dur) var(--yui-ease),
-    box-shadow var(--yui-dur-fast) var(--yui-ease);
+  /* The focus ring is a box-shadow and appears at once, so only the track colour moves. */
+  transition: background var(--yui-dur) var(--yui-ease);
 }
 
 .yui-switch::after {
