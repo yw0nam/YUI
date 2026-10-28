@@ -68,6 +68,11 @@ The delivery classes and the envelope fields are in the
 - A Codex `Notification`: Codex has no such event, so an MCP elicitation prompt in Codex
   posts nothing.
 - An event whose delivery class in the configuration is `drop`.
+- An event while the macOS app that launched the agent is the frontmost app. The hook compares
+  its inherited `__CFBundleIdentifier` with the bundle id that `lsappinfo` reports for the
+  frontmost app. The check is per app, not per tab or pane: with Orca in front, every agent
+  in Orca stays silent, and an agent in another app still posts. A session over SSH, a process
+  without `__CFBundleIdentifier`, and a host without `lsappinfo` always post.
 
 ## Configuration
 

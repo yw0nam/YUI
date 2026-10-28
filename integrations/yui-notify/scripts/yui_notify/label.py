@@ -2,23 +2,16 @@ from __future__ import annotations
 
 import os
 import socket
-import subprocess
 from collections.abc import Mapping
 from typing import Any, Callable
 
-
-def _run(cmd: list[str], timeout: float) -> str | None:
-    try:
-        out = subprocess.run(cmd, check=False, capture_output=True, text=True, timeout=timeout)
-    except (OSError, subprocess.SubprocessError):
-        return None
-    return out.stdout.strip() or None if out.returncode == 0 else None
+from yui_notify import command
 
 
 def context(
     cwd: str,
     env: Mapping[str, str],
-    run: Callable[[list[str], float], str | None] = _run,
+    run: Callable[[list[str], float], str | None] = command.run,
     hostname: Callable[[], str] = socket.gethostname,
 ) -> dict:
     tmux = None
