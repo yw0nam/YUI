@@ -98,6 +98,13 @@ def load(fixture, rollout=NO_ROLLOUT):
             ),
         ),
         ("claude-stop.json", {}, None),
+        (
+            "claude-session-start.json",
+            CLAUDE_ENV,
+            ("claude-code", "start", "bc68d697-4e8f-4be0-8ea6-e67f955b2586", ""),
+        ),
+        ("claude-session-start.json", {**CLAUDE_ENV, "CLAUDE_CODE_ENTRYPOINT": "sdk-cli"}, None),
+        ("codex-session-start.json", {}, ("codex", "start", "019a1f2e-7c4b-7d30-9b1e-3f5a8c2d4e61", "")),
     ],
     ids=[
         "claude-stop",
@@ -111,6 +118,9 @@ def load(fixture, rollout=NO_ROLLOUT):
         "codex-permission",
         "codex-under-claude-shell",
         "no-agent-env",
+        "claude-start-synthetic",
+        "claude-start-sdk-skipped",
+        "codex-start-synthetic",
     ],
 )
 def test_parse_event(fixture, env, expected):
