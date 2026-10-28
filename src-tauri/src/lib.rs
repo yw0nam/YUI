@@ -39,6 +39,10 @@ mod passthrough;
 #[cfg(desktop)]
 mod browser;
 
+// Runs local plugins' MCP servers and answers their tool calls and skill reads.
+#[cfg(desktop)]
+mod mcp_host;
+
 // Loopback HTTP ingress — receives signals, re-emits as Tauri events.
 mod agent_ingress;
 
