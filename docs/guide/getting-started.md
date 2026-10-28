@@ -14,7 +14,7 @@ One VRM model — and one ships in the repo (`resources/vrms/Sendagaya_Shino.vrm
 | TTS | Optional | Speech bubble works; no audio output |
 | STT | Optional | Text input works; no voice input |
 | Screenshot context | Optional | Agent receives no screen context |
-| Mods (`Mods/`) | Optional | No desktop-control or other Mod capabilities |
+| Plugins (`plugins/`) | Optional | No plugin capabilities, such as the Factorio game bridge |
 
 ---
 
@@ -240,4 +240,4 @@ All service addresses come from this file or the in-app overrides.
 ## 7. Platform Notes
 
 - **Idle watching works on both.** `os_idle_ms` polling is implemented on both macOS and Windows, so idle-triggered and co-working proactive cues fire on either platform.
-- **macOS TCC grants.** The optional screenshot context feature and the `desktop-control` Mod (if used) require Screen Recording permission. App control via the `desktop-control` Mod additionally requires Automation / Apple Events permission. Grant these in System Settings → Privacy & Security.
+- **macOS TCC grants.** The optional screenshot context feature requires Screen Recording permission. Grant it in System Settings → Privacy & Security.

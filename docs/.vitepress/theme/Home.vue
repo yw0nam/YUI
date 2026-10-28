@@ -200,10 +200,9 @@ onMounted(() => {
             >
           </div>
           <div>
-            <b>Standalone Mods</b>
+            <b>Backend-attached plugins</b>
             <span
-              >Independent MCP servers: router, desktop control, shell sandbox,
-              avatar, factorio.</span
+              >Independent MCP servers the backend agent attaches: factorio.</span
             >
           </div>
           <div>

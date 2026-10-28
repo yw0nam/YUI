@@ -10,7 +10,7 @@ Not tested: an implementation constant's value in isolation (a value that is its
 
 The same setup with another input is a row in the sibling's `it.each` table, not a new block. A file's block count is not a measure of coverage.
 
-The purpose and assertion principles apply to TypeScript, Rust (`#[test]` under `src-tauri/`), and Python (`pytest` under `Mods/` and `integrations/`) alike. Each language keeps its own test layout, parameterisation, mocking, and live-service conventions; the Vitest-specific rules below apply only to Vitest.
+The purpose and assertion principles apply to TypeScript, Rust (`#[test]` under `src-tauri/`), and Python (`pytest` under `plugins/` and `integrations/`) alike. Each language keeps its own test layout, parameterisation, mocking, and live-service conventions; the Vitest-specific rules below apply only to Vitest.
 
 ## Placement and names
 

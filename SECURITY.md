@@ -27,7 +27,7 @@ to stay unnamed.
 ## Scope
 
 YUI's own code is in scope: the Tauri shell (`src-tauri/`), the web client
-(`src/`), the backend wiring under `integrations/`, and the Mods under `Mods/`.
+(`src/`), the backend wiring under `integrations/`, and the plugins under `plugins/`.
 
 Report a vulnerability in a backend agent, model provider, TTS server, or STT
 server to that project. YUI release builds are unsigned, and the operating

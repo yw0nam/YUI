@@ -1,7 +1,7 @@
 /**
  * body_action and look — the avatar tools the backend model calls.
  *
- * Thin adapters over the avatar executor: the schema speaks the avatar Mod's words, execute hands
+ * Thin adapters over the avatar executor: the schema speaks the model's words, execute hands
  * the arguments to the executor and renders its verdict as the result string. The window that
  * creates the executor builds them once; a call that lands before the stage created it answers
  * unsupported.

@@ -1,7 +1,7 @@
 /**
  * avatar.test.ts — the body_action and look tools the backend model calls.
  *
- * They are thin adapters: the schema speaks the avatar Mod's words, execute hands the arguments
+ * They are thin adapters: the schema speaks the model's words, execute hands the arguments
  * to the avatar executor and renders its verdict as the tool's result string.
  */
 

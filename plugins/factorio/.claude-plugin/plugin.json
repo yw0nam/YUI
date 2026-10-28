@@ -1,0 +1,9 @@
+{
+  "name": "factorio",
+  "version": "0.1.0",
+  "description": "Bridges the Factorio game to the backend agent. It polls the coop-agent game mod over RCON, caches game events, and posts an urgent signal to the YUI client when a wake-kind event happens.",
+  "author": {
+    "name": "yw0nam"
+  },
+  "license": "PolyForm-Noncommercial-1.0.0"
+}

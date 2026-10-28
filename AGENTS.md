@@ -51,8 +51,7 @@ Read these when the trigger applies; they are not loaded by default.
 
 - **Code location / orientation** → `docs/agent-guide/project-structure.md`
 - **How data moves between modules, and where a new feature goes** → `docs/agent-guide/architecture/map.js` (viewer: `index.html` beside it; procedure: `CONTRIBUTING.md` § Architecture map)
-- **Standalone Mods (independent MCP servers)** → `Mods/README.md` — not part of the app runtime; own Python/uv toolchain + `mods` and `mods-lint` CI jobs
-- **Adding a Mod / Mods CI rules** → `docs/agent-guide/mods.md` — per-mod uv-project layout, router registration, the two-loop CI, ruff
+- **Backend-attached plugins (`plugins/`)** → `docs/agent-guide/plugins.md` — one uv project per plugin under `plugins/`, its own Python toolchain, the `python` and `python-lint` CI jobs, ruff
 - **Agent desire system (Hermes-side)** → `integrations/hermes/desire/README.md`
 - **Connecting Hermes Agent as the backend (Responses mode, dev proxy, auth)** → `integrations/hermes/README.md`
 - **Setting up or speaking the daily briefing (any backend agent)** → `integrations/skills/yui-daily-briefing/SKILL.md`

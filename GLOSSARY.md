@@ -128,7 +128,7 @@ The pill beside the avatar for one signal group, with a details sheet on tap and
 ### Plugins and tools
 
 **Plugin**:
-The install unit: one folder with a `.claude-plugin/plugin.json` manifest and the components it bundles, installed from the marketplace (yui-notify). Alone, the word means only this; a Tauri plugin and a Hermes plugin are named with their ecosystem.
+The install unit: one folder with a `.claude-plugin/plugin.json` manifest and the components it bundles, installed from the marketplace (yui-notify) or attached through the backend agent's MCP configuration (factorio). Alone, the word means only this; a Tauri plugin and a Hermes plugin are named with their ecosystem.
 _Avoid_: mod, add-on, extension
 
 **Marketplace**:
@@ -136,11 +136,11 @@ The list of installable plugins in `.claude-plugin/marketplace.json` at the repo
 _Avoid_: registry, index
 
 **MCP server**:
-A standalone process that offers tools over MCP (router, desktop-control, shell-sandbox, avatar, factorio, all in `Mods/`). Not part of the app runtime.
+A standalone process that offers tools over MCP (the factorio server in `plugins/factorio/`). Not part of the app runtime.
 _Avoid_: Mod
 
 **Backend-attached**:
-How an MCP server reaches the brain through the backend agent's own MCP configuration; the servers in `Mods/` are reached this way, over a loopback port and an SSH reverse tunnel.
+How an MCP server reaches the brain through the backend agent's own MCP configuration; the servers under `plugins/` are reached this way, over a loopback port and an SSH reverse tunnel.
 
 **Skill**:
 A `SKILL.md` that an agent reads for one workflow (yui-daily-briefing, yui-wake-character).
@@ -163,7 +163,7 @@ An outside program that POSTs signals to the `/signals` ingress (yui-notify's ho
 _Avoid_: sender, emitter
 
 **Game mod**:
-Code a game loads, such as the Factorio Lua mod in `Mods/factorio/game-mod/`. "Mod" alone is not used.
+Code a game loads, such as the Factorio Lua mod in `plugins/factorio/game-mod/`. "Mod" alone is not used.
 
 ### Configuration
 

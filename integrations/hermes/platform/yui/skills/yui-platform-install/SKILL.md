@@ -92,7 +92,7 @@ and readable. A file outside `~/.hermes/skills/` makes Hermes log a security war
 `skill_view`. The trusted place is `~/.hermes/skills/<name>/SKILL.md`: copy the folder there, or
 install it the way `hermes skills install` does. The YUI skills that apply are the daily briefing
 skill (`integrations/skills/yui-daily-briefing/`) and the Factorio companion skill
-(`integrations/skills/factorio-companion/`).
+(`plugins/factorio/skills/factorio-companion/`).
 
 The plugin's [`docs/install.md`](../../docs/install.md) carries what each `extra` key means and what
 to change for a host other than loopback.
