@@ -1,0 +1,263 @@
+name: Plugin release
+
+on:
+  push:
+    tags: ['plugin-*-v*']
+
+concurrency:
+  group: plugin-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  meta:
+    runs-on: ubuntu-latest
+    outputs:
+      id: ${{ steps.parse.outputs.id }}
+      version: ${{ steps.parse.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # The tag, the Cargo package, and the plugin manifest each carry the version, so
+      # a tag can outrun a bump and publish a release full of the old version.
+      - name: Parse the tag and check it against the plugin
+        id: parse
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          re='^plugin-(.+)-v([0-9][0-9A-Za-z.+-]*)$'
+          if [[ ! "$TAG" =~ $re ]]; then
+            echo "::error::tag ${TAG} does not match plugin-<id>-v<version>"
+            exit 1
+          fi
+          id="${BASH_REMATCH[1]}"
+          version="${BASH_REMATCH[2]}"
+          dir="plugins/${id}"
+          for file in "$dir/Cargo.toml" "$dir/.claude-plugin/plugin.json" "$dir/.mcp.json"; do
+            if [ ! -f "$file" ]; then
+              echo "::error::${file} is missing"
+              exit 1
+            fi
+          done
+          cargo_metadata="$(cargo metadata --no-deps --format-version 1 --manifest-path "$dir/Cargo.toml")"
+          cargo_name="$(jq -r '.packages[0].name' <<<"$cargo_metadata")"
+          cargo_version="$(jq -r '.packages[0].version' <<<"$cargo_metadata")"
+          manifest_name="$(jq -r '.name' "$dir/.claude-plugin/plugin.json")"
+          manifest_version="$(jq -r '.version' "$dir/.claude-plugin/plugin.json")"
+          echo "tag=$id@$version Cargo.toml=$cargo_version plugin.json=$manifest_name@$manifest_version"
+          # The build and artifact paths name the binary after the id.
+          if [ "$cargo_name" != "$id" ]; then
+            echo "::error::the Cargo package in ${dir}/Cargo.toml is named ${cargo_name}, not ${id}"
+            exit 1
+          fi
+          if [ "$manifest_name" != "$id" ] || [ "$manifest_version" != "$version" ] || [ "$cargo_version" != "$version" ]; then
+            echo "::error::tag ${TAG} does not match the plugin (plugin.json: ${manifest_name}@${manifest_version}, Cargo.toml: ${cargo_version})"
+            exit 1
+          fi
+          echo "id=$id" >>"$GITHUB_OUTPUT"
+          echo "version=$version" >>"$GITHUB_OUTPUT"
+
+  build:
+    name: build (${{ matrix.platform }})
+    needs: meta
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: darwin-arm64
+            runner: macos-latest
+            target: aarch64-apple-darwin
+            exe: ''
+          - platform: windows-x64
+            runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            exe: .exe
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: plugins/${{ needs.meta.outputs.id }}
+
+      - name: Build the plugin binary
+        shell: bash
+        env:
+          ID: ${{ needs.meta.outputs.id }}
+          TARGET: ${{ matrix.target }}
+        run: cargo build --release --locked --target "$TARGET" --manifest-path "plugins/${ID}/Cargo.toml"
+
+      # Signing and notarization run only when the repository secrets are non-empty, like
+      # release.yml. A bare binary cannot be stapled, so macOS checks a notarized binary
+      # online on first launch.
+      - name: Sign and notarize the binary
+        if: runner.os == 'macOS'
+        env:
+          ID: ${{ needs.meta.outputs.id }}
+          TARGET: ${{ matrix.target }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          binary="plugins/${ID}/target/${TARGET}/release/${ID}"
+          signed=false
+          if [ -n "${APPLE_CERTIFICATE:-}" ] && [ -n "${APPLE_CERTIFICATE_PASSWORD:-}" ]; then
+            keychain="$RUNNER_TEMP/plugin-signing.keychain-db"
+            keychain_password="$(openssl rand -hex 16)"
+            printf '%s' "$APPLE_CERTIFICATE" | base64 --decode >"$RUNNER_TEMP/certificate.p12"
+            security create-keychain -p "$keychain_password" "$keychain"
+            security unlock-keychain -p "$keychain_password" "$keychain"
+            security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain"
+            existing="$(security list-keychains -d user | tr -d '"')"
+            # shellcheck disable=SC2086
+            security list-keychains -d user -s "$keychain" $existing
+            identity="${APPLE_SIGNING_IDENTITY:-}"
+            if [ -z "$identity" ]; then
+              identity="$(security find-identity -v -p codesigning "$keychain" | awk '$1 == "1)" { print $2; exit }')"
+            fi
+            if [ -z "$identity" ]; then
+              echo "::error::no codesigning identity in the imported certificate"
+              exit 1
+            fi
+            codesign --force --options runtime --timestamp --keychain "$keychain" --sign "$identity" "$binary"
+            signed=true
+            echo "signing: enabled"
+          else
+            echo "signing: disabled — the binary is unsigned"
+          fi
+          if [ "$signed" = true ] && [ -n "${APPLE_ID:-}" ] && [ -n "${APPLE_PASSWORD:-}" ] && [ -n "${APPLE_TEAM_ID:-}" ]; then
+            ditto -c -k --keepParent "$binary" "$RUNNER_TEMP/notarize.zip"
+            xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
+            echo "notarization: enabled"
+          else
+            echo "notarization: disabled — the binary is not notarized"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bin-${{ matrix.platform }}
+          path: plugins/${{ needs.meta.outputs.id }}/target/${{ matrix.target }}/release/${{ needs.meta.outputs.id }}${{ matrix.exe }}
+          if-no-files-found: error
+
+  publish:
+    needs: [meta, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.ref_name }}
+      ID: ${{ needs.meta.outputs.id }}
+      VERSION: ${{ needs.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: bin-*
+          path: ${{ runner.temp }}/bins
+
+      # The catalog entry is built here, from the plugin files at the tag, because the
+      # catalog step runs on a branch cut from main.
+      - name: Package the assets
+        run: |
+          set -euo pipefail
+          assets="$RUNNER_TEMP/assets"
+          mkdir -p "$assets"
+          base="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/${TAG}"
+          summary="$(jq -r '.description' "plugins/${ID}/.claude-plugin/plugin.json")"
+          entry="$(jq -nc --arg id "$ID" --arg version "$VERSION" --arg summary "$summary" '{id: $id, version: $version, summary: $summary, assets: {}}')"
+          for platform in darwin-arm64 windows-x64; do
+            binary="$ID"
+            if [ "$platform" = windows-x64 ]; then
+              binary="${ID}.exe"
+            fi
+            stage="$RUNNER_TEMP/stage-${platform}"
+            mkdir -p "$stage/.claude-plugin" "$stage/bin"
+            cp "plugins/${ID}/.claude-plugin/plugin.json" "$stage/.claude-plugin/"
+            cp "plugins/${ID}/.mcp.json" "$stage/"
+            cp "$RUNNER_TEMP/bins/bin-${platform}/${binary}" "$stage/bin/"
+            # Artifacts drop the executable bit.
+            if [ "$platform" = darwin-arm64 ]; then
+              chmod +x "$stage/bin/$binary"
+            fi
+            asset="${ID}-${VERSION}-${platform}.zip"
+            (cd "$stage" && zip -qrD "$assets/$asset" .)
+            sha256="$(sha256sum "$assets/$asset" | cut -d' ' -f1)"
+            entry="$(jq -c --arg platform "$platform" --arg url "${base}/${asset}" --arg sha256 "$sha256" '.assets[$platform] = {url: $url, sha256: $sha256}' <<<"$entry")"
+          done
+          echo "$entry" >"$RUNNER_TEMP/entry.json"
+
+      # The release is published, not a draft, so the app can download its assets; it is
+      # not marked latest, so releases/latest keeps pointing at the app.
+      - name: Publish the release
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" "$RUNNER_TEMP"/assets/*.zip \
+            --title "${ID} v${VERSION}" \
+            --notes "The ${ID} plugin ${VERSION} for darwin-arm64 and windows-x64." \
+            --latest=false --verify-tag
+
+      # A PR opened with GITHUB_TOKEN starts no checks; the operator closes and reopens it once.
+      - name: Open the catalog PR
+        run: |
+          set -euo pipefail
+          branch="catalog/plugin-${ID}-v${VERSION}"
+          title="chore: catalog ${ID} v${VERSION}"
+          release_url="$(gh release view "$TAG" --json url --jq .url)"
+          git fetch origin main
+          git switch --no-track -c "$branch" origin/main
+          jq --slurpfile entry "$RUNNER_TEMP/entry.json" --arg id "$ID" \
+            '.official = ((.official | map(select(.id != $id))) + $entry | sort_by(.id))' \
+            plugins/catalog.json >"$RUNNER_TEMP/catalog.json"
+          mv "$RUNNER_TEMP/catalog.json" plugins/catalog.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898283+github-actions[bot]@users.noreply.github.com'
+          git add plugins/catalog.json
+          git commit -m "$title"
+          git push origin "$branch"
+          gh pr create --base main --head "$branch" --title "$title" --body-file - <<EOF
+          ## Summary
+          The checks do not start on a PR opened by GITHUB_TOKEN; before merging, run \`gh pr close <n> && gh pr reopen <n>\` once.
+
+          Lists ${ID} ${VERSION} in the plugin catalog, from the release ${release_url}.
+
+          ## Related issues
+          N/A
+
+          ## Related decisions / docs
+          docs/agent-guide/build-run.md § Plugin releases
+
+          ## Runtime evidence (required for UI / DOM / runtime behavior)
+          N/A — catalog data only
+
+          ## Merge danger
+          two-way; a wrong url or sha256 breaks installing this one plugin
+
+          ## Verification
+          - [ ] \`pnpm build\` passes (includes tsc typecheck)
+          - [ ] \`pnpm test\` passes
+          - [ ] \`pnpm lint\` passes (biome format + lint)
+          - [ ] \`cargo test\` / \`cargo clippy\` pass (Rust changes)
+          - [ ] Runtime evidence attached above, or N/A justified
+
+          ## Checklist (YUI principles)
+          - [ ] Schema changes update \`docs/reference/client-context.md\` alongside the code
+          - [ ] \`docs/agent-guide/architecture/map.js\` carries every module, part, and exchange this PR adds, removes, or changes (or none changed)
+          - [ ] No unverified assumptions (docs first; web/context7 cross-check)
+          - [ ] No brain in the client — judgment and mode live in the backend; persona text is client configuration (firing ≠ judgment)
+          - [ ] No inline control tags — emotion/motion only via \`generate_express\` tool-call arguments
+          - [ ] No hardcoding — endpoints/models/paths live in \`configs/\`
+          - [ ] New/changed behavior ships a test in this PR (or \`skip-tests\` label justified)
+          EOF
