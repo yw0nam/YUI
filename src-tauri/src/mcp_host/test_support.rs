@@ -50,3 +50,28 @@ pub async fn eventually(check: impl Fn() -> bool) -> bool {
 pub fn gone(pid: i32) -> bool {
     nix::sys::signal::kill(nix::unistd::Pid::from_raw(pid), None) == Err(nix::errno::Errno::ESRCH)
 }
+
+/// A copy of the fixture plugin in a new temp folder, with plugin name `id`.
+pub fn fixture_copy(id: &str) -> PathBuf {
+    let dir = temp_dir().join(id);
+    copy_dir(&fixture(), &dir);
+    let manifest = dir.join(".claude-plugin/plugin.json");
+    let text = std::fs::read_to_string(&manifest)
+        .unwrap()
+        .replace("\"yui-test\"", &format!("\"{id}\""));
+    std::fs::write(manifest, text).unwrap();
+    dir
+}
+
+fn copy_dir(from: &std::path::Path, to: &std::path::Path) {
+    std::fs::create_dir_all(to).unwrap();
+    for entry in std::fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let target = to.join(entry.file_name());
+        if entry.file_type().unwrap().is_dir() {
+            copy_dir(&entry.path(), &target);
+        } else {
+            std::fs::copy(entry.path(), target).unwrap();
+        }
+    }
+}
