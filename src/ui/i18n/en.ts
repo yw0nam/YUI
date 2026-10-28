@@ -166,6 +166,7 @@ const en: Record<string, string> = {
   "tabs.together": "Together",
   "tabs.listening": "Listening and bubble",
   "tabs.perms": "Permissions",
+  "tabs.plugins": "Plugins",
   "tabs.motion": "Motion and desktop",
   "rail.group_character": "This character",
   "rail.group_app": "Every character",

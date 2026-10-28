@@ -167,6 +167,7 @@ const ja: Record<string, string> = {
   "tabs.together": "みんなで",
   "tabs.listening": "聞き取りと吹き出し",
   "tabs.perms": "権限",
+  "tabs.plugins": "プラグイン",
   "tabs.motion": "動きとデスクトップ",
   "rail.group_character": "このキャラクター",
   "rail.group_app": "すべてのキャラクター",

@@ -18,6 +18,7 @@ import type { createSessionDiagnosticsStore } from "../../io/chat/conversation/s
 import type { createSessionStore } from "../../io/chat/conversation/session-store";
 import type { createSignalHistoryStore } from "../../io/chat/conversation/signal-history-store";
 import type { DelegationItem } from "../../io/chat/push/push-frames";
+import type { McpHost, McpHostManage } from "../../io/mcp-host/mcp-host";
 import type {
   createSpeakerSelection,
   SpeakerOption,
@@ -260,6 +261,8 @@ interface QuickControlsOptions {
   getExpressMotions?: () => readonly string[];
   /** Launch bed scene on/off + wake timeout store. If absent, that section won't render. */
   bedSceneSettings?: BedSceneSettingsStore;
+  /** The plugin host and its managing commands. If absent, the Plugins page won't render. */
+  plugins?: { host: McpHost; manage: McpHostManage };
   /** Card file steps and the preset creator, wired by the app layer. */
   importCard: () => Promise<ImportedCard | null>;
   exportCard: (text: string, fileName: string) => Promise<"written" | "cancelled">;
@@ -372,6 +375,7 @@ export function createQuickControls({
   expressMotionSettings,
   getExpressMotions,
   bedSceneSettings,
+  plugins,
   importCard,
   exportCard,
   createPresetFromCard,
@@ -426,6 +430,7 @@ export function createQuickControls({
     showDevtools: !!onOpenDevtools,
     showHelp: !!onGuide,
     showHistory: !!transcript,
+    showPlugins: !!plugins,
     showPreset: !!presetRegistry,
     showCharacters: !!presetRegistry && !!petWindows,
   });

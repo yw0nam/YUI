@@ -166,6 +166,7 @@ const ko: Record<string, string> = {
   "tabs.together": "함께",
   "tabs.listening": "듣기와 말풍선",
   "tabs.perms": "권한",
+  "tabs.plugins": "플러그인",
   "tabs.motion": "동작과 데스크톱",
   "rail.group_character": "이 캐릭터",
   "rail.group_app": "모든 캐릭터",
