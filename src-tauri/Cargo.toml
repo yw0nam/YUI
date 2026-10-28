@@ -42,6 +42,11 @@ rmcp = { version = "3.8", default-features = false, features = ["client", "trans
 process-wrap = { version = "10.0", default-features = false, features = ["tokio1", "process-group", "job-object", "kill-on-drop", "creation-flags"] }
 # Keeps `.mcp.json` servers in file order.
 indexmap = { version = "2", features = ["serde"] }
+# Catalog fetch and plugin downloads; default features keep the rustls stack tauri-plugin-cors-fetch already uses.
+reqwest = "0.13"
+sha2 = "0.10"
+# Unpacks plugin release zips, which are deflated.
+zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 # Kills an MCP server's whole process group; the major version process-wrap uses.
 [target.'cfg(unix)'.dependencies]

@@ -165,6 +165,14 @@ globalThis.YUI_MAP =
       "desc": "STT and TTS HTTP endpoints"
     },
     {
+      "id": "catalog",
+      "label": "Plugin catalog",
+      "kind": "external",
+      "col": 5,
+      "row": 2,
+      "desc": "plugins/catalog.json and plugin release assets on GitHub"
+    },
+    {
       "id": "renderer",
       "label": "Renderer",
       "kind": "module",
@@ -362,6 +370,11 @@ globalThis.YUI_MAP =
       "label": "synthesis request"
     },
     {
+      "from": "shell",
+      "to": "catalog",
+      "label": "catalog, plugin release downloads"
+    },
+    {
       "from": "senders",
       "to": "shell",
       "label": "signals, avatar commands, WebDriver session (verify feature)"
@@ -422,6 +435,14 @@ globalThis.YUI_MAP =
       "module": "voice-svc",
       "label": "TTS service",
       "role": "The speech synthesis HTTP endpoint and its voices API.",
+      "paths": [],
+      "external": true
+    },
+    {
+      "id": "plugin-catalog",
+      "module": "catalog",
+      "label": "Catalog on GitHub",
+      "role": "plugins/catalog.json on main, each community plugin's plugin.json on its repo's default branch, and the release zips and checksums.txt the MCP host downloads.",
       "paths": [],
       "external": true
     },
@@ -519,7 +540,7 @@ globalThis.YUI_MAP =
       "id": "shell/mcp-host",
       "module": "shell",
       "label": "mcp_host",
-      "role": "Runs local plugins' MCP servers, keeps their enablement and consent on disk, publishes a revisioned snapshot to every window, and answers plugin tool calls and skill reads.",
+      "role": "Installs, updates, and removes Catalog plugins, runs local and Catalog plugins' MCP servers, keeps their enablement and consent on disk, publishes a revisioned snapshot to every window, and answers plugin tool calls and skill reads.",
       "paths": [
         "src-tauri/src/mcp_host"
       ]
@@ -1808,6 +1829,14 @@ globalThis.YUI_MAP =
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
+    },
+    {
+      "id": "catalog-http",
+      "from": "shell/mcp-host",
+      "to": "plugin-catalog",
+      "carries": "GET catalog.json, plugin.json, release zips and checksums.txt",
+      "kind": "http",
+      "transport": "shared"
     },
     {
       "id": "tts-http",

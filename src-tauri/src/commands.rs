@@ -51,6 +51,12 @@ pub fn handler() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         #[cfg(desktop)]
         crate::mcp_host::commands::plugin_host_log_tail,
         #[cfg(desktop)]
+        crate::mcp_host::commands::plugin_host_catalog,
+        #[cfg(desktop)]
+        crate::mcp_host::commands::plugin_host_install,
+        #[cfg(desktop)]
+        crate::mcp_host::commands::plugin_host_remove,
+        #[cfg(desktop)]
         crate::mcp_host::commands::plugin_host_call,
         #[cfg(desktop)]
         crate::mcp_host::commands::plugin_host_cancel,

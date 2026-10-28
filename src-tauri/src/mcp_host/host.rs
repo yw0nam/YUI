@@ -2,12 +2,13 @@
 //! entry points.
 
 use super::calls::Calls;
+use super::catalog;
 use super::lifecycle::LiveServer;
 use super::manifest::{self, Manifest};
 use super::server::PluginLog;
 use super::snapshot::{self, PluginEntry, ServerView, Snapshot};
 use super::store::{self, Source, State, StoredPlugin};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 use time::UtcOffset;
@@ -18,8 +19,12 @@ pub struct Host {
     /// `<app_data>/plugins`.
     pub(super) dir: PathBuf,
     /// `<log dir>/plugins`.
-    log_dir: PathBuf,
-    offset: UtcOffset,
+    pub(super) log_dir: PathBuf,
+    pub(super) offset: UtcOffset,
+    pub(super) catalog: catalog::Config,
+    pub(super) http: reqwest::Client,
+    /// Held for a whole install or remove, so two never interleave.
+    pub(super) installs: tokio::sync::Mutex<()>,
     emit: Emit,
     inner: Mutex<Inner>,
     pub(super) calls: Calls,
@@ -31,10 +36,12 @@ pub(super) struct Inner {
     pub(super) live: HashMap<String, Live>,
     published: Snapshot,
     pub(super) next_epoch: u64,
+    /// Plugins whose old servers stop during an update; enable and retry refuse them.
+    pub(super) updating: HashSet<String>,
 }
 
 pub(super) struct Live {
-    manifest: Result<Manifest, String>,
+    pub(super) manifest: Result<Manifest, String>,
     pub(super) log: Arc<PluginLog>,
     pub(super) servers: Vec<LiveServer>,
 }
@@ -44,6 +51,7 @@ impl Host {
         app_data: Result<PathBuf, String>,
         log_dir: &Path,
         offset: UtcOffset,
+        catalog: catalog::Config,
         emit: impl Fn(&Snapshot) + Send + Sync + 'static,
     ) -> Arc<Self> {
         // Without an app data dir the state is `Err`, so nothing ever reads or writes `dir`.
@@ -69,12 +77,16 @@ impl Host {
                 plugins: Vec::new(),
             },
             next_epoch: 0,
+            updating: HashSet::new(),
         };
         inner.published.plugins = inner.entries();
         Arc::new(Self {
             dir,
             log_dir,
             offset,
+            catalog,
+            http: catalog::client(),
+            installs: tokio::sync::Mutex::new(()),
             emit: Box::new(emit),
             inner: Mutex::new(inner),
             calls: Calls::default(),
@@ -101,7 +113,7 @@ impl Host {
         let manifest = manifest::read(&folder)?;
         let id = manifest.id.clone();
         if state.plugin(&id).is_some() {
-            return Err(format!("plugin already listed: {id}"));
+            return Err(listed(&id));
         }
         let plugin = StoredPlugin {
             id: id.clone(),
@@ -123,6 +135,7 @@ impl Host {
     pub async fn enable(self: &Arc<Self>, plugin_id: &str) -> Result<(), String> {
         let tickets = {
             let mut inner = self.lock();
+            inner.not_updating(plugin_id)?;
             let mut state = writable(&inner.state)?.clone();
             let next_seq = state.next_seq;
             let plugin = state
@@ -168,6 +181,7 @@ impl Host {
         let (stopping, tickets) = {
             let mut inner = self.lock();
             let plugin_id = server_id.split_once('/').map_or(server_id, |(id, _)| id);
+            inner.not_updating(plugin_id)?;
             let active = writable(&inner.state)?
                 .plugin(plugin_id)
                 .is_some_and(|p| p.enabled && p.consented());
@@ -280,7 +294,7 @@ impl Host {
         self.stop(stopping).await;
     }
 
-    fn save(&self, inner: &mut Inner, state: State) -> Result<(), String> {
+    pub(super) fn save(&self, inner: &mut Inner, state: State) -> Result<(), String> {
         store::save(&self.dir.join("state.json"), &state)
             .map_err(|e| format!("plugin state write failed: {e}"))?;
         inner.state = Ok(state);
@@ -306,6 +320,13 @@ impl Host {
 }
 
 impl Inner {
+    fn not_updating(&self, plugin_id: &str) -> Result<(), String> {
+        if self.updating.contains(plugin_id) {
+            return Err(format!("plugin update in progress: {plugin_id}"));
+        }
+        Ok(())
+    }
+
     fn entries(&self) -> Vec<PluginEntry> {
         let Ok(state) = &self.state else {
             return Vec::new();
@@ -332,7 +353,7 @@ impl Inner {
 }
 
 impl Live {
-    fn read(plugin: &StoredPlugin, log_dir: &Path, offset: UtcOffset) -> Self {
+    pub(super) fn read(plugin: &StoredPlugin, log_dir: &Path, offset: UtcOffset) -> Self {
         Self::new(plugin, manifest::read(&plugin.path), log_dir, offset)
     }
 
@@ -355,20 +376,26 @@ impl Live {
     }
 }
 
-fn writable(state: &Result<State, String>) -> Result<&State, String> {
+pub(super) fn writable(state: &Result<State, String>) -> Result<&State, String> {
     state
         .as_ref()
         .map_err(|e| format!("plugin state unreadable: {e}"))
 }
 
-fn unknown(plugin_id: &str) -> String {
+pub(super) fn unknown(plugin_id: &str) -> String {
     format!("unknown plugin: {plugin_id}")
+}
+
+pub(super) fn listed(plugin_id: &str) -> String {
+    format!("plugin already listed: {plugin_id}")
 }
 
 #[cfg(all(test, unix))]
 mod tests {
     use super::super::snapshot::{PluginEntry, Status};
-    use super::super::test_support::{fixture_copy, host_at, require_python, running, temp_dir};
+    use super::super::test_support::{
+        fixture_copy, host_at, no_catalog, require_python, running, temp_dir,
+    };
     use super::*;
     use serde_json::{json, Value};
 
@@ -562,6 +589,7 @@ mod tests {
             Err("no home folder".into()),
             &temp_dir(),
             UtcOffset::UTC,
+            no_catalog(),
             |_| {},
         );
         assert!(host.snapshot().plugins.is_empty());

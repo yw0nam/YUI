@@ -34,10 +34,10 @@ pub struct ServerSpec {
 }
 
 #[derive(Deserialize)]
-struct PluginJson {
+pub(super) struct PluginJson {
     name: String,
-    version: Option<String>,
-    description: Option<String>,
+    pub(super) version: Option<String>,
+    pub(super) description: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -48,14 +48,7 @@ struct McpJson {
 
 pub fn read(folder: &Path) -> Result<Manifest, String> {
     let plugin: PluginJson = read_json(&folder.join(".claude-plugin/plugin.json"))?;
-    let valid_id = plugin
-        .name
-        .starts_with(|c: char| c.is_ascii_lowercase() || c.is_ascii_digit())
-        && plugin
-            .name
-            .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
-    if !valid_id {
+    if !valid_id(&plugin.name) {
         return Err(format!("invalid plugin name: {}", plugin.name));
     }
     let mcp_path = folder.join(".mcp.json");
@@ -75,6 +68,14 @@ pub fn read(folder: &Path) -> Result<Manifest, String> {
         servers,
         skills: read_skills(folder),
     })
+}
+
+/// Lowercase letters, digits and `-`, starting with a letter or digit.
+pub(super) fn valid_id(id: &str) -> bool {
+    id.starts_with(|c: char| c.is_ascii_lowercase() || c.is_ascii_digit())
+        && id
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
 }
 
 /// The `SKILL.md` text after its frontmatter, without leading blank lines.

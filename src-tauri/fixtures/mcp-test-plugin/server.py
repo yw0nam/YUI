@@ -111,6 +111,8 @@ def main():
             log(f"cancelled id={message['params'].get('requestId')}")
         elif request_id is not None:
             send({"jsonrpc": "2.0", "id": request_id, "error": {"code": -32601, "message": "method not found"}})
+    if MODE == "linger":
+        time.sleep(30)
 
 
 main()

@@ -5,8 +5,9 @@
 #
 # Scope: added/changed lines under src/ and src-tauri/ that are NOT test code.
 # A change counts as tested if any test file changed (*.test.ts, *.spec.ts,
-# tests/ for web; *_test.rs, a tests/ dir, or an added #[test]/#[cfg(test)]
-# for Rust). Bypass with the skip-tests PR label (TEST_GUARD_SKIP=1 in CI).
+# tests/ for web; *_test.rs, a tests/ dir, or an added #[test], #[tokio::test],
+# #[cfg(test)] or #[cfg(all(test, ...))] for Rust). Bypass with the skip-tests
+# PR label (TEST_GUARD_SKIP=1 in CI).
 #
 # Usage: test-guard.sh <base-ref>   (run from repo root)
 set -u
@@ -68,7 +69,7 @@ while IFS= read -r f; do
     # An inline Rust test added in the same source file counts as a test change.
     if printf '%s' "$f" | grep -q '\.rs$'; then
       if git diff "$range"...HEAD -- "$f" 2>/dev/null \
-        | grep -qE '^\+.*(#\[test\]|#\[cfg\(test\)\])'; then
+        | grep -qE '^\+.*(#\[(tokio::)?test\]|#\[cfg\((all\()?test)'; then
         test_changed=1
       fi
     fi

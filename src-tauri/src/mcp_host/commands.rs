@@ -1,5 +1,6 @@
 //! The host's Tauri commands; each forwards to `Host`.
 
+use super::catalog::CatalogEntry;
 use super::host::Host;
 use super::snapshot::Snapshot;
 use serde_json::Value;
@@ -59,6 +60,27 @@ pub fn plugin_host_log_tail(
     plugin_id: String,
 ) -> Result<Vec<String>, String> {
     host.log_tail(&plugin_id)
+}
+
+#[tauri::command]
+pub async fn plugin_host_catalog(host: State<'_, Arc<Host>>) -> Result<Vec<CatalogEntry>, String> {
+    host.catalog().await
+}
+
+#[tauri::command]
+pub async fn plugin_host_install(
+    host: State<'_, Arc<Host>>,
+    plugin_id: String,
+) -> Result<(), String> {
+    host.install(&plugin_id).await
+}
+
+#[tauri::command]
+pub async fn plugin_host_remove(
+    host: State<'_, Arc<Host>>,
+    plugin_id: String,
+) -> Result<(), String> {
+    host.remove(&plugin_id).await
 }
 
 #[tauri::command]
