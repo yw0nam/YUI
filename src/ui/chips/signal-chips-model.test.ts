@@ -83,20 +83,9 @@ describe("createSignalChipsModel", () => {
     expect(seen).toHaveBeenCalledOnce();
   });
 
-  it("reads the deprecated immediate delivery as batched", () => {
+  it("a batched chip leaves 30 minutes after it arrived while an urgent one stays", () => {
     const model = createSignalChipsModel({ history: fakeHistory() });
-    model.add(group("a", { delivery: "immediate" }));
-
-    expect(model.list()[0]!.delivery).toBe("batched");
-    expect(model.list()[0]!.group.envelope.delivery).toBe("immediate");
-  });
-
-  it.each([
-    "batched",
-    "immediate",
-  ] as const)("a %s chip leaves 30 minutes after it arrived while an urgent one stays", (delivery) => {
-    const model = createSignalChipsModel({ history: fakeHistory() });
-    model.add(group("slow", { delivery }));
+    model.add(group("slow"));
     model.add(group("hot", { delivery: "urgent" }));
 
     vi.advanceTimersByTime(29 * MIN);

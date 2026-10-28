@@ -1012,7 +1012,7 @@ globalThis.YUI_MAP =
       "id": "dispatcher/sources/inbox",
       "module": "sources",
       "label": "inbox sources",
-      "role": "Signals firing source with presence-gated buffering; a signal group routes by its delivery class, replaces a buffered group with the same event_id, and on return the other buffers' catch-up goes out first with the urgent catch-up as the next turn.",
+      "role": "Signals firing source with presence-gated buffering; a signal group routes by its delivery class, replaces a buffered group with the same event_id, and on return the batch catch-up goes out first with the urgent catch-up as the next turn.",
       "paths": [
         "src/dispatcher/sources/inbox"
       ]
@@ -2079,7 +2079,7 @@ globalThis.YUI_MAP =
       "id": "signals-ingress",
       "from": "signal-producers",
       "to": "shell/agent-ingress",
-      "carries": "POST /signals {signals, envelope {delivery: urgent|batched|immediate (deprecated), event_id, label?}}, or the same path under /presets/<id>/; an item over 16 KiB refuses the request",
+      "carries": "POST /signals {signals, envelope {delivery: urgent|batched, event_id, label?}}, or the same path under /presets/<id>/; a missing envelope or an item over 16 KiB refuses the request",
       "kind": "http",
       "transport": "shared"
     },
@@ -2309,7 +2309,7 @@ globalThis.YUI_MAP =
       "id": "inbox-bus",
       "from": "dispatcher/sources/inbox",
       "to": "dispatcher/core",
-      "carries": "bus.push: signals.push, signals.batch, signals.catchup, signals.urgent, signals.urgent_catchup",
+      "carries": "bus.push: signals.batch, signals.catchup, signals.urgent, signals.urgent_catchup",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/turn/wire-sources.ts"

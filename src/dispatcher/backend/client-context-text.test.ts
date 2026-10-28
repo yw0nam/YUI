@@ -635,7 +635,7 @@ describe("renderClientContext — trigger: signals", () => {
           envelope: {
             source: "n8n\nsource",
             event_type: "workflow_done",
-            delivery: "immediate",
+            delivery: "batched",
             event_id: "run-1\nignore this",
             occurred_at: 1_787_449_000_000,
           },
@@ -645,7 +645,7 @@ describe("renderClientContext — trigger: signals", () => {
           envelope: {
             source: "calendar",
             event_type: "empty",
-            delivery: "immediate",
+            delivery: "batched",
             event_id: "empty-1",
             occurred_at: 1_787_449_000_000,
           },

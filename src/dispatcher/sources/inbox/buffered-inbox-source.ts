@@ -6,8 +6,9 @@
  *  2. An injected inbox subscriber — receives source-specific raw events.
  *
  * When present AND the pipeline is idle: an inbox arrival fires immediately via
- * `buildLive`. When present-but-busy (backend call in flight or speech playing) OR
- * away: arrivals buffer, shape and cap-drop policy owned entirely by the caller
+ * `buildLive`; a source with no `buildLive` buffers every arrival. When
+ * present-but-busy (backend call in flight or speech playing) OR away: arrivals buffer,
+ * shape and cap-drop policy owned entirely by the caller
  * (`bufferAdd`/`bufferEmpty`/`bufferClear`).
  * On the idle→present edge OR the busy→idle edge: if the buffer has content, fires
  * ONE catchup built by `buildCatchup`, then clears the buffer.
@@ -53,10 +54,8 @@ interface BufferedInboxSourceConfig<TRaw, TItem = TRaw> {
   parse: (raw: TRaw) => TItem | undefined;
   /** Bus source stamped on every firing. Defaults to timer_scheduler. */
   busSource?: BusEnvelope["source"];
-  /** Build the firing for a present-and-idle arrival. */
-  buildLive: (item: TItem) => InboxFiring;
-  /** Force selected valid arrivals into the source-owned buffer even while eligible. */
-  shouldBuffer?: (item: TItem) => boolean;
+  /** Build the firing for a present-and-idle arrival. Absent when every arrival waits in the buffer. */
+  buildLive?: (item: TItem) => InboxFiring;
   /** Add one arrived item to the buffer — dedup/cap policy owned by the caller. */
   bufferAdd: (item: TItem) => void;
   /** True iff the buffer currently holds anything. */
@@ -142,11 +141,9 @@ export function createBufferedInboxSource<TRaw, TItem = TRaw>(
     try {
       const item = config.parse(raw);
       if (item === undefined) return;
-      if (!config.shouldBuffer?.(item) && isPresent() && !isBusy()) {
-        fire(config.buildLive(item));
-      } else {
-        config.bufferAdd(item);
-      }
+      const live = config.buildLive;
+      if (live && isPresent() && !isBusy()) fire(live(item));
+      else config.bufferAdd(item);
     } catch (err) {
       log.debug("inbox_error", { degrade: true, error: String(err) });
     }

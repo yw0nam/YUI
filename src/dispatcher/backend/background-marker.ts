@@ -36,7 +36,6 @@ export function backgroundMarker(eventName: string, trigger: TriggerMeta): strin
   }
   if (eventName.startsWith("proactive.")) return "(I've gone quiet for a while)";
   if (eventName.startsWith("schedule.")) return "(it's the time of day you check in on me)";
-  if (eventName === "signals.push") return "(a new signal just arrived for you)";
   if (eventName === "signals.batch") return "(a few signals batched up for you)";
   if (eventName === "signals.catchup") return "(signals piled up for you)";
   if (eventName === "signals.urgent") return "(something urgent just came in for you)";

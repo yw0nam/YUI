@@ -48,25 +48,24 @@ preset ids exist by the 404 and 503 replies. The ids are opaque keys, not secret
 |---|---|
 | `source` | Non-empty string identifying the producer |
 | `event_type` | Non-empty string identifying the producer-defined event type |
-| `delivery` | Exactly `"urgent"`, `"batched"`, or the deprecated `"immediate"` |
+| `delivery` | Exactly `"urgent"` or `"batched"` |
 | `event_id` | Non-empty opaque string; a group replaces a buffered group with the same `event_id` in the same buffer, at its position, and a group with the same `event_id` in another buffer stays. A delivered group is not compared |
 | `label` | Optional string: the producer's one-line origin, for example `dev43 · tmux yui:2 · YUI (main)`. Over 120 code points it is cut to 119 code points plus `…` and the request is accepted. A non-string label makes the envelope invalid. The label is not rendered in `client_context`. The client shows it, or `event_type` when it is absent, after `source` as the source line of the group on the speech bubble and in History; the bubble keeps the line to its own width and cuts the rest with an ellipsis, so the distinguishing words go first |
 | `occurred_at` | Finite epoch-millisecond number in the inclusive range `-8.64e15` through `8.64e15`, representable as an ISO-8601 date |
 
 ## Delivery
 
-`delivery` names one of two delivery classes, `urgent` and `batched`, or the deprecated
-`immediate`. Dropping is a
+`delivery` names one of two delivery classes, `urgent` and `batched`. Dropping is a
 producer-side rule: a producer that wants a signal dropped does not send it.
 
 An `urgent` group means the user should hear it now. It fires at once while the user is
 present and the pipeline is idle, and the proactive quiet gap does not hold it.
 Otherwise it waits in its own buffer, and on the away-to-present or busy-to-idle edge
 the buffered urgent groups fire together as one urgent catch-up turn. On the return to
-present, the catch-up of the other buffers goes out first and the urgent catch-up is the
-next turn, right after it ends. Urgent groups never share a catch-up turn with
-`immediate` or `batched` groups, and the drains below carry non-urgent groups only — a
-buffered urgent group keeps waiting for its own edge.
+present, the batch catch-up goes out first and the urgent catch-up is the next turn,
+right after it ends. Urgent groups never share a catch-up turn with `batched` groups,
+and the drains below carry batched groups only — a buffered urgent group keeps waiting
+for its own edge.
 
 A `batched` group always waits in the batch buffer. The first group starts a five-minute
 delivery interval. At the interval boundary, all pending batched groups fire together
@@ -74,22 +73,17 @@ when signals are enabled, the user is present, and the pipeline is idle. If thos
 conditions are not met, the groups remain buffered without another timer.
 A batched group that misses its deadline leaves on the next edge.
 
-An `immediate` group fires at once while the user is present and the pipeline is idle.
-Otherwise it waits in the away buffer. Deprecated: removed in v0.6.0. Use `urgent` or
-`batched`.
-
 While signals are disabled, the client drops every group that arrives, and the next
 OS idle tick clears the groups already buffered.
 
 Returning to present or transitioning from busy to idle emits one catch-up containing
-both away-buffered and batched groups in their original arrival order. Returning before
-a batched group's deadline therefore includes it in that catch-up.
+the batched groups in their original arrival order. Returning before a batched group's
+deadline therefore includes it in that catch-up.
 
 Three client-fired turns also drain the buffers and carry the groups themselves: a
 `proactive.tap_bored` turn, the `time_milestone.first_activity` turn, and a
 `proactive.wake` turn that carries the day's first activity. Each takes every pending
-non-urgent group in arrival order, and a drain empties the away buffer and the batch
-buffer together.
+batched group in arrival order, and a drain empties the batch buffer.
 
 A turn dropped before its backend call (by the proactive quiet gap, a guardrail, the user's message while it waits, a stale queue entry, or a degraded backend), a push the bus refuses, or a call that failed in transport or at the backend puts its groups back at the front of their buffers, and the next edge or drain delivers them. A turn the user's message cancels after its call started does not.
 
@@ -141,28 +135,22 @@ still buffered there and leaves a bound window's buffers untouched.
 
 ## Validation
 
-The HTTP ingress requires `POST /signals`, valid JSON, and a `signals` array. A request
-with another method on `/signals` or `/presets/<id>/signals` receives HTTP 405.
-Invalid JSON or a missing `signals` array receives HTTP 400. A request whose `envelope`
-is any JSON value, or is absent, receives HTTP 200. A request under `/presets/` whose id
+The HTTP ingress requires `POST /signals`, valid JSON, a `signals` array, and an
+`envelope`. A request with another method on `/signals` or `/presets/<id>/signals`
+receives HTTP 405. Invalid JSON, a missing `signals` array, or an absent or null
+`envelope` receives HTTP 400. A request under `/presets/` whose id
 no preset has, or whose path after the id is none of the routes above, receives HTTP 404. An unknown path under `/avatar/`
 receives HTTP 404; any other unknown bare path receives HTTP 400. A request for a preset id
 that exists while its pet window is not open receives HTTP 503; it is never passed to `main`.
 
 HTTP 200 means that the ingress accepted the wire shape and attempted to emit the
-batch to its target window. It does not confirm receipt or delivery. A non-null envelope is
+batch to its target window. It does not confirm receipt or delivery. The envelope is
 forwarded unchanged and stamped with server time.
 
 While signals are enabled, a group whose envelope is not an object or fails the field
 rules is dropped as a whole and one warning is logged with the item count. While
 signals are disabled, the source drops incoming batches before envelope validation and
 logs no envelope warning.
-
-A request with no `envelope`, or with `"envelope": null`, is delivered as an `immediate`
-group under a generated envelope: source `legacy`, event type `signals`, the server time,
-and an id `legacy-<server time>-<n>`, which the backend sees in its signal line. The first
-such request in a window's launch logs a `deprecated` warning. Deprecated: removed in
-v0.6.0. Use an envelope.
 
 A request with any signal item whose JSON serialization exceeds 16 KiB receives HTTP 400;
 no item of that request is delivered. A request body over 64 KiB receives HTTP 400.

@@ -42,7 +42,7 @@ import type { ClampedIntSettingsStore } from "../../settings/persisted-store";
 
 /**
  * tier2 utterance candidate sources: proactive.<id> (idle dramatization) + schedule.<id>
- * (time-of-day greeting) + signals.push/batch/catchup/urgent/urgent_catchup +
+ * (time-of-day greeting) + signals.batch/catchup/urgent/urgent_catchup +
  * time_milestone.first_activity (first present tick of the local day), all over the
  * presence gate, plus proactive.wake (the character getting out of the bed).
  * Created and started; the started refs are returned for interaction-notes and teardown.
