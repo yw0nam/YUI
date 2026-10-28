@@ -59,7 +59,7 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 | Screen watch | Cues on a switch to another app after 10 minutes in the previous one, and on every 45 minutes in one app, off by default (`configs/screen.json`) |
 | First activity of the day | Cue on the first activity of each local day |
 | Guardrails | Per-source debounce, hourly caps of 24 cues, 40 self-started turns and 120 urgent signals, the Chain cap of 2 addressed turns in a row without a user turn (`configs/guardrails.json`), and a 10-minute default quiet gap after each turn |
-| Loopback ingress | Local listener on port 8770 for coding-agent hooks, `/signals`, and the `avatar` Mod, active while the External signals switch in the Proactive tab is on (off by default, applied at next launch); the bare paths serve the main window and `/presets/<id>/` paths serve the pet window bound to that preset |
+| Loopback ingress | Local listener on port 8770 for coding-agent hooks, `/signals`, and the avatar RPC routes, active while the External signals switch in the Proactive tab is on (off by default, applied at next launch); the bare paths serve the main window and `/presets/<id>/` paths serve the pet window bound to that preset |
 | Signals ingress | `POST /signals` for batches of external signals ([envelope](../reference/signals-ingress.md)); to wake one character, turn External signals on, turn that character on the desktop (Together → Characters), copy its URL from its row in the preset list, and give the URL to the producer |
 | Daily briefing | Skill for a backend agent that runs scheduled producers on its own machine and speaks their dated briefings on the first activity of the day or on request, with the Scheduled greeting switch on ([skill](https://github.com/yw0nam/YUI/blob/main/integrations/skills/yui-daily-briefing/SKILL.md)) |
 | Witness log | Local JSONL of app switches and idle periods, kept for 14 days ([format](../reference/witness-log.md)) |
@@ -69,7 +69,7 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 
 | Feature | What it does |
 | --- | --- |
-| Mods | Standalone MCP servers `router`, `desktop-control`, `shell-sandbox`, `avatar`, and `factorio`; the `avatar` Mod seats her on a window, makes her peek, or moves her to a screen spot through the loopback ingress ([Mods](https://github.com/yw0nam/YUI/blob/main/Mods/README.md), [tool reference](../reference/mods.md)) |
+| Plugins | Backend-attached MCP servers under [`plugins/`](https://github.com/yw0nam/YUI/tree/main/plugins); `factorio` polls the Factorio game mod over RCON, caches game events, and posts urgent wake signals to the client ([plugin](https://github.com/yw0nam/YUI/blob/main/plugins/factorio/README.md)) |
 | Integrations | Backend-agent adapters and backend-agnostic skills under [`integrations/`](https://github.com/yw0nam/YUI/tree/main/integrations), for example the Hermes Agent plugins |
 
 ## Platform

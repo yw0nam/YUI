@@ -766,16 +766,11 @@ YUI/
         macos.rs                     # macOS idle, window enumeration, and camera polling
         windows.rs                   # Windows idle, foreground window, and window enumeration polling
   fixtures/                          # JSON case tables the TS and Rust sanitizer tests both read
-  Mods/                              # Standalone MCP servers, independent of the app runtime (Python/uv, own `mods` and `mods-lint` CI jobs)
-    avatar/                          # Avatar body-state and movement Mod
-    browser-cdp/                     # Browser CDP Mod
-    desktop-control/                 # macOS screen and app-control Mod
-    factorio/                        # Factorio RCON poll, event cache, and urgent signals Mod
-      game-mod/                      # The coop-agent Lua game mod; its tests/ uv project runs in the mods CI job
-    shell-sandbox/                   # Sandboxed shell Mod
-    router/                          # Shared Mod router
-    docker-compose.yml               # Container orchestration for Mods
-    README.md                        # Mod setup and operation
+  plugins/                            # Backend-attached plugins, independent of the app runtime (Python/uv, own `python` and `python-lint` CI jobs)
+    factorio/                        # Factorio RCON poll, event cache, and urgent signals MCP server
+      game-mod/                      # The coop-agent Lua game mod; its tests/ uv project runs in the python CI job
+      skills/                        # The companion skill the backend agent reads
+        factorio-companion/          # Game play through the factorio MCP server tools
   integrations/                      # Backend-side integrations, independent of the YUI app runtime
     hermes/
       README.md                      # Hermes Agent adapter setup (Responses mode, dev proxy, auth)

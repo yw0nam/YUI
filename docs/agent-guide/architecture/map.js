@@ -38,7 +38,7 @@ globalThis.YUI_MAP =
       "kind": "external",
       "col": 5,
       "row": 0,
-      "desc": "Mods/avatar, coding-agent hooks, signal producers, the verification driver"
+      "desc": "the factorio plugin, coding-agent hooks, signal producers, the verification driver"
     },
     {
       "id": "shell",
@@ -364,7 +364,7 @@ globalThis.YUI_MAP =
     {
       "from": "senders",
       "to": "shell",
-      "label": "signals, avatar commands, WebDriver session (verify feature)"
+      "label": "signals, relation writes, WebDriver session (verify feature)"
     },
     {
       "from": "shell",
@@ -426,17 +426,9 @@ globalThis.YUI_MAP =
       "external": true
     },
     {
-      "id": "mods-avatar",
+      "id": "factorio",
       "module": "senders",
-      "label": "Mods/avatar",
-      "role": "The MCP server that reads body state and sends body commands over the loopback avatar endpoints.",
-      "paths": [],
-      "external": true
-    },
-    {
-      "id": "mods-factorio",
-      "module": "senders",
-      "label": "Mods/factorio",
+      "label": "plugins/factorio",
       "role": "The MCP server that polls the Factorio game mod over RCON and posts urgent game signals to the loopback ingress.",
       "paths": [],
       "external": true
@@ -2093,17 +2085,9 @@ globalThis.YUI_MAP =
     },
     {
       "id": "factorio-ingress",
-      "from": "mods-factorio",
+      "from": "factorio",
       "to": "shell/agent-ingress",
       "carries": "POST /signals {signals, envelope delivery:\"urgent\"}",
-      "kind": "http",
-      "transport": "shared"
-    },
-    {
-      "id": "mods-ingress",
-      "from": "mods-avatar",
-      "to": "shell/agent-ingress",
-      "carries": "GET /avatar/state, GET /avatar/perch-targets, POST /avatar/command; JSON answer, or the same paths under /presets/<id>/ answered by that window",
       "kind": "http",
       "transport": "shared"
     },
@@ -4087,14 +4071,6 @@ globalThis.YUI_MAP =
           "edges": [
             "tools-capture",
             "capture-shell"
-          ],
-          "to": "shell"
-        },
-        {
-          "from": "senders",
-          "label": "GET /avatar/state, POST /avatar/command",
-          "edges": [
-            "mods-ingress"
           ],
           "to": "shell"
         },

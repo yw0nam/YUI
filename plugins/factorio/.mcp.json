@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "factorio": {
+      "type": "http",
+      "url": "http://127.0.0.1:9003/mcp"
+    }
+  }
+}

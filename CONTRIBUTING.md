@@ -235,12 +235,12 @@ Run the same checks CI does from the repo root:
 
 ```bash
 pnpm gates                        # every app check CI runs, one line per gate with its exit code
-(cd <project> && uv run pytest)   # each Python project under Mods/ or integrations/ the PR touches
+(cd <project> && uv run pytest)   # each Python project under plugins/ or integrations/ the PR touches
 ```
 
 `scripts/ci/gates.sh` lists the gates; a failed gate's line names its log.
 `uv run pytest` is needed only for the Python projects the PR touches;
-`docs/agent-guide/mods.md` lists the full per-project check.
+`docs/agent-guide/plugins.md` lists the full per-project check.
 
 ## License of contributions
 
