@@ -725,6 +725,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "io/mcp-host",
+      "module": "tools",
+      "label": "mcp host client",
+      "role": "the webview side of the MCP host — newest snapshot, call/cancel/skill invokes, plugin catalog",
+      "paths": [
+        "src/io/mcp-host"
+      ]
+    },
+    {
       "id": "io/chat/vocabulary",
       "module": "tools",
       "label": "express vocabulary",
