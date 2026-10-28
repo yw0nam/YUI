@@ -36,14 +36,36 @@ pub fn command(spec: &ServerSpec, root: &Path, data: &Path) -> std::io::Result<C
 /// The launch command and its arguments after placeholder expansion, joined by spaces.
 pub fn display(spec: &ServerSpec, root: &Path, data: &Path) -> String {
     let (root_text, data_text) = (root.to_string_lossy(), data.to_string_lossy());
-    let mut parts = vec![expand(&spec.command, &root_text, &data_text)];
-    parts.extend(spec.args.iter().map(|a| expand(a, &root_text, &data_text)));
+    let mut parts = vec![quote(&expand(&spec.command, &root_text, &data_text))];
+    parts.extend(
+        spec.args
+            .iter()
+            .map(|a| quote(&expand(a, &root_text, &data_text))),
+    );
     parts.join(" ")
 }
 
 /// The folder a plugin's data lives in: `<plugins dir>/data/<plugin id>`.
 pub fn data_dir(plugins_dir: &Path, plugin_id: &str) -> PathBuf {
     plugins_dir.join("data").join(plugin_id)
+}
+
+/// The part as a command line shows it: bare when it reads as one part, quoted otherwise.
+fn quote(part: &str) -> String {
+    if !part.is_empty() && !part.contains(char::is_whitespace) && !part.contains('"') {
+        return part.to_string();
+    }
+    let mut quoted = String::with_capacity(part.len() + 2);
+    quoted.push('"');
+    for c in part.chars() {
+        match c {
+            '\\' => quoted.push_str("\\\\"),
+            '"' => quoted.push_str("\\\""),
+            _ => quoted.push(c),
+        }
+    }
+    quoted.push('"');
+    quoted
 }
 
 /// Expands `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PLUGIN_DATA}` in `s`.
