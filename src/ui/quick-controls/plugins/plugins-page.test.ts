@@ -157,4 +157,23 @@ describe("createPluginsPage", () => {
       ).toEqual(["calendar_today"]),
     );
   });
+
+  it("shows an install rejection as the host sent it, with a Retry that installs again", async () => {
+    const { page, manage } = mountPage();
+    manage.install.mockRejectedValue("checksum mismatch: x");
+    page.entered();
+    await vi.waitFor(() =>
+      expect(page.el.querySelector('[data-cid="calendar-ics"]')).not.toBeNull(),
+    );
+
+    page.el.querySelector<HTMLButtonElement>('[data-cid="calendar-ics"]')!.click();
+    await vi.waitFor(() =>
+      expect(page.el.querySelector(".yui-plg-err span")?.textContent).toBe(
+        "Could not install. checksum mismatch: x",
+      ),
+    );
+
+    button(page.el.querySelector<HTMLElement>(".yui-plg-err")!, "Retry").click();
+    expect(manage.install.mock.calls).toEqual([["calendar-ics"], ["calendar-ics"]]);
+  });
 });
