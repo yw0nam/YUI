@@ -7,7 +7,7 @@ Claude Code hooks under `.claude/` are gitignored, so they gate only a checkout 
 | Rule | Enforced by |
 |---|---|
 | No direct commits to `main`; PR + green CI required | GitHub ruleset `main-protection`; locally also by `.claude/hooks/pretool-bash-guard.sh`, which denies `git commit`/`git push` while the command's cwd repo is on `main` |
-| Required PR checks | GitHub ruleset `main: required PR checks` requires `web`, `lint`, `rust`, `rust-windows`, `test-guard`, `pr-title`; `python` and `python-lint` run but are not required |
+| Required PR checks | GitHub ruleset `main: required PR checks` requires `web`, `lint`, `rust`, `rust-windows`, `test-guard`, `pr-title`; `python`, `python-lint`, and `plugins-rust` run but are not required |
 | New/changed behavior ships a test | `test-guard` CI job (`skip-tests` label bypass; the job reads the PR's labels at run time, so the label takes effect on the next `test-guard` run — re-run the job after labelling) |
 | Conventional, printable-ASCII PR titles | `pr-title` job in `.github/workflows/pr-title.yml` (checks the conventional type and `subjectPattern ^[\x20-\x7E]+$`, and the body for an AI attribution line; English itself is working practice). It also runs on a title or body edit, so a fixed title clears the check without a new push |
 | Format + lint | `lint` CI job (`pnpm lint`, Biome) |
