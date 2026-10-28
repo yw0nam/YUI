@@ -136,47 +136,21 @@ CI runs it in the `web` job.
   matching the code — no change narrative, no PR/issue numbers as prose, no
   dated changelogs, no future/unbuilt work.
 
-## Deprecation
+## Breaking changes
 
-Users and their backends depend on what a tagged release carries: config keys
+YUI is under active development, and its contracts change quickly. Config keys
 under `configs/`, stored settings, the contract in `docs/reference/`, and each
-transport's behaviour. Dropping or replacing one of these takes two PRs in two
-releases. Internal modules, names, and file layout carry no such promise and
-change freely.
+transport's behaviour can change in any release, with no deprecation period.
 
-The PR that deprecates a path keeps it working and adds:
+A PR that drops or replaces one of them deletes the old path outright: no
+compat layer, fallback, warning, or migration. The PR:
 
-- **A removal release.** The path is deleted in the next minor release after
-  the one that first ships the warning, or a later one: a path deprecated in
-  v0.5.0 is deleted in v0.6.0 at the earliest.
-- **A comment** at the path, in this exact form so that
-  `grep -rn "Deprecated: removed in"` lists every pending removal:
+- marks its title with `!` (`feat!:`, `fix!:`) and carries the `breaking`
+  label, which lists it under **Breaking changes** in the release notes;
+- names in its body what was removed and what replaces it;
+- updates the doc in `docs/reference/` that describes the path, in the same PR.
 
-  ```ts
-  // Deprecated: removed in v0.6.0. Use <replacement>.
-  ```
-
-- **A warning.** Using the path logs one `warn` per launch through the project
-  logger, with the same facts as fields:
-
-  ```ts
-  log.warn("deprecated", { what: "broker_base_url", removed_in: "v0.6.0", use: "client-declared tools" });
-  ```
-
-  One test pins it: two uses log one `deprecated` warning with these fields.
-
-- **A doc line.** The doc that describes the path states the removal release
-  and the replacement.
-- **The `deprecation` label** on the PR, which lists it under **Deprecations**
-  in the generated release notes. The PR summary names the path, the removal
-  release, and the replacement.
-
-The comment and the doc line are the one place a comment or a doc names a
-future release.
-
-The PR that deletes the path lands in the named release, removes the path with
-its comment, warning, and doc line together, and carries the `removal` label,
-which lists it under **Removed** in the release notes.
+Internal modules, names, and file layout change freely.
 
 ## Client anti-patterns
 
