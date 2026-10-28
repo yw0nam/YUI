@@ -9,6 +9,7 @@ import type {
 } from "../../contract";
 import type { OverheardBlock } from "../../io/chat/conversation/overheard/overheard-reader";
 import { isGuideKey } from "../../io/guide/guide-docs";
+import type { PluginCatalog } from "../../io/mcp-host/plugin-catalog";
 import { ADDRESSED_EVENT, mentionOf } from "../core/classify";
 import type { BusEnvelope } from "../core/event-bus";
 
@@ -29,10 +30,7 @@ interface ContextProviders {
   /** The other open presets' names, read once per turn. */
   getOpenCharacters?: () => string[];
   /** The enabled plugins' tools and skills, read once per turn. */
-  getPluginCatalog?: () => {
-    tools: NonNullable<ClientContext["plugin_tools"]>;
-    skills: NonNullable<ClientContext["plugin_skills"]>;
-  };
+  getPluginCatalog?: () => PluginCatalog;
 }
 
 interface BuiltContext {
@@ -278,7 +276,7 @@ export async function buildContext(
   const overheard = providers.getOverheard?.() ?? [];
   const relations = providers.getRelations?.();
   const openCharacters = providers.getOpenCharacters?.();
-  const pluginCatalog = providers.getPluginCatalog?.();
+  const catalog = providers.getPluginCatalog?.();
   const clientContext = {
     ...buildClientContext(
       ctx,
@@ -294,8 +292,8 @@ export async function buildContext(
       : {}),
     ...(relations?.length ? { relations } : {}),
     ...(openCharacters?.length ? { open_characters: openCharacters } : {}),
-    ...(pluginCatalog?.tools.length ? { plugin_tools: pluginCatalog.tools } : {}),
-    ...(pluginCatalog?.skills.length ? { plugin_skills: pluginCatalog.skills } : {}),
+    ...(catalog?.tools.length ? { plugin_tools: catalog.tools } : {}),
+    ...(catalog?.skills.length ? { plugin_skills: catalog.skills } : {}),
   };
 
   return { ctx, clientContext, overheard };

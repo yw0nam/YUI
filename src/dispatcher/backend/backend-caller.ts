@@ -42,6 +42,7 @@ import {
 } from "../../io/chat/stream/chat-client";
 import { buildCCMessages } from "../../io/chat/stream/chat-completions";
 import type { ClientToolRegistry } from "../../io/chat/tools/client-tools";
+import type { PluginCatalog } from "../../io/mcp-host/plugin-catalog";
 import type { Logger } from "../../logger";
 import { createLogger } from "../../logger";
 import { sendIdOf } from "../core/classify";
@@ -114,10 +115,7 @@ interface BackendCallerDeps extends PushCallDeps, SettleDeps, StreamAttemptDeps 
   /** The other open presets' names — read per turn. */
   getOpenCharacters?: () => string[];
   /** The enabled plugins' tools and skills, read once per turn. */
-  getPluginCatalog?: () => {
-    tools: NonNullable<ClientContext["plugin_tools"]>;
-    skills: NonNullable<ClientContext["plugin_skills"]>;
-  };
+  getPluginCatalog?: () => PluginCatalog;
   /** Marks a turn's overheard lines heard — called only when that turn ends ok. */
   commitOverheard?: (blocks: OverheardBlock[]) => void;
   /** True while a scene holds the body, which would drop a thinking motion and still speak its filler. Absent means free. */
