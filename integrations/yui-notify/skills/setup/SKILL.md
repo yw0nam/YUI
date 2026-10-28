@@ -58,7 +58,7 @@ Run the probe with the chosen endpoint:
 ../../scripts/yui-notify probe --endpoint <url>
 ```
 
-Done when: the probe prints `ok: YUI is listening at <url>`; on the SSH branch, the probe of
+Done when: the probe prints `ok: YUI is listening at <url>/signals`; on the SSH branch, the probe of
 `references/remote.md` step 3 prints it. On any other line, follow
 `references/troubleshooting.md` before continuing.
 

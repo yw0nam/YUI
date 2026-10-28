@@ -47,8 +47,7 @@ def parse_event(data: Any, env: Mapping[str, str]) -> Event | None:
     phase = PHASES.get(data.get("hook_event_name"))
     if phase is None or not isinstance(data.get("session_id"), str):
         return None
-    # turn_id exists only in Codex input, except SessionStart; Codex started from a Claude Code shell
-    # inherits CLAUDECODE=1
+    # turn_id marks Codex input except at SessionStart; a Codex in a Claude Code shell inherits CLAUDECODE=1
     if "turn_id" in data:
         agent = "codex"
     elif env.get("CLAUDECODE") == "1":
@@ -71,6 +70,8 @@ def parse_event(data: Any, env: Mapping[str, str]) -> Event | None:
         return None
     if phase == "done":
         text = data.get("last_assistant_message") or ""
+    elif phase == "needs_input":
+        text = _pending(data)
     else:
-        text = _pending(data) if phase == "needs_input" else ""
+        text = ""
     return Event(agent, phase, data["session_id"], str(data.get("cwd") or ""), text)

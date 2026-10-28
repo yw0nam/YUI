@@ -16,7 +16,8 @@ Listener port) when it is free on the remote host. When another process holds it
 choose any free port, for example `15001`. YUI keeps its own port; only the remote end
 changes.
 
-On the remote host, this prints nothing when the port is free:
+On the remote host, this prints nothing when the port is free (`netstat -an | grep
+'\.<remote port> '` on a host without `ss`):
 
 ```bash
 ss -ltn | grep ':<remote port> '
@@ -25,6 +26,15 @@ ss -ltn | grep ':<remote port> '
 Done when: the user has named a remote port that is free on the remote host.
 
 ## 2. Run a supervised reverse tunnel on the local machine
+
+The tunnel's `ssh` reads the same `Host` entry in the local `~/.ssh/config` as an interactive
+connection. Remove every `RemoteForward` of the YUI port or the remote port from that entry:
+another forward of the port either makes the tunnel fail to bind or takes the port from it.
+This prints nothing when the entry is clean:
+
+```bash
+ssh -G <host> | grep -i remoteforward
+```
 
 The tunnel is one `ssh` process:
 
@@ -38,7 +48,8 @@ ssh -N -o BatchMode=yes -o ExitOnForwardFailure=yes \
   tries again instead of keeping a connection with no tunnel.
 - `ServerAliveInterval` and `ServerAliveCountMax` end a connection whose link died, so the
   supervisor reconnects.
-- `BatchMode` needs key authentication that asks for nothing.
+- `BatchMode` needs key authentication that asks for nothing and a host key already in
+  `known_hosts`.
 
 A supervisor starts it at login and restarts it when it exits.
 
@@ -92,22 +103,26 @@ systemctl --user enable --now <name>.service
 
 The user runs these commands; they add a process that starts at every login.
 
-Done when: on the remote host, `ss -ltn | grep ':<remote port> '` lists `127.0.0.1:<remote port>`.
+Done when: `ssh -G <host>` lists no `RemoteForward`, and on the remote host
+`ss -ltn | grep ':<remote port> '` lists `127.0.0.1:<remote port>`.
 
 ## 3. Probe from a connection without forwards
 
 A probe inside a connection that carries its own `RemoteForward` passes through that
 connection's tunnel and proves nothing about the supervised one. Ask the user to run the
-probe on the local machine through a connection with every forward cleared. Give the
-absolute path of `../../scripts/yui-notify` on the remote host:
+probe on the local machine through a new connection with every forward cleared.
+
+- `<plugin root>` is the absolute path on the remote host of the directory that holds
+  `scripts/yui-notify`, two levels above this skill.
+- `<endpoint>` is `http://127.0.0.1:<remote port>`, followed by `/presets/<id>` for a
+  preset's character.
 
 ```bash
-ssh -o ClearAllForwardings=yes <host> 'python3 <path>/scripts/yui-notify probe --endpoint http://127.0.0.1:<remote port>'
+ssh -o ClearAllForwardings=yes -o ControlPath=none <host> 'python3 <plugin root>/scripts/yui-notify probe --endpoint <endpoint>'
 ```
 
-Done when: the command prints `ok: YUI is listening at http://127.0.0.1:<remote port>/signals`.
-The endpoint for setup step 5 is `http://127.0.0.1:<remote port>`, followed by
-`/presets/<id>` for a preset's character.
+Done when: the command prints `ok: YUI is listening at <endpoint>/signals`. The endpoint for
+setup step 5 is `<endpoint>`.
 
 ## The label on a remote signal
 

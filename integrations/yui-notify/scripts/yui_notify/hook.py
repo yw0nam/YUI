@@ -23,8 +23,9 @@ def run_hook(env: Mapping[str, str], stdin: TextIO) -> None:
     if event is None:
         return
     cfg = config.load(env)
+    url = cfg["endpoint"] + "/signals"
     if event.phase == "start":
-        failure = probe_failure(cfg["endpoint"] + "/signals")
+        failure = probe_failure(url)
         if failure:
             # a synchronous hook's systemMessage reaches the user; plain stdout would reach the model
             print(json.dumps({"systemMessage": f"yui-notify: {failure}"}))
@@ -35,7 +36,6 @@ def run_hook(env: Mapping[str, str], stdin: TextIO) -> None:
     body = build_signal(
         event, context(event.cwd, env), cfg["events"][event.phase], summary, int(time.time() * 1000)
     )
-    url = cfg["endpoint"] + "/signals"
     status, error = post(url, body)
     if error:
         config.write_error(env, url, status, error)

@@ -71,10 +71,10 @@ The delivery classes and the envelope fields are in the
 - An event while the macOS app that launched the agent is the frontmost app. The hook compares
   its inherited `__CFBundleIdentifier` with the bundle id that `lsappinfo` reports for the
   frontmost app. The check is per app, not per tab or pane: with a terminal app in front,
-  every agent in that app stays silent, and an agent in another app still posts. A session over SSH, a tmux
-  pane, a process without `__CFBundleIdentifier`, and a host without `lsappinfo` skip this
-  check: a remote host cannot see the local focus, and a tmux pane keeps the bundle id of the
-  app that started the tmux server.
+  every agent in that app stays silent, and an agent in another app still posts. A session
+  over SSH, a tmux pane, a process without `__CFBundleIdentifier`, and a host without
+  `lsappinfo` skip this check: a remote host cannot see the local focus, and a tmux pane
+  keeps the bundle id of the app that started the tmux server.
 
 ## Startup check
 
