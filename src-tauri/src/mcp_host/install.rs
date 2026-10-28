@@ -1,21 +1,185 @@
 //! Installs, updates, and removes plugins: download, sha256 check, unpack, staged switch.
 
-use super::catalog::CatalogEntry;
-use super::host::Host;
+use super::catalog::{self, CatalogEntry, Release};
+use super::host::{unknown, writable, Host, Live};
+use super::manifest;
+use super::store::{Source, StoredPlugin};
+use sha2::{Digest, Sha256};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 impl Host {
     pub async fn catalog(&self) -> Result<Vec<CatalogEntry>, String> {
-        Err("not implemented".to_string())
+        catalog::list(&self.http, &self.catalog).await
     }
 
-    pub async fn install(self: &Arc<Self>, _plugin_id: &str) -> Result<(), String> {
-        Err("not implemented".to_string())
+    /// Installs the catalog version of the plugin, or switches an installed catalog plugin to it.
+    pub async fn install(self: &Arc<Self>, plugin_id: &str) -> Result<(), String> {
+        let _installs = self.installs.lock().await;
+        if writable(&self.lock().state)?
+            .plugin(plugin_id)
+            .is_some_and(|p| p.source == Source::Local)
+        {
+            return Err(listed(plugin_id));
+        }
+        let release = catalog::resolve(&self.http, &self.catalog, plugin_id).await?;
+        let current = self
+            .lock()
+            .live
+            .get(plugin_id)
+            .and_then(|live| live.manifest.as_ref().ok())
+            .is_some_and(|m| m.version.as_ref() == Some(&release.version));
+        if current {
+            return Ok(());
+        }
+        let bytes = catalog::download(&self.http, &release.url).await?;
+        if !format!("{:x}", Sha256::digest(&bytes)).eq_ignore_ascii_case(&release.sha256) {
+            let asset = release.url.rsplit('/').next().unwrap_or(&release.url);
+            return Err(format!("checksum mismatch: {asset}"));
+        }
+        let path = unpack(
+            &self.dir.join("installed").join(plugin_id),
+            &release,
+            &bytes,
+        )?;
+
+        let (stopping, tickets, old) = {
+            let mut inner = self.lock();
+            let mut state = writable(&inner.state)?.clone();
+            let Some(plugin) = state.plugin_mut(plugin_id) else {
+                let plugin = StoredPlugin {
+                    id: plugin_id.to_string(),
+                    source: release.source,
+                    path,
+                    enabled: false,
+                    approved_path: None,
+                    enabled_seq: None,
+                };
+                let live = Live::read(&plugin, &self.log_dir, self.offset);
+                state.plugins.push(plugin);
+                self.save(&mut inner, state)?;
+                inner.live.insert(plugin_id.to_string(), live);
+                self.publish(&mut inner);
+                return Ok(());
+            };
+            // An `add` ran while this one downloaded.
+            if plugin.source == Source::Local {
+                let _ = remove_dir(&path);
+                return Err(listed(plugin_id));
+            }
+            let keeps_consent = release.source == Source::Official && plugin.consented();
+            plugin.approved_path = keeps_consent.then(|| path.clone());
+            plugin.source = release.source;
+            let old = std::mem::replace(&mut plugin.path, path.clone());
+            let run = plugin.enabled && plugin.consented();
+            let live = Live::read(plugin, &self.log_dir, self.offset);
+            self.save(&mut inner, state)?;
+            let stopping = inner.stop_servers(|id, _| id == plugin_id);
+            inner.live.insert(plugin_id.to_string(), live);
+            inner.updating.insert(plugin_id.to_string());
+            let tickets = if run {
+                inner.tickets(plugin_id, |_| true)
+            } else {
+                Vec::new()
+            };
+            self.publish(&mut inner);
+            (stopping, tickets, old)
+        };
+        self.stop(stopping).await;
+        self.lock().updating.remove(plugin_id);
+        if old != path {
+            if let Err(e) = remove_dir(&old) {
+                log::warn!(
+                    "mcp_host_old_version_not_removed path={} error={e}",
+                    old.display()
+                );
+            }
+        }
+        self.start(tickets).await;
+        Ok(())
     }
 
-    pub async fn remove(&self, _plugin_id: &str) -> Result<(), String> {
-        Err("not implemented".to_string())
+    /// Stops the plugin's servers, unlists it, and deletes its data; a catalog plugin also loses
+    /// its installed versions.
+    pub async fn remove(&self, plugin_id: &str) -> Result<(), String> {
+        let _installs = self.installs.lock().await;
+        let (stopping, source) = {
+            let mut inner = self.lock();
+            let mut state = writable(&inner.state)?.clone();
+            let index = state
+                .plugins
+                .iter()
+                .position(|p| p.id == plugin_id)
+                .ok_or_else(|| unknown(plugin_id))?;
+            let removed = state.plugins.remove(index);
+            self.save(&mut inner, state)?;
+            let stopping = inner.stop_servers(|id, _| id == plugin_id);
+            inner.live.remove(plugin_id);
+            self.publish(&mut inner);
+            (stopping, removed.source)
+        };
+        self.stop(stopping).await;
+        let mut folders = vec![self.dir.join("data").join(plugin_id)];
+        if source != Source::Local {
+            folders.push(self.dir.join("installed").join(plugin_id));
+        }
+        for folder in folders {
+            if let Err(e) = remove_dir(&folder) {
+                log::warn!(
+                    "mcp_host_remove_left_files path={} error={e}",
+                    folder.display()
+                );
+                return Err(format!("{}: {e}", folder.display()));
+            }
+        }
+        Ok(())
     }
+}
+
+/// Unpacks the release into `<versions>/<version>/` through a `.partial` folder; it must hold the
+/// release's plugin id and version.
+fn unpack(versions: &Path, release: &Release, bytes: &[u8]) -> Result<PathBuf, String> {
+    let partial = versions.join(format!("{}.partial", release.version));
+    let target = versions.join(&release.version);
+    fn at(path: &Path) -> impl FnOnce(std::io::Error) -> String + '_ {
+        move |e| format!("{}: {e}", path.display())
+    }
+    remove_dir(&partial).map_err(at(&partial))?;
+    let checked = zip::ZipArchive::new(std::io::Cursor::new(bytes))
+        .and_then(|mut archive| archive.extract(&partial))
+        .map_err(|e| format!("plugin unpack failed: {e}"))
+        .and_then(|()| manifest::read(&partial))
+        .and_then(|m| {
+            if m.id == release.id && m.version.as_ref() == Some(&release.version) {
+                return Ok(());
+            }
+            Err(format!(
+                "plugin manifest mismatch: expected {} {}, found {} {}",
+                release.id,
+                release.version,
+                m.id,
+                m.version.as_deref().unwrap_or("none")
+            ))
+        });
+    if let Err(e) = checked {
+        let _ = remove_dir(&partial);
+        return Err(e);
+    }
+    remove_dir(&target).map_err(at(&target))?;
+    std::fs::rename(&partial, &target).map_err(at(&target))?;
+    Ok(target)
+}
+
+/// Deletes the folder and what it holds; a missing folder is fine.
+fn remove_dir(path: &Path) -> std::io::Result<()> {
+    match std::fs::remove_dir_all(path) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
+        _ => Ok(()),
+    }
+}
+
+fn listed(plugin_id: &str) -> String {
+    format!("plugin already listed: {plugin_id}")
 }
 
 #[cfg(all(test, unix))]
