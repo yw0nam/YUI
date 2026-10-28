@@ -100,7 +100,7 @@ The model receives this text through the client's `plugin_call` result conversio
 
 ## Screenshots
 
-Each call gets a folder under the OS temp directory named `yui-browser-<pid>-<nanos>-<counter>`, and the prelude receives its absolute path. After the run — success, failure, deadline, or backstop kill — Rust reads the folder in file-name order, keeps the last files up to the cap under [Limits](#limits), resizes each so its long edge is at most the value there without upscaling, encodes it as JPEG, and deletes the folder. A file that does not decode is skipped and named in the text. The client turns the blocks into `{ text, images: [dataUrl] }` when screenshots exist, and the text alone otherwise; `images` is the shape `look at: screen` uses on every transport.
+Each call gets a folder under the OS temp directory named `yui-browser-<pid>-<nanos>-<counter>`, and the prelude receives its absolute path. After the run — success, failure, deadline, or backstop kill — Rust reads the folder's `.png` files in file-name order, keeps the last files up to the cap under [Limits](#limits), resizes each so its long edge is at most the value there without upscaling, encodes it as JPEG, and deletes the folder. A file that does not decode is skipped and named in the text. The client turns the blocks into `{ text, images: [dataUrl] }` when screenshots exist, and the text alone otherwise; `images` is the shape `look at: screen` uses on every transport.
 
 The text states the count of earlier screenshots dropped by the cap and the names of unreadable files when either is non-zero.
 
@@ -112,26 +112,30 @@ YUI never closes a task space. It stays across the plugin being disabled, the wi
 
 ## Warning
 
-While the plugin is enabled, the backend runs arbitrary JavaScript on this computer through ego lite with the user's rights. A script can read the user's files and run programs, and it reaches every site signed in on ego lite's YUI profile. There is no sandbox. Enabling the plugin is the user's grant.
+While the plugin is enabled, the backend runs arbitrary JavaScript on this computer through ego lite with the user's rights. A script can read the user's files and run programs, and it reaches every site signed in on ego lite's YUI profile. There is no sandbox.
 
 ## Result strings
 
-As the model receives them:
+As the model receives them. The last three rows are the client's own answers, not the plugin's:
 
-| Result | Meaning |
-|---|---|
-| `error: missing field code` | No non-empty `code`, and no `guide: true` |
-| `error: invalid field code` | `guide: true` beside a non-empty `code` |
-| `unknown: the script may still be running in ego lite; inspect before retrying` | The relay killed the CLI at its backstop. The script's state in ego lite is unknown |
-| `error: the script was stopped at its time limit` | The script reached its 25 s deadline; the logs printed so far follow |
-| `error: the script failed` | The script threw or exited non-zero; ego lite's message and exit line follow |
-| `error: ego-browser skill failed: <stderr>` | `guide` ran `ego-browser skill`, which exited non-zero |
-| `error: ego-browser skill timed out` | `guide` passed the 28 s backstop |
-| `error: ego lite not found: install ego lite and run it once` | `ego-browser` is neither at `~/.local/bin` nor on `PATH` |
-| `error: ego-browser failed to start: <reason>` | The CLI exists but could not be started |
-| `error: screenshot folder failed: <reason>` | The call's screenshot folder could not be created |
+| Result | Meaning | Answered by |
+|---|---|---|
+| `error: missing field code` | No non-empty `code`, and no `guide: true` | plugin |
+| `error: invalid field code` | `guide: true` beside a non-empty `code` | plugin |
+| `unknown: the script may still be running in ego lite; inspect before retrying` | The relay killed the CLI at its backstop. The script's state in ego lite is unknown | plugin |
+| `error: the script was stopped at its time limit` | The script reached its 25 s deadline; the logs printed so far follow | plugin |
+| `error: the script failed` | The script threw or exited non-zero; ego lite's message and exit line follow | plugin |
+| `error: <reason>` | The OS failed while the CLI's output was read, in the script run or the guide run; the message is passed through unchanged | plugin |
+| `error: ego-browser skill failed: <stderr>` | `guide` ran `ego-browser skill`, which exited non-zero | plugin |
+| `error: ego-browser skill timed out` | `guide` passed the 28 s backstop | plugin |
+| `error: ego lite not found: install ego lite and run it once` | `ego-browser` is neither at `~/.local/bin` nor on `PATH` | plugin |
+| `error: ego-browser failed to start: <reason>` | The CLI exists but could not be started | plugin |
+| `error: screenshot folder failed: <reason>` | The call's screenshot folder could not be created | plugin |
+| `error: plugin tool timed out after 32000 ms` | The host's deadline for the call passed; it cancels the call in the server | client |
+| `error: plugin tool cancelled` | The turn stopped while the call ran | client |
+| `error: turn stopped` | The turn stopped before the call started; nothing reached the plugin | client |
 
-The plugin writes the two argument errors, every status line and `unknown:` itself. It answers the remaining rows as a tool error without a prefix, and the client adds the `error: ` to an error text that carries neither prefix.
+The plugin writes the two argument errors, `unknown:` and the two status lines itself. It answers the other plugin rows as a tool error without a prefix, and the client adds `error: ` to any error text that carries neither prefix. The 32000 ms is the tool's `_meta` wait ([Limits](#limits)); the host cancels the call and the client waits 121 s, above the host's deadline.
 
 ## Limits
 
