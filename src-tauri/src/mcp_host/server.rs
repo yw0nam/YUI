@@ -1,17 +1,26 @@
 //! One running MCP server: start under a deadline, its stderr, its exit, and stop.
 
+use super::launch;
 use super::manifest::ServerSpec;
 use crate::log_rotation::DateRotatingFile;
 use rmcp::model::Tool;
-use rmcp::service::{Peer, RoleClient, RunningService};
+use rmcp::service::{Peer, RoleClient, RunningService, ServiceExt};
 use serde::Serialize;
 use std::collections::VecDeque;
+use std::fmt::Display;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use time::UtcOffset;
+use tokio::io::AsyncReadExt;
+use tokio::process::ChildStderr;
 
 type Client = RunningService<RoleClient, ()>;
+
+const TAIL_LINES: usize = 20;
+/// Bytes kept of one stderr line; the rest up to its newline is dropped.
+const MAX_LINE: usize = 2000;
 
 /// One plugin's log file and its last 20 lines.
 pub struct PluginLog {
@@ -28,8 +37,23 @@ impl PluginLog {
         }
     }
 
+    /// Appends `[<server>] <text>` to the file and the tail.
+    pub fn line(&self, server: &str, text: &str) {
+        let line = format!("[{server}] {text}");
+        let mut guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        let (file, tail) = &mut *guard;
+        if let Err(e) = file.write_all(format!("{line}\n").as_bytes()) {
+            log::warn!("mcp_host_log_write_failed error={e}");
+        }
+        if tail.len() == TAIL_LINES {
+            tail.pop_front();
+        }
+        tail.push_back(line);
+    }
+
     pub fn tail(&self) -> Vec<String> {
-        Vec::new()
+        let guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        guard.1.iter().cloned().collect()
     }
 }
 
@@ -50,6 +74,12 @@ pub struct Failure {
 pub struct Server {
     client: Client,
     pub tools: Vec<Tool>,
+    name: String,
+    log: Arc<PluginLog>,
+    /// The leader's pid, which is the process group id.
+    pgid: Option<u32>,
+    /// Owns the child and waits for its exit.
+    watch: tokio::task::JoinHandle<()>,
 }
 
 impl Server {
@@ -57,7 +87,17 @@ impl Server {
         self.client.peer()
     }
 
-    pub async fn stop(self) {}
+    /// Closes the connection, then kills the whole process tree.
+    pub async fn stop(mut self) {
+        let exited = self.watch.is_finished();
+        self.watch.abort();
+        let _ = (&mut self.watch).await;
+        let _ = self.client.close().await;
+        if !exited {
+            kill_group(self.pgid);
+        }
+        self.log.line(&self.name, "stopped");
+    }
 }
 
 /// Spawns, initializes and lists tools under `deadline`; `on_exit` gets the reason when the
@@ -70,12 +110,137 @@ pub async fn start(
     deadline: Duration,
     on_exit: impl FnOnce(String) + Send + 'static,
 ) -> Result<Server, Failure> {
-    let _ = (spec, root, data, log, deadline, on_exit);
-    Err(Failure {
-        phase: Phase::List,
-        reason: "unimplemented".into(),
+    let name = spec.name.clone();
+    let fail = |phase: Phase, reason: String| {
+        log.line(&name, &format!("failed ({}): {reason}", phase_name(phase)));
+        Failure { phase, reason }
+    };
+    let until = tokio::time::Instant::now() + deadline;
+    let mut child = launch::command(spec, root, data)
+        .and_then(|mut command| command.spawn())
+        .map_err(|e| fail(Phase::Spawn, e.to_string()))?;
+    let pgid = child.id();
+    if let Some(stderr) = child.stderr().take() {
+        tokio::spawn(read_stderr(stderr, name.clone(), log.clone()));
+    }
+    let stdout = child.stdout().take().expect("launch pipes stdout");
+    let stdin = child.stdin().take().expect("launch pipes stdin");
+    let serving = tokio::time::timeout_at(until, ().serve((stdout, stdin))).await;
+    let mut client = match within(serving, deadline) {
+        Ok(client) => client,
+        Err(reason) => {
+            kill_group(pgid);
+            drop(child);
+            return Err(fail(Phase::Initialize, reason));
+        }
+    };
+    let listing = tokio::time::timeout_at(until, client.peer().list_all_tools()).await;
+    let tools = match within(listing, deadline) {
+        Ok(tools) => tools,
+        Err(reason) => {
+            let _ = client.close().await;
+            kill_group(pgid);
+            drop(child);
+            return Err(fail(Phase::List, reason));
+        }
+    };
+    log.line(&name, "started");
+    let (watch_name, watch_log) = (name.clone(), log.clone());
+    let watch = tokio::spawn(async move {
+        // The leader alone: the wrapper's own wait also waits for every orphan in the group.
+        let reason = match child.inner_mut().wait().await {
+            Ok(status) => status
+                .code()
+                .map_or_else(|| status.to_string(), |code| format!("exit code {code}")),
+            Err(e) => e.to_string(),
+        };
+        kill_group(pgid);
+        watch_log.line(&watch_name, &format!("exited: {reason}"));
+        on_exit(reason);
+    });
+    Ok(Server {
+        client,
+        tools,
+        name,
+        log,
+        pgid,
+        watch,
     })
 }
+
+fn phase_name(phase: Phase) -> &'static str {
+    match phase {
+        Phase::Spawn => "spawn",
+        Phase::Initialize => "initialize",
+        Phase::List => "list",
+    }
+}
+
+fn within<T, E: Display>(
+    outcome: Result<Result<T, E>, tokio::time::error::Elapsed>,
+    deadline: Duration,
+) -> Result<T, String> {
+    match outcome {
+        Ok(Ok(value)) => Ok(value),
+        Ok(Err(e)) => Err(e.to_string()),
+        Err(_) => Err(format!("timed out after {} ms", deadline.as_millis())),
+    }
+}
+
+/// Splits stderr at newlines into the log; a line longer than `MAX_LINE` keeps its start only.
+async fn read_stderr(mut stderr: ChildStderr, server: String, log: Arc<PluginLog>) {
+    let mut chunk = [0u8; 4096];
+    let mut line = Vec::new();
+    let mut discarding = false;
+    while let Ok(n @ 1..) = stderr.read(&mut chunk).await {
+        for &byte in &chunk[..n] {
+            if byte == b'\n' {
+                if !discarding {
+                    log.line(&server, &decode(&line));
+                }
+                line.clear();
+                discarding = false;
+            } else if !discarding {
+                line.push(byte);
+                if line.len() == MAX_LINE {
+                    log.line(&server, &decode(&line));
+                    line.clear();
+                    discarding = true;
+                }
+            }
+        }
+    }
+    if !line.is_empty() {
+        log.line(&server, &decode(&line));
+    }
+}
+
+/// Lossy UTF-8, cut to at most `MAX_LINE` bytes at a char boundary.
+fn decode(bytes: &[u8]) -> String {
+    let mut text = String::from_utf8_lossy(bytes).into_owned();
+    let mut end = text.len().min(MAX_LINE);
+    while !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    text.truncate(end);
+    text
+}
+
+/// SIGKILL to the group; on Windows the job object ends the tree when the child drops.
+#[cfg(unix)]
+fn kill_group(pgid: Option<u32>) {
+    use nix::sys::signal::{killpg, Signal};
+    let Some(pgid) = pgid else {
+        return;
+    };
+    match killpg(nix::unistd::Pid::from_raw(pgid as i32), Signal::SIGKILL) {
+        Ok(()) | Err(nix::errno::Errno::ESRCH) => {}
+        Err(e) => log::warn!("mcp_host_killpg_failed pgid={pgid} error={e}"),
+    }
+}
+
+#[cfg(not(unix))]
+fn kill_group(_pgid: Option<u32>) {}
 
 #[cfg(all(test, unix))]
 mod tests {
