@@ -23,7 +23,7 @@ YUI/
   unified.html                       # Unified-chat-window Vite entry
   vite.config.ts                     # Dev port YUI_DEV_PORT|1420, strictPort, host 127.0.0.1, backend proxy plugin
   biome.json                         # Format and lint config (curated rule set)
-  scripts/                           # Dev launchers (dev-port.mjs, tauri-dev.mjs for tauri:dev, dev-auto.mjs) and their shared package-manager.mjs helper, dev-backend-proxy.mjs, release.sh, worktree-setup.sh, ci/test-guard.sh, architecture-map-base.mjs (writes the map of origin/main beside the data file for the viewer's Compare view), ci/architecture-map.mjs (checks the client and plugin architecture maps against the tree)
+  scripts/                           # Summarised: dev launchers (dev-port.mjs, tauri-dev.mjs for tauri:dev, dev-auto.mjs) and their shared package-manager.mjs helper, dev-backend-proxy.mjs, release.sh, worktree-setup.sh, architecture-map-base.mjs (writes the map of origin/main beside the data file for the viewer's Compare view), and ci/ (test-guard.sh, gates.sh, architecture-map.mjs, command-paths.mjs, css-selectors.mjs, logger-namespace.mjs)
   configs/                           # Runtime-loaded config (no hardcoding)
     endpoints.json                   # chat/stt/tts base urls + chat_instructions, chat_api, chat_model_context_window + stt_model/stt_language/tts_provider/tts_model/tts_speaker/tts_max_inflight; the shipped configs/endpoints.json omits the url and speaker keys, and the settings panel overrides per device
     emotion_registry.json            # emotion id -> vrm_expression + fallback
@@ -39,7 +39,10 @@ YUI/
   src/
     app/                             # Composes the pet window from the layers below
       bootstrap-configured.ts        # Pet window's config-derived bootstrap: runs the turn core and the pet-only wirings in order and drains their teardowns
+      csp-violation.ts               # Logs every Content-Security-Policy violation the window reports
       disposers.ts                   # Shared teardown bag: registers teardowns at creation sites and drains them LIFO
+      card-io/                       # The card's file steps bound to a preset registry
+        wire-card-io.ts              # The card's import, export, thumbnail, photo pick, and preset creation ports
       relations/                     # This window's relations wiring
         wire-relations.ts            # rate_relation's open-preset targets and the ingress relations RPC, over the window's store
       turn/                          # The path of a turn: sources, voice, and push
@@ -48,15 +51,18 @@ YUI/
         wire-sources.ts              # The dispatcher's utterance sources, built and started
         wire-card.ts                 # The card module bound to the window's stores, preset, UI language, and config
         wire-greeting.ts             # The greeting after a session reset, and the reset announcement each window's Start fresh makes
+        session-reset-announcer.ts   # What a window's Start fresh announces: the bridge event, then this pet window's own greeting
         vocabulary/                  # The express vocabulary every consumer declares
           wire-vocabulary.ts         # The emotion_text table load, the derived vocabulary, and its change announcements
         push/                        # Push socket wiring and its stores
           delegation-chip-mount.ts   # The delegation chip's lazy mount and its suppression port
+          playback.ts                # Reports a failed turn's end to the push socket as a playback frame
           wire-push.ts               # Push socket frames into turns, the stop button, and the push mode chip
           push-stores.ts             # The push socket, its chat id, and the delegations and reasoning stores its frames feed
         voice/                       # Voice input and speech playback wiring
           wire-voice.ts              # The voice-input and turn-voice wiring; a bound window builds no capture
           wire-voice-pipeline.ts     # Wires filler, TTS, and speech playback to the turn lifecycle
+          unified-voice.ts           # Main's speech while the unified chat window shows, and the user speaking answered like a stop
       stage/                         # What is bound to the pet window's stage and overlay
         stage-renderer.ts            # The renderer on the stage with its persisted camera and idle throttle, plus Tier 1 liveliness, for the pet window
         bed-scene-hold.ts            # The flag the bed scene takes while it holds the body; the camera lock and the movers read it
@@ -91,6 +97,8 @@ YUI/
         wire-config.ts               # The config store over the bundled configs, the runtime key stores, the live endpoint/guardrail merges, and the reload/watch wiring
         wire-cue-locale-sync.ts      # Reseeds untouched built-in cues when the display language changes
         wire-preset.ts               # Sends a preset switch over the settings bridge and reloads each unbound window into it, after the pet window stops its turn; a bound window only rereads the list
+      signal-chips/                  # The signal chips beside the avatar
+        wire-signal-chips.ts         # The signal chips on every transport, sharing the delegation chip's fold store
       pet-windows/                   # Windows bound to one preset: the shared open list, their lifecycle, and the windows each one opens
         pet-window-role.ts           # The entry main composes: the registry and open list a window owns, the orphan check, and main's reconcile or a bound window's self-close
         companion-window.ts          # A companion window's boot: the orphan and owner checks, its own live key, and its teardown on a close request; the pet window's wait for its companions
@@ -103,6 +111,7 @@ YUI/
         wire-message-surface-ops.ts  # Draws each surface op from the pet window onto the surfaces, which the plate follows
         character-name.ts            # In the pet window: the character's effective name, the card's while the built-in preset is unnamed, else the preset's
         mirrored-name.ts             # In the message window: the character's name as the pet window last sent it
+        wire-plate-name.ts           # The plate's character name and the bound preset's face, or the active preset's when unbound
       unified/                       # The unified chat window's wiring
         wire-unified-window.ts       # Main opens the window while it shows and destroys it otherwise
         wire-unified-close.ts        # The window closing itself turns the Unified chat switch off
@@ -162,6 +171,9 @@ YUI/
         hotkeys.ts                   # The hotkeys.json summon-accelerator type and its validation
         motions.ts                   # Validates the motion registry
         persona/                     # The card type, the V1/V2/V3 card reader, the V2 export envelope, and the persona.json validation
+          persona.ts                  # The persona.json card, framing sentence, and user fallback validation
+          read-card.ts                # The V1, V2, and V3 card reader with its issues
+          types.ts                    # A card's Tavern Card V2 shape, its limits, and the persona config type
           serialize-card.ts           # The card as a chara_card_v2 envelope for export
         screen.ts                    # The screen.json type and the validation of its frontmost-transition thresholds
         shared.ts                    # Shared ConfigError plus issue-recording helpers
@@ -305,6 +317,8 @@ YUI/
     settings/                        # Persisted user settings, one store per setting, grouped by the part of the app they configure
       persisted-store.ts             # Shared bootstrap, notify, reload, and localStorage core for the settings stores
       settings-stores.ts             # Constructs and synchronises the persisted user-setting stores
+      appearance/                    # The window theme
+        theme-settings.ts            # The dawn, hearth, or system theme under yui.theme
       backend/                       # What the backend connection uses
         agent-settings.ts            # Reasoning effort, the preset's card (null means the UI language's default), and the send switch
         agent-notify-settings.ts     # Agent-notification enabled flag and listener port
@@ -332,7 +346,9 @@ YUI/
         idle-motion-settings.ts      # Selects which ambient idle variants may play
         lipsync-settings.ts          # Lip-sync gain
       voice/                         # Filler speech and voice activity detection
+        card-filler.ts               # The card's extensions.yui.filler pools, and the transforms around it
         filler-settings.ts           # Filler phrase pools and behaviour flags
+        readings-settings.ts         # Device-wide reading dictionary: the raw surface=reading text as typed
         vad-settings.ts              # VAD silence window
       preset/                        # Presets: which keys belong to one, the active one, the registry, and the windows bound to one
         preset-keys.ts               # The per-preset key list and where a key lives under a given preset
@@ -369,10 +385,16 @@ YUI/
           stream-helpers.ts            # Express-tool and error helpers both streaming loops use
           client-tool-run.ts           # Runs a model's tool call on the client and decides when results go back
           silence-token.ts             # Stateful [SILENT] token filter for spoken output_text deltas
+          tool-results/                # Tool results encoded for each request transport
+            chat-completions.ts        # Chat Completions tool messages, an image following in the next user message
+            responses.ts               # Responses function-call output, with images as input_image items
         push/                          # The push transport's turn and reply WebSocket
+          fit-turn-images.ts           # Shrinks a turn's images to the byte budget the backend stated for the frame
           push-frames.ts               # Push frame wire types and the unreadable-frame checks
           push-socket.ts               # Single WebSocket the push transport runs turns and replies on
           tool-calls.ts                # Validates, queues and answers the backend's tool_call frames
+          tool-results/                # Tool results encoded for push frames
+            encode.ts                  # Text and image tool results within the push frame's byte cap
         tools/                         # The tools YUI declares to the backend and runs itself
           client-tools.ts              # Registry of the declared tools and the ClientTool type
           execute.ts                   # The bounded execute both the request transports and the push consumer call
@@ -381,12 +403,18 @@ YUI/
           relation.ts                  # The rate_relation tool: one accepted call per target per turn
           address-character.ts         # The address_character tool: names the character a reply is for, once per reply
           pet-window-tools.ts          # Builds the tool list a pet window declares: rate_relation and address_character everywhere, browser under Tauri, body_action and look in main
+          browser/                     # The browser tool over the Rust relay's ego lite run
+            browser-tool.ts            # browser: backend-written JavaScript in ego lite, in this preset's task space
+            run-result.ts              # The browser tool's result for one run: status, untrusted-content line, output, screenshots
+          screen/                      # The screen tool
+            screen-query.ts            # Answers a screen query from the live monitors and a screenshot
         vocabulary/                    # The emotion, motion, and voice-tone ids the agent may cue with
           express-vocabulary.ts        # Derives the express vocabulary from the loaded config and the motion selection
         card/                          # The card a preset sends: resolution, assembly with macros, and the greeting pick
           resolve-card.ts              # The preset's card and its effective name; null on push or with the switch off
           assemble-card.ts             # The first system message and the post-history text, with {{char}}, {{user}}, {{original}}
           pick-greeting.ts             # One of the card's greetings at random
+          perform-greeting.ts          # Speaks a card greeting into the transcript at a session reset
         conversation/                  # Transcript, context, and session state for conversation continuation
           chat-history-store.ts        # Unified conversation transcript with session boundaries
           signal-history-store.ts      # Per-turn signal records, one per group, spoken or silent
@@ -397,6 +425,8 @@ YUI/
           session-store.ts             # Holds the last Responses response.id for conversation continuation
           session-diagnostics.ts       # Used tokens and context window for the settings window
           reset-conversation.ts        # Start fresh: the one conversation reset the History page and the quick card call
+        models/                        # The chat server's model list
+          reader.ts                    # Reads the OpenAI-compatible /models list; every failure is a result kind
         record/                        # The turn-record JSONL log
           turn-record-log.ts           # Appends one JSONL record per completed turn or skipped fire
       browser/                         # The browser tool's adapter to the Rust relay
@@ -418,6 +448,8 @@ YUI/
           tts-synth.ts                 # Single-sentence speech synthesis request, shaped per TTS provider
           audio-player.ts              # Web Audio sink that plays a wav clip and reports mouth-open amplitude
           speech-playback.ts           # Glue between TTS playback, the renderer mouth, and bubble lifetime
+          readings.ts                  # The surface=reading dictionary parser and its readings lookup
+          voice-gate.ts                # One voice at a time across windows: the yui.speaking Web Lock
         voices/                        # The speaker catalogue: selection, the voices API, and voice import
           tts-voices.ts                # Lists, uploads, and deletes reference voices on Irodori's voices API
           voice-apis.ts                # Voice list, upload, and delete per TTS provider; OpenAI's fixed built-in list
@@ -434,9 +466,11 @@ YUI/
         tauri-listen.ts                # Shared os_event channel payload shape and listen resolver
         frontmost-tracker.ts           # Latest frontmost-window sample off the os_event channel
         own-origin-fetch.ts             # Keeps each webview's own origin on native fetch instead of the CORS proxy
+        current-window.ts              # Closes or destroys the current window and listens for its close request
         capture/                       # Screen enumeration and screenshot capture
           tauri-screen.ts              # Tauri-backed screen enumeration and capture
           screen-source-provider.ts    # Monitor enumeration seam
+          screen-point.ts              # A physical screen point as a logical one over a display's scale
           screenshot-context.ts        # Pure encoder for the screenshot context block
         geometry/                      # Monitor and floor math the window movers share
           screen-geometry.ts           # Monitor containment, work-area floor math, and window clamping shared by every window mover
@@ -458,7 +492,6 @@ YUI/
           unified-window.ts            # Unified chat window opener: shows the one frameless window labelled unified, or creates it at its stored position, and destroys it; its permissions are src-tauri/capabilities/unified.json
           pet-window.ts                # Bound pet window opener: creates pet-<id> and lists the windows that exist
           companion-windows.ts         # Closes a bound pet window's settings-<id>, message-<id> and quick-card-<id>, and watches a companion's owner window
-          current-window.ts            # Closes the current window and listens for its close request
         pet/                           # The pet window's own gestures, hit-test, gaze cursor, and peek
           window-statics.ts            # Cached window origin and scale factors for the global-cursor poll loops
           cursor-tracker.ts            # Forwards the OS cursor position to the gaze apply layer
@@ -566,16 +599,21 @@ YUI/
       signals/                       # The source line of a signal group, shared by the bubble and History
         source-line.ts               # Renders one source line: delivery-class dot, source, label
         source-line.css              # Source-line styles: filled urgent dot, ring batched dot
-      chips/                         # Status and delegation chips beside the avatar and on the message-window plate
+      chips/                         # Status, signal, and delegation chips beside the avatar and on the message-window plate
         status-pill.ts               # Status pill: capture, voice, and backend tool tells in one pill
         tool-labels.ts               # Tool id to display label lookup
         delegation-chip.ts           # Push-transport delegation chip beside the avatar with its tap-to-toggle list popover
         delegation-rows.ts           # Delegation list's shared row rendering and relative time text
+        hold-to-fold.ts              # A press held past 500 ms folds the chips and swallows the release's click
         voice-input-status.ts        # Voice-input status model
         voice-error-dwell.ts         # How long a voice-turn failure holds the status pill's voice error state
+        signal-chips.ts              # One pill per signal group beside the avatar, above the delegation chip
+        signal-chips-model.ts        # The signal groups beside the avatar, newest first, in memory only
+        signal-details.ts            # One signal group's source line, kind, label, time, what YUI said, and its raw items
         status-pill.css              # Status-pill styles
         delegation-chip.css          # Delegation-chip pill, list popover, and folded-dot styles
         delegation-rows.css          # Delegation row styles shared by the chip's list and the settings panel
+        signal-chips.css             # Signal-chip pill, details sheet, and fold styles
       notices/                       # One-off and error notices
         turn-error.ts                # Backend-failure reason to inline input-error message
         fade-out.ts                  # Settle callback for elements that fade before leaving the a11y tree
@@ -629,6 +667,15 @@ YUI/
           chat-type.css              # The overlay, option colours and description line of that row
           endpoints-section.ts       # Endpoint URL fields, the chat and TTS key rows, chat-API picker, and resets
           endpoints-section.css      # Endpoints section and yui-select dropdown styles
+          chat/                      # The Chat section of the Connection page, its model list, and its status line
+            chat-section.ts          # The Chat section: protocol and provider preset reflection, the model-list read, and its status line
+            chat-status.ts           # The single writer of the chat status line: text, dot class, and action button
+            chat-status.css          # Chat status line and reconnect action styles
+            model-combobox.ts        # The chat model input as a combobox filtering the server's model ids
+            model-combobox.css       # The model combobox's list beneath the input
+            model-read.ts            # One model-list read at a time: deduped, superseded, and reported as results
+            model-status.ts          # Maps the model-list read's phase and the model text to the status line's view
+            push-state-text.ts       # Where the push socket stands, in words, for the status line and the quick card's head
         cue-lists/                   # Schedule and proactive cue lists of the Proactive page
           cue-lists.ts               # Mounts and tears down the two cue lists
         delegations/                 # Delegated-work refresh for the session section
@@ -650,6 +697,7 @@ YUI/
             reasons-card.ts          # The band, the engine's note, and the last three reasons of a hovered or focused relation
             view.ts                  # What the two read: this preset's relations as stored now, a target's name, and the rated targets' order
         history/                     # History page and its session accordion section
+          character-name.ts          # The edited character's name: its preset's, or its card's while the built-in preset is unnamed
           history-tab.ts             # The History page's session list, with its start-fresh row
           history-section.ts         # History page session accordion over the persisted transcript and the signal records
           history-rows.ts            # Merges a session's chat entries with the signal records of the turns that ran in it
@@ -664,17 +712,25 @@ YUI/
         sections/                    # The page sections the shell mounts, the rows and lines the Connection page and other sections share, and the list helpers
           agent/                     # Locale, reasoning-effort, and instructions controls
             agent-section.ts         # Locale segment, reasoning-effort segment, the card's system-prompt textarea, and their redraw
+          appearance/                # The Appearance page
+            appearance-section.ts    # The Appearance page's theme segment and the click that writes it
           help/                      # Help section of the General page
+            help-section.ts          # One Ask button per bundled guide
+          card/                      # The Persona page's card section
+            card-io.ts               # The card section's import and export actions and their inline error line
+            card-section.ts          # The card fields, send switch, reset, and greeting list
+            card-section.css         # Card field, state, and greeting row styles
           key-row/                   # One secret API key row
             key-row.ts               # Masked input, reveal and clear, sub line, commit on blur; the chat and TTS rows and the Listening page's STT row
           push-reason/               # Controls the push transport cannot use
             push-reason.ts           # The reason line under such a control and its link to the chat protocol select
             push-reason.css          # Reason line styles
+          browser/                   # The browser-use switch of the Permissions page
+            browser-section.ts       # The browser-use switch's markup, click, and redraw
           devtools/                  # Developer Tools row on the General page
             devtools-row.ts          # Binds the row's button to the devtools window opener
           user-name/                 # "Your name" on the General page
             user-name-section.ts     # The device-wide user name row, its fallback placeholder and redraw
-            help-section.ts          # One Ask button per bundled guide
           monitors/                  # Screen-source radiogroup of the screenshot section
             monitors-section.ts      # Screen-source list and its load state
             monitors-section.css     # Monitors section styles
@@ -695,15 +751,22 @@ YUI/
           filler/                    # Thinking-filler section
             filler-section.ts        # Language segment and phrase-pool textareas, with their store subscription and reflect
             filler-tool-lines.ts     # Textarea round-trip for the filler pool's tool tier
+          readings/                  # The reading dictionary of the Listening page
+            readings-section.ts      # The reading textarea, its edits, and the line naming skipped lines
+            readings-section.css     # Reading dictionary textarea and skipped-line styles
           speaker/                   # TTS speaker picker of the Voice page
             speaker-list.ts          # Speaker radiogroup with reference-voice refresh and audition
             speaker-list.css         # Speaker list styles
-          user-asset-list.ts         # Shared scaffolding for the VRM and speaker asset radiogroups
-          user-asset-list.css        # Radio row, tick, and state styles shared by the monitor, VRM, and speaker lists
+          user-asset-list/           # Shared scaffolding for the VRM and speaker asset lists, and its two-phase import
+            user-asset-list.ts       # Shared asset-list state: rename, removal, roving focus, and swap orchestration
+            user-asset-list.css      # Radio row, tick, and state styles shared by the monitor, VRM, and speaker lists
+            pending-import.ts        # The two-phase import: a staged copy named by a row, discarded on Esc
         switches/                    # Switch rows
           switch-rows.ts             # Row markup, click binding, repaint, and the store following while open
         tabs/                        # The tablist
           tab-rail.ts                # Rail: selection, roving tabindex, arrow keyboard, and the button/panel markup pairs
+      theme/                         # The window theme
+        apply-theme.ts               # Resolves system through OS appearance and follows the store and the OS
       i18n/                          # Locale catalogs
         en.ts                        # English strings, the source of truth for the key set
         ja.ts                        # Japanese strings
@@ -749,6 +812,7 @@ YUI/
       agent_ingress/
         mod.rs                       # Loopback HTTP listener for signals and the avatar RPC surface, routed to main or the pet window a /presets/<id>/ path names
         payload.rs                   # Request parsing, size caps, and event payload types
+        guard.rs                     # Host and Origin guard: refuses browser requests whose hostname was rebound to loopback
         route.rs                     # Path parsing into a route family and a target window: bare paths to main, /presets/<id>/ to pet-<id>
         avatar_rpc.rs                # Avatar RPC bridge between HTTP requests and the webview
       turn_log.rs                    # Appends one opaque JSON line per turn record
