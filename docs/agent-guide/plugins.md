@@ -2,7 +2,7 @@
 
 `plugins/` holds **Backend-attached plugins**: plugin folders that each bundle a Backend-attached MCP server, independent of the app runtime. Each is a **self-contained `uv` project** with its own dependency set — no shared lock, so one plugin's deps never leak into another. The backend agent reaches them through its own MCP configuration, over a loopback port and an SSH reverse tunnel.
 
-`plugins/catalog.json` lists the plugins the app installs from its Plugins section; the official entries are written by the plugin release workflow (`docs/agent-guide/build-run.md` § Plugin releases).
+`plugins/catalog.json` lists the official and community plugins; the plugin release workflow opens a PR that writes the official entries (`docs/agent-guide/build-run.md` § Plugin releases).
 
 ## Adding a plugin
 
