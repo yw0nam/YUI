@@ -206,4 +206,28 @@ mod tests {
         assert!(!other.is_finished());
         host.shutdown().await;
     }
+
+    #[tokio::test]
+    async fn a_window_cannot_reuse_the_id_of_a_call_still_in_flight() {
+        require_python();
+        let host = running("yui-test").await;
+        let first = slow_call(&host, "pet-a", "c1");
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        assert_eq!(
+            host.call("pet-a", "c1", "echo_meta", json!({}), "preset-1")
+                .await,
+            Err("duplicate call id: c1".to_string())
+        );
+        host.cancel("pet-a", "c1");
+        let ended = tokio::time::timeout(Duration::from_secs(1), first).await;
+        assert_eq!(
+            ended.unwrap().unwrap(),
+            Err("plugin tool cancelled".to_string())
+        );
+        let other_window = host
+            .call("pet-b", "c1", "echo_meta", json!({}), "preset-1")
+            .await;
+        assert_eq!(other_window.unwrap()["isError"], false);
+        host.shutdown().await;
+    }
 }
