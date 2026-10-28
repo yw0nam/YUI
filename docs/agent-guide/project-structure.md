@@ -806,7 +806,7 @@ YUI/
       quick_card_dock.rs             # The quick-card window's macOS child-window link to its pet window: quick_card_attach, quick_card_detach
       passthrough.rs                 # Click-through toggle over the transparent overlay
       screenshot.rs                  # Screen-source enumeration and off-thread display capture
-      image_encode.rs                # Long-edge resize and JPEG data-URL encode shared by capture
+      image_encode.rs                # Long-edge resize and JPEG data-URL encode used by screenshot.rs
       mcp_host/                      # The MCP host: runs local plugins' MCP servers as YUI-hosted servers
         mod.rs                       # The host's behaviour, its setup, and the window and run event hooks
         commands.rs                  # The plugin_host_* commands, each forwarding to Host
