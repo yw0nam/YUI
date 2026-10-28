@@ -50,5 +50,8 @@ witness/
 
 map.base.js
 
+# Cargo build output of a Rust plugin
+plugins/*/target/
+
 # Git worktrees for parallel branches (CONTRIBUTING.md); biome reads this file and skips them
 .worktrees/
