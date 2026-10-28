@@ -140,7 +140,7 @@ A standalone process that offers tools over MCP (the factorio server in `plugins
 _Avoid_: Mod
 
 **Backend-attached**:
-How an MCP server reaches the brain through the backend agent's own MCP configuration; the servers under `plugins/` are reached this way, over a loopback port and an SSH reverse tunnel.
+How an MCP server reaches the brain through the backend agent's own MCP configuration; the Python HTTP servers under `plugins/` (factorio) are reached this way, over a loopback port and an SSH reverse tunnel.
 
 **Skill**:
 A `SKILL.md` that an agent reads for one workflow (yui-daily-briefing, yui-wake-character).
