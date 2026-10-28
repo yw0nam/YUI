@@ -98,7 +98,7 @@ describe("createPluginsPage", () => {
       Array.from(page.el.querySelectorAll<HTMLElement>("[data-pid]"), (g) => g.dataset.pid),
     ).toEqual(["browser", "yui-test", "weather"]);
     expect(group(page.el, "browser").querySelector(".yui-plg-hid")?.textContent).toBe(
-      "Hidden tool browser — a built-in tool uses this name",
+      "Hidden tool browser: a built-in tool uses this name",
     );
     const weather = group(page.el, "weather");
     expect(button(weather, "Allow again…").dataset.act).toBe("reapprove");
