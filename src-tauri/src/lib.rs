@@ -39,6 +39,10 @@ mod passthrough;
 #[cfg(desktop)]
 mod browser;
 
+// Runs local plugins' MCP servers and answers their tool calls and skill reads.
+#[cfg(desktop)]
+mod mcp_host;
+
 // Loopback HTTP ingress — receives signals, re-emits as Tauri events.
 mod agent_ingress;
 
@@ -69,7 +73,14 @@ pub fn run() {
     plugins::register(tauri::Builder::default())
         .setup(setup::run)
         .invoke_handler(commands::handler())
+        .on_window_event(|_window, _event| {
+            #[cfg(desktop)]
+            mcp_host::on_window_event(_window, _event);
+        })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|_, _| {});
+        .run(|_app, _event| {
+            #[cfg(desktop)]
+            mcp_host::on_run_event(_app, &_event);
+        });
 }

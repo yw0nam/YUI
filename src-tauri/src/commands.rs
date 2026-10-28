@@ -38,5 +38,23 @@ pub fn handler() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         crate::browser::browser_run,
         #[cfg(desktop)]
         crate::browser::browser_guide,
+        #[cfg(desktop)]
+        crate::mcp_host::commands::plugin_host_snapshot,
+        #[cfg(desktop)]
+        crate::mcp_host::commands::plugin_host_add_local,
+        #[cfg(desktop)]
+        crate::mcp_host::commands::plugin_host_enable,
+        #[cfg(desktop)]
+        crate::mcp_host::commands::plugin_host_disable,
+        #[cfg(desktop)]
+        crate::mcp_host::commands::plugin_host_retry,
+        #[cfg(desktop)]
+        crate::mcp_host::commands::plugin_host_log_tail,
+        #[cfg(desktop)]
+        crate::mcp_host::commands::plugin_host_call,
+        #[cfg(desktop)]
+        crate::mcp_host::commands::plugin_host_cancel,
+        #[cfg(desktop)]
+        crate::mcp_host::commands::plugin_host_skill,
     ]
 }

@@ -1,0 +1,17 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "plugin-host-manage",
+  "description": "settings windows read the MCP host snapshot, add local plugins, enable, disable and retry them, and read their log tail",
+  "windows": [
+    "settings",
+    "settings-*"
+  ],
+  "permissions": [
+    "allow-plugin-host-snapshot",
+    "allow-plugin-host-add-local",
+    "allow-plugin-host-enable",
+    "allow-plugin-host-disable",
+    "allow-plugin-host-retry",
+    "allow-plugin-host-log-tail"
+  ]
+}

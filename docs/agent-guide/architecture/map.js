@@ -516,6 +516,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "shell/mcp-host",
+      "module": "shell",
+      "label": "mcp_host",
+      "role": "Runs local plugins' MCP servers, keeps their enablement and consent on disk, publishes a revisioned snapshot to every window, and answers plugin tool calls and skill reads.",
+      "paths": [
+        "src-tauri/src/mcp_host"
+      ]
+    },
+    {
       "id": "shell/window",
       "module": "shell",
       "label": "window control",
