@@ -1,0 +1,21 @@
+PROTOTYPE #1661 results (claude-sonnet-5-5 via a throwaway Hermes profile, push transport, 2026-10-28).
+Printed by summary.py over analyze.py before the profile was deleted (the Hermes columns need its state.db).
+deferred = Hermes tool_search default (yui toolset behind tool_search/tool_describe/tool_call); direct = tools.tool_search.enabled: off.
+Prompts: a weather Seoul 3 days metric; b snapshot card; c octopus fact (no plugin); d weather Seoul 10 days (days max 7);
+e "skip plugin_describe, call plugin_call with {city: Seoul, days: 3}" (forced bad arguments).
+
+label | prompt | n | describe-first | plugin_call valid 1st try | invalid calls | answered | LLM calls (median, range) | hermes bridge calls | image named | median turn s
+deferred-A | a | 5 | 5/5 | 5/5 | 0 | 5/5 | 5 (5-5) | 5 | - | 8.1
+deferred-A | b | 5 | 5/5 | 5/5 | 0 | 5/5 | 5 (5-6) | 6 | 5 | 8.9
+deferred-A | c | 5 | - | - | 0 | 5/5 | 3 (3-3) | 5 | - | 5.1
+deferred-A | d | 5 | 5/5 | 5/5 | 0 | 5/5 | 5 (5-5) | 5 | - | 9.5
+deferred-B | a | 5 | 5/5 | 5/5 | 0 | 5/5 | 5 (5-6) | 6 | - | 8.6
+deferred-B | b | 5 | 5/5 | 5/5 | 0 | 5/5 | 5 (5-6) | 5 | 5 | 8.1
+deferred-B | c | 5 | - | - | 0 | 5/5 | 3 (3-3) | 5 | - | 6.3
+deferred-B | d | 5 | 5/5 | 5/5 | 0 | 5/5 | 5 (5-5) | 5 | - | 9.0
+deferred-A-errschema | e | 5 | 0/5 | 0/5 | 5 | 5/5 | 5 (5-5) | 5 | - | 10.1
+deferred-A-errbare | e | 5 | 0/5 | 0/5 | 5 | 3/5 | 7 (4-7) | 8 | - | 13.9
+direct-A | a | 5 | 5/5 | 5/5 | 0 | 5/5 | 4 (4-4) | 0 | - | 6.4
+direct-A | b | 5 | 5/5 | 5/5 | 0 | 5/5 | 4 (4-4) | 0 | 5 | 5.4
+direct-A | c | 5 | - | - | 0 | 5/5 | 2 (2-2) | 0 | - | 3.1
+direct-A | e | 5 | 0/5 | 0/5 | 5 | 5/5 | 4 (4-4) | 0 | - | 7.0
