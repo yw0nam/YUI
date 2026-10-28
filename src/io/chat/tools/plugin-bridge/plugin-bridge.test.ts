@@ -15,7 +15,14 @@ const SNAPSHOT: PluginHostSnapshot = {
   plugins: [
     {
       id: "p1",
+      version: null,
+      description: null,
+      source: "local",
+      path: "/plugins/p1",
       enabled: true,
+      consented: true,
+      error: null,
+      servers: [],
       tools: [
         {
           name: "echo_args",
@@ -26,6 +33,7 @@ const SNAPSHOT: PluginHostSnapshot = {
         },
       ],
       skills: [{ name: "hello", description: "Says hello." }],
+      hidden: [],
     },
   ],
 };
@@ -36,6 +44,7 @@ function fakeHost(over: Partial<McpHost> = {}): McpHost {
     call: vi.fn(async () => ({ content: [{ type: "text", text: "echoed" }], isError: false })),
     cancel: vi.fn(async () => {}),
     skill: vi.fn(async () => "# hello"),
+    subscribe: vi.fn(() => () => {}),
     ...over,
   };
 }

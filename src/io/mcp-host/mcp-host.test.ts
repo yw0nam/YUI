@@ -22,11 +22,19 @@ const SNAPSHOT = (revision: number): PluginHostSnapshot => ({
   plugins: [
     {
       id: "p1",
+      version: null,
+      description: null,
+      source: "local",
+      path: "/plugins/p1",
       enabled: true,
+      consented: true,
+      error: null,
+      servers: [],
       tools: [
         { name: "echo_args", server: "p1/s", description: "Echo.", inputSchema: {}, meta: null },
       ],
       skills: [],
+      hidden: [],
     },
   ],
 });

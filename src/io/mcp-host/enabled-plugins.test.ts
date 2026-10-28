@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from "vitest";
 import { findPluginTool, pluginLines } from "./enabled-plugins";
-import type { PluginHostSnapshot, PluginHostTool } from "./mcp-host";
+import type { PluginHostPlugin, PluginHostSnapshot, PluginHostTool } from "./mcp-host";
 
 const TOOL = (over: Partial<PluginHostTool> = {}): PluginHostTool => ({
   name: "echo_args",
@@ -12,6 +12,22 @@ const TOOL = (over: Partial<PluginHostTool> = {}): PluginHostTool => ({
   description: null,
   inputSchema: { type: "object" },
   meta: null,
+  ...over,
+});
+
+const PLUGIN = (over: Partial<PluginHostPlugin> = {}): PluginHostPlugin => ({
+  id: "p1",
+  version: null,
+  description: null,
+  source: "local",
+  path: "/plugins/p1",
+  enabled: true,
+  consented: true,
+  error: null,
+  servers: [],
+  tools: [],
+  skills: [],
+  hidden: [],
   ...over,
 });
 
@@ -25,7 +41,7 @@ describe("pluginLines", () => {
   it("prefers the tool's meta summary over its description", () => {
     const snapshot = SNAPSHOT({
       plugins: [
-        {
+        PLUGIN({
           id: "p1",
           enabled: true,
           tools: [
@@ -35,7 +51,7 @@ describe("pluginLines", () => {
             }),
           ],
           skills: [],
-        },
+        }),
       ],
     });
 
@@ -45,7 +61,7 @@ describe("pluginLines", () => {
   it("takes the first sentence of the description's first paragraph", () => {
     const snapshot = SNAPSHOT({
       plugins: [
-        {
+        PLUGIN({
           id: "p1",
           enabled: true,
           tools: [
@@ -54,7 +70,7 @@ describe("pluginLines", () => {
             }),
           ],
           skills: [],
-        },
+        }),
       ],
     });
 
@@ -66,12 +82,12 @@ describe("pluginLines", () => {
   it("joins a hard-wrapped description into one paragraph", () => {
     const snapshot = SNAPSHOT({
       plugins: [
-        {
+        PLUGIN({
           id: "p1",
           enabled: true,
           tools: [TOOL({ description: "Look up the weather\nfor a city. Returns JSON." })],
           skills: [],
-        },
+        }),
       ],
     });
 
@@ -81,18 +97,18 @@ describe("pluginLines", () => {
   it("leaves out a disabled plugin's tools and skills", () => {
     const snapshot = SNAPSHOT({
       plugins: [
-        {
+        PLUGIN({
           id: "p1",
           enabled: true,
           tools: [TOOL()],
           skills: [{ name: "hello", description: "Says hello." }],
-        },
-        {
+        }),
+        PLUGIN({
           id: "p2",
           enabled: false,
           tools: [TOOL({ name: "hidden_tool" })],
           skills: [{ name: "hidden_skill", description: "Hidden." }],
-        },
+        }),
       ],
     });
 
@@ -105,12 +121,12 @@ describe("pluginLines", () => {
   it("cuts a long summary to 100 characters", () => {
     const snapshot = SNAPSHOT({
       plugins: [
-        {
+        PLUGIN({
           id: "p1",
           enabled: true,
           tools: [TOOL({ description: `${"a".repeat(149)}.` })],
           skills: [],
-        },
+        }),
       ],
     });
 
@@ -122,8 +138,8 @@ describe("findPluginTool", () => {
   it("finds an enabled plugin's tool and ignores a disabled one's", () => {
     const snapshot = SNAPSHOT({
       plugins: [
-        { id: "p1", enabled: true, tools: [TOOL()], skills: [] },
-        { id: "p2", enabled: false, tools: [TOOL({ name: "hidden_tool" })], skills: [] },
+        PLUGIN({ id: "p1", enabled: true, tools: [TOOL()], skills: [] }),
+        PLUGIN({ id: "p2", enabled: false, tools: [TOOL({ name: "hidden_tool" })], skills: [] }),
       ],
     });
 

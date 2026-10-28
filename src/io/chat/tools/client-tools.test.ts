@@ -212,7 +212,13 @@ describe("docs/reference/client-tools.md catalog", () => {
     // The catalog is the table above the first section heading.
     const catalog = doc.slice(0, doc.indexOf("\n## "));
     const rows = new Set([...catalog.matchAll(/^\| `([^`]+)` \|/gm)].map((m) => m[1]));
-    const host = { snapshot: () => null, call: vi.fn(), cancel: vi.fn(), skill: vi.fn() };
+    const host = {
+      snapshot: () => null,
+      call: vi.fn(),
+      cancel: vi.fn(),
+      skill: vi.fn(),
+      subscribe: vi.fn(),
+    };
     const names = createClientTools(vocab(), [
       createRateRelationTool({ store: { rate: vi.fn() }, targets: () => [] }),
       createAddressCharacterTool({ targets: () => [], record: vi.fn() }),
