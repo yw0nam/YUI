@@ -77,15 +77,11 @@ export function createPushToolCalls(deps: PushToolCallsDeps): PushToolCalls {
         answer(frame, TURN_STOPPED);
         return;
       }
-      if (tool.localStatus)
-        deps.onStatus?.(frame.id, "running", tool.statusId?.(frame.arguments) ?? frame.name);
+      const statusId = tool.statusId?.(frame.arguments) ?? frame.name;
+      if (tool.localStatus) deps.onStatus?.(frame.id, "running", statusId);
       const result = await deps.execute(tool, frame.arguments, signal, frame.id, frame.turn_id);
       if (tool.localStatus)
-        deps.onStatus?.(
-          frame.id,
-          toolFailed(tool, result) ? "failed" : "done",
-          tool.statusId?.(frame.arguments) ?? frame.name,
-        );
+        deps.onStatus?.(frame.id, toolFailed(tool, result) ? "failed" : "done", statusId);
       await answerResult(frame, result);
     } finally {
       held.delete(frame.id);
