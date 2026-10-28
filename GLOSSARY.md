@@ -136,11 +136,18 @@ The list of installable plugins in `.claude-plugin/marketplace.json` at the repo
 _Avoid_: registry, index
 
 **MCP server**:
-A standalone process that offers tools over MCP (the factorio server in `plugins/factorio/`). Not part of the app runtime.
+A standalone process that offers tools over MCP (the factorio server in `plugins/factorio/`, a plugin's `.mcp.json` server). Not part of the app runtime: the backend agent or the MCP host runs it as its own process.
 _Avoid_: Mod
 
 **Backend-attached**:
 How an MCP server reaches the brain through the backend agent's own MCP configuration; the servers under `plugins/` are reached this way, over a loopback port and an SSH reverse tunnel.
+
+**YUI-hosted**:
+How an MCP server reaches the brain when YUI runs it and declares its tools through the bridge tools. Pairs with Backend-attached.
+
+**MCP host**:
+The part of the Rust shell that runs YUI-hosted MCP servers (`src-tauri/src/mcp_host/`).
+_Avoid_: plugin manager, runtime
 
 **Skill**:
 A `SKILL.md` that an agent reads for one workflow (yui-daily-briefing, yui-wake-character).

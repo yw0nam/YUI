@@ -141,6 +141,7 @@ YUI/
     contract/                        # TS contract types — the wire schema source of truth
       types.ts                       # Wire schema source of truth for the YUI to backend contract
       index.ts                       # Contract barrel
+      builtin-client-tools.json      # Built-in client tool names; the MCP host's name conflict rule reads them and a Vitest test checks them against the tool registry
     config/                          # Config load, validate, reactive store, hot-reload, and the runtime URL resolver
       load.ts                        # configs/*.json loader and validation, fail-loud
       asset-url.ts                   # Bundled asset paths and imported user files to runtime-fetchable URLs
@@ -790,11 +791,15 @@ YUI/
   src-tauri/
     tauri.conf.json                  # Transparent always-on-top pet window
     capabilities/                    # Per-window permissions; desktop.json holds the desktop-only plugin permissions
+      app-commands.json              # Every app command outside the MCP host, for every window
+      plugin-host-call.json          # main and pet-*: the MCP host snapshot, plugin tool calls and their cancel, and skill reads
+      plugin-host-manage.json        # settings and settings-*: the MCP host snapshot, add from folder, enable, disable, retry, and the log tail
+    fixtures/mcp-test-plugin/        # Stdlib-only Python MCP server plugin the MCP host tests run
     src/                             # Rust shell
       main.rs                        # Binary entry that calls into lib.rs
-      lib.rs                         # Module declarations and run(), which chains plugins, setup, and commands
+      lib.rs                         # Module declarations and run(), which chains plugins, setup, commands, and the window-destroyed and exit hooks
       plugins.rs                     # Plugin registration
-      setup.rs                       # Startup work: log sink, turn-record log, import sweep, OS watcher, tray
+      setup.rs                       # Startup work: log sink, turn-record log, import sweep, MCP host, OS watcher, tray
       commands.rs                    # IPC command table
       app_log.rs                     # Log plugin sink, timezone, line format, and log directory
       drag.rs                        # OS-native window drag with multi-monitor and DPI correction
@@ -809,6 +814,17 @@ YUI/
         relay.rs                     # One script run per task space under the space lock, the backstop kill, and the guide run
         script.rs                    # The prelude wrapped around the caller's code
         shots.rs                     # The per-call screenshot folder, its collection and encode, and the stale sweep
+      mcp_host/                      # The MCP host: runs local plugins' MCP servers as YUI-hosted servers
+        mod.rs                       # The host's behaviour, its setup, and the window-destroyed and exit hooks
+        commands.rs                  # The plugin_host_* commands, each forwarding to Host
+        host.rs                      # Host: the listed plugins and their servers, enable, disable, retry, calls, skills, and snapshot publishing
+        manifest.rs                  # Reads a plugin folder: plugin.json, .mcp.json servers in file order, and skills/*/SKILL.md
+        launch.rs                    # A server's command: placeholder expansion, no shell, process group or job object
+        server.rs                    # One server: start under the deadline, stderr log and tail, exit watch, and tree stop
+        calls.rs                     # In-flight tool calls per window: preset _meta, deadline, and cancel
+        store.rs                     # state.json load and save through a temp file and rename
+        snapshot.rs                  # Snapshot types and the name conflict rule
+        test_support.rs              # Test helpers: the fixture plugin, temp folders, polling
       agent_ingress/
         mod.rs                       # Loopback HTTP listener for signals and the avatar RPC surface, routed to main or the pet window a /presets/<id>/ path names
         payload.rs                   # Request parsing, size caps, and event payload types
