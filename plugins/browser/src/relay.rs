@@ -1,0 +1,377 @@
+//! Runs a script in an ego lite task space through the installed `ego-browser` CLI.
+
+use std::path::Path;
+use std::time::Duration;
+
+pub const NOT_FOUND: &str = "ego lite not found: install ego lite and run it once";
+
+#[derive(Debug, Clone, Copy)]
+pub struct Limits {
+    /// The script stops itself after this long.
+    pub deadline_ms: u64,
+    /// The CLI is killed after this long when the script did not stop itself.
+    pub kill_after: Duration,
+    pub image_cap: usize,
+    pub long_edge: u32,
+}
+
+pub const LIMITS: Limits = Limits {
+    deadline_ms: 25_000,
+    kill_after: Duration::from_secs(28),
+    image_cap: 4,
+    long_edge: 1280,
+};
+
+#[derive(Debug, Default)]
+pub struct RunOutcome {
+    /// The CLI's stderr, where ego prints the script's logs.
+    pub output: String,
+    pub exit_code: Option<i32>,
+    /// The prelude's deadline stopped the script.
+    pub deadline: bool,
+    pub killed: bool,
+    /// Base64 JPEG data, oldest first.
+    pub images: Vec<String>,
+    pub dropped: u32,
+    pub unreadable: Vec<String>,
+}
+
+#[derive(Default)]
+pub struct Relay {}
+
+impl Relay {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub async fn run(
+        &self,
+        _bin: &Path,
+        _space: &str,
+        _code: &str,
+        _limits: Limits,
+    ) -> Result<RunOutcome, String> {
+        Ok(RunOutcome::default())
+    }
+
+    pub async fn guide(&self, _bin: &Path, _kill_after: Duration) -> Result<String, String> {
+        Ok(String::new())
+    }
+}
+
+#[cfg(all(test, unix))]
+pub(crate) mod tests {
+    use super::*;
+    use std::path::PathBuf;
+    use std::sync::OnceLock;
+    use std::time::Duration;
+
+    /// Mirrors ego's `nodejs` prelude: logs go to stderr, `taskSpace` pages write a 1×1 PNG.
+    /// A minimized window fails screenshots until `Browser.setWindowBounds` restores it, then once more.
+    const FAKE_PRELUDE: &str = r#"import { writeFileSync, writeSync } from "node:fs";
+const __fakeWrite = (prefix, args) => writeSync(2, prefix + args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" ") + "\n");
+console.log = (...a) => __fakeWrite("", a);
+console.error = (...a) => __fakeWrite("[error] ", a);
+const __fakePng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
+globalThis.taskSpace = async (name) => ({
+  name,
+  cdp: async (method, params) => {
+    console.log("cdp " + method);
+    if (method === "Browser.getWindowForTarget" && params.targetId === "target-1") return { windowId: 7 };
+    if (method === "Browser.setWindowBounds" && params.windowId === 7 && params.bounds.windowState === "normal") {
+      if (!globalThis.windowStuck && globalThis.minimized) {
+        globalThis.minimized = false;
+        globalThis.failsAfterRestore = 1;
+      }
+      return {};
+    }
+    throw new Error("unexpected cdp " + method + " " + JSON.stringify(params));
+  },
+  page: () => ({
+    targetId: "target-1",
+    screenshot: async ({ path }) => {
+      if (globalThis.minimized || globalThis.failsAfterRestore > 0) {
+        if (!globalThis.minimized) globalThis.failsAfterRestore--;
+        throw new Error("Cannot capture a screenshot while the window is minimized.");
+      }
+      if (globalThis.shotError) throw new Error(globalThis.shotError);
+      const corrupt = globalThis.corruptNextShot === true;
+      globalThis.corruptNextShot = false;
+      writeFileSync(path, corrupt ? "not a png" : __fakePng);
+    },
+  }),
+});"#;
+
+    const FAKE_GUIDE: &str = "fake ego-browser guide\nline two\n";
+
+    const FAKE_BIN: &str = r#"#!/bin/sh
+dir=$(dirname "$0")
+case "$1" in
+  skill) cat "$dir/guide.txt" ;;
+  nodejs) exec node --input-type=module -e "$(cat "$dir/prelude.mjs")
+$(cat)" ;;
+  *) exit 2 ;;
+esac
+"#;
+
+    /// A CLI that fills its stderr pipe before it reads stdin.
+    const CHATTY_BIN: &str = r#"#!/bin/sh
+head -c 262144 /dev/zero | tr '\0' x >&2
+cat >/dev/null
+"#;
+
+    /// A fake `ego-browser` in one temp folder shared by test runs: `skill` prints the guide, `nodejs` execs node.
+    pub(crate) fn fake_ego() -> PathBuf {
+        static BIN: OnceLock<PathBuf> = OnceLock::new();
+        BIN.get_or_init(|| {
+            use std::os::unix::fs::PermissionsExt;
+            let node = std::process::Command::new("node").arg("--version").output();
+            assert!(
+                node.is_ok_and(|o| o.status.success()),
+                "node is required on PATH for the fake ego-browser tests"
+            );
+            let dir = std::env::temp_dir().join("yui-fake-ego");
+            std::fs::create_dir_all(&dir).unwrap();
+            // Write then rename, so a concurrent test run never executes a half-written file.
+            for (name, content, mode) in [
+                ("prelude.mjs", FAKE_PRELUDE, 0o644),
+                ("guide.txt", FAKE_GUIDE, 0o644),
+                ("ego-browser", FAKE_BIN, 0o755),
+                ("chatty-ego-browser", CHATTY_BIN, 0o755),
+            ] {
+                let staged = dir.join(format!("{name}.{}", std::process::id()));
+                std::fs::write(&staged, content).unwrap();
+                std::fs::set_permissions(&staged, std::fs::Permissions::from_mode(mode)).unwrap();
+                std::fs::rename(&staged, dir.join(name)).unwrap();
+            }
+            dir.join("ego-browser")
+        })
+        .clone()
+    }
+
+    /// Short deadline; a backstop that only the backstop test reaches, even on a loaded machine.
+    fn limits() -> Limits {
+        Limits {
+            deadline_ms: 300,
+            kill_after: Duration::from_secs(20),
+            image_cap: 4,
+            long_edge: 1280,
+        }
+    }
+
+    #[tokio::test]
+    async fn run_returns_the_logged_output_on_success() {
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", r#"console.log("hi");"#, limits())
+            .await
+            .unwrap();
+        assert!(out.output.contains("hi"), "output: {}", out.output);
+        assert_eq!(out.exit_code, Some(0));
+        assert!(!out.killed);
+        assert!(out.images.is_empty());
+    }
+
+    #[tokio::test]
+    async fn run_returns_earlier_logs_and_the_error_when_the_script_throws() {
+        let code = r#"console.log("before"); throw new Error("boom");"#;
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits())
+            .await
+            .unwrap();
+        assert!(out.output.contains("before"), "output: {}", out.output);
+        assert!(out.output.contains("boom"), "output: {}", out.output);
+        assert_eq!(out.exit_code, Some(1));
+        assert!(!out.deadline);
+    }
+
+    #[tokio::test]
+    async fn run_stops_a_script_awaiting_past_the_deadline() {
+        let code = "await new Promise((r) => setTimeout(r, 5000));";
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits())
+            .await
+            .unwrap();
+        assert!(
+            out.output.contains("[error] [yui] deadline"),
+            "output: {}",
+            out.output
+        );
+        assert_eq!(out.exit_code, Some(124));
+        assert!(out.deadline);
+        assert!(!out.killed);
+    }
+
+    #[tokio::test]
+    async fn run_finishes_when_the_cli_writes_much_before_reading_a_long_script() {
+        let chatty = fake_ego().with_file_name("chatty-ego-browser");
+        let code = "x".repeat(262_144);
+        let out = Relay::new()
+            .run(&chatty, "yui-a", &code, limits())
+            .await
+            .unwrap();
+        assert!(!out.killed);
+        assert_eq!(out.exit_code, Some(0));
+        assert_eq!(out.output.len(), 262_144);
+    }
+
+    #[tokio::test]
+    async fn run_kills_a_script_that_never_yields_to_its_deadline() {
+        let limits = Limits {
+            kill_after: Duration::from_millis(1500),
+            ..limits()
+        };
+        let out = tokio::time::timeout(
+            limits.kill_after + Duration::from_secs(1),
+            Relay::new().run(&fake_ego(), "yui-a", "while (true) {}", limits),
+        )
+        .await
+        .expect("run returns within kill_after + 1 s")
+        .unwrap();
+        assert!(out.killed);
+    }
+
+    /// The shot folder a run logged as `shot <path>`.
+    fn logged_shot_dir(output: &str) -> PathBuf {
+        let line = output
+            .lines()
+            .find_map(|l| l.strip_prefix("shot "))
+            .unwrap();
+        PathBuf::from(line).parent().unwrap().to_path_buf()
+    }
+
+    #[tokio::test]
+    async fn run_returns_the_last_screenshots_and_removes_their_folder() {
+        let code = r#"const p = task.page("p1");
+const shoot = p.screenshot;
+p.screenshot = (o) => { console.log("shot " + o.path); return shoot(o); };
+for (let i = 0; i < 6; i++) await screenshot(p);"#;
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits())
+            .await
+            .unwrap();
+        assert_eq!(out.images.len(), 4, "output: {}", out.output);
+        // Base64 of a JPEG starts with that of its FF D8 FF marker.
+        assert!(out.images[0].starts_with("/9j/"), "image: {}", out.images[0]);
+        assert_eq!(out.dropped, 2);
+        assert!(!logged_shot_dir(&out.output).exists());
+    }
+
+    #[tokio::test]
+    async fn run_names_a_screenshot_that_does_not_decode() {
+        let code = r#"await screenshot(task.page("p1"));
+globalThis.corruptNextShot = true;
+await screenshot(task.page("p1"));"#;
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits())
+            .await
+            .unwrap();
+        assert_eq!(out.unreadable, vec!["002.png".to_string()]);
+        assert_eq!(out.images.len(), 1);
+        assert_eq!(out.dropped, 0);
+    }
+
+    #[tokio::test]
+    async fn screenshot_restores_a_minimized_window_and_captures() {
+        let code = r#"globalThis.minimized = true;
+await screenshot(task.page("p1"));"#;
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits())
+            .await
+            .unwrap();
+        assert_eq!(out.exit_code, Some(0), "output: {}", out.output);
+        assert_eq!(out.images.len(), 1);
+        assert_eq!(out.output.matches("cdp Browser.setWindowBounds").count(), 1);
+    }
+
+    #[tokio::test]
+    async fn screenshot_throws_the_last_minimized_error_when_the_window_stays_minimized() {
+        let code = r#"globalThis.minimized = true;
+globalThis.windowStuck = true;
+await screenshot(task.page("p1"));"#;
+        let limits = Limits {
+            deadline_ms: 5000,
+            ..limits()
+        };
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits)
+            .await
+            .unwrap();
+        assert_eq!(out.exit_code, Some(1), "output: {}", out.output);
+        assert!(out.output.contains("while the window is minimized"));
+        assert_eq!(out.output.matches("cdp Browser.setWindowBounds").count(), 1);
+        assert!(out.images.is_empty());
+    }
+
+    #[tokio::test]
+    async fn screenshot_throws_other_errors_without_a_restore() {
+        let code = r#"globalThis.shotError = "capture boom";
+await screenshot(task.page("p1"));"#;
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits())
+            .await
+            .unwrap();
+        assert_eq!(out.exit_code, Some(1), "output: {}", out.output);
+        assert!(out.output.contains("capture boom"));
+        assert!(!out.output.contains("cdp "));
+    }
+
+    const TIMED: &str = r#"console.log("start " + Date.now());
+await new Promise((r) => setTimeout(r, 500));
+console.log("end " + Date.now());"#;
+
+    /// The `start` and `end` timestamps a `TIMED` run logged.
+    fn span(out: &RunOutcome) -> (u64, u64) {
+        let at = |key: &str| -> u64 {
+            let line = out.output.lines().find_map(|l| l.strip_prefix(key));
+            line.unwrap_or_else(|| panic!("no {key} in output: {}", out.output))
+                .parse()
+                .unwrap()
+        };
+        (at("start "), at("end "))
+    }
+
+    async fn timed_pair(space_a: &str, space_b: &str) -> ((u64, u64), (u64, u64)) {
+        let relay = Relay::new();
+        let bin = fake_ego();
+        let limits = Limits {
+            deadline_ms: 5000,
+            ..limits()
+        };
+        let (a, b) = tokio::join!(
+            relay.run(&bin, space_a, TIMED, limits),
+            relay.run(&bin, space_b, TIMED, limits),
+        );
+        (span(&a.unwrap()), span(&b.unwrap()))
+    }
+
+    #[tokio::test]
+    async fn runs_in_one_space_go_one_at_a_time() {
+        let (a, b) = timed_pair("yui-a", "yui-a").await;
+        assert!(a.1 <= b.0 || b.1 <= a.0, "a: {a:?}, b: {b:?}");
+    }
+
+    #[tokio::test]
+    async fn runs_in_different_spaces_overlap() {
+        let (a, b) = timed_pair("yui-a", "yui-b").await;
+        assert!(a.0 < b.1 && b.0 < a.1, "a: {a:?}, b: {b:?}");
+    }
+
+    #[tokio::test]
+    async fn guide_returns_the_cli_skill_text() {
+        let guide = Relay::new()
+            .guide(&fake_ego(), limits().kill_after)
+            .await
+            .unwrap();
+        assert_eq!(guide, "fake ego-browser guide\nline two\n");
+    }
+
+    #[tokio::test]
+    async fn run_answers_not_found_for_a_missing_binary() {
+        let missing = std::env::temp_dir().join("yui-no-such-dir/ego-browser");
+        let err = Relay::new()
+            .run(&missing, "yui-a", "", limits())
+            .await
+            .unwrap_err();
+        assert_eq!(err, "ego lite not found: install ego lite and run it once");
+    }
+}
