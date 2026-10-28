@@ -205,7 +205,7 @@ impl Host {
             self.publish(&mut inner);
             tickets
         };
-        self.start(tickets).await;
+        self.start_per_plugin(tickets).await;
     }
 
     /// Calls a declared tool; hidden and unknown names are refused.

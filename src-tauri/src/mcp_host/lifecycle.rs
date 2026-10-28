@@ -126,6 +126,27 @@ impl Host {
         }
     }
 
+    /// Runs each plugin's tickets as its own task, so one hanging plugin holds back no other.
+    pub(super) async fn start_per_plugin(self: &Arc<Self>, tickets: Vec<Ticket>) {
+        let mut groups: Vec<Vec<Ticket>> = Vec::new();
+        for ticket in tickets {
+            match groups.last_mut() {
+                Some(group) if group[0].plugin_id == ticket.plugin_id => group.push(ticket),
+                _ => groups.push(vec![ticket]),
+            }
+        }
+        let tasks: Vec<_> = groups
+            .into_iter()
+            .map(|group| {
+                let host = self.clone();
+                tokio::spawn(async move { host.start(group).await })
+            })
+            .collect();
+        for task in tasks {
+            let _ = task.await;
+        }
+    }
+
     /// Kills the trees of servers still starting, cancels the running servers' calls, then
     /// stops those servers together.
     pub(super) async fn stop(&self, stopping: Stopping) {
