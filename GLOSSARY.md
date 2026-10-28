@@ -129,8 +129,45 @@ _Avoid_: tier, urgency, priority
 **Signal chip**:
 The pill beside the avatar for one signal group, with a details sheet on tap and a cross to dismiss; in memory only.
 
-**Mod**:
-A standalone MCP server the brain uses (router, desktop-control, shell-sandbox, avatar, factorio). Not part of the app runtime.
+### Plugins and tools
+
+**Plugin**:
+The install unit: one folder with a `.claude-plugin/plugin.json` manifest and the components it bundles, installed from the marketplace (yui-notify). Alone, the word means only this; a Tauri plugin and a Hermes plugin are named with their ecosystem.
+_Avoid_: mod, add-on, extension
+
+**Marketplace**:
+The list of installable plugins in `.claude-plugin/marketplace.json` at the repository root, named `yui`.
+_Avoid_: registry, index
+
+**MCP server**:
+A standalone process that offers tools over MCP (router, desktop-control, shell-sandbox, avatar, factorio, all in `Mods/`). Not part of the app runtime.
+_Avoid_: Mod
+
+**Backend-attached**:
+How an MCP server reaches the brain through the backend agent's own MCP configuration; the servers in `Mods/` are reached this way, over a loopback port and an SSH reverse tunnel.
+
+**Skill**:
+A `SKILL.md` that an agent reads for one workflow (yui-daily-briefing, yui-wake-character).
+_Avoid_: recipe, prompt pack
+
+**Hook**:
+A handler a host runs on one of its own events, such as yui-notify's `Stop` hook in a coding agent.
+_Avoid_: trigger (a Trigger is a turn's cause)
+
+**Integration**:
+Wiring for one backend agent, kept under `integrations/<agent>/` (the Hermes platform plugin, Hermes desire).
+_Avoid_: adapter, connector
+
+**Client tool**:
+A tool the client declares to the backend and runs itself (generate_express, body_action, look, browser, rate_relation, address_character).
+_Avoid_: in-app tool, local tool
+
+**Producer**:
+An outside program that POSTs signals to the `/signals` ingress (yui-notify's hooks, the factorio MCP server).
+_Avoid_: sender, emitter
+
+**Game mod**:
+Code a game loads, such as the Factorio Lua mod in `Mods/factorio/game-mod/`. "Mod" alone is not used.
 
 ### Configuration
 
