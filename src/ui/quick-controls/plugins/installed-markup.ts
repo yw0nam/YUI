@@ -6,6 +6,7 @@ import type {
   PluginHostSnapshot,
 } from "../../../io/mcp-host/mcp-host";
 import { t } from "../../i18n";
+import { TAB_ICON_PERMS } from "../constants";
 import { secHeadHtml } from "../markup";
 import {
   badgeHtml,
@@ -13,7 +14,6 @@ import {
   esc,
   ICON_CHEV,
   ICON_FOLDER,
-  ICON_SHIELD,
   ICON_WARN,
   SPIN,
   versionHtml,
@@ -82,7 +82,7 @@ function serverHtml(p: PluginHostPlugin, sv: PluginHostServer, busy: boolean): s
   const dot =
     sv.status === "starting"
       ? SPIN
-      : `<span class="yui-plg-dot ${DOT_CLASS[sv.status]}" aria-hidden="true"></span>`;
+      : `<span class="yui-chat-status__dot ${DOT_CLASS[sv.status]}" aria-hidden="true"></span>`;
   return `<div class="yui-plg-sv" data-k="${esc(sv.id)}:${sv.status}">${dot}<span class="yui-plg-sv__name">${esc(sv.name)}</span><span class="yui-plg-sv__state">${state}</span>${tail}${detail ? `<span class="yui-plg-sv__detail">${detail}</span>` : ""}</div>`;
 }
 
@@ -153,10 +153,10 @@ function stepOneHtml(p: PluginHostPlugin): string {
         <dt>${t("plugins.fact_version")}</dt><dd>${p.version ? t("plugins.version", { version: esc(p.version) }) : `<small>${t("plugins.no_version")}</small>`}</dd>
         <dt>${t("plugins.fact_command")}</dt><dd>${cmds || `<small>${t("plugins.no_servers")}</small>`}</dd>
       </dl>
-      <p class="yui-plg-warn">${ICON_SHIELD}<span>${t("plugins.shield")}</span></p>${extra}
+      <p class="yui-plg-warn">${TAB_ICON_PERMS}<span>${t("plugins.shield")}</span></p>${extra}
       <div class="yui-plg-btns">
         <button class="yui-pill" type="button" data-act="cancel" data-id="${id}" data-fk="cancel:${id}">${t("plugins.cancel")}</button>
-        <button class="yui-pill yui-plg-ok" type="button" data-act="allow" data-id="${id}" data-fk="allow:${id}">${t("plugins.allow")}</button>
+        <button class="yui-pill yui-pill--ok" type="button" data-act="allow" data-id="${id}" data-fk="allow:${id}">${t("plugins.allow")}</button>
       </div></div>`;
 }
 
@@ -175,7 +175,7 @@ function consentHtml(p: PluginHostPlugin, flow: PluginUi["flow"]): string {
   const btns = (note: string, okKey: string): string =>
     `<div class="yui-plg-btns"><span class="yui-plg-btns__note">${t(note)}</span>
         <button class="yui-pill" type="button" data-act="off" data-id="${id}" data-fk="off:${id}">${t("plugins.turn_off")}</button>
-        <button class="yui-pill yui-plg-ok" type="button" data-act="done" data-id="${id}" data-fk="done:${id}">${t(okKey)}</button></div>`;
+        <button class="yui-pill yui-pill--ok" type="button" data-act="done" data-id="${id}" data-fk="done:${id}">${t(okKey)}</button></div>`;
   if (panel === "starting")
     return `<div class="yui-plg-consent" data-k="${id}:c2s">${stepHtml(2)}<div class="yui-plg-wait" role="status">${SPIN}${t("plugins.starting")}</div></div>`;
   if (panel === "started") {
@@ -224,7 +224,7 @@ function pluginHtml(p: PluginHostPlugin, v: InstalledView): string {
   if (p.error) html += `<div>${errLineHtml(t("plugins.manifest_error"), p.error)}</div>`;
   else {
     if (reap && !ui.flow) {
-      html += `<div class="yui-plg-reap" data-k="${id}:reap"><p>${t("plugins.reapprove_note")}</p><button class="yui-pill yui-plg-ok" type="button" data-act="reapprove" data-id="${id}" data-fk="reapprove:${id}"${off}>${t("plugins.reapprove")}</button></div>`;
+      html += `<div class="yui-plg-reap" data-k="${id}:reap"><p>${t("plugins.reapprove_note")}</p><button class="yui-pill yui-pill--ok" type="button" data-act="reapprove" data-id="${id}" data-fk="reapprove:${id}"${off}>${t("plugins.reapprove")}</button></div>`;
     }
     html += consentHtml(p, ui.flow);
     if (!ui.flow) {

@@ -6,6 +6,7 @@ import { createKeyedRender } from "../keyed-render";
 import { catalogHtml, type InstallUi } from "./catalog-markup";
 import { createCatalogState } from "./catalog-state";
 import { installedHtml, type PluginUi } from "./installed-markup";
+import "../connection/endpoints-section.css";
 import "./plugins-page.css";
 
 export interface PluginsPage {

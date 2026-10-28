@@ -143,17 +143,6 @@
   margin-top: 1.25rem;
 }
 
-.yui-photo-dialog__use {
-  color: var(--yui-accent-ink);
-  border-color: var(--yui-accent-soft);
-}
-
-.yui-photo-dialog__use:hover:not(:disabled) {
-  background: var(--yui-accent-faint);
-  border-color: var(--yui-accent);
-  color: var(--yui-accent-ink);
-}
-
 .yui-photo-dialog .yui-pill:disabled {
   opacity: 0.5;
   cursor: default;

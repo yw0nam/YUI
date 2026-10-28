@@ -49,26 +49,8 @@
   }
 }
 
-/* Server status dot */
-.yui-plg-dot {
-  flex: none;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--yui-text-mute);
-}
-
-.yui-plg-dot.is-ok {
-  background: var(--yui-ok);
-  box-shadow: 0 0 0 3px var(--yui-ok-soft);
-}
-
-.yui-plg-dot.is-bad {
-  background: var(--yui-danger);
-  box-shadow: 0 0 0 3px var(--yui-danger-faint);
-}
-
-.yui-plg-dot.is-off {
+/* A stopped server's dot dims */
+.yui-plg-sv .yui-chat-status__dot.is-off {
   opacity: 0.55;
 }
 
@@ -302,13 +284,6 @@
   margin-left: auto;
 }
 
-.yui-plg-acts .yui-link-btn:disabled,
-.yui-plg-sv .yui-link-btn:disabled {
-  color: var(--yui-text-mute);
-  cursor: default;
-  transform: none;
-}
-
 .yui-plg-busy {
   display: inline-flex;
   align-items: center;
@@ -350,19 +325,7 @@
   color: var(--yui-text-dim);
 }
 
-/* The affirming pill: Amber ink on an Amber-soft edge, as the photo dialog's Use photo */
-.yui-plg-ok {
-  color: var(--yui-accent-ink);
-  border-color: var(--yui-accent-soft);
-}
-
-.yui-plg-ok:hover {
-  background: var(--yui-accent-faint);
-  border-color: var(--yui-accent);
-  color: var(--yui-accent-ink);
-}
-
-.yui-plg-ok:disabled {
+.yui-plg-reap .yui-pill:disabled {
   opacity: 0.5;
   cursor: default;
 }

@@ -280,6 +280,7 @@
   flex: none;
 }
 
+.yui-link-btn:disabled,
 .yui-add-btn:disabled {
   color: var(--yui-text-mute);
   cursor: not-allowed;
@@ -486,6 +487,18 @@
   background: var(--yui-danger-faint);
   border-color: var(--yui-danger);
   color: var(--yui-danger);
+}
+
+/* An affirming pill (Use photo, Allow): Amber ink on an Amber-soft edge. */
+.yui-pill--ok {
+  color: var(--yui-accent-ink);
+  border-color: var(--yui-accent-soft);
+}
+
+.yui-pill--ok:hover:not(:disabled) {
+  background: var(--yui-accent-faint);
+  border-color: var(--yui-accent);
+  color: var(--yui-accent-ink);
 }
 
 .yui-pill:focus-visible {
