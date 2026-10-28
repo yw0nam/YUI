@@ -364,7 +364,7 @@ globalThis.YUI_MAP =
     {
       "from": "senders",
       "to": "shell",
-      "label": "signals, relation writes, WebDriver session (verify feature)"
+      "label": "signals, avatar commands, WebDriver session (verify feature)"
     },
     {
       "from": "shell",
@@ -2080,6 +2080,14 @@ globalThis.YUI_MAP =
       "from": "signal-producers",
       "to": "shell/agent-ingress",
       "carries": "GET /relations; PUT /relations {<user or preset id>: {value, updated_at, log, note?}}, refused with 400 outside the ranges or for an unknown key; JSON answer, or the same path under /presets/<id>/ answered by that window",
+      "kind": "http",
+      "transport": "shared"
+    },
+    {
+      "id": "avatar-ingress",
+      "from": "signal-producers",
+      "to": "shell/agent-ingress",
+      "carries": "GET /avatar/state, GET /avatar/perch-targets, POST /avatar/command; JSON answer, or the same paths under /presets/<id>/ answered by that window",
       "kind": "http",
       "transport": "shared"
     },
@@ -4071,6 +4079,14 @@ globalThis.YUI_MAP =
           "edges": [
             "tools-capture",
             "capture-shell"
+          ],
+          "to": "shell"
+        },
+        {
+          "from": "senders",
+          "label": "GET /avatar/state, POST /avatar/command",
+          "edges": [
+            "avatar-ingress"
           ],
           "to": "shell"
         },

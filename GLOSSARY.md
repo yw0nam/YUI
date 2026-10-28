@@ -128,7 +128,7 @@ The pill beside the avatar for one signal group, with a details sheet on tap and
 ### Plugins and tools
 
 **Plugin**:
-The install unit: one folder with a `.claude-plugin/plugin.json` manifest and the components it bundles, installed from the marketplace (yui-notify). Alone, the word means only this; a Tauri plugin and a Hermes plugin are named with their ecosystem.
+The install unit: one folder with a `.claude-plugin/plugin.json` manifest and the components it bundles, installed from the marketplace (yui-notify) or attached through the backend agent's MCP configuration (factorio). Alone, the word means only this; a Tauri plugin and a Hermes plugin are named with their ecosystem.
 _Avoid_: mod, add-on, extension
 
 **Marketplace**:

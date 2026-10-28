@@ -1,18 +1,16 @@
 # YUI — Plugins & CI
 
-Plugins are **Backend-attached MCP servers** under `plugins/`, independent of the app runtime. Each is a **self-contained `uv` project** with its own dependency set — no shared lock, so one plugin's deps never leak into another. The backend agent reaches them through its own MCP configuration, over a loopback port and an SSH reverse tunnel.
-
-The guide for authoring one is published on the YUI docs site: [plugin author guide](https://yw0nam.github.io/YUI/guide/plugins).
+`plugins/` holds **Backend-attached plugins**: plugin folders that each bundle a Backend-attached MCP server, independent of the app runtime. Each is a **self-contained `uv` project** with its own dependency set — no shared lock, so one plugin's deps never leak into another. The backend agent reaches them through its own MCP configuration, over a loopback port and an SSH reverse tunnel.
 
 ## Adding a plugin
 
 To add a plugin `<name>`:
 
 1. `plugins/<name>/` — `pyproject.toml` (deps + `[project.scripts]` entry + dev `pytest`/`ruff` + `[tool.ruff] line-length = 110`), `uv.lock` (`uv lock`), `.python-version`, the `<package>/` source, and `tests/` (failing test first; what a test must prove: `docs/agent-guide/testing.md` § What a test is for). `uv.lock` is required: CI runs `uv sync --frozen` in every folder that tracks a `pyproject.toml`.
-2. `plugins/<name>/.claude-plugin/plugin.json` — the plugin manifest: its `name`, `version`, and one-line `description`.
+2. `plugins/<name>/.claude-plugin/plugin.json` — the plugin manifest: its `name`, `version`, one-line `description`, `author`, and `license`.
 3. `plugins/<name>/.mcp.json` — the MCP server the backend agent attaches: the server name, its `type`, and its URL.
 4. `plugins/<name>/README.md` (run / config / safety boundary / tools / test) and the folder in the `plugins/` tree in `docs/agent-guide/project-structure.md`.
-5. `plugins/<name>/skills/<name>/SKILL.md` — the workflow the backend agent reads, when the plugin needs one.
+5. `plugins/<name>/skills/<skill-name>/SKILL.md` — the workflow the backend agent reads, when the plugin needs one.
 
 Verify locally before the PR: `cd plugins/<name> && uv run pytest && uv run ruff format --check . && uv run ruff check .`.
 
