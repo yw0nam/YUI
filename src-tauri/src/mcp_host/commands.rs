@@ -7,6 +7,7 @@ use serde_json::Value;
 use std::sync::Arc;
 use tauri::{AppHandle, State, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_opener::OpenerExt;
 
 #[tauri::command]
 pub fn plugin_host_snapshot(host: State<'_, Arc<Host>>) -> Snapshot {
@@ -60,6 +61,16 @@ pub fn plugin_host_log_tail(
     plugin_id: String,
 ) -> Result<Vec<String>, String> {
     host.log_tail(&plugin_id)
+}
+
+/// Opens the folder the plugin logs are written to.
+#[tauri::command]
+pub fn plugin_host_reveal_log(app: AppHandle, host: State<'_, Arc<Host>>) -> Result<(), String> {
+    let dir = host.log_dir.to_string_lossy().into_owned();
+    std::fs::create_dir_all(&host.log_dir).map_err(|e| e.to_string())?;
+    app.opener()
+        .open_path(dir, None::<&str>)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

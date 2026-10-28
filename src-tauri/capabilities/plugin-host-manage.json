@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "plugin-host-manage",
-  "description": "settings windows read the MCP host snapshot, add local plugins, list the catalog, install, update and remove plugins, enable, disable and retry them, and read their log tail",
+  "description": "settings windows read the MCP host snapshot, add local plugins, list the catalog, install, update and remove plugins, enable, disable and retry them, read their log tail, and open the plugin log folder",
   "windows": [
     "settings",
     "settings-*"
@@ -13,6 +13,7 @@
     "allow-plugin-host-disable",
     "allow-plugin-host-retry",
     "allow-plugin-host-log-tail",
+    "allow-plugin-host-reveal-log",
     "allow-plugin-host-catalog",
     "allow-plugin-host-install",
     "allow-plugin-host-remove"

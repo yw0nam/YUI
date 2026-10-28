@@ -46,7 +46,7 @@ pub fn data_dir(plugins_dir: &Path, plugin_id: &str) -> PathBuf {
     plugins_dir.join("data").join(plugin_id)
 }
 
-/// Replaces the plugin root and data placeholders in `s`.
+/// Expands `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PLUGIN_DATA}` in `s`.
 fn expand(s: &str, root: &str, data: &str) -> String {
     s.replace("${CLAUDE_PLUGIN_ROOT}", root)
         .replace("${CLAUDE_PLUGIN_DATA}", data)

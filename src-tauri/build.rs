@@ -29,6 +29,7 @@ const COMMANDS: &[&str] = &[
     "plugin_host_disable",
     "plugin_host_retry",
     "plugin_host_log_tail",
+    "plugin_host_reveal_log",
     "plugin_host_catalog",
     "plugin_host_install",
     "plugin_host_remove",
