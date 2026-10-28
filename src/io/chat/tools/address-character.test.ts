@@ -27,14 +27,17 @@ function setup(
 }
 
 describe("createAddressCharacterTool — definition", () => {
-  it("lists the open presets as targets (never the bare user) read each time the schema is built, requires to alone, and carries no switch or one-way flag", () => {
-    const targets = [{ id: "aaaa0001", name: "perlica" }];
+  it("declares to as a plain string whose schema never changes with the open presets, requires to alone, and carries no switch or one-way flag", () => {
+    const targets = [{ id: "aaaa0001", name: "alice" }];
     const { tool } = setup(targets);
-    const to = () => (tool.definition.function.parameters.properties.to as { enum: string[] }).enum;
+    const before = JSON.stringify(tool.definition);
 
-    expect(to()).toEqual(["perlica"]);
-    targets.push({ id: "bbbb0002", name: "shino" });
-    expect(to()).toEqual(["perlica", "shino"]);
+    expect(tool.definition.function.parameters.properties.to).toEqual({
+      type: "string",
+      description: "A name from the open characters: line.",
+    });
+    targets.push({ id: "bbbb0002", name: "bob" });
+    expect(JSON.stringify(tool.definition)).toBe(before);
     expect(tool.definition.function.description).toBe(
       "Speak to another character: name who this reply is for. They hear this reply and may answer. " +
         "With handoff, this reply passes the user's message on this turn to that character, who takes it and answers the user. " +

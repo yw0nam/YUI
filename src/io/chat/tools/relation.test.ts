@@ -21,22 +21,21 @@ function setup(
 }
 
 describe("createRateRelationTool — definition", () => {
-  it("declares user and the open presets as targets, read each time the schema is built", () => {
-    const { tool, list } = setup();
-    const toward = () =>
-      (tool.definition.function.parameters.properties.toward as { enum: string[] }).enum;
+  it("declares toward as a plain string whose schema never changes with the open presets", () => {
+    const { tool, list } = setup([{ id: "aaaa0001", name: "alice" }]);
+    const before = JSON.stringify(tool.definition);
 
-    expect(toward()).toEqual(["user", "perlica"]);
-    list.targets = [...list.targets, { id: "bbbb0002", name: "shino" }];
-    expect(toward()).toEqual(["user", "perlica", "shino"]);
+    expect(tool.definition.function.parameters.properties.toward).toEqual({
+      type: "string",
+      description: "user, or a name from the open characters: line.",
+    });
+    list.targets = [...list.targets, { id: "bbbb0002", name: "bob" }];
+    expect(JSON.stringify(tool.definition)).toBe(before);
   });
 
-  it("declares a preset named User as User (character) and rates its id", async () => {
+  it("rates the id of a preset named User when called as User (character)", async () => {
     const { tool, store } = setup([{ id: "cccc0003", name: "User" }]);
 
-    expect(
-      (tool.definition.function.parameters.properties.toward as { enum: string[] }).enum,
-    ).toEqual(["user", "User (character)"]);
     await tool.execute({ toward: "User (character)", delta: 1, why: "x" });
     expect(store.rate).toHaveBeenCalledWith("cccc0003", 1, "x", NOW);
   });

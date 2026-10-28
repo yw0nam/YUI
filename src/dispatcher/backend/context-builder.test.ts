@@ -152,6 +152,28 @@ describe("context builder — relations", () => {
   });
 });
 
+describe("context builder — open characters", () => {
+  it("carries the names the provider returns, read again every turn", async () => {
+    let open = ["alice"];
+    const read = () => open;
+
+    const first = await buildContext(ENV, { getOpenCharacters: read });
+    expect(first.clientContext.open_characters).toEqual(["alice"]);
+
+    open = ["alice", "bob"];
+    const second = await buildContext(ENV, { getOpenCharacters: read });
+    expect(second.clientContext.open_characters).toEqual(["alice", "bob"]);
+  });
+
+  it("omits the field when the provider returns none or is absent", async () => {
+    const none = await buildContext(ENV, { getOpenCharacters: () => [] });
+    expect("open_characters" in none.clientContext).toBe(false);
+
+    const absent = await buildContext(ENV, {});
+    expect("open_characters" in absent.clientContext).toBe(false);
+  });
+});
+
 describe("buildClientContext — addressed forwarding", () => {
   const CTX: InputContext = { env: { timestamp: "2026-07-31T14:22:33+09:00", timezone: "UTC" } };
 
