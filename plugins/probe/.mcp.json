@@ -1,7 +1,0 @@
-{
-  "mcpServers": {
-    "probe": {
-      "command": "${CLAUDE_PLUGIN_ROOT}/bin/probe"
-    }
-  }
-}
