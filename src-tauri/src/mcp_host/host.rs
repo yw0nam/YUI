@@ -22,7 +22,7 @@ pub struct Host {
     offset: UtcOffset,
     emit: Emit,
     inner: Mutex<Inner>,
-    calls: Calls,
+    pub(super) calls: Calls,
 }
 
 pub(super) struct Inner {

@@ -21,6 +21,8 @@ use tokio::process::ChildStderr;
 type Client = RunningService<RoleClient, ()>;
 
 const TAIL_LINES: usize = 20;
+/// How long a server gets to exit after its stdin closes, so it can act on what it already read.
+const EXIT_GRACE: Duration = Duration::from_secs(1);
 /// Bytes kept of one stderr line; the rest up to its newline is dropped.
 const MAX_LINE: usize = 2000;
 
@@ -106,13 +108,19 @@ impl Server {
         self.client.peer()
     }
 
-    /// Closes the connection, then kills the whole process tree.
+    /// Closes the connection, gives the server `EXIT_GRACE` to exit, then kills the whole
+    /// process tree.
     pub async fn stop(mut self) {
         let exited = self.watch.is_finished();
         self.stopping.store(true, Ordering::SeqCst);
         let _ = self.client.close().await;
-        self.watch.abort();
-        let _ = (&mut self.watch).await;
+        if tokio::time::timeout(EXIT_GRACE, &mut self.watch)
+            .await
+            .is_err()
+        {
+            self.watch.abort();
+            let _ = (&mut self.watch).await;
+        }
         if !exited {
             kill_group(self.pgid);
         }

@@ -29,7 +29,10 @@ pub struct Calls {
 struct Pending {
     /// Tells a call's own entry from a later one under the same key.
     token: u64,
-    cancel: oneshot::Sender<()>,
+    /// `<pluginId>/<serverName>` of the server the call went to.
+    server: String,
+    /// Carries a sender the call answers once its `notifications/cancelled` is sent.
+    cancel: oneshot::Sender<oneshot::Sender<()>>,
 }
 
 impl Calls {
@@ -66,7 +69,14 @@ impl Calls {
             if pending.contains_key(&key) {
                 return Err(format!("duplicate call id: {call_id}"));
             }
-            pending.insert(key.clone(), Pending { token, cancel });
+            pending.insert(
+                key.clone(),
+                Pending {
+                    token,
+                    server: tool.server.clone(),
+                    cancel,
+                },
+            );
         }
         let handle = match peer.send_cancellable_request(request, options).await {
             Ok(handle) => handle,
@@ -80,8 +90,9 @@ impl Calls {
         let outcome = tokio::select! {
             response = handle.await_response() => Some(response),
             _ = tokio::time::sleep(Duration::from_millis(wait_ms)) => None,
-            Ok(()) = cancel_rx => {
+            Ok(sent) = cancel_rx => {
                 notify_cancelled(&cancel_peer, request_id, "stopped by client").await;
+                let _ = sent.send(());
                 return Err("plugin tool cancelled".into());
             }
         };
@@ -102,24 +113,35 @@ impl Calls {
 
     /// Cancels the call only when `window` started it.
     pub fn cancel(&self, window: &str, call_id: &str) {
-        let key = (window.to_string(), call_id.to_string());
-        if let Some(pending) = self.lock().remove(&key) {
-            let _ = pending.cancel.send(());
-        }
+        self.take(|(w, c), _| w == window && c == call_id);
     }
 
     pub fn cancel_window(&self, window: &str) {
-        let mut pending = self.lock();
-        let keys: Vec<_> = pending
-            .keys()
-            .filter(|(w, _)| w == window)
-            .cloned()
-            .collect();
-        for key in keys {
-            if let Some(entry) = pending.remove(&key) {
-                let _ = entry.cancel.send(());
-            }
+        self.take(|(w, _), _| w == window);
+    }
+
+    /// Cancels every call to the server and waits until each has sent its cancellation.
+    pub async fn cancel_server(&self, server_id: &str) {
+        for sent in self.take(|_, p| p.server == server_id) {
+            let _ = sent.await;
         }
+    }
+
+    fn take(&self, which: impl Fn(&Key, &Pending) -> bool) -> Vec<oneshot::Receiver<()>> {
+        let mut pending = self.lock();
+        let keys: Vec<Key> = pending
+            .iter()
+            .filter(|(key, p)| which(key, p))
+            .map(|(key, _)| key.clone())
+            .collect();
+        keys.into_iter()
+            .filter_map(|key| pending.remove(&key))
+            .map(|entry| {
+                let (sent, sent_rx) = oneshot::channel();
+                let _ = entry.cancel.send(sent);
+                sent_rx
+            })
+            .collect()
     }
 
     fn remove(&self, key: &Key, token: u64) {

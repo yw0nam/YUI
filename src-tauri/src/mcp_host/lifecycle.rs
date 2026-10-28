@@ -75,15 +75,22 @@ impl Inner {
         tickets
     }
 
-    /// Marks the matching servers as stopped and hands back the running ones.
-    pub fn stop_servers(&mut self, which: impl Fn(&str, &LiveServer) -> bool) -> Vec<Server> {
+    /// Marks the matching servers as stopped and hands back the running ones with their ids.
+    pub fn stop_servers(
+        &mut self,
+        which: impl Fn(&str, &LiveServer) -> bool,
+    ) -> Vec<(String, Server)> {
         let mut stopping = Vec::new();
         for (plugin_id, live) in &mut self.live {
             for ls in live.servers.iter_mut().filter(|ls| which(plugin_id, ls)) {
                 self.next_epoch += 1;
                 ls.epoch = self.next_epoch;
                 ls.entry.reset(Status::Stopped);
-                stopping.extend(ls.running.take());
+                stopping.extend(
+                    ls.running
+                        .take()
+                        .map(|server| (ls.entry.id.clone(), server)),
+                );
             }
         }
         stopping
@@ -111,9 +118,17 @@ impl Host {
         }
     }
 
-    pub(super) async fn stop(&self, stopping: Vec<Server>) {
-        for server in stopping {
-            server.stop().await;
+    /// Cancels the servers' calls, then stops the servers together.
+    pub(super) async fn stop(&self, stopping: Vec<(String, Server)>) {
+        for (server_id, _) in &stopping {
+            self.calls.cancel_server(server_id).await;
+        }
+        let stops: Vec<_> = stopping
+            .into_iter()
+            .map(|(_, server)| tokio::spawn(server.stop()))
+            .collect();
+        for stop in stops {
+            let _ = stop.await;
         }
     }
 
@@ -139,7 +154,9 @@ impl Host {
         let stale = {
             let mut inner = self.lock();
             match inner.server_mut(&ticket.plugin_id, &ticket.server_id, epoch) {
-                None => started.ok(),
+                None => started
+                    .ok()
+                    .map(|server| (ticket.server_id.clone(), server)),
                 Some(ls) => {
                     let stale = match started {
                         // An exit that landed before this point already set `exited`.
@@ -148,7 +165,7 @@ impl Host {
                             ls.running = Some(server);
                             None
                         }
-                        Ok(server) => Some(server),
+                        Ok(server) => Some((ticket.server_id.clone(), server)),
                         Err(failure) => {
                             ls.entry.status = Status::Failed;
                             ls.entry.phase = Some(failure.phase);
