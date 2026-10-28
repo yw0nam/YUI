@@ -70,6 +70,7 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 | Feature | What it does |
 | --- | --- |
 | Plugins | Backend-attached MCP servers under [`plugins/`](https://github.com/yw0nam/YUI/tree/main/plugins); `factorio` polls the Factorio game mod over RCON, caches game events, and posts urgent wake signals to the client ([plugin](https://github.com/yw0nam/YUI/blob/main/plugins/factorio/README.md)) |
+| Plugins page | The **Plugins** page on the settings window's every-character side installs a catalog plugin, turns it on with a two-step consent, updates or removes it, and adds one from a folder, showing each server's status, the names a conflict hides, and the plugin's log ([Plugins](plugins.md)) |
 | Integrations | Backend-agent adapters and backend-agnostic skills under [`integrations/`](https://github.com/yw0nam/YUI/tree/main/integrations), for example the Hermes Agent plugins |
 
 ## Platform
