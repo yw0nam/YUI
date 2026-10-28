@@ -30,7 +30,8 @@
   gap: 0.4rem;
   pointer-events: none;
 }
-.yui-chip-column > .yui-deleg {
+.yui-chip-column > .yui-deleg,
+.yui-chip-column > .yui-sigchips {
   width: 100%;
 }
 
