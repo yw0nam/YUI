@@ -30,14 +30,13 @@ export function createSignalChipsModel({
   let timer: ReturnType<typeof setInterval> | null = null;
   const subscribers = new Set<() => void>();
 
-  const deliveryOf = (h: Held) => h.group.envelope.delivery;
   const emit = (): void => {
     for (const cb of subscribers) cb();
   };
 
   // The expiry tick runs only while a batched chip exists.
   function syncTimer(): void {
-    const needed = held.some((h) => deliveryOf(h) === "batched");
+    const needed = held.some((h) => h.group.envelope.delivery === "batched");
     if (needed && timer === null) timer = setInterval(expire, DELEGATION_REFRESH_MS);
     if (!needed && timer !== null) {
       clearInterval(timer);
@@ -47,7 +46,8 @@ export function createSignalChipsModel({
 
   function expire(): void {
     const kept = held.filter(
-      (h) => deliveryOf(h) === "urgent" || now() - h.received_at < DELEGATION_DONE_TTL_MS,
+      (h) =>
+        h.group.envelope.delivery === "urgent" || now() - h.received_at < DELEGATION_DONE_TTL_MS,
     );
     if (kept.length === held.length) return;
     held = kept;
@@ -83,7 +83,7 @@ export function createSignalChipsModel({
     list(): SignalChipItem[] {
       return held.map((h) => ({
         group: h.group,
-        delivery: deliveryOf(h),
+        delivery: h.group.envelope.delivery,
         received_at: h.received_at,
         said: saidOf(h.group.envelope.event_id),
       }));
