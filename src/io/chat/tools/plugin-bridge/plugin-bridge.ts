@@ -6,16 +6,6 @@ import { type ClientTool, TURN_STOPPED } from "../client-tools";
 import { firstViolation } from "./first-violation";
 import { pluginToolResult } from "./plugin-result";
 
-/** The tool's arguments as an object; a JSON string is parsed, an unparseable one kept as it is. */
-function toolArguments(raw: unknown): unknown {
-  if (typeof raw !== "string") return raw ?? {};
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return raw;
-  }
-}
-
 export function createPluginBridgeTools(deps: {
   host: McpHost;
   /** The preset of the calling window, sent with each call. */
@@ -72,7 +62,7 @@ export function createPluginBridgeTools(deps: {
       const name = String(args.name ?? "");
       const tool = findPluginTool(host.snapshot(), name);
       if (!tool) return `error: unknown plugin tool: ${name}`;
-      const toolArgs = toolArguments(args.arguments);
+      const toolArgs = args.arguments ?? {};
       const bad = firstViolation(tool.inputSchema, toolArgs);
       if (bad)
         return `error: invalid arguments (${bad})\ninput schema: ${JSON.stringify(tool.inputSchema)}`;
@@ -87,6 +77,7 @@ export function createPluginBridgeTools(deps: {
         signal?.removeEventListener("abort", onAbort);
       }
     },
+    // The host ends a call at 120 s (MAX_WAIT_MS in src-tauri/src/mcp_host/calls.rs); this wait covers it.
     waitMs: 121_000,
     localStatus: true,
     statusId: (args) => String(args.name ?? ""),
