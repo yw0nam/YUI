@@ -21,9 +21,10 @@ def runner(front_bundle):
         (ORCA, '"com.stablyai.orca"', True),
         (ORCA, '"com.termius-dmg.mac"', False),
         ({**ORCA, "SSH_CONNECTION": "1 2 3 4"}, '"com.stablyai.orca"', False),
+        ({**ORCA, "TMUX": "/tmp/tmux-1/default,1,0"}, '"com.stablyai.orca"', False),
         ({}, '"com.stablyai.orca"', False),
     ],
-    ids=["host-in-front", "other-app", "ssh", "no-host-bundle"],
+    ids=["host-in-front", "other-app", "ssh", "tmux", "no-host-bundle"],
 )
 def test_host_app_in_front(env, front_bundle, expected):
     assert host_app_in_front(env, runner(front_bundle)) is expected
