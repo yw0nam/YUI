@@ -148,9 +148,12 @@ describe("wireVocabulary", () => {
     endpoints.tts_provider = "openai";
     handle.onConfigChange(CFG, new Set(["endpoints"]));
     await flush();
+    const heard = vi.fn();
+    handle.subscribe(heard);
     release({ "😆": "Laugh" });
 
     await flush();
+    expect(heard).not.toHaveBeenCalled();
     handle.vocabulary();
     expect(derivedWith()[1]).toBeNull();
   });

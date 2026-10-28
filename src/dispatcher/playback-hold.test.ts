@@ -11,17 +11,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { guardrailsFixture } from "../config/load-test-helpers";
 import type { PeekConfig, TapConfig } from "../config/validators/avatar/types";
-import { createClientToolRegistry } from "../io/chat/tools/client-tools";
 import type { AudioSink } from "../io/voice/tts/audio-player";
 import { createSpeechPlayback, type SpeechPlayback } from "../io/voice/tts/speech-playback";
 import type { TtsSynth } from "../io/voice/tts/tts-synth";
-import { createBackendCaller } from "./backend/backend-caller";
+
 import { type BusEnvelope, createEventBus, type EventBus } from "./core/event-bus";
 import { createGuardrails, type Guardrails, type GuardrailsConfig } from "./core/guardrails";
 import { createDispatcher, type Dispatcher } from "./dispatcher";
 import {
   CONFIG,
   completedEvent,
+  createTestBackendCaller as createBackendCaller,
   createDefaultAddressedChain,
   createScriptedStream,
   deltaEvent,
@@ -162,7 +162,6 @@ describe("dispatcher — turn admission across the amplitude flag (#512)", () =>
     });
 
     const backendCaller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective: vi.fn() },
       getApiKey: async () => "k",

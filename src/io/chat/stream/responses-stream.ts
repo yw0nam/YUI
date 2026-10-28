@@ -87,8 +87,8 @@ function callKey(id: unknown, outputIndex: unknown): string {
 }
 
 /** The registry's definitions in the flat Responses function shape. */
-function toResponsesTools(tools: ClientToolRegistry | undefined): FunctionTool[] {
-  return (tools?.definitions() ?? []).map(({ function: fn }) => ({
+function toResponsesTools(tools: ClientToolRegistry): FunctionTool[] {
+  return tools.definitions().map(({ function: fn }) => ({
     type: "function",
     name: fn.name,
     description: fn.description,
@@ -114,7 +114,7 @@ export async function* streamResponses(
   client: OpenAI,
   config: EndpointsConfig,
   request: ChatRequest,
-  tools?: ClientToolRegistry,
+  tools: ClientToolRegistry,
 ): AsyncGenerator<ChatStreamEvent> {
   if (request.signal?.aborted) return;
 

@@ -11,8 +11,8 @@ import type { ChatStreamEvent } from "./chat-client";
 import { isExpressTool, parseToolArgs } from "./stream-helpers";
 
 /** Whether the client acts on this call: an express cue to play, or a registered tool to run. */
-export function ownsCall(tools: ClientToolRegistry | undefined, name: string): boolean {
-  return isExpressTool(name) || tools?.get(name) !== undefined;
+export function ownsCall(tools: ClientToolRegistry, name: string): boolean {
+  return isExpressTool(name) || tools.get(name) !== undefined;
 }
 
 export interface ClientCallOutcome {
@@ -30,14 +30,14 @@ export interface ClientCallOutcome {
  * registered tool.
  */
 export async function* runClientCall(
-  tools: ClientToolRegistry | undefined,
+  tools: ClientToolRegistry,
   name: string,
   argsJson: string,
   signal?: AbortSignal,
   callId?: string,
   turnId?: string,
 ): AsyncGenerator<ChatStreamEvent, ClientCallOutcome | undefined> {
-  const tool = tools?.get(name);
+  const tool = tools.get(name);
   const express_call = isExpressTool(name);
   if (!tool && !express_call) return undefined;
 

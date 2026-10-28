@@ -6,10 +6,11 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { ToolStatus } from "../../../contract";
-import { createBackendCaller } from "../../../dispatcher/backend/backend-caller";
+
 import {
   CONFIG,
   completedEvent,
+  createTestBackendCaller as createBackendCaller,
   createScriptedStream,
   makeLogger,
   makeTurnOutput,
@@ -55,7 +56,6 @@ async function runStream(): Promise<Run> {
     completedEvent({ speech_text: "So." }),
   ];
   const caller = createBackendCaller({
-    clientTools: () => createClientToolRegistry([]),
     config: CONFIG,
     renderer: { applyDirective: vi.fn() } as never,
     getApiKey: async () => "k",

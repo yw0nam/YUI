@@ -148,8 +148,17 @@ describe("wireDispatcher", () => {
     ).toEqual(["generate_express", "body_action", "look"]);
   });
 
-  it("builds each turn's tools from generate_express alone when given no avatar tools", () => {
-    setup();
+  it.each([
+    {},
+    {
+      chat_base_url: "http://localhost:8642",
+      stt_base_url: "",
+      tts_base_url: "",
+      chat_api: "responses",
+      broker_base_url: "http://localhost:3201/mcp",
+    } as EndpointsConfig,
+  ])("declares generate_express without avatar tools for endpoints %j", (endpoints) => {
+    setup(undefined, undefined, endpoints as EndpointsConfig);
 
     const { clientTools } = mocks.createBackendCaller.mock.calls.at(-1)![0];
     expect(
@@ -157,23 +166,6 @@ describe("wireDispatcher", () => {
         .definitions()
         .map((d: { function: { name: string } }) => d.function.name),
     ).toEqual(["generate_express"]);
-  });
-
-  it("declares generate_express on Responses with an unknown endpoint key", () => {
-    setup(undefined, undefined, {
-      chat_base_url: "http://localhost:8642",
-      stt_base_url: "",
-      tts_base_url: "",
-      chat_api: "responses",
-      broker_base_url: "http://localhost:3201/mcp",
-    } as EndpointsConfig);
-
-    const { clientTools } = mocks.createBackendCaller.mock.calls.at(-1)![0];
-    const registry = clientTools();
-    expect(registry).toBeDefined();
-    expect(
-      registry.definitions().map((d: { function: { name: string } }) => d.function.name),
-    ).toContain("generate_express");
   });
 
   it("hands the caller the scene hold, so no turn starts a thinking bridge on the bed", () => {

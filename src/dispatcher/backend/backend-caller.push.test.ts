@@ -15,14 +15,21 @@ import type { EndpointsConfig, InputContext } from "../../contract";
 import type { ChatHistoryEntry } from "../../io/chat/conversation/chat-history-store";
 import { fitTurnImages } from "../../io/chat/push/fit-turn-images";
 import type { PushTurnFrame } from "../../io/chat/push/push-frames";
-import { createClientToolRegistry } from "../../io/chat/tools/client-tools";
 import type { Logger } from "../../logger";
 import type { BusEnvelope } from "../core/event-bus";
-import { CONFIG, makeLogger, makeTurnOutput, touchEnv, turnOf, userEnv } from "../test-helpers";
+import {
+  CONFIG,
+  createTestBackendCaller as createBackendCaller,
+  makeLogger,
+  makeTurnOutput,
+  touchEnv,
+  turnOf,
+  userEnv,
+} from "../test-helpers";
 import { createPushTurns } from "../turn/push-turn";
 import { createRenderTurn } from "../turn/render-turn";
 import { createTurnFeed } from "../turn/turn-feed";
-import { createBackendCaller, type TurnErrorDetail, type TurnOutcome } from "./backend-caller";
+import type { TurnErrorDetail, TurnOutcome } from "./backend-caller";
 import { PRE_SPEECH_TIMEOUT_MS } from "./idle-watchdog";
 
 vi.mock("../../io/chat/push/fit-turn-images", () => ({ fitTurnImages: vi.fn() }));
@@ -108,7 +115,6 @@ function callerWith(
     order.push("interrupt");
   });
   return createBackendCaller({
-    clientTools: () => createClientToolRegistry([]),
     transcript: {
       entriesAfterLastBoundary: () => [],
       append: (entry) => transcript.push(entry),

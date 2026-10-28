@@ -14,11 +14,11 @@
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { ToolStatus, Usage } from "../../contract";
 import { createReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
-import { createClientToolRegistry } from "../../io/chat/tools/client-tools";
 import type { Logger } from "../../logger";
 import {
   CONFIG,
   completedEvent,
+  createTestBackendCaller as createBackendCaller,
   createScriptedStream,
   deltaEvent,
   makeLogger,
@@ -27,7 +27,7 @@ import {
   userEnv,
 } from "../test-helpers";
 import { createTurnFeed } from "../turn/turn-feed";
-import { type BackendCaller, createBackendCaller } from "./backend-caller";
+import type { BackendCaller } from "./backend-caller";
 
 const script = createScriptedStream();
 const PENDING_OUTPUT = { type: "function_call_output", call_id: "call_1", output: "ok" } as const;
@@ -59,7 +59,6 @@ function make404(previousResponseId: string | undefined): void {
   });
   onChainReset = vi.fn();
   caller = createBackendCaller({
-    clientTools: () => createClientToolRegistry([]),
     config: CONFIG,
     renderer: { applyDirective } as never,
     getApiKey: async () => "k",
@@ -126,7 +125,6 @@ describe("backend_caller — 404 chain-break recovery", () => {
   it("the retry carries the post-history block and the greeting a fresh chain replays", async () => {
     let stored: string | undefined = "resp_dead";
     const c = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",

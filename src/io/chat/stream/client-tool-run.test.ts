@@ -30,7 +30,7 @@ function tool(over: Partial<ClientTool> = {}): ClientTool {
 }
 
 async function collect(
-  tools: ClientToolRegistry | undefined,
+  tools: ClientToolRegistry = createClientToolRegistry([]),
   name: string,
   argsJson: string,
   signal?: AbortSignal,

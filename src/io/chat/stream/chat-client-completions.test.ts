@@ -15,7 +15,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../../../contract";
 import { type ClientTool, createClientToolRegistry } from "../tools/client-tools";
-import { type ChatRequest, type ChatStreamEvent, streamChat } from "./chat-client";
+import type { ChatRequest, ChatStreamEvent } from "./chat-client";
+import { streamChatForTest as streamChat } from "./test-helpers";
 
 const { log } = vi.hoisted(() => ({
   log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -137,7 +138,7 @@ describe("streamChat — Chat Completions text streaming", () => {
     expect(ccCreateMock).toHaveBeenCalledOnce();
   });
 
-  it("calls chat.completions.create with messages/stream/stream_options verbatim; no registry means no tools field", async () => {
+  it("calls chat.completions.create with messages/stream/stream_options verbatim; an empty registry means no tools field", async () => {
     ccCreateMock.mockResolvedValueOnce(streamOf([finishChunk("stop")]));
     const messages = [{ role: "user", content: "hi" }] as any;
 
@@ -246,7 +247,7 @@ describe("streamChat — Chat Completions reasoning deltas", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// generate_express capture with no registry — one-way parse, single POST
+// generate_express capture with an empty registry — one-way parse, single POST
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("streamChat — Chat Completions generate_express capture", () => {
@@ -311,7 +312,7 @@ describe("streamChat — Chat Completions generate_express capture", () => {
     expect(final.envelope.caption).toBe("囁くような小さな声で、ゆっくりと。");
   });
 
-  it("malformed generate_express JSON without a registry -> no cue, no error, one call, messages untouched", async () => {
+  it("malformed generate_express JSON with an empty registry -> no cue, no error, one call, messages untouched", async () => {
     const messages = [{ role: "user", content: "hi" }] as any;
     ccCreateMock.mockResolvedValueOnce(
       streamOf([

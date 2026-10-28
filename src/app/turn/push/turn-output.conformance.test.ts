@@ -11,10 +11,11 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { ControlEnvelope, ExpressArgs } from "../../../contract";
-import { createBackendCaller } from "../../../dispatcher/backend/backend-caller";
+
 import {
   CONFIG,
   completedEvent,
+  createTestBackendCaller as createBackendCaller,
   createScriptedStream,
   deltaEvent,
   expressEvent,
@@ -110,7 +111,6 @@ async function runStream(events: ChatStreamEvent[]): Promise<Entry[]> {
   const script = createScriptedStream();
   script.events = events;
   const caller = createBackendCaller({
-    clientTools: () => createClientToolRegistry([]),
     config: CONFIG,
     renderer,
     getApiKey: async () => "k",
@@ -261,7 +261,6 @@ describe("request reply — playback identity", () => {
         ? [deltaEvent("Reply."), completedEvent({ speech_text: "Reply." })]
         : [completedEvent({ speech_text: "Reply." })];
     const caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective: vi.fn() },
       getApiKey: async () => "k",

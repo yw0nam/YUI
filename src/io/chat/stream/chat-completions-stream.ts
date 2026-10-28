@@ -49,14 +49,14 @@ export async function* streamChatCompletions(
   client: OpenAI,
   config: EndpointsConfig,
   request: ChatRequest,
-  tools?: ClientToolRegistry,
+  tools: ClientToolRegistry,
 ): AsyncGenerator<ChatStreamEvent> {
   if (request.signal?.aborted) return;
 
   let speech_text = "";
   let express: ExpressArgs | undefined;
   let messages: CCMessage[] = request.messages ?? [];
-  const toolDefs = tools?.definitions() ?? [];
+  const toolDefs = tools.definitions();
   // Calls executed in the response being read — the next request's round-trip payload.
   let executed: Array<{ call: CCToolCall; result: ClientToolResult; oneWay: boolean }> = [];
   // Monotonic across the turn: a synthesized id must stay unique in the whole message array.

@@ -19,7 +19,7 @@ export interface VocabularyWiring {
   dispose: () => void;
 }
 
-/** Effective endpoints keep device overrides ahead of disk edits. */
+/** Owns the vocabulary every consumer declares (the tool schema and the push socket); effective endpoints keep device overrides ahead of disk edits. */
 export async function wireVocabulary(deps: {
   getConfig: () => AppConfig;
   getEndpoints: () => EndpointsConfig;
@@ -42,7 +42,7 @@ export async function wireVocabulary(deps: {
   let loads = 0;
   // Best-effort load of the emoji enum table, which only Irodori speaks; any other provider and a
   // failed load both leave the vocabulary in free mode.
-  const reloadTable = async (): Promise<Record<string, string> | null> => {
+  const reloadTable = async (): Promise<void> => {
     const mine = ++loads;
     tableProvider = ttsProviderOf(getEndpoints());
     let next: Record<string, string> | null = null;
@@ -51,10 +51,9 @@ export async function wireVocabulary(deps: {
     } catch (err) {
       log.warn("emotion_text_load_failed", { fallback: "free", error: String(err) });
     }
-    if (mine !== loads) return table;
+    if (mine !== loads) return;
     table = next;
     announce();
-    return table;
   };
   const vocabulary = (): ExpressVocabulary =>
     deriveExpressVocabulary({ ...getConfig(), endpoints: getEndpoints() }, table, {

@@ -8,14 +8,14 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createClientToolRegistry } from "../../io/chat/tools/client-tools";
 import type { AudioSink } from "../../io/voice/tts/audio-player";
 import { createSpeechPlayback, type SpeechPlayback } from "../../io/voice/tts/speech-playback";
 import type { TtsSynth } from "../../io/voice/tts/tts-synth";
-import { createBackendCaller } from "../backend/backend-caller";
+
 import {
   CONFIG,
   completedEvent,
+  createTestBackendCaller as createBackendCaller,
   createScriptedStream,
   deltaEvent,
   expressEvent,
@@ -155,7 +155,6 @@ describe("TurnOutput — backend-caller → tts-pipeline ordering", () => {
       completedEvent({ speech_text: "Hi. there." }),
     ];
     const caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective: vi.fn() },
       getApiKey: async () => "k",
@@ -187,7 +186,6 @@ describe("TurnOutput — backend-caller → tts-pipeline ordering", () => {
   it("delta-less turn (completed only, non-empty speech_text) — speak fires, end does not", async () => {
     script.events = [completedEvent({ speech_text: "안녕." })];
     const caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective: vi.fn() },
       getApiKey: async () => "k",
@@ -208,7 +206,6 @@ describe("TurnOutput — backend-caller → tts-pipeline ordering", () => {
     script.events = [deltaEvent("partial")];
     script.error = new Error("network reset");
     const caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective: vi.fn() },
       getApiKey: async () => "k",
@@ -233,7 +230,6 @@ describe("TurnOutput — backend-caller → tts-pipeline ordering", () => {
       completedEvent({ speech_text: "hi there", emotion_text: "(whisper)" }),
     ];
     const caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective: vi.fn() },
       getApiKey: async () => "k",
@@ -253,7 +249,6 @@ describe("TurnOutput — backend-caller → tts-pipeline ordering", () => {
   it("cue routing — on the completed-only path, cue() receives emotion_text alone", async () => {
     script.events = [completedEvent({ speech_text: "안녕", emotion_text: "(whisper)" })];
     const caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective: vi.fn() },
       getApiKey: async () => "k",

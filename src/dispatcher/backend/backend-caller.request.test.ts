@@ -28,6 +28,7 @@ import {
   CONFIG,
   clientContextTextOf,
   completedEvent,
+  createTestBackendCaller as createBackendCaller,
   createScriptedStream,
   deltaEvent,
   makeLogger,
@@ -37,7 +38,7 @@ import {
   userEnv,
 } from "../test-helpers";
 import { createTurnFeed } from "../turn/turn-feed";
-import { type BackendCaller, createBackendCaller, isChatConfigured } from "./backend-caller";
+import { type BackendCaller, isChatConfigured } from "./backend-caller";
 
 const script = createScriptedStream();
 let applyDirective: ReturnType<typeof vi.fn>;
@@ -55,7 +56,6 @@ beforeEach(() => {
   usageSink = vi.fn();
   logger = makeLogger();
   caller = createBackendCaller({
-    clientTools: () => createClientToolRegistry([]),
     config: CONFIG,
     renderer: { applyDirective } as never,
     getApiKey: async () => "k",
@@ -73,7 +73,6 @@ const PENDING = [{ type: "function_call_output", call_id: "call_1", output: "ok"
 describe("backend_caller — pending tool outputs", () => {
   function callerWith(extra: Partial<Parameters<typeof createBackendCaller>[0]>) {
     return createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -143,7 +142,6 @@ describe("backend_caller — previous_response_id threading", () => {
   it("getPreviousResponseId present → request.previous_response_id carries it", async () => {
     script.events = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -160,7 +158,6 @@ describe("backend_caller — previous_response_id threading", () => {
   it("getPreviousResponseId returns undefined → no previous_response_id (first turn)", async () => {
     script.events = [completedEvent({ speech_text: "" })];
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -184,7 +181,6 @@ describe("backend_caller — previous_response_id threading", () => {
   it("successful completed turn → onResponseId called once with the completed responseId", async () => {
     const onResponseId = vi.fn();
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -205,7 +201,6 @@ describe("backend_caller — previous_response_id threading", () => {
     const ac = new AbortController();
     ac.abort();
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -222,7 +217,6 @@ describe("backend_caller — previous_response_id threading", () => {
   it("error event turn → onResponseId NOT called", async () => {
     const onResponseId = vi.fn();
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -239,7 +233,6 @@ describe("backend_caller — previous_response_id threading", () => {
   it("no completed envelope (parse_error) → onResponseId NOT called", async () => {
     const onResponseId = vi.fn();
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -257,7 +250,6 @@ describe("backend_caller — previous_response_id threading", () => {
     const onResponseId = vi.fn();
     let current: string | undefined = "resp_prev";
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -1015,7 +1007,6 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
       { role: "assistant", text: "이전 답변", ts: 2 },
     ];
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CC_CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -1060,7 +1051,6 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
     store.startNewSession(3);
     store.append({ role: "user", text: "새 세션 질문", ts: 4 });
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CC_CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -1089,7 +1079,6 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
     });
     saved.push({ role: "user", text: "bad key", ts: 2, guide: "nope" } as never);
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CC_CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -1113,7 +1102,6 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
   it("no transcript dep → messages still built with empty transcript (no crash)", async () => {
     script.events = [completedEvent({ speech_text: "" }, "")];
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CC_CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -1132,7 +1120,6 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
     // getCardText null is the switch off or push: the request keeps the shape it has without a card.
     script.events = [completedEvent({ speech_text: "" }, "")];
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: { ...CC_CONFIG, chat_instructions: "config nudge" },
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -1151,7 +1138,6 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
   it("proactive turn in CC mode → user message is the proactive background marker", async () => {
     script.events = [completedEvent({ speech_text: "" }, "")];
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CC_CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -1178,7 +1164,6 @@ describe("backend_caller — Chat Completions (CC) mode request shape", () => {
   it("unmapped event_name in CC mode → user message is the fallback background marker", async () => {
     script.events = [completedEvent({ speech_text: "" }, "")];
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CC_CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -1272,7 +1257,6 @@ describe("backend_caller — card", () => {
     extra: Partial<Parameters<typeof createBackendCaller>[0]> = {},
   ) {
     return createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -1399,7 +1383,6 @@ describe("backend_caller — card", () => {
 describe("backend_caller — unconfigured chat backend", () => {
   function unconfiguredCaller(): BackendCaller {
     return createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: { ...CONFIG, chat_base_url: "" },
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",

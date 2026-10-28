@@ -8,11 +8,11 @@
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { ControlEnvelope, ExpressArgs, ToolStatus, Usage } from "../../contract";
 import { createReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
-import { createClientToolRegistry } from "../../io/chat/tools/client-tools";
 import type { Logger } from "../../logger";
 import {
   CONFIG,
   completedEvent,
+  createTestBackendCaller as createBackendCaller,
   createScriptedStream,
   deltaEvent,
   dragHeldEnv,
@@ -31,7 +31,7 @@ import {
   windowSitEnv,
 } from "../test-helpers";
 import { createTurnFeed } from "../turn/turn-feed";
-import { type BackendCaller, createBackendCaller } from "./backend-caller";
+import type { BackendCaller } from "./backend-caller";
 
 const script = createScriptedStream();
 let applyDirective: ReturnType<typeof vi.fn>;
@@ -53,7 +53,6 @@ beforeEach(() => {
   reasoning = { append: vi.fn(), finish: vi.fn(), interrupt: vi.fn() };
   logger = makeLogger();
   caller = createBackendCaller({
-    clientTools: () => createClientToolRegistry([]),
     config: CONFIG,
     renderer: { applyDirective } as never,
     getApiKey: async () => "k",
@@ -541,7 +540,6 @@ describe("backend_caller — usage sink (token accounting channel)", () => {
 
   it("usage event but no onUsage dep → does not throw", async () => {
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -610,7 +608,6 @@ describe("backend_caller — reasoning store feed", () => {
   it("leaves the real store holding the joined text, finished", async () => {
     const store = createReasoningStore();
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -641,7 +638,6 @@ describe("backend_caller — TTFT thinking lifecycle", () => {
   function makeCaller(fillerActive = true, isBodyHeld?: () => boolean) {
     turnOutput.hasFiller.mockReturnValue(fillerActive);
     return createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -775,7 +771,6 @@ describe("backend_caller — TTFT thinking lifecycle", () => {
 
   it("turnOutput absent → thinkingStart never fires (missing port stays falsy, not true)", async () => {
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -843,7 +838,6 @@ describe("backend_caller — TTFT thinking lifecycle", () => {
   it("setup-stage reject (no speech ever) → thinkingEnd once via finally", async () => {
     turnOutput.hasFiller.mockReturnValue(true);
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => {
@@ -906,7 +900,6 @@ describe("backend_caller — 404 chain-break retry does not leak attempt-1 envel
     });
 
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -951,7 +944,6 @@ describe("backend_caller — 404 chain-break retry does not leak attempt-1 envel
     const store = createReasoningStore();
 
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",

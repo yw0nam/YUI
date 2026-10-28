@@ -14,12 +14,12 @@ import type {
   ChatHistoryStorage,
 } from "../../io/chat/conversation/chat-history-store";
 import { createChatHistoryStore } from "../../io/chat/conversation/chat-history-store";
-import { createClientToolRegistry } from "../../io/chat/tools/client-tools";
 import type { Logger } from "../../logger";
 import type { BusEnvelope } from "../core/event-bus";
 import {
   CONFIG,
   completedEvent,
+  createTestBackendCaller as createBackendCaller,
   createScriptedStream,
   deltaEvent,
   keepaliveEvent,
@@ -31,7 +31,7 @@ import {
   userEnv,
 } from "../test-helpers";
 import { createTurnFeed } from "../turn/turn-feed";
-import { type BackendCaller, createBackendCaller } from "./backend-caller";
+import type { BackendCaller } from "./backend-caller";
 import { PRE_SPEECH_TIMEOUT_MS, SPEECH_IDLE_TIMEOUT_MS } from "./idle-watchdog";
 
 const script = createScriptedStream();
@@ -50,7 +50,6 @@ beforeEach(() => {
   usageSink = vi.fn();
   logger = makeLogger();
   caller = createBackendCaller({
-    clientTools: () => createClientToolRegistry([]),
     config: CONFIG,
     renderer: { applyDirective } as never,
     getApiKey: async () => "k",
@@ -332,7 +331,6 @@ describe("backend_caller — structured logging", () => {
       throw new Error("renderer boom");
     });
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -377,7 +375,6 @@ describe("backend_caller — transcript recording", () => {
   it("successful user-triggered turn (Responses mode) → user + assistant appended in order", async () => {
     const transcript = makeTranscript();
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -402,7 +399,6 @@ describe("backend_caller — transcript recording", () => {
   it("successful user-triggered turn (CC mode) → user + assistant appended too", async () => {
     const transcript = makeTranscript();
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: { ...CONFIG, chat_api: "chat_completions" },
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -427,7 +423,6 @@ describe("backend_caller — transcript recording", () => {
   it("proactive turn (no user_text) → assistant appended only", async () => {
     const transcript = makeTranscript();
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -454,7 +449,6 @@ describe("backend_caller — transcript recording", () => {
   it("empty speech_text → user appended, assistant NOT appended", async () => {
     const transcript = makeTranscript();
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -474,7 +468,6 @@ describe("backend_caller — transcript recording", () => {
   it("error event turn → nothing appended", async () => {
     const transcript = makeTranscript();
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -491,7 +484,6 @@ describe("backend_caller — transcript recording", () => {
   it("parse_error turn (no completed event) → nothing appended", async () => {
     const transcript = makeTranscript();
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -510,7 +502,6 @@ describe("backend_caller — transcript recording", () => {
     const ac = new AbortController();
     ac.abort();
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -537,7 +528,6 @@ describe("backend_caller — session reset while a turn is in flight", () => {
   /** Runs one turn whose speech callback fires `resetMidFlight`, same timing as the R2 race. */
   async function turnResetMidFlight(store: ReturnType<typeof createChatHistoryStore>) {
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: { ...CONFIG, chat_api: "chat_completions" },
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -585,7 +575,6 @@ describe("backend_caller — session reset while a turn is in flight", () => {
     store.append({ role: "user", text: "이전 질문", ts: 1 });
     const otherWindow = createChatHistoryStore({ storage });
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: { ...CONFIG, chat_api: "chat_completions" },
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -609,7 +598,6 @@ describe("backend_caller — session reset while a turn is in flight", () => {
   it("no reset → the finished turn is recorded as usual", async () => {
     const store = createChatHistoryStore();
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: { ...CONFIG, chat_api: "chat_completions" },
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -634,7 +622,6 @@ describe("backend_caller — onResponseId empty-string guard", () => {
   it("responseId '' (Responses mode) → onResponseId NOT called", async () => {
     const onResponseId = vi.fn();
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: CONFIG,
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",
@@ -651,7 +638,6 @@ describe("backend_caller — onResponseId empty-string guard", () => {
   it("CC mode → previous_response_id snapshot/persist logic skipped entirely", async () => {
     const onResponseId = vi.fn();
     caller = createBackendCaller({
-      clientTools: () => createClientToolRegistry([]),
       config: { ...CONFIG, chat_api: "chat_completions" },
       renderer: { applyDirective } as never,
       getApiKey: async () => "k",

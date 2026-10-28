@@ -10,7 +10,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../../../contract";
 import { type ClientTool, createClientToolRegistry } from "../tools/client-tools";
-import { type ChatRequest, type ChatStreamEvent, streamChat } from "./chat-client";
+import type { ChatRequest, ChatStreamEvent } from "./chat-client";
+import { streamChatForTest as streamChat } from "./test-helpers";
 
 const createMock = vi.fn();
 vi.mock("openai", () => ({
@@ -124,14 +125,12 @@ describe("streamChat — Responses client tool declaration", () => {
     ]);
   });
 
-  it("carries no tools key without a registry or with an empty one", async () => {
+  it("carries no tools key with an empty registry", async () => {
     createMock.mockResolvedValue(streamOf([done("resp_1")]));
 
-    await collect(streamChat(CONFIG, req()));
     await collect(streamChat(CONFIG, req(), optsFor()));
 
     expect(createMock.mock.calls[0][0]).not.toHaveProperty("tools");
-    expect(createMock.mock.calls[1][0]).not.toHaveProperty("tools");
   });
 });
 

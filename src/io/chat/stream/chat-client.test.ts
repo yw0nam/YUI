@@ -13,12 +13,8 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../../../contract";
-import {
-  type ChatRequest,
-  type ChatStreamEvent,
-  selectChatBaseUrl,
-  streamChat,
-} from "./chat-client";
+import { type ChatRequest, type ChatStreamEvent, selectChatBaseUrl } from "./chat-client";
+import { streamChatForTest as streamChat } from "./test-helpers";
 
 // ── openai SDK mock ──────────────────────────────────────────────────────────
 // new OpenAI(opts) → { responses: { create: createMock } }.
