@@ -830,8 +830,19 @@ YUI/
         macos.rs                     # macOS idle, window enumeration, and camera polling
         windows.rs                   # Windows idle, foreground window, and window enumeration polling
   fixtures/                          # JSON case tables the TS and Rust sanitizer tests both read
-  plugins/                           # Backend-attached plugins, independent of the app runtime (Python/uv, own `python` and `python-lint` CI jobs)
+  plugins/                           # Plugins, independent of the app runtime: Python/uv projects (own `python` and `python-lint` CI jobs) and Rust crates (own `plugins-rust` CI job)
     catalog.json                     # The official and community plugins; the plugin release workflow opens a PR that writes the official entries
+    browser/                         # ego lite browser MCP server: one `browser` tool, a task space per preset
+      src/
+        main.rs                      # Sweeps stale screenshot folders, then serves the MCP server on stdio
+        server.rs                    # MCP server: tool list, argument checks, and the preset's task space
+        tool.rs                      # The `browser` tool's name, description, input schema, and `_meta`
+        result.rs                    # A run's result: status line, untrusted line, output cut at 64 KiB, screenshot notes and images
+        relay.rs                     # Runs a script through the `ego-browser` CLI under a per-space lock, and reads its guide
+        script.rs                    # The prelude wrapped around the caller's code: deadline, task space, `screenshot` helper
+        shots.rs                     # Per-call screenshot folder: collect the last screenshots, remove, sweep stale folders
+        locate.rs                    # Finds the installed `ego-browser` CLI
+        image_encode.rs              # Screenshot resize and base64 JPEG encode
     factorio/                        # Factorio RCON poll, event cache, and urgent signals MCP server
       game-mod/                      # The coop-agent Lua game mod; its tests/ uv project runs in the python CI job
       skills/                        # The companion skill the backend agent reads
