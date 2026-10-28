@@ -26,6 +26,13 @@ pub struct Calls {
     next_token: AtomicU64,
 }
 
+/// A registered call, ready to send.
+pub struct Call {
+    key: Key,
+    token: u64,
+    cancel_rx: oneshot::Receiver<oneshot::Sender<()>>,
+}
+
 struct Pending {
     /// Tells a call's own entry from a later one under the same key.
     token: u64,
@@ -36,16 +43,44 @@ struct Pending {
 }
 
 impl Calls {
+    /// Reserves `(window, call_id)` for a call to `server`; a key still in flight is refused.
+    pub fn register(&self, window: &str, call_id: &str, server: &str) -> Result<Call, String> {
+        let key = (window.to_string(), call_id.to_string());
+        let token = self.next_token.fetch_add(1, Ordering::Relaxed);
+        let (cancel, cancel_rx) = oneshot::channel();
+        let mut pending = self.lock();
+        if pending.contains_key(&key) {
+            return Err(format!("duplicate call id: {call_id}"));
+        }
+        pending.insert(
+            key.clone(),
+            Pending {
+                token,
+                server: server.to_string(),
+                cancel,
+            },
+        );
+        Ok(Call {
+            key,
+            token,
+            cancel_rx,
+        })
+    }
+
     /// Sends `tools/call` and waits for the result, the tool's deadline, or a cancel.
     pub async fn call(
         &self,
+        call: Call,
         peer: &Peer<RoleClient>,
-        window: &str,
-        call_id: &str,
         tool: &ToolEntry,
         arguments: Value,
         preset_id: &str,
     ) -> Result<Value, String> {
+        let Call {
+            key,
+            token,
+            cancel_rx,
+        } = call;
         let wait_ms = tool
             .meta
             .as_ref()
@@ -61,23 +96,6 @@ impl Calls {
             .insert(PRESET_META_KEY.to_string(), Value::String(preset_id.into()));
         let options = PeerRequestOptions::no_options().with_meta(RequestMetaObject(meta));
         let request = ClientRequest::CallToolRequest(Request::new(params));
-        let key = (window.to_string(), call_id.to_string());
-        let token = self.next_token.fetch_add(1, Ordering::Relaxed);
-        let (cancel, cancel_rx) = oneshot::channel();
-        {
-            let mut pending = self.lock();
-            if pending.contains_key(&key) {
-                return Err(format!("duplicate call id: {call_id}"));
-            }
-            pending.insert(
-                key.clone(),
-                Pending {
-                    token,
-                    server: tool.server.clone(),
-                    cancel,
-                },
-            );
-        }
         let handle = match peer.send_cancellable_request(request, options).await {
             Ok(handle) => handle,
             Err(e) => {

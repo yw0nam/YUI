@@ -218,7 +218,8 @@ impl Host {
         arguments: serde_json::Value,
         preset_id: &str,
     ) -> Result<serde_json::Value, String> {
-        let (peer, tool) = {
+        // Registered under the host lock, so a stop that takes this server afterwards cancels it.
+        let (call, peer, tool) = {
             let inner = self.lock();
             inner
                 .published
@@ -233,10 +234,14 @@ impl Host {
                         .find_map(|ls| ls.running.as_ref())?;
                     Some((server.peer().clone(), tool.clone()))
                 })
-                .ok_or_else(|| format!("unknown plugin tool: {name}"))?
+                .ok_or_else(|| format!("unknown plugin tool: {name}"))
+                .and_then(|(peer, tool)| {
+                    let call = self.calls.register(window, call_id, &tool.server)?;
+                    Ok((call, peer, tool))
+                })?
         };
         self.calls
-            .call(&peer, window, call_id, &tool, arguments, preset_id)
+            .call(call, &peer, &tool, arguments, preset_id)
             .await
     }
 
