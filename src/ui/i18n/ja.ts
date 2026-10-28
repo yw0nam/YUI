@@ -460,13 +460,6 @@ const ja: Record<string, string> = {
   "screenshot.request_foot_on": "オンの間は、ユイが見たいときに画面を見られます。",
   "screenshot.request_foot_off":
     "初期設定はオフです。オンにすると、ユイのリクエストに応じて画面を見せます。",
-  "browser.label": "ブラウザの使用を許可",
-  "browser.sub_off":
-    "初期設定はオフです。オンにすると、バックエンドがego liteを通じてこのコンピューターでJavaScriptを実行します。",
-  "browser.sub_on":
-    "オンの間は、バックエンドがego liteを通じて、あなたの権限でこのコンピューター上でJavaScriptを実行します。",
-  "browser.foot":
-    "サンドボックスはありません。スクリプトはファイルの読み取りやプログラムの実行ができ、ego liteのYUIプロフィールでログイン中のすべてのサイトにアクセスできます。",
 
   // voice input
   "voice_input.label": "音声入力",

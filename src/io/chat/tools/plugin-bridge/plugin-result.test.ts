@@ -30,8 +30,14 @@ describe("pluginToolResult", () => {
   });
 
   it("keeps a plugin error result's own error or unknown prefix", () => {
-    const error: PluginToolResult = { content: [{ type: "text", text: "error: x" }], isError: true };
-    const unknown: PluginToolResult = { content: [{ type: "text", text: "unknown: x" }], isError: true };
+    const error: PluginToolResult = {
+      content: [{ type: "text", text: "error: x" }],
+      isError: true,
+    };
+    const unknown: PluginToolResult = {
+      content: [{ type: "text", text: "unknown: x" }],
+      isError: true,
+    };
 
     expect(pluginToolResult(error)).toBe("error: x");
     expect(pluginToolResult(unknown)).toBe("unknown: x");

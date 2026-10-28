@@ -148,15 +148,7 @@ describe("createQuickControls — settings layout", () => {
         ".yui-reading",
       ],
     ],
-    [
-      "perms",
-      [
-        ".yui-screenshot-switch",
-        ".yui-monitors",
-        ".yui-screenshot-requests-switch",
-        ".yui-browser-switch",
-      ],
-    ],
+    ["perms", [".yui-screenshot-switch", ".yui-monitors", ".yui-screenshot-requests-switch"]],
     [
       "react",
       [
@@ -208,7 +200,6 @@ describe("createQuickControls — settings layout", () => {
       agentNotifySettings: createAgentNotifySettings(),
       presenceSettings: inMemoryPresenceStore(),
       pacerGapSettings: inMemoryPacerGapStore(),
-      browserSettings: createFlagSettings(false),
       messageWindowSettings: createMessageWindowSettings(),
       bubblePersistSettings: createFlagSettings(false),
       onGuide: vi.fn(),

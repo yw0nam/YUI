@@ -458,13 +458,6 @@ const en: Record<string, string> = {
   "screenshot.request_foot_on": "While on, she can look at your screen when she asks to.",
   "screenshot.request_foot_off":
     "Off by default. Turn on to let her look at your screen on request.",
-  "browser.label": "Allow browser use",
-  "browser.sub_off":
-    "Off by default. Turn on to let the backend run JavaScript on this computer through ego lite.",
-  "browser.sub_on":
-    "While on, the backend runs JavaScript on this computer through ego lite, with your rights.",
-  "browser.foot":
-    "There is no sandbox: a script can read your files, run programs, and reach every site signed in on ego lite's YUI profile.",
 
   // voice input
   "voice_input.label": "Voice input",

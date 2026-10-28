@@ -35,10 +35,6 @@ pub fn handler() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         #[cfg(desktop)]
         crate::quick_card_dock::quick_card_detach,
         #[cfg(desktop)]
-        crate::browser::browser_run,
-        #[cfg(desktop)]
-        crate::browser::browser_guide,
-        #[cfg(desktop)]
         crate::mcp_host::commands::plugin_host_snapshot,
         #[cfg(desktop)]
         crate::mcp_host::commands::plugin_host_add_local,

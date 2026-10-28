@@ -32,11 +32,6 @@ pub fn run(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     #[cfg(desktop)]
-    {
-        app.manage(crate::browser::Relay::new());
-        crate::browser::sweep_stale();
-    }
-    #[cfg(desktop)]
     crate::mcp_host::setup(app, &log_dir, log_offset);
 
     // Start OS event polling loop (emits `os_event` IPC to webview).

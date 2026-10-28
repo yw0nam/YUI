@@ -1,14 +1,12 @@
-/** The tools a pet window declares beside generate_express: rate_relation and address_character everywhere, browser and the bridge tools under Tauri, the avatar tools in main only. */
+/** The tools a pet window declares beside generate_express: rate_relation and address_character everywhere, the bridge tools under Tauri, the avatar tools in main only. */
 
 import { type PresetEntry, presetIdForWindow } from "../../../settings/preset/active-preset";
 import type { RelationsStore } from "../../../settings/relations/relations-store";
 import { isTauri } from "../../../tauri-env";
 import type { AvatarExecutor } from "../../bridge/inbox/avatar-executor";
-import { createBrowserRelay } from "../../browser/browser-relay";
 import type { McpHost } from "../../mcp-host/mcp-host";
 import { createAddressCharacterTool } from "./address-character";
 import { createAvatarTools } from "./avatar";
-import { createBrowserTool } from "./browser/browser-tool";
 import type { ClientTool } from "./client-tools";
 import { createPluginBridgeTools } from "./plugin-bridge/plugin-bridge";
 import { createRateRelationTool } from "./relation";
@@ -18,8 +16,6 @@ export function createPetWindowTools(deps: {
   bound: boolean;
   getExecutor: () => AvatarExecutor | null;
   screen: ScreenQueryPorts;
-  /** The browser switch, read when a call runs. */
-  browserEnabled: () => boolean;
   relations: RelationsStore;
   /** The Relations switch, read when a call runs. */
   relationsEnabled: () => boolean;
@@ -44,11 +40,6 @@ export function createPetWindowTools(deps: {
     rate,
     address,
     ...(deps.bound ? [] : createAvatarTools(deps.getExecutor, deps.screen)),
-    createBrowserTool({
-      relay: createBrowserRelay(),
-      enabled: deps.browserEnabled,
-      presetId: presetIdForWindow,
-    }),
     ...createPluginBridgeTools({ host: deps.mcpHost, presetId: presetIdForWindow }),
   ];
 }

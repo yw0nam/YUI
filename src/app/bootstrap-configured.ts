@@ -87,7 +87,7 @@ export interface ConfiguredBootstrapHandles {
   vocabulary: Awaited<ReturnType<typeof wireVocabulary>>;
   /** The seat transitions — the dev perch plays its sit-down through it. */
   sitter: Pick<Sitter, "sitDown">;
-  /** The tools beside generate_express: browser, and in main the avatar tools; none outside Tauri. */
+  /** The tools beside generate_express: the bridge tools, and in main the avatar tools; none outside Tauri. */
   windowTools: readonly ClientTool[];
   /** Cancels the in-flight turn, cuts the outstanding push turns and stops the queued speech. */
   stopTurn: () => void;
@@ -187,7 +187,6 @@ const realFactories: ConfiguredBootstrapFactories = {
         pointsAreLogical: !isWindows(),
         capturer: phase1.screenCapturer,
       },
-      browserEnabled: () => settings.browserSettings.get().enabled,
       relationsEnabled: () => settings.relationsSwitch.get().enabled,
       relations: phase1.conversation.relationsStore,
       targets: relations.targets,

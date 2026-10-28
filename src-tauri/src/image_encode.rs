@@ -1,4 +1,4 @@
-//! Image resize and JPEG data-URL encode shared by screen capture and the browser relay.
+//! Image resize and JPEG data-URL encode.
 //!
 //! # Responsibilities
 //! - `encode_capture`: pure pipeline (resize → JPEG → base64 data URL), unit-tested.

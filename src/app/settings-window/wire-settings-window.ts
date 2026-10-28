@@ -118,7 +118,6 @@ export async function wireSettingsWindow(deps: {
     idleMotionSettings,
     expressMotionSettings,
     bedSceneSettings,
-    browserSettings,
     relationsSwitch,
     unifiedChatSwitch,
   } = settingsStores;
@@ -224,7 +223,6 @@ export async function wireSettingsWindow(deps: {
       idleMotionSettings,
       expressMotionSettings,
       bedSceneSettings,
-      browserSettings: boundId === null ? browserSettings : undefined,
       sessionDiagnostics,
       sessionStore,
       transcript: chatHistoryStore,
