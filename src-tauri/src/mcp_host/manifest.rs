@@ -1,9 +1,9 @@
-//! Reads a plugin folder: `.claude-plugin/plugin.json` and `.mcp.json`.
+//! Reads a plugin folder: `.claude-plugin/plugin.json`, `.mcp.json`, and `skills/*/SKILL.md`.
 
 use indexmap::IndexMap;
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct Manifest {
@@ -12,6 +12,14 @@ pub struct Manifest {
     pub description: Option<String>,
     /// In `.mcp.json` key order.
     pub servers: Vec<ServerSpec>,
+    pub skills: Vec<Skill>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Skill {
+    pub name: String,
+    pub description: String,
+    pub path: PathBuf,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -65,7 +73,75 @@ pub fn read(folder: &Path) -> Result<Manifest, String> {
         version: plugin.version,
         description: plugin.description,
         servers,
+        skills: read_skills(folder),
     })
+}
+
+/// Skills in folder-name order; one without a `description` is skipped.
+fn read_skills(folder: &Path) -> Vec<Skill> {
+    let Ok(entries) = std::fs::read_dir(folder.join("skills")) else {
+        return Vec::new();
+    };
+    let mut paths: Vec<PathBuf> = entries
+        .flatten()
+        .map(|e| e.path().join("SKILL.md"))
+        .filter(|p| p.is_file())
+        .collect();
+    paths.sort();
+    paths
+        .into_iter()
+        .filter_map(|path| {
+            let text = std::fs::read_to_string(&path).ok()?;
+            let (front, _) = split_frontmatter(&text);
+            let field = |key: &str| {
+                front.iter().find_map(|line| {
+                    let value = unquote(line.strip_prefix(key)?.strip_prefix(':')?);
+                    (!value.is_empty()).then_some(value)
+                })
+            };
+            let Some(description) = field("description") else {
+                log::warn!(
+                    "mcp_host_skill_skipped path={} reason=no description",
+                    path.display()
+                );
+                return None;
+            };
+            let folder_name = path.parent()?.file_name()?.to_string_lossy().into_owned();
+            Some(Skill {
+                name: field("name").unwrap_or(folder_name),
+                description,
+                path,
+            })
+        })
+        .collect()
+}
+
+/// The lines between the first two `---` lines, and the text after them without leading blank lines.
+fn split_frontmatter(text: &str) -> (Vec<&str>, String) {
+    let mut lines = text.lines();
+    if lines.next().map(str::trim_end) != Some("---") {
+        return (Vec::new(), text.to_string());
+    }
+    let front = lines
+        .by_ref()
+        .take_while(|l| l.trim_end() != "---")
+        .collect();
+    let body = lines
+        .skip_while(|l| l.trim().is_empty())
+        .collect::<Vec<_>>()
+        .join("\n");
+    (front, body)
+}
+
+fn unquote(value: &str) -> String {
+    let value = value.trim();
+    if value.starts_with('"') {
+        return serde_json::from_str(value).unwrap_or_else(|_| value.to_string());
+    }
+    match value.strip_prefix('\'').and_then(|v| v.strip_suffix('\'')) {
+        Some(inner) => inner.replace("''", "'"),
+        None => value.to_string(),
+    }
 }
 
 fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, String> {
