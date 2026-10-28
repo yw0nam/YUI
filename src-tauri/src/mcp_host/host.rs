@@ -244,6 +244,31 @@ impl Host {
         }
     }
 
+    pub async fn call(
+        &self,
+        window: &str,
+        call_id: &str,
+        name: &str,
+        arguments: serde_json::Value,
+        preset_id: &str,
+    ) -> Result<serde_json::Value, String> {
+        let _ = (window, call_id, name, arguments, preset_id);
+        Err("unimplemented".into())
+    }
+
+    pub fn cancel(&self, window: &str, call_id: &str) {
+        let _ = (window, call_id);
+    }
+
+    pub fn cancel_window(&self, window: &str) {
+        let _ = window;
+    }
+
+    pub fn skill(&self, name: &str) -> Result<String, String> {
+        let _ = name;
+        Err("unimplemented".into())
+    }
+
     /// Stops every server without publishing.
     pub async fn shutdown(&self) {
         let stopping = self.lock().stop_all(None);
@@ -515,7 +540,7 @@ fn unknown(plugin_id: &str) -> String {
 #[cfg(all(test, unix))]
 mod tests {
     use super::super::snapshot::{PluginEntry, Status};
-    use super::super::test_support::{fixture_copy, has_python, temp_dir};
+    use super::super::test_support::{eventually, fixture_copy, has_python, temp_dir};
     use super::*;
     use serde_json::{json, Value};
     use std::sync::Mutex;
@@ -700,5 +725,132 @@ mod tests {
             "{refused}"
         );
         assert!(state_path.is_dir());
+    }
+
+    async fn running(id: &str) -> Arc<Host> {
+        let (host, _) = host_at(&temp_dir());
+        host.add(fixture_copy(id)).unwrap();
+        host.enable(id).await.unwrap();
+        host
+    }
+
+    fn slow_call(
+        host: &Arc<Host>,
+        window: &'static str,
+        call_id: &'static str,
+    ) -> tokio::task::JoinHandle<Result<Value, String>> {
+        let host = host.clone();
+        tokio::spawn(async move {
+            host.call(window, call_id, "slow", json!({}), "preset-1")
+                .await
+        })
+    }
+
+    #[tokio::test]
+    async fn a_call_carries_the_preset_in_its_meta() {
+        if !has_python() {
+            return;
+        }
+        let host = running("yui-test").await;
+        let result = host
+            .call("pet-a", "c1", "echo_meta", json!({}), "preset-1")
+            .await
+            .unwrap();
+        host.shutdown().await;
+        assert_eq!(result["isError"], false);
+        let meta: Value =
+            serde_json::from_str(result["content"][0]["text"].as_str().unwrap()).unwrap();
+        assert_eq!(meta["io.github.yw0nam.yui/preset"], "preset-1");
+    }
+
+    #[tokio::test]
+    async fn a_call_times_out_at_the_tools_wait_ms_and_cancels_it() {
+        if !has_python() {
+            return;
+        }
+        let host = running("yui-test").await;
+        let began = std::time::Instant::now();
+        let result = host
+            .call("pet-a", "c1", "slow", json!({}), "preset-1")
+            .await;
+        let took = began.elapsed();
+        assert_eq!(
+            result,
+            Err("plugin tool timed out after 1500 ms".to_string())
+        );
+        assert!(
+            took >= Duration::from_millis(1500) && took < Duration::from_secs(5),
+            "{took:?}"
+        );
+        let cancelled = || {
+            host.log_tail("yui-test")
+                .unwrap()
+                .iter()
+                .any(|l| l.starts_with("[main] cancelled id="))
+        };
+        assert!(
+            eventually(cancelled).await,
+            "{:?}",
+            host.log_tail("yui-test")
+        );
+        host.shutdown().await;
+    }
+
+    #[tokio::test]
+    async fn a_window_cancels_only_its_own_calls() {
+        if !has_python() {
+            return;
+        }
+        let host = running("yui-test").await;
+        let first = slow_call(&host, "pet-a", "c1");
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        host.cancel("pet-b", "c1");
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        assert!(!first.is_finished());
+        host.cancel("pet-a", "c1");
+        let ended = tokio::time::timeout(Duration::from_secs(1), first).await;
+        assert_eq!(
+            ended.unwrap().unwrap(),
+            Err("plugin tool cancelled".to_string())
+        );
+
+        let (second, third, other) = (
+            slow_call(&host, "pet-a", "c2"),
+            slow_call(&host, "pet-a", "c3"),
+            slow_call(&host, "pet-b", "c4"),
+        );
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        host.cancel_window("pet-a");
+        for call in [second, third] {
+            let ended = tokio::time::timeout(Duration::from_secs(1), call).await;
+            assert_eq!(
+                ended.unwrap().unwrap(),
+                Err("plugin tool cancelled".to_string())
+            );
+        }
+        assert!(!other.is_finished());
+        host.shutdown().await;
+    }
+
+    #[tokio::test]
+    async fn skill_reads_a_declared_body_and_hidden_or_unknown_names_are_refused() {
+        if !has_python() {
+            return;
+        }
+        let host = running("yui-test").await;
+        assert_eq!(
+            host.skill("hello"),
+            Ok("Say hello to the user.".to_string())
+        );
+        assert_eq!(
+            host.skill("nope"),
+            Err("unknown plugin skill: nope".to_string())
+        );
+        assert_eq!(
+            host.call("pet-a", "c1", "look", json!({}), "preset-1")
+                .await,
+            Err("unknown plugin tool: look".to_string())
+        );
+        host.shutdown().await;
     }
 }
