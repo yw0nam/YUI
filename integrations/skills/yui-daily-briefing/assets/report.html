@@ -5,54 +5,61 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <meta name="robots" content="noindex">
+<meta name="description" content="One day of the briefing, with the state of every source.">
 <!-- slot: title --><!-- fill: <title>Briefing · YYYY-MM-DD</title> --><!-- /slot -->
 <style id="lang-rule">body [lang]:not([lang="en"]) { display: none !important; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Noto+Sans+KR:wght@500;600&family=Noto+Serif+KR:wght@400;500&display=swap">
 <link rel="stylesheet" href="../../../../../src/style.css">
 <script src="../../../../../src/lang.js"></script>
 </head>
 <body>
-<div class="page">
-
-  <aside class="rail">
-
-  <header class="masthead">
-    <div class="masthead-top">
-      <p class="label"><span lang="en">Daily briefing</span><span lang="ko">오늘의 브리핑</span></p>
-      <label class="lang-switch">
-        <select id="lang-select" aria-label="Language">
-          <!-- slot: languages -->
-          <!-- fill: one <option> per page language, en first -->
-          <!-- /slot -->
-        </select>
-      </label>
-    </div>
-    <!-- slot: date lang=en -->
-    <!-- fill: weekday and date heading and the prepared-at line -->
-    <!-- /slot -->
-  </header>
-
-  <nav class="contents" aria-label="Contents">
-    <!-- slot: contents -->
-    <!-- fill: one row per producer; personal producers after the Projects label -->
-    <!-- /slot -->
-  </nav>
-
-  <section class="health" aria-labelledby="attention">
-    <h2 id="attention"><span lang="en">Needs attention</span><span lang="ko">확인이 필요한 소스</span></h2>
-    <div class="notices">
-      <!-- slot: notices -->
-      <!-- fill: one row per source whose status is not ok, or nothing -->
+<header class="runner container">
+  <a class="wordmark" href="../../../../../"><span lang="en">Daily briefing</span><span lang="ko">오늘의 브리핑</span></a>
+  <label class="lang-switch">
+    <select id="lang-select" aria-label="Language">
+      <!-- slot: languages -->
+      <!-- fill: one <option> per page language, en first -->
       <!-- /slot -->
+    </select>
+  </label>
+</header>
+
+<div class="page container">
+
+  <header class="front">
+    <div>
+      <div class="masthead">
+        <!-- slot: date lang=en -->
+        <!-- fill: weekday and date heading and the prepared-at line -->
+        <!-- /slot -->
+      </div>
+
+      <section class="lead" aria-label="Summary">
+        <!-- slot: summary lang=en -->
+        <!-- fill: the day's summary across every section -->
+        <!-- /slot -->
+      </section>
     </div>
-  </section>
 
-  </aside>
+    <aside class="ledger">
+      <nav class="contents" aria-label="Contents">
+        <!-- slot: contents -->
+        <!-- fill: one row per producer; personal producers after the Projects label -->
+        <!-- /slot -->
+      </nav>
 
-  <section class="lead" aria-label="Summary">
-    <!-- slot: summary lang=en -->
-    <!-- fill: the day's summary across every section -->
-    <!-- /slot -->
-  </section>
+      <section class="health" aria-labelledby="attention">
+        <h2 id="attention"><span lang="en">Needs attention</span><span lang="ko">확인이 필요한 소스</span></h2>
+        <div class="notices">
+          <!-- slot: notices -->
+          <!-- fill: one row per source whose status is not ok, or nothing -->
+          <!-- /slot -->
+        </div>
+      </section>
+    </aside>
+  </header>
 
   <main>
     <div class="zone">
@@ -61,13 +68,12 @@
       <!-- /slot -->
     </div>
 
-    <div class="zone">
+    <div class="zone zone-projects">
       <h2 class="zone-title"><span lang="en">Projects</span><span lang="ko">프로젝트</span></h2>
       <!-- slot: personal -->
       <!-- fill: one section per personal producer, or nothing -->
       <!-- /slot -->
     </div>
-
   </main>
 
   <nav class="days" aria-label="Other days">

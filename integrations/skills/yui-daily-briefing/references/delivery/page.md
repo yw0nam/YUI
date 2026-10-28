@@ -4,7 +4,8 @@ The briefing arrives as a greeting and one link per day. The link opens a web pa
 that day, `reports/<YYYY>/<MM>/<Wn>/<DD>/index.html` in the spool, which you write from
 the day's briefings before the user's day starts. Static hosting of the published spool
 serves the page, and `index.html` at the root lists every day. Answer 3 of Install step 6
-in `SKILL.md` leads here, and the step numbers below are those of `SKILL.md`.
+in `SKILL.md` leads here, and the step numbers below are those of `SKILL.md`. A lead's
+picture loads from the host its `image:` line names, so each view asks that host for it.
 
 The page's design is fixed: `$SKILL_DIR/assets/report.html` is the template, and
 `$SKILL_DIR/assets/fixtures/report-filled.html` is a filled day that shows the markup of
@@ -94,7 +95,7 @@ never carries `&amp;amp;`. `page-check` exits 2 on an entity escaped twice.
 4. Write your own text in every per-language slot: the summary says what moved across all
    sections, what awaits a decision, and which sources need a look; an intro says, in one
    to three sentences, what in its section is worth attention today and why, and links the
-   items it names to their rows (`#<source>-<n>`). Item titles, excerpts, producer names
+   items it names to their rows (`#<source>-<n>`). Item titles, excerpts, figures, producer names
    and each file's `summary` line stay as the files have them, in one copy for every
    language. A label inside a slot carries one `<span lang>` per page language, the words
    of the filled example for English and Korean and the instruction's words for any other
@@ -119,7 +120,7 @@ Done when: `page-check` for today prints nothing and exits 0.
 | `date`, per language | The weekday and date heading, and the line with the ISO date and the time the page was prepared, inside `<time datetime>` | Never |
 | `summary`, per language | One or two short paragraphs across all sections | Never |
 | `contents` | One row per producer, in the order of the sections, the personal producers after the "Projects" label: the producer's name, a status word for a source that reads `stale`, `failed` or `disabled`, and its item count, linking to its section | Never |
-| `producers` | One section per general producer, in the order of § Install point 3. A section holds the source name and item count, the file's `summary` line, an `intro:<source>` slot per language, and the items, 6 shown and the rest folded under `<details>`; a producer with no items shows "No items this run." | Never |
+| `producers` | One section per general producer, in the order of § Install point 3. A section holds the source name and item count, the file's `summary` line, an `intro:<source>` slot per language, and the items, 6 shown and the rest folded under `<details>`. The first item is the lead: its `image:` line as the picture when it has one, its title, its `figure:` line when it has one, its excerpt and its meta. Every other item is a row: its title, a figure column holding its `figure:` line or, without one, its time, and its excerpt and meta folded under the "Details" toggle. A producer with no items shows "No items this run." | Never |
 | `personal` | One section per personal producer, in the user's order, built like a general section with its own `intro:<source>` slots | When the user named no personal producer |
 | `notices` | One row per source whose `status` is other than `ok`: the status word, `<producer> › <source>`, "Last success" with `last_ok`, and `run_url` as the "Run record" link; "No success on record" without `last_ok` | When every source reads `ok` |
 | `days` | The link to the previous day that has a page, `../../../../../reports/<YYYY>/<MM>/<Wn>/<DD>/` | On the first day |
@@ -129,7 +130,7 @@ in the user's time zone; counts are bare numbers. The labels outside the slots c
 the template: "Daily briefing", the "Projects" heading, "Needs attention", "All days",
 "Next day" and "No next day yet". The labels inside the slots come from the filled
 example: the "Projects" label of `contents`, "Previous day", the fold label (a bare count,
-then " more"), "No items this run.", the status words "Failed" and "Stale", "Last
+then " more"), "Details", "No items this run.", the status words "Failed" and "Stale", "Last
 success", "No success on record" and "Run record". The example holds no `disabled` source;
 its status word is "Disabled" (꺼짐 in Korean) on the class `status-disabled`.
 

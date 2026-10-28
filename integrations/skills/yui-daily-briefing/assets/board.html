@@ -5,24 +5,28 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <meta name="robots" content="noindex">
+<meta name="description" content="Every day of the briefing, with each source, its item count and its state.">
 <title>Briefing · all days</title>
 <style id="lang-rule">body [lang]:not([lang="en"]) { display: none !important; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Noto+Sans+KR:wght@500;600&family=Noto+Serif+KR:wght@400;500&display=swap">
 <link rel="stylesheet" href="src/style.css">
 <script src="src/lang.js"></script>
 </head>
 <body>
-<div class="board-page">
+<header class="runner container">
+  <p class="wordmark"><span lang="en">Daily briefing</span><span lang="ko">오늘의 브리핑</span></p>
+  <label class="lang-switch">
+    <select id="lang-select" aria-label="Language">
+      <option value="en">EN</option>
+      <option value="ko">KO</option>
+    </select>
+  </label>
+</header>
+<div class="board-page container">
   <header class="board-head">
-    <div>
-      <p class="label"><span lang="en">Daily briefing</span><span lang="ko">오늘의 브리핑</span></p>
-      <h1><span lang="en">All days</span><span lang="ko">모든 날</span></h1>
-    </div>
-    <label class="lang-switch">
-      <select id="lang-select" aria-label="Language">
-        <option value="en">EN</option>
-        <option value="ko">KO</option>
-      </select>
-    </label>
+    <h1><span lang="en">All days</span><span lang="ko">모든 날</span></h1>
   </header>
 
   <ol class="board">

@@ -208,6 +208,47 @@ describe("briefing.py write", () => {
     expect(write(tempDir(), "../x", GATHER).status).toBe(2);
   });
 
+  it("writes a figure line and an image line only for a ref that sends a valid one", () => {
+    const spool = tempDir();
+    const at = "2026-10-01T05:24:26Z";
+    const refs = [
+      {
+        kind: "paper",
+        title: "A",
+        url: "https://example.com/a",
+        at,
+        figure: { value: "239", label: "upvotes" },
+        image: "https://img.example.com/a.png",
+        excerpt: "Excerpt A.",
+      },
+      { kind: "paper", title: "B", url: "https://example.com/b", at, figure: { value: "12" } },
+      {
+        kind: "paper",
+        title: "C",
+        url: "https://example.com/c",
+        at,
+        image: "javascript:x",
+        figure: { value: "", label: "x" },
+      },
+    ];
+    expect(write(spool, "papers", { sources: [], refs }).status).toBe(0);
+
+    expect(body(read(spool, spoolFiles(spool)[0]))).toContain(
+      [
+        "1. [A](<https://example.com/a>)",
+        `   paper · ${at}`,
+        "   figure: 239 · upvotes",
+        "   image: <https://img.example.com/a.png>",
+        "   Excerpt A.",
+        "2. [B](<https://example.com/b>)",
+        `   paper · ${at}`,
+        "3. [C](<https://example.com/c>)",
+        `   paper · ${at}`,
+        "",
+      ].join("\n"),
+    );
+  });
+
   it("names the day folder by year, month, and week of the month", () => {
     const spool = tempDir();
     for (const day of ["2026-10-01", "2026-10-07", "2026-10-08", "2026-10-29", "2026-10-31"]) {

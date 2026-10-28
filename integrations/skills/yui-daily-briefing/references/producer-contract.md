@@ -50,6 +50,11 @@ file states the input, the file the helper writes, the ledger, and the helper's 
 | `refs[].url` | `http` or `https` scheme, 2048 characters |
 | `refs[].at` | Timestamp, 64 characters; the moment of the run when absent |
 | `refs[].excerpt` | 280 characters, possibly the empty string |
+| `refs[].figure` | Optional object. `value` is 16 characters and `label` is 24 characters, both not empty. A figure that misses either drops out |
+| `refs[].image` | Optional. `http` or `https` scheme, 2048 characters. One outside the rule drops out and the ref stays |
+
+A figure is the number that ranks the item, with its unit (`239` and `upvotes`, `2,859` and
+`stars today`). An image is a picture of the item; the page shows it for a section's first item.
 
 The gather script emits `refs` newest first; the helper keeps the first 30. A ref whose
 `url` misses the `http` or `https` scheme, runs past 2048 characters, or holds a control
@@ -86,9 +91,11 @@ sources:
 1. The front matter is YAML. Every string value is a JSON-encoded double-quoted string.
    `sources` holds one flow mapping per source, or reads `sources: []`.
 2. The body opens with the summary as a heading, then one numbered item per ref: a link
-   line, a `kind · at` line, and an excerpt line when the excerpt carries text.
-3. A title escapes `[`, `]`, and `\`. A url sits inside `<…>`, with whitespace, `<`,
-   `>`, and `\` percent-encoded.
+   line, a `kind · at` line, a `figure: <value> · <label>` line when the ref has a figure,
+   an `image: <<url>>` line when it has an image, and an excerpt line when the excerpt
+   carries text.
+3. A title escapes `[`, `]`, and `\`. A url, the link's and the image's, sits inside
+   `<…>`, with whitespace, `<`, `>`, and `\` percent-encoded.
 
 Each source has at most one unspoken briefing per day. A run replaces it, whether it is
 `<source>.md` or a stamped file. When every briefing of that source and day is spoken, the
@@ -126,7 +133,7 @@ the same OS user as the agent.
 | `pending` | Prints every `reports/<YYYY>/<MM>/<Wn>/<DD>/<file>.md` file missing from the ledger, oldest day first, then by file name, each under a line `=== <path relative to the spool> ===`, with bytes that are not UTF-8 shown as U+FFFD. Prints nothing when every file is spoken |
 | `mark-spoken PATH...` | Records each path in the ledger. Each path reads `reports/<YYYY>/<MM>/<Wn>/<DD>/<file>.md`, exactly as `pending` prints it, and names an existing file |
 | `publish` | Stages every `reports/<YYYY>/<MM>/<Wn>/<DD>/<file>.md` file and the spool's `.gitignore` and `.nojekyll` in the spool's git repository. Once a day folder holds an `index.html` page, it also copies the skill's `assets/src/` files into the spool's `src/` where they are missing or differ, writes the board as `board` does, and stages every page, `index.html`, and the `src/` files. It commits them with the local date (`2026-10-02`) as the message when that changes the tree, and pushes the current branch to the first remote `git remote` lists. The commit holds those files only: `spoken.json`, the lock file, a `README.md`, and any other file, staged by hand or not, stay out of it. The spool is the top directory of its own git work tree |
-| `board` | Writes `index.html` at the spool root from `assets/board.html`: one row per day folder, newest first, with the date and weekday, each source's item count from its latest briefing of the day, a dot on a source whose briefing lists a `stale` or `failed` source, and the day's `Failed` and `Stale` words. A day whose folder holds an `index.html` page links to it. The same spool always yields the same file |
+| `board` | Writes `index.html` at the spool root from `assets/board.html`: one row per day folder, newest first, with the date and weekday, each source's item count from its latest briefing of the day, a source whose briefing lists a `failed` source in the accent colour and one that lists a `stale` source in italics, and the day's `Failed` and `Stale` words. A day whose folder holds an `index.html` page links to it. The same spool always yields the same file |
 | `page-check YYYY-MM-DD` | Reads that day's `index.html` page and checks its slots, the `<!-- slot: NAME [lang=CODE] -->…<!-- /slot -->` pairs of `assets/report.html`. The page languages are the `<option value>` codes of the `languages` slot. `title`, `languages`, `contents`, `producers`, a `date` and a `summary` per language, and an `intro:<source>` per language for every section in `producers` and `personal` hold text; `personal`, `notices`, and `days` may be empty. A slot holds text when something is left after its HTML comments and tags are removed. The check fails on a `languages` slot with no `value`, on a section whose class list holds `producer` but which has no `aria-labelledby`, and on any slot holding `<script`, an `on…=` attribute, or `javascript:` A slot that holds an entity escaped twice (`&amp;amp;`) exits 2. |
 | `migrate` | Moves every file of each `<YYYY-MM-DD>/` folder at the spool root into its day folder under `reports/`, removes the emptied folders, and rewrites the moved paths in `spoken.json`. In a spool that is the top of its own git work tree, tracked files move with `git mv` and one commit records the moves, so `git log --follow` reaches their earlier commits. A spool with no such folder is left as it is, so a second run changes nothing |
 
