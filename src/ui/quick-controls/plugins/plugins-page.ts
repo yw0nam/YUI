@@ -26,7 +26,7 @@ export function createPluginsPage(deps: {
   manage: McpHostManage;
   log: Logger;
 }): PluginsPage {
-  const { host, manage } = deps;
+  const { host, manage, log } = deps;
   const el = document.createElement("div");
   el.className = "yui-tab-stack";
 
@@ -52,6 +52,7 @@ export function createPluginsPage(deps: {
     return state;
   };
   const plugins = (): PluginHostPlugin[] => host.snapshot()?.plugins ?? [];
+  const plugin = (id: string): PluginHostPlugin | undefined => plugins().find((p) => p.id === id);
 
   function updateTo(p: PluginHostPlugin): string | null {
     if (p.source === "local" || catalog.state !== "ok") return null;
@@ -131,6 +132,40 @@ export function createPluginsPage(deps: {
     return catalogLoad;
   }
 
+  /** Runs one managing call; a rejection becomes the plugin's error line. */
+  async function attempt(id: string, lead: string, call: () => Promise<unknown>): Promise<boolean> {
+    const state = uiOf(id);
+    state.error = undefined;
+    try {
+      await call();
+      return true;
+    } catch (err) {
+      state.error = { lead, message: String(err) };
+      log.warn("plugins.call_failed", { id, lead, error: String(err) });
+      return false;
+    } finally {
+      render();
+    }
+  }
+
+  // The host resolves once the servers' start attempts settle, so the snapshot then names the outcome.
+  async function allow(id: string): Promise<void> {
+    const state = uiOf(id);
+    state.flow = "starting";
+    const ok = await attempt(id, "plugins.err_enable", () => manage.enable(id));
+    if (state.flow !== "starting") return;
+    const failed = plugin(id)?.servers.some(
+      (sv) => sv.status === "failed" || sv.status === "exited",
+    );
+    state.flow = !ok ? undefined : failed ? "failed" : "step2";
+    render();
+  }
+
+  function disable(id: string): void {
+    uiOf(id).flow = undefined;
+    void attempt(id, "plugins.err_disable", () => manage.disable(id));
+  }
+
   function readLog(id: string): void {
     void manage.logTail(id).then(
       (lines) => {
@@ -145,6 +180,27 @@ export function createPluginsPage(deps: {
   }
 
   const actions: Record<string, (id: string, button: HTMLElement) => void> = {
+    toggle: (id) => {
+      const p = plugin(id);
+      const state = uiOf(id);
+      if (!p) return;
+      if (state.flow === "step1") state.flow = undefined;
+      else if (p.enabled && p.consented) disable(id);
+      // The host keeps an approved path's consent across a disable.
+      else if (p.consented) void attempt(id, "plugins.err_enable", () => manage.enable(id));
+      else state.flow = "step1";
+    },
+    reapprove: (id) => {
+      uiOf(id).flow = "step1";
+    },
+    allow: (id) => void allow(id),
+    cancel: (id) => {
+      uiOf(id).flow = undefined;
+    },
+    done: (id) => {
+      uiOf(id).flow = undefined;
+    },
+    off: disable,
     tools: (id) => {
       const state = uiOf(id);
       state.toolsOpen = !state.toolsOpen;
@@ -190,7 +246,23 @@ export function createPluginsPage(deps: {
     render();
   }
 
+  // Escape closes an open step 1 here, so the panel's own Escape does not close the window.
+  function onKeydown(e: KeyboardEvent): void {
+    if (e.key !== "Escape") return;
+    let closed = false;
+    for (const state of ui.values()) {
+      if (state.flow !== "step1") continue;
+      state.flow = undefined;
+      closed = true;
+    }
+    if (!closed) return;
+    e.preventDefault();
+    e.stopPropagation();
+    render();
+  }
+
   el.addEventListener("click", onClick);
+  el.addEventListener("keydown", onKeydown);
   const unsubscribe = host.subscribe(() => {
     for (const [id, state] of ui) if (state.logOpen) readLog(id);
     render();
@@ -204,6 +276,7 @@ export function createPluginsPage(deps: {
       unsubscribe();
       clearTimeout(checkTimer);
       el.removeEventListener("click", onClick);
+      el.removeEventListener("keydown", onKeydown);
     },
   };
 }

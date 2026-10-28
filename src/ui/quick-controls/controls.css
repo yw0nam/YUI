@@ -40,6 +40,15 @@
   transform: translateX(calc(var(--w) - var(--h)));
 }
 
+/* Half-way — a question (the Plugins page's consent) waits before the switch turns on. */
+.yui-switch[aria-checked="mixed"] {
+  background: var(--yui-accent-soft);
+}
+
+.yui-switch[aria-checked="mixed"]::after {
+  transform: translateX(calc((var(--w) - var(--h)) / 2));
+}
+
 .yui-switch:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--yui-accent-soft);
