@@ -12,11 +12,17 @@ import {
   type PersistedStorage,
 } from "../persisted-store";
 
-export type ReasoningEffort = "none" | "minimal" | "low" | "medium";
-export const REASONING_EFFORTS: readonly ReasoningEffort[] = ["none", "minimal", "low", "medium"];
+export type ReasoningEffort = "default" | "none" | "minimal" | "low" | "medium";
+export const REASONING_EFFORTS: readonly ReasoningEffort[] = [
+  "default",
+  "none",
+  "minimal",
+  "low",
+  "medium",
+];
 
 export interface AgentSettings {
-  reasoning_effort: ReasoningEffort; // reasoning.effort value sent to the backend ("none" => no reasoning)
+  reasoning_effort: ReasoningEffort; // reasoning.effort value sent to the backend ("default" => none sent, the model decides)
   send_card: boolean;
   card: Card | null; // null => the default card of the UI language
 }
@@ -24,13 +30,13 @@ export interface AgentSettings {
 export type AgentStorage = PersistedStorage<AgentSettings>;
 
 const DEFAULT_SETTINGS: AgentSettings = {
-  reasoning_effort: "none",
+  reasoning_effort: "default",
   send_card: true,
   card: null,
 };
 
 function coerceEffort(v: unknown): ReasoningEffort {
-  return REASONING_EFFORTS.includes(v as ReasoningEffort) ? (v as ReasoningEffort) : "none";
+  return REASONING_EFFORTS.includes(v as ReasoningEffort) ? (v as ReasoningEffort) : "default";
 }
 
 function coerceCard(s: Record<string, unknown>): Card | null {

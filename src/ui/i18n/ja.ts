@@ -250,6 +250,7 @@ const ja: Record<string, string> = {
   // reasoning effort segment
   "reasoning.label": "推論の強さ",
   "reasoning.sub": "答える前にどれだけ深く考えるか",
+  "reasoning.default": "既定",
   "reasoning.none": "なし",
   "reasoning.minimal": "最小",
   "reasoning.low": "低",

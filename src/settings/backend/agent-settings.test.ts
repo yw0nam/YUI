@@ -95,22 +95,22 @@ describe("createAgentSettings — setReasoningEffort", () => {
     expect(storage.save).toHaveBeenCalledWith({ ...DEFAULTS, reasoning_effort: "medium" });
   });
 
-  it("invalid effort coerces to 'none' (no-op from default state)", () => {
+  it("invalid effort coerces to 'default' (no-op from default state)", () => {
     const store = createAgentSettings();
     const cb = vi.fn();
     store.subscribe(cb);
     store.setReasoningEffort("nope" as unknown as AgentSettings["reasoning_effort"]);
-    expect(store.get().reasoning_effort).toBe("none");
+    expect(store.get().reasoning_effort).toBe("default");
     expect(cb).not.toHaveBeenCalled();
   });
 
-  it("invalid effort coerces to 'none' (notifies when changing from non-default)", () => {
+  it("invalid effort coerces to 'default' (notifies when changing from non-default)", () => {
     const store = createAgentSettings();
     store.setReasoningEffort("medium");
     const cb = vi.fn();
     store.subscribe(cb);
     store.setReasoningEffort("nope" as unknown as AgentSettings["reasoning_effort"]);
-    expect(store.get().reasoning_effort).toBe("none");
+    expect(store.get().reasoning_effort).toBe("default");
     expect(cb).toHaveBeenCalledOnce();
   });
 

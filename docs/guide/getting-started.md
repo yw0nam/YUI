@@ -146,7 +146,7 @@ The first two modes work with any server that speaks the corresponding OpenAI AP
 
 ### Reasoning effort
 
-The in-app agent settings expose reasoning effort (`none` · `minimal` · `low` · `medium`). Responses mode sends it as `reasoning.effort`; Chat Completions mode as the top-level `reasoning_effort`.
+The in-app agent settings expose reasoning effort (`Default` · `none` · `minimal` · `low` · `medium`). `Default`, the starting value, sends no effort, so the model's own default applies; a model that rejects some values (GPT-OSS rejects `none`) still answers. Any other value is sent: Responses mode as `reasoning.effort`, Chat Completions mode as the top-level `reasoning_effort`.
 
 The reasoning-effort control is shown in Chat Completions and Responses modes only. The **Card** section shows its fields there too; in push mode it keeps only **Import card…** and **Export card**, because push sends no card.
 

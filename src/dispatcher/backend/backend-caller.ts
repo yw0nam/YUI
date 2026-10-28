@@ -288,9 +288,10 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       }
       const request: ChatRequest = { input, signal: ac.signal, turnId: String(turn.id) };
 
-      // Apply agent settings: reasoning_effort always sent in both modes.
+      // Apply agent settings: Default sends no effort, so the model's own default applies.
       const agent = deps.getAgentSettings?.();
-      if (agent) request.reasoning_effort = agent.reasoning_effort;
+      if (agent && agent.reasoning_effort !== "default")
+        request.reasoning_effort = agent.reasoning_effort;
 
       // Snapshot previous response id into request — preserve start value to detect reset on completion (R2).
       // CC mode has no server-side conversation state (stitched by transcript) — skip snapshot/persist.
