@@ -1,8 +1,12 @@
-//! Shared helpers for the MCP host tests: the fixture plugin, temp folders, polling.
+//! Shared helpers for the MCP host tests: the fixture plugin, temp folders, polling, a local
+//! catalog server.
 
+use super::catalog;
 use super::host::Host;
 use super::snapshot::Snapshot;
 use serde_json::{json, Value};
+use std::collections::HashMap;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -80,15 +84,111 @@ fn copy_dir(from: &std::path::Path, to: &std::path::Path) {
 pub type Emitted = Arc<Mutex<Vec<Snapshot>>>;
 
 pub fn host_at(app_data: &Path) -> (Arc<Host>, Emitted) {
+    host_with(app_data, no_catalog())
+}
+
+pub fn host_with(app_data: &Path, catalog: catalog::Config) -> (Arc<Host>, Emitted) {
     let emitted = Emitted::default();
     let sink = emitted.clone();
     let host = Host::new(
         Ok(app_data.to_path_buf()),
         &app_data.join("logs"),
         UtcOffset::UTC,
+        catalog,
         move |s| sink.lock().unwrap().push(s.clone()),
     );
     (host, emitted)
+}
+
+/// A catalog config whose URLs point nowhere.
+pub fn no_catalog() -> catalog::Config {
+    catalog::Config {
+        catalog_url: String::new(),
+        github: String::new(),
+        raw: String::new(),
+        platform: Some("test-platform"),
+    }
+}
+
+/// A local HTTP server: answers a path in `files` with its bytes, any other with 404, and
+/// records every requested path.
+pub struct TestServer {
+    pub url: String,
+    pub files: Arc<Mutex<HashMap<String, Vec<u8>>>>,
+    pub requests: Arc<Mutex<Vec<String>>>,
+}
+
+impl TestServer {
+    pub fn start() -> Self {
+        let server = tiny_http::Server::http("127.0.0.1:0").unwrap();
+        let url = format!("http://{}", server.server_addr().to_ip().unwrap());
+        let files = Arc::new(Mutex::new(HashMap::<String, Vec<u8>>::new()));
+        let requests = Arc::new(Mutex::new(Vec::new()));
+        let (served, recorded) = (files.clone(), requests.clone());
+        std::thread::spawn(move || {
+            for request in server.incoming_requests() {
+                let path = request.url().to_string();
+                recorded.lock().unwrap().push(path.clone());
+                let body = served.lock().unwrap().get(&path).cloned();
+                let _ = match body {
+                    Some(body) => request.respond(tiny_http::Response::from_data(body)),
+                    None => request.respond(tiny_http::Response::empty(404)),
+                };
+            }
+        });
+        Self {
+            url,
+            files,
+            requests,
+        }
+    }
+
+    pub fn put(&self, path: &str, body: impl Into<Vec<u8>>) {
+        self.files
+            .lock()
+            .unwrap()
+            .insert(path.to_string(), body.into());
+    }
+
+    /// Every catalog URL points here, for the platform `test-platform`.
+    pub fn config(&self) -> catalog::Config {
+        catalog::Config {
+            catalog_url: format!("{}/catalog.json", self.url),
+            github: self.url.clone(),
+            raw: self.url.clone(),
+            platform: Some("test-platform"),
+        }
+    }
+}
+
+/// The fixture plugin zipped as `id` `version`, its server in `FIXTURE_MODE` `mode` when given.
+pub fn plugin_zip(id: &str, version: &str, mode: Option<&str>) -> Vec<u8> {
+    let folder = fixture_copy(id);
+    let manifest = folder.join(".claude-plugin/plugin.json");
+    let mut plugin: Value =
+        serde_json::from_str(&std::fs::read_to_string(&manifest).unwrap()).unwrap();
+    plugin["version"] = json!(version);
+    std::fs::write(manifest, plugin.to_string()).unwrap();
+    if let Some(mode) = mode {
+        set_mode(&folder, mode);
+    }
+    let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    zip_dir(&mut zip, &folder, &folder);
+    zip.finish().unwrap().into_inner()
+}
+
+fn zip_dir(zip: &mut zip::ZipWriter<std::io::Cursor<Vec<u8>>>, root: &Path, dir: &Path) {
+    let options = zip::write::SimpleFileOptions::default().unix_permissions(0o644);
+    for entry in std::fs::read_dir(dir).unwrap() {
+        let path = entry.unwrap().path();
+        if path.is_dir() {
+            zip_dir(zip, root, &path);
+            continue;
+        }
+        let name = path.strip_prefix(root).unwrap().to_string_lossy();
+        zip.start_file(name, options).unwrap();
+        zip.write_all(&std::fs::read(&path).unwrap()).unwrap();
+    }
 }
 
 pub async fn running(id: &str) -> Arc<Host> {

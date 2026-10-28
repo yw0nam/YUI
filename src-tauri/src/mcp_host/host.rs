@@ -2,6 +2,7 @@
 //! entry points.
 
 use super::calls::Calls;
+use super::catalog;
 use super::lifecycle::LiveServer;
 use super::manifest::{self, Manifest};
 use super::server::PluginLog;
@@ -20,6 +21,7 @@ pub struct Host {
     /// `<log dir>/plugins`.
     log_dir: PathBuf,
     offset: UtcOffset,
+    pub(super) catalog: catalog::Config,
     emit: Emit,
     inner: Mutex<Inner>,
     pub(super) calls: Calls,
@@ -44,6 +46,7 @@ impl Host {
         app_data: Result<PathBuf, String>,
         log_dir: &Path,
         offset: UtcOffset,
+        catalog: catalog::Config,
         emit: impl Fn(&Snapshot) + Send + Sync + 'static,
     ) -> Arc<Self> {
         // Without an app data dir the state is `Err`, so nothing ever reads or writes `dir`.
@@ -75,6 +78,7 @@ impl Host {
             dir,
             log_dir,
             offset,
+            catalog,
             emit: Box::new(emit),
             inner: Mutex::new(inner),
             calls: Calls::default(),
@@ -368,7 +372,9 @@ fn unknown(plugin_id: &str) -> String {
 #[cfg(all(test, unix))]
 mod tests {
     use super::super::snapshot::{PluginEntry, Status};
-    use super::super::test_support::{fixture_copy, host_at, require_python, running, temp_dir};
+    use super::super::test_support::{
+        fixture_copy, host_at, no_catalog, require_python, running, temp_dir,
+    };
     use super::*;
     use serde_json::{json, Value};
 
@@ -562,6 +568,7 @@ mod tests {
             Err("no home folder".into()),
             &temp_dir(),
             UtcOffset::UTC,
+            no_catalog(),
             |_| {},
         );
         assert!(host.snapshot().plugins.is_empty());

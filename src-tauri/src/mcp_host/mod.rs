@@ -32,8 +32,10 @@
 //!   plugin starts as its own task.
 
 mod calls;
+mod catalog;
 pub mod commands;
 mod host;
+mod install;
 mod launch;
 mod lifecycle;
 mod manifest;
@@ -58,7 +60,8 @@ pub fn setup(app: &App, log_dir: &Path, offset: UtcOffset) {
         log::error!("mcp_host_app_data_dir_unavailable error={e}");
     }
     let handle = app.handle().clone();
-    let host = Host::new(app_data, log_dir, offset, move |snapshot| {
+    let catalog = catalog::Config::production();
+    let host = Host::new(app_data, log_dir, offset, catalog, move |snapshot| {
         if let Err(e) = handle.emit(SNAPSHOT_EVENT, snapshot) {
             log::warn!("mcp_host_emit_failed error={e}");
         }

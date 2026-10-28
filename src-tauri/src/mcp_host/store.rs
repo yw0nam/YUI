@@ -14,6 +14,8 @@ pub struct State {
 #[serde(rename_all = "lowercase")]
 pub enum Source {
     Local,
+    Official,
+    Community,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
