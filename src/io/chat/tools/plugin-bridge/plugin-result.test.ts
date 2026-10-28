@@ -29,6 +29,14 @@ describe("pluginToolResult", () => {
     expect(pluginToolResult(result)).toBe("error: boom");
   });
 
+  it("keeps a plugin error result's own error or unknown prefix", () => {
+    const error: PluginToolResult = { content: [{ type: "text", text: "error: x" }], isError: true };
+    const unknown: PluginToolResult = { content: [{ type: "text", text: "unknown: x" }], isError: true };
+
+    expect(pluginToolResult(error)).toBe("error: x");
+    expect(pluginToolResult(unknown)).toBe("unknown: x");
+  });
+
   it("puts a block of another kind in the text as JSON", () => {
     const result: PluginToolResult = {
       content: [{ type: "resource_link", uri: "file:///a" }],
