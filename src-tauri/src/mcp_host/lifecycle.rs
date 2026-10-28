@@ -39,8 +39,7 @@ impl LiveServer {
     }
 }
 
-/// The servers a stop takes: the running ones with their ids, and the leaders of those still
-/// starting.
+/// What a stop takes: running servers with their ids, and servers still starting.
 #[derive(Default)]
 pub struct Stopping {
     running: Vec<(String, Server)>,
@@ -147,8 +146,7 @@ impl Host {
         }
     }
 
-    /// Kills the trees of servers still starting, cancels the running servers' calls, then
-    /// stops those servers together.
+    /// Stops starting servers, cancels running servers' calls, then stops those together.
     pub(super) async fn stop(&self, stopping: Stopping) {
         for starting in stopping.starting {
             starting.stop();

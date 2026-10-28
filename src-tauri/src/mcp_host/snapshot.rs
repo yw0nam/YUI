@@ -99,8 +99,7 @@ pub struct ServerView<'a> {
     pub tools: &'a [Tool],
 }
 
-/// A plugin's entry before the conflict rule: its running servers' tools and, while it is
-/// enabled and consented, its skills.
+/// A plugin's entry before the conflict rule; skills only while enabled and consented.
 pub fn plugin_entry(
     plugin: &StoredPlugin,
     manifest: &Result<Manifest, String>,
@@ -148,8 +147,7 @@ pub fn plugin_entry(
     }
 }
 
-/// Moves every tool and skill name another holder keeps into the loser's `hidden`: built-in
-/// client tools first, then plugins in `enabled_seq` order, each in its own declared order.
+/// Hides each name another holder keeps: built-ins first, then plugins in `enabled_seq` order.
 pub fn resolve(plugins: &mut [PluginEntry]) {
     let builtin: Vec<String> = serde_json::from_str(include_str!(
         "../../../src/contract/builtin-client-tools.json"

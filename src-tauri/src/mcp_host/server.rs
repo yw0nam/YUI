@@ -119,8 +119,7 @@ impl Server {
         self.client.peer()
     }
 
-    /// Closes the connection, gives the server `EXIT_GRACE` to exit, then kills the whole
-    /// process tree.
+    /// Closes the connection, waits up to `EXIT_GRACE` for an exit, then kills the tree.
     pub async fn stop(mut self) {
         let exited = self.watch.is_finished();
         self.stopping.store(true, Ordering::SeqCst);
@@ -198,8 +197,7 @@ pub fn spawn(
     })
 }
 
-/// Initializes and lists tools under `deadline`; `on_exit` gets the reason when the server
-/// ends by itself after that.
+/// Initializes and lists tools under `deadline`; `on_exit` gets the reason of a later exit.
 pub async fn connect(
     spawned: Spawned,
     deadline: Duration,

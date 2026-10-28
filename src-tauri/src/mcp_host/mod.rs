@@ -25,8 +25,11 @@
 //!   server stops; each sends `notifications/cancelled`. A window cannot reuse the id of its
 //!   call still in flight.
 //! - **Stop.** Disable, retry and app exit cancel the server's calls, close its connection,
-//!   give it 1 s to exit, then kill its process tree; a server still starting has its tree
-//!   killed at once. At app start each enabled plugin starts as its own task.
+//!   give it 1 s to exit, then kill its process tree. On unix a server still starting has its
+//!   process group killed at once. On Windows a tree ends when the host drops its job object:
+//!   at the end of a stop, when the start of a server stopped while starting ends (at the
+//!   latest at the 30 s deadline), or when the app process exits. At app start each enabled
+//!   plugin starts as its own task.
 
 mod calls;
 pub mod commands;
