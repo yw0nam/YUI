@@ -1,7 +1,13 @@
 //! Runs a script in an ego lite task space through the installed `ego-browser` CLI.
 
+use crate::{script, shots};
+use std::collections::HashMap;
 use std::path::Path;
+use std::process::Stdio;
+use std::sync::Arc;
 use std::time::Duration;
+use tokio::io::AsyncWriteExt;
+use tokio::process::Command;
 
 pub const NOT_FOUND: &str = "ego lite not found: install ego lite and run it once";
 
@@ -37,7 +43,10 @@ pub struct RunOutcome {
 }
 
 #[derive(Default)]
-pub struct Relay {}
+pub struct Relay {
+    /// One lock per task-space name, held until that space's CLI exits and its screenshots are collected.
+    spaces: std::sync::Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
+}
 
 impl Relay {
     pub fn new() -> Self {
@@ -46,16 +55,108 @@ impl Relay {
 
     pub async fn run(
         &self,
-        _bin: &Path,
-        _space: &str,
-        _code: &str,
-        _limits: Limits,
+        bin: &Path,
+        space: &str,
+        code: &str,
+        limits: Limits,
     ) -> Result<RunOutcome, String> {
-        Ok(RunOutcome::default())
+        let lock = Arc::clone(
+            self.spaces
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .entry(space.to_string())
+                .or_default(),
+        );
+        let _held = lock.lock().await;
+        let dir = shots::create().map_err(|e| format!("screenshot folder failed: {e}"))?;
+        let result = spawn_script(bin, space, &dir, code, limits).await;
+        let shots = match result {
+            Ok(_) => shots::collect(dir.clone(), limits.image_cap, limits.long_edge).await,
+            Err(_) => shots::Collected::default(),
+        };
+        shots::remove(dir).await;
+        let (output, exit_code, killed) = match result? {
+            Some(out) => (out.stderr, out.status.code(), false),
+            None => (Vec::new(), None, true),
+        };
+        let output = String::from_utf8_lossy(&output).into_owned();
+        Ok(RunOutcome {
+            deadline: exit_code != Some(0) && script::names_deadline(&output),
+            output,
+            exit_code,
+            killed,
+            images: shots.images,
+            dropped: shots.dropped,
+            unreadable: shots.unreadable,
+        })
     }
 
-    pub async fn guide(&self, _bin: &Path, _kill_after: Duration) -> Result<String, String> {
-        Ok(String::new())
+    /// The installed CLI's guide (`ego-browser skill` stdout).
+    pub async fn guide(&self, bin: &Path, kill_after: Duration) -> Result<String, String> {
+        let child = Command::new(bin)
+            .arg("skill")
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .kill_on_drop(true)
+            .spawn()
+            .map_err(spawn_error)?;
+        let output = tokio::time::timeout(kill_after, child.wait_with_output())
+            .await
+            .map_err(|_| "ego-browser skill timed out".to_string())?
+            .map_err(|e| e.to_string())?;
+        if !output.status.success() {
+            return Err(format!(
+                "ego-browser skill failed: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ));
+        }
+        Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    }
+}
+
+/// The CLI's output, or `None` when it was killed at `limits.kill_after`.
+async fn spawn_script(
+    bin: &Path,
+    space: &str,
+    dir: &Path,
+    code: &str,
+    limits: Limits,
+) -> Result<Option<std::process::Output>, String> {
+    let mut child = Command::new(bin)
+        .arg("nodejs")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()
+        .map_err(spawn_error)?;
+    let script = script::build_script(space, dir, code, limits.deadline_ms);
+    let stdin = child.stdin.take();
+    let write = async move {
+        if let Some(mut stdin) = stdin {
+            // A CLI that exits before reading stdin still reports through its exit and stderr.
+            if let Err(e) = stdin.write_all(script.as_bytes()).await {
+                eprintln!("browser_stdin_failed error={e}");
+            }
+        }
+    };
+    // Drains stdout and stderr while stdin is written, so neither side waits on a full pipe.
+    let finished = async move { tokio::join!(write, child.wait_with_output()).1 };
+    match tokio::time::timeout(limits.kill_after, finished).await {
+        Ok(output) => output.map(Some).map_err(|e| e.to_string()),
+        Err(_) => {
+            eprintln!("browser_cli_killed space={space}");
+            Ok(None)
+        }
+    }
+}
+
+fn spawn_error(e: std::io::Error) -> String {
+    if e.kind() == std::io::ErrorKind::NotFound {
+        NOT_FOUND.to_string()
+    } else {
+        format!("ego-browser failed to start: {e}")
     }
 }
 
@@ -251,7 +352,11 @@ for (let i = 0; i < 6; i++) await screenshot(p);"#;
             .unwrap();
         assert_eq!(out.images.len(), 4, "output: {}", out.output);
         // Base64 of a JPEG starts with that of its FF D8 FF marker.
-        assert!(out.images[0].starts_with("/9j/"), "image: {}", out.images[0]);
+        assert!(
+            out.images[0].starts_with("/9j/"),
+            "image: {}",
+            out.images[0]
+        );
         assert_eq!(out.dropped, 2);
         assert!(!logged_shot_dir(&out.output).exists());
     }

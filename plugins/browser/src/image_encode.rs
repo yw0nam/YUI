@@ -1,18 +1,57 @@
 //! Image resize and base64 JPEG encode for screenshots.
 
-#[allow(unused_imports)]
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
-use image::{ImageBuffer, Rgba};
+use image::codecs::jpeg::JpegEncoder;
+use image::{DynamicImage, ImageBuffer, Rgba};
 
-pub fn fit_long_edge(_width: u32, _height: u32, _max_edge: u32) -> (u32, u32) {
-    (0, 0)
+/// JPEG quality used when encoding images (0–100).
+const JPEG_QUALITY: u8 = 72;
+
+/// The media type of what `encode_capture` returns.
+pub const MIME: &str = "image/jpeg";
+
+/// Scale `(width, height)` down so `max(w, h) ≤ max_edge`.
+///
+/// Returns the pair unchanged when already within bounds or when `max_edge == 0`.
+/// Never returns 0 for a non-zero input dimension.
+pub fn fit_long_edge(width: u32, height: u32, max_edge: u32) -> (u32, u32) {
+    if max_edge == 0 || (width <= max_edge && height <= max_edge) {
+        return (width, height);
+    }
+    let scale = max_edge as f64 / width.max(height) as f64;
+    let w = ((width as f64 * scale).round() as u32).max(1);
+    let h = ((height as f64 * scale).round() as u32).max(1);
+    (w, h)
 }
 
+/// Resize `raw` to long edge ≤ `max_edge`, encode as JPEG, return it base64-encoded.
+///
+/// `max_edge == 0` skips resize entirely.
 pub fn encode_capture(
-    _raw: ImageBuffer<Rgba<u8>, Vec<u8>>,
-    _max_edge: u32,
+    raw: ImageBuffer<Rgba<u8>, Vec<u8>>,
+    max_edge: u32,
 ) -> Result<String, String> {
-    Ok(String::new())
+    let src_w = raw.width();
+    let src_h = raw.height();
+    let (dst_w, dst_h) = fit_long_edge(src_w, src_h, max_edge);
+
+    let final_img: ImageBuffer<Rgba<u8>, Vec<u8>> = if (dst_w, dst_h) == (src_w, src_h) {
+        raw
+    } else {
+        image::imageops::resize(&raw, dst_w, dst_h, image::imageops::FilterType::Lanczos3)
+    };
+
+    let rgb = DynamicImage::ImageRgba8(final_img).to_rgb8();
+
+    let mut jpeg_bytes: Vec<u8> = Vec::new();
+    JpegEncoder::new_with_quality(&mut jpeg_bytes, JPEG_QUALITY)
+        .encode_image(&rgb)
+        .map_err(|e| {
+            eprintln!("jpeg_encoding_failed error={e}");
+            e.to_string()
+        })?;
+
+    Ok(B64.encode(&jpeg_bytes))
 }
 
 #[cfg(test)]

@@ -1,17 +1,23 @@
 //! The MCP server: one `browser` tool that runs code in the calling preset's task space.
 
-use crate::relay::Relay;
+use crate::relay::{Relay, LIMITS, NOT_FOUND};
+use crate::result::to_call_result;
+use crate::tool;
 use rmcp::model::{
-    CallToolRequestParams, CallToolResponse, CallToolResult, ServerCapabilities, ServerConfig,
+    CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, Implementation,
+    JsonObject, ListToolsResult, PaginatedRequestParams, ServerCapabilities, ServerConfig,
 };
 use rmcp::service::RequestContext;
 use rmcp::{ErrorData, RoleServer, ServerHandler};
+use serde_json::Value;
 use std::path::PathBuf;
 
+const PRESET_KEY: &str = "io.github.yw0nam.yui/preset";
+
 pub struct BrowserServer {
-    #[allow(dead_code)]
+    /// One relay per process, so its per-space lock covers concurrent calls.
     relay: Relay,
-    #[allow(dead_code)]
+    /// Finds the `ego-browser` CLI, once per call.
     locate: fn() -> Option<PathBuf>,
 }
 
@@ -22,19 +28,69 @@ impl BrowserServer {
             locate,
         }
     }
+
+    /// Checks arguments in the order the built-in tool does, then reads the guide or runs the code.
+    async fn answer(&self, space: &str, args: &JsonObject) -> CallToolResult {
+        let code = args.get("code");
+        if args.get("guide") == Some(&Value::Bool(true)) {
+            if code.is_some_and(|c| *c != "") {
+                return failed("error: invalid field code".into());
+            }
+            let Some(bin) = (self.locate)() else {
+                return failed(NOT_FOUND.into());
+            };
+            return match self.relay.guide(&bin, LIMITS.kill_after).await {
+                Ok(guide) => CallToolResult::success(vec![ContentBlock::text(guide)]),
+                Err(e) => failed(e),
+            };
+        }
+        let Some(code) = code.and_then(Value::as_str).filter(|c| !c.is_empty()) else {
+            return failed("error: missing field code".into());
+        };
+        let Some(bin) = (self.locate)() else {
+            return failed(NOT_FOUND.into());
+        };
+        self.relay
+            .run(&bin, space, code, LIMITS)
+            .await
+            .map_or_else(failed, to_call_result)
+    }
+}
+
+fn failed(text: String) -> CallToolResult {
+    CallToolResult::error(vec![ContentBlock::text(text)])
 }
 
 impl ServerHandler for BrowserServer {
     fn get_info(&self) -> ServerConfig {
-        ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
+        ServerConfig::new(ServerCapabilities::builder().enable_tools().build()).with_server_info(
+            Implementation::new(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")),
+        )
+    }
+
+    async fn list_tools(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ListToolsResult, ErrorData> {
+        Ok(ListToolsResult::with_all_items(vec![tool::tool()]))
     }
 
     async fn call_tool(
         &self,
-        _request: CallToolRequestParams,
-        _context: RequestContext<RoleServer>,
+        request: CallToolRequestParams,
+        context: RequestContext<RoleServer>,
     ) -> Result<CallToolResponse, ErrorData> {
-        Ok(CallToolResult::success(vec![]).into())
+        if request.name != tool::NAME {
+            return Err(ErrorData::invalid_params("tool not found", None));
+        }
+        let preset = context.meta.get(PRESET_KEY).and_then(Value::as_str);
+        let space = match preset {
+            Some(p) if !p.is_empty() => format!("yui-{p}"),
+            _ => "yui".to_string(),
+        };
+        let args = request.arguments.unwrap_or_default();
+        Ok(self.answer(&space, &args).await.into())
     }
 }
 
@@ -68,8 +124,8 @@ mod tests {
         args: Value,
         meta: Option<Value>,
     ) -> CallToolResult {
-        let mut params = CallToolRequestParams::new("browser")
-            .with_arguments(args.as_object().unwrap().clone());
+        let mut params =
+            CallToolRequestParams::new("browser").with_arguments(args.as_object().unwrap().clone());
         params.meta = meta.map(|m| serde_json::from_value(m).unwrap());
         client.call_tool(params).await.unwrap()
     }
@@ -130,7 +186,10 @@ mod tests {
     async fn bad_arguments_answer_with_a_tool_error() {
         let client = connect(with_fake_ego).await;
         let cases = [
-            (json!({"guide": true, "code": "x"}), "error: invalid field code"),
+            (
+                json!({"guide": true, "code": "x"}),
+                "error: invalid field code",
+            ),
             (json!({}), "error: missing field code"),
             (json!({"code": ""}), "error: missing field code"),
             (json!({"guide": false}), "error: missing field code"),

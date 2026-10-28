@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "browser": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/browser"
+    }
+  }
+}
