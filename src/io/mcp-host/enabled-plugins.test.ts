@@ -1,10 +1,10 @@
 /**
- * plugin-catalog.test.ts — the enabled plugins' tools and skills, read for the per-turn lines.
+ * enabled-plugins.test.ts — the enabled plugins' tools and skills, read for the per-turn lines.
  */
 
 import { describe, expect, it } from "vitest";
+import { findPluginTool, pluginLines } from "./enabled-plugins";
 import type { PluginHostSnapshot, PluginHostTool } from "./mcp-host";
-import { findPluginTool, pluginCatalog } from "./plugin-catalog";
 
 const TOOL = (over: Partial<PluginHostTool> = {}): PluginHostTool => ({
   name: "echo_args",
@@ -21,7 +21,7 @@ const SNAPSHOT = (over: Partial<PluginHostSnapshot> = {}): PluginHostSnapshot =>
   ...over,
 });
 
-describe("pluginCatalog", () => {
+describe("pluginLines", () => {
   it("prefers the tool's meta summary over its description", () => {
     const snapshot = SNAPSHOT({
       plugins: [
@@ -39,7 +39,7 @@ describe("pluginCatalog", () => {
       ],
     });
 
-    expect(pluginCatalog(snapshot).tools).toEqual([{ name: "echo_args", summary: "Echo argv." }]);
+    expect(pluginLines(snapshot).tools).toEqual([{ name: "echo_args", summary: "Echo argv." }]);
   });
 
   it("takes the first sentence of the description's first paragraph", () => {
@@ -58,7 +58,7 @@ describe("pluginCatalog", () => {
       ],
     });
 
-    expect(pluginCatalog(snapshot).tools[0]?.summary).toBe(
+    expect(pluginLines(snapshot).tools[0]?.summary).toBe(
       "Look up the weather forecast for a city.",
     );
   });
@@ -75,7 +75,7 @@ describe("pluginCatalog", () => {
       ],
     });
 
-    expect(pluginCatalog(snapshot).tools[0]?.summary).toBe("Look up the weather for a city.");
+    expect(pluginLines(snapshot).tools[0]?.summary).toBe("Look up the weather for a city.");
   });
 
   it("leaves out a disabled plugin's tools and skills", () => {
@@ -96,7 +96,7 @@ describe("pluginCatalog", () => {
       ],
     });
 
-    expect(pluginCatalog(snapshot)).toEqual({
+    expect(pluginLines(snapshot)).toEqual({
       tools: [{ name: "echo_args", summary: "" }],
       skills: [{ name: "hello", description: "Says hello." }],
     });
@@ -114,7 +114,7 @@ describe("pluginCatalog", () => {
       ],
     });
 
-    expect(pluginCatalog(snapshot).tools[0]?.summary).toBe("a".repeat(100));
+    expect(pluginLines(snapshot).tools[0]?.summary).toBe("a".repeat(100));
   });
 });
 

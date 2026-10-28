@@ -6,7 +6,7 @@ import type { PluginHostSnapshot, PluginHostTool } from "./mcp-host";
 const SUMMARY_META = "io.github.yw0nam.yui/summary";
 const SUMMARY_MAX = 100;
 
-export interface PluginCatalog {
+export interface PluginLines {
   tools: Array<{ name: string; summary: string }>;
   skills: Array<{ name: string; description: string }>;
 }
@@ -22,7 +22,7 @@ function summaryOf(tool: PluginHostTool): string {
 }
 
 /** The enabled plugins' tools and skills, in snapshot order. */
-export function pluginCatalog(snapshot: PluginHostSnapshot | null): PluginCatalog {
+export function pluginLines(snapshot: PluginHostSnapshot | null): PluginLines {
   const plugins = snapshot?.plugins.filter((plugin) => plugin.enabled) ?? [];
   return {
     tools: plugins.flatMap((plugin) =>

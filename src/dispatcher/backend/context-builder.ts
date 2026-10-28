@@ -9,7 +9,7 @@ import type {
 } from "../../contract";
 import type { OverheardBlock } from "../../io/chat/conversation/overheard/overheard-reader";
 import { isGuideKey } from "../../io/guide/guide-docs";
-import type { PluginCatalog } from "../../io/mcp-host/plugin-catalog";
+import type { PluginLines } from "../../io/mcp-host/enabled-plugins";
 import { ADDRESSED_EVENT, mentionOf } from "../core/classify";
 import type { BusEnvelope } from "../core/event-bus";
 
@@ -30,7 +30,7 @@ interface ContextProviders {
   /** The other open presets' names, read once per turn. */
   getOpenCharacters?: () => string[];
   /** The enabled plugins' tools and skills, read once per turn. */
-  getPluginCatalog?: () => PluginCatalog;
+  getPluginLines?: () => PluginLines;
 }
 
 interface BuiltContext {
@@ -276,7 +276,7 @@ export async function buildContext(
   const overheard = providers.getOverheard?.() ?? [];
   const relations = providers.getRelations?.();
   const openCharacters = providers.getOpenCharacters?.();
-  const catalog = providers.getPluginCatalog?.();
+  const lines = providers.getPluginLines?.();
   const clientContext = {
     ...buildClientContext(
       ctx,
@@ -292,8 +292,8 @@ export async function buildContext(
       : {}),
     ...(relations?.length ? { relations } : {}),
     ...(openCharacters?.length ? { open_characters: openCharacters } : {}),
-    ...(catalog?.tools.length ? { plugin_tools: catalog.tools } : {}),
-    ...(catalog?.skills.length ? { plugin_skills: catalog.skills } : {}),
+    ...(lines?.tools.length ? { plugin_tools: lines.tools } : {}),
+    ...(lines?.skills.length ? { plugin_skills: lines.skills } : {}),
   };
 
   return { ctx, clientContext, overheard };

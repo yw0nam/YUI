@@ -174,11 +174,11 @@ describe("context builder — open characters", () => {
   });
 });
 
-describe("context builder — plugin catalog", () => {
+describe("context builder — plugin lines", () => {
   it.each([
     {
       name: "a provider with one tool and one skill sets both fields",
-      catalog: {
+      lines: {
         tools: [{ name: "echo_args", summary: "Echo argv." }],
         skills: [{ name: "hello", description: "Says hello." }],
       },
@@ -186,14 +186,14 @@ describe("context builder — plugin catalog", () => {
     },
     {
       name: "a provider with empty lists sets neither field",
-      catalog: { tools: [], skills: [] },
+      lines: { tools: [], skills: [] },
       sets: false,
     },
-  ])("$name", async ({ catalog, sets }) => {
-    const built = await buildContext(ENV, { getPluginCatalog: () => catalog });
+  ])("$name", async ({ lines, sets }) => {
+    const built = await buildContext(ENV, { getPluginLines: () => lines });
 
-    expect(built.clientContext.plugin_tools).toEqual(sets ? catalog.tools : undefined);
-    expect(built.clientContext.plugin_skills).toEqual(sets ? catalog.skills : undefined);
+    expect(built.clientContext.plugin_tools).toEqual(sets ? lines.tools : undefined);
+    expect(built.clientContext.plugin_skills).toEqual(sets ? lines.skills : undefined);
   });
 });
 

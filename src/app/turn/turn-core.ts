@@ -118,7 +118,7 @@ export async function wireTurnCore(
     /** The tools beside generate_express, declared on every transport; none outside Tauri. */
     windowTools?: readonly ClientTool[];
     /** The enabled plugins' tools and skills for the per-turn lines; none outside Tauri. */
-    getPluginCatalog?: DispatcherDeps["getPluginCatalog"];
+    getPluginLines?: DispatcherDeps["getPluginLines"];
     /** A turn is over — the over edge, or the next begin displacing it. */
     onTurnClosed?: DispatcherDeps["onTurnClosed"];
     /** The preset a turn's reply was addressed to, recorded on its transcript entry. */
@@ -231,7 +231,7 @@ export async function wireTurnCore(
     screenshotSettings: settings.screenshotSettings,
     screenCapturer: deps.screenCapturer,
     getFrontmost: deps.getFrontmost,
-    getPluginCatalog: deps.getPluginCatalog,
+    getPluginLines: deps.getPluginLines,
     takeMessageWake: deps.takeMessageWake,
     isBodyHeld: bedSceneHold?.isHeld,
     voice,

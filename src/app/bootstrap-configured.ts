@@ -16,8 +16,8 @@ import type {
 } from "../io/bridge/settings-bridge";
 import type { ClientTool } from "../io/chat/tools/client-tools";
 import { createPetWindowTools } from "../io/chat/tools/pet-window-tools";
+import { pluginLines } from "../io/mcp-host/enabled-plugins";
 import { createMcpHost } from "../io/mcp-host/mcp-host";
-import { pluginCatalog } from "../io/mcp-host/plugin-catalog";
 import type { ScreenCapturer } from "../io/window/capture/screen-source-provider";
 import { createFrontmostTracker } from "../io/window/frontmost-tracker";
 import { createUnifiedWindowController } from "../io/window/openers/unified-window";
@@ -215,7 +215,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       screenCapturer: phase1.screenCapturer,
       openSettings: phase1.openSettings,
       windowTools,
-      getPluginCatalog: () => pluginCatalog(mcpHost.snapshot()),
+      getPluginLines: () => pluginLines(mcpHost.snapshot()),
       onTurnClosed: userTurnDone.onTurnClosed,
       addressedTo: addressed.targetOf,
       voicePersistence: {

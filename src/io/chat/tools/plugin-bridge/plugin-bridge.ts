@@ -1,7 +1,7 @@
 /** The bridge tools: plugin_describe, plugin_call and plugin_skill over the MCP host. */
 
+import { findPluginTool } from "../../../mcp-host/enabled-plugins";
 import type { McpHost } from "../../../mcp-host/mcp-host";
-import { findPluginTool } from "../../../mcp-host/plugin-catalog";
 import { type ClientTool, TURN_STOPPED } from "../client-tools";
 import { firstViolation } from "./first-violation";
 import { pluginToolResult } from "./plugin-result";
