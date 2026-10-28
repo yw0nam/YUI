@@ -106,3 +106,11 @@ pub fn slow_call(
             .await
     })
 }
+
+/// The fixture server logged a `notifications/cancelled` it received.
+pub fn server_logged_a_cancel(host: &Host) -> bool {
+    host.log_tail("yui-test")
+        .unwrap()
+        .iter()
+        .any(|l| l.starts_with("[main] cancelled id="))
+}

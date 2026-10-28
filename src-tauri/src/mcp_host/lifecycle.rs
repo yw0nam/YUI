@@ -176,3 +176,30 @@ impl Host {
         self.publish(&mut inner);
     }
 }
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::super::test_support::{
+        eventually, require_python, running, server_logged_a_cancel, slow_call,
+    };
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn disabling_a_plugin_cancels_its_calls_before_the_server_stops() {
+        require_python();
+        let host = running("yui-test").await;
+        let call = slow_call(&host, "pet-a", "c1");
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        host.disable("yui-test").await.unwrap();
+        let ended = tokio::time::timeout(Duration::from_secs(1), call).await;
+        assert_eq!(
+            ended.unwrap().unwrap(),
+            Err("plugin tool cancelled".to_string())
+        );
+        assert!(
+            eventually(|| server_logged_a_cancel(&host)).await,
+            "{:?}",
+            host.log_tail("yui-test")
+        );
+    }
+}

@@ -150,7 +150,9 @@ async fn notify_cancelled(
 
 #[cfg(all(test, unix))]
 mod tests {
-    use super::super::test_support::{eventually, require_python, running, slow_call};
+    use super::super::test_support::{
+        eventually, require_python, running, server_logged_a_cancel, slow_call,
+    };
     use serde_json::{json, Value};
     use std::time::Duration;
 
@@ -186,14 +188,8 @@ mod tests {
             took >= Duration::from_millis(1500) && took < Duration::from_secs(5),
             "{took:?}"
         );
-        let cancelled = || {
-            host.log_tail("yui-test")
-                .unwrap()
-                .iter()
-                .any(|l| l.starts_with("[main] cancelled id="))
-        };
         assert!(
-            eventually(cancelled).await,
+            eventually(|| server_logged_a_cancel(&host)).await,
             "{:?}",
             host.log_tail("yui-test")
         );
@@ -214,6 +210,11 @@ mod tests {
         assert_eq!(
             ended.unwrap().unwrap(),
             Err("plugin tool cancelled".to_string())
+        );
+        assert!(
+            eventually(|| server_logged_a_cancel(&host)).await,
+            "{:?}",
+            host.log_tail("yui-test")
         );
 
         let (second, third, other) = (
