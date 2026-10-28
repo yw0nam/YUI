@@ -61,6 +61,54 @@ describe("createMcpHost", () => {
     expect(host.snapshot()?.revision).toBe(7);
   });
 
+  it("keeps the newest snapshot when an event arrives before the read resolves", async () => {
+    const events = { emit: (_payload: PluginHostSnapshot) => {} };
+    const read = { resolve: (_snapshot: PluginHostSnapshot) => {} };
+    mocks.listen.mockImplementation(
+      async (_event: string, handler: (e: { payload: PluginHostSnapshot }) => void) => {
+        events.emit = (payload) => handler({ payload });
+        return () => {};
+      },
+    );
+    mocks.invoke.mockImplementation((command: string) =>
+      command === "plugin_host_snapshot"
+        ? new Promise<PluginHostSnapshot>((resolve) => {
+            read.resolve = resolve;
+          })
+        : Promise.resolve(undefined),
+    );
+    const host = createMcpHost();
+
+    events.emit(SNAPSHOT(7));
+    await vi.waitFor(() => expect(read.resolve).toBeDefined());
+    read.resolve(SNAPSHOT(5));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(host.snapshot()?.revision).toBe(7);
+  });
+
+  it("reads the snapshot only after the subscription is registered", async () => {
+    const gate = { open: () => {} };
+    mocks.listen.mockImplementation(
+      async (_event: string, _handler: (e: { payload: PluginHostSnapshot }) => void) =>
+        new Promise<() => void>((resolve) => {
+          gate.open = () => resolve(() => {});
+        }),
+    );
+    mocks.invoke.mockImplementation((command: string) =>
+      command === "plugin_host_snapshot"
+        ? Promise.resolve(SNAPSHOT(1))
+        : Promise.resolve(undefined),
+    );
+    createMcpHost();
+    await vi.waitFor(() => expect(mocks.listen).toHaveBeenCalled());
+
+    expect(mocks.invoke).not.toHaveBeenCalled();
+
+    gate.open();
+    await vi.waitFor(() => expect(mocks.invoke).toHaveBeenCalledWith("plugin_host_snapshot"));
+  });
+
   it("calls a plugin tool through the host", async () => {
     mockHost(1);
     const host = createMcpHost();
