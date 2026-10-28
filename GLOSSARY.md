@@ -128,12 +128,16 @@ The pill beside the avatar for one signal group, with a details sheet on tap and
 ### Plugins and tools
 
 **Plugin**:
-The install unit: one folder with a `.claude-plugin/plugin.json` manifest and the components it bundles, installed from the marketplace (yui-notify) or attached through the backend agent's MCP configuration (factorio). Alone, the word means only this; a Tauri plugin and a Hermes plugin are named with their ecosystem.
+The install unit: one folder with a `.claude-plugin/plugin.json` manifest and the components it bundles, installed from the marketplace (yui-notify), attached through the backend agent's MCP configuration (factorio), or installed by YUI from the Catalog (browser) or added from a folder. Alone, the word means only this; a Tauri plugin and a Hermes plugin are named with their ecosystem.
 _Avoid_: mod, add-on, extension
 
 **Marketplace**:
 The list of installable plugins in `.claude-plugin/marketplace.json` at the repository root, named `yui`.
 _Avoid_: registry, index
+
+**Catalog**:
+`plugins/catalog.json` on main, the list of plugins YUI installs: official plugins with a release asset and sha256 per platform, and community plugins by their GitHub repo.
+_Avoid_: registry, store, index
 
 **MCP server**:
 A standalone process that offers tools over MCP (the factorio server in `plugins/factorio/`, a plugin's `.mcp.json` server). Not part of the app runtime: the backend agent or the MCP host runs it as its own process.

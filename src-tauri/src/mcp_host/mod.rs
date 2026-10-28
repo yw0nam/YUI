@@ -1,5 +1,5 @@
-//! The MCP host: runs the MCP servers of local plugins as YUI-hosted servers and answers the
-//! webview's tool calls and skill reads.
+//! The MCP host: installs Catalog plugins, runs the MCP servers of local and Catalog plugins as
+//! YUI-hosted servers, and answers the webview's tool calls and skill reads.
 //!
 //! - **State.** `<app_data>/plugins/state.json` lists each plugin's id, folder, enablement,
 //!   the folder the user consented to, and the order plugins were enabled in. It is written to
@@ -8,7 +8,17 @@
 //!   every managing command fails, so stored enablement is never overwritten. Without an app
 //!   data dir the host behaves the same way.
 //! - **Consent.** A plugin runs only when it is enabled and its folder is the one consented to;
-//!   enabling consents to the current folder.
+//!   enabling consents to the current folder. An official update moves a held consent to the new
+//!   folder; a community update clears it, so the user is asked again.
+//! - **Catalog.** The Catalog is fetched from `plugins/catalog.json` on main; a verify build reads
+//!   `YUI_PLUGIN_CATALOG_URL` instead. Install downloads this platform's release zip, checks its
+//!   sha256 (the catalog's for an official plugin, the release's `checksums.txt` for a community
+//!   one), and unpacks it into `<app_data>/plugins/installed/<id>/<version>/` after checking the
+//!   plugin id and version it holds. An update prepares the new folder first, then stops the old
+//!   servers, switches the stored path, deletes the old folder, and starts the servers again when
+//!   consent holds; while the old servers stop, enable and retry of that plugin are refused.
+//!   Remove stops the servers, unlists the plugin, and deletes `<app_data>/plugins/data/<id>/`
+//!   and, for a Catalog plugin, `installed/<id>/`; a local plugin's folder and the logs stay.
 //! - **Servers.** Each `.mcp.json` server is spawned without a shell, in the plugin folder, with
 //!   `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PLUGIN_DATA}` (`<app_data>/plugins/data/<id>/`)
 //!   expanded, in its own process group (a job object on Windows). Spawn, `initialize` and
