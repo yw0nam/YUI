@@ -294,30 +294,6 @@ function fakePipelineBusy(initialBusy: boolean): {
 }
 
 describe("signals_source — pipeline-busy buffering (spec §2b/#451)", () => {
-  it("present + busy: inbox arrival buffers (nothing fired)", async () => {
-    const { bus, pushed } = fakeBus();
-    const { listen, emit: emitIdle } = fakeListen();
-    const { onInbox, emit: emitInbox } = fakeInbox();
-    const pipelineBusy = fakePipelineBusy(true);
-
-    const src = createSignalsSource({
-      bus,
-      present_max_idle_ms: PRESENT_MAX,
-      isEnabled: () => true,
-      onInbox,
-      listen,
-      isPipelineBusy: pipelineBusy.isPipelineBusy,
-      subscribePipelineBusy: pipelineBusy.subscribePipelineBusy,
-    });
-    await src.start();
-
-    emitIdle(idleTick(LOW_IDLE)); // present
-    emitInbox(batch([{ id: 1 }], 1000));
-    expect(pushed).toHaveLength(0);
-
-    src.stop();
-  });
-
   it("busy→idle edge (subscribePipelineBusy callback fires false) flushes ONE signals.catchup in arrival order, buffer cleared", async () => {
     const { bus, pushed } = fakeBus();
     const { listen, emit: emitIdle } = fakeListen();
@@ -385,6 +361,9 @@ function fakePacer(holding: boolean): {
 }
 
 describe("signals_source — global pacer composed into the busy predicate (#689)", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
   function startPaced() {
     const { bus, pushed } = fakeBus();
     const { listen, emit: emitIdle } = fakeListen();
@@ -411,12 +390,13 @@ describe("signals_source — global pacer composed into the busy predicate (#689
     return { pushed, emitIdle, emitInbox, pacer, src };
   }
 
-  it("buffers an arrival while the pacer holds, though the pipeline itself is idle", async () => {
+  it("holds the batch timer while the pacer holds, though the pipeline itself is idle", async () => {
     const s = startPaced();
     await s.src.start();
 
     s.emitIdle(idleTick(LOW_IDLE)); // present
     s.emitInbox(batch([{ id: 1 }], 1000));
+    await vi.advanceTimersByTimeAsync(300_000);
 
     expect(s.pushed).toHaveLength(0);
     s.src.stop();
@@ -720,8 +700,7 @@ describe("signals_source — delivery envelopes", () => {
     const s = setup({ busy });
     await s.src.start();
     s.emitIdle(idleTick(LOW_IDLE));
-    const envelope = { ...ENVELOPE, delivery: "batched" as const };
-    s.emitInbox(batch([{ id: 1 }], 1, envelope));
+    s.emitInbox(batch([{ id: 1 }], 1, ENVELOPE));
 
     await vi.advanceTimersByTimeAsync(300_000);
     expect(s.pushed).toEqual([]);
@@ -731,14 +710,14 @@ describe("signals_source — delivery envelopes", () => {
     busy.setBusy(false);
     expect(s.pushed).toHaveLength(1);
     expect(s.pushed[0]!.event_name).toBe("signals.catchup");
-    expect(s.pushed[0]!.payload!.signals).toEqual([{ envelope, items: [{ id: 1 }] }]);
+    expect(s.pushed[0]!.payload!.signals).toEqual([{ envelope: ENVELOPE, items: [{ id: 1 }] }]);
   });
 
   it("a batched group arriving away joins catch-up before its deadline", async () => {
     const s = setup();
     await s.src.start();
     s.emitIdle(idleTick(HIGH_IDLE));
-    s.emitInbox(batch([{ id: 1 }], 1, { ...ENVELOPE, delivery: "batched" }));
+    s.emitInbox(batch([{ id: 1 }], 1, ENVELOPE));
     await vi.advanceTimersByTimeAsync(10_000);
     s.emitIdle(idleTick(LOW_IDLE));
     expect(s.pushed.map((e) => e.event_name)).toEqual(["signals.catchup"]);
@@ -770,32 +749,18 @@ describe("signals_source — delivery envelopes", () => {
     ]);
   });
 
-  it("a repeated event id replaces the buffered group in the batch buffer", async () => {
-    const s = setup();
-    await s.src.start();
-    s.emitIdle(idleTick(HIGH_IDLE));
-    s.emitInbox(batch([{ id: 1 }], 1, envelopeOf(1)));
-    s.emitInbox(batch([{ id: 2 }], 2, envelopeOf(2)));
-    s.emitInbox(batch([{ id: 3 }], 3, envelopeOf(1)));
-    expect(s.src.drain()).toEqual([
-      { envelope: envelopeOf(1), items: [{ id: 3 }] },
-      { envelope: envelopeOf(2), items: [{ id: 2 }] },
-    ]);
-  });
-
-  it("a repeated event id replaces the buffered group in the batched buffer, keeping its position", async () => {
+  it("a repeated event id replaces the buffered group in place, keeping its position", async () => {
     const s = setup();
     await s.src.start();
     s.emitIdle(idleTick(LOW_IDLE));
-    const batched = { ...ENVELOPE, delivery: "batched" as const };
-    s.emitInbox(batch([{ id: 1 }], 1, { ...batched, event_id: "a" }));
-    s.emitInbox(batch([{ id: 2 }], 2, { ...batched, event_id: "b" }));
-    s.emitInbox(batch([{ id: 3 }], 3, { ...batched, event_id: "a" }));
+    s.emitInbox(batch([{ id: 1 }], 1, { ...ENVELOPE, event_id: "a" }));
+    s.emitInbox(batch([{ id: 2 }], 2, { ...ENVELOPE, event_id: "b" }));
+    s.emitInbox(batch([{ id: 3 }], 3, { ...ENVELOPE, event_id: "a" }));
     await vi.advanceTimersByTimeAsync(300_000);
     expect(s.pushed[0]!.event_name).toBe("signals.batch");
     expect(s.pushed[0]!.payload!.signals).toEqual([
-      { envelope: { ...batched, event_id: "a" }, items: [{ id: 3 }] },
-      { envelope: { ...batched, event_id: "b" }, items: [{ id: 2 }] },
+      { envelope: { ...ENVELOPE, event_id: "a" }, items: [{ id: 3 }] },
+      { envelope: { ...ENVELOPE, event_id: "b" }, items: [{ id: 2 }] },
     ]);
   });
 
@@ -846,9 +811,8 @@ describe("signals_source — delivery envelopes", () => {
     const s = setup();
     await s.src.start();
     s.emitIdle(idleTick(LOW_IDLE));
-    const batched = { ...ENVELOPE, delivery: "batched" as const };
     for (let id = 8; id <= 14; id++) {
-      s.emitInbox(batch([{ id }], id, { ...batched, event_id: `run-${id}` }));
+      s.emitInbox(batch([{ id }], id, { ...ENVELOPE, event_id: `run-${id}` }));
       await vi.advanceTimersByTimeAsync(1_000);
     }
     await vi.advanceTimersByTimeAsync(292_999);
@@ -865,7 +829,7 @@ describe("signals_source — delivery envelopes", () => {
     await s.src.start();
     s.emitIdle(idleTick(HIGH_IDLE));
     s.emitInbox(batch([{ id: 1 }], 1, envelopeOf(1)));
-    s.emitInbox(batch([{ id: 2 }], 2, { ...ENVELOPE, delivery: "batched" }));
+    s.emitInbox(batch([{ id: 2 }], 2, ENVELOPE));
     s.emitInbox(batch([{ id: 3 }], 3, envelopeOf(3)));
     expect(s.src.drain().map((g) => g.items[0])).toEqual([{ id: 1 }, { id: 2 }, { id: 3 }]);
     s.emitIdle(idleTick(LOW_IDLE));
@@ -878,7 +842,7 @@ describe("signals_source — delivery envelopes", () => {
     const s = setup({ enabled: () => enabled });
     await s.src.start();
     s.emitIdle(idleTick(LOW_IDLE));
-    s.emitInbox(batch([{ id: 1 }], 1, { ...ENVELOPE, delivery: "batched" }));
+    s.emitInbox(batch([{ id: 1 }], 1, ENVELOPE));
     enabled = false;
     await vi.advanceTimersByTimeAsync(300_000);
     expect(s.pushed).toEqual([]);
@@ -893,7 +857,7 @@ describe("signals_source — delivery envelopes", () => {
     const s = setup();
     await s.src.start();
     s.emitIdle(idleTick(LOW_IDLE));
-    s.emitInbox(batch([{ id: 1 }], 1, { ...ENVELOPE, delivery: "batched" }));
+    s.emitInbox(batch([{ id: 1 }], 1, ENVELOPE));
     s.src.stop();
     await vi.advanceTimersByTimeAsync(300_000);
     expect(s.pushed).toEqual([]);
