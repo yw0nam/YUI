@@ -610,6 +610,7 @@ YUI/
         signal-chips.ts              # One pill per signal group beside the avatar, above the delegation chip
         signal-chips-model.ts        # The signal groups beside the avatar, newest first, in memory only
         signal-details.ts            # One signal group's source line, kind, label, time, what YUI said, and its raw items
+        fit-sheet.ts                 # Keeps the details sheet inside the window: lift, then cap and scroll
         status-pill.css              # Status-pill styles
         delegation-chip.css          # Delegation-chip pill, list popover, and folded-dot styles
         delegation-rows.css          # Delegation row styles shared by the chip's list and the settings panel
