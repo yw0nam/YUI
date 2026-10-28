@@ -1,5 +1,21 @@
 {
   "schema": 1,
-  "official": [],
+  "official": [
+    {
+      "id": "probe",
+      "version": "0.0.0",
+      "summary": "Throwaway plugin that proves the plugin release workflow.",
+      "assets": {
+        "darwin-arm64": {
+          "url": "https://github.com/yw0nam/YUI/releases/download/plugin-probe-v0.0.0/probe-0.0.0-darwin-arm64.zip",
+          "sha256": "c6aa05e51e5b51ff2c5bc9027c366047e4314262de33c1d5a88ffb9388ae6ff8"
+        },
+        "windows-x64": {
+          "url": "https://github.com/yw0nam/YUI/releases/download/plugin-probe-v0.0.0/probe-0.0.0-windows-x64.zip",
+          "sha256": "64dd0fa60f8341fcdd08f5344e5b618343a1196d4c3ec2bd664d825ee11ee876"
+        }
+      }
+    }
+  ],
   "community": []
 }
