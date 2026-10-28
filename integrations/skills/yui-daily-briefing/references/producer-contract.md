@@ -91,10 +91,11 @@ sources:
 1. The front matter is YAML. Every string value is a JSON-encoded double-quoted string.
    `sources` holds one flow mapping per source, or reads `sources: []`.
 2. The body opens with the summary as a heading, then one numbered item per ref: a link
-   line, a `kind · at` line, a `figure:` line when the ref has a figure, an `image:` line
-   when it has an image, and an excerpt line when the excerpt carries text.
-3. A title escapes `[`, `]`, and `\`. A url sits inside `<…>`, with whitespace, `<`,
-   `>`, and `\` percent-encoded.
+   line, a `kind · at` line, a `figure: <value> · <label>` line when the ref has a figure,
+   an `image: <<url>>` line when it has an image, and an excerpt line when the excerpt
+   carries text.
+3. A title escapes `[`, `]`, and `\`. A url, the link's and the image's, sits inside
+   `<…>`, with whitespace, `<`, `>`, and `\` percent-encoded.
 
 Each source has at most one unspoken briefing per day. A run replaces it, whether it is
 `<source>.md` or a stamped file. When every briefing of that source and day is spoken, the

@@ -126,6 +126,7 @@ def failed(source, error):
 def render(briefing, source, date, now_iso):
     # JSON strings are valid YAML double-quoted scalars.
     q = lambda value: json.dumps(value, ensure_ascii=False)
+    encode = lambda url: re.sub(r"[\s<>\\]", lambda match: urllib.parse.quote(match.group()), url)
     lines = ["---", f"source: {q(source)}", f"date: {q(date)}", f"generated_at: {q(now_iso)}",
              f"summary: {q(briefing['summary'])}", "sources:" if briefing["sources"] else "sources: []"]
     for entry in briefing["sources"]:
@@ -133,7 +134,6 @@ def render(briefing, source, date, now_iso):
     lines += ["---", "", f"# {briefing['summary']}", ""]
     for number, ref in enumerate(briefing["refs"], 1):
         title = re.sub(r"([\[\]\\])", r"\\\1", ref["title"])
-        encode = lambda url: re.sub(r"[\s<>\\]", lambda match: urllib.parse.quote(match.group()), url)
         url = encode(ref["url"])
         lines += [f"{number}. [{title}](<{url}>)", f"   {ref['kind']} · {ref['at']}"]
         if "figure" in ref:
