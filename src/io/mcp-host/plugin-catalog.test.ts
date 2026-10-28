@@ -42,7 +42,7 @@ describe("pluginCatalog", () => {
     expect(pluginCatalog(snapshot).tools).toEqual([{ name: "echo_args", summary: "Echo argv." }]);
   });
 
-  it("takes the first sentence of the description's first line", () => {
+  it("takes the first sentence of the description's first paragraph", () => {
     const snapshot = SNAPSHOT({
       plugins: [
         {
@@ -61,6 +61,21 @@ describe("pluginCatalog", () => {
     expect(pluginCatalog(snapshot).tools[0]?.summary).toBe(
       "Look up the weather forecast for a city.",
     );
+  });
+
+  it("joins a hard-wrapped description into one paragraph", () => {
+    const snapshot = SNAPSHOT({
+      plugins: [
+        {
+          id: "p1",
+          enabled: true,
+          tools: [TOOL({ description: "Look up the weather\nfor a city. Returns JSON." })],
+          skills: [],
+        },
+      ],
+    });
+
+    expect(pluginCatalog(snapshot).tools[0]?.summary).toBe("Look up the weather for a city.");
   });
 
   it("leaves out a disabled plugin's tools and skills", () => {
