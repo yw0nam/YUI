@@ -158,6 +158,38 @@ describe("createPluginsPage", () => {
     );
   });
 
+  it("shows the failed panel when a server fails after enable has resolved", async () => {
+    const fresh = plugin({
+      id: "calendar-ics",
+      enabled: false,
+      consented: false,
+      servers: [server("calendar-ics", "calendar-ics", { status: "stopped" })],
+    });
+    const { page, manage, emit } = mountPage({ revision: 1, plugins: [fresh] });
+    const started = (status: PluginHostServer["status"], revision: number) => ({
+      revision,
+      plugins: [
+        {
+          ...fresh,
+          enabled: true,
+          consented: true,
+          servers: [server("calendar-ics", "calendar-ics", { status })],
+        },
+      ],
+    });
+    manage.enable.mockImplementation(async () => emit(started("starting", 2)));
+    const question = () =>
+      group(page.el, "calendar-ics").querySelector(".yui-plg-consent__q")?.textContent;
+
+    group(page.el, "calendar-ics").querySelector<HTMLButtonElement>(".yui-switch")!.click();
+    button(group(page.el, "calendar-ics"), "Allow").click();
+    // enable has resolved and the page has settled while the snapshot still says starting.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    emit(started("failed", 3));
+
+    expect(question()).toBe("Some servers could not start.");
+  });
+
   it("shows an install rejection as the host sent it, with a Retry that installs again", async () => {
     const { page, manage } = mountPage();
     manage.install.mockRejectedValue("checksum mismatch: x");
