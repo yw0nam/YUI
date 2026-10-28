@@ -148,6 +148,16 @@ mod tests {
     }
 
     #[test]
+    fn agent_event_is_an_unknown_path() {
+        let body = r#"{"tool":"test","project":"test","cwd":"/tmp","phase":"done","summary":"done","ts":0}"#;
+        assert_eq!(parse_route("POST", "/agent-event", body).unwrap_err(), 400);
+        assert_eq!(
+            parse_route("POST", "/presets/x/agent-event", body).unwrap_err(),
+            404
+        );
+    }
+
+    #[test]
     fn routes_all_families_and_preserves_payloads() {
         for (method, path, body) in [
             ("POST", "/signals", r#"{"signals":[1],"envelope":{"x":1}}"#),
