@@ -1,6 +1,31 @@
-//! The MCP host: runs local plugins' MCP servers.
+//! The MCP host: runs the MCP servers of local plugins as YUI-hosted servers and answers the
+//! webview's tool calls and skill reads.
+//!
+//! - **State.** `<app_data>/plugins/state.json` lists each plugin's id, folder, enablement,
+//!   the folder the user consented to, and the order plugins were enabled in. It is written to
+//!   `state.json.tmp` and renamed over the file. A file that is not JSON moves to
+//!   `state.json.bad` and the host starts empty; a file that cannot be read lists nothing and
+//!   every managing command fails, so stored enablement is never overwritten.
+//! - **Consent.** A plugin runs only when it is enabled and its folder is the one consented to;
+//!   enabling consents to the current folder.
+//! - **Servers.** Each `.mcp.json` server is spawned without a shell, in the plugin folder, with
+//!   `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PLUGIN_DATA}` (`<app_data>/plugins/data/<id>/`)
+//!   expanded, in its own process group (a job object on Windows). Spawn, `initialize` and
+//!   `tools/list` share a 30 s deadline; a failure names the phase. A server that ends by itself
+//!   shows `exited` and is not restarted; retry or the next app start runs it again.
+//! - **Logs.** stderr lines, at most 2000 bytes each, and lifecycle lines go to
+//!   `<log dir>/plugins/<id>_YYYY-MM-DD.log` and to a tail of the last 20 lines.
+//! - **Snapshot.** Every change emits `plugin-host-snapshot` to every window with a revision one
+//!   higher, starting from 0 at app start. A built-in client tool, then the plugin enabled
+//!   first, keeps a tool name; the plugin enabled first keeps a skill name. A later plugin's
+//!   colliding name is left out of its declared lists and calls and recorded in its `hidden`.
+//! - **Calls.** A call carries the window's preset in `_meta` and ends at the tool's `wait_ms`
+//!   (30 s by default, 120 s at most) or when its window cancels it or is destroyed; either
+//!   sends `notifications/cancelled`.
+//! - **Shutdown.** App exit closes every server's connection and kills its process tree.
 
 mod calls;
+pub mod commands;
 mod host;
 mod launch;
 mod manifest;
@@ -9,3 +34,37 @@ mod snapshot;
 mod store;
 #[cfg(test)]
 mod test_support;
+
+use host::Host;
+use std::path::Path;
+use std::sync::Arc;
+use tauri::{App, AppHandle, Emitter, Manager, Window};
+use time::UtcOffset;
+
+const SNAPSHOT_EVENT: &str = "plugin-host-snapshot";
+
+/// Manages the host and starts every enabled plugin whose consent holds.
+pub fn setup(app: &App, app_data: &Path, log_dir: &Path, offset: UtcOffset) {
+    let handle = app.handle().clone();
+    let host = Host::new(app_data, log_dir, offset, move |snapshot| {
+        if let Err(e) = handle.emit(SNAPSHOT_EVENT, snapshot) {
+            log::warn!("mcp_host_emit_failed error={e}");
+        }
+    });
+    app.manage(host.clone());
+    tauri::async_runtime::spawn(async move { host.start_enabled().await });
+}
+
+/// Cancels the destroyed window's calls.
+pub fn window_destroyed(window: &Window) {
+    if let Some(host) = window.try_state::<Arc<Host>>() {
+        host.cancel_window(window.label());
+    }
+}
+
+/// Stops every server before the app exits.
+pub fn exit(app: &AppHandle) {
+    if let Some(host) = app.try_state::<Arc<Host>>() {
+        tauri::async_runtime::block_on(host.shutdown());
+    }
+}

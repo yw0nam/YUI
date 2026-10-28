@@ -73,7 +73,18 @@ pub fn run() {
     plugins::register(tauri::Builder::default())
         .setup(setup::run)
         .invoke_handler(commands::handler())
+        .on_window_event(|_window, _event| {
+            #[cfg(desktop)]
+            if let tauri::WindowEvent::Destroyed = _event {
+                mcp_host::window_destroyed(_window);
+            }
+        })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|_, _| {});
+        .run(|_app, _event| {
+            #[cfg(desktop)]
+            if let tauri::RunEvent::Exit = _event {
+                mcp_host::exit(_app);
+            }
+        });
 }
