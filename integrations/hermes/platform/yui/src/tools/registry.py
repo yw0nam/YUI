@@ -1,8 +1,7 @@
 """The client-declared tools: registration with Hermes from the hello frame's ``tools``.
 
-Hermes keeps one schema per tool name, so a tool whose schema differs per client (``rate_relation``'s
-``toward``, ``address_character``'s ``to``) is registered again with the chat's own schema when that
-chat's turn starts, the way ``generate_express`` is.
+Hermes keeps one schema per tool name, so a tool whose schema differs per client is registered
+again with the chat's own schema when that chat's turn starts, the way ``generate_express`` is.
 """
 
 from __future__ import annotations
