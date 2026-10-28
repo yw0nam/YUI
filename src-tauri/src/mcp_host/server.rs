@@ -28,12 +28,14 @@ const MAX_LINE: usize = 2000;
 
 /// One plugin's log file and its last 20 lines.
 pub struct PluginLog {
+    plugin_id: String,
     inner: Mutex<(DateRotatingFile, VecDeque<String>)>,
 }
 
 impl PluginLog {
     pub fn new(dir: PathBuf, plugin_id: &str, offset: UtcOffset) -> Self {
         Self {
+            plugin_id: plugin_id.to_string(),
             inner: Mutex::new((
                 DateRotatingFile::new(dir, plugin_id.to_string(), "log", offset),
                 VecDeque::new(),
@@ -125,6 +127,11 @@ impl Server {
             kill_group(self.pgid);
         }
         self.log.line(&self.name, "stopped");
+        log::info!(
+            "mcp_server_stopped plugin={} server={}",
+            self.log.plugin_id,
+            self.name
+        );
     }
 }
 
@@ -202,6 +209,7 @@ pub async fn connect(
         }
     };
     log.line(&name, "started");
+    log::info!("mcp_server_started plugin={} server={name}", log.plugin_id);
     let (watch_name, watch_log) = (name.clone(), log.clone());
     let stopping = Arc::new(AtomicBool::new(false));
     let watch_stopping = stopping.clone();
@@ -218,6 +226,10 @@ pub async fn connect(
         }
         kill_group(pgid);
         watch_log.line(&watch_name, &format!("exited: {reason}"));
+        log::info!(
+            "mcp_server_exited plugin={} server={watch_name} reason={reason}",
+            watch_log.plugin_id
+        );
         on_exit(reason);
     });
     Ok(Server {
@@ -233,6 +245,11 @@ pub async fn connect(
 
 fn failed(log: &PluginLog, server: &str, phase: Phase, reason: String) -> Failure {
     log.line(server, &format!("failed ({}): {reason}", phase.as_str()));
+    log::error!(
+        "mcp_server_start.failed plugin={} server={server} phase={} reason={reason}",
+        log.plugin_id,
+        phase.as_str()
+    );
     Failure { phase, reason }
 }
 

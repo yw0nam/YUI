@@ -107,7 +107,7 @@ fn read_skills(folder: &Path) -> Vec<Skill> {
             };
             let Some(description) = field("description") else {
                 log::warn!(
-                    "mcp_host_skill_skipped path={} reason=no description",
+                    "mcp_host_skill_skipped path={} reason=no_description",
                     path.display()
                 );
                 return None;
