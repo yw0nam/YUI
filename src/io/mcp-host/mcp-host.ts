@@ -14,7 +14,7 @@ export interface PluginHostTool {
   meta: Record<string, unknown> | null;
 }
 
-/** The snapshot fields the client reads; the host sends more (see #1666 interface comment). */
+/** The snapshot fields the client reads; the host sends more fields this client ignores. */
 export interface PluginHostSnapshot {
   revision: number;
   plugins: Array<{
@@ -52,16 +52,24 @@ export function createMcpHost(): McpHost & { dispose(): void } {
     if (latest === null || snapshot.revision > latest.revision) latest = snapshot;
   };
 
+  // The read follows the subscription, so no event is lost between the two.
+  const read = (): void => {
+    void invoke<PluginHostSnapshot>("plugin_host_snapshot").then(keep, (err) =>
+      log.warn("snapshot.invoke_failed", { error: String(err) }),
+    );
+  };
+
   if (isTauri()) {
     void listen<PluginHostSnapshot>("plugin-host-snapshot", (event) => keep(event.payload)).then(
       (stop) => {
         if (disposed) stop();
         else unlisten = stop;
+        read();
       },
-      (err) => log.warn("snapshot_failed", { error: String(err) }),
-    );
-    void invoke<PluginHostSnapshot>("plugin_host_snapshot").then(keep, (err) =>
-      log.warn("snapshot_failed", { error: String(err) }),
+      (err) => {
+        log.warn("snapshot.listen_failed", { error: String(err) });
+        read();
+      },
     );
   }
 
