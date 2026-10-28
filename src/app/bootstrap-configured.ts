@@ -16,6 +16,8 @@ import type {
 } from "../io/bridge/settings-bridge";
 import type { ClientTool } from "../io/chat/tools/client-tools";
 import { createPetWindowTools } from "../io/chat/tools/pet-window-tools";
+import { pluginLines } from "../io/mcp-host/enabled-plugins";
+import { createMcpHost } from "../io/mcp-host/mcp-host";
 import type { ScreenCapturer } from "../io/window/capture/screen-source-provider";
 import { createFrontmostTracker } from "../io/window/frontmost-tracker";
 import { createUnifiedWindowController } from "../io/window/openers/unified-window";
@@ -173,6 +175,8 @@ const realFactories: ConfiguredBootstrapFactories = {
       selfName: () => readPresetName(presetIdForWindow()),
       emit: phase1.emitCharacterAddressed,
     });
+    const mcpHost = createMcpHost();
+    register(mcpHost.dispose);
     const windowTools = createPetWindowTools({
       bound: phase1.bound === true,
       getExecutor: () => locomotion?.getAvatarExecutor() ?? null,
@@ -188,6 +192,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       relations: phase1.conversation.relationsStore,
       targets: relations.targets,
       recordAddressed: addressed.record,
+      mcpHost,
     });
     const card = wireCard({
       agentSettings: settings.agentSettings,
@@ -210,6 +215,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       screenCapturer: phase1.screenCapturer,
       openSettings: phase1.openSettings,
       windowTools,
+      getPluginLines: () => pluginLines(mcpHost.snapshot()),
       onTurnClosed: userTurnDone.onTurnClosed,
       addressedTo: addressed.targetOf,
       voicePersistence: {

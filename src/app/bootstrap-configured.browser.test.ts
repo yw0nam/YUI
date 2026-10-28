@@ -15,10 +15,35 @@ vi.mock("./turn/turn-core", () => ({
 }));
 afterEach(() => vi.unstubAllGlobals());
 it.each([
-  [false, ["rate_relation", "address_character", "body_action", "look", "browser"]],
-  [true, ["rate_relation", "address_character", "browser"]],
-])("a pet window (bound: %s) declares %j", async (bound, names) => {
-  vi.stubGlobal("__TAURI_INTERNALS__", {});
+  [
+    true,
+    false,
+    [
+      "rate_relation",
+      "address_character",
+      "body_action",
+      "look",
+      "browser",
+      "plugin_describe",
+      "plugin_call",
+      "plugin_skill",
+    ],
+  ],
+  [
+    true,
+    true,
+    [
+      "rate_relation",
+      "address_character",
+      "browser",
+      "plugin_describe",
+      "plugin_call",
+      "plugin_skill",
+    ],
+  ],
+  [false, false, ["rate_relation", "address_character"]],
+])("a pet window (tauri: %s, bound: %s) declares %j", async (tauri, bound, names) => {
+  vi.stubGlobal("__TAURI_INTERNALS__", tauri ? {} : undefined);
   vi.mocked(wireTurnCore).mockImplementation(async () => {
     throw Error("stop after tool composition");
   });

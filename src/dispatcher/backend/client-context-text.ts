@@ -93,6 +93,23 @@ function renderOpenCharacters(names: ClientContext["open_characters"]): string |
   return `open characters: ${names.map((name) => `"${oneLine(name)}"`).join(", ")}`;
 }
 
+/** One plugin tool or skill as a `name — text` entry; the name alone when the text is empty. */
+function pluginEntry(name: string, text: string): string {
+  const label = oneLine(name);
+  const detail = oneLine(text);
+  return detail === "" ? label : `${label} — ${detail}`;
+}
+
+function renderPluginTools(tools: ClientContext["plugin_tools"]): string | undefined {
+  if (!tools || tools.length === 0) return undefined;
+  return `plugin tools: ${tools.map((tool) => pluginEntry(tool.name, tool.summary)).join(" · ")}`;
+}
+
+function renderPluginSkills(skills: ClientContext["plugin_skills"]): string | undefined {
+  if (!skills || skills.length === 0) return undefined;
+  return `plugin skills: ${skills.map((skill) => pluginEntry(skill.name, skill.description)).join(" · ")}`;
+}
+
 function renderToolSwitches(switches: ClientContext["tool_switches"]): string | undefined {
   if (!switches || switches.length === 0) return undefined;
   const entries = switches.map((entry) => `${oneLine(entry.id)}=${entry.on ? "on" : "off"}`);
@@ -247,6 +264,13 @@ export function renderClientContext(clientContext: ClientContext, nowMs: number)
   lines.push(...renderOverheard(clientContext.overheard, nowMs));
 
   lines.push(...renderTrigger(clientContext.trigger, nowMs));
+
+  const pluginTools = renderPluginTools(clientContext.plugin_tools);
+  if (pluginTools) lines.push(pluginTools);
+
+  const pluginSkills = renderPluginSkills(clientContext.plugin_skills);
+  if (pluginSkills) lines.push(pluginSkills);
+
   if (clientContext.trigger.guide) lines.push(renderGuideBlock(clientContext.trigger.guide));
 
   return lines.join("\n");

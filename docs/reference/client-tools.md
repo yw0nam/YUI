@@ -10,8 +10,11 @@ The tools the client exposes to the backend model.
 | `browser` | Runs backend-written JavaScript against the ego lite browser on the user's computer, in this character's own task space | Arguments `code` (string: the body of an async function that runs after the client's prelude) and `guide` (boolean). `guide: true` returns the installed ego lite's guide text; otherwise `code` runs and the result is the untrusted-content line, the script's output and any screenshot notes, with up to 4 screenshots as JPEG data URLs in `images`. Failures answer the strings in [browser](#browser) | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createBrowserTool` in `src/io/chat/tools/browser/` | Tauri commands `browser_run` and `browser_guide` in `src-tauri/src/browser/`, invoked through `src/io/browser/browser-relay.ts` |
 | `rate_relation` | Moves this character's relation toward the user or another open character by one small step, with the reason | Arguments `toward` (string: `user` or a name from the `open characters:` line), `delta` (enum: -2, -1, 1, 2), `why` (string, at most 80 characters). Result: the new band word (`hostile`, `cold`, `neutral`, `warm`, `close`), `clamped: <band>` when the daily cap or the range held the value, `ignored: already rated <toward> this turn`, `error: unknown target`, `error: invalid field delta` for a `delta` outside the enum, `error: invalid field why` for a non-string `why`, `error: reserved reason` for the `why` `set by the user`, or `error: relations are off` while the Relations switch is off | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createRateRelationTool` in `src/io/chat/tools/relation.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
 | `address_character` | Names the character this reply is for, so that character receives a turn after the reply's playback | Arguments `to` (string: a name from the `open characters:` line) and optional boolean `handoff`, which passes the user's message to that character to answer. Result: `ok`, `ignored: already addressed <name>`, `error: unknown target` | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createAddressCharacterTool` in `src/io/chat/tools/address-character.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
+| `plugin_describe` | Describes a plugin tool the host publishes | Argument `name` (string: the plugin tool's name). Result: the tool's name, its description and its input schema on three lines, or `error: unknown plugin tool: <name>` | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createPluginBridgeTools` in `src/io/chat/tools/plugin-bridge/` | Tauri commands `plugin_host_call`/`plugin_host_cancel` (`plugin_call`) and `plugin_host_skill` (`plugin_skill`) in `src-tauri/src/mcp_host/`, invoked through `src/io/mcp-host/mcp-host.ts`; `plugin_describe` reads the host's snapshot |
+| `plugin_call` | Runs a plugin tool the host publishes | Arguments `name` (string: the plugin tool's name) and `arguments` (object: the tool's arguments). Result: the tool's text and its images as data URLs, or `error: unknown plugin tool: <name>`, or `error: invalid arguments (<violation>)` with the tool's input schema | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createPluginBridgeTools` in `src/io/chat/tools/plugin-bridge/` | Tauri commands `plugin_host_call`/`plugin_host_cancel` (`plugin_call`) and `plugin_host_skill` (`plugin_skill`) in `src-tauri/src/mcp_host/`, invoked through `src/io/mcp-host/mcp-host.ts`; `plugin_describe` reads the host's snapshot |
+| `plugin_skill` | Reads a plugin skill the host publishes | Argument `name` (string: the plugin skill's name). Result: the skill's instructions | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createPluginBridgeTools` in `src/io/chat/tools/plugin-bridge/` | Tauri commands `plugin_host_call`/`plugin_host_cancel` (`plugin_call`) and `plugin_host_skill` (`plugin_skill`) in `src-tauri/src/mcp_host/`, invoked through `src/io/mcp-host/mcp-host.ts`; `plugin_describe` reads the host's snapshot |
 
-`createClientTools` in `src/io/chat/tools/client-tools.ts` lists `generate_express` followed by the tools a window hands it, and `src/io/chat/tools/pet-window-tools.ts` builds that list per window. Every pet window hands it `rate_relation` and `address_character`, and under Tauri `browser`; `main` also hands it `body_action` and `look`, the avatar tools over the avatar executor, which only `main` creates. A bound pet window declares `rate_relation`, `address_character` and `browser`. The browser build hands those two. `src/app/turn/wire-dispatcher.ts` builds the registry from that list for each turn, as the `clientTools` dependency of the backend caller. The registry reads the vocabulary loaded at that moment, so a vocabulary edit (a new emotion, a new motion, a different voice engine, a changed motion selection) reaches the schema on the next turn.
+`createClientTools` in `src/io/chat/tools/client-tools.ts` lists `generate_express` followed by the tools a window hands it, and `src/io/chat/tools/pet-window-tools.ts` builds that list per window. Every pet window hands it `rate_relation` and `address_character`, and under Tauri `browser` and the bridge tools `plugin_describe`, `plugin_call` and `plugin_skill`; `main` also hands it `body_action` and `look`, the avatar tools over the avatar executor, which only `main` creates. A bound pet window declares `rate_relation`, `address_character`, and under Tauri `browser` and the bridge tools. The browser build hands those two. `src/app/turn/wire-dispatcher.ts` builds the registry from that list for each turn, as the `clientTools` dependency of the backend caller. The registry reads the vocabulary loaded at that moment, so a vocabulary edit (a new emotion, a new motion, a different voice engine, a changed motion selection) reaches the schema on the next turn.
 
 `look` declaration is independent of both screenshot settings. `main` alone declares `look`; the browser build and a bound pet window declare none, so a push call there answers `error: unknown tool`. A declared `look` whose executor is not yet available answers `error: unsupported`.
 
@@ -288,6 +291,59 @@ character's backend decides whether to answer, and a `[SILENT]` reply ends the e
 
 The tool has no switch, so `tool switches:` does not list it, and it stays declared whatever
 the Relations switch holds.
+
+## Bridge tools
+
+`plugin_describe`, `plugin_call` and `plugin_skill` reach the tools and skills of the enabled plugins through the MCP host. Every pet window declares them under Tauri; the browser build declares none of them.
+
+A name resolves against the newest snapshot the window holds. The host publishes one snapshot per change, and the client keeps the highest revision it has seen; the turn's `plugin tools` and `plugin skills` lines and every `plugin_describe` and `plugin_call` read that one, so a plugin enabled after the request went out answers a later call in the same turn. A call's name is looked up again when it runs. `plugin_skill` is not looked up in the window's snapshot: the host resolves the skill in the snapshot it publishes itself.
+
+The lookup sees enabled plugins only, and the host hides a name another holder keeps. A built-in client tool name stays with the built-in — the built-in names claim tools only, so a skill may carry one — and a name a plugin enabled earlier keeps, in enable order (`enabled_seq`); a second server of the same plugin that declares the same name loses it too. The hidden entry leaves the tools and skills lists, and both `plugin_describe` and `plugin_call` see it as absent.
+
+| Tool | Arguments | Answer |
+|---|---|---|
+| `plugin_describe` | `name` (string: the plugin tool's name) | Three lines from the snapshot: `name: <name>`, `description: <the tool's description>` (empty when it declared none), and `input schema: <its input schema as JSON>`. No server runs for this call |
+| `plugin_call` | `name` and `arguments` (object) | The tool's result, converted as below |
+| `plugin_skill` | `name` (string: the plugin skill's name) | The skill's `SKILL.md` body after its frontmatter |
+
+An unknown tool name is rejected by the client: `plugin_describe` and `plugin_call` answer `error: unknown plugin tool: <name>` and send nothing to the host. `plugin_skill` goes straight to the host, which resolves the skill in the snapshot it publishes itself and answers `error: unknown plugin skill: <name>`.
+
+### Arguments
+
+`plugin_call` checks `arguments` against the tool's declared input schema before anything is sent. The check reports the first violation as its instance location and its message, and the answer carries that violation and the tool's input schema, which the turn's `plugin tools` line does not:
+
+```text
+error: invalid arguments (#/app: Instance type "number" is invalid. Expected "string".)
+input schema: {"type":"object","properties":{"app":{"type":"string"}},"required":["app"]}
+```
+
+A schema the check cannot read is not an argument error: the call goes out and the server judges it.
+
+### Result
+
+The result is the MCP `tools/call` result with its content blocks unchanged. Text blocks are joined with one newline, an image block becomes a `data:<mimeType>;base64,<data>` URL in the result's `images`, and any other block is its JSON. `isError: true` prefixes the joined text with `error: `. The `{ text, images }` shape is the one `look at: screen` returns, so images reach the model on every transport the same way.
+
+A failure of the call itself reaches the model as `error: <the host's text>`: `error: unknown plugin tool: <name>`, `error: plugin tool timed out after <n> ms`, `error: plugin tool cancelled`, `error: unknown plugin skill: <name>`, or a server's own error string.
+
+### Waits and cancel
+
+| Tool | Client wait | Host deadline |
+|---|---|---|
+| `plugin_call` | 121 s | `_meta["io.github.yw0nam.yui/wait_ms"]` of the tool when it states a positive value, else 30 s, never above 120 s |
+| `plugin_describe` | 2 s | none: the call reads the snapshot |
+| `plugin_skill` | 2 s | none: the host reads the file |
+
+`plugin_call`'s client wait sits above the host's longest deadline, so the host answers the deadline itself: it sends `notifications/cancelled` to the server and answers `plugin tool timed out after <n> ms` with the wait it used. A client wait that passes anyway answers `error: timed out after 121 s` and cancels the host call.
+
+A stopped turn or a passed wait cancels the host call: `plugin_call` sends the call's id to `plugin_host_cancel` when its execution signal aborts, and the host sends `notifications/cancelled` to the server with the reason. A turn stopped while the call runs answers `error: plugin tool cancelled`; a turn stopped before the call started answers `error: turn stopped` and sends nothing.
+
+### Status and consent
+
+The status chip names the plugin tool, not the bridge tool: `plugin_call` reports the call's `name` argument as its status id (`statusId`), so the pill reads `echo_args` while `plugin_call` runs. On push the client shows that call's own running and terminal state (`localStatus`), and a backend `tool_status` naming `plugin_call` leaves the pill as it is ([push-transport.md](push-transport.md)).
+
+No call asks the user again. Enabling the plugin in settings records consent for its folder, and the host starts its servers and publishes its tools only while that consent holds; a plugin whose folder moved since it was enabled starts no server, so its names answer `error: unknown plugin tool: <name>`.
+
+Each `plugin_call` carries the preset id of the calling window: the host sends it in the `tools/call` request's `_meta["io.github.yw0nam.yui/preset"]`, so a plugin tool knows which character called it.
 
 ## Backend capability
 

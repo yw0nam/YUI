@@ -13,14 +13,19 @@ from .image_result import ImageResult, model_result
 
 logger = logging.getLogger(__name__)
 
-# The client bounds its own execution (15 s body action, 2 s query, rate_relation and
-# address_character, 32 s browser); the adapter waits 5 s past each and 8 s past the browser's.
+# The client bounds its own execution (15 s body action, 2 s query, rate_relation,
+# address_character, plugin_describe and plugin_skill, 32 s browser, 121 s plugin_call);
+# the Hermes platform plugin waits 5 s past each, 8 s past the browser's, and 4 s past
+# the plugin call's.
 WAITS_S = {
     "body_action": 20.0,
     "look": 7.0,
     "browser": 40.0,
     "rate_relation": 7.0,
     "address_character": 7.0,
+    "plugin_call": 125.0,
+    "plugin_describe": 7.0,
+    "plugin_skill": 7.0,
 }
 DEFAULT_WAIT_S = 20.0
 

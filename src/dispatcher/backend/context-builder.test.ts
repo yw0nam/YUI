@@ -174,6 +174,29 @@ describe("context builder — open characters", () => {
   });
 });
 
+describe("context builder — plugin lines", () => {
+  it.each([
+    {
+      name: "a provider with one tool and one skill sets both fields",
+      lines: {
+        tools: [{ name: "echo_args", summary: "Echo argv." }],
+        skills: [{ name: "hello", description: "Says hello." }],
+      },
+      sets: true,
+    },
+    {
+      name: "a provider with empty lists sets neither field",
+      lines: { tools: [], skills: [] },
+      sets: false,
+    },
+  ])("$name", async ({ lines, sets }) => {
+    const built = await buildContext(ENV, { getPluginLines: () => lines });
+
+    expect(built.clientContext.plugin_tools).toEqual(sets ? lines.tools : undefined);
+    expect(built.clientContext.plugin_skills).toEqual(sets ? lines.skills : undefined);
+  });
+});
+
 describe("buildClientContext — addressed forwarding", () => {
   const CTX: InputContext = { env: { timestamp: "2026-07-31T14:22:33+09:00", timezone: "UTC" } };
 

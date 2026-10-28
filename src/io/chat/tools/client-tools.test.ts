@@ -15,6 +15,7 @@ import { createAvatarTools } from "./avatar";
 import { createBrowserTool } from "./browser/browser-tool";
 import { type ClientTool, createClientToolRegistry, createClientTools } from "./client-tools";
 import { createGenerateExpressTool } from "./express";
+import { createPluginBridgeTools } from "./plugin-bridge/plugin-bridge";
 import { createRateRelationTool } from "./relation";
 
 /** The published vocabulary (deriveExpressVocabulary) is the schema's only source. */
@@ -213,11 +214,13 @@ describe("docs/reference/client-tools.md catalog", () => {
     const catalog = doc.slice(0, doc.indexOf("\n## "));
     const rows = new Set([...catalog.matchAll(/^\| `([^`]+)` \|/gm)].map((m) => m[1]));
     const relay = { run: vi.fn(), guide: vi.fn() };
+    const host = { snapshot: () => null, call: vi.fn(), cancel: vi.fn(), skill: vi.fn() };
     const names = createClientTools(vocab(), [
       createRateRelationTool({ store: { rate: vi.fn() }, targets: () => [] }),
       createAddressCharacterTool({ targets: () => [], record: vi.fn() }),
       ...createAvatarTools(() => null),
       createBrowserTool({ relay, enabled: () => false, presetId: () => "p1" }),
+      ...createPluginBridgeTools({ host, presetId: () => "p1" }),
     ]).map((tool) => tool.name);
 
     expect(names).toEqual([
@@ -227,6 +230,9 @@ describe("docs/reference/client-tools.md catalog", () => {
       "body_action",
       "look",
       "browser",
+      "plugin_describe",
+      "plugin_call",
+      "plugin_skill",
     ]);
     expect(names.filter((name) => !rows.has(name))).toEqual([]);
   });

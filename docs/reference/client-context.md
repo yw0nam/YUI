@@ -104,7 +104,8 @@ plain-text lines built by `renderClientContext` (`src/dispatcher/backend/client-
 One line per fact, in this fixed order — `time`, `frontmost`, `screenshot source`, `body`,
 `relation`, `open characters`, `tool switches`, `previous turn`, `overheard`, then one or
 more `trigger:`/`wake:`/`cue note`/`signal`/`recent switches:` lines depending on what fired,
-then the `guide:` block when the turn carries one ([Guide](#guide-in-app-help-button)). A line
+then the `plugin tools` and `plugin skills` lines when the host publishes any, then the
+`guide:` block when the turn carries one ([Guide](#guide-in-app-help-button)). A line
 is omitted outright when its underlying field is absent (e.g. no `screenshot source:` line
 when screen capture is off).
 
@@ -600,6 +601,36 @@ The backend's own `stand` gets her up with the same wake clip and fires no
 `proactive.wake`: the backend sent it and already knows. The scene also ends without a
 wake signal when another motion takes the body, when the VRM is swapped, and when a clip
 or the bed fails to load; those paths leave her standing and say nothing to the backend.
+
+## Plugin lines
+
+What the enabled plugins offer, read from the MCP host's newest snapshot once per turn. The two lines sit after the trigger lines and before the `guide:` block; each is omitted when it would carry no entry, so a turn with no enabled plugin carries neither.
+
+### `plugin tools`
+
+One line naming every tool of every enabled plugin, with a one-line summary of each:
+
+```text
+plugin tools: echo_args — Echo argv. · slow — Waits before answering. · spawn_child
+```
+
+The `ClientContext` field is `plugin_tools?: { name, summary }[]`, one entry per tool in snapshot order: plugin by plugin, each plugin's servers in manifest order. An entry reads `<name> — <summary>`, or the name alone when the summary is empty, and entries are joined with ` · `.
+
+The summary is the tool's own `io.github.yw0nam.yui/summary` meta when it sets a non-empty one, else the first sentence of its description's first paragraph — the text up to the first blank line, with every whitespace run collapsed to one space. Either is cut at 100 characters. A name or summary goes through the same sanitization as the other sampled fields, so it stays one line.
+
+The line names the tools only. `plugin_describe` returns a tool's full description and input schema, and `plugin_call` runs it ([client-tools.md](client-tools.md#bridge-tools)).
+
+### `plugin skills`
+
+One line naming every skill of every enabled plugin, with the description its `SKILL.md` frontmatter declares:
+
+```text
+plugin skills: hello — Say hello to the user.
+```
+
+The `ClientContext` field is `plugin_skills?: { name, description }[]`, one entry per skill in snapshot order, each rendered `<name> — <description>` and joined with ` · ` as the tools are. A skill whose frontmatter carries no description is not published at all, so it never reaches this line.
+
+`plugin_skill` returns a named skill's instructions ([client-tools.md](client-tools.md#bridge-tools)).
 
 ## Background markers
 

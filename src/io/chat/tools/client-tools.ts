@@ -62,6 +62,8 @@ export interface ClientTool {
   failed?(result: string): boolean;
   /** Push shows this tool's status from the client's own run and ignores the backend's `tool_status` naming it. */
   localStatus?: true;
+  /** The id the status chip shows for a call; unset: the tool's name. */
+  statusId?(args: Record<string, unknown>): string;
 }
 
 /** Whether the result reads as a failure of the tool. */

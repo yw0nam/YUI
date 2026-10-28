@@ -403,10 +403,14 @@ YUI/
           avatar.ts                    # The body_action and look tools over the avatar executor
           relation.ts                  # The rate_relation tool: one accepted call per target per turn
           address-character.ts         # The address_character tool: names the character a reply is for, once per reply
-          pet-window-tools.ts          # Builds the tool list a pet window declares: rate_relation and address_character everywhere, browser under Tauri, body_action and look in main
+          pet-window-tools.ts          # Builds the tool list a pet window declares: rate_relation and address_character everywhere, browser and the bridge tools under Tauri, body_action and look in main
           browser/                     # The browser tool over the Rust relay's ego lite run
             browser-tool.ts            # browser: backend-written JavaScript in ego lite, in this preset's task space
             run-result.ts              # The browser tool's result for one run: status, untrusted-content line, output, screenshots
+          plugin-bridge/               # The bridge tools over the MCP host
+            plugin-bridge.ts           # plugin_describe, plugin_call and plugin_skill
+            plugin-result.ts           # A plugin tool's MCP result as a client tool result: text, images, the error mark
+            first-violation.ts         # The first JSON Schema violation of a call's arguments, as an instance location and a message
           screen/                      # The screen tool
             screen-query.ts            # Answers a screen query from the live monitors and a screenshot
         vocabulary/                    # The emotion, motion, and voice-tone ids the agent may cue with
@@ -432,6 +436,9 @@ YUI/
           turn-record-log.ts           # Appends one JSONL record per completed turn or skipped fire
       browser/                         # The browser tool's adapter to the Rust relay
         browser-relay.ts               # browser_run and browser_guide invocations, and the outcome and guide shapes they answer
+      mcp-host/                        # The MCP host client and the `plugin tools:` and `plugin skills:` lines
+        mcp-host.ts                    # The host's newest snapshot, and the call, cancel and skill invocations
+        enabled-plugins.ts             # The enabled plugins' tools with their summaries, their skills with their descriptions, and the tool lookup a call makes
       voice/
         deadline.ts                    # Per-request deadline and the body-read race that settle a stalled fetch
         stt-vad.ts                     # Voice input pipeline: VAD segmentation then STT upload

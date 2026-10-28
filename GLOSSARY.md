@@ -153,6 +153,10 @@ How an MCP server runs when YUI starts it as its own child process through the M
 The part of the Rust shell that runs YUI-hosted MCP servers (`src-tauri/src/mcp_host/`). Its Tauri commands carry the prefix `plugin_host_` and its snapshot event the prefix `plugin-host-`.
 _Avoid_: plugin manager, runtime
 
+**Plugin tool**:
+A tool one of a plugin's MCP servers declares, published in the MCP host's snapshot while the plugin is enabled and run by `plugin_call`. Not a Client tool.
+_Avoid_: MCP tool, plugin function
+
 **Skill**:
 A `SKILL.md` that an agent reads for one workflow (yui-daily-briefing, yui-wake-character).
 _Avoid_: recipe, prompt pack
@@ -165,8 +169,12 @@ _Avoid_: trigger (a Trigger is a turn's cause)
 Wiring for one backend agent, kept under `integrations/<agent>/` (the Hermes platform plugin, Hermes desire).
 _Avoid_: adapter, connector
 
+**Bridge tool**:
+A Client tool that reaches an enabled plugin through the MCP host: `plugin_describe` reads one plugin tool's description and input schema, `plugin_call` runs it, and `plugin_skill` reads one plugin skill's instructions. Declared in every pet window under Tauri.
+_Avoid_: host tool, relay tool
+
 **Client tool**:
-A tool the client declares to the backend and runs itself (generate_express, body_action, look, browser, rate_relation, address_character).
+A tool the client declares to the backend and runs itself (generate_express, body_action, look, browser, rate_relation, address_character, plugin_describe, plugin_call, plugin_skill).
 _Avoid_: in-app tool, local tool
 
 **Producer**:

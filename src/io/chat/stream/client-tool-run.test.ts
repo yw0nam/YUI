@@ -124,6 +124,23 @@ describe("runClientCall — tool_status state", () => {
     expect(next.value?.run?.oneWay).toBe(false);
   });
 
+  it("names the status chip after the id the tool reports for the call", async () => {
+    const registry = createClientToolRegistry([
+      tool({
+        name: "plugin_call",
+        statusId: (args) => String(args.name),
+        localStatus: true,
+        execute: async () => "ok",
+      }),
+    ]);
+    const events = await collect(registry, "plugin_call", '{"name":"echo_args"}');
+
+    expect(events.flatMap((e) => (e.type === "tool_status" ? [e.status.tool_id] : []))).toEqual([
+      "echo_args",
+      "echo_args",
+    ]);
+  });
+
   it("yields no tool_status for the express cue", async () => {
     const events = await collect(undefined, "generate_express", '{"emotion_id":"happy"}');
     expect(statusesOf(events)).toEqual([]);
