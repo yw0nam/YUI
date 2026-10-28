@@ -273,7 +273,8 @@ preset id; an entry outside the list answers `error: unknown target`. The user i
 target.
 
 Optional boolean `handoff` passes the user's message on this turn to the named character, who takes it
-and answers the user. Use it when the user's message is better answered by that character.
+and answers the user. The tool's description tells the model to set it only when the user asks to
+pass their message to that character, and to say only briefly in its own reply that it passed it on.
 The receiving trigger carries `user_message` verbatim from the admitted user turn; a turn
 without a user message produces a plain address even when `handoff` is true.
 
