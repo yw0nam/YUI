@@ -8,6 +8,7 @@
 import { vi } from "vitest";
 import type { AvatarOption } from "../../config/validators/avatar/types";
 import { createVrmSelection } from "../../io/assets/vrm-selection";
+import type { McpHost, McpHostManage, PluginHostSnapshot } from "../../io/mcp-host/mcp-host";
 import {
   createSpeakerSelection,
   type SpeakerOption,
@@ -215,4 +216,38 @@ export function defaultQcArgs(mount: HTMLElement) {
     removeCardThumbnail: vi.fn(async () => {}),
     fillerSettings: createFillerSettings(),
   };
+}
+
+/** A fake MCP host that publishes `emit`'s snapshots, and managing commands that resolve. */
+export function fakePlugins(initial: PluginHostSnapshot | null = null) {
+  let latest = initial;
+  const listeners = new Set<(snapshot: PluginHostSnapshot) => void>();
+  const host: McpHost = {
+    snapshot: () => latest,
+    call: vi.fn(),
+    cancel: vi.fn(),
+    skill: vi.fn(),
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+  const manage = {
+    catalog: vi.fn<McpHostManage["catalog"]>(async () => []),
+    install: vi.fn<McpHostManage["install"]>(async () => {}),
+    remove: vi.fn<McpHostManage["remove"]>(async () => {}),
+    enable: vi.fn<McpHostManage["enable"]>(async () => {}),
+    disable: vi.fn<McpHostManage["disable"]>(async () => {}),
+    addLocal: vi.fn<McpHostManage["addLocal"]>(async () => null),
+    retry: vi.fn<McpHostManage["retry"]>(async () => {}),
+    logTail: vi.fn<McpHostManage["logTail"]>(async () => []),
+    revealLog: vi.fn<McpHostManage["revealLog"]>(async () => {}),
+  };
+  const emit = (snapshot: PluginHostSnapshot): void => {
+    latest = snapshot;
+    for (const listener of listeners) listener(snapshot);
+  };
+  return { host, manage, emit };
 }

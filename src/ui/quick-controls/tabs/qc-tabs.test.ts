@@ -7,7 +7,7 @@ import type { SettingsPage } from "../../../settings/panels/settings-pages";
 import { createVadSettings } from "../../../settings/voice/vad-settings";
 import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
-import { defaultQcArgs } from "../test-helpers";
+import { defaultQcArgs, fakePlugins } from "../test-helpers";
 
 describe("createQuickControls — tab rail", () => {
   let mount: HTMLElement;
@@ -218,12 +218,14 @@ describe("createQuickControls — tab rail", () => {
       "together",
       "listening",
       "perms",
+      "plugins",
       "react",
       "motion",
       "general",
     ];
-    // A transcript is what renders the history tab, so inject one to get the full rail.
-    const qc = buildQc({ transcript: createChatHistoryStore() });
+    // A transcript renders the history tab and the plugin host the plugins tab: the full rail.
+    const { host, manage } = fakePlugins();
+    const qc = buildQc({ transcript: createChatHistoryStore(), plugins: { host, manage } });
     expect(tabs(qc).map((tab) => tab.id)).toEqual(names.map((name) => `yui-tab-${name}`));
 
     for (const name of names) {
