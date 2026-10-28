@@ -342,6 +342,8 @@ export interface ClientContext {
     at: number;
     note?: string;
   }[];
+  /** The other open presets' names as the tools accept them, read this turn; absent when none. */
+  open_characters?: string[];
   trigger: TriggerMeta;
 }
 

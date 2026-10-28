@@ -1584,6 +1584,15 @@ globalThis.YUI_MAP =
       "wiring": "src/app/turn/wire-dispatcher.ts"
     },
     {
+      "id": "open-characters-context",
+      "from": "settings",
+      "to": "dispatcher/backend",
+      "carries": "readOpenPresetEntries(this window's preset) names → ClientContext.open_characters, read per turn; none when no other preset is open",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-dispatcher.ts"
+    },
+    {
       "id": "backend-stream",
       "from": "dispatcher/backend",
       "to": "io/chat/stream",
@@ -1925,7 +1934,7 @@ globalThis.YUI_MAP =
       "id": "tools-backend",
       "from": "io/chat/tools",
       "to": "dispatcher/backend",
-      "carries": "declared tool schemas of the turn; rate_relation's toward enum is read from the open presets as the schema is built",
+      "carries": "declared tool schemas of the turn",
       "kind": "callback",
       "transport": "request",
       "wiring": "src/app/turn/wire-dispatcher.ts"
@@ -2013,7 +2022,7 @@ globalThis.YUI_MAP =
       "id": "settings-relation-targets",
       "from": "settings",
       "to": "io/chat/tools",
-      "carries": "yui.presets names and the open presets (active and yui.windows) → rate_relation's toward enum, without this window's preset",
+      "carries": "yui.presets names and the open presets (active and yui.windows) → the name lookup of rate_relation and address_character when a call runs, without this window's preset",
       "kind": "storage",
       "transport": "shared",
       "wiring": "src/app/relations/wire-relations.ts"

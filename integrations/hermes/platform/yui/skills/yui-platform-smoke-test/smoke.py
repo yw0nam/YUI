@@ -16,8 +16,8 @@ import aiohttp
 
 CLIENTS = {"yui-smoke-a": ["idle_lively", "dance"], "yui-smoke-b": ["idle_lively"]}
 ORDER = ["yui-smoke-a", "yui-smoke-b", "yui-smoke-a"]
-# Each client declares address_character with the OTHER client as its only target, the way two
-# pet windows do; Hermes keeps one schema per tool name, so each chat's turn must declare its own.
+# Each client declares address_character with a different enum: a synthetic probe of the registry
+# re-registering a tool whose schema differs per chat. The YUI client itself declares a fixed schema.
 TARGETS = {"yui-smoke-a": "smoke-b", "yui-smoke-b": "smoke-a"}
 ACCEPTING_MARKER = "accepting clients on ws://"
 READY_MARKER = "Turn machinery warmed in "

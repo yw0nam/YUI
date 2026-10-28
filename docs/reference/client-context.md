@@ -102,11 +102,11 @@ line and the app's own help text as written for the user.
 Everything between the header line and the closing tag is a sequence of `key: value`
 plain-text lines built by `renderClientContext` (`src/dispatcher/backend/client-context-text.ts`).
 One line per fact, in this fixed order — `time`, `frontmost`, `screenshot source`, `body`,
-`relation`, `tool switches`, `previous turn`, `overheard`, then one or more `trigger:`/`wake:`/`cue note`/
-`signal`/`recent switches:` lines depending on what fired, then
-the `guide:` block when the turn carries one ([Guide](#guide-in-app-help-button)). A line is omitted
-outright when its underlying field is absent (e.g. no `screenshot source:` line when screen
-capture is off).
+`relation`, `open characters`, `tool switches`, `previous turn`, `overheard`, then one or
+more `trigger:`/`wake:`/`cue note`/`signal`/`recent switches:` lines depending on what fired,
+then the `guide:` block when the turn carries one ([Guide](#guide-in-app-help-button)). A line
+is omitted outright when its underlying field is absent (e.g. no `screenshot source:` line
+when screen capture is off).
 
 Any field value that could contain whitespace runs, a newline, or the block's own tags (an
 app name, a window title, a cue label, a signal payload string) is sanitized before being
@@ -297,9 +297,9 @@ What other open characters exchanged with the user since this character last hea
 One block per other open preset, omitted when no preset has an unheard line.
 
 ```text
-overheard: perlica ↔ user, 3 lines (2min ago)
+overheard: alice ↔ user, 3 lines (2min ago)
   user: "Did you eat yet?"
-  perlica: "Not yet."
+  alice: "Not yet."
   user: "Then let's go together."
 ```
 
@@ -328,7 +328,7 @@ the Relations switch is off (`docs/reference/client-tools.md` § `rate_relation`
 
 ```text
 relation: toward user warm (last change +1, 3d ago: "stayed up to finish the parser together")
-relation: toward perlica cold, "trusts the work, doubts the promises" (last change -2, 4h ago: "took the chair I was sitting in")
+relation: toward alice cold, "trusts the work, doubts the promises" (last change -2, 4h ago: "took the chair I was sitting in")
 ```
 
 The `ClientContext` field is `relations?: { target, band, delta, why, at, note? }[]`, with `target`
@@ -350,6 +350,24 @@ never injected; the character learns it the way the user does, from what the oth
 character says ([`overheard`](#overheard)). The store is `yui.<id>.relations`, read every
 turn; the backend moves it with the `rate_relation` tool, and an external engine reads or
 replaces it over the ingress (`docs/reference/signals-ingress.md`).
+
+### `open characters`
+
+The other presets open when the turn is built — main's active preset and the preset of every
+open pet window, without this window's own preset. Omitted when no other preset is open.
+
+```text
+open characters: "alice", "bob"
+```
+
+Main's active preset comes first, then the pet windows in the order they were opened. Each
+name goes through the sanitization above and is quoted, so a name carrying a newline or the
+block's own tags stays one line and cannot forge another. A preset named `user` appears as
+`user (character)`, so the bare `user` is always the human.
+
+The `ClientContext` field is `open_characters?: string[]`. These are the names
+`address_character.to` and `rate_relation.toward` accept, and the client checks a call
+against the presets open when it runs ([client-tools.md](client-tools.md#rate_relation)).
 
 ## Trigger lines
 
@@ -495,7 +513,7 @@ request contract lives in [Signals ingress](./signals-ingress.md).
 ### Addressed
 
 ```text
-trigger: addressed by perlica: "natsume, you took my chair" (0min ago)
+trigger: addressed by alice: "bob, you took my chair" (0min ago)
 ```
 
 Another open character's reply called `address_character` naming this character, and that
@@ -511,7 +529,7 @@ With `address_character` `handoff: true` on a user turn, `user_message` carries 
 user message verbatim. The receiver takes it and answers the user; the headline reads:
 
 ```text
-trigger: handed over by perlica: the user said "Can Natsume help?"; perlica said "Natsume, can you help?" (0min ago)
+trigger: handed over by alice: the user said "Can Bob help?"; alice said "Bob, can you help?" (0min ago)
 ```
 
 The headline sanitizes each quoted value to one line. Without a user message the event is
@@ -613,7 +631,7 @@ all situational detail still lives in the trigger lines above.
 | `signals.catchup` | `(signals piled up for you)` |
 | `signals.urgent` | `(something urgent just came in for you)` |
 | `signals.urgent_catchup` | `(urgent things piled up for you)` |
-| `addressed.character` | `(perlica just spoke to you)` |
+| `addressed.character` | `(alice just spoke to you)` |
 | `time_milestone.first_activity` | `(I've just started my day)` |
 | any other | `(something just caught your attention)` |
 

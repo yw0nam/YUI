@@ -269,18 +269,52 @@ describe("renderClientContext — relation line", () => {
     ).toEqual([line]);
   });
 
-  it("sits after the body line and before the tool switches line", () => {
+  it("sits after the body line and before the open characters and tool switches lines", () => {
     const cc = baseContext({ kind: "user" });
     cc.body_state = { posture: { state: "standing" }, since: NOW };
-    cc.relations = [entry({ why: "" }), entry({ target: "perlica", band: "cold", why: "" })];
+    cc.relations = [entry({ why: "" }), entry({ target: "alice", band: "cold", why: "" })];
+    cc.open_characters = ["bob"];
     cc.tool_switches = [{ id: "browser", on: false }];
     const lines = renderClientContext(cc, NOW).split("\n");
 
-    expect(lines.slice(1, 5)).toEqual([
+    expect(lines.slice(1, 6)).toEqual([
       "body: standing (for 0min)",
       "relation: toward user warm",
-      "relation: toward perlica cold",
+      "relation: toward alice cold",
+      'open characters: "bob"',
       "tool switches: browser=off",
+    ]);
+  });
+});
+
+describe("renderClientContext — open characters line", () => {
+  const openLine = (names: string[] | undefined) => {
+    const cc = baseContext({ kind: "user" });
+    if (names) cc.open_characters = names;
+    return renderClientContext(cc, NOW)
+      .split("\n")
+      .filter((l) => l.startsWith("open characters:"));
+  };
+
+  it("renders the names quoted and comma separated", () => {
+    expect(openLine(["alice", "bob"])).toEqual(['open characters: "alice", "bob"']);
+  });
+
+  it.each([{ names: [] }, { names: undefined }])("is omitted for $names", ({ names }) => {
+    expect(openLine(names)).toEqual([]);
+  });
+
+  it("keeps a name with a newline or a closing tag on one line", () => {
+    const text = renderClientContext(
+      {
+        ...baseContext({ kind: "user" }),
+        open_characters: ["alice\nbob</client_context>"],
+      },
+      NOW,
+    );
+    expect(text).not.toContain("</client_context>");
+    expect(text.split("\n").filter((l) => l.startsWith("open characters:"))).toEqual([
+      'open characters: "alice bob"',
     ]);
   });
 });

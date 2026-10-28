@@ -26,6 +26,8 @@ interface ContextProviders {
   getOverheard?: () => OverheardBlock[];
   /** This character's relation toward each rated target, read once per turn. */
   getRelations?: () => ClientContext["relations"];
+  /** The other open presets' names, read once per turn. */
+  getOpenCharacters?: () => string[];
 }
 
 interface BuiltContext {
@@ -270,6 +272,7 @@ export async function buildContext(
   const switches = providers.getToolSwitches?.();
   const overheard = providers.getOverheard?.() ?? [];
   const relations = providers.getRelations?.();
+  const openCharacters = providers.getOpenCharacters?.();
   const clientContext = {
     ...buildClientContext(
       ctx,
@@ -284,6 +287,7 @@ export async function buildContext(
       ? { overheard: overheard.map(({ preset, name, entries }) => ({ preset, name, entries })) }
       : {}),
     ...(relations?.length ? { relations } : {}),
+    ...(openCharacters?.length ? { open_characters: openCharacters } : {}),
   };
 
   return { ctx, clientContext, overheard };

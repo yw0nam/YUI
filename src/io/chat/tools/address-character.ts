@@ -2,7 +2,7 @@
 
 import { createLogger } from "../../../logger";
 import type { PresetEntry } from "../../../settings/preset/active-preset";
-import { targetLabel } from "../../../settings/relations/relation-targets";
+import { targetLabel, targetLabels } from "../../../settings/relations/relation-targets";
 import type { ClientTool } from "./client-tools";
 
 const log = createLogger("address-character");
@@ -14,38 +14,35 @@ const DESCRIPTION =
   "Once per reply; leave it out when you are talking to the user.";
 
 export function createAddressCharacterTool(deps: {
-  /** The other open presets, read each time the schema is built and when a call runs. */
+  /** The other open presets, read when a call runs. */
   targets: () => PresetEntry[];
   /** Records the reply's recipient on its turn; returns the id recorded earlier, if any. */
   record: (turnId: string, to: string, handoff: boolean) => string | undefined;
 }): ClientTool {
   /** Label to target id — the other open presets only; the user is not a target. */
-  const labels = (): Map<string, string> =>
-    new Map(deps.targets().map(({ id, name }): [string, string] => [targetLabel(name), id]));
+  const labels = (): Map<string, string> => targetLabels(deps.targets());
 
   return {
     name: "address_character",
-    get definition() {
-      return {
-        type: "function" as const,
-        function: {
-          name: "address_character",
-          description: DESCRIPTION,
-          parameters: {
-            type: "object" as const,
-            properties: {
-              to: { type: "string", enum: [...labels().keys()] },
-              handoff: {
-                type: "boolean",
-                description:
-                  "true: pass the user's message on this turn to that character, who answers the user.",
-              },
+    definition: {
+      type: "function" as const,
+      function: {
+        name: "address_character",
+        description: DESCRIPTION,
+        parameters: {
+          type: "object" as const,
+          properties: {
+            to: { type: "string", description: "A name from the open characters: line." },
+            handoff: {
+              type: "boolean",
+              description:
+                "true: pass the user's message on this turn to that character, who answers the user.",
             },
-            additionalProperties: false as const,
-            required: ["to"],
           },
+          additionalProperties: false as const,
+          required: ["to"],
         },
-      };
+      },
     },
     execute: async (args, _signal, call) => {
       if (typeof args.to !== "string") return "error: unknown target";
