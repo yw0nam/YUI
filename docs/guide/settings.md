@@ -2,7 +2,7 @@
 
 The settings window opens from **Settings…** in the tray menu, or from **All settings…** on the quick card that a right-click opens.
 The strip at the top picks which character the window edits, and its note line says where a change shows: in main, in that character's own window, or when it opens.
-The search box above the rail filters the rows on every page, and the rail carries two groups: the pages for the character you edit, and the pages for every character.
+The search box above the rail highlights matching rows, each rail page shows its match count and dims when it has none, and the rail carries two groups: the pages for the character you edit, and the pages for every character.
 
 ## Connection
 
@@ -11,7 +11,7 @@ Sets the chat connection, speech recognition, and speech synthesis for the chara
 | Setting | What it does |
 | --- | --- |
 | Type | The chat protocol: Chat Completions, Responses, or Push. The line under it explains what the pick carries |
-| Provider | The chat preset: OpenAI, Ollama, LM Studio, Groq, Hermes Agent, or Custom, which fills the chat server URL. Under TTS, Provider picks Irodori, OpenAI, or Fish Audio and fills that URL and model |
+| Provider | The chat preset: OpenAI, Ollama, LM Studio, and Groq fill the chat server URL, Hermes Agent switches the type to Push and fills no URL, and Custom fills nothing. Under TTS, Provider picks Irodori, OpenAI, or Fish Audio and fills that URL and model |
 | Chat server URL and Chat model | The chat endpoint and the model id sent with each turn. The model list reads from the server |
 | Chat API key and TTS API key | Keys saved for this character. An empty field uses the build-time key |
 | Reasoning effort | Default, None, Minimal, Low, or Medium, the depth of thought before an answer. Push disables it because the backend decides |
@@ -26,7 +26,7 @@ Sets how she speaks and what she says while a reply is on its way. [Voice in and
 | Setting | What it does |
 | --- | --- |
 | Voice output | Reads replies aloud with TTS. Off shows text only |
-| Speaker | The voice list. Preview plays a sample, In use marks the selected voice, and Add from file… imports your own clip. Rename and Delete apply to voices you added |
+| The voice list | Preview plays a sample, In use marks the selected voice, and Add from file… imports your own clip. Rename and Delete apply to voices you added |
 | Use interjections | Says short lines while a reply is on its way |
 | Language | The language of the interjection lines: 日本語, English, or 한국어 |
 | First line and Repeat lines | First line plays once when your message arrives. Repeat lines replay with growing pauses |
@@ -55,17 +55,17 @@ Picks the model that renders the character, sets how she feels toward the others
 | --- | --- |
 | VRM | The model list. In use marks the active model, and Rename and Delete apply to models you added |
 | Add from file… | Imports a `.vrm` model |
-| Relations | One slider per target, starting with you. Drag it to set how she feels toward that target. The section is hidden while the Relations switch on Together is off |
+| Relations | One slider per target, starting with you. Drag it to set how she feels toward that target. While the Relations switch on Together is off, the sliders stay hidden and a note says that no one is rated |
 | Reset to front | Returns the camera to its default view. Shift + drag orbits and the wheel zooms |
 
 ## History
 
-Lists the conversation as it was said, session by session, and keeps it on this device. The page appears only when the app has a conversation transcript.
+Lists the conversation as it was said, session by session, and keeps it on this device.
 
 | Setting | What it does |
 | --- | --- |
 | Current conversation | The open session, each turn with its speaker, text, and time |
-| Earlier sessions | The same list, folded. Open one to read its turns |
+| Past sessions, each headed by its start date | Folded in the same list. Open one to read its turns |
 | Reset conversation | Starts a new conversation. Earlier turns stay in the list |
 | Context | The tokens in the conversation against the window, with a percentage and a meter |
 | Delegated tasks | Work she handed to a background agent, with its state and time |
