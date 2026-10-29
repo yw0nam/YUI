@@ -1,0 +1,71 @@
+/** Wires the Threads window: the store's snapshots into the view, the view's Answers to the store, open and close, theme and language. */
+
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { createSettingsBridge } from "../../io/bridge/settings-bridge";
+import { createThreadsClient } from "../../io/threads/threads-client";
+import { createLogger } from "../../logger";
+import {
+  createThemeSettings,
+  localStorageThemeStorage,
+} from "../../settings/appearance/theme-settings";
+import { isTauri } from "../../tauri-env";
+import { reloadFromStorage as reloadLocale } from "../../ui/i18n";
+import { applyTheme } from "../../ui/theme/apply-theme";
+import { createThreadsView } from "../../ui/threads/window/threads-view";
+import type { Disposers } from "../disposers";
+import { hideThreadsWindow, showThreadsWindow } from "./threads-placement";
+import { createThreadsPresence } from "./threads-presence";
+
+const log = createLogger("wire-threads-window");
+
+export async function wireThreadsWindow(deps: {
+  app: HTMLElement;
+  lifecycle: Disposers;
+}): Promise<void> {
+  const { register } = deps.lifecycle;
+  const themeSettings = createThemeSettings({ storage: localStorageThemeStorage() });
+  const bridge = createSettingsBridge(undefined, { windowKind: "threads" });
+  const client = createThreadsClient();
+  const view = createThreadsView({
+    mount: deps.app,
+    now: Date.now,
+    onAnswer: client.answer,
+    onClose: () => presence.close(),
+  });
+  const presence = createThreadsPresence({
+    view,
+    show: showThreadsWindow,
+    hide: hideThreadsWindow,
+    emitClosed: bridge.emitThreadsClosed,
+  });
+
+  // Drains LIFO, so registered in reverse of the teardown order.
+  register(() => themeSettings.dispose());
+  register(() => bridge.dispose());
+  register(() => client.dispose());
+  register(() => view.dispose());
+  register(
+    applyTheme({
+      store: themeSettings,
+      root: document.documentElement,
+      setNativeTheme: isTauri() ? (theme) => getCurrentWindow().setTheme(theme) : undefined,
+    }),
+  );
+  register(client.subscribe(view.update));
+  register(bridge.onThreadsOpen(({ chip }) => presence.open(chip)));
+  register(
+    bridge.onSettingsChanged(() => {
+      reloadLocale();
+      themeSettings.reloadFromStorage();
+    }),
+  );
+  window.addEventListener("beforeunload", deps.lifecycle.dispose);
+
+  // A reload while the window showed would leave it shown with nothing open in it.
+  if (isTauri()) {
+    await hideThreadsWindow().catch((error) =>
+      log.warn("threads_boot_hide_failed", { error: String(error) }),
+    );
+  }
+  bridge.emitThreadsReady();
+}

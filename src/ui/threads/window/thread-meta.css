@@ -1,0 +1,37 @@
+/* A Thread's source line and state word, in list rows and the pane head. Tokens in ../../tokens.css. */
+
+.yui-threads-source {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--yui-text-dim);
+  font-size: var(--yui-fs-sub);
+  font-weight: 500;
+}
+
+.yui-threads-source__mark {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  font-size: var(--yui-fs-head);
+}
+
+.yui-threads-state {
+  color: var(--yui-text-dim);
+  font-size: var(--yui-fs-sub);
+  white-space: nowrap;
+}
+
+.yui-threads-state.is-input-required {
+  color: var(--yui-accent-ink);
+}
+
+.yui-threads-state.is-failed {
+  color: var(--yui-danger);
+}
+
+.yui-threads-state.is-completed {
+  color: var(--yui-ok);
+}

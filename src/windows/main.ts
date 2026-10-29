@@ -36,6 +36,7 @@ import { wirePresetSwitch } from "../app/settings/wire-preset";
 import { createBedSceneHold } from "../app/stage/bed-scene-hold";
 import { createStageRenderer } from "../app/stage/stage-renderer";
 import { wireInputAnchor } from "../app/stage/wire-pet-stage";
+import { wireThreadsChip } from "../app/threads-chip/wire-threads-chip";
 import {
   createDelegationChipMount,
   messageWindowSuppression,
@@ -314,6 +315,15 @@ async function bootstrap(): Promise<BootstrapHandle> {
       stopTurn: configured.stopTurn,
       windowTools: configured.windowTools,
     });
+    // After the signal chips, before the delegation chip.
+    register(
+      wireThreadsChip({
+        boundId,
+        mount: surfaces.chipColumn,
+        collapsed: configured.chipFold,
+        bridge: windowBridge,
+      }),
+    );
     register(
       wirePushMode({
         socket: push.pushSocket,

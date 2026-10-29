@@ -1,0 +1,164 @@
+/* The answer area pinned at the thread pane's foot; compact so the transcript keeps the height.
+   Tokens in ../../tokens.css. */
+
+.yui-threads-answer {
+  display: grid;
+  gap: 8px;
+  padding: 12px 28px 16px;
+  border-top: 1px solid var(--yui-edge);
+  background: var(--yui-panel-bg);
+}
+
+.yui-threads-answer__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.yui-threads-answer__head h3 {
+  margin: 0;
+  font-size: var(--yui-fs-head);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.yui-threads-answer__head small {
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-sub);
+}
+
+.yui-threads-answer__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.yui-threads-answer__choices[hidden] {
+  display: none;
+}
+
+.yui-threads-answer button {
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid var(--yui-edge-strong);
+  border-radius: var(--yui-radius-control);
+  background: none;
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.yui-threads-answer button:hover:not(:disabled) {
+  background: var(--yui-hover);
+}
+
+.yui-threads-answer button:focus-visible,
+.yui-threads-answer textarea:focus-visible {
+  outline: 2px solid var(--yui-accent-ink);
+  outline-offset: 2px;
+}
+
+.yui-threads-answer__choices button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--yui-fs-sub);
+}
+
+.yui-threads-answer__choices kbd {
+  min-width: 1.5em;
+  padding: 0 4px;
+  border: 1px solid var(--yui-edge-strong);
+  border-radius: 4px;
+  color: var(--yui-text-mute);
+  font: inherit;
+  font-size: var(--yui-fs-caption);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.yui-threads-answer__choices [aria-pressed="true"] {
+  border-color: var(--yui-accent-ink);
+  background: var(--yui-selected);
+  color: var(--yui-accent-ink);
+}
+
+.yui-threads-answer__choices .is-danger {
+  color: var(--yui-danger);
+}
+
+.yui-threads-answer__choices .is-danger[aria-pressed="true"] {
+  border-color: var(--yui-danger);
+  background: var(--yui-danger-faint);
+  color: var(--yui-danger);
+}
+
+.yui-threads-answer__composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+
+/* One line that grows with the reply up to 200px, then scrolls. */
+.yui-threads-answer textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  max-height: 200px;
+  padding: 8px 12px;
+  resize: none;
+  border: 1px solid var(--yui-text-mute);
+  border-radius: var(--yui-radius-input);
+  background: var(--yui-field);
+  color: inherit;
+  font: inherit;
+  font-size: var(--yui-fs-speech);
+  line-height: 1.6;
+}
+
+.yui-threads-answer textarea::placeholder {
+  color: var(--yui-text-mute);
+}
+
+.yui-threads-answer__composer > :only-child {
+  grid-column: 2;
+}
+
+.yui-threads-answer .yui-threads-answer__send {
+  min-height: 44px;
+  border-color: var(--yui-text);
+  background: var(--yui-text);
+  color: var(--yui-panel-bg);
+  font-weight: 600;
+}
+
+.yui-threads-answer .yui-threads-answer__send:hover:not(:disabled) {
+  background: var(--yui-text-dim);
+}
+
+.yui-threads-answer .yui-threads-answer__send.is-danger {
+  border-color: var(--yui-danger);
+  background: var(--yui-danger);
+}
+
+.yui-threads-answer .yui-threads-answer__send:disabled {
+  opacity: 0.55;
+  border-color: var(--yui-edge-strong);
+  background: var(--yui-selected);
+  color: var(--yui-text-mute);
+  cursor: not-allowed;
+}
+
+.yui-threads-answer__error {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: var(--yui-radius-control);
+  background: var(--yui-danger-faint);
+  color: var(--yui-danger);
+  font-size: var(--yui-fs-sub);
+}

@@ -37,6 +37,12 @@ export type {
   SignalEnvelope,
   SignalGroup,
   SignalItem,
+  // Threads store snapshot
+  Thread,
+  ThreadAsk,
+  ThreadChoice,
+  ThreadEntry,
+  ThreadsSnapshot,
   ToolStatus,
   // Dispatcher-layer metadata
   TriggerMeta,

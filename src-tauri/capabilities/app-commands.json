@@ -12,7 +12,8 @@
     "quick-card",
     "quick-card-*",
     "unified",
-    "devtools"
+    "devtools",
+    "threads"
   ],
   "permissions": [
     "allow-drag-window",

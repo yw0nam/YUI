@@ -244,6 +244,49 @@ export type SignalEnvelope = {
 
 export type SignalGroup = { envelope: SignalEnvelope; items: SignalItem[] };
 
+// ── Threads (docs/reference/threads.md): the store's snapshot as threads_snapshot and threads-snapshot carry it ──
+
+export interface ThreadChoice {
+  id: string;
+  label: string;
+  tone?: "primary" | "danger";
+}
+
+export interface ThreadAsk {
+  ask_id: string;
+  prompt: string;
+  choices: ThreadChoice[];
+  /** Whether free text is accepted. */
+  text: boolean;
+  placeholder?: string;
+}
+
+export interface ThreadEntry {
+  role: "agent" | "user" | "system";
+  text: string;
+  /** Epoch ms. */
+  at: number;
+}
+
+export interface Thread {
+  id: string;
+  source: string;
+  title: string;
+  label?: string;
+  state: "working" | "input-required" | "completed" | "failed";
+  entries: ThreadEntry[];
+  ask?: ThreadAsk;
+  created_at: number;
+  updated_at: number;
+  answered_ask_ids?: string[];
+}
+
+export interface ThreadsSnapshot {
+  revision: number;
+  /** Newest `updated_at` first. */
+  threads: Thread[];
+}
+
 /** A bundled guide doc the backend answers from. */
 export type GuideKey = "controls" | "capabilities";
 
