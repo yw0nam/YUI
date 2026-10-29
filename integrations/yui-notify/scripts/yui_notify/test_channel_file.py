@@ -5,7 +5,7 @@ import pytest
 
 @pytest.mark.parametrize("failed", [False, True])
 def test_ready_file_lifetime(tmp_path, failed):
-    from yui_notify.channel import live, ready_file
+    from yui_notify.channel_file import live, ready_file
 
     env = {"XDG_STATE_HOME": str(tmp_path)}
     path = tmp_path / "yui-notify" / "channels" / "20"

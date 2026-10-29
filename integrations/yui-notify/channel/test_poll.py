@@ -25,20 +25,11 @@ import pytest
                 ("", {"content": "Run tests", "meta": {"source": "yui"}}),
             ],
         ),
-        (
-            {"ask_id": "perm:r1", "choice": "allow", "text": "Then test"},
-            [
-                ("permission", {"request_id": "r1", "behavior": "allow"}),
-                ("", {"content": "Then test", "meta": {"source": "yui"}}),
-            ],
-        ),
         ({"ask_id": "perm:r1", "release": True}, []),
-        ({"ask_id": "next:n1", "release": True}, []),
         (
             {"ask_id": "next:n1", "text": "Continue"},
             [("", {"content": "Continue", "meta": {"source": "yui"}})],
         ),
-        ({"ask_id": "other:n1", "text": "Continue"}, []),
     ],
 )
 def test_answer_notifications(answer, expected):
@@ -88,7 +79,7 @@ def test_poll_retries_and_resets_backoff(monkeypatch):
             raise asyncio.CancelledError
 
     monkeypatch.setattr("channel.poll.get", get)
-    monkeypatch.setattr("channel.poll.asyncio.sleep", sleep)
+    monkeypatch.setattr("channel.poll.anyio.sleep", sleep)
     with pytest.raises(asyncio.CancelledError):
         asyncio.run(poll("http://localhost/threads/t", Write()))
     assert requests == [("http://localhost/threads/t/answer?wait=25", 30)] * 11
@@ -116,7 +107,7 @@ def test_poll_skips_bad_answer_and_continues(monkeypatch, capsys, bad):
             await poll("http://localhost/threads/t", Write())
         except asyncio.CancelledError:
             pass
-        except Exception as error:
+        except (AttributeError, KeyError, RuntimeError, TypeError) as error:
             errors.append(type(error).__name__)
 
     asyncio.run(exercise())

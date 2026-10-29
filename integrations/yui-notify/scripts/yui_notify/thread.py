@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import json
-import os
 from collections.abc import Mapping
 from typing import Any
 from uuid import uuid4
 
 from yui_notify.adapters import Event
+from yui_notify.claude_process import claude_pid
 from yui_notify.label import make_label, short_hostname
 
 ENTRY_MAX = 16384
@@ -26,7 +26,7 @@ def claude_thread_id(pid: str | int) -> str:
 
 def thread_id(event: Event, env: Mapping[str, str]) -> str:
     if event.agent == "claude-code":
-        return claude_thread_id(env.get("CLAUDE_PID") or os.getppid())
+        return claude_thread_id(claude_pid(env, hook=True))
     return f"{event.agent}:{short_hostname()}:{event.session_id}"
 
 

@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import os
+import socket
 from types import SimpleNamespace
 
 import pytest
@@ -8,6 +9,8 @@ import pytest
 
 @pytest.mark.parametrize("ready", [True, False])
 def test_runtime_only_ready_server_polls_and_marks(tmp_path, monkeypatch, ready):
+    from mcp.server.lowlevel import Server
+
     from channel import runtime
 
     calls = []
@@ -19,21 +22,32 @@ def test_runtime_only_ready_server_polls_and_marks(tmp_path, monkeypatch, ready)
 
     async def serve_loop(server, read, write, **kwargs):
         assert (read, write) == ("read", "write")
-        assert path.exists() is ready
-        await asyncio.sleep(0.02)
+        assert path.exists() is False
+        if ready:
+            handler = server.get_notification_handler("notifications/initialized")
+            await handler.handler(None, handler.params_type.model_validate({}))
+            await polled.wait()
         calls.append("served")
 
     async def poll(url, write):
         assert path.read_text() == str(os.getpid())
         calls.append((url, write))
+        polled.set()
         await asyncio.Event().wait()
 
     monkeypatch.setattr(runtime, "stdio_server", stdio)
     monkeypatch.setattr(runtime, "serve_loop", serve_loop)
     monkeypatch.setattr(runtime, "poll", poll)
     identity = SimpleNamespace(pid=20, ready=ready, thread_id="claude-code:host:20")
-    server = SimpleNamespace(create_initialization_options=lambda **kwargs: kwargs)
-    asyncio.run(runtime.serve(server, identity, {"XDG_STATE_HOME": str(tmp_path)}))
+    server = Server("test")
+
+    async def exercise():
+        nonlocal polled
+        polled = asyncio.Event()
+        await runtime.serve(server, identity, {"XDG_STATE_HOME": str(tmp_path)})
+
+    polled = None
+    asyncio.run(exercise())
     assert calls == (
         [("http://127.0.0.1:8770/threads/claude-code:host:20", "write"), "served"] if ready else ["served"]
     )
@@ -43,6 +57,7 @@ def test_runtime_only_ready_server_polls_and_marks(tmp_path, monkeypatch, ready)
 @pytest.mark.parametrize("found", [False, True])
 def test_unavailable_channel_serves_idle(tmp_path, monkeypatch, capsys, found):
     from mcp.server.lowlevel import Server
+
     from channel import runtime
     from channel.identity import Identity
 
@@ -90,7 +105,7 @@ def test_unavailable_channel_serves_idle(tmp_path, monkeypatch, capsys, found):
 def test_poll_waits_for_initialized_notification(tmp_path, monkeypatch):
     import anyio
     from mcp.server.lowlevel import Server
-    from pydantic import BaseModel
+
     from channel import runtime
     from channel.identity import Identity
 
@@ -109,7 +124,7 @@ def test_poll_waits_for_initialized_notification(tmp_path, monkeypatch):
             await initialized.wait()
             handler = server.get_notification_handler("notifications/initialized")
             assert handler is not None
-            await handler.handler(None, BaseModel())
+            await handler.handler(None, handler.params_type.model_validate({}))
             await polled.wait()
 
         async def poll(url, write):
@@ -130,9 +145,7 @@ def test_poll_waits_for_initialized_notification(tmp_path, monkeypatch):
     anyio.run(exercise)
     assert calls == [
         (
-            "http://127.0.0.1:8770/threads/claude-code:"
-            + __import__("socket").gethostname().split(".")[0]
-            + ":20",
+            "http://127.0.0.1:8770/threads/claude-code:" + socket.gethostname().split(".")[0] + ":20",
             "write",
         )
     ]

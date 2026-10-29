@@ -9,7 +9,12 @@ def test_permission_request_posts_ask(monkeypatch, preview):
     from channel.relay import PermissionRequest, relay
 
     posted = []
-    monkeypatch.setattr("channel.relay.put", lambda url, body: posted.append((url, body)))
+
+    def put(url, body):
+        posted.append((url, body))
+        return 200, None, None
+
+    monkeypatch.setattr("channel.relay.put", put)
     asyncio.run(
         relay(
             "http://localhost:8770/threads/claude-code:host:20",

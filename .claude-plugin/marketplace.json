@@ -7,7 +7,7 @@
     {
       "name": "yui-notify",
       "source": "./integrations/yui-notify",
-      "description": "Claude Code and Codex hooks that post Threads, with synchronous Codex answers."
+      "description": "Coding-agent Threads with Claude Code channel answers and synchronous Codex hook answers."
     }
   ]
 }

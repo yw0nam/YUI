@@ -135,6 +135,7 @@ pub(super) fn dispatch(
 mod tests {
     use super::*;
     use std::collections::HashSet;
+
     #[test]
     fn threads_answer_accepts_no_ask_id() {
         assert!(parse_route("GET", "/threads/a/answer?wait=0", "").is_ok());

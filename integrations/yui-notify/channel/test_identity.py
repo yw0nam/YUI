@@ -1,6 +1,12 @@
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def isolated_claude_environment(monkeypatch):
+    monkeypatch.delenv("CLAUDE_CODE_MESSAGING_SOCKET", raising=False)
+    monkeypatch.delenv("CLAUDE_PID", raising=False)
+
+
 @pytest.mark.parametrize(
     "argv,ready",
     [
@@ -39,6 +45,7 @@ def test_discover_stops_after_five_parents():
 @pytest.mark.parametrize("separator", [" ", "="])
 def test_discover_ps_output_with_apostrophe(monkeypatch, flag, separator):
     from types import SimpleNamespace
+
     from channel.identity import discover
 
     monkeypatch.delenv("CLAUDE_CODE_MESSAGING_SOCKET", raising=False)
@@ -60,6 +67,7 @@ def test_discover_ps_output_with_apostrophe(monkeypatch, flag, separator):
 @pytest.mark.parametrize("source", ["socket", "node"])
 def test_discover_socket_or_node_parent(monkeypatch, source):
     from types import SimpleNamespace
+
     from channel.identity import discover
 
     monkeypatch.delenv("CLAUDE_PID", raising=False)

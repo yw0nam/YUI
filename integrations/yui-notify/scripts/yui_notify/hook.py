@@ -6,7 +6,7 @@ from typing import TextIO
 
 from yui_notify import config
 from yui_notify.adapters import parse_event
-from yui_notify.channel import add_next_ask
+from yui_notify.channel_file import add_next_ask, owns_permission
 from yui_notify.check import probe_failure
 from yui_notify.focus import host_app_in_front
 from yui_notify.label import context
@@ -21,6 +21,8 @@ def run_hook(env: Mapping[str, str], stdin: TextIO) -> None:
     except ValueError:
         return
     if event is None:
+        return
+    if owns_permission(event, env):
         return
     cfg = config.load(env)
     if event.phase == "SessionStart":

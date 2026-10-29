@@ -22,9 +22,11 @@ Threads accept no preset prefix and use the listener's Host and Origin checks.
 Both agents post user prompts as `working`. A ready Claude Code channel server relays
 permission requests as Allow, Deny, and text asks. Permission text also arrives as a user
 channel message; text alone denies the tool. Stop asks “What next?” while the ready
-server is alive. Its hook exits immediately; the server polls YUI for answers.
+server is alive. Its hook exits immediately; the server polls YUI after MCP initialization.
+The ready channel owns permission entries; the permission hook sends nothing.
 
-Without the channel launch flag, the server stays idle, Stop posts `completed`, and
+Without Claude identity or the channel launch flag, the server serves MCP idle and logs
+one stderr line. Stop posts `completed`, and
 permission and elicitation hooks post read-only `input-required` entries. Channels are a
 research preview; requirements and launch details are in the plugin README.
 

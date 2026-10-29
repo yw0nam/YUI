@@ -7,6 +7,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from yui_notify.adapters import Event
+from yui_notify.claude_process import claude_pid
 from yui_notify.thread import fit_entries, next_ask
 
 
@@ -41,11 +42,15 @@ def ready_file(pid: int, env: Mapping[str, str]):
 
 
 def add_next_ask(body: dict, event: Event, env: Mapping[str, str]) -> None:
-    if (
-        event.agent == "claude-code"
-        and event.phase == "Stop"
-        and live(int(env.get("CLAUDE_PID") or os.getppid()), env)
-    ):
+    if event.agent == "claude-code" and event.phase == "Stop" and live(claude_pid(env, hook=True), env):
         body["state"] = "input-required"
         body["ask"] = next_ask("next:" + uuid4().hex)
         fit_entries(body)
+
+
+def owns_permission(event: Event, env: Mapping[str, str]) -> bool:
+    return (
+        event.agent == "claude-code"
+        and event.phase == "PermissionRequest"
+        and live(claude_pid(env, hook=True), env)
+    )

@@ -484,7 +484,7 @@ globalThis.YUI_MAP =
       "id": "agent-channel",
       "module": "senders",
       "label": "Claude Code channel server",
-      "role": "The yui-notify MCP server relays permission asks and long-polls Thread answers only when Claude's launch argv registers the plugin channel; ready files enable next-instruction asks in Stop hooks.",
+      "role": "The yui-notify MCP server identifies Claude from its messaging socket or parent walk, serves idle when unavailable, and starts answer polling after MCP initialization; ready files enable hook asks and prevent duplicate permission entries.",
       "paths": [],
       "external": true
     },
@@ -2206,7 +2206,7 @@ globalThis.YUI_MAP =
       "id": "claude-channel-permission",
       "from": "claude-channel-client",
       "to": "agent-channel",
-      "carries": "MCP stdio notifications/claude/channel/permission_request {request_id, tool_name, description, input_preview}",
+      "carries": "MCP stdio notifications/initialized starts polling; notifications/claude/channel/permission_request {request_id, tool_name, description, input_preview}",
       "kind": "bridge",
       "transport": "shared"
     },
@@ -2230,7 +2230,7 @@ globalThis.YUI_MAP =
       "id": "channel-hook-readiness",
       "from": "agent-channel",
       "to": "agent-hooks",
-      "carries": "XDG_STATE_HOME/yui-notify/channels/<claude pid> contains the ready server PID; Stop asks only while that PID is alive",
+      "carries": "XDG_STATE_HOME/yui-notify/channels/<claude pid> contains the initialized ready server PID; live PID enables Stop asks and suppresses permission hook entries",
       "kind": "storage",
       "transport": "shared"
     },
