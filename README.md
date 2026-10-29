@@ -136,7 +136,7 @@ The [connection guide](docs/guide/connect-a-backend.md) covers each setup. Missi
 ## Known limitations
 
 - Supported on macOS with Apple Silicon and Windows x64. Intel Macs and Linux are not officially supported.
-- The installers on the Releases page work: the macOS build is signed ad hoc, so on first launch choose System Settings → Privacy & Security → Open Anyway, and [Install](docs/guide/installation.md) covers both routes.
+- [Install](docs/guide/installation.md) covers the coding-agent route and the installers on the Releases page; the macOS build is signed ad hoc, so on first launch choose System Settings → Privacy & Security → Open Anyway.
 - Climbing up window sides and onto the monitor above is marked as in development in the app.
 - Irodori TTS speaks Japanese only.
 

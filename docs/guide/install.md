@@ -107,4 +107,4 @@ Report to the user:
 3. What was skipped, with the place to set it later: right-click the character → All settings… → Connection.
 4. The launch command, run from the checkout: `pnpm tauri dev`. The first run compiles the Rust side for several minutes, then opens a transparent window with the character. With no backend she idles, and a chat turn answers with a pointer to the Connection tab.
 5. What the connection keeps across turns and where long-term memory comes from: [what the connection remembers](https://github.com/yw0nam/YUI/blob/main/docs/guide/connect-a-backend.md#what-the-connection-remembers).
-6. The optional services (TTS, STT, backend agents) are covered in the [install guide](installation.md).
+6. The optional services (TTS, STT, backend agents) are covered in [Connect a backend](connect-a-backend.md) and [Voice in and out](voice.md).

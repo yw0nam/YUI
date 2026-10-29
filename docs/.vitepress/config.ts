@@ -57,9 +57,12 @@ const EXTEND: DocGroup = {
   ],
 }
 
+/** The one Releases page, shared by the sidebar group and the top nav. */
+const WHATS_NEW: DocLink = { text: "What's new", link: '/guide/whats-new' }
+
 const RELEASES: DocGroup = {
   text: 'Releases',
-  items: [{ text: "What's new", link: '/guide/whats-new' }],
+  items: [WHATS_NEW],
 }
 
 const BACKEND_CONTRACT: DocGroup = {
@@ -132,7 +135,7 @@ export default defineConfig({
       { text: 'Home', link: '/' },
       { text: 'Guide', items: navGroups([START, USE, EXTEND]) },
       { text: 'Reference', items: navGroups([BACKEND_CONTRACT, DIAGNOSTICS]) },
-      { text: "What's new", link: '/guide/whats-new' },
+      { text: WHATS_NEW.text, link: WHATS_NEW.link },
       { text: 'GitHub ↗', link: 'https://github.com/yw0nam/YUI' },
     ],
     sidebar: {
