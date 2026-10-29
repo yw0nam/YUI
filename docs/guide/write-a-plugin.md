@@ -1,6 +1,6 @@
 # Write a plugin
 
-A plugin is one folder: a manifest, an MCP server, and skills. YUI runs the server, and the brain reaches its tools through the bridge tools.
+A plugin is one folder: a manifest, and optionally MCP servers and skills. YUI runs each server, and the brain reaches its tools through the bridge tools.
 
 ```mermaid
 flowchart LR
@@ -61,8 +61,8 @@ YUI starts `command` with `args` as argv and no shell, so an argument reaches th
 
 | What YUI expects | What happens |
 |---|---|
-| Spawn, `initialize` and `tools/list` answer within 30 s together | A miss shows **Unavailable**, naming the step it stopped at. |
-| A server that ends on its own | It is not restarted; Retry or the next app start runs it again. |
+| `initialize` and `tools/list` answer within 30 s together | A miss shows **Unavailable**, naming the step it stopped at. |
+| A server that ends on its own | It shows **Exited** with **Restart**; the next app start runs it again. |
 | A stop | YUI closes the connection, waits up to 1 s, then kills the server and every process it started. |
 | stdout | The MCP channel, and nothing else. |
 | stderr | Each line goes to the plugin log, prefixed `[<server>] ` and cut at 2000 bytes. |
@@ -70,6 +70,8 @@ YUI starts `command` with `args` as argv and no shell, so an argument reaches th
 ## Tools and skills
 
 A tool name that a built-in client tool or an earlier enabled plugin holds is hidden. The later plugin still runs ([Plugins](./plugins.md)).
+
+These names belong to built-in client tools: `address_character`, `body_action`, `generate_express`, `look`, `plugin_call`, `plugin_describe`, `plugin_skill`, `rate_relation`.
 
 | `_meta` key | Where | What it does |
 |---|---|---|
@@ -79,7 +81,14 @@ A tool name that a built-in client tool or an earlier enabled plugin holds is hi
 
 YUI checks `arguments` against the tool's `inputSchema` before it sends a call, sends no `arguments` field when that object is empty, and sends `notifications/cancelled` for a passed wait or a stopped turn ([Client Tools](../reference/client-tools.md)).
 
-A skill is `skills/<folder>/SKILL.md`, one level deep:
+A skill is `skills/<folder>/SKILL.md`, one level deep. Its frontmatter sits between `---` lines:
+
+```markdown
+---
+name: greet
+description: Greets the user in one line.
+---
+```
 
 | Field | Rule |
 |---|---|

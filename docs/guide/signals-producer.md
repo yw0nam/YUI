@@ -5,12 +5,12 @@ A producer is a program on your machine that posts a signal group to YUI's loopb
 ```mermaid
 sequenceDiagram
   participant P as Producer
-  participant I as YUI ingress
+  participant Y as YUI
   participant C as Character
   participant B as Brain
-  P->>I: POST /signals
-  I->>I: Buffer the group, or fire it at once
-  I->>C: Give her a turn
+  P->>Y: POST /signals
+  Y->>C: Hand the group to her window
+  C->>C: Buffer it, or fire a turn now
   C->>B: Send the signal as client context
   B-->>C: Words, or silence
 ```
@@ -21,7 +21,7 @@ The work is four steps:
 
 1. [Pick a class](#pick-a-class)
 2. [Write a label](#write-a-label)
-3. [Choose an `event_id`](#choose-an-event_id)
+3. [Choose an `event_id`](#choose-an-event-id)
 4. [Send it](#send-it)
 
 ## Pick a class
@@ -46,6 +46,8 @@ Drop a signal by not sending it: `delivery` has no drop value.
 ## Send it
 
 Turn on **External signals** in Settings → Proactive → Watchers. The ingress listens on the port shown there, `8770` by default, and a change of either takes effect on the next launch. `POST /signals` wakes the main window's character; `POST /presets/<id>/signals` wakes the character bound to preset `<id>`.
+
+**Manage presets** puts **Copy ingress URL for <name>** on each preset row but the active one while **External signals** is on.
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' -X POST \
