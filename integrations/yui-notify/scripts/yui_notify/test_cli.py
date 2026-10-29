@@ -1,153 +1,256 @@
 import http.server
 import io
 import json
+import socket
 import threading
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 
 from yui_notify.cli import main
 
 FIXTURES = Path(__file__).parent / "fixtures"
-CLAUDE_STOP_TEXT = (
-    "I couldn't create the file. The Bash `touch` was blocked because Claude Code asks for approval "
-    "before a shell command creates files in this working directory, and this session can't show that "
-    "prompt. The file `hello.txt` does not exist yet.\n\nTo finish, approve the `touch` command when it "
-    "prompts, or allow Bash writes to this directory, then I can run it again. I didn't use another "
-    "tool to create the file, since you asked for Bash specifically and the approval gate is there "
-    "for a reason."
-)
 
 
 class Received(list):
     status: list
+    answer: dict
+    polls: list
 
 
 @pytest.fixture
 def server():
     received = Received()
-    status = [200]
+    received.status = [200, 200]
+    received.answer = {"release": True}
+    received.polls = []
 
     class Handler(http.server.BaseHTTPRequestHandler):
-        def do_POST(self):
+        def do_PUT(self):
             received.append((self.path, json.loads(self.rfile.read(int(self.headers["Content-Length"])))))
-            self.send_response(status[0])
-            self.send_header("Content-Length", "0")
+            self.reply(received.status[0], {})
+
+        def do_GET(self):
+            received.polls.append(self.path)
+            if received.status[1] == 0:
+                self.connection.close()
+                return
+            self.reply(received.status[1], received.answer)
+
+        def reply(self, status, data):
+            raw = json.dumps(data).encode()
+            self.send_response(status)
+            self.send_header("Content-Length", str(len(raw)))
             self.end_headers()
+            self.wfile.write(raw)
 
         def log_message(self, *args):
             pass
 
     httpd = http.server.HTTPServer(("127.0.0.1", 0), Handler)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
-    received.status = status
     yield f"http://127.0.0.1:{httpd.server_port}", received
     httpd.shutdown()
+    httpd.server_close()
 
 
-def run_hook(tmp_path, endpoint, fixture, config=None, extra_env=None):
-    (tmp_path / "cfg" / "yui-notify").mkdir(parents=True, exist_ok=True)
-    cfg = {"endpoint": endpoint}
-    cfg.update(config or {})
-    (tmp_path / "cfg" / "yui-notify" / "config.json").write_text(json.dumps(cfg))
+def run_hook(tmp_path, endpoint, fixture, config=None, extra_env=None, **updates):
+    cfg_dir = tmp_path / "cfg" / "yui-notify"
+    cfg_dir.mkdir(parents=True, exist_ok=True)
+    (cfg_dir / "config.json").write_text(json.dumps({"endpoint": endpoint, **(config or {})}))
     env = {
         "CLAUDECODE": "1",
+        "CLAUDE_PID": "8864",
         "XDG_CONFIG_HOME": str(tmp_path / "cfg"),
         "XDG_STATE_HOME": str(tmp_path / "state"),
+        **(extra_env or {}),
     }
-    env.update(extra_env or {})
-    return main(["hook"], stdin=io.StringIO((FIXTURES / fixture).read_text()), env=env)
+    data = json.loads((FIXTURES / fixture).read_text())
+    if fixture.startswith("codex"):
+        data["transcript_path"] = str(FIXTURES / "codex-rollout-cli.jsonl")
+    data.update(updates)
+    return main(["hook"], stdin=io.StringIO(json.dumps(data)), env=env)
 
 
 @pytest.mark.parametrize(
-    "fixture, event_type, delivery, event_id, item_key, item_value",
+    "fixture,state,role,text,ask",
     [
-        (
-            "claude-stop.json",
-            "agent.done",
-            "urgent",
-            "bc68d697-4e8f-4be0-8ea6-e67f955b2586:done",
-            "summary",
-            CLAUDE_STOP_TEXT,
-        ),
+        ("claude-stop.json", "completed", "agent", None, None),
         (
             "claude-permission.json",
-            "agent.needs_input",
-            "urgent",
-            "bc68d697-4e8f-4be0-8ea6-e67f955b2586:needs_input",
-            "pending",
+            "input-required",
+            "system",
             "Bash: touch /Users/dev/projects/demo/hello.txt",
+            "absent",
         ),
         (
             "claude-notification.json",
-            "agent.needs_input",
-            "urgent",
-            "bc68d697-4e8f-4be0-8ea6-e67f955b2586:needs_input",
-            "pending",
+            "input-required",
+            "system",
             "The github MCP server is asking for your input",
+            "absent",
         ),
+        ("claude-user-prompt.json", "working", "user", "Please fix the upload client.", None),
+        ("codex-user-prompt.json", "working", "user", "Please fix the upload client.", None),
+        ("codex-stop.json", "input-required", "agent", None, "stop"),
+        ("codex-permission.json", "input-required", "system", "Bash: rm -rf build", "perm"),
     ],
-    ids=["stop", "permission", "notification-synthetic"],
 )
-def test_hook_posts_signal(tmp_path, server, fixture, event_type, delivery, event_id, item_key, item_value):
+def test_hook_posts_thread(tmp_path, server, fixture, state, role, text, ask):
     endpoint, received = server
     assert run_hook(tmp_path, endpoint, fixture) == 0
+    data = json.loads((FIXTURES / fixture).read_text())
+    agent = "codex" if fixture.startswith("codex") else "claude-code"
     path, body = received[0]
-    assert path == "/signals"
-    assert isinstance(body["envelope"].pop("occurred_at"), int)
-    assert body["envelope"] == {
-        "source": "claude-code",
-        "event_type": event_type,
-        "delivery": delivery,
-        "event_id": event_id,
+    assert (
+        path
+        == f"/threads/{agent}:{socket.gethostname().split('.')[0]}:{data['session_id'] if agent == 'codex' else '8864'}"
+    )
+    expected = {
+        "source": agent,
+        "title": "demo",
         "label": "demo",
+        "state": state,
+        "entries": [{"role": role, "text": text or data["last_assistant_message"]}],
     }
-    assert body["signals"] == [
-        {"project": "demo", "branch": None, "host": None, "tmux": None, item_key: item_value}
-    ]
+    if ask in ("stop", "perm"):
+        actual = body["ask"]
+        assert actual["ask_id"].startswith(f"{ask}:{data['turn_id']}:")
+        assert len(actual["ask_id"].rsplit(":", 1)[1]) == 32
+        expected["ask"] = {
+            "ask_id": actual["ask_id"],
+            "prompt": "What next?" if ask == "stop" else "Allow Bash?",
+            "text": True,
+            "placeholder": "Next instruction" if ask == "stop" else "Or tell Codex what to do instead",
+        }
+        if ask == "perm":
+            expected["ask"]["choices"] = [
+                {"id": "allow", "label": "Allow", "tone": "primary"},
+                {"id": "deny", "label": "Deny", "tone": "danger"},
+            ]
+    elif ask != "absent":
+        expected["ask"] = None
+    assert body == expected
 
 
-def test_drop_posts_nothing(tmp_path, server):
+@pytest.mark.parametrize(
+    "fixture,answer,expected",
+    [
+        (
+            "codex-permission.json",
+            {"choice": "allow"},
+            {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": {"behavior": "allow"}}},
+        ),
+        (
+            "codex-permission.json",
+            {"choice": "deny", "text": "Use read only"},
+            {
+                "hookSpecificOutput": {
+                    "hookEventName": "PermissionRequest",
+                    "decision": {"behavior": "deny", "message": "Use read only"},
+                }
+            },
+        ),
+        (
+            "codex-permission.json",
+            {"text": "Run tests instead"},
+            {
+                "hookSpecificOutput": {
+                    "hookEventName": "PermissionRequest",
+                    "decision": {"behavior": "deny", "message": "Run tests instead"},
+                }
+            },
+        ),
+        ("codex-permission.json", {"release": True}, None),
+        (
+            "codex-stop.json",
+            {"text": "Continue with tests"},
+            {"decision": "block", "reason": "Continue with tests"},
+        ),
+    ],
+)
+def test_codex_answers(tmp_path, server, capsys, fixture, answer, expected):
     endpoint, received = server
-    run_hook(tmp_path, endpoint, "claude-stop.json", {"events": {"done": "drop"}})
-    assert received == []
+    received.answer = answer
+    run_hook(tmp_path, endpoint, fixture)
+    out = capsys.readouterr().out
+    assert (json.loads(out) if out else None) == expected
+    query = parse_qs(urlparse(received.polls[0]).query)
+    assert query == {"ask_id": [received[0][1]["ask"]["ask_id"]], "wait": ["25"]}
 
 
-@pytest.mark.parametrize("fixture", ["claude-stop.json", "claude-permission.json"])
-def test_host_app_in_front_posts_nothing(tmp_path, server, monkeypatch, fixture):
+@pytest.mark.parametrize(
+    "fixture,state", [("codex-stop.json", "completed"), ("codex-permission.json", "working")]
+)
+@pytest.mark.parametrize("status", [410, 503, 204, 0])
+def test_codex_fallback_closes_ask(tmp_path, server, capsys, monkeypatch, fixture, state, status):
+    endpoint, received = server
+    received.status[1] = status
+    ticks = iter([0, 0, 600])
+    monkeypatch.setattr("time.monotonic", lambda: next(ticks))
+    run_hook(tmp_path, endpoint, fixture)
+    assert capsys.readouterr().out == ""
+    assert len(received) == 2
+    assert received[-1][1] == {**received[0][1], "state": state, "ask": None, "entries": []}
+
+
+def test_focus_permission_posts_without_waiting(tmp_path, server, monkeypatch):
     endpoint, received = server
     monkeypatch.setattr("yui_notify.hook.host_app_in_front", lambda env: True)
-    run_hook(tmp_path, endpoint, fixture)
-    assert received == []
+    run_hook(tmp_path, endpoint, "codex-permission.json")
+    assert "ask" not in received[0][1]
+    assert received.polls == []
+
+
+def test_successive_stops_can_both_be_answered(tmp_path, server, capsys):
+    endpoint, received = server
+    received.answer = {"text": "Continue"}
+    for active in (False, True):
+        run_hook(tmp_path, endpoint, "codex-stop.json", stop_hook_active=active)
+        assert json.loads(capsys.readouterr().out) == {"decision": "block", "reason": "Continue"}
+    ids = [body["ask"]["ask_id"] for _, body in received]
+    assert len(set(ids)) == 2
+
+
+@pytest.mark.parametrize("text", ["x" * 16385, "😀" * 16384])
+def test_entry_and_body_budget(tmp_path, server, text):
+    endpoint, received = server
+    run_hook(tmp_path, endpoint, "claude-stop.json", last_assistant_message=text)
+    body = received[0][1]
+    entry = body["entries"][0]["text"]
+    assert len(entry) <= 16384
+    assert len(json.dumps(body, ensure_ascii=False).encode()) <= 65536
+    assert entry.endswith("…")
+    assert text.startswith(entry[:-1])
 
 
 def test_session_start_warns_only_when_unreachable(tmp_path, server, capsys):
     endpoint, received = server
+    received.status[1] = 404
     run_hook(tmp_path, endpoint, "claude-session-start.json")
-    assert received == [("/signals", {"signals": [], "envelope": "yui-notify-probe"})]
+    assert received.polls == ["/threads/yui-notify-probe/answer?ask_id=probe&wait=0"]
     assert capsys.readouterr().out == ""
     run_hook(tmp_path, "http://127.0.0.1:1", "claude-session-start.json")
     assert json.loads(capsys.readouterr().out) == {
-        "systemMessage": "yui-notify: YUI is not listening at http://127.0.0.1:1/signals "
-        "(External signals off, wrong port, or no tunnel)"
+        "systemMessage": "yui-notify: YUI is not listening at http://127.0.0.1:1/threads/yui-notify-probe/answer?ask_id=probe&wait=0 (External signals off, wrong port, or no tunnel)"
     }
 
 
 def test_unreachable_endpoint_exits_zero_and_records_error(tmp_path):
     assert run_hook(tmp_path, "http://127.0.0.1:1", "claude-stop.json") == 0
     err = json.loads((tmp_path / "state" / "yui-notify" / "last-error.json").read_text())
-    assert err["url"] == "http://127.0.0.1:1/signals"
+    assert "/threads/claude-code:" in err["url"]
     assert err["status"] is None
     assert err["error"]
 
 
 @pytest.mark.parametrize(
-    "command, status, line, code",
+    "command,status,line,code",
     [
-        ("probe", 200, "ok: YUI is listening at {url}", 0),
-        ("probe", 404, "no such preset: {url}", 1),
+        ("probe", 404, "ok: YUI is listening at {url}", 0),
+        ("probe", 400, "update YUI: Threads are not supported at {url}", 1),
         ("probe", 503, "the preset's pet window is closed: {url}", 1),
-        ("probe", 400, "unexpected HTTP 400 from {url}", 1),
         ("probe", None, "YUI is not listening at {url} (External signals off, wrong port, or no tunnel)", 1),
         ("test", 200, "sent: HTTP 200", 0),
         ("test", 503, "the preset's pet window is closed: {url}", 1),
@@ -158,8 +261,62 @@ def test_probe_and_test_report(tmp_path, server, capsys, command, status, line, 
     if status is None:
         endpoint = "http://127.0.0.1:1"
     else:
-        received.status[0] = status
+        received.status[:] = [status, status]
     assert main([command, "--endpoint", endpoint], env={"XDG_CONFIG_HOME": str(tmp_path)}) == code
-    assert capsys.readouterr().out == line.format(url=endpoint + "/signals") + "\n"
-    if command == "probe" and status is not None:
-        assert received[0] == ("/signals", {"signals": [], "envelope": "yui-notify-probe"})
+    path = (
+        "/threads/yui-notify-probe/answer?ask_id=probe&wait=0"
+        if command == "probe"
+        else f"/threads/yui-notify:test:{socket.gethostname().split('.')[0]}"
+    )
+    assert capsys.readouterr().out == line.format(url=endpoint + path) + "\n"
+    if command == "test":
+        assert received[0][0] == path
+        assert received[0][1]["state"] == "completed"
+        assert received[0][1]["entries"] == [
+            {"role": "system", "text": "Test Thread from the yui-notify setup."}
+        ]
+
+
+def test_claude_id_falls_back_to_parent_pid(tmp_path, server, monkeypatch):
+    endpoint, received = server
+    monkeypatch.setattr("os.getppid", lambda: 9000)
+    run_hook(tmp_path, endpoint, "claude-stop.json", extra_env={"CLAUDE_PID": ""})
+    assert received[0][0] == f"/threads/claude-code:{socket.gethostname().split('.')[0]}:9000"
+
+
+@pytest.mark.parametrize("fixture", ["claude-stop.json", "claude-permission.json", "codex-stop.json"])
+def test_focus_still_posts_other_events(tmp_path, server, capsys, monkeypatch, fixture):
+    endpoint, received = server
+    monkeypatch.setattr("yui_notify.hook.host_app_in_front", lambda env: True)
+    run_hook(tmp_path, endpoint, fixture)
+    assert len(received) == 1
+    assert bool(received.polls) == fixture.startswith("codex")
+    assert capsys.readouterr().out == ""
+
+
+def test_bounded_poll_timeout(tmp_path, server, monkeypatch):
+    import urllib.request
+
+    endpoint, received = server
+    timeouts = []
+    open_url = urllib.request.urlopen
+
+    def capture(req, timeout):
+        timeouts.append(timeout)
+        return open_url(req, timeout=timeout)
+
+    monkeypatch.setattr(urllib.request, "urlopen", capture)
+    ticks = iter([0, 2.1])
+    monkeypatch.setattr("time.monotonic", lambda: next(ticks))
+    run_hook(tmp_path, endpoint, "codex-permission.json", {"wait": {"permission": 10}})
+    assert parse_qs(urlparse(received.polls[0]).query)["wait"] == ["7"]
+    assert timeouts == [2, 12]
+
+
+def test_manifest_synchronous_deadlines():
+    hooks = json.loads((Path(__file__).parents[2] / "hooks" / "hooks.json").read_text())["hooks"]
+    for event in ("Stop", "PermissionRequest"):
+        command = hooks[event][0]["hooks"][0]
+        assert "async" not in command
+        assert command["timeout"] == 660
+    assert hooks["UserPromptSubmit"][0]["hooks"][0]["type"] == "command"
