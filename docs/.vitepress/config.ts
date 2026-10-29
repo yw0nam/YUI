@@ -1,5 +1,4 @@
 import { defineConfig, type DefaultTheme } from 'vitepress'
-import { withMermaid } from 'vitepress-plugin-mermaid'
 
 interface DocLink {
   text: string
@@ -26,8 +25,8 @@ const START: DocGroup = {
   text: 'Start',
   items: [
     { text: 'Install', link: '/guide/installation' },
-    { text: 'How YUI works', link: '/guide/how-it-works' },
     { text: 'Install with a coding agent', link: '/guide/install' },
+    { text: 'How YUI works', link: '/guide/how-it-works' },
     { text: 'Connect a backend', link: '/guide/connect-a-backend' },
     { text: 'Voice in and out', link: '/guide/voice' },
   ],
@@ -105,56 +104,7 @@ const LONG_READ = [
   'guide/whats-new.md',
 ]
 
-// Mermaid colours and font, set once for every diagram. A Markdown file carries
-// no %%{init}%% directive, so GitHub draws the same file in its own theme.
-const MERMAID = {
-  // base is the one theme Mermaid lets a site restyle through themeVariables. The plugin
-  // swaps it for dark when <html> has the dark class, and this site forces dark.
-  theme: 'base' as const,
-  // SVG text labels: htmlLabels would draw <foreignObject> HTML that the site CSS restyles.
-  htmlLabels: false,
-  flowchart: { htmlLabels: false },
-  // Narrow actors and wrapped messages keep a sequence diagram near the column width, so it shrinks less.
-  sequence: { actorMargin: 32, width: 120, messageMargin: 32, wrap: true },
-  // A system font needs no loading, so the labels are measured with the font they are drawn in.
-  fontFamily: 'system-ui, -apple-system, Segoe UI, sans-serif',
-  // The mock's flowchart and sequence colours (Hearthlight tokens in hex), in one set.
-  themeVariables: {
-    fontFamily: 'system-ui, -apple-system, Segoe UI, sans-serif',
-    fontSize: '14px',
-    background: '#17130d',
-    primaryColor: '#241e17',
-    primaryBorderColor: '#eeb154',
-    primaryTextColor: '#f3eee6',
-    secondaryColor: '#1d1812',
-    tertiaryColor: '#130f0a',
-    lineColor: '#a69d91',
-    textColor: '#f3eee6',
-    edgeLabelBackground: '#17130d',
-    clusterBkg: '#130f0a',
-    clusterBorder: '#4a4136',
-    titleColor: '#beb6ac',
-    actorBkg: '#241e17',
-    actorBorder: '#eeb154',
-    actorTextColor: '#f3eee6',
-    actorLineColor: '#a69d91',
-    signalColor: '#a69d91',
-    signalTextColor: '#f3eee6',
-    labelBoxBkgColor: '#241e17',
-    labelBoxBorderColor: '#eeb154',
-    labelTextColor: '#f3eee6',
-    loopTextColor: '#f3eee6',
-    noteBkgColor: '#241e17',
-    noteTextColor: '#f3eee6',
-    noteBorderColor: '#eeb154',
-    // The dark theme keeps its own node fill and border instead of deriving them from
-    // primaryColor, so both are pinned to the values base would derive.
-    mainBkg: '#241e17',
-    nodeBorder: '#eeb154',
-  },
-}
-
-export default withMermaid(defineConfig({
+export default defineConfig({
   title: 'YUI',
   description:
     'Embodied VRM desktop companion: the head, not the brain. YUI renders the body and delegates judgment to the backend agent you select.',
@@ -202,8 +152,15 @@ export default withMermaid(defineConfig({
     search: { provider: 'local' },
     socialLinks: [{ icon: 'github', link: 'https://github.com/yw0nam/YUI' }],
   },
-  mermaid: MERMAID,
-  // The plugin pre-bundles mermaid's dependencies by bare name, which pnpm does not
-  // hoist; pre-bundling mermaid itself gives the dev server its ESM build.
+  markdown: {
+    config(md) {
+      const fence = md.renderer.rules.fence!
+      md.renderer.rules.fence = (tokens, idx, ...rest) =>
+        tokens[idx].info.trim() === 'mermaid'
+          ? `<Mermaid code="${encodeURIComponent(tokens[idx].content)}" />`
+          : fence(tokens, idx, ...rest)
+    },
+  },
+  // Pre-bundled so the dev server does not reload once when a page first imports it.
   vite: { optimizeDeps: { include: ['mermaid'] } },
-}))
+})

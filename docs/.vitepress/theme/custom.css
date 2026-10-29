@@ -589,12 +589,13 @@
   overflow-x: auto;
 }
 .mermaid svg {
+  display: block;
   max-width: 100%;
   margin-inline: auto;
 }
-/* On a phone a diagram keeps a readable size and scrolls inside its surface. */
+/* On a phone a doc-page diagram keeps a readable size and scrolls inside its surface. */
 @media (max-width: 640px) {
-  .mermaid svg {
+  .vp-doc .mermaid svg {
     min-width: 600px;
   }
 }

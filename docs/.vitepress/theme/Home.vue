@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { withBase } from 'vitepress'
-import Mermaid from 'vitepress-plugin-mermaid/Mermaid.vue'
+import Mermaid from './Mermaid.vue'
 import { onMounted, ref } from 'vue'
 
-// The plugin's component reads the graph URI-encoded, as its Markdown fence passes it.
+// The component reads the source URI-encoded, as the Markdown fence passes it.
 const pathGraph = encodeURIComponent(`flowchart LR
   install["Install"] --> connect["Connect a backend"]
   connect --> talk["Talk to her"]
@@ -70,7 +70,7 @@ onMounted(() => {
       <!-- Four-step path -->
       <section class="sec" aria-labelledby="path-heading">
         <h2 class="h2" id="path-heading">Get going in four steps</h2>
-        <Mermaid id="home-path" :graph="pathGraph" />
+        <Mermaid :code="pathGraph" />
         <div class="steps">
           <a :href="withBase('/guide/installation')" class="step">
             <h3><span class="num">1</span>Install</h3>
