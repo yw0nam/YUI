@@ -473,6 +473,22 @@ globalThis.YUI_MAP =
       "external": true
     },
     {
+      "id": "claude-channel-client",
+      "module": "senders",
+      "label": "Claude Code session",
+      "role": "The Claude Code process registers the plugin channel from launch flags, requests permission verdicts, and receives the user's channel messages.",
+      "paths": [],
+      "external": true
+    },
+    {
+      "id": "agent-channel",
+      "module": "senders",
+      "label": "Claude Code channel server",
+      "role": "The yui-notify MCP server relays permission asks and long-polls Thread answers only when Claude's launch argv registers the plugin channel; ready files enable next-instruction asks in Stop hooks.",
+      "paths": [],
+      "external": true
+    },
+    {
       "id": "signal-producers",
       "module": "senders",
       "label": "signal producers",
@@ -2187,6 +2203,38 @@ globalThis.YUI_MAP =
       "transport": "shared"
     },
     {
+      "id": "claude-channel-permission",
+      "from": "claude-channel-client",
+      "to": "agent-channel",
+      "carries": "MCP stdio notifications/claude/channel/permission_request {request_id, tool_name, description, input_preview}",
+      "kind": "bridge",
+      "transport": "shared"
+    },
+    {
+      "id": "channel-claude-answer",
+      "from": "agent-channel",
+      "to": "claude-channel-client",
+      "carries": "MCP stdio notifications/claude/channel/permission {request_id, behavior}; notifications/claude/channel {content, meta: {source: yui}}",
+      "kind": "bridge",
+      "transport": "shared"
+    },
+    {
+      "id": "agent-channel-threads",
+      "from": "agent-channel",
+      "to": "shell/agent-ingress",
+      "carries": "PUT /threads/<id> permission asks; GET /threads/<id>/answer?wait=25 delivers oldest pending permission or next-instruction answer once",
+      "kind": "http",
+      "transport": "shared"
+    },
+    {
+      "id": "channel-hook-readiness",
+      "from": "agent-channel",
+      "to": "agent-hooks",
+      "carries": "XDG_STATE_HOME/yui-notify/channels/<claude pid> contains the ready server PID; Stop asks only while that PID is alive",
+      "kind": "storage",
+      "transport": "shared"
+    },
+    {
       "id": "signals-ingress",
       "from": "signal-producers",
       "to": "shell/agent-ingress",
@@ -3835,7 +3883,7 @@ globalThis.YUI_MAP =
       "to": "shell/agent-ingress",
       "kind": "http",
       "transport": "shared",
-      "carries": "PUT /threads/<id> {source, title, label?, state, entries?, ask?}; GET /threads/<id>/answer?ask_id&wait (long-poll: 200 answer once, 204, 410, 404)",
+      "carries": "PUT /threads/<id> {source, title, label?, state, entries?, ask?}; GET /threads/<id>/answer with optional ask_id and wait (200 oldest pending answer once, 204, 404; 410 only with ask_id)",
       "wiring": "src-tauri/src/agent_ingress/mod.rs"
     },
     {

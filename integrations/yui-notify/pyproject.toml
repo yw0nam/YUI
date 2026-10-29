@@ -2,7 +2,8 @@
 name = "yui-notify"
 version = "0.1.0"
 description = "Claude Code and Codex hooks that post coding-agent Threads."
-requires-python = ">=3.9"
+requires-python = ">=3.10"
+dependencies = ["mcp==2.3.0"]
 
 [dependency-groups]
 dev = ["pytest", "ruff"]
@@ -11,7 +12,8 @@ dev = ["pytest", "ruff"]
 package = false
 
 [tool.pytest.ini_options]
-testpaths = ["scripts"]
+testpaths = ["scripts", "channel"]
+pythonpath = [".", "scripts"]
 
 [tool.ruff]
 line-length = 110

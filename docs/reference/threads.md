@@ -49,15 +49,17 @@ A valid PUT receives 200 with `{"updated_at": <epoch ms>}`. The first PUT create
 
 ## `GET /threads/<id>/answer`
 
-Only GET is accepted; another method receives 405. Query parameter `ask_id` is required; missing it receives 400. Optional `wait` is an integer from 0 through 25 seconds, default 25; invalid values receive 400.
+Only GET is accepted; another method receives 405. Query parameter `ask_id` is optional. Without it, the oldest pending answer of any ask on the Thread is delivered once; the request waits when none is pending. Optional `wait` is an integer from 0 through 25 seconds, default 25; invalid values receive 400.
 
 | Status | Meaning |
 |---|---|
 | 200 | Pending answer delivered once as `{"ask_id", "choice"?, "text"?, "release"?, "at"}` |
-| 204 | Deadline passed with no answer and that ask still open |
-| 410 | Ask closed, replaced, or never existed on this Thread, with no pending answer |
+| 204 | Deadline passed with no answer; with `ask_id`, that ask is still open |
+| 410 | Only with `ask_id`: ask closed, replaced, or never existed, with no pending answer |
 | 404 | Unknown Thread |
 | 503 | All 32 answer workers are occupied, or a worker cannot start |
+
+Without `ask_id`, a known Thread never receives 410.
 
 A pending answer wins over 410. Answering closes the ask, but the producer's next poll still receives the answer. Delivery removes the pending answer. Each request runs on its own worker thread, so waiting does not block the ingress accept loop. At most 32 answer requests run at once.
 

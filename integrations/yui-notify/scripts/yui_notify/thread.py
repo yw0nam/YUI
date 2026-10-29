@@ -20,27 +20,37 @@ def terminal_state(phase: str) -> str:
     return "completed" if phase == "Stop" else "working"
 
 
+def claude_thread_id(pid: str | int) -> str:
+    return f"claude-code:{short_hostname()}:{pid}"
+
+
 def thread_id(event: Event, env: Mapping[str, str]) -> str:
-    session = (
-        (env.get("CLAUDE_PID") or str(os.getppid())) if event.agent == "claude-code" else event.session_id
-    )
-    return f"{event.agent}:{short_hostname()}:{session}"
+    if event.agent == "claude-code":
+        return claude_thread_id(env.get("CLAUDE_PID") or os.getppid())
+    return f"{event.agent}:{short_hostname()}:{event.session_id}"
+
+
+def permission_ask(ask_id: str, tool: str, agent: str) -> dict:
+    return {
+        "ask_id": ask_id,
+        "prompt": f"Allow {tool}?"[:PROMPT_MAX],
+        "text": True,
+        "placeholder": f"Or tell {agent} what to do instead",
+        "choices": [
+            {"id": "allow", "label": "Allow", "tone": "primary"},
+            {"id": "deny", "label": "Deny", "tone": "danger"},
+        ],
+    }
+
+
+def next_ask(ask_id: str) -> dict:
+    return {"ask_id": ask_id, "prompt": "What next?", "text": True, "placeholder": "Next instruction"}
 
 
 def _ask(event: Event) -> dict:
     permission = event.phase == "PermissionRequest"
-    ask = {
-        "ask_id": f"{'perm' if permission else 'stop'}:{event.turn_id}:{uuid4().hex}",
-        "prompt": f"Allow {event.tool_name}?"[:PROMPT_MAX] if permission else "What next?",
-        "text": True,
-        "placeholder": "Or tell Codex what to do instead" if permission else "Next instruction",
-    }
-    if permission:
-        ask["choices"] = [
-            {"id": "allow", "label": "Allow", "tone": "primary"},
-            {"id": "deny", "label": "Deny", "tone": "danger"},
-        ]
-    return ask
+    ask_id = f"{'perm' if permission else 'stop'}:{event.turn_id}:{uuid4().hex}"
+    return permission_ask(ask_id, event.tool_name, "Codex") if permission else next_ask(ask_id)
 
 
 def build_thread(event: Event, ctx: Mapping[str, Any], front: bool) -> dict:
@@ -63,8 +73,13 @@ def build_thread(event: Event, ctx: Mapping[str, Any], front: bool) -> dict:
         body["ask"] = None
     elif event.agent == "codex" and (event.phase == "Stop" or not front):
         body["ask"] = _ask(event)
+    fit_entries(body)
+    return body
+
+
+def fit_entries(body: dict) -> None:
     if body["entries"]:
-        text = event.text
+        text = body["entries"][0]["text"]
         shortened = len(text) > ENTRY_MAX
         head = text[: ENTRY_MAX - 1] if shortened else text
         body["entries"][0]["text"] = head + "…" if shortened else head
@@ -72,4 +87,3 @@ def build_thread(event: Event, ctx: Mapping[str, Any], front: bool) -> dict:
             excess = len(json.dumps(body, ensure_ascii=False).encode()) - BODY_MAX_BYTES
             head = head[: -max(1, (excess + 3) // 4)]
             body["entries"][0]["text"] = head + "…"
-    return body

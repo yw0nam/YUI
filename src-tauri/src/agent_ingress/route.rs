@@ -184,7 +184,7 @@ mod tests {
                 }
                 RouteKind::Thread(ThreadRoute::Answer { id, ask_id, wait }) => {
                     assert_eq!(id, expected_id);
-                    assert_eq!(ask_id, "q");
+                    assert_eq!(ask_id.as_deref(), Some("q"));
                     assert_eq!(Some(wait.as_secs()), expected_wait);
                 }
                 _ => panic!("Thread route expected: {method} {path}"),

@@ -12,7 +12,7 @@ pub(in crate::agent_ingress) enum ThreadRoute {
     },
     Answer {
         id: String,
-        ask_id: String,
+        ask_id: Option<String>,
         wait: Duration,
     },
 }
@@ -52,8 +52,7 @@ pub(in crate::agent_ingress) fn parse(
             let ask_id = pairs
                 .iter()
                 .find(|(key, _)| key == "ask_id")
-                .map(|(_, v)| v.to_string())
-                .ok_or(400u16)?;
+                .map(|(_, v)| v.to_string());
             let wait = match pairs.iter().find(|(key, _)| key == "wait") {
                 None => WAIT_MAX_SECONDS,
                 Some((_, value)) => {

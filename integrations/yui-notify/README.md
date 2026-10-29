@@ -2,7 +2,7 @@
 
 Claude Code and Codex hooks post coding-agent conversations as [Threads](../../docs/reference/threads.md).
 Threads are app-wide and fire no character turn. Codex accepts answers through synchronous
-hooks; Claude Code Threads are read-only and permission questions stay at its terminal.
+hooks; Claude Code accepts answers through its channel server when launched with the channel flag.
 
 ## Install
 
@@ -40,7 +40,7 @@ PID when absent. They survive `/clear`. Codex ids are `codex:<host>:<session_id>
 | Agent | Event | State | Entry | Ask |
 |---|---|---|---|---|
 | Both | `UserPromptSubmit` | `working` | `user`: prompt | Closes |
-| Claude Code | `Stop` | `completed` | `agent`: last assistant message | Closes |
+| Claude Code | `Stop` | `input-required` with ready channel; otherwise `completed` | `agent`: last assistant message | “What next?” with ready channel; otherwise closes |
 | Claude Code | `PermissionRequest` | `input-required` | `system`: tool name and command or input JSON | None added |
 | Claude Code | `Notification` (elicitation) | `input-required` | `system`: message | None added |
 | Codex | `Stop` | `input-required` | `agent`: last assistant message | “What next?” with text |
@@ -49,6 +49,34 @@ PID when absent. They survive `/clear`. Codex ids are `codex:<host>:<session_id>
 Each Codex ask has a fresh UUID suffix, including successive Stops in one turn.
 Entry text keeps at most 16384 code points, shortening the head with `…` when needed.
 The serialized body stays within 65536 bytes, including for Unicode text.
+
+## Claude Code answers
+
+Install `uv` on every host running Claude Code, including SSH hosts. Launch Claude Code
+with the plugin registered as a channel:
+
+```bash
+claude --dangerously-load-development-channels plugin:yui-notify@yui
+```
+
+Channels are a Claude Code research preview and require an account and organization
+policy that permit channels. The development flag allows this plugin during the preview.
+A plain `claude` launch still loads the MCP server, but it stays idle and consumes no
+answers. Its hooks post read-only Threads and Stop closes the Thread.
+
+The channel server finds the Claude process within five parents, sharing the hook's PID
+Thread id across `/clear`. Only a launch argv containing this plugin after `--channels`
+or `--dangerously-load-development-channels` marks it ready. A ready server writes its PID
+to `$XDG_STATE_HOME/yui-notify/channels/<claude pid>` (default `~/.local/state`), removing
+it on exit. Hooks ignore stale files.
+
+- A permission channel request posts Allow, Deny, and text. Allow or Deny sends that
+  verdict; any text is also sent as a user channel message. Text alone denies the tool
+  and sends the instruction. Release leaves the terminal permission dialog alone.
+- Stop posts “What next?” only while a ready channel file names a live server. Text
+  sends the next instruction as a user channel message. Release sends nothing.
+- Claude Code hooks never wait for answers. The server long-polls YUI without `ask_id`
+  for both kinds of answer, backing off from 1 to 30 seconds on missing Threads or errors.
 
 ## Codex answers and fallback
 
@@ -129,7 +157,9 @@ field, so exec sessions run the check too.
 
 ## Requirements and development
 
-The hook uses only the Python 3.9+ standard library. Claude Code or Codex needs plugin support.
+The hooks run on system `python3` (3.9+, standard library only). The Claude Code channel
+server needs `uv` on every host, Python 3.10+ through uv, and the MCP Python SDK installed
+from this project. Claude Code or Codex needs plugin support.
 
 ```bash
 cd integrations/yui-notify

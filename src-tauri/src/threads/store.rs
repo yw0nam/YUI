@@ -2,7 +2,7 @@ use super::model::{
     Answer, AnswerInput, AskUpdate, Entry, Role, Thread, ThreadState, Upsert, TEXT_MAX_CHARS,
 };
 use serde::Serialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::{Condvar, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
@@ -28,7 +28,7 @@ pub struct AnswerError(pub &'static str);
 
 struct State {
     threads: HashMap<String, Thread>,
-    pending: HashMap<(String, String), Answer>,
+    pending: VecDeque<(String, Answer)>,
     revision: u64,
     disk: DiskSink,
 }
@@ -52,8 +52,7 @@ impl State {
             thread.updated_at
                 >= now.saturating_sub(crate::log_rotation::RETENTION.whole_milliseconds() as u64)
         });
-        self.pending
-            .retain(|(id, _), _| self.threads.contains_key(id));
+        self.pending.retain(|(id, _)| self.threads.contains_key(id));
         self.revision += 1;
         let thread = &self.threads[id];
         if let Err(error) = (self.disk)(thread) {
@@ -80,7 +79,7 @@ impl ThreadStore {
         Self {
             state: Mutex::new(State {
                 threads: threads.into_iter().map(|t| (t.id.clone(), t)).collect(),
-                pending: HashMap::new(),
+                pending: VecDeque::new(),
                 revision: 0,
                 disk,
             }),
@@ -193,13 +192,13 @@ impl ThreadStore {
             thread.state = ThreadState::Working;
             thread.updated_at = now;
             thread.answered_ask_ids.insert(answer.ask_id.clone());
-            state.pending.insert(
-                (id.into(), answer.ask_id.clone()),
+            state.pending.push_back((
+                id.into(),
                 Answer {
                     input: answer,
                     at: now,
                 },
-            );
+            ));
             state.changed(id, now)
         };
         self.changed.notify_all();
@@ -207,19 +206,30 @@ impl ThreadStore {
         Ok(())
     }
 
-    pub fn wait_answer(&self, id: &str, ask_id: &str, timeout: Duration) -> WaitOutcome {
+    pub fn wait_answer(&self, id: &str, ask_id: Option<&str>, timeout: Duration) -> WaitOutcome {
         let deadline = Instant::now() + timeout;
-        let key = (id.to_owned(), ask_id.to_owned());
         let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
         loop {
             let Some(thread) = state.threads.get(id) else {
                 return WaitOutcome::Unknown;
             };
-            let open = thread.ask.as_ref().is_some_and(|a| a.ask_id == ask_id);
-            if let Some(answer) = state.pending.remove(&key) {
-                return WaitOutcome::Answer(answer);
+            let open = thread
+                .ask
+                .as_ref()
+                .is_some_and(|a| Some(a.ask_id.as_str()) == ask_id);
+            let pending = state.pending.iter().position(|(thread_id, answer)| {
+                thread_id == id && ask_id.is_none_or(|ask| answer.input.ask_id == ask)
+            });
+            if let Some(index) = pending {
+                return WaitOutcome::Answer(
+                    state
+                        .pending
+                        .remove(index)
+                        .expect("pending answer exists")
+                        .1,
+                );
             }
-            if !open {
+            if ask_id.is_some() && !open {
                 return WaitOutcome::Gone;
             }
             let remaining = deadline.saturating_duration_since(Instant::now());
@@ -285,15 +295,21 @@ mod tests {
         }
     }
     fn poll(s: &ThreadStore, ask: &str) -> WaitOutcome {
-        s.wait_answer("t", ask, Duration::ZERO)
+        s.wait_answer("t", Some(ask), Duration::ZERO)
     }
 
     #[test]
     fn any_ask_delivers_oldest_pending_once_and_never_gone() {
         let s = store();
-        assert_eq!(s.wait_answer("t", None, Duration::ZERO), WaitOutcome::Unknown);
+        assert_eq!(
+            s.wait_answer("t", None, Duration::ZERO),
+            WaitOutcome::Unknown
+        );
         s.upsert("t", input(), 1);
-        assert_eq!(s.wait_answer("t", None, Duration::ZERO), WaitOutcome::NoAnswer);
+        assert_eq!(
+            s.wait_answer("t", None, Duration::ZERO),
+            WaitOutcome::NoAnswer
+        );
         s.answer("t", answer(), 2).unwrap();
         let mut next = input();
         if let AskUpdate::Set(ref mut ask) = next.ask {
@@ -304,9 +320,15 @@ mod tests {
         b.ask_id = "b".into();
         s.answer("t", b.clone(), 4).unwrap();
         for (input, at) in [(answer(), 2), (b, 4)] {
-            assert_eq!(s.wait_answer("t", None, Duration::ZERO), WaitOutcome::Answer(Answer { input, at }));
+            assert_eq!(
+                s.wait_answer("t", None, Duration::ZERO),
+                WaitOutcome::Answer(Answer { input, at })
+            );
         }
-        assert_eq!(s.wait_answer("t", None, Duration::ZERO), WaitOutcome::NoAnswer);
+        assert_eq!(
+            s.wait_answer("t", None, Duration::ZERO),
+            WaitOutcome::NoAnswer
+        );
     }
 
     #[test]
@@ -464,7 +486,7 @@ mod tests {
         let start = Arc::new(Barrier::new(2));
         *s.wait_started.lock().unwrap() = Some(start.clone());
         let worker =
-            std::thread::spawn(move || other.wait_answer("t", "a", Duration::from_secs(2)));
+            std::thread::spawn(move || other.wait_answer("t", Some("a"), Duration::from_secs(2)));
         start.wait();
         let elapsed = Instant::now();
         assert_eq!(s.answer("t", answer(), 2), Ok(()));
@@ -485,7 +507,7 @@ mod tests {
         s.upsert("t", input(), 1);
         let start = Instant::now();
         assert_eq!(
-            s.wait_answer("t", "a", Duration::from_millis(30)),
+            s.wait_answer("t", Some("a"), Duration::from_millis(30)),
             WaitOutcome::NoAnswer
         );
         assert!(start.elapsed() >= Duration::from_millis(30));
@@ -538,7 +560,7 @@ mod tests {
         let start = Arc::new(Barrier::new(2));
         *s.wait_started.lock().unwrap() = Some(start.clone());
         let waiter =
-            std::thread::spawn(move || other.wait_answer("t", "a", Duration::from_secs(2)));
+            std::thread::spawn(move || other.wait_answer("t", Some("a"), Duration::from_secs(2)));
         start.wait();
         let elapsed = Instant::now();
         s.upsert("fresh", input(), 1_209_600_002);
@@ -607,7 +629,7 @@ mod tests {
         assert_eq!(s.upsert("t", input(), 1), 1);
         assert_eq!(s.snapshot().revision, 1);
         assert_eq!(
-            s.wait_answer("t", "a", Duration::from_millis(1)),
+            s.wait_answer("t", Some("a"), Duration::from_millis(1)),
             WaitOutcome::NoAnswer
         );
         assert_eq!(s.answer("t", answer(), 2), Ok(()));
