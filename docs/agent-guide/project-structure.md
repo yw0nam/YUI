@@ -640,9 +640,9 @@ YUI/
       threads/                       # The Threads chip and the Threads window
         thread-source.ts             # A source's name and mark; unknown sources show their raw name and a generic mark
         chip/threads-chip.ts         # The chip: newest source marks, label, count; hidden at zero, one nod on arrival, hold-to-fold
-        window/threads-view.ts       # The window's view: the list pane beside the thread pane, the selection, filters, and drafts
+        window/threads-view.ts       # The window's view: the list pane beside the thread pane, the selection and filters, the minute time tick
         window/thread-list.ts        # The list pane: tabs, kind select, waiting-first rows, and the Thread an open shows
-        window/thread-pane.ts        # The thread pane's head and scrolling transcript
+        window/thread-pane.ts        # The thread pane: head, scrolling transcript, the answer area, and each ask's draft, send error and in-flight send
         window/answer-area.ts        # The answer area: numbered choices, the growing field, and the send button
         window/drafts.ts             # Unsent Answers per ask, pruned by each snapshot
         window/rich-text.ts          # Producer text as text nodes, code spans and fenced code
