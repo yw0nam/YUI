@@ -28,8 +28,10 @@ export function wireThreadsChip(deps: {
     bridge: deps.bridge,
     onClosed: () => chip.setExpanded(false),
   });
-  // subscribe does not replay, so the chip draws the snapshot the client already holds.
-  chip.update(client.snapshot()?.threads ?? []);
+  // subscribe does not replay, so the chip draws the snapshot the client already holds;
+  // a null snapshot seeds nothing, leaving the nod baseline to the first real one.
+  const seeded = client.snapshot();
+  if (seeded) chip.update(seeded.threads);
   const offSnapshot = client.subscribe((snapshot) => chip.update(snapshot.threads));
   return () => {
     offSnapshot();
