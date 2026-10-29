@@ -45,7 +45,7 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 | --- | --- |
 | Chat protocols | `chat_completions`, `responses`, and `push`, selected by `chat_api` in `configs/endpoints.json` ([push transport](../reference/push-transport.md)) |
 | Expression cues | `generate_express` cues for emotion, motion, voice tag, and caption; the renderable vocabulary travels in the tool schema on Responses and Chat Completions, in the `hello` and `vocabulary` frames on push ([cue contract](../reference/client-context.md)) |
-| Browser tool | The backend drives web pages in [ego lite](https://github.com/yw0nam/YUI/blob/main/plugins/browser/README.md), the only browser this tool works with, in a task space of its own per character (`yui-<presetId>`), and sees screenshots of the pages it opened. It comes from the official `browser` plugin, which is not installed by default; install it from the Plugins page and enable it |
+| Browser tool | The backend drives web pages in [ego lite](https://github.com/yw0nam/YUI/blob/main/plugins/browser/README.md), the only browser this tool works with, in a task space of its own per character (`yui-<presetId>`), and sees screenshots of the pages it opened. It comes from the official `browser` plugin, which is not installed by default; install it from the [Plugins](plugins.md) page and turn it on |
 | Provider presets | OpenAI, Ollama, LM Studio, Groq, and Hermes Agent presets, plus a custom endpoint |
 | Per-turn context | `client_context` text with local time, frontmost app and window title, an optional screenshot, body posture, and the outcome of the previous turn ([format](../reference/client-context.md)) |
 | Silence | An empty reply or a bare `[SILENT]` token as a silent turn |
