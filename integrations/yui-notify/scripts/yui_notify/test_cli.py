@@ -405,3 +405,23 @@ def test_claude_stop_channel_never_waits(tmp_path, server, capsys, monkeypatch, 
         assert body["ask"] is None
     assert received.polls == []
     assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize("channel", ["live", "stale", "missing"])
+def test_claude_permission_entry_owned_by_ready_channel(tmp_path, server, capsys, channel):
+    import os
+
+    endpoint, received = server
+    path = tmp_path / "state" / "yui-notify" / "channels" / "8864"
+    path.parent.mkdir(parents=True)
+    if channel != "missing":
+        path.write_text(str(os.getpid()) if channel == "live" else "2147483647")
+    run_hook(tmp_path, endpoint, "claude-permission.json")
+    entries = [entry for _, body in received for entry in body["entries"]]
+    assert entries == (
+        []
+        if channel == "live"
+        else [{"role": "system", "text": "Bash: touch /Users/dev/projects/demo/hello.txt"}]
+    )
+    assert received.polls == []
+    assert capsys.readouterr().out == ""
