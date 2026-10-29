@@ -1,118 +1,80 @@
 ---
 name: setup
-description: "Configure or update yui-notify so the Claude Code and Codex hooks tell a YUI character when a coding agent finished or needs input. Use this when the user asks to install, set up, change, or repair the yui-notify plugin, choose which character receives agent signals, or test that YUI reacts to an agent. This skill is user-invoked: run it from Claude Code as `/yui-notify:setup` or from Codex as `$yui-notify:setup`."
+description: "Configure, update, or repair yui-notify coding-agent Threads and test the YUI listener. Invoke as `/yui-notify:setup` in Claude Code or `$yui-notify:setup` in Codex."
 disable-model-invocation: true
 license: PolyForm-Noncommercial-1.0.0
 ---
 
 # yui-notify setup
 
-The yui-notify plugin installs hooks in Claude Code and Codex. A `Stop` hook posts
-`agent.done`, a `PermissionRequest` hook posts `agent.needs_input`, and a Claude Code
-`Notification` hook posts `agent.needs_input` when an MCP server asks the user a question.
-Each signal goes to one YUI character over the loopback ingress. A `SessionStart` hook
-warns the user when that character cannot be reached.
+The plugin posts Claude Code and Codex lifecycle events as app-wide Threads without
+character speech. Codex waits for answers through synchronous hooks. Claude Code Threads
+are read-only; the user answers Claude Code at its terminal.
 
-This skill writes the plugin's configuration and checks the whole path from a hook to the
-character. Read `references/troubleshooting.md` when a probe or a test fails, and
-`references/codex.md` or `references/remote.md` when the branch they name applies.
+Commands run from this skill's directory. Read `references/troubleshooting.md` for a failed
+command, and `references/codex.md` or `references/remote.md` when applicable.
 
-Every command below runs from this skill's directory, and the entry point is
-`../../scripts/yui-notify`.
+## 1. Locate the setup
 
-## 1. Locate the current setup
+Read `$XDG_CONFIG_HOME/yui-notify/config.json` (default `~/.config/yui-notify/config.json`).
+For an existing file, show the endpoint and wait caps and ask which values to change.
+Keep other supported values. Show any `$XDG_STATE_HOME/yui-notify/last-error.json`
+(default `~/.local/state/yui-notify/last-error.json`). A missing configuration starts new setup.
 
-Read `$XDG_CONFIG_HOME/yui-notify/config.json`; use `~/.config` when `XDG_CONFIG_HOME` is
-unset.
+Find hand-installed YUI hooks in user and project Claude settings, `~/.codex/hooks.json`,
+and the hooks tables in `~/.codex/config.toml`. List hooks that post to YUI or invoke a
+YUI script. Offer to remove only duplicate entries; ask before deleting a script file.
 
-- The file exists: this is update mode. Show its values and, when present,
-  `$XDG_STATE_HOME/yui-notify/last-error.json` (use `~/.local/state` when `XDG_STATE_HOME`
-  is unset). Ask which values the user wants changed. In steps 2 and 3 ask only about
-  those, and keep every other loaded value.
-- The file is missing: this is new setup.
+Done when: the user knows whether this is new setup or update, and has chosen what to
+keep for every duplicate hook.
 
-Then find hand-installed YUI hooks that would double-send. Look for an entry under `hooks`
-in `~/.claude/settings.json`, `~/.claude/settings.local.json`, the current project's
-`.claude/settings.json` and `.claude/settings.local.json`, `~/.codex/hooks.json`, and the
-hooks tables of `~/.codex/config.toml`, whose command posts to `/signals` on the YUI
-port, or posts to `/agent-event`, which answers 400, or 404 under `/presets/<id>/`, or
-runs a script that does. List each entry and offer to remove that entry alone. Change no other hook, and ask before deleting a
-script file.
+## 2. Probe YUI
 
-Done when: you have told the user the mode (new or update), and the user has answered
-remove or keep for every hand-installed YUI hook you found.
-
-## 2. Probe the character
-
-Ask where YUI runs: on this machine, or on another machine over SSH. For the SSH branch
-read `references/remote.md` and follow it before the probe.
-
-Ask which character receives the signals. The main window's character listens at
-`http://127.0.0.1:<port>`; a preset's character listens at the URL copied from that
-preset's row in the preset list, without the trailing `/signals`. The default port is
-`8770`.
-
-Run the probe with the chosen endpoint:
+Ask where YUI runs. For an agent over SSH, follow `references/remote.md` first.
+Use `http://127.0.0.1:<port>` with no path, default `http://127.0.0.1:8770`.
+Turn on **Settings → Proactive → Watchers → External signals**, then restart YUI.
 
 ```bash
 ../../scripts/yui-notify probe --endpoint <url>
 ```
 
-Done when: the probe prints `ok: YUI is listening at <url>/signals`; on the SSH branch, the probe of
-`references/remote.md` step 3 prints it. On any other line, follow
-`references/troubleshooting.md` before continuing.
+Done when: the command prints
+`ok: YUI is listening at <url>/threads/yui-notify-probe/answer?ask_id=probe&wait=0`.
+HTTP 400 means “update YUI”; follow troubleshooting for other failure lines.
 
-## 3. Choose the delivery classes
+## 3. Wire the agents
 
-Ask two questions, one for `done` and one for `needs_input`. Offer `urgent`, `batched`, and
-`drop`, with the default `urgent` for both `done` and `needs_input`. Give one
-line on each choice, from the delivery-class table in
-https://github.com/yw0nam/YUI/blob/main/docs/guide/signals-producer.md.
+Claude Code loads plugin hooks after `/reload-plugins` or restart. Codex follows
+`references/codex.md`; changed hook definitions require trusting the hooks again.
 
-Done when: the user has chosen a delivery class for `done` and a delivery class for
-`needs_input`.
+Done when: `/hooks` lists `SessionStart`, `UserPromptSubmit`, `Stop`, and
+`PermissionRequest` without a review warning. Claude Code also lists `Notification`.
 
-## 4. Wire the agents
+## 4. Write configuration
 
-Claude Code: the installed plugin's hooks are active after `/reload-plugins` or a restart
-of Claude Code.
-
-Codex: follow `references/codex.md`.
-
-Done when: for each agent the user runs, `/hooks` lists the yui-notify `SessionStart`,
-`Stop`, and `PermissionRequest` hooks (Claude Code also lists the `Notification` hook).
-
-## 5. Write the configuration
-
-Create `$XDG_CONFIG_HOME/yui-notify/` when it is missing, and write `config.json` with the
-values chosen in steps 2 and 3:
+Create `$XDG_CONFIG_HOME/yui-notify/` when missing and write `config.json` with the chosen
+endpoint and wait caps. Use the defaults unless the user requests different caps.
 
 ```json
 {
   "endpoint": "http://127.0.0.1:8770",
-  "events": { "done": "urgent", "needs_input": "urgent" }
+  "wait": { "stop": 600, "permission": 120 }
 }
 ```
 
-`endpoint` is the URL from step 2 with no trailing `/signals`. A preset URL keeps its
-`/presets/<id>` prefix.
+Both waits accept 1–600 seconds; out-of-range values use defaults. The endpoint is
+`http://127.0.0.1:<port>` with no path; a path is invalid and uses the default.
 
-Done when: the file parses as JSON and holds `endpoint`, `events.done`, and
-`events.needs_input`.
+Done when: the JSON contains `endpoint`, `wait.stop`, and `wait.permission`.
 
-## 6. Run a round trip
-
-Send one test signal:
+## 5. Test delivery
 
 ```bash
 ../../scripts/yui-notify test
 ```
 
-The default `urgent` delivery class makes the character speak when the user is present.
-Use `--delivery batched` to check the next five-minute batch instead.
+The command sends one completed Thread with a system entry. It fires no character turn.
+Ask the user to verify the test Thread in YUI. Codex Stop asks for the next instruction;
+permission asks offer Allow, Deny, text, or release to the terminal.
 
-Ask the user whether the character reacted. If it did not, or the command did not print a
-success line, follow `references/troubleshooting.md`.
-
-Done when: the command prints `sent: HTTP 200` and the user confirms that the character
-reacted.
+Done when: the command prints `sent: HTTP 200` and the user confirms the Thread arrived.

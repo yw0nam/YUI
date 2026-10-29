@@ -5,12 +5,22 @@ import os
 from collections.abc import Mapping
 from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import urlsplit
 
-CLASSES = ("urgent", "batched", "drop")
 DEFAULTS = {
     "endpoint": "http://127.0.0.1:8770",
-    "events": {"done": "urgent", "needs_input": "urgent"},
+    "wait": {"stop": 600, "permission": 120},
 }
+
+
+def endpoint_error(endpoint: str) -> str | None:
+    try:
+        url = urlsplit(endpoint)
+        if url.scheme == "http" and url.netloc and not (url.path or url.query or url.fragment):
+            return None
+    except ValueError:
+        pass
+    return f"invalid endpoint: use http://127.0.0.1:<port> with no path: {endpoint}"
 
 
 def _dir(env: Mapping[str, str], var: str, fallback: str) -> str:
@@ -18,7 +28,7 @@ def _dir(env: Mapping[str, str], var: str, fallback: str) -> str:
 
 
 def load(env: Mapping[str, str]) -> dict:
-    cfg = {**DEFAULTS, "events": dict(DEFAULTS["events"])}
+    cfg = {**DEFAULTS, "wait": dict(DEFAULTS["wait"])}
     try:
         with open(os.path.join(_dir(env, "XDG_CONFIG_HOME", "~/.config"), "config.json")) as f:
             data = json.load(f)
@@ -26,12 +36,13 @@ def load(env: Mapping[str, str]) -> dict:
         return cfg
     if not isinstance(data, dict):
         return cfg
-    if isinstance(data.get("endpoint"), str):
-        cfg["endpoint"] = data["endpoint"].rstrip("/")
-    events = data.get("events")
-    for phase in cfg["events"]:
-        if isinstance(events, dict) and events.get(phase) in CLASSES:
-            cfg["events"][phase] = events[phase]
+    if isinstance(data.get("endpoint"), str) and not endpoint_error(data["endpoint"]):
+        cfg["endpoint"] = data["endpoint"]
+    waits = data.get("wait")
+    for phase in cfg["wait"]:
+        value = waits.get(phase) if isinstance(waits, dict) else None
+        if type(value) in (int, float) and 1 <= value <= 600:
+            cfg["wait"][phase] = value
     return cfg
 
 

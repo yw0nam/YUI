@@ -192,7 +192,7 @@ A tool the client declares to the backend and runs itself (generate_express, bod
 _Avoid_: in-app tool, local tool
 
 **Producer**:
-An outside program that POSTs signals to the `/signals` ingress (yui-notify's hooks, the factorio MCP server).
+An outside program that posts signals to `/signals` (the factorio MCP server) or conversations to `/threads` (yui-notify's coding-agent hooks). Threads fire no character turn.
 _Avoid_: sender, emitter
 
 **Game mod**:

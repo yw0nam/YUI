@@ -1,51 +1,40 @@
 # Agent Lifecycle Hooks
 
-A coding agent tells YUI when it finishes a task or stalls waiting on the user. The
-[`yui-notify` plugin](../../integrations/yui-notify/README.md) is the supported wiring for
-Claude Code and Codex: it installs the agent hooks and posts one signal per event to YUI's
-loopback ingress. YUI validates the signal, fires a `signals` trigger, and sends it to the
-selected backend. The backend decides whether and what to speak — an empty response means
-silence.
-
-The ingress listens only while **Settings → Proactive → Watchers → External signals** is
-on, on the port shown in the same section (default `8770`), and a change of the switch or
-port takes effect on the next launch. The listener is loopback-only and carries no
-authentication; a request whose `Host` is missing or not `127.0.0.1`, `localhost` or `::1`
-is refused with 421, and a request whose `Origin` names another host with 403.
+The [yui-notify plugin](../../integrations/yui-notify/README.md) posts Claude Code and
+Codex conversations as app-wide [Threads](../reference/threads.md). Threads fire no
+character turn. Producers connect to YUI; YUI never connects back to the agent.
 
 ## Setup
-
-Install the plugin, then run its setup skill:
 
 - Claude Code: `/plugin marketplace add yw0nam/YUI`, `/plugin install yui-notify@yui`,
   then `/yui-notify:setup`.
 - Codex: `codex plugin marketplace add yw0nam/YUI`, `codex plugin add yui-notify@yui`,
   then trust the hooks and run `$yui-notify:setup`.
 
-The setup skill probes the character, chooses the delivery classes, writes the
-configuration, and sends a test signal. Install steps, configuration keys, and the command
-line are in the [plugin README](../../integrations/yui-notify/README.md).
+The setup probes the bare listener endpoint, writes endpoint and wait caps, and sends a
+test Thread. **Settings → Proactive → Watchers → External signals** enables the loopback
+listener (default port `8770`). Switch and port changes take effect after restart.
+Threads accept no preset prefix and use the listener's Host and Origin checks.
 
-## What is sent
+## Events and answers
 
-| Agent | Hook | `event_type` | Default delivery class |
-|---|---|---|---|
-| Claude Code, Codex | `Stop` | `agent.done` | `urgent` |
-| Claude Code, Codex | `PermissionRequest` | `agent.needs_input` | `urgent` |
-| Claude Code | `Notification` (`elicitation_dialog`, `elicitation_url_dialog`) | `agent.needs_input` | `urgent` |
+Both agents post user prompts as `working`. Claude Code Stop posts `completed`;
+permission and elicitation events post `input-required` without an ask. These Claude Code
+Threads are read-only; permissions are answered at the terminal.
 
-A Claude Code `Stop` with a running background task sends nothing, because the turn is not
-over. `idle_prompt` and `permission_prompt` are not hooked: they repeat `Stop` and
-`PermissionRequest`. Codex has no `Notification` event, so an MCP elicitation prompt in
-Codex posts nothing.
+Codex Stop posts an ask for the next instruction; permission posts Allow, Deny, and text.
+The synchronous hook long-polls the answer. Stop text continues the turn; permission text
+denies the call and gives Codex the instruction. Release, timeout, closed asks, and errors
+return control to Codex. Default caps are 600 seconds for Stop and 120 for permission.
 
-Each signal carries `event_id` `<session_id>:<phase>`, a label, and one item with the
-project, branch, tmux pane, host, and either a summary of the finished work or the pending
-tool call. The envelope fields and delivery rules are in the
-[signals ingress reference](../reference/signals-ingress.md).
+When the Codex host app is frontmost, permission posts without an ask and exits immediately
+so its terminal prompt appears. Stop still waits. Claude Code background-task and SDK
+Stops, and non-interactive Codex Stops, send nothing.
 
-## Other tools
+Thread ids, payload limits, configuration, commands, and fallback details are in the
+[plugin README](../../integrations/yui-notify/README.md).
 
-Any tool that runs a command after its work can post a signal itself. The
-[producer guide](../guide/signals-producer.md) holds the envelope, the delivery classes,
-and examples.
+## Other producers
+
+Outside conversations use the [Threads contract](../reference/threads.md).
+Notices for character turns use the separate [signal producer guide](../guide/signals-producer.md).

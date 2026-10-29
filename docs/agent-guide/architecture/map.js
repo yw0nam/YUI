@@ -468,7 +468,7 @@ globalThis.YUI_MAP =
       "id": "agent-hooks",
       "module": "senders",
       "label": "coding-agent hooks",
-      "role": "The yui-notify plugin's Claude Code and Codex hooks, which post done and needs-input signals.",
+      "role": "The yui-notify plugin's Claude Code and Codex hooks post Threads; Codex waits for answers through synchronous hooks.",
       "paths": [],
       "external": true
     },
@@ -2143,10 +2143,10 @@ globalThis.YUI_MAP =
       "transport": "shared"
     },
     {
-      "id": "agent-hooks-signals",
+      "id": "agent-hooks-threads",
       "from": "agent-hooks",
       "to": "shell/agent-ingress",
-      "carries": "POST /signals {source claude-code|codex, event_type agent.done|agent.needs_input, delivery, event_id <session_id>:<phase>, label}, or the same path under /presets/<id>/",
+      "carries": "PUT /threads/<id> {source, title, label, state, entries, ask?}; Codex long-polls GET /threads/<id>/answer?ask_id=<ask_id>&wait=25",
       "kind": "http",
       "transport": "shared"
     },
@@ -4416,7 +4416,6 @@ globalThis.YUI_MAP =
           "from": "senders",
           "label": "POST /signals",
           "edges": [
-            "agent-hooks-signals",
             "signals-ingress",
             "factorio-ingress"
           ],

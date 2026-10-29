@@ -27,11 +27,11 @@ The trust record belongs to one version of the plugin bundle. After a plugin upd
 hooks show "Modified since last trusted - review required", and Codex blocks them until
 the user trusts them again.
 
-Done when: `/hooks` lists the yui-notify `SessionStart`, `Stop`, and `PermissionRequest`
+Done when: `/hooks` lists the yui-notify `SessionStart`, `UserPromptSubmit`, `Stop`, and `PermissionRequest`
 hooks with no review warning.
 
 ## What Codex does not send
 
 Codex has no `Notification` event, so an MCP elicitation prompt in Codex posts no
-`agent.needs_input` signal. The `Stop` and `PermissionRequest` hooks cover the other two
+Thread. The `Stop` and `PermissionRequest` hooks cover the other two
 moments.

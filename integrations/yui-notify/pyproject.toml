@@ -1,7 +1,7 @@
 [project]
 name = "yui-notify"
 version = "0.1.0"
-description = "Claude Code and Codex hooks that tell a YUI character when an agent finished or needs input."
+description = "Claude Code and Codex hooks that post coding-agent Threads."
 requires-python = ">=3.9"
 
 [dependency-groups]

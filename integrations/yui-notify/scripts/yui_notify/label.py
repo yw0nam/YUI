@@ -8,6 +8,10 @@ from typing import Any, Callable
 from yui_notify import command
 
 
+def short_hostname(hostname: Callable[[], str] = socket.gethostname) -> str:
+    return hostname().split(".")[0]
+
+
 def context(
     cwd: str,
     env: Mapping[str, str],
@@ -20,7 +24,7 @@ def context(
     return {
         "project": os.path.basename(cwd.rstrip("/")),
         "branch": run(["git", "-C", cwd, "rev-parse", "--abbrev-ref", "HEAD"], 1),
-        "host": hostname().split(".")[0] if env.get("SSH_CONNECTION") else None,
+        "host": short_hostname(hostname) if env.get("SSH_CONNECTION") else None,
         "tmux": tmux,
     }
 

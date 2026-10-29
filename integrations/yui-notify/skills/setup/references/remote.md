@@ -114,18 +114,17 @@ probe on the local machine through a new connection with every forward cleared.
 
 - `<plugin root>` is the absolute path on the remote host of the directory that holds
   `scripts/yui-notify`, two levels above this skill.
-- `<endpoint>` is `http://127.0.0.1:<remote port>`, followed by `/presets/<id>` for a
-  preset's character.
+- `<endpoint>` is `http://127.0.0.1:<remote port>`, with no path.
 
 ```bash
 ssh -o ClearAllForwardings=yes -o ControlPath=none <host> 'python3 <plugin root>/scripts/yui-notify probe --endpoint <endpoint>'
 ```
 
-Done when: the command prints `ok: YUI is listening at <endpoint>/signals`. The endpoint for
-setup step 5 is `<endpoint>`.
+Done when: the command prints `ok: YUI is listening at <endpoint>/threads/yui-notify-probe/answer?ask_id=probe&wait=0`. The endpoint for
+setup step 4 is `<endpoint>`.
 
-## The label on a remote signal
+## The label on a remote Thread
 
 The remote host sets `SSH_CONNECTION`, so the plugin puts that host's name first in the
-label: `devbox · tmux yui:2 · YUI (main)`. The user can tell a remote agent's signal from a
+label: `devbox · tmux yui:2 · YUI (main)`. The user can tell a remote agent's Thread from a
 local one by that first part.

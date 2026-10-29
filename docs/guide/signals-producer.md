@@ -52,9 +52,9 @@ Turn on **External signals** in Settings → Proactive → Watchers. The ingress
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' -X POST \
   -H 'Content-Type: application/json' \
-  -d '{"signals":[{"kind":"agent","status":"needs_input"}],
-       "envelope":{"source":"claude-code","event_type":"agent.needs_input",
-                   "delivery":"urgent","event_id":"9f1c:needs_input",
+  -d '{"signals":[{"kind":"build","status":"failed"}],
+       "envelope":{"source":"build-monitor","event_type":"build.failed",
+                   "delivery":"urgent","event_id":"9f1c:build-failed",
                    "label":"devbox · tmux yui:2 · YUI (main)",
                    "occurred_at":1787449000000}}' \
   http://127.0.0.1:8770/signals

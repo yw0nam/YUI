@@ -33,21 +33,21 @@ def load(fixture, rollout=NO_ROLLOUT):
         (
             "claude-stop.json",
             CLAUDE_ENV,
-            ("claude-code", "done", "bc68d697-4e8f-4be0-8ea6-e67f955b2586", CLAUDE_STOP_TEXT),
+            ("claude-code", "Stop", "bc68d697-4e8f-4be0-8ea6-e67f955b2586", CLAUDE_STOP_TEXT),
         ),
         ("claude-stop-background.json", CLAUDE_ENV, None),
         ("claude-stop.json", {**CLAUDE_ENV, "CLAUDE_CODE_ENTRYPOINT": "sdk-cli"}, None),
         (
             "claude-stop.json",
             {**CLAUDE_ENV, "CLAUDE_CODE_ENTRYPOINT": "cli"},
-            ("claude-code", "done", "bc68d697-4e8f-4be0-8ea6-e67f955b2586", CLAUDE_STOP_TEXT),
+            ("claude-code", "Stop", "bc68d697-4e8f-4be0-8ea6-e67f955b2586", CLAUDE_STOP_TEXT),
         ),
         (
             "claude-permission.json",
             {**CLAUDE_ENV, "CLAUDE_CODE_ENTRYPOINT": "sdk-cli"},
             (
                 "claude-code",
-                "needs_input",
+                "PermissionRequest",
                 "bc68d697-4e8f-4be0-8ea6-e67f955b2586",
                 "Bash: touch /Users/dev/projects/demo/hello.txt",
             ),
@@ -57,7 +57,7 @@ def load(fixture, rollout=NO_ROLLOUT):
             CLAUDE_ENV,
             (
                 "claude-code",
-                "needs_input",
+                "PermissionRequest",
                 "bc68d697-4e8f-4be0-8ea6-e67f955b2586",
                 "Bash: touch /Users/dev/projects/demo/hello.txt",
             ),
@@ -67,7 +67,7 @@ def load(fixture, rollout=NO_ROLLOUT):
             CLAUDE_ENV,
             (
                 "claude-code",
-                "needs_input",
+                "Notification",
                 "bc68d697-4e8f-4be0-8ea6-e67f955b2586",
                 "The github MCP server is asking for your input",
             ),
@@ -77,7 +77,7 @@ def load(fixture, rollout=NO_ROLLOUT):
             {},
             (
                 "codex",
-                "done",
+                "Stop",
                 "019a1f2e-7c4b-7d30-9b1e-3f5a8c2d4e61",
                 "Added the retry wrapper to the upload client and the two tests pass.",
             ),
@@ -85,14 +85,14 @@ def load(fixture, rollout=NO_ROLLOUT):
         (
             "codex-permission.json",
             {},
-            ("codex", "needs_input", "019a1f2e-7c4b-7d30-9b1e-3f5a8c2d4e61", "Bash: rm -rf build"),
+            ("codex", "PermissionRequest", "019a1f2e-7c4b-7d30-9b1e-3f5a8c2d4e61", "Bash: rm -rf build"),
         ),
         (
             "codex-stop.json",
             CLAUDE_ENV,
             (
                 "codex",
-                "done",
+                "Stop",
                 "019a1f2e-7c4b-7d30-9b1e-3f5a8c2d4e61",
                 "Added the retry wrapper to the upload client and the two tests pass.",
             ),
@@ -101,10 +101,14 @@ def load(fixture, rollout=NO_ROLLOUT):
         (
             "claude-session-start.json",
             CLAUDE_ENV,
-            ("claude-code", "start", "bc68d697-4e8f-4be0-8ea6-e67f955b2586", ""),
+            ("claude-code", "SessionStart", "bc68d697-4e8f-4be0-8ea6-e67f955b2586", ""),
         ),
         ("claude-session-start.json", {**CLAUDE_ENV, "CLAUDE_CODE_ENTRYPOINT": "sdk-cli"}, None),
-        ("codex-session-start.json", {}, ("codex", "start", "019a1f2e-7c4b-7d30-9b1e-3f5a8c2d4e61", "")),
+        (
+            "codex-session-start.json",
+            {},
+            ("codex", "SessionStart", "019a1f2e-7c4b-7d30-9b1e-3f5a8c2d4e61", ""),
+        ),
     ],
     ids=[
         "claude-stop",

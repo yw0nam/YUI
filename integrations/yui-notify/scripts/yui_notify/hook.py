@@ -1,18 +1,17 @@
 from __future__ import annotations
 
 import json
-import time
 from collections.abc import Mapping
 from typing import TextIO
 
 from yui_notify import config
 from yui_notify.adapters import parse_event
 from yui_notify.check import probe_failure
-from yui_notify.envelope import build_signal
-from yui_notify.excerpt import excerpt
 from yui_notify.focus import host_app_in_front
 from yui_notify.label import context
-from yui_notify.post import post
+from yui_notify.post import put
+from yui_notify.thread import build_thread, thread_id
+from yui_notify.wait import wait_for_answer
 
 
 def run_hook(env: Mapping[str, str], stdin: TextIO) -> None:
@@ -23,19 +22,20 @@ def run_hook(env: Mapping[str, str], stdin: TextIO) -> None:
     if event is None:
         return
     cfg = config.load(env)
-    url = cfg["endpoint"] + "/signals"
-    if event.phase == "start":
-        failure = probe_failure(url)
+    if event.phase == "SessionStart":
+        failure = probe_failure(cfg["endpoint"])
         if failure:
-            # a synchronous hook's systemMessage reaches the user; plain stdout would reach the model
             print(json.dumps({"systemMessage": f"yui-notify: {failure}"}))
         return
-    if cfg["events"][event.phase] == "drop" or host_app_in_front(env):
-        return
-    summary = excerpt(event.text) if event.phase == "done" else ""
-    body = build_signal(
-        event, context(event.cwd, env), cfg["events"][event.phase], summary, int(time.time() * 1000)
-    )
-    status, error = post(url, body)
+    url = cfg["endpoint"] + "/threads/" + thread_id(event, env)
+    front = event.agent == "codex" and event.phase == "PermissionRequest" and host_app_in_front(env)
+    body = build_thread(event, context(event.cwd, env), front)
+    status, _, error = put(url, body)
     if error:
         config.write_error(env, url, status, error)
+        return
+    if body.get("ask"):
+        cap = cfg["wait"]["stop" if event.phase == "Stop" else "permission"]
+        output = wait_for_answer(url, body, event.phase, cap, env)
+        if output:
+            print(json.dumps(output))

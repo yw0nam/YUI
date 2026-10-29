@@ -1,11 +1,10 @@
 import json
 
+import pytest
+
 from yui_notify.config import load
 
-DEFAULTS = {
-    "endpoint": "http://127.0.0.1:8770",
-    "events": {"done": "urgent", "needs_input": "urgent"},
-}
+DEFAULTS = {"endpoint": "http://127.0.0.1:8770", "wait": {"stop": 600, "permission": 120}}
 
 
 def write(tmp_path, text):
@@ -19,22 +18,21 @@ def test_missing_file_gives_defaults(tmp_path):
 
 
 def test_partial_file_merges(tmp_path):
-    env = write(tmp_path, json.dumps({"endpoint": "http://127.0.0.1:9/", "events": {"done": "drop"}}))
-    assert load(env) == {
-        "endpoint": "http://127.0.0.1:9",
-        "events": {"done": "drop", "needs_input": "urgent"},
-    }
+    env = write(tmp_path, json.dumps({"endpoint": "http://127.0.0.1:9", "wait": {"stop": 30}}))
+    assert load(env) == {"endpoint": "http://127.0.0.1:9", "wait": {"stop": 30, "permission": 120}}
 
 
-def test_invalid_event_value_falls_back(tmp_path):
-    env = write(
-        tmp_path, json.dumps({"events": {"done": "immediate", "needs_input": "batched"}, "summary": None})
-    )
-    assert load(env) == {
-        "endpoint": "http://127.0.0.1:8770",
-        "events": {"done": "urgent", "needs_input": "batched"},
-    }
+@pytest.mark.parametrize("value", [0, 601, -1, True, "10", None])
+def test_invalid_wait_falls_back(tmp_path, value):
+    env = write(tmp_path, json.dumps({"wait": {"stop": value, "permission": value}}))
+    assert load(env) == DEFAULTS
 
 
 def test_invalid_json_gives_defaults(tmp_path):
     assert load(write(tmp_path, "{nope")) == DEFAULTS
+
+
+@pytest.mark.parametrize("path", ["/presets/demo", "/threads", "/"])
+def test_endpoint_path_falls_back(tmp_path, path):
+    env = write(tmp_path, json.dumps({"endpoint": "http://127.0.0.1:9" + path}))
+    assert load(env) == DEFAULTS
