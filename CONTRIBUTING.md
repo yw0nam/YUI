@@ -24,7 +24,8 @@ A coding agent can walk the setup from
 [`docs/guide/install.md`](docs/guide/install.md). A default VRM ships in the
 repo; the backend agent, TTS, and STT are **separate
 repositories** and optional — see
-[`docs/guide/getting-started.md`](docs/guide/getting-started.md).
+[`docs/guide/connect-a-backend.md`](docs/guide/connect-a-backend.md) and
+[`docs/guide/voice.md`](docs/guide/voice.md).
 
 ## Workflow
 
@@ -186,7 +187,7 @@ A review checks every diff against the rules above and against these traps:
   settles, a thread that emits after release.
 - **One source for the contract.** Consumers compile against
   `src/contract/types.ts`. `configs/motions.json` and
-  `docs/reference/motions.md` change together.
+  `docs/guide/motions.md` change together.
 
 ## Finding your way
 
@@ -284,7 +285,8 @@ to relicense it, including under commercial terms.
 
 - [`AGENTS.md`](AGENTS.md) — project orientation (architecture, core principle,
   doc index)
-- [`docs/guide/getting-started.md`](docs/guide/getting-started.md) — full
-  install & backend wiring
+- [`docs/guide/installation.md`](docs/guide/installation.md) — install
+- [`docs/guide/connect-a-backend.md`](docs/guide/connect-a-backend.md) — full
+  backend wiring
 - [`PRODUCT.md`](PRODUCT.md) / [`DESIGN.md`](DESIGN.md) — product register +
   design system

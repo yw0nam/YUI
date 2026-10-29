@@ -1,13 +1,13 @@
 # Features
 
-Everything YUI does today, grouped by area. The README shows the three headline features in motion.
+Everything YUI does today, grouped by area. The README shows the three headline features in motion. [What she can do](capabilities.md) tells the same in prose.
 
 ## Character
 
 | Feature | What it does |
 | --- | --- |
 | Models | VRM 1.0 and 0.x loading with hot-swap, the bundled Sendagaya Shino as the default, and import, rename, and delete for your own `.vrm` files |
-| Emotions and motions | 10 emotions and 27 motions, 8 of them agent-selectable, with a per-emotion fallback chain ending at `neutral` ([motion catalog](../reference/motions.md)) |
+| Emotions and motions | 10 emotions and 27 motions, 8 of them agent-selectable, with a per-emotion fallback chain ending at `neutral` ([motion catalog](motions.md)) |
 | Cursor gaze | Head and eyes that follow the OS cursor anywhere on screen, with an on/off switch |
 | Lipsync | Mouth movement from speech amplitude, with a gain slider |
 | Idle liveliness | Blink, sway, breathing, and look-around on the client, reduced to blinking under `prefers-reduced-motion` |
@@ -33,7 +33,7 @@ Everything YUI does today, grouped by area. The README shows the three headline 
 | Speech bubble | Streaming markdown with links in the default browser, in a dialogue box with a name plate; the text types out at 40 ms per character whether her voice is on or off, and **Backlog** opens the current session's earlier lines; the running tool shows in the status pill above the character |
 | Text input | Text box with up to 6 image attachments by paste, drag-and-drop, or file picker |
 | Voice input | Silero VAD speech detection, transcription on any OpenAI-compatible STT endpoint, and barge-in over her speech |
-| Voice output | Sentence-by-sentence TTS on Irodori, OpenAI, or Fish Audio with the `emotion_text` voice tag ([vocabulary](../reference/tts-emotion/)). Irodori lists the TTS server's voices and imports your own reference clip; OpenAI lists its built-in voices; Fish lists your voice models, imports a clip as a new model, and accepts any library voice id |
+| Voice output | Sentence-by-sentence TTS on Irodori, OpenAI, or Fish Audio with the `emotion_text` voice tag ([vocabulary](tts-emotion/)). Irodori lists the TTS server's voices and imports your own reference clip; OpenAI lists its built-in voices; Fish lists your voice models, imports a clip as a new model, and accepts any library voice id |
 | Reading dictionary | `word=reading` pairs on the Listening and bubble page that change how the voice reads a word, and never the text on screen |
 | Waiting filler | Thinking motion and short localized lines while a reply is pending, including tool-specific lines, and a spoken line when a turn times out or the backend can't be reached. Defaults come from `configs/filler.json`; every list is editable per language on the **Voice** page under **Thinking interjections** (**More phrases** for the long-wait, timeout, connection-lost, and tool lines) |
 | History and message window | History tab stored on the device, every Signal group among it, spoken or silent; an optional separate message window, which folds her reasoning open at the top of a reply |

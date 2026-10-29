@@ -45,3 +45,5 @@ She uses whichever AI backend you connect, from a plain chat model to a full age
 ## Languages
 
 The app speaks English, Japanese, and Korean.
+
+For the full list of every feature, see [Features](features.md).

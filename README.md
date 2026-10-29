@@ -129,23 +129,30 @@ Pick each provider in **Settings → Connection**.
 | Any OpenAI-compatible transcription endpoint (`/audio/transcriptions`) | Local or hosted | `stt_base_url` |
 | Groq | Hosted, API key | `stt_base_url` and `stt_model`, for example `whisper-large-v3-turbo` |
 
-The [connection guide](docs/guide/getting-started.md) covers each setup. Missing a provider? Ask in [Discussions](https://github.com/yw0nam/YUI/discussions) or send a PR.
+The [connection guide](docs/guide/connect-a-backend.md) covers each setup. Missing a provider? Ask in [Discussions](https://github.com/yw0nam/YUI/discussions) or send a PR.
 
 </details>
 
 ## Known limitations
 
 - Supported on macOS with Apple Silicon and Windows x64. Intel Macs and Linux are not officially supported.
-- Installing with a coding agent is the only supported path for now; the installers on the Releases page are early and unsigned.
+- The installers on the Releases page work: the macOS build is signed ad hoc, so on first launch choose System Settings → Privacy & Security → Open Anyway, and [Install](docs/guide/installation.md) covers both routes.
 - Climbing up window sides and onto the monitor above is marked as in development in the app.
 - Irodori TTS speaks Japanese only.
 
 ## Documentation
 
-**Using YUI**
+**Start**
 
-- [Feature list](docs/guide/features.md) · [Controls](docs/guide/controls.md) · [What she can do](docs/guide/capabilities.md) · [Send signals from a producer](docs/guide/signals-producer.md)
-- [Install with a coding agent](docs/guide/install.md) · [Connection guide](docs/guide/getting-started.md): chat, voice, your own VRM
+- [Install](docs/guide/installation.md) · [Install with a coding agent](docs/guide/install.md) · [Connect a backend](docs/guide/connect-a-backend.md) · [Voice in and out](docs/guide/voice.md)
+
+**Use**
+
+- [What she can do](docs/guide/capabilities.md) · [Features](docs/guide/features.md) · [Controls](docs/guide/controls.md) · [Settings](docs/guide/settings.md) · [Cards](docs/guide/cards.md) · [Plugins](docs/guide/plugins.md)
+
+**Extend**
+
+- [Write a plugin](docs/guide/write-a-plugin.md) · [Send signals from a producer](docs/guide/signals-producer.md) · [Motions](docs/guide/motions.md) · [TTS Emotion](docs/guide/tts-emotion/)
 
 **Developing YUI**
 

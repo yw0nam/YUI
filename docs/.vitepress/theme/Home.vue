@@ -25,7 +25,7 @@ onMounted(() => {
             speaks when the agent you connect has something to say.
           </p>
           <div class="hero-cta">
-            <a :href="withBase('/guide/getting-started')" class="btn btn--primary"
+            <a :href="withBase('/guide/installation')" class="btn btn--primary"
               >Get started</a
             >
             <a
@@ -215,7 +215,7 @@ onMounted(() => {
       <!-- Closing -->
       <section class="close" aria-label="Get started">
         <p>Ready to wire her up?</p>
-        <a :href="withBase('/guide/getting-started')" class="btn btn--primary"
+        <a :href="withBase('/guide/installation')" class="btn btn--primary"
           >Get started</a
         >
       </section>
@@ -225,7 +225,7 @@ onMounted(() => {
     <footer class="home-foot">
       <span>YUI · PolyForm Noncommercial 1.0.0</span>
       <span class="home-foot-links">
-        <a :href="withBase('/guide/getting-started')">Guide</a>
+        <a :href="withBase('/guide/installation')">Guide</a>
         <a :href="withBase('/reference/client-context')">Reference</a>
         <a href="https://github.com/yw0nam/YUI" rel="noopener" target="_blank"
           >GitHub</a

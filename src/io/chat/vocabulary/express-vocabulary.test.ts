@@ -71,7 +71,7 @@ describe("agentTriggerableMotionIds", () => {
     expect(agentTriggerableMotionIds({})).toEqual([]);
   });
 
-  it("derives from the shipped registry exactly the set docs/reference/motions.md publishes", () => {
+  it("derives from the shipped registry exactly the set docs/guide/motions.md publishes", () => {
     const m = JSON.parse(readFileSync(resolve(process.cwd(), "configs/motions.json"), "utf-8"));
     const motions = validateMotions("configs/motions.json", m);
     expect(agentTriggerableMotionIds(motions).sort()).toEqual([

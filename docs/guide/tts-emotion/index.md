@@ -15,7 +15,7 @@ it to the TTS provider beside the segment, never shown in the speech bubble.
 Irodori prepends it to the spoken text; OpenAI puts it in `instructions`; Fish
 wraps it in `[...]` ahead of the spoken text (S2 inline direction). In push mode the cue arrives in the `segments[].cues` of `render` and
 `speech` frames, and the client sends the vocabulary in its `hello` and
-`vocabulary` frames ([push transport](../push-transport.md)).
+`vocabulary` frames ([push transport](../../reference/push-transport.md)).
 
 `generate_express` carries a second, independent voice channel alongside it:
 `caption`, a free-text voice direction that travels out-of-band in the synthesis
@@ -24,7 +24,7 @@ request: `irodori.caption` for Irodori, joined after `emotion_text` in
 `emotion_text` bracket for Fish. It has
 no vocabulary and no enum gate. The
 `generate_express` cue contract that carries both is described in
-[`client-context.md`](../client-context.md);
+[`client-context.md`](../../reference/client-context.md);
 the control envelope shape lives in
 [`src/contract/types.ts`](https://github.com/yw0nam/YUI/blob/main/src/contract/types.ts).
 
@@ -39,7 +39,7 @@ free text. A `tts_provider` change reloads the table for the declared tool schem
 
 ## See also
 
-- [`client-context.md`](../client-context.md) —
+- [`client-context.md`](../../reference/client-context.md) —
   the `generate_express` cue contract handed to the backend agent (the
   `emotion_id` / `motion_id` / `emotion_text` fields and streaming shape).
 - [`src/contract/types.ts`](https://github.com/yw0nam/YUI/blob/main/src/contract/types.ts) — the control

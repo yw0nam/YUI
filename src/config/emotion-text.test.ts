@@ -3,7 +3,7 @@
  *
  * Principle: loader tests inject a fake ConfigReader (`read`) and validate in-memory only.
  * Only the drift-guard is an exception — it reads the real artifacts via Node fs (configs/emotion_text/irodori.json ↔
- * docs/reference/tts-emotion/irodori.md) and asserts the key sets match (guards against edit drift).
+ * docs/guide/tts-emotion/irodori.md) and asserts the key sets match (guards against edit drift).
  */
 
 import { readFileSync } from "node:fs";
@@ -118,7 +118,7 @@ describe("loadEmotionTextTable — default fetch reader routes through asset res
 // ── drift-guard: configs JSON keys ↔ docs md emoji set ───────────────────────
 
 describe("irodori emotion_text drift-guard", () => {
-  /** Extracts the first-column emoji from the Emoji table in docs/reference/tts-emotion/irodori.md. */
+  /** Extracts the first-column emoji from the Emoji table in docs/guide/tts-emotion/irodori.md. */
   function emojiFromMarkdown(md: string): string[] {
     const lines = md.split("\n");
     const start = lines.findIndex((l) => l.startsWith("## Emoji table"));
@@ -138,7 +138,7 @@ describe("irodori emotion_text drift-guard", () => {
     const json = JSON.parse(
       readFileSync(resolve(REPO_ROOT, "configs/emotion_text/irodori.json"), "utf8"),
     ) as Record<string, string>;
-    const md = readFileSync(resolve(REPO_ROOT, "docs/reference/tts-emotion/irodori.md"), "utf8");
+    const md = readFileSync(resolve(REPO_ROOT, "docs/guide/tts-emotion/irodori.md"), "utf8");
 
     const jsonKeys = new Set(Object.keys(json));
     const mdEmoji = new Set(emojiFromMarkdown(md));

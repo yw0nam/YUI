@@ -66,8 +66,8 @@ Read these when the trigger applies; they are not loaded by default.
 - **Adding or changing a tool the client exposes to the backend, or checking what each chat transport carries** → `docs/reference/client-tools.md`, `docs/reference/push-transport.md`
 - **`POST /signals` envelope, buffering, and delivery rules, and the `/presets/<id>/` routes** → `docs/reference/signals-ingress.md`
 - **Push transport (`chat_api: "push"`) frames, reconnect, and limits** → `docs/reference/push-transport.md`
-- **Motion catalog** → `docs/reference/motions.md`
-- **TTS emotion_text vocabulary** → `docs/reference/tts-emotion/`
+- **Motion catalog** → `docs/guide/motions.md`
+- **TTS emotion_text vocabulary** → `docs/guide/tts-emotion/`
 - **Logging convention** → `docs/reference/logging.md`
 - **Witness activity log (format, location, retention)** → `docs/reference/witness-log.md`
 - **TS contract shapes** → `src/contract/types.ts`
