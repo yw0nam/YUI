@@ -31,10 +31,12 @@
     "@types/node": "^22.12.0",
     "@types/three": "~0.180.0",
     "jsdom": "^29.1.1",
+    "mermaid": "11.17.2",
     "svg-pathdata": "^9.0.0",
     "typescript": "~6.0.2",
     "vite": "^8.0.12",
     "vitepress": "^1.6.4",
+    "vitepress-plugin-mermaid": "2.0.17",
     "vitest": "^4.1.11"
   },
   "dependencies": {
