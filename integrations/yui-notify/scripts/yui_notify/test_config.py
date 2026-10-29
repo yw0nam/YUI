@@ -18,7 +18,7 @@ def test_missing_file_gives_defaults(tmp_path):
 
 
 def test_partial_file_merges(tmp_path):
-    env = write(tmp_path, json.dumps({"endpoint": "http://127.0.0.1:9/", "wait": {"stop": 30}}))
+    env = write(tmp_path, json.dumps({"endpoint": "http://127.0.0.1:9", "wait": {"stop": 30}}))
     assert load(env) == {"endpoint": "http://127.0.0.1:9", "wait": {"stop": 30, "permission": 120}}
 
 
@@ -30,3 +30,9 @@ def test_invalid_wait_falls_back(tmp_path, value):
 
 def test_invalid_json_gives_defaults(tmp_path):
     assert load(write(tmp_path, "{nope")) == DEFAULTS
+
+
+@pytest.mark.parametrize("path", ["/presets/demo", "/threads", "/"])
+def test_endpoint_path_falls_back(tmp_path, path):
+    env = write(tmp_path, json.dumps({"endpoint": "http://127.0.0.1:9" + path}))
+    assert load(env) == DEFAULTS

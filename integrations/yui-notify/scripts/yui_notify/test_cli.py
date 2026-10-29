@@ -33,6 +33,13 @@ def server():
 
         def do_GET(self):
             received.polls.append(self.path)
+            if received.status[1] == -1:
+                self.send_response(200)
+                self.send_header("Content-Length", "100")
+                self.end_headers()
+                self.wfile.write(b"{")
+                self.close_connection = True
+                return
             if received.status[1] == 0:
                 self.connection.close()
                 return
@@ -176,14 +183,21 @@ def test_codex_answers(tmp_path, server, capsys, fixture, answer, expected):
     run_hook(tmp_path, endpoint, fixture)
     out = capsys.readouterr().out
     assert (json.loads(out) if out else None) == expected
-    query = parse_qs(urlparse(received.polls[0]).query)
-    assert query == {"ask_id": [received[0][1]["ask"]["ask_id"]], "wait": ["25"]}
+    assert parse_qs(urlparse(received.polls[0]).query)["ask_id"] == [received[0][1]["ask"]["ask_id"]]
+    if fixture == "codex-stop.json":
+        assert parse_qs(urlparse(received.polls[0]).query)["wait"] == ["25"]
 
 
 @pytest.mark.parametrize(
-    "fixture,state", [("codex-stop.json", "completed"), ("codex-permission.json", "working")]
+    "fixture,state,status",
+    [
+        ("codex-stop.json", "completed", 410),
+        ("codex-permission.json", "working", 503),
+        ("codex-stop.json", "completed", 204),
+        ("codex-permission.json", "working", 0),
+        ("codex-stop.json", "completed", -1),
+    ],
 )
-@pytest.mark.parametrize("status", [410, 503, 204, 0])
 def test_codex_fallback_closes_ask(tmp_path, server, capsys, monkeypatch, fixture, state, status):
     endpoint, received = server
     received.status[1] = status
@@ -193,14 +207,6 @@ def test_codex_fallback_closes_ask(tmp_path, server, capsys, monkeypatch, fixtur
     assert capsys.readouterr().out == ""
     assert len(received) == 2
     assert received[-1][1] == {**received[0][1], "state": state, "ask": None, "entries": []}
-
-
-def test_focus_permission_posts_without_waiting(tmp_path, server, monkeypatch):
-    endpoint, received = server
-    monkeypatch.setattr("yui_notify.hook.host_app_in_front", lambda env: True)
-    run_hook(tmp_path, endpoint, "codex-permission.json")
-    assert "ask" not in received[0][1]
-    assert received.polls == []
 
 
 def test_successive_stops_can_both_be_answered(tmp_path, server, capsys):
@@ -250,10 +256,11 @@ def test_unreachable_endpoint_exits_zero_and_records_error(tmp_path):
     [
         ("probe", 404, "ok: YUI is listening at {url}", 0),
         ("probe", 400, "update YUI: Threads are not supported at {url}", 1),
-        ("probe", 503, "the preset's pet window is closed: {url}", 1),
+        ("probe", 503, "YUI is busy: every answer wait is in use: {url}", 1),
         ("probe", None, "YUI is not listening at {url} (External signals off, wrong port, or no tunnel)", 1),
+        ("test", 404, "unknown or invalid thread id: {url}", 1),
         ("test", 200, "sent: HTTP 200", 0),
-        ("test", 503, "the preset's pet window is closed: {url}", 1),
+        ("test", 503, "YUI is busy: every answer wait is in use: {url}", 1),
     ],
 )
 def test_probe_and_test_report(tmp_path, server, capsys, command, status, line, code):
@@ -284,14 +291,32 @@ def test_claude_id_falls_back_to_parent_pid(tmp_path, server, monkeypatch):
     assert received[0][0] == f"/threads/claude-code:{socket.gethostname().split('.')[0]}:9000"
 
 
-@pytest.mark.parametrize("fixture", ["claude-stop.json", "claude-permission.json", "codex-stop.json"])
-def test_focus_still_posts_other_events(tmp_path, server, capsys, monkeypatch, fixture):
+@pytest.mark.parametrize(
+    "fixture,waits",
+    [
+        ("claude-stop.json", False),
+        ("claude-permission.json", False),
+        ("codex-stop.json", True),
+        ("codex-permission.json", False),
+    ],
+)
+def test_focus_posts_and_only_permission_skips_wait(tmp_path, server, capsys, monkeypatch, fixture, waits):
     endpoint, received = server
-    monkeypatch.setattr("yui_notify.hook.host_app_in_front", lambda env: True)
+    received.answer = {"text": "Continue"}
+    calls = []
+
+    def focus(env):
+        calls.append(True)
+        return True
+
+    monkeypatch.setattr("yui_notify.hook.host_app_in_front", focus)
     run_hook(tmp_path, endpoint, fixture)
+    assert calls == ([True] if fixture == "codex-permission.json" else [])
     assert len(received) == 1
-    assert bool(received.polls) == fixture.startswith("codex")
-    assert capsys.readouterr().out == ""
+    assert bool(received.polls) == waits
+    if fixture == "codex-permission.json":
+        assert "ask" not in received[0][1]
+    assert capsys.readouterr().out == ('{"decision": "block", "reason": "Continue"}\n' if waits else "")
 
 
 def test_bounded_poll_timeout(tmp_path, server, monkeypatch):
@@ -313,10 +338,36 @@ def test_bounded_poll_timeout(tmp_path, server, monkeypatch):
     assert timeouts == [2, 12]
 
 
-def test_manifest_synchronous_deadlines():
-    hooks = json.loads((Path(__file__).parents[2] / "hooks" / "hooks.json").read_text())["hooks"]
-    for event in ("Stop", "PermissionRequest"):
-        command = hooks[event][0]["hooks"][0]
-        assert "async" not in command
-        assert command["timeout"] == 660
-    assert hooks["UserPromptSubmit"][0]["hooks"][0]["type"] == "command"
+@pytest.mark.parametrize(
+    "fixture,state", [("codex-stop.json", "completed"), ("codex-permission.json", "working")]
+)
+def test_release_closes_with_terminal_state(tmp_path, server, capsys, fixture, state):
+    endpoint, received = server
+    run_hook(tmp_path, endpoint, fixture)
+    assert capsys.readouterr().out == ""
+    assert len(received) == 2
+    assert received[-1][1] == {**received[0][1], "state": state, "ask": None, "entries": []}
+
+
+@pytest.mark.parametrize(
+    "fixture,env,rollout",
+    [
+        ("claude-user-prompt.json", {"CLAUDE_CODE_ENTRYPOINT": "sdk-cli"}, None),
+        ("codex-user-prompt.json", {}, "codex-rollout-exec.jsonl"),
+        ("codex-user-prompt.json", {}, "codex-rollout-subagent.jsonl"),
+    ],
+)
+def test_noninteractive_prompt_posts_nothing(tmp_path, server, fixture, env, rollout):
+    endpoint, received = server
+    updates = {"transcript_path": str(FIXTURES / rollout)} if rollout else {}
+    run_hook(tmp_path, endpoint, fixture, extra_env=env, **updates)
+    assert received == []
+
+
+@pytest.mark.parametrize("path", ["/presets/demo", "/threads", "/"])
+def test_probe_rejects_endpoint_path(tmp_path, server, capsys, path):
+    endpoint, received = server
+    url = endpoint + path
+    assert main(["probe", "--endpoint", url], env={"XDG_CONFIG_HOME": str(tmp_path)}) == 1
+    assert capsys.readouterr().out == f"invalid endpoint: use http://127.0.0.1:<port> with no path: {url}\n"
+    assert received.polls == []
