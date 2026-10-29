@@ -86,7 +86,7 @@ def test_enum_mode_takes_a_sequence_of_table_tags():
 
 def test_free_mode_leaves_the_tag_open():
     fields = cues_property(Vocabulary())["items"]
-    assert "enum" not in fields["properties"]["emotion_text"]
+    assert "pattern" not in fields["properties"]["emotion_text"]
 
 
 def test_free_mode_asks_for_a_few_plain_words_not_emoji():

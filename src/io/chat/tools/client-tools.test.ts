@@ -56,7 +56,7 @@ describe("createGenerateExpressTool — definition", () => {
     const props = createGenerateExpressTool(vocab()).definition.function.parameters.properties;
     const emotionText = props.emotion_text as Record<string, unknown>;
     expect(emotionText).toMatchObject({ type: "string" });
-    expect(emotionText.enum).toBeUndefined();
+    expect(emotionText.pattern).toBeUndefined();
     expect(String(emotionText.description)).toMatch(/words/);
     expect(String(emotionText.description)).toMatch(/no emoji/);
   });
@@ -103,7 +103,7 @@ describe("createGenerateExpressTool — definition", () => {
   it("enum mode with no table falls back to free text", () => {
     const tool = createGenerateExpressTool(vocab({ emotionText: { mode: "enum", table: null } }));
     const props = tool.definition.function.parameters.properties;
-    expect((props.emotion_text as Record<string, unknown>).enum).toBeUndefined();
+    expect((props.emotion_text as Record<string, unknown>).pattern).toBeUndefined();
   });
 
   it("reflects a changed vocabulary — an added emotion and motion land in the enums", () => {
