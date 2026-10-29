@@ -1,0 +1,16 @@
+{
+  "session_id": "bc68d697-4e8f-4be0-8ea6-e67f955b2586",
+  "transcript_path": "/Users/dev/.claude/projects/-Users-dev-projects-demo/bc68d697-4e8f-4be0-8ea6-e67f955b2586.jsonl",
+  "cwd": "/Users/dev/projects/demo",
+  "prompt_id": "1ff4e1d3-ac30-4fde-9a19-c0c0009d09ad",
+  "permission_mode": "default",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "UserPromptSubmit",
+  "stop_hook_active": false,
+  "last_assistant_message": "Ran the upload client tests; all 12 pass.",
+  "background_tasks": [],
+  "session_crons": [],
+  "prompt": "<channel source=\"plugin:yui-notify:yui-notify\">\nNow run the integration suite too.\n</channel>"
+}

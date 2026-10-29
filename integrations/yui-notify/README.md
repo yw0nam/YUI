@@ -45,12 +45,17 @@ PID if discovery fails. Ids survive `/clear`. Codex ids are `codex:<host>:<sessi
 | Claude Code | `Stop` | `input-required` with ready channel; otherwise `completed` | `agent`: last assistant message | “What next?” with ready channel; otherwise closes |
 | Claude Code | `PermissionRequest` | `input-required` | Channel owns the entry when ready; otherwise hook posts tool input | Channel adds Allow, Deny, and text |
 | Claude Code | `Notification` (elicitation) | `input-required` | `system`: message | None added |
+| Claude Code | `SessionEnd` | `completed` | `system`: Session ended | Closes |
 | Codex | `Stop` | `input-required` | `agent`: last assistant message | “What next?” with text |
 | Codex | `PermissionRequest` | `input-required` | `system`: tool name and command or input JSON | Allow, Deny, or text |
 
 Each Codex ask has a fresh UUID suffix, including successive Stops in one turn.
 Entry text keeps at most 16384 code points, shortening the head with `…` when needed.
 The serialized body stays within 65536 bytes, including for Unicode text.
+`SessionEnd` with reason `clear` or `resume` sends nothing: the session continues in
+the same Thread.
+An instruction answered in the Threads window is already a `user` entry in the store, so
+the channel message Claude Code delivers it as only sets the Thread `working`.
 
 ## Claude Code answers
 
@@ -109,8 +114,10 @@ SSH, tmux, missing bundle identifiers, and hosts without `lsappinfo` skip the fo
 
 ## Suppressions
 
-Claude Code Stop with a running background task or an SDK entrypoint sends nothing.
-Claude Code SDK and non-interactive Codex sessions also suppress `UserPromptSubmit`.
+Claude Code Stop and SessionEnd with a running background task or an SDK entrypoint send
+nothing. SessionEnd with reason `clear` or `resume` sends nothing: the session continues
+in the same Thread. Claude Code SDK and non-interactive Codex sessions also suppress
+`UserPromptSubmit`.
 Codex Stop sends nothing for non-interactive rollout sources (including exec and subagents).
 `idle_prompt` and `permission_prompt` notifications are not hooked. Codex has no
 `Notification` event, so its MCP elicitation sends nothing.

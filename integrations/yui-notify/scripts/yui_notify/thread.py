@@ -17,7 +17,7 @@ PROMPT_MAX = 500
 
 
 def terminal_state(phase: str) -> str:
-    return "completed" if phase == "Stop" else "working"
+    return "completed" if phase in ("Stop", "SessionEnd") else "working"
 
 
 def claude_thread_id(pid: str | int) -> str:
@@ -57,7 +57,8 @@ def build_thread(event: Event, ctx: Mapping[str, Any], front: bool) -> dict:
     role = "user" if event.phase == "UserPromptSubmit" else "agent" if event.phase == "Stop" else "system"
     state = (
         terminal_state(event.phase)
-        if event.phase == "UserPromptSubmit" or (event.phase == "Stop" and event.agent == "claude-code")
+        if event.phase == "UserPromptSubmit"
+        or (terminal_state(event.phase) == "completed" and event.agent == "claude-code")
         else "input-required"
     )
     title = f"{ctx['project']} ({ctx['branch']})" if ctx["branch"] else ctx["project"]

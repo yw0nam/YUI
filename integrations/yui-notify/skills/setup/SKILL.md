@@ -58,7 +58,7 @@ for the user's account and organization. Without the flag the MCP server stays i
 Claude Code Threads remain read-only. Codex follows
 `references/codex.md`; changed hook definitions require trusting the hooks again.
 
-Done when: `/hooks` lists `SessionStart`, `UserPromptSubmit`, `Stop`, and
+Done when: `/hooks` lists `SessionStart`, `UserPromptSubmit`, `Stop`, `SessionEnd`, and
 `PermissionRequest` without a review warning. Claude Code also lists `Notification`.
 
 ## 4. Write configuration

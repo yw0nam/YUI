@@ -37,7 +37,10 @@ return control to Codex. Default caps are 600 seconds for Stop and 120 for permi
 
 When the Codex host app is frontmost, permission posts without an ask and exits immediately
 so its terminal prompt appears. Stop still waits. Claude Code background-task and SDK
-Stops, and non-interactive Codex Stops, send nothing.
+Stops, and non-interactive Codex Stops, send nothing. Claude Code `SessionEnd` closes the
+Thread as `completed` with a `system` entry; a `clear` or `resume` reason sends nothing
+because the session continues. A channel answer Claude Code delivers as a prompt only sets the Thread
+`working`; the store recorded the answer when it was typed.
 
 Thread ids, payload limits, configuration, commands, and fallback details are in the
 [plugin README](../../integrations/yui-notify/README.md).

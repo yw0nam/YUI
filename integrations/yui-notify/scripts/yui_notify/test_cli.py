@@ -99,6 +99,7 @@ def run_hook(tmp_path, endpoint, fixture, config=None, extra_env=None, **updates
             "absent",
         ),
         ("claude-user-prompt.json", "working", "user", "Please fix the upload client.", None),
+        ("claude-session-end.json", "completed", "system", "Session ended", None),
         ("codex-user-prompt.json", "working", "user", "Please fix the upload client.", None),
         ("codex-stop.json", "input-required", "agent", None, "stop"),
         ("codex-permission.json", "input-required", "system", "Bash: rm -rf build", "perm"),
@@ -139,6 +140,21 @@ def test_hook_posts_thread(tmp_path, server, fixture, state, role, text, ask):
     elif ask != "absent":
         expected["ask"] = None
     assert body == expected
+
+
+def test_channel_answer_is_not_posted_again(tmp_path, server):
+    endpoint, received = server
+    run_hook(tmp_path, endpoint, "claude-channel-prompt.json")
+    body = received[0][1]
+    assert body["state"] == "working"
+    assert body["entries"] == []
+    assert body["ask"] is None
+
+
+def test_session_end_clear_keeps_thread(tmp_path, server):
+    endpoint, received = server
+    run_hook(tmp_path, endpoint, "claude-session-end.json", reason="clear")
+    assert received == []
 
 
 @pytest.mark.parametrize(

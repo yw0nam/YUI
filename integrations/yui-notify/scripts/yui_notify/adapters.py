@@ -4,7 +4,10 @@ import json
 from collections.abc import Mapping
 from typing import Any, NamedTuple
 
-EVENTS = {"Stop", "PermissionRequest", "Notification", "SessionStart", "UserPromptSubmit"}
+EVENTS = {"Stop", "PermissionRequest", "Notification", "SessionStart", "SessionEnd", "UserPromptSubmit"}
+
+# Claude Code wraps a relayed channel message in this markup when it fires UserPromptSubmit
+CHANNEL_PROMPT_PREFIX = '<channel source="plugin:yui-notify:'
 
 
 class Event(NamedTuple):
@@ -58,7 +61,7 @@ def parse_event(data: Any, env: Mapping[str, str]) -> Event | None:
     )
     if (
         agent == "claude-code"
-        and phase in ("Stop", "UserPromptSubmit", "SessionStart")
+        and phase in ("Stop", "UserPromptSubmit", "SessionStart", "SessionEnd")
         and (running or env.get("CLAUDE_CODE_ENTRYPOINT", "").startswith("sdk"))
     ):
         return None
@@ -68,12 +71,20 @@ def parse_event(data: Any, env: Mapping[str, str]) -> Event | None:
         and not _codex_interactive(data.get("transcript_path"))
     ):
         return None
+    # /clear and /resume keep the same Thread alive in the continuing session
+    if agent == "claude-code" and phase == "SessionEnd" and data.get("reason") in ("clear", "resume"):
+        return None
     if phase == "Stop":
         text = data.get("last_assistant_message") or ""
     elif phase in ("PermissionRequest", "Notification"):
         text = _pending(data)
     elif phase == "UserPromptSubmit":
         text = data.get("prompt") or ""
+        # the store records a channel answer itself; the echoed prompt adds no user entry
+        if agent == "claude-code" and text.startswith(CHANNEL_PROMPT_PREFIX):
+            text = ""
+    elif phase == "SessionEnd":
+        text = "Session ended"
     else:
         text = ""
     return Event(
