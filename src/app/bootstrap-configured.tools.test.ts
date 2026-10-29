@@ -22,6 +22,8 @@ it.each([
       "address_character",
       "body_action",
       "look",
+      "threads_list",
+      "threads_search",
       "plugin_describe",
       "plugin_call",
       "plugin_skill",
@@ -50,6 +52,8 @@ it.each([
         settings,
         conversation: { relationsStore: {} },
         vrm: { vrmSelection: {} },
+        // Threads belong to the main character; the wiring hands the client to main's window only.
+        threads: tauri && !bound ? { snapshot: () => null } : null,
         isDisposed: () => false,
       } as never,
     ),

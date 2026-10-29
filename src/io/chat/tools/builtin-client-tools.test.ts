@@ -33,6 +33,7 @@ describe("builtin-client-tools.json", () => {
         skill: vi.fn(),
         subscribe: vi.fn(),
       },
+      threads: { snapshot: () => null },
     });
     const express = createGenerateExpressTool({
       emotionIds: [],
