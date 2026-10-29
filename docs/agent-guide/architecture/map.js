@@ -3883,7 +3883,7 @@ globalThis.YUI_MAP =
       "to": "shell/agent-ingress",
       "kind": "http",
       "transport": "shared",
-      "carries": "PUT /threads/<id> {source, title, label?, state, entries?, ask?}; GET /threads/<id>/answer with optional ask_id and wait (200 oldest pending answer once, 204, 404; 410 only with ask_id)",
+      "carries": "PUT /threads/<id> {source, title, label?, state, entries?, ask?}; GET /threads/<id>/answer with optional ask_id and wait (200 oldest pending answer once, 204, 404; 410 only with ask_id); GET /threads/answers?source=<source> sweeps every pending answer of that source, oldest first, delivered once",
       "wiring": "src-tauri/src/agent_ingress/mod.rs"
     },
     {
@@ -3892,7 +3892,7 @@ globalThis.YUI_MAP =
       "to": "shell/threads",
       "kind": "call",
       "transport": "shared",
-      "carries": "upsert, wait_answer",
+      "carries": "upsert, wait_answer, drain_answers",
       "wiring": "src-tauri/src/agent_ingress/threads/requests.rs"
     }
   ],

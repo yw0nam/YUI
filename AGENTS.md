@@ -57,6 +57,7 @@ Read these when the trigger applies; they are not loaded by default.
 - **Connecting Hermes Agent as the backend (Responses mode, dev proxy, auth)** → `integrations/hermes/README.md`
 - **Setting up or speaking the daily briefing (any backend agent)** → `integrations/skills/yui-daily-briefing/SKILL.md`
 - **Waking one YUI character from a backend agent or producer** → `integrations/skills/yui-wake-character/SKILL.md`
+- **Building a Thread producer for any source (PRs, mail, …)** → `integrations/skills/yui-thread-producer/SKILL.md`
 - **Runtime evidence for a yui platform plugin change (live Hermes gateway, throwaway profile)** → `integrations/hermes/platform/yui/skills/yui-platform-smoke-test/SKILL.md`
 - **IO or backend work (chat/STT/TTS)** → `docs/agent-guide/backend-integration.md`
 - **Coding-agent Threads (yui-notify plugin)** → `integrations/yui-notify/README.md`

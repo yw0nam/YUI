@@ -1,4 +1,4 @@
-use crate::threads::model::{parse_upsert, Upsert};
+use crate::threads::model::{parse_upsert, Upsert, SOURCE_MAX_CHARS};
 use std::time::Duration;
 
 const THREAD_ID_MAX_BYTES: usize = 128;
@@ -14,6 +14,9 @@ pub(in crate::agent_ingress) enum ThreadRoute {
         id: String,
         ask_id: Option<String>,
         wait: Duration,
+    },
+    Sweep {
+        source: String,
     },
 }
 
@@ -35,6 +38,13 @@ pub(in crate::agent_ingress) fn parse(
     }
     match suffix {
         "" if !rest.ends_with('/') => {
+            if id == "answers" {
+                if method == "GET" {
+                    return sweep_source(url).map(|source| ThreadRoute::Sweep { source });
+                }
+                // answers is reserved and names no Thread; PUT misses an id, the rest miss the sweep.
+                return Err(if method == "PUT" { 404 } else { 405 });
+            }
             if method != "PUT" {
                 return Err(405);
             }
@@ -47,15 +57,10 @@ pub(in crate::agent_ingress) fn parse(
             if method != "GET" {
                 return Err(405);
             }
-            let url = reqwest::Url::parse(&format!("http://localhost{url}")).map_err(|_| 400u16)?;
-            let pairs: Vec<_> = url.query_pairs().collect();
-            let ask_id = pairs
-                .iter()
-                .find(|(key, _)| key == "ask_id")
-                .map(|(_, v)| v.to_string());
-            let wait = match pairs.iter().find(|(key, _)| key == "wait") {
+            let ask_id = query_param(url, "ask_id");
+            let wait = match query_param(url, "wait") {
                 None => WAIT_MAX_SECONDS,
-                Some((_, value)) => {
+                Some(value) => {
                     if value.is_empty() || !value.bytes().all(|c| c.is_ascii_digit()) {
                         return Err(400);
                     }
@@ -73,4 +78,19 @@ pub(in crate::agent_ingress) fn parse(
         }
         _ => Err(404),
     }
+}
+
+fn sweep_source(url: &str) -> Result<String, u16> {
+    let source = query_param(url, "source").ok_or(400u16)?;
+    if source.is_empty() || source.chars().count() > SOURCE_MAX_CHARS {
+        return Err(400);
+    }
+    Ok(source)
+}
+
+fn query_param(url: &str, name: &str) -> Option<String> {
+    let url = reqwest::Url::parse(&format!("http://localhost{url}")).ok()?;
+    url.query_pairs()
+        .find(|(key, _)| key == name)
+        .map(|(_, value)| value.to_string())
 }

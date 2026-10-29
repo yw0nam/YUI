@@ -35,5 +35,9 @@ pub(in crate::agent_ingress) fn handle(
                 respond_json(request, result);
             });
         }
+        ThreadRoute::Sweep { source } => {
+            let answers = store.drain_answers(&source);
+            respond_json(request, Ok(serde_json::json!({ "answers": answers })));
+        }
     }
 }

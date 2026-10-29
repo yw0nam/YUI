@@ -63,6 +63,22 @@ Without `ask_id`, a known Thread never receives 410.
 
 A pending answer wins over 410. Answering closes the ask, but the producer's next poll still receives the answer. Delivery removes the pending answer. Each request runs on its own worker thread, so waiting does not block the ingress accept loop. At most 32 answer requests run at once.
 
+## `GET /threads/answers?source=<source>`
+
+The sweep route delivers every pending answer of every Thread whose `source` equals the
+`source` parameter: oldest first, each removed on delivery from the same pending store the
+long-poll delivers from. The response is
+`{"answers": [{"thread_id", "ask_id", "choice"?, "text"?, "release"?, "at"}, …]}`; an empty
+list when none.
+
+There is no `wait` parameter: a scheduled producer runs on its own clock. Only GET is
+accepted; another method receives 405. The `source` parameter is required, non-empty, and at
+most 64 code points; a missing, empty, or longer value receives 400.
+
+The id `answers` is reserved: `PUT /threads/answers` receives 404 like any invalid id, so no
+Thread can take it. A preset-prefixed path reaches no Thread route, as everywhere under
+`/threads`.
+
 ## User answers
 
 An Answer supplies `ask_id` and a choice id, text, both, or `release: true` to answer at the agent's own terminal. The Thread must exist and the ask must be open with that id.

@@ -77,7 +77,7 @@ One listener on one port serves every window, and the path chooses the recipient
 
 | Path | Recipient |
 |---|---|
-| `/threads/<id>`, `/threads/<id>/answer` | The Thread store, no window; see [Threads](./threads.md) |
+| `/threads/<id>`, `/threads/<id>/answer`, `/threads/answers?source=<source>` | The Thread store, no window; see [Threads](./threads.md) |
 | `/signals` | `main`: the main window's character, whichever preset is active |
 | `/avatar/state`, `/avatar/perch-targets`, `/avatar/command`, `/relations` | `main` |
 | `/presets/<id>/signals` | `pet-<id>`: the pet window bound to preset `<id>`, and no other window |
@@ -222,7 +222,11 @@ A request under `/presets/` whose id no preset has, or whose path after the id i
 
 A request for a preset id that exists while its pet window is not open receives HTTP 503; it is never passed to `main`.
 
-Threads accept only PUT on `/threads/<id>` and GET on `/threads/<id>/answer`; wrong methods receive 405. Invalid or missing Thread ids and any preset-prefixed Threads path receive 404. Field and query validation receives 400; the [Threads reference](./threads.md) defines answer outcomes and the wait-worker limit.
+Threads accept only PUT on `/threads/<id>`, GET on `/threads/<id>/answer`, and GET on
+`/threads/answers?source=<source>`; wrong methods receive 405. Invalid or missing Thread ids
+and any preset-prefixed Threads path receive 404. Field and query validation receives 400;
+the [Threads reference](./threads.md) defines answer outcomes, the sweep, and the wait-worker
+limit.
 
 ### What 200 means
 

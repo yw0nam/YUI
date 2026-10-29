@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
 pub const TEXT_MAX_CHARS: usize = 16384;
+pub const SOURCE_MAX_CHARS: usize = 64;
 const ASK_ID_MAX_CHARS: usize = 128;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -70,6 +71,14 @@ pub struct Answer {
     #[serde(flatten)]
     pub input: AnswerInput,
     pub at: u64,
+}
+
+/// One answer of the sweep route, tagged with the Thread it was answered on.
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct DeliveredAnswer {
+    pub thread_id: String,
+    #[serde(flatten)]
+    pub answer: Answer,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -167,7 +176,7 @@ pub fn parse_upsert(body: &str) -> Result<Upsert, u16> {
     let value: serde_json::Value = serde_json::from_str(body).map_err(|_| 400u16)?;
     let source = value.get("source").and_then(|v| v.as_str()).ok_or(400u16)?;
     let title = value.get("title").and_then(|v| v.as_str()).ok_or(400u16)?;
-    bounded(source, 64, false)?;
+    bounded(source, SOURCE_MAX_CHARS, false)?;
     bounded(title, 200, false)?;
     let mut label = optional_string(&value, "label", usize::MAX)?;
     if let Some(s) = &mut label {
