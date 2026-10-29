@@ -2,7 +2,7 @@
 
 This page lists every motion id in [`configs/motions.json`](https://github.com/yw0nam/YUI/blob/main/configs/motions.json): what it looks like, its playback policy, and the source clip it was extracted from. Keep it in sync with the registry.
 
-The backend agent plays only the motions in the [agent vocabulary](#agent-vocabulary), chosen through `generate_express`'s `motion_id`. The client plays the rest: the ambient baseline, the pickup and pat reactions, the stroll, the jump, the fall chain, the climb chain, the seat transitions, the thinking pose, the perch states, and the bed scene.
+The backend agent picks from the motions in the [agent vocabulary](#agent-vocabulary) through `generate_express`'s `motion_id`. The client plays the rest on its own: the ambient baseline, the pickup and pat reactions, the stroll, the jump, the fall chain, the climb chain, the seat transitions, the thinking pose, the perch states, and the bed scene.
 
 Each family has a sub-section under [Top-level motions](#top-level-motions); sources and the client-side switches sit below the catalog.
 
@@ -68,7 +68,7 @@ The floor stroll runs whenever the body is on `idle`, `thinking` or `walk`, thro
 
 A floor stroll may continue past its own monitor's edge onto a neighbouring monitor that shares its floor line and scale factor, with the window translating frame by frame.
 
-A stroll that starts over a stretch where the window would hang over a monitor beneath it with a different scale factor takes a different route. It parks the OS window once over the whole path, moves the character inside the parked canvas, and parks the window once more where she lands.
+A stroll that starts over a stretch where the window would hang over a monitor beneath it with a different scale factor walks the same path, but instead of translating the window it parks the OS window once over the whole path, moves the character inside the parked canvas, and parks the window once more where she lands.
 
 A reflex turn cancels it at once, and the perched stroll and the climb still yield to any turn in flight. The same clip covers the foreign-window-top stroll, whose crossings are described under [Jump](#jump), [Fall chain](#fall-chain) and [Seat transitions](#seat-transitions).
 
@@ -96,7 +96,7 @@ One exception: a drag release whose feet hang below the floor line of a monitor 
 
 `climb_up`, `climb_up_done`, `climb_down` and `climb_down_landing` are the climb chain, played by the client's climb scheduler while the OS window travels up or down a foreign window's side edge. The screen edges of a monitor that has another monitor directly above it are climb targets alongside window sides.
 
-An ascent parks the OS window once over the whole climb, moves the character inside the parked canvas, and parks the window once more standing on the upper monitor's floor line rather than on a seat.
+An ascent up such a monitor edge parks the OS window once over the whole climb, moves the character inside the parked canvas, and parks the window once more standing on the upper monitor's floor line rather than on a seat.
 
 On the way up, the clip's rise per cycle comes out of the hips and goes into the window, so the VRM climbs in place at scene origin. The OS window rises along the chosen window edge and the root yaws ±90° toward the wall.
 
@@ -275,9 +275,11 @@ It narrows the vocabulary carried in push frames and in the `motion_id` enum of 
 
 `root_lock_y` defaults to `false`. The loader strips a clip's baked horizontal root drift from every entry, but leaves vertical motion alone because that is the bob. A `true` entry has its hips-Y track levelled instead, every key onto the hips height the VRM has in its rest pose, and the curve that came out is kept beside the clip.
 
-It is set on the four climb clips and the two seat transitions, whose rise and fall is the movement. The OS window replays that curve, so the clip and the window compose to the authored motion exactly once.
+It is set on the four climb clips and the two seat transitions, whose rise and fall is the movement. The OS window replays that curve. As a result:
 
-A loop has no seam left to snap at, and a clip captured with the hips a metre above standing no longer plays a metre up the canvas.
+- the clip and the window compose to the authored motion exactly once;
+- a loop has no seam left to snap at;
+- a clip captured with the hips a metre above standing no longer plays a metre up the canvas.
 
 The flag rides in the clip-cache key, so two entries sharing one `.vrma` can disagree on it.
 
