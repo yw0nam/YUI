@@ -1,13 +1,13 @@
 # Client tools
 
 A client tool is a tool YUI runs itself when the backend calls it, and this page is the contract
-for the eight of them: arguments, results, the transports that carry each call, and the code that
+for the ten of them: arguments, results, the transports that carry each call, and the code that
 declares and runs it. A backend author reads it to make a call; a client author reads it to add a
 tool.
 
 ```mermaid
 flowchart TB
-  A["Catalog: the eight tools"] --> B["How each transport declares them"]
+  A["Catalog: the ten tools"] --> B["How each transport declares them"]
   A --> C["The schema the model reads"]
   A --> D["Tool-call round trip"]
   D --> E["Results, images and unanswered calls"]
@@ -28,6 +28,8 @@ code that builds and runs it.
 | `plugin_describe` | Describes a plugin tool the host publishes | Argument `name` (string: the plugin tool's name). Result: the tool's name, its description and its input schema on three lines, or `error: unknown plugin tool: <name>` | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createPluginBridgeTools` in `src/io/chat/tools/plugin-bridge/` | Tauri commands `plugin_host_call`/`plugin_host_cancel` (`plugin_call`) and `plugin_host_skill` (`plugin_skill`) in `src-tauri/src/mcp_host/`, invoked through `src/io/mcp-host/mcp-host.ts`; `plugin_describe` reads the host's snapshot |
 | `plugin_call` | Runs a plugin tool the host publishes | Arguments `name` (string: the plugin tool's name) and `arguments` (object: the tool's arguments). Result: the tool's text and its images as data URLs, or `error: unknown plugin tool: <name>`, or `error: invalid arguments (<violation>)` with the tool's input schema | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createPluginBridgeTools` in `src/io/chat/tools/plugin-bridge/` | Tauri commands `plugin_host_call`/`plugin_host_cancel` (`plugin_call`) and `plugin_host_skill` (`plugin_skill`) in `src-tauri/src/mcp_host/`, invoked through `src/io/mcp-host/mcp-host.ts`; `plugin_describe` reads the host's snapshot |
 | `plugin_skill` | Reads a plugin skill the host publishes | Argument `name` (string: the plugin skill's name). Result: the skill's instructions | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createPluginBridgeTools` in `src/io/chat/tools/plugin-bridge/` | Tauri commands `plugin_host_call`/`plugin_host_cancel` (`plugin_call`) and `plugin_host_skill` (`plugin_skill`) in `src-tauri/src/mcp_host/`, invoked through `src/io/mcp-host/mcp-host.ts`; `plugin_describe` reads the host's snapshot |
+| `threads_list` | Lists the user's Threads: the ones waiting for the user's answer by default, every Thread with `state: "all"`, or one Thread's conversation by id | Arguments `state` (`"waiting"`, the default, or `"all"`), `source` (string, exact match) and `id` (string), all optional. Without `id`: at most 20 rows newest first, each with its open ask and last entry, then `(N more)` when cut. With `id`: that Thread's newest 20 entries oldest first, plus the open ask. Result: the rows, `no threads`, or `error: unknown thread: <id>` | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createThreadsTools` in `src/io/chat/tools/threads/` | The tool itself; no Tauri command — it reads the calling window's snapshot of the Thread store, so only the main window declares it |
+| `threads_search` | Searches the user's Threads by text | Argument `query` (string, required). A case-insensitive substring over title, label and entry text. Result: the matching Threads newest first, at most 10, each with one `match:` line naming where the query hit, `no threads match "<query>"`, or `error: query must be a non-empty string` | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createThreadsTools` in `src/io/chat/tools/threads/` | The tool itself; no Tauri command — it reads the calling window's snapshot of the Thread store, so only the main window declares it |
 
 ## Declaration per transport
 
@@ -50,11 +52,12 @@ tools a window hands it. `src/io/chat/tools/pet-window-tools.ts` builds that lis
 | Window | Tools it hands to `createClientTools` |
 |---|---|
 | Every pet window | `rate_relation` and `address_character`, and under Tauri the bridge tools `plugin_describe`, `plugin_call` and `plugin_skill` |
-| `main` | the tools of every pet window, plus `body_action` and `look` |
+| `main` | the tools of every pet window, plus `body_action`, `look`, `threads_list` and `threads_search` |
 | A bound pet window | `rate_relation`, `address_character`, and under Tauri the bridge tools |
 | The browser build | `rate_relation` and `address_character` |
 
-`main` alone creates the avatar executor, so only that window runs `body_action` and `look`.
+`main` alone creates the avatar executor and the Threads client, so only that window runs
+`body_action` and `look` and declares `threads_list` and `threads_search`.
 
 `src/app/turn/wire-dispatcher.ts` builds the registry from that list for each turn, as the
 `clientTools` dependency of the backend caller. The registry reads the vocabulary loaded at that

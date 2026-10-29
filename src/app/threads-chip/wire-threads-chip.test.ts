@@ -2,7 +2,8 @@
 /** wire-threads-chip.test.ts — main's Threads chip seeds from the window's client, follows it, and steps aside on the window's closed report. */
 
 import { beforeEach, expect, it, vi } from "vitest";
-import type { ThreadsClient, ThreadsSnapshot } from "../../io/threads/threads-client";
+import type { ThreadsSnapshot } from "../../contract";
+import type { ThreadsClient } from "../../io/threads/threads-client";
 
 vi.mock("../../ui/threads/chip/threads-chip.css", () => ({}));
 vi.mock("@tauri-apps/api/webviewWindow", () => ({

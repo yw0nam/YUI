@@ -93,6 +93,12 @@ function renderOpenCharacters(names: ClientContext["open_characters"]): string |
   return `open characters: ${names.map((name) => `"${oneLine(name)}"`).join(", ")}`;
 }
 
+function renderThreadsWaiting(threads: ClientContext["threads_waiting"]): string | undefined {
+  if (!threads || threads.total <= 0) return undefined;
+  const groups = threads.by_source.map((group) => `${oneLine(group.source)} ${group.count}`);
+  return `threads: ${threads.total} waiting (${groups.join(", ")})`;
+}
+
 /** One plugin tool or skill as a `name — text` entry; the name alone when the text is empty. */
 function pluginEntry(name: string, text: string): string {
   const label = oneLine(name);
@@ -254,6 +260,9 @@ export function renderClientContext(clientContext: ClientContext, nowMs: number)
 
   const openCharacters = renderOpenCharacters(clientContext.open_characters);
   if (openCharacters) lines.push(openCharacters);
+
+  const threads = renderThreadsWaiting(clientContext.threads_waiting);
+  if (threads) lines.push(threads);
 
   const tools = renderToolSwitches(clientContext.tool_switches);
   if (tools) lines.push(tools);

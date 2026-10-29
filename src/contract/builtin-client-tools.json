@@ -6,5 +6,7 @@
   "plugin_call",
   "plugin_describe",
   "plugin_skill",
-  "rate_relation"
+  "rate_relation",
+  "threads_list",
+  "threads_search"
 ]

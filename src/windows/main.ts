@@ -53,6 +53,7 @@ import { createDevtoolsWindowOpener } from "../io/window/openers/devtools-window
 import { createQuickCardWindowController } from "../io/window/openers/quick-card-window";
 import { createSettingsWindowOpener } from "../io/window/openers/settings-window";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
+import { createThreadsClient } from "../io/threads/threads-client";
 import { createLogger, initLogger } from "../logger";
 import { presetIdForWindow } from "../settings/preset/active-preset";
 import { readBoundPresetId } from "../settings/preset/bound-preset";
@@ -263,6 +264,10 @@ async function bootstrap(): Promise<BootstrapHandle> {
 
   register(attachSummonKey(surfaces));
 
+  // Threads belong to the main character: one client feeds the chip, the two tools and the waiting line.
+  const threads = bound ? null : createThreadsClient();
+  if (threads) register(() => threads.dispose());
+
   // Config-driven load: configs/*.json → validated AppConfig. endpoints/motions etc
   // consumed during dispatcher·tts wiring. VRM displayed via avatar.vrm_url.
   try {
@@ -272,6 +277,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     surfaces.setAttachmentLimits(cfg.guardrails.attachments);
     const configured = await createConfiguredBootstrap(cfg, {
       bound,
+      threads,
       config,
       renderer,
       ambient,
@@ -318,7 +324,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     // After the signal chips, before the delegation chip.
     register(
       wireThreadsChip({
-        boundId,
+        client: threads,
         mount: surfaces.chipColumn,
         collapsed: configured.chipFold,
         bridge: windowBridge,

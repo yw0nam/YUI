@@ -99,6 +99,8 @@ export function wireDispatcher(deps: {
   getFrontmost: () => FrontmostState | undefined;
   /** The enabled plugins' tools and skills, read once per turn. */
   getPluginLines?: Parameters<typeof createBackendCaller>[0]["getPluginLines"];
+  /** The Threads waiting for the user's answer, read once per turn; main's window only. */
+  getThreadsWaiting?: Parameters<typeof createBackendCaller>[0]["getThreadsWaiting"];
   /** True once, for the user turn whose message woke the character on the bed. */
   takeMessageWake?: () => boolean;
   /** True while a scene holds the body: a turn that starts then shows no thinking bridge. */
@@ -228,6 +230,7 @@ export function wireDispatcher(deps: {
       ),
     getOpenCharacters: () => [...targetLabels(readOpenPresetEntries(presetIdForWindow())).keys()],
     getPluginLines: deps.getPluginLines,
+    getThreadsWaiting: deps.getThreadsWaiting,
     commitOverheard: overheard.commit,
     isBodyHeld,
     contextHistory,

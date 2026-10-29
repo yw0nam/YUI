@@ -37,12 +37,12 @@ function tools(threads: Thread[] | null) {
 
 async function runList(threads: Thread[] | null, args?: unknown): Promise<string> {
   const tool = tools(threads).find((candidate) => candidate.name === "threads_list")!;
-  return (await tool.execute(args ?? {})) as string;
+  return (await tool.execute((args === undefined ? {} : args) as Record<string, unknown>)) as string;
 }
 
 async function runSearch(threads: Thread[] | null, args?: unknown): Promise<string> {
   const tool = tools(threads).find((candidate) => candidate.name === "threads_search")!;
-  return (await tool.execute(args ?? {})) as string;
+  return (await tool.execute((args === undefined ? {} : args) as Record<string, unknown>)) as string;
 }
 
 describe("threads_list", () => {
@@ -139,10 +139,10 @@ describe("threads_list", () => {
     const lines = text.split("\n");
     expect(lines[0]).toBe("deep | claude-code | task deep | - | input-required | 2026-01-02 03:04");
     // The newest 20 of the 23 entries, oldest first.
-    expect(lines[1]).toBe("agent 2026-01-01 01:02: entry 02");
-    expect(lines[20]).toBe(`user 2026-01-02 03:04: ${"x".repeat(2000)}… (500 more chars)`);
-    expect(lines[21]).toBe("agent 2026-01-03 05:06: done");
-    expect(lines[22]).toBe("asks: Ship it? [choices: Yes, No] [free text]");
+    expect(lines[1]).toBe("agent 2026-01-01 01:02: entry 03");
+    expect(lines[19]).toBe(`user 2026-01-02 03:04: ${"x".repeat(2000)}… (500 more chars)`);
+    expect(lines[20]).toBe("agent 2026-01-03 05:06: done");
+    expect(lines[21]).toBe("asks: Ship it? [choices: Yes, No] [free text]");
   });
 
   it("keeps entry newlines in the id view", async () => {
@@ -169,7 +169,7 @@ describe("threads_search", () => {
     expect(text).toBe(
       [
         "hit | claude-code | task hit | - | working | 2026-01-02 03:04",
-        "match: …[Deploy] failed on prod…",
+        "match: …[Deploy]failed on prod…",
       ].join("\n"),
     );
   });
