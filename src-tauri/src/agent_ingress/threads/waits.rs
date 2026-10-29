@@ -9,11 +9,10 @@ impl WaitSlots {
         Self(AtomicUsize::new(0))
     }
     pub(super) fn acquire(&self) -> Option<WaitSlot<'_>> {
-        self.0
-            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |count| {
-                (count < WAIT_LIMIT).then_some(count + 1)
-            })
-            .ok()?;
+        if self.0.fetch_add(1, Ordering::AcqRel) >= WAIT_LIMIT {
+            self.0.fetch_sub(1, Ordering::AcqRel);
+            return None;
+        }
         Some(WaitSlot(self))
     }
 }
