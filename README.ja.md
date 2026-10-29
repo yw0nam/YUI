@@ -133,23 +133,30 @@ YUI自体はモデルを内蔵していません。何ができるかで頭脳�
 | OpenAI互換の任意の文字起こしエンドポイント(`/audio/transcriptions`) | ローカルまたはクラウド | `stt_base_url` |
 | Groq | クラウド(APIキー) | `stt_base_url` と `stt_model`(例: `whisper-large-v3-turbo`) |
 
-それぞれのセットアップ手順は[接続ガイド](docs/guide/getting-started.md)にあります。使いたいプロバイダーが見当たらなければ、[Discussions](https://github.com/yw0nam/YUI/discussions)で気軽に相談するか、PRを送ってください。
+それぞれのセットアップ手順は[接続ガイド](docs/guide/connect-a-backend.md)にあります。使いたいプロバイダーが見当たらなければ、[Discussions](https://github.com/yw0nam/YUI/discussions)で気軽に相談するか、PRを送ってください。
 
 </details>
 
 ## 既知の制限
 
 - 対応環境はApple Silicon搭載のmacOSとWindows x64です。Intel MacとLinuxは公式サポート外です。
-- 今のところ、サポートしているインストール方法はコーディングエージェント経由のみです。Releasesページのインストーラーはまだ初期版で、署名もしていません。
+- [インストール](docs/guide/installation.md)に、コーディングエージェント経由とReleasesページのインストーラーの両方の手順があります。macOS版はアドホック署名なので、初回起動時にシステム設定 → プライバシーとセキュリティ → このまま開くを選んでください。
 - ウィンドウの側面や上のモニターへのよじ登りは、アプリ内で「開発中」と表示されます。
 - Irodori TTSは日本語専用です。
 
 ## ドキュメント
 
-**使う人向け**
+**はじめる**
 
-- [機能一覧](docs/guide/features.md) · [操作方法](docs/guide/controls.md) · [YUIと一緒にできること](docs/guide/capabilities.md) · [プロデューサーからシグナルを送る](docs/guide/signals-producer.md)
-- [コーディングエージェントでインストール](docs/guide/install.md) · [接続ガイド](docs/guide/getting-started.md)(チャット、音声、自分のVRM)
+- [インストール](docs/guide/installation.md) · [コーディングエージェントでインストール](docs/guide/install.md) · [バックエンドをつなぐ](docs/guide/connect-a-backend.md) · [音声の入力と出力](docs/guide/voice.md)
+
+**使う**
+
+- [YUIと一緒にできること](docs/guide/capabilities.md) · [機能一覧](docs/guide/features.md) · [操作方法](docs/guide/controls.md) · [設定](docs/guide/settings.md) · [カード](docs/guide/cards.md) · [プラグイン](docs/guide/plugins.md)
+
+**拡張する**
+
+- [プラグインを書く](docs/guide/write-a-plugin.md) · [プラグインを公開する](docs/guide/contribute-a-plugin.md) · [プロデューサーからシグナルを送る](docs/guide/signals-producer.md) · [モーション](docs/guide/motions.md) · [TTS感情](docs/guide/tts-emotion/)
 
 **開発する人向け**
 

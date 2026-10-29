@@ -1,16 +1,18 @@
 # Controls
 
-How to move around YUI with the keyboard and the mouse.
+Every key, click, and menu that moves her.
+
+![The quick card that a right-click on the character opens](/shots/quick-card.png)
 
 ## Keyboard
 
 | Keys | What happens |
 | --- | --- |
-| `CmdOrCtrl+Shift+Y` | Shows the character and opens the text input from any app. This is the default; change it in `configs/hotkeys.json` |
-| `/` | Opens the text input while the YUI window has focus |
+| `CmdOrCtrl+Shift+Y` | Shows her and opens the text input from any app ([change it](../reference/configuration.md)) |
+| `/` | Opens the text input while her window has focus |
 | `Enter` | Sends the message |
 | `Shift+Enter` | Starts a new line |
-| `Esc` | Closes the text input, or the quick card when that is open |
+| `Esc` | Closes the text input, or the quick card |
 
 ## Mouse on the character
 
@@ -18,42 +20,55 @@ How to move around YUI with the keyboard and the mouse.
 | --- | --- |
 | Drag | Moves her anywhere on screen, across monitors |
 | Drop on a window's top edge | She sits there |
-| Drop behind a window's side edge | She peeks out from behind it |
-| Click | She reacts; tapping the head, chest, or hips gives different reactions |
+| Drop behind a window's side edge | She peeks out |
+| Click | She reacts, and the reaction differs when you tap her head, chest, or hips |
 | Press and hold on the head | A head pat |
 | Wheel | Zooms in and out |
-| `Ctrl` + wheel | Resizes her while her feet stay in place |
-| `Shift` + drag | Orbits the camera around her |
-| Right-click | Opens the quick card beside her: Voice, Listen, Keep bubble and Unified chat toggles, her body and reference voice, a conversation reset, Turn off for a character other than the main one, and All settings… for the settings window |
+| `Ctrl` + wheel | Resizes her, feet in place |
+| `Shift` + drag | Orbits the camera |
+| Right-click | Opens the quick card: Voice, Listen, Keep bubble, Unified chat, Body, Reference voice, Reset…, Turn off for another character, All settings… |
 
-## Speech bubble and text input
+## Text input
 
-- The speech bubble is a dialogue box with a name plate: the plate names the speaker, the text types out at 40 ms per character whether her voice is on or off, and the **Backlog** toggle opens the current session's earlier lines.
-- The **×** on the speech bubble closes it for the rest of that reply.
-- The **pop-out** button moves the speech bubble and the text input to a separate message window, where the name plate drags the window; the dock button moves them back to the character.
-- Hovering over a long reply pauses its auto-hide so you can read it.
-- Her reasoning folds open at the top of a reply in the message window.
-- While she replies, the send button turns into a stop button that ends the reply.
-- Attach images with the clip button, by pasting, or by drag-and-drop.
+![The message window after a pop-out, with one message and her reply](/shots/message-window.png)
 
-## Unified chat window
+| Action | What happens |
+| --- | --- |
+| The bubble | A dialogue box with a name plate; the × closes it for the rest of that reply |
+| Type | Sends a message; the send button turns into stop while she replies |
+| Attach | Images by the clip button, paste, or drag-and-drop, up to 6 |
+| **Backlog** | Opens the current session's earlier lines |
+| Pop-out | Moves speech and typing to a draggable message window; the dock button returns them |
+| Hover on a long reply | Pauses its auto-hide so you can read it |
+| Reasoning | Folds open at the top of a reply in the message window |
 
-- With two or more characters on the desktop, turn on **Unified chat** on the Together page to talk to all of them in one window.
-- The cast row picks who answers: a cast chip, the everyone chip, or a leading `@name` you type.
-- Your voice goes to the picked recipient.
-- Drag the window by the grip in the cast row, the row's empty space, or the dialogue box's name plate.
-- The stop button ends the reply in every window.
-- While the window shows, the message window is off.
+## Unified chat
+
+![The unified chat window with two characters, a message to everyone and one reply](/shots/unified-chat.png)
+
+| Action | What happens |
+| --- | --- |
+| Turn on | **Unified chat** on Together gives one window, once two or more characters are open |
+| Pick a speaker | A cast chip, the everyone chip, or a leading `@name` that you type |
+| Speak | Your voice goes to the picked recipient |
+| Move the window | Drag by the cast row's grip, its empty space, or the name plate |
+| Stop | The stop button ends the reply in every window |
 
 ## Voice
 
-Turn on Listen in the main character's quick card, or the voice input switch on the settings window's Listening and bubble page, to talk to her. With barge-in on, speaking while she talks cuts her off.
+| Action | What happens |
+| --- | --- |
+| Listen | The Listen switch in her quick card, main window only, or **Voice input** on Listening and bubble |
+| Barge-in | On by default; speaking while she talks cuts her off |
+| Reading dictionary | Changes only the text sent to the voice, never the bubble |
 
-The **Reading dictionary** on the Listening and bubble page changes only the text sent to the voice; the speech bubble keeps the original words.
+## Tray and chips
 
-## Tray menu and status chips
+| Item | What it does |
+| --- | --- |
+| Tray menu | Show / Hide Character, Settings…, and Quit YUI |
+| Status pill | The tool she is running |
+| Signal pill | One per Signal group; tap it for details, the cross dismisses it, and **+N** unfolds the rest |
+| Delegation chip | Lists background work; tap to open it, hold to fold it away |
 
-- The tray menu has Show / Hide Character, Settings…, and Quit YUI.
-- The status pill above her shows the tool she is running.
-- A pill per Signal group sits beside her: tap it for the group's details, the cross dismisses it, and **+N** unfolds the rest.
-- The delegation chip lists work she handed to a background agent. Tap it to open the list, and hold it to fold it away.
+Next: [Settings](settings.md), [Cards](cards.md), [Plugins](plugins.md).

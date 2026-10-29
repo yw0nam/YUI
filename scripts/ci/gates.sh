@@ -11,6 +11,7 @@ gates=(
   "pnpm css:check"
   "pnpm logger:check"
   "pnpm commands:check"
+  "pnpm docs:check"
   "pnpm docs:build"
   "cargo fmt --manifest-path src-tauri/Cargo.toml --check"
   "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings"

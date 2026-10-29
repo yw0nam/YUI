@@ -6,6 +6,9 @@ import type { GuideKey } from "../../contract";
 
 const DOCS: Record<GuideKey, string> = { controls, capabilities };
 
+/** A Markdown image line and the blank line after it: the site's pictures, which the backend cannot see. */
+const IMAGE_LINE = /^!\[[^\]]*\]\([^)]*\)\n\n?/gm;
+
 const INSTRUCTION =
   "The user pressed the in-app help button. Answer from the guide below: start with the few most-used items, keep it short, and offer to go on; do not include links.";
 
@@ -15,5 +18,5 @@ export function isGuideKey(value: unknown): value is GuideKey {
 
 /** The `guide:` block of the client context: the instruction line, then the doc. */
 export function renderGuideBlock(key: GuideKey): string {
-  return `guide:\n${INSTRUCTION}\n\n${DOCS[key].trim()}`;
+  return `guide:\n${INSTRUCTION}\n\n${DOCS[key].replace(IMAGE_LINE, "").trim()}`;
 }

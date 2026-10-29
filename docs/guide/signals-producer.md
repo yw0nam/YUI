@@ -1,53 +1,53 @@
 # Send signals from a producer
 
-A producer is a program on the user's machine that posts to YUI's loopback ingress: an n8n
-workflow, a cron job, a CI step, or a coding-agent hook. One POST carries a `signals` array
-of opaque JSON items and an `envelope` of facts about them. The character decides what to
-say about the signal, and the signal carries facts rather than a script.
+A producer is a program on your machine that posts a signal group to YUI's loopback ingress: an n8n workflow, a cron job, or a coding-agent hook.
 
-The ingress listens on `http://127.0.0.1:8770` while **External signals** is on in
-Settings → Proactive → Watchers, and a change of that switch or port takes effect on the
-next launch. `POST /signals` wakes the main window's character;
-`POST /presets/<id>/signals` wakes the character bound to preset `<id>`.
+```mermaid
+sequenceDiagram
+  participant P as Producer
+  participant Y as YUI
+  participant C as Character
+  participant B as Brain
+  P->>Y: POST /signals
+  Y->>C: Hand the group to her window
+  C->>C: Buffer it, or fire a turn now
+  C->>B: Send the signal as client context
+  B-->>C: Words, or silence
+```
 
-## Choose a delivery class
+The signal carries facts rather than a script; the brain decides what she says.
 
-A delivery class decides when the character hears about the signal, and never what the
-character says.
+The work takes four steps:
 
-| Choice | Use it when | Example |
-|---|---|---|
-| `urgent` | The user should hear it now | An agent is waiting for their input |
-| `batched` | It can wait for the next batch | A long job finished |
-| drop | The user does not need it | A retry that succeeded on its own |
+1. [Pick a class](#pick-a-class)
+2. [Write a label](#write-a-label)
+3. [Choose an `event_id`](#choose-an-event-id)
+4. [Send it](#send-it)
 
-Drop a signal by not sending it. `delivery` carries no drop value.
+## Pick a class
+
+`delivery` decides when she hears about a signal, and never what she says.
+
+| Value | Use it when |
+|---|---|
+| `urgent` | The user should hear it now. |
+| `batched` | It can wait for the next batch. |
+
+Drop a signal by not sending it: `delivery` has no drop value.
 
 ## Write a label
 
-`label` is one optional line that says where the signal came from, in at most 120 code
-points: `devbox · tmux yui:2 · YUI (main)`. A longer label is cut to 119 code points plus
-`…` and the request still succeeds. A label that is present and not a string makes the
-whole envelope invalid, so the group is dropped.
+`label` is one optional line on where the signal came from, in at most 120 code points: `devbox · tmux yui:2 · YUI (main)`.
 
 ## Choose an event_id
 
-`event_id` names the thing the signal is about. Keep it stable for "the same thing": a
-later group with an id that is still buffered replaces the earlier one in place, so a
-producer that has an update sends it under the same id instead of a second group. A
-`<session_id>:<phase>` pair works for a coding-agent hook, and a run id works for a
-workflow.
+`event_id` names the thing the signal is about, so keeping it stable for the same thing lets a later buffered group replace the earlier one in place instead of adding a second. A `<session_id>:<phase>` pair works for a hook, and a run id for a workflow.
 
-## Limits
+## Send it
 
-- The request body holds at most 64 KiB. A larger body receives HTTP 400.
-- One signal item serializes to at most 16 KiB. A request with a larger item receives
-  HTTP 400, and none of its items are delivered.
-- Each buffer keeps five groups and drops the oldest on overflow.
+Turn on **External signals** in Settings → Proactive → Watchers. The ingress listens on the port shown there, `8770` by default, and a change of either takes effect on the next launch. `POST /signals` wakes the main window's character; `POST /presets/<id>/signals` wakes the character bound to preset `<id>`.
 
-## Examples
-
-An urgent signal to the main window:
+**Manage presets** puts **Copy ingress URL for** _name_ on each preset row but the active one while **External signals** is on.
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' -X POST \
@@ -60,33 +60,21 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST \
   http://127.0.0.1:8770/signals
 ```
 
-A batched signal to the main window:
+A `200` means the ingress accepted the wire shape and attempted to emit the batch. It confirms neither receipt nor delivery.
 
-```bash
-curl -s -o /dev/null -w '%{http_code}\n' -X POST \
-  -H 'Content-Type: application/json' \
-  -d '{"signals":[{"kind":"workflow","status":"complete"}],
-       "envelope":{"source":"n8n","event_type":"workflow_done",
-                   "delivery":"batched","event_id":"run-8812",
-                   "label":"build box · deploy",
-                   "occurred_at":1787449000000}}' \
-  http://127.0.0.1:8770/signals
-```
+## Limits
 
-The same signal to one preset's character, where `<id>` is the id copied from that
-character's row in the preset list:
+| Limit | Value |
+|---|---|
+| The request body | 64 KiB; a larger body receives HTTP 400. |
+| One signal item | 16 KiB serialized; a larger item receives HTTP 400 and no item of that request is delivered. |
+| Each buffer | Five groups; the oldest drops on overflow. |
 
-```bash
-curl -s -o /dev/null -w '%{http_code}\n' -X POST \
-  -H 'Content-Type: application/json' \
-  -d '{"signals":[{"kind":"workflow","status":"complete"}],
-       "envelope":{"source":"n8n","event_type":"workflow_done",
-                   "delivery":"batched","event_id":"run-8812",
-                   "occurred_at":1787449000000}}' \
-  http://127.0.0.1:8770/presets/<id>/signals
-```
+## Tips
 
-A `200` means the ingress accepted the wire shape and attempted to emit the batch to the
-target window. It confirms neither receipt nor envelope validity. Every other code, the
-envelope fields, and the delivery rules are in the
-[signals ingress reference](../reference/signals-ingress.md).
+- Reuse one `event_id` for a resend, so the pending group is replaced rather than added.
+- Read the HTTP code: `503` means the preset's pet window is closed, so no window receives the group.
+
+## Go deeper
+
+[Signals ingress](../reference/signals-ingress.md) holds every route, envelope field and delivery rule.

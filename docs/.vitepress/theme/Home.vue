@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { withBase } from 'vitepress'
+import Mermaid from './Mermaid.vue'
 import { onMounted, ref } from 'vue'
+
+// The component reads the source URI-encoded, as the Markdown fence passes it.
+const pathGraph = encodeURIComponent(`flowchart LR
+  install["Install"] --> connect["Connect a backend"]
+  connect --> talk["Talk to her"]
+  talk --> extend["Extend"]`)
 
 const heroVideo = ref<HTMLVideoElement | null>(null)
 const locoVideo = ref<HTMLVideoElement | null>(null)
@@ -25,7 +32,7 @@ onMounted(() => {
             speaks when the agent you connect has something to say.
           </p>
           <div class="hero-cta">
-            <a :href="withBase('/guide/getting-started')" class="btn btn--primary"
+            <a :href="withBase('/guide/installation')" class="btn btn--primary"
               >Get started</a
             >
             <a
@@ -58,6 +65,30 @@ onMounted(() => {
             playsinline
           />
         </figure>
+      </section>
+
+      <!-- Four-step path -->
+      <section class="sec" aria-labelledby="path-heading">
+        <h2 class="h2" id="path-heading">Get going in four steps</h2>
+        <Mermaid :code="pathGraph" />
+        <div class="steps">
+          <a :href="withBase('/guide/installation')" class="step">
+            <h3><span class="num">1</span>Install</h3>
+            <p>Paste one prompt into a coding agent, or download the app.</p>
+          </a>
+          <a :href="withBase('/guide/connect-a-backend')" class="step">
+            <h3><span class="num">2</span>Connect a backend</h3>
+            <p>Pick a provider and a model on the Connection page.</p>
+          </a>
+          <a :href="withBase('/guide/controls')" class="step">
+            <h3><span class="num">3</span>Talk to her</h3>
+            <p>Press <kbd>/</kbd> or <kbd>Cmd/Ctrl+Shift+Y</kbd>, type, or speak.</p>
+          </a>
+          <a :href="withBase('/guide/plugins')" class="step">
+            <h3><span class="num">4</span>Extend</h3>
+            <p>Add plugins, signals from your own scripts, or your own character.</p>
+          </a>
+        </div>
       </section>
 
       <!-- Locomotion -->
@@ -109,10 +140,10 @@ onMounted(() => {
           <article class="card">
             <figure class="media">
               <img
-                :src="withBase('/yui-feature-proactive.png')"
-                alt="The reactions settings tab with screen watch, loop reactions and scheduled greetings"
-                width="720"
-                height="540"
+                :src="withBase('/shots/settings-proactive.png')"
+                alt="The Proactive settings page with screen watch, loop reactions and a scheduled greeting"
+                width="760"
+                height="680"
                 loading="lazy"
               />
             </figure>
@@ -215,7 +246,7 @@ onMounted(() => {
       <!-- Closing -->
       <section class="close" aria-label="Get started">
         <p>Ready to wire her up?</p>
-        <a :href="withBase('/guide/getting-started')" class="btn btn--primary"
+        <a :href="withBase('/guide/installation')" class="btn btn--primary"
           >Get started</a
         >
       </section>
@@ -225,7 +256,7 @@ onMounted(() => {
     <footer class="home-foot">
       <span>YUI · PolyForm Noncommercial 1.0.0</span>
       <span class="home-foot-links">
-        <a :href="withBase('/guide/getting-started')">Guide</a>
+        <a :href="withBase('/guide/installation')">Guide</a>
         <a :href="withBase('/reference/client-context')">Reference</a>
         <a href="https://github.com/yw0nam/YUI" rel="noopener" target="_blank"
           >GitHub</a

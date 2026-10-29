@@ -877,6 +877,7 @@ YUI/
     skills/
       yui-daily-briefing/            # Backend-agnostic skill: scheduled producers write dated markdown briefings (scripts/briefing.py) that the backend agent speaks on first activity
       yui-wake-character/            # Backend-agnostic skill: wake one character through its preset ingress URL and act on 200, 404, and 503
+  skills/                            # Skill folders for agents outside this repository, copied into an agent's skill folder or fetched by raw URL: yui-plugin routes to BUILD.md (build a plugin) or CONTRIBUTE.md (share one)
   docs/                              # Design source of truth
     agent-guide/architecture/        # Architecture map of the client
       map.js                         # Modules, their parts, exchanges, and flows of src/ and src-tauri/src

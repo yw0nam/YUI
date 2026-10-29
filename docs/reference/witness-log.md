@@ -1,12 +1,31 @@
 # Witness Log
 
-A local, transition-only record of which app the user has in front and when the machine goes idle. Written by the Rust OS event watcher (`src-tauri/src/os_event_watcher/witness.rs`) on its 5-second poll.
+The witness log is a local record of which app the user has in front and when the machine goes idle. It holds transitions only, so a stable foreground app writes nothing; the Rust OS event watcher (`src-tauri/src/os_event_watcher/witness.rs`) writes it on its 5-second poll.
+
+::: warning
+The log records app names and window titles, and keeps 14 days of them.
+:::
+
+```mermaid
+flowchart TB
+  poll["Watcher poll, every 5 seconds"]
+  transition{"App or title changed, or idle start or end"}
+  record["One JSONL record"]
+  file["activity_YYYY-MM-DD.jsonl"]
+  prune["Prune files older than 14 days on rotation"]
+
+  poll --> transition
+  transition -->|"yes"| record
+  transition -->|"no"| poll
+  record --> file
+  file --> prune
+```
 
 ## Location
 
-`<app_data_dir>/witness/activity_YYYY-MM-DD.jsonl` — macOS `~/Library/Application Support/com.yui.desktop/witness/`.
+`<app_data_dir>/witness/activity_YYYY-MM-DD.jsonl`; on macOS that is `~/Library/Application Support/com.yui.desktop/witness/`.
 
-One file per calendar day in the `YUI_LOG_TZ` timezone. Files are retained 14 days; older dated files are pruned on rotation.
+One file per calendar day in the `YUI_LOG_TZ` timezone, and files are retained 14 days, with older dated files pruned on rotation.
 
 ## Format
 
@@ -16,14 +35,18 @@ JSONL: one JSON object per line.
 {"ts":"2026-08-12T14:30:05+09:00","type":"app_change","app":"Safari","window_title":"Start Page"}
 ```
 
+### Fields
+
 | Field | Value |
 |---|---|
 | `ts` | ISO 8601 local time with offset |
 | `type` | `app_change` · `idle_start` · `idle_end` |
-| `app` | Owner app of the frontmost window, or `null` — capped at 256 characters |
-| `window_title` | Title of the frontmost window, or `null` — capped at 256 characters |
+| `app` | Owner app of the frontmost window, or `null` (capped at 256 characters) |
+| `window_title` | Title of the frontmost window, or `null` (capped at 256 characters) |
 
-Only transitions are written; a stable foreground app writes nothing.
+### When a record is written
+
+A record appears only when the state changes; a stable foreground app writes nothing.
 
 | Record | Written when |
 |---|---|
@@ -35,16 +58,16 @@ Idle records carry the frontmost app and title read at the moment of the transit
 
 ## Platform notes
 
-The two platforms answer slightly different questions: macOS reports what sits in front, Windows reports what holds focus.
+The two platforms answer slightly different questions: macOS reports what sits in front, while Windows reports what holds focus.
 
 | Platform | Frontmost source | Meaning |
 |---|---|---|
 | macOS | Topmost on-screen layer-0 window, excluding YUI's own process and system helpers. Helpers are matched on the owner pid's executable base name (`WindowManager`, `Dock`, `ControlCenter`, `NotificationCenter`, `Spotlight`, `Screenshot`, `screencaptureui`), not on the localized display name | Topmost non-YUI, non-helper window |
 | Windows | `GetForegroundWindow()`; `app` is the owning process base name, without directory or `.exe` | Focused window, excluding YUI itself and shell chrome (desktop, taskbars) |
-| other | — | No records |
+| other | none | No records |
 
 macOS window titles require the Screen Recording permission. Without it, `window_title` is `null` and records carry the app alone.
 
 ## Privacy
 
-Window titles can contain sensitive text — document names, page titles, chat partners. The log stays on the local machine, is written by the client only, and expires with the 14-day retention. `witness/` is git-ignored so the records can never be committed.
+Window titles can contain sensitive text: document names, page titles, chat partners. The log stays on the local machine, is written by the client only, and expires with the 14-day retention; `witness/` is git-ignored so the records can never be committed.

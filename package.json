@@ -22,6 +22,7 @@
     "css:check": "node scripts/ci/css-selectors.mjs",
     "logger:check": "node scripts/ci/logger-namespace.mjs",
     "commands:check": "node scripts/ci/command-paths.mjs",
+    "docs:check": "node scripts/ci/docs-readability.mjs",
     "gates": "bash scripts/ci/gates.sh",
     "map:base": "node scripts/architecture-map-base.mjs"
   },
@@ -31,6 +32,7 @@
     "@types/node": "^22.12.0",
     "@types/three": "~0.180.0",
     "jsdom": "^29.1.1",
+    "mermaid": "11.17.2",
     "svg-pathdata": "^9.0.0",
     "typescript": "~6.0.2",
     "vite": "^8.0.12",

@@ -302,6 +302,47 @@
   border-radius: 5px;
 }
 
+/* Four-step path: the diagram, then one card per step. */
+.yui-home .steps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.yui-home .step {
+  padding: 16px 18px;
+  background: var(--yui-bg-card);
+  border: 1px solid var(--yui-border);
+  border-radius: var(--yui-radius-row);
+  transition: border-color var(--yui-dur-fast) var(--yui-ease);
+}
+.yui-home .step:hover {
+  border-color: var(--yui-accent);
+}
+.yui-home .step h3 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.yui-home .step p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--yui-text-dim);
+}
+.yui-home .step .num {
+  margin-right: 6px;
+  color: var(--yui-accent);
+}
+.yui-home kbd {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 0.85em;
+  padding: 0.05em 0.4em;
+  border: 1px solid var(--yui-border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--yui-bg-raised);
+}
+
 /* Body and brain: two plain columns, hairline rows, no boxes. */
 .yui-home .split {
   display: grid;
@@ -407,7 +448,8 @@
   .yui-home .hero,
   .yui-home .pair,
   .yui-home .split,
-  .yui-home .opt {
+  .yui-home .opt,
+  .yui-home .steps {
     grid-template-columns: 1fr;
   }
   .yui-home .hero {
@@ -424,14 +466,33 @@
    Shared doc/reference pages inherit VitePress defaults; these warm the few
    elements the docs actually use (tables, blockquotes, code) into the system. */
 
-/* Inline code: a warm chip rather than the cold default tint. */
-.vp-doc :not(pre) > code {
-  background: var(--yui-bg-card);
-  border: 1px solid var(--page-border, var(--yui-border));
-  border-radius: 6px;
+/* A wider column than VitePress's 688px; equal specificity to its scoped rule, and this file loads after it. */
+.VPDoc.has-aside .content .content-container {
+  max-width: 760px;
+}
+
+/* Running text sits dim under bright headings; bold UI names brighten, not thicken. */
+.vp-doc :is(p, li, td) {
+  color: var(--yui-text-dim);
+}
+.vp-doc :is(p, li) {
+  max-width: 70ch;
+}
+.vp-doc strong {
   color: var(--yui-text);
-  font-size: 0.82em;
-  padding: 0.12em 0.38em;
+  font-weight: 500;
+}
+.vp-doc h2 {
+  border-top: 0;
+}
+
+/* Inline code: no box; inherits the colour of the text around it. */
+.vp-doc :not(pre) > code {
+  background: none;
+  border-radius: 0;
+  color: inherit;
+  font-size: 0.88em;
+  padding: 0;
 }
 
 /* Code blocks: hairline frame + system radius, matching the home surfaces. */
@@ -465,14 +526,88 @@
   font-weight: 600;
   text-align: left;
 }
-.vp-doc tr {
+.vp-doc tr,
+.vp-doc tr:nth-child(2n) {
   background: transparent;
 }
 .vp-doc tbody tr:last-child td {
   border-bottom: none;
 }
-.vp-doc tbody tr:hover td {
-  background: oklch(0.97 0.01 80 / 0.03);
+
+/* Two-column tables read as definition rows: name left, text right, a hairline between. */
+.vp-doc table:has(> thead > tr > th:nth-child(2):last-child) {
+  position: relative;
+  width: auto;
+  border: 0;
+  border-radius: 0;
+}
+.vp-doc table:has(> thead > tr > th:nth-child(2):last-child) > thead {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.vp-doc table:has(> thead > tr > th:nth-child(2):last-child) > tbody {
+  display: block;
+}
+.vp-doc table:has(> thead > tr > th:nth-child(2):last-child) tbody tr {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 24px;
+  padding: 16px 0;
+  border-top: 0;
+}
+.vp-doc table:has(> thead > tr > th:nth-child(2):last-child) tbody tr + tr {
+  border-top: 1px solid var(--yui-border);
+}
+.vp-doc table:has(> thead > tr > th:nth-child(2):last-child) td {
+  border: 0;
+  padding: 0;
+  font-size: inherit;
+  line-height: 1.65;
+}
+.vp-doc table:has(> thead > tr > th:nth-child(2):last-child) td:first-child {
+  color: var(--yui-text);
+  font-weight: 500;
+}
+@media (max-width: 640px) {
+  .vp-doc table:has(> thead > tr > th:nth-child(2):last-child) tbody tr {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+}
+
+/* Mermaid diagrams sit on their own fixed surface, so they read the same on any ground. */
+.mermaid {
+  margin: 16px 0;
+  padding: 20px;
+  background: var(--yui-bg-card);
+  border: 1px solid var(--yui-border);
+  border-radius: var(--yui-radius);
+  overflow-x: auto;
+}
+.mermaid svg {
+  display: block;
+  max-width: 100%;
+  margin-inline: auto;
+}
+/* On a phone a doc-page diagram keeps a readable size and scrolls inside its surface. */
+@media (max-width: 640px) {
+  .vp-doc .mermaid svg {
+    min-width: 600px;
+  }
+}
+
+/* Long-read guides (pageClass yui-read) set larger, looser running text. */
+.yui-read .vp-doc :is(p, li) {
+  font-size: 17px;
+  line-height: 1.75;
+}
+.yui-read .vp-doc h3 {
+  margin-top: 28px;
+  font-size: 19px;
 }
 
 /* Blockquotes: a single amber-soft edge and a faint warm wash — the one

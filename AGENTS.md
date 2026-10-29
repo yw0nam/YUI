@@ -52,6 +52,7 @@ Read these when the trigger applies; they are not loaded by default.
 - **Code location / orientation** → `docs/agent-guide/project-structure.md`
 - **How data moves between modules, and where a new feature goes** → `docs/agent-guide/architecture/map.js` (viewer: `index.html` beside it; procedure: `CONTRIBUTING.md` § Architecture map)
 - **Plugins (`plugins/`)** → `docs/agent-guide/plugins.md` — one uv project (Python: the `python` and `python-lint` CI jobs, ruff) or Rust crate (the `plugins-rust` CI job) per plugin under `plugins/`
+- **Building a plugin for yourself, or contributing one** → `skills/yui-plugin/SKILL.md`
 - **Agent desire system (Hermes-side)** → `integrations/hermes/desire/README.md`
 - **Connecting Hermes Agent as the backend (Responses mode, dev proxy, auth)** → `integrations/hermes/README.md`
 - **Setting up or speaking the daily briefing (any backend agent)** → `integrations/skills/yui-daily-briefing/SKILL.md`
@@ -66,8 +67,8 @@ Read these when the trigger applies; they are not loaded by default.
 - **Adding or changing a tool the client exposes to the backend, or checking what each chat transport carries** → `docs/reference/client-tools.md`, `docs/reference/push-transport.md`
 - **`POST /signals` envelope, buffering, and delivery rules, and the `/presets/<id>/` routes** → `docs/reference/signals-ingress.md`
 - **Push transport (`chat_api: "push"`) frames, reconnect, and limits** → `docs/reference/push-transport.md`
-- **Motion catalog** → `docs/reference/motions.md`
-- **TTS emotion_text vocabulary** → `docs/reference/tts-emotion/`
+- **Motion catalog** → `docs/guide/motions.md`
+- **TTS emotion_text vocabulary** → `docs/guide/tts-emotion/`
 - **Logging convention** → `docs/reference/logging.md`
 - **Witness activity log (format, location, retention)** → `docs/reference/witness-log.md`
 - **TS contract shapes** → `src/contract/types.ts`

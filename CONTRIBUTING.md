@@ -24,7 +24,8 @@ A coding agent can walk the setup from
 [`docs/guide/install.md`](docs/guide/install.md). A default VRM ships in the
 repo; the backend agent, TTS, and STT are **separate
 repositories** and optional — see
-[`docs/guide/getting-started.md`](docs/guide/getting-started.md).
+[`docs/guide/connect-a-backend.md`](docs/guide/connect-a-backend.md) and
+[`docs/guide/voice.md`](docs/guide/voice.md).
 
 ## Workflow
 
@@ -133,7 +134,10 @@ CI runs it in the `web` job.
   numeric constant's comment may name the measurement it came from.
 - **Docs: current-state only.** Write what the system *is*, declaratively,
   matching the code — no change narrative, no PR/issue numbers as prose, no
-  dated changelogs, no future/unbuilt work.
+  dated changelogs, no future/unbuilt work. Every page the docs site builds
+  meets one readability rule: at most 60 words in a paragraph, list item, or
+  table cell, and at most 250 words of prose between headings, which
+  `pnpm docs:check` enforces.
 
 ## Breaking changes
 
@@ -186,7 +190,7 @@ A review checks every diff against the rules above and against these traps:
   settles, a thread that emits after release.
 - **One source for the contract.** Consumers compile against
   `src/contract/types.ts`. `configs/motions.json` and
-  `docs/reference/motions.md` change together.
+  `docs/guide/motions.md` change together.
 
 ## Finding your way
 
@@ -220,35 +224,9 @@ an accepted idea becomes a `help wanted` issue.
 
 ## Plugins
 
-How to write a plugin is [Write a plugin](docs/guide/write-a-plugin.md): the
-folder, `.mcp.json`, the `_meta` keys, skills, and the release a catalog install
-needs.
+To build a plugin for your own use, read [Write a plugin](docs/guide/write-a-plugin.md).
 
-To list a community plugin:
-
-1. Publish a release that meets
-   [Write a plugin § Publish](docs/guide/write-a-plugin.md#publish).
-2. Open a PR that adds the plugin to `community` in `plugins/catalog.json`: `repo`
-   as `<owner>/<name>`, and `platforms` naming the platforms the release has an
-   asset for. Keep `community` sorted by `id`.
-
-   ```json
-   "community": [
-     {
-       "id": "my-plugin",
-       "repo": "owner/yui-my-plugin",
-       "platforms": ["darwin-arm64", "windows-x64"]
-     }
-   ]
-   ```
-
-3. On the first listing, a maintainer reads the plugin's source and installs it
-   once before merging.
-
-An update needs no PR: a release carrying another version, and that version on
-the default branch. YUI clears the user's approval on a community update, so the
-user allows the updated version again
-([Plugins § Update](docs/guide/plugins.md#update)).
+To list a plugin for other users, or to add an official one to the repository, read [Contribute a plugin](docs/guide/contribute-a-plugin.md).
 
 ## Commits & PRs
 
@@ -284,7 +262,8 @@ to relicense it, including under commercial terms.
 
 - [`AGENTS.md`](AGENTS.md) — project orientation (architecture, core principle,
   doc index)
-- [`docs/guide/getting-started.md`](docs/guide/getting-started.md) — full
-  install & backend wiring
+- [`docs/guide/installation.md`](docs/guide/installation.md) — install
+- [`docs/guide/connect-a-backend.md`](docs/guide/connect-a-backend.md) — full
+  backend wiring
 - [`PRODUCT.md`](PRODUCT.md) / [`DESIGN.md`](DESIGN.md) — product register +
   design system
