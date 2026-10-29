@@ -1,6 +1,6 @@
 # Write a plugin
 
-A plugin YUI hosts is a folder with `.claude-plugin/plugin.json`, an optional `.mcp.json` naming
+A plugin is a folder with `.claude-plugin/plugin.json`, an optional `.mcp.json` naming
 its MCP servers, and an optional `skills/` folder. YUI runs each server itself as a child
 process over stdio — a YUI-hosted MCP server — and gives the backend its tools and skills
 through the bridge tools. An MCP server the backend agent connects to itself is
@@ -74,7 +74,7 @@ What YUI expects of a server:
 |---|---|
 | `initialize` and `tools/list` answer in time | The two share one 30 s deadline. A server that misses it shows **Unavailable**, naming the step it stopped at. |
 | A server that ends on its own | It is not restarted; **Restart** or the next app start runs it again. |
-| A stop | YUI closes the connection, waits up to 1 s, then kills the process group, children included. |
+| A stop | YUI closes the connection, waits up to 1 s, then kills the server and every process it started. |
 | stdout | The MCP channel, and nothing else. |
 | stderr | Each line goes to the plugin's log, prefixed `[<server>] ` and cut at 2000 bytes. Where the log is: [Plugins § Log](./plugins.md#log). |
 
@@ -93,10 +93,12 @@ Three `_meta` keys matter to a plugin:
 | `io.github.yw0nam.yui/wait_ms` | the tool's `_meta` in `tools/list` | How long the MCP host waits for one call to the tool ([Client Tools § Waits and cancel](../reference/client-tools.md#waits-and-cancel)). |
 | `io.github.yw0nam.yui/preset` | the request `_meta` of each `tools/call` | The id of the preset whose character called, so a tool can keep one state per character ([Client Tools § Status and consent](../reference/client-tools.md#status-and-consent)). |
 
-YUI checks a call's `arguments` against the tool's `inputSchema` before it sends the call, and
-sends no `arguments` field when that object is empty. A call that runs past its wait, or whose
-turn stops, reaches the server as `notifications/cancelled`. The result reaches the model as
-text and images in one shape ([Client Tools § Bridge tools](../reference/client-tools.md#bridge-tools)).
+YUI checks `arguments` against the tool's `inputSchema` before it sends a call
+([Client Tools § Arguments](../reference/client-tools.md#arguments)) and sends no `arguments`
+field when that object is empty; a passed wait or a stopped turn reaches the server as
+`notifications/cancelled` ([Client Tools § Waits and cancel](../reference/client-tools.md#waits-and-cancel)).
+The result reaches the model as text and images in one shape
+([Client Tools § Bridge tools](../reference/client-tools.md#bridge-tools)).
 [plugins/browser](https://github.com/yw0nam/YUI/blob/main/plugins/browser/README.md) is a worked
 plugin with one tool.
 
@@ -131,12 +133,12 @@ Run the app (`pnpm tauri dev`, or a release build), open **Plugins**, and choose
 **Add from folder…** ([Plugins § Add from a folder](./plugins.md#add-from-a-folder)). Turn the
 plugin on and **Allow** once: the approval holds for that folder path while its files change.
 
-After changing `plugin.json`, `.mcp.json`, a server's code or a skill's frontmatter, turn the
-plugin off and on — turning on reads the manifest again. **Restart** does not pick up a change:
-a running server shows no **Restart**, and a server YUI starts again runs from the spec it read
-when the plugin was turned on.
+After changing `plugin.json`, `.mcp.json` or a skill's frontmatter, turn the plugin off and on:
+turning on reads them again. **Retry** and **Restart** start a new process from the `.mcp.json`
+entry read at turn-on, so they pick up rebuilt server code but not a manifest change; a running
+server shows neither.
 
-[The test fixture](https://github.com/yw0nam/YUI/blob/main/src-tauri/fixtures/mcp-test-plugin)
+[The test fixture](https://github.com/yw0nam/YUI/tree/main/src-tauri/fixtures/mcp-test-plugin)
 is a minimal plugin with one server, a tool that carries `_meta`, and one skill.
 
 ## Publish
@@ -155,8 +157,8 @@ from:
 - A GitHub release tagged `v<version>`.
 - One asset per platform the catalog entry declares, named
   `<id>-<version>-<platform>.zip`, where `<platform>` is `darwin-arm64` or `windows-x64`.
-- A zip whose root is the plugin root, with a `plugin.json` inside whose `name` is the entry's
-  `id` and whose `version` is the tagged version.
+- A zip whose root is the plugin root, with `.claude-plugin/plugin.json` at that root whose
+  `name` is the entry's `id` and whose `version` is the tagged version.
 - `checksums.txt` in the same release, listing each asset on a `sha256sum` line —
   `<hex>  <file>` or `<hex> *<file>`.
 

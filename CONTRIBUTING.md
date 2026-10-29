@@ -222,8 +222,7 @@ an accepted idea becomes a `help wanted` issue.
 
 How to write a plugin is [Write a plugin](docs/guide/write-a-plugin.md): the
 folder, `.mcp.json`, the `_meta` keys, skills, and the release a catalog install
-needs. An official plugin is a folder under `plugins/`
-([docs/agent-guide/plugins.md](docs/agent-guide/plugins.md)).
+needs.
 
 To list a community plugin:
 
@@ -246,12 +245,10 @@ To list a community plugin:
 3. On the first listing, a maintainer reads the plugin's source and installs it
    once before merging.
 
-An update needs no PR: a release carrying the higher version, and that version on
+An update needs no PR: a release carrying another version, and that version on
 the default branch. YUI clears the user's approval on a community update, so the
 user allows the updated version again
 ([Plugins § Update](docs/guide/plugins.md#update)).
-
-A PR that lists a plugin is titled `chore: list <id> in the plugin catalog`.
 
 ## Commits & PRs
 
