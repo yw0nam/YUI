@@ -45,12 +45,16 @@ PID if discovery fails. Ids survive `/clear`. Codex ids are `codex:<host>:<sessi
 | Claude Code | `Stop` | `input-required` with ready channel; otherwise `completed` | `agent`: last assistant message | “What next?” with ready channel; otherwise closes |
 | Claude Code | `PermissionRequest` | `input-required` | Channel owns the entry when ready; otherwise hook posts tool input | Channel adds Allow, Deny, and text |
 | Claude Code | `Notification` (elicitation) | `input-required` | `system`: message | None added |
+| Claude Code | `SessionEnd` | `completed` | `system`: Session ended | Closes |
 | Codex | `Stop` | `input-required` | `agent`: last assistant message | “What next?” with text |
 | Codex | `PermissionRequest` | `input-required` | `system`: tool name and command or input JSON | Allow, Deny, or text |
 
 Each Codex ask has a fresh UUID suffix, including successive Stops in one turn.
 Entry text keeps at most 16384 code points, shortening the head with `…` when needed.
 The serialized body stays within 65536 bytes, including for Unicode text.
+`SessionEnd` with reason `clear` sends nothing: the session continues after `/clear`.
+An instruction answered in the Threads window is already a `user` entry in the store, so
+the channel message Claude Code delivers it as only sets the Thread `working`.
 
 ## Claude Code answers
 
