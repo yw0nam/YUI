@@ -58,6 +58,8 @@ jobs:
             if (existing) return existing.id
 
             const body = [
+              'What changed in this release, and what each breaking change asks of you: https://yw0nam.github.io/YUI/guide/whats-new',
+              '',
               '## Downloads',
               '',
               '| Platform | Artifact | Status |',
