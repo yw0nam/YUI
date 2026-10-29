@@ -87,10 +87,11 @@ export function detailText(thread: Thread): string {
 
 /** `…<up to 80 chars before>[match]<up to 80 chars after>…` around the first match in the text. */
 function snippet(text: string, at: number, length: number): string {
-  const before = text.slice(Math.max(0, at - SNIPPET_SIDE), at);
-  const matched = text.slice(at, at + length);
-  const after = text.slice(at + length, at + length + SNIPPET_SIDE);
-  return `…${oneLine(before)}[${oneLine(matched)}]${oneLine(after)}…`;
+  const raw =
+    text.slice(Math.max(0, at - SNIPPET_SIDE), at) +
+    `[${text.slice(at, at + length)}]` +
+    text.slice(at + length, at + length + SNIPPET_SIDE);
+  return `…${oneLine(raw)}…`;
 }
 
 function firstMatch(thread: Thread, query: string): string {
