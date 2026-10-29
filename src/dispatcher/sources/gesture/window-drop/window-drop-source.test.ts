@@ -2271,6 +2271,7 @@ describe("window-drop-source — geometry save gating", () => {
   it.each([
     "quick-card",
     "quick-card-a",
+    "threads",
   ])("settles nothing on the release of a %s window's drag", async (label) => {
     const invoke = vi.fn(async () => []);
     const getWindow = () => makeWindow({ x: 520, y: 740 }, 2);
