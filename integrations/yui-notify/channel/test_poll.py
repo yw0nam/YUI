@@ -94,3 +94,35 @@ def test_poll_retries_and_resets_backoff(monkeypatch):
     assert requests == [("http://localhost/threads/t/answer?wait=25", 30)] * 11
     assert delays == [1, 2, 4, 8, 16, 30, 30, 30, 1]
     assert sent == [{"content": "Hi", "meta": {"source": "yui"}}]
+
+
+@pytest.mark.parametrize("bad", [None, {}, {"ask_id": "next:bad", "text": "broken"}])
+def test_poll_skips_bad_answer_and_continues(monkeypatch, capsys, bad):
+    from channel.poll import poll
+
+    results = iter([(200, bad, None), (200, {"ask_id": "next:good", "text": "Continue"}, None)])
+    sent, errors = [], []
+    monkeypatch.setattr("channel.poll.get", lambda *args: next(results))
+
+    class Write:
+        async def send(self, message):
+            if message.message.params["content"] == "broken":
+                raise RuntimeError("send failed")
+            sent.append(message.message.params)
+            raise asyncio.CancelledError
+
+    async def exercise():
+        try:
+            await poll("http://localhost/threads/t", Write())
+        except asyncio.CancelledError:
+            pass
+        except Exception as error:
+            errors.append(type(error).__name__)
+
+    asyncio.run(exercise())
+    assert sent == [{"content": "Continue", "meta": {"source": "yui"}}]
+    assert errors == []
+    output = capsys.readouterr()
+    assert output.out == ""
+    assert output.err.startswith("yui-notify: answer dispatch failed: ")
+    assert len(output.err.splitlines()) == 1
