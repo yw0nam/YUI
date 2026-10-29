@@ -550,7 +550,7 @@ The line is present only when all three hold: the window is the main character's
 turn is user-started (`trigger: user message`), and at least one Thread waits. At zero
 waiting it is omitted.
 
-The backend reads and answers Threads only through the `threads_list` and
+The backend reads Threads only through the `threads_list` and
 `threads_search` client tools ([client-tools.md](client-tools.md)), which read the same
 store snapshot this count comes from. Threads fire no turn.
 
