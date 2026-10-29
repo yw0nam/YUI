@@ -21,7 +21,7 @@ Every key, click, and menu that moves her.
 | Drag | Moves her anywhere on screen, across monitors |
 | Drop on a window's top edge | She sits there |
 | Drop behind a window's side edge | She peeks out |
-| Click | She reacts; tapping her head, chest, or hips differs |
+| Click | She reacts, and the reaction differs when you tap her head, chest, or hips |
 | Press and hold on the head | A head pat |
 | Wheel | Zooms in and out |
 | `Ctrl` + wheel | Resizes her, feet in place |
@@ -48,8 +48,8 @@ Every key, click, and menu that moves her.
 
 | Action | What happens |
 | --- | --- |
-| Turn on | **Unified chat** on Together, with two or more characters open, gives one window |
-| Pick a speaker | A cast chip, the everyone chip, or a leading `@name` you type |
+| Turn on | **Unified chat** on Together gives one window, once two or more characters are open |
+| Pick a speaker | A cast chip, the everyone chip, or a leading `@name` that you type |
 | Speak | Your voice goes to the picked recipient |
 | Move the window | Drag by the cast row's grip, its empty space, or the name plate |
 | Stop | The stop button ends the reply in every window |
@@ -68,7 +68,7 @@ Every key, click, and menu that moves her.
 | --- | --- |
 | Tray menu | Show / Hide Character, Settings…, and Quit YUI |
 | Status pill | The tool she is running |
-| Signal pill | One per Signal group; tap for details, the cross dismisses it, **+N** unfolds the rest |
+| Signal pill | One per Signal group; tap it for details, the cross dismisses it, and **+N** unfolds the rest |
 | Delegation chip | Lists background work; tap to open it, hold to fold it away |
 
 Next: [Settings](settings.md), [Cards](cards.md), [Plugins](plugins.md).

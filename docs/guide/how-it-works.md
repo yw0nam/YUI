@@ -1,6 +1,6 @@
 # How YUI works
 
-YUI is the body. The model or agent you connect is the brain.
+YUI draws the character on your screen, gives her a voice, and moves her. The model or agent you connect writes what she says.
 
 ```mermaid
 flowchart TB
@@ -39,9 +39,7 @@ sequenceDiagram
 
 ## What decides what
 
-- YUI notices events and picks who gets a turn.
-- The brain decides whether to speak and what to say.
-- YUI renders whatever arrives.
+YUI notices events and picks who gets a turn. The brain decides whether to speak and what to say, and YUI renders whatever arrives.
 
 ## Go deeper
 

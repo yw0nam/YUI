@@ -1,6 +1,6 @@
 # Write a plugin
 
-A plugin is one folder: a manifest, and optionally MCP servers and skills. YUI runs each server, and the brain reaches its tools through the bridge tools.
+A plugin is one folder holding a manifest plus, optionally, MCP servers and skills. YUI runs each server, and the brain reaches its tools through the bridge tools.
 
 ```mermaid
 flowchart LR
@@ -13,7 +13,7 @@ flowchart LR
   brain["Brain"] -->|"bridge tools"| host
 ```
 
-The work is five steps:
+The work takes five steps:
 
 1. [Lay out the folder](#layout)
 2. [Write the server](#servers)
@@ -23,7 +23,7 @@ The work is five steps:
 
 ## Layout
 
-`bin/` holds a built server; a server in another language sits wherever its `command` points.
+`bin/` holds a built server, though a server written in another language can sit wherever its `command` points.
 
 YUI reads three fields of `plugin.json` and ignores the rest:
 
@@ -43,7 +43,7 @@ YUI reads three fields of `plugin.json` and ignores the rest:
 
 ## Servers
 
-`.mcp.json` names each server under `mcpServers`. `command` is required, `args` and `env` are optional, and the key order is the order YUI starts and lists the servers in.
+`.mcp.json` names each server under `mcpServers`, with `command` required and `args` and `env` optional. YUI starts and lists the servers in the order their keys appear.
 
 ```json
 {
@@ -57,7 +57,7 @@ YUI reads three fields of `plugin.json` and ignores the rest:
 }
 ```
 
-YUI starts `command` with `args` as argv and no shell, so an argument reaches the server as written. It replaces `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PLUGIN_DATA}` in `command`, in every argument and in every `env` value. ROOT is the plugin folder, which is also the working directory. DATA is the plugin's data folder: created before the start, deleted when the user removes the plugin. The server inherits YUI's environment, with `env` on top.
+YUI starts `command` with `args` as argv and no shell, so an argument reaches the server as written. It replaces `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PLUGIN_DATA}` in `command`, in every argument and in every `env` value. ROOT is the plugin folder, which is also the working directory. DATA is the plugin's data folder: created before the start, deleted when the user removes the plugin. The server inherits YUI's environment, with `env` applied over it.
 
 | What YUI expects | What happens |
 |---|---|
@@ -69,7 +69,7 @@ YUI starts `command` with `args` as argv and no shell, so an argument reaches th
 
 ## Tools and skills
 
-A tool name that a built-in client tool or an earlier enabled plugin holds is hidden. The later plugin still runs ([Plugins](./plugins.md)).
+A tool name held by a built-in client tool or by an already enabled plugin is hidden, though the later plugin still runs ([Plugins](./plugins.md)).
 
 These names belong to built-in client tools: `address_character`, `body_action`, `generate_express`, `look`, `plugin_call`, `plugin_describe`, `plugin_skill`, `rate_relation`.
 
@@ -79,7 +79,7 @@ These names belong to built-in client tools: `address_character`, `body_action`,
 | `io.github.yw0nam.yui/wait_ms` | the tool's `_meta` in `tools/list` | How long the host waits for one call ([Client Tools](../reference/client-tools.md#waits-and-cancel)). |
 | `io.github.yw0nam.yui/preset` | the request `_meta` of every `tools/call` | The preset id of the calling character, so a tool keeps one state per character. |
 
-YUI checks `arguments` against the tool's `inputSchema` before it sends a call, sends no `arguments` field when that object is empty, and sends `notifications/cancelled` for a passed wait or a stopped turn ([Client Tools](../reference/client-tools.md)).
+YUI checks `arguments` against the tool's `inputSchema` before it sends a call, and it sends no `arguments` field when that object is empty. It also sends `notifications/cancelled` when a wait has passed or a turn stops ([Client Tools](../reference/client-tools.md)).
 
 A skill is `skills/<folder>/SKILL.md`, one level deep. Its frontmatter sits between `---` lines:
 
@@ -95,21 +95,21 @@ description: Greets the user in one line.
 | `description` | Required. A skill without one is skipped, with a warning in the app log. |
 | `name` | Optional; the folder name when absent. `plugin_skill` and the per-turn line use it. |
 
-`plugin_skill` returns the text after the frontmatter and nothing else, so the body carries every instruction; YUI serves no other file of the skill folder. The body is read on each call. The name and the description are read at turn-on, so a frontmatter edit needs the plugin off and on again.
+`plugin_skill` returns the text after the frontmatter and nothing else, so the body carries every instruction and YUI serves no other file of the skill folder. The body is read on each call, while the name and description are read at turn-on, so a frontmatter edit needs the plugin off and on again.
 
 ## Test locally
 
 Run the app (`pnpm tauri dev`, or a release build), open **Plugins**, choose **Add from folder…**, turn the plugin on and **Allow** once. The approval holds for that folder path while its files change; a new path asks again.
 
-A change to `plugin.json`, `.mcp.json` or a skill's frontmatter needs the plugin off and on. **Retry** and **Restart** start a new process from the `.mcp.json` entry read at turn-on, so they pick up rebuilt server code but not a manifest change. A running server shows neither.
+A change to `plugin.json`, `.mcp.json` or a skill's frontmatter needs the plugin off and on. **Retry** and **Restart** start a new process from the `.mcp.json` entry read at turn-on, so they pick up rebuilt server code but not a manifest change. While a server is running, neither button appears.
 
 ## Publish
 
 A catalog entry comes from one of two sources.
 
-**Official**: the plugin lives under `plugins/<id>/` in the YUI repository, and the release workflow builds and releases it. [Build, Run & Logs § Plugin releases](https://github.com/yw0nam/YUI/blob/main/docs/agent-guide/build-run.md#plugin-releases) carries the tag, the version rule and the zip layout.
+An **Official** plugin lives under `plugins/<id>/` in the YUI repository, and the release workflow builds and releases it. [Build, Run & Logs § Plugin releases](https://github.com/yw0nam/YUI/blob/main/docs/agent-guide/build-run.md#plugin-releases) carries the tag, the version rule and the zip layout.
 
-**Community**: the plugin lives in the author's public GitHub repository. YUI installs it from:
+A **Community** plugin lives in the author's public GitHub repository, and YUI installs it from:
 
 - `.claude-plugin/plugin.json` on the default branch, carrying the current `version`.
 - A GitHub release tagged `v<version>`.
@@ -123,7 +123,7 @@ YUI reads the version from the default branch, so a release goes out before its 
 
 - Start from [the test fixture](https://github.com/yw0nam/YUI/tree/main/src-tauri/fixtures/mcp-test-plugin): one server, one tool with `_meta`, and one skill.
 - [plugins/browser](https://github.com/yw0nam/YUI/blob/main/plugins/browser/README.md) is a worked plugin with one tool.
-- A server the backend agent connects to itself is Backend-attached: configure it in that agent, not in this folder.
+- A server that the backend agent connects to itself is Backend-attached, so you configure it in that agent rather than in the plugin folder.
 
 ## Go deeper
 

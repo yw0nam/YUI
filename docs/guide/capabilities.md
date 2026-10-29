@@ -4,15 +4,15 @@ What you can do together with YUI on your desktop.
 
 ## She lives on your screen
 
-She stands over your other windows as a transparent character who breathes, blinks, follows your cursor, sits on a window's top edge, peeks out from behind it, and reacts to taps and a held head pat.
+She stands over your other windows as a transparent character who breathes, blinks, and follows your cursor. She can sit on a window's top edge or peek out from behind it, and she reacts to taps and to a held head pat.
 
 ## Talk to her
 
-Type or speak to her, attach images by paste, drag, or the clip button, and stop a reply or cut her off by speaking. She answers in a speech bubble or the message window. With two or more characters on the desktop, **Unified chat** gives one window for all of them.
+Type or speak to her, attach images by paste, drag, or the clip button, and stop a reply or cut her off by speaking. She answers in a speech bubble or the message window, and with two or more characters on the desktop, **Unified chat** gives you one window for all of them.
 
 ## How she feels about you
 
-Each character keeps a Relation toward you and every other character. Her backend moves it with the `rate_relation` tool, and you set it by hand on the Body page. With **Relations** off, no one is rated.
+Each character keeps a Relation toward you and toward every other character. Her backend moves it with the `rate_relation` tool, and you can also set it by hand on the Body page. With **Relations** off, no one is rated.
 
 ## Her voice and expressions
 
@@ -20,7 +20,7 @@ She speaks her replies aloud in a voice you choose or import, and her mouth, fac
 
 ## She speaks first
 
-She can greet you at set times, check in after idle time, welcome your first activity of the day, and stay silent. If you turn on screen watching, she can comment when you switch apps or stay in one app for a long time.
+She can greet you at set times, check in after idle time, welcome your first activity of the day, and stay silent. If you turn on screen watching, she can also comment when you switch apps or when you stay in one app for a long time.
 
 ## Your coding agents
 
@@ -32,15 +32,15 @@ With the official `browser` plugin installed and turned on, she can search and r
 
 ## Delegated work
 
-When her backend runs work in the background for you, a chip near her lists that work. Tap it to see the list.
+When her backend runs work in the background for you, a chip near her lists that work, and you can tap it to see the list.
 
 ## Conversation history
 
-The History tab keeps your past conversations and every Signal on your device; you can start fresh at any time.
+The History tab keeps your past conversations and every Signal on your device, and you can start fresh at any time.
 
 ## Choose her mind
 
-She uses whichever backend you connect, from a plain chat model to a full agent; the card you write or the agent itself decides who she is.
+She uses whichever backend you connect, from a plain chat model to a full agent. The card you write, or the agent itself, decides who she is.
 
 ## Languages
 

@@ -1,6 +1,6 @@
 # Voice in and out
 
-Speech out and speech in are separate optional services.
+Speech out and speech in are two separate services, and both are optional.
 
 ![Settings window, Voice page with the voice list](/shots/settings-voice.png)
 
@@ -16,7 +16,7 @@ Speech out and speech in are separate optional services.
 
 1. On **Connection**, enter the **Speech recognition (STT) server URL**. Any OpenAI-compatible transcription server works.
 2. On **Listening and bubble**, turn on **Voice input**, and enter the **STT API key** if the server needs one.
-3. Speak. When you stop, the audio goes to STT and arrives as your message.
+3. Speak, and when you stop, the audio goes to STT and arrives as your message.
 
 ## Providers
 

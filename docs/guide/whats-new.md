@@ -1,12 +1,12 @@
 # What's new
 
-Releases are newest first; older releases are on [GitHub Releases](https://github.com/yw0nam/YUI/releases).
+Releases are listed newest first, and older releases are on [GitHub Releases](https://github.com/yw0nam/YUI/releases).
 
 ## v0.6.0
 
 ### Highlights
 
-- The settings window has a **Plugins** page. Install an official or community plugin from the Catalog, then turn it on ([Plugins](plugins.md)).
+- The settings window has a **Plugins** page, where you install an official or community plugin from the Catalog and turn it on ([Plugins](plugins.md)).
 - A plugin's tools and skills reach the backend through three bridge tools, so the model describes a tool, calls it, and reads a skill ([Client Tools](../reference/client-tools.md)).
 - The `browser` tool comes from the official `browser` plugin, installed from the Catalog like any other plugin ([Plugins](plugins.md)).
 - **Default** reasoning effort sends no effort, so the model applies its own default ([Connect a backend](connect-a-backend.md)).

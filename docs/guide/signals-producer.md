@@ -15,9 +15,9 @@ sequenceDiagram
   B-->>C: Words, or silence
 ```
 
-The signal carries facts, not a script: the brain decides what she says.
+The signal carries facts rather than a script; the brain decides what she says.
 
-The work is four steps:
+The work takes four steps:
 
 1. [Pick a class](#pick-a-class)
 2. [Write a label](#write-a-label)
@@ -26,7 +26,7 @@ The work is four steps:
 
 ## Pick a class
 
-`delivery` decides when she hears about a signal, never what she says.
+`delivery` decides when she hears about a signal, and never what she says.
 
 | Value | Use it when |
 |---|---|
@@ -41,7 +41,7 @@ Drop a signal by not sending it: `delivery` has no drop value.
 
 ## Choose an event_id
 
-`event_id` names the thing the signal is about. Keep it stable for the same thing, so a later buffered group replaces the earlier one in place instead of adding a second. A `<session_id>:<phase>` pair works for a hook, and a run id for a workflow.
+`event_id` names the thing the signal is about, so keeping it stable for the same thing lets a later buffered group replace the earlier one in place instead of adding a second. A `<session_id>:<phase>` pair works for a hook, and a run id for a workflow.
 
 ## Send it
 

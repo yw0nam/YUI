@@ -6,7 +6,7 @@ Plugins add MCP servers and skills to the backend of every character. The page i
 
 ## Install
 
-**Available plugins** lists the catalog entries for your platform that are not installed, each with a source badge and version. **Official** plugins are reviewed and built in the YUI repository; **Community** ones come as their author published them, checked against the author's `checksums.txt`. **Install** unpacks the release into the app's data folder, and a failure shows its reason with **Retry**. An installed plugin starts off.
+**Available plugins** lists the catalog entries for your platform that are not installed, each with a source badge and version. **Official** plugins are reviewed and built in the YUI repository, while **Community** ones come as their authors published them, checked against the author's `checksums.txt`. **Install** unpacks the release into the app's data folder, and a failure shows its reason with **Retry**. An installed plugin starts off.
 
 ## Turn on with consent
 
@@ -18,7 +18,7 @@ The first time you turn a plugin on, the switch asks in two steps. The first sho
 
 ## Remove
 
-**Delete** removes a catalog plugin's code, data, and installed versions. **Remove from list** removes a local plugin from the list, deletes its data, and leaves its folder. Both ask first.
+**Delete** removes a catalog plugin's code, data, and installed versions. **Remove from list** removes a local plugin from the list, deletes its data, and leaves its folder; both ask for confirmation first.
 
 ## Add from a folder
 
@@ -40,7 +40,7 @@ A tool or skill name belongs to one holder: a built-in tool first, then each plu
 
 ## Log
 
-**Log** shows the plugin's last lines, up to 20, and **Open log folder** opens the folder with the full logs, `plugins/<id>_YYYY-MM-DD.log` in the app's log folder, `~/Library/Logs/com.yui.desktop/` on macOS in a release build.
+**Log** shows the plugin's last lines, up to 20. **Open log folder** opens the folder with the full logs: `plugins/<id>_YYYY-MM-DD.log` in the app's log folder, `~/Library/Logs/com.yui.desktop/` on macOS in a release build.
 
 ## Tips
 

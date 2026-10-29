@@ -11,7 +11,7 @@ Connect any OpenAI-compatible model, or an agent that keeps its own memory.
 
 ## Which protocol
 
-**Type** sets the protocol. Chat Completions is the default.
+**Type** sets the protocol, and Chat Completions is the default.
 
 | Your backend | Protocol |
 | --- | --- |
@@ -27,11 +27,11 @@ Connect any OpenAI-compatible model, or an agent that keeps its own memory.
 
 ## What the connection remembers
 
-With Chat Completions the client sends the session transcript every turn, and with Responses the server keeps the history. Conversation history is no long-term memory. Long-term memory comes from a backend agent with its own memory, or from an external memory setup added to the backend.
+With Chat Completions the client sends the session transcript every turn, and with Responses the server keeps the history. Conversation history is not long-term memory. For that, connect an agent that keeps its own memory, or add an external memory setup to the backend.
 
 ## Agents with an integration
 
-[Hermes Agent](https://github.com/nousresearch/hermes-agent) is one optional backend. Its [integration README](https://github.com/yw0nam/YUI/blob/main/integrations/hermes/README.md) describes the wiring.
+[Hermes Agent](https://github.com/nousresearch/hermes-agent) is one optional backend, and its [integration README](https://github.com/yw0nam/YUI/blob/main/integrations/hermes/README.md) describes the wiring.
 
 ## Go deeper
 
