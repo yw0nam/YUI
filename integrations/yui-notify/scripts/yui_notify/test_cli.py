@@ -323,6 +323,7 @@ def test_bounded_poll_timeout(tmp_path, server, monkeypatch):
     import urllib.request
 
     endpoint, received = server
+    received.answer = {"choice": "allow"}
     timeouts = []
     open_url = urllib.request.urlopen
 

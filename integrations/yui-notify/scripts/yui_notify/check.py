@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import os
-import socket
 
+from yui_notify.config import endpoint_error
+from yui_notify.label import short_hostname
 from yui_notify.post import get, put
+from yui_notify.thread import TITLE_MAX
 
 UNREACHABLE = "YUI is not listening at {url} (External signals off, wrong port, or no tunnel)"
 FAILURES = {
-    404: "no such preset: {url}",
-    503: "the preset's pet window is closed: {url}",
+    404: "unknown or invalid thread id: {url}",
+    503: "YUI is busy: every answer wait is in use: {url}",
 }
 PROBE_PATH = "/threads/yui-notify-probe/answer?ask_id=probe&wait=0"
 
@@ -20,6 +22,9 @@ def _failure(url: str, status: int | None) -> str:
 
 
 def probe_failure(endpoint: str) -> str | None:
+    invalid = endpoint_error(endpoint)
+    if invalid:
+        return invalid
     url = endpoint + PROBE_PATH
     status, _, _ = get(url, 2)
     if status == 404:
@@ -36,10 +41,14 @@ def probe(endpoint: str) -> int:
 
 
 def send_test(endpoint: str) -> int:
-    url = endpoint + "/threads/yui-notify:test:" + socket.gethostname().split(".")[0]
+    invalid = endpoint_error(endpoint)
+    if invalid:
+        print(invalid)
+        return 1
+    url = endpoint + "/threads/yui-notify:test:" + short_hostname()
     body = {
         "source": "yui-notify",
-        "title": os.path.basename(os.getcwd())[:200],
+        "title": os.path.basename(os.getcwd())[:TITLE_MAX],
         "state": "completed",
         "entries": [{"role": "system", "text": "Test Thread from the yui-notify setup."}],
         "ask": None,

@@ -26,5 +26,5 @@ def main(
         with contextlib.suppress(Exception):  # a hook never fails the agent
             run_hook(env, stdin)
         return 0
-    url = (args.endpoint or config.load(env)["endpoint"]).rstrip("/")
+    url = args.endpoint or config.load(env)["endpoint"]
     return probe(url) if args.cmd == "probe" else send_test(url)

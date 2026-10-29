@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import http.client
 import json
 import urllib.error
 import urllib.request
@@ -14,7 +15,7 @@ def _request(req: urllib.request.Request, timeout: float) -> tuple[int | None, A
     except urllib.error.HTTPError as e:
         with e:
             return e.code, None, f"HTTP {e.code} {e.reason}"
-    except (OSError, ValueError) as e:
+    except (OSError, ValueError, http.client.HTTPException) as e:
         return None, None, str(e)
 
 

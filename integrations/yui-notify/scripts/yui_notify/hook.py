@@ -28,7 +28,8 @@ def run_hook(env: Mapping[str, str], stdin: TextIO) -> None:
             print(json.dumps({"systemMessage": f"yui-notify: {failure}"}))
         return
     url = cfg["endpoint"] + "/threads/" + thread_id(event, env)
-    body = build_thread(event, context(event.cwd, env), host_app_in_front(env))
+    front = event.agent == "codex" and event.phase == "PermissionRequest" and host_app_in_front(env)
+    body = build_thread(event, context(event.cwd, env), front)
     status, _, error = put(url, body)
     if error:
         config.write_error(env, url, status, error)
