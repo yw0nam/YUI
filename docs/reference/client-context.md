@@ -5,8 +5,8 @@ block, the user item that carries it, and the lines it holds. A backend author o
 reads it to build against YUI and parse those lines; [client-tools.md](client-tools.md)
 covers the tools the client declares.
 
-The block is **not a wire schema**. `client_context` is prompt text riding inside the
-turn's user message, written as prose for the backend model.
+The block is prompt text rather than a wire schema: `client_context` rides inside the
+turn's user message and is written as prose for the backend model.
 
 A backend integration in this repository reads the word after `trigger:` on the headline
 and the whole `trigger: user message` line with its idle clause, so those shapes stay
@@ -17,6 +17,7 @@ flowchart TB
   turn["One turn"]
   persona["Persona: the card, then chat_instructions"]
   context["Context: post-history block, client_context block, utterance"]
+  block["client_context block"]
   resp["Responses: instructions plus input"]
   cc["Chat Completions: messages array with a system slot"]
   push["Push: turn frame's client_context field, no card"]
@@ -27,7 +28,8 @@ flowchart TB
   context --> resp
   persona --> cc
   context --> cc
-  context --> push
+  turn --> block
+  block --> push
 ```
 
 ### The three transports
@@ -45,13 +47,13 @@ On both request transports (Responses and Chat Completions) the client declares 
 
 Push mode sends the same block as the `turn` frame's `client_context` field. The
 `screenshot source:` line travels in it, and the pixels ride in the frame's `images`
-field when the backend states `max_turn_bytes`. Otherwise the line arrives alone. Its
+field when the backend states `max_turn_bytes`; otherwise the line arrives alone. Its
 frames are in [push-transport.md](push-transport.md).
 
 ## Per-turn client context (client → agent)
 
-Each turn the client sends a Responses API request. Its `instructions` carry the
-persona, and its `input` carries the context.
+Each turn the client sends a Responses API request whose `instructions` carry the
+persona and whose `input` carries the context.
 
 ### Instructions
 
@@ -88,12 +90,12 @@ regardless of role, and earlier items land in plain conversation history.
 A `system` item in `input` never reaches the model as a system instruction.
 :::
 
-The post-history block leads the user item, so it sits after the stored history and
-before the context. Context follows it and the utterance trails both, so recall on the
-trailing utterance holds as the context grows.
+The post-history block leads the user item and therefore sits after the stored history
+and before the context. The context follows it and the utterance trails both, so recall
+on the trailing utterance holds as the context grows.
 
 The post-history block is absent when the card has no post-history instructions or the
-card is off. Its text has the card's macros already substituted.
+card is off; when it is present, its text has the card's macros already substituted.
 
 Items before the `user` item:
 
@@ -102,13 +104,13 @@ Items before the `user` item:
 
 When a screenshot is attached, the input is a content-part array: `[{ type:
 "input_text", text }, { type: "input_image", image_url }]`, where `text` is the block
-above. Otherwise it is plain text.
+above; otherwise it is plain text.
 
 ## Card
 
-The card is the preset's persona text in Tavern Card V2 shape. The client assembles it
-into one string, the blocks joined by a blank line, each present only when its field is
-non-empty:
+The card is the preset's persona text in Tavern Card V2 shape, which the client
+assembles into one string: the blocks are joined by a blank line, and each is present
+only when its field is non-empty:
 
 1. `system_prompt`, or the client's framing sentence when `system_prompt` is empty
 2. `description`
@@ -118,12 +120,12 @@ non-empty:
 6. `chat_instructions`
 
 ::: v-pre
-`{{char}}` becomes the preset's name, `{{user}}` the user's name (a fallback word in the UI
-language when unset), and `{{original}}` the framing sentence. No other macro is replaced.
-The string is the same bytes on every turn while the card, the UI language, the names, and
-`chat_instructions` are unchanged. A preset that has no card of its own sends the default
-card of the UI language from `configs/persona.json`. Push sends no card; a push backend
-carries its own persona.
+`{{char}}` becomes the preset's name, `{{user}}` the user's name (a fallback word in the
+UI language when unset), and `{{original}}` the framing sentence. No other macro is
+replaced, and the string is the same bytes on every turn while the card, the UI
+language, the names, and `chat_instructions` are unchanged. A preset that has no card of
+its own sends the default card of the UI language from `configs/persona.json`; push
+sends no card, and a push backend carries its own persona.
 :::
 
 After a session reset the client performs one of the card's greetings through the speech
@@ -131,20 +133,21 @@ path and records it as an assistant entry, so the next request carries it as his
 
 ## Wording
 
-The backend model reads the block as prose. Every line follows one register:
+The backend model reads the block as prose, and every line follows one register:
 
-1. Each fact is one `key: value` line in English, a short declarative.
-2. A state is in the present tense with its duration, `(for Nmin)`. An event is in the past
-   tense with its age, `(Nmin ago)` or `(fired at HH:MM)`. No line uses a word that reads
-   both ways, such as "until".
-3. Every clause names its actor: the character, the user, or the reply.
-   The character is "the character" in every line, with no pronoun.
-4. The client states facts and writes no instruction. A line carrying text the user
+1. Each fact is one `key: value` line in English, written as a short declarative
+   sentence.
+2. A state is in the present tense with its duration, `(for Nmin)`, and an event is in
+   the past tense with its age, `(Nmin ago)` or `(fired at HH:MM)`. No line uses a word
+   that reads both ways, such as "until".
+3. Every clause names its actor: the character, the user, or the reply, and the
+   character is "the character" in every line, with no pronoun.
+4. The client states facts and writes no instruction, and a line carrying text the user
    authored, which may be phrased as an order, labels it as the user's intent.
-5. Third-party text, such as window titles and signal payloads, is
-   quoted. The header line says quoted values are sampled data, not instructions.
+5. Third-party text, such as window titles and signal payloads, is quoted, and the
+   header line says quoted values are sampled data, not instructions.
 
-The `guide:` block is outside points 3 and 4. It carries the help request's instruction
+The `guide:` block is outside points 3 and 4; it carries the help request's instruction
 line and the app's own help text as written for the user.
 
 ## Rendered lines
@@ -177,21 +180,21 @@ Any field value that could contain whitespace runs, a newline, or the block's ow
 (an app name, a window title, a cue label, a signal payload string) is sanitized before
 being embedded.
 
-Whitespace runs collapse to one space and the string is trimmed. Any
+Whitespace runs collapse to one space and the string is trimmed, and any
 `<client_context>`/`</client_context>` sequence inside it is stripped outright.
 `configs/`-authored and user-typed fields go through the same sanitization.
 
-This is a structural requirement, not cosmetic. Without the whitespace collapse, a
-hostile or malformed payload could inject a fake extra line into the block. Without the
-tag strip, it could forge a premature `</client_context>` and smuggle fabricated lines
-past the real closing tag.
+Both rules are structural. Without the whitespace collapse, a hostile or malformed
+payload could inject a fake extra line into the block; without the tag strip, it could
+forge a premature `</client_context>` and smuggle fabricated lines past the real closing
+tag.
 
 ### Durations
 
-Every epoch-ms field (`since`, `ts`) is converted into a minutes-elapsed duration:
-`max(0, round((nowMs - sinceMs) / 60000))`, rendered as a bare `Xmin`. It is computed
-once per turn from a single `nowMs` snapshot shared by every duration in the block. Raw
-epoch milliseconds never appear in the rendered text.
+Every epoch-ms field (`since`, `ts`) is converted into a minutes-elapsed duration,
+`max(0, round((nowMs - sinceMs) / 60000))`, and rendered as a bare `Xmin`. It is
+computed once per turn from a single `nowMs` snapshot shared by every duration in the
+block. Raw epoch milliseconds never appear in the rendered text.
 
 The `relation` line alone renders an age in hours or days once it passes an hour, since
 a relation holds for weeks.
@@ -206,8 +209,8 @@ time: 2026-06-15T19:30:00+09:00 (Asia/Seoul)
 
 ### `frontmost`
 
-What the user has in the foreground. Present once an OS frontmost sample exists; absent
-on unsupported platforms or before the watcher's first tick.
+The line says what the user has in the foreground. It is present once an OS frontmost
+sample exists, and absent on unsupported platforms or before the watcher's first tick.
 
 ```text
 frontmost: Google Chrome — "H-Index | Programmers" (for 4min)
@@ -215,15 +218,16 @@ frontmost: Google Chrome — "H-Index | Programmers" (for 4min)
 
 #### The label
 
-The label is `env.frontmost.app`. The quoted title is appended only when `window_title`
-is present **and** differs from the app name (a browser or editor whose window title
-just repeats the app name doesn't need it said twice). When `app` didn't resolve but
-`window_title` did, the title stands alone as the label. When neither resolved, the line
-is omitted.
+The label is `env.frontmost.app`, and the quoted title is appended only when
+`window_title` is present and differs from the app name (a browser or editor whose
+window title just repeats the app name doesn't need it said twice). When `app` didn't
+resolve but `window_title` did, the title stands alone as the label; when neither
+resolved, the line is omitted.
 
 #### The duration
 
-The duration is minutes since the last frontmost transition (`env.frontmost.since`).
+The duration counts minutes since the last frontmost transition
+(`env.frontmost.since`).
 
 #### Untrusted text
 
@@ -262,8 +266,8 @@ The selected `source` governs automatic attachment only.
 The line is present only when automatic attachment is enabled (`screenshot.enabled`),
 and the pixels themselves never ride in it; they arrive as a separate `input_image`
 content-part alongside the text. On push they arrive in the `turn` frame's `images`
-field when the backend states `max_turn_bytes`, otherwise the line arrives alone. One
-line per `ScreenSource` kind:
+field when the backend states `max_turn_bytes`, and otherwise the line arrives alone.
+There is one line per `ScreenSource` kind:
 
 ```text
 screenshot source: monitor 0 (Built-in Retina Display)
@@ -282,7 +286,7 @@ way) omits the line entirely, same as the field being absent.
 
 ### `body`
 
-Where the avatar body is, always present.
+The line says where the avatar body is, and it is always present.
 
 ```text
 body: peeking on Orca (for 2min)
@@ -299,7 +303,7 @@ The state is `body_state.posture.state` (`standing` \| `sitting` \| `peeking` \|
 `dragging` \| `walking` \| `climbing` \| `lying`).
 
 The `on <label>` clause names `posture.perched_on.app` (falling back to `window_title`
-when the app didn't resolve). It is omitted when there's no window under the avatar.
+when the app didn't resolve), and it is omitted when there's no window under the avatar.
 `standing`, `walking`, `climbing` and `lying` never carry one.
 
 #### `lying`
@@ -319,12 +323,12 @@ up.
 #### `walking` and `climbing`
 
 `walking` holds for the length of one ambient stroll along the work-area bottom and
-returns to `standing` when the stroll ends. The stroll itself fires no turn, so the
+returns to `standing` when the stroll ends; the stroll itself fires no turn, so the
 state is visible on whatever turn comes next.
 
 `climbing` holds for the length of one ambient climb up or down a foreign window's side
-edge. An ascent ends in `sitting` on that window, a descent in `standing` on the floor,
-and neither fires a turn either.
+edge. An ascent ends in `sitting` on that window and a descent in `standing` on the
+floor, and neither fires a turn either.
 
 #### Posture duration
 
@@ -335,16 +339,17 @@ re-affirmed.
 
 ### `tool switches`
 
-The on/off state of every switchable in-app tool the window declares, rendered every
-turn. One `id=state` entry per tool, comma-separated, in declaration order; values are
-`on` and `off`:
+The line carries the on/off state of every switchable in-app tool the window declares,
+and it is rendered every turn: one `id=state` entry per tool, comma-separated, in
+declaration order, with values `on` and `off`:
 
 ```text
 tool switches: relations=on, look.screen=on
 ```
 
-The line names the switch state only. The switch gates the tool's execution, read at the
-moment the call runs, so a state line the request outlives can still end in a refusal.
+The line names the switch state only. The switch gates the tool's execution, read at
+the moment the call runs, so a state line the request outlives can still end in a
+refusal.
 
 The line is omitted when the turn declares no switchable tool. Every pet window and the
 browser build declare `relations`, and under Tauri `main` also declares `look.screen`.
@@ -352,8 +357,8 @@ Tool ids carry the same sanitization as the other sampled fields.
 
 ### `previous turn`
 
-How the last turn that tried to speak ended. The line renders only when that turn ended
-badly.
+The line says how the last turn that tried to speak ended, and it renders only when that
+turn ended badly.
 
 ```text
 previous turn: the reply to time_milestone.first_activity was cut off mid-speech (12min ago)
@@ -423,13 +428,14 @@ Push sends a `playback` frame only for a failed record with a `turn_id`, after `
 and while connected. Interruption and completion are stored only in this record; the
 line carries interruption and omits completion.
 
-The client records the outcome and renders it. What to make of a cut-off or missing
+The client records the outcome and renders it; what to make of a cut-off or missing
 reply is the backend's judgment.
 
 ### `overheard`
 
-What other open characters exchanged with the user since this character last heard them.
-One block per other open preset, omitted when no preset has an unheard line.
+The block lists what other open characters exchanged with the user since this character
+last heard them. It holds one block per other open preset and is omitted when no preset
+has an unheard line.
 
 ```text
 overheard: alice ↔ user, 3 lines (2min ago)
@@ -459,16 +465,16 @@ the last line this character has heard. The cursor moves only after the turn tha
 carried the lines ended `ok`, so a line is never sent twice and a failed turn sends it
 again.
 
-The other preset's transcript is read, never written. Only the transcript after its last
-session boundary counts.
+The other preset's transcript is read, never written, and only the transcript after its
+last session boundary counts.
 
 ### `relation`
 
-How this character stands toward the user and toward each other character, as the
-backend has rated it so far. One line per target with a record, `user` first and then
-the other presets in registry order. It is omitted for a target never rated, and omitted
-altogether while the Relations switch is off (`docs/reference/client-tools.md` §
-`rate_relation`).
+The line records how this character stands toward the user and toward each other
+character, as the backend has rated it so far, with one line per target that has a
+record: `user` first, then the other presets in registry order. It is omitted for a
+target never rated, and omitted altogether while the Relations switch is off
+(`docs/reference/client-tools.md` § `rate_relation`).
 
 ```text
 relation: toward user warm (last change +1, 3d ago: "stayed up to finish the parser together")
@@ -500,9 +506,9 @@ move, not a score.
 
 #### One window's own relation
 
-Only this window's own relation is rendered. What another character thinks of this one
-is never injected; the character learns it the way the user does, from what the other
-character says ([`overheard`](#overheard)).
+Only this window's own relation is rendered: what another character thinks of this one
+is never injected, and the character learns it the way the user does, from what the
+other character says ([`overheard`](#overheard)).
 
 The store is `yui.<id>.relations`, read every turn. The backend moves it with the
 `rate_relation` tool, and an external engine reads or replaces it over the ingress
@@ -510,9 +516,9 @@ The store is `yui.<id>.relations`, read every turn. The backend moves it with th
 
 ### `open characters`
 
-The other presets open when the turn is built: main's active preset and the preset of
-every open pet window, without this window's own preset. Omitted when no other preset is
-open.
+The line lists the other presets open when the turn is built: main's active preset and
+the preset of every open pet window, without this window's own preset. The line is
+omitted when no other preset is open.
 
 ```text
 open characters: "alice", "bob"
@@ -564,8 +570,7 @@ silence, equivalent to no speech text. `[SILENT]` inside a longer reply is ordin
 trigger: user message
 ```
 
-The unified chat window adds a suffix to the headline. The idle clause follows the
-suffix.
+The unified chat window adds a suffix to the headline. The idle clause follows the suffix.
 
 - `trigger: user message (addressed to the character)`: the user picked this character in the unified chat window.
 - `trigger: user message (addressed to everyone)`: the user wrote to every open character. The characters answer one after another, and each later one overhears the earlier replies through the [`overheard`](#overheard) block.
@@ -587,9 +592,9 @@ The user pressed the in-app help button. Answer from the guide below: start with
 
 The guide text is expanded when the block is rendered, so the turn records and the
 context history hold only the key. The `controls` guide is `docs/guide/controls.md` and
-the `capabilities` guide is `docs/guide/capabilities.md`, both bundled with the app. The
-block leaves out the doc's Markdown image lines, which are pictures for the docs site.
-Every transport sends the same block.
+the `capabilities` guide is `docs/guide/capabilities.md`, both bundled with the app, and
+the block leaves out the doc's Markdown image lines, which are pictures for the docs
+site. Every transport sends the same block.
 
 ### Cue (schedule / proactive)
 
@@ -691,8 +696,8 @@ signal [github/push @2026-08-23T01:36:40.000Z, id delivery-42]: {"repo":"acme/yu
 signal [calendar/sync @2026-08-23T01:36:40.000Z, id delivery-43]: (no payload)
 ```
 
-Signals are grouped by ingress batch. The headline counts items across all groups. Each
-item in an enveloped group renders with its normalized `source/event_type`, UTC
+Signals are grouped by ingress batch, and the headline counts items across all groups.
+Each item in an enveloped group renders with its normalized `source/event_type`, UTC
 occurrence time, and normalized event id.
 
 An enveloped group with no items renders one `(no payload)` line and contributes zero to
@@ -711,8 +716,8 @@ trigger: addressed by alice: "bob, you took my chair" (0min ago)
 ```
 
 Another open character's reply called `address_character` naming this character, and
-that reply's playback has ended. The headline names the speaker, quotes what she said,
-and gives the minutes since it was spoken.
+that reply's playback has ended. The headline names the speaker and quotes what she
+said, with the minutes since it was spoken.
 
 The `ClientContext` field is `trigger.addressed?: { from, text, ts, user_message? }`,
 with `from` the speaker's preset name, `text` the reply's spoken text, and `ts` the
@@ -826,9 +831,10 @@ and say nothing to the backend.
 
 ## Plugin lines
 
-What the enabled plugins offer, read from the MCP host's newest snapshot once per turn.
-The two lines sit after the trigger lines and before the `guide:` block; each is omitted
-when it would carry no entry, so a turn with no enabled plugin carries neither.
+The two lines report what the enabled plugins offer, read from the MCP host's newest
+snapshot once per turn. They sit after the trigger lines and before the `guide:` block,
+and each is omitted when it would carry no entry, so a turn with no enabled plugin
+carries neither.
 
 ### `plugin tools`
 
@@ -880,7 +886,7 @@ is written from the user's POV: "I" is the user, "you" is the agent.
 
 "You" is the on-screen VRM avatar, the agent's body, so the window_sit/peek/dropped
 markers describe the user placing that body (drag & drop) and the agent's body ending up
-perched, peeking, or fallen to the floor. It states what happened, never how to respond
+perched, peeking, or fallen to the floor. The marker states what happened, never how to respond
 (firing ≠ judgment).
 
 The string is client-only framing so the agent has a concrete stimulus in the user turn;
@@ -927,10 +933,8 @@ result is clamped to 40 characters, which keeps the marker one line and keeps it
 ## Purpose
 
 Use `generate_express` to place expression cues between streamed assistant text
-segments.
-
-The assistant reply is still normal streamed text. `generate_express` is called at the
-point where the face, motion, or voice tone should change.
+segments. The assistant reply is still normal streamed text, and `generate_express` is
+called at the point where the face, motion, or voice tone should change.
 
 ## Tool Arguments
 
@@ -1081,18 +1085,15 @@ sentence need different expression.
 ### Do expression cues persist across sentences?
 
 No. Call `generate_express` for every sentence that should have an expression cue.
-
-After the motion loop finishes, expression and motion return to neutral/idle. If
-multiple sentences should keep the same happy expression or motion, call
+After the motion loop finishes, expression and motion return to neutral/idle, so when
+several sentences should keep the same happy expression or motion, call
 `generate_express` again for each sentence.
 
 ### What happens when text is streamed without `generate_express`?
 
-The sentence is spoken normally with neutral voice tone and idle/neutral presentation.
-
-A reply that speaks nothing and carries no cue leaves expression and motion as they are.
-
-Use no `generate_express` call when the sentence should stay neutral.
+The sentence is spoken normally with neutral voice tone and idle/neutral presentation,
+and a reply that speaks nothing and carries no cue leaves expression and motion as they
+are. Use no `generate_express` call when the sentence should stay neutral.
 
 ### When should `generate_express` be called?
 
@@ -1113,7 +1114,7 @@ Take the values from the tool's declared schema, whose `enum`s list the valid id
 
 ### What does `generate_express({})` mean?
 
-It is an error. Do not call `generate_express` with no arguments.
+It is an error, so do not call `generate_express` with no arguments.
 
 To keep the sentence neutral, stream the text without calling `generate_express`.
 

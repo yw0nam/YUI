@@ -1,6 +1,6 @@
 # Witness Log
 
-The witness log is a local record of which app the user has in front and when the machine goes idle. It holds transitions only, so a stable foreground app writes nothing. The Rust OS event watcher (`src-tauri/src/os_event_watcher/witness.rs`) writes it on its 5-second poll.
+The witness log is a local record of which app the user has in front and when the machine goes idle. It holds transitions only, so a stable foreground app writes nothing; the Rust OS event watcher (`src-tauri/src/os_event_watcher/witness.rs`) writes it on its 5-second poll.
 
 ::: warning
 The log records app names and window titles, and keeps 14 days of them.
@@ -25,7 +25,7 @@ flowchart TB
 
 `<app_data_dir>/witness/activity_YYYY-MM-DD.jsonl`; on macOS that is `~/Library/Application Support/com.yui.desktop/witness/`.
 
-One file per calendar day in the `YUI_LOG_TZ` timezone. Files are retained 14 days; older dated files are pruned on rotation.
+One file per calendar day in the `YUI_LOG_TZ` timezone, and files are retained 14 days, with older dated files pruned on rotation.
 
 ## Format
 
@@ -46,7 +46,7 @@ JSONL: one JSON object per line.
 
 ### When a record is written
 
-Only transitions are written; a stable foreground app writes nothing.
+A record appears only when the state changes; a stable foreground app writes nothing.
 
 | Record | Written when |
 |---|---|
@@ -58,7 +58,7 @@ Idle records carry the frontmost app and title read at the moment of the transit
 
 ## Platform notes
 
-The two platforms answer slightly different questions: macOS reports what sits in front, Windows reports what holds focus.
+The two platforms answer slightly different questions: macOS reports what sits in front, while Windows reports what holds focus.
 
 | Platform | Frontmost source | Meaning |
 |---|---|---|
@@ -70,4 +70,4 @@ macOS window titles require the Screen Recording permission. Without it, `window
 
 ## Privacy
 
-Window titles can contain sensitive text: document names, page titles, chat partners. The log stays on the local machine, is written by the client only, and expires with the 14-day retention. `witness/` is git-ignored so the records can never be committed.
+Window titles can contain sensitive text: document names, page titles, chat partners. The log stays on the local machine, is written by the client only, and expires with the 14-day retention; `witness/` is git-ignored so the records can never be committed.

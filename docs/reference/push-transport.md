@@ -1,6 +1,9 @@
 # Push transport
 
-`chat_api: "push"` keeps one WebSocket open between each pet window and the backend: the client sends turns on it and the backend sends finished replies on it. A backend author builds an adapter against this contract, and an agent checks a frame against it.
+`chat_api: "push"` keeps one WebSocket open between each pet window and the backend, and both
+directions of the conversation travel over it: the client sends its turns, and the backend sends
+finished replies back. A backend author builds an adapter against this contract, and an agent
+checks a frame against it.
 
 ```mermaid
 sequenceDiagram
@@ -12,16 +15,18 @@ sequenceDiagram
   B-->>C: speech, render
   B-->>C: tool_call
   C->>B: tool_result
+  C->>B: stop, while the turn has not ended
   B-->>C: turn_end
-  C->>B: vocabulary, stop, reset or playback
+  C->>B: vocabulary, reset or playback
   Note over C,B: A closed socket reconnects on a growing delay, except code 4401
 ```
 
-The connection stays open, so a reply arrives without a request, including a report on work the backend finished on its own. A settings or message window runs no socket of its own: it mirrors the socket of the pet window of its own preset, as `main` does for the active preset.
+The connection stays open, so a reply arrives without a request, including a report on work the backend finished on its own. A settings or message window runs no socket of its own: it mirrors the socket of the pet window that shares its preset, as `main` does for the active preset.
 
-Push is an optional extension for backends that can deliver without a request. Request-scoped features behave the same over the request transports: the Responses API, and Chat Completions where its wire carries the data. A backend that does not speak push loses none of them.
+Push is an optional extension for backends that can deliver without a request. Request-scoped features behave the same over the request transports: the Responses API, and Chat Completions where its wire carries the data. A backend that does not speak push loses none of these features.
 
-The client renders what arrives and judges nothing. Everything the backend must know is in this document; the backend adapter for a specific agent lives under `integrations/<agent>/`.
+The client renders what arrives and judges nothing. Everything the backend must know is in this
+document, and the backend adapter for a specific agent lives under `integrations/<agent>/`.
 
 ## What each chat transport carries
 
@@ -117,10 +122,12 @@ Every frame is one JSON object with a `type` field. The client sends `hello` fir
 
 ### Reconnect
 
-The client reconnects with the delay schedule in the limits table on every close but `4401`, and resets the delay to the first value after a `ready`.
+The client reconnects on the delay schedule in the limits table after every close except `4401`,
+and it resets the delay to the first value once a `ready` arrives.
 
 ::: warning
-A `4401` close arms no retry: the socket stays closed until the protocol, endpoint or key setting changes, or until the user asks for a reconnect.
+A `4401` close schedules no retry: the socket stays closed until the protocol, endpoint or key
+setting changes, or until the user asks for a reconnect.
 :::
 
 A turn that starts before `ready` ends as a network failure, and so does a turn still running when the socket leaves `ready`.
@@ -164,11 +171,12 @@ A turn that starts before `ready` ends as a network failure, and so does a turn 
 |---|---|
 | `key` | The chat API key. It travels in this frame because the browser WebSocket API carries only the URL |
 | `chat_id` | The conversation the backend keeps state under. Generated once per installation, stored in settings, reused on every connection |
-| `accepts` | The frame types the client reads beyond the base set. The base set is `ready`, `render`, `speech`, `turn_end`, `tool_status`, `tool_call`, `reasoning` and `delegations`; this client sends `["error"]`. Absent means the base set only. A backend sends a client no frame type outside the base set and its `accepts`, and reads a value that is not a list of strings as absent. The latest `hello` of the chat decides, including for frames the backend holds while the client is away |
+| `accepts` | The frame types the client reads beyond the base set. The base set is `ready`, `render`, `speech`, `turn_end`, `tool_status`, `tool_call`, `reasoning` and `delegations`; this client sends `["error"]`, and absent means the base set only. A backend sends a client no frame type outside the base set and its `accepts`, and reads a value that is not a list of strings as absent. The latest `hello` of the chat decides, including for frames the backend holds while the client is away |
 | `vocabulary` | What the client renders right now. `emotion_text_mode` is `"free"` or `"enum"`; `emotion_text_map` is the tag table used in `enum` mode |
-| `tools` | The function schemas the client declares on this connection, in the OpenAI function-tool shape. Absent when the client declares none. Fixed for the connection. Every pet window declares `rate_relation` and `address_character`; a pet window under Tauri also declares `plugin_describe`, `plugin_call` and `plugin_skill`, and `main` also declares `body_action` and `look` |
+| `tools` | The function schemas the client declares on this connection, in the OpenAI function-tool shape. Absent when the client declares none, and fixed for the connection. Every pet window declares `rate_relation` and `address_character`; a pet window under Tauri also declares `plugin_describe`, `plugin_call` and `plugin_skill`, and `main` also declares `body_action` and `look` |
 
-A backend that does not read `accepts` sends no `error` frame and renders its failure line. A client that sends no `accepts` gets the rendered failure line.
+A backend that does not read `accepts` sends no `error` frame and renders its failure line, and a
+client that sends no `accepts` gets that same rendered failure line.
 
 ### `ready` (backend → client)
 
@@ -179,10 +187,11 @@ A backend that does not read `accepts` sends no `error` frame and renders its fa
 The frame may carry `max_turn_bytes`, a positive integer naming the largest `turn` frame the backend accepts, in UTF-8 bytes. Its presence also says the backend accepts `images` on a `turn`. When it is absent, `turn` frames are capped at 256 KiB and carry no images.
 
 ::: tip
-State `max_turn_bytes` in `ready`. Without it the client sends no images and caps `turn` frames at 256 KiB.
+`max_turn_bytes` is optional. Without it, the client caps `turn` frames at 256 KiB and sends no images on a `turn`.
 :::
 
-The backend closes the socket with code `4401` on a wrong key and sends nothing. The client holds that close as a failed state and stops retrying.
+The backend closes the socket with code `4401` on a wrong key and sends nothing, and the client
+holds that close as a failed state and stops retrying.
 
 ### `vocabulary` (client → backend)
 
@@ -235,11 +244,16 @@ The client shows the turn running from the `turn` frame to its `turn_end`:
 
 #### The frame wait
 
-The client waits for each frame of the turn for the wait in the limits table, counted from the `turn` frame and again from every frame carrying its `turn_id`.
+The client applies the wait in the limits table to each frame of the turn, counted from the `turn`
+frame and again from every frame carrying its `turn_id`.
 
-A wait that passes before the first `render` ends the turn and the client speaks a failure line. One that passes after the first `render` ends the turn and writes a log line. The socket leaving `ready` ends the turn at once, with the same two outcomes.
+A wait that passes before the first `render` ends the turn, and the client speaks a failure line. A
+wait that passes after the first `render` ends the turn as well and writes a log line. The socket
+leaving `ready` ends the turn at once, with the same two outcomes.
 
-A `render` that arrives after the turn ended this way plays like any other frame, as long as the turn is still outstanding: a turn whose wait ended stays outstanding, so the next user action that stops speech stops it too and its late `render` is dropped.
+A `render` that arrives after the turn ended this way still plays like any other frame, as long as
+the turn is still outstanding. A turn whose wait ended stays outstanding, so the next user action
+that stops speech stops it too, and its late `render` is dropped.
 
 ### `reset` (client → backend)
 
@@ -259,7 +273,9 @@ The transcript starts empty, and work the backend delegated in the old conversat
 
 The client sends the frame when the user presses stop, or when the user starts speaking with barge-in on while the unified chat window shows and a character was running; that window then sends the same stop its stop button sends.
 
-`turn_ids` are the turns the client just stopped: every turn that was outstanding on the chat at that moment. The backend stops generating for those of them that are still running and sends each its `turn_end`, and an id it no longer holds is ignored. The client sends the frame only while the socket is `ready`.
+`turn_ids` are the turns the client just stopped: every turn that was outstanding on the chat at that
+moment. The backend stops generating for those still running and sends each its `turn_end`, and an
+id it no longer holds is ignored. The client sends the frame only while the socket is `ready`.
 
 - A turn that is not named, one the backend started after the client's stop, keeps running.
 - A backend that cannot stop the named turns without also stopping an unnamed one ignores the frame.
@@ -277,9 +293,13 @@ The client sends the frame when the user presses stop, or when the user starts s
 | `turn_id` | The client turn whose call failed |
 | `ended` | `"failed"` |
 
-The client sends one frame per saved failed record with a `turn_id`, after `ready` and only while connected. Records saved while disconnected are not replayed on reconnect; the next turn's `previous turn:` line carries the failed outcome.
+The client sends one frame per saved failed record with a `turn_id`, after `ready` and only while
+connected. The client does not replay records saved while disconnected when it reconnects; the next
+turn's `previous turn:` line carries the failed outcome.
 
-Interruption and completion are stored in the previous-turn record only. On interruption the `previous turn:` line names the cut utterance, carrying everything still owed, while a complete outcome is omitted from the line.
+Interruption and completion are stored only in the previous-turn record. On an interruption, the
+`previous turn:` line names the cut utterance and carries everything still owed; a complete outcome
+is omitted from the line.
 
 ## Replies
 
@@ -301,20 +321,23 @@ Interruption and completion are stored in the previous-turn record only. On inte
 |---|---|
 | `turn_id` | The turn this frame belongs to: the `turn` the client sent, or the id the backend minted for a run it started on its own |
 | `source` | Backend name for logs |
-| `segments` | Ordered. Each segment's `cues` render first, then its `speech` goes to TTS and the bubble |
+| `segments` | Segments are ordered: each segment's `cues` render first, then its `speech` goes to TTS and the bubble |
 | `reasoning` | Optional. The reasoning written so far for this turn when this reply was sent; on the last reply of the turn, the whole text. A backend that sends no `reasoning` frames may put a shortened version here instead. Absent when the backend produced none |
 
 #### Cues and silence
 
-A cue is a `generate_express` argument object as defined in [client-context.md](client-context.md): `emotion_id`, `motion_id`, `emotion_text`, `caption`, all optional. Cues render through the same path a streamed cue takes.
+A cue is a `generate_express` argument object as defined in [client-context.md](client-context.md): `emotion_id`, `motion_id`, `emotion_text`, `caption`, all optional. Cues render through the same path as a streamed cue.
 
 Silence is a `render` whose segments carry no speech: every `speech` is empty or the bare `[SILENT]` token. Cues on a silent render still play.
 
-A turn with cues and no speech is one `render` whose single segment carries the cues and an empty `speech`, and a turn with nothing to render sends only its `turn_end`.
+A turn with cues and no speech is one `render` whose single segment carries the cues and an empty `speech`. A turn with nothing to render sends only its `turn_end`.
 
 #### Cue timing
 
-A cue on a silent segment renders as it arrives when nothing is playing, and at the next playback boundary when speech is still owed. Every cue waiting on a boundary fires at the first one playback reaches, so a cue belonging to a reply still being synthesised lands before that reply's speech.
+A cue on a silent segment renders as it arrives when nothing is playing, and at the next playback
+boundary when speech is still owed. Every cue waiting on a boundary fires at the first boundary
+that playback reaches, so a cue belonging to a reply still being synthesised lands before that
+reply's speech.
 
 A cue that arrives while the character plays the thinking motion of another running turn lands when that motion ends.
 
@@ -346,7 +369,9 @@ One finished sentence of a reply the backend is still writing.
 
 A `speech` frame counts as a frame of the turn for the frame wait, and the first one counts as the turn's first `render`.
 
-The `speech` frames of a turn open one utterance. The next `render` of that turn plays its segments and closes the utterance, a silent `render` included, and carries the rest of the reply with the cues still unplaced.
+The `speech` frames of a turn open one utterance. The next `render` of that turn plays its segments
+and closes the utterance, even a silent `render`, and carries the rest of the reply with the cues
+still unplaced.
 
 The utterance also closes on the turn's `turn_end`, on the frame wait passing, and on the socket leaving `ready`. The sentences already sent finish playing.
 
@@ -370,7 +395,7 @@ The backend cuts `speech` frames from its reply while it is still writing it, an
 | Field | Value |
 |---|---|
 | `turn_id` | The turn the frame closes |
-| `usage` | Optional. The token usage of the turn's last LLM call, not a sum over the turn: `input_tokens`, `output_tokens` and `total_tokens`, all numbers, the same figures the request transports' usage readout takes. The client shows `total_tokens` beside the context window size. Absent when the backend has no usage for the turn. A `usage` that does not carry all three as numbers is read as absent, and the frame still ends the turn |
+| `usage` | Optional. The token usage of the turn's last LLM call, not a sum over the turn: `input_tokens`, `output_tokens` and `total_tokens`, all numbers, the same figures the request transports' usage readout takes. The client shows `total_tokens` beside the context window size. Absent when the backend has no usage for the turn, and a `usage` that does not carry all three as numbers is read as absent; the frame still ends the turn |
 
 #### When the frame goes out
 
@@ -413,11 +438,15 @@ The frame counts as a frame of the turn for the frame wait. An `error` frame for
 | `state` | `"running"` when the tool call starts, `"done"` when it returns, `"failed"` when it failed |
 | `tool_id` | The tool name as the backend knows it |
 
-Sent while the turn runs, once per state change of a tool call; a failed call carries `"failed"` in place of `"done"`. It counts as a frame of the turn for the frame wait and leaves the running state, the thinking motion and speech as they are, and a turn may carry none.
+Sent while the turn runs, once per state change of a tool call; a failed call carries `"failed"` in
+place of `"done"`. It counts as a frame of the turn for the frame wait, and it leaves the running
+state, the thinking motion and speech as they are. A turn may carry none.
 
 A `tool_status` for a turn the client did not send shows the status pill's tool segment and speaks no tool phrase. A running tool that gets no `done` is cleared by the turn's `turn_end`, and by the socket leaving `ready`.
 
-A `tool_status` naming a tool the client declared and runs itself, `plugin_call`, leaves the status pill as it is, since that tool's status comes from the client's own run, and it still counts as a frame of the turn for the frame wait.
+A `tool_status` naming a tool the client declared and runs itself, `plugin_call`, leaves the status
+pill as it is, since that tool's status comes from the client's own run. It still counts as a frame
+of the turn for the frame wait.
 
 ### `tool_call` (backend → client) and `tool_result` (client → backend)
 
@@ -454,7 +483,7 @@ A call against a tool the client declared in `hello.tools`.
 #### The client's rules
 
 1. Calls of one chat run one at a time, in arrival order; the client's wait starts when the call starts running.
-2. A `tool_call` whose `name` is not in the declared set, whose `arguments` lack a field the action needs or carry a value it does not accept, or whose `turn_id` names a turn the client has stopped is answered at once with `error: <reason>`: `error: unknown tool`, `error: missing field <name>`, `error: invalid field <name>`, or `error: turn stopped`.
+2. A `tool_call` is answered at once with `error: <reason>` when its `name` is not in the declared set, when its `arguments` lack a field the action needs or carry a value it does not accept, or when its `turn_id` names a turn the client has stopped. The answer is one of `error: unknown tool`, `error: missing field <name>`, `error: invalid field <name>`, or `error: turn stopped`.
 3. A `tool_call` whose `id` repeats one queued or running is dropped with a log line and not answered; an answer would resolve the original call's waiter.
 4. A result whose frame would pass its applicable size limit is answered `error: result too large` instead. A result the client cannot send (the socket is not ready) is logged and dropped.
 5. A `tool_call` the client cannot read, such as a field of the wrong type, is dropped with a `frame_malformed` log line and gets no `tool_result`; the backend's wait answers it.
@@ -495,7 +524,7 @@ The backend's reasoning as it is written, sent while the turn is running.
 
 Frames are coalesced, so one carries however much arrived in the window. They are best effort: a backend under load drops them, and a turn may carry none at all.
 
-The `render` frame's `reasoning` field is where the text arrives whole, from a frame that plays. A `render` dropped for a stopped turn abandons the reasoning still streaming for that turn, while a text an earlier render already finished stays.
+The `render` frame's `reasoning` field is where the text arrives whole, from a frame that plays. A `render` dropped for a stopped turn abandons the reasoning still streaming for that turn, while text that an earlier render already finished stays.
 
 A `reasoning` frame of a turn the user stopped is dropped like the turn's other frames, and the turn's `turn_end` ends reasoning still showing. While one turn's reasoning is streaming, the `reasoning` of a `render` that belongs to another turn is not shown.
 

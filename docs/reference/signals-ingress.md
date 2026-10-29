@@ -1,7 +1,6 @@
 # Signals ingress
 
-External producers send signal groups to the loopback HTTP ingress with `POST /signals`.
-This page is the contract for that wire: the routes, the envelope fields, the two delivery classes, and the validation that accepts or refuses a request.
+External producers send signal groups to the loopback HTTP ingress with `POST /signals`, and this page is the contract for that wire: the routes, the envelope fields, the two delivery classes, and the validation that accepts or refuses a request.
 A backend author or agent reads it to build a producer the client accepts, and to know when the client turns a group into a turn.
 
 The [producer guide](../guide/signals-producer.md) walks through writing a producer.
@@ -12,13 +11,15 @@ flowchart TD
   P -->|"POST /presets/{id}/signals"| W["Bound pet window pet-id"]
   M --> G{"Wire shape valid?"}
   W --> G
-  G -->|"no"| E["HTTP 400, 404, 405, 421 or 503"]
+  G -->|"no"| E["HTTP 400, 403, 404, 405, 421 or 503"]
   G -->|"yes"| A["HTTP 200: batch emitted to the target window"]
   A --> V{"Envelope valid?"}
-  V -->|"no"| X["Group dropped, one warning"]
-  V -->|"urgent"| U["Urgent buffer"]
+  V -->|"no, signals on"| X["Group dropped, one warning"]
+  V -->|"urgent"| N{"User present and pipeline idle?"}
+  N -->|"yes"| T["Turn"]
+  N -->|"no"| U["Urgent buffer"]
   V -->|"batched"| B["Batch buffer, five-minute interval"]
-  U --> T["Turn"]
+  U --> T
   B --> T
 ```
 
@@ -66,7 +67,7 @@ The request body contains a `signals` array and a delivery envelope:
 }
 ```
 
-Signal items are arbitrary opaque JSON values. The client transports and renders them without
+Signal items are arbitrary opaque JSON values, and the client transports and renders them without
 interpreting their meaning.
 
 ## Routes
@@ -86,9 +87,9 @@ One listener on one port serves every window, and the path chooses the recipient
 
 ### Preset ids
 
-`<id>` is one path segment of ASCII letters, digits, `_` and `-`. The prefix itself, an id with no route after it, an empty id, and an id with any other byte all receive 404.
+`<id>` is one path segment of ASCII letters, digits, `_` and `-`; the prefix itself, an id with no route after it, an empty id, and an id with any other byte all receive 404.
 
-The listener is loopback-only and carries no authentication, so a local caller can tell which preset ids exist by the 404 and 503 replies. The ids are opaque keys, not secrets.
+The listener is loopback-only and carries no authentication, so a local caller can tell which preset ids exist by the 404 and 503 replies; the ids are opaque keys, not secrets.
 
 ## Envelope fields
 
@@ -105,27 +106,27 @@ There is no fallback timestamp.
 
 ### The event_id field
 
-A group replaces a buffered group with the same `event_id` in the same buffer, at its position, while a group with the same `event_id` in another buffer stays. A delivered group is not compared.
+A group replaces a buffered group with the same `event_id` in the same buffer, at its position, while a group with the same `event_id` in another buffer stays; a delivered group is not compared.
 
 ### The label field
 
-The `label` is the producer's one-line origin, for example `devbox · tmux yui:2 · YUI (main)`. Over 120 code points it is cut to 119 code points plus `…` and the request is accepted, and a non-string label makes the envelope invalid.
+The `label` is the producer's one-line origin, for example `devbox · tmux yui:2 · YUI (main)`. Over 120 code points it is cut to 119 code points plus `…` and the request is accepted; a non-string label makes the envelope invalid.
 
-The label is not rendered in `client_context`. The client shows it, or `event_type` when it is absent, after `source` as the source line of the group on the speech bubble and in History. The bubble keeps the line to its own width and cuts the rest with an ellipsis, so the distinguishing words go first.
+The label is not rendered in `client_context`; the client shows it, or `event_type` when it is absent, after `source` as the source line of the group on the speech bubble and in History. The bubble keeps the line to its own width and cuts the rest with an ellipsis, so the distinguishing words go first.
 
 ## Delivery
 
-`delivery` names one of two delivery classes, `urgent` and `batched`. Dropping is a producer-side rule: a producer that wants a signal dropped does not send it.
+`delivery` names one of two delivery classes, `urgent` and `batched`; dropping is a producer-side rule, so a producer that wants a signal dropped does not send it.
 
 ### Urgent
 
-An `urgent` group means the user should hear it now. It fires at once while the user is present and the pipeline is idle, and the proactive quiet gap does not hold it. Otherwise it waits in its own buffer, and on the away-to-present or busy-to-idle edge the buffered urgent groups fire together as one urgent catch-up turn.
+An `urgent` group means the user should hear it now: it fires at once while the user is present and the pipeline is idle, and the proactive quiet gap does not hold it. Otherwise it waits in its own buffer, and on the away-to-present or busy-to-idle edge the buffered urgent groups fire together as one urgent catch-up turn.
 
 On the return to present, the batch catch-up goes out first and the urgent catch-up is the next turn, right after it ends. Urgent groups never share a catch-up turn with `batched` groups, and the drains below carry batched groups only: a buffered urgent group keeps waiting for its own edge.
 
 ### Batched
 
-A `batched` group always waits in the batch buffer, where the first group starts a five-minute delivery interval. At the interval boundary, all pending batched groups fire together when signals are enabled, the user is present, and the pipeline is idle. If those conditions are not met, the groups remain buffered without another timer. A batched group that misses its deadline leaves on the next edge.
+A `batched` group always waits in the batch buffer, where the first group starts a five-minute delivery interval. At the interval boundary, all pending batched groups fire together when signals are enabled, the user is present, and the pipeline is idle. If those conditions are not met, the groups remain buffered without another timer, and a batched group that misses its deadline leaves on the next edge.
 
 ::: tip
 A batched group that misses its deadline starts no second timer. It leaves on the next edge, or on a drain of the batch buffer.
@@ -157,11 +158,11 @@ A push the bus refuses, or a call that failed in transport or at the backend, al
 
 Each buffer retains at most five groups and drops its oldest group on overflow.
 
-Urgent turns are capped by their own hourly rate limit, `rate_limit.urgent_max` (default 120). They do not count toward the tier-2 or overall caps, and the cooldown the overall cap starts does not hold them.
+Urgent turns are capped by their own hourly rate limit, `rate_limit.urgent_max` (default 120), and they do not count toward the tier-2 or overall caps; the cooldown the overall cap starts does not hold them.
 
 ## Relations
 
-`GET /relations` and `GET /presets/<id>/relations` return the character's relation store: the relation the backend has rated toward the user and toward each other preset (`docs/reference/client-tools.md` § `rate_relation`). `PUT` on the same path replaces the whole store. An external engine that keeps its own relationship record writes it here.
+`GET /relations` and `GET /presets/<id>/relations` return the character's relation store: the relation the backend has rated toward the user and toward each other preset (`docs/reference/client-tools.md` § `rate_relation`). `PUT` on the same path replaces the whole store; that is how an external engine that keeps its own relationship record writes it.
 
 ```json
 {
@@ -195,7 +196,7 @@ The window renders the new relation on its next turn and in its preset row at on
 
 ## Preset switch
 
-The bare routes belong to `main`. A group that arrives on `/signals` after the user switches presets becomes a turn of the newly active preset's backend, whichever backend the producer had in mind. A route under `/presets/<id>/` belongs to that preset's window: its group becomes a turn of that preset's backend, which stays bound to `<id>` across a switch of the active preset.
+The bare routes belong to `main`: a group that arrives on `/signals` after the user switches presets becomes a turn of the newly active preset's backend, whichever backend the producer had in mind. A route under `/presets/<id>/` belongs to that preset's window: its group becomes a turn of that preset's backend, which stays bound to `<id>` across a switch of the active preset.
 
 Each pet window holds its own buffers, so a switch, which reloads `main`, drops every group still buffered there and leaves a bound window's buffers untouched.
 
@@ -211,10 +212,10 @@ A request under `/presets/` whose id no preset has, or whose path after the id i
 
 ### What 200 means
 
-HTTP 200 means that the ingress accepted the wire shape and attempted to emit the batch to its target window. It does not confirm receipt or delivery, and the envelope is forwarded unchanged and stamped with server time.
+HTTP 200 means that the ingress accepted the wire shape and attempted to emit the batch to its target window; it does not confirm receipt or delivery. The envelope is forwarded unchanged and stamped with server time.
 
 ::: warning
-A 200 answers the wire shape only. The batch can still lose a group after it: an invalid envelope is dropped as a whole, and one warning records the item count.
+A 200 answers the wire shape only. The batch can still lose a group after it: while signals are enabled, an invalid envelope is dropped as a whole, and one warning records the item count.
 :::
 
 ### Dropped envelopes

@@ -1,7 +1,7 @@
 # Client tools
 
-A client tool is a tool YUI declares to the backend and runs itself. This page is the contract for
-the eight of them: arguments, results, the transports that carry each call, and the code that
+A client tool is a tool YUI runs itself when the backend calls it, and this page is the contract
+for the eight of them: arguments, results, the transports that carry each call, and the code that
 declares and runs it. A backend author reads it to make a call; a client author reads it to add a
 tool.
 
@@ -15,13 +15,13 @@ flowchart TB
   A --> G["Backend capability and adding a tool"]
 ```
 
-The table lists each tool with its purpose, arguments, result, transports, and the code that builds
-and runs it.
+Each row gives one tool's purpose, its arguments and result, the transports that carry it, and the
+code that builds and runs it.
 
 | Name | Purpose | Arguments and result | Transports | Schema built in | Call executed in |
 |---|---|---|---|---|---|
 | `generate_express` | Places an expression cue (face, body motion, voice tone) on the speech around the call | Arguments `emotion_id`, `motion_id`, `emotion_text`, `caption`, each optional ([cue contract](client-context.md#tool-arguments)). Result: the string `ok` | Responses and Chat Completions as a declared tool. Push as cues inside `render` and `speech` segments | `createGenerateExpressTool` in `src/io/chat/tools/express.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts` |
-| `body_action` | Moves the body: sit on a window's top edge, peek around its edge, move to a named spot, stand up, or lie down on a bed | Arguments `action` plus the field it needs: `app` for `sit_on_window`, `side` for `peek`, `spot` and an optional `monitor` for `move_to`; `stand` and `go_to_bed` need none. Result: `ok`, or one word — `not_found`, `blocked`, `interrupted`, `busy`, `unsupported`, `timeout` — or `error: missing field <app\|side\|spot>` and `error: invalid field <app\|side\|spot>` for an absent or invalid argument | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createAvatarTools` in `src/io/chat/tools/avatar.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
+| `body_action` | Moves the body: sit on a window's top edge, peek around its edge, move to a named spot, stand up, or lie down on a bed | Arguments `action` plus the field it needs: `app` for `sit_on_window`, `side` for `peek`, `spot` and an optional `monitor` for `move_to`; `stand` and `go_to_bed` need none. Result: `ok`, or one of the words `not_found`, `blocked`, `interrupted`, `busy`, `unsupported`, `timeout`, or `error: missing field <app\|side\|spot>` and `error: invalid field <app\|side\|spot>` for an absent or invalid argument | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createAvatarTools` in `src/io/chat/tools/avatar.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
 | `look` | Reads the character's body state, perch targets, or a display screenshot | Argument `at`: `body`, `perch_targets`, or `screen`; optional integer `monitor` for `screen`, using the same display number as `body_action.monitor`. Omitted `monitor` selects the character's display; other targets ignore it. Body and perch results are JSON strings. Screen success is `{ text: "screenshot of display <n>", images: [dataUrl] }`; refusal is `error: screen capture is off`, and an invalid monitor is `error: invalid field monitor` | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createAvatarTools` in `src/io/chat/tools/avatar.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
 | `rate_relation` | Moves this character's relation toward the user or another open character by one small step, with the reason | Arguments `toward` (string: `user` or a name from the `open characters:` line), `delta` (enum: -2, -1, 1, 2), `why` (string, at most 80 characters). Result: the new band word (`hostile`, `cold`, `neutral`, `warm`, `close`), `clamped: <band>` when the daily cap or the range held the value, `ignored: already rated <toward> this turn`, `error: unknown target`, `error: invalid field delta` for a `delta` outside the enum, `error: invalid field why` for a non-string `why`, `error: reserved reason` for the `why` `set by the user`, or `error: relations are off` while the Relations switch is off | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createRateRelationTool` in `src/io/chat/tools/relation.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
 | `address_character` | Names the character this reply is for, so that character receives a turn after the reply's playback | Arguments `to` (string: a name from the `open characters:` line) and optional boolean `handoff`, which passes the user's message to that character to answer. Result: `ok`, `ignored: already addressed <name>`, `error: unknown target` | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createAddressCharacterTool` in `src/io/chat/tools/address-character.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
@@ -54,7 +54,7 @@ tools a window hands it. `src/io/chat/tools/pet-window-tools.ts` builds that lis
 | A bound pet window | `rate_relation`, `address_character`, and under Tauri the bridge tools |
 | The browser build | `rate_relation` and `address_character` |
 
-`main` alone creates the avatar executor, so `body_action` and `look` run on it alone.
+`main` alone creates the avatar executor, so only that window runs `body_action` and `look`.
 
 `src/app/turn/wire-dispatcher.ts` builds the registry from that list for each turn, as the
 `clientTools` dependency of the backend caller. The registry reads the vocabulary loaded at that
@@ -63,7 +63,7 @@ motion selection) reaches the schema on the next turn.
 
 ### When look is declared
 
-`look` declaration is independent of both screenshot settings. `main` alone declares `look`; the
+The `look` declaration is independent of both screenshot settings. `main` alone declares `look`; the
 browser build and a bound pet window declare none, so a push call there answers
 `error: unknown tool`. A declared `look` whose executor is not yet available answers
 `error: unsupported`.
@@ -121,9 +121,10 @@ sequenceDiagram
   participant B as Backend
   Y->>B: request with tools[]
   B-->>Y: speech, then a call
-  Note over Y: Chat Completions holds the fragments until finish_reason. Responses runs the call on the first event that carries its arguments
+  Note over Y: Chat Completions holds the fragments until a finish_reason or the stream end. Responses runs the call on the first event that carries its arguments
   Y->>Y: run the call, in index order on Chat Completions
   Note over Y: a generate_express cue plays here, before any round trip is sent
+  Note over Y,B: only for a tool that answers a question, or cues with no text
   Y->>B: request with the speech, the call and its result
   B-->>Y: the spoken reply
 ```
@@ -166,7 +167,7 @@ On both transports the cue plays before any round trip is sent.
 
 The results go back to the model in two cases:
 
-1. A tool that answers a question ran. Its result is the reason the model called it.
+1. A tool that answers a question ran, and its result is the reason the model called it.
 2. Only cue-only tools ran and the model stopped to wait for them. On Chat Completions that is a response with no text that ended with `finish_reason: "tool_calls"`. On Responses, which has no `finish_reason`, it is a response with no text.
 
 `generate_express` is cue-only. A response that spoke alongside its cues is a complete turn, and
@@ -262,18 +263,18 @@ follows a 404.
 
 ### Tools the backend runs
 
-A tool outside the registry runs on the backend. The client shows it as tool status and sends no
+A tool outside the registry runs on the backend, and the client shows it as tool status and sends no
 result.
 
 Responses shows `running` when the call item is added and `done` when it completes. Chat Completions
 shows `done` alone, when the held call is released.
 
-Only the exact `generate_express` tool name plays an expression cue. Only registered tools receive
-an answer.
+Only a tool whose name is exactly `generate_express` plays an expression cue, and only a registered
+tool receives an answer.
 
 ### What the next turn carries
 
-Tool traffic lives in the in-flight request. The next Chat Completions turn is rebuilt from the
+Tool traffic lives in the in-flight request, and the next Chat Completions turn is rebuilt from the
 stored transcript, which holds user and assistant speech text.
 
 A Responses turn chains on the id of the previous turn's last response. A 404 for a stored id resets
@@ -351,8 +352,8 @@ user message produces a plain address even when `handoff` is true.
 
 ### After the reply
 
-One call per reply: a second call in the same turn answers `ignored: already addressed <name>`, the
-character named first, and changes nothing.
+One call per reply: a second call in the same turn changes nothing and answers
+`ignored: already addressed <name>`, where the name is the character addressed first.
 
 The call records the recipient on the turn, and when the turn ends `ok` having spoken and the
 reply's playback has finished, the client emits the `yui://character-addressed` bridge event. The
@@ -391,8 +392,8 @@ snapshot it publishes itself.
 The lookup sees enabled plugins only, and the host hides a name another holder keeps.
 
 A built-in client tool name stays with the built-in, and the built-in names claim tools only, so a
-skill may carry one. A name a plugin enabled earlier keeps, in enable order (`enabled_seq`); a
-second server of the same plugin that declares the same name loses it too.
+skill may carry one. A name belongs to the plugin enabled earlier, in enable order (`enabled_seq`),
+and a second server of the same plugin that declares the same name loses it too.
 
 The hidden entry leaves the tools and skills lists, and both `plugin_describe` and `plugin_call` see
 it as absent.
@@ -468,7 +469,7 @@ argument as its status id (`statusId`), so the pill reads `echo_args` while `plu
 push the client shows that call's own running and terminal state (`localStatus`), and a backend
 `tool_status` naming `plugin_call` leaves the pill as it is ([push-transport.md](push-transport.md)).
 
-No call asks the user again. Enabling the plugin in settings records consent for its folder, and the
+No call asks the user again: enabling the plugin in settings records consent for its folder, and the
 host starts its servers and publishes its tools only while that consent holds. A plugin whose folder
 moved since it was enabled starts no server, so its names answer
 `error: unknown plugin tool: <name>`.
@@ -482,8 +483,8 @@ character called it.
 `look at: screen` requires an image-capable model and provider on the backend.
 
 Cue delivery over a request transport needs an endpoint that serves the declared tool back as a
-call. A plain OpenAI-compatible server (e.g. vLLM) does, on Chat Completions as `delta.tool_calls`
-fragments and on Responses as `function_call` output items.
+call. A plain OpenAI-compatible server (e.g. vLLM) does this, on Chat Completions as
+`delta.tool_calls` fragments and on Responses as `function_call` output items.
 
 On Chat Completions and Responses every declared schema rides every request, and the model reads it
 on every turn.
