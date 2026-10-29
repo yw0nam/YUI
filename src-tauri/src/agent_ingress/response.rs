@@ -23,10 +23,10 @@ pub(super) fn respond_json(request: tiny_http::Request, outcome: Result<serde_js
 }
 
 // The slot preserves the request for a 503 response when spawning fails.
-pub(super) fn spawn_response(
+pub(super) fn spawn_request(
     name: &'static str,
     request: tiny_http::Request,
-    work: impl FnOnce() -> Result<serde_json::Value, u16> + Send + 'static,
+    work: impl FnOnce(tiny_http::Request) + Send + 'static,
 ) {
     let slot = Arc::new(Mutex::new(Some(request)));
     let thread_slot = slot.clone();
@@ -36,7 +36,7 @@ pub(super) fn spawn_response(
             .unwrap_or_else(PoisonError::into_inner)
             .take();
         if let Some(request) = taken {
-            respond_json(request, work());
+            work(request);
         }
     });
     if let Err(error) = spawned {

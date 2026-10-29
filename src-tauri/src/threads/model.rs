@@ -316,7 +316,7 @@ pub(crate) mod tests {
         for (field, max) in [("ask_id", 128), ("prompt", 500), ("placeholder", 200)] {
             for value in [json!(3), json!("x".repeat(max + 1))]
                 .into_iter()
-                .chain((field != "placeholder").then(|| json!(null)))
+                .chain((field != "placeholder").then_some(Value::Null))
                 .chain((field != "placeholder").then(|| json!("")))
             {
                 let mut v = body();
@@ -344,7 +344,7 @@ pub(crate) mod tests {
         for field in ["id", "label", "tone"] {
             for value in [json!(3), json!(""), json!("x".repeat(65))]
                 .into_iter()
-                .chain((field != "tone").then(|| json!(null)))
+                .chain((field != "tone").then_some(Value::Null))
             {
                 let mut v = body();
                 v["ask"]["choices"][0][field] = value;

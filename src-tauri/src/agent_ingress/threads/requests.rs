@@ -1,4 +1,4 @@
-use super::super::response::{respond_json, spawn_response};
+use super::super::response::{respond_json, spawn_request};
 use super::routes::ThreadRoute;
 use super::waits::WaitSlots;
 use crate::os_event_watcher::epoch_ms;
@@ -22,16 +22,17 @@ pub(in crate::agent_ingress) fn handle(
                 respond_json(request, Err(503));
                 return;
             };
-            spawn_response("threads_answer", request, move || {
+            spawn_request("threads_answer", request, move |request| {
                 let _permit = permit;
-                match store.wait_answer(&id, &ask_id, wait) {
+                let result = match store.wait_answer(&id, &ask_id, wait) {
                     WaitOutcome::Answer(answer) => {
                         Ok(serde_json::to_value(answer).expect("answer serializes"))
                     }
                     WaitOutcome::NoAnswer => Err(204),
                     WaitOutcome::Gone => Err(410),
                     WaitOutcome::Unknown => Err(404),
-                }
+                };
+                respond_json(request, result);
             });
         }
     }

@@ -420,7 +420,6 @@ mod tests {
             choice: None,
             text: None,
             release: Some(true),
-            ..answer()
         };
         assert_eq!(s.answer("t", a, 5), Ok(()));
         assert_eq!(s.snapshot().threads[0].entries.len(), 1);
