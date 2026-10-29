@@ -372,3 +372,36 @@ def test_probe_rejects_endpoint_path(tmp_path, server, capsys, path):
     assert main(["probe", "--endpoint", url], env={"XDG_CONFIG_HOME": str(tmp_path)}) == 1
     assert capsys.readouterr().out == f"invalid endpoint: use http://127.0.0.1:<port> with no path: {url}\n"
     assert received.polls == []
+
+
+@pytest.mark.parametrize("channel", ["live", "stale", "missing"])
+def test_claude_stop_channel_never_waits(tmp_path, server, capsys, monkeypatch, channel):
+    import os
+    from uuid import UUID
+
+    endpoint, received = server
+    path = tmp_path / "state" / "yui-notify" / "channels" / "8864"
+    path.parent.mkdir(parents=True)
+    if channel != "missing":
+        path.write_text(str(os.getpid()) if channel == "live" else "2147483647")
+
+    def wait(*args):
+        pytest.fail("Claude hooks never call wait_for_answer")
+
+    monkeypatch.setattr("yui_notify.hook.wait_for_answer", wait)
+    run_hook(tmp_path, endpoint, "claude-stop.json")
+    body = received[0][1]
+    assert body["state"] == ("input-required" if channel == "live" else "completed")
+    if channel == "live":
+        ask = body["ask"]
+        assert str(UUID(ask["ask_id"].removeprefix("next:"))).replace("-", "") == ask["ask_id"][5:]
+        assert ask == {
+            "ask_id": ask["ask_id"],
+            "prompt": "What next?",
+            "text": True,
+            "placeholder": "Next instruction",
+        }
+    else:
+        assert body["ask"] is None
+    assert received.polls == []
+    assert capsys.readouterr().out == ""

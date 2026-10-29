@@ -289,6 +289,27 @@ mod tests {
     }
 
     #[test]
+    fn any_ask_delivers_oldest_pending_once_and_never_gone() {
+        let s = store();
+        assert_eq!(s.wait_answer("t", None, Duration::ZERO), WaitOutcome::Unknown);
+        s.upsert("t", input(), 1);
+        assert_eq!(s.wait_answer("t", None, Duration::ZERO), WaitOutcome::NoAnswer);
+        s.answer("t", answer(), 2).unwrap();
+        let mut next = input();
+        if let AskUpdate::Set(ref mut ask) = next.ask {
+            ask.ask_id = "b".into();
+        }
+        s.upsert("t", next, 3);
+        let mut b = answer();
+        b.ask_id = "b".into();
+        s.answer("t", b.clone(), 4).unwrap();
+        for (input, at) in [(answer(), 2), (b, 4)] {
+            assert_eq!(s.wait_answer("t", None, Duration::ZERO), WaitOutcome::Answer(Answer { input, at }));
+        }
+        assert_eq!(s.wait_answer("t", None, Duration::ZERO), WaitOutcome::NoAnswer);
+    }
+
+    #[test]
     fn entries_append_stamp_and_cap() {
         let s = store();
         for batch in 0..3 {

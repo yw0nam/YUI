@@ -136,6 +136,11 @@ mod tests {
     use super::*;
     use std::collections::HashSet;
     #[test]
+    fn threads_answer_accepts_no_ask_id() {
+        assert!(parse_route("GET", "/threads/a/answer?wait=0", "").is_ok());
+    }
+
+    #[test]
     fn threads_routes_parse_values_and_refuse_invalid_requests() {
         for (method, path, code) in [
             ("PUT", "/threads", 404),
@@ -146,7 +151,6 @@ mod tests {
             ("PUT", "/presets/x/threads/a", 404),
             ("POST", "/threads/a", 405),
             ("POST", "/threads/a/answer?ask_id=q", 405),
-            ("GET", "/threads/a/answer", 400),
             ("GET", "/threads/a/answer?ask_id=q&wait=26", 400),
             ("GET", "/threads/a/answer?ask_id=q&wait=-1", 400),
             ("GET", "/threads/a/answer?ask_id=q&wait=1.5", 400),
