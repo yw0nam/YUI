@@ -42,3 +42,22 @@ def test_permission_request_posts_ask(monkeypatch, preview):
             "placeholder": "Or tell Claude what to do instead",
         },
     }
+
+
+def test_permission_put_failure_records_error(tmp_path, monkeypatch):
+    from channel.relay import PermissionRequest, relay
+
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path))
+    monkeypatch.setattr("channel.relay.put", lambda *args: (503, None, "HTTP 503 Unavailable"))
+    asyncio.run(
+        relay(
+            "http://localhost/threads/t",
+            {"project": "demo", "branch": None, "host": None, "tmux": None},
+            PermissionRequest(request_id="r1", tool_name="Bash", description="Run", input_preview="ls"),
+        )
+    )
+    path = tmp_path / "yui-notify" / "last-error.json"
+    assert path.exists() is True
+    recorded = json.loads(path.read_text())
+    recorded.pop("time")
+    assert recorded == {"url": "http://localhost/threads/t", "status": 503, "error": "HTTP 503 Unavailable"}
