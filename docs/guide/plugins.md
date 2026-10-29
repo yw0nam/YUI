@@ -6,15 +6,15 @@ Plugins add MCP servers and skills to the backend of every character. The page i
 
 ## Install
 
-**Available plugins** lists the catalog entries for your platform that are not installed, each with a source badge and version. **Official** plugins are reviewed and built in the YUI repository; **Community** ones come as their author published them, checked against the author's `checksums.txt`. **Install** unpacks the release into the app's data folder. An installed plugin starts off.
+**Available plugins** lists the catalog entries for your platform that are not installed, each with a source badge and version. **Official** plugins are reviewed and built in the YUI repository; **Community** ones come as their author published them, checked against the author's `checksums.txt`. **Install** unpacks the release into the app's data folder, and a failure shows its reason with **Retry**. An installed plugin starts off.
 
 ## Turn on with consent
 
-The first time you turn a plugin on, the switch asks in two steps. The first shows **Source**, **Version**, and **Launch command**, and **Allow** records your approval and starts the servers with your permissions, for every character. The second lists the tools and skills the backend now sees. That first step is the only gate: a local plugin is approved once for its folder, an Official update keeps the approval, and a Community update clears it and asks again.
+The first time you turn a plugin on, the switch asks in two steps. The first shows **Source**, **Version**, and **Launch command**, and **Allow** records your approval and starts the servers with your permissions, for every character. The second lists the tools and skills the backend now sees. That first step is the only gate: a local plugin is approved once for its folder.
 
 ## Update
 
-**Update to v&lt;version&gt;** installs that version in place of the old one. **Check for updates** reloads the catalog and reports **Updates: n** or **All up to date**.
+**Update to v&lt;version&gt;** installs that version in place of the old one, and an Official update keeps the plugin running. A Community update clears the approval, and the row shows **Allow again…** with a note that the update changed its contents. **Check for updates** reloads the catalog and reports **Updates: n** or **All up to date**.
 
 ## Remove
 
@@ -34,8 +34,6 @@ The first time you turn a plugin on, the switch asks in two steps. The first sho
 | **Exited** | The server ran and then ended, with its reason; **Restart** starts it again |
 | **Off** | The plugin is off, so nothing runs |
 
-A plugin that fails to start stays on, and the app tries its servers again the next time it opens.
-
 ## Hidden names
 
 A tool or skill name belongs to one holder: a built-in tool first, then each plugin in turn-on order. A later plugin with a taken name keeps running and hides that name, and the page names every hidden name and its holder.
@@ -43,5 +41,10 @@ A tool or skill name belongs to one holder: a built-in tool first, then each plu
 ## Log
 
 **Log** shows the plugin's last lines, up to 20, and **Open log folder** opens the folder with the full logs, `plugins/<id>_YYYY-MM-DD.log` in the app's log folder, `~/Library/Logs/com.yui.desktop/` on macOS in a release build.
+
+## Tips
+
+- A failed start leaves the plugin on, and the app tries its servers again at the next launch.
+- Changing the files in a local plugin's folder does not ask for consent again.
 
 To write a plugin, see [Write a plugin](./write-a-plugin.md).

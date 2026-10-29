@@ -4,15 +4,15 @@ What you can do together with YUI on your desktop.
 
 ## She lives on your screen
 
-She stands over your other windows as a transparent character who breathes, blinks, follows your cursor, sits on a window's top edge, peeks out from behind it, strolls, falls, and reacts to taps and a held head pat.
+She stands over your other windows as a transparent character who breathes, blinks, follows your cursor, sits on a window's top edge, peeks out from behind it, and reacts to taps and a held head pat.
 
 ## Talk to her
 
-Type or speak to her, attach images by paste, drag, or the clip button, and stop a reply or cut her off by speaking. She answers in a speech bubble, and the message window keeps the conversation apart from her.
+Type or speak to her, attach images by paste, drag, or the clip button, and stop a reply or cut her off by speaking. She answers in a speech bubble or the message window. With two or more characters on the desktop, **Unified chat** gives one window for all of them.
 
 ## How she feels about you
 
-Each character keeps a Relation toward you and every other character. Her backend moves it with the `rate_relation` tool, and you set it by hand on the Body page.
+Each character keeps a Relation toward you and every other character. Her backend moves it with the `rate_relation` tool, and you set it by hand on the Body page. With **Relations** off, no one is rated.
 
 ## Her voice and expressions
 
@@ -20,7 +20,7 @@ She speaks her replies aloud in a voice you choose or import, and her mouth, fac
 
 ## She speaks first
 
-She can greet you at set times, check in after idle time, welcome your first activity of the day, comment on app switches, and stay silent.
+She can greet you at set times, check in after idle time, welcome your first activity of the day, and stay silent. If you turn on screen watching, she can comment when you switch apps or stay in one app for a long time.
 
 ## Your coding agents
 
@@ -28,7 +28,7 @@ With External signals on, she tells you when a coding agent finishes a task or n
 
 ## On the web
 
-With the official `browser` plugin installed and turned on, she can search and read web pages in [ego lite](https://github.com/yw0nam/YUI/blob/main/plugins/browser/README.md), the only browser this works with. While it is on, the backend runs JavaScript on this computer with no sandbox.
+With the official `browser` plugin installed and turned on, she can search and read web pages in [ego lite](https://github.com/yw0nam/YUI/blob/main/plugins/browser/README.md), the only browser this works with. While it is on, a script runs with your rights and can read your files, run programs, and reach every site signed in on ego lite's YUI profile.
 
 ## Delegated work
 
@@ -36,7 +36,7 @@ When her backend runs work in the background for you, a chip near her lists that
 
 ## Conversation history
 
-The History tab keeps your past conversations on your device, with every Signal she received. You can start a fresh conversation at any time.
+The History tab keeps your past conversations and every Signal on your device; you can start fresh at any time.
 
 ## Choose her mind
 

@@ -26,7 +26,7 @@ Every key, click, and menu that moves her.
 | Wheel | Zooms in and out |
 | `Ctrl` + wheel | Resizes her, feet in place |
 | `Shift` + drag | Orbits the camera |
-| Right-click | Opens the quick card: Voice, Listen, Keep bubble, Unified chat, Body, Reference voice, Reset…, Turn off, All settings… |
+| Right-click | Opens the quick card: Voice, Listen, Keep bubble, Unified chat, Body, Reference voice, Reset…, Turn off for another character, All settings… |
 
 ## Text input
 
@@ -58,8 +58,8 @@ Every key, click, and menu that moves her.
 
 | Action | What happens |
 | --- | --- |
-| Listen | The Listen switch in her quick card, or **Voice input** on Listening and bubble |
-| Barge-in | Speaking while she talks cuts her off |
+| Listen | The Listen switch in her quick card, main window only, or **Voice input** on Listening and bubble |
+| Barge-in | On by default; speaking while she talks cuts her off |
 | Reading dictionary | Changes only the text sent to the voice, never the bubble |
 
 ## Tray and chips

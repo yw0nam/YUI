@@ -49,7 +49,7 @@ Everything YUI does today, grouped by area. [What she can do](capabilities.md) c
 | Provider presets | OpenAI, Ollama, LM Studio, Groq, Hermes Agent, and a custom endpoint |
 | Per-turn context | Time, frontmost app, a screenshot, posture, last outcome ([format](../reference/client-context.md)) |
 | Silence | An empty reply or a bare `[SILENT]` token as a silent turn |
-| Delegated tasks | A chip for background work, with saved history on push |
+| Delegated tasks | On push, a chip for background work, with saved history |
 
 ## Proactive and context
 
@@ -61,16 +61,17 @@ Everything YUI does today, grouped by area. [What she can do](capabilities.md) c
 | Guardrails | Per-source debounce, hourly caps, a 2-turn chain cap, a 10-minute quiet gap |
 | Loopback ingress | Local listener for hooks, signals, and avatar RPC, off by default |
 | Signals ingress | `POST /signals` for batches of external signals ([envelope](../reference/signals-ingress.md)) |
-| Daily briefing | Speaks dated briefings on first activity or on request ([skill](https://github.com/yw0nam/YUI/blob/main/integrations/skills/yui-daily-briefing/SKILL.md)) |
+| Daily briefing | Speaks dated briefings on first activity or on request, with Scheduled greeting on ([skill](https://github.com/yw0nam/YUI/blob/main/integrations/skills/yui-daily-briefing/SKILL.md)) |
 | Witness log | App switches and idle periods, kept 14 days ([format](../reference/witness-log.md)) |
-| Workflows | Saved endpoints fired from a button on Proactive |
+| Workflows | Saved endpoints fired from a button on Proactive; the first run is a connection test |
 
 ## Extensibility
 
 | Feature | What it does |
 | --- | --- |
-| Plugins | Backend-attached MCP servers under `plugins/`, such as the [Factorio bridge](https://github.com/yw0nam/YUI/blob/main/plugins/factorio/README.md), installed from [Plugins](plugins.md) |
-| Integrations | Backend adapters and backend-agnostic skills under `integrations/`, such as Hermes |
+| Plugins | MCP servers and skills under `plugins/`, attached through the backend agent's MCP configuration, such as the [Factorio bridge](https://github.com/yw0nam/YUI/blob/main/plugins/factorio/README.md) |
+| Plugins page | Installs catalog plugins such as `browser` and runs their servers with consent ([Plugins](plugins.md)) |
+| Integrations | Wiring for one backend agent and backend-agnostic skills under `integrations/`, such as Hermes |
 
 ## Platform
 
@@ -80,6 +81,6 @@ Everything YUI does today, grouped by area. [What she can do](capabilities.md) c
 | Appearance | Dawn and Hearth themes, following the OS by default |
 | Configuration | Settings validated at load, with hot-reload in development |
 | Logs | One file per day, frontend and Rust lines together ([convention](../reference/logging.md)) |
-| Platforms | macOS Apple Silicon and Windows x64; no Intel Mac or Linux |
+| Platforms | macOS Apple Silicon and Windows x64; Intel Mac and Linux are not officially supported |
 
 For each release, see [What's new](whats-new.md).
