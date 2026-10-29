@@ -128,6 +128,54 @@ mod tests {
     use super::*;
     use std::collections::HashSet;
     #[test]
+    fn threads_put_accepts_bare_route() {
+        assert!(
+            parse_route(
+                "PUT",
+                "/threads/a_Z-0.:9",
+                r#"{"source":"codex","title":"Build","state":"working"}"#
+            )
+            .is_ok(),
+            "valid bare Thread PUT is accepted"
+        );
+    }
+
+    #[test]
+    fn threads_route_refusals() {
+        for (method, path, code) in [
+            ("PUT", "/threads", 404),
+            ("PUT", "/threads/", 404),
+            ("PUT", "/threads/a%20b", 404),
+            ("PUT", "/threads/한", 404),
+            ("PUT", "/threads/a/b", 404),
+            ("PUT", "/presets/x/threads/a", 404),
+            ("POST", "/threads/a", 405),
+            ("POST", "/threads/a/answer?ask_id=q", 405),
+            ("GET", "/threads/a/answer", 400),
+            ("GET", "/threads/a/answer?ask_id=q&wait=26", 400),
+            ("GET", "/threads/a/answer?ask_id=q&wait=-1", 400),
+            ("GET", "/threads/a/answer?ask_id=q&wait=1.5", 400),
+        ] {
+            assert_eq!(
+                parse_route(method, path, "{}").unwrap_err(),
+                code,
+                "{method} {path}"
+            );
+        }
+        assert_eq!(
+            parse_route("PUT", &format!("/threads/{}", "x".repeat(129)), "{}").unwrap_err(),
+            404
+        );
+        for path in [
+            "/threads/a/answer?ask_id=q",
+            "/threads/a/answer?ask_id=q&wait=0",
+            "/threads/a/answer?ask_id=q&wait=25",
+        ] {
+            assert!(parse_route("GET", path, "").is_ok(), "{path}");
+        }
+    }
+
+    #[test]
     fn a_missing_envelope_is_refused() {
         assert_eq!(
             parse_route("POST", "/signals", r#"{"signals":[{"id":1}]}"#).unwrap_err(),

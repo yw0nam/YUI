@@ -26,6 +26,7 @@ pub(crate) mod avatar_rpc;
 mod guard;
 mod payload;
 mod route;
+mod thread_waits;
 
 /// Preset ids main publishes for distinguishing closed windows from unknown presets.
 #[derive(Default)]
