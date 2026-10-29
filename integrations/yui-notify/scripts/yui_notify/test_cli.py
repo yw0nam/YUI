@@ -141,6 +141,15 @@ def test_hook_posts_thread(tmp_path, server, fixture, state, role, text, ask):
     assert body == expected
 
 
+def test_channel_answer_is_not_posted_again(tmp_path, server):
+    endpoint, received = server
+    run_hook(tmp_path, endpoint, "claude-channel-prompt.json")
+    body = received[0][1]
+    assert body["state"] == "working"
+    assert body["entries"] == []
+    assert body["ask"] is None
+
+
 @pytest.mark.parametrize(
     "fixture,answer,expected",
     [

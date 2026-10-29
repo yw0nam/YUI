@@ -99,6 +99,16 @@ def load(fixture, rollout=NO_ROLLOUT):
         ),
         ("claude-stop.json", {}, None),
         (
+            "claude-user-prompt.json",
+            CLAUDE_ENV,
+            ("claude-code", "UserPromptSubmit", "bc68d697-4e8f-4be0-8ea6-e67f955b2586", "Please fix the upload client."),
+        ),
+        (
+            "claude-channel-prompt.json",
+            CLAUDE_ENV,
+            ("claude-code", "UserPromptSubmit", "bc68d697-4e8f-4be0-8ea6-e67f955b2586", ""),
+        ),
+        (
             "claude-session-start.json",
             CLAUDE_ENV,
             ("claude-code", "SessionStart", "bc68d697-4e8f-4be0-8ea6-e67f955b2586", ""),
@@ -122,6 +132,8 @@ def load(fixture, rollout=NO_ROLLOUT):
         "codex-permission",
         "codex-under-claude-shell",
         "no-agent-env",
+        "claude-user-prompt",
+        "claude-channel-prompt-no-entry",
         "claude-start-synthetic",
         "claude-start-sdk-skipped",
         "codex-start-synthetic",
