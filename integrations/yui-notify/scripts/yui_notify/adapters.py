@@ -71,8 +71,8 @@ def parse_event(data: Any, env: Mapping[str, str]) -> Event | None:
         and not _codex_interactive(data.get("transcript_path"))
     ):
         return None
-    # /clear keeps the same Thread alive in the continuing session
-    if agent == "claude-code" and phase == "SessionEnd" and data.get("reason") == "clear":
+    # /clear and /resume keep the same Thread alive in the continuing session
+    if agent == "claude-code" and phase == "SessionEnd" and data.get("reason") in ("clear", "resume"):
         return None
     if phase == "Stop":
         text = data.get("last_assistant_message") or ""
