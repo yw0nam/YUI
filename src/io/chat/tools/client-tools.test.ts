@@ -61,17 +61,19 @@ describe("createGenerateExpressTool — definition", () => {
     expect(String(emotionText.description)).toMatch(/no emoji/);
   });
 
-  it("enum-mode emotion_text enumerates the provider's tags and carries their meanings", () => {
+  it("enum-mode emotion_text takes a sequence of the provider's tags and carries their meanings", () => {
     const tool = createGenerateExpressTool(
-      vocab({ emotionText: { mode: "enum", table: { "👂": "Whisper", "🤭": "Giggle" } } }),
+      vocab({ emotionText: { mode: "enum", table: { "👂": "Whisper", "😮‍💨": "Sigh" } } }),
     );
     const emotionText = tool.definition.function.parameters.properties.emotion_text as Record<
       string,
       unknown
     >;
-    expect(emotionText.enum).toEqual(["👂", "🤭"]);
+    const pattern = new RegExp(String(emotionText.pattern), "u");
+    for (const value of ["👂", "👂👂", "😮‍💨👂"]) expect(value).toMatch(pattern);
+    for (const value of ["", "whisper", "👂 softly", "😮"]) expect(value).not.toMatch(pattern);
     expect(emotionText.description).toContain("👂 = Whisper");
-    expect(emotionText.description).toContain("🤭 = Giggle");
+    expect(emotionText.description).toContain("😮‍💨 = Sigh");
   });
 
   it("declares caption as free text, with no enum and no vocabulary tie", () => {

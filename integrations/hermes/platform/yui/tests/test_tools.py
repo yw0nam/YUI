@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 
 import pytest
 from gateway_stub import STUB_ENV
@@ -72,10 +73,14 @@ def test_an_empty_motion_vocabulary_drops_motion_from_the_schema_and_the_descrip
     assert "body motion" not in schema["description"]
 
 
-def test_enum_mode_puts_the_tag_table_in_the_schema():
+def test_enum_mode_takes_a_sequence_of_table_tags():
     fields = cues_property(Vocabulary(emotion_text_mode="enum", emotion_text_map=ENUM_TABLE))["items"]
     emotion_text = fields["properties"]["emotion_text"]
-    assert emotion_text["enum"] == ["😆", "👂"]
+    pattern = re.compile(emotion_text["pattern"])
+    for value in ["😆", "😆😆", "👂😆"]:
+        assert pattern.search(value)
+    for value in ["", "joyfully", "😆 loudly"]:
+        assert not pattern.search(value)
     assert "😆 = joyfully" in emotion_text["description"]
 
 
