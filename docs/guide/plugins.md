@@ -23,7 +23,7 @@ The first time you turn a plugin on, the switch asks before anything runs, in tw
 
 1. The first step shows the plugin's **Source** (badge, review note, and folder), **Version**, and **Launch command**: one line per server, naming the server when the plugin has more than one. **Allow** records your approval and starts the servers with your permissions; every character shares them. **Cancel** closes the step without running anything.
 
-2. The second step lists the tools and skills the backend now sees, with each description. **OK** closes it; the plugin's server lines and a **Tools: n** disclosure then show under the switch.
+2. The second step lists the tools and skills the backend now sees, with each description. **OK** closes it; the plugin's server lines then show under the switch, and a **Tools: n** (or **Tools: n, skills: m**) disclosure follows them when the plugin declares any.
 
 A local plugin is approved once for its folder. Changing the files in that folder does not ask again. A Community update from the catalog does; an Official update does not.
 
@@ -47,7 +47,7 @@ Each server of an installed plugin shows one line:
 
 | State | What it means |
 | --- | --- |
-| **Running** | The server answered and declared its tools; the line adds **Tools: n** when it declared any |
+| **Running** | The server answered and declared its tools; the plugin's tool count is on the tools disclosure |
 | **Starting…** | The server is launching and connecting |
 | **Unavailable** | The server stopped at a start step, which the line names — launch, initialize, or tool list — with the reason. **Retry** starts that server again |
 | **Exited** | The server ran and then ended; the line gives the reason, and **Restart** starts it again |

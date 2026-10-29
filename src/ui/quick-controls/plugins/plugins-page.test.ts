@@ -231,4 +231,32 @@ describe("createPluginsPage", () => {
     expect(sum.textContent).toBe(description);
     expect(page.el.querySelector("img")).toBeNull();
   });
+
+  it("says a running plugin's tool count once, on the tools disclosure", () => {
+    const { page } = mountPage({
+      revision: 1,
+      plugins: [
+        plugin({
+          id: "yui-test",
+          source: "local",
+          servers: [server("yui-test", "main")],
+          tools: ["t1", "t2", "t3", "t4"].map((name) => ({
+            name,
+            server: "yui-test/main",
+            description: null,
+            inputSchema: {},
+            meta: null,
+          })),
+          skills: [{ name: "s1", description: "Skill." }],
+        }),
+      ],
+    });
+
+    expect(group(page.el, "yui-test").querySelector(".yui-plg-sv__state")?.textContent).toBe(
+      "Running",
+    );
+    expect(group(page.el, "yui-test").querySelector(".yui-plg-disc")?.textContent).toBe(
+      "Tools: 4, skills: 1",
+    );
+  });
 });
