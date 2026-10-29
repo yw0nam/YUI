@@ -55,3 +55,25 @@ def test_discover_ps_output_with_apostrophe(monkeypatch, flag, separator):
     except ValueError:
         actual = None
     assert actual == (20, True)
+
+
+@pytest.mark.parametrize("source", ["socket", "node"])
+def test_discover_socket_or_node_parent(monkeypatch, source):
+    from types import SimpleNamespace
+    from channel.identity import discover
+
+    monkeypatch.delenv("CLAUDE_PID", raising=False)
+    monkeypatch.setattr("os.getppid", lambda: 30)
+    monkeypatch.setenv("CLAUDE_CODE_MESSAGING_SOCKET", "/tmp/cc-socks/80.sock" if source == "socket" else "")
+    table = {
+        30: "20 uv run python server.py",
+        20: "1 node /opt/npm/claude --channels plugin:yui-notify@yui" if source == "node" else "1 codex",
+        80: "1 claude --channels plugin:yui-notify@yui",
+    }
+    monkeypatch.setattr("subprocess.run", lambda args, **kwargs: SimpleNamespace(stdout=table[int(args[-1])]))
+    try:
+        identity = discover()
+        actual = identity.pid, identity.ready
+    except ValueError:
+        actual = None
+    assert actual == ((80, True) if source == "socket" else (20, True))
