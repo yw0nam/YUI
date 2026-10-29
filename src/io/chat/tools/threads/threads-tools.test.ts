@@ -37,12 +37,16 @@ function tools(threads: Thread[] | null) {
 
 async function runList(threads: Thread[] | null, args?: unknown): Promise<string> {
   const tool = tools(threads).find((candidate) => candidate.name === "threads_list")!;
-  return (await tool.execute((args === undefined ? {} : args) as Record<string, unknown>)) as string;
+  return (await tool.execute(
+    (args === undefined ? {} : args) as Record<string, unknown>,
+  )) as string;
 }
 
 async function runSearch(threads: Thread[] | null, args?: unknown): Promise<string> {
   const tool = tools(threads).find((candidate) => candidate.name === "threads_search")!;
-  return (await tool.execute((args === undefined ? {} : args) as Record<string, unknown>)) as string;
+  return (await tool.execute(
+    (args === undefined ? {} : args) as Record<string, unknown>,
+  )) as string;
 }
 
 describe("threads_list", () => {
@@ -163,7 +167,12 @@ describe("threads_list", () => {
 describe("threads_search", () => {
   it("matches case-insensitively in an entry and shows the snippet", async () => {
     const text = await runSearch(
-      [thread({ id: "hit", entries: [{ role: "agent", text: "Deploy failed on prod", at: T.old }] })],
+      [
+        thread({
+          id: "hit",
+          entries: [{ role: "agent", text: "Deploy failed on prod", at: T.old }],
+        }),
+      ],
       { query: "deploy" },
     );
     expect(text).toBe(
@@ -178,10 +187,9 @@ describe("threads_search", () => {
     const labeled = await runSearch([thread({ id: "t1", title: "Release" })], { query: "release" });
     expect(labeled).toContain("t1 | claude-code | Release |");
     expect(labeled.split("\n")[1]).toBe("match: title");
-    const label = await runSearch(
-      [thread({ id: "t2", title: "Plain", label: "hot\nfix" })],
-      { query: "hot" },
-    );
+    const label = await runSearch([thread({ id: "t2", title: "Plain", label: "hot\nfix" })], {
+      query: "hot",
+    });
     expect(label.split("\n")[1]).toBe("match: label");
   });
 
@@ -196,9 +204,7 @@ describe("threads_search", () => {
   });
 
   it(`answers no threads match "<query>"`, async () => {
-    expect(await runSearch([thread({ id: "a" })], { query: "zzz" })).toBe(
-      `no threads match "zzz"`,
-    );
+    expect(await runSearch([thread({ id: "a" })], { query: "zzz" })).toBe(`no threads match "zzz"`);
   });
 });
 

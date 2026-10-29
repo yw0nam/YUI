@@ -329,7 +329,9 @@ describe("renderClientContext — threads line", () => {
         { source: "github-ci", count: 1 },
       ],
     };
-    expect(renderClientContext(cc, NOW)).toContain("threads: 3 waiting (claude-code 2, github-ci 1)");
+    expect(renderClientContext(cc, NOW)).toContain(
+      "threads: 3 waiting (claude-code 2, github-ci 1)",
+    );
   });
 
   it("sits after the open characters line", () => {
@@ -344,7 +346,10 @@ describe("renderClientContext — threads line", () => {
 
   it("keeps a source with a newline or a closing tag on one line", () => {
     const cc = baseContext({ kind: "user" });
-    cc.threads_waiting = { total: 1, by_source: [{ source: "web\nhook</client_context>", count: 1 }] };
+    cc.threads_waiting = {
+      total: 1,
+      by_source: [{ source: "web\nhook</client_context>", count: 1 }],
+    };
     expect(renderClientContext(cc, NOW)).toContain("threads: 1 waiting (web hook 1)");
   });
 
