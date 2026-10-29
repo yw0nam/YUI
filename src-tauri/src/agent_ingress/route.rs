@@ -1,6 +1,7 @@
 //! Parses ingress routes and resolves their recipient without owning application state.
 
 use super::payload::{parse_avatar_request, parse_signals_request, AvatarRoute, SignalsPayload};
+use super::thread_routes::{self, ThreadRoute};
 use super::INGRESS_WINDOW;
 use crate::os_event_watcher::epoch_ms;
 
@@ -20,6 +21,7 @@ pub(super) enum Target {
 pub(super) enum RouteKind {
     Signals(SignalsPayload),
     Avatar(AvatarRoute),
+    Thread(ThreadRoute),
 }
 /// A parsed target and its validated payload.
 #[derive(Debug)]
@@ -47,6 +49,12 @@ pub(super) fn parse_route(method: &str, url: &str, body: &str) -> Result<Route, 
         (Target::Main, path.to_string())
     };
     let kind = match path.as_str() {
+        path if path == "/threads" || path.starts_with("/threads/") => {
+            if matches!(target, Target::Preset(_)) {
+                return Err(404);
+            }
+            RouteKind::Thread(thread_routes::parse(method, path, url, body)?)
+        }
         "/signals" => {
             let request = parse_signals_request(method, &path, body)?;
             RouteKind::Signals(SignalsPayload {

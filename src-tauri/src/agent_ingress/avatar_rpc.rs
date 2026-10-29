@@ -1,4 +1,5 @@
 use super::payload::{AvatarRoute, AvatarRpcRequest, AVATAR_RPC_CHANNEL};
+use super::response::respond_json;
 use crate::os_event_watcher::epoch_ms;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -94,26 +95,6 @@ pub fn avatar_rpc_response(window: tauri::Window, id: String, result: serde_json
     resolve_pending(&id, window.label(), result);
 }
 
-/// Answers the HTTP request with the bridge outcome — the JSON body, or a bare status.
-fn respond_avatar(request: tiny_http::Request, outcome: Result<serde_json::Value, u16>) {
-    match outcome {
-        Ok(value) => {
-            let json = serde_json::to_string(&value).unwrap_or_else(|_| "null".to_string());
-            let header =
-                tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..])
-                    .expect("static header is valid");
-            let _ = request.respond(
-                tiny_http::Response::from_string(json)
-                    .with_header(header)
-                    .with_status_code(200u16),
-            );
-        }
-        Err(code) => {
-            let _ = request.respond(tiny_http::Response::from_string("").with_status_code(code));
-        }
-    }
-}
-
 /// Runs the bridge on its own thread so a 15s gesture never stalls the ingress loop.
 ///
 /// The request travels through a shared slot: whichever side ends up owning it answers,
@@ -134,14 +115,14 @@ pub(super) fn spawn_avatar_request(
         .spawn(move || {
             let taken = thread_slot.lock().ok().and_then(|mut s| s.take());
             if let Some(request) = taken {
-                respond_avatar(request, avatar_rpc(&app, &label, route));
+                respond_json(request, avatar_rpc(&app, &label, route));
             }
         });
     if let Err(e) = spawned {
         log::warn!("avatar_rpc_thread_spawn_failed error={e}");
         let taken = slot.lock().ok().and_then(|mut s| s.take());
         if let Some(request) = taken {
-            respond_avatar(request, Err(503));
+            respond_json(request, Err(503));
         }
     }
 }

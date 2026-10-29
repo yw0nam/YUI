@@ -1,11 +1,24 @@
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[derive(Default)]
 pub(super) struct WaitSlots(AtomicUsize);
-pub(super) struct WaitSlot;
+pub(super) struct WaitSlot<'a>(&'a WaitSlots);
 impl WaitSlots {
-    pub(super) fn acquire(&self) -> Option<WaitSlot> {
-        None
+    pub(super) const fn new() -> Self {
+        Self(AtomicUsize::new(0))
+    }
+    pub(super) fn acquire(&self) -> Option<WaitSlot<'_>> {
+        self.0
+            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |count| {
+                (count < 32).then_some(count + 1)
+            })
+            .ok()?;
+        Some(WaitSlot(self))
+    }
+}
+impl Drop for WaitSlot<'_> {
+    fn drop(&mut self) {
+        self.0 .0.fetch_sub(1, Ordering::AcqRel);
     }
 }
 

@@ -1,7 +1,10 @@
-use super::model::{Answer, Thread, Upsert};
+use super::model::{Answer, AskUpdate, Entry, Role, Thread, ThreadState, Upsert};
 use serde::Serialize;
-use std::time::Duration;
+use std::collections::HashMap;
+use std::sync::{Condvar, Mutex};
+use std::time::{Duration, Instant};
 
+pub(super) const RETENTION_MS: u64 = 14 * 24 * 60 * 60 * 1000;
 type DiskSink = Box<dyn FnMut(&Thread) -> std::io::Result<()> + Send>;
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -21,30 +24,205 @@ pub enum WaitOutcome {
 #[derive(Debug, PartialEq, Eq)]
 pub struct AnswerError(pub &'static str);
 
-pub struct ThreadStore;
-impl ThreadStore {
-    pub fn new(
-        _threads: Vec<Thread>,
-        _disk: DiskSink,
-        _emit: impl Fn(&ThreadsSnapshot) + Send + Sync + 'static,
-    ) -> Self {
-        Self
-    }
-    pub fn upsert(&self, _id: &str, _body: Upsert, _now: u64) -> u64 {
-        0
-    }
-    pub fn answer(&self, _id: &str, _answer: Answer, _now: u64) -> Result<(), AnswerError> {
-        Err(AnswerError("unknown thread"))
-    }
-    pub fn wait_answer(&self, _id: &str, _ask_id: &str, _timeout: Duration) -> WaitOutcome {
-        WaitOutcome::Unknown
-    }
-    pub fn snapshot(&self) -> ThreadsSnapshot {
+struct State {
+    threads: HashMap<String, Thread>,
+    pending: HashMap<(String, String), Answer>,
+    revision: u64,
+    disk: DiskSink,
+}
+
+impl State {
+    fn snapshot(&self) -> ThreadsSnapshot {
+        let mut threads: Vec<_> = self.threads.values().cloned().collect();
+        threads.sort_by(|a, b| {
+            b.updated_at
+                .cmp(&a.updated_at)
+                .then_with(|| a.id.cmp(&b.id))
+        });
         ThreadsSnapshot {
-            revision: 0,
-            threads: vec![],
+            revision: self.revision,
+            threads,
         }
     }
+
+    fn changed(&mut self, id: &str, now: u64) -> ThreadsSnapshot {
+        self.threads
+            .retain(|_, thread| thread.updated_at >= now.saturating_sub(RETENTION_MS));
+        self.pending
+            .retain(|(id, _), _| self.threads.contains_key(id));
+        self.revision += 1;
+        let thread = &self.threads[id];
+        if let Err(error) = (self.disk)(thread) {
+            log::warn!("threads_append_failed id={id} error={error}");
+        }
+        self.snapshot()
+    }
+}
+
+pub struct ThreadStore {
+    state: Mutex<State>,
+    changed: Condvar,
+    emit: Box<dyn Fn(&ThreadsSnapshot) + Send + Sync>,
+}
+
+impl ThreadStore {
+    pub fn new(
+        threads: Vec<Thread>,
+        disk: DiskSink,
+        emit: impl Fn(&ThreadsSnapshot) + Send + Sync + 'static,
+    ) -> Self {
+        Self {
+            state: Mutex::new(State {
+                threads: threads.into_iter().map(|t| (t.id.clone(), t)).collect(),
+                pending: HashMap::new(),
+                revision: 0,
+                disk,
+            }),
+            changed: Condvar::new(),
+            emit: Box::new(emit),
+        }
+    }
+
+    pub fn upsert(&self, id: &str, body: Upsert, now: u64) -> u64 {
+        let snapshot = {
+            let mut state = self.state.lock().unwrap();
+            let thread = state.threads.entry(id.into()).or_insert_with(|| Thread {
+                id: id.into(),
+                source: String::new(),
+                title: String::new(),
+                label: None,
+                state: ThreadState::Working,
+                entries: vec![],
+                ask: None,
+                created_at: now,
+                updated_at: now,
+            });
+            thread.source = body.source;
+            thread.title = body.title;
+            thread.label = body.label;
+            thread.state = body.state;
+            thread.updated_at = now;
+            thread
+                .entries
+                .extend(body.entries.into_iter().map(|e| Entry {
+                    role: e.role,
+                    text: e.text,
+                    at: now,
+                }));
+            cap_entries(thread);
+            match body.ask {
+                AskUpdate::Keep => {}
+                AskUpdate::Close => thread.ask = None,
+                AskUpdate::Set(ask) => thread.ask = Some(ask),
+            }
+            if thread.state != ThreadState::InputRequired {
+                thread.ask = None;
+            }
+            state.changed(id, now)
+        };
+        self.changed.notify_all();
+        (self.emit)(&snapshot);
+        now
+    }
+
+    pub fn answer(&self, id: &str, mut answer: Answer, now: u64) -> Result<(), AnswerError> {
+        let snapshot = {
+            let mut state = self.state.lock().unwrap();
+            let thread = state
+                .threads
+                .get_mut(id)
+                .ok_or(AnswerError("unknown thread"))?;
+            let ask = thread.ask.as_ref().ok_or(AnswerError("ask is not open"))?;
+            if ask.ask_id != answer.ask_id {
+                return Err(AnswerError("ask_id does not match open ask"));
+            }
+            let choice = answer
+                .choice
+                .as_ref()
+                .map(|id| {
+                    ask.choices
+                        .iter()
+                        .find(|c| &c.id == id)
+                        .ok_or(AnswerError("choice is not among the ask choices"))
+                })
+                .transpose()?;
+            if answer.choice.is_none()
+                && answer.text.as_ref().is_none_or(|t| t.is_empty())
+                && answer.release != Some(true)
+            {
+                return Err(AnswerError(
+                    "answer requires a choice, non-empty text, or release",
+                ));
+            }
+            if answer.text.is_some() && !ask.text {
+                return Err(AnswerError("ask does not accept text"));
+            }
+            if answer
+                .text
+                .as_ref()
+                .is_some_and(|t| t.chars().count() > 16384)
+            {
+                return Err(AnswerError("answer text exceeds 16384 characters"));
+            }
+            let text = choice
+                .map(|c| c.label.as_str())
+                .into_iter()
+                .chain(answer.text.as_deref().filter(|s| !s.is_empty()))
+                .collect::<Vec<_>>()
+                .join("\n");
+            if !text.is_empty() {
+                thread.entries.push(Entry {
+                    role: Role::User,
+                    text,
+                    at: now,
+                });
+            }
+            cap_entries(thread);
+            thread.ask = None;
+            thread.state = ThreadState::Working;
+            thread.updated_at = now;
+            answer.at = now;
+            state
+                .pending
+                .insert((id.into(), answer.ask_id.clone()), answer);
+            state.changed(id, now)
+        };
+        self.changed.notify_all();
+        (self.emit)(&snapshot);
+        Ok(())
+    }
+
+    pub fn wait_answer(&self, id: &str, ask_id: &str, timeout: Duration) -> WaitOutcome {
+        let deadline = Instant::now() + timeout;
+        let key = (id.to_owned(), ask_id.to_owned());
+        let mut state = self.state.lock().unwrap();
+        loop {
+            let Some(thread) = state.threads.get(id) else {
+                return WaitOutcome::Unknown;
+            };
+            let open = thread.ask.as_ref().is_some_and(|a| a.ask_id == ask_id);
+            if let Some(answer) = state.pending.remove(&key) {
+                return WaitOutcome::Answer(answer);
+            }
+            if !open {
+                return WaitOutcome::Gone;
+            }
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                return WaitOutcome::NoAnswer;
+            }
+            state = self.changed.wait_timeout(state, remaining).unwrap().0;
+        }
+    }
+
+    pub fn snapshot(&self) -> ThreadsSnapshot {
+        self.state.lock().unwrap().snapshot()
+    }
+}
+
+fn cap_entries(thread: &mut Thread) {
+    let excess = thread.entries.len().saturating_sub(50);
+    thread.entries.drain(..excess);
 }
 
 #[cfg(test)]
@@ -317,8 +495,16 @@ mod tests {
             w.join().unwrap();
         }
         assert_eq!(s.snapshot().revision, 2);
-        let replayed: Thread = serde_json::from_str(lines.lock().unwrap().last().unwrap()).unwrap();
-        assert_eq!(replayed, s.snapshot().threads[0]);
+        let dir = std::env::temp_dir().join(format!("yui_threads_order_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("threads_2026-10-29.jsonl"),
+            lines.lock().unwrap().join("\n"),
+        )
+        .unwrap();
+        let replayed = crate::threads::disk::replay(&dir, 1);
+        assert_eq!(replayed, s.snapshot().threads);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

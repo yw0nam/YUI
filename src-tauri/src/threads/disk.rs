@@ -1,8 +1,81 @@
 use super::model::Thread;
-use std::path::Path;
+use super::store::RETENTION_MS;
+use crate::log_rotation::{parse_dated_name, DateRotatingFile};
+use std::collections::HashMap;
+use std::fs;
+use std::io::{self, BufRead, Write};
+use std::path::{Path, PathBuf};
+use time::UtcOffset;
 
-pub fn replay(_dir: &Path, _now: u64) -> Vec<Thread> {
-    vec![]
+pub struct Disk(DateRotatingFile);
+impl Disk {
+    pub fn new(dir: PathBuf, offset: UtcOffset) -> Self {
+        Self(DateRotatingFile::new(
+            dir,
+            "threads".into(),
+            "jsonl",
+            offset,
+        ))
+    }
+
+    pub fn append(&mut self, thread: &Thread) -> io::Result<()> {
+        let mut line = serde_json::to_vec(thread)?;
+        line.push(b'\n');
+        self.0.write_all(&line)
+    }
+}
+
+pub fn replay(dir: &Path, now: u64) -> Vec<Thread> {
+    let files = match fs::read_dir(dir) {
+        Ok(files) => files,
+        Err(error) => {
+            if error.kind() != io::ErrorKind::NotFound {
+                log::warn!("threads_replay_failed error={error}");
+            }
+            return vec![];
+        }
+    };
+    let mut files: Vec<_> = files
+        .flatten()
+        .filter_map(|entry| {
+            if !entry.file_type().ok()?.is_file() {
+                return None;
+            }
+            let name = entry.file_name();
+            let name = name.to_str()?;
+            if name.len() != 24 {
+                return None;
+            }
+            let date = parse_dated_name(name, "threads", "jsonl")?;
+            Some((date, entry.path()))
+        })
+        .collect();
+    files.sort_by_key(|(date, _)| *date);
+    let mut threads = HashMap::new();
+    for (_, path) in files {
+        let file = match fs::File::open(&path) {
+            Ok(file) => file,
+            Err(error) => {
+                log::warn!(
+                    "threads_replay_failed path={} error={error}",
+                    path.display()
+                );
+                continue;
+            }
+        };
+        for line in io::BufReader::new(file).lines() {
+            let Ok(line) = line else {
+                continue;
+            };
+            if let Ok(thread) = serde_json::from_str::<Thread>(&line) {
+                threads.insert(thread.id.clone(), thread);
+            }
+        }
+    }
+    threads
+        .into_values()
+        .filter(|t| t.updated_at >= now.saturating_sub(RETENTION_MS))
+        .collect()
 }
 
 #[cfg(test)]

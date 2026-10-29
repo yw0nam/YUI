@@ -100,27 +100,85 @@ pub struct Upsert {
     pub ask: AskUpdate,
 }
 
+fn bounded(value: &str, max: usize, empty: bool) -> Result<(), u16> {
+    if (!empty && value.is_empty()) || value.chars().count() > max {
+        Err(400)
+    } else {
+        Ok(())
+    }
+}
+
+fn optional_string(
+    value: &serde_json::Value,
+    key: &str,
+    max: usize,
+) -> Result<Option<String>, u16> {
+    value
+        .get(key)
+        .map(|v| {
+            let s = v.as_str().ok_or(400u16)?;
+            bounded(s, max, true)?;
+            Ok(s.to_owned())
+        })
+        .transpose()
+}
+
+fn parse_ask(value: &serde_json::Value) -> Result<Ask, u16> {
+    let ask: Ask = serde_json::from_value(value.clone()).map_err(|_| 400u16)?;
+    bounded(&ask.ask_id, 128, false)?;
+    bounded(&ask.prompt, 500, false)?;
+    optional_string(value, "placeholder", 200)?;
+    if value.get("choices").is_some_and(|v| !v.is_array()) || ask.choices.len() > 6 {
+        return Err(400);
+    }
+    let mut ids = std::collections::HashSet::new();
+    for (i, choice) in ask.choices.iter().enumerate() {
+        bounded(&choice.id, 64, false)?;
+        bounded(&choice.label, 64, false)?;
+        if !ids.insert(&choice.id) || value["choices"][i].get("tone").is_some_and(|v| v.is_null()) {
+            return Err(400);
+        }
+    }
+    Ok(ask)
+}
+
 pub fn parse_upsert(body: &str) -> Result<Upsert, u16> {
     let value: serde_json::Value = serde_json::from_str(body).map_err(|_| 400u16)?;
-    let object = value.as_object().ok_or(400u16)?;
+    let source = value.get("source").and_then(|v| v.as_str()).ok_or(400u16)?;
+    let title = value.get("title").and_then(|v| v.as_str()).ok_or(400u16)?;
+    bounded(source, 64, false)?;
+    bounded(title, 200, false)?;
+    let mut label = optional_string(&value, "label", usize::MAX)?;
+    if let Some(s) = &mut label {
+        if s.chars().count() > 120 {
+            *s = s.chars().take(119).chain(std::iter::once('…')).collect();
+        }
+    }
+    let state =
+        serde_json::from_value(value.get("state").ok_or(400u16)?.clone()).map_err(|_| 400u16)?;
+    let entries: Vec<InputEntry> = value
+        .get("entries")
+        .map(|v| serde_json::from_value(v.clone()).map_err(|_| 400u16))
+        .transpose()?
+        .unwrap_or_default();
+    if entries.len() > 20 {
+        return Err(400);
+    }
+    for entry in &entries {
+        bounded(&entry.text, 16384, false)?;
+    }
+    let ask = match value.get("ask") {
+        None => AskUpdate::Keep,
+        Some(serde_json::Value::Null) => AskUpdate::Close,
+        Some(v) => AskUpdate::Set(parse_ask(v)?),
+    };
     Ok(Upsert {
-        source: object
-            .get("source")
-            .and_then(|v| v.as_str())
-            .unwrap_or_default()
-            .into(),
-        title: object
-            .get("title")
-            .and_then(|v| v.as_str())
-            .unwrap_or_default()
-            .into(),
-        label: object
-            .get("label")
-            .and_then(|v| v.as_str())
-            .map(str::to_owned),
-        state: ThreadState::Working,
-        entries: vec![],
-        ask: AskUpdate::Keep,
+        source: source.into(),
+        title: title.into(),
+        label,
+        state,
+        entries,
+        ask,
     })
 }
 

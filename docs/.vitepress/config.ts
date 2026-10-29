@@ -79,6 +79,7 @@ const BACKEND_CONTRACT: DocGroup = {
     { text: 'Client Tools', link: '/reference/client-tools' },
     { text: 'Push transport', link: '/reference/push-transport' },
     { text: 'Signals Ingress', link: '/reference/signals-ingress' },
+    { text: 'Threads', link: '/reference/threads' },
   ],
 }
 

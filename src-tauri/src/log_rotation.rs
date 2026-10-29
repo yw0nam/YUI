@@ -77,7 +77,7 @@ fn prune_older_than(dir: &Path, base: &str, ext: &str, cutoff: Date) {
 }
 
 /// Extracts the date from `{base}_YYYY-MM-DD.{ext}`; returns `None` if it doesn't match.
-fn parse_dated_name(name: &str, base: &str, ext: &str) -> Option<Date> {
+pub(crate) fn parse_dated_name(name: &str, base: &str, ext: &str) -> Option<Date> {
     let stem = name
         .strip_prefix(base)?
         .strip_prefix('_')?
