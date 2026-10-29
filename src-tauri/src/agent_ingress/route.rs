@@ -169,7 +169,11 @@ mod tests {
             ("GET", "/threads/a/answer?ask_id=q&wait=1.5", 400),
             ("GET", "/threads/answers", 400),
             ("GET", "/threads/answers?source=", 400),
-            ("GET", &format!("/threads/answers?source={}", "x".repeat(65)), 400),
+            (
+                "GET",
+                &format!("/threads/answers?source={}", "x".repeat(65)),
+                400,
+            ),
         ] {
             assert_eq!(
                 parse_route(method, path, "{}").unwrap_err(),

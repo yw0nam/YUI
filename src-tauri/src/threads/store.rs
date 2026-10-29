@@ -259,23 +259,17 @@ impl ThreadStore {
         let State {
             threads, pending, ..
         } = &mut *state;
-        let mut drained = Vec::new();
-        let mut kept = VecDeque::new();
-        for (id, answer) in pending.drain(..) {
-            if threads
-                .get(&id)
-                .is_some_and(|thread| thread.source == source)
-            {
-                drained.push(DeliveredAnswer {
-                    thread_id: id,
-                    answer,
-                });
-            } else {
-                kept.push_back((id, answer));
-            }
-        }
-        *pending = kept;
+        let (drained, kept): (Vec<_>, Vec<_>) =
+            std::mem::take(pending).into_iter().partition(|(id, _)| {
+                threads
+                    .get(id)
+                    .is_some_and(|thread| thread.source == source)
+            });
+        *pending = kept.into();
         drained
+            .into_iter()
+            .map(|(thread_id, answer)| DeliveredAnswer { thread_id, answer })
+            .collect()
     }
 
     pub fn snapshot(&self) -> ThreadsSnapshot {
