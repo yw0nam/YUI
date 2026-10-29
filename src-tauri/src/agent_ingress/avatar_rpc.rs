@@ -103,8 +103,8 @@ pub(super) fn spawn_avatar_request(
 ) {
     let app = app.clone();
     let label = label.to_string();
-    spawn_response("avatar_rpc", request, move || {
-        avatar_rpc(&app, &label, route)
+    spawn_request("avatar_rpc", request, move |request| {
+        respond_json(request, avatar_rpc(&app, &label, route));
     });
 }
 
