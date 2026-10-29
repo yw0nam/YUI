@@ -47,7 +47,7 @@ Drop a signal by not sending it: `delivery` has no drop value.
 
 Turn on **External signals** in Settings → Proactive → Watchers. The ingress listens on the port shown there, `8770` by default, and a change of either takes effect on the next launch. `POST /signals` wakes the main window's character; `POST /presets/<id>/signals` wakes the character bound to preset `<id>`.
 
-**Manage presets** puts **Copy ingress URL for <name>** on each preset row but the active one while **External signals** is on.
+**Manage presets** puts **Copy ingress URL for** _name_ on each preset row but the active one while **External signals** is on.
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' -X POST \
