@@ -22,6 +22,7 @@
     "css:check": "node scripts/ci/css-selectors.mjs",
     "logger:check": "node scripts/ci/logger-namespace.mjs",
     "commands:check": "node scripts/ci/command-paths.mjs",
+    "docs:check": "node scripts/ci/docs-readability.mjs",
     "gates": "bash scripts/ci/gates.sh",
     "map:base": "node scripts/architecture-map-base.mjs"
   },

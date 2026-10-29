@@ -30,6 +30,7 @@ jobs:
       - run: pnpm css:check # one owner per bare class selector across src/**/*.css
       - run: pnpm logger:check # createLogger namespace equals the file name
       - run: pnpm commands:check # no Tauri command takes a file path from the webview
+      - run: pnpm docs:check # every site page meets the readability rule
       - run: pnpm docs:build # vitepress build + dead-link check
 
   web-windows-python:

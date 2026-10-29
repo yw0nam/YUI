@@ -134,7 +134,10 @@ CI runs it in the `web` job.
   numeric constant's comment may name the measurement it came from.
 - **Docs: current-state only.** Write what the system *is*, declaratively,
   matching the code — no change narrative, no PR/issue numbers as prose, no
-  dated changelogs, no future/unbuilt work.
+  dated changelogs, no future/unbuilt work. Every page the docs site builds
+  meets one readability rule: at most 60 words in a paragraph, list item, or
+  table cell, and at most 250 words of prose between headings, which
+  `pnpm docs:check` enforces.
 
 ## Breaking changes
 
