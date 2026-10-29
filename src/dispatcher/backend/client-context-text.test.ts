@@ -933,6 +933,13 @@ describe("renderClientContext — guide block", () => {
     expect(text).toContain("# What she can do");
   });
 
+  it("the guide block drops the doc's image lines and keeps the text around them", () => {
+    const text = renderClientContext(baseContext({ kind: "user", guide: "controls" }), NOW);
+
+    expect(text).not.toContain("![");
+    expect(text).toContain("## Unified chat\n\n| Action | What happens |");
+  });
+
   it("a turn without a guide key renders no guide block", () => {
     const text = renderClientContext(baseContext({ kind: "user" }), NOW);
 
