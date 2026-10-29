@@ -61,7 +61,7 @@ def parse_event(data: Any, env: Mapping[str, str]) -> Event | None:
     )
     if (
         agent == "claude-code"
-        and phase in ("Stop", "UserPromptSubmit", "SessionStart")
+        and phase in ("Stop", "UserPromptSubmit", "SessionStart", "SessionEnd")
         and (running or env.get("CLAUDE_CODE_ENTRYPOINT", "").startswith("sdk"))
     ):
         return None
