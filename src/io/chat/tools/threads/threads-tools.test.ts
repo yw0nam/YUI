@@ -178,7 +178,7 @@ describe("threads_search", () => {
     expect(text).toBe(
       [
         "hit | claude-code | task hit | - | working | 2026-01-02 03:04",
-        "match: …[Deploy]failed on prod…",
+        "match: …[Deploy] failed on prod…",
       ].join("\n"),
     );
   });
