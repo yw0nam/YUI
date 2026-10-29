@@ -24,7 +24,7 @@ pub(in crate::agent_ingress) fn handle(
             };
             spawn_request("threads_answer", request, move |request| {
                 let _permit = permit;
-                let result = match store.wait_answer(&id, &ask_id, wait) {
+                let result = match store.wait_answer(&id, ask_id.as_deref(), wait) {
                     WaitOutcome::Answer(answer) => {
                         Ok(serde_json::to_value(answer).expect("answer serializes"))
                     }

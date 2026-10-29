@@ -135,6 +135,12 @@ pub(super) fn dispatch(
 mod tests {
     use super::*;
     use std::collections::HashSet;
+
+    #[test]
+    fn threads_answer_accepts_no_ask_id() {
+        assert!(parse_route("GET", "/threads/a/answer?wait=0", "").is_ok());
+    }
+
     #[test]
     fn threads_routes_parse_values_and_refuse_invalid_requests() {
         for (method, path, code) in [
@@ -146,7 +152,6 @@ mod tests {
             ("PUT", "/presets/x/threads/a", 404),
             ("POST", "/threads/a", 405),
             ("POST", "/threads/a/answer?ask_id=q", 405),
-            ("GET", "/threads/a/answer", 400),
             ("GET", "/threads/a/answer?ask_id=q&wait=26", 400),
             ("GET", "/threads/a/answer?ask_id=q&wait=-1", 400),
             ("GET", "/threads/a/answer?ask_id=q&wait=1.5", 400),
@@ -180,7 +185,7 @@ mod tests {
                 }
                 RouteKind::Thread(ThreadRoute::Answer { id, ask_id, wait }) => {
                     assert_eq!(id, expected_id);
-                    assert_eq!(ask_id, "q");
+                    assert_eq!(ask_id.as_deref(), Some("q"));
                     assert_eq!(Some(wait.as_secs()), expected_wait);
                 }
                 _ => panic!("Thread route expected: {method} {path}"),

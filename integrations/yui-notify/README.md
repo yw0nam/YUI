@@ -2,7 +2,7 @@
 
 Claude Code and Codex hooks post coding-agent conversations as [Threads](../../docs/reference/threads.md).
 Threads are app-wide and fire no character turn. Codex accepts answers through synchronous
-hooks; Claude Code Threads are read-only and permission questions stay at its terminal.
+hooks; Claude Code accepts answers through its channel server when launched with the channel flag.
 
 ## Install
 
@@ -29,19 +29,21 @@ listener defaults to port `8770`; switch and port changes take effect after rest
 
 ## What it sends
 
-Every event sends `PUT <endpoint>/threads/<id>` with source, title, label, state, and
+Lifecycle hooks send `PUT <endpoint>/threads/<id>` with source, title, label, state, and
 one entry when text is available. The title is `<project> (<branch>)`, or `<project>`.
 The label joins the present host, tmux session/window, and project/branch parts.
 
-Claude Code ids are `claude-code:<host>:<claude pid>`: `CLAUDE_PID`, or the hook's parent
-PID when absent. They survive `/clear`. Codex ids are `codex:<host>:<session_id>`.
+Claude Code ids are `claude-code:<host>:<claude pid>`. The messaging socket filename
+provides the PID first; hooks also accept `CLAUDE_PID`. Otherwise the producer walks
+up to five parents, accepting native and npm Claude launches. Hooks use their parent
+PID if discovery fails. Ids survive `/clear`. Codex ids are `codex:<host>:<session_id>`.
 `host` is the hostname before its first dot, including on local sessions.
 
 | Agent | Event | State | Entry | Ask |
 |---|---|---|---|---|
 | Both | `UserPromptSubmit` | `working` | `user`: prompt | Closes |
-| Claude Code | `Stop` | `completed` | `agent`: last assistant message | Closes |
-| Claude Code | `PermissionRequest` | `input-required` | `system`: tool name and command or input JSON | None added |
+| Claude Code | `Stop` | `input-required` with ready channel; otherwise `completed` | `agent`: last assistant message | “What next?” with ready channel; otherwise closes |
+| Claude Code | `PermissionRequest` | `input-required` | Channel owns the entry when ready; otherwise hook posts tool input | Channel adds Allow, Deny, and text |
 | Claude Code | `Notification` (elicitation) | `input-required` | `system`: message | None added |
 | Codex | `Stop` | `input-required` | `agent`: last assistant message | “What next?” with text |
 | Codex | `PermissionRequest` | `input-required` | `system`: tool name and command or input JSON | Allow, Deny, or text |
@@ -49,6 +51,41 @@ PID when absent. They survive `/clear`. Codex ids are `codex:<host>:<session_id>
 Each Codex ask has a fresh UUID suffix, including successive Stops in one turn.
 Entry text keeps at most 16384 code points, shortening the head with `…` when needed.
 The serialized body stays within 65536 bytes, including for Unicode text.
+
+## Claude Code answers
+
+Install `uv` on every host running Claude Code, including SSH hosts. Launch Claude Code
+with the plugin registered as a channel:
+
+```bash
+claude --dangerously-load-development-channels plugin:yui-notify@yui
+```
+
+Channels are a Claude Code research preview and require an account and organization
+policy that permit channels. The development flag allows this plugin during the preview.
+A plain `claude` launch still loads the MCP server, but it stays idle and consumes no
+answers. Its hooks post read-only Threads and Stop closes the Thread.
+
+The server reads `CLAUDE_CODE_MESSAGING_SOCKET` (`/tmp/cc-socks/<pid>.sock`) before walking
+parents. It checks Claude's command line with whitespace splitting, accepting `--channels`
+and `--dangerously-load-development-channels` in space or equals form. Each flag's list
+must contain `plugin:yui-notify@yui`.
+
+After MCP initialization, a ready server starts polling and writes its PID to
+`$XDG_STATE_HOME/yui-notify/channels/<claude pid>` (default `~/.local/state`), removing it
+on exit. Hooks ignore stale files. An unidentified or disabled channel serves MCP idle,
+printing one stderr line without failing startup. The ready channel owns permission
+entries, so the permission hook sends nothing.
+
+- A permission channel request posts Allow, Deny, and text. Allow or Deny sends that
+  verdict; any text is also sent as a user channel message. Text alone denies the tool
+  and sends the instruction. Release leaves the terminal permission dialog alone.
+- Stop posts “What next?” only while a ready channel file names a live server. Text
+  sends the next instruction as a user channel message. Release sends nothing.
+- Claude Code hooks never wait for answers. The server long-polls YUI without `ask_id`
+  for both kinds of answer, backing off from 1 to 30 seconds on missing Threads or errors.
+  Malformed answers and dispatch failures log to stderr and do not stop polling. Failed
+  permission PUTs write the same `last-error.json` record as hook requests.
 
 ## Codex answers and fallback
 
@@ -129,7 +166,9 @@ field, so exec sessions run the check too.
 
 ## Requirements and development
 
-The hook uses only the Python 3.9+ standard library. Claude Code or Codex needs plugin support.
+The hooks run on system `python3` (3.9+, standard library only). The Claude Code channel
+server needs `uv` on every host, Python 3.10+ through uv, and the MCP Python SDK installed
+from this project. Claude Code or Codex needs plugin support.
 
 ```bash
 cd integrations/yui-notify

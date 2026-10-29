@@ -372,3 +372,67 @@ def test_probe_rejects_endpoint_path(tmp_path, server, capsys, path):
     assert main(["probe", "--endpoint", url], env={"XDG_CONFIG_HOME": str(tmp_path)}) == 1
     assert capsys.readouterr().out == f"invalid endpoint: use http://127.0.0.1:<port> with no path: {url}\n"
     assert received.polls == []
+
+
+@pytest.mark.parametrize("channel", ["live", "stale", "missing"])
+def test_claude_stop_channel_never_waits(tmp_path, server, capsys, monkeypatch, channel):
+    import os
+    from uuid import UUID
+
+    endpoint, received = server
+    path = tmp_path / "state" / "yui-notify" / "channels" / "8864"
+    path.parent.mkdir(parents=True)
+    if channel != "missing":
+        path.write_text(str(os.getpid()) if channel == "live" else "2147483647")
+
+    def wait(*args):
+        pytest.fail("Claude hooks never call wait_for_answer")
+
+    monkeypatch.setattr("yui_notify.hook.wait_for_answer", wait)
+    run_hook(tmp_path, endpoint, "claude-stop.json")
+    body = received[0][1]
+    assert body["state"] == ("input-required" if channel == "live" else "completed")
+    if channel == "live":
+        ask = body["ask"]
+        assert str(UUID(ask["ask_id"].removeprefix("next:"))).replace("-", "") == ask["ask_id"][5:]
+        assert ask == {
+            "ask_id": ask["ask_id"],
+            "prompt": "What next?",
+            "text": True,
+            "placeholder": "Next instruction",
+        }
+    else:
+        assert body["ask"] is None
+    assert received.polls == []
+    assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize("channel", ["live", "stale", "missing"])
+def test_claude_permission_entry_owned_by_ready_channel(tmp_path, server, capsys, channel):
+    import os
+
+    endpoint, received = server
+    path = tmp_path / "state" / "yui-notify" / "channels" / "8864"
+    path.parent.mkdir(parents=True)
+    if channel != "missing":
+        path.write_text(str(os.getpid()) if channel == "live" else "2147483647")
+    run_hook(tmp_path, endpoint, "claude-permission.json")
+    entries = [entry for _, body in received for entry in body["entries"]]
+    assert entries == (
+        []
+        if channel == "live"
+        else [{"role": "system", "text": "Bash: touch /Users/dev/projects/demo/hello.txt"}]
+    )
+    assert received.polls == []
+    assert capsys.readouterr().out == ""
+
+
+def test_claude_hook_socket_pid_overrides_inherited_pid(tmp_path, server):
+    endpoint, received = server
+    run_hook(
+        tmp_path,
+        endpoint,
+        "claude-stop.json",
+        extra_env={"CLAUDE_CODE_MESSAGING_SOCKET": "/tmp/cc-socks/80.sock"},
+    )
+    assert received[0][0] == f"/threads/claude-code:{socket.gethostname().split('.')[0]}:80"
