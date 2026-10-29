@@ -387,6 +387,8 @@ export interface ClientContext {
   }[];
   /** The other open presets' names as the tools accept them, read this turn; absent when none. */
   open_characters?: string[];
+  /** Threads waiting for the user's answer, read this turn; main's window only, on user-started turns. */
+  threads_waiting?: { total: number; by_source: Array<{ source: string; count: number }> };
   /** Each enabled plugin's tool with its summary, read this turn; absent when none. */
   plugin_tools?: { name: string; summary: string }[];
   /** Each enabled plugin's skill with its description, read this turn; absent when none. */

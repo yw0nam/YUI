@@ -6,17 +6,8 @@
  */
 
 import type { ClientContext, TriggerMeta, TurnEnded, WakeCause } from "../../contract";
+import { oneLine } from "../../io/chat/one-line";
 import { renderGuideBlock } from "../../io/guide/guide-docs";
-
-/** Collapses embedded newlines/whitespace runs to a single space and strips any
-    `<client_context>`/`</client_context>` tag sequence, so a sampled or user-authored string can
-    never inject an extra physical line or terminate the block early. */
-function oneLine(s: string): string {
-  return s
-    .replace(/<\/?client_context>/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 /** `max(0, round((nowMs - sinceMs) / 60000))` — never negative, rendered as a bare integer. */
 function minutesSince(sinceMs: number, nowMs: number): number {
@@ -91,6 +82,12 @@ function renderRelations(relations: ClientContext["relations"], nowMs: number): 
 function renderOpenCharacters(names: ClientContext["open_characters"]): string | undefined {
   if (!names || names.length === 0) return undefined;
   return `open characters: ${names.map((name) => `"${oneLine(name)}"`).join(", ")}`;
+}
+
+function renderThreadsWaiting(threads: ClientContext["threads_waiting"]): string | undefined {
+  if (!threads || threads.total <= 0) return undefined;
+  const groups = threads.by_source.map((group) => `${oneLine(group.source)} ${group.count}`);
+  return `threads: ${threads.total} waiting (${groups.join(", ")})`;
 }
 
 /** One plugin tool or skill as a `name — text` entry; the name alone when the text is empty. */
@@ -254,6 +251,9 @@ export function renderClientContext(clientContext: ClientContext, nowMs: number)
 
   const openCharacters = renderOpenCharacters(clientContext.open_characters);
   if (openCharacters) lines.push(openCharacters);
+
+  const threads = renderThreadsWaiting(clientContext.threads_waiting);
+  if (threads) lines.push(threads);
 
   const tools = renderToolSwitches(clientContext.tool_switches);
   if (tools) lines.push(tools);

@@ -106,3 +106,5 @@ Each stored entry contains `role`, `text`, and `at`.
 ## In the app
 
 Main's pet window and the Threads window each listen to `threads-snapshot` and read `threads_snapshot()` once, keeping the highest revision. Main draws the Threads chip from it; the Threads window draws its list and thread pane. Only the Threads window calls `thread_answer`, with a choice, text, or both. It never sends `release`.
+
+The main character's backend reads Threads through the `threads_list` and `threads_search` client tools and the `threads:` client-context line; Threads fire no turn.

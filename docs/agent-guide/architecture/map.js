@@ -727,9 +727,18 @@ globalThis.YUI_MAP =
       "id": "io/chat/tools",
       "module": "tools",
       "label": "client tools",
-      "role": "The tools the client declares to the backend and runs itself: generate_express, rate_relation, address_character, body_action, look, plugin_describe, plugin_call, plugin_skill.",
+      "role": "The tools the client declares to the backend and runs itself: generate_express, rate_relation, address_character, body_action, look, plugin_describe, plugin_call, plugin_skill, threads_list, threads_search.",
       "paths": [
         "src/io/chat/tools"
+      ]
+    },
+    {
+      "id": "io/chat/one-line",
+      "module": "backend-call",
+      "label": "one line",
+      "role": "Collapses a sampled or producer-authored string to one line without the client_context tags, the sanitisation the client context block and the Threads tool results share.",
+      "paths": [
+        "src/io/chat/one-line.ts"
       ]
     },
     {
@@ -2174,6 +2183,24 @@ globalThis.YUI_MAP =
       "from": "io/mcp-host",
       "to": "dispatcher/backend",
       "carries": "the plugin tools and plugin skills lines per turn: each enabled plugin's tools with their summaries, and its skills with their descriptions",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/bootstrap-configured.ts"
+    },
+    {
+      "id": "threads-tools",
+      "from": "io/threads",
+      "to": "io/chat/tools",
+      "carries": "snapshot(): the Thread list threads_list and threads_search read when a call runs; null outside main's window",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/bootstrap-configured.ts"
+    },
+    {
+      "id": "threads-waiting-context",
+      "from": "io/threads",
+      "to": "dispatcher/backend",
+      "carries": "threadsWaiting(snapshot.threads) → ClientContext.threads_waiting, read per turn on user-started turns; absent at zero waiting",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"

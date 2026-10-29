@@ -18,6 +18,8 @@ import type { ClientTool } from "../io/chat/tools/client-tools";
 import { createPetWindowTools } from "../io/chat/tools/pet-window-tools";
 import { pluginLines } from "../io/mcp-host/enabled-plugins";
 import { createMcpHost } from "../io/mcp-host/mcp-host";
+import type { ThreadsClient } from "../io/threads/threads-client";
+import { threadsWaitingProvider } from "../io/threads/threads-waiting";
 import type { ScreenCapturer } from "../io/window/capture/screen-source-provider";
 import { createFrontmostTracker } from "../io/window/frontmost-tracker";
 import { createUnifiedWindowController } from "../io/window/openers/unified-window";
@@ -56,6 +58,8 @@ const log = createLogger("bootstrap");
 /** The pet window's own handles, on top of what the chat turn reads. */
 interface Phase1Handles extends TurnCorePhase1 {
   bound?: boolean;
+  /** The window's Threads client, feeding the two tools and the waiting line; null outside main. */
+  threads: ThreadsClient | null;
   ambient: Tier1Engine;
   screenCapturer: ScreenCapturer;
   root: HTMLElement;
@@ -192,6 +196,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       targets: relations.targets,
       recordAddressed: addressed.record,
       mcpHost,
+      threads: phase1.threads,
     });
     const card = wireCard({
       agentSettings: settings.agentSettings,
@@ -215,6 +220,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       openSettings: phase1.openSettings,
       windowTools,
       getPluginLines: () => pluginLines(mcpHost.snapshot()),
+      getThreadsWaiting: threadsWaitingProvider(phase1.threads),
       onTurnClosed: userTurnDone.onTurnClosed,
       addressedTo: addressed.targetOf,
       voicePersistence: {

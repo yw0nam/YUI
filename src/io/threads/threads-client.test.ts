@@ -1,7 +1,7 @@
 /** threads-client.test.ts — the webview side of the Thread store: the newest snapshot and the answer command. */
 
 import { expect, it, vi } from "vitest";
-import type { ThreadsSnapshot } from "../../contract";
+import type { Thread, ThreadsSnapshot } from "../../contract";
 import { createThreadsClient } from "./threads-client";
 
 const mocks = vi.hoisted(() => ({ invoke: vi.fn(), listen: vi.fn() }));
@@ -13,7 +13,20 @@ vi.mock("../../tauri-env", async (importOriginal) => ({
   isTauri: () => true,
 }));
 
-const SNAPSHOT = (revision: number): ThreadsSnapshot => ({ revision, threads: [] });
+const SNAPSHOT = (revision: number, threads: ThreadsSnapshot["threads"] = []): ThreadsSnapshot => ({
+  revision,
+  threads,
+});
+
+const thread = (id: string): Thread => ({
+  id,
+  source: "codex",
+  title: id,
+  state: "input-required",
+  entries: [],
+  created_at: 0,
+  updated_at: 1,
+});
 
 it("keeps the highest revision and ignores an older snapshot event", async () => {
   const events = { emit: (_payload: ThreadsSnapshot) => {} };
@@ -35,6 +48,24 @@ it("keeps the highest revision and ignores an older snapshot event", async () =>
   expect(client.snapshot()?.revision).toBe(7);
   expect(seen).toEqual([5, 7]);
   expect(mocks.listen).toHaveBeenCalledWith("threads-snapshot", expect.any(Function));
+});
+
+it("reads the kept snapshot's Thread list, empty before the first snapshot", async () => {
+  const events = { emit: (_payload: ThreadsSnapshot) => {} };
+  mocks.listen.mockImplementation(
+    async (_event: string, handler: (e: { payload: ThreadsSnapshot }) => void) => {
+      events.emit = (payload) => handler({ payload });
+      return () => {};
+    },
+  );
+  mocks.invoke.mockResolvedValue(SNAPSHOT(1));
+  const client = createThreadsClient();
+  expect(client.threads()).toEqual([]);
+
+  await vi.waitFor(() => expect(client.snapshot()).not.toBeNull());
+  events.emit(SNAPSHOT(2, [thread("t1")]));
+
+  expect(client.threads().map((thread) => thread.id)).toEqual(["t1"]);
 });
 
 it("answers through thread_answer with the ask id and only the given fields", async () => {

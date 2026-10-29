@@ -2,7 +2,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { ThreadsSnapshot } from "../../contract";
+import type { Thread, ThreadsSnapshot } from "../../contract";
 import { createLogger } from "../../logger";
 import { isTauri } from "../../tauri-env";
 
@@ -11,10 +11,17 @@ const log = createLogger("threads-client");
 export interface ThreadsClient {
   /** The highest-revision snapshot seen so far; null before the first one, and always off Tauri. */
   snapshot(): ThreadsSnapshot | null;
+  /** The snapshot's Thread list; empty before the first snapshot, and always off Tauri. */
+  threads(): Thread[];
   subscribe(listener: (snapshot: ThreadsSnapshot) => void): () => void;
   /** Rejects with the store's error string naming the broken rule. */
   answer(id: string, askId: string, answer: { choice?: string; text?: string }): Promise<void>;
   dispose(): void;
+}
+
+/** Threads belong to the main character: a bound pet window gets no client. */
+export function createMainThreadsClient(bound: boolean): ThreadsClient | null {
+  return bound ? null : createThreadsClient();
 }
 
 export function createThreadsClient(): ThreadsClient {
@@ -53,6 +60,7 @@ export function createThreadsClient(): ThreadsClient {
 
   return {
     snapshot: () => latest,
+    threads: () => latest?.threads ?? [],
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);

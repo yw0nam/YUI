@@ -726,3 +726,31 @@ describe("backend_caller — overheard lines", () => {
     expect(commitOverheard.mock.calls).toEqual(committed);
   });
 });
+
+describe("backend_caller — threads waiting line", () => {
+  it("a getThreadsWaiting provider passed at the caller reaches the rendered client_context", async () => {
+    caller = createBackendCaller({
+      config: CONFIG,
+      renderer: { applyDirective } as never,
+      getApiKey: async () => "k",
+      getFetch: async () => undefined,
+      stream: script.stream,
+      getThreadsWaiting: () => ({
+        total: 3,
+        by_source: [
+          { source: "claude-code", count: 2 },
+          { source: "github-ci", count: 1 },
+        ],
+      }),
+    });
+    script.events = [completedEvent({ speech_text: "" })];
+    await caller.call(turnOf(userEnv("anything waiting?")));
+
+    const [, request] = script.spy.mock.calls[0];
+    const items = request.input as Array<{ role: string; content: string }>;
+    const user = items.find((item) => item.role === "user")!;
+    expect(clientContextTextOf(user.content)).toContain(
+      "threads: 3 waiting (claude-code 2, github-ci 1)",
+    );
+  });
+});

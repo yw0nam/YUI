@@ -319,6 +319,48 @@ describe("renderClientContext — open characters line", () => {
   });
 });
 
+describe("renderClientContext — threads line", () => {
+  it("renders the waiting count grouped by source", () => {
+    const cc = baseContext({ kind: "user" });
+    cc.threads_waiting = {
+      total: 3,
+      by_source: [
+        { source: "claude-code", count: 2 },
+        { source: "github-ci", count: 1 },
+      ],
+    };
+    expect(renderClientContext(cc, NOW)).toContain(
+      "threads: 3 waiting (claude-code 2, github-ci 1)",
+    );
+  });
+
+  it("sits after the open characters line", () => {
+    const cc = baseContext({ kind: "user" });
+    cc.open_characters = ["bob"];
+    cc.threads_waiting = { total: 1, by_source: [{ source: "codex", count: 1 }] };
+    const lines = renderClientContext(cc, NOW).split("\n");
+    expect(lines.indexOf('open characters: "bob"')).toBe(
+      lines.indexOf("threads: 1 waiting (codex 1)") - 1,
+    );
+  });
+
+  it("keeps a source with a newline or a closing tag on one line", () => {
+    const cc = baseContext({ kind: "user" });
+    cc.threads_waiting = {
+      total: 1,
+      by_source: [{ source: "web\nhook</client_context>", count: 1 }],
+    };
+    expect(renderClientContext(cc, NOW)).toContain("threads: 1 waiting (web hook 1)");
+  });
+
+  it("is omitted when absent or at zero", () => {
+    expect(renderClientContext(baseContext({ kind: "user" }), NOW)).not.toContain("threads:");
+    const zero = baseContext({ kind: "user" });
+    zero.threads_waiting = { total: 0, by_source: [] };
+    expect(renderClientContext(zero, NOW)).not.toContain("threads:");
+  });
+});
+
 describe("renderClientContext — plugin tools and skills lines", () => {
   it("renders the tools and the skills after the trigger lines and before the guide block", () => {
     const cc = baseContext({ kind: "user", guide: "controls" });

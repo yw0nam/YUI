@@ -165,13 +165,14 @@ order:
 4. `body`
 5. `relation`
 6. `open characters`
-7. `tool switches`
-8. `previous turn`
-9. `overheard`
-10. one or more `trigger:`/`wake:`/`cue note`/`signal`/`recent switches:` lines
+7. `threads`
+8. `tool switches`
+9. `previous turn`
+10. `overheard`
+11. one or more `trigger:`/`wake:`/`cue note`/`signal`/`recent switches:` lines
     depending on what fired
-11. the `plugin tools` and `plugin skills` lines when the host publishes any
-12. the `guide:` block when the turn carries one ([Guide](#guide-in-app-help-button))
+12. the `plugin tools` and `plugin skills` lines when the host publishes any
+13. the `guide:` block when the turn carries one ([Guide](#guide-in-app-help-button))
 
 A line is omitted outright when its underlying field is absent (e.g. no `screenshot
 source:` line when screen capture is off).
@@ -536,6 +537,22 @@ The `ClientContext` field is `open_characters?: string[]`. These are the names
 `address_character.to` and `rate_relation.toward` accept, and the client checks a call
 against the presets open when it runs
 ([client-tools.md](client-tools.md#rate-relation)).
+
+### `threads`
+
+The line counts the Threads waiting for the user's answer, grouped by producer:
+
+```text
+threads: 3 waiting (claude-code 2, github-ci 1)
+```
+
+The line is present only when all three hold: the window is the main character's, the
+turn is user-started (`trigger: user message`), and at least one Thread waits. At zero
+waiting it is omitted.
+
+The backend reads Threads only through the `threads_list` and
+`threads_search` client tools ([client-tools.md](client-tools.md)), which read the same
+store snapshot this count comes from. Threads fire no turn.
 
 ## Trigger lines
 
