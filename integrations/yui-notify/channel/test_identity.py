@@ -33,3 +33,25 @@ def test_discover_stops_after_five_parents():
     with pytest.raises(ValueError, match="claude process not found within 5 parents"):
         discover(30, process)
     assert seen == [30, 29, 28, 27, 26]
+
+
+@pytest.mark.parametrize("flag", ["--channels", "--dangerously-load-development-channels"])
+@pytest.mark.parametrize("separator", [" ", "="])
+def test_discover_ps_output_with_apostrophe(monkeypatch, flag, separator):
+    from types import SimpleNamespace
+    from channel.identity import discover
+
+    monkeypatch.delenv("CLAUDE_CODE_MESSAGING_SOCKET", raising=False)
+    monkeypatch.delenv("CLAUDE_PID", raising=False)
+    monkeypatch.setattr(
+        "subprocess.run",
+        lambda *args, **kwargs: SimpleNamespace(
+            stdout=f"10 /usr/bin/claude {flag}{separator}plugin:yui-notify@yui don't stop"
+        ),
+    )
+    try:
+        identity = discover(20)
+        actual = identity.pid, identity.ready
+    except ValueError:
+        actual = None
+    assert actual == (20, True)
