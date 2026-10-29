@@ -425,3 +425,14 @@ def test_claude_permission_entry_owned_by_ready_channel(tmp_path, server, capsys
     )
     assert received.polls == []
     assert capsys.readouterr().out == ""
+
+
+def test_claude_hook_socket_pid_overrides_inherited_pid(tmp_path, server):
+    endpoint, received = server
+    run_hook(
+        tmp_path,
+        endpoint,
+        "claude-stop.json",
+        extra_env={"CLAUDE_CODE_MESSAGING_SOCKET": "/tmp/cc-socks/80.sock"},
+    )
+    assert received[0][0] == f"/threads/claude-code:{socket.gethostname().split('.')[0]}:80"
