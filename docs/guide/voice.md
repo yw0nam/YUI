@@ -53,13 +53,13 @@ Serve any OpenAI-compatible transcription server at the configured URL, then set
 "stt_base_url": "http://localhost:5517/v1"
 ```
 
-YUI sends audio to `<stt_base_url>/audio/transcriptions`. If the server requires auth, set `VITE_YUI_STT_KEY` in `.env.local` (dev runs; a release build reads the key entered on the Listening and bubble page), and YUI sends it as `Authorization: Bearer`. A hosted API such as Groq also needs a model: set `stt_model` in `configs/endpoints.json` (for example `"stt_model": "whisper-large-v3-turbo"`) or in the Connection tab's STT model field, which overrides the file. To fix the spoken language, set `stt_language` the same way; the Connection tab's STT language field suggests Auto, English, and Japanese and takes any other ISO-639-1 code.
+YUI sends audio to `<stt_base_url>/audio/transcriptions`. If the server requires auth, set `VITE_YUI_STT_KEY` in `.env.local` (dev runs; a release build reads the **STT API key** entered on the **Listening and bubble** page), and YUI sends it as `Authorization: Bearer`. A hosted API such as Groq also needs a model: set `stt_model` in `configs/endpoints.json` (for example `"stt_model": "whisper-large-v3-turbo"`) or in the Connection tab's STT model field, which overrides the file. To fix the spoken language, set `stt_language` the same way; the Connection tab's STT language field suggests Auto, English, and Japanese and takes any other ISO-639-1 code.
 
 ## Wire it all together: `configs/endpoints.json`
 
 YUI ships with no service addresses: every URL in the bundled `configs/endpoints.json` is unset, and an unset URL means that feature is off. STT and TTS stay quiet, and a chat turn with no `chat_base_url` answers with an inline "Backend not configured" error pointing at **Connection**.
 
-Point YUI at your services by editing `configs/endpoints.json` or using the in-app Endpoint settings panel, which persists overrides to local storage and leaves the bundled file untouched.
+Point YUI at your services by editing `configs/endpoints.json`, or on the **Connection** page, which persists overrides to local storage and leaves the bundled file untouched.
 
 Key reference:
 

@@ -27,7 +27,7 @@ CI builds the Windows bundles, and they are tested on Windows.
 
 The macOS build is signed ad hoc, without a Developer ID certificate, so macOS refuses the first launch. Allow the app once under System Settings → Privacy & Security → **Open Anyway**.
 
-A release build carries no key from the environment. Enter the chat, TTS, and STT keys in the settings window, on the **Connection** page, which stores them on the device ([Connect a backend](connect-a-backend.md)).
+A release build carries no key from the environment. Enter the **Chat API key** and **TTS API key** on the **Connection** page of the settings window, and the **STT API key** on the **Listening and bubble** page; the app stores each key on the device ([Connect a backend](connect-a-backend.md)).
 
 ## From source
 
@@ -64,7 +64,7 @@ pnpm build            # production build
 
 ### Chat auth key
 
-If your chat endpoint requires a key, either paste it into the panel's Chat key field or copy `.env.example` to `.env.local` and set `VITE_YUI_CHAT_KEY`. The key set in the panel wins; `.env.local` (gitignored) is the fallback used when the panel field is empty. It is read at build time, so restart the dev server after editing it. This fallback applies to dev runs (`pnpm dev`, `pnpm tauri:dev`) only. A release build carries no key from the environment, and release users enter their keys in the panel's Connection tab, which stores them on the device.
+If your chat endpoint requires a key, either paste it into **Chat API key** on the **Connection** page or copy `.env.example` to `.env.local` and set `VITE_YUI_CHAT_KEY`. The key set in the panel wins; `.env.local` (gitignored) is the fallback used when the panel field is empty. It is read at build time, so restart the dev server after editing it. This fallback applies to dev runs (`pnpm dev`, `pnpm tauri:dev`) only. A release build carries no key from the environment. Release users enter the **Chat API key** and **TTS API key** on the **Connection** page and the **STT API key** on the **Listening and bubble** page, and the app stores each key on the device.
 
 ```bash
 cp .env.example .env.local

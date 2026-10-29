@@ -88,8 +88,8 @@ The first two modes work with any server that speaks the corresponding OpenAI AP
 
 The in-app agent settings expose reasoning effort (`Default` · `none` · `minimal` · `low` · `medium`). `Default`, the starting value, sends no effort, so the model's own default applies; a model that rejects some values (GPT-OSS rejects `none`) still answers. Any other value is sent: Responses mode as `reasoning.effort`, Chat Completions mode as the top-level `reasoning_effort`.
 
-The reasoning-effort control is shown in Chat Completions and Responses modes only. The **Card** section shows its fields there too; in push mode it keeps only **Import card…** and **Export card**, because push sends no card.
+The **Reasoning effort** control appears in Chat Completions and Responses modes. On push it stays in place, disabled, with a line under it that says the backend decides how long to think. The **Card** section works the same way: its fields stay in place, disabled, with a reason line, because a push backend uses its own persona. **Import card…** and **Export card** stay usable.
 
-## Agents with an adapter
+## Agents with an integration
 
-[Hermes Agent](https://github.com/nousresearch/hermes-agent) is one optional backend for YUI, and the [Hermes integration README](https://github.com/yw0nam/YUI/blob/main/integrations/hermes/README.md) describes its wiring. Its chat endpoint is the Hermes api-server, at `http://localhost:8643` by default, and Responses mode and push mode both work.
+[Hermes Agent](https://github.com/nousresearch/hermes-agent) is one optional backend for YUI, and its [integration README](https://github.com/yw0nam/YUI/blob/main/integrations/hermes/README.md) describes the wiring.
