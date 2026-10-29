@@ -5,7 +5,7 @@ A plugin is one folder holding a manifest plus, optionally, MCP servers and skil
 To build one with a coding agent, paste this line:
 
 ```text
-Build a YUI plugin that <what it should do>, following https://raw.githubusercontent.com/yw0nam/YUI/main/skills/yui-plugin-build/SKILL.md
+Build a YUI plugin that <what it should do>, following https://raw.githubusercontent.com/yw0nam/YUI/main/skills/yui-plugin/SKILL.md
 ```
 
 ```mermaid

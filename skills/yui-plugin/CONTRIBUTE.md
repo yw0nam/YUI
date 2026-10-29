@@ -1,10 +1,10 @@
 # Contribute a YUI plugin
 
-This file takes a plugin that already works in the user's YUI to a listing other users can install. Follow the rules in [SKILL.md](https://raw.githubusercontent.com/yw0nam/YUI/main/skills/yui-plugin-build/SKILL.md). [Contribute a plugin](https://github.com/yw0nam/YUI/blob/main/docs/guide/contribute-a-plugin.md) holds every fact, and each step links the section that holds its own.
+This file takes a plugin that already works in the user's YUI to a listing other users can install. Follow the rules in [SKILL.md](https://raw.githubusercontent.com/yw0nam/YUI/main/skills/yui-plugin/SKILL.md). [Contribute a plugin](https://github.com/yw0nam/YUI/blob/main/docs/guide/contribute-a-plugin.md) holds every fact, and each step links the section that holds its own.
 
 ## 0. Check the precondition
 
-Confirm that the plugin passes step 5 of [BUILD.md](https://raw.githubusercontent.com/yw0nam/YUI/main/skills/yui-plugin-build/BUILD.md): the user's character used one of its tools in a reply.
+Confirm that the plugin passes step 5 of [BUILD.md](https://raw.githubusercontent.com/yw0nam/YUI/main/skills/yui-plugin/BUILD.md): the user's character used one of its tools in a reply.
 
 Done: the user confirms that a reply used the plugin. When it did not, stop here and run BUILD.md first.
 

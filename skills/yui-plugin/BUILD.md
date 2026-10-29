@@ -1,6 +1,6 @@
 # Build a YUI plugin
 
-This file takes a plugin from an idea to a plugin that runs in the user's own YUI. Follow the rules in [SKILL.md](https://raw.githubusercontent.com/yw0nam/YUI/main/skills/yui-plugin-build/SKILL.md).
+This file takes a plugin from an idea to a plugin that runs in the user's own YUI. Follow the rules in [SKILL.md](https://raw.githubusercontent.com/yw0nam/YUI/main/skills/yui-plugin/SKILL.md).
 
 ## 1. Decide what the plugin does
 

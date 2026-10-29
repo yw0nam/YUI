@@ -5,7 +5,7 @@ A plugin that works from a folder can be listed, so other users install it from 
 To do this with a coding agent, paste this line:
 
 ```text
-Contribute my YUI plugin at <path>, following https://raw.githubusercontent.com/yw0nam/YUI/main/skills/yui-plugin-build/SKILL.md
+Contribute my YUI plugin at <path>, following https://raw.githubusercontent.com/yw0nam/YUI/main/skills/yui-plugin/SKILL.md
 ```
 
 Take the community route when the plugin stays in your own GitHub repository. Take the official route when YUI should ship the plugin itself, and only after a maintainer agrees to it.
