@@ -1,10 +1,9 @@
 # Gmail producer
 
-A producer that turns mail the user marks with a Gmail label into Threads, collects a
-reply, and sends it in the same Gmail thread. The user decides the scope in Gmail: a
-label of their own (for example `YUI`) applied by their own filter.
+A producer that turns mail the user marks with a Gmail label into Threads, collects an
+answer, and sends the reply in the same Gmail thread. The user decides the scope in
+Gmail: a label of their own (for example `YUI`) applied by their own filter.
 
-The wire contract is `docs/reference/threads.md`; this file adds only the Gmail side.
 The tool that calls Gmail — the API, a CLI, an n8n node — is yours to pick; where a step
 names no exact call, check your tool's docs.
 
@@ -25,9 +24,8 @@ the thread id and `In-Reply-To` and `References` headers pointing at the last me
 a `system` entry with the result: state `completed`, or `failed` with the error, leaving
 the label in place so the mail stays in the producer's scope.
 
-Record the answer durably before sending. An uncertain outcome — a timeout mid-send — is
-a `failed` entry asking the user to check Gmail; never retry on your own. The user can
-re-answer on a new ask.
+Record the answer durably before sending and leave the retry to the user: follow
+SKILL.md step 5.
 
 Done when: the reply sits in the Gmail thread, the label is gone, and the Thread shows
 the result entry.
