@@ -367,7 +367,7 @@ block's own tags stays one line and cannot forge another. A preset named `user` 
 
 The `ClientContext` field is `open_characters?: string[]`. These are the names
 `address_character.to` and `rate_relation.toward` accept, and the client checks a call
-against the presets open when it runs ([client-tools.md](client-tools.md#rate_relation)).
+against the presets open when it runs ([client-tools.md](client-tools.md#rate-relation)).
 
 ## Trigger lines
 
