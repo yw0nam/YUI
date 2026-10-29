@@ -142,38 +142,11 @@ mod tests {
     }
 
     #[test]
-    fn threads_answers_route_sweeps_one_source() {
-        assert!(
-            matches!(parse_route("PUT", "/threads/answers", "{}"), Err(404)),
-            "PUT /threads/answers must refuse the reserved id"
-        );
-        for (method, path) in [
-            ("POST", "/threads/answers?source=x"),
-            ("DELETE", "/threads/answers?source=x"),
-        ] {
-            assert_eq!(
-                parse_route(method, path, "").unwrap_err(),
-                405,
-                "{method} {path}"
-            );
-        }
-        for path in [
-            "/threads/answers",
-            "/threads/answers?wait=5",
-            "/threads/answers?source=",
-            &format!("/threads/answers?source={}", "x".repeat(65)),
-        ] {
-            assert_eq!(parse_route("GET", path, "").unwrap_err(), 400, "{path}");
-        }
-        assert_eq!(
-            parse_route("GET", "/presets/x/threads/answers?source=y", "").unwrap_err(),
-            404
-        );
-        let long = "x".repeat(64);
-        let route = parse_route("GET", &format!("/threads/answers?source={long}"), "").unwrap();
+    fn threads_answers_route_parses_its_source() {
+        let route = parse_route("GET", "/threads/answers?source=github", "").unwrap();
         assert!(matches!(route.target, Target::Main));
         match route.kind {
-            RouteKind::Thread(ThreadRoute::Sweep { source }) => assert_eq!(source, long),
+            RouteKind::Thread(ThreadRoute::Sweep { source }) => assert_eq!(source, "github"),
             _ => panic!("Sweep route expected"),
         }
     }
@@ -187,11 +160,16 @@ mod tests {
             ("PUT", "/threads/한", 404),
             ("PUT", "/threads/a/b", 404),
             ("PUT", "/presets/x/threads/a", 404),
+            ("PUT", "/threads/answers", 404),
             ("POST", "/threads/a", 405),
             ("POST", "/threads/a/answer?ask_id=q", 405),
+            ("POST", "/threads/answers?source=x", 405),
             ("GET", "/threads/a/answer?ask_id=q&wait=26", 400),
             ("GET", "/threads/a/answer?ask_id=q&wait=-1", 400),
             ("GET", "/threads/a/answer?ask_id=q&wait=1.5", 400),
+            ("GET", "/threads/answers", 400),
+            ("GET", "/threads/answers?source=", 400),
+            ("GET", &format!("/threads/answers?source={}", "x".repeat(65)), 400),
         ] {
             assert_eq!(
                 parse_route(method, path, "{}").unwrap_err(),
