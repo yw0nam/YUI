@@ -5,18 +5,18 @@ YUI is the body. The model or agent you connect is the brain.
 ```mermaid
 flowchart TB
   you(["You"])
-  senders["Hooks, scripts, game plugins"]
+  producers["Producers: hooks, scripts, game mods"]
   yui["YUI, the body"]
   voice["STT and TTS servers"]
   brain["Backend agent, the brain"]
   plugins["Plugins on your computer"]
 
   you <-->|"talk and tap / face and voice"| yui
-  senders -->|"POST /signals"| yui
+  producers -->|"POST /signals"| yui
   yui <-->|"speech / voice"| voice
   yui <-->|"what happened / words and tool calls"| brain
   yui -->|"runs"| plugins
-  brain -.->|"bridge tools"| plugins
+  brain -.->|"bridge tools"| yui
 ```
 
 YUI sends the brain what happened, over Chat Completions, Responses or Push, and turns the answer into a face, a voice and gestures.
