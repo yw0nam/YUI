@@ -2,6 +2,12 @@
 
 A plugin is one folder holding a manifest plus, optionally, MCP servers and skills. YUI runs each server, and the brain reaches its tools through the bridge tools.
 
+To build one with a coding agent, paste this line:
+
+```text
+Build a YUI plugin that <what it should do>, following https://raw.githubusercontent.com/yw0nam/YUI/main/skills/yui-plugin-build/SKILL.md
+```
+
 ```mermaid
 flowchart LR
   folder["my-plugin/"] --> manifest[".claude-plugin/plugin.json"]
@@ -13,13 +19,12 @@ flowchart LR
   brain["Brain"] -->|"bridge tools"| host
 ```
 
-The work takes five steps:
+The work takes four steps:
 
 1. [Lay out the folder](#layout)
 2. [Write the server](#servers)
 3. [Declare tools and skills](#tools-and-skills)
 4. [Test it locally](#test-locally)
-5. [Publish it](#publish)
 
 ## Layout
 
@@ -105,22 +110,6 @@ Run the app (`pnpm tauri dev`, or a release build), open **Plugins**, choose **A
 
 A change to `plugin.json`, `.mcp.json` or a skill's frontmatter needs the plugin off and on. **Retry** and **Restart** start a new process from the `.mcp.json` entry read at turn-on, so they pick up rebuilt server code but not a manifest change. While a server is running, neither button appears.
 
-## Publish
-
-A catalog entry comes from one of two sources.
-
-An **Official** plugin lives under `plugins/<id>/` in the YUI repository, and the release workflow builds and releases it. [Build, Run & Logs § Plugin releases](https://github.com/yw0nam/YUI/blob/main/docs/agent-guide/build-run.md#plugin-releases) carries the tag, the version rule and the zip layout.
-
-A **Community** plugin lives in the author's public GitHub repository, and YUI installs it from:
-
-- `.claude-plugin/plugin.json` on the default branch, carrying the current `version`.
-- A GitHub release tagged `v<version>`.
-- One asset per declared platform, named `<id>-<version>-<platform>.zip`, where `<platform>` is `darwin-arm64` or `windows-x64`.
-- A zip rooted at the plugin folder, holding `.claude-plugin/plugin.json` with the entry's `id` and the tagged version.
-- `checksums.txt` in that release, one `sha256sum` line per asset: `<hex>  <file>` or `<hex> *<file>`.
-
-YUI reads the version from the default branch, so a release goes out before its version reaches that branch. To list a community plugin, follow [CONTRIBUTING.md § Plugins](https://github.com/yw0nam/YUI/blob/main/CONTRIBUTING.md#plugins).
-
 ## Tips
 
 - Start from [the test fixture](https://github.com/yw0nam/YUI/tree/main/src-tauri/fixtures/mcp-test-plugin): one server, one tool with `_meta`, and one skill.
@@ -131,3 +120,5 @@ YUI reads the version from the default branch, so a release goes out before its 
 
 - [Client Tools](../reference/client-tools.md): bridge tools, arguments, waits and consent.
 - [Client Context § Plugin lines](../reference/client-context.md#plugin-lines): what a turn carries of a plugin's tools and skills.
+
+To share it with other users, see [Contribute a plugin](./contribute-a-plugin.md).

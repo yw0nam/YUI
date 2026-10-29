@@ -152,7 +152,7 @@ The [connection guide](docs/guide/connect-a-backend.md) covers each setup. Missi
 
 **Extend**
 
-- [Write a plugin](docs/guide/write-a-plugin.md) · [Send signals from a producer](docs/guide/signals-producer.md) · [Motions](docs/guide/motions.md) · [TTS Emotion](docs/guide/tts-emotion/)
+- [Write a plugin](docs/guide/write-a-plugin.md) · [Contribute a plugin](docs/guide/contribute-a-plugin.md) · [Send signals from a producer](docs/guide/signals-producer.md) · [Motions](docs/guide/motions.md) · [TTS Emotion](docs/guide/tts-emotion/)
 
 **Developing YUI**
 

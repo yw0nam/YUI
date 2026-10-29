@@ -48,6 +48,7 @@ const EXTEND: DocGroup = {
   text: 'Extend',
   items: [
     { text: 'Write a plugin', link: '/guide/write-a-plugin' },
+    { text: 'Contribute a plugin', link: '/guide/contribute-a-plugin' },
     { text: 'Send signals from a producer', link: '/guide/signals-producer' },
     { text: 'Motions', link: '/guide/motions' },
     {
@@ -100,6 +101,7 @@ const LONG_READ = [
   'guide/cards.md',
   'guide/plugins.md',
   'guide/write-a-plugin.md',
+  'guide/contribute-a-plugin.md',
   'guide/signals-producer.md',
   'guide/whats-new.md',
 ]

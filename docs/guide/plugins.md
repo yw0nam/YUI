@@ -51,4 +51,4 @@ A tool or skill name belongs to one holder: a built-in tool first, then each plu
 - A failed start leaves the plugin on, and the app tries its servers again at the next launch.
 - Changing the files in a local plugin's folder does not ask for consent again.
 
-To write a plugin, see [Write a plugin](./write-a-plugin.md).
+To write a plugin, see [Write a plugin](./write-a-plugin.md). To share one, see [Contribute a plugin](./contribute-a-plugin.md).

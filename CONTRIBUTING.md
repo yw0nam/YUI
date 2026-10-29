@@ -224,35 +224,9 @@ an accepted idea becomes a `help wanted` issue.
 
 ## Plugins
 
-How to write a plugin is [Write a plugin](docs/guide/write-a-plugin.md): the
-folder, `.mcp.json`, the `_meta` keys, skills, and the release a catalog install
-needs.
+To build a plugin for your own use, read [Write a plugin](docs/guide/write-a-plugin.md).
 
-To list a community plugin:
-
-1. Publish a release that meets
-   [Write a plugin § Publish](docs/guide/write-a-plugin.md#publish).
-2. Open a PR that adds the plugin to `community` in `plugins/catalog.json`: `repo`
-   as `<owner>/<name>`, and `platforms` naming the platforms the release has an
-   asset for. Keep `community` sorted by `id`.
-
-   ```json
-   "community": [
-     {
-       "id": "my-plugin",
-       "repo": "owner/yui-my-plugin",
-       "platforms": ["darwin-arm64", "windows-x64"]
-     }
-   ]
-   ```
-
-3. On the first listing, a maintainer reads the plugin's source and installs it
-   once before merging.
-
-An update needs no PR: a release carrying another version, and that version on
-the default branch. YUI clears the user's approval on a community update, so the
-user allows the updated version again
-([Plugins § Update](docs/guide/plugins.md#update)).
+To list a plugin for other users, or to add an official one to the repository, read [Contribute a plugin](docs/guide/contribute-a-plugin.md).
 
 ## Commits & PRs
 

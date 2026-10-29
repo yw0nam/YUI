@@ -156,7 +156,7 @@ YUI自体はモデルを内蔵していません。何ができるかで頭脳�
 
 **拡張する**
 
-- [プラグインを書く](docs/guide/write-a-plugin.md) · [プロデューサーからシグナルを送る](docs/guide/signals-producer.md) · [モーション](docs/guide/motions.md) · [TTS感情](docs/guide/tts-emotion/)
+- [プラグインを書く](docs/guide/write-a-plugin.md) · [プラグインを公開する](docs/guide/contribute-a-plugin.md) · [プロデューサーからシグナルを送る](docs/guide/signals-producer.md) · [モーション](docs/guide/motions.md) · [TTS感情](docs/guide/tts-emotion/)
 
 **開発する人向け**
 
