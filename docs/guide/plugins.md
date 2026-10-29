@@ -47,7 +47,7 @@ Each server of an installed plugin shows one line:
 
 | State | What it means |
 | --- | --- |
-| **Running** | The server answered and declared its tools; the line adds **Tools: n** when it declared any |
+| **Running** | The server answered and declared its tools; the tools disclosure under the server lines gives the count |
 | **Starting…** | The server is launching and connecting |
 | **Unavailable** | The server stopped at a start step, which the line names — launch, initialize, or tool list — with the reason. **Retry** starts that server again |
 | **Exited** | The server ran and then ended; the line gives the reason, and **Restart** starts it again |

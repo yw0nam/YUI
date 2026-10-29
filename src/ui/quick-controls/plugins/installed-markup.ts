@@ -63,10 +63,7 @@ function serverHtml(p: PluginHostPlugin, sv: PluginHostServer, busy: boolean): s
   let detail = "";
   let tail = "";
   if (sv.status === "starting") state = t("plugins.starting");
-  if (sv.status === "running") {
-    const n = p.tools.filter((tool) => tool.server === sv.id).length;
-    state = `<b>${t("plugins.sv_running")}</b>${n ? `<span>${t("plugins.tools_n", { n })}</span>` : ""}`;
-  }
+  if (sv.status === "running") state = `<b>${t("plugins.sv_running")}</b>`;
   if (sv.status === "failed") {
     state = `<b>${t("plugins.sv_failed")}</b>`;
     detail = sv.phase
