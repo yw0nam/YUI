@@ -85,6 +85,46 @@ mod tests {
     use serde_json::json;
     use std::fs;
 
+    struct ReplayLog(std::sync::Mutex<Vec<String>>);
+    static LOG: ReplayLog = ReplayLog(std::sync::Mutex::new(Vec::new()));
+    impl log::Log for ReplayLog {
+        fn enabled(&self, _: &log::Metadata<'_>) -> bool {
+            true
+        }
+        fn log(&self, record: &log::Record<'_>) {
+            self.0.lock().unwrap().push(record.args().to_string());
+        }
+        fn flush(&self) {}
+    }
+
+    #[test]
+    fn replay_logs_read_errors_but_not_malformed_json() {
+        log::set_logger(&LOG).unwrap();
+        log::set_max_level(log::LevelFilter::Warn);
+        let dir =
+            std::env::temp_dir().join(format!("yui_threads_read_error_{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("threads_2026-10-29.jsonl");
+        fs::write(&path, b"not json\n\xff\n").unwrap();
+        assert_eq!(replay(&dir, 1), vec![]);
+        let messages: Vec<_> = LOG
+            .0
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|line| line.contains(path.to_str().unwrap()))
+            .cloned()
+            .collect();
+        assert_eq!(
+            messages,
+            vec![format!(
+                "threads_replay_failed path={} error=stream did not contain valid UTF-8",
+                path.display()
+            )]
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
     #[test]
     fn replay_orders_files_skips_malformed_and_expires_old_threads() {
         let dir = std::env::temp_dir().join(format!("yui_threads_replay_{}", std::process::id()));
@@ -109,6 +149,9 @@ mod tests {
         t["title"] = json!("Latest");
         fs::write(dir.join("threads_2026-10-29.jsonl"), format!("{t}\n{{\n")).unwrap();
         fs::write(dir.join("threads_bad-date.jsonl"), format!("{old}\n")).unwrap();
+        let mut unpadded = t.clone();
+        unpadded["id"] = json!("unpadded");
+        fs::write(dir.join("threads_2026-1-2.jsonl"), format!("{unpadded}\n")).unwrap();
         let loaded = replay(&dir, 1_209_600_001);
         assert_eq!(loaded.len(), 1, "only the unexpired Thread replays");
         assert_eq!(loaded[0].title, "Latest");

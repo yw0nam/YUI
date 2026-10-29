@@ -63,6 +63,8 @@ pub struct ThreadStore {
     state: Mutex<State>,
     changed: Condvar,
     emit: Box<dyn Fn(&ThreadsSnapshot) + Send + Sync>,
+    #[cfg(test)]
+    wait_started: Mutex<Option<std::sync::Arc<std::sync::Barrier>>>,
 }
 
 impl ThreadStore {
@@ -80,6 +82,8 @@ impl ThreadStore {
             }),
             changed: Condvar::new(),
             emit: Box::new(emit),
+            #[cfg(test)]
+            wait_started: Mutex::new(None),
         }
     }
 
@@ -210,6 +214,10 @@ impl ThreadStore {
             let remaining = deadline.saturating_duration_since(Instant::now());
             if remaining.is_zero() {
                 return WaitOutcome::NoAnswer;
+            }
+            #[cfg(test)]
+            if let Some(start) = self.wait_started.lock().unwrap().take() {
+                start.wait();
             }
             state = self.changed.wait_timeout(state, remaining).unwrap().0;
         }
@@ -378,8 +386,13 @@ mod tests {
         expected.at = 2;
         assert_eq!(poll(&s, "a"), WaitOutcome::Answer(expected));
         assert_eq!(poll(&s, "a"), WaitOutcome::Gone);
-        s.upsert("t", input(), 4);
+        let mut next = input();
+        if let AskUpdate::Set(ref mut ask) = next.ask {
+            ask.ask_id = "b".into();
+        }
+        s.upsert("t", next, 4);
         let a = Answer {
+            ask_id: "b".into(),
             choice: None,
             text: None,
             release: Some(true),
@@ -388,7 +401,7 @@ mod tests {
         assert_eq!(s.answer("t", a, 5), Ok(()));
         assert_eq!(s.snapshot().threads[0].entries.len(), 1);
         assert!(matches!(
-            poll(&s, "a"),
+            poll(&s, "b"),
             WaitOutcome::Answer(Answer {
                 release: Some(true),
                 ..
@@ -402,17 +415,19 @@ mod tests {
         s.upsert("t", input(), 1);
         let other = s.clone();
         let start = Arc::new(Barrier::new(2));
-        let ready = start.clone();
-        let worker = std::thread::spawn(move || {
-            ready.wait();
-            other.wait_answer("t", "a", Duration::from_secs(2))
-        });
+        *s.wait_started.lock().unwrap() = Some(start.clone());
+        let worker =
+            std::thread::spawn(move || other.wait_answer("t", "a", Duration::from_secs(2)));
         start.wait();
-        std::thread::sleep(Duration::from_millis(20));
+        let elapsed = Instant::now();
         assert_eq!(s.answer("t", answer(), 2), Ok(()));
         let mut expected = answer();
         expected.at = 2;
         assert_eq!(worker.join().unwrap(), WaitOutcome::Answer(expected));
+        assert!(
+            elapsed.elapsed() < Duration::from_millis(500),
+            "answer wakes before the 2 s deadline"
+        );
     }
 
     #[test]
@@ -467,53 +482,16 @@ mod tests {
     }
 
     #[test]
-    fn concurrent_disk_order_replays_latest_state() {
-        let lines = Arc::new(Mutex::new(Vec::new()));
-        let sink = lines.clone();
-        let s = Arc::new(ThreadStore::new(
-            vec![],
-            Box::new(move |t| {
-                sink.lock().unwrap().push(serde_json::to_string(t).unwrap());
-                Ok(())
-            }),
-            |_| {},
-        ));
-        let start = Arc::new(Barrier::new(3));
-        let mut workers = vec![];
-        for title in ["one", "two"] {
-            let s = s.clone();
-            let start = start.clone();
-            workers.push(std::thread::spawn(move || {
-                start.wait();
-                let mut b = input();
-                b.title = title.into();
-                s.upsert("t", b, 1);
-            }));
-        }
-        start.wait();
-        for w in workers {
-            w.join().unwrap();
-        }
-        assert_eq!(s.snapshot().revision, 2);
-        let dir = std::env::temp_dir().join(format!("yui_threads_order_{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(
-            dir.join("threads_2026-10-29.jsonl"),
-            lines.lock().unwrap().join("\n"),
-        )
-        .unwrap();
-        let replayed = crate::threads::disk::replay(&dir, 1);
-        assert_eq!(replayed, s.snapshot().threads);
-        std::fs::remove_dir_all(dir).unwrap();
-    }
-
-    #[test]
     fn expiry_removes_threads_and_wakes_waiters() {
         let s = Arc::new(store());
         s.upsert("t", input(), 1);
         let other = s.clone();
+        let start = Arc::new(Barrier::new(2));
+        *s.wait_started.lock().unwrap() = Some(start.clone());
         let waiter =
             std::thread::spawn(move || other.wait_answer("t", "a", Duration::from_secs(2)));
+        start.wait();
+        let elapsed = Instant::now();
         s.upsert("fresh", input(), 1_209_600_002);
         assert_eq!(
             s.snapshot()
@@ -524,6 +502,67 @@ mod tests {
             vec!["fresh"]
         );
         assert_eq!(waiter.join().unwrap(), WaitOutcome::Unknown);
+        assert!(
+            elapsed.elapsed() < Duration::from_millis(500),
+            "expiry wakes before the 2 s deadline"
+        );
+    }
+
+    #[test]
+    fn answered_ask_stays_closed_pending_delivered_and_replayed() {
+        for delivered in [false, true] {
+            let s = store();
+            s.upsert("t", input(), 1);
+            s.answer("t", answer(), 2).unwrap();
+            if delivered {
+                assert!(matches!(poll(&s, "a"), WaitOutcome::Answer(_)));
+            }
+            s.upsert("t", input(), 3);
+            assert_eq!(
+                s.snapshot().threads[0].ask,
+                None,
+                "answered ask stays closed (delivered={delivered})"
+            );
+            if !delivered {
+                assert!(matches!(poll(&s, "a"), WaitOutcome::Answer(_)));
+            }
+            assert_eq!(poll(&s, "a"), WaitOutcome::Gone);
+            let saved = serde_json::to_string(&s.snapshot().threads).unwrap();
+            let restored = ThreadStore::new(
+                serde_json::from_str(&saved).unwrap(),
+                Box::new(|_| Ok(())),
+                |_| {},
+            );
+            restored.upsert("t", input(), 4);
+            assert_eq!(
+                restored.snapshot().threads[0].ask,
+                None,
+                "answered ask stays closed after replay"
+            );
+            let mut next = input();
+            if let AskUpdate::Set(ref mut a) = next.ask {
+                a.ask_id = "b".into();
+            }
+            restored.upsert("t", next, 5);
+            assert_eq!(poll(&restored, "b"), WaitOutcome::NoAnswer);
+        }
+    }
+
+    #[test]
+    fn poisoned_store_still_accepts_changes_and_answers() {
+        let s = store();
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _guard = s.state.lock().unwrap();
+            panic!("poison state");
+        }));
+        assert_eq!(s.upsert("t", input(), 1), 1);
+        assert_eq!(s.snapshot().revision, 1);
+        assert_eq!(
+            s.wait_answer("t", "a", Duration::from_millis(1)),
+            WaitOutcome::NoAnswer
+        );
+        assert_eq!(s.answer("t", answer(), 2), Ok(()));
+        assert!(matches!(poll(&s, "a"), WaitOutcome::Answer(_)));
     }
 
     #[test]

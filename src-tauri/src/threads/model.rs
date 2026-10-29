@@ -210,6 +210,46 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn optional_null_fields_are_absent() {
+        for path in [
+            vec!["label"],
+            vec!["entries"],
+            vec!["ask", "placeholder"],
+            vec!["ask", "choices"],
+            vec!["ask", "choices", "0", "tone"],
+        ] {
+            let mut absent = body();
+            let mut null = body();
+            let last = path.last().unwrap();
+            let mut a = &mut absent;
+            let mut n = &mut null;
+            for key in &path[..path.len() - 1] {
+                if *key == "0" {
+                    a = &mut a[0];
+                    n = &mut n[0];
+                } else {
+                    a = &mut a[*key];
+                    n = &mut n[*key];
+                }
+            }
+            a.as_object_mut().unwrap().remove(*last);
+            n[*last] = Value::Null;
+            let parsed = parse_upsert(&null.to_string());
+            assert!(parsed.is_ok(), "null {path:?} is absent: {parsed:?}");
+            assert_eq!(
+                format!("{:?}", parsed.unwrap()),
+                format!("{:?}", parse_upsert(&absent.to_string()).unwrap())
+            );
+        }
+        let mut value = body();
+        value["ask"] = Value::Null;
+        assert!(matches!(
+            parse_upsert(&value.to_string()).unwrap().ask,
+            AskUpdate::Close
+        ));
+    }
+
+    #[test]
     fn rejects_each_put_rule() {
         let mut cases = vec![("", json!(null)), ("", json!([]))];
         for (field, max) in [("source", 64), ("title", 200)] {
@@ -221,8 +261,6 @@ pub(crate) mod tests {
             ("state", json!("waiting")),
             ("state", json!(null)),
             ("label", json!(2)),
-            ("label", json!(null)),
-            ("entries", json!(null)),
         ]);
         cases.extend([
             (
@@ -248,8 +286,9 @@ pub(crate) mod tests {
             assert_eq!(parse_upsert(&v.to_string()).unwrap_err(), 400, "{v}");
         }
         for (field, max) in [("ask_id", 128), ("prompt", 500), ("placeholder", 200)] {
-            for value in [json!(3), json!(null), json!("x".repeat(max + 1))]
+            for value in [json!(3), json!("x".repeat(max + 1))]
                 .into_iter()
+                .chain((field != "placeholder").then(|| json!(null)))
                 .chain((field != "placeholder").then(|| json!("")))
             {
                 let mut v = body();
@@ -264,7 +303,6 @@ pub(crate) mod tests {
         for (field, value) in [
             ("text", json!(null)),
             ("text", json!("yes")),
-            ("choices", json!(null)),
             ("choices", json!(vec![json!({"id":"a","label":"A"}); 7])),
             (
                 "choices",
@@ -276,7 +314,10 @@ pub(crate) mod tests {
             assert_eq!(parse_upsert(&v.to_string()).err(), Some(400), "ask.{field}");
         }
         for field in ["id", "label", "tone"] {
-            for value in [json!(null), json!(3), json!(""), json!("x".repeat(65))] {
+            for value in [json!(3), json!(""), json!("x".repeat(65))]
+                .into_iter()
+                .chain((field != "tone").then(|| json!(null)))
+            {
                 let mut v = body();
                 v["ask"]["choices"][0][field] = value;
                 assert_eq!(
