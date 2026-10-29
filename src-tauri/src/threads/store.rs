@@ -254,8 +254,28 @@ impl ThreadStore {
         }
     }
 
-    pub fn drain_answers(&self, _source: &str) -> Vec<DeliveredAnswer> {
-        Vec::new()
+    pub fn drain_answers(&self, source: &str) -> Vec<DeliveredAnswer> {
+        let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        let State {
+            threads, pending, ..
+        } = &mut *state;
+        let mut drained = Vec::new();
+        let mut kept = VecDeque::new();
+        for (id, answer) in pending.drain(..) {
+            if threads
+                .get(&id)
+                .is_some_and(|thread| thread.source == source)
+            {
+                drained.push(DeliveredAnswer {
+                    thread_id: id,
+                    answer,
+                });
+            } else {
+                kept.push_back((id, answer));
+            }
+        }
+        *pending = kept;
+        drained
     }
 
     pub fn snapshot(&self) -> ThreadsSnapshot {
@@ -352,11 +372,17 @@ mod tests {
             vec![
                 DeliveredAnswer {
                     thread_id: "pr1".into(),
-                    answer: Answer { input: answer(), at: 5 },
+                    answer: Answer {
+                        input: answer(),
+                        at: 5
+                    },
                 },
                 DeliveredAnswer {
                     thread_id: "pr2".into(),
-                    answer: Answer { input: answer(), at: 6 },
+                    answer: Answer {
+                        input: answer(),
+                        at: 6
+                    },
                 },
             ]
         );
@@ -365,7 +391,10 @@ mod tests {
             s.drain_answers("codex"),
             vec![DeliveredAnswer {
                 thread_id: "t".into(),
-                answer: Answer { input: answer(), at: 4 },
+                answer: Answer {
+                    input: answer(),
+                    at: 4
+                },
             }]
         );
     }
@@ -379,14 +408,23 @@ mod tests {
             s.drain_answers("codex"),
             vec![DeliveredAnswer {
                 thread_id: "t".into(),
-                answer: Answer { input: answer(), at: 2 },
+                answer: Answer {
+                    input: answer(),
+                    at: 2
+                },
             }]
         );
-        assert_eq!(poll(&s, "a"), WaitOutcome::NoAnswer);
+        assert_eq!(
+            s.wait_answer("t", None, Duration::ZERO),
+            WaitOutcome::NoAnswer
+        );
         let s = store();
         s.upsert("t", input(), 1);
         s.answer("t", answer(), 2).unwrap();
-        assert!(matches!(poll(&s, "a"), WaitOutcome::Answer(_)));
+        assert!(matches!(
+            s.wait_answer("t", None, Duration::ZERO),
+            WaitOutcome::Answer(_)
+        ));
         assert_eq!(s.drain_answers("codex"), Vec::new());
     }
 
