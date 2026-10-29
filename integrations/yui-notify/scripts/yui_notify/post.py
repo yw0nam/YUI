@@ -6,15 +6,24 @@ import urllib.request
 from typing import Any
 
 
-def post(url: str, body: Any, timeout: float = 2) -> tuple[int | None, str | None]:
-    """Return (status, error); status is None when no response came, error is None on 2xx."""
-    req = urllib.request.Request(
-        url, json.dumps(body, ensure_ascii=False).encode(), {"Content-Type": "application/json"}
-    )
+def _request(req: urllib.request.Request, timeout: float) -> tuple[int | None, Any, str | None]:
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return resp.status, None
+            raw = resp.read()
+            return resp.status, json.loads(raw) if raw else None, None
     except urllib.error.HTTPError as e:
-        return e.code, f"HTTP {e.code} {e.reason}"
+        with e:
+            return e.code, None, f"HTTP {e.code} {e.reason}"
     except (OSError, ValueError) as e:
-        return None, str(e)
+        return None, None, str(e)
+
+
+def put(url: str, body: Any) -> tuple[int | None, Any, str | None]:
+    req = urllib.request.Request(
+        url, json.dumps(body, ensure_ascii=False).encode(), {"Content-Type": "application/json"}, method="PUT"
+    )
+    return _request(req, 2)
+
+
+def get(url: str, timeout: float) -> tuple[int | None, Any, str | None]:
+    return _request(urllib.request.Request(url), timeout)

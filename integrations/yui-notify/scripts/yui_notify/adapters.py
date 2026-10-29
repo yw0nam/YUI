@@ -4,13 +4,7 @@ import json
 from collections.abc import Mapping
 from typing import Any, NamedTuple
 
-PENDING_MAX = 1000
-PHASES = {
-    "Stop": "done",
-    "PermissionRequest": "needs_input",
-    "Notification": "needs_input",
-    "SessionStart": "start",
-}
+EVENTS = {"Stop", "PermissionRequest", "Notification", "SessionStart", "UserPromptSubmit"}
 
 
 class Event(NamedTuple):
@@ -19,17 +13,19 @@ class Event(NamedTuple):
     session_id: str
     cwd: str
     text: str
+    turn_id: str
+    tool_name: str
 
 
 def _pending(data: Mapping[str, Any]) -> str:
     if data["hook_event_name"] == "Notification":
-        return str(data.get("message") or "")[:PENDING_MAX]
+        return str(data.get("message") or "")
     tool_input = data.get("tool_input")
     if isinstance(tool_input, dict) and isinstance(tool_input.get("command"), str):
         detail = tool_input["command"]
     else:
         detail = json.dumps(tool_input, ensure_ascii=False, separators=(",", ":"))
-    return f"{data.get('tool_name')}: {detail}"[:PENDING_MAX]
+    return f"{data.get('tool_name')}: {detail}"
 
 
 def _codex_interactive(transcript_path: Any) -> bool:
@@ -44,15 +40,15 @@ def _codex_interactive(transcript_path: Any) -> bool:
 def parse_event(data: Any, env: Mapping[str, str]) -> Event | None:
     if not isinstance(data, dict):
         return None
-    phase = PHASES.get(data.get("hook_event_name"))
-    if phase is None or not isinstance(data.get("session_id"), str):
+    phase = data.get("hook_event_name")
+    if phase not in EVENTS or not isinstance(data.get("session_id"), str):
         return None
     # turn_id marks Codex input except at SessionStart; a Codex in a Claude Code shell inherits CLAUDECODE=1
     if "turn_id" in data:
         agent = "codex"
     elif env.get("CLAUDECODE") == "1":
         agent = "claude-code"
-    elif phase == "start":
+    elif phase == "SessionStart":
         agent = "codex"
     else:
         return None
@@ -62,16 +58,26 @@ def parse_event(data: Any, env: Mapping[str, str]) -> Event | None:
     )
     if (
         agent == "claude-code"
-        and phase != "needs_input"
+        and phase in ("Stop", "SessionStart")
         and (running or env.get("CLAUDE_CODE_ENTRYPOINT", "").startswith("sdk"))
     ):
         return None
-    if agent == "codex" and phase == "done" and not _codex_interactive(data.get("transcript_path")):
+    if agent == "codex" and phase == "Stop" and not _codex_interactive(data.get("transcript_path")):
         return None
-    if phase == "done":
+    if phase == "Stop":
         text = data.get("last_assistant_message") or ""
-    elif phase == "needs_input":
+    elif phase in ("PermissionRequest", "Notification"):
         text = _pending(data)
+    elif phase == "UserPromptSubmit":
+        text = data.get("prompt") or ""
     else:
         text = ""
-    return Event(agent, phase, data["session_id"], str(data.get("cwd") or ""), text)
+    return Event(
+        agent,
+        phase,
+        data["session_id"],
+        str(data.get("cwd") or ""),
+        text,
+        str(data.get("turn_id") or ""),
+        str(data.get("tool_name") or ""),
+    )

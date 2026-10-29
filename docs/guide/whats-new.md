@@ -10,7 +10,7 @@ Releases are listed newest first, and older releases are on [GitHub Releases](ht
 - A plugin's tools and skills reach the backend through three bridge tools, so the model describes a tool, calls it, and reads a skill ([Client Tools](../reference/client-tools.md)).
 - The `browser` tool comes from the official `browser` plugin, installed from the Catalog like any other plugin ([Plugins](plugins.md)).
 - **Default** reasoning effort sends no effort, so the model applies its own default ([Connect a backend](connect-a-backend.md)).
-- yui-notify posts nothing while the agent's app is in front, and warns at session start when it cannot reach YUI ([yui-notify](https://github.com/yw0nam/YUI/blob/main/integrations/yui-notify/README.md)).
+- yui-notify posts coding-agent Threads; Codex accepts answers through synchronous hooks, and frontmost permissions stay at its terminal ([yui-notify](https://github.com/yw0nam/YUI/blob/main/integrations/yui-notify/README.md)).
 
 ### Breaking changes
 

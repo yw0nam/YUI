@@ -75,11 +75,9 @@
 
 <a href="https://youtu.be/m8myp8pT4Yw"><img src="docs/public/yui-scenario-together.gif" alt="ブラウザのページの横に立つYangyangとSuisui。ユーザーがふたりにそれぞれ自分のことを調べるよう頼み、ふたりがチャットウィンドウで順番に答える" width="400"></a> <a href="https://youtu.be/LQpZq9HcIuk"><img src="docs/public/yui-scenario-address.gif" alt="チャットウィンドウで、Yangyangがユーザーの質問をSuisuiに渡し、Suisuiが彼女に答える" width="400"></a>
 
-### コーディングエージェントの完了を教えてくれる
+### コーディングエージェントのスレッドを読む
 
-<a href="https://youtu.be/T3-B642x0Yw"><img src="docs/public/yui-scenario-signals.gif" alt="Yangyangの横にclaude-codeというシグナルチップが出て、詳細には種類agent.needs_inputと、Claude Codeのセッションが許可を待っているというシグナルのメッセージが表示されている" width="560"></a>
-
-[Claude CodeとCodex向けのyui-notify](integrations/yui-notify/README.md)を入れておくと、エージェントの作業が終わったときや許可を待っているときにシグナルが届き、キャラクターが知らせてくれます。先に **設定 → 話しかけ → ウォッチャー** で **外部シグナル** をオンにして、YUIを再起動してください。
+[Claude CodeとCodex向けのyui-notify](integrations/yui-notify/README.md)は、会話をスレッドとして届けます。キャラクターは発話しません。Codexでは同期フックを通じて許可や次の指示を返せます。Claude Codeのスレッドは閲覧専用です。**設定 → 話しかけ → ウォッチャー** で **外部シグナル** をオンにして、YUIを再起動してください。
 
 **ほかにも:** 自分のVRMモデル、Tavernカードのインポートと書き出し、話の途中でも声で割り込める音声会話、画像の添付、会話履歴、キャラクターがあなたやほかのキャラクターに抱く気持ち、右クリックで開くクイックカード、DawnとHearthのテーマ、日本語・英語・韓国語のUI、エージェントがPC上で使えるツールなど。詳しくは[機能一覧](docs/guide/features.md)をご覧ください。
 

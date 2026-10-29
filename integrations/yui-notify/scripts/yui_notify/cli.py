@@ -21,11 +21,10 @@ def main(
     for name in ("probe", "test"):
         p = sub.add_parser(name)
         p.add_argument("--endpoint")
-    sub.choices["test"].add_argument("--delivery", choices=["urgent", "batched"], default="urgent")
     args = parser.parse_args(argv)
     if args.cmd == "hook":
         with contextlib.suppress(Exception):  # a hook never fails the agent
             run_hook(env, stdin)
         return 0
-    url = (args.endpoint or config.load(env)["endpoint"]).rstrip("/") + "/signals"
-    return probe(url) if args.cmd == "probe" else send_test(url, args.delivery)
+    url = (args.endpoint or config.load(env)["endpoint"]).rstrip("/")
+    return probe(url) if args.cmd == "probe" else send_test(url)
