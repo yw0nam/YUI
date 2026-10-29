@@ -103,6 +103,14 @@ _Avoid_: prompt, request
 The user's reply to one Ask: a choice id, text, both, or `release` to answer at the agent's own terminal.
 _Avoid_: reply, response
 
+**Threads window**:
+The window `threads` where the user reads Threads and answers their Asks; it grows out of the Threads chip.
+_Avoid_: inbox, panel, dashboard
+
+**Threads chip**:
+The pill in the main window's chip column that counts waiting Threads and opens the Threads window.
+_Avoid_: badge, notification pill
+
 ### Surfaces & periphery
 
 **Surface**:

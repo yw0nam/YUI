@@ -15,7 +15,14 @@ import { isTauri } from "../../../tauri-env";
 
 const log = createLogger("settings-bridge");
 
-export type WindowKind = "pet" | "settings" | "devtools" | "message" | "unified" | "quick-card";
+export type WindowKind =
+  | "pet"
+  | "settings"
+  | "devtools"
+  | "message"
+  | "unified"
+  | "quick-card"
+  | "threads";
 
 export interface BridgeTransport {
   /** A transport that sends asynchronously returns the send's promise; it never rejects. */

@@ -161,7 +161,7 @@ These modules log at `info` unless a row says otherwise:
 
 ## Quick-card window
 
-`io/window/openers/quick-card-window.ts` (namespace `quick-card-window`, in the pet window) creates the window. The modules below run in the quick-card window. All modules in this section, `quick-card-window` included, log at `info` unless a row says otherwise.
+`io/window/openers/quick-card-window.ts` (namespace `quick-card-window`, in the pet window) creates the window through `io/window/openers/ready-window.ts` (namespace `ready-window`). The modules below run in the quick-card window. All modules in this section, `quick-card-window` and `ready-window` included, log at `info` unless a row says otherwise.
 
 - `windows/quick-card-main.ts` (namespace `quick-card-main`) boots it.
 - `app/quick-card-window/wire-quick-card-window.ts` (namespace `wire-quick-card-window`) wires its settings side.
@@ -176,9 +176,9 @@ The card's Voice, Keep bubble and Unified chat tiles log the toggle events of th
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
-| `quick-card-window` | `quick_card_window_destroy_timeout` | none | A leftover card window did not report destroyed within 500ms; the new one is created anyway (`warn` level). |
+| `ready-window` | `window_destroy_timeout` | `label` | A leftover card or Threads window did not report destroyed within 500ms; the new one is created anyway (`warn` level). |
 | `quick-card-window` | `quick_card_window_create_error` | `error` | The card window could not be created (`error` level). |
-| `quick-card-window` | `quick_card_window_open_failed` | `error` | Creating or reusing the card window threw (`error` level). |
+| `ready-window` | `window_open_failed` | `label`, `error` | Creating or reusing the card or Threads window threw (`error` level). |
 | `quick-card-main` | `boot_failed` | `error` | The window's boot threw (`error` level). |
 | `wire-quick-card-window` | `config_load_failed` | `error` | The bundled config did not load; the card runs on the stored settings (`warn` level). |
 | `wire-quick-card-window` | `avatar_config_read_failed` | `fallback`, `error` | The config's VRM list could not be read; the VRM selection keeps its built-in default (`warn` level). |
@@ -207,6 +207,21 @@ The card's Voice, Keep bubble and Unified chat tiles log the toggle events of th
 | `quick-card-close` | `quick_card_focus_listen_failed` | `error` | Listening to the window's focus failed, so the focus poll never starts (`warn` level). |
 | `quick-card-close` | `quick_card_hide_failed` | `error` | Hiding the card window threw (`warn` level). |
 | `quick-card-close` | `quick_card_focus_poll_failed` | `error` | A focus poll tick threw (`debug` level). |
+
+## Threads window
+
+`io/window/openers/threads-window.ts` (namespace `threads-window`, in main's pet window) creates the Threads window through `ready-window`. `io/threads/threads-client.ts` (namespace `threads-client`) runs in both windows. The rest runs in the Threads window: `windows/threads-main.ts` boots it, `app/threads-window/wire-threads-window.ts` wires it, and `app/threads-window/threads-presence.ts` opens and closes it.
+
+| Namespace | Event | Fields | When |
+|---|---|---|---|
+| `threads-window` | `threads_window_create_error` | `error` | The Threads window could not be created (`error` level). |
+| `threads-window` | `threads_window_open_failed` | `error` | Reading the chip's screen position threw; the chip shows again (`error` level). |
+| `threads-client` | `snapshot.invoke_failed` | `error` | `threads_snapshot` rejected (`warn` level). |
+| `threads-client` | `snapshot.listen_failed` | `error` | Listening to `threads-snapshot` failed; the snapshot is still read once (`warn` level). |
+| `threads-main` | `boot_failed` | `error` | The window's boot threw (`error` level). |
+| `wire-threads-window` | `threads_boot_hide_failed` | `error` | Hiding the window at boot threw; the ready report still goes out (`warn` level). |
+| `threads-presence` | `threads_open_failed` | `error` | Placing, showing or growing the window threw; it hides and main's chip shows again (`error` level). |
+| `threads-presence` | `threads_hide_failed` | `error` | Hiding the window threw (`warn` level). |
 
 ## TypeScript Usage
 

@@ -1,0 +1,101 @@
+/* The Threads window: one panel filling its window inside a transparent 8px margin for the shadow,
+   the list pane beside the thread pane. Tokens in ../../tokens.css. */
+
+.yui-threads {
+  box-sizing: border-box;
+  height: 100%;
+  padding: 8px;
+  color: var(--yui-text);
+  font-family: var(--yui-font);
+  font-size: var(--yui-fs-body);
+  line-height: 1.6;
+  caret-color: var(--yui-accent-ink);
+}
+
+.yui-threads__panel {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid var(--yui-edge);
+  border-radius: var(--yui-radius);
+  background: var(--yui-scrim-strong);
+  box-shadow: var(--yui-float);
+}
+
+/* Hidden until an open grows it out of the chip. */
+.yui-threads:not(.is-open) .yui-threads__panel {
+  visibility: hidden;
+}
+
+.yui-threads__content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.yui-threads__head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px 12px 24px;
+}
+
+.yui-threads__head h1 {
+  margin: 0;
+  font-size: var(--yui-fs-title);
+  font-weight: 600;
+}
+
+.yui-threads__count {
+  flex: 1;
+  color: var(--yui-text-dim);
+  font-size: var(--yui-fs-sub);
+}
+
+.yui-threads__close {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--yui-radius-pill);
+  background: none;
+  color: var(--yui-text-dim);
+  cursor: pointer;
+}
+
+.yui-threads__close:hover {
+  background: var(--yui-hover);
+  color: var(--yui-text);
+}
+
+.yui-threads__close:focus-visible {
+  outline: 2px solid var(--yui-accent-ink);
+  outline-offset: 2px;
+}
+
+.yui-threads__close svg {
+  width: 14px;
+  height: 14px;
+}
+
+.yui-threads__panes {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 264px minmax(0, 1fr);
+  min-height: 0;
+  border-top: 1px solid var(--yui-edge);
+}
+
+.yui-threads ::selection {
+  background: var(--yui-accent-faint);
+  color: var(--yui-text);
+}
+
+@media (max-width: 1100px) {
+  .yui-threads__panes {
+    grid-template-columns: 232px minmax(0, 1fr);
+  }
+}

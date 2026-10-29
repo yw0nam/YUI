@@ -1,0 +1,131 @@
+/* The Threads window's list pane: tabs, the kind select, and the rows. Tokens in ../../tokens.css. */
+
+.yui-threads-list {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--yui-panel-bg);
+}
+
+.yui-threads-list__tabs {
+  display: flex;
+  gap: 4px;
+  padding: 12px;
+  border-bottom: 1px solid var(--yui-edge);
+}
+
+.yui-threads-list__tabs button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: var(--yui-radius-control);
+  background: none;
+  color: var(--yui-text-dim);
+  font: inherit;
+  cursor: pointer;
+}
+
+.yui-threads-list__tabs button:hover {
+  background: var(--yui-hover);
+}
+
+.yui-threads-list__tabs [aria-pressed="true"] {
+  background: var(--yui-selected);
+  color: var(--yui-text);
+  font-weight: 600;
+}
+
+.yui-threads-list__count {
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-sub);
+  font-variant-numeric: tabular-nums;
+}
+
+/* One select, so a new source adds an option instead of a chip. Counts follow the tab above it. */
+.yui-threads-list__kind {
+  margin: 8px 12px;
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid var(--yui-text-mute);
+  border-radius: var(--yui-radius-control);
+  background: var(--yui-panel-bg);
+  color: inherit;
+  font: inherit;
+  font-size: var(--yui-fs-sub);
+  cursor: pointer;
+}
+
+.yui-threads-list__rows {
+  flex: 1;
+  min-height: 0;
+  padding: 8px;
+  overflow: auto;
+  border-top: 1px solid var(--yui-edge);
+}
+
+.yui-threads-list__empty {
+  margin: 0;
+  padding: 16px;
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-sub);
+}
+
+.yui-threads-row {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding: 16px 12px;
+  border: 0;
+  border-radius: var(--yui-radius-row);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.yui-threads-row + .yui-threads-row {
+  margin-top: 4px;
+}
+
+.yui-threads-row:hover {
+  background: var(--yui-hover);
+}
+
+.yui-threads-row[aria-current="true"] {
+  background: var(--yui-selected);
+}
+
+.yui-threads-row strong {
+  font-size: var(--yui-fs-body);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.yui-threads-row__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-sub);
+}
+
+.yui-threads-row__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.yui-threads-row__meta time {
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-sub);
+  font-variant-numeric: tabular-nums;
+}

@@ -726,6 +726,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "io/threads",
+      "module": "display",
+      "label": "threads client",
+      "role": "Keeps the Thread store's highest-revision snapshot from threads_snapshot and the threads-snapshot event, and sends the user's Answer through thread_answer; inert outside Tauri.",
+      "paths": [
+        "src/io/threads"
+      ]
+    },
+    {
       "id": "io/chat/vocabulary",
       "module": "tools",
       "label": "express vocabulary",
@@ -837,7 +846,7 @@ globalThis.YUI_MAP =
       "id": "io/window/geometry",
       "module": "window",
       "label": "window geometry",
-      "role": "Monitor and floor math, the quick card's dock, follow and snap rules, the travel and stationary frames, keep-on-screen, and the companion column windows' placement, width, focus, drag and content-height resize.",
+      "role": "Monitor and floor math, the quick card's dock, follow and snap rules, the Threads window's place beside the pet window and the chip-sized rect its grow starts from, the travel and stationary frames, keep-on-screen, and the companion column windows' placement, width, focus, drag and content-height resize.",
       "paths": [
         "src/io/window/geometry"
       ]
@@ -846,7 +855,7 @@ globalThis.YUI_MAP =
       "id": "io/window/openers",
       "module": "window",
       "label": "window openers",
-      "role": "Opens and places the message, settings, devtools, unified chat, quick-card, and pet windows, and a bound pet window's settings-<id>, message-<id> and quick-card-<id> by its preset id; keeps a request made before the quick-card window reports ready, closes those companions and watches their owner window.",
+      "role": "Opens and places the message, settings, devtools, unified chat, quick-card, Threads and pet windows, and a bound pet window's settings-<id>, message-<id> and quick-card-<id> by its preset id; keeps a request made before the quick-card or Threads window reports ready, closes those companions and watches their owner window.",
       "paths": [
         "src/io/window/openers"
       ]
@@ -873,7 +882,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/settings",
       "module": "bridge",
       "label": "settings bridge",
-      "role": "Typed cross-window settings bus: its channels scoped to the sender's preset, and the unscoped settings-changed, preset-changed, pet-windows-changed, character-addressed, user-turn-routed, voice-segment, speech-onset, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control, stop-turns, settings-page and open-devtools.",
+      "role": "Typed cross-window settings bus: its channels scoped to the sender's preset, and the unscoped settings-changed, preset-changed, pet-windows-changed, character-addressed, user-turn-routed, voice-segment, speech-onset, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control, stop-turns, settings-page, open-devtools, threads-open, threads-ready and threads-closed.",
       "paths": [
         "src/io/bridge/settings-bridge.ts"
       ]
@@ -1185,6 +1194,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "ui/threads",
+      "module": "display",
+      "label": "threads ui",
+      "role": "The Threads chip in main's chip column (newest source marks, label, amber count; hidden at zero, one nod on arrival, hold-to-fold) and the Threads window's view: Waiting / All tabs and a kind select over waiting-first rows, the thread pane's scrolling transcript, the pinned answer area with numbered choices and a growing field, per-ask drafts, and the grow out of the chip.",
+      "paths": [
+        "src/ui/threads"
+      ]
+    },
+    {
       "id": "ui/devtools",
       "module": "settings",
       "label": "devtools ui",
@@ -1268,6 +1286,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "app/threads-chip",
+      "module": "wiring",
+      "label": "threads chip wiring",
+      "role": "Main only: mounts the Threads chip after the signal chips on their shared fold store, feeds it the store's snapshots, and opens the Threads window from its tap; the window's closed report shows the chip again.",
+      "paths": [
+        "src/app/threads-chip"
+      ]
+    },
+    {
       "id": "app/stage",
       "module": "wiring",
       "label": "stage wiring",
@@ -1319,6 +1346,15 @@ globalThis.YUI_MAP =
       "role": "The quick-card window's wiring: the settings side it shares with the settings window, the card's ports, the mirrored push socket and voice state, the dock that places the window docked beside the character, follows her window, detaches on a head drag and snaps a near drop back, and the close that hides the window when no YUI window holds focus.",
       "paths": [
         "src/app/quick-card-window"
+      ]
+    },
+    {
+      "id": "app/threads-window",
+      "module": "wiring",
+      "label": "threads window wiring",
+      "role": "The Threads window's wiring: snapshots into the view, Answers to the store, the open request placing and showing the window beside main's pet window before the grow, Escape and × shrinking it back and hiding it, and the stored theme and language reloaded on settings-changed.",
+      "paths": [
+        "src/app/threads-window"
       ]
     },
     {
@@ -2822,6 +2858,94 @@ globalThis.YUI_MAP =
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/controls/wire-pet-controls.ts"
+    },
+    {
+      "id": "threads-shell-event",
+      "from": "shell/threads",
+      "to": "io/threads",
+      "carries": "threads-snapshot {revision, threads}: every change; the client keeps the highest revision",
+      "kind": "tauri-event",
+      "transport": "shared"
+    },
+    {
+      "id": "threads-shell-command",
+      "from": "io/threads",
+      "to": "shell/threads",
+      "carries": "threads_snapshot once after the listen; thread_answer {id, askId, choice?, text?}",
+      "kind": "tauri-command",
+      "transport": "shared"
+    },
+    {
+      "id": "threads-chip-snapshot",
+      "from": "io/threads",
+      "to": "ui/threads",
+      "carries": "the snapshot's Threads → the chip's waiting count, newest source marks and arrival nod",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/threads-chip/wire-threads-chip.ts"
+    },
+    {
+      "id": "threads-window-snapshot",
+      "from": "io/threads",
+      "to": "ui/threads",
+      "carries": "the snapshot → the list, the thread pane and the drafts its asks still accept",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/wire-threads-window.ts"
+    },
+    {
+      "id": "threads-answer",
+      "from": "ui/threads",
+      "to": "io/threads",
+      "carries": "an Answer {choice?, text?} for the ask id captured at send; a rejection's error string comes back to the answer area",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/wire-threads-window.ts"
+    },
+    {
+      "id": "threads-chip-open",
+      "from": "ui/threads",
+      "to": "io/window/openers",
+      "carries": "the chip's tap → open(the chip's viewport rect), sent as screen logical px once the window reports ready",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/threads-chip/wire-threads-chip.ts"
+    },
+    {
+      "id": "threads-open-request",
+      "from": "io/window/openers",
+      "to": "app/threads-window",
+      "carries": "yui://threads-open {chip: {x, y, width, height}}: place, show and focus the window, then grow out of the chip",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/wire-threads-window.ts"
+    },
+    {
+      "id": "threads-ready",
+      "from": "app/threads-window",
+      "to": "io/window/openers",
+      "carries": "yui://threads-ready: the window has booted; the controller sends a request it held since the create",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/wire-threads-window.ts"
+    },
+    {
+      "id": "threads-closed",
+      "from": "app/threads-window",
+      "to": "io/window/openers",
+      "carries": "yui://threads-closed: the window hid after its close or a failed open; the chip shows again",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/threads-chip/wire-threads-chip.ts"
+    },
+    {
+      "id": "threads-placement",
+      "from": "app/threads-window",
+      "to": "io/window/geometry",
+      "carries": "threadsWindowRect and chipInWindow: 12px beside the pet window on its roomier side, at most 960 × 820 and 12px inside the work area; the chip-sized rect the grow starts from",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/threads-placement.ts"
     },
     {
       "id": "quick-card-placement",
@@ -4712,6 +4836,11 @@ globalThis.YUI_MAP =
         "role": "The unified chat window, unified.html: a frameless 340 px column that is the only chat path while it shows; the cast chips, one dialogue box showing one character's line at a time, and the composer that routes a message to one preset or, in sequence, to all"
       },
       {
+        "id": "threads",
+        "label": "threads",
+        "role": "The Threads window, threads.html: main's frameless window beside the pet window, the list pane beside the thread pane, grown out of the Threads chip and hidden on close."
+      },
+      {
         "id": "devtools",
         "label": "devtools",
         "role": "Context inspector, advanced settings, and motion preview over reloaded stores."
@@ -4854,6 +4983,27 @@ globalThis.YUI_MAP =
         "from": "quick-card-<id>",
         "to": "pet-<id>",
         "carries": "yui://quick-card-ready: the controller sends a request it held since the create",
+        "kind": "bridge"
+      },
+      {
+        "id": "threads-open-pet",
+        "from": "pet",
+        "to": "threads",
+        "carries": "yui://threads-open {chip}: place, show and focus the window, grow out of the chip",
+        "kind": "bridge"
+      },
+      {
+        "id": "threads-ready-pet",
+        "from": "threads",
+        "to": "pet",
+        "carries": "yui://threads-ready: the controller sends a request it held since the create",
+        "kind": "bridge"
+      },
+      {
+        "id": "threads-closed-pet",
+        "from": "threads",
+        "to": "pet",
+        "carries": "yui://threads-closed: the chip shows again",
         "kind": "bridge"
       },
       {
