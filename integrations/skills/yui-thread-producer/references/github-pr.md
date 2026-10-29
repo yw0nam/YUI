@@ -10,16 +10,25 @@ command shown beside it.
 
 - A producer that can block: `gh pr checks <n> --watch --fail-fast` exits 0 when the
   checks pass and 1 when they fail (measured); post the Thread when it exits.
-- A scheduled producer: each run lists the check runs completed since the previous run
-  and posts or refreshes only those pull requests.
+- A scheduled producer: each run reads every open PR's head check runs and posts a PR
+  whose head and result differ from what the producer's store last posted.
 
-Done when: the producer knows which pull requests finished their checks since it last
-ran.
+A PR's checks are in one of three states:
+
+- Passed: every check run is `completed` with conclusion `success`, `neutral`, or
+  `skipped`.
+- Failed: any run is `completed` with another conclusion.
+- Not finished: zero check runs, or any run is not `completed`; post nothing yet.
+
+Done when: the producer knows each open pull request's head and whether its checks passed,
+failed, or have not finished.
 
 ## Post the Thread
 
-1. Gather the title, the author, and the checks' conclusions (`gh pr view <n>`; check
-   your tool's docs for the exact fields).
+1. Gather the title, the author, and the head SHA (`gh pr view <n>`, or REST
+   `GET /repos/{owner}/{repo}/pulls/{n}`), then each check run's `status` and `conclusion`
+   (`gh pr checks <n>`, or REST
+   `GET /repos/{owner}/{repo}/commits/{sha}/check-runs`).
 
    Done when: the trigger fires on a test PR's finished checks and the gathered values
    include the head SHA and each check's conclusion.
@@ -30,9 +39,9 @@ ran.
    a retry or a re-ask on the same head opens a new ask.
 3. Any check fails: state `failed`, one entry naming the failing checks, no ask.
 
-A refresh on a new head carries the new head's ask; a refresh while the current ask is
-unanswered keeps its id, so the ask is replaced in place and an answer already recorded
-still matches.
+A refresh while the current ask is unanswered keeps its id, so the ask is replaced in
+place and an answer already recorded still matches. A new head closes the old ask: PUT the
+Thread `working` with `ask: null`, then post the new head's ask once its checks finish.
 
 Done when: the Thread holds the PR's checks and the ask.
 
@@ -57,6 +66,9 @@ Each answer maps to actions in this order:
 - Comment: `gh pr comment <n> --body "<text>"`, or a REST issue comment on the PR.
 
 Then PUT the result entry and the final state. A partial failure — the comment posted,
-the merge refused — gets a `system` entry naming exactly what happened, and a new ask
-when a retry makes sense. Record the answer durably before acting and leave the retry to
-the user: follow SKILL.md step 5.
+the merge refused — gets a `system` entry naming exactly what happened; when a retry makes
+sense, that PUT carries state `input-required` and a new ask under a fresh `ask_id`, and
+with nothing left to ask it carries state `failed`.
+
+Record the answer durably before acting and leave the retry to the user: follow SKILL.md
+step 5.
