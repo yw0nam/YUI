@@ -8,7 +8,7 @@ Threads use the existing loopback ingress and its External signals switch, with 
 
 Only bare routes exist. Every `/presets/<id>/threads…` path receives 404. Thread ids contain 1–128 ASCII letters, digits, `_`, `-`, `.`, or `:`. Invalid, empty, or missing ids receive 404. Unknown paths under `/threads` receive 404. Ids are opaque keys, not secrets.
 
-## PUT /threads/<id>
+## `PUT /threads/<id>`
 
 Only PUT is accepted; another method receives 405. The body is a JSON object of at most 64 KiB. Unknown fields are ignored. Any broken field rule receives 400 and leaves the store unchanged.
 
@@ -43,7 +43,7 @@ A different `ask_id` replaces the open ask and closes the old one. The same `ask
 
 A valid PUT receives 200 with `{"updated_at": <epoch ms>}`. The first PUT creates the Thread with `created_at` equal to `updated_at`.
 
-## GET /threads/<id>/answer
+## `GET /threads/<id>/answer`
 
 Only GET is accepted; another method receives 405. Query parameter `ask_id` is required; missing it receives 400. Optional `wait` is an integer from 0 through 25 seconds, default 25; invalid values receive 400.
 
