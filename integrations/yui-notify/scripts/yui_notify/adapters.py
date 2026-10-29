@@ -6,6 +6,9 @@ from typing import Any, NamedTuple
 
 EVENTS = {"Stop", "PermissionRequest", "Notification", "SessionStart", "UserPromptSubmit"}
 
+# Claude Code wraps a relayed channel message in this markup when it fires UserPromptSubmit
+CHANNEL_PROMPT_PREFIX = '<channel source="plugin:yui-notify:'
+
 
 class Event(NamedTuple):
     agent: str
@@ -74,6 +77,9 @@ def parse_event(data: Any, env: Mapping[str, str]) -> Event | None:
         text = _pending(data)
     elif phase == "UserPromptSubmit":
         text = data.get("prompt") or ""
+        # the store records a channel answer itself; the echoed prompt adds no user entry
+        if agent == "claude-code" and text.startswith(CHANNEL_PROMPT_PREFIX):
+            text = ""
     else:
         text = ""
     return Event(
