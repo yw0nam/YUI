@@ -23,8 +23,6 @@ const COMMANDS: &[&str] = &[
     "set_frame_logical",
     "quick_card_attach",
     "quick_card_detach",
-    "browser_run",
-    "browser_guide",
     "plugin_host_snapshot",
     "plugin_host_add_local",
     "plugin_host_enable",

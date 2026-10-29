@@ -221,14 +221,13 @@ The on/off state of every switchable in-app tool the window declares, rendered e
 `id=state` entry per tool, comma-separated, in declaration order; values are `on` and `off`:
 
 ```text
-tool switches: relations=on, look.screen=on, browser=off
+tool switches: relations=on, look.screen=on
 ```
 
 The line names the switch state only. The switch gates the tool's execution, read at the moment
 the call runs, so a state line the request outlives can still end in a refusal. The line is
 omitted when the turn declares no switchable tool: every pet window and the browser build declare
-`relations`; under Tauri `main` also declares `look.screen` and `browser`, and a bound pet window
-also declares `browser`. Tool ids carry the same
+`relations`, and under Tauri `main` also declares `look.screen`. Tool ids carry the same
 sanitization as the other sampled fields.
 
 ### `previous turn`

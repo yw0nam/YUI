@@ -3,6 +3,11 @@
 import type { PluginToolResult } from "../../../mcp-host/mcp-host";
 import type { ClientToolResult } from "../client-tools";
 
+/** Whether a result text carries a failure prefix a plugin wrote itself. */
+export function isFailureText(text: string): boolean {
+  return text.startsWith("error:") || text.startsWith("unknown:");
+}
+
 export function pluginToolResult(result: PluginToolResult): ClientToolResult {
   const parts: string[] = [];
   const images: string[] = [];
@@ -13,6 +18,6 @@ export function pluginToolResult(result: PluginToolResult): ClientToolResult {
     else parts.push(JSON.stringify(block));
   }
   const joined = parts.join("\n");
-  const text = result.isError ? `error: ${joined}` : joined;
+  const text = result.isError && !isFailureText(joined) ? `error: ${joined}` : joined;
   return images.length > 0 ? { text, images } : text;
 }

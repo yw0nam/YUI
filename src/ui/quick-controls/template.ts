@@ -27,7 +27,6 @@ import {
 import { capRowHtml, escapeAttr, keyRowHtml, numRowHtml, secHeadHtml } from "./markup";
 import { presetStripHtml } from "./preset/preset-strip";
 import { settingsSearchHtml } from "./search/settings-search";
-import { browserSectionHtml } from "./sections/browser/browser-section";
 import { cardSectionHtml } from "./sections/card/card-section";
 import { helpSectionHtml } from "./sections/help/help-section";
 import { readingsSectionHtml } from "./sections/readings/readings-section";
@@ -65,8 +64,6 @@ interface PanelHtmlOptions {
   showHelp: boolean;
   /** Whether the History tab renders — true when a transcript store is injected. */
   showHistory: boolean;
-  /** Whether the browser-use switch renders — true when the browser store is injected. */
-  showBrowser?: boolean;
   /** Whether the preset strip and each page's scope line render — true when the registry is injected. */
   showPreset?: boolean;
   /** Whether the Together page lists the characters — true with the registry and the open-window store. */
@@ -85,7 +82,6 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     showDevtools,
     showHelp,
     showHistory,
-    showBrowser,
     showPreset,
     showCharacters,
   } = o;
@@ -353,7 +349,7 @@ ${panelOpenHtml("perms")}
               <button class="yui-switch yui-screenshot-requests-switch" type="button" role="switch" aria-checked="false" aria-label="${t("screenshot.request_label")}"></button>
             </div>
           </div>
-        </div>${showBrowser ? browserSectionHtml() : ""}
+        </div>
       </div>
 ${panelOpenHtml("react")}${screenHtml}
         <div class="yui-loop-cue-section"></div>

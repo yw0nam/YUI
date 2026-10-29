@@ -12,7 +12,6 @@ import { describe, expect, it, vi } from "vitest";
 import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
 import { createAddressCharacterTool } from "./address-character";
 import { createAvatarTools } from "./avatar";
-import { createBrowserTool } from "./browser/browser-tool";
 import { type ClientTool, createClientToolRegistry, createClientTools } from "./client-tools";
 import { createGenerateExpressTool } from "./express";
 import { createPluginBridgeTools } from "./plugin-bridge/plugin-bridge";
@@ -213,13 +212,11 @@ describe("docs/reference/client-tools.md catalog", () => {
     // The catalog is the table above the first section heading.
     const catalog = doc.slice(0, doc.indexOf("\n## "));
     const rows = new Set([...catalog.matchAll(/^\| `([^`]+)` \|/gm)].map((m) => m[1]));
-    const relay = { run: vi.fn(), guide: vi.fn() };
     const host = { snapshot: () => null, call: vi.fn(), cancel: vi.fn(), skill: vi.fn() };
     const names = createClientTools(vocab(), [
       createRateRelationTool({ store: { rate: vi.fn() }, targets: () => [] }),
       createAddressCharacterTool({ targets: () => [], record: vi.fn() }),
       ...createAvatarTools(() => null),
-      createBrowserTool({ relay, enabled: () => false, presetId: () => "p1" }),
       ...createPluginBridgeTools({ host, presetId: () => "p1" }),
     ]).map((tool) => tool.name);
 
@@ -229,7 +226,6 @@ describe("docs/reference/client-tools.md catalog", () => {
       "address_character",
       "body_action",
       "look",
-      "browser",
       "plugin_describe",
       "plugin_call",
       "plugin_skill",

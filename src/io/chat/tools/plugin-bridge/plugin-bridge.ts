@@ -4,7 +4,7 @@ import { findPluginTool } from "../../../mcp-host/enabled-plugins";
 import type { McpHost } from "../../../mcp-host/mcp-host";
 import { type ClientTool, TURN_STOPPED } from "../client-tools";
 import { firstViolation } from "./first-violation";
-import { pluginToolResult } from "./plugin-result";
+import { isFailureText, pluginToolResult } from "./plugin-result";
 
 export function createPluginBridgeTools(deps: {
   host: McpHost;
@@ -81,6 +81,7 @@ export function createPluginBridgeTools(deps: {
     waitMs: 121_000,
     localStatus: true,
     statusId: (args) => String(args.name ?? ""),
+    failed: isFailureText,
   };
 
   const skill: ClientTool = {

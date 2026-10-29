@@ -337,8 +337,6 @@ YUI/
       capture/                       # Screen watching and screenshots
         screen-settings.ts           # User-editable screen-watch thresholds
         screenshot-settings.ts       # Screenshot enabled state and source
-      browser/                       # The browser tool's on/off flag
-        browser-settings.ts          # Whether the browser tool may run scripts through ego lite, off by default
       avatar/                        # Camera, motion, and lip-sync
         bed-scene-settings.ts        # Launch bed scene on/off and its wake timeout
         camera-settings.ts           # Camera zoom and orbit viewpoint
@@ -403,10 +401,7 @@ YUI/
           avatar.ts                    # The body_action and look tools over the avatar executor
           relation.ts                  # The rate_relation tool: one accepted call per target per turn
           address-character.ts         # The address_character tool: names the character a reply is for, once per reply
-          pet-window-tools.ts          # Builds the tool list a pet window declares: rate_relation and address_character everywhere, browser and the bridge tools under Tauri, body_action and look in main
-          browser/                     # The browser tool over the Rust relay's ego lite run
-            browser-tool.ts            # browser: backend-written JavaScript in ego lite, in this preset's task space
-            run-result.ts              # The browser tool's result for one run: status, untrusted-content line, output, screenshots
+          pet-window-tools.ts          # Builds the tool list a pet window declares: rate_relation and address_character everywhere, the bridge tools under Tauri, body_action and look in main
           plugin-bridge/               # The bridge tools over the MCP host
             plugin-bridge.ts           # plugin_describe, plugin_call and plugin_skill
             plugin-result.ts           # A plugin tool's MCP result as a client tool result: text, images, the error mark
@@ -434,8 +429,6 @@ YUI/
           reader.ts                    # Reads the OpenAI-compatible /models list; every failure is a result kind
         record/                        # The turn-record JSONL log
           turn-record-log.ts           # Appends one JSONL record per completed turn or skipped fire
-      browser/                         # The browser tool's adapter to the Rust relay
-        browser-relay.ts               # browser_run and browser_guide invocations, and the outcome and guide shapes they answer
       mcp-host/                        # The MCP host client and the `plugin tools:` and `plugin skills:` lines
         mcp-host.ts                    # The host's newest snapshot, and the call, cancel and skill invocations
         enabled-plugins.ts             # The enabled plugins' tools with their summaries, their skills with their descriptions, and the tool lookup a call makes
@@ -734,8 +727,6 @@ YUI/
           push-reason/               # Controls the push transport cannot use
             push-reason.ts           # The reason line under such a control and its link to the chat protocol select
             push-reason.css          # Reason line styles
-          browser/                   # The browser-use switch of the Permissions page
-            browser-section.ts       # The browser-use switch's markup, click, and redraw
           devtools/                  # Developer Tools row on the General page
             devtools-row.ts          # Binds the row's button to the devtools window opener
           user-name/                 # "Your name" on the General page
@@ -815,13 +806,7 @@ YUI/
       quick_card_dock.rs             # The quick-card window's macOS child-window link to its pet window: quick_card_attach, quick_card_detach
       passthrough.rs                 # Click-through toggle over the transparent overlay
       screenshot.rs                  # Screen-source enumeration and off-thread display capture
-      image_encode.rs                # Long-edge resize and JPEG data-URL encode shared by capture and the browser relay
-      browser/                       # The browser tool's half in the shell: scripts and the guide through ego lite
-        mod.rs                       # browser_run and browser_guide commands
-        locate.rs                    # Finds the ego-browser binary under the home directory, then on PATH
-        relay.rs                     # One script run per task space under the space lock, the backstop kill, and the guide run
-        script.rs                    # The prelude wrapped around the caller's code
-        shots.rs                     # The per-call screenshot folder, its collection and encode, and the stale sweep
+      image_encode.rs                # Long-edge resize and JPEG data-URL encode used by screenshot.rs
       mcp_host/                      # The MCP host: runs local plugins' MCP servers as YUI-hosted servers
         mod.rs                       # The host's behaviour, its setup, and the window and run event hooks
         commands.rs                  # The plugin_host_* commands, each forwarding to Host

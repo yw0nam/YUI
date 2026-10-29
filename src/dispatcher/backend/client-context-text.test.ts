@@ -174,11 +174,11 @@ describe("renderClientContext — tool switches line", () => {
   it("renders on and off states, comma-separated in declaration order", () => {
     const cc = baseContext({ kind: "user" });
     cc.tool_switches = [
-      { id: "look.screen", on: true },
-      { id: "browser", on: false },
+      { id: "relations", on: true },
+      { id: "look.screen", on: false },
     ];
     const text = renderClientContext(cc, NOW);
-    expect(text).toContain("tool switches: look.screen=on, browser=off");
+    expect(text).toContain("tool switches: relations=on, look.screen=off");
   });
 
   it("sits between the body line and the previous line", () => {
@@ -274,7 +274,7 @@ describe("renderClientContext — relation line", () => {
     cc.body_state = { posture: { state: "standing" }, since: NOW };
     cc.relations = [entry({ why: "" }), entry({ target: "alice", band: "cold", why: "" })];
     cc.open_characters = ["bob"];
-    cc.tool_switches = [{ id: "browser", on: false }];
+    cc.tool_switches = [{ id: "look.screen", on: false }];
     const lines = renderClientContext(cc, NOW).split("\n");
 
     expect(lines.slice(1, 6)).toEqual([
@@ -282,7 +282,7 @@ describe("renderClientContext — relation line", () => {
       "relation: toward user warm",
       "relation: toward alice cold",
       'open characters: "bob"',
-      "tool switches: browser=off",
+      "tool switches: look.screen=off",
     ]);
   });
 });

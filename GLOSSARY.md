@@ -174,7 +174,7 @@ A Client tool that reaches an enabled plugin through the MCP host: `plugin_descr
 _Avoid_: host tool, relay tool
 
 **Client tool**:
-A tool the client declares to the backend and runs itself (generate_express, body_action, look, browser, rate_relation, address_character, plugin_describe, plugin_call, plugin_skill).
+A tool the client declares to the backend and runs itself (generate_express, body_action, look, rate_relation, address_character, plugin_describe, plugin_call, plugin_skill).
 _Avoid_: in-app tool, local tool
 
 **Producer**:
@@ -207,7 +207,7 @@ The card's `first_mes` or one of its `alternate_greetings`, performed by the cli
 _Avoid_: first message, opener
 
 **Task space**:
-An ego lite tab workspace the `browser` tool works in, named `yui-<presetId>`: one per preset, so one per pet window. It outlives a call, the browser switch going off, the window, and the app. The user closes it in ego lite, and ego lite closes it after 30 idle minutes. ego lite's "YUI" browser profile is where those spaces run, and it is not a Preset.
+An ego lite tab workspace the `browser` plugin works in, named `yui-<presetId>`: one per preset, so one per pet window. It outlives a call, the plugin being disabled, the window, and the app. The user closes it in ego lite, and ego lite closes it after 30 idle minutes. ego lite's "YUI" browser profile is where those spaces run, and it is not a Preset.
 _Avoid_: tab group, browser session
 
 **Bound pet window**:

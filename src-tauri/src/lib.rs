@@ -35,10 +35,6 @@ mod card_import;
 #[cfg(desktop)]
 mod passthrough;
 
-// Relays browser scripts to the installed ego lite CLI.
-#[cfg(desktop)]
-mod browser;
-
 // Runs local plugins' MCP servers and answers their tool calls and skill reads.
 #[cfg(desktop)]
 mod mcp_host;

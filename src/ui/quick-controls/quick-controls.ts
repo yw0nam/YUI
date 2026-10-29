@@ -79,7 +79,6 @@ import { createPanelShell } from "./panel-shell";
 import { createPresetStrip } from "./preset/preset-strip";
 import { bindSettingsSearch } from "./search/settings-search";
 import { createAgentSection } from "./sections/agent/agent-section";
-import { createBrowserSection } from "./sections/browser/browser-section";
 import { createCardSection } from "./sections/card/card-section";
 import { bindDevtoolsRow } from "./sections/devtools/devtools-row";
 import { createFillerSection } from "./sections/filler/filler-section";
@@ -261,8 +260,6 @@ interface QuickControlsOptions {
   getExpressMotions?: () => readonly string[];
   /** Launch bed scene on/off + wake timeout store. If absent, that section won't render. */
   bedSceneSettings?: BedSceneSettingsStore;
-  /** Browser-use on/off store. If absent, that section won't render. */
-  browserSettings?: FlagSettingsStore;
   /** Card file steps and the preset creator, wired by the app layer. */
   importCard: () => Promise<ImportedCard | null>;
   exportCard: (text: string, fileName: string) => Promise<"written" | "cancelled">;
@@ -375,7 +372,6 @@ export function createQuickControls({
   expressMotionSettings,
   getExpressMotions,
   bedSceneSettings,
-  browserSettings,
   importCard,
   exportCard,
   createPresetFromCard,
@@ -430,7 +426,6 @@ export function createQuickControls({
     showDevtools: !!onOpenDevtools,
     showHelp: !!onGuide,
     showHistory: !!transcript,
-    showBrowser: !!browserSettings,
     showPreset: !!presetRegistry,
     showCharacters: !!presetRegistry && !!petWindows,
   });
@@ -693,11 +688,6 @@ export function createQuickControls({
     isOpen: shell.isOpen,
   });
 
-  // ── Browser section (browser-use switch) ──
-  const browser = browserSettings
-    ? createBrowserSection({ root: el, settings: browserSettings, log, isOpen: shell.isOpen })
-    : undefined;
-
   // Effective chat protocol: the user's override, else the bundled default.
   function isPushMode(): boolean {
     return effectiveChatApi(endpointsSettings.get().chat_api, getDefaultChatApi?.()) === "push";
@@ -747,7 +737,6 @@ export function createQuickControls({
   // Every section the panel redraws on open, closes and disposes, in redraw order.
   const parts: (PanelSection | null | undefined)[] = [
     screenshot,
-    browser,
     switchRows,
     reactions,
     screen,

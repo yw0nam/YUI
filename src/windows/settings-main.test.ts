@@ -107,7 +107,6 @@ it("keeps bound controls pinned and hides voice input across locale remounts", a
     expect(createQuickControls.mock.calls[0]![0]).toMatchObject({
       boundId: "a",
       showVoiceInput: false,
-      browserSettings: undefined,
     });
     const { wirePresetSwitch } = await import("../app/settings/wire-preset");
     expect(wirePresetSwitch).toHaveBeenCalledWith(expect.objectContaining({ boundId: "a" }));
@@ -117,7 +116,6 @@ it("keeps bound controls pinned and hides voice input across locale remounts", a
     expect(createQuickControls.mock.calls[1]![0]).toMatchObject({
       boundId: "a",
       showVoiceInput: false,
-      browserSettings: undefined,
     });
   } finally {
     window.dispatchEvent(new Event("beforeunload"));

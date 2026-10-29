@@ -37,8 +37,6 @@
     "allow-append-turn-record",
     "allow-set-frame-logical",
     "allow-quick-card-attach",
-    "allow-quick-card-detach",
-    "allow-browser-run",
-    "allow-browser-guide"
+    "allow-quick-card-detach"
   ]
 }

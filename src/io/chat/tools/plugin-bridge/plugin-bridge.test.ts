@@ -7,6 +7,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { McpHost, PluginHostSnapshot } from "../../../mcp-host/mcp-host";
+import { toolFailed } from "../client-tools";
 import { createPluginBridgeTools } from "./plugin-bridge";
 
 const SNAPSHOT: PluginHostSnapshot = {
@@ -122,6 +123,14 @@ describe("plugin_call", () => {
     const [, call] = createPluginBridgeTools({ host: fakeHost(), presetId: () => "p1" });
 
     expect(call.statusId?.({ name: "echo_args" })).toBe("echo_args");
+  });
+
+  it("reads a result as failed when it keeps the plugin's error or unknown prefix", () => {
+    const [, call] = createPluginBridgeTools({ host: fakeHost(), presetId: () => "p1" });
+
+    expect(toolFailed(call, "error: x")).toBe(true);
+    expect(toolFailed(call, "unknown: x")).toBe(true);
+    expect(toolFailed(call, "ok")).toBe(false);
   });
 });
 

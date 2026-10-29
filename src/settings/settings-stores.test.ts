@@ -55,7 +55,6 @@ describe("createSettingsStores", () => {
       "idleMotionSettings",
       "expressMotionSettings",
       "bedSceneSettings",
-      "browserSettings",
       "relationsSwitch",
       "unifiedChatSwitch",
     ]);
@@ -80,7 +79,6 @@ describe("createSettingsStores", () => {
     ["bubblePersistSettings", "yui.bubble-persist", false, true],
     ["presenceSettings", "yui.presence", 180000, 200000],
     ["pacerGapSettings", "yui.proactive-pacer-gap", 600000, 0],
-    ["browserSettings", "yui.browser", false, true],
     ["relationsSwitch", "yui.relations-enabled", true, false],
     ["unifiedChatSwitch", "yui.unified-chat", false, true],
   ] as const)("binds %s to %s with default %s", (storeName, key, defaultValue, nextValue) => {
@@ -132,10 +130,9 @@ describe("createSettingsStores", () => {
     expect(broadcastStores).toContain(stores.cameraSettings);
   });
 
-  it("broadcasts the browser switch so the settings window's toggle reaches the pet window", () => {
+  it("broadcasts the relations and unified-chat switches so a settings-window toggle reaches the pet window", () => {
     const stores = createSettingsStores();
 
-    expect(broadcastSyncStores(stores)).toContain(stores.browserSettings);
     expect(broadcastSyncStores(stores)).toContain(stores.relationsSwitch);
     expect(broadcastSyncStores(stores)).toContain(stores.unifiedChatSwitch);
   });

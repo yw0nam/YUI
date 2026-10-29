@@ -533,15 +533,6 @@ globalThis.YUI_MAP =
       ]
     },
     {
-      "id": "shell/browser",
-      "module": "shell",
-      "label": "browser",
-      "role": "Relays a script or the guide to the installed ego lite CLI, holds one lock per task space and a backstop kill, builds the prelude, and owns the per-call screenshot folder.",
-      "paths": [
-        "src-tauri/src/browser"
-      ]
-    },
-    {
       "id": "shell/mcp-host",
       "module": "shell",
       "label": "mcp_host",
@@ -715,18 +706,9 @@ globalThis.YUI_MAP =
       "id": "io/chat/tools",
       "module": "tools",
       "label": "client tools",
-      "role": "The tools the client declares to the backend and runs itself: generate_express, rate_relation, address_character, body_action, look, browser, plugin_describe, plugin_call, plugin_skill.",
+      "role": "The tools the client declares to the backend and runs itself: generate_express, rate_relation, address_character, body_action, look, plugin_describe, plugin_call, plugin_skill.",
       "paths": [
         "src/io/chat/tools"
-      ]
-    },
-    {
-      "id": "io/browser",
-      "module": "tools",
-      "label": "browser relay adapter",
-      "role": "Invokes the relay commands: a script in a task space, or the installed version's guide.",
-      "paths": [
-        "src/io/browser"
       ]
     },
     {
@@ -2013,7 +1995,7 @@ globalThis.YUI_MAP =
       "id": "tools-push",
       "from": "io/chat/tools",
       "to": "io/chat/push",
-      "carries": "hello.tools: the window tools (rate_relation and address_character in every pet window, browser and the bridge tools in every pet window under Tauri, body_action and look in main)",
+      "carries": "hello.tools: the window tools (rate_relation and address_character in every pet window, the bridge tools in every pet window under Tauri, body_action and look in main)",
       "kind": "callback",
       "transport": "push",
       "wiring": "src/app/turn/push/push-stores.ts"
@@ -2053,19 +2035,10 @@ globalThis.YUI_MAP =
       "wiring": "src/app/bootstrap-configured.ts"
     },
     {
-      "id": "tools-browser",
-      "from": "io/chat/tools",
-      "to": "io/browser",
-      "carries": "relay.run(space, code) / relay.guide() → RunOutcome",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/io/chat/tools/pet-window-tools.ts"
-    },
-    {
       "id": "settings-tool-switches",
       "from": "settings",
       "to": "io/chat/tools",
-      "carries": "look.screen and browser switches, read when a call runs and when the tools line is built",
+      "carries": "the look.screen switch, read when a call runs and when the tools line is built",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"
@@ -2093,14 +2066,6 @@ globalThis.YUI_MAP =
       "from": "io/window/capture",
       "to": "shell/screenshot",
       "carries": "list_screen_sources, capture_screen, capture_screen_at",
-      "kind": "tauri-command",
-      "transport": "shared"
-    },
-    {
-      "id": "browser-shell",
-      "from": "io/browser",
-      "to": "shell/browser",
-      "carries": "browser_run {space, code}, browser_guide",
       "kind": "tauri-command",
       "transport": "shared"
     },

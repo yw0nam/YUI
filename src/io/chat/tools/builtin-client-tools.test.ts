@@ -22,7 +22,6 @@ describe("builtin-client-tools.json", () => {
         pointsAreLogical: true,
         capturer: noopScreenCapturer,
       },
-      browserEnabled: () => false,
       relations: createRelationsStore(),
       relationsEnabled: () => false,
       targets: () => [],
