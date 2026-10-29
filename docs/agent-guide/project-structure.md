@@ -430,7 +430,7 @@ YUI/
         record/                        # The turn-record JSONL log
           turn-record-log.ts           # Appends one JSONL record per completed turn or skipped fire
       mcp-host/                        # The MCP host client and the `plugin tools:` and `plugin skills:` lines
-        mcp-host.ts                    # The host's newest snapshot, and the call, cancel and skill invocations
+        mcp-host.ts                    # The host's newest snapshot and its subscription, the call, cancel and skill invocations, and the settings window's managing commands
         enabled-plugins.ts             # The enabled plugins' tools with their summaries, their skills with their descriptions, and the tool lookup a call makes
       voice/
         deadline.ts                    # Per-request deadline and the body-read race that settle a stalled fetch
@@ -633,7 +633,7 @@ YUI/
       quick-controls/                # Settings panel shell parts and sections
         quick-controls.ts            # Settings panel: the rail of the character's pages then every character's pages, and the page body
         quick-controls.css           # Settings panel shell, tab rail, sections, groups, and rows
-        controls.css                 # Switch, segment, field, text-button, disclosure, slider, and confirm styles
+        controls.css                 # Switch, segment, field, text-button, disclosure, slider, confirm, and affirming-pill styles
         template.ts                  # Panel markup as pure string construction
         markup.ts                    # Panel markup primitives the template and the tab modules share
         panel-shell.ts               # Panel shell: the open and close lifecycle, and Escape closing the settings window
@@ -643,6 +643,8 @@ YUI/
         slider-binding.ts            # Input and release wiring shared by the range sliders
         hint-tooltip.ts              # Shared hover, focus, and click tooltip for data-tip elements
         hint-tooltip.css             # Hint tooltip styles
+        keyed-render.ts              # Keyed re-render: focus by data-fk, a fade-in of new data-k blocks, and a switch that slides from its previous state
+        keyed-render.css             # The keyed block's fade-in
         character/                   # The Body page and the Motion and desktop page's character rows
           character-tab.ts           # Builds both stacks: VRM list, relations rows and view reset; mouth gain, motions and bed scene
           character-html.ts          # Markup of the two stacks
@@ -668,7 +670,7 @@ YUI/
           chat-type.ts               # The chat type row: long names in the open list, short name over the closed select, description line
           chat-type.css              # The overlay, option colours and description line of that row
           endpoints-section.ts       # Endpoint URL fields, the chat and TTS key rows, chat-API picker, and resets
-          endpoints-section.css      # Endpoints section and yui-select dropdown styles
+          endpoints-section.css      # Endpoints section, yui-select dropdown, and the shared chat-status dot styles
           chat/                      # The Chat section of the Connection page, its model list, and its status line
             chat-section.ts          # The Chat section: protocol and provider preset reflection, the model-list read, and its status line
             chat-status.ts           # The single writer of the chat status line: text, dot class, and action button
@@ -704,6 +706,13 @@ YUI/
           history-section.ts         # History page session accordion over the persisted transcript and the signal records
           history-rows.ts            # Merges a session's chat entries with the signal records of the turns that ran in it
           history-section.css        # Session history accordion styles
+        plugins/                     # The Plugins page: installed plugins and the catalog
+          plugins-page.ts            # The page over the host's snapshot: its one call path for enable, disable, update, install, add from folder and remove, the consent and confirm state, the log tail, and the keyed render
+          catalog-state.ts           # The catalog's load (an in-flight call joins it), the entries not installed, the updates offered, and Check for updates' timed count
+          installed-markup.ts        # The Installed section: one group per plugin with its switch, consent steps, server lines, hidden names, tools, and log
+          catalog-markup.ts          # The Available section: the catalog entries not installed, and Add from folder
+          plugin-parts.ts            # The per-source record (badge, review note, warning, removal text), the version, the escaping, the Failure shape, and the inline error line
+          plugins-page.css           # Plugins page styles: badges, server lines, the consent panel, the log box, and catalog rows; a stopped server's shared status dot dims here
         search/                      # Settings search
           settings-search.ts         # The field over the rail: per-page match counts, dimmed pages and matched rows
           settings-search.css        # Field, count badge and matched-row styles
@@ -792,7 +801,7 @@ YUI/
     capabilities/                    # Per-window permissions; desktop.json holds the desktop-only plugin permissions
       app-commands.json              # Every app command outside the MCP host, for every window
       plugin-host-call.json          # main and pet-*: the MCP host snapshot, plugin tool calls and their cancel, and skill reads
-      plugin-host-manage.json        # settings and settings-*: the MCP host snapshot, add from folder, enable, disable, retry, and the log tail
+      plugin-host-manage.json        # settings and settings-*: the MCP host snapshot, the catalog, install and update, remove, add from folder, enable, disable, retry, the log tail, and opening the log folder
     fixtures/mcp-test-plugin/        # Stdlib-only Python MCP server plugin the MCP host tests run
     src/                             # Rust shell
       main.rs                        # Binary entry that calls into lib.rs
@@ -809,7 +818,9 @@ YUI/
       image_encode.rs                # Long-edge resize and JPEG data-URL encode used by screenshot.rs
       mcp_host/                      # The MCP host: runs local plugins' MCP servers as YUI-hosted servers
         mod.rs                       # The host's behaviour, its setup, and the window and run event hooks
-        commands.rs                  # The plugin_host_* commands, each forwarding to Host
+        commands.rs                  # The plugin_host_* commands, each forwarding to Host; the folder picker and opening the log folder work in the shell
+        catalog.rs                   # The plugin catalog: this platform's entries, the release to install, and its checksum
+        install.rs                   # Catalog install, update, and remove: download, sha256, unpack, switch, and the folders removed
         host.rs                      # Host: the listed plugins, the stored state, snapshot publishing, and add, enable, disable, retry, calls, skills
         lifecycle.rs                 # Server starts and stops: epoch-tagged tickets, start results, exits, and stops that cancel calls first
         manifest.rs                  # Reads a plugin folder: plugin.json, .mcp.json servers in file order, and skills/*/SKILL.md

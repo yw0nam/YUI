@@ -14,9 +14,8 @@
   border-radius: var(--yui-radius-pill);
   background: var(--yui-track);
   cursor: pointer;
-  transition:
-    background var(--yui-dur) var(--yui-ease),
-    box-shadow var(--yui-dur-fast) var(--yui-ease);
+  /* The focus ring is a box-shadow and appears at once, so only the track colour moves. */
+  transition: background var(--yui-dur) var(--yui-ease);
 }
 
 .yui-switch::after {
@@ -38,6 +37,15 @@
 
 .yui-switch[aria-checked="true"]::after {
   transform: translateX(calc(var(--w) - var(--h)));
+}
+
+/* Half-way — a question (the Plugins page's consent) waits before the switch turns on. */
+.yui-switch[aria-checked="mixed"] {
+  background: var(--yui-accent-soft);
+}
+
+.yui-switch[aria-checked="mixed"]::after {
+  transform: translateX(calc((var(--w) - var(--h)) / 2));
 }
 
 .yui-switch:focus-visible {
@@ -272,6 +280,7 @@
   flex: none;
 }
 
+.yui-link-btn:disabled,
 .yui-add-btn:disabled {
   color: var(--yui-text-mute);
   cursor: not-allowed;
@@ -478,6 +487,18 @@
   background: var(--yui-danger-faint);
   border-color: var(--yui-danger);
   color: var(--yui-danger);
+}
+
+/* An affirming pill (Use photo, Allow): Amber ink on an Amber-soft edge. */
+.yui-pill--ok {
+  color: var(--yui-accent-ink);
+  border-color: var(--yui-accent-soft);
+}
+
+.yui-pill--ok:hover:not(:disabled) {
+  background: var(--yui-accent-faint);
+  border-color: var(--yui-accent);
+  color: var(--yui-accent-ink);
 }
 
 .yui-pill:focus-visible {

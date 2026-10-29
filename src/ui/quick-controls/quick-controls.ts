@@ -18,6 +18,7 @@ import type { createSessionDiagnosticsStore } from "../../io/chat/conversation/s
 import type { createSessionStore } from "../../io/chat/conversation/session-store";
 import type { createSignalHistoryStore } from "../../io/chat/conversation/signal-history-store";
 import type { DelegationItem } from "../../io/chat/push/push-frames";
+import type { McpHost, McpHostManage } from "../../io/mcp-host/mcp-host";
 import type {
   createSpeakerSelection,
   SpeakerOption,
@@ -76,6 +77,7 @@ import { mountCueLists } from "./cue-lists/cue-lists";
 import { createHintTooltip } from "./hint-tooltip";
 import { createHistoryTab } from "./history/history-tab";
 import { createPanelShell } from "./panel-shell";
+import { createPluginsPage } from "./plugins/plugins-page";
 import { createPresetStrip } from "./preset/preset-strip";
 import { bindSettingsSearch } from "./search/settings-search";
 import { createAgentSection } from "./sections/agent/agent-section";
@@ -260,6 +262,8 @@ interface QuickControlsOptions {
   getExpressMotions?: () => readonly string[];
   /** Launch bed scene on/off + wake timeout store. If absent, that section won't render. */
   bedSceneSettings?: BedSceneSettingsStore;
+  /** The MCP host and its managing commands. If absent, the Plugins page won't render. */
+  plugins?: { host: McpHost; manage: McpHostManage };
   /** Card file steps and the preset creator, wired by the app layer. */
   importCard: () => Promise<ImportedCard | null>;
   exportCard: (text: string, fileName: string) => Promise<"written" | "cancelled">;
@@ -372,6 +376,7 @@ export function createQuickControls({
   expressMotionSettings,
   getExpressMotions,
   bedSceneSettings,
+  plugins,
   importCard,
   exportCard,
   createPresetFromCard,
@@ -426,6 +431,7 @@ export function createQuickControls({
     showDevtools: !!onOpenDevtools,
     showHelp: !!onGuide,
     showHistory: !!transcript,
+    showPlugins: !!plugins,
     showPreset: !!presetRegistry,
     showCharacters: !!presetRegistry && !!petWindows,
   });
@@ -565,6 +571,7 @@ export function createQuickControls({
       for (const section of sections) section.reflect?.();
       // Opening on the Connection page counts as entering it — the model list read follows.
       if (tabRail.selected() === "conn") connectionTab.entered();
+      if (tabRail.selected() === "plugins") pluginsPage?.entered();
       // Server may have come up after the app — refetch its voice list (store subscription re-renders).
       refreshVoiceList?.();
       // Last, so the list the monitors fill is already redrawn.
@@ -688,6 +695,10 @@ export function createQuickControls({
     isOpen: shell.isOpen,
   });
 
+  // ── Plugins page (installed plugins · catalog · consent) ──
+  const pluginsPage = plugins ? createPluginsPage({ ...plugins, log }) : undefined;
+  if (pluginsPage) el.querySelector("#yui-panel-plugins")!.append(pluginsPage.el);
+
   // Effective chat protocol: the user's override, else the bundled default.
   function isPushMode(): boolean {
     return effectiveChatApi(endpointsSettings.get().chat_api, getDefaultChatApi?.()) === "push";
@@ -701,6 +712,7 @@ export function createQuickControls({
     initial: DEFAULT_PAGE,
     onSelect: (id) => {
       if (id === "conn") connectionTab.entered();
+      if (id === "plugins") pluginsPage?.entered();
     },
   });
 
@@ -737,6 +749,7 @@ export function createQuickControls({
   // Every section the panel redraws on open, closes and disposes, in redraw order.
   const parts: (PanelSection | null | undefined)[] = [
     screenshot,
+    pluginsPage,
     switchRows,
     reactions,
     screen,

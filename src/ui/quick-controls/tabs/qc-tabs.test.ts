@@ -7,7 +7,7 @@ import type { SettingsPage } from "../../../settings/panels/settings-pages";
 import { createVadSettings } from "../../../settings/voice/vad-settings";
 import { setLocale } from "../../i18n";
 import { createQuickControls } from "../quick-controls";
-import { defaultQcArgs } from "../test-helpers";
+import { defaultQcArgs, fakePlugins } from "../test-helpers";
 
 describe("createQuickControls — tab rail", () => {
   let mount: HTMLElement;
@@ -218,12 +218,14 @@ describe("createQuickControls — tab rail", () => {
       "together",
       "listening",
       "perms",
+      "plugins",
       "react",
       "motion",
       "general",
     ];
-    // A transcript is what renders the history tab, so inject one to get the full rail.
-    const qc = buildQc({ transcript: createChatHistoryStore() });
+    // A transcript renders the history tab and the MCP host the plugins tab: the full rail.
+    const { host, manage } = fakePlugins();
+    const qc = buildQc({ transcript: createChatHistoryStore(), plugins: { host, manage } });
     expect(tabs(qc).map((tab) => tab.id)).toEqual(names.map((name) => `yui-tab-${name}`));
 
     for (const name of names) {
@@ -232,6 +234,27 @@ describe("createQuickControls — tab rail", () => {
       expect(target.getAttribute("aria-selected")).toBe("true");
       expect(panelFor(qc, target).hidden).toBe(false);
     }
+
+    qc.dispose();
+  });
+
+  it("entering the Plugins page shows its sections and loads the plugin catalog", () => {
+    const { host, manage } = fakePlugins();
+    const qc = buildQc({ plugins: { host, manage } });
+    qc.open();
+    expect(manage.catalog).not.toHaveBeenCalled();
+
+    tabs(qc)
+      .find((tab) => tab.id === "yui-tab-plugins")!
+      .click();
+
+    expect(manage.catalog).toHaveBeenCalledTimes(1);
+    expect(
+      Array.from(
+        qc.el.querySelectorAll("#yui-panel-plugins .yui-sec__title"),
+        (h) => h.textContent,
+      ),
+    ).toEqual(["설치된 플러그인", "설치할 수 있는 플러그인"]);
 
     qc.dispose();
   });

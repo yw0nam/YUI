@@ -20,6 +20,7 @@ import {
   TAB_ICON_MOTION,
   TAB_ICON_PERMS,
   TAB_ICON_PERSONA,
+  TAB_ICON_PLUGINS,
   TAB_ICON_REACT,
   TAB_ICON_TOGETHER,
   TAB_ICON_VOICE,
@@ -64,6 +65,8 @@ interface PanelHtmlOptions {
   showHelp: boolean;
   /** Whether the History tab renders — true when a transcript store is injected. */
   showHistory: boolean;
+  /** Whether the Plugins page renders — true when the MCP host is injected. */
+  showPlugins?: boolean;
   /** Whether the preset strip and each page's scope line render — true when the registry is injected. */
   showPreset?: boolean;
   /** Whether the Together page lists the characters — true with the registry and the open-window store. */
@@ -82,6 +85,7 @@ export function buildPanelHtml(o: PanelHtmlOptions): string {
     showDevtools,
     showHelp,
     showHistory,
+    showPlugins,
     showPreset,
     showCharacters,
   } = o;
@@ -254,7 +258,7 @@ ${PROACTIVE_CAP_FIELDS.map(capRowHtml).join("")}
     ${showPreset ? presetStripHtml() : ""}
     <div class="yui-quick__cols">
       <div class="yui-rail">${settingsSearchHtml()}
-      <div class="yui-tabs" role="tablist" aria-label="${t("panel.tablist_label")}" aria-orientation="vertical">${groupHtml("character")}${tabHtml("conn", TAB_ICON_CONN)}${tabHtml("voice", TAB_ICON_VOICE)}${tabHtml("persona", TAB_ICON_PERSONA)}${tabHtml("body", TAB_ICON_BODY)}${showHistory ? tabHtml("hist", TAB_ICON_HIST) : ""}${groupHtml("app")}${tabHtml("together", TAB_ICON_TOGETHER)}${tabHtml("listening", TAB_ICON_LISTENING)}${tabHtml("perms", TAB_ICON_PERMS)}${tabHtml("react", TAB_ICON_REACT, { tipKey: "tabs.react_hint" })}${tabHtml("motion", TAB_ICON_MOTION)}${tabHtml("general", TAB_ICON_GENERAL)}
+      <div class="yui-tabs" role="tablist" aria-label="${t("panel.tablist_label")}" aria-orientation="vertical">${groupHtml("character")}${tabHtml("conn", TAB_ICON_CONN)}${tabHtml("voice", TAB_ICON_VOICE)}${tabHtml("persona", TAB_ICON_PERSONA)}${tabHtml("body", TAB_ICON_BODY)}${showHistory ? tabHtml("hist", TAB_ICON_HIST) : ""}${groupHtml("app")}${tabHtml("together", TAB_ICON_TOGETHER)}${tabHtml("listening", TAB_ICON_LISTENING)}${tabHtml("perms", TAB_ICON_PERMS)}${showPlugins ? tabHtml("plugins", TAB_ICON_PLUGINS) : ""}${tabHtml("react", TAB_ICON_REACT, { tipKey: "tabs.react_hint" })}${tabHtml("motion", TAB_ICON_MOTION)}${tabHtml("general", TAB_ICON_GENERAL)}
       </div>
       </div>
       <div class="yui-quick__body">
@@ -351,7 +355,13 @@ ${panelOpenHtml("perms")}
           </div>
         </div>
       </div>
-${panelOpenHtml("react")}${screenHtml}
+${
+  showPlugins
+    ? `${panelOpenHtml("plugins")}
+      </div>
+`
+    : ""
+}${panelOpenHtml("react")}${screenHtml}
         <div class="yui-loop-cue-section"></div>
         <div class="yui-cue-sections"></div>${watchersHtml}
         <div class="yui-sec">

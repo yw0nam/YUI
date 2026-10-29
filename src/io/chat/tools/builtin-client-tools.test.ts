@@ -26,7 +26,13 @@ describe("builtin-client-tools.json", () => {
       relationsEnabled: () => false,
       targets: () => [],
       recordAddressed: vi.fn(),
-      mcpHost: { snapshot: () => null, call: vi.fn(), cancel: vi.fn(), skill: vi.fn() },
+      mcpHost: {
+        snapshot: () => null,
+        call: vi.fn(),
+        cancel: vi.fn(),
+        skill: vi.fn(),
+        subscribe: vi.fn(),
+      },
     });
     const express = createGenerateExpressTool({
       emotionIds: [],

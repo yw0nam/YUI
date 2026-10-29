@@ -63,7 +63,7 @@ She greets you at set times, checks in after you have been idle, and, if you tur
 
 <a href="https://youtu.be/XB-jRXspJ_E"><img src="docs/public/yui-scenario-browse.gif" alt="The user asks Yangyang in the chat window to search for yw0nam/YUI; ego lite opens the Google results beside her, and she answers that she found the GitHub project" width="560"></a>
 
-Install the official `browser` plugin from the Plugins page and enable it, and she searches the web and opens pages in [ego lite](plugins/browser/README.md), then tells you what she found. ego lite is the only supported browser.
+Install the official `browser` plugin from the [Plugins page](docs/guide/plugins.md) and turn it on, and she searches the web and opens pages in [ego lite](plugins/browser/README.md), then tells you what she found. ego lite is the only supported browser.
 
 ### Several characters, one conversation
 

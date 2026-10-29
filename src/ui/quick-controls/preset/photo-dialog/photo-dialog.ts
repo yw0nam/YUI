@@ -82,7 +82,7 @@ export function openPhotoDialog(deps: PhotoDialogDeps): void {
     </div>
     <div class="yui-photo-dialog__foot">
       <button class="yui-pill" type="button" data-act="cancel">${t("photo.cancel")}</button>
-      <button class="yui-pill yui-photo-dialog__use" type="button" data-act="use" disabled>${t("photo.use")}</button>
+      <button class="yui-pill yui-pill--ok" type="button" data-act="use" disabled>${t("photo.use")}</button>
     </div>`;
   dialog.querySelector("h2")!.textContent = t("preset.photo", { name: entry.name });
   for (const [name, px] of [

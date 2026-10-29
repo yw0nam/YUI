@@ -113,7 +113,8 @@
   background: var(--yui-text-mute);
 }
 
-.yui-chat-status.is-ready .yui-chat-status__dot {
+.yui-chat-status.is-ready .yui-chat-status__dot,
+.yui-chat-status__dot.is-ok {
   background: var(--yui-ok);
   box-shadow: 0 0 0 3px var(--yui-ok-soft);
 }
@@ -124,6 +125,7 @@
 }
 
 .yui-chat-status.is-failed .yui-chat-status__dot,
+.yui-chat-status__dot.is-bad,
 .yui-session__deleg-lost-dot {
   background: var(--yui-danger);
   box-shadow: 0 0 0 3px var(--yui-danger-faint);

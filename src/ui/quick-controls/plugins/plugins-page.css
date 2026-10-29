@@ -1,0 +1,538 @@
+/* Plugins page — installed plugins and the catalog. Tokens in ../../tokens.css. */
+
+.yui-plg-ver {
+  font-size: var(--yui-fs-caption);
+  font-weight: 400;
+  color: var(--yui-text-mute);
+  font-variant-numeric: tabular-nums;
+}
+
+.yui-plg-sum {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Source badge */
+.yui-plg-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--yui-edge);
+  border-radius: var(--yui-radius-pill);
+  font-size: var(--yui-fs-caption);
+  font-weight: 500;
+  color: var(--yui-text-dim);
+  white-space: nowrap;
+}
+
+.yui-plg-badge svg {
+  width: 0.7rem;
+  height: 0.7rem;
+}
+
+.yui-plg-spin {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex: none;
+  border-radius: 50%;
+  border: 1.5px solid var(--yui-accent-soft);
+  border-top-color: transparent;
+  animation: yui-plg-spin 0.7s linear infinite;
+}
+
+@keyframes yui-plg-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* A stopped server's dot dims */
+.yui-plg-sv .yui-chat-status__dot.is-off {
+  opacity: 0.55;
+}
+
+/* Inline error line: YUI's lead, then the host's string */
+.yui-plg-err {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0.5rem 0.875rem 0.625rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: var(--yui-radius-control);
+  background: var(--yui-danger-faint);
+  font-size: var(--yui-fs-sub);
+  line-height: 1.4;
+  color: var(--yui-danger);
+}
+
+.yui-plg-err svg {
+  width: 0.85rem;
+  height: 0.85rem;
+  flex: none;
+  margin-top: 0.08rem;
+}
+
+.yui-plg-err span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.yui-plg-err .yui-link-btn {
+  margin-left: auto;
+  color: var(--yui-danger);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* One server line under its plugin's switch row */
+.yui-plg-sv {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.6rem;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.875rem;
+}
+
+.yui-plg-sv .yui-plg-spin {
+  width: 7px;
+  height: 7px;
+}
+
+.yui-plg-sv__name {
+  font-size: var(--yui-fs-body);
+  font-weight: 500;
+}
+
+.yui-plg-sv__state {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.625rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--yui-fs-sub);
+  color: var(--yui-text-mute);
+  overflow-wrap: anywhere;
+}
+
+.yui-plg-sv__state b {
+  font-weight: 600;
+  color: var(--yui-text-dim);
+}
+
+.yui-plg-sv__state q,
+.yui-plg-sv__detail q {
+  quotes: none;
+  color: var(--yui-text-dim);
+}
+
+.yui-plg-sv__detail {
+  flex-basis: 100%;
+  margin-left: 1.05rem;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.45;
+  color: var(--yui-text-mute);
+  overflow-wrap: anywhere;
+}
+
+.yui-plg-code {
+  font-weight: 600;
+  color: var(--yui-text-dim);
+}
+
+/* Hidden-name note: one muted line per kind and holder */
+.yui-plg-hid {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.5rem 0.875rem;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.45;
+  color: var(--yui-text-mute);
+  overflow-wrap: anywhere;
+}
+
+/* The plugin's log tail, opened from its action row */
+.yui-plg-logbox {
+  display: grid;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem 0.625rem;
+}
+
+.yui-plg-logbox .yui-plg-err {
+  margin: 0;
+}
+
+.yui-plg-log {
+  max-height: 8.5rem;
+  margin: 0;
+  padding: 0.5rem 0.625rem;
+  overflow: auto;
+  border-radius: var(--yui-radius-control);
+  background: var(--yui-field);
+  font: inherit;
+  font-size: var(--yui-fs-caption);
+  line-height: 1.5;
+  color: var(--yui-text-dim);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.yui-plg-log__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: var(--yui-fs-caption);
+  color: var(--yui-text-mute);
+}
+
+/* Disclosure row inside a group; the chevron turns when open */
+.yui-plg-disc {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  width: 100%;
+  min-height: 2.25rem;
+  padding: 0.375rem 0.875rem;
+  border: 0;
+  background: transparent;
+  color: var(--yui-text-dim);
+  font: inherit;
+  font-size: var(--yui-fs-sub);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.yui-plg-disc:hover {
+  color: var(--yui-text);
+}
+
+.yui-plg-disc:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--yui-accent-soft);
+}
+
+.yui-plg-chev {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex: none;
+  transition: transform var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-link-btn .yui-plg-chev {
+  margin-right: 0.1rem;
+  vertical-align: -0.15rem;
+}
+
+[aria-expanded="true"] > .yui-plg-chev {
+  transform: rotate(90deg);
+}
+
+.yui-plg-tools {
+  display: grid;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0 0.875rem 0.625rem 2.05rem;
+  list-style: none;
+}
+
+.yui-plg-tools li {
+  display: grid;
+  gap: 0.05rem;
+}
+
+.yui-plg-tools__name {
+  font-size: var(--yui-fs-body);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.yui-plg-tools__sum {
+  font-size: var(--yui-fs-sub);
+  line-height: 1.4;
+  color: var(--yui-text-mute);
+}
+
+.yui-plg-tools__kind {
+  margin-top: 0.25rem;
+  font-size: var(--yui-fs-caption);
+  font-weight: 600;
+  color: var(--yui-text-mute);
+}
+
+/* Action row closing a plugin's group */
+.yui-plg-acts {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  min-width: 0;
+}
+
+.yui-plg-acts > .yui-link-btn:first-child {
+  margin-left: -0.25rem;
+}
+
+.yui-plg-acts__end {
+  margin-left: auto;
+}
+
+.yui-plg-busy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--yui-fs-sub);
+  color: var(--yui-text-dim);
+  white-space: nowrap;
+}
+
+.yui-plg-aside {
+  font-size: var(--yui-fs-sub);
+  color: var(--yui-text-mute);
+  white-space: nowrap;
+}
+
+.yui-plg-path {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--yui-fs-sub);
+  color: var(--yui-text-mute);
+}
+
+/* Re-approval notice row */
+.yui-plg-reap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.625rem 0.875rem;
+}
+
+.yui-plg-reap p {
+  flex: 1 1 14rem;
+  margin: 0;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.45;
+  color: var(--yui-text-dim);
+}
+
+.yui-plg-reap .yui-pill:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Consent: opens inside the plugin's group, under its switch row */
+.yui-plg-consent {
+  padding: 0.875rem 0.875rem 0.75rem;
+  background: var(--yui-hover);
+}
+
+.yui-plg-consent__step {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.3rem;
+  font-size: var(--yui-fs-caption);
+  font-weight: 600;
+  color: var(--yui-text-mute);
+  font-variant-numeric: tabular-nums;
+}
+
+.yui-plg-consent__step i {
+  width: 1.1rem;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--yui-track);
+}
+
+.yui-plg-consent__step i.on {
+  background: var(--yui-text-dim);
+}
+
+.yui-plg-consent__q {
+  margin: 0 0 0.625rem;
+  font-size: var(--yui-fs-body);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.yui-plg-consent .yui-plg-tools {
+  padding: 0.125rem 0 0;
+}
+
+.yui-plg-facts {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  gap: 0.45rem 0.75rem;
+  margin: 0 0 0.75rem;
+}
+
+.yui-plg-facts dt {
+  font-size: var(--yui-fs-sub);
+  line-height: 1.45;
+  color: var(--yui-text-mute);
+}
+
+.yui-plg-facts dd {
+  min-width: 0;
+  margin: 0;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.45;
+  color: var(--yui-text);
+  overflow-wrap: anywhere;
+}
+
+.yui-plg-facts small {
+  font-size: var(--yui-fs-caption);
+  color: var(--yui-text-mute);
+}
+
+.yui-plg-cmd {
+  display: block;
+  padding: 0.4rem 0.55rem;
+  border-radius: var(--yui-radius-control);
+  background: var(--yui-field);
+  font: inherit;
+  font-size: var(--yui-fs-sub);
+  color: var(--yui-text-dim);
+  overflow-wrap: anywhere;
+}
+
+.yui-plg-cmd + .yui-plg-cmd {
+  margin-top: 0.25rem;
+}
+
+.yui-plg-cmd b {
+  font-weight: 600;
+  color: var(--yui-text-mute);
+}
+
+.yui-plg-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  margin: 0 0 0.375rem;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.45;
+  color: var(--yui-text-dim);
+}
+
+.yui-plg-warn svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  flex: none;
+  margin-top: 0.05rem;
+  color: var(--yui-text-mute);
+}
+
+.yui-plg-warn--strong,
+.yui-plg-warn--strong svg {
+  color: var(--yui-danger);
+}
+
+.yui-plg-btns {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.yui-plg-btns__note {
+  flex: 1 1 10rem;
+  font-size: var(--yui-fs-caption);
+  line-height: 1.4;
+  color: var(--yui-text-mute);
+}
+
+.yui-plg-wait {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2rem;
+  font-size: var(--yui-fs-sub);
+  color: var(--yui-text-dim);
+}
+
+/* Narrow panel: the facts stack under their labels */
+@container (width < 30rem) {
+  .yui-plg-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.1rem;
+  }
+
+  .yui-plg-facts dd {
+    margin-bottom: 0.4rem;
+  }
+}
+
+/* Catalog */
+.yui-plg-side {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.625rem;
+  margin-left: auto;
+}
+
+.yui-plg-state {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 3rem;
+  padding: 0.625rem 0.875rem;
+  font-size: var(--yui-fs-sub);
+  line-height: 1.45;
+  color: var(--yui-text-mute);
+}
+
+.yui-plg-skelrow {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.875rem;
+}
+
+.yui-plg-skel {
+  width: 65%;
+  height: 0.6rem;
+  border-radius: 4px;
+  background: var(--yui-hover);
+  animation: yui-plg-breathe 1.6s ease-in-out infinite alternate;
+}
+
+.yui-plg-skel:first-child {
+  width: 30%;
+  height: 0.7rem;
+  background: var(--yui-selected);
+}
+
+@keyframes yui-plg-breathe {
+  to {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-plg-skel,
+  .yui-plg-spin {
+    animation: none;
+  }
+
+  .yui-plg-spin {
+    border-top-color: var(--yui-accent-soft);
+  }
+
+  .yui-plg-chev {
+    transition: none;
+  }
+}

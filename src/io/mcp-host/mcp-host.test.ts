@@ -22,11 +22,19 @@ const SNAPSHOT = (revision: number): PluginHostSnapshot => ({
   plugins: [
     {
       id: "p1",
+      version: null,
+      description: null,
+      source: "local",
+      path: "/plugins/p1",
       enabled: true,
+      consented: true,
+      error: null,
+      servers: [],
       tools: [
         { name: "echo_args", server: "p1/s", description: "Echo.", inputSchema: {}, meta: null },
       ],
       skills: [],
+      hidden: [],
     },
   ],
 });
@@ -107,6 +115,19 @@ describe("createMcpHost", () => {
 
     gate.open();
     await vi.waitFor(() => expect(mocks.invoke).toHaveBeenCalledWith("plugin_host_snapshot"));
+  });
+
+  it("tells a subscriber each newer snapshot and not an older one", async () => {
+    const events = mockHost(5);
+    const host = createMcpHost();
+    const seen: number[] = [];
+    host.subscribe((snapshot) => seen.push(snapshot.revision));
+    await vi.waitFor(() => expect(seen).toEqual([5]));
+
+    events.emit(SNAPSHOT(3));
+    events.emit(SNAPSHOT(7));
+
+    expect(seen).toEqual([5, 7]);
   });
 
   it("calls a plugin tool through the host", async () => {

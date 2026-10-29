@@ -49,6 +49,8 @@ pub struct ServerEntry {
     /// `<pluginId>/<serverName>`.
     pub id: String,
     pub name: String,
+    /// The launch command and its arguments after placeholder expansion, joined by spaces.
+    pub command: String,
     pub status: Status,
     pub phase: Option<Phase>,
     pub reason: Option<String>,

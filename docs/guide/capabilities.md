@@ -28,7 +28,7 @@ With External signals turned on, she tells you when a coding agent finishes a ta
 
 ## On the web
 
-With the official `browser` plugin installed from the Plugins page and enabled, she can search and read web pages for you in [ego lite](https://github.com/yw0nam/YUI/blob/main/plugins/browser/README.md), the only browser this works with, in a tab workspace of her own that you can watch. The plugin is not installed by default. While it is enabled, the backend runs JavaScript on this computer through ego lite with your rights; there is no sandbox, so a script can read your files, run programs, and reach every site signed in on ego lite's YUI profile.
+With the official `browser` plugin installed from the [Plugins](plugins.md) page and turned on, she can search and read web pages for you in [ego lite](https://github.com/yw0nam/YUI/blob/main/plugins/browser/README.md), the only browser this works with, in a tab workspace of her own that you can watch. The plugin is not installed by default. While it is on, the backend runs JavaScript on this computer through ego lite with your rights; there is no sandbox, so a script can read your files, run programs, and reach every site signed in on ego lite's YUI profile.
 
 ## Delegated work
 

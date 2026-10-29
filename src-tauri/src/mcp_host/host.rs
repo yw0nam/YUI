@@ -3,6 +3,7 @@
 
 use super::calls::Calls;
 use super::catalog;
+use super::launch;
 use super::lifecycle::LiveServer;
 use super::manifest::{self, Manifest};
 use super::server::PluginLog;
@@ -67,7 +68,10 @@ impl Host {
         let live = state
             .iter()
             .flat_map(|s| &s.plugins)
-            .map(|p| (p.id.clone(), Live::read(p, &log_dir, offset)))
+            .map(|p| {
+                let live = Live::new(p, manifest::read(&p.path), &dir, &log_dir, offset);
+                (p.id.clone(), live)
+            })
             .collect();
         let mut inner = Inner {
             state,
@@ -106,6 +110,11 @@ impl Host {
         Ok(live.log.tail())
     }
 
+    /// The live servers of one plugin, from the manifest it declares.
+    pub(super) fn live(&self, plugin: &StoredPlugin, manifest: Result<Manifest, String>) -> Live {
+        Live::new(plugin, manifest, &self.dir, &self.log_dir, self.offset)
+    }
+
     /// Lists the plugin in `folder` as disabled and without consent.
     pub fn add(&self, folder: PathBuf) -> Result<String, String> {
         let mut inner = self.lock();
@@ -123,7 +132,7 @@ impl Host {
             approved_path: None,
             enabled_seq: None,
         };
-        let live = Live::new(&plugin, Ok(manifest), &self.log_dir, self.offset);
+        let live = self.live(&plugin, Ok(manifest));
         state.plugins.push(plugin);
         self.save(&mut inner, state)?;
         inner.live.insert(id.clone(), live);
@@ -147,7 +156,7 @@ impl Host {
             plugin.enabled = true;
             plugin.approved_path = Some(plugin.path.clone());
             plugin.enabled_seq = Some(next_seq);
-            let live = Live::read(plugin, &self.log_dir, self.offset);
+            let live = self.live(plugin, manifest::read(&plugin.path));
             state.next_seq += 1;
             self.save(&mut inner, state)?;
             inner.live.insert(plugin_id.to_string(), live);
@@ -353,20 +362,18 @@ impl Inner {
 }
 
 impl Live {
-    pub(super) fn read(plugin: &StoredPlugin, log_dir: &Path, offset: UtcOffset) -> Self {
-        Self::new(plugin, manifest::read(&plugin.path), log_dir, offset)
-    }
-
     fn new(
         plugin: &StoredPlugin,
         manifest: Result<Manifest, String>,
+        dir: &Path,
         log_dir: &Path,
         offset: UtcOffset,
     ) -> Self {
+        let data = launch::data_dir(dir, &plugin.id);
         let servers = manifest
             .iter()
             .flat_map(|m| &m.servers)
-            .map(|spec| LiveServer::new(&plugin.id, spec))
+            .map(|spec| LiveServer::new(&plugin.id, spec, &plugin.path, &data))
             .collect();
         Self {
             manifest,
@@ -446,6 +453,22 @@ mod tests {
         assert_eq!(entry.path, moved);
         assert!(entry.enabled && !entry.consented);
         assert_eq!(entry.servers[0].status, Status::Stopped);
+    }
+
+    #[tokio::test]
+    async fn a_server_entry_names_its_expanded_launch_command() {
+        let app_data = temp_dir();
+        let (host, _) = host_at(&app_data);
+        let root = fixture_copy("yui-test");
+        let expected = format!("python3 {}/server.py literal;$(not-run)", root.display());
+        host.add(root).unwrap();
+        let snapshot = host.snapshot();
+        let entry = plugin(&snapshot, "yui-test");
+        let main = entry.servers.iter().find(|s| s.name == "main").unwrap();
+        assert_eq!(
+            serde_json::to_value(main).unwrap()["command"],
+            json!(expected)
+        );
     }
 
     #[tokio::test]
