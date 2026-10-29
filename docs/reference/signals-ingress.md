@@ -1,6 +1,7 @@
 # Signals ingress
 
 External producers send signal groups to the loopback HTTP ingress with `POST /signals`, and this page is the contract for that wire: the routes, the envelope fields, the two delivery classes, and the validation that accepts or refuses a request.
+
 A backend author or agent reads it to build a producer the client accepts, and to know when the client turns a group into a turn.
 
 The [producer guide](../guide/signals-producer.md) walks through writing a producer.
@@ -126,7 +127,11 @@ On the return to present, the batch catch-up goes out first and the urgent catch
 
 ### Batched
 
-A `batched` group always waits in the batch buffer, where the first group starts a five-minute delivery interval. At the interval boundary, all pending batched groups fire together when signals are enabled, the user is present, and the pipeline is idle. If those conditions are not met, the groups remain buffered without another timer, and a batched group that misses its deadline leaves on the next edge.
+A `batched` group always waits in the batch buffer, where the first group starts a five-minute delivery interval.
+
+At the interval boundary, all pending batched groups fire together when signals are enabled, the user is present, and the pipeline is idle.
+
+If those conditions are not met, the groups remain buffered without another timer, and a batched group that misses its deadline leaves on the next edge.
 
 ::: tip
 A batched group that misses its deadline starts no second timer. It leaves on the next edge, or on a drain of the batch buffer.
@@ -190,13 +195,17 @@ The client never writes the `note`, and it renders the note on the `relation:` l
 
 ### Writes
 
-A `PUT` body that is not an object, has a key that is neither `user` nor an existing preset id, or breaks any range receives HTTP 400 and leaves the store unchanged; a valid body answers 200 with the stored body. A key for the window's own preset id is accepted, stored, and never rendered, and any other method receives 405.
+A `PUT` body that is not an object, has a key that is neither `user` nor an existing preset id, or breaks any range receives HTTP 400 and leaves the store unchanged; a valid body answers 200 with the stored body.
+
+A key for the window's own preset id is accepted, stored, and never rendered, and any other method receives 405.
 
 The window renders the new relation on its next turn and in its preset row at once. The daily cap applies to the tool only; a `PUT` sets what it says.
 
 ## Preset switch
 
-The bare routes belong to `main`: a group that arrives on `/signals` after the user switches presets becomes a turn of the newly active preset's backend, whichever backend the producer had in mind. A route under `/presets/<id>/` belongs to that preset's window: its group becomes a turn of that preset's backend, which stays bound to `<id>` across a switch of the active preset.
+The bare routes belong to `main`: a group that arrives on `/signals` after the user switches presets becomes a turn of the newly active preset's backend, whichever backend the producer had in mind.
+
+A route under `/presets/<id>/` belongs to that preset's window: its group becomes a turn of that preset's backend, which stays bound to `<id>` across a switch of the active preset.
 
 Each pet window holds its own buffers, so a switch, which reloads `main`, drops every group still buffered there and leaves a bound window's buffers untouched.
 
@@ -208,7 +217,9 @@ The HTTP ingress requires `POST /signals`, valid JSON, a `signals` array, and an
 
 A request with another method on `/signals` or `/presets/<id>/signals` receives HTTP 405, and invalid JSON, a missing `signals` array, or an absent or null `envelope` receives HTTP 400.
 
-A request under `/presets/` whose id no preset has, or whose path after the id is none of the routes above, receives HTTP 404. An unknown path under `/avatar/` receives HTTP 404; any other unknown bare path receives HTTP 400. A request for a preset id that exists while its pet window is not open receives HTTP 503; it is never passed to `main`.
+A request under `/presets/` whose id no preset has, or whose path after the id is none of the routes above, receives HTTP 404. An unknown path under `/avatar/` receives HTTP 404; any other unknown bare path receives HTTP 400.
+
+A request for a preset id that exists while its pet window is not open receives HTTP 503; it is never passed to `main`.
 
 ### What 200 means
 

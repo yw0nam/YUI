@@ -1,46 +1,38 @@
 # Motion catalog
 
-Human-readable map of every motion id in [`configs/motions.json`](https://github.com/yw0nam/YUI/blob/main/configs/motions.json) — what it looks like, its playback policy, and the source clip it was extracted from. Keep this in sync with the registry.
+This page lists every motion id in [`configs/motions.json`](https://github.com/yw0nam/YUI/blob/main/configs/motions.json): what it looks like, its playback policy, and the source clip it was extracted from. Keep it in sync with the registry.
 
-- **Sources**: clips come from five origins.
-  - **[Mate Engine](https://github.com/shinyflvre/Mate-Engine)** (Shiny) — the bulk set, extracted from the Unity project (`Assets/MATE ENGINE - Animations/…`) to `.vrma` via the `unity-cli exec → YuiExport.YuiVrmaExport.ExportBatch` pipeline (30 FPS, T-pose reference, model-independent retarget). Used under Mate Engine's non-commercial terms — attribution to Shiny required; commercial use needs separate permission.
-  - **[necocoya — EmoteSet_Free_v130](https://booth.pm/ja/items/1065089)** — `sulk` only (Unity Humanoid `06_suneru`, 拗ね = sulk/pout). Attribution to necocoya required; modification/conversion and bundling-with-credit are permitted, standalone resale of the raw file is prohibited.
-  - **[もいらんど — thinking](https://booth.pm/ja/items/5562384)** — `thinking` only. A purchased licensed asset kept at `public/purchased_motions/thinking.vrma`, gitignored and never committed to a public repository (see [`public/purchased_motions/AGENTS.md`](https://github.com/yw0nam/YUI/blob/main/public/purchased_motions/AGENTS.md)). When the file is absent locally, the renderer falls back to `idle`.
-  - **[Mixamo](https://www.mixamo.com/)** — `walk` ("Walking", in-place), `jump` ("Jump", in-place), `falling` ("Falling_2"), `landing` ("Falling_and_landing"), and the climb set `climb_up` ("Climbing Up Wall"), `climb_up_done` ("Climbing To Top"), `climb_down` ("Climbing Down Wall"), `climb_down_landing` ("Climbing Down_landing"), and the seat transitions `sit_down` ("Sitting"), `stand_up` ("Sit To Stand"). Royalty-free under the Mixamo terms; converted to `.vrma` through the Mate-Engine `YuiExport.YuiVrmaExport` pipeline (30 FPS) with a with-skin (bind-pose) source avatar; `jump`, the fall pair, the climb set and the seat transitions are exported from the "Maria WProp J J Ong" character.
-  - **AI-generated for YUI** — `bed_lie` and `bed_wake`, made by reference video generation and pose extraction, then post-edited (smoothed, legs opened to parallel so they do not cross on a wide-hipped model, and knees straightened and hips raised while the legs swing over the bed edge so they stay out of the bed). `bed_sleep` is a held lying pose composed by hand from joint angles to rest on the bed prop, with a breathing sway on the chest; `bed_lie` ends in that pose and `bed_wake` starts from it.
-- Durations are the source clip length.
-- **Pools**: `idle`, `idle_lively`, `window_sit`, `dance` are single registry entries with a `variants[]` list and `variant_policy: "random"` — each trigger plays a random variant (immediate-repeat avoided). The character-facing id is the pool id; individual variant files are not separate registry entries.
-- **Triggers**: AI via `generate_express` `motion_id` plays any agent-selectable oneshot/pool; `idle` is the ambient baseline; `drag` is the reactive pickup; `head_pat` loops while a press is held on the head region; `window_sit` is a held state engaged on every seat entry (a drag drop onto a window top, a climb that reaches the ledge, a perched stroll sitting back down, a fall that lands on a window top, the avatar `sit_on_window` command); `thinking` is a client-played TTFT latency affordance (loops from the start of a backend turn until the response speech begins; a turn that starts while the bed scene holds the body starts none, and a running one ends when the scene takes the body); `walk` is the ambient floor or foreign-window-top stroll, played by the client's walk schedulers while the OS window translates along the supporting edge — the floor stroll runs whenever the body is on `idle`, `thinking`, or `walk`, through a turn's thinking, its filler and its response speech (expressions and lip-sync apply as they arrive), and ends in place when a response `motion_id` takes the body; a floor stroll may continue past its own monitor's edge onto a neighbouring monitor that shares its floor line and scale factor, the window translating frame by frame; a stroll that starts over a stretch where the window would hang over a monitor beneath it with a different scale factor instead parks the OS window once over the whole path, moves the character inside the parked canvas, and parks the window once more where she lands; a reflex turn cancels it at once, and the perched stroll and the climb still yield to any turn in flight; `jump` is played by the client when the perched stroll crosses a height difference or a gap to an adjacent window's top while the OS window travels the arc — a neighbour whose top is level with the host's within `perch_walk.level_tolerance_px` and overlaps or touches it is one ledge with the host, and the stroll's own leg walks across the seam onto it; `falling` and `landing` are the fall chain, played by the client whenever the character is left in mid-air — a drag release that misses, a perched sit that loses its host window, a jump that loses its target, and the ambient step-off that walks a perched stroll off the outer edge of the ledge it is on — and the window drops to the first landing surface below it: a foreign window top with standing room either side, or the work-area floor of the monitor under the feet — except that a drag release whose feet hang below the floor line of a monitor above them by less than `fall.min_drop_frac` character heights lands on that line instead of falling down the monitor below; `climb_up`, `climb_up_done`, `climb_down` and `climb_down_landing` are the climb chain, played by the client's climb scheduler while the OS window travels up or down a foreign window's side edge; the screen edges of a monitor that has another monitor directly above it are climb targets alongside window sides; that ascent parks the OS window once over the whole climb, moves the character inside the parked canvas, and parks the window once more standing on the upper monitor's floor line rather than on a seat. A floor segment ending over a lower monitor has a descent edge at that monitor's screen edge; at stroll planning time, `descend.chance` chooses whether she walks there and descends. On arrival, `descend.climb_down_chance` chooses between climbing down to `climb.descent_wall_offset_frac` character heights inside the edge and walking `fall.land_room_frac` character widths beyond it before falling; the whole descent uses one parked travel frame. `sit_down` and `stand_up` are the seat transitions, played by the client's sitter on every seat entry (a drag drop onto a window top, a climb that reaches the ledge, a perched stroll sitting back down, a fall that lands on a window top) and on the voluntary seat exits (a perched stroll standing up, a climb descent leaving the seat) — a drag pickup and a lost host window leave the seat at once, with no stand-up.
-- **Agent vocabulary** (`broker_publish`, default `true`): a `false` entry stays renderable locally but is kept out of the agent-facing motion vocabulary on every transport (the declared tool's `motion_id` enum, the push `vocabulary` frames), so the agent never selects it. The agent-selectable set is `happy, laugh, embarrassed, sheepish, calm, idle_lively, dance, sulk`. Excluded from the vocabulary: `idle` (ambient baseline, auto-played), `drag` (`kind: reactive` pickup), `head_pat` (`kind: reactive` pat loop), `peek` and `window_sit` (`broker_publish: false`, client-held perch states), `thinking` (`broker_publish: false`, client-played TTFT affordance), `walk` (`kind: reactive` + `broker_publish: false`, the client-scheduled ambient stroll), `jump` (`broker_publish: false`, its window-to-window crossing), `falling`, `landing` (`broker_publish: false`, the client-owned fall chain), and `climb_up`, `climb_up_done`, `climb_down`, `climb_down_landing` (`broker_publish: false`, the client-owned climb chain), and `sit_down`, `stand_up` (`broker_publish: false`, the client-owned seat transitions), and `bed_lie`, `bed_sleep`, `bed_wake` (`broker_publish: false`, held by the bed scene).
-- **Idle selection**: each `idle` variant carries an on/off switch on the Motion and desktop page. The selection is a localStorage overlay (`yui.idle_motions`, the disabled set keyed by variant file path) — `configs/motions.json` is never written. The ambient cycle picks only from the enabled variants and re-reads the selection on every rotation, so a change lands after the playing variant finishes its cycle. The pool's `vrma_path` (`calm.vrma`) is the fallback baseline and cannot be disabled.
-- **Expression selection**: each agent-selectable motion carries an on/off switch on the Motion and desktop page, grouped by category. The selection is a localStorage overlay (`yui.express_motions`, the disabled set keyed by motion id) — `configs/motions.json` is never written. It narrows the vocabulary carried in push frames and the `motion_id` enum of the declared `generate_express` tool schema (both request transports); turning every motion off drops `motion_id` from that schema. It is a vocabulary filter, not a render gate: a cue naming a deselected motion still plays.
-- **Vertical root lock** (`root_lock_y`, default `false`): the loader strips a clip's baked horizontal root drift from every entry, but leaves vertical motion alone because that is the bob. A `true` entry has its hips-Y track levelled instead — every key onto the hips height the VRM has in its rest pose — and the curve that came out is kept beside the clip. Set on the four climb clips and the two seat transitions, whose rise and fall *is* the movement: the OS window replays that curve, so the clip and the window compose to the authored motion exactly once, a loop has no seam left to snap at, and a clip captured with the hips a metre above standing no longer plays a metre up the canvas. The flag rides in the clip-cache key, so two entries sharing one `.vrma` can disagree on it.
-- **Horizontal root motion kept** (`root_keep_xz`, default `false`): the loader leaves the clip's hips X/Z where the clip authored them, for a clip that shares its frame with a prop placed at the character's position. It rides in the clip-cache key like `root_lock_y`. Combinable with `root_lock_y`.
-- **Missing-clip fallback**: any motion whose clip fails to load (missing or invalid `.vrma` for the live VRM — e.g. a gitignored purchased motion absent locally) recovers to `idle`. The renderer force-commits `idle` so the failed id never pins controller state or blocks a later idle by priority.
+The backend agent plays only the motions in the [agent vocabulary](#agent-vocabulary), chosen through `generate_express`'s `motion_id`. The client plays the rest: the ambient baseline, the pickup and pat reactions, the stroll, the jump, the fall chain, the climb chain, the seat transitions, the thinking pose, the perch states, and the bed scene.
+
+Each family has a sub-section under [Top-level motions](#top-level-motions); sources and the client-side switches sit below the catalog.
 
 ## Naming convention
 
 A motion id is named for the emotion or state it expresses, with a few patterns:
 
-- **Default — `{emotion}`**: the bare emotion or state — `happy`, `laugh`, `embarrassed`, `sheepish`, `calm`.
-- **Indexed — `{emotion}_NN`**: when several clips express the same id, suffix a zero-padded number (`idle_01`, `dance_13`, `sit_01`).
-- **Descriptive exception**: motions whose action or pose is itself the clearest identifier keep that descriptive name instead of an emotion label — `idle`, `drag`, `head_pat`, `peek`, `window_sit`, `thinking`, `walk`, `jump`, `climb_up`, `climb_down`, `dance`.
+| pattern | usage |
+|---|---|
+| default, `{emotion}` | the bare emotion or state: `happy`, `laugh`, `embarrassed`, `sheepish`, `calm` |
+| indexed, `{emotion}_NN` | when several clips express the same id, suffix a zero-padded number (`idle_01`, `dance_13`, `sit_01`) |
+| descriptive exception | motions whose action or pose is itself the clearest identifier keep that descriptive name instead of an emotion label: `idle`, `drag`, `head_pat`, `peek`, `window_sit`, `thinking`, `walk`, `jump`, `climb_up`, `climb_down`, `dance` |
 
 ## Top-level motions
 
+`idle`, `idle_lively`, `window_sit` and `dance` are single registry entries with a `variants[]` list and `variant_policy: "random"`, so each trigger plays a random variant (immediate repeat avoided). The character-facing id is the pool id; individual variant files are not separate registry entries.
+
 | id | kind | loop | description | source clip | ~len |
 |---|---|---|---|---|---|
-| `idle` | ambient | yes (cycle) | Calm ambient baseline — random pool of `calm.vrma` and the three calmest idle variants (see below). `pingpong: true` with `loop_cycles: [1, 3]`: each variant plays forward↔reverse a random 1–3 round trips, then rotates to a fresh variant. | PET_POSE / PET_IDLE / PET_MISC | — |
+| `idle` | ambient | yes (cycle) | Calm ambient baseline: a random pool of `calm.vrma` and the three calmest idle variants (see below). `pingpong: true` with `loop_cycles: [1, 3]`: each variant plays forward↔reverse a random 1–3 round trips, then rotates to a fresh variant. | PET_POSE / PET_IDLE / PET_MISC | — |
 | `idle_lively` | oneshot | no | Agent-selectable random lively-fidget pool (see below). Plays one variant once, then returns to the prior stable motion. | PET_IDLE / UPDATE_2 | — |
 | `drag` | reactive | yes | Pickup reaction while the window is being dragged. `broker_publish: false`. | PET_MISC/PET_DRAGGING | — |
 | `head_pat` | reactive | yes | Head-pat reaction, held for as long as the press stays on the head region. `pingpong: true` (single variant): plays forward↔reverse continuously until the release clears it. `broker_publish: false`. Reuses `idle_10.vrma` as the pat loop. | PET_IDLE/PET_IDLE_10 | 11.0s |
 | `falling` | reactive | yes | Falling loop, held for the whole descent to the surface below. `broker_publish: false`. | Mixamo "Falling_2" | 2.78s |
 | `landing` | oneshot | no | Touchdown at the end of a fall, then recover to standing. A fall that came down on a window top takes its seat once this clip hands the body back. `broker_publish: false`. | Mixamo "Falling_and_landing" | 7.18s |
-| `climb_up` | reactive | yes | Wall-climb loop held for the length of an ascent. `root_lock_y: true`: the clip's rise per cycle comes out of the hips and goes into the window, so the VRM climbs in place at scene origin while the OS window rises along the chosen window edge and the root yaws ±90° toward the wall. The window tracks the clip's own rise curve, counting each loop restart, so the hands do not slide. `broker_publish: false`. | Mixamo "Climbing Up Wall" | 1.98s |
+| `climb_up` | reactive | yes | Wall-climb loop held for the length of an ascent. `root_lock_y: true`, so the window carries the rise (see [Climb chain](#climb-chain)). `broker_publish: false`. | Mixamo "Climbing Up Wall" | 1.98s |
 | `climb_up_done` | oneshot | no | Pull-over onto the ledge that ends an ascent. `root_lock_y: true`: the window follows the clip's own rise, leaving the feet on the window's top edge. `broker_publish: false`. | Mixamo "Climbing To Top" | 4.0s |
 | `climb_down` | reactive | yes | Wall-descent loop held for the length of a descent, `root_lock_y: true`, the window following the clip's own ~1.05 m per cycle. It also covers the step off the ledge: the clip crossfades in over a 400 ms slide down the wall, which is the one stretch the window drives on its own clock. `broker_publish: false`. | Mixamo "Climbing Down Wall" | 2.0s |
 | `climb_down_landing` | oneshot | no | Touchdown at the end of a descent. `root_lock_y: true`: the window follows the clip's own ~0.24 m drop onto the work-area floor. `broker_publish: false`. | Mixamo "Climbing Down_landing" | 1.38s |
-| `sit_down` | oneshot | no | Sitting down onto a window top, played before `window_sit` takes the seat. `root_lock_y: true`: the perch pin stays off while the clip plays and the window follows the clip's own hips curve, scaled so its total drop is the measured standing-feet → seated-hips distance — the last frame lands the hips on the edge, then `window_sit` crossfades in and the pin engages. A drag drop keeps the window where the user left it and plays the clip in place. `broker_publish: false`. | Mixamo "Sitting" | 4.4s |
+| `sit_down` | oneshot | no | Sitting down onto a window top, played before `window_sit` takes the seat. `root_lock_y: true`, the window following the clip's own hips curve (see [Seat transitions](#seat-transitions)). `broker_publish: false`. | Mixamo "Sitting" | 4.4s |
 | `stand_up` | oneshot | no | Standing up from a window seat, played before a perched stroll or a climb descent leaves the seat. `root_lock_y: true`: the pin is released and the window follows the clip's rise, scaled to the same seat distance, so the feet end on the edge. `broker_publish: false`. | Mixamo "Sit To Stand" | 2.03s |
 | `happy` | oneshot | no | Happy reaction. | PET_MISC/PET_HAPPY | — |
 | `laugh` | oneshot | no | Laughing reaction. | PET_MISC/PET_LAUGHING | — |
@@ -48,17 +40,101 @@ A motion id is named for the emotion or state it expresses, with a few patterns:
 | `sheepish` | oneshot | no | Sheepish/awkward standing gesture; one hand raised to the head/hair. | PET_POSE/PET_POSE_2 | 6.8s |
 | `calm` | oneshot | no | Calm standing gesture; hands folded together in front. | PET_POSE/PET_POSE_3 | 5.0s |
 | `peek` | state | yes (cycle) | Held while side-perched; the hips stay pinned inside the app-window edge so the clip's walk-away never leaves frame, and the clip mirrors on its configured side. `crossfade_loop: true`: the clip clamps on its last frame and crossfades back to frame 0 (`fade_ms: 700`) each loop, hiding the wrap seam. `broker_publish: false`. | PET_HIDING/PET_HIDE | 14.0s |
-| `thinking` | state | yes | Looping thinking pose — client-played TTFT latency affordance; loops from the start of a backend turn until the response speech begins, except while the bed scene holds the body. `pingpong: true` (single variant): plays forward↔reverse continuously, seam-free at the turnaround, until interrupted. Priority 50 (above `idle`, below `window_sit` perch and reactive emotes). `broker_publish: false`. Purchased asset at `public/purchased_motions/thinking.vrma`; falls back to `idle` when absent. | もいらんど thinking | — |
+| `thinking` | state | yes | Looping thinking pose, played by the client as a TTFT latency affordance (see [Thinking](#thinking)). `pingpong: true` (single variant), priority 50. `broker_publish: false`. Purchased asset at `public/purchased_motions/thinking.vrma`; falls back to `idle` when absent. | もいらんど thinking | — |
 | `sulk` | oneshot | no | Sulk/pout (拗ね) emotion gesture. | necocoya EmoteSet_Free_v130 / `06_suneru` | 4.2s |
-| `walk` | reactive | yes | In-place walk cycle (39 keyframes at 30 FPS) held for the length of an ambient stroll. The VRM stays at scene origin while the OS window translates along the work-area bottom and the root yaws ±90° toward the travel direction; the window is paced at 1.34 m of stride per cycle, divided by the loaded clip's own duration, so the feet do not slide. Priority 45 (above `idle`, below `thinking` and the emote oneshots, which end the stroll by taking the clip). `kind: reactive` keeps it out of the return target a finishing oneshot resumes, so a stroll cut short never leaves the character walking on the spot. `broker_publish: false`. | Mixamo Walking | 1.27s |
-| `jump` | oneshot | no | Standing jump, played once when a perched stroll crosses a height difference or a gap to an adjacent window's top. The VRM jumps in place at scene origin while the OS window travels a parabola between the two tops over the clip's airborne stretch (0.40–0.67 of its length); the crouch and the recovery play with the window held still. Priority 45, above the `idle` baseline the walk hands the body back to before takeoff and below the `drag` pickup that ends the jump. `broker_publish: false`. | Mixamo "Jump" | 1.6s |
-| `window_sit` | state | yes | Held window-perch (see below). Plays a sit variant, `pingpong: true` with `loop_cycles: [1, 3]` (forward↔reverse a random 1–3 round trips), crossfades to a different variant, repeats until interrupted. `broker_publish: false`. Engaged on every seat entry. | PET_SITTING/* | — |
+| `walk` | reactive | yes | In-place walk cycle (39 keyframes at 30 FPS), played by the client during an ambient stroll (see [Walk](#walk)). Priority 45. `broker_publish: false`. | Mixamo Walking | 1.27s |
+| `jump` | oneshot | no | Standing jump, played once when a perched stroll crosses a height difference or a gap to an adjacent window's top (see [Jump](#jump)). Priority 45. `broker_publish: false`. | Mixamo "Jump" | 1.6s |
+| `window_sit` | state | yes | Held window-perch (see [Perch states](#perch-states)). `broker_publish: false`. Engaged on every seat entry. | PET_SITTING/* | — |
 | `dance` | oneshot | no | Random dance pool (see below). | PET_DANCING/* | — |
 | `bed_lie` | oneshot | no | Lying down onto the bed, played once when a `go_to_bed` command lays her down; `bed_sleep` takes over on its last frame. `root_keep_xz: true`: the clip shares its frame with the bed prop. Held by the bed scene. `broker_publish: false`. | AI-generated for YUI (reference video generation and pose extraction), post-edited | 17.1s |
 | `bed_sleep` | oneshot | yes | Asleep on the bed, looping until she is woken. `root_keep_xz: true`: the clip shares its frame with the bed prop. Held by the bed scene, which drops every other body motion while it runs. `broker_publish: false`. | Composed for YUI (a held pose with a breathing sway) | 7.9s |
 | `bed_wake` | oneshot | no | Waking up, getting off the bed and ending standing in front of it; the bed fades out on the clip's last frame. `root_keep_xz: true`. Held by the bed scene. `broker_publish: false`. | AI-generated for YUI (reference video generation and pose extraction), post-edited | 22.2s |
 
 > `sheepish` and `calm` are **standing gestures**, not sitting.
+
+### Walk
+
+`walk` is the ambient floor or foreign-window-top stroll, played by the client's walk schedulers while the OS window translates along the supporting edge.
+
+The clip is an in-place walk cycle of 39 keyframes at 30 FPS, held for the length of an ambient stroll.
+
+The VRM stays at scene origin while the OS window translates along the work-area bottom, and the root yaws ±90° toward the travel direction. The window is paced at 1.34 m of stride per cycle, divided by the loaded clip's own duration, so the feet do not slide.
+
+Priority 45 puts it above `idle`, and below `thinking` and the emote oneshots, which end the stroll by taking the clip. `kind: reactive` keeps it out of the return target a finishing oneshot resumes, so a stroll cut short never leaves the character walking on the spot. `broker_publish: false`.
+
+#### Floor stroll
+
+The floor stroll runs whenever the body is on `idle`, `thinking` or `walk`, through a turn's thinking, its filler and its response speech (expressions and lip-sync apply as they arrive). It ends in place when a response `motion_id` takes the body.
+
+A floor stroll may continue past its own monitor's edge onto a neighbouring monitor that shares its floor line and scale factor, with the window translating frame by frame.
+
+A stroll that starts over a stretch where the window would hang over a monitor beneath it with a different scale factor takes a different route. It parks the OS window once over the whole path, moves the character inside the parked canvas, and parks the window once more where she lands.
+
+A reflex turn cancels it at once, and the perched stroll and the climb still yield to any turn in flight. The same clip covers the foreign-window-top stroll, whose crossings are described under [Jump](#jump), [Fall chain](#fall-chain) and [Seat transitions](#seat-transitions).
+
+### Jump
+
+`jump` is played by the client when the perched stroll crosses a height difference or a gap to an adjacent window's top, while the OS window travels the arc.
+
+The VRM jumps in place at scene origin while the OS window travels a parabola between the two tops over the clip's airborne stretch (0.40–0.67 of its length). The crouch and the recovery play with the window held still.
+
+Priority 45 puts it above the `idle` baseline the walk hands the body back to before takeoff, and below the `drag` pickup that ends the jump. `broker_publish: false`.
+
+A neighbour whose top is level with the host's within `perch_walk.level_tolerance_px` and overlaps or touches it is one ledge with the host, and the stroll's own leg walks across the seam onto it.
+
+### Fall chain
+
+`falling` and `landing` are the fall chain, played by the client whenever the character is left in mid-air: a drag release that misses, a perched sit that loses its host window, a jump that loses its target, and the ambient step-off that walks a perched stroll off the outer edge of the ledge it is on.
+
+The window drops to the first landing surface below it: a foreign window top with standing room either side, or the work-area floor of the monitor under the feet.
+
+One exception: a drag release whose feet hang below the floor line of a monitor above them by less than `fall.min_drop_frac` character heights lands on that line instead of falling down the monitor below.
+
+`falling` holds for the whole descent, and `landing` plays the touchdown at its end. Both are `broker_publish: false`.
+
+### Climb chain
+
+`climb_up`, `climb_up_done`, `climb_down` and `climb_down_landing` are the climb chain, played by the client's climb scheduler while the OS window travels up or down a foreign window's side edge. The screen edges of a monitor that has another monitor directly above it are climb targets alongside window sides.
+
+An ascent parks the OS window once over the whole climb, moves the character inside the parked canvas, and parks the window once more standing on the upper monitor's floor line rather than on a seat.
+
+On the way up, the clip's rise per cycle comes out of the hips and goes into the window, so the VRM climbs in place at scene origin. The OS window rises along the chosen window edge and the root yaws ±90° toward the wall.
+
+The window tracks the clip's own rise curve, counting each loop restart, so the hands do not slide.
+
+A floor segment ending over a lower monitor has a descent edge at that monitor's screen edge. At stroll planning time, `descend.chance` chooses whether she walks there and descends.
+
+On arrival, `descend.climb_down_chance` chooses between climbing down to `climb.descent_wall_offset_frac` character heights inside the edge and walking `fall.land_room_frac` character widths beyond it before falling. The whole descent uses one parked travel frame.
+
+All four are `broker_publish: false`.
+
+### Seat transitions
+
+`sit_down` and `stand_up` are the seat transitions, played by the client's sitter on every seat entry and on the voluntary seat exits.
+
+Seat entries are a drag drop onto a window top, a climb that reaches the ledge, a perched stroll sitting back down, and a fall that lands on a window top.
+
+Voluntary exits are a perched stroll standing up and a climb descent leaving the seat. A drag pickup and a lost host window leave the seat at once, with no stand-up.
+
+`sit_down` plays before `window_sit` takes the seat. The perch pin stays off while the clip plays, and the window follows the clip's own hips curve, scaled so its total drop is the measured standing-feet → seated-hips distance. The last frame lands the hips on the edge, then `window_sit` crossfades in and the pin engages.
+
+A drag drop keeps the window where the user left it and plays the clip in place. Both transitions are `root_lock_y: true` and `broker_publish: false`.
+
+### Thinking
+
+`thinking` is a client-played TTFT latency affordance. It loops from the start of a backend turn until the response speech begins. A turn that starts while the bed scene holds the body starts none, and a running one ends when the scene takes the body.
+
+The pose plays forward↔reverse continuously (`pingpong: true`, single variant), seam-free at the turnaround, until interrupted. Its priority is 50, above `idle` and below the `window_sit` perch and the reactive emotes.
+
+It is `broker_publish: false`, a purchased asset at `public/purchased_motions/thinking.vrma` that falls back to `idle` when absent.
+
+### Perch states
+
+`window_sit` is a held window perch, engaged on every seat entry: a drag drop onto a window top, a climb that reaches the ledge, a perched stroll sitting back down, a fall that lands on a window top, and the avatar `sit_on_window` command.
+
+It plays a sit variant, `pingpong: true` with `loop_cycles: [1, 3]` (forward↔reverse a random 1–3 round trips), crossfades to a different variant, and repeats until interrupted.
+
+`peek` is the side-perch hold. Both are client-held perch states with `broker_publish: false`.
 
 ## `idle` variants (ambient baseline pool)
 
@@ -67,9 +143,9 @@ A motion id is named for the emotion or state it expresses, with a few patterns:
 | variant file | description | source clip | ~len |
 |---|---|---|---|
 | calm.vrma | Calm standing gesture; hands folded together in front. | PET_POSE/PET_POSE_3 | 5.0s |
-| idle_01.vrma | Standing, hands framed together at the chest, slight turn — playful. | PET_MISC/HoverReaction | 2.5s |
-| idle_04.vrma | Standing, 3/4 turn, one hand raised to touch her hair — coy. | UPDATE_2/PET_IDLE_UPDATE2_03 | 11.4s |
-| idle_12.vrma | Standing, weight shifted onto one hip, subtle head tilt and knowing smile — sultry calm. | PET_IDLE/PET_IDLE_12 | 3.5s |
+| idle_01.vrma | Standing, hands framed together at the chest, slight turn, playful. | PET_MISC/HoverReaction | 2.5s |
+| idle_04.vrma | Standing, 3/4 turn, one hand raised to touch her hair, coy. | UPDATE_2/PET_IDLE_UPDATE2_03 | 11.4s |
+| idle_12.vrma | Standing, weight shifted onto one hip, subtle head tilt and knowing smile, sultry calm. | PET_IDLE/PET_IDLE_12 | 3.5s |
 
 ## `idle_lively` variants (oneshot, random)
 
@@ -77,30 +153,30 @@ A motion id is named for the emotion or state it expresses, with a few patterns:
 
 | variant file | description | source clip | ~len |
 |---|---|---|---|
-| idle_02.vrma | Standing, arm lifts to the chin then crosses at the chest, cape swirling — energetic. | UPDATE_2/PET_IDLE_UPDATE2_01 | 16.5s |
-| idle_03.vrma | Standing, one arm raised high in an open-palm wave — cheerful greeting. | UPDATE_2/PET_IDLE_UPDATE2_02 | 13.2s |
-| idle_05.vrma | Standing, both arms thrown overhead in a big stretch, cape flaring wide — energetic. | UPDATE_2/PET_IDLE_UPDATE2_04 | 12.0s |
-| idle_06.vrma | Standing, quick half-turn with a leg cross and hip dip, hair swinging out — playful twirl. | PET_IDLE/PET_IDLE_6 | 5.7s |
-| idle_07.vrma | Standing, glancing back over the shoulder with one hand raised in a small wave, hair swept aside — flirty. | PET_IDLE/PET_IDLE_7 | 9.3s |
-| idle_08.vrma | Standing, arms sweep open wide then settle back at sides, sleeves fluttering — breezy sway. | PET_IDLE/PET_IDLE_8 | 6.0s |
-| idle_09.vrma | Hands on hips, confident smirk, quick turn sends hair whipping to the side — playful, sassy. | PET_IDLE/PET_IDLE_9 | 10.0s |
-| idle_10.vrma | Side turn, hair caught in a windswept flick, hands settle clasped behind the back — coy, flirty. | PET_IDLE/PET_IDLE_10 | 11.0s |
-| idle_11.vrma | Standing, hands raised to shoulder height with fingers curled like claws, playful jab — feisty. | PET_IDLE/PET_IDLE_11 | 4.1s |
-| idle_13.vrma | Standing, glances back over the shoulder then leans in with hip cocked — flirty tease. | PET_IDLE/PET_IDLE_13 | 4.1s |
+| idle_02.vrma | Standing, arm lifts to the chin then crosses at the chest, cape swirling, energetic. | UPDATE_2/PET_IDLE_UPDATE2_01 | 16.5s |
+| idle_03.vrma | Standing, one arm raised high in an open-palm wave, cheerful greeting. | UPDATE_2/PET_IDLE_UPDATE2_02 | 13.2s |
+| idle_05.vrma | Standing, both arms thrown overhead in a big stretch, cape flaring wide, energetic. | UPDATE_2/PET_IDLE_UPDATE2_04 | 12.0s |
+| idle_06.vrma | Standing, quick half-turn with a leg cross and hip dip, hair swinging out, playful twirl. | PET_IDLE/PET_IDLE_6 | 5.7s |
+| idle_07.vrma | Standing, glancing back over the shoulder with one hand raised in a small wave, hair swept aside, flirty. | PET_IDLE/PET_IDLE_7 | 9.3s |
+| idle_08.vrma | Standing, arms sweep open wide then settle back at sides, sleeves fluttering, breezy sway. | PET_IDLE/PET_IDLE_8 | 6.0s |
+| idle_09.vrma | Hands on hips, confident smirk, quick turn sends hair whipping to the side, playful, sassy. | PET_IDLE/PET_IDLE_9 | 10.0s |
+| idle_10.vrma | Side turn, hair caught in a windswept flick, hands settle clasped behind the back, coy, flirty. | PET_IDLE/PET_IDLE_10 | 11.0s |
+| idle_11.vrma | Standing, hands raised to shoulder height with fingers curled like claws, playful jab, feisty. | PET_IDLE/PET_IDLE_11 | 4.1s |
+| idle_13.vrma | Standing, glances back over the shoulder then leans in with hip cocked, flirty tease. | PET_IDLE/PET_IDLE_13 | 4.1s |
 
 ## `window_sit` variants (random)
 
-7 variants — a mix of floor sits and edge/perch sits. All lower the hips when seated. `window_sit` is a looping held state that ping-pongs each variant forward↔reverse a random 1–3 round trips (`loop_cycles: [1, 3]`), then crossfades to a different variant over `fade_ms: 700` with no settled-frame dwell (`cycle_dwell_ms: 0`).
+7 variants: a mix of floor sits and edge/perch sits. All lower the hips when seated. `window_sit` is a looping held state that ping-pongs each variant forward↔reverse a random 1–3 round trips (`loop_cycles: [1, 3]`), then crossfades to a different variant over `fade_ms: 700` with no settled-frame dwell (`cycle_dwell_ms: 0`).
 
 | variant file | description | source clip | ~len |
 |---|---|---|---|
-| sit_01.vrma | Floor sit, legs folded to one side, one hand supporting — elegant. | PET_SITTING/ME_02/PET_SIT_01 | 3.2s |
-| sit_02.vrma | Sits upright on an edge, knees together — best for window-perch. | PET_SITTING/ME_02/PET_SIT_02 | 6.5s |
-| sit_03.vrma | Sideways floor sit, hand to chin — cute. | PET_SITTING/ME_02/PET_SIT_03 | 6.5s |
-| sit_04.vrma | Edge sit, knees together, hands resting on lap — demure. | PET_SITTING/ME_02/PET_SIT_04 | 2.0s |
-| sit_05.vrma | Cross-legged floor sit, one hand to the head — relaxed/casual. | PET_SITTING/ME_02/PET_SIT_05 | 4.0s |
+| sit_01.vrma | Floor sit, legs folded to one side, one hand supporting, elegant. | PET_SITTING/ME_02/PET_SIT_01 | 3.2s |
+| sit_02.vrma | Sits upright on an edge, knees together, best for window-perch. | PET_SITTING/ME_02/PET_SIT_02 | 6.5s |
+| sit_03.vrma | Sideways floor sit, hand to chin, cute. | PET_SITTING/ME_02/PET_SIT_03 | 6.5s |
+| sit_04.vrma | Edge sit, knees together, hands resting on lap, demure. | PET_SITTING/ME_02/PET_SIT_04 | 2.0s |
+| sit_05.vrma | Cross-legged floor sit, one hand to the head, relaxed/casual. | PET_SITTING/ME_02/PET_SIT_05 | 4.0s |
 | suwari1.vrma | Compact floor sit, knees drawn up. | PET_SITTING/ME_02/suwari1 | 3.2s |
-| suwari3.vrma | Floor sit leaning back, one hand propped behind — relaxed. | PET_SITTING/ME_02/suwari3 | 2.9s |
+| suwari3.vrma | Floor sit leaning back, one hand propped behind, relaxed. | PET_SITTING/ME_02/suwari3 | 2.9s |
 
 ## `dance` variants (oneshot, random)
 
@@ -108,22 +184,115 @@ A motion id is named for the emotion or state it expresses, with a few patterns:
 
 | variant file | description | source clip | ~len |
 |---|---|---|---|
-| dance_01.vrma | Energetic — both arms spread, scarf flowing. | PET_DANCING/PET_DANCING | 14.2s |
-| dance_02.vrma | Short — hands at the waist. | PET_DANCING/PET_DANCING_2 | 1.3s |
+| dance_01.vrma | Energetic: both arms spread, scarf flowing. | PET_DANCING/PET_DANCING | 14.2s |
+| dance_02.vrma | Short: hands at the waist. | PET_DANCING/PET_DANCING_2 | 1.3s |
 | dance_03.vrma | One hand reaching out to the side, legs apart. | PET_DANCING/PET_DANCING_3 | 3.9s |
-| dance_04.vrma | Idol-style — hands in fists near the chest. | PET_DANCING/PET_DANCING_4 | 2.3s |
+| dance_04.vrma | Idol-style: hands in fists near the chest. | PET_DANCING/PET_DANCING_4 | 2.3s |
 | dance_05.vrma | Subtle hand gesture. | PET_DANCING/PET_DANCING_5 | 1.7s |
 | dance_06.vrma | Weight-shift step, one arm crossed to chest. | PET_DANCING/PET_DANCING_6 | 2.4s |
 | dance_07.vrma | Medium routine (calmer). | PET_DANCING/PET_DANCING_7 | 5.0s |
 | dance_08.vrma | One arm extended, scarf flaring dramatically. | PET_DANCING/PET_DANCING_8 | 2.4s |
 | dance_09.vrma | Raised hand / wave-like move. | PET_DANCING/PET_DANCING_9 | 4.5s |
 | dance_10.vrma | Long full routine, expressive. | PET_DANCING/PET_DANCING_10 | 21.8s |
-| dance_11.vrma | Longest — full routine with spins. | PET_DANCING/PET_DANCING_11 | 27.4s |
+| dance_11.vrma | Longest: full routine with spins. | PET_DANCING/PET_DANCING_11 | 27.4s |
 | dance_12.vrma | Gentle, cute. | PET_DANCING/PET_DANCING_12 | 6.3s |
-| dance_13.vrma | Celebratory — both arms raised in a V. | PET_DANCING/PET_DANCING_13 | 19.6s |
+| dance_13.vrma | Celebratory: both arms raised in a V. | PET_DANCING/PET_DANCING_13 | 19.6s |
+
+## Sources
+
+Clips come from five origins. Durations are the source clip length.
+
+### Mate Engine
+
+[Mate Engine](https://github.com/shinyflvre/Mate-Engine) (Shiny) supplies the bulk set, extracted from the Unity project (`Assets/MATE ENGINE - Animations/…`) to `.vrma` via the `unity-cli exec → YuiExport.YuiVrmaExport.ExportBatch` pipeline (30 FPS, T-pose reference, model-independent retarget). Used under Mate Engine's non-commercial terms, with attribution to Shiny required; commercial use needs separate permission.
+
+### necocoya
+
+[necocoya — EmoteSet_Free_v130](https://booth.pm/ja/items/1065089) supplies `sulk` only (Unity Humanoid `06_suneru`, 拗ね = sulk/pout). Attribution to necocoya is required; modification/conversion and bundling-with-credit are permitted, and standalone resale of the raw file is prohibited.
+
+### もいらんど
+
+[もいらんど — thinking](https://booth.pm/ja/items/5562384) supplies `thinking` only. It is a purchased licensed asset kept at `public/purchased_motions/thinking.vrma`, gitignored and never committed to a public repository (see [`public/purchased_motions/AGENTS.md`](https://github.com/yw0nam/YUI/blob/main/public/purchased_motions/AGENTS.md)). When the file is absent locally, the renderer falls back to `idle`.
+
+### Mixamo
+
+[Mixamo](https://www.mixamo.com/) supplies ten clips, royalty-free under the Mixamo terms. They are converted to `.vrma` through the Mate-Engine `YuiExport.YuiVrmaExport` pipeline (30 FPS) with a with-skin (bind-pose) source avatar. `jump`, the fall pair, the climb set and the seat transitions are exported from the "Maria WProp J J Ong" character.
+
+| id | Mixamo clip |
+|---|---|
+| `walk` | "Walking", in-place |
+| `jump` | "Jump", in-place |
+| `falling` | "Falling_2" |
+| `landing` | "Falling_and_landing" |
+| `climb_up` | "Climbing Up Wall" |
+| `climb_up_done` | "Climbing To Top" |
+| `climb_down` | "Climbing Down Wall" |
+| `climb_down_landing` | "Climbing Down_landing" |
+| `sit_down` | "Sitting" |
+| `stand_up` | "Sit To Stand" |
+
+### AI-generated for YUI
+
+`bed_lie` and `bed_wake` were made by reference video generation and pose extraction, then post-edited: smoothed, legs opened to parallel so they do not cross on a wide-hipped model, and knees straightened and hips raised while the legs swing over the bed edge so they stay out of the bed.
+
+`bed_sleep` is a held lying pose composed by hand from joint angles to rest on the bed prop, with a breathing sway on the chest. `bed_lie` ends in that pose and `bed_wake` starts from it.
+
+## Agent vocabulary
+
+`broker_publish` defaults to `true`. A `false` entry stays renderable locally but is kept out of the agent-facing motion vocabulary on every transport: the declared tool's `motion_id` enum and the push `vocabulary` frames. The agent therefore never selects it.
+
+The agent-selectable set is `happy, laugh, embarrassed, sheepish, calm, idle_lively, dance, sulk`.
+
+| motion | why it is out of the vocabulary |
+|---|---|
+| `idle` | ambient baseline, auto-played |
+| `drag` | `kind: reactive` pickup |
+| `head_pat` | `kind: reactive` pat loop |
+| `peek`, `window_sit` | `broker_publish: false`, client-held perch states |
+| `thinking` | `broker_publish: false`, client-played TTFT affordance |
+| `walk` | `kind: reactive` + `broker_publish: false`, the client-scheduled ambient stroll |
+| `jump` | `broker_publish: false`, its window-to-window crossing |
+| `falling`, `landing` | `broker_publish: false`, the client-owned fall chain |
+| `climb_up`, `climb_up_done`, `climb_down`, `climb_down_landing` | `broker_publish: false`, the client-owned climb chain |
+| `sit_down`, `stand_up` | `broker_publish: false`, the client-owned seat transitions |
+| `bed_lie`, `bed_sleep`, `bed_wake` | `broker_publish: false`, held by the bed scene |
+
+## Playback settings
+
+### Idle selection
+
+Each `idle` variant carries an on/off switch on the Motion and desktop page. The selection is a localStorage overlay (`yui.idle_motions`, the disabled set keyed by variant file path), and `configs/motions.json` is never written.
+
+The ambient cycle picks only from the enabled variants and re-reads the selection on every rotation, so a change lands after the playing variant finishes its cycle. The pool's `vrma_path` (`calm.vrma`) is the fallback baseline and cannot be disabled.
+
+### Expression selection
+
+Each agent-selectable motion carries an on/off switch on the Motion and desktop page, grouped by category. The selection is a localStorage overlay (`yui.express_motions`, the disabled set keyed by motion id), and `configs/motions.json` is never written.
+
+It narrows the vocabulary carried in push frames and in the `motion_id` enum of the declared `generate_express` tool schema, on both request transports. Turning every motion off drops `motion_id` from that schema. It is a vocabulary filter, not a render gate: a cue naming a deselected motion still plays.
+
+### Vertical root lock
+
+`root_lock_y` defaults to `false`. The loader strips a clip's baked horizontal root drift from every entry, but leaves vertical motion alone because that is the bob. A `true` entry has its hips-Y track levelled instead, every key onto the hips height the VRM has in its rest pose, and the curve that came out is kept beside the clip.
+
+It is set on the four climb clips and the two seat transitions, whose rise and fall is the movement. The OS window replays that curve, so the clip and the window compose to the authored motion exactly once.
+
+A loop has no seam left to snap at, and a clip captured with the hips a metre above standing no longer plays a metre up the canvas.
+
+The flag rides in the clip-cache key, so two entries sharing one `.vrma` can disagree on it.
+
+### Horizontal root motion kept
+
+`root_keep_xz` defaults to `false`. The loader leaves the clip's hips X/Z where the clip authored them, for a clip that shares its frame with a prop placed at the character's position. It rides in the clip-cache key like `root_lock_y`, and is combinable with `root_lock_y`.
+
+### Missing-clip fallback
+
+Any motion whose clip fails to load (missing or invalid `.vrma` for the live VRM, for example a gitignored purchased motion absent locally) recovers to `idle`. The renderer force-commits `idle`, so the failed id never pins controller state or blocks a later idle by priority.
 
 ## Props
 
 A prop is a furniture model drawn in the character's scene at her position.
 
-- **`public/props/bed.glb`** — the bed of the bed scene. Its origin is the floor spot where she stands at the end of `bed_wake`, and the bed lies behind that spot. It is sized for a rest hips height of 0.9 m, the height the bed clips are authored with, and is scaled at runtime by the model's rest hips height / 0.9. Author, source and license: [`public/props/bed.PROVENANCE.md`](https://github.com/yw0nam/YUI/blob/main/public/props/bed.PROVENANCE.md).
+`public/props/bed.glb` is the bed of the bed scene. Its origin is the floor spot where she stands at the end of `bed_wake`, and the bed lies behind that spot.
+
+It is sized for a rest hips height of 0.9 m, the height the bed clips are authored with, and is scaled at runtime by the model's rest hips height / 0.9. Author, source and license: [`public/props/bed.PROVENANCE.md`](https://github.com/yw0nam/YUI/blob/main/public/props/bed.PROVENANCE.md).

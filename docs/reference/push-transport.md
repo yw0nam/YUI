@@ -171,9 +171,18 @@ A turn that starts before `ready` ends as a network failure, and so does a turn 
 |---|---|
 | `key` | The chat API key. It travels in this frame because the browser WebSocket API carries only the URL |
 | `chat_id` | The conversation the backend keeps state under. Generated once per installation, stored in settings, reused on every connection |
-| `accepts` | The frame types the client reads beyond the base set. The base set is `ready`, `render`, `speech`, `turn_end`, `tool_status`, `tool_call`, `reasoning` and `delegations`; this client sends `["error"]`, and absent means the base set only. A backend sends a client no frame type outside the base set and its `accepts`, and reads a value that is not a list of strings as absent. The latest `hello` of the chat decides, including for frames the backend holds while the client is away |
+| `accepts` | The frame types the client reads beyond the base set ([what it covers](#what-accepts-covers)) |
 | `vocabulary` | What the client renders right now. `emotion_text_mode` is `"free"` or `"enum"`; `emotion_text_map` is the tag table used in `enum` mode |
 | `tools` | The function schemas the client declares on this connection, in the OpenAI function-tool shape. Absent when the client declares none, and fixed for the connection. Every pet window declares `rate_relation` and `address_character`; a pet window under Tauri also declares `plugin_describe`, `plugin_call` and `plugin_skill`, and `main` also declares `body_action` and `look` |
+
+#### What `accepts` covers
+
+The base set is `ready`, `render`, `speech`, `turn_end`, `tool_status`, `tool_call`, `reasoning`
+and `delegations`. This client sends `["error"]`, and absent means the base set only.
+
+A backend sends a client no frame type outside the base set and its `accepts`, and reads a value
+that is not a list of strings as absent. The latest `hello` of the chat decides, including for
+frames the backend holds while the client is away.
 
 A backend that does not read `accepts` sends no `error` frame and renders its failure line, and a
 client that sends no `accepts` gets that same rendered failure line.
@@ -395,7 +404,16 @@ The backend cuts `speech` frames from its reply while it is still writing it, an
 | Field | Value |
 |---|---|
 | `turn_id` | The turn the frame closes |
-| `usage` | Optional. The token usage of the turn's last LLM call, not a sum over the turn: `input_tokens`, `output_tokens` and `total_tokens`, all numbers, the same figures the request transports' usage readout takes. The client shows `total_tokens` beside the context window size. Absent when the backend has no usage for the turn, and a `usage` that does not carry all three as numbers is read as absent; the frame still ends the turn |
+| `usage` | Optional. The token usage of the turn's last LLM call, not a sum over the turn ([what it carries](#what-usage-carries)) |
+
+#### What `usage` carries
+
+`usage` holds `input_tokens`, `output_tokens` and `total_tokens`, all numbers, the same figures the
+request transports' usage readout takes. The client shows `total_tokens` beside the context window
+size.
+
+It is absent when the backend has no usage for the turn, and a `usage` that does not carry all three
+as numbers is read as absent; the frame still ends the turn.
 
 #### When the frame goes out
 
@@ -483,11 +501,15 @@ A call against a tool the client declared in `hello.tools`.
 #### The client's rules
 
 1. Calls of one chat run one at a time, in arrival order; the client's wait starts when the call starts running.
-2. A `tool_call` is answered at once with `error: <reason>` when its `name` is not in the declared set, when its `arguments` lack a field the action needs or carry a value it does not accept, or when its `turn_id` names a turn the client has stopped. The answer is one of `error: unknown tool`, `error: missing field <name>`, `error: invalid field <name>`, or `error: turn stopped`.
+2. A `tool_call` is answered at once with `error: <reason>` in three cases, with one of `error: unknown tool`, `error: missing field <name>`, `error: invalid field <name>` or `error: turn stopped`.
+   - Its `name` is not in the declared set.
+   - Its `arguments` lack a field the action needs or carry a value it does not accept.
+   - Its `turn_id` names a turn the client has stopped.
 3. A `tool_call` whose `id` repeats one queued or running is dropped with a log line and not answered; an answer would resolve the original call's waiter.
 4. A result whose frame would pass its applicable size limit is answered `error: result too large` instead. A result the client cannot send (the socket is not ready) is logged and dropped.
 5. A `tool_call` the client cannot read, such as a field of the wrong type, is dropped with a `frame_malformed` log line and gets no `tool_result`; the backend's wait answers it.
-6. The status pill takes its tool state from the backend's `tool_status` frames; the client emits no `tool_status` of its own for these calls. `plugin_call` is the exception: the client runs it itself and shows its running and terminal state locally, labelled with the plugin tool its `name` argument names. A backend `tool_status` naming it does not change the status pill and still counts as a frame of the turn for the frame wait.
+6. The status pill takes its tool state from the backend's `tool_status` frames; the client emits no `tool_status` of its own for these calls.
+   - `plugin_call` is the exception: the client runs it itself and shows its running and terminal state locally, labelled with the plugin tool its `name` argument names. A backend `tool_status` naming it does not change the status pill and still counts as a frame of the turn for the frame wait.
 
 #### Image results
 

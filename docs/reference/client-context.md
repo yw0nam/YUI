@@ -121,11 +121,13 @@ only when its field is non-empty:
 
 ::: v-pre
 `{{char}}` becomes the preset's name, `{{user}}` the user's name (a fallback word in the
-UI language when unset), and `{{original}}` the framing sentence. No other macro is
-replaced, and the string is the same bytes on every turn while the card, the UI
-language, the names, and `chat_instructions` are unchanged. A preset that has no card of
-its own sends the default card of the UI language from `configs/persona.json`; push
-sends no card, and a push backend carries its own persona.
+UI language when unset), and `{{original}}` the framing sentence.
+
+No other macro is replaced, and the string is the same bytes on every turn while the card,
+the UI language, the names, and `chat_instructions` are unchanged.
+
+A preset that has no card of its own sends the default card of the UI language from
+`configs/persona.json`; push sends no card, and a push backend carries its own persona.
 :::
 
 After a session reset the client performs one of the card's greetings through the speech
@@ -472,9 +474,10 @@ last session boundary counts.
 
 The line records how this character stands toward the user and toward each other
 character, as the backend has rated it so far, with one line per target that has a
-record: `user` first, then the other presets in registry order. It is omitted for a
-target never rated, and omitted altogether while the Relations switch is off
-(`docs/reference/client-tools.md` § `rate_relation`).
+record: `user` first, then the other presets in registry order.
+
+It is omitted for a target never rated, and omitted altogether while the Relations switch
+is off (`docs/reference/client-tools.md` § `rate_relation`).
 
 ```text
 relation: toward user warm (last change +1, 3d ago: "stayed up to finish the parser together")
@@ -591,10 +594,12 @@ The user pressed the in-app help button. Answer from the guide below: start with
 ```
 
 The guide text is expanded when the block is rendered, so the turn records and the
-context history hold only the key. The `controls` guide is `docs/guide/controls.md` and
-the `capabilities` guide is `docs/guide/capabilities.md`, both bundled with the app, and
-the block leaves out the doc's Markdown image lines, which are pictures for the docs
-site. Every transport sends the same block.
+context history hold only the key.
+
+The `controls` guide is `docs/guide/controls.md` and the `capabilities` guide is
+`docs/guide/capabilities.md`, both bundled with the app, and the block leaves out the doc's
+Markdown image lines, which are pictures for the docs site. Every transport sends the same
+block.
 
 ### Cue (schedule / proactive)
 

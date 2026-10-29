@@ -6,7 +6,9 @@ A card holds her persona: her name, who she is, how she talks, and how a convers
 
 ## Import, edit, and export
 
-1. **Import card…** on the Persona page reads JSON (`chara_card_v2`, `chara_card_v3`, or V1) or a PNG card from a SillyTavern-compatible tool. A Character.AI character needs a converter first. The new preset takes the card's name, numbered when that name is taken, becomes the active preset, and gets the card as its own card with **Send card** on. A PNG card's image becomes the preset's photo, framed on its top square; the photo button reframes it, and removing the preset deletes the file.
+1. **Import card…** on the Persona page reads JSON (`chara_card_v2`, `chara_card_v3`, or V1) or a PNG card from a SillyTavern-compatible tool. A Character.AI character needs a converter first.
+    - The new preset takes the card's name, numbered when that name is taken, becomes the active preset, and gets the card as its own card with **Send card** on.
+    - A PNG card's image becomes the preset's photo, framed on its top square; the photo button reframes it, and removing the preset deletes the file.
 2. Edit any field below: an empty field sends nothing, and Name renames the preset too. **Advanced** reveals Example dialogue, System prompt, and Post-history instructions, and **Reset to default** returns the preset to the default card. With **Send card** off, the backend gets only the expression instructions.
 3. **Export card** writes `chara_card_v2` JSON through the save dialog, named after the preset. Fields that only V3 knows stay under `extensions`, and import keeps them; filler phrases ride in `extensions.yui.filler`, so an exported card imports back with them.
 

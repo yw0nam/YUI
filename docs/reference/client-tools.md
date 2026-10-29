@@ -22,8 +22,8 @@ code that builds and runs it.
 |---|---|---|---|---|---|
 | `generate_express` | Places an expression cue (face, body motion, voice tone) on the speech around the call | Arguments `emotion_id`, `motion_id`, `emotion_text`, `caption`, each optional ([cue contract](client-context.md#tool-arguments)). Result: the string `ok` | Responses and Chat Completions as a declared tool. Push as cues inside `render` and `speech` segments | `createGenerateExpressTool` in `src/io/chat/tools/express.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts` |
 | `body_action` | Moves the body: sit on a window's top edge, peek around its edge, move to a named spot, stand up, or lie down on a bed | Arguments `action` plus the field it needs: `app` for `sit_on_window`, `side` for `peek`, `spot` and an optional `monitor` for `move_to`; `stand` and `go_to_bed` need none. Result: `ok`, or one of the words `not_found`, `blocked`, `interrupted`, `busy`, `unsupported`, `timeout`, or `error: missing field <app\|side\|spot>` and `error: invalid field <app\|side\|spot>` for an absent or invalid argument | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createAvatarTools` in `src/io/chat/tools/avatar.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
-| `look` | Reads the character's body state, perch targets, or a display screenshot | Argument `at`: `body`, `perch_targets`, or `screen`; optional integer `monitor` for `screen`, using the same display number as `body_action.monitor`. Omitted `monitor` selects the character's display; other targets ignore it. Body and perch results are JSON strings. Screen success is `{ text: "screenshot of display <n>", images: [dataUrl] }`; refusal is `error: screen capture is off`, and an invalid monitor is `error: invalid field monitor` | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createAvatarTools` in `src/io/chat/tools/avatar.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
-| `rate_relation` | Moves this character's relation toward the user or another open character by one small step, with the reason | Arguments `toward` (string: `user` or a name from the `open characters:` line), `delta` (enum: -2, -1, 1, 2), `why` (string, at most 80 characters). Result: the new band word (`hostile`, `cold`, `neutral`, `warm`, `close`), `clamped: <band>` when the daily cap or the range held the value, `ignored: already rated <toward> this turn`, `error: unknown target`, `error: invalid field delta` for a `delta` outside the enum, `error: invalid field why` for a non-string `why`, `error: reserved reason` for the `why` `set by the user`, or `error: relations are off` while the Relations switch is off | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createRateRelationTool` in `src/io/chat/tools/relation.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
+| `look` | Reads the character's body state, perch targets, or a display screenshot | Argument `at`: `body`, `perch_targets` or `screen`. Result: JSON for the body and perch targets, an image for `screen` ([details](#look)) | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createAvatarTools` in `src/io/chat/tools/avatar.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
+| `rate_relation` | Moves this character's relation toward the user or another open character by one small step, with the reason | Arguments `toward`, `delta` and `why`. Result: the new band word, or a refusal such as `clamped: <band>` or `error: unknown target` ([details](#rate-relation)) | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createRateRelationTool` in `src/io/chat/tools/relation.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
 | `address_character` | Names the character this reply is for, so that character receives a turn after the reply's playback | Arguments `to` (string: a name from the `open characters:` line) and optional boolean `handoff`, which passes the user's message to that character to answer. Result: `ok`, `ignored: already addressed <name>`, `error: unknown target` | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createAddressCharacterTool` in `src/io/chat/tools/address-character.ts` | `runClientCall` in `src/io/chat/stream/client-tool-run.ts`; on Push the consumer in `src/io/chat/push/tool-calls.ts` |
 | `plugin_describe` | Describes a plugin tool the host publishes | Argument `name` (string: the plugin tool's name). Result: the tool's name, its description and its input schema on three lines, or `error: unknown plugin tool: <name>` | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createPluginBridgeTools` in `src/io/chat/tools/plugin-bridge/` | Tauri commands `plugin_host_call`/`plugin_host_cancel` (`plugin_call`) and `plugin_host_skill` (`plugin_skill`) in `src-tauri/src/mcp_host/`, invoked through `src/io/mcp-host/mcp-host.ts`; `plugin_describe` reads the host's snapshot |
 | `plugin_call` | Runs a plugin tool the host publishes | Arguments `name` (string: the plugin tool's name) and `arguments` (object: the tool's arguments). Result: the tool's text and its images as data URLs, or `error: unknown plugin tool: <name>`, or `error: invalid arguments (<violation>)` with the tool's input schema | Responses, Chat Completions, and Push (`tool_call`/`tool_result`) | `createPluginBridgeTools` in `src/io/chat/tools/plugin-bridge/` | Tauri commands `plugin_host_call`/`plugin_host_cancel` (`plugin_call`) and `plugin_host_skill` (`plugin_skill`) in `src-tauri/src/mcp_host/`, invoked through `src/io/mcp-host/mcp-host.ts`; `plugin_describe` reads the host's snapshot |
@@ -291,6 +291,27 @@ The backend moves the value. The client holds it, caps it, renders it as the `re
 every turn ([client-context.md](client-context.md#relation)) and shows the band in the preset row of
 the settings window. The client never changes the value on its own: no decay, no rule of its own.
 
+### Arguments and result
+
+| Argument | Shape |
+|---|---|
+| `toward` | A string: `user`, or a name from the `open characters:` line |
+| `delta` | An enum: -2, -1, 1 or 2 |
+| `why` | A string of at most 80 characters |
+
+The result is the new band word: `hostile`, `cold`, `neutral`, `warm` or `close`.
+
+A call cut by the daily cap or the range answers `clamped: <band>`. A second call for the same
+target in the same turn answers `ignored: already rated <toward> this turn`.
+
+A refusal is one of these strings:
+
+- `error: unknown target`
+- `error: invalid field delta`, for a `delta` outside the enum
+- `error: invalid field why`, for a non-string `why`
+- `error: reserved reason`, for the `why` `set by the user`
+- `error: relations are off`, while the Relations switch is off
+
 ### Targets and the cap
 
 `toward` names `user` or one of the other presets open at that moment (main's active preset and the
@@ -368,6 +389,23 @@ ends the exchange.
 
 The tool has no switch, so `tool switches:` does not list it, and it stays declared whatever the
 Relations switch holds.
+
+## look
+
+`look` reads the character's body state, its perch targets, or a display screenshot.
+
+### Arguments and answers
+
+`at` is `body`, `perch_targets` or `screen`.
+
+`screen` takes an optional integer `monitor`, the same display number `body_action.monitor` uses.
+An omitted `monitor` selects the character's display, and the other two targets ignore it.
+
+The body and perch results are JSON strings.
+
+A screen request succeeds with `{ text: "screenshot of display <n>", images: [dataUrl] }`. It is
+refused with `error: screen capture is off`, and an invalid monitor answers
+`error: invalid field monitor`.
 
 ## Bridge tools
 

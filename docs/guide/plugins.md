@@ -6,11 +6,15 @@ Plugins add MCP servers and skills to the backend of every character. The page i
 
 ## Install
 
-**Available plugins** lists the catalog entries for your platform that are not installed, each with a source badge and version. **Official** plugins are reviewed and built in the YUI repository, while **Community** ones come as their authors published them, checked against the author's `checksums.txt`. **Install** unpacks the release into the app's data folder, and a failure shows its reason with **Retry**. An installed plugin starts off.
+**Available plugins** lists the catalog entries for your platform that are not installed, each with a source badge and version. **Official** plugins are reviewed and built in the YUI repository, while **Community** ones come as their authors published them, checked against the author's `checksums.txt`.
+
+**Install** unpacks the release into the app's data folder, and a failure shows its reason with **Retry**. An installed plugin starts off.
 
 ## Turn on with consent
 
-The first time you turn a plugin on, the switch asks in two steps. The first shows **Source**, **Version**, and **Launch command**, and **Allow** records your approval and starts the servers with your permissions, for every character. The second lists the tools and skills the backend now sees. That first step is the only gate: a local plugin is approved once for its folder.
+The first time you turn a plugin on, the switch asks in two steps. The first shows **Source**, **Version**, and **Launch command**, and **Allow** records your approval and starts the servers with your permissions, for every character.
+
+The second lists the tools and skills the backend now sees. That first step is the only gate: a local plugin is approved once for its folder.
 
 ## Update
 
