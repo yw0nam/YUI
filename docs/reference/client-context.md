@@ -974,9 +974,9 @@ the pose; `emotion_id`, `emotion_text` and `caption` still apply.
 All fields are optional. Include only the fields that should change.
 
 `emotion_text` and `caption` are two separate voice channels and combine freely.
-`emotion_text` is a voice tone tag: a tag from the published set when the vocabulary is
-in enum mode, a few words naming the tone in free mode. `caption` is a free sentence
-describing how the voice should sound.
+`emotion_text` is a voice tone tag: one or more tags from the published set, in a row, when
+the vocabulary is in enum mode, a few words naming the tone in free mode. `caption` is a free
+sentence describing how the voice should sound.
 
 Both travel beside the spoken text to the TTS provider, which renders them in its own
 way. Neither is ever spoken aloud or shown in the speech bubble.

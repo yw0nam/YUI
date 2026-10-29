@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import Any
 
 from ..turns import session, state
@@ -48,10 +49,12 @@ def _emotion_text_schema(vocab: Vocabulary) -> dict:
             "description": 'voice tone in a few plain words (e.g. "warm, teasing"), no emoji or symbols',
         }
     meanings = "; ".join(f"{tag} = {meaning}" for tag, meaning in vocab.emotion_text_map.items())
+    # One or more table tags in a row; a repeat intensifies. Escapes only what ECMAScript allows.
+    tags = "|".join(re.sub(r"[\\^$.*+?()\[\]{}|]", r"\\\g<0>", tag) for tag in vocab.emotion_text_map)
     return {
         "type": "string",
-        "description": f"voice tone tag — {meanings}",
-        "enum": list(vocab.emotion_text_map),
+        "description": f"one or more voice tone tags in a row — {meanings}",
+        "pattern": f"^(?:{tags})+$",
     }
 
 

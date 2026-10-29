@@ -18,8 +18,8 @@
   direct-message source as a client turn. Other outcomes are malformed frames
   and are dropped with a warning. Playback notices use no held-report queue;
   they arrive over the connected socket.
-- Registers `generate_express`, whose enums are the emotion ids, motion ids and voice-tone tags
-  the client published. The model calls it once per reply, listing every cue in speaking order
+- Registers `generate_express`, whose enums are the emotion ids and motion ids the client
+  published, and whose voice tone takes one or more of the client's published tags in a row. The model calls it once per reply, listing every cue in speaking order
   and naming the sentence each one belongs before. Hermes defers the tool behind its tool search:
   with `tools.tool_search.enabled` at its default `auto`, a tool that is neither a core Hermes tool
   nor in a direct-surface toolset leaves the model's tool list, and the `tool_search`,

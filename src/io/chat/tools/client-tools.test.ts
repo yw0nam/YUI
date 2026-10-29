@@ -56,22 +56,24 @@ describe("createGenerateExpressTool — definition", () => {
     const props = createGenerateExpressTool(vocab()).definition.function.parameters.properties;
     const emotionText = props.emotion_text as Record<string, unknown>;
     expect(emotionText).toMatchObject({ type: "string" });
-    expect(emotionText.enum).toBeUndefined();
+    expect(emotionText.pattern).toBeUndefined();
     expect(String(emotionText.description)).toMatch(/words/);
     expect(String(emotionText.description)).toMatch(/no emoji/);
   });
 
-  it("enum-mode emotion_text enumerates the provider's tags and carries their meanings", () => {
+  it("enum-mode emotion_text takes a sequence of the provider's tags and carries their meanings", () => {
     const tool = createGenerateExpressTool(
-      vocab({ emotionText: { mode: "enum", table: { "👂": "Whisper", "🤭": "Giggle" } } }),
+      vocab({ emotionText: { mode: "enum", table: { "👂": "Whisper", "😮‍💨": "Sigh" } } }),
     );
     const emotionText = tool.definition.function.parameters.properties.emotion_text as Record<
       string,
       unknown
     >;
-    expect(emotionText.enum).toEqual(["👂", "🤭"]);
+    const pattern = new RegExp(String(emotionText.pattern), "u");
+    for (const value of ["👂", "👂👂", "😮‍💨👂"]) expect(value).toMatch(pattern);
+    for (const value of ["", "whisper", "👂 softly", "😮"]) expect(value).not.toMatch(pattern);
     expect(emotionText.description).toContain("👂 = Whisper");
-    expect(emotionText.description).toContain("🤭 = Giggle");
+    expect(emotionText.description).toContain("😮‍💨 = Sigh");
   });
 
   it("declares caption as free text, with no enum and no vocabulary tie", () => {
@@ -101,7 +103,7 @@ describe("createGenerateExpressTool — definition", () => {
   it("enum mode with no table falls back to free text", () => {
     const tool = createGenerateExpressTool(vocab({ emotionText: { mode: "enum", table: null } }));
     const props = tool.definition.function.parameters.properties;
-    expect((props.emotion_text as Record<string, unknown>).enum).toBeUndefined();
+    expect((props.emotion_text as Record<string, unknown>).pattern).toBeUndefined();
   });
 
   it("reflects a changed vocabulary — an added emotion and motion land in the enums", () => {

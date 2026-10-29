@@ -5,7 +5,9 @@
 | vocabulary mode | `enum` |
 | table | the 39-row emoji table below |
 
-Emoji go inline into the spoken text, prefixed onto the TTS segment. Repeat an emoji to intensify, as in `🥺` → `🥺🥺`, and combinations are allowed. The canonical machine copy is `configs/emotion_text/irodori.json`, and the client-declared `generate_express` tool carries this table as its `emotion_text` enum.
+Emoji go inline into the spoken text, prefixed onto the TTS segment. Repeat an emoji to intensify, as in `🥺` → `🥺🥺`, and combinations are allowed.
+
+The canonical machine copy is `configs/emotion_text/irodori.json`, and the client-declared `generate_express` tool carries this table in its `emotion_text` schema: the tag meanings in the description, and a `pattern` that takes one or more tags in a row.
 
 ## Emoji table
 
