@@ -36,6 +36,8 @@
     "allow-avatar-rpc-response",
     "allow-append-turn-record",
     "allow-set-frame-logical",
+    "allow-threads-snapshot",
+    "allow-thread-answer",
     "allow-quick-card-attach",
     "allow-quick-card-detach"
   ]

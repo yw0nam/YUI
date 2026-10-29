@@ -13,6 +13,7 @@ pub fn run(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(crate::agent_ingress::PresetIds::default());
 
     let (log_dir, log_offset) = app_log::init(app)?;
+    crate::threads::setup(app, log_offset)?;
     app.manage(turn_log::TurnRecordLog::new(log_dir.clone(), log_offset));
     // Warn level so a release log also shows that the WebDriver eval server is open.
     #[cfg(all(feature = "verify", desktop))]

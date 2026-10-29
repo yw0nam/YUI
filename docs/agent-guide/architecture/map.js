@@ -1374,6 +1374,15 @@ globalThis.YUI_MAP =
       "paths": [
         "src/windows"
       ]
+    },
+    {
+      "id": "shell/threads",
+      "module": "shell",
+      "label": "threads",
+      "role": "Keeps Threads and their asks, appends each change to a dated JSONL file kept 14 days, wakes answer waits, and publishes a revisioned snapshot to every window.",
+      "paths": [
+        "src-tauri/src/threads"
+      ]
     }
   ],
   "edges": [
@@ -3695,6 +3704,24 @@ globalThis.YUI_MAP =
       "kind": "call",
       "transport": "shared",
       "wiring": "src/windows/main.ts"
+    },
+    {
+      "id": "threads-ingress",
+      "from": "signal-producers",
+      "to": "shell/agent-ingress",
+      "kind": "http",
+      "transport": "shared",
+      "carries": "PUT /threads/<id> {source, title, label?, state, entries?, ask?}; GET /threads/<id>/answer?ask_id&wait (long-poll: 200 answer once, 204, 410, 404)",
+      "wiring": "src-tauri/src/agent_ingress/mod.rs"
+    },
+    {
+      "id": "ingress-threads",
+      "from": "shell/agent-ingress",
+      "to": "shell/threads",
+      "kind": "call",
+      "transport": "shared",
+      "carries": "upsert, wait_answer",
+      "wiring": "src-tauri/src/agent_ingress/threads/requests.rs"
     }
   ],
   "flows": [

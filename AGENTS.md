@@ -66,6 +66,7 @@ Read these when the trigger applies; they are not loaded by default.
 - **`generate_express` Express cue contract, or the `client_context` prompt-text format sent to the backend** → `docs/reference/client-context.md`
 - **Adding or changing a tool the client exposes to the backend, or checking what each chat transport carries** → `docs/reference/client-tools.md`, `docs/reference/push-transport.md`
 - **`POST /signals` envelope, buffering, and delivery rules, and the `/presets/<id>/` routes** → `docs/reference/signals-ingress.md`
+- **Threads: the `/threads` routes, the store rules, and storage** → `docs/reference/threads.md`
 - **Push transport (`chat_api: "push"`) frames, reconnect, and limits** → `docs/reference/push-transport.md`
 - **Motion catalog** → `docs/guide/motions.md`
 - **TTS emotion_text vocabulary** → `docs/guide/tts-emotion/`

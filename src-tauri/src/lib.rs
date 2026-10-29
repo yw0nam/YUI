@@ -41,6 +41,7 @@ mod mcp_host;
 
 // Loopback HTTP ingress — receives signals, re-emits as Tauri events.
 mod agent_ingress;
+mod threads;
 
 // System tray controls for window visibility, settings, and quit.
 #[cfg(desktop)]
