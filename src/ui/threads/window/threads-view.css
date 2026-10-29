@@ -93,9 +93,3 @@
   background: var(--yui-accent-faint);
   color: var(--yui-text);
 }
-
-@media (max-width: 1100px) {
-  .yui-threads__panes {
-    grid-template-columns: 232px minmax(0, 1fr);
-  }
-}
