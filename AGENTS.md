@@ -52,7 +52,7 @@ Read these when the trigger applies; they are not loaded by default.
 - **Code location / orientation** → `docs/agent-guide/project-structure.md`
 - **How data moves between modules, and where a new feature goes** → `docs/agent-guide/architecture/map.js` (viewer: `index.html` beside it; procedure: `CONTRIBUTING.md` § Architecture map)
 - **Plugins (`plugins/`)** → `docs/agent-guide/plugins.md` — one uv project (Python: the `python` and `python-lint` CI jobs, ruff) or Rust crate (the `plugins-rust` CI job) per plugin under `plugins/`
-- **Building a plugin for yourself, or contributing one** → `skills/yui-plugin-build/SKILL.md` (contributing: `CONTRIBUTE.md` beside it)
+- **Building a plugin for yourself, or contributing one** → `skills/yui-plugin-build/SKILL.md`
 - **Agent desire system (Hermes-side)** → `integrations/hermes/desire/README.md`
 - **Connecting Hermes Agent as the backend (Responses mode, dev proxy, auth)** → `integrations/hermes/README.md`
 - **Setting up or speaking the daily briefing (any backend agent)** → `integrations/skills/yui-daily-briefing/SKILL.md`
