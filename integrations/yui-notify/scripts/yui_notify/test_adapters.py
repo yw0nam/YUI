@@ -37,6 +37,7 @@ def load(fixture, rollout=NO_ROLLOUT):
         ),
         ("claude-stop-background.json", CLAUDE_ENV, None),
         ("claude-stop.json", {**CLAUDE_ENV, "CLAUDE_CODE_ENTRYPOINT": "sdk-cli"}, None),
+        ("claude-session-end.json", {**CLAUDE_ENV, "CLAUDE_CODE_ENTRYPOINT": "sdk-cli"}, None),
         (
             "claude-stop.json",
             {**CLAUDE_ENV, "CLAUDE_CODE_ENTRYPOINT": "cli"},
@@ -134,6 +135,7 @@ def load(fixture, rollout=NO_ROLLOUT):
         "claude-stop",
         "claude-stop-background",
         "claude-stop-sdk-skipped",
+        "claude-end-sdk-skipped",
         "claude-stop-interactive",
         "claude-permission-sdk-sent",
         "claude-permission",
