@@ -1,21 +1,19 @@
 /**
  * The Threads window's view: the list pane beside the thread pane, kept on the newest snapshot.
- * The selection, the filters, and each ask's unsent draft survive snapshots; a draft goes with
- * its ask.
+ * The selection and the filters survive snapshots; the thread pane keeps each ask's draft.
  */
 
 import "./threads-view.css";
 import type { ScreenRect, Thread, ThreadsSnapshot } from "../../../contract";
-import { getLocale, subscribe as subscribeLocale, t } from "../../i18n";
+import { subscribe as subscribeLocale, t } from "../../i18n";
 import { CROSS_SVG } from "../../quick-controls/constants";
-import { type AnswerArea, createAnswerArea } from "./answer-area";
-import { type Draft, draftKey, pruneDrafts } from "./drafts";
 import { growOpen, shrinkClose } from "./grow";
+import { refreshTimes } from "./relative-time";
 import { createThreadList, openSelection, type ThreadFilter, threadListView } from "./thread-list";
-import { threadPane } from "./thread-pane";
+import { createThreadPane } from "./thread-pane";
 import { attachThreadsKeys } from "./threads-keys";
 
-/** How often the list's relative times are redrawn. */
+/** How often the relative times are redrawn. */
 const REFRESH_MS = 60_000;
 
 export interface ThreadsView {
@@ -54,17 +52,14 @@ export function createThreadsView(deps: {
   const titleEl = root.querySelector("h1")!;
   const countEl = root.querySelector<HTMLElement>(".yui-threads__count")!;
   const closeEl = root.querySelector<HTMLButtonElement>(".yui-threads__close")!;
-  const pane = root.querySelector<HTMLElement>(".yui-threads-pane")!;
+  const paneEl = root.querySelector<HTMLElement>(".yui-threads-pane")!;
+  const pane = createThreadPane({ el: paneEl, now: deps.now, onAnswer: deps.onAnswer });
 
   let threads: Thread[] = [];
   let filter: ThreadFilter = { tab: "waiting", kind: null };
   let selected: string | null = null;
   let rows: Thread[] = [];
-  let paneKey = "";
-  let answerArea: AnswerArea | null = null;
   let from: ScreenRect = { x: 0, y: 0, width: 0, height: 0 };
-  const drafts = new Map<string, Draft>();
-  const errors = new Map<string, string>();
 
   const list = createThreadList({
     onSelect: (id) => {
@@ -76,7 +71,7 @@ export function createThreadsView(deps: {
       render();
     },
   });
-  pane.before(list.el);
+  paneEl.before(list.el);
 
   function renderList(): void {
     const view = threadListView(threads, filter);
@@ -88,66 +83,17 @@ export function createThreadsView(deps: {
     countEl.textContent = t("threads.waiting_count", { n: view.counts.waiting });
     closeEl.setAttribute("aria-label", t("threads.close"));
     panel.setAttribute("aria-label", t("threads.window_aria"));
-    pane.setAttribute("aria-label", t("threads.pane_aria"));
-  }
-
-  /** Rebuilt only when what it shows changed, so the field keeps its focus and caret. */
-  function renderPane(): void {
-    const thread = threads.find((th) => th.id === selected);
-    const key = thread?.ask ? draftKey(thread.id, thread.ask.ask_id) : "";
-    const next = thread
-      ? [thread.id, thread.updated_at, errors.get(key) ?? "", getLocale()].join("\n")
-      : "";
-    if (next === paneKey) return;
-    const sameThread = paneKey.split("\n")[0] === thread?.id;
-    const scrollTop = pane.querySelector(".yui-threads-pane__transcript")?.scrollTop ?? 0;
-    const hadFieldFocus = document.activeElement?.tagName === "TEXTAREA";
-    paneKey = next;
-    answerArea = null;
-    if (!thread) {
-      pane.replaceChildren();
-      return;
-    }
-    const { head, transcript } = threadPane(thread, deps.now());
-    pane.replaceChildren(head, transcript);
-    if (sameThread) transcript.scrollTop = scrollTop;
-    const ask = thread.ask;
-    if (!ask) return;
-    answerArea = createAnswerArea({
-      ask,
-      draft: drafts.get(key) ?? { text: "" },
-      error: errors.get(key) ?? null,
-      onDraft: (draft) => drafts.set(key, draft),
-      onSend: (answer) => {
-        errors.delete(key);
-        deps.onAnswer(thread.id, ask.ask_id, answer).then(
-          () => drafts.delete(key),
-          (error) => {
-            errors.set(key, String(error));
-            paneKey = "";
-            renderPane();
-          },
-        );
-      },
-    });
-    pane.append(answerArea.el);
-    if (hadFieldFocus) focusField();
-  }
-
-  function focusField(): void {
-    const field = pane.querySelector("textarea");
-    field?.focus();
-    field?.setSelectionRange(field.value.length, field.value.length);
+    paneEl.setAttribute("aria-label", t("threads.pane_aria"));
   }
 
   function render(): void {
     renderList();
-    renderPane();
+    pane.show(threads.find((th) => th.id === selected));
   }
 
   const offKeys = attachThreadsKeys({
     onClose: deps.onClose,
-    onPick: (index) => answerArea?.pick(index),
+    onPick: pane.pick,
     onMove: (delta) => {
       const at = rows.findIndex((th) => th.id === selected);
       const next = rows[Math.min(rows.length - 1, Math.max(0, at + delta))];
@@ -159,14 +105,13 @@ export function createThreadsView(deps: {
   });
   closeEl.addEventListener("click", deps.onClose);
   const offLocale = subscribeLocale(render);
-  const refresh = setInterval(renderList, REFRESH_MS);
+  const refresh = setInterval(() => refreshTimes(root, deps.now()), REFRESH_MS);
   render();
 
   return {
     update(snapshot) {
       threads = snapshot.threads;
-      pruneDrafts(drafts, threads);
-      for (const key of errors.keys()) if (!drafts.has(key)) errors.delete(key);
+      pane.prune(threads);
       render();
     },
     async open(at) {
@@ -175,8 +120,7 @@ export function createThreadsView(deps: {
       selected = openSelection(threads);
       render();
       await growOpen({ root, panel, content }, at);
-      if (pane.querySelector("textarea")) focusField();
-      else list.focusSelected();
+      if (!pane.focusField()) list.focusSelected();
     },
     close: () => shrinkClose({ root, panel, content }, from),
     dispose() {

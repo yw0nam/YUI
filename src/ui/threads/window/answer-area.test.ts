@@ -26,7 +26,14 @@ beforeEach(() => {
 
 function build(ask: ThreadAsk = ASK, text = "") {
   const onSend = vi.fn();
-  const area = createAnswerArea({ ask, draft: { text }, error: null, onDraft: vi.fn(), onSend });
+  const area = createAnswerArea({
+    ask,
+    draft: { text },
+    error: null,
+    sending: false,
+    onDraft: vi.fn(),
+    onSend,
+  });
   document.body.append(area.el);
   const field = area.el.querySelector("textarea");
   const send = area.el.querySelector<HTMLButtonElement>(".yui-threads-answer__send")!;

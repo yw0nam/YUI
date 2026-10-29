@@ -4,7 +4,7 @@ import "./thread-list.css";
 import type { Thread } from "../../../contract";
 import { t } from "../../i18n";
 import { threadSource } from "../thread-source";
-import { relativeTime } from "./relative-time";
+import { timeEl } from "./relative-time";
 import { sourceLine, stateWord } from "./thread-meta";
 
 export interface ThreadFilter {
@@ -64,9 +64,7 @@ function row(thread: Thread, selected: boolean, now: number): HTMLButtonElement 
   }
   const meta = document.createElement("span");
   meta.className = "yui-threads-row__meta";
-  const time = document.createElement("time");
-  time.textContent = relativeTime(thread.updated_at, now);
-  meta.append(stateWord(thread), time);
+  meta.append(stateWord(thread), timeEl(thread.updated_at, now));
   el.append(meta);
   return el;
 }

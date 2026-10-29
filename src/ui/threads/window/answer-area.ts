@@ -24,12 +24,14 @@ export function createAnswerArea(deps: {
   draft: Draft;
   /** The last send's error, shown until the next send. */
   error: string | null;
+  /** A send of this ask is in flight; send stays disabled until it settles. */
+  sending: boolean;
   onDraft(draft: Draft): void;
   onSend(answer: { choice?: string; text?: string }): void;
 }): AnswerArea {
   const { ask } = deps;
   const draft: Draft = { ...deps.draft };
-  let sending = false;
+  let sending = deps.sending;
 
   const el = document.createElement("section");
   el.className = "yui-threads-answer";
