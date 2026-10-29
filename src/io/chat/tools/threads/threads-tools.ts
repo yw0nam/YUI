@@ -16,8 +16,8 @@ function nonEmptyString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
-export function createThreadsTools(client: Pick<ThreadsClient, "snapshot">): ClientTool[] {
-  const threads = (): Thread[] => client.snapshot()?.threads ?? [];
+export function createThreadsTools(client: Pick<ThreadsClient, "threads">): ClientTool[] {
+  const threads = (): Thread[] => client.threads();
 
   const list: ClientTool = {
     name: "threads_list",

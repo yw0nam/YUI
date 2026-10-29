@@ -1,6 +1,7 @@
 /** The waiting-Threads count behind the `threads:` client-context line. */
 
 import type { ClientContext, Thread } from "../../contract";
+import type { ThreadsClient } from "./threads-client";
 
 /** Counts the Threads waiting for the user's answer, grouped by source, count desc then source name. */
 export function threadsWaiting(threads: Thread[]): NonNullable<ClientContext["threads_waiting"]> {
@@ -16,4 +17,11 @@ export function threadsWaiting(threads: Thread[]): NonNullable<ClientContext["th
     total: by_source.reduce((total, group) => total + group.count, 0),
     by_source,
   };
+}
+
+/** The per-turn provider for the window's client; a null client reports nothing. */
+export function threadsWaitingProvider(
+  client: Pick<ThreadsClient, "threads"> | null,
+): () => ClientContext["threads_waiting"] {
+  return () => (client ? threadsWaiting(client.threads()) : undefined);
 }

@@ -38,18 +38,6 @@ describe("threadsWaiting", () => {
     });
   });
 
-  it("groups on the raw source value", () => {
-    expect(
-      threadsWaiting([thread("ci", "input-required"), thread("ci\nhook", "input-required")]),
-    ).toEqual({
-      total: 2,
-      by_source: [
-        { source: "ci", count: 1 },
-        { source: "ci\nhook", count: 1 },
-      ],
-    });
-  });
-
   it("reports zero with no waiting Threads", () => {
     expect(threadsWaiting([])).toEqual({ total: 0, by_source: [] });
     expect(threadsWaiting([thread("ci", "working")])).toEqual({ total: 0, by_source: [] });

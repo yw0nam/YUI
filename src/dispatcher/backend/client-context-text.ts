@@ -6,17 +6,8 @@
  */
 
 import type { ClientContext, TriggerMeta, TurnEnded, WakeCause } from "../../contract";
+import { oneLine } from "../../io/chat/one-line";
 import { renderGuideBlock } from "../../io/guide/guide-docs";
-
-/** Collapses embedded newlines/whitespace runs to a single space and strips any
-    `<client_context>`/`</client_context>` tag sequence, so a sampled or user-authored string can
-    never inject an extra physical line or terminate the block early. */
-function oneLine(s: string): string {
-  return s
-    .replace(/<\/?client_context>/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 /** `max(0, round((nowMs - sinceMs) / 60000))` — never negative, rendered as a bare integer. */
 function minutesSince(sinceMs: number, nowMs: number): number {

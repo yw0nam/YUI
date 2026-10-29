@@ -34,6 +34,7 @@ function fakeClient(
   const listeners = new Set<(snapshot: ThreadsSnapshot) => void>();
   return {
     snapshot: () => latest,
+    threads: () => latest?.threads ?? [],
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);

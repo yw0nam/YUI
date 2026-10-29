@@ -19,7 +19,7 @@ import { createPetWindowTools } from "../io/chat/tools/pet-window-tools";
 import { pluginLines } from "../io/mcp-host/enabled-plugins";
 import { createMcpHost } from "../io/mcp-host/mcp-host";
 import type { ThreadsClient } from "../io/threads/threads-client";
-import { threadsWaiting } from "../io/threads/threads-waiting";
+import { threadsWaitingProvider } from "../io/threads/threads-waiting";
 import type { ScreenCapturer } from "../io/window/capture/screen-source-provider";
 import { createFrontmostTracker } from "../io/window/frontmost-tracker";
 import { createUnifiedWindowController } from "../io/window/openers/unified-window";
@@ -181,7 +181,6 @@ const realFactories: ConfiguredBootstrapFactories = {
     });
     const mcpHost = createMcpHost();
     register(mcpHost.dispose);
-    const threads = phase1.threads;
     const windowTools = createPetWindowTools({
       bound: phase1.bound === true,
       getExecutor: () => locomotion?.getAvatarExecutor() ?? null,
@@ -197,7 +196,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       targets: relations.targets,
       recordAddressed: addressed.record,
       mcpHost,
-      threads,
+      threads: phase1.threads,
     });
     const card = wireCard({
       agentSettings: settings.agentSettings,
@@ -221,9 +220,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       openSettings: phase1.openSettings,
       windowTools,
       getPluginLines: () => pluginLines(mcpHost.snapshot()),
-      getThreadsWaiting: threads
-        ? () => threadsWaiting(threads.snapshot()?.threads ?? [])
-        : undefined,
+      getThreadsWaiting: threadsWaitingProvider(phase1.threads),
       onTurnClosed: userTurnDone.onTurnClosed,
       addressedTo: addressed.targetOf,
       voicePersistence: {

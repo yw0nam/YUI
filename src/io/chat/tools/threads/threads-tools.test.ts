@@ -3,7 +3,7 @@
 process.env.TZ = "UTC";
 
 import { afterAll, describe, expect, it } from "vitest";
-import type { Thread, ThreadsSnapshot } from "../../../../contract";
+import type { Thread } from "../../../../contract";
 import { createThreadsTools } from "./threads-tools";
 
 const previousTz = process.env.TZ;
@@ -30,9 +30,7 @@ function thread(overrides: Partial<Thread> & Pick<Thread, "id">): Thread {
 }
 
 function tools(threads: Thread[] | null) {
-  const snapshot = (): ThreadsSnapshot | null =>
-    threads === null ? null : { revision: 1, threads };
-  return createThreadsTools({ snapshot });
+  return createThreadsTools({ threads: () => (threads === null ? [] : threads) });
 }
 
 async function runList(threads: Thread[] | null, args?: unknown): Promise<string> {

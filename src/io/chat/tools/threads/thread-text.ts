@@ -1,6 +1,7 @@
 /** The text of a Threads tool result: the Thread rows, one Thread's conversation, and a search snippet. */
 
 import type { Thread, ThreadAsk, ThreadEntry } from "../../../../contract";
+import { oneLine } from "../../one-line";
 
 const LIST_LIMIT = 20;
 const SEARCH_LIMIT = 10;
@@ -8,14 +9,6 @@ const LAST_CUT = 160;
 const ENTRY_CUT = 2000;
 /** The chars a search snippet shows on each side of the match. */
 const SNIPPET_SIDE = 80;
-
-/** Collapses whitespace runs to one space and strips the client_context tags, so a producer string cannot forge a line or close the block. */
-function oneLine(text: string): string {
-  return text
-    .replace(/<\/?client_context>/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 const pad = (value: number): string => String(value).padStart(2, "0");
 

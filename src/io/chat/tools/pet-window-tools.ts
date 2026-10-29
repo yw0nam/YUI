@@ -27,8 +27,8 @@ export function createPetWindowTools(deps: {
   recordAddressed: Parameters<typeof createAddressCharacterTool>[0]["record"];
   /** The MCP host client the bridge tools call. */
   mcpHost: McpHost;
-  /** The window's Thread store snapshot reader; null outside main's window. */
-  threads: Pick<ThreadsClient, "snapshot"> | null;
+  /** The window's Thread store reader; null outside main's window. */
+  threads: Pick<ThreadsClient, "threads"> | null;
 }): ClientTool[] {
   const rate = createRateRelationTool({
     store: deps.relations,

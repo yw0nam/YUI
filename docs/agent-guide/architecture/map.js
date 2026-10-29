@@ -733,6 +733,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "io/chat/one-line",
+      "module": "backend-call",
+      "label": "one line",
+      "role": "Collapses a sampled or producer-authored string to one line without the client_context tags, the sanitisation the client context block and the Threads tool results share.",
+      "paths": [
+        "src/io/chat/one-line.ts"
+      ]
+    },
+    {
       "id": "io/mcp-host",
       "module": "tools",
       "label": "mcp host client",

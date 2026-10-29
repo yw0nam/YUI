@@ -53,7 +53,7 @@ it.each([
         conversation: { relationsStore: {} },
         vrm: { vrmSelection: {} },
         // Threads belong to the main character; the wiring hands the client to main's window only.
-        threads: tauri && !bound ? { snapshot: () => null } : null,
+        threads: tauri && !bound ? { threads: () => [] } : null,
         isDisposed: () => false,
       } as never,
     ),
