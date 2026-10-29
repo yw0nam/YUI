@@ -47,10 +47,10 @@ Every signal POSTs to `<endpoint>/signals` with:
 - `source`: `claude-code` or `codex`
 - `event_id`: `<session_id>:<phase>`
 - `label`: the present parts of host, `tmux <session>:<window>`, and `<project> (<branch>)`
-- item fields: `project`, `branch`, `host`, `tmux`, and `summary` for `agent.done` or
+- item fields: `project`, `branch`, `host`, `tmux`, and `content` for `agent.done` or
   `pending` for `agent.needs_input`
 
-The `summary` of a `done` item is the last assistant message as it is up to 700
+The `content` of a `done` item is the last assistant message as it is up to 700
 characters; a longer message keeps the first 200 and the last 500 characters,
 joined by an ellipsis line.
 

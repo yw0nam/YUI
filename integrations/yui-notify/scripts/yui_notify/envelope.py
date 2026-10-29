@@ -7,10 +7,10 @@ from yui_notify.adapters import Event
 from yui_notify.label import make_label
 
 
-def build_signal(event: Event, ctx: Mapping[str, Any], delivery: str, summary: str, now_ms: int) -> dict:
+def build_signal(event: Event, ctx: Mapping[str, Any], delivery: str, content: str, now_ms: int) -> dict:
     item = {k: ctx[k] for k in ("project", "branch", "host", "tmux")}
     if event.phase == "done":
-        item["summary"] = summary
+        item["content"] = content
     else:
         item["pending"] = event.text
     return {
@@ -28,7 +28,7 @@ def build_signal(event: Event, ctx: Mapping[str, Any], delivery: str, summary: s
 
 def build_test_signal(ctx: Mapping[str, Any], delivery: str, now_ms: int) -> dict:
     return {
-        "signals": [{"summary": "Test signal from the yui-notify setup."}],
+        "signals": [{"content": "Test signal from the yui-notify setup."}],
         "envelope": {
             "source": "yui-notify",
             "event_type": "yui-notify.test",

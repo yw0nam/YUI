@@ -32,9 +32,9 @@ def run_hook(env: Mapping[str, str], stdin: TextIO) -> None:
         return
     if cfg["events"][event.phase] == "drop" or host_app_in_front(env):
         return
-    summary = excerpt(event.text) if event.phase == "done" else ""
+    content = excerpt(event.text) if event.phase == "done" else ""
     body = build_signal(
-        event, context(event.cwd, env), cfg["events"][event.phase], summary, int(time.time() * 1000)
+        event, context(event.cwd, env), cfg["events"][event.phase], content, int(time.time() * 1000)
     )
     status, error = post(url, body)
     if error:
