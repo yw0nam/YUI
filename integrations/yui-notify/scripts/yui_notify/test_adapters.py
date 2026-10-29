@@ -158,9 +158,10 @@ def test_parse_event(fixture, env, expected):
     assert got == expected
 
 
-def test_session_end_clear_parses_to_nothing():
+@pytest.mark.parametrize("reason", ["clear", "resume"])
+def test_session_end_continuing_session_parses_to_nothing(reason):
     data = load("claude-session-end.json")
-    data["reason"] = "clear"
+    data["reason"] = reason
     assert parse_event(data, CLAUDE_ENV) is None
 
 
