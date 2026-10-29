@@ -143,7 +143,7 @@ YUI sends audio to `<stt_base_url>/audio/transcriptions`. If the server requires
 | `VITE_YUI_STT_KEY` | STT | **Listening and bubble**, **STT API key** |
 | `VITE_YUI_TTS_KEY` | TTS | **Connection**, **TTS API key** |
 
-The key set in the panel wins, and the environment value is the fallback used when the panel field is empty. The environment value is read at build time, so restart the dev server after editing it. Copy `.env.example` to `.env.local` to start.
+The key set in the panel wins, and the environment value is the fallback used when the panel field is empty. YUI sends each key as `Authorization: Bearer`. The environment value is read at build time, so restart the dev server after editing it. Copy `.env.example` to `.env.local` to start.
 
 ## Character
 

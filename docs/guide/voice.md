@@ -8,7 +8,7 @@ Speech out and speech in are separate optional services.
 
 1. On **Connection**, pick a **Provider** in the TTS section: Irodori, OpenAI, or Fish Audio.
 2. Enter the **TTS API key** if the service needs one.
-3. On **Voice**, turn on **Voice output** and pick a voice from the list. **Preview** plays a sample.
+3. On **Voice**, turn on **Voice output** and pick a voice from the list. **Preview** plays a sample for a voice with a reference clip.
 
 ## Listen
 
