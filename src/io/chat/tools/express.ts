@@ -25,8 +25,8 @@ function expressDescription(withMotion: boolean): string {
 
 /**
  * voice tone tag schema. In enum mode the TTS voice speaks a fixed tag table, so the tags and
- * their meanings ride in the schema; free mode asks for a few plain words the provider reads as
- * prose.
+ * their meanings ride in the schema, and the pattern takes one or more of them in a row (a repeat
+ * intensifies); free mode asks for a few plain words the provider reads as prose.
  */
 function emotionTextSchema(emotionText: ExpressVocabulary["emotionText"]): Record<string, unknown> {
   const table = emotionText.mode === "enum" ? emotionText.table : null;
@@ -39,10 +39,11 @@ function emotionTextSchema(emotionText: ExpressVocabulary["emotionText"]): Recor
   const meanings = Object.entries(table)
     .map(([tag, meaning]) => `${tag} = ${meaning}`)
     .join("; ");
+  const tags = Object.keys(table).map((tag) => tag.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&"));
   return {
     type: "string",
-    description: `voice tone tag — ${meanings}`,
-    enum: Object.keys(table),
+    description: `one or more voice tone tags in a row — ${meanings}`,
+    pattern: `^(?:${tags.join("|")})+$`,
   };
 }
 

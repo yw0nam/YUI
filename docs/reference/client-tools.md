@@ -95,7 +95,7 @@ Expression therefore works against any OpenAI-compatible endpoint whose model su
 |---|---|
 | `emotion_id` | `string`, `enum` = the loaded emotion registry's ids |
 | `motion_id` | `string`, `enum` = the loaded motion registry's ids minus reactive, ambient and `broker_publish: false` motions, narrowed by the user's expression-motion selection |
-| `emotion_text` | `string`. On an enum-mode TTS provider, `enum` = that provider's tag table, with each tag's meaning in the description. On other providers, free text |
+| `emotion_text` | `string`. On an enum-mode TTS provider, `pattern` takes one or more of that provider's tags in a row (a repeat intensifies), with each tag's meaning in the description. On other providers, free text |
 | `caption` | `string`, free-text voice direction for the speech around the call |
 
 Every parameter is optional and `additionalProperties` is `false`.
