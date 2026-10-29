@@ -1,5 +1,4 @@
 use super::model::Thread;
-use super::store::RETENTION_MS;
 use crate::log_rotation::{parse_dated_name, DateRotatingFile};
 use std::collections::HashMap;
 use std::fs;
@@ -30,19 +29,34 @@ pub fn replay(dir: &Path, now: u64) -> Vec<Thread> {
         Ok(files) => files,
         Err(error) => {
             if error.kind() != io::ErrorKind::NotFound {
-                log::warn!("threads_replay_failed error={error}");
+                log::warn!("threads_replay_failed path={} error={error}", dir.display());
             }
             return vec![];
         }
     };
     let mut files: Vec<_> = files
-        .flatten()
         .filter_map(|entry| {
-            if !entry.file_type().ok()?.is_file() {
-                return None;
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(error) => {
+                    log::warn!("threads_replay_failed path={} error={error}", dir.display());
+                    return None;
+                }
+            };
+            match entry.file_type() {
+                Ok(kind) if kind.is_file() => {}
+                Ok(_) => return None,
+                Err(error) => {
+                    log::warn!(
+                        "threads_replay_failed path={} error={error}",
+                        entry.path().display()
+                    );
+                    return None;
+                }
             }
             let name = entry.file_name();
             let name = name.to_str()?;
+            // The shared parser accepts variable-width dates; replay requires the canonical filename width.
             if name.len() != 24 {
                 return None;
             }
@@ -64,8 +78,15 @@ pub fn replay(dir: &Path, now: u64) -> Vec<Thread> {
             }
         };
         for line in io::BufReader::new(file).lines() {
-            let Ok(line) = line else {
-                continue;
+            let line = match line {
+                Ok(line) => line,
+                Err(error) => {
+                    log::warn!(
+                        "threads_replay_failed path={} error={error}",
+                        path.display()
+                    );
+                    break;
+                }
             };
             if let Ok(thread) = serde_json::from_str::<Thread>(&line) {
                 threads.insert(thread.id.clone(), thread);
@@ -74,7 +95,10 @@ pub fn replay(dir: &Path, now: u64) -> Vec<Thread> {
     }
     threads
         .into_values()
-        .filter(|t| t.updated_at >= now.saturating_sub(RETENTION_MS))
+        .filter(|t| {
+            t.updated_at
+                >= now.saturating_sub(crate::log_rotation::RETENTION.whole_milliseconds() as u64)
+        })
         .collect()
 }
 

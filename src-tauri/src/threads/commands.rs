@@ -1,4 +1,4 @@
-use super::model::Answer;
+use super::model::AnswerInput;
 use super::store::{ThreadStore, ThreadsSnapshot};
 use crate::os_event_watcher::epoch_ms;
 use std::sync::Arc;
@@ -21,12 +21,11 @@ pub fn thread_answer(
     store
         .answer(
             &id,
-            Answer {
+            AnswerInput {
                 ask_id,
                 choice,
                 text,
                 release,
-                at: 0,
             },
             epoch_ms() as u64,
         )

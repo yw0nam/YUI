@@ -1,4 +1,8 @@
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
+
+pub const TEXT_MAX_CHARS: usize = 16384;
+const ASK_ID_MAX_CHARS: usize = 128;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
@@ -43,7 +47,7 @@ pub struct Choice {
 pub struct Ask {
     pub ask_id: String,
     pub prompt: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     pub choices: Vec<Choice>,
     pub text: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -51,7 +55,7 @@ pub struct Ask {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-pub struct Answer {
+pub struct AnswerInput {
     pub ask_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub choice: Option<String>,
@@ -59,6 +63,12 @@ pub struct Answer {
     pub text: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub release: Option<bool>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct Answer {
+    #[serde(flatten)]
+    pub input: AnswerInput,
     pub at: u64,
 }
 
@@ -75,6 +85,8 @@ pub struct Thread {
     pub ask: Option<Ask>,
     pub created_at: u64,
     pub updated_at: u64,
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub answered_ask_ids: BTreeSet<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -100,6 +112,14 @@ pub struct Upsert {
     pub ask: AskUpdate,
 }
 
+fn null_as_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de> + Default,
+{
+    Ok(Option::<T>::deserialize(deserializer)?.unwrap_or_default())
+}
+
 fn bounded(value: &str, max: usize, empty: bool) -> Result<(), u16> {
     if (!empty && value.is_empty()) || value.chars().count() > max {
         Err(400)
@@ -115,6 +135,7 @@ fn optional_string(
 ) -> Result<Option<String>, u16> {
     value
         .get(key)
+        .filter(|v| !v.is_null())
         .map(|v| {
             let s = v.as_str().ok_or(400u16)?;
             bounded(s, max, true)?;
@@ -125,17 +146,17 @@ fn optional_string(
 
 fn parse_ask(value: &serde_json::Value) -> Result<Ask, u16> {
     let ask: Ask = serde_json::from_value(value.clone()).map_err(|_| 400u16)?;
-    bounded(&ask.ask_id, 128, false)?;
+    bounded(&ask.ask_id, ASK_ID_MAX_CHARS, false)?;
     bounded(&ask.prompt, 500, false)?;
     optional_string(value, "placeholder", 200)?;
-    if value.get("choices").is_some_and(|v| !v.is_array()) || ask.choices.len() > 6 {
+    if ask.choices.len() > 6 {
         return Err(400);
     }
     let mut ids = std::collections::HashSet::new();
-    for (i, choice) in ask.choices.iter().enumerate() {
+    for choice in &ask.choices {
         bounded(&choice.id, 64, false)?;
         bounded(&choice.label, 64, false)?;
-        if !ids.insert(&choice.id) || value["choices"][i].get("tone").is_some_and(|v| v.is_null()) {
+        if !ids.insert(&choice.id) {
             return Err(400);
         }
     }
@@ -158,6 +179,7 @@ pub fn parse_upsert(body: &str) -> Result<Upsert, u16> {
         serde_json::from_value(value.get("state").ok_or(400u16)?.clone()).map_err(|_| 400u16)?;
     let entries: Vec<InputEntry> = value
         .get("entries")
+        .filter(|v| !v.is_null())
         .map(|v| serde_json::from_value(v.clone()).map_err(|_| 400u16))
         .transpose()?
         .unwrap_or_default();
@@ -165,7 +187,7 @@ pub fn parse_upsert(body: &str) -> Result<Upsert, u16> {
         return Err(400);
     }
     for entry in &entries {
-        bounded(&entry.text, 16384, false)?;
+        bounded(&entry.text, TEXT_MAX_CHARS, false)?;
     }
     let ask = match value.get("ask") {
         None => AskUpdate::Keep,
@@ -218,28 +240,34 @@ pub(crate) mod tests {
             vec!["ask", "choices"],
             vec!["ask", "choices", "0", "tone"],
         ] {
-            let mut absent = body();
             let mut null = body();
             let last = path.last().unwrap();
-            let mut a = &mut absent;
             let mut n = &mut null;
             for key in &path[..path.len() - 1] {
                 if *key == "0" {
-                    a = &mut a[0];
                     n = &mut n[0];
                 } else {
-                    a = &mut a[*key];
                     n = &mut n[*key];
                 }
             }
-            a.as_object_mut().unwrap().remove(*last);
             n[*last] = Value::Null;
             let parsed = parse_upsert(&null.to_string());
             assert!(parsed.is_ok(), "null {path:?} is absent: {parsed:?}");
-            assert_eq!(
-                format!("{:?}", parsed.unwrap()),
-                format!("{:?}", parse_upsert(&absent.to_string()).unwrap())
-            );
+            let parsed = parsed.unwrap();
+            match path.as_slice() {
+                ["label"] => assert_eq!(parsed.label, None),
+                ["entries"] => assert!(parsed.entries.is_empty()),
+                _ => {
+                    let AskUpdate::Set(ask) = parsed.ask else {
+                        panic!("ask remains open");
+                    };
+                    match path.as_slice() {
+                        ["ask", "placeholder"] => assert_eq!(ask.placeholder, None),
+                        ["ask", "choices"] => assert_eq!(ask.choices, vec![]),
+                        _ => assert_eq!(ask.choices[0].tone, None),
+                    }
+                }
+            }
         }
         let mut value = body();
         value["ask"] = Value::Null;

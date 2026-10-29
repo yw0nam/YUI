@@ -3721,7 +3721,7 @@ globalThis.YUI_MAP =
       "kind": "call",
       "transport": "shared",
       "carries": "upsert, wait_answer",
-      "wiring": "src-tauri/src/agent_ingress/mod.rs"
+      "wiring": "src-tauri/src/agent_ingress/threads/requests.rs"
     }
   ],
   "flows": [

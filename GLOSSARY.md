@@ -91,9 +91,17 @@ _Avoid_: level, tier, mood
 
 ### Threads
 
-- **Thread** — One outside conversation a producer posts, with an id, source, state, entries, and at most one open Ask. _Avoid_: session, ticket, inbox.
-- **Ask** — The one question a Thread holds open for the user, with an `ask_id`, prompt, optional choices, and whether free text is accepted. _Avoid_: prompt, request.
-- **Answer** — The user's reply to one Ask: a choice id, text, both, or `release` to answer at the agent's own terminal. _Avoid_: reply, response.
+**Thread**:
+One outside conversation a producer posts, with an id, source, state, entries, and at most one open Ask.
+_Avoid_: session, ticket, inbox
+
+**Ask**:
+The one question a Thread holds open for the user, with an `ask_id`, prompt, optional choices, and whether free text is accepted.
+_Avoid_: prompt, request
+
+**Answer**:
+The user's reply to one Ask: a choice id, text, both, or `release` to answer at the agent's own terminal.
+_Avoid_: reply, response
 
 ### Surfaces & periphery
 

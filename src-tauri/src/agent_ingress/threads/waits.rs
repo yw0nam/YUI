@@ -1,6 +1,7 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-#[derive(Default)]
+const WAIT_LIMIT: usize = 32;
+
 pub(super) struct WaitSlots(AtomicUsize);
 pub(super) struct WaitSlot<'a>(&'a WaitSlots);
 impl WaitSlots {
@@ -10,7 +11,7 @@ impl WaitSlots {
     pub(super) fn acquire(&self) -> Option<WaitSlot<'_>> {
         self.0
             .fetch_update(Ordering::AcqRel, Ordering::Acquire, |count| {
-                (count < 32).then_some(count + 1)
+                (count < WAIT_LIMIT).then_some(count + 1)
             })
             .ok()?;
         Some(WaitSlot(self))
@@ -28,7 +29,7 @@ mod tests {
 
     #[test]
     fn threads_wait_cap_releases_capacity() {
-        let slots = WaitSlots::default();
+        let slots = WaitSlots::new();
         let mut held = Vec::new();
         for _ in 0..32 {
             let slot = slots.acquire();

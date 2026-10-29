@@ -27,9 +27,7 @@ mod guard;
 mod payload;
 mod response;
 mod route;
-mod thread_requests;
-mod thread_routes;
-mod thread_waits;
+mod threads;
 
 /// Preset ids main publishes for distinguishing closed windows from unknown presets.
 #[derive(Default)]
@@ -146,7 +144,7 @@ fn handle_request(app: &AppHandle, mut request: tiny_http::Request) {
     };
     match kind {
         RouteKind::Thread(route) => {
-            thread_requests::handle(
+            threads::requests::handle(
                 app.state::<std::sync::Arc<crate::threads::store::ThreadStore>>()
                     .inner()
                     .clone(),

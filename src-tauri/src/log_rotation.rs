@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use time::{Date, Duration, Month, OffsetDateTime, UtcOffset};
 
 /// Keep today plus this many prior days of dated files; older ones are pruned.
-const RETENTION: Duration = Duration::days(14);
+pub(crate) const RETENTION: Duration = Duration::days(14);
 
 /// Appends lines to `{base}_{YYYY-MM-DD}.{ext}`, rotating at midnight in `offset`.
 pub struct DateRotatingFile {

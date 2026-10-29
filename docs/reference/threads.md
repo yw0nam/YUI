@@ -12,6 +12,8 @@ Only bare routes exist. Every `/presets/<id>/threads…` path receives 404. Thre
 
 Only PUT is accepted; another method receives 405. The body is a JSON object of at most 64 KiB. Unknown fields are ignored. Any broken field rule receives 400 and leaves the store unchanged.
 
+Optional `label`, `placeholder`, `tone`, `entries`, and `choices` fields treat JSON `null` as absent. `ask: null` closes the ask.
+
 | Field | Rule |
 |---|---|
 | `source` | Required non-empty string, at most 64 code points |
@@ -39,7 +41,9 @@ Each choice has a required non-empty `id` and `label`, each at most 64 code poin
 
 ### Updates
 
-A different `ask_id` replaces the open ask and closes the old one. The same `ask_id` updates the ask in place and keeps a pending answer. Any state other than `input-required` closes the open ask, whatever `ask` says.
+A different `ask_id` replaces the open ask and closes the old one. The same unanswered `ask_id` updates the ask in place. Any state other than `input-required` closes the open ask, whatever `ask` says.
+
+An answered ask never reopens, whether its answer is pending or delivered. A PUT carrying that `ask_id` leaves the ask closed and preserves any pending answer. The producer uses a new `ask_id` for a new question. Answered ids persist with the Thread, so this rule also holds after restart.
 
 A valid PUT receives 200 with `{"updated_at": <epoch ms>}`. The first PUT creates the Thread with `created_at` equal to `updated_at`.
 
@@ -67,7 +71,7 @@ An accepted answer becomes pending for the producer, closes the ask, sets state 
 
 ## Storage and expiry
 
-Files live at `<app_data_dir>/threads/threads_YYYY-MM-DD.jsonl`, beside the witness directory. Each change appends the full changed Thread as one JSON line through the shared date rotation helper, in the log timezone. Files retain 14 days and are pruned on the first write of a day.
+Files live at `<app_data_dir>/threads/threads_YYYY-MM-DD.jsonl`, beside the witness directory. Each change appends the full changed Thread as one JSON line through the shared date rotation helper, in the log timezone. Files retain 14 days. The helper prunes on the first write after each launch and on each date change.
 
 At startup files replay in date order; the last valid line for each id wins, and malformed lines are skipped. Only Threads with `updated_at` within the last 14 days load. Open asks survive restart; pending answers do not. Every change also removes Threads older than 14 days from memory, waking their waiters as unknown.
 
@@ -75,6 +79,8 @@ Disk writes are best-effort: a failed append logs `threads_append_failed` and th
 
 ## Commands and event
 
-`threads_snapshot()` returns `{revision, threads}` with Threads sorted by newest `updated_at` first. Each Thread contains `id`, `source`, `title`, optional `label`, `state`, `entries`, optional `ask`, `created_at`, and `updated_at`. Each stored entry contains `role`, `text`, and `at`.
+`threads_snapshot()` returns `{revision, threads}` with Threads sorted by newest `updated_at` first. Each Thread contains `id`, `source`, `title`, optional `label`, `state`, `entries`, optional `ask`, `created_at`, and `updated_at`. Optional `answered_ask_ids` records answered ids and is omitted when empty.
+
+Each stored entry contains `role`, `text`, and `at`.
 
 `thread_answer(id, ask_id, choice?, text?, release?)` submits a user answer and returns success or an error string naming the broken rule. Every successful change increases the revision and publishes `threads-snapshot` to every window, with the same shape as `threads_snapshot()`. Revision starts at zero on app start.

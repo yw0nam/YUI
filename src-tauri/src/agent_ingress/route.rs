@@ -1,7 +1,7 @@
 //! Parses ingress routes and resolves their recipient without owning application state.
 
 use super::payload::{parse_avatar_request, parse_signals_request, AvatarRoute, SignalsPayload};
-use super::thread_routes::{self, ThreadRoute};
+use super::threads::routes::{self as thread_routes, ThreadRoute};
 use super::INGRESS_WINDOW;
 use crate::os_event_watcher::epoch_ms;
 
@@ -136,20 +136,7 @@ mod tests {
     use super::*;
     use std::collections::HashSet;
     #[test]
-    fn threads_put_accepts_bare_route() {
-        assert!(
-            parse_route(
-                "PUT",
-                "/threads/a_Z-0.:9",
-                r#"{"source":"codex","title":"Build","state":"working"}"#
-            )
-            .is_ok(),
-            "valid bare Thread PUT is accepted"
-        );
-    }
-
-    #[test]
-    fn threads_route_refusals() {
+    fn threads_routes_parse_values_and_refuse_invalid_requests() {
         for (method, path, code) in [
             ("PUT", "/threads", 404),
             ("PUT", "/threads/", 404),
@@ -174,12 +161,30 @@ mod tests {
             parse_route("PUT", &format!("/threads/{}", "x".repeat(129)), "{}").unwrap_err(),
             404
         );
-        for path in [
-            "/threads/a/answer?ask_id=q",
-            "/threads/a/answer?ask_id=q&wait=0",
-            "/threads/a/answer?ask_id=q&wait=25",
+        let body = r#"{"source":"codex","title":"Build","state":"working"}"#;
+        for (method, path, expected_id, expected_wait) in [
+            ("PUT", "/threads/a_Z-0.:9", "a_Z-0.:9", None),
+            ("GET", "/threads/a/answer?ask_id=q", "a", Some(25)),
+            ("GET", "/threads/a/answer?ask_id=q&wait=0", "a", Some(0)),
+            ("GET", "/threads/a/answer?ask_id=q&wait=25", "a", Some(25)),
         ] {
-            assert!(parse_route("GET", path, "").is_ok(), "{path}");
+            let route = parse_route(method, path, body).unwrap();
+            assert!(matches!(route.target, Target::Main));
+            match route.kind {
+                RouteKind::Thread(ThreadRoute::Upsert { id, body }) => {
+                    assert_eq!(id, expected_id);
+                    assert_eq!(expected_wait, None);
+                    assert_eq!(body.source, "codex");
+                    assert_eq!(body.title, "Build");
+                    assert_eq!(body.state, crate::threads::model::ThreadState::Working);
+                }
+                RouteKind::Thread(ThreadRoute::Answer { id, ask_id, wait }) => {
+                    assert_eq!(id, expected_id);
+                    assert_eq!(ask_id, "q");
+                    assert_eq!(Some(wait.as_secs()), expected_wait);
+                }
+                _ => panic!("Thread route expected: {method} {path}"),
+            }
         }
     }
 

@@ -1,10 +1,12 @@
-use super::model::{Answer, AskUpdate, Entry, Role, Thread, ThreadState, Upsert};
+use super::model::{
+    Answer, AnswerInput, AskUpdate, Entry, Role, Thread, ThreadState, Upsert, TEXT_MAX_CHARS,
+};
 use serde::Serialize;
 use std::collections::HashMap;
-use std::sync::{Condvar, Mutex};
+use std::sync::{Condvar, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
-pub(super) const RETENTION_MS: u64 = 14 * 24 * 60 * 60 * 1000;
+const ENTRY_LIMIT: usize = 50;
 type DiskSink = Box<dyn FnMut(&Thread) -> std::io::Result<()> + Send>;
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -46,8 +48,10 @@ impl State {
     }
 
     fn changed(&mut self, id: &str, now: u64) -> ThreadsSnapshot {
-        self.threads
-            .retain(|_, thread| thread.updated_at >= now.saturating_sub(RETENTION_MS));
+        self.threads.retain(|_, thread| {
+            thread.updated_at
+                >= now.saturating_sub(crate::log_rotation::RETENTION.whole_milliseconds() as u64)
+        });
         self.pending
             .retain(|(id, _), _| self.threads.contains_key(id));
         self.revision += 1;
@@ -89,7 +93,7 @@ impl ThreadStore {
 
     pub fn upsert(&self, id: &str, body: Upsert, now: u64) -> u64 {
         let snapshot = {
-            let mut state = self.state.lock().unwrap();
+            let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
             let thread = state.threads.entry(id.into()).or_insert_with(|| Thread {
                 id: id.into(),
                 source: String::new(),
@@ -100,6 +104,7 @@ impl ThreadStore {
                 ask: None,
                 created_at: now,
                 updated_at: now,
+                answered_ask_ids: Default::default(),
             });
             thread.source = body.source;
             thread.title = body.title;
@@ -117,7 +122,9 @@ impl ThreadStore {
             match body.ask {
                 AskUpdate::Keep => {}
                 AskUpdate::Close => thread.ask = None,
-                AskUpdate::Set(ask) => thread.ask = Some(ask),
+                AskUpdate::Set(ask) => {
+                    thread.ask = (!thread.answered_ask_ids.contains(&ask.ask_id)).then_some(ask);
+                }
             }
             if thread.state != ThreadState::InputRequired {
                 thread.ask = None;
@@ -129,9 +136,9 @@ impl ThreadStore {
         now
     }
 
-    pub fn answer(&self, id: &str, mut answer: Answer, now: u64) -> Result<(), AnswerError> {
+    pub fn answer(&self, id: &str, answer: AnswerInput, now: u64) -> Result<(), AnswerError> {
         let snapshot = {
-            let mut state = self.state.lock().unwrap();
+            let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
             let thread = state
                 .threads
                 .get_mut(id)
@@ -164,7 +171,7 @@ impl ThreadStore {
             if answer
                 .text
                 .as_ref()
-                .is_some_and(|t| t.chars().count() > 16384)
+                .is_some_and(|t| t.chars().count() > TEXT_MAX_CHARS)
             {
                 return Err(AnswerError("answer text exceeds 16384 characters"));
             }
@@ -185,10 +192,14 @@ impl ThreadStore {
             thread.ask = None;
             thread.state = ThreadState::Working;
             thread.updated_at = now;
-            answer.at = now;
-            state
-                .pending
-                .insert((id.into(), answer.ask_id.clone()), answer);
+            thread.answered_ask_ids.insert(answer.ask_id.clone());
+            state.pending.insert(
+                (id.into(), answer.ask_id.clone()),
+                Answer {
+                    input: answer,
+                    at: now,
+                },
+            );
             state.changed(id, now)
         };
         self.changed.notify_all();
@@ -199,7 +210,7 @@ impl ThreadStore {
     pub fn wait_answer(&self, id: &str, ask_id: &str, timeout: Duration) -> WaitOutcome {
         let deadline = Instant::now() + timeout;
         let key = (id.to_owned(), ask_id.to_owned());
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
         loop {
             let Some(thread) = state.threads.get(id) else {
                 return WaitOutcome::Unknown;
@@ -216,20 +227,32 @@ impl ThreadStore {
                 return WaitOutcome::NoAnswer;
             }
             #[cfg(test)]
-            if let Some(start) = self.wait_started.lock().unwrap().take() {
+            if let Some(start) = self
+                .wait_started
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .take()
+            {
                 start.wait();
             }
-            state = self.changed.wait_timeout(state, remaining).unwrap().0;
+            state = self
+                .changed
+                .wait_timeout(state, remaining)
+                .unwrap_or_else(PoisonError::into_inner)
+                .0;
         }
     }
 
     pub fn snapshot(&self) -> ThreadsSnapshot {
-        self.state.lock().unwrap().snapshot()
+        self.state
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .snapshot()
     }
 }
 
 fn cap_entries(thread: &mut Thread) {
-    let excess = thread.entries.len().saturating_sub(50);
+    let excess = thread.entries.len().saturating_sub(ENTRY_LIMIT);
     thread.entries.drain(..excess);
 }
 
@@ -253,13 +276,12 @@ mod tests {
     fn store() -> ThreadStore {
         ThreadStore::new(vec![], Box::new(|_| Ok(())), |_| {})
     }
-    fn answer() -> Answer {
-        Answer {
+    fn answer() -> AnswerInput {
+        AnswerInput {
             ask_id: "a".into(),
             choice: Some("yes".into()),
             text: Some("Please".into()),
             release: None,
-            at: 0,
         }
     }
     fn poll(s: &ThreadStore, ask: &str) -> WaitOutcome {
@@ -382,8 +404,10 @@ mod tests {
         let mut same = input();
         same.state = ThreadState::Completed;
         s.upsert("t", same, 3);
-        let mut expected = answer();
-        expected.at = 2;
+        let expected = Answer {
+            input: answer(),
+            at: 2,
+        };
         assert_eq!(poll(&s, "a"), WaitOutcome::Answer(expected));
         assert_eq!(poll(&s, "a"), WaitOutcome::Gone);
         let mut next = input();
@@ -391,7 +415,7 @@ mod tests {
             ask.ask_id = "b".into();
         }
         s.upsert("t", next, 4);
-        let a = Answer {
+        let a = AnswerInput {
             ask_id: "b".into(),
             choice: None,
             text: None,
@@ -403,7 +427,10 @@ mod tests {
         assert!(matches!(
             poll(&s, "b"),
             WaitOutcome::Answer(Answer {
-                release: Some(true),
+                input: AnswerInput {
+                    release: Some(true),
+                    ..
+                },
                 ..
             })
         ));
@@ -421,8 +448,10 @@ mod tests {
         start.wait();
         let elapsed = Instant::now();
         assert_eq!(s.answer("t", answer(), 2), Ok(()));
-        let mut expected = answer();
-        expected.at = 2;
+        let expected = Answer {
+            input: answer(),
+            at: 2,
+        };
         assert_eq!(worker.join().unwrap(), WaitOutcome::Answer(expected));
         assert!(
             elapsed.elapsed() < Duration::from_millis(500),

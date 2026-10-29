@@ -1,8 +1,11 @@
 use crate::threads::model::{parse_upsert, Upsert};
 use std::time::Duration;
 
+const THREAD_ID_MAX_BYTES: usize = 128;
+const WAIT_MAX_SECONDS: u64 = 25;
+
 #[derive(Debug)]
-pub(super) enum ThreadRoute {
+pub(in crate::agent_ingress) enum ThreadRoute {
     Upsert {
         id: String,
         body: Upsert,
@@ -14,11 +17,16 @@ pub(super) enum ThreadRoute {
     },
 }
 
-pub(super) fn parse(method: &str, path: &str, url: &str, body: &str) -> Result<ThreadRoute, u16> {
+pub(in crate::agent_ingress) fn parse(
+    method: &str,
+    path: &str,
+    url: &str,
+    body: &str,
+) -> Result<ThreadRoute, u16> {
     let rest = path.strip_prefix("/threads/").ok_or(404u16)?;
     let (id, suffix) = rest.split_once('/').unwrap_or((rest, ""));
     if id.is_empty()
-        || id.len() > 128
+        || id.len() > THREAD_ID_MAX_BYTES
         || !id
             .bytes()
             .all(|c| c.is_ascii_alphanumeric() || b"_-.:".contains(&c))
@@ -47,7 +55,7 @@ pub(super) fn parse(method: &str, path: &str, url: &str, body: &str) -> Result<T
                 .map(|(_, v)| v.to_string())
                 .ok_or(400u16)?;
             let wait = match pairs.iter().find(|(key, _)| key == "wait") {
-                None => 25,
+                None => WAIT_MAX_SECONDS,
                 Some((_, value)) => {
                     if value.is_empty() || !value.bytes().all(|c| c.is_ascii_digit()) {
                         return Err(400);
@@ -55,7 +63,7 @@ pub(super) fn parse(method: &str, path: &str, url: &str, body: &str) -> Result<T
                     value.parse::<u64>().map_err(|_| 400u16)?
                 }
             };
-            if wait > 25 {
+            if wait > WAIT_MAX_SECONDS {
                 return Err(400);
             }
             Ok(ThreadRoute::Answer {
