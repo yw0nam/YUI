@@ -35,5 +35,6 @@ pub(in crate::agent_ingress) fn handle(
                 respond_json(request, result);
             });
         }
+        ThreadRoute::Sweep { .. } => unreachable!("the sweep route is not parsed yet"),
     }
 }

@@ -72,6 +72,14 @@ pub struct Answer {
     pub at: u64,
 }
 
+/// One answer of the sweep route, tagged with the Thread it was answered on.
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct DeliveredAnswer {
+    pub thread_id: String,
+    #[serde(flatten)]
+    pub answer: Answer,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Thread {
     pub id: String,

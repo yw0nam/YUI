@@ -15,6 +15,7 @@ pub(in crate::agent_ingress) enum ThreadRoute {
         ask_id: Option<String>,
         wait: Duration,
     },
+    Sweep { source: String },
 }
 
 pub(in crate::agent_ingress) fn parse(

@@ -142,6 +142,43 @@ mod tests {
     }
 
     #[test]
+    fn threads_answers_route_sweeps_one_source() {
+        assert!(
+            matches!(parse_route("PUT", "/threads/answers", "{}"), Err(404)),
+            "PUT /threads/answers must refuse the reserved id"
+        );
+        for (method, path) in [
+            ("POST", "/threads/answers?source=x"),
+            ("DELETE", "/threads/answers?source=x"),
+        ] {
+            assert_eq!(
+                parse_route(method, path, "").unwrap_err(),
+                405,
+                "{method} {path}"
+            );
+        }
+        for path in [
+            "/threads/answers",
+            "/threads/answers?wait=5",
+            "/threads/answers?source=",
+            &format!("/threads/answers?source={}", "x".repeat(65)),
+        ] {
+            assert_eq!(parse_route("GET", path, "").unwrap_err(), 400, "{path}");
+        }
+        assert_eq!(
+            parse_route("GET", "/presets/x/threads/answers?source=y", "").unwrap_err(),
+            404
+        );
+        let long = "x".repeat(64);
+        let route = parse_route("GET", &format!("/threads/answers?source={long}"), "").unwrap();
+        assert!(matches!(route.target, Target::Main));
+        match route.kind {
+            RouteKind::Thread(ThreadRoute::Sweep { source }) => assert_eq!(source, long),
+            _ => panic!("Sweep route expected"),
+        }
+    }
+
+    #[test]
     fn threads_routes_parse_values_and_refuse_invalid_requests() {
         for (method, path, code) in [
             ("PUT", "/threads", 404),

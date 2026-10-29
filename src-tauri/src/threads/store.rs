@@ -1,5 +1,6 @@
 use super::model::{
-    Answer, AnswerInput, AskUpdate, Entry, Role, Thread, ThreadState, Upsert, TEXT_MAX_CHARS,
+    Answer, AnswerInput, AskUpdate, DeliveredAnswer, Entry, Role, Thread, ThreadState, Upsert,
+    TEXT_MAX_CHARS,
 };
 use serde::Serialize;
 use std::collections::{HashMap, VecDeque};
@@ -253,6 +254,10 @@ impl ThreadStore {
         }
     }
 
+    pub fn drain_answers(&self, _source: &str) -> Vec<DeliveredAnswer> {
+        Vec::new()
+    }
+
     pub fn snapshot(&self) -> ThreadsSnapshot {
         self.state
             .lock()
@@ -329,6 +334,60 @@ mod tests {
             s.wait_answer("t", None, Duration::ZERO),
             WaitOutcome::NoAnswer
         );
+    }
+
+    #[test]
+    fn sweep_delivers_only_the_named_source_once() {
+        let s = store();
+        let mut github = input();
+        github.source = "github".into();
+        s.upsert("t", input(), 1);
+        s.upsert("pr1", github.clone(), 2);
+        s.upsert("pr2", github, 3);
+        s.answer("t", answer(), 4).unwrap();
+        s.answer("pr1", answer(), 5).unwrap();
+        s.answer("pr2", answer(), 6).unwrap();
+        assert_eq!(
+            s.drain_answers("github"),
+            vec![
+                DeliveredAnswer {
+                    thread_id: "pr1".into(),
+                    answer: Answer { input: answer(), at: 5 },
+                },
+                DeliveredAnswer {
+                    thread_id: "pr2".into(),
+                    answer: Answer { input: answer(), at: 6 },
+                },
+            ]
+        );
+        assert_eq!(s.drain_answers("github"), Vec::new());
+        assert_eq!(
+            s.drain_answers("codex"),
+            vec![DeliveredAnswer {
+                thread_id: "t".into(),
+                answer: Answer { input: answer(), at: 4 },
+            }]
+        );
+    }
+
+    #[test]
+    fn sweep_and_long_poll_deliver_each_answer_once() {
+        let s = store();
+        s.upsert("t", input(), 1);
+        s.answer("t", answer(), 2).unwrap();
+        assert_eq!(
+            s.drain_answers("codex"),
+            vec![DeliveredAnswer {
+                thread_id: "t".into(),
+                answer: Answer { input: answer(), at: 2 },
+            }]
+        );
+        assert_eq!(poll(&s, "a"), WaitOutcome::NoAnswer);
+        let s = store();
+        s.upsert("t", input(), 1);
+        s.answer("t", answer(), 2).unwrap();
+        assert!(matches!(poll(&s, "a"), WaitOutcome::Answer(_)));
+        assert_eq!(s.drain_answers("codex"), Vec::new());
     }
 
     #[test]
