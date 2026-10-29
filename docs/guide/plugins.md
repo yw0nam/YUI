@@ -41,6 +41,8 @@ An Official update keeps your approval, so the plugin keeps running. A community
 
 **Add from folder…** opens a folder picker. Pick a folder that holds `.claude-plugin/plugin.json`; a `.mcp.json` in the folder declares the plugin's servers, and `skills/*/SKILL.md` declares its skills. The plugin runs in place, from the folder you picked, and its contents are not checked.
 
+To write a plugin, see [Write a plugin](./write-a-plugin.md).
+
 ## Status lines
 
 Each server of an installed plugin shows one line:
