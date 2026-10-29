@@ -104,6 +104,21 @@ it("seeds the chip from a preloaded client without a new snapshot", () => {
   expect(chip.querySelector(".yui-threadchip__count")?.textContent).toBe("2");
 });
 
+it("does not nod on the first snapshot after a null seed", () => {
+  const client = fakeClient(null);
+  wireThreadsChip({
+    client,
+    mount: document.body,
+    collapsed: createDelegationChipSettings(),
+    bridge: bridge(),
+  });
+  client.fire(snapshotOf(1));
+  const chip = document.querySelector<HTMLButtonElement>(".yui-threadchip")!;
+  expect(chip.hidden).toBe(false);
+  expect(chip.querySelector(".yui-threadchip__count")?.textContent).toBe("1");
+  expect(chip.classList.contains("is-nod")).toBe(false);
+});
+
 it("shows the chip again when the Threads window reports closed", async () => {
   const client = fakeClient(null);
   wireThreadsChip({
