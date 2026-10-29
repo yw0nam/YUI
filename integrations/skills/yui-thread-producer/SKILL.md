@@ -59,11 +59,17 @@ Done when: the Thread shows in YUI's Threads window.
 
 Collect by your shape from step 2. Each answer is delivered once — the sweep and the long
 poll never hand the same answer to two callers — so record it durably before acting, and
-skip any answer your store already holds. Run the action in the source system, then PUT
-the Thread with a `system` entry naming what happened and the final state: `completed`,
-or `failed` with the error. When an action's outcome is uncertain — a timeout, a crash
-mid-action — post a `failed` entry that asks the user to check the source, and leave any
-retry to the user; after a failure they can answer again on a new ask.
+skip any answer your store already holds.
+
+Run the action in the source system, then PUT the Thread with a `system` entry naming what
+happened and the final state.
+
+When an action fails and a retry makes sense, PUT the Thread `input-required` with a
+`system` entry naming what failed and a new ask under a fresh `ask_id`. `failed` is the
+final state when nothing is left to ask.
+
+An uncertain outcome — a timeout, a crash mid-action — names the uncertainty in the entry,
+so the user checks the source before answering.
 
 Done when: one real answer has been acted on, and the Thread shows the result entry.
 
@@ -83,8 +89,13 @@ Done when: all three are observed on the same item.
   the ask always matches the source's current state.
 - Act only with the facts the question was asked about; they live in the `ask_id` or your
   own store — the answer alone does not carry them.
-- `release: true` means the user answered in the source system itself; record it and move
-  on, nothing is left to act on.
+- `release: true` means the user answered in the source system itself. Record it and PUT
+  the Thread `completed` with a `system` entry saying so; the store leaves the Thread
+  `working` after any accepted answer.
+- A GET of `/threads/<id>/answer` without `ask_id` delivers — and so removes — a pending
+  answer, so a check against a real Thread passes its `ask_id`.
+- `title` is required on every PUT, so keep each Thread's title in your own store for the
+  result PUT.
 
 ## Source guides
 
