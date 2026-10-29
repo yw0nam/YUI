@@ -9,7 +9,7 @@ character turn. Producers connect to YUI; YUI never connects back to the agent.
 - Claude Code: `/plugin marketplace add yw0nam/YUI`, `/plugin install yui-notify@yui`,
   then `/yui-notify:setup`.
 - Codex: `codex plugin marketplace add yw0nam/YUI`, `codex plugin add yui-notify@yui`,
-  then trust the hooks and run `$yui-notify:setup`. Changed hook definitions require trust again.
+  then trust the hooks and run `$yui-notify:setup`.
 
 The setup probes the bare listener endpoint, writes endpoint and wait caps, and sends a
 test Thread. **Settings → Proactive → Watchers → External signals** enables the loopback

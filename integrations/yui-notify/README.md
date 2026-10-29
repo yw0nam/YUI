@@ -60,7 +60,8 @@ YUI never connects back to the agent. The turn stays open while the hook waits.
   as its message. Text alone denies and gives Codex that instruction.
 - Stop text returns `{"decision":"block","reason":"<text>"}` to continue the turn.
   The continuation's Stop posts another ask, so instructions can be chained.
-- Release prints nothing: Codex uses its approval prompt or ends the turn.
+- Release prints nothing and closes the ask: Stop becomes `completed`; permission stays
+  `working` while Codex uses its terminal approval prompt.
 - A wait cap, closed ask (410), or error prints nothing and closes the ask with a final
   PUT: `completed` for Stop, `working` for permission fallback to the terminal.
 
@@ -72,6 +73,7 @@ SSH, tmux, missing bundle identifiers, and hosts without `lsappinfo` skip the fo
 ## Suppressions
 
 Claude Code Stop with a running background task or an SDK entrypoint sends nothing.
+Claude Code SDK and non-interactive Codex sessions also suppress `UserPromptSubmit`.
 Codex Stop sends nothing for non-interactive rollout sources (including exec and subagents).
 `idle_prompt` and `permission_prompt` notifications are not hooked. Codex has no
 `Notification` event, so its MCP elicitation sends nothing.
@@ -83,7 +85,7 @@ A missing, unreadable, or invalid file uses defaults; invalid values use their k
 
 | Key | Value | Default |
 |---|---|---|
-| `endpoint` | Bare listener URL, without `/threads` or a preset prefix | `http://127.0.0.1:8770` |
+| `endpoint` | `http://127.0.0.1:<port>` with no path | `http://127.0.0.1:8770` |
 | `wait.stop` | Seconds, 1–600 | `600` |
 | `wait.permission` | Seconds, 1–600 | `120` |
 
@@ -94,6 +96,7 @@ A missing, unreadable, or invalid file uses defaults; invalid values use their k
 }
 ```
 
+An endpoint with any path is invalid and uses the default. An explicit probe endpoint with a path reports the problem.
 Values outside 1–600 use the default. Poll deadlines use a monotonic clock. Each poll's
 `wait` is the smaller of 25 and the remaining whole seconds; its HTTP timeout adds five
 seconds. Waiting ends when less than one second remains.

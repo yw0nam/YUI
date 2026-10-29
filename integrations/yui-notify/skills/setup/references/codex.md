@@ -35,5 +35,3 @@ hooks with no review warning.
 Codex has no `Notification` event, so an MCP elicitation prompt in Codex posts no
 Thread. The `Stop` and `PermissionRequest` hooks cover the other two
 moments.
-
-The synchronous Stop and PermissionRequest definitions require trust after an update.

@@ -114,7 +114,7 @@ probe on the local machine through a new connection with every forward cleared.
 
 - `<plugin root>` is the absolute path on the remote host of the directory that holds
   `scripts/yui-notify`, two levels above this skill.
-- `<endpoint>` is `http://127.0.0.1:<remote port>`, with no `/presets/<id>` prefix.
+- `<endpoint>` is `http://127.0.0.1:<remote port>`, with no path.
 
 ```bash
 ssh -o ClearAllForwardings=yes -o ControlPath=none <host> 'python3 <plugin root>/scripts/yui-notify probe --endpoint <endpoint>'

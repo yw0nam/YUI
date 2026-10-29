@@ -13,8 +13,9 @@ HTTP 400 means YUI needs updating. A successful probe creates no Thread or signa
 |---|---|
 | `YUI is not listening at <url> (External signals off, wrong port, or no tunnel)` | Enable External signals, check the listener port, restart YUI, or repair the tunnel using `remote.md`. |
 | `update YUI: Threads are not supported at <url>` | Update YUI to a version with Threads. |
-| `no such preset: <url>` | Check the endpoint: Threads require a bare listener URL without a preset prefix. |
-| `the preset's pet window is closed: <url>` | The endpoint is not the bare Threads listener. Check the URL and the YUI version. |
+| `unknown or invalid thread id: <url>` | The Thread id is unknown or invalid. Check the request path. The probe expects an unknown Thread and treats 404 as success. |
+| `YUI is busy: every answer wait is in use: <url>` | All answer workers are occupied. Try again after a wait ends. |
+| `invalid endpoint: use http://127.0.0.1:<port> with no path: <url>` | Remove every path component from the listener endpoint. |
 | `unexpected HTTP 400 from <url>` | A test PUT was refused. Report the payload failure. |
 | `unexpected HTTP 421 from <url>` or `unexpected HTTP 403 from <url>` | Use a loopback endpoint on the YUI machine, or a reverse tunnel to it. |
 | `unexpected HTTP <n> from <url>` | Read the YUI log and report the status. |

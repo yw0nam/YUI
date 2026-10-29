@@ -31,7 +31,7 @@ keep for every duplicate hook.
 ## 2. Probe YUI
 
 Ask where YUI runs. For an agent over SSH, follow `references/remote.md` first.
-Use the bare listener URL, default `http://127.0.0.1:8770`. Threads accept no preset prefix.
+Use `http://127.0.0.1:<port>` with no path, default `http://127.0.0.1:8770`.
 Turn on **Settings → Proactive → Watchers → External signals**, then restart YUI.
 
 ```bash
@@ -62,8 +62,8 @@ endpoint and wait caps. Use the defaults unless the user requests different caps
 }
 ```
 
-Both waits accept 1–600 seconds; out-of-range values use defaults. The endpoint has no
-`/threads` suffix or `/presets/<id>` prefix.
+Both waits accept 1–600 seconds; out-of-range values use defaults. The endpoint is
+`http://127.0.0.1:<port>` with no path; a path is invalid and uses the default.
 
 Done when: the JSON contains `endpoint`, `wait.stop`, and `wait.permission`.
 
