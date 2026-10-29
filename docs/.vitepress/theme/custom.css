@@ -424,13 +424,13 @@
    Shared doc/reference pages inherit VitePress defaults; these warm the few
    elements the docs actually use (tables, blockquotes, code) into the system. */
 
-/* A wider column than VitePress's 688px; the extra class outranks its scoped rule. */
+/* A wider column than VitePress's 688px; equal specificity to its scoped rule, and this file loads after it. */
 .VPDoc.has-aside .content .content-container {
   max-width: 760px;
 }
 
 /* Running text sits dim under bright headings; bold UI names brighten, not thicken. */
-.vp-doc :is(p, li, td, dd) {
+.vp-doc :is(p, li, td) {
   color: var(--yui-text-dim);
 }
 .vp-doc :is(p, li) {
