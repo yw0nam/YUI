@@ -1,36 +1,36 @@
 # Write a plugin
 
-A plugin is a folder with `.claude-plugin/plugin.json`, an optional `.mcp.json` naming
-its MCP servers, and an optional `skills/` folder. YUI runs each server itself as a child
-process over stdio — a YUI-hosted MCP server — and gives the backend its tools and skills
-through the bridge tools. An MCP server the backend agent connects to itself is
-Backend-attached: it is configured in that agent, not in this folder.
+A plugin is one folder: a manifest, an MCP server, and skills. YUI runs the server, and the brain reaches its tools through the bridge tools.
 
-To install a plugin and turn one on, see [Plugins](./plugins.md).
+```mermaid
+flowchart LR
+  folder["my-plugin/"] --> manifest[".claude-plugin/plugin.json"]
+  folder --> mcp[".mcp.json"]
+  folder --> server["bin/my-plugin"]
+  folder --> skills["skills/greet/SKILL.md"]
+  mcp --> host["YUI MCP host"]
+  host -->|"starts"| server
+  brain["Brain"] -->|"bridge tools"| host
+```
+
+The work is five steps:
+
+1. [Lay out the folder](#layout)
+2. [Write the server](#servers)
+3. [Declare tools and skills](#tools-and-skills)
+4. [Test it locally](#test-locally)
+5. [Publish it](#publish)
 
 ## Layout
 
-```text
-my-plugin/
-├── .claude-plugin/
-│   └── plugin.json
-├── .mcp.json
-├── bin/
-│   └── my-plugin
-└── skills/
-    └── greet/
-        └── SKILL.md
-```
+`bin/` holds a built server; a server in another language sits wherever its `command` points.
 
-`bin/` is where a built server binary lives; a server written in another language sits wherever
-its `command` points.
+YUI reads three fields of `plugin.json` and ignores the rest:
 
-YUI reads three fields of `plugin.json` and ignores every other field:
-
-| Field | What YUI uses it for |
+| Field | YUI uses it for |
 |---|---|
-| `name` | The plugin id — the catalog entry's id, the plugin's log file name, and the name in every error string. Lowercase letters, digits and `-`, starting with a letter or digit. |
-| `version` | The version shown beside the plugin, and the one YUI compares with the catalog to decide whether an update is due. |
+| `name` | The plugin id: the catalog id, the log file name, and the name in every error. Lowercase letters, digits and `-`, starting with a letter or digit. |
+| `version` | The version beside the plugin, and the one compared with the catalog to decide an update. |
 | `description` | The line under the plugin's name on the Plugins page. |
 
 ```json
@@ -43,8 +43,7 @@ YUI reads three fields of `plugin.json` and ignores every other field:
 
 ## Servers
 
-`.mcp.json` names each server under `mcpServers`. `command` is required and `args` and `env` are
-optional, and the order of the keys is the order YUI starts and lists the servers in.
+`.mcp.json` names each server under `mcpServers`. `command` is required, `args` and `env` are optional, and the key order is the order YUI starts and lists the servers in.
 
 ```json
 {
@@ -58,112 +57,66 @@ optional, and the order of the keys is the order YUI starts and lists the server
 }
 ```
 
-YUI starts `command` with `args` as argv and no shell, so an argument reaches the server exactly
-as written: `$(…)`, `;` and quotes are not interpreted.
+YUI starts `command` with `args` as argv and no shell, so an argument reaches the server as written. It replaces `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PLUGIN_DATA}` in `command`, in every argument and in every `env` value. ROOT is the plugin folder, which is also the working directory. DATA is the plugin's data folder: created before the start, deleted when the user removes the plugin. The server inherits YUI's environment, with `env` on top.
 
-`${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PLUGIN_DATA}` are replaced in `command`, in every argument
-and in every `env` value. ROOT is the plugin folder, which is also the server's working
-directory. DATA is the plugin's own data folder, created before the server starts and deleted
-when the user removes the plugin with **Delete** or **Remove from list**
-([Plugins § Remove](./plugins.md#remove)). The server inherits YUI's environment, with `env`
-added on top.
-
-What YUI expects of a server:
-
-| Expectation | What happens |
+| What YUI expects | What happens |
 |---|---|
-| `initialize` and `tools/list` answer in time | The two share one 30 s deadline. A server that misses it shows **Unavailable**, naming the step it stopped at. |
-| A server that ends on its own | It is not restarted; **Restart** or the next app start runs it again. |
+| Spawn, `initialize` and `tools/list` answer within 30 s together | A miss shows **Unavailable**, naming the step it stopped at. |
+| A server that ends on its own | It is not restarted; Retry or the next app start runs it again. |
 | A stop | YUI closes the connection, waits up to 1 s, then kills the server and every process it started. |
 | stdout | The MCP channel, and nothing else. |
-| stderr | Each line goes to the plugin's log, prefixed `[<server>] ` and cut at 2000 bytes. Where the log is: [Plugins § Log](./plugins.md#log). |
+| stderr | Each line goes to the plugin log, prefixed `[<server>] ` and cut at 2000 bytes. |
 
-## Tools
+## Tools and skills
 
-A tool name is taken when a built-in client tool has it or a plugin turned on earlier has it;
-the later plugin still runs, with that name hidden ([Plugins § Hidden names](./plugins.md#hidden-names)).
-These names belong to built-in client tools: `address_character`, `body_action`,
-`generate_express`, `look`, `plugin_call`, `plugin_describe`, `plugin_skill`, `rate_relation`.
+A tool name that a built-in client tool or an earlier enabled plugin holds is hidden. The later plugin still runs ([Plugins](./plugins.md)).
 
-Three `_meta` keys matter to a plugin:
-
-| Key | Where | What it does |
+| `_meta` key | Where | What it does |
 |---|---|---|
-| `io.github.yw0nam.yui/summary` | the tool's `_meta` in `tools/list` | The one-line summary a turn shows for the tool; without it YUI takes one from the tool's `description` ([Client Context § plugin tools](../reference/client-context.md#plugin-tools)). |
-| `io.github.yw0nam.yui/wait_ms` | the tool's `_meta` in `tools/list` | How long the MCP host waits for one call to the tool ([Client Tools § Waits and cancel](../reference/client-tools.md#waits-and-cancel)). |
-| `io.github.yw0nam.yui/preset` | the request `_meta` of each `tools/call` | The id of the preset whose character called, so a tool can keep one state per character ([Client Tools § Status and consent](../reference/client-tools.md#status-and-consent)). |
+| `io.github.yw0nam.yui/summary` | the tool's `_meta` in `tools/list` | The one-line summary a turn shows for the tool ([Client Context § plugin tools](../reference/client-context.md#plugin-tools)). |
+| `io.github.yw0nam.yui/wait_ms` | the tool's `_meta` in `tools/list` | How long the host waits for one call ([Client Tools](../reference/client-tools.md#waits-and-cancel)). |
+| `io.github.yw0nam.yui/preset` | the request `_meta` of every `tools/call` | The preset id of the calling character, so a tool keeps one state per character. |
 
-YUI checks `arguments` against the tool's `inputSchema` before it sends a call
-([Client Tools § Arguments](../reference/client-tools.md#arguments)) and sends no `arguments`
-field when that object is empty; a passed wait or a stopped turn reaches the server as
-`notifications/cancelled` ([Client Tools § Waits and cancel](../reference/client-tools.md#waits-and-cancel)).
-The result reaches the model as text and images in one shape
-([Client Tools § Bridge tools](../reference/client-tools.md#bridge-tools)).
-[plugins/browser](https://github.com/yw0nam/YUI/blob/main/plugins/browser/README.md) is a worked
-plugin with one tool.
+YUI checks `arguments` against the tool's `inputSchema` before it sends a call, sends no `arguments` field when that object is empty, and sends `notifications/cancelled` for a passed wait or a stopped turn ([Client Tools](../reference/client-tools.md)).
 
-## Skills
+A skill is `skills/<folder>/SKILL.md`, one level deep:
 
-A skill is `skills/<folder>/SKILL.md`, one level deep. Its frontmatter sits between `---` lines:
-
-| Field | |
+| Field | Rule |
 |---|---|
 | `description` | Required. A skill without one is skipped, with a warning in the app log. |
 | `name` | Optional; the folder name when absent. `plugin_skill` and the per-turn line use it. |
 
-```markdown
----
-name: greet
-description: Greets the user in one line.
----
-
-Say hello to the user, then stop.
-```
-
-`plugin_skill` returns the text after the frontmatter and nothing else: YUI serves no other file
-of the skill folder, so the body carries every instruction the agent needs. The body is read on
-each `plugin_skill` call, so an edit to it takes effect on the next call. The name and the
-description are read when the plugin is turned on, so a frontmatter edit needs the plugin turned
-off and on again. What a turn shows of a skill:
-[Client Context § plugin skills](../reference/client-context.md#plugin-skills).
+`plugin_skill` returns the text after the frontmatter and nothing else, so the body carries every instruction; YUI serves no other file of the skill folder. The body is read on each call. The name and the description are read at turn-on, so a frontmatter edit needs the plugin off and on again.
 
 ## Test locally
 
-Run the app (`pnpm tauri dev`, or a release build), open **Plugins**, and choose
-**Add from folder…** ([Plugins § Add from a folder](./plugins.md#add-from-a-folder)). Turn the
-plugin on and **Allow** once: the approval holds for that folder path while its files change.
+Run the app (`pnpm tauri dev`, or a release build), open **Plugins**, choose **Add from folder…**, turn the plugin on and **Allow** once. The approval holds for that folder path while its files change; a new path asks again.
 
-After changing `plugin.json`, `.mcp.json` or a skill's frontmatter, turn the plugin off and on:
-turning on reads them again. **Retry** and **Restart** start a new process from the `.mcp.json`
-entry read at turn-on, so they pick up rebuilt server code but not a manifest change; a running
-server shows neither.
-
-[The test fixture](https://github.com/yw0nam/YUI/tree/main/src-tauri/fixtures/mcp-test-plugin)
-is a minimal plugin with one server, a tool that carries `_meta`, and one skill.
+A change to `plugin.json`, `.mcp.json` or a skill's frontmatter needs the plugin off and on. **Retry** and **Restart** start a new process from the `.mcp.json` entry read at turn-on, so they pick up rebuilt server code but not a manifest change. A running server shows neither.
 
 ## Publish
 
 A catalog entry comes from one of two sources.
 
-**Official** — the plugin lives under `plugins/<id>/` in this repository, and the YUI release
-workflow builds and releases it:
-[Build, Run & Logs § Plugin releases](https://github.com/yw0nam/YUI/blob/main/docs/agent-guide/build-run.md#plugin-releases)
-carries the tag, the version rule and the zip layout.
+**Official**: the plugin lives under `plugins/<id>/` in the YUI repository, and the release workflow builds and releases it. [Build, Run & Logs § Plugin releases](https://github.com/yw0nam/YUI/blob/main/docs/agent-guide/build-run.md#plugin-releases) carries the tag, the version rule and the zip layout.
 
-**Community** — the plugin lives in the author's public GitHub repository, and YUI installs it
-from:
+**Community**: the plugin lives in the author's public GitHub repository. YUI installs it from:
 
 - `.claude-plugin/plugin.json` on the default branch, carrying the current `version`.
 - A GitHub release tagged `v<version>`.
-- One asset per platform the catalog entry declares, named
-  `<id>-<version>-<platform>.zip`, where `<platform>` is `darwin-arm64` or `windows-x64`.
-- A zip whose root is the plugin root, with `.claude-plugin/plugin.json` at that root whose
-  `name` is the entry's `id` and whose `version` is the tagged version.
-- `checksums.txt` in the same release, listing each asset on a `sha256sum` line —
-  `<hex>  <file>` or `<hex> *<file>`.
+- One asset per declared platform, named `<id>-<version>-<platform>.zip`, where `<platform>` is `darwin-arm64` or `windows-x64`.
+- A zip rooted at the plugin folder, holding `.claude-plugin/plugin.json` with the entry's `id` and the tagged version.
+- `checksums.txt` in that release, one `sha256sum` line per asset: `<hex>  <file>` or `<hex> *<file>`.
 
-YUI reads the version from the default branch, so a release goes out before its version change
-reaches that branch.
+YUI reads the version from the default branch, so a release goes out before its version reaches that branch. To list a community plugin, follow [CONTRIBUTING.md § Plugins](https://github.com/yw0nam/YUI/blob/main/CONTRIBUTING.md#plugins).
 
-To list a community plugin, follow
-[CONTRIBUTING.md § Plugins](https://github.com/yw0nam/YUI/blob/main/CONTRIBUTING.md#plugins).
+## Tips
+
+- Start from [the test fixture](https://github.com/yw0nam/YUI/tree/main/src-tauri/fixtures/mcp-test-plugin): one server, one tool with `_meta`, and one skill.
+- [plugins/browser](https://github.com/yw0nam/YUI/blob/main/plugins/browser/README.md) is a worked plugin with one tool.
+- A server the backend agent connects to itself is Backend-attached: configure it in that agent, not in this folder.
+
+## Go deeper
+
+- [Client Tools](../reference/client-tools.md): bridge tools, arguments, waits and consent.
+- [Client Context § Plugin lines](../reference/client-context.md#plugin-lines): what a turn carries of a plugin's tools and skills.
