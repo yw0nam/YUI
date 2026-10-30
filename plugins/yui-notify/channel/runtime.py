@@ -1,4 +1,5 @@
 import os
+import signal
 import sys
 
 import anyio
@@ -16,14 +17,13 @@ from channel.relay import PermissionRequest, relay
 CAPABILITIES = {"claude/channel": {}, "claude/channel/permission": {}}
 
 
-def stop(signum=None, frame=None) -> None:
-    """leave at once: the stdio reader thread cannot be interrupted"""
-    remove_ready_file(os.environ)
-    try:
-        sys.stdout.flush()
-    except (OSError, ValueError):
-        pass
-    os._exit(0)
+async def _shutdown(identity, env):
+    # a cancelled task group would wait on the stdio reader thread, which blocks until stdin closes
+    with anyio.open_signal_receiver(signal.SIGTERM, signal.SIGINT) as signals:
+        async for _ in signals:
+            if identity is not None:
+                remove_ready_file(identity.pid, env)
+            os._exit(0)
 
 
 async def _run_channel(initialized, identity, env, url, write):
@@ -55,6 +55,7 @@ async def serve(server, identity, env):
         reason = "claude process not found" if identity is None else "Claude Code channel not enabled"
         print(f"yui-notify: {reason}; channel idle", file=sys.stderr)
     async with stdio_server() as (read, write), anyio.create_task_group() as tasks:
+        tasks.start_soon(_shutdown, identity, env)
         if ready:
             tasks.start_soon(_run_channel, initialized, identity, env, url, write)
         options = server.create_initialization_options(experimental_capabilities=CAPABILITIES)

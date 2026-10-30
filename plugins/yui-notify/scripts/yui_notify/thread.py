@@ -20,18 +20,6 @@ def terminal_state(phase: str) -> str:
     return "completed" if phase in ("Stop", "SessionEnd") else "working"
 
 
-def thread_state(event: Event) -> str:
-    """the state a posted Thread carries"""
-    if event.phase == "UserPromptSubmit":
-        return "working"
-    if event.phase == "SessionEnd":
-        return "completed"
-    if event.phase == "Stop":
-        # a Claude Code Stop waits for the channel; a Codex Stop asks the user
-        return "completed" if event.agent == "claude-code" else "input-required"
-    return "input-required"
-
-
 def claude_thread_id(pid: str | int) -> str:
     return f"claude-code:{short_hostname()}:{pid}"
 
@@ -67,7 +55,12 @@ def _ask(event: Event) -> dict:
 
 def build_thread(event: Event, ctx: Mapping[str, Any], front: bool) -> dict:
     role = "user" if event.phase == "UserPromptSubmit" else "agent" if event.phase == "Stop" else "system"
-    state = thread_state(event)
+    state = (
+        terminal_state(event.phase)
+        if event.phase in ("UserPromptSubmit", "SessionEnd")
+        or (terminal_state(event.phase) == "completed" and event.agent == "claude-code")
+        else "input-required"
+    )
     title = f"{ctx['project']} ({ctx['branch']})" if ctx["branch"] else ctx["project"]
     label = make_label(ctx)
     body = {
