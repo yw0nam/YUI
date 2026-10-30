@@ -1,6 +1,6 @@
 # Agent Lifecycle Hooks
 
-The [yui-notify plugin](../../integrations/yui-notify/README.md) posts Claude Code and
+The [yui-notify plugin](../../plugins/yui-notify/README.md) posts Claude Code and
 Codex conversations as app-wide [Threads](../reference/threads.md). Threads fire no
 character turn. Producers connect to YUI; YUI never connects back to the agent.
 
@@ -43,7 +43,7 @@ because the session continues. A channel answer Claude Code delivers as a prompt
 `working`; the store recorded the answer when it was typed.
 
 Thread ids, payload limits, configuration, commands, and fallback details are in the
-[plugin README](../../integrations/yui-notify/README.md).
+[plugin README](../../plugins/yui-notify/README.md).
 
 ## Other producers
 

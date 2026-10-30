@@ -18,7 +18,7 @@ import { PYTHON } from "./command-paths";
 vi.setConfig({ testTimeout: 15_000 });
 
 const ROOT = resolve(__dirname, "..");
-const SKILL_DIR = join(ROOT, "integrations/skills/yui-daily-briefing");
+const SKILL_DIR = join(ROOT, "skills/yui-daily-briefing");
 const SCRIPT = join(SKILL_DIR, "scripts/briefing.py");
 const GATHER = JSON.parse(readFileSync(join(SKILL_DIR, "assets/fixtures/gather.json"), "utf8"));
 const TEMPLATE = readFileSync(join(SKILL_DIR, "assets/report.html"), "utf8");

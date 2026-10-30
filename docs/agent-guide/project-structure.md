@@ -891,16 +891,17 @@ YUI/
       game-mod/                      # The coop-agent Lua game mod; its tests/ uv project runs in the python CI job
       skills/                        # The companion skill the backend agent reads
         factorio-companion/          # Game play through the factorio MCP server tools
-  integrations/                      # Backend-side integrations, independent of the YUI app runtime
+    yui-notify/                      # Coding-agent Threads plugin installed from the `yui` marketplace: Claude Code and Codex hooks, a stdio MCP channel server, `skills/setup`, and `skills/thread-producer`
+  integrations/                      # Agent-specific adapters, independent of the YUI app runtime
     hermes/
       README.md                      # Hermes Agent adapter setup (Responses mode, dev proxy, auth)
       desire/                        # Agent desire middleware, state helpers, monitor, and prompts (Python/uv)
       platform/                      # Hermes gateway push-transport plugin: one WebSocket carrying turns in and finished replies out (Python/uv)
         yui/src/tools/               # The client-declared tools: registration from hello.tools, the blocking handler, and the per-chat pending calls
-    skills/
-      yui-daily-briefing/            # Backend-agnostic skill: scheduled producers write dated markdown briefings (scripts/briefing.py) that the backend agent speaks on first activity
-      yui-wake-character/            # Backend-agnostic skill: wake one character through its preset ingress URL and act on 200, 404, and 503
-  skills/                            # Skill folders for agents outside this repository, copied into an agent's skill folder or fetched by raw URL: yui-plugin routes to BUILD.md (build a plugin) or CONTRIBUTE.md (share one)
+  skills/                            # Skill folders for agents outside this repository, copied into an agent's skill folder or fetched by raw URL
+    yui-daily-briefing/              # Backend-agnostic skill: scheduled producers write dated markdown briefings (scripts/briefing.py) that the backend agent speaks on first activity
+    yui-plugin/                      # Builds a plugin: routes to BUILD.md, or CONTRIBUTE.md to share one
+    yui-wake-character/              # Backend-agnostic skill: wake one character through its preset ingress URL and act on 200, 404, and 503
   docs/                              # Design source of truth
     agent-guide/architecture/        # Architecture map of the client
       map.js                         # Modules, their parts, exchanges, and flows of src/ and src-tauri/src

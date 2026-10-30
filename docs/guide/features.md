@@ -61,7 +61,7 @@ Everything YUI does today, grouped by area. [What she can do](capabilities.md) c
 | Guardrails | Per-source debounce, hourly caps, a 2-turn chain cap, and a 10-minute quiet gap |
 | Loopback ingress | A local listener for hooks, signals, and avatar RPC; off by default |
 | Signals ingress | `POST /signals` for batches of external signals ([envelope](../reference/signals-ingress.md)) |
-| Daily briefing | Speaks dated briefings on first activity or on request, with Scheduled greeting on ([skill](https://github.com/yw0nam/YUI/blob/main/integrations/skills/yui-daily-briefing/SKILL.md)) |
+| Daily briefing | Speaks dated briefings on first activity or on request, with Scheduled greeting on ([skill](https://github.com/yw0nam/YUI/blob/main/skills/yui-daily-briefing/SKILL.md)) |
 | Witness log | App switches and idle periods, kept for 14 days ([format](../reference/witness-log.md)) |
 | Workflows | Saved endpoints fired from a button on Proactive; the first run is a connection test |
 
@@ -71,7 +71,7 @@ Everything YUI does today, grouped by area. [What she can do](capabilities.md) c
 | --- | --- |
 | Plugins | MCP servers and skills under `plugins/`, attached through the backend agent's MCP configuration, such as the [Factorio bridge](https://github.com/yw0nam/YUI/blob/main/plugins/factorio/README.md) |
 | Plugins page | Installs catalog plugins such as `browser`, and runs their servers with your consent ([Plugins](plugins.md)) |
-| Integrations | Wiring for one backend agent, and backend-agnostic skills, under `integrations/`, such as Hermes |
+| Integrations | Wiring for one backend agent under `integrations/`, such as Hermes |
 
 ## Platform
 
