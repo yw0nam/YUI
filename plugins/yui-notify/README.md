@@ -84,13 +84,14 @@ The plugin delivers answers through it, so Claude Code needs no launch flag, MCP
   Stop posts `completed`. The hook then starts a detached poller, `yui-notify inbox <url>
   <ask_id> <claude pid>`, and returns at once.
 - The poller long-polls `GET /threads/<id>/answer?ask_id=<ask_id>&wait=25`. A text answer
-  goes into the inbox socket as an auth line with the session token, then one line
+  goes into the inbox socket as one line, after an auth line with the session token when
+  Claude Code exports `CLAUDE_CODE_MESSAGING_TOKEN`:
   `{"type":"user","message":{"role":"user","content":"Reply from the user in YUI's Threads window:\n<text>"}}`.
   An idle session starts a turn with it; a busy one reads it between tool calls. The poller
   exits after posting, on an answer without text, on 404 or 410 (the ask closed or was
   replaced), or when the Claude process is gone. Other statuses and transport errors write
   `last-error.json` and retry every five seconds.
-- Claude Code prints that line format in its own `--debug` log (`[uds-messaging] Inject
+- Claude Code prints that line format in its own debug log (`--debug-file`) (`[uds-messaging] Inject
   messages`); its docs describe the socket and the auth line but not the message line.
   Claude Code shows the message as `Another Claude session sent a message:` and treats it as
   a teammate's request, not as the user's own prompt; a message on this socket can never
@@ -100,7 +101,7 @@ The plugin delivers answers through it, so Claude Code needs no launch flag, MCP
   as its own child, which the session token does.
 - PermissionRequest waits like Codex's (§ Synchronous hook answers) while the terminal
   dialog stays open beside it. Text with Deny, or text alone, also goes into the inbox as
-  the next instruction.
+  the next instruction, so Claude reads it twice: as the deny reason and as the message.
 - The `UserPromptSubmit` echo of an inbox answer starts with that prefix and only sets the
   Thread `working`: the store recorded the answer when it was typed.
 

@@ -2246,10 +2246,18 @@ globalThis.YUI_MAP =
       "transport": "shared"
     },
     {
+      "id": "hooks-session-inbox",
+      "from": "agent-hooks",
+      "to": "claude-session-inbox",
+      "carries": "Claude Code permission hook: deny text also goes in as the same user line the poller writes",
+      "kind": "bridge",
+      "transport": "shared"
+    },
+    {
       "id": "inbox-poller-session",
       "from": "agent-inbox-poller",
       "to": "claude-session-inbox",
-      "carries": "Unix socket lines {type: auth, token} then {type: user, message: {role: user, content: \"Reply from the user in YUI's Threads window:\\n<text>\"}}",
+      "carries": "Unix socket lines: {type: auth, token} when the session exports a token, then {type: user, message: {role: user, content: \"Reply from the user in YUI's Threads window:\\n<text>\"}}",
       "kind": "bridge",
       "transport": "shared"
     },

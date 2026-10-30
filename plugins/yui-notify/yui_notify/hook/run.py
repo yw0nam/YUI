@@ -8,9 +8,9 @@ from yui_notify import config
 from yui_notify.hook.event import parse_event
 from yui_notify.hook.focus import host_app_in_front
 from yui_notify.hook.wait import wait_for_answer
-from yui_notify.host.claude_pid import claude_pid
+from yui_notify.host.claude_pid import SOCKET_ENV, claude_pid
 from yui_notify.host.label import context
-from yui_notify.inbox.post import SOCKET_ENV, post
+from yui_notify.inbox.post import post
 from yui_notify.inbox.spawn import spawn
 from yui_notify.threads.body import build_thread, thread_id
 from yui_notify.threads.check import probe_failure

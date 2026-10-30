@@ -5,8 +5,8 @@ import socket
 from collections.abc import Mapping
 
 from yui_notify import config
+from yui_notify.host.claude_pid import SOCKET_ENV
 
-SOCKET_ENV = "CLAUDE_CODE_MESSAGING_SOCKET"
 PREFIX = "Reply from the user in YUI's Threads window:\n"
 
 
