@@ -286,7 +286,12 @@ def test_unreachable_endpoint_exits_zero_and_records_error(tmp_path):
         ("probe", 503, "YUI is busy: every answer wait is in use: {url}", 1),
         ("probe", None, "YUI is not listening at {url} (External signals off, wrong port, or no tunnel)", 1),
         ("test", 404, "unknown or invalid thread id: {url}", 1),
-        ("test", 200, "sent: HTTP 200", 0),
+        (
+            "test",
+            200,
+            "sent: HTTP 200; answer it in YUI's Threads window within 60 s\nanswered: Arrived",
+            0,
+        ),
         ("test", 503, "YUI is busy: every answer wait is in use: {url}", 1),
     ],
 )
@@ -296,6 +301,7 @@ def test_probe_and_test_report(tmp_path, server, capsys, command, status, line, 
         endpoint = "http://127.0.0.1:1"
     else:
         received.status[:] = [status, status]
+    received.answer = {"choice": "arrived"}
     assert main([command, "--endpoint", endpoint], env={"XDG_CONFIG_HOME": str(tmp_path)}) == code
     path = (
         "/threads/yui-notify-probe/answer?ask_id=probe&wait=0"
@@ -305,10 +311,28 @@ def test_probe_and_test_report(tmp_path, server, capsys, command, status, line, 
     assert capsys.readouterr().out == line.format(url=endpoint + path) + "\n"
     if command == "test":
         assert received[0][0] == path
-        assert received[0][1]["state"] == "completed"
+        assert received[0][1]["state"] == "input-required"
+        assert received[0][1]["ask"]["ask_id"].startswith("test:")
         assert received[0][1]["entries"] == [
             {"role": "system", "text": "Test Thread from the yui-notify setup."}
         ]
+        if code == 0:
+            assert parse_qs(urlparse(received.polls[0]).query)["ask_id"] == [received[0][1]["ask"]["ask_id"]]
+            assert received[-1][1]["state"] == "completed"
+            assert received[-1][1]["ask"] is None
+
+
+def test_test_without_answer_closes_the_thread(tmp_path, server, capsys, monkeypatch):
+    endpoint, received = server
+    received.status[1] = 204
+    ticks = iter([0, 0, 600])
+    monkeypatch.setattr("time.monotonic", lambda: next(ticks))
+    assert main(["test", "--endpoint", endpoint], env={"XDG_CONFIG_HOME": str(tmp_path)}) == 1
+    assert capsys.readouterr().out == (
+        "sent: HTTP 200; answer it in YUI's Threads window within 60 s\nno answer within 60 s\n"
+    )
+    assert len(received) == 2
+    assert received[-1][1] == {**received[0][1], "state": "completed", "ask": None, "entries": []}
 
 
 def test_claude_id_falls_back_to_parent_pid(tmp_path, server, monkeypatch):
