@@ -480,6 +480,7 @@ def test_signalled_wait_closes_its_ask(tmp_path, server):
         XDG_STATE_HOME=str(tmp_path / "state"),
     )
     env.pop("CLAUDE_CODE_MESSAGING_SOCKET", None)
+    env.pop("CLAUDE_CODE_ENTRYPOINT", None)
     hook = subprocess.Popen(
         [sys.executable, str(PLUGIN_ROOT / "bin" / "yui-notify"), "hook"],
         stdin=subprocess.PIPE,

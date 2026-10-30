@@ -24,7 +24,7 @@ def main(
         p.add_argument("--endpoint")
     args = parser.parse_args(argv)
     if args.cmd == "hook":
-        with contextlib.suppress(Exception):  # a hook never fails the agent
+        with contextlib.suppress(Exception, KeyboardInterrupt):  # a hook never fails the agent
             run_hook(env, stdin)
         return 0
     if args.cmd == "channel":

@@ -47,6 +47,10 @@ Offer a shell alias so every later session keeps the flag:
 alias claude-yui='claude --dangerously-load-development-channels plugin:yui-notify@yui'
 ```
 
+On an account where channels are blocked, start Claude Code without the flag. With it, the
+channel server still reports ready, so the Stop hook does not wait while Claude Code drops
+the channel's messages, and the answer is lost.
+
 Done when: the user has the alias in their shell startup file, or has chosen to type the
 flag.
 
