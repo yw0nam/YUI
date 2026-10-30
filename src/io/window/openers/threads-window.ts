@@ -56,17 +56,26 @@ export function createThreadsWindowController(deps: {
     create: createTauriThreadsWindow,
     emitOpen: deps.bridge.emitThreadsOpen,
     onReady: deps.bridge.onThreadsReady,
-    onError: deps.onClosed,
+    onError: () => closed(),
   });
-  const offClosed = deps.bridge.onThreadsClosed(deps.onClosed);
+  // From a request handed to the window until its closed report: a failed request meanwhile leaves it open.
+  let open = false;
+  function closed(): void {
+    open = false;
+    deps.onClosed();
+  }
+  const offClosed = deps.bridge.onThreadsClosed(closed);
   return {
     open(chip) {
       if (!isTauri()) return false;
       toScreen(chip).then(
-        (screen) => ready.open({ chip: screen }),
+        (screen) => {
+          open = true;
+          ready.open({ chip: screen });
+        },
         (error) => {
           log.error("threads_window_open_failed", { error: String(error) });
-          deps.onClosed();
+          if (!open) deps.onClosed();
         },
       );
       return true;

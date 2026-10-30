@@ -109,7 +109,8 @@ export function restoreThreadsBox(panel: ScreenRect, monitors: ScreenMonitor[]):
 
 /**
  * `box` resized by dragging `edge` by `dx`, `dy` (screen px): the dragged sides move, the box
- * stays between the minimum box and the work area less 12px on every side.
+ * stays between the minimum box and the work area less 12px on every side. A side already past
+ * that area stays where it is until dragged back in, and never pulls the box below the minimum.
  */
 export function resizeThreadsBox(
   box: ScreenRect,
@@ -121,10 +122,12 @@ export function resizeThreadsBox(
   const bounds = boundsOf(workArea);
   const min = minBox(bounds);
   let [left, top, right, bottom] = [box.x, box.y, box.x + box.width, box.y + box.height];
-  if (edge.includes("e")) right = within(right + dx, left + min.width, bounds.x + bounds.width);
-  if (edge.includes("w")) left = within(left + dx, bounds.x, right - min.width);
-  if (edge.includes("s")) bottom = within(bottom + dy, top + min.height, bounds.y + bounds.height);
-  if (edge.includes("n")) top = within(top + dy, bounds.y, bottom - min.height);
+  const [maxRight, maxBottom] = [bounds.x + bounds.width, bounds.y + bounds.height];
+  if (edge.includes("e")) right = within(right + dx, left + min.width, Math.max(maxRight, right));
+  if (edge.includes("w")) left = within(left + dx, Math.min(bounds.x, left), right - min.width);
+  if (edge.includes("s"))
+    bottom = within(bottom + dy, top + min.height, Math.max(maxBottom, bottom));
+  if (edge.includes("n")) top = within(top + dy, Math.min(bounds.y, top), bottom - min.height);
   return { x: left, y: top, width: right - left, height: bottom - top };
 }
 

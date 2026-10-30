@@ -112,9 +112,10 @@ it("saves a move the user made once it settles, in logical px at the window's cu
   await vi.advanceTimersByTimeAsync(400);
   expect(setFrame).not.toHaveBeenCalled();
 
-  // Dragged onto a Retina monitor: 600, 400 physical px at scale 2.
+  // Dragged onto a Retina monitor: 600, 400 physical px at scale 2, the same logical size.
   win.scaleFactor.mockImplementation(async () => 2);
   win.outerPosition.mockImplementation(async () => ({ x: 600, y: 400 }));
+  win.outerSize.mockImplementation(async () => ({ width: 1792, height: 1392 }));
   moved();
   await vi.advanceTimersByTimeAsync(400);
   expect(setFrame).toHaveBeenCalledWith({ x: 308, y: 208, width: 880, height: 680 });

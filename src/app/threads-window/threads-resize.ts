@@ -24,14 +24,13 @@ export function createThreadsResize(deps: {
 }): {
   start(): void;
   move(edge: ResizeEdge, dx: number, dy: number): void;
-  /** Resolves once the last move is applied and the frame saved. */
+  /** Resolves once the last move is applied and the frame saved; an unchanged frame writes nothing. */
   end(): Promise<void>;
 } {
   let origin: Promise<{ box: ScreenRect; workArea: ScreenRect } | null> = Promise.resolve(null);
   let pending: Move | null = null;
   let inflight: Promise<void> | null = null;
   let scheduled = false;
-  let applied = false;
 
   function schedule(): void {
     if (scheduled || !pending) return;
@@ -51,7 +50,6 @@ export function createThreadsResize(deps: {
       const at = await origin;
       if (!at) return;
       await deps.apply(resizeThreadsBox(at.box, at.workArea, edge, dx, dy));
-      applied = true;
     })()
       .catch((error) => log.warn("threads_resize_failed", { error: String(error) }))
       .finally(() => {
@@ -62,9 +60,11 @@ export function createThreadsResize(deps: {
 
   return {
     start() {
-      origin = deps.current();
+      origin = deps.current().catch((error) => {
+        log.warn("threads_resize_failed", { error: String(error) });
+        return null;
+      });
       pending = null;
-      applied = false;
     },
     move(edge, dx, dy) {
       pending = { edge, dx, dy };
@@ -75,8 +75,7 @@ export function createThreadsResize(deps: {
         pump();
         await inflight;
       }
-      if (applied) deps.save();
-      applied = false;
+      deps.save();
     },
   };
 }

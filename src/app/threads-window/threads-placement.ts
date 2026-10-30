@@ -77,12 +77,21 @@ export function createThreadsPlacement(deps: {
     });
   }
 
-  /** The box at the window's current position, read at its current scale. */
+  /** The window's box where it is now, read at its current scale; null before its first placement. */
   async function readBox(): Promise<ScreenRect | null> {
     if (!box) return null;
     const win = getCurrentWindow();
-    const [position, scale] = await Promise.all([win.outerPosition(), win.scaleFactor()]);
-    return { ...box, x: position.x / scale, y: position.y / scale };
+    const [position, size, scale] = await Promise.all([
+      win.outerPosition(),
+      win.outerSize(),
+      win.scaleFactor(),
+    ]);
+    return {
+      x: position.x / scale,
+      y: position.y / scale,
+      width: size.width / scale,
+      height: size.height / scale,
+    };
   }
 
   async function saveMove(): Promise<void> {

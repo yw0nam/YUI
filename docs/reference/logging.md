@@ -215,7 +215,7 @@ The card's Voice, Keep bubble and Unified chat tiles log the toggle events of th
 | Namespace | Event | Fields | When |
 |---|---|---|---|
 | `threads-window` | `threads_window_create_error` | `error` | The Threads window could not be created (`error` level). |
-| `threads-window` | `threads_window_open_failed` | `error` | Reading the chip's screen position threw; the chip leaves its open state (`error` level). |
+| `threads-window` | `threads_window_open_failed` | `error` | Reading the chip's screen position threw; the chip leaves its open state unless the window is open (`error` level). |
 | `threads-client` | `snapshot.invoke_failed` | `error` | `threads_snapshot` rejected (`warn` level). |
 | `threads-client` | `snapshot.listen_failed` | `error` | Listening to `threads-snapshot` failed; the snapshot is still read once (`warn` level). |
 | `threads-main` | `boot_failed` | `error` | The window's boot threw (`error` level). |
