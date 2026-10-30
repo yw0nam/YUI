@@ -32,4 +32,4 @@ def main(
 
         return runtime.run()
     url = args.endpoint or config.load(env)["endpoint"]
-    return probe(url) if args.cmd == "probe" else send_test(url)
+    return probe(url) if args.cmd == "probe" else send_test(url, env)
