@@ -7,12 +7,12 @@ import { createThreadsResize } from "./threads-resize";
 const BOX = { x: 500, y: 200, width: 896, height: 696 };
 const WORK_AREA = { x: 0, y: 0, width: 2000, height: 1000 };
 
-function controller() {
+function controller(box: ScreenRect = BOX) {
   const frames: (() => void)[] = [];
   const applied: ScreenRect[] = [];
   const save = vi.fn();
   const resize = createThreadsResize({
-    current: async () => ({ box: BOX, workArea: WORK_AREA }),
+    current: async () => ({ box, workArea: WORK_AREA }),
     apply: async (box) => void applied.push(box),
     save,
     nextFrame: (cb) => void frames.push(cb),
@@ -42,6 +42,38 @@ it.each([
 
   expect(applied).toEqual([expected]);
   expect(save).toHaveBeenCalledOnce();
+});
+
+it.each([
+  [
+    "an east drag that has not moved keeps a box past the right edge as it is",
+    { ...BOX, x: 1800 },
+    "e",
+    0,
+    { ...BOX, x: 1800 },
+  ],
+  [
+    "an east drag shrinks a box past the right edge no further than the minimum",
+    { ...BOX, x: 1800 },
+    "e",
+    -1000,
+    { ...BOX, x: 1800, width: 376 },
+  ],
+  [
+    "a west drag that has not moved keeps a box past the left edge where it is",
+    { ...BOX, x: -300 },
+    "w",
+    0,
+    { ...BOX, x: -300 },
+  ],
+] as const)("%s", async (_name, box, edge, dx, expected) => {
+  const { resize, applied } = controller(box);
+
+  resize.start();
+  resize.move(edge, dx, 0);
+  await resize.end();
+
+  expect(applied).toEqual([expected]);
 });
 
 it("applies only the latest move of a frame, and the last one before it saves", async () => {

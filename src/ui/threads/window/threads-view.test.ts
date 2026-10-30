@@ -87,7 +87,7 @@ function build(onAnswer: () => Promise<void> = () => Promise.resolve(), listColl
 
 const key = (init: KeyboardEventInit) =>
   document.dispatchEvent(new KeyboardEvent("keydown", { cancelable: true, ...init }));
-const toggleKey = () => key({ key: "s", code: "KeyS", ctrlKey: true, metaKey: true });
+const CTRL_CMD_S = { key: "s", code: "KeyS", ctrlKey: true, metaKey: true };
 const ids = (selector: string) =>
   [...document.querySelectorAll<HTMLElement>(selector)].map((el) => el.dataset.id);
 
@@ -204,7 +204,7 @@ it.each([
   view.update(snapshot(1, [thread("t1", "codex", 2), thread("t2", "slack", 1)]));
   widen(600);
 
-  toggleKey();
+  key(CTRL_CMD_S);
   expect(panel().dataset.overlay).toBe("true");
   act();
 
@@ -236,14 +236,39 @@ it("keeps the stored list choice through every width without writing it", () => 
 });
 
 it.each([
-  ["collapses the list in the wide layout", 800, { collapsed: "true", overlay: "false" }, [true]],
-  ["opens the list overlay in the medium layout", 600, { collapsed: "false", overlay: "true" }, []],
-  ["does nothing in the narrow layout", 400, { collapsed: "false", overlay: "false" }, []],
-])("Control+Command+S %s", (_name, width, data, writes) => {
+  [
+    "Control+Command+S collapses the list in the wide layout",
+    800,
+    CTRL_CMD_S,
+    { collapsed: "true", overlay: "false" },
+    [true],
+  ],
+  [
+    "Control+Command+S opens the list overlay in the medium layout",
+    600,
+    CTRL_CMD_S,
+    { collapsed: "false", overlay: "true" },
+    [],
+  ],
+  [
+    "Control+Command+S does nothing in the narrow layout",
+    400,
+    CTRL_CMD_S,
+    { collapsed: "false", overlay: "false" },
+    [],
+  ],
+  [
+    "Control+S without Command leaves the wide list as it is",
+    800,
+    { ...CTRL_CMD_S, metaKey: false },
+    { collapsed: "false", overlay: "false" },
+    [],
+  ],
+])("%s", (_name, width, init, data, writes) => {
   const { panel, onListCollapsed } = build();
   widen(width);
 
-  toggleKey();
+  key(init);
 
   const { collapsed, overlay } = panel().dataset;
   expect({ collapsed, overlay }).toEqual(data);

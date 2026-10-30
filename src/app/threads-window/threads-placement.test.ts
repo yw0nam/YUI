@@ -14,6 +14,7 @@ const { win, owner } = vi.hoisted(() => ({
     hide: vi.fn(async () => {}),
     setFocus: vi.fn(async () => {}),
     outerPosition: vi.fn(async () => ({ x: 912, y: 100 })),
+    outerSize: vi.fn(async () => ({ width: 896, height: 696 })),
     scaleFactor: vi.fn(async () => 1),
     onMoved: vi.fn(async (_cb: () => void) => () => {}),
   },
@@ -71,6 +72,7 @@ beforeEach(() => {
   for (const fn of [win.setSize, win.setPosition, win.show, win.hide, win.setFocus, invoke])
     fn.mockClear();
   win.outerPosition.mockImplementation(async () => ({ x: 912, y: 100 }));
+  win.outerSize.mockImplementation(async () => ({ width: 896, height: 696 }));
   win.scaleFactor.mockImplementation(async () => 1);
 });
 afterEach(() => {
@@ -130,6 +132,20 @@ it("saves a move still settling before it hides", async () => {
 
   expect(setFrame).toHaveBeenCalledWith({ x: 308, y: 208, width: 880, height: 680 });
   expect(win.hide).toHaveBeenCalledOnce();
+});
+
+it("reads a resize's origin from the window's live position and size at its current scale", async () => {
+  const { placement: p } = placement({ x: 920, y: 108, width: 880, height: 680 });
+  await p.open(CHIP);
+
+  win.scaleFactor.mockImplementation(async () => 2);
+  win.outerPosition.mockImplementation(async () => ({ x: 1200, y: 400 }));
+  win.outerSize.mockImplementation(async () => ({ width: 1400, height: 1000 }));
+
+  expect(await p.current()).toEqual({
+    box: { x: 600, y: 200, width: 700, height: 500 },
+    workArea: { x: 0, y: 0, width: 2000, height: 1000 },
+  });
 });
 
 it("starts the native drag from a head pointerdown", async () => {
