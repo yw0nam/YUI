@@ -2,7 +2,8 @@
 
 Claude Code posts Threads through the plugin's hooks and takes answers through its channel
 server. The server delivers answers only in a session launched with the channel flag. A
-plain `claude` launch posts read-only Threads.
+plain `claude` launch posts read-only Threads. The Claude Code behaviour below follows the
+[Channels docs](https://code.claude.com/docs/en/channels).
 
 ## 1. Install uv
 
@@ -52,8 +53,8 @@ flag.
 Give the user these checks for the new session, then end this one:
 
 1. Start Claude Code with the flag. At the development-channels warning, choose
-   **I am using this for local development**. The startup notice lists
-   `plugin:yui-notify@yui` under Channels.
+   **I am using this for local development**. The startup notice names
+   `plugin:yui-notify@yui` as a channel.
 2. Send any prompt. When Claude stops, the session's Thread in YUI asks “What next?”.
 3. Type a short instruction in the Threads window and send it.
 
