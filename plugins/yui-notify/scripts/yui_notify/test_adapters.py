@@ -98,7 +98,11 @@ def load(fixture, rollout=NO_ROLLOUT):
                 "Added the retry wrapper to the upload client and the two tests pass.",
             ),
         ),
-        ("claude-stop.json", {}, None),
+        (
+            "claude-stop.json",
+            {},
+            ("claude-code", "Stop", "bc68d697-4e8f-4be0-8ea6-e67f955b2586", CLAUDE_STOP_TEXT),
+        ),
         (
             "claude-user-prompt.json",
             CLAUDE_ENV,
@@ -130,6 +134,11 @@ def load(fixture, rollout=NO_ROLLOUT):
             {},
             ("codex", "SessionStart", "019a1f2e-7c4b-7d30-9b1e-3f5a8c2d4e61", ""),
         ),
+        (
+            "codex-session-end.json",
+            CLAUDE_ENV,
+            ("codex", "SessionEnd", "019a1f2e-7c4b-7d30-9b1e-3f5a8c2d4e61", "Session ended"),
+        ),
     ],
     ids=[
         "claude-stop",
@@ -143,13 +152,14 @@ def load(fixture, rollout=NO_ROLLOUT):
         "codex-stop",
         "codex-permission",
         "codex-under-claude-shell",
-        "no-agent-env",
+        "claude-stop-without-env",
         "claude-user-prompt",
         "claude-channel-prompt-no-entry",
         "claude-session-end",
         "claude-start-synthetic",
         "claude-start-sdk-skipped",
         "codex-start-synthetic",
+        "codex-end-under-claude-shell",
     ],
 )
 def test_parse_event(fixture, env, expected):
@@ -175,11 +185,24 @@ def test_session_end_continuing_session_parses_to_nothing(reason):
         ("codex-stop.json", "codex-rollout-missing.jsonl", False),
         ("codex-stop.json", None, False),
         ("codex-permission.json", "codex-rollout-exec.jsonl", True),
+        ("codex-session-end.json", "codex-rollout-exec.jsonl", False),
+        ("codex-session-end.json", None, False),
     ],
-    ids=["cli", "vscode", "exec", "subagent", "unreadable", "null-path", "permission-under-exec"],
+    ids=[
+        "cli",
+        "vscode",
+        "exec",
+        "subagent",
+        "unreadable",
+        "null-path",
+        "permission-under-exec",
+        "end-under-exec",
+        "end-null-path",
+    ],
 )
 def test_codex_sends_only_interactive_sessions(fixture, rollout, sent):
-    event = parse_event(load(fixture, rollout), {})
+    """a Codex in a Claude Code shell is still Codex, and only its interactive sessions post"""
+    event = parse_event(load(fixture, rollout), CLAUDE_ENV)
     assert (event is not None) == sent
     if sent:
         assert event.session_id == CODEX_SESSION

@@ -55,14 +55,19 @@ PID if discovery fails. Ids survive `/clear`. Codex ids are `codex:<host>:<sessi
 | Claude Code | `SessionEnd` | `completed` | `system`: Session ended | Closes |
 | Codex | `Stop` | `input-required` | `agent`: last assistant message | “What next?” with text |
 | Codex | `PermissionRequest` | `input-required` | `system`: tool name and command or input JSON | Allow, Deny, or text |
+| Codex | `SessionEnd` | `completed` | `system`: Session ended | Closes |
 
 Each Codex ask has a fresh UUID suffix, including successive Stops in one turn.
 Entry text keeps at most 16384 code points, shortening the head with `…` when needed.
 The serialized body stays within 65536 bytes, including for Unicode text.
-`SessionEnd` with reason `clear` or `resume` sends nothing: the session continues in
-the same Thread.
 An instruction answered in the Threads window is already a `user` entry in the store, so
 the channel message Claude Code delivers it as only sets the Thread `working`.
+
+Hooks name the sending agent from the payload first. A payload with `turn_id`, a null
+`transcript_path`, or a transcript whose first line is `session_meta` (a Codex rollout)
+comes from Codex, even in a shell that inherited `CLAUDECODE=1`. Otherwise `prompt_id`
+or `CLAUDECODE=1` names Claude Code, a remaining `SessionStart` is Codex's, and any other
+event sends nothing.
 
 ## Claude Code answers
 
@@ -77,6 +82,8 @@ Channels are a Claude Code research preview and require an account and organizat
 policy that permit channels. The development flag allows this plugin during the preview.
 A plain `claude` launch still loads the MCP server, but it stays idle and consumes no
 answers. Its hooks post read-only Threads and Stop closes the Thread.
+The plugin manifest declares no MCP server, so Codex starts none: the channel belongs to
+Claude Code, and Codex reads a plugin's `.mcp.json` command literally.
 
 The server reads `CLAUDE_CODE_MESSAGING_SOCKET` (`/tmp/cc-socks/<pid>.sock`) before walking
 parents. It checks Claude's command line with whitespace splitting, accepting `--channels`
@@ -88,6 +95,7 @@ After MCP initialization, a ready server starts polling and writes its PID to
 on exit. Hooks ignore stale files. An unidentified or disabled channel serves MCP idle,
 printing one stderr line without failing startup. The ready channel owns permission
 entries, so the permission hook sends nothing.
+SIGINT and SIGTERM end the server at once and take the channel file with it.
 
 - A permission channel request posts Allow, Deny, and text. Allow or Deny sends that
   verdict; any text is also sent as a user channel message. Text alone denies the tool
@@ -125,7 +133,8 @@ Claude Code Stop and SessionEnd with a running background task or an SDK entrypo
 nothing. SessionEnd with reason `clear` or `resume` sends nothing: the session continues
 in the same Thread. Claude Code SDK and non-interactive Codex sessions also suppress
 `UserPromptSubmit`.
-Codex Stop sends nothing for non-interactive rollout sources (including exec and subagents).
+Codex Stop and SessionEnd send nothing for non-interactive rollout sources (including exec
+and subagents).
 `idle_prompt` and `permission_prompt` notifications are not hooked. Codex has no
 `Notification` event, so its MCP elicitation sends nothing.
 
@@ -181,7 +190,7 @@ field, so exec sessions run the check too.
 ## Requirements and development
 
 The hooks run on system `python3` (3.9+, standard library only). The Claude Code channel
-server needs `uv` on every host, Python 3.10+ through uv, and the MCP Python SDK installed
+server needs `uv` on every host, Python 3.11+ through uv, and the MCP Python SDK installed
 from this project. Claude Code or Codex needs plugin support.
 
 ```bash

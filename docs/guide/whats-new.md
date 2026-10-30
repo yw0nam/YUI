@@ -11,6 +11,8 @@ Releases are listed newest first, and older releases are on [GitHub Releases](ht
 - The `browser` tool comes from the official `browser` plugin, installed from the Catalog like any other plugin ([Plugins](plugins.md)).
 - **Default** reasoning effort sends no effort, so the model applies its own default ([Connect a backend](connect-a-backend.md)).
 - yui-notify posts coding-agent Threads; Codex accepts answers through synchronous hooks, frontmost permissions stay at its terminal, and the plugin warns at session start when it cannot reach YUI ([yui-notify](https://github.com/yw0nam/YUI/blob/main/plugins/yui-notify/README.md)).
+- The **Threads** chip on the main character opens the Threads window, where you read and answer outside conversations with a choice, text, or both; the window resizes, remembers its frame, and collapses its list to a rail ([Threads](../reference/threads.md)).
+- yui-notify ships the `/yui-notify:thread-producer` skill, which builds a Thread producer for any other source ([yui-notify](https://github.com/yw0nam/YUI/blob/main/plugins/yui-notify/README.md)).
 
 ### Breaking changes
 

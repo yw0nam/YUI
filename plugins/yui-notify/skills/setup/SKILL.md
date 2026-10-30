@@ -45,7 +45,7 @@ HTTP 400 means “update YUI”; follow troubleshooting for other failure lines.
 ## 3. Wire the agents
 
 Claude Code loads plugin hooks after `/reload-plugins` or restart. Install `uv` on every
-Claude Code host, including SSH hosts; the channel server uses Python 3.10+ through uv.
+Claude Code host, including SSH hosts; the channel server uses Python 3.11+ through uv.
 Hooks still use system `python3` (3.9+, stdlib only). Start a new session with:
 
 ```bash

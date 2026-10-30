@@ -11,7 +11,6 @@ from yui_notify.label import make_label, short_hostname
 
 ENTRY_MAX = 16384
 BODY_MAX_BYTES = 65536
-LABEL_MAX = 120
 TITLE_MAX = 200
 PROMPT_MAX = 500
 
@@ -57,16 +56,15 @@ def build_thread(event: Event, ctx: Mapping[str, Any], front: bool) -> dict:
     role = "user" if event.phase == "UserPromptSubmit" else "agent" if event.phase == "Stop" else "system"
     state = (
         terminal_state(event.phase)
-        if event.phase == "UserPromptSubmit"
+        if event.phase in ("UserPromptSubmit", "SessionEnd")
         or (terminal_state(event.phase) == "completed" and event.agent == "claude-code")
         else "input-required"
     )
     title = f"{ctx['project']} ({ctx['branch']})" if ctx["branch"] else ctx["project"]
-    label = make_label(ctx)
     body = {
         "source": event.agent,
         "title": (title or event.agent)[:TITLE_MAX],
-        "label": label[: LABEL_MAX - 1] + "…" if len(label) > LABEL_MAX else label,
+        "label": make_label(ctx),
         "state": state,
         "entries": [{"role": role, "text": event.text}] if event.text else [],
     }

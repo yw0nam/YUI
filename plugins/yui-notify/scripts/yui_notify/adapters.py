@@ -31,13 +31,14 @@ def _pending(data: Mapping[str, Any]) -> str:
     return f"{data.get('tool_name')}: {detail}"
 
 
-def _codex_interactive(transcript_path: Any) -> bool:
-    # the rollout's first line is session_meta; its source is "cli" or "vscode" for an interactive session
+def _rollout_source(transcript_path: Any) -> Any:
+    # a Codex rollout's first line is session_meta; its source is "cli" or "vscode" for an interactive session
     try:
         with open(transcript_path) as f:
-            return json.loads(f.readline())["payload"]["source"] in ("cli", "vscode")
+            line = json.loads(f.readline())
+        return line["payload"]["source"] if line["type"] == "session_meta" else None
     except (OSError, TypeError, ValueError, KeyError):
-        return False
+        return None
 
 
 def parse_event(data: Any, env: Mapping[str, str]) -> Event | None:
@@ -46,10 +47,13 @@ def parse_event(data: Any, env: Mapping[str, str]) -> Event | None:
     phase = data.get("hook_event_name")
     if phase not in EVENTS or not isinstance(data.get("session_id"), str):
         return None
-    # turn_id marks Codex input except at SessionStart; a Codex in a Claude Code shell inherits CLAUDECODE=1
-    if "turn_id" in data:
+    transcript = data.get("transcript_path")
+    source = _rollout_source(transcript)
+    # the payload names Codex by turn_id, a null transcript_path, or a rollout, and Claude Code by prompt_id;
+    # a Codex in a Claude Code shell inherits CLAUDECODE=1
+    if "turn_id" in data or transcript is None or source is not None:
         agent = "codex"
-    elif env.get("CLAUDECODE") == "1":
+    elif "prompt_id" in data or env.get("CLAUDECODE") == "1":
         agent = "claude-code"
     elif phase == "SessionStart":
         agent = "codex"
@@ -67,8 +71,8 @@ def parse_event(data: Any, env: Mapping[str, str]) -> Event | None:
         return None
     if (
         agent == "codex"
-        and phase in ("Stop", "UserPromptSubmit")
-        and not _codex_interactive(data.get("transcript_path"))
+        and phase in ("Stop", "UserPromptSubmit", "SessionEnd")
+        and source not in ("cli", "vscode")
     ):
         return None
     # /clear and /resume keep the same Thread alive in the continuing session

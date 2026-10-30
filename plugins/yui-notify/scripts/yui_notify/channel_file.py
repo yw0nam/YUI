@@ -37,8 +37,13 @@ def ready_file(pid: int, env: Mapping[str, str]):
     try:
         yield
     finally:
-        if path.exists() and path.read_text() == str(os.getpid()):
-            path.unlink()
+        remove_ready_file(pid, env)
+
+
+def remove_ready_file(pid: int, env: Mapping[str, str]) -> None:
+    path = _path(pid, env)
+    if path.exists() and path.read_text() == str(os.getpid()):
+        path.unlink()
 
 
 def add_next_ask(body: dict, event: Event, env: Mapping[str, str]) -> None:

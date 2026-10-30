@@ -84,12 +84,7 @@ def test_unavailable_channel_serves_idle(tmp_path, monkeypatch, capsys, found):
     monkeypatch.setattr(runtime, "stdio_server", stdio)
     monkeypatch.setattr(runtime, "serve_loop", serve_loop)
     monkeypatch.setattr(runtime, "poll", poll)
-    code = 0
-    try:
-        asyncio.run(runtime.main(server))
-    except SystemExit as error:
-        code = error.code
-    assert code == 0
+    asyncio.run(runtime.main(server))
     assert served == [True]
     assert list(tmp_path.rglob("channels/*")) == []
     assert server.get_notification_handler("notifications/claude/channel/permission_request") is None

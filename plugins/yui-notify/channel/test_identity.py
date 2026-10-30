@@ -48,20 +48,14 @@ def test_discover_ps_output_with_apostrophe(monkeypatch, flag, separator):
 
     from channel.identity import discover
 
-    monkeypatch.delenv("CLAUDE_CODE_MESSAGING_SOCKET", raising=False)
-    monkeypatch.delenv("CLAUDE_PID", raising=False)
     monkeypatch.setattr(
         "subprocess.run",
         lambda *args, **kwargs: SimpleNamespace(
             stdout=f"10 /usr/bin/claude {flag}{separator}plugin:yui-notify@yui don't stop"
         ),
     )
-    try:
-        identity = discover(20)
-        actual = identity.pid, identity.ready
-    except ValueError:
-        actual = None
-    assert actual == (20, True)
+    identity = discover(20)
+    assert (identity.pid, identity.ready) == (20, True)
 
 
 @pytest.mark.parametrize("source", ["socket", "node"])
@@ -70,7 +64,6 @@ def test_discover_socket_or_node_parent(monkeypatch, source):
 
     from channel.identity import discover
 
-    monkeypatch.delenv("CLAUDE_PID", raising=False)
     monkeypatch.setattr("os.getppid", lambda: 30)
     monkeypatch.setenv("CLAUDE_CODE_MESSAGING_SOCKET", "/tmp/cc-socks/80.sock" if source == "socket" else "")
     table = {
@@ -79,9 +72,5 @@ def test_discover_socket_or_node_parent(monkeypatch, source):
         80: "1 claude --channels plugin:yui-notify@yui",
     }
     monkeypatch.setattr("subprocess.run", lambda args, **kwargs: SimpleNamespace(stdout=table[int(args[-1])]))
-    try:
-        identity = discover()
-        actual = identity.pid, identity.ready
-    except ValueError:
-        actual = None
-    assert actual == ((80, True) if source == "socket" else (20, True))
+    identity = discover()
+    assert (identity.pid, identity.ready) == ((80, True) if source == "socket" else (20, True))
