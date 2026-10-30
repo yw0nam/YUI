@@ -167,7 +167,7 @@ These modules log at `info` unless a row says otherwise:
 - `app/quick-card-window/wire-quick-card-window.ts` (namespace `wire-quick-card-window`) wires its settings side.
 - `ui/quick-card/` (namespace `quick-card`) is the card.
 - `app/quick-card-window/quick-card-ports.ts` (namespace `quick-card-ports`) writes its stores.
-- `app/quick-card-window/quick-card-dock.ts` (namespace `quick-card-dock`) places and moves the window.
+- `app/quick-card-window/quick-card-dock.ts` (namespace `quick-card-dock`) puts the card on `io/window/dock/window-dock.ts` (namespace `window-dock`, shared with the Threads window, its rows naming the window by `label`), which places and moves the window.
 - `app/quick-card-window/quick-card-close.ts` (namespace `quick-card-close`) closes it.
 
 The card's Voice, Keep bubble and Unified chat tiles log the toggle events of their settings rows under `quick-card`.
@@ -194,10 +194,10 @@ The card's Voice, Keep bubble and Unified chat tiles log the toggle events of th
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
-| `quick-card-dock` | `quick_card_detached` | none | The first move of the card window after a head pointerdown detached it. |
-| `quick-card-dock` | `quick_card_drag_failed` | `error` | Unlinking the window or the `drag_window` command for a head drag failed (`warn` level). |
+| `window-dock` | `dock_detached` | `label` | The first move of a docked window after a head pointerdown detached it. |
+| `window-dock` | `dock_drag_failed` | `label`, `error` | Unlinking the window or the `drag_window` command for a head drag failed (`warn` level). |
+| `window-dock` | `dock_step_failed` | `label`, `error` | A placement, follow or drop step threw (`warn` level). |
 | `quick-card-dock` | `quick_card_boot_hide_failed` | `error` | Unlinking or hiding the window at boot threw; the ready report still goes out (`warn` level). |
-| `quick-card-dock` | `dock_step_failed` | `error` | A placement, follow or drop step threw (`warn` level). |
 
 ### Closing
 
@@ -210,7 +210,7 @@ The card's Voice, Keep bubble and Unified chat tiles log the toggle events of th
 
 ## Threads window
 
-`io/window/openers/threads-window.ts` (namespace `threads-window`, in main's pet window) creates the Threads window through `ready-window`. `io/threads/threads-client.ts` (namespace `threads-client`) runs in both windows. The rest runs in the Threads window: `windows/threads-main.ts` boots it, `app/threads-window/wire-threads-window.ts` wires it, and `app/threads-window/threads-presence.ts` opens and closes it.
+`io/window/openers/threads-window.ts` (namespace `threads-window`, in main's pet window) creates the Threads window through `ready-window`. `io/threads/threads-client.ts` (namespace `threads-client`) runs in both windows. The rest runs in the Threads window: `windows/threads-main.ts` boots it, `app/threads-window/wire-threads-window.ts` wires it, `app/threads-window/threads-presence.ts` opens and closes it, and `app/threads-window/threads-dock.ts` docks it on `io/window/dock/window-dock.ts` (namespace `window-dock`, rows under the quick card's Docking).
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
@@ -219,7 +219,7 @@ The card's Voice, Keep bubble and Unified chat tiles log the toggle events of th
 | `threads-client` | `snapshot.invoke_failed` | `error` | `threads_snapshot` rejected (`warn` level). |
 | `threads-client` | `snapshot.listen_failed` | `error` | Listening to `threads-snapshot` failed; the snapshot is still read once (`warn` level). |
 | `threads-main` | `boot_failed` | `error` | The window's boot threw (`error` level). |
-| `wire-threads-window` | `threads_boot_hide_failed` | `error` | Hiding the window at boot threw; the ready report still goes out (`warn` level). |
+| `wire-threads-window` | `threads_boot_hide_failed` | `error` | Unlinking or hiding the window at boot threw; the ready report still goes out (`warn` level). |
 | `threads-presence` | `threads_open_failed` | `error` | Placing, showing or growing the window threw; it hides and main's chip shows again (`error` level). |
 | `threads-presence` | `threads_hide_failed` | `error` | Hiding the window threw (`warn` level). |
 

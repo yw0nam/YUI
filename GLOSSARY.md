@@ -104,7 +104,7 @@ The user's reply to one Ask: a choice id, text, both, or `release` to answer at 
 _Avoid_: reply, response
 
 **Threads window**:
-The window `threads` where the user reads Threads and answers their Asks; it grows out of the Threads chip.
+The window `threads` where the user reads Threads and answers their Asks; it docks beside the main character and grows out of the Threads chip.
 _Avoid_: inbox, panel, dashboard
 
 **Threads chip**:

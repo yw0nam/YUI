@@ -10,28 +10,39 @@ it.each([
     "sits 12px right of the pet when the right side is roomier",
     { x: 200, y: 100, width: 400, height: 600 },
     WORK_AREA,
-    { x: 612, y: 100, width: 960, height: 820 },
+    undefined,
+    { x: 612, y: 100, width: 960, height: 820, side: "right" },
   ],
   [
     "sits 12px left of the pet when the left side is roomier",
     { x: 1500, y: 100, width: 400, height: 600 },
     WORK_AREA,
-    { x: 528, y: 100, width: 960, height: 820 },
+    undefined,
+    { x: 528, y: 100, width: 960, height: 820, side: "left" },
+  ],
+  [
+    "takes a forced side over the roomier one",
+    { x: 200, y: 100, width: 400, height: 600 },
+    WORK_AREA,
+    "left" as const,
+    { x: 12, y: 100, width: 960, height: 820, side: "left" },
   ],
   [
     "clamps into the work area 12px from its edge",
     { x: 200, y: 400, width: 400, height: 600 },
     WORK_AREA,
-    { x: 612, y: 168, width: 960, height: 820 },
+    undefined,
+    { x: 612, y: 168, width: 960, height: 820, side: "right" },
   ],
   [
     "shrinks to the work area less 12px on each side",
     { x: 0, y: 0, width: 300, height: 500 },
     { x: 0, y: 0, width: 900, height: 700 },
-    { x: 12, y: 12, width: 876, height: 676 },
+    undefined,
+    { x: 12, y: 12, width: 876, height: 676, side: "right" },
   ],
-])("%s", (_name, pet, workArea, expected) => {
-  expect(threadsWindowRect({ pet, workArea })).toEqual(expected);
+])("%s", (_name, pet, workArea, side, expected) => {
+  expect(threadsWindowRect({ pet, workArea, side })).toEqual(expected);
 });
 
 it("starts the grow from the chip's size at the window edge nearest the chip", () => {

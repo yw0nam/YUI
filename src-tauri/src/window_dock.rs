@@ -1,8 +1,8 @@
-//! Links the quick-card window to its pet window as a native child window (macOS), so AppKit
-//! moves the docked card with her in the same frame. Elsewhere there is no such link, and the
-//! webview moves the card itself.
+//! Links a docked window to its owner window as a native child window (macOS), so AppKit
+//! moves the docked window with it in the same frame. Elsewhere there is no such link, and
+//! the webview moves the window itself.
 //!
-//! The card links on each open and unlinks before each hide and each head drag: a hidden child
+//! A window links on each dock and unlinks before each hide and each head drag: a hidden child
 //! can be ordered back in by its parent, and attaching a child window shows it (the same pattern
 //! as Electron's `NativeWindowMac::Show`/`Hide`).
 
@@ -54,10 +54,10 @@ mod macos {
                 .parentWindow()
                 .is_some_and(|p| std::ptr::eq(&*p, parent_ns));
             if !linked {
-                // Attaching resets the child's window level; the card keeps its always-on-top one.
+                // Attaching resets the child's window level; the docked window keeps its always-on-top one.
                 let level = child.level();
-                // SAFETY: both are live windows on the main thread, and the card is never a
-                // parent of its pet window, so no cycle forms.
+                // SAFETY: both are live windows on the main thread, and the window is never a
+                // parent of its owner, so no cycle forms.
                 unsafe { parent_ns.addChildWindow_ordered(child, NSWindowOrderingMode::Above) };
                 child.setLevel(level);
             }
@@ -78,7 +78,7 @@ mod macos {
 /// Makes this window a child of the window labelled `parent_label`, so it moves with it.
 /// Returns whether the native link is in effect: always false off macOS.
 #[tauri::command]
-pub fn quick_card_attach<R: tauri::Runtime>(
+pub fn window_dock_attach<R: tauri::Runtime>(
     window: tauri::WebviewWindow<R>,
     parent_label: String,
 ) -> Result<bool, String> {
@@ -96,7 +96,7 @@ pub fn quick_card_attach<R: tauri::Runtime>(
 /// Removes this window from its parent's child windows; it stays where it is.
 /// Returns whether a native link is still in effect: always false.
 #[tauri::command]
-pub fn quick_card_detach<R: tauri::Runtime>(
+pub fn window_dock_detach<R: tauri::Runtime>(
     window: tauri::WebviewWindow<R>,
 ) -> Result<bool, String> {
     #[cfg(target_os = "macos")]

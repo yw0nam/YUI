@@ -63,6 +63,7 @@ it("creates the hidden window and holds an open made before its ready report", a
       alwaysOnTop: true,
       skipTaskbar: true,
       visible: false,
+      acceptFirstMouse: true,
     }),
   );
   expect(b.sent).toEqual([]);

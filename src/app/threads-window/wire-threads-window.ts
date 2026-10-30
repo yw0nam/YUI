@@ -13,7 +13,7 @@ import { reloadFromStorage as reloadLocale } from "../../ui/i18n";
 import { applyTheme } from "../../ui/theme/apply-theme";
 import { createThreadsView } from "../../ui/threads/window/threads-view";
 import type { Disposers } from "../disposers";
-import { hideThreadsWindow, showThreadsWindow } from "./threads-placement";
+import { wireThreadsDock } from "./threads-dock";
 import { createThreadsPresence } from "./threads-presence";
 
 const log = createLogger("wire-threads-window");
@@ -32,10 +32,11 @@ export async function wireThreadsWindow(deps: {
     onAnswer: client.answer,
     onClose: () => presence.close(),
   });
+  const dock = wireThreadsDock({ head: view });
   const presence = createThreadsPresence({
     view,
-    show: showThreadsWindow,
-    hide: hideThreadsWindow,
+    show: dock.open,
+    hide: dock.hide,
     emitClosed: bridge.emitThreadsClosed,
   });
 
@@ -63,9 +64,9 @@ export async function wireThreadsWindow(deps: {
 
   // A reload while the window showed would leave it shown with nothing open in it.
   if (isTauri()) {
-    await hideThreadsWindow().catch((error) =>
-      log.warn("threads_boot_hide_failed", { error: String(error) }),
-    );
+    await dock
+      .hide()
+      .catch((error) => log.warn("threads_boot_hide_failed", { error: String(error) }));
   }
   bridge.emitThreadsReady();
 }

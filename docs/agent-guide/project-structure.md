@@ -121,11 +121,11 @@ YUI/
       quick-card-window/             # The quick-card window's wiring
         wire-quick-card-window.ts    # The shared settings side, the card on #app, and its dock and close
         quick-card-ports.ts          # The quick card's ports over the window's stores: tiles, selects, transport line, reset, Turn off, All settings…
-        quick-card-dock.ts           # Places the window docked beside her, follows her window, detaches on a head drag and snaps a near drop back
+        quick-card-dock.ts           # The card on the shared window dock: her open request seeds the card and anchors the dock at her extent and click y
         quick-card-close.ts          # Closes the card when no YUI window holds focus, and hides the window on every close
       threads-window/                # The Threads window's wiring
         wire-threads-window.ts       # Snapshots into the view, Answers to the store, the open request, theme and language
-        threads-placement.ts         # Sizes and places the window beside main's pet window, shows and focuses it, hides it
+        threads-dock.ts              # The window on the shared window dock beside main's pet window: sized and docked on each open, dragged by its head, and the grow's start
         threads-presence.ts          # One open or close at a time: show and grow, shrink and hide, then the closed report
       settings-window/               # The settings window's wiring
         wire-settings-window.ts      # Stores, config, cross-window sync, and the settings panel remounted on locale change, bound to the query's preset when it names one, and editing the preset `?edit=` names
@@ -487,14 +487,17 @@ YUI/
           screen-geometry.ts           # Monitor containment, work-area floor math, and window clamping shared by every window mover
           companion-position.ts        # Where a companion window (message, unified) opens: its stored position, else beside the pet window, kept on screen; the column's width and handle height
           companion-column.ts          # A companion column window's focus, OS drag, content-height resize and moved-position report
-          quick-card-position.ts       # Where the quick-card window sits: docked beside her on the roomier side, following her, snapped back, clamped into the work area
-          quick-card-link.ts           # Links and unlinks the quick-card window as a native child of its pet window (macOS; false elsewhere)
-          threads-position.ts          # Where the Threads window sits beside the pet window, and the chip-sized rect its grow starts from
+          quick-card-position.ts       # Where the quick-card window sits docked beside her: its margin box on the roomier side, clamped into the work area
+          threads-position.ts          # Where the Threads window sits beside the pet window on its roomier or a given side, and the chip-sized rect its grow starts from
           keep-on-screen.ts            # Pushes a window back until its centre lands on a monitor
           travel-frame.ts              # Parks the real window once for a scale-seam crossing
           stationary-frame.ts          # Widens the real window around a character that stays where she is
           tauri-frame-window.ts        # The real pet window as one FrameWindow seam, built once for the movers
           perch.ts                     # Perch values, perch-target and placement types, and the host-edge span shared by the drop source, avatar RPC and locomotion
+        dock/                          # The dock a window shares with its owner pet window: the quick card and the Threads window
+          window-dock.ts               # Docks the window on each open, follows the owner, detaches on a head drag, snaps a near drop back, unlinks before a hide
+          dock-position.ts             # The roomier side, the follow, the 24px drop magnet and the clamp, on the window's own box and visible inset
+          dock-link.ts                 # Links and unlinks the window as a native child of its owner window (macOS; false elsewhere)
         openers/                       # Openers and placement of the message, settings, quick-card, devtools, and pet windows, the first three bound to a pet window's preset
           settings-window.ts           # Settings window opener, settings-<id> for a bound id, landing on a page or asking the open window for it, and cross-window settings sync
           devtools-window.ts           # Developer Tools window opener
@@ -640,7 +643,7 @@ YUI/
       threads/                       # The Threads chip and the Threads window
         thread-source.ts             # A source's name and mark; unknown sources show their raw name and a generic mark
         chip/threads-chip.ts         # The chip: newest source marks, label, count; hidden at zero, one nod on arrival, hold-to-fold
-        window/threads-view.ts       # The window's view: the list pane beside the thread pane, the selection and filters, the minute time tick
+        window/threads-view.ts       # The window's view: the head as the drag handle, the list pane beside the thread pane, the selection and filters, the minute time tick
         window/thread-list.ts        # The list pane: tabs, kind select, waiting-first rows, and the Thread an open shows
         window/thread-pane.ts        # The thread pane: head, scrolling transcript, the answer area, and each ask's draft, send error and in-flight send
         window/answer-area.ts        # The answer area: numbered choices, the growing field, and the send button
@@ -835,7 +838,7 @@ YUI/
       app_log.rs                     # Log plugin sink, timezone, line format, and log directory
       drag.rs                        # OS-native window drag with multi-monitor and DPI correction
       window_frame.rs                # Lifts AppKit frame constraining and applies logical window frames
-      quick_card_dock.rs             # The quick-card window's macOS child-window link to its pet window: quick_card_attach, quick_card_detach
+      window_dock.rs                 # A docked window's macOS child-window link to its owner window: window_dock_attach, window_dock_detach
       passthrough.rs                 # Click-through toggle over the transparent overlay
       screenshot.rs                  # Screen-source enumeration and off-thread display capture
       image_encode.rs                # Long-edge resize and JPEG data-URL encode used by screenshot.rs
