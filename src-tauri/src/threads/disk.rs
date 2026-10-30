@@ -131,27 +131,37 @@ mod tests {
         t["created_at"] = json!(1);
         t["updated_at"] = json!(1_209_600_001u64);
         t["entries"] = json!([]);
-        let old = {
-            let mut old = t.clone();
-            old["id"] = json!("expired");
-            old["updated_at"] = json!(0);
-            old
+        let base = t.clone();
+        let with = |id: &str, updated_at: u64| {
+            let mut thread = base.clone();
+            thread["id"] = json!(id);
+            thread["updated_at"] = json!(updated_at);
+            thread
         };
+        let (old, after) = (with("expired", 0), with("after-malformed", 1_209_600_001));
         fs::write(
             dir.join("threads_2026-10-28.jsonl"),
-            format!("{t}\n{old}\nmalformed\n"),
+            format!("{t}\n{old}\nmalformed\n{after}\n"),
         )
         .unwrap();
         t["title"] = json!("Latest");
         fs::write(dir.join("threads_2026-10-29.jsonl"), format!("{t}\n{{\n")).unwrap();
-        fs::write(dir.join("threads_bad-date.jsonl"), format!("{old}\n")).unwrap();
-        let mut unpadded = t.clone();
-        unpadded["id"] = json!("unpadded");
+        let (bad, unpadded) = (
+            with("bad-date", 1_209_600_001),
+            with("unpadded", 1_209_600_001),
+        );
+        fs::write(dir.join("threads_2026-13-01.jsonl"), format!("{bad}\n")).unwrap();
         fs::write(dir.join("threads_2026-1-2.jsonl"), format!("{unpadded}\n")).unwrap();
-        let loaded = replay(&dir, 1_209_600_001);
-        assert_eq!(loaded.len(), 1, "only the unexpired Thread replays");
-        assert_eq!(loaded[0].title, "Latest");
-        assert_eq!(loaded[0].ask.as_ref().unwrap().ask_id, "a");
+        let mut loaded = replay(&dir, 1_209_600_001);
+        loaded.sort_by(|a, b| a.id.cmp(&b.id));
+        let ids: Vec<_> = loaded.iter().map(|t| t.id.as_str()).collect();
+        assert_eq!(
+            ids,
+            ["after-malformed", "t"],
+            "only canonical files' unexpired Threads replay"
+        );
+        assert_eq!(loaded[1].title, "Latest");
+        assert_eq!(loaded[1].ask.as_ref().unwrap().ask_id, "a");
         fs::remove_dir_all(dir).unwrap();
     }
 }
