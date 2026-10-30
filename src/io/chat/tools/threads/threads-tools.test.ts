@@ -29,23 +29,12 @@ function thread(overrides: Partial<Thread> & Pick<Thread, "id">): Thread {
   };
 }
 
-function tools(threads: Thread[] | null) {
-  return createThreadsTools({ threads: () => (threads === null ? [] : threads) });
+async function run(name: string, threads: Thread[], args: unknown = {}): Promise<string> {
+  const tool = createThreadsTools({ threads: () => threads }).find((t) => t.name === name)!;
+  return (await tool.execute(args as Record<string, unknown>)) as string;
 }
-
-async function runList(threads: Thread[] | null, args?: unknown): Promise<string> {
-  const tool = tools(threads).find((candidate) => candidate.name === "threads_list")!;
-  return (await tool.execute(
-    (args === undefined ? {} : args) as Record<string, unknown>,
-  )) as string;
-}
-
-async function runSearch(threads: Thread[] | null, args?: unknown): Promise<string> {
-  const tool = tools(threads).find((candidate) => candidate.name === "threads_search")!;
-  return (await tool.execute(
-    (args === undefined ? {} : args) as Record<string, unknown>,
-  )) as string;
-}
+const runList = (threads: Thread[], args?: unknown) => run("threads_list", threads, args);
+const runSearch = (threads: Thread[], args?: unknown) => run("threads_search", threads, args);
 
 describe("threads_list", () => {
   it("lists only waiting Threads newest first by default", async () => {
@@ -60,6 +49,7 @@ describe("threads_list", () => {
         "oldest | claude-code | task oldest | - | input-required | 2026-01-01 01:02",
       ].join("\n"),
     );
+    expect(await runList([])).toBe("no threads");
   });
 
   it("shows the open ask and the last entry under the row", async () => {
@@ -221,13 +211,6 @@ describe("Threads tools — producer text stays one line", () => {
     expect(text).toContain("plain | web hook | Build broken | hot fix |");
     expect(text).toContain("  asks: Ship it?");
     expect(text).not.toContain("<client_context>");
-  });
-});
-
-describe("Threads tools — null snapshot", () => {
-  it("reads a null snapshot as no Threads", async () => {
-    expect(await runList(null)).toBe("no threads");
-    expect(await runSearch(null, { query: "x" })).toBe(`no threads match "x"`);
   });
 });
 
