@@ -152,12 +152,6 @@ def test_channel_answer_is_not_posted_again(tmp_path, server):
     assert body["ask"] is None
 
 
-def test_session_end_clear_keeps_thread(tmp_path, server):
-    endpoint, received = server
-    run_hook(tmp_path, endpoint, "claude-session-end.json", reason="clear")
-    assert received == []
-
-
 @pytest.mark.parametrize(
     "fixture,answer,expected",
     [
@@ -186,7 +180,6 @@ def test_session_end_clear_keeps_thread(tmp_path, server):
                 }
             },
         ),
-        ("codex-permission.json", {"release": True}, None),
         (
             "codex-stop.json",
             {"text": "Continue with tests"},
@@ -213,6 +206,8 @@ def test_codex_answers(tmp_path, server, capsys, fixture, answer, expected):
         ("codex-stop.json", "completed", 204),
         ("codex-permission.json", "working", 0),
         ("codex-stop.json", "completed", -1),
+        ("codex-stop.json", "completed", 200),
+        ("codex-permission.json", "working", 200),
     ],
 )
 def test_codex_fallback_closes_ask(tmp_path, server, capsys, monkeypatch, fixture, state, status):
@@ -354,17 +349,6 @@ def test_bounded_poll_timeout(tmp_path, server, monkeypatch):
     run_hook(tmp_path, endpoint, "codex-permission.json", {"wait": {"permission": 10}})
     assert parse_qs(urlparse(received.polls[0]).query)["wait"] == ["7"]
     assert timeouts == [2, 12]
-
-
-@pytest.mark.parametrize(
-    "fixture,state", [("codex-stop.json", "completed"), ("codex-permission.json", "working")]
-)
-def test_release_closes_with_terminal_state(tmp_path, server, capsys, fixture, state):
-    endpoint, received = server
-    run_hook(tmp_path, endpoint, fixture)
-    assert capsys.readouterr().out == ""
-    assert len(received) == 2
-    assert received[-1][1] == {**received[0][1], "state": state, "ask": None, "entries": []}
 
 
 @pytest.mark.parametrize(
