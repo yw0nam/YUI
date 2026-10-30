@@ -27,11 +27,20 @@ The trust record belongs to one version of the plugin bundle. After a plugin upd
 hooks show "Modified since last trusted - review required", and Codex blocks them until
 the user trusts them again.
 
-Done when: `/hooks` lists the yui-notify `SessionStart`, `UserPromptSubmit`, `Stop`, and `PermissionRequest`
-hooks with no review warning.
+Done when: `/hooks` lists the yui-notify `SessionStart`, `UserPromptSubmit`, `Stop`,
+`PermissionRequest`, and `SessionEnd` hooks with no review warning.
 
 ## What Codex does not send
 
 Codex has no `Notification` event, so an MCP elicitation prompt in Codex posts no
-Thread. The `Stop` and `PermissionRequest` hooks cover the other two
+Thread. The `Stop`, `PermissionRequest`, and `SessionEnd` hooks cover the other three
 moments.
+
+Codex reads a plugin's `.mcp.json` command literally, so the plugin manifest declares
+no MCP server and Codex starts none. The channel server belongs to Claude Code.
+
+## Hook timeouts
+
+Codex gives `SessionEnd` one second by default and clamps a configured timeout to three
+seconds. The plugin asks for three seconds, the most Codex allows. Claude Code gives
+plugin `SessionEnd` hooks 1.5 seconds and does not raise that budget.
