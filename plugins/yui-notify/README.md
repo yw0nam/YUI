@@ -185,7 +185,8 @@ yui-notify test [--endpoint URL]
   HTTP 404 proves the listener and route are up; HTTP 400 prints “update YUI”.
 - `test` PUTs an `input-required` Thread at `yui-notify:test:<host>` with a system entry and
   an “Arrived” ask, prints `sent: HTTP <n>; …`, and waits 60 seconds for the answer. It prints
-  `answered: …` and exits 0, or prints `no answer within 60 s`, closes the ask, and exits 1.
+  `answered: …` and exits 0, or prints `no answer within 60 s` and exits 1. Every path,
+  Ctrl-C included, ends with a PUT that closes the ask and completes the Thread.
 
 `probe` and `test` exit 0 on success and 1 on failure. See
 [troubleshooting](skills/setup/references/troubleshooting.md) for failure lines.

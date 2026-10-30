@@ -23,8 +23,9 @@ HTTP 400 means YUI needs updating. A successful probe creates no Thread or signa
 ## The test Thread gets no answer
 
 `no answer within 60 s` after `sent: HTTP 200` means YUI stored the Thread but no answer came
-back in time. The Threads chip shows only while a Thread waits; answer before the 60 seconds
-end, then run `test` again.
+back. The Threads chip shows only while a Thread waits; answer before the 60 seconds end, then
+run `test` again. A line printed at once means the answer poll failed, for example because a
+second `test` on the same host replaced the ask: read `last-error.json` below.
 
 ## Codex falls back
 

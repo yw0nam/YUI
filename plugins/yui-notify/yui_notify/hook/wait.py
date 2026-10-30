@@ -15,7 +15,7 @@ def wait_for_answer(url: str, body: dict, phase: str, cap: float, env: Mapping[s
         signal.signal(sig, signal.default_int_handler)
     try:
         answer = wait_answer(url, body["ask"]["ask_id"], cap, env)
-        if answer and not answer.get("release"):
+        if isinstance(answer, dict) and answer and not answer.get("release"):
             return hook_output(phase, answer)
     except KeyboardInterrupt:  # SIGINT, SIGTERM, SIGHUP: close the ask below
         pass
