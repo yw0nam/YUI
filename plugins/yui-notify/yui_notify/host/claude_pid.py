@@ -5,6 +5,8 @@ import subprocess
 from collections.abc import Mapping
 from pathlib import Path
 
+SOCKET_ENV = "CLAUDE_CODE_MESSAGING_SOCKET"
+
 
 def read_process(pid: int) -> tuple[int, list[str]]:
     result = subprocess.run(
@@ -25,7 +27,7 @@ def is_claude(argv: list[str]) -> bool:
 def claude_pid(
     env: Mapping[str, str], parent: int | None = None, process=read_process, *, hook: bool = False
 ) -> int | None:
-    socket = Path(env.get("CLAUDE_CODE_MESSAGING_SOCKET", "")).name
+    socket = Path(env.get(SOCKET_ENV, "")).name
     if socket.endswith(".sock") and socket[:-5].isdigit() and int(socket[:-5]) > 0:
         return int(socket[:-5])
     if hook and env.get("CLAUDE_PID", "").isdigit() and int(env["CLAUDE_PID"]) > 0:

@@ -468,23 +468,23 @@ globalThis.YUI_MAP =
       "id": "agent-hooks",
       "module": "senders",
       "label": "coding-agent hooks",
-      "role": "The yui-notify plugin's Claude Code and Codex hooks post Threads; Codex hooks, and the Claude Code Stop hook without a ready channel, wait for answers synchronously.",
+      "role": "The yui-notify plugin's Claude Code and Codex hooks post Threads; Codex hooks and the Claude Code permission hook wait for answers synchronously, and a Claude Code Stop hands its ask to the inbox poller.",
       "paths": [],
       "external": true
     },
     {
-      "id": "claude-channel-client",
+      "id": "claude-session-inbox",
       "module": "senders",
-      "label": "Claude Code session",
-      "role": "The Claude Code process registers the plugin channel from launch flags, requests permission verdicts, and receives the user's channel messages.",
+      "label": "Claude Code session inbox",
+      "role": "The Claude Code session's cross-session inbox socket (CLAUDE_CODE_MESSAGING_SOCKET); a user line written to it starts the next turn when the session is idle.",
       "paths": [],
       "external": true
     },
     {
-      "id": "agent-channel",
+      "id": "agent-inbox-poller",
       "module": "senders",
-      "label": "Claude Code channel server",
-      "role": "The yui-notify MCP server identifies Claude from its messaging socket or parent walk, serves idle when unavailable, and starts answer polling after MCP initialization; ready files stop the Claude Code Stop hook from waiting and prevent duplicate permission entries.",
+      "label": "Claude Code inbox poller",
+      "role": "A detached yui-notify process per Claude Code Stop ask: it long-polls that ask's answer while the Claude process lives and posts the text into the session's inbox socket.",
       "paths": [],
       "external": true
     },
@@ -2225,40 +2225,40 @@ globalThis.YUI_MAP =
       "id": "agent-hooks-threads",
       "from": "agent-hooks",
       "to": "shell/agent-ingress",
-      "carries": "PUT /threads/<id> {source, title, label, state, entries, ask?}; Codex long-polls GET /threads/<id>/answer?ask_id=<ask_id>&wait=25",
+      "carries": "PUT /threads/<id> {source, title, label, state, entries, ask?}; Codex Stop and permission hooks and the Claude Code permission hook long-poll GET /threads/<id>/answer?ask_id=<ask_id>&wait=25",
       "kind": "http",
       "transport": "shared"
     },
     {
-      "id": "claude-channel-permission",
-      "from": "claude-channel-client",
-      "to": "agent-channel",
-      "carries": "MCP stdio notifications/initialized starts polling; notifications/claude/channel/permission_request {request_id, tool_name, description, input_preview}",
-      "kind": "bridge",
+      "id": "hooks-inbox-poller",
+      "from": "agent-hooks",
+      "to": "agent-inbox-poller",
+      "carries": "Claude Code Stop with an inbox socket: spawns `yui-notify inbox <thread url> <ask_id> <claude pid>` detached, then the hook exits",
+      "kind": "call",
       "transport": "shared"
     },
     {
-      "id": "channel-claude-answer",
-      "from": "agent-channel",
-      "to": "claude-channel-client",
-      "carries": "MCP stdio notifications/claude/channel/permission {request_id, behavior}; notifications/claude/channel {content, meta: {source: yui}}",
-      "kind": "bridge",
-      "transport": "shared"
-    },
-    {
-      "id": "agent-channel-threads",
-      "from": "agent-channel",
+      "id": "inbox-poller-threads",
+      "from": "agent-inbox-poller",
       "to": "shell/agent-ingress",
-      "carries": "PUT /threads/<id> permission asks; GET /threads/<id>/answer?wait=25 delivers oldest pending permission or next-instruction answer once",
+      "carries": "GET /threads/<id>/answer?ask_id=<ask_id>&wait=25 until 200, 404, or 410; other statuses retry every 5 s",
       "kind": "http",
       "transport": "shared"
     },
     {
-      "id": "channel-hook-readiness",
-      "from": "agent-channel",
-      "to": "agent-hooks",
-      "carries": "XDG_STATE_HOME/yui-notify/channels/<claude pid> contains the initialized ready server PID; live PID stops the Stop hook from waiting and suppresses permission hook entries",
-      "kind": "storage",
+      "id": "hooks-session-inbox",
+      "from": "agent-hooks",
+      "to": "claude-session-inbox",
+      "carries": "Claude Code permission hook: deny text also goes in as the same user line the poller writes",
+      "kind": "bridge",
+      "transport": "shared"
+    },
+    {
+      "id": "inbox-poller-session",
+      "from": "agent-inbox-poller",
+      "to": "claude-session-inbox",
+      "carries": "Unix socket lines: {type: auth, token} when the session exports a token, then {type: user, message: {role: user, content: \"Reply from the user in YUI's Threads window:\\n<text>\"}}",
+      "kind": "bridge",
       "transport": "shared"
     },
     {

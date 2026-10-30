@@ -2,8 +2,8 @@
 
 Claude Code and Codex hooks post coding-agent conversations as [Threads](../../docs/reference/threads.md).
 Threads are app-wide and fire no character turn. Codex accepts answers through synchronous
-hooks. Claude Code accepts answers through its channel server when launched with the channel
-flag; without a ready channel its Stop hook waits for the answer like Codex's.
+hooks. Claude Code accepts answers through its own inbox socket: a poller the Stop hook
+starts posts the answer into the session, and permission hooks wait like Codex's.
 
 ## Install
 
@@ -52,8 +52,8 @@ PID if discovery fails. Ids survive `/clear`. Codex ids are `codex:<host>:<sessi
 | Agent | Event | State | Entry | Ask |
 |---|---|---|---|---|
 | Both | `UserPromptSubmit` | `working` | `user`: prompt | Closes |
-| Claude Code | `Stop` | `input-required` | `agent`: last assistant message | “What next?” with text |
-| Claude Code | `PermissionRequest` | `input-required` | Channel owns the entry when ready; otherwise hook posts tool input | Channel adds Allow, Deny, and text |
+| Claude Code | `Stop` | `input-required` with an inbox socket; otherwise `completed` | `agent`: last assistant message | “What next?” with text, with an inbox socket |
+| Claude Code | `PermissionRequest` | `input-required` | `system`: tool name and command or input JSON | Allow, Deny, or text |
 | Claude Code | `Notification` (elicitation) | `input-required` | `system`: message | None added |
 | Claude Code | `SessionEnd` | `completed` | `system`: Session ended | Closes |
 | Codex | `Stop` | `input-required` | `agent`: last assistant message | “What next?” with text |
@@ -64,7 +64,7 @@ Each Codex ask has a fresh UUID suffix, including successive Stops in one turn.
 Entry text keeps at most 16384 code points, shortening the head with `…` when needed.
 The serialized body stays within 65536 bytes, including for Unicode text.
 An instruction answered in the Threads window is already a `user` entry in the store, so
-the channel message Claude Code delivers it as only sets the Thread `working`.
+the inbox message Claude Code delivers it as only sets the Thread `working`.
 
 Hooks name the sending agent from the payload first. A payload with `turn_id`, a null
 `transcript_path`, or a transcript whose first line is `session_meta` (a Codex rollout)
@@ -74,55 +74,50 @@ event sends nothing.
 
 ## Claude Code answers
 
-Install `uv` on every host running Claude Code, including SSH hosts. Launch Claude Code
-with the plugin registered as a channel:
+Claude Code v2.1.224 and later binds an inbox socket for each session and exports its path
+to hooks as `CLAUDE_CODE_MESSAGING_SOCKET`, with a per-session `CLAUDE_CODE_MESSAGING_TOKEN`
+([cross-session messaging](https://code.claude.com/docs/en/cross-session-messaging#the-sessions-inbox-socket)).
+The plugin delivers answers through it, so Claude Code needs no launch flag, MCP server, or
+`uv`.
 
-```bash
-claude --dangerously-load-development-channels plugin:yui-notify@yui
-```
-
-Channels are a Claude Code research preview and require an account and organization
-policy that permit channels. The development flag allows this plugin during the preview.
-A plain `claude` launch still loads the MCP server, but it stays idle and consumes no
-answers; its Stop hook waits for the answer instead (§ Synchronous hook answers).
-The plugin manifest declares no MCP server, so Codex starts none: the channel belongs to
-Claude Code, and Codex reads a plugin's `.mcp.json` command literally.
-
-The server reads `CLAUDE_CODE_MESSAGING_SOCKET` (`/tmp/cc-socks/<pid>.sock`) before walking
-parents. It checks Claude's command line with whitespace splitting, accepting `--channels`
-and `--dangerously-load-development-channels` in space or equals form. Each flag's list
-must contain `plugin:yui-notify@yui`.
-
-After MCP initialization, a ready server starts polling and writes its PID to
-`$XDG_STATE_HOME/yui-notify/channels/<claude pid>` (default `~/.local/state`), removing it
-on exit. Hooks ignore stale files. An unidentified or disabled channel serves MCP idle,
-printing one stderr line without failing startup. The ready channel owns permission
-entries, so the permission hook sends nothing.
-SIGINT and SIGTERM end the server at once and take the channel file with it.
-
-- A permission channel request posts Allow, Deny, and text. Allow or Deny sends that
-  verdict; any text is also sent as a user channel message. Text alone denies the tool
-  and sends the instruction. Release leaves the terminal permission dialog alone.
-- Stop text sends the next instruction as a user channel message. Release sends nothing.
-- While a ready channel file names a live server, Claude Code hooks never wait for answers.
-  The server long-polls YUI without `ask_id`
-  for both kinds of answer, backing off from 1 to 30 seconds on missing Threads or errors.
-  Malformed answers and dispatch failures log to stderr and do not stop polling. Failed
-  permission PUTs write the same `last-error.json` record as hook requests.
+- Stop posts “What next?” only when `CLAUDE_CODE_MESSAGING_SOCKET` is set; without it the
+  Stop posts `completed`. The hook then starts a detached poller, `yui-notify inbox <url>
+  <ask_id> <claude pid>`, and returns at once.
+- The poller long-polls `GET /threads/<id>/answer?ask_id=<ask_id>&wait=25`. A text answer
+  goes into the inbox socket as one line, after an auth line with the session token when
+  Claude Code exports `CLAUDE_CODE_MESSAGING_TOKEN`:
+  `{"type":"user","message":{"role":"user","content":"Reply from the user in YUI's Threads window:\n<text>"}}`.
+  An idle session starts a turn with it; a busy one reads it between tool calls. The poller
+  exits after posting, on an answer without text, on 404 or 410 (the ask closed or was
+  replaced), or when the Claude process is gone. Other statuses and transport errors write
+  `last-error.json` and retry every five seconds.
+- Claude Code prints that line format in its own debug log (`--debug-file`) (`[uds-messaging] Inject
+  messages`); its docs describe the socket and the auth line but not the message line.
+  Claude Code shows the message as `Another Claude session sent a message:` and treats it as
+  a teammate's request, not as the user's own prompt; a message on this socket can never
+  approve a permission prompt.
+- `crossSessionInbound: refuse` in Claude Code settings drops the message. A session that
+  bypasses permission prompts holds it for approval unless Claude Code verifies the poster
+  as its own child, which the session token does.
+- PermissionRequest waits like Codex's (§ Synchronous hook answers) while the terminal
+  dialog stays open beside it. Text with Deny, or text alone, also goes into the inbox as
+  the next instruction, so Claude reads it twice: as the deny reason and as the message.
+- The `UserPromptSubmit` echo of an inbox answer starts with that prefix and only sets the
+  Thread `working`: the store recorded the answer when it was typed.
 
 ## Synchronous hook answers
 
-Codex's `Stop` and `PermissionRequest` hooks, and Claude Code's `Stop` hook without a ready
-channel, are synchronous, with a 660-second hook timeout. After posting an ask, the hook
+Codex's `Stop` and `PermissionRequest` hooks and Claude Code's `PermissionRequest` hook are
+synchronous, with a 660-second hook timeout. After posting an ask, the hook
 long-polls its answer route in intervals up to 25 seconds. YUI never connects back to the
 agent. The turn stays open while the hook waits.
 
-Claude Code queues a prompt typed in its terminal during the wait and runs it after the hook
-returns; Esc ends the wait at once. Claude Code shows the continued instruction as
-“Stop hook error: <text>”.
+Claude Code shows its permission dialog in the terminal while the hook waits; Esc ends the
+wait at once.
 
 - Permission Allow returns an allow decision. Deny returns a deny decision with any text
-  as its message. Text alone denies and gives Codex that instruction.
+  as its message. Text alone denies and gives the agent that instruction; Claude Code also
+  receives the text through its inbox.
 - Stop text returns `{"decision":"block","reason":"<text>"}` to continue the turn.
   The continuation's Stop posts another ask, so instructions can be chained.
 - Release prints nothing and closes the ask: Stop becomes `completed`; permission stays
@@ -200,9 +195,9 @@ field, so exec sessions run the check too.
 
 ## Requirements and development
 
-The hooks run on system `python3` (3.9+, standard library only). The Claude Code channel
-server needs `uv` on every host, Python 3.11+ through uv, and the MCP Python SDK installed
-from this project. Claude Code or Codex needs plugin support.
+The hooks and the inbox poller run on system `python3` (3.9+, standard library only).
+Claude Code answers need Claude Code v2.1.224 or later. Claude Code or Codex needs plugin
+support. `uv` runs only the development checks below.
 
 ```bash
 cd plugins/yui-notify

@@ -897,7 +897,7 @@ YUI/
       game-mod/                      # The coop-agent Lua game mod; its tests/ uv project runs in the python CI job
       skills/                        # The companion skill the backend agent reads
         factorio-companion/          # Game play through the factorio MCP server tools
-    yui-notify/                      # Coding-agent Threads plugin installed from the `yui` marketplace: Claude Code and Codex hooks, a stdio MCP channel server, `skills/setup`, and `skills/thread-producer`
+    yui-notify/                      # Coding-agent Threads plugin installed from the `yui` marketplace: Claude Code and Codex hooks, the Claude Code inbox poller, `skills/setup`, and `skills/thread-producer`
   integrations/                      # Agent-specific adapters, independent of the YUI app runtime
     hermes/
       README.md                      # Hermes Agent adapter setup (Responses mode, dev proxy, auth)

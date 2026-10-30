@@ -1,15 +1,15 @@
-import http.server
 import io
 import json
 import os
+import re
 import signal
 import socket
 import subprocess
 import sys
-import threading
 import time
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
+from uuid import UUID
 
 import pytest
 
@@ -19,53 +19,7 @@ PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
-class Received(list):
-    status: list
-    answer: dict
-    polls: list
-
-
-@pytest.fixture
-def server():
-    received = Received()
-    received.status = [200, 200]
-    received.answer = {"release": True}
-    received.polls = []
-
-    class Handler(http.server.BaseHTTPRequestHandler):
-        def do_PUT(self):
-            received.append((self.path, json.loads(self.rfile.read(int(self.headers["Content-Length"])))))
-            self.reply(received.status[0], {})
-
-        def do_GET(self):
-            received.polls.append(self.path)
-            if received.status[1] == -1:
-                self.send_response(200)
-                self.send_header("Content-Length", "100")
-                self.end_headers()
-                self.wfile.write(b"{")
-                self.close_connection = True
-                return
-            if received.status[1] == 0:
-                self.connection.close()
-                return
-            self.reply(received.status[1], received.answer)
-
-        def reply(self, status, data):
-            raw = json.dumps(data).encode()
-            self.send_response(status)
-            self.send_header("Content-Length", str(len(raw)))
-            self.end_headers()
-            self.wfile.write(raw)
-
-        def log_message(self, *args):
-            pass
-
-    httpd = http.server.HTTPServer(("127.0.0.1", 0), Handler)
-    threading.Thread(target=httpd.serve_forever, daemon=True).start()
-    yield f"http://127.0.0.1:{httpd.server_port}", received
-    httpd.shutdown()
-    httpd.server_close()
+INBOX = {"CLAUDE_CODE_MESSAGING_SOCKET": "/tmp/yui-notify-tests/8864.sock"}  # names the pid, never connected
 
 
 def run_hook(tmp_path, endpoint, fixture, config=None, extra_env=None, **updates):
@@ -95,7 +49,7 @@ def run_hook(tmp_path, endpoint, fixture, config=None, extra_env=None, **updates
             "input-required",
             "system",
             "Bash: touch /Users/dev/projects/demo/hello.txt",
-            "absent",
+            "claude-perm",
         ),
         (
             "claude-notification.json",
@@ -114,7 +68,7 @@ def run_hook(tmp_path, endpoint, fixture, config=None, extra_env=None, **updates
 )
 def test_hook_posts_thread(tmp_path, server, fixture, state, role, text, ask):
     endpoint, received = server
-    assert run_hook(tmp_path, endpoint, fixture) == 0
+    assert run_hook(tmp_path, endpoint, fixture, extra_env=INBOX) == 0
     data = json.loads((FIXTURES / fixture).read_text())
     agent = "codex" if fixture.startswith("codex") else "claude-code"
     path, body = received[0]
@@ -138,17 +92,23 @@ def test_hook_posts_thread(tmp_path, server, fixture, state, role, text, ask):
             "text": True,
             "placeholder": "Next instruction",
         }
-    elif ask in ("stop", "perm"):
+    elif ask in ("stop", "perm", "claude-perm"):
         actual = body["ask"]
-        assert actual["ask_id"].startswith(f"{ask}:{data['turn_id']}:")
-        assert len(actual["ask_id"].rsplit(":", 1)[1]) == 32
+        if ask == "claude-perm":
+            assert re.fullmatch(r"perm:[0-9a-f]{32}", actual["ask_id"])
+        else:
+            assert actual["ask_id"].startswith(f"{ask}:{data['turn_id']}:")
+            assert len(actual["ask_id"].rsplit(":", 1)[1]) == 32
+        agent_name = "Claude" if ask == "claude-perm" else "Codex"
         expected["ask"] = {
             "ask_id": actual["ask_id"],
             "prompt": "What next?" if ask == "stop" else "Allow Bash?",
             "text": True,
-            "placeholder": "Next instruction" if ask == "stop" else "Or tell Codex what to do instead",
+            "placeholder": "Next instruction"
+            if ask == "stop"
+            else f"Or tell {agent_name} what to do instead",
         }
-        if ask == "perm":
+        if ask != "stop":
             expected["ask"]["choices"] = [
                 {"id": "allow", "label": "Allow", "tone": "primary"},
                 {"id": "deny", "label": "Deny", "tone": "danger"},
@@ -158,9 +118,9 @@ def test_hook_posts_thread(tmp_path, server, fixture, state, role, text, ask):
     assert body == expected
 
 
-def test_channel_answer_is_not_posted_again(tmp_path, server):
+def test_inbox_answer_is_not_posted_again(tmp_path, server):
     endpoint, received = server
-    run_hook(tmp_path, endpoint, "claude-channel-prompt.json")
+    run_hook(tmp_path, endpoint, "claude-inbox-prompt.json")
     body = received[0][1]
     assert body["state"] == "working"
     assert body["entries"] == []
@@ -342,16 +302,25 @@ def test_claude_id_falls_back_to_parent_pid(tmp_path, server, monkeypatch):
     assert received[0][0] == f"/threads/claude-code:{socket.gethostname().split('.')[0]}:9000"
 
 
+BLOCK = '{"decision": "block", "reason": "Continue"}\n'
+DENY = (
+    '{"hookSpecificOutput": {"hookEventName": "PermissionRequest", '
+    '"decision": {"behavior": "deny", "message": "Continue"}}}\n'
+)
+
+
 @pytest.mark.parametrize(
-    "fixture,waits",
+    "fixture,waits,output",
     [
-        ("claude-stop.json", True),
-        ("claude-permission.json", False),
-        ("codex-stop.json", True),
-        ("codex-permission.json", False),
+        ("claude-stop.json", False, ""),
+        ("claude-permission.json", True, DENY),
+        ("codex-stop.json", True, BLOCK),
+        ("codex-permission.json", False, ""),
     ],
 )
-def test_focus_posts_and_only_permission_skips_wait(tmp_path, server, capsys, monkeypatch, fixture, waits):
+def test_focus_posts_and_only_codex_permission_skips_wait(
+    tmp_path, server, capsys, monkeypatch, fixture, waits, output
+):
     endpoint, received = server
     received.answer = {"text": "Continue"}
     calls = []
@@ -361,13 +330,13 @@ def test_focus_posts_and_only_permission_skips_wait(tmp_path, server, capsys, mo
         return True
 
     monkeypatch.setattr("yui_notify.hook.run.host_app_in_front", focus)
-    run_hook(tmp_path, endpoint, fixture)
+    run_hook(tmp_path, endpoint, fixture, extra_env=INBOX)
     assert calls == ([True] if fixture == "codex-permission.json" else [])
     assert len(received) == 1
     assert bool(received.polls) == waits
     if fixture == "codex-permission.json":
         assert "ask" not in received[0][1]
-    assert capsys.readouterr().out == ('{"decision": "block", "reason": "Continue"}\n' if waits else "")
+    assert capsys.readouterr().out == output
 
 
 def test_bounded_poll_timeout(tmp_path, server, monkeypatch):
@@ -414,25 +383,10 @@ def test_probe_rejects_endpoint_path(tmp_path, server, capsys, path):
     assert received.polls == []
 
 
-@pytest.mark.parametrize("channel", ["live", "stale", "missing"])
-def test_claude_stop_waits_unless_a_channel_is_ready(tmp_path, server, capsys, monkeypatch, channel):
-    import os
-    from uuid import UUID
-
+def test_claude_stop_posts_the_ask_and_hands_the_wait_to_a_poller(tmp_path, server, capsys, spawned):
     endpoint, received = server
-    received.answer = {"text": "Continue"}
-    path = tmp_path / "state" / "yui-notify" / "channels" / "8864"
-    path.parent.mkdir(parents=True)
-    if channel != "missing":
-        path.write_text(str(os.getpid()) if channel == "live" else "2147483647")
-
-    def wait(*args):
-        pytest.fail("a ready channel delivers the answer, the hook never waits")
-
-    if channel == "live":
-        monkeypatch.setattr("yui_notify.hook.run.wait_for_answer", wait)
-    run_hook(tmp_path, endpoint, "claude-stop.json")
-    body = received[0][1]
+    run_hook(tmp_path, endpoint, "claude-stop.json", extra_env=INBOX)
+    path, body = received[0]
     ask = body["ask"]
     assert body["state"] == "input-required"
     assert str(UUID(ask["ask_id"].removeprefix("next:"))).replace("-", "") == ask["ask_id"][5:]
@@ -442,30 +396,49 @@ def test_claude_stop_waits_unless_a_channel_is_ready(tmp_path, server, capsys, m
         "text": True,
         "placeholder": "Next instruction",
     }
-    assert bool(received.polls) == (channel != "live")
-    assert capsys.readouterr().out == (
-        "" if channel == "live" else '{"decision": "block", "reason": "Continue"}\n'
-    )
-
-
-@pytest.mark.parametrize("channel", ["live", "stale", "missing"])
-def test_claude_permission_entry_owned_by_ready_channel(tmp_path, server, capsys, channel):
-    import os
-
-    endpoint, received = server
-    path = tmp_path / "state" / "yui-notify" / "channels" / "8864"
-    path.parent.mkdir(parents=True)
-    if channel != "missing":
-        path.write_text(str(os.getpid()) if channel == "live" else "2147483647")
-    run_hook(tmp_path, endpoint, "claude-permission.json")
-    entries = [entry for _, body in received for entry in body["entries"]]
-    assert entries == (
-        []
-        if channel == "live"
-        else [{"role": "system", "text": "Bash: touch /Users/dev/projects/demo/hello.txt"}]
-    )
     assert received.polls == []
     assert capsys.readouterr().out == ""
+    assert spawned == [(endpoint + path, ask["ask_id"], 8864)]
+
+
+def test_claude_stop_without_an_inbox_completes_without_an_ask(tmp_path, server, capsys, spawned):
+    endpoint, received = server
+    run_hook(tmp_path, endpoint, "claude-stop.json")
+    body = received[0][1]
+    assert (body["state"], body["ask"]) == ("completed", None)
+    assert received.polls == []
+    assert capsys.readouterr().out == ""
+    assert spawned == []
+
+
+@pytest.mark.parametrize(
+    "answer,output,sent",
+    [
+        (
+            {"text": "use the other file"},
+            {
+                "hookSpecificOutput": {
+                    "hookEventName": "PermissionRequest",
+                    "decision": {"behavior": "deny", "message": "use the other file"},
+                }
+            },
+            ["use the other file"],
+        ),
+        (
+            {"choice": "allow"},
+            {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": {"behavior": "allow"}}},
+            [],
+        ),
+    ],
+)
+def test_claude_permission_answer_applies_and_text_reaches_the_inbox(
+    tmp_path, server, capsys, posted, answer, output, sent
+):
+    endpoint, received = server
+    received.answer = answer
+    run_hook(tmp_path, endpoint, "claude-permission.json", extra_env=INBOX)
+    assert json.loads(capsys.readouterr().out) == output
+    assert posted == sent
 
 
 def test_claude_hook_socket_pid_overrides_inherited_pid(tmp_path, server):
@@ -474,20 +447,9 @@ def test_claude_hook_socket_pid_overrides_inherited_pid(tmp_path, server):
         tmp_path,
         endpoint,
         "claude-stop.json",
-        extra_env={"CLAUDE_CODE_MESSAGING_SOCKET": "/tmp/cc-socks/80.sock"},
+        extra_env={"CLAUDE_CODE_MESSAGING_SOCKET": "/tmp/yui-notify-tests/80.sock"},
     )
     assert received[0][0] == f"/threads/claude-code:{socket.gethostname().split('.')[0]}:80"
-
-
-def test_hook_path_imports_no_third_party_module():
-    """The hook path imports no third-party module"""
-    code = (
-        f"import sys; sys.path.insert(0, {str(PLUGIN_ROOT)!r}); "
-        "import yui_notify.cli, yui_notify.hook.run; "
-        "print([m for m in ('mcp', 'mcp_types', 'anyio', 'pydantic') if m in sys.modules])"
-    )
-    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
-    assert out.stdout.strip() == "[]"
 
 
 def test_signalled_wait_closes_its_ask(tmp_path, server):
@@ -513,7 +475,7 @@ def test_signalled_wait_closes_its_ask(tmp_path, server):
         env=env,
     )
     try:
-        hook.stdin.write((FIXTURES / "claude-stop.json").read_bytes())
+        hook.stdin.write((FIXTURES / "claude-permission.json").read_bytes())
         hook.stdin.close()
         deadline = time.time() + 20
         while time.time() < deadline and not received.polls:
@@ -528,6 +490,6 @@ def test_signalled_wait_closes_its_ask(tmp_path, server):
         assert hook.returncode is not None
         assert time.time() - started < 1.4
         _, closing = received[-1]
-        assert (closing["state"], closing["ask"]) == ("completed", None)
+        assert (closing["state"], closing["ask"]) == ("working", None)
     finally:
         hook.kill()

@@ -45,9 +45,6 @@ Codex has no `Notification` event, so an MCP elicitation prompt in Codex posts n
 Thread. The `Stop`, `PermissionRequest`, and `SessionEnd` hooks cover the other three
 moments.
 
-Codex reads a plugin's `.mcp.json` command literally, so the plugin manifest declares
-no MCP server and Codex starts none. The channel server belongs to Claude Code.
-
 ## Hook timeouts
 
 Codex gives `SessionEnd` one second by default and clamps a configured timeout to three

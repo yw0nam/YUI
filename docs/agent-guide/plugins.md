@@ -4,7 +4,7 @@
 
 - **Python plugins** (factorio) bundle a Backend-attached MCP server over HTTP, reached over a loopback port and an SSH reverse tunnel. Each is a **self-contained `uv` project** with its own dependency set — no shared lock, so one plugin's deps never leak into another.
 - **Rust plugin crates** (browser) bundle an MCP server that speaks MCP over stdio and opens no port; `.mcp.json` names the `command` that starts it. The plugin release workflow builds and releases them; `docs/agent-guide/build-run.md` § Plugin releases gives the layout.
-- **Coding-agent plugins** (yui-notify) install into Claude Code and Codex from the `yui` marketplace: hooks plus a stdio MCP channel server, a `uv` project.
+- **Coding-agent plugins** (yui-notify) install into Claude Code and Codex from the `yui` marketplace: standard-library hooks and an inbox poller, with a `uv` project for the development checks.
 
 `plugins/catalog.json` lists the official and community plugins; the plugin release workflow opens a PR that writes the official entries (`docs/agent-guide/build-run.md` § Plugin releases).
 
