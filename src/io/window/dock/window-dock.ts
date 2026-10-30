@@ -179,12 +179,13 @@ export function createWindowDock<Request>(deps: WindowDockDeps<Request>): {
       bounds: deps.clampBounds ? deps.clampBounds(workArea) : workArea,
       beside: (side) => deps.beside(anchor, workArea, side),
     });
-    if (linked && next.side === placement.side) {
-      // AppKit already moved it with its owner; only the record follows.
-      placement = { x: placement.x + delta.dx, y: placement.y + delta.dy, side: placement.side };
-      expected = { x: placement.x, y: placement.y };
+    const carried = { x: placement.x + delta.dx, y: placement.y + delta.dy, side: placement.side };
+    if (linked && next.side === carried.side && next.x === carried.x && next.y === carried.y) {
+      // AppKit already moved it with its owner and no clamp applies; only the record follows.
+      placement = carried;
+      expected = { x: carried.x, y: carried.y };
     } else {
-      // A flip onto another monitor's work area can change the box.
+      // A clamp or a side switch; a switch onto another monitor's work area can change the box.
       await deps.fit();
       await moveTo(next);
     }
