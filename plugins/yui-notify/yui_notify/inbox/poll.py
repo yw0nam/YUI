@@ -28,9 +28,8 @@ def poll(url: str, ask_id: str, pid: int, env: Mapping[str, str]) -> int:
             continue
         if status == 200 and not error:
             text = answer.get("text") if isinstance(answer, dict) else None
-            failure = post(text, env) if isinstance(text, str) and text else None
-            if failure:
-                config.write_error(env, env.get("CLAUDE_CODE_MESSAGING_SOCKET", ""), None, failure)
+            if isinstance(text, str) and text:
+                post(text, env)
             return 0
         if status in (404, 410):
             return 0

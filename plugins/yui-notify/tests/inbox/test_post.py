@@ -20,5 +20,7 @@ def test_post_sends_only_the_user_line_without_a_token(inbox):
     assert [json.loads(line) for line in inbox.wait(1)] == [user("hi")]
 
 
-def test_post_without_a_socket_returns_an_error():
-    assert isinstance(post("hi", {}), str)
+def test_post_without_a_socket_returns_and_records_an_error(tmp_path):
+    error = post("hi", {"XDG_STATE_HOME": str(tmp_path)})
+    assert isinstance(error, str)
+    assert json.loads((tmp_path / "yui-notify" / "last-error.json").read_text())["error"] == error

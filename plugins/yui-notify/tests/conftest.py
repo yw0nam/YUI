@@ -98,3 +98,10 @@ def spawned(monkeypatch):
         lambda url, ask_id, pid, env: calls.append((url, ask_id, pid)),
     )
     return calls
+
+
+@pytest.fixture(autouse=True)
+def posted(monkeypatch):
+    calls = []
+    monkeypatch.setattr("yui_notify.hook.run.post", lambda text, env: calls.append(text))
+    return calls

@@ -52,12 +52,10 @@ def _ask(event: Event) -> dict:
     return permission_ask(ask_id, event.tool_name, "Codex") if permission else next_ask(ask_id)
 
 
-def build_thread(event: Event, ctx: Mapping[str, Any], front: bool, env: Mapping[str, str]) -> dict:
+def build_thread(event: Event, ctx: Mapping[str, Any], front: bool, inbox: bool) -> dict:
     role = "user" if event.phase == "UserPromptSubmit" else "agent" if event.phase == "Stop" else "system"
     # a Claude Code Stop with no inbox socket has no way to take the answer
-    unanswerable = (
-        event.agent == "claude-code" and event.phase == "Stop" and not env.get("CLAUDE_CODE_MESSAGING_SOCKET")
-    )
+    unanswerable = event.agent == "claude-code" and event.phase == "Stop" and not inbox
     state = (
         terminal_state(event.phase)
         if event.phase in ("UserPromptSubmit", "SessionEnd") or unanswerable

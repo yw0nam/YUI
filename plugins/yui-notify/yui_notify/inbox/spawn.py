@@ -18,7 +18,6 @@ def spawn(url: str, ask_id: str, pid: int, env: Mapping[str, str]) -> None:
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            close_fds=True,
             env=dict(env),
         )
     except OSError as e:

@@ -4,13 +4,15 @@ import json
 import socket
 from collections.abc import Mapping
 
+from yui_notify import config
+
+SOCKET_ENV = "CLAUDE_CODE_MESSAGING_SOCKET"
 PREFIX = "Reply from the user in YUI's Threads window:\n"
 
 
-def post(text: str, env: Mapping[str, str]) -> str | None:
-    path = env.get("CLAUDE_CODE_MESSAGING_SOCKET")
+def _send(path: str, text: str, env: Mapping[str, str]) -> str | None:
     if not path:
-        return "CLAUDE_CODE_MESSAGING_SOCKET is not set"
+        return f"{SOCKET_ENV} is not set"
     lines = [{"type": "user", "message": {"role": "user", "content": PREFIX + text}}]
     if env.get("CLAUDE_CODE_MESSAGING_TOKEN"):
         lines.insert(0, {"type": "auth", "token": env["CLAUDE_CODE_MESSAGING_TOKEN"]})
@@ -22,3 +24,11 @@ def post(text: str, env: Mapping[str, str]) -> str | None:
     except OSError as e:
         return str(e)
     return None
+
+
+def post(text: str, env: Mapping[str, str]) -> str | None:
+    path = env.get(SOCKET_ENV, "")
+    error = _send(path, text, env)
+    if error:
+        config.write_error(env, path or SOCKET_ENV, None, error)
+    return error

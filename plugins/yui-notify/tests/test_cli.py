@@ -19,7 +19,7 @@ PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
-INBOX = {"CLAUDE_CODE_MESSAGING_SOCKET": "/tmp/cc-socks/8864.sock"}  # named, never connected
+INBOX = {"CLAUDE_CODE_MESSAGING_SOCKET": "/tmp/yui-notify-tests/8864.sock"}  # names the pid, never connected
 
 
 def run_hook(tmp_path, endpoint, fixture, config=None, extra_env=None, **updates):
@@ -412,7 +412,7 @@ def test_claude_stop_without_an_inbox_completes_without_an_ask(tmp_path, server,
 
 
 @pytest.mark.parametrize(
-    "answer,output,posted",
+    "answer,output,sent",
     [
         (
             {"text": "use the other file"},
@@ -432,15 +432,13 @@ def test_claude_stop_without_an_inbox_completes_without_an_ask(tmp_path, server,
     ],
 )
 def test_claude_permission_answer_applies_and_text_reaches_the_inbox(
-    tmp_path, server, capsys, monkeypatch, answer, output, posted
+    tmp_path, server, capsys, posted, answer, output, sent
 ):
     endpoint, received = server
     received.answer = answer
-    sent = []
-    monkeypatch.setattr("yui_notify.hook.run.post", lambda text, env: sent.append(text))
     run_hook(tmp_path, endpoint, "claude-permission.json", extra_env=INBOX)
     assert json.loads(capsys.readouterr().out) == output
-    assert sent == posted
+    assert posted == sent
 
 
 def test_claude_hook_socket_pid_overrides_inherited_pid(tmp_path, server):
@@ -449,7 +447,7 @@ def test_claude_hook_socket_pid_overrides_inherited_pid(tmp_path, server):
         tmp_path,
         endpoint,
         "claude-stop.json",
-        extra_env={"CLAUDE_CODE_MESSAGING_SOCKET": "/tmp/cc-socks/80.sock"},
+        extra_env={"CLAUDE_CODE_MESSAGING_SOCKET": "/tmp/yui-notify-tests/80.sock"},
     )
     assert received[0][0] == f"/threads/claude-code:{socket.gethostname().split('.')[0]}:80"
 
