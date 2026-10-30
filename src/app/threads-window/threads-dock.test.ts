@@ -309,6 +309,20 @@ describe("wireThreadsDock", () => {
       expect(positions()).toEqual([]);
     });
 
+    it("pulls a linked window back inside the work area when her move would carry it past the bottom", async () => {
+      const { dock } = wired();
+      await dock.open(CHIP);
+      await vi.waitFor(() => expect(win.setFocus).toHaveBeenCalledOnce());
+      win.setPosition.mockClear();
+
+      // Moved with her by 100 its bottom would reach 200 + 820 = 1020, past 1000 less 12.
+      owner.outerPosition.mockImplementation(async () => ({ x: 500, y: 200 }));
+      owner.onMoved.mock.calls[0][0]({ payload: { x: 500, y: 200 } });
+      await settle();
+
+      expect(positions()).toEqual([{ x: 912, y: 168 }]);
+    });
+
     it("switches sides with one move when travelling with her would carry it off the work area", async () => {
       const { dock } = wired();
       await dock.open(CHIP);
