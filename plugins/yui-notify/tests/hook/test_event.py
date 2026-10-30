@@ -3,9 +3,9 @@ from pathlib import Path
 
 import pytest
 
-from yui_notify.adapters import parse_event
+from yui_notify.hook.event import parse_event
 
-FIXTURES = Path(__file__).parent / "fixtures"
+FIXTURES = Path(__file__).parent.parent / "fixtures"
 CLAUDE_STOP_TEXT = (
     "I couldn't create the file. The Bash `touch` was blocked because Claude Code asks for approval "
     "before a shell command creates files in this working directory, and this session can't show that "

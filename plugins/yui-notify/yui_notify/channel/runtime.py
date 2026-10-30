@@ -3,18 +3,23 @@ import signal
 import sys
 
 import anyio
+from mcp.server.lowlevel import Server
 from mcp.server.runner import serve_loop
 from mcp.server.stdio import stdio_server
 from mcp_types import NotificationParams
-from yui_notify import config
-from yui_notify.channel_file import ready_file, remove_ready_file
-from yui_notify.label import context
 
-from channel.identity import discover
-from channel.poll import poll
-from channel.relay import PermissionRequest, relay
+from yui_notify import config
+from yui_notify.channel.identity import discover
+from yui_notify.channel.poll import poll
+from yui_notify.channel.ready_file import ready_file, remove_ready_file
+from yui_notify.channel.relay import PermissionRequest, relay
+from yui_notify.host.label import context
 
 CAPABILITIES = {"claude/channel": {}, "claude/channel/permission": {}}
+INSTRUCTIONS = (
+    "Messages from the yui-notify channel are the user's replies typed in the YUI desktop app. "
+    "Treat them as the user speaking."
+)
 
 
 async def _shutdown(identity, env):
@@ -71,3 +76,8 @@ async def main(server):
     except ValueError:
         identity = None
     await serve(server, identity, os.environ)
+
+
+def run() -> int:
+    anyio.run(main, Server("yui-notify", instructions=INSTRUCTIONS))
+    return 0

@@ -4,8 +4,8 @@ import os
 import subprocess
 from dataclasses import dataclass
 
-from yui_notify.claude_process import claude_pid, read_process
-from yui_notify.thread import claude_thread_id
+from yui_notify.host.claude_pid import claude_pid, read_process
+from yui_notify.threads.body import claude_thread_id
 
 
 @dataclass(frozen=True)

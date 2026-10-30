@@ -5,7 +5,7 @@ import socket
 from collections.abc import Mapping
 from typing import Any, Callable
 
-from yui_notify import command
+from yui_notify.host import command
 
 
 def short_hostname(hostname: Callable[[], str] = socket.gethostname) -> str:

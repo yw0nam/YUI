@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Callable
 
-from yui_notify import command
+from yui_notify.host import command
 
 
 def host_app_in_front(

@@ -5,9 +5,9 @@ from collections.abc import Mapping
 from typing import Any
 from uuid import uuid4
 
-from yui_notify.adapters import Event
-from yui_notify.claude_process import claude_pid
-from yui_notify.label import make_label, short_hostname
+from yui_notify.hook.event import Event
+from yui_notify.host.claude_pid import claude_pid
+from yui_notify.host.label import make_label, short_hostname
 
 ENTRY_MAX = 16384
 BODY_MAX_BYTES = 65536

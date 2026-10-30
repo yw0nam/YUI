@@ -12,8 +12,8 @@ dev = ["pytest", "ruff"]
 package = false
 
 [tool.pytest.ini_options]
-testpaths = ["scripts", "channel"]
-pythonpath = [".", "scripts"]
+testpaths = ["tests"]
+pythonpath = ["."]
 
 [tool.ruff]
 line-length = 110

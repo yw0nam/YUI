@@ -2,10 +2,11 @@ import os
 
 import anyio
 from pydantic import BaseModel
+
 from yui_notify import config
-from yui_notify.adapters import Event
-from yui_notify.post import put
-from yui_notify.thread import build_thread, fit_entries, permission_ask
+from yui_notify.hook.event import Event
+from yui_notify.threads.body import build_thread, fit_entries, permission_ask
+from yui_notify.threads.client import put
 
 
 class PermissionRequest(BaseModel):

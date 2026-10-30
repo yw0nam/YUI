@@ -11,7 +11,7 @@ import pytest
 def test_runtime_only_ready_server_polls_and_marks(tmp_path, monkeypatch, ready):
     from mcp.server.lowlevel import Server
 
-    from channel import runtime
+    from yui_notify.channel import runtime
 
     calls = []
     path = tmp_path / "yui-notify" / "channels" / "20"
@@ -58,8 +58,8 @@ def test_runtime_only_ready_server_polls_and_marks(tmp_path, monkeypatch, ready)
 def test_unavailable_channel_serves_idle(tmp_path, monkeypatch, capsys, found):
     from mcp.server.lowlevel import Server
 
-    from channel import runtime
-    from channel.identity import Identity
+    from yui_notify.channel import runtime
+    from yui_notify.channel.identity import Identity
 
     served = []
     server = Server("test")
@@ -101,8 +101,8 @@ def test_poll_waits_for_initialized_notification(tmp_path, monkeypatch):
     import anyio
     from mcp.server.lowlevel import Server
 
-    from channel import runtime
-    from channel.identity import Identity
+    from yui_notify.channel import runtime
+    from yui_notify.channel.identity import Identity
 
     server = Server("test")
     calls = []

@@ -3,9 +3,9 @@ from __future__ import annotations
 import os
 
 from yui_notify.config import endpoint_error
-from yui_notify.label import short_hostname
-from yui_notify.post import get, put
-from yui_notify.thread import TITLE_MAX
+from yui_notify.host.label import short_hostname
+from yui_notify.threads.body import TITLE_MAX
+from yui_notify.threads.client import get, put
 
 UNREACHABLE = "YUI is not listening at {url} (External signals off, wrong port, or no tunnel)"
 FAILURES = {

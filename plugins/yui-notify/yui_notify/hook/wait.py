@@ -6,9 +6,9 @@ from collections.abc import Mapping
 from urllib.parse import urlencode
 
 from yui_notify import config
-from yui_notify.output import hook_output
-from yui_notify.post import get, put
-from yui_notify.thread import terminal_state
+from yui_notify.hook.output import hook_output
+from yui_notify.threads.body import terminal_state
+from yui_notify.threads.client import get, put
 
 
 def wait_for_answer(url: str, body: dict, phase: str, cap: float, env: Mapping[str, str]) -> dict | None:
