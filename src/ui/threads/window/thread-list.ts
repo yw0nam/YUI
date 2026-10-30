@@ -41,6 +41,21 @@ export function threadListView(threads: Thread[], filter: ThreadFilter): ThreadL
   };
 }
 
+/** The kind select's options for `view`: all kinds, then each source with its count in the tab. */
+export function renderKinds(select: HTMLSelectElement, view: ThreadListView): void {
+  const inTab = view.kinds.reduce((n, k) => n + k.count, 0);
+  select.replaceChildren(
+    new Option(t("threads.kind_all", { n: inTab }), ""),
+    ...view.kinds.map((k) => {
+      const option = new Option(`${threadSource(k.source).name} (${k.count})`, k.source);
+      option.disabled = k.disabled;
+      return option;
+    }),
+  );
+  select.selectedIndex =
+    view.kind === null ? 0 : view.kinds.findIndex((k) => k.source === view.kind) + 1;
+}
+
 /** The Thread a fresh open shows: the newest waiting one, else the newest. */
 export function openSelection(threads: Thread[]): string | null {
   return [...threads].sort(waitingFirstThenNewest)[0]?.id ?? null;
@@ -133,17 +148,7 @@ export function createThreadList(deps: {
         tab.setAttribute("aria-pressed", String(tab.dataset.tab === filter.tab));
       }
       kindEl.setAttribute("aria-label", t("threads.kind"));
-      const inTab = view.kinds.reduce((n, k) => n + k.count, 0);
-      kindEl.replaceChildren(
-        new Option(t("threads.kind_all", { n: inTab }), ""),
-        ...view.kinds.map((k) => {
-          const option = new Option(`${threadSource(k.source).name} (${k.count})`, k.source);
-          option.disabled = k.disabled;
-          return option;
-        }),
-      );
-      kindEl.selectedIndex =
-        view.kind === null ? 0 : view.kinds.findIndex((k) => k.source === view.kind) + 1;
+      renderKinds(kindEl, view);
 
       const hadFocus = rowsEl.contains(document.activeElement);
       if (view.rows.length === 0) {

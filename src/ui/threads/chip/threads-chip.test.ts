@@ -51,6 +51,18 @@ it("hides at zero waiting and shows the count otherwise", () => {
   expect(button().querySelector(".yui-threadchip__count")!.textContent).toBe("1");
 });
 
+it("stays visible while the window is open, even at zero waiting, and hides at zero once it closes", () => {
+  const { chip, button } = build();
+  chip.update([thread("a", "codex", 5)]);
+
+  chip.setExpanded(true);
+  chip.update([thread("a", "codex", 6, false)]);
+  expect(button().hidden).toBe(false);
+
+  chip.setExpanded(false);
+  expect(button().hidden).toBe(true);
+});
+
 it("marks the distinct sources of the newest waiting Threads, at most three", () => {
   const { chip, button } = build();
 

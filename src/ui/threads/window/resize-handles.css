@@ -1,0 +1,87 @@
+/* The Threads panel's resize hit areas, invisible: 8px on the edges, 14px at the corners; and the
+   size readout while a resize lasts. Tokens in ../../tokens.css. */
+
+.yui-threads-rz {
+  position: absolute;
+  z-index: 6;
+  touch-action: none;
+}
+
+.yui-threads-rz[data-edge="n"],
+.yui-threads-rz[data-edge="s"] {
+  right: 14px;
+  left: 14px;
+  height: 8px;
+  cursor: ns-resize;
+}
+
+.yui-threads-rz[data-edge="e"],
+.yui-threads-rz[data-edge="w"] {
+  top: 14px;
+  bottom: 14px;
+  width: 8px;
+  cursor: ew-resize;
+}
+
+.yui-threads-rz[data-edge="nw"],
+.yui-threads-rz[data-edge="ne"],
+.yui-threads-rz[data-edge="sw"],
+.yui-threads-rz[data-edge="se"] {
+  width: 14px;
+  height: 14px;
+}
+
+.yui-threads-rz[data-edge="n"],
+.yui-threads-rz[data-edge="nw"],
+.yui-threads-rz[data-edge="ne"] {
+  top: 0;
+}
+
+.yui-threads-rz[data-edge="s"],
+.yui-threads-rz[data-edge="sw"],
+.yui-threads-rz[data-edge="se"] {
+  bottom: 0;
+}
+
+.yui-threads-rz[data-edge="w"],
+.yui-threads-rz[data-edge="nw"],
+.yui-threads-rz[data-edge="sw"] {
+  left: 0;
+}
+
+.yui-threads-rz[data-edge="e"],
+.yui-threads-rz[data-edge="ne"],
+.yui-threads-rz[data-edge="se"] {
+  right: 0;
+}
+
+.yui-threads-rz[data-edge="nw"],
+.yui-threads-rz[data-edge="se"] {
+  cursor: nwse-resize;
+}
+
+.yui-threads-rz[data-edge="ne"],
+.yui-threads-rz[data-edge="sw"] {
+  cursor: nesw-resize;
+}
+
+.yui-threads-readout {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 7;
+  padding: 4px 12px;
+  border: 1px solid var(--yui-edge);
+  border-radius: var(--yui-radius-pill);
+  background: var(--yui-panel-bg);
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-sub);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+  translate: -50% -50%;
+}
+
+.yui-threads-readout[hidden] {
+  display: none;
+}

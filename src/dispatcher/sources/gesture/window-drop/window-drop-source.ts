@@ -32,7 +32,6 @@ import type {
   PeekConfig,
 } from "../../../../config/validators/avatar/types";
 import type { WindowRect } from "../../../../contract";
-import { isDockedWindowLabel } from "../../../../io/window/dock/window-dock";
 import type {
   PerchTargets,
   PlacementOptions,
@@ -40,6 +39,7 @@ import type {
   PlacementResult,
 } from "../../../../io/window/geometry/perch";
 import { containsSeat } from "../../../../io/window/geometry/perch";
+import { dropNeverPerches } from "../../../../io/window/openers/drop-never-perches";
 import { createLogger } from "../../../../logger";
 import type { ScreenPoint } from "../../../../renderer/geometry/probe/perch-geometry";
 import {
@@ -420,8 +420,8 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       if (unlisten) return;
       try {
         unlisten = await listen(RELEASE_EVENT, ({ payload }) => {
-          // A docked window's drop moved no pet window; it settles in that window's own dock.
-          if (typeof payload === "string" && isDockedWindowLabel(payload)) return;
+          // A quick-card or Threads window's drop moved no pet window; it settles in its own window.
+          if (typeof payload === "string" && dropNeverPerches(payload)) return;
           const dragged = deps.wasDragging?.() ?? true;
           if (deps.isHeld?.()) return;
           void settle()

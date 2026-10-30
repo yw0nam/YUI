@@ -700,7 +700,7 @@ globalThis.YUI_MAP =
       "id": "settings",
       "module": "settings",
       "label": "settings",
-      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, the device-wide yui.user-name holds what {{user}} resolves to, the device-wide yui.tts-readings holds the reading dictionary, the device-wide yui.theme holds the theme (dawn, hearth or system), and the device-wide yui.unified-chat holds the Unified chat switch, with the rule every pet and settings window reads for whether the unified chat window shows (the switch on, two or more open presets, a window can exist), and yui.unified-window the unified window's position.",
+      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, the device-wide yui.user-name holds what {{user}} resolves to, the device-wide yui.tts-readings holds the reading dictionary, the device-wide yui.theme holds the theme (dawn, hearth or system), the device-wide yui.threads-window holds the Threads window's frame and list choice, and the device-wide yui.unified-chat holds the Unified chat switch, with the rule every pet and settings window reads for whether the unified chat window shows (the switch on, two or more open presets, a window can exist), and yui.unified-window the unified window's position.",
       "paths": [
         "src/settings"
       ]
@@ -871,7 +871,7 @@ globalThis.YUI_MAP =
       "id": "io/window/geometry",
       "module": "window",
       "label": "window geometry",
-      "role": "Monitor and floor math, the quick card's docked place beside the character, the Threads window's place beside the pet window and the chip-sized rect its grow starts from, the travel and stationary frames, keep-on-screen, and the companion column windows' placement, width, focus, drag and content-height resize.",
+      "role": "Monitor and floor math, the quick card's docked place beside the character, the Threads window's first place beside the pet window, its stored frame moved into the nearest work area and the chip-sized rect its grow starts from, the travel and stationary frames, keep-on-screen, and the companion column windows' placement, width, focus, drag and content-height resize.",
       "paths": [
         "src/io/window/geometry"
       ]
@@ -880,7 +880,7 @@ globalThis.YUI_MAP =
       "id": "io/window/dock",
       "module": "window",
       "label": "window dock",
-      "role": "The dock a window shares with its owner pet window: placed docked on each open, following the owner, detached by a head drag, snapped back by a drop within 24px of the owner's edge, linked as a macOS child window while docked; the follow, snap and clamp rules on the window's own box and visible inset.",
+      "role": "The quick card's dock with its owner pet window: placed docked on each open, following the owner, detached by a head drag, snapped back by a drop within 24px of the owner's edge, linked as a macOS child window while docked; the follow, snap and clamp rules on the window's own box and visible inset.",
       "paths": [
         "src/io/window/dock"
       ]
@@ -1231,7 +1231,7 @@ globalThis.YUI_MAP =
       "id": "ui/threads",
       "module": "display",
       "label": "threads ui",
-      "role": "The Threads chip in main's chip column (newest source marks, label, amber count; hidden at zero, one nod on arrival, hold-to-fold) and the Threads window's view: Waiting / All tabs and a kind select over waiting-first rows, the thread pane's scrolling transcript, the pinned answer area with numbered choices and a growing field, per-ask drafts, and the grow out of the chip.",
+      "role": "The Threads chip in main's chip column (newest source marks, label, amber count; hidden at zero while the window is closed, one nod on arrival, hold-to-fold) and the Threads window's view: the layout its panel's width picks (list and thread, the rail, one pane), the list collapsed to the rail by the head toggle or Control+Command+S, Waiting / All tabs and a kind select over waiting-first rows, the thread pane's scrolling transcript, the pinned answer area with numbered choices and a growing field, per-ask drafts, and the grow out of the chip.",
       "paths": [
         "src/ui/threads"
       ]
@@ -1323,7 +1323,7 @@ globalThis.YUI_MAP =
       "id": "app/threads-chip",
       "module": "wiring",
       "label": "threads chip wiring",
-      "role": "Main only: mounts the Threads chip after the signal chips on their shared fold store, feeds it the store's snapshots, and opens the Threads window from its tap; the window's closed report shows the chip again.",
+      "role": "Main only: mounts the Threads chip after the signal chips on their shared fold store, feeds it the store's snapshots, and opens the Threads window from its tap; the chip stays shown while the window is open, its tap then bringing the window forward, until the window's closed report.",
       "paths": [
         "src/app/threads-chip"
       ]
@@ -1386,7 +1386,7 @@ globalThis.YUI_MAP =
       "id": "app/threads-window",
       "module": "wiring",
       "label": "threads window wiring",
-      "role": "The Threads window's wiring: snapshots into the view, Answers to the store, the open request docking and showing the window beside main's pet window before the grow, its head drag, drop snap and follow on the shared window dock, Escape and × shrinking it back and hiding it, and the stored theme and language reloaded on settings-changed.",
+      "role": "The Threads window's wiring: snapshots into the view, Answers to the store, the open request placing and showing the window (beside main's pet window the first time, at its stored frame after that) before the grow, or only focusing it while it shows, its head's native drag and the frame saved once a move settles, its edge and corner resize applied at most once a frame and saved at the end, Escape and × shrinking it back and hiding it, and the stored theme and language reloaded on settings-changed.",
       "paths": [
         "src/app/threads-window"
       ]
@@ -2458,10 +2458,10 @@ globalThis.YUI_MAP =
       "wiring": "src/app/stage/wire-window-sources.ts"
     },
     {
-      "id": "drop-docked-label",
+      "id": "drop-never-perches-label",
       "from": "dispatcher/sources/gesture",
-      "to": "io/window/dock",
-      "carries": "isDockedWindowLabel(label): the quick-card and Threads labels whose drops settle in their own dock",
+      "to": "io/window/openers",
+      "carries": "dropNeverPerches(label): the quick-card and Threads labels, whose drags settle in their own windows and never perch the character",
       "kind": "call",
       "transport": "shared"
     },
@@ -3007,7 +3007,7 @@ globalThis.YUI_MAP =
       "id": "threads-open-request",
       "from": "io/window/openers",
       "to": "app/threads-window",
-      "carries": "yui://threads-open {chip: {x, y, width, height}}: place, show and focus the window, then grow out of the chip",
+      "carries": "yui://threads-open {chip: {x, y, width, height}}: place, show and focus the window, then grow out of the chip; while it shows, only focus it",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/threads-window/wire-threads-window.ts"
@@ -3025,37 +3025,73 @@ globalThis.YUI_MAP =
       "id": "threads-closed",
       "from": "app/threads-window",
       "to": "io/window/openers",
-      "carries": "yui://threads-closed: the window hid after its close or a failed open; the chip shows again",
+      "carries": "yui://threads-closed: the window hid after its close or a failed open; the chip leaves its open state and hides at zero waiting",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/threads-chip/wire-threads-chip.ts"
     },
     {
-      "id": "threads-dock-position",
+      "id": "threads-placement",
       "from": "app/threads-window",
       "to": "io/window/geometry",
-      "carries": "threadsWindowRect and chipInWindow: 12px beside the pet window on its roomier or a given side, at most 960 × 820 and 12px inside the work area; the chip-sized rect the grow starts from",
+      "carries": "threadsWindowRect, restoreThreadsBox, nearestWorkArea and chipInWindow: the first open 12px beside the pet window on its roomier side, the wanted panel narrowed to the room and never below 360 × 420; a stored frame sized into and moved inside the nearest monitor's work area less 12px; the chip-sized rect the grow starts from",
       "kind": "call",
       "transport": "shared",
-      "wiring": "src/app/threads-window/threads-dock.ts"
+      "wiring": "src/app/threads-window/threads-placement.ts"
     },
     {
-      "id": "threads-dock",
+      "id": "threads-frame",
       "from": "app/threads-window",
-      "to": "io/window/dock",
-      "carries": "createWindowDock {ownerLabel \"main\", box, inset 8, gap 20, anchor: the pet window's extent, beside: threadsWindowRect, bounds 12px inside the work area, fit} → dock(chip), hide",
+      "to": "settings",
+      "carries": "yui.threads-window {x?, y?, width, height, listCollapsed}: the panel's frame in logical px, written at each placement, once a user move settles and at a resize's end, its size floored at 360 × 420; the list choice, written by the toggle and never by a width change; the frame read on each open, the list choice once at boot",
+      "kind": "storage",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/wire-threads-window.ts"
+    },
+    {
+      "id": "threads-resize-handles",
+      "from": "ui/threads",
+      "to": "app/threads-window",
+      "carries": "resize {start, move(edge, dx, dy), end}: an edge or corner drag in screen px from the pointerdown; a release, a cancel or a lost capture ends it",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/wire-threads-window.ts"
+    },
+    {
+      "id": "threads-resize-box",
+      "from": "app/threads-window",
+      "to": "io/window/geometry",
+      "carries": "resizeThreadsBox(box, workArea, edge, dx, dy): the dragged sides moved, between the 376 × 436 minimum box and the work area less 12px on every side",
       "kind": "call",
       "transport": "shared",
-      "wiring": "src/app/threads-window/threads-dock.ts"
+      "wiring": "src/app/threads-window/threads-resize.ts"
+    },
+    {
+      "id": "threads-head-pointerdown",
+      "from": "ui/threads",
+      "to": "app/threads-window",
+      "carries": "onHeadPointerDown: a pointerdown on the head, not on its buttons",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/wire-threads-window.ts"
     },
     {
       "id": "threads-head-drag",
-      "from": "ui/threads",
-      "to": "io/window/dock",
-      "carries": "onHeadPointerDown: a pointerdown on the head, not its ×, starts the window's drag",
-      "kind": "callback",
+      "from": "app/threads-window",
+      "to": "io/window/pet",
+      "carries": "invokeDragWindow from the head's pointerdown (not on its buttons): the window's native drag",
+      "kind": "call",
       "transport": "shared",
-      "wiring": "src/app/threads-window/threads-dock.ts"
+      "wiring": "src/app/threads-window/threads-placement.ts"
+    },
+    {
+      "id": "threads-min-panel",
+      "from": "io/window/geometry",
+      "to": "settings",
+      "carries": "THREADS_MIN_PANEL {width 360, height 420}: the smallest panel the placement and the resize keep",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/io/window/geometry/threads-position.ts"
     },
     {
       "id": "quick-card-placement",
@@ -4957,7 +4993,7 @@ globalThis.YUI_MAP =
       {
         "id": "threads",
         "label": "threads",
-        "role": "The Threads window, threads.html: main's frameless window beside the pet window, the list pane beside the thread pane, grown out of the Threads chip and hidden on close."
+        "role": "The Threads window, threads.html: main's frameless window, first placed beside the pet window and reopened at its stored frame, grown out of the Threads chip and hidden on close."
       },
       {
         "id": "devtools",
@@ -5108,7 +5144,7 @@ globalThis.YUI_MAP =
         "id": "threads-open-pet",
         "from": "pet",
         "to": "threads",
-        "carries": "yui://threads-open {chip}: place, show and focus the window, grow out of the chip",
+        "carries": "yui://threads-open {chip}: place, show and focus the window, grow out of the chip; while it shows, focus it",
         "kind": "bridge"
       },
       {
@@ -5122,7 +5158,7 @@ globalThis.YUI_MAP =
         "id": "threads-closed-pet",
         "from": "threads",
         "to": "pet",
-        "carries": "yui://threads-closed: the chip shows again",
+        "carries": "yui://threads-closed: the chip leaves its open state",
         "kind": "bridge"
       },
       {

@@ -162,3 +162,36 @@
   color: var(--yui-danger);
   font-size: var(--yui-fs-sub);
 }
+
+@container pane (max-width: 559.98px) {
+  .yui-threads-answer {
+    padding-inline: 20px;
+  }
+}
+
+/* A pane under 440px stacks the choices and gives the send button the full width. */
+@container pane (max-width: 439.98px) {
+  .yui-threads-answer {
+    padding-inline: 16px;
+  }
+
+  .yui-threads-answer__choices {
+    flex-direction: column;
+  }
+
+  .yui-threads-answer__choices button {
+    width: 100%;
+  }
+
+  .yui-threads-answer__composer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .yui-threads-answer__composer > :only-child {
+    grid-column: auto;
+  }
+
+  .yui-threads-answer .yui-threads-answer__send {
+    width: 100%;
+  }
+}

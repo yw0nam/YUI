@@ -1,15 +1,20 @@
-/** The source line and the state word a list row and the thread pane both lead with. */
+/** The source line and the state a list row, a rail item and the thread pane lead with. */
 
 import "./thread-meta.css";
 import type { Thread } from "../../../contract";
 import { t } from "../../i18n";
 import { threadSource } from "../thread-source";
 
+/** A Thread's state in words. */
+export function stateText(thread: Thread): string {
+  return t(`threads.state_${thread.state.replace("-", "_")}`);
+}
+
 /** The state word a row and the pane show. */
 export function stateWord(thread: Thread): HTMLElement {
   const el = document.createElement("span");
   el.className = `yui-threads-state is-${thread.state}`;
-  el.textContent = t(`threads.state_${thread.state.replace("-", "_")}`);
+  el.textContent = stateText(thread);
   return el;
 }
 

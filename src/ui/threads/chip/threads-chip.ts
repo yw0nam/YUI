@@ -1,7 +1,8 @@
 /**
  * Threads chip — the pill in main's chip column that counts waiting Threads and opens the Threads
  * window. Pure renderer: the marks, label, and count come from the snapshot; hidden while nothing
- * waits; one nod when a Thread starts waiting; a held press folds it with the other chips.
+ * waits and the window is closed; one nod when a Thread starts waiting; a held press folds it with
+ * the other chips.
  */
 
 import "./threads-chip.css";
@@ -16,7 +17,7 @@ const MAX_MARKS = 3;
 export interface ThreadsChip {
   el: HTMLButtonElement;
   update(threads: Thread[]): void;
-  /** While the window is open, the chip steps aside. */
+  /** Whether the window is open; the chip stays visible while it is. */
   setExpanded(expanded: boolean): void;
   dispose(): void;
 }
@@ -48,6 +49,7 @@ export function createThreadsChip({
 
   let waiting: Thread[] = [];
   let waitingIds: Set<string> | null = null;
+  let expanded = false;
 
   function nod(): void {
     el.classList.remove("is-nod");
@@ -71,7 +73,7 @@ export function createThreadsChip({
     labelEl.textContent = t("threads.chip_label");
     countEl.textContent = String(waiting.length);
     el.setAttribute("aria-label", t("threads.chip_aria", { n: waiting.length }));
-    el.hidden = waiting.length === 0;
+    el.hidden = waiting.length === 0 && !expanded;
   }
 
   const fold = holdToFold(el, collapsed);
@@ -104,8 +106,10 @@ export function createThreadsChip({
       render();
       if (arrived) nod();
     },
-    setExpanded(expanded) {
+    setExpanded(next) {
+      expanded = next;
       el.setAttribute("aria-expanded", String(expanded));
+      render();
     },
     dispose() {
       fold.dispose();

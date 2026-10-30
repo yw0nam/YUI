@@ -1,4 +1,4 @@
-/** Where a docked window sits beside its owner, in screen logical px: the shared rules the quick card and the Threads window place by. */
+/** Where a docked window sits beside its owner, in screen logical px: the rules the quick card places by. */
 
 import { clampToWorkArea } from "../geometry/screen-geometry";
 
@@ -60,16 +60,6 @@ export function clampDock(
     bounds.width,
     bounds.height,
   );
-}
-
-/** The work area pulled `inset` inside on every edge. */
-export function insetWorkArea(workArea: DockWorkArea, inset: number): DockWorkArea {
-  return {
-    x: workArea.x + inset,
-    y: workArea.y + inset,
-    width: workArea.width - inset * 2,
-    height: workArea.height - inset * 2,
-  };
 }
 
 /** The docked window's x on `side`: its visible edge, `inset` inside the box, `gap` from the anchor's edge. */

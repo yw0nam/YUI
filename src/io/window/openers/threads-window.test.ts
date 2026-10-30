@@ -3,7 +3,8 @@
 
 import { beforeEach, expect, it, vi } from "vitest";
 
-const { WebviewWindow, getByLabel } = vi.hoisted(() => ({
+const { WebviewWindow, getByLabel, innerPosition } = vi.hoisted(() => ({
+  innerPosition: vi.fn(async () => ({ x: 200, y: 100 })),
   WebviewWindow: vi.fn(
     class {
       once = vi.fn();
@@ -16,7 +17,7 @@ vi.mock("@tauri-apps/api/webviewWindow", () => ({
 }));
 vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: () => ({
-    innerPosition: async () => ({ x: 200, y: 100 }),
+    innerPosition,
     scaleFactor: async () => 2,
   }),
 }));
@@ -46,6 +47,7 @@ const CHIP = { x: 10, y: 20, width: 100, height: 30 };
 beforeEach(() => {
   vi.stubGlobal("__TAURI_INTERNALS__", {});
   getByLabel.mockResolvedValue(null);
+  innerPosition.mockImplementation(async () => ({ x: 200, y: 100 }));
 });
 
 it("creates the hidden window and holds an open made before its ready report", async () => {
@@ -60,7 +62,7 @@ it("creates the hidden window and holds an open made before its ready report", a
       url: "threads.html",
       decorations: false,
       transparent: true,
-      alwaysOnTop: true,
+      alwaysOnTop: false,
       skipTaskbar: true,
       visible: false,
       acceptFirstMouse: true,
@@ -75,7 +77,7 @@ it("creates the hidden window and holds an open made before its ready report", a
   );
 });
 
-it("reports the window's closed signal so the chip shows again", () => {
+it("reports the window's closed signal so the chip leaves its open state", () => {
   const b = bridge();
   const onClosed = vi.fn();
   createThreadsWindowController({ bridge: b, onClosed });
@@ -83,4 +85,20 @@ it("reports the window's closed signal so the chip shows again", () => {
   b.fire("closed");
 
   expect(onClosed).toHaveBeenCalledTimes(1);
+});
+
+it("keeps the open state when a request to the open window fails", async () => {
+  const b = bridge();
+  const onClosed = vi.fn();
+  const controller = createThreadsWindowController({ bridge: b, onClosed });
+  controller.open(CHIP);
+  b.fire("ready");
+  await vi.waitFor(() => expect(b.sent).toHaveLength(1));
+
+  innerPosition.mockRejectedValueOnce(new Error("window gone"));
+  controller.open(CHIP);
+  await vi.waitFor(() => expect(innerPosition).toHaveBeenCalledTimes(2));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  expect(onClosed).not.toHaveBeenCalled();
 });

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-/** wire-threads-chip.test.ts — main's Threads chip seeds from the window's client, follows it, and steps aside on the window's closed report. */
+/** wire-threads-chip.test.ts — main's Threads chip seeds from the window's client, follows it, and stays marked expanded until the window's closed report. */
 
 import { beforeEach, expect, it, vi } from "vitest";
 import type { ThreadsSnapshot } from "../../contract";
@@ -120,7 +120,7 @@ it("does not nod on the first snapshot after a null seed", () => {
   expect(chip.classList.contains("is-nod")).toBe(false);
 });
 
-it("shows the chip again when the Threads window reports closed", async () => {
+it("marks the chip expanded from its tap until the Threads window reports closed", async () => {
   const client = fakeClient(null);
   wireThreadsChip({
     client,
