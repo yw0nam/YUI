@@ -25,8 +25,8 @@ impl Disk {
 }
 
 pub fn replay(dir: &Path, now: u64) -> Vec<Thread> {
-    let files = match fs::read_dir(dir) {
-        Ok(files) => files,
+    let entries = match fs::read_dir(dir) {
+        Ok(entries) => entries,
         Err(error) => {
             if error.kind() != io::ErrorKind::NotFound {
                 log::warn!("threads_replay_failed path={} error={error}", dir.display());
@@ -34,63 +34,35 @@ pub fn replay(dir: &Path, now: u64) -> Vec<Thread> {
             return vec![];
         }
     };
-    let mut files: Vec<_> = files
+    let mut files: Vec<_> = entries
+        .flatten()
+        .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_file()))
         .filter_map(|entry| {
-            let entry = match entry {
-                Ok(entry) => entry,
-                Err(error) => {
-                    log::warn!("threads_replay_failed path={} error={error}", dir.display());
-                    return None;
-                }
-            };
-            match entry.file_type() {
-                Ok(kind) if kind.is_file() => {}
-                Ok(_) => return None,
-                Err(error) => {
-                    log::warn!(
-                        "threads_replay_failed path={} error={error}",
-                        entry.path().display()
-                    );
-                    return None;
-                }
-            }
-            let name = entry.file_name();
-            let name = name.to_str()?;
             // The shared parser accepts variable-width dates; replay requires the canonical filename width.
-            if name.len() != 24 {
-                return None;
-            }
-            let date = parse_dated_name(name, "threads", "jsonl")?;
-            Some((date, entry.path()))
+            let name = entry
+                .file_name()
+                .into_string()
+                .ok()
+                .filter(|name| name.len() == 24)?;
+            Some((parse_dated_name(&name, "threads", "jsonl")?, entry.path()))
         })
         .collect();
-    files.sort_by_key(|(date, _)| *date);
+    files.sort();
     let mut threads = HashMap::new();
     for (_, path) in files {
-        let file = match fs::File::open(&path) {
-            Ok(file) => file,
-            Err(error) => {
-                log::warn!(
-                    "threads_replay_failed path={} error={error}",
-                    path.display()
-                );
-                continue;
-            }
-        };
-        for line in io::BufReader::new(file).lines() {
-            let line = match line {
-                Ok(line) => line,
-                Err(error) => {
-                    log::warn!(
-                        "threads_replay_failed path={} error={error}",
-                        path.display()
-                    );
-                    break;
+        let read = fs::File::open(&path).and_then(|file| {
+            for line in io::BufReader::new(file).lines() {
+                if let Ok(thread) = serde_json::from_str::<Thread>(&line?) {
+                    threads.insert(thread.id.clone(), thread);
                 }
-            };
-            if let Ok(thread) = serde_json::from_str::<Thread>(&line) {
-                threads.insert(thread.id.clone(), thread);
             }
+            Ok(())
+        });
+        if let Err(error) = read {
+            log::warn!(
+                "threads_replay_failed path={} error={error}",
+                path.display()
+            );
         }
     }
     threads
