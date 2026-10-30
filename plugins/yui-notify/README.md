@@ -2,9 +2,12 @@
 
 Claude Code and Codex hooks post coding-agent conversations as [Threads](../../docs/reference/threads.md).
 Threads are app-wide and fire no character turn. Codex accepts answers through synchronous
-hooks; Claude Code accepts answers through its channel server when launched with the channel flag.
+hooks. Claude Code accepts answers through its channel server when launched with the channel
+flag; without a ready channel its Stop hook waits for the answer like Codex's.
 
 ## Install
+
+Install the plugin on every host where an agent runs, including SSH hosts.
 
 Claude Code:
 
@@ -49,7 +52,7 @@ PID if discovery fails. Ids survive `/clear`. Codex ids are `codex:<host>:<sessi
 | Agent | Event | State | Entry | Ask |
 |---|---|---|---|---|
 | Both | `UserPromptSubmit` | `working` | `user`: prompt | Closes |
-| Claude Code | `Stop` | `input-required` with ready channel; otherwise `completed` | `agent`: last assistant message | “What next?” with ready channel; otherwise closes |
+| Claude Code | `Stop` | `input-required` | `agent`: last assistant message | “What next?” with text |
 | Claude Code | `PermissionRequest` | `input-required` | Channel owns the entry when ready; otherwise hook posts tool input | Channel adds Allow, Deny, and text |
 | Claude Code | `Notification` (elicitation) | `input-required` | `system`: message | None added |
 | Claude Code | `SessionEnd` | `completed` | `system`: Session ended | Closes |
@@ -81,7 +84,7 @@ claude --dangerously-load-development-channels plugin:yui-notify@yui
 Channels are a Claude Code research preview and require an account and organization
 policy that permit channels. The development flag allows this plugin during the preview.
 A plain `claude` launch still loads the MCP server, but it stays idle and consumes no
-answers. Its hooks post read-only Threads and Stop closes the Thread.
+answers; its Stop hook waits for the answer instead (§ Synchronous hook answers).
 The plugin manifest declares no MCP server, so Codex starts none: the channel belongs to
 Claude Code, and Codex reads a plugin's `.mcp.json` command literally.
 
@@ -100,18 +103,23 @@ SIGINT and SIGTERM end the server at once and take the channel file with it.
 - A permission channel request posts Allow, Deny, and text. Allow or Deny sends that
   verdict; any text is also sent as a user channel message. Text alone denies the tool
   and sends the instruction. Release leaves the terminal permission dialog alone.
-- Stop posts “What next?” only while a ready channel file names a live server. Text
-  sends the next instruction as a user channel message. Release sends nothing.
-- Claude Code hooks never wait for answers. The server long-polls YUI without `ask_id`
+- Stop text sends the next instruction as a user channel message. Release sends nothing.
+- While a ready channel file names a live server, Claude Code hooks never wait for answers.
+  The server long-polls YUI without `ask_id`
   for both kinds of answer, backing off from 1 to 30 seconds on missing Threads or errors.
   Malformed answers and dispatch failures log to stderr and do not stop polling. Failed
   permission PUTs write the same `last-error.json` record as hook requests.
 
-## Codex answers and fallback
+## Synchronous hook answers
 
-`Stop` and `PermissionRequest` are synchronous, with a 660-second hook timeout.
-After posting an ask, Codex's hook long-polls its answer route in intervals up to 25 seconds.
-YUI never connects back to the agent. The turn stays open while the hook waits.
+Codex's `Stop` and `PermissionRequest` hooks, and Claude Code's `Stop` hook without a ready
+channel, are synchronous, with a 660-second hook timeout. After posting an ask, the hook
+long-polls its answer route in intervals up to 25 seconds. YUI never connects back to the
+agent. The turn stays open while the hook waits.
+
+Claude Code queues a prompt typed in its terminal during the wait and runs it after the hook
+returns; Esc ends the wait at once. Claude Code shows the continued instruction as
+“Stop hook error: <text>”.
 
 - Permission Allow returns an allow decision. Deny returns a deny decision with any text
   as its message. Text alone denies and gives Codex that instruction.
@@ -119,8 +127,9 @@ YUI never connects back to the agent. The turn stays open while the hook waits.
   The continuation's Stop posts another ask, so instructions can be chained.
 - Release prints nothing and closes the ask: Stop becomes `completed`; permission stays
   `working` while Codex uses its terminal approval prompt.
-- A wait cap, closed ask (410), or error prints nothing and closes the ask with a final
-  PUT: `completed` for Stop, `working` for permission fallback to the terminal.
+- A wait cap, closed ask (410), error, or SIGTERM, SIGINT, or SIGHUP prints nothing and
+  closes the ask with a final PUT: `completed` for Stop, `working` for permission fallback
+  to the terminal. Claude Code sends SIGTERM on Esc.
 
 When Codex's host app is frontmost on macOS, permission posts without an ask and exits
 immediately, letting the terminal prompt appear. Stop still asks. The check compares
@@ -174,8 +183,10 @@ yui-notify test [--endpoint URL]
   `$XDG_STATE_HOME/yui-notify/` (default `~/.local/state/yui-notify/`).
 - `probe` sends `GET /threads/yui-notify-probe/answer?ask_id=probe&wait=0`.
   HTTP 404 proves the listener and route are up; HTTP 400 prints “update YUI”.
-- `test` PUTs one completed Thread at `yui-notify:test:<host>` with a system entry,
-  and prints `sent: HTTP <n>` on success.
+- `test` PUTs an `input-required` Thread at `yui-notify:test:<host>` with a system entry and
+  an “Arrived” ask, prints `sent: HTTP <n>; …`, and waits 60 seconds for the answer. It prints
+  `answered: …` and exits 0, or prints `no answer within 60 s` and exits 1. Every path,
+  Ctrl-C included, ends with a PUT that closes the ask and completes the Thread.
 
 `probe` and `test` exit 0 on success and 1 on failure. See
 [troubleshooting](skills/setup/references/troubleshooting.md) for failure lines.

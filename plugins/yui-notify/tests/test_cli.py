@@ -1,10 +1,13 @@
 import http.server
 import io
 import json
+import os
+import signal
 import socket
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -86,7 +89,7 @@ def run_hook(tmp_path, endpoint, fixture, config=None, extra_env=None, **updates
 @pytest.mark.parametrize(
     "fixture,state,role,text,ask",
     [
-        ("claude-stop.json", "completed", "agent", None, None),
+        ("claude-stop.json", "input-required", "agent", None, "next"),
         (
             "claude-permission.json",
             "input-required",
@@ -126,7 +129,16 @@ def test_hook_posts_thread(tmp_path, server, fixture, state, role, text, ask):
         "state": state,
         "entries": [{"role": role, "text": text or data["last_assistant_message"]}],
     }
-    if ask in ("stop", "perm"):
+    if ask == "next":
+        actual = body["ask"]
+        assert actual["ask_id"].startswith("next:") and len(actual["ask_id"]) == 5 + 32
+        expected["ask"] = {
+            "ask_id": actual["ask_id"],
+            "prompt": "What next?",
+            "text": True,
+            "placeholder": "Next instruction",
+        }
+    elif ask in ("stop", "perm"):
         actual = body["ask"]
         assert actual["ask_id"].startswith(f"{ask}:{data['turn_id']}:")
         assert len(actual["ask_id"].rsplit(":", 1)[1]) == 32
@@ -274,7 +286,12 @@ def test_unreachable_endpoint_exits_zero_and_records_error(tmp_path):
         ("probe", 503, "YUI is busy: every answer wait is in use: {url}", 1),
         ("probe", None, "YUI is not listening at {url} (External signals off, wrong port, or no tunnel)", 1),
         ("test", 404, "unknown or invalid thread id: {url}", 1),
-        ("test", 200, "sent: HTTP 200", 0),
+        (
+            "test",
+            200,
+            "sent: HTTP 200; answer it in YUI's Threads window within 60 s\nanswered: Arrived",
+            0,
+        ),
         ("test", 503, "YUI is busy: every answer wait is in use: {url}", 1),
     ],
 )
@@ -284,6 +301,7 @@ def test_probe_and_test_report(tmp_path, server, capsys, command, status, line, 
         endpoint = "http://127.0.0.1:1"
     else:
         received.status[:] = [status, status]
+    received.answer = {"choice": "arrived"}
     assert main([command, "--endpoint", endpoint], env={"XDG_CONFIG_HOME": str(tmp_path)}) == code
     path = (
         "/threads/yui-notify-probe/answer?ask_id=probe&wait=0"
@@ -293,10 +311,28 @@ def test_probe_and_test_report(tmp_path, server, capsys, command, status, line, 
     assert capsys.readouterr().out == line.format(url=endpoint + path) + "\n"
     if command == "test":
         assert received[0][0] == path
-        assert received[0][1]["state"] == "completed"
+        assert received[0][1]["state"] == "input-required"
+        assert received[0][1]["ask"]["ask_id"].startswith("test:")
         assert received[0][1]["entries"] == [
             {"role": "system", "text": "Test Thread from the yui-notify setup."}
         ]
+        if code == 0:
+            assert parse_qs(urlparse(received.polls[0]).query)["ask_id"] == [received[0][1]["ask"]["ask_id"]]
+            assert received[-1][1]["state"] == "completed"
+            assert received[-1][1]["ask"] is None
+
+
+def test_test_without_answer_closes_the_thread(tmp_path, server, capsys, monkeypatch):
+    endpoint, received = server
+    received.status[1] = 204
+    ticks = iter([0, 0, 600])
+    monkeypatch.setattr("time.monotonic", lambda: next(ticks))
+    assert main(["test", "--endpoint", endpoint], env={"XDG_CONFIG_HOME": str(tmp_path)}) == 1
+    assert capsys.readouterr().out == (
+        "sent: HTTP 200; answer it in YUI's Threads window within 60 s\nno answer within 60 s\n"
+    )
+    assert len(received) == 2
+    assert received[-1][1] == {**received[0][1], "state": "completed", "ask": None, "entries": []}
 
 
 def test_claude_id_falls_back_to_parent_pid(tmp_path, server, monkeypatch):
@@ -309,7 +345,7 @@ def test_claude_id_falls_back_to_parent_pid(tmp_path, server, monkeypatch):
 @pytest.mark.parametrize(
     "fixture,waits",
     [
-        ("claude-stop.json", False),
+        ("claude-stop.json", True),
         ("claude-permission.json", False),
         ("codex-stop.json", True),
         ("codex-permission.json", False),
@@ -379,36 +415,37 @@ def test_probe_rejects_endpoint_path(tmp_path, server, capsys, path):
 
 
 @pytest.mark.parametrize("channel", ["live", "stale", "missing"])
-def test_claude_stop_channel_never_waits(tmp_path, server, capsys, monkeypatch, channel):
+def test_claude_stop_waits_unless_a_channel_is_ready(tmp_path, server, capsys, monkeypatch, channel):
     import os
     from uuid import UUID
 
     endpoint, received = server
+    received.answer = {"text": "Continue"}
     path = tmp_path / "state" / "yui-notify" / "channels" / "8864"
     path.parent.mkdir(parents=True)
     if channel != "missing":
         path.write_text(str(os.getpid()) if channel == "live" else "2147483647")
 
     def wait(*args):
-        pytest.fail("Claude hooks never call wait_for_answer")
+        pytest.fail("a ready channel delivers the answer, the hook never waits")
 
-    monkeypatch.setattr("yui_notify.hook.run.wait_for_answer", wait)
+    if channel == "live":
+        monkeypatch.setattr("yui_notify.hook.run.wait_for_answer", wait)
     run_hook(tmp_path, endpoint, "claude-stop.json")
     body = received[0][1]
-    assert body["state"] == ("input-required" if channel == "live" else "completed")
-    if channel == "live":
-        ask = body["ask"]
-        assert str(UUID(ask["ask_id"].removeprefix("next:"))).replace("-", "") == ask["ask_id"][5:]
-        assert ask == {
-            "ask_id": ask["ask_id"],
-            "prompt": "What next?",
-            "text": True,
-            "placeholder": "Next instruction",
-        }
-    else:
-        assert body["ask"] is None
-    assert received.polls == []
-    assert capsys.readouterr().out == ""
+    ask = body["ask"]
+    assert body["state"] == "input-required"
+    assert str(UUID(ask["ask_id"].removeprefix("next:"))).replace("-", "") == ask["ask_id"][5:]
+    assert ask == {
+        "ask_id": ask["ask_id"],
+        "prompt": "What next?",
+        "text": True,
+        "placeholder": "Next instruction",
+    }
+    assert bool(received.polls) == (channel != "live")
+    assert capsys.readouterr().out == (
+        "" if channel == "live" else '{"decision": "block", "reason": "Continue"}\n'
+    )
 
 
 @pytest.mark.parametrize("channel", ["live", "stale", "missing"])
@@ -451,3 +488,46 @@ def test_hook_path_imports_no_third_party_module():
     )
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
     assert out.stdout.strip() == "[]"
+
+
+def test_signalled_wait_closes_its_ask(tmp_path, server):
+    endpoint, received = server
+    received.status[1] = 204
+    cfg_dir = tmp_path / "cfg" / "yui-notify"
+    cfg_dir.mkdir(parents=True)
+    (cfg_dir / "config.json").write_text(json.dumps({"endpoint": endpoint}))
+    env = dict(
+        os.environ,
+        CLAUDECODE="1",
+        CLAUDE_PID="8864",
+        XDG_CONFIG_HOME=str(tmp_path / "cfg"),
+        XDG_STATE_HOME=str(tmp_path / "state"),
+    )
+    env.pop("CLAUDE_CODE_MESSAGING_SOCKET", None)
+    env.pop("CLAUDE_CODE_ENTRYPOINT", None)
+    hook = subprocess.Popen(
+        [sys.executable, str(PLUGIN_ROOT / "bin" / "yui-notify"), "hook"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env=env,
+    )
+    try:
+        hook.stdin.write((FIXTURES / "claude-stop.json").read_bytes())
+        hook.stdin.close()
+        deadline = time.time() + 20
+        while time.time() < deadline and not received.polls:
+            time.sleep(0.05)
+        assert received.polls != []
+        started = time.time()
+        hook.send_signal(signal.SIGTERM)
+        try:
+            hook.wait(timeout=1.4)
+        except subprocess.TimeoutExpired:
+            pass
+        assert hook.returncode is not None
+        assert time.time() - started < 1.4
+        _, closing = received[-1]
+        assert (closing["state"], closing["ask"]) == ("completed", None)
+    finally:
+        hook.kill()

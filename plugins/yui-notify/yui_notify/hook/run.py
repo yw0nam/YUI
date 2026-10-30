@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from typing import TextIO
 
 from yui_notify import config
-from yui_notify.channel.ready_file import add_next_ask, owns_permission
+from yui_notify.channel.ready_file import owns_permission, ready
 from yui_notify.hook.event import parse_event
 from yui_notify.hook.focus import host_app_in_front
 from yui_notify.hook.wait import wait_for_answer
@@ -33,12 +33,11 @@ def run_hook(env: Mapping[str, str], stdin: TextIO) -> None:
     url = cfg["endpoint"] + "/threads/" + thread_id(event, env)
     front = event.agent == "codex" and event.phase == "PermissionRequest" and host_app_in_front(env)
     body = build_thread(event, context(event.cwd, env), front)
-    add_next_ask(body, event, env)
     status, _, error = put(url, body)
     if error:
         config.write_error(env, url, status, error)
         return
-    if event.agent == "codex" and body.get("ask"):
+    if body.get("ask") and not (event.agent == "claude-code" and ready(env)):
         cap = cfg["wait"]["stop" if event.phase == "Stop" else "permission"]
         output = wait_for_answer(url, body, event.phase, cap, env)
         if output:

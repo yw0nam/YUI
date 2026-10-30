@@ -11,6 +11,7 @@ The plugin posts Claude Code and Codex lifecycle events as app-wide Threads with
 character speech. Codex waits for answers through synchronous hooks. Claude Code takes
 answers through the plugin's channel server when launched with the channel flag.
 
+Run this setup once on every host where an agent runs, each with the plugin installed there.
 Commands run from this skill's directory. Read `references/troubleshooting.md` for a failed
 command, and `references/remote.md` when the agent runs over SSH.
 
@@ -30,9 +31,9 @@ keep for every duplicate hook.
 
 ## 2. Probe YUI
 
+Turn on **Settings → Proactive → Watchers → External signals** in YUI, then restart YUI.
 Ask where YUI runs. For an agent over SSH, follow `references/remote.md` first.
 Use `http://127.0.0.1:<port>` with no path, default `http://127.0.0.1:8770`.
-Turn on **Settings → Proactive → Watchers → External signals**, then restart YUI.
 
 ```bash
 ../../bin/yui-notify probe --endpoint <url>
@@ -65,9 +66,12 @@ Done when: the JSON contains `endpoint`, `wait.stop`, and `wait.permission`.
 ../../bin/yui-notify test
 ```
 
-The command sends one completed Thread with a system entry. It fires no character turn.
+The command sends one Thread that asks “Did this test Thread arrive?” and waits 60 seconds
+for the answer. It fires no character turn. Ask the user to open the Threads chip beside the
+character and answer it.
 
-Done when: the command prints `sent: HTTP 200` and the user confirms the Thread arrived in YUI.
+Done when: the command prints `answered: …`. `no answer within 60 s` means the Thread never
+showed in YUI, or the answer did not come back: read `references/troubleshooting.md`.
 
 ## 5. Wire the agent and prove an answer
 

@@ -55,10 +55,7 @@ def _ask(event: Event) -> dict:
 def build_thread(event: Event, ctx: Mapping[str, Any], front: bool) -> dict:
     role = "user" if event.phase == "UserPromptSubmit" else "agent" if event.phase == "Stop" else "system"
     state = (
-        terminal_state(event.phase)
-        if event.phase in ("UserPromptSubmit", "SessionEnd")
-        or (terminal_state(event.phase) == "completed" and event.agent == "claude-code")
-        else "input-required"
+        terminal_state(event.phase) if event.phase in ("UserPromptSubmit", "SessionEnd") else "input-required"
     )
     title = f"{ctx['project']} ({ctx['branch']})" if ctx["branch"] else ctx["project"]
     body = {
@@ -70,6 +67,8 @@ def build_thread(event: Event, ctx: Mapping[str, Any], front: bool) -> dict:
     }
     if event.phase == "UserPromptSubmit" or state == "completed":
         body["ask"] = None
+    elif event.agent == "claude-code" and event.phase == "Stop":
+        body["ask"] = next_ask("next:" + uuid4().hex)
     elif event.agent == "codex" and (event.phase == "Stop" or not front):
         body["ask"] = _ask(event)
     fit_entries(body)

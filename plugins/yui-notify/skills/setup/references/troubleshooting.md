@@ -20,6 +20,13 @@ HTTP 400 means YUI needs updating. A successful probe creates no Thread or signa
 | `unexpected HTTP 421 from <url>` or `unexpected HTTP 403 from <url>` | Use a loopback endpoint on the YUI machine, or a reverse tunnel to it. |
 | `unexpected HTTP <n> from <url>` | Read the YUI log and report the status. |
 
+## The test Thread gets no answer
+
+`no answer within 60 s` after `sent: HTTP 200` means YUI stored the Thread but no answer came
+back. The Threads chip shows only while a Thread waits; answer before the 60 seconds end, then
+run `test` again. A line printed at once means the answer poll failed, for example because a
+second `test` on the same host replaced the ask: read `last-error.json` below.
+
 ## Codex falls back
 
 Codex permissions in the frontmost host app post no ask and return immediately to the
@@ -29,8 +36,8 @@ Timeout and error close the ask with a final PUT.
 
 ## Claude Code channel
 
-The Stop hook posts “What next?” only while a ready channel file names a live channel
-server. The server writes `$XDG_STATE_HOME/yui-notify/channels/<claude pid>` (default
+A Claude Code Stop hook waits for the answer itself unless a ready channel file names a live
+channel server. The server writes `$XDG_STATE_HOME/yui-notify/channels/<claude pid>` (default
 `~/.local/state/yui-notify/channels/`) after MCP initialization.
 
 | Sign | Cause and action |
@@ -39,7 +46,7 @@ server. The server writes `$XDG_STATE_HOME/yui-notify/channels/<claude pid>` (de
 | The startup screen says channels are blocked by org policy | Channels are off for the organization. See `claude-code.md` step 2. |
 | `/mcp` shows the yui-notify server failed | `uv` is missing on this host, or the server did not start. Install `uv`, then restart with `--debug` added and read `~/.claude/debug/<session-id>.txt`. |
 | No channel file names this Claude process | The server serves idle, has not finished MCP initialization, or has exited. An idle server prints one stderr line with the reason: `claude process not found` or `Claude Code channel not enabled`. Restart with `--debug` added to read it. |
-| A Stop posts no ask while the channel file exists | Stop sends nothing while a background task runs or for an SDK launch (the plugin README § Suppressions). Send a prompt that ends with no background task. |
+| A Stop posts no ask | Stop sends nothing while a background task runs or for an SDK launch (the plugin README § Suppressions). Send a prompt that ends with no background task. |
 
 ## Read `last-error.json`
 
@@ -51,5 +58,5 @@ Failed hook requests write `$XDG_STATE_HOME/yui-notify/last-error.json`, default
 ```
 
 `time` is UTC, `url` is the failing request, `status` is the HTTP code or null, and `error`
-is the transport or HTTP error. Probe, test, and startup checks do not write this file.
+is the transport or HTTP error. Probe and startup checks do not write this file; `test` writes it only when its answer poll fails.
 A stale record is the last hook failure; delete it after fixing the cause.

@@ -24,7 +24,7 @@ def main(
         p.add_argument("--endpoint")
     args = parser.parse_args(argv)
     if args.cmd == "hook":
-        with contextlib.suppress(Exception):  # a hook never fails the agent
+        with contextlib.suppress(Exception, KeyboardInterrupt):  # a hook never fails the agent
             run_hook(env, stdin)
         return 0
     if args.cmd == "channel":
@@ -32,4 +32,4 @@ def main(
 
         return runtime.run()
     url = args.endpoint or config.load(env)["endpoint"]
-    return probe(url) if args.cmd == "probe" else send_test(url)
+    return probe(url) if args.cmd == "probe" else send_test(url, env)
