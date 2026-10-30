@@ -4,11 +4,9 @@ import os
 from collections.abc import Mapping
 from contextlib import contextmanager
 from pathlib import Path
-from uuid import uuid4
 
 from yui_notify.hook.event import Event
 from yui_notify.host.claude_pid import claude_pid
-from yui_notify.threads.body import fit_entries, next_ask
 
 
 def _path(pid: int, env: Mapping[str, str]) -> Path:
@@ -46,16 +44,9 @@ def remove_ready_file(pid: int, env: Mapping[str, str]) -> None:
         path.unlink()
 
 
-def add_next_ask(body: dict, event: Event, env: Mapping[str, str]) -> None:
-    if event.agent == "claude-code" and event.phase == "Stop" and live(claude_pid(env, hook=True), env):
-        body["state"] = "input-required"
-        body["ask"] = next_ask("next:" + uuid4().hex)
-        fit_entries(body)
+def ready(env: Mapping[str, str]) -> bool:
+    return live(claude_pid(env, hook=True), env)
 
 
 def owns_permission(event: Event, env: Mapping[str, str]) -> bool:
-    return (
-        event.agent == "claude-code"
-        and event.phase == "PermissionRequest"
-        and live(claude_pid(env, hook=True), env)
-    )
+    return event.agent == "claude-code" and event.phase == "PermissionRequest" and ready(env)
