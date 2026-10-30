@@ -93,6 +93,7 @@ function positions(): Array<{ x: number; y: number }> {
 
 beforeEach(() => {
   vi.stubGlobal("__TAURI_INTERNALS__", {});
+  availableMonitors.mockImplementation(async () => [MONITOR]);
   win.setSize.mockClear();
   win.setPosition.mockClear();
   win.show.mockClear();
@@ -224,6 +225,45 @@ describe("wireThreadsDock", () => {
     owner.outerPosition.mockImplementation(async () => ({ x: 600, y: 120 }));
     owner.onMoved.mock.calls[0][0]({ payload: { x: 600, y: 120 } });
     await vi.waitFor(() => expect(positions()).toEqual([{ x: 1012, y: 120 }]));
+  });
+
+  it("leaves the hidden window where it is when the pet window moves", async () => {
+    const { dock } = wired();
+    await dock.open(CHIP);
+    await vi.waitFor(() => expect(win.setFocus).toHaveBeenCalledOnce());
+    await dock.hide();
+    win.setPosition.mockClear();
+
+    owner.outerPosition.mockImplementation(async () => ({ x: 600, y: 120 }));
+    owner.onMoved.mock.calls[0][0]({ payload: { x: 600, y: 120 } });
+    await settle();
+
+    expect(positions()).toEqual([]);
+  });
+
+  it("fits the window to the new monitor's size before a follow moves it there", async () => {
+    const { dock } = wired();
+    await dock.open(CHIP);
+    await vi.waitFor(() => expect(win.setFocus).toHaveBeenCalledOnce());
+    // A 1200×700 monitor right of the first: the window shrinks to 700 less 12px each side.
+    const SMALL = {
+      position: { x: 2000, y: 0 },
+      size: { width: 1200, height: 700 },
+      workArea: { position: { x: 2000, y: 0 }, size: { width: 1200, height: 700 } },
+      scaleFactor: 1,
+    };
+    availableMonitors.mockImplementation(async () => [MONITOR, SMALL]);
+    win.setSize.mockClear();
+    win.setPosition.mockClear();
+
+    owner.outerPosition.mockImplementation(async () => ({ x: 2100, y: 50 }));
+    owner.onMoved.mock.calls[0][0]({ payload: { x: 2100, y: 50 } });
+    await vi.waitFor(() => expect(win.setPosition).toHaveBeenCalledOnce());
+
+    expect(win.setSize).toHaveBeenCalledWith(expect.objectContaining({ width: 960, height: 676 }));
+    expect(win.setSize.mock.invocationCallOrder[0]!).toBeLessThan(
+      win.setPosition.mock.invocationCallOrder[0]!,
+    );
   });
 
   it("docks again on the next open after a detached drop", async () => {
