@@ -32,6 +32,13 @@ export async function wireThreadsWindow(deps: {
   const bridge = createSettingsBridge(undefined, { windowKind: "threads" });
   const client = createThreadsClient();
   const settings = createThreadsWindowSettings({ storage: localStorageThreadsWindowStorage() });
+  const placement = createThreadsPlacement({ settings });
+  const resize = createThreadsResize({
+    current: placement.current,
+    apply: placement.apply,
+    save: placement.save,
+    nextFrame: (cb) => requestAnimationFrame(cb),
+  });
   const view = createThreadsView({
     mount: deps.app,
     now: Date.now,
@@ -39,18 +46,7 @@ export async function wireThreadsWindow(deps: {
     onClose: () => presence.close(),
     listCollapsed: settings.get().listCollapsed,
     onListCollapsed: settings.setListCollapsed,
-    resize: {
-      start: () => resize.start(),
-      move: (edge, dx, dy) => resize.move(edge, dx, dy),
-      end: () => void resize.end(),
-    },
-  });
-  const placement = createThreadsPlacement({ settings });
-  const resize = createThreadsResize({
-    current: placement.current,
-    apply: placement.apply,
-    save: placement.save,
-    nextFrame: (cb) => requestAnimationFrame(cb),
+    resize,
   });
   const presence = createThreadsPresence({
     view,
