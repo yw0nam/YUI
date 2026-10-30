@@ -7,7 +7,7 @@ node_modules
 .pnpm-store/
 dist
 *.local
-
+*.pyc
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
