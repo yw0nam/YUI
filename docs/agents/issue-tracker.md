@@ -20,7 +20,7 @@ Repo-specific: open every issue from the matching template in `.github/ISSUE_TEM
 Issue and PR bodies carry two kinds of claims; each has an evidence gate. An unverified claim is grounds for immediate rejection of the issue or PR.
 
 - **Prevention claims** ("this refactor stops X-class bugs", "catches future bugs early"): admissible only with a measured RED — a failing test committed or linked, a reproduced defect, or a per-bug table over the cited past incidents showing the change would have gated each one. No RED, no claim — state the counted structural fact instead ("X is decided in N places").
-- **Quantitative claims** (line counts, edit-site counts, blast radius, "N modules to add one value"): must be measured, with the measurement named — `wc -l`, `git show --name-only <commit>`, a grep count. A number without its measurement is rejected.
+- **Quantitative claims** (line counts, edit-site counts, blast radius, "N modules to add one value"): must be measured, with the measurement named — `wc -l`, `git show --name-only <commit>`, a grep count, `scripts/rust-lines.sh <file.rs>` for a Rust file's code and test lines. A number without its measurement is rejected.
 - **Outcome promises** ("bug class Y stops recurring") do not belong in issue bodies, map destinations, or PR descriptions. Promise mechanisms and deletions verifiable at PR time.
 
 ## Pull requests as a triage surface

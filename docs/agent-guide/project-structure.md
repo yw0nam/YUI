@@ -24,7 +24,7 @@ YUI/
   threads.html                       # Threads-window Vite entry
   vite.config.ts                     # Dev port YUI_DEV_PORT|1420, strictPort, host 127.0.0.1, backend proxy plugin
   biome.json                         # Format and lint config (curated rule set)
-  scripts/                           # Summarised: dev launchers (dev-port.mjs, tauri-dev.mjs for tauri:dev, dev-auto.mjs) and their shared package-manager.mjs helper, dev-backend-proxy.mjs, release.sh, worktree-setup.sh, architecture-map-base.mjs (writes the map of origin/main beside the data file for the viewer's Compare view), and ci/ (test-guard.sh, gates.sh, architecture-map.mjs, command-paths.mjs, css-selectors.mjs, logger-namespace.mjs)
+  scripts/                           # Summarised: dev launchers (dev-port.mjs, tauri-dev.mjs for tauri:dev, dev-auto.mjs) and their shared package-manager.mjs helper, dev-backend-proxy.mjs, release.sh, worktree-setup.sh, rust-lines.sh (code and test line counts of a Rust file), architecture-map-base.mjs (writes the map of origin/main beside the data file for the viewer's Compare view), and ci/ (test-guard.sh, gates.sh, architecture-map.mjs, command-paths.mjs, css-selectors.mjs, logger-namespace.mjs)
   configs/                           # Runtime-loaded config (no hardcoding)
     endpoints.json                   # chat/stt/tts base urls + chat_instructions, chat_api, chat_model_context_window + stt_model/stt_language/tts_provider/tts_model/tts_speaker/tts_max_inflight; the shipped configs/endpoints.json omits the url and speaker keys, and the settings panel overrides per device
     emotion_registry.json            # emotion id -> vrm_expression + fallback
