@@ -22,6 +22,8 @@ export interface ThreadsView {
   open(from: ScreenRect): Promise<void>;
   /** Shrinks back to where the last open grew from. */
   close(): Promise<void>;
+  /** The head is the window's drag handle; its × keeps its click. */
+  onHeadPointerDown(cb: (event: PointerEvent) => void): () => void;
   dispose(): void;
 }
 
@@ -51,6 +53,7 @@ export function createThreadsView(deps: {
   const content = root.querySelector<HTMLElement>(".yui-threads__content")!;
   const titleEl = root.querySelector("h1")!;
   const countEl = root.querySelector<HTMLElement>(".yui-threads__count")!;
+  const headEl = root.querySelector<HTMLElement>(".yui-threads__head")!;
   const closeEl = root.querySelector<HTMLButtonElement>(".yui-threads__close")!;
   const paneEl = root.querySelector<HTMLElement>(".yui-threads-pane")!;
   const pane = createThreadPane({ el: paneEl, now: deps.now, onAnswer: deps.onAnswer });
@@ -104,6 +107,11 @@ export function createThreadsView(deps: {
     },
   });
   closeEl.addEventListener("click", deps.onClose);
+  const headListeners = new Set<(event: PointerEvent) => void>();
+  headEl.addEventListener("pointerdown", (event) => {
+    if ((event.target as Element).closest("button")) return;
+    for (const cb of headListeners) cb(event);
+  });
   const offLocale = subscribeLocale(render);
   const refresh = setInterval(() => refreshTimes(root, deps.now()), REFRESH_MS);
   render();
@@ -123,6 +131,10 @@ export function createThreadsView(deps: {
       if (!pane.focusField()) list.focusSelected();
     },
     close: () => shrinkClose({ root, panel, content }, from),
+    onHeadPointerDown(cb) {
+      headListeners.add(cb);
+      return () => headListeners.delete(cb);
+    },
     dispose() {
       offKeys();
       offLocale();

@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "threads",
-  "description": "Threads window — a frameless always-on-top window beside the main character; places, shows, focuses and hides itself, and follows the stored theme",
+  "description": "Threads window — a frameless always-on-top window docked beside the main character; places, follows, drags and snaps itself, shows, focuses and hides itself, and follows the stored theme",
   "windows": [
     "threads"
   ],

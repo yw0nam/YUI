@@ -1386,7 +1386,7 @@ globalThis.YUI_MAP =
       "id": "app/threads-window",
       "module": "wiring",
       "label": "threads window wiring",
-      "role": "The Threads window's wiring: snapshots into the view, Answers to the store, the open request placing and showing the window beside main's pet window before the grow, Escape and × shrinking it back and hiding it, and the stored theme and language reloaded on settings-changed.",
+      "role": "The Threads window's wiring: snapshots into the view, Answers to the store, the open request docking and showing the window beside main's pet window before the grow, its head drag, drop snap and follow on the shared window dock, Escape and × shrinking it back and hiding it, and the stored theme and language reloaded on settings-changed.",
       "paths": [
         "src/app/threads-window"
       ]
@@ -2452,10 +2452,18 @@ globalThis.YUI_MAP =
       "id": "drop-release-source",
       "from": "shell/os-event-watcher",
       "to": "dispatcher/sources/gesture",
-      "carries": "window_drop_release: the dragged window's label; a quick-card window's release settles nothing in a pet window",
+      "carries": "window_drop_release: the dragged window's label; a quick-card or Threads window's release settles nothing in a pet window",
       "kind": "tauri-event",
       "transport": "shared",
       "wiring": "src/app/stage/wire-window-sources.ts"
+    },
+    {
+      "id": "drop-docked-label",
+      "from": "dispatcher/sources/gesture",
+      "to": "io/window/dock",
+      "carries": "isDockedWindowLabel(label): the quick-card and Threads labels whose drops settle in their own dock",
+      "kind": "call",
+      "transport": "shared"
     },
     {
       "id": "gesture-list-windows",
@@ -3026,10 +3034,28 @@ globalThis.YUI_MAP =
       "id": "threads-placement",
       "from": "app/threads-window",
       "to": "io/window/geometry",
-      "carries": "threadsWindowRect and chipInWindow: 12px beside the pet window on its roomier side, at most 960 × 820 and 12px inside the work area; the chip-sized rect the grow starts from",
+      "carries": "threadsWindowRect and chipInWindow: 12px beside the pet window on its roomier or a given side, at most 960 × 820 and 12px inside the work area; the chip-sized rect the grow starts from",
       "kind": "call",
       "transport": "shared",
-      "wiring": "src/app/threads-window/threads-placement.ts"
+      "wiring": "src/app/threads-window/threads-dock.ts"
+    },
+    {
+      "id": "threads-dock",
+      "from": "app/threads-window",
+      "to": "io/window/dock",
+      "carries": "createWindowDock {ownerLabel \"main\", box, inset 8, gap 20, anchor: the pet window's extent, beside: threadsWindowRect, bounds 12px inside the work area, fit} → dock(chip), hide",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/threads-dock.ts"
+    },
+    {
+      "id": "threads-head-drag",
+      "from": "ui/threads",
+      "to": "io/window/dock",
+      "carries": "onHeadPointerDown: a pointerdown on the head, not its ×, starts the window's drag",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/threads-dock.ts"
     },
     {
       "id": "quick-card-placement",

@@ -33,6 +33,11 @@ export interface DockOwner {
   onMoved: (cb: (event: { payload: { x: number; y: number } }) => void) => Promise<() => void>;
 }
 
+/** The docked windows' labels: their drops settle in their own windows, never on a pet. */
+export function isDockedWindowLabel(label: string): boolean {
+  return label === "threads" || label.startsWith("quick-card");
+}
+
 export interface WindowDockDeps<Request> {
   /** The owner pet window's label. */
   ownerLabel: string;
@@ -50,8 +55,8 @@ export interface WindowDockDeps<Request> {
   clampBounds?(workArea: DockWorkArea): DockWorkArea;
   /** The docked placement beside `anchor` on `side`; absent side, the roomier one. */
   beside(anchor: DockAnchor, workArea: DockWorkArea, side?: DockSide): DockPlacement;
-  /** Re-fits the window to `box()` before a docked move; absent for a fixed-size window. */
-  fit?(): Promise<void>;
+  /** Sizes the window to `box()` before a docked move. */
+  fit(): Promise<void>;
   /** The window's boot step, queued after the dock's listeners: hide, then report ready. */
   boot?(): Promise<void>;
   /** The head is the drag handle. */
@@ -144,7 +149,7 @@ export function createWindowDock<Request>(deps: WindowDockDeps<Request>): {
     const { anchor, at } = deps.anchor(owner, request);
     const workArea = await workAreaAt(at);
     const next = deps.beside(anchor, workArea);
-    await deps.fit?.();
+    await deps.fit();
     await moveTo(next);
     // Closed meanwhile (Escape): its close already hid the window.
     if (deps.isOpen && !deps.isOpen()) return next;
@@ -268,7 +273,7 @@ export function createWindowDock<Request>(deps: WindowDockDeps<Request>): {
       void queue(async () => {
         const current = placement;
         if (!current) return;
-        await deps.fit?.();
+        await deps.fit();
         const box = deps.box();
         const workArea = await workAreaAt({
           x: current.x + box.width / 2,

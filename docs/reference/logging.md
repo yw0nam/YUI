@@ -210,7 +210,7 @@ The card's Voice, Keep bubble and Unified chat tiles log the toggle events of th
 
 ## Threads window
 
-`io/window/openers/threads-window.ts` (namespace `threads-window`, in main's pet window) creates the Threads window through `ready-window`. `io/threads/threads-client.ts` (namespace `threads-client`) runs in both windows. The rest runs in the Threads window: `windows/threads-main.ts` boots it, `app/threads-window/wire-threads-window.ts` wires it, and `app/threads-window/threads-presence.ts` opens and closes it.
+`io/window/openers/threads-window.ts` (namespace `threads-window`, in main's pet window) creates the Threads window through `ready-window`. `io/threads/threads-client.ts` (namespace `threads-client`) runs in both windows. The rest runs in the Threads window: `windows/threads-main.ts` boots it, `app/threads-window/wire-threads-window.ts` wires it, `app/threads-window/threads-presence.ts` opens and closes it, and `app/threads-window/threads-dock.ts` docks it on `io/window/dock/window-dock.ts` (namespace `window-dock`, rows under the quick card's Docking).
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
@@ -219,7 +219,7 @@ The card's Voice, Keep bubble and Unified chat tiles log the toggle events of th
 | `threads-client` | `snapshot.invoke_failed` | `error` | `threads_snapshot` rejected (`warn` level). |
 | `threads-client` | `snapshot.listen_failed` | `error` | Listening to `threads-snapshot` failed; the snapshot is still read once (`warn` level). |
 | `threads-main` | `boot_failed` | `error` | The window's boot threw (`error` level). |
-| `wire-threads-window` | `threads_boot_hide_failed` | `error` | Hiding the window at boot threw; the ready report still goes out (`warn` level). |
+| `wire-threads-window` | `threads_boot_hide_failed` | `error` | Unlinking or hiding the window at boot threw; the ready report still goes out (`warn` level). |
 | `threads-presence` | `threads_open_failed` | `error` | Placing, showing or growing the window threw; it hides and main's chip shows again (`error` level). |
 | `threads-presence` | `threads_hide_failed` | `error` | Hiding the window threw (`warn` level). |
 

@@ -34,11 +34,15 @@
   min-width: 0;
 }
 
+/* The head is the window's drag handle. */
 .yui-threads__head {
   display: flex;
   align-items: center;
   gap: 16px;
   padding: 12px 16px 12px 24px;
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .yui-threads__head h1 {

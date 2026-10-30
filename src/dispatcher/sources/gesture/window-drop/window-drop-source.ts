@@ -32,6 +32,7 @@ import type {
   PeekConfig,
 } from "../../../../config/validators/avatar/types";
 import type { WindowRect } from "../../../../contract";
+import { isDockedWindowLabel } from "../../../../io/window/dock/window-dock";
 import type {
   PerchTargets,
   PlacementOptions,
@@ -419,8 +420,8 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       if (unlisten) return;
       try {
         unlisten = await listen(RELEASE_EVENT, ({ payload }) => {
-          // The quick card's drop moved no pet window; it settles in the card's own window.
-          if (typeof payload === "string" && payload.startsWith("quick-card")) return;
+          // A docked window's drop moved no pet window; it settles in that window's own dock.
+          if (typeof payload === "string" && isDockedWindowLabel(payload)) return;
           const dragged = deps.wasDragging?.() ?? true;
           if (deps.isHeld?.()) return;
           void settle()
