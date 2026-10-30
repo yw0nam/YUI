@@ -182,5 +182,3 @@ export function createThreadsPlacement(deps: {
     },
   };
 }
-
-export type ThreadsPlacement = ReturnType<typeof createThreadsPlacement>;
