@@ -6,9 +6,9 @@ from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
 
-from yui_notify.adapters import Event
-from yui_notify.claude_process import claude_pid
-from yui_notify.thread import fit_entries, next_ask
+from yui_notify.hook.event import Event
+from yui_notify.host.claude_pid import claude_pid
+from yui_notify.threads.body import fit_entries, next_ask
 
 
 def _path(pid: int, env: Mapping[str, str]) -> Path:

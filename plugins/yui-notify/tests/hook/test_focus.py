@@ -1,6 +1,6 @@
 import pytest
 
-from yui_notify.focus import host_app_in_front
+from yui_notify.hook.focus import host_app_in_front
 
 ORCA = {"__CFBundleIdentifier": "com.stablyai.orca"}
 

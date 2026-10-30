@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-PLUGIN_ROOT = Path(__file__).resolve().parent.parent
+PLUGIN_ROOT = Path(__file__).resolve().parents[2]
 INITIALIZE = {
     "jsonrpc": "2.0",
     "id": 1,
@@ -37,7 +37,7 @@ def test_server_leaves_on_a_signal_and_removes_the_channel_file(tmp_path, signum
         CLAUDE_CODE_MESSAGING_SOCKET=f"/tmp/cc-socks/{claude.pid}.sock",
     )
     server = subprocess.Popen(
-        [sys.executable, str(PLUGIN_ROOT / "channel" / "server.py")],
+        [sys.executable, str(PLUGIN_ROOT / "bin" / "yui-notify"), "channel"],
         stdin=subprocess.PIPE,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.PIPE,

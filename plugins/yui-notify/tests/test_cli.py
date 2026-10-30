@@ -2,6 +2,8 @@ import http.server
 import io
 import json
 import socket
+import subprocess
+import sys
 import threading
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -10,6 +12,7 @@ import pytest
 
 from yui_notify.cli import main
 
+PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
@@ -321,7 +324,7 @@ def test_focus_posts_and_only_permission_skips_wait(tmp_path, server, capsys, mo
         calls.append(True)
         return True
 
-    monkeypatch.setattr("yui_notify.hook.host_app_in_front", focus)
+    monkeypatch.setattr("yui_notify.hook.run.host_app_in_front", focus)
     run_hook(tmp_path, endpoint, fixture)
     assert calls == ([True] if fixture == "codex-permission.json" else [])
     assert len(received) == 1
@@ -389,7 +392,7 @@ def test_claude_stop_channel_never_waits(tmp_path, server, capsys, monkeypatch, 
     def wait(*args):
         pytest.fail("Claude hooks never call wait_for_answer")
 
-    monkeypatch.setattr("yui_notify.hook.wait_for_answer", wait)
+    monkeypatch.setattr("yui_notify.hook.run.wait_for_answer", wait)
     run_hook(tmp_path, endpoint, "claude-stop.json")
     body = received[0][1]
     assert body["state"] == ("input-required" if channel == "live" else "completed")
@@ -437,3 +440,14 @@ def test_claude_hook_socket_pid_overrides_inherited_pid(tmp_path, server):
         extra_env={"CLAUDE_CODE_MESSAGING_SOCKET": "/tmp/cc-socks/80.sock"},
     )
     assert received[0][0] == f"/threads/claude-code:{socket.gethostname().split('.')[0]}:80"
+
+
+def test_hook_path_imports_no_third_party_module():
+    """The hook path imports no third-party module"""
+    code = (
+        f"import sys; sys.path.insert(0, {str(PLUGIN_ROOT)!r}); "
+        "import yui_notify.cli, yui_notify.hook.run; "
+        "print([m for m in ('mcp', 'mcp_types', 'anyio', 'pydantic') if m in sys.modules])"
+    )
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
+    assert out.stdout.strip() == "[]"

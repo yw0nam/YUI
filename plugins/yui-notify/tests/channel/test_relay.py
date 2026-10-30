@@ -6,7 +6,7 @@ import pytest
 
 @pytest.mark.parametrize("preview", ["ls", "😀" * 16384])
 def test_permission_request_posts_ask(monkeypatch, preview):
-    from channel.relay import PermissionRequest, relay
+    from yui_notify.channel.relay import PermissionRequest, relay
 
     posted = []
 
@@ -14,7 +14,7 @@ def test_permission_request_posts_ask(monkeypatch, preview):
         posted.append((url, body))
         return 200, None, None
 
-    monkeypatch.setattr("channel.relay.put", put)
+    monkeypatch.setattr("yui_notify.channel.relay.put", put)
     asyncio.run(
         relay(
             "http://localhost:8770/threads/claude-code:host:20",
@@ -50,10 +50,10 @@ def test_permission_request_posts_ask(monkeypatch, preview):
 
 
 def test_permission_put_failure_records_error(tmp_path, monkeypatch):
-    from channel.relay import PermissionRequest, relay
+    from yui_notify.channel.relay import PermissionRequest, relay
 
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path))
-    monkeypatch.setattr("channel.relay.put", lambda *args: (503, None, "HTTP 503 Unavailable"))
+    monkeypatch.setattr("yui_notify.channel.relay.put", lambda *args: (503, None, "HTTP 503 Unavailable"))
     asyncio.run(
         relay(
             "http://localhost/threads/t",

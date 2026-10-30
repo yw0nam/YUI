@@ -113,11 +113,11 @@ connection's tunnel and proves nothing about the supervised one. Ask the user to
 probe on the local machine through a new connection with every forward cleared.
 
 - `<plugin root>` is the absolute path on the remote host of the directory that holds
-  `scripts/yui-notify`, two levels above this skill.
+  `bin/yui-notify`, two levels above this skill.
 - `<endpoint>` is `http://127.0.0.1:<remote port>`, with no path.
 
 ```bash
-ssh -o ClearAllForwardings=yes -o ControlPath=none <host> 'python3 <plugin root>/scripts/yui-notify probe --endpoint <endpoint>'
+ssh -o ClearAllForwardings=yes -o ControlPath=none <host> 'python3 <plugin root>/bin/yui-notify probe --endpoint <endpoint>'
 ```
 
 Done when: the command prints `ok: YUI is listening at <endpoint>/threads/yui-notify-probe/answer?ask_id=probe&wait=0`. The endpoint for

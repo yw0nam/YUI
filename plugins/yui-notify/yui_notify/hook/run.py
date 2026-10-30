@@ -5,14 +5,14 @@ from collections.abc import Mapping
 from typing import TextIO
 
 from yui_notify import config
-from yui_notify.adapters import parse_event
-from yui_notify.channel_file import add_next_ask, owns_permission
-from yui_notify.check import probe_failure
-from yui_notify.focus import host_app_in_front
-from yui_notify.label import context
-from yui_notify.post import put
-from yui_notify.thread import build_thread, thread_id
-from yui_notify.wait import wait_for_answer
+from yui_notify.channel.ready_file import add_next_ask, owns_permission
+from yui_notify.hook.event import parse_event
+from yui_notify.hook.focus import host_app_in_front
+from yui_notify.hook.wait import wait_for_answer
+from yui_notify.host.label import context
+from yui_notify.threads.body import build_thread, thread_id
+from yui_notify.threads.check import probe_failure
+from yui_notify.threads.client import put
 
 
 def run_hook(env: Mapping[str, str], stdin: TextIO) -> None:

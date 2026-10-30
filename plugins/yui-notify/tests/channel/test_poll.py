@@ -33,7 +33,7 @@ import pytest
     ],
 )
 def test_answer_notifications(answer, expected):
-    from channel.poll import dispatch
+    from yui_notify.channel.poll import dispatch
 
     sent = []
 
@@ -53,7 +53,7 @@ def test_answer_notifications(answer, expected):
 
 
 def test_poll_retries_and_resets_backoff(monkeypatch):
-    from channel.poll import poll
+    from yui_notify.channel.poll import poll
 
     results = iter(
         [(404, None, "unknown")] * 7
@@ -78,8 +78,8 @@ def test_poll_retries_and_resets_backoff(monkeypatch):
             sent.append(message.message.params)
             raise asyncio.CancelledError
 
-    monkeypatch.setattr("channel.poll.get", get)
-    monkeypatch.setattr("channel.poll.anyio.sleep", sleep)
+    monkeypatch.setattr("yui_notify.channel.poll.get", get)
+    monkeypatch.setattr("yui_notify.channel.poll.anyio.sleep", sleep)
     with pytest.raises(asyncio.CancelledError):
         asyncio.run(poll("http://localhost/threads/t", Write()))
     assert requests == [("http://localhost/threads/t/answer?wait=25", 30)] * 11
@@ -89,11 +89,11 @@ def test_poll_retries_and_resets_backoff(monkeypatch):
 
 @pytest.mark.parametrize("bad", [None, {}, {"ask_id": "next:bad", "text": "broken"}])
 def test_poll_skips_bad_answer_and_continues(monkeypatch, capsys, bad):
-    from channel.poll import poll
+    from yui_notify.channel.poll import poll
 
     results = iter([(200, bad, None), (200, {"ask_id": "next:good", "text": "Continue"}, None)])
     sent, errors = [], []
-    monkeypatch.setattr("channel.poll.get", lambda *args: next(results))
+    monkeypatch.setattr("yui_notify.channel.poll.get", lambda *args: next(results))
 
     class Write:
         async def send(self, message):

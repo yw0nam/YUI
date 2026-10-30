@@ -3,7 +3,8 @@ import sys
 import anyio
 from mcp.shared.message import SessionMessage
 from mcp_types import JSONRPCNotification
-from yui_notify.post import get
+
+from yui_notify.threads.client import get
 
 
 async def dispatch(answer: dict, write) -> None:

@@ -1,6 +1,6 @@
 import pytest
 
-from yui_notify.label import context, make_label
+from yui_notify.host.label import context, make_label
 
 
 def runner(branch, tmux):

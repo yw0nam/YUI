@@ -20,7 +20,7 @@ def isolated_claude_environment(monkeypatch):
     ],
 )
 def test_discover_parent_and_readiness(argv, ready):
-    from channel.identity import discover
+    from yui_notify.channel.identity import discover
 
     table = {30: (20, ["uv", "run"]), 20: (10, ["/usr/local/bin/" + argv[0], *argv[1:]])}
     identity = discover(30, table.__getitem__)
@@ -28,7 +28,7 @@ def test_discover_parent_and_readiness(argv, ready):
 
 
 def test_discover_stops_after_five_parents():
-    from channel.identity import discover
+    from yui_notify.channel.identity import discover
 
     seen = []
 
@@ -46,7 +46,7 @@ def test_discover_stops_after_five_parents():
 def test_discover_ps_output_with_apostrophe(monkeypatch, flag, separator):
     from types import SimpleNamespace
 
-    from channel.identity import discover
+    from yui_notify.channel.identity import discover
 
     monkeypatch.setattr(
         "subprocess.run",
@@ -62,7 +62,7 @@ def test_discover_ps_output_with_apostrophe(monkeypatch, flag, separator):
 def test_discover_socket_or_node_parent(monkeypatch, source):
     from types import SimpleNamespace
 
-    from channel.identity import discover
+    from yui_notify.channel.identity import discover
 
     monkeypatch.setattr("os.getppid", lambda: 30)
     monkeypatch.setenv("CLAUDE_CODE_MESSAGING_SOCKET", "/tmp/cc-socks/80.sock" if source == "socket" else "")
