@@ -9,7 +9,7 @@ license: PolyForm-Noncommercial-1.0.0
 
 The plugin posts Claude Code and Codex lifecycle events as app-wide Threads without
 character speech. Codex waits for answers through synchronous hooks. Claude Code takes
-answers through the plugin's channel server when launched with the channel flag.
+answers through its own inbox socket.
 
 Run this setup once on every host where an agent runs, each with the plugin installed there.
 Commands run from this skill's directory. Read `references/troubleshooting.md` for a failed

@@ -7,8 +7,7 @@ character turn. Producers connect to YUI; YUI never connects back to the agent.
 ## Setup
 
 - Claude Code: `/plugin marketplace add yw0nam/YUI`, `/plugin install yui-notify@yui`,
-  then `/yui-notify:setup`. Install `uv` on each host and launch with
-  `claude --dangerously-load-development-channels plugin:yui-notify@yui` for answers.
+  then `/yui-notify:setup`. Answers need Claude Code v2.1.224 or later.
 - Codex: `codex plugin marketplace add yw0nam/YUI`, `codex plugin add yui-notify@yui`,
   then trust the hooks and run `$yui-notify:setup`.
 
@@ -19,16 +18,12 @@ Threads accept no preset prefix and use the listener's Host and Origin checks.
 
 ## Events and answers
 
-Both agents post user prompts as `working`. A ready Claude Code channel server relays
-permission requests as Allow, Deny, and text asks. Permission text also arrives as a user
-channel message; text alone denies the tool. Stop asks “What next?”. While the ready
-server is alive, its hook exits immediately; the server polls YUI after MCP initialization.
-The ready channel owns permission entries; the permission hook sends nothing.
-
-Without Claude identity or the channel launch flag, the server serves MCP idle and logs
-one stderr line. The Stop hook then waits for the answer like Codex's, and
-permission and elicitation hooks post read-only `input-required` entries. Channels are a
-research preview; requirements and launch details are in the plugin README.
+Both agents post user prompts as `working`. A Claude Code Stop asks “What next?” when
+Claude Code exports its inbox socket, starts a detached poller for that ask, and exits at
+once; the poller posts the text answer into the session's inbox socket, which starts the
+next turn. A Claude Code permission request waits for Allow, Deny, or text like Codex's;
+text also goes into the inbox. Elicitation hooks post read-only `input-required` entries.
+The inbox message format and its limits are in the plugin README.
 
 Codex Stop posts an ask for the next instruction; permission posts Allow, Deny, and text.
 The synchronous hook long-polls the answer. Stop text continues the turn; permission text
@@ -39,7 +34,7 @@ When the Codex host app is frontmost, permission posts without an ask and exits 
 so its terminal prompt appears. Stop still waits. Claude Code background-task and SDK
 Stops, and non-interactive Codex Stops, send nothing. Claude Code `SessionEnd` closes the
 Thread as `completed` with a `system` entry; a `clear` or `resume` reason sends nothing
-because the session continues. A channel answer Claude Code delivers as a prompt only sets the Thread
+because the session continues. An inbox answer Claude Code delivers as a prompt only sets the Thread
 `working`; the store recorded the answer when it was typed.
 
 Thread ids, payload limits, configuration, commands, and fallback details are in the
