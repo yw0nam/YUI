@@ -114,7 +114,7 @@ def load(fixture, rollout=NO_ROLLOUT):
             ),
         ),
         (
-            "claude-channel-prompt.json",
+            "claude-inbox-prompt.json",
             CLAUDE_ENV,
             ("claude-code", "UserPromptSubmit", "bc68d697-4e8f-4be0-8ea6-e67f955b2586", ""),
         ),
@@ -154,7 +154,7 @@ def load(fixture, rollout=NO_ROLLOUT):
         "codex-under-claude-shell",
         "claude-stop-without-env",
         "claude-user-prompt",
-        "claude-channel-prompt-no-entry",
+        "claude-inbox-prompt-no-entry",
         "claude-session-end",
         "claude-start-synthetic",
         "claude-start-sdk-skipped",

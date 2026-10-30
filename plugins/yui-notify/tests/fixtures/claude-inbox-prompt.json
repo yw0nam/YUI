@@ -12,5 +12,5 @@
   "last_assistant_message": "Ran the upload client tests; all 12 pass.",
   "background_tasks": [],
   "session_crons": [],
-  "prompt": "<channel source=\"plugin:yui-notify:yui-notify\">\nNow run the integration suite too.\n</channel>"
+  "prompt": "Reply from the user in YUI's Threads window:\nNow run the integration suite too."
 }
