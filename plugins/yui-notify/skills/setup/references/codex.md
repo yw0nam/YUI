@@ -30,6 +30,15 @@ the user trusts them again.
 Done when: `/hooks` lists the yui-notify `SessionStart`, `UserPromptSubmit`, `Stop`,
 `PermissionRequest`, and `SessionEnd` hooks with no review warning.
 
+## 4. Prove an answer
+
+Give the user these checks for the restarted session:
+
+1. Send any prompt. When Codex stops, the session's Thread in YUI asks “What next?”.
+2. Type a short instruction in the Threads window and send it.
+
+Done when: the user confirms Codex continued the turn with that instruction.
+
 ## What Codex does not send
 
 Codex has no `Notification` event, so an MCP elicitation prompt in Codex posts no

@@ -27,6 +27,19 @@ terminal. Otherwise the hook waits up to `wait.permission`; Stop waits up to `wa
 Release, closed asks, errors, and deadlines return control to Codex without a decision.
 Timeout and error close the ask with a final PUT.
 
+## Claude Code channel
+
+The Stop hook posts “What next?” only while a ready channel file names a live channel
+server. The server writes `$XDG_STATE_HOME/yui-notify/channels/<claude pid>` (default
+`~/.local/state/yui-notify/channels/`) after MCP initialization.
+
+| Sign | Cause and action |
+|---|---|
+| The startup screen shows no Channels notice | The session started without the channel flag. Restart with it (`claude-code.md` step 4). |
+| The startup screen says channels are blocked by org policy | Channels are off for the organization. See `claude-code.md` step 2. |
+| `/mcp` shows the yui-notify server failed | `uv` is missing on this host, or the server did not start. Install `uv`, then restart with `--debug` added and read `~/.claude/debug/<session-id>.txt`. |
+| No channel file names this Claude process | The server serves idle and prints one stderr line with the reason: `claude process not found` or `Claude Code channel not enabled`. Restart with `--debug` added to read it. |
+
 ## Read `last-error.json`
 
 Failed hook requests write `$XDG_STATE_HOME/yui-notify/last-error.json`, defaulting to
