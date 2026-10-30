@@ -760,6 +760,9 @@ const en: Record<string, string> = {
   "threads.send_hint": "Enter sends, Shift+Enter starts a new line",
   "threads.reply_aria": "Reply",
   "threads.send_failed": "Couldn't send: {error}",
+  "threads.layout_wide": "Wide",
+  "threads.layout_medium": "Medium",
+  "threads.layout_narrow": "Narrow",
 
   // plugins page
   "plugins.installed_title": "Installed plugins",

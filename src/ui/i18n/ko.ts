@@ -755,6 +755,9 @@ const ko: Record<string, string> = {
   "threads.send_hint": "Enter로 보내고 Shift+Enter로 줄을 바꿔요",
   "threads.reply_aria": "답장",
   "threads.send_failed": "보내지 못했어요: {error}",
+  "threads.layout_wide": "넓음",
+  "threads.layout_medium": "중간",
+  "threads.layout_narrow": "좁음",
 
   // plugins page
   "plugins.installed_title": "설치된 플러그인",

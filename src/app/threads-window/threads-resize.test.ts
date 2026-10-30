@@ -33,7 +33,7 @@ it.each([
   ["stops the top at the minimum box", "n", 0, 1000, { ...BOX, y: 460, height: 436 }],
   ["stops at the work area less 12px", "e", 5000, 0, { ...BOX, width: 1488 }],
   ["stops the left side at the work area less 12px", "w", -5000, 0, { ...BOX, x: 12, width: 1384 }],
-])("%s", async (_name, edge, dx, dy, expected) => {
+] as const)("%s", async (_name, edge, dx, dy, expected) => {
   const { resize, applied, save } = controller();
 
   resize.start();

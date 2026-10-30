@@ -758,6 +758,9 @@ const ja: Record<string, string> = {
   "threads.send_hint": "Enterで送信、Shift+Enterで改行",
   "threads.reply_aria": "返信",
   "threads.send_failed": "送信できませんでした: {error}",
+  "threads.layout_wide": "広い",
+  "threads.layout_medium": "中くらい",
+  "threads.layout_narrow": "狭い",
 
   // plugins page
   "plugins.installed_title": "インストール済みのプラグイン",

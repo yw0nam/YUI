@@ -1386,7 +1386,7 @@ globalThis.YUI_MAP =
       "id": "app/threads-window",
       "module": "wiring",
       "label": "threads window wiring",
-      "role": "The Threads window's wiring: snapshots into the view, Answers to the store, the open request placing and showing the window (beside main's pet window the first time, at its stored frame after that) before the grow, or only focusing it while it shows, its head's native drag and the frame saved once a move settles, Escape and × shrinking it back and hiding it, and the stored theme and language reloaded on settings-changed.",
+      "role": "The Threads window's wiring: snapshots into the view, Answers to the store, the open request placing and showing the window (beside main's pet window the first time, at its stored frame after that) before the grow, or only focusing it while it shows, its head's native drag and the frame saved once a move settles, its edge and corner resize applied at most once a frame and saved at the end, Escape and × shrinking it back and hiding it, and the stored theme and language reloaded on settings-changed.",
       "paths": [
         "src/app/threads-window"
       ]
@@ -3043,10 +3043,28 @@ globalThis.YUI_MAP =
       "id": "threads-frame",
       "from": "app/threads-window",
       "to": "settings",
-      "carries": "yui.threads-window {x?, y?, width, height, listCollapsed}: the panel's frame in logical px, written at each placement and once a user move settles, its size floored at 360 × 420; read on each open",
+      "carries": "yui.threads-window {x?, y?, width, height, listCollapsed}: the panel's frame in logical px, written at each placement, once a user move settles and at a resize's end, its size floored at 360 × 420; read on each open",
       "kind": "storage",
       "transport": "shared",
       "wiring": "src/app/threads-window/wire-threads-window.ts"
+    },
+    {
+      "id": "threads-resize-handles",
+      "from": "ui/threads",
+      "to": "app/threads-window",
+      "carries": "resize {start, move(edge, dx, dy), end}: an edge or corner drag in screen px from the pointerdown; a release, a cancel or a lost capture ends it",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/wire-threads-window.ts"
+    },
+    {
+      "id": "threads-resize-box",
+      "from": "app/threads-window",
+      "to": "io/window/geometry",
+      "carries": "resizeThreadsBox(box, workArea, edge, dx, dy): the dragged sides moved, between the 376 × 436 minimum box and the work area less 12px on every side",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/threads-resize.ts"
     },
     {
       "id": "threads-head-drag",

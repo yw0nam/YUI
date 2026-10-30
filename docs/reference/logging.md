@@ -226,6 +226,7 @@ The card's Voice, Keep bubble and Unified chat tiles log the toggle events of th
 | `threads-placement` | `threads_drag_failed` | `error` | The `drag_window` command for a head drag failed (`warn` level). |
 | `threads-placement` | `threads_move_listen_failed` | `error` | Listening to the window's moves failed; a move is not saved (`warn` level). |
 | `threads-placement` | `threads_move_save_failed` | `error` | Reading the window's position after a move threw; the move is not saved (`warn` level). |
+| `threads-resize` | `threads_resize_failed` | `error` | Reading the window's frame or applying a resize step threw; the resize saves only what was applied (`warn` level). |
 
 ## TypeScript Usage
 

@@ -19,6 +19,7 @@ import { createThreadsView } from "../../ui/threads/window/threads-view";
 import type { Disposers } from "../disposers";
 import { createThreadsPlacement } from "./threads-placement";
 import { createThreadsPresence } from "./threads-presence";
+import { createThreadsResize } from "./threads-resize";
 
 const log = createLogger("wire-threads-window");
 
@@ -36,8 +37,19 @@ export async function wireThreadsWindow(deps: {
     now: Date.now,
     onAnswer: client.answer,
     onClose: () => presence.close(),
+    resize: {
+      start: () => resize.start(),
+      move: (edge, dx, dy) => resize.move(edge, dx, dy),
+      end: () => void resize.end(),
+    },
   });
   const placement = createThreadsPlacement({ settings });
+  const resize = createThreadsResize({
+    current: placement.current,
+    apply: placement.apply,
+    save: placement.save,
+    nextFrame: (cb) => requestAnimationFrame(cb),
+  });
   const presence = createThreadsPresence({
     view,
     show: placement.open,

@@ -9,6 +9,7 @@ import { subscribe as subscribeLocale, t } from "../../i18n";
 import { CROSS_SVG } from "../../quick-controls/constants";
 import { growOpen, shrinkClose } from "./grow";
 import { refreshTimes } from "./relative-time";
+import { attachResizeHandles, type ResizeListener } from "./resize-handles";
 import { createThreadList, openSelection, type ThreadFilter, threadListView } from "./thread-list";
 import { createThreadPane } from "./thread-pane";
 import { attachThreadsKeys } from "./threads-keys";
@@ -33,6 +34,8 @@ export function createThreadsView(deps: {
   /** Rejects with the store's error string. */
   onAnswer(id: string, askId: string, answer: { choice?: string; text?: string }): Promise<void>;
   onClose(): void;
+  /** The panel's edge and corner drags. */
+  resize: ResizeListener;
 }): ThreadsView {
   const root = document.createElement("div");
   root.className = "yui-threads";
@@ -112,6 +115,7 @@ export function createThreadsView(deps: {
     if ((event.target as Element).closest("button")) return;
     for (const cb of headListeners) cb(event);
   });
+  const offHandles = attachResizeHandles({ panel, listener: deps.resize });
   const offLocale = subscribeLocale(render);
   const refresh = setInterval(() => refreshTimes(root, deps.now()), REFRESH_MS);
   render();
@@ -137,6 +141,7 @@ export function createThreadsView(deps: {
     },
     dispose() {
       offKeys();
+      offHandles();
       offLocale();
       clearInterval(refresh);
       root.remove();

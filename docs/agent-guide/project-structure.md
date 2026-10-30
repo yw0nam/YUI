@@ -127,6 +127,7 @@ YUI/
         wire-threads-window.ts       # Snapshots into the view, Answers to the store, the open request, theme and language
         threads-placement.ts         # The window's frame: beside main's pet window the first time, its stored frame after that, its head's native drag, and the frame saved once a move settles
         threads-presence.ts          # One open or close at a time: show and grow, or focus while shown; shrink and hide, then the closed report
+        threads-resize.ts            # A handle drag into the window's box, applied at most once a frame, the frame saved after the last apply
       settings-window/               # The settings window's wiring
         wire-settings-window.ts      # Stores, config, cross-window sync, and the settings panel remounted on locale change, bound to the query's preset when it names one, and editing the preset `?edit=` names
         edit-target-url.ts           # The settings URL with its `edit` param set to the picked preset, or dropped for the window's own, and its `page` param set to the requested page
@@ -490,7 +491,7 @@ YUI/
           companion-position.ts        # Where a companion window (message, unified) opens: its stored position, else beside the pet window, kept on screen; the column's width and handle height
           companion-column.ts          # A companion column window's focus, OS drag, content-height resize and moved-position report
           quick-card-position.ts       # Where the quick-card window sits docked beside her: its margin box on the roomier side, clamped into the work area
-          threads-position.ts          # The Threads window's box: its first place beside the pet window on the roomier side, a stored frame moved into the nearest work area, and the chip-sized rect its grow starts from
+          threads-position.ts          # The Threads window's box: its first place beside the pet window on the roomier side, a stored frame moved into the nearest work area, a handle drag's box between the minimum and the work area, and the chip-sized rect its grow starts from
           keep-on-screen.ts            # Pushes a window back until its centre lands on a monitor
           travel-frame.ts              # Parks the real window once for a scale-seam crossing
           stationary-frame.ts          # Widens the real window around a character that stays where she is
@@ -644,7 +645,7 @@ YUI/
         boot-error.css               # Boot-failure notice styles
       threads/                       # The Threads chip and the Threads window
         thread-source.ts             # A source's name and mark; unknown sources show their raw name and a generic mark
-        chip/threads-chip.ts         # The chip: newest source marks, label, count; hidden at zero, one nod on arrival, hold-to-fold
+        chip/threads-chip.ts         # The chip: newest source marks, label, count; hidden at zero while the window is closed, one nod on arrival, hold-to-fold
         window/threads-view.ts       # The window's view: the head as the drag handle, the list pane beside the thread pane, the selection and filters, the minute time tick
         window/thread-list.ts        # The list pane: tabs, kind select, waiting-first rows, and the Thread an open shows
         window/thread-pane.ts        # The thread pane: head, scrolling transcript, the answer area, and each ask's draft, send error and in-flight send
@@ -652,6 +653,8 @@ YUI/
         window/drafts.ts             # Unsent Answers per ask, pruned by each snapshot
         window/rich-text.ts          # Producer text as text nodes, code spans and fenced code
         window/grow.ts               # The grow out of the chip and the shrink back
+        window/resize-handles.ts     # The panel's edge and corner hit areas, reporting a drag in screen px, and the size readout
+        window/threads-layout.ts     # The layout the panel's width picks
       quick-card/                    # The right-click card, in its own window beside the character
         quick-card.ts                # The card: its head (the drag handle) and All settings…, how it opens and closes, and its rebuild in a new language
         tiles.ts                     # The toggle tiles: each writes its store and follows it
