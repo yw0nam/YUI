@@ -119,6 +119,29 @@ function seedListen() {
 const DOCKED = { x: 864, y: 468 };
 const REQUEST = { left: 40, right: 360, y: 200, listening: true };
 
+function sizes(): Array<{ width: number; height: number }> {
+  return win.setSize.mock.calls.map((call) => {
+    const arg = call[0] as { width: number; height: number };
+    return { width: arg.width, height: arg.height };
+  });
+}
+
+/** Installs a ResizeObserver whose one callback the returned function fires. */
+function observeResizes(): () => void {
+  let resized: (() => void) | null = null;
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      constructor(cb: () => void) {
+        resized = cb;
+      }
+      observe() {}
+      disconnect() {}
+    },
+  );
+  return () => resized!();
+}
+
 function positions(): Array<{ x: number; y: number }> {
   return win.setPosition.mock.calls.map((call) => {
     const arg = call[0] as { x: number; y: number };
@@ -225,17 +248,7 @@ describe("wireQuickCardDock", () => {
   });
 
   it("re-sizes its window to a grown card and pulls it back into the work area", async () => {
-    let resized: (() => void) | null = null;
-    vi.stubGlobal(
-      "ResizeObserver",
-      class {
-        constructor(cb: () => void) {
-          resized = cb;
-        }
-        observe() {}
-        disconnect() {}
-      },
-    );
+    const resized = observeResizes();
     const { bridge, card } = wired();
     bridge.open(REQUEST);
     await vi.waitFor(() => expect(win.show).toHaveBeenCalledOnce());
@@ -244,13 +257,31 @@ describe("wireQuickCardDock", () => {
 
     // The reset confirm grows the card 200px; docked at y 468 its window would end at 1084.
     card.size.height = 600;
-    resized!();
+    resized();
     await settle();
 
-    expect(win.setSize.mock.calls.map(([s]) => ({ ...(s as object) }))).toEqual([
-      expect.objectContaining({ width: 288, height: 616 }),
-    ]);
+    expect(sizes()).toEqual([{ width: 288, height: 616 }]);
     expect(positions()).toEqual([{ x: 864, y: 384 }]);
+  });
+
+  it("re-sizes its window to a card that grew while its first placement was in flight", async () => {
+    const resized = observeResizes();
+    const { bridge, card } = wired();
+    // The card grows after the placement sized the window, before the window reached its place.
+    win.setPosition.mockImplementationOnce(async () => {
+      card.size.height = 600;
+      resized();
+    });
+
+    bridge.open(REQUEST);
+    await vi.waitFor(() => expect(win.show).toHaveBeenCalledOnce());
+    await settle();
+
+    expect(sizes()).toEqual([
+      { width: 288, height: 416 },
+      { width: 288, height: 616 },
+    ]);
+    expect(positions()).toEqual([DOCKED, { x: 864, y: 384 }]);
   });
 
   it("leaves a closed card where it is when the owner moves", async () => {
@@ -453,6 +484,23 @@ describe("wireQuickCardDock", () => {
       await settle();
 
       expect(positions()).toEqual([]);
+    });
+
+    it("fits and pulls a linked card back inside the work area when her move would carry it past the bottom", async () => {
+      const { card } = await opened();
+      win.setSize.mockClear();
+      win.setPosition.mockClear();
+
+      // The card grew to 600px before its re-size ran; moved with her by 20, its 616px window
+      // would end at 468 + 20 + 616 = 1104, past 1000.
+      card.size.height = 600;
+      owner.outerPosition.mockImplementation(async () => ({ x: 500, y: 320 }));
+      owner.onMoved.mock.calls[0][0]({ payload: { x: 500, y: 320 } });
+      await settle();
+
+      expect(positions()).toEqual([{ x: 864, y: 384 }]);
+      expect(sizes()).toEqual([{ width: 288, height: 616 }]);
+      expect(order(win.setSize)).toBeLessThan(order(win.setPosition));
     });
 
     it("switches sides with one move when travelling with her would carry it off the work area", async () => {
