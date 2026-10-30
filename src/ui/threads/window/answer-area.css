@@ -55,12 +55,6 @@
   background: var(--yui-hover);
 }
 
-.yui-threads-answer button:focus-visible,
-.yui-threads-answer textarea:focus-visible {
-  outline: 2px solid var(--yui-accent-ink);
-  outline-offset: 2px;
-}
-
 .yui-threads-answer__choices button {
   display: inline-flex;
   align-items: center;
