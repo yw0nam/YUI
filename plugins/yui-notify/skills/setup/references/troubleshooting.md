@@ -39,7 +39,7 @@ server. The server writes `$XDG_STATE_HOME/yui-notify/channels/<claude pid>` (de
 | The startup screen says channels are blocked by org policy | Channels are off for the organization. See `claude-code.md` step 2. |
 | `/mcp` shows the yui-notify server failed | `uv` is missing on this host, or the server did not start. Install `uv`, then restart with `--debug` added and read `~/.claude/debug/<session-id>.txt`. |
 | No channel file names this Claude process | The server serves idle, has not finished MCP initialization, or has exited. An idle server prints one stderr line with the reason: `claude process not found` or `Claude Code channel not enabled`. Restart with `--debug` added to read it. |
-| A Stop posts no ask while the channel file exists | Stop sends nothing while a background task runs or for an SDK launch (`README.md` § Suppressions). Send a prompt that ends with no background task. |
+| A Stop posts no ask while the channel file exists | Stop sends nothing while a background task runs or for an SDK launch (the plugin README § Suppressions). Send a prompt that ends with no background task. |
 
 ## Read `last-error.json`
 
