@@ -1,5 +1,6 @@
 /* The Threads window: one panel filling its window inside a transparent 8px margin for the shadow,
-   the list pane beside the thread pane. Tokens in ../../tokens.css. */
+   the list pane or its rail beside the thread pane, laid out by the panel's width.
+   Tokens in ../../tokens.css. */
 
 .yui-threads {
   box-sizing: border-box;
@@ -12,8 +13,10 @@
   caret-color: var(--yui-accent-ink);
 }
 
+/* The size container every layout below reads: its width, never the page's. */
 .yui-threads__panel {
   position: relative;
+  container: threads / inline-size;
   display: flex;
   height: 100%;
   overflow: hidden;
@@ -39,8 +42,8 @@
 .yui-threads__head {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 12px 16px 12px 24px;
+  gap: 12px;
+  padding: 12px 16px;
   cursor: grab;
   -webkit-user-select: none;
   user-select: none;
@@ -58,8 +61,10 @@
   font-size: var(--yui-fs-sub);
 }
 
+.yui-threads__toggle,
 .yui-threads__close {
   display: grid;
+  flex: none;
   place-items: center;
   width: 36px;
   height: 36px;
@@ -71,11 +76,22 @@
   cursor: pointer;
 }
 
+.yui-threads__toggle {
+  border-radius: var(--yui-radius-control);
+}
+
+.yui-threads__toggle[aria-expanded="true"],
+.yui-threads__toggle:hover,
 .yui-threads__close:hover {
-  background: var(--yui-hover);
   color: var(--yui-text);
 }
 
+.yui-threads__toggle:hover,
+.yui-threads__close:hover {
+  background: var(--yui-hover);
+}
+
+.yui-threads__toggle:focus-visible,
 .yui-threads__close:focus-visible {
   outline: 2px solid var(--yui-accent-ink);
   outline-offset: 2px;
@@ -86,12 +102,125 @@
   height: 14px;
 }
 
+.yui-threads-glyph {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .yui-threads__panes {
+  position: relative;
   display: grid;
   flex: 1;
   grid-template-columns: 264px minmax(0, 1fr);
   min-height: 0;
   border-top: 1px solid var(--yui-edge);
+  transition: grid-template-columns var(--yui-dur) var(--yui-ease);
+}
+
+.yui-threads__panes > .yui-threads-list,
+.yui-threads__panes > .yui-threads-rail {
+  grid-row: 1;
+  grid-column: 1;
+}
+
+.yui-threads__panes > .yui-threads-pane {
+  grid-row: 1;
+  grid-column: 2;
+}
+
+/* Wide, collapsed by the user: the list folds to the rail. Pairs with WIDE_MIN_PX in threads-layout.ts. */
+@container threads (min-width: 720px) {
+  .yui-threads__panel[data-collapsed="true"] .yui-threads__panes {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .yui-threads__panel[data-collapsed="true"] .yui-threads-rail {
+    display: flex;
+  }
+
+  .yui-threads__panel[data-collapsed="true"] .yui-threads-list {
+    display: none;
+  }
+}
+
+/* Medium: the rail by width; the toggle lays the full list over the thread pane.
+   Pairs with MEDIUM_MIN_PX and WIDE_MIN_PX in threads-layout.ts. */
+@container threads (min-width: 520px) and (max-width: 719.98px) {
+  .yui-threads__panes {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .yui-threads__panes > .yui-threads-rail {
+    display: flex;
+  }
+
+  .yui-threads__panes > .yui-threads-list {
+    display: none;
+  }
+
+  .yui-threads__panel[data-overlay="true"] .yui-threads-list {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 56px;
+    z-index: 3;
+    display: flex;
+    width: 264px;
+    border-right: 1px solid var(--yui-edge);
+    box-shadow: var(--yui-float);
+    animation: yui-threads-overlay-in 160ms var(--yui-ease);
+  }
+}
+
+@keyframes yui-threads-overlay-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+}
+
+/* Narrow: one pane at a time, with back to the list. Pairs with MEDIUM_MIN_PX in threads-layout.ts. */
+@container threads (max-width: 519.98px) {
+  .yui-threads__panes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .yui-threads__panes > .yui-threads-rail,
+  .yui-threads__toggle {
+    display: none;
+  }
+
+  .yui-threads__panes > .yui-threads-pane {
+    grid-column: 1;
+  }
+
+  .yui-threads__panel[data-screen="thread"] .yui-threads-list,
+  .yui-threads__panel[data-screen="list"] .yui-threads-pane {
+    display: none;
+  }
+
+  .yui-threads__panel .yui-threads-pane__back {
+    display: inline-flex;
+  }
+
+  .yui-threads__head {
+    padding: 8px 12px 8px 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-threads__panes {
+    transition: none;
+  }
+
+  .yui-threads__panes > .yui-threads-list {
+    animation: none !important;
+  }
 }
 
 .yui-threads ::selection {

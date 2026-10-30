@@ -37,6 +37,8 @@ export async function wireThreadsWindow(deps: {
     now: Date.now,
     onAnswer: client.answer,
     onClose: () => presence.close(),
+    listCollapsed: settings.get().listCollapsed,
+    onListCollapsed: settings.setListCollapsed,
     resize: {
       start: () => resize.start(),
       move: (edge, dx, dy) => resize.move(edge, dx, dy),

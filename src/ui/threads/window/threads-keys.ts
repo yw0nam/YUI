@@ -1,13 +1,19 @@
-/** The Threads window's keys: Escape closes, 1–9 pick a choice, ↑/↓ move through the list. */
+/** The Threads window's keys: Control+Command+S toggles the list, Escape closes, 1–9 pick a choice, ↑/↓ move through the list. */
 
 export function attachThreadsKeys(deps: {
-  onClose(): void;
+  onToggleList(): void;
+  onEscape(): void;
   onPick(index: number): void;
   onMove(delta: 1 | -1): void;
 }): () => void {
   function onKeydown(e: KeyboardEvent): void {
+    if (e.ctrlKey && e.metaKey && !e.shiftKey && !e.altKey && e.code === "KeyS") {
+      e.preventDefault();
+      deps.onToggleList();
+      return;
+    }
     if (e.key === "Escape") {
-      deps.onClose();
+      deps.onEscape();
       return;
     }
     // Typing in the field or the select keeps its keys, and a shortcut is not a choice.

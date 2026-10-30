@@ -646,7 +646,7 @@ YUI/
       threads/                       # The Threads chip and the Threads window
         thread-source.ts             # A source's name and mark; unknown sources show their raw name and a generic mark
         chip/threads-chip.ts         # The chip: newest source marks, label, count; hidden at zero while the window is closed, one nod on arrival, hold-to-fold
-        window/threads-view.ts       # The window's view: the head as the drag handle, the list pane beside the thread pane, the selection and filters, the minute time tick
+        window/threads-view.ts       # The window's view: the head as the drag handle with the sidebar toggle, the list pane or the rail beside the thread pane, the selection and filters, the minute time tick
         window/thread-list.ts        # The list pane: tabs, kind select, waiting-first rows, and the Thread an open shows
         window/thread-pane.ts        # The thread pane: head, scrolling transcript, the answer area, and each ask's draft, send error and in-flight send
         window/answer-area.ts        # The answer area: numbered choices, the growing field, and the send button
@@ -654,7 +654,8 @@ YUI/
         window/rich-text.ts          # Producer text as text nodes, code spans and fenced code
         window/grow.ts               # The grow out of the chip and the shrink back
         window/resize-handles.ts     # The panel's edge and corner hit areas, reporting a drag in screen px, and the size readout
-        window/threads-layout.ts     # The layout the panel's width picks
+        window/threads-layout.ts     # The layout the panel's width picks, the collapsed list, the medium overlay and the narrow screen
+        window/thread-rail.ts        # The rail: the tabs as marks over counts, the kind select, one source mark per row
       quick-card/                    # The right-click card, in its own window beside the character
         quick-card.ts                # The card: its head (the drag handle) and All settings…, how it opens and closes, and its rebuild in a new language
         tiles.ts                     # The toggle tiles: each writes its store and follows it

@@ -87,6 +87,8 @@ export interface ThreadPane {
 
 export function createThreadPane(deps: {
   el: HTMLElement;
+  /** The narrow layout's way back to the list, leading the pane's head. */
+  back: HTMLElement;
   now(): number;
   /** Rejects with the store's error string. */
   onAnswer(id: string, askId: string, answer: { choice?: string; text?: string }): Promise<void>;
@@ -131,6 +133,7 @@ export function createThreadPane(deps: {
       return;
     }
     const { head, transcript } = threadPane(thread, deps.now());
+    head.prepend(deps.back);
     el.replaceChildren(head, transcript);
     if (sameThread) transcript.scrollTop = scrollTop;
     const ask = thread.ask;

@@ -1,7 +1,9 @@
 /* The thread pane: reading first, the transcript owns the height and scrolls on its own.
    Tokens in ../../tokens.css. */
 
+/* The second size container: the pane's own width tightens its paddings. */
 .yui-threads-pane {
+  container: pane / inline-size;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   min-width: 0;
@@ -14,6 +16,29 @@
   gap: 4px;
   padding: 12px 28px;
   border-bottom: 1px solid var(--yui-edge);
+}
+
+/* Shown only in the narrow layout (threads-view.css). */
+.yui-threads-pane__back {
+  display: none;
+  justify-self: start;
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid var(--yui-edge-strong);
+  border-radius: var(--yui-radius-control);
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.yui-threads-pane__back:hover {
+  background: var(--yui-hover);
+}
+
+.yui-threads-pane__back:focus-visible {
+  outline: 2px solid var(--yui-accent-ink);
+  outline-offset: 2px;
 }
 
 .yui-threads-pane__line {
@@ -119,4 +144,27 @@
   padding: 0;
   background: none;
   font-size: var(--yui-fs-body);
+}
+
+@container pane (max-width: 559.98px) {
+  .yui-threads-pane__head,
+  .yui-threads-pane__transcript {
+    padding-inline: 20px;
+  }
+
+  .yui-threads-pane__transcript {
+    gap: 24px;
+  }
+}
+
+@container pane (max-width: 439.98px) {
+  .yui-threads-pane__head,
+  .yui-threads-pane__transcript {
+    padding-inline: 16px;
+  }
+
+  .yui-threads-pane__transcript {
+    gap: 20px;
+    padding-block: 16px 24px;
+  }
 }

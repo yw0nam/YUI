@@ -129,3 +129,23 @@
   font-size: var(--yui-fs-sub);
   font-variant-numeric: tabular-nums;
 }
+
+/* A panel under 440px drops the label line and tightens the list. */
+@container threads (max-width: 439.98px) {
+  .yui-threads-row__label {
+    display: none;
+  }
+
+  .yui-threads-row {
+    gap: 6px;
+    padding: 12px;
+  }
+
+  .yui-threads-list__tabs {
+    padding-inline: 8px;
+  }
+
+  .yui-threads-list__kind {
+    margin-inline: 8px;
+  }
+}
