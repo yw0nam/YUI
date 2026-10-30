@@ -13,6 +13,10 @@ The channel server runs on Python 3.11+ through `uv`. Hooks run on the system `p
 (3.9+, standard library only). Install `uv` on every host that runs Claude Code,
 SSH hosts included.
 
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
 Done when: `uv --version` prints a version on every such host.
 
 ## 2. Check channel access
@@ -22,8 +26,12 @@ has them. On a claude.ai Team or Enterprise plan, an Owner turns them on under
 **Organization settings → Claude Code → Channels**, or sets `channelsEnabled: true` in
 managed settings.
 
-Done when: the user knows whether the account has channels. Without them, skip step 4 and
-start Claude Code without the flag in step 5.
+The startup banner names the account's plan, for example `Claude Max` or `Claude Team`. A
+launch with the flag on an account without channels shows `blocked by org policy` under the
+banner.
+
+Done when: the user knows whether the account on this host has channels. Without them, skip
+step 4 and start Claude Code without the flag in step 5.
 
 ## 3. Check the hooks
 
@@ -58,9 +66,9 @@ flag.
 
 Give the user these checks for the new session, then end this one:
 
-1. Start Claude Code with the flag. At the development-channels warning, choose
-   **I am using this for local development**. The startup notice names
-   `plugin:yui-notify@yui` as a channel.
+1. Start Claude Code, with the flag when the account has channels. At the
+   development-channels warning, choose **I am using this for local development**, on a
+   remote host too. The startup notice names `plugin:yui-notify@yui` as a channel.
 2. Send any prompt. When Claude stops, the session's Thread in YUI asks “What next?”.
 3. Type a short instruction in the Threads window and send it.
 

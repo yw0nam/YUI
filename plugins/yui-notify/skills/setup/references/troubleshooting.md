@@ -20,6 +20,12 @@ HTTP 400 means YUI needs updating. A successful probe creates no Thread or signa
 | `unexpected HTTP 421 from <url>` or `unexpected HTTP 403 from <url>` | Use a loopback endpoint on the YUI machine, or a reverse tunnel to it. |
 | `unexpected HTTP <n> from <url>` | Read the YUI log and report the status. |
 
+## The test Thread gets no answer
+
+`no answer within 60 s` after `sent: HTTP 200` means YUI stored the Thread but no answer came
+back in time. The Threads chip shows only while a Thread waits; answer before the 60 seconds
+end, then run `test` again.
+
 ## Codex falls back
 
 Codex permissions in the frontmost host app post no ask and return immediately to the
@@ -51,5 +57,5 @@ Failed hook requests write `$XDG_STATE_HOME/yui-notify/last-error.json`, default
 ```
 
 `time` is UTC, `url` is the failing request, `status` is the HTTP code or null, and `error`
-is the transport or HTTP error. Probe, test, and startup checks do not write this file.
+is the transport or HTTP error. Probe and startup checks do not write this file; `test` writes it only when its answer poll fails.
 A stale record is the last hook failure; delete it after fixing the cause.

@@ -25,6 +25,9 @@ ss -ltn | grep ':<remote port> '
 
 Done when: the user has named a remote port that is free on the remote host.
 
+For a second remote host, run this setup again on that host. It needs its own tunnel and
+its own supervisor label in step 2. The same remote port works on different hosts.
+
 ## 2. Run a supervised reverse tunnel on the local machine
 
 The tunnel's `ssh` reads the same `Host` entry in the local `~/.ssh/config` as an interactive
@@ -82,7 +85,7 @@ macOS, a launchd agent at `~/Library/LaunchAgents/<label>.plist`:
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/<label>.plist
 ```
 
-Linux, a systemd user unit at `~/.config/systemd/user/<name>.service`:
+When the local machine runs Linux, a systemd user unit at `~/.config/systemd/user/<name>.service`:
 
 ```ini
 [Unit]
@@ -110,7 +113,8 @@ Done when: `ssh -G <host>` lists no `RemoteForward`, and on the remote host
 
 A probe inside a connection that carries its own `RemoteForward` passes through that
 connection's tunnel and proves nothing about the supervised one. Ask the user to run the
-probe on the local machine through a new connection with every forward cleared.
+probe on the local machine through a new connection with every forward cleared. Give the
+user the command with `<plugin root>`, `<host>`, and `<endpoint>` filled in.
 
 - `<plugin root>` is the absolute path on the remote host of the directory that holds
   `bin/yui-notify`, two levels above this skill.
@@ -121,7 +125,7 @@ ssh -o ClearAllForwardings=yes -o ControlPath=none <host> 'python3 <plugin root>
 ```
 
 Done when: the command prints `ok: YUI is listening at <endpoint>/threads/yui-notify-probe/answer?ask_id=probe&wait=0`. The endpoint for
-setup step 4 is `<endpoint>`.
+setup step 3 is `<endpoint>`.
 
 ## The label on a remote Thread
 

@@ -7,6 +7,8 @@ flag; without a ready channel its Stop hook waits for the answer like Codex's.
 
 ## Install
 
+Install the plugin on every host where an agent runs, including SSH hosts.
+
 Claude Code:
 
 ```text
@@ -181,8 +183,9 @@ yui-notify test [--endpoint URL]
   `$XDG_STATE_HOME/yui-notify/` (default `~/.local/state/yui-notify/`).
 - `probe` sends `GET /threads/yui-notify-probe/answer?ask_id=probe&wait=0`.
   HTTP 404 proves the listener and route are up; HTTP 400 prints “update YUI”.
-- `test` PUTs one completed Thread at `yui-notify:test:<host>` with a system entry,
-  and prints `sent: HTTP <n>` on success.
+- `test` PUTs an `input-required` Thread at `yui-notify:test:<host>` with a system entry and
+  an “Arrived” ask, prints `sent: HTTP <n>; …`, and waits 60 seconds for the answer. It prints
+  `answered: …` and exits 0, or prints `no answer within 60 s`, closes the ask, and exits 1.
 
 `probe` and `test` exit 0 on success and 1 on failure. See
 [troubleshooting](skills/setup/references/troubleshooting.md) for failure lines.
