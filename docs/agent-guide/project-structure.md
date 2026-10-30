@@ -505,7 +505,6 @@ YUI/
           ready-window.ts              # A hidden window created once, a leftover recreated, a request held until the window reports ready
           quick-card-window.ts         # Quick-card window opener, quick-card-<id> for a bound id, on ready-window; its permissions are src-tauri/capabilities/quick-card.json
           threads-window.ts            # Threads window opener on ready-window: the chip's screen rect in each open request, the closed report passed on; its permissions are src-tauri/capabilities/threads.json
-          drop-never-perches.ts        # The quick-card and Threads labels, whose drags never perch the character
           message-window-mode.ts       # Keeps the message window in step with the stored mode, the unified chat window and the dock request
           unified-window.ts            # Unified chat window opener: shows the one frameless window labelled unified, or creates it at its stored position, and destroys it; its permissions are src-tauri/capabilities/unified.json
           pet-window.ts                # Bound pet window opener: creates pet-<id> and lists the windows that exist

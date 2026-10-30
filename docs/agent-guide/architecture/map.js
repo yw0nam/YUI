@@ -2449,10 +2449,10 @@ globalThis.YUI_MAP =
       "wiring": "src/app/stage/wire-window-sources.ts"
     },
     {
-      "id": "drop-never-perches-label",
+      "id": "threads-window-label",
       "from": "dispatcher/sources/gesture",
       "to": "io/window/openers",
-      "carries": "dropNeverPerches(label): the quick-card and Threads labels, whose drags settle in their own windows and never perch the character",
+      "carries": "THREADS_WINDOW_LABEL: with the quick-card label prefix, the windows whose drags settle in their own windows and never perch the character",
       "kind": "call",
       "transport": "shared"
     },

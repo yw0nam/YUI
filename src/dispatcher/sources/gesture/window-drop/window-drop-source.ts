@@ -39,7 +39,7 @@ import type {
   PlacementResult,
 } from "../../../../io/window/geometry/perch";
 import { containsSeat } from "../../../../io/window/geometry/perch";
-import { dropNeverPerches } from "../../../../io/window/openers/drop-never-perches";
+import { THREADS_WINDOW_LABEL } from "../../../../io/window/openers/threads-window";
 import { createLogger } from "../../../../logger";
 import type { ScreenPoint } from "../../../../renderer/geometry/probe/perch-geometry";
 import {
@@ -421,7 +421,11 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       try {
         unlisten = await listen(RELEASE_EVENT, ({ payload }) => {
           // A quick-card or Threads window's drop moved no pet window; it settles in its own window.
-          if (typeof payload === "string" && dropNeverPerches(payload)) return;
+          if (
+            typeof payload === "string" &&
+            (payload === THREADS_WINDOW_LABEL || payload.startsWith("quick-card"))
+          )
+            return;
           const dragged = deps.wasDragging?.() ?? true;
           if (deps.isHeld?.()) return;
           void settle()
