@@ -44,7 +44,7 @@ jobs:
         with:
           filters: |
             python:
-              - 'integrations/skills/yui-daily-briefing/**'
+              - 'skills/yui-daily-briefing/**'
               - 'tests/yui-daily-briefing-producers.test.ts'
               - 'tests/python-command*.ts'
               - 'tests/command-paths.ts'

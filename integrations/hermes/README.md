@@ -22,7 +22,7 @@ The chat model row is disabled in this mode, with its reason under it — the pl
 - Push mode: the platform plugin takes the vocabulary from the client and carries `generate_express` itself. `platform_toolsets.yui` gives the platform every enabled MCP server until it names some, so name the MCP servers the character uses there, or add `no_mcp` when it uses none, as the plugin's [Enable](platform/yui/docs/install.md#enable) section describes. The list must include `skills` for the model to read any skill.
 - Create a Hermes profile, add `docs/reference/client-context.md` to that profile's context, and instruct it to remember the contract.
 - Two client presets that talk to two personas need one Hermes profile, one port, and one key per persona; each preset's chat server URL and key point at its own profile.
-- The [daily briefing skill](../skills/yui-daily-briefing/SKILL.md) reads `SKILL_DIR`, `YUI_BRIEFING_SPOOL`, and `YUI_BRIEFING_LINK` from the environment its shell commands run in. On Hermes, set them in the profile's `.env` and list the three names under `terminal.env_passthrough` in the profile's `config.yaml`.
+- The [daily briefing skill](../../skills/yui-daily-briefing/SKILL.md) reads `SKILL_DIR`, `YUI_BRIEFING_SPOOL`, and `YUI_BRIEFING_LINK` from the environment its shell commands run in. On Hermes, set them in the profile's `.env` and list the three names under `terminal.env_passthrough` in the profile's `config.yaml`.
 
 ## Pointers
 

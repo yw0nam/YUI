@@ -5,7 +5,7 @@
  * so each channel here rides the cross-window bridge core.
  */
 
-import type { GuideKey } from "../../contract";
+import type { GuideKey, ScreenRect } from "../../contract";
 import type { SettingsPage } from "../../settings/panels/settings-pages";
 import { isSettingsPage } from "../../settings/panels/settings-pages";
 import type { DelegationItem } from "../chat/push/push-frames";
@@ -45,6 +45,9 @@ const CH_SETTINGS_PAGE = "yui://settings-page";
 const CH_OPEN_DEVTOOLS = "yui://open-devtools";
 const CH_QUICK_CARD_OPEN = "yui://quick-card-open";
 const CH_QUICK_CARD_READY = "yui://quick-card-ready";
+const CH_THREADS_OPEN = "yui://threads-open";
+const CH_THREADS_READY = "yui://threads-ready";
+const CH_THREADS_CLOSED = "yui://threads-closed";
 
 interface VoiceStateSnapshot {
   state: VoiceInputState;
@@ -116,6 +119,11 @@ export interface QuickCardOpen {
   y: number;
   /** Main only: whether voice input is live right now, so the Listen tile opens seeded. */
   listening?: boolean;
+}
+
+/** Main asking the Threads window to open, grown out of the chip at `chip`, in screen logical px. */
+export interface ThreadsOpen {
+  chip: ScreenRect;
 }
 
 /** The unified chat window's click on an error's fix, back to the preset whose window showed it. */
@@ -215,6 +223,15 @@ export interface SettingsBridge {
   /** A quick-card window reporting it has booted; scoped to the preset. */
   emitQuickCardReady(): void;
   onQuickCardReady(cb: () => void): () => void;
+  /** Main's Threads chip opening the Threads window. */
+  emitThreadsOpen(request: ThreadsOpen): void;
+  onThreadsOpen(cb: (request: ThreadsOpen) => void): () => void;
+  /** The Threads window reporting it has booted. */
+  emitThreadsReady(): void;
+  onThreadsReady(cb: () => void): () => void;
+  /** The Threads window is hidden again, after its close or a failed open; the chip leaves its open state. */
+  emitThreadsClosed(): void;
+  onThreadsClosed(cb: () => void): () => void;
   emitSettingsChanged(): void;
   onSettingsChanged(cb: (from: WindowKind) => void): () => void;
   emitMouthPreview(mouthOpen: number | null): void;
@@ -296,6 +313,9 @@ export function createSettingsBridge(
     CH_SPEECH_STREAM_CONTROL,
     CH_SETTINGS_PAGE,
     CH_OPEN_DEVTOOLS,
+    CH_THREADS_OPEN,
+    CH_THREADS_READY,
+    CH_THREADS_CLOSED,
   ]);
   const on: typeof core.on = (name, cb) => core.on(name, cb, { scoped: !shared.has(name) });
 
@@ -341,6 +361,29 @@ export function createSettingsBridge(
     },
     onQuickCardReady(cb) {
       return on<unknown>(CH_QUICK_CARD_READY, () => cb());
+    },
+    emitThreadsOpen(request) {
+      safeEmit(CH_THREADS_OPEN, request);
+    },
+    onThreadsOpen(cb) {
+      return on<unknown>(CH_THREADS_OPEN, (request) => {
+        const chip = (request as Partial<ThreadsOpen> | null)?.chip;
+        const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+        if (!chip || ![chip.x, chip.y, chip.width, chip.height].every(finite)) return;
+        cb({ chip: { x: chip.x, y: chip.y, width: chip.width, height: chip.height } });
+      });
+    },
+    emitThreadsReady() {
+      safeEmit(CH_THREADS_READY);
+    },
+    onThreadsReady(cb) {
+      return on<unknown>(CH_THREADS_READY, () => cb());
+    },
+    emitThreadsClosed() {
+      safeEmit(CH_THREADS_CLOSED);
+    },
+    onThreadsClosed(cb) {
+      return on<unknown>(CH_THREADS_CLOSED, () => cb());
     },
     emitSettingsChanged() {
       safeEmit(CH_SETTINGS_CHANGED);

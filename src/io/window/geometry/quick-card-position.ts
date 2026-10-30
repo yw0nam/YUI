@@ -78,7 +78,7 @@ function dockedX(
     : character.left - QUICK_CARD_GAP_PX - contentWidth - QUICK_CARD_MARGIN_PX;
 }
 
-function roomierSide(
+export function roomierSide(
   character: { left: number; right: number },
   workArea: QuickCardWorkArea,
 ): QuickCardSide {

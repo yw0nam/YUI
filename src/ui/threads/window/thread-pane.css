@@ -1,0 +1,165 @@
+/* The thread pane: reading first, the transcript owns the height and scrolls on its own.
+   Tokens in ../../tokens.css. */
+
+/* The second size container: the pane's own width tightens its paddings. */
+.yui-threads-pane {
+  container: pane / inline-size;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.yui-threads-pane__head {
+  display: grid;
+  gap: 4px;
+  padding: 12px 28px;
+  border-bottom: 1px solid var(--yui-edge);
+}
+
+/* Shown only in the narrow layout (threads-view.css). */
+.yui-threads-pane__back {
+  display: none;
+  justify-self: start;
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid var(--yui-edge-strong);
+  border-radius: var(--yui-radius-control);
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.yui-threads-pane__back:hover {
+  background: var(--yui-hover);
+}
+
+.yui-threads-pane__line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.yui-threads-pane__head h2 {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--yui-fs-title);
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: break-word;
+  text-wrap: balance;
+}
+
+.yui-threads-pane__head h2:focus {
+  outline: none;
+}
+
+.yui-threads-pane__label {
+  margin: 0;
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-sub);
+  overflow-wrap: anywhere;
+}
+
+.yui-threads-pane__transcript {
+  display: grid;
+  align-content: start;
+  gap: 28px;
+  min-height: 0;
+  padding: 24px 28px 32px;
+  overflow: auto;
+}
+
+.yui-threads-entry {
+  min-width: 0;
+  max-width: 72ch;
+}
+
+.yui-threads-entry__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+  color: var(--yui-text-dim);
+  font-size: var(--yui-fs-sub);
+  font-weight: 600;
+}
+
+.yui-threads-entry__head time {
+  color: var(--yui-text-mute);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.yui-threads-entry__text {
+  font-size: var(--yui-fs-speech);
+  line-height: 1.8;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+/* The user's own entries read dimmed, set off by a Hairline. */
+.yui-threads-entry.is-user {
+  padding-top: 20px;
+  border-top: 1px solid var(--yui-edge);
+}
+
+.yui-threads-entry.is-user:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.yui-threads-entry.is-user .yui-threads-entry__text {
+  color: var(--yui-text-dim);
+}
+
+.yui-threads-entry__text code {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--yui-selected);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.88em;
+}
+
+.yui-threads-entry__text pre {
+  margin: 12px 0 0;
+  padding: 12px 16px;
+  overflow-x: auto;
+  border-radius: var(--yui-radius-control);
+  background: var(--yui-panel-bg);
+  line-height: 1.6;
+  white-space: pre;
+}
+
+.yui-threads-entry__text pre code {
+  padding: 0;
+  background: none;
+  font-size: var(--yui-fs-body);
+}
+
+@container pane (max-width: 559.98px) {
+  .yui-threads-pane__head,
+  .yui-threads-pane__transcript {
+    padding-inline: 20px;
+  }
+
+  .yui-threads-pane__transcript {
+    gap: 24px;
+  }
+}
+
+@container pane (max-width: 439.98px) {
+  .yui-threads-pane__head,
+  .yui-threads-pane__transcript {
+    padding-inline: 16px;
+  }
+
+  .yui-threads-pane__transcript {
+    gap: 20px;
+    padding-block: 16px 24px;
+  }
+}

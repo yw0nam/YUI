@@ -1,10 +1,10 @@
 use super::payload::{AvatarRoute, AvatarRpcRequest, AVATAR_RPC_CHANNEL};
+use super::response::{respond_json, spawn_request};
 use crate::os_event_watcher::epoch_ms;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::{Arc, Mutex, OnceLock};
-use std::thread;
+use std::sync::{Mutex, OnceLock};
 use tauri::{AppHandle, Emitter};
 
 /// In-flight avatar RPCs, keyed by request id. An entry lives from the emit until
@@ -94,31 +94,7 @@ pub fn avatar_rpc_response(window: tauri::Window, id: String, result: serde_json
     resolve_pending(&id, window.label(), result);
 }
 
-/// Answers the HTTP request with the bridge outcome — the JSON body, or a bare status.
-fn respond_avatar(request: tiny_http::Request, outcome: Result<serde_json::Value, u16>) {
-    match outcome {
-        Ok(value) => {
-            let json = serde_json::to_string(&value).unwrap_or_else(|_| "null".to_string());
-            let header =
-                tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..])
-                    .expect("static header is valid");
-            let _ = request.respond(
-                tiny_http::Response::from_string(json)
-                    .with_header(header)
-                    .with_status_code(200u16),
-            );
-        }
-        Err(code) => {
-            let _ = request.respond(tiny_http::Response::from_string("").with_status_code(code));
-        }
-    }
-}
-
-/// Runs the bridge on its own thread so a 15s gesture never stalls the ingress loop.
-///
-/// The request travels through a shared slot: whichever side ends up owning it answers,
-/// so a thread that never starts still returns an explicit 503 instead of tiny_http's
-/// drop-time 500.
+/// Runs the avatar RPC off the ingress accept loop.
 pub(super) fn spawn_avatar_request(
     app: &AppHandle,
     label: &str,
@@ -127,23 +103,9 @@ pub(super) fn spawn_avatar_request(
 ) {
     let app = app.clone();
     let label = label.to_string();
-    let slot = Arc::new(Mutex::new(Some(request)));
-    let thread_slot = Arc::clone(&slot);
-    let spawned = thread::Builder::new()
-        .name("avatar_rpc".into())
-        .spawn(move || {
-            let taken = thread_slot.lock().ok().and_then(|mut s| s.take());
-            if let Some(request) = taken {
-                respond_avatar(request, avatar_rpc(&app, &label, route));
-            }
-        });
-    if let Err(e) = spawned {
-        log::warn!("avatar_rpc_thread_spawn_failed error={e}");
-        let taken = slot.lock().ok().and_then(|mut s| s.take());
-        if let Some(request) = taken {
-            respond_avatar(request, Err(503));
-        }
-    }
+    spawn_request("avatar_rpc", request, move |request| {
+        respond_json(request, avatar_rpc(&app, &label, route));
+    });
 }
 
 #[cfg(test)]

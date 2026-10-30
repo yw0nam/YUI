@@ -1,0 +1,136 @@
+/* The rail: the list pane folded to 56px, its tabs as a mark over each count, the kind select under
+   a mark, and one source mark per Thread. Tokens in ../../tokens.css. */
+
+.yui-threads-rail {
+  display: none;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: clip;
+  background: var(--yui-panel-bg);
+}
+
+.yui-threads-rail__top {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--yui-edge);
+}
+
+.yui-threads-rail button {
+  border: 0;
+  background: none;
+  color: var(--yui-text-dim);
+  font: inherit;
+  cursor: pointer;
+}
+
+.yui-threads-rail button:hover {
+  background: var(--yui-hover);
+}
+
+/* The tabs, folded: a mark and its count, the pressed one on the Selected fill. */
+.yui-threads-rail__tab {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  width: 44px;
+  padding: 6px 0 4px;
+  border-radius: var(--yui-radius-control);
+}
+
+.yui-threads-rail .yui-threads-rail__tab[aria-pressed="true"] {
+  background: var(--yui-selected);
+  color: var(--yui-text);
+}
+
+.yui-threads-rail__count {
+  font-size: var(--yui-fs-caption);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.yui-threads-rail__count.is-waiting {
+  color: var(--yui-accent-ink);
+}
+
+/* The kind select sits invisible over its mark, so the native list opens from it. */
+.yui-threads-rail__kind {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--yui-radius-control);
+  color: var(--yui-text-dim);
+  font-size: var(--yui-fs-head);
+}
+
+.yui-threads-rail__kind:hover {
+  background: var(--yui-hover);
+}
+
+.yui-threads-rail__kind[data-active="true"] {
+  background: var(--yui-selected);
+  color: var(--yui-text);
+}
+
+.yui-threads-rail__kind:has(select:focus-visible) {
+  outline: 2px solid var(--yui-accent-ink);
+  outline-offset: 2px;
+}
+
+.yui-threads-rail__kind select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.yui-threads-rail__list {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 4px;
+  min-height: 0;
+  padding: 8px 0;
+  overflow: auto;
+}
+
+.yui-threads-rail__item {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: var(--yui-radius-row);
+  font-size: var(--yui-fs-head);
+}
+
+.yui-threads-rail .yui-threads-rail__item[aria-current="true"] {
+  background: var(--yui-selected);
+  color: var(--yui-text);
+}
+
+.yui-threads-rail__dot {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--yui-accent);
+}
+
+.yui-threads-rail__empty {
+  margin: 0;
+  padding: 8px 4px;
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-caption);
+  text-align: center;
+}

@@ -1,6 +1,7 @@
 //! Parses ingress routes and resolves their recipient without owning application state.
 
 use super::payload::{parse_avatar_request, parse_signals_request, AvatarRoute, SignalsPayload};
+use super::threads::routes::{self as thread_routes, ThreadRoute};
 use super::INGRESS_WINDOW;
 use crate::os_event_watcher::epoch_ms;
 
@@ -20,6 +21,7 @@ pub(super) enum Target {
 pub(super) enum RouteKind {
     Signals(SignalsPayload),
     Avatar(AvatarRoute),
+    Thread(ThreadRoute),
 }
 /// A parsed target and its validated payload.
 #[derive(Debug)]
@@ -47,6 +49,12 @@ pub(super) fn parse_route(method: &str, url: &str, body: &str) -> Result<Route, 
         (Target::Main, path.to_string())
     };
     let kind = match path.as_str() {
+        path if path == "/threads" || path.starts_with("/threads/") => {
+            if matches!(target, Target::Preset(_)) {
+                return Err(404);
+            }
+            RouteKind::Thread(thread_routes::parse(method, path, url, body)?)
+        }
         "/signals" => {
             let request = parse_signals_request(method, &path, body)?;
             RouteKind::Signals(SignalsPayload {
@@ -127,6 +135,72 @@ pub(super) fn dispatch(
 mod tests {
     use super::*;
     use std::collections::HashSet;
+
+    #[test]
+    fn threads_routes_parse_values_and_refuse_invalid_requests() {
+        for (method, path, code) in [
+            ("PUT", "/threads", 404),
+            ("PUT", "/threads/", 404),
+            ("PUT", "/threads/a%20b", 404),
+            ("PUT", "/threads/한", 404),
+            ("PUT", "/threads/a/b", 404),
+            ("PUT", "/presets/x/threads/a", 404),
+            ("PUT", "/threads/answers", 404),
+            ("POST", "/threads/a", 405),
+            ("POST", "/threads/a/answer?ask_id=q", 405),
+            ("POST", "/threads/answers?source=x", 405),
+            ("GET", "/threads/a/answer?ask_id=q&wait=26", 400),
+            ("GET", "/threads/a/answer?ask_id=q&wait=-1", 400),
+            ("GET", "/threads/a/answer?ask_id=q&wait=1.5", 400),
+            ("GET", "/threads/answers", 400),
+            ("GET", "/threads/answers?source=", 400),
+            (
+                "GET",
+                &format!("/threads/answers?source={}", "x".repeat(65)),
+                400,
+            ),
+        ] {
+            assert_eq!(
+                parse_route(method, path, "{}").unwrap_err(),
+                code,
+                "{method} {path}"
+            );
+        }
+        assert_eq!(
+            parse_route("PUT", &format!("/threads/{}", "x".repeat(129)), "{}").unwrap_err(),
+            404
+        );
+        let body = r#"{"source":"codex","title":"Build","state":"working"}"#;
+        // The expected id is the sweep's source on the answers route.
+        for (method, path, expected_id, expected_wait) in [
+            ("PUT", "/threads/a_Z-0.:9", "a_Z-0.:9", None),
+            ("GET", "/threads/a/answer?ask_id=q", "a", Some(25)),
+            ("GET", "/threads/a/answer?ask_id=q&wait=0", "a", Some(0)),
+            ("GET", "/threads/a/answer?ask_id=q&wait=25", "a", Some(25)),
+            ("GET", "/threads/a/answer?wait=0", "a", Some(0)),
+            ("GET", "/threads/answers?source=github", "github", None),
+        ] {
+            let route = parse_route(method, path, body).unwrap();
+            assert!(matches!(route.target, Target::Main));
+            match route.kind {
+                RouteKind::Thread(ThreadRoute::Upsert { id, body }) => {
+                    assert_eq!(id, expected_id);
+                    assert_eq!(expected_wait, None);
+                    assert_eq!(body.source, "codex");
+                    assert_eq!(body.title, "Build");
+                    assert_eq!(body.state, crate::threads::model::ThreadState::Working);
+                }
+                RouteKind::Thread(ThreadRoute::Answer { id, ask_id, wait }) => {
+                    assert_eq!(id, expected_id);
+                    assert_eq!(ask_id.as_deref(), path.contains("ask_id").then_some("q"));
+                    assert_eq!(Some(wait.as_secs()), expected_wait);
+                }
+                RouteKind::Thread(ThreadRoute::Sweep { source }) => assert_eq!(source, expected_id),
+                _ => panic!("Thread route expected: {method} {path}"),
+            }
+        }
+    }
+
     #[test]
     fn a_missing_envelope_is_refused() {
         assert_eq!(

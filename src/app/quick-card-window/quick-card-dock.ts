@@ -120,6 +120,7 @@ export function wireQuickCardDock(deps: {
       await detachQuickCard();
     }
     await (await ownWindow()).hide();
+    docked = false;
   }
 
   async function moveTo(next: QuickCardPlacement): Promise<void> {
@@ -158,11 +159,14 @@ export function wireQuickCardDock(deps: {
       content: deps.card.contentSize(),
       workArea,
     });
-    if (linked && next.side === placement.side) {
-      // AppKit already moved it with her; only the record follows.
-      placement = { x: placement.x + delta.dx, y: placement.y + delta.dy, side: placement.side };
-      expected = { x: placement.x, y: placement.y };
+    const carried = { x: placement.x + delta.dx, y: placement.y + delta.dy, side: placement.side };
+    if (linked && next.side === carried.side && next.x === carried.x && next.y === carried.y) {
+      // AppKit already moved it with her and no clamp applies; only the record follows.
+      placement = carried;
+      expected = { x: carried.x, y: carried.y };
     } else {
+      // A clamp or a side switch; a switch onto another monitor's work area can change the box.
+      await resizeToCard();
       await moveTo(next);
     }
     lastOwnerLog = owner.log;
@@ -252,7 +256,7 @@ export function wireQuickCardDock(deps: {
     let lastHeight = 0;
     const observer = new ResizeObserver(() => {
       const height = deps.card.contentSize().height;
-      if (height === lastHeight || !placement) return;
+      if (height === lastHeight) return;
       lastHeight = height;
       queue(async () => {
         const current = placement;

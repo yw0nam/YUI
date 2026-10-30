@@ -29,6 +29,8 @@ interface ContextProviders {
   getRelations?: () => ClientContext["relations"];
   /** The other open presets' names, read once per turn. */
   getOpenCharacters?: () => string[];
+  /** The Threads waiting for the user's answer, read once per turn. */
+  getThreadsWaiting?: () => ClientContext["threads_waiting"];
   /** The enabled plugins' tools and skills, read once per turn. */
   getPluginLines?: () => PluginLines;
 }
@@ -277,6 +279,8 @@ export async function buildContext(
   const relations = providers.getRelations?.();
   const openCharacters = providers.getOpenCharacters?.();
   const lines = providers.getPluginLines?.();
+  const threadsWaiting = providers.getThreadsWaiting?.();
+  const userTurn = triggerKind(env.event_name) === "user";
   const clientContext = {
     ...buildClientContext(
       ctx,
@@ -284,7 +288,7 @@ export async function buildContext(
       providers.getBodyState?.(),
       providers.getFrontmost?.(),
       providers.getPrevious?.(),
-      triggerKind(env.event_name) === "user" && providers.takeMessageWake?.() === true,
+      userTurn && providers.takeMessageWake?.() === true,
     ),
     ...(switches?.length ? { tool_switches: switches } : {}),
     ...(overheard.length
@@ -292,6 +296,9 @@ export async function buildContext(
       : {}),
     ...(relations?.length ? { relations } : {}),
     ...(openCharacters?.length ? { open_characters: openCharacters } : {}),
+    ...(userTurn && threadsWaiting && threadsWaiting.total > 0
+      ? { threads_waiting: threadsWaiting }
+      : {}),
     ...(lines?.tools.length ? { plugin_tools: lines.tools } : {}),
     ...(lines?.skills.length ? { plugin_skills: lines.skills } : {}),
   };

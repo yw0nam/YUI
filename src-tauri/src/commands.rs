@@ -28,12 +28,14 @@ pub fn handler() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         crate::agent_ingress::start_agent_ingress,
         crate::agent_ingress::sync_preset_ids,
         crate::agent_ingress::avatar_rpc::avatar_rpc_response,
+        crate::threads::commands::threads_snapshot,
+        crate::threads::commands::thread_answer,
         crate::turn_log::append_turn_record,
         crate::window_frame::set_frame_logical,
         #[cfg(desktop)]
-        crate::quick_card_dock::quick_card_attach,
+        crate::window_dock::window_dock_attach,
         #[cfg(desktop)]
-        crate::quick_card_dock::quick_card_detach,
+        crate::window_dock::window_dock_detach,
         #[cfg(desktop)]
         crate::mcp_host::commands::plugin_host_snapshot,
         #[cfg(desktop)]

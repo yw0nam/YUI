@@ -89,6 +89,28 @@ _Avoid_: stance, affinity, opinion, feeling
 One of the five named ranges of a relation: `hostile` (≤ −12), `cold` (≤ −4), `neutral`, `warm` (≥ 4), `close` (≥ 12).
 _Avoid_: level, tier, mood
 
+### Threads
+
+**Thread**:
+One outside conversation a producer posts, with an id, source, state, entries, and at most one open Ask.
+_Avoid_: session, ticket, inbox
+
+**Ask**:
+The one question a Thread holds open for the user, with an `ask_id`, prompt, optional choices, and whether free text is accepted.
+_Avoid_: prompt, request
+
+**Answer**:
+The user's reply to one Ask: a choice id, text, both, or `release` to answer at the agent's own terminal.
+_Avoid_: reply, response
+
+**Threads window**:
+The window `threads` where the user reads Threads and answers their Asks; it grows out of the Threads chip, moves and resizes on its own, and first opens beside the main character; its list collapses to a rail.
+_Avoid_: inbox, panel, dashboard
+
+**Threads chip**:
+The pill in the main window's chip column that counts waiting Threads and opens the Threads window.
+_Avoid_: badge, notification pill
+
 ### Surfaces & periphery
 
 **Surface**:
@@ -178,7 +200,7 @@ A tool the client declares to the backend and runs itself (generate_express, bod
 _Avoid_: in-app tool, local tool
 
 **Producer**:
-An outside program that POSTs signals to the `/signals` ingress (yui-notify's hooks, the factorio MCP server).
+An outside program that posts signals to `/signals` (the factorio MCP server) or conversations to `/threads` (yui-notify's coding-agent hooks). Threads fire no character turn.
 _Avoid_: sender, emitter
 
 **Game mod**:

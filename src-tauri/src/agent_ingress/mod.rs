@@ -25,7 +25,9 @@ use tauri::{AppHandle, Emitter, Manager, State};
 pub(crate) mod avatar_rpc;
 mod guard;
 mod payload;
+mod response;
 mod route;
+mod threads;
 
 /// Preset ids main publishes for distinguishing closed windows from unknown presets.
 #[derive(Default)]
@@ -141,6 +143,16 @@ fn handle_request(app: &AppHandle, mut request: tiny_http::Request) {
         }
     };
     match kind {
+        RouteKind::Thread(route) => {
+            threads::requests::handle(
+                app.state::<std::sync::Arc<crate::threads::store::ThreadStore>>()
+                    .inner()
+                    .clone(),
+                route,
+                request,
+            );
+            return;
+        }
         RouteKind::Avatar(route) => {
             spawn_avatar_request(app, &label, route, request);
             return;

@@ -468,7 +468,23 @@ globalThis.YUI_MAP =
       "id": "agent-hooks",
       "module": "senders",
       "label": "coding-agent hooks",
-      "role": "The yui-notify plugin's Claude Code and Codex hooks, which post done and needs-input signals.",
+      "role": "The yui-notify plugin's Claude Code and Codex hooks post Threads; Codex waits for answers through synchronous hooks.",
+      "paths": [],
+      "external": true
+    },
+    {
+      "id": "claude-channel-client",
+      "module": "senders",
+      "label": "Claude Code session",
+      "role": "The Claude Code process registers the plugin channel from launch flags, requests permission verdicts, and receives the user's channel messages.",
+      "paths": [],
+      "external": true
+    },
+    {
+      "id": "agent-channel",
+      "module": "senders",
+      "label": "Claude Code channel server",
+      "role": "The yui-notify MCP server identifies Claude from its messaging socket or parent walk, serves idle when unavailable, and starts answer polling after MCP initialization; ready files enable hook asks and prevent duplicate permission entries.",
       "paths": [],
       "external": true
     },
@@ -550,12 +566,12 @@ globalThis.YUI_MAP =
       "id": "shell/window",
       "module": "shell",
       "label": "window control",
-      "role": "OS-native window drag, logical window frames, the click-through toggle, and the quick-card window's macOS child-window link to its pet window.",
+      "role": "OS-native window drag, logical window frames, the click-through toggle, and a docked window's macOS child-window link to its owner window.",
       "paths": [
         "src-tauri/src/drag.rs",
         "src-tauri/src/window_frame.rs",
         "src-tauri/src/passthrough.rs",
-        "src-tauri/src/quick_card_dock.rs"
+        "src-tauri/src/window_dock.rs"
       ]
     },
     {
@@ -684,7 +700,7 @@ globalThis.YUI_MAP =
       "id": "settings",
       "module": "settings",
       "label": "settings",
-      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, the device-wide yui.user-name holds what {{user}} resolves to, the device-wide yui.tts-readings holds the reading dictionary, the device-wide yui.theme holds the theme (dawn, hearth or system), and the device-wide yui.unified-chat holds the Unified chat switch, with the rule every pet and settings window reads for whether the unified chat window shows (the switch on, two or more open presets, a window can exist), and yui.unified-window the unified window's position.",
+      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, the device-wide yui.user-name holds what {{user}} resolves to, the device-wide yui.tts-readings holds the reading dictionary, the device-wide yui.theme holds the theme (dawn, hearth or system), the device-wide yui.threads-window holds the Threads window's frame and list choice, and the device-wide yui.unified-chat holds the Unified chat switch, with the rule every pet and settings window reads for whether the unified chat window shows (the switch on, two or more open presets, a window can exist), and yui.unified-window the unified window's position.",
       "paths": [
         "src/settings"
       ]
@@ -711,9 +727,18 @@ globalThis.YUI_MAP =
       "id": "io/chat/tools",
       "module": "tools",
       "label": "client tools",
-      "role": "The tools the client declares to the backend and runs itself: generate_express, rate_relation, address_character, body_action, look, plugin_describe, plugin_call, plugin_skill.",
+      "role": "The tools the client declares to the backend and runs itself: generate_express, rate_relation, address_character, body_action, look, plugin_describe, plugin_call, plugin_skill, threads_list, threads_search.",
       "paths": [
         "src/io/chat/tools"
+      ]
+    },
+    {
+      "id": "io/chat/one-line",
+      "module": "backend-call",
+      "label": "one line",
+      "role": "Collapses a sampled or producer-authored string to one line without the client_context tags, the sanitisation the client context block and the Threads tool results share.",
+      "paths": [
+        "src/io/chat/one-line.ts"
       ]
     },
     {
@@ -723,6 +748,15 @@ globalThis.YUI_MAP =
       "role": "Keeps the MCP host's newest snapshot and its subscription, invokes its call, cancel and skill commands and the settings window's managing commands, and builds the per-turn plugin tools and plugin skills lines.",
       "paths": [
         "src/io/mcp-host"
+      ]
+    },
+    {
+      "id": "io/threads",
+      "module": "display",
+      "label": "threads client",
+      "role": "Keeps the Thread store's highest-revision snapshot from threads_snapshot and the threads-snapshot event, and sends the user's Answer through thread_answer; inert outside Tauri.",
+      "paths": [
+        "src/io/threads"
       ]
     },
     {
@@ -837,7 +871,7 @@ globalThis.YUI_MAP =
       "id": "io/window/geometry",
       "module": "window",
       "label": "window geometry",
-      "role": "Monitor and floor math, the quick card's dock, follow and snap rules, the travel and stationary frames, keep-on-screen, and the companion column windows' placement, width, focus, drag and content-height resize.",
+      "role": "Monitor and floor math, the quick card's dock, follow and snap rules and its macOS child-window link, the Threads window's first place beside the pet window, its stored frame moved into the nearest work area and the chip-sized rect its grow starts from, the travel and stationary frames, keep-on-screen, and the companion column windows' placement, width, focus, drag and content-height resize.",
       "paths": [
         "src/io/window/geometry"
       ]
@@ -846,7 +880,7 @@ globalThis.YUI_MAP =
       "id": "io/window/openers",
       "module": "window",
       "label": "window openers",
-      "role": "Opens and places the message, settings, devtools, unified chat, quick-card, and pet windows, and a bound pet window's settings-<id>, message-<id> and quick-card-<id> by its preset id; keeps a request made before the quick-card window reports ready, closes those companions and watches their owner window.",
+      "role": "Opens and places the message, settings, devtools, unified chat, quick-card, Threads and pet windows, and a bound pet window's settings-<id>, message-<id> and quick-card-<id> by its preset id; keeps a request made before the quick-card or Threads window reports ready, closes those companions and watches their owner window.",
       "paths": [
         "src/io/window/openers"
       ]
@@ -873,7 +907,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/settings",
       "module": "bridge",
       "label": "settings bridge",
-      "role": "Typed cross-window settings bus: its channels scoped to the sender's preset, and the unscoped settings-changed, preset-changed, pet-windows-changed, character-addressed, user-turn-routed, voice-segment, speech-onset, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control, stop-turns, settings-page and open-devtools.",
+      "role": "Typed cross-window settings bus: its channels scoped to the sender's preset, and the unscoped settings-changed, preset-changed, pet-windows-changed, character-addressed, user-turn-routed, voice-segment, speech-onset, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control, stop-turns, settings-page, open-devtools, threads-open, threads-ready and threads-closed.",
       "paths": [
         "src/io/bridge/settings-bridge.ts"
       ]
@@ -1185,6 +1219,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "ui/threads",
+      "module": "display",
+      "label": "threads ui",
+      "role": "The Threads chip in main's chip column (newest source marks, label, amber count; hidden at zero while the window is closed, one nod on arrival, hold-to-fold) and the Threads window's view: the layout its panel's width picks (list and thread, the rail, one pane), the list collapsed to the rail by the head toggle or Control+Command+S, Waiting / All tabs and a kind select over waiting-first rows, the thread pane's scrolling transcript, the pinned answer area with numbered choices and a growing field, per-ask drafts, and the grow out of the chip.",
+      "paths": [
+        "src/ui/threads"
+      ]
+    },
+    {
       "id": "ui/devtools",
       "module": "settings",
       "label": "devtools ui",
@@ -1268,6 +1311,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "app/threads-chip",
+      "module": "wiring",
+      "label": "threads chip wiring",
+      "role": "Main only: mounts the Threads chip after the signal chips on their shared fold store, feeds it the store's snapshots, and opens the Threads window from its tap; the chip stays shown while the window is open, its tap then bringing the window forward, until the window's closed report.",
+      "paths": [
+        "src/app/threads-chip"
+      ]
+    },
+    {
       "id": "app/stage",
       "module": "wiring",
       "label": "stage wiring",
@@ -1322,6 +1374,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "app/threads-window",
+      "module": "wiring",
+      "label": "threads window wiring",
+      "role": "The Threads window's wiring: snapshots into the view, Answers to the store, the open request placing and showing the window (beside main's pet window the first time, at its stored frame after that) before the grow, or only focusing it while it shows, its head's native drag and the frame saved once a move settles, its edge and corner resize applied at most once a frame and saved at the end, Escape and × shrinking it back and hiding it, and the stored theme and language reloaded on settings-changed.",
+      "paths": [
+        "src/app/threads-window"
+      ]
+    },
+    {
       "id": "app/message",
       "module": "wiring",
       "label": "message-window wiring",
@@ -1373,6 +1434,15 @@ globalThis.YUI_MAP =
       "role": "One entry file per window, loaded by the matching HTML file.",
       "paths": [
         "src/windows"
+      ]
+    },
+    {
+      "id": "shell/threads",
+      "module": "shell",
+      "label": "threads",
+      "role": "Keeps Threads and their asks, appends each change to a dated JSONL file kept 14 days, wakes answer waits, and publishes a revisioned snapshot to every window.",
+      "paths": [
+        "src-tauri/src/threads"
       ]
     }
   ],
@@ -2118,6 +2188,24 @@ globalThis.YUI_MAP =
       "wiring": "src/app/bootstrap-configured.ts"
     },
     {
+      "id": "threads-tools",
+      "from": "io/threads",
+      "to": "io/chat/tools",
+      "carries": "snapshot(): the Thread list threads_list and threads_search read when a call runs; null outside main's window",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/bootstrap-configured.ts"
+    },
+    {
+      "id": "threads-waiting-context",
+      "from": "io/threads",
+      "to": "dispatcher/backend",
+      "carries": "threadsWaiting(snapshot.threads) → ClientContext.threads_waiting, read per turn on user-started turns; absent at zero waiting",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/bootstrap-configured.ts"
+    },
+    {
       "id": "push-image",
       "from": "io/chat/push",
       "to": "io/image",
@@ -2134,11 +2222,43 @@ globalThis.YUI_MAP =
       "transport": "shared"
     },
     {
-      "id": "agent-hooks-signals",
+      "id": "agent-hooks-threads",
       "from": "agent-hooks",
       "to": "shell/agent-ingress",
-      "carries": "POST /signals {source claude-code|codex, event_type agent.done|agent.needs_input, delivery, event_id <session_id>:<phase>, label}, or the same path under /presets/<id>/",
+      "carries": "PUT /threads/<id> {source, title, label, state, entries, ask?}; Codex long-polls GET /threads/<id>/answer?ask_id=<ask_id>&wait=25",
       "kind": "http",
+      "transport": "shared"
+    },
+    {
+      "id": "claude-channel-permission",
+      "from": "claude-channel-client",
+      "to": "agent-channel",
+      "carries": "MCP stdio notifications/initialized starts polling; notifications/claude/channel/permission_request {request_id, tool_name, description, input_preview}",
+      "kind": "bridge",
+      "transport": "shared"
+    },
+    {
+      "id": "channel-claude-answer",
+      "from": "agent-channel",
+      "to": "claude-channel-client",
+      "carries": "MCP stdio notifications/claude/channel/permission {request_id, behavior}; notifications/claude/channel {content, meta: {source: yui}}",
+      "kind": "bridge",
+      "transport": "shared"
+    },
+    {
+      "id": "agent-channel-threads",
+      "from": "agent-channel",
+      "to": "shell/agent-ingress",
+      "carries": "PUT /threads/<id> permission asks; GET /threads/<id>/answer?wait=25 delivers oldest pending permission or next-instruction answer once",
+      "kind": "http",
+      "transport": "shared"
+    },
+    {
+      "id": "channel-hook-readiness",
+      "from": "agent-channel",
+      "to": "agent-hooks",
+      "carries": "XDG_STATE_HOME/yui-notify/channels/<claude pid> contains the initialized ready server PID; live PID enables Stop asks and suppresses permission hook entries",
+      "kind": "storage",
       "transport": "shared"
     },
     {
@@ -2323,10 +2443,18 @@ globalThis.YUI_MAP =
       "id": "drop-release-source",
       "from": "shell/os-event-watcher",
       "to": "dispatcher/sources/gesture",
-      "carries": "window_drop_release: the dragged window's label; a quick-card window's release settles nothing in a pet window",
+      "carries": "window_drop_release: the dragged window's label; a quick-card or Threads window's release settles nothing in a pet window",
       "kind": "tauri-event",
       "transport": "shared",
       "wiring": "src/app/stage/wire-window-sources.ts"
+    },
+    {
+      "id": "threads-window-label",
+      "from": "dispatcher/sources/gesture",
+      "to": "io/window/openers",
+      "carries": "THREADS_WINDOW_LABEL: with the quick-card label prefix, the windows whose drags settle in their own windows and never perch the character",
+      "kind": "call",
+      "transport": "shared"
     },
     {
       "id": "gesture-list-windows",
@@ -2815,6 +2943,148 @@ globalThis.YUI_MAP =
       "wiring": "src/app/controls/wire-pet-controls.ts"
     },
     {
+      "id": "threads-shell-event",
+      "from": "shell/threads",
+      "to": "io/threads",
+      "carries": "threads-snapshot {revision, threads}: every change; the client keeps the highest revision",
+      "kind": "tauri-event",
+      "transport": "shared"
+    },
+    {
+      "id": "threads-shell-command",
+      "from": "io/threads",
+      "to": "shell/threads",
+      "carries": "threads_snapshot once after the listen; thread_answer {id, askId, choice?, text?}",
+      "kind": "tauri-command",
+      "transport": "shared"
+    },
+    {
+      "id": "threads-chip-snapshot",
+      "from": "io/threads",
+      "to": "ui/threads",
+      "carries": "the snapshot's Threads → the chip's waiting count, newest source marks and arrival nod",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/threads-chip/wire-threads-chip.ts"
+    },
+    {
+      "id": "threads-window-snapshot",
+      "from": "io/threads",
+      "to": "ui/threads",
+      "carries": "the snapshot → the list, the thread pane and the drafts its asks still accept",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/wire-threads-window.ts"
+    },
+    {
+      "id": "threads-answer",
+      "from": "ui/threads",
+      "to": "io/threads",
+      "carries": "an Answer {choice?, text?} for the ask id captured at send; a rejection's error string comes back to the answer area",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/wire-threads-window.ts"
+    },
+    {
+      "id": "threads-chip-open",
+      "from": "ui/threads",
+      "to": "io/window/openers",
+      "carries": "the chip's tap → open(the chip's viewport rect), sent as screen logical px once the window reports ready",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/threads-chip/wire-threads-chip.ts"
+    },
+    {
+      "id": "threads-open-request",
+      "from": "io/window/openers",
+      "to": "app/threads-window",
+      "carries": "yui://threads-open {chip: {x, y, width, height}}: place, show and focus the window, then grow out of the chip; while it shows, only focus it",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/wire-threads-window.ts"
+    },
+    {
+      "id": "threads-ready",
+      "from": "app/threads-window",
+      "to": "io/window/openers",
+      "carries": "yui://threads-ready: the window has booted; the controller sends a request it held since the create",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/wire-threads-window.ts"
+    },
+    {
+      "id": "threads-closed",
+      "from": "app/threads-window",
+      "to": "io/window/openers",
+      "carries": "yui://threads-closed: the window hid after its close or a failed open; the chip leaves its open state and hides at zero waiting",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/threads-chip/wire-threads-chip.ts"
+    },
+    {
+      "id": "threads-placement",
+      "from": "app/threads-window",
+      "to": "io/window/geometry",
+      "carries": "threadsWindowRect, restoreThreadsBox, nearestWorkArea and chipInWindow: the first open 12px beside the pet window on its roomier side, the wanted panel narrowed to the room and never below 360 × 420; a stored frame sized into and moved inside the nearest monitor's work area less 12px; the chip-sized rect the grow starts from",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/threads-placement.ts"
+    },
+    {
+      "id": "threads-frame",
+      "from": "app/threads-window",
+      "to": "settings",
+      "carries": "yui.threads-window {x?, y?, width, height, listCollapsed}: the panel's frame in logical px, written at each placement, once a user move settles and at a resize's end, its size floored at 360 × 420; the list choice, written by the toggle and never by a width change; the frame read on each open, the list choice once at boot",
+      "kind": "storage",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/wire-threads-window.ts"
+    },
+    {
+      "id": "threads-resize-handles",
+      "from": "ui/threads",
+      "to": "app/threads-window",
+      "carries": "resize {start, move(edge, dx, dy), end}: an edge or corner drag in screen px from the pointerdown; a release, a cancel or a lost capture ends it",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/wire-threads-window.ts"
+    },
+    {
+      "id": "threads-resize-box",
+      "from": "app/threads-window",
+      "to": "io/window/geometry",
+      "carries": "resizeThreadsBox(box, workArea, edge, dx, dy): the dragged sides moved, between the 376 × 436 minimum box and the work area less 12px on every side",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/threads-resize.ts"
+    },
+    {
+      "id": "threads-head-pointerdown",
+      "from": "ui/threads",
+      "to": "app/threads-window",
+      "carries": "onHeadPointerDown: a pointerdown on the head, not on its buttons",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/wire-threads-window.ts"
+    },
+    {
+      "id": "threads-head-drag",
+      "from": "app/threads-window",
+      "to": "io/window/pet",
+      "carries": "invokeDragWindow from the head's pointerdown (not on its buttons): the window's native drag",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/threads-placement.ts"
+    },
+    {
+      "id": "threads-min-panel",
+      "from": "io/window/geometry",
+      "to": "settings",
+      "carries": "THREADS_MIN_PANEL {width 360, height 420}: the smallest panel the placement and the resize keep",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/io/window/geometry/threads-position.ts"
+    },
+    {
       "id": "quick-card-placement",
       "from": "app/quick-card-window",
       "to": "io/window/geometry",
@@ -2827,7 +3097,7 @@ globalThis.YUI_MAP =
       "id": "quick-card-drag-shell",
       "from": "app/quick-card-window",
       "to": "shell/window",
-      "carries": "drag_window from a head pointerdown: the OS drag of the card window; quick_card_attach {parentLabel} and quick_card_detach: the macOS child-window link that moves the docked card with her pet window (false elsewhere)",
+      "carries": "drag_window from a head pointerdown: the OS drag of the card window; window_dock_attach {parentLabel} and window_dock_detach: the macOS child-window link that moves the docked card with her pet window (false elsewhere)",
       "kind": "tauri-command",
       "transport": "shared",
       "wiring": "src/app/quick-card-window/quick-card-dock.ts"
@@ -3695,6 +3965,24 @@ globalThis.YUI_MAP =
       "kind": "call",
       "transport": "shared",
       "wiring": "src/windows/main.ts"
+    },
+    {
+      "id": "threads-ingress",
+      "from": "signal-producers",
+      "to": "shell/agent-ingress",
+      "kind": "http",
+      "transport": "shared",
+      "carries": "PUT /threads/<id> {source, title, label?, state, entries?, ask?}; GET /threads/<id>/answer with optional ask_id and wait (200 oldest pending answer once, 204, 404; 410 only with ask_id); GET /threads/answers?source=<source> sweeps every pending answer of that source, oldest first, delivered once",
+      "wiring": "src-tauri/src/agent_ingress/mod.rs"
+    },
+    {
+      "id": "ingress-threads",
+      "from": "shell/agent-ingress",
+      "to": "shell/threads",
+      "kind": "call",
+      "transport": "shared",
+      "carries": "upsert, wait_answer, drain_answers",
+      "wiring": "src-tauri/src/agent_ingress/threads/requests.rs"
     }
   ],
   "flows": [
@@ -4389,7 +4677,6 @@ globalThis.YUI_MAP =
           "from": "senders",
           "label": "POST /signals",
           "edges": [
-            "agent-hooks-signals",
             "signals-ingress",
             "factorio-ingress"
           ],
@@ -4686,6 +4973,11 @@ globalThis.YUI_MAP =
         "role": "The unified chat window, unified.html: a frameless 340 px column that is the only chat path while it shows; the cast chips, one dialogue box showing one character's line at a time, and the composer that routes a message to one preset or, in sequence, to all"
       },
       {
+        "id": "threads",
+        "label": "threads",
+        "role": "The Threads window, threads.html: main's frameless window, first placed beside the pet window and reopened at its stored frame, grown out of the Threads chip and hidden on close."
+      },
+      {
         "id": "devtools",
         "label": "devtools",
         "role": "Context inspector, advanced settings, and motion preview over reloaded stores."
@@ -4828,6 +5120,27 @@ globalThis.YUI_MAP =
         "from": "quick-card-<id>",
         "to": "pet-<id>",
         "carries": "yui://quick-card-ready: the controller sends a request it held since the create",
+        "kind": "bridge"
+      },
+      {
+        "id": "threads-open-pet",
+        "from": "pet",
+        "to": "threads",
+        "carries": "yui://threads-open {chip}: place, show and focus the window, grow out of the chip; while it shows, focus it",
+        "kind": "bridge"
+      },
+      {
+        "id": "threads-ready-pet",
+        "from": "threads",
+        "to": "pet",
+        "carries": "yui://threads-ready: the controller sends a request it held since the create",
+        "kind": "bridge"
+      },
+      {
+        "id": "threads-closed-pet",
+        "from": "threads",
+        "to": "pet",
+        "carries": "yui://threads-closed: the chip leaves its open state",
         "kind": "bridge"
       },
       {

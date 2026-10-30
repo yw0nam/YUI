@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import en from "../src/ui/i18n/en";
 
 const ROOT = resolve(__dirname, "..");
-const SKILL_DIR = "integrations/skills/yui-daily-briefing";
+const SKILL_DIR = "skills/yui-daily-briefing";
 const SKILL_BODY = `${SKILL_DIR}/SKILL.md`;
 const CONTRACT = `${SKILL_DIR}/references/producer-contract.md`;
 const SCRIPT = `${SKILL_DIR}/scripts/briefing.py`;

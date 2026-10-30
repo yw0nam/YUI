@@ -39,6 +39,7 @@ import type {
   PlacementResult,
 } from "../../../../io/window/geometry/perch";
 import { containsSeat } from "../../../../io/window/geometry/perch";
+import { THREADS_WINDOW_LABEL } from "../../../../io/window/openers/threads-window";
 import { createLogger } from "../../../../logger";
 import type { ScreenPoint } from "../../../../renderer/geometry/probe/perch-geometry";
 import {
@@ -419,8 +420,12 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
       if (unlisten) return;
       try {
         unlisten = await listen(RELEASE_EVENT, ({ payload }) => {
-          // The quick card's drop moved no pet window; it settles in the card's own window.
-          if (typeof payload === "string" && payload.startsWith("quick-card")) return;
+          // A quick-card or Threads window's drop moved no pet window; it settles in its own window.
+          if (
+            typeof payload === "string" &&
+            (payload === THREADS_WINDOW_LABEL || payload.startsWith("quick-card"))
+          )
+            return;
           const dragged = deps.wasDragging?.() ?? true;
           if (deps.isHeld?.()) return;
           void settle()

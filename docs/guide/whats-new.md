@@ -10,12 +10,15 @@ Releases are listed newest first, and older releases are on [GitHub Releases](ht
 - A plugin's tools and skills reach the backend through three bridge tools, so the model describes a tool, calls it, and reads a skill ([Client Tools](../reference/client-tools.md)).
 - The `browser` tool comes from the official `browser` plugin, installed from the Catalog like any other plugin ([Plugins](plugins.md)).
 - **Default** reasoning effort sends no effort, so the model applies its own default ([Connect a backend](connect-a-backend.md)).
-- yui-notify posts nothing while the agent's app is in front, and warns at session start when it cannot reach YUI ([yui-notify](https://github.com/yw0nam/YUI/blob/main/integrations/yui-notify/README.md)).
+- yui-notify posts coding-agent Threads; Codex accepts answers through synchronous hooks, frontmost permissions stay at its terminal, and the plugin warns at session start when it cannot reach YUI ([yui-notify](https://github.com/yw0nam/YUI/blob/main/plugins/yui-notify/README.md)).
+- The **Threads** chip on the main character opens the Threads window, where you read and answer outside conversations with a choice, text, or both; the window resizes, remembers its frame, and collapses its list to a rail ([Threads](../reference/threads.md)).
+- yui-notify ships the `/yui-notify:thread-producer` skill, which builds a Thread producer for any other source ([yui-notify](https://github.com/yw0nam/YUI/blob/main/plugins/yui-notify/README.md)).
 
 ### Breaking changes
 
 | Change | What you do |
 | --- | --- |
+| yui-notify removes `agent.*` signals, `events.*` configuration, and `test --delivery`. | Hooks post Threads without character turns. Configure `endpoint`, `wait.stop`, and `wait.permission`; use `test` to send a completed Thread. Codex answers through synchronous hooks ([yui-notify](https://github.com/yw0nam/YUI/blob/main/plugins/yui-notify/README.md)). |
 | The `briefing.py migrate` command, the daily briefing's one-time folder move, is removed ([#1652](https://github.com/yw0nam/YUI/pull/1652)). | Nothing, unless your spool holds day folders at its root: move them into `reports/` by hand. |
 | The Expression Broker connection is removed, and client-declared tools carry expression cues ([#1654](https://github.com/yw0nam/YUI/pull/1654)). | Nothing, unless you set `broker_base_url`: the key is ignored. A backend that does not pass a request's tools to its model carries expression cues only on Push, so set **Type** in the Chat section of the **Connection** page to **Push** ([Push transport](../reference/push-transport.md)). |
 | `POST /agent-event` is removed ([#1655](https://github.com/yw0nam/YUI/pull/1655)). | Nothing, unless a hook posts to `/agent-event`: post a signals envelope to [`/signals`](../reference/signals-ingress.md) instead. |

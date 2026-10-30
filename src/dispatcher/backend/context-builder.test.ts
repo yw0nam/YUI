@@ -152,6 +152,45 @@ describe("context builder — relations", () => {
   });
 });
 
+describe("context builder — threads waiting", () => {
+  const WAITING = {
+    total: 3,
+    by_source: [
+      { source: "claude-code", count: 2 },
+      { source: "github-ci", count: 1 },
+    ],
+  };
+
+  it("carries threads_waiting from the provider on a user turn", async () => {
+    const built = await buildContext(ENV, { getThreadsWaiting: () => WAITING });
+    expect(built.clientContext.threads_waiting).toEqual(WAITING);
+  });
+
+  it("omits threads_waiting on a proactive or signals turn", async () => {
+    const proactive = await buildContext(
+      { ...ENV, event_name: "proactive.idle" },
+      { getThreadsWaiting: () => WAITING },
+    );
+    expect("threads_waiting" in proactive.clientContext).toBe(false);
+
+    const signals = await buildContext(
+      { ...ENV, event_name: "signals.batch" },
+      { getThreadsWaiting: () => WAITING },
+    );
+    expect("threads_waiting" in signals.clientContext).toBe(false);
+  });
+
+  it("omits threads_waiting when nothing waits or the provider is absent", async () => {
+    const zero = await buildContext(ENV, {
+      getThreadsWaiting: () => ({ total: 0, by_source: [] }),
+    });
+    expect("threads_waiting" in zero.clientContext).toBe(false);
+
+    const absent = await buildContext(ENV, {});
+    expect("threads_waiting" in absent.clientContext).toBe(false);
+  });
+});
+
 describe("context builder — open characters", () => {
   it("carries the names the provider returns, read again every turn", async () => {
     let open = ["alice"];

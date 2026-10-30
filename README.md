@@ -71,11 +71,9 @@ Each character keeps her own brain, persona, voice, VRM model, and history, and 
 
 <a href="https://youtu.be/m8myp8pT4Yw"><img src="docs/public/yui-scenario-together.gif" alt="Yangyang and Suisui stand on the desktop beside a browser page; the user asks both of them to look themselves up, and each answers in turn in the chat window" width="400"></a> <a href="https://youtu.be/LQpZq9HcIuk"><img src="docs/public/yui-scenario-address.gif" alt="In the chat window, Yangyang passes the user's question to Suisui, and Suisui answers her" width="400"></a>
 
-### She tells you when your coding agent is done
+### Read your coding agent's Threads
 
-<a href="https://youtu.be/T3-B642x0Yw"><img src="docs/public/yui-scenario-signals.gif" alt="A Signal chip labelled claude-code appears beside Yangyang; its details show the kind agent.needs_input and the signal's message: a Claude Code session waits for permission" width="560"></a>
-
-The [yui-notify](integrations/yui-notify/README.md) plugin for Claude Code and Codex sends a signal when the agent finishes or waits for your permission, and the character tells you. Turn on **External signals** in **Settings → Proactive → Watchers** first, then restart YUI.
+The [yui-notify](plugins/yui-notify/README.md) plugin posts Claude Code and Codex conversations as Threads without character speech. Codex accepts permissions and next instructions through synchronous hooks; Claude Code Threads are read-only. Turn on **External signals** in **Settings → Proactive → Watchers**, then restart YUI.
 
 **And more:** your own VRM model, Tavern Card import and export, voice chat you can interrupt, image attachments, a chat history, how each character feels about you and the others, a Quick card on right-click, Dawn and Hearth themes, English, Japanese, and Korean UI, and tools your agent can use on your computer. See the [full feature list](docs/guide/features.md).
 

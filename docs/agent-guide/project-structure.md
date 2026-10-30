@@ -21,6 +21,7 @@ YUI/
   message.html                       # Message-window Vite entry
   quick-card.html                    # Quick-card-window Vite entry
   unified.html                       # Unified-chat-window Vite entry
+  threads.html                       # Threads-window Vite entry
   vite.config.ts                     # Dev port YUI_DEV_PORT|1420, strictPort, host 127.0.0.1, backend proxy plugin
   biome.json                         # Format and lint config (curated rule set)
   scripts/                           # Summarised: dev launchers (dev-port.mjs, tauri-dev.mjs for tauri:dev, dev-auto.mjs) and their shared package-manager.mjs helper, dev-backend-proxy.mjs, release.sh, worktree-setup.sh, architecture-map-base.mjs (writes the map of origin/main beside the data file for the viewer's Compare view), and ci/ (test-guard.sh, gates.sh, architecture-map.mjs, command-paths.mjs, css-selectors.mjs, logger-namespace.mjs)
@@ -99,6 +100,8 @@ YUI/
         wire-preset.ts               # Sends a preset switch over the settings bridge and reloads each unbound window into it, after the pet window stops its turn; a bound window only rereads the list
       signal-chips/                  # The signal chips beside the avatar
         wire-signal-chips.ts         # The signal chips on every transport, sharing the delegation chip's fold store
+      threads-chip/                  # Main's Threads chip
+        wire-threads-chip.ts         # The chip from the store's snapshots, on the shared fold store, opening the Threads window
       pet-windows/                   # Windows bound to one preset: the shared open list, their lifecycle, and the windows each one opens
         pet-window-role.ts           # The entry main composes: the registry and open list a window owns, the orphan check, and main's reconcile or a bound window's self-close
         companion-window.ts          # A companion window's boot: the orphan and owner checks, its own live key, and its teardown on a close request; the pet window's wait for its companions
@@ -120,6 +123,11 @@ YUI/
         quick-card-ports.ts          # The quick card's ports over the window's stores: tiles, selects, transport line, reset, Turn off, All settings…
         quick-card-dock.ts           # Places the window docked beside her, follows her window, detaches on a head drag and snaps a near drop back
         quick-card-close.ts          # Closes the card when no YUI window holds focus, and hides the window on every close
+      threads-window/                # The Threads window's wiring
+        wire-threads-window.ts       # Snapshots into the view, Answers to the store, the frame store into placement and resize, the list choice, the open request, theme and language
+        threads-placement.ts         # The window's frame: beside main's pet window the first time, its stored frame after that, its head's native drag, and the frame saved once a move settles
+        threads-presence.ts          # One open or close at a time: show and grow, or focus while shown; shrink and hide, then the closed report
+        threads-resize.ts            # A handle drag into the window's box, applied at most once a frame, the frame saved after the last apply
       settings-window/               # The settings window's wiring
         wire-settings-window.ts      # Stores, config, cross-window sync, and the settings panel remounted on locale change, bound to the query's preset when it names one, and editing the preset `?edit=` names
         edit-target-url.ts           # The settings URL with its `edit` param set to the picked preset, or dropped for the window's own, and its `page` param set to the requested page
@@ -136,6 +144,7 @@ YUI/
       message-main.ts                # Message window: the bubble, input, and plate, with the companion guard when the query binds a preset
       quick-card-main.ts             # Quick-card window: the companion guard when the query binds a preset, then the quick-card window wiring
       unified-main.ts                # Unified chat window: the frameless 340 px column, the speech stream into its box, and the composer that routes a message
+      threads-main.ts                # Threads window: boots the Threads window wiring
     styles.css                       # Pet-window base stylesheet
     vite-env.d.ts                    # Vite client types and build-time env declarations
     contract/                        # TS contract types — the wire schema source of truth
@@ -368,6 +377,8 @@ YUI/
         unified-window-settings.ts   # The unified window's last position under yui.unified-window, device-wide
       identity/                      # Who the user is to the character
         user-name-settings.ts        # Device-wide "Your name", what {{user}} resolves to
+      threads/                       # The Threads window's own state
+        threads-window-settings.ts   # Its panel frame and list choice under yui.threads-window, per device; the minimum panel
       panels/                        # Panel and window state
         delegation-chip-settings.ts  # Per-device fold state of the delegation chip
         settings-pages.ts            # The settings page ids, character pages and app pages, and the check for one
@@ -429,6 +440,8 @@ YUI/
           reader.ts                    # Reads the OpenAI-compatible /models list; every failure is a result kind
         record/                        # The turn-record JSONL log
           turn-record-log.ts           # Appends one JSONL record per completed turn or skipped fire
+      threads/                         # The Thread store's client
+        threads-client.ts              # The highest-revision snapshot from threads_snapshot and threads-snapshot, and thread_answer
       mcp-host/                        # The MCP host client and the `plugin tools:` and `plugin skills:` lines
         mcp-host.ts                    # The host's newest snapshot and its subscription, the call, cancel and skill invocations, and the settings window's managing commands
         enabled-plugins.ts             # The enabled plugins' tools with their summaries, their skills with their descriptions, and the tool lookup a call makes
@@ -479,6 +492,7 @@ YUI/
           companion-column.ts          # A companion column window's focus, OS drag, content-height resize and moved-position report
           quick-card-position.ts       # Where the quick-card window sits: docked beside her on the roomier side, following her, snapped back, clamped into the work area
           quick-card-link.ts           # Links and unlinks the quick-card window as a native child of its pet window (macOS; false elsewhere)
+          threads-position.ts          # The Threads window's box: its first place beside the pet window on the roomier side, a stored frame moved into the nearest work area, a handle drag's box between the minimum and the work area, and the chip-sized rect its grow starts from
           keep-on-screen.ts            # Pushes a window back until its centre lands on a monitor
           travel-frame.ts              # Parks the real window once for a scale-seam crossing
           stationary-frame.ts          # Widens the real window around a character that stays where she is
@@ -488,7 +502,9 @@ YUI/
           settings-window.ts           # Settings window opener, settings-<id> for a bound id, landing on a page or asking the open window for it, and cross-window settings sync
           devtools-window.ts           # Developer Tools window opener
           message-window.ts            # Message-window opener, message-<id> for a bound id
-          quick-card-window.ts         # Quick-card window opener, quick-card-<id> for a bound id: created hidden once, a leftover recreated, a request held until the window reports ready; its permissions are src-tauri/capabilities/quick-card.json
+          ready-window.ts              # A hidden window created once, a leftover recreated, a request held until the window reports ready
+          quick-card-window.ts         # Quick-card window opener, quick-card-<id> for a bound id, on ready-window; its permissions are src-tauri/capabilities/quick-card.json
+          threads-window.ts            # Threads window opener on ready-window: the chip's screen rect in each open request, the closed report passed on; its permissions are src-tauri/capabilities/threads.json
           message-window-mode.ts       # Keeps the message window in step with the stored mode, the unified chat window and the dock request
           unified-window.ts            # Unified chat window opener: shows the one frameless window labelled unified, or creates it at its stored position, and destroys it; its permissions are src-tauri/capabilities/unified.json
           pet-window.ts                # Bound pet window opener: creates pet-<id> and lists the windows that exist
@@ -624,6 +640,19 @@ YUI/
         ingress-dead-notice.ts       # One-off notice when the Rust agent ingress listener dies
         first-run-hint.ts            # First-run controls hint through the speech bubble
         boot-error.css               # Boot-failure notice styles
+      threads/                       # The Threads chip and the Threads window
+        thread-source.ts             # A source's name and mark; unknown sources show their raw name and a generic mark
+        chip/threads-chip.ts         # The chip: newest source marks, label, count; hidden at zero while the window is closed, one nod on arrival, hold-to-fold
+        window/threads-view.ts       # The window's view: the head as the drag handle with the sidebar toggle, the list pane or the rail beside the thread pane, the selection and filters, the minute time tick
+        window/thread-list.ts        # The list pane: tabs, kind select, waiting-first rows, and the Thread an open shows
+        window/thread-pane.ts        # The thread pane: head, scrolling transcript, the answer area, and each ask's draft, send error and in-flight send
+        window/answer-area.ts        # The answer area: numbered choices, the growing field, and the send button
+        window/drafts.ts             # Unsent Answers per ask, pruned by each snapshot
+        window/rich-text.ts          # Producer text as text nodes, code spans and fenced code
+        window/grow.ts               # The grow out of the chip and the shrink back
+        window/resize-handles.ts     # The panel's edge and corner hit areas, reporting a drag in screen px, and the size readout
+        window/threads-layout.ts     # The layout the panel's width picks, the collapsed list, the medium overlay and the narrow screen
+        window/thread-rail.ts        # The rail: the tabs as marks over counts, the kind select, one source mark per row
       quick-card/                    # The right-click card, in its own window beside the character
         quick-card.ts                # The card: its head (the drag handle) and All settings…, how it opens and closes, and its rebuild in a new language
         tiles.ts                     # The toggle tiles: each writes its store and follows it
@@ -812,7 +841,7 @@ YUI/
       app_log.rs                     # Log plugin sink, timezone, line format, and log directory
       drag.rs                        # OS-native window drag with multi-monitor and DPI correction
       window_frame.rs                # Lifts AppKit frame constraining and applies logical window frames
-      quick_card_dock.rs             # The quick-card window's macOS child-window link to its pet window: quick_card_attach, quick_card_detach
+      window_dock.rs                 # A docked window's macOS child-window link to its owner window: window_dock_attach, window_dock_detach
       passthrough.rs                 # Click-through toggle over the transparent overlay
       screenshot.rs                  # Screen-source enumeration and off-thread display capture
       image_encode.rs                # Long-edge resize and JPEG data-URL encode used by screenshot.rs
@@ -868,16 +897,17 @@ YUI/
       game-mod/                      # The coop-agent Lua game mod; its tests/ uv project runs in the python CI job
       skills/                        # The companion skill the backend agent reads
         factorio-companion/          # Game play through the factorio MCP server tools
-  integrations/                      # Backend-side integrations, independent of the YUI app runtime
+    yui-notify/                      # Coding-agent Threads plugin installed from the `yui` marketplace: Claude Code and Codex hooks, a stdio MCP channel server, `skills/setup`, and `skills/thread-producer`
+  integrations/                      # Agent-specific adapters, independent of the YUI app runtime
     hermes/
       README.md                      # Hermes Agent adapter setup (Responses mode, dev proxy, auth)
       desire/                        # Agent desire middleware, state helpers, monitor, and prompts (Python/uv)
       platform/                      # Hermes gateway push-transport plugin: one WebSocket carrying turns in and finished replies out (Python/uv)
         yui/src/tools/               # The client-declared tools: registration from hello.tools, the blocking handler, and the per-chat pending calls
-    skills/
-      yui-daily-briefing/            # Backend-agnostic skill: scheduled producers write dated markdown briefings (scripts/briefing.py) that the backend agent speaks on first activity
-      yui-wake-character/            # Backend-agnostic skill: wake one character through its preset ingress URL and act on 200, 404, and 503
-  skills/                            # Skill folders for agents outside this repository, copied into an agent's skill folder or fetched by raw URL: yui-plugin routes to BUILD.md (build a plugin) or CONTRIBUTE.md (share one)
+  skills/                            # Skill folders for agents outside this repository, copied into an agent's skill folder or fetched by raw URL
+    yui-daily-briefing/              # Backend-agnostic skill: scheduled producers write dated markdown briefings (scripts/briefing.py) that the backend agent speaks on first activity
+    yui-plugin/                      # Builds a plugin: routes to BUILD.md, or CONTRIBUTE.md to share one
+    yui-wake-character/              # Backend-agnostic skill: wake one character through its preset ingress URL and act on 200, 404, and 503
   docs/                              # Design source of truth
     agent-guide/architecture/        # Architecture map of the client
       map.js                         # Modules, their parts, exchanges, and flows of src/ and src-tauri/src
