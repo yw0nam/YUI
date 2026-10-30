@@ -103,6 +103,7 @@ def run_hook(tmp_path, endpoint, fixture, config=None, extra_env=None, **updates
         ("codex-user-prompt.json", "working", "user", "Please fix the upload client.", None),
         ("codex-stop.json", "input-required", "agent", None, "stop"),
         ("codex-permission.json", "input-required", "system", "Bash: rm -rf build", "perm"),
+        ("codex-session-end.json", "completed", "system", "Session ended", None),
     ],
 )
 def test_hook_posts_thread(tmp_path, server, fixture, state, role, text, ask):
