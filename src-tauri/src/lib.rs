@@ -50,9 +50,9 @@ mod tray;
 // Lifts AppKit's frame-constrain-to-screen on the pet window (macOS only).
 mod window_frame;
 
-// The quick-card window's native child link to its pet window (macOS only).
+// A docked window's native child link to its owner window (macOS only).
 #[cfg(desktop)]
-mod quick_card_dock;
+mod window_dock;
 
 // App log sink, timezone and line format.
 mod app_log;

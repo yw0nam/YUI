@@ -412,7 +412,7 @@ describe("wireQuickCardDock", () => {
   describe("with the native child link (macOS)", () => {
     beforeEach(() => {
       invoke.mockImplementation(async (cmd: string) =>
-        cmd === "quick_card_attach" ? true : cmd === "quick_card_detach" ? false : undefined,
+        cmd === "window_dock_attach" ? true : cmd === "window_dock_detach" ? false : undefined,
       );
     });
 
@@ -432,15 +432,15 @@ describe("wireQuickCardDock", () => {
       const { bridge } = wired();
       await vi.waitFor(() => expect(bridge.emitQuickCardReady).toHaveBeenCalledOnce());
 
-      expect(invoke).toHaveBeenCalledWith("quick_card_detach");
+      expect(invoke).toHaveBeenCalledWith("window_dock_detach");
       expect(order(invoke)).toBeLessThan(order(win.hide));
     });
 
     it("links its window to her pet window after placing it on open", async () => {
       await opened();
 
-      expect(invoke).toHaveBeenCalledWith("quick_card_attach", { parentLabel: "pet-a" });
-      const attach = commands().indexOf("quick_card_attach");
+      expect(invoke).toHaveBeenCalledWith("window_dock_attach", { parentLabel: "pet-a" });
+      const attach = commands().indexOf("window_dock_attach");
       expect(invoke.mock.invocationCallOrder[attach]!).toBeGreaterThan(order(win.setPosition));
     });
 
@@ -475,7 +475,7 @@ describe("wireQuickCardDock", () => {
       card.headPointerDown();
       await settle();
 
-      expect(commands()).toEqual(["quick_card_detach", "drag_window"]);
+      expect(commands()).toEqual(["window_dock_detach", "drag_window"]);
     });
 
     it("links a head click that never moved again, and keeps it docked", async () => {
@@ -491,7 +491,7 @@ describe("wireQuickCardDock", () => {
       owner.onMoved.mock.calls[0][0]({ payload: { x: 600, y: 320 } });
       await settle();
 
-      expect(commands()).toEqual(["quick_card_detach", "drag_window", "quick_card_attach"]);
+      expect(commands()).toEqual(["window_dock_detach", "drag_window", "window_dock_attach"]);
       expect(positions()).toEqual([]);
     });
 
@@ -508,7 +508,7 @@ describe("wireQuickCardDock", () => {
       await settle();
 
       expect(positions()).toEqual([{ x: 248, y: 400 }]);
-      expect(commands()).toEqual(["quick_card_detach", "drag_window", "quick_card_attach"]);
+      expect(commands()).toEqual(["window_dock_detach", "drag_window", "window_dock_attach"]);
       expect(order(invoke, 2)).toBeGreaterThan(order(win.setPosition));
     });
 
@@ -523,7 +523,7 @@ describe("wireQuickCardDock", () => {
       dropRelease();
       await settle();
 
-      expect(commands()).toEqual(["quick_card_detach", "drag_window"]);
+      expect(commands()).toEqual(["window_dock_detach", "drag_window"]);
     });
   });
 });

@@ -1,7 +1,7 @@
 /** Where the Threads window sits, in screen logical px: beside the main pet window on its roomier side. */
 
 import type { ScreenRect } from "../../../contract";
-import { roomierSide } from "./quick-card-position";
+import { roomierSide } from "../dock/dock-position";
 import { clampToWorkArea } from "./screen-geometry";
 
 const MAX_WIDTH_PX = 960;

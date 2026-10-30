@@ -33,9 +33,9 @@ pub fn handler() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         crate::turn_log::append_turn_record,
         crate::window_frame::set_frame_logical,
         #[cfg(desktop)]
-        crate::quick_card_dock::quick_card_attach,
+        crate::window_dock::window_dock_attach,
         #[cfg(desktop)]
-        crate::quick_card_dock::quick_card_detach,
+        crate::window_dock::window_dock_detach,
         #[cfg(desktop)]
         crate::mcp_host::commands::plugin_host_snapshot,
         #[cfg(desktop)]
