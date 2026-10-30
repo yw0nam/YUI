@@ -24,6 +24,8 @@ function createTauriThreadsWindow(): void {
       skipTaskbar: true,
       visible: false,
       focus: false,
+      // The first click into the unfocused window lands as well as focusing it (macOS).
+      acceptFirstMouse: true,
     });
     void win.once("tauri://error", (event) =>
       log.error("threads_window_create_error", { error: String(event) }),
