@@ -167,7 +167,7 @@ These modules log at `info` unless a row says otherwise:
 - `app/quick-card-window/wire-quick-card-window.ts` (namespace `wire-quick-card-window`) wires its settings side.
 - `ui/quick-card/` (namespace `quick-card`) is the card.
 - `app/quick-card-window/quick-card-ports.ts` (namespace `quick-card-ports`) writes its stores.
-- `app/quick-card-window/quick-card-dock.ts` (namespace `quick-card-dock`) puts the card on `io/window/dock/window-dock.ts` (namespace `window-dock`, its rows naming the window by `label`), which places and moves the window.
+- `app/quick-card-window/quick-card-dock.ts` (namespace `quick-card-dock`) places and moves the window.
 - `app/quick-card-window/quick-card-close.ts` (namespace `quick-card-close`) closes it.
 
 The card's Voice, Keep bubble and Unified chat tiles log the toggle events of their settings rows under `quick-card`.
@@ -194,10 +194,10 @@ The card's Voice, Keep bubble and Unified chat tiles log the toggle events of th
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
-| `window-dock` | `dock_detached` | `label` | The first move of a docked window after a head pointerdown detached it. |
-| `window-dock` | `dock_drag_failed` | `label`, `error` | Unlinking the window or the `drag_window` command for a head drag failed (`warn` level). |
-| `window-dock` | `dock_step_failed` | `label`, `error` | A placement, follow or drop step threw (`warn` level). |
+| `quick-card-dock` | `quick_card_detached` | none | The first move of the card window after a head pointerdown detached it. |
+| `quick-card-dock` | `quick_card_drag_failed` | `error` | Unlinking the window or the `drag_window` command for a head drag failed (`warn` level). |
 | `quick-card-dock` | `quick_card_boot_hide_failed` | `error` | Unlinking or hiding the window at boot threw; the ready report still goes out (`warn` level). |
+| `quick-card-dock` | `dock_step_failed` | `error` | A placement, follow or drop step threw (`warn` level). |
 
 ### Closing
 
