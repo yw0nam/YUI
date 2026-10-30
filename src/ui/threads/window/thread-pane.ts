@@ -55,25 +55,6 @@ function threadPane(thread: Thread, now: number): { head: HTMLElement; transcrip
   return { head, transcript };
 }
 
-/** What the pane shows; a change in any field rebuilds it. */
-interface Shown {
-  id: string;
-  updatedAt: number;
-  error: string | null;
-  sending: boolean;
-  locale: string;
-}
-
-const sameShown = (a: Shown | null, b: Shown | null): boolean =>
-  a === b ||
-  (a !== null &&
-    b !== null &&
-    a.id === b.id &&
-    a.updatedAt === b.updatedAt &&
-    a.error === b.error &&
-    a.sending === b.sending &&
-    a.locale === b.locale);
-
 export interface ThreadPane {
   /** Shows `thread`, or nothing. */
   show(thread: Thread | undefined): void;
@@ -99,7 +80,9 @@ export function createThreadPane(deps: {
   // Kept outside the answer area, so a rebuild mid-send never enables a second send.
   const sending = new Set<string>();
   let current: Thread | undefined;
-  let shown: Shown | null = null;
+  // What the pane shows; a change in any part of the key rebuilds it.
+  let shownKey: string | null = null;
+  let shownId: string | undefined;
   let area: AnswerArea | null = null;
 
   function focusField(): boolean {
@@ -113,20 +96,21 @@ export function createThreadPane(deps: {
   function show(thread: Thread | undefined): void {
     current = thread;
     const key = thread?.ask ? draftKey(thread.id, thread.ask.ask_id) : "";
-    const next: Shown | null = thread
-      ? {
-          id: thread.id,
-          updatedAt: thread.updated_at,
-          error: errors.get(key) ?? null,
-          sending: sending.has(key),
-          locale: getLocale(),
-        }
+    const next = thread
+      ? JSON.stringify([
+          thread.id,
+          thread.updated_at,
+          errors.get(key) ?? null,
+          sending.has(key),
+          getLocale(),
+        ])
       : null;
-    if (sameShown(shown, next)) return;
-    const sameThread = shown?.id === thread?.id;
+    if (next === shownKey) return;
+    const sameThread = shownId === thread?.id;
     const scrollTop = el.querySelector(".yui-threads-pane__transcript")?.scrollTop ?? 0;
     const hadFieldFocus = document.activeElement?.tagName === "TEXTAREA";
-    shown = next;
+    shownKey = next;
+    shownId = thread?.id;
     area = null;
     if (!thread) {
       el.replaceChildren();

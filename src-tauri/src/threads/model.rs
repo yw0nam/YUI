@@ -104,20 +104,23 @@ pub struct InputEntry {
     pub text: String,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub enum AskUpdate {
+    #[default]
     Keep,
     Close,
     Set(Ask),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Upsert {
     pub source: String,
     pub title: String,
     pub label: Option<String>,
     pub state: ThreadState,
+    #[serde(default, deserialize_with = "null_as_default")]
     pub entries: Vec<InputEntry>,
+    #[serde(default, deserialize_with = "ask_update")]
     pub ask: AskUpdate,
 }
 
@@ -129,6 +132,11 @@ where
     Ok(Option::<T>::deserialize(deserializer)?.unwrap_or_default())
 }
 
+/// A null ask closes the open one; an absent ask keeps it.
+fn ask_update<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<AskUpdate, D::Error> {
+    Ok(Option::<Ask>::deserialize(deserializer)?.map_or(AskUpdate::Close, AskUpdate::Set))
+}
+
 fn bounded(value: &str, max: usize, empty: bool) -> Result<(), u16> {
     if (!empty && value.is_empty()) || value.chars().count() > max {
         Err(400)
@@ -137,27 +145,10 @@ fn bounded(value: &str, max: usize, empty: bool) -> Result<(), u16> {
     }
 }
 
-fn optional_string(
-    value: &serde_json::Value,
-    key: &str,
-    max: usize,
-) -> Result<Option<String>, u16> {
-    value
-        .get(key)
-        .filter(|v| !v.is_null())
-        .map(|v| {
-            let s = v.as_str().ok_or(400u16)?;
-            bounded(s, max, true)?;
-            Ok(s.to_owned())
-        })
-        .transpose()
-}
-
-fn parse_ask(value: &serde_json::Value) -> Result<Ask, u16> {
-    let ask: Ask = serde_json::from_value(value.clone()).map_err(|_| 400u16)?;
+fn check_ask(ask: &Ask) -> Result<(), u16> {
     bounded(&ask.ask_id, ASK_ID_MAX_CHARS, false)?;
     bounded(&ask.prompt, 500, false)?;
-    optional_string(value, "placeholder", 200)?;
+    bounded(ask.placeholder.as_deref().unwrap_or_default(), 200, true)?;
     if ask.choices.len() > 6 {
         return Err(400);
     }
@@ -169,48 +160,31 @@ fn parse_ask(value: &serde_json::Value) -> Result<Ask, u16> {
             return Err(400);
         }
     }
-    Ok(ask)
+    Ok(())
 }
 
 pub fn parse_upsert(body: &str) -> Result<Upsert, u16> {
-    let value: serde_json::Value = serde_json::from_str(body).map_err(|_| 400u16)?;
-    let source = value.get("source").and_then(|v| v.as_str()).ok_or(400u16)?;
-    let title = value.get("title").and_then(|v| v.as_str()).ok_or(400u16)?;
-    bounded(source, SOURCE_MAX_CHARS, false)?;
-    bounded(title, 200, false)?;
-    let mut label = optional_string(&value, "label", usize::MAX)?;
-    if let Some(s) = &mut label {
+    // Read as a map first: an array is no Thread body, and a repeated key keeps its last value.
+    let map: serde_json::Map<String, serde_json::Value> =
+        serde_json::from_str(body).map_err(|_| 400u16)?;
+    let mut upsert: Upsert = serde_json::from_value(map.into()).map_err(|_| 400u16)?;
+    bounded(&upsert.source, SOURCE_MAX_CHARS, false)?;
+    bounded(&upsert.title, 200, false)?;
+    if let Some(s) = &mut upsert.label {
         if s.chars().count() > 120 {
             *s = s.chars().take(119).chain(std::iter::once('…')).collect();
         }
     }
-    let state =
-        serde_json::from_value(value.get("state").ok_or(400u16)?.clone()).map_err(|_| 400u16)?;
-    let entries: Vec<InputEntry> = value
-        .get("entries")
-        .filter(|v| !v.is_null())
-        .map(|v| serde_json::from_value(v.clone()).map_err(|_| 400u16))
-        .transpose()?
-        .unwrap_or_default();
-    if entries.len() > 20 {
+    if upsert.entries.len() > 20 {
         return Err(400);
     }
-    for entry in &entries {
+    for entry in &upsert.entries {
         bounded(&entry.text, TEXT_MAX_CHARS, false)?;
     }
-    let ask = match value.get("ask") {
-        None => AskUpdate::Keep,
-        Some(serde_json::Value::Null) => AskUpdate::Close,
-        Some(v) => AskUpdate::Set(parse_ask(v)?),
-    };
-    Ok(Upsert {
-        source: source.into(),
-        title: title.into(),
-        label,
-        state,
-        entries,
-        ask,
-    })
+    if let AskUpdate::Set(ask) = &upsert.ask {
+        check_ask(ask)?;
+    }
+    Ok(upsert)
 }
 
 #[cfg(test)]

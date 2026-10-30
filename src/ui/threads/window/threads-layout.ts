@@ -49,7 +49,6 @@ export function createThreadsLayout(deps: {
 
   function apply(): void {
     const { dataset } = deps.panel;
-    dataset.layout = layout;
     dataset.collapsed = String(collapsed);
     dataset.overlay = String(overlay);
     dataset.screen = screen;

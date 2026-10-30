@@ -137,21 +137,6 @@ mod tests {
     use std::collections::HashSet;
 
     #[test]
-    fn threads_answer_accepts_no_ask_id() {
-        assert!(parse_route("GET", "/threads/a/answer?wait=0", "").is_ok());
-    }
-
-    #[test]
-    fn threads_answers_route_parses_its_source() {
-        let route = parse_route("GET", "/threads/answers?source=github", "").unwrap();
-        assert!(matches!(route.target, Target::Main));
-        match route.kind {
-            RouteKind::Thread(ThreadRoute::Sweep { source }) => assert_eq!(source, "github"),
-            _ => panic!("Sweep route expected"),
-        }
-    }
-
-    #[test]
     fn threads_routes_parse_values_and_refuse_invalid_requests() {
         for (method, path, code) in [
             ("PUT", "/threads", 404),
@@ -186,11 +171,14 @@ mod tests {
             404
         );
         let body = r#"{"source":"codex","title":"Build","state":"working"}"#;
+        // The expected id is the sweep's source on the answers route.
         for (method, path, expected_id, expected_wait) in [
             ("PUT", "/threads/a_Z-0.:9", "a_Z-0.:9", None),
             ("GET", "/threads/a/answer?ask_id=q", "a", Some(25)),
             ("GET", "/threads/a/answer?ask_id=q&wait=0", "a", Some(0)),
             ("GET", "/threads/a/answer?ask_id=q&wait=25", "a", Some(25)),
+            ("GET", "/threads/a/answer?wait=0", "a", Some(0)),
+            ("GET", "/threads/answers?source=github", "github", None),
         ] {
             let route = parse_route(method, path, body).unwrap();
             assert!(matches!(route.target, Target::Main));
@@ -204,9 +192,10 @@ mod tests {
                 }
                 RouteKind::Thread(ThreadRoute::Answer { id, ask_id, wait }) => {
                     assert_eq!(id, expected_id);
-                    assert_eq!(ask_id.as_deref(), Some("q"));
+                    assert_eq!(ask_id.as_deref(), path.contains("ask_id").then_some("q"));
                     assert_eq!(Some(wait.as_secs()), expected_wait);
                 }
+                RouteKind::Thread(ThreadRoute::Sweep { source }) => assert_eq!(source, expected_id),
                 _ => panic!("Thread route expected: {method} {path}"),
             }
         }

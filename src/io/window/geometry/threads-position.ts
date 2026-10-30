@@ -6,7 +6,7 @@
 
 import type { ScreenRect } from "../../../contract";
 import { THREADS_MIN_PANEL } from "../../../settings/threads/threads-window-settings";
-import { roomierSide } from "../dock/dock-position";
+import { roomierSide } from "./quick-card-position";
 import { clampToWorkArea, logicalWorkArea, type ScreenMonitor } from "./screen-geometry";
 
 /** The gap from the pet window to the window's box, and the box's inset from the work area's edges. */

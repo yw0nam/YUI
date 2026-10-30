@@ -48,7 +48,7 @@ import { createVoiceFix } from "../app/voice/voice-fix";
 import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/secrets";
 import { type BusEnvelope, createEventBus } from "../dispatcher/core/event-bus";
 import { createUserInputSource } from "../dispatcher/sources/user-input-source";
-import { createMainThreadsClient } from "../io/threads/threads-client";
+import { createThreadsClient } from "../io/threads/threads-client";
 import { resolveScreenCapturer } from "../io/window/capture/tauri-screen";
 import { createDevtoolsWindowOpener } from "../io/window/openers/devtools-window";
 import { createQuickCardWindowController } from "../io/window/openers/quick-card-window";
@@ -265,7 +265,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
   register(attachSummonKey(surfaces));
 
   // Threads belong to the main character: one client feeds the chip, the two tools and the waiting line.
-  const threads = createMainThreadsClient(bound);
+  const threads = bound ? null : createThreadsClient();
   if (threads) register(() => threads.dispose());
 
   // Config-driven load: configs/*.json → validated AppConfig. endpoints/motions etc

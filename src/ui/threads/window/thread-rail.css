@@ -30,11 +30,6 @@
   background: var(--yui-hover);
 }
 
-.yui-threads-rail button:focus-visible {
-  outline: 2px solid var(--yui-accent-ink);
-  outline-offset: 2px;
-}
-
 /* The tabs, folded: a mark and its count, the pressed one on the Selected fill. */
 .yui-threads-rail__tab {
   display: grid;

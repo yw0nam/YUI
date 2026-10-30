@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-/** threads-window.test.ts — main's Threads window controller: the create, the ready/open handshake, and the closed report. */
+/** threads-window.test.ts — main's Threads window controller: the create, the ready/open handshake, and a failed request to the open window. */
 
 import { beforeEach, expect, it, vi } from "vitest";
 
@@ -75,16 +75,6 @@ it("creates the hidden window and holds an open made before its ready report", a
   await vi.waitFor(() =>
     expect(b.sent).toEqual([{ chip: { x: 110, y: 70, width: 100, height: 30 } }]),
   );
-});
-
-it("reports the window's closed signal so the chip leaves its open state", () => {
-  const b = bridge();
-  const onClosed = vi.fn();
-  createThreadsWindowController({ bridge: b, onClosed });
-
-  b.fire("closed");
-
-  expect(onClosed).toHaveBeenCalledTimes(1);
 });
 
 it("keeps the open state when a request to the open window fails", async () => {

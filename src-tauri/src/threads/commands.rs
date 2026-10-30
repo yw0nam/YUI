@@ -29,5 +29,5 @@ pub fn thread_answer(
             },
             epoch_ms() as u64,
         )
-        .map_err(|e| e.0.to_owned())
+        .map_err(str::to_owned)
 }

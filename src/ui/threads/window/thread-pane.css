@@ -36,11 +36,6 @@
   background: var(--yui-hover);
 }
 
-.yui-threads-pane__back:focus-visible {
-  outline: 2px solid var(--yui-accent-ink);
-  outline-offset: 2px;
-}
-
 .yui-threads-pane__line {
   display: flex;
   align-items: center;

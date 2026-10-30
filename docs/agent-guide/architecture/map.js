@@ -871,18 +871,9 @@ globalThis.YUI_MAP =
       "id": "io/window/geometry",
       "module": "window",
       "label": "window geometry",
-      "role": "Monitor and floor math, the quick card's docked place beside the character, the Threads window's first place beside the pet window, its stored frame moved into the nearest work area and the chip-sized rect its grow starts from, the travel and stationary frames, keep-on-screen, and the companion column windows' placement, width, focus, drag and content-height resize.",
+      "role": "Monitor and floor math, the quick card's dock, follow and snap rules and its macOS child-window link, the Threads window's first place beside the pet window, its stored frame moved into the nearest work area and the chip-sized rect its grow starts from, the travel and stationary frames, keep-on-screen, and the companion column windows' placement, width, focus, drag and content-height resize.",
       "paths": [
         "src/io/window/geometry"
-      ]
-    },
-    {
-      "id": "io/window/dock",
-      "module": "window",
-      "label": "window dock",
-      "role": "The quick card's dock with its owner pet window: placed docked on each open, following the owner, detached by a head drag, snapped back by a drop within 24px of the owner's edge, linked as a macOS child window while docked; the follow, snap and clamp rules on the window's own box and visible inset.",
-      "paths": [
-        "src/io/window/dock"
       ]
     },
     {
@@ -2458,10 +2449,10 @@ globalThis.YUI_MAP =
       "wiring": "src/app/stage/wire-window-sources.ts"
     },
     {
-      "id": "drop-never-perches-label",
+      "id": "threads-window-label",
       "from": "dispatcher/sources/gesture",
       "to": "io/window/openers",
-      "carries": "dropNeverPerches(label): the quick-card and Threads labels, whose drags settle in their own windows and never perch the character",
+      "carries": "THREADS_WINDOW_LABEL: with the quick-card label prefix, the windows whose drags settle in their own windows and never perch the character",
       "kind": "call",
       "transport": "shared"
     },
@@ -3097,37 +3088,28 @@ globalThis.YUI_MAP =
       "id": "quick-card-placement",
       "from": "app/quick-card-window",
       "to": "io/window/geometry",
-      "carries": "quickCardBeside and quickCardBox: the card's margin box docked 12px from her roomier side",
+      "carries": "quickCardBeside, followOwner, snapTarget and clampQuickCard: the docked placement 12px from her roomier side, the follow of the owner window's moves, the 24px drop magnet, and the work-area clamp of a grown card",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/quick-card-window/quick-card-dock.ts"
     },
     {
-      "id": "quick-card-dock",
+      "id": "quick-card-drag-shell",
       "from": "app/quick-card-window",
-      "to": "io/window/dock",
-      "carries": "createWindowDock {ownerLabel, box, inset 8, gap 12, anchor: her extent and click y from the open request, beside: quickCardBeside, fit, boot} → dock(request), hide, resized",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/quick-card-window/quick-card-dock.ts"
-    },
-    {
-      "id": "dock-drag-shell",
-      "from": "io/window/dock",
       "to": "shell/window",
-      "carries": "drag_window from a head pointerdown: the OS drag of the docked window; window_dock_attach {parentLabel} and window_dock_detach: the macOS child-window link that moves the docked window with its owner (false elsewhere)",
+      "carries": "drag_window from a head pointerdown: the OS drag of the card window; window_dock_attach {parentLabel} and window_dock_detach: the macOS child-window link that moves the docked card with her pet window (false elsewhere)",
       "kind": "tauri-command",
       "transport": "shared",
-      "wiring": "src/io/window/dock/window-dock.ts"
+      "wiring": "src/app/quick-card-window/quick-card-dock.ts"
     },
     {
-      "id": "drop-release-dock",
+      "id": "drop-release-quick-card",
       "from": "shell/os-event-watcher",
-      "to": "io/window/dock",
-      "carries": "window_drop_release {label}: the drop of a drag the docked window started, then the 24px magnet",
+      "to": "app/quick-card-window",
+      "carries": "window_drop_release {label}: the drop of a drag the card started, then the 24px magnet",
       "kind": "tauri-event",
       "transport": "shared",
-      "wiring": "src/io/window/dock/window-dock.ts"
+      "wiring": "src/app/quick-card-window/quick-card-dock.ts"
     },
     {
       "id": "settings-open-controls",

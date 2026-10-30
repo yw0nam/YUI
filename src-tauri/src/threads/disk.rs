@@ -25,8 +25,8 @@ impl Disk {
 }
 
 pub fn replay(dir: &Path, now: u64) -> Vec<Thread> {
-    let files = match fs::read_dir(dir) {
-        Ok(files) => files,
+    let entries = match fs::read_dir(dir) {
+        Ok(entries) => entries,
         Err(error) => {
             if error.kind() != io::ErrorKind::NotFound {
                 log::warn!("threads_replay_failed path={} error={error}", dir.display());
@@ -34,63 +34,35 @@ pub fn replay(dir: &Path, now: u64) -> Vec<Thread> {
             return vec![];
         }
     };
-    let mut files: Vec<_> = files
+    let mut files: Vec<_> = entries
+        .flatten()
+        .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_file()))
         .filter_map(|entry| {
-            let entry = match entry {
-                Ok(entry) => entry,
-                Err(error) => {
-                    log::warn!("threads_replay_failed path={} error={error}", dir.display());
-                    return None;
-                }
-            };
-            match entry.file_type() {
-                Ok(kind) if kind.is_file() => {}
-                Ok(_) => return None,
-                Err(error) => {
-                    log::warn!(
-                        "threads_replay_failed path={} error={error}",
-                        entry.path().display()
-                    );
-                    return None;
-                }
-            }
-            let name = entry.file_name();
-            let name = name.to_str()?;
             // The shared parser accepts variable-width dates; replay requires the canonical filename width.
-            if name.len() != 24 {
-                return None;
-            }
-            let date = parse_dated_name(name, "threads", "jsonl")?;
-            Some((date, entry.path()))
+            let name = entry
+                .file_name()
+                .into_string()
+                .ok()
+                .filter(|name| name.len() == 24)?;
+            Some((parse_dated_name(&name, "threads", "jsonl")?, entry.path()))
         })
         .collect();
-    files.sort_by_key(|(date, _)| *date);
+    files.sort();
     let mut threads = HashMap::new();
     for (_, path) in files {
-        let file = match fs::File::open(&path) {
-            Ok(file) => file,
-            Err(error) => {
-                log::warn!(
-                    "threads_replay_failed path={} error={error}",
-                    path.display()
-                );
-                continue;
-            }
-        };
-        for line in io::BufReader::new(file).lines() {
-            let line = match line {
-                Ok(line) => line,
-                Err(error) => {
-                    log::warn!(
-                        "threads_replay_failed path={} error={error}",
-                        path.display()
-                    );
-                    break;
+        let read = fs::File::open(&path).and_then(|file| {
+            for line in io::BufReader::new(file).lines() {
+                if let Ok(thread) = serde_json::from_str::<Thread>(&line?) {
+                    threads.insert(thread.id.clone(), thread);
                 }
-            };
-            if let Ok(thread) = serde_json::from_str::<Thread>(&line) {
-                threads.insert(thread.id.clone(), thread);
             }
+            Ok(())
+        });
+        if let Err(error) = read {
+            log::warn!(
+                "threads_replay_failed path={} error={error}",
+                path.display()
+            );
         }
     }
     threads
@@ -159,27 +131,37 @@ mod tests {
         t["created_at"] = json!(1);
         t["updated_at"] = json!(1_209_600_001u64);
         t["entries"] = json!([]);
-        let old = {
-            let mut old = t.clone();
-            old["id"] = json!("expired");
-            old["updated_at"] = json!(0);
-            old
+        let base = t.clone();
+        let with = |id: &str, updated_at: u64| {
+            let mut thread = base.clone();
+            thread["id"] = json!(id);
+            thread["updated_at"] = json!(updated_at);
+            thread
         };
+        let (old, after) = (with("expired", 0), with("after-malformed", 1_209_600_001));
         fs::write(
             dir.join("threads_2026-10-28.jsonl"),
-            format!("{t}\n{old}\nmalformed\n"),
+            format!("{t}\n{old}\nmalformed\n{after}\n"),
         )
         .unwrap();
         t["title"] = json!("Latest");
         fs::write(dir.join("threads_2026-10-29.jsonl"), format!("{t}\n{{\n")).unwrap();
-        fs::write(dir.join("threads_bad-date.jsonl"), format!("{old}\n")).unwrap();
-        let mut unpadded = t.clone();
-        unpadded["id"] = json!("unpadded");
+        let (bad, unpadded) = (
+            with("bad-date", 1_209_600_001),
+            with("unpadded", 1_209_600_001),
+        );
+        fs::write(dir.join("threads_2026-13-01.jsonl"), format!("{bad}\n")).unwrap();
         fs::write(dir.join("threads_2026-1-2.jsonl"), format!("{unpadded}\n")).unwrap();
-        let loaded = replay(&dir, 1_209_600_001);
-        assert_eq!(loaded.len(), 1, "only the unexpired Thread replays");
-        assert_eq!(loaded[0].title, "Latest");
-        assert_eq!(loaded[0].ask.as_ref().unwrap().ask_id, "a");
+        let mut loaded = replay(&dir, 1_209_600_001);
+        loaded.sort_by(|a, b| a.id.cmp(&b.id));
+        let ids: Vec<_> = loaded.iter().map(|t| t.id.as_str()).collect();
+        assert_eq!(
+            ids,
+            ["after-malformed", "t"],
+            "only canonical files' unexpired Threads replay"
+        );
+        assert_eq!(loaded[1].title, "Latest");
+        assert_eq!(loaded[1].ask.as_ref().unwrap().ask_id, "a");
         fs::remove_dir_all(dir).unwrap();
     }
 }

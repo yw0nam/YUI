@@ -1,7 +1,7 @@
 /** threads-position.test.ts — where the Threads window first opens beside the pet window, where a stored frame reopens, and where its grow starts. */
 
 import { describe, expect, it } from "vitest";
-import { chipInWindow, restoreThreadsBox, threadsWindowRect } from "./threads-position";
+import { restoreThreadsBox, threadsWindowRect } from "./threads-position";
 
 const WORK_AREA = { x: 0, y: 0, width: 2000, height: 1000 };
 const PANEL = { width: 880, height: 680 };
@@ -106,16 +106,5 @@ describe("restoreThreadsBox", () => {
     ],
   ])("%s", (_name, panel, monitors, expected) => {
     expect(restoreThreadsBox(panel, monitors)).toEqual(expected);
-  });
-});
-
-it("starts the grow from the chip's size at the window edge nearest the chip", () => {
-  const window = { x: 612, y: 100, width: 960, height: 820 };
-
-  expect(chipInWindow({ x: 500, y: 300, width: 120, height: 32 }, window)).toEqual({
-    x: 0,
-    y: 200,
-    width: 120,
-    height: 32,
   });
 });
