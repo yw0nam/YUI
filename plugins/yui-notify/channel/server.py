@@ -1,3 +1,4 @@
+import signal
 import sys
 from pathlib import Path
 
@@ -9,7 +10,7 @@ sys.path[:0] = [
 import anyio
 from mcp.server.lowlevel import Server
 
-from channel.runtime import main
+from channel.runtime import main, stop
 
 server = Server(
     "yui-notify",
@@ -17,4 +18,6 @@ server = Server(
 )
 
 if __name__ == "__main__":
+    signal.signal(signal.SIGINT, stop)
+    signal.signal(signal.SIGTERM, stop)
     anyio.run(main, server)

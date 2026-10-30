@@ -11,9 +11,12 @@ from yui_notify.claude_process import claude_pid
 from yui_notify.thread import fit_entries, next_ask
 
 
+def _root(env: Mapping[str, str]) -> Path:
+    return Path(env.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"))
+
+
 def _path(pid: int, env: Mapping[str, str]) -> Path:
-    root = env.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state")
-    return Path(root) / "yui-notify" / "channels" / str(pid)
+    return _root(env) / "yui-notify" / "channels" / str(pid)
 
 
 def live(pid: int, env: Mapping[str, str]) -> bool:
@@ -37,8 +40,17 @@ def ready_file(pid: int, env: Mapping[str, str]):
     try:
         yield
     finally:
-        if path.exists() and path.read_text() == str(os.getpid()):
-            path.unlink()
+        remove_ready_file(env)
+
+
+def remove_ready_file(env: Mapping[str, str]) -> None:
+    """remove the channel file that names this process"""
+    for path in (_root(env) / "yui-notify" / "channels").glob("*"):
+        try:
+            if path.read_text() == str(os.getpid()):
+                path.unlink()
+        except (OSError, ValueError):
+            pass
 
 
 def add_next_ask(body: dict, event: Event, env: Mapping[str, str]) -> None:
