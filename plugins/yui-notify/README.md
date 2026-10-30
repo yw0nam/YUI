@@ -60,8 +60,6 @@ PID if discovery fails. Ids survive `/clear`. Codex ids are `codex:<host>:<sessi
 Each Codex ask has a fresh UUID suffix, including successive Stops in one turn.
 Entry text keeps at most 16384 code points, shortening the head with `…` when needed.
 The serialized body stays within 65536 bytes, including for Unicode text.
-`SessionEnd` with reason `clear` or `resume` sends nothing: the session continues in
-the same Thread.
 An instruction answered in the Threads window is already a `user` entry in the store, so
 the channel message Claude Code delivers it as only sets the Thread `working`.
 
