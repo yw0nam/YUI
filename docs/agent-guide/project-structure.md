@@ -125,8 +125,8 @@ YUI/
         quick-card-close.ts          # Closes the card when no YUI window holds focus, and hides the window on every close
       threads-window/                # The Threads window's wiring
         wire-threads-window.ts       # Snapshots into the view, Answers to the store, the open request, theme and language
-        threads-dock.ts              # The window on the shared window dock beside main's pet window: sized and docked on each open, dragged by its head, and the grow's start
-        threads-presence.ts          # One open or close at a time: show and grow, shrink and hide, then the closed report
+        threads-placement.ts         # The window's frame: beside main's pet window the first time, its stored frame after that, its head's native drag, and the frame saved once a move settles
+        threads-presence.ts          # One open or close at a time: show and grow, or focus while shown; shrink and hide, then the closed report
       settings-window/               # The settings window's wiring
         wire-settings-window.ts      # Stores, config, cross-window sync, and the settings panel remounted on locale change, bound to the query's preset when it names one, and editing the preset `?edit=` names
         edit-target-url.ts           # The settings URL with its `edit` param set to the picked preset, or dropped for the window's own, and its `page` param set to the requested page
@@ -376,6 +376,8 @@ YUI/
         unified-window-settings.ts   # The unified window's last position under yui.unified-window, device-wide
       identity/                      # Who the user is to the character
         user-name-settings.ts        # Device-wide "Your name", what {{user}} resolves to
+      threads/                       # The Threads window's own state
+        threads-window-settings.ts   # Its panel frame and list choice under yui.threads-window, per device; the minimum panel
       panels/                        # Panel and window state
         delegation-chip-settings.ts  # Per-device fold state of the delegation chip
         settings-pages.ts            # The settings page ids, character pages and app pages, and the check for one
@@ -488,13 +490,13 @@ YUI/
           companion-position.ts        # Where a companion window (message, unified) opens: its stored position, else beside the pet window, kept on screen; the column's width and handle height
           companion-column.ts          # A companion column window's focus, OS drag, content-height resize and moved-position report
           quick-card-position.ts       # Where the quick-card window sits docked beside her: its margin box on the roomier side, clamped into the work area
-          threads-position.ts          # Where the Threads window sits beside the pet window on its roomier or a given side, and the chip-sized rect its grow starts from
+          threads-position.ts          # The Threads window's box: its first place beside the pet window on the roomier side, a stored frame moved into the nearest work area, and the chip-sized rect its grow starts from
           keep-on-screen.ts            # Pushes a window back until its centre lands on a monitor
           travel-frame.ts              # Parks the real window once for a scale-seam crossing
           stationary-frame.ts          # Widens the real window around a character that stays where she is
           tauri-frame-window.ts        # The real pet window as one FrameWindow seam, built once for the movers
           perch.ts                     # Perch values, perch-target and placement types, and the host-edge span shared by the drop source, avatar RPC and locomotion
-        dock/                          # The dock a window shares with its owner pet window: the quick card and the Threads window
+        dock/                          # The quick card's dock with its owner pet window
           window-dock.ts               # Docks the window on each open, follows the owner, detaches on a head drag, snaps a near drop back, unlinks before a hide
           dock-position.ts             # The roomier side, the follow, the 24px drop magnet and the clamp, on the window's own box and visible inset
           dock-link.ts                 # Links and unlinks the window as a native child of its owner window (macOS; false elsewhere)

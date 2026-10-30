@@ -21,7 +21,7 @@ function createTauriThreadsWindow(): void {
       decorations: false,
       transparent: true,
       shadow: false,
-      alwaysOnTop: true,
+      alwaysOnTop: false,
       skipTaskbar: true,
       visible: false,
       focus: false,

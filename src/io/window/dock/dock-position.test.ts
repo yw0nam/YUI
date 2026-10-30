@@ -1,8 +1,7 @@
 /**
  * dock-position.test.ts — the shared dock's placement rules on their own: docked 12px beside the
  * roomier side, travelling with the owner window, the 24px magnet that snaps a dropped window
- * back, and the work-area clamp — on the quick card's margin box, and the magnet also on the
- * Threads window's panel inset.
+ * back, and the work-area clamp, on the quick card's margin box.
  */
 
 import { describe, expect, it } from "vitest";
@@ -12,7 +11,7 @@ import {
   quickCardBeside,
   quickCardBox,
 } from "../geometry/quick-card-position";
-import { clampDock, followOwner, insetWorkArea, snapTarget } from "./dock-position";
+import { clampDock, followOwner, snapTarget } from "./dock-position";
 
 /** One 2000×1000 logical work area starting at the origin. */
 const WORK_AREA = { x: 0, y: 0, width: 2000, height: 1000 };
@@ -109,45 +108,5 @@ describe("clampDock", () => {
     ["pulls a window past the left and top edges back in", { x: -40, y: -10 }, { x: 0, y: 0 }],
   ])("%s", (_name, at, expected) => {
     expect(clampDock(at, { width: 288, height: 416 }, WORK_AREA)).toEqual(expected);
-  });
-});
-
-describe("snapTarget on the Threads window's panel inset", () => {
-  // The panel sits 8px inside the native box, and the native box keeps 12px from the work area.
-  const BOX = { width: 960, height: 820 };
-  const INSET = 8;
-  const GAP = 20; // The native 12px gap plus the 8px padding, in visible-edge terms.
-  const BOUNDS = insetWorkArea(WORK_AREA, 12);
-  const PET = { left: 500, right: 900, y: 100 };
-  const OWNER = { y: 100, height: 600 };
-
-  it.each([
-    // Visible panel left edge 910 + 8 = 918, 18px past her window's right edge 900.
-    [
-      "snaps a drop by its visible panel edge onto the native 12px dock",
-      { x: 910, y: 100 },
-      { x: 912, y: 100, side: "right" },
-    ],
-    // Visible panel left edge 890 + 8 = 898, 2px short of her right edge — but the kept top
-    // clamps into the bounds 12px inside the work area, not onto its edge.
-    [
-      "keeps the snapped window 12px inside the work area",
-      { x: 890, y: 400 },
-      { x: 912, y: 168, side: "right" },
-    ],
-    // Visible panel left edge 917 + 8 = 925, 25px past her window's right edge 900.
-    ["leaves a drop 25px from her window's edge detached", { x: 917, y: 100 }, null],
-  ])("%s", (_name, dropped, expected) => {
-    expect(
-      snapTarget({
-        anchor: PET,
-        owner: OWNER,
-        dropped,
-        box: BOX,
-        inset: INSET,
-        gap: GAP,
-        bounds: BOUNDS,
-      }),
-    ).toEqual(expected);
   });
 });

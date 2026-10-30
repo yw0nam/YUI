@@ -167,7 +167,7 @@ These modules log at `info` unless a row says otherwise:
 - `app/quick-card-window/wire-quick-card-window.ts` (namespace `wire-quick-card-window`) wires its settings side.
 - `ui/quick-card/` (namespace `quick-card`) is the card.
 - `app/quick-card-window/quick-card-ports.ts` (namespace `quick-card-ports`) writes its stores.
-- `app/quick-card-window/quick-card-dock.ts` (namespace `quick-card-dock`) puts the card on `io/window/dock/window-dock.ts` (namespace `window-dock`, shared with the Threads window, its rows naming the window by `label`), which places and moves the window.
+- `app/quick-card-window/quick-card-dock.ts` (namespace `quick-card-dock`) puts the card on `io/window/dock/window-dock.ts` (namespace `window-dock`, its rows naming the window by `label`), which places and moves the window.
 - `app/quick-card-window/quick-card-close.ts` (namespace `quick-card-close`) closes it.
 
 The card's Voice, Keep bubble and Unified chat tiles log the toggle events of their settings rows under `quick-card`.
@@ -210,18 +210,22 @@ The card's Voice, Keep bubble and Unified chat tiles log the toggle events of th
 
 ## Threads window
 
-`io/window/openers/threads-window.ts` (namespace `threads-window`, in main's pet window) creates the Threads window through `ready-window`. `io/threads/threads-client.ts` (namespace `threads-client`) runs in both windows. The rest runs in the Threads window: `windows/threads-main.ts` boots it, `app/threads-window/wire-threads-window.ts` wires it, `app/threads-window/threads-presence.ts` opens and closes it, and `app/threads-window/threads-dock.ts` docks it on `io/window/dock/window-dock.ts` (namespace `window-dock`, rows under the quick card's Docking).
+`io/window/openers/threads-window.ts` (namespace `threads-window`, in main's pet window) creates the Threads window through `ready-window`. `io/threads/threads-client.ts` (namespace `threads-client`) runs in both windows. The rest runs in the Threads window: `windows/threads-main.ts` boots it, `app/threads-window/wire-threads-window.ts` wires it, `app/threads-window/threads-presence.ts` opens and closes it, and `app/threads-window/threads-placement.ts` places and drags it and saves its frame.
 
 | Namespace | Event | Fields | When |
 |---|---|---|---|
 | `threads-window` | `threads_window_create_error` | `error` | The Threads window could not be created (`error` level). |
-| `threads-window` | `threads_window_open_failed` | `error` | Reading the chip's screen position threw; the chip shows again (`error` level). |
+| `threads-window` | `threads_window_open_failed` | `error` | Reading the chip's screen position threw; the chip leaves its open state (`error` level). |
 | `threads-client` | `snapshot.invoke_failed` | `error` | `threads_snapshot` rejected (`warn` level). |
 | `threads-client` | `snapshot.listen_failed` | `error` | Listening to `threads-snapshot` failed; the snapshot is still read once (`warn` level). |
 | `threads-main` | `boot_failed` | `error` | The window's boot threw (`error` level). |
-| `wire-threads-window` | `threads_boot_hide_failed` | `error` | Unlinking or hiding the window at boot threw; the ready report still goes out (`warn` level). |
-| `threads-presence` | `threads_open_failed` | `error` | Placing, showing or growing the window threw; it hides and main's chip shows again (`error` level). |
+| `wire-threads-window` | `threads_boot_hide_failed` | `error` | Hiding the window at boot threw; the ready report still goes out (`warn` level). |
+| `threads-presence` | `threads_open_failed` | `error` | Placing, showing or growing the window threw; it hides and main's chip leaves its open state (`error` level). |
+| `threads-presence` | `threads_focus_failed` | `error` | Bringing the shown window forward on a second open threw (`warn` level). |
 | `threads-presence` | `threads_hide_failed` | `error` | Hiding the window threw (`warn` level). |
+| `threads-placement` | `threads_drag_failed` | `error` | The `drag_window` command for a head drag failed (`warn` level). |
+| `threads-placement` | `threads_move_listen_failed` | `error` | Listening to the window's moves failed; a move is not saved (`warn` level). |
+| `threads-placement` | `threads_move_save_failed` | `error` | Reading the window's position after a move threw; the move is not saved (`warn` level). |
 
 ## TypeScript Usage
 

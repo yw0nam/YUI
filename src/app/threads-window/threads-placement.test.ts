@@ -53,7 +53,9 @@ function placement(stored: { x?: number; y?: number; width: number; height: numb
   const setFrame = vi.fn((_frame: ScreenRect) => {});
   return {
     setFrame,
-    placement: createThreadsPlacement({ settings: { get: () => stored, setFrame } }),
+    placement: createThreadsPlacement({
+      settings: { get: () => ({ ...stored, listCollapsed: false }), setFrame },
+    }),
   };
 }
 

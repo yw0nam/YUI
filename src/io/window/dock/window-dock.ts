@@ -1,6 +1,6 @@
 /**
- * The window dock the quick-card and Threads windows share: docked beside its owner pet window,
- * dragged off by the head, snapped back on a near drop, following the owner while docked.
+ * The quick card's window dock: docked beside its owner pet window, dragged off by the head,
+ * snapped back on a near drop, following the owner while docked.
  * While linked (macOS), AppKit moves the window with its owner in the same frame.
  */
 
@@ -34,8 +34,8 @@ export interface DockOwner {
   onMoved: (cb: (event: { payload: { x: number; y: number } }) => void) => Promise<() => void>;
 }
 
-/** The docked windows' labels: their drops settle in their own windows, never on a pet. */
-export function isDockedWindowLabel(label: string): boolean {
+/** The quick card's and the Threads window's labels: their drags settle in their own windows and never perch the character. */
+export function dropNeverPerches(label: string): boolean {
   return label === THREADS_WINDOW_LABEL || label.startsWith("quick-card");
 }
 

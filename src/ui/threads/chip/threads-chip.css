@@ -41,12 +41,6 @@
   outline-offset: 2px;
 }
 
-/* The window grew out of the chip; the chip steps aside until it shrinks back. */
-.yui-threadchip[aria-expanded="true"] {
-  opacity: 0;
-  pointer-events: none;
-}
-
 /* One nod when a Thread starts waiting; the chip never pulses. */
 .yui-threadchip.is-nod {
   animation: yui-threadchip-nod 320ms var(--yui-ease);
