@@ -28,7 +28,7 @@ const thread = (id: string): Thread => ({
   updated_at: 1,
 });
 
-it("keeps the highest revision and ignores an older snapshot event", async () => {
+it("keeps the highest revision, ignores an older snapshot event, and reads its Thread list", async () => {
   const events = { emit: (_payload: ThreadsSnapshot) => {} };
   mocks.listen.mockImplementation(
     async (_event: string, handler: (e: { payload: ThreadsSnapshot }) => void) => {
@@ -38,34 +38,18 @@ it("keeps the highest revision and ignores an older snapshot event", async () =>
   );
   mocks.invoke.mockResolvedValue(SNAPSHOT(5));
   const client = createThreadsClient();
+  expect(client.threads()).toEqual([]);
   const seen: number[] = [];
   client.subscribe((snapshot) => seen.push(snapshot.revision));
   await vi.waitFor(() => expect(client.snapshot()?.revision).toBe(5));
 
   events.emit(SNAPSHOT(3));
-  events.emit(SNAPSHOT(7));
+  events.emit(SNAPSHOT(7, [thread("t1")]));
 
   expect(client.snapshot()?.revision).toBe(7);
+  expect(client.threads().map((thread) => thread.id)).toEqual(["t1"]);
   expect(seen).toEqual([5, 7]);
   expect(mocks.listen).toHaveBeenCalledWith("threads-snapshot", expect.any(Function));
-});
-
-it("reads the kept snapshot's Thread list, empty before the first snapshot", async () => {
-  const events = { emit: (_payload: ThreadsSnapshot) => {} };
-  mocks.listen.mockImplementation(
-    async (_event: string, handler: (e: { payload: ThreadsSnapshot }) => void) => {
-      events.emit = (payload) => handler({ payload });
-      return () => {};
-    },
-  );
-  mocks.invoke.mockResolvedValue(SNAPSHOT(1));
-  const client = createThreadsClient();
-  expect(client.threads()).toEqual([]);
-
-  await vi.waitFor(() => expect(client.snapshot()).not.toBeNull());
-  events.emit(SNAPSHOT(2, [thread("t1")]));
-
-  expect(client.threads().map((thread) => thread.id)).toEqual(["t1"]);
 });
 
 it("answers through thread_answer with the ask id and only the given fields", async () => {
