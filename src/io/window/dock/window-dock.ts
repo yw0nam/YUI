@@ -183,6 +183,8 @@ export function createWindowDock<Request>(deps: WindowDockDeps<Request>): {
       placement = { x: placement.x + delta.dx, y: placement.y + delta.dy, side: placement.side };
       expected = { x: placement.x, y: placement.y };
     } else {
+      // A flip onto another monitor's work area can change the box.
+      await deps.fit();
       await moveTo(next);
     }
     lastOwnerLog = owner.log;
