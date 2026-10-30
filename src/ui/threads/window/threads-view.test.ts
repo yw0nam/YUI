@@ -1,5 +1,8 @@
 // @vitest-environment jsdom
-/** threads-view.test.ts — the Threads window's view over a stream of snapshots: sends, errors, selection, filters, and the time tick. */
+/**
+ * threads-view.test.ts — the Threads window's view over a stream of snapshots: sends, errors,
+ * selection, filters, the time tick, the rail, and the layouts the panel's width picks.
+ */
 
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { Thread, ThreadsSnapshot } from "../../../contract";
@@ -21,20 +24,53 @@ function thread(id: string, source: string, updated_at: number, waiting = true):
 
 const snapshot = (revision: number, threads: Thread[]): ThreadsSnapshot => ({ revision, threads });
 
+/** The panel's ResizeObservers; `widen` reports a content width to each. */
+let observers: { cb: ResizeObserverCallback; targets: Element[] }[] = [];
+function widen(width: number): void {
+  for (const o of observers) {
+    const entries = o.targets.map((target) => ({ target, contentRect: { width, height: 600 } }));
+    o.cb(entries as unknown as ResizeObserverEntry[], {} as ResizeObserver);
+  }
+}
+
 let now = 0;
 beforeEach(() => {
   setLocale("en");
   document.body.innerHTML = "";
   now = 0;
+  observers = [];
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      private o: { cb: ResizeObserverCallback; targets: Element[] };
+      constructor(cb: ResizeObserverCallback) {
+        this.o = { cb, targets: [] };
+        observers.push(this.o);
+      }
+      observe(target: Element) {
+        this.o.targets.push(target);
+      }
+      unobserve() {}
+      disconnect() {}
+    },
+  );
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
-function build(onAnswer: () => Promise<void> = () => Promise.resolve()) {
+function build(onAnswer: () => Promise<void> = () => Promise.resolve(), listCollapsed = false) {
+  const onClose = vi.fn();
+  const onListCollapsed = vi.fn();
   const view = createThreadsView({
     mount: document.body,
     now: () => now,
     onAnswer,
-    onClose: vi.fn(),
+    onClose,
+    listCollapsed,
+    onListCollapsed,
+    resize: { start: vi.fn(), move: vi.fn(), end: vi.fn() },
   });
   const $ = <T extends Element>(sel: string) => document.querySelector<T>(sel)!;
   const field = () => $<HTMLTextAreaElement>(".yui-threads-answer textarea");
@@ -45,8 +81,15 @@ function build(onAnswer: () => Promise<void> = () => Promise.resolve()) {
   };
   const enter = () =>
     field().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", cancelable: true }));
-  return { view, $, field, send, type, enter };
+  const panel = () => $<HTMLElement>(".yui-threads__panel");
+  return { view, $, field, send, type, enter, onClose, onListCollapsed, panel };
 }
+
+const key = (init: KeyboardEventInit) =>
+  document.dispatchEvent(new KeyboardEvent("keydown", { cancelable: true, ...init }));
+const toggleKey = () => key({ key: "s", code: "KeyS", ctrlKey: true, metaKey: true });
+const ids = (selector: string) =>
+  [...document.querySelectorAll<HTMLElement>(selector)].map((el) => el.dataset.id);
 
 it("sends once while a send is in flight, even when a snapshot rebuilds the pane", () => {
   const onAnswer = vi.fn(() => new Promise<void>(() => {}));
@@ -121,4 +164,88 @@ it("hands a pointerdown on its head, not on its ×, to the head listeners", () =
   $(".yui-threads__head h1").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
 
   expect(onHead).toHaveBeenCalledOnce();
+});
+
+it("draws the rail from the list's rows, and a rail click selects like a row", () => {
+  const { view, $ } = build();
+  view.update(snapshot(1, [thread("t1", "codex", 2), thread("t2", "slack", 1, false)]));
+
+  expect(ids(".yui-threads-rail [data-id]")).toEqual(ids(".yui-threads-list [data-id]"));
+  const counts = [...document.querySelectorAll(".yui-threads-rail__count")];
+  expect(counts.map((el) => el.textContent)).toEqual(["1", "2"]);
+
+  $<HTMLButtonElement>('[data-rail-tab="all"]').click();
+  expect(ids(".yui-threads-rail [data-id]")).toEqual(["t1", "t2"]);
+  const dots = [...document.querySelectorAll(".yui-threads-rail [data-id]")].map(
+    (el) => el.querySelector(".yui-threads-rail__dot") !== null,
+  );
+  expect(dots).toEqual([true, false]);
+
+  $<HTMLButtonElement>('.yui-threads-rail [data-id="t2"]').click();
+  expect($(".yui-threads-pane__head h2").textContent).toBe("t2");
+  expect($('.yui-threads-list [data-id="t2"]').getAttribute("aria-current")).toBe("true");
+});
+
+it.each([
+  [
+    "a selection",
+    () => document.querySelector<HTMLElement>('.yui-threads-list [data-id="t2"]')!.click(),
+  ],
+  ["Escape", () => key({ key: "Escape" })],
+  [
+    "a pointerdown outside the list",
+    () =>
+      document
+        .querySelector(".yui-threads-pane")!
+        .dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })),
+  ],
+])("closes the medium layout's list overlay on %s, before the window", (_name, act) => {
+  const { view, panel, onClose } = build();
+  view.update(snapshot(1, [thread("t1", "codex", 2), thread("t2", "slack", 1)]));
+  widen(600);
+
+  toggleKey();
+  expect(panel().dataset.overlay).toBe("true");
+  act();
+
+  expect(panel().dataset.overlay).toBe("false");
+  expect(onClose).not.toHaveBeenCalled();
+});
+
+it("shows one pane at a time in the narrow layout: a selection opens the thread, back returns", () => {
+  const { view, $, panel } = build();
+  view.update(snapshot(1, [thread("t1", "codex", 2), thread("t2", "slack", 1)]));
+  widen(400);
+  expect(panel().dataset.screen).toBe("thread");
+
+  $<HTMLButtonElement>(".yui-threads-pane__back").click();
+  expect(panel().dataset.screen).toBe("list");
+
+  $<HTMLButtonElement>('.yui-threads-list [data-id="t2"]').click();
+  expect(panel().dataset.screen).toBe("thread");
+  expect($(".yui-threads-pane__head h2").textContent).toBe("t2");
+});
+
+it("keeps the stored list choice through every width without writing it", () => {
+  const { panel, onListCollapsed } = build(undefined, true);
+
+  for (const width of [800, 600, 400, 800]) widen(width);
+
+  expect(panel().dataset.collapsed).toBe("true");
+  expect(onListCollapsed).not.toHaveBeenCalled();
+});
+
+it.each([
+  ["collapses the list in the wide layout", 800, { collapsed: "true", overlay: "false" }, [true]],
+  ["opens the list overlay in the medium layout", 600, { collapsed: "false", overlay: "true" }, []],
+  ["does nothing in the narrow layout", 400, { collapsed: "false", overlay: "false" }, []],
+])("Control+Command+S %s", (_name, width, data, writes) => {
+  const { panel, onListCollapsed } = build();
+  widen(width);
+
+  toggleKey();
+
+  const { collapsed, overlay } = panel().dataset;
+  expect({ collapsed, overlay }).toEqual(data);
+  expect(onListCollapsed.mock.calls.map(([value]) => value)).toEqual(writes);
 });

@@ -60,7 +60,7 @@ it("creates the hidden window and holds an open made before its ready report", a
       url: "threads.html",
       decorations: false,
       transparent: true,
-      alwaysOnTop: true,
+      alwaysOnTop: false,
       skipTaskbar: true,
       visible: false,
       acceptFirstMouse: true,

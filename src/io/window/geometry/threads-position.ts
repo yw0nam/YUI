@@ -2,7 +2,7 @@
 
 import type { ScreenRect } from "../../../contract";
 import { type DockSide, roomierSide } from "../dock/dock-position";
-import { clampToWorkArea } from "./screen-geometry";
+import { clampToWorkArea, type ScreenMonitor } from "./screen-geometry";
 
 const MAX_WIDTH_PX = 960;
 const MAX_HEIGHT_PX = 820;
@@ -37,6 +37,10 @@ export function threadsWindowRect({
     workArea.height - 2 * THREADS_GAP_PX,
   );
   return { ...at, width, height, side: chosen };
+}
+
+export function restoreThreadsBox(panel: ScreenRect, _monitors: ScreenMonitor[]): ScreenRect {
+  return panel;
 }
 
 /** The chip's screen rect moved into the window's own bounds, in window-local px: where the grow starts. */
