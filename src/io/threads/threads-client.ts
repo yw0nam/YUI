@@ -19,11 +19,6 @@ export interface ThreadsClient {
   dispose(): void;
 }
 
-/** Threads belong to the main character: a bound pet window gets no client. */
-export function createMainThreadsClient(bound: boolean): ThreadsClient | null {
-  return bound ? null : createThreadsClient();
-}
-
 export function createThreadsClient(): ThreadsClient {
   let latest: ThreadsSnapshot | null = null;
   const listeners = new Set<(snapshot: ThreadsSnapshot) => void>();
