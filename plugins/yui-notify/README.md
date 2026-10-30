@@ -23,6 +23,13 @@ codex plugin add yui-notify@yui
 Codex requires hook trust at startup. Changed hook definitions require trust again; see
 [Codex setup](skills/setup/references/codex.md). Run `/yui-notify:setup` in Claude Code or
 `$yui-notify:setup` in Codex to configure the endpoint, probe it, and send a test Thread.
+Run `/yui-notify:thread-producer` or `$yui-notify:thread-producer` to build a producer for
+another source, such as a pull request or a mail thread.
+
+To update an existing install, refresh the marketplace, update the plugin, then reload
+plugins or start a new session. Claude Code: `/plugin marketplace update yui`,
+`/plugin update yui-notify@yui`, `/reload-plugins`. Codex:
+`codex plugin marketplace upgrade yui`.
 
 YUI requires **Settings → Proactive → Watchers → External signals** on. The loopback
 listener defaults to port `8770`; switch and port changes take effect after restart.
@@ -178,7 +185,7 @@ server needs `uv` on every host, Python 3.10+ through uv, and the MCP Python SDK
 from this project. Claude Code or Codex needs plugin support.
 
 ```bash
-cd integrations/yui-notify
+cd plugins/yui-notify
 uv run pytest
 uv run ruff format --check .
 uv run ruff check .

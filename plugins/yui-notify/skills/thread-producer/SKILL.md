@@ -1,10 +1,10 @@
 ---
-name: yui-thread-producer
-description: "Thread producer: build or change a producer that puts an outside conversation (a pull request, a mail thread, a comment, a chat mention, a CI run, any source) into YUI's Threads window, collects the user's answer, and acts on it in the source system, and debug one that does not. Use this whenever the user asks to connect a source to YUI's Threads, to run such a producer on a schedule (a cron job, an n8n workflow, a CI step, a script, a daemon), or when answers never reach an existing producer."
+name: thread-producer
+description: "Thread producer: build, change, or debug a producer that posts an outside conversation (a pull request, a mail thread, any source) to YUI's Threads and acts on the user's answer in that source. Use when the user connects a source to Threads, schedules a producer, or an existing producer never receives answers."
 license: PolyForm-Noncommercial-1.0.0
 ---
 
-# yui-thread-producer
+# thread-producer
 
 A Thread is one outside conversation the user reads and answers in YUI's Threads window.
 This skill builds the producer that posts the Thread, collects the answer, and acts in the
@@ -41,7 +41,7 @@ Done when: the shape and its schedule are named.
 The endpoint is `http://127.0.0.1:<port>`, the listener port shown under YUI's Settings →
 Proactive → Watchers (default 8770), with **External signals** on. A producer on another
 host reaches YUI through a reverse SSH tunnel the user supervises; the guide is
-`integrations/yui-notify/skills/setup/references/remote.md` in the YUI repository.
+`../setup/references/remote.md` in this plugin.
 
 Done when: a GET of an unknown Thread id with `wait=0` returns 404 from the producer's
 host.
