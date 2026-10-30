@@ -24,9 +24,6 @@ pub enum WaitOutcome {
     Unknown,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct AnswerError(pub &'static str);
-
 struct State {
     threads: HashMap<String, Thread>,
     pending: VecDeque<(String, Answer)>,
@@ -136,16 +133,13 @@ impl ThreadStore {
         now
     }
 
-    pub fn answer(&self, id: &str, answer: AnswerInput, now: u64) -> Result<(), AnswerError> {
+    pub fn answer(&self, id: &str, answer: AnswerInput, now: u64) -> Result<(), &'static str> {
         let snapshot = {
             let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
-            let thread = state
-                .threads
-                .get_mut(id)
-                .ok_or(AnswerError("unknown thread"))?;
-            let ask = thread.ask.as_ref().ok_or(AnswerError("ask is not open"))?;
+            let thread = state.threads.get_mut(id).ok_or("unknown thread")?;
+            let ask = thread.ask.as_ref().ok_or("ask is not open")?;
             if ask.ask_id != answer.ask_id {
-                return Err(AnswerError("ask_id does not match open ask"));
+                return Err("ask_id does not match open ask");
             }
             let choice = answer
                 .choice
@@ -154,26 +148,24 @@ impl ThreadStore {
                     ask.choices
                         .iter()
                         .find(|c| &c.id == id)
-                        .ok_or(AnswerError("choice is not among the ask choices"))
+                        .ok_or("choice is not among the ask choices")
                 })
                 .transpose()?;
             if answer.choice.is_none()
                 && answer.text.as_ref().is_none_or(|t| t.is_empty())
                 && answer.release != Some(true)
             {
-                return Err(AnswerError(
-                    "answer requires a choice, non-empty text, or release",
-                ));
+                return Err("answer requires a choice, non-empty text, or release");
             }
             if answer.text.is_some() && !ask.text {
-                return Err(AnswerError("ask does not accept text"));
+                return Err("ask does not accept text");
             }
             if answer
                 .text
                 .as_ref()
                 .is_some_and(|t| t.chars().count() > TEXT_MAX_CHARS)
             {
-                return Err(AnswerError("answer text exceeds 16384 characters"));
+                return Err("answer text exceeds 16384 characters");
             }
             let text = choice
                 .map(|c| c.label.as_str())
@@ -519,7 +511,7 @@ mod tests {
                 _ => {}
             }
             let before = s.snapshot();
-            assert_eq!(s.answer("t", a, 3), Err(AnswerError(message)), "{case}");
+            assert_eq!(s.answer("t", a, 3), Err(message), "{case}");
             assert_eq!(s.snapshot(), before);
         }
     }
