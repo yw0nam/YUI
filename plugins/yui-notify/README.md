@@ -190,7 +190,7 @@ field, so exec sessions run the check too.
 ## Requirements and development
 
 The hooks run on system `python3` (3.9+, standard library only). The Claude Code channel
-server needs `uv` on every host, Python 3.10+ through uv, and the MCP Python SDK installed
+server needs `uv` on every host, Python 3.11+ through uv, and the MCP Python SDK installed
 from this project. Claude Code or Codex needs plugin support.
 
 ```bash
