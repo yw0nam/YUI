@@ -1,8 +1,8 @@
 /**
  * dock-position.test.ts — the shared dock's placement rules on their own: docked 12px beside the
  * roomier side, travelling with the owner window, the 24px magnet that snaps a dropped window
- * back, and the work-area clamp — on the quick card's margin box and on the Threads window's
- * panel inset.
+ * back, and the work-area clamp — on the quick card's margin box, and the magnet also on the
+ * Threads window's panel inset.
  */
 
 import { describe, expect, it } from "vitest";
@@ -112,7 +112,7 @@ describe("clampDock", () => {
   });
 });
 
-describe("the Threads window's panel inset", () => {
+describe("snapTarget on the Threads window's panel inset", () => {
   // The panel sits 8px inside the native box, and the native box keeps 12px from the work area.
   const BOX = { width: 960, height: 820 };
   const INSET = 8;
@@ -120,9 +120,6 @@ describe("the Threads window's panel inset", () => {
   const BOUNDS = insetWorkArea(WORK_AREA, 12);
   const PET = { left: 500, right: 900, y: 100 };
   const OWNER = { y: 100, height: 600 };
-  // The dock's beside closes over the owner's extent; after her 1000px move it reads 1500–1900.
-  const beside = (side: "left" | "right") =>
-    side === "right" ? { x: 1500 + 12, y: 100, side } : { x: 1500 - 12 - BOX.width, y: 100, side };
 
   it.each([
     // Visible panel left edge 910 + 8 = 918, 18px past her window's right edge 900.
@@ -152,29 +149,5 @@ describe("the Threads window's panel inset", () => {
         bounds: BOUNDS,
       }),
     ).toEqual(expected);
-  });
-
-  it("flips a following window to the other side when the move would leave the bounds", () => {
-    expect(
-      followOwner({
-        window: { x: 912, y: 100, side: "right" },
-        delta: { dx: 1000, dy: 0 },
-        box: BOX,
-        bounds: BOUNDS,
-        beside,
-      }),
-    ).toEqual({ x: 528, y: 100, side: "left" });
-  });
-
-  it("moves a following window by the owner's delta inside the bounds", () => {
-    expect(
-      followOwner({
-        window: { x: 912, y: 100, side: "right" },
-        delta: { dx: 100, dy: 20 },
-        box: BOX,
-        bounds: BOUNDS,
-        beside,
-      }),
-    ).toEqual({ x: 1012, y: 120, side: "right" });
   });
 });

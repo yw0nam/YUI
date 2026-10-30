@@ -8,12 +8,13 @@ import { createReadyWindowController } from "./ready-window";
 
 const log = createLogger("threads-window");
 
-const LABEL = "threads";
+/** The Threads window's label. */
+export const THREADS_WINDOW_LABEL = "threads";
 
 function createTauriThreadsWindow(): void {
   void (async () => {
     const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-    const win = new WebviewWindow(LABEL, {
+    const win = new WebviewWindow(THREADS_WINDOW_LABEL, {
       url: "threads.html",
       title: "YUI",
       resizable: false,
@@ -51,7 +52,7 @@ export function createThreadsWindowController(deps: {
   dispose(): void;
 } {
   const ready = createReadyWindowController({
-    label: LABEL,
+    label: THREADS_WINDOW_LABEL,
     create: createTauriThreadsWindow,
     emitOpen: deps.bridge.emitThreadsOpen,
     onReady: deps.bridge.onThreadsReady,

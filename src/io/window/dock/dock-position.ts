@@ -3,7 +3,7 @@
 import { clampToWorkArea } from "../geometry/screen-geometry";
 
 /** A dropped window within this distance (logical px) of its owner's edge snaps back beside it. */
-export const DOCK_SNAP_PX = 24;
+const DOCK_SNAP_PX = 24;
 
 export type DockSide = "left" | "right";
 
@@ -73,7 +73,7 @@ export function insetWorkArea(workArea: DockWorkArea, inset: number): DockWorkAr
 }
 
 /** The docked window's x on `side`: its visible edge, `inset` inside the box, `gap` from the anchor's edge. */
-function dockedX(
+export function dockedX(
   side: DockSide,
   anchor: { left: number; right: number },
   box: DockSize,
@@ -81,28 +81,6 @@ function dockedX(
   gap: number,
 ): number {
   return side === "right" ? anchor.right + gap - inset : anchor.left - gap - box.width + inset;
-}
-
-/** Where the window sits docked beside `anchor` on `side`, its visible top edge at `top`, clamped into `bounds`. */
-export function dockBeside({
-  anchor,
-  box,
-  inset,
-  gap,
-  bounds,
-  side,
-  top,
-}: {
-  anchor: DockAnchor;
-  box: DockSize;
-  inset: number;
-  gap: number;
-  bounds: DockWorkArea;
-  side: DockSide;
-  /** The visible top edge's y before the clamp. */
-  top: number;
-}): { x: number; y: number } {
-  return clampDock({ x: dockedX(side, anchor, box, inset, gap), y: top - inset }, box, bounds);
 }
 
 /**

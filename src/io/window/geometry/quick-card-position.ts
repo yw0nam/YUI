@@ -1,12 +1,13 @@
 /** Where the quick-card window sits, in screen logical px: the card's margin box docked beside her. */
 
 import {
+  clampDock,
   type DockAnchor,
   type DockPlacement,
   type DockSide,
   type DockSize,
   type DockWorkArea,
-  dockBeside,
+  dockedX,
   roomierSide,
 } from "../dock/dock-position";
 
@@ -43,16 +44,14 @@ export function quickCardBeside({
   side?: DockSide;
 }): DockPlacement {
   const chosen = side ?? roomierSide(character, workArea);
-  return {
-    ...dockBeside({
-      anchor: character,
-      box: quickCardBox(content),
-      inset: QUICK_CARD_MARGIN_PX,
-      gap: QUICK_CARD_GAP_PX,
-      bounds: workArea,
-      side: chosen,
-      top: character.y - DOCK_TOP_OFFSET_PX,
-    }),
-    side: chosen,
-  };
+  const box = quickCardBox(content);
+  const at = clampDock(
+    {
+      x: dockedX(chosen, character, box, QUICK_CARD_MARGIN_PX, QUICK_CARD_GAP_PX),
+      y: character.y - DOCK_TOP_OFFSET_PX - QUICK_CARD_MARGIN_PX,
+    },
+    box,
+    workArea,
+  );
+  return { ...at, side: chosen };
 }

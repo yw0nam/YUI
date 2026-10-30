@@ -7,6 +7,7 @@
 import { createLogger } from "../../../logger";
 import { isTauri } from "../../../tauri-env";
 import { logicalWorkArea, monitorAtLogical, toScreenMonitor } from "../geometry/screen-geometry";
+import { THREADS_WINDOW_LABEL } from "../openers/threads-window";
 import { invokeDragWindow } from "../pet/gesture/window-drag";
 import { attachToOwner, detachFromOwner } from "./dock-link";
 import {
@@ -35,7 +36,7 @@ export interface DockOwner {
 
 /** The docked windows' labels: their drops settle in their own windows, never on a pet. */
 export function isDockedWindowLabel(label: string): boolean {
-  return label === "threads" || label.startsWith("quick-card");
+  return label === THREADS_WINDOW_LABEL || label.startsWith("quick-card");
 }
 
 export interface WindowDockDeps<Request> {
