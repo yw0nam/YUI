@@ -229,7 +229,7 @@ export interface SettingsBridge {
   /** The Threads window reporting it has booted. */
   emitThreadsReady(): void;
   onThreadsReady(cb: () => void): () => void;
-  /** The Threads window is hidden again, after its close or a failed open; the chip shows again. */
+  /** The Threads window is hidden again, after its close or a failed open; the chip leaves its open state. */
   emitThreadsClosed(): void;
   onThreadsClosed(cb: () => void): () => void;
   emitSettingsChanged(): void;

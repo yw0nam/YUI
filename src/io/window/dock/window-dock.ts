@@ -7,7 +7,6 @@
 import { createLogger } from "../../../logger";
 import { isTauri } from "../../../tauri-env";
 import { logicalWorkArea, monitorAtLogical, toScreenMonitor } from "../geometry/screen-geometry";
-import { THREADS_WINDOW_LABEL } from "../openers/threads-window";
 import { invokeDragWindow } from "../pet/gesture/window-drag";
 import { attachToOwner, detachFromOwner } from "./dock-link";
 import {
@@ -34,11 +33,6 @@ export interface DockOwner {
   onMoved: (cb: (event: { payload: { x: number; y: number } }) => void) => Promise<() => void>;
 }
 
-/** The quick card's and the Threads window's labels: their drags settle in their own windows and never perch the character. */
-export function dropNeverPerches(label: string): boolean {
-  return label === THREADS_WINDOW_LABEL || label.startsWith("quick-card");
-}
-
 export interface WindowDockDeps<Request> {
   /** The owner pet window's label. */
   ownerLabel: string;
@@ -52,8 +46,6 @@ export interface WindowDockDeps<Request> {
   gap: number;
   /** The owner's anchor extent, and the point to read the work area at, for a request. */
   anchor(owner: DockOwner, request: Request): { anchor: DockAnchor; at: { x: number; y: number } };
-  /** The bounds a follow or a snap clamps into; the work area by default. */
-  clampBounds?(workArea: DockWorkArea): DockWorkArea;
   /** The docked placement beside `anchor` on `side`; absent side, the roomier one. */
   beside(anchor: DockAnchor, workArea: DockWorkArea, side?: DockSide): DockPlacement;
   /** Sizes the window to `box()` before a docked move. */
@@ -176,7 +168,7 @@ export function createWindowDock<Request>(deps: WindowDockDeps<Request>): {
       window: placement,
       delta,
       box: deps.box(),
-      bounds: deps.clampBounds ? deps.clampBounds(workArea) : workArea,
+      bounds: workArea,
       beside: (side) => deps.beside(anchor, workArea, side),
     });
     const carried = { x: placement.x + delta.dx, y: placement.y + delta.dy, side: placement.side };
@@ -209,7 +201,7 @@ export function createWindowDock<Request>(deps: WindowDockDeps<Request>): {
       box: deps.box(),
       inset: deps.inset,
       gap: deps.gap,
-      bounds: deps.clampBounds ? deps.clampBounds(workArea) : workArea,
+      bounds: workArea,
     });
     if (!snap) return;
     await moveTo(snap);

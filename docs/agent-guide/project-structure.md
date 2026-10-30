@@ -124,7 +124,7 @@ YUI/
         quick-card-dock.ts           # The card on the shared window dock: her open request seeds the card and anchors the dock at her extent and click y
         quick-card-close.ts          # Closes the card when no YUI window holds focus, and hides the window on every close
       threads-window/                # The Threads window's wiring
-        wire-threads-window.ts       # Snapshots into the view, Answers to the store, the open request, theme and language
+        wire-threads-window.ts       # Snapshots into the view, Answers to the store, the frame store into placement and resize, the list choice, the open request, theme and language
         threads-placement.ts         # The window's frame: beside main's pet window the first time, its stored frame after that, its head's native drag, and the frame saved once a move settles
         threads-presence.ts          # One open or close at a time: show and grow, or focus while shown; shrink and hide, then the closed report
         threads-resize.ts            # A handle drag into the window's box, applied at most once a frame, the frame saved after the last apply
@@ -508,6 +508,7 @@ YUI/
           ready-window.ts              # A hidden window created once, a leftover recreated, a request held until the window reports ready
           quick-card-window.ts         # Quick-card window opener, quick-card-<id> for a bound id, on ready-window; its permissions are src-tauri/capabilities/quick-card.json
           threads-window.ts            # Threads window opener on ready-window: the chip's screen rect in each open request, the closed report passed on; its permissions are src-tauri/capabilities/threads.json
+          drop-never-perches.ts        # The quick-card and Threads labels, whose drags never perch the character
           message-window-mode.ts       # Keeps the message window in step with the stored mode, the unified chat window and the dock request
           unified-window.ts            # Unified chat window opener: shows the one frameless window labelled unified, or creates it at its stored position, and destroys it; its permissions are src-tauri/capabilities/unified.json
           pet-window.ts                # Bound pet window opener: creates pet-<id> and lists the windows that exist

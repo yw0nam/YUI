@@ -10,7 +10,7 @@ import { roomierSide } from "../dock/dock-position";
 import { clampToWorkArea, logicalWorkArea, type ScreenMonitor } from "./screen-geometry";
 
 /** The gap from the pet window to the window's box, and the box's inset from the work area's edges. */
-export const THREADS_GAP_PX = 12;
+const THREADS_GAP_PX = 12;
 /** Transparent padding around the panel inside its window, for the shadow; the stylesheet sets the same. */
 export const THREADS_PANEL_INSET_PX = 8;
 

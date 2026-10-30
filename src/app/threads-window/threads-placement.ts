@@ -106,6 +106,8 @@ export function createThreadsPlacement(deps: {
     save();
   }
 
+  let offMoved: (() => void) | null = null;
+  let disposed = false;
   if (isTauri()) {
     getCurrentWindow()
       .onMoved(() => {
@@ -115,6 +117,10 @@ export function createThreadsPlacement(deps: {
             log.warn("threads_move_save_failed", { error: String(error) }),
           );
         }, MOVE_SETTLE_MS);
+      })
+      .then((off) => {
+        if (disposed) off();
+        else offMoved = off;
       })
       .catch((error) => log.warn("threads_move_listen_failed", { error: String(error) }));
   }
@@ -167,6 +173,13 @@ export function createThreadsPlacement(deps: {
     apply,
     /** Saves the window's box as the stored frame. */
     save,
+    /** Stops listening to moves and drops a move still settling. */
+    dispose(): void {
+      disposed = true;
+      offMoved?.();
+      if (settle) clearTimeout(settle);
+      settle = null;
+    },
   };
 }
 

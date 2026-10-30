@@ -65,6 +65,7 @@ export async function wireThreadsWindow(deps: {
   register(() => bridge.dispose());
   register(() => client.dispose());
   register(() => view.dispose());
+  register(() => placement.dispose());
   register(
     applyTheme({
       store: themeSettings,

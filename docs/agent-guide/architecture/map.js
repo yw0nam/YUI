@@ -2460,7 +2460,7 @@ globalThis.YUI_MAP =
     {
       "id": "drop-never-perches-label",
       "from": "dispatcher/sources/gesture",
-      "to": "io/window/dock",
+      "to": "io/window/openers",
       "carries": "dropNeverPerches(label): the quick-card and Threads labels, whose drags settle in their own windows and never perch the character",
       "kind": "call",
       "transport": "shared"
@@ -3043,7 +3043,7 @@ globalThis.YUI_MAP =
       "id": "threads-frame",
       "from": "app/threads-window",
       "to": "settings",
-      "carries": "yui.threads-window {x?, y?, width, height, listCollapsed}: the panel's frame in logical px, written at each placement, once a user move settles and at a resize's end, its size floored at 360 × 420; the list choice, written by the toggle and never by a width change; read on each open",
+      "carries": "yui.threads-window {x?, y?, width, height, listCollapsed}: the panel's frame in logical px, written at each placement, once a user move settles and at a resize's end, its size floored at 360 × 420; the list choice, written by the toggle and never by a width change; the frame read on each open, the list choice once at boot",
       "kind": "storage",
       "transport": "shared",
       "wiring": "src/app/threads-window/wire-threads-window.ts"
@@ -3067,13 +3067,31 @@ globalThis.YUI_MAP =
       "wiring": "src/app/threads-window/threads-resize.ts"
     },
     {
-      "id": "threads-head-drag",
+      "id": "threads-head-pointerdown",
       "from": "ui/threads",
-      "to": "io/window/pet",
-      "carries": "onHeadPointerDown: a pointerdown on the head, not its buttons → invokeDragWindow, the window's native drag",
+      "to": "app/threads-window",
+      "carries": "onHeadPointerDown: a pointerdown on the head, not on its buttons",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/threads-window/wire-threads-window.ts"
+    },
+    {
+      "id": "threads-head-drag",
+      "from": "app/threads-window",
+      "to": "io/window/pet",
+      "carries": "invokeDragWindow from the head's pointerdown (not on its buttons): the window's native drag",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/threads-placement.ts"
+    },
+    {
+      "id": "threads-min-panel",
+      "from": "io/window/geometry",
+      "to": "settings",
+      "carries": "THREADS_MIN_PANEL {width 360, height 420}: the smallest panel the placement and the resize keep",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/io/window/geometry/threads-position.ts"
     },
     {
       "id": "quick-card-placement",
