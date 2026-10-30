@@ -1,6 +1,0 @@
-{
-  "name": "yui-notify",
-  "version": "0.5.1",
-  "description": "Coding-agent Threads with Claude Code channel answers and synchronous Codex hook answers.",
-  "license": "PolyForm-Noncommercial-1.0.0"
-}

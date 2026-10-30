@@ -114,7 +114,7 @@ scheduled takes **Check an existing schedule** at the end of this section.
 ### 1. Register the skill
 
 Register `$SKILL_DIR` in the place you load your own skills from. `$SKILL_DIR` is
-`<YUI checkout>/integrations/skills/yui-daily-briefing`.
+`<YUI checkout>/skills/yui-daily-briefing`.
 
 Done when: you can run `python3 "$SKILL_DIR/scripts/briefing.py" --help`.
 
@@ -234,7 +234,7 @@ Put every producer on the scheduler from step 4 at its time, in the scheduler of
 user you run as, so the jobs and you read the same files. On cron:
 
 ```crontab
-SKILL_DIR=/absolute/path/to/YUI/integrations/skills/yui-daily-briefing
+SKILL_DIR=/absolute/path/to/YUI/skills/yui-daily-briefing
 YUI_BRIEFING_SPOOL=/absolute/path/to/workspace/yui-briefing-spool
 TZ=Europe/Berlin
 0 7 * * * /absolute/path/to/news-gather.py | python3 "$SKILL_DIR/scripts/briefing.py" write --source news

@@ -73,7 +73,7 @@ Each character keeps her own brain, persona, voice, VRM model, and history, and 
 
 ### Read your coding agent's Threads
 
-The [yui-notify](integrations/yui-notify/README.md) plugin posts Claude Code and Codex conversations as Threads without character speech. Codex accepts permissions and next instructions through synchronous hooks; Claude Code Threads are read-only. Turn on **External signals** in **Settings → Proactive → Watchers**, then restart YUI.
+The [yui-notify](plugins/yui-notify/README.md) plugin posts Claude Code and Codex conversations as Threads without character speech. Codex accepts permissions and next instructions through synchronous hooks; Claude Code Threads are read-only. Turn on **External signals** in **Settings → Proactive → Watchers**, then restart YUI.
 
 **And more:** your own VRM model, Tavern Card import and export, voice chat you can interrupt, image attachments, a chat history, how each character feels about you and the others, a Quick card on right-click, Dawn and Hearth themes, English, Japanese, and Korean UI, and tools your agent can use on your computer. See the [full feature list](docs/guide/features.md).
 

@@ -1,9 +1,10 @@
 # YUI — Plugins & CI
 
-`plugins/` holds plugin folders that each bundle an MCP server, independent of the app runtime, in two kinds:
+`plugins/` holds every plugin folder, independent of the app runtime, in three kinds:
 
 - **Python plugins** (factorio) bundle a Backend-attached MCP server over HTTP, reached over a loopback port and an SSH reverse tunnel. Each is a **self-contained `uv` project** with its own dependency set — no shared lock, so one plugin's deps never leak into another.
 - **Rust plugin crates** (browser) bundle an MCP server that speaks MCP over stdio and opens no port; `.mcp.json` names the `command` that starts it. The plugin release workflow builds and releases them; `docs/agent-guide/build-run.md` § Plugin releases gives the layout.
+- **Coding-agent plugins** (yui-notify) install into Claude Code and Codex from the `yui` marketplace: hooks plus a stdio MCP channel server, a `uv` project.
 
 `plugins/catalog.json` lists the official and community plugins; the plugin release workflow opens a PR that writes the official entries (`docs/agent-guide/build-run.md` § Plugin releases).
 
@@ -13,7 +14,7 @@ To add a Python plugin `<name>`:
 
 1. `plugins/<name>/` — `pyproject.toml` (deps + `[project.scripts]` entry + dev `pytest`/`ruff` + `[tool.ruff] line-length = 110`), `uv.lock` (`uv lock`), `.python-version`, the `<package>/` source, and `tests/` (failing test first; what a test must prove: `docs/agent-guide/testing.md` § What a test is for). `uv.lock` is required: CI runs `uv sync --frozen` in every folder that tracks a `pyproject.toml`.
 2. `plugins/<name>/.claude-plugin/plugin.json` — the plugin manifest: its `name`, `version`, one-line `description`, `author`, and `license`.
-3. `plugins/<name>/.mcp.json` — the MCP server the backend agent attaches: the server name, its `type`, and its URL.
+3. `plugins/<name>/.mcp.json` — the MCP server the backend agent attaches: the server name, its `type`, and, for an HTTP server, its URL.
 4. `plugins/<name>/README.md` (run / config / safety boundary / tools / test) and the folder in the `plugins/` tree in `docs/agent-guide/project-structure.md`.
 5. `plugins/<name>/skills/<skill-name>/SKILL.md` — the workflow the backend agent reads, when the plugin needs one.
 
@@ -31,7 +32,7 @@ Verify locally before the PR: `cd plugins/<id> && cargo fmt --check && cargo cli
 
 ## Exposure
 
-Every Python plugin is reachable on loopback only — there is no transport auth, so any local process that can reach the port gets the plugin's full capability. A Python plugin binds `127.0.0.1`. Reach it from the remote agent over an SSH reverse tunnel, never by publishing it on `0.0.0.0`:
+An HTTP plugin is reachable on loopback only — there is no transport auth, so any local process that can reach the port gets the plugin's full capability. An HTTP plugin binds `127.0.0.1`. Reach it from the remote agent over an SSH reverse tunnel, never by publishing it on `0.0.0.0`:
 
 ```bash
 ssh -R <port>:localhost:<port> <remote-host>
@@ -39,7 +40,7 @@ ssh -R <port>:localhost:<port> <remote-host>
 
 Over HTTP, the server refuses a request whose `Host` is not a loopback name (`127.0.0.1`, `localhost`, `::1`) with 421 and a request with a non-loopback `Origin` with 403, while a local process that sends no browser headers can still use it.
 
-A Rust plugin crate opens no port: it speaks MCP over the stdin and stdout of the process that started it.
+A stdio plugin opens no port: its host starts it from `.mcp.json`, and it speaks MCP over the stdin and stdout of the process.
 
 ## CI
 

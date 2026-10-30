@@ -91,7 +91,7 @@ skill is read. A skill linked or copied under `~/.hermes/profiles/<profile>/skil
 and readable. A file outside `~/.hermes/skills/` makes Hermes log a security warning on every
 `skill_view`. The trusted place is `~/.hermes/skills/<name>/SKILL.md`: copy the folder there, or
 install it the way `hermes skills install` does. The YUI skills that apply are the daily briefing
-skill (`integrations/skills/yui-daily-briefing/`) and the Factorio companion skill
+skill (`skills/yui-daily-briefing/`) and the Factorio companion skill
 (`plugins/factorio/skills/factorio-companion/`).
 
 The plugin's [`docs/install.md`](../../docs/install.md) carries what each `extra` key means and what
