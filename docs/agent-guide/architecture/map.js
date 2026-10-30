@@ -468,7 +468,7 @@ globalThis.YUI_MAP =
       "id": "agent-hooks",
       "module": "senders",
       "label": "coding-agent hooks",
-      "role": "The yui-notify plugin's Claude Code and Codex hooks post Threads; Codex waits for answers through synchronous hooks.",
+      "role": "The yui-notify plugin's Claude Code and Codex hooks post Threads; Codex hooks, and the Claude Code Stop hook without a ready channel, wait for answers synchronously.",
       "paths": [],
       "external": true
     },
@@ -484,7 +484,7 @@ globalThis.YUI_MAP =
       "id": "agent-channel",
       "module": "senders",
       "label": "Claude Code channel server",
-      "role": "The yui-notify MCP server identifies Claude from its messaging socket or parent walk, serves idle when unavailable, and starts answer polling after MCP initialization; ready files enable hook asks and prevent duplicate permission entries.",
+      "role": "The yui-notify MCP server identifies Claude from its messaging socket or parent walk, serves idle when unavailable, and starts answer polling after MCP initialization; ready files stop the Claude Code Stop hook from waiting and prevent duplicate permission entries.",
       "paths": [],
       "external": true
     },
@@ -2257,7 +2257,7 @@ globalThis.YUI_MAP =
       "id": "channel-hook-readiness",
       "from": "agent-channel",
       "to": "agent-hooks",
-      "carries": "XDG_STATE_HOME/yui-notify/channels/<claude pid> contains the initialized ready server PID; live PID enables Stop asks and suppresses permission hook entries",
+      "carries": "XDG_STATE_HOME/yui-notify/channels/<claude pid> contains the initialized ready server PID; live PID stops the Stop hook from waiting and suppresses permission hook entries",
       "kind": "storage",
       "transport": "shared"
     },

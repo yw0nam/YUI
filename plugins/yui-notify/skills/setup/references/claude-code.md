@@ -1,8 +1,10 @@
 # Wire Claude Code
 
-Claude Code posts Threads through the plugin's hooks and takes answers through its channel
-server. The server delivers answers only in a session launched with the channel flag. A
-plain `claude` launch posts read-only Threads. The Claude Code behaviour below follows the
+Claude Code posts Threads through the plugin's hooks. A session launched with the channel
+flag takes answers through the channel server: Stop instructions and permission answers,
+with the terminal free. Any other session, including one on an account where channels are
+blocked, takes Stop instructions through the Stop hook, which holds the turn while it waits;
+Esc at the terminal ends the wait. The Claude Code behaviour below follows the
 [Channels docs](https://code.claude.com/docs/en/channels).
 
 ## 1. Install uv
@@ -20,8 +22,8 @@ has them. On a claude.ai Team or Enterprise plan, an Owner turns them on under
 **Organization settings → Claude Code → Channels**, or sets `channelsEnabled: true` in
 managed settings.
 
-Done when: the user confirms the account is Pro or Max, or that the organization has
-channels on.
+Done when: the user knows whether the account has channels. Without them, skip step 4 and
+start Claude Code without the flag in step 5.
 
 ## 3. Check the hooks
 
@@ -58,6 +60,7 @@ Give the user these checks for the new session, then end this one:
 2. Send any prompt. When Claude stops, the session's Thread in YUI asks “What next?”.
 3. Type a short instruction in the Threads window and send it.
 
-Done when: the user confirms the instruction arrived in the session as a channel message
-and Claude acted on it. A Thread that shows the reply but no “What next?” ask means the
-channel is not ready: read `references/troubleshooting.md` § Claude Code channel.
+Done when: the user confirms Claude acted on the instruction: as a channel message with the
+flag, or after “Stop hook error: <instruction>” without it. With the flag, an instruction
+that arrives only after Claude Code shows “running Stop hook” means the channel is not
+ready: read `references/troubleshooting.md` § Claude Code channel.
