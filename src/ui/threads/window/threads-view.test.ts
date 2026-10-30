@@ -111,3 +111,14 @@ it("redraws only the times on the minute tick, leaving the kind select in place"
   expect($(".yui-threads-row time").textContent).toBe("5 min. ago");
   expect($(".yui-threads-entry__head time").textContent).toBe("5 min. ago");
 });
+
+it("hands a pointerdown on its head, not on its ×, to the head listeners", () => {
+  const { view, $ } = build();
+  const onHead = vi.fn();
+  view.onHeadPointerDown(onHead);
+
+  $(".yui-threads__close").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+  $(".yui-threads__head h1").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+
+  expect(onHead).toHaveBeenCalledOnce();
+});
