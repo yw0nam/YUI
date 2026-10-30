@@ -99,7 +99,6 @@
 
 /* One line that grows with the reply up to 200px, then scrolls. */
 .yui-threads-answer textarea {
-  display: block;
   box-sizing: border-box;
   width: 100%;
   min-height: 44px;

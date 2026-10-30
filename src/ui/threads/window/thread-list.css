@@ -103,7 +103,6 @@
 }
 
 .yui-threads-row strong {
-  font-size: var(--yui-fs-body);
   font-weight: 600;
   overflow-wrap: anywhere;
 }
