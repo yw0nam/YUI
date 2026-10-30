@@ -3031,7 +3031,7 @@ globalThis.YUI_MAP =
       "wiring": "src/app/threads-chip/wire-threads-chip.ts"
     },
     {
-      "id": "threads-placement",
+      "id": "threads-dock-position",
       "from": "app/threads-window",
       "to": "io/window/geometry",
       "carries": "threadsWindowRect and chipInWindow: 12px beside the pet window on its roomier or a given side, at most 960 × 820 and 12px inside the work area; the chip-sized rect the grow starts from",
