@@ -65,11 +65,11 @@ the same Thread.
 An instruction answered in the Threads window is already a `user` entry in the store, so
 the channel message Claude Code delivers it as only sets the Thread `working`.
 
-The sending agent comes from the hook payload, never from the inherited environment.
-Codex sends `turn_id` on every turn-scoped event and Claude Code sends `prompt_id`.
-The session-scoped events carry neither, so the transcript the payload names decides:
-a Codex rollout starts with `session_meta`, a Claude Code transcript with `sessionId`.
-A payload that names no agent sends nothing.
+Hooks name the sending agent from the payload first. A payload with `turn_id`, a null
+`transcript_path`, or a transcript whose first line is `session_meta` (a Codex rollout)
+comes from Codex, even in a shell that inherited `CLAUDECODE=1`. Otherwise `prompt_id`
+or `CLAUDECODE=1` names Claude Code, a remaining `SessionStart` is Codex's, and any other
+event sends nothing.
 
 ## Claude Code answers
 
