@@ -96,6 +96,5 @@ def spawned(monkeypatch):
     monkeypatch.setattr(
         "yui_notify.hook.run.spawn",
         lambda url, ask_id, pid, env: calls.append((url, ask_id, pid)),
-        raising=False,
     )
     return calls

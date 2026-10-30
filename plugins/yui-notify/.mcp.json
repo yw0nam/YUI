@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "yui-notify": {
-      "command": "uv",
-      "args": ["run", "--project", "${CLAUDE_PLUGIN_ROOT}", "python", "${CLAUDE_PLUGIN_ROOT}/bin/yui-notify", "channel"]
-    }
-  }
-}

@@ -1,7 +1,6 @@
 {
   "name": "yui-notify",
-  "version": "0.6.3",
-  "description": "Coding-agent Threads with Claude Code channel answers and synchronous Codex hook answers, and a skill that builds a Thread producer for any other source.",
-  "license": "PolyForm-Noncommercial-1.0.0",
-  "mcpServers": {}
+  "version": "0.7.0",
+  "description": "Coding-agent Threads: Claude Code answers through its inbox socket, Codex answers through synchronous hooks, and a skill that builds a Thread producer for any other source.",
+  "license": "PolyForm-Noncommercial-1.0.0"
 }

@@ -7,7 +7,7 @@
     {
       "name": "yui-notify",
       "source": "./plugins/yui-notify",
-      "description": "Coding-agent Threads with Claude Code channel answers and synchronous Codex hook answers, and a skill that builds a Thread producer for any other source."
+      "description": "Coding-agent Threads: Claude Code answers through its inbox socket, Codex answers through synchronous hooks, and a skill that builds a Thread producer for any other source."
     }
   ]
 }
