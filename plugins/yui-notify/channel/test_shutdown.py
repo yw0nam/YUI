@@ -6,6 +6,8 @@ import sys
 import time
 from pathlib import Path
 
+import pytest
+
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 INITIALIZE = {
     "jsonrpc": "2.0",
@@ -20,8 +22,9 @@ INITIALIZE = {
 INITIALIZED = {"jsonrpc": "2.0", "method": "notifications/initialized"}
 
 
-def test_server_leaves_on_a_signal_and_removes_the_channel_file(tmp_path):
-    """SIGINT ends the channel server at once and takes its channel file with it"""
+@pytest.mark.parametrize("signum", [signal.SIGINT, signal.SIGTERM])
+def test_server_leaves_on_a_signal_and_removes_the_channel_file(tmp_path, signum):
+    """SIGINT or SIGTERM ends the channel server at once and takes its channel file with it"""
     claude_script = tmp_path / "claude"
     claude_script.write_text("#!/bin/sh\nsleep 30\n")
     claude_script.chmod(0o755)
@@ -48,8 +51,12 @@ def test_server_leaves_on_a_signal_and_removes_the_channel_file(tmp_path):
         while time.time() < deadline and not channel_file.exists():
             time.sleep(0.1)
         assert channel_file.exists() is True
-        server.send_signal(signal.SIGINT)
-        assert server.wait(timeout=10) == 0
+        server.send_signal(signum)
+        try:
+            server.wait(timeout=1)
+        except subprocess.TimeoutExpired:
+            pass
+        assert server.returncode == 0
         assert channel_file.exists() is False
     finally:
         server.kill()
