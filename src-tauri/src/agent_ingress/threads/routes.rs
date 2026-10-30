@@ -60,12 +60,10 @@ pub(in crate::agent_ingress) fn parse(
             let ask_id = query_param(url, "ask_id");
             let wait = match query_param(url, "wait") {
                 None => WAIT_MAX_SECONDS,
-                Some(value) => {
-                    if value.is_empty() || !value.bytes().all(|c| c.is_ascii_digit()) {
-                        return Err(400);
-                    }
-                    value.parse::<u64>().map_err(|_| 400u16)?
+                Some(v) if v.bytes().all(|b| b.is_ascii_digit()) => {
+                    v.parse().map_err(|_| 400u16)?
                 }
+                Some(_) => return Err(400),
             };
             if wait > WAIT_MAX_SECONDS {
                 return Err(400);
