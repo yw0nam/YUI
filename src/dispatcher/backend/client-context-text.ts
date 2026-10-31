@@ -5,7 +5,7 @@
  * `trigger: user message` line with its idle clause, so those shapes stay stable.
  */
 
-import type { ClientContext, TriggerMeta, TurnEnded, WakeCause } from "../../contract";
+import type { ClientContext, TriggerMeta, TurnEnded } from "../../contract";
 import { oneLine } from "../../io/chat/one-line";
 import { renderGuideBlock } from "../../io/guide/guide-docs";
 
@@ -47,18 +47,13 @@ function renderScreenshot(screenshot: ClientContext["screenshot"]): string | und
   return `screenshot source: window ${oneLine(source.app)} — "${oneLine(source.window_title)}"`;
 }
 
-function renderBody(
-  bodyState: ClientContext["body_state"],
-  waking: boolean,
-  nowMs: number,
-): string | undefined {
+function renderBody(bodyState: ClientContext["body_state"], nowMs: number): string | undefined {
   if (!bodyState) return undefined;
   const perchedOn = bodyState.posture.perched_on;
   const onLabel = perchedOn?.app ?? perchedOn?.window_title;
   const on = onLabel ? ` on ${oneLine(onLabel)}` : "";
-  const gettingUp = waking ? ", getting up now" : "";
   const mins = minutesSince(bodyState.since, nowMs);
-  return `body: ${bodyState.posture.state}${on}${gettingUp} (for ${mins}min)`;
+  return `body: ${bodyState.posture.state}${on} (for ${mins}min)`;
 }
 
 /** `Nmin ago` under an hour, `Nh ago` under a day, else `Nd ago`. */
@@ -157,12 +152,6 @@ function renderRecentSwitches(recent: NonNullable<TriggerMeta["screen"]>["recent
   return [`recent switches: ${steps.join(" then ")}`];
 }
 
-const WOKEN_BY: Record<WakeCause, string> = {
-  click: "the user's click",
-  timeout: "the wake timeout",
-  message: "this message",
-};
-
 function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
   const lines: string[] = [];
   const idleClause =
@@ -188,8 +177,6 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
   } else if (trigger.milestone) {
     const m = trigger.milestone;
     lines.push(`trigger: milestone ${oneLine(m.name)} (fired at ${oneLine(m.local_time)})`);
-  } else if (trigger.wake && trigger.kind !== "user") {
-    lines.push("trigger: wake");
   } else if (trigger.addressed) {
     const a = trigger.addressed;
     lines.push(
@@ -212,12 +199,6 @@ function renderTrigger(trigger: TriggerMeta, nowMs: number): string[] {
     // Fallback: kind without a matching structured field (e.g. a bare idle proactive turn
     // without a configured cue).
     lines.push(`trigger: ${trigger.kind}${idleClause}`);
-  }
-
-  if (trigger.wake) {
-    lines.push(
-      `wake: the character just woke from the bed, woken by ${WOKEN_BY[trigger.wake.cause]}`,
-    );
   }
 
   if (trigger.signals) {
@@ -244,7 +225,7 @@ export function renderClientContext(clientContext: ClientContext, nowMs: number)
   const screenshot = renderScreenshot(clientContext.screenshot);
   if (screenshot) lines.push(screenshot);
 
-  const body = renderBody(clientContext.body_state, Boolean(clientContext.trigger.wake), nowMs);
+  const body = renderBody(clientContext.body_state, nowMs);
   if (body) lines.push(body);
 
   lines.push(...renderRelations(clientContext.relations, nowMs));

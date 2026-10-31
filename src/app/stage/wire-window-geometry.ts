@@ -1,4 +1,4 @@
-/** Saves the pet window's size and position after the OS drag ends and after a Ctrl+wheel resize, and applies the saved record once at boot, clamped on screen, before the faller places the window and the bed scene parks it. */
+/** Saves the pet window's size and position after the OS drag ends and after a Ctrl+wheel resize, and applies the saved record once at boot, clamped on screen, before the faller places the window. */
 
 import {
   clampToWorkArea,

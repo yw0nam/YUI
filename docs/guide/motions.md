@@ -2,7 +2,7 @@
 
 This page lists every motion id in [`configs/motions.json`](https://github.com/yw0nam/YUI/blob/main/configs/motions.json): what it looks like, its playback policy, and the source clip it was extracted from. Keep it in sync with the registry.
 
-The backend agent picks from the motions in the [agent vocabulary](#agent-vocabulary) through `generate_express`'s `motion_id`. The client plays the rest on its own: the ambient baseline, the pickup and pat reactions, the stroll, the jump, the fall chain, the climb chain, the seat transitions, the thinking pose, the perch states, and the bed scene.
+The backend agent picks from the motions in the [agent vocabulary](#agent-vocabulary) through `generate_express`'s `motion_id`. The client plays the rest on its own: the ambient baseline, the pickup and pat reactions, the stroll, the jump, the fall chain, the climb chain, the seat transitions, the thinking pose, and the perch states.
 
 Each family has a sub-section under [Top-level motions](#top-level-motions); sources and the client-side switches sit below the catalog.
 
@@ -46,9 +46,6 @@ A motion id is named for the emotion or state it expresses, with a few patterns:
 | `jump` | oneshot | no | Standing jump, played once when a perched stroll crosses a height difference or a gap to an adjacent window's top (see [Jump](#jump)). Priority 45. `broker_publish: false`. | Mixamo "Jump" | 1.6s |
 | `window_sit` | state | yes | Held window-perch (see [Perch states](#perch-states)). `broker_publish: false`. Engaged on every seat entry. | PET_SITTING/* | — |
 | `dance` | oneshot | no | Random dance pool (see below). | PET_DANCING/* | — |
-| `bed_lie` | oneshot | no | Lying down onto the bed, played once when a `go_to_bed` command lays her down; `bed_sleep` takes over on its last frame. `root_keep_xz: true`: the clip shares its frame with the bed prop. Held by the bed scene. `broker_publish: false`. | AI-generated for YUI (reference video generation and pose extraction), post-edited | 17.1s |
-| `bed_sleep` | oneshot | yes | Asleep on the bed, looping until she is woken. `root_keep_xz: true`: the clip shares its frame with the bed prop. Held by the bed scene, which drops every other body motion while it runs. `broker_publish: false`. | Composed for YUI (a held pose with a breathing sway) | 7.9s |
-| `bed_wake` | oneshot | no | Waking up, getting off the bed and ending standing in front of it; the bed fades out on the clip's last frame. `root_keep_xz: true`. Held by the bed scene. `broker_publish: false`. | AI-generated for YUI (reference video generation and pose extraction), post-edited | 22.2s |
 
 > `sheepish` and `calm` are **standing gestures**, not sitting.
 
@@ -122,7 +119,7 @@ A drag drop keeps the window where the user left it and plays the clip in place.
 
 ### Thinking
 
-`thinking` is a client-played TTFT latency affordance. It loops from the start of a backend turn until the response speech begins. A turn that starts while the bed scene holds the body starts none, and a running one ends when the scene takes the body.
+`thinking` is a client-played TTFT latency affordance. It loops from the start of a backend turn until the response speech begins.
 
 The pose plays forward↔reverse continuously (`pingpong: true`, single variant), seam-free at the turnaround, until interrupted. Its priority is 50, above `idle` and below the `window_sit` perch and the reactive emotes.
 
@@ -200,7 +197,7 @@ It plays a sit variant, `pingpong: true` with `loop_cycles: [1, 3]` (forward↔r
 
 ## Sources
 
-Clips come from five origins. Durations are the source clip length.
+Clips come from four origins. Durations are the source clip length.
 
 ### Mate Engine
 
@@ -231,12 +228,6 @@ Clips come from five origins. Durations are the source clip length.
 | `sit_down` | "Sitting" |
 | `stand_up` | "Sit To Stand" |
 
-### AI-generated for YUI
-
-`bed_lie` and `bed_wake` were made by reference video generation and pose extraction, then post-edited: smoothed, legs opened to parallel so they do not cross on a wide-hipped model, and knees straightened and hips raised while the legs swing over the bed edge so they stay out of the bed.
-
-`bed_sleep` is a held lying pose composed by hand from joint angles to rest on the bed prop, with a breathing sway on the chest. `bed_lie` ends in that pose and `bed_wake` starts from it.
-
 ## Agent vocabulary
 
 `broker_publish` defaults to `true`. A `false` entry stays renderable locally but is kept out of the agent-facing motion vocabulary on every transport: the declared tool's `motion_id` enum and the push `vocabulary` frames. The agent therefore never selects it.
@@ -255,7 +246,6 @@ The agent-selectable set is `happy, laugh, embarrassed, sheepish, calm, idle_liv
 | `falling`, `landing` | `broker_publish: false`, the client-owned fall chain |
 | `climb_up`, `climb_up_done`, `climb_down`, `climb_down_landing` | `broker_publish: false`, the client-owned climb chain |
 | `sit_down`, `stand_up` | `broker_publish: false`, the client-owned seat transitions |
-| `bed_lie`, `bed_sleep`, `bed_wake` | `broker_publish: false`, held by the bed scene |
 
 ## Playback settings
 
@@ -285,16 +275,9 @@ The flag rides in the clip-cache key, so two entries sharing one `.vrma` can dis
 
 ### Horizontal root motion kept
 
-`root_keep_xz` defaults to `false`. The loader leaves the clip's hips X/Z where the clip authored them, for a clip that shares its frame with a prop placed at the character's position. It rides in the clip-cache key like `root_lock_y`, and is combinable with `root_lock_y`.
+`root_keep_xz` defaults to `false`. The loader leaves the clip's hips X/Z where the clip authored them, for a clip whose horizontal travel is part of its authored motion. It rides in the clip-cache key like `root_lock_y`, and is combinable with `root_lock_y`.
 
 ### Missing-clip fallback
 
 Any motion whose clip fails to load (missing or invalid `.vrma` for the live VRM, for example a gitignored purchased motion absent locally) recovers to `idle`. The renderer force-commits `idle`, so the failed id never pins controller state or blocks a later idle by priority.
 
-## Props
-
-A prop is a furniture model drawn in the character's scene at her position.
-
-`public/props/bed.glb` is the bed of the bed scene. Its origin is the floor spot where she stands at the end of `bed_wake`, and the bed lies behind that spot.
-
-It is sized for a rest hips height of 0.9 m, the height the bed clips are authored with, and is scaled at runtime by the model's rest hips height / 0.9. Author, source and license: [`public/props/bed.PROVENANCE.md`](https://github.com/yw0nam/YUI/blob/main/public/props/bed.PROVENANCE.md).

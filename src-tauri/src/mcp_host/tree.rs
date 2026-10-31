@@ -26,6 +26,11 @@ impl Tree {
         Ok((child, tree))
     }
 
+    /// The process group id; recorded so the next start can kill a group the app left behind.
+    pub fn group_id(&self) -> Option<u32> {
+        self.pgid
+    }
+
     /// SIGKILL to the group.
     pub fn kill(&self) {
         use nix::sys::signal::{killpg, Signal};
@@ -49,6 +54,11 @@ impl Tree {
             .wrap(process_wrap::tokio::KillOnDrop);
         let child = command.spawn()?;
         Ok((child, Tree { job }))
+    }
+
+    /// A job object ends with the app, so there is no group to record.
+    pub fn group_id(&self) -> Option<u32> {
+        None
     }
 
     /// Ends every process in the job.

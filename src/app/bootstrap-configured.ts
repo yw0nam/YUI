@@ -38,8 +38,6 @@ import { maybeShowFirstRunHint } from "../ui/notices/first-run-hint";
 import { wireIngressDeadNotice } from "../ui/notices/ingress-dead-notice";
 import { wireRelations } from "./relations/wire-relations";
 import { wireSignalChips } from "./signal-chips/wire-signal-chips";
-import type { BedSceneHold } from "./stage/bed-scene-hold";
-import { wireBedScene } from "./stage/wire-bed-scene";
 import { wireStageGestures } from "./stage/wire-gestures";
 import { wireLocomotion } from "./stage/wire-locomotion";
 import { wireGaze, wireHitTest } from "./stage/wire-stage";
@@ -79,7 +77,6 @@ interface Phase1Handles extends TurnCorePhase1 {
   /** Subscribes to the unified chat window's messages routed to a preset. */
   onUserTurnRouted(cb: (event: UserTurnRouted) => void): () => void;
   isDisposed(): boolean;
-  bedSceneHold: BedSceneHold;
 }
 
 export interface ConfiguredBootstrapHandles {
@@ -147,16 +144,6 @@ const realFactories: ConfiguredBootstrapFactories = {
       hintSettings,
     } = settings;
     const { vrmSelection } = phase1.vrm;
-
-    const bedScene = wireBedScene({
-      renderer,
-      ambient: phase1.ambient,
-      bus,
-      settings,
-      hold: phase1.bedSceneHold,
-      register,
-      log,
-    });
 
     const frontmostTracker = createFrontmostTracker();
     const unlistenFrontmost = await subscribeOsEvent({ onTick: frontmostTracker.onTick, log });
@@ -227,8 +214,6 @@ const realFactories: ConfiguredBootstrapFactories = {
         get: () => settings.sttSettings.get().enabled,
         set: settings.sttSettings.setEnabled,
       },
-      takeMessageWake: bedScene.takeMessageWake,
-      onVoiceTurnStart: () => bedScene.wake("message"),
       register,
       ensureActive,
     });
@@ -259,7 +244,6 @@ const realFactories: ConfiguredBootstrapFactories = {
       signalsSource,
       milestoneSource,
       screenSource,
-      wakeSource,
       addressedSource,
       routedUserSource,
     } = wireDispatcherSources({
@@ -276,7 +260,6 @@ const realFactories: ConfiguredBootstrapFactories = {
         subscribe: dispatcher.subscribePipelineBusy,
       },
       pacer,
-      isFirstActivityHeld: bedScene.isHeld,
       onCharacterAddressed: phase1.onCharacterAddressed,
       onUserTurnRouted: phase1.onUserTurnRouted,
       submitUser: phase1.userInput.submit,
@@ -300,7 +283,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     register(hitTest.stop);
     wireGaze({ renderer, gazeSettings, register });
 
-    // The saved geometry applies before the faller places the window and the bed scene parks it.
+    // The saved geometry applies before the faller places the window.
     const windowGeometry = await wireWindowGeometry({ register });
 
     locomotion = wireLocomotion({
@@ -311,8 +294,6 @@ const realFactories: ConfiguredBootstrapFactories = {
       dispatcher,
       hitTest,
       peekActive: () => peekState?.active() ?? false,
-      isHeld: bedScene.isHeld,
-      bed: bedScene.bed,
       fallSettings,
       climbSettings,
       agentNotifySettings,
@@ -325,7 +306,6 @@ const realFactories: ConfiguredBootstrapFactories = {
       log,
     });
     core.setStrolling(locomotion.walker);
-    bedScene.start(locomotion, wakeSource.fire);
 
     await wireStageGestures({
       stage,
@@ -336,10 +316,6 @@ const realFactories: ConfiguredBootstrapFactories = {
       hitTest,
       locomotion,
       cameraSettings: settings.cameraSettings,
-      onTap: () => bedScene.wake("click"),
-      onDragEnd: bedScene.onDragEnd,
-      isCameraLocked: bedScene.isHeld,
-      isCueHeld: bedScene.isHeld,
       register,
     });
     ensureActive();
@@ -374,7 +350,6 @@ const realFactories: ConfiguredBootstrapFactories = {
     const { vocabulary, stopTurn } = await core.connect({
       onSubmit: () => {
         proactiveSource.noteInteraction();
-        bedScene.wake("message");
       },
     });
     const greeting = wireGreeting({

@@ -119,7 +119,6 @@ export async function wireSettingsWindow(deps: {
     messageWindowSettings,
     idleMotionSettings,
     expressMotionSettings,
-    bedSceneSettings,
     relationsSwitch,
     unifiedChatSwitch,
   } = settingsStores;
@@ -228,7 +227,6 @@ export async function wireSettingsWindow(deps: {
       ...quickControlsConfigDefaults(config),
       idleMotionSettings,
       expressMotionSettings,
-      bedSceneSettings,
       plugins: mcpHost && { host: mcpHost, manage: mcpHostManage },
       sessionDiagnostics,
       sessionStore,

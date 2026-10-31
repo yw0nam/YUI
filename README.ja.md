@@ -176,7 +176,7 @@ YUI自体はモデルを内蔵していません。何ができるかで頭脳�
 <details>
 <summary>アセットのクレジットと利用条件の全文</summary>
 
-モーションアセット(`public/motions/*.vrma`)は、次の4つの提供元のものを使っています。
+モーションアセット(`public/motions/*.vrma`)は、次の3つの提供元のものを使っています。
 
 大半のクリップは、Shiny氏の
 [Mate Engine](https://github.com/shinyflvre/Mate-Engine)プロジェクトから抽出した
@@ -194,16 +194,6 @@ Shiny氏から別途許可を得る必要があります。
 (`climb_up`、`climb_up_done`、`climb_down`、`climb_down_landing`)、`sit_down`、
 `stand_up` は[Mixamo](https://www.mixamo.com/)のもので、Mixamoの規約に基づき
 ロイヤリティフリーです。
-
-`bed_lie`、`bed_sleep`、`bed_wake` のクリップは、YUIのためにAIで作りました。
-参照動画からのポーズ抽出をもとに、ベッドの上で自然に横になり、起き上がれるよう
-手を加えたものです。`bed_sleep` は関節角度から手作業で組んだ横たわりポーズです。
-
-ベッド本体(`public/props/bed.glb`)は[Pricey](https://sketchfab.com/siddharthkuthal)氏の
-**Cute stylized bed - low poly - game ready** で、
-[CC BY 4.0](http://creativecommons.org/licenses/by/4.0/)のもとで使用し、YUI向けに
-サイズと形を調整しています。表記の全文は
-[`public/props/bed.PROVENANCE.md`](public/props/bed.PROVENANCE.md)をご覧ください。
 
 同梱している既定のVRMモデル
 (`resources/vrms/Sendagaya_Shino.vrm`)は **千駄ヶ谷 篠(Sendagaya Shino)** です。原作は

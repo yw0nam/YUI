@@ -75,7 +75,6 @@ pub enum AvatarCommand {
         monitor: Option<u32>,
     },
     Stand,
-    GoToBed,
 }
 
 /// One logged change of a `/relations` record.
@@ -549,13 +548,12 @@ mod tests {
     }
 
     #[test]
-    fn parse_avatar_command_go_to_bed() {
-        let route =
-            parse_avatar_request("POST", "/avatar/command", r#"{"action":"go_to_bed"}"#).unwrap();
-        assert_eq!(route, AvatarRoute::Command(AvatarCommand::GoToBed));
-        let (method, params) = route.into_rpc();
-        assert_eq!(method, "command");
-        assert_eq!(params.unwrap()["action"], "go_to_bed");
+    fn parse_avatar_command_rejects_go_to_bed() {
+        assert_eq!(
+            parse_avatar_request("POST", "/avatar/command", r#"{"action":"go_to_bed"}"#)
+                .unwrap_err(),
+            400
+        );
     }
 
     #[test]

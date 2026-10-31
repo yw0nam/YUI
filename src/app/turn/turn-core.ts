@@ -27,7 +27,6 @@ import {
   type wireSpeakerSelection,
   type wireVrmSelection,
 } from "../settings/wire-avatar";
-import type { BedSceneHold } from "../stage/bed-scene-hold";
 import { wirePlayback } from "./push/playback";
 import { wirePushTransport, wireStopButton } from "./push/wire-push";
 import { wireVocabulary } from "./vocabulary/wire-vocabulary";
@@ -65,8 +64,6 @@ export interface TurnCorePhase1 {
   getEndpoints(): EndpointsConfig;
   /** Effective guardrails — the editable caps layered on configs/guardrails.json. */
   getGuardrails(): GuardrailsConfig;
-  /** The hold a scene takes on the body, in a window that runs one. */
-  bedSceneHold?: Pick<BedSceneHold, "isHeld" | "onTake">;
   /** Subscribes to the unified chat window's stop button or its answer to speech onset; every pet
    * window stops its running turn and speech. */
   onStopTurns(cb: () => void): () => void;
@@ -105,7 +102,6 @@ export async function wireTurnCore(
   deps: {
     getFrontmost: DispatcherDeps["getFrontmost"];
     restoreSignals?: DispatcherDeps["onTurnDropped"];
-    takeMessageWake?: DispatcherDeps["takeMessageWake"];
     screenCapturer: DispatcherDeps["screenCapturer"];
     openSettings?: DispatcherDeps["openSettings"];
     getCardText?: DispatcherDeps["getCardText"];
@@ -113,8 +109,6 @@ export async function wireTurnCore(
     voicePersistence?: VoicePersistence;
     /** A window that owns capture intent itself. */
     voiceHost?: VoiceHost;
-    /** A sustained user utterance began. */
-    onVoiceTurnStart?: () => void;
     /** The tools beside generate_express, declared on every transport; none outside Tauri. */
     windowTools?: readonly ClientTool[];
     /** The enabled plugins' tools and skills for the per-turn lines; none outside Tauri. */
@@ -146,7 +140,6 @@ export async function wireTurnCore(
     reasoning,
     getEndpoints,
     getGuardrails,
-    bedSceneHold,
   } = phase1;
   const { register, ensureActive } = deps;
   const {
@@ -188,16 +181,11 @@ export async function wireTurnCore(
     getConfig: () => config.get(),
     getSecret: (name) => config.secrets.get(name),
     submitVoice: unifiedVoice.segment,
-    onVoiceTurnStart: () => {
-      deps.onVoiceTurnStart?.();
-      unifiedVoice.speechActive();
-    },
+    onVoiceTurnStart: () => unifiedVoice.speechActive(),
     register,
   });
   const { voice, voiceInput, voiceErrorDwell, turnLog, previousTurn, quotedTurn, pushTurns } =
     turnVoice;
-  // The scene taking the body ends a thinking bridge already running, so no filler speaks on the bed.
-  if (bedSceneHold) register(bedSceneHold.onTake(voice.endThinking));
 
   // One consumer for both transports, so the readout means the same on either.
   const onUsage = (usage: Usage): void =>
@@ -235,8 +223,6 @@ export async function wireTurnCore(
     getFrontmost: deps.getFrontmost,
     getPluginLines: deps.getPluginLines,
     getThreadsWaiting: deps.getThreadsWaiting,
-    takeMessageWake: deps.takeMessageWake,
-    isBodyHeld: bedSceneHold?.isHeld,
     voice,
     turnLog,
     previousTurn,

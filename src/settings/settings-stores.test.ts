@@ -54,7 +54,6 @@ describe("createSettingsStores", () => {
       "guardrailsSettings",
       "idleMotionSettings",
       "expressMotionSettings",
-      "bedSceneSettings",
       "relationsSwitch",
       "unifiedChatSwitch",
     ]);

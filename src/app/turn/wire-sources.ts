@@ -32,7 +32,6 @@ import {
 } from "../../dispatcher/sources/inbox/signals-source";
 import { createRoutedUserSource } from "../../dispatcher/sources/routed/routed-user-source";
 import type { UserInputSource } from "../../dispatcher/sources/user-input-source";
-import { createWakeSource, type WakeSource } from "../../dispatcher/sources/wake/wake-source";
 import type { CharacterAddressed, UserTurnRouted } from "../../io/bridge/settings-bridge";
 import { appendRecord } from "../../io/chat/record/turn-record-log";
 import type { AgentNotifySettings } from "../../settings/backend/agent-notify-settings";
@@ -44,7 +43,7 @@ import type { ClampedIntSettingsStore } from "../../settings/persisted-store";
  * tier2 utterance candidate sources: proactive.<id> (idle dramatization) + schedule.<id>
  * (time-of-day greeting) + signals.batch/catchup/urgent/urgent_catchup +
  * time_milestone.first_activity (first present tick of the local day), all over the
- * presence gate, plus proactive.wake (the character getting out of the bed).
+ * presence gate.
  * Created and started; the started refs are returned for interaction-notes and teardown.
  */
 export function wireDispatcherSources(deps: {
@@ -60,8 +59,6 @@ export function wireDispatcherSources(deps: {
   pipelineBusy: PacedPipelineBusy;
   /** Global proactive gap — a hold reads as a skip to the screen source and as busy to the inboxes. */
   pacer: Pick<ProactivePacer, "isHolding" | "subscribe">;
-  /** True while the day's first-activity candidate waits. */
-  isFirstActivityHeld: () => boolean;
   /** Subscribes to the character-addressed bridge events this preset is named in. */
   onCharacterAddressed: (cb: (event: CharacterAddressed) => void) => () => void;
   /** Subscribes to the unified chat window's messages routed to this preset. */
@@ -78,7 +75,6 @@ export function wireDispatcherSources(deps: {
   signalsSource: SignalsSource;
   milestoneSource: MilestoneSource;
   screenSource: ScreenSource;
-  wakeSource: WakeSource;
   addressedSource: AddressedSource;
   routedUserSource: ReturnType<typeof createRoutedUserSource>;
 } {
@@ -124,15 +120,9 @@ export function wireDispatcherSources(deps: {
     bus,
     present_max_idle_ms: presenceSettings.get().value,
     isEnabled: () => scheduleSettings.get().enabled,
-    isHeld: deps.isFirstActivityHeld,
     drainSignals: () => signalsSource.drain(),
   });
   void milestoneSource.start();
-  const wakeSource = createWakeSource({
-    bus,
-    firstActivity: milestoneSource,
-    drainSignals: () => signalsSource.drain(),
-  });
   const screenSource = createScreenSource({
     bus,
     present_max_idle_ms: presenceSettings.get().value,
@@ -162,7 +152,6 @@ export function wireDispatcherSources(deps: {
     signalsSource,
     milestoneSource,
     screenSource,
-    wakeSource,
     addressedSource,
     routedUserSource,
   };

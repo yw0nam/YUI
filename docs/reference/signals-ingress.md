@@ -146,7 +146,7 @@ While signals are disabled, the client drops every group that arrives, and the n
 
 Returning to present or transitioning from busy to idle emits one catch-up containing the batched groups in their original arrival order. Returning before a batched group's deadline therefore includes it in that catch-up.
 
-Three client-fired turns also drain the buffers and carry the groups themselves: a `proactive.tap_bored` turn, the `time_milestone.first_activity` turn, and a `proactive.wake` turn that carries the day's first activity. Each takes every pending batched group in arrival order, and a drain empties the batch buffer.
+Two client-fired turns also drain the buffers and carry the groups themselves: a `proactive.tap_bored` turn and the `time_milestone.first_activity` turn. Each takes every pending batched group in arrival order, and a drain empties the batch buffer.
 
 ### Groups that go back
 

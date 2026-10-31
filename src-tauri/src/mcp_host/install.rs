@@ -427,6 +427,7 @@ mod tests {
 #[cfg(all(test, windows))]
 mod windows_tests {
     use super::super::manifest::ServerSpec;
+    use super::super::orphans::ProcessGroups;
     use super::super::server::{connect, spawn, PluginLog};
     use super::*;
     use std::collections::HashMap;
@@ -473,7 +474,14 @@ mod windows_tests {
             "yui-test",
             UtcOffset::UTC,
         ));
-        let spawned = spawn(&spec, base, &base.join("data"), log).expect("spawn");
+        let spawned = spawn(
+            &spec,
+            base,
+            &base.join("data"),
+            log,
+            &ProcessGroups::open(None),
+        )
+        .expect("spawn");
         let stopper = spawned.stopper();
         let start = tokio::spawn(connect(spawned, Duration::from_secs(30), |_| {}));
         tokio::time::sleep(Duration::from_millis(500)).await;

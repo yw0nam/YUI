@@ -33,7 +33,6 @@ import { createWindowStores } from "../app/settings/window-stores";
 import { wireAvatarSelection } from "../app/settings/wire-avatar";
 import { createPetConfig, wireConfigReload, wireConfigWatch } from "../app/settings/wire-config";
 import { wirePresetSwitch } from "../app/settings/wire-preset";
-import { createBedSceneHold } from "../app/stage/bed-scene-hold";
 import { createStageRenderer } from "../app/stage/stage-renderer";
 import { wireInputAnchor } from "../app/stage/wire-pet-stage";
 import { wireThreadsChip } from "../app/threads-chip/wire-threads-chip";
@@ -115,7 +114,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
   );
   const petConfig = createPetConfig({ ...settingsStores, log });
   const config = petConfig.config;
-  const bedSceneHold = createBedSceneHold();
   const { renderer, ambient } = createStageRenderer({
     stage,
     settings: settingsStores,
@@ -281,7 +279,6 @@ async function bootstrap(): Promise<BootstrapHandle> {
       config,
       renderer,
       ambient,
-      bedSceneHold,
       surfaces,
       settings: settingsStores,
       conversation: conversationStores,

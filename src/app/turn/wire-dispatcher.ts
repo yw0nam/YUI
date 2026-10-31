@@ -101,10 +101,6 @@ export function wireDispatcher(deps: {
   getPluginLines?: Parameters<typeof createBackendCaller>[0]["getPluginLines"];
   /** The Threads waiting for the user's answer, read once per turn; main's window only. */
   getThreadsWaiting?: Parameters<typeof createBackendCaller>[0]["getThreadsWaiting"];
-  /** True once, for the user turn whose message woke the character on the bed. */
-  takeMessageWake?: () => boolean;
-  /** True while a scene holds the body: a turn that starts then shows no thinking bridge. */
-  isBodyHeld?: () => boolean;
   voice: Pick<VoicePipeline, "turnOutput" | "speakFailure">;
   turnLog: TurnLog;
   previousTurn: PreviousTurnSlot;
@@ -152,8 +148,6 @@ export function wireDispatcher(deps: {
     screenshotSettings,
     screenCapturer,
     getFrontmost,
-    takeMessageWake,
-    isBodyHeld,
     voice,
     turnLog,
     previousTurn,
@@ -219,7 +213,6 @@ export function wireDispatcher(deps: {
     getFrontmost,
     getPrevious: previousTurn.get,
     getToolSwitches: () => turnTools().switches(),
-    takeMessageWake,
     getOverheard: overheard.read,
     getRelations: () =>
       readRelationLines(
@@ -232,7 +225,6 @@ export function wireDispatcher(deps: {
     getPluginLines: deps.getPluginLines,
     getThreadsWaiting: deps.getThreadsWaiting,
     commitOverheard: overheard.commit,
-    isBodyHeld,
     contextHistory,
     appendTurnRecord,
     getAgentSettings: () => agentSettings.get(),

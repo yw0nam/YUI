@@ -1,9 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-const { dispatcher, dispatcherDeps, endThinking, pushTurns, speechPlayback } = vi.hoisted(() => ({
+const { dispatcher, pushTurns, speechPlayback } = vi.hoisted(() => ({
   dispatcher: { cancel: vi.fn(), start: vi.fn() },
-  dispatcherDeps: [] as Array<{ isBodyHeld?: () => boolean }>,
-  endThinking: vi.fn(),
   pushTurns: { cut: vi.fn(() => ["t1"]) },
   speechPlayback: { interrupt: vi.fn() },
 }));
@@ -26,7 +24,6 @@ vi.mock("./voice/wire-voice", async (importOriginal) => {
           turnOutput: {} as TurnVoice["voice"]["turnOutput"],
           speakFailure: () => {},
           resumeThinking: () => {},
-          endThinking,
           createSttEngine: createSttEngine as unknown as TurnVoice["voice"]["createSttEngine"],
           dispose: () => {},
         },
@@ -50,10 +47,7 @@ vi.mock("./vocabulary/wire-vocabulary", () => ({
   }),
 }));
 vi.mock("./wire-dispatcher", () => ({
-  wireDispatcher: (deps: { isBodyHeld?: () => boolean }) => {
-    dispatcherDeps.push(deps);
-    return { dispatcher, setPeek: () => {} };
-  },
+  wireDispatcher: () => ({ dispatcher, setPeek: () => {} }),
 }));
 vi.mock("../settings/wire-avatar", () => ({ applyAvatarConfig: () => {} }));
 vi.mock("./push/playback", () => ({ wirePlayback: () => () => {} }));
@@ -62,7 +56,6 @@ vi.mock("./push/wire-push", async (importOriginal) => ({
   wirePushTransport: () => () => {},
 }));
 
-import { createBedSceneHold } from "../stage/bed-scene-hold";
 import { type TurnCorePhase1, wireTurnCore } from "./turn-core";
 
 function wire(over: Partial<TurnCorePhase1> = {}) {
@@ -157,22 +150,6 @@ describe("wireTurnCore", () => {
     h.stopFromUnified();
 
     expect(sendStop).not.toHaveBeenCalled();
-  });
-
-  it("gives the dispatcher the body hold, and ends the thinking bridge each time the hold is taken", async () => {
-    const bedSceneHold = createBedSceneHold();
-    const h = wire({ bedSceneHold });
-    await h.core;
-
-    expect(dispatcherDeps.at(-1)?.isBodyHeld).toBe(bedSceneHold.isHeld);
-    expect(endThinking).not.toHaveBeenCalled();
-    bedSceneHold.take();
-    expect(endThinking).toHaveBeenCalledOnce();
-
-    bedSceneHold.release();
-    for (const teardown of h.teardowns) teardown();
-    bedSceneHold.take();
-    expect(endThinking).toHaveBeenCalledOnce();
   });
 
   it("does not create an STT engine in a bound pet", async () => {

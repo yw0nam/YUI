@@ -92,8 +92,6 @@ export interface WindowDropSourceDeps {
   onSitLost?: () => void;
   /** Play the sit-down where she is. "lost" means a pickup took her before it landed. */
   sitDown: () => Promise<"done" | "lost">;
-  /** A scene holds the body — a release settles nothing and a placement is blocked. */
-  isHeld?: () => boolean;
   /** Injectable timer fns (fake timers in tests). */
   setInterval?: typeof setInterval;
   clearInterval?: typeof clearInterval;
@@ -404,8 +402,7 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
   }
 
   return {
-    placeOn: async (request, opts) =>
-      deps.isHeld?.() ? { ok: false, reason: "blocked" } : place(request, opts),
+    placeOn: place,
     perchTargets,
     adoptSit: perch.adoptSit,
     armedSit: perch.armedSit,
@@ -427,7 +424,6 @@ export function createWindowDropSource(deps: WindowDropSourceDeps): WindowDropSo
           )
             return;
           const dragged = deps.wasDragging?.() ?? true;
-          if (deps.isHeld?.()) return;
           void settle()
             .then(async (outcome) => {
               // Only the dragged window saves; every pet window still settles the release.

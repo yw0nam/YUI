@@ -21,7 +21,6 @@ export function createPatGesture(deps: {
   hitTest: Pick<HitTestController, "suspend" | "resume">;
   tapSource: Pick<TapSource, "isHeadPoint" | "handlePatStart" | "handlePatEnd" | "handlePatAbort">;
   holdMs: () => number;
-  onTap?: () => void;
 }): PatGesture {
   return {
     isPatPoint: deps.tapSource.isHeadPoint,
@@ -29,7 +28,6 @@ export function createPatGesture(deps: {
     onStart: () => {
       deps.hitTest.suspend();
       deps.tapSource.handlePatStart();
-      deps.onTap?.();
     },
     onEnd: () => {
       deps.hitTest.resume();
@@ -54,13 +52,6 @@ export async function wireStageGestures(deps: {
     "setDragging" | "cancel" | "dropSource" | "abortTravel"
   >;
   cameraSettings: Pick<ReturnType<typeof createCameraSettings>, "get" | "setAzimuth" | "setPolar">;
-  /** A click on the character or a pat start, after its tap handling. */
-  onTap?: () => void;
-  onDragEnd?: () => void;
-  /** True while the orbit gesture is ignored. */
-  isCameraLocked?: () => boolean;
-  /** True while the tap and drag-hold sources drop their cues. */
-  isCueHeld?: () => boolean;
   register: (teardown: () => void) => void;
 }): Promise<void> {
   const {
@@ -80,25 +71,21 @@ export async function wireStageGestures(deps: {
     renderer,
     config: getConfig().avatar.tap,
     drainSignals,
-    isHeld: deps.isCueHeld,
   });
   const dragHold = createDragHoldSource({
     bus,
     getHoldMs: () => getConfig().avatar.drag_hold_ms,
     getCue: () => getConfig().avatar.gesture_cues.drag_held,
-    isHeld: deps.isCueHeld,
   });
   register(() => dragHold.noteDragEnd());
   const cleanupDrag = await initDrag(stage, {
     onClick: (pos) => {
       tapSource.handleClick(pos);
-      deps.onTap?.();
     },
     pat: createPatGesture({
       hitTest,
       tapSource,
       holdMs: () => getConfig().avatar.tap.pat_hold_ms,
-      onTap: deps.onTap,
     }),
     onDragStart: () => {
       locomotion.setDragging(true);
@@ -125,12 +112,10 @@ export async function wireStageGestures(deps: {
         event_name: "user.drag_end",
         ts: Date.now(),
       });
-      deps.onDragEnd?.();
     },
     onOrbitStart: hitTest.suspend,
     onOrbitEnd: hitTest.resume,
     onOrbit: (d) => {
-      if (deps.isCameraLocked?.()) return;
       orbitCamera(cameraSettings, d);
     },
   });

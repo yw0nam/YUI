@@ -4,11 +4,6 @@ import { wireTurnCore } from "./turn/turn-core";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => 0) }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn(async () => () => {}) }));
-vi.mock("./stage/wire-bed-scene", () => ({
-  wireBedScene: vi.fn<typeof import("./stage/wire-bed-scene").wireBedScene>(
-    () => ({ takeMessageWake: () => false }) as never,
-  ),
-}));
 vi.mock("./turn/turn-core", () => ({
   wireTurnCore: vi.fn<typeof import("./turn/turn-core").wireTurnCore>(),
 }));

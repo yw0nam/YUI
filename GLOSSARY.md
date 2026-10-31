@@ -66,7 +66,7 @@ The per-turn JSON block of environment + trigger state the client injects ahead 
 ### Presence & body
 
 **Posture**:
-The character's current physical state: `standing`, `sitting`, `peeking`, `dragging`, `walking`, `climbing`, or `lying`. Sent to the brain as context on the `body:` line.
+The character's current physical state: `standing`, `sitting`, `peeking`, `dragging`, `walking`, or `climbing`. Sent to the brain as context on the `body:` line.
 _Avoid_: state, pose, stance
 
 **Perch**:

@@ -2,6 +2,7 @@
 
 use super::launch;
 use super::manifest::ServerSpec;
+use super::orphans::{ProcessGroup, ProcessGroups};
 use super::tree::Tree;
 use crate::log_rotation::DateRotatingFile;
 use process_wrap::tokio::ChildWrapper;
@@ -107,7 +108,7 @@ pub struct Server {
     pub tools: Vec<Tool>,
     name: String,
     log: Arc<PluginLog>,
-    tree: Tree,
+    group: ProcessGroup,
     /// Owns the child and waits for its exit.
     watch: tokio::task::JoinHandle<()>,
     /// Set by stop, so the exit it causes is not reported as `exited`.
@@ -128,7 +129,7 @@ impl Server {
             .await
             .is_err()
         {
-            self.tree.kill();
+            self.group.kill();
             if tokio::time::timeout(EXIT_GRACE, &mut self.watch)
                 .await
                 .is_err()
@@ -138,7 +139,7 @@ impl Server {
             }
         }
         if !exited {
-            self.tree.kill();
+            self.group.kill();
         }
         self.log.stopped(&self.name);
     }
@@ -147,7 +148,7 @@ impl Server {
 /// A server process whose connection is not initialized yet.
 pub struct Spawned {
     child: Box<dyn ChildWrapper>,
-    tree: Tree,
+    group: ProcessGroup,
     name: String,
     log: Arc<PluginLog>,
     stopped: Arc<AtomicBool>,
@@ -156,27 +157,27 @@ pub struct Spawned {
 impl Spawned {
     pub fn stopper(&self) -> Stopper {
         Stopper {
-            tree: self.tree.clone(),
+            group: self.group.clone(),
             stopped: self.stopped.clone(),
         }
     }
 
     pub fn stop(self) {
-        kill_tree(&self.tree, self.child);
+        kill_tree(&self.group, self.child);
         self.log.stopped(&self.name);
     }
 }
 
 /// Stops a server that is still starting, so its start ends as a stop and not a failure.
 pub struct Stopper {
-    tree: Tree,
+    group: ProcessGroup,
     stopped: Arc<AtomicBool>,
 }
 
 impl Stopper {
     pub fn stop(&self) {
         self.stopped.store(true, Ordering::SeqCst);
-        self.tree.kill();
+        self.group.kill();
     }
 }
 
@@ -186,6 +187,7 @@ pub fn spawn(
     root: &Path,
     data: &Path,
     log: Arc<PluginLog>,
+    groups: &Arc<ProcessGroups>,
 ) -> Result<Spawned, Failure> {
     let (mut child, tree) = launch::command(spec, root, data)
         .and_then(Tree::start)
@@ -194,7 +196,7 @@ pub fn spawn(
         tokio::spawn(read_stderr(stderr, spec.name.clone(), log.clone()));
     }
     Ok(Spawned {
-        tree,
+        group: groups.group(tree),
         child,
         name: spec.name.clone(),
         log,
@@ -210,7 +212,7 @@ pub async fn connect(
 ) -> Result<Server, Failure> {
     let Spawned {
         mut child,
-        tree,
+        group,
         name,
         log,
         stopped,
@@ -230,7 +232,7 @@ pub async fn connect(
     let mut client = match within(serving, deadline) {
         Ok(client) => client,
         Err(reason) => {
-            kill_tree(&tree, child);
+            kill_tree(&group, child);
             return Err(end(Phase::Initialize, reason));
         }
     };
@@ -239,7 +241,7 @@ pub async fn connect(
         Ok(tools) => tools,
         Err(reason) => {
             let _ = client.close().await;
-            kill_tree(&tree, child);
+            kill_tree(&group, child);
             return Err(end(Phase::List, reason));
         }
     };
@@ -248,7 +250,7 @@ pub async fn connect(
     let (watch_name, watch_log) = (name.clone(), log.clone());
     let stopping = Arc::new(AtomicBool::new(false));
     let watch_stopping = stopping.clone();
-    let watch_tree = tree.clone();
+    let watch_group = group.clone();
     let watch = tokio::spawn(async move {
         // The leader alone: a process group wrapper's own wait also waits for every orphan.
         let reason = match child.inner_mut().wait().await {
@@ -260,7 +262,7 @@ pub async fn connect(
         if watch_stopping.load(Ordering::SeqCst) {
             return;
         }
-        watch_tree.kill();
+        watch_group.kill();
         watch_log.line(&watch_name, &format!("exited: {reason}"));
         log::info!(
             "mcp_server_exited plugin={} server={watch_name} reason={reason}",
@@ -273,7 +275,7 @@ pub async fn connect(
         tools,
         name,
         log,
-        tree,
+        group,
         watch,
         stopping,
     })
@@ -339,8 +341,8 @@ fn decode(bytes: &[u8]) -> String {
     text
 }
 
-fn kill_tree(tree: &Tree, child: Box<dyn ChildWrapper>) {
-    tree.kill();
+fn kill_tree(group: &ProcessGroup, child: Box<dyn ChildWrapper>) {
+    group.kill();
     drop(child);
 }
 
@@ -379,7 +381,13 @@ mod tests {
         let on_exit = move |reason| {
             let _ = tx.send(reason);
         };
-        let result = match spawn(&spec, &fixture(), &data, log.clone()) {
+        let result = match spawn(
+            &spec,
+            &fixture(),
+            &data,
+            log.clone(),
+            &ProcessGroups::open(None),
+        ) {
             Ok(spawned) => connect(spawned, deadline, on_exit).await,
             Err(failure) => Err(failure),
         };

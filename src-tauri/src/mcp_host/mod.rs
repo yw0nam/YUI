@@ -40,7 +40,10 @@
 //!   killed at once. On Windows the tree is a job object the host owns, which also ends when the
 //!   app process exits; a process that asks to leave it with `CREATE_BREAKAWAY_FROM_JOB`
 //!   outlives the stop. On Windows the delete after a stop retries for up to 1 s, because the
-//!   stopped server's executable stays held for a moment. At app start each enabled plugin
+//!   stopped server's executable stays held for a moment. On unix each running server's process
+//!   group is recorded in `<app_data>/plugins/groups.json`; at the next app start a recorded
+//!   group whose leader is gone and that still has members is killed, which ends what a server
+//!   started when the app was killed without its exit hook. At app start each enabled plugin
 //!   starts as its own task.
 
 mod calls;
@@ -51,6 +54,7 @@ mod install;
 mod launch;
 mod lifecycle;
 mod manifest;
+mod orphans;
 mod server;
 mod snapshot;
 mod store;

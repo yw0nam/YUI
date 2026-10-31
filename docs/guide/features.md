@@ -7,13 +7,12 @@ Everything YUI does today, grouped by area. [What she can do](capabilities.md) c
 | Feature | What it does |
 | --- | --- |
 | Models | VRM 1.0 and 0.x with hot-swap, the bundled Shino, and imports you can rename or delete |
-| Emotions and motions | 10 emotions and 27 motions, 8 of which the backend can pick, falling back to neutral ([catalog](motions.md)) |
+| Emotions and motions | 10 emotions and 24 motions, 8 of which the backend can pick, falling back to neutral ([catalog](motions.md)) |
 | Cursor gaze | Her head and eyes follow the cursor on screen |
 | Lipsync | Mouth movement that follows speech amplitude, with a gain slider |
 | Idle liveliness | Blinking, swaying, breathing, and looking around, quieter under reduced motion |
 | Camera | Auto-framing, zoom with the wheel, orbit with Shift+drag, and a reset to the front view |
 | Relations | Her feelings toward you and the other characters, set by hand or by the backend |
-| Bed scene | She starts asleep in bed, and the backend lays her down |
 
 ## Desktop pet
 
@@ -62,6 +61,7 @@ Everything YUI does today, grouped by area. [What she can do](capabilities.md) c
 | Loopback ingress | A local listener for hooks, signals, and avatar RPC; off by default |
 | Signals ingress | `POST /signals` for batches of external signals ([envelope](../reference/signals-ingress.md)) |
 | Daily briefing | Speaks dated briefings on first activity or on request, with Scheduled greeting on ([skill](https://github.com/yw0nam/YUI/blob/main/skills/yui-daily-briefing/SKILL.md)) |
+| RimWorld companion | Tiers RimWorld game events from the RimEventFeed mod and speaks only the ones worth it ([skill](https://github.com/yw0nam/YUI/blob/main/skills/rimworld-companion/SKILL.md)) |
 | Witness log | App switches and idle periods, kept for 14 days ([format](../reference/witness-log.md)) |
 | Workflows | Saved endpoints fired from a button on Proactive; the first run is a connection test |
 

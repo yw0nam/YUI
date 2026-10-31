@@ -1,11 +1,7 @@
 /** Body and Motion page markup — the rows the character tab renders, in page order. */
 
-import {
-  WAKE_TIMEOUT_MAX_S,
-  WAKE_TIMEOUT_MIN_S,
-} from "../../../settings/avatar/bed-scene-settings";
 import { t } from "../../i18n";
-import { numRowHtml, secHeadHtml } from "../markup";
+import { secHeadHtml } from "../markup";
 
 /** Which rows the Character tab renders — and binds, and refreshes. */
 export interface CharacterRows {
@@ -15,8 +11,6 @@ export interface CharacterRows {
   gain: boolean;
   idleMotion: boolean;
   expressMotion: boolean;
-  /** The launch bed scene switch with its wake-timeout row. */
-  bedScene: boolean;
   /** The camera view reset. */
   viewpoint: boolean;
   /** The relations rows with their switch; the settings window and the pet popover render it. */
@@ -91,26 +85,6 @@ const expressMotionHtml = (): string => `
           <div class="yui-group yui-express" role="group" aria-label="${t("express_motion.group_aria")}"></div>
         </div>`;
 
-const bedSceneHtml = (): string => `
-        <div class="yui-sec yui-bed-scene">
-          <div class="yui-group">
-            <div class="yui-row">
-              <div class="yui-row__main">
-                <span class="yui-row__label">${t("bed_scene.label")}</span>
-                <span class="yui-row__sub">${t("bed_scene.sub")}</span>
-              </div>
-              <button class="yui-switch yui-bed-scene__switch" type="button" role="switch" aria-label="${t("bed_scene.aria")}" aria-checked="true"></button>
-            </div>
-            ${numRowHtml({
-              id: "yui-bed-wake-timeout",
-              labelKey: "bed_scene.timeout_label",
-              min: WAKE_TIMEOUT_MIN_S,
-              max: WAKE_TIMEOUT_MAX_S,
-              suffixKey: "reactions.seconds_suffix",
-            })}
-          </div>
-        </div>`;
-
 const viewpointHtml = (): string => `
         <div class="yui-sec">
           ${secHeadHtml(t("viewpoint.section"), `<button class="yui-link-btn yui-viewpoint-reset" type="button">${t("viewpoint.reset")}</button>`)}
@@ -126,12 +100,11 @@ export function bodyHtml(rows: CharacterRows): string {
   ].join("");
 }
 
-/** The Motion page's character rows: mouth gain, idle and express motions, the bed scene. */
+/** The Motion page's character rows: mouth gain, idle and express motions. */
 export function motionHtml(rows: CharacterRows): string {
   return [
     rows.gain ? gainHtml() : "",
     rows.idleMotion ? idleMotionHtml() : "",
     rows.expressMotion ? expressMotionHtml() : "",
-    rows.bedScene ? bedSceneHtml() : "",
   ].join("");
 }
