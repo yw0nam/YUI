@@ -172,7 +172,7 @@ The demo videos and GIFs use other VRM models and voices, which YUI does not inc
 <details>
 <summary>Full asset credits and terms</summary>
 
-The motion assets (`public/motions/*.vrma`) come from four sources.
+The motion assets (`public/motions/*.vrma`) come from three sources.
 
 Most clips are extracted from the
 [Mate Engine](https://github.com/shinyflvre/Mate-Engine) project by Shiny, used
@@ -190,16 +190,6 @@ The locomotion clips `walk`, `jump`, `falling`, `landing`, the climb set
 (`climb_up`, `climb_up_done`, `climb_down`, `climb_down_landing`), `sit_down`
 and `stand_up` are from [Mixamo](https://www.mixamo.com/), royalty-free under
 the Mixamo terms.
-
-The `bed_lie`, `bed_sleep`, and `bed_wake` clips were made for YUI by AI: a
-reference video and pose extraction, post-edited to lie and rise cleanly on the
-bed, and a held lying pose composed by hand from joint angles.
-
-The bed itself (`public/props/bed.glb`) is **Cute stylized bed - low poly - game
-ready** by [Pricey](https://sketchfab.com/siddharthkuthal), used under
-[CC BY 4.0](http://creativecommons.org/licenses/by/4.0/) and scaled and edited
-for YUI — see [`public/props/bed.PROVENANCE.md`](public/props/bed.PROVENANCE.md)
-for the full notice.
 
 The bundled default VRM model
 (`resources/vrms/Sendagaya_Shino.vrm`) is **Sendagaya Shino**, originally by

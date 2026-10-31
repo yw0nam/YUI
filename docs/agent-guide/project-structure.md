@@ -66,10 +66,6 @@ YUI/
           unified-voice.ts           # Main's speech while the unified chat window shows, and the user speaking answered like a stop
       stage/                         # What is bound to the pet window's stage and overlay
         stage-renderer.ts            # The renderer on the stage with its persisted camera and idle throttle, plus Tier 1 liveliness, for the pet window
-        bed-scene-hold.ts            # The flag the bed scene takes while it holds the body; the camera lock and the movers read it
-        create-avatar-bed.ts         # The bed as the avatar commands see it: phase, the lie-down sequence with the hold, floor placement and perch pins, and getting up
-        scene-frame.ts               # The bed scene's window frame over the real window, which is wired later than the scene starts
-        wire-bed-scene.ts            # The bed scene's wiring: builds the scene, starts the launch entry, reads the hold and sends the posture events
         wire-gestures.ts             # Pointer gestures on the stage: taps, pats, the window drag, and the camera orbit
         wire-window-sources.ts       # The Tauri window drop and resize sources, the avatar RPC executor, and keep-on-screen
         wire-window-geometry.ts      # The per-window saved size and position: written after the OS drag ends and a Ctrl+wheel resize, applied once at boot
@@ -221,7 +217,6 @@ YUI/
         playback/                    # Motion scheduling, variant swaps, and mixer playback
           baseline-fallback.ts       # Idle-fallback decision for a motion whose clip fails to load
           cycle-dwell.ts             # Single-timer scheduler for a cycle motion's variant swap
-          motion-hold.ts             # Rules for a hold that keeps the body on a set of motion ids
           motion-controller.ts       # Pure motion scheduling and variant-resolution state machine
           motion-playback.ts         # Mixer-driven motion playback: controller decisions, action crossfade, finish → next, idle baseline
           motion-start-generation.ts # Tracks which asynchronous motion start owns mixer playback
@@ -238,8 +233,6 @@ YUI/
           bone-pitch.ts              # Sign that turns a downward head pitch into a normalized bone's local rotation.x
           cursor-gaze.ts             # Stateful three.js apply layer for cursor head and eye tracking
           gaze-tracker.ts            # Pure cursor-gaze zone curve and angle damping
-      props/                         # Furniture drawn in the character's scene
-        props.ts                     # Prop loading, scale, fade, bounds, and the per-frame follow of the character's position
     dispatcher/                      # Event bus + classify, guardrail, route
       dispatcher.ts                  # The router that enforces the firing-is-not-judgment boundary
       core/
@@ -291,8 +284,6 @@ YUI/
             window-drop-source.ts    # Drag-release settle composing the perch watch and placement
             perch-watch.ts           # Armed perch and peek state with the occlusion-aware detach poll
             placement.ts             # Programmatic placement of the character on a named window
-        wake/                        # The bed wake firing source
-          wake-source.ts             # Fires the wake candidate as she gets out of bed, carrying the day's first activity while it is owed
         addressed/                   # The character-addressed firing source and the speaking half
           addressed-source.ts        # Turns a character-addressed bridge event for this preset into the addressed.character candidate
           addressed-producer.ts      # Emits the character-addressed event for this window's reply once its turn is over
@@ -300,8 +291,6 @@ YUI/
           routed-user-source.ts      # Submits a user-turn-routed event naming this preset as a user turn with its send id and mention
           user-turn-done.ts          # Reports user-turn-done for a closed or dropped turn's send id
     ambient/                         # Backend-independent local liveliness and movement
-      bed-scene/                     # Bed scene
-        bed-scene.ts                 # Asleep on a bed at launch or lying down on command, the wake, the bed's fade, and the one exit that releases the hold and the frame; runs again after it ends
       liveliness/                    # Tier 1 idle-life engine and its cue math
         tier1.ts                     # Tier 1 ambient engine: blink, idle sway, breath, look-around
         cues.ts                      # Pure, side-effect-free cue math for Tier 1
@@ -347,7 +336,6 @@ YUI/
         screen-settings.ts           # User-editable screen-watch thresholds
         screenshot-settings.ts       # Screenshot enabled state and source
       avatar/                        # Camera, motion, and lip-sync
-        bed-scene-settings.ts        # Launch bed scene on/off and its wake timeout
         camera-settings.ts           # Camera zoom and orbit viewpoint
         camera-gestures.ts           # Maps orbit moves and pinch ratios onto the camera store
         express-motion-settings.ts   # Curates the motion vocabulary the agent may choose from
@@ -495,7 +483,6 @@ YUI/
           threads-position.ts          # The Threads window's box: its first place beside the pet window on the roomier side, a stored frame moved into the nearest work area, a handle drag's box between the minimum and the work area, and the chip-sized rect its grow starts from
           keep-on-screen.ts            # Pushes a window back until its centre lands on a monitor
           travel-frame.ts              # Parks the real window once for a scale-seam crossing
-          stationary-frame.ts          # Widens the real window around a character that stays where she is
           tauri-frame-window.ts        # The real pet window as one FrameWindow seam, built once for the movers
           perch.ts                     # Perch values, perch-target and placement types, and the host-edge span shared by the drop source, avatar RPC and locomotion
         openers/                       # Openers and placement of the message, settings, quick-card, devtools, and pet windows, the first three bound to a pet window's preset
@@ -675,7 +662,7 @@ YUI/
         keyed-render.ts              # Keyed re-render: focus by data-fk, a fade-in of new data-k blocks, and a switch that slides from its previous state
         keyed-render.css             # The keyed block's fade-in
         character/                   # The Body page and the Motion and desktop page's character rows
-          character-tab.ts           # Builds both stacks: VRM list, relations rows and view reset; mouth gain, motions and bed scene
+          character-tab.ts           # Builds both stacks: VRM list, relations rows and view reset; mouth gain and motions
           character-html.ts          # Markup of the two stacks
           vrm/                       # VRM list
             vrm-list.ts              # VRM asset list
@@ -685,8 +672,6 @@ YUI/
           express-motion/            # Express motion vocabulary
             express-motion-section.ts  # Express motion categories
             express-motion-section.css # Express motion styles
-          bed-scene/                 # Launch bed scene
-            bed-scene-section.ts     # Bed scene switch and wake timeout
           relations/                 # Relations section
             relations-edit-section.ts  # One slider row per target that sets the relation by hand, shown while the Relations switch is on
             relations-edit.css       # Relations rows, the centre-out slider fill, and the number
