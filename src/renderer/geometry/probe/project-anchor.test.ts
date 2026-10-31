@@ -92,6 +92,18 @@ describe("projectFeetAnchor — vertical position", () => {
     expect(a.y).toBeGreaterThan(rowOf(0));
   });
 
+  it("feet y follows the bottom face's near edge when the camera orbits behind her", () => {
+    const w = 400;
+    const h = 600;
+    const cam = framedCamera(VRM_BOX, w, h);
+    cam.position.z = -cam.position.z;
+    cam.lookAt(0, cam.position.y, 0);
+    cam.updateMatrixWorld();
+    const a = projectFeetAnchor(VRM_BOX, cam, w, h)!;
+    const nearRow = new THREE.Vector3(0, VRM_BOX.min.y, VRM_BOX.min.z).project(cam);
+    expect(a.y).toBeCloseTo((1 - (nearRow.y * 0.5 + 0.5)) * h, 3);
+  });
+
   it("feet y increases as the camera moves closer (bigger character)", () => {
     const w = 600;
     const h = 600;
