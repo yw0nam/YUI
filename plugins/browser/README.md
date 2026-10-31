@@ -68,8 +68,10 @@ try {
           const { windowId } = await task.cdp("Browser.getWindowForTarget", { targetId: page.targetId });
           const { bounds } = await task.cdp("Browser.getWindowBounds", { windowId });
           await task.cdp("Browser.setWindowBounds", { windowId, bounds: { windowState: "minimized" } });
-          const windowState = bounds.windowState === "minimized" ? "normal" : bounds.windowState;
-          await task.cdp("Browser.setWindowBounds", { windowId, bounds: { windowState } });
+          await task.cdp("Browser.setWindowBounds", { windowId, bounds: { windowState: "normal" } });
+          if (bounds.windowState === "maximized" || bounds.windowState === "fullscreen") {
+            await task.cdp("Browser.setWindowBounds", { windowId, bounds: { windowState: bounds.windowState } });
+          }
         })());
         return await __yuiCapture(page, path);
       } catch (e) {
@@ -96,7 +98,7 @@ try {
 }
 ```
 
-`__yuiScreenshot` is declared after `code` and hoists, so adding it shifts no line of the caller's code. It captures the page's viewport, abandoning a capture that takes longer than 5 s. When the capture fails because ego lite's window is minimized, it restores the window through CDP and retries the capture every 100 ms, 20 times. When a capture stalls, it reads the window's state, sets the window to `minimized`, puts it back in the state it had (`normal` when it was minimized), and captures once more; the window can be seen minimized for a moment. The window cycle is bounded by the same 5 s as a capture. A stall in the cycle, in the second capture, or in the minimized-window retries fails the script with `screenshot stalled: ego lite did not capture in time; read the page with page.snapshot() instead`. Any other failure is rethrown.
+`__yuiScreenshot` is declared after `code` and hoists, so adding it shifts no line of the caller's code. It captures the page's viewport, abandoning a capture that takes longer than 5 s. When the capture fails because ego lite's window is minimized, it restores the window through CDP and retries the capture every 100 ms, 20 times. When a capture stalls, it reads the window's state, sets the window to `minimized`, sets it to `normal`, then back to `maximized` or `fullscreen` when it was in one of those, and captures once more; the window can be seen minimized for a moment. The window cycle is bounded by the same 5 s as a capture. A stall in the cycle, in the second capture, or in the minimized-window retries fails the script with `screenshot stalled: ego lite did not capture in time; read the page with page.snapshot() instead`. Any other failure is rethrown.
 
 `code` starts on line 6, which is where the stated line offset comes from. A syntax error fails before the `try` runs and returns as a script failure with ego lite's message.
 

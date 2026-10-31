@@ -61,8 +61,10 @@ try {{
           const {{ windowId }} = await task.cdp("Browser.getWindowForTarget", {{ targetId: page.targetId }});
           const {{ bounds }} = await task.cdp("Browser.getWindowBounds", {{ windowId }});
           await task.cdp("Browser.setWindowBounds", {{ windowId, bounds: {{ windowState: "minimized" }} }});
-          const windowState = bounds.windowState === "minimized" ? "normal" : bounds.windowState;
-          await task.cdp("Browser.setWindowBounds", {{ windowId, bounds: {{ windowState }} }});
+          await task.cdp("Browser.setWindowBounds", {{ windowId, bounds: {{ windowState: "normal" }} }});
+          if (bounds.windowState === "maximized" || bounds.windowState === "fullscreen") {{
+            await task.cdp("Browser.setWindowBounds", {{ windowId, bounds: {{ windowState: bounds.windowState }} }});
+          }}
         }})());
         return await __yuiCapture(page, path);
       }} catch (e) {{
