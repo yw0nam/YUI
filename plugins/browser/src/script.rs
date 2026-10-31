@@ -60,12 +60,16 @@ try {{
         await __yuiBound((async () => {{
           const {{ windowId }} = await task.cdp("Browser.getWindowForTarget", {{ targetId: page.targetId }});
           const {{ bounds }} = await task.cdp("Browser.getWindowBounds", {{ windowId }});
+          const was = bounds.windowState;
+          if (was === "fullscreen") await task.cdp("Browser.setWindowBounds", {{ windowId, bounds: {{ windowState: "normal" }} }});
           await task.cdp("Browser.setWindowBounds", {{ windowId, bounds: {{ windowState: "minimized" }} }});
           await task.cdp("Browser.setWindowBounds", {{ windowId, bounds: {{ windowState: "normal" }} }});
-          if (bounds.windowState === "maximized" || bounds.windowState === "fullscreen") {{
-            await task.cdp("Browser.setWindowBounds", {{ windowId, bounds: {{ windowState: bounds.windowState }} }});
-          }}
+          if (was === "maximized" || was === "fullscreen") await task.cdp("Browser.setWindowBounds", {{ windowId, bounds: {{ windowState: was }} }});
         }})());
+      }} catch {{
+        throw stalledError();
+      }}
+      try {{
         return await __yuiCapture(page, path);
       }} catch (e) {{
         throw String(e?.message ?? e) === {stalled} ? stalledError() : e;

@@ -23,7 +23,7 @@ The tool description takes precedence over the guide and states the contract:
 - `task`, `screenshot`, and every name starting `__yui` are reserved; variables start fresh on every call.
 - The injected `task` is the task space's handle: use it, do not call `taskSpace()`, and do not finish the space.
 - Observations go to `console.log`; the output is text.
-- `await screenshot(page)` attaches an image of the page's viewport. Images need an image-capable model. `screenshot` waits 5 s for a capture, restores a minimized ego lite window, and cycles the window once, minimized then back to its state, when a capture stalls.
+- `await screenshot(page)` attaches an image of the page's viewport. Images need an image-capable model. `screenshot` waits 5 s for a capture, restores a minimized ego lite window, and cycles the window once, minimized and back to its previous state, when a capture stalls.
 - A space the user took over fails with `EGO_TASK_SPACE_NAME_IN_USE` until the user hands it back in ego lite.
 - Error line numbers are 5 more than the line in `code`.
 - `guide: true` returns the full guide.
@@ -67,12 +67,16 @@ try {
         await __yuiBound((async () => {
           const { windowId } = await task.cdp("Browser.getWindowForTarget", { targetId: page.targetId });
           const { bounds } = await task.cdp("Browser.getWindowBounds", { windowId });
+          const was = bounds.windowState;
+          if (was === "fullscreen") await task.cdp("Browser.setWindowBounds", { windowId, bounds: { windowState: "normal" } });
           await task.cdp("Browser.setWindowBounds", { windowId, bounds: { windowState: "minimized" } });
           await task.cdp("Browser.setWindowBounds", { windowId, bounds: { windowState: "normal" } });
-          if (bounds.windowState === "maximized" || bounds.windowState === "fullscreen") {
-            await task.cdp("Browser.setWindowBounds", { windowId, bounds: { windowState: bounds.windowState } });
-          }
+          if (was === "maximized" || was === "fullscreen") await task.cdp("Browser.setWindowBounds", { windowId, bounds: { windowState: was } });
         })());
+      } catch {
+        throw stalledError();
+      }
+      try {
         return await __yuiCapture(page, path);
       } catch (e) {
         throw String(e?.message ?? e) === "[yui] capture stalled" ? stalledError() : e;
@@ -98,7 +102,7 @@ try {
 }
 ```
 
-`__yuiScreenshot` is declared after `code` and hoists, so adding it shifts no line of the caller's code. It captures the page's viewport, abandoning a capture that takes longer than 5 s. When the capture fails because ego lite's window is minimized, it restores the window through CDP and retries the capture every 100 ms, 20 times. When a capture stalls, it reads the window's state, sets the window to `minimized`, sets it to `normal`, then back to `maximized` or `fullscreen` when it was in one of those, and captures once more; the window can be seen minimized for a moment. The window cycle is bounded by the same 5 s as a capture. A stall in the cycle, in the second capture, or in the minimized-window retries fails the script with `screenshot stalled: ego lite did not capture in time; read the page with page.snapshot() instead`. Any other failure is rethrown.
+`__yuiScreenshot` is declared after `code` and hoists, so adding it shifts no line of the caller's code. It captures the page's viewport, abandoning a capture that takes longer than 5 s. When the capture fails because ego lite's window is minimized, it restores the window through CDP and retries the capture every 100 ms, 20 times. When a capture stalls, it reads the window's state, sets `normal` first when it was `fullscreen`, sets `minimized`, then `normal`, then sets `maximized` or `fullscreen` again when the window was in one of those, and captures once more; the window can be seen minimized for a moment. The window cycle is bounded by the same 5 s as a capture. A stall or any error in the cycle, a stall in the second capture, or a stall in the minimized-window retries fails the script with `screenshot stalled: ego lite did not capture in time; read the page with page.snapshot() instead`. Any other failure is rethrown.
 
 `code` starts on line 6, which is where the stated line offset comes from. A syntax error fails before the `try` runs and returns as a script failure with ego lite's message.
 
