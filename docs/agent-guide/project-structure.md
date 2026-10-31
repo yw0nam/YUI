@@ -905,6 +905,7 @@ YUI/
       platform/                      # Hermes gateway push-transport plugin: one WebSocket carrying turns in and finished replies out (Python/uv)
         yui/src/tools/               # The client-declared tools: registration from hello.tools, the blocking handler, and the per-chat pending calls
   skills/                            # Skill folders for agents outside this repository, copied into an agent's skill folder or fetched by raw URL
+    rimworld-companion/              # Backend-agnostic skill: tiers RimWorld game events (RimEventFeed) and kibitzes against a stage guide (references/)
     yui-daily-briefing/              # Backend-agnostic skill: scheduled producers write dated markdown briefings (scripts/briefing.py) that the backend agent speaks on first activity
     yui-plugin/                      # Builds a plugin: routes to BUILD.md, or CONTRIBUTE.md to share one
     yui-wake-character/              # Backend-agnostic skill: wake one character through its preset ingress URL and act on 200, 404, and 503
