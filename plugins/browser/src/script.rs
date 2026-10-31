@@ -34,16 +34,19 @@ try {{
   let __yuiShot = 0;
   const screenshot = (page) => __yuiScreenshot(page, `${{{shot_dir}}}/${{String(++__yuiShot).padStart(3, "0")}}.png`);
 {code}
-  function __yuiCapture(page, path) {{
-    const shot = page.screenshot({{ path }});
-    shot.catch(() => {{}});
+  function __yuiBound(work) {{
+    work.catch(() => {{}});
     let timer;
     const limit = new Promise((_, reject) => {{
       timer = setTimeout(() => reject(new Error({stalled})), {capture_wait_ms});
     }});
-    return Promise.race([shot, limit]).finally(() => clearTimeout(timer));
+    return Promise.race([work, limit]).finally(() => clearTimeout(timer));
+  }}
+  function __yuiCapture(page, path) {{
+    return __yuiBound(page.screenshot({{ path }}));
   }}
   async function __yuiScreenshot(page, path) {{
+    const stalledError = () => new Error("screenshot stalled: ego lite did not capture in time; read the page with page.snapshot() instead");
     let didStall = false;
     try {{
       return await __yuiCapture(page, path);
@@ -52,23 +55,28 @@ try {{
       didStall = message === {stalled};
       if (!didStall && !message.includes("while the window is minimized")) throw e;
     }}
-    const {{ windowId }} = await task.cdp("Browser.getWindowForTarget", {{ targetId: page.targetId }});
     if (didStall) {{
-      await task.cdp("Browser.setWindowBounds", {{ windowId, bounds: {{ windowState: "minimized" }} }});
-      await task.cdp("Browser.setWindowBounds", {{ windowId, bounds: {{ windowState: "normal" }} }});
       try {{
+        await __yuiBound((async () => {{
+          const {{ windowId }} = await task.cdp("Browser.getWindowForTarget", {{ targetId: page.targetId }});
+          const {{ bounds }} = await task.cdp("Browser.getWindowBounds", {{ windowId }});
+          await task.cdp("Browser.setWindowBounds", {{ windowId, bounds: {{ windowState: "minimized" }} }});
+          const windowState = bounds.windowState === "minimized" ? "normal" : bounds.windowState;
+          await task.cdp("Browser.setWindowBounds", {{ windowId, bounds: {{ windowState }} }});
+        }})());
         return await __yuiCapture(page, path);
       }} catch (e) {{
-        if (String(e?.message ?? e) !== {stalled}) throw e;
-        throw new Error("screenshot stalled: ego lite did not capture in time; read the page with page.snapshot() instead");
+        throw String(e?.message ?? e) === {stalled} ? stalledError() : e;
       }}
     }}
+    const {{ windowId }} = await task.cdp("Browser.getWindowForTarget", {{ targetId: page.targetId }});
     await task.cdp("Browser.setWindowBounds", {{ windowId, bounds: {{ windowState: "normal" }} }});
     for (let tries = 1; ; tries++) {{
       await new Promise((r) => setTimeout(r, 100));
       try {{
         return await __yuiCapture(page, path);
       }} catch (e) {{
+        if (String(e?.message ?? e) === {stalled}) throw stalledError();
         if (tries === 20) throw e;
       }}
     }}

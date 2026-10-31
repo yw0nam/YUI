@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::process::Stdio;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 
@@ -15,7 +15,7 @@ pub const NOT_FOUND: &str = "ego lite not found: install ego lite and run it onc
 pub struct Limits {
     /// The script stops itself after this long.
     pub deadline_ms: u64,
-    /// The CLI is killed after this long when the script did not stop itself.
+    /// The CLI is killed after this long, counted from before ego lite's start, when the script did not stop itself.
     pub kill_after: Duration,
     /// A screenshot is abandoned after this long; the slowest success measured was 1076 ms.
     pub capture_wait_ms: u64,
@@ -126,6 +126,7 @@ async fn spawn_script(
     code: &str,
     limits: Limits,
 ) -> Result<Option<std::process::Output>, String> {
+    let started = Instant::now();
     boot::start_ego(bin).await;
     let mut child = Command::new(bin)
         .arg("nodejs")
@@ -147,7 +148,12 @@ async fn spawn_script(
     };
     // Drains stdout and stderr while stdin is written, so neither side waits on a full pipe.
     let finished = async move { tokio::join!(write, child.wait_with_output()).1 };
-    match tokio::time::timeout(limits.kill_after, finished).await {
+    match tokio::time::timeout(
+        limits.kill_after.saturating_sub(started.elapsed()),
+        finished,
+    )
+    .await
+    {
         Ok(output) => output.map(Some).map_err(|e| e.to_string()),
         Err(_) => {
             eprintln!("browser_cli_killed space={space}");
