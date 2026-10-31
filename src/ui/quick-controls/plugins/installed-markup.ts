@@ -45,6 +45,8 @@ export interface InstalledView {
   /** The catalog version an update would install; null when none is due. */
   updateTo(plugin: PluginHostPlugin): string | null;
   check: CheckState;
+  /** The last delete's rejection. */
+  removal: { error?: Failure };
 }
 
 const DOT_CLASS: Record<PluginHostServer["status"], string> = {
@@ -274,5 +276,8 @@ export function installedHtml(v: InstalledView): string {
   // The snapshot lists only running servers' tools, hidden names already left out.
   const n = plugins?.reduce((sum, p) => sum + p.tools.length, 0) ?? 0;
   const foot = plugins?.length ? `<p class="yui-sec__foot">${t("plugins.foot", { n })}</p>` : "";
-  return `<section class="yui-sec">${secHeadHtml(t("plugins.installed_title"), aside)}${body}${foot}</section>`;
+  const removal = v.removal.error
+    ? `<div>${errLineHtml(t(v.removal.error.lead), v.removal.error.message)}</div>`
+    : "";
+  return `<section class="yui-sec">${secHeadHtml(t("plugins.installed_title"), aside)}${body}${foot}${removal}</section>`;
 }

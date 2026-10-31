@@ -3,6 +3,7 @@
 use super::launch;
 use super::manifest::ServerSpec;
 use super::orphans::{ProcessGroup, ProcessGroups};
+use super::tree::Tree;
 use crate::log_rotation::DateRotatingFile;
 use process_wrap::tokio::ChildWrapper;
 use rmcp::model::Tool;
@@ -128,8 +129,14 @@ impl Server {
             .await
             .is_err()
         {
-            self.watch.abort();
-            let _ = (&mut self.watch).await;
+            self.group.kill();
+            if tokio::time::timeout(EXIT_GRACE, &mut self.watch)
+                .await
+                .is_err()
+            {
+                self.watch.abort();
+                let _ = (&mut self.watch).await;
+            }
         }
         if !exited {
             self.group.kill();
@@ -156,7 +163,7 @@ impl Spawned {
     }
 
     pub fn stop(self) {
-        self.group.kill();
+        kill_tree(&self.group, self.child);
         self.log.stopped(&self.name);
     }
 }
@@ -182,14 +189,14 @@ pub fn spawn(
     log: Arc<PluginLog>,
     groups: &Arc<ProcessGroups>,
 ) -> Result<Spawned, Failure> {
-    let mut child = launch::command(spec, root, data)
-        .and_then(|mut command| command.spawn())
+    let (mut child, tree) = launch::command(spec, root, data)
+        .and_then(Tree::start)
         .map_err(|e| failed(&log, &spec.name, Phase::Spawn, e.to_string()))?;
     if let Some(stderr) = child.stderr().take() {
         tokio::spawn(read_stderr(stderr, spec.name.clone(), log.clone()));
     }
     Ok(Spawned {
-        group: groups.group(child.id()),
+        group: groups.group(tree),
         child,
         name: spec.name.clone(),
         log,
@@ -225,7 +232,7 @@ pub async fn connect(
     let mut client = match within(serving, deadline) {
         Ok(client) => client,
         Err(reason) => {
-            group.kill();
+            kill_tree(&group, child);
             return Err(end(Phase::Initialize, reason));
         }
     };
@@ -234,7 +241,7 @@ pub async fn connect(
         Ok(tools) => tools,
         Err(reason) => {
             let _ = client.close().await;
-            group.kill();
+            kill_tree(&group, child);
             return Err(end(Phase::List, reason));
         }
     };
@@ -245,7 +252,7 @@ pub async fn connect(
     let watch_stopping = stopping.clone();
     let watch_group = group.clone();
     let watch = tokio::spawn(async move {
-        // The leader alone: the wrapper's own wait also waits for every orphan in the group.
+        // The leader alone: a process group wrapper's own wait also waits for every orphan.
         let reason = match child.inner_mut().wait().await {
             Ok(status) => status
                 .code()
@@ -332,6 +339,11 @@ fn decode(bytes: &[u8]) -> String {
     }
     text.truncate(end);
     text
+}
+
+fn kill_tree(group: &ProcessGroup, child: Box<dyn ChildWrapper>) {
+    group.kill();
+    drop(child);
 }
 
 #[cfg(all(test, unix))]

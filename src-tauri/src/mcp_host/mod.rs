@@ -22,7 +22,7 @@
 //!   and, for a Catalog plugin, `installed/<id>/`; a local plugin's folder and the logs stay.
 //! - **Servers.** Each `.mcp.json` server is spawned without a shell, in the plugin folder, with
 //!   `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PLUGIN_DATA}` (`<app_data>/plugins/data/<id>/`)
-//!   expanded, in its own process group (a job object on Windows). Spawn, `initialize` and
+//!   expanded, in its own process tree (a process group, or a job object on Windows). Spawn, `initialize` and
 //!   `tools/list` share a 30 s deadline; a failure names the phase. A server that ends by itself
 //!   shows `exited` and is not restarted; retry or the next app start runs it again.
 //! - **Logs.** stderr lines, at most 2000 bytes each, and lifecycle lines go to
@@ -36,14 +36,15 @@
 //!   server stops; each sends `notifications/cancelled`. A window cannot reuse the id of its
 //!   call still in flight.
 //! - **Stop.** Disable, retry and app exit cancel the server's calls, close its connection,
-//!   give it 1 s to exit, then kill its process tree. On unix a server still starting has its
-//!   process group killed at once. On Windows a tree ends when the host drops its job object:
-//!   at the end of a stop, when the start of a server stopped while starting ends (at the
-//!   latest at the 30 s deadline), or when the app process exits. On unix each running server's
-//!   process group is recorded in `<app_data>/plugins/groups.json`; at the next app start a
-//!   recorded group whose leader is gone and that still has members is killed, which ends what a
-//!   server started when the app was killed without its exit hook. At app start each enabled
-//!   plugin starts as its own task.
+//!   give it 1 s to exit, then kill its process tree. A server still starting has its tree
+//!   killed at once. On Windows the tree is a job object the host owns, which also ends when the
+//!   app process exits; a process that asks to leave it with `CREATE_BREAKAWAY_FROM_JOB`
+//!   outlives the stop. On Windows the delete after a stop retries for up to 1 s, because the
+//!   stopped server's executable stays held for a moment. On unix each running server's process
+//!   group is recorded in `<app_data>/plugins/groups.json`; at the next app start a recorded
+//!   group whose leader is gone and that still has members is killed, which ends what a server
+//!   started when the app was killed without its exit hook. At app start each enabled plugin
+//!   starts as its own task.
 
 mod calls;
 mod catalog;
@@ -59,6 +60,7 @@ mod snapshot;
 mod store;
 #[cfg(all(test, unix))]
 mod test_support;
+mod tree;
 
 use host::Host;
 use std::path::Path;

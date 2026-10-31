@@ -89,7 +89,7 @@ impl Host {
         self.stop(stopping).await;
         self.lock().updating.remove(plugin_id);
         if old != path {
-            if let Err(e) = remove_dir(&old) {
+            if let Err(e) = remove_stopped_dir(&old).await {
                 log::warn!(
                     "mcp_host_old_version_not_removed path={} error={e}",
                     old.display()
@@ -125,7 +125,7 @@ impl Host {
         }
         let mut first = Ok(());
         for folder in folders {
-            if let Err(e) = remove_dir(&folder) {
+            if let Err(e) = remove_stopped_dir(&folder).await {
                 log::error!(
                     "mcp_host_remove_left_files path={} error={e}",
                     folder.display()
@@ -176,6 +176,31 @@ fn remove_dir(path: &Path) -> std::io::Result<()> {
         Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
         _ => Ok(()),
     }
+}
+
+/// How often and for how long a stopped server's folder is deleted again on Windows.
+#[cfg(windows)]
+const DELETE_RETRY: std::time::Duration = std::time::Duration::from_millis(50);
+#[cfg(windows)]
+const DELETE_RETRY_FOR: std::time::Duration = std::time::Duration::from_secs(1);
+
+/// `remove_dir` for a folder of a server just stopped. Windows holds a stopped server's
+/// executable for a moment after its process ends, so a failed delete is tried again.
+async fn remove_stopped_dir(path: &Path) -> std::io::Result<()> {
+    #[cfg(windows)]
+    {
+        let end = tokio::time::Instant::now() + DELETE_RETRY_FOR;
+        loop {
+            match remove_dir(path) {
+                Err(_) if tokio::time::Instant::now() < end => {
+                    tokio::time::sleep(DELETE_RETRY).await;
+                }
+                result => return result,
+            }
+        }
+    }
+    #[cfg(not(windows))]
+    remove_dir(path)
 }
 
 #[cfg(all(test, unix))]
@@ -396,5 +421,76 @@ mod tests {
         assert_eq!(installing.await.unwrap(), Ok(()));
         assert_eq!(host.retry("yui-test/main").await, Ok(()));
         host.shutdown().await;
+    }
+}
+
+#[cfg(all(test, windows))]
+mod windows_tests {
+    use super::super::manifest::ServerSpec;
+    use super::super::orphans::ProcessGroups;
+    use super::super::server::{connect, spawn, PluginLog};
+    use super::*;
+    use std::collections::HashMap;
+    use std::sync::Arc;
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+    use time::UtcOffset;
+
+    /// Removes its folder on drop, also when an assert fails.
+    struct Cleanup(PathBuf);
+
+    impl Drop for Cleanup {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    /// A new empty folder in the temp dir, named by pid and time.
+    fn temp_dir() -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0, |d| d.as_nanos());
+        let dir = std::env::temp_dir().join(format!("yui-mcp-stop-{}-{nanos}", std::process::id()));
+        std::fs::create_dir(&dir).unwrap();
+        dir
+    }
+
+    #[tokio::test]
+    async fn a_server_stopped_while_starting_frees_its_executable_at_once() {
+        let base = Cleanup(temp_dir());
+        let base = &base.0;
+        let bin = base.join("bin");
+        std::fs::create_dir(&bin).unwrap();
+        let system = std::env::var_os("SystemRoot").expect("SystemRoot");
+        let exe = bin.join("ping.exe");
+        std::fs::copy(Path::new(&system).join("System32").join("PING.EXE"), &exe).unwrap();
+        let spec = ServerSpec {
+            name: "main".to_string(),
+            command: exe.to_string_lossy().into_owned(),
+            args: vec!["-n".into(), "30".into(), "127.0.0.1".into()],
+            env: HashMap::new(),
+        };
+        let log = Arc::new(PluginLog::new(
+            base.join("logs"),
+            "yui-test",
+            UtcOffset::UTC,
+        ));
+        let spawned = spawn(
+            &spec,
+            base,
+            &base.join("data"),
+            log,
+            &ProcessGroups::open(None),
+        )
+        .expect("spawn");
+        let stopper = spawned.stopper();
+        let start = tokio::spawn(connect(spawned, Duration::from_secs(30), |_| {}));
+        tokio::time::sleep(Duration::from_millis(500)).await;
+
+        stopper.stop();
+        let freed = remove_stopped_dir(&bin).await;
+
+        assert!(freed.is_ok(), "the executable is still held: {freed:?}");
+        let ended = tokio::time::timeout(Duration::from_secs(3), start).await;
+        assert!(ended.is_ok(), "the start outlived the stop");
     }
 }

@@ -106,7 +106,6 @@ dependencies = [
  "tiny_http",
  "tokio",
  "windows 0.61.3",
- "windows 0.62.2",
  "xcap",
  "zip",
 ]
@@ -3487,7 +3486,6 @@ dependencies = [
  "indexmap 2.14.0",
  "nix 0.31.3",
  "tokio",
- "windows 0.62.2",
 ]
 
 [[package]]

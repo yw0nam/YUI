@@ -223,6 +223,44 @@ describe("createPluginsPage", () => {
     expect(manage.remove.mock.calls).toEqual([["browser"]]);
   });
 
+  it("shows a failed delete at the foot of the Installed section after the plugin left the list", async () => {
+    const { page, manage, emit } = mountPage();
+    manage.remove.mockImplementation(async () => {
+      emit({ revision: 2, plugins: SNAPSHOT.plugins.filter((p) => p.id !== "browser") });
+      throw "os error 5";
+    });
+
+    button(group(page.el, "browser"), "Delete").click();
+    button(group(page.el, "browser").querySelector<HTMLElement>(".yui-confirm")!, "Delete").click();
+
+    await vi.waitFor(() =>
+      expect(page.el.querySelector(".yui-plg-err span")?.textContent).toBe(
+        "Could not delete it. os error 5",
+      ),
+    );
+    expect(page.el.querySelector('[data-pid="browser"]')).toBeNull();
+  });
+
+  it("clears a failed delete's error once a plugin is installed", async () => {
+    const { page, manage, emit } = mountPage();
+    manage.remove.mockImplementation(async () => {
+      emit({ revision: 2, plugins: SNAPSHOT.plugins.filter((p) => p.id !== "browser") });
+      throw "os error 5";
+    });
+    page.entered();
+    await vi.waitFor(() =>
+      expect(page.el.querySelector('[data-cid="calendar-ics"]')).not.toBeNull(),
+    );
+    button(group(page.el, "browser"), "Delete").click();
+    button(group(page.el, "browser").querySelector<HTMLElement>(".yui-confirm")!, "Delete").click();
+    await vi.waitFor(() => expect(page.el.querySelector(".yui-plg-err")).not.toBeNull());
+
+    page.el.querySelector<HTMLButtonElement>('[data-cid="calendar-ics"]')!.click();
+
+    await vi.waitFor(() => expect(manage.install.mock.calls).toEqual([["calendar-ics"]]));
+    expect(page.el.querySelector(".yui-plg-err")).toBeNull();
+  });
+
   it("shows a plugin's description as text", () => {
     const description = "<img src=x onerror=alert(1)>";
     const { page } = mountPage({ revision: 1, plugins: [plugin({ id: "p1", description })] });

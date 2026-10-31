@@ -5,6 +5,7 @@
 //! whose leader is gone and that still has members belongs to this app.
 
 use super::store;
+use super::tree::Tree;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -36,13 +37,13 @@ impl ProcessGroups {
         })
     }
 
-    /// Records a spawned server's group.
-    pub fn group(self: &Arc<Self>, pgid: Option<u32>) -> ProcessGroup {
-        if let Some(pgid) = pgid {
+    /// Records a spawned server's group, when its tree has one.
+    pub fn group(self: &Arc<Self>, tree: Tree) -> ProcessGroup {
+        if let Some(pgid) = tree.group_id() {
             self.change(|pgids| pgids.insert(pgid));
         }
         ProcessGroup {
-            pgid,
+            tree,
             groups: self.clone(),
         }
     }
@@ -59,25 +60,17 @@ impl ProcessGroups {
 /// One server's process group; killing it also drops it from the record.
 #[derive(Clone)]
 pub struct ProcessGroup {
-    pgid: Option<u32>,
+    tree: Tree,
     groups: Arc<ProcessGroups>,
 }
 
 impl ProcessGroup {
-    /// SIGKILL to the group (unix), then forgets it; on Windows the job object ends the tree.
+    /// Kills the tree, then forgets its group.
     pub fn kill(&self) {
-        let Some(pgid) = self.pgid else {
-            return;
-        };
-        #[cfg(unix)]
-        {
-            use nix::sys::signal::{killpg, Signal};
-            match killpg(nix::unistd::Pid::from_raw(pgid as i32), Signal::SIGKILL) {
-                Ok(()) | Err(nix::errno::Errno::ESRCH) => {}
-                Err(e) => log::warn!("mcp_host_killpg_failed pgid={pgid} error={e}"),
-            }
+        self.tree.kill();
+        if let Some(pgid) = self.tree.group_id() {
+            self.groups.change(|pgids| pgids.remove(&pgid));
         }
-        self.groups.change(|pgids| pgids.remove(&pgid));
     }
 }
 

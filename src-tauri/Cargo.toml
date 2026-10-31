@@ -39,7 +39,7 @@ xcap = "0.4.1"
 tokio = { version = "1", features = ["io-util", "macros", "process", "rt", "sync", "time"] }
 tauri-plugin-wdio-webdriver = { version = "1.5.0", optional = true }
 rmcp = { version = "3.8", default-features = false, features = ["client", "transport-async-rw"] }
-process-wrap = { version = "10.0", default-features = false, features = ["tokio1", "process-group", "job-object", "kill-on-drop", "creation-flags"] }
+process-wrap = { version = "10.0", default-features = false, features = ["tokio1", "process-group", "kill-on-drop"] }
 # Keeps `.mcp.json` servers in file order.
 indexmap = { version = "2", features = ["serde"] }
 # Catalog fetch and plugin downloads; default features keep the rustls stack tauri-plugin-cors-fetch already uses.
@@ -58,9 +58,7 @@ verify = ["dep:tauri-plugin-wdio-webdriver"]
 
 # Windows OS API bindings (cfg-gated, compile-only on Windows)
 [target.'cfg(target_os = "windows")'.dependencies]
-# The windows version process-wrap's CreationFlags takes its PROCESS_CREATION_FLAGS from.
-windows-process = { package = "windows", version = "0.62", features = ["Win32_System_Threading"] }
-windows = { version = "0.61", features = ["Win32_UI_Input_KeyboardAndMouse", "Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_SystemInformation", "Win32_System_Threading", "Win32_Graphics_Gdi", "Win32_Graphics_Dwm", "Win32_UI_HiDpi"] }
+windows = { version = "0.61", features = ["Win32_UI_Input_KeyboardAndMouse", "Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_SystemInformation", "Win32_System_Threading", "Win32_Graphics_Gdi", "Win32_Graphics_Dwm", "Win32_UI_HiDpi", "Win32_System_JobObjects", "Win32_Security", "Win32_System_Diagnostics_ToolHelp"] }
 
 # macOS OS API bindings (cfg-gated, compile-only on other platforms)
 [target.'cfg(target_os = "macos")'.dependencies]

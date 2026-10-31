@@ -838,8 +838,9 @@ YUI/
         host.rs                      # Host: the listed plugins, the stored state, snapshot publishing, and add, enable, disable, retry, calls, skills
         lifecycle.rs                 # Server starts and stops: epoch-tagged tickets, start results, exits, and stops that cancel calls first
         manifest.rs                  # Reads a plugin folder: plugin.json, .mcp.json servers in file order, and skills/*/SKILL.md
-        launch.rs                    # A server's command: placeholder expansion, no shell, process group or job object
+        launch.rs                    # A server's command: placeholder expansion, no shell
         server.rs                    # One server: spawn, connect under the deadline, stderr log and tail, exit watch, and tree stop
+        tree.rs                      # One server's process tree: a process group on Unix, a job object on Windows; start and kill
         orphans.rs                   # The process groups of running servers in groups.json, and the next start's kill of groups a killed app left behind
         calls.rs                     # In-flight tool calls per window and server: preset _meta, deadline, and cancel
         store.rs                     # state.json load and save through a temp file and rename
