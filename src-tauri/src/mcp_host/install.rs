@@ -89,7 +89,7 @@ impl Host {
         self.stop(stopping).await;
         self.lock().updating.remove(plugin_id);
         if old != path {
-            if let Err(e) = remove_dir(&old) {
+            if let Err(e) = remove_stopped_dir(&old).await {
                 log::warn!(
                     "mcp_host_old_version_not_removed path={} error={e}",
                     old.display()
@@ -125,7 +125,7 @@ impl Host {
         }
         let mut first = Ok(());
         for folder in folders {
-            if let Err(e) = remove_dir(&folder) {
+            if let Err(e) = remove_stopped_dir(&folder).await {
                 log::error!(
                     "mcp_host_remove_left_files path={} error={e}",
                     folder.display()
@@ -176,6 +176,31 @@ fn remove_dir(path: &Path) -> std::io::Result<()> {
         Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
         _ => Ok(()),
     }
+}
+
+/// How often and for how long a stopped server's folder is deleted again on Windows.
+#[cfg(windows)]
+const DELETE_RETRY: std::time::Duration = std::time::Duration::from_millis(50);
+#[cfg(windows)]
+const DELETE_RETRY_FOR: std::time::Duration = std::time::Duration::from_secs(1);
+
+/// `remove_dir` for a folder of a server just stopped. Windows holds a stopped server's
+/// executable for a moment after its process ends, so a failed delete is tried again.
+async fn remove_stopped_dir(path: &Path) -> std::io::Result<()> {
+    #[cfg(windows)]
+    {
+        let end = tokio::time::Instant::now() + DELETE_RETRY_FOR;
+        loop {
+            match remove_dir(path) {
+                Err(_) if tokio::time::Instant::now() < end => {
+                    tokio::time::sleep(DELETE_RETRY).await;
+                }
+                result => return result,
+            }
+        }
+    }
+    #[cfg(not(windows))]
+    remove_dir(path)
 }
 
 #[cfg(all(test, unix))]
@@ -453,8 +478,8 @@ mod windows_tests {
         let start = tokio::spawn(connect(spawned, Duration::from_secs(30), |_| {}));
         tokio::time::sleep(Duration::from_millis(500)).await;
 
-        stopper.stop().await;
-        let freed = remove_dir(&bin);
+        stopper.stop();
+        let freed = remove_stopped_dir(&bin).await;
 
         assert!(freed.is_ok(), "the executable is still held: {freed:?}");
         let ended = tokio::time::timeout(Duration::from_secs(3), start).await;

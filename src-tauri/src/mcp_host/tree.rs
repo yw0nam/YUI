@@ -5,14 +5,6 @@ use std::io;
 
 #[cfg(windows)]
 use std::sync::Arc;
-#[cfg(windows)]
-use std::time::Duration;
-
-/// How long `settled` waits for a killed tree to empty.
-#[cfg(windows)]
-const SETTLE_TIMEOUT: Duration = Duration::from_secs(1);
-#[cfg(windows)]
-const SETTLE_POLL: Duration = Duration::from_millis(10);
 
 /// A server's process tree. Cheap to clone; the Windows job closes with its last clone.
 #[derive(Clone)]
@@ -45,9 +37,6 @@ impl Tree {
             Err(e) => log::warn!("mcp_host_killpg_failed pgid={pgid} error={e}"),
         }
     }
-
-    /// A killed group is gone once its leader is reaped, so there is nothing to wait for.
-    pub async fn settled(&self) {}
 }
 
 #[cfg(windows)]
@@ -68,26 +57,6 @@ impl Tree {
             log::warn!("mcp_host_job_kill_failed error={e}");
         }
     }
-
-    /// Waits until the job holds no process, for at most `SETTLE_TIMEOUT`.
-    pub async fn settled(&self) {
-        let end = tokio::time::Instant::now() + SETTLE_TIMEOUT;
-        loop {
-            match self.job.active_processes() {
-                Ok(0) => return,
-                Ok(_) => {}
-                Err(e) => {
-                    log::warn!("mcp_host_job_query_failed error={e}");
-                    return;
-                }
-            }
-            if tokio::time::Instant::now() >= end {
-                log::warn!("mcp_host_job_not_empty");
-                return;
-            }
-            tokio::time::sleep(SETTLE_POLL).await;
-        }
-    }
 }
 
 #[cfg(windows)]
@@ -101,11 +70,9 @@ mod windows_job {
         CreateToolhelp32Snapshot, Thread32First, Thread32Next, TH32CS_SNAPTHREAD, THREADENTRY32,
     };
     use windows::Win32::System::JobObjects::{
-        AssignProcessToJobObject, CreateJobObjectW, JobObjectBasicAccountingInformation,
-        JobObjectExtendedLimitInformation, QueryInformationJobObject, SetInformationJobObject,
-        TerminateJobObject, JOBOBJECT_BASIC_ACCOUNTING_INFORMATION,
-        JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_BREAKAWAY_OK,
-        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+        AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
+        SetInformationJobObject, TerminateJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+        JOB_OBJECT_LIMIT_BREAKAWAY_OK, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
     };
     use windows::Win32::System::Threading::{
         OpenThread, ResumeThread, CREATE_NO_WINDOW, CREATE_SUSPENDED, THREAD_SUSPEND_RESUME,
@@ -149,20 +116,6 @@ mod windows_job {
 
         pub fn terminate(&self) -> io::Result<()> {
             Ok(unsafe { TerminateJobObject(self.0 .0, 1) }?)
-        }
-
-        pub fn active_processes(&self) -> io::Result<u32> {
-            let mut info = JOBOBJECT_BASIC_ACCOUNTING_INFORMATION::default();
-            unsafe {
-                QueryInformationJobObject(
-                    Some(self.0 .0),
-                    JobObjectBasicAccountingInformation,
-                    &mut info as *mut _ as _,
-                    std::mem::size_of_val(&info) as u32,
-                    None,
-                )
-            }?;
-            Ok(info.ActiveProcesses)
         }
     }
 

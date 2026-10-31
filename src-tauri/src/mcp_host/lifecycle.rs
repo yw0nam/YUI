@@ -151,7 +151,7 @@ impl Host {
     /// Stops starting servers, cancels running servers' calls, then stops those together.
     pub(super) async fn stop(&self, stopping: Stopping) {
         for starting in stopping.starting {
-            starting.stop().await;
+            starting.stop();
         }
         for (server_id, _) in &stopping.running {
             self.calls.cancel_server(server_id).await;
@@ -176,14 +176,13 @@ impl Host {
         let data = launch::data_dir(&self.dir, &ticket.plugin_id);
         let started = match server::spawn(&ticket.spec, &ticket.root, &data, ticket.log) {
             Ok(spawned) => {
-                let registered = self
+                match self
                     .lock()
                     .server_mut(&ticket.plugin_id, &ticket.server_id, epoch)
-                    .map(|ls| ls.starting = Some(spawned.stopper()))
-                    .is_some();
-                if !registered {
+                {
+                    Some(ls) => ls.starting = Some(spawned.stopper()),
                     // Stopped while spawning.
-                    return spawned.stop().await;
+                    None => return spawned.stop(),
                 }
                 server::connect(spawned, STARTUP_DEADLINE, move |reason| {
                     if let Some(host) = host.upgrade() {

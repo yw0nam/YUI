@@ -855,7 +855,7 @@ YUI/
         manifest.rs                  # Reads a plugin folder: plugin.json, .mcp.json servers in file order, and skills/*/SKILL.md
         launch.rs                    # A server's command: placeholder expansion, no shell
         server.rs                    # One server: spawn, connect under the deadline, stderr log and tail, exit watch, and tree stop
-        tree.rs                      # One server's process tree: a process group on Unix, a job object on Windows; kill and wait until empty
+        tree.rs                      # One server's process tree: a process group on Unix, a job object on Windows; start and kill
         calls.rs                     # In-flight tool calls per window and server: preset _meta, deadline, and cancel
         store.rs                     # state.json load and save through a temp file and rename
         snapshot.rs                  # Snapshot types, a plugin's entry, and the name conflict rule

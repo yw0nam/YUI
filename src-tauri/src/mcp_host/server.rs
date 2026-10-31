@@ -119,8 +119,7 @@ impl Server {
         self.client.peer()
     }
 
-    /// Closes the connection, waits up to `EXIT_GRACE` for an exit, then kills the tree and
-    /// waits until it is gone.
+    /// Closes the connection, waits up to `EXIT_GRACE` for an exit, then kills the tree.
     pub async fn stop(mut self) {
         let exited = self.watch.is_finished();
         self.stopping.store(true, Ordering::SeqCst);
@@ -141,7 +140,6 @@ impl Server {
         if !exited {
             self.tree.kill();
         }
-        self.tree.settled().await;
         self.log.stopped(&self.name);
     }
 }
@@ -163,9 +161,8 @@ impl Spawned {
         }
     }
 
-    pub async fn stop(self) {
+    pub fn stop(self) {
         kill_tree(&self.tree, self.child);
-        self.tree.settled().await;
         self.log.stopped(&self.name);
     }
 }
@@ -177,10 +174,9 @@ pub struct Stopper {
 }
 
 impl Stopper {
-    pub async fn stop(&self) {
+    pub fn stop(&self) {
         self.stopped.store(true, Ordering::SeqCst);
         self.tree.kill();
-        self.tree.settled().await;
     }
 }
 
