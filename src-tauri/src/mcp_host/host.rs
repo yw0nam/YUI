@@ -6,7 +6,7 @@ use super::catalog;
 use super::launch;
 use super::lifecycle::LiveServer;
 use super::manifest::{self, Manifest};
-use super::orphans::Registry;
+use super::orphans::ProcessGroups;
 use super::server::PluginLog;
 use super::snapshot::{self, PluginEntry, ServerView, Snapshot};
 use super::store::{self, Source, State, StoredPlugin};
@@ -31,7 +31,7 @@ pub struct Host {
     inner: Mutex<Inner>,
     pub(super) calls: Calls,
     /// The running servers' process groups, in `groups.json`.
-    pub(super) groups: Arc<Registry>,
+    pub(super) groups: Arc<ProcessGroups>,
 }
 
 pub(super) struct Inner {
@@ -61,7 +61,7 @@ impl Host {
         // Without an app data dir the state is `Err`, so nothing ever reads or writes `dir`.
         let dir = app_data.as_deref().unwrap_or(Path::new("")).join("plugins");
         let log_dir = log_dir.join("plugins");
-        let groups = Registry::open(app_data.as_ref().ok().map(|_| dir.join("groups.json")));
+        let groups = ProcessGroups::open(app_data.as_ref().ok().map(|_| dir.join("groups.json")));
         let state = app_data.and_then(|_| {
             let loaded = store::load(&dir.join("state.json"));
             if let Err(e) = &loaded {

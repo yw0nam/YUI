@@ -8,6 +8,7 @@
 //! unrelated process took that pid, led a group, and exited leaving members, all before the next
 //! start.
 
+use super::store;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -19,12 +20,12 @@ struct Record {
 }
 
 /// The process groups of this host's running servers, mirrored to `groups.json`.
-pub struct Registry {
+pub struct ProcessGroups {
     path: Option<PathBuf>,
     pgids: Mutex<BTreeSet<u32>>,
 }
 
-impl Registry {
+impl ProcessGroups {
     /// Kills the groups a previous run left behind, then starts an empty record.
     /// `None` (no app data dir) records nothing and sweeps nothing.
     pub fn open(path: Option<PathBuf>) -> Arc<Self> {
@@ -41,13 +42,13 @@ impl Registry {
     }
 
     /// Records a spawned server's group.
-    pub fn group(self: &Arc<Self>, pgid: Option<u32>) -> Group {
+    pub fn group(self: &Arc<Self>, pgid: Option<u32>) -> ProcessGroup {
         if let Some(pgid) = pgid {
             self.change(|pgids| pgids.insert(pgid));
         }
-        Group {
+        ProcessGroup {
             pgid,
-            registry: self.clone(),
+            groups: self.clone(),
         }
     }
 
@@ -62,12 +63,12 @@ impl Registry {
 
 /// One server's process group; killing it also drops it from the record.
 #[derive(Clone)]
-pub struct Group {
+pub struct ProcessGroup {
     pgid: Option<u32>,
-    registry: Arc<Registry>,
+    groups: Arc<ProcessGroups>,
 }
 
-impl Group {
+impl ProcessGroup {
     /// SIGKILL to the group (unix), then forgets it; on Windows the job object ends the tree.
     pub fn kill(&self) {
         let Some(pgid) = self.pgid else {
@@ -81,24 +82,15 @@ impl Group {
                 Err(e) => log::warn!("mcp_host_killpg_failed pgid={pgid} error={e}"),
             }
         }
-        self.registry.change(|pgids| pgids.remove(&pgid));
+        self.groups.change(|pgids| pgids.remove(&pgid));
     }
 }
 
-/// Writes `groups.json.tmp` beside the file, then renames it over the file.
 fn write(path: &Path, pgids: &BTreeSet<u32>) {
-    let save = || -> std::io::Result<()> {
-        if let Some(dir) = path.parent() {
-            std::fs::create_dir_all(dir)?;
-        }
-        let tmp = path.with_extension("json.tmp");
-        let record = Record {
-            pgids: pgids.iter().copied().collect(),
-        };
-        std::fs::write(&tmp, serde_json::to_vec(&record)?)?;
-        std::fs::rename(&tmp, path)
+    let record = Record {
+        pgids: pgids.iter().copied().collect(),
     };
-    if let Err(e) = save() {
+    if let Err(e) = store::save(path, &record) {
         log::warn!("mcp_host_groups_write_failed error={e}");
     }
 }
@@ -182,7 +174,7 @@ mod tests {
         let orphan: i32 = line.trim().parse().unwrap();
         leader.wait().unwrap();
         let path = record(&format!(r#"{{"pgids":[{}]}}"#, leader.id()));
-        Registry::open(Some(path.clone()));
+        ProcessGroups::open(Some(path.clone()));
         let killed = eventually(|| gone(orphan)).await;
         let _ = kill(Pid::from_raw(orphan), Signal::SIGKILL);
         assert!(killed, "orphan {orphan} still runs");
@@ -197,7 +189,7 @@ mod tests {
             .spawn()
             .unwrap();
         let path = record(&format!(r#"{{"pgids":[{}]}}"#, leader.id()));
-        Registry::open(Some(path.clone()));
+        ProcessGroups::open(Some(path.clone()));
         tokio::time::sleep(Duration::from_millis(200)).await;
         let alive = leader.try_wait().unwrap().is_none();
         let _ = leader.kill();
@@ -215,7 +207,7 @@ mod tests {
             "not json".into(),
         ] {
             let path = record(&text);
-            Registry::open(Some(path.clone()));
+            ProcessGroups::open(Some(path.clone()));
             assert_eq!(read_json(&path), json!({"pgids": []}), "from {text}");
         }
     }

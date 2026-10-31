@@ -2,7 +2,7 @@
 
 use super::launch;
 use super::manifest::ServerSpec;
-use super::orphans::{Group, Registry};
+use super::orphans::{ProcessGroup, ProcessGroups};
 use crate::log_rotation::DateRotatingFile;
 use process_wrap::tokio::ChildWrapper;
 use rmcp::model::Tool;
@@ -107,7 +107,7 @@ pub struct Server {
     pub tools: Vec<Tool>,
     name: String,
     log: Arc<PluginLog>,
-    group: Group,
+    group: ProcessGroup,
     /// Owns the child and waits for its exit.
     watch: tokio::task::JoinHandle<()>,
     /// Set by stop, so the exit it causes is not reported as `exited`.
@@ -141,7 +141,7 @@ impl Server {
 /// A server process whose connection is not initialized yet.
 pub struct Spawned {
     child: Box<dyn ChildWrapper>,
-    group: Group,
+    group: ProcessGroup,
     name: String,
     log: Arc<PluginLog>,
     stopped: Arc<AtomicBool>,
@@ -156,14 +156,14 @@ impl Spawned {
     }
 
     pub fn stop(self) {
-        kill_tree(&self.group, self.child);
+        self.group.kill();
         self.log.stopped(&self.name);
     }
 }
 
 /// Stops a server that is still starting, so its start ends as a stop and not a failure.
 pub struct Stopper {
-    group: Group,
+    group: ProcessGroup,
     stopped: Arc<AtomicBool>,
 }
 
@@ -180,7 +180,7 @@ pub fn spawn(
     root: &Path,
     data: &Path,
     log: Arc<PluginLog>,
-    registry: &Arc<Registry>,
+    groups: &Arc<ProcessGroups>,
 ) -> Result<Spawned, Failure> {
     let mut child = launch::command(spec, root, data)
         .and_then(|mut command| command.spawn())
@@ -189,7 +189,7 @@ pub fn spawn(
         tokio::spawn(read_stderr(stderr, spec.name.clone(), log.clone()));
     }
     Ok(Spawned {
-        group: registry.group(child.id()),
+        group: groups.group(child.id()),
         child,
         name: spec.name.clone(),
         log,
@@ -225,7 +225,7 @@ pub async fn connect(
     let mut client = match within(serving, deadline) {
         Ok(client) => client,
         Err(reason) => {
-            kill_tree(&group, child);
+            group.kill();
             return Err(end(Phase::Initialize, reason));
         }
     };
@@ -234,7 +234,7 @@ pub async fn connect(
         Ok(tools) => tools,
         Err(reason) => {
             let _ = client.close().await;
-            kill_tree(&group, child);
+            group.kill();
             return Err(end(Phase::List, reason));
         }
     };
@@ -334,12 +334,6 @@ fn decode(bytes: &[u8]) -> String {
     text
 }
 
-/// Kills the group; on Windows the job object ends the tree when the child drops.
-fn kill_tree(group: &Group, child: Box<dyn ChildWrapper>) {
-    group.kill();
-    drop(child);
-}
-
 #[cfg(all(test, unix))]
 mod tests {
     use super::super::manifest;
@@ -375,7 +369,13 @@ mod tests {
         let on_exit = move |reason| {
             let _ = tx.send(reason);
         };
-        let result = match spawn(&spec, &fixture(), &data, log.clone(), &Registry::open(None)) {
+        let result = match spawn(
+            &spec,
+            &fixture(),
+            &data,
+            log.clone(),
+            &ProcessGroups::open(None),
+        ) {
             Ok(spawned) => connect(spawned, deadline, on_exit).await,
             Err(failure) => Err(failure),
         };
