@@ -194,6 +194,12 @@ globalThis.taskSpace = async (name) => ({
     }
     if (method === "Browser.setWindowBounds" && params.windowId === 7) {
       console.log("state " + params.bounds.windowState);
+      const target = params.bounds.windowState;
+      const current = globalThis.windowState ?? "normal";
+      if ((target === "maximized" || target === "fullscreen") && (current === "minimized" || current === "fullscreen")) {
+        throw new Error("To maximize a minimized or fullscreen window, restore it to normal state first.");
+      }
+      globalThis.windowState = target;
       if (params.bounds.windowState === "minimized") {
         globalThis.sawMinimized = true;
         return {};
@@ -463,18 +469,14 @@ await screenshot(task.page("p1"));"#;
             .unwrap();
         assert_eq!(out.exit_code, Some(0), "output: {}", out.output);
         assert_eq!(out.images.len(), 1);
-        assert!(
-            out.output.contains("state minimized"),
-            "output: {}",
-            out.output
-        );
-        assert!(
-            out.output.contains("state maximized"),
-            "output: {}",
-            out.output
-        );
-        assert!(
-            !out.output.contains("state normal"),
+        let states: Vec<&str> = out
+            .output
+            .lines()
+            .filter_map(|l| l.strip_prefix("state "))
+            .collect();
+        assert_eq!(
+            states,
+            ["minimized", "normal", "maximized"],
             "output: {}",
             out.output
         );
