@@ -83,8 +83,6 @@ describe("wireLocomotion", () => {
     };
     const faller = {
       drop: vi.fn(async () => {}),
-      place: vi.fn(async () => true),
-      placed: Promise.resolve(),
       cancel: () => cancelOrder.push("faller.cancel"),
       dispose: () => teardowns.push("faller.dispose"),
     };
@@ -238,7 +236,6 @@ describe("wireLocomotion", () => {
   it("hands out the real frame window", () => {
     const s = setup();
 
-    expect(s.locomotion.frame.ready).toBe(s.travelFrame.ready);
     s.locomotion.frame.frameWindow();
     expect(s.travelFrame.frameWindow).toHaveBeenCalledOnce();
   });

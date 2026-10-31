@@ -75,7 +75,6 @@ export function wireLocomotion(deps: {
   abortTravel(): Promise<void>;
   /** The travel frame's window geometry reads, for the tools that capture the screen. */
   frame: {
-    ready: Promise<void>;
     frameWindow(): FrameWindow;
     listMonitors(): Promise<ScreenMonitor[]>;
   };
@@ -260,7 +259,6 @@ export function wireLocomotion(deps: {
     },
     abortTravel: () => travelFrame.abort(),
     frame: {
-      ready: travelFrame.ready,
       frameWindow: travelFrame.frameWindow,
       listMonitors: travelFrame.listMonitors,
     },

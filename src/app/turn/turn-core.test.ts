@@ -1,8 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-const { dispatcher, endThinking, pushTurns, speechPlayback } = vi.hoisted(() => ({
+const { dispatcher, pushTurns, speechPlayback } = vi.hoisted(() => ({
   dispatcher: { cancel: vi.fn(), start: vi.fn() },
-  endThinking: vi.fn(),
   pushTurns: { cut: vi.fn(() => ["t1"]) },
   speechPlayback: { interrupt: vi.fn() },
 }));
@@ -25,7 +24,6 @@ vi.mock("./voice/wire-voice", async (importOriginal) => {
           turnOutput: {} as TurnVoice["voice"]["turnOutput"],
           speakFailure: () => {},
           resumeThinking: () => {},
-          endThinking,
           createSttEngine: createSttEngine as unknown as TurnVoice["voice"]["createSttEngine"],
           dispose: () => {},
         },

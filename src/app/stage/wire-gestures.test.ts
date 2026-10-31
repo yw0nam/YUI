@@ -98,7 +98,6 @@ describe("wireStageGestures", () => {
       resume: vi.fn(() => order.push("resume")),
     };
     const bus = { push: vi.fn() };
-    const onTap = vi.fn();
 
     await wireStageGestures({
       stage: {} as HTMLElement,
@@ -121,7 +120,6 @@ describe("wireStageGestures", () => {
       hitTest,
       locomotion,
       cameraSettings: cameraSettings as never,
-      onTap,
       register: (teardown: () => void) => {
         registered.push(teardown);
       },
@@ -137,7 +135,6 @@ describe("wireStageGestures", () => {
       locomotion,
       cameraSettings,
       travelAbort,
-      onTap,
     };
   };
 
@@ -147,7 +144,6 @@ describe("wireStageGestures", () => {
     s.dragOpts.onClick!({ x: 10, y: 20 });
 
     expect(s.bus.push).toHaveBeenCalledWith(expect.objectContaining({ event_name: "user.tap" }));
-    expect(s.onTap).toHaveBeenCalledOnce();
   });
 
   it("reports a pat start as a tap", async () => {
@@ -158,7 +154,6 @@ describe("wireStageGestures", () => {
     expect(s.bus.push).toHaveBeenCalledWith(
       expect.objectContaining({ event_name: "user.pat_start" }),
     );
-    expect(s.onTap).toHaveBeenCalledOnce();
   });
 
   it("on drag start cancels locomotion, suspends the hit-test and returns the travel abort", async () => {

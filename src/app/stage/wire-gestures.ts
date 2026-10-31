@@ -21,7 +21,6 @@ export function createPatGesture(deps: {
   hitTest: Pick<HitTestController, "suspend" | "resume">;
   tapSource: Pick<TapSource, "isHeadPoint" | "handlePatStart" | "handlePatEnd" | "handlePatAbort">;
   holdMs: () => number;
-  onTap?: () => void;
 }): PatGesture {
   return {
     isPatPoint: deps.tapSource.isHeadPoint,
@@ -29,7 +28,6 @@ export function createPatGesture(deps: {
     onStart: () => {
       deps.hitTest.suspend();
       deps.tapSource.handlePatStart();
-      deps.onTap?.();
     },
     onEnd: () => {
       deps.hitTest.resume();
@@ -54,8 +52,6 @@ export async function wireStageGestures(deps: {
     "setDragging" | "cancel" | "dropSource" | "abortTravel"
   >;
   cameraSettings: Pick<ReturnType<typeof createCameraSettings>, "get" | "setAzimuth" | "setPolar">;
-  /** A click on the character or a pat start, after its tap handling. */
-  onTap?: () => void;
   register: (teardown: () => void) => void;
 }): Promise<void> {
   const {
@@ -85,13 +81,11 @@ export async function wireStageGestures(deps: {
   const cleanupDrag = await initDrag(stage, {
     onClick: (pos) => {
       tapSource.handleClick(pos);
-      deps.onTap?.();
     },
     pat: createPatGesture({
       hitTest,
       tapSource,
       holdMs: () => getConfig().avatar.tap.pat_hold_ms,
-      onTap: deps.onTap,
     }),
     onDragStart: () => {
       locomotion.setDragging(true);

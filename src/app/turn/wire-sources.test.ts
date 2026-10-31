@@ -16,8 +16,6 @@ const { created, started, drainQueue, makeSource } = vi.hoisted(() => {
       stop: () => {},
       noteInteraction: () => {},
       drain: () => drainQueue.splice(0),
-      owed: () => null,
-      latch: () => {},
     };
   };
   return { created, started, drainQueue, makeSource };
