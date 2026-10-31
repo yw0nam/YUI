@@ -79,6 +79,19 @@ describe("projectFeetAnchor — vertical position", () => {
     expect(a.y).toBeGreaterThan(h / 2);
   });
 
+  it("feet y is the lowest screen row of the box's bottom face, its front edge", () => {
+    const w = 400;
+    const h = 600;
+    const cam = framedCamera(VRM_BOX, w, h);
+    const a = projectFeetAnchor(VRM_BOX, cam, w, h)!;
+    const rowOf = (z: number) => {
+      const p = new THREE.Vector3(0, VRM_BOX.min.y, z).project(cam);
+      return (1 - (p.y * 0.5 + 0.5)) * h;
+    };
+    expect(a.y).toBeCloseTo(rowOf(VRM_BOX.max.z), 3);
+    expect(a.y).toBeGreaterThan(rowOf(0));
+  });
+
   it("feet y increases as the camera moves closer (bigger character)", () => {
     const w = 600;
     const h = 600;
