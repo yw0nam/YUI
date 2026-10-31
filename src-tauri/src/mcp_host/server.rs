@@ -2,6 +2,7 @@
 
 use super::launch;
 use super::manifest::ServerSpec;
+use super::tree::Tree;
 use crate::log_rotation::DateRotatingFile;
 use process_wrap::tokio::ChildWrapper;
 use rmcp::model::Tool;
@@ -106,8 +107,7 @@ pub struct Server {
     pub tools: Vec<Tool>,
     name: String,
     log: Arc<PluginLog>,
-    /// The leader's pid, which is the process group id.
-    pgid: Option<u32>,
+    tree: Tree,
     /// Owns the child and waits for its exit.
     watch: tokio::task::JoinHandle<()>,
     /// Set by stop, so the exit it causes is not reported as `exited`.
@@ -119,7 +119,8 @@ impl Server {
         self.client.peer()
     }
 
-    /// Closes the connection, waits up to `EXIT_GRACE` for an exit, then kills the tree.
+    /// Closes the connection, waits up to `EXIT_GRACE` for an exit, then kills the tree and
+    /// waits until it is gone.
     pub async fn stop(mut self) {
         let exited = self.watch.is_finished();
         self.stopping.store(true, Ordering::SeqCst);
@@ -128,12 +129,19 @@ impl Server {
             .await
             .is_err()
         {
-            self.watch.abort();
-            let _ = (&mut self.watch).await;
+            self.tree.kill();
+            if tokio::time::timeout(EXIT_GRACE, &mut self.watch)
+                .await
+                .is_err()
+            {
+                self.watch.abort();
+                let _ = (&mut self.watch).await;
+            }
         }
         if !exited {
-            kill_group(self.pgid);
+            self.tree.kill();
         }
+        self.tree.settled().await;
         self.log.stopped(&self.name);
     }
 }
@@ -141,8 +149,7 @@ impl Server {
 /// A server process whose connection is not initialized yet.
 pub struct Spawned {
     child: Box<dyn ChildWrapper>,
-    /// The leader's pid, which is the process group id.
-    pgid: Option<u32>,
+    tree: Tree,
     name: String,
     log: Arc<PluginLog>,
     stopped: Arc<AtomicBool>,
@@ -151,27 +158,28 @@ pub struct Spawned {
 impl Spawned {
     pub fn stopper(&self) -> Stopper {
         Stopper {
-            pgid: self.pgid,
+            tree: self.tree.clone(),
             stopped: self.stopped.clone(),
         }
     }
 
     pub fn stop(self) {
-        kill_tree(self.pgid, self.child);
+        kill_tree(&self.tree, self.child);
         self.log.stopped(&self.name);
     }
 }
 
 /// Stops a server that is still starting, so its start ends as a stop and not a failure.
 pub struct Stopper {
-    pgid: Option<u32>,
+    tree: Tree,
     stopped: Arc<AtomicBool>,
 }
 
 impl Stopper {
-    pub fn stop(&self) {
+    pub async fn stop(&self) {
         self.stopped.store(true, Ordering::SeqCst);
-        kill_group(self.pgid);
+        self.tree.kill();
+        self.tree.settled().await;
     }
 }
 
@@ -182,14 +190,14 @@ pub fn spawn(
     data: &Path,
     log: Arc<PluginLog>,
 ) -> Result<Spawned, Failure> {
-    let mut child = launch::command(spec, root, data)
-        .and_then(|mut command| command.spawn())
+    let (mut child, tree) = launch::command(spec, root, data)
+        .and_then(Tree::start)
         .map_err(|e| failed(&log, &spec.name, Phase::Spawn, e.to_string()))?;
     if let Some(stderr) = child.stderr().take() {
         tokio::spawn(read_stderr(stderr, spec.name.clone(), log.clone()));
     }
     Ok(Spawned {
-        pgid: child.id(),
+        tree,
         child,
         name: spec.name.clone(),
         log,
@@ -205,7 +213,7 @@ pub async fn connect(
 ) -> Result<Server, Failure> {
     let Spawned {
         mut child,
-        pgid,
+        tree,
         name,
         log,
         stopped,
@@ -225,7 +233,7 @@ pub async fn connect(
     let mut client = match within(serving, deadline) {
         Ok(client) => client,
         Err(reason) => {
-            kill_tree(pgid, child);
+            kill_tree(&tree, child);
             return Err(end(Phase::Initialize, reason));
         }
     };
@@ -234,7 +242,7 @@ pub async fn connect(
         Ok(tools) => tools,
         Err(reason) => {
             let _ = client.close().await;
-            kill_tree(pgid, child);
+            kill_tree(&tree, child);
             return Err(end(Phase::List, reason));
         }
     };
@@ -243,8 +251,9 @@ pub async fn connect(
     let (watch_name, watch_log) = (name.clone(), log.clone());
     let stopping = Arc::new(AtomicBool::new(false));
     let watch_stopping = stopping.clone();
+    let watch_tree = tree.clone();
     let watch = tokio::spawn(async move {
-        // The leader alone: the wrapper's own wait also waits for every orphan in the group.
+        // The leader alone: a process group wrapper's own wait also waits for every orphan.
         let reason = match child.inner_mut().wait().await {
             Ok(status) => status
                 .code()
@@ -254,7 +263,7 @@ pub async fn connect(
         if watch_stopping.load(Ordering::SeqCst) {
             return;
         }
-        kill_group(pgid);
+        watch_tree.kill();
         watch_log.line(&watch_name, &format!("exited: {reason}"));
         log::info!(
             "mcp_server_exited plugin={} server={watch_name} reason={reason}",
@@ -267,7 +276,7 @@ pub async fn connect(
         tools,
         name,
         log,
-        pgid,
+        tree,
         watch,
         stopping,
     })
@@ -333,26 +342,10 @@ fn decode(bytes: &[u8]) -> String {
     text
 }
 
-fn kill_tree(pgid: Option<u32>, child: Box<dyn ChildWrapper>) {
-    kill_group(pgid);
+fn kill_tree(tree: &Tree, child: Box<dyn ChildWrapper>) {
+    tree.kill();
     drop(child);
 }
-
-/// SIGKILL to the group; on Windows the job object ends the tree when the child drops.
-#[cfg(unix)]
-fn kill_group(pgid: Option<u32>) {
-    use nix::sys::signal::{killpg, Signal};
-    let Some(pgid) = pgid else {
-        return;
-    };
-    match killpg(nix::unistd::Pid::from_raw(pgid as i32), Signal::SIGKILL) {
-        Ok(()) | Err(nix::errno::Errno::ESRCH) => {}
-        Err(e) => log::warn!("mcp_host_killpg_failed pgid={pgid} error={e}"),
-    }
-}
-
-#[cfg(not(unix))]
-fn kill_group(_pgid: Option<u32>) {}
 
 #[cfg(all(test, unix))]
 mod tests {
@@ -575,7 +568,7 @@ mod windows_tests {
         let start = tokio::spawn(connect(spawned, Duration::from_secs(30), |_| {}));
         tokio::time::sleep(Duration::from_millis(500)).await;
 
-        stopper.stop();
+        stopper.stop().await;
 
         let ended = tokio::time::timeout(Duration::from_secs(3), start).await;
         assert!(ended.is_ok(), "the start outlived the stop");

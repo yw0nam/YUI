@@ -1,4 +1,4 @@
-//! Builds the command for one MCP server: placeholder expansion, no shell, process-tree wrappers.
+//! Builds the command for one MCP server: placeholder expansion, no shell.
 
 use super::manifest::ServerSpec;
 use process_wrap::tokio::CommandWrap;
@@ -9,28 +9,21 @@ use std::process::Stdio;
 pub fn command(spec: &ServerSpec, root: &Path, data: &Path) -> std::io::Result<CommandWrap> {
     std::fs::create_dir_all(data)?;
     let (root_text, data_text) = (root.to_string_lossy(), data.to_string_lossy());
-    let mut command = CommandWrap::with_new(expand(&spec.command, &root_text, &data_text), |c| {
-        c.args(spec.args.iter().map(|a| expand(a, &root_text, &data_text)))
-            .envs(
-                spec.env
-                    .iter()
-                    .map(|(k, v)| (k, expand(v, &root_text, &data_text))),
-            )
-            .current_dir(root)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
-    });
-    #[cfg(unix)]
-    command.wrap(process_wrap::tokio::ProcessGroup::leader());
-    #[cfg(windows)]
-    command
-        .wrap(process_wrap::tokio::JobObject)
-        .wrap(process_wrap::tokio::KillOnDrop)
-        .wrap(process_wrap::tokio::CreationFlags(
-            windows_process::Win32::System::Threading::CREATE_NO_WINDOW,
-        ));
-    Ok(command)
+    Ok(CommandWrap::with_new(
+        expand(&spec.command, &root_text, &data_text),
+        |c| {
+            c.args(spec.args.iter().map(|a| expand(a, &root_text, &data_text)))
+                .envs(
+                    spec.env
+                        .iter()
+                        .map(|(k, v)| (k, expand(v, &root_text, &data_text))),
+                )
+                .current_dir(root)
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped());
+        },
+    ))
 }
 
 /// The launch command and its arguments after placeholder expansion, joined by spaces.

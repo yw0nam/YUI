@@ -151,7 +151,7 @@ impl Host {
     /// Stops starting servers, cancels running servers' calls, then stops those together.
     pub(super) async fn stop(&self, stopping: Stopping) {
         for starting in stopping.starting {
-            starting.stop();
+            starting.stop().await;
         }
         for (server_id, _) in &stopping.running {
             self.calls.cancel_server(server_id).await;

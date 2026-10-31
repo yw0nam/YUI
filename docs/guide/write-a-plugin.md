@@ -70,7 +70,7 @@ ROOT is the plugin folder, which is also the working directory. DATA is the plug
 |---|---|
 | `initialize` and `tools/list` answer within 30 s together | A miss shows **Unavailable**, naming the step it stopped at. |
 | A server that ends on its own | It shows **Exited** with **Restart**; the next app start runs it again. |
-| A stop | YUI closes the connection, waits up to 1 s, then kills the server and every process it started. |
+| A stop | YUI closes the connection, waits up to 1 s, then kills the server and every process it started, and returns once they are gone. On Windows a process the server starts with `CREATE_BREAKAWAY_FROM_JOB` leaves the tree and outlives the stop. |
 | stdout | The MCP channel, and nothing else. |
 | stderr | Each line goes to the plugin log, prefixed `[<server>] ` and cut at 2000 bytes. |
 
