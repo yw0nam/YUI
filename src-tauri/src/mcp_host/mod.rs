@@ -50,6 +50,7 @@ mod install;
 mod launch;
 mod lifecycle;
 mod manifest;
+mod orphans;
 mod server;
 mod snapshot;
 mod store;
