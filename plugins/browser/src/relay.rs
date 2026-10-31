@@ -182,16 +182,22 @@ globalThis.taskSpace = async (name) => ({
   cdp: async (method, params) => {
     console.log("cdp " + method);
     if (method === "Browser.getWindowForTarget" && params.targetId === "target-1") return { windowId: 7 };
-    if (method === "Browser.setWindowBounds" && params.windowId === 7 && params.bounds.windowState === "minimized") {
-      globalThis.sawMinimized = true;
-      return {};
+    if (method === "Browser.getWindowBounds" && params.windowId === 7) {
+      if (globalThis.cycleStalls) return new Promise(() => {});
+      return { bounds: { windowState: globalThis.windowState ?? "normal" } };
     }
-    if (method === "Browser.setWindowBounds" && params.windowId === 7 && params.bounds.windowState === "normal") {
+    if (method === "Browser.setWindowBounds" && params.windowId === 7) {
+      console.log("state " + params.bounds.windowState);
+      if (params.bounds.windowState === "minimized") {
+        globalThis.sawMinimized = true;
+        return {};
+      }
       if (globalThis.sawMinimized && !globalThis.stallStuck) globalThis.stalled = false;
       globalThis.sawMinimized = false;
       if (!globalThis.windowStuck && globalThis.minimized) {
         globalThis.minimized = false;
         globalThis.failsAfterRestore = 1;
+        if (globalThis.stallAfterRestore) globalThis.stalled = true;
       }
       return {};
     }
@@ -212,6 +218,8 @@ globalThis.taskSpace = async (name) => ({
     },
   }),
 });"#;
+
+    const STALL_TEXT: &str = "screenshot stalled: ego lite did not capture in time; read the page with page.snapshot() instead";
 
     const FAKE_GUIDE: &str = "fake ego-browser guide\nline two\n";
 
@@ -430,11 +438,76 @@ await screenshot(task.page("p1"));"#;
             .await
             .unwrap();
         assert_eq!(out.exit_code, Some(1), "output: {}", out.output);
+        assert!(out.output.contains(STALL_TEXT), "output: {}", out.output);
+        assert!(out.images.is_empty());
+    }
+
+    #[tokio::test]
+    async fn screenshot_restores_the_window_state_it_found_after_a_stall() {
+        let code = r#"globalThis.stalled = true;
+globalThis.windowState = "maximized";
+await screenshot(task.page("p1"));"#;
+        let limits = Limits {
+            deadline_ms: 5000,
+            ..limits()
+        };
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits)
+            .await
+            .unwrap();
+        assert_eq!(out.exit_code, Some(0), "output: {}", out.output);
+        assert_eq!(out.images.len(), 1);
         assert!(
-            out.output.contains("screenshot stalled: ego lite did not capture in time; read the page with page.snapshot() instead"),
+            out.output.contains("state minimized"),
             "output: {}",
             out.output
         );
+        assert!(
+            out.output.contains("state maximized"),
+            "output: {}",
+            out.output
+        );
+        assert!(
+            !out.output.contains("state normal"),
+            "output: {}",
+            out.output
+        );
+    }
+
+    #[tokio::test]
+    async fn screenshot_names_page_snapshot_when_the_window_cycle_stalls() {
+        let code = r#"globalThis.stalled = true;
+globalThis.cycleStalls = true;
+await screenshot(task.page("p1"));"#;
+        let limits = Limits {
+            deadline_ms: 5000,
+            ..limits()
+        };
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits)
+            .await
+            .unwrap();
+        assert_eq!(out.exit_code, Some(1), "output: {}", out.output);
+        assert!(out.output.contains(STALL_TEXT), "output: {}", out.output);
+        assert!(out.images.is_empty());
+    }
+
+    #[tokio::test]
+    async fn screenshot_names_page_snapshot_when_a_capture_stalls_after_a_minimized_restore() {
+        let code = r#"globalThis.minimized = true;
+globalThis.stallAfterRestore = true;
+await screenshot(task.page("p1"));"#;
+        let limits = Limits {
+            deadline_ms: 5000,
+            ..limits()
+        };
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits)
+            .await
+            .unwrap();
+        assert_eq!(out.exit_code, Some(1), "output: {}", out.output);
+        assert!(out.output.contains(STALL_TEXT), "output: {}", out.output);
+        assert!(!out.deadline);
         assert!(out.images.is_empty());
     }
 
