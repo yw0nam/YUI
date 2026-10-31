@@ -56,6 +56,14 @@ pub fn gone(pid: i32) -> bool {
     nix::sys::signal::kill(nix::unistd::Pid::from_raw(pid), None) == Err(nix::errno::Errno::ESRCH)
 }
 
+/// The JSON in `path`, or `null` when it is missing or invalid.
+pub fn read_json(path: &Path) -> Value {
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|text| serde_json::from_str(&text).ok())
+        .unwrap_or(Value::Null)
+}
+
 /// A copy of the fixture plugin in a new temp folder, with plugin name `id`.
 pub fn fixture_copy(id: &str) -> PathBuf {
     let dir = temp_dir().join(id);

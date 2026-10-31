@@ -66,12 +66,12 @@ pub fn load(path: &Path) -> Result<State, String> {
     })
 }
 
-/// Writes `state.json.tmp` beside the file, then renames it over the file.
-pub fn save(path: &Path, state: &State) -> std::io::Result<()> {
+/// Writes `<file>.tmp` beside the file, then renames it over the file.
+pub fn save<T: Serialize>(path: &Path, value: &T) -> std::io::Result<()> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
     }
     let tmp = path.with_extension("json.tmp");
-    std::fs::write(&tmp, serde_json::to_vec_pretty(state)?)?;
+    std::fs::write(&tmp, serde_json::to_vec_pretty(value)?)?;
     std::fs::rename(&tmp, path)
 }

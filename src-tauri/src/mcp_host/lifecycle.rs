@@ -174,7 +174,8 @@ impl Host {
             ticket.epoch,
         );
         let data = launch::data_dir(&self.dir, &ticket.plugin_id);
-        let started = match server::spawn(&ticket.spec, &ticket.root, &data, ticket.log) {
+        let spawned = server::spawn(&ticket.spec, &ticket.root, &data, ticket.log, &self.groups);
+        let started = match spawned {
             Ok(spawned) => {
                 match self
                     .lock()
@@ -244,7 +245,7 @@ impl Host {
 #[cfg(all(test, unix))]
 mod tests {
     use super::super::test_support::{
-        eventually, fixture_copy, gone, host_at, hung_child, require_python, running,
+        eventually, fixture_copy, gone, host_at, hung_child, read_json, require_python, running,
         server_logged_a_cancel, set_mode, slow_call, temp_dir,
     };
     use super::*;
@@ -293,6 +294,32 @@ mod tests {
             !tail.iter().any(|l| l.starts_with("[main] failed")),
             "{tail:?}"
         );
+    }
+
+    #[tokio::test]
+    async fn a_running_servers_group_is_recorded_until_shutdown() {
+        require_python();
+        let app_data = temp_dir();
+        let (host, _) = host_at(&app_data);
+        host.add(fixture_copy("yui-test")).unwrap();
+        host.enable("yui-test").await.unwrap();
+        let called = host
+            .call("pet-a", "c1", "spawn_child", json!({}), "preset-1")
+            .await;
+        let child = called
+            .ok()
+            .and_then(|r| r["content"][0]["text"].as_str()?.parse().ok());
+        let pgid =
+            child.and_then(|c| nix::unistd::getpgid(Some(nix::unistd::Pid::from_raw(c))).ok());
+        let groups = app_data.join("plugins/groups.json");
+        let running = read_json(&groups);
+        host.shutdown().await;
+        assert_eq!(
+            running,
+            json!({"pgids": [pgid.map(nix::unistd::Pid::as_raw)]}),
+            "groups.json does not list the running server's pgid"
+        );
+        assert_eq!(read_json(&groups), json!({"pgids": []}));
     }
 
     #[tokio::test]

@@ -557,7 +557,7 @@ globalThis.YUI_MAP =
       "id": "shell/mcp-host",
       "module": "shell",
       "label": "mcp_host",
-      "role": "Installs, updates, and removes Catalog plugins, runs local and Catalog plugins' MCP servers, keeps their enablement and consent on disk, publishes a revisioned snapshot to every window, answers plugin tool calls and skill reads, names each server's launch command in the snapshot, and opens its plugin log folder.",
+      "role": "Installs, updates, and removes Catalog plugins, runs local and Catalog plugins' MCP servers, keeps their enablement and consent on disk, publishes a revisioned snapshot to every window, answers plugin tool calls and skill reads, names each server's launch command in the snapshot, opens its plugin log folder, and at start kills the process groups a killed app left behind.",
       "paths": [
         "src-tauri/src/mcp_host"
       ]
