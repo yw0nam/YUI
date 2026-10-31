@@ -194,8 +194,12 @@ globalThis.taskSpace = async (name) => ({
     }
     if (method === "Browser.setWindowBounds" && params.windowId === 7) {
       console.log("state " + params.bounds.windowState);
+      if (globalThis.boundsError) throw new Error(globalThis.boundsError);
       const target = params.bounds.windowState;
       const current = globalThis.windowState ?? "normal";
+      if (target === "minimized" && current === "fullscreen") {
+        throw new Error("To minimize a fullscreen window, restore it to normal state first.");
+      }
       if ((target === "maximized" || target === "fullscreen") && (current === "minimized" || current === "fullscreen")) {
         throw new Error("To maximize a minimized or fullscreen window, restore it to normal state first.");
       }
@@ -477,6 +481,56 @@ await screenshot(task.page("p1"));"#;
         assert_eq!(
             states,
             ["minimized", "normal", "maximized"],
+            "output: {}",
+            out.output
+        );
+    }
+
+    #[tokio::test]
+    async fn screenshot_leaves_a_fullscreen_window_fullscreen_after_a_stall() {
+        let code = r#"globalThis.stalled = true;
+globalThis.windowState = "fullscreen";
+await screenshot(task.page("p1"));"#;
+        let limits = Limits {
+            deadline_ms: 5000,
+            ..limits()
+        };
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits)
+            .await
+            .unwrap();
+        assert_eq!(out.exit_code, Some(0), "output: {}", out.output);
+        assert_eq!(out.images.len(), 1);
+        let states: Vec<&str> = out
+            .output
+            .lines()
+            .filter_map(|l| l.strip_prefix("state "))
+            .collect();
+        assert_eq!(
+            states,
+            ["normal", "minimized", "normal", "fullscreen"],
+            "output: {}",
+            out.output
+        );
+    }
+
+    #[tokio::test]
+    async fn screenshot_names_page_snapshot_when_the_window_cycle_fails() {
+        let code = r#"globalThis.stalled = true;
+globalThis.boundsError = "raw cdp boom";
+await screenshot(task.page("p1"));"#;
+        let limits = Limits {
+            deadline_ms: 5000,
+            ..limits()
+        };
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits)
+            .await
+            .unwrap();
+        assert_eq!(out.exit_code, Some(1), "output: {}", out.output);
+        assert!(out.output.contains(STALL_TEXT), "output: {}", out.output);
+        assert!(
+            !out.output.contains("raw cdp boom"),
             "output: {}",
             out.output
         );
