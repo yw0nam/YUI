@@ -215,26 +215,4 @@ describe("drag-hold-source", () => {
     expect(() => source.noteDragEnd()).not.toThrow();
     expect(pushed).toHaveLength(1);
   });
-
-  it("pushes nothing while held, and fires as before once released", () => {
-    const timers = makeFakeTimers();
-    let held = true;
-    const source = createDragHoldSource({
-      bus,
-      getHoldMs: () => 5000,
-      getCue: () => CUE,
-      isHeld: () => held,
-      setTimeout: timers.fakeSetTimeout,
-      clearTimeout: timers.fakeClearTimeout,
-    });
-
-    source.noteDragStart();
-    timers.fireLatest();
-    expect(pushed).toEqual([]);
-
-    held = false;
-    source.noteDragStart();
-    timers.fireLatest();
-    expect(pushed.map((e) => e.event_name)).toEqual(["proactive.drag_held"]);
-  });
 });

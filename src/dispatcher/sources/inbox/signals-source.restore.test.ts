@@ -17,8 +17,8 @@ import {
   SIGNAL_ENVELOPE,
 } from "../../test-helpers";
 import { createTurnLog } from "../../turn/turn";
+import { createMilestoneSource } from "../idle-tick/milestone-source";
 import { createProactiveSource } from "../idle-tick/proactive-source";
-import { createWakeSource } from "../wake/wake-source";
 import { createSignalsSource, type SignalsSource } from "./signals-source";
 
 beforeEach(() => {
@@ -27,7 +27,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
-it("restores signals after a failed wake turn is dropped", async () => {
+it("restores signals after a failed milestone turn is dropped", async () => {
   const handlers = new Set<(event: { payload: OsEventPayload }) => void>();
   const listen: OsEventListen = async (_event, handler) => {
     handlers.add(handler);
@@ -38,6 +38,13 @@ it("restores signals after a failed wake turn is dropped", async () => {
   const tick = (os_idle_ms: number) => {
     for (const handler of handlers)
       handler({ payload: { event_name: "os_idle_tick", ts: Date.now(), data: { os_idle_ms } } });
+  };
+  const milestoneHandlers = new Set<(event: { payload: OsEventPayload }) => void>();
+  const milestoneListen: OsEventListen = async (_event, handler) => {
+    milestoneHandlers.add(handler);
+    return () => {
+      milestoneHandlers.delete(handler);
+    };
   };
   let acceptSignals: ((event: SignalsBatch) => void) | undefined;
   const bus = createEventBus();
@@ -82,24 +89,27 @@ it("restores signals after a failed wake turn is dropped", async () => {
   tick(20_000);
   const group: SignalGroup = { envelope: SIGNAL_ENVELOPE, items: [{ message: "ready" }] };
   acceptSignals?.({ signals: group.items, envelope: group.envelope, ts: NOW });
-  const wake = createWakeSource({
+  const milestone = createMilestoneSource({
     bus,
-    firstActivity: {
-      owed: () => ({ name: "first_activity", local_time: "2026-10-24T12:00:00" }),
-      latch: () => {},
-    },
+    present_max_idle_ms: 10_000,
+    isEnabled: () => true,
     drainSignals: signalsSource.drain,
+    firedStorage: { load: () => ({}), save: () => {} },
+    listen: milestoneListen,
   });
-  wake.fire("click");
+  await milestone.start();
+  for (const handler of milestoneHandlers)
+    handler({ payload: { event_name: "os_idle_tick", ts: Date.now(), data: { os_idle_ms: 500 } } });
   await vi.advanceTimersByTimeAsync(50);
   expect(call).toHaveBeenCalledTimes(1);
-  expect(call.mock.calls[0]![0].trigger.event_name).toBe("proactive.wake");
+  expect(call.mock.calls[0]![0].trigger.event_name).toBe("time_milestone.first_activity");
   expect(
     dispatcher.recentDrops().map(({ event_name, reason }) => ({ event_name, reason })),
-  ).toEqual([{ event_name: "proactive.wake", reason: "network_drop" }]);
+  ).toEqual([{ event_name: "time_milestone.first_activity", reason: "network_drop" }]);
   expect(signalsSource.drain()).toEqual([group]);
   dispatcher.stop();
   signalsSource.stop();
+  milestone.stop();
   pacer.stop();
 });
 

@@ -56,11 +56,6 @@ export async function wireStageGestures(deps: {
   cameraSettings: Pick<ReturnType<typeof createCameraSettings>, "get" | "setAzimuth" | "setPolar">;
   /** A click on the character or a pat start, after its tap handling. */
   onTap?: () => void;
-  onDragEnd?: () => void;
-  /** True while the orbit gesture is ignored. */
-  isCameraLocked?: () => boolean;
-  /** True while the tap and drag-hold sources drop their cues. */
-  isCueHeld?: () => boolean;
   register: (teardown: () => void) => void;
 }): Promise<void> {
   const {
@@ -80,13 +75,11 @@ export async function wireStageGestures(deps: {
     renderer,
     config: getConfig().avatar.tap,
     drainSignals,
-    isHeld: deps.isCueHeld,
   });
   const dragHold = createDragHoldSource({
     bus,
     getHoldMs: () => getConfig().avatar.drag_hold_ms,
     getCue: () => getConfig().avatar.gesture_cues.drag_held,
-    isHeld: deps.isCueHeld,
   });
   register(() => dragHold.noteDragEnd());
   const cleanupDrag = await initDrag(stage, {
@@ -125,12 +118,10 @@ export async function wireStageGestures(deps: {
         event_name: "user.drag_end",
         ts: Date.now(),
       });
-      deps.onDragEnd?.();
     },
     onOrbitStart: hitTest.suspend,
     onOrbitEnd: hitTest.resume,
     onOrbit: (d) => {
-      if (deps.isCameraLocked?.()) return;
       orbitCamera(cameraSettings, d);
     },
   });

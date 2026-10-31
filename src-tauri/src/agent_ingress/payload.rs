@@ -75,7 +75,6 @@ pub enum AvatarCommand {
         monitor: Option<u32>,
     },
     Stand,
-    GoToBed,
 }
 
 /// One logged change of a `/relations` record.

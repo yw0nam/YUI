@@ -4,7 +4,7 @@
  * Subscribes to the shared `os_event` channel, reads bare `os_idle_tick`, and fires
  * `time_milestone.first_activity` (tier2) on the first tick of the local day that finds
  * the user "present" (OS idle within `present_max_idle_ms`). The day key is persisted
- * across restarts; `isEnabled()` and `isHeld()` gate firing only, without stopping the
+ * across restarts; `isEnabled()` gates firing only, without stopping the
  * subscription. Buffered `/signals` groups ride the same candidate event. Another source can
  * carry the owed first activity itself through `owed()` and `latch()`.
  *
@@ -32,8 +32,6 @@ interface MilestoneSourceDeps {
   present_max_idle_ms: number;
   /** Read inside the tick handler — gates firing without stopping the source. */
   isEnabled: () => boolean;
-  /** True while the candidate waits; the day stays owed. */
-  isHeld?: () => boolean;
   /** Takes every buffered `/signals` group and empties the buffers. */
   drainSignals: () => SignalGroup[];
   /** Injectable channel listen; defaults to the resolved Tauri `listen`. */
@@ -93,7 +91,6 @@ export function createMilestoneSource(deps: MilestoneSourceDeps): MilestoneSourc
     // Null idle (e.g. Windows) carries no presence signal — ignore entirely.
     if (idle == null) return;
     if (idle > present_max_idle_ms) return;
-    if (deps.isHeld?.()) return;
 
     const ts = now();
     const first = owed(ts);

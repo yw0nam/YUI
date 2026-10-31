@@ -130,9 +130,6 @@ describe("configs/motions.json", () => {
     ["jump", "oneshot", false],
     ["thinking", "state", true],
     ["head_pat", "reactive", true],
-    ["bed_lie", "oneshot", false],
-    ["bed_sleep", "oneshot", true],
-    ["bed_wake", "oneshot", false],
   ])("registers %s, a clip the client plays, as kind %s with loop %s", (id, kind, loop) => {
     expect(m[id], id).toBeDefined();
     expect(m[id].kind).toBe(kind);

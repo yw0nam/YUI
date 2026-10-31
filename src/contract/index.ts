@@ -50,7 +50,6 @@ export type {
   TurnEnded,
   Usage,
   UtteranceIdentity,
-  WakeCause,
   WindowRect,
 } from "./types";
 

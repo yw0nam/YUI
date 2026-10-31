@@ -99,8 +99,6 @@ describe("wireStageGestures", () => {
     };
     const bus = { push: vi.fn() };
     const onTap = vi.fn();
-    const onDragEnd = vi.fn();
-    const isCameraLocked = vi.fn(() => false);
 
     await wireStageGestures({
       stage: {} as HTMLElement,
@@ -124,8 +122,6 @@ describe("wireStageGestures", () => {
       locomotion,
       cameraSettings: cameraSettings as never,
       onTap,
-      onDragEnd,
-      isCameraLocked,
       register: (teardown: () => void) => {
         registered.push(teardown);
       },
@@ -142,8 +138,6 @@ describe("wireStageGestures", () => {
       cameraSettings,
       travelAbort,
       onTap,
-      onDragEnd,
-      isCameraLocked,
     };
   };
 
@@ -197,24 +191,6 @@ describe("wireStageGestures", () => {
         event_name: "user.drag_end",
       }),
     );
-  });
-
-  it("reports the drag end to the drag-end seam", async () => {
-    const s = await setup();
-
-    s.dragOpts.onDragEnd!();
-
-    expect(s.onDragEnd).toHaveBeenCalledOnce();
-  });
-
-  it("ignores the orbit while the camera is locked", async () => {
-    const s = await setup();
-    s.isCameraLocked.mockReturnValue(true);
-
-    s.dragOpts.onOrbit!({ dx: 20, dy: -10 });
-
-    expect(s.cameraSettings.setAzimuth).not.toHaveBeenCalled();
-    expect(s.cameraSettings.setPolar).not.toHaveBeenCalled();
   });
 
   it("orbits the camera by the pointer delta times the sensitivity", async () => {

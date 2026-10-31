@@ -106,8 +106,6 @@ interface BackendCallerDeps extends PushCallDeps, SettleDeps, StreamAttemptDeps 
   getPrevious?: () => PreviousTurn | undefined;
   /** Switch state of the tools the window declares — read per turn for the client_context line. */
   getToolSwitches?: () => ClientContext["tool_switches"];
-  /** True once, for the user turn whose message woke the character on the bed. */
-  takeMessageWake?: () => boolean;
   /** The other presets' lines this character has not heard yet — read per turn. */
   getOverheard?: () => OverheardBlock[];
   /** This character's relation toward each rated target — read per turn. */
@@ -120,8 +118,6 @@ interface BackendCallerDeps extends PushCallDeps, SettleDeps, StreamAttemptDeps 
   getPluginLines?: () => PluginLines;
   /** Marks a turn's overheard lines heard — called only when that turn ends ok. */
   commitOverheard?: (blocks: OverheardBlock[]) => void;
-  /** True while a scene holds the body, which would drop a thinking motion and still speak its filler. Absent means free. */
-  isBodyHeld?: () => boolean;
   /** Previous response id lookup — when present, included in request to continue conversation. Called per turn (reflects reset/rotation). */
   getPreviousResponseId?: () => string | undefined;
   /** Outputs of the stored response's unanswered tool calls — sent with the id, dropped wherever the id is. */
@@ -222,9 +218,8 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         return "not_configured";
       }
       // If filler is active, show first line immediately (synchronous start). Don't start if disabled/pool empty,
-      // or on a reflex turn — a "thinking" bridge before an immediate reaction reads as dissonant —
-      // or while a scene holds the body, which drops the motion and leaves only the spoken filler.
-      if (deps.turnOutput?.hasFiller() && !isReflexTurn(env.event_name) && !deps.isBodyHeld?.()) {
+      // or on a reflex turn — a "thinking" bridge before an immediate reaction reads as dissonant.
+      if (deps.turnOutput?.hasFiller() && !isReflexTurn(env.event_name)) {
         startThinking();
       }
       // B1
@@ -234,7 +229,6 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
         getFrontmost: deps.getFrontmost,
         getPrevious: deps.getPrevious,
         getToolSwitches: deps.getToolSwitches,
-        takeMessageWake: deps.takeMessageWake,
         getOverheard: deps.getOverheard,
         getRelations: deps.getRelations,
         getOpenCharacters: deps.getOpenCharacters,

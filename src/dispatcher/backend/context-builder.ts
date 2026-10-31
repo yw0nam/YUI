@@ -21,8 +21,6 @@ interface ContextProviders {
   getPrevious?: () => PreviousTurn | undefined;
   /** The switchable tools the window declares, with the switch state read at this turn. */
   getToolSwitches?: () => ClientContext["tool_switches"];
-  /** True once, for the user turn whose message woke the character on the bed. */
-  takeMessageWake?: () => boolean;
   /** The other presets' unheard lines, read once per turn. */
   getOverheard?: () => OverheardBlock[];
   /** This character's relation toward each rated target, read once per turn. */
@@ -62,10 +60,8 @@ export function guideKeyOf(env: BusEnvelope): GuideKey | undefined {
   return isGuideKey(guide) ? guide : undefined;
 }
 
-const WAKE_EVENT_NAME = "proactive.wake";
-
 function milestoneOf(env: BusEnvelope): TriggerMeta["milestone"] | undefined {
-  if (!env.event_name.startsWith("time_milestone.") && env.event_name !== WAKE_EVENT_NAME) {
+  if (!env.event_name.startsWith("time_milestone.")) {
     return undefined;
   }
   const payload = env.payload;
@@ -79,8 +75,7 @@ export function signalsOf(env: BusEnvelope): TriggerMeta["signals"] | undefined 
   if (
     !env.event_name.startsWith("signals.") &&
     !env.event_name.startsWith("time_milestone.") &&
-    env.event_name !== "proactive.tap_bored" &&
-    env.event_name !== WAKE_EVENT_NAME
+    env.event_name !== "proactive.tap_bored"
   ) {
     return undefined;
   }
@@ -93,13 +88,6 @@ export function signalsOf(env: BusEnvelope): TriggerMeta["signals"] | undefined 
       Array.isArray((group as { items?: unknown }).items),
   );
   return grouped ? (signals as TriggerMeta["signals"]) : undefined;
-}
-
-function wakeOf(env: BusEnvelope, messageWake: boolean): TriggerMeta["wake"] | undefined {
-  if (messageWake) return { cause: "message" };
-  if (env.event_name !== WAKE_EVENT_NAME) return undefined;
-  const cause = env.payload?.cause;
-  return cause === "click" || cause === "timeout" ? { cause } : undefined;
 }
 
 function addressedOf(env: BusEnvelope): TriggerMeta["addressed"] | undefined {
@@ -201,7 +189,6 @@ export function buildClientContext(
   bodyState?: BodyState,
   frontmost?: FrontmostState,
   previous?: PreviousTurn,
-  messageWake = false,
 ): ClientContext {
   const payload = env.payload;
   const cue =
@@ -215,7 +202,6 @@ export function buildClientContext(
   const milestone = milestoneOf(env);
   const signals = signalsOf(env);
   const screen = screenOf(env);
-  const wake = wakeOf(env, messageWake);
   const addressed = addressedOf(env);
   const guide = guideKeyOf(env);
   const mention = env.event_name === "user.text_submitted" ? mentionOf(env) : undefined;
@@ -243,7 +229,6 @@ export function buildClientContext(
       ...(milestone ? { milestone } : {}),
       ...(signals ? { signals } : {}),
       ...(screen ? { screen } : {}),
-      ...(wake ? { wake } : {}),
       ...(addressed ? { addressed } : {}),
     },
   };
@@ -288,7 +273,6 @@ export async function buildContext(
       providers.getBodyState?.(),
       providers.getFrontmost?.(),
       providers.getPrevious?.(),
-      userTurn && providers.takeMessageWake?.() === true,
     ),
     ...(switches?.length ? { tool_switches: switches } : {}),
     ...(overheard.length

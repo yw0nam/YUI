@@ -104,7 +104,6 @@ describe("wireDispatcherSources", () => {
       subscribeBusy,
       pipelineBusy,
       pacer: fakePacer(),
-      isFirstActivityHeld: () => false,
       onCharacterAddressed: () => () => {},
       onUserTurnRouted: () => () => {},
       submitUser: vi.fn(),
@@ -119,7 +118,6 @@ describe("wireDispatcherSources", () => {
       "scheduleSource",
       "screenSource",
       "signalsSource",
-      "wakeSource",
     ]);
     // Each source is started (fire-and-forget) so candidate events flow once wired.
     expect(started.sort()).toEqual([
@@ -159,7 +157,6 @@ describe("wireDispatcherSources", () => {
       subscribeBusy: vi.fn(() => vi.fn()),
       pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
       pacer: fakePacer(),
-      isFirstActivityHeld: () => false,
       onCharacterAddressed: () => () => {},
       onUserTurnRouted: () => () => {},
       submitUser: vi.fn(),
@@ -176,39 +173,6 @@ describe("wireDispatcherSources", () => {
     expect(milestone.isEnabled()).toBe(true);
   });
 
-  it("hands the milestone source the first-activity hold, and fires the wake on the shared bus", () => {
-    let held = true;
-    const push = vi.fn(() => true);
-    const result = wireDispatcherSources({
-      bus: { push } as never,
-      presenceSettings: { get: () => ({ value: 5000 }) },
-      proactiveSettings: { get: () => ({ enabled: true, entries: [] }) },
-      scheduleSettings: { get: () => ({ enabled: true, entries: [] }) },
-      agentNotifySettings: { get: () => ({ enabled: true, port: 8770 }) },
-      screenSettings: { get: () => ({ enabled: false }) },
-      getScreenConfig: () => screenConfig,
-      subscribeBusy: vi.fn(() => vi.fn()),
-      pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
-      pacer: fakePacer(),
-      isFirstActivityHeld: () => held,
-      onCharacterAddressed: () => () => {},
-      onUserTurnRouted: () => () => {},
-      submitUser: vi.fn(),
-      selfPresetId: "natsume",
-    });
-
-    const milestone = created.milestone as { isEnabled: () => boolean; isHeld: () => boolean };
-    expect(milestone.isEnabled()).toBe(true);
-    expect(milestone.isHeld()).toBe(true);
-    held = false;
-    expect(milestone.isHeld()).toBe(false);
-
-    result.wakeSource.fire("click");
-    expect(push).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ event_name: "proactive.wake", payload: { cause: "click" } }),
-    );
-  });
-
   it("hands the milestone source a drain that empties the signals buffers", () => {
     const result = wireDispatcherSources({
       bus: {} as never,
@@ -221,7 +185,6 @@ describe("wireDispatcherSources", () => {
       subscribeBusy: vi.fn(() => vi.fn()),
       pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
       pacer: fakePacer(),
-      isFirstActivityHeld: () => false,
       onCharacterAddressed: () => () => {},
       onUserTurnRouted: () => () => {},
       submitUser: vi.fn(),
@@ -250,7 +213,6 @@ describe("wireDispatcherSources", () => {
       subscribeBusy,
       pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
       pacer: fakePacer(),
-      isFirstActivityHeld: () => false,
       onCharacterAddressed: () => () => {},
       onUserTurnRouted: () => () => {},
       submitUser: vi.fn(),
@@ -287,7 +249,6 @@ describe("wireDispatcherSources", () => {
       subscribeBusy: vi.fn(() => vi.fn()),
       pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
       pacer: fakePacer(),
-      isFirstActivityHeld: () => false,
       onCharacterAddressed: () => () => {},
       onUserTurnRouted: () => () => {},
       submitUser: vi.fn(),
@@ -314,7 +275,6 @@ describe("wireDispatcherSources", () => {
       subscribeBusy: vi.fn(() => vi.fn()),
       pipelineBusy: { isBusy: () => false, subscribe: vi.fn(() => vi.fn()) },
       pacer,
-      isFirstActivityHeld: () => false,
       onCharacterAddressed: () => () => {},
       onUserTurnRouted: () => () => {},
       submitUser: vi.fn(),

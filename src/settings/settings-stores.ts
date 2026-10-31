@@ -1,5 +1,4 @@
 import { createThemeSettings, localStorageThemeStorage } from "./appearance/theme-settings";
-import { BED_SCENE_STORAGE_KEY, createBedSceneSettings } from "./avatar/bed-scene-settings";
 import { createCameraSettings, localStorageCameraStorage } from "./avatar/camera-settings";
 import {
   createExpressMotionSettings,
@@ -176,9 +175,6 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const expressMotionSettings = createExpressMotionSettings({
     storage: localStorageExpressMotionStorage(),
   });
-  const bedSceneSettings = createBedSceneSettings({
-    storage: localStorageStore(BED_SCENE_STORAGE_KEY),
-  });
   // Relations on/off. Default ON. Device-wide: every preset's relations follow one switch.
   const relationsSwitch = createRelationsSwitch();
   // Unified chat window on/off. Default OFF. Device-wide: main opens it while two or more presets are open.
@@ -219,7 +215,6 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     guardrailsSettings,
     idleMotionSettings,
     expressMotionSettings,
-    bedSceneSettings,
     relationsSwitch,
     unifiedChatSwitch,
   };
@@ -272,7 +267,6 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   guardrailsSettings: "broadcast",
   idleMotionSettings: "broadcast",
   expressMotionSettings: "broadcast",
-  bedSceneSettings: "broadcast",
   relationsSwitch: "broadcast",
   unifiedChatSwitch: "broadcast",
 };

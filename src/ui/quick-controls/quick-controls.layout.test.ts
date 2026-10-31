@@ -12,7 +12,6 @@ import type {
   SpeakerOption,
 } from "../../io/voice/voices/speaker-selection";
 import type { PickedVoiceImport } from "../../io/voice/voices/voice-import-flow";
-import { createBedSceneSettings } from "../../settings/avatar/bed-scene-settings";
 import { createExpressMotionSettings } from "../../settings/avatar/express-motion-settings";
 import { createIdleMotionSettings } from "../../settings/avatar/idle-motion-settings";
 import { createLipsyncSettings } from "../../settings/avatar/lipsync-settings";
@@ -172,7 +171,6 @@ describe("createQuickControls — settings layout", () => {
         ".yui-lipsync-gain__slider",
         ".yui-idle-motion",
         ".yui-express-motion",
-        ".yui-bed-scene",
         ".yui-gaze-switch",
         ".yui-climb-switch",
         ".yui-fall-switch",
@@ -196,7 +194,6 @@ describe("createQuickControls — settings layout", () => {
       gazeSettings: createFlagSettings(true),
       climbSettings: createFlagSettings(true),
       fallSettings: createFlagSettings(true),
-      bedSceneSettings: createBedSceneSettings(),
       agentNotifySettings: createAgentNotifySettings(),
       presenceSettings: inMemoryPresenceStore(),
       pacerGapSettings: inMemoryPacerGapStore(),

@@ -11,7 +11,7 @@ import type { WindowRect } from "../../contract";
 import type { EventBus } from "../../dispatcher/core/event-bus";
 import type { Dispatcher } from "../../dispatcher/dispatcher";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
-import type { AvatarBed, AvatarExecutor } from "../../io/bridge/inbox/avatar-executor";
+import type { AvatarExecutor } from "../../io/bridge/inbox/avatar-executor";
 import type { DescentEdge, ScreenMonitor } from "../../io/window/geometry/screen-geometry";
 import type { FrameWindow } from "../../io/window/geometry/travel-frame";
 import type { HitTestController } from "../../io/window/pet/hit-test";
@@ -53,10 +53,6 @@ export function wireLocomotion(deps: {
   dispatcher: Dispatcher;
   hitTest: Pick<HitTestController, "setMoving">;
   peekActive: () => boolean;
-  /** A scene holds the body and the window. */
-  isHeld: () => boolean;
-  /** The bed the avatar commands lay her on. */
-  bed: AvatarBed;
   fallSettings: FlagSettingsStore;
   climbSettings: FlagSettingsStore;
   agentNotifySettings: ReturnType<typeof createAgentNotifySettings>;
@@ -77,18 +73,12 @@ export function wireLocomotion(deps: {
   /** Cancels the five loops in the order a drag start and an agent move cancel them. */
   cancel(): void;
   abortTravel(): Promise<void>;
+  /** The travel frame's window geometry reads, for the tools that capture the screen. */
   frame: {
     ready: Promise<void>;
     frameWindow(): FrameWindow;
     listMonitors(): Promise<ScreenMonitor[]>;
   };
-  setKeepOnScreenPaused(paused: boolean): void;
-  /** Resolves once the boot placement has settled. */
-  placed: Promise<void>;
-  /** Puts her on the floor where she stands; false when that did not happen. */
-  place(): Promise<boolean>;
-  /** Drops a character left mid-air. */
-  drop(): void;
   /** The avatar RPC executor once the stage created it, null until then. */
   getAvatarExecutor(): AvatarExecutor | null;
 } {
@@ -99,7 +89,6 @@ export function wireLocomotion(deps: {
     dispatcher,
     hitTest,
     peekActive,
-    isHeld,
     fallSettings,
     climbSettings,
     agentNotifySettings,
@@ -131,7 +120,7 @@ export function wireLocomotion(deps: {
     getDescendConfig: () => getConfig().avatar.descend,
     getMotionKind: (id) => getConfig().motions[id]?.kind,
     isPeeking: () => peekActive(),
-    isDragging: () => dragging || isHeld(),
+    isDragging: () => dragging,
     setHitTestMoving: (moving) => hitTest.setMoving(moving),
     onStrollEnd,
     onDescend: (edge) => climberRef?.descend(edge),
@@ -159,7 +148,7 @@ export function wireLocomotion(deps: {
     bus,
     renderer,
     travelFrame,
-    isEnabled: () => fallSettings.get().enabled && !isHeld(),
+    isEnabled: () => fallSettings.get().enabled,
     getFallConfig: () => getConfig().avatar.fall,
     getMotionKind: (id) => getConfig().motions[id]?.kind,
     getFloorTolerancePx: () => getConfig().avatar.walk.floor_tolerance_px,
@@ -197,8 +186,6 @@ export function wireLocomotion(deps: {
     onRelocated: () => faller.drop({ landOnSeam: true }),
     onSitLost: createSitLossFall({ getClimber: () => climberRef, faller }),
     sitDown: () => sitter.sitDown(null),
-    isHeld,
-    bed: deps.bed,
     onResizeApplied: (bounds) => deps.windowGeometry?.onResizeApplied(bounds),
     onDragReleased: async () => {
       await deps.windowGeometry?.onDragReleased();
@@ -243,7 +230,7 @@ export function wireLocomotion(deps: {
     getWalkConfig: () => getConfig().avatar.walk,
     getMotionKind: (id) => getConfig().motions[id]?.kind,
     isPeeking: () => peekActive(),
-    isDragging: () => dragging || isHeld(),
+    isDragging: () => dragging,
     isBusy: dispatcher.isPipelineBusy,
     walker,
     faller,
@@ -277,10 +264,6 @@ export function wireLocomotion(deps: {
       frameWindow: travelFrame.frameWindow,
       listMonitors: travelFrame.listMonitors,
     },
-    setKeepOnScreenPaused: windowSources.setKeepOnScreenPaused,
-    placed: faller.placed,
-    place: faller.place,
-    drop: () => void faller.drop(),
     getAvatarExecutor: () => windowSources.getAvatarExecutor(),
   };
 }

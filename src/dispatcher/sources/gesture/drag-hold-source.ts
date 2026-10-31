@@ -15,8 +15,6 @@ interface DragHoldSourceDeps {
   getHoldMs: () => number;
   /** Cue read at fire time (label/context from config, live). */
   getCue: () => GestureCueConfig;
-  /** True while the cue is dropped. */
-  isHeld?: () => boolean;
   /** Injectable clock; defaults to Date.now. */
   now?: () => number;
   /** Injectable timer fns (fake timers in tests). */
@@ -51,7 +49,6 @@ export function createDragHoldSource(deps: DragHoldSourceDeps): DragHoldSource {
       disarm();
       timer = setTimeoutImpl(() => {
         timer = null;
-        if (deps.isHeld?.()) return;
         const cue = getCue();
         bus.push({
           source: "os_event_watcher",

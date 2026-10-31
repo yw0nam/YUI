@@ -16,7 +16,6 @@ const ROWS: CharacterRows = {
   gain: false,
   idleMotion: false,
   expressMotion: false,
-  bedScene: false,
   viewpoint: false,
   relations: true,
 };

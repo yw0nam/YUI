@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { avatarFixture } from "../../config/load-test-helpers";
 import type { WindowRect } from "../../contract";
-import type { AvatarBed } from "../../io/bridge/inbox/avatar-executor";
 import type { DescentEdge } from "../../io/window/geometry/screen-geometry";
 
 // The five loops, the travel frame, the sitter and the window sources are faked so each
@@ -56,7 +55,7 @@ describe("wireLocomotion", () => {
     for (const mock of Object.values(mocks)) mock.mockReset();
   });
 
-  const setup = (over: { isHeld?: () => boolean; bed?: AvatarBed } = {}) => {
+  const setup = () => {
     const cancelOrder: string[] = [];
     const teardowns: string[] = [];
     const registered: Array<() => void> = [];
@@ -116,9 +115,7 @@ describe("wireLocomotion", () => {
     let travelFrameDeps: { setKeepOnScreenPaused(paused: boolean): void } | undefined;
     let walkerDeps: { onDescend(edge: DescentEdge): void; isDragging(): boolean } | undefined;
     let fallerDeps: { onWindowLand(target: WindowRect): void; isEnabled(): boolean } | undefined;
-    let windowSourcesDeps:
-      | { onRelocated(): Promise<void>; isHeld(): boolean; bed: AvatarBed }
-      | undefined;
+    let windowSourcesDeps: { onRelocated(): Promise<void> } | undefined;
     let climberDeps: { isDragging(): boolean } | undefined;
     mocks.wireTravelFrame.mockImplementation((deps) => {
       travelFrameDeps = deps;
@@ -169,13 +166,6 @@ describe("wireLocomotion", () => {
       dispatcher: {} as never,
       hitTest: { setMoving: vi.fn() },
       peekActive: () => false,
-      isHeld: over.isHeld ?? (() => false),
-      bed: over.bed ?? {
-        phase: () => "off",
-        lieDown: async () => ({ ok: true }),
-        getUp: () => {},
-        interrupt: () => {},
-      },
       fallSettings: { get: () => ({ enabled: true }) } as never,
       climbSettings: climbSettings as never,
       agentNotifySettings: { get: () => ({ enabled: false, port: 8770 }) } as never,
@@ -245,70 +235,12 @@ describe("wireLocomotion", () => {
     expect(s.windowSources.setKeepOnScreenPaused).toHaveBeenLastCalledWith(false);
   });
 
-  it("composes the scene hold into the movers' predicates, read live", () => {
-    let held = true;
-    const s = setup({ isHeld: () => held });
-
-    expect(s.walkerDeps.isDragging()).toBe(true);
-    expect(s.climberDeps.isDragging()).toBe(true);
-    expect(s.fallerDeps.isEnabled()).toBe(false);
-    expect(s.windowSourcesDeps.isHeld()).toBe(true);
-
-    held = false;
-    expect(s.walkerDeps.isDragging()).toBe(false);
-    expect(s.climberDeps.isDragging()).toBe(false);
-    expect(s.fallerDeps.isEnabled()).toBe(true);
-    expect(s.windowSourcesDeps.isHeld()).toBe(false);
-  });
-
   it("hands out the real frame window", () => {
     const s = setup();
 
     expect(s.locomotion.frame.ready).toBe(s.travelFrame.ready);
     s.locomotion.frame.frameWindow();
     expect(s.travelFrame.frameWindow).toHaveBeenCalledOnce();
-  });
-
-  it("hands out the keep-on-screen pause", () => {
-    const s = setup();
-
-    s.locomotion.setKeepOnScreenPaused(true);
-
-    expect(s.windowSources.setKeepOnScreenPaused).toHaveBeenCalledWith(true);
-  });
-
-  it("hands out the faller's placement", () => {
-    const s = setup();
-
-    expect(s.locomotion.placed).toBe(s.faller.placed);
-  });
-
-  it("hands out the faller's placement on the floor", async () => {
-    const s = setup();
-
-    expect(await s.locomotion.place()).toBe(true);
-
-    expect(s.faller.place).toHaveBeenCalledOnce();
-  });
-
-  it("hands the window sources the bed the avatar commands lay her on", () => {
-    const bed: AvatarBed = {
-      phase: () => "off",
-      lieDown: async () => ({ ok: true }),
-      getUp: () => {},
-      interrupt: () => {},
-    };
-    const s = setup({ bed });
-
-    expect(s.windowSourcesDeps.bed).toBe(bed);
-  });
-
-  it("hands out a drop", () => {
-    const s = setup();
-
-    s.locomotion.drop();
-
-    expect(s.faller.drop).toHaveBeenCalledWith();
   });
 
   it("answers the relocate callback with a seam-landing faller drop", () => {

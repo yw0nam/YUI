@@ -157,13 +157,6 @@ describe("renderClientContext — body line", () => {
     expect(text).toContain("body: walking (for 0min)");
   });
 
-  it("lying -> no 'on <x>' clause", () => {
-    const cc = baseContext({ kind: "user" });
-    cc.body_state = { posture: { state: "lying" }, since: SINCE };
-    const text = renderClientContext(cc, SINCE + 720_000);
-    expect(text).toContain("body: lying (for 12min)");
-  });
-
   it("absent entirely -> line omitted", () => {
     const text = renderClientContext(baseContext({ kind: "user" }), NOW);
     expect(text).not.toContain("body:");
@@ -986,62 +979,6 @@ describe("renderClientContext — guide block", () => {
     const text = renderClientContext(baseContext({ kind: "user" }), NOW);
 
     expect(text).not.toContain("guide:");
-  });
-});
-
-describe("renderClientContext — wake", () => {
-  const trigger = (cc: ClientContext): string[] =>
-    renderClientContext(cc, NOW).split("\n").slice(1);
-
-  it("renders a click wake and a timeout wake under a wake headline", () => {
-    expect(trigger(baseContext({ kind: "proactive", wake: { cause: "click" } }))).toEqual([
-      "trigger: wake",
-      "wake: the character just woke from the bed, woken by the user's click",
-    ]);
-    expect(trigger(baseContext({ kind: "proactive", wake: { cause: "timeout" } }))).toEqual([
-      "trigger: wake",
-      "wake: the character just woke from the bed, woken by the wake timeout",
-    ]);
-  });
-
-  it("keeps the milestone headline on a wake that carries the first activity, with the signals after the wake line", () => {
-    const cc = baseContext({
-      kind: "proactive",
-      wake: { cause: "click" },
-      milestone: { name: "first_activity", local_time: "08:12" },
-      signals: [
-        {
-          envelope: {
-            source: "calendar",
-            event_type: "reminder",
-            delivery: "batched",
-            event_id: "reminder-118",
-            occurred_at: Date.UTC(2026, 8, 11, 22, 30),
-          },
-          items: [{ title: "standup", at: "09:30" }],
-        },
-      ],
-    });
-    expect(trigger(cc)).toEqual([
-      "trigger: milestone first_activity (fired at 08:12)",
-      "wake: the character just woke from the bed, woken by the user's click",
-      'signal [calendar/reminder @2026-09-11T22:30:00.000Z, id reminder-118]: {"title":"standup","at":"09:30"}',
-    ]);
-  });
-
-  it("states under a user message that the message woke the character", () => {
-    expect(trigger(baseContext({ kind: "user", wake: { cause: "message" } }))).toEqual([
-      "trigger: user message",
-      "wake: the character just woke from the bed, woken by this message",
-    ]);
-  });
-
-  it("says on the body line that the character is getting up", () => {
-    const cc = baseContext({ kind: "proactive", wake: { cause: "click" } });
-    cc.body_state = { posture: { state: "lying" }, since: SINCE };
-    expect(renderClientContext(cc, SINCE + 720_000)).toContain(
-      "body: lying, getting up now (for 12min)",
-    );
   });
 });
 
