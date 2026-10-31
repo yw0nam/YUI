@@ -112,6 +112,28 @@ jobs:
           fi
           TEST_GUARD_SKIP="$skip" bash scripts/ci/test-guard.sh "origin/${{ github.event.pull_request.base.ref }}"
 
+  readme-pair:
+    name: readme-pair (README.md and README.ja.md change together)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so we can diff against the PR base
+      - name: Enforce that both READMEs change together
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # Labels are read at run time, so re-running the job picks up a label added after the PR opened.
+        run: |
+          skip=
+          if gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" --jq '.labels[].name' | grep -qx readme-one-language; then
+            skip=1
+          fi
+          README_PAIR_SKIP="$skip" bash scripts/ci/readme-pair.sh "origin/${{ github.event.pull_request.base.ref }}"
+
   rust:
     name: rust (cargo test)
     runs-on: ubuntu-latest
