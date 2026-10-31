@@ -51,14 +51,14 @@ describe("body_action — schema", () => {
     expect(tool.definition.function.description).toMatch(/peek/);
     expect(tool.definition.function.description).toMatch(/move_to/);
     expect(tool.definition.function.description).toMatch(/stand/);
-    expect(tool.definition.function.description).toMatch(/go_to_bed/);
+    expect(tool.definition.function.description).not.toMatch(/\bbed\b|go_to_bed/);
     expect(tool.definition.function.description).toMatch(/timeout/);
     expect(tool.definition.function.description).toMatch(/look/);
 
     const props = tool.definition.function.parameters.properties;
     expect(props.action).toMatchObject({
       type: "string",
-      enum: ["sit_on_window", "peek", "move_to", "stand", "go_to_bed"],
+      enum: ["sit_on_window", "peek", "move_to", "stand"],
     });
     expect(props.app).toMatchObject({ type: "string" });
     expect(props.side).toMatchObject({ type: "string", enum: ["left", "right"] });
