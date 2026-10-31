@@ -1,12 +1,8 @@
 //! The process groups of this host's running servers, recorded in `<app_data>/plugins/groups.json`
 //! so the next start can kill what a server started when the app was killed without its exit hook.
 //!
-//! The next start kills a recorded group only when its leader pid is gone and the group still
-//! has members. XNU's `forkproc` (`bsd/kern/kern_fork.c`) never hands out a pid that is still a
-//! live process-group id, so while a recorded group has a member no unrelated process holds that
-//! pgid. Accepted residual case: every orphan died on its own, the pid space wrapped, and an
-//! unrelated process took that pid, led a group, and exited leaving members, all before the next
-//! start.
+//! The kernel never hands out a pid that is still a live process-group id, so a recorded group
+//! whose leader is gone and that still has members belongs to this app.
 
 use super::store;
 use serde::{Deserialize, Serialize};
@@ -27,10 +23,9 @@ pub struct ProcessGroups {
 
 impl ProcessGroups {
     /// Kills the groups a previous run left behind, then starts an empty record.
-    /// `None` (no app data dir) records nothing and sweeps nothing.
+    /// `None` (no app data dir, or Windows) records nothing and sweeps nothing.
     pub fn open(path: Option<PathBuf>) -> Arc<Self> {
         if let Some(path) = &path {
-            // Windows records but never sweeps: its job object ends a tree when the app dies.
             #[cfg(unix)]
             sweep(path);
             write(path, &BTreeSet::new());
@@ -115,13 +110,10 @@ fn sweep(path: &Path) {
             log::info!("mcp_host_orphan_group_skipped pgid={pgid} reason=leader_alive");
             continue;
         }
-        match killpg(group, None) {
-            Ok(()) => {
-                let _ = killpg(group, Signal::SIGKILL);
-                log::info!("mcp_host_orphan_group_killed pgid={pgid}");
-            }
+        match killpg(group, Signal::SIGKILL) {
+            Ok(()) => log::info!("mcp_host_orphan_group_killed pgid={pgid}"),
             Err(Errno::ESRCH) => {}
-            Err(e) => log::warn!("mcp_host_orphan_group_skipped pgid={pgid} error={e}"),
+            Err(e) => log::warn!("mcp_host_orphan_group_kill.failed pgid={pgid} error={e}"),
         }
     }
 }

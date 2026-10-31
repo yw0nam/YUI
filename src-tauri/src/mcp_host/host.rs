@@ -61,7 +61,9 @@ impl Host {
         // Without an app data dir the state is `Err`, so nothing ever reads or writes `dir`.
         let dir = app_data.as_deref().unwrap_or(Path::new("")).join("plugins");
         let log_dir = log_dir.join("plugins");
-        let groups = ProcessGroups::open(app_data.as_ref().ok().map(|_| dir.join("groups.json")));
+        // Windows records no groups: a server's job object ends its tree when the app dies.
+        let groups =
+            ProcessGroups::open((app_data.is_ok() && cfg!(unix)).then(|| dir.join("groups.json")));
         let state = app_data.and_then(|_| {
             let loaded = store::load(&dir.join("state.json"));
             if let Err(e) = &loaded {
