@@ -36,6 +36,8 @@ export function createPluginsPage(deps: {
   const ui = new Map<string, PluginUi>();
   const installs = new Map<string, InstallUi>();
   const folder: { busy: boolean; error?: Failure } = { busy: false };
+  /** A delete's rejection, kept here because the plugin has left the list by then. */
+  const removal: { error?: Failure } = {};
 
   const uiOf = (id: string): PluginUi => stateOf(ui, id);
   const installOf = (id: string): InstallUi => stateOf(installs, id);
@@ -51,6 +53,7 @@ export function createPluginsPage(deps: {
         ui: uiOf,
         updateTo: catalog.updateTo,
         check: catalog.checkState(),
+        removal,
       }) + catalogHtml({ ...catalog.list(installed), install: installOf, folder })
     );
   });
@@ -164,7 +167,7 @@ export function createPluginsPage(deps: {
       uiOf(id).confirm = false;
       const p = plugin(id);
       if (!p) return;
-      void attempt(id, uiOf(id), SOURCES[p.source].removeFailed, () => manage.remove(id));
+      void attempt(id, removal, SOURCES[p.source].removeFailed, () => manage.remove(id));
     },
     tools: (id) => {
       const state = uiOf(id);
