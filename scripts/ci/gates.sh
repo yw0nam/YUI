@@ -17,6 +17,7 @@ gates=(
   "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings"
   "cargo test --manifest-path src-tauri/Cargo.toml --locked"
   "bash scripts/ci/test-guard.sh origin/main"
+  "bash scripts/ci/readme-pair.sh origin/main"
 )
 logs="${GATES_LOG_DIR:-$(mktemp -d "${TMPDIR:-/tmp}/yui-gates.XXXXXX")}"
 mkdir -p "$logs"
