@@ -169,7 +169,7 @@ order:
 8. `tool switches`
 9. `previous turn`
 10. `overheard`
-11. one or more `trigger:`/`wake:`/`cue note`/`signal`/`recent switches:` lines
+11. one or more `trigger:`/`cue note`/`signal`/`recent switches:` lines
     depending on what fired
 12. the `plugin tools` and `plugin skills` lines when the host publishes any
 13. the `guide:` block when the turn carries one ([Guide](#guide-in-app-help-button))
@@ -295,33 +295,17 @@ The line says where the avatar body is, and it is always present.
 body: peeking on Orca (for 2min)
 body: walking (for 0min)
 body: climbing (for 0min)
-body: lying (for 12min)
-body: lying, getting up now (for 12min)
 body: standing (for 12min)
 ```
 
 #### The posture value
 
 The state is `body_state.posture.state` (`standing` \| `sitting` \| `peeking` \|
-`dragging` \| `walking` \| `climbing` \| `lying`).
+`dragging` \| `walking` \| `climbing`).
 
 The `on <label>` clause names `posture.perched_on.app` (falling back to `window_title`
 when the app didn't resolve), and it is omitted when there's no window under the avatar.
-`standing`, `walking`, `climbing` and `lying` never carry one.
-
-#### `lying`
-
-`lying` holds while she is on the bed, whether the launch bed scene or a `go_to_bed`
-command put her there. It starts when the lie-down clip (or, at launch, the sleep clip)
-starts and holds through her wake clip, while she sits up, stretches and stands, until
-the bed scene ends and she reads `standing`.
-
-A drag in between reads `dragging` and returns to `lying` on release. The bed fires no
-turn on its own, so the state is visible on whatever turn comes next.
-
-A turn that carries a [wake](#wake) adds `getting up now` after the state, so a wake
-turn reads `lying, getting up now`: the character is still lying and has started getting
-up.
+`standing`, `walking` and `climbing` never carry one.
 
 #### `walking` and `climbing`
 
@@ -557,7 +541,7 @@ store snapshot this count comes from. Threads fire no turn.
 ## Trigger lines
 
 Exactly one headline `trigger: …` line describes what fired the turn, chosen by what the
-turn actually carries (screen transition, cue, milestone, wake, or a bare kind
+turn actually carries (screen transition, cue, milestone, or a bare kind
 fallback). Zero or more follow-up lines add detail. `trigger.kind` is one of `user` \|
 `schedule` \| `proactive` \| `signals` \| `milestone` \| `addressed`.
 
@@ -565,7 +549,7 @@ fallback). Zero or more follow-up lines add detail. `trigger.kind` is one of `us
 |---|---|---|
 | `user` | User spoke or typed | The user's message text; from the unified chat window the text keeps the visible `@name` |
 | `schedule` | A user-configured time-of-day cue fired | Background marker |
-| `proactive` | A configured engagement cue, tap-bored cue, region-touch cue, or screen transition fired, or the character woke on the bed, which renders the `trigger: wake` headline | Background marker |
+| `proactive` | A configured engagement cue, tap-bored cue, region-touch cue, or screen transition fired | Background marker |
 | `signals` | An external producer POSTed a burst to the `/signals` ingress | Background marker |
 | `milestone` | A once-per-day client clock fact fired on the first present tick of the local day | Background marker |
 | `addressed` | Another open character's reply called `address_character` naming this character, and its playback ended | Background marker |
@@ -640,16 +624,6 @@ for them in `configs/avatar.json`, so most of those turns render just the headli
 
 A proactive turn with `idle_elapsed_min` but no cue at all (no configured label) falls
 back to a bare `trigger: proactive (the user has been idle for Xmin)`.
-
-#### Bed and filler
-
-While the bed scene runs, the client drops the touch, head-pat, tap-bored and drag-held
-cues, and the [wake](#wake) reports the click that woke her.
-
-A turn that starts while she is on the bed, the wake turn included, speaks no thinking
-filler before its reply; the reply is spoken when it arrives. When she goes to bed while
-a thinking filler runs, a phrase already submitted plays out and no further phrase is
-spoken.
 
 ### Screen transition
 
@@ -783,74 +757,6 @@ an app left running overnight fires again on the first present tick after midnig
 Buffered `/signals` groups drain into the same turn and render as `signal` lines under
 the headline.
 
-While she is on the bed, from either entry, the milestone waits; it rides the user's
-wake turn when it is still owed (see [Wake](#wake)), and fires on the next idle tick
-once she is up by any other way.
-
-### Wake
-
-```text
-trigger: wake
-wake: the character just woke from the bed, woken by the user's click
-```
-
-```text
-trigger: milestone first_activity (fired at 08:12)
-wake: the character just woke from the bed, woken by the wake timeout
-```
-
-```text
-trigger: user message
-wake: the character just woke from the bed, woken by this message
-```
-
-#### The two bed entries
-
-The bed has two entries. With the launch bed scene on, the character starts asleep on a
-bed. A `go_to_bed` avatar command lies her on a bed at the spot she stands on, while the
-app runs.
-
-Both sleep until the wake timeout set on the Motion and desktop page, a click on her or
-the bed, the press that starts a head pat, a chat or voice message, or the backend's own
-`stand`. The launch-scene switch governs the launch entry only, and the backend passes
-no duration.
-
-#### The wake signal
-
-`proactive.wake` fires once, at the moment her wake clip starts, when a click or a head
-pat woke her (`the user's click`) or the timeout did (`the wake timeout`), on either
-entry.
-
-The `wake:` line follows the headline and states the waking as a past event: the
-character has just woken and is getting up, and the `body:` line reads `lying, getting
-up now`.
-
-#### Wake and the milestone
-
-When the day's `time_milestone.first_activity` is still owed and the schedule setting is
-on, the wake turn carries it: the headline is the milestone, buffered `/signals` groups
-drain into the turn, and the day key is latched, so the wake turn is that day's
-first-activity turn.
-
-#### A message that wakes her
-
-A chat or voice message that wakes the character is reported on that message's own turn,
-as `wake: the character just woke from the bed, woken by this message` under `trigger:
-user message`.
-
-The `wake:` line appears only for a wake from sleep: a wake before her lie-down clip has
-ended ends the scene with no wake clip and no wake signal, the bed fading out as she
-returns to standing, and a launch with the scene off starts her standing.
-
-#### Waking without a signal
-
-The backend's own `stand` gets her up with the same wake clip and fires no
-`proactive.wake`: the backend sent it and already knows.
-
-The scene also ends without a wake signal when another motion takes the body, when the
-VRM is swapped, and when a clip or the bed fails to load; those paths leave her standing
-and say nothing to the backend.
-
 ## Plugin lines
 
 The two lines report what the enabled plugins offer, read from the MCP host's newest
@@ -927,8 +833,6 @@ all situational detail still lives in the trigger lines above.
 | `proactive.dropped` | `(I just dropped you from mid-air)` |
 | `proactive.screen_app_switched` | `(I just moved over to something else on my screen)` |
 | `proactive.screen_long_session` | `(I've been in the same thing on my screen for a while)` |
-| `proactive.wake`, cause `click` | `(I just woke you up)` |
-| `proactive.wake`, cause `timeout` | `(you just woke up)` |
 | `proactive.*` (other) | `(I've gone quiet for a while)` |
 | `schedule.*` | `(it's the time of day you check in on me)` |
 | `signals.batch` | `(a few signals batched up for you)` |
@@ -985,7 +889,7 @@ generate_express({
 | `emotion_text` | voice tone tag |
 | `caption` | voice direction in natural language |
 
-While `body:` is `sitting`, `peeking` or `lying`, the client drops `motion_id` and keeps
+While `body:` is `sitting` or `peeking`, the client drops `motion_id` and keeps
 the pose; `emotion_id`, `emotion_text` and `caption` still apply.
 
 All fields are optional. Include only the fields that should change.

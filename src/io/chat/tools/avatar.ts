@@ -18,8 +18,7 @@ const BODY_ACTION_DESCRIPTION =
   "perch_targets. peek: peek around the left or right edge of the frontmost window; needs side. " +
   "move_to: move to center or a named corner of the work area; needs spot, and takes monitor to " +
   "move to another display — omit it to stay on the current one. stand: return to the standing " +
-  "position; leaves a perch or a peek, and gets her out of bed. go_to_bed: lay her on a bed at " +
-  "the spot she stands on; she sleeps until a click, a message from the user, or stand. The " +
+  "position; leaves a perch or a peek. The " +
   "result is ok, or one word: not_found (no such window), blocked (every candidate window is " +
   "covered), interrupted (the user is holding her), busy (another move runs), unsupported, or " +
   "timeout — the action is still running, and look at: body tells the outcome.";
@@ -38,7 +37,7 @@ function createBodyActionTool(getExecutor: () => AvatarExecutor | null): ClientT
             action: {
               type: "string",
               description: "the move to make",
-              enum: ["sit_on_window", "peek", "move_to", "stand", "go_to_bed"],
+              enum: ["sit_on_window", "peek", "move_to", "stand"],
             },
             app: {
               type: "string",

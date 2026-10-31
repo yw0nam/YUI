@@ -31,9 +31,6 @@ export function backgroundMarker(eventName: string, trigger: TriggerMeta): strin
   if (eventName === "proactive.screen_long_session") {
     return "(I've been in the same thing on my screen for a while)";
   }
-  if (eventName === "proactive.wake") {
-    return trigger.wake?.cause === "timeout" ? "(you just woke up)" : "(I just woke you up)";
-  }
   if (eventName.startsWith("proactive.")) return "(I've gone quiet for a while)";
   if (eventName.startsWith("schedule.")) return "(it's the time of day you check in on me)";
   if (eventName === "signals.batch") return "(a few signals batched up for you)";

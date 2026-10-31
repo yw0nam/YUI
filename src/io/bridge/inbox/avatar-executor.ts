@@ -47,25 +47,6 @@ const log = createLogger("avatar-executor");
 /** Inset from the work-area edges for the left/right/top spots (logical px). */
 const EDGE_MARGIN_PX = 24;
 
-/**
- * The bed scene as the avatar commands see it. Every phase but `off` and `unsupported` is her
- * being on the bed, and `sit_on_window`, `peek` and `move_to` answer `busy` until she is up
- * (the wake clip runs about 22 s, past a command's deadline, so they do not wait for it).
- */
-export interface AvatarBed {
-  /** `unsupported`: no scene can start (reduced motion); `starting`: the set-up or the exit tail. */
-  phase(): "unsupported" | "off" | "starting" | "lying" | "waking";
-  /**
-   * Lays her on a bed at the spot she stands on. Answers `ok` when the lying-down clip starts,
-   * and `lying` is reported from that moment.
-   */
-  lieDown(): Promise<AvatarCommandResult>;
-  /** Wakes her with the backend's own stand: the wake clip starts and posture reads lying until she is up; a set-up is cancelled. */
-  getUp(): void;
-  /** The user grabbed her: a lie-down still starting is cut short. */
-  interrupt(): void;
-}
-
 export interface AvatarExecutorDeps {
   /** Subscribe to bridged requests (the `avatar-rpc` channel). */
   subscribe(cb: (req: AvatarRpcRequest) => void): () => void;
@@ -90,7 +71,6 @@ export interface AvatarExecutorDeps {
   /** An agent command is about to move the avatar — ambient motion yields to it. Its
    *  return value, when a promise, resolves once a travel that motion parked has settled. */
   noteAgentMove(): void | Promise<void>;
-  bed: AvatarBed;
 }
 
 export interface AvatarExecutor {
@@ -160,8 +140,6 @@ function parseCommand(params: unknown): AvatarCommand | AvatarCommandParse | nul
     }
     case "stand":
       return { action: "stand" };
-    case "go_to_bed":
-      return { action: "go_to_bed" };
     default:
       return null;
   }
@@ -223,7 +201,7 @@ function spotOrigin(
 const OWNED_METHODS: ReadonlySet<string> = new Set(["state", "perch_targets", "command"]);
 
 export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
-  const { perch, getWindow, listMonitors, getPosture, getVrm, noteAvatarMoved, bed } = deps;
+  const { perch, getWindow, listMonitors, getPosture, getVrm, noteAvatarMoved } = deps;
 
   let unsubscribe: (() => void) | undefined;
   let moving = false;
@@ -279,38 +257,20 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
     return { ok: true };
   }
 
-  function onBed(): boolean {
-    const phase = bed.phase();
-    return phase !== "off" && phase !== "unsupported";
-  }
-
-  async function goToBed(): Promise<AvatarCommandResult> {
-    const phase = bed.phase();
-    if (phase === "lying") return { ok: true };
-    if (phase === "unsupported") return fail("unsupported");
-    if (phase !== "off") return fail("busy");
-    if (aborted()) return fail("interrupted");
-    perch.release();
-    return bed.lieDown();
-  }
-
   async function runCommand(command: AvatarCommand): Promise<AvatarCommandResult> {
     // A cancelled climb or stroll can still be unparking its travel; wait for that before
     // any command places or reads the window, both wrong mid-travel.
     await deps.noteAgentMove();
     switch (command.action) {
       case "sit_on_window":
-        return onBed() ? fail("busy") : place({ kind: "sit", app: command.app });
+        return place({ kind: "sit", app: command.app });
       case "peek":
-        return onBed() ? fail("busy") : place({ kind: "peek", side: command.side });
+        return place({ kind: "peek", side: command.side });
       case "move_to":
-        return onBed() ? fail("busy") : moveTo(command.spot, command.monitor);
+        return moveTo(command.spot, command.monitor);
       case "stand":
-        if (onBed()) bed.getUp();
-        else perch.release();
+        perch.release();
         return { ok: true };
-      case "go_to_bed":
-        return goToBed();
     }
   }
 
@@ -406,10 +366,7 @@ export function createAvatarExecutor(deps: AvatarExecutorDeps): AvatarExecutor {
     },
     noteUserDrag() {
       dragging = true;
-      if (moving) {
-        interrupted = true;
-        bed.interrupt();
-      }
+      if (moving) interrupted = true;
     },
     noteUserDragEnd() {
       dragging = false;

@@ -5,11 +5,7 @@ import {
   createWindowDropSource,
   type WindowDropSource,
 } from "../../dispatcher/sources/gesture/window-drop/window-drop-source";
-import {
-  type AvatarBed,
-  type AvatarExecutor,
-  createAvatarExecutor,
-} from "../../io/bridge/inbox/avatar-executor";
+import { type AvatarExecutor, createAvatarExecutor } from "../../io/bridge/inbox/avatar-executor";
 import { onAvatarRpc, respondAvatarRpc } from "../../io/bridge/inbox/avatar-rpc";
 import {
   attachKeepOnScreen,
@@ -55,10 +51,6 @@ export function wireWindowSources(deps: {
   onSitLost: () => void;
   /** The sit-down a drop plays in place before the seat is taken. */
   sitDown: () => Promise<"done" | "lost">;
-  /** A scene holds the body and the window — no perch, no peek, no resize. */
-  isHeld: () => boolean;
-  /** The bed the avatar commands lay her on. */
-  bed: AvatarBed;
   /** The applied Ctrl+wheel resize bounds — the window-geometry store's record. */
   onResizeApplied?: (bounds: { x: number; y: number; width: number; height: number }) => void;
   /** The OS drag release settled — the window-geometry store saves the position. */
@@ -165,7 +157,6 @@ export function wireWindowSources(deps: {
       wasDragging: wasWindowDragging,
       onSitLost: deps.onSitLost,
       sitDown: deps.sitDown,
-      isHeld: deps.isHeld,
     });
     windowResizeSource = createWindowResizeSource({
       renderer,
@@ -181,7 +172,7 @@ export function wireWindowSources(deps: {
           },
         };
       },
-      isLocked: () => deps.isHeld() || (deps.isTravelActive?.() ?? false),
+      isLocked: () => deps.isTravelActive?.() ?? false,
       onApplied: deps.onResizeApplied,
     });
     // Avatar RPC: the loopback ingress bridges `/avatar/*` here, where the state
@@ -208,7 +199,6 @@ export function wireWindowSources(deps: {
       noteAvatarMoved,
       noteAgentMove,
       onRelocated,
-      bed: deps.bed,
     });
     if (disposed) {
       windowDropSource.stop();

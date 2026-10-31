@@ -26,11 +26,7 @@ import type { ClientTool } from "../../io/chat/tools/client-tools";
 import { wireDispatcher } from "./wire-dispatcher";
 
 describe("wireDispatcher", () => {
-  const setup = (
-    isBodyHeld?: () => boolean,
-    windowTools?: ClientTool[],
-    endpoints = {} as EndpointsConfig,
-  ) => {
+  const setup = (windowTools?: ClientTool[], endpoints = {} as EndpointsConfig) => {
     const registered: Array<() => void> = [];
     const register = vi.fn((teardown: () => void) => {
       registered.push(teardown);
@@ -98,7 +94,6 @@ describe("wireDispatcher", () => {
       screenshotSettings: {} as never,
       screenCapturer: {} as never,
       getFrontmost: () => undefined,
-      isBodyHeld,
       voice: { speakFailure: vi.fn() } as never,
       turnLog: {} as never,
       previousTurn: previousTurn as never,
@@ -135,10 +130,7 @@ describe("wireDispatcher", () => {
   };
 
   it("builds each turn's tools from generate_express and the avatar tools it was given", () => {
-    setup(
-      undefined,
-      createAvatarTools(() => null),
-    );
+    setup(createAvatarTools(() => null));
 
     const { clientTools } = mocks.createBackendCaller.mock.calls.at(-1)![0];
     expect(
@@ -158,7 +150,7 @@ describe("wireDispatcher", () => {
       broker_base_url: "http://localhost:3201/mcp",
     } as EndpointsConfig,
   ])("declares generate_express without avatar tools for endpoints %j", (endpoints) => {
-    setup(undefined, undefined, endpoints as EndpointsConfig);
+    setup(undefined, endpoints as EndpointsConfig);
 
     const { clientTools } = mocks.createBackendCaller.mock.calls.at(-1)![0];
     expect(
@@ -166,19 +158,6 @@ describe("wireDispatcher", () => {
         .definitions()
         .map((d: { function: { name: string } }) => d.function.name),
     ).toEqual(["generate_express"]);
-  });
-
-  it("hands the caller the scene hold, so no turn starts a thinking bridge on the bed", () => {
-    const held = () => true;
-    setup(held);
-
-    expect(mocks.createBackendCaller.mock.calls.at(-1)?.[0].isBodyHeld).toBe(held);
-  });
-
-  it("builds the caller without a scene hold where there is no bed", () => {
-    setup();
-
-    expect(mocks.createBackendCaller.mock.calls.at(-1)?.[0].isBodyHeld).toBeUndefined();
   });
 
   it("setPeek reaches the dispatcher's peek enter/exit", async () => {

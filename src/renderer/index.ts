@@ -40,7 +40,6 @@ import { createClipLibrary } from "./motion/clip/clip-library";
 import { createMotionPlayback } from "./motion/playback/motion-playback";
 import { createRootYaw } from "./motion/yaw/root-yaw";
 import { createPinController, type PinController } from "./pin-controller";
-import { createProps } from "./props/props";
 import type { Renderer, RendererOptions, TickFn, VrmLoadResult } from "./types";
 import { prepareVrm, readVrmMetaName } from "./vrm-loading";
 import { buildVrmParticipants, notifyVrmDisposed, notifyVrmLoaded } from "./vrm-participant";
@@ -58,7 +57,6 @@ export { downPitchSign } from "./expression/gaze/bone-pitch";
 export type { MouthLipsync } from "./expression/mouth-lipsync";
 export type { RenderMotionSignal } from "./motion/playback/motion-controller";
 export type {
-  PropHandle,
   Renderer,
   RendererOptions,
   TickContext,
@@ -188,10 +186,6 @@ export function createRenderer(options: RendererOptions): Renderer {
     log,
   });
 
-  // ── Furniture props ───────────────────────────────────────────────────
-  // A plain loader: a prop carries no VRM extension for the plugins to read.
-  const props = createProps({ scene, loader: new GLTFLoader(), log });
-
   // ── VrmParticipant unification ──────────────────────────────────────────
   // pins/gaze/emotion/mouth share the same per-frame lifecycle (adopt on load,
   // step before vrm.update, drop on dispose, report convergence) under mismatched
@@ -200,7 +194,7 @@ export function createRenderer(options: RendererOptions): Renderer {
   // per-frame step loop stays monomorphic) into the fixed order animate() already
   // ran them in: bones (pins/gaze) before expression weights (emotion/mouth), all
   // before vrm.update. Order + adapter wiring is unit-tested in vrm-participant.test.ts.
-  const participants = buildVrmParticipants({ pins, gaze, emotion, mouth, props, camera });
+  const participants = buildVrmParticipants({ pins, gaze, emotion, mouth, camera });
 
   const frameLoop: FrameLoop = createFrameLoop({
     participants,
@@ -222,7 +216,6 @@ export function createRenderer(options: RendererOptions): Renderer {
   function disposeCurrent(): void {
     motion.onVrmDisposed();
     clips.onVrmDisposed();
-    frameLoop.onVrmDisposed();
     // Drop each participant's VRM-bound state (reset in-flight fade/bone refs/damped
     // state) so nothing carries to the next VRM or writes to the disposed one.
     notifyVrmDisposed(participants);
@@ -312,8 +305,6 @@ export function createRenderer(options: RendererOptions): Renderer {
       mouth.stop();
     },
     playMotion: motion.playMotion,
-    setMotionHold: motion.setMotionHold,
-    setSpringBonesHeld: frameLoop.setSpringBonesHeld,
     getCurrentMotion() {
       const cur = motion.current();
       return cur ? { id: cur.id, vrma_path: cur.vrma_path } : null;
@@ -389,21 +380,13 @@ export function createRenderer(options: RendererOptions): Renderer {
     setGazeEnabled(enabled) {
       gaze.setEnabled(enabled);
     },
-    setGazeSuppressed(suppressed) {
-      gaze.setSuppressed(suppressed);
-    },
     setGazeCursor(pos) {
       gaze.setCursorCss(pos && clientToStage(pos.x, pos.y, mountRect));
-    },
-    loadProp: props.load,
-    getModelRestHipsHeight() {
-      return currentVrm?.humanoid?.normalizedRestPose.hips?.position?.[1] ?? null;
     },
     dispose() {
       frameLoop.dispose();
       ro.disconnect();
       disposeCurrent();
-      props.disposeAll();
       alphaHitTest.dispose();
       renderer.dispose();
       renderer.domElement.remove();

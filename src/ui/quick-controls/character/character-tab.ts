@@ -1,6 +1,6 @@
 /**
  * Character tab — two stacks: the Body page's VRM list with import, relations rows and camera view
- * reset, and the Motion page's mouth-gain, idle and express motion and bed scene rows. `rows` picks
+ * reset, and the Motion page's mouth-gain, idle and express motion rows. `rows` picks
  * which render; the same rows drive markup, handlers and subscriptions, so only rendered rows are
  * bound.
  */
@@ -8,7 +8,6 @@
 import type { AvatarOption } from "../../../config/validators/avatar/types";
 import type { createVrmSelection } from "../../../io/assets/vrm-selection";
 import type { Logger } from "../../../logger";
-import type { BedSceneSettingsStore } from "../../../settings/avatar/bed-scene-settings";
 import type { ExpressMotionSettingsStore } from "../../../settings/avatar/express-motion-settings";
 import type {
   IdleMotionSettingsStore,
@@ -18,7 +17,6 @@ import type { createLipsyncSettings } from "../../../settings/avatar/lipsync-set
 import type { FlagSettingsStore } from "../../../settings/persisted-store";
 import type { PresetEntry } from "../../../settings/preset/active-preset";
 import type { RelationsStore } from "../../../settings/relations/relations-store";
-import { createBedSceneSection } from "./bed-scene/bed-scene-section";
 import { bodyHtml, type CharacterRows, motionHtml } from "./character-html";
 import { createExpressMotionList } from "./express-motion/express-motion-section";
 import { createGainRow } from "./gain/gain-row";
@@ -73,10 +71,6 @@ export function createCharacterTab(deps: {
   expressMotion?: {
     settings: ExpressMotionSettingsStore;
     getVocabulary: () => readonly string[];
-  };
-  /** Required with `rows.bedScene`. */
-  bedScene?: {
-    settings: BedSceneSettingsStore;
   };
   /** Required with `rows.relations`. */
   relations?: {
@@ -134,11 +128,6 @@ export function createCharacterTab(deps: {
     if (isOpen()) expressMotionList?.render();
   });
 
-  const bedScene = rows.bedScene ? required(deps.bedScene, "bedScene") : null;
-  const bedSceneSection = bedScene
-    ? createBedSceneSection({ root: motionEl, settings: bedScene.settings, isOpen, log })
-    : null;
-
   const relationsSection = rows.relations
     ? createRelationsEditSection({
         root: el,
@@ -160,7 +149,6 @@ export function createCharacterTab(deps: {
       vrmList.render();
       idleMotionList?.render();
       expressMotionList?.render();
-      bedSceneSection?.refresh();
       relationsSection?.refresh();
     },
     close(): void {
@@ -172,7 +160,6 @@ export function createCharacterTab(deps: {
       unsubscribeExpressMotion?.();
       gainRow?.dispose();
       expressMotionList?.dispose();
-      bedSceneSection?.dispose();
       relationsSection?.dispose();
       unbindViewpoint?.();
       vrmList.dispose();

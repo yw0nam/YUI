@@ -434,12 +434,6 @@ const en: Record<string, string> = {
   "express_motion.dance.label": "Dance",
   "express_motion.dance.sub": "Random, from a short step to a full routine",
 
-  // launch bed scene (Motion page)
-  "bed_scene.label": "Wake up in bed",
-  "bed_scene.sub": "Starts asleep on a bed at launch",
-  "bed_scene.aria": "Wake up in bed",
-  "bed_scene.timeout_label": "Wakes on her own after",
-
   // viewpoint (camera orbit)
   "viewpoint.section": "Viewpoint",
   "viewpoint.sub": "Shift + drag to orbit, scroll to zoom",

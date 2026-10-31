@@ -64,7 +64,7 @@ globalThis.YUI_MAP =
       "kind": "module",
       "col": 2,
       "row": 0,
-      "desc": "Idle-tick, inbox, gesture, and wake sources that raise speech candidates",
+      "desc": "Idle-tick, inbox, and gesture sources that raise speech candidates",
       "zone": "logic"
     },
     {
@@ -73,7 +73,7 @@ globalThis.YUI_MAP =
       "kind": "module",
       "col": 2,
       "row": 2,
-      "desc": "Liveliness, locomotion, and the bed scene, independent of the backend",
+      "desc": "Liveliness and locomotion, independent of the backend",
       "zone": "logic"
     },
     {
@@ -688,15 +688,6 @@ globalThis.YUI_MAP =
       ]
     },
     {
-      "id": "renderer/props",
-      "module": "renderer",
-      "label": "props",
-      "role": "Furniture drawn in the character's scene.",
-      "paths": [
-        "src/renderer/props"
-      ]
-    },
-    {
       "id": "settings",
       "module": "settings",
       "label": "settings",
@@ -871,7 +862,7 @@ globalThis.YUI_MAP =
       "id": "io/window/geometry",
       "module": "window",
       "label": "window geometry",
-      "role": "Monitor and floor math, the quick card's dock, follow and snap rules and its macOS child-window link, the Threads window's first place beside the pet window, its stored frame moved into the nearest work area and the chip-sized rect its grow starts from, the travel and stationary frames, keep-on-screen, and the companion column windows' placement, width, focus, drag and content-height resize.",
+      "role": "Monitor and floor math, the quick card's dock, follow and snap rules and its macOS child-window link, the Threads window's first place beside the pet window, its stored frame moved into the nearest work area and the chip-sized rect its grow starts from, the travel frame, keep-on-screen, and the companion column windows' placement, width, focus, drag and content-height resize.",
       "paths": [
         "src/io/window/geometry"
       ]
@@ -1084,15 +1075,6 @@ globalThis.YUI_MAP =
       ]
     },
     {
-      "id": "dispatcher/sources/wake",
-      "module": "sources",
-      "label": "wake source",
-      "role": "Fires the wake candidate as she gets out of bed.",
-      "paths": [
-        "src/dispatcher/sources/wake"
-      ]
-    },
-    {
       "id": "dispatcher/sources/addressed",
       "module": "sources",
       "label": "addressed source",
@@ -1126,15 +1108,6 @@ globalThis.YUI_MAP =
       "role": "Movement loops over the real window: stroll, perch, climb, jump, fall, and sit transitions.",
       "paths": [
         "src/ambient/locomotion"
-      ]
-    },
-    {
-      "id": "ambient/bed-scene",
-      "module": "ambient",
-      "label": "bed scene",
-      "role": "Asleep on a bed at launch or on command, the wake, and the exit.",
-      "paths": [
-        "src/ambient/bed-scene"
       ]
     },
     {
@@ -1323,7 +1296,7 @@ globalThis.YUI_MAP =
       "id": "app/stage",
       "module": "wiring",
       "label": "stage wiring",
-      "role": "Binds the renderer, gestures, locomotion, the bed scene, and the window sources to the pet stage.",
+      "role": "Binds the renderer, gestures, locomotion, and the window sources to the pet stage.",
       "paths": [
         "src/app/stage"
       ]
@@ -1955,7 +1928,7 @@ globalThis.YUI_MAP =
       "id": "renderer-motion",
       "from": "renderer",
       "to": "renderer/motion",
-      "carries": "playMotion, setMotionHold, setIdleVariants, setBodyYaw",
+      "carries": "playMotion, setIdleVariants, setBodyYaw",
       "kind": "call",
       "transport": "shared"
     },
@@ -2390,15 +2363,6 @@ globalThis.YUI_MAP =
       "wiring": "src/app/stage/wire-locomotion.ts"
     },
     {
-      "id": "executor-bed",
-      "from": "io/bridge/inbox",
-      "to": "ambient/bed-scene",
-      "carries": "bed.phase, lieDown, getUp, interrupt",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/stage/create-avatar-bed.ts"
-    },
-    {
       "id": "executor-posture",
       "from": "io/bridge/inbox",
       "to": "dispatcher",
@@ -2518,28 +2482,10 @@ globalThis.YUI_MAP =
       "wiring": "src/app/stage/wire-gestures.ts"
     },
     {
-      "id": "wake-bus",
-      "from": "dispatcher/sources/wake",
-      "to": "dispatcher/core",
-      "carries": "bus.push: proactive.wake {cause, signals}",
-      "kind": "call",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-sources.ts"
-    },
-    {
       "id": "signals-drain",
       "from": "dispatcher/sources/inbox",
       "to": "dispatcher/sources/idle-tick",
       "carries": "signalsSource.drain(): signal groups that ride the milestone envelope",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/turn/wire-sources.ts"
-    },
-    {
-      "id": "signals-drain-wake",
-      "from": "dispatcher/sources/inbox",
-      "to": "dispatcher/sources/wake",
-      "carries": "signalsSource.drain(): signal groups that ride the wake envelope",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/wire-sources.ts"
@@ -2672,7 +2618,7 @@ globalThis.YUI_MAP =
       "id": "frame-shell",
       "from": "ambient/locomotion",
       "to": "shell/window",
-      "carries": "set_frame_logical {x, y, width, height} for the travel and stationary frames",
+      "carries": "set_frame_logical {x, y, width, height} for the travel frame",
       "kind": "tauri-command",
       "transport": "shared",
       "wiring": "src/ambient/locomotion/travel/wire-travel-frame.ts"
@@ -2722,59 +2668,6 @@ globalThis.YUI_MAP =
       "wiring": "src/app/stage/wire-locomotion.ts"
     },
     {
-      "id": "bed-renderer",
-      "from": "ambient/bed-scene",
-      "to": "renderer",
-      "carries": "playMotion, setMotionHold, setOrbit, setSpringBonesHeld, setGazeSuppressed, loadProp",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-bed-scene.ts"
-    },
-    {
-      "id": "renderer-props",
-      "from": "renderer",
-      "to": "renderer/props",
-      "carries": "loadProp",
-      "kind": "call",
-      "transport": "shared"
-    },
-    {
-      "id": "bed-liveliness",
-      "from": "ambient/bed-scene",
-      "to": "ambient/liveliness",
-      "carries": "setAsleep(bool)",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-bed-scene.ts"
-    },
-    {
-      "id": "bed-frame",
-      "from": "ambient/bed-scene",
-      "to": "io/window/geometry",
-      "carries": "stationary frame: park, refit, release",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/stage/scene-frame.ts"
-    },
-    {
-      "id": "bed-bus",
-      "from": "ambient/bed-scene",
-      "to": "dispatcher/core",
-      "carries": "bus.push: avatar.bed_start, avatar.bed_end",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/stage/wire-bed-scene.ts"
-    },
-    {
-      "id": "bed-wake",
-      "from": "ambient/bed-scene",
-      "to": "dispatcher/sources/wake",
-      "carries": "onWake(cause) → wakeSource.fire",
-      "kind": "callback",
-      "transport": "shared",
-      "wiring": "src/app/bootstrap-configured.ts"
-    },
-    {
       "id": "pet-drag-shell",
       "from": "io/window/pet",
       "to": "shell/window",
@@ -2821,7 +2714,7 @@ globalThis.YUI_MAP =
       "id": "window-geometry",
       "from": "app/stage",
       "to": "settings",
-      "carries": "yui.window.<label> {x,y,width,height}: written after the OS drag ends and after a Ctrl+wheel resize; applied once at boot, clamped on screen, before the faller places the window and the bed scene parks it",
+      "carries": "yui.window.<label> {x,y,width,height}: written after the OS drag ends and after a Ctrl+wheel resize; applied once at boot, clamped on screen, before the faller places the window",
       "kind": "storage",
       "transport": "shared",
       "wiring": "src/app/stage/wire-window-geometry.ts"
@@ -4479,10 +4372,9 @@ globalThis.YUI_MAP =
         },
         {
           "from": "tools",
-          "label": "cancel the movers; bed lieDown, getUp",
+          "label": "cancel the movers",
           "edges": [
-            "executor-locomotion",
-            "executor-bed"
+            "executor-locomotion"
           ],
           "to": "ambient"
         },
@@ -4724,21 +4616,12 @@ globalThis.YUI_MAP =
           "to": "sources"
         },
         {
-          "from": "ambient",
-          "label": "waking from the bed fires the wake source",
-          "edges": [
-            "bed-wake"
-          ],
-          "to": "sources"
-        },
-        {
           "from": "sources",
           "label": "candidate envelopes on the bus",
           "edges": [
             "idle-tick-bus",
             "inbox-bus",
-            "gesture-bus",
-            "wake-bus"
+            "gesture-bus"
           ],
           "to": "dispatcher"
         },
@@ -4746,8 +4629,7 @@ globalThis.YUI_MAP =
           "from": "ambient",
           "label": "avatar.* movement events",
           "edges": [
-            "locomotion-bus",
-            "bed-bus"
+            "locomotion-bus"
           ],
           "to": "dispatcher"
         },

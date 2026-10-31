@@ -164,7 +164,7 @@ export type ScreenSource =
   | { kind: "window"; app: string; window_title: string };
 
 export interface Posture {
-  state: "standing" | "sitting" | "peeking" | "dragging" | "walking" | "climbing" | "lying";
+  state: "standing" | "sitting" | "peeking" | "dragging" | "walking" | "climbing";
   perched_on?: {
     /** Stable app-owner name. */
     app?: string;
@@ -290,9 +290,6 @@ export interface ThreadsSnapshot {
 /** A bundled guide doc the backend answers from. */
 export type GuideKey = "controls" | "capabilities";
 
-/** What woke the character on the bed. */
-export type WakeCause = "click" | "timeout" | "message";
-
 /** trigger envelope describing what fired this backend turn. */
 export interface TriggerMeta {
   kind: "user" | "schedule" | "proactive" | "signals" | "milestone" | "addressed";
@@ -318,8 +315,6 @@ export interface TriggerMeta {
     /** app_switched transitions held back by the global pacer, oldest first. Present only when non-empty. */
     recent?: Array<{ from_app: string; to_app: string; dwell_min: number }>;
   };
-  /** The character woke on the bed; `message` only on the user turn whose message woke her. */
-  wake?: { cause: WakeCause };
 }
 
 /** How the last turn that tried to speak ended. */

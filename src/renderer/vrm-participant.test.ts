@@ -14,7 +14,6 @@ import type { EmotionCrossfade } from "./expression/emotion-crossfade";
 import type { CursorGaze } from "./expression/gaze/cursor-gaze";
 import type { MouthLipsync } from "./expression/mouth-lipsync";
 import type { PinController } from "./pin-controller";
-import type { Props } from "./props/props";
 import {
   anyConverging,
   buildVrmParticipants,
@@ -136,7 +135,6 @@ describe("buildVrmParticipants", () => {
       isConverging: vi.fn(() => false),
       setConfig: vi.fn(),
       setEnabled: vi.fn(),
-      setSuppressed: vi.fn(),
       setCursorCss: vi.fn(),
     };
     const emotion: EmotionCrossfade = {
@@ -154,23 +152,17 @@ describe("buildVrmParticipants", () => {
       stop: vi.fn(),
       openValue: vi.fn(() => 0),
     };
-    const props: Props = {
-      load: vi.fn(),
-      step: vi.fn(),
-      disposeAll: vi.fn(),
-    };
     const camera = {} as PerspectiveCamera;
-    return { pins, gaze, emotion, mouth, props, camera };
+    return { pins, gaze, emotion, mouth, camera };
   }
 
-  it("orders participants pins, gaze, emotion, mouth, props — mutation: reversing the array must fail this", () => {
+  it("orders participants pins, gaze, emotion, mouth — mutation: reversing the array must fail this", () => {
     const deps = makeDeps();
     const order: string[] = [];
     deps.pins.step = vi.fn(() => order.push("pins"));
     deps.gaze.step = vi.fn(() => order.push("gaze"));
     deps.emotion.step = vi.fn(() => order.push("emotion"));
     deps.mouth.step = vi.fn(() => order.push("mouth"));
-    deps.props.step = vi.fn(() => order.push("props"));
     // mouth.step only runs when the VRM has an expressionManager — give it one so
     // it actually fires and can be seen in the order.
     const vrmWithExpr = { expressionManager: {} } as unknown as VRM;
@@ -178,9 +170,8 @@ describe("buildVrmParticipants", () => {
     const participants = buildVrmParticipants(deps);
     stepParticipants(participants, { ...ctx, vrm: vrmWithExpr });
 
-    expect(participants).toHaveLength(5);
-    expect(order).toEqual(["pins", "gaze", "emotion", "mouth", "props"]);
-    expect(deps.props.step).toHaveBeenCalledExactlyOnceWith(vrmWithExpr);
+    expect(participants).toHaveLength(4);
+    expect(order).toEqual(["pins", "gaze", "emotion", "mouth"]);
   });
 
   describe("pins participant", () => {

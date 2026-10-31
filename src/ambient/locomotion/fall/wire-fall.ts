@@ -32,44 +32,23 @@ export function wireFaller(deps: {
   log: Logger;
 }): {
   drop(opts?: DropOptions): Promise<void>;
-  /**
-   * Puts her on the floor line where she stands, whatever the fall switch says, once the boot
-   * placement has settled. True when she is down; false when the faller was busy or is not there.
-   */
-  place(): Promise<boolean>;
   cancel(): void;
   dispose(): void;
-  /** Resolves once the boot placement has settled, or at once where none runs. */
-  placed: Promise<void>;
 } {
   const { bus, renderer, log } = deps;
   let faller: Faller | null = null;
   let disposed = false;
-  let resolvePlaced!: () => void;
-  const placed = new Promise<void>((resolve) => {
-    resolvePlaced = resolve;
-  });
   const handle = {
     drop: async (opts?: DropOptions) => {
       if (deps.isEnabled()) await faller?.drop(opts);
-    },
-    place: async () => {
-      // Without a window there is nothing to put on a floor.
-      if (!isTauri()) return true;
-      await placed;
-      return (await faller?.drop({ place: true })) ?? false;
     },
     cancel: () => faller?.cancel(),
     dispose: () => {
       disposed = true;
       faller?.stop();
     },
-    placed,
   };
-  if (!isTauri()) {
-    resolvePlaced();
-    return handle;
-  }
+  if (!isTauri()) return handle;
   void (async () => {
     const { invoke } = await import("@tauri-apps/api/core");
     const { availableMonitors } = await import("@tauri-apps/api/window");
@@ -124,8 +103,6 @@ export function wireFaller(deps: {
     faller = createdFaller;
     // Placement is not a user-controlled fall; boot applied the saved position before this.
     await createdFaller.drop({ place: true });
-  })()
-    .catch((err) => log.warn("faller_start_failed", { degrade: true, error: String(err) }))
-    .finally(resolvePlaced);
+  })().catch((err) => log.warn("faller_start_failed", { degrade: true, error: String(err) }));
   return handle;
 }

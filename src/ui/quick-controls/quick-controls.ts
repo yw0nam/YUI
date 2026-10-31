@@ -26,7 +26,6 @@ import type {
 import type { PickedVoiceImport } from "../../io/voice/voices/voice-import-flow";
 import type { ScreenSourceProvider } from "../../io/window/capture/screen-source-provider";
 import { createLogger } from "../../logger";
-import type { BedSceneSettingsStore } from "../../settings/avatar/bed-scene-settings";
 import type { ExpressMotionSettingsStore } from "../../settings/avatar/express-motion-settings";
 import type {
   IdleMotionSettingsStore,
@@ -260,8 +259,6 @@ interface QuickControlsOptions {
   expressMotionSettings?: ExpressMotionSettingsStore;
   /** Agent-triggerable motion ids backing that section (empty until configs load). */
   getExpressMotions?: () => readonly string[];
-  /** Launch bed scene on/off + wake timeout store. If absent, that section won't render. */
-  bedSceneSettings?: BedSceneSettingsStore;
   /** The MCP host and its managing commands. If absent, the Plugins page won't render. */
   plugins?: { host: McpHost; manage: McpHostManage };
   /** Card file steps and the preset creator, wired by the app layer. */
@@ -375,7 +372,6 @@ export function createQuickControls({
   getIdlePool,
   expressMotionSettings,
   getExpressMotions,
-  bedSceneSettings,
   plugins,
   importCard,
   exportCard,
@@ -505,7 +501,6 @@ export function createQuickControls({
       gain: true,
       idleMotion: !!idleMotionSettings,
       expressMotion: !!expressMotionSettings,
-      bedScene: !!bedSceneSettings,
       viewpoint: !!onResetViewpoint,
       relations: !!relationsStore && !!relationsSwitch && !!presetRegistry,
     },
@@ -529,7 +524,6 @@ export function createQuickControls({
           },
         }
       : {}),
-    ...(bedSceneSettings ? { bedScene: { settings: bedSceneSettings } } : {}),
     ...(relationsStore && relationsSwitch && presetRegistry
       ? {
           relations: {
