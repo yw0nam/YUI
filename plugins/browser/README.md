@@ -23,7 +23,7 @@ The tool description takes precedence over the guide and states the contract:
 - `task`, `screenshot`, and every name starting `__yui` are reserved; variables start fresh on every call.
 - The injected `task` is the task space's handle: use it, do not call `taskSpace()`, and do not finish the space.
 - Observations go to `console.log`; the output is text.
-- `await screenshot(page)` attaches an image of the page's viewport. Images need an image-capable model. `screenshot` restores a minimized ego lite window before it captures.
+- `await screenshot(page)` attaches an image of the page's viewport. Images need an image-capable model. `screenshot` waits 5 s for a capture, restores a minimized ego lite window, and cycles the window once when a capture stalls.
 - A space the user took over fails with `EGO_TASK_SPACE_NAME_IN_USE` until the user hands it back in ego lite.
 - Error line numbers are 5 more than the line in `code`.
 - `guide: true` returns the full guide.
@@ -41,18 +41,40 @@ try {
   let __yuiShot = 0;
   const screenshot = (page) => __yuiScreenshot(page, `<shot folder>/${String(++__yuiShot).padStart(3, "0")}.png`);
   // code follows here, from line 6
+  function __yuiCapture(page, path) {
+    const shot = page.screenshot({ path });
+    shot.catch(() => {});
+    let timer;
+    const limit = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error("[yui] capture stalled")), 5000);
+    });
+    return Promise.race([shot, limit]).finally(() => clearTimeout(timer));
+  }
   async function __yuiScreenshot(page, path) {
+    let didStall = false;
     try {
-      return await page.screenshot({ path });
+      return await __yuiCapture(page, path);
     } catch (e) {
-      if (!String(e?.message ?? e).includes("while the window is minimized")) throw e;
+      const message = String(e?.message ?? e);
+      didStall = message === "[yui] capture stalled";
+      if (!didStall && !message.includes("while the window is minimized")) throw e;
     }
     const { windowId } = await task.cdp("Browser.getWindowForTarget", { targetId: page.targetId });
+    if (didStall) {
+      await task.cdp("Browser.setWindowBounds", { windowId, bounds: { windowState: "minimized" } });
+      await task.cdp("Browser.setWindowBounds", { windowId, bounds: { windowState: "normal" } });
+      try {
+        return await __yuiCapture(page, path);
+      } catch (e) {
+        if (String(e?.message ?? e) !== "[yui] capture stalled") throw e;
+        throw new Error("screenshot stalled: ego lite did not capture in time; read the page with page.snapshot() instead");
+      }
+    }
     await task.cdp("Browser.setWindowBounds", { windowId, bounds: { windowState: "normal" } });
     for (let tries = 1; ; tries++) {
       await new Promise((r) => setTimeout(r, 100));
       try {
-        return await page.screenshot({ path });
+        return await __yuiCapture(page, path);
       } catch (e) {
         if (tries === 20) throw e;
       }
@@ -66,13 +88,13 @@ try {
 }
 ```
 
-`__yuiScreenshot` is declared after `code` and hoists, so adding it shifts no line of the caller's code. It captures the page's viewport; when the capture fails because ego lite's window is minimized, it restores the window through CDP and retries the capture every 100 ms, 20 times. Any other failure is rethrown.
+`__yuiScreenshot` is declared after `code` and hoists, so adding it shifts no line of the caller's code. It captures the page's viewport, abandoning a capture that takes longer than 5 s. When the capture fails because ego lite's window is minimized, it restores the window through CDP and retries the capture every 100 ms, 20 times. When a capture stalls, it sets the window to `minimized`, then `normal`, and captures once more; if that stalls too, the script fails with `screenshot stalled: ego lite did not capture in time; read the page with page.snapshot() instead`. Any other failure is rethrown.
 
 `code` starts on line 6, which is where the stated line offset comes from. A syntax error fails before the `try` runs and returns as a script failure with ego lite's message.
 
 ## Execution
 
-A call spawns `ego-browser nodejs`, writes the script to its stdin, and closes stdin; `guide` runs `ego-browser skill` and returns its stdout. The CLI is looked up at `~/.local/bin/ego-browser`, then on `PATH`. The plugin does not check whether ego lite runs: it spawns the CLI, which launches it.
+A call spawns `ego-browser nodejs`, writes the script to its stdin, and closes stdin; `guide` runs `ego-browser skill` and returns its stdout. The CLI is looked up at `~/.local/bin/ego-browser`, then on `PATH`. On Windows, a call first runs `ego-browser nodejs -e 0` outside the host's job, waiting up to 3 s, so ego lite starts there and outlives the server; a failure is logged and the call carries on. The plugin does not check whether ego lite runs: it spawns the CLI, which launches it.
 
 One lock per task-space name is held until that space's CLI exits and its screenshots are collected. Runs in one space go one at a time; runs in different spaces run in parallel.
 
@@ -141,6 +163,7 @@ The plugin writes the two argument errors, `unknown:` and the two status lines i
 
 - The script stops itself after 25 s; the CLI is killed at 28 s, and the result then starts with `unknown:`.
 - The whole text block is capped at 64 KiB; the script's logs are cut to fit.
+- A screenshot is abandoned after 5 s.
 - The last 4 screenshots are kept, each scaled to a long edge of at most 1280 px.
 
 The tool's `_meta["io.github.yw0nam.yui/wait_ms"]` is 32000, the wait that covers the kill and the screenshot collection after it.

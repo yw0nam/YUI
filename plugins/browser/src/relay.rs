@@ -1,6 +1,6 @@
 //! Runs a script in an ego lite task space through the installed `ego-browser` CLI.
 
-use crate::{script, shots};
+use crate::{boot, script, shots};
 use std::collections::HashMap;
 use std::path::Path;
 use std::process::Stdio;
@@ -17,6 +17,8 @@ pub struct Limits {
     pub deadline_ms: u64,
     /// The CLI is killed after this long when the script did not stop itself.
     pub kill_after: Duration,
+    /// A screenshot is abandoned after this long; the slowest success measured was 1076 ms.
+    pub capture_wait_ms: u64,
     pub image_cap: usize,
     pub long_edge: u32,
 }
@@ -24,6 +26,7 @@ pub struct Limits {
 pub const LIMITS: Limits = Limits {
     deadline_ms: 25_000,
     kill_after: Duration::from_secs(28),
+    capture_wait_ms: 5_000,
     image_cap: 4,
     long_edge: 1280,
 };
@@ -123,6 +126,7 @@ async fn spawn_script(
     code: &str,
     limits: Limits,
 ) -> Result<Option<std::process::Output>, String> {
+    boot::start_ego(bin).await;
     let mut child = Command::new(bin)
         .arg("nodejs")
         .stdin(Stdio::piped())
@@ -131,7 +135,7 @@ async fn spawn_script(
         .kill_on_drop(true)
         .spawn()
         .map_err(spawn_error)?;
-    let script = script::build_script(space, dir, code, limits.deadline_ms);
+    let script = script::build_script(space, dir, code, limits.deadline_ms, limits.capture_wait_ms);
     let stdin = child.stdin.take();
     let write = async move {
         if let Some(mut stdin) = stdin {
@@ -261,6 +265,7 @@ cat >/dev/null
         Limits {
             deadline_ms: 300,
             kill_after: Duration::from_secs(20),
+            capture_wait_ms: 100,
             image_cap: 4,
             long_edge: 1280,
         }

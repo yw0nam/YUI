@@ -1,6 +1,6 @@
 {
   "name": "browser",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Lets each character run JavaScript in its own ego lite browser task space and see screenshots.",
   "author": {
     "name": "yw0nam"

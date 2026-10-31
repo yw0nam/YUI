@@ -1,3 +1,4 @@
+mod boot;
 mod image_encode;
 mod locate;
 mod relay;
