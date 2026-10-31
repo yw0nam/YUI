@@ -36,10 +36,10 @@
 //!   server stops; each sends `notifications/cancelled`. A window cannot reuse the id of its
 //!   call still in flight.
 //! - **Stop.** Disable, retry and app exit cancel the server's calls, close its connection,
-//!   give it 1 s to exit, then kill its process tree and wait until the tree is empty. A server
-//!   still starting has its tree killed at once. On Windows the tree is a job object the host
-//!   owns, which also ends when the app process exits; a process that asks to leave it with
-//!   `CREATE_BREAKAWAY_FROM_JOB` outlives the stop. At app start each enabled plugin starts as
+//!   give it 1 s to exit, then kill its process tree; on Windows it then waits up to 1 s for the
+//!   job to empty. A server still starting has its tree killed at once. On Windows the tree is a
+//!   job object the host owns, which also ends when the app process exits; a process that asks
+//!   to leave it with `CREATE_BREAKAWAY_FROM_JOB` outlives the stop. At app start each enabled plugin starts as
 //!   its own task.
 
 mod calls;

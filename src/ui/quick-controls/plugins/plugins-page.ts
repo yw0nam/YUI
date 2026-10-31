@@ -102,6 +102,7 @@ export function createPluginsPage(deps: {
   }
 
   async function install(id: string): Promise<void> {
+    removal.error = undefined;
     const state = installOf(id);
     state.installing = true;
     await attempt(id, state, "plugins.err_install", () => manage.install(id));
@@ -110,6 +111,7 @@ export function createPluginsPage(deps: {
   }
 
   async function addLocal(): Promise<void> {
+    removal.error = undefined;
     folder.busy = true;
     await attempt("folder", folder, "plugins.err_folder", () => manage.addLocal());
     folder.busy = false;

@@ -176,13 +176,14 @@ impl Host {
         let data = launch::data_dir(&self.dir, &ticket.plugin_id);
         let started = match server::spawn(&ticket.spec, &ticket.root, &data, ticket.log) {
             Ok(spawned) => {
-                match self
+                let registered = self
                     .lock()
                     .server_mut(&ticket.plugin_id, &ticket.server_id, epoch)
-                {
-                    Some(ls) => ls.starting = Some(spawned.stopper()),
+                    .map(|ls| ls.starting = Some(spawned.stopper()))
+                    .is_some();
+                if !registered {
                     // Stopped while spawning.
-                    None => return spawned.stop(),
+                    return spawned.stop().await;
                 }
                 server::connect(spawned, STARTUP_DEADLINE, move |reason| {
                     if let Some(host) = host.upgrade() {

@@ -163,8 +163,9 @@ impl Spawned {
         }
     }
 
-    pub fn stop(self) {
+    pub async fn stop(self) {
         kill_tree(&self.tree, self.child);
+        self.tree.settled().await;
         self.log.stopped(&self.name);
     }
 }
@@ -534,6 +535,15 @@ mod windows_tests {
     use std::collections::HashMap;
     use std::time::{SystemTime, UNIX_EPOCH};
 
+    /// Removes its folder on drop, also when an assert fails.
+    struct Cleanup(PathBuf);
+
+    impl Drop for Cleanup {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
     /// A new empty folder in the temp dir, named by pid and time.
     fn temp_dir() -> PathBuf {
         let nanos = SystemTime::now()
@@ -546,7 +556,8 @@ mod windows_tests {
 
     #[tokio::test]
     async fn stopping_a_server_still_starting_ends_its_start_and_frees_its_executable() {
-        let base = temp_dir();
+        let base = Cleanup(temp_dir());
+        let base = &base.0;
         let bin = base.join("bin");
         std::fs::create_dir(&bin).unwrap();
         let system = std::env::var_os("SystemRoot").expect("SystemRoot");
@@ -563,7 +574,7 @@ mod windows_tests {
             "yui-test",
             UtcOffset::UTC,
         ));
-        let spawned = spawn(&spec, &base, &base.join("data"), log).expect("spawn");
+        let spawned = spawn(&spec, base, &base.join("data"), log).expect("spawn");
         let stopper = spawned.stopper();
         let start = tokio::spawn(connect(spawned, Duration::from_secs(30), |_| {}));
         tokio::time::sleep(Duration::from_millis(500)).await;
@@ -572,6 +583,7 @@ mod windows_tests {
 
         let ended = tokio::time::timeout(Duration::from_secs(3), start).await;
         assert!(ended.is_ok(), "the start outlived the stop");
-        std::fs::remove_dir_all(&bin).expect("the executable is still mapped");
+        let freed = std::fs::remove_dir_all(&bin);
+        assert!(freed.is_ok(), "the executable is still mapped: {freed:?}");
     }
 }
