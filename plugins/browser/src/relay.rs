@@ -1,11 +1,11 @@
 //! Runs a script in an ego lite task space through the installed `ego-browser` CLI.
 
-use crate::{script, shots};
+use crate::{boot, script, shots};
 use std::collections::HashMap;
 use std::path::Path;
 use std::process::Stdio;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 
@@ -15,8 +15,10 @@ pub const NOT_FOUND: &str = "ego lite not found: install ego lite and run it onc
 pub struct Limits {
     /// The script stops itself after this long.
     pub deadline_ms: u64,
-    /// The CLI is killed after this long when the script did not stop itself.
+    /// The CLI is killed after this long, counted from before ego lite's start, when the script did not stop itself.
     pub kill_after: Duration,
+    /// A screenshot is abandoned after this long; the slowest success measured was 1076 ms.
+    pub capture_wait_ms: u64,
     pub image_cap: usize,
     pub long_edge: u32,
 }
@@ -24,6 +26,7 @@ pub struct Limits {
 pub const LIMITS: Limits = Limits {
     deadline_ms: 25_000,
     kill_after: Duration::from_secs(28),
+    capture_wait_ms: 5_000,
     image_cap: 4,
     long_edge: 1280,
 };
@@ -123,6 +126,8 @@ async fn spawn_script(
     code: &str,
     limits: Limits,
 ) -> Result<Option<std::process::Output>, String> {
+    let started = Instant::now();
+    boot::start_ego(bin).await;
     let mut child = Command::new(bin)
         .arg("nodejs")
         .stdin(Stdio::piped())
@@ -131,7 +136,7 @@ async fn spawn_script(
         .kill_on_drop(true)
         .spawn()
         .map_err(spawn_error)?;
-    let script = script::build_script(space, dir, code, limits.deadline_ms);
+    let script = script::build_script(space, dir, code, limits.deadline_ms, limits.capture_wait_ms);
     let stdin = child.stdin.take();
     let write = async move {
         if let Some(mut stdin) = stdin {
@@ -143,7 +148,12 @@ async fn spawn_script(
     };
     // Drains stdout and stderr while stdin is written, so neither side waits on a full pipe.
     let finished = async move { tokio::join!(write, child.wait_with_output()).1 };
-    match tokio::time::timeout(limits.kill_after, finished).await {
+    match tokio::time::timeout(
+        limits.kill_after.saturating_sub(started.elapsed()),
+        finished,
+    )
+    .await
+    {
         Ok(output) => output.map(Some).map_err(|e| e.to_string()),
         Err(_) => {
             eprintln!("browser_cli_killed space={space}");
@@ -167,7 +177,7 @@ pub(crate) mod tests {
     use std::sync::OnceLock;
     use std::time::Duration;
 
-    /// Mirrors ego's `nodejs` prelude (logs on stderr, 1×1 PNG screenshots); a minimized window fails until restored, then once more.
+    /// Mirrors ego's `nodejs` prelude (logs on stderr, 1×1 PNG screenshots); a minimized window fails until restored, then once more; a stalled page never settles its capture until its window is cycled.
     const FAKE_PRELUDE: &str = r#"import { writeFileSync, writeSync } from "node:fs";
 const __fakeWrite = (prefix, args) => writeSync(2, prefix + args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" ") + "\n");
 console.log = (...a) => __fakeWrite("", a);
@@ -178,10 +188,32 @@ globalThis.taskSpace = async (name) => ({
   cdp: async (method, params) => {
     console.log("cdp " + method);
     if (method === "Browser.getWindowForTarget" && params.targetId === "target-1") return { windowId: 7 };
-    if (method === "Browser.setWindowBounds" && params.windowId === 7 && params.bounds.windowState === "normal") {
+    if (method === "Browser.getWindowBounds" && params.windowId === 7) {
+      if (globalThis.cycleStalls) return new Promise(() => {});
+      return { bounds: { windowState: globalThis.windowState ?? "normal" } };
+    }
+    if (method === "Browser.setWindowBounds" && params.windowId === 7) {
+      console.log("state " + params.bounds.windowState);
+      if (globalThis.boundsError) throw new Error(globalThis.boundsError);
+      const target = params.bounds.windowState;
+      const current = globalThis.windowState ?? "normal";
+      if (target === "minimized" && current === "fullscreen") {
+        throw new Error("To minimize a fullscreen window, restore it to normal state first.");
+      }
+      if ((target === "maximized" || target === "fullscreen") && (current === "minimized" || current === "fullscreen")) {
+        throw new Error("To maximize a minimized or fullscreen window, restore it to normal state first.");
+      }
+      globalThis.windowState = target;
+      if (params.bounds.windowState === "minimized") {
+        globalThis.sawMinimized = true;
+        return {};
+      }
+      if (globalThis.sawMinimized && !globalThis.stallStuck) globalThis.stalled = false;
+      globalThis.sawMinimized = false;
       if (!globalThis.windowStuck && globalThis.minimized) {
         globalThis.minimized = false;
         globalThis.failsAfterRestore = 1;
+        if (globalThis.stallAfterRestore) globalThis.stalled = true;
       }
       return {};
     }
@@ -190,6 +222,7 @@ globalThis.taskSpace = async (name) => ({
   page: () => ({
     targetId: "target-1",
     screenshot: async ({ path }) => {
+      if (globalThis.stalled) return new Promise(() => {});
       if (globalThis.minimized || globalThis.failsAfterRestore > 0) {
         if (!globalThis.minimized) globalThis.failsAfterRestore--;
         throw new Error("Cannot capture a screenshot while the window is minimized.");
@@ -201,6 +234,8 @@ globalThis.taskSpace = async (name) => ({
     },
   }),
 });"#;
+
+    const STALL_TEXT: &str = "screenshot stalled: ego lite did not capture in time; read the page with page.snapshot() instead";
 
     const FAKE_GUIDE: &str = "fake ego-browser guide\nline two\n";
 
@@ -254,6 +289,7 @@ cat >/dev/null
         Limits {
             deadline_ms: 300,
             kill_after: Duration::from_secs(20),
+            capture_wait_ms: 100,
             image_cap: 4,
             long_edge: 1280,
         }
@@ -385,6 +421,156 @@ await screenshot(task.page("p1"));"#;
         assert_eq!(out.exit_code, Some(0), "output: {}", out.output);
         assert_eq!(out.images.len(), 1);
         assert_eq!(out.output.matches("cdp Browser.setWindowBounds").count(), 1);
+    }
+
+    #[tokio::test]
+    async fn screenshot_recovers_a_stalled_capture_by_cycling_the_window() {
+        let code = r#"globalThis.stalled = true;
+await screenshot(task.page("p1"));"#;
+        let limits = Limits {
+            deadline_ms: 5000,
+            ..limits()
+        };
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits)
+            .await
+            .unwrap();
+        assert_eq!(out.exit_code, Some(0), "output: {}", out.output);
+        assert_eq!(out.images.len(), 1);
+        assert_eq!(out.output.matches("cdp Browser.setWindowBounds").count(), 2);
+    }
+
+    #[tokio::test]
+    async fn screenshot_names_page_snapshot_when_a_capture_stays_stalled() {
+        let code = r#"globalThis.stalled = true;
+globalThis.stallStuck = true;
+await screenshot(task.page("p1"));"#;
+        let limits = Limits {
+            deadline_ms: 5000,
+            ..limits()
+        };
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits)
+            .await
+            .unwrap();
+        assert_eq!(out.exit_code, Some(1), "output: {}", out.output);
+        assert!(out.output.contains(STALL_TEXT), "output: {}", out.output);
+        assert!(out.images.is_empty());
+    }
+
+    #[tokio::test]
+    async fn screenshot_restores_the_window_state_it_found_after_a_stall() {
+        let code = r#"globalThis.stalled = true;
+globalThis.windowState = "maximized";
+await screenshot(task.page("p1"));"#;
+        let limits = Limits {
+            deadline_ms: 5000,
+            ..limits()
+        };
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits)
+            .await
+            .unwrap();
+        assert_eq!(out.exit_code, Some(0), "output: {}", out.output);
+        assert_eq!(out.images.len(), 1);
+        let states: Vec<&str> = out
+            .output
+            .lines()
+            .filter_map(|l| l.strip_prefix("state "))
+            .collect();
+        assert_eq!(
+            states,
+            ["minimized", "normal", "maximized"],
+            "output: {}",
+            out.output
+        );
+    }
+
+    #[tokio::test]
+    async fn screenshot_leaves_a_fullscreen_window_fullscreen_after_a_stall() {
+        let code = r#"globalThis.stalled = true;
+globalThis.windowState = "fullscreen";
+await screenshot(task.page("p1"));"#;
+        let limits = Limits {
+            deadline_ms: 5000,
+            ..limits()
+        };
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits)
+            .await
+            .unwrap();
+        assert_eq!(out.exit_code, Some(0), "output: {}", out.output);
+        assert_eq!(out.images.len(), 1);
+        let states: Vec<&str> = out
+            .output
+            .lines()
+            .filter_map(|l| l.strip_prefix("state "))
+            .collect();
+        assert_eq!(
+            states,
+            ["normal", "minimized", "normal", "fullscreen"],
+            "output: {}",
+            out.output
+        );
+    }
+
+    #[tokio::test]
+    async fn screenshot_names_page_snapshot_when_the_window_cycle_fails() {
+        let code = r#"globalThis.stalled = true;
+globalThis.boundsError = "raw cdp boom";
+await screenshot(task.page("p1"));"#;
+        let limits = Limits {
+            deadline_ms: 5000,
+            ..limits()
+        };
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits)
+            .await
+            .unwrap();
+        assert_eq!(out.exit_code, Some(1), "output: {}", out.output);
+        assert!(out.output.contains(STALL_TEXT), "output: {}", out.output);
+        assert!(
+            !out.output.contains("raw cdp boom"),
+            "output: {}",
+            out.output
+        );
+    }
+
+    #[tokio::test]
+    async fn screenshot_names_page_snapshot_when_the_window_cycle_stalls() {
+        let code = r#"globalThis.stalled = true;
+globalThis.cycleStalls = true;
+await screenshot(task.page("p1"));"#;
+        let limits = Limits {
+            deadline_ms: 5000,
+            ..limits()
+        };
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits)
+            .await
+            .unwrap();
+        assert_eq!(out.exit_code, Some(1), "output: {}", out.output);
+        assert!(out.output.contains(STALL_TEXT), "output: {}", out.output);
+        assert!(out.images.is_empty());
+    }
+
+    #[tokio::test]
+    async fn screenshot_names_page_snapshot_when_a_capture_stalls_after_a_minimized_restore() {
+        let code = r#"globalThis.minimized = true;
+globalThis.stallAfterRestore = true;
+await screenshot(task.page("p1"));"#;
+        let limits = Limits {
+            deadline_ms: 5000,
+            ..limits()
+        };
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits)
+            .await
+            .unwrap();
+        assert_eq!(out.exit_code, Some(1), "output: {}", out.output);
+        assert!(out.output.contains(STALL_TEXT), "output: {}", out.output);
+        assert!(!out.deadline);
+        assert!(out.images.is_empty());
     }
 
     #[tokio::test]
