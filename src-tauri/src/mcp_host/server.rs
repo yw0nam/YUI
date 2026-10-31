@@ -534,3 +534,51 @@ mod tests {
         assert!(eventually(|| gone(pid)).await, "sleep {pid} still runs");
     }
 }
+
+#[cfg(all(test, windows))]
+mod windows_tests {
+    use super::*;
+    use std::collections::HashMap;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    /// A new empty folder in the temp dir, named by pid and time.
+    fn temp_dir() -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0, |d| d.as_nanos());
+        let dir = std::env::temp_dir().join(format!("yui-mcp-stop-{}-{nanos}", std::process::id()));
+        std::fs::create_dir(&dir).unwrap();
+        dir
+    }
+
+    #[tokio::test]
+    async fn stopping_a_server_still_starting_ends_its_start_and_frees_its_executable() {
+        let base = temp_dir();
+        let bin = base.join("bin");
+        std::fs::create_dir(&bin).unwrap();
+        let system = std::env::var_os("SystemRoot").expect("SystemRoot");
+        let exe = bin.join("ping.exe");
+        std::fs::copy(Path::new(&system).join("System32").join("PING.EXE"), &exe).unwrap();
+        let spec = ServerSpec {
+            name: "main".to_string(),
+            command: exe.to_string_lossy().into_owned(),
+            args: vec!["-n".into(), "30".into(), "127.0.0.1".into()],
+            env: HashMap::new(),
+        };
+        let log = Arc::new(PluginLog::new(
+            base.join("logs"),
+            "yui-test",
+            UtcOffset::UTC,
+        ));
+        let spawned = spawn(&spec, &base, &base.join("data"), log).expect("spawn");
+        let stopper = spawned.stopper();
+        let start = tokio::spawn(connect(spawned, Duration::from_secs(30), |_| {}));
+        tokio::time::sleep(Duration::from_millis(500)).await;
+
+        stopper.stop();
+
+        let ended = tokio::time::timeout(Duration::from_secs(3), start).await;
+        assert!(ended.is_ok(), "the start outlived the stop");
+        std::fs::remove_dir_all(&bin).expect("the executable is still mapped");
+    }
+}
