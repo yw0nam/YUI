@@ -39,7 +39,10 @@
 //!   give it 1 s to exit, then kill its process tree. On unix a server still starting has its
 //!   process group killed at once. On Windows a tree ends when the host drops its job object:
 //!   at the end of a stop, when the start of a server stopped while starting ends (at the
-//!   latest at the 30 s deadline), or when the app process exits. At app start each enabled
+//!   latest at the 30 s deadline), or when the app process exits. Each running server's process
+//!   group is recorded in `<app_data>/plugins/groups.json`; on unix, at the next app start a
+//!   recorded group whose leader is gone and that still has members is killed, which ends what a
+//!   server started when the app was killed without its exit hook. At app start each enabled
 //!   plugin starts as its own task.
 
 mod calls;

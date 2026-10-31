@@ -174,7 +174,8 @@ impl Host {
             ticket.epoch,
         );
         let data = launch::data_dir(&self.dir, &ticket.plugin_id);
-        let started = match server::spawn(&ticket.spec, &ticket.root, &data, ticket.log) {
+        let spawned = server::spawn(&ticket.spec, &ticket.root, &data, ticket.log, &self.groups);
+        let started = match spawned {
             Ok(spawned) => {
                 match self
                     .lock()
