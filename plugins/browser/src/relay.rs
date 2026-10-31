@@ -167,7 +167,7 @@ pub(crate) mod tests {
     use std::sync::OnceLock;
     use std::time::Duration;
 
-    /// Mirrors ego's `nodejs` prelude (logs on stderr, 1×1 PNG screenshots); a minimized window fails until restored, then once more.
+    /// Mirrors ego's `nodejs` prelude (logs on stderr, 1×1 PNG screenshots); a minimized window fails until restored, then once more; a stalled page never settles its capture until its window is cycled.
     const FAKE_PRELUDE: &str = r#"import { writeFileSync, writeSync } from "node:fs";
 const __fakeWrite = (prefix, args) => writeSync(2, prefix + args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" ") + "\n");
 console.log = (...a) => __fakeWrite("", a);
@@ -178,7 +178,13 @@ globalThis.taskSpace = async (name) => ({
   cdp: async (method, params) => {
     console.log("cdp " + method);
     if (method === "Browser.getWindowForTarget" && params.targetId === "target-1") return { windowId: 7 };
+    if (method === "Browser.setWindowBounds" && params.windowId === 7 && params.bounds.windowState === "minimized") {
+      globalThis.sawMinimized = true;
+      return {};
+    }
     if (method === "Browser.setWindowBounds" && params.windowId === 7 && params.bounds.windowState === "normal") {
+      if (globalThis.sawMinimized && !globalThis.stallStuck) globalThis.stalled = false;
+      globalThis.sawMinimized = false;
       if (!globalThis.windowStuck && globalThis.minimized) {
         globalThis.minimized = false;
         globalThis.failsAfterRestore = 1;
@@ -190,6 +196,7 @@ globalThis.taskSpace = async (name) => ({
   page: () => ({
     targetId: "target-1",
     screenshot: async ({ path }) => {
+      if (globalThis.stalled) return new Promise(() => {});
       if (globalThis.minimized || globalThis.failsAfterRestore > 0) {
         if (!globalThis.minimized) globalThis.failsAfterRestore--;
         throw new Error("Cannot capture a screenshot while the window is minimized.");
@@ -385,6 +392,45 @@ await screenshot(task.page("p1"));"#;
         assert_eq!(out.exit_code, Some(0), "output: {}", out.output);
         assert_eq!(out.images.len(), 1);
         assert_eq!(out.output.matches("cdp Browser.setWindowBounds").count(), 1);
+    }
+
+    #[tokio::test]
+    async fn screenshot_recovers_a_stalled_capture_by_cycling_the_window() {
+        let code = r#"globalThis.stalled = true;
+await screenshot(task.page("p1"));"#;
+        let limits = Limits {
+            deadline_ms: 5000,
+            ..limits()
+        };
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits)
+            .await
+            .unwrap();
+        assert_eq!(out.exit_code, Some(0), "output: {}", out.output);
+        assert_eq!(out.images.len(), 1);
+        assert_eq!(out.output.matches("cdp Browser.setWindowBounds").count(), 2);
+    }
+
+    #[tokio::test]
+    async fn screenshot_names_page_snapshot_when_a_capture_stays_stalled() {
+        let code = r#"globalThis.stalled = true;
+globalThis.stallStuck = true;
+await screenshot(task.page("p1"));"#;
+        let limits = Limits {
+            deadline_ms: 5000,
+            ..limits()
+        };
+        let out = Relay::new()
+            .run(&fake_ego(), "yui-a", code, limits)
+            .await
+            .unwrap();
+        assert_eq!(out.exit_code, Some(1), "output: {}", out.output);
+        assert!(
+            out.output.contains("screenshot stalled: ego lite did not capture in time; read the page with page.snapshot() instead"),
+            "output: {}",
+            out.output
+        );
+        assert!(out.images.is_empty());
     }
 
     #[tokio::test]
