@@ -8,6 +8,7 @@ use tauri::{
 enum TrayAction {
     ToggleVisibility,
     OpenSettings,
+    OpenTerminal,
     Quit,
 }
 
@@ -120,6 +121,7 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
         .on_menu_event(|app, event| match action_for(event.id().as_ref()) {
             Some(TrayAction::ToggleVisibility) => toggle_visibility(app),
             Some(TrayAction::OpenSettings) => open_settings(app),
+            Some(TrayAction::OpenTerminal) => {}
             Some(TrayAction::Quit) => app.exit(0),
             None => {}
         });
@@ -185,6 +187,11 @@ mod tests {
     #[test]
     fn action_for_maps_settings() {
         assert_eq!(action_for("settings"), Some(TrayAction::OpenSettings));
+    }
+
+    #[test]
+    fn action_for_maps_terminal() {
+        assert_eq!(action_for("terminal"), Some(TrayAction::OpenTerminal));
     }
 
     #[test]
