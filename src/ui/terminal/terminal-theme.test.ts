@@ -70,9 +70,9 @@ it.each([
 it("hands xterm every ANSI slot from its token", () => {
   const root = document.createElement("div");
   document.body.append(root);
-  SLOTS.forEach(([, name], i) =>
-    root.style.setProperty(`--yui-ansi-${name}`, `oklch(0.5 0.1 ${i})`),
-  );
+  for (const [i, [, name]] of SLOTS.entries()) {
+    root.style.setProperty(`--yui-ansi-${name}`, `oklch(0.5 0.1 ${i})`);
+  }
 
   const theme = terminalTheme(root);
 
