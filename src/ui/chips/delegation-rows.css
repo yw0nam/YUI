@@ -94,7 +94,7 @@
 
 .yui-deleg__summary-text {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: calc(0.78rem * var(--yui-text-scale, 1));
   line-height: 1.45;
   color: var(--yui-text-dim);
   overflow-wrap: anywhere;
@@ -102,7 +102,7 @@
 
 .yui-deleg__summary-meta {
   margin: 0.3rem 0 0;
-  font-size: 0.68rem;
+  font-size: calc(0.68rem * var(--yui-text-scale, 1));
   color: var(--yui-text-mute);
   font-variant-numeric: tabular-nums;
 }
