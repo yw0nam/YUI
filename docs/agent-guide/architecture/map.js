@@ -3053,7 +3053,7 @@ globalThis.YUI_MAP =
       "id": "threads-frame",
       "from": "app/threads-window",
       "to": "settings",
-      "carries": "yui.threads-window {x?, y?, width, height, listCollapsed}: the panel's frame in logical px, written at each placement, once a user move settles and at a resize's end, its size floored at 360 × 420; the list choice, written by the toggle and never by a width change; the frame read on each open, the list choice once at boot",
+      "carries": "yui.threads-window {x?, y?, width, height, listCollapsed, listWidth?}: the panel's frame in logical px, written at each placement, once a user move settles and at a resize's end, its size floored at 360 × 420; the list choice, written by the toggle and never by a width change; the list's dragged width, written at a drag's end, an arrow step and a reset, absent for the default; the frame read on each open, the list choice and width once at boot",
       "kind": "storage",
       "transport": "shared",
       "wiring": "src/app/threads-window/wire-threads-window.ts"
