@@ -48,7 +48,7 @@ export async function wireThreadsWindow(deps: {
     listCollapsed: settings.get().listCollapsed,
     onListCollapsed: settings.setListCollapsed,
     resize,
-    terminal: wireTerminalTab({ register }),
+    terminal: wireTerminalTab({ register, settings }),
   });
   const presence = createThreadsPresence({
     view,
