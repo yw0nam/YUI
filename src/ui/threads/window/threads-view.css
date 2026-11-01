@@ -143,7 +143,7 @@
   position: relative;
   display: grid;
   flex: 1;
-  grid-template-columns: 264px minmax(0, 1fr);
+  grid-template-columns: clamp(264px, 34%, 360px) minmax(0, 1fr);
   min-height: 0;
   border-top: 1px solid var(--yui-edge);
 }
