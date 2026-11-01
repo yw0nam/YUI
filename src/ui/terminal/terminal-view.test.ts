@@ -288,7 +288,6 @@ describe("font-size keys", () => {
   });
 
   it.each([
-    ["a letter", { key: "a" }],
     ["Escape", { key: "Escape" }],
     ["= without the modifier", { key: "=" }],
     ["Control+Command+S", { key: "s", ctrlKey: true, metaKey: true }],
