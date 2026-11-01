@@ -42,12 +42,13 @@
   --yui-font: "Pretendard JP Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
   /* Code spans and the Threads window's terminal, where text aligns by column */
   --yui-font-mono: ui-monospace, "SF Mono", Menlo, monospace;
-  --yui-fs-caption: 0.6875rem; /* 11px: units, footnotes */
-  --yui-fs-sub: 0.75rem; /* 12px: row descriptions, chip labels */
-  --yui-fs-body: 0.8125rem; /* 13px: row labels, field text */
-  --yui-fs-head: 0.875rem; /* 14px: section titles */
-  --yui-fs-title: 1.25rem; /* 20px: tab title */
-  --yui-fs-speech: 0.95rem; /* speech bubble and composer text; outside the panel scale on purpose */
+  --yui-fs-caption: calc(0.6875rem * var(--yui-text-scale, 1)); /* 11px: units, footnotes */
+  --yui-fs-sub: calc(0.75rem * var(--yui-text-scale, 1)); /* 12px: row descriptions, chip labels */
+  --yui-fs-body: calc(0.8125rem * var(--yui-text-scale, 1)); /* 13px: row labels, field text */
+  --yui-fs-head: calc(0.875rem * var(--yui-text-scale, 1)); /* 14px: section titles */
+  --yui-fs-title: calc(1.25rem * var(--yui-text-scale, 1)); /* 20px: tab title */
+  /* speech bubble and composer text; outside the panel scale on purpose */
+  --yui-fs-speech: calc(0.95rem * var(--yui-text-scale, 1));
   --yui-radius: 14px;
   --yui-radius-input: 12px;
   --yui-radius-chip: 999px;
@@ -57,7 +58,10 @@
   --yui-radius-control: 8px;
   --yui-radius-pill: 999px;
   --yui-bubble-bottom: 16%; /* Character's lower-half band — bottom anchor so face isn't hidden */
-  --yui-bubble-max-h: 34vh; /* Long utterance height cap — internal scroll if exceeded */
+  /* Three speech lines at line-height 1.75 + 56px padding + 2px border */
+  --yui-bubble-three-lines: calc(3 * 1.75 * var(--yui-fs-speech) + 58px);
+  /* Long utterance height cap — internal scroll if exceeded */
+  --yui-bubble-max-h: max(34vh, var(--yui-bubble-three-lines));
   --yui-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --yui-dur: 200ms;
   --yui-dur-fast: 140ms;
