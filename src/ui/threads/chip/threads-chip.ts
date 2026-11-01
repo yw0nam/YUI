@@ -1,12 +1,12 @@
 /**
- * Threads chip — the pill in main's chip column that counts waiting Threads and opens the Threads
- * window. Pure renderer: the marks, label, and count come from the snapshot; hidden while nothing
- * waits and the window is closed; one nod when a Thread starts waiting; a held press folds it with
- * the other chips.
+ * Threads chip — the pill in main's chip column that counts waiting Threads and access requests and
+ * opens the Threads window. Pure renderer: the marks, label, and count come from the snapshots;
+ * hidden while nothing waits and the window is closed; one nod when a Thread or a request starts
+ * waiting; a held press folds it with the other chips.
  */
 
 import "./threads-chip.css";
-import type { ScreenRect, Thread } from "../../../contract";
+import type { AccessRequest, ScreenRect, Thread } from "../../../contract";
 import type { DelegationChipSettingsStore } from "../../../settings/panels/delegation-chip-settings";
 import { holdToFold } from "../../chips/hold-to-fold";
 import { subscribe as subscribeLocale, t } from "../../i18n";
@@ -17,6 +17,8 @@ const MAX_MARKS = 3;
 export interface ThreadsChip {
   el: HTMLButtonElement;
   update(threads: Thread[]): void;
+  /** The terminal store's pending access requests, counted as waiting. */
+  updateRequests(requests: AccessRequest[]): void;
   /** Whether the window is open; the chip stays visible while it is. */
   setExpanded(expanded: boolean): void;
   dispose(): void;
@@ -48,6 +50,7 @@ export function createThreadsChip({
   const countEl = el.querySelector<HTMLElement>(".yui-threadchip__count")!;
 
   let waiting: Thread[] = [];
+  const keys = { thread: [] as string[], request: [] as string[] };
   let waitingIds: Set<string> | null = null;
   let expanded = false;
 
@@ -70,10 +73,21 @@ export function createThreadsChip({
         return mark;
       }),
     );
+    const n = waiting.length + keys.request.length;
     labelEl.textContent = t("threads.chip_label");
-    countEl.textContent = String(waiting.length);
-    el.setAttribute("aria-label", t("threads.chip_aria", { n: waiting.length }));
-    el.hidden = waiting.length === 0 && !expanded;
+    countEl.textContent = String(n);
+    el.setAttribute("aria-label", t("threads.chip_aria", { n }));
+    el.hidden = n === 0 && !expanded;
+  }
+
+  // The first snapshot sets what already waits; only a later arrival nods.
+  function track(kind: keyof typeof keys, ids: string[]): void {
+    const before = waitingIds;
+    keys[kind] = ids.map((id) => `${kind}:${id}`);
+    const arrived = before !== null && keys[kind].some((key) => !before.has(key));
+    waitingIds = new Set([...keys.thread, ...keys.request]);
+    render();
+    if (arrived) nod();
   }
 
   const fold = holdToFold(el, collapsed);
@@ -99,12 +113,16 @@ export function createThreadsChip({
       waiting = threads
         .filter((th) => th.state === "input-required")
         .sort((a, b) => b.updated_at - a.updated_at);
-      // The first snapshot sets what already waits; only a later arrival nods.
-      const before = waitingIds;
-      const arrived = before !== null && waiting.some((th) => !before.has(th.id));
-      waitingIds = new Set(waiting.map((th) => th.id));
-      render();
-      if (arrived) nod();
+      track(
+        "thread",
+        waiting.map((th) => th.id),
+      );
+    },
+    updateRequests(requests) {
+      track(
+        "request",
+        requests.map((r) => r.id),
+      );
     },
     setExpanded(next) {
       expanded = next;

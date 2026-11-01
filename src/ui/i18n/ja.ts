@@ -760,6 +760,9 @@ const ja: Record<string, string> = {
   "threads.layout_wide": "広い",
   "threads.layout_medium": "中くらい",
   "threads.layout_narrow": "狭い",
+  "terminal.title": "ターミナル",
+  "terminal.tabs_aria": "スレッドウィンドウの表示",
+  "terminal.count": "ターミナル {n}件",
 
   // plugins page
   "plugins.installed_title": "インストール済みのプラグイン",

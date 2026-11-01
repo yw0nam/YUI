@@ -762,6 +762,9 @@ const en: Record<string, string> = {
   "threads.layout_wide": "Wide",
   "threads.layout_medium": "Medium",
   "threads.layout_narrow": "Narrow",
+  "terminal.title": "Terminal",
+  "terminal.tabs_aria": "Threads window view",
+  "terminal.count": "{n} terminals",
 
   // plugins page
   "plugins.installed_title": "Installed plugins",

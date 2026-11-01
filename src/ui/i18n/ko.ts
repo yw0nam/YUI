@@ -757,6 +757,9 @@ const ko: Record<string, string> = {
   "threads.layout_wide": "넓음",
   "threads.layout_medium": "중간",
   "threads.layout_narrow": "좁음",
+  "terminal.title": "터미널",
+  "terminal.tabs_aria": "스레드 창 보기",
+  "terminal.count": "터미널 {n}개",
 
   // plugins page
   "plugins.installed_title": "설치된 플러그인",

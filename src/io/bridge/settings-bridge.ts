@@ -121,9 +121,13 @@ export interface QuickCardOpen {
   listening?: boolean;
 }
 
-/** Main asking the Threads window to open, grown out of the chip at `chip`, in screen logical px. */
+/** The Threads window's top-level tabs. */
+export type ThreadsTab = "threads" | "terminal";
+
+/** Main asking the Threads window to open on `tab`, grown out of the chip at `chip` (screen logical px) when there is one. */
 export interface ThreadsOpen {
-  chip: ScreenRect;
+  chip?: ScreenRect;
+  tab?: ThreadsTab;
 }
 
 /** The unified chat window's click on an error's fix, back to the preset whose window showed it. */
@@ -367,10 +371,15 @@ export function createSettingsBridge(
     },
     onThreadsOpen(cb) {
       return on<unknown>(CH_THREADS_OPEN, (request) => {
-        const chip = (request as Partial<ThreadsOpen> | null)?.chip;
+        const { chip, tab } = (request ?? {}) as { chip?: unknown; tab?: unknown };
+        const { x, y, width, height } = (chip ?? {}) as Record<string, unknown>;
         const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
-        if (!chip || ![chip.x, chip.y, chip.width, chip.height].every(finite)) return;
-        cb({ chip: { x: chip.x, y: chip.y, width: chip.width, height: chip.height } });
+        if (chip !== undefined && ![x, y, width, height].every(finite)) return;
+        if (tab !== undefined && tab !== "threads" && tab !== "terminal") return;
+        cb({
+          ...(chip === undefined ? {} : { chip: { x, y, width, height } as ScreenRect }),
+          ...(tab === undefined ? {} : { tab: tab as ThreadsTab }),
+        });
       });
     },
     emitThreadsReady() {

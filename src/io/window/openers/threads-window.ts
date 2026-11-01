@@ -1,9 +1,9 @@
-/** Main's Threads window: created hidden once, sent the chip's screen rect on each open, and its closed report passed on. */
+/** Main's Threads window: created hidden once, sent the chip's screen rect and the tab on each open, and its closed report passed on. */
 
 import type { ScreenRect } from "../../../contract";
 import { createLogger } from "../../../logger";
 import { isTauri } from "../../../tauri-env";
-import type { SettingsBridge } from "../../bridge/settings-bridge";
+import type { SettingsBridge, ThreadsTab } from "../../bridge/settings-bridge";
 import { createReadyWindowController } from "./ready-window";
 
 const log = createLogger("threads-window");
@@ -47,8 +47,8 @@ export function createThreadsWindowController(deps: {
   /** The window is hidden again, or never opened. */
   onClosed(): void;
 }): {
-  /** Opens the window grown out of `chip`, a rect in this window's viewport; false where no window opens. */
-  open(chip: ScreenRect): boolean;
+  /** Opens the window on `tab`, grown out of `chip` (a rect in this window's viewport) when given; false where no window opens. */
+  open(chip?: ScreenRect, tab?: ThreadsTab): boolean;
   dispose(): void;
 } {
   const ready = createReadyWindowController({
@@ -66,12 +66,12 @@ export function createThreadsWindowController(deps: {
   }
   const offClosed = deps.bridge.onThreadsClosed(closed);
   return {
-    open(chip) {
+    open(chip, tab) {
       if (!isTauri()) return false;
-      toScreen(chip).then(
+      (chip ? toScreen(chip) : Promise.resolve(undefined)).then(
         (screen) => {
           open = true;
-          ready.open({ chip: screen });
+          ready.open({ ...(screen ? { chip: screen } : {}), ...(tab ? { tab } : {}) });
         },
         (error) => {
           log.error("threads_window_open_failed", { error: String(error) });

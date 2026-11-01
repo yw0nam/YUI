@@ -47,6 +47,8 @@ import { createVoiceFix } from "../app/voice/voice-fix";
 import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/secrets";
 import { type BusEnvelope, createEventBus } from "../dispatcher/core/event-bus";
 import { createUserInputSource } from "../dispatcher/sources/user-input-source";
+import { createTerminalClient } from "../io/terminal/terminal-client";
+import { onTerminalOpen } from "../io/terminal/terminal-open-event";
 import { createThreadsClient } from "../io/threads/threads-client";
 import { resolveScreenCapturer } from "../io/window/capture/tauri-screen";
 import { createDevtoolsWindowOpener } from "../io/window/openers/devtools-window";
@@ -265,6 +267,9 @@ async function bootstrap(): Promise<BootstrapHandle> {
   // Threads belong to the main character: one client feeds the chip, the two tools and the waiting line.
   const threads = bound ? null : createThreadsClient();
   if (threads) register(() => threads.dispose());
+  // Access requests wait on the main chip beside the Threads.
+  const terminal = bound ? null : createTerminalClient();
+  if (terminal) register(() => terminal.dispose());
 
   // Config-driven load: configs/*.json → validated AppConfig. endpoints/motions etc
   // consumed during dispatcher·tts wiring. VRM displayed via avatar.vrm_url.
@@ -322,6 +327,8 @@ async function bootstrap(): Promise<BootstrapHandle> {
     register(
       wireThreadsChip({
         client: threads,
+        terminal,
+        onTerminalOpen,
         mount: surfaces.chipColumn,
         collapsed: configured.chipFold,
         bridge: windowBridge,

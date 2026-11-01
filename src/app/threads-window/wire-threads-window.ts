@@ -71,7 +71,7 @@ export async function wireThreadsWindow(deps: {
   );
   register(client.subscribe(view.update));
   register(view.onHeadPointerDown(placement.startDrag));
-  register(bridge.onThreadsOpen(({ chip }) => presence.open(chip)));
+  register(bridge.onThreadsOpen(({ chip, tab }) => presence.open(chip, tab)));
   register(
     bridge.onSettingsChanged(() => {
       reloadLocale();

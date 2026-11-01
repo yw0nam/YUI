@@ -1,7 +1,7 @@
 /**
  * The Threads window's grow and shrink: the panel clipped from the chip's rect to its own and back,
- * its content fading in after the grow and out before the shrink. Under reduced motion it shows and
- * hides at once.
+ * its content fading in after the grow and out before the shrink. Under reduced motion, or with no
+ * chip to grow from, it shows and hides at once.
  */
 
 import type { ScreenRect } from "../../../contract";
@@ -54,9 +54,9 @@ function settle({ panel, content }: GrowParts): void {
   panel.style.clipPath = "";
 }
 
-export async function growOpen(parts: GrowParts, from: ScreenRect): Promise<void> {
+export async function growOpen(parts: GrowParts, from: ScreenRect | null): Promise<void> {
   const { root, panel, content } = parts;
-  const animate = !still() && typeof panel.animate === "function";
+  const animate = from !== null && !still() && typeof panel.animate === "function";
   if (animate) {
     panel.style.clipPath = clip(panel, from);
     content.style.opacity = "0";
@@ -68,9 +68,9 @@ export async function growOpen(parts: GrowParts, from: ScreenRect): Promise<void
   settle(parts);
 }
 
-export async function shrinkClose(parts: GrowParts, to: ScreenRect): Promise<void> {
+export async function shrinkClose(parts: GrowParts, to: ScreenRect | null): Promise<void> {
   const { root, panel, content } = parts;
-  if (!still() && typeof panel.animate === "function") {
+  if (to !== null && !still() && typeof panel.animate === "function") {
     await run(content, [{ opacity: 1 }, { opacity: 0 }], FADE_OUT_MS);
     await run(panel, [{ clipPath: clip(panel, null) }, { clipPath: clip(panel, to) }], SHRINK_MS);
   }

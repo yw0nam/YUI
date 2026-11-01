@@ -21,9 +21,9 @@ export interface ThreadsLayoutControl {
   toggle(): void;
   /** Closes the medium overlay; false when none was open. */
   escape(): boolean;
-  /** A Thread was picked: the overlay closes and narrow shows the thread; true when the list hid. */
+  /** A row was picked: the overlay closes and narrow shows its pane; true when the list hid. */
   selected(): boolean;
-  /** An open starts without the overlay, on the thread, or on the list when there is none. */
+  /** An open or a tab switch starts without the overlay, on the pane, or on the list when nothing is selected. */
   reset(hasThread: boolean): void;
   /** Focuses the selected Thread in the list or the rail, whichever shows. */
   focusSelected(): void;
@@ -33,9 +33,11 @@ export interface ThreadsLayoutControl {
 export function createThreadsLayout(deps: {
   /** Carries the state as data attributes; its width picks the layout. */
   panel: HTMLElement;
-  list: HTMLElement;
+  /** Each tab's list pane; a pointerdown inside one keeps the overlay. */
+  lists: HTMLElement[];
   toggle: HTMLButtonElement;
-  back: HTMLButtonElement;
+  /** Each tab's narrow way back to its list. */
+  backs: HTMLButtonElement[];
   /** The stored list choice. */
   collapsed: boolean;
   onCollapsed(collapsed: boolean): void;
@@ -93,11 +95,12 @@ export function createThreadsLayout(deps: {
 
   function onPointerDown(e: PointerEvent): void {
     const target = e.target as Node;
-    if (overlay && !deps.list.contains(target) && !deps.toggle.contains(target)) setOverlay(false);
+    const inList = deps.lists.some((list) => list.contains(target));
+    if (overlay && !inList && !deps.toggle.contains(target)) setOverlay(false);
   }
 
   deps.toggle.addEventListener("click", toggle);
-  deps.back.addEventListener("click", onBack);
+  for (const back of deps.backs) back.addEventListener("click", onBack);
   document.addEventListener("pointerdown", onPointerDown, true);
   apply();
 
@@ -128,7 +131,7 @@ export function createThreadsLayout(deps: {
     dispose() {
       observer.disconnect();
       deps.toggle.removeEventListener("click", toggle);
-      deps.back.removeEventListener("click", onBack);
+      for (const back of deps.backs) back.removeEventListener("click", onBack);
       document.removeEventListener("pointerdown", onPointerDown, true);
     },
   };

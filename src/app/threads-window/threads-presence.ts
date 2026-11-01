@@ -1,22 +1,28 @@
 /**
  * The Threads window's open and close, one at a time: show and grow, shrink and hide, then tell
- * main. An open while it shows brings it forward, keeping its frame, selection and filters.
+ * main. An open while it shows brings it forward, keeping its frame, selection and filters, and
+ * switches to the tab it names.
  */
 
 import type { ScreenRect } from "../../contract";
+import type { ThreadsTab } from "../../io/bridge/settings-bridge";
 import { createLogger } from "../../logger";
 
 const log = createLogger("threads-presence");
 
 export function createThreadsPresence(deps: {
-  view: { open(from: ScreenRect): Promise<void>; close(): Promise<void> };
-  /** Places and shows the window; resolves where the grow starts, in window-local px. */
-  show(chip: ScreenRect): Promise<ScreenRect>;
+  view: {
+    open(from: ScreenRect | null, tab?: ThreadsTab): Promise<void>;
+    close(): Promise<void>;
+    select(tab: ThreadsTab): void;
+  };
+  /** Places and shows the window; resolves where the grow starts (window-local px), or null with no chip. */
+  show(chip?: ScreenRect): Promise<ScreenRect | null>;
   /** Brings the shown window to the front where it is. */
   focus(): Promise<void>;
   hide(): Promise<void>;
   emitClosed(): void;
-}): { open(chip: ScreenRect): void; close(): void } {
+}): { open(chip?: ScreenRect, tab?: ThreadsTab): void; close(): void } {
   let shown = false;
   let chain: Promise<void> = Promise.resolve();
   const queue = (step: () => Promise<void>): void => {
@@ -30,9 +36,10 @@ export function createThreadsPresence(deps: {
   }
 
   return {
-    open(chip) {
+    open(chip, tab) {
       queue(async () => {
         if (shown) {
+          if (tab) deps.view.select(tab);
           await deps
             .focus()
             .catch((error) => log.warn("threads_focus_failed", { error: String(error) }));
@@ -41,7 +48,7 @@ export function createThreadsPresence(deps: {
         try {
           const from = await deps.show(chip);
           shown = true;
-          await deps.view.open(from);
+          await deps.view.open(from, tab);
         } catch (error) {
           log.error("threads_open_failed", { error: String(error) });
           await hide();
