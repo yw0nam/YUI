@@ -1,0 +1,55 @@
+/* The terminal pane: head, access line, then the screens taking the height left. Tokens in ../tokens.css. */
+
+.yui-threads-pane.yui-terminal-pane {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.yui-terminal-pane__head {
+  display: contents;
+}
+
+.yui-terminal-pane__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.yui-terminal-pane__close {
+  box-sizing: border-box;
+  flex: none;
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid var(--yui-edge-strong);
+  border-radius: var(--yui-radius-control);
+  background: none;
+  color: var(--yui-text-dim);
+  font: inherit;
+  font-size: var(--yui-fs-sub);
+  cursor: pointer;
+}
+
+.yui-terminal-pane__close:hover {
+  background: var(--yui-hover);
+  color: var(--yui-text);
+}
+
+.yui-terminal-pane__empty {
+  display: none;
+  grid-row: 1 / -1;
+  place-self: center;
+  margin: 0;
+  padding: 24px;
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-sub);
+  text-align: center;
+}
+
+.yui-terminal-pane.is-empty > :not(.yui-terminal-pane__empty) {
+  display: none;
+}
+
+.yui-terminal-pane.is-empty > .yui-terminal-pane__empty {
+  display: block;
+}

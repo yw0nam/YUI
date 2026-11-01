@@ -193,7 +193,7 @@ The settings window's panel and the switch use these tokens beyond the roles abo
 
 **Display / Body / Label Font:** Pretendard JP Variable, bundled with the app as a single variable file (`public/fonts/PretendardJPVariable.woff2`) covering Korean, Japanese and Latin; weights 400/500/600 only.
 
-**Character:** one warm, slightly rounded humanist family carries everything. No separate mono, which would read tool-like. Crisp at small sizes (bubbles, labels), never cold or mechanical.
+**Character:** one warm, slightly rounded humanist family carries everything. No separate mono, which would read tool-like. The one exception is the Threads window's terminal, which sets the code-span `ui-monospace` stack because shell output aligns by column. Crisp at small sizes (bubbles, labels), never cold or mechanical.
 
 ### Hierarchy
 - **Display** (weight ~600): rare moments only, such as a character name.

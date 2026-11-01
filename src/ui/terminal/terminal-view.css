@@ -1,0 +1,12 @@
+/* The Terminal tab: its panes over the Allow card, filling the panel under the head. Tokens in ../tokens.css. */
+
+.yui-terminal {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.yui-terminal[hidden] {
+  display: none;
+}

@@ -1,0 +1,10 @@
+/* A terminal's owner glyph and its exited state word. Tokens in ../tokens.css. */
+
+.yui-terminal-glyph {
+  display: inline-grid;
+  place-items: center;
+}
+
+.yui-threads-state.is-exited {
+  color: var(--yui-text-mute);
+}

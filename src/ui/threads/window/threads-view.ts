@@ -79,7 +79,7 @@ export function createThreadsView(deps: {
   onListCollapsed(collapsed: boolean): void;
   /** The panel's edge and corner drags. */
   resize: ResizeListener;
-  terminal?(shell: TabShell): TabBody;
+  terminal(shell: TabShell): TabBody;
 }): ThreadsView {
   const root = document.createElement("div");
   root.className = "yui-threads";
@@ -143,33 +143,35 @@ export function createThreadsView(deps: {
   const terminalBack = document.createElement("button");
   terminalBack.type = "button";
   terminalBack.className = "yui-threads-pane__back";
-  const terminal = deps.terminal?.({
+  // The body draws while it is built, before the head can read it.
+  let built = false;
+  const terminal = deps.terminal({
     back: terminalBack,
     selected: () => layout.selected(),
     focusSelected: () => layout.focusSelected(),
-    headChanged: () => renderHead(),
+    headChanged: () => {
+      if (built) renderHead();
+    },
   });
-  if (terminal) {
-    terminal.el.id = "yui-threads-panel-terminal";
-    terminal.el.setAttribute("role", "tabpanel");
-    terminal.el.setAttribute("aria-labelledby", "yui-threads-tab-terminal");
-    terminal.el.hidden = true;
-    content.append(terminal.el);
-  }
-  const onTerminal = (): boolean => tab === "terminal" && terminal !== undefined;
+  built = true;
+  terminal.el.id = "yui-threads-panel-terminal";
+  terminal.el.setAttribute("role", "tabpanel");
+  terminal.el.setAttribute("aria-labelledby", "yui-threads-tab-terminal");
+  terminal.el.hidden = true;
+  content.append(terminal.el);
   const layout = createThreadsLayout({
     panel,
-    lists: terminal ? [list.el, terminal.list] : [list.el],
+    lists: [list.el, terminal.list],
     toggle: toggleEl,
     backs: [backEl, terminalBack],
     collapsed: deps.listCollapsed,
     onCollapsed: deps.onListCollapsed,
-    focusList: () => (onTerminal() ? terminal!.focusList() : list.focusSelected()),
-    focusRail: () => (onTerminal() ? terminal!.focusRail() : rail.focusSelected()),
+    focusList: () => (tab === "terminal" ? terminal.focusList() : list.focusSelected()),
+    focusRail: () => (tab === "terminal" ? terminal.focusRail() : rail.focusSelected()),
   });
 
   function renderHead(): void {
-    const head = terminal?.head() ?? { count: "", waiting: false };
+    const head = terminal.head();
     tabs.render(tab, { threads: waitingCount > 0, terminal: head.waiting });
     countEl.textContent =
       tab === "threads" ? t("threads.waiting_count", { n: waitingCount }) : head.count;
@@ -178,10 +180,10 @@ export function createThreadsView(deps: {
   function showTab(next: ThreadsTab): void {
     tab = next;
     panesEl.hidden = tab !== "threads";
-    if (terminal) terminal.el.hidden = tab !== "terminal";
-    layout.reset(tab === "threads" ? selected !== null : (terminal?.hasSelection() ?? false));
+    terminal.el.hidden = tab !== "terminal";
+    layout.reset(tab === "threads" ? selected !== null : terminal.hasSelection());
     renderHead();
-    if (onTerminal()) terminal!.shown();
+    if (tab === "terminal") terminal.shown();
   }
 
   function renderList(): void {
@@ -217,8 +219,8 @@ export function createThreadsView(deps: {
       if (tab === "threads") pane.pick(index);
     },
     onMove: (delta) => {
-      if (onTerminal()) {
-        terminal!.move(delta);
+      if (tab === "terminal") {
+        terminal.move(delta);
         return;
       }
       const at = rows.findIndex((th) => th.id === selected);
@@ -265,7 +267,7 @@ export function createThreadsView(deps: {
     },
     dispose() {
       offKeys();
-      terminal?.dispose();
+      terminal.dispose();
       layout.dispose();
       offHandles();
       offLocale();

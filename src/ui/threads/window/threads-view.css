@@ -130,6 +130,10 @@
   border-top: 1px solid var(--yui-edge);
 }
 
+.yui-threads__panes[hidden] {
+  display: none;
+}
+
 .yui-threads__panes > .yui-threads-list,
 .yui-threads__panes > .yui-threads-rail {
   grid-row: 1;

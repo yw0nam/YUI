@@ -1210,6 +1210,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "ui/terminal",
+      "module": "display",
+      "label": "terminal ui",
+      "role": "The Threads window's Terminal tab: the list or rail of terminals, the terminal pane with one xterm per terminal, the access line with Take back, and the Allow card for a waiting access request.",
+      "paths": [
+        "src/ui/terminal"
+      ]
+    },
+    {
       "id": "ui/devtools",
       "module": "settings",
       "label": "devtools ui",
