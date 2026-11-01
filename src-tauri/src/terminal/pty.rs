@@ -13,7 +13,6 @@ use tauri::ipc::{Channel, InvokeResponseBody};
 pub type Store = TerminalStore<Pty>;
 
 const SCROLLBACK: usize = 2000;
-// ponytail: a close waits up to this long per terminal; quitting with many stuck ones adds up.
 #[cfg(unix)]
 const KILL_GRACE: std::time::Duration = std::time::Duration::from_millis(500);
 
@@ -181,39 +180,49 @@ impl Pty {
         screen::read_text(terminal, lock(&self.output).parser.screen_mut(), lines)
     }
 
-    /// Hangs up the shell's process group, then kills what is left of it after a short grace.
-    #[cfg(unix)]
     pub fn kill(&self) {
-        use nix::errno::Errno;
-        use nix::sys::signal::{killpg, Signal};
+        kill_all(&[self]);
+    }
+
+    /// Sends the signal to the shell's process group; false once the group is gone.
+    #[cfg(unix)]
+    fn signal(&self, signal: Option<nix::sys::signal::Signal>) -> bool {
         let Some(group) = self.group else {
-            return;
+            return false;
         };
-        let group = nix::unistd::Pid::from_raw(group as i32);
-        let signal = |signal| match killpg(group, signal) {
+        match nix::sys::signal::killpg(nix::unistd::Pid::from_raw(group as i32), signal) {
             Ok(()) => true,
-            Err(Errno::ESRCH) => false,
+            Err(nix::errno::Errno::ESRCH) => false,
             Err(error) => {
                 log::warn!("terminal_kill_failed error={error}");
                 false
             }
-        };
-        let deadline = std::time::Instant::now() + KILL_GRACE;
-        if !signal(Some(Signal::SIGHUP)) {
-            return;
         }
-        while std::time::Instant::now() < deadline {
-            std::thread::sleep(std::time::Duration::from_millis(20));
-            if !signal(None) {
-                return;
-            }
-        }
-        signal(Some(Signal::SIGKILL));
     }
+}
 
-    #[cfg(not(unix))]
-    pub fn kill(&self) {
-        if let Err(error) = lock(&self.killer).kill() {
+/// Hangs up every shell's process group, then kills what is left after one shared grace.
+#[cfg(unix)]
+pub fn kill_all(ptys: &[&Pty]) {
+    use nix::sys::signal::Signal;
+    let deadline = std::time::Instant::now() + KILL_GRACE;
+    let mut alive: Vec<_> = ptys
+        .iter()
+        .filter(|p| p.signal(Some(Signal::SIGHUP)))
+        .collect();
+    while !alive.is_empty() && std::time::Instant::now() < deadline {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        alive.retain(|p| p.signal(None));
+    }
+    for pty in alive {
+        pty.signal(Some(Signal::SIGKILL));
+    }
+}
+
+#[cfg(not(unix))]
+pub fn kill_all(ptys: &[&Pty]) {
+    for pty in ptys {
+        if let Err(error) = lock(&pty.killer).kill() {
             log::warn!("terminal_kill_failed error={error}");
         }
     }

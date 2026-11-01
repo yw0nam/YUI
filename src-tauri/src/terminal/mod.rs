@@ -29,11 +29,13 @@ pub fn on_run_event(app: &AppHandle, event: &RunEvent) {
         return;
     }
     if let Some(store) = app.try_state::<Arc<pty::Store>>() {
-        // Dropping the last handle closes the PTY; on Windows that ends its console's clients.
-        for terminal in store.snapshot().terminals {
-            if let Ok(pty) = store.close(&terminal.id, None) {
-                pty.kill();
-            }
-        }
+        let ptys: Vec<_> = store
+            .snapshot()
+            .terminals
+            .iter()
+            .filter_map(|terminal| store.close(&terminal.id, None).ok())
+            .collect();
+        pty::kill_all(&ptys.iter().map(|pty| pty.as_ref()).collect::<Vec<_>>());
+        // Dropping the last handles closes the PTYs; on Windows that ends their consoles' clients.
     }
 }
