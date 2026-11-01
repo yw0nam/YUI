@@ -105,19 +105,20 @@
   display: grid;
 }
 
-/* The column is half the window less 3.5rem (surfaces.css): under 24rem the label has no room, so the chip folds. */
+/* In the pet window's chip column, half the window less 3.5rem (surfaces.css), the label has no room under 24rem, so
+   the chip folds; the message window's plate row keeps it whole. */
 @media (width < 24rem) {
-  .yui-deleg__label {
+  .yui-chip-column .yui-deleg__label {
     display: none;
   }
 
-  .yui-deleg__chip {
+  .yui-chip-column .yui-deleg__chip {
     position: relative;
     gap: 0;
     padding: 0.3rem 0.4rem;
   }
 
-  .yui-deleg__count {
+  .yui-chip-column .yui-deleg__count {
     display: grid;
   }
 }
