@@ -115,6 +115,10 @@
   background: var(--yui-hover);
 }
 
+.yui-threads-button:active {
+  background: var(--yui-selected);
+}
+
 .yui-threads :focus-visible {
   outline: 2px solid var(--yui-accent-ink);
   outline-offset: 2px;

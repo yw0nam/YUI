@@ -17,11 +17,19 @@
 }
 
 .yui-terminal-pane__close {
+  position: relative;
   flex: none;
   min-height: 32px;
   padding: 4px 12px;
   color: var(--yui-text-dim);
   font-size: var(--yui-fs-sub);
+}
+
+/* The 32px button keeps a 44px hit area. */
+.yui-terminal-pane__close::before {
+  content: "";
+  position: absolute;
+  inset: -6px 0;
 }
 
 .yui-terminal-pane__close:hover {

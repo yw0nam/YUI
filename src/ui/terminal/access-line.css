@@ -90,6 +90,7 @@
 }
 
 .yui-terminal-access button {
+  position: relative;
   flex: none;
   margin-left: auto;
   min-height: 32px;
@@ -97,6 +98,13 @@
   background: var(--yui-field);
   color: var(--yui-text);
   font-weight: 600;
+}
+
+/* The 32px button keeps a 44px hit area, inside the row's 8px padding. */
+.yui-terminal-access button::before {
+  content: "";
+  position: absolute;
+  inset: -6px 0;
 }
 
 /* Narrow: one line; the label goes and the command takes the width left (its title keeps the label). */
