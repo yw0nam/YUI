@@ -13,6 +13,7 @@ import {
   createSpeakerSelection,
   type SpeakerOption,
 } from "../../io/voice/voices/speaker-selection";
+import { createTextSizeSettings } from "../../settings/appearance/text-size-settings";
 import { createThemeSettings } from "../../settings/appearance/theme-settings";
 import { createLipsyncSettings } from "../../settings/avatar/lipsync-settings";
 import {
@@ -181,6 +182,7 @@ export function defaultQcArgs(mount: HTMLElement) {
     agentSettings: createAgentSettings({ storage: inMemoryAgentStorage() }),
     userNameSettings: createUserNameSettings({ storage: undefined }),
     themeSettings: createThemeSettings(),
+    textSizeSettings: createTextSizeSettings(),
     endpointsSettings: createEndpointsSettings(),
     proactiveSettings: createProactiveSettings(),
     scheduleSettings: createScheduleSettings(),

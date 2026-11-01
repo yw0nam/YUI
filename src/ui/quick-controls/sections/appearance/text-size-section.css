@@ -1,0 +1,12 @@
+/* A line at the speech size, so the chosen step reads as the bubble will. */
+.yui-textsize-sample {
+  display: block;
+  margin-top: 0.5rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--yui-edge);
+  border-radius: var(--yui-radius-row);
+  background: var(--yui-scrim);
+  color: var(--yui-text);
+  font-size: var(--yui-fs-speech);
+  line-height: 1.6;
+}

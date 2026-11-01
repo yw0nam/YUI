@@ -345,6 +345,9 @@ const ja: Record<string, string> = {
   "appearance.dawn": "Dawn",
   "appearance.hearth": "Hearth",
   "appearance.system": "システムに従う",
+  "textsize.label": "文字サイズ",
+  "textsize.sub": "吹き出し、チップ、Threads、設定の文字。ターミナルは別のサイズを保ちます。",
+  "textsize.sample": "今見る？それとも夜に一緒に片付けようか？",
 
   // VRM section
   "vrm.section": "VRM",
