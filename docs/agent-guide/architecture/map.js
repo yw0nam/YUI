@@ -691,7 +691,7 @@ globalThis.YUI_MAP =
       "id": "settings",
       "module": "settings",
       "label": "settings",
-      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, the device-wide yui.user-name holds what {{user}} resolves to, the device-wide yui.tts-readings holds the reading dictionary, the device-wide yui.theme holds the theme (dawn, hearth or system), the device-wide yui.threads-window holds the Threads window's frame, list choice and terminal font size, and the device-wide yui.unified-chat holds the Unified chat switch, with the rule every pet and settings window reads for whether the unified chat window shows (the switch on, two or more open presets, a window can exist), and yui.unified-window the unified window's position.",
+      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, the device-wide yui.user-name holds what {{user}} resolves to, the device-wide yui.tts-readings holds the reading dictionary, the device-wide yui.theme holds the theme (dawn, hearth or system), the device-wide yui.text-size holds the text size (0.9, 1, 1.125, 1.25 or 1.4), the device-wide yui.threads-window holds the Threads window's frame, list choice and terminal font size, and the device-wide yui.unified-chat holds the Unified chat switch, with the rule every pet and settings window reads for whether the unified chat window shows (the switch on, two or more open presets, a window can exist), and yui.unified-window the unified window's position.",
       "paths": [
         "src/settings"
       ]
@@ -1195,7 +1195,7 @@ globalThis.YUI_MAP =
       "id": "ui/quick-controls",
       "module": "settings",
       "label": "quick controls",
-      "role": "The settings panel that fills the settings window: a search field over a rail of the edited character's pages (Connection, Voice, Persona, Body, History) then every character's pages (Together, Listening and bubble, Permissions, Plugins, Proactive, Motion and desktop, General), each page's scope line naming which; the Plugins page lists the installed plugins with their consent, status and log tail, and the catalog with install and add from folder; it heads with every character and its transport and window state, and a click edits it; a control the push transport cannot use stays, disabled, with its reason and a link to the chat protocol select; the Together page's Characters list turns each character on or off the desktop; the preset manage row's copy button copies a character's ingress URL and the Proactive URL line shows this window's; the preset strip shows this preset's relation line and the reasons card; the Persona page's Card section edits the preset's card, its send switch and the preset's name; the General page holds the device-wide user name and the Appearance row that picks the theme.",
+      "role": "The settings panel that fills the settings window: a search field over a rail of the edited character's pages (Connection, Voice, Persona, Body, History) then every character's pages (Together, Listening and bubble, Permissions, Plugins, Proactive, Motion and desktop, General), each page's scope line naming which; the Plugins page lists the installed plugins with their consent, status and log tail, and the catalog with install and add from folder; it heads with every character and its transport and window state, and a click edits it; a control the push transport cannot use stays, disabled, with its reason and a link to the chat protocol select; the Together page's Characters list turns each character on or off the desktop; the preset manage row's copy button copies a character's ingress URL and the Proactive URL line shows this window's; the preset strip shows this preset's relation line and the reasons card; the Persona page's Card section edits the preset's card, its send switch and the preset's name; the General page holds the device-wide user name, the Appearance row that picks the theme and the Text size row that picks the text size.",
       "paths": [
         "src/ui/quick-controls"
       ]
@@ -1250,7 +1250,7 @@ globalThis.YUI_MAP =
       "id": "ui/theme",
       "module": "settings",
       "label": "theme",
-      "role": "Writes the theme the store resolves, `system` through the OS appearance, as `data-theme` on each window's root.",
+      "role": "Writes the theme the store resolves, `system` through the OS appearance, as `data-theme` on each window's root, and the text size as `--yui-text-scale`, which every text token multiplies by.",
       "paths": [
         "src/ui/theme"
       ]
@@ -1377,7 +1377,7 @@ globalThis.YUI_MAP =
       "id": "app/threads-window",
       "module": "wiring",
       "label": "threads window wiring",
-      "role": "The Threads window's wiring: snapshots into the view, Answers to the store, the open request placing and showing the window (beside main's pet window the first time, at its stored frame after that) before the grow, or only focusing it while it shows, its head's native drag and the frame saved once a move settles, its edge and corner resize applied at most once a frame and saved at the end, Escape and × shrinking it back and hiding it, and the stored theme and language reloaded on settings-changed.",
+      "role": "The Threads window's wiring: snapshots into the view, Answers to the store, the open request placing and showing the window (beside main's pet window the first time, at its stored frame after that) before the grow, or only focusing it while it shows, its head's native drag and the frame saved once a move settles, its edge and corner resize applied at most once a frame and saved at the end, Escape and × shrinking it back and hiding it, and the stored theme, text size and language reloaded on settings-changed.",
       "paths": [
         "src/app/threads-window"
       ]
@@ -3989,7 +3989,7 @@ globalThis.YUI_MAP =
       "id": "settings-theme",
       "from": "settings",
       "to": "ui/theme",
-      "carries": "themeSettings.subscribe → data-theme on the window root; the pet, settings, message, unified and devtools windows each call applyTheme",
+      "carries": "themeSettings.subscribe → data-theme and textSizeSettings.subscribe → --yui-text-scale on the window root; the pet, settings, message, unified, Threads and devtools windows each call applyTheme and applyTextScale",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/windows/main.ts"
@@ -5046,7 +5046,7 @@ globalThis.YUI_MAP =
         "id": "settings-changed-message",
         "from": "pet",
         "to": "message",
-        "carries": "yui://settings-changed: reload locale, bubble persistence, mirrors",
+        "carries": "yui://settings-changed: reload locale, theme, text size, bubble persistence, mirrors",
         "kind": "bridge"
       },
       {
@@ -5067,7 +5067,7 @@ globalThis.YUI_MAP =
         "id": "settings-changed-message-companion",
         "from": "pet-<id>",
         "to": "message-<id>",
-        "carries": "yui://settings-changed: reload locale, bubble persistence, mirrors",
+        "carries": "yui://settings-changed: reload locale, theme, text size, bubble persistence, mirrors",
         "kind": "bridge"
       },
       {
