@@ -196,3 +196,12 @@ it("writes the exit line into an exited terminal and words its state Exited", ()
   const lines = screens[0]!.written.filter((text) => text.includes("[Shell exited with code 3]"));
   expect(lines).toHaveLength(1);
 });
+
+it("names each terminal by the id agents use, in its row and the pane head", () => {
+  const { view, $ } = build();
+  view.update(snap([terminal("t1", 1), terminal("t2", 2)]));
+
+  const rows = [...document.querySelectorAll(".yui-threads-list .yui-terminal-id")];
+  expect(rows.map((el) => el.textContent)).toEqual(["t2", "t1"]);
+  expect($(".yui-terminal-pane .yui-terminal-id")!.textContent).toBe("t2");
+});
