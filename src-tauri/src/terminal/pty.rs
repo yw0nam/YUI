@@ -257,31 +257,30 @@ mod tests {
 
     #[test]
     fn killing_a_terminal_ends_its_shell_and_the_shell_children() {
-        let s = store();
-        let terminal = spawn(
-            &s,
-            TerminalOwner::User,
-            "~".into(),
-            sh("sleep 60 & echo pids $$ $!; wait"),
-            1,
-        )
-        .unwrap();
-        let pty = s.get("t1").unwrap();
-        let pids: Vec<Pid> = until(|| {
-            let text = pty.read(&terminal, None);
-            let line = text.lines().find_map(|l| l.strip_prefix("pids "))?;
-            Some(
-                line.split(' ')
-                    .map(|p| Pid::from_raw(p.parse().unwrap()))
-                    .collect(),
-            )
-        });
-        assert!(pids.iter().all(|&pid| kill(pid, None).is_ok()));
-        s.close("t1", None).unwrap().kill();
-        until(|| {
-            pids.iter()
-                .all(|&pid| kill(pid, None).is_err())
-                .then_some(())
-        });
+        // The second shell and its child ignore SIGHUP.
+        for script in [
+            "sleep 60 & echo pids $$ $!; wait",
+            "trap '' HUP; sleep 60 & echo pids $$ $!; wait",
+        ] {
+            let s = store();
+            let terminal = spawn(&s, TerminalOwner::User, "~".into(), sh(script), 1).unwrap();
+            let pty = s.get("t1").unwrap();
+            let pids: Vec<Pid> = until(|| {
+                let text = pty.read(&terminal, None);
+                let line = text.lines().find_map(|l| l.strip_prefix("pids "))?;
+                Some(
+                    line.split(' ')
+                        .map(|p| Pid::from_raw(p.parse().unwrap()))
+                        .collect(),
+                )
+            });
+            assert!(pids.iter().all(|&pid| kill(pid, None).is_ok()));
+            s.close("t1", None).unwrap().kill();
+            until(|| {
+                pids.iter()
+                    .all(|&pid| kill(pid, None).is_err())
+                    .then_some(())
+            });
+        }
     }
 }
