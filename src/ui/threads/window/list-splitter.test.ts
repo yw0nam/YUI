@@ -1,45 +1,85 @@
 // @vitest-environment jsdom
-/** list-splitter.test.ts — the wide list's edge drags and steps the list width within its range, saves it, and resets it. */
+/** list-splitter.test.ts — the wide list's edge drags and steps the list width within its range, saves it, resets it, and reports it. */
 
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { setLocale } from "../../i18n";
 import { createListSplitter } from "./list-splitter";
 
 const VAR = "--yui-threads-list-width";
 
+/** The panel's ResizeObserver callbacks; `resized` runs them. */
+let observers: ResizeObserverCallback[] = [];
+const resized = () => {
+  for (const cb of observers) cb([], {} as ResizeObserver);
+};
+
 beforeEach(() => {
   setLocale("en");
   document.body.innerHTML = "";
+  observers = [];
   HTMLElement.prototype.setPointerCapture = vi.fn();
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      constructor(private cb: ResizeObserverCallback) {
+        observers.push(cb);
+      }
+      observe() {}
+      disconnect() {
+        observers = observers.filter((cb) => cb !== this.cb);
+      }
+    },
+  );
 });
+afterEach(() => vi.unstubAllGlobals());
 
-/** A panel `panelWidth` px wide whose panes start at x 8 and whose list shows the width the variable sets, else 299. */
-function build(panelWidth: number, stored: number | null = null) {
+/**
+ * A panel `size.panel` px wide whose panes start at x 8. The shown tab's list shows the width the
+ * variable sets, else 299, unless `size.list` overrides it; the hidden tab's list shows 0.
+ */
+function build(size: { panel: number; list?: number }, stored: number | null = null) {
   const panel = document.createElement("section");
-  Object.defineProperty(panel, "clientWidth", { value: panelWidth });
-  const panes = document.createElement("div");
-  const list = document.createElement("nav");
-  list.className = "yui-threads-list";
-  panes.append(list);
-  panel.append(panes);
+  Object.defineProperty(panel, "clientWidth", { get: () => size.panel });
+  const shownWidth = () =>
+    size.list ?? (Number.parseFloat(panel.style.getPropertyValue(VAR)) || 299);
+  const tab = (id: string, width: () => number) => {
+    const panes = document.createElement("div");
+    const list = document.createElement("nav");
+    list.id = id;
+    panes.append(list);
+    panel.append(panes);
+    panes.getBoundingClientRect = () => ({ left: 8 }) as DOMRect;
+    list.getBoundingClientRect = () => ({ width: width() }) as DOMRect;
+    return list;
+  };
+  const lists = [tab("shown-list", shownWidth), tab("hidden-list", () => 0)];
   document.body.append(panel);
-  const shown = () => Number.parseFloat(panel.style.getPropertyValue(VAR)) || 299;
-  panes.getBoundingClientRect = () => ({ left: 8 }) as DOMRect;
-  list.getBoundingClientRect = () => ({ width: shown() }) as DOMRect;
   const onWidth = vi.fn();
   const splitter = createListSplitter({ panel, width: stored, onWidth });
-  const edge = splitter.separator();
-  panes.append(edge);
-  const drag = (...xs: number[]) => {
-    edge.dispatchEvent(new PointerEvent("pointerdown", { button: 0, pointerId: 1, clientX: 307 }));
-    for (const clientX of xs) {
-      edge.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX }));
-    }
-    edge.dispatchEvent(new PointerEvent("pointerup", { pointerId: 1 }));
+  for (const list of lists) splitter.attach(list);
+  const [edge, hiddenEdge] = lists.map((list) => list.nextElementSibling as HTMLElement);
+  const pointer = (type: string, clientX?: number) =>
+    edge!.dispatchEvent(new PointerEvent(type, { button: 0, pointerId: 1, clientX }));
+  const drag = (from: number, ...xs: number[]) => {
+    pointer("pointerdown", from);
+    for (const x of xs) pointer("pointermove", x);
+    pointer("pointerup");
   };
-  const key = (key: string) => edge.dispatchEvent(new KeyboardEvent("keydown", { key }));
+  const key = (key: string) => edge!.dispatchEvent(new KeyboardEvent("keydown", { key }));
   const width = () => panel.style.getPropertyValue(VAR);
-  return { edge, drag, key, width, onWidth };
+  const aria = (el: HTMLElement) =>
+    ["aria-valuenow", "aria-valuemax"].map((name) => el.getAttribute(name));
+  return {
+    edge: edge!,
+    hiddenEdge: hiddenEdge!,
+    pointer,
+    drag,
+    key,
+    width,
+    aria,
+    onWidth,
+    splitter,
+  };
 }
 
 it.each([
@@ -48,16 +88,38 @@ it.each([
   ["at most half the panel", 880, 900, "440px", 440],
   ["at most 480px", 1100, 1000, "480px", 480],
 ])("drags the list to %s and saves it on release", (_name, panelWidth, x, width, saved) => {
-  const t = build(panelWidth);
+  const t = build({ panel: panelWidth });
 
-  t.drag(350, x);
+  t.drag(307, 350, x);
 
   expect(t.width()).toBe(width);
   expect(t.onWidth.mock.calls).toEqual([[saved]]);
 });
 
+it("keeps the grab point under the pointer, so the list moves by the pointer's travel", () => {
+  const t = build({ panel: 880 });
+
+  // The list's edge is at 8 + 299 = 307; the grab is 3px right of it.
+  t.drag(310, 410);
+
+  expect(t.width()).toBe("399px");
+});
+
+it("ignores a second press while a drag lasts, saving once on release", () => {
+  const t = build({ panel: 880 });
+
+  t.pointer("pointerdown", 307);
+  t.pointer("pointerdown", 307);
+  t.pointer("pointermove", 400);
+  t.pointer("pointerup");
+  t.pointer("pointermove", 500);
+
+  expect(t.width()).toBe("392px");
+  expect(t.onWidth.mock.calls).toEqual([[392]]);
+});
+
 it("steps the shown width by 16px with the arrow keys and saves each step", () => {
-  const t = build(880);
+  const t = build({ panel: 880 });
 
   t.key("ArrowRight");
   t.key("ArrowLeft");
@@ -65,26 +127,55 @@ it("steps the shown width by 16px with the arrow keys and saves each step", () =
 
   expect(t.width()).toBe("283px");
   expect(t.onWidth.mock.calls).toEqual([[315], [299], [283]]);
+  expect(t.aria(t.edge)).toEqual(["283", "440"]);
 });
 
 it("goes back to the default width on a double-click", () => {
-  const t = build(880, 312);
+  const t = build({ panel: 880 }, 312);
   expect(t.width()).toBe("312px");
 
   t.edge.dispatchEvent(new MouseEvent("dblclick"));
 
   expect(t.width()).toBe("");
   expect(t.onWidth.mock.calls).toEqual([[null]]);
+  expect(t.aria(t.edge)).toEqual(["299", "440"]);
 });
 
-it("is a labelled vertical window splitter reporting the shown width and its range", () => {
-  const t = build(880, 312);
+it("is a labelled vertical window splitter controlling its tab's list", () => {
+  const t = build({ panel: 880 }, 312);
 
   expect(t.edge.getAttribute("role")).toBe("separator");
   expect(t.edge.tabIndex).toBe(0);
   expect(
-    ["aria-orientation", "aria-label", "aria-valuenow", "aria-valuemin", "aria-valuemax"].map(
-      (name) => t.edge.getAttribute(name),
+    ["aria-orientation", "aria-label", "aria-controls", "aria-valuemin"].map((name) =>
+      t.edge.getAttribute(name),
     ),
-  ).toEqual(["vertical", "List width", "312", "220", "440"]);
+  ).toEqual(["vertical", "List width", "shown-list", "220"]);
+  expect(t.hiddenEdge.getAttribute("aria-controls")).toBe("hidden-list");
+});
+
+it("reports the shown list's width within the range on a panel resize, leaving the hidden tab's edge", () => {
+  const size: { panel: number; list?: number } = { panel: 880 };
+  const t = build(size);
+  t.edge.dispatchEvent(new FocusEvent("focus"));
+  expect(t.aria(t.edge)).toEqual(["299", "440"]);
+
+  size.panel = 600;
+  size.list = 304;
+  resized();
+
+  expect(t.aria(t.edge)).toEqual(["300", "300"]);
+  expect(t.aria(t.hiddenEdge)).toEqual([null, null]);
+});
+
+it("names the edge in the UI language until it is disposed", () => {
+  const t = build({ panel: 880 });
+
+  setLocale("ko");
+  expect(t.edge.getAttribute("aria-label")).toBe("목록 너비");
+
+  t.splitter.dispose();
+  setLocale("en");
+  expect(t.edge.getAttribute("aria-label")).toBe("목록 너비");
+  expect(observers).toEqual([]);
 });

@@ -80,22 +80,29 @@ it("keeps a dragged list width beside the frame, and a reset clears it", () => {
   });
 });
 
-it("loads a frame stored without a list width, and ignores a list width that is not whole px", () => {
+it.each([
+  ["no list width", undefined, undefined],
+  ["a list width in the range", 312, 312],
+  ["a list width above the range", 600, undefined],
+  ["a list width below the range", 100, undefined],
+  ["a fractional list width", 300.5, undefined],
+  ["a list width that is not a number", "wide", undefined],
+])("reads %s, keeping the frame", (_name, stored, listWidth) => {
   globalThis.localStorage?.setItem(
     KEY,
-    JSON.stringify({ x: 5, y: 6, width: 900, height: 700, listCollapsed: true }),
+    JSON.stringify({ x: 5, y: 6, width: 900, height: 700, listCollapsed: true, listWidth: stored }),
   );
-  expect(
-    createThreadsWindowSettings({ storage: localStorageThreadsWindowStorage(KEY) }).get(),
-  ).toEqual({ x: 5, y: 6, width: 900, height: 700, listCollapsed: true });
 
-  globalThis.localStorage?.setItem(
-    KEY,
-    JSON.stringify({ x: 5, y: 6, width: 900, height: 700, listCollapsed: true, listWidth: "wide" }),
-  );
-  expect(
-    createThreadsWindowSettings({ storage: localStorageThreadsWindowStorage(KEY) }).get(),
-  ).toEqual({ x: 5, y: 6, width: 900, height: 700, listCollapsed: true });
+  const settings = createThreadsWindowSettings({ storage: localStorageThreadsWindowStorage(KEY) });
+
+  expect(settings.get()).toStrictEqual({
+    x: 5,
+    y: 6,
+    width: 900,
+    height: 700,
+    listCollapsed: true,
+    ...(listWidth === undefined ? {} : { listWidth }),
+  });
 });
 
 it.each([
