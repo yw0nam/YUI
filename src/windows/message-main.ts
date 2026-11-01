@@ -8,9 +8,14 @@
  */
 
 import {
+  createTextSizeSettings,
+  localStorageTextSizeStorage,
+} from "../settings/appearance/text-size-settings";
+import {
   createThemeSettings,
   localStorageThemeStorage,
 } from "../settings/appearance/theme-settings";
+import { applyTextScale } from "../ui/theme/apply-text-scale";
 import { applyTheme } from "../ui/theme/apply-theme";
 import "../styles.css";
 import "../ui/message/message-window.css";
@@ -74,6 +79,9 @@ async function bootstrap(): Promise<void> {
   const themeSettings = createThemeSettings({ storage: localStorageThemeStorage() });
   disposers.register(() => themeSettings.dispose());
   disposers.register(applyTheme({ store: themeSettings, root: document.documentElement }));
+  const textSizeSettings = createTextSizeSettings({ storage: localStorageTextSizeStorage() });
+  disposers.register(() => textSizeSettings.dispose());
+  disposers.register(applyTextScale({ store: textSizeSettings, root: document.documentElement }));
 
   const bridge = createMessageBridge(undefined, { windowKind: "message" });
   const settingsBridge = createSettingsBridge(undefined, { windowKind: "message" });
@@ -139,6 +147,7 @@ async function bootstrap(): Promise<void> {
   const reloadShared = (): void => {
     reloadLocale();
     themeSettings.reloadFromStorage();
+    textSizeSettings.reloadFromStorage();
     bubblePersistSettings.reloadFromStorage();
     pushSocket.refresh();
     delegations.refresh();

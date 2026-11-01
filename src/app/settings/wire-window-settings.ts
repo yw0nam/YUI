@@ -11,6 +11,7 @@ import type { Logger } from "../../logger";
 import { presetIdForWindow } from "../../settings/preset/active-preset";
 import type { PresetRegistry } from "../../settings/preset/preset-registry";
 import { isTauri } from "../../tauri-env";
+import { applyTextScale } from "../../ui/theme/apply-text-scale";
 import { applyTheme } from "../../ui/theme/apply-theme";
 import { wireSettingsWindowSync } from "../cross-window/wire-cross-window";
 import { createSessionResetAnnouncer } from "../turn/session-reset-announcer";
@@ -36,6 +37,9 @@ export async function wireWindowSettings(deps: {
       root: document.documentElement,
       setNativeTheme: isTauri() ? (t) => getCurrentWindow().setTheme(t) : undefined,
     }),
+  );
+  register(
+    applyTextScale({ store: settingsStores.textSizeSettings, root: document.documentElement }),
   );
 
   // Config loaded best-effort only (failure → bundled defaults stay empty).
