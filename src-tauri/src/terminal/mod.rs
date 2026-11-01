@@ -29,7 +29,7 @@ pub fn on_run_event(app: &AppHandle, event: &RunEvent) {
         return;
     }
     if let Some(store) = app.try_state::<Arc<pty::Store>>() {
-        // Dropping the last handle closes the PTY, which on Windows ends the pseudoconsole's clients.
+        // Dropping the last handle closes the PTY; on Windows that ends its console's clients.
         for terminal in store.snapshot().terminals {
             if let Ok(pty) = store.close(&terminal.id, None) {
                 pty.kill();

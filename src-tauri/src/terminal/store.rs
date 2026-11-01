@@ -186,7 +186,7 @@ impl<P> TerminalStore<P> {
         Ok(state.terminals[state.find(id)?].1.clone())
     }
 
-    /// Removes a terminal; a preset closes only the terminals it opened. Its waiting calls end as unknown.
+    /// Removes a terminal; a preset closes only its own. Its waiting calls end as unknown.
     pub fn close(&self, id: &str, preset_id: Option<&str>) -> Result<Arc<P>, String> {
         self.update(|state| {
             let index = state.find(id)?;
@@ -219,7 +219,7 @@ impl<P> TerminalStore<P> {
         })
     }
 
-    /// Allow moves access to the request's preset and frees its waiting calls; Deny refuses one call.
+    /// Allow moves access to the request's preset and frees its calls; Deny refuses one call.
     pub fn answer(&self, request_id: &str, allow: bool) -> Result<(), String> {
         self.update(|state| {
             let index = state
@@ -259,7 +259,7 @@ impl<P> TerminalStore<P> {
         }
     }
 
-    /// Waits for the preset's access, asking once; a write records its first line as the last command.
+    /// Waits for the preset's access, asking once; a write records its first line as last command.
     pub fn gate(
         &self,
         call_id: &str,

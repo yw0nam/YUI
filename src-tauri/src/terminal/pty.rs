@@ -104,6 +104,7 @@ fn spawn(
     let (store, id) = (store.clone(), terminal.id.clone());
     std::thread::spawn(move || {
         let mut buf = [0; 8192];
+        // Drains until the PTY closes; on Windows ClosePseudoConsole waits for this drain.
         loop {
             match reader.read(&mut buf) {
                 Ok(0) => break,
