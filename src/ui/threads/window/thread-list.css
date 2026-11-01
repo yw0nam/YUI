@@ -15,6 +15,7 @@
 }
 
 .yui-threads-list__tabs button {
+  position: relative;
   flex: 1;
   display: inline-flex;
   align-items: center;
@@ -32,6 +33,16 @@
 
 .yui-threads-list__tabs button:hover {
   background: var(--yui-hover);
+}
+
+.yui-threads-list__tabs button::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+
+.yui-threads-list__tabs button:active {
+  background: var(--yui-selected);
 }
 
 .yui-threads-list__tabs [aria-pressed="true"] {
@@ -121,6 +132,10 @@
 
 .yui-threads-row:hover {
   background: var(--yui-hover);
+}
+
+.yui-threads-row:active {
+  background: var(--yui-selected);
 }
 
 .yui-threads-row[aria-current="true"] {

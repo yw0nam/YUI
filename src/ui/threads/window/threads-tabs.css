@@ -29,6 +29,16 @@
   background: var(--yui-hover);
 }
 
+.yui-threads__tab::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+
+.yui-threads__tab:active {
+  background: var(--yui-selected);
+}
+
 .yui-threads__tab[aria-selected="true"] {
   color: var(--yui-text);
 }

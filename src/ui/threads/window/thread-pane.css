@@ -20,11 +20,18 @@
 
 /* Shown only in the narrow layout (threads-view.css). */
 .yui-threads-pane__back {
+  position: relative;
   display: none;
   justify-self: start;
   min-height: 36px;
   padding: 8px 12px;
   color: inherit;
+}
+
+.yui-threads-pane__back::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
 }
 
 .yui-threads-pane__line {

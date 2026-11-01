@@ -30,8 +30,21 @@
   background: var(--yui-hover);
 }
 
+.yui-threads-rail button:active {
+  background: var(--yui-selected);
+}
+
+/* The 40px items and the tabs reach 2px further: a 44px hit area. */
+.yui-threads-rail__item::before,
+.yui-threads-rail__tab::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+}
+
 /* The tabs, folded: a mark and its count, the pressed one on the Selected fill. */
 .yui-threads-rail__tab {
+  position: relative;
   display: grid;
   justify-items: center;
   gap: 2px;
@@ -70,6 +83,10 @@
 
 .yui-threads-rail__kind:hover {
   background: var(--yui-hover);
+}
+
+.yui-threads-rail__kind:active {
+  background: var(--yui-selected);
 }
 
 .yui-threads-rail__kind[data-active="true"] {

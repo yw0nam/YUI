@@ -57,6 +57,7 @@
 }
 
 .yui-threads-answer button {
+  position: relative;
   min-height: 36px;
   padding: 8px 12px;
   border: 1px solid var(--yui-edge-strong);
@@ -70,6 +71,16 @@
 
 .yui-threads-answer button:hover:not(:disabled) {
   background: var(--yui-hover);
+}
+
+.yui-threads-answer__choices button:active:not(:disabled) {
+  background: var(--yui-selected);
+}
+
+.yui-threads-answer__choices button::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
 }
 
 .yui-threads-answer__choices button {
@@ -153,6 +164,10 @@
 
 .yui-threads-answer .yui-threads-answer__send:hover:not(:disabled) {
   background: var(--yui-text-dim);
+}
+
+.yui-threads-answer .yui-threads-answer__send:active:not(:disabled) {
+  opacity: 0.82;
 }
 
 .yui-threads-answer .yui-threads-answer__send.is-danger {

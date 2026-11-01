@@ -80,6 +80,7 @@
 
 .yui-threads__toggle,
 .yui-threads__close {
+  position: relative;
   display: grid;
   flex: none;
   place-items: center;
@@ -108,6 +109,19 @@
   background: var(--yui-hover);
 }
 
+/* The 36px buttons reach 4px further: a 44px hit area. */
+.yui-threads__toggle::before,
+.yui-threads__close::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+
+.yui-threads__toggle:active,
+.yui-threads__close:active {
+  background: var(--yui-selected);
+}
+
 /* The window's outlined button; each use sets its own size and ink. */
 .yui-threads-button {
   box-sizing: border-box;
@@ -120,6 +134,10 @@
 
 .yui-threads-button:hover {
   background: var(--yui-hover);
+}
+
+.yui-threads-button:active {
+  background: var(--yui-selected);
 }
 
 .yui-threads-button:active {
