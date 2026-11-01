@@ -867,8 +867,12 @@
 .yui-input__field:focus {
   outline: none;
 }
+/* One line, so an empty field never grows past it. */
 .yui-input__field::placeholder {
   color: var(--yui-text-mute);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 /* Processing field dimming — ignited together with send→stop toggle */
 .yui-input.is-running .yui-input__field {
