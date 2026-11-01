@@ -302,6 +302,20 @@ describe("createSettingsBridge", () => {
     expect(cb).not.toHaveBeenCalled();
   });
 
+  it("delivers a quick card's ask to open the Threads window on a tab, and ignores another tab", () => {
+    const t = createFakeTransport();
+    const a = createSettingsBridge(t, { windowKind: "quick-card" });
+    const b = createSettingsBridge(t, { windowKind: "pet" });
+    const cb = vi.fn();
+    b.onThreadsOpenAsk(cb);
+
+    a.emitThreadsOpenAsk("terminal");
+    a.emitThreadsOpenAsk("threads");
+    a.emitThreadsOpenAsk("shell" as never);
+
+    expect(cb.mock.calls).toEqual([["terminal"], ["threads"]]);
+  });
+
   it("delivers the active preset id from A to B", () => {
     const t = createFakeTransport();
     const a = createSettingsBridge(t, { windowKind: "settings" });
@@ -376,6 +390,7 @@ describe("createSettingsBridge", () => {
     ["onOpenDevtools", undefined, false],
     ["onQuickCardOpen", { left: 1, right: 200, y: 30 }, true],
     ["onQuickCardReady", undefined, true],
+    ["onThreadsOpenAsk", { tab: "terminal" }, false],
   ] as const)("%s uses its declared preset scope", (method, payload, scoped) => {
     history.replaceState(null, "", "/?preset=a");
     const t = createFakeTransport();
