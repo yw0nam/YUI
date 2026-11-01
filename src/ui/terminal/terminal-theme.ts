@@ -5,7 +5,30 @@ import type { ITheme } from "@xterm/xterm";
 /** The code-span mono stack (thread-pane.css). */
 export const MONO_FONT = 'ui-monospace, "SF Mono", Menlo, monospace';
 
-/** Panel ground, Text ink, and the tokens' colours for the ANSI slots they fit; xterm keeps the rest. */
+const ANSI_SLOTS = [
+  "black",
+  "red",
+  "green",
+  "yellow",
+  "blue",
+  "magenta",
+  "cyan",
+  "white",
+  "brightBlack",
+  "brightRed",
+  "brightGreen",
+  "brightYellow",
+  "brightBlue",
+  "brightMagenta",
+  "brightCyan",
+  "brightWhite",
+] as const;
+
+/** `brightBlack` → `--yui-ansi-bright-black`. */
+const ansiToken = (slot: string): string =>
+  `--yui-ansi-${slot.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`;
+
+/** Panel ground, Text ink, and each ANSI slot from its theme token. */
 export function terminalTheme(root: HTMLElement = document.documentElement): ITheme {
   const style = getComputedStyle(root);
   const token = (name: string): string | undefined =>
@@ -15,13 +38,7 @@ export function terminalTheme(root: HTMLElement = document.documentElement): ITh
     foreground: token("--yui-text"),
     cursor: token("--yui-text-dim"),
     cursorAccent: token("--yui-panel-bg"),
-    red: token("--yui-danger"),
-    brightRed: token("--yui-danger"),
-    green: token("--yui-ok"),
-    brightGreen: token("--yui-ok"),
-    yellow: token("--yui-accent-ink"),
-    brightYellow: token("--yui-accent-ink"),
-    brightBlack: token("--yui-text-mute"),
+    ...Object.fromEntries(ANSI_SLOTS.map((slot) => [slot, token(ansiToken(slot))])),
   };
 }
 
