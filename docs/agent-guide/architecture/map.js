@@ -742,6 +742,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "io/snapshot-feed",
+      "module": "display",
+      "label": "snapshot feed",
+      "role": "Keeps a Rust store's highest-revision snapshot from its event and its snapshot command, listening before it reads; the Threads and terminal clients build on it; inert outside Tauri.",
+      "paths": [
+        "src/io/snapshot-feed"
+      ]
+    },
+    {
       "id": "io/threads",
       "module": "display",
       "label": "threads client",
