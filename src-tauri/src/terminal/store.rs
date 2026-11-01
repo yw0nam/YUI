@@ -429,6 +429,15 @@ mod tests {
     }
 
     #[test]
+    fn a_cancel_before_the_call_registers_stops_it_at_once() {
+        let (s, _rx) = store(Duration::from_millis(200));
+        s.add(TerminalOwner::User, "~".into(), Arc::new(()), 1);
+        s.cancel("c1");
+        let read = call(&s, "c1", "yui", AccessKind::Read, None);
+        assert_eq!(read.join().unwrap(), Err(TURN_STOPPED.into()));
+    }
+
+    #[test]
     fn allowing_another_preset_moves_access_to_it() {
         let (s, rx) = store(Duration::from_secs(60));
         s.add(TerminalOwner::User, "~".into(), Arc::new(()), 1);
