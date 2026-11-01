@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 
 pub const TURN_STOPPED: &str = "error: turn stopped";
 const NO_ANSWER: &str = "denied: no answer in 60 s";
+const REFUSED_CAP: usize = 64;
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(
@@ -69,7 +70,7 @@ struct Pending {
 struct State<P> {
     terminals: Vec<(Terminal, Arc<P>)>,
     pending: Vec<Pending>,
-    // A refused call's result, kept until the waiting call takes it.
+    // Refusals not yet taken by their call; capped, as a cancel can outlive its call.
     refused: Vec<(String, String)>,
     revision: u64,
     opened: u64,
@@ -245,17 +246,17 @@ impl<P> TerminalStore<P> {
         })
     }
 
+    /// Stops the call now, or when it registers if the cancel arrives first.
     pub fn cancel(&self, call_id: &str) {
-        let _ = self.update(|state| {
-            let index = state
-                .pending
-                .iter()
-                .position(|p| p.call_id == call_id)
-                .ok_or_else(String::new)?;
+        let mut state = self.lock();
+        if state.refused.len() == REFUSED_CAP {
+            state.refused.remove(0);
+        }
+        state.refused.push((call_id.into(), TURN_STOPPED.into()));
+        if let Some(index) = state.pending.iter().position(|p| p.call_id == call_id) {
             state.pending.remove(index);
-            state.refused.push((call_id.into(), TURN_STOPPED.into()));
-            Ok(())
-        });
+            self.publish(state);
+        }
     }
 
     /// Waits for the preset's access, asking once; a write records its first line as the last command.
