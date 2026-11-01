@@ -760,6 +760,7 @@ const ko: Record<string, string> = {
   "terminal.title": "터미널",
   "threads.tabs_aria": "스레드 창 보기",
   "terminal.count": "터미널 {n}개",
+  "terminal.count_one": "터미널 1개",
   "terminal.new": "새 터미널",
   "terminal.list_aria": "터미널 목록",
   "terminal.rail_aria": "터미널 목록, 간단히",

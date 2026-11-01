@@ -103,7 +103,12 @@ export function createTerminalView(deps: {
       render();
     },
     head: () => ({
-      count: terminals.length ? t("terminal.count", { n: terminals.length }) : "",
+      count:
+        terminals.length === 0
+          ? ""
+          : terminals.length === 1
+            ? t("terminal.count_one")
+            : t("terminal.count", { n: terminals.length }),
       waiting: requests.length > 0,
     }),
     hasSelection: () => selected !== null,

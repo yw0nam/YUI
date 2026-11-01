@@ -765,6 +765,7 @@ const en: Record<string, string> = {
   "terminal.title": "Terminal",
   "threads.tabs_aria": "Threads window view",
   "terminal.count": "{n} terminals",
+  "terminal.count_one": "1 terminal",
   "terminal.new": "New terminal",
   "terminal.list_aria": "Terminal list",
   "terminal.rail_aria": "Terminal list, compact",
