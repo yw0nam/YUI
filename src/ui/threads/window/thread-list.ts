@@ -67,9 +67,12 @@ function row(thread: Thread, selected: boolean, now: number): HTMLButtonElement 
   el.className = "yui-threads-row";
   el.dataset.id = thread.id;
   el.setAttribute("aria-current", String(selected));
+  const meta = document.createElement("span");
+  meta.className = "yui-threads-row__meta";
+  meta.append(sourceLine(thread.source), stateWord(thread), timeEl(thread.updated_at, now));
   const title = document.createElement("strong");
   title.textContent = thread.title;
-  el.append(sourceLine(thread.source), title);
+  el.append(meta, title);
   if (thread.label) {
     const label = document.createElement("span");
     label.className = "yui-threads-row__label";
@@ -77,10 +80,6 @@ function row(thread: Thread, selected: boolean, now: number): HTMLButtonElement 
     label.title = thread.label;
     el.append(label);
   }
-  const meta = document.createElement("span");
-  meta.className = "yui-threads-row__meta";
-  meta.append(stateWord(thread), timeEl(thread.updated_at, now));
-  el.append(meta);
   return el;
 }
 

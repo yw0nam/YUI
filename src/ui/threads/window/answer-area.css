@@ -76,7 +76,10 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: var(--yui-fs-sub);
+  padding: 6px 12px 6px 8px;
+  font-size: var(--yui-fs-body);
+  white-space: normal;
+  text-align: left;
 }
 
 .yui-threads-answer__choices kbd {
@@ -86,7 +89,8 @@
   border-radius: 4px;
   color: var(--yui-text-mute);
   font: inherit;
-  font-size: var(--yui-fs-caption);
+  font-size: var(--yui-fs-sub);
+  line-height: 1.5;
   font-variant-numeric: tabular-nums;
   text-align: center;
 }

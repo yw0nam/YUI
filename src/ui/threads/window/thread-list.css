@@ -64,7 +64,7 @@
 .yui-threads-list__rows {
   flex: 1;
   min-height: 0;
-  padding: 8px;
+  padding: 4px 8px 8px;
   overflow: auto;
   border-top: 1px solid var(--yui-edge);
 }
@@ -76,11 +76,13 @@
   font-size: var(--yui-fs-sub);
 }
 
+/* A row: the source, state and time on one line, the title on two lines at most, then the label. */
 .yui-threads-row {
   display: grid;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
   width: 100%;
-  padding: 16px 12px;
+  padding: 10px 12px;
   border: 0;
   border-radius: var(--yui-radius-row);
   background: none;
@@ -91,7 +93,7 @@
 }
 
 .yui-threads-row + .yui-threads-row {
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .yui-threads-row:hover {
@@ -103,8 +105,23 @@
 }
 
 .yui-threads-row strong {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: var(--yui-fs-head);
   font-weight: 600;
-  overflow-wrap: anywhere;
+  line-height: 1.45;
+  overflow-wrap: break-word;
+}
+
+.yui-threads-row .yui-threads-source {
+  gap: 6px;
+}
+
+.yui-threads-row .yui-threads-source__mark {
+  width: 16px;
+  font-size: var(--yui-fs-body);
 }
 
 .yui-threads-row__label {
@@ -114,6 +131,7 @@
   white-space: nowrap;
   color: var(--yui-text-mute);
   font-size: var(--yui-fs-sub);
+  line-height: 1.5;
 }
 
 .yui-threads-row__meta {
@@ -121,6 +139,11 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  line-height: 1.5;
+}
+
+.yui-threads-row__meta .yui-threads-source {
+  flex: 1;
 }
 
 .yui-threads-row__meta time {
@@ -133,11 +156,6 @@
 @container threads (max-width: 439.98px) {
   .yui-threads-row__label {
     display: none;
-  }
-
-  .yui-threads-row {
-    gap: 6px;
-    padding: 12px;
   }
 
   .yui-threads-list__tabs {

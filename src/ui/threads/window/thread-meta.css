@@ -18,6 +18,13 @@
   font-size: var(--yui-fs-head);
 }
 
+.yui-threads-source__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .yui-threads-state {
   color: var(--yui-text-dim);
   font-size: var(--yui-fs-sub);
