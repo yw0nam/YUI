@@ -287,6 +287,49 @@ export interface ThreadsSnapshot {
   threads: Thread[];
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ── Terminals: PTY shells the user and the backend share ──
+// Mirrors the Rust serde camelCase structs in src-tauri/src/terminal/store.rs.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Who a terminal belongs to: the user, or the preset that opened it. */
+export type TerminalOwner = { kind: "user" } | { kind: "preset"; presetId: string };
+
+export interface Terminal {
+  /** "t1", "t2", … never reused while the app runs. */
+  id: string;
+  owner: TerminalOwner;
+  /** The working directory the terminal opened in, `~`-shortened. */
+  title: string;
+  /** Epoch ms. */
+  openedAt: number;
+  /** null while running. */
+  exitCode: number | null;
+  /** The presetId holding Terminal access; null while none holds it. */
+  access: string | null;
+  /** First line of the holder's last write, trimmed; null until one. */
+  lastCommand: string | null;
+}
+
+/** A preset's pending read or write on a terminal it has no access to — the Allow / Deny card. */
+export interface AccessRequest {
+  /** "r1", … */
+  id: string;
+  terminalId: string;
+  presetId: string;
+  kind: "read" | "write";
+  /** Write only: the text to be written. */
+  text: string | null;
+  /** Epoch ms; no answer by then is a denial. */
+  deadline: number;
+}
+
+export interface TerminalSnapshot {
+  revision: number;
+  terminals: Terminal[];
+  requests: AccessRequest[];
+}
+
 /** A bundled guide doc the backend answers from. */
 export type GuideKey = "controls" | "capabilities";
 

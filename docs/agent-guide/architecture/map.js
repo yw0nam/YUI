@@ -751,6 +751,15 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "io/terminal",
+      "module": "display",
+      "label": "terminal client",
+      "role": "Keeps the terminal store's highest-revision snapshot from terminal_snapshot and the terminal-snapshot event, runs the user's terminal commands — open, close, input, resize, answer, take_back — and streams an attached terminal's bytes over a Channel; inert outside Tauri.",
+      "paths": [
+        "src/io/terminal"
+      ]
+    },
+    {
       "id": "io/chat/vocabulary",
       "module": "tools",
       "label": "express vocabulary",
