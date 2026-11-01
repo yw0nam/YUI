@@ -7,11 +7,8 @@
   top: 0;
   bottom: 0;
   z-index: 2;
-  /* The list's width as threads-view.css lays it, less half the hit area. */
-  left: calc(
-    clamp(220px, var(--yui-threads-list-width, clamp(264px, 34%, 360px)), min(50%, 480px)) -
-    4px
-  );
+  /* The list's width (threads-view.css), less half the hit area. */
+  left: calc(var(--yui-threads-list) - 4px);
   width: 8px;
   cursor: col-resize;
   touch-action: none;

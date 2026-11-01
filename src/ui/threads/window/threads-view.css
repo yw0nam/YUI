@@ -22,6 +22,14 @@
 
 /* The size container every layout below reads: its width, never the page's. */
 .yui-threads__panel {
+  /* The wide list's width: a dragged one (list-splitter.ts) within LIST_WIDTH_PX and half the panel,
+     else the default. The percentages resolve against the panes that read it. */
+  --yui-threads-list: clamp(
+    220px,
+    var(--yui-threads-list-width, clamp(264px, 34%, 360px)),
+    min(50%, 480px)
+  );
+
   position: relative;
   container: threads / inline-size;
   display: flex;
@@ -164,10 +172,7 @@
   position: relative;
   display: grid;
   flex: 1;
-  /* A dragged width (list-splitter.ts) within 220px and half the panel up to 480px, else the default. */
-  grid-template-columns:
-    clamp(220px, var(--yui-threads-list-width, clamp(264px, 34%, 360px)), min(50%, 480px))
-    minmax(0, 1fr);
+  grid-template-columns: var(--yui-threads-list) minmax(0, 1fr);
   min-height: 0;
   border-top: 1px solid var(--yui-edge);
 }

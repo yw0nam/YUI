@@ -14,6 +14,9 @@ import {
 /** The smallest panel the window takes. */
 export const THREADS_MIN_PANEL = { width: 360, height: 420 } as const;
 
+/** The list's dragged width in px; the widest is also at most half the panel (list-splitter.ts). */
+export const LIST_WIDTH_PX = { min: 220, max: 480 } as const;
+
 /** The terminal font size in px; the default is `--yui-fs-body` (0.8125rem) at the 16px root. */
 export const TERMINAL_FONT_PX = { min: 10, default: 13, max: 24 } as const;
 
@@ -43,8 +46,11 @@ function parse(v: unknown): ThreadsWindowSettings | null {
   const int = (n: unknown): n is number => Number.isInteger(n);
   if (!int(width) || !int(height) || typeof listCollapsed !== "boolean") return null;
   if (width < THREADS_MIN_PANEL.width || height < THREADS_MIN_PANEL.height) return null;
-  // A list width that is not whole px or a font size out of range is dropped alone; the frame stays.
-  const list = int(listWidth) ? { listWidth } : {};
+  // A list width or a font size out of its range is dropped alone; the frame stays.
+  const list =
+    int(listWidth) && listWidth >= LIST_WIDTH_PX.min && listWidth <= LIST_WIDTH_PX.max
+      ? { listWidth }
+      : {};
   const font =
     int(terminalFontSize) &&
     terminalFontSize >= TERMINAL_FONT_PX.min &&
