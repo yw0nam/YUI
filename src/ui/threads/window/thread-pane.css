@@ -171,10 +171,17 @@
   }
 }
 
-/* A short pane drops the label line and tightens the head and the transcript. */
+/* A short pane drops the label line, clamps the title to two lines, and tightens the head and the transcript. */
 @container pane (max-height: 439.98px) {
   .yui-threads-pane__label {
     display: none;
+  }
+
+  .yui-threads-pane__head h2 {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
   }
 
   .yui-threads-pane__head {
