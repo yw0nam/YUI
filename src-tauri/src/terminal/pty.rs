@@ -1,7 +1,9 @@
 use super::input::Input;
 use super::screen;
 use super::store::{Terminal, TerminalOwner, TerminalStore};
-use portable_pty::{native_pty_system, ChildKiller, CommandBuilder, MasterPty, PtySize};
+#[cfg(not(unix))]
+use portable_pty::ChildKiller;
+use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
 use std::io::{ErrorKind, Read};
 use std::num::NonZeroU16;
 use std::path::PathBuf;
@@ -11,6 +13,9 @@ use tauri::ipc::{Channel, InvokeResponseBody};
 pub type Store = TerminalStore<Pty>;
 
 const SCROLLBACK: usize = 2000;
+// ponytail: a close waits up to this long per terminal; quitting with many stuck ones adds up.
+#[cfg(unix)]
+const KILL_GRACE: std::time::Duration = std::time::Duration::from_millis(500);
 
 struct Output {
     parser: vt100::Parser,
@@ -21,6 +26,9 @@ struct Output {
 pub struct Pty {
     master: Mutex<Box<dyn MasterPty + Send>>,
     input: Input,
+    #[cfg(unix)]
+    group: Option<u32>,
+    #[cfg(not(unix))]
     killer: Mutex<Box<dyn ChildKiller + Send + Sync>>,
     output: Arc<Mutex<Output>>,
 }
@@ -88,6 +96,10 @@ fn spawn(
     let pty = Arc::new(Pty {
         master: Mutex::new(pair.master),
         input: Input::new(writer),
+        // The shell leads its own session, so its process group id is its pid.
+        #[cfg(unix)]
+        group: child.process_id(),
+        #[cfg(not(unix))]
         killer: Mutex::new(child.clone_killer()),
         output: output.clone(),
     });
@@ -173,6 +185,37 @@ impl Pty {
         screen::read_text(terminal, lock(&self.output).parser.screen_mut(), lines)
     }
 
+    /// Hangs up the shell's process group, then kills what is left of it after a short grace.
+    #[cfg(unix)]
+    pub fn kill(&self) {
+        use nix::errno::Errno;
+        use nix::sys::signal::{killpg, Signal};
+        let Some(group) = self.group else {
+            return;
+        };
+        let group = nix::unistd::Pid::from_raw(group as i32);
+        let signal = |signal| match killpg(group, signal) {
+            Ok(()) => true,
+            Err(Errno::ESRCH) => false,
+            Err(error) => {
+                log::warn!("terminal_kill_failed error={error}");
+                false
+            }
+        };
+        let deadline = std::time::Instant::now() + KILL_GRACE;
+        if !signal(Some(Signal::SIGHUP)) {
+            return;
+        }
+        while std::time::Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(20));
+            if !signal(None) {
+                return;
+            }
+        }
+        signal(Some(Signal::SIGKILL));
+    }
+
+    #[cfg(not(unix))]
     pub fn kill(&self) {
         if let Err(error) = lock(&self.killer).kill() {
             log::warn!("terminal_kill_failed error={error}");
