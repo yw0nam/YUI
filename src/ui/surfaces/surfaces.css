@@ -859,8 +859,8 @@
   line-height: 1.4;
   resize: none;
   overflow-y: auto;
-  /* 6 lines of 1.33rem + vertical padding — grows to here, then scrolls. */
-  max-height: calc(6 * 1.33rem + 1.1rem);
+  /* 6 speech lines (1.33rem at 100%) + vertical padding — grows to here, then scrolls. */
+  max-height: calc(6 * 1.33rem * var(--yui-text-scale, 1) + 1.1rem);
   scrollbar-width: thin;
   scrollbar-color: var(--yui-edge-strong) transparent;
 }
