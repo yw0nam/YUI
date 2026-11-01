@@ -439,6 +439,20 @@ mod tests {
     }
 
     #[test]
+    fn a_waiting_write_on_a_terminal_that_exits_ends_and_takes_its_request() {
+        let (s, rx) = store(Duration::from_secs(60));
+        s.add(TerminalOwner::User, "~".into(), Arc::new(()), 1);
+        let write = call(&s, "c1", "yui", AccessKind::Write, Some("ls"));
+        next_request(&rx);
+        s.exited("t1", 0);
+        assert_eq!(
+            write.join().unwrap(),
+            Err("error: terminal exited: t1".into())
+        );
+        assert_eq!(s.snapshot().requests, vec![]);
+    }
+
+    #[test]
     fn allowing_another_preset_moves_access_to_it() {
         let (s, rx) = store(Duration::from_secs(60));
         s.add(TerminalOwner::User, "~".into(), Arc::new(()), 1);
