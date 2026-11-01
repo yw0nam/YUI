@@ -60,7 +60,7 @@ export async function wireQuickCardWindow(deps: {
       boundId,
       voiceInputStatus,
       openSettings: () => openSettings(),
-      openThreads: bridge.emitThreadsOpenAsk,
+      openThreads: bridge.emitThreadsOpenRequest,
     }),
   });
   register(() => card.dispose());

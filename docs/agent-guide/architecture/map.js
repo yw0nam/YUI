@@ -916,7 +916,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/settings",
       "module": "bridge",
       "label": "settings bridge",
-      "role": "Typed cross-window settings bus: its channels scoped to the sender's preset, and the unscoped settings-changed, preset-changed, pet-windows-changed, character-addressed, user-turn-routed, voice-segment, speech-onset, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control, stop-turns, settings-page, open-devtools, threads-open, threads-ready and threads-closed.",
+      "role": "Typed cross-window settings bus: its channels scoped to the sender's preset, and the unscoped settings-changed, preset-changed, pet-windows-changed, character-addressed, user-turn-routed, voice-segment, speech-onset, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control, stop-turns, settings-page, open-devtools, threads-open, threads-ready, threads-closed and threads-open-request.",
       "paths": [
         "src/io/bridge/settings-bridge.ts"
       ]
@@ -2963,16 +2963,16 @@ globalThis.YUI_MAP =
       "id": "threads-tray-open",
       "from": "app/threads-chip",
       "to": "io/window/openers",
-      "carries": "open(undefined, tab) from the tray's Terminal click (tab \"terminal\") or a quick card's ask: place, show and focus the window with no chip rect and no grow; while it shows, focus it and select the tab",
+      "carries": "open(undefined, tab) from the tray's Terminal click (tab \"terminal\") or a quick card's request: place, show and focus the window with no chip rect and no grow; while it shows, focus it and select the tab",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/threads-chip/wire-threads-open-requests.ts"
     },
     {
-      "id": "quick-card-threads-ask",
+      "id": "quick-card-threads-request",
       "from": "app/quick-card-window",
       "to": "app/threads-chip",
-      "carries": "yui://threads-open-ask {tab: \"threads\" | \"terminal\"}: the card's Threads or Terminal button; unscoped, so any preset's card reaches main, which owns the Threads window",
+      "carries": "yui://threads-open-request {tab: \"threads\" | \"terminal\"}: the card's Threads or Terminal button; unscoped, so any preset's card reaches main, which owns the Threads window",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/threads-chip/wire-threads-open-requests.ts"
@@ -5146,17 +5146,17 @@ globalThis.YUI_MAP =
         "kind": "bridge"
       },
       {
-        "id": "threads-open-ask-quick-card",
+        "id": "threads-open-request-quick-card",
         "from": "quick-card",
         "to": "pet",
-        "carries": "yui://threads-open-ask {tab}: the card's Threads or Terminal button; main opens the Threads window on that tab",
+        "carries": "yui://threads-open-request {tab}: the card's Threads or Terminal button; main opens the Threads window on that tab",
         "kind": "bridge"
       },
       {
-        "id": "threads-open-ask-quick-card-bound",
+        "id": "threads-open-request-quick-card-bound",
         "from": "quick-card-<id>",
         "to": "pet",
-        "carries": "yui://threads-open-ask {tab}: unscoped, so a bound character's card reaches main, which owns the Threads window",
+        "carries": "yui://threads-open-request {tab}: unscoped, so a bound character's card reaches main, which owns the Threads window",
         "kind": "bridge"
       },
       {

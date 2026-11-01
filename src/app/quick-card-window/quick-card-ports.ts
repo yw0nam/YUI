@@ -68,7 +68,7 @@ export function createQuickCardPorts(deps: {
   boundId: string | null;
   voiceInputStatus: VoiceInputStatus;
   openSettings: () => void;
-  openThreads: SettingsBridge["emitThreadsOpenAsk"];
+  openThreads: SettingsBridge["emitThreadsOpenRequest"];
 }): CardPorts {
   const { stores, pushSocket, voiceInputStatus, boundId } = deps;
   const { getDefaultChatApi } = quickControlsConfigDefaults(deps.config);

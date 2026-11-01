@@ -278,7 +278,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
   register(
     wireThreadsOpenRequests({
       onTerminalOpen,
-      onThreadsOpenAsk: windowBridge.onThreadsOpenAsk,
+      onThreadsOpenRequest: windowBridge.onThreadsOpenRequest,
       threadsWindow,
     }),
   );

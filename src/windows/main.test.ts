@@ -8,7 +8,7 @@ const h = vi.hoisted(() => {
     name: "pet window settings bridge",
     onPetWindowsChanged: () => () => {},
     onOpenDevtools: () => () => {},
-    onThreadsOpenAsk: () => () => {},
+    onThreadsOpenRequest: () => () => {},
   };
   const stopTurn = (): void => {};
   const setTheme = vi.fn(async () => {});

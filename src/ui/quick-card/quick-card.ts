@@ -45,7 +45,7 @@ export function createQuickCard(deps: {
   /** Null for main, which cannot be turned off. */
   turnOff: (() => void) | null;
   openAllSettings(): void;
-  /** Asks main to open the Threads window on `tab`. */
+  /** Requests main to open the Threads window on `tab`. */
   openThreads(tab: ThreadsTab): void;
 }): QuickCard {
   const el = document.createElement("div");

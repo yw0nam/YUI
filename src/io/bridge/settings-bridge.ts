@@ -48,7 +48,7 @@ const CH_QUICK_CARD_READY = "yui://quick-card-ready";
 const CH_THREADS_OPEN = "yui://threads-open";
 const CH_THREADS_READY = "yui://threads-ready";
 const CH_THREADS_CLOSED = "yui://threads-closed";
-const CH_THREADS_OPEN_ASK = "yui://threads-open-ask";
+const CH_THREADS_OPEN_REQUEST = "yui://threads-open-request";
 
 interface VoiceStateSnapshot {
   state: VoiceInputState;
@@ -141,6 +141,7 @@ const isString = (v: unknown): v is string => typeof v === "string";
 const isOptional = (v: unknown, test: (v: unknown) => boolean): boolean =>
   v === undefined || test(v);
 const isBool = (v: unknown): v is boolean => typeof v === "boolean";
+const isThreadsTab = (v: unknown): v is ThreadsTab => v === "threads" || v === "terminal";
 
 function isQuote(v: unknown): boolean {
   if (v === null || typeof v !== "object") return false;
@@ -238,8 +239,8 @@ export interface SettingsBridge {
   emitThreadsClosed(): void;
   onThreadsClosed(cb: () => void): () => void;
   /** A quick card asking main to open the Threads window on `tab`; any preset's card reaches main. */
-  emitThreadsOpenAsk(tab: ThreadsTab): void;
-  onThreadsOpenAsk(cb: (tab: ThreadsTab) => void): () => void;
+  emitThreadsOpenRequest(tab: ThreadsTab): void;
+  onThreadsOpenRequest(cb: (tab: ThreadsTab) => void): () => void;
   emitSettingsChanged(): void;
   onSettingsChanged(cb: (from: WindowKind) => void): () => void;
   emitMouthPreview(mouthOpen: number | null): void;
@@ -324,7 +325,7 @@ export function createSettingsBridge(
     CH_THREADS_OPEN,
     CH_THREADS_READY,
     CH_THREADS_CLOSED,
-    CH_THREADS_OPEN_ASK,
+    CH_THREADS_OPEN_REQUEST,
   ]);
   const on: typeof core.on = (name, cb) => core.on(name, cb, { scoped: !shared.has(name) });
 
@@ -380,10 +381,10 @@ export function createSettingsBridge(
         const { x, y, width, height } = (chip ?? {}) as Record<string, unknown>;
         const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
         if (chip !== undefined && ![x, y, width, height].every(finite)) return;
-        if (tab !== undefined && tab !== "threads" && tab !== "terminal") return;
+        if (tab !== undefined && !isThreadsTab(tab)) return;
         cb({
           ...(chip === undefined ? {} : { chip: { x, y, width, height } as ScreenRect }),
-          ...(tab === undefined ? {} : { tab: tab as ThreadsTab }),
+          ...(tab === undefined ? {} : { tab }),
         });
       });
     },
@@ -399,13 +400,13 @@ export function createSettingsBridge(
     onThreadsClosed(cb) {
       return on<unknown>(CH_THREADS_CLOSED, () => cb());
     },
-    emitThreadsOpenAsk(tab) {
-      safeEmit(CH_THREADS_OPEN_ASK, { tab });
+    emitThreadsOpenRequest(tab) {
+      safeEmit(CH_THREADS_OPEN_REQUEST, { tab });
     },
-    onThreadsOpenAsk(cb) {
-      return on<unknown>(CH_THREADS_OPEN_ASK, (request) => {
+    onThreadsOpenRequest(cb) {
+      return on<unknown>(CH_THREADS_OPEN_REQUEST, (request) => {
         const tab = (request as { tab?: unknown } | null)?.tab;
-        if (tab === "threads" || tab === "terminal") cb(tab);
+        if (isThreadsTab(tab)) cb(tab);
       });
     },
     emitSettingsChanged() {

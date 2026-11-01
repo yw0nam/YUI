@@ -7,13 +7,11 @@
 import "./thread-rail.css";
 import type { Thread } from "../../../contract";
 import { t } from "../../i18n";
-import { THREADS_GLYPH } from "../glyphs";
+import { glyph, THREADS_GLYPH } from "../glyphs";
 import { threadSource } from "../thread-source";
 import { renderKinds, type ThreadFilter, type ThreadListView } from "./thread-list";
 import { stateText } from "./thread-meta";
 
-const glyph = (paths: string): string =>
-  `<svg class="yui-threads-glyph" viewBox="0 0 24 24" aria-hidden="true">${paths}</svg>`;
 const WAITING_SVG = glyph(
   '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
 );

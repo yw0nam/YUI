@@ -1,6 +1,7 @@
 /** The Threads and Terminal glyphs, drawn in the Threads window and on the quick card that opens it. */
 
-const glyph = (paths: string): string =>
+/** A 24px line glyph that draws without a stylesheet. */
+export const glyph = (paths: string): string =>
   `<svg class="yui-threads-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
 
 /** A tray: the Threads list. */
