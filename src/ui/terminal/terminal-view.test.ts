@@ -141,6 +141,9 @@ it("counts the terminals in the head, hidden at none, and marks a waiting reques
 
   view.update(snap([terminal("t1", 1), terminal("t2", 2)], [request("r1", "t1", 60_000)]));
   expect(view.head()).toEqual({ count: "2 terminals", waiting: true });
+
+  view.update(snap([terminal("t1", 1)]));
+  expect(view.head()).toEqual({ count: "1 terminal", waiting: false });
 });
 
 it("shows the oldest request, Show terminal only for another terminal, and answers it", () => {
