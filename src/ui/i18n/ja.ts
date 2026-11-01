@@ -761,7 +761,7 @@ const ja: Record<string, string> = {
   "threads.layout_medium": "中くらい",
   "threads.layout_narrow": "狭い",
   "terminal.title": "ターミナル",
-  "terminal.tabs_aria": "スレッドウィンドウの表示",
+  "threads.tabs_aria": "スレッドウィンドウの表示",
   "terminal.count": "ターミナル {n}件",
   "terminal.new": "新しいターミナル",
   "terminal.list_aria": "ターミナル一覧",

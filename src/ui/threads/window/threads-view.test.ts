@@ -7,7 +7,8 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { Thread, ThreadsSnapshot } from "../../../contract";
 import { setLocale } from "../../i18n";
-import { createThreadsView, type TabBody, type TabShell } from "./threads-view";
+import type { TabBody, TabShell } from "./threads-tabs";
+import { createThreadsView } from "./threads-view";
 
 function thread(id: string, source: string, updated_at: number, waiting = true): Thread {
   return {

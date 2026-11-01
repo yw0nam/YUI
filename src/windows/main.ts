@@ -35,6 +35,7 @@ import { createPetConfig, wireConfigReload, wireConfigWatch } from "../app/setti
 import { wirePresetSwitch } from "../app/settings/wire-preset";
 import { createStageRenderer } from "../app/stage/stage-renderer";
 import { wireInputAnchor } from "../app/stage/wire-pet-stage";
+import { wireTerminalTray } from "../app/threads-chip/wire-terminal-tray";
 import { wireThreadsChip } from "../app/threads-chip/wire-threads-chip";
 import {
   createDelegationChipMount,
@@ -54,6 +55,7 @@ import { resolveScreenCapturer } from "../io/window/capture/tauri-screen";
 import { createDevtoolsWindowOpener } from "../io/window/openers/devtools-window";
 import { createQuickCardWindowController } from "../io/window/openers/quick-card-window";
 import { createSettingsWindowOpener } from "../io/window/openers/settings-window";
+import { createThreadsWindowController } from "../io/window/openers/threads-window";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
 import { presetIdForWindow } from "../settings/preset/active-preset";
@@ -270,6 +272,10 @@ async function bootstrap(): Promise<BootstrapHandle> {
   // Access requests wait on the main chip beside the Threads.
   const terminal = bound ? null : createTerminalClient();
   if (terminal) register(() => terminal.dispose());
+  // The chip and the tray's Terminal item open one Threads window.
+  const threadsWindow = bound ? null : createThreadsWindowController({ bridge: windowBridge });
+  if (threadsWindow) register(() => threadsWindow.dispose());
+  register(wireTerminalTray({ onTerminalOpen, threadsWindow }));
 
   // Config-driven load: configs/*.json → validated AppConfig. endpoints/motions etc
   // consumed during dispatcher·tts wiring. VRM displayed via avatar.vrm_url.
@@ -328,10 +334,9 @@ async function bootstrap(): Promise<BootstrapHandle> {
       wireThreadsChip({
         client: threads,
         terminal,
-        onTerminalOpen,
+        threadsWindow,
         mount: surfaces.chipColumn,
         collapsed: configured.chipFold,
-        bridge: windowBridge,
       }),
     );
     register(

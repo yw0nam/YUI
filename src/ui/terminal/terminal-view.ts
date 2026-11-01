@@ -9,7 +9,7 @@ import type { AccessRequest, Terminal, TerminalSnapshot } from "../../contract";
 import type { TerminalClient } from "../../io/terminal/terminal-client";
 import { createLogger } from "../../logger";
 import { subscribe as subscribeLocale, t } from "../i18n";
-import type { TabBody, TabShell } from "../threads/window/threads-view";
+import type { TabBody, TabShell } from "../threads/window/threads-tabs";
 import { createAccessLine } from "./access-line";
 import { createRequestCard } from "./request-card";
 import { createTerminalList } from "./terminal-list";

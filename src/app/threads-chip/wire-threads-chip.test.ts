@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-/** wire-threads-chip.test.ts — main's Threads chip seeds from the window's client, follows it, and stays marked expanded until the window's closed report. */
+/** wire-threads-chip.test.ts — main's Threads chip seeds from the window's clients, follows them, opens the Threads window, and stays marked expanded until the window's closed report. */
 
 import { beforeEach, expect, it, vi } from "vitest";
 import type { TerminalSnapshot, ThreadsSnapshot } from "../../contract";
@@ -23,6 +23,7 @@ vi.mock("@tauri-apps/api/window", () => ({
   }),
 }));
 
+import { createThreadsWindowController } from "../../io/window/openers/threads-window";
 import { createDelegationChipSettings } from "../../settings/panels/delegation-chip-settings";
 import { setLocale } from "../../ui/i18n";
 import { wireThreadsChip } from "./wire-threads-chip";
@@ -108,9 +109,8 @@ it("draws no chip without a client", () => {
     client: null,
     mount: document.body,
     collapsed: createDelegationChipSettings(),
-    bridge: bridge(),
+    threadsWindow: createThreadsWindowController({ bridge: bridge() }),
     terminal: null,
-    onTerminalOpen: () => () => {},
   });
   expect(document.querySelector(".yui-threadchip")).toBeNull();
 });
@@ -121,9 +121,8 @@ it("seeds the chip from a preloaded client without a new snapshot", () => {
     client,
     mount: document.body,
     collapsed: createDelegationChipSettings(),
-    bridge: bridge(),
+    threadsWindow: createThreadsWindowController({ bridge: bridge() }),
     terminal: null,
-    onTerminalOpen: () => () => {},
   });
   const chip = document.querySelector<HTMLButtonElement>(".yui-threadchip")!;
   expect(chip.hidden).toBe(false);
@@ -136,9 +135,8 @@ it("does not nod on the first snapshot after a null seed", () => {
     client,
     mount: document.body,
     collapsed: createDelegationChipSettings(),
-    bridge: bridge(),
+    threadsWindow: createThreadsWindowController({ bridge: bridge() }),
     terminal: null,
-    onTerminalOpen: () => () => {},
   });
   client.fire(snapshotOf(1));
   const chip = document.querySelector<HTMLButtonElement>(".yui-threadchip")!;
@@ -153,9 +151,8 @@ it("marks the chip expanded from its tap until the Threads window reports closed
     client,
     mount: document.body,
     collapsed: createDelegationChipSettings(),
-    bridge: bridge(),
+    threadsWindow: createThreadsWindowController({ bridge: bridge() }),
     terminal: null,
-    onTerminalOpen: () => () => {},
   });
   client.fire(snapshotOf(1));
   const chip = document.querySelector<HTMLButtonElement>(".yui-threadchip")!;
@@ -174,9 +171,8 @@ it("counts a waiting access request and opens the Terminal tab while one waits",
     client: fakeClient(snapshotOf(1)),
     mount: document.body,
     collapsed: createDelegationChipSettings(),
-    bridge: b,
+    threadsWindow: createThreadsWindowController({ bridge: b }),
     terminal: terminalOf(1),
-    onTerminalOpen: () => () => {},
   });
   const chip = document.querySelector<HTMLButtonElement>(".yui-threadchip")!;
   expect(chip.querySelector(".yui-threadchip__count")?.textContent).toBe("2");
@@ -191,26 +187,4 @@ it("counts a waiting access request and opens the Terminal tab while one waits",
       tab: "terminal",
     }),
   );
-});
-
-it("opens the Terminal tab with no chip rect on the tray's terminal open", async () => {
-  const b = bridge();
-  let trayOpen = () => {};
-  wireThreadsChip({
-    client: fakeClient(null),
-    mount: document.body,
-    collapsed: createDelegationChipSettings(),
-    bridge: b,
-    terminal: terminalOf(0),
-    onTerminalOpen: (cb) => {
-      trayOpen = cb;
-      return () => {};
-    },
-  });
-
-  trayOpen();
-  for (const cb of ready) cb();
-
-  await vi.waitFor(() => expect(b.emitThreadsOpen).toHaveBeenCalledWith({ tab: "terminal" }));
-  expect(document.querySelector(".yui-threadchip")?.getAttribute("aria-expanded")).toBe("true");
 });

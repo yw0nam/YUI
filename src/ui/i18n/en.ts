@@ -763,7 +763,7 @@ const en: Record<string, string> = {
   "threads.layout_medium": "Medium",
   "threads.layout_narrow": "Narrow",
   "terminal.title": "Terminal",
-  "terminal.tabs_aria": "Threads window view",
+  "threads.tabs_aria": "Threads window view",
   "terminal.count": "{n} terminals",
   "terminal.new": "New terminal",
   "terminal.list_aria": "Terminal list",

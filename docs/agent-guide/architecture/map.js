@@ -1305,7 +1305,7 @@ globalThis.YUI_MAP =
       "id": "app/threads-chip",
       "module": "wiring",
       "label": "threads chip wiring",
-      "role": "Main only: mounts the Threads chip after the signal chips on their shared fold store, feeds it the store's snapshots, and opens the Threads window from its tap; the chip stays shown while the window is open, its tap then bringing the window forward, until the window's closed report.",
+      "role": "Main only: mounts the Threads chip after the signal chips on their shared fold store, feeds it the store's snapshots, and opens the Threads window from its tap; the chip stays shown while the window is open, its tap then bringing the window forward, until the window's closed report. The tray's Terminal item opens the same window on the Terminal tab.",
       "paths": [
         "src/app/threads-chip"
       ]
@@ -2957,7 +2957,7 @@ globalThis.YUI_MAP =
       "carries": "open(undefined, \"terminal\") from the tray's Terminal click: place, show and focus the window with no chip rect and no grow",
       "kind": "call",
       "transport": "shared",
-      "wiring": "src/app/threads-chip/wire-threads-chip.ts"
+      "wiring": "src/app/threads-chip/wire-terminal-tray.ts"
     },
     {
       "id": "threads-chip-snapshot",
@@ -2999,7 +2999,7 @@ globalThis.YUI_MAP =
       "id": "threads-open-request",
       "from": "io/window/openers",
       "to": "app/threads-window",
-      "carries": "yui://threads-open {chip?: {x, y, width, height}, tab?: \"threads\" | \"terminal\"}: place, show and focus the window, then grow out of the chip when there is one; select the tab; while it shows, only focus it",
+      "carries": "yui://threads-open {chip?: {x, y, width, height}, tab?: \"threads\" | \"terminal\"}: place, show and focus the window, then grow out of the chip when there is one; select the tab; while it shows, focus it and select the tab the request names",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/threads-window/wire-threads-window.ts"
@@ -3017,10 +3017,10 @@ globalThis.YUI_MAP =
       "id": "threads-closed",
       "from": "app/threads-window",
       "to": "io/window/openers",
-      "carries": "yui://threads-closed: the window hid after its close or a failed open; the chip leaves its open state and hides at zero waiting",
+      "carries": "yui://threads-closed: the window hid after its close or a failed open; the controller reports it through onShown(false), and the chip leaves its open state and hides at zero waiting",
       "kind": "bridge",
       "transport": "shared",
-      "wiring": "src/app/threads-chip/wire-threads-chip.ts"
+      "wiring": "src/windows/main.ts"
     },
     {
       "id": "threads-placement",
@@ -4438,7 +4438,7 @@ globalThis.YUI_MAP =
         },
         {
           "from": "tools",
-          "label": "terminal_open and terminal_close need no permission; terminal_read and terminal_write wait for the user's Allow in the Threads window",
+          "label": "terminal_open and terminal_close run without asking the user; terminal_read and terminal_write wait for the user's Allow in the Threads window",
           "edges": [
             "terminal-tool-command"
           ],

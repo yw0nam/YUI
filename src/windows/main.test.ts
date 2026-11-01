@@ -45,6 +45,13 @@ vi.mock("../io/window/openers/devtools-window", () => ({ createDevtoolsWindowOpe
 vi.mock("../io/window/openers/quick-card-window", () => ({
   createQuickCardWindowController: vi.fn(() => ({ open: vi.fn(), dispose: vi.fn() })),
 }));
+vi.mock("../io/window/openers/threads-window", () => ({
+  createThreadsWindowController: vi.fn(() => ({
+    open: vi.fn(),
+    onShown: vi.fn(() => () => {}),
+    dispose: vi.fn(),
+  })),
+}));
 vi.mock("../app/cross-window/wire-cross-window", () => ({
   wireCrossWindowSync: vi.fn(() => ({
     broadcastSettings: vi.fn(),

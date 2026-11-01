@@ -3,7 +3,7 @@
 import { createTerminalClient } from "../../io/terminal/terminal-client";
 import { readPresetEntry } from "../../settings/preset/active-preset";
 import { createTerminalView } from "../../ui/terminal/terminal-view";
-import type { TabBody, TabShell } from "../../ui/threads/window/threads-view";
+import type { TabBody, TabShell } from "../../ui/threads/window/threads-tabs";
 import type { Disposers } from "../disposers";
 
 /** The Terminal tab's body for the view to lay out; its client and subscription end with `register`'s bag. */

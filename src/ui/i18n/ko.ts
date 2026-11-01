@@ -758,7 +758,7 @@ const ko: Record<string, string> = {
   "threads.layout_medium": "중간",
   "threads.layout_narrow": "좁음",
   "terminal.title": "터미널",
-  "terminal.tabs_aria": "스레드 창 보기",
+  "threads.tabs_aria": "스레드 창 보기",
   "terminal.count": "터미널 {n}개",
   "terminal.new": "새 터미널",
   "terminal.list_aria": "터미널 목록",

@@ -53,6 +53,7 @@ export function createTerminalPane(deps: {
       el.setAttribute("aria-label", t("terminal.pane_aria"));
       el.classList.toggle("is-empty", !terminal);
       empty.textContent = t("terminal.empty_pane");
+      deps.back.textContent = t("threads.back");
       const owner = terminal?.owner.kind === "preset" ? deps.preset(terminal.owner.presetId) : null;
       const key = terminal
         ? JSON.stringify([terminal.id, terminal.title, terminal.exitCode, owner, getLocale()])
