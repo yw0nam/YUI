@@ -41,7 +41,7 @@ listener defaults to port `8770`; switch and port changes take effect after rest
 
 Lifecycle hooks send `PUT <endpoint>/threads/<id>` with source, title, label, state, and
 one entry when text is available. The title is `<project> (<branch>)`, or `<project>`.
-The label joins the present host, tmux session/window, and project/branch parts.
+The label joins the present host and tmux session/window with a comma, and is absent when neither is present (the title already names the project and branch); a pending command is sent in a ``` fence.
 
 Claude Code ids are `claude-code:<host>:<claude pid>`. The messaging socket filename
 provides the PID first; hooks also accept `CLAUDE_PID`. Otherwise the producer walks

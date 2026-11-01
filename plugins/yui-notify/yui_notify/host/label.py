@@ -29,7 +29,7 @@ def context(
     }
 
 
-def make_label(ctx: Mapping[str, Any]) -> str:
-    project = f"{ctx['project']} ({ctx['branch']})" if ctx["branch"] else ctx["project"]
-    parts = [ctx["host"], f"tmux {ctx['tmux']}" if ctx["tmux"] else None, project]
-    return " · ".join(p for p in parts if p)
+def make_label(ctx: Mapping[str, Any]) -> str | None:
+    # the title already names the project and branch
+    parts = [ctx["host"], f"tmux {ctx['tmux']}" if ctx["tmux"] else None]
+    return ", ".join(p for p in parts if p) or None

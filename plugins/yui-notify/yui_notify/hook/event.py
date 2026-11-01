@@ -27,7 +27,8 @@ def _pending(data: Mapping[str, Any]) -> str:
         detail = tool_input["command"]
     else:
         detail = json.dumps(tool_input, ensure_ascii=False, separators=(",", ":"))
-    return f"{data.get('tool_name')}: {detail}"
+    # a fence makes the Threads window show the command as code
+    return f"{data.get('tool_name')}:\n```\n{detail}\n```"
 
 
 def _rollout_source(transcript_path: Any) -> Any:
