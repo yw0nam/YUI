@@ -83,5 +83,7 @@ pub fn run() {
         .run(|_app, _event| {
             #[cfg(desktop)]
             mcp_host::on_run_event(_app, &_event);
+            #[cfg(desktop)]
+            terminal::on_run_event(_app, &_event);
         });
 }

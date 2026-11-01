@@ -40,6 +40,20 @@
     "allow-threads-snapshot",
     "allow-thread-answer",
     "allow-window-dock-attach",
-    "allow-window-dock-detach"
+    "allow-window-dock-detach",
+    "allow-terminal-snapshot",
+    "allow-terminal-open",
+    "allow-terminal-close",
+    "allow-terminal-input",
+    "allow-terminal-resize",
+    "allow-terminal-attach",
+    "allow-terminal-answer",
+    "allow-terminal-take-back",
+    "allow-terminal-tool-open",
+    "allow-terminal-tool-list",
+    "allow-terminal-tool-read",
+    "allow-terminal-tool-write",
+    "allow-terminal-tool-close",
+    "allow-terminal-tool-cancel"
   ]
 }

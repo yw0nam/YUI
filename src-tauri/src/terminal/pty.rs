@@ -36,21 +36,147 @@ fn failed(error: impl std::fmt::Display) -> String {
     format!("error: {error}")
 }
 
-fn spawn(
-    _: &Arc<Store>,
-    _: TerminalOwner,
-    _: String,
-    _: CommandBuilder,
-    _: u64,
+/// Starts the user's login shell in `cwd`, or in the home folder when `cwd` is absent or no folder.
+pub fn open(
+    store: &Arc<Store>,
+    owner: TerminalOwner,
+    cwd: Option<&str>,
+    now: u64,
 ) -> Result<Terminal, String> {
-    Err("unimplemented".into())
+    let home = std::env::home_dir().unwrap_or_default();
+    let dir = cwd
+        .map(PathBuf::from)
+        .filter(|dir| dir.is_dir())
+        .unwrap_or_else(|| home.clone());
+    let title = match dir.strip_prefix(&home) {
+        Ok(rest) if rest.as_os_str().is_empty() => "~".to_owned(),
+        Ok(rest) => format!("~/{}", rest.display()),
+        Err(_) => dir.display().to_string(),
+    };
+    // portable-pty runs $SHELL as a login shell for the default program.
+    let mut command = CommandBuilder::new_default_prog();
+    command.cwd(&dir);
+    command.env("TERM", "xterm-256color");
+    spawn(store, owner, title, command, now)
+}
+
+fn spawn(
+    store: &Arc<Store>,
+    owner: TerminalOwner,
+    title: String,
+    command: CommandBuilder,
+    now: u64,
+) -> Result<Terminal, String> {
+    let (cols, rows) = store.size();
+    let pair = native_pty_system()
+        .openpty(PtySize {
+            rows,
+            cols,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
+        .map_err(failed)?;
+    let mut reader = pair.master.try_clone_reader().map_err(failed)?;
+    let writer = pair.master.take_writer().map_err(failed)?;
+    let mut child = pair.slave.spawn_command(command).map_err(failed)?;
+    drop(pair.slave);
+    let output = Arc::new(Mutex::new(Output {
+        parser: vt100::Parser::new(nonzero(rows), nonzero(cols), SCROLLBACK),
+        channel: None,
+    }));
+    let pty = Arc::new(Pty {
+        master: Mutex::new(pair.master),
+        writer: Mutex::new(writer),
+        killer: Mutex::new(child.clone_killer()),
+        output: output.clone(),
+    });
+    let terminal = store.add(owner, title, pty.clone(), now);
+    let size = store.size();
+    if size != (cols, rows) {
+        pty.resize(size.0, size.1);
+    }
+    log::info!(
+        "terminal_opened id={} title={}",
+        terminal.id,
+        terminal.title
+    );
+    let (store, id) = (store.clone(), terminal.id.clone());
+    std::thread::spawn(move || {
+        let mut buf = [0; 8192];
+        loop {
+            match reader.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => lock(&output).feed(&buf[..n]),
+                Err(error) if error.kind() == ErrorKind::Interrupted => {}
+                Err(_) => break,
+            }
+        }
+        let code = child.wait().map_or(1, |status| status.exit_code());
+        log::info!("terminal_exited id={id} code={code}");
+        store.exited(&id, code);
+    });
+    Ok(terminal)
+}
+
+impl Output {
+    /// Parses the bytes and sends them to the attached view, under the one lock attach also takes.
+    fn feed(&mut self, bytes: &[u8]) {
+        self.parser.process(bytes);
+        let sent = self
+            .channel
+            .as_ref()
+            .map(|channel| channel.send(InvokeResponseBody::Raw(bytes.to_vec())));
+        if let Some(Err(error)) = sent {
+            log::warn!("terminal_output_send_failed error={error}");
+            self.channel = None;
+        }
+    }
 }
 
 impl Pty {
-    pub fn read(&self, _: &Terminal, _: Option<u32>) -> String {
-        String::new()
+    pub fn write(&self, data: &[u8]) -> Result<(), String> {
+        let mut writer = lock(&self.writer);
+        writer
+            .write_all(data)
+            .and_then(|()| writer.flush())
+            .map_err(failed)
     }
-    pub fn kill(&self) {}
+
+    pub fn resize(&self, cols: u16, rows: u16) {
+        let size = PtySize {
+            rows,
+            cols,
+            pixel_width: 0,
+            pixel_height: 0,
+        };
+        if let Err(error) = lock(&self.master).resize(size) {
+            log::warn!("terminal_resize_failed error={error}");
+        }
+        lock(&self.output)
+            .parser
+            .screen_mut()
+            .set_size(nonzero(rows), nonzero(cols));
+    }
+
+    /// Sends the redrawn screen, then every later byte, to the channel in place of the old one.
+    pub fn attach(&self, channel: Channel<InvokeResponseBody>) {
+        let mut output = lock(&self.output);
+        let redraw = screen::redraw(output.parser.screen());
+        if let Err(error) = channel.send(InvokeResponseBody::Raw(redraw)) {
+            log::warn!("terminal_output_send_failed error={error}");
+        }
+        output.channel = Some(channel);
+    }
+
+    pub fn read(&self, terminal: &Terminal, lines: Option<u32>) -> String {
+        screen::read_text(terminal, lock(&self.output).parser.screen_mut(), lines)
+    }
+
+    pub fn kill(&self) {
+        if let Err(error) = lock(&self.killer).kill() {
+            log::warn!("terminal_kill_failed error={error}");
+        }
+    }
 }
 
 #[cfg(all(test, unix))]

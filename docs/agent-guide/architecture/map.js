@@ -1417,6 +1417,15 @@ globalThis.YUI_MAP =
       "paths": [
         "src-tauri/src/threads"
       ]
+    },
+    {
+      "id": "shell/terminal",
+      "module": "shell",
+      "label": "terminal",
+      "role": "Runs each Terminal's login shell in a PTY, parses its output into a screen for reads and attaches, gates preset reads and writes behind the user's Allow, kills every Terminal on quit, and publishes a revisioned snapshot.",
+      "paths": [
+        "src-tauri/src/terminal"
+      ]
     }
   ],
   "edges": [

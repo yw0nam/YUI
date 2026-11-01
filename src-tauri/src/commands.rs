@@ -62,5 +62,33 @@ pub fn handler() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         crate::mcp_host::commands::plugin_host_cancel,
         #[cfg(desktop)]
         crate::mcp_host::commands::plugin_host_skill,
+        #[cfg(desktop)]
+        crate::terminal::commands::terminal_snapshot,
+        #[cfg(desktop)]
+        crate::terminal::commands::terminal_open,
+        #[cfg(desktop)]
+        crate::terminal::commands::terminal_close,
+        #[cfg(desktop)]
+        crate::terminal::commands::terminal_input,
+        #[cfg(desktop)]
+        crate::terminal::commands::terminal_resize,
+        #[cfg(desktop)]
+        crate::terminal::commands::terminal_attach,
+        #[cfg(desktop)]
+        crate::terminal::commands::terminal_answer,
+        #[cfg(desktop)]
+        crate::terminal::commands::terminal_take_back,
+        #[cfg(desktop)]
+        crate::terminal::commands::terminal_tool_open,
+        #[cfg(desktop)]
+        crate::terminal::commands::terminal_tool_list,
+        #[cfg(desktop)]
+        crate::terminal::commands::terminal_tool_read,
+        #[cfg(desktop)]
+        crate::terminal::commands::terminal_tool_write,
+        #[cfg(desktop)]
+        crate::terminal::commands::terminal_tool_close,
+        #[cfg(desktop)]
+        crate::terminal::commands::terminal_tool_cancel,
     ]
 }
