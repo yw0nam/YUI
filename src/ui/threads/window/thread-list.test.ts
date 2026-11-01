@@ -1,8 +1,10 @@
-/** thread-list.test.ts — the list's order, its Waiting / All tabs and kind filter with counts, and the Thread a fresh open shows. */
+// @vitest-environment jsdom
+/** thread-list.test.ts — the list's order, its Waiting / All tabs and kind filter with counts, a row's lines, and the Thread a fresh open shows. */
 
 import { describe, expect, it } from "vitest";
 import type { Thread } from "../../../contract";
-import { openSelection, threadListView } from "./thread-list";
+import { setLocale } from "../../i18n";
+import { createThreadList, openSelection, threadListView } from "./thread-list";
 
 function thread(id: string, source: string, state: Thread["state"], updated_at: number): Thread {
   return { id, source, title: id, state, entries: [], created_at: 1, updated_at };
@@ -60,6 +62,23 @@ describe("threadListView", () => {
 
     expect(view.kind).toBe(null);
     expect(view.rows.map((t) => t.id)).toEqual(["w2", "w1", "d1", "d2"]);
+  });
+});
+
+describe("createThreadList", () => {
+  it("draws a row as the source, state and time on one line, then the title, then the label", () => {
+    setLocale("en");
+    const list = createThreadList({ onSelect() {}, onFilter() {} });
+    const th = { ...thread("w1", "codex", "input-required", 5), label: "mbp · memory-base (main)" };
+    const filter = { tab: "all", kind: null } as const;
+    list.render(threadListView([th], filter), filter, null, 5);
+
+    const row = list.el.querySelector(".yui-threads-row")!;
+    expect([...row.children].map((el) => [el.tagName, el.textContent])).toEqual([
+      ["SPAN", "CCodexNeeds replyjust now"],
+      ["STRONG", "w1"],
+      ["SPAN", "mbp · memory-base (main)"],
+    ]);
   });
 });
 
