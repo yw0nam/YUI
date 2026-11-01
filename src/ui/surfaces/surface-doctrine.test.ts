@@ -361,7 +361,7 @@ describe("surfaces.css — the box keeps one width while it shows", () => {
 });
 
 // The longest common reply must fit the cap in force, so the box's floor never rises above it.
-describe("surfaces.css — the box's floor stays under its cap", () => {
+describe("surfaces.css — the box's floor stays under its cap, and its cap over three lines", () => {
   it("bounds the min-height by the cap, with the input closed and open", () => {
     const c = read("surfaces.css");
     expect(extractBlock(c, ".yui-bubble__box")).toMatch(
@@ -369,6 +369,20 @@ describe("surfaces.css — the box's floor stays under its cap", () => {
     );
     expect(extractBlock(c, ".yui-bubble.is-above-input .yui-bubble__box")).toMatch(
       /min-height:\s*min\(132px,[^;]*28vh\)/,
+    );
+  });
+
+  it("keeps three speech lines under the cap, with the input closed and open", () => {
+    expect(read("../tokens.css")).toMatch(
+      /--yui-bubble-three-lines:\s*calc\(3 \* 1\.75 \* var\(--yui-fs-speech\) \+ 58px\);/,
+    );
+    expect(read("../tokens.css")).toMatch(
+      /--yui-bubble-max-h:\s*max\(34vh, var\(--yui-bubble-three-lines\)\);/,
+    );
+    expect(
+      extractBlock(read("surfaces.css"), ".yui-bubble.is-above-input .yui-bubble__box"),
+    ).toMatch(
+      /max-height:\s*max\(min\(var\(--yui-bubble-max-h, 34vh\), 28vh\), var\(--yui-bubble-three-lines\)\);/,
     );
   });
 });
