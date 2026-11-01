@@ -54,3 +54,46 @@ it("keeps the list choice and the frame side by side", () => {
     listCollapsed: true,
   });
 });
+
+it("keeps a dragged list width beside the frame, and a reset clears it", () => {
+  const storage = localStorageThreadsWindowStorage(KEY);
+  const settings = createThreadsWindowSettings({ storage });
+  settings.setFrame({ x: 10, y: 20, width: 880, height: 680 });
+  settings.setListWidth(312);
+
+  expect(createThreadsWindowSettings({ storage }).get()).toEqual({
+    x: 10,
+    y: 20,
+    width: 880,
+    height: 680,
+    listCollapsed: false,
+    listWidth: 312,
+  });
+
+  settings.setListWidth(null);
+  expect(createThreadsWindowSettings({ storage }).get()).toEqual({
+    x: 10,
+    y: 20,
+    width: 880,
+    height: 680,
+    listCollapsed: false,
+  });
+});
+
+it("loads a frame stored without a list width, and ignores a list width that is not whole px", () => {
+  globalThis.localStorage?.setItem(
+    KEY,
+    JSON.stringify({ x: 5, y: 6, width: 900, height: 700, listCollapsed: true }),
+  );
+  expect(
+    createThreadsWindowSettings({ storage: localStorageThreadsWindowStorage(KEY) }).get(),
+  ).toEqual({ x: 5, y: 6, width: 900, height: 700, listCollapsed: true });
+
+  globalThis.localStorage?.setItem(
+    KEY,
+    JSON.stringify({ x: 5, y: 6, width: 900, height: 700, listCollapsed: true, listWidth: "wide" }),
+  );
+  expect(
+    createThreadsWindowSettings({ storage: localStorageThreadsWindowStorage(KEY) }).get(),
+  ).toEqual({ x: 5, y: 6, width: 900, height: 700, listCollapsed: true });
+});
