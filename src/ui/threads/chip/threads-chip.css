@@ -101,8 +101,7 @@
   display: none;
 }
 
-/* A narrow window leaves the chip column (half the window less 3.5rem, surfaces.css) too little room:
-   under 8.5rem the chip folds to its newest mark and the count, under 4.5rem to the count alone. */
+/* The column is half the window less 3.5rem (surfaces.css): these widths leave it 8.5rem and 4.5rem. */
 @media (width < 24rem) {
   .yui-threadchip__label,
   .yui-threadchip__mark + .yui-threadchip__mark {
