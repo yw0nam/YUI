@@ -211,7 +211,7 @@ Panels (the settings panel, the quick card) set text in five fixed steps (`--yui
 - **Speech** (0.95rem, `--yui-fs-speech`): bubble and composer text, outside the panel scale on purpose.
 
 ### Text size
-The user picks a text size in General: 90%, 100%, 112.5%, 125% or 140%, 100% by default. Each window that applies the theme sets it as `--yui-text-scale` on its root, and every `--yui-fs-*` token and rem font size multiplies by it; spacing, boxes and icons keep their size. The terminal keeps its own size keys. The steps above are the 100% sizes.
+The user picks a text size in General: 90%, 100%, 112.5%, 125% or 140%, 100% by default. Each window that applies the theme sets it as `--yui-text-scale` on its root. Every `--yui-fs-*` token and every rem font size outside the devtools window multiplies by it; the devtools window scales its tokens and keeps its literal sizes. Spacing, boxes and icons keep their size, except heights that count lines of text (the bubble's three-line floor, the input's line caps), which scale with the text. The terminal keeps its own size keys. The steps above are the 100% sizes.
 
 ### Named Rules
 **The Speech-First Rule.** Body type is tuned for short conversational bursts inside a bubble. Document layout rules (long measure, dense columns) are never imported.
