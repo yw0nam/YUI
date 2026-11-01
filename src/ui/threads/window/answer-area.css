@@ -8,18 +8,15 @@
   background: var(--yui-panel-bg);
 }
 
-/* In the thread pane: at most half the pane, its choices scroll inside so the prompt, the field and Send stay. */
+/* In the thread pane it fills the pane's last row, at most half the pane (thread-pane.css): the choices
+   shrink and scroll first, then the field and an error, so the prompt, the field and Send stay. */
 .yui-threads-pane .yui-threads-answer {
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
-  max-height: 50cqh;
   overflow: hidden;
 }
 
-.yui-threads-answer__head,
-.yui-threads-answer__composer,
-.yui-threads-answer__error {
+.yui-threads-answer__head {
   flex: none;
 }
 
@@ -43,9 +40,10 @@
   font-size: var(--yui-fs-sub);
 }
 
+/* Gives up its room before the field does. */
 .yui-threads-answer__choices {
   display: flex;
-  flex: 0 1 auto;
+  flex: 0 1000 auto;
   flex-wrap: wrap;
   align-content: flex-start;
   align-items: flex-start;
@@ -132,16 +130,18 @@
 .yui-threads-answer__composer {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 44px;
   align-items: end;
   gap: 8px;
 }
 
-/* One line that grows with the reply up to 200px, then scrolls. */
+/* One line that grows with the reply up to 200px or the room left, then scrolls. */
 .yui-threads-answer textarea {
   box-sizing: border-box;
   width: 100%;
   min-height: 44px;
-  max-height: 200px;
+  max-height: 100%;
   padding: 8px 12px;
   resize: none;
   border: 1px solid var(--yui-text-mute);
@@ -190,8 +190,11 @@
   cursor: not-allowed;
 }
 
+/* Shrinks to its first line and scrolls when the area runs out of room. */
 .yui-threads-answer__error {
+  min-height: 1lh;
   margin: 0;
+  overflow-y: auto;
   padding: 6px 10px;
   border-radius: var(--yui-radius-control);
   background: var(--yui-danger-faint);
