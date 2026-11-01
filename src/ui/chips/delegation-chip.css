@@ -77,20 +77,6 @@
 /* Folded (is-mini): the chip shrinks to its dot with the running count as a badge. */
 .yui-deleg__count {
   display: none;
-}
-
-.yui-deleg.is-mini .yui-deleg__label {
-  display: none;
-}
-
-.yui-deleg.is-mini .yui-deleg__chip {
-  position: relative;
-  gap: 0;
-  padding: 0.3rem 0.4rem;
-}
-
-.yui-deleg.is-mini .yui-deleg__count {
-  display: grid;
   place-items: center;
   position: absolute;
   top: -0.35rem;
@@ -105,8 +91,39 @@
   font-weight: 600;
 }
 
+.yui-deleg.is-mini .yui-deleg__label {
+  display: none;
+}
+
+.yui-deleg.is-mini .yui-deleg__chip {
+  position: relative;
+  gap: 0;
+  padding: 0.3rem 0.4rem;
+}
+
+.yui-deleg.is-mini .yui-deleg__count {
+  display: grid;
+}
+
+/* The column is half the window less 3.5rem (surfaces.css): under 24rem the label has no room, so the chip folds. */
+@media (width < 24rem) {
+  .yui-deleg__label {
+    display: none;
+  }
+
+  .yui-deleg__chip {
+    position: relative;
+    gap: 0;
+    padding: 0.3rem 0.4rem;
+  }
+
+  .yui-deleg__count {
+    display: grid;
+  }
+}
+
 /* No count belongs on a folded dot that reports a connection rather than a queue. */
-.yui-deleg.is-lost.is-mini .yui-deleg__count {
+.yui-deleg.is-lost .yui-deleg__count {
   display: none;
 }
 
