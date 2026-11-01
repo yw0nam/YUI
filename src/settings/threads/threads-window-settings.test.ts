@@ -54,3 +54,43 @@ it("keeps the list choice and the frame side by side", () => {
     listCollapsed: true,
   });
 });
+
+it.each([
+  ["a size in the range", 18, 18],
+  ["a size above the range", 30, undefined],
+  ["a size below the range", 9, undefined],
+  ["a fractional size", 13.5, undefined],
+])("reads the terminal font size with %s, keeping the frame", (_name, stored, size) => {
+  globalThis.localStorage?.setItem(
+    KEY,
+    JSON.stringify({
+      x: 5,
+      y: 6,
+      width: 640,
+      height: 560,
+      listCollapsed: true,
+      terminalFontSize: stored,
+    }),
+  );
+
+  const settings = createThreadsWindowSettings({ storage: localStorageThreadsWindowStorage(KEY) });
+
+  expect(settings.get()).toStrictEqual({
+    x: 5,
+    y: 6,
+    width: 640,
+    height: 560,
+    listCollapsed: true,
+    ...(size === undefined ? {} : { terminalFontSize: size }),
+  });
+});
+
+it("keeps the terminal font size after a reload, beside the frame", () => {
+  const storage = localStorageThreadsWindowStorage(KEY);
+  createThreadsWindowSettings({ storage }).setTerminalFontSize(16);
+
+  expect(createThreadsWindowSettings({ storage }).get()).toEqual({
+    ...DEFAULTS,
+    terminalFontSize: 16,
+  });
+});
