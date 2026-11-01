@@ -179,7 +179,7 @@
   bottom: calc(var(--yui-bubble-bottom) + 15px);
 }
 .yui-bubble.is-above-input .yui-bubble__box {
-  max-height: min(var(--yui-bubble-max-h, 34vh), 28vh);
+  max-height: max(min(var(--yui-bubble-max-h, 34vh), 28vh), var(--yui-bubble-three-lines));
   min-height: min(132px, var(--yui-bubble-max-h, 34vh), 28vh);
 }
 
@@ -689,7 +689,7 @@
   background: var(--yui-group-bg);
   border: 1px dashed var(--yui-edge-strong);
   color: var(--yui-text-dim);
-  font-size: 0.82rem;
+  font-size: calc(0.82rem * var(--yui-text-scale, 1));
   font-style: italic;
 }
 
@@ -859,16 +859,20 @@
   line-height: 1.4;
   resize: none;
   overflow-y: auto;
-  /* 6 lines of 1.33rem + vertical padding — grows to here, then scrolls. */
-  max-height: calc(6 * 1.33rem + 1.1rem);
+  /* 6 speech lines (1.33rem at 100%) + vertical padding — grows to here, then scrolls. */
+  max-height: calc(6 * 1.33rem * var(--yui-text-scale, 1) + 1.1rem);
   scrollbar-width: thin;
   scrollbar-color: var(--yui-edge-strong) transparent;
 }
 .yui-input__field:focus {
   outline: none;
 }
+/* One line, so an empty field never grows past it. */
 .yui-input__field::placeholder {
   color: var(--yui-text-mute);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 /* Processing field dimming — ignited together with send→stop toggle */
 .yui-input.is-running .yui-input__field {
@@ -929,7 +933,7 @@
   box-sizing: border-box;
   padding: 0.1rem 0.6rem 0.45rem;
   color: var(--yui-danger);
-  font-size: 0.78rem;
+  font-size: calc(0.78rem * var(--yui-text-scale, 1));
   font-weight: 500;
   white-space: normal;
 }

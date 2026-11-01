@@ -15,6 +15,7 @@
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isTauri } from "../tauri-env";
+import { applyTextScale } from "../ui/theme/apply-text-scale";
 import { applyTheme } from "../ui/theme/apply-theme";
 import "../styles.css";
 import { createConfiguredBootstrap } from "../app/bootstrap-configured";
@@ -115,6 +116,9 @@ async function bootstrap(): Promise<BootstrapHandle> {
       root: document.documentElement,
       setNativeTheme: isTauri() ? (t) => getCurrentWindow().setTheme(t) : undefined,
     }),
+  );
+  register(
+    applyTextScale({ store: settingsStores.textSizeSettings, root: document.documentElement }),
   );
   const petConfig = createPetConfig({ ...settingsStores, log });
   const config = petConfig.config;

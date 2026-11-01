@@ -9,10 +9,15 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import {
+  createTextSizeSettings,
+  localStorageTextSizeStorage,
+} from "../settings/appearance/text-size-settings";
+import {
   createThemeSettings,
   localStorageThemeStorage,
 } from "../settings/appearance/theme-settings";
 import { isTauri } from "../tauri-env";
+import { applyTextScale } from "../ui/theme/apply-text-scale";
 import { applyTheme } from "../ui/theme/apply-theme";
 import "../styles.css";
 import "../ui/message/message-window.css";
@@ -55,6 +60,9 @@ async function bootstrap(): Promise<void> {
       setNativeTheme: isTauri() ? (t) => getCurrentWindow().setTheme(t) : undefined,
     }),
   );
+  const textSizeSettings = createTextSizeSettings({ storage: localStorageTextSizeStorage() });
+  disposers.register(() => textSizeSettings.dispose());
+  disposers.register(applyTextScale({ store: textSizeSettings, root: document.documentElement }));
   const settingsBridge = createSettingsBridge(undefined, { windowKind: "unified" });
   const registry = createPresetRegistry();
 
@@ -79,6 +87,7 @@ async function bootstrap(): Promise<void> {
   // A photo picked in another window reaches the registry through storage, so it reloads first.
   const refresh = (): void => {
     themeSettings.reloadFromStorage();
+    textSizeSettings.reloadFromStorage();
     registry.reloadFromStorage();
     view.refresh();
   };

@@ -1,5 +1,6 @@
 /** Quick-controls panel markup — pure string construction (no DOM, no state). */
 
+import { TEXT_SIZES } from "../../settings/appearance/text-size-settings";
 import { THEMES } from "../../settings/appearance/theme-settings";
 import type { SettingsPage } from "../../settings/panels/settings-pages";
 import "./sections/session/session-section.css";
@@ -410,6 +411,14 @@ ${panelOpenHtml("general")}
                 <span class="yui-row__sub">${t("appearance.sub")}</span>
               </div>
               <div class="yui-seg yui-theme-seg" role="radiogroup" aria-label="${t("appearance.aria")}">${THEMES.map((theme) => `<button class="yui-seg__btn" type="button" role="radio" data-theme="${theme}" aria-checked="false" tabindex="-1">${t(`appearance.${theme}`)}</button>`).join("")}</div>
+            </div>
+            <div class="yui-row">
+              <div class="yui-row__main">
+                <span class="yui-row__label">${t("textsize.label")}</span>
+                <span class="yui-row__sub">${t("textsize.sub")}</span>
+                <span class="yui-textsize-sample">${t("textsize.sample")}</span>
+              </div>
+              <div class="yui-seg yui-textsize-seg" role="radiogroup" aria-label="${t("textsize.label")}">${TEXT_SIZES.map((scale) => `<button class="yui-seg__btn" type="button" role="radio" aria-checked="false" tabindex="-1">${scale * 100}%</button>`).join("")}</div>
             </div>${userNameRowHtml()}${
               showDevtools
                 ? `

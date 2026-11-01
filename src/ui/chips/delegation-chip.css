@@ -87,7 +87,7 @@
   border-radius: var(--yui-radius-pill);
   background: var(--yui-accent);
   color: var(--yui-ink);
-  font-size: 0.65rem;
+  font-size: calc(0.65rem * var(--yui-text-scale, 1));
   font-weight: 600;
 }
 

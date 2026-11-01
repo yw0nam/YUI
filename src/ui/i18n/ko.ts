@@ -344,6 +344,9 @@ const ko: Record<string, string> = {
   "appearance.dawn": "Dawn",
   "appearance.hearth": "Hearth",
   "appearance.system": "시스템 따르기",
+  "textsize.label": "글자 크기",
+  "textsize.sub": "말풍선, 칩, Threads, 설정의 글자. 터미널은 글자 크기를 따로 정해요.",
+  "textsize.sample": "지금 볼래, 아니면 저녁에 같이 정리할까?",
 
   // VRM section
   "vrm.section": "VRM",

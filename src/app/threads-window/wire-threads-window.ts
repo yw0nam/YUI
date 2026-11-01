@@ -5,6 +5,10 @@ import { createSettingsBridge } from "../../io/bridge/settings-bridge";
 import { createThreadsClient } from "../../io/threads/threads-client";
 import { createLogger } from "../../logger";
 import {
+  createTextSizeSettings,
+  localStorageTextSizeStorage,
+} from "../../settings/appearance/text-size-settings";
+import {
   createThemeSettings,
   localStorageThemeStorage,
 } from "../../settings/appearance/theme-settings";
@@ -14,6 +18,7 @@ import {
 } from "../../settings/threads/threads-window-settings";
 import { isTauri } from "../../tauri-env";
 import { reloadFromStorage as reloadLocale } from "../../ui/i18n";
+import { applyTextScale } from "../../ui/theme/apply-text-scale";
 import { applyTheme } from "../../ui/theme/apply-theme";
 import { createThreadsView } from "../../ui/threads/window/threads-view";
 import type { Disposers } from "../disposers";
@@ -30,6 +35,7 @@ export async function wireThreadsWindow(deps: {
 }): Promise<void> {
   const { register } = deps.lifecycle;
   const themeSettings = createThemeSettings({ storage: localStorageThemeStorage() });
+  const textSizeSettings = createTextSizeSettings({ storage: localStorageTextSizeStorage() });
   const bridge = createSettingsBridge(undefined, { windowKind: "threads" });
   const client = createThreadsClient();
   const settings = createThreadsWindowSettings({ storage: localStorageThreadsWindowStorage() });
@@ -62,6 +68,7 @@ export async function wireThreadsWindow(deps: {
 
   // Drains LIFO, so registered in reverse of the teardown order.
   register(() => themeSettings.dispose());
+  register(() => textSizeSettings.dispose());
   register(() => bridge.dispose());
   register(() => client.dispose());
   register(() => view.dispose());
@@ -73,6 +80,7 @@ export async function wireThreadsWindow(deps: {
       setNativeTheme: isTauri() ? (theme) => getCurrentWindow().setTheme(theme) : undefined,
     }),
   );
+  register(applyTextScale({ store: textSizeSettings, root: document.documentElement }));
   register(client.subscribe(view.update));
   register(view.onHeadPointerDown(placement.startDrag));
   register(bridge.onThreadsOpen(({ chip, tab }) => presence.open(chip, tab)));
@@ -80,6 +88,7 @@ export async function wireThreadsWindow(deps: {
     bridge.onSettingsChanged(() => {
       reloadLocale();
       themeSettings.reloadFromStorage();
+      textSizeSettings.reloadFromStorage();
     }),
   );
   window.addEventListener("beforeunload", deps.lifecycle.dispose);

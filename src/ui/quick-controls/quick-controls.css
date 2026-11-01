@@ -368,7 +368,7 @@
   background: none;
   color: var(--yui-text-mute);
   font: inherit;
-  font-size: 0.625rem;
+  font-size: calc(0.625rem * var(--yui-text-scale, 1));
   font-weight: 500;
   line-height: 1;
   cursor: help;

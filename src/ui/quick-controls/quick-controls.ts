@@ -4,8 +4,10 @@
  * proactive · motion · general) beside the page body.
  */
 
+import type { createTextSizeSettings } from "../../settings/appearance/text-size-settings";
 import type { createThemeSettings } from "../../settings/appearance/theme-settings";
 import { createAppearanceSection } from "./sections/appearance/appearance-section";
+import { createTextSizeSection } from "./sections/appearance/text-size-section";
 import "./quick-controls.css";
 import "./controls.css";
 import type { AvatarOption } from "../../config/validators/avatar/types";
@@ -109,6 +111,7 @@ type WorkflowSettingsStore = ReturnType<typeof createWorkflowSettings>;
 type LipsyncSettingsStore = ReturnType<typeof createLipsyncSettings>;
 type VadSettingsStore = ReturnType<typeof createVadSettings>;
 type ThemeSettingsStore = ReturnType<typeof createThemeSettings>;
+type TextSizeSettingsStore = ReturnType<typeof createTextSizeSettings>;
 type UserNameSettingsStore = ReturnType<typeof createUserNameSettings>;
 type AgentSettingsStore = ReturnType<typeof createAgentSettings>;
 type EndpointsSettingsStore = ReturnType<typeof createEndpointsSettings>;
@@ -187,6 +190,8 @@ interface QuickControlsOptions {
   userNameSettings: UserNameSettingsStore;
   /** Device-wide theme store for the General tab's Appearance row. */
   themeSettings: ThemeSettingsStore;
+  /** Device-wide text size store for the General tab's Text size row. */
+  textSizeSettings: TextSizeSettingsStore;
   /** User-edited endpoint overrides store. Empty value = fallback. */
   endpointsSettings: EndpointsSettingsStore;
   /** chat API key overrides store. Empty value = use build-time key. Value is secret — no logging. */
@@ -336,6 +341,7 @@ export function createQuickControls({
   getPersona,
   userNameSettings,
   themeSettings,
+  textSizeSettings,
   endpointsSettings,
   chatKeySettings,
   sttKeySettings,
@@ -617,6 +623,12 @@ export function createQuickControls({
     isOpen: shell.isOpen,
     log,
   });
+  const textSize = createTextSizeSection({
+    root: el,
+    textSizeSettings,
+    isOpen: shell.isOpen,
+    log,
+  });
 
   // ── Card section (send switch · card fields · greetings · import/export) ──
   const card = createCardSection({
@@ -755,6 +767,7 @@ export function createQuickControls({
     filler,
     { reflect: agent.reflectLanguage },
     appearance,
+    textSize,
     {
       reflect: connectionTab.refresh,
       close: () => {

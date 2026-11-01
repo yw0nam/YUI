@@ -343,6 +343,9 @@ const en: Record<string, string> = {
   "appearance.dawn": "Dawn",
   "appearance.hearth": "Hearth",
   "appearance.system": "Follow system",
+  "textsize.label": "Text size",
+  "textsize.sub": "Bubbles, chips, Threads and settings. The terminal keeps its own size.",
+  "textsize.sample": "Want to look now, or sort it out together tonight?",
 
   // VRM section
   "vrm.section": "VRM",

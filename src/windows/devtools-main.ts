@@ -14,6 +14,7 @@ import { isTauri } from "../tauri-env";
 import { createDevtoolsShell } from "../ui/devtools/shell";
 import { createLocaleRebuilder } from "../ui/devtools/shell-rebuild";
 import { getLocale, subscribe as subscribeLocale, t } from "../ui/i18n";
+import { applyTextScale } from "../ui/theme/apply-text-scale";
 import { applyTheme } from "../ui/theme/apply-theme";
 
 const log = createLogger("devtools-bootstrap");
@@ -29,6 +30,10 @@ async function bootstrap(): Promise<void> {
     store: settingsStores.themeSettings,
     root: document.documentElement,
     setNativeTheme: isTauri() ? (t) => getCurrentWindow().setTheme(t) : undefined,
+  });
+  const disposeTextScale = applyTextScale({
+    store: settingsStores.textSizeSettings,
+    root: document.documentElement,
   });
   const conversationStores = createConversationStores();
   const { contextHistory } = conversationStores;
@@ -72,6 +77,7 @@ async function bootstrap(): Promise<void> {
   window.addEventListener("focus", reload);
   window.addEventListener("beforeunload", () => {
     disposeTheme();
+    disposeTextScale();
     disposePresetSwitch();
     presetRegistry.dispose();
     // Keeps the bridge alive until disposeSync flushes any pending broadcast.

@@ -59,11 +59,10 @@
   cursor: default;
 }
 
-/* ── Segment — as many equal cells as options; the checked cell carries the selected fill ── */
+/* ── Segment — one cell per option, wrapping to a new line when the row has no room; the checked cell carries the selected fill ── */
 .yui-seg {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
+  display: flex;
+  flex-wrap: wrap;
   gap: 2px;
   padding: 3px;
   border-radius: var(--yui-radius-control);
@@ -71,6 +70,9 @@
 }
 
 .yui-seg__btn {
+  /* Equal cells on a line, none narrower than its label. */
+  flex: 1 0 0;
+  min-width: max-content;
   height: 1.75rem;
   padding: 0 0.5rem;
   border: 0;
