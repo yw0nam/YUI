@@ -5,14 +5,18 @@
  */
 
 import "./list-splitter.css";
-import { t } from "../../i18n";
+import { LIST_WIDTH_PX } from "../../../settings/threads/threads-window-settings";
+import { subscribe as subscribeLocale, t } from "../../i18n";
 
-/** Pairs with the clamp on `.yui-threads__panes` in threads-view.css. */
-const MIN_PX = 220;
-const MAX_PX = 480;
 const STEP_PX = 16;
 const VAR = "--yui-threads-list-width";
 const ENDS = ["pointerup", "pointercancel", "lostpointercapture"] as const;
+
+export interface ListSplitter {
+  /** Lays an edge after `list`, in its tab's panes. */
+  attach(list: HTMLElement): void;
+  dispose(): void;
+}
 
 export function createListSplitter(deps: {
   /** Carries the width variable; half its width is the widest list. */
@@ -20,55 +24,74 @@ export function createListSplitter(deps: {
   /** The stored width; null for the default. */
   width: number | null;
   onWidth(width: number | null): void;
-}): { separator(): HTMLElement } {
+}): ListSplitter {
   const { panel } = deps;
-  const edges: HTMLElement[] = [];
-  let stored = deps.width;
-  const max = (): number => Math.min(MAX_PX, Math.floor(panel.clientWidth / 2));
-  const clamp = (w: number): number => Math.round(Math.max(MIN_PX, Math.min(max(), w)));
-
-  /** The list's shown width once the edge sits beside it, else the stored one. */
-  function sync(edge: HTMLElement): void {
-    const list = edge.parentElement?.querySelector(".yui-threads-list");
-    const shown = list ? Math.round(list.getBoundingClientRect().width) : stored;
-    edge.setAttribute("aria-label", t("threads.list_width"));
-    edge.setAttribute("aria-valuemax", String(max()));
-    if (shown !== null) edge.setAttribute("aria-valuenow", String(shown));
-  }
+  const edges: { edge: HTMLElement; list: HTMLElement }[] = [];
+  let dragging = false;
+  const max = (): number => Math.min(LIST_WIDTH_PX.max, Math.floor(panel.clientWidth / 2));
+  const clamp = (w: number): number => Math.round(Math.max(LIST_WIDTH_PX.min, Math.min(max(), w)));
+  const shown = (list: HTMLElement): number => list.getBoundingClientRect().width;
 
   function set(width: number | null): void {
-    stored = width;
     if (width === null) panel.style.removeProperty(VAR);
     else panel.style.setProperty(VAR, `${width}px`);
-    for (const edge of edges) sync(edge);
   }
 
-  function separator(): HTMLElement {
+  /** Reports the shown tab's list width and range; a hidden tab's edge keeps what it had. */
+  function sync(): void {
+    for (const { edge, list } of edges) {
+      edge.setAttribute("aria-label", t("threads.list_width"));
+      const width = shown(list);
+      if (width === 0) continue;
+      const top = max();
+      edge.setAttribute("aria-valuemax", String(top));
+      edge.setAttribute("aria-valuenow", String(Math.min(top, Math.round(width))));
+    }
+  }
+
+  function save(width: number | null): void {
+    set(width);
+    sync();
+    deps.onWidth(width);
+  }
+
+  // A panel or list resize moves the range and the shown width; a drag reports at its end.
+  const observer = new ResizeObserver(() => {
+    if (!dragging) sync();
+  });
+  observer.observe(panel);
+  const offLocale = subscribeLocale(sync);
+  set(deps.width);
+
+  function attach(list: HTMLElement): void {
     const edge = document.createElement("div");
     edge.className = "yui-threads-split";
     edge.tabIndex = 0;
     edge.setAttribute("role", "separator");
     edge.setAttribute("aria-orientation", "vertical");
-    edge.setAttribute("aria-valuemin", String(MIN_PX));
-    edges.push(edge);
+    edge.setAttribute("aria-controls", list.id);
+    edge.setAttribute("aria-valuemin", String(LIST_WIDTH_PX.min));
 
     edge.addEventListener("pointerdown", (down) => {
-      if (down.button !== 0) return;
+      if (down.button !== 0 || dragging) return;
       down.preventDefault();
       edge.setPointerCapture(down.pointerId);
+      dragging = true;
       edge.dataset.dragging = "true";
-      const left = edge.parentElement!.getBoundingClientRect().left;
+      // Where the list would start for the grab point to stay under the pointer.
+      const origin = down.clientX - shown(list);
       let width: number | null = null;
       const move = (e: PointerEvent): void => {
-        width = clamp(e.clientX - left);
+        width = clamp(e.clientX - origin);
         set(width);
       };
       // A lost capture or a cancel ends the drag like a release.
       const end = (): void => {
         edge.removeEventListener("pointermove", move);
         for (const type of ENDS) edge.removeEventListener(type, end);
+        dragging = false;
         delete edge.dataset.dragging;
-        if (width !== null) deps.onWidth(width);
+        if (width !== null) save(width);
       };
       edge.addEventListener("pointermove", move);
       for (const type of ENDS) edge.addEventListener(type, end);
@@ -76,24 +99,24 @@ export function createListSplitter(deps: {
 
     edge.addEventListener("keydown", (e) => {
       const step = e.key === "ArrowRight" ? STEP_PX : e.key === "ArrowLeft" ? -STEP_PX : 0;
-      const list = edge.parentElement?.querySelector(".yui-threads-list");
-      if (!step || !list) return;
+      if (!step) return;
       e.preventDefault();
-      const width = clamp(list.getBoundingClientRect().width + step);
-      set(width);
-      deps.onWidth(width);
+      save(clamp(shown(list) + step));
     });
 
-    edge.addEventListener("dblclick", () => {
-      set(null);
-      deps.onWidth(null);
-    });
-
-    edge.addEventListener("focus", () => sync(edge));
-    sync(edge);
-    return edge;
+    edge.addEventListener("dblclick", () => save(null));
+    edge.addEventListener("focus", sync);
+    list.after(edge);
+    edges.push({ edge, list });
+    observer.observe(list);
+    sync();
   }
 
-  set(deps.width);
-  return { separator };
+  return {
+    attach,
+    dispose() {
+      observer.disconnect();
+      offLocale();
+    },
+  };
 }
