@@ -691,7 +691,7 @@ globalThis.YUI_MAP =
       "id": "settings",
       "module": "settings",
       "label": "settings",
-      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, the device-wide yui.user-name holds what {{user}} resolves to, the device-wide yui.tts-readings holds the reading dictionary, the device-wide yui.theme holds the theme (dawn, hearth or system), the device-wide yui.threads-window holds the Threads window's frame and list choice, and the device-wide yui.unified-chat holds the Unified chat switch, with the rule every pet and settings window reads for whether the unified chat window shows (the switch on, two or more open presets, a window can exist), and yui.unified-window the unified window's position.",
+      "role": "Persisted user settings, one localStorage-backed store per setting; a window's per-preset keys resolve under the `edit` query id, else the `preset` query id, else the active preset, yui.windows holds the presets wanted open as bound windows, and yui.pet-window.<id> marks one live; each preset's relations hold its relation toward the user and the other presets, in five bands with a daily cap on the tool's changes, and the relation entries a turn carries, and the device-wide Relations switch (yui.relations-enabled) turns relations off for every preset; each preset's card and send switch live in its yui.agent key, the device-wide yui.user-name holds what {{user}} resolves to, the device-wide yui.tts-readings holds the reading dictionary, the device-wide yui.theme holds the theme (dawn, hearth or system), the device-wide yui.threads-window holds the Threads window's frame, list choice and terminal font size, and the device-wide yui.unified-chat holds the Unified chat switch, with the rule every pet and settings window reads for whether the unified chat window shows (the switch on, two or more open presets, a window can exist), and yui.unified-window the unified window's position.",
       "paths": [
         "src/settings"
       ]
@@ -718,7 +718,7 @@ globalThis.YUI_MAP =
       "id": "io/chat/tools",
       "module": "tools",
       "label": "client tools",
-      "role": "The tools the client declares to the backend and runs itself: generate_express, rate_relation, address_character, body_action, look, plugin_describe, plugin_call, plugin_skill, threads_list, threads_search.",
+      "role": "The tools the client declares to the backend and runs itself: generate_express, rate_relation, address_character, body_action, look, plugin_describe, plugin_call, plugin_skill, threads_list, threads_search, terminal_open, terminal_list, terminal_read, terminal_write, terminal_close.",
       "paths": [
         "src/io/chat/tools"
       ]
@@ -742,12 +742,30 @@ globalThis.YUI_MAP =
       ]
     },
     {
+      "id": "io/snapshot-feed",
+      "module": "display",
+      "label": "snapshot feed",
+      "role": "Keeps a Rust store's highest-revision snapshot from its event and its snapshot command, listening before it reads; the Threads and terminal clients build on it; inert outside Tauri.",
+      "paths": [
+        "src/io/snapshot-feed"
+      ]
+    },
+    {
       "id": "io/threads",
       "module": "display",
       "label": "threads client",
       "role": "Keeps the Thread store's highest-revision snapshot from threads_snapshot and the threads-snapshot event, and sends the user's Answer through thread_answer; inert outside Tauri.",
       "paths": [
         "src/io/threads"
+      ]
+    },
+    {
+      "id": "io/terminal",
+      "module": "display",
+      "label": "terminal client",
+      "role": "Keeps the terminal store's highest-revision snapshot from terminal_snapshot and the terminal-snapshot event, runs the user's terminal commands — open, close, input, resize, attach, answer, take_back — and listens for the tray's terminal-open; inert outside Tauri.",
+      "paths": [
+        "src/io/terminal"
       ]
     },
     {
@@ -898,7 +916,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/settings",
       "module": "bridge",
       "label": "settings bridge",
-      "role": "Typed cross-window settings bus: its channels scoped to the sender's preset, and the unscoped settings-changed, preset-changed, pet-windows-changed, character-addressed, user-turn-routed, voice-segment, speech-onset, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control, stop-turns, settings-page, open-devtools, threads-open, threads-ready and threads-closed.",
+      "role": "Typed cross-window settings bus: its channels scoped to the sender's preset, and the unscoped settings-changed, preset-changed, pet-windows-changed, character-addressed, user-turn-routed, voice-segment, speech-onset, user-turn-done, speech-stream, speech-stream-ask, speech-stream-control, stop-turns, settings-page, open-devtools, threads-open, threads-ready, threads-closed and threads-open-request.",
       "paths": [
         "src/io/bridge/settings-bridge.ts"
       ]
@@ -1186,7 +1204,7 @@ globalThis.YUI_MAP =
       "id": "ui/quick-card",
       "module": "settings",
       "label": "quick card",
-      "role": "The card that fills the quick-card window: the face, name and transport line (on push, the socket's state), the Voice, Listen (main only), Keep bubble and Unified chat tiles over the same stores as their settings rows, the Body and Reference voice selects, a conversation reset that asks first, Turn off for a bound character, and All settings…; Escape and a click outside it close it, and its head is the drag handle the window moves by.",
+      "role": "The card that fills the quick-card window: the face, name and transport line (on push, the socket's state), the Voice, Listen (main only), Keep bubble and Unified chat tiles over the same stores as their settings rows, the Threads and Terminal buttons that ask main to open the Threads window on that tab, the Body and Reference voice selects, a conversation reset that asks first, Turn off for a bound character, and All settings…; Escape and a click outside it close it, and its head is the drag handle the window moves by.",
       "paths": [
         "src/ui/quick-card"
       ]
@@ -1198,6 +1216,15 @@ globalThis.YUI_MAP =
       "role": "The Threads chip in main's chip column (newest source marks, label, amber count; hidden at zero while the window is closed, one nod on arrival, hold-to-fold) and the Threads window's view: the layout its panel's width picks (list and thread, the rail, one pane), the list collapsed to the rail by the head toggle or Control+Command+S, Waiting / All tabs and a kind select over waiting-first rows, the thread pane's scrolling transcript, the pinned answer area with numbered choices and a growing field, per-ask drafts, and the grow out of the chip.",
       "paths": [
         "src/ui/threads"
+      ]
+    },
+    {
+      "id": "ui/terminal",
+      "module": "display",
+      "label": "terminal ui",
+      "role": "The Threads window's Terminal tab: the list or its rail (New terminal, then one row per terminal newest first), the pane with one xterm per terminal and its exit line, the font-size keys (Command or Control with =, + or - by 1 px, 0 back to 13 px, 10–24 px, one size for every terminal), the access line with Take back, and the Allow card for the oldest waiting access request.",
+      "paths": [
+        "src/ui/terminal"
       ]
     },
     {
@@ -1287,7 +1314,7 @@ globalThis.YUI_MAP =
       "id": "app/threads-chip",
       "module": "wiring",
       "label": "threads chip wiring",
-      "role": "Main only: mounts the Threads chip after the signal chips on their shared fold store, feeds it the store's snapshots, and opens the Threads window from its tap; the chip stays shown while the window is open, its tap then bringing the window forward, until the window's closed report.",
+      "role": "Main only: mounts the Threads chip after the signal chips on their shared fold store, feeds it the store's snapshots, and opens the Threads window from its tap; the chip stays shown while the window is open, its tap then bringing the window forward, until the window's closed report. The tray's Terminal item and a quick card's Threads or Terminal button open the same window on their tab, with no grow.",
       "paths": [
         "src/app/threads-chip"
       ]
@@ -1416,6 +1443,15 @@ globalThis.YUI_MAP =
       "role": "Keeps Threads and their asks, appends each change to a dated JSONL file kept 14 days, wakes answer waits, and publishes a revisioned snapshot to every window.",
       "paths": [
         "src-tauri/src/threads"
+      ]
+    },
+    {
+      "id": "shell/terminal",
+      "module": "shell",
+      "label": "terminal",
+      "role": "Runs each Terminal's login shell in a PTY, parses its output into a screen for reads and attaches, gates preset reads and writes behind the user's Allow, kills every Terminal on quit, publishes a revisioned snapshot, and answers the terminal_tool_* calls with their result text.",
+      "paths": [
+        "src-tauri/src/terminal"
       ]
     }
   ],
@@ -2711,6 +2747,15 @@ globalThis.YUI_MAP =
       "transport": "shared"
     },
     {
+      "id": "tray-terminal",
+      "from": "shell/tray",
+      "to": "io/terminal",
+      "carries": "terminal-open: no payload, on the tray's Terminal item; main's window then opens the Threads window on the Terminal tab",
+      "kind": "tauri-event",
+      "transport": "shared",
+      "wiring": "src/windows/main.ts"
+    },
+    {
       "id": "window-geometry",
       "from": "app/stage",
       "to": "settings",
@@ -2852,6 +2897,87 @@ globalThis.YUI_MAP =
       "transport": "shared"
     },
     {
+      "id": "terminal-shell-command",
+      "from": "io/terminal",
+      "to": "shell/terminal",
+      "carries": "terminal_snapshot once after the listen; terminal_open {cwd?}; terminal_close {id}; terminal_input {id, data}; terminal_resize {cols, rows}; terminal_attach {id, onOutput}; terminal_answer {requestId, allow}; terminal_take_back {id}",
+      "kind": "tauri-command",
+      "transport": "shared",
+      "wiring": "src/io/terminal/terminal-client.ts"
+    },
+    {
+      "id": "terminal-shell-event",
+      "from": "shell/terminal",
+      "to": "io/terminal",
+      "carries": "terminal-snapshot {revision, terminals, requests}: every change; the client keeps the highest revision",
+      "kind": "tauri-event",
+      "transport": "shared",
+      "wiring": "src/io/terminal/terminal-client.ts"
+    },
+    {
+      "id": "terminal-output",
+      "from": "shell/terminal",
+      "to": "io/terminal",
+      "carries": "terminal_attach's onOutput Channel: the formatted screen state that redraws the terminal, then its live PTY bytes",
+      "kind": "tauri-event",
+      "transport": "shared",
+      "wiring": "src/io/terminal/terminal-client.ts"
+    },
+    {
+      "id": "terminal-view-snapshot",
+      "from": "io/terminal",
+      "to": "ui/terminal",
+      "carries": "subscribe → the snapshot into the list, rail, pane head, access line and Allow card; attach(id, onBytes) → the terminal's xterm",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/wire-terminal-tab.ts"
+    },
+    {
+      "id": "terminal-view-actions",
+      "from": "ui/terminal",
+      "to": "io/terminal",
+      "carries": "open(), close(id), input(id, data), resize(cols, rows), attach(id, onBytes), answer(requestId, allow), takeBack(id)",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/wire-terminal-tab.ts"
+    },
+    {
+      "id": "terminal-tool-command",
+      "from": "io/chat/tools",
+      "to": "shell/terminal",
+      "carries": "terminal_tool_open {presetId, cwd?}; terminal_tool_list; terminal_tool_read {callId, presetId, id, lines?}; terminal_tool_write {callId, presetId, id, text, enter?}; terminal_tool_close {presetId, id}; terminal_tool_cancel {callId} when the turn stops",
+      "kind": "tauri-command",
+      "transport": "shared",
+      "wiring": "src/io/chat/tools/terminal/terminal-tools.ts"
+    },
+    {
+      "id": "terminal-chip",
+      "from": "io/terminal",
+      "to": "ui/threads",
+      "carries": "the snapshot's requests → the chip's waiting count and pending ids; a tap while one waits opens the Terminal tab",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/threads-chip/wire-threads-chip.ts"
+    },
+    {
+      "id": "threads-tray-open",
+      "from": "app/threads-chip",
+      "to": "io/window/openers",
+      "carries": "open(undefined, tab) from the tray's Terminal click (tab \"terminal\") or a quick card's request: place, show and focus the window with no chip rect and no grow; while it shows, focus it and select the tab",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/threads-chip/wire-threads-open-requests.ts"
+    },
+    {
+      "id": "quick-card-threads-request",
+      "from": "app/quick-card-window",
+      "to": "app/threads-chip",
+      "carries": "yui://threads-open-request {tab: \"threads\" | \"terminal\"}: the card's Threads or Terminal button; unscoped, so any preset's card reaches main, which owns the Threads window",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/threads-chip/wire-threads-open-requests.ts"
+    },
+    {
       "id": "threads-chip-snapshot",
       "from": "io/threads",
       "to": "ui/threads",
@@ -2882,7 +3008,7 @@ globalThis.YUI_MAP =
       "id": "threads-chip-open",
       "from": "ui/threads",
       "to": "io/window/openers",
-      "carries": "the chip's tap → open(the chip's viewport rect), sent as screen logical px once the window reports ready",
+      "carries": "the chip's tap → open(the chip's viewport rect, \"terminal\" while an access request waits), sent as screen logical px once the window reports ready",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/threads-chip/wire-threads-chip.ts"
@@ -2891,7 +3017,7 @@ globalThis.YUI_MAP =
       "id": "threads-open-request",
       "from": "io/window/openers",
       "to": "app/threads-window",
-      "carries": "yui://threads-open {chip: {x, y, width, height}}: place, show and focus the window, then grow out of the chip; while it shows, only focus it",
+      "carries": "yui://threads-open {chip?: {x, y, width, height}, tab?: \"threads\" | \"terminal\"}: place, show and focus the window, then grow out of the chip when there is one; select the tab; while it shows, focus it and select the tab the request names",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/threads-window/wire-threads-window.ts"
@@ -2909,10 +3035,10 @@ globalThis.YUI_MAP =
       "id": "threads-closed",
       "from": "app/threads-window",
       "to": "io/window/openers",
-      "carries": "yui://threads-closed: the window hid after its close or a failed open; the chip leaves its open state and hides at zero waiting",
+      "carries": "yui://threads-closed: the window hid after its close or a failed open; the controller reports it through onShown(false), and the chip leaves its open state and hides at zero waiting",
       "kind": "bridge",
       "transport": "shared",
-      "wiring": "src/app/threads-chip/wire-threads-chip.ts"
+      "wiring": "src/windows/main.ts"
     },
     {
       "id": "threads-placement",
@@ -2931,6 +3057,15 @@ globalThis.YUI_MAP =
       "kind": "storage",
       "transport": "shared",
       "wiring": "src/app/threads-window/wire-threads-window.ts"
+    },
+    {
+      "id": "terminal-font-size",
+      "from": "app/threads-window",
+      "to": "settings",
+      "carries": "yui.threads-window terminalFontSize? (10–24 px): written by the terminal font-size keys; read once at boot through terminalFontSize(), which gives 13 px while none is stored",
+      "kind": "storage",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/wire-terminal-tab.ts"
     },
     {
       "id": "threads-resize-handles",
@@ -4330,6 +4465,14 @@ globalThis.YUI_MAP =
         },
         {
           "from": "tools",
+          "label": "terminal_open and terminal_close run without asking the user; terminal_read and terminal_write wait for the user's Allow in the Threads window",
+          "edges": [
+            "terminal-tool-command"
+          ],
+          "to": "shell"
+        },
+        {
+          "from": "tools",
           "label": "look at screen: capture_screen_at",
           "edges": [
             "tools-capture",
@@ -4857,7 +5000,7 @@ globalThis.YUI_MAP =
       {
         "id": "threads",
         "label": "threads",
-        "role": "The Threads window, threads.html: main's frameless window, first placed beside the pet window and reopened at its stored frame, grown out of the Threads chip and hidden on close."
+        "role": "The Threads window, threads.html: main's frameless window, first placed beside the pet window and reopened at its stored frame, grown out of the Threads chip and hidden on close; its head switches between the Threads and Terminal tabs, and the tray's Terminal item opens it on the Terminal tab."
       },
       {
         "id": "devtools",
@@ -5008,7 +5151,21 @@ globalThis.YUI_MAP =
         "id": "threads-open-pet",
         "from": "pet",
         "to": "threads",
-        "carries": "yui://threads-open {chip}: place, show and focus the window, grow out of the chip; while it shows, focus it",
+        "carries": "yui://threads-open {chip?, tab?}: place, show and focus the window, grow out of the chip when there is one; select the tab; while it shows, focus it and select the tab the request names",
+        "kind": "bridge"
+      },
+      {
+        "id": "threads-open-request-quick-card",
+        "from": "quick-card",
+        "to": "pet",
+        "carries": "yui://threads-open-request {tab}: the card's Threads or Terminal button; main opens the Threads window on that tab",
+        "kind": "bridge"
+      },
+      {
+        "id": "threads-open-request-quick-card-bound",
+        "from": "quick-card-<id>",
+        "to": "pet",
+        "carries": "yui://threads-open-request {tab}: unscoped, so a bound character's card reaches main, which owns the Threads window",
         "kind": "bridge"
       },
       {

@@ -86,6 +86,7 @@ function build(over: Record<string, unknown> = {}) {
     resetConversation: vi.fn(),
     turnOff: vi.fn() as (() => void) | null,
     openAllSettings: vi.fn(),
+    openThreads: vi.fn(),
     ...over,
   };
   const card = createQuickCard(deps as Parameters<typeof createQuickCard>[0]);
@@ -252,6 +253,22 @@ describe("createQuickCard", () => {
 
     const main = build({ turnOff: null });
     expect(main.card.el.querySelector(".yui-qcard__turnoff")).toBeNull();
+  });
+
+  it.each([
+    ["Threads", "threads"],
+    ["Terminal", "terminal"],
+  ])("opens the Threads window on its %s tab and closes", (label, tab) => {
+    const h = build();
+    h.card.open();
+    const button = [...h.card.el.querySelectorAll<HTMLButtonElement>(".yui-qcard__open")].find(
+      (b) => b.textContent === label,
+    )!;
+
+    button.click();
+
+    expect(h.deps.openThreads).toHaveBeenCalledExactlyOnceWith(tab);
+    expect(h.card.isOpen()).toBe(false);
   });
 
   it.each<[string, { api: ChatTransport; push?: PushSocketState }, string]>([

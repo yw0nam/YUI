@@ -3,6 +3,8 @@
  * Other modules access them via `import { ... } from "../contract"`.
  */
 export type {
+  // Pending read or write on a terminal — the Allow / Deny card
+  AccessRequest,
   // Current posture reported each turn
   BodyState,
   // Flat system-message context (client → backend each turn)
@@ -37,6 +39,10 @@ export type {
   SignalEnvelope,
   SignalGroup,
   SignalItem,
+  // PTY terminal shared by the user and a preset
+  Terminal,
+  TerminalOwner,
+  TerminalSnapshot,
   // Threads store snapshot
   Thread,
   ThreadAsk,

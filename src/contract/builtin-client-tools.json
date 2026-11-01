@@ -7,6 +7,11 @@
   "plugin_describe",
   "plugin_skill",
   "rate_relation",
+  "terminal_close",
+  "terminal_list",
+  "terminal_open",
+  "terminal_read",
+  "terminal_write",
   "threads_list",
   "threads_search"
 ]

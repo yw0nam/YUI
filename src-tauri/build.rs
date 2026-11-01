@@ -38,6 +38,20 @@ const COMMANDS: &[&str] = &[
     "plugin_host_call",
     "plugin_host_cancel",
     "plugin_host_skill",
+    "terminal_snapshot",
+    "terminal_open",
+    "terminal_close",
+    "terminal_input",
+    "terminal_resize",
+    "terminal_attach",
+    "terminal_answer",
+    "terminal_take_back",
+    "terminal_tool_open",
+    "terminal_tool_list",
+    "terminal_tool_read",
+    "terminal_tool_write",
+    "terminal_tool_close",
+    "terminal_tool_cancel",
 ];
 
 fn main() {

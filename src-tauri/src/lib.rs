@@ -39,6 +39,10 @@ mod passthrough;
 #[cfg(desktop)]
 mod mcp_host;
 
+// PTY terminals the user and the backend share.
+#[cfg(desktop)]
+mod terminal;
+
 // Loopback HTTP ingress — receives signals, re-emits as Tauri events.
 mod agent_ingress;
 mod threads;
@@ -79,5 +83,7 @@ pub fn run() {
         .run(|_app, _event| {
             #[cfg(desktop)]
             mcp_host::on_run_event(_app, &_event);
+            #[cfg(desktop)]
+            terminal::on_run_event(_app, &_event);
         });
 }

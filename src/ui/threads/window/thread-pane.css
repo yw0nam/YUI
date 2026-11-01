@@ -24,16 +24,7 @@
   justify-self: start;
   min-height: 36px;
   padding: 8px 12px;
-  border: 1px solid var(--yui-edge-strong);
-  border-radius: var(--yui-radius-control);
-  background: none;
   color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-
-.yui-threads-pane__back:hover {
-  background: var(--yui-hover);
 }
 
 .yui-threads-pane__line {
@@ -121,7 +112,7 @@
   padding: 0 4px;
   border-radius: 4px;
   background: var(--yui-selected);
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-family: var(--yui-font-mono);
   font-size: 0.88em;
 }
 
@@ -143,7 +134,9 @@
 
 @container pane (max-width: 559.98px) {
   .yui-threads-pane__head,
-  .yui-threads-pane__transcript {
+  .yui-threads-pane__transcript,
+  .yui-threads-pane .yui-terminal-access__row,
+  .yui-threads-pane .yui-terminal-screens {
     padding-inline: 20px;
   }
 
@@ -154,7 +147,9 @@
 
 @container pane (max-width: 439.98px) {
   .yui-threads-pane__head,
-  .yui-threads-pane__transcript {
+  .yui-threads-pane__transcript,
+  .yui-threads-pane .yui-terminal-access__row,
+  .yui-threads-pane .yui-terminal-screens {
     padding-inline: 16px;
   }
 

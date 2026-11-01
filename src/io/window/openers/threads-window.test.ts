@@ -52,7 +52,7 @@ beforeEach(() => {
 
 it("creates the hidden window and holds an open made before its ready report", async () => {
   const b = bridge();
-  const controller = createThreadsWindowController({ bridge: b, onClosed: vi.fn() });
+  const controller = createThreadsWindowController({ bridge: b });
 
   expect(controller.open(CHIP)).toBe(true);
   await vi.waitFor(() => expect(WebviewWindow).toHaveBeenCalledTimes(1));
@@ -79,8 +79,9 @@ it("creates the hidden window and holds an open made before its ready report", a
 
 it("keeps the open state when a request to the open window fails", async () => {
   const b = bridge();
-  const onClosed = vi.fn();
-  const controller = createThreadsWindowController({ bridge: b, onClosed });
+  const onShown = vi.fn();
+  const controller = createThreadsWindowController({ bridge: b });
+  controller.onShown(onShown);
   controller.open(CHIP);
   b.fire("ready");
   await vi.waitFor(() => expect(b.sent).toHaveLength(1));
@@ -90,5 +91,5 @@ it("keeps the open state when a request to the open window fails", async () => {
   await vi.waitFor(() => expect(innerPosition).toHaveBeenCalledTimes(2));
   await new Promise((resolve) => setTimeout(resolve, 0));
 
-  expect(onClosed).not.toHaveBeenCalled();
+  expect(onShown).not.toHaveBeenCalledWith(false);
 });

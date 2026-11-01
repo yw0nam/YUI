@@ -1,0 +1,56 @@
+/* The terminal pane: head, access line, then the screens taking the height left. Tokens in ../tokens.css. */
+
+.yui-threads-pane.yui-terminal-pane {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.yui-terminal-pane__head {
+  display: contents;
+}
+
+.yui-terminal-pane__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.yui-terminal-pane__close {
+  position: relative;
+  flex: none;
+  min-height: 32px;
+  padding: 4px 12px;
+  color: var(--yui-text-dim);
+  font-size: var(--yui-fs-sub);
+}
+
+/* The 32px button keeps a 44px hit area. */
+.yui-terminal-pane__close::before {
+  content: "";
+  position: absolute;
+  inset: -6px 0;
+}
+
+.yui-terminal-pane__close:hover {
+  color: var(--yui-text);
+}
+
+.yui-terminal-pane__empty {
+  display: none;
+  grid-row: 1 / -1;
+  place-self: center;
+  margin: 0;
+  padding: 24px;
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-sub);
+  text-align: center;
+}
+
+.yui-terminal-pane.is-empty > :not(.yui-terminal-pane__empty) {
+  display: none;
+}
+
+.yui-terminal-pane.is-empty > .yui-terminal-pane__empty {
+  display: block;
+}

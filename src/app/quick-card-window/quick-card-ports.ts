@@ -1,6 +1,7 @@
 /** The quick card's ports over this window's stores: what each tile, select and action reads and writes. */
 
 import type { ConfigStore } from "../../config/store";
+import type { SettingsBridge } from "../../io/bridge/settings-bridge";
 import { resetConversation } from "../../io/chat/conversation/reset-conversation";
 import type { PushSocket } from "../../io/chat/push/push-socket";
 import { createLogger } from "../../logger";
@@ -67,6 +68,7 @@ export function createQuickCardPorts(deps: {
   boundId: string | null;
   voiceInputStatus: VoiceInputStatus;
   openSettings: () => void;
+  openThreads: SettingsBridge["emitThreadsOpenRequest"];
 }): CardPorts {
   const { stores, pushSocket, voiceInputStatus, boundId } = deps;
   const { getDefaultChatApi } = quickControlsConfigDefaults(deps.config);
@@ -120,5 +122,6 @@ export function createQuickCardPorts(deps: {
       }),
     turnOff: boundId === null ? null : () => deps.petWindows.close(boundId),
     openAllSettings: () => deps.openSettings(),
+    openThreads: deps.openThreads,
   };
 }

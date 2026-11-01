@@ -1,0 +1,15 @@
+/* The screens: the selected terminal's xterm on the Panel ground, filling the pane's height left. Tokens in ../tokens.css. */
+
+/* The pane's last row, even while the access line above it is hidden. */
+.yui-terminal-screens {
+  grid-row: 3;
+  display: grid;
+  min-height: 0;
+  padding: 12px 28px 16px;
+  background: var(--yui-panel-bg);
+}
+
+.yui-terminal-screen {
+  min-width: 0;
+  min-height: 0;
+}

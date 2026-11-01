@@ -7,17 +7,13 @@
 import "./thread-rail.css";
 import type { Thread } from "../../../contract";
 import { t } from "../../i18n";
+import { glyph, THREADS_GLYPH } from "../glyphs";
 import { threadSource } from "../thread-source";
 import { renderKinds, type ThreadFilter, type ThreadListView } from "./thread-list";
 import { stateText } from "./thread-meta";
 
-const glyph = (paths: string): string =>
-  `<svg class="yui-threads-glyph" viewBox="0 0 24 24" aria-hidden="true">${paths}</svg>`;
 const WAITING_SVG = glyph(
   '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
-);
-const ALL_SVG = glyph(
-  '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
 );
 const FUNNEL_SVG = glyph('<path d="M4 5h16l-6 7.5V18l-4 2v-7.5z"/>');
 
@@ -59,7 +55,7 @@ export function createThreadRail(deps: {
         ${WAITING_SVG}<span class="yui-threads-rail__count is-waiting"></span>
       </button>
       <button type="button" class="yui-threads-rail__tab" data-rail-tab="all">
-        ${ALL_SVG}<span class="yui-threads-rail__count"></span>
+        ${THREADS_GLYPH}<span class="yui-threads-rail__count"></span>
       </button>
       <span class="yui-threads-rail__kind">
         <span class="yui-threads-rail__kind-mark" aria-hidden="true"></span>

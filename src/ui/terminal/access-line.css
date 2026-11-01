@@ -1,0 +1,134 @@
+/* The access line: who holds access, the last command, Take back. It leaves by folding its grid row
+   to 0fr while it fades, so no height or padding animates. Tokens in ../tokens.css. */
+
+.yui-terminal-access {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition:
+    grid-template-rows var(--yui-dur) var(--yui-ease),
+    opacity var(--yui-dur) var(--yui-ease);
+  animation: yui-terminal-access-in var(--yui-dur) var(--yui-ease);
+}
+
+.yui-terminal-access[hidden] {
+  display: none;
+}
+
+.yui-terminal-access.is-leaving {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
+.yui-terminal-access__clip {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.yui-terminal-access__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 28px;
+  border-bottom: 1px solid var(--yui-edge);
+  background: var(--yui-panel-bg);
+  font-size: var(--yui-fs-sub);
+}
+
+@keyframes yui-terminal-access-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.yui-terminal-access .yui-terminal-who {
+  flex: none;
+}
+
+.yui-terminal-access__cmd {
+  display: inline-flex;
+  flex: 1 1 10rem;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--yui-text-mute);
+}
+
+.yui-terminal-access__label {
+  flex: none;
+  white-space: nowrap;
+}
+
+.yui-terminal-access__cmd code {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--yui-selected);
+  color: var(--yui-text-dim);
+  font-family: var(--yui-font-mono);
+  font-size: 0.95em;
+}
+
+.yui-terminal-access__cmd code.is-new {
+  animation: yui-terminal-cmd-lit 1000ms var(--yui-ease);
+}
+
+@keyframes yui-terminal-cmd-lit {
+  from {
+    color: var(--yui-text);
+    background: var(--yui-accent-faint);
+  }
+}
+
+.yui-terminal-access__note {
+  color: var(--yui-text-dim);
+}
+
+.yui-terminal-access button {
+  position: relative;
+  flex: none;
+  margin-left: auto;
+  min-height: 32px;
+  padding: 4px 12px;
+  background: var(--yui-field);
+  color: var(--yui-text);
+  font-weight: 600;
+}
+
+/* The 32px button keeps a 44px hit area, inside the row's 8px padding. */
+.yui-terminal-access button::before {
+  content: "";
+  position: absolute;
+  inset: -6px 0;
+}
+
+/* Narrow: one line; the label goes and the command takes the width left (its title keeps the label). */
+@container threads (max-width: 519.98px) {
+  .yui-terminal-access__row {
+    flex-wrap: nowrap;
+  }
+
+  .yui-terminal-access__label {
+    display: none;
+  }
+
+  .yui-terminal-access__cmd {
+    flex: 1 1 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-terminal-access,
+  .yui-terminal-access__cmd code.is-new {
+    animation: none;
+  }
+
+  .yui-terminal-access {
+    transition: none;
+  }
+}

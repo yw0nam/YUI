@@ -1,0 +1,87 @@
+/* The Allow card: the answer area's look across the tab's full width at its foot. Tokens in ../tokens.css. */
+
+.yui-threads-answer.yui-terminal-request {
+  padding-inline: 28px;
+}
+
+.yui-terminal-request[hidden] {
+  display: none;
+}
+
+.yui-terminal-request.is-entering {
+  animation: yui-terminal-request-in var(--yui-dur) var(--yui-ease);
+}
+
+@keyframes yui-terminal-request-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.yui-terminal-request__ask {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.yui-terminal-request pre {
+  margin: 0;
+  max-height: calc(4 * 1.5em + 16px);
+  padding: 8px 12px;
+  overflow: auto;
+  border-radius: var(--yui-radius-control);
+  background: var(--yui-selected);
+  font-family: var(--yui-font-mono);
+  font-size: var(--yui-fs-sub);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.yui-terminal-request__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.yui-terminal-request__spacer {
+  flex: 1;
+}
+
+.yui-terminal-request__more {
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-sub);
+}
+
+.yui-terminal-request__note {
+  margin: 0;
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-sub);
+}
+
+@container threads (max-width: 519.98px) {
+  .yui-threads-answer.yui-terminal-request {
+    padding-inline: 16px;
+  }
+
+  .yui-terminal-request__spacer {
+    display: none;
+  }
+
+  .yui-terminal-request__actions button {
+    flex: 1;
+  }
+
+  .yui-terminal-request__actions .yui-terminal-request__show,
+  .yui-terminal-request__more {
+    flex-basis: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-terminal-request.is-entering {
+    animation: none;
+  }
+}

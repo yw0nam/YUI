@@ -1,0 +1,31 @@
+/* The Terminal tab's list pane: New terminal over the Threads list's rows. Tokens in ../tokens.css. */
+
+.yui-terminal-list__top {
+  padding: 12px;
+  border-bottom: 1px solid var(--yui-edge);
+}
+
+.yui-terminal-list__top + .yui-threads-list__rows {
+  border-top: 0;
+}
+
+.yui-terminal-list__new {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 12px;
+  color: var(--yui-text-dim);
+}
+
+.yui-terminal-list__new:hover {
+  color: var(--yui-text);
+}
+
+@container threads (max-width: 439.98px) {
+  .yui-terminal-list__top {
+    padding-inline: 8px;
+  }
+}

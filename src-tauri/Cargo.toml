@@ -47,6 +47,8 @@ reqwest = "0.13"
 sha2 = "0.10"
 # Unpacks plugin release zips, which are deflated.
 zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+portable-pty = "0.9.0"
+vt100 = "0.18.1"
 
 # Kills an MCP server's whole process group; the major version process-wrap uses.
 [target.'cfg(unix)'.dependencies]

@@ -101,6 +101,24 @@
   background: var(--yui-hover);
 }
 
+/* The window's outlined button; each use sets its own size and ink. */
+.yui-threads-button {
+  box-sizing: border-box;
+  border: 1px solid var(--yui-edge-strong);
+  border-radius: var(--yui-radius-control);
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.yui-threads-button:hover {
+  background: var(--yui-hover);
+}
+
+.yui-threads-button:active {
+  background: var(--yui-selected);
+}
+
 .yui-threads :focus-visible {
   outline: 2px solid var(--yui-accent-ink);
   outline-offset: 2px;
@@ -128,6 +146,10 @@
   grid-template-columns: 264px minmax(0, 1fr);
   min-height: 0;
   border-top: 1px solid var(--yui-edge);
+}
+
+.yui-threads__panes[hidden] {
+  display: none;
 }
 
 .yui-threads__panes > .yui-threads-list,

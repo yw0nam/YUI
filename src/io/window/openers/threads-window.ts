@@ -1,9 +1,9 @@
-/** Main's Threads window: created hidden once, sent the chip's screen rect on each open, and its closed report passed on. */
+/** Main's Threads window: created hidden once, sent the chip's screen rect and the tab on each open, and its closed report passed on. */
 
 import type { ScreenRect } from "../../../contract";
 import { createLogger } from "../../../logger";
 import { isTauri } from "../../../tauri-env";
-import type { SettingsBridge } from "../../bridge/settings-bridge";
+import type { SettingsBridge, ThreadsTab } from "../../bridge/settings-bridge";
 import { createReadyWindowController } from "./ready-window";
 
 const log = createLogger("threads-window");
@@ -42,15 +42,21 @@ async function toScreen(rect: ScreenRect): Promise<ScreenRect> {
   return { ...rect, x: inner.x / scale + rect.x, y: inner.y / scale + rect.y };
 }
 
+export interface ThreadsWindowController {
+  /** Opens the window on `tab`, grown out of `chip` (a rect in this window's viewport) when given; false where no window opens. */
+  open(chip?: ScreenRect, tab?: ThreadsTab): boolean;
+  /** Calls `cb` with true on each open, and with false once the window is hidden again or never opened. */
+  onShown(cb: (shown: boolean) => void): () => void;
+  dispose(): void;
+}
+
 export function createThreadsWindowController(deps: {
   bridge: Pick<SettingsBridge, "emitThreadsOpen" | "onThreadsReady" | "onThreadsClosed">;
-  /** The window is hidden again, or never opened. */
-  onClosed(): void;
-}): {
-  /** Opens the window grown out of `chip`, a rect in this window's viewport; false where no window opens. */
-  open(chip: ScreenRect): boolean;
-  dispose(): void;
-} {
+}): ThreadsWindowController {
+  const listeners = new Set<(shown: boolean) => void>();
+  const notify = (shown: boolean): void => {
+    for (const cb of listeners) cb(shown);
+  };
   const ready = createReadyWindowController({
     label: THREADS_WINDOW_LABEL,
     create: createTauriThreadsWindow,
@@ -62,27 +68,33 @@ export function createThreadsWindowController(deps: {
   let open = false;
   function closed(): void {
     open = false;
-    deps.onClosed();
+    notify(false);
   }
   const offClosed = deps.bridge.onThreadsClosed(closed);
   return {
-    open(chip) {
+    open(chip, tab) {
       if (!isTauri()) return false;
-      toScreen(chip).then(
+      notify(true);
+      (chip ? toScreen(chip) : Promise.resolve(undefined)).then(
         (screen) => {
           open = true;
-          ready.open({ chip: screen });
+          ready.open({ ...(screen ? { chip: screen } : {}), ...(tab ? { tab } : {}) });
         },
         (error) => {
           log.error("threads_window_open_failed", { error: String(error) });
-          if (!open) deps.onClosed();
+          if (!open) notify(false);
         },
       );
       return true;
     },
+    onShown(cb) {
+      listeners.add(cb);
+      return () => listeners.delete(cb);
+    },
     dispose() {
       ready.dispose();
       offClosed();
+      listeners.clear();
     },
   };
 }

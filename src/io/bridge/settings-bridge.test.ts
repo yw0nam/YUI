@@ -270,6 +270,52 @@ describe("createSettingsBridge", () => {
     expect(cb).not.toHaveBeenCalled();
   });
 
+  it("delivers a Threads open request with a chip rect, a tab, or both", () => {
+    const t = createFakeTransport();
+    const a = createSettingsBridge(t, { windowKind: "pet" });
+    const b = createSettingsBridge(t, { windowKind: "threads" });
+    const cb = vi.fn();
+    b.onThreadsOpen(cb);
+    const chip = { x: 10, y: 20, width: 100, height: 30 };
+
+    a.emitThreadsOpen({ chip });
+    a.emitThreadsOpen({ tab: "terminal" });
+    a.emitThreadsOpen({ chip, tab: "threads" });
+
+    expect(cb.mock.calls).toEqual([[{ chip }], [{ tab: "terminal" }], [{ chip, tab: "threads" }]]);
+  });
+
+  it.each([
+    [{ chip: { x: Number.NaN, y: 0, width: 1, height: 1 } }],
+    [{ chip: { x: 0, y: 0, width: "1", height: 1 } }],
+    [{ chip: null, tab: "terminal" }],
+    [{ tab: "shell" }],
+  ])("ignores a Threads open request %j with a field outside the contract", (payload) => {
+    const t = createFakeTransport();
+    const a = createSettingsBridge(t, { windowKind: "pet" });
+    const b = createSettingsBridge(t, { windowKind: "threads" });
+    const cb = vi.fn();
+    b.onThreadsOpen(cb);
+
+    a.emitThreadsOpen(payload as never);
+
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("delivers a quick card's request to open the Threads window on a tab, and ignores another tab", () => {
+    const t = createFakeTransport();
+    const a = createSettingsBridge(t, { windowKind: "quick-card" });
+    const b = createSettingsBridge(t, { windowKind: "pet" });
+    const cb = vi.fn();
+    b.onThreadsOpenRequest(cb);
+
+    a.emitThreadsOpenRequest("terminal");
+    a.emitThreadsOpenRequest("threads");
+    a.emitThreadsOpenRequest("shell" as never);
+
+    expect(cb.mock.calls).toEqual([["terminal"], ["threads"]]);
+  });
+
   it("delivers the active preset id from A to B", () => {
     const t = createFakeTransport();
     const a = createSettingsBridge(t, { windowKind: "settings" });
@@ -344,6 +390,7 @@ describe("createSettingsBridge", () => {
     ["onOpenDevtools", undefined, false],
     ["onQuickCardOpen", { left: 1, right: 200, y: 30 }, true],
     ["onQuickCardReady", undefined, true],
+    ["onThreadsOpenRequest", { tab: "terminal" }, false],
   ] as const)("%s uses its declared preset scope", (method, payload, scoped) => {
     history.replaceState(null, "", "/?preset=a");
     const t = createFakeTransport();

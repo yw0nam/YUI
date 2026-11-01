@@ -126,8 +126,8 @@ export function createThreadsPlacement(deps: {
   }
 
   return {
-    /** Places, shows and focuses the window for a chip at `chip`; resolves where the grow starts, in window-local px. */
-    async open(chip: ScreenRect): Promise<ScreenRect> {
+    /** Places, shows and focuses the window; resolves where the grow from `chip` starts (window-local px), or null without one. */
+    async open(chip?: ScreenRect): Promise<ScreenRect | null> {
       const { x, y, width, height } = deps.settings.get();
       const next =
         x !== undefined && y !== undefined
@@ -138,7 +138,7 @@ export function createThreadsPlacement(deps: {
       const win = getCurrentWindow();
       await win.show();
       await win.setFocus();
-      return chipInWindow(chip, next);
+      return chip ? chipInWindow(chip, next) : null;
     },
     /** Brings the shown window to the front where it is. */
     async focus(): Promise<void> {

@@ -1,4 +1,4 @@
-/** Wires the Threads window: the store's snapshots into the view, the view's Answers to the store, its frame, open and close, theme and language. */
+/** Wires the Threads window: the store's snapshots into the view, the view's Answers to the store, the Terminal tab, its frame, open and close, theme and language. */
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createSettingsBridge } from "../../io/bridge/settings-bridge";
@@ -20,6 +20,7 @@ import type { Disposers } from "../disposers";
 import { createThreadsPlacement } from "./threads-placement";
 import { createThreadsPresence } from "./threads-presence";
 import { createThreadsResize } from "./threads-resize";
+import { wireTerminalTab } from "./wire-terminal-tab";
 
 const log = createLogger("wire-threads-window");
 
@@ -47,6 +48,7 @@ export async function wireThreadsWindow(deps: {
     listCollapsed: settings.get().listCollapsed,
     onListCollapsed: settings.setListCollapsed,
     resize,
+    terminal: wireTerminalTab({ register, settings }),
   });
   const presence = createThreadsPresence({
     view,
@@ -71,7 +73,7 @@ export async function wireThreadsWindow(deps: {
   );
   register(client.subscribe(view.update));
   register(view.onHeadPointerDown(placement.startDrag));
-  register(bridge.onThreadsOpen(({ chip }) => presence.open(chip)));
+  register(bridge.onThreadsOpen(({ chip, tab }) => presence.open(chip, tab)));
   register(
     bridge.onSettingsChanged(() => {
       reloadLocale();

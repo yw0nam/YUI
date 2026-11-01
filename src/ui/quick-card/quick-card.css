@@ -137,6 +137,38 @@
   cursor: default;
 }
 
+/* ── ways into the Threads window: buttons, not switches, so no state and no amber ── */
+.yui-qcard__opens {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.yui-qcard__open {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--yui-edge);
+  border-radius: var(--yui-radius-group);
+  background: transparent;
+  color: var(--yui-text);
+  font: inherit;
+  font-size: var(--yui-fs-body);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.yui-qcard__open svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--yui-text-dim);
+}
+
 /* ── rows ── */
 .yui-qcard__rows {
   display: flex;
@@ -245,6 +277,7 @@
 /* ── hover and focus ── */
 .yui-qcard__close:hover,
 .yui-qcard__tile[aria-checked="false"]:enabled:hover,
+.yui-qcard__open:hover,
 .yui-qcard__select:hover,
 .yui-qcard__turnoff:hover,
 .yui-qcard__pill:hover,

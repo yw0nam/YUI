@@ -48,6 +48,7 @@ const CH_QUICK_CARD_READY = "yui://quick-card-ready";
 const CH_THREADS_OPEN = "yui://threads-open";
 const CH_THREADS_READY = "yui://threads-ready";
 const CH_THREADS_CLOSED = "yui://threads-closed";
+const CH_THREADS_OPEN_REQUEST = "yui://threads-open-request";
 
 interface VoiceStateSnapshot {
   state: VoiceInputState;
@@ -121,9 +122,13 @@ export interface QuickCardOpen {
   listening?: boolean;
 }
 
-/** Main asking the Threads window to open, grown out of the chip at `chip`, in screen logical px. */
+/** The Threads window's top-level tabs. */
+export type ThreadsTab = "threads" | "terminal";
+
+/** Main asking the Threads window to open on `tab`, grown out of the chip at `chip` (screen logical px) when there is one. */
 export interface ThreadsOpen {
-  chip: ScreenRect;
+  chip?: ScreenRect;
+  tab?: ThreadsTab;
 }
 
 /** The unified chat window's click on an error's fix, back to the preset whose window showed it. */
@@ -136,6 +141,7 @@ const isString = (v: unknown): v is string => typeof v === "string";
 const isOptional = (v: unknown, test: (v: unknown) => boolean): boolean =>
   v === undefined || test(v);
 const isBool = (v: unknown): v is boolean => typeof v === "boolean";
+const isThreadsTab = (v: unknown): v is ThreadsTab => v === "threads" || v === "terminal";
 
 function isQuote(v: unknown): boolean {
   if (v === null || typeof v !== "object") return false;
@@ -232,6 +238,9 @@ export interface SettingsBridge {
   /** The Threads window is hidden again, after its close or a failed open; the chip leaves its open state. */
   emitThreadsClosed(): void;
   onThreadsClosed(cb: () => void): () => void;
+  /** A quick card asking main to open the Threads window on `tab`; any preset's card reaches main. */
+  emitThreadsOpenRequest(tab: ThreadsTab): void;
+  onThreadsOpenRequest(cb: (tab: ThreadsTab) => void): () => void;
   emitSettingsChanged(): void;
   onSettingsChanged(cb: (from: WindowKind) => void): () => void;
   emitMouthPreview(mouthOpen: number | null): void;
@@ -316,6 +325,7 @@ export function createSettingsBridge(
     CH_THREADS_OPEN,
     CH_THREADS_READY,
     CH_THREADS_CLOSED,
+    CH_THREADS_OPEN_REQUEST,
   ]);
   const on: typeof core.on = (name, cb) => core.on(name, cb, { scoped: !shared.has(name) });
 
@@ -367,10 +377,15 @@ export function createSettingsBridge(
     },
     onThreadsOpen(cb) {
       return on<unknown>(CH_THREADS_OPEN, (request) => {
-        const chip = (request as Partial<ThreadsOpen> | null)?.chip;
+        const { chip, tab } = (request ?? {}) as { chip?: unknown; tab?: unknown };
+        const { x, y, width, height } = (chip ?? {}) as Record<string, unknown>;
         const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
-        if (!chip || ![chip.x, chip.y, chip.width, chip.height].every(finite)) return;
-        cb({ chip: { x: chip.x, y: chip.y, width: chip.width, height: chip.height } });
+        if (chip !== undefined && ![x, y, width, height].every(finite)) return;
+        if (tab !== undefined && !isThreadsTab(tab)) return;
+        cb({
+          ...(chip === undefined ? {} : { chip: { x, y, width, height } as ScreenRect }),
+          ...(tab === undefined ? {} : { tab }),
+        });
       });
     },
     emitThreadsReady() {
@@ -384,6 +399,15 @@ export function createSettingsBridge(
     },
     onThreadsClosed(cb) {
       return on<unknown>(CH_THREADS_CLOSED, () => cb());
+    },
+    emitThreadsOpenRequest(tab) {
+      safeEmit(CH_THREADS_OPEN_REQUEST, { tab });
+    },
+    onThreadsOpenRequest(cb) {
+      return on<unknown>(CH_THREADS_OPEN_REQUEST, (request) => {
+        const tab = (request as { tab?: unknown } | null)?.tab;
+        if (isThreadsTab(tab)) cb(tab);
+      });
     },
     emitSettingsChanged() {
       safeEmit(CH_SETTINGS_CHANGED);

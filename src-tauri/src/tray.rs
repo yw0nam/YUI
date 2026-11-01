@@ -8,6 +8,7 @@ use tauri::{
 enum TrayAction {
     ToggleVisibility,
     OpenSettings,
+    OpenTerminal,
     Quit,
 }
 
@@ -21,6 +22,7 @@ fn action_for(menu_id: &str) -> Option<TrayAction> {
     match menu_id {
         "toggle-visibility" => Some(TrayAction::ToggleVisibility),
         "settings" => Some(TrayAction::OpenSettings),
+        "terminal" => Some(TrayAction::OpenTerminal),
         "quit" => Some(TrayAction::Quit),
         _ => None,
     }
@@ -111,8 +113,9 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
         None::<&str>,
     )?;
     let settings = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
+    let terminal = MenuItem::with_id(app, "terminal", "Terminal", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit YUI", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&toggle, &settings, &quit])?;
+    let menu = Menu::with_items(app, &[&toggle, &settings, &terminal, &quit])?;
 
     let mut builder = TrayIconBuilder::new()
         .menu(&menu)
@@ -120,6 +123,11 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
         .on_menu_event(|app, event| match action_for(event.id().as_ref()) {
             Some(TrayAction::ToggleVisibility) => toggle_visibility(app),
             Some(TrayAction::OpenSettings) => open_settings(app),
+            Some(TrayAction::OpenTerminal) => {
+                if let Err(error) = app.emit("terminal-open", ()) {
+                    log::warn!("tray_terminal_open_emit_failed error={error}");
+                }
+            }
             Some(TrayAction::Quit) => app.exit(0),
             None => {}
         });
@@ -185,6 +193,11 @@ mod tests {
     #[test]
     fn action_for_maps_settings() {
         assert_eq!(action_for("settings"), Some(TrayAction::OpenSettings));
+    }
+
+    #[test]
+    fn action_for_maps_terminal() {
+        assert_eq!(action_for("terminal"), Some(TrayAction::OpenTerminal));
     }
 
     #[test]

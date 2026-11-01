@@ -1,0 +1,55 @@
+/* The top-level tabs take the title's place at its size, so the head keeps its height. */
+.yui-threads__tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: -8px;
+}
+
+.yui-threads__tab {
+  position: relative;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--yui-radius-control);
+  background: none;
+  color: var(--yui-text-mute);
+  font: inherit;
+  font-size: var(--yui-fs-title);
+  font-weight: 600;
+  line-height: 1.8;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color var(--yui-dur-fast) var(--yui-ease),
+    background var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-threads__tab:hover {
+  color: var(--yui-text-dim);
+  background: var(--yui-hover);
+}
+
+.yui-threads__tab[aria-selected="true"] {
+  color: var(--yui-text);
+}
+
+.yui-threads__tab[aria-selected="true"]:hover {
+  background: none;
+}
+
+/* The rail's waiting dot, on the tab the user is not looking at. */
+.yui-threads__tab-dot {
+  position: absolute;
+  top: 6px;
+  right: 1px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--yui-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-threads__tab {
+    transition: none;
+  }
+}

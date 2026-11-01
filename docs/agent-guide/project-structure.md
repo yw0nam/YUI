@@ -96,8 +96,9 @@ YUI/
         wire-preset.ts               # Sends a preset switch over the settings bridge and reloads each unbound window into it, after the pet window stops its turn; a bound window only rereads the list
       signal-chips/                  # The signal chips beside the avatar
         wire-signal-chips.ts         # The signal chips on every transport, sharing the delegation chip's fold store
-      threads-chip/                  # Main's Threads chip
+      threads-chip/                  # Main's ways into the Threads window: the chip, the tray's Terminal item and the quick card's requests
         wire-threads-chip.ts         # The chip from the store's snapshots, on the shared fold store, opening the Threads window
+        wire-threads-open-requests.ts # The tray's Terminal item and a quick card's request, opening the Threads window on their tab
       pet-windows/                   # Windows bound to one preset: the shared open list, their lifecycle, and the windows each one opens
         pet-window-role.ts           # The entry main composes: the registry and open list a window owns, the orphan check, and main's reconcile or a bound window's self-close
         companion-window.ts          # A companion window's boot: the orphan and owner checks, its own live key, and its teardown on a close request; the pet window's wait for its companions
@@ -643,6 +644,7 @@ YUI/
       quick-card/                    # The right-click card, in its own window beside the character
         quick-card.ts                # The card: its head (the drag handle) and All settings…, how it opens and closes, and its rebuild in a new language
         tiles.ts                     # The toggle tiles: each writes its store and follows it
+        threads-buttons.ts           # Threads and Terminal: each requests main to open the Threads window on its tab
         rows.ts                      # The Body and Reference voice selects, the reset that asks first, and Turn off
         transport-line.ts            # The head line: the transport's name, and on push the socket's state
         quick-card.css               # Card, tile, row, and confirm styles

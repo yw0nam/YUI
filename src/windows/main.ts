@@ -36,6 +36,7 @@ import { wirePresetSwitch } from "../app/settings/wire-preset";
 import { createStageRenderer } from "../app/stage/stage-renderer";
 import { wireInputAnchor } from "../app/stage/wire-pet-stage";
 import { wireThreadsChip } from "../app/threads-chip/wire-threads-chip";
+import { wireThreadsOpenRequests } from "../app/threads-chip/wire-threads-open-requests";
 import {
   createDelegationChipMount,
   messageWindowSuppression,
@@ -47,11 +48,14 @@ import { createVoiceFix } from "../app/voice/voice-fix";
 import { CHAT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../config/secrets";
 import { type BusEnvelope, createEventBus } from "../dispatcher/core/event-bus";
 import { createUserInputSource } from "../dispatcher/sources/user-input-source";
+import { createTerminalClient } from "../io/terminal/terminal-client";
+import { onTerminalOpen } from "../io/terminal/terminal-open-event";
 import { createThreadsClient } from "../io/threads/threads-client";
 import { resolveScreenCapturer } from "../io/window/capture/tauri-screen";
 import { createDevtoolsWindowOpener } from "../io/window/openers/devtools-window";
 import { createQuickCardWindowController } from "../io/window/openers/quick-card-window";
 import { createSettingsWindowOpener } from "../io/window/openers/settings-window";
+import { createThreadsWindowController } from "../io/window/openers/threads-window";
 import { excludeOwnOriginFromCorsFetch } from "../io/window/own-origin-fetch";
 import { createLogger, initLogger } from "../logger";
 import { presetIdForWindow } from "../settings/preset/active-preset";
@@ -265,6 +269,19 @@ async function bootstrap(): Promise<BootstrapHandle> {
   // Threads belong to the main character: one client feeds the chip, the two tools and the waiting line.
   const threads = bound ? null : createThreadsClient();
   if (threads) register(() => threads.dispose());
+  // Access requests wait on the main chip beside the Threads.
+  const terminal = bound ? null : createTerminalClient();
+  if (terminal) register(() => terminal.dispose());
+  // The chip, the tray's Terminal item and every quick card open one Threads window.
+  const threadsWindow = bound ? null : createThreadsWindowController({ bridge: windowBridge });
+  if (threadsWindow) register(() => threadsWindow.dispose());
+  register(
+    wireThreadsOpenRequests({
+      onTerminalOpen,
+      onThreadsOpenRequest: windowBridge.onThreadsOpenRequest,
+      threadsWindow,
+    }),
+  );
 
   // Config-driven load: configs/*.json → validated AppConfig. endpoints/motions etc
   // consumed during dispatcher·tts wiring. VRM displayed via avatar.vrm_url.
@@ -322,9 +339,10 @@ async function bootstrap(): Promise<BootstrapHandle> {
     register(
       wireThreadsChip({
         client: threads,
+        terminal,
+        threadsWindow,
         mount: surfaces.chipColumn,
         collapsed: configured.chipFold,
-        bridge: windowBridge,
       }),
     );
     register(

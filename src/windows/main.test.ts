@@ -8,6 +8,7 @@ const h = vi.hoisted(() => {
     name: "pet window settings bridge",
     onPetWindowsChanged: () => () => {},
     onOpenDevtools: () => () => {},
+    onThreadsOpenRequest: () => () => {},
   };
   const stopTurn = (): void => {};
   const setTheme = vi.fn(async () => {});
@@ -44,6 +45,13 @@ vi.mock("../io/window/openers/settings-window", () => ({ createSettingsWindowOpe
 vi.mock("../io/window/openers/devtools-window", () => ({ createDevtoolsWindowOpener: vi.fn() }));
 vi.mock("../io/window/openers/quick-card-window", () => ({
   createQuickCardWindowController: vi.fn(() => ({ open: vi.fn(), dispose: vi.fn() })),
+}));
+vi.mock("../io/window/openers/threads-window", () => ({
+  createThreadsWindowController: vi.fn(() => ({
+    open: vi.fn(),
+    onShown: vi.fn(() => () => {}),
+    dispose: vi.fn(),
+  })),
 }));
 vi.mock("../app/cross-window/wire-cross-window", () => ({
   wireCrossWindowSync: vi.fn(() => ({
