@@ -130,5 +130,5 @@ setup step 3 is `<endpoint>`.
 ## The label on a remote Thread
 
 The remote host sets `SSH_CONNECTION`, so the plugin puts that host's name first in the
-label: `devbox · tmux yui:2 · YUI (main)`. The user can tell a remote agent's Thread from a
+label: `devbox, tmux yui:2`. The user can tell a remote agent's Thread from a
 local one by that first part.
