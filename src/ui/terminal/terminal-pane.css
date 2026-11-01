@@ -17,21 +17,14 @@
 }
 
 .yui-terminal-pane__close {
-  box-sizing: border-box;
   flex: none;
   min-height: 32px;
   padding: 4px 12px;
-  border: 1px solid var(--yui-edge-strong);
-  border-radius: var(--yui-radius-control);
-  background: none;
   color: var(--yui-text-dim);
-  font: inherit;
   font-size: var(--yui-fs-sub);
-  cursor: pointer;
 }
 
 .yui-terminal-pane__close:hover {
-  background: var(--yui-hover);
   color: var(--yui-text);
 }
 

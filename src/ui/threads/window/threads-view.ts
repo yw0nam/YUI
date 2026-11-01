@@ -40,7 +40,7 @@ export interface ThreadsView {
 function backButton(): HTMLButtonElement {
   const el = document.createElement("button");
   el.type = "button";
-  el.className = "yui-threads-pane__back";
+  el.className = "yui-threads-pane__back yui-threads-button";
   return el;
 }
 

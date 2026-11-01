@@ -5,6 +5,22 @@
   place-items: center;
 }
 
+/* A preset's face and name leading the access line and the Allow card. */
+.yui-terminal-who {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--yui-text-dim);
+  font-size: var(--yui-fs-sub);
+  white-space: nowrap;
+}
+
+.yui-terminal-who strong {
+  color: var(--yui-text);
+  font-weight: 600;
+}
+
 .yui-threads-state.is-exited {
   color: var(--yui-text-mute);
 }

@@ -4,6 +4,7 @@
  * stays two seconds, then folds its grid row away while it fades.
  */
 
+import { prefersReducedMotion } from "../../ambient/liveliness/tier1";
 import "./access-line.css";
 import type { Terminal } from "../../contract";
 import { createLogger } from "../../logger";
@@ -18,10 +19,6 @@ const NOTE_MS = 2_000;
 /** Pairs with the fold's transition in access-line.css. */
 const FOLD_MS = 200;
 
-function still(): boolean {
-  return globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-}
-
 function holderRow(
   terminal: Terminal,
   holder: string,
@@ -29,7 +26,7 @@ function holderRow(
   onTakeBack: () => void,
 ) {
   const who = document.createElement("span");
-  who.className = "yui-terminal-access__who";
+  who.className = "yui-terminal-who";
   const name = document.createElement("strong");
   name.textContent = preset(holder).name;
   who.append(avatarEl(preset(holder), 20), t("terminal.access"), " ", name);
@@ -46,6 +43,7 @@ function holderRow(
 
   const takeBack = document.createElement("button");
   takeBack.type = "button";
+  takeBack.className = "yui-threads-button";
   takeBack.textContent = t("terminal.take_back");
   takeBack.addEventListener("click", onTakeBack);
   return [who, cmd, takeBack];
@@ -88,7 +86,7 @@ export function createAccessLine(deps: {
     text.textContent = t("terminal.taken_back");
     row.replaceChildren(text);
     timer = setTimeout(() => {
-      if (still()) return clear();
+      if (prefersReducedMotion()) return clear();
       el.classList.add("is-leaving");
       timer = setTimeout(clear, FOLD_MS);
     }, NOTE_MS);

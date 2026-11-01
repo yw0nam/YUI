@@ -145,11 +145,11 @@ it("counts the terminals in the head, hidden at none, and marks a waiting reques
 
 it("shows the oldest request, Show terminal only for another terminal, and answers it", () => {
   const { view, client, $, button } = build();
-  // t2 opened last, so it is selected; the older request targets t1.
+  // t2 opened last, so it is selected; the store lists the older request, on t1, first.
   view.update(
     snap(
       [terminal("t1", 1), terminal("t2", 2)],
-      [request("r2", "t2", 70_000, "write"), request("r1", "t1", 60_000)],
+      [request("r1", "t1", 60_000), request("r2", "t2", 70_000, "write")],
     ),
   );
 

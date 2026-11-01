@@ -40,7 +40,7 @@ export function createTerminalView(deps: {
   let selected: string | null = null;
   let opening: string | null = null;
 
-  const list = createTerminalList({ preset, onSelect: select, onNew: openNew });
+  const list = createTerminalList({ preset, now: deps.now, onSelect: select, onNew: openNew });
   const rail = createTerminalRail({ preset, onSelect: select, onNew: openNew });
   const access = createAccessLine({ preset, takeBack: client.takeBack });
   const screens = createTerminalScreens(client);
@@ -60,7 +60,7 @@ export function createTerminalView(deps: {
 
   function render(): void {
     const shown = terminals.find((term) => term.id === selected);
-    list.render(terminals, requests, selected, deps.now());
+    list.render(terminals, requests, selected);
     rail.render(terminals, requests, selected);
     pane.show(shown);
     access.show(shown);

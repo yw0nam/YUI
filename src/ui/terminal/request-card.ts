@@ -4,6 +4,7 @@
  * terminal, how many more wait, and Deny / Allow.
  */
 
+import { prefersReducedMotion } from "../../ambient/liveliness/tier1";
 import "./request-card.css";
 import type { AccessRequest, Terminal } from "../../contract";
 import { createLogger } from "../../logger";
@@ -17,13 +18,6 @@ const log = createLogger("request-card");
 const TICK_MS = 1_000;
 /** Pairs with the card's leave in request-card.css. */
 const LEAVE_MS = 140;
-
-function still(): boolean {
-  return globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-}
-
-const oldest = (requests: AccessRequest[]): AccessRequest | undefined =>
-  [...requests].sort((a, b) => a.deadline - b.deadline)[0];
 
 export function createRequestCard(deps: {
   now(): number;
@@ -53,7 +47,7 @@ export function createRequestCard(deps: {
   function leave(): void {
     clearInterval(tick);
     tick = undefined;
-    if (still() || typeof el.animate !== "function") {
+    if (prefersReducedMotion() || typeof el.animate !== "function") {
       el.hidden = true;
       return;
     }
@@ -72,8 +66,8 @@ export function createRequestCard(deps: {
     more: number,
   ) {
     const who = document.createElement("span");
-    who.className = "yui-terminal-request__who";
-    const name = document.createElement("b");
+    who.className = "yui-terminal-who";
+    const name = document.createElement("strong");
     name.textContent = deps.preset(request.presetId).name;
     who.append(avatarEl(deps.preset(request.presetId), 20), name, terminal?.title ?? "");
     const ask = document.createElement("h3");
@@ -145,7 +139,8 @@ export function createRequestCard(deps: {
   return {
     el,
     render(requests, terminals, selected) {
-      const request = oldest(requests);
+      // The store lists requests in the order they came, so the first is the oldest.
+      const request = requests[0];
       if (!request) {
         if (shownKey !== null) leave();
         shownKey = null;

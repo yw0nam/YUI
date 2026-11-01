@@ -4,6 +4,7 @@
  * chip to grow from, it shows and hides at once.
  */
 
+import { prefersReducedMotion } from "../../../ambient/liveliness/tier1";
 import type { ScreenRect } from "../../../contract";
 
 const GROW_MS = 280;
@@ -18,10 +19,6 @@ export interface GrowParts {
   root: HTMLElement;
   panel: HTMLElement;
   content: HTMLElement;
-}
-
-function still(): boolean {
-  return globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 }
 
 function run(el: HTMLElement, frames: Keyframe[], ms: number): Promise<void> {
@@ -56,7 +53,7 @@ function settle({ panel, content }: GrowParts): void {
 
 export async function growOpen(parts: GrowParts, from: ScreenRect | null): Promise<void> {
   const { root, panel, content } = parts;
-  const animate = from !== null && !still() && typeof panel.animate === "function";
+  const animate = from !== null && !prefersReducedMotion() && typeof panel.animate === "function";
   if (animate) {
     panel.style.clipPath = clip(panel, from);
     content.style.opacity = "0";
@@ -70,7 +67,7 @@ export async function growOpen(parts: GrowParts, from: ScreenRect | null): Promi
 
 export async function shrinkClose(parts: GrowParts, to: ScreenRect | null): Promise<void> {
   const { root, panel, content } = parts;
-  if (to !== null && !still() && typeof panel.animate === "function") {
+  if (to !== null && !prefersReducedMotion() && typeof panel.animate === "function") {
     await run(content, [{ opacity: 1 }, { opacity: 0 }], FADE_OUT_MS);
     await run(panel, [{ clipPath: clip(panel, null) }, { clipPath: clip(panel, to) }], SHRINK_MS);
   }

@@ -17,16 +17,10 @@
   width: 100%;
   min-height: 36px;
   padding: 8px 12px;
-  border: 1px solid var(--yui-edge-strong);
-  border-radius: var(--yui-radius-control);
-  background: none;
   color: var(--yui-text-dim);
-  font: inherit;
-  cursor: pointer;
 }
 
 .yui-terminal-list__new:hover {
-  background: var(--yui-hover);
   color: var(--yui-text);
 }
 

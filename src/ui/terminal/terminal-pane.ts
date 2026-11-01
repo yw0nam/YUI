@@ -21,7 +21,7 @@ function head(terminal: Terminal, preset: PresetLookup, onClose: () => void): HT
   title.textContent = terminal.title;
   const close = document.createElement("button");
   close.type = "button";
-  close.className = "yui-terminal-pane__close";
+  close.className = "yui-terminal-pane__close yui-threads-button";
   close.textContent = t("terminal.close");
   close.setAttribute("aria-label", t("terminal.close_aria"));
   close.addEventListener("click", onClose);

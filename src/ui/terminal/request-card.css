@@ -25,21 +25,6 @@
   min-width: 0;
 }
 
-.yui-terminal-request__who {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  color: var(--yui-text-dim);
-  font-size: var(--yui-fs-sub);
-  font-weight: 500;
-}
-
-.yui-terminal-request__who b {
-  color: var(--yui-text);
-  font-weight: 600;
-}
-
 .yui-terminal-request pre {
   margin: 0;
   max-height: calc(4 * 1.5em + 16px);

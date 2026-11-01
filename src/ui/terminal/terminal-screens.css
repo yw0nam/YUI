@@ -13,19 +13,3 @@
   min-width: 0;
   min-height: 0;
 }
-
-.yui-terminal-screen[hidden] {
-  display: none;
-}
-
-@container pane (max-width: 559.98px) {
-  .yui-terminal-screens {
-    padding-inline: 20px;
-  }
-}
-
-@container pane (max-width: 439.98px) {
-  .yui-terminal-screens {
-    padding-inline: 16px;
-  }
-}

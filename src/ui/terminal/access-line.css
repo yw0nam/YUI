@@ -43,18 +43,8 @@
   }
 }
 
-.yui-terminal-access__who {
-  display: inline-flex;
+.yui-terminal-access .yui-terminal-who {
   flex: none;
-  align-items: center;
-  gap: 8px;
-  color: var(--yui-text-dim);
-  white-space: nowrap;
-}
-
-.yui-terminal-access__who strong {
-  color: var(--yui-text);
-  font-weight: 600;
 }
 
 .yui-terminal-access__cmd {
@@ -100,22 +90,13 @@
 }
 
 .yui-terminal-access button {
-  box-sizing: border-box;
   flex: none;
   margin-left: auto;
   min-height: 32px;
   padding: 4px 12px;
-  border: 1px solid var(--yui-edge-strong);
-  border-radius: var(--yui-radius-control);
   background: var(--yui-field);
   color: var(--yui-text);
-  font: inherit;
   font-weight: 600;
-  cursor: pointer;
-}
-
-.yui-terminal-access button:hover {
-  background: var(--yui-hover);
 }
 
 /* Narrow: one line; the label goes and the command takes the width left (its title keeps the label). */
@@ -130,18 +111,6 @@
 
   .yui-terminal-access__cmd {
     flex: 1 1 0;
-  }
-}
-
-@container pane (max-width: 559.98px) {
-  .yui-terminal-access__row {
-    padding-inline: 20px;
-  }
-}
-
-@container pane (max-width: 439.98px) {
-  .yui-terminal-access__row {
-    padding-inline: 16px;
   }
 }
 
