@@ -18,10 +18,10 @@ def runner(branch, tmux):
             "main",
             "yui:2",
             "devbox",
-            "devbox · tmux yui:2 · YUI (main)",
+            "devbox, tmux yui:2",
         ),
-        ({}, None, None, None, "YUI"),
-        ({}, "main", None, None, "YUI (main)"),
+        ({}, None, None, None, None),
+        ({}, "main", None, None, None),
     ],
     ids=["ssh-tmux-branch", "none", "branch-only"],
 )

@@ -50,7 +50,7 @@ def load(fixture, rollout=NO_ROLLOUT):
                 "claude-code",
                 "PermissionRequest",
                 "bc68d697-4e8f-4be0-8ea6-e67f955b2586",
-                "Bash: touch /Users/dev/projects/demo/hello.txt",
+                "Bash:\n```\ntouch /Users/dev/projects/demo/hello.txt\n```",
             ),
         ),
         (
@@ -60,7 +60,7 @@ def load(fixture, rollout=NO_ROLLOUT):
                 "claude-code",
                 "PermissionRequest",
                 "bc68d697-4e8f-4be0-8ea6-e67f955b2586",
-                "Bash: touch /Users/dev/projects/demo/hello.txt",
+                "Bash:\n```\ntouch /Users/dev/projects/demo/hello.txt\n```",
             ),
         ),
         (
@@ -86,7 +86,12 @@ def load(fixture, rollout=NO_ROLLOUT):
         (
             "codex-permission.json",
             {},
-            ("codex", "PermissionRequest", "019a1f2e-7c4b-7d30-9b1e-3f5a8c2d4e61", "Bash: rm -rf build"),
+            (
+                "codex",
+                "PermissionRequest",
+                "019a1f2e-7c4b-7d30-9b1e-3f5a8c2d4e61",
+                "Bash:\n```\nrm -rf build\n```",
+            ),
         ),
         (
             "codex-stop.json",
