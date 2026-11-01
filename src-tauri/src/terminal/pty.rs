@@ -113,6 +113,9 @@ fn spawn(
                 Err(_) => break,
             }
         }
+    });
+    // Waits on the shell, not the output: a child or the Windows console can keep the PTY open.
+    std::thread::spawn(move || {
         let code = child.wait().map_or(1, |status| status.exit_code());
         log::info!("terminal_exited id={id} code={code}");
         store.exited(&id, code);
@@ -223,14 +226,12 @@ mod tests {
                 .filter(|t| t.exit_code.is_some())
         });
         assert_eq!(terminal.exit_code, Some(3));
-        assert!(
-            s.get("t1")
-                .unwrap()
-                .read(&terminal, None)
-                .ends_with("t1 (~), exited 3\nhi"),
-            "{}",
-            s.get("t1").unwrap().read(&terminal, None)
-        );
+        let pty = s.get("t1").unwrap();
+        // The exit can be recorded before the reader parses the last output.
+        until(|| {
+            let text = pty.read(&terminal, None);
+            text.ends_with("t1 (~), exited 3\nhi").then_some(())
+        });
     }
 
     #[test]
