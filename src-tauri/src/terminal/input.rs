@@ -1,20 +1,27 @@
 use std::io::Write;
-use std::sync::Mutex;
+use std::sync::mpsc;
 
-/// A terminal's input.
-pub struct Input(Mutex<Box<dyn Write + Send>>);
+/// A terminal's input, written in order by its own thread so no caller waits on a stalled terminal.
+pub struct Input(mpsc::Sender<Vec<u8>>);
 
 impl Input {
-    pub fn new(writer: Box<dyn Write + Send>) -> Self {
-        Self(Mutex::new(writer))
+    pub fn new(mut writer: Box<dyn Write + Send>) -> Self {
+        let (queue, queued) = mpsc::channel::<Vec<u8>>();
+        std::thread::spawn(move || {
+            for data in queued {
+                if let Err(error) = writer.write_all(&data).and_then(|()| writer.flush()) {
+                    log::warn!("terminal_write_failed error={error}");
+                    break;
+                }
+            }
+        });
+        Self(queue)
     }
 
     pub fn send(&self, data: Vec<u8>) -> Result<(), String> {
-        let mut writer = self.0.lock().unwrap();
-        writer
-            .write_all(&data)
-            .and_then(|()| writer.flush())
-            .map_err(|error| format!("error: {error}"))
+        self.0
+            .send(data)
+            .map_err(|_| "error: terminal input is closed".to_owned())
     }
 }
 
@@ -22,7 +29,7 @@ impl Input {
 mod tests {
     use super::*;
     use std::io;
-    use std::sync::{mpsc, Arc};
+    use std::sync::{Arc, Mutex};
     use std::thread;
     use std::time::{Duration, Instant};
 

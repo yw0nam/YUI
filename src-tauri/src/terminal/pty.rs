@@ -2,7 +2,7 @@ use super::input::Input;
 use super::screen;
 use super::store::{Terminal, TerminalOwner, TerminalStore};
 use portable_pty::{native_pty_system, ChildKiller, CommandBuilder, MasterPty, PtySize};
-use std::io::{ErrorKind, Read, Write};
+use std::io::{ErrorKind, Read};
 use std::num::NonZeroU16;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
