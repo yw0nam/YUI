@@ -1,6 +1,7 @@
 /**
- * threads-window-settings — the Threads window's frame (its panel's screen rect in logical px) and
- * whether its list is collapsed to the rail. Per device: never synced cross-window.
+ * threads-window-settings — the Threads window's frame (its panel's screen rect in logical px),
+ * whether its list is collapsed to the rail, and the list's dragged width. Per device: never synced
+ * cross-window.
  */
 
 import {
@@ -20,6 +21,8 @@ export interface ThreadsWindowSettings {
   width: number;
   height: number;
   listCollapsed: boolean;
+  /** The list's dragged width in px; absent for the default width. */
+  listWidth?: number;
 }
 
 export type ThreadsWindowStorage = PersistedStorage<ThreadsWindowSettings>;
@@ -28,12 +31,14 @@ const DEFAULTS: ThreadsWindowSettings = { width: 880, height: 680, listCollapsed
 
 function parse(v: unknown): ThreadsWindowSettings | null {
   if (!isPlainObject(v)) return null;
-  const { x, y, width, height, listCollapsed } = v as Record<string, unknown>;
+  const { x, y, width, height, listCollapsed, listWidth } = v as Record<string, unknown>;
   const int = (n: unknown): n is number => Number.isInteger(n);
   if (!int(width) || !int(height) || typeof listCollapsed !== "boolean") return null;
   if (width < THREADS_MIN_PANEL.width || height < THREADS_MIN_PANEL.height) return null;
-  if (x === undefined && y === undefined) return { width, height, listCollapsed };
-  return int(x) && int(y) ? { x, y, width, height, listCollapsed } : null;
+  // A width that is not whole px reads as the default, keeping the frame.
+  const list = int(listWidth) ? { listWidth } : {};
+  if (x === undefined && y === undefined) return { width, height, listCollapsed, ...list };
+  return int(x) && int(y) ? { x, y, width, height, listCollapsed, ...list } : null;
 }
 
 export function createThreadsWindowSettings(opts?: { storage?: ThreadsWindowStorage }) {
@@ -46,7 +51,8 @@ export function createThreadsWindowSettings(opts?: { storage?: ThreadsWindowStor
       a.y === b.y &&
       a.width === b.width &&
       a.height === b.height &&
-      a.listCollapsed === b.listCollapsed,
+      a.listCollapsed === b.listCollapsed &&
+      a.listWidth === b.listWidth,
   });
 
   return {
@@ -65,6 +71,12 @@ export function createThreadsWindowSettings(opts?: { storage?: ThreadsWindowStor
 
     setListCollapsed(listCollapsed: boolean): void {
       core.commit({ ...core.current(), listCollapsed });
+    },
+
+    /** Saves the list's dragged width; null goes back to the default. */
+    setListWidth(width: number | null): void {
+      const { listWidth: _, ...rest } = core.current();
+      core.commit(width === null ? rest : { ...rest, listWidth: Math.round(width) });
     },
   };
 }
