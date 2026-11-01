@@ -9,6 +9,7 @@ import type { ThreadsTab } from "../../../io/bridge/settings-bridge";
 import { subscribe as subscribeLocale, t } from "../../i18n";
 import { CROSS_SVG } from "../../quick-controls/constants";
 import { growOpen, shrinkClose } from "./grow";
+import { createListSplitter } from "./list-splitter";
 import { refreshTimes } from "./relative-time";
 import { attachResizeHandles, type ResizeListener } from "./resize-handles";
 import { attachThreadsKeys } from "./threads-keys";
@@ -53,6 +54,9 @@ export function createThreadsView(deps: {
   /** The stored choice of the list collapsed to the rail. */
   listCollapsed: boolean;
   onListCollapsed(collapsed: boolean): void;
+  /** The stored list width; null for the default. */
+  listWidth: number | null;
+  onListWidth(width: number | null): void;
   /** The panel's edge and corner drags. */
   resize: ResizeListener;
   terminal(shell: TabShell): TabBody;
@@ -98,6 +102,8 @@ export function createThreadsView(deps: {
   });
   const terminal = deps.terminal(shell(backs[1]!));
   threads.list.id = LIST_ID;
+  const splitter = createListSplitter({ panel, width: deps.listWidth, onWidth: deps.onListWidth });
+  for (const list of [threads.list, terminal.list]) list.after(splitter.separator());
   content.append(threads.el, terminal.el);
   tabs.add("threads", threads);
   tabs.add("terminal", terminal);
