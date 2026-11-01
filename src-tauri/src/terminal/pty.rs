@@ -1,3 +1,4 @@
+use super::input::Input;
 use super::screen;
 use super::store::{Terminal, TerminalOwner, TerminalStore};
 use portable_pty::{native_pty_system, ChildKiller, CommandBuilder, MasterPty, PtySize};
@@ -19,7 +20,7 @@ struct Output {
 /// One terminal's process, its PTY, and the parsed screen its output draws.
 pub struct Pty {
     master: Mutex<Box<dyn MasterPty + Send>>,
-    writer: Mutex<Box<dyn Write + Send>>,
+    input: Input,
     killer: Mutex<Box<dyn ChildKiller + Send + Sync>>,
     output: Arc<Mutex<Output>>,
 }
@@ -86,7 +87,7 @@ fn spawn(
     }));
     let pty = Arc::new(Pty {
         master: Mutex::new(pair.master),
-        writer: Mutex::new(writer),
+        input: Input::new(writer),
         killer: Mutex::new(child.clone_killer()),
         output: output.clone(),
     });
@@ -135,11 +136,7 @@ impl Output {
 
 impl Pty {
     pub fn write(&self, data: &[u8]) -> Result<(), String> {
-        let mut writer = lock(&self.writer);
-        writer
-            .write_all(data)
-            .and_then(|()| writer.flush())
-            .map_err(failed)
+        self.input.send(data.to_vec())
     }
 
     pub fn resize(&self, cols: u16, rows: u16) {

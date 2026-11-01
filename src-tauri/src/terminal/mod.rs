@@ -2,6 +2,7 @@
 //! the backend's terminal tools. A preset reads or writes a terminal only with the user's Allow.
 
 pub mod commands;
+mod input;
 mod pty;
 mod screen;
 mod store;
