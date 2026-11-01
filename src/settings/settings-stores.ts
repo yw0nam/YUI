@@ -1,3 +1,7 @@
+import {
+  createTextSizeSettings,
+  localStorageTextSizeStorage,
+} from "./appearance/text-size-settings";
 import { createThemeSettings, localStorageThemeStorage } from "./appearance/theme-settings";
 import { createCameraSettings, localStorageCameraStorage } from "./avatar/camera-settings";
 import {
@@ -123,6 +127,8 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
   const userNameSettings = createUserNameSettings({ storage: localStorageUserNameStorage() });
   // Device-wide theme: Dawn, Hearth, or the OS appearance.
   const themeSettings = createThemeSettings({ storage: localStorageThemeStorage() });
+  // Device-wide text size: the scale every window applies to its text tokens.
+  const textSizeSettings = createTextSizeSettings({ storage: localStorageTextSizeStorage() });
   // TTFT filler (thinking motion + filler utterance) settings. Both windows sync via wireStorageSync.
   const fillerSettings = createFillerSettings({
     storage: localStorageFillerStorage(),
@@ -199,6 +205,7 @@ export function createSettingsStores(opts?: { locale?: CueLocale }) {
     agentSettings,
     userNameSettings,
     themeSettings,
+    textSizeSettings,
     fillerSettings,
     readingsSettings,
     bubblePersistSettings,
@@ -251,6 +258,7 @@ export const SYNC_MODE: Record<keyof SettingsStores, SyncMode> = {
   agentSettings: "broadcast",
   userNameSettings: "broadcast",
   themeSettings: "broadcast",
+  textSizeSettings: "broadcast",
   fillerSettings: "broadcast",
   readingsSettings: "broadcast",
   bubblePersistSettings: "broadcast",
