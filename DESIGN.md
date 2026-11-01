@@ -193,7 +193,7 @@ The settings window's panel and the switch use these tokens beyond the roles abo
 
 **Display / Body / Label Font:** Pretendard JP Variable, bundled with the app as a single variable file (`public/fonts/PretendardJPVariable.woff2`) covering Korean, Japanese and Latin; weights 400/500/600 only.
 
-**Character:** one warm, slightly rounded humanist family carries everything. No separate mono, which would read tool-like. The one exception is the Threads window's terminal, which sets the code-span `ui-monospace` stack (`--yui-font-mono`) because shell output aligns by column. Crisp at small sizes (bubbles, labels), never cold or mechanical.
+**Character:** one warm, slightly rounded humanist family carries everything. No separate mono, which would read tool-like. The one exception is the Threads window's terminal, which sets the code-span `ui-monospace` stack (`--yui-font-mono`) because shell output aligns by column, at 13px (the body size) by default. With focus in a terminal, Command (macOS) or Control with = or + and - change every terminal's size by 1px between 10px and 24px, 0 resets it, and the size is kept across restarts; there is no indicator. Crisp at small sizes (bubbles, labels), never cold or mechanical.
 
 ### Hierarchy
 - **Display** (weight ~600): rare moments only, such as a character name.

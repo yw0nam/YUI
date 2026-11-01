@@ -50,7 +50,7 @@ export async function wireThreadsWindow(deps: {
     listWidth: settings.get().listWidth ?? null,
     onListWidth: settings.setListWidth,
     resize,
-    terminal: wireTerminalTab({ register }),
+    terminal: wireTerminalTab({ register, settings }),
   });
   const presence = createThreadsPresence({
     view,

@@ -97,3 +97,44 @@ it("loads a frame stored without a list width, and ignores a list width that is 
     createThreadsWindowSettings({ storage: localStorageThreadsWindowStorage(KEY) }).get(),
   ).toEqual({ x: 5, y: 6, width: 900, height: 700, listCollapsed: true });
 });
+
+it.each([
+  ["a size in the range", 18, 18],
+  ["a size above the range", 30, undefined],
+  ["a size below the range", 9, undefined],
+  ["a fractional size", 13.5, undefined],
+])("reads the terminal font size with %s, keeping the frame", (_name, stored, size) => {
+  globalThis.localStorage?.setItem(
+    KEY,
+    JSON.stringify({
+      x: 5,
+      y: 6,
+      width: 640,
+      height: 560,
+      listCollapsed: true,
+      terminalFontSize: stored,
+    }),
+  );
+
+  const settings = createThreadsWindowSettings({ storage: localStorageThreadsWindowStorage(KEY) });
+
+  expect(settings.get()).toStrictEqual({
+    x: 5,
+    y: 6,
+    width: 640,
+    height: 560,
+    listCollapsed: true,
+    ...(size === undefined ? {} : { terminalFontSize: size }),
+  });
+});
+
+it("keeps the terminal font size after a reload, beside the frame, and gives 13 px before one is set", () => {
+  const storage = localStorageThreadsWindowStorage(KEY);
+  const settings = createThreadsWindowSettings({ storage });
+  expect(settings.terminalFontSize()).toBe(13);
+  settings.setTerminalFontSize(16);
+
+  const reloaded = createThreadsWindowSettings({ storage });
+  expect(reloaded.get()).toEqual({ ...DEFAULTS, terminalFontSize: 16 });
+  expect(reloaded.terminalFontSize()).toBe(16);
+});

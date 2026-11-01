@@ -1,18 +1,29 @@
 // @vitest-environment jsdom
-/** terminal-view.test.ts — the Terminal tab over a stream of terminal snapshots: row states, the Allow card, Take back, and an exited shell. */
+/** terminal-view.test.ts — the Terminal tab over a stream of terminal snapshots: row states, the Allow card, Take back, an exited shell, and the font-size keys. */
 
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccessRequest, Terminal, TerminalSnapshot } from "../../contract";
 
-const { screens } = vi.hoisted(() => ({ screens: [] as { written: string[] }[] }));
+interface FakeScreen {
+  written: string[];
+  options: { fontSize?: number };
+  /** The custom key handler; false keeps the key from the shell. */
+  keys?: (event: KeyboardEvent) => boolean;
+}
+const { screens } = vi.hoisted(() => ({ screens: [] as FakeScreen[] }));
 vi.mock("@xterm/xterm", () => ({
   Terminal: class {
     written: string[] = [];
-    options = {};
+    options: { fontSize?: number };
+    keys?: (event: KeyboardEvent) => boolean;
     cols = 120;
     rows = 32;
-    constructor() {
+    constructor(options: { fontSize?: number }) {
+      this.options = { ...options };
       screens.push(this);
+    }
+    attachCustomKeyEventHandler(handler: (event: KeyboardEvent) => boolean) {
+      this.keys = handler;
     }
     write(data: string | Uint8Array) {
       this.written.push(typeof data === "string" ? data : new TextDecoder().decode(data));
@@ -22,17 +33,24 @@ vi.mock("@xterm/xterm", () => ({
       return { dispose() {} };
     }
     resize() {}
-    loadAddon() {}
+    loadAddon(addon: { activate(terminal: unknown): void }) {
+      addon.activate(this);
+    }
     focus() {}
     dispose() {}
   },
 }));
 vi.mock("@xterm/addon-fit", () => ({
   FitAddon: class {
-    activate() {}
+    terminal?: { options: { fontSize?: number } };
+    activate(terminal: { options: { fontSize?: number } }) {
+      this.terminal = terminal;
+    }
     fit() {}
+    /** A 1040 × 520 px screen at 0.6 × 1.25 em cells. */
     proposeDimensions() {
-      return undefined;
+      const px = this.terminal!.options.fontSize!;
+      return { cols: Math.floor(1040 / (px * 0.6)), rows: Math.floor(520 / (px * 1.25)) };
     }
     dispose() {}
   },
@@ -91,7 +109,8 @@ beforeEach(() => {
   );
 });
 
-function build() {
+function build(fontSize = 13) {
+  const onFontSize = vi.fn();
   const client = {
     open: vi.fn(async () => "t9"),
     close: vi.fn(async () => {}),
@@ -107,12 +126,14 @@ function build() {
     now: () => 0,
     preset: (id) => ({ id, name: id === "yui" ? "Yui" : id }),
     client,
+    fontSize,
+    onFontSize,
   });
   document.body.append(view.el);
   const $ = <T extends Element>(sel: string) => document.querySelector<T>(sel);
   const button = (text: string) =>
     [...document.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent === text);
-  return { view, client, $, button };
+  return { view, client, $, button, onFontSize };
 }
 
 it.each([
@@ -225,4 +246,71 @@ it("names the requested terminal by its id on the Allow card and in the rail", (
   expect($<HTMLElement>('.yui-threads-rail [data-id="t1"]')!.title).toBe(
     "~/t1 t1, Asks for access",
   );
+});
+
+describe("font-size keys", () => {
+  beforeEach(() => {
+    // A laid-out screen opens and fits.
+    vi.spyOn(HTMLElement.prototype, "getClientRects").mockReturnValue([{}] as never);
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  const press = (screen: FakeScreen, init: KeyboardEventInit): boolean =>
+    screen.keys!(new KeyboardEvent("keydown", { cancelable: true, ...init }));
+  const sizes = () => screens.map((screen) => screen.options.fontSize);
+
+  it.each([
+    ["Linux x86_64", { ctrlKey: true }],
+    ["MacIntel", { metaKey: true }],
+  ])("grows every screen 1 px on %s, keeps it from the shell, and resizes the PTYs", (platform, mod) => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
+    const { view, client, onFontSize } = build(13);
+    view.update(snap([terminal("t1", 1), terminal("t2", 2)]));
+    client.resize.mockClear();
+
+    expect(press(screens[0]!, { key: "=", ...mod })).toBe(false);
+    expect(press(screens[0]!, { key: "+", shiftKey: true, ...mod })).toBe(false);
+
+    expect(sizes()).toEqual([15, 15]);
+    expect(onFontSize.mock.calls).toEqual([[14], [15]]);
+    expect(client.resize).toHaveBeenLastCalledWith(115, 27);
+  });
+
+  it.each([
+    ["- shrinks", 13, "-", 12],
+    ["0 resets to the default", 20, "0", 13],
+    ["- stops at 10", 10, "-", 10],
+    ["= stops at 24", 24, "=", 24],
+  ])("%s", (_name, start, key, size) => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("Linux x86_64");
+    const { view } = build(start);
+    view.update(snap([terminal("t1", 1)]));
+
+    expect(press(screens[0]!, { key, ctrlKey: true })).toBe(false);
+
+    expect(sizes()).toEqual([size]);
+  });
+
+  it("starts every screen at the stored size", () => {
+    const { view } = build(18);
+    view.update(snap([terminal("t1", 1), terminal("t2", 2)]));
+
+    expect(sizes()).toEqual([18, 18]);
+  });
+
+  it.each([
+    ["Escape", { key: "Escape" }],
+    ["= without the modifier", { key: "=" }],
+    ["Control+Command+S", { key: "s", ctrlKey: true, metaKey: true }],
+    ["Control+= with Alt", { key: "=", ctrlKey: true, altKey: true }],
+  ])("hands %s to the shell and keeps the size", (_name, init) => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("Linux x86_64");
+    const { view, onFontSize } = build(13);
+    view.update(snap([terminal("t1", 1)]));
+
+    expect(press(screens[0]!, init)).toBe(true);
+
+    expect(sizes()).toEqual([13]);
+    expect(onFontSize).not.toHaveBeenCalled();
+  });
 });

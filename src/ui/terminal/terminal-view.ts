@@ -32,6 +32,9 @@ export function createTerminalView(deps: {
     TerminalClient,
     "open" | "close" | "input" | "resize" | "attach" | "answer" | "takeBack"
   >;
+  /** Every terminal's font size in px at the start. */
+  fontSize: number;
+  onFontSize(px: number): void;
 }): TerminalView {
   const { shell, client, preset } = deps;
   const warn = (event: string) => (error: unknown) => log.warn(event, { error: String(error) });
@@ -43,7 +46,13 @@ export function createTerminalView(deps: {
   const list = createTerminalList({ preset, now: deps.now, onSelect: select, onNew: openNew });
   const rail = createTerminalRail({ preset, onSelect: select, onNew: openNew });
   const access = createAccessLine({ preset, takeBack: client.takeBack });
-  const screens = createTerminalScreens(client);
+  const screens = createTerminalScreens({
+    attach: client.attach,
+    input: client.input,
+    resize: client.resize,
+    fontSize: deps.fontSize,
+    onFontSize: deps.onFontSize,
+  });
   const pane = createTerminalPane({
     back: shell.back,
     parts: [access.el, screens.el],

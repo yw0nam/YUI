@@ -2,6 +2,7 @@
 
 import { createTerminalClient } from "../../io/terminal/terminal-client";
 import { readPresetEntry } from "../../settings/preset/active-preset";
+import type { ThreadsWindowSettingsStore } from "../../settings/threads/threads-window-settings";
 import { createTerminalView } from "../../ui/terminal/terminal-view";
 import type { TabBody, TabShell } from "../../ui/threads/window/threads-tabs";
 import type { Disposers } from "../disposers";
@@ -9,6 +10,8 @@ import type { Disposers } from "../disposers";
 /** The Terminal tab's body for the view to lay out; its client and subscription end with `register`'s bag. */
 export function wireTerminalTab(deps: {
   register: Disposers["register"];
+  /** Keeps the terminals' font size across restarts. */
+  settings: Pick<ThreadsWindowSettingsStore, "terminalFontSize" | "setTerminalFontSize">;
 }): (shell: TabShell) => TabBody {
   const client = createTerminalClient();
   deps.register(() => client.dispose());
@@ -18,6 +21,8 @@ export function wireTerminalTab(deps: {
       now: Date.now,
       preset: (id) => readPresetEntry(id) ?? { id, name: id },
       client,
+      fontSize: deps.settings.terminalFontSize(),
+      onFontSize: deps.settings.setTerminalFontSize,
     });
     const seeded = client.snapshot();
     if (seeded) view.update(seeded);

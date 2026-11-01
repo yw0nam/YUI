@@ -1,7 +1,8 @@
 /**
  * One xterm per terminal in the snapshot, created when it first appears and attached at once, kept
  * until the terminal goes. Only the selected one shows; it opens into the page the first time it
- * shows, and its fit sets the one size every terminal and its PTY take.
+ * shows, and its fit sets the one size every terminal and its PTY take. The font-size keys set one
+ * font size on every screen and refit.
  */
 
 import "@xterm/xterm/css/xterm.css";
@@ -10,7 +11,9 @@ import { FitAddon } from "@xterm/addon-fit";
 import { Terminal as Xterm } from "@xterm/xterm";
 import type { Terminal } from "../../contract";
 import { createLogger } from "../../logger";
+import { isMacOS } from "../../tauri-env";
 import { t } from "../i18n";
+import { fontSizeFor } from "./terminal-font";
 import { terminalFont, terminalTheme, watchTheme } from "./terminal-theme";
 
 const log = createLogger("terminal-screens");
@@ -35,6 +38,9 @@ export function createTerminalScreens(deps: {
   attach(id: string, onBytes: (bytes: Uint8Array) => void): Promise<void>;
   input(id: string, data: string): Promise<void>;
   resize(cols: number, rows: number): Promise<void>;
+  /** Every screen's font size in px at the start. */
+  fontSize: number;
+  onFontSize(px: number): void;
 }): {
   el: HTMLElement;
   sync(terminals: Terminal[]): void;
@@ -48,14 +54,34 @@ export function createTerminalScreens(deps: {
   const screens = new Map<string, Screen>();
   let size = { ...DEFAULT_SIZE };
   let shownId: string | null = null;
+  let fontSize = deps.fontSize;
+
+  function setFontSize(px: number): void {
+    if (px === fontSize) return;
+    fontSize = px;
+    for (const screen of screens.values()) screen.xterm.options.fontSize = px;
+    deps.onFontSize(px);
+    // A font change resizes no element, so the observer stays quiet.
+    refit();
+  }
 
   function create(id: string): Screen {
     const xterm = new Xterm({
       ...size,
       fontFamily: terminalFont(),
-      fontSize: 12.5,
+      fontSize,
       scrollback: SCROLLBACK_LINES,
       theme: terminalTheme(),
+    });
+    // The font-size keys never reach the shell; every other key does.
+    xterm.attachCustomKeyEventHandler((event) => {
+      const next = fontSizeFor(event, fontSize, isMacOS());
+      if (next === null) return true;
+      if (event.type === "keydown") {
+        event.preventDefault();
+        setFontSize(next);
+      }
+      return false;
     });
     const fit = new FitAddon();
     xterm.loadAddon(fit);
