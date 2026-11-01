@@ -1,5 +1,5 @@
-/* The wide list's edge: an 8px hit area centred on the list's right edge, its line Amber ink on hover,
-   drag and keyboard focus. Tokens in ../../tokens.css. */
+/* The wide list's edge: an 8px hit area centred on the list's right edge, its line Amber on hover and
+   drag; keyboard focus shows the window's focus ring. Tokens in ../../tokens.css. */
 
 .yui-threads-split {
   display: none;
@@ -24,13 +24,8 @@
 }
 
 .yui-threads-split:hover::after,
-.yui-threads-split[data-dragging]::after,
-.yui-threads-split:focus-visible::after {
-  background: var(--yui-accent-ink);
-}
-
-.yui-threads .yui-threads-split:focus-visible {
-  outline: none;
+.yui-threads-split[data-dragging]::after {
+  background: var(--yui-accent);
 }
 
 /* Wide, with the list beside the pane. Pairs with WIDE_MIN_PX in threads-layout.ts. */
