@@ -4,13 +4,12 @@ import "./terminal-meta.css";
 import type { AccessRequest, Terminal } from "../../contract";
 import type { PresetEntry } from "../../settings/preset/active-preset";
 import { t } from "../i18n";
+import { TERMINAL_GLYPH } from "../threads/glyphs";
 import { avatarEl } from "../unified/avatar";
 
 /** A preset's stored entry, or one named by its id. */
 export type PresetLookup = (id: string) => PresetEntry;
 
-const TERMINAL_SVG =
-  '<svg class="yui-threads-glyph" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="m7 9 3 3-3 3"/><path d="M12.5 15H17"/></svg>';
 export const PLUS_SVG =
   '<svg class="yui-threads-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
 
@@ -24,7 +23,7 @@ export function ownerMark(terminal: Terminal, preset: PresetLookup, sizePx: numb
   if (terminal.owner.kind === "preset") return avatarEl(preset(terminal.owner.presetId), sizePx);
   const el = document.createElement("span");
   el.className = "yui-terminal-glyph";
-  el.innerHTML = TERMINAL_SVG;
+  el.innerHTML = TERMINAL_GLYPH;
   return el;
 }
 

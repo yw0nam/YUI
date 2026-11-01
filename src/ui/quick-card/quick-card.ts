@@ -1,6 +1,7 @@
 /** The quick card in its own window beside the character: its head, tiles and rows, and how it opens and closes. */
 
 import "./quick-card.css";
+import type { ThreadsTab } from "../../io/bridge/settings-bridge";
 import type { PushSocketState } from "../../io/chat/push/push-socket";
 import { createLogger } from "../../logger";
 import type { ChatTransport } from "../../settings/backend/endpoints-settings";
@@ -10,6 +11,7 @@ import { CROSS_SVG } from "../quick-controls/constants";
 import type { SwitchRow } from "../quick-controls/switch-row";
 import { avatarEl } from "../unified/avatar";
 import { createRows, type PickerPort } from "./rows";
+import { createThreadsButtons } from "./threads-buttons";
 import { createTiles, type ListenPort } from "./tiles";
 import { transportLine } from "./transport-line";
 
@@ -43,6 +45,8 @@ export function createQuickCard(deps: {
   /** Null for main, which cannot be turned off. */
   turnOff: (() => void) | null;
   openAllSettings(): void;
+  /** Asks main to open the Threads window on `tab`. */
+  openThreads(tab: ThreadsTab): void;
 }): QuickCard {
   const el = document.createElement("div");
   el.className = "yui-qcard";
@@ -82,7 +86,11 @@ export function createQuickCard(deps: {
         : null,
       log,
     });
-    q(".yui-qcard__body").prepend(tiles.el, rows.el);
+    const opens = createThreadsButtons((tab) => {
+      deps.openThreads(tab);
+      close();
+    });
+    q(".yui-qcard__body").prepend(tiles.el, opens, rows.el);
     q(".yui-qcard__all").addEventListener("click", () => {
       deps.openAllSettings();
       close();

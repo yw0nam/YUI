@@ -104,7 +104,7 @@ The user's reply to one Ask: a choice id, text, both, or `release` to answer at 
 _Avoid_: reply, response
 
 **Threads window**:
-The window `threads` where the user reads Threads and answers their Asks and works in Terminals; it grows out of the Threads chip, or opens on the Terminal tab without the grow from the tray's Terminal item, moves and resizes on its own, and first opens beside the main character; its head switches between the Threads tab and the Terminal tab, and its list collapses to a rail.
+The window `threads` where the user reads Threads and answers their Asks and works in Terminals; it grows out of the Threads chip, or opens without the grow on the Terminal tab from the tray's Terminal item and on either tab from the Quick card's Threads and Terminal buttons, moves and resizes on its own, and first opens beside the main character; its head switches between the Threads tab and the Terminal tab, and its list collapses to a rail.
 _Avoid_: inbox, panel, dashboard
 
 **Threads chip**:
@@ -144,7 +144,7 @@ The unified chat window's chip for one open preset in its head row, the recipien
 _Avoid_: avatar pill, presence badge, recipient chip
 
 **Quick card**:
-The card a right-click on the character opens beside her in its own window: her face, name and transport line, four tiles (Voice, Listen, Keep bubble, Unified chat) that write the same stores as their settings rows, the Body and Reference voice selects, a conversation reset that asks first, Turn off for a bound pet window, and All settings…, which opens the settings window on her. Listen works in the main window only. It docks 12px from her on the roomier side and travels with her until dragged off her side; Escape, × and a click in another app close it.
+The card a right-click on the character opens beside her in its own window: her face, name and transport line, four tiles (Voice, Listen, Keep bubble, Unified chat) that write the same stores as their settings rows, Threads and Terminal buttons that open the Threads window on that tab, the Body and Reference voice selects, a conversation reset that asks first, Turn off for a bound pet window, and All settings…, which opens the settings window on her. Listen works in the main window only. It docks 12px from her on the roomier side and travels with her until dragged off her side; Escape, × and a click in another app close it.
 _Avoid_: quick panel, popover
 
 **Aside**:

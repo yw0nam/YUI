@@ -127,6 +127,8 @@ const ja: Record<string, string> = {
   "quick_card.cancel": "キャンセル",
   "quick_card.turn_off": "オフにする",
   "quick_card.all_settings": "すべての設定…",
+  "quick_card.open_threads": "スレッドウィンドウを開く",
+  "quick_card.open_terminal": "ターミナルタブを開く",
   "quick_card.close": "閉じる",
   "settings.title": "YUI 設定",
   "help.section": "ヘルプ",

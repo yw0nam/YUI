@@ -35,8 +35,8 @@ import { createPetConfig, wireConfigReload, wireConfigWatch } from "../app/setti
 import { wirePresetSwitch } from "../app/settings/wire-preset";
 import { createStageRenderer } from "../app/stage/stage-renderer";
 import { wireInputAnchor } from "../app/stage/wire-pet-stage";
-import { wireTerminalTray } from "../app/threads-chip/wire-terminal-tray";
 import { wireThreadsChip } from "../app/threads-chip/wire-threads-chip";
+import { wireThreadsOpenRequests } from "../app/threads-chip/wire-threads-open-requests";
 import {
   createDelegationChipMount,
   messageWindowSuppression,
@@ -272,10 +272,16 @@ async function bootstrap(): Promise<BootstrapHandle> {
   // Access requests wait on the main chip beside the Threads.
   const terminal = bound ? null : createTerminalClient();
   if (terminal) register(() => terminal.dispose());
-  // The chip and the tray's Terminal item open one Threads window.
+  // The chip, the tray's Terminal item and every quick card open one Threads window.
   const threadsWindow = bound ? null : createThreadsWindowController({ bridge: windowBridge });
   if (threadsWindow) register(() => threadsWindow.dispose());
-  register(wireTerminalTray({ onTerminalOpen, threadsWindow }));
+  register(
+    wireThreadsOpenRequests({
+      onTerminalOpen,
+      onThreadsOpenAsk: windowBridge.onThreadsOpenAsk,
+      threadsWindow,
+    }),
+  );
 
   // Config-driven load: configs/*.json → validated AppConfig. endpoints/motions etc
   // consumed during dispatcher·tts wiring. VRM displayed via avatar.vrm_url.

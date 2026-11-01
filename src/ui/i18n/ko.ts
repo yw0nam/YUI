@@ -126,6 +126,8 @@ const ko: Record<string, string> = {
   "quick_card.cancel": "취소",
   "quick_card.turn_off": "끄기",
   "quick_card.all_settings": "모든 설정…",
+  "quick_card.open_threads": "스레드 창 열기",
+  "quick_card.open_terminal": "터미널 탭 열기",
   "quick_card.close": "닫기",
   "settings.title": "YUI 설정",
   "help.section": "도움말",

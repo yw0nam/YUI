@@ -127,6 +127,8 @@ const en: Record<string, string> = {
   "quick_card.cancel": "Cancel",
   "quick_card.turn_off": "Turn off",
   "quick_card.all_settings": "All settings…",
+  "quick_card.open_threads": "Open the Threads window",
+  "quick_card.open_terminal": "Open the Terminal tab",
   "quick_card.close": "Close",
   "settings.title": "YUI Settings",
   "help.section": "Help",

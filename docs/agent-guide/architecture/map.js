@@ -1204,7 +1204,7 @@ globalThis.YUI_MAP =
       "id": "ui/quick-card",
       "module": "settings",
       "label": "quick card",
-      "role": "The card that fills the quick-card window: the face, name and transport line (on push, the socket's state), the Voice, Listen (main only), Keep bubble and Unified chat tiles over the same stores as their settings rows, the Body and Reference voice selects, a conversation reset that asks first, Turn off for a bound character, and All settings…; Escape and a click outside it close it, and its head is the drag handle the window moves by.",
+      "role": "The card that fills the quick-card window: the face, name and transport line (on push, the socket's state), the Voice, Listen (main only), Keep bubble and Unified chat tiles over the same stores as their settings rows, the Threads and Terminal buttons that ask main to open the Threads window on that tab, the Body and Reference voice selects, a conversation reset that asks first, Turn off for a bound character, and All settings…; Escape and a click outside it close it, and its head is the drag handle the window moves by.",
       "paths": [
         "src/ui/quick-card"
       ]
@@ -1314,7 +1314,7 @@ globalThis.YUI_MAP =
       "id": "app/threads-chip",
       "module": "wiring",
       "label": "threads chip wiring",
-      "role": "Main only: mounts the Threads chip after the signal chips on their shared fold store, feeds it the store's snapshots, and opens the Threads window from its tap; the chip stays shown while the window is open, its tap then bringing the window forward, until the window's closed report. The tray's Terminal item opens the same window on the Terminal tab.",
+      "role": "Main only: mounts the Threads chip after the signal chips on their shared fold store, feeds it the store's snapshots, and opens the Threads window from its tap; the chip stays shown while the window is open, its tap then bringing the window forward, until the window's closed report. The tray's Terminal item and a quick card's Threads or Terminal button open the same window on their tab, with no grow.",
       "paths": [
         "src/app/threads-chip"
       ]
@@ -2963,10 +2963,19 @@ globalThis.YUI_MAP =
       "id": "threads-tray-open",
       "from": "app/threads-chip",
       "to": "io/window/openers",
-      "carries": "open(undefined, \"terminal\") from the tray's Terminal click: place, show and focus the window with no chip rect and no grow",
+      "carries": "open(undefined, tab) from the tray's Terminal click (tab \"terminal\") or a quick card's ask: place, show and focus the window with no chip rect and no grow; while it shows, focus it and select the tab",
       "kind": "call",
       "transport": "shared",
-      "wiring": "src/app/threads-chip/wire-terminal-tray.ts"
+      "wiring": "src/app/threads-chip/wire-threads-open-requests.ts"
+    },
+    {
+      "id": "quick-card-threads-ask",
+      "from": "app/quick-card-window",
+      "to": "app/threads-chip",
+      "carries": "yui://threads-open-ask {tab: \"threads\" | \"terminal\"}: the card's Threads or Terminal button; unscoped, so any preset's card reaches main, which owns the Threads window",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/threads-chip/wire-threads-open-requests.ts"
     },
     {
       "id": "threads-chip-snapshot",
@@ -5133,7 +5142,21 @@ globalThis.YUI_MAP =
         "id": "threads-open-pet",
         "from": "pet",
         "to": "threads",
-        "carries": "yui://threads-open {chip?, tab?}: place, show and focus the window, grow out of the chip when there is one; select the tab; while it shows, focus it",
+        "carries": "yui://threads-open {chip?, tab?}: place, show and focus the window, grow out of the chip when there is one; select the tab; while it shows, focus it and select the tab the request names",
+        "kind": "bridge"
+      },
+      {
+        "id": "threads-open-ask-quick-card",
+        "from": "quick-card",
+        "to": "pet",
+        "carries": "yui://threads-open-ask {tab}: the card's Threads or Terminal button; main opens the Threads window on that tab",
+        "kind": "bridge"
+      },
+      {
+        "id": "threads-open-ask-quick-card-bound",
+        "from": "quick-card-<id>",
+        "to": "pet",
+        "carries": "yui://threads-open-ask {tab}: unscoped, so a bound character's card reaches main, which owns the Threads window",
         "kind": "bridge"
       },
       {

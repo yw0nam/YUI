@@ -48,6 +48,7 @@ const CH_QUICK_CARD_READY = "yui://quick-card-ready";
 const CH_THREADS_OPEN = "yui://threads-open";
 const CH_THREADS_READY = "yui://threads-ready";
 const CH_THREADS_CLOSED = "yui://threads-closed";
+const CH_THREADS_OPEN_ASK = "yui://threads-open-ask";
 
 interface VoiceStateSnapshot {
   state: VoiceInputState;
@@ -236,6 +237,9 @@ export interface SettingsBridge {
   /** The Threads window is hidden again, after its close or a failed open; the chip leaves its open state. */
   emitThreadsClosed(): void;
   onThreadsClosed(cb: () => void): () => void;
+  /** A quick card asking main to open the Threads window on `tab`; any preset's card reaches main. */
+  emitThreadsOpenAsk(tab: ThreadsTab): void;
+  onThreadsOpenAsk(cb: (tab: ThreadsTab) => void): () => void;
   emitSettingsChanged(): void;
   onSettingsChanged(cb: (from: WindowKind) => void): () => void;
   emitMouthPreview(mouthOpen: number | null): void;
@@ -320,6 +324,7 @@ export function createSettingsBridge(
     CH_THREADS_OPEN,
     CH_THREADS_READY,
     CH_THREADS_CLOSED,
+    CH_THREADS_OPEN_ASK,
   ]);
   const on: typeof core.on = (name, cb) => core.on(name, cb, { scoped: !shared.has(name) });
 
@@ -393,6 +398,15 @@ export function createSettingsBridge(
     },
     onThreadsClosed(cb) {
       return on<unknown>(CH_THREADS_CLOSED, () => cb());
+    },
+    emitThreadsOpenAsk(tab) {
+      safeEmit(CH_THREADS_OPEN_ASK, { tab });
+    },
+    onThreadsOpenAsk(cb) {
+      return on<unknown>(CH_THREADS_OPEN_ASK, (request) => {
+        const tab = (request as { tab?: unknown } | null)?.tab;
+        if (tab === "threads" || tab === "terminal") cb(tab);
+      });
     },
     emitSettingsChanged() {
       safeEmit(CH_SETTINGS_CHANGED);
