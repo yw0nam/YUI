@@ -205,3 +205,13 @@ it("names each terminal by the id agents use, in its row and the pane head", () 
   expect(rows.map((el) => el.textContent)).toEqual(["t2", "t1"]);
   expect($(".yui-terminal-pane .yui-terminal-id")!.textContent).toBe("t2");
 });
+
+it("names the requested terminal by its id on the Allow card and in the rail", () => {
+  const { view, $ } = build();
+  view.update(snap([terminal("t1", 1), terminal("t2", 2)], [request("r1", "t1", 60_000)]));
+
+  expect($(".yui-terminal-request .yui-terminal-id")?.textContent).toBe("t1");
+  expect($<HTMLElement>('.yui-threads-rail [data-id="t1"]')!.title).toBe(
+    "~/t1 t1, Asks for access",
+  );
+});
