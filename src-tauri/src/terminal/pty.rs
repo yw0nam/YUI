@@ -234,6 +234,27 @@ mod tests {
     }
 
     #[test]
+    fn the_shell_exit_is_recorded_while_a_child_still_holds_the_terminal() {
+        let s = store();
+        let script = "trap '' HUP; sleep 60 & echo pid $!; exit 3";
+        let terminal = spawn(&s, TerminalOwner::User, "~".into(), sh(script), 1).unwrap();
+        let pty = s.get("t1").unwrap();
+        let child = until(|| {
+            let text = pty.read(&terminal, None);
+            let pid = text.lines().find_map(|l| l.strip_prefix("pid "))?;
+            Some(Pid::from_raw(pid.parse().unwrap()))
+        });
+        let deadline = Instant::now() + Duration::from_secs(3);
+        let mut exit_code = None;
+        while exit_code.is_none() && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(20));
+            exit_code = s.snapshot().terminals[0].exit_code;
+        }
+        kill(child, nix::sys::signal::Signal::SIGKILL).unwrap();
+        assert_eq!(exit_code, Some(3));
+    }
+
+    #[test]
     fn killing_a_terminal_ends_its_shell_and_the_shell_children() {
         let s = store();
         let terminal = spawn(
