@@ -197,6 +197,17 @@ it("writes the exit line into an exited terminal and words its state Exited", ()
   expect(lines).toHaveLength(1);
 });
 
+it("draws a list row as the owner, state and time on one line, then the title and id", () => {
+  const { view, $ } = build();
+  view.update(snap([terminal("t1", 0)]));
+
+  const row = $('.yui-threads-list [data-id="t1"]')!;
+  expect([...row.children].map((el) => [el.className, el.textContent])).toEqual([
+    ["yui-threads-row__meta", "YouRunningjust now"],
+    ["yui-terminal-title", "~/t1t1"],
+  ]);
+});
+
 it("names each terminal by the id agents use, in its row and the pane head", () => {
   const { view, $ } = build();
   view.update(snap([terminal("t1", 1), terminal("t2", 2)]));
