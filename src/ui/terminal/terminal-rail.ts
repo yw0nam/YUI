@@ -26,7 +26,7 @@ export function createTerminalRail(deps: {
       const el = document.createElement("button");
       el.type = "button";
       el.className = "yui-threads-rail__item";
-      const name = `${terminal.title} · ${rowState(terminal, requests, deps.preset).text}`;
+      const name = `${terminal.title} ${terminal.id}, ${rowState(terminal, requests, deps.preset).text}`;
       el.setAttribute("aria-label", name);
       el.title = name;
       const mark = ownerMark(terminal, deps.preset, 22);

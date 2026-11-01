@@ -10,7 +10,7 @@ import type { AccessRequest, Terminal } from "../../contract";
 import { createLogger } from "../../logger";
 import { getLocale, t } from "../i18n";
 import { avatarEl } from "../unified/avatar";
-import type { PresetLookup } from "./terminal-meta";
+import { type PresetLookup, titleLine } from "./terminal-meta";
 
 const log = createLogger("request-card");
 
@@ -69,7 +69,11 @@ export function createRequestCard(deps: {
     who.className = "yui-terminal-who";
     const name = document.createElement("strong");
     name.textContent = deps.preset(request.presetId).name;
-    who.append(avatarEl(deps.preset(request.presetId), 20), name, terminal?.title ?? "");
+    who.append(
+      avatarEl(deps.preset(request.presetId), 20),
+      name,
+      terminal ? titleLine(terminal, document.createElement("span")) : "",
+    );
     const ask = document.createElement("h3");
     ask.id = "yui-terminal-request-ask";
     ask.textContent = t(
