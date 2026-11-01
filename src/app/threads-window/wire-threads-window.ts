@@ -47,6 +47,8 @@ export async function wireThreadsWindow(deps: {
     onClose: () => presence.close(),
     listCollapsed: settings.get().listCollapsed,
     onListCollapsed: settings.setListCollapsed,
+    listWidth: settings.get().listWidth ?? null,
+    onListWidth: settings.setListWidth,
     resize,
     terminal: wireTerminalTab({ register, settings }),
   });

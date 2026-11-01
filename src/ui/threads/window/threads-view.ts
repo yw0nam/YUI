@@ -9,6 +9,7 @@ import type { ThreadsTab } from "../../../io/bridge/settings-bridge";
 import { subscribe as subscribeLocale, t } from "../../i18n";
 import { CROSS_SVG } from "../../quick-controls/constants";
 import { growOpen, shrinkClose } from "./grow";
+import { createListSplitter } from "./list-splitter";
 import { refreshTimes } from "./relative-time";
 import { attachResizeHandles, type ResizeListener } from "./resize-handles";
 import { attachThreadsKeys } from "./threads-keys";
@@ -20,6 +21,8 @@ const SIDEBAR_SVG =
   '<svg class="yui-threads-glyph" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></svg>';
 /** The list pane's id, which the head's toggle controls. */
 const LIST_ID = "yui-threads-list";
+/** The Terminal tab's list id, which its list edge controls. */
+const TERMINAL_LIST_ID = "yui-terminal-list";
 
 /** How often the relative times are redrawn. */
 const REFRESH_MS = 60_000;
@@ -53,6 +56,9 @@ export function createThreadsView(deps: {
   /** The stored choice of the list collapsed to the rail. */
   listCollapsed: boolean;
   onListCollapsed(collapsed: boolean): void;
+  /** The stored list width; null for the default. */
+  listWidth: number | null;
+  onListWidth(width: number | null): void;
   /** The panel's edge and corner drags. */
   resize: ResizeListener;
   terminal(shell: TabShell): TabBody;
@@ -98,6 +104,9 @@ export function createThreadsView(deps: {
   });
   const terminal = deps.terminal(shell(backs[1]!));
   threads.list.id = LIST_ID;
+  terminal.list.id = TERMINAL_LIST_ID;
+  const splitter = createListSplitter({ panel, width: deps.listWidth, onWidth: deps.onListWidth });
+  for (const list of [threads.list, terminal.list]) splitter.attach(list);
   content.append(threads.el, terminal.el);
   tabs.add("threads", threads);
   tabs.add("terminal", terminal);
@@ -159,6 +168,7 @@ export function createThreadsView(deps: {
       threads.dispose();
       terminal.dispose();
       layout.dispose();
+      splitter.dispose();
       offHandles();
       offLocale();
       clearInterval(refresh);

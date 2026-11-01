@@ -27,6 +27,9 @@ export function sourceLine(source: string): HTMLElement {
   markEl.className = "yui-threads-source__mark";
   markEl.setAttribute("aria-hidden", "true");
   markEl.textContent = mark;
-  el.append(markEl, name);
+  const nameEl = document.createElement("span");
+  nameEl.className = "yui-threads-source__name";
+  nameEl.textContent = name;
+  el.append(markEl, nameEl);
   return el;
 }

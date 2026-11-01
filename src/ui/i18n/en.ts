@@ -764,6 +764,7 @@ const en: Record<string, string> = {
   "threads.layout_wide": "Wide",
   "threads.layout_medium": "Medium",
   "threads.layout_narrow": "Narrow",
+  "threads.list_width": "List width",
   "terminal.title": "Terminal",
   "threads.tabs_aria": "Threads window view",
   "terminal.count": "{n} terminals",

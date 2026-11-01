@@ -10,11 +10,26 @@
   font-family: var(--yui-font);
   font-size: var(--yui-fs-body);
   line-height: 1.6;
+  word-break: keep-all;
+  overflow-wrap: break-word;
   caret-color: var(--yui-accent-ink);
+}
+
+/* Japanese breaks between characters. */
+.yui-threads:lang(ja) {
+  word-break: normal;
 }
 
 /* The size container every layout below reads: its width, never the page's. */
 .yui-threads__panel {
+  /* The wide list's width: a dragged one (list-splitter.ts) within LIST_WIDTH_PX and half the panel,
+     else the default. The percentages resolve against the panes that read it. */
+  --yui-threads-list: clamp(
+    220px,
+    var(--yui-threads-list-width, clamp(264px, 34%, 360px)),
+    min(50%, 480px)
+  );
+
   position: relative;
   container: threads / inline-size;
   display: flex;
@@ -73,6 +88,7 @@
 
 .yui-threads__toggle,
 .yui-threads__close {
+  position: relative;
   display: grid;
   flex: none;
   place-items: center;
@@ -99,6 +115,19 @@
 .yui-threads__toggle:hover,
 .yui-threads__close:hover {
   background: var(--yui-hover);
+}
+
+/* The 36px buttons reach 4px further: a 44px hit area. */
+.yui-threads__toggle::before,
+.yui-threads__close::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+
+.yui-threads__toggle:active,
+.yui-threads__close:active {
+  background: var(--yui-selected);
 }
 
 /* The window's outlined button; each use sets its own size and ink. */
@@ -143,7 +172,7 @@
   position: relative;
   display: grid;
   flex: 1;
-  grid-template-columns: 264px minmax(0, 1fr);
+  grid-template-columns: var(--yui-threads-list) minmax(0, 1fr);
   min-height: 0;
   border-top: 1px solid var(--yui-edge);
 }

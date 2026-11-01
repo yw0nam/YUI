@@ -11,18 +11,18 @@
 .yui-threads-list__tabs {
   display: flex;
   gap: 4px;
-  padding: 12px;
-  border-bottom: 1px solid var(--yui-edge);
+  padding: 8px 8px 4px;
 }
 
 .yui-threads-list__tabs button {
+  position: relative;
   flex: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   min-height: 36px;
-  padding: 8px;
+  padding: 0 8px;
   border: 1px solid transparent;
   border-radius: var(--yui-radius-control);
   background: none;
@@ -33,6 +33,16 @@
 
 .yui-threads-list__tabs button:hover {
   background: var(--yui-hover);
+}
+
+.yui-threads-list__tabs button::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+
+.yui-threads-list__tabs button:active {
+  background: var(--yui-selected);
 }
 
 .yui-threads-list__tabs [aria-pressed="true"] {
@@ -47,24 +57,48 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* One select, so a new source adds an option instead of a chip. Counts follow the tab above it. */
+/* One select, so a new source adds an option instead of a chip. Counts follow the tab above it.
+   A 36px field drawn inside a 44px hit box: a 4px clear border, the edge an inset shadow. */
 .yui-threads-list__kind {
-  margin: 8px 12px;
-  min-height: 36px;
-  padding: 8px 12px;
-  border: 1px solid var(--yui-text-mute);
-  border-radius: var(--yui-radius-control);
-  background: var(--yui-panel-bg);
-  color: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  height: 44px;
+  margin: 0 4px 4px;
+  padding: 0 30px 0 12px;
+  border: 4px solid transparent;
+  border-radius: var(--yui-radius-input);
+  background-color: var(--yui-field);
+  background-image: var(--yui-chevron);
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-clip: padding-box;
+  box-shadow: inset 0 0 0 1px var(--yui-text-mute);
+  color: var(--yui-text);
   font: inherit;
-  font-size: var(--yui-fs-sub);
+  font-size: var(--yui-fs-body);
   cursor: pointer;
+}
+
+.yui-threads-list__kind:hover {
+  box-shadow: inset 0 0 0 1px var(--yui-text-dim);
+}
+
+.yui-threads-list__kind:active {
+  background-image: var(--yui-chevron), linear-gradient(var(--yui-selected), var(--yui-selected));
+  background-position:
+    right 12px center,
+    0 0;
+}
+
+.yui-threads-list__kind:focus-visible {
+  outline-offset: -2px;
 }
 
 .yui-threads-list__rows {
   flex: 1;
   min-height: 0;
-  padding: 8px;
+  padding: 4px 8px 8px;
   overflow: auto;
   border-top: 1px solid var(--yui-edge);
 }
@@ -76,11 +110,13 @@
   font-size: var(--yui-fs-sub);
 }
 
+/* A row: the source, state and time on one line, the title on two lines at most, then the label. */
 .yui-threads-row {
   display: grid;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
   width: 100%;
-  padding: 16px 12px;
+  padding: 10px 12px;
   border: 0;
   border-radius: var(--yui-radius-row);
   background: none;
@@ -91,11 +127,15 @@
 }
 
 .yui-threads-row + .yui-threads-row {
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .yui-threads-row:hover {
   background: var(--yui-hover);
+}
+
+.yui-threads-row:active {
+  background: var(--yui-selected);
 }
 
 .yui-threads-row[aria-current="true"] {
@@ -103,8 +143,23 @@
 }
 
 .yui-threads-row strong {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: var(--yui-fs-head);
   font-weight: 600;
-  overflow-wrap: anywhere;
+  line-height: 1.45;
+  overflow-wrap: break-word;
+}
+
+.yui-threads-row .yui-threads-source {
+  gap: 6px;
+}
+
+/* The mark keeps the 20px slot a preset's face fills in a Terminal row. */
+.yui-threads-row .yui-threads-source__mark {
+  font-size: var(--yui-fs-body);
 }
 
 .yui-threads-row__label {
@@ -114,6 +169,7 @@
   white-space: nowrap;
   color: var(--yui-text-mute);
   font-size: var(--yui-fs-sub);
+  line-height: 1.5;
 }
 
 .yui-threads-row__meta {
@@ -121,6 +177,11 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  line-height: 1.5;
+}
+
+.yui-threads-row__meta .yui-threads-source {
+  flex: 1;
 }
 
 .yui-threads-row__meta time {
@@ -129,22 +190,9 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* A panel under 440px drops the label line and tightens the list. */
+/* A panel under 440px drops the label line. */
 @container threads (max-width: 439.98px) {
   .yui-threads-row__label {
     display: none;
-  }
-
-  .yui-threads-row {
-    gap: 6px;
-    padding: 12px;
-  }
-
-  .yui-threads-list__tabs {
-    padding-inline: 8px;
-  }
-
-  .yui-threads-list__kind {
-    margin-inline: 8px;
   }
 }

@@ -1,5 +1,4 @@
-/* The answer area pinned at the thread pane's foot; compact so the transcript keeps the height.
-   Tokens in ../../tokens.css. */
+/* The answer area pinned at the thread pane's foot. Tokens in ../../tokens.css. */
 
 .yui-threads-answer {
   display: grid;
@@ -7,6 +6,18 @@
   padding: 12px 28px 16px;
   border-top: 1px solid var(--yui-edge);
   background: var(--yui-panel-bg);
+}
+
+/* In the thread pane it fills the pane's last row, at most half the pane (thread-pane.css): the choices
+   shrink and scroll first, then the field and an error, so the prompt, the field and Send stay. */
+.yui-threads-pane .yui-threads-answer {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.yui-threads-answer__head {
+  flex: none;
 }
 
 .yui-threads-answer__head {
@@ -29,20 +40,32 @@
   font-size: var(--yui-fs-sub);
 }
 
+/* Gives up its room before the field does. */
 .yui-threads-answer__choices {
   display: flex;
+  flex: 0 1000 auto;
   flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: flex-start;
   gap: 8px;
+  box-sizing: border-box;
+  min-height: 44px;
+  margin: -4px;
+  padding: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .yui-threads-answer__choices[hidden] {
   display: none;
 }
 
+/* Text mute edges read 6.66:1 (Dawn) and 6.23:1 (Hearth) on the Panel. */
 .yui-threads-answer button {
+  position: relative;
   min-height: 36px;
   padding: 8px 12px;
-  border: 1px solid var(--yui-edge-strong);
+  border: 1px solid var(--yui-text-mute);
   border-radius: var(--yui-radius-control);
   background: none;
   color: inherit;
@@ -55,11 +78,24 @@
   background: var(--yui-hover);
 }
 
+.yui-threads-answer__choices button:active:not(:disabled) {
+  background: var(--yui-selected);
+}
+
+.yui-threads-answer__choices button::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+
 .yui-threads-answer__choices button {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: var(--yui-fs-sub);
+  padding: 6px 12px 6px 8px;
+  font-size: var(--yui-fs-body);
+  white-space: normal;
+  text-align: left;
 }
 
 .yui-threads-answer__choices kbd {
@@ -69,7 +105,8 @@
   border-radius: 4px;
   color: var(--yui-text-mute);
   font: inherit;
-  font-size: var(--yui-fs-caption);
+  font-size: var(--yui-fs-sub);
+  line-height: 1.5;
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
@@ -93,16 +130,18 @@
 .yui-threads-answer__composer {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 44px;
   align-items: end;
   gap: 8px;
 }
 
-/* One line that grows with the reply up to 200px, then scrolls. */
+/* One line that grows with the reply up to 200px or the room left, then scrolls. */
 .yui-threads-answer textarea {
   box-sizing: border-box;
   width: 100%;
   min-height: 44px;
-  max-height: 200px;
+  max-height: 100%;
   padding: 8px 12px;
   resize: none;
   border: 1px solid var(--yui-text-mute);
@@ -134,6 +173,10 @@
   background: var(--yui-text-dim);
 }
 
+.yui-threads-answer .yui-threads-answer__send:active:not(:disabled) {
+  opacity: 0.82;
+}
+
 .yui-threads-answer .yui-threads-answer__send.is-danger {
   border-color: var(--yui-danger);
   background: var(--yui-danger);
@@ -147,8 +190,11 @@
   cursor: not-allowed;
 }
 
+/* Shrinks to its first line and scrolls when the area runs out of room. */
 .yui-threads-answer__error {
+  min-height: 1lh;
   margin: 0;
+  overflow-y: auto;
   padding: 6px 10px;
   border-radius: var(--yui-radius-control);
   background: var(--yui-danger-faint);
@@ -162,29 +208,20 @@
   }
 }
 
-/* A pane under 440px stacks the choices and gives the send button the full width. */
+/* A pane under 440px keeps Send beside the field. */
 @container pane (max-width: 439.98px) {
   .yui-threads-answer {
     padding-inline: 16px;
   }
+}
 
-  .yui-threads-answer__choices {
-    flex-direction: column;
+/* A short pane drops the Enter hint and tightens the answer area. */
+@container pane (max-height: 439.98px) {
+  .yui-threads-answer {
+    padding-block: 8px 10px;
   }
 
-  .yui-threads-answer__choices button {
-    width: 100%;
-  }
-
-  .yui-threads-answer__composer {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .yui-threads-answer__composer > :only-child {
-    grid-column: auto;
-  }
-
-  .yui-threads-answer .yui-threads-answer__send {
-    width: 100%;
+  .yui-threads-answer__head small {
+    display: none;
   }
 }

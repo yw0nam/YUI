@@ -9,7 +9,7 @@ const KNOWN = new Map<string, { name: string; mark: string }>([
   ["notion", { name: "Notion", mark: "N" }],
 ]);
 
-/** A source outside the table shows its raw text and the generic mark. */
+/** A source outside the table shows its raw text and its first character, upper-cased. */
 export function threadSource(source: string): { name: string; mark: string } {
-  return KNOWN.get(source) ?? { name: source, mark: "•" };
+  return KNOWN.get(source) ?? { name: source, mark: [...source][0]?.toUpperCase() ?? "" };
 }

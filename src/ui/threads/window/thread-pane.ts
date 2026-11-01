@@ -33,12 +33,16 @@ function entryEl(entry: ThreadEntry, source: string, now: number): HTMLElement {
   return el;
 }
 
-function threadPane(thread: Thread, now: number): { head: HTMLElement; transcript: HTMLElement } {
+function threadPane(
+  thread: Thread,
+  now: number,
+  back: HTMLElement,
+): { head: HTMLElement; transcript: HTMLElement } {
   const head = document.createElement("header");
   head.className = "yui-threads-pane__head";
   const line = document.createElement("div");
   line.className = "yui-threads-pane__line";
-  line.append(sourceLine(thread.source), stateWord(thread));
+  line.append(back, sourceLine(thread.source), stateWord(thread));
   const title = document.createElement("h2");
   title.tabIndex = -1;
   title.textContent = thread.title;
@@ -68,7 +72,7 @@ export interface ThreadPane {
 
 export function createThreadPane(deps: {
   el: HTMLElement;
-  /** The narrow layout's way back to the list, leading the pane's head. */
+  /** The narrow layout's way back to the list, leading the source line. */
   back: HTMLElement;
   now(): number;
   /** Rejects with the store's error string. */
@@ -116,8 +120,7 @@ export function createThreadPane(deps: {
       el.replaceChildren();
       return;
     }
-    const { head, transcript } = threadPane(thread, deps.now());
-    head.prepend(deps.back);
+    const { head, transcript } = threadPane(thread, deps.now(), deps.back);
     el.replaceChildren(head, transcript);
     if (sameThread) transcript.scrollTop = scrollTop;
     const ask = thread.ask;

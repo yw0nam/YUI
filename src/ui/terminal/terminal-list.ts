@@ -38,14 +38,11 @@ export function createTerminalList(deps: {
       const meta = document.createElement("span");
       meta.className = "yui-threads-row__meta";
       meta.append(
+        ownerLine(terminal, deps.preset),
         stateWord(rowState(terminal, requests, deps.preset)),
         timeEl(terminal.openedAt, deps.now()),
       );
-      el.append(
-        ownerLine(terminal, deps.preset),
-        titleLine(terminal, document.createElement("strong")),
-        meta,
-      );
+      el.append(meta, titleLine(terminal, document.createElement("strong")));
       return el;
     },
     empty: { className: "yui-threads-list__empty", text: () => t("terminal.empty_list") },

@@ -1,7 +1,7 @@
 /**
  * threads-window-settings — the Threads window's frame (its panel's screen rect in logical px),
- * whether its list is collapsed to the rail, and its terminals' font size. Per device: never synced
- * cross-window.
+ * whether its list is collapsed to the rail, the list's dragged width, and its terminals' font size.
+ * Per device: never synced cross-window.
  */
 
 import {
@@ -14,6 +14,9 @@ import {
 /** The smallest panel the window takes. */
 export const THREADS_MIN_PANEL = { width: 360, height: 420 } as const;
 
+/** The list's dragged width in px; the widest is also at most half the panel (list-splitter.ts). */
+export const LIST_WIDTH_PX = { min: 220, max: 480 } as const;
+
 /** The terminal font size in px; the default is `--yui-fs-body` (0.8125rem) at the 16px root. */
 export const TERMINAL_FONT_PX = { min: 10, default: 13, max: 24 } as const;
 
@@ -24,6 +27,8 @@ export interface ThreadsWindowSettings {
   width: number;
   height: number;
   listCollapsed: boolean;
+  /** The list's dragged width in px; absent for the default width. */
+  listWidth?: number;
   /** Every terminal's font size; absent until the user changes it. */
   terminalFontSize?: number;
 }
@@ -34,19 +39,27 @@ const DEFAULTS: ThreadsWindowSettings = { width: 880, height: 680, listCollapsed
 
 function parse(v: unknown): ThreadsWindowSettings | null {
   if (!isPlainObject(v)) return null;
-  const { x, y, width, height, listCollapsed, terminalFontSize } = v as Record<string, unknown>;
+  const { x, y, width, height, listCollapsed, listWidth, terminalFontSize } = v as Record<
+    string,
+    unknown
+  >;
   const int = (n: unknown): n is number => Number.isInteger(n);
   if (!int(width) || !int(height) || typeof listCollapsed !== "boolean") return null;
   if (width < THREADS_MIN_PANEL.width || height < THREADS_MIN_PANEL.height) return null;
-  // A font size out of the range is dropped on its own; the frame stays.
+  // A list width or a font size out of its range is dropped alone; the frame stays.
+  const list =
+    int(listWidth) && listWidth >= LIST_WIDTH_PX.min && listWidth <= LIST_WIDTH_PX.max
+      ? { listWidth }
+      : {};
   const font =
     int(terminalFontSize) &&
     terminalFontSize >= TERMINAL_FONT_PX.min &&
     terminalFontSize <= TERMINAL_FONT_PX.max
       ? { terminalFontSize }
       : {};
-  if (x === undefined && y === undefined) return { width, height, listCollapsed, ...font };
-  return int(x) && int(y) ? { x, y, width, height, listCollapsed, ...font } : null;
+  const rest = { width, height, listCollapsed, ...list, ...font };
+  if (x === undefined && y === undefined) return rest;
+  return int(x) && int(y) ? { x, y, ...rest } : null;
 }
 
 export function createThreadsWindowSettings(opts?: { storage?: ThreadsWindowStorage }) {
@@ -60,6 +73,7 @@ export function createThreadsWindowSettings(opts?: { storage?: ThreadsWindowStor
       a.width === b.width &&
       a.height === b.height &&
       a.listCollapsed === b.listCollapsed &&
+      a.listWidth === b.listWidth &&
       a.terminalFontSize === b.terminalFontSize,
   });
 
@@ -79,6 +93,12 @@ export function createThreadsWindowSettings(opts?: { storage?: ThreadsWindowStor
 
     setListCollapsed(listCollapsed: boolean): void {
       core.commit({ ...core.current(), listCollapsed });
+    },
+
+    /** Saves the list's dragged width; null goes back to the default. */
+    setListWidth(width: number | null): void {
+      const { listWidth: _, ...rest } = core.current();
+      core.commit(width === null ? rest : { ...rest, listWidth: Math.round(width) });
     },
 
     /** Every terminal's font size: the stored one, else the default. */

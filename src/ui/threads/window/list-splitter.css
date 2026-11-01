@@ -1,0 +1,40 @@
+/* The wide list's edge: an 8px hit area centred on the list's right edge, its line Amber on hover and
+   drag; keyboard focus shows the window's focus ring. Tokens in ../../tokens.css. */
+
+.yui-threads-split {
+  display: none;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  /* The list's width (threads-view.css), less half the hit area. */
+  left: calc(var(--yui-threads-list) - 4px);
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.yui-threads-split::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 2px;
+}
+
+.yui-threads-split:hover::after,
+.yui-threads-split[data-dragging]::after {
+  background: var(--yui-accent);
+}
+
+/* Wide, with the list beside the pane. Pairs with WIDE_MIN_PX in threads-layout.ts. */
+@container threads (min-width: 720px) {
+  .yui-threads-split {
+    display: block;
+  }
+
+  .yui-threads__panel[data-collapsed="true"] .yui-threads-split {
+    display: none;
+  }
+}
