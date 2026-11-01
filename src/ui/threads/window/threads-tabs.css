@@ -29,10 +29,11 @@
   background: var(--yui-hover);
 }
 
+/* 44px tall; the tabs' 2px gap is split, so neighbouring hit areas meet. */
 .yui-threads__tab::before {
   content: "";
   position: absolute;
-  inset: -4px;
+  inset: -4px -1px;
 }
 
 .yui-threads__tab:active {
