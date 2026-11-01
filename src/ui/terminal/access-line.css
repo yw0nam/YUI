@@ -70,7 +70,7 @@
   border-radius: 4px;
   background: var(--yui-selected);
   color: var(--yui-text-dim);
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-family: var(--yui-font-mono);
   font-size: 0.95em;
 }
 

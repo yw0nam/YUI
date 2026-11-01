@@ -112,7 +112,7 @@
   padding: 0 4px;
   border-radius: 4px;
   background: var(--yui-selected);
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-family: var(--yui-font-mono);
   font-size: 0.88em;
 }
 

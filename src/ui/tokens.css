@@ -40,6 +40,8 @@
   --yui-crop-ring: oklch(0.99 0.004 85 / 0.9);
 
   --yui-font: "Pretendard JP Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Code spans and the Threads window's terminal, where text aligns by column */
+  --yui-font-mono: ui-monospace, "SF Mono", Menlo, monospace;
   --yui-fs-caption: 0.6875rem; /* 11px: units, footnotes */
   --yui-fs-sub: 0.75rem; /* 12px: row descriptions, chip labels */
   --yui-fs-body: 0.8125rem; /* 13px: row labels, field text */

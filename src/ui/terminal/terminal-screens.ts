@@ -11,7 +11,7 @@ import { Terminal as Xterm } from "@xterm/xterm";
 import type { Terminal } from "../../contract";
 import { createLogger } from "../../logger";
 import { t } from "../i18n";
-import { MONO_FONT, terminalTheme, watchTheme } from "./terminal-theme";
+import { terminalFont, terminalTheme, watchTheme } from "./terminal-theme";
 
 const log = createLogger("terminal-screens");
 
@@ -52,7 +52,7 @@ export function createTerminalScreens(deps: {
   function create(id: string): Screen {
     const xterm = new Xterm({
       ...size,
-      fontFamily: MONO_FONT,
+      fontFamily: terminalFont(),
       fontSize: 12.5,
       scrollback: SCROLLBACK_LINES,
       theme: terminalTheme(),

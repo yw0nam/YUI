@@ -32,7 +32,7 @@
 .yui-terminal-id {
   flex: none;
   color: var(--yui-text-mute);
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-family: var(--yui-font-mono);
   font-size: var(--yui-fs-sub);
   font-weight: 400;
 }

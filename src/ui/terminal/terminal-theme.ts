@@ -2,8 +2,10 @@
 
 import type { ITheme } from "@xterm/xterm";
 
-/** The code-span mono stack (thread-pane.css). */
-export const MONO_FONT = 'ui-monospace, "SF Mono", Menlo, monospace';
+/** The mono stack the theme tokens set for code spans and the terminal. */
+export function terminalFont(root: HTMLElement = document.documentElement): string {
+  return getComputedStyle(root).getPropertyValue("--yui-font-mono").trim() || "monospace";
+}
 
 const ANSI_SLOTS = [
   "black",

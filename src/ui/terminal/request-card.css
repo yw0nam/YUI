@@ -32,8 +32,8 @@
   overflow: auto;
   border-radius: var(--yui-radius-control);
   background: var(--yui-selected);
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 12.5px;
+  font-family: var(--yui-font-mono);
+  font-size: var(--yui-fs-sub);
   line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
