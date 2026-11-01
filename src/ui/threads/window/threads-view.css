@@ -10,7 +10,14 @@
   font-family: var(--yui-font);
   font-size: var(--yui-fs-body);
   line-height: 1.6;
+  word-break: keep-all;
+  overflow-wrap: break-word;
   caret-color: var(--yui-accent-ink);
+}
+
+/* Japanese breaks between characters. */
+.yui-threads:lang(ja) {
+  word-break: normal;
 }
 
 /* The size container every layout below reads: its width, never the page's. */
