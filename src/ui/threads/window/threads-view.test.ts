@@ -7,7 +7,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { Thread, ThreadsSnapshot } from "../../../contract";
 import { setLocale } from "../../i18n";
-import { createThreadsView } from "./threads-view";
+import { createThreadsView, type TabBody, type TabShell } from "./threads-view";
 
 function thread(id: string, source: string, updated_at: number, waiting = true): Thread {
   return {
@@ -60,10 +60,42 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** A stand-in Terminal tab body: its head is the test's to set, and its terminal holds xterm's field. */
+function terminalTab() {
+  const head = { count: "", waiting: false };
+  const el = document.createElement("div");
+  el.innerHTML = '<div class="xterm"><textarea></textarea></div>';
+  const shown = vi.fn();
+  let shell: TabShell | undefined;
+  const body: TabBody = {
+    el,
+    list: document.createElement("nav"),
+    head: () => head,
+    hasSelection: () => false,
+    focusList() {},
+    focusRail() {},
+    move() {},
+    shown,
+    dispose() {},
+  };
+  return {
+    head,
+    shown,
+    field: el.querySelector("textarea")!,
+    redraw: () => shell!.headChanged(),
+    factory: (next: TabShell) => {
+      shell = next;
+      return body;
+    },
+  };
+}
+
 function build(onAnswer: () => Promise<void> = () => Promise.resolve(), listCollapsed = false) {
   const onClose = vi.fn();
   const onListCollapsed = vi.fn();
+  const terminal = terminalTab();
   const view = createThreadsView({
+    terminal: terminal.factory,
     mount: document.body,
     now: () => now,
     onAnswer,
@@ -82,7 +114,8 @@ function build(onAnswer: () => Promise<void> = () => Promise.resolve(), listColl
   const enter = () =>
     field().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", cancelable: true }));
   const panel = () => $<HTMLElement>(".yui-threads__panel");
-  return { view, $, field, send, type, enter, onClose, onListCollapsed, panel };
+  const tab = (name: string) => $<HTMLButtonElement>(`[role="tab"][data-tab="${name}"]`);
+  return { view, $, field, send, type, enter, onClose, onListCollapsed, panel, terminal, tab };
 }
 
 const key = (init: KeyboardEventInit) =>
@@ -161,7 +194,7 @@ it("hands a pointerdown on its head, not on its ×, to the head listeners", () =
   view.onHeadPointerDown(onHead);
 
   $(".yui-threads__close").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
-  $(".yui-threads__head h1").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+  $(".yui-threads__count").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
 
   expect(onHead).toHaveBeenCalledOnce();
 });
@@ -273,4 +306,65 @@ it.each([
   const { collapsed, overlay } = panel().dataset;
   expect({ collapsed, overlay }).toEqual(data);
   expect(onListCollapsed.mock.calls.map(([value]) => value)).toEqual(writes);
+});
+
+it("switches the top-level tab by a click and by the arrow keys, the count following it", () => {
+  const { view, $, terminal, tab } = build();
+  view.update(snapshot(1, [thread("t1", "codex", 1)]));
+  terminal.head.count = "2 terminals";
+
+  expect(tab("threads").getAttribute("aria-selected")).toBe("true");
+  expect($(".yui-threads__count").textContent).toBe("1 waiting");
+
+  tab("terminal").click();
+  expect(tab("terminal").getAttribute("aria-selected")).toBe("true");
+  expect(tab("threads").getAttribute("aria-selected")).toBe("false");
+  expect($(".yui-threads__count").textContent).toBe("2 terminals");
+  expect($<HTMLElement>(".yui-threads__panes").hidden).toBe(true);
+  expect(terminal.shown).toHaveBeenCalledOnce();
+
+  tab("terminal").dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
+  expect(tab("threads").getAttribute("aria-selected")).toBe("true");
+  expect(document.activeElement).toBe(tab("threads"));
+  expect($<HTMLElement>(".yui-threads__panes").hidden).toBe(false);
+});
+
+it("dots only the unselected tab where something waits for the user", () => {
+  const { view, terminal, tab } = build();
+  view.update(snapshot(1, [thread("t1", "codex", 1)]));
+  terminal.head.waiting = true;
+  terminal.redraw();
+  const dotted = () =>
+    ["threads", "terminal"].filter((name) => tab(name).querySelector(".yui-threads__tab-dot"));
+
+  expect(dotted()).toEqual(["terminal"]);
+  tab("terminal").click();
+  expect(dotted()).toEqual(["threads"]);
+});
+
+it.each([
+  ["Escape", { key: "Escape" }],
+  ["Control+Command+S", CTRL_CMD_S],
+])("leaves %s typed in the terminal to the shell", (_name, init) => {
+  const { onClose, onListCollapsed, terminal, tab } = build();
+  widen(800);
+  tab("terminal").click();
+
+  terminal.field.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, ...init }));
+
+  expect(onClose).not.toHaveBeenCalled();
+  expect(onListCollapsed).not.toHaveBeenCalled();
+});
+
+it("opens on the asked tab without the grow when the open has no origin", async () => {
+  const animate = vi.fn(() => ({ finished: Promise.resolve() }));
+  HTMLElement.prototype.animate = animate as never;
+  const { view, $, tab } = build();
+
+  await view.open(null, "terminal");
+
+  expect($(".yui-threads").classList.contains("is-open")).toBe(true);
+  expect(tab("terminal").getAttribute("aria-selected")).toBe("true");
+  expect(animate).not.toHaveBeenCalled();
+  delete (HTMLElement.prototype as Partial<HTMLElement>).animate;
 });
