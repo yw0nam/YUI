@@ -718,7 +718,7 @@ globalThis.YUI_MAP =
       "id": "io/chat/tools",
       "module": "tools",
       "label": "client tools",
-      "role": "The tools the client declares to the backend and runs itself: generate_express, rate_relation, address_character, body_action, look, plugin_describe, plugin_call, plugin_skill, threads_list, threads_search.",
+      "role": "The tools the client declares to the backend and runs itself: generate_express, rate_relation, address_character, body_action, look, plugin_describe, plugin_call, plugin_skill, threads_list, threads_search, terminal_open, terminal_list, terminal_read, terminal_write, terminal_close.",
       "paths": [
         "src/io/chat/tools"
       ]
@@ -754,7 +754,7 @@ globalThis.YUI_MAP =
       "id": "io/terminal",
       "module": "display",
       "label": "terminal client",
-      "role": "Keeps the terminal store's highest-revision snapshot from terminal_snapshot and the terminal-snapshot event, runs the user's terminal commands — open, close, input, resize, answer, take_back — and streams an attached terminal's bytes over a Channel; inert outside Tauri.",
+      "role": "Keeps the terminal store's highest-revision snapshot from terminal_snapshot and the terminal-snapshot event, runs the user's terminal commands — open, close, input, resize, attach, answer, take_back — and listens for the tray's terminal-open; inert outside Tauri.",
       "paths": [
         "src/io/terminal"
       ]
@@ -1213,7 +1213,7 @@ globalThis.YUI_MAP =
       "id": "ui/terminal",
       "module": "display",
       "label": "terminal ui",
-      "role": "The Threads window's Terminal tab: the list or rail of terminals, the terminal pane with one xterm per terminal, the access line with Take back, and the Allow card for a waiting access request.",
+      "role": "The Threads window's Terminal tab: the list or its rail (New terminal, then one row per terminal newest first), the pane with one xterm per terminal and its exit line, the access line with Take back, and the Allow card for the oldest waiting access request.",
       "paths": [
         "src/ui/terminal"
       ]
@@ -1440,7 +1440,7 @@ globalThis.YUI_MAP =
       "id": "shell/terminal",
       "module": "shell",
       "label": "terminal",
-      "role": "Runs each Terminal's login shell in a PTY, parses its output into a screen for reads and attaches, gates preset reads and writes behind the user's Allow, kills every Terminal on quit, and publishes a revisioned snapshot.",
+      "role": "Runs each Terminal's login shell in a PTY, parses its output into a screen for reads and attaches, gates preset reads and writes behind the user's Allow, kills every Terminal on quit, publishes a revisioned snapshot, and answers the terminal_tool_* calls with their result text.",
       "paths": [
         "src-tauri/src/terminal"
       ]
@@ -2738,6 +2738,15 @@ globalThis.YUI_MAP =
       "transport": "shared"
     },
     {
+      "id": "tray-terminal",
+      "from": "shell/tray",
+      "to": "io/terminal",
+      "carries": "terminal-open: no payload, on the tray's Terminal item; main's window then opens the Threads window on the Terminal tab",
+      "kind": "tauri-event",
+      "transport": "shared",
+      "wiring": "src/windows/main.ts"
+    },
+    {
       "id": "window-geometry",
       "from": "app/stage",
       "to": "settings",
@@ -2879,6 +2888,78 @@ globalThis.YUI_MAP =
       "transport": "shared"
     },
     {
+      "id": "terminal-shell-command",
+      "from": "io/terminal",
+      "to": "shell/terminal",
+      "carries": "terminal_snapshot once after the listen; terminal_open {cwd?}; terminal_close {id}; terminal_input {id, data}; terminal_resize {cols, rows}; terminal_attach {id, onOutput}; terminal_answer {requestId, allow}; terminal_take_back {id}",
+      "kind": "tauri-command",
+      "transport": "shared",
+      "wiring": "src/io/terminal/terminal-client.ts"
+    },
+    {
+      "id": "terminal-shell-event",
+      "from": "shell/terminal",
+      "to": "io/terminal",
+      "carries": "terminal-snapshot {revision, terminals, requests}: every change; the client keeps the highest revision",
+      "kind": "tauri-event",
+      "transport": "shared",
+      "wiring": "src/io/terminal/terminal-client.ts"
+    },
+    {
+      "id": "terminal-output",
+      "from": "shell/terminal",
+      "to": "io/terminal",
+      "carries": "terminal_attach's onOutput Channel: the formatted screen state that redraws the terminal, then its live PTY bytes",
+      "kind": "tauri-event",
+      "transport": "shared",
+      "wiring": "src/io/terminal/terminal-client.ts"
+    },
+    {
+      "id": "terminal-view-snapshot",
+      "from": "io/terminal",
+      "to": "ui/terminal",
+      "carries": "subscribe → the snapshot into the list, rail, pane head, access line and Allow card; attach(id, onBytes) → the terminal's xterm",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/wire-terminal-tab.ts"
+    },
+    {
+      "id": "terminal-view-actions",
+      "from": "ui/terminal",
+      "to": "io/terminal",
+      "carries": "open(), close(id), input(id, data), resize(cols, rows), attach(id, onBytes), answer(requestId, allow), takeBack(id)",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/wire-terminal-tab.ts"
+    },
+    {
+      "id": "terminal-tool-command",
+      "from": "io/chat/tools",
+      "to": "shell/terminal",
+      "carries": "terminal_tool_open {presetId, cwd?}; terminal_tool_list; terminal_tool_read {callId, presetId, id, lines?}; terminal_tool_write {callId, presetId, id, text, enter?}; terminal_tool_close {presetId, id}; terminal_tool_cancel {callId} when the turn stops",
+      "kind": "tauri-command",
+      "transport": "shared",
+      "wiring": "src/io/chat/tools/terminal/terminal-tools.ts"
+    },
+    {
+      "id": "terminal-chip",
+      "from": "io/terminal",
+      "to": "ui/threads",
+      "carries": "the snapshot's requests → the chip's waiting count and pending ids; a tap while one waits opens the Terminal tab",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/threads-chip/wire-threads-chip.ts"
+    },
+    {
+      "id": "threads-tray-open",
+      "from": "app/threads-chip",
+      "to": "io/window/openers",
+      "carries": "open(undefined, \"terminal\") from the tray's Terminal click: place, show and focus the window with no chip rect and no grow",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/threads-chip/wire-threads-chip.ts"
+    },
+    {
       "id": "threads-chip-snapshot",
       "from": "io/threads",
       "to": "ui/threads",
@@ -2909,7 +2990,7 @@ globalThis.YUI_MAP =
       "id": "threads-chip-open",
       "from": "ui/threads",
       "to": "io/window/openers",
-      "carries": "the chip's tap → open(the chip's viewport rect), sent as screen logical px once the window reports ready",
+      "carries": "the chip's tap → open(the chip's viewport rect, \"terminal\" while an access request waits), sent as screen logical px once the window reports ready",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/threads-chip/wire-threads-chip.ts"
@@ -2918,7 +2999,7 @@ globalThis.YUI_MAP =
       "id": "threads-open-request",
       "from": "io/window/openers",
       "to": "app/threads-window",
-      "carries": "yui://threads-open {chip: {x, y, width, height}}: place, show and focus the window, then grow out of the chip; while it shows, only focus it",
+      "carries": "yui://threads-open {chip?: {x, y, width, height}, tab?: \"threads\" | \"terminal\"}: place, show and focus the window, then grow out of the chip when there is one; select the tab; while it shows, only focus it",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/threads-window/wire-threads-window.ts"
@@ -4357,6 +4438,14 @@ globalThis.YUI_MAP =
         },
         {
           "from": "tools",
+          "label": "terminal_open and terminal_close need no permission; terminal_read and terminal_write wait for the user's Allow in the Threads window",
+          "edges": [
+            "terminal-tool-command"
+          ],
+          "to": "shell"
+        },
+        {
+          "from": "tools",
           "label": "look at screen: capture_screen_at",
           "edges": [
             "tools-capture",
@@ -4884,7 +4973,7 @@ globalThis.YUI_MAP =
       {
         "id": "threads",
         "label": "threads",
-        "role": "The Threads window, threads.html: main's frameless window, first placed beside the pet window and reopened at its stored frame, grown out of the Threads chip and hidden on close."
+        "role": "The Threads window, threads.html: main's frameless window, first placed beside the pet window and reopened at its stored frame, grown out of the Threads chip and hidden on close; its head switches between the Threads and Terminal tabs, and the tray's Terminal item opens it on the Terminal tab."
       },
       {
         "id": "devtools",
@@ -5035,7 +5124,7 @@ globalThis.YUI_MAP =
         "id": "threads-open-pet",
         "from": "pet",
         "to": "threads",
-        "carries": "yui://threads-open {chip}: place, show and focus the window, grow out of the chip; while it shows, focus it",
+        "carries": "yui://threads-open {chip?, tab?}: place, show and focus the window, grow out of the chip when there is one; select the tab; while it shows, focus it",
         "kind": "bridge"
       },
       {

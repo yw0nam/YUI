@@ -104,12 +104,26 @@ The user's reply to one Ask: a choice id, text, both, or `release` to answer at 
 _Avoid_: reply, response
 
 **Threads window**:
-The window `threads` where the user reads Threads and answers their Asks; it grows out of the Threads chip, moves and resizes on its own, and first opens beside the main character; its list collapses to a rail.
+The window `threads` where the user reads Threads and answers their Asks and works in Terminals; it grows out of the Threads chip, moves and resizes on its own, and first opens beside the main character; its head switches between the Threads tab and the Terminal tab, and its list collapses to a rail.
 _Avoid_: inbox, panel, dashboard
 
 **Threads chip**:
-The pill in the main window's chip column that counts waiting Threads and opens the Threads window.
+The pill in the main window's chip column that counts waiting Threads and access requests and opens the Threads window.
 _Avoid_: badge, notification pill
+
+### Terminal
+
+**Terminal**:
+A shell YUI runs in a PTY, shown in the Threads window's Terminal tab, owned by the user or by the preset that opened it.
+_Avoid_: shell window, console, task space
+
+**Terminal access**:
+One preset's right to read and write one Terminal, given by the user's Allow and ended by Take back.
+_Avoid_: permission, grant, control
+
+**Access request**:
+A preset's pending read or write on a Terminal it has no access to, shown as the Allow / Deny card.
+_Avoid_: prompt, approval dialog
 
 ### Surfaces & periphery
 
