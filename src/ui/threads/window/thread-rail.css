@@ -82,11 +82,10 @@
   outline-offset: 2px;
 }
 
+/* The select reaches 4px past the mark, a 44px hit area. */
 .yui-threads-rail__kind select {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  inset: -4px;
   opacity: 0;
   cursor: pointer;
 }

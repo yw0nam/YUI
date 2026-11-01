@@ -11,8 +11,7 @@
 .yui-threads-list__tabs {
   display: flex;
   gap: 4px;
-  padding: 12px;
-  border-bottom: 1px solid var(--yui-edge);
+  padding: 8px 8px 4px;
 }
 
 .yui-threads-list__tabs button {
@@ -22,7 +21,7 @@
   justify-content: center;
   gap: 6px;
   min-height: 36px;
-  padding: 8px;
+  padding: 0 8px;
   border: 1px solid transparent;
   border-radius: var(--yui-radius-control);
   background: none;
@@ -47,18 +46,42 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* One select, so a new source adds an option instead of a chip. Counts follow the tab above it. */
+/* One select, so a new source adds an option instead of a chip. Counts follow the tab above it.
+   A 36px field drawn inside a 44px hit box: a 4px clear border, the edge an inset shadow. */
 .yui-threads-list__kind {
-  margin: 8px 12px;
-  min-height: 36px;
-  padding: 8px 12px;
-  border: 1px solid var(--yui-text-mute);
-  border-radius: var(--yui-radius-control);
-  background: var(--yui-panel-bg);
-  color: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  height: 44px;
+  margin: 0 4px 4px;
+  padding: 0 30px 0 12px;
+  border: 4px solid transparent;
+  border-radius: 12px;
+  background-color: var(--yui-field);
+  background-image: var(--yui-chevron);
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-clip: padding-box;
+  box-shadow: inset 0 0 0 1px var(--yui-text-mute);
+  color: var(--yui-text);
   font: inherit;
-  font-size: var(--yui-fs-sub);
+  font-size: var(--yui-fs-body);
   cursor: pointer;
+}
+
+.yui-threads-list__kind:hover {
+  box-shadow: inset 0 0 0 1px var(--yui-text-dim);
+}
+
+.yui-threads-list__kind:active {
+  background-image: var(--yui-chevron), linear-gradient(var(--yui-selected), var(--yui-selected));
+  background-position:
+    right 12px center,
+    0 0;
+}
+
+.yui-threads-list__kind:focus-visible {
+  outline-offset: -2px;
 }
 
 .yui-threads-list__rows {
@@ -152,17 +175,9 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* A panel under 440px drops the label line and tightens the list. */
+/* A panel under 440px drops the label line. */
 @container threads (max-width: 439.98px) {
   .yui-threads-row__label {
     display: none;
-  }
-
-  .yui-threads-list__tabs {
-    padding-inline: 8px;
-  }
-
-  .yui-threads-list__kind {
-    margin-inline: 8px;
   }
 }
