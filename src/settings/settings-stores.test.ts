@@ -38,6 +38,7 @@ describe("createSettingsStores", () => {
       "agentSettings",
       "userNameSettings",
       "themeSettings",
+      "textSizeSettings",
       "fillerSettings",
       "readingsSettings",
       "bubblePersistSettings",
@@ -140,6 +141,17 @@ describe("createSettingsStores", () => {
     const stores = createSettingsStores();
 
     expect(broadcastSyncStores(stores)).toContain(stores.expressMotionSettings);
+  });
+
+  it("broadcasts the text size and persists it under yui.text-size", () => {
+    localStorage.clear();
+    const stores = createSettingsStores();
+
+    stores.textSizeSettings.setScale(1.25);
+
+    expect(broadcastSyncStores(stores)).toContain(stores.textSizeSettings);
+    expect(localStorage.getItem("yui.text-size")).toBe(JSON.stringify({ scale: 1.25 }));
+    localStorage.clear();
   });
 
   it("persists the express-motion selection under yui.express_motions", () => {
