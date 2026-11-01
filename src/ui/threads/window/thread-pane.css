@@ -35,6 +35,10 @@
   min-width: 0;
 }
 
+.yui-threads-pane__line .yui-threads-source {
+  flex: 1;
+}
+
 .yui-threads-pane__head h2 {
   margin: 0;
   min-width: 0;
