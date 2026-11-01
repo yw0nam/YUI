@@ -1,12 +1,20 @@
-/* The answer area pinned at the thread pane's foot; compact so the transcript keeps the height.
-   Tokens in ../../tokens.css. */
+/* The answer area pinned at the thread pane's foot; at most half the pane, its choices scroll inside
+   so the prompt, the field and Send stay. Tokens in ../../tokens.css. */
 
 .yui-threads-answer {
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
   gap: 8px;
+  max-height: 50cqh;
+  overflow: hidden;
   padding: 12px 28px 16px;
   border-top: 1px solid var(--yui-edge);
   background: var(--yui-panel-bg);
+}
+
+.yui-threads-answer > * {
+  flex: none;
 }
 
 .yui-threads-answer__head {
@@ -31,8 +39,17 @@
 
 .yui-threads-answer__choices {
   display: flex;
+  flex: 0 1 auto;
   flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: flex-start;
   gap: 8px;
+  box-sizing: border-box;
+  min-height: 44px;
+  margin: -4px;
+  padding: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .yui-threads-answer__choices[hidden] {
@@ -162,29 +179,20 @@
   }
 }
 
-/* A pane under 440px stacks the choices and gives the send button the full width. */
+/* A pane under 440px keeps Send beside the field. */
 @container pane (max-width: 439.98px) {
   .yui-threads-answer {
     padding-inline: 16px;
   }
+}
 
-  .yui-threads-answer__choices {
-    flex-direction: column;
+/* A short pane drops the Enter hint and tightens the answer area. */
+@container pane (max-height: 439.98px) {
+  .yui-threads-answer {
+    padding-block: 8px 10px;
   }
 
-  .yui-threads-answer__choices button {
-    width: 100%;
-  }
-
-  .yui-threads-answer__composer {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .yui-threads-answer__composer > :only-child {
-    grid-column: auto;
-  }
-
-  .yui-threads-answer .yui-threads-answer__send {
-    width: 100%;
+  .yui-threads-answer__head small {
+    display: none;
   }
 }
