@@ -251,6 +251,7 @@ it("shows one pane at a time in the narrow layout: a selection opens the thread,
   view.update(snapshot(1, [thread("t1", "codex", 2), thread("t2", "slack", 1)]));
   widen(400);
   expect(panel().dataset.screen).toBe("thread");
+  expect($(".yui-threads-pane__back").parentElement!.className).toBe("yui-threads-pane__line");
 
   $<HTMLButtonElement>(".yui-threads-pane__back").click();
   expect(panel().dataset.screen).toBe("list");
