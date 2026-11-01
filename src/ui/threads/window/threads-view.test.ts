@@ -65,12 +65,13 @@ afterEach(() => {
 function terminalTab() {
   const head = { count: "", waiting: false };
   const el = document.createElement("div");
-  el.innerHTML = '<div class="xterm"><textarea></textarea></div>';
+  el.innerHTML =
+    '<div class="yui-threads__panes"><nav></nav></div><div class="xterm"><textarea></textarea></div>';
   const shown = vi.fn();
   let shell: TabShell | undefined;
   const body: TabBody = {
     el,
-    list: document.createElement("nav"),
+    list: el.querySelector("nav")!,
     head: () => head,
     hasSelection: () => false,
     focusList() {},
@@ -91,7 +92,11 @@ function terminalTab() {
   };
 }
 
-function build(onAnswer: () => Promise<void> = () => Promise.resolve(), listCollapsed = false) {
+function build(
+  onAnswer: () => Promise<void> = () => Promise.resolve(),
+  listCollapsed = false,
+  listWidth: number | null = null,
+) {
   const onClose = vi.fn();
   const onListCollapsed = vi.fn();
   const terminal = terminalTab();
@@ -103,6 +108,8 @@ function build(onAnswer: () => Promise<void> = () => Promise.resolve(), listColl
     onClose,
     listCollapsed,
     onListCollapsed,
+    listWidth,
+    onListWidth: vi.fn(),
     resize: { start: vi.fn(), move: vi.fn(), end: vi.fn() },
   });
   const $ = <T extends Element>(sel: string) => document.querySelector<T>(sel)!;
@@ -244,6 +251,16 @@ it.each([
 
   expect(panel().dataset.overlay).toBe("false");
   expect(onClose).not.toHaveBeenCalled();
+});
+
+it("lays a stored list width under both tabs' lists, with an edge in each", () => {
+  const { panel } = build(undefined, false, 312);
+
+  expect(panel().style.getPropertyValue("--yui-threads-list-width")).toBe("312px");
+  const edges = [...document.querySelectorAll(".yui-threads__panes")].map(
+    (panes) => panes.querySelectorAll('[role="separator"]').length,
+  );
+  expect(edges).toEqual([1, 1]);
 });
 
 it("shows one pane at a time in the narrow layout: a selection opens the thread, back returns", () => {
