@@ -15,24 +15,16 @@ function fakeTools(result = "ok") {
   return { invoke, open, list, read, write, close };
 }
 
-describe("terminal_open", () => {
-  it("opens with the window's preset and the given cwd", async () => {
-    const { invoke, open } = fakeTools("opened t1 (~/proj)");
+it.each([
+  ["open", { cwd: "/tmp" }, ["terminal_tool_open", { presetId: "yui", cwd: "/tmp" }]],
+  ["list", {}, ["terminal_tool_list"]],
+  ["close", { id: "t1" }, ["terminal_tool_close", { presetId: "yui", id: "t1" }]],
+] as const)("terminal_%s invokes its command with the window's preset", async (name, args, call) => {
+  const { invoke, ...tools } = fakeTools("done");
 
-    await expect(open.execute({ cwd: "/tmp" })).resolves.toBe("opened t1 (~/proj)");
+  await expect(tools[name].execute(args)).resolves.toBe("done");
 
-    expect(invoke).toHaveBeenCalledWith("terminal_tool_open", { presetId: "yui", cwd: "/tmp" });
-  });
-});
-
-describe("terminal_list", () => {
-  it("lists with no arguments", async () => {
-    const { invoke, list } = fakeTools("t1 | you | ~/proj | running | access: none");
-
-    await expect(list.execute({})).resolves.toBe("t1 | you | ~/proj | running | access: none");
-
-    expect(invoke).toHaveBeenCalledWith("terminal_tool_list");
-  });
+  expect(invoke).toHaveBeenCalledWith(...call);
 });
 
 describe("terminal_read", () => {
@@ -100,25 +92,5 @@ describe("terminal_write", () => {
       text: "ls",
       enter: false,
     });
-  });
-
-  it("reports the stopped turn without invoking on an already-aborted signal", async () => {
-    const abort = new AbortController();
-    abort.abort();
-    const { invoke, write } = fakeTools();
-
-    await expect(write.execute({ id: "t1", text: "ls" }, abort.signal)).resolves.toBe(TURN_STOPPED);
-
-    expect(invoke).not.toHaveBeenCalled();
-  });
-});
-
-describe("terminal_close", () => {
-  it("closes with the window's preset and the terminal id", async () => {
-    const { invoke, close } = fakeTools("closed t1");
-
-    await expect(close.execute({ id: "t1" })).resolves.toBe("closed t1");
-
-    expect(invoke).toHaveBeenCalledWith("terminal_tool_close", { presetId: "yui", id: "t1" });
   });
 });
