@@ -104,7 +104,7 @@ The user's reply to one Ask: a choice id, text, both, or `release` to answer at 
 _Avoid_: reply, response
 
 **Threads window**:
-The window `threads` where the user reads Threads and answers their Asks and works in Terminals; it grows out of the Threads chip, moves and resizes on its own, and first opens beside the main character; its head switches between the Threads tab and the Terminal tab, and its list collapses to a rail.
+The window `threads` where the user reads Threads and answers their Asks and works in Terminals; it grows out of the Threads chip, or opens on the Terminal tab without the grow from the tray's Terminal item, moves and resizes on its own, and first opens beside the main character; its head switches between the Threads tab and the Terminal tab, and its list collapses to a rail.
 _Avoid_: inbox, panel, dashboard
 
 **Threads chip**:

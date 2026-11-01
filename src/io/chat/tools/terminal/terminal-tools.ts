@@ -44,7 +44,7 @@ export function createTerminalTools(deps: {
       function: {
         name: "terminal_open",
         description:
-          "Open a new terminal (a shell YUI runs) and get its id. Opening needs no permission; optional cwd sets its working directory. Reading or writing any terminal still asks the user for Allow. List terminals with terminal_list.",
+          "Open a new terminal (a shell YUI runs) and get its id. Opening runs without asking the user; optional cwd sets its working directory. Reading or writing any terminal still asks the user for Allow. List terminals with terminal_list.",
         parameters: {
           type: "object" as const,
           properties: {
@@ -66,7 +66,7 @@ export function createTerminalTools(deps: {
       function: {
         name: "terminal_list",
         description:
-          "List every terminal, one per line: id | owner (you or a preset) | title | running or exited <code> | access: <presetId or none>. Needs no permission and shows no output — use an id with terminal_read after the user allows.",
+          "List every terminal, one per line: id | owner (you or a preset) | title | running or exited <code> | access: <presetId or none>. Runs without asking the user and shows no output — use an id with terminal_read after the user allows.",
         parameters: {
           type: "object" as const,
           properties: {},
@@ -142,7 +142,7 @@ export function createTerminalTools(deps: {
       function: {
         name: "terminal_close",
         description:
-          "Close a terminal you opened (id from terminal_list); closing needs no permission. error: not your terminal means the user opened it — only the user can close it.",
+          "Close a terminal you opened (id from terminal_list); closing runs without asking the user. error: not your terminal means you did not open it — only the user or the preset that opened it can close it.",
         parameters: {
           type: "object" as const,
           properties: {
