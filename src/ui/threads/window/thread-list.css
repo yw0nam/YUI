@@ -157,8 +157,8 @@
   gap: 6px;
 }
 
+/* The mark keeps the 20px slot a preset's face fills in a Terminal row. */
 .yui-threads-row .yui-threads-source__mark {
-  width: 16px;
   font-size: var(--yui-fs-body);
 }
 
