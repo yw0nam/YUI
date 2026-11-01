@@ -1,19 +1,25 @@
-/* The answer area pinned at the thread pane's foot; at most half the pane, its choices scroll inside
-   so the prompt, the field and Send stay. Tokens in ../../tokens.css. */
+/* The answer area pinned at the thread pane's foot. Tokens in ../../tokens.css. */
 
 .yui-threads-answer {
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
+  display: grid;
   gap: 8px;
-  max-height: 50cqh;
-  overflow: hidden;
   padding: 12px 28px 16px;
   border-top: 1px solid var(--yui-edge);
   background: var(--yui-panel-bg);
 }
 
-.yui-threads-answer > * {
+/* In the thread pane: at most half the pane, its choices scroll inside so the prompt, the field and Send stay. */
+.yui-threads-pane .yui-threads-answer {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  max-height: 50cqh;
+  overflow: hidden;
+}
+
+.yui-threads-answer__head,
+.yui-threads-answer__composer,
+.yui-threads-answer__error {
   flex: none;
 }
 
