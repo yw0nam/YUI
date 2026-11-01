@@ -3053,10 +3053,19 @@ globalThis.YUI_MAP =
       "id": "threads-frame",
       "from": "app/threads-window",
       "to": "settings",
-      "carries": "yui.threads-window {x?, y?, width, height, listCollapsed, terminalFontSize?}: the panel's frame in logical px, written at each placement, once a user move settles and at a resize's end, its size floored at 360 × 420; the list choice, written by the toggle and never by a width change; the terminals' font size (10–24 px, 13 px when absent), written by the font-size keys; the frame read on each open, the list choice and font size once at boot",
+      "carries": "yui.threads-window {x?, y?, width, height, listCollapsed}: the panel's frame in logical px, written at each placement, once a user move settles and at a resize's end, its size floored at 360 × 420; the list choice, written by the toggle and never by a width change; the frame read on each open, the list choice once at boot",
       "kind": "storage",
       "transport": "shared",
       "wiring": "src/app/threads-window/wire-threads-window.ts"
+    },
+    {
+      "id": "terminal-font-size",
+      "from": "app/threads-window",
+      "to": "settings",
+      "carries": "yui.threads-window terminalFontSize? (10–24 px): written by the terminal font-size keys; read once at boot through terminalFontSize(), which gives 13 px while none is stored",
+      "kind": "storage",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/wire-terminal-tab.ts"
     },
     {
       "id": "threads-resize-handles",
