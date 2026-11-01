@@ -86,6 +86,13 @@ impl<P> State<P> {
             .ok_or_else(|| format!("error: unknown terminal: {id}"))
     }
 
+    fn refuse(&mut self, call_id: String, result: &str) {
+        if self.refused.len() == REFUSED_CAP {
+            self.refused.remove(0);
+        }
+        self.refused.push((call_id, result.into()));
+    }
+
     fn snapshot(&self) -> TerminalSnapshot {
         TerminalSnapshot {
             revision: self.revision,
@@ -229,7 +236,7 @@ impl<P> TerminalStore<P> {
                 .ok_or_else(|| format!("error: unknown request: {request_id}"))?;
             let pending = state.pending.remove(index);
             if !allow {
-                state.refused.push((pending.call_id, "denied".into()));
+                state.refuse(pending.call_id, "denied");
                 return Ok(());
             }
             let AccessRequest {
@@ -249,10 +256,7 @@ impl<P> TerminalStore<P> {
     /// Stops the call now, or when it registers if the cancel arrives first.
     pub fn cancel(&self, call_id: &str) {
         let mut state = self.lock();
-        if state.refused.len() == REFUSED_CAP {
-            state.refused.remove(0);
-        }
-        state.refused.push((call_id.into(), TURN_STOPPED.into()));
+        state.refuse(call_id.into(), TURN_STOPPED);
         if let Some(index) = state.pending.iter().position(|p| p.call_id == call_id) {
             state.pending.remove(index);
             self.publish(state);
@@ -276,10 +280,14 @@ impl<P> TerminalStore<P> {
             }
             let index = state.find(id)?;
             let (terminal, pty) = &state.terminals[index];
+            let pending = state.pending.iter().position(|p| p.call_id == call_id);
             if kind == AccessKind::Write && terminal.exit_code.is_some() {
+                if let Some(index) = pending {
+                    state.pending.remove(index);
+                    self.publish(state);
+                }
                 return Err(format!("error: terminal exited: {id}"));
             }
-            let pending = state.pending.iter().position(|p| p.call_id == call_id);
             match pending {
                 None if terminal.access.as_deref() == Some(preset_id) => {
                     let pty = pty.clone();
