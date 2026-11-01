@@ -60,6 +60,18 @@ export function paneState(terminal: Terminal): StateWord {
     : { text: t("terminal.state_running"), tone: "" };
 }
 
+/** The title in `heading` with the terminal's id after it, the name agents use for it. */
+export function titleLine(terminal: Terminal, heading: HTMLElement): HTMLElement {
+  const el = document.createElement("span");
+  el.className = "yui-terminal-title";
+  heading.textContent = terminal.title;
+  const id = document.createElement("span");
+  id.className = "yui-terminal-id";
+  id.textContent = terminal.id;
+  el.append(heading, id);
+  return el;
+}
+
 export function stateWord(state: StateWord): HTMLElement {
   const el = document.createElement("span");
   el.className = `yui-threads-state ${state.tone}`.trim();

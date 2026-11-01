@@ -21,6 +21,22 @@
   font-weight: 600;
 }
 
+/* The title with the terminal's id after it, in the mono caption agents' replies quote. */
+.yui-terminal-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.yui-terminal-id {
+  flex: none;
+  color: var(--yui-text-mute);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: var(--yui-fs-sub);
+  font-weight: 400;
+}
+
 .yui-threads-state.is-exited {
   color: var(--yui-text-mute);
 }

@@ -3,7 +3,14 @@
 import "./terminal-list.css";
 import { t } from "../i18n";
 import { timeEl } from "../threads/window/relative-time";
-import { ownerLine, PLUS_SVG, type PresetLookup, rowState, stateWord } from "./terminal-meta";
+import {
+  ownerLine,
+  PLUS_SVG,
+  type PresetLookup,
+  rowState,
+  stateWord,
+  titleLine,
+} from "./terminal-meta";
 import { createTerminalNav, type TerminalNav } from "./terminal-nav";
 
 export function createTerminalList(deps: {
@@ -28,15 +35,17 @@ export function createTerminalList(deps: {
       const el = document.createElement("button");
       el.type = "button";
       el.className = "yui-threads-row";
-      const title = document.createElement("strong");
-      title.textContent = terminal.title;
       const meta = document.createElement("span");
       meta.className = "yui-threads-row__meta";
       meta.append(
         stateWord(rowState(terminal, requests, deps.preset)),
         timeEl(terminal.openedAt, deps.now()),
       );
-      el.append(ownerLine(terminal, deps.preset), title, meta);
+      el.append(
+        ownerLine(terminal, deps.preset),
+        titleLine(terminal, document.createElement("strong")),
+        meta,
+      );
       return el;
     },
     empty: { className: "yui-threads-list__empty", text: () => t("terminal.empty_list") },

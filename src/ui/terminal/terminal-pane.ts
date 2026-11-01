@@ -6,7 +6,7 @@
 import "./terminal-pane.css";
 import type { Terminal } from "../../contract";
 import { getLocale, t } from "../i18n";
-import { ownerLine, type PresetLookup, paneState, stateWord } from "./terminal-meta";
+import { ownerLine, type PresetLookup, paneState, stateWord, titleLine } from "./terminal-meta";
 
 function head(terminal: Terminal, preset: PresetLookup, onClose: () => void): HTMLElement {
   const el = document.createElement("header");
@@ -14,19 +14,18 @@ function head(terminal: Terminal, preset: PresetLookup, onClose: () => void): HT
   const line = document.createElement("div");
   line.className = "yui-threads-pane__line";
   line.append(ownerLine(terminal, preset), stateWord(paneState(terminal)));
-  const titleLine = document.createElement("div");
-  titleLine.className = "yui-terminal-pane__title";
+  const titleRow = document.createElement("div");
+  titleRow.className = "yui-terminal-pane__title";
   const title = document.createElement("h2");
   title.tabIndex = -1;
-  title.textContent = terminal.title;
   const close = document.createElement("button");
   close.type = "button";
   close.className = "yui-terminal-pane__close yui-threads-button";
   close.textContent = t("terminal.close");
   close.setAttribute("aria-label", t("terminal.close_aria"));
   close.addEventListener("click", onClose);
-  titleLine.append(title, close);
-  el.append(line, titleLine);
+  titleRow.append(titleLine(terminal, title), close);
+  el.append(line, titleRow);
   return el;
 }
 
