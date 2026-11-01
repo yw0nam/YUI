@@ -71,7 +71,7 @@
   font-size: var(--yui-fs-caption);
 }
 
-/* In a narrow column the label gives way first; the marks and the count keep their size. */
+/* In a narrow column the label ellipsizes first. */
 .yui-threadchip__label {
   flex: 1 1 auto;
   min-width: 0;
@@ -99,6 +99,25 @@
 .yui-threadchip.is-mini .yui-threadchip__label,
 .yui-threadchip.is-mini .yui-threadchip__mark + .yui-threadchip__mark {
   display: none;
+}
+
+/* A narrow window leaves the chip column (half the window less 3.5rem, surfaces.css) too little room:
+   under 8.5rem the chip folds to its newest mark and the count, under 4.5rem to the count alone. */
+@media (width < 24rem) {
+  .yui-threadchip__label,
+  .yui-threadchip__mark + .yui-threadchip__mark {
+    display: none;
+  }
+}
+
+@media (width < 16rem) {
+  .yui-threadchip {
+    padding-right: 0.25rem;
+  }
+
+  .yui-threadchip__marks {
+    display: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
