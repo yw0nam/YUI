@@ -48,7 +48,7 @@ def run_hook(tmp_path, endpoint, fixture, config=None, extra_env=None, **updates
             "claude-permission.json",
             "input-required",
             "system",
-            "Bash: touch /Users/dev/projects/demo/hello.txt",
+            "Bash:\n```\ntouch /Users/dev/projects/demo/hello.txt\n```",
             "claude-perm",
         ),
         (
@@ -62,7 +62,7 @@ def run_hook(tmp_path, endpoint, fixture, config=None, extra_env=None, **updates
         ("claude-session-end.json", "completed", "system", "Session ended", None),
         ("codex-user-prompt.json", "working", "user", "Please fix the upload client.", None),
         ("codex-stop.json", "input-required", "agent", None, "stop"),
-        ("codex-permission.json", "input-required", "system", "Bash: rm -rf build", "perm"),
+        ("codex-permission.json", "input-required", "system", "Bash:\n```\nrm -rf build\n```", "perm"),
         ("codex-session-end.json", "completed", "system", "Session ended", None),
     ],
 )
@@ -79,7 +79,7 @@ def test_hook_posts_thread(tmp_path, server, fixture, state, role, text, ask):
     expected = {
         "source": agent,
         "title": "demo",
-        "label": "demo",
+        "label": None,
         "state": state,
         "entries": [{"role": role, "text": text or data["last_assistant_message"]}],
     }
