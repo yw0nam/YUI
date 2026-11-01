@@ -56,11 +56,12 @@
   display: none;
 }
 
+/* Text mute edges read 6.66:1 (Dawn) and 6.23:1 (Hearth) on the Panel. */
 .yui-threads-answer button {
   position: relative;
   min-height: 36px;
   padding: 8px 12px;
-  border: 1px solid var(--yui-edge-strong);
+  border: 1px solid var(--yui-text-mute);
   border-radius: var(--yui-radius-control);
   background: none;
   color: inherit;
