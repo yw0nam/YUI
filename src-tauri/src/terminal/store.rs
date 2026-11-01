@@ -3,7 +3,6 @@ use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
 pub const TURN_STOPPED: &str = "error: turn stopped";
-const NO_ANSWER: &str = "denied: no answer in 60 s";
 const REFUSED_CAP: usize = 64;
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -102,6 +101,10 @@ impl<P> State<P> {
     }
 }
 
+pub fn lock<T: ?Sized>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
 /// Terminals, their owner and access, and the access requests their tool calls wait on.
 pub struct TerminalStore<P> {
     state: Mutex<State<P>>,
@@ -128,10 +131,6 @@ impl<P> TerminalStore<P> {
         }
     }
 
-    fn lock(&self) -> MutexGuard<'_, State<P>> {
-        self.state.lock().unwrap_or_else(PoisonError::into_inner)
-    }
-
     /// Bumps the revision, wakes waiting calls, and emits the snapshot after the lock is released.
     fn publish(&self, mut state: MutexGuard<'_, State<P>>) {
         state.revision += 1;
@@ -142,27 +141,27 @@ impl<P> TerminalStore<P> {
     }
 
     fn update<R>(&self, f: impl FnOnce(&mut State<P>) -> Result<R, String>) -> Result<R, String> {
-        let mut state = self.lock();
+        let mut state = lock(&self.state);
         let result = f(&mut state)?;
         self.publish(state);
         Ok(result)
     }
 
     pub fn snapshot(&self) -> TerminalSnapshot {
-        self.lock().snapshot()
+        lock(&self.state).snapshot()
     }
 
     /// The size every terminal shares, as (cols, rows).
     pub fn size(&self) -> (u16, u16) {
-        self.lock().size
+        lock(&self.state).size
     }
 
     pub fn set_size(&self, cols: u16, rows: u16) {
-        self.lock().size = (cols, rows);
+        lock(&self.state).size = (cols, rows);
     }
 
     pub fn all(&self) -> Vec<Arc<P>> {
-        self.lock()
+        lock(&self.state)
             .terminals
             .iter()
             .map(|(_, p)| p.clone())
@@ -170,26 +169,25 @@ impl<P> TerminalStore<P> {
     }
 
     pub fn add(&self, owner: TerminalOwner, title: String, pty: Arc<P>, now: u64) -> Terminal {
-        self.update(|state| {
-            state.opened += 1;
-            let terminal = Terminal {
-                id: format!("t{}", state.opened),
-                owner,
-                title,
-                opened_at: now,
-                exit_code: None,
-                access: None,
-                last_command: None,
-            };
-            state.terminals.push((terminal.clone(), pty));
-            Ok(terminal)
-        })
-        .expect("adding a terminal cannot fail")
+        let mut state = lock(&self.state);
+        state.opened += 1;
+        let terminal = Terminal {
+            id: format!("t{}", state.opened),
+            owner,
+            title,
+            opened_at: now,
+            exit_code: None,
+            access: None,
+            last_command: None,
+        };
+        state.terminals.push((terminal.clone(), pty));
+        self.publish(state);
+        terminal
     }
 
     /// The terminal's process, for the user's input and output, which need no access.
     pub fn get(&self, id: &str) -> Result<Arc<P>, String> {
-        let state = self.lock();
+        let state = lock(&self.state);
         Ok(state.terminals[state.find(id)?].1.clone())
     }
 
@@ -255,7 +253,7 @@ impl<P> TerminalStore<P> {
 
     /// Stops the call now, or when it registers if the cancel arrives first.
     pub fn cancel(&self, call_id: &str) {
-        let mut state = self.lock();
+        let mut state = lock(&self.state);
         state.refuse(call_id.into(), TURN_STOPPED);
         if let Some(index) = state.pending.iter().position(|p| p.call_id == call_id) {
             state.pending.remove(index);
@@ -273,7 +271,7 @@ impl<P> TerminalStore<P> {
         text: Option<&str>,
         now: u64,
     ) -> Result<(Arc<P>, Terminal), String> {
-        let mut state = self.lock();
+        let mut state = lock(&self.state);
         loop {
             if let Some(index) = state.refused.iter().position(|(c, _)| c == call_id) {
                 return Err(state.refused.remove(index).1);
@@ -317,7 +315,7 @@ impl<P> TerminalStore<P> {
                         until: Instant::now() + self.limit,
                     });
                     self.publish(state);
-                    state = self.lock();
+                    state = lock(&self.state);
                 }
                 Some(index) => {
                     let remaining = state.pending[index]
@@ -326,7 +324,7 @@ impl<P> TerminalStore<P> {
                     if remaining.is_zero() {
                         state.pending.remove(index);
                         self.publish(state);
-                        return Err(NO_ANSWER.into());
+                        return Err(format!("denied: no answer in {} s", self.limit.as_secs()));
                     }
                     state = self
                         .changed
@@ -419,7 +417,7 @@ mod tests {
         for (limit, end, expected) in [
             (60, Some(true), "denied"),
             (60, Some(false), TURN_STOPPED),
-            (0, None, "denied: no answer in 60 s"),
+            (0, None, "denied: no answer in 0 s"),
         ] {
             let (s, rx) = store(Duration::from_secs(limit));
             s.add(TerminalOwner::User, "~".into(), Arc::new(()), 1);

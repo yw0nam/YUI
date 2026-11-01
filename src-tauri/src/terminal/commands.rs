@@ -1,4 +1,5 @@
 use super::pty::{self, Store};
+use super::screen;
 use super::store::{AccessKind, TerminalOwner, TerminalSnapshot};
 use crate::os_event_watcher::epoch_ms;
 use std::sync::Arc;
@@ -27,12 +28,12 @@ pub fn terminal_snapshot(store: Terminals<'_>) -> TerminalSnapshot {
     store.snapshot()
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn terminal_open(store: Terminals<'_>, cwd: Option<String>) -> Result<String, String> {
     pty::open(&store, TerminalOwner::User, cwd.as_deref(), now()).map(|t| t.id)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn terminal_close(store: Terminals<'_>, id: String) -> Result<(), String> {
     store.close(&id, None)?.kill();
     Ok(())
@@ -75,7 +76,7 @@ pub fn terminal_take_back(store: Terminals<'_>, id: String) -> Result<(), String
     store.take_back(&id)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn terminal_tool_open(store: Terminals<'_>, preset_id: String, cwd: Option<String>) -> String {
     match pty::open(
         &store,
@@ -90,27 +91,7 @@ pub fn terminal_tool_open(store: Terminals<'_>, preset_id: String, cwd: Option<S
 
 #[tauri::command]
 pub fn terminal_tool_list(store: Terminals<'_>) -> String {
-    let terminals = store.snapshot().terminals;
-    if terminals.is_empty() {
-        return "no terminals".into();
-    }
-    terminals
-        .iter()
-        .map(|t| {
-            let owner = match &t.owner {
-                TerminalOwner::User => "you",
-                TerminalOwner::Preset { preset_id } => preset_id,
-            };
-            let access = t.access.as_deref().unwrap_or("none");
-            format!(
-                "{} | {owner} | {} | {} | access: {access}",
-                t.id,
-                t.title,
-                t.status()
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
+    screen::list_text(&store.snapshot().terminals)
 }
 
 #[tauri::command]
@@ -154,7 +135,7 @@ pub async fn terminal_tool_write(
     .await
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn terminal_tool_close(store: Terminals<'_>, preset_id: String, id: String) -> String {
     match store.close(&id, Some(&preset_id)) {
         Ok(pty) => {

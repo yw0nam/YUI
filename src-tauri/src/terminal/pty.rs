@@ -1,13 +1,13 @@
 use super::input::Input;
 use super::screen;
-use super::store::{Terminal, TerminalOwner, TerminalStore};
+use super::store::{lock, Terminal, TerminalOwner, TerminalStore};
 #[cfg(not(unix))]
 use portable_pty::ChildKiller;
 use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
 use std::io::{ErrorKind, Read};
 use std::num::NonZeroU16;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Mutex};
 use tauri::ipc::{Channel, InvokeResponseBody};
 
 pub type Store = TerminalStore<Pty>;
@@ -31,10 +31,6 @@ pub struct Pty {
     #[cfg(not(unix))]
     killer: Mutex<Box<dyn ChildKiller + Send + Sync>>,
     output: Arc<Mutex<Output>>,
-}
-
-fn lock<T: ?Sized>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
-    mutex.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 fn nonzero(value: u16) -> NonZeroU16 {
@@ -109,7 +105,7 @@ fn spawn(
         pty.resize(size.0, size.1);
     }
     log::info!(
-        "terminal_opened id={} title={}",
+        "terminal_opened id={} title={:?}",
         terminal.id,
         terminal.title
     );
