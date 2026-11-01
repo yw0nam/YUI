@@ -81,6 +81,9 @@ export function createThreadsWindowSettings(opts?: { storage?: ThreadsWindowStor
       core.commit({ ...core.current(), listCollapsed });
     },
 
+    /** Every terminal's font size: the stored one, else the default. */
+    terminalFontSize: (): number => core.get().terminalFontSize ?? TERMINAL_FONT_PX.default,
+
     setTerminalFontSize(terminalFontSize: number): void {
       core.commit({ ...core.current(), terminalFontSize });
     },

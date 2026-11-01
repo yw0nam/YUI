@@ -85,12 +85,13 @@ it.each([
   });
 });
 
-it("keeps the terminal font size after a reload, beside the frame", () => {
+it("keeps the terminal font size after a reload, beside the frame, and gives 13 px before one is set", () => {
   const storage = localStorageThreadsWindowStorage(KEY);
-  createThreadsWindowSettings({ storage }).setTerminalFontSize(16);
+  const settings = createThreadsWindowSettings({ storage });
+  expect(settings.terminalFontSize()).toBe(13);
+  settings.setTerminalFontSize(16);
 
-  expect(createThreadsWindowSettings({ storage }).get()).toEqual({
-    ...DEFAULTS,
-    terminalFontSize: 16,
-  });
+  const reloaded = createThreadsWindowSettings({ storage });
+  expect(reloaded.get()).toEqual({ ...DEFAULTS, terminalFontSize: 16 });
+  expect(reloaded.terminalFontSize()).toBe(16);
 });
