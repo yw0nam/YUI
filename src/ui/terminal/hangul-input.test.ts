@@ -122,6 +122,22 @@ describe("attachHangulInput", () => {
     expect(screen.sent).toEqual(["했", "\r"]);
   });
 
+  it.each([
+    ["deleteContentBackward", undefined],
+    ["insertReplacementText", ""],
+  ])("drops the held syllable that a %s input deletes", async (inputType, data) => {
+    const screen = mount();
+    await screen.play([
+      { type: "input", data: "ㅇ", inputType: "insertText", value: "ㅇ" },
+      { type: "keydown", key: "ㅇ", keyCode: 229 },
+      { type: "input", data, inputType, value: "" },
+      { type: "keydown", key: "Backspace", keyCode: 229 },
+      { type: "keydown", key: "Enter", keyCode: 13 },
+    ]);
+    expect(screen.sent).toEqual(["\r"]);
+    expect(screen.host.querySelector<HTMLElement>(".yui-terminal-preedit")?.hidden).toBe(true);
+  });
+
   it("sends the pending syllable when the terminal loses focus", async () => {
     const screen = mount();
     await screen.play(typeSe);
