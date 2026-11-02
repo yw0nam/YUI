@@ -185,8 +185,8 @@ answering it makes the model say the reply again.
 A model stays silent by answering that round trip with no text, and the turn ends with no speech
 (firing ≠ judgment).
 
-On Chat Completions each call goes back on the assistant message with every field the server
-attached to it, so a server's per-call state reaches the next request unchanged.
+On Chat Completions an executed call goes back on the assistant message with its top-level fields
+beyond `index`, `id`, `type` and `function`, so a server's per-call state reaches the next request.
 
 The cycle repeats while the model keeps asking, up to three round trips per turn
 (`MAX_TOOL_ROUND_TRIPS` in `src/io/chat/stream/stream-helpers.ts`). Past three the client closes the

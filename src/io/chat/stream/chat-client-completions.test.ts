@@ -515,7 +515,7 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
     expect(events.at(-1)).toMatchObject({ envelope: { speech_text: "" } });
   });
 
-  it("sends every field the server attached to a call back with it", async () => {
+  it("sends the extra fields the server attached to a call back with it", async () => {
     const extra_content = { google: { thought_signature: "sig" } };
     const registry = createClientToolRegistry([oneWayStub("generate_express")]);
     ccCreateMock
@@ -523,7 +523,7 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
         streamOf([
           toolCallStart(0, "call_1", "generate_express", GEN_EXPRESS_ARGS),
           { choices: [{ delta: { tool_calls: [{ index: 0, extra_content }] } }] },
-          finishChunk("stop"),
+          finishChunk("tool_calls"),
         ]),
       )
       .mockResolvedValueOnce(streamOf([textChunk("ok"), finishChunk("stop")]));

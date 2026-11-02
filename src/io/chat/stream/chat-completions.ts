@@ -99,8 +99,6 @@ interface ToolCallBuffer {
   extras?: Record<string, unknown>;
 }
 
-const STANDARD_CALL_FIELDS = new Set(["index", "id", "type", "function"]);
-
 export function createChunkReducer() {
   const buffers = new Map<number, ToolCallBuffer>();
   // Index synthesis for servers that omit `index`: an id keeps its own slot, and a fragment
@@ -203,10 +201,8 @@ export function createChunkReducer() {
                 if (typeof fn.name === "string") buf.name = fn.name;
                 if (typeof fn.arguments === "string") buf.argsJson += fn.arguments;
               }
-              for (const [field, value] of Object.entries(t)) {
-                if (!STANDARD_CALL_FIELDS.has(field))
-                  buf.extras = { ...buf.extras, [field]: value };
-              }
+              const { index: _index, id: _id, type: _type, function: _fn, ...extras } = t;
+              if (Object.keys(extras).length > 0) buf.extras = { ...buf.extras, ...extras };
             }
           }
         }
