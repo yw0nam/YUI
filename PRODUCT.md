@@ -6,7 +6,7 @@ product
 
 ## Users
 
-Personal use first (currently the developer). The source is public under a noncommercial license.
+Personal use first (currently the developer), with one wider promise: someone who can install a desktop app reaches a first conversation with the character without a terminal, a coding agent, or knowing a URL or model name. Past that first conversation, the product serves the developer's own use. The source is public under a noncommercial license.
 
 Usage context: in front of a computer all day. The YUI character **lives on the desktop** as a transparent, always-on-top overlay — the main experience is a presence in a corner of the workspace, while settings open in a separate utility window.
 
