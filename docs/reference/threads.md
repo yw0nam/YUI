@@ -113,6 +113,6 @@ Main's pet window and the Threads window each listen to `threads-snapshot` and r
 
 The Threads window also calls `thread_seen` when the user picks a Thread with an open ask in its list or rail. Main's Threads chip counts a waiting Thread unless its open ask is the seen one; inside the Threads window a seen Thread still shows as waiting.
 
-The Threads window renders each entry's text as Markdown with the speech bubble's sanitizer, and shows images from `https` URLs only.
+The Threads window renders each entry's text as Markdown with the speech bubble's sanitizer, then keeps only the elements Markdown produces and images from `https` URLs.
 
 The main character's backend reads Threads through the `threads_list` and `threads_search` client tools and the `threads:` client-context line; Threads fire no turn.
