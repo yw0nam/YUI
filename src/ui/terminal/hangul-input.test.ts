@@ -84,7 +84,7 @@ function mount(withModule = true) {
     await tick();
   }
 
-  return { host, textarea, sent, play };
+  return { host, term, textarea, sent, play };
 }
 
 /** `세` started as a new syllable, as WebKit's 2-Set IME delivers it. */
@@ -138,11 +138,14 @@ describe("attachHangulInput", () => {
     expect(screen.host.querySelector<HTMLElement>(".yui-terminal-preedit")?.hidden).toBe(true);
   });
 
-  it("sends the pending syllable when the terminal loses focus", async () => {
+  it("sends the pending syllable before the focus report when the terminal loses focus", async () => {
     const screen = mount();
+    await new Promise<void>((resolve) => screen.term.write("\x1b[?1004h", resolve));
+    // Turning focus reports on while focused reports focus at once.
+    screen.sent.length = 0;
     await screen.play(typeSe);
     screen.textarea.blur();
-    expect(screen.sent).toEqual(["세"]);
+    expect(screen.sent).toEqual(["세", "\x1b[O"]);
   });
 
   it("leaves plain ASCII typing as xterm handles it", async () => {
