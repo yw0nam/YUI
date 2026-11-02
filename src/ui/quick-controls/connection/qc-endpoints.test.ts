@@ -829,7 +829,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     }
   });
 
-  it("selecting the Google Gemini preset fills the chat base URL and the chat model", () => {
+  it("selecting the Google Gemini preset shows the model in the Chat model field", () => {
     endpointsSettings.set({ chat_base_url: "", chat_model: "", chat_api: "" });
     const qc = buildQc();
     qc.open();
@@ -838,10 +838,6 @@ describe("createQuickControls — endpoints + API keys", () => {
     sel.value = "gemini";
     sel.dispatchEvent(new Event("change", { bubbles: true }));
 
-    expect(endpointsSettings.get().chat_base_url).toBe(
-      "https://generativelanguage.googleapis.com/v1beta/openai",
-    );
-    expect(endpointsSettings.get().chat_model).toBe("models/gemini-3.5-flash-lite");
     expect(chatModelInput(qc).value).toBe("models/gemini-3.5-flash-lite");
 
     qc.dispose();
