@@ -620,7 +620,7 @@ const en: Record<string, string> = {
   "first.free_note": "Talk on the Google Gemini free tier.",
   "first.send_label": "What gets sent",
   "first.send_sub":
-    "Your conversation and the names of the apps you use go to Google. Google may use them to improve its products and people may review them, so keep sensitive details out.",
+    "Your conversation and the name and window title of the app in front go to Google. Google may use them to improve its products and people may review them, so keep sensitive details out.",
   "first.limit_label": "Daily limit",
   "first.limit_sub": "The free tier has a daily limit. Past it, you can talk again the next day.",
   "first.key_title": "Connect a key",

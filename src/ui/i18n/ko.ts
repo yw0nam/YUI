@@ -619,7 +619,7 @@ const ko: Record<string, string> = {
   "first.free_note": "Google Gemini 무료 등급으로 대화합니다.",
   "first.send_label": "보내는 내용",
   "first.send_sub":
-    "대화 내용과 사용 중인 앱 이름이 Google로 전송됩니다. Google이 서비스 개선에 쓰고 사람이 검토할 수 있으니, 민감한 정보는 말하지 마세요.",
+    "대화 내용과 맨 앞 앱의 이름과 창 제목이 Google로 전송됩니다. Google이 서비스 개선에 쓰고 사람이 검토할 수 있으니, 민감한 정보는 말하지 마세요.",
   "first.limit_label": "하루 한도",
   "first.limit_sub":
     "무료 등급에는 하루 사용량 한도가 있습니다. 한도를 넘으면 다음 날 다시 대화할 수 있습니다.",

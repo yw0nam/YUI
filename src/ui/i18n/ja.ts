@@ -622,7 +622,7 @@ const ja: Record<string, string> = {
   "first.free_note": "Google Gemini の無料枠で話します。",
   "first.send_label": "送信される内容",
   "first.send_sub":
-    "会話の内容と使っているアプリの名前が Google に送られます。Google がサービス改善に使い、人が確認することがあるので、機密情報は話さないでください。",
+    "会話の内容と、手前のアプリの名前とウィンドウタイトルが Google に送られます。Google がサービス改善に使い、人が確認することがあるので、機密情報は話さないでください。",
   "first.limit_label": "1日の上限",
   "first.limit_sub": "無料枠には1日の上限があります。超えると翌日にまた話せます。",
   "first.key_title": "キーの接続",

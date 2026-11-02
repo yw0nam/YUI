@@ -19,7 +19,14 @@ export function wireFirstConversation(
   },
 ): { dispose: () => void } {
   let stopWaiting: (() => void) | null = null;
-  let hintTimer: ReturnType<typeof setTimeout> | null = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  const after = (ms: number, then: () => void): void => {
+    timer = setTimeout(() => {
+      timer = null;
+      then();
+    }, ms);
+  };
 
   const showHint = (): void => void maybeShowFirstRunHint({ ...deps, chatConfigured: true });
 
@@ -28,24 +35,25 @@ export function wireFirstConversation(
     stopWaiting = null;
   };
 
-  const onGreetingEnd = (): void => {
+  const onGreetingEnd = (startedAt: number): void => {
     stopWaitingForGreeting();
-    deps.surfaces.summonInput();
     const line = deps.transcript.entriesAfterLastBoundary().findLast((e) => e.greeting);
-    hintTimer = setTimeout(
-      () => {
-        hintTimer = null;
+    const typeMs = (line?.text.length ?? 0) * TYPE_MS_PER_CHAR;
+    // With no audio to play, the greeting ends before it typed out.
+    after(Math.max(0, typeMs - (Date.now() - startedAt)), () => {
+      deps.surfaces.summonInput();
+      after(GREETING_READ_MS, () => {
         if (!deps.isBusy()) showHint();
-      },
-      (line?.text.length ?? 0) * TYPE_MS_PER_CHAR + GREETING_READ_MS,
-    );
+      });
+    });
   };
 
   const stopListening = deps.onFirstConversationConnected(() => {
-    if (stopWaiting || hintTimer !== null) return;
+    if (stopWaiting || timer !== null) return;
+    const startedAt = Date.now();
     // Subscribed first: with nothing to play, the greeting ends inside greetLocal.
     stopWaiting = deps.onUtteranceEnd((identity) => {
-      if (identity.event_name === "greeting") onGreetingEnd();
+      if (identity.event_name === "greeting") onGreetingEnd(startedAt);
     });
     if (deps.greetLocal()) return;
     stopWaitingForGreeting();
@@ -59,7 +67,7 @@ export function wireFirstConversation(
     dispose() {
       stopListening();
       stopWaitingForGreeting();
-      if (hintTimer !== null) clearTimeout(hintTimer);
+      if (timer !== null) clearTimeout(timer);
     },
   };
 }
