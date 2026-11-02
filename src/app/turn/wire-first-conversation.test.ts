@@ -80,7 +80,7 @@ function setup(over: { seen?: boolean; endsInsideSpeak?: boolean } = {}) {
     },
     seen: () => over.seen ?? false,
     markSeen: vi.fn(),
-    hotkey: "",
+    hotkey: "CmdOrCtrl+Shift+Y",
     isMac: false,
     openSettings: vi.fn(),
     t: (key) => key,

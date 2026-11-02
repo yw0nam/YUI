@@ -9,8 +9,8 @@ export function wireGreeting(
     presetId: string;
     stopTurn: () => void;
   },
-): { greetLocal: () => void; dispose: () => void } {
-  const greetLocal = (): void => performGreeting(deps);
+): { greetLocal: () => boolean; dispose: () => void } {
+  const greetLocal = (): boolean => performGreeting(deps);
   // A card import leaves the marker; the preset's first boot consumes it.
   try {
     const key = resolveStorageKey("yui.greeting-pending", deps.presetId);

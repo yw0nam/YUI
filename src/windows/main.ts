@@ -313,6 +313,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
       stage,
       openSettings,
       onSessionReset: windowBridge.onSessionReset,
+      onFirstConversationConnected: windowBridge.onFirstConversationConnected,
       emitCharacterAddressed: windowBridge.emitCharacterAddressed,
       onCharacterAddressed: windowBridge.onCharacterAddressed,
       unifiedShown,

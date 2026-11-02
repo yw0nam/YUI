@@ -17,16 +17,16 @@ export interface GreetingDeps {
   random?: () => number;
 }
 
-/** Performs one of the card's greetings and records it, when the running session is empty. */
-export function performGreeting(deps: GreetingDeps): void {
+/** Performs one of the card's greetings and records it, when the running session is empty; true when one was spoken. */
+export function performGreeting(deps: GreetingDeps): boolean {
   const { transcript, now = Date.now, random = Math.random } = deps;
   // Another window's reset reaches this store only through storage.
   transcript.reloadFromStorage();
-  if (transcript.entriesAfterLastBoundary().length > 0) return;
+  if (transcript.entriesAfterLastBoundary().length > 0) return false;
   const resolved = deps.getCard();
-  if (!resolved) return;
+  if (!resolved) return false;
   const raw = pickGreeting(resolved.card, random);
-  if (raw === null) return;
+  if (raw === null) return false;
   const text = substituteMacros(raw, {
     charName: resolved.charName,
     userName: deps.userName(),
@@ -35,4 +35,5 @@ export function performGreeting(deps: GreetingDeps): void {
   const ts = now();
   transcript.append({ role: "assistant", text, ts, greeting: true });
   deps.speak(text, { turn_id: `greeting:${ts}`, event_name: "greeting" });
+  return true;
 }
