@@ -51,6 +51,23 @@ it("hides at zero waiting and shows the count otherwise", () => {
   expect(button().querySelector(".yui-threadchip__count")!.textContent).toBe("1");
 });
 
+it("skips a waiting Thread whose open ask the user picked, and counts and nods a new ask on it", () => {
+  const { chip, button } = build();
+  const seen = (ask_id: string, updated_at: number): Thread => ({
+    ...thread("a", "codex", updated_at),
+    ask: { ask_id, prompt: "Next?", choices: [], text: true },
+    seen_ask_id: "a1",
+  });
+
+  chip.update([seen("a1", 1)]);
+  expect(button().hidden).toBe(true);
+
+  chip.update([seen("a2", 2)]);
+  expect(button().hidden).toBe(false);
+  expect(button().querySelector(".yui-threadchip__count")!.textContent).toBe("1");
+  expect(button().classList.contains("is-nod")).toBe(true);
+});
+
 it("stays visible while the window is open, even at zero waiting, and hides at zero once it closes", () => {
   const { chip, button } = build();
   chip.update([thread("a", "codex", 5)]);
