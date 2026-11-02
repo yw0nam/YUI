@@ -76,6 +76,7 @@ describe("createFirstConversationPage", () => {
 
   it("a confirmed key writes the URL, model and key, turns check-ins and the schedule off, and connects once", async () => {
     const s = setup();
+    s.endpointsSettings.set({ chat_api: "push" });
 
     await s.connect(" AIza-good ");
 
@@ -87,6 +88,7 @@ describe("createFirstConversationPage", () => {
       "https://generativelanguage.googleapis.com/v1beta/openai",
     );
     expect(s.endpointsSettings.get().chat_model).toBe("models/gemini-3.5-flash-lite");
+    expect(s.endpointsSettings.get().chat_api).toBe("chat_completions");
     expect(s.chatKeySettings.get().apiKey).toBe("AIza-good");
     expect(s.proactiveSettings.get().enabled).toBe(false);
     expect(s.scheduleSettings.get().enabled).toBe(false);
