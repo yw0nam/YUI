@@ -48,14 +48,14 @@ describe("performGreeting", () => {
 
   it("greets once per session", () => {
     const { deps, calls } = setup();
-    performGreeting(deps);
-    performGreeting(deps);
+    expect(performGreeting(deps)).toBe(true);
+    expect(performGreeting(deps)).toBe(false);
     expect(calls).toHaveLength(2);
   });
 
   it("does nothing without a card", () => {
     const { deps, calls } = setup({ getCard: () => null });
-    performGreeting(deps);
+    expect(performGreeting(deps)).toBe(false);
     expect(calls).toEqual([]);
   });
 
