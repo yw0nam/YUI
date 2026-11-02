@@ -703,6 +703,63 @@ mod tests {
     }
 
     #[test]
+    fn seen_marks_the_open_ask_without_reordering() {
+        let saved = Arc::new(Mutex::new(vec![]));
+        let sink = saved.clone();
+        let s = ThreadStore::new(
+            vec![],
+            Box::new(move |t| {
+                sink.lock().unwrap().push(t.clone());
+                Ok(())
+            }),
+            |_| {},
+        );
+        s.upsert("t", input(), 1);
+        assert_eq!(s.seen("t", "a"), Ok(()));
+        let snap = s.snapshot();
+        assert_eq!(snap.revision, 2);
+        assert_eq!(snap.threads[0].seen_ask_id.as_deref(), Some("a"));
+        assert_eq!(snap.threads[0].updated_at, 1);
+        assert_eq!(
+            saved.lock().unwrap().last().unwrap().seen_ask_id.as_deref(),
+            Some("a")
+        );
+        assert_eq!(s.seen("t", "a"), Ok(()));
+        assert_eq!(s.snapshot().revision, 2);
+        assert_eq!(s.seen("t", "zz"), Err("ask_id does not match open ask"));
+        assert_eq!(s.seen("nope", "a"), Err("unknown thread"));
+        let mut idle = input();
+        idle.state = ThreadState::Working;
+        s.upsert("w", idle, 3);
+        assert_eq!(s.seen("w", "a"), Err("ask is not open"));
+
+        let restored = ThreadStore::new(
+            serde_json::from_str(&serde_json::to_string(&s.snapshot().threads).unwrap()).unwrap(),
+            Box::new(|_| Ok(())),
+            |_| {},
+        );
+        let t = restored
+            .snapshot()
+            .threads
+            .into_iter()
+            .find(|t| t.id == "t");
+        assert_eq!(t.unwrap().seen_ask_id.as_deref(), Some("a"));
+        let mut next = input();
+        if let AskUpdate::Set(ref mut a) = next.ask {
+            a.ask_id = "a2".into();
+        }
+        restored.upsert("t", next, 4);
+        let t = restored
+            .snapshot()
+            .threads
+            .into_iter()
+            .find(|t| t.id == "t")
+            .unwrap();
+        assert_eq!(t.seen_ask_id.as_deref(), Some("a"));
+        assert_eq!(t.ask.unwrap().ask_id, "a2");
+    }
+
+    #[test]
     fn poisoned_store_still_accepts_changes_and_answers() {
         let s = store();
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
