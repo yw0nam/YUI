@@ -5,7 +5,7 @@
  * actually fail with (see dispatcher.ts's onUserTurnFailed) map to a message;
  * anything else renders nothing rather than inventing text. A network_drop carrying
  * the server's {status, message} detail renders the status and the server text, and one without
- * a status renders the server text alone.
+ * a status renders the server text alone; a 429 renders the rate-limit line instead.
  */
 
 import type { TurnErrorDetail, TurnFailure } from "../../dispatcher/backend/backend-caller";
@@ -35,6 +35,7 @@ export function turnErrorMessage(
     case "http_4xx_drop":
       return t("input.error_auth");
     case "network_drop":
+      if (detail?.status === 429) return t("input.error_rate_limit");
       if (detail) {
         // One application collapses the message's newlines AND keeps the whole rendered
         // line (status included) inside the 200-character budget.
