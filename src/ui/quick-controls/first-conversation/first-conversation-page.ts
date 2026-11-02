@@ -123,7 +123,11 @@ export function createFirstConversationPage(deps: FirstConversationPageDeps): {
     if (phase.phase !== "done") return;
     const { result } = phase;
     if (result.kind === "ok") {
-      deps.endpointsSettings.set({ chat_base_url: url, chat_model: model });
+      deps.endpointsSettings.set({
+        chat_base_url: url,
+        chat_model: model,
+        chat_api: "chat_completions",
+      });
       deps.chatKeySettings.setApiKey(typedKey());
       deps.proactiveSettings.setEnabled(false);
       deps.scheduleSettings.setEnabled(false);
