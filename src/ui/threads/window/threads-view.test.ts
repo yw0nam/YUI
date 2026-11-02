@@ -476,3 +476,72 @@ it("opens on the asked tab without the grow when the open has no origin", async 
   expect(animate).not.toHaveBeenCalled();
   delete (HTMLElement.prototype as Partial<HTMLElement>).animate;
 });
+
+const entries = (n: number): Thread["entries"] =>
+  Array.from({ length: n }, (_, i) => ({ role: "agent", text: `entry ${i}`, at: i + 1 }));
+
+/** Lays out scrollHeight as 100px per entry inside `run`, since jsdom has no layout. */
+function withScrollHeights(run: () => void): void {
+  const original = Object.getOwnPropertyDescriptor(Element.prototype, "scrollHeight")!;
+  Object.defineProperty(Element.prototype, "scrollHeight", {
+    get(this: HTMLElement) {
+      return 100 * this.querySelectorAll(".yui-threads-entry").length;
+    },
+    configurable: true,
+  });
+  try {
+    run();
+  } finally {
+    Object.defineProperty(Element.prototype, "scrollHeight", original);
+  }
+}
+
+it("holds the pane's redraw while the Terminal tab shows, and keeps the reader on return", () => {
+  const { view, $, tab } = build();
+  view.update(snapshot(1, [{ ...thread("t1", "codex", 1), entries: entries(3) }]));
+  withScrollHeights(() => {
+    $(".yui-threads-pane__transcript").scrollTop = -50;
+    tab("terminal").click();
+    view.update(snapshot(2, [{ ...thread("t1", "codex", 2), entries: entries(4) }]));
+
+    expect(document.querySelector(".yui-threads-pane__entries")!.childElementCount).toBe(3);
+
+    tab("threads").click();
+    expect(document.querySelector(".yui-threads-pane__entries")!.childElementCount).toBe(4);
+    expect($(".yui-threads-pane__transcript").scrollTop).toBe(-150);
+  });
+});
+
+it("keeps a reader above the newest entry on their entries, and a reader at it at it", () => {
+  const { view, $ } = build();
+  view.update(snapshot(1, [{ ...thread("t1", "codex", 1), entries: entries(3) }]));
+  withScrollHeights(() => {
+    $(".yui-threads-pane__transcript").scrollTop = -50;
+    view.update(snapshot(2, [{ ...thread("t1", "codex", 2), entries: entries(4) }]));
+    expect($(".yui-threads-pane__transcript").scrollTop).toBe(-150);
+
+    $(".yui-threads-pane__transcript").scrollTop = 0;
+    view.update(snapshot(3, [{ ...thread("t1", "codex", 3), entries: entries(5) }]));
+    expect($(".yui-threads-pane__transcript").scrollTop).toBe(0);
+  });
+});
+
+it("starts a picked Thread and a fresh open at the newest entry", async () => {
+  const { view, $ } = build();
+  view.update(snapshot(1, [thread("t1", "codex", 2), thread("t2", "slack", 1)]));
+  $(".yui-threads-pane__transcript").scrollTop = -50;
+
+  $<HTMLButtonElement>('.yui-threads-list [data-id="t2"]').click();
+  expect($(".yui-threads-pane__transcript").scrollTop).toBe(0);
+
+  $<HTMLButtonElement>('.yui-threads-list [data-id="t1"]').click();
+  $(".yui-threads-pane__transcript").scrollTop = -50;
+  await view.open(null);
+  expect($(".yui-threads-pane__transcript").scrollTop).toBe(0);
+});
+
+it("anchors the transcript at its newest entry with a column-reverse scroll", () => {
+  expect(readFileSync("src/ui/threads/window/thread-pane.css", "utf8")).toMatch(
+    /\.yui-threads-pane__transcript \{[^}]*flex-direction:\s*column-reverse/,
+  );
+});
