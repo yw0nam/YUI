@@ -36,7 +36,7 @@
   height: 100%;
   overflow: hidden;
   border-radius: var(--yui-radius);
-  background: var(--yui-scrim-strong);
+  background: color-mix(in oklch, var(--yui-threads-base) 98.5%, transparent);
   box-shadow: var(--yui-float);
 }
 
@@ -72,6 +72,7 @@
   cursor: grab;
   -webkit-user-select: none;
   user-select: none;
+  background: var(--yui-threads-head);
 }
 
 .yui-threads__head h1 {

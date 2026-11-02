@@ -5,7 +5,7 @@
   gap: 8px;
   padding: 12px 28px 16px;
   border-top: 1px solid var(--yui-edge);
-  background: var(--yui-panel-bg);
+  background: var(--yui-threads-head);
 }
 
 /* In the thread pane it fills the pane's last row, at most half the pane (thread-pane.css): the choices

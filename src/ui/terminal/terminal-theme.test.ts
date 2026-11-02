@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-/** terminal-theme.test.ts — every xterm ANSI slot comes from a theme token that reads at 4.5:1 on the Panel ground in Dawn and Hearth. */
+/** terminal-theme.test.ts — every xterm ANSI slot comes from a theme token that reads at 4.5:1 on the Threads base in Dawn and Hearth, and the text inks read at 4.5:1 on each Threads surface. */
 
 import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
@@ -54,15 +54,35 @@ const [dawn, hearth] = readFileSync("src/ui/tokens.css", "utf8").split(
 const token = (block: string, name: string): string | undefined =>
   block.match(new RegExp(`${name}:\\s*(oklch\\([^)]*\\))`))?.[1];
 
-it.each([
+const THEMES = [
   ["Dawn", dawn],
   ["Hearth", hearth],
-])("gives every ANSI slot at least 4.5:1 on the Panel in %s", (_theme, block) => {
-  const panel = token(block, "--yui-panel-bg")!;
+] as const;
+
+it.each(
+  THEMES,
+)("gives every ANSI slot at least 4.5:1 on the Threads base in %s", (_theme, block) => {
+  const base = token(block, "--yui-threads-base");
 
   const failing = SLOTS.map(([, name]) => [name, token(block, `--yui-ansi-${name}`)] as const)
-    .filter(([, value]) => value === undefined || contrast(value, panel) < 4.5)
+    .filter(([, value]) => value === undefined || base === undefined || contrast(value, base) < 4.5)
     .map(([name]) => name);
+
+  expect(failing).toEqual([]);
+});
+
+it.each(
+  THEMES,
+)("gives each text ink at least 4.5:1 on every Threads surface in %s", (_theme, block) => {
+  const failing = ["base", "head", "side"].flatMap((surface) =>
+    ["text", "text-dim", "text-mute"]
+      .filter((ink) => {
+        const ground = token(block, `--yui-threads-${surface}`);
+        const text = token(block, `--yui-${ink}`);
+        return ground === undefined || text === undefined || contrast(text, ground) < 4.5;
+      })
+      .map((ink) => `${ink} on ${surface}`),
+  );
 
   expect(failing).toEqual([]);
 });

@@ -18,6 +18,12 @@
   --yui-edge: oklch(0.35 0.03 60 / 0.14);
   --yui-edge-strong: oklch(0.35 0.03 60 / 0.24);
   --yui-panel-bg: oklch(0.975 0.006 85);
+  /* The Threads panel body, the thread pane and the terminal ground. */
+  --yui-threads-base: oklch(0.99 0.006 85);
+  /* The Threads head and tabs, the answer area, the access line, code blocks and the size readout. */
+  --yui-threads-head: oklch(0.96 0.008 80);
+  /* The Threads list pane and rail. */
+  --yui-threads-side: oklch(0.93 0.01 78);
   --yui-group-bg: oklch(0.995 0.004 85 / 0.75);
   --yui-hover: oklch(0.3 0.03 60 / 0.05);
   --yui-selected: oklch(0.3 0.03 60 / 0.08);
@@ -101,6 +107,9 @@
   --yui-edge: oklch(0.97 0.01 80 / 0.1);
   --yui-edge-strong: oklch(0.97 0.01 80 / 0.16);
   --yui-panel-bg: oklch(0.16 0.014 70);
+  --yui-threads-base: oklch(0.235 0.014 70);
+  --yui-threads-head: oklch(0.2 0.014 70);
+  --yui-threads-side: oklch(0.165 0.014 70);
   --yui-group-bg: oklch(0.97 0.01 80 / 0.035);
   --yui-hover: oklch(0.97 0.01 80 / 0.06);
   --yui-selected: oklch(0.97 0.01 80 / 0.11);

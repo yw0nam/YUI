@@ -5,7 +5,7 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  background: var(--yui-panel-bg);
+  background: var(--yui-threads-side);
 }
 
 .yui-threads-list__tabs {

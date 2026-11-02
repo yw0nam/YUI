@@ -32,7 +32,7 @@
   gap: 8px 12px;
   padding: 8px 28px;
   border-bottom: 1px solid var(--yui-edge);
-  background: var(--yui-panel-bg);
+  background: var(--yui-threads-head);
   font-size: var(--yui-fs-sub);
 }
 
