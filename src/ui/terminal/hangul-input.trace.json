@@ -1,0 +1,405 @@
+{
+  "source": "WKWebView macOS 26.2 (25C56), Korean 2-Set, captured 2026-11-02 in YUI Verify Threads Terminal tab; value = textarea.value when the listener ran (capture phase)",
+  "events": [
+    {
+      "type": "keyup",
+      "key": "ㅇ",
+      "keyCode": 68,
+      "data": "",
+      "inputType": "",
+      "value": ""
+    },
+    {
+      "type": "beforeinput",
+      "key": "",
+      "keyCode": 0,
+      "data": "ㅇ",
+      "inputType": "insertText",
+      "value": ""
+    },
+    {
+      "type": "input",
+      "key": "",
+      "keyCode": 0,
+      "data": "ㅇ",
+      "inputType": "insertText",
+      "value": "ㅇ"
+    },
+    {
+      "type": "keydown",
+      "key": "ㅇ",
+      "keyCode": 229,
+      "data": "",
+      "inputType": "",
+      "value": "ㅇ"
+    },
+    {
+      "type": "beforeinput",
+      "key": "",
+      "keyCode": 0,
+      "data": "아",
+      "inputType": "insertReplacementText",
+      "value": "ㅇ"
+    },
+    {
+      "type": "input",
+      "key": "",
+      "keyCode": 0,
+      "data": "아",
+      "inputType": "insertReplacementText",
+      "value": "아"
+    },
+    {
+      "type": "keydown",
+      "key": "ㅏ",
+      "keyCode": 229,
+      "data": "",
+      "inputType": "",
+      "value": "아"
+    },
+    {
+      "type": "keyup",
+      "key": "ㅏ",
+      "keyCode": 75,
+      "data": "",
+      "inputType": "",
+      "value": "아"
+    },
+    {
+      "type": "beforeinput",
+      "key": "",
+      "keyCode": 0,
+      "data": "안",
+      "inputType": "insertReplacementText",
+      "value": "아"
+    },
+    {
+      "type": "input",
+      "key": "",
+      "keyCode": 0,
+      "data": "안",
+      "inputType": "insertReplacementText",
+      "value": "안"
+    },
+    {
+      "type": "keydown",
+      "key": "ㄴ",
+      "keyCode": 229,
+      "data": "",
+      "inputType": "",
+      "value": "안"
+    },
+    {
+      "type": "keyup",
+      "key": "ㄴ",
+      "keyCode": 83,
+      "data": "",
+      "inputType": "",
+      "value": "안"
+    },
+    {
+      "type": "beforeinput",
+      "key": "",
+      "keyCode": 0,
+      "data": "안",
+      "inputType": "insertReplacementText",
+      "value": "안"
+    },
+    {
+      "type": "input",
+      "key": "",
+      "keyCode": 0,
+      "data": "안",
+      "inputType": "insertReplacementText",
+      "value": "안"
+    },
+    {
+      "type": "beforeinput",
+      "key": "",
+      "keyCode": 0,
+      "data": "ㄴ",
+      "inputType": "insertText",
+      "value": "안"
+    },
+    {
+      "type": "input",
+      "key": "",
+      "keyCode": 0,
+      "data": "ㄴ",
+      "inputType": "insertText",
+      "value": "안ㄴ"
+    },
+    {
+      "type": "keydown",
+      "key": "ㄴ",
+      "keyCode": 229,
+      "data": "",
+      "inputType": "",
+      "value": "안ㄴ"
+    },
+    {
+      "type": "keyup",
+      "key": "ㄴ",
+      "keyCode": 83,
+      "data": "",
+      "inputType": "",
+      "value": "안ㄴ"
+    },
+    {
+      "type": "beforeinput",
+      "key": "",
+      "keyCode": 0,
+      "data": "녀",
+      "inputType": "insertReplacementText",
+      "value": "안ㄴ"
+    },
+    {
+      "type": "input",
+      "key": "",
+      "keyCode": 0,
+      "data": "녀",
+      "inputType": "insertReplacementText",
+      "value": "안녀"
+    },
+    {
+      "type": "keydown",
+      "key": "ㅕ",
+      "keyCode": 229,
+      "data": "",
+      "inputType": "",
+      "value": "안녀"
+    },
+    {
+      "type": "keyup",
+      "key": "ㅕ",
+      "keyCode": 85,
+      "data": "",
+      "inputType": "",
+      "value": "안녀"
+    },
+    {
+      "type": "beforeinput",
+      "key": "",
+      "keyCode": 0,
+      "data": "녕",
+      "inputType": "insertReplacementText",
+      "value": "안녀"
+    },
+    {
+      "type": "input",
+      "key": "",
+      "keyCode": 0,
+      "data": "녕",
+      "inputType": "insertReplacementText",
+      "value": "안녕"
+    },
+    {
+      "type": "keydown",
+      "key": "ㅇ",
+      "keyCode": 229,
+      "data": "",
+      "inputType": "",
+      "value": "안녕"
+    },
+    {
+      "type": "keyup",
+      "key": "ㅇ",
+      "keyCode": 68,
+      "data": "",
+      "inputType": "",
+      "value": "안녕"
+    },
+    {
+      "type": "beforeinput",
+      "key": "",
+      "keyCode": 0,
+      "data": "녕",
+      "inputType": "insertReplacementText",
+      "value": "안녕"
+    },
+    {
+      "type": "input",
+      "key": "",
+      "keyCode": 0,
+      "data": "녕",
+      "inputType": "insertReplacementText",
+      "value": "안녕"
+    },
+    {
+      "type": "beforeinput",
+      "key": "",
+      "keyCode": 0,
+      "data": "ㅎ",
+      "inputType": "insertText",
+      "value": "안녕"
+    },
+    {
+      "type": "input",
+      "key": "",
+      "keyCode": 0,
+      "data": "ㅎ",
+      "inputType": "insertText",
+      "value": "안녕ㅎ"
+    },
+    {
+      "type": "keydown",
+      "key": "ㅎ",
+      "keyCode": 229,
+      "data": "",
+      "inputType": "",
+      "value": "안녕ㅎ"
+    },
+    {
+      "type": "keyup",
+      "key": "ㅎ",
+      "keyCode": 71,
+      "data": "",
+      "inputType": "",
+      "value": "안녕ㅎ"
+    },
+    {
+      "type": "beforeinput",
+      "key": "",
+      "keyCode": 0,
+      "data": "하",
+      "inputType": "insertReplacementText",
+      "value": "안녕ㅎ"
+    },
+    {
+      "type": "input",
+      "key": "",
+      "keyCode": 0,
+      "data": "하",
+      "inputType": "insertReplacementText",
+      "value": "안녕하"
+    },
+    {
+      "type": "keydown",
+      "key": "ㅏ",
+      "keyCode": 229,
+      "data": "",
+      "inputType": "",
+      "value": "안녕하"
+    },
+    {
+      "type": "keyup",
+      "key": "ㅏ",
+      "keyCode": 75,
+      "data": "",
+      "inputType": "",
+      "value": "안녕하"
+    },
+    {
+      "type": "beforeinput",
+      "key": "",
+      "keyCode": 0,
+      "data": "핫",
+      "inputType": "insertReplacementText",
+      "value": "안녕하"
+    },
+    {
+      "type": "input",
+      "key": "",
+      "keyCode": 0,
+      "data": "핫",
+      "inputType": "insertReplacementText",
+      "value": "안녕핫"
+    },
+    {
+      "type": "keydown",
+      "key": "ㅅ",
+      "keyCode": 229,
+      "data": "",
+      "inputType": "",
+      "value": "안녕핫"
+    },
+    {
+      "type": "keyup",
+      "key": "ㅅ",
+      "keyCode": 84,
+      "data": "",
+      "inputType": "",
+      "value": "안녕핫"
+    },
+    {
+      "type": "beforeinput",
+      "key": "",
+      "keyCode": 0,
+      "data": "하",
+      "inputType": "insertReplacementText",
+      "value": "안녕핫"
+    },
+    {
+      "type": "input",
+      "key": "",
+      "keyCode": 0,
+      "data": "하",
+      "inputType": "insertReplacementText",
+      "value": "안녕하"
+    },
+    {
+      "type": "beforeinput",
+      "key": "",
+      "keyCode": 0,
+      "data": "세",
+      "inputType": "insertText",
+      "value": "안녕하"
+    },
+    {
+      "type": "input",
+      "key": "",
+      "keyCode": 0,
+      "data": "세",
+      "inputType": "insertText",
+      "value": "안녕하세"
+    },
+    {
+      "type": "keydown",
+      "key": "ㅔ",
+      "keyCode": 229,
+      "data": "",
+      "inputType": "",
+      "value": "안녕하세"
+    },
+    {
+      "type": "keyup",
+      "key": "ㅔ",
+      "keyCode": 80,
+      "data": "",
+      "inputType": "",
+      "value": "안녕하세"
+    },
+    {
+      "type": "beforeinput",
+      "key": "",
+      "keyCode": 0,
+      "data": "셍",
+      "inputType": "insertReplacementText",
+      "value": "안녕하세"
+    },
+    {
+      "type": "input",
+      "key": "",
+      "keyCode": 0,
+      "data": "셍",
+      "inputType": "insertReplacementText",
+      "value": "안녕하셍"
+    },
+    {
+      "type": "keydown",
+      "key": "ㅇ",
+      "keyCode": 229,
+      "data": "",
+      "inputType": "",
+      "value": "안녕하셍"
+    },
+    {
+      "type": "keyup",
+      "key": "ㅇ",
+      "keyCode": 68,
+      "data": "",
+      "inputType": "",
+      "value": "안녕하셍"
+    }
+  ]
+}

@@ -10,6 +10,18 @@
 }
 
 .yui-terminal-screen {
+  position: relative;
   min-width: 0;
   min-height: 0;
+}
+
+/* The Hangul syllable being typed, over the cursor cell, underlined as macOS marks text not yet committed. */
+.yui-terminal-preedit {
+  position: absolute;
+  z-index: 1;
+  white-space: nowrap;
+  font-family: var(--yui-font-mono);
+  color: var(--yui-text);
+  background: var(--yui-panel-bg);
+  text-decoration: underline var(--yui-text-dim);
 }

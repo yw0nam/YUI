@@ -1222,7 +1222,7 @@ globalThis.YUI_MAP =
       "id": "ui/terminal",
       "module": "display",
       "label": "terminal ui",
-      "role": "The Threads window's Terminal tab: the list or its rail (New terminal, then one row per terminal newest first), the pane with one xterm per terminal and its exit line, the font-size keys (Command or Control with =, + or - by 1 px, 0 back to 13 px, 10–24 px, one size for every terminal), the access line with Take back, and the Allow card for the oldest waiting access request.",
+      "role": "The Threads window's Terminal tab: the list or its rail (New terminal, then one row per terminal newest first), the pane with one xterm per terminal and its exit line, Hangul typed through WebKit's in-place IME edits held at the cursor and sent a syllable at a time, the font-size keys (Command or Control with =, + or - by 1 px, 0 back to 13 px, 10–24 px, one size for every terminal), the access line with Take back, and the Allow card for the oldest waiting access request.",
       "paths": [
         "src/ui/terminal"
       ]
