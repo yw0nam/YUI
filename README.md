@@ -87,14 +87,14 @@ YUI ships no model of its own. Choose the brain by what it can do.
 
 | Brain | What you get |
 | --- | --- |
-| **Any OpenAI-compatible endpoint** (OpenAI · Ollama · LM Studio · Groq · your own endpoint) | Chat, persona text you write in the app, and expression with a tool-calling model. Voice and speech recognition are separate connections. |
+| **Any OpenAI-compatible endpoint** (OpenAI · Ollama · LM Studio · Groq · Google Gemini · your own endpoint) | Chat, persona text you write in the app, and expression with a tool-calling model. Voice and speech recognition are separate connections. |
 | **An automation agent with memory and the push transport** | Turns the backend starts on its own, long-term memory the agent keeps, and delegation status when the backend reports it. Recommended for the full feature set. Worked example: [Hermes Agent](integrations/hermes/README.md). Other agents connect through the [push contract](docs/reference/push-transport.md). |
 
 Pick each provider in **Settings → Connection**.
 
 | | Providers |
 | --- | --- |
-| Chat | OpenAI · Ollama · LM Studio · Groq · [Hermes Agent](integrations/hermes/README.md) · any OpenAI-compatible endpoint |
+| Chat | OpenAI · Ollama · LM Studio · Groq · Google Gemini · [Hermes Agent](integrations/hermes/README.md) · any OpenAI-compatible endpoint |
 | Voice (TTS) | [Irodori](https://github.com/Aratako/Irodori-TTS-Server) (Japanese) · OpenAI · [Fish Audio](https://fish.audio/) |
 | Speech recognition | Any OpenAI-compatible transcription endpoint · Groq |
 
@@ -109,6 +109,7 @@ Pick each provider in **Settings → Connection**.
 | Ollama | `chat_completions` | Local | `qwen3` |
 | LM Studio | `chat_completions` | Local | Any tool-calling model |
 | Groq | `chat_completions` | Hosted, API key | `llama-3.3-70b-versatile` |
+| Google Gemini | `chat_completions` | Hosted, API key, free tier | `models/gemini-3.5-flash-lite` |
 | [Hermes Agent](integrations/hermes/README.md) | `push`, `responses` | Self-hosted | The model the agent runs |
 | Custom endpoint | `chat_completions`, `responses`, `push` | Any server that speaks the protocol | Tool-calling model on `chat_completions` |
 

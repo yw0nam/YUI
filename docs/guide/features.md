@@ -45,7 +45,7 @@ Everything YUI does today, grouped by area. [What she can do](capabilities.md) c
 | Chat protocols | Chat Completions, Responses, or Push, set on Connection ([push transport](../reference/push-transport.md)) |
 | Expression cues | `generate_express` for emotion, motion, voice tag, and caption ([contract](../reference/client-context.md)) |
 | Browser tool | Web pages in ego lite, in a task space per character, from the official `browser` plugin |
-| Provider presets | OpenAI, Ollama, LM Studio, Groq, Hermes Agent, and a custom endpoint |
+| Provider presets | OpenAI, Ollama, LM Studio, Groq, Google Gemini, Hermes Agent, and a custom endpoint |
 | Per-turn context | The time, the frontmost app, a screenshot, posture, and the last outcome ([format](../reference/client-context.md)) |
 | Silence | An empty reply or a bare `[SILENT]` token, taken as a silent turn |
 | Delegated tasks | On push, a chip for background work, with saved history |

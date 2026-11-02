@@ -53,12 +53,14 @@ Ask once: "Do you want to connect a chat backend, TTS, or STT now, or set them l
 
 Otherwise collect what the user has. Every URL starts with `http://` or `https://`; the config validator rejects anything else at launch, and the window shows an error card that names the file and the key.
 
+When the user has no backend of their own, recommend the Google Gemini free tier. The user makes a key at https://aistudio.google.com/apikey. Set `chat_base_url` to `https://generativelanguage.googleapis.com/v1beta/openai`, `chat_model` to `models/gemini-3.5-flash-lite`, and the key to `VITE_YUI_CHAT_KEY`. Tell the user the free tier has a daily limit, that Google may use what they send to improve its products, and that people may review it.
+
 | Value | Where it goes |
 |---|---|
 | Chat base URL and model id | `configs/endpoints.json` → `chat_base_url`, `chat_model`. In the `chat_completions` and `responses` modes the URL is the API root including `/v1` (`http://localhost:8643/v1`). In `push` mode it is the WebSocket base without `/v1` (`http://localhost:8646`) |
 | Chat protocol | `chat_api`: pick by who keeps the conversation history: keep `chat_completions` (the client sends the history) for any tool-calling OpenAI-compatible endpoint, `responses` (the server keeps it) for a backend agent on the Responses API, `push` for a backend that speaks first through the [push transport](../reference/push-transport.md); currently only [Hermes Agent](https://github.com/NousResearch/hermes-agent) supports it |
 | Chat API key | `.env.local` → `VITE_YUI_CHAT_KEY` |
-| TTS provider, URL, model, speaker, key | `tts_provider` (`irodori` or `openai`), `tts_base_url` without `/v1` (`http://localhost:8088` for Irodori, `https://api.openai.com` for OpenAI), `tts_model` (`irodori-tts`, or `gpt-4o-mini-tts` for OpenAI), `tts_speaker`, `.env.local` → `VITE_YUI_TTS_KEY` |
+| TTS provider, URL, model, speaker, key | `tts_provider` (`irodori`, `openai`, or `fish`), `tts_base_url` without `/v1` (`http://localhost:8088` for Irodori, `https://api.openai.com` for OpenAI, `https://api.fish.audio` for Fish Audio), `tts_model` (`irodori-tts`, `gpt-4o-mini-tts` for OpenAI, `s2.1-pro-free` for Fish Audio), `tts_speaker`, `.env.local` → `VITE_YUI_TTS_KEY` |
 | STT URL, model, key | `stt_base_url` with `/v1` (`http://localhost:5517/v1`), `stt_model`, `.env.local` → `VITE_YUI_STT_KEY` |
 
 Create `.env.local` with `cp -n .env.example .env.local` and set only the keys the user gave. The `VITE_YUI_*_KEY` values in it apply to dev runs only; a release build carries no key and reads the keys entered in the settings window. Merge the answered keys into `configs/endpoints.json` and leave the rest out; an unset URL keeps that feature off. `pnpm tauri dev` reloads `configs/` on change; a change to `.env.local` needs a restart.
