@@ -81,7 +81,7 @@ function setup(over: { seen?: boolean; endsInsideSpeak?: boolean; busy?: boolean
       pushSpeech: (text) => calls.push(`hint:${text}`),
       endSpeech: vi.fn(),
       showSpeechAction: vi.fn(),
-      hideSpeech: vi.fn(),
+      hideSpeech: () => calls.push("hide"),
     },
     seen: () => over.seen ?? false,
     markSeen: vi.fn(),
@@ -177,8 +177,17 @@ describe("wireFirstConversation", () => {
 
     s.connect();
 
-    expect(s.calls).toEqual(["input", HINT]);
+    expect(s.calls).toEqual(["hide", "input", HINT]);
     expect(s.ends.size).toBe(0);
+  });
+
+  it("with no greeting and the hint already seen, the setup bubble still leaves", () => {
+    const s = setup({ seen: true });
+    s.transcript.append({ role: "user", text: "hello", ts: 1 });
+
+    s.connect();
+
+    expect(s.calls).toEqual(["hide", "input"]);
   });
 
   it("leaves the hint out once it was seen, and still opens the input", () => {
