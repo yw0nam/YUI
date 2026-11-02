@@ -97,14 +97,18 @@ Disk writes are best-effort: a failed append logs `threads_append_failed` and th
 
 ## Commands and event
 
-`threads_snapshot()` returns `{revision, threads}` with Threads sorted by newest `updated_at` first. Each Thread contains `id`, `source`, `title`, optional `label`, `state`, `entries`, optional `ask`, `created_at`, and `updated_at`. Optional `answered_ask_ids` records answered ids and is omitted when empty.
+`threads_snapshot()` returns `{revision, threads}` with Threads sorted by newest `updated_at` first. Each Thread contains `id`, `source`, `title`, optional `label`, `state`, `entries`, optional `ask`, `created_at`, and `updated_at`. Optional `answered_ask_ids` records answered ids and is omitted when empty. Optional `seen_ask_id` is the id of the open ask the user picked in the Threads window, and is omitted until then.
 
 Each stored entry contains `role`, `text`, and `at`.
 
 `thread_answer(id, ask_id, choice?, text?, release?)` submits a user answer and returns success or an error string naming the broken rule. Every successful change increases the revision and publishes `threads-snapshot` to every window, with the same shape as `threads_snapshot()`. Revision starts at zero on app start.
 
+`thread_seen(id, ask_id)` records the open ask as seen and returns success or an error string naming the broken rule. It leaves `updated_at` unchanged, and a repeat for the same ask changes nothing.
+
 ## In the app
 
 Main's pet window and the Threads window each listen to `threads-snapshot` and read `threads_snapshot()` once, keeping the highest revision. Main draws the Threads chip from it; the Threads window draws its list and thread pane. Only the Threads window calls `thread_answer`, with a choice, text, or both. It never sends `release`.
+
+The Threads window also calls `thread_seen` when the user picks a waiting Thread in its list or rail. Main's Threads chip counts a waiting Thread only while its open ask is not the seen one; inside the Threads window a seen Thread still shows as waiting.
 
 The main character's backend reads Threads through the `threads_list` and `threads_search` client tools and the `threads:` client-context line; Threads fire no turn.

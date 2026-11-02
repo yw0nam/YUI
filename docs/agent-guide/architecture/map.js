@@ -754,7 +754,7 @@ globalThis.YUI_MAP =
       "id": "io/threads",
       "module": "display",
       "label": "threads client",
-      "role": "Keeps the Thread store's highest-revision snapshot from threads_snapshot and the threads-snapshot event, and sends the user's Answer through thread_answer; inert outside Tauri.",
+      "role": "Keeps the Thread store's highest-revision snapshot from threads_snapshot and the threads-snapshot event, and sends the user's Answer through thread_answer and the open ask the user picked through thread_seen; inert outside Tauri.",
       "paths": [
         "src/io/threads"
       ]
@@ -2892,7 +2892,7 @@ globalThis.YUI_MAP =
       "id": "threads-shell-command",
       "from": "io/threads",
       "to": "shell/threads",
-      "carries": "threads_snapshot once after the listen; thread_answer {id, askId, choice?, text?}",
+      "carries": "threads_snapshot once after the listen; thread_answer {id, askId, choice?, text?}; thread_seen {id, askId}",
       "kind": "tauri-command",
       "transport": "shared"
     },
@@ -3000,6 +3000,15 @@ globalThis.YUI_MAP =
       "from": "ui/threads",
       "to": "io/threads",
       "carries": "an Answer {choice?, text?} for the ask id captured at send; a rejection's error string comes back to the answer area",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/threads-window/wire-threads-window.ts"
+    },
+    {
+      "id": "threads-seen",
+      "from": "ui/threads",
+      "to": "io/threads",
+      "carries": "the Thread and the open ask id the user picked in the list or the rail; a rejection is logged",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/threads-window/wire-threads-window.ts"
