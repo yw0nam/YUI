@@ -6,7 +6,7 @@ Connect any OpenAI-compatible model, or an agent that keeps its own memory.
 
 1. Right-click the character and choose **All settings…**.
 2. Open **Connection**.
-3. Pick a **Provider** (OpenAI, Ollama, LM Studio, Groq, Google Gemini, or Hermes Agent) and enter the **Chat model**. A preset fills **Chat server URL**, and Google Gemini also fills **Chat model**. Hermes Agent switches **Type** to Push and fills no URL. Ollama and LM Studio must be running.
+3. Pick a **Provider** (OpenAI, Ollama, LM Studio, Groq, Google Gemini, or Hermes Agent). A preset fills **Chat server URL**, and Google Gemini also fills **Chat model**; enter the **Chat model** yourself when the preset fills no model. Hermes Agent switches **Type** to Push and fills no URL. Ollama and LM Studio must be running.
 4. Enter a **Chat API key** if the provider needs one, close the window, and press `/` to talk.
 
 ## Which protocol

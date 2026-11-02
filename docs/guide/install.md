@@ -51,9 +51,9 @@ Both addresses are the OpenAI-compatible model-list endpoints documented for [Ol
 
 Ask once: "Do you want to connect a chat backend, TTS, or STT now, or set them later in the app (right-click the character → All settings… → Connection)?" On "later", go to step 4.
 
-When the user has no backend of their own, recommend the Google Gemini free tier. The user makes a key at https://aistudio.google.com/apikey. Set `chat_base_url` to `https://generativelanguage.googleapis.com/v1beta/openai`, `chat_model` to `models/gemini-3.5-flash-lite`, and the key to `VITE_YUI_CHAT_KEY`. Tell the user the free tier has a daily limit, that Google may use what they send to improve its products, and that people may review it.
-
 Otherwise collect what the user has. Every URL starts with `http://` or `https://`; the config validator rejects anything else at launch, and the window shows an error card that names the file and the key.
+
+When the user has no backend of their own, recommend the Google Gemini free tier. The user makes a key at https://aistudio.google.com/apikey. Set `chat_base_url` to `https://generativelanguage.googleapis.com/v1beta/openai`, `chat_model` to `models/gemini-3.5-flash-lite`, and the key to `VITE_YUI_CHAT_KEY`. Tell the user the free tier has a daily limit, that Google may use what they send to improve its products, and that people may review it.
 
 | Value | Where it goes |
 |---|---|
