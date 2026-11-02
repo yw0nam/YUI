@@ -13,7 +13,7 @@ import {
 import { createEndpointsSettings } from "../../../settings/backend/endpoints-settings";
 import { type Locale, setLocale, t } from "../../i18n";
 import en from "../../i18n/en";
-import { CARD_GUIDE_URL, GEMINI_KEY_URL, HERMES_AGENT } from "../constants";
+import { CARD_GUIDE_URL, HERMES_AGENT } from "../constants";
 import { inMemoryApiKeyStorage } from "../test-helpers";
 import { createConnectionTab } from "./connection-tab";
 
@@ -148,7 +148,7 @@ describe("chat type row", () => {
     expect(grant.allow).toEqual([
       { url: HERMES_AGENT.url },
       { url: CARD_GUIDE_URL },
-      { url: GEMINI_KEY_URL },
+      { url: "https://aistudio.google.com/apikey" },
     ]);
   });
 });

@@ -306,7 +306,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.dispose();
   });
 
-  it("prefills from the store and signals 'default in use' without revealing any value", () => {
+  it("prefills from the store and says no key is saved without revealing any value", () => {
     const chatKeySettings = createChatKeySettings();
     const qc = buildQc({ chatKeySettings });
     qc.open();
@@ -317,7 +317,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     const row = input.closest<HTMLDivElement>(".yui-input-row")!;
     const sub = row.querySelector<HTMLElement>(".yui-input-row__sub")!;
     expect(sub.textContent).toBe("저장된 키가 없어요. 필요 없으면 비워 두세요");
-    // The field communicates default-in-use via copy, not by surfacing a secret.
+    // The field says so in copy, not by surfacing a secret.
     expect(input.placeholder).not.toContain("sk-");
 
     qc.dispose();
@@ -336,7 +336,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     const sub = input
       .closest<HTMLDivElement>(".yui-input-row")!
       .querySelector<HTMLElement>(".yui-input-row__sub")!;
-    expect(sub.textContent).not.toContain("기본값");
+    expect(sub.textContent).not.toContain("저장된 키가 없어요");
 
     qc.dispose();
   });
