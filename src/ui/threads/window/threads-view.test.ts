@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * threads-view.test.ts — the Threads window's view over a stream of snapshots: sends, errors,
- * selection, filters, the time tick, the rail, and the layouts the panel's width picks.
+ * selection, filters, the time tick, the rail, the Markdown of an entry, and the layouts the panel's width picks.
  */
 
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -160,6 +160,41 @@ it("sends once while a send is in flight, even when a snapshot rebuilds the pane
 
   expect(onAnswer).toHaveBeenCalledTimes(1);
   expect(send().disabled).toBe(true);
+});
+
+const entryText = (text: string): HTMLElement => {
+  const { view, $ } = build();
+  view.update(
+    snapshot(1, [{ ...thread("t1", "codex", 1), entries: [{ role: "agent", text, at: 1 }] }]),
+  );
+  return $(".yui-threads-entry__text");
+};
+
+it("renders an entry's Markdown as a table, a list, a link and an image", () => {
+  const el = entryText(
+    "| a | b |\n|---|---|\n| 1 | 2 |\n\n- one\n- two\n\n[docs](https://example.com/d)\n\n![shot](https://example.com/s.png)",
+  );
+
+  expect(el.querySelectorAll("table th, table td")).toHaveLength(4);
+  expect(el.querySelectorAll("ul > li")).toHaveLength(2);
+  expect(el.querySelector("a")?.getAttribute("target")).toBe("_blank");
+  expect(el.querySelector("img")?.getAttribute("src")).toBe("https://example.com/s.png");
+});
+
+it("strips scripts and javascript: links, and keeps only the https images", () => {
+  const el = entryText(
+    [
+      "<script>alert(1)</script>",
+      "[x](javascript:alert(1))",
+      "![a](http://asset.localhost/x) ![b](/x) ![c](http://example.com/x.png) ![d](https://example.com/ok.png)",
+    ].join("\n\n"),
+  );
+
+  expect(el.querySelector("script")).toBeNull();
+  expect(el.querySelector("a")?.hasAttribute("href")).toBe(false);
+  expect([...el.querySelectorAll("img")].map((img) => img.getAttribute("src"))).toEqual([
+    "https://example.com/ok.png",
+  ]);
 });
 
 it("shows a failed send's error and keeps its draft", async () => {
