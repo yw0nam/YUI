@@ -10,6 +10,8 @@ export interface ThreadsClient extends SnapshotFeed<ThreadsSnapshot> {
   threads(): Thread[];
   /** Rejects with the store's error string naming the broken rule. */
   answer(id: string, askId: string, answer: { choice?: string; text?: string }): Promise<void>;
+  /** Records the open ask as seen; rejects with the store's error string. */
+  seen(id: string, askId: string): Promise<void>;
 }
 
 export function createThreadsClient(): ThreadsClient {
@@ -20,6 +22,10 @@ export function createThreadsClient(): ThreadsClient {
     async answer(id, askId, answer) {
       if (!isTauri()) return;
       await invoke<void>("thread_answer", { id, askId, ...answer });
+    },
+    async seen(id, askId) {
+      if (!isTauri()) return;
+      await invoke<void>("thread_seen", { id, askId });
     },
   };
 }

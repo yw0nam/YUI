@@ -1,5 +1,5 @@
 /**
- * Threads chip — the pill in main's chip column that counts waiting Threads and access requests and
+ * Threads chip — the pill in main's chip column that counts waiting Threads the user has not picked and access requests and
  * opens the Threads window. Pure renderer: the marks, label, and count come from the snapshots;
  * hidden while nothing waits and the window is closed; one nod when a Thread or a request starts
  * waiting; a held press folds it with the other chips.
@@ -111,7 +111,9 @@ export function createThreadsChip({
     el,
     update(threads) {
       waiting = threads
-        .filter((th) => th.state === "input-required")
+        .filter(
+          (th) => th.state === "input-required" && !(th.ask && th.ask.ask_id === th.seen_ask_id),
+        )
         .sort((a, b) => b.updated_at - a.updated_at);
       track(
         "thread",
