@@ -279,6 +279,8 @@ export interface Thread {
   created_at: number;
   updated_at: number;
   answered_ask_ids?: string[];
+  /** The open ask the user picked in the Threads window. */
+  seen_ask_id?: string;
 }
 
 export interface ThreadsSnapshot {

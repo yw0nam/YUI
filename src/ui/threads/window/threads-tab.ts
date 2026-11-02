@@ -21,6 +21,8 @@ export function createThreadsTab(deps: {
   now(): number;
   /** Rejects with the store's error string. */
   onAnswer(id: string, askId: string, answer: { choice?: string; text?: string }): Promise<void>;
+  /** The user picked a Thread whose open ask has not been reported seen. */
+  onSeen(id: string, askId: string): void;
 }): ThreadsTabBody {
   const { shell } = deps;
   const el = document.createElement("div");
@@ -42,6 +44,8 @@ export function createThreadsTab(deps: {
 
   function select(id: string): void {
     selected = id;
+    const picked = threads.find((th) => th.id === id);
+    if (picked?.ask && picked.seen_ask_id !== picked.ask.ask_id) deps.onSeen(id, picked.ask.ask_id);
     const listHid = shell.selected();
     render();
     if (listHid) paneEl.querySelector("h2")?.focus();

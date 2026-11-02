@@ -51,6 +51,10 @@ impl State {
                 >= now.saturating_sub(crate::log_rotation::RETENTION.whole_milliseconds() as u64)
         });
         self.pending.retain(|(id, _)| self.threads.contains_key(id));
+        self.record(id)
+    }
+
+    fn record(&mut self, id: &str) -> ThreadsSnapshot {
         self.revision += 1;
         let thread = &self.threads[id];
         if let Err(error) = (self.disk)(thread) {
@@ -102,6 +106,7 @@ impl ThreadStore {
                 created_at: now,
                 updated_at: now,
                 answered_ask_ids: Default::default(),
+                seen_ask_id: None,
             });
             thread.source = body.source;
             thread.title = body.title;
@@ -195,6 +200,24 @@ impl ThreadStore {
             state.changed(id, now)
         };
         self.changed.notify_all();
+        (self.emit)(&snapshot);
+        Ok(())
+    }
+
+    pub fn seen(&self, id: &str, ask_id: &str) -> Result<(), &'static str> {
+        let snapshot = {
+            let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+            let thread = state.threads.get_mut(id).ok_or("unknown thread")?;
+            let ask = thread.ask.as_ref().ok_or("ask is not open")?;
+            if ask.ask_id != ask_id {
+                return Err("ask_id does not match open ask");
+            }
+            if thread.seen_ask_id.as_deref() == Some(ask_id) {
+                return Ok(());
+            }
+            thread.seen_ask_id = Some(ask_id.into());
+            state.record(id)
+        };
         (self.emit)(&snapshot);
         Ok(())
     }
@@ -700,6 +723,63 @@ mod tests {
             restored.upsert("t", next, 5);
             assert_eq!(poll(&restored, "b"), WaitOutcome::NoAnswer);
         }
+    }
+
+    #[test]
+    fn seen_records_the_open_ask_in_place_and_survives_a_restart() {
+        let saved = Arc::new(Mutex::new(vec![]));
+        let sink = saved.clone();
+        let s = ThreadStore::new(
+            vec![],
+            Box::new(move |t| {
+                sink.lock().unwrap().push(t.clone());
+                Ok(())
+            }),
+            |_| {},
+        );
+        s.upsert("t", input(), 1);
+        assert_eq!(s.seen("t", "a"), Ok(()));
+        let snap = s.snapshot();
+        assert_eq!(snap.revision, 2);
+        assert_eq!(snap.threads[0].seen_ask_id.as_deref(), Some("a"));
+        assert_eq!(snap.threads[0].updated_at, 1);
+        assert_eq!(
+            saved.lock().unwrap().last().unwrap().seen_ask_id.as_deref(),
+            Some("a")
+        );
+        assert_eq!(s.seen("t", "a"), Ok(()));
+        assert_eq!(s.snapshot().revision, 2);
+        assert_eq!(s.seen("t", "zz"), Err("ask_id does not match open ask"));
+        assert_eq!(s.seen("nope", "a"), Err("unknown thread"));
+        let mut idle = input();
+        idle.state = ThreadState::Working;
+        s.upsert("w", idle, 3);
+        assert_eq!(s.seen("w", "a"), Err("ask is not open"));
+
+        let restored = ThreadStore::new(
+            serde_json::from_str(&serde_json::to_string(&s.snapshot().threads).unwrap()).unwrap(),
+            Box::new(|_| Ok(())),
+            |_| {},
+        );
+        let t = restored
+            .snapshot()
+            .threads
+            .into_iter()
+            .find(|t| t.id == "t");
+        assert_eq!(t.unwrap().seen_ask_id.as_deref(), Some("a"));
+        let mut next = input();
+        if let AskUpdate::Set(ref mut a) = next.ask {
+            a.ask_id = "a2".into();
+        }
+        restored.upsert("t", next, 4);
+        let t = restored
+            .snapshot()
+            .threads
+            .into_iter()
+            .find(|t| t.id == "t")
+            .unwrap();
+        assert_eq!(t.seen_ask_id.as_deref(), Some("a"));
+        assert_eq!(t.ask.unwrap().ask_id, "a2");
     }
 
     #[test]

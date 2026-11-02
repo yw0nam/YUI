@@ -430,7 +430,7 @@ YUI/
         record/                        # The turn-record JSONL log
           turn-record-log.ts           # Appends one JSONL record per completed turn or skipped fire
       threads/                         # The Thread store's client
-        threads-client.ts              # The highest-revision snapshot from threads_snapshot and threads-snapshot, and thread_answer
+        threads-client.ts              # The highest-revision snapshot from threads_snapshot and threads-snapshot, thread_answer and thread_seen
       mcp-host/                        # The MCP host client and the `plugin tools:` and `plugin skills:` lines
         mcp-host.ts                    # The host's newest snapshot and its subscription, the call, cancel and skill invocations, and the settings window's managing commands
         enabled-plugins.ts             # The enabled plugins' tools with their summaries, their skills with their descriptions, and the tool lookup a call makes

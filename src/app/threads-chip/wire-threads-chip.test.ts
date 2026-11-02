@@ -41,6 +41,7 @@ function fakeClient(
       return () => listeners.delete(listener);
     },
     answer: async () => {},
+    seen: async () => {},
     dispose: () => {},
     fire(next) {
       latest = next;

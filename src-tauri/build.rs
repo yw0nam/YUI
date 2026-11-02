@@ -21,6 +21,7 @@ const COMMANDS: &[&str] = &[
     "avatar_rpc_response",
     "threads_snapshot",
     "thread_answer",
+    "thread_seen",
     "append_turn_record",
     "set_frame_logical",
     "window_dock_attach",

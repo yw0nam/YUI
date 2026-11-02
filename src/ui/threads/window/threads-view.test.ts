@@ -98,6 +98,7 @@ function build(
   listWidth: number | null = null,
 ) {
   const onClose = vi.fn();
+  const onSeen = vi.fn();
   const onListCollapsed = vi.fn();
   const terminal = terminalTab();
   const view = createThreadsView({
@@ -105,6 +106,7 @@ function build(
     mount: document.body,
     now: () => now,
     onAnswer,
+    onSeen,
     onClose,
     listCollapsed,
     onListCollapsed,
@@ -123,7 +125,20 @@ function build(
     field().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", cancelable: true }));
   const panel = () => $<HTMLElement>(".yui-threads__panel");
   const tab = (name: string) => $<HTMLButtonElement>(`[role="tab"][data-tab="${name}"]`);
-  return { view, $, field, send, type, enter, onClose, onListCollapsed, panel, terminal, tab };
+  return {
+    view,
+    $,
+    field,
+    send,
+    type,
+    enter,
+    onClose,
+    onSeen,
+    onListCollapsed,
+    panel,
+    terminal,
+    tab,
+  };
 }
 
 const key = (init: KeyboardEventInit) =>
@@ -205,6 +220,20 @@ it("hands a pointerdown on its head, not on its ×, to the head listeners", () =
   $(".yui-threads__count").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
 
   expect(onHead).toHaveBeenCalledOnce();
+});
+
+it("reports the open ask as seen only when the user picks a Thread, and not an ask already seen", async () => {
+  const { view, $, onSeen } = build();
+  const seen = { ...thread("t2", "slack", 1), seen_ask_id: "a1" };
+  view.update(snapshot(1, [thread("t1", "codex", 2), seen]));
+  await view.open(null);
+  expect(onSeen).not.toHaveBeenCalled();
+
+  $<HTMLButtonElement>('.yui-threads-list [data-id="t2"]').click();
+  expect(onSeen).not.toHaveBeenCalled();
+
+  $<HTMLButtonElement>('.yui-threads-rail [data-id="t1"]').click();
+  expect(onSeen).toHaveBeenCalledExactlyOnceWith("t1", "a1");
 });
 
 it("draws the rail from the list's rows, and a rail click selects like a row", () => {
