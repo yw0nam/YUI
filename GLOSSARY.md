@@ -108,7 +108,7 @@ The window `threads` where the user reads Threads and answers their Asks and wor
 _Avoid_: inbox, panel, dashboard
 
 **Threads chip**:
-The pill in the main window's chip column that counts waiting Threads the user has not picked, and access requests, and opens the Threads window.
+The pill in the main window's chip column that counts waiting Threads the user has not picked, and access requests, and opens the Threads window; it hides while that window is open.
 _Avoid_: badge, notification pill
 
 ### Terminal
