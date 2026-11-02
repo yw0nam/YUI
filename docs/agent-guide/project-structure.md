@@ -52,6 +52,7 @@ YUI/
         wire-sources.ts              # The dispatcher's utterance sources, built and started
         wire-card.ts                 # The card module bound to the window's stores, preset, UI language, and config
         wire-greeting.ts             # The greeting after a session reset, and the reset announcement each window's Start fresh makes
+        wire-first-conversation.ts   # After the First conversation page connects: the greeting, then the input and the controls hint
         session-reset-announcer.ts   # What a window's Start fresh announces: the bridge event, then this pet window's own greeting
         vocabulary/                  # The express vocabulary every consumer declares
           wire-vocabulary.ts         # The emotion_text table load, the derived vocabulary, and its change announcements
@@ -696,6 +697,9 @@ YUI/
             model-read.ts            # One model-list read at a time: deduped, superseded, and reported as results
             model-status.ts          # Maps the model-list read's phase and the model text to the status line's view
             push-state-text.ts       # Where the push socket stands, in words, for the status line and the quick card's head
+        first-conversation/          # The First conversation page, leading the rail while chat is unconfigured
+          first-conversation-page.ts # What is sent, the daily limit, the key page link, and the key confirmation
+          first-conversation-page.css # The key row's layout and the page's state lines
         cue-lists/                   # Schedule and proactive cue lists of the Proactive page
           cue-lists.ts               # Mounts and tears down the two cue lists
         delegations/                 # Delegated-work refresh for the session section

@@ -1,6 +1,6 @@
 /**
  * maybeShowFirstRunHint — onboarding hint through the existing speech bubble.
- * Fires right after the character becomes visible.
+ * Fires right after the character becomes visible, and after the First conversation greeting.
  *
  * Configured: the controls hint, once — the seen flag commits on show, not on fade
  * (so a preempting backend speech never resurfaces it).

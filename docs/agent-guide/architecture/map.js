@@ -1195,7 +1195,7 @@ globalThis.YUI_MAP =
       "id": "ui/quick-controls",
       "module": "settings",
       "label": "quick controls",
-      "role": "The settings panel that fills the settings window: a search field over a rail of the edited character's pages (Connection, Voice, Persona, Body, History) then every character's pages (Together, Listening and bubble, Permissions, Plugins, Proactive, Motion and desktop, General), each page's scope line naming which; the Plugins page lists the installed plugins with their consent, status and log tail, and the catalog with install and add from folder; it heads with every character and its transport and window state, and a click edits it; a control the push transport cannot use stays, disabled, with its reason and a link to the chat protocol select; the Together page's Characters list turns each character on or off the desktop; the preset manage row's copy button copies a character's ingress URL and the Proactive URL line shows this window's; the preset strip shows this preset's relation line and the reasons card; the Persona page's Card section edits the preset's card, its send switch and the preset's name; the General page holds the device-wide user name, the Appearance row that picks the theme and the Text size row that picks the text size.",
+      "role": "The settings panel that fills the settings window: a search field over a rail of the edited character's pages (First conversation while chat was unconfigured at window open, Connection, Voice, Persona, Body, History) then every character's pages (Together, Listening and bubble, Permissions, Plugins, Proactive, Motion and desktop, General), each page's scope line naming which; the Plugins page lists the installed plugins with their consent, status and log tail, and the catalog with install and add from folder; it heads with every character and its transport and window state, and a click edits it; a control the push transport cannot use stays, disabled, with its reason and a link to the chat protocol select; the Together page's Characters list turns each character on or off the desktop; the preset manage row's copy button copies a character's ingress URL and the Proactive URL line shows this window's; the preset strip shows this preset's relation line and the reasons card; the Persona page's Card section edits the preset's card, its send switch and the preset's name; the First conversation page confirms a pasted key with the model list read, then writes the preset's URL, model and key and turns idle check-ins and the schedule off; the General page holds the device-wide user name, the Appearance row that picks the theme and the Text size row that picks the text size.",
       "paths": [
         "src/ui/quick-controls"
       ]
@@ -1295,9 +1295,10 @@ globalThis.YUI_MAP =
       "id": "app/turn/card",
       "module": "wiring",
       "label": "card wiring",
-      "role": "Binds the card module to the window's stores, preset, UI language, and config for the backend caller, and performs the greeting after a session reset and once at the first boot of a preset a card import created.",
+      "role": "Binds the card module to the window's stores, preset, UI language, and config for the backend caller, and performs the greeting after a session reset, once at the first boot of a preset a card import created, and once when the First conversation page connects, then opens the input and shows the controls hint.",
       "paths": [
         "src/app/turn/wire-card.ts",
+        "src/app/turn/wire-first-conversation.ts",
         "src/app/turn/wire-greeting.ts"
       ]
     },
@@ -1665,6 +1666,15 @@ globalThis.YUI_MAP =
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/turn/wire-greeting.ts"
+    },
+    {
+      "id": "first-conversation-connected",
+      "from": "ui/quick-controls",
+      "to": "app/turn/card",
+      "carries": "the First conversation page's confirmed key → yui://first-conversation-connected, scoped to the preset; the pet window greets when the session is empty, then opens the input and shows the controls hint",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-first-conversation.ts"
     },
     {
       "id": "session-reset-stop",
@@ -2786,7 +2796,7 @@ globalThis.YUI_MAP =
       "id": "settings-open-bootstrap",
       "from": "app/bootstrap",
       "to": "io/window/openers",
-      "carries": "openSettings(\"conn\"): the turn error's fix button and the first-run hint's action",
+      "carries": "openSettings(\"conn\"): the turn error's fix button; openSettings(\"first\"): the first-run hint's action",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"
@@ -5562,6 +5572,20 @@ globalThis.YUI_MAP =
         "from": "settings-<id>",
         "to": "pet-<id>",
         "carries": "yui://session-reset: {presetId}; filtered by preset id",
+        "kind": "bridge"
+      },
+      {
+        "id": "first-conversation",
+        "from": "settings",
+        "to": "pet",
+        "carries": "yui://first-conversation-connected; scoped to the preset",
+        "kind": "bridge"
+      },
+      {
+        "id": "first-conversation-companion",
+        "from": "settings-<id>",
+        "to": "pet-<id>",
+        "carries": "yui://first-conversation-connected; scoped to the preset",
         "kind": "bridge"
       },
       {
