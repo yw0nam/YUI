@@ -37,7 +37,7 @@ type CCCreateParams = Omit<ChatCompletionCreateParamsStreaming, "model"> & {
  * said none) and one role:"tool" result per call are appended to the in-turn message array and the
  * whole array is sent again. It happens whenever a tool that answers a question ran, and — for
  * cue-only (oneWay) tools, whose result says nothing — only when
- * the model stopped to wait for it: finish_reason "tool_calls" with no speech in that response.
+ * the model stopped to wait for it: no speech in that response, whatever its finish_reason says.
  * A response that already spoke its cues is a finished turn; answering it would make the model say
  * everything again. Bounded by MAX_TOOL_ROUND_TRIPS; past that the client stops returning results
  * and closes the turn with the text it has.
@@ -67,6 +67,7 @@ export async function* streamChatCompletions(
     id: string | undefined;
     name: string;
     argsJson: string;
+    extras: Record<string, unknown> | undefined;
   }): AsyncGenerator<ChatStreamEvent> {
     // A call the client did not register runs on the backend — observed, never answered.
     if (!ownsCall(tools, item.name)) {
@@ -86,6 +87,7 @@ export async function* streamChatCompletions(
     if (!outcome?.run) return;
     executed.push({
       call: {
+        ...item.extras,
         id,
         type: "function",
         function: { name: item.name, arguments: item.argsJson },
@@ -121,11 +123,10 @@ export async function* streamChatCompletions(
     }
 
     executed = [];
-    // Speech from this response alone, and how it ended — together they say whether the model is
-    // waiting on results or has finished the turn.
+    // Speech from this response alone — it says whether the model is waiting on results or has
+    // finished the turn.
     let roundText = "";
     let roundReasoning = false;
-    let finishReason: string | undefined;
     const reducer = createChunkReducer();
 
     try {
@@ -157,9 +158,6 @@ export async function* streamChatCompletions(
             case "tool_call":
               yield* handleToolCall(item);
               break;
-            case "finish":
-              finishReason = item.reason;
-              break;
             case "usage":
               yield {
                 type: "usage",
@@ -185,8 +183,8 @@ export async function* streamChatCompletions(
       if (item.kind === "tool_call") yield* handleToolCall(item);
     }
 
-    // The model waits on cue-only calls when it stopped on them (finish_reason "tool_calls") silently.
-    if (!shouldAnswer(executed, finishReason === "tool_calls" && roundText === "")) break;
+    // The model waits on cue-only calls when its response said nothing.
+    if (!shouldAnswer(executed, roundText === "")) break;
     if (trips >= MAX_TOOL_ROUND_TRIPS) break;
     trips++;
     // Starting a fresh request: the caller's idle watchdog measures the wait from here.

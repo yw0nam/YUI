@@ -82,14 +82,21 @@ export function buildCCMessages(opts: BuildCCMessagesOpts): CCMessage[] {
 type ReducerItem =
   | { kind: "text"; text: string }
   | { kind: "reasoning"; text: string }
-  | { kind: "tool_call"; id: string | undefined; name: string; argsJson: string }
-  | { kind: "usage"; usage: Partial<Usage> }
-  | { kind: "finish"; reason: string };
+  | {
+      kind: "tool_call";
+      id: string | undefined;
+      name: string;
+      argsJson: string;
+      extras: Record<string, unknown> | undefined;
+    }
+  | { kind: "usage"; usage: Partial<Usage> };
 
 interface ToolCallBuffer {
   id: string | undefined;
   name: string;
   argsJson: string;
+  /** Call fields beyond the standard ones: the server's state for this call, sent back with it. */
+  extras?: Record<string, unknown>;
 }
 
 export function createChunkReducer() {
@@ -120,7 +127,13 @@ export function createChunkReducer() {
     const indices = [...buffers.keys()].sort((a, b) => a - b);
     const items: ReducerItem[] = indices.map((i) => {
       const buf = buffers.get(i) as ToolCallBuffer;
-      return { kind: "tool_call", id: buf.id, name: buf.name, argsJson: buf.argsJson };
+      return {
+        kind: "tool_call",
+        id: buf.id,
+        name: buf.name,
+        argsJson: buf.argsJson,
+        extras: buf.extras,
+      };
     });
     buffers.clear();
     indexById.clear();
@@ -188,13 +201,14 @@ export function createChunkReducer() {
                 if (typeof fn.name === "string") buf.name = fn.name;
                 if (typeof fn.arguments === "string") buf.argsJson += fn.arguments;
               }
+              const { index: _index, id: _id, type: _type, function: _fn, ...extras } = t;
+              if (Object.keys(extras).length > 0) buf.extras = { ...buf.extras, ...extras };
             }
           }
         }
 
         if (typeof ch.finish_reason === "string") {
           items.push(...flushToolCalls());
-          items.push({ kind: "finish", reason: ch.finish_reason });
         }
       }
 
