@@ -185,9 +185,6 @@ answering it makes the model say the reply again.
 A model stays silent by answering that round trip with no text, and the turn ends with no speech
 (firing ≠ judgment).
 
-On Chat Completions an executed call goes back on the assistant message with its top-level fields
-beyond `index`, `id`, `type` and `function`, so a server's per-call state reaches the next request.
-
 The cycle repeats while the model keeps asking, up to three round trips per turn
 (`MAX_TOOL_ROUND_TRIPS` in `src/io/chat/stream/stream-helpers.ts`). Past three the client closes the
 turn with the text it has.
@@ -198,6 +195,11 @@ in whitespace or one of `。` `！` `？` or the later text starts with whitespa
 A tool whose execution throws returns `error: <message>` as its result. A call whose arguments are
 unparseable JSON is not run and returns `error: arguments JSON parse failed: <message>` as its
 result and plays no cue. The result goes back to the model under the same rule as any other result.
+
+### What goes back on a call
+
+On Chat Completions an executed call goes back on the assistant message with its top-level fields
+beyond `index`, `id`, `type` and `function`, so a server's per-call state reaches the next request.
 
 ### On the wire
 
