@@ -107,6 +107,21 @@ describe("attachHangulInput", () => {
     expect(screen.sent).toEqual(["세", "\r"]);
   });
 
+  it("keeps the syllable held across a Shift inside it", async () => {
+    const screen = mount();
+    await screen.play([
+      { type: "input", data: "ㅎ", inputType: "insertText", value: "ㅎ" },
+      { type: "keydown", key: "ㅎ", keyCode: 229 },
+      { type: "input", data: "하", inputType: "insertReplacementText", value: "하" },
+      { type: "keydown", key: "ㅏ", keyCode: 229 },
+      { type: "keydown", key: "Shift", keyCode: 16 },
+      { type: "input", data: "했", inputType: "insertReplacementText", value: "했" },
+      { type: "keydown", key: "ㅆ", keyCode: 229 },
+      { type: "keydown", key: "Enter", keyCode: 13 },
+    ]);
+    expect(screen.sent).toEqual(["했", "\r"]);
+  });
+
   it("sends the pending syllable when the terminal loses focus", async () => {
     const screen = mount();
     await screen.play(typeSe);
