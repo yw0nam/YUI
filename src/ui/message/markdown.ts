@@ -5,9 +5,10 @@
  * marked is used in synchronous mode and tolerates incomplete markdown
  * (unterminated `**`, half-written `[`) by leaving it as literal text.
  *
- * Trust boundary: backend speech text is rendered as HTML, so DOMPurify
- * sanitises it. Scripts and event handlers are stripped; javascript: and data:
- * URLs are rejected on href/src; links open externally (target/rel injected).
+ * Trust boundary: backend speech text and Thread entries are rendered as HTML,
+ * so DOMPurify keeps only the tags and attributes Markdown produces. javascript:
+ * and data: URLs are rejected on href/src; links open externally (target/rel
+ * injected); the only form control left is a task list's disabled checkbox.
  */
 
 import DOMPurify, { type Config } from "dompurify";
@@ -53,7 +54,12 @@ function installHooks(): void {
 const PURIFY_CONFIG: Config = {
   // javascript: is rejected by DOMPurify's default URI policy; data: is dropped
   // by the uponSanitizeAttribute hook above.
-  ADD_ATTR: ["target"],
+  ALLOWED_TAGS:
+    "p br h1 h2 h3 h4 h5 h6 ul ol li strong em del code pre blockquote hr a img table thead tbody tr th td input".split(
+      " ",
+    ),
+  ALLOWED_ATTR: "href src alt title target rel align start type checked disabled".split(" "),
+  ALLOW_ARIA_ATTR: false,
   ALLOW_DATA_ATTR: false,
 };
 
@@ -71,5 +77,11 @@ export function renderMarkdownInline(
   const parser = opts?.streaming ? streamingMarked : fullMarked;
   const rawHtml = (parser.parse(text, { async: false }) as string).trim();
   container.innerHTML = DOMPurify.sanitize(rawHtml, PURIFY_CONFIG);
+  for (const input of container.querySelectorAll("input")) {
+    if (input.type === "checkbox") {
+      input.removeAttribute("src");
+      input.disabled = true;
+    } else input.remove();
+  }
   return container;
 }

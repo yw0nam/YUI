@@ -582,7 +582,7 @@ YUI/
         reasoning-disclosure.ts      # Backend reasoning folded under the quoted line at the top of the bubble in the message window
         message-plate.ts             # Name plate on the box's top-left edge in both modes: face, name, state; the message window's OS drag handle
         plate-state.ts               # The plate's turn state in both modes: responding from a line's begin to its end or hide, thinking while busy
-        markdown.ts                  # Speech markdown rendering through marked and DOMPurify
+        markdown.ts                  # Markdown for the bubble, backlog and Thread entries: marked, then DOMPurify keeping only Markdown's elements
         cue-list.ts                  # Reusable cue-list section for schedule and proactive cues
         message-plate.css            # Name-plate chip styles: face, name, state dot, state label, and dock button
         message-window.css           # Message-window layout and name-plate styles
@@ -636,7 +636,7 @@ YUI/
         window/thread-pane.ts        # The thread pane: head, scrolling transcript, the answer area, and each ask's draft, send error and in-flight send
         window/answer-area.ts        # The answer area: numbered choices, the growing field, and the send button
         window/drafts.ts             # Unsent Answers per ask, pruned by each snapshot
-        window/entry-markdown.ts     # An entry's text as Markdown nodes: only the elements Markdown produces, https images only
+        window/entry-markdown.ts     # An entry's text as Markdown nodes: https images only, no list formatting whitespace
         window/grow.ts               # The grow out of the chip and the shrink back
         window/resize-handles.ts     # The panel's edge and corner hit areas, reporting a drag in screen px, and the size readout
         window/threads-layout.ts     # The layout the panel's width picks, the collapsed list, the medium overlay and the narrow screen
