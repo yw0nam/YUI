@@ -1,6 +1,7 @@
 /**
  * The system clipboard for the Terminal: OSC 52 reads and writes it through the Tauri clipboard
- * plugin. Every selection maps to the one system clipboard, because tmux sends an empty selection.
+ * plugin, because WKWebView refuses `navigator.clipboard` outside a user gesture. Every selection
+ * maps to the one system clipboard, because tmux sends an empty selection.
  */
 
 import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
@@ -19,6 +20,8 @@ export const terminalClipboard: IClipboardProvider = {
     }
   },
   async writeText(_selection, text): Promise<void> {
+    // The addon hands "" for an empty tmux copy and for a payload it cannot decode; it must not wipe the clipboard.
+    if (text === "") return;
     try {
       await writeText(text);
     } catch (error) {

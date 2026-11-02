@@ -2936,7 +2936,7 @@ globalThis.YUI_MAP =
       "id": "terminal-view-actions",
       "from": "ui/terminal",
       "to": "io/terminal",
-      "carries": "open(), close(id), input(id, data), resize(cols, rows), attach(id, onBytes), answer(requestId, allow), takeBack(id); the clipboard provider's readText() and writeText(text)",
+      "carries": "open(), close(id), input(id, data), resize(cols, rows), attach(id, onBytes), answer(requestId, allow), takeBack(id); the clipboard provider's readText(selection) and writeText(selection, text)",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/threads-window/wire-terminal-tab.ts"

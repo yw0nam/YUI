@@ -1,12 +1,18 @@
 // @vitest-environment jsdom
-/** terminal-view.test.ts — the Terminal tab over a stream of terminal snapshots: row states, the Allow card, Take back, an exited shell, and the font-size keys. */
+/** terminal-view.test.ts — the Terminal tab over a stream of terminal snapshots: row states, the Allow card, Take back, an exited shell, the font-size keys, the OSC 52 clipboard, and the Option drag selection. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccessRequest, Terminal, TerminalSnapshot } from "../../contract";
 
+/** The xterm options the fake records. */
+interface FakeOptions {
+  fontSize?: number;
+  macOptionClickForcesSelection?: boolean;
+}
+
 interface FakeScreen {
   written: string[];
-  options: { fontSize?: number; macOptionClickForcesSelection?: boolean };
+  options: FakeOptions;
   /** The custom key handler; false keeps the key from the shell. */
   keys?: (event: KeyboardEvent) => boolean;
   /** The OSC handlers the clipboard addon registered, by id. */
@@ -18,7 +24,7 @@ const { screens } = vi.hoisted(() => ({ screens: [] as FakeScreen[] }));
 vi.mock("@xterm/xterm", () => ({
   Terminal: class {
     written: string[] = [];
-    options: { fontSize?: number; macOptionClickForcesSelection?: boolean };
+    options: FakeOptions;
     keys?: (event: KeyboardEvent) => boolean;
     /** The OSC handlers the clipboard addon registered, by id. */
     osc: Record<number, (data: string) => boolean | Promise<boolean>> = {};
@@ -32,7 +38,7 @@ vi.mock("@xterm/xterm", () => ({
         return { dispose() {} };
       },
     };
-    constructor(options: { fontSize?: number; macOptionClickForcesSelection?: boolean }) {
+    constructor(options: FakeOptions) {
       this.options = { ...options };
       screens.push(this);
     }
@@ -361,7 +367,7 @@ describe("the terminal's clipboard", () => {
     expect(screens[0]!.inputs).toEqual([["\x1b]52;c;67O17IKs65CcIO2FjeyKpO2KuA==\x07", false]]);
   });
 
-  it("selects on an Option drag", () => {
+  it("asks xterm to select on an Option drag", () => {
     const { view } = build();
     view.update(snap([terminal("t1", 1)]));
 
