@@ -71,7 +71,7 @@ describe("turnErrorMessage", () => {
 
   it("renders a plain rate-limit line for a 429 detail, in every locale", () => {
     expect(turnErrorMessage("network_drop", { status: 429, message: "quota exceeded" })).toBe(
-      "Limit reached · try again later",
+      "Usage limit reached · try again later",
     );
     setLocale("ko");
     expect(turnErrorMessage("network_drop", { status: 429, message: "quota exceeded" })).toBe(
