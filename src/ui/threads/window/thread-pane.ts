@@ -55,13 +55,18 @@ function threadPane(
   }
   const transcript = document.createElement("div");
   transcript.className = "yui-threads-pane__transcript";
-  transcript.append(...thread.entries.map((entry) => entryEl(entry, thread.source, now)));
+  const entries = document.createElement("div");
+  entries.className = "yui-threads-pane__entries";
+  entries.append(...thread.entries.map((entry) => entryEl(entry, thread.source, now)));
+  transcript.append(entries);
   return { head, transcript };
 }
 
 export interface ThreadPane {
   /** Shows `thread`, or nothing. */
   show(thread: Thread | undefined): void;
+  /** The next `show` draws a fresh transcript. */
+  restart(): void;
   /** Drops the drafts and errors of asks no longer open in `threads`. */
   prune(threads: Thread[]): void;
   /** Toggles the open ask's choice at `index`. */
@@ -111,51 +116,59 @@ export function createThreadPane(deps: {
       : null;
     if (next === shownKey) return;
     const sameThread = shownId === thread?.id;
-    const scrollTop = el.querySelector(".yui-threads-pane__transcript")?.scrollTop ?? 0;
+    const old = el.querySelector(".yui-threads-pane__transcript");
+    const scrollTop = old?.scrollTop ?? 0;
+    const scrollHeight = old?.scrollHeight ?? 0;
     const hadFieldFocus = document.activeElement?.tagName === "TEXTAREA";
     shownKey = next;
     shownId = thread?.id;
-    area = null;
     if (!thread) {
+      area = null;
       el.replaceChildren();
       return;
     }
     const { head, transcript } = threadPane(thread, deps.now(), deps.back);
-    el.replaceChildren(head, transcript);
-    if (sameThread) transcript.scrollTop = scrollTop;
     const ask = thread.ask;
-    if (!ask) return;
-    area = createAnswerArea({
-      ask,
-      draft: drafts.get(key) ?? { text: "" },
-      error: errors.get(key) ?? null,
-      sending: sending.has(key),
-      onDraft: (draft) => drafts.set(key, draft),
-      onSend: (answer) => {
-        errors.delete(key);
-        sending.add(key);
-        show(current);
-        // The ask id is the one this send answers, so a late result never touches a newer ask.
-        deps.onAnswer(thread.id, ask.ask_id, answer).then(
-          () => {
-            sending.delete(key);
-            drafts.delete(key);
+    area = ask
+      ? createAnswerArea({
+          ask,
+          draft: drafts.get(key) ?? { text: "" },
+          error: errors.get(key) ?? null,
+          sending: sending.has(key),
+          onDraft: (draft) => drafts.set(key, draft),
+          onSend: (answer) => {
+            errors.delete(key);
+            sending.add(key);
             show(current);
+            // The ask id is the one this send answers, so a late result never touches a newer ask.
+            deps.onAnswer(thread.id, ask.ask_id, answer).then(
+              () => {
+                sending.delete(key);
+                drafts.delete(key);
+                show(current);
+              },
+              (error) => {
+                sending.delete(key);
+                errors.set(key, String(error));
+                show(current);
+              },
+            );
           },
-          (error) => {
-            sending.delete(key);
-            errors.set(key, String(error));
-            show(current);
-          },
-        );
-      },
-    });
-    el.append(area.el);
+        })
+      : null;
+    el.replaceChildren(head, transcript, ...(area ? [area.el] : []));
+    // scrollTop counts down from 0 at the bottom, so 0 stays at the newest entry, and a reader above it keeps their entries when one is added.
+    if (sameThread && scrollTop)
+      transcript.scrollTop = scrollTop - (transcript.scrollHeight - scrollHeight);
     if (hadFieldFocus) focusField();
   }
 
   return {
     show,
+    restart() {
+      shownKey = null;
+      shownId = undefined;
+    },
     prune(threads) {
       pruneDrafts(drafts, threads);
       for (const key of errors.keys()) if (!drafts.has(key)) errors.delete(key);
