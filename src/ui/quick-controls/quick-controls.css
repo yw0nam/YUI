@@ -371,7 +371,7 @@
   font-size: calc(0.625rem * var(--yui-text-scale, 1));
   font-weight: 500;
   line-height: 1;
-  cursor: help;
+  cursor: pointer;
   transition:
     color var(--yui-dur-fast) var(--yui-ease),
     border-color var(--yui-dur-fast) var(--yui-ease);
