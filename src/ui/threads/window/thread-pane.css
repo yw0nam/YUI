@@ -156,6 +156,11 @@
   margin: 0 0 0.85em;
 }
 
+/* A line's own newlines show; the markup's newlines between blocks stay collapsed. */
+.yui-threads-entry__text :is(p, li) {
+  white-space: pre-wrap;
+}
+
 .yui-threads-entry__text h1,
 .yui-threads-entry__text h2,
 .yui-threads-entry__text h3,
