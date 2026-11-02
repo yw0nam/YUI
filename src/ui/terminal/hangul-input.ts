@@ -60,11 +60,15 @@ export function attachHangulInput(deps: { host: HTMLElement; xterm: Xterm }): ()
 
   function onInput(event: Event): void {
     const { data, inputType, isComposing } = event as InputEvent;
-    if (!data || isComposing) return;
-    if (inputType === "insertReplacementText" && pending) {
-      hold(data);
+    if (isComposing) return;
+    if (
+      pending &&
+      (inputType === "insertReplacementText" || inputType === "deleteContentBackward")
+    ) {
+      // A deletion carries no data, so it drops the syllable.
+      hold(data ?? "");
       event.stopPropagation();
-    } else if (inputType === "insertText") {
+    } else if (inputType === "insertText" && data) {
       send();
       if (!HANGUL.test(data)) return;
       hold(data);
