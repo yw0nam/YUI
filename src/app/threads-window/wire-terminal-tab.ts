@@ -1,6 +1,7 @@
 /** Wires the Threads window's Terminal tab: the terminal store's snapshots into its view, its actions to the store, preset names and faces from storage. */
 
 import { createTerminalClient } from "../../io/terminal/terminal-client";
+import { terminalClipboard } from "../../io/terminal/terminal-clipboard";
 import { readPresetEntry } from "../../settings/preset/active-preset";
 import type { ThreadsWindowSettingsStore } from "../../settings/threads/threads-window-settings";
 import { createTerminalView } from "../../ui/terminal/terminal-view";
@@ -21,6 +22,7 @@ export function wireTerminalTab(deps: {
       now: Date.now,
       preset: (id) => readPresetEntry(id) ?? { id, name: id },
       client,
+      clipboard: terminalClipboard,
       fontSize: deps.settings.terminalFontSize(),
       onFontSize: deps.settings.setTerminalFontSize,
     });

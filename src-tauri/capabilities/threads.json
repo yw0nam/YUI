@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "threads",
-  "description": "Threads window — a frameless window that opens beside the main character; places, drags and resizes itself, shows, focuses and hides itself, follows the stored theme, and opens entry links in the default browser",
+  "description": "Threads window — a frameless window that opens beside the main character; places, drags and resizes itself, shows, focuses and hides itself, follows the stored theme, opens entry links in the default browser, and reads and writes the system clipboard for the Terminal",
   "windows": [
     "threads"
   ],
@@ -14,6 +14,8 @@
     "core:window:allow-set-focus",
     "core:window:allow-set-theme",
     "log:default",
+    "clipboard-manager:allow-read-text",
+    "clipboard-manager:allow-write-text",
     {
       "identifier": "opener:allow-open-url",
       "allow": [

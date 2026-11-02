@@ -1,24 +1,44 @@
 // @vitest-environment jsdom
-/** terminal-view.test.ts — the Terminal tab over a stream of terminal snapshots: row states, the Allow card, Take back, an exited shell, and the font-size keys. */
+/** terminal-view.test.ts — the Terminal tab over a stream of terminal snapshots: row states, the Allow card, Take back, an exited shell, the font-size keys, the OSC 52 clipboard, and the Option drag selection. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccessRequest, Terminal, TerminalSnapshot } from "../../contract";
 
+/** The xterm options the fake records. */
+interface FakeOptions {
+  fontSize?: number;
+  macOptionClickForcesSelection?: boolean;
+}
+
 interface FakeScreen {
   written: string[];
-  options: { fontSize?: number };
+  options: FakeOptions;
   /** The custom key handler; false keeps the key from the shell. */
   keys?: (event: KeyboardEvent) => boolean;
+  /** The OSC handlers the clipboard addon registered, by id. */
+  osc: Record<number, (data: string) => boolean | Promise<boolean>>;
+  /** The bytes the addon wrote back into the terminal. */
+  inputs: [string, boolean][];
 }
 const { screens } = vi.hoisted(() => ({ screens: [] as FakeScreen[] }));
 vi.mock("@xterm/xterm", () => ({
   Terminal: class {
     written: string[] = [];
-    options: { fontSize?: number };
+    options: FakeOptions;
     keys?: (event: KeyboardEvent) => boolean;
+    /** The OSC handlers the clipboard addon registered, by id. */
+    osc: Record<number, (data: string) => boolean | Promise<boolean>> = {};
+    /** The bytes the addon wrote back into the terminal. */
+    inputs: [string, boolean][] = [];
     cols = 120;
     rows = 32;
-    constructor(options: { fontSize?: number }) {
+    parser = {
+      registerOscHandler: (id: number, handler: (data: string) => boolean | Promise<boolean>) => {
+        this.osc[id] = handler;
+        return { dispose() {} };
+      },
+    };
+    constructor(options: FakeOptions) {
       this.options = { ...options };
       screens.push(this);
     }
@@ -27,6 +47,9 @@ vi.mock("@xterm/xterm", () => ({
     }
     write(data: string | Uint8Array) {
       this.written.push(typeof data === "string" ? data : new TextDecoder().decode(data));
+    }
+    input(data: string, wasUserInput: boolean) {
+      this.inputs.push([data, wasUserInput]);
     }
     open() {}
     onData() {
@@ -95,6 +118,9 @@ const snap = (terminals: Terminal[], requests: AccessRequest[] = []): TerminalSn
   requests,
 });
 
+/** The text the fake system clipboard holds. */
+const CLIPBOARD = "복사된 텍스트";
+
 beforeEach(() => {
   setLocale("en");
   document.body.innerHTML = "";
@@ -111,6 +137,10 @@ beforeEach(() => {
 
 function build(fontSize = 13) {
   const onFontSize = vi.fn();
+  const clipboard = {
+    readText: vi.fn(async (_selection: string) => CLIPBOARD),
+    writeText: vi.fn(async (_selection: string, _text: string) => {}),
+  };
   const client = {
     open: vi.fn(async () => "t9"),
     close: vi.fn(async () => {}),
@@ -126,6 +156,7 @@ function build(fontSize = 13) {
     now: () => 0,
     preset: (id) => ({ id, name: id === "yui" ? "Yui" : id }),
     client,
+    clipboard,
     fontSize,
     onFontSize,
   });
@@ -133,7 +164,7 @@ function build(fontSize = 13) {
   const $ = <T extends Element>(sel: string) => document.querySelector<T>(sel);
   const button = (text: string) =>
     [...document.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent === text);
-  return { view, client, $, button, onFontSize };
+  return { view, client, clipboard, $, button, onFontSize };
 }
 
 it.each([
@@ -312,5 +343,34 @@ describe("font-size keys", () => {
 
     expect(sizes()).toEqual([13]);
     expect(onFontSize).not.toHaveBeenCalled();
+  });
+});
+
+describe("the terminal's clipboard", () => {
+  it("writes a tmux selection to the clipboard", async () => {
+    const { view, clipboard } = build();
+    view.update(snap([terminal("t1", 1)]));
+
+    // tmux sends the selection with an empty selection field.
+    await screens[0]!.osc[52]?.(";7JWI64WV7ZWY7IS47JqU");
+
+    expect(clipboard.writeText).toHaveBeenCalledWith("", "안녕하세요");
+  });
+
+  it("answers a clipboard query with the system clipboard", async () => {
+    const { view, clipboard } = build();
+    view.update(snap([terminal("t1", 1)]));
+
+    await screens[0]!.osc[52]?.("c;?");
+
+    expect(clipboard.readText).toHaveBeenCalledWith("c");
+    expect(screens[0]!.inputs).toEqual([["\x1b]52;c;67O17IKs65CcIO2FjeyKpO2KuA==\x07", false]]);
+  });
+
+  it("asks xterm to select on an Option drag", () => {
+    const { view } = build();
+    view.update(snap([terminal("t1", 1)]));
+
+    expect(screens[0]!.options.macOptionClickForcesSelection).toBe(true);
   });
 });
