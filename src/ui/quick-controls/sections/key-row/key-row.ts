@@ -16,6 +16,21 @@ export interface KeyRow {
   dispose(): void;
 }
 
+/** Flips a key field between masked and shown, with its toggle's icon and label. */
+export function toggleKeyReveal(
+  input: HTMLInputElement,
+  toggleBtn: HTMLButtonElement,
+  idPrefix: string,
+): void {
+  const show = toggleBtn.getAttribute("aria-pressed") !== "true";
+  toggleBtn.setAttribute("aria-pressed", String(show));
+  input.type = show ? "text" : "password";
+  toggleBtn.innerHTML = show ? CHATKEY_EYE_OFF_SVG : CHATKEY_EYE_SVG;
+  const label = show ? t(`${idPrefix}.hide`) : t(`${idPrefix}.show`);
+  toggleBtn.setAttribute("aria-label", label);
+  toggleBtn.dataset.tip = label;
+}
+
 export function createKeyRow(deps: {
   root: HTMLElement;
   idPrefix: string;
@@ -59,13 +74,7 @@ export function createKeyRow(deps: {
     if (wasDirty) onCommit?.();
   }
   function handleToggle(): void {
-    const show = toggleBtn.getAttribute("aria-pressed") !== "true";
-    toggleBtn.setAttribute("aria-pressed", String(show));
-    input.type = show ? "text" : "password";
-    toggleBtn.innerHTML = show ? CHATKEY_EYE_OFF_SVG : CHATKEY_EYE_SVG;
-    const label = show ? t(`${idPrefix}.hide`) : t(`${idPrefix}.show`);
-    toggleBtn.setAttribute("aria-label", label);
-    toggleBtn.dataset.tip = label;
+    toggleKeyReveal(input, toggleBtn, idPrefix);
   }
   function handleClear(): void {
     dirty = false;

@@ -14,7 +14,7 @@ export function esc(text: string): string {
 
 export const SPIN = '<span class="yui-plg-spin" aria-hidden="true"></span>';
 
-const ICON_WARN = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="2"/><path d="M12 7.5v5.5M12 16.2v.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+export const ICON_WARN = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="2"/><path d="M12 7.5v5.5M12 16.2v.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
 const ICON_FOLDER = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 7.2c0-1 .8-1.7 1.7-1.7h4l2 2.2h7.6c1 0 1.7.8 1.7 1.7v7.9c0 1-.8 1.7-1.7 1.7H5.2c-1 0-1.7-.8-1.7-1.7V7.2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`;
 export const ICON_CHEV = `<svg class="yui-plg-chev" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const ICON_SEAL = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m8.5 12.2 2.4 2.4 4.6-4.8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;

@@ -158,6 +158,7 @@ const en: Record<string, string> = {
   "devtools.advanced.context_window_default": "Default",
 
   // settings pages, rail groups, search, and the scope line above each page title
+  "tabs.first": "First conversation",
   "tabs.conn": "Connection",
   "tabs.voice": "Voice",
   "tabs.persona": "Persona",
@@ -614,6 +615,30 @@ const en: Record<string, string> = {
   "hint.first_run_no_hotkey": "Right-click me for controls",
   "hint.setup_backend": "We're not connected yet · shall we set it up?",
   "hint.setup_action": "Connect",
+
+  // first conversation page
+  "first.free_title": "Start for free",
+  "first.free_note": "Talk with Yui on the Google Gemini free tier.",
+  "first.send_label": "What gets sent",
+  "first.send_sub":
+    "Your conversation and the names of the apps you use go to Google. Google may use them to improve its products and people may review them, so keep sensitive details out.",
+  "first.limit_label": "Daily limit",
+  "first.limit_sub": "The free tier has a daily limit. Past it, you can talk again the next day.",
+  "first.key_title": "Connect a key",
+  "first.make_label": "Make a key",
+  "first.make_sub": "Google AI Studio opens in your browser. You need a Google account.",
+  "first.make_link": "Open key page",
+  "first.paste_label": "Paste the key",
+  "first.paste_placeholder": "Paste the key you copied",
+  "first.connect": "Connect",
+  "first.checking": "Checking the key…",
+  "first.need_key": "Paste a key first.",
+  "first.refused": "Google did not accept this key. Paste the key you copied again.",
+  "first.failed": "Could not reach Google. Check your internet connection and try again.",
+  "first.reopen": "Open key page again",
+  "first.own_server": "Already have a server?",
+  "first.open_connection": "Open Connection",
+  "first.done": "Connected. You can talk with Yui now.",
 
   // reactions tab
   "reactions.watchers_title": "Watchers",

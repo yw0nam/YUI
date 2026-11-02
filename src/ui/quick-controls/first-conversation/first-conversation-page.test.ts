@@ -177,7 +177,9 @@ describe("createFirstConversationPage", () => {
 
     const text = s.page.el.textContent!;
     const beforeField = text.slice(0, text.indexOf("Paste the key"));
-    expect(beforeField).toContain("Your conversation and the names of the apps you use go to Google.");
+    expect(beforeField).toContain(
+      "Your conversation and the names of the apps you use go to Google.",
+    );
     expect(beforeField).toContain("people may review them");
     expect(beforeField).toContain("The free tier has a daily limit.");
 

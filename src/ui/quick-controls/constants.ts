@@ -197,12 +197,15 @@ export const HERMES_AGENT = {
 
 // The cards guide the Card section's ? button opens. The settings window's opener grant names the same URL.
 export const CARD_GUIDE_URL = "https://yw0nam.github.io/YUI/guide/cards";
+export const GEMINI_KEY_URL = "https://aistudio.google.com/apikey";
 
 // Chat provider presets (Connection tab, chat section) — selecting one autofills chat_base_url with the
 // provider's OpenAI-compatible path, the chat_model, the chat protocol, or a combination. Brand names
 // are display-as-is, never localized. "custom" is the no-autofill entry the dropdown falls back to when
 // nothing matches.
 export const CHAT_PRESET_CUSTOM = "custom";
+/** The chat provider preset the First conversation page connects. */
+export const FIRST_CONVERSATION_PRESET_ID = "gemini";
 interface ChatProviderPreset {
   id: string;
   name: string;

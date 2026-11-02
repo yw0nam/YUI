@@ -159,6 +159,7 @@ const ja: Record<string, string> = {
   "devtools.advanced.context_window_default": "デフォルト",
 
   // settings pages, rail groups, search, and the scope line above each page title
+  "tabs.first": "はじめての会話",
   "tabs.conn": "接続",
   "tabs.voice": "声",
   "tabs.persona": "ペルソナ",
@@ -616,6 +617,32 @@ const ja: Record<string, string> = {
   "hint.first_run_no_hotkey": "右クリックでコントロール",
   "hint.setup_backend": "まだ接続していないの · いっしょに設定しよう？",
   "hint.setup_action": "接続する",
+
+  // first conversation page
+  "first.free_title": "無料ではじめる",
+  "first.free_note": "Google Gemini の無料枠でユイと話します。",
+  "first.send_label": "送信される内容",
+  "first.send_sub":
+    "会話の内容と使っているアプリの名前が Google に送られます。Google がサービス改善に使い、人が確認することがあるので、機密情報は話さないでください。",
+  "first.limit_label": "1日の上限",
+  "first.limit_sub": "無料枠には1日の上限があります。超えると翌日にまた話せます。",
+  "first.key_title": "キーの接続",
+  "first.make_label": "キーを作る",
+  "first.make_sub": "ブラウザで Google AI Studio が開きます。Google アカウントが必要です。",
+  "first.make_link": "キーのページを開く",
+  "first.paste_label": "キーを貼り付ける",
+  "first.paste_placeholder": "コピーしたキーを貼り付けてください",
+  "first.connect": "接続する",
+  "first.checking": "キーを確認しています…",
+  "first.need_key": "先にキーを貼り付けてください。",
+  "first.refused":
+    "Google がこのキーを受け付けませんでした。コピーしたキーをもう一度貼り付けてください。",
+  "first.failed":
+    "Google に接続できませんでした。インターネット接続を確認して、もう一度お試しください。",
+  "first.reopen": "キーのページをもう一度開く",
+  "first.own_server": "すでにサーバーをお持ちですか？",
+  "first.open_connection": "接続ページを開く",
+  "first.done": "接続しました。ユイと話せます。",
 
   // reactions tab
   "reactions.watchers_title": "ウォッチャー",
