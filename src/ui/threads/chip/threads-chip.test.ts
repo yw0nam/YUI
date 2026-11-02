@@ -122,4 +122,11 @@ it("nods only when a new Thread id starts waiting", () => {
   button().dispatchEvent(new Event("animationend"));
   chip.update([thread("b", "slack", 3)]);
   expect(nodding()).toBe(false);
+
+  chip.setWindowOpen(true);
+  chip.update([thread("c", "claude-code", 4)]);
+  expect(nodding()).toBe(false);
+
+  chip.setWindowOpen(false);
+  expect(nodding()).toBe(false);
 });
