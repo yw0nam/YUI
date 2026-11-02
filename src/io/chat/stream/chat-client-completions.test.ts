@@ -707,16 +707,13 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
     expect(done?.type === "completed" && done.envelope.speech_text).toBe("sorry");
   });
 
-  it.each([
-    ["a response that spoke", [textChunk("Yay!")], "tool_calls", "Yay!"],
-    ["a cue-only response that finished with stop", [], "stop", ""],
-  ] as const)("a malformed cue in %s is not answered — single request", async (_name, lead, finish, speech) => {
+  it("a malformed cue in a response that spoke is not answered — single request", async () => {
     const registry = createClientToolRegistry([oneWayStub("generate_express")]);
     ccCreateMock.mockResolvedValueOnce(
       streamOf([
-        ...lead,
+        textChunk("Yay!"),
         toolCallStart(0, "call_1", "generate_express", "{not valid json"),
-        finishChunk(finish),
+        finishChunk("tool_calls"),
       ]),
     );
 
@@ -724,7 +721,7 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
 
     expect(ccCreateMock).toHaveBeenCalledTimes(1);
     expect(events.some((e) => e.type === "error" || e.type === "express")).toBe(false);
-    expect(events.at(-1)).toMatchObject({ envelope: { speech_text: speech } });
+    expect(events.at(-1)).toMatchObject({ envelope: { speech_text: "Yay!" } });
   });
 
   it("gives an id-less tool call a synthesized tool_call_id shared by both messages and its log line", async () => {

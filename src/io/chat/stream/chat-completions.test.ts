@@ -157,14 +157,6 @@ describe("createChunkReducer — text", () => {
     ).toEqual([{ kind: "text", text: " world" }]);
   });
 
-  it("emits a finish item when finish_reason arrives", () => {
-    const reducer = createChunkReducer();
-    reducer.feed({ choices: [{ delta: { content: "hi" }, finish_reason: null }] });
-    expect(reducer.feed({ choices: [{ delta: {}, finish_reason: "stop" }] })).toEqual([
-      { kind: "finish", reason: "stop" },
-    ]);
-  });
-
   it("ignores empty-string delta.content", () => {
     const reducer = createChunkReducer();
     expect(reducer.feed({ choices: [{ delta: { content: "" }, finish_reason: null }] })).toEqual(
@@ -264,7 +256,6 @@ describe("createChunkReducer — tool calls", () => {
         name: "generate_express",
         argsJson: '{"emotion_id":"happy"}',
       },
-      { kind: "finish", reason: "tool_calls" },
     ]);
   });
 
@@ -335,7 +326,6 @@ describe("createChunkReducer — tool calls", () => {
         name: "generate_express",
         argsJson: '{"emotion_id":"sad"}',
       },
-      { kind: "finish", reason: "tool_calls" },
     ]);
   });
 
@@ -366,7 +356,6 @@ describe("createChunkReducer — tool calls", () => {
         name: "generate_express",
         argsJson: '{"motion_id":"dance"}',
       },
-      { kind: "finish", reason: "tool_calls" },
     ]);
   });
 
@@ -392,7 +381,6 @@ describe("createChunkReducer — tool calls", () => {
     const items = reducer.feed({ choices: [{ delta: {}, finish_reason: "tool_calls" }] });
     expect(items).toEqual([
       { kind: "tool_call", id: "call_1", name: "generate_express", argsJson: "{not valid json" },
-      { kind: "finish", reason: "tool_calls" },
     ]);
   });
 
@@ -515,7 +503,6 @@ describe("createChunkReducer — tool_calls without a numeric index", () => {
         name: "generate_express",
         argsJson: '{"emotion_id":"happy"}',
       },
-      { kind: "finish", reason: "tool_calls" },
     ]);
   });
 

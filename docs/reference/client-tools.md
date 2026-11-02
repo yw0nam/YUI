@@ -177,13 +177,16 @@ On both transports the cue plays before any round trip is sent.
 The results go back to the model in two cases:
 
 1. A tool that answers a question ran, and its result is the reason the model called it.
-2. Only cue-only tools ran and the model stopped to wait for them. On Chat Completions that is a response with no text that ended with `finish_reason: "tool_calls"`. On Responses, which has no `finish_reason`, it is a response with no text.
+2. Only cue-only tools ran and the response had no text, so the model is waiting for them. On Chat Completions `finish_reason` plays no part, because servers report different values on a response that called tools.
 
 `generate_express` is cue-only. A response that spoke alongside its cues is a complete turn, and
 answering it makes the model say the reply again.
 
-A cue-only Chat Completions response that ended on `finish_reason: "stop"` is a deliberate silence,
-and the turn stays silent (firing ≠ judgment).
+A model stays silent by answering that round trip with no text, and the turn ends with no speech
+(firing ≠ judgment).
+
+On Chat Completions each call goes back on the assistant message with every field the server
+attached to it, so a server's per-call state reaches the next request unchanged.
 
 The cycle repeats while the model keeps asking, up to three round trips per turn
 (`MAX_TOOL_ROUND_TRIPS` in `src/io/chat/stream/stream-helpers.ts`). Past three the client closes the
