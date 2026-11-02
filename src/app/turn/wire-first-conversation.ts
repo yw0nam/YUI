@@ -49,6 +49,8 @@ export function wireFirstConversation(
     });
     if (deps.greetLocal()) return;
     stopWaitingForGreeting();
+    // The setup bubble's Connect button has nothing left to do.
+    deps.surfaces.hideSpeech();
     deps.surfaces.summonInput();
     showHint();
   });
