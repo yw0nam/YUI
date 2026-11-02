@@ -1,5 +1,7 @@
 /* The Threads panel's resize hit areas, invisible: 8px on the edges, 14px at the corners; and the
-   size readout while a resize lasts. Tokens in ../../tokens.css. */
+   size readout while a resize lasts. Tokens in ../../tokens.css.
+   WebKit 26.2 shows no ew-, ns-, nwse- or nesw-resize cursor (WebKit bug 303845, #1777): the edges
+   take col- and row-resize, the corners a drawn diagonal arrow. */
 
 .yui-threads-rz {
   position: absolute;
@@ -12,7 +14,7 @@
   right: 14px;
   left: 14px;
   height: 8px;
-  cursor: ns-resize;
+  cursor: row-resize;
 }
 
 .yui-threads-rz[data-edge="e"],
@@ -20,7 +22,7 @@
   top: 14px;
   bottom: 14px;
   width: 8px;
-  cursor: ew-resize;
+  cursor: col-resize;
 }
 
 .yui-threads-rz[data-edge="nw"],
@@ -57,12 +59,18 @@
 
 .yui-threads-rz[data-edge="nw"],
 .yui-threads-rz[data-edge="se"] {
-  cursor: nwse-resize;
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M5 5h7L9.5 7.5l7 7L19 12v7h-7l2.5-2.5-7-7L5 12z' stroke='white' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E")
+    12 12,
+    nwse-resize;
 }
 
 .yui-threads-rz[data-edge="ne"],
 .yui-threads-rz[data-edge="sw"] {
-  cursor: nesw-resize;
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M19 5h-7l2.5 2.5-7 7L5 12v7h7l-2.5-2.5 7-7L19 12z' stroke='white' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E")
+    12 12,
+    nesw-resize;
 }
 
 .yui-threads-readout {
