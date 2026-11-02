@@ -374,6 +374,8 @@ const realFactories: ConfiguredBootstrapFactories = {
         onFirstConversationConnected: phase1.onFirstConversationConnected,
         onUtteranceEnd: voice.onUtteranceEnd,
         greetLocal: greeting.greetLocal,
+        transcript: phase1.conversation.chatHistoryStore,
+        isBusy: dispatcher.isPipelineBusy,
       }).dispose,
     );
 
