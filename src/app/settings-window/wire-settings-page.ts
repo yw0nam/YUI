@@ -1,3 +1,5 @@
+import type { EndpointsConfig } from "../../contract";
+import { isChatConfigured } from "../../dispatcher/backend/backend-caller";
 import type { SettingsBridge } from "../../io/bridge/settings-bridge";
 import type { SettingsPage } from "../../settings/panels/settings-pages";
 import { readSettingsPage } from "../../settings/preset/bound-preset";
@@ -11,6 +13,11 @@ export function takeRequestedPage(): SettingsPage | null {
     history.replaceState(history.state, "", url);
   }
   return page;
+}
+
+/** Whether the window leads with the First conversation page; no page while the config failed to load. */
+export function showsFirstConversation(endpoints: EndpointsConfig | null): boolean {
+  return endpoints !== null && !isChatConfigured(endpoints);
 }
 
 /** Answers an opener's page request: show the opener's character (reloading when another is edited), then its page once the panel is attached. */

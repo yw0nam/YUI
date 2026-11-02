@@ -1,5 +1,4 @@
 import { CHAT_API_KEY_SECRET } from "../../config/secrets";
-import { isChatConfigured } from "../../dispatcher/backend/backend-caller";
 import { importVrmFromFile, removeUserVrm } from "../../io/assets/vrm-import";
 import { createDelegationHistory } from "../../io/bridge/delegations/delegation-history";
 import { createMirroredDelegations } from "../../io/bridge/delegations/delegations-bridge";
@@ -26,7 +25,7 @@ import { wireCueLocaleSync } from "../settings/wire-cue-locale-sync";
 import { wirePresetSwitch } from "../settings/wire-preset";
 import { wireWindowSettings } from "../settings/wire-window-settings";
 import { editTargetUrl } from "./edit-target-url";
-import { takeRequestedPage, wireSettingsPage } from "./wire-settings-page";
+import { showsFirstConversation, takeRequestedPage, wireSettingsPage } from "./wire-settings-page";
 import { wireVoiceMirror } from "./wire-voice-mirror";
 
 const log = createLogger("settings-bootstrap");
@@ -163,8 +162,7 @@ export async function wireSettingsWindow(deps: {
   if (mcpHost) register(mcpHost.dispose);
 
   // Read once: a locale change rebuilds the panel, and the page stays until the window closes.
-  const endpoints = shared.getEndpoints();
-  const showFirstConversation = endpoints !== null && !isChatConfigured(endpoints);
+  const showFirstConversation = showsFirstConversation(shared.getEndpoints());
 
   const buildQuickControls = (): ReturnType<typeof createQuickControls> => {
     titleSettingsWindow(t("settings.title"));
