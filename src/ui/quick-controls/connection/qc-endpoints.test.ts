@@ -764,12 +764,16 @@ describe("createQuickControls — endpoints + API keys", () => {
   function chatUrlInput(qc: { el: HTMLElement }): HTMLInputElement {
     return qc.el.querySelector<HTMLInputElement>("#yui-ep-chat_base_url")!;
   }
+  function chatModelInput(qc: { el: HTMLElement }): HTMLInputElement {
+    return qc.el.querySelector<HTMLInputElement>("#yui-ep-chat_model")!;
+  }
 
   const PRESET_URLS: readonly [string, string][] = [
     ["openai", "https://api.openai.com/v1"],
     ["ollama", "http://localhost:11434/v1"],
     ["lmstudio", "http://localhost:1234/v1"],
     ["groq", "https://api.groq.com/openai/v1"],
+    ["gemini", "https://generativelanguage.googleapis.com/v1beta/openai"],
   ];
 
   it("renders an interactive provider-preset dropdown in the Chat section", () => {
@@ -794,6 +798,7 @@ describe("createQuickControls — endpoints + API keys", () => {
       "Ollama",
       "LM Studio",
       "Groq",
+      "Google Gemini",
       "Hermes Agent",
       t("svc.chat_preset_custom"),
     ]);
@@ -813,13 +818,48 @@ describe("createQuickControls — endpoints + API keys", () => {
 
       expect(chatUrlInput(qc).value).toBe(url);
       expect(endpointsSettings.get().chat_base_url).toBe(url);
-      // Presets only touch the URL — model and chat_api stay as configured.
-      expect(endpointsSettings.get().chat_model).toBe("");
+      // A preset that names a model fills it; the others leave model and chat_api as configured.
+      expect(endpointsSettings.get().chat_model).toBe(
+        id === "gemini" ? "models/gemini-3.5-flash-lite" : "",
+      );
       expect(endpointsSettings.get().chat_api).toBe("");
 
       qc.dispose();
       qc.el.remove();
     }
+  });
+
+  it("selecting the Google Gemini preset fills the chat base URL and the chat model", () => {
+    endpointsSettings.set({ chat_base_url: "", chat_model: "", chat_api: "" });
+    const qc = buildQc();
+    qc.open();
+
+    const sel = chatPresetSelect(qc);
+    sel.value = "gemini";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+
+    expect(endpointsSettings.get().chat_base_url).toBe(
+      "https://generativelanguage.googleapis.com/v1beta/openai",
+    );
+    expect(endpointsSettings.get().chat_model).toBe("models/gemini-3.5-flash-lite");
+    expect(chatModelInput(qc).value).toBe("models/gemini-3.5-flash-lite");
+
+    qc.dispose();
+  });
+
+  it("selecting a preset without a model leaves the chat model unchanged", () => {
+    endpointsSettings.set({ chat_base_url: "", chat_model: "gpt-4o-mini", chat_api: "" });
+    const qc = buildQc();
+    qc.open();
+
+    const sel = chatPresetSelect(qc);
+    sel.value = "groq";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+
+    expect(endpointsSettings.get().chat_model).toBe("gpt-4o-mini");
+    expect(chatModelInput(qc).value).toBe("gpt-4o-mini");
+
+    qc.dispose();
   });
 
   it("flips the preset dropdown to Custom when the chat base URL is edited by hand", () => {
