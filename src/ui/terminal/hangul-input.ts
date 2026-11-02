@@ -2,7 +2,7 @@
  * Hangul for one screen. WebKit's Korean IME fires no composition events: it inserts a new syllable
  * as `insertText` and edits it in place as `insertReplacementText`, and xterm forwards only the
  * first. This holds the syllable being typed, shows it at the cursor, and sends it to the PTY once
- * the next syllable starts, a key that is not an IME key goes down, or the terminal loses focus.
+ * the next syllable starts, a key other than an IME or modifier key goes down, or the terminal loses focus.
  */
 
 import type { IDisposable, Terminal as Xterm } from "@xterm/xterm";
@@ -82,11 +82,12 @@ export function attachHangulInput(deps: { host: HTMLElement; xterm: Xterm }): ()
 
   host.addEventListener("input", onInput, true);
   host.addEventListener("keydown", onKeyDown, true);
-  host.addEventListener("focusout", send, true);
+  // Ahead of xterm's own blur listener, which sends the focus-out report.
+  host.addEventListener("blur", send, true);
   return () => {
     host.removeEventListener("input", onInput, true);
     host.removeEventListener("keydown", onKeyDown, true);
-    host.removeEventListener("focusout", send, true);
+    host.removeEventListener("blur", send, true);
     render?.dispose();
     view.remove();
   };
