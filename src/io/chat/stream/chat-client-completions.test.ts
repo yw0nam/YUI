@@ -497,20 +497,47 @@ describe("streamChat — Chat Completions tool-call round trip", () => {
     expect(events.at(-1)).toMatchObject({ envelope: { speech_text: "Yay!" } });
   });
 
-  it("a cue-only response that finished with stop is a deliberate silence — no result, single request", async () => {
+  it("a cue-only response is answered whatever its finish_reason, and an empty answer keeps the turn silent", async () => {
     const registry = createClientToolRegistry([oneWayStub("generate_express")]);
-    ccCreateMock.mockResolvedValueOnce(
-      streamOf([
-        toolCallStart(0, "call_1", "generate_express", GEN_EXPRESS_ARGS),
-        finishChunk("stop"),
-      ]),
-    );
+    ccCreateMock
+      .mockResolvedValueOnce(
+        streamOf([
+          toolCallStart(0, "call_1", "generate_express", GEN_EXPRESS_ARGS),
+          finishChunk("stop"),
+        ]),
+      )
+      .mockResolvedValueOnce(streamOf([finishChunk("stop")]));
 
     const events = await collect(streamChat(CONFIG, req(), { tools: registry }));
 
-    expect(ccCreateMock).toHaveBeenCalledTimes(1);
+    expect(ccCreateMock).toHaveBeenCalledTimes(2);
     expect(events[0].type).toBe("express");
     expect(events.at(-1)).toMatchObject({ envelope: { speech_text: "" } });
+  });
+
+  it("sends every field the server attached to a call back with it", async () => {
+    const extra_content = { google: { thought_signature: "sig" } };
+    const registry = createClientToolRegistry([oneWayStub("generate_express")]);
+    ccCreateMock
+      .mockResolvedValueOnce(
+        streamOf([
+          toolCallStart(0, "call_1", "generate_express", GEN_EXPRESS_ARGS),
+          { choices: [{ delta: { tool_calls: [{ index: 0, extra_content }] } }] },
+          finishChunk("stop"),
+        ]),
+      )
+      .mockResolvedValueOnce(streamOf([textChunk("ok"), finishChunk("stop")]));
+
+    await collect(streamChat(CONFIG, req(), { tools: registry }));
+
+    expect(ccCreateMock.mock.calls[1][0].messages[1].tool_calls).toEqual([
+      {
+        id: "call_1",
+        type: "function",
+        function: { name: "generate_express", arguments: GEN_EXPRESS_ARGS },
+        extra_content,
+      },
+    ]);
   });
 
   it("a tool that answers a question is answered back even when the response spoke first", async () => {
