@@ -148,16 +148,16 @@ describe("maybeShowFirstRunHint — unconfigured chat backend", () => {
     expect(showSpeechAction).not.toHaveBeenCalled();
   });
 
-  it("carries the Open Connection action on the setup hint, opening the conn tab on click", () => {
+  it("carries the setup action on the setup hint, opening the first conversation page on click", () => {
     const { deps, showSpeechAction, openSettings } = fakeDeps({ chatConfigured: false });
 
     maybeShowFirstRunHint(deps);
 
     expect(showSpeechAction).toHaveBeenCalledTimes(1);
     const action = showSpeechAction.mock.calls[0][0];
-    expect(action.label).toBe("input.error_open_connection");
+    expect(action.label).toBe("hint.setup_action");
     action.onClick();
-    expect(openSettings).toHaveBeenCalledWith("conn");
+    expect(openSettings).toHaveBeenCalledWith("first");
   });
 
   it("hides the hint once its action opens the settings", () => {
@@ -168,7 +168,7 @@ describe("maybeShowFirstRunHint — unconfigured chat backend", () => {
     maybeShowFirstRunHint(deps);
 
     showSpeechAction.mock.calls[0][0].onClick();
-    expect(openSettings).toHaveBeenCalledWith("conn");
+    expect(openSettings).toHaveBeenCalledWith("first");
     expect(hideSpeech).toHaveBeenCalledTimes(1);
     expect(hideSpeech).toHaveBeenCalledAfter(openSettings);
   });
@@ -177,12 +177,13 @@ describe("maybeShowFirstRunHint — unconfigured chat backend", () => {
 describe("hint.setup_backend copy", () => {
   afterEach(() => setLocale("en"));
 
-  it("names an OpenAI-compatible server in every locale", () => {
-    for (const locale of ["en", "ko", "ja"] as const) {
-      setLocale(locale);
-      const copy = t("hint.setup_backend");
-      expect(copy).not.toBe("hint.setup_backend");
-      expect(copy).toContain("OpenAI");
-    }
+  it.each([
+    ["en", "We're not connected yet · shall we set it up?", "Connect"],
+    ["ko", "아직 대화가 연결되지 않았어요 · 함께 연결해 볼까요?", "연결하기"],
+    ["ja", "まだ接続していないの · いっしょに設定しよう？", "接続する"],
+  ] as const)("asks in plain words in %s", (locale, hint, action) => {
+    setLocale(locale);
+    expect(t("hint.setup_backend")).toBe(hint);
+    expect(t("hint.setup_action")).toBe(action);
   });
 });
