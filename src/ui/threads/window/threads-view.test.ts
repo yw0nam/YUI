@@ -191,6 +191,27 @@ it("keeps an entry's own line breaks inside its paragraph", () => {
   );
 });
 
+it("leaves no formatting whitespace between the blocks of a list or table, and keeps a tight item's newline", () => {
+  const el = entryText(
+    "- a\n\n- b\n\n  - n1\n  - n2\n\n  | h |\n  |---|\n  | 1 |\n\n- first\n  second",
+  );
+
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  const blanks: string[] = [];
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const parent = n.parentElement!.tagName.toLowerCase();
+    if (
+      !n.textContent!.trim() &&
+      ["ul", "ol", "li", "table", "thead", "tbody", "tr"].includes(parent)
+    ) {
+      blanks.push(parent);
+    }
+  }
+
+  expect(blanks).toEqual([]);
+  expect(el.lastElementChild?.lastElementChild?.textContent).toBe("first\nsecond");
+});
+
 it("keeps only the https images", () => {
   const el = entryText(
     "![a](http://asset.localhost/x) ![b](/x) ![c](http://example.com/x.png) ![d](https://example.com/ok.png)",
