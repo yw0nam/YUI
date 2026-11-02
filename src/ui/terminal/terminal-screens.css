@@ -10,6 +10,17 @@
 }
 
 .yui-terminal-screen {
+  position: relative;
   min-width: 0;
   min-height: 0;
+}
+
+/* The Hangul syllable being typed, over the cursor cell like xterm's composition view. */
+.yui-terminal-preedit {
+  position: absolute;
+  z-index: 1;
+  white-space: nowrap;
+  font-family: var(--yui-font-mono);
+  color: var(--yui-text);
+  background: var(--yui-panel-bg);
 }

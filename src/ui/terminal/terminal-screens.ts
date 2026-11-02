@@ -13,6 +13,7 @@ import type { Terminal } from "../../contract";
 import { createLogger } from "../../logger";
 import { isMacOS } from "../../tauri-env";
 import { t } from "../i18n";
+import { attachHangulInput } from "./hangul-input";
 import { fontSizeFor } from "./terminal-font";
 import { terminalFont, terminalTheme, watchTheme } from "./terminal-theme";
 
@@ -30,6 +31,7 @@ interface Screen {
   xterm: Xterm;
   fit: FitAddon;
   host: HTMLElement;
+  detachHangul: () => void;
   opened: boolean;
   exited: boolean;
 }
@@ -92,10 +94,11 @@ export function createTerminalScreens(deps: {
     host.className = "yui-terminal-screen";
     host.hidden = true;
     el.append(host);
+    const detachHangul = attachHangulInput({ host, xterm });
     deps
       .attach(id, (bytes) => xterm.write(bytes))
       .catch((error) => log.warn("attach_failed", { error: String(error) }));
-    return { xterm, fit, host, opened: false, exited: false };
+    return { xterm, fit, host, detachHangul, opened: false, exited: false };
   }
 
   // The shown screen's fit sets every terminal's size, and the PTYs' once it changes.
@@ -136,6 +139,7 @@ export function createTerminalScreens(deps: {
     sync(terminals) {
       for (const [id, screen] of screens) {
         if (terminals.some((term) => term.id === id)) continue;
+        screen.detachHangul();
         screen.xterm.dispose();
         screen.host.remove();
         screens.delete(id);
@@ -159,7 +163,10 @@ export function createTerminalScreens(deps: {
     dispose() {
       observer.disconnect();
       offTheme();
-      for (const screen of screens.values()) screen.xterm.dispose();
+      for (const screen of screens.values()) {
+        screen.detachHangul();
+        screen.xterm.dispose();
+      }
       screens.clear();
     },
   };
