@@ -1,7 +1,7 @@
 /**
- * Settings panel — fills the settings window: a rail of the character's pages (connection · voice ·
- * persona · body · history) then every character's pages (together · listening · permissions ·
- * proactive · motion · general) beside the page body.
+ * Settings panel — fills the settings window: a rail of the character's pages (first conversation ·
+ * connection · voice · persona · body · history) then every character's pages (together · listening ·
+ * permissions · proactive · motion · general) beside the page body.
  */
 
 import type { createTextSizeSettings } from "../../settings/appearance/text-size-settings";
@@ -73,8 +73,9 @@ import type { VoiceInputStatus } from "../chips/voice-input-status";
 import { t } from "../i18n";
 import { createCharacterTab } from "./character/character-tab";
 import { createConnectionTab, type PushSocketPanelPort } from "./connection/connection-tab";
-import { DEFAULT_PAGE } from "./constants";
+import { initialPageOf } from "./constants";
 import { mountCueLists } from "./cue-lists/cue-lists";
+import { createFirstConversationPage } from "./first-conversation/first-conversation-page";
 import { createHintTooltip } from "./hint-tooltip";
 import { createHistoryTab } from "./history/history-tab";
 import { createPanelShell } from "./panel-shell";
@@ -288,6 +289,10 @@ interface QuickControlsOptions {
   /** The preset strip picks the preset the window edits. */
   onEditTarget: (id: string) => void;
   showVoiceInput?: boolean;
+  /** Leads the rail with the First conversation page and opens on it. */
+  showFirstConversation?: boolean;
+  /** The First conversation page confirmed its key. */
+  onFirstConversationConnected?: () => void;
 }
 
 /** A part of the panel the shell redraws on open, closes, and disposes. */
@@ -393,6 +398,8 @@ export function createQuickControls({
   boundId,
   onEditTarget,
   showVoiceInput = true,
+  showFirstConversation = false,
+  onFirstConversationConnected,
 }: QuickControlsOptions): QuickControls {
   // The context-occupancy readout renders when both stores are injected.
   const hasSession = !!sessionDiagnostics && !!sessionStore;
@@ -426,6 +433,7 @@ export function createQuickControls({
     hasSession,
     switchRows: TOGGLE_SPECS,
     showVoiceInput,
+    showFirstConversation,
     showScreen: !!screenSettings && !!screenKnobSettings,
     showPresence: !!presenceSettings,
     showPacerGap: !!pacerGapSettings,
@@ -456,6 +464,20 @@ export function createQuickControls({
     log,
   });
   el.querySelector("#yui-panel-conn")!.append(connectionTab.el);
+
+  // ── First conversation page (data use · daily limit · key confirmation) ──
+  const firstConversation = showFirstConversation
+    ? createFirstConversationPage({
+        endpointsSettings,
+        chatKeySettings,
+        proactiveSettings,
+        scheduleSettings,
+        getFetch: async () => getFetch?.(),
+        onConnected: () => onFirstConversationConnected?.(),
+        openConnection: () => tabRail.select("conn"),
+      })
+    : null;
+  if (firstConversation) el.querySelector("#yui-panel-first")!.append(firstConversation.el);
 
   // ── History tab (session accordion + start fresh) — only with a transcript store. ──
   const historyTab = transcript
@@ -715,7 +737,7 @@ export function createQuickControls({
     rail: tablistEl,
     buttons: tabButtons,
     panels: Array.from(el.querySelectorAll<HTMLElement>(".yui-tabpanel")),
-    initial: DEFAULT_PAGE,
+    initial: initialPageOf(showFirstConversation),
     onSelect: (id) => {
       if (id === "conn") connectionTab.entered();
       if (id === "plugins") pluginsPage?.entered();
@@ -754,6 +776,7 @@ export function createQuickControls({
   const unbindHelp = onGuide ? bindHelpSection(el, onGuide) : undefined;
   // Every section the panel redraws on open, closes and disposes, in redraw order.
   const parts: (PanelSection | null | undefined)[] = [
+    firstConversation,
     screenshot,
     pluginsPage,
     switchRows,

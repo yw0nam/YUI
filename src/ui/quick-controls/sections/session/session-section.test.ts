@@ -31,6 +31,7 @@ function build({ open = true, pushMode = true }: { open?: boolean; pushMode?: bo
   const log: string[] = [];
   const root = document.createElement("div");
   root.innerHTML = buildPanelHtml({
+    showFirstConversation: false,
     hasSession: true,
     switchRows: createSwitchRows({
       idleThrottleSettings: createFlagSettings(false),

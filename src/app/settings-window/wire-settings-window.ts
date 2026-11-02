@@ -1,4 +1,5 @@
 import { CHAT_API_KEY_SECRET } from "../../config/secrets";
+import { isChatConfigured } from "../../dispatcher/backend/backend-caller";
 import { importVrmFromFile, removeUserVrm } from "../../io/assets/vrm-import";
 import { createDelegationHistory } from "../../io/bridge/delegations/delegation-history";
 import { createMirroredDelegations } from "../../io/bridge/delegations/delegations-bridge";
@@ -161,6 +162,10 @@ export async function wireSettingsWindow(deps: {
   const mcpHost = isTauri() ? createMcpHost() : undefined;
   if (mcpHost) register(mcpHost.dispose);
 
+  // Read once: a locale change rebuilds the panel, and the page stays until the window closes.
+  const endpoints = shared.getEndpoints();
+  const showFirstConversation = endpoints !== null && !isChatConfigured(endpoints);
+
   const buildQuickControls = (): ReturnType<typeof createQuickControls> => {
     titleSettingsWindow(t("settings.title"));
     return createQuickControls({
@@ -246,6 +251,8 @@ export async function wireSettingsWindow(deps: {
       boundId,
       onEditTarget: (id) => reloadOnCharacter(id),
       showVoiceInput: boundId === null,
+      showFirstConversation,
+      onFirstConversationConnected: bridge.emitFirstConversationConnected,
       onOpenDevtools: bridge.emitOpenDevtools,
     });
   };
