@@ -611,7 +611,8 @@ const ko: Record<string, string> = {
   // first-run onboarding hint
   "hint.first_run": "우클릭하면 컨트롤이 열려요 · {hotkey}로 말 걸 수 있어요",
   "hint.first_run_no_hotkey": "우클릭하면 컨트롤이 열려요",
-  "hint.setup_backend": "아직 생각할 백엔드가 없어요 · OpenAI 호환 서버를 지정해 주세요",
+  "hint.setup_backend": "아직 대화가 연결되지 않았어요 · 함께 연결해 볼까요?",
+  "hint.setup_action": "연결하기",
 
   // reactions tab
   "reactions.watchers_title": "감시",

@@ -612,8 +612,8 @@ const en: Record<string, string> = {
   // first-run onboarding hint
   "hint.first_run": "Right-click me for controls · press {hotkey} to talk",
   "hint.first_run_no_hotkey": "Right-click me for controls",
-  "hint.setup_backend":
-    "I have no backend to think with yet · point me at an OpenAI-compatible server",
+  "hint.setup_backend": "We're not connected yet · shall we set it up?",
+  "hint.setup_action": "Connect",
 
   // reactions tab
   "reactions.watchers_title": "Watchers",

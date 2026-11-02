@@ -614,7 +614,8 @@ const ja: Record<string, string> = {
   // first-run onboarding hint
   "hint.first_run": "右クリックでコントロール · {hotkey}で話しかけてね",
   "hint.first_run_no_hotkey": "右クリックでコントロール",
-  "hint.setup_backend": "考えるためのバックエンドがまだないの · OpenAI 互換サーバーを指定してね",
+  "hint.setup_backend": "まだ接続していないの · いっしょに設定しよう？",
+  "hint.setup_action": "接続する",
 
   // reactions tab
   "reactions.watchers_title": "ウォッチャー",
