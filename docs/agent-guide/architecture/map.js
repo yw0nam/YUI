@@ -1213,7 +1213,7 @@ globalThis.YUI_MAP =
       "id": "ui/threads",
       "module": "display",
       "label": "threads ui",
-      "role": "The Threads chip in main's chip column (newest source marks, label, amber count; hidden at zero while the window is closed, one nod on arrival, hold-to-fold) and the Threads window's view: the layout its panel's width picks (list and thread, the rail, one pane), the list collapsed to the rail by the head toggle or Control+Command+S, Waiting / All tabs and a kind select over waiting-first rows, the thread pane's scrolling transcript, the pinned answer area with numbered choices and a growing field, per-ask drafts, and the grow out of the chip.",
+      "role": "The Threads chip in main's chip column (newest source marks, label, amber count of waiting Threads the user has not picked and access requests; hidden at zero while the window is closed, one nod on arrival, hold-to-fold) and the Threads window's view: the layout its panel's width picks (list and thread, the rail, one pane), the list collapsed to the rail by the head toggle or Control+Command+S, Waiting / All tabs and a kind select over waiting-first rows (a pick of a Thread with an open ask reports it seen), the thread pane's scrolling transcript, the pinned answer area with numbered choices and a growing field, per-ask drafts, and the grow out of the chip.",
       "paths": [
         "src/ui/threads"
       ]

@@ -222,7 +222,7 @@ it("hands a pointerdown on its head, not on its ×, to the head listeners", () =
   expect(onHead).toHaveBeenCalledOnce();
 });
 
-it("reports the open ask as seen only when the user picks a Thread, once per ask", async () => {
+it("reports the open ask as seen only when the user picks a Thread, and not an ask already seen", async () => {
   const { view, $, onSeen } = build();
   const seen = { ...thread("t2", "slack", 1), seen_ask_id: "a1" };
   view.update(snapshot(1, [thread("t1", "codex", 2), seen]));

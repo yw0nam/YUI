@@ -1,6 +1,6 @@
 /**
- * Threads chip — the pill in main's chip column that counts waiting Threads the user has not picked and access requests and
- * opens the Threads window. Pure renderer: the marks, label, and count come from the snapshots;
+ * Threads chip — the pill in main's chip column that counts waiting Threads the user has not picked,
+ * and access requests, and opens the Threads window. Pure renderer: the marks, label, and count come from the snapshots;
  * hidden while nothing waits and the window is closed; one nod when a Thread or a request starts
  * waiting; a held press folds it with the other chips.
  */

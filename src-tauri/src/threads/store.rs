@@ -726,7 +726,7 @@ mod tests {
     }
 
     #[test]
-    fn seen_marks_the_open_ask_without_reordering() {
+    fn seen_records_the_open_ask_in_place_and_survives_a_restart() {
         let saved = Arc::new(Mutex::new(vec![]));
         let sink = saved.clone();
         let s = ThreadStore::new(
