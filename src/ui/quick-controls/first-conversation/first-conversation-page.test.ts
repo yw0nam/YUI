@@ -93,7 +93,7 @@ describe("createFirstConversationPage", () => {
     expect(s.proactiveSettings.get().enabled).toBe(false);
     expect(s.scheduleSettings.get().enabled).toBe(false);
     expect(s.onConnected).toHaveBeenCalledTimes(1);
-    expect(s.visibleText('[role="status"]')).toEqual(["Connected. You can talk with Yui now."]);
+    expect(s.visibleText('[role="status"]')).toEqual(["Connected. You can start talking now."]);
   });
 
   it.each([
@@ -179,6 +179,7 @@ describe("createFirstConversationPage", () => {
 
     const text = s.page.el.textContent!;
     const beforeField = text.slice(0, text.indexOf("Paste the key"));
+    expect(beforeField).toContain("Talk on the Google Gemini free tier.");
     expect(beforeField).toContain(
       "Your conversation and the names of the apps you use go to Google.",
     );
