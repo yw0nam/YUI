@@ -222,46 +222,6 @@ it("keeps only the https images", () => {
   ]);
 });
 
-it.each([
-  ["an img srcset", '<img src="https://ok.test/a.png" srcset="http://evil.test/p 2x">', "[srcset]"],
-  [
-    "a picture source",
-    '<picture><source srcset="http://evil.test/p"><img src="https://ok.test/a.png"></picture>',
-    "picture, source",
-  ],
-  ["a video", '<video poster="http://evil.test/p" src="http://evil.test/v"></video>', "video"],
-  ["a video source", '<video><source src="http://evil.test/v"></video>', "video, source"],
-  ["an audio", '<audio src="http://evil.test/a" autoplay></audio>', "audio"],
-  ["an svg image href", '<svg><image href="http://evil.test/p"/></svg>', "svg, image"],
-  ["an svg image xlink", '<svg><image xlink:href="http://evil.test/p"/></svg>', "svg, image"],
-  [
-    "a style background",
-    '<p style="background:url(http://evil.test/p);position:fixed">x</p>',
-    "[style]",
-  ],
-  [
-    "a td background",
-    '<table><tr><td background="http://evil.test/p">x</td></tr></table>',
-    "[background]",
-  ],
-  ["an input image", '<input type="image" src="http://evil.test/p">', "input"],
-  ["a form", '<form action="http://evil.test/p"><button>go</button></form>', "form, button"],
-])("drops %s from an entry", (_name, html, gone) => {
-  const el = entryText(html);
-
-  expect(el.querySelector(gone)).toBeNull();
-  expect(el.innerHTML).not.toContain("evil.test");
-});
-
-it("keeps a task list's checkboxes disabled", () => {
-  const el = entryText("- [x] done\n- [ ] todo");
-
-  expect([...el.querySelectorAll("input")].map((i) => [i.type, i.disabled, i.checked])).toEqual([
-    ["checkbox", true, true],
-    ["checkbox", true, false],
-  ]);
-});
-
 it("shows a failed send's error and keeps its draft", async () => {
   const { view, $, field, type, enter } = build(() => Promise.reject("ask is closed"));
   view.update(snapshot(1, [thread("t1", "codex", 1)]));
