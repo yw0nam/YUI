@@ -5,6 +5,7 @@
  */
 
 import "./terminal-view.css";
+import type { IClipboardProvider } from "@xterm/addon-clipboard";
 import type { AccessRequest, Terminal, TerminalSnapshot } from "../../contract";
 import type { TerminalClient } from "../../io/terminal/terminal-client";
 import { createLogger } from "../../logger";
@@ -32,6 +33,8 @@ export function createTerminalView(deps: {
     TerminalClient,
     "open" | "close" | "input" | "resize" | "attach" | "answer" | "takeBack"
   >;
+  /** The system clipboard the Terminal's OSC 52 copies and pastes reach. */
+  clipboard: IClipboardProvider;
   /** Every terminal's font size in px at the start. */
   fontSize: number;
   onFontSize(px: number): void;
@@ -50,6 +53,7 @@ export function createTerminalView(deps: {
     attach: client.attach,
     input: client.input,
     resize: client.resize,
+    clipboard: deps.clipboard,
     fontSize: deps.fontSize,
     onFontSize: deps.onFontSize,
   });

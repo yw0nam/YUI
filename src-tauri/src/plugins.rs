@@ -11,7 +11,9 @@ pub fn register<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         // OS file pickers — the import/export commands open them in Rust.
         .plugin(tauri_plugin_dialog::init())
         // Bubble links (target=_blank) open in the default browser.
-        .plugin(tauri_plugin_opener::init());
+        .plugin(tauri_plugin_opener::init())
+        // The system clipboard, for the Terminal's OSC 52 copy and paste.
+        .plugin(tauri_plugin_clipboard_manager::init());
     // Global hotkey — registration/removal handled by JS guest binding (input summon hotkey).
     #[cfg(desktop)]
     let builder = builder.plugin(tauri_plugin_global_shortcut::Builder::new().build());

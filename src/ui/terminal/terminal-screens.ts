@@ -7,6 +7,7 @@
 
 import "@xterm/xterm/css/xterm.css";
 import "./terminal-screens.css";
+import { ClipboardAddon, type IClipboardProvider } from "@xterm/addon-clipboard";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal as Xterm } from "@xterm/xterm";
 import type { Terminal } from "../../contract";
@@ -40,6 +41,8 @@ export function createTerminalScreens(deps: {
   attach(id: string, onBytes: (bytes: Uint8Array) => void): Promise<void>;
   input(id: string, data: string): Promise<void>;
   resize(cols: number, rows: number): Promise<void>;
+  /** The system clipboard the screens' OSC 52 copies and pastes reach. */
+  clipboard: IClipboardProvider;
   /** Every screen's font size in px at the start. */
   fontSize: number;
   onFontSize(px: number): void;
@@ -74,6 +77,7 @@ export function createTerminalScreens(deps: {
       fontSize,
       scrollback: SCROLLBACK_LINES,
       theme: terminalTheme(),
+      macOptionClickForcesSelection: true,
     });
     // The font-size keys never reach the shell; every other key does.
     xterm.attachCustomKeyEventHandler((event) => {
@@ -87,6 +91,7 @@ export function createTerminalScreens(deps: {
     });
     const fit = new FitAddon();
     xterm.loadAddon(fit);
+    xterm.loadAddon(new ClipboardAddon(undefined, deps.clipboard));
     xterm.onData((data) => {
       deps.input(id, data).catch((error) => log.warn("input_failed", { error: String(error) }));
     });

@@ -763,7 +763,7 @@ globalThis.YUI_MAP =
       "id": "io/terminal",
       "module": "display",
       "label": "terminal client",
-      "role": "Keeps the terminal store's highest-revision snapshot from terminal_snapshot and the terminal-snapshot event, runs the user's terminal commands — open, close, input, resize, attach, answer, take_back — and listens for the tray's terminal-open; inert outside Tauri.",
+      "role": "Keeps the terminal store's highest-revision snapshot from terminal_snapshot and the terminal-snapshot event, runs the user's terminal commands — open, close, input, resize, attach, answer, take_back — listens for the tray's terminal-open, and reads and writes the system clipboard for the Terminal's OSC 52; inert outside Tauri.",
       "paths": [
         "src/io/terminal"
       ]
@@ -1222,7 +1222,7 @@ globalThis.YUI_MAP =
       "id": "ui/terminal",
       "module": "display",
       "label": "terminal ui",
-      "role": "The Threads window's Terminal tab: the list or its rail (New terminal, then one row per terminal newest first), the pane with one xterm per terminal and its exit line, Hangul typed through WebKit's in-place IME edits held at the cursor and sent a syllable at a time, the font-size keys (Command or Control with =, + or - by 1 px, 0 back to 13 px, 10–24 px, one size for every terminal), the access line with Take back, and the Allow card for the oldest waiting access request.",
+      "role": "The Threads window's Terminal tab: the list or its rail (New terminal, then one row per terminal newest first), the pane with one xterm per terminal and its exit line, OSC 52 copying and pasting through the system clipboard, an Option drag selecting, Hangul typed through WebKit's in-place IME edits held at the cursor and sent a syllable at a time, the font-size keys (Command or Control with =, + or - by 1 px, 0 back to 13 px, 10–24 px, one size for every terminal), the access line with Take back, and the Allow card for the oldest waiting access request.",
       "paths": [
         "src/ui/terminal"
       ]
@@ -2936,10 +2936,19 @@ globalThis.YUI_MAP =
       "id": "terminal-view-actions",
       "from": "ui/terminal",
       "to": "io/terminal",
-      "carries": "open(), close(id), input(id, data), resize(cols, rows), attach(id, onBytes), answer(requestId, allow), takeBack(id)",
+      "carries": "open(), close(id), input(id, data), resize(cols, rows), attach(id, onBytes), answer(requestId, allow), takeBack(id); the clipboard provider's readText() and writeText(text)",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/threads-window/wire-terminal-tab.ts"
+    },
+    {
+      "id": "terminal-clipboard",
+      "from": "io/terminal",
+      "to": "shell/core",
+      "carries": "plugin:clipboard-manager|read_text; plugin:clipboard-manager|write_text {text}",
+      "kind": "tauri-command",
+      "transport": "shared",
+      "wiring": "src/io/terminal/terminal-clipboard.ts"
     },
     {
       "id": "terminal-tool-command",
