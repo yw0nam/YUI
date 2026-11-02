@@ -208,8 +208,6 @@ export const GEMINI_KEY_URL = "https://aistudio.google.com/apikey";
 // are display-as-is, never localized. "custom" is the no-autofill entry the dropdown falls back to when
 // nothing matches.
 export const CHAT_PRESET_CUSTOM = "custom";
-/** The chat provider preset the First conversation page connects. */
-export const FIRST_CONVERSATION_PRESET_ID = "gemini";
 interface ChatProviderPreset {
   id: string;
   name: string;
@@ -220,17 +218,19 @@ interface ChatProviderPreset {
   /** Protocol the provider speaks. Absent where the provider speaks the current one. */
   chatApi?: ChatApi;
 }
+/** The chat provider preset the First conversation page connects. */
+export const GEMINI_PRESET = {
+  id: "gemini",
+  name: "Google Gemini",
+  url: "https://generativelanguage.googleapis.com/v1beta/openai",
+  model: "models/gemini-3.5-flash-lite",
+} satisfies ChatProviderPreset;
 export const CHAT_PROVIDER_PRESETS: readonly ChatProviderPreset[] = [
   { id: "openai", name: "OpenAI", url: "https://api.openai.com/v1" },
   { id: "ollama", name: "Ollama", url: "http://localhost:11434/v1" },
   { id: "lmstudio", name: "LM Studio", url: "http://localhost:1234/v1" },
   { id: "groq", name: "Groq", url: "https://api.groq.com/openai/v1" },
-  {
-    id: "gemini",
-    name: "Google Gemini",
-    url: "https://generativelanguage.googleapis.com/v1beta/openai",
-    model: "models/gemini-3.5-flash-lite",
-  },
+  GEMINI_PRESET,
   { id: "hermes", name: HERMES_AGENT.name, chatApi: "push" },
 ];
 

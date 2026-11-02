@@ -9,12 +9,7 @@ import type { createProactiveSettings } from "../../../settings/cues/proactive-s
 import type { createScheduleSettings } from "../../../settings/cues/schedule-settings";
 import { t } from "../../i18n";
 import { createModelRead, type ModelReadPhase } from "../connection/chat/model-read";
-import {
-  CHAT_PROVIDER_PRESETS,
-  CHATKEY_EYE_SVG,
-  FIRST_CONVERSATION_PRESET_ID,
-  GEMINI_KEY_URL,
-} from "../constants";
+import { CHATKEY_EYE_SVG, GEMINI_KEY_URL, GEMINI_PRESET } from "../constants";
 import { secHeadHtml } from "../markup";
 import { ICON_WARN } from "../plugins/plugin-parts";
 import { toggleKeyReveal } from "../sections/key-row/key-row";
@@ -43,7 +38,7 @@ function factRowHtml(labelKey: string, subKey: string): string {
           </div>`;
 }
 
-// The opener plugin opens target=_blank anchors; WebKit's plain Tab skips links without a tabindex.
+// Tauri's opener plugin opens target=_blank anchors; WebKit's plain Tab skips links without a tabindex.
 function keyLinkHtml(labelKey: string, className: string): string {
   return `<a class="yui-chat-type__link ${className}" href="${GEMINI_KEY_URL}" target="_blank" rel="noopener noreferrer" tabindex="0">${t(labelKey)}</a>`;
 }
@@ -91,8 +86,6 @@ export function createFirstConversationPage(deps: FirstConversationPageDeps): {
   el: HTMLElement;
   dispose(): void;
 } {
-  const { url, model } = CHAT_PROVIDER_PRESETS.find((p) => p.id === FIRST_CONVERSATION_PRESET_ID)!;
-
   const el = document.createElement("div");
   el.className = "yui-tab-stack";
   el.innerHTML = pageHtml();
@@ -124,8 +117,8 @@ export function createFirstConversationPage(deps: FirstConversationPageDeps): {
     const { result } = phase;
     if (result.kind === "ok") {
       deps.endpointsSettings.set({
-        chat_base_url: url,
-        chat_model: model,
+        chat_base_url: GEMINI_PRESET.url,
+        chat_model: GEMINI_PRESET.model,
         chat_api: "chat_completions",
       });
       deps.chatKeySettings.setApiKey(typedKey());
@@ -153,7 +146,7 @@ export function createFirstConversationPage(deps: FirstConversationPageDeps): {
   connect.addEventListener("click", () => {
     error.hidden = true;
     if (typedKey() === "") showError("first.need_key");
-    else read.start(url!);
+    else read.start(GEMINI_PRESET.url);
   });
   el.querySelector(".yui-first__own")!.addEventListener("click", () => deps.openConnection());
 
