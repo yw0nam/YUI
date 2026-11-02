@@ -4,7 +4,7 @@
  * the speech action button under the text, and the backlog's toggle and open panel are targets; the
  * area around them passes through to the character. The status pill takes them on its capture
  * button, and as a whole only while it offers the voice fix. The Threads chip takes them while it
- * shows and its window is closed.
+ * shows.
  */
 export const INTERACTIVE_OVERLAY_SELECTORS = [
   ".yui-input.is-open",
@@ -20,5 +20,5 @@ export const INTERACTIVE_OVERLAY_SELECTORS = [
   ".yui-sigchips.is-visible .yui-sigchip",
   ".yui-sigchips.is-visible .yui-sigchip__more",
   ".yui-sigdetails",
-  '.yui-threadchip:not([hidden]):not([aria-expanded="true"])',
+  ".yui-threadchip:not([hidden])",
 ] as const;

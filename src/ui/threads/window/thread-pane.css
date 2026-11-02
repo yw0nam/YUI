@@ -69,12 +69,19 @@
 }
 
 .yui-threads-pane__transcript {
-  display: grid;
-  align-content: start;
-  gap: 28px;
+  display: flex;
+  flex-direction: column-reverse;
   min-height: 0;
   padding: 24px 28px 32px;
   overflow: auto;
+}
+
+/* An auto margin keeps a short transcript at the top; column-reverse holds a long one at its end. */
+.yui-threads-pane__entries {
+  display: grid;
+  align-content: start;
+  gap: 28px;
+  margin-bottom: auto;
 }
 
 .yui-threads-entry {
@@ -303,7 +310,7 @@
     padding-inline: 20px;
   }
 
-  .yui-threads-pane__transcript {
+  .yui-threads-pane__entries {
     gap: 24px;
   }
 }
@@ -316,8 +323,11 @@
     padding-inline: 16px;
   }
 
-  .yui-threads-pane__transcript {
+  .yui-threads-pane__entries {
     gap: 20px;
+  }
+
+  .yui-threads-pane__transcript {
     padding-block: 16px 24px;
   }
 }

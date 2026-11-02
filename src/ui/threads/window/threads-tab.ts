@@ -68,7 +68,8 @@ export function createThreadsTab(deps: {
     waiting = view.counts.waiting;
     shell.back.textContent = t("threads.back");
     paneEl.setAttribute("aria-label", t("threads.pane_aria"));
-    pane.show(threads.find((th) => th.id === selected));
+    // A hidden transcript reads no scroll position, so the pane redraws when its tab shows.
+    if (!el.hidden) pane.show(threads.find((th) => th.id === selected));
     shell.headChanged();
   }
 
@@ -84,6 +85,7 @@ export function createThreadsTab(deps: {
       render();
     },
     reset() {
+      pane.restart();
       filter = { tab: "waiting", kind: null };
       selected = openSelection(threads);
       render();
@@ -102,7 +104,7 @@ export function createThreadsTab(deps: {
     },
     pick: pane.pick,
     focusField: pane.focusField,
-    shown() {},
+    shown: render,
     dispose: offLocale,
   };
 }

@@ -55,13 +55,26 @@ function threadPane(
   }
   const transcript = document.createElement("div");
   transcript.className = "yui-threads-pane__transcript";
-  transcript.append(...thread.entries.map((entry) => entryEl(entry, thread.source, now)));
+  const entries = document.createElement("div");
+  entries.className = "yui-threads-pane__entries";
+  entries.append(...thread.entries.map((entry) => entryEl(entry, thread.source, now)));
+  transcript.append(entries);
   return { head, transcript };
+}
+
+/** The height of the last `added` children of `entries`, with the gap above them. */
+function addedHeight(entries: Element, added: number): number {
+  const anchor = entries.children[entries.children.length - added - 1];
+  return anchor
+    ? entries.getBoundingClientRect().bottom - anchor.getBoundingClientRect().bottom
+    : 0;
 }
 
 export interface ThreadPane {
   /** Shows `thread`, or nothing. */
   show(thread: Thread | undefined): void;
+  /** The next `show` draws a fresh transcript. */
+  restart(): void;
   /** Drops the drafts and errors of asks no longer open in `threads`. */
   prune(threads: Thread[]): void;
   /** Toggles the open ask's choice at `index`. */
@@ -98,6 +111,7 @@ export function createThreadPane(deps: {
   }
 
   function show(thread: Thread | undefined): void {
+    const drawn = current;
     current = thread;
     const key = thread?.ask ? draftKey(thread.id, thread.ask.ask_id) : "";
     const next = thread
@@ -115,47 +129,56 @@ export function createThreadPane(deps: {
     const hadFieldFocus = document.activeElement?.tagName === "TEXTAREA";
     shownKey = next;
     shownId = thread?.id;
-    area = null;
     if (!thread) {
+      area = null;
       el.replaceChildren();
       return;
     }
     const { head, transcript } = threadPane(thread, deps.now(), deps.back);
-    el.replaceChildren(head, transcript);
-    if (sameThread) transcript.scrollTop = scrollTop;
     const ask = thread.ask;
-    if (!ask) return;
-    area = createAnswerArea({
-      ask,
-      draft: drafts.get(key) ?? { text: "" },
-      error: errors.get(key) ?? null,
-      sending: sending.has(key),
-      onDraft: (draft) => drafts.set(key, draft),
-      onSend: (answer) => {
-        errors.delete(key);
-        sending.add(key);
-        show(current);
-        // The ask id is the one this send answers, so a late result never touches a newer ask.
-        deps.onAnswer(thread.id, ask.ask_id, answer).then(
-          () => {
-            sending.delete(key);
-            drafts.delete(key);
+    area = ask
+      ? createAnswerArea({
+          ask,
+          draft: drafts.get(key) ?? { text: "" },
+          error: errors.get(key) ?? null,
+          sending: sending.has(key),
+          onDraft: (draft) => drafts.set(key, draft),
+          onSend: (answer) => {
+            errors.delete(key);
+            sending.add(key);
             show(current);
+            // The ask id is the one this send answers, so a late result never touches a newer ask.
+            deps.onAnswer(thread.id, ask.ask_id, answer).then(
+              () => {
+                sending.delete(key);
+                drafts.delete(key);
+                show(current);
+              },
+              (error) => {
+                sending.delete(key);
+                errors.set(key, String(error));
+                show(current);
+              },
+            );
           },
-          (error) => {
-            sending.delete(key);
-            errors.set(key, String(error));
-            show(current);
-          },
-        );
-      },
-    });
-    el.append(area.el);
+        })
+      : null;
+    el.replaceChildren(head, transcript, ...(area ? [area.el] : []));
+    // scrollTop counts down from 0 at the bottom, so 0 stays at the newest entry, and a reader above it moves up by what is added under them.
+    if (sameThread && scrollTop) {
+      const lastAt = drawn?.entries.at(-1)?.at ?? 0;
+      const added = thread.entries.filter((entry) => entry.at > lastAt).length;
+      transcript.scrollTop = scrollTop - addedHeight(transcript.firstElementChild!, added);
+    }
     if (hadFieldFocus) focusField();
   }
 
   return {
     show,
+    restart() {
+      shownKey = ""; // Matches no key, not even the empty pane's null.
+      shownId = undefined;
+    },
     prune(threads) {
       pruneDrafts(drafts, threads);
       for (const key of errors.keys()) if (!drafts.has(key)) errors.delete(key);

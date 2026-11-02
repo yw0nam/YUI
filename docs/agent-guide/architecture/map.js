@@ -1213,7 +1213,7 @@ globalThis.YUI_MAP =
       "id": "ui/threads",
       "module": "display",
       "label": "threads ui",
-      "role": "The Threads chip in main's chip column (newest source marks, label, amber count of waiting Threads the user has not picked and access requests; hidden at zero while the window is closed, one nod on arrival, hold-to-fold) and the Threads window's view: the layout its panel's width picks (list and thread, the rail, one pane), the list collapsed to the rail by the head toggle or Control+Command+S, Waiting / All tabs and a kind select over waiting-first rows (a pick of a Thread with an open ask reports it seen), the thread pane's scrolling transcript of Markdown entries, the pinned answer area with numbered choices and a growing field, per-ask drafts, and the grow out of the chip.",
+      "role": "The Threads chip in main's chip column (newest source marks, label, amber count of waiting Threads the user has not picked and access requests; hidden at zero and while the window is open, one nod on arrival, hold-to-fold) and the Threads window's view: the layout its panel's width picks (list and thread, the rail, one pane), the list collapsed to the rail by the head toggle or Control+Command+S, Waiting / All tabs and a kind select over waiting-first rows (a pick of a Thread with an open ask reports it seen), the thread pane's scrolling transcript of Markdown entries, held at its newest entry, the pinned answer area with numbered choices and a growing field, per-ask drafts, and the grow out of the chip.",
       "paths": [
         "src/ui/threads"
       ]
@@ -1314,7 +1314,7 @@ globalThis.YUI_MAP =
       "id": "app/threads-chip",
       "module": "wiring",
       "label": "threads chip wiring",
-      "role": "Main only: mounts the Threads chip after the signal chips on their shared fold store, feeds it the store's snapshots, and opens the Threads window from its tap; the chip stays shown while the window is open, its tap then bringing the window forward, until the window's closed report. The tray's Terminal item and a quick card's Threads or Terminal button open the same window on their tab, with no grow.",
+      "role": "Main only: mounts the Threads chip after the signal chips on their shared fold store, feeds it the store's snapshots, and opens the Threads window from its tap; the chip hides from the open until the window's closed report. The tray's Terminal item and a quick card's Threads or Terminal button open the same window on their tab, with no grow.",
       "paths": [
         "src/app/threads-chip"
       ]

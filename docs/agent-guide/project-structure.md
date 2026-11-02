@@ -630,7 +630,7 @@ YUI/
         boot-error.css               # Boot-failure notice styles
       threads/                       # The Threads chip and the Threads window
         thread-source.ts             # A source's name and mark; unknown sources show their raw name and a generic mark
-        chip/threads-chip.ts         # The chip: newest source marks, label, count; hidden at zero while the window is closed, one nod on arrival, hold-to-fold
+        chip/threads-chip.ts         # The chip: newest source marks, label, count; hidden at zero and while the window is open, one nod on arrival, hold-to-fold
         window/threads-view.ts       # The window's view: the head as the drag handle with the sidebar toggle, the list pane or the rail beside the thread pane, the selection and filters, the minute time tick
         window/thread-list.ts        # The list pane: tabs, kind select, waiting-first rows, and the Thread an open shows
         window/thread-pane.ts        # The thread pane: head, scrolling transcript, the answer area, and each ask's draft, send error and in-flight send

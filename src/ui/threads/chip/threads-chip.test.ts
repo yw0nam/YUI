@@ -68,15 +68,20 @@ it("skips a waiting Thread whose open ask the user picked, and counts and nods a
   expect(button().classList.contains("is-nod")).toBe(true);
 });
 
-it("stays visible while the window is open, even at zero waiting, and hides at zero once it closes", () => {
+it("hides while the window is open, at any count, and returns on close while something waits", () => {
   const { chip, button } = build();
   chip.update([thread("a", "codex", 5)]);
 
-  chip.setExpanded(true);
-  chip.update([thread("a", "codex", 6, false)]);
-  expect(button().hidden).toBe(false);
+  chip.setWindowOpen(true);
+  expect(button().hidden).toBe(true);
 
-  chip.setExpanded(false);
+  chip.setWindowOpen(false);
+  expect(button().hidden).toBe(false);
+  expect(button().querySelector(".yui-threadchip__count")!.textContent).toBe("1");
+
+  chip.setWindowOpen(true);
+  chip.update([thread("a", "codex", 6, false)]);
+  chip.setWindowOpen(false);
   expect(button().hidden).toBe(true);
 });
 
@@ -116,5 +121,12 @@ it("nods only when a new Thread id starts waiting", () => {
 
   button().dispatchEvent(new Event("animationend"));
   chip.update([thread("b", "slack", 3)]);
+  expect(nodding()).toBe(false);
+
+  chip.setWindowOpen(true);
+  chip.update([thread("c", "claude-code", 4)]);
+  expect(nodding()).toBe(false);
+
+  chip.setWindowOpen(false);
   expect(nodding()).toBe(false);
 });
