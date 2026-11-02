@@ -618,7 +618,7 @@ const en: Record<string, string> = {
 
   // first conversation page
   "first.free_title": "Start for free",
-  "first.free_note": "Talk with Yui on the Google Gemini free tier.",
+  "first.free_note": "Talk on the Google Gemini free tier.",
   "first.send_label": "What gets sent",
   "first.send_sub":
     "Your conversation and the names of the apps you use go to Google. Google may use them to improve its products and people may review them, so keep sensitive details out.",
@@ -638,7 +638,7 @@ const en: Record<string, string> = {
   "first.reopen": "Open key page again",
   "first.own_server": "Already have a server?",
   "first.open_connection": "Open Connection",
-  "first.done": "Connected. You can talk with Yui now.",
+  "first.done": "Connected. You can start talking now.",
 
   // reactions tab
   "reactions.watchers_title": "Watchers",

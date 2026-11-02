@@ -617,7 +617,7 @@ const ko: Record<string, string> = {
 
   // first conversation page
   "first.free_title": "무료로 시작하기",
-  "first.free_note": "Google Gemini 무료 등급으로 유이와 대화합니다.",
+  "first.free_note": "Google Gemini 무료 등급으로 대화합니다.",
   "first.send_label": "보내는 내용",
   "first.send_sub":
     "대화 내용과 사용 중인 앱 이름이 Google로 전송됩니다. Google이 서비스 개선에 쓰고 사람이 검토할 수 있으니, 민감한 정보는 말하지 마세요.",
@@ -638,7 +638,7 @@ const ko: Record<string, string> = {
   "first.reopen": "키 페이지 다시 열기",
   "first.own_server": "이미 쓰는 서버가 있나요?",
   "first.open_connection": "연결 페이지 열기",
-  "first.done": "연결했습니다. 이제 유이와 대화할 수 있습니다.",
+  "first.done": "연결했습니다. 이제 대화할 수 있습니다.",
 
   // reactions tab
   "reactions.watchers_title": "감시",

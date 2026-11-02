@@ -620,7 +620,7 @@ const ja: Record<string, string> = {
 
   // first conversation page
   "first.free_title": "無料ではじめる",
-  "first.free_note": "Google Gemini の無料枠でユイと話します。",
+  "first.free_note": "Google Gemini の無料枠で話します。",
   "first.send_label": "送信される内容",
   "first.send_sub":
     "会話の内容と使っているアプリの名前が Google に送られます。Google がサービス改善に使い、人が確認することがあるので、機密情報は話さないでください。",
@@ -642,7 +642,7 @@ const ja: Record<string, string> = {
   "first.reopen": "キーのページをもう一度開く",
   "first.own_server": "すでにサーバーをお持ちですか？",
   "first.open_connection": "接続ページを開く",
-  "first.done": "接続しました。ユイと話せます。",
+  "first.done": "接続しました。話しかけてみてください。",
 
   // reactions tab
   "reactions.watchers_title": "ウォッチャー",
