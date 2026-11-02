@@ -512,7 +512,7 @@ it("holds the pane's redraw while the Terminal tab shows, and keeps the reader o
   });
 });
 
-it("keeps a reader above the newest entry on their entries, and a reader at it at it", () => {
+it("keeps a reader above the newest entry in place, and a reader at the newest entry there", () => {
   const { view, $ } = build();
   view.update(snapshot(1, [{ ...thread("t1", "codex", 1), entries: entries(3) }]));
   withScrollHeights(() => {
