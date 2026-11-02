@@ -316,7 +316,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     expect(input.value).toBe("");
     const row = input.closest<HTMLDivElement>(".yui-input-row")!;
     const sub = row.querySelector<HTMLElement>(".yui-input-row__sub")!;
-    expect(sub.textContent).toContain("기본값");
+    expect(sub.textContent).toBe("저장된 키가 없어요. 서버에 키가 필요 없으면 비워 두세요");
     // The field communicates default-in-use via copy, not by surfacing a secret.
     expect(input.placeholder).not.toContain("sk-");
 
