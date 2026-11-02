@@ -571,7 +571,7 @@ const ja: Record<string, string> = {
 
   // chat API key
   "chatkey.label": "チャット API キー",
-  "chatkey.sub_default": "キーは保存されていません。サーバーにキーが不要なら空欄のままにしてください",
+  "chatkey.sub_default": "キーは保存されていません。不要なら空欄のままにしてください",
   "chatkey.sub_override": "この端末に保存済み。空欄にすると元のキーに戻ります",
   "chatkey.show": "キーを表示",
   "chatkey.hide": "キーを隠す",

@@ -568,7 +568,7 @@ const ko: Record<string, string> = {
 
   // chat API key
   "chatkey.label": "채팅 API 키",
-  "chatkey.sub_default": "저장된 키가 없어요. 서버에 키가 필요 없으면 비워 두세요",
+  "chatkey.sub_default": "저장된 키가 없어요. 필요 없으면 비워 두세요",
   "chatkey.sub_override": "이 기기에 저장됨. 비우면 원래 키로 돌아가요",
   "chatkey.show": "키 보기",
   "chatkey.hide": "키 숨기기",
