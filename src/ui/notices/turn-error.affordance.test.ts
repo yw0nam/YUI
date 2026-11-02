@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * not_configured affordance, end to end: the inline input error carries a button that opens the
- * settings window on the Connection page (real surfaces, the opener stubbed).
+ * settings window on the First conversation page (real surfaces, the opener stubbed).
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,7 +10,7 @@ import { createSurfaces } from "../surfaces/surfaces";
 import { noTool } from "../surfaces/test-helpers";
 import { turnErrorFixAction, turnErrorMessage } from "./turn-error";
 
-describe("not_configured → open the Connection page", () => {
+describe("not_configured → open the First conversation page", () => {
   let mount: HTMLElement;
 
   beforeEach(() => {
@@ -24,7 +24,7 @@ describe("not_configured → open the Connection page", () => {
     setLocale("en");
   });
 
-  it("the inline error's fix button opens the settings window on the Connection page", () => {
+  it("the inline error's fix button opens the settings window on the First conversation page", () => {
     const surfaces = createSurfaces({ tool: noTool, mount });
     const openSettings = vi.fn();
 
@@ -40,7 +40,7 @@ describe("not_configured → open the Connection page", () => {
 
     button.click();
 
-    expect(openSettings).toHaveBeenCalledExactlyOnceWith("conn");
+    expect(openSettings).toHaveBeenCalledExactlyOnceWith("first");
 
     surfaces.dispose();
   });

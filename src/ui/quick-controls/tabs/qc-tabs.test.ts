@@ -120,6 +120,10 @@ describe("createQuickControls — tab rail", () => {
     expect(qc.el.querySelector("#yui-tab-first")).toBeNull();
     expect(qc.el.querySelector("#yui-panel-first")).toBeNull();
 
+    // A not_configured fix asks for the page; the panel stays where it was.
+    qc.open({ tab: "first" });
+    expect(qc.selectedTab()).toBe("persona");
+
     qc.dispose();
   });
 

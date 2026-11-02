@@ -51,8 +51,29 @@ describe("turnErrorMessage", () => {
       setLocale(locale);
       const message = turnErrorMessage("not_configured");
       expect(message).toBeTruthy();
-      expect(message).not.toContain(t("tabs.conn"));
+      expect(message).not.toContain(t("hint.setup_action"));
     }
+  });
+
+  it.each([
+    [
+      "en",
+      "Not connected yet",
+      "The connection stopped responding",
+      "Not connected yet. Open settings to connect",
+    ],
+    ["ko", "아직 연결 안 됨", "연결 응답 없음", "아직 연결 안 됨. 설정을 열어 연결하기"],
+    [
+      "ja",
+      "まだ接続していません",
+      "接続が応答しなくなりました",
+      "まだ接続していません。設定を開いて接続する",
+    ],
+  ] as const)("says it in plain words in %s", (locale, notConfigured, stall, voiceFix) => {
+    setLocale(locale);
+    expect(turnErrorMessage("not_configured")).toBe(notConfigured);
+    expect(turnErrorMessage("network_stall")).toBe(stall);
+    expect(t("voice.error.not_configured_fix")).toBe(voiceFix);
   });
 
   it("follows the active locale (ko)", () => {
@@ -131,21 +152,14 @@ describe("turnErrorFixAction", () => {
   beforeEach(() => setLocale("en"));
   afterEach(() => setLocale("en"));
 
-  it("gives not_configured a labeled action that opens the Connection tab", () => {
+  it("gives not_configured the setup action, opening the first conversation page", () => {
     const openSettings = vi.fn();
 
     const action = turnErrorFixAction("not_configured", openSettings);
 
-    expect(action?.label).toBe(t("input.error_open_connection"));
+    expect(action?.label).toBe("Connect");
     action?.onClick();
-    expect(openSettings).toHaveBeenCalledWith("conn");
-  });
-
-  it("names the Connection tab on the label, in every locale", () => {
-    for (const locale of ["en", "ko", "ja"] as const) {
-      setLocale(locale);
-      expect(turnErrorFixAction("not_configured", () => {})?.label).toContain(t("tabs.conn"));
-    }
+    expect(openSettings).toHaveBeenCalledWith("first");
   });
 
   it("offers nothing when the host has no settings opener", () => {
