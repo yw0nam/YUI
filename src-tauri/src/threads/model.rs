@@ -96,6 +96,8 @@ pub struct Thread {
     pub updated_at: u64,
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub answered_ask_ids: BTreeSet<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seen_ask_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]

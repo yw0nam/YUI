@@ -39,6 +39,7 @@
     "allow-set-frame-logical",
     "allow-threads-snapshot",
     "allow-thread-answer",
+    "allow-thread-seen",
     "allow-window-dock-attach",
     "allow-window-dock-detach",
     "allow-terminal-snapshot",

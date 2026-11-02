@@ -30,6 +30,7 @@ pub fn handler() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         crate::agent_ingress::avatar_rpc::avatar_rpc_response,
         crate::threads::commands::threads_snapshot,
         crate::threads::commands::thread_answer,
+        crate::threads::commands::thread_seen,
         crate::turn_log::append_turn_record,
         crate::window_frame::set_frame_logical,
         #[cfg(desktop)]

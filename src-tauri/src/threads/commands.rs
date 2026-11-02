@@ -31,3 +31,12 @@ pub fn thread_answer(
         )
         .map_err(str::to_owned)
 }
+
+#[tauri::command]
+pub fn thread_seen(
+    store: State<'_, Arc<ThreadStore>>,
+    id: String,
+    ask_id: String,
+) -> Result<(), String> {
+    store.seen(&id, &ask_id).map_err(str::to_owned)
+}

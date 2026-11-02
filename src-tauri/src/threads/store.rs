@@ -51,6 +51,10 @@ impl State {
                 >= now.saturating_sub(crate::log_rotation::RETENTION.whole_milliseconds() as u64)
         });
         self.pending.retain(|(id, _)| self.threads.contains_key(id));
+        self.record(id)
+    }
+
+    fn record(&mut self, id: &str) -> ThreadsSnapshot {
         self.revision += 1;
         let thread = &self.threads[id];
         if let Err(error) = (self.disk)(thread) {
@@ -102,6 +106,7 @@ impl ThreadStore {
                 created_at: now,
                 updated_at: now,
                 answered_ask_ids: Default::default(),
+                seen_ask_id: None,
             });
             thread.source = body.source;
             thread.title = body.title;
@@ -195,6 +200,24 @@ impl ThreadStore {
             state.changed(id, now)
         };
         self.changed.notify_all();
+        (self.emit)(&snapshot);
+        Ok(())
+    }
+
+    pub fn seen(&self, id: &str, ask_id: &str) -> Result<(), &'static str> {
+        let snapshot = {
+            let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+            let thread = state.threads.get_mut(id).ok_or("unknown thread")?;
+            let ask = thread.ask.as_ref().ok_or("ask is not open")?;
+            if ask.ask_id != ask_id {
+                return Err("ask_id does not match open ask");
+            }
+            if thread.seen_ask_id.as_deref() == Some(ask_id) {
+                return Ok(());
+            }
+            thread.seen_ask_id = Some(ask_id.into());
+            state.record(id)
+        };
         (self.emit)(&snapshot);
         Ok(())
     }
