@@ -86,7 +86,7 @@ export function createThreadsChip({
     const arrived = before !== null && keys[kind].some((key) => !before.has(key));
     waitingIds = new Set([...keys.thread, ...keys.request]);
     render();
-    if (arrived) nod();
+    if (arrived && !el.hidden) nod();
   }
 
   const fold = holdToFold(el, collapsed);
