@@ -31,8 +31,12 @@ import { wirePlayback } from "./push/playback";
 import { wirePushTransport, wireStopButton } from "./push/wire-push";
 import { wireVocabulary } from "./vocabulary/wire-vocabulary";
 import { createUnifiedVoice } from "./voice/unified-voice";
-import { type VoiceHost, type VoicePersistence, wireTurnVoice } from "./voice/wire-voice";
-import type { VoicePipeline } from "./voice/wire-voice-pipeline";
+import {
+  type TurnVoice,
+  type VoiceHost,
+  type VoicePersistence,
+  wireTurnVoice,
+} from "./voice/wire-voice";
 import { wireDispatcher } from "./wire-dispatcher";
 
 const log = createLogger("bootstrap");
@@ -76,7 +80,7 @@ export interface TurnCorePhase1 {
 }
 
 export interface TurnCore {
-  voice: VoicePipeline;
+  voice: TurnVoice;
   dispatcher: Dispatcher;
   guardrails: Guardrails;
   pacer: ProactivePacer;
