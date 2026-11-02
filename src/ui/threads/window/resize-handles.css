@@ -81,7 +81,7 @@
   padding: 4px 12px;
   border: 1px solid var(--yui-edge);
   border-radius: var(--yui-radius-pill);
-  background: var(--yui-panel-bg);
+  background: var(--yui-threads-head);
   color: var(--yui-text-mute);
   font-size: var(--yui-fs-sub);
   font-variant-numeric: tabular-nums;

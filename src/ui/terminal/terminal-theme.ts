@@ -30,16 +30,16 @@ const ANSI_SLOTS = [
 const ansiToken = (slot: string): string =>
   `--yui-ansi-${slot.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`;
 
-/** Panel ground, Text ink, and each ANSI slot from its theme token. */
+/** Threads base ground, Text ink, and each ANSI slot from its theme token. */
 export function terminalTheme(root: HTMLElement = document.documentElement): ITheme {
   const style = getComputedStyle(root);
   const token = (name: string): string | undefined =>
     style.getPropertyValue(name).trim() || undefined;
   return {
-    background: token("--yui-panel-bg"),
+    background: token("--yui-threads-base"),
     foreground: token("--yui-text"),
     cursor: token("--yui-text-dim"),
-    cursorAccent: token("--yui-panel-bg"),
+    cursorAccent: token("--yui-threads-base"),
     ...Object.fromEntries(ANSI_SLOTS.map((slot) => [slot, token(ansiToken(slot))])),
   };
 }

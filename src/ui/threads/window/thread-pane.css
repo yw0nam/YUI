@@ -79,7 +79,6 @@
 
 .yui-threads-entry {
   min-width: 0;
-  max-width: 72ch;
 }
 
 .yui-threads-entry__head {
@@ -133,7 +132,7 @@
   padding: 12px 16px;
   overflow-x: auto;
   border-radius: var(--yui-radius-control);
-  background: var(--yui-panel-bg);
+  background: var(--yui-threads-head);
   line-height: 1.6;
   white-space: pre;
 }

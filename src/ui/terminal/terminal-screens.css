@@ -6,7 +6,7 @@
   display: grid;
   min-height: 0;
   padding: 12px 28px 16px;
-  background: var(--yui-panel-bg);
+  background: var(--yui-threads-base);
 }
 
 .yui-terminal-screen {

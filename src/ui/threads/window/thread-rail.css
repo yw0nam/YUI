@@ -7,7 +7,7 @@
   min-width: 0;
   min-height: 0;
   overflow: clip;
-  background: var(--yui-panel-bg);
+  background: var(--yui-threads-side);
 }
 
 .yui-threads-rail__top {
