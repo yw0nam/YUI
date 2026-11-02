@@ -149,13 +149,14 @@ export function createEndpointsSection(deps: EndpointsSectionDeps): EndpointsSec
     if (key === "chat_base_url") onChatCommit?.();
   }
 
-  // ── Advanced section: chat provider preset dropdown (chat_base_url autofill) ──
+  // ── Advanced section: chat provider preset dropdown (chat_base_url / chat_model autofill) ──
   // Custom autofills nothing — it is the state the dropdown lands in when the URL matches no preset.
   function handleChatPresetChange(): void {
     if (!chatPresetEl) return;
     const preset = CHAT_PROVIDER_PRESETS.find((p) => p.id === chatPresetEl.value);
     if (!preset) return;
     if (preset.url !== undefined) commitEndpointField("chat_base_url", preset.url);
+    if (preset.model !== undefined) commitEndpointField("chat_model", preset.model);
     if (preset.chatApi !== undefined) {
       endpointsSettings.set({ chat_api: preset.chatApi });
       onChatCommit?.();

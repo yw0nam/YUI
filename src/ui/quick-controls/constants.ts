@@ -199,14 +199,17 @@ export const HERMES_AGENT = {
 export const CARD_GUIDE_URL = "https://yw0nam.github.io/YUI/guide/cards";
 
 // Chat provider presets (Connection tab, chat section) — selecting one autofills chat_base_url with the
-// provider's OpenAI-compatible path, the chat protocol, or both. Brand names are display-as-is,
-// never localized. "custom" is the no-autofill entry the dropdown falls back to when nothing matches.
+// provider's OpenAI-compatible path, the chat_model, the chat protocol, or a combination. Brand names
+// are display-as-is, never localized. "custom" is the no-autofill entry the dropdown falls back to when
+// nothing matches.
 export const CHAT_PRESET_CUSTOM = "custom";
 interface ChatProviderPreset {
   id: string;
   name: string;
   /** Autofilled chat_base_url. Absent where the address is the user's own deployment. */
   url?: string;
+  /** Autofilled chat_model. Absent where the user picks the model. */
+  model?: string;
   /** Protocol the provider speaks. Absent where the provider speaks the current one. */
   chatApi?: ChatApi;
 }
@@ -215,6 +218,12 @@ export const CHAT_PROVIDER_PRESETS: readonly ChatProviderPreset[] = [
   { id: "ollama", name: "Ollama", url: "http://localhost:11434/v1" },
   { id: "lmstudio", name: "LM Studio", url: "http://localhost:1234/v1" },
   { id: "groq", name: "Groq", url: "https://api.groq.com/openai/v1" },
+  {
+    id: "gemini",
+    name: "Google Gemini",
+    url: "https://generativelanguage.googleapis.com/v1beta/openai",
+    model: "models/gemini-3.5-flash-lite",
+  },
   { id: "hermes", name: HERMES_AGENT.name, chatApi: "push" },
 ];
 
