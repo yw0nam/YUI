@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_CARD } from "../../config/validators/persona/types";
 import type { UtteranceIdentity } from "../../contract";
 import { createChatHistoryStore } from "../../io/chat/conversation/chat-history-store";
@@ -7,9 +7,12 @@ import type { TtsPipelineOptions } from "../../io/voice/tts/tts-pipeline";
 import { wireFirstConversation } from "./wire-first-conversation";
 import { wireGreeting } from "./wire-greeting";
 
-const SUMMONED = ["speak:Hi.", "input", "hint:hint.first_run"];
+const OPENED = ["speak:Hi.", "input"];
+const HINT = "hint:hint.first_run";
+// "Hi." types out in 120 ms, then stays up for 2500 ms.
+const READABLE_MS = 2620;
 
-function setup(over: { seen?: boolean; endsInsideSpeak?: boolean } = {}) {
+function setup(over: { seen?: boolean; endsInsideSpeak?: boolean; busy?: boolean } = {}) {
   const calls: string[] = [];
   const signals = new Set<() => void>();
   const ends = new Set<(identity: UtteranceIdentity) => void>();
@@ -70,6 +73,8 @@ function setup(over: { seen?: boolean; endsInsideSpeak?: boolean } = {}) {
       return () => ends.delete(cb);
     },
     greetLocal: greeting.greetLocal,
+    transcript,
+    isBusy: () => over.busy ?? false,
     surfaces: {
       summonInput: () => calls.push("input"),
       beginSpeech: vi.fn(),
@@ -100,14 +105,27 @@ function setup(over: { seen?: boolean; endsInsideSpeak?: boolean } = {}) {
 }
 
 describe("wireFirstConversation", () => {
-  it("greets once on the signal, and opens the input and the hint when the greeting ends", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("greets once on the signal, opens the input when the greeting ends, and shows the hint once it was readable", () => {
     const s = setup();
 
     s.connect();
     expect(s.calls).toEqual(["speak:Hi."]);
 
     s.finishPlayback();
-    expect(s.calls).toEqual(SUMMONED);
+    expect(s.calls).toEqual(OPENED);
+
+    vi.advanceTimersByTime(READABLE_MS - 1);
+    expect(s.calls).toEqual(OPENED);
+
+    vi.advanceTimersByTime(1);
+    expect(s.calls).toEqual([...OPENED, HINT]);
   });
 
   it("an interrupted greeting opens the input and the hint the same way", () => {
@@ -115,23 +133,40 @@ describe("wireFirstConversation", () => {
 
     s.connect();
     s.playback.interrupt();
+    expect(s.calls).toEqual(OPENED);
 
-    expect(s.calls).toEqual(SUMMONED);
+    vi.advanceTimersByTime(READABLE_MS);
+    expect(s.calls).toEqual([...OPENED, HINT]);
   });
 
-  it("a greeting that ends inside its speak call finishes once", () => {
+  it("with no audio to play, the greeting stays up until it was readable", () => {
     const s = setup({ endsInsideSpeak: true });
 
     s.connect();
+    expect(s.calls).toEqual(OPENED);
 
-    expect(s.calls).toEqual(SUMMONED);
+    vi.advanceTimersByTime(READABLE_MS - 1);
+    expect(s.calls).toEqual(OPENED);
+
+    vi.advanceTimersByTime(1);
+    expect(s.calls).toEqual([...OPENED, HINT]);
+  });
+
+  it("skips the hint while a turn is running", () => {
+    const s = setup({ busy: true });
+
+    s.connect();
+    s.finishPlayback();
+    vi.advanceTimersByTime(READABLE_MS);
+
+    expect(s.calls).toEqual(OPENED);
   });
 
   it("ignores an utterance that is not the greeting", () => {
     const s = setup();
 
     s.connect();
-    for (const cb of [...s.ends]) cb({ turn_id: "7", event_name: "user.text_submitted" });
+    for (const cb of [...s.ends]) cb({ turn_id: "greeting:9", event_name: "user.text_submitted" });
 
     expect(s.calls).toEqual(["speak:Hi."]);
   });
@@ -142,7 +177,7 @@ describe("wireFirstConversation", () => {
 
     s.connect();
 
-    expect(s.calls).toEqual(["input", "hint:hint.first_run"]);
+    expect(s.calls).toEqual(["input", HINT]);
     expect(s.ends.size).toBe(0);
   });
 
@@ -151,8 +186,20 @@ describe("wireFirstConversation", () => {
 
     s.connect();
     s.finishPlayback();
+    vi.advanceTimersByTime(READABLE_MS);
 
-    expect(s.calls).toEqual(["speak:Hi.", "input"]);
+    expect(s.calls).toEqual(OPENED);
+  });
+
+  it("dispose drops a hint still waiting", () => {
+    const s = setup();
+
+    s.connect();
+    s.finishPlayback();
+    s.wired.dispose();
+    vi.advanceTimersByTime(READABLE_MS);
+
+    expect(s.calls).toEqual(OPENED);
   });
 
   it("dispose leaves no subscription, mid-greeting included", () => {
