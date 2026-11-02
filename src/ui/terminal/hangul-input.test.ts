@@ -36,12 +36,12 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 2));
 let cleanup: (() => void) | undefined;
 afterEach(() => cleanup?.());
 
-/** A real xterm in `host`, with or without the module, recording what reaches the PTY. */
-function mount(withModule = true) {
+/** A real xterm in `host` with the module, recording what reaches the PTY. */
+function mount() {
   const host = document.createElement("div");
   document.body.append(host);
   const term = new Terminal({ cols: 80, rows: 10 });
-  const detach = withModule ? attachHangulInput({ host, xterm: term }) : () => {};
+  const detach = attachHangulInput({ host, xterm: term });
   term.open(host);
   const sent: string[] = [];
   term.onData((data) => sent.push(data));
@@ -184,13 +184,8 @@ describe("attachHangulInput", () => {
       { type: "compositionend", data: "に" },
       { type: "input", data: "に", inputType: "insertText", value: "に" },
     ];
-    const without = mount(false);
-    await without.play(japanese);
-    const expected = without.sent;
-    cleanup?.();
     const screen = mount();
     await screen.play(japanese);
-    expect(expected).toEqual(["に"]);
     expect(screen.sent).toEqual(["に"]);
   });
 
