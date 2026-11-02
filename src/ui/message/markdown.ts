@@ -1,5 +1,5 @@
 /**
- * Markdown renderer for the speech bubble — marked → DOMPurify → <span>.
+ * Markdown renderer for the speech bubble and the Threads window's entries — marked → DOMPurify → <span>.
  *
  * The bubble re-renders the FULL accumulated text on each streaming delta, so
  * marked is used in synchronous mode and tolerates incomplete markdown

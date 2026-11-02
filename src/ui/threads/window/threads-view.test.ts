@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 /**
  * threads-view.test.ts — the Threads window's view over a stream of snapshots: sends, errors,
- * selection, filters, the time tick, the rail, and the layouts the panel's width picks.
+ * selection, filters, the time tick, the rail, the Markdown of an entry, and the layouts the panel's width picks.
  */
 
+import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { Thread, ThreadsSnapshot } from "../../../contract";
 import { setLocale } from "../../i18n";
@@ -160,6 +161,105 @@ it("sends once while a send is in flight, even when a snapshot rebuilds the pane
 
   expect(onAnswer).toHaveBeenCalledTimes(1);
   expect(send().disabled).toBe(true);
+});
+
+const entryText = (text: string): HTMLElement => {
+  const { view, $ } = build();
+  view.update(
+    snapshot(1, [{ ...thread("t1", "codex", 1), entries: [{ role: "agent", text, at: 1 }] }]),
+  );
+  return $(".yui-threads-entry__text");
+};
+
+it("renders an entry's Markdown as a table, a list, a link and an image", () => {
+  const el = entryText(
+    "| a | b |\n|---|---|\n| 1 | 2 |\n\n- one\n- two\n\n[docs](https://example.com/d)\n\n![shot](https://example.com/s.png)",
+  );
+
+  expect(el.querySelectorAll("table th, table td")).toHaveLength(4);
+  expect(el.querySelectorAll("ul > li")).toHaveLength(2);
+  expect(el.querySelector("a")?.getAttribute("target")).toBe("_blank");
+  expect(el.querySelector("img")?.getAttribute("src")).toBe("https://example.com/s.png");
+});
+
+it("keeps an entry's own line breaks inside its paragraph", () => {
+  const el = entryText("Changed files:\nsrc/a.ts\nsrc/b.ts");
+
+  expect(el.querySelector("p")?.textContent).toBe("Changed files:\nsrc/a.ts\nsrc/b.ts");
+  expect(readFileSync("src/ui/threads/window/thread-pane.css", "utf8")).toMatch(
+    /\.yui-threads-entry__text :is\(p, li\) \{[^}]*white-space:\s*pre-wrap/,
+  );
+});
+
+it("leaves no formatting whitespace between the blocks of a list or table, and keeps a tight item's newline", () => {
+  const el = entryText(
+    "- a\n\n- b\n\n  - n1\n  - n2\n\n  | h |\n  |---|\n  | 1 |\n\n- first\n  second",
+  );
+
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  const blanks: string[] = [];
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const parent = n.parentElement!.tagName.toLowerCase();
+    if (
+      !n.textContent!.trim() &&
+      ["ul", "ol", "li", "table", "thead", "tbody", "tr"].includes(parent)
+    ) {
+      blanks.push(parent);
+    }
+  }
+
+  expect(blanks).toEqual([]);
+  expect(el.lastElementChild?.lastElementChild?.textContent).toBe("first\nsecond");
+});
+
+it("keeps only the https images", () => {
+  const el = entryText(
+    "![a](http://asset.localhost/x) ![b](/x) ![c](http://example.com/x.png) ![d](https://example.com/ok.png)",
+  );
+
+  expect([...el.querySelectorAll("img")].map((img) => img.getAttribute("src"))).toEqual([
+    "https://example.com/ok.png",
+  ]);
+});
+
+it.each([
+  ["an img srcset", '<img src="https://ok.test/a.png" srcset="http://evil.test/p 2x">', "[srcset]"],
+  [
+    "a picture source",
+    '<picture><source srcset="http://evil.test/p"><img src="https://ok.test/a.png"></picture>',
+    "picture, source",
+  ],
+  ["a video", '<video poster="http://evil.test/p" src="http://evil.test/v"></video>', "video"],
+  ["a video source", '<video><source src="http://evil.test/v"></video>', "video, source"],
+  ["an audio", '<audio src="http://evil.test/a" autoplay></audio>', "audio"],
+  ["an svg image href", '<svg><image href="http://evil.test/p"/></svg>', "svg, image"],
+  ["an svg image xlink", '<svg><image xlink:href="http://evil.test/p"/></svg>', "svg, image"],
+  [
+    "a style background",
+    '<p style="background:url(http://evil.test/p);position:fixed">x</p>',
+    "[style]",
+  ],
+  [
+    "a td background",
+    '<table><tr><td background="http://evil.test/p">x</td></tr></table>',
+    "[background]",
+  ],
+  ["an input image", '<input type="image" src="http://evil.test/p">', "input"],
+  ["a form", '<form action="http://evil.test/p"><button>go</button></form>', "form, button"],
+])("drops %s from an entry", (_name, html, gone) => {
+  const el = entryText(html);
+
+  expect(el.querySelector(gone)).toBeNull();
+  expect(el.innerHTML).not.toContain("evil.test");
+});
+
+it("keeps a task list's checkboxes disabled", () => {
+  const el = entryText("- [x] done\n- [ ] todo");
+
+  expect([...el.querySelectorAll("input")].map((i) => [i.type, i.disabled, i.checked])).toEqual([
+    ["checkbox", true, true],
+    ["checkbox", true, false],
+  ]);
 });
 
 it("shows a failed send's error and keeps its draft", async () => {

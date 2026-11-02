@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "threads",
-  "description": "Threads window — a frameless window that opens beside the main character; places, drags and resizes itself, shows, focuses and hides itself, and follows the stored theme",
+  "description": "Threads window — a frameless window that opens beside the main character; places, drags and resizes itself, shows, focuses and hides itself, follows the stored theme, and opens entry links in the default browser",
   "windows": [
     "threads"
   ],
@@ -13,6 +13,15 @@
     "core:window:allow-set-position",
     "core:window:allow-set-focus",
     "core:window:allow-set-theme",
-    "log:default"
+    "log:default",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        { "url": "http://*" },
+        { "url": "https://*" },
+        { "url": "mailto:*" },
+        { "url": "tel:*" }
+      ]
+    }
   ]
 }

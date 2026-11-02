@@ -10,8 +10,8 @@ import { getLocale, t } from "../../i18n";
 import { threadSource } from "../thread-source";
 import { type AnswerArea, createAnswerArea } from "./answer-area";
 import { type Draft, draftKey, pruneDrafts } from "./drafts";
+import { entryMarkdown } from "./entry-markdown";
 import { timeEl } from "./relative-time";
-import { richText } from "./rich-text";
 import { sourceLine, stateWord } from "./thread-meta";
 
 function speaker(entry: ThreadEntry, source: string): string {
@@ -28,7 +28,7 @@ function entryEl(entry: ThreadEntry, source: string, now: number): HTMLElement {
   head.append(speaker(entry, source), timeEl(entry.at, now));
   const text = document.createElement("div");
   text.className = "yui-threads-entry__text";
-  text.append(richText(entry.text));
+  text.append(...entryMarkdown(entry.text));
   el.append(head, text);
   return el;
 }
