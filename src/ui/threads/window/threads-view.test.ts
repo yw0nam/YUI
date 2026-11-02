@@ -4,6 +4,7 @@
  * selection, filters, the time tick, the rail, the Markdown of an entry, and the layouts the panel's width picks.
  */
 
+import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { Thread, ThreadsSnapshot } from "../../../contract";
 import { setLocale } from "../../i18n";
@@ -179,6 +180,15 @@ it("renders an entry's Markdown as a table, a list, a link and an image", () => 
   expect(el.querySelectorAll("ul > li")).toHaveLength(2);
   expect(el.querySelector("a")?.getAttribute("target")).toBe("_blank");
   expect(el.querySelector("img")?.getAttribute("src")).toBe("https://example.com/s.png");
+});
+
+it("keeps an entry's own line breaks inside its paragraph", () => {
+  const el = entryText("Changed files:\nsrc/a.ts\nsrc/b.ts");
+
+  expect(el.querySelector("p")?.textContent).toBe("Changed files:\nsrc/a.ts\nsrc/b.ts");
+  expect(readFileSync("src/ui/threads/window/thread-pane.css", "utf8")).toMatch(
+    /\.yui-threads-entry__text :is\(p, li\) \{[^}]*white-space:\s*pre-wrap/,
+  );
 });
 
 it("strips scripts and javascript: links, and keeps only the https images", () => {
