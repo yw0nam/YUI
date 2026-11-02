@@ -477,29 +477,33 @@ it("opens on the asked tab without the grow when the open has no origin", async 
   delete (HTMLElement.prototype as Partial<HTMLElement>).animate;
 });
 
-const entries = (n: number): Thread["entries"] =>
-  Array.from({ length: n }, (_, i) => ({ role: "agent", text: `entry ${i}`, at: i + 1 }));
-
-/** Lays out scrollHeight as 100px per entry inside `run`, since jsdom has no layout. */
-function withScrollHeights(run: () => void): void {
-  const original = Object.getOwnPropertyDescriptor(Element.prototype, "scrollHeight")!;
-  Object.defineProperty(Element.prototype, "scrollHeight", {
-    get(this: HTMLElement) {
-      return 100 * this.querySelectorAll(".yui-threads-entry").length;
-    },
-    configurable: true,
+const entries = (n: number, from = 1): Thread["entries"] =>
+  Array.from({ length: n }, (_, i) => {
+    const at = from + i;
+    return { role: "agent", text: `entry ${at}`, at };
   });
+
+/** Lays out entries and their wrapper inside `run`, since jsdom has no layout. */
+function withEntryHeights(run: () => void): void {
+  const original = Element.prototype.getBoundingClientRect;
+  Element.prototype.getBoundingClientRect = function (this: Element): DOMRect {
+    if (this.classList.contains("yui-threads-entry"))
+      return { bottom: 100 * ([...this.parentElement!.children].indexOf(this) + 1) } as DOMRect;
+    if (this.classList.contains("yui-threads-pane__entries"))
+      return { bottom: 100 * this.childElementCount } as DOMRect;
+    return original.call(this);
+  };
   try {
     run();
   } finally {
-    Object.defineProperty(Element.prototype, "scrollHeight", original);
+    Element.prototype.getBoundingClientRect = original;
   }
 }
 
 it("holds the pane's redraw while the Terminal tab shows, and keeps the reader on return", () => {
   const { view, $, tab } = build();
   view.update(snapshot(1, [{ ...thread("t1", "codex", 1), entries: entries(3) }]));
-  withScrollHeights(() => {
+  withEntryHeights(() => {
     $(".yui-threads-pane__transcript").scrollTop = -50;
     tab("terminal").click();
     view.update(snapshot(2, [{ ...thread("t1", "codex", 2), entries: entries(4) }]));
@@ -515,7 +519,7 @@ it("holds the pane's redraw while the Terminal tab shows, and keeps the reader o
 it("keeps a reader above the newest entry in place, and a reader at the newest entry there", () => {
   const { view, $ } = build();
   view.update(snapshot(1, [{ ...thread("t1", "codex", 1), entries: entries(3) }]));
-  withScrollHeights(() => {
+  withEntryHeights(() => {
     $(".yui-threads-pane__transcript").scrollTop = -50;
     view.update(snapshot(2, [{ ...thread("t1", "codex", 2), entries: entries(4) }]));
     expect($(".yui-threads-pane__transcript").scrollTop).toBe(-150);
@@ -523,6 +527,11 @@ it("keeps a reader above the newest entry in place, and a reader at the newest e
     $(".yui-threads-pane__transcript").scrollTop = 0;
     view.update(snapshot(3, [{ ...thread("t1", "codex", 3), entries: entries(5) }]));
     expect($(".yui-threads-pane__transcript").scrollTop).toBe(0);
+
+    view.update(snapshot(4, [{ ...thread("t1", "codex", 4), entries: entries(4, 1) }]));
+    $(".yui-threads-pane__transcript").scrollTop = -50;
+    view.update(snapshot(5, [{ ...thread("t1", "codex", 5), entries: entries(4, 2) }]));
+    expect($(".yui-threads-pane__transcript").scrollTop).toBe(-150);
   });
 });
 
