@@ -636,7 +636,7 @@ YUI/
         window/thread-pane.ts        # The thread pane: head, scrolling transcript, the answer area, and each ask's draft, send error and in-flight send
         window/answer-area.ts        # The answer area: numbered choices, the growing field, and the send button
         window/drafts.ts             # Unsent Answers per ask, pruned by each snapshot
-        window/rich-text.ts          # Producer text as text nodes, code spans and fenced code
+        window/entry-markdown.ts     # An entry's text as sanitised Markdown nodes, only https images kept
         window/grow.ts               # The grow out of the chip and the shrink back
         window/resize-handles.ts     # The panel's edge and corner hit areas, reporting a drag in screen px, and the size readout
         window/threads-layout.ts     # The layout the panel's width picks, the collapsed list, the medium overlay and the narrow screen

@@ -100,7 +100,6 @@
 .yui-threads-entry__text {
   font-size: var(--yui-fs-speech);
   line-height: 1.8;
-  white-space: pre-wrap;
   overflow-wrap: break-word;
 }
 
@@ -128,19 +127,166 @@
 }
 
 .yui-threads-entry__text pre {
-  margin: 12px 0 0;
+  margin: 0.2em 0 1em;
   padding: 12px 16px;
   overflow-x: auto;
+  border: 1px solid var(--yui-edge);
   border-radius: var(--yui-radius-control);
   background: var(--yui-threads-head);
   line-height: 1.6;
   white-space: pre;
+  scrollbar-color: var(--yui-edge-strong) transparent;
 }
 
 .yui-threads-entry__text pre code {
   padding: 0;
   background: none;
   font-size: var(--yui-fs-body);
+}
+
+.yui-threads-entry__text > :first-child {
+  margin-top: 0;
+}
+
+.yui-threads-entry__text > :last-child {
+  margin-bottom: 0;
+}
+
+.yui-threads-entry__text p {
+  margin: 0 0 0.85em;
+}
+
+.yui-threads-entry__text h1,
+.yui-threads-entry__text h2,
+.yui-threads-entry__text h3,
+.yui-threads-entry__text h4 {
+  margin: 1.4em 0 0.45em;
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+.yui-threads-entry__text h1 {
+  font-size: 1.25em;
+}
+
+.yui-threads-entry__text h2 {
+  font-size: 1.15em;
+}
+
+.yui-threads-entry__text h3 {
+  font-size: 1.05em;
+}
+
+.yui-threads-entry__text h4 {
+  font-size: 1em;
+  color: var(--yui-text-dim);
+}
+
+.yui-threads-entry__text ul,
+.yui-threads-entry__text ol {
+  margin: 0 0 0.85em;
+  padding-left: 1.4em;
+}
+
+.yui-threads-entry__text li {
+  margin: 0.2em 0;
+}
+
+.yui-threads-entry__text li::marker {
+  color: var(--yui-text-dim);
+}
+
+.yui-threads-entry__text strong {
+  font-weight: 600;
+}
+
+.yui-threads-entry__text a {
+  border-radius: 3px;
+  color: var(--yui-text);
+  text-decoration: underline;
+  text-decoration-color: var(--yui-accent-soft);
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.18em;
+  transition:
+    color var(--yui-dur-fast) var(--yui-ease),
+    text-decoration-color var(--yui-dur-fast) var(--yui-ease);
+}
+
+.yui-threads-entry__text a:hover,
+.yui-threads-entry__text a:focus-visible {
+  color: var(--yui-accent-ink);
+  text-decoration-color: var(--yui-accent);
+}
+
+.yui-threads-entry__text blockquote {
+  margin: 0 0 0.85em;
+  padding: 0.1em 0 0.1em 1em;
+  border-left: 2px solid var(--yui-edge-strong);
+  color: var(--yui-text-dim);
+}
+
+.yui-threads-entry__text blockquote p {
+  margin: 0;
+}
+
+.yui-threads-entry__text hr {
+  margin: 1.2em 0;
+  border: 0;
+  border-top: 1px solid var(--yui-edge);
+}
+
+/* A table takes its content's width up to the entry's, then scrolls inside it. */
+.yui-threads-entry__text table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  margin: 0.2em 0 1em;
+  overflow-x: auto;
+  border: 1px solid var(--yui-edge-strong);
+  border-radius: var(--yui-radius-control);
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--yui-fs-body);
+  line-height: 1.55;
+  font-variant-numeric: tabular-nums;
+  scrollbar-color: var(--yui-edge-strong) transparent;
+}
+
+.yui-threads-entry__text th,
+.yui-threads-entry__text td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--yui-edge);
+  text-align: left;
+  vertical-align: top;
+}
+
+.yui-threads-entry__text th + th,
+.yui-threads-entry__text td + td {
+  border-left: 1px solid var(--yui-edge);
+}
+
+.yui-threads-entry__text thead th {
+  background: var(--yui-threads-head);
+  color: var(--yui-text-dim);
+  font-weight: 600;
+}
+
+.yui-threads-entry__text tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.yui-threads-entry__text td code {
+  white-space: nowrap;
+}
+
+.yui-threads-entry__text img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  max-height: 360px;
+  margin: 0.2em 0 1em;
+  border: 1px solid var(--yui-edge);
+  border-radius: var(--yui-radius-img);
 }
 
 @container pane (max-width: 559.98px) {
