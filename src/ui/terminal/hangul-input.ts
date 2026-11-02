@@ -10,6 +10,8 @@ import type { IDisposable, Terminal as Xterm } from "@xterm/xterm";
 const HANGUL = /^[ᄀ-ᇿ㄰-㆏가-힣]+$/;
 /** The keyCode WebKit gives a key the IME takes. */
 const IME_KEY = 229;
+/** Keys that only modify the next one, which may still edit the held syllable. */
+const MODIFIERS = new Set(["Shift", "Control", "Alt", "Meta"]);
 
 /** Listens on `host`, an ancestor of xterm's textarea, so it runs before xterm; returns the detach. */
 export function attachHangulInput(deps: { host: HTMLElement; xterm: Xterm }): () => void {
@@ -71,7 +73,7 @@ export function attachHangulInput(deps: { host: HTMLElement; xterm: Xterm }): ()
   }
 
   function onKeyDown(event: KeyboardEvent): void {
-    if (event.keyCode !== IME_KEY) send();
+    if (event.keyCode !== IME_KEY && !MODIFIERS.has(event.key)) send();
   }
 
   host.addEventListener("input", onInput, true);
