@@ -22,6 +22,6 @@
   white-space: nowrap;
   font-family: var(--yui-font-mono);
   color: var(--yui-text);
-  background: var(--yui-panel-bg);
+  background: var(--yui-threads-base);
   text-decoration: underline var(--yui-text-dim);
 }
