@@ -62,6 +62,14 @@ function threadPane(
   return { head, transcript };
 }
 
+/** The height of the last `added` children of `entries`, with the gap above them. */
+function addedHeight(entries: Element, added: number): number {
+  const anchor = entries.children[entries.children.length - added - 1];
+  return anchor
+    ? entries.getBoundingClientRect().bottom - anchor.getBoundingClientRect().bottom
+    : 0;
+}
+
 export interface ThreadPane {
   /** Shows `thread`, or nothing. */
   show(thread: Thread | undefined): void;
@@ -103,6 +111,7 @@ export function createThreadPane(deps: {
   }
 
   function show(thread: Thread | undefined): void {
+    const drawn = current;
     current = thread;
     const key = thread?.ask ? draftKey(thread.id, thread.ask.ask_id) : "";
     const next = thread
@@ -116,9 +125,7 @@ export function createThreadPane(deps: {
       : null;
     if (next === shownKey) return;
     const sameThread = shownId === thread?.id;
-    const old = el.querySelector(".yui-threads-pane__transcript");
-    const scrollTop = old?.scrollTop ?? 0;
-    const scrollHeight = old?.scrollHeight ?? 0;
+    const scrollTop = el.querySelector(".yui-threads-pane__transcript")?.scrollTop ?? 0;
     const hadFieldFocus = document.activeElement?.tagName === "TEXTAREA";
     shownKey = next;
     shownId = thread?.id;
@@ -157,9 +164,12 @@ export function createThreadPane(deps: {
         })
       : null;
     el.replaceChildren(head, transcript, ...(area ? [area.el] : []));
-    // scrollTop counts down from 0 at the bottom, so 0 stays at the newest entry, and a reader above it keeps their entries when one is added.
-    if (sameThread && scrollTop)
-      transcript.scrollTop = scrollTop - (transcript.scrollHeight - scrollHeight);
+    // scrollTop counts down from 0 at the bottom, so 0 stays at the newest entry, and a reader above it moves up by what is added under them.
+    if (sameThread && scrollTop) {
+      const lastAt = drawn?.entries.at(-1)?.at ?? 0;
+      const added = thread.entries.filter((entry) => entry.at > lastAt).length;
+      transcript.scrollTop = scrollTop - addedHeight(transcript.firstElementChild!, added);
+    }
     if (hadFieldFocus) focusField();
   }
 
