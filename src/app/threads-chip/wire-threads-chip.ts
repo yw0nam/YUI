@@ -25,7 +25,7 @@ export function wireThreadsChip(deps: {
     collapsed: deps.collapsed,
     onOpen: (rect) => threadsWindow.open(rect, requestTab()),
   });
-  const offShown = threadsWindow.onShown(chip.setExpanded);
+  const offShown = threadsWindow.onShown(chip.setWindowOpen);
   // subscribe does not replay, so the chip draws the snapshot the client already holds;
   // a null snapshot seeds nothing, leaving the nod baseline to the first real one.
   const seeded = client.snapshot();

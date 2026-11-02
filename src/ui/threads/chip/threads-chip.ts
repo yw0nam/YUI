@@ -1,7 +1,7 @@
 /**
  * Threads chip — the pill in main's chip column that counts waiting Threads the user has not picked,
  * and access requests, and opens the Threads window. Pure renderer: the marks, label, and count come from the snapshots;
- * hidden while nothing waits and the window is closed; one nod when a Thread or a request starts
+ * hidden while nothing waits or the window is open; one nod when a Thread or a request starts
  * waiting; a held press folds it with the other chips.
  */
 
@@ -19,8 +19,8 @@ export interface ThreadsChip {
   update(threads: Thread[]): void;
   /** The terminal store's pending access requests, counted as waiting. */
   updateRequests(requests: AccessRequest[]): void;
-  /** Whether the window is open; the chip stays visible while it is. */
-  setExpanded(expanded: boolean): void;
+  /** Whether the window is open; the chip hides while it is. */
+  setWindowOpen(open: boolean): void;
   dispose(): void;
 }
 
@@ -38,7 +38,6 @@ export function createThreadsChip({
   el.type = "button";
   el.className = "yui-threadchip";
   el.hidden = true;
-  el.setAttribute("aria-expanded", "false");
   el.innerHTML = `
     <span class="yui-threadchip__marks" aria-hidden="true"></span>
     <span class="yui-threadchip__label"></span>
@@ -52,7 +51,7 @@ export function createThreadsChip({
   let waiting: Thread[] = [];
   const keys = { thread: [] as string[], request: [] as string[] };
   let waitingIds: Set<string> | null = null;
-  let expanded = false;
+  let windowOpen = false;
 
   function nod(): void {
     el.classList.remove("is-nod");
@@ -77,7 +76,7 @@ export function createThreadsChip({
     labelEl.textContent = t("threads.chip_label");
     countEl.textContent = String(n);
     el.setAttribute("aria-label", t("threads.chip_aria", { n }));
-    el.hidden = n === 0 && !expanded;
+    el.hidden = n === 0 || windowOpen;
   }
 
   // The first snapshot sets what already waits; only a later arrival nods.
@@ -126,9 +125,8 @@ export function createThreadsChip({
         requests.map((r) => r.id),
       );
     },
-    setExpanded(next) {
-      expanded = next;
-      el.setAttribute("aria-expanded", String(expanded));
+    setWindowOpen(open) {
+      windowOpen = open;
       render();
     },
     dispose() {
