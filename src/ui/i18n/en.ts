@@ -569,7 +569,7 @@ const en: Record<string, string> = {
 
   // chat API key
   "chatkey.label": "Chat API key",
-  "chatkey.sub_default": "Using the default: leave empty to use the build-time key",
+  "chatkey.sub_default": "No key saved. Leave empty if your server needs none",
   "chatkey.sub_override": "Saved on this device. Clear to return to the original key",
   "chatkey.show": "Show key",
   "chatkey.hide": "Hide key",
