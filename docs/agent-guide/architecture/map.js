@@ -1670,9 +1670,36 @@ globalThis.YUI_MAP =
     {
       "id": "first-conversation-connected",
       "from": "ui/quick-controls",
-      "to": "app/turn/card",
-      "carries": "the First conversation page's confirmed key → yui://first-conversation-connected, scoped to the preset; the pet window greets when the session is empty, then opens the input and shows the controls hint",
+      "to": "io/bridge/settings",
+      "carries": "the First conversation page's confirmed key → yui://first-conversation-connected, scoped to the preset",
       "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/settings-window/wire-settings-window.ts"
+    },
+    {
+      "id": "first-conversation-greet",
+      "from": "io/bridge/settings",
+      "to": "app/turn/card",
+      "carries": "yui://first-conversation-connected for this window's preset → greetLocal when the session is empty",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-first-conversation.ts"
+    },
+    {
+      "id": "first-conversation-utterance-end",
+      "from": "io/voice/tts",
+      "to": "app/turn/card",
+      "carries": "onUtteranceEnd(identity) through the voice handle's listeners; event_name greeting ends the wait",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/voice/wire-voice.ts"
+    },
+    {
+      "id": "first-conversation-surfaces",
+      "from": "app/turn/card",
+      "to": "ui/surfaces",
+      "carries": "summonInput() at the greeting's end, or hideSpeech() then summonInput() when no greeting ran; the controls hint once the greeting was readable, skipped while a turn runs",
+      "kind": "call",
       "transport": "shared",
       "wiring": "src/app/turn/wire-first-conversation.ts"
     },
@@ -1991,7 +2018,7 @@ globalThis.YUI_MAP =
       "id": "speech-previous",
       "from": "io/voice/tts",
       "to": "dispatcher/backend",
-      "carries": "onUtteranceStart(identity), onUtteranceEnd(ended, SpokenSplit, identity) → previous-turn",
+      "carries": "onUtteranceStart(identity), onUtteranceEnd(ended, SpokenSplit, identity) → previous-turn, then the voice handle's listeners",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/voice/wire-voice.ts"
@@ -2787,7 +2814,7 @@ globalThis.YUI_MAP =
       "id": "settings-open-windows",
       "from": "windows",
       "to": "io/window/openers",
-      "carries": "openSettings(page?): the status pill's capture button opens no page, the voice-setup fix and the delegation chip Connection; a new settings window at settings.html with `?preset=<id>` and `&page=<page>`, else the open one is shown, focused and asked for the page",
+      "carries": "openSettings(page?): the status pill's capture button opens no page, the voice-setup fix First conversation and the delegation chip Connection; a new settings window at settings.html with `?preset=<id>` and `&page=<page>`, else the open one is shown, focused and asked for the page",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/windows/main.ts"
@@ -2796,7 +2823,7 @@ globalThis.YUI_MAP =
       "id": "settings-open-bootstrap",
       "from": "app/bootstrap",
       "to": "io/window/openers",
-      "carries": "openSettings(\"conn\"): the turn error's fix button; openSettings(\"first\"): the first-run hint's action",
+      "carries": "openSettings(\"first\"): the turn error's fix button and the first-run hint's action; a window without that page stays where it was",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"
