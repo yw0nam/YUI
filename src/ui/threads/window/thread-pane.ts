@@ -176,7 +176,7 @@ export function createThreadPane(deps: {
   return {
     show,
     restart() {
-      shownKey = null;
+      shownKey = ""; // Matches no key, not even the empty pane's null.
       shownId = undefined;
     },
     prune(threads) {
