@@ -98,6 +98,57 @@ describe("createQuickControls — tab rail", () => {
     qc.dispose();
   });
 
+  it("lands on First conversation while chat is unconfigured", () => {
+    const qc = buildQc({ showFirstConversation: true });
+    qc.open();
+
+    const first = tabs(qc)[0]!;
+    expect(first.id).toBe("yui-tab-first");
+    expect(first.getAttribute("aria-selected")).toBe("true");
+    expect(first.tabIndex).toBe(0);
+    expect(qc.selectedTab()).toBe("first");
+    expect(panelFor(qc, first).hidden).toBe(false);
+    expect(qc.el.querySelector<HTMLElement>("#yui-panel-persona")?.hidden).toBe(true);
+
+    qc.dispose();
+  });
+
+  it("leaves the First conversation page out otherwise", () => {
+    const qc = buildQc();
+    qc.open();
+
+    expect(qc.el.querySelector("#yui-tab-first")).toBeNull();
+    expect(qc.el.querySelector("#yui-panel-first")).toBeNull();
+
+    qc.dispose();
+  });
+
+  it("the First conversation page reaches Connection and reports a confirmed key", async () => {
+    const onFirstConversationConnected = vi.fn();
+    const qc = buildQc({
+      showFirstConversation: true,
+      onFirstConversationConnected,
+      getFetch: async () => async () =>
+        new Response(JSON.stringify({ data: [{ id: "m" }] }), { status: 200 }),
+    });
+    qc.open();
+    const panel = qc.el.querySelector<HTMLElement>("#yui-panel-first")!;
+    expect(panel).not.toBeNull();
+    const button = (name: string) =>
+      [...panel.querySelectorAll("button")].find((b) => b.textContent === name)!;
+
+    button("연결 페이지 열기").click();
+    expect(qc.selectedTab()).toBe("conn");
+
+    panel.querySelector("input")!.value = "AIza-good";
+    button("연결하기").click();
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(onFirstConversationConnected).toHaveBeenCalledTimes(1);
+
+    qc.dispose();
+  });
+
   it("renders no rail collapse button and no sliding tab indicator", () => {
     const qc = buildQc();
     qc.open();
@@ -210,6 +261,7 @@ describe("createQuickControls — tab rail", () => {
   it("open({ tab }) reaches every tab the tablist renders, hist closing the character's pages", () => {
     // The tab union is the panel's public vocabulary — it must not omit a rendered tab.
     const names: SettingsPage[] = [
+      "first",
       "conn",
       "voice",
       "persona",
@@ -225,7 +277,11 @@ describe("createQuickControls — tab rail", () => {
     ];
     // A transcript renders the history tab and the MCP host the plugins tab: the full rail.
     const { host, manage } = fakePlugins();
-    const qc = buildQc({ transcript: createChatHistoryStore(), plugins: { host, manage } });
+    const qc = buildQc({
+      transcript: createChatHistoryStore(),
+      plugins: { host, manage },
+      showFirstConversation: true,
+    });
     expect(tabs(qc).map((tab) => tab.id)).toEqual(names.map((name) => `yui-tab-${name}`));
 
     for (const name of names) {
