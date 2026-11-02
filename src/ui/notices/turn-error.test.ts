@@ -68,6 +68,20 @@ describe("turnErrorMessage", () => {
   it("returns undefined for superseded_by_user (not a failure)", () => {
     expect(turnErrorMessage("superseded_by_user")).toBeUndefined();
   });
+
+  it("renders a plain rate-limit line for a 429 detail, in every locale", () => {
+    expect(turnErrorMessage("network_drop", { status: 429, message: "quota exceeded" })).toBe(
+      "Usage limit reached · try again later",
+    );
+    setLocale("ko");
+    expect(turnErrorMessage("network_drop", { status: 429, message: "quota exceeded" })).toBe(
+      "사용 한도 도달 · 나중에 다시 시도",
+    );
+    setLocale("ja");
+    expect(turnErrorMessage("network_drop", { status: 429, message: "quota exceeded" })).toBe(
+      "利用上限に到達 · あとで再試行",
+    );
+  });
 });
 
 describe("turnErrorMessage — server error detail", () => {
