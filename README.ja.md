@@ -91,14 +91,14 @@ YUI自体はモデルを内蔵していません。何ができるかで頭脳�
 
 | 頭脳 | 得られるもの |
 | --- | --- |
-| **OpenAI互換の任意のエンドポイント**(OpenAI · Ollama · LM Studio · Groq · 自前のエンドポイント) | チャット、アプリで書くペルソナ、ツール呼び出し対応モデルでの表情。音声と音声認識は別の接続です。 |
+| **OpenAI互換の任意のエンドポイント**(OpenAI · Ollama · LM Studio · Groq · Google Gemini · 自前のエンドポイント) | チャット、アプリで書くペルソナ、ツール呼び出し対応モデルでの表情。音声と音声認識は別の接続です。 |
 | **記憶を持つオートメーションエージェントとプッシュトランスポート** | バックエンドが自分から始めるターン、エージェントが保持する長期記憶、バックエンドが報告したときの委任ステータス。フル機能にはこちらがおすすめです。実例: [Hermes Agent](integrations/hermes/README.md)。ほかのエージェントは[プッシュ契約](docs/reference/push-transport.md)で接続します。 |
 
 プロバイダーは **設定 → 接続** で選びます。
 
 | | プロバイダー |
 | --- | --- |
-| チャット | OpenAI · Ollama · LM Studio · Groq · [Hermes Agent](integrations/hermes/README.md) · OpenAI互換のエンドポイント |
+| チャット | OpenAI · Ollama · LM Studio · Groq · Google Gemini · [Hermes Agent](integrations/hermes/README.md) · OpenAI互換のエンドポイント |
 | 音声合成(TTS) | [Irodori](https://github.com/Aratako/Irodori-TTS-Server)(日本語) · OpenAI · [Fish Audio](https://fish.audio/) |
 | 音声認識(STT) | OpenAI互換の文字起こしエンドポイント · Groq |
 
@@ -113,6 +113,7 @@ YUI自体はモデルを内蔵していません。何ができるかで頭脳�
 | Ollama | `chat_completions` | ローカル | `qwen3` |
 | LM Studio | `chat_completions` | ローカル | ツール呼び出し対応の任意のモデル |
 | Groq | `chat_completions` | クラウド(APIキー) | `llama-3.3-70b-versatile` |
+| Google Gemini | `chat_completions` | クラウド(APIキー、無料枠) | `models/gemini-3.5-flash-lite` |
 | [Hermes Agent](integrations/hermes/README.md) | `push`, `responses` | セルフホスト | エージェント側で使用するモデル |
 | カスタムエンドポイント | `chat_completions`, `responses`, `push` | 該当プロトコルに対応した任意のサーバー | `chat_completions` ではツール呼び出し対応モデル |
 
