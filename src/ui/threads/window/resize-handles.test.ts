@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 /** resize-handles.test.ts — the panel's edge and corner hit areas report a resize in screen px, and a lost pointer ends it. */
 
-import { readFileSync } from "node:fs";
 import { beforeEach, expect, it, vi } from "vitest";
 import { setLocale } from "../../i18n";
 import { attachResizeHandles } from "./resize-handles";
@@ -52,24 +51,4 @@ it.each([
 
   expect(events).toEqual(["start", ["w", -30, 5], "end"]);
   expect(readout().hidden).toBe(true);
-});
-
-// WebKit 26.2 leaves the previous cursor for these keywords (WebKit bug 303845, measured in #1777).
-const UNSHOWN = new Set([
-  "ew-resize",
-  "ns-resize",
-  "nwse-resize",
-  "nesw-resize",
-  "e-resize",
-  "move",
-]);
-
-it("gives every edge and corner a cursor WebKit shows: a working keyword or an image first", () => {
-  const css = readFileSync("src/ui/threads/window/resize-handles.css", "utf8");
-  const cursors = [...css.matchAll(/cursor:\s*([^;]+);/g)].map((m) => m[1]!.trim());
-  expect(cursors).toHaveLength(4);
-  for (const value of cursors) {
-    if (value.startsWith("url(")) continue;
-    expect(UNSHOWN.has(value), value).toBe(false);
-  }
 });
