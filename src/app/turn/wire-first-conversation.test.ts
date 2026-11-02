@@ -9,8 +9,8 @@ import { wireGreeting } from "./wire-greeting";
 
 const OPENED = ["speak:Hi.", "input"];
 const HINT = "hint:hint.first_run";
-// "Hi." types out in 120 ms, then stays up for 2500 ms.
-const READABLE_MS = 2620;
+const TYPED_MS = 120; // "Hi." at 40 ms per character.
+const READ_MS = 2500;
 
 function setup(over: { seen?: boolean; endsInsideSpeak?: boolean; busy?: boolean } = {}) {
   const calls: string[] = [];
@@ -104,6 +104,13 @@ function setup(over: { seen?: boolean; endsInsideSpeak?: boolean; busy?: boolean
   };
 }
 
+function speakThrough(s: ReturnType<typeof setup>): void {
+  s.connect();
+  vi.advanceTimersByTime(TYPED_MS);
+  s.finishPlayback();
+  vi.advanceTimersByTime(0);
+}
+
 describe("wireFirstConversation", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -112,16 +119,18 @@ describe("wireFirstConversation", () => {
     vi.useRealTimers();
   });
 
-  it("greets once on the signal, opens the input when the greeting ends, and shows the hint once it was readable", () => {
+  it("greets once on the signal, opens the input when the spoken greeting ends, and shows the hint once it was readable", () => {
     const s = setup();
 
     s.connect();
     expect(s.calls).toEqual(["speak:Hi."]);
 
+    vi.advanceTimersByTime(TYPED_MS);
     s.finishPlayback();
+    vi.advanceTimersByTime(0);
     expect(s.calls).toEqual(OPENED);
 
-    vi.advanceTimersByTime(READABLE_MS - 1);
+    vi.advanceTimersByTime(READ_MS - 1);
     expect(s.calls).toEqual(OPENED);
 
     vi.advanceTimersByTime(1);
@@ -133,19 +142,26 @@ describe("wireFirstConversation", () => {
 
     s.connect();
     s.playback.interrupt();
+    expect(s.calls).toEqual(["speak:Hi."]);
+
+    vi.advanceTimersByTime(TYPED_MS);
     expect(s.calls).toEqual(OPENED);
 
-    vi.advanceTimersByTime(READABLE_MS);
+    vi.advanceTimersByTime(READ_MS);
     expect(s.calls).toEqual([...OPENED, HINT]);
   });
 
-  it("with no audio to play, the greeting stays up until it was readable", () => {
+  it("with no audio to play, the input waits for the greeting to type out", () => {
     const s = setup({ endsInsideSpeak: true });
 
     s.connect();
+    vi.advanceTimersByTime(TYPED_MS - 1);
+    expect(s.calls).toEqual(["speak:Hi."]);
+
+    vi.advanceTimersByTime(1);
     expect(s.calls).toEqual(OPENED);
 
-    vi.advanceTimersByTime(READABLE_MS - 1);
+    vi.advanceTimersByTime(READ_MS - 1);
     expect(s.calls).toEqual(OPENED);
 
     vi.advanceTimersByTime(1);
@@ -155,9 +171,8 @@ describe("wireFirstConversation", () => {
   it("skips the hint while a turn is running", () => {
     const s = setup({ busy: true });
 
-    s.connect();
-    s.finishPlayback();
-    vi.advanceTimersByTime(READABLE_MS);
+    speakThrough(s);
+    vi.advanceTimersByTime(READ_MS);
 
     expect(s.calls).toEqual(OPENED);
   });
@@ -193,9 +208,8 @@ describe("wireFirstConversation", () => {
   it("leaves the hint out once it was seen, and still opens the input", () => {
     const s = setup({ seen: true });
 
-    s.connect();
-    s.finishPlayback();
-    vi.advanceTimersByTime(READABLE_MS);
+    speakThrough(s);
+    vi.advanceTimersByTime(READ_MS);
 
     expect(s.calls).toEqual(OPENED);
   });
@@ -203,10 +217,9 @@ describe("wireFirstConversation", () => {
   it("dispose drops a hint still waiting", () => {
     const s = setup();
 
-    s.connect();
-    s.finishPlayback();
+    speakThrough(s);
     s.wired.dispose();
-    vi.advanceTimersByTime(READABLE_MS);
+    vi.advanceTimersByTime(READ_MS);
 
     expect(s.calls).toEqual(OPENED);
   });
