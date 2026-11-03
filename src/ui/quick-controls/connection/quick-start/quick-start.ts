@@ -1,23 +1,24 @@
 /**
- * The First conversation page: what is sent and the daily limit, the key page link, and the key
- * field. One model-list read confirms the pasted key, and only a confirmed key writes anything.
+ * Quick start: the Connection page's free Gemini path — what is sent and the daily limit, the key
+ * page link, and the key field. One model-list read confirms the pasted key, and only a confirmed
+ * key writes anything.
  */
 
-import type { ChatKeySettingsStore } from "../../../settings/backend/api-key-settings";
-import type { createEndpointsSettings } from "../../../settings/backend/endpoints-settings";
-import type { createProactiveSettings } from "../../../settings/cues/proactive-settings";
-import type { createScheduleSettings } from "../../../settings/cues/schedule-settings";
-import { t } from "../../i18n";
-import { createModelRead, type ModelReadPhase } from "../connection/chat/model-read";
-import { CHATKEY_EYE_SVG, GEMINI_KEY_URL, GEMINI_PRESET } from "../constants";
-import { secHeadHtml } from "../markup";
-import { ICON_WARN } from "../plugins/plugin-parts";
-import { toggleKeyReveal } from "../sections/key-row/key-row";
-import "./first-conversation-page.css";
+import type { ChatKeySettingsStore } from "../../../../settings/backend/api-key-settings";
+import type { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
+import type { createProactiveSettings } from "../../../../settings/cues/proactive-settings";
+import type { createScheduleSettings } from "../../../../settings/cues/schedule-settings";
+import { t } from "../../../i18n";
+import { CHATKEY_EYE_SVG, GEMINI_KEY_URL, GEMINI_PRESET } from "../../constants";
+import { secHeadHtml } from "../../markup";
+import { ICON_WARN } from "../../plugins/plugin-parts";
+import { toggleKeyReveal } from "../../sections/key-row/key-row";
+import { createModelRead, type ModelReadPhase } from "../chat/model-read";
+import "./quick-start.css";
 
 const ICON_DONE = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-interface FirstConversationPageDeps {
+interface QuickStartDeps {
   endpointsSettings: Pick<ReturnType<typeof createEndpointsSettings>, "set">;
   chatKeySettings: Pick<ChatKeySettingsStore, "setApiKey">;
   proactiveSettings: Pick<ReturnType<typeof createProactiveSettings>, "setEnabled">;
@@ -45,59 +46,59 @@ function keyLinkHtml(labelKey: string, className: string): string {
 
 function pageHtml(): string {
   return `
-    <div class="yui-tab-stack yui-first__setup">
+    <div class="yui-tab-stack yui-start__setup">
       <div class="yui-sec">
-        ${secHeadHtml(t("first.free_title"))}
-        <p class="yui-sec__note">${t("first.free_note")}</p>
-        <div class="yui-group">${factRowHtml("first.send_label", "first.send_sub")}${factRowHtml("first.limit_label", "first.limit_sub")}
+        ${secHeadHtml(t("start.free_title"))}
+        <p class="yui-sec__note">${t("start.free_note")}</p>
+        <div class="yui-group">${factRowHtml("start.send_label", "start.send_sub")}${factRowHtml("start.limit_label", "start.limit_sub")}
         </div>
       </div>
       <div class="yui-sec">
-        ${secHeadHtml(t("first.key_title"))}
+        ${secHeadHtml(t("start.key_title"))}
         <div class="yui-group">
           <div class="yui-row">
             <div class="yui-row__main">
-              <span class="yui-row__label">${t("first.make_label")}</span>
-              <span class="yui-row__sub">${t("first.make_sub")}</span>
+              <span class="yui-row__label">${t("start.make_label")}</span>
+              <span class="yui-row__sub">${t("start.make_sub")}</span>
             </div>
-            ${keyLinkHtml("first.make_link", "yui-first__key-link")}
+            ${keyLinkHtml("start.make_link", "yui-start__key-link")}
           </div>
-          <div class="yui-row yui-chatkey yui-first__paste">
+          <div class="yui-row yui-chatkey yui-start__paste">
             <div class="yui-row__main">
-              <label class="yui-input-row__label" for="yui-first-key">${t("first.paste_label")}</label>
+              <label class="yui-input-row__label" for="yui-start-key">${t("start.paste_label")}</label>
             </div>
             <div class="yui-input-wrap yui-chatkey__wrap">
-              <input class="yui-ep-input yui-chatkey__input" id="yui-first-key" type="password" placeholder="${t("first.paste_placeholder")}"
+              <input class="yui-ep-input yui-chatkey__input" id="yui-start-key" type="password" placeholder="${t("start.paste_placeholder")}"
                 autocomplete="off" autocapitalize="off" spellcheck="false" />
               <button class="yui-iconbtn yui-chatkey__toggle" type="button" aria-pressed="false" aria-label="${t("chatkey.show")}" data-tip="${t("chatkey.show")}">${CHATKEY_EYE_SVG}</button>
             </div>
-            <button class="yui-pill yui-pill--ok yui-first__connect" type="button">${t("first.connect")}</button>
-            <p class="yui-first__checking" role="status" hidden><i class="yui-first__dot"></i>${t("first.checking")}</p>
-            <div class="yui-first__err" role="alert" hidden>${ICON_WARN}<div><span class="yui-first__err-text"></span> ${keyLinkHtml("first.reopen", "yui-first__reopen")}</div></div>
+            <button class="yui-pill yui-pill--ok yui-start__connect" type="button">${t("start.connect")}</button>
+            <p class="yui-start__checking" role="status" hidden><i class="yui-start__dot"></i>${t("start.checking")}</p>
+            <div class="yui-start__err" role="alert" hidden>${ICON_WARN}<div><span class="yui-start__err-text"></span> ${keyLinkHtml("start.reopen", "yui-start__reopen")}</div></div>
           </div>
         </div>
       </div>
-      <p class="yui-sec__foot">${t("first.own_server")} <button class="yui-link-btn yui-chat-type__link yui-first__own" type="button">${t("first.open_connection")}</button></p>
+      <p class="yui-sec__foot">${t("start.own_server")} <button class="yui-link-btn yui-chat-type__link yui-start__own" type="button">${t("start.open_connection")}</button></p>
     </div>
-    <p class="yui-first__done" role="status" hidden>${ICON_DONE}<span>${t("first.done")}</span></p>`;
+    <p class="yui-start__done" role="status" hidden>${ICON_DONE}<span>${t("start.done")}</span></p>`;
 }
 
-export function createFirstConversationPage(deps: FirstConversationPageDeps): {
+export function createQuickStart(deps: QuickStartDeps): {
   el: HTMLElement;
   dispose(): void;
 } {
   const el = document.createElement("div");
   el.className = "yui-tab-stack";
   el.innerHTML = pageHtml();
-  const setup = el.querySelector<HTMLElement>(".yui-first__setup")!;
-  const done = el.querySelector<HTMLElement>(".yui-first__done")!;
-  const input = el.querySelector<HTMLInputElement>("#yui-first-key")!;
+  const setup = el.querySelector<HTMLElement>(".yui-start__setup")!;
+  const done = el.querySelector<HTMLElement>(".yui-start__done")!;
+  const input = el.querySelector<HTMLInputElement>("#yui-start-key")!;
   const toggle = el.querySelector<HTMLButtonElement>(".yui-chatkey__toggle")!;
-  const connect = el.querySelector<HTMLButtonElement>(".yui-first__connect")!;
-  const checking = el.querySelector<HTMLElement>(".yui-first__checking")!;
-  const error = el.querySelector<HTMLElement>(".yui-first__err")!;
-  const errorText = el.querySelector<HTMLElement>(".yui-first__err-text")!;
-  const reopen = el.querySelector<HTMLElement>(".yui-first__reopen")!;
+  const connect = el.querySelector<HTMLButtonElement>(".yui-start__connect")!;
+  const checking = el.querySelector<HTMLElement>(".yui-start__checking")!;
+  const error = el.querySelector<HTMLElement>(".yui-start__err")!;
+  const errorText = el.querySelector<HTMLElement>(".yui-start__err-text")!;
+  const reopen = el.querySelector<HTMLElement>(".yui-start__reopen")!;
 
   const typedKey = (): string => input.value.trim();
 
@@ -130,9 +131,9 @@ export function createFirstConversationPage(deps: FirstConversationPageDeps): {
       done.hidden = false;
     } else if (result.kind === "refused" || (result.kind === "http" && result.status === 400)) {
       // Measured: a bad Gemini key answers HTTP 400 "Please pass a valid API key".
-      showError("first.refused", true);
+      showError("start.refused", true);
     } else {
-      showError("first.failed");
+      showError("start.failed");
     }
   }
 
@@ -145,10 +146,10 @@ export function createFirstConversationPage(deps: FirstConversationPageDeps): {
   toggle.addEventListener("click", () => toggleKeyReveal(input, toggle, "chatkey"));
   connect.addEventListener("click", () => {
     error.hidden = true;
-    if (typedKey() === "") showError("first.need_key");
+    if (typedKey() === "") showError("start.need_key");
     else read.start(GEMINI_PRESET.url);
   });
-  el.querySelector(".yui-first__own")!.addEventListener("click", () => deps.openConnection());
+  el.querySelector(".yui-start__own")!.addEventListener("click", () => deps.openConnection());
 
   return { el, dispose: read.dispose };
 }

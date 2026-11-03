@@ -614,30 +614,30 @@ const ko: Record<string, string> = {
   "hint.setup_backend": "아직 대화가 연결되지 않았어요 · 함께 연결해 볼까요?",
   "hint.setup_action": "연결하기",
 
-  // first conversation page
-  "first.free_title": "무료로 시작하기",
-  "first.free_note": "Google Gemini 무료 등급으로 대화합니다.",
-  "first.send_label": "보내는 내용",
-  "first.send_sub":
+  // quick start
+  "start.free_title": "무료로 시작하기",
+  "start.free_note": "Google Gemini 무료 등급으로 대화합니다.",
+  "start.send_label": "보내는 내용",
+  "start.send_sub":
     "대화 내용과 맨 앞 앱의 이름과 창 제목이 Google로 전송됩니다. Google이 서비스 개선에 쓰고 사람이 검토할 수 있으니, 민감한 정보는 말하지 마세요.",
-  "first.limit_label": "하루 한도",
-  "first.limit_sub":
+  "start.limit_label": "하루 한도",
+  "start.limit_sub":
     "무료 등급에는 하루 사용량 한도가 있습니다. 한도를 넘으면 다음 날 다시 대화할 수 있습니다.",
-  "first.key_title": "키 연결",
-  "first.make_label": "키 만들기",
-  "first.make_sub": "브라우저에서 Google AI Studio가 열립니다. Google 계정이 필요합니다.",
-  "first.make_link": "키 페이지 열기",
-  "first.paste_label": "키 붙여넣기",
-  "first.paste_placeholder": "복사한 키를 붙여 넣으세요",
-  "first.connect": "연결하기",
-  "first.checking": "키를 확인하고 있습니다…",
-  "first.need_key": "먼저 키를 붙여 넣어 주세요.",
-  "first.refused": "Google이 이 키를 받지 않았습니다. 복사한 키를 다시 붙여 넣어 주세요.",
-  "first.failed": "Google에 연결하지 못했습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.",
-  "first.reopen": "키 페이지 다시 열기",
-  "first.own_server": "이미 쓰는 서버가 있나요?",
-  "first.open_connection": "연결 페이지 열기",
-  "first.done": "연결했습니다. 이제 대화할 수 있습니다.",
+  "start.key_title": "키 연결",
+  "start.make_label": "키 만들기",
+  "start.make_sub": "브라우저에서 Google AI Studio가 열립니다. Google 계정이 필요합니다.",
+  "start.make_link": "키 페이지 열기",
+  "start.paste_label": "키 붙여넣기",
+  "start.paste_placeholder": "복사한 키를 붙여 넣으세요",
+  "start.connect": "연결하기",
+  "start.checking": "키를 확인하고 있습니다…",
+  "start.need_key": "먼저 키를 붙여 넣어 주세요.",
+  "start.refused": "Google이 이 키를 받지 않았습니다. 복사한 키를 다시 붙여 넣어 주세요.",
+  "start.failed": "Google에 연결하지 못했습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.",
+  "start.reopen": "키 페이지 다시 열기",
+  "start.own_server": "이미 쓰는 서버가 있나요?",
+  "start.open_connection": "연결 페이지 열기",
+  "start.done": "연결했습니다. 이제 대화할 수 있습니다.",
 
   // reactions tab
   "reactions.watchers_title": "감시",

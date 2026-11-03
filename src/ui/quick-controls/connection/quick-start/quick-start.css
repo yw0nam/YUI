@@ -1,29 +1,29 @@
 /* The key's label takes a line; the field and Connect share the next, and the state lines span the row. */
-.yui-first__paste .yui-row__main,
-.yui-first__checking,
-.yui-first__err {
+.yui-start__paste .yui-row__main,
+.yui-start__checking,
+.yui-start__err {
   flex-basis: 100%;
 }
 
-.yui-first__paste > .yui-input-wrap {
+.yui-start__paste > .yui-input-wrap {
   flex: 1 1 12rem;
 }
 
-.yui-first__setup[hidden] {
+.yui-start__setup[hidden] {
   display: none;
 }
 
-.yui-first__key-link {
+.yui-start__key-link {
   flex: none;
   font-size: var(--yui-fs-sub);
 }
 
-.yui-first__connect:disabled {
+.yui-start__connect:disabled {
   opacity: 0.5;
   cursor: default;
 }
 
-.yui-first__checking {
+.yui-start__checking {
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -32,22 +32,22 @@
   color: var(--yui-text-mute);
 }
 
-.yui-first__dot {
+.yui-start__dot {
   flex: none;
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: var(--yui-text-mute);
-  animation: yui-first-pulse 1.2s ease-in-out infinite;
+  animation: yui-start-pulse 1.2s ease-in-out infinite;
 }
 
-@keyframes yui-first-pulse {
+@keyframes yui-start-pulse {
   50% {
     opacity: 0.35;
   }
 }
 
-.yui-first__err {
+.yui-start__err {
   display: flex;
   align-items: flex-start;
   gap: 0.4rem;
@@ -59,7 +59,7 @@
   color: var(--yui-text);
 }
 
-.yui-first__err svg {
+.yui-start__err svg {
   flex: none;
   width: 0.85rem;
   height: 0.85rem;
@@ -67,13 +67,13 @@
   color: var(--yui-danger);
 }
 
-.yui-first__checking[hidden],
-.yui-first__err[hidden],
-.yui-first__done[hidden] {
+.yui-start__checking[hidden],
+.yui-start__err[hidden],
+.yui-start__done[hidden] {
   display: none;
 }
 
-.yui-first__done {
+.yui-start__done {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -85,7 +85,7 @@
   font-weight: 500;
 }
 
-.yui-first__done svg {
+.yui-start__done svg {
   flex: none;
   width: 1rem;
   height: 1rem;
@@ -93,7 +93,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .yui-first__dot {
+  .yui-start__dot {
     animation: none;
   }
 }

@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createChatKeySettings } from "../../../settings/backend/api-key-settings";
-import { createEndpointsSettings } from "../../../settings/backend/endpoints-settings";
-import { createProactiveSettings } from "../../../settings/cues/proactive-settings";
-import { createScheduleSettings } from "../../../settings/cues/schedule-settings";
-import { setLocale } from "../../i18n";
-import { createFirstConversationPage } from "./first-conversation-page";
+import { createChatKeySettings } from "../../../../settings/backend/api-key-settings";
+import { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
+import { createProactiveSettings } from "../../../../settings/cues/proactive-settings";
+import { createScheduleSettings } from "../../../../settings/cues/schedule-settings";
+import { setLocale } from "../../../i18n";
+import { createQuickStart } from "./quick-start";
 
 const REFUSED = "Google did not accept this key. Paste the key you copied again.";
 const FAILED = "Could not reach Google. Check your internet connection and try again.";
@@ -21,7 +21,7 @@ function setup(fetchImpl: typeof globalThis.fetch = async () => models()) {
   const scheduleSettings = createScheduleSettings({ locale: "en" });
   const onConnected = vi.fn();
   const openConnection = vi.fn();
-  const page = createFirstConversationPage({
+  const page = createQuickStart({
     endpointsSettings,
     chatKeySettings,
     proactiveSettings,
@@ -68,7 +68,7 @@ function setup(fetchImpl: typeof globalThis.fetch = async () => models()) {
   };
 }
 
-describe("createFirstConversationPage", () => {
+describe("createQuickStart", () => {
   beforeEach(() => setLocale("en"));
   afterEach(() => {
     document.body.innerHTML = "";

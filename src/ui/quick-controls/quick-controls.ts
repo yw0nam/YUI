@@ -73,9 +73,9 @@ import type { VoiceInputStatus } from "../chips/voice-input-status";
 import { t } from "../i18n";
 import { createCharacterTab } from "./character/character-tab";
 import { createConnectionTab, type PushSocketPanelPort } from "./connection/connection-tab";
+import { createQuickStart } from "./connection/quick-start/quick-start";
 import { initialPageOf } from "./constants";
 import { mountCueLists } from "./cue-lists/cue-lists";
-import { createFirstConversationPage } from "./first-conversation/first-conversation-page";
 import { createHintTooltip } from "./hint-tooltip";
 import { createHistoryTab } from "./history/history-tab";
 import { createPanelShell } from "./panel-shell";
@@ -467,7 +467,7 @@ export function createQuickControls({
 
   // ── First conversation page (data use · daily limit · key confirmation) ──
   const firstConversation = showFirstConversation
-    ? createFirstConversationPage({
+    ? createQuickStart({
         endpointsSettings,
         chatKeySettings,
         proactiveSettings,
