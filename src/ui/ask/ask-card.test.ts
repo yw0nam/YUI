@@ -104,6 +104,18 @@ it("closes an Ask at its expires_at and counts down the time left", () => {
   expect(el.hidden).toBe(true);
 });
 
+it("keeps an Ask without expires_at open and shows no time left", () => {
+  const { card, el, prompt } = build();
+  const { expires_at: _none, ...open } = frame("a");
+  card.show(open);
+
+  vi.advanceTimersByTime(2 * 60 * 60 * 1000);
+  expect([prompt(), el.querySelector<HTMLElement>("[role=timer]")?.hidden]).toEqual([
+    "Run a?",
+    true,
+  ]);
+});
+
 it("picks a choice with a number key while focus is inside the card, but not from the text field", () => {
   const { card, el, choices } = build();
   card.show(frame("a"));

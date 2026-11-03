@@ -1515,6 +1515,16 @@ describe("push socket asks", () => {
     ]);
   });
 
+  it("hands an ask without expires_at to onAsk", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onAsk((frame) => seen.push(frame));
+
+    FakeSocket.last().push({ type: "ask", ask: VALID_ASK });
+
+    expect(seen).toEqual([{ type: "ask", ask: VALID_ASK }]);
+  });
+
   it.each([
     ["ask is not an object", { ask: "a1" }, "ask"],
     ["ask_id is empty", { ask: { ...VALID_ASK, ask_id: "" } }, "ask_id"],
