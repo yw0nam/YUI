@@ -1,62 +1,56 @@
-"""Open exec-approval Asks; every call runs on the adapter's event loop."""
+"""Open Asks; every call runs on the adapter's event loop."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from uuid import uuid4
-
-from gateway.platforms.base import ExecApprovalPrompt
 
 
 @dataclass
 class Ask:
     frame: dict
-    session_key: str
-    request_id: str | None
     choices: frozenset[str]
-    expires_at: float
+    text: bool
+    resolve: Callable[[str | None, str | None], None]
+    expires_at: float | None
 
 
 class Asks:
     def __init__(self) -> None:
         self._chats: dict[str, dict[str, Ask]] = {}
 
-    def open(self, chat_id: str, prompt: ExecApprovalPrompt, expires_at: float) -> Ask:
-        ask_id = uuid4().hex
-        frame = {
-            "type": "ask",
-            "ask": {
-                "ask_id": ask_id,
-                "prompt": prompt.text,
-                "choices": [
-                    {
-                        "id": choice,
-                        "label": label,
-                        **({"tone": style} if style in ("primary", "danger") else {}),
-                    }
-                    for label, choice, style in prompt.actions
-                ],
-                "text": False,
-            },
-            "expires_at": expires_at,
-        }
-        ask = Ask(frame, prompt.session_key, prompt.request_id, frozenset(prompt.choices), expires_at)
+    def open(self, chat_id: str, ask_id: str, body: dict, expires_at: float | None, resolve: Callable) -> Ask:
+        frame = {"type": "ask", "ask": {"ask_id": ask_id, **body}}
+        if expires_at is not None:
+            frame["expires_at"] = expires_at
+        ask = Ask(
+            frame, frozenset(c["id"] for c in body.get("choices", [])), body["text"], resolve, expires_at
+        )
         self._chats.setdefault(chat_id, {})[ask_id] = ask
         return ask
 
     def get(self, chat_id: str, ask_id: str) -> Ask | None:
         return self._chats.get(chat_id, {}).get(ask_id)
 
-    def take(self, chat_id: str, ask_id: str, choice: object) -> Ask | None:
+    def take(self, chat_id: str, ask_id: str, choice: object, text: object) -> Ask | None:
         ask = self.get(chat_id, ask_id)
-        if ask is None or not isinstance(choice, str) or choice not in ask.choices:
+        if ask is None:
+            return None
+        if choice is not None and (not isinstance(choice, str) or choice not in ask.choices):
+            return None
+        if text is not None and (not isinstance(text, str) or not text.strip() or not ask.text):
+            return None
+        if choice is None and text is None:
             return None
         self.drop(chat_id, ask_id)
         return ask
 
     def pending(self, chat_id: str, now_ms: float) -> list[Ask]:
         for ask_id, ask in list(self._chats.get(chat_id, {}).items()):
-            if ask.expires_at <= now_ms:
+            if ask.expires_at is not None and ask.expires_at <= now_ms:
                 self.drop(chat_id, ask_id)
         return list(self._chats.get(chat_id, {}).values())
+
+    def chat_of(self, ask_id: str) -> str | None:
+        return next((chat_id for chat_id, asks in self._chats.items() if ask_id in asks), None)
 
     def drop(self, chat_id: str, ask_id: str) -> bool:
         chat = self._chats.get(chat_id, {})

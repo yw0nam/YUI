@@ -124,6 +124,32 @@ def observe_gateway_settle(session_key, request_id, observer):
     return True
 
 
+class ClarifyStub:
+    def __init__(self):
+        self.entries = {}
+        self.calls = []
+        self.coerced = "coerced"
+        self.timeout = 3600
+
+    def get_pending(self, clarify_id):
+        return self.entries.get(clarify_id)
+
+    def mark_awaiting_text(self, clarify_id):
+        self.calls.append(("mark", clarify_id))
+        return clarify_id in self.entries
+
+    def coerce(self, entry, text):
+        self.calls.append(("coerce", entry, text))
+        return self.coerced
+
+    def resolve(self, clarify_id, value):
+        self.calls.append(("resolve", clarify_id, value))
+        return True
+
+
+CLARIFY = ClarifyStub()
+
+
 @dataclass
 class SendResult:
     success: bool
@@ -349,8 +375,21 @@ def install_stubs() -> None:
     approval = types.ModuleType("tools.approval")
     approval.resolve_gateway_approval = resolve_gateway_approval
     approval.observe_gateway_settle = observe_gateway_settle
+    clarify = types.ModuleType("tools.clarify_gateway")
+    clarify.resolve_gateway_clarify = CLARIFY.resolve
+    clarify.mark_awaiting_text = CLARIFY.mark_awaiting_text
+    clarify.get_pending = CLARIFY.get_pending
+    clarify._coerce_text_response = CLARIFY.coerce
+    clarify.get_clarify_timeout = lambda: CLARIFY.timeout
+    agent = types.ModuleType("agent")
+    agent.__path__ = []
+    i18n = types.ModuleType("agent.i18n")
+    i18n.t = lambda key: key
     sys.modules.update(
         {
+            "tools.clarify_gateway": clarify,
+            "agent": agent,
+            "agent.i18n": i18n,
             "gateway": gateway,
             "gateway.config": config,
             "gateway.platforms": platforms,

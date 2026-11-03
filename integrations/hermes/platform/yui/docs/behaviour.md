@@ -105,6 +105,10 @@
 - An `answer` resolves only an offered choice, by `request_id`; an invalid choice leaves the Ask
   open. Settlement drops it and sends `ask_end` only when accepted. Open Asks wait while the client
   is away; unexpired ones replay after `ready` on a connection that accepts `ask`.
+- Raises Hermes clarify questions as Asks with the question and choices. Typed text follows
+  Hermes's typed-reply rule; a choice with text joins the choice text and typed text with a newline.
+  A clarify without a timeout has no `expires_at`. Retiring an open clarify sends `ask_end`
+  when the client accepts it.
 - Stops the session's running agent on `stop`, which the client sends when the user presses stop.
   The frame carries the turn ids the client just stopped, and the plugin hands the gateway `/stop`
   only when at least one of them is still open on the chat and every open turn is named. A `stop`
