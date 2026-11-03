@@ -111,6 +111,15 @@ jobs:
             skip=1
           fi
           TEST_GUARD_SKIP="$skip" bash scripts/ci/test-guard.sh "origin/${{ github.event.pull_request.base.ref }}"
+      - name: Keep rule tests unchanged
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          skip=
+          if gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" --jq '.labels[].name' | grep -qx rule-change; then
+            skip=1
+          fi
+          RULE_TESTS_SKIP="$skip" bash scripts/ci/rule-tests.sh "origin/${{ github.event.pull_request.base.ref }}"
 
   readme-pair:
     name: readme-pair (README.md and README.ja.md change together)

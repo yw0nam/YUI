@@ -4,6 +4,7 @@ import ja from "./ja";
 import ko from "./ko";
 
 // Panel strings read as single calm lines: no em-dash chains, at most one middle-dot separator.
+// rule-test: a string that breaks this rule is reworded; the test takes no exception (scripts/ci/rule-tests.sh).
 const BUNDLES: readonly (readonly [string, Record<string, string>])[] = [
   ["en", en],
   ["ko", ko],
