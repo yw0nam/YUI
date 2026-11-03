@@ -11,6 +11,7 @@ from tools.clarify_gateway import (
     mark_awaiting_text,
     resolve_gateway_clarify,
 )
+from tools.clarify_tool import strip_recommended
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,8 @@ def clarify_ask(question: str, choices: list[str] | None, clarify_id: str) -> tu
         if choice is not None:
             value = choices[int(choice) - 1]
             if text is not None:
-                value = f"{value}\n{text}"
+                # Hermes strips its recommendation label only from an answer that is the label alone.
+                value = f"{strip_recommended(value)}\n{text}"
             elif multi:
                 value = json.dumps([value], ensure_ascii=False)
         else:
