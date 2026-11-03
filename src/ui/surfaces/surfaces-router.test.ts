@@ -15,6 +15,7 @@ import { guardrailsFixture } from "../../config/load-test-helpers";
 import type { BridgeTransport } from "../../io/bridge/core/bridge-core";
 import { createMessageBridge } from "../../io/bridge/message/message-bridge";
 import { createRemoteSurfaces, type RemoteSurfaces } from "../../io/bridge/message/message-remote";
+import type { CommandReplyFrame } from "../../io/chat/push/push-frames";
 import type { MessageWindowMode } from "../../settings/panels/message-window-settings";
 import { createMessagePlate } from "../message/message-plate";
 import { createSurfaces, type Surfaces } from "./surfaces";
@@ -113,7 +114,7 @@ describe("createSurfacesRouter", () => {
 
   it("fans the command list to both windows and registers both input sources", () => {
     const commands = [{ name: "status", description: "Info", args: "" }];
-    const cb = vi.fn();
+    const cb = vi.fn(() => true);
     router.setCommands(commands);
     router.onCommand(cb);
     for (const side of [local, remote]) {
@@ -145,7 +146,10 @@ describe("createSurfacesRouter", () => {
     const commands = [{ name: "status", description: "Info", args: "" }];
     router.setCommands(commands);
     expect(stream.setCommands).toHaveBeenCalledWith(commands);
-    const cb = vi.fn();
+    const cb = vi
+      .fn(() => true)
+      .mockReturnValueOnce(true)
+      .mockReturnValueOnce(false);
     router.onCommand(cb);
     const issue = vi.mocked(stream.onCommand).mock.calls[0]?.[0];
     expect(typeof issue).toBe("function");
@@ -805,6 +809,63 @@ it.each(["settled", "clear"] as const)("drops the recorded command side on %s", 
     });
     expect(stream.showCommandReply).not.toHaveBeenCalled();
   } finally {
+    router.dispose();
+  }
+});
+
+it.each([
+  "busy",
+  "pending",
+])("shows a unified %s refusal on the issuing side and preserves an earlier pending command", (state) => {
+  const local = makeLocal();
+  const remote = makeRemote();
+  const stream = makeRemote();
+  const router = createSurfacesRouter({
+    local,
+    remote,
+    stream,
+    getMode: () => "docked",
+    subscribeMode: () => () => {},
+    shown: { get: () => true, subscribe: () => () => {} },
+  });
+  let reply!: (frame: CommandReplyFrame) => void;
+  let id = "";
+  const off = wireBackendCommands({
+    surfaces: router,
+    isBusy: () => state === "busy",
+    socket: {
+      getCommands: () => [],
+      onCommands: () => () => {},
+      onState: () => () => {},
+      onCommandReply: (cb) => {
+        reply = cb;
+        return () => {};
+      },
+      sendCommand: (frame) => {
+        id = frame.id;
+        return true;
+      },
+    },
+  });
+  try {
+    if (state === "pending") vi.mocked(local.onCommand).mock.calls[0]![0]("status", "");
+    expect(vi.mocked(stream.onCommand).mock.calls[0]![0]("status", "")).toBe(false);
+    expect(stream.showCommandReply).toHaveBeenLastCalledWith({
+      kind: "settled",
+      name: "status",
+      text: "Not run: a reply is still in progress.",
+    });
+    if (state === "pending") {
+      reply({ type: "command_reply", id, text: "Original" });
+      expect(local.showCommandReply).toHaveBeenLastCalledWith({
+        kind: "settled",
+        name: "status",
+        text: "Original",
+      });
+    } else expect(local.showCommandReply).not.toHaveBeenCalled();
+    expect(remote.showCommandReply).not.toHaveBeenCalled();
+  } finally {
+    off();
     router.dispose();
   }
 });
