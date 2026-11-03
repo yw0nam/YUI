@@ -1,34 +1,45 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatKeySettings } from "../../../../settings/backend/api-key-settings";
-import { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
+import {
+  createEndpointsSettings,
+  type EndpointOverrides,
+} from "../../../../settings/backend/endpoints-settings";
 import { createProactiveSettings } from "../../../../settings/cues/proactive-settings";
 import { createScheduleSettings } from "../../../../settings/cues/schedule-settings";
 import { setLocale } from "../../../i18n";
+import { GEMINI_PRESET } from "../../constants";
 import { createQuickStart } from "./quick-start";
 
 const REFUSED = "Google did not accept this key. Paste the key you copied again.";
 const FAILED = "Could not reach Google. Check your internet connection and try again.";
+const OWN_SERVER_URL = "http://localhost:8643/v1";
 
 const settle = () => new Promise<void>((r) => setTimeout(r, 0));
 const models = () => new Response(JSON.stringify({ data: [{ id: "m" }] }), { status: 200 });
 
-function setup(fetchImpl: typeof globalThis.fetch = async () => models()) {
+function setup(
+  fetchImpl: typeof globalThis.fetch = async () => models(),
+  opts: {
+    showHelp?: boolean;
+    getEndpointDefaults?: () => EndpointOverrides | undefined;
+  } = {},
+) {
   const fetchMock = vi.fn(fetchImpl);
   const endpointsSettings = createEndpointsSettings();
   const chatKeySettings = createChatKeySettings();
   const proactiveSettings = createProactiveSettings({ locale: "en" });
   const scheduleSettings = createScheduleSettings({ locale: "en" });
   const onConnected = vi.fn();
-  const openConnection = vi.fn();
   const page = createQuickStart({
     endpointsSettings,
     chatKeySettings,
     proactiveSettings,
     scheduleSettings,
+    getEndpointDefaults: opts.getEndpointDefaults,
     getFetch: async () => fetchMock,
     onConnected,
-    openConnection,
+    showHelp: opts.showHelp ?? false,
   });
   document.body.append(page.el);
   const input = page.el.querySelector<HTMLInputElement>('input[type="password"]')!;
@@ -51,6 +62,7 @@ function setup(fetchImpl: typeof globalThis.fetch = async () => models()) {
     [...page.el.querySelectorAll<HTMLElement>(selector)]
       .filter((el) => !el.closest("[hidden]"))
       .map((el) => el.textContent);
+  const el = (selector: string) => page.el.querySelector<HTMLElement>(selector)!;
   return {
     page,
     fetchMock,
@@ -59,12 +71,12 @@ function setup(fetchImpl: typeof globalThis.fetch = async () => models()) {
     proactiveSettings,
     scheduleSettings,
     onConnected,
-    openConnection,
     input,
     button,
     connect,
     expectNothingWritten,
     visibleText,
+    el,
   };
 }
 
@@ -174,7 +186,7 @@ describe("createQuickStart", () => {
     s.expectNothingWritten();
   });
 
-  it("states what is sent and the daily limit before the key field, and links the key page and Connection", () => {
+  it("states what is sent and the daily limit before the key field, and links the key page", () => {
     const s = setup();
 
     const text = s.page.el.textContent!;
@@ -192,10 +204,74 @@ describe("createQuickStart", () => {
     expect(key.href).toBe("https://aistudio.google.com/apikey");
     expect(key.target).toBe("_blank");
     expect(key.rel).toBe("noopener noreferrer");
+  });
+});
 
-    [...s.page.el.querySelectorAll("button")]
-      .find((b) => b.textContent === "Open Connection")!
-      .click();
-    expect(s.openConnection).toHaveBeenCalledTimes(1);
+describe("createQuickStart — the state it reads from the stores", () => {
+  beforeEach(() => setLocale("en"));
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("warns that the key replaces the server already configured", () => {
+    const s = setup();
+    s.endpointsSettings.set({ chat_base_url: OWN_SERVER_URL });
+
+    s.page.reflect();
+
+    expect(s.el(".yui-start__own").hidden).toBe(false);
+    expect(s.el(".yui-start__own").textContent).toBe(
+      "Connecting with this key replaces your current server with Google Gemini.",
+    );
+  });
+
+  it("shows the connected state for Gemini with a saved key", () => {
+    const s = setup();
+    s.endpointsSettings.set({ chat_base_url: GEMINI_PRESET.url });
+    s.chatKeySettings.setApiKey("AIza-good");
+
+    s.page.reflect();
+
+    expect(s.el(".yui-start__setup").hidden).toBe(true);
+    expect(s.el(".yui-start__connected").hidden).toBe(false);
+  });
+
+  it("shows the setup state for Gemini without a key", () => {
+    const s = setup();
+    s.endpointsSettings.set({ chat_base_url: GEMINI_PRESET.url });
+
+    s.page.reflect();
+
+    expect(s.el(".yui-start__setup").hidden).toBe(false);
+    expect(s.el(".yui-start__connected").hidden).toBe(true);
+  });
+
+  it("falls back to the setup state and the warning when the server changes", () => {
+    const s = setup();
+    s.endpointsSettings.set({ chat_base_url: GEMINI_PRESET.url });
+    s.chatKeySettings.setApiKey("AIza-good");
+    s.page.reflect();
+
+    s.endpointsSettings.set({ chat_base_url: OWN_SERVER_URL });
+    s.page.reflect();
+
+    expect(s.el(".yui-start__setup").hidden).toBe(false);
+    expect(s.el(".yui-start__connected").hidden).toBe(true);
+    expect(s.el(".yui-start__own").hidden).toBe(false);
+  });
+
+  it("the connected state carries the two guide buttons", () => {
+    const s = setup(undefined, { showHelp: true });
+    s.endpointsSettings.set({ chat_base_url: GEMINI_PRESET.url });
+    s.chatKeySettings.setApiKey("AIza-good");
+
+    s.page.reflect();
+
+    const connected = s.el(".yui-start__connected");
+    expect(connected.hidden).toBe(false);
+    expect([...connected.querySelectorAll("[data-guide]")].map((b) => b.dataset.guide)).toEqual([
+      "controls",
+      "capabilities",
+    ]);
   });
 });
