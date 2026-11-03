@@ -1472,6 +1472,15 @@ globalThis.YUI_MAP =
       "paths": [
         "src/ui/commands"
       ]
+    },
+    {
+      "id": "ui/scroll-fade",
+      "module": "display",
+      "label": "scroll fade",
+      "role": "Marks a scroll box while more of it sits below its visible part, so its bottom edge fades; the Ask card's prompt and the Command reply use it.",
+      "paths": [
+        "src/ui/scroll-fade"
+      ]
     }
   ],
   "edges": [

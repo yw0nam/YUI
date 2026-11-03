@@ -7,6 +7,7 @@
 import "./ask-card.css";
 import type { AskFrame } from "../../io/chat/push/push-frames";
 import { t } from "../i18n";
+import { markClipped } from "../scroll-fade/scroll-fade";
 import { type AnswerArea, createAnswerArea } from "../threads/window/answer-area";
 import type { Draft } from "../threads/window/drafts";
 
@@ -92,11 +93,7 @@ export function createAskCard(deps: {
 
   // The prompt head, where the timer rides, marks itself while more of it sits below; a render, a scroll and each tick of a deadline re-measure it.
   function cue(): void {
-    const head = timer.parentElement;
-    head?.classList.toggle(
-      "is-clipped",
-      head.scrollHeight - head.scrollTop - head.clientHeight > 1,
-    );
+    if (timer.parentElement) markClipped(timer.parentElement);
   }
   // Scroll does not bubble, so the card catches the head's on capture.
   el.addEventListener("scroll", cue, true);

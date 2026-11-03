@@ -1,6 +1,7 @@
 import "./command-reply.css";
 import type { CommandReplyState } from "../../io/bridge/message/message-bridge";
 import { subscribe, t } from "../i18n";
+import { markClipped } from "../scroll-fade/scroll-fade";
 import { entryMarkdown } from "../threads/window/entry-markdown";
 
 export function createCommandReply({ mount }: { mount: HTMLElement }) {
@@ -34,6 +35,8 @@ export function createCommandReply({ mount }: { mount: HTMLElement }) {
     for (const cb of closeHandlers) cb();
   }
   close.addEventListener("click", requestClose);
+  const cue = (): void => markClipped(body);
+  body.addEventListener("scroll", cue);
   labels();
   const offLocale = subscribe(labels);
   return {
@@ -48,6 +51,7 @@ export function createCommandReply({ mount }: { mount: HTMLElement }) {
       body.replaceChildren(...(state.kind === "settled" ? entryMarkdown(state.text) : []));
       labels();
       card.hidden = false;
+      cue();
     },
     onClose(cb: () => void): void {
       closeHandlers.push(cb);
@@ -55,6 +59,7 @@ export function createCommandReply({ mount }: { mount: HTMLElement }) {
     dispose(): void {
       offLocale();
       close.removeEventListener("click", requestClose);
+      body.removeEventListener("scroll", cue);
       closeHandlers.length = 0;
       card.remove();
     },
