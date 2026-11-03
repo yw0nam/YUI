@@ -1,6 +1,6 @@
 /** The shown bubble, which steps aside while an Ask card shows. */
 export const BUBBLE =
-  ".yui-ui:not(:has(.yui-ask-card:not([hidden]), .yui-cmd-reply:not([hidden]))) .yui-bubble.is-visible";
+  ".yui-ui:not(:has(.yui-ask-card:not([hidden]), .yui-cmd-reply:not([hidden]), .yui-cmd-list:not([hidden]))) .yui-bubble.is-visible";
 
 /**
  * Overlay elements that must take OS pointer events while shown — everything else in the overlay
