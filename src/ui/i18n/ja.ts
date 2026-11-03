@@ -3,6 +3,7 @@
  * tool.* keys stay English (same as en): not translated per spec.
  */
 const ja: Record<string, string> = {
+  "command.resize": "返答の高さを変更",
   "command.running": "実行中",
   "command.empty": "出力なし",
   "command.close": "返答を閉じる",

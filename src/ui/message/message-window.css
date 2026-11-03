@@ -200,3 +200,7 @@
   position: static;
   margin-bottom: 8px;
 }
+
+.yui-ui--message .yui-cmd-slot:has(.yui-cmd-reply.is-resized) {
+  max-height: none;
+}

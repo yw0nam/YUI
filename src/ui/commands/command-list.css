@@ -19,17 +19,24 @@
   max-height: min(204px, 35vh);
   overflow-y: auto;
   overscroll-behavior: contain;
+  touch-action: none;
+  user-select: none;
 }
 .yui-cmd-list__row {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  column-gap: 10px;
+  row-gap: 2px;
   min-height: 34px;
-  padding: 0 8px;
+  padding: 8px;
   border-radius: var(--yui-radius-control);
   cursor: pointer;
   font-size: var(--yui-fs-body);
   font-weight: 500;
+}
+.yui-cmd-list__row > :first-child {
+  flex: none;
 }
 .yui-cmd-list__row:hover {
   background: var(--yui-hover);
@@ -40,9 +47,8 @@
 }
 .yui-cmd-list__description {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  flex: 1 1 10rem;
+  overflow-wrap: anywhere;
   font-size: var(--yui-fs-sub);
   font-weight: 400;
   color: var(--yui-text-mute);

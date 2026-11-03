@@ -1,6 +1,7 @@
 import "./command-list.css";
 import type { BackendCommand } from "../../io/chat/push/push-frames";
 import { subscribe, t } from "../i18n";
+import { attachDragScroll } from "./drag-scroll";
 
 export function createCommandList({
   field,
@@ -97,15 +98,13 @@ export function createCommandList({
       activate(active + (e.key === "ArrowDown" ? 1 : -1));
     else pick(active);
   }
-  function onMouseDown(e: MouseEvent): void {
-    e.preventDefault();
-    const index = [...rows.children].findIndex((row) => row.contains(e.target as Node));
+  const offDragScroll = attachDragScroll(rows, (target) => {
+    const index = [...rows.children].findIndex((row) => row.contains(target as Node));
     if (index !== -1) pick(index);
-  }
+  });
   field.addEventListener("keydown", onKey, true);
   field.addEventListener("input", onInput);
   field.addEventListener("blur", close);
-  rows.addEventListener("mousedown", onMouseDown);
   const offLocale = subscribe(() => {
     if (!root.hidden) refresh();
   });
@@ -117,7 +116,7 @@ export function createCommandList({
       field.removeEventListener("keydown", onKey, true);
       field.removeEventListener("input", onInput);
       field.removeEventListener("blur", close);
-      rows.removeEventListener("mousedown", onMouseDown);
+      offDragScroll();
       for (const attr of [
         "role",
         "aria-autocomplete",

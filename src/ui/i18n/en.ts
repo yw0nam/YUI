@@ -3,6 +3,7 @@
  * All tool.* keys stay English in every locale (not translated).
  */
 const en: Record<string, string> = {
+  "command.resize": "Resize reply",
   "command.running": "Running",
   "command.empty": "No output",
   "command.close": "Close reply",

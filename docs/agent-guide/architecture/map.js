@@ -1468,7 +1468,7 @@ globalThis.YUI_MAP =
       "id": "ui/commands",
       "module": "display",
       "label": "backend commands",
-      "role": "The backend-stated command list and the Markdown Command reply above the input.",
+      "role": "The backend-stated command list with wrapping descriptions and captured drag scrolling, and the Markdown Command reply with drag scrolling and an in-window resize handle above the input.",
       "paths": [
         "src/ui/commands"
       ]

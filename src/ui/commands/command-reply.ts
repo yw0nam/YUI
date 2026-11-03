@@ -3,6 +3,8 @@ import type { CommandReplyState } from "../../io/bridge/message/message-bridge";
 import { subscribe, t } from "../i18n";
 import { markClipped } from "../scroll-fade/scroll-fade";
 import { entryMarkdown } from "../threads/window/entry-markdown";
+import { attachDragScroll } from "./drag-scroll";
+import { createReplyResize } from "./reply-resize";
 
 export function createCommandReply({ mount }: { mount: HTMLElement }) {
   const card = document.createElement("section");
@@ -37,6 +39,8 @@ export function createCommandReply({ mount }: { mount: HTMLElement }) {
   close.addEventListener("click", requestClose);
   const cue = (): void => markClipped(body);
   body.addEventListener("scroll", cue);
+  const offDragScroll = attachDragScroll(body);
+  const resize = createReplyResize({ card, onResize: cue });
   labels();
   const offLocale = subscribe(labels);
   return {
@@ -51,7 +55,7 @@ export function createCommandReply({ mount }: { mount: HTMLElement }) {
       body.replaceChildren(...(state.kind === "settled" ? entryMarkdown(state.text) : []));
       labels();
       card.hidden = false;
-      cue();
+      resize.refresh();
     },
     onClose(cb: () => void): void {
       closeHandlers.push(cb);
@@ -59,6 +63,8 @@ export function createCommandReply({ mount }: { mount: HTMLElement }) {
     dispose(): void {
       offLocale();
       close.removeEventListener("click", requestClose);
+      offDragScroll();
+      resize.dispose();
       body.removeEventListener("scroll", cue);
       closeHandlers.length = 0;
       card.remove();

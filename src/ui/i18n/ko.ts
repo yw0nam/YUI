@@ -3,6 +3,7 @@
  * tool.* keys stay English (same as en): not translated per spec.
  */
 const ko: Record<string, string> = {
+  "command.resize": "응답 크기 조절",
   "command.running": "실행 중",
   "command.empty": "출력 없음",
   "command.close": "응답 닫기",

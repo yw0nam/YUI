@@ -1,4 +1,5 @@
 .yui-cmd-reply {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -59,6 +60,8 @@
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
+  touch-action: none;
+  user-select: none;
   overflow-wrap: anywhere;
   line-height: 1.55;
 }
@@ -105,4 +108,44 @@
   .yui-cmd-reply__running {
     animation: none;
   }
+}
+
+.yui-cmd-reply.is-resized {
+  flex-shrink: 0;
+  max-height: none;
+}
+.yui-cmd-reply__resize {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  background: none;
+  /* The image supplies the vertical resize cursor on WebKit, where ns-resize is not shown. */
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath transform='rotate(45 12 12)' d='M5 5h7L9.5 7.5l7 7L19 12v7h-7l2.5-2.5-7-7L5 12z' stroke='white' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E")
+    12 12,
+    ns-resize;
+  touch-action: none;
+}
+.yui-cmd-reply__resize::before {
+  content: "";
+  width: 32px;
+  height: 4px;
+  border-radius: var(--yui-radius-pill);
+  background: var(--yui-edge-strong);
+}
+.yui-cmd-reply__resize:hover::before,
+.yui-cmd-reply__resize.is-resizing::before {
+  background: var(--yui-text-mute);
+}
+.yui-cmd-reply__resize:focus-visible {
+  outline: 2px solid var(--yui-accent-soft);
+  outline-offset: 0;
+  border-radius: var(--yui-radius-control);
 }
