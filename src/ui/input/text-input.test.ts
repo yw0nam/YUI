@@ -1073,3 +1073,35 @@ describe("multiline field — Enter, IME safety, auto-grow", () => {
     expect(after - before).toBe(60);
   });
 });
+
+describe("Backend commands from the real input", () => {
+  it.each([
+    ["/status", true],
+    ["/hello", false],
+  ])("routes %s through its matching input path", (text, command) => {
+    const { s, mount } = makeSurfaces();
+    const submit = vi.fn();
+    const run = vi.fn();
+    s.setCommands([{ name: "status", description: "Session info", args: "" }]);
+    s.onSubmit(submit);
+    s.onCommand(run);
+    s.summonInput();
+    const field = mount.querySelector<HTMLTextAreaElement>("textarea")!;
+    field.value = text;
+    field.dispatchEvent(new Event("input"));
+    field.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
+    );
+    if (command) {
+      expect(run).toHaveBeenCalledWith("status", "");
+      expect(submit).not.toHaveBeenCalled();
+    } else {
+      expect(submit).toHaveBeenCalledWith("/hello", []);
+      expect(run).not.toHaveBeenCalled();
+    }
+    expect(field.value).toBe("");
+    expect(field.getAttribute("aria-expanded")).toBe("false");
+    s.dispose();
+    mount.remove();
+  });
+});

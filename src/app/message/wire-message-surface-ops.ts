@@ -17,6 +17,7 @@ export function wireMessageSurfaceOps({
   surfaces: Surfaces;
   name: Pick<MirroredName, "set">;
 }): void {
+  surfaces.onCommandReplyClose(() => bridge.emitControl({ op: "command-reply-close" }));
   bridge.onSurface((op) => {
     switch (op.op) {
       case "begin":
@@ -39,6 +40,12 @@ export function wireMessageSurfaceOps({
         break;
       case "dismiss-input":
         surfaces.dismissInput();
+        break;
+      case "commands":
+        surfaces.setCommands(op.commands);
+        break;
+      case "command-reply":
+        surfaces.showCommandReply(op.reply);
         break;
       case "busy":
         log.info("busy_recv", { busy: op.busy });

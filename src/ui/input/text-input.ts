@@ -12,6 +12,7 @@ import { type ActionButton, createActionButton } from "./action-button";
 import { downscaleToJpeg } from "./image-resize";
 
 interface TextInput {
+  interceptSubmit(fn: (text: string, images: string[]) => boolean): void;
   /** Hotkey summon — slide up + focus; a no-op while the input is already open. */
   summonInput(): void;
   /** Close the input. */
@@ -71,6 +72,7 @@ export function createTextInput(
 ): TextInput {
   const submitHandlers: Array<(text: string, images: string[]) => void> = [];
   const stopHandlers: Array<() => void> = [];
+  let submitInterceptor: ((text: string, images: string[]) => boolean) | undefined;
   const attachments: string[] = [];
   // Accepted but still being read into a data URL — counts against max_count so a
   // single multi-file drop cannot slip past the cap.
@@ -306,7 +308,9 @@ export function createTextInput(
     if (text === "" && attachments.length === 0) return;
     clearInputError();
     const images = attachments.slice();
-    for (const cb of submitHandlers) cb(text, images);
+    if (!submitInterceptor?.(text, images)) {
+      for (const cb of submitHandlers) cb(text, images);
+    }
     clearAttachments();
     field.value = "";
     fitField();
@@ -392,6 +396,7 @@ export function createTextInput(
 
   function dispose(): void {
     unsubscribeLocale();
+    submitInterceptor = undefined;
     formEl.removeEventListener("submit", handleSubmit);
     actionButton.dispose();
     field.removeEventListener("keydown", handleFieldKey);
@@ -412,6 +417,9 @@ export function createTextInput(
     dismissInput,
     isInputOpen,
     onSubmit,
+    interceptSubmit(fn) {
+      submitInterceptor = fn;
+    },
     onStop,
     setBusy,
     showInputError,

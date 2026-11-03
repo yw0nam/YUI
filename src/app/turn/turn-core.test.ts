@@ -70,6 +70,10 @@ function wire(over: Partial<TurnCorePhase1> = {}) {
     surfaces: {
       onStop: (cb: () => void) => (onStop = cb),
       onSubmit: () => {},
+      setCommands: () => {},
+      onCommand: () => {},
+      showCommandReply: () => {},
+      onCommandReplyClose: () => {},
       askSlot: document.createElement("div"),
     },
     onStopTurns: (cb: () => void) => {
@@ -155,6 +159,10 @@ describe("wireTurnCore", () => {
       pushSocket: {
         sendStop,
         sendVocabulary: () => {},
+        getCommands: () => [],
+        onCommands: off,
+        onCommandReply: off,
+        sendCommand: () => true,
         onAsk: off,
         onAskEnd: off,
         onState: off,

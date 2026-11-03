@@ -15,9 +15,16 @@
 import "./surfaces.css";
 import type { AttachmentLimits } from "../../config/validators/guardrails";
 import type { UtteranceIdentity } from "../../contract";
-import type { SourceLine, UserQuote } from "../../io/bridge/message/message-bridge";
+import type {
+  CommandReplyState,
+  SourceLine,
+  UserQuote,
+} from "../../io/bridge/message/message-bridge";
 import type { InputErrorAction, SpeechAction } from "../../io/bridge/message/message-remote";
+import type { BackendCommand } from "../../io/chat/push/push-frames";
 import type { ToolStatus } from "../chips/status-pill";
+import { createCommandInput } from "../commands/command-input";
+import { createCommandReply } from "../commands/command-reply";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { createTextInput } from "../input/text-input";
 import { type BacklogSource, createBacklog } from "../message/backlog";
@@ -27,13 +34,17 @@ import { createReasoningDisclosure, type ReasoningSource } from "../message/reas
 import { createSignalSourceLines } from "../message/signal-source-lines";
 import { createSpeechBubble } from "../message/speech-bubble";
 import { createUserQuote } from "../message/user-quote";
-import { anchorWithAskSlot, liftWithAskSlot } from "./ask-slot";
+import { anchorWithInputSlots, liftWithInputSlots } from "./input-slots";
 
 // Arrows-out: moves speech into the message window. Stroke width comes from each button's CSS.
 const POP_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"
      stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M10 20H4v-6M4 20l8-8"/></svg>`;
 
 export interface Surfaces {
+  setCommands(list: BackendCommand[]): void;
+  onCommand(cb: (name: string, args: string) => void): void;
+  onCommandReplyClose(cb: () => void): void;
+  showCommandReply(reply: CommandReplyState): void;
   /** overlay root (.yui-ui) */
   readonly el: HTMLElement;
   /** Where the chips beside the avatar mount, signal chips first and the delegation chip after. */
@@ -176,6 +187,7 @@ export function createSurfaces({
     <div class="yui-chip-column"></div>
     <span class="yui-bubble__sr" role="status" aria-live="polite"></span>
     <div class="yui-ask-slot"></div>
+    <div class="yui-cmd-slot"></div>
     <form class="yui-input" novalidate hidden>
       <div class="yui-input__tray"></div>
       <div class="yui-input__row">
@@ -211,6 +223,8 @@ export function createSurfaces({
 
   const chipColumn = el.querySelector<HTMLDivElement>(".yui-chip-column")!;
   const askSlot = el.querySelector<HTMLDivElement>(".yui-ask-slot")!;
+  const commandSlot = el.querySelector<HTMLDivElement>(".yui-cmd-slot")!;
+  const commandReply = createCommandReply({ mount: commandSlot });
   const bubbleEl = el.querySelector<HTMLDivElement>(".yui-bubble")!;
   const bubbleFrame = el.querySelector<HTMLDivElement>(".yui-bubble__frame")!;
   const bubbleBox = el.querySelector<HTMLDivElement>(".yui-bubble__box")!;
@@ -255,11 +269,14 @@ export function createSurfaces({
     : null;
   const quote = createUserQuote({ el: bubbleQuote, bubble, lead: quoteLead });
   const sources = createSignalSourceLines({ el: bubbleQuote, bubble });
+  const commandInput = createCommandInput({ field, form: formEl });
   const input = createTextInput(
     { formEl, field, errorEl, trayEl, attachBtn, picker, sendBtn },
-    liftWithAskSlot(askSlot, bubble),
+    liftWithInputSlots([askSlot, commandSlot], bubble),
     onInputOpenChange,
   );
+
+  input.interceptSubmit(commandInput.interceptSubmit);
 
   const plate = namePlate ? createMessagePlate({ mount: bubbleFrame, startDragging }) : undefined;
 
@@ -288,7 +305,9 @@ export function createSurfaces({
     backlog?.dispose();
     quote.dispose();
     bubble.dispose();
+    commandInput.dispose();
     input.dispose();
+    commandReply.dispose();
     el.remove();
   }
 
@@ -313,12 +332,16 @@ export function createSurfaces({
     dismissInput: input.dismissInput,
     isInputOpen: input.isInputOpen,
     onSubmit: input.onSubmit,
+    setCommands: commandInput.setCommands,
+    onCommand: commandInput.onCommand,
+    onCommandReplyClose: commandReply.onClose,
+    showCommandReply: commandReply.show,
     onStop: input.onStop,
     setBusy: input.setBusy,
     showInputError: input.showInputError,
     setAttachmentLimits: input.setAttachmentLimits,
     restoreInput: input.restoreInput,
-    setInputAnchor: anchorWithAskSlot(askSlot, input.setInputAnchor),
+    setInputAnchor: anchorWithInputSlots([askSlot, commandSlot], input.setInputAnchor),
     dispose,
   };
   return plate ? withPlateState(plate, { ...surfaces, plate }) : surfaces;

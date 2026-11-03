@@ -67,6 +67,7 @@ const SURFACE_OPS: MessageSurfaceOp[] = [
 ];
 
 const CONTROL_OPS: MessageControlOp[] = [
+  { op: "command", name: "status", args: "" },
   { op: "submit", text: "hi", images: ["data:image/jpeg;base64,x"] },
   { op: "stop" },
   { op: "input-open", open: true },

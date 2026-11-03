@@ -3,6 +3,14 @@
  * tool.* keys stay English (same as en): not translated per spec.
  */
 const ko: Record<string, string> = {
+  "command.resize": "응답 크기 조절",
+  "command.running": "실행 중",
+  "command.empty": "출력 없음",
+  "command.close": "응답 닫기",
+  "command.count": "명령 {n}개",
+  "command.list_label": "백엔드 명령",
+  "command.not_sent": "전송되지 않았습니다. 백엔드가 연결되어 있지 않습니다.",
+
   // tool labels (English — not translated)
   "tool.web_search": "Searching…",
   "tool.browser": "Browsing…",

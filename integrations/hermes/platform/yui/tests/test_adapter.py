@@ -121,7 +121,10 @@ READY_FRAME = {"type": "ready", "chat_id": CHAT, "max_turn_bytes": MAX_TURN_BYTE
 async def ready(client, chat_id=CHAT, **kwargs):
     """Open a socket through the handshake and hand back the socket past its ready frame."""
     ws = await hello(client, chat_id=chat_id, **kwargs)
-    assert await recv(ws) == {**READY_FRAME, "chat_id": chat_id}
+    frame = await recv(ws)
+    if "command_reply" in (kwargs.get("accepts") or []):
+        frame.pop("commands", None)
+    assert frame == {**READY_FRAME, "chat_id": chat_id}
     assert (await recv(ws))["type"] == "delegations"
     return ws
 
@@ -2653,5 +2656,202 @@ async def test_ask_oversize(client, adapter, source):
     assert not result.success
     assert result.error == "ask too large"
     assert adapter._asks.pending(CHAT, time.time() * 1000) == []
+    with pytest.raises(TimeoutError):
+        await asyncio.wait_for(ws.receive_json(), 0.05)
+
+
+COMMANDS = [
+    {"name": "status", "description": "status description", "args": ""},
+    {"name": "model", "description": "model description", "args": "[model|reset]"},
+    {"name": "undo", "description": "undo description", "args": ""},
+]
+COMMAND = {"type": "command", "id": "c1", "name": "status", "args": ""}
+
+
+@pytest.mark.parametrize("accepts", [[], ["command_reply"]])
+async def test_backend_commands_ready(client, accepts):
+    ws = await hello(client, accepts=accepts)
+    frame = await recv(ws)
+    assert frame.get("commands") == (COMMANDS if accepts else None)
+
+
+async def test_backend_command_event(client, adapter):
+    await ready(client, accepts=["command_reply"])
+    await adapter._on_frame(CHAT, {**COMMAND, "name": "model", "args": "gpt-5"})
+    assert len(adapter.dispatched) == 1
+    event = adapter.dispatched[0]
+    assert event.text == "/model gpt-5"
+    assert event.allow_gateway_control is True
+    assert event.message_id == "c1"
+    assert event.source == adapter._source(CHAT)
+
+
+async def test_backend_command_background_completion(client, adapter):
+    ws = await ready(client, accepts=["command_reply"])
+    state.set_muted(CHAT, True)
+    state.append_cue(CHAT, {"motion_id": "idle"}, "")
+    await adapter._on_frame(CHAT, COMMAND)
+    assert len(adapter.dispatched) == 1
+    event = adapter.dispatched[0]
+    await adapter.on_processing_start(event)
+    assert state.open_turns(CHAT) == []
+    await adapter.send(CHAT, "First", reply_to="c1", metadata={"notify": True})
+    await adapter.send(CHAT, "Second", reply_to="c1", metadata={"notify": True})
+    assert state.is_muted(CHAT)
+    assert len(state.cues(CHAT)) == 1
+    with pytest.raises(TimeoutError):
+        await asyncio.wait_for(ws.receive_json(), 0.05)
+    await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+    assert await recv(ws) == {"type": "command_reply", "id": "c1", "text": "First\n\nSecond"}
+    await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+    with pytest.raises(TimeoutError):
+        await asyncio.wait_for(ws.receive_json(), 0.05)
+
+
+@pytest.mark.parametrize("text", ["Inline reply", ""])
+async def test_backend_command_inline_reply(client, adapter, monkeypatch, text):
+    ws = await ready(client, accepts=["command_reply"])
+
+    async def inline(event):
+        if text:
+            await adapter.send(CHAT, text, reply_to=event.message_id, metadata={"notify": True})
+
+    monkeypatch.setattr(adapter, "handle_message", inline)
+    await adapter._on_frame(CHAT, COMMAND)
+    assert await recv(ws) == {"type": "command_reply", "id": "c1", "text": text}
+
+
+async def test_backend_command_failure(client, adapter):
+    ws = await ready(client, accepts=["command_reply", "error"])
+    await adapter._on_frame(CHAT, COMMAND)
+    assert len(adapter.dispatched) == 1
+    event = adapter.dispatched[0]
+    await adapter.on_processing_start(event)
+    await adapter.send(CHAT, "Partial", reply_to="c1")
+    await adapter.on_processing_complete(event, ProcessingOutcome.FAILURE)
+    frame = await recv(ws)
+    assert frame["type"] == "command_reply"
+    assert frame["text"].startswith("Partial\n\n")
+    assert "failed" in frame["text"].lower()
+    await adapter._notify_turn_error(event, RuntimeError("boom"))
+    with pytest.raises(TimeoutError):
+        await asyncio.wait_for(ws.receive_json(), 0.05)
+
+
+async def test_backend_command_unlisted(client, adapter):
+    ws = await ready(client, accepts=["command_reply"])
+    await adapter._on_frame(CHAT, {**COMMAND, "name": "new"})
+    frame = await recv(ws)
+    assert frame["type"] == "command_reply"
+    assert frame["id"] == "c1"
+    assert frame["text"]
+    assert adapter.dispatched == []
+
+
+async def command_confirmation(client, adapter):
+    ws = await ready(client, accepts=["command_reply", "ask", "ask_end"])
+    await adapter._on_frame(CHAT, {**COMMAND, "name": "undo"})
+    assert len(adapter.dispatched) == 1
+    event = adapter.dispatched[0]
+    await adapter.on_processing_start(event)
+    session = adapter._event_session_key(event)
+    SLASH_CONFIRM.register(session, "confirm-1", "undo")
+    before = time.time() * 1000
+    message = (
+        "⚠️ **Confirm /undo**\n\nDiscard turn?\n\n_Text fallback: reply `/approve`, `/always`, or `/cancel`._"
+    )
+    result = await adapter.send_slash_confirm(CHAT, "/undo", message, session, "confirm-1")
+    assert result.success
+    ask = await recv(ws)
+    assert ask["ask"] == {
+        "ask_id": result.message_id,
+        "prompt": "⚠️ **Confirm /undo**\n\nDiscard turn?",
+        "choices": [
+            {"id": "once", "label": "Approve once", "tone": "primary"},
+            {"id": "always", "label": "Always approve"},
+            {"id": "cancel", "label": "Cancel", "tone": "danger"},
+        ],
+        "text": False,
+    }
+    assert before + 300000 <= ask["expires_at"] <= time.time() * 1000 + 300000
+    await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+    with pytest.raises(TimeoutError):
+        await asyncio.wait_for(ws.receive_json(), 0.05)
+    return ws, session, result.message_id
+
+
+async def test_backend_command_confirmation_answer(client, adapter, monkeypatch):
+    from tools import slash_confirm
+
+    async def resolve(session, confirm_id, choice):
+        SLASH_CONFIRM.resolved.append((session, confirm_id, choice))
+        return "Undone."
+
+    monkeypatch.setattr(slash_confirm, "resolve", resolve)
+    ws, session, ask_id = await command_confirmation(client, adapter)
+    await adapter._on_frame(CHAT, {"type": "answer", "ask_id": ask_id, "choice": "once"})
+    assert await recv(ws) == {"type": "command_reply", "id": "c1", "text": "Undone."}
+    assert SLASH_CONFIRM.resolved == [(session, "confirm-1", "once")]
+
+
+async def test_backend_command_confirmation_expiry(client, adapter, monkeypatch):
+    from tools import slash_confirm
+
+    timers = []
+    loop = asyncio.get_running_loop()
+    call_later = loop.call_later
+
+    def capture(delay, callback, *args, **kwargs):
+        if delay == slash_confirm.DEFAULT_TIMEOUT_SECONDS:
+            timers.append((callback, args))
+        return call_later(delay, callback, *args, **kwargs)
+
+    monkeypatch.setattr(loop, "call_later", capture)
+    ws, session, ask_id = await command_confirmation(client, adapter)
+    assert len(timers) == 1
+    callback, args = timers[0]
+    callback(*args)
+    assert await recv(ws) == {"type": "ask_end", "ask_id": ask_id}
+    frame = await recv(ws)
+    assert frame["type"] == "command_reply"
+    assert "not run" in frame["text"].lower()
+    assert SLASH_CONFIRM.get_pending(session) is None
+    assert SLASH_CONFIRM.resolved == []
+
+
+async def test_backend_command_reply_cut(client, adapter, monkeypatch):
+    ws = await ready(client, accepts=["command_reply"])
+
+    async def inline(event):
+        await adapter.send(CHAT, '"\n😀' * MAX_FRAME_BYTES, reply_to=event.message_id)
+
+    monkeypatch.setattr(adapter, "handle_message", inline)
+    await adapter._on_frame(CHAT, COMMAND)
+    raw = (await recv_raw(ws)).data
+    assert len(raw.encode("utf-8")) <= MAX_FRAME_BYTES
+    frame = json.loads(raw)
+    assert frame["type"] == "command_reply"
+    assert frame["text"].endswith("…")
+
+
+@pytest.mark.parametrize("ended", ["dropped", "finished"])
+async def test_backend_command_late_output_is_not_rendered(client, adapter, monkeypatch, ended):
+    from unittest.mock import AsyncMock
+
+    ws = await ready(client, accepts=["command_reply"])
+    await adapter._on_frame(CHAT, COMMAND)
+    event = adapter.dispatched[-1]
+    if ended == "dropped":
+        await ws.close()
+        await wait_for(lambda: not state.is_connected(CHAT))
+        ws = await ready(client, accepts=["command_reply"])
+    else:
+        await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+        assert await recv(ws) == {"type": "command_reply", "id": "c1", "text": ""}
+    deliver = AsyncMock()
+    monkeypatch.setattr(adapter, "_deliver", deliver)
+    result = await adapter.send(CHAT, "Late command output", reply_to="c1", metadata={"notify": True})
+    assert result.success
+    deliver.assert_not_awaited()
     with pytest.raises(TimeoutError):
         await asyncio.wait_for(ws.receive_json(), 0.05)

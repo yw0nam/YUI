@@ -13,6 +13,7 @@ import sys
 import types
 from dataclasses import dataclass, field
 from enum import Enum
+from types import SimpleNamespace
 
 # The stand-in for the gateway's session ContextVars; tests set values directly.
 STUB_ENV: dict[str, str] = {}
@@ -180,6 +181,9 @@ class BasePlatformAdapter:
         # The real base holds an interrupt Event per busy session; tests only ask who is in here.
         self._active_sessions: dict[str, object] = {}
 
+    async def _notify_turn_error(self, event, error):
+        await self.send(event.source.chat_id, str(error))
+
     async def _send_exec_approval_prompt(self, prompt) -> SendResult:
         return SendResult(success=False, error="Not supported")
 
@@ -333,6 +337,9 @@ class SlashConfirmStub:
         entry = self.pending.get(session_key)
         return dict(entry) if entry else None
 
+    def clear(self, session_key: str) -> None:
+        self.pending.pop(session_key, None)
+
     async def resolve(self, session_key: str, confirm_id: str, choice: str) -> str | None:
         self.resolved.append((session_key, confirm_id, choice))
         self.pending.pop(session_key, None)
@@ -367,6 +374,8 @@ def install_stubs() -> None:
     tools = types.ModuleType("tools")
     tools.__path__ = []
     slash_confirm = types.ModuleType("tools.slash_confirm")
+    slash_confirm.DEFAULT_TIMEOUT_SECONDS = 300
+    slash_confirm.clear = SLASH_CONFIRM.clear
     slash_confirm.register = SLASH_CONFIRM.register
     slash_confirm.get_pending = SLASH_CONFIRM.get_pending
     slash_confirm.resolve = SLASH_CONFIRM.resolve
@@ -383,6 +392,44 @@ def install_stubs() -> None:
     clarify.get_clarify_timeout = lambda: CLARIFY.timeout
     clarify_tool = types.ModuleType("tools.clarify_tool")
     clarify_tool.strip_recommended = lambda text: str(text).strip().removesuffix("(Recommended)").strip()
+    hermes_cli = types.ModuleType("hermes_cli")
+    hermes_cli.__path__ = []
+    commands_platforms = types.ModuleType("hermes_cli.commands_platforms")
+    commands_platforms._gateway_available_commands = lambda: [
+        SimpleNamespace(name=name, describe=lambda name=name: name + " description", args_hint=hint)
+        for name, hint in [
+            ("status", ""),
+            ("model", "[model|reset]"),
+            ("undo", ""),
+            *[
+                (name, "")
+                for name in [
+                    "new",
+                    "stop",
+                    "start",
+                    "topic",
+                    "retry",
+                    "bg",
+                    "btw",
+                    "queue",
+                    "steer",
+                    "goal",
+                    "heartbeat",
+                    "refine",
+                    "review",
+                    "loop",
+                    "plan",
+                    "moa",
+                    "learn",
+                    "init",
+                    "blueprint",
+                ]
+            ],
+        ]
+    ]
+    hermes_cli.commands_platforms = commands_platforms
+    sys.modules["hermes_cli"] = hermes_cli
+    sys.modules["hermes_cli.commands_platforms"] = commands_platforms
     agent = types.ModuleType("agent")
     agent.__path__ = []
     i18n = types.ModuleType("agent.i18n")

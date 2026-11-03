@@ -16,6 +16,9 @@ function setup() {
     beginSpeech: vi.fn(),
     endSpeech: vi.fn(),
     setBusy: vi.fn(),
+    setCommands: vi.fn(),
+    showCommandReply: vi.fn(),
+    onCommandReplyClose: vi.fn(),
     showInputError: vi.fn(),
     showSpeechActions: vi.fn(),
     quoteSignals: vi.fn(),
@@ -80,4 +83,14 @@ it("quotes the source lines on quote-signals", () => {
   send({ op: "quote-signals", lines });
 
   expect(surfaces.quoteSignals).toHaveBeenCalledWith(lines);
+});
+
+it("draws the commands and reply received over the bridge", () => {
+  const { send, surfaces } = setup();
+  const commands = [{ name: "status", description: "Info", args: "" }];
+  const reply = { kind: "settled" as const, name: "status", text: "OK" };
+  send({ op: "commands", commands });
+  send({ op: "command-reply", reply });
+  expect(surfaces.setCommands).toHaveBeenCalledWith(commands);
+  expect(surfaces.showCommandReply).toHaveBeenCalledWith(reply);
 });

@@ -18,6 +18,8 @@ sequenceDiagram
   B-->>C: ask
   C->>B: answer
   B-->>C: ask_end, when the Ask closed without an answer
+  C->>B: command
+  B-->>C: command_reply
   C->>B: stop, while the turn has not ended
   B-->>C: turn_end
   C->>B: vocabulary, reset or playback
@@ -27,6 +29,8 @@ sequenceDiagram
 The connection stays open, so a reply arrives without a request, including a report on work the backend finished on its own. A settings or message window runs no socket of its own: it mirrors the socket of the pet window that shares its preset, as `main` does for the active preset.
 
 Push is an optional extension for backends that can deliver without a request. Request-scoped features behave the same over the request transports: the Responses API, and Chat Completions where its wire carries the data. A backend that does not speak push loses none of these features.
+
+Backend commands are push only: the backend states its own commands in `ready` and answers each one on the same socket, and neither request transport carries a command list or a reply that is not a turn.
 
 The client renders what arrives and judges nothing. Everything the backend must know is in this
 document, and the backend adapter for a specific agent lives under `integrations/<agent>/`.
@@ -56,6 +60,7 @@ Each row is one thing a transport carries, and each column is one chat transport
 | Speech the backend starts with no request | None | None | `render` under a `turn_id` the backend mints |
 | Delegations list | None | None | `delegations` frames |
 | Questions the backend asks the user | None | None | `ask` frames, answered with `answer` |
+| Backend commands | None | None | `ready.commands`, run with `command`, answered with `command_reply` |
 
 ### Stop, reset and history
 
@@ -182,7 +187,7 @@ A turn that starts before `ready` ends as a network failure, and so does a turn 
 #### What `accepts` covers
 
 The base set is `ready`, `render`, `speech`, `turn_end`, `tool_status`, `tool_call`, `reasoning`
-and `delegations`. This client sends `["error", "ask", "ask_end"]`, and absent means the base set only.
+and `delegations`. This client sends `["error", "ask", "ask_end", "command_reply"]`, and absent means the base set only. `command_reply` also covers the `commands` field of `ready`.
 
 A backend sends a client no frame type outside the base set and its `accepts`, and reads a value
 that is not a list of strings as absent. The latest `hello` of the chat decides, including for
@@ -202,6 +207,8 @@ The frame may carry `max_turn_bytes`, a positive integer naming the largest `tur
 ::: tip
 `max_turn_bytes` is optional. Without it, the client caps `turn` frames at 256 KiB and sends no images on a `turn`.
 :::
+
+The frame may carry `commands`, the Backend commands the client offers when the user types `/`; see [Backend commands](#backend-commands).
 
 The backend closes the socket with code `4401` on a wrong key and sends nothing, and the client
 holds that close as a failed state and stops retrying.
@@ -638,6 +645,58 @@ An Ask is a question the backend holds open for the user in a character's own ch
 ```
 
 The Ask closed without this client's answer. It timed out, it was answered elsewhere, or the run was interrupted. The client closes that Ask.
+
+## Backend commands
+
+A Backend command is a command the backend states in `ready` and runs when the user types `/name` in the text input. Its output is a Command reply: text the client shows above the input and writes to its log. A Command reply is never speech and never a turn, so no `render`, `speech` or `turn_end` carries it.
+
+### `ready.commands` (backend → client)
+
+```json
+{ "type": "ready", "chat_id": "yui-3f9a2c1d", "commands": [{ "name": "status", "description": "Show session info", "args": "" }, { "name": "model", "description": "Switch model for this session", "args": "[model|reset] [--provider name]" }] }
+```
+
+| Field | Rule |
+|---|---|
+| `commands` | Optional array of at most 100 commands with unique names; absent means the backend states none |
+| `name` | Required, matches `^[a-z0-9][a-z0-9_-]{0,31}$` |
+| `description` | Required string, at most 200 code points |
+| `args` | Required string, at most 200 code points; `""` when the command takes none |
+
+- The backend sends `commands` only to a client whose `hello` `accepts` lists `command_reply`.
+- The client reads a `commands` value that breaks a rule as absent.
+- A typed `/word` whose name is not listed is an ordinary turn.
+
+### `command` (client → backend)
+
+```json
+{ "type": "command", "id": "c1", "name": "model", "args": "gpt-5" }
+```
+
+| Field | Value |
+|---|---|
+| `id` | A string of at most 128 code points the client mints for this command |
+| `name` | A name from `ready.commands` |
+| `args` | The text after the name, trimmed; `""` when none |
+
+- The client sends `command` only while the socket is `ready` and no turn of the chat is outstanding.
+- The client sends one `command` at a time per chat.
+
+### `command_reply` (backend → client)
+
+```json
+{ "type": "command_reply", "id": "c1", "text": "Model switched to **gpt-5**." }
+```
+
+| Field | Value |
+|---|---|
+| `id` | The `id` of the `command` it answers |
+| `text` | Markdown; `""` when the command printed nothing |
+
+- The backend sends exactly one `command_reply` for each `command` while the connection lasts.
+- A text that would exceed the [frame size](#frame-sizes) is cut, ending with `…`.
+- A command may raise an Ask, such as a confirmation. Its `command_reply` then waits for that Ask's answer, or for its end, when the reply says the command was not run.
+- A command open when the connection drops gets no `command_reply`. The client drops its pending command when the socket leaves `ready`.
 
 ## Logging
 

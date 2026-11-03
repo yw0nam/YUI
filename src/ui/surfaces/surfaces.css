@@ -39,10 +39,11 @@
    As wide as the input and above it: over the open input at the line the bubble lifts to, else over
    its one-line place (44px tall, then the bubble's 12px gap); its top at 30% keeps the card off the
    face, and a taller card scrolls its choices to fit. */
-.yui-ask-slot {
+.yui-ask-slot,
+.yui-cmd-slot {
   position: absolute;
   top: 30%;
-  bottom: var(--yui-ask-bottom, calc(var(--yui-input-bottom, 4%) + 56px));
+  bottom: var(--yui-slot-bottom, calc(var(--yui-input-bottom, 4%) + 56px));
   left: 50%;
   transform: translateX(-50%);
   width: min(42ch, 84%);
@@ -172,8 +173,9 @@
   transform: translate(-50%, 0) scale(1);
 }
 
-/* While an Ask card shows, the bubble steps aside; its line keeps playing and typing underneath. */
-.yui-ui:has(.yui-ask-card:not([hidden])) .yui-bubble {
+/* While an Ask card, a Command reply or the command list shows, the bubble steps aside; its line keeps playing and typing underneath. */
+.yui-ui:has(.yui-ask-card:not([hidden]), .yui-cmd-reply:not([hidden]), .yui-cmd-list:not([hidden]))
+.yui-bubble {
   visibility: hidden;
 }
 
@@ -1052,4 +1054,8 @@
   .yui-input__error-dismiss {
     transition: none;
   }
+}
+
+.yui-ui:has(.yui-ask-card:not([hidden])) .yui-cmd-reply {
+  display: none;
 }

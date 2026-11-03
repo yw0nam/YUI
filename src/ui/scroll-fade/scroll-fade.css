@@ -1,0 +1,5 @@
+/* A scroll box with more below its visible part fades at its bottom edge. */
+.yui-scroll-fade.is-clipped {
+  mask-image: linear-gradient(to bottom, oklch(0 0 0) calc(100% - 24px), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, oklch(0 0 0) calc(100% - 24px), transparent);
+}

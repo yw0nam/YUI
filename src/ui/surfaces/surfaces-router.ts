@@ -141,6 +141,25 @@ export function createSurfacesRouter({
       remote.setAttachmentLimits(limits);
     },
 
+    setCommands(list) {
+      local.setCommands(list);
+      remote.setCommands(list);
+    },
+    // A reply shows beside the input that ran it; a clear reaches both, so neither keeps a stale one.
+    showCommandReply(reply) {
+      if (reply.kind !== "clear")
+        return (getMode() === "popped" ? remote : local).showCommandReply(reply);
+      local.showCommandReply(reply);
+      remote.showCommandReply(reply);
+    },
+    onCommandReplyClose(cb) {
+      local.onCommandReplyClose(cb);
+      remote.onCommandReplyClose(cb);
+    },
+    onCommand(cb) {
+      local.onCommand(cb);
+      remote.onCommand(cb);
+    },
     onSubmit(cb) {
       local.onSubmit(cb);
       remote.onSubmit(cb);

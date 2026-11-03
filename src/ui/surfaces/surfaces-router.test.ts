@@ -9,6 +9,8 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { wireMessageSurfaceOps } from "../../app/message/wire-message-surface-ops";
+import { wireBackendCommands } from "../../app/turn/push/wire-backend-commands";
 import { guardrailsFixture } from "../../config/load-test-helpers";
 import type { BridgeTransport } from "../../io/bridge/core/bridge-core";
 import { createMessageBridge } from "../../io/bridge/message/message-bridge";
@@ -43,6 +45,10 @@ function makeLocal(): Surfaces {
     summonInput: vi.fn(),
     dismissInput: vi.fn(),
     isInputOpen: vi.fn(() => false),
+    setCommands: vi.fn(),
+    showCommandReply: vi.fn(),
+    onCommandReplyClose: vi.fn(),
+    onCommand: vi.fn(),
     onSubmit: vi.fn(),
     onStop: vi.fn(),
     setBusy: vi.fn(),
@@ -74,6 +80,10 @@ function makeRemote(): RemoteSurfaces {
     showInputError: vi.fn(),
     setAttachmentLimits: vi.fn(),
     restoreInput: vi.fn(),
+    setCommands: vi.fn(),
+    showCommandReply: vi.fn(),
+    onCommandReplyClose: vi.fn(),
+    onCommand: vi.fn(),
     onSubmit: vi.fn(),
     onStop: vi.fn(),
     onDock: vi.fn(),
@@ -100,6 +110,32 @@ describe("createSurfacesRouter", () => {
     shown = next;
     for (const cb of shownListeners) cb(next);
   };
+
+  it("fans the command list to both windows and registers both input sources", () => {
+    const commands = [{ name: "status", description: "Info", args: "" }];
+    const cb = vi.fn();
+    router.setCommands(commands);
+    router.onCommand(cb);
+    for (const side of [local, remote]) {
+      expect(side.setCommands).toHaveBeenCalledWith(commands);
+      expect(side.onCommand).toHaveBeenCalledWith(cb);
+    }
+  });
+
+  it.each([
+    ["docked", "local"],
+    ["popped", "remote"],
+  ] as const)("shows a Command reply only where the input is (%s), and clears it on both", (m, where) => {
+    setMode(m);
+    const reply = { kind: "settled" as const, name: "status", text: "Ready" };
+    router.showCommandReply(reply);
+    router.showCommandReply({ kind: "clear" });
+    const [shownOn, other] = where === "local" ? [local, remote] : [remote, local];
+    expect(shownOn.showCommandReply).toHaveBeenCalledWith(reply);
+    expect(other.showCommandReply).not.toHaveBeenCalledWith(reply);
+    for (const side of [local, remote])
+      expect(side.showCommandReply).toHaveBeenCalledWith({ kind: "clear" });
+  });
 
   beforeEach(() => {
     local = makeLocal();
@@ -655,4 +691,54 @@ describe("createSurfacesRouter over the message bridge", () => {
     expect(messageWindow.plate.el.dataset.state).toBe("thinking");
     expect(messageWindow.form.classList.contains("is-running")).toBe(true);
   });
+});
+
+it.each([
+  "pet",
+  "message",
+] as const)("closing the %s reply clears both windows and late-window replay", (source) => {
+  const transport = createFakeTransport();
+  const petBridge = createMessageBridge(transport, { windowKind: "pet" });
+  const messageBridge = createMessageBridge(transport, { windowKind: "message" });
+  const local = createSurfaces({ tool: noTool, mount: document.createElement("div") });
+  const message = createSurfaces({ tool: noTool, mount: document.createElement("div") });
+  const remote = createRemoteSurfaces(petBridge);
+  const router = createSurfacesRouter({
+    local,
+    remote,
+    stream: makeRemote(),
+    getMode: () => "docked",
+    subscribeMode: () => () => {},
+    shown: { get: () => false, subscribe: () => () => {} },
+  });
+  const off = wireBackendCommands({
+    surfaces: router,
+    socket: {
+      getCommands: () => [],
+      onCommands: () => () => {},
+      onCommandReply: () => () => {},
+      onState: () => () => {},
+      sendCommand: () => true,
+    },
+  });
+  wireMessageSurfaceOps({ bridge: messageBridge, surfaces: message, name: { set() {} } });
+  const card = (s: Surfaces) => s.el.querySelector<HTMLElement>(".yui-cmd-reply")!;
+  let late: Surfaces | undefined;
+  try {
+    router.showCommandReply({ kind: "settled", name: "status", text: "Ready" });
+    const clicked = source === "pet" ? local : message;
+    clicked.el.querySelector<HTMLButtonElement>(".yui-cmd-reply__close")!.click();
+    expect([card(local).hidden, card(message).hidden]).toEqual([true, true]);
+    late = createSurfaces({ tool: noTool, mount: document.createElement("div") });
+    wireMessageSurfaceOps({ bridge: messageBridge, surfaces: late, name: { set() {} } });
+    messageBridge.emitControl({ op: "ready" });
+    expect(card(late).hidden).toBe(true);
+  } finally {
+    off();
+    router.dispose();
+    message.dispose();
+    late?.dispose();
+    petBridge.dispose();
+    messageBridge.dispose();
+  }
 });

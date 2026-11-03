@@ -413,6 +413,36 @@ describe("pop buttons — only with a pop target", () => {
   });
 });
 
+describe("Command list — the bubble steps aside while it is open", () => {
+  it("takes the bubble out of the pointer targets while the list is open, and gives it back when it closes", () => {
+    const { s, mount } = makeSurfaces();
+    const bubbleTargets = () =>
+      INTERACTIVE_OVERLAY_SELECTORS.flatMap((sel) => [...mount.querySelectorAll(sel)]).filter(
+        (el) => el.closest(".yui-bubble"),
+      ).length;
+    s.setCommands([{ name: "status", description: "Show session info", args: "" }]);
+    s.beginSpeech();
+    s.pushSpeech("hello");
+    s.endSpeech({ defer: true });
+    const shown = bubbleTargets();
+    s.summonInput();
+    const field = mount.querySelector<HTMLTextAreaElement>(".yui-input__field")!;
+    const type = (value: string) => {
+      field.value = value;
+      field.setSelectionRange(value.length, value.length);
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+
+    type("/");
+    const withList = bubbleTargets();
+    type("");
+
+    expect([shown > 0, withList, bubbleTargets() === shown]).toEqual([true, 0, true]);
+    s.dispose();
+    mount.remove();
+  });
+});
+
 describe("Ask card — the bubble steps aside while one shows", () => {
   it("takes the bubble out of the pointer targets while the card shows, and gives it back when the card hides", () => {
     const { s, mount } = makeSurfaces();
