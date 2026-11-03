@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => {
   const state = { serverDown: false };
   const sink = { play: vi.fn(async () => {}), stop: vi.fn() };
-  const fetchImpl = vi.fn<(url: string, init: RequestInit) => Promise<Response>>(async (url) => {
+  const fetchImpl = vi.fn<typeof globalThis.fetch>(async (url) => {
     if (String(url).endsWith("/v1/audio/speech") && state.serverDown) {
       throw new TypeError("error sending request for url (http://tts.test/v1/audio/speech)");
     }
@@ -26,8 +26,12 @@ const mocks = vi.hoisted(() => {
     state,
     sink,
     fetchImpl,
-    createWebAudioSink: vi.fn(() => sink),
-    selectFetch: vi.fn(async () => fetchImpl),
+    createWebAudioSink: vi.fn<
+      typeof import("../../../io/voice/tts/audio-player").createWebAudioSink
+    >(() => sink),
+    selectFetch: vi.fn<typeof import("../../../io/chat/stream/chat-client").selectFetch>(
+      async () => fetchImpl,
+    ),
   };
 });
 
