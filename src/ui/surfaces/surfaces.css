@@ -103,14 +103,14 @@
   text-wrap: pretty;
   /* The border swells to amber while the line types. */
   transition: border-color var(--yui-dur) var(--yui-ease);
-
-  /* Long utterance height cap + internal scroll — does not grow upward over model even when overflowing. */
-  max-height: var(--yui-bubble-max-h, 34vh);
 }
 
+/* Long utterance height cap + internal scroll — does not grow upward over model even when overflowing.
+   The cap sits here, net of the box's 56px vertical padding, so the actions under it add to the box. */
 .yui-bubble__scroll {
   flex: 1 1 auto;
   min-height: 0;
+  max-height: calc(var(--yui-bubble-max-h, 34vh) - 56px);
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--yui-edge-strong) transparent;
@@ -186,8 +186,13 @@
   bottom: calc(var(--yui-bubble-bottom) + 15px);
 }
 .yui-bubble.is-above-input .yui-bubble__box {
-  max-height: max(min(var(--yui-bubble-max-h, 34vh), 28vh), var(--yui-bubble-three-lines));
   min-height: min(132px, var(--yui-bubble-max-h, 34vh), 28vh);
+}
+.yui-bubble.is-above-input .yui-bubble__scroll {
+  max-height: calc(
+    max(min(var(--yui-bubble-max-h, 34vh), 28vh), var(--yui-bubble-three-lines)) -
+    56px
+  );
 }
 
 /* ── Markdown inside bubble ──
@@ -427,6 +432,7 @@
 }
 .yui-bubble__speech-action button {
   padding: 0;
+  text-align: left;
   border: 0;
   background: none;
   font: inherit;
