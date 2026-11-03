@@ -248,7 +248,8 @@ describe("createQuickStart — the state it reads from the stores", () => {
   });
 
   it("warns about the bundled config's server when no URL is stored", () => {
-    const s = setup(undefined, { getEndpointDefaults: () => ({ chat_base_url: OWN_SERVER_URL }) });
+    const bundled = { ...createEndpointsSettings().get(), chat_base_url: OWN_SERVER_URL };
+    const s = setup(undefined, { getEndpointDefaults: () => bundled });
     s.endpointsSettings.set({ chat_base_url: "" });
 
     s.page.reflect();
