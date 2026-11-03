@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_CARD } from "../../config/validators/persona/types";
 import type { UtteranceIdentity } from "../../contract";
+import type { SpeechAction } from "../../io/bridge/message/message-remote";
 import { createChatHistoryStore } from "../../io/chat/conversation/chat-history-store";
 import { createSpeechPlayback } from "../../io/voice/tts/speech-playback";
 import type { TtsPipelineOptions } from "../../io/voice/tts/tts-pipeline";
@@ -16,6 +17,8 @@ function setup(over: { seen?: boolean; endsInsideSpeak?: boolean; busy?: boolean
   const calls: string[] = [];
   const signals = new Set<() => void>();
   const ends = new Set<(identity: UtteranceIdentity) => void>();
+  const showSpeechActions = vi.fn<(actions: readonly SpeechAction[]) => void>();
+  const submitGuide = vi.fn();
   let pipeline: TtsPipelineOptions | undefined;
   const playback = createSpeechPlayback({
     renderer: {
@@ -80,9 +83,10 @@ function setup(over: { seen?: boolean; endsInsideSpeak?: boolean; busy?: boolean
       beginSpeech: vi.fn(),
       pushSpeech: (text) => calls.push(`hint:${text}`),
       endSpeech: vi.fn(),
-      showSpeechActions: vi.fn(),
+      showSpeechActions,
       hideSpeech: () => calls.push("hide"),
     },
+    submitGuide,
     seen: () => over.seen ?? false,
     markSeen: vi.fn(),
     hotkey: "CmdOrCtrl+Shift+Y",
@@ -97,6 +101,8 @@ function setup(over: { seen?: boolean; endsInsideSpeak?: boolean; busy?: boolean
     transcript,
     wired,
     playback,
+    showSpeechActions,
+    submitGuide,
     connect: () => {
       for (const cb of [...signals]) cb();
     },
@@ -135,6 +141,23 @@ describe("wireFirstConversation", () => {
 
     vi.advanceTimersByTime(1);
     expect(s.calls).toEqual([...OPENED, HINT]);
+  });
+
+  it("offers the two guides under the hint, each submitting its request", () => {
+    const s = setup();
+
+    speakThrough(s);
+    vi.advanceTimersByTime(READ_MS);
+
+    expect(s.showSpeechActions).toHaveBeenCalledTimes(1);
+    const actions = s.showSpeechActions.mock.calls[0]![0];
+    expect(actions.map((a) => a.label)).toEqual(["help.controls.hear", "help.capabilities.hear"]);
+    actions[0]!.onClick();
+    actions[1]!.onClick();
+    expect(s.submitGuide.mock.calls).toEqual([
+      ["controls", "help.controls.request"],
+      ["capabilities", "help.capabilities.request"],
+    ]);
   });
 
   it("an interrupted greeting opens the input and the hint the same way", () => {
@@ -205,13 +228,14 @@ describe("wireFirstConversation", () => {
     expect(s.calls).toEqual(["hide", "input"]);
   });
 
-  it("leaves the hint out once it was seen, and still opens the input", () => {
+  it("leaves the hint and its guides out once it was seen, and still opens the input", () => {
     const s = setup({ seen: true });
 
     speakThrough(s);
     vi.advanceTimersByTime(READ_MS);
 
     expect(s.calls).toEqual(OPENED);
+    expect(s.showSpeechActions).not.toHaveBeenCalled();
   });
 
   it("dispose drops a hint still waiting", () => {
