@@ -4,6 +4,7 @@
  * key writes anything.
  */
 
+import type { EndpointsConfig } from "../../../../contract";
 import type { createSpeakerSelection } from "../../../../io/voice/voices/speaker-selection";
 import type {
   ApiKeySettingsStore,
@@ -16,9 +17,9 @@ import type {
 import type { createProactiveSettings } from "../../../../settings/cues/proactive-settings";
 import type { createScheduleSettings } from "../../../../settings/cues/schedule-settings";
 import type { FlagSettingsStore } from "../../../../settings/persisted-store";
-import { type Locale, t } from "../../../i18n";
+import { t } from "../../../i18n";
 import { CHATKEY_EYE_SVG, GEMINI_KEY_URL, GEMINI_PRESET } from "../../constants";
-import { secHeadHtml } from "../../markup";
+import { keyLinkHtml, secHeadHtml } from "../../markup";
 import { ICON_WARN } from "../../plugins/plugin-parts";
 import { helpSectionHtml } from "../../sections/help/help-section";
 import { toggleKeyReveal } from "../../sections/key-row/key-row";
@@ -47,7 +48,7 @@ interface QuickStartDeps {
   ttsSettings?: Pick<FlagSettingsStore, "setEnabled">;
   speakerSelection?: Pick<SpeakerSelectionStore, "list" | "addUserOption" | "select">;
   /** The Fish voice per app language, from the bundled config; undefined hides the section. */
-  getDefaultVoices?: () => Record<Locale, { id: string; name: string }> | undefined;
+  getDefaultVoices?: () => NonNullable<EndpointsConfig["tts_default_voices"]> | undefined;
   /** The pet window replays the first conversation. */
   onReplay?: () => void;
 }
@@ -60,11 +61,6 @@ function factRowHtml(labelKey: string, subKey: string): string {
               <span class="yui-row__sub">${t(subKey)}</span>
             </div>
           </div>`;
-}
-
-// Tauri's opener plugin opens target=_blank anchors; WebKit's plain Tab skips links without a tabindex.
-function keyLinkHtml(labelKey: string, className: string): string {
-  return `<a class="yui-chat-type__link ${className}" href="${GEMINI_KEY_URL}" target="_blank" rel="noopener noreferrer" tabindex="0">${t(labelKey)}</a>`;
 }
 
 function pageHtml(showHelp: boolean, replayRow: string): string {
@@ -85,7 +81,7 @@ function pageHtml(showHelp: boolean, replayRow: string): string {
               <span class="yui-row__label">${t("start.make_label")}</span>
               <span class="yui-row__sub">${t("start.make_sub")}</span>
             </div>
-            ${keyLinkHtml("start.make_link", "yui-start__key-link")}
+            ${keyLinkHtml(GEMINI_KEY_URL, "start.make_link", "yui-start__key-link")}
           </div>
           <div class="yui-row yui-chatkey yui-start__paste">
             <div class="yui-row__main">
@@ -98,7 +94,7 @@ function pageHtml(showHelp: boolean, replayRow: string): string {
             </div>
             <button class="yui-pill yui-pill--ok yui-start__connect" type="button">${t("start.connect")}</button>
             <p class="yui-start__checking" role="status" hidden><i class="yui-start__dot"></i>${t("start.checking")}</p>
-            <div class="yui-start__err" role="alert" hidden>${ICON_WARN}<div><span class="yui-start__err-text"></span> ${keyLinkHtml("start.reopen", "yui-start__reopen")}</div></div>
+            <div class="yui-start__err" role="alert" hidden>${ICON_WARN}<div><span class="yui-start__err-text"></span> ${keyLinkHtml(GEMINI_KEY_URL, "start.reopen", "yui-start__reopen")}</div></div>
           </div>
         </div>
       </div>

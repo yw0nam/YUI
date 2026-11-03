@@ -12,7 +12,7 @@ import "./quick-controls.css";
 import "./controls.css";
 import type { AvatarOption } from "../../config/validators/avatar/types";
 import type { Card, PersonaConfig } from "../../config/validators/persona/types";
-import type { GuideKey } from "../../contract";
+import type { EndpointsConfig, GuideKey } from "../../contract";
 import type { ImportedCard } from "../../io/assets/card/card-import";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
 import type { createChatHistoryStore } from "../../io/chat/conversation/chat-history-store";
@@ -70,7 +70,7 @@ import type { createFillerSettings } from "../../settings/voice/filler-settings"
 import type { createReadingsSettings } from "../../settings/voice/readings-settings";
 import type { createVadSettings } from "../../settings/voice/vad-settings";
 import type { VoiceInputStatus } from "../chips/voice-input-status";
-import { type Locale, t } from "../i18n";
+import { t } from "../i18n";
 import { createCharacterTab } from "./character/character-tab";
 import { createConnectionTab, type PushSocketPanelPort } from "./connection/connection-tab";
 import { createConnectionViews } from "./connection/connection-views";
@@ -207,7 +207,7 @@ interface QuickControlsOptions {
   /** Default bundled-config value for Chat API dropdown when no override (undefined if not loaded). */
   getDefaultChatApi?: () => string | undefined;
   /** The Fish voice per app language, for Quick start's voice step (undefined if not loaded). */
-  getDefaultVoices?: () => Record<Locale, { id: string; name: string }> | undefined;
+  getDefaultVoices?: () => NonNullable<EndpointsConfig["tts_default_voices"]> | undefined;
   /** Resolves the chat key the chat turn would send, per request (SecretProvider path). */
   getChatApiKey?: () => Promise<string | undefined>;
   /** Environment fetch for the model list read (selectFetch()), undefined → globalThis.fetch. */
