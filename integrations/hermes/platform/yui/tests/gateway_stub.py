@@ -11,9 +11,9 @@ import os
 import re
 import sys
 import types
-from types import SimpleNamespace
 from dataclasses import dataclass, field
 from enum import Enum
+from types import SimpleNamespace
 
 # The stand-in for the gateway's session ContextVars; tests set values directly.
 STUB_ENV: dict[str, str] = {}
@@ -403,7 +403,27 @@ def install_stubs() -> None:
             ("undo", ""),
             *[
                 (name, "")
-                for name in "new stop start topic retry bg btw queue steer goal heartbeat refine review loop plan moa learn init blueprint".split()
+                for name in [
+                    "new",
+                    "stop",
+                    "start",
+                    "topic",
+                    "retry",
+                    "bg",
+                    "btw",
+                    "queue",
+                    "steer",
+                    "goal",
+                    "heartbeat",
+                    "refine",
+                    "review",
+                    "loop",
+                    "plan",
+                    "moa",
+                    "learn",
+                    "init",
+                    "blueprint",
+                ]
             ],
         ]
     ]

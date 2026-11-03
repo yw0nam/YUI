@@ -97,18 +97,27 @@ globalThis.YUI_MAP =
       "row": 3,
       "zone": "shared",
       "desc": "register: the hooks, generate_express, the tool context, the platform adapter"
+    },
+    {
+      "id": "commands",
+      "label": "Backend commands",
+      "kind": "module",
+      "col": 3,
+      "row": 3,
+      "zone": "socket",
+      "desc": "Hermes built-in listing, Command replies, and confirmation lifetime"
     }
   ],
   "links": [
     {
       "from": "client",
       "to": "adapter",
-      "label": "hello, turn, stop, reset, tool_result, answer"
+      "label": "hello, turn, stop, reset, tool_result, answer, command"
     },
     {
       "from": "adapter",
       "to": "client",
-      "label": "ready, speech, render, turn_end, tool_call, ask, ask_end"
+      "label": "ready, speech, render, turn_end, tool_call, ask, ask_end, command_reply"
     },
     {
       "from": "adapter",
@@ -154,6 +163,21 @@ globalThis.YUI_MAP =
       "from": "client-tools",
       "to": "adapter",
       "label": "tool_call to send"
+    },
+    {
+      "from": "adapter",
+      "to": "commands",
+      "label": "list, dispatch, collect, complete, confirm, reset, drop"
+    },
+    {
+      "from": "commands",
+      "to": "adapter",
+      "label": "Command replies and confirmation Asks"
+    },
+    {
+      "from": "commands",
+      "to": "gateway",
+      "label": "built-in registry and slash confirmation resolution"
     }
   ],
   "nodes": [
@@ -361,6 +385,15 @@ globalThis.YUI_MAP =
       "paths": [
         "integrations/hermes/platform/yui/src/asks"
       ]
+    },
+    {
+      "id": "commands",
+      "module": "commands",
+      "label": "Backend commands",
+      "paths": [
+        "integrations/hermes/platform/yui/src/commands"
+      ],
+      "role": "Lists gateway built-ins, dispatches command events, collects output, and settles confirmations without a Turn."
     }
   ],
   "edges": [
@@ -424,7 +457,7 @@ globalThis.YUI_MAP =
       "id": "frame-ready",
       "from": "transport/adapter",
       "to": "client",
-      "carries": "ready {chat_id, max_turn_bytes: 4 MiB}",
+      "carries": "ready {chat_id, max_turn_bytes: 4 MiB, commands?} when command_reply is accepted",
       "kind": "websocket",
       "transport": "push"
     },
@@ -569,7 +602,7 @@ globalThis.YUI_MAP =
       "id": "gateway-processing",
       "from": "gateway",
       "to": "transport/adapter",
-      "carries": "on_processing_start(event), on_processing_complete(event, outcome)",
+      "carries": "on_processing_start(event), on_processing_complete(event, outcome); marked command events bypass the Turn lifecycle",
       "kind": "call",
       "transport": "push"
     },
@@ -726,11 +759,12 @@ globalThis.YUI_MAP =
     },
     {
       "id": "adapter-confirm",
-      "from": "transport/adapter",
+      "from": "commands",
       "to": "gateway",
-      "carries": "slash_confirm.resolve(session_key, confirm_id, once)",
+      "carries": "slash_confirm.get_pending, resolve(session_key, confirm_id, choice), clear; DEFAULT_TIMEOUT_SECONDS",
       "kind": "call",
-      "transport": "push"
+      "transport": "push",
+      "wiring": "integrations/hermes/platform/yui/src/commands/gateway.py"
     },
     {
       "id": "adapter-home",
@@ -1113,6 +1147,58 @@ globalThis.YUI_MAP =
       "to": "asks/asks",
       "carries": "open, get, take, pending, chat_of, drop",
       "kind": "call",
+      "transport": "push"
+    },
+    {
+      "id": "adapter-commands",
+      "from": "transport/adapter",
+      "to": "commands",
+      "carries": "Commands.ready, handle, runs.collect, complete, confirm, reset, drop",
+      "kind": "call",
+      "transport": "push",
+      "wiring": "integrations/hermes/platform/yui/src/transport/adapter.py"
+    },
+    {
+      "id": "commands-send",
+      "from": "commands",
+      "to": "transport/adapter",
+      "carries": "_send_frame(command_reply, ask, ask_end); handle_message(MessageEvent with _yui_command_id)",
+      "kind": "call",
+      "transport": "push",
+      "wiring": "integrations/hermes/platform/yui/src/commands/gateway.py"
+    },
+    {
+      "id": "commands-registry",
+      "from": "commands",
+      "to": "gateway",
+      "carries": "_gateway_available_commands(): built-in CommandDefs",
+      "kind": "call",
+      "transport": "push",
+      "wiring": "integrations/hermes/platform/yui/src/commands/listing.py"
+    },
+    {
+      "id": "commands-asks",
+      "from": "commands",
+      "to": "asks/asks",
+      "carries": "slash_confirm_ask; Asks.open, drop; Answer starts resolve task",
+      "kind": "call",
+      "transport": "push",
+      "wiring": "integrations/hermes/platform/yui/src/commands/gateway.py"
+    },
+    {
+      "id": "frame-command",
+      "from": "client",
+      "to": "transport/adapter",
+      "carries": "command {id, name, args}",
+      "kind": "websocket",
+      "transport": "push"
+    },
+    {
+      "id": "frame-command-reply",
+      "from": "transport/adapter",
+      "to": "client",
+      "carries": "command_reply {id, text}; one reply, no Turn frames",
+      "kind": "websocket",
       "transport": "push"
     }
   ],
@@ -1831,6 +1917,77 @@ globalThis.YUI_MAP =
             "adapter-handle-message"
           ],
           "to": "gateway"
+        }
+      ]
+    },
+    {
+      "id": "backend-command",
+      "title": "A Backend command and its Command reply",
+      "steps": [
+        {
+          "from": "client",
+          "to": "adapter",
+          "label": "command names a listed built-in",
+          "edges": [
+            "frame-command"
+          ]
+        },
+        {
+          "from": "adapter",
+          "to": "commands",
+          "label": "Open a command; dispatch a marked gateway event with control enabled and no client_context",
+          "edges": [
+            "adapter-commands"
+          ]
+        },
+        {
+          "from": "commands",
+          "to": "adapter",
+          "label": "handle_message dispatches the event",
+          "edges": [
+            "commands-send"
+          ]
+        },
+        {
+          "from": "adapter",
+          "to": "gateway",
+          "label": "The gateway runs the built-in command",
+          "edges": [
+            "adapter-handle-message"
+          ]
+        },
+        {
+          "from": "gateway",
+          "to": "adapter",
+          "label": "send with reply_to collects text; completion bypasses Turn state",
+          "edges": [
+            "gateway-send",
+            "gateway-processing"
+          ]
+        },
+        {
+          "from": "adapter",
+          "to": "commands",
+          "label": "Inline dispatch finishes on return; a background command finishes on completion; a confirmation holds it",
+          "edges": [
+            "adapter-commands"
+          ]
+        },
+        {
+          "from": "commands",
+          "to": "gateway",
+          "label": "A confirmation Answer resolves once, always, or cancel; expiry clears it",
+          "edges": [
+            "adapter-confirm"
+          ]
+        },
+        {
+          "from": "adapter",
+          "to": "client",
+          "label": "One Command reply, cut to fit; a lost connection drops it",
+          "edges": [
+            "frame-command-reply"
+          ]
         }
       ]
     }

@@ -732,6 +732,7 @@ async def test_a_cancelled_delegations_push_is_not_reported(client, adapter, mon
 
 
 async def test_the_plugin_approves_the_gateway_confirmation_of_its_own_reset(adapter):
+    await adapter._on_reset(CHAT)
     SLASH_CONFIRM.register("agent:main:yui:dm:" + CHAT, "7", "new")
     result = await adapter.send_slash_confirm(
         chat_id=CHAT,
@@ -2739,7 +2740,7 @@ async def test_backend_command_failure(client, adapter):
 
 
 async def test_backend_command_unlisted(client, adapter):
-    ws = await ready(client)
+    ws = await ready(client, accepts=["command_reply"])
     await adapter._on_frame(CHAT, {**COMMAND, "name": "new"})
     frame = await recv(ws)
     assert frame["type"] == "command_reply"
