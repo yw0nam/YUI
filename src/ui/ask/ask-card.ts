@@ -23,9 +23,7 @@ export function createAskCard(deps: {
   mount: HTMLElement;
   /** False when the answer could not be sent; the Ask stays open. */
   onAnswer(answer: { ask_id: string; choice?: string; text?: string }): boolean;
-  now?: () => number;
 }): AskCard {
-  const now = deps.now ?? Date.now;
   const open: AskFrame[] = [];
   let area: AnswerArea | null = null;
   let shownId: string | null = null;
@@ -74,7 +72,7 @@ export function createAskCard(deps: {
   // Each tick lands where the shown seconds change, so the last one lands on expires_at.
   function countDown(): void {
     const frame = open[0]!;
-    const left = frame.expires_at - now();
+    const left = frame.expires_at - Date.now();
     if (left <= 0) {
       close(frame.ask.ask_id);
       return;

@@ -30,6 +30,14 @@
   background: none;
 }
 
+/* After the choices give up their room, the prompt scrolls, so Send stays in view in a short window. */
+.yui-ask-card .yui-threads-answer__head {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .yui-ask-card .yui-threads-answer__prompt {
   flex: 1 1 0;
 }

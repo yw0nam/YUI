@@ -256,7 +256,17 @@ export function createSurfaces({
   const sources = createSignalSourceLines({ el: bubbleQuote, bubble });
   const input = createTextInput(
     { formEl, field, errorEl, trayEl, attachBtn, picker, sendBtn },
-    { liftAboveInput: bubble.liftAboveInput, resetPosition: bubble.resetPosition },
+    {
+      // The Ask card sits on the same line the bubble lifts to over the open input.
+      liftAboveInput(px) {
+        bubble.liftAboveInput(px);
+        askSlot.style.setProperty("--yui-ask-bottom", `${px}px`);
+      },
+      resetPosition() {
+        bubble.resetPosition();
+        askSlot.style.removeProperty("--yui-ask-bottom");
+      },
+    },
     onInputOpenChange,
   );
 
