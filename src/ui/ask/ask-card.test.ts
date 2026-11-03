@@ -137,3 +137,20 @@ it.each<[string, (card: AskCard) => void]>([
 
   expect(el.hidden).toBe(true);
 });
+
+it("marks the prompt while more of it sits below its visible part", () => {
+  const { card, el } = build();
+  card.show(frame("a"));
+  const head = el.querySelector<HTMLElement>(".yui-threads-answer__head")!;
+  Object.defineProperties(head, {
+    scrollHeight: { value: 300 },
+    clientHeight: { value: 100 },
+  });
+  const scrollTo = (top: number) => {
+    head.scrollTop = top;
+    head.dispatchEvent(new Event("scroll"));
+    return head.classList.contains("is-clipped");
+  };
+
+  expect([scrollTo(0), scrollTo(200)]).toEqual([true, false]);
+});
