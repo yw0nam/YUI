@@ -2483,3 +2483,27 @@ async def test_exec_ask_away_replay(client, adapter, reconnect, monkeypatch):
         if reconnect == "incapable":
             ws = await ready(client, accepts=["ask"])
             assert (await recv(ws))["ask"]["ask_id"] == result.message_id
+
+
+async def test_exec_ask_settle_requires_ask_end_acceptance(client, adapter):
+    ws = await ready(client, accepts=["ask"])
+    prompt = approval_prompt()
+    result = await adapter._send_exec_approval_prompt(prompt)
+    assert result.success
+    await recv(ws)
+    await asyncio.to_thread(APPROVAL_OBSERVERS[prompt.session_key, prompt.request_id], "timeout")
+    with pytest.raises(TimeoutError):
+        await asyncio.wait_for(ws.receive_json(), 0.05)
+    assert adapter._asks.get(CHAT, result.message_id) is None
+
+
+async def test_exec_ask_requires_request_id(client, adapter):
+    ws = await ready(client, accepts=["ask"])
+    prompt = approval_prompt()
+    prompt.request_id = None
+    result = await adapter._send_exec_approval_prompt(prompt)
+    assert not result.success
+    assert result.error == "exec approval has no request id"
+    assert APPROVAL_OBSERVERS == {}
+    with pytest.raises(TimeoutError):
+        await asyncio.wait_for(ws.receive_json(), 0.05)
