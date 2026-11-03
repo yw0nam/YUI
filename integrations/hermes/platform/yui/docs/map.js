@@ -472,7 +472,7 @@ globalThis.YUI_MAP =
       "id": "frame-ask",
       "from": "transport/adapter",
       "to": "client",
-      "carries": "ask {ask, expires_at}, ask_end {ask_id}",
+      "carries": "ask {ask, expires_at?}, ask_end {ask_id}",
       "kind": "websocket",
       "transport": "push"
     },
@@ -594,6 +594,46 @@ globalThis.YUI_MAP =
       "from": "gateway",
       "to": "transport/adapter",
       "carries": "send_or_update_status, emit_warning, send_voice, send_document, send_video, send_image_file, send_image: logged, never sent; _should_auto_tts_for_chat → False",
+      "kind": "call",
+      "transport": "push"
+    },
+    {
+      "id": "gateway-asks",
+      "from": "gateway",
+      "to": "transport/adapter",
+      "carries": "_send_exec_approval_prompt(prompt), send_clarify(chat_id, question, choices, clarify_id, session_key, metadata), retire_clarify_card(clarify_id, notice)",
+      "kind": "call",
+      "transport": "push"
+    },
+    {
+      "id": "asks-approval",
+      "from": "asks/asks",
+      "to": "gateway",
+      "carries": "tools.approval.resolve_gateway_approval(session_key, choice, request_id)",
+      "kind": "call",
+      "transport": "push"
+    },
+    {
+      "id": "adapter-approval",
+      "from": "transport/adapter",
+      "to": "gateway",
+      "carries": "tools.approval.observe_gateway_settle(session_key, request_id, observer)",
+      "kind": "call",
+      "transport": "push"
+    },
+    {
+      "id": "asks-clarify",
+      "from": "asks/asks",
+      "to": "gateway",
+      "carries": "tools.clarify_gateway: resolve_gateway_clarify, mark_awaiting_text, get_pending, _coerce_text_response",
+      "kind": "call",
+      "transport": "push"
+    },
+    {
+      "id": "adapter-clarify",
+      "from": "transport/adapter",
+      "to": "gateway",
+      "carries": "tools.clarify_gateway.get_clarify_timeout()",
       "kind": "call",
       "transport": "push"
     },

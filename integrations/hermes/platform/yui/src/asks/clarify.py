@@ -14,6 +14,10 @@ from tools.clarify_gateway import (
 
 logger = logging.getLogger(__name__)
 
+MAX_CHOICES = 6
+MAX_LABEL_CODE_POINTS = 64
+MAX_PLACEHOLDER_CODE_POINTS = 200
+
 
 def cut(text: str, limit: int) -> str:
     return text if len(text) <= limit else text[: limit - 1] + "…"
@@ -24,12 +28,15 @@ def clarify_ask(question: str, choices: list[str] | None, clarify_id: str) -> tu
     multi = entry.multi_select if entry is not None else False
     body = {"prompt": question, "text": True}
     if choices:
-        if len(choices) <= 6:
-            body["choices"] = [{"id": str(i), "label": cut(c, 64)} for i, c in enumerate(choices, 1)]
-        if len(choices) > 6 or any(len(c) > 64 for c in choices):
+        if len(choices) <= MAX_CHOICES:
+            body["choices"] = [
+                {"id": str(i), "label": cut(c, MAX_LABEL_CODE_POINTS)} for i, c in enumerate(choices, 1)
+            ]
+        if len(choices) > MAX_CHOICES or any(len(c) > MAX_LABEL_CODE_POINTS for c in choices):
             body["prompt"] += "\n\n" + "\n".join(f"{i}. {c}" for i, c in enumerate(choices, 1))
         body["placeholder"] = cut(
-            t("gateway.clarify.hint_multi" if multi else "gateway.clarify.hint_single"), 200
+            t("gateway.clarify.hint_multi" if multi else "gateway.clarify.hint_single"),
+            MAX_PLACEHOLDER_CODE_POINTS,
         )
 
     def resolve(choice: str | None, text: str | None) -> None:
@@ -44,9 +51,8 @@ def clarify_ask(question: str, choices: list[str] | None, clarify_id: str) -> tu
             entry = get_pending(clarify_id)
             if entry is None:
                 return
+            # The public resolve_text_response_for_session answers the oldest pending clarify, not this one.
             value = _coerce_text_response(entry, text)
-            if value is None:
-                return
         if not resolve_gateway_clarify(clarify_id, value):
             logger.debug("yui: clarify %s is no longer pending", clarify_id)
 

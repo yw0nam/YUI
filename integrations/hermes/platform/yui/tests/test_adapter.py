@@ -2569,17 +2569,17 @@ async def test_clarify_choice(client, adapter, multi):
     assert CLARIFY.calls == [("resolve", "clarify-1", '["α"]' if multi else "α")]
 
 
-@pytest.mark.parametrize("coerced", ["\x00skipped", None])
-async def test_clarify_text(client, adapter, coerced):
+async def test_clarify_text(client, adapter):
     ws = await ready(client, accepts=["ask"])
     await clarify(adapter, choices=["A", "B"])
     await recv(ws)
-    CLARIFY.coerced = coerced
+    CLARIFY.coerced = "\x00skipped"
     await adapter._on_frame(CHAT, {"type": "answer", "ask_id": "clarify-1", "text": "skip"})
     assert CLARIFY.calls == [
         ("mark", "clarify-1"),
         ("coerce", CLARIFY.entries["clarify-1"], "skip"),
-    ] + ([("resolve", "clarify-1", coerced)] if coerced is not None else [])
+        ("resolve", "clarify-1", "\x00skipped"),
+    ]
 
 
 async def test_clarify_choice_and_text(client, adapter):
@@ -2638,12 +2638,18 @@ async def test_clarify_seven_choices(client, adapter):
     ask = (await recv(ws))["ask"]
     assert "choices" not in ask
     assert ask["text"] is True
-    assert ask["prompt"] == "Pick?\n\n" + "\n".join(f"{i}. {c}" for i, c in enumerate(choices, 1))
+    assert ask["prompt"] == "Pick?\n\n1. A\n2. B\n3. C\n4. D\n5. E\n6. F\n7. G"
 
 
-async def test_clarify_oversize(client, adapter):
+@pytest.mark.parametrize("source", ["clarify", "exec"])
+async def test_ask_oversize(client, adapter, source):
     ws = await ready(client, accepts=["ask"])
-    result = await clarify(adapter, question="x" * MAX_FRAME_BYTES)
+    if source == "clarify":
+        result = await clarify(adapter, question="x" * MAX_FRAME_BYTES)
+    else:
+        prompt = approval_prompt()
+        prompt.text = "x" * MAX_FRAME_BYTES
+        result = await adapter._send_exec_approval_prompt(prompt)
     assert not result.success
     assert result.error == "ask too large"
     assert adapter._asks.pending(CHAT, time.time() * 1000) == []

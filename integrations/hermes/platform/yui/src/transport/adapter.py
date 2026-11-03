@@ -359,12 +359,12 @@ class YuiAdapter(BasePlatformAdapter):
         if prompt.request_id is None:
             return SendResult(success=False, error="exec approval has no request id")
         body, resolve = exec_approval_ask(prompt)
+        ask_id = uuid4().hex
         ask = self._asks.open(
-            chat_id, uuid4().hex, body, time.time() * 1000 + approval_timeout_seconds() * 1000, resolve
+            chat_id, ask_id, body, time.time() * 1000 + approval_timeout_seconds() * 1000, resolve
         )
-        if not self._ask_fits(chat_id, ask):
+        if not self._ask_fits(chat_id, ask_id, ask):
             return SendResult(success=False, error="ask too large")
-        ask_id = ask.frame["ask"]["ask_id"]
         loop = asyncio.get_running_loop()
 
         def settled() -> None:
@@ -381,10 +381,10 @@ class YuiAdapter(BasePlatformAdapter):
             await self._send_frame(chat_id, ask.frame)
         return SendResult(success=True, message_id=ask_id)
 
-    def _ask_fits(self, chat_id: str, ask: Ask) -> bool:
+    def _ask_fits(self, chat_id: str, ask_id: str, ask: Ask) -> bool:
         if encoded(ask.frame)[1] <= MAX_FRAME_BYTES:
             return True
-        self._asks.drop(chat_id, ask.frame["ask"]["ask_id"])
+        self._asks.drop(chat_id, ask_id)
         return False
 
     async def send_clarify(
@@ -402,7 +402,7 @@ class YuiAdapter(BasePlatformAdapter):
         expires_at = time.time() * 1000 + timeout * 1000 if timeout > 0 else None
         body, resolve = clarify_ask(question, choices, clarify_id)
         ask = self._asks.open(chat_id, clarify_id, body, expires_at, resolve)
-        if not self._ask_fits(chat_id, ask):
+        if not self._ask_fits(chat_id, clarify_id, ask):
             return SendResult(success=False, error="ask too large")
         if state.is_connected(chat_id):
             await self._send_frame(chat_id, ask.frame)
