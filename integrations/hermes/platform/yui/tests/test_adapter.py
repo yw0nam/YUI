@@ -2529,7 +2529,6 @@ async def test_clarify_frame(client, adapter):
         "prompt": "Pick?",
         "text": True,
         "choices": [{"id": str(i), "label": c} for i, c in enumerate(["A", "B", "C"], 1)],
-        "placeholder": "gateway.clarify.hint_single",
     }
     assert before + 3600000 <= frame["expires_at"] <= time.time() * 1000 + 3600000
     await clarify(adapter)
@@ -2564,7 +2563,7 @@ async def test_clarify_choice(client, adapter, multi):
     ws = await ready(client, accepts=["ask"])
     await clarify(adapter, choices=["α", "B"], multi=multi)
     ask = (await recv(ws))["ask"]
-    assert ask["placeholder"] == "gateway.clarify.hint_" + ("multi" if multi else "single")
+    assert ask.get("placeholder") == ("gateway.clarify.hint_multi" if multi else None)
     await adapter._on_frame(CHAT, {"type": "answer", "ask_id": "clarify-1", "choice": "1"})
     assert CLARIFY.calls == [("resolve", "clarify-1", '["α"]' if multi else "α")]
 
