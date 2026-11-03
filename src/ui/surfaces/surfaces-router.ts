@@ -145,7 +145,10 @@ export function createSurfacesRouter({
       local.setCommands(list);
       remote.setCommands(list);
     },
+    // A reply shows beside the input that ran it; a clear reaches both, so neither keeps a stale one.
     showCommandReply(reply) {
+      if (reply.kind !== "clear")
+        return (getMode() === "popped" ? remote : local).showCommandReply(reply);
       local.showCommandReply(reply);
       remote.showCommandReply(reply);
     },
