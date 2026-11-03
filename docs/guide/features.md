@@ -54,7 +54,7 @@ Everything YUI does today, grouped by area. [What she can do](capabilities.md) c
 
 | Feature | What it does |
 | --- | --- |
-| Greetings and check-ins | Greetings at 09:00, 12:00, 18:00, and 23:00, and check-ins after 5, 10, or 30 quiet minutes; the First conversation page greets once when it connects and turns these off |
+| Greetings and check-ins | Greetings at 09:00, 12:00, 18:00, and 23:00, and check-ins after 5, 10, or 30 quiet minutes; Quick start greets once when it connects and turns these off |
 | Screen watch | App switches after 10 minutes, and every 45 minutes in one app; off by default |
 | First activity of the day | A cue on your first activity of the day |
 | Guardrails | Per-source debounce, hourly caps, a 2-turn chain cap, and a 10-minute quiet gap |

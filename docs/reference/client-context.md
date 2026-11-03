@@ -130,9 +130,9 @@ A preset that has no card of its own sends the default card of the UI language f
 `configs/persona.json`; push sends no card, and a push backend carries its own persona.
 :::
 
-After a session reset, and once when the First conversation page connects on an empty
-session, the client performs one of the card's greetings through the speech path and
-records it as an assistant entry, so the next request carries it as history.
+After a session reset, and once when Quick start connects on an empty session, the
+client performs one of the card's greetings through the speech path and records it as an
+assistant entry, so the next request carries it as history.
 
 ## Wording
 
