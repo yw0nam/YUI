@@ -18,7 +18,7 @@ function setup(over: { seen?: boolean; endsInsideSpeak?: boolean; busy?: boolean
   const signals = new Set<() => void>();
   const ends = new Set<(identity: UtteranceIdentity) => void>();
   const showSpeechActions = vi.fn<(actions: readonly SpeechAction[]) => void>();
-  const submitGuide = vi.fn();
+  const submitGuide = vi.fn((guide: string) => calls.push(`guide:${guide}`));
   let pipeline: TtsPipelineOptions | undefined;
   const playback = createSpeechPlayback({
     renderer: {
@@ -158,6 +158,17 @@ describe("wireFirstConversation", () => {
       ["controls", "help.controls.request"],
       ["capabilities", "help.capabilities.request"],
     ]);
+  });
+
+  // With the unified window shown the reply goes to the stream, so nothing else replaces the held bubble.
+  it("a guide press drops the hint before it submits", () => {
+    const s = setup();
+    speakThrough(s);
+    vi.advanceTimersByTime(READ_MS);
+
+    s.showSpeechActions.mock.calls[0]![0][1]!.onClick();
+
+    expect(s.calls).toEqual([...OPENED, HINT, "hide", "guide:capabilities"]);
   });
 
   it("an interrupted greeting opens the input and the hint the same way", () => {
