@@ -55,7 +55,7 @@ export interface Surfaces {
   finishSpeech(): void;
   /** Hide the bubble immediately (ignoring dwell). */
   hideSpeech(): void;
-  /** Offers an in-place fix under the current speech; without an action, drops the one shown. */
+  /** Offers in-place buttons under the current speech; an empty list drops the ones shown. */
   showSpeechActions(actions: readonly SpeechAction[]): void;
   /** A turn the user started was admitted: the bubble opens with the message quoted on its first line and holds through the turn. */
   quoteUser(quote: UserQuote): void;

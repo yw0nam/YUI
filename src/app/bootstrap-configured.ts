@@ -67,7 +67,7 @@ interface Phase1Handles extends TurnCorePhase1 {
   openSettings(page?: SettingsPage): void;
   /** Subscribes to resets the preset's other windows announce. */
   onSessionReset(cb: (presetId: string) => void): () => void;
-  /** Subscribes to the First conversation page's confirmed key for this preset. */
+  /** Subscribes to Quick start's confirmed key for this preset. */
   onFirstConversationConnected(cb: () => void): () => void;
   /** Emits this window's replies that named another open character, once their playback ended. */
   emitCharacterAddressed(event: CharacterAddressed): void;

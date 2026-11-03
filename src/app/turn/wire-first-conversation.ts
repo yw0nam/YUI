@@ -1,4 +1,4 @@
-/** After the First conversation page connects: the greeting, then the input, then the controls hint with the guides. */
+/** After Quick start connects: the greeting, then the input, then the controls hint with the guides. */
 import type { GuideKey, UtteranceIdentity } from "../../contract";
 import type { createChatHistoryStore } from "../../io/chat/conversation/chat-history-store";
 import { TYPE_MS_PER_CHAR } from "../../ui/message/typewriter";

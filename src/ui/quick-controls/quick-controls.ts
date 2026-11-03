@@ -292,7 +292,7 @@ interface QuickControlsOptions {
   showVoiceInput?: boolean;
   /** Chat was unconfigured at window open: the panel opens on Connection, Quick start. */
   openOnQuickStart?: boolean;
-  /** The First conversation page confirmed its key. */
+  /** Quick start confirmed its key. */
   onFirstConversationConnected?: () => void;
 }
 

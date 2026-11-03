@@ -56,14 +56,15 @@ export function maybeShowFirstRunHint(deps: FirstRunHintDeps): boolean {
   deps.surfaces.pushSpeech(text);
   deps.surfaces.endSpeech();
   if (!deps.chatConfigured) {
-    const setup = {
-      label: deps.t("hint.setup_action"),
-      onClick: () => {
-        deps.openSettings("conn");
-        deps.surfaces.hideSpeech();
+    deps.surfaces.showSpeechActions([
+      {
+        label: deps.t("hint.setup_action"),
+        onClick: () => {
+          deps.openSettings("conn");
+          deps.surfaces.hideSpeech();
+        },
       },
-    };
-    deps.surfaces.showSpeechActions([setup]);
+    ]);
   }
   if (deps.chatConfigured) deps.markSeen();
   return true;

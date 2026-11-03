@@ -262,7 +262,7 @@ export interface SettingsBridge {
   /** A window closed the preset's running conversation; that preset's pet window greets. */
   emitSessionReset(presetId: string): void;
   onSessionReset(cb: (presetId: string) => void): () => void;
-  /** The First conversation page confirmed its key; this preset's pet window greets. */
+  /** Quick start confirmed its key; this preset's pet window greets. */
   emitFirstConversationConnected(): void;
   onFirstConversationConnected(cb: () => void): () => void;
   /** A window with no socket of its own asking the owner to open the socket now. */

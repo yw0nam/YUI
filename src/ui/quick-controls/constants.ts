@@ -218,7 +218,7 @@ interface ChatProviderPreset {
   /** Protocol the provider speaks. Absent where the provider speaks the current one. */
   chatApi?: ChatApi;
 }
-/** The chat provider preset the First conversation page connects. */
+/** The chat provider preset Quick start connects. */
 export const GEMINI_PRESET = {
   id: "gemini",
   name: "Google Gemini",

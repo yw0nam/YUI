@@ -1,4 +1,4 @@
-/** Help section of the General tab: one Ask button per bundled guide. */
+/** Help section, in General and in Quick start once connected: one Ask button per bundled guide. */
 
 import type { GuideKey } from "../../../../contract";
 import { isGuideKey } from "../../../../io/guide/guide-docs";
