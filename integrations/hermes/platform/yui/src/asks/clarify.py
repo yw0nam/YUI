@@ -35,10 +35,9 @@ def clarify_ask(question: str, choices: list[str] | None, clarify_id: str) -> tu
             ]
         if len(choices) > MAX_CHOICES or any(len(c) > MAX_LABEL_CODE_POINTS for c in choices):
             body["prompt"] += "\n\n" + "\n".join(f"{i}. {c}" for i, c in enumerate(choices, 1))
-        body["placeholder"] = cut(
-            t("gateway.clarify.hint_multi" if multi else "gateway.clarify.hint_single"),
-            MAX_PLACEHOLDER_CODE_POINTS,
-        )
+        # The pills say how to answer one pick; only a multi-select question needs Hermes's hint.
+        if multi:
+            body["placeholder"] = cut(t("gateway.clarify.hint_multi"), MAX_PLACEHOLDER_CODE_POINTS)
 
     def resolve(choice: str | None, text: str | None) -> None:
         if choice is not None:
