@@ -96,11 +96,11 @@ One outside conversation a producer posts, with an id, source, state, entries, a
 _Avoid_: session, ticket, inbox
 
 **Ask**:
-The one question a Thread holds open for the user, with an `ask_id`, prompt, optional choices, and whether free text is accepted.
+One question the backend holds open for the user: in a Thread, or in a character's own chat over the push transport (an `ask` frame), with an `ask_id`, prompt, optional choices, and whether free text is accepted.
 _Avoid_: prompt, request
 
 **Answer**:
-The user's reply to one Ask: a choice id, text, both, or `release` to answer at the agent's own terminal.
+The user's reply to one Ask: a choice id, text, both, or `release` to answer at the agent's own terminal. Over push, it travels as an `answer` frame.
 _Avoid_: reply, response
 
 **Threads window**:

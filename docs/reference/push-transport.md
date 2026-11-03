@@ -15,6 +15,8 @@ sequenceDiagram
   B-->>C: speech, render
   B-->>C: tool_call
   C->>B: tool_result
+  B-->>C: ask
+  C->>B: answer
   C->>B: stop, while the turn has not ended
   B-->>C: turn_end
   C->>B: vocabulary, reset or playback
@@ -52,6 +54,7 @@ Each row is one thing a transport carries, and each column is one chat transport
 | Tool progress status | `done` for a tool the backend runs | `running` and `done` | `tool_status` frames |
 | Speech the backend starts with no request | None | None | `render` under a `turn_id` the backend mints |
 | Delegations list | None | None | `delegations` frames |
+| Questions the backend asks the user | None | None | `ask` frames, answered with `answer` |
 
 ### Stop, reset and history
 
@@ -178,7 +181,7 @@ A turn that starts before `ready` ends as a network failure, and so does a turn 
 #### What `accepts` covers
 
 The base set is `ready`, `render`, `speech`, `turn_end`, `tool_status`, `tool_call`, `reasoning`
-and `delegations`. This client sends `["error"]`, and absent means the base set only.
+and `delegations`. This client sends `["error", "ask", "ask_end"]`, and absent means the base set only.
 
 A backend sends a client no frame type outside the base set and its `accepts`, and reads a value
 that is not a list of strings as absent. The latest `hello` of the chat decides, including for
@@ -582,6 +585,56 @@ The client keeps the latest list; a `done` item leaves the chip 30 minutes after
 The client also keeps a history of every item it has seen across backend restarts: past 200 items the oldest `done` ones are dropped, and a `running` item is never dropped. A `running` item a later frame leaves out is recorded as `done` with `status: "unknown"`.
 
 The history lives in `localStorage` under `yui.delegation_history`, and the settings window's Session section lists it and opens a finished item's `summary` under its row.
+
+## Asks
+
+An Ask is a question the backend holds open for the user in a character's own chat. The user's reply is an Answer.
+
+### `ask` (backend → client)
+
+```json
+{ "type": "ask", "ask": { "ask_id": "a1", "prompt": "Run `uptime` on **aemeath**?", "choices": [{ "id": "once", "label": "Allow Once", "tone": "primary" }, { "id": "deny", "label": "Deny", "tone": "danger" }], "text": false }, "expires_at": 1793690000000 }
+```
+
+| Field | Value |
+|---|---|
+| `ask` | The Ask: `ask_id`, `prompt`, optional `choices`, `text`, and optional `placeholder`, as [threads.md](threads.md#ask-fields) defines them |
+| `expires_at` | Epoch milliseconds after which the backend takes no answer |
+
+- `ask` follows the Ask fields of [threads.md](threads.md#ask-fields), except that `prompt` has no length cap of its own. The [text frame size](#frame-sizes) applies.
+- `prompt` is Markdown, rendered as Thread entry text is.
+- `choices` absent reads as none.
+- The client closes the Ask at `expires_at`.
+- A second `ask` with an `ask_id` the client holds replaces that Ask in place.
+- Several Asks may be open. The client shows the oldest first.
+- The backend sends `ask` only to a client whose `hello` `accepts` lists `ask`.
+- While the client is away, the backend holds open Asks. After `ready` on the next connection whose `accepts` lists `ask`, it sends the unexpired ones.
+- The client drops every Ask when the socket leaves `ready`.
+
+### `answer` (client → backend)
+
+```json
+{ "type": "answer", "ask_id": "a1", "choice": "once" }
+```
+
+| Field | Value |
+|---|---|
+| `ask_id` | The `ask_id` of the open Ask |
+| `choice` | Optional choice id the Ask offered |
+| `text` | Optional free text, sent only when `ask.text` is true |
+
+- An `answer` carries `choice`, `text`, or both, under the Answer rules of [threads.md](threads.md#user-answers).
+- A choice belongs to the Ask it answers.
+- The client sends `answer` only while the socket is `ready`.
+- A backend leaves the Ask open when the choice was not offered.
+
+### `ask_end` (backend → client)
+
+```json
+{ "type": "ask_end", "ask_id": "a1" }
+```
+
+The Ask closed without this client's answer. It timed out, it was answered elsewhere, or the run was interrupted. The client closes that Ask.
 
 ## Logging
 
