@@ -192,12 +192,8 @@ export const CROSS_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true
 export const CHAT_APIS = ["chat_completions", "responses", "push"] as const;
 export type ChatApi = (typeof CHAT_APIS)[number];
 
-// The one backend that speaks push today: the preset row's name and the push description's link.
-// The settings window's opener grant names the same URL.
-export const HERMES_AGENT = {
-  name: "Hermes Agent",
-  url: "https://github.com/NousResearch/hermes-agent",
-} as const;
+// The preset row's name for the Hermes Agent provider.
+export const HERMES_AGENT = { name: "Hermes Agent" } as const;
 
 // The cards guide the Card section's ? button opens. The settings window's opener grant names the same URL.
 export const CARD_GUIDE_URL = "https://yw0nam.github.io/YUI/guide/cards";

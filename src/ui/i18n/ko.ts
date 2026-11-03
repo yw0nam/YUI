@@ -532,8 +532,7 @@ const ko: Record<string, string> = {
     "YUI가 매 턴 대화 기록을 함께 보냅니다. Ollama, LM Studio, vLLM 같은 모델 서버에 맞습니다.",
   "svc.chat_desc_responses":
     "서버가 이전 응답을 보관하고 YUI는 새 메시지만 보냅니다. OpenAI처럼 응답을 보관하는 서버에 맞습니다.",
-  "svc.chat_desc_push":
-    "연결을 유지해서 백엔드가 먼저 말을 걸 수 있습니다. 지금은 {agent}만 이 방식을 지원합니다.",
+  "svc.chat_desc_push": "연결을 유지해서 백엔드가 먼저 말을 걸 수 있습니다.",
   "svc.chat_status_connected": "연결됨 · {id}",
   "svc.chat_status_connecting": "연결하는 중…",
   "svc.chat_status_reconnecting": "{seconds}초 뒤 다시 연결",

@@ -3,7 +3,7 @@
  * that shows the short name on the closed control, and a description line under the row.
  */
 import { t } from "../../i18n";
-import { CHAT_APIS, type ChatApi, HERMES_AGENT } from "../constants";
+import { CHAT_APIS, type ChatApi } from "../constants";
 import { selectRowHtml } from "../markup";
 import "./chat-type.css";
 
@@ -24,24 +24,6 @@ export function chatTypeRowHtml(): string {
   );
 }
 
-// The description's nodes: text around one link where the string places {agent}; the opener plugin opens target=_blank anchors.
-function descNodes(api: ChatApi): Node[] {
-  const [before, ...rest] = t(`svc.chat_desc_${api}`, { agent: "\0" }).split("\0");
-  if (rest.length === 0) return [document.createTextNode(before)];
-  const a = document.createElement("a");
-  a.className = "yui-chat-type__link";
-  a.href = HERMES_AGENT.url;
-  a.target = "_blank";
-  a.rel = "noopener noreferrer";
-  a.tabIndex = 0; // WebKit's plain Tab skips links without it
-  a.textContent = HERMES_AGENT.name;
-  return [
-    document.createTextNode(before),
-    a,
-    document.createTextNode(rest.join(HERMES_AGENT.name)),
-  ];
-}
-
 /** Writes the selected type onto the overlay, the description line and the section's summary hint. */
 export function createChatTypeView(root: HTMLElement): { reflect(api: ChatApi): void } {
   const shown = root.querySelector<HTMLElement>(".yui-chat-type__shown");
@@ -53,11 +35,10 @@ export function createChatTypeView(root: HTMLElement): { reflect(api: ChatApi): 
       if (shown) shown.textContent = t(nameKey(api));
       if (hint) hint.textContent = t(nameKey(api));
       if (!desc) return;
-      const nodes = descNodes(api);
-      const next = nodes.map((n) => n.textContent).join("");
+      const next = t(`svc.chat_desc_${api}`);
       if (desc.textContent === next) return;
       const first = desc.textContent === "";
-      desc.replaceChildren(...nodes);
+      desc.textContent = next;
       if (!first) desc.classList.add("is-swapping");
     },
   };
