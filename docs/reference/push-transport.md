@@ -602,12 +602,12 @@ An Ask is a question the backend holds open for the user in a character's own ch
 | Field | Value |
 |---|---|
 | `ask` | The Ask: `ask_id`, `prompt`, optional `choices`, `text`, and optional `placeholder`, as [threads.md](threads.md#ask-fields) defines them |
-| `expires_at` | Epoch milliseconds after which the backend takes no answer |
+| `expires_at` | Optional epoch milliseconds after which the backend takes no answer. Absent, the Ask has no deadline |
 
 - `ask` follows the Ask fields of [threads.md](threads.md#ask-fields), except that `prompt` has no length cap of its own. The [text frame size](#frame-sizes) applies.
 - `prompt` is Markdown, rendered as Thread entry text is.
 - `choices` absent reads as none.
-- The client closes the Ask at `expires_at`.
+- The client closes the Ask at `expires_at`, when it has one.
 - A second `ask` with an `ask_id` the client holds replaces that Ask in place.
 - Several Asks may be open. The client shows the oldest first.
 - The backend sends `ask` only to a client whose `hello` `accepts` lists `ask`.

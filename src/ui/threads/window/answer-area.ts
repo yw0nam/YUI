@@ -104,6 +104,11 @@ export function createAnswerArea(deps: {
   function grow(): void {
     if (!field) return;
     field.style.height = "auto";
+    // An empty field's scrollHeight counts the lines its placeholder wraps to; it keeps its one-line minimum.
+    if (!field.value) {
+      field.style.height = "";
+      return;
+    }
     field.style.height = `${Math.min(field.scrollHeight + 2, FIELD_MAX_PX)}px`;
   }
 

@@ -1,7 +1,7 @@
 /**
  * The pet window's Ask card: the backend's open Asks in arrival order, the oldest shown in the
- * Threads answer area with the time it has left. An Ask closes once answered, at its expiry, or when
- * the backend ends it; with none left the card hides.
+ * Threads answer area with the time it has left, when it has a deadline. An Ask closes once
+ * answered, at its expiry, or when the backend ends it; with none left the card hides.
  */
 
 import "./ask-card.css";
@@ -72,7 +72,13 @@ export function createAskCard(deps: {
   // Each tick lands where the shown seconds change, so the last one lands on expires_at.
   function countDown(): void {
     const frame = open[0]!;
-    const left = frame.expires_at - Date.now();
+    const { expires_at } = frame;
+    timer.hidden = expires_at === undefined;
+    if (expires_at === undefined) {
+      cue();
+      return;
+    }
+    const left = expires_at - Date.now();
     if (left <= 0) {
       close(frame.ask.ask_id);
       return;
@@ -84,7 +90,7 @@ export function createAskCard(deps: {
     tick = setTimeout(countDown, left - (s - 1) * 1000);
   }
 
-  // The prompt head, where the timer rides, marks itself while more of it sits below; each tick re-measures a resize.
+  // The prompt head, where the timer rides, marks itself while more of it sits below; a render, a scroll and each tick of a deadline re-measure it.
   function cue(): void {
     const head = timer.parentElement;
     head?.classList.toggle(

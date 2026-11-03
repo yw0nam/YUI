@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import time
+from types import SimpleNamespace
 
 import aiohttp
 import pytest
@@ -16,6 +17,7 @@ from gateway_stub import (
     APPROVAL_OBSERVERS,
     APPROVAL_RESOLVED,
     CACHED_IMAGES,
+    CLARIFY,
     PERSISTED_HOMES,
     SLASH_CONFIRM,
     STUB_ENV,
@@ -71,6 +73,7 @@ def clean():
     SLASH_CONFIRM.resolved.clear()
     STUB_ENV.pop("HERMES_SESSION_CHAT_ID", None)
     CACHED_IMAGES.clear()
+    CLARIFY.__init__()
 
 
 @pytest.fixture
@@ -2505,5 +2508,150 @@ async def test_exec_ask_requires_request_id(client, adapter):
     assert not result.success
     assert result.error == "exec approval has no request id"
     assert APPROVAL_OBSERVERS == {}
+    with pytest.raises(TimeoutError):
+        await asyncio.wait_for(ws.receive_json(), 0.05)
+
+
+async def clarify(adapter, question="Pick?", choices=None, multi=False):
+    CLARIFY.entries["clarify-1"] = SimpleNamespace(choices=choices, multi_select=multi, session_key="session")
+    return await adapter.send_clarify(CHAT, question, choices, "clarify-1", "session")
+
+
+async def test_clarify_frame(client, adapter):
+    ws = await ready(client, accepts=["ask"])
+    before = time.time() * 1000
+    result = await clarify(adapter, choices=["A", "B", "C"])
+    assert result.success
+    assert result.message_id == "clarify-1"
+    frame = await recv(ws)
+    assert frame["ask"] == {
+        "ask_id": "clarify-1",
+        "prompt": "Pick?",
+        "text": True,
+        "choices": [{"id": str(i), "label": c} for i, c in enumerate(["A", "B", "C"], 1)],
+    }
+    assert before + 3600000 <= frame["expires_at"] <= time.time() * 1000 + 3600000
+    await clarify(adapter)
+    assert (await recv(ws))["ask"] == {"ask_id": "clarify-1", "prompt": "Pick?", "text": True}
+
+
+async def test_clarify_long_label(client, adapter):
+    ws = await ready(client, accepts=["ask"])
+    label = "😀" * 70
+    await clarify(adapter, choices=[label, "B"])
+    ask = (await recv(ws))["ask"]
+    assert ask["choices"][0]["label"] == "😀" * 63 + "…"
+    assert ask["prompt"] == f"Pick?\n\n1. {label}\n2. B"
+
+
+async def test_clarify_unlimited_replay(client, adapter, monkeypatch):
+    ws = await ready(client, accepts=["ask"])
+    CLARIFY.timeout = 0
+    await clarify(adapter)
+    frame = await recv(ws)
+    assert "expires_at" not in frame
+    await ws.close()
+    await wait_for(lambda: not state.is_connected(CHAT))
+    now = time.time()
+    monkeypatch.setattr("yui.src.transport.adapter.time.time", lambda: now + 7200)
+    ws = await ready(client, accepts=["ask"])
+    assert await recv(ws) == frame
+
+
+@pytest.mark.parametrize("multi", [False, True])
+async def test_clarify_choice(client, adapter, multi):
+    ws = await ready(client, accepts=["ask"])
+    await clarify(adapter, choices=["α", "B"], multi=multi)
+    ask = (await recv(ws))["ask"]
+    assert "placeholder" not in ask
+    assert ask["prompt"] == ("Pick?\n\ngateway.clarify.hint_multi" if multi else "Pick?")
+    await adapter._on_frame(CHAT, {"type": "answer", "ask_id": "clarify-1", "choice": "1"})
+    assert CLARIFY.calls == [("resolve", "clarify-1", '["α"]' if multi else "α")]
+
+
+async def test_clarify_text(client, adapter):
+    ws = await ready(client, accepts=["ask"])
+    await clarify(adapter, choices=["A", "B"])
+    await recv(ws)
+    CLARIFY.coerced = "\x00skipped"
+    await adapter._on_frame(CHAT, {"type": "answer", "ask_id": "clarify-1", "text": "skip"})
+    assert CLARIFY.calls == [
+        ("mark", "clarify-1"),
+        ("coerce", CLARIFY.entries["clarify-1"], "skip"),
+        ("resolve", "clarify-1", "\x00skipped"),
+    ]
+
+
+async def test_clarify_choice_and_text(client, adapter):
+    ws = await ready(client, accepts=["ask"])
+    await clarify(adapter, choices=["A (Recommended)", "B"])
+    await recv(ws)
+    await adapter._on_frame(CHAT, {"type": "answer", "ask_id": "clarify-1", "choice": "1", "text": "why"})
+    assert CLARIFY.calls == [("resolve", "clarify-1", "A\nwhy")]
+
+
+async def test_clarify_refused_answers_stay_open(client, adapter):
+    ws = await ready(client, accepts=["ask"])
+    result = await adapter._send_exec_approval_prompt(approval_prompt())
+    await recv(ws)
+    await adapter._on_frame(
+        CHAT, {"type": "answer", "ask_id": result.message_id, "choice": "once", "text": "why"}
+    )
+    assert APPROVAL_RESOLVED == []
+    assert adapter._asks.get(CHAT, result.message_id) is not None
+    await clarify(adapter, choices=["A"])
+    await recv(ws)
+    await adapter._on_frame(CHAT, {"type": "answer", "ask_id": "clarify-1", "choice": "2"})
+    assert CLARIFY.calls == []
+    assert adapter._asks.get(CHAT, "clarify-1") is not None
+
+
+@pytest.mark.parametrize("answered", [False, True])
+async def test_clarify_retire(client, adapter, answered):
+    ws = await ready(client, accepts=["ask", "ask_end"])
+    await clarify(adapter, choices=["A"])
+    await recv(ws)
+    if answered:
+        await adapter._on_frame(CHAT, {"type": "answer", "ask_id": "clarify-1", "choice": "1"})
+    await adapter.retire_clarify_card("clarify-1", "expired")
+    assert adapter._asks.get(CHAT, "clarify-1") is None
+    if answered:
+        with pytest.raises(TimeoutError):
+            await asyncio.wait_for(ws.receive_json(), 0.05)
+    else:
+        assert await recv(ws) == {"type": "ask_end", "ask_id": "clarify-1"}
+
+
+async def test_clarify_requires_acceptance(client, adapter):
+    ws = await ready(client)
+    result = await clarify(adapter)
+    assert not result.success
+    assert result.error == "client does not accept ask"
+    with pytest.raises(TimeoutError):
+        await asyncio.wait_for(ws.receive_json(), 0.05)
+
+
+async def test_clarify_seven_choices(client, adapter):
+    ws = await ready(client, accepts=["ask"])
+    choices = list("ABCDEFG")
+    await clarify(adapter, choices=choices)
+    ask = (await recv(ws))["ask"]
+    assert "choices" not in ask
+    assert ask["text"] is True
+    assert ask["prompt"] == "Pick?\n\n1. A\n2. B\n3. C\n4. D\n5. E\n6. F\n7. G"
+
+
+@pytest.mark.parametrize("source", ["clarify", "exec"])
+async def test_ask_oversize(client, adapter, source):
+    ws = await ready(client, accepts=["ask"])
+    if source == "clarify":
+        result = await clarify(adapter, question="x" * MAX_FRAME_BYTES)
+    else:
+        prompt = approval_prompt()
+        prompt.text = "x" * MAX_FRAME_BYTES
+        result = await adapter._send_exec_approval_prompt(prompt)
+    assert not result.success
+    assert result.error == "ask too large"
+    assert adapter._asks.pending(CHAT, time.time() * 1000) == []
     with pytest.raises(TimeoutError):
         await asyncio.wait_for(ws.receive_json(), 0.05)

@@ -77,11 +77,11 @@ export interface ToolResultFrame {
   images?: string[];
 }
 
-/** A question the backend holds open for the user until `expires_at`, epoch ms. */
+/** A question the backend holds open for the user until `expires_at`, epoch ms; absent, it has no deadline. */
 export interface AskFrame {
   type: "ask";
   ask: ThreadAsk;
-  expires_at: number;
+  expires_at?: number;
 }
 
 /** The Ask closed without the client's answer. */
@@ -205,7 +205,7 @@ function choicesReadable(choices: unknown): boolean {
   return ids.size === choices.length;
 }
 
-/** The field that makes an ask frame unreadable, or null: the Ask fields of threads.md (no prompt cap) and a finite `expires_at`. */
+/** The field that makes an ask frame unreadable, or null: the Ask fields of threads.md (no prompt cap) and an `expires_at` that is absent or finite. */
 export function askFrameFault(v: Record<string, unknown>): string | null {
   const ask = v.ask;
   if (ask === null || typeof ask !== "object" || Array.isArray(ask)) return "ask";
@@ -220,6 +220,6 @@ export function askFrameFault(v: Record<string, unknown>): string | null {
   ) {
     return "placeholder";
   }
-  if (typeof v.expires_at !== "number" || !Number.isFinite(v.expires_at)) return "expires_at";
+  if (v.expires_at !== undefined && !Number.isFinite(v.expires_at)) return "expires_at";
   return null;
 }
