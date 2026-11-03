@@ -5,7 +5,8 @@
  * reflect: an empty effective TTS URL shows the step, a configured one shows the configured line,
  * and a missing default-voice table hides the section. Turning on: an empty key asks for one, an
  * accepted key writes the Fish provider, the key and TTS on, and makes the language's default
- * voice active; a refused or failed check writes nothing. A completion after dispose writes nothing.
+ * voice active; a refused or failed check writes nothing. A completion after dispose or after
+ * Maybe later writes nothing.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -244,7 +245,10 @@ describe("createVoiceStep — turning voice on", () => {
     s.unsubscribe();
   });
 
-  it("an ok resolved after dispose writes nothing", async () => {
+  it.each<[string, (s: ReturnType<typeof setup>) => void]>([
+    ["dispose", (s) => s.step.dispose()],
+    ["Maybe later", (s) => s.el(".yui-start__voice-later").click()],
+  ])("an ok resolved after %s writes nothing", async (_, interrupt) => {
     let respond: (res: Response) => void = () => {};
     const s = setup(
       () =>
@@ -256,7 +260,8 @@ describe("createVoiceStep — turning voice on", () => {
     await settle();
     s.input.value = "fish-key";
     s.on.click();
-    s.step.dispose();
+    await settle();
+    interrupt(s);
     respond(new Response("{}", { status: 200 }));
     await settle();
     await settle();
