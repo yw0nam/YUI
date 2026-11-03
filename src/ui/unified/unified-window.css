@@ -131,7 +131,7 @@
   padding: 0;
 }
 /* With nothing to show, the box takes no room in the column. */
-.yui-uc .yui-ui--message:not(:has(> .yui-bubble:not([hidden]))) {
+.yui-uc .yui-ui--message:not(:has(> .yui-bubble:not([hidden]), .yui-cmd-reply:not([hidden]))) {
   display: none;
 }
 /* The cast chip carries the state, so the plate shows the face and the name alone. */
@@ -222,4 +222,27 @@
   .yui-uc__chip[data-state] .yui-uc__chip-dot {
     animation: none;
   }
+}
+
+/* The Command reply sits above the speech line, with both above the composer. */
+.yui-uc .yui-ui--message {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.yui-uc .yui-cmd-slot {
+  position: static;
+  order: -1;
+  transform: none;
+  width: 100%;
+}
+.yui-uc .yui-cmd-reply {
+  max-height: 260px;
+}
+.yui-uc__dock .yui-cmd-list {
+  position: static;
+}
+
+.yui-uc .yui-cmd-slot:not(:has(.yui-cmd-reply:not([hidden]))) {
+  display: none;
 }

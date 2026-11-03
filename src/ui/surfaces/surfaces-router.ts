@@ -56,6 +56,7 @@ export function createSurfacesRouter({
   // The side the current line began on: the stream, the pet side (local or remote by the mode), or none once dropped.
   let lineSide: "stream" | "pet" | "none" = "pet";
   let chatLine = false;
+  let commandSide: Pick<Surfaces, "showCommandReply"> | undefined;
   const noLine: LineSide = {
     beginSpeech() {},
     pushSpeech() {},
@@ -144,21 +145,27 @@ export function createSurfacesRouter({
     setCommands(list) {
       local.setCommands(list);
       remote.setCommands(list);
+      stream.setCommands(list);
     },
-    // A reply shows beside the input that ran it; a clear reaches both, so neither keeps a stale one.
     showCommandReply(reply) {
-      if (reply.kind !== "clear")
-        return (getMode() === "popped" ? remote : local).showCommandReply(reply);
-      local.showCommandReply(reply);
-      remote.showCommandReply(reply);
+      const side = commandSide ?? (shown.get() ? stream : getMode() === "popped" ? remote : local);
+      if (reply.kind !== "pending") commandSide = undefined;
+      if (reply.kind === "clear") {
+        for (const target of [local, remote, stream]) target.showCommandReply(reply);
+      } else side.showCommandReply(reply);
     },
     onCommandReplyClose(cb) {
-      local.onCommandReplyClose(cb);
-      remote.onCommandReplyClose(cb);
+      for (const side of [local, remote, stream]) side.onCommandReplyClose(cb);
     },
     onCommand(cb) {
-      local.onCommand(cb);
-      remote.onCommand(cb);
+      for (const side of [local, remote, stream])
+        side.onCommand((name, args) => {
+          const previous = commandSide;
+          commandSide = side;
+          const accepted = cb(name, args);
+          if (!accepted) commandSide = previous;
+          return accepted;
+        });
     },
     onSubmit(cb) {
       local.onSubmit(cb);

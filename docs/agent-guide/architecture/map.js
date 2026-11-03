@@ -1481,6 +1481,15 @@ globalThis.YUI_MAP =
       "paths": [
         "src/ui/scroll-fade"
       ]
+    },
+    {
+      "id": "ui/listbox",
+      "module": "display",
+      "label": "listbox",
+      "role": "Shared combobox ARIA, keyboard navigation, active option and one open list per field for the mention and Backend command lists.",
+      "paths": [
+        "src/ui/listbox"
+      ]
     }
   ],
   "edges": [
@@ -4088,7 +4097,7 @@ globalThis.YUI_MAP =
       "id": "speech-stream",
       "from": "ui/surfaces",
       "to": "ui/unified",
-      "carries": "yui://speech-stream {preset, op}, unscoped: op is a message-window op (begin, push, end, finish, hide, quote, quote-signals, settle-quote, clear-quote, busy, name, summon-input, input-error) the pet's stream half sends while the unified chat window shows; busy and name always",
+      "carries": "yui://speech-stream {preset, op}, unscoped: op is a message-window op (begin, push, end, finish, hide, quote, quote-signals, settle-quote, clear-quote, busy, name, summon-input, input-error, commands, command-reply); busy, name and commands always; Command replies go to the issuing window",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/ui/surfaces/wire.ts"
@@ -4097,7 +4106,7 @@ globalThis.YUI_MAP =
       "id": "speech-stream-ask",
       "from": "ui/unified",
       "to": "ui/surfaces",
-      "carries": "yui://speech-stream-ask, unscoped, once the unified window subscribed: each pet window's stream half restates its name and busy state",
+      "carries": "yui://speech-stream-ask: each pet restates its name, busy, commands and cached Command reply",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/windows/unified-main.ts"
@@ -4142,7 +4151,7 @@ globalThis.YUI_MAP =
       "id": "speech-stream-control",
       "from": "ui/unified",
       "to": "io/bridge/message",
-      "carries": "yui://speech-stream-control {preset, op: input-error-action}, unscoped: a click on an error's fix in the unified window; the stream half of the window whose preset it names runs the fix",
+      "carries": "yui://speech-stream-control {preset, op: input-error-action | command {name, args} | command-reply-close}: the named pet handles the control",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/windows/unified-main.ts"
@@ -4205,7 +4214,7 @@ globalThis.YUI_MAP =
       "id": "surfaces-command-input",
       "from": "ui/surfaces",
       "to": "ui/commands",
-      "carries": "createCommandInput: setCommands, onCommand, interceptSubmit; command list and routing only in pet and message surfaces",
+      "carries": "createCommandInput: setCommands, onCommand, interceptSubmit; command routing in pet, message and unified surfaces",
       "kind": "callback",
       "transport": "push",
       "wiring": "src/ui/surfaces/surfaces.ts"
@@ -4232,10 +4241,37 @@ globalThis.YUI_MAP =
       "id": "backend-command-send",
       "from": "ui/surfaces",
       "to": "io/chat/push",
-      "carries": "onCommand(name, args) → sendCommand; one pending command per chat; onCommandReplyClose clears both surfaces and cached reply",
+      "carries": "onCommand(name, args) → sendCommand while dispatcher idle; one pending command per chat; reply stays on the issuing side; close clears all sides and cached replies",
       "kind": "callback",
       "transport": "push",
       "wiring": "src/app/turn/push/wire-backend-commands.ts"
+    },
+    {
+      "id": "unified-commands",
+      "from": "ui/unified",
+      "to": "ui/commands",
+      "carries": "createCommandInput: picked recipient commands; refused command keeps text; Command reply names the speaker",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/unified/composer.ts"
+    },
+    {
+      "id": "mention-listbox",
+      "from": "ui/unified",
+      "to": "ui/listbox",
+      "carries": "createListbox: mention options, keyboard, ARIA and pick dispatch",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/unified/mention-picker.ts"
+    },
+    {
+      "id": "command-listbox",
+      "from": "ui/commands",
+      "to": "ui/listbox",
+      "carries": "createListbox: command options, keyboard, ARIA and pick dispatch",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/commands/command-list.ts"
     }
   ],
   "flows": [
@@ -5908,14 +5944,14 @@ globalThis.YUI_MAP =
         "id": "speech-stream-pet-unified",
         "from": "pet",
         "to": "unified",
-        "carries": "yui://speech-stream {preset, op}: the message-window ops of the pet's lines, quotes, summons and input errors while the unified chat window shows; busy and name always",
+        "carries": "yui://speech-stream {preset, op}: the message-window ops of the pet's lines, quotes, summons and input errors while the unified chat window shows; busy and name always; commands and Command replies for this window",
         "kind": "bridge"
       },
       {
         "id": "speech-stream-pet-bound-unified",
         "from": "pet-<id>",
         "to": "unified",
-        "carries": "yui://speech-stream {preset, op}: the message-window ops of the pet's lines, quotes, summons and input errors while the unified chat window shows; busy and name always",
+        "carries": "yui://speech-stream {preset, op}: the message-window ops of the pet's lines, quotes, summons and input errors while the unified chat window shows; busy and name always; commands and Command replies for this window",
         "kind": "bridge"
       },
       {
@@ -5957,28 +5993,28 @@ globalThis.YUI_MAP =
         "id": "speech-stream-ask-unified-pet",
         "from": "unified",
         "to": "pet",
-        "carries": "yui://speech-stream-ask: the pet's stream half restates its name and busy state",
+        "carries": "yui://speech-stream-ask: the pet's stream half restates its name and busy state; commands and cached Command reply",
         "kind": "bridge"
       },
       {
         "id": "speech-stream-ask-unified-pet-bound",
         "from": "unified",
         "to": "pet-<id>",
-        "carries": "yui://speech-stream-ask: the pet's stream half restates its name and busy state",
+        "carries": "yui://speech-stream-ask: the pet's stream half restates its name and busy state; commands and cached Command reply",
         "kind": "bridge"
       },
       {
         "id": "speech-stream-control-unified-pet",
         "from": "unified",
         "to": "pet",
-        "carries": "yui://speech-stream-control {preset, op: input-error-action}: the pet whose preset it names runs the error's fix",
+        "carries": "yui://speech-stream-control {preset, op: input-error-action | command {name, args} | command-reply-close}: the named pet handles the control",
         "kind": "bridge"
       },
       {
         "id": "speech-stream-control-unified-pet-bound",
         "from": "unified",
         "to": "pet-<id>",
-        "carries": "yui://speech-stream-control {preset, op: input-error-action}: the pet whose preset it names runs the error's fix",
+        "carries": "yui://speech-stream-control {preset, op: input-error-action | command {name, args} | command-reply-close}: the named pet handles the control",
         "kind": "bridge"
       },
       {

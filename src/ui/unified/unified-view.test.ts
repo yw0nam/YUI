@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MessageSurfaceOp } from "../../io/bridge/message/message-bridge";
 import type { UserTurnRouted } from "../../io/bridge/settings-bridge";
@@ -540,4 +542,139 @@ describe("unified view — the backlog", () => {
       ["You → Perlica", "@Natsume what do you think?"],
     ]);
   });
+});
+
+describe("unified Backend commands", () => {
+  const commands = [{ name: "status", description: "Session info", args: "" }];
+  it.each(["chip", "mention"])("offers the picked character's commands through a %s", (via) => {
+    mount();
+    stream("perlica", { op: "commands", commands });
+    if (via === "chip") pick(0);
+    else {
+      type("@per");
+      press("Tab");
+    }
+    type("/");
+    expect(document.querySelector(".yui-uc__dock .yui-cmd-list")?.hasAttribute("hidden")).toBe(
+      false,
+    );
+    expect(document.querySelector(".yui-cmd-list__row")?.textContent).toBe("/statusSession info");
+    expect(
+      document.querySelector(".yui-uc__dock .yui-cmd-list__rows")?.getAttribute("aria-label"),
+    ).toBe("Commands for Perlica");
+    expect(
+      document.getElementById(field().getAttribute("aria-controls")!)?.closest(".yui-uc__dock")
+        ?.className,
+    ).toBe("yui-uc__dock");
+  });
+  it.each([null, 2])("sends /status as text without one picked recipient (%s)", (recipient) => {
+    mount();
+    stream("perlica", { op: "commands", commands });
+    if (recipient !== null) pick(recipient);
+    type("/status");
+    expect(document.querySelector(".yui-cmd-list:not([hidden])")).toBeNull();
+    press("Enter");
+    expect(routed[0]?.text).toBe(recipient === null ? "/status" : "@everyone /status");
+  });
+  it.each([
+    false,
+    true,
+  ])("admits an idle picked character while another runs, refuses its raw busy (%s)", (busy) => {
+    mount();
+    const controls: unknown[] = [];
+    view.onCommandControl((event) => controls.push(event));
+    stream("perlica", { op: "commands", commands });
+    stream("natsume", { op: "busy", busy: true });
+    stream("perlica", { op: "busy", busy });
+    pick(0);
+    type("/status");
+    press("Enter");
+    expect(controls).toEqual(
+      busy ? [] : [{ preset: "perlica", op: { op: "command", name: "status", args: "" } }],
+    );
+    expect(field().value).toBe(busy ? "/status" : "");
+    expect(routed).toEqual([]);
+    if (busy)
+      expect(document.querySelector(".yui-uc__dock .yui-input__error")?.textContent).toBe(
+        "Perlica is replying. Try again when they finish.",
+      );
+  });
+  it("keeps a typed leading @name command as text", () => {
+    mount();
+    stream("perlica", { op: "commands", commands });
+    type("@Perlica /status");
+    press("Enter");
+    expect(routed[0]?.text).toBe("@Perlica /status");
+  });
+  it("shows replayed and interleaved replies with the latest speaker and closes that character's reply", () => {
+    mount();
+    const controls: unknown[] = [];
+    view.onCommandControl((event) => controls.push(event));
+    stream("perlica", { op: "command-reply", reply: { kind: "pending", name: "status" } });
+    expect(document.querySelector(".yui-cmd-reply__head")?.textContent).toContain(
+      "Perlica · /status",
+    );
+    stream("natsume", {
+      op: "command-reply",
+      reply: { kind: "settled", name: "status", text: "Ready" },
+    });
+    expect(document.querySelector(".yui-cmd-reply__head")?.textContent).toContain(
+      "Natsume · /status",
+    );
+    const card = document.querySelector<HTMLElement>(".yui-cmd-reply")!;
+    expect(card.hidden).toBe(false);
+    document.querySelector<HTMLButtonElement>(".yui-cmd-reply__close")!.click();
+    expect(controls).toEqual([{ preset: "natsume", op: { op: "command-reply-close" } }]);
+  });
+});
+
+it("keeps the reply visible without a speech line", () => {
+  const style = document.createElement("style");
+  style.textContent = readFileSync(resolve(__dirname, "unified-window.css"), "utf8");
+  document.head.append(style);
+  try {
+    mount();
+    stream("perlica", {
+      op: "command-reply",
+      reply: { kind: "settled", name: "status", text: "OK" },
+    });
+    const card = document.querySelector<HTMLElement>(".yui-cmd-reply")!;
+    expect(card.hidden).toBe(false);
+    for (let el: HTMLElement | null = card; el; el = el.parentElement)
+      expect(getComputedStyle(el).display).not.toBe("none");
+  } finally {
+    style.remove();
+  }
+});
+
+it.each([
+  "settled",
+  "clear",
+] as const)("refuses a second pending command and admits it after %s", (kind) => {
+  mount();
+  const controls: unknown[] = [];
+  view.onCommandControl((event) => controls.push(event));
+  stream("perlica", {
+    op: "commands",
+    commands: [{ name: "status", description: "Info", args: "" }],
+  });
+  pick(0);
+  stream("perlica", { op: "command-reply", reply: { kind: "pending", name: "status" } });
+  type("/status");
+  press("Enter");
+  expect(controls).toEqual([]);
+  expect(field().value).toBe("/status");
+  expect(document.querySelector(".yui-uc__dock .yui-input__error")?.textContent).toBe(
+    "Perlica is still running /status.",
+  );
+  stream("perlica", {
+    op: "command-reply",
+    reply: kind === "clear" ? { kind } : { kind, name: "status", text: "OK" },
+  });
+  press("Enter");
+  expect(controls).toEqual([
+    { preset: "perlica", op: { op: "command", name: "status", args: "" } },
+  ]);
+  expect(field().value).toBe("");
+  expect(document.querySelector(".yui-uc__dock .yui-input__error")?.textContent).toBe("");
 });

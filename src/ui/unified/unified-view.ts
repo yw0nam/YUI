@@ -4,7 +4,12 @@
  * decide whether and what to say; the view renders what their windows stream.
  */
 
-import type { SpeechStream, UserTurnDone, UserTurnRouted } from "../../io/bridge/settings-bridge";
+import type {
+  SpeechStream,
+  SpeechStreamControl,
+  UserTurnDone,
+  UserTurnRouted,
+} from "../../io/bridge/settings-bridge";
 import { createLogger } from "../../logger";
 import type { PresetEntry } from "../../settings/preset/active-preset";
 import { subscribe as subscribeLocale } from "../i18n";
@@ -12,6 +17,7 @@ import { createSurfaces } from "../surfaces/surfaces";
 import { backlogLines, recipientName, shownQuote, youTo } from "./backlog-lines";
 import { createCastChips } from "./cast-chips";
 import { createCastState } from "./cast-state";
+import { createUnifiedCommands } from "./commands/unified-commands";
 import { createComposer } from "./composer";
 import { createLaneQueue } from "./lane-queue";
 import { mergeTranscripts, type PendingSend, type Transcript } from "./merge";
@@ -43,6 +49,7 @@ export interface UnifiedView {
   speechOnset(): void;
   /** Another window's stop: ends the send under way and the lines, sending no stop of its own. */
   stop(): void;
+  onCommandControl(cb: (event: SpeechStreamControl) => void): void;
   onRoute(cb: (event: UserTurnRouted) => void): void;
   /** The stop button: every pet window stops its running turn. */
   onStop(cb: () => void): void;
@@ -116,6 +123,13 @@ export function createUnifiedView(deps: {
   const lanes = createLaneQueue({ box });
   const castState = createCastState({ cast: deps.cast, lanes });
   const composer = createComposer({ mount: dock, cast: deps.cast });
+  const commands = createUnifiedCommands({
+    composer,
+    box,
+    cast: deps.cast,
+    nameOf,
+    isBusy: castState.isBusy,
+  });
   const sequence = createSequence({
     emit: (event) => {
       for (const cb of routeCbs) cb(event);
@@ -169,6 +183,7 @@ export function createUnifiedView(deps: {
     castState.prune();
     lanes.setCast(deps.cast().map((e) => e.id));
     composer.refreshCast();
+    commands.refresh();
     paint();
   }
 
@@ -225,6 +240,7 @@ export function createUnifiedView(deps: {
     el: root,
     refresh,
     speechStream({ preset, op }) {
+      commands.accept({ preset, op });
       switch (op.op) {
         case "busy":
           castState.setBusy(preset, op.busy);
@@ -276,6 +292,7 @@ export function createUnifiedView(deps: {
       if (busy()) stopButton();
     },
     stop,
+    onCommandControl: commands.onControl,
     onRoute: (cb) => void routeCbs.push(cb),
     onStop: (cb) => void stopCbs.push(cb),
     onInputErrorAction: (cb) => void errorActionCbs.push(cb),

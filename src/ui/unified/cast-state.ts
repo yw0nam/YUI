@@ -12,6 +12,7 @@ export function createCastState(deps: {
   const names = new Map<string, string>();
   const thinking = (id: string): boolean => busy.get(id) === true || deps.lanes.waiting(id);
   return {
+    isBusy: (preset: string): boolean => busy.get(preset) === true,
     setBusy: (preset: string, on: boolean): void => void busy.set(preset, on),
     setName: (preset: string, name: string): void => void names.set(preset, name),
     /** The name the preset's window last sent, else its registry name. */

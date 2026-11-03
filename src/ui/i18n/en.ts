@@ -9,6 +9,11 @@ const en: Record<string, string> = {
   "command.close": "Close reply",
   "command.count": "{n} commands",
   "command.list_label": "Backend commands",
+  "command.busy_self": "Wait for the reply to finish.",
+  "command.pending": "{name} is still running /{command}.",
+  "command.list_label_for": "Commands for {name}",
+  "command.busy": "{name} is replying. Try again when they finish.",
+  "command.busy_reply": "Not run: a reply is still in progress.",
   "command.not_sent": "Not sent. The backend is not connected.",
 
   // tool labels (English in all locales — AI tool-call status)

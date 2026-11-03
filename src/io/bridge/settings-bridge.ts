@@ -133,10 +133,10 @@ export interface ThreadsOpen {
   tab?: ThreadsTab;
 }
 
-/** The unified chat window's click on an error's fix, back to the preset whose window showed it. */
+/** The unified chat window's error action, Backend command or Command reply close for one preset. */
 export interface SpeechStreamControl {
   preset: string;
-  op: Extract<MessageControlOp, { op: "input-error-action" }>;
+  op: Extract<MessageControlOp, { op: "input-error-action" | "command" | "command-reply-close" }>;
 }
 
 const isString = (v: unknown): v is string => typeof v === "string";
@@ -169,6 +169,25 @@ function isStreamOp(v: unknown): v is MessageSurfaceOp {
   if (v === null || typeof v !== "object") return false;
   const o = v as Record<string, unknown>;
   switch (o.op) {
+    case "commands":
+      return (
+        Array.isArray(o.commands) &&
+        o.commands.every((cmd) => {
+          if (cmd === null || typeof cmd !== "object") return false;
+          const c = cmd as Record<string, unknown>;
+          return isString(c.name) && isString(c.description) && isString(c.args);
+        })
+      );
+    case "command-reply": {
+      if (o.reply === null || typeof o.reply !== "object") return false;
+      const reply = o.reply as Record<string, unknown>;
+      return (
+        reply.kind === "clear" ||
+        (isString(reply.name) &&
+          isOptional(reply.speaker, isString) &&
+          (reply.kind === "pending" || (reply.kind === "settled" && isString(reply.text))))
+      );
+    }
     case "begin":
       return true;
     case "push":
@@ -206,7 +225,7 @@ export interface SettingsBridge {
   /** A pet window's message ops for the unified chat window; delivered to every window. */
   emitSpeechStream(event: SpeechStream): void;
   onSpeechStream(cb: (event: SpeechStream) => void): () => void;
-  /** The unified chat window asking every pet window to restate its name and busy state. */
+  /** The unified chat window asking every pet window to restate its name, busy state, commands and Command reply. */
   emitSpeechStreamAsk(): void;
   onSpeechStreamAsk(cb: () => void): () => void;
   /** The unified chat window's stop button or its answer to speech onset: every pet window stops its
@@ -216,7 +235,7 @@ export interface SettingsBridge {
   /** The user started speaking, with barge-in on, while the unified chat window shows; that window answers like its stop button while a character runs. */
   emitSpeechOnset(): void;
   onSpeechOnset(cb: () => void): () => void;
-  /** The unified chat window's click on an error's fix; delivered to every window, receivers filter on `preset`. */
+  /** The unified chat window's controls; delivered to every window, receivers filter on `preset`. */
   emitSpeechStreamControl(event: SpeechStreamControl): void;
   onSpeechStreamControl(cb: (event: SpeechStreamControl) => void): () => void;
   /** A pet window asking an open settings window to show its character and page; delivered to every window, receivers filter on `preset`. */
@@ -641,8 +660,11 @@ export function createSettingsBridge(
       return on<unknown>(CH_SPEECH_STREAM_CONTROL, (event) => {
         if (event === null || typeof event !== "object") return;
         const { preset, op } = event as Partial<SpeechStreamControl>;
-        if (isString(preset) && preset && op?.op === "input-error-action")
-          cb({ preset, op: { op: "input-error-action" } });
+        if (!isString(preset) || !preset || !op) return;
+        if (op.op === "input-error-action" || op.op === "command-reply-close")
+          cb({ preset, op: { op: op.op } });
+        else if (op.op === "command" && isString(op.name) && isString(op.args))
+          cb({ preset, op: { op: "command", name: op.name, args: op.args } });
       });
     },
     dispose: core.dispose,

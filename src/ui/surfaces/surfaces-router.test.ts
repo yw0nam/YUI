@@ -15,6 +15,7 @@ import { guardrailsFixture } from "../../config/load-test-helpers";
 import type { BridgeTransport } from "../../io/bridge/core/bridge-core";
 import { createMessageBridge } from "../../io/bridge/message/message-bridge";
 import { createRemoteSurfaces, type RemoteSurfaces } from "../../io/bridge/message/message-remote";
+import type { CommandReplyFrame } from "../../io/chat/push/push-frames";
 import type { MessageWindowMode } from "../../settings/panels/message-window-settings";
 import { createMessagePlate } from "../message/message-plate";
 import { createSurfaces, type Surfaces } from "./surfaces";
@@ -113,13 +114,17 @@ describe("createSurfacesRouter", () => {
 
   it("fans the command list to both windows and registers both input sources", () => {
     const commands = [{ name: "status", description: "Info", args: "" }];
-    const cb = vi.fn();
+    const cb = vi.fn(() => true);
     router.setCommands(commands);
     router.onCommand(cb);
     for (const side of [local, remote]) {
       expect(side.setCommands).toHaveBeenCalledWith(commands);
-      expect(side.onCommand).toHaveBeenCalledWith(cb);
+      vi.mocked(side.onCommand).mock.calls[0]![0]("status", "");
     }
+    expect(cb.mock.calls).toEqual([
+      ["status", ""],
+      ["status", ""],
+    ]);
   });
 
   it.each([
@@ -135,6 +140,40 @@ describe("createSurfacesRouter", () => {
     expect(other.showCommandReply).not.toHaveBeenCalledWith(reply);
     for (const side of [local, remote])
       expect(side.showCommandReply).toHaveBeenCalledWith({ kind: "clear" });
+  });
+
+  it("fans commands to the stream and keeps replies on their issuing side across a mode change", () => {
+    const commands = [{ name: "status", description: "Info", args: "" }];
+    router.setCommands(commands);
+    expect(stream.setCommands).toHaveBeenCalledWith(commands);
+    const cb = vi
+      .fn(() => true)
+      .mockReturnValueOnce(true)
+      .mockReturnValueOnce(false);
+    router.onCommand(cb);
+    const issue = vi.mocked(stream.onCommand).mock.calls[0]?.[0];
+    expect(typeof issue).toBe("function");
+    issue!("status", "");
+    expect(cb).toHaveBeenCalledWith("status", "");
+    setShown(false);
+    setMode("popped");
+    for (const reply of [
+      { kind: "pending" as const, name: "status" },
+      { kind: "settled" as const, name: "status", text: "OK" },
+    ]) {
+      router.showCommandReply(reply);
+      expect(stream.showCommandReply).toHaveBeenLastCalledWith(reply);
+      expect(local.showCommandReply).not.toHaveBeenCalledWith(reply);
+      expect(remote.showCommandReply).not.toHaveBeenCalledWith(reply);
+      if (reply.kind === "pending") vi.mocked(local.onCommand).mock.calls[0]![0]("status", "");
+    }
+    router.showCommandReply({ kind: "clear" });
+    const close = vi.fn();
+    router.onCommandReplyClose(close);
+    for (const side of [local, remote, stream]) {
+      expect(side.showCommandReply).toHaveBeenLastCalledWith({ kind: "clear" });
+      expect(side.onCommandReplyClose).toHaveBeenCalledWith(close);
+    }
   });
 
   beforeEach(() => {
@@ -713,6 +752,7 @@ it.each([
   });
   const off = wireBackendCommands({
     surfaces: router,
+    isBusy: () => false,
     socket: {
       getCommands: () => [],
       onCommands: () => () => {},
@@ -740,5 +780,92 @@ it.each([
     late?.dispose();
     petBridge.dispose();
     messageBridge.dispose();
+  }
+});
+
+it.each(["settled", "clear"] as const)("drops the recorded command side on %s", (kind) => {
+  const local = makeLocal();
+  const remote = makeRemote();
+  const stream = makeRemote();
+  const router = createSurfacesRouter({
+    local,
+    remote,
+    stream,
+    getMode: () => "docked",
+    subscribeMode: () => () => {},
+    shown: { get: () => false, subscribe: () => () => {} },
+  });
+  try {
+    router.onCommand(() => true);
+    vi.mocked(stream.onCommand).mock.calls[0]![0]("status", "");
+    router.showCommandReply({ kind: "pending", name: "status" });
+    router.showCommandReply(kind === "clear" ? { kind } : { kind, name: "status", text: "Done" });
+    vi.mocked(stream.showCommandReply).mockClear();
+    router.showCommandReply({ kind: "settled", name: "status", text: "Local" });
+    expect(local.showCommandReply).toHaveBeenLastCalledWith({
+      kind: "settled",
+      name: "status",
+      text: "Local",
+    });
+    expect(stream.showCommandReply).not.toHaveBeenCalled();
+  } finally {
+    router.dispose();
+  }
+});
+
+it.each([
+  "busy",
+  "pending",
+])("shows a unified %s refusal on the issuing side and preserves an earlier pending command", (state) => {
+  const local = makeLocal();
+  const remote = makeRemote();
+  const stream = makeRemote();
+  const router = createSurfacesRouter({
+    local,
+    remote,
+    stream,
+    getMode: () => "docked",
+    subscribeMode: () => () => {},
+    shown: { get: () => true, subscribe: () => () => {} },
+  });
+  let reply!: (frame: CommandReplyFrame) => void;
+  let id = "";
+  const off = wireBackendCommands({
+    surfaces: router,
+    isBusy: () => state === "busy",
+    socket: {
+      getCommands: () => [],
+      onCommands: () => () => {},
+      onState: () => () => {},
+      onCommandReply: (cb) => {
+        reply = cb;
+        return () => {};
+      },
+      sendCommand: (frame) => {
+        id = frame.id;
+        return true;
+      },
+    },
+  });
+  try {
+    if (state === "pending") vi.mocked(local.onCommand).mock.calls[0]![0]("status", "");
+    expect(vi.mocked(stream.onCommand).mock.calls[0]![0]("status", "")).toBe(false);
+    expect(stream.showCommandReply).toHaveBeenLastCalledWith({
+      kind: "settled",
+      name: "status",
+      text: "Not run: a reply is still in progress.",
+    });
+    if (state === "pending") {
+      reply({ type: "command_reply", id, text: "Original" });
+      expect(local.showCommandReply).toHaveBeenLastCalledWith({
+        kind: "settled",
+        name: "status",
+        text: "Original",
+      });
+    } else expect(local.showCommandReply).not.toHaveBeenCalled();
+    expect(remote.showCommandReply).not.toHaveBeenCalled();
+  } finally {
+    off();
+    router.dispose();
   }
 });

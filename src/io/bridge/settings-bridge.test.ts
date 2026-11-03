@@ -632,6 +632,10 @@ describe("speech stream", () => {
   }
 
   it.each<MessageSurfaceOp>([
+    { op: "commands", commands: [{ name: "status", description: "Info", args: "" }] },
+    { op: "command-reply", reply: { kind: "clear" } },
+    { op: "command-reply", reply: { kind: "pending", name: "status" } },
+    { op: "command-reply", reply: { kind: "settled", name: "status", text: "OK" } },
     { op: "begin" },
     { op: "push", delta: "hi" },
     { op: "end" },
@@ -674,6 +678,13 @@ describe("speech stream", () => {
     },
     { preset: "yui", op: { op: "busy", busy: 1 } },
     { preset: "yui", op: { op: "input-error" } },
+    ...[
+      { op: "commands", commands: [{ name: "status", description: 1, args: "" }] },
+      { op: "commands", commands: null },
+      { op: "command-reply", reply: { kind: "pending", name: 1 } },
+      { op: "command-reply", reply: { kind: "settled", name: "status" } },
+      { op: "command-reply", reply: { kind: "other" } },
+    ].map((op) => ({ preset: "yui", op })),
   ])("drops the malformed event %j", (payload) => {
     const { pet, received } = pair();
 
@@ -707,4 +718,23 @@ describe("speech stream", () => {
 
     expect(ask).toHaveBeenCalledOnce();
   });
+});
+
+it.each([
+  { op: "command", name: "status", args: "" },
+  { op: "command-reply-close" },
+])("carries a unified command control %j and rejects malformed controls", (op) => {
+  const transport = createFakeTransport();
+  const pet = createSettingsBridge(transport, { windowKind: "pet" });
+  const unified = createSettingsBridge(transport, { windowKind: "unified" });
+  const control = vi.fn();
+  pet.onSpeechStreamControl(control);
+  unified.emitSpeechStreamControl({ preset: "yui", op } as never);
+  unified.emitSpeechStreamControl({
+    preset: "yui",
+    op: { op: "command", name: "status", args: 1 },
+  } as never);
+  expect(control.mock.calls).toEqual([[{ preset: "yui", op }]]);
+  pet.dispose();
+  unified.dispose();
 });

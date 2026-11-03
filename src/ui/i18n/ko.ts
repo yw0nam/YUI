@@ -9,6 +9,11 @@ const ko: Record<string, string> = {
   "command.close": "응답 닫기",
   "command.count": "명령 {n}개",
   "command.list_label": "백엔드 명령",
+  "command.busy_self": "답변이 끝날 때까지 기다려 주세요.",
+  "command.pending": "{name}이(가) 아직 /{command}을(를) 실행 중입니다.",
+  "command.list_label_for": "{name}의 명령어",
+  "command.busy": "{name}이(가) 답변 중입니다. 끝난 뒤 다시 시도하세요.",
+  "command.busy_reply": "실행하지 않았습니다. 아직 답변이 진행 중입니다.",
   "command.not_sent": "전송되지 않았습니다. 백엔드가 연결되어 있지 않습니다.",
 
   // tool labels (English — not translated)

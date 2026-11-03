@@ -288,7 +288,13 @@ export async function wireTurnCore(
       if (pushSocket) {
         register(wirePlayback({ socket: pushSocket, previousTurn }));
         register(wireAskCard({ socket: pushSocket, mount: surfaces.askSlot }));
-        register(wireBackendCommands({ socket: pushSocket, surfaces }));
+        register(
+          wireBackendCommands({
+            socket: pushSocket,
+            surfaces,
+            isBusy: () => dispatcher.inFlight() !== null,
+          }),
+        );
         register(
           wirePushTransport({
             socket: pushSocket,
