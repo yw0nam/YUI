@@ -16,8 +16,8 @@ import type { Locale } from "../i18n";
 export const DEFAULT_PAGE: SettingsPage = "persona";
 
 /** The page the panel opens on. */
-export const initialPageOf = (showFirstConversation: boolean): SettingsPage =>
-  showFirstConversation ? "first" : DEFAULT_PAGE;
+export const initialPageOf = (openOnQuickStart: boolean): SettingsPage =>
+  openOnQuickStart ? "conn" : DEFAULT_PAGE;
 
 // Language picker display order (Japanese / English / Korean). Fixed independently of LOCALES.
 export const LANG_PICKER_ORDER: readonly Locale[] = ["ja", "en", "ko"];
@@ -258,7 +258,6 @@ export const STT_LANGUAGE_SUGGESTIONS = [
 
 // Tab icons — same line-icon vocabulary as other icon buttons (1.5 stroke, 24x24 viewBox).
 // The Listening icon reuses the same path as the voice_input row icon on that page.
-export const TAB_ICON_FIRST = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4.5c.7 3.9 2.6 5.9 7.5 7.5-4.9 1.6-6.8 3.6-7.5 7.5-.7-3.9-2.6-5.9-7.5-7.5 4.9-1.6 6.8-3.6 7.5-7.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
 export const TAB_ICON_CONN = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 7.5V4M15 7.5V4M12 16.5V20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M7 7.5h10v4a5 5 0 0 1-10 0v-4Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
 export const TAB_ICON_PERSONA = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6.8A2.3 2.3 0 0 1 6.3 4.5h11.4A2.3 2.3 0 0 1 20 6.8v6.4a2.3 2.3 0 0 1-2.3 2.3H10l-4.3 3.3v-3.3H6.3A2.3 2.3 0 0 1 4 13.2V6.8Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
 export const TAB_ICON_BODY = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8.3" r="3.1" stroke="currentColor" stroke-width="1.5"/><path d="M5.2 19c1.15-3.4 3.9-5 6.8-5s5.65 1.6 6.8 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;

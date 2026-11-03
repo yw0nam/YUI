@@ -148,7 +148,7 @@ describe("maybeShowFirstRunHint — unconfigured chat backend", () => {
     expect(showSpeechAction).not.toHaveBeenCalled();
   });
 
-  it("carries the setup action on the setup hint, opening the first conversation page on click", () => {
+  it("carries the setup action on the setup hint, opening Connection on click", () => {
     const { deps, showSpeechAction, openSettings } = fakeDeps({ chatConfigured: false });
 
     maybeShowFirstRunHint(deps);
@@ -157,7 +157,7 @@ describe("maybeShowFirstRunHint — unconfigured chat backend", () => {
     const action = showSpeechAction.mock.calls[0][0];
     expect(action.label).toBe("hint.setup_action");
     action.onClick();
-    expect(openSettings).toHaveBeenCalledWith("first");
+    expect(openSettings).toHaveBeenCalledWith("conn");
   });
 
   it("hides the hint once its action opens the settings", () => {
@@ -168,7 +168,7 @@ describe("maybeShowFirstRunHint — unconfigured chat backend", () => {
     maybeShowFirstRunHint(deps);
 
     showSpeechAction.mock.calls[0][0].onClick();
-    expect(openSettings).toHaveBeenCalledWith("first");
+    expect(openSettings).toHaveBeenCalledWith("conn");
     expect(hideSpeech).toHaveBeenCalledTimes(1);
     expect(hideSpeech).toHaveBeenCalledAfter(openSettings);
   });

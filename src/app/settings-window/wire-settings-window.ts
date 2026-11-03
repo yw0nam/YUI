@@ -25,7 +25,7 @@ import { wireCueLocaleSync } from "../settings/wire-cue-locale-sync";
 import { wirePresetSwitch } from "../settings/wire-preset";
 import { wireWindowSettings } from "../settings/wire-window-settings";
 import { editTargetUrl } from "./edit-target-url";
-import { showsFirstConversation, takeRequestedPage, wireSettingsPage } from "./wire-settings-page";
+import { opensOnQuickStart, takeRequestedPage, wireSettingsPage } from "./wire-settings-page";
 import { wireVoiceMirror } from "./wire-voice-mirror";
 
 const log = createLogger("settings-bootstrap");
@@ -162,7 +162,7 @@ export async function wireSettingsWindow(deps: {
   if (mcpHost) register(mcpHost.dispose);
 
   // Read once: a locale change rebuilds the panel, and the page stays until the window closes.
-  const showFirstConversation = showsFirstConversation(shared.getEndpoints());
+  const openOnQuickStart = opensOnQuickStart(shared.getEndpoints());
 
   const buildQuickControls = (): ReturnType<typeof createQuickControls> => {
     titleSettingsWindow(t("settings.title"));
@@ -249,7 +249,7 @@ export async function wireSettingsWindow(deps: {
       boundId,
       onEditTarget: (id) => reloadOnCharacter(id),
       showVoiceInput: boundId === null,
-      showFirstConversation,
+      openOnQuickStart,
       onFirstConversationConnected: bridge.emitFirstConversationConnected,
       onOpenDevtools: bridge.emitOpenDevtools,
     });

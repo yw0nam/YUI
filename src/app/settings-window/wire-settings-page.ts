@@ -15,8 +15,8 @@ export function takeRequestedPage(): SettingsPage | null {
   return page;
 }
 
-/** Whether the window leads with the First conversation page; no page while the config failed to load. */
-export function showsFirstConversation(endpoints: EndpointsConfig | null): boolean {
+/** Whether the window leads with the Connection page's Quick start; no page while the config failed to load. */
+export function opensOnQuickStart(endpoints: EndpointsConfig | null): boolean {
   return endpoints !== null && !isChatConfigured(endpoints);
 }
 

@@ -22,7 +22,7 @@ function build({ enabled = false, open = true }: { enabled?: boolean; open?: boo
   const listMonitors = vi.fn(async () => [{ index: 0, primary: true }]);
   const root = document.createElement("div");
   root.innerHTML = buildPanelHtml({
-    showFirstConversation: false,
+    openOnQuickStart: false,
     hasSession: false,
     switchRows: createSwitchRows({
       idleThrottleSettings: createFlagSettings(false),

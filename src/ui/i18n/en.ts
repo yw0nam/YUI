@@ -157,7 +157,6 @@ const en: Record<string, string> = {
   "devtools.advanced.context_window_default": "Default",
 
   // settings pages, rail groups, search, and the scope line above each page title
-  "tabs.first": "First conversation",
   "tabs.conn": "Connection",
   "tabs.voice": "Voice",
   "tabs.persona": "Persona",
@@ -174,8 +173,8 @@ const en: Record<string, string> = {
   "rail.group_character": "This character",
   "rail.group_app": "Every character",
   "search.placeholder": "Search settings",
-  "scope.only": "Only {name}",
-  "scope.every": "Every character",
+  "scope.only": "Applies to {name} only",
+  "scope.every": "Applies to every character",
 
   // Together page: the Characters list and its "On the desktop" switches
   "chars.section": "Characters",
@@ -615,29 +614,32 @@ const en: Record<string, string> = {
   "hint.setup_backend": "We're not connected yet · shall we set it up?",
   "hint.setup_action": "Connect",
 
-  // first conversation page
-  "first.free_title": "Start for free",
-  "first.free_note": "Talk on the Google Gemini free tier.",
-  "first.send_label": "What gets sent",
-  "first.send_sub":
+  // quick start
+  "start.free_title": "Start for free",
+  "start.free_note": "Talk on the Google Gemini free tier.",
+  "start.send_label": "What gets sent",
+  "start.send_sub":
     "Your conversation and the name and window title of the app in front go to Google. Google may use them to improve its products and people may review them, so keep sensitive details out.",
-  "first.limit_label": "Daily limit",
-  "first.limit_sub": "The free tier has a daily limit. Past it, you can talk again the next day.",
-  "first.key_title": "Connect a key",
-  "first.make_label": "Make a key",
-  "first.make_sub": "Google AI Studio opens in your browser. You need a Google account.",
-  "first.make_link": "Open key page",
-  "first.paste_label": "Paste the key",
-  "first.paste_placeholder": "Paste the key you copied",
-  "first.connect": "Connect",
-  "first.checking": "Checking the key…",
-  "first.need_key": "Paste a key first.",
-  "first.refused": "Google did not accept this key. Paste the key you copied again.",
-  "first.failed": "Could not reach Google. Check your internet connection and try again.",
-  "first.reopen": "Open key page again",
-  "first.own_server": "Already have a server?",
-  "first.open_connection": "Open Connection",
-  "first.done": "Connected. You can start talking now.",
+  "start.limit_label": "Daily limit",
+  "start.limit_sub": "The free tier has a daily limit. Past it, you can talk again the next day.",
+  "start.key_title": "Connect a key",
+  "start.make_label": "Make a key",
+  "start.make_sub": "Google AI Studio opens in your browser. You need a Google account.",
+  "start.make_link": "Open key page",
+  "start.paste_label": "Paste the key",
+  "start.paste_placeholder": "Paste the key you copied",
+  "start.connect": "Connect",
+  "start.checking": "Checking the key…",
+  "start.need_key": "Paste a key first.",
+  "start.refused": "Google did not accept this key. Paste the key you copied again.",
+  "start.failed": "Could not reach Google. Check your internet connection and try again.",
+  "start.reopen": "Open key page again",
+  "start.done": "Connected. You can start talking now.",
+  "start.own_note": "Connecting with this key replaces your current server with Google Gemini.",
+  "start.views_aria": "How to connect",
+  "start.view_quick": "Quick start",
+  "start.view_detail": "Detailed settings",
+  "start.detail_note": "Choose the server, model, and voice servers yourself.",
 
   // reactions tab
   "reactions.watchers_title": "Watchers",

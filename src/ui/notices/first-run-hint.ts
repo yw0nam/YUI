@@ -28,7 +28,7 @@ export interface FirstRunHintDeps {
   isMac: boolean;
   /** Whether a chat backend address is set. False switches the hint to setup guidance. */
   chatConfigured: boolean;
-  /** Opens the settings panel; the setup hint's button lands on the First conversation page. */
+  /** Opens the settings panel; the setup hint's button lands on Connection. */
   openSettings(tab: SettingsPage): void;
   t: TranslateFn;
 }
@@ -59,7 +59,7 @@ export function maybeShowFirstRunHint(deps: FirstRunHintDeps): boolean {
     deps.surfaces.showSpeechAction({
       label: deps.t("hint.setup_action"),
       onClick: () => {
-        deps.openSettings("first");
+        deps.openSettings("conn");
         deps.surfaces.hideSpeech();
       },
     });

@@ -136,7 +136,7 @@ describe("createQuickControls — presets", () => {
 
     expect(head("perlica").getAttribute("aria-current")).toBe("true");
     expect(qc.el.querySelector("#yui-panel-conn .yui-tabpanel__scope")?.textContent).toBe(
-      "Only perlica",
+      "Applies to perlica only",
     );
 
     expect(registry.get().active).toBe("aaaa0001");
@@ -318,11 +318,11 @@ describe("createQuickControls — presets", () => {
   it("names the shown preset on each character page and the rail group", () => {
     const scope = (tab: string): string | null | undefined =>
       qc.el.querySelector(`#yui-panel-${tab} .yui-tabpanel__scope`)?.textContent;
-    expect(scope("conn")).toBe("Only natsume");
-    expect(scope("persona")).toBe("Only natsume");
-    expect(scope("body")).toBe("Only natsume");
-    expect(scope("together")).toBe("Every character");
-    expect(scope("general")).toBe("Every character");
+    expect(scope("conn")).toBe("Applies to natsume only");
+    expect(scope("persona")).toBe("Applies to natsume only");
+    expect(scope("body")).toBe("Applies to natsume only");
+    expect(scope("together")).toBe("Applies to every character");
+    expect(scope("general")).toBe("Applies to every character");
     expect(qc.el.querySelector("#yui-tab-conn")?.previousElementSibling?.textContent).toBe(
       "natsume",
     );

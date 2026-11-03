@@ -15,7 +15,6 @@ import {
   SCREEN_MIN_GAP_MIN,
   TAB_ICON_BODY,
   TAB_ICON_CONN,
-  TAB_ICON_FIRST,
   TAB_ICON_GENERAL,
   TAB_ICON_HIST,
   TAB_ICON_LISTENING,
@@ -53,8 +52,8 @@ function hintDotHtml(textKey: string): string {
 /** Initial flags/states the panel HTML needs — computed by the entry where the stores live. */
 interface PanelHtmlOptions {
   showVoiceInput?: boolean;
-  /** Whether the First conversation page leads the rail and the panel opens on it. */
-  showFirstConversation: boolean;
+  /** Chat was unconfigured at window open: the panel opens on Connection, Quick start. */
+  openOnQuickStart: boolean;
   /** Whether the context-occupancy readout renders. */
   hasSession: boolean;
   switchRows: readonly SwitchRow[];
@@ -80,7 +79,7 @@ interface PanelHtmlOptions {
 export function buildPanelHtml(o: PanelHtmlOptions): string {
   const {
     showVoiceInput = true,
-    showFirstConversation,
+    openOnQuickStart,
     hasSession,
     switchRows,
     showScreen,
@@ -251,7 +250,7 @@ ${PROACTIVE_CAP_FIELDS.map(capRowHtml).join("")}
     : "";
 
   // A narrow panel keeps the label; the icon-only rail drops it with the tooltip.
-  const initialPage = initialPageOf(showFirstConversation);
+  const initialPage = initialPageOf(openOnQuickStart);
   const tabHtml = (id: SettingsPage, icon: string, opts?: { tipKey?: string }): string =>
     tabButtonHtml(id, icon, { selected: id === initialPage, tipKey: opts?.tipKey });
   const panelOpenHtml = (id: SettingsPage): string =>
@@ -264,17 +263,11 @@ ${PROACTIVE_CAP_FIELDS.map(capRowHtml).join("")}
     ${showPreset ? presetStripHtml() : ""}
     <div class="yui-quick__cols">
       <div class="yui-rail">${settingsSearchHtml()}
-      <div class="yui-tabs" role="tablist" aria-label="${t("panel.tablist_label")}" aria-orientation="vertical">${groupHtml("character")}${showFirstConversation ? tabHtml("first", TAB_ICON_FIRST) : ""}${tabHtml("conn", TAB_ICON_CONN)}${tabHtml("voice", TAB_ICON_VOICE)}${tabHtml("persona", TAB_ICON_PERSONA)}${tabHtml("body", TAB_ICON_BODY)}${showHistory ? tabHtml("hist", TAB_ICON_HIST) : ""}${groupHtml("app")}${tabHtml("together", TAB_ICON_TOGETHER)}${tabHtml("listening", TAB_ICON_LISTENING)}${tabHtml("perms", TAB_ICON_PERMS)}${showPlugins ? tabHtml("plugins", TAB_ICON_PLUGINS) : ""}${tabHtml("react", TAB_ICON_REACT, { tipKey: "tabs.react_hint" })}${tabHtml("motion", TAB_ICON_MOTION)}${tabHtml("general", TAB_ICON_GENERAL)}
+      <div class="yui-tabs" role="tablist" aria-label="${t("panel.tablist_label")}" aria-orientation="vertical">${groupHtml("character")}${tabHtml("conn", TAB_ICON_CONN)}${tabHtml("voice", TAB_ICON_VOICE)}${tabHtml("persona", TAB_ICON_PERSONA)}${tabHtml("body", TAB_ICON_BODY)}${showHistory ? tabHtml("hist", TAB_ICON_HIST) : ""}${groupHtml("app")}${tabHtml("together", TAB_ICON_TOGETHER)}${tabHtml("listening", TAB_ICON_LISTENING)}${tabHtml("perms", TAB_ICON_PERMS)}${showPlugins ? tabHtml("plugins", TAB_ICON_PLUGINS) : ""}${tabHtml("react", TAB_ICON_REACT, { tipKey: "tabs.react_hint" })}${tabHtml("motion", TAB_ICON_MOTION)}${tabHtml("general", TAB_ICON_GENERAL)}
       </div>
       </div>
       <div class="yui-quick__body">
-${
-  showFirstConversation
-    ? `${panelOpenHtml("first")}
-      </div>
-`
-    : ""
-}${panelOpenHtml("conn")}
+${panelOpenHtml("conn")}
       </div>
 ${panelOpenHtml("voice")}
         <div class="yui-sec">
@@ -406,7 +399,7 @@ ${panelOpenHtml("motion")}
           </div>
         </div>
       </div>
-${panelOpenHtml("general")}
+${panelOpenHtml("general")}${showHelp ? helpSectionHtml() : ""}
         <div class="yui-sec">
           <div class="yui-group">
             <div class="yui-row">
@@ -443,7 +436,7 @@ ${panelOpenHtml("general")}
                 : ""
             }
           </div>
-        </div>${showHelp ? helpSectionHtml() : ""}
+        </div>
       </div>
       </div>
     </div>

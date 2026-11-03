@@ -285,7 +285,9 @@ describe("createQuickControls — endpoints + API keys", () => {
   // ── chat API key field ────────────────────────────────────────────────────
 
   function chatKeyInput(qc: { el: HTMLElement }): HTMLInputElement {
-    return qc.el.querySelector<HTMLInputElement>(".yui-chatkey__input")!;
+    return qc.el.querySelector<HTMLInputElement>(
+      '.yui-input-row[data-key-prefix="chatkey"] .yui-chatkey__input',
+    )!;
   }
 
   it("renders a masked chat API-key field in the connection panel with no autofill leakage", () => {
@@ -492,7 +494,9 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.open();
 
     const input = chatKeyInput(qc);
-    const toggle = qc.el.querySelector<HTMLButtonElement>(".yui-chatkey__toggle")!;
+    const toggle = input
+      .closest<HTMLElement>(".yui-input-row")!
+      .querySelector<HTMLButtonElement>(".yui-chatkey__toggle")!;
     expect(input.type).toBe("password");
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
 

@@ -2,7 +2,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import type { EndpointsConfig } from "../../contract";
 import type { SettingsBridge } from "../../io/bridge/settings-bridge";
-import { showsFirstConversation, takeRequestedPage, wireSettingsPage } from "./wire-settings-page";
+import { opensOnQuickStart, takeRequestedPage, wireSettingsPage } from "./wire-settings-page";
 
 type Request = Parameters<Parameters<SettingsBridge["onSettingsPage"]>[0]>[0];
 
@@ -117,6 +117,6 @@ it.each([
   ["no address", { chat_base_url: "" }, true],
   ["an address", { chat_base_url: "http://localhost:8643/v1" }, false],
   ["a config that failed to load", null, false],
-])("with %s, showsFirstConversation is %s", (_, endpoints, shown) => {
-  expect(showsFirstConversation(endpoints as EndpointsConfig | null)).toBe(shown);
+])("with %s, opensOnQuickStart is %s", (_, endpoints, shown) => {
+  expect(opensOnQuickStart(endpoints as EndpointsConfig | null)).toBe(shown);
 });

@@ -1,7 +1,7 @@
 /**
- * Settings panel — fills the settings window: a rail of the character's pages (first conversation ·
- * connection · voice · persona · body · history) then every character's pages (together · listening ·
- * permissions · proactive · motion · general) beside the page body.
+ * Settings panel — fills the settings window: a rail of the character's pages (connection · voice ·
+ * persona · body · history) then every character's pages (together · listening · permissions ·
+ * proactive · motion · general) beside the page body.
  */
 
 import type { createTextSizeSettings } from "../../settings/appearance/text-size-settings";
@@ -73,9 +73,10 @@ import type { VoiceInputStatus } from "../chips/voice-input-status";
 import { t } from "../i18n";
 import { createCharacterTab } from "./character/character-tab";
 import { createConnectionTab, type PushSocketPanelPort } from "./connection/connection-tab";
+import { createConnectionViews } from "./connection/connection-views";
+import { createQuickStart } from "./connection/quick-start/quick-start";
 import { initialPageOf } from "./constants";
 import { mountCueLists } from "./cue-lists/cue-lists";
-import { createFirstConversationPage } from "./first-conversation/first-conversation-page";
 import { createHintTooltip } from "./hint-tooltip";
 import { createHistoryTab } from "./history/history-tab";
 import { createPanelShell } from "./panel-shell";
@@ -289,8 +290,8 @@ interface QuickControlsOptions {
   /** The preset strip picks the preset the window edits. */
   onEditTarget: (id: string) => void;
   showVoiceInput?: boolean;
-  /** Leads the rail with the First conversation page and opens on it. */
-  showFirstConversation?: boolean;
+  /** Chat was unconfigured at window open: the panel opens on Connection, Quick start. */
+  openOnQuickStart?: boolean;
   /** The First conversation page confirmed its key. */
   onFirstConversationConnected?: () => void;
 }
@@ -398,7 +399,7 @@ export function createQuickControls({
   boundId,
   onEditTarget,
   showVoiceInput = true,
-  showFirstConversation = false,
+  openOnQuickStart = false,
   onFirstConversationConnected,
 }: QuickControlsOptions): QuickControls {
   // The context-occupancy readout renders when both stores are injected.
@@ -433,7 +434,7 @@ export function createQuickControls({
     hasSession,
     switchRows: TOGGLE_SPECS,
     showVoiceInput,
-    showFirstConversation,
+    openOnQuickStart,
     showScreen: !!screenSettings && !!screenKnobSettings,
     showPresence: !!presenceSettings,
     showPacerGap: !!pacerGapSettings,
@@ -463,21 +464,27 @@ export function createQuickControls({
     getFetch,
     log,
   });
-  el.querySelector("#yui-panel-conn")!.append(connectionTab.el);
+  // ── Quick start (data use · daily limit · key confirmation) ──
+  const quickStart = createQuickStart({
+    endpointsSettings,
+    getEndpointDefaults,
+    chatKeySettings,
+    proactiveSettings,
+    scheduleSettings,
+    getFetch: async () => getFetch?.(),
+    onConnected: () => onFirstConversationConnected?.(),
+    showHelp: !!onGuide,
+  });
 
-  // ── First conversation page (data use · daily limit · key confirmation) ──
-  const firstConversation = showFirstConversation
-    ? createFirstConversationPage({
-        endpointsSettings,
-        chatKeySettings,
-        proactiveSettings,
-        scheduleSettings,
-        getFetch: async () => getFetch?.(),
-        onConnected: () => onFirstConversationConnected?.(),
-        openConnection: () => tabRail.select("conn"),
-      })
-    : null;
-  if (firstConversation) el.querySelector("#yui-panel-first")!.append(firstConversation.el);
+  // ── Connection page — Quick start or Detailed settings ──
+  const connectionViews = createConnectionViews({
+    panel: el.querySelector("#yui-panel-conn")!,
+    quick: quickStart.el,
+    detail: connectionTab.el,
+    initial: openOnQuickStart ? "quick" : "detail",
+    onQuickShown: quickStart.reflect,
+    onDetailEntered: () => connectionTab.entered(),
+  });
 
   // ── History tab (session accordion + start fresh) — only with a transcript store. ──
   const historyTab = transcript
@@ -592,7 +599,7 @@ export function createQuickControls({
     onOpen: () => {
       for (const section of sections) section.reflect?.();
       // Opening on the Connection page counts as entering it — the model list read follows.
-      if (tabRail.selected() === "conn") connectionTab.entered();
+      if (tabRail.selected() === "conn") connectionViews.entered();
       if (tabRail.selected() === "plugins") pluginsPage?.entered();
       // Server may have come up after the app — refetch its voice list (store subscription re-renders).
       refreshVoiceList?.();
@@ -737,9 +744,9 @@ export function createQuickControls({
     rail: tablistEl,
     buttons: tabButtons,
     panels: Array.from(el.querySelectorAll<HTMLElement>(".yui-tabpanel")),
-    initial: initialPageOf(showFirstConversation),
+    initial: initialPageOf(openOnQuickStart),
     onSelect: (id) => {
-      if (id === "conn") connectionTab.entered();
+      if (id === "conn") connectionViews.entered();
       if (id === "plugins") pluginsPage?.entered();
     },
   });
@@ -776,7 +783,7 @@ export function createQuickControls({
   const unbindHelp = onGuide ? bindHelpSection(el, onGuide) : undefined;
   // Every section the panel redraws on open, closes and disposes, in redraw order.
   const parts: (PanelSection | null | undefined)[] = [
-    firstConversation,
+    quickStart,
     screenshot,
     pluginsPage,
     switchRows,
@@ -799,6 +806,7 @@ export function createQuickControls({
       },
       dispose: connectionTab.dispose,
     },
+    { dispose: connectionViews.dispose },
     session,
     historyTab && { reflect: historyTab.refresh, dispose: historyTab.dispose },
     characters && { reflect: characters.refresh, dispose: characters.dispose },

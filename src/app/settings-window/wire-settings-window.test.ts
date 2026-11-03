@@ -27,7 +27,7 @@ async function open(chatUrl: () => string): Promise<void> {
       ({
         open: vi.fn(),
         dispose: vi.fn(),
-        selectedTab: () => "first",
+        selectedTab: () => "conn",
       }) as never,
   );
   wireWindowSettings.mockResolvedValue({
@@ -58,7 +58,7 @@ describe("wireSettingsWindow", () => {
     setLocale("en");
   });
 
-  it("keeps the first conversation page through a locale rebuild after the key connected", async () => {
+  it("keeps the quick start through a locale rebuild after the key connected", async () => {
     let chatUrl = "";
     setLocale("en");
     await open(() => chatUrl);
@@ -67,15 +67,15 @@ describe("wireSettingsWindow", () => {
     setLocale("ko");
     await settle();
 
-    expect(createQuickControls.mock.calls.map(([deps]) => deps.showFirstConversation)).toEqual([
+    expect(createQuickControls.mock.calls.map(([deps]) => deps.openOnQuickStart)).toEqual([
       true,
       true,
     ]);
   });
 
-  it("offers no first conversation page while chat is configured at window open", async () => {
+  it("offers no quick start while chat is configured at window open", async () => {
     await open(() => "http://localhost:8643/v1");
 
-    expect(createQuickControls.mock.calls[0]![0].showFirstConversation).toBe(false);
+    expect(createQuickControls.mock.calls[0]![0].openOnQuickStart).toBe(false);
   });
 });
