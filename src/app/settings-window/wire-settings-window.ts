@@ -251,6 +251,7 @@ export async function wireSettingsWindow(deps: {
       showVoiceInput: boundId === null,
       openOnQuickStart,
       onFirstConversationConnected: bridge.emitFirstConversationConnected,
+      onReplayFirstConversation: bridge.emitFirstConversationReplay,
       onOpenDevtools: bridge.emitOpenDevtools,
     });
   };

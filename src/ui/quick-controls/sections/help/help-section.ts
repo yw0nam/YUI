@@ -7,7 +7,7 @@ import { secHeadHtml } from "../../markup";
 
 export const GUIDES: readonly GuideKey[] = ["controls", "capabilities"];
 
-export function helpSectionHtml(): string {
+export function helpSectionHtml(extraRowsHtml = ""): string {
   const rows = GUIDES.map(
     (guide) => `
             <div class="yui-row">
@@ -21,7 +21,7 @@ export function helpSectionHtml(): string {
   return `
         <div class="yui-sec">
           ${secHeadHtml(t("help.section"))}
-          <div class="yui-group">${rows}
+          <div class="yui-group">${rows}${extraRowsHtml}
           </div>
         </div>`;
 }

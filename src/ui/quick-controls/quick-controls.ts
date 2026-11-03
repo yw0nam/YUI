@@ -294,6 +294,8 @@ interface QuickControlsOptions {
   openOnQuickStart?: boolean;
   /** Quick start confirmed its key. */
   onFirstConversationConnected?: () => void;
+  /** Quick start's replay button: the pet window replays the first conversation. */
+  onReplayFirstConversation?: () => void;
 }
 
 /** A part of the panel the shell redraws on open, closes, and disposes. */
@@ -401,6 +403,7 @@ export function createQuickControls({
   showVoiceInput = true,
   openOnQuickStart = false,
   onFirstConversationConnected,
+  onReplayFirstConversation,
 }: QuickControlsOptions): QuickControls {
   // The context-occupancy readout renders when both stores are injected.
   const hasSession = !!sessionDiagnostics && !!sessionStore;
@@ -474,6 +477,7 @@ export function createQuickControls({
     getFetch: async () => getFetch?.(),
     onConnected: () => onFirstConversationConnected?.(),
     showHelp: !!onGuide,
+    onReplay: onReplayFirstConversation,
   });
 
   // ── Connection page — Quick start or Detailed settings ──

@@ -69,6 +69,8 @@ interface Phase1Handles extends TurnCorePhase1 {
   onSessionReset(cb: (presetId: string) => void): () => void;
   /** Subscribes to Quick start's confirmed key for this preset. */
   onFirstConversationConnected(cb: () => void): () => void;
+  /** Subscribes to Quick start's request to replay the first conversation for this preset. */
+  onFirstConversationReplay(cb: () => void): () => void;
   /** Emits this window's replies that named another open character, once their playback ended. */
   emitCharacterAddressed(event: CharacterAddressed): void;
   /** Subscribes to the replies another character addressed to this preset. */
@@ -372,6 +374,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       wireFirstConversation({
         ...firstRunHint,
         onFirstConversationConnected: phase1.onFirstConversationConnected,
+        onFirstConversationReplay: phase1.onFirstConversationReplay,
         onUtteranceEnd: voice.onUtteranceEnd,
         greetLocal: greeting.greetLocal,
         transcript: phase1.conversation.chatHistoryStore,
