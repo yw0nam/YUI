@@ -80,7 +80,7 @@ function setup(over: { seen?: boolean; endsInsideSpeak?: boolean; busy?: boolean
       beginSpeech: vi.fn(),
       pushSpeech: (text) => calls.push(`hint:${text}`),
       endSpeech: vi.fn(),
-      showSpeechAction: vi.fn(),
+      showSpeechActions: vi.fn(),
       hideSpeech: () => calls.push("hide"),
     },
     seen: () => over.seen ?? false,

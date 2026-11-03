@@ -272,16 +272,18 @@ describe("surfaces.css — the bubble's box carries the material", () => {
     expect(block).not.toMatch(/background|backdrop-filter|overflow/);
   });
 
-  it("gives the box the scrim, the frost, the scroll cap and the speech size", () => {
+  it("gives the box the scrim, the frost and the speech size, and its scroller the scroll", () => {
     const block = extractBlock(css(), ".yui-bubble__box");
     expect(block).toMatch(/background:\s*var\(--yui-scrim\)/);
     expect(block).toMatch(/backdrop-filter:\s*blur\(10px\) saturate\(1\.1\)/);
-    expect(block).toMatch(/overflow-y:\s*auto/);
+    expect(extractBlock(css(), ".yui-bubble__scroll")).toMatch(/overflow-y:\s*auto/);
     expect(block).toMatch(/font-size:\s*var\(--yui-fs-speech\)/);
   });
 
-  it("fades the top of the box, not the wrapper, once it overflows", () => {
-    expect(extractBlock(css(), ".yui-bubble.is-scrollable .yui-bubble__box")).toMatch(/mask-image/);
+  it("fades the top of the scroller, not the wrapper, once it overflows", () => {
+    expect(extractBlock(css(), ".yui-bubble.is-scrollable .yui-bubble__scroll")).toMatch(
+      /mask-image/,
+    );
   });
 
   it("drops the frost for a solid strong scrim under reduced transparency", () => {

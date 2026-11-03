@@ -58,7 +58,7 @@ const SURFACE_OPS: MessageSurfaceOp[] = [
   { op: "dismiss-input" },
   { op: "busy", busy: true },
   { op: "input-error", message: "no backend", action: { label: "Open Advanced" } },
-  { op: "speech-action", action: { label: "Open Connection" } },
+  { op: "speech-actions", labels: ["Hear the controls", "Hear what she can do"] },
   { op: "attachment-limits", limits: LIMITS },
   { op: "quote", quote: { text: "hi", via: "voice", images: 1 } },
   { op: "settle-quote" },
@@ -71,7 +71,7 @@ const CONTROL_OPS: MessageControlOp[] = [
   { op: "stop" },
   { op: "input-open", open: true },
   { op: "input-error-action" },
-  { op: "speech-action" },
+  { op: "speech-action", index: 1 },
   { op: "dock" },
   { op: "ready" },
 ];
@@ -220,23 +220,30 @@ describe("createRemoteSurfaces — the pet-side adapter", () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
-  it("sends only the speech action's label, routes the click back, and drops the callback on replacement", () => {
+  it("sends only the speech actions' labels, routes a click back by index, and drops the callbacks on replacement", () => {
     const { pet, message } = pair();
     const remote = createRemoteSurfaces(pet);
     const seen: MessageSurfaceOp[] = [];
     message.onSurface((op) => seen.push(op));
-    const onClick = vi.fn();
+    const first = vi.fn();
+    const second = vi.fn();
 
-    remote.showSpeechAction({ label: "Open Connection", onClick });
-    expect(seen).toEqual([{ op: "speech-action", action: { label: "Open Connection" } }]);
+    remote.showSpeechActions([
+      { label: "Hear the controls", onClick: first },
+      { label: "Hear what she can do", onClick: second },
+    ]);
+    expect(seen).toEqual([
+      { op: "speech-actions", labels: ["Hear the controls", "Hear what she can do"] },
+    ]);
 
-    message.emitControl({ op: "speech-action" });
-    expect(onClick).toHaveBeenCalledTimes(1);
+    message.emitControl({ op: "speech-action", index: 1 });
+    expect(second).toHaveBeenCalledTimes(1);
+    expect(first).not.toHaveBeenCalled();
 
-    // New speech replaces the utterance carrying the action — the routed click finds nothing.
+    // New speech replaces the utterance carrying the actions — the routed click finds nothing.
     remote.beginSpeech();
-    message.emitControl({ op: "speech-action" });
-    expect(onClick).toHaveBeenCalledTimes(1);
+    message.emitControl({ op: "speech-action", index: 1 });
+    expect(second).toHaveBeenCalledTimes(1);
   });
 
   it("mirrors the input-open state reported by the message window", () => {
