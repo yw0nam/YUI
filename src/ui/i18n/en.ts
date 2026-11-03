@@ -8,7 +8,7 @@ const en: Record<string, string> = {
   "command.close": "Close reply",
   "command.count": "{n} commands",
   "command.list_label": "Backend commands",
-  "command.not_sent": "Not sent — the backend is not connected.",
+  "command.not_sent": "Not sent. The backend is not connected.",
 
   // tool labels (English in all locales — AI tool-call status)
   "tool.web_search": "Searching…",

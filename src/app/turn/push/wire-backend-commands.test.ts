@@ -91,7 +91,7 @@ it("clears the pending command when ready ends", () => {
 
 afterEach(() => setLocale("en"));
 it.each([
-  ["en", "Not sent — the backend is not connected."],
+  ["en", "Not sent. The backend is not connected."],
   ["ja", "送信されませんでした。バックエンドに接続されていません。"],
   ["ko", "전송되지 않았습니다. 백엔드가 연결되어 있지 않습니다."],
 ] as const)("shows a settled reply when sending fails: %s", (locale, text) => {
