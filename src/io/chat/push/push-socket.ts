@@ -327,7 +327,7 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       case "ask": {
         const fault = askFrameFault(frame);
         if (fault !== null) {
-          log.warn("ask_malformed", { field: fault });
+          log.warn("frame_malformed", { type: "ask", field: fault });
           return;
         }
         const ask = frame.ask as AskFrame["ask"];
