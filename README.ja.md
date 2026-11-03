@@ -25,23 +25,16 @@
 
 ## クイックスタート
 
-用意するもの:
+用意するもの: Apple Silicon搭載のMac、またはWindows x64のPC。ターミナルもコーディングエージェントも要りません。
 
-- Apple Silicon搭載のMac、またはWindows x64のPC
-- コーディングエージェント(Claude Code、Codex、OpenCode、Cursorなど)
-- 彼女と話すためのチャットモデル(OpenAIかGroqのAPIキー、またはローカルで動く[Ollama](https://ollama.com)か[LM Studio](https://lmstudio.ai))。インストールのときに接続しても、あとからでもかまいません
+1. [Releasesページ](https://github.com/yw0nam/YUI/releases/latest)からインストーラーをダウンロードします。macOSは `.dmg`、Windowsは `-setup.exe` か `.msi` です。macOS版はアドホック署名なので、初回起動時にシステム設定 → プライバシーとセキュリティ → このまま開く を選んでください。
+2. YUIを開きます。画面にキャラクターが現れて、まだ接続していないと伝えてきます。**接続する** を選びます。
+3. **クイックスタート**で **キーのページを開く** を選び、Google AI StudioでGoogle Geminiの無料キーを作って貼り付け、**接続する** を選びます。彼女があいさつしてくれます。無料枠には1日の上限があり、送った内容はGoogleがサービス改善に使うことがあります。
+4. `/`(または `Cmd/Ctrl+Shift+Y`)を押して、話しかけてみてください。
 
-1. 下の一文をコーディングエージェントに貼り付けます。
+コーディングエージェントにインストールを任せたい場合や、ソースからビルドする場合は[インストール](docs/guide/installation.md)を見てください。
 
-   ```text
-   Install https://github.com/yw0nam/YUI following https://raw.githubusercontent.com/yw0nam/YUI/main/docs/guide/install.md
-   ```
-
-   必要なツールの導入からチャットモデルの接続、動作確認まで、エージェントが進めてくれます。APIキーなど、エージェントにわからないことだけ聞かれます。
-2. エージェントに起動を頼んでください。自分で起動する場合は、ターミナルでYUIのフォルダを開いて `pnpm tauri dev` を実行します。初回は数分かかり、そのあと画面にキャラクターが現れます。
-3. `/`(または `Cmd/Ctrl+Shift+Y`)を押して、話しかけてみてください。
-
-声で話すには、**設定 → 接続** で音声認識と音声合成を設定し、**設定 → 声** で声(話者)を選んでください(キャラクターを右クリックして **すべての設定…** を選ぶと設定が開きます)。チャットモデルの変更は接続の画面でできます。OpenAI、Ollama、LM Studio、GroqはChat Completions方式で接続するため、ツール呼び出し(tool calling)に対応したモデルが必要です。たとえばOpenAIなら `gpt-5-mini`、Ollamaなら `qwen3`、Groqなら `llama-3.3-70b-versatile` が使えます。
+別のモデルやサーバーを使うには、同じ画面の**詳細設定**を開きます(キャラクターを右クリックして **すべての設定…** を選び、**接続** へ)。声で話すには、そこで音声認識と音声合成を設定し、**設定 → 声** で声(話者)を選んでください。Chat Completions方式は、ツール呼び出し(tool calling)に対応したモデルが必要です。たとえばOpenAIなら `gpt-5-mini`、Groqなら `llama-3.3-70b-versatile` が使えます。
 
 ## できること
 
@@ -139,7 +132,7 @@ YUI自体はモデルを内蔵していません。何ができるかで頭脳�
 ## 既知の制限
 
 - 対応環境はApple Silicon搭載のmacOSとWindows x64です。Intel MacとLinuxは公式サポート外です。
-- [インストール](docs/guide/installation.md)に、コーディングエージェント経由とReleasesページのインストーラーの両方の手順があります。macOS版はアドホック署名なので、初回起動時にシステム設定 → プライバシーとセキュリティ → このまま開くを選んでください。
+- [インストール](docs/guide/installation.md)に、インストーラー、コーディングエージェント経由、ソースからのビルドの手順があります。
 - ウィンドウの側面や上のモニターへのよじ登りは、アプリ内で「開発中」と表示されます。
 - Irodori TTSは日本語専用です。
 
