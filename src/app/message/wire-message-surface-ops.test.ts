@@ -17,7 +17,7 @@ function setup() {
     endSpeech: vi.fn(),
     setBusy: vi.fn(),
     showInputError: vi.fn(),
-    showSpeechAction: vi.fn(),
+    showSpeechActions: vi.fn(),
     quoteSignals: vi.fn(),
   } as unknown as Surfaces;
   const name = { set: vi.fn() };
@@ -62,15 +62,15 @@ it("routes the input-error action click back as a control op", () => {
   expect(bridge.emitControl).toHaveBeenCalledWith({ op: "input-error-action" });
 });
 
-it("routes the speech-action click back as a control op", () => {
+it("routes a speech action's click back as a control op carrying its index", () => {
   const { send, surfaces, bridge } = setup();
 
-  send({ op: "speech-action", action: { label: "Open Connection" } });
+  send({ op: "speech-actions", labels: ["Hear the controls", "Hear what she can do"] });
 
-  const action = vi.mocked(surfaces.showSpeechAction).mock.calls[0]![0]!;
-  expect(action.label).toBe("Open Connection");
-  action.onClick();
-  expect(bridge.emitControl).toHaveBeenCalledWith({ op: "speech-action" });
+  const actions = vi.mocked(surfaces.showSpeechActions).mock.calls[0]![0];
+  expect(actions.map((a) => a.label)).toEqual(["Hear the controls", "Hear what she can do"]);
+  actions[1]!.onClick();
+  expect(bridge.emitControl).toHaveBeenCalledWith({ op: "speech-action", index: 1 });
 });
 
 it("quotes the source lines on quote-signals", () => {

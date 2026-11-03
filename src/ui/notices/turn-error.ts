@@ -66,14 +66,14 @@ export function isSettingsFixable(reason: string): boolean {
 
 /**
  * The in-place fix an inline error carries, if the host opens a settings panel that can resolve it.
- * The label names the destination, so the message itself only states the condition.
+ * The label names the step, so the message itself only states the condition.
  */
 export function turnErrorFixAction(
   reason: TurnFailure,
   openSettings?: (tab: SettingsPage) => void,
 ): InputErrorAction | undefined {
   if (!openSettings || !isSettingsFixable(reason)) return undefined;
-  return { label: t("input.error_open_connection"), onClick: () => openSettings("conn") };
+  return { label: t("hint.setup_action"), onClick: () => openSettings("conn") };
 }
 
 type TurnFailureAction = { kind: "show_input_error" } | { kind: "voice_error" } | { kind: "none" };

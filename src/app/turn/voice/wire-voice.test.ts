@@ -246,6 +246,20 @@ describe("wireTurnVoice", () => {
     expect(s.deps.isStrolling()).toBe(true);
   });
 
+  it("an utterance end reaches the previous-turn slot, then each listener until it unsubscribes", () => {
+    const s = setup();
+    const identity = { turn_id: "greeting:1", event_name: "greeting" };
+    const seen: string[] = [];
+    s.handle.previousTurn.subscribe(() => seen.push("slot"));
+    const off = s.handle.voice.onUtteranceEnd((ended) => seen.push(`listener:${ended.turn_id}`));
+
+    s.deps.onUtteranceEnd("interrupted", undefined, identity);
+    off();
+    s.deps.onUtteranceEnd("complete", undefined, identity);
+
+    expect(seen).toEqual(["slot", "listener:greeting:1", "slot"]);
+  });
+
   it("an utterance start reaches the previous-turn slot and the quoted turn", () => {
     const s = setup();
     const turn = s.handle.turnLog.begin({

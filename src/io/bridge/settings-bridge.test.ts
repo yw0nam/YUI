@@ -373,6 +373,7 @@ describe("createSettingsBridge", () => {
     ["onPushStateAsk", undefined, true],
     ["onPushReset", undefined, true],
     ["onSessionReset", "a", true],
+    ["onFirstConversationConnected", undefined, true],
     ["onPushReconnect", undefined, true],
     ["onDelegations", [], true],
     ["onDelegationsAsk", undefined, true],

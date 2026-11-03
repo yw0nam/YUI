@@ -285,7 +285,9 @@ describe("createQuickControls — endpoints + API keys", () => {
   // ── chat API key field ────────────────────────────────────────────────────
 
   function chatKeyInput(qc: { el: HTMLElement }): HTMLInputElement {
-    return qc.el.querySelector<HTMLInputElement>(".yui-chatkey__input")!;
+    return qc.el.querySelector<HTMLInputElement>(
+      '.yui-input-row[data-key-prefix="chatkey"] .yui-chatkey__input',
+    )!;
   }
 
   it("renders a masked chat API-key field in the connection panel with no autofill leakage", () => {
@@ -306,7 +308,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.dispose();
   });
 
-  it("prefills from the store and signals 'default in use' without revealing any value", () => {
+  it("prefills from the store and says no key is saved without revealing any value", () => {
     const chatKeySettings = createChatKeySettings();
     const qc = buildQc({ chatKeySettings });
     qc.open();
@@ -316,8 +318,8 @@ describe("createQuickControls — endpoints + API keys", () => {
     expect(input.value).toBe("");
     const row = input.closest<HTMLDivElement>(".yui-input-row")!;
     const sub = row.querySelector<HTMLElement>(".yui-input-row__sub")!;
-    expect(sub.textContent).toContain("기본값");
-    // The field communicates default-in-use via copy, not by surfacing a secret.
+    expect(sub.textContent).toBe("저장된 키가 없어요. 필요 없으면 비워 두세요");
+    // The field says so in copy, not by surfacing a secret.
     expect(input.placeholder).not.toContain("sk-");
 
     qc.dispose();
@@ -336,7 +338,7 @@ describe("createQuickControls — endpoints + API keys", () => {
     const sub = input
       .closest<HTMLDivElement>(".yui-input-row")!
       .querySelector<HTMLElement>(".yui-input-row__sub")!;
-    expect(sub.textContent).not.toContain("기본값");
+    expect(sub.textContent).not.toContain("저장된 키가 없어요");
 
     qc.dispose();
   });
@@ -492,7 +494,9 @@ describe("createQuickControls — endpoints + API keys", () => {
     qc.open();
 
     const input = chatKeyInput(qc);
-    const toggle = qc.el.querySelector<HTMLButtonElement>(".yui-chatkey__toggle")!;
+    const toggle = input
+      .closest<HTMLElement>(".yui-input-row")!
+      .querySelector<HTMLButtonElement>(".yui-chatkey__toggle")!;
     expect(input.type).toBe("password");
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
 

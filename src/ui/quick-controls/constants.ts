@@ -15,6 +15,10 @@ import type { Locale } from "../i18n";
 
 export const DEFAULT_PAGE: SettingsPage = "persona";
 
+/** The page the panel opens on. */
+export const initialPageOf = (openOnQuickStart: boolean): SettingsPage =>
+  openOnQuickStart ? "conn" : DEFAULT_PAGE;
+
 // Language picker display order (Japanese / English / Korean). Fixed independently of LOCALES.
 export const LANG_PICKER_ORDER: readonly Locale[] = ["ja", "en", "ko"];
 
@@ -197,6 +201,7 @@ export const HERMES_AGENT = {
 
 // The cards guide the Card section's ? button opens. The settings window's opener grant names the same URL.
 export const CARD_GUIDE_URL = "https://yw0nam.github.io/YUI/guide/cards";
+export const GEMINI_KEY_URL = "https://aistudio.google.com/apikey";
 
 // Chat provider presets (Connection tab, chat section) — selecting one autofills chat_base_url with the
 // provider's OpenAI-compatible path, the chat_model, the chat protocol, or a combination. Brand names
@@ -213,17 +218,19 @@ interface ChatProviderPreset {
   /** Protocol the provider speaks. Absent where the provider speaks the current one. */
   chatApi?: ChatApi;
 }
+/** The chat provider preset Quick start connects. */
+export const GEMINI_PRESET = {
+  id: "gemini",
+  name: "Google Gemini",
+  url: "https://generativelanguage.googleapis.com/v1beta/openai",
+  model: "models/gemini-3.5-flash-lite",
+} satisfies ChatProviderPreset;
 export const CHAT_PROVIDER_PRESETS: readonly ChatProviderPreset[] = [
   { id: "openai", name: "OpenAI", url: "https://api.openai.com/v1" },
   { id: "ollama", name: "Ollama", url: "http://localhost:11434/v1" },
   { id: "lmstudio", name: "LM Studio", url: "http://localhost:1234/v1" },
   { id: "groq", name: "Groq", url: "https://api.groq.com/openai/v1" },
-  {
-    id: "gemini",
-    name: "Google Gemini",
-    url: "https://generativelanguage.googleapis.com/v1beta/openai",
-    model: "models/gemini-3.5-flash-lite",
-  },
+  GEMINI_PRESET,
   { id: "hermes", name: HERMES_AGENT.name, chatApi: "push" },
 ];
 

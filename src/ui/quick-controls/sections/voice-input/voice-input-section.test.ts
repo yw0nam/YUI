@@ -23,6 +23,7 @@ function build() {
   const vad = createVadSettings();
   const root = document.createElement("div");
   root.innerHTML = buildPanelHtml({
+    openOnQuickStart: false,
     hasSession: false,
     switchRows: createSwitchRows({
       idleThrottleSettings: createFlagSettings(false),

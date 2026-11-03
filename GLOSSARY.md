@@ -239,8 +239,16 @@ The device-wide list of `surface=reading` pairs the client applies to the text i
 _Avoid_: lexicon, pronunciation dictionary, user dictionary
 
 **Greeting**:
-The card's `first_mes` or one of its `alternate_greetings`, performed by the client after a session reset — and once at the first boot of a preset a card import created — and recorded as an assistant entry.
+The card's `first_mes` or one of its `alternate_greetings`, performed by the client after a session reset, once at the first boot of a preset a card import created, and once when Quick start connects on an empty session, and recorded as an assistant entry.
 _Avoid_: first message, opener
+
+**Quick start**:
+The Connection page's free Gemini path, chosen by the Quick start cell of its switch: what is sent and the daily limit, the key page link, and one key field confirmed by the model list read. A confirmed key writes the preset's URL, model and key, turns idle check-ins and the schedule off, and has the pet window greet. With another server configured it warns that connecting replaces it; once connected it shows a done line and Help.
+_Avoid_: setup page, First conversation page
+
+**First conversation**:
+The flow after Quick start confirms a key: the pet window greets, opens the input, and shows the controls hint with Hear the controls and Hear what she can do.
+_Avoid_: onboarding, wizard
 
 **Task space**:
 An ego lite tab workspace the `browser` plugin works in, named `yui-<presetId>`: one per preset, so one per pet window. It outlives a call, the plugin being disabled, the window, and the app. The user closes it in ego lite, and ego lite closes it after 30 idle minutes. ego lite's "YUI" browser profile is where those spaces run, and it is not a Preset.

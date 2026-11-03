@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
+import type { EndpointsConfig } from "../../contract";
 import type { SettingsBridge } from "../../io/bridge/settings-bridge";
-import { takeRequestedPage, wireSettingsPage } from "./wire-settings-page";
+import { opensOnQuickStart, takeRequestedPage, wireSettingsPage } from "./wire-settings-page";
 
 type Request = Parameters<Parameters<SettingsBridge["onSettingsPage"]>[0]>[0];
 
@@ -110,4 +111,12 @@ it("takes the page of the URL and leaves the rest of the query", () => {
   expect(takeRequestedPage()).toBe("conn");
   expect(location.search).toBe("?preset=a&edit=b");
   expect(takeRequestedPage()).toBeNull();
+});
+
+it.each([
+  ["no address", { chat_base_url: "" }, true],
+  ["an address", { chat_base_url: "http://localhost:8643/v1" }, false],
+  ["a config that failed to load", null, false],
+])("with %s, opensOnQuickStart is %s", (_, endpoints, shown) => {
+  expect(opensOnQuickStart(endpoints as EndpointsConfig | null)).toBe(shown);
 });

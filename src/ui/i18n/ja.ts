@@ -20,7 +20,7 @@ const ja: Record<string, string> = {
   "voice.state.fired": "送信しました",
   "voice.state.error": "エラー",
   "voice.error.not_configured": "設定が必要",
-  "voice.error.not_configured_fix": "バックエンド未設定。接続設定を開く",
+  "voice.error.not_configured_fix": "まだ接続していません。設定を開いて接続する",
   "voice.error.mic_denied": "マイク拒否",
   "voice.error.no_mic": "マイクなし",
   "voice.error.mic_unavailable": "マイク使用不可",
@@ -56,10 +56,9 @@ const ja: Record<string, string> = {
   "input.error_network": "応答なし · 接続確認",
   "input.error_http": "{status} {message}",
   "input.error_rate_limit": "利用上限に到達 · あとで再試行",
-  "input.error_stall": "バックエンドが応答しなくなりました",
+  "input.error_stall": "接続が応答しなくなりました",
   "input.error_parse": "応答処理に失敗",
-  "input.error_not_configured": "バックエンド未設定",
-  "input.error_open_connection": "接続を開く",
+  "input.error_not_configured": "まだ接続していません",
   "input.attach_too_many": "画像が多すぎ · 1ターン{max}枚まで",
   "input.attach_too_large": "画像が大きすぎ · 1枚{max}MBまで",
   "input.attach_not_ready": "まだ添付できない · 上限を読み込み中",
@@ -140,6 +139,8 @@ const ja: Record<string, string> = {
   "help.capabilities.sub": "このアプリでユイと一緒にできることを紹介します。",
   "help.capabilities.request": "YUIで何ができるか教えて",
   "help.ask": "聞いてみる",
+  "help.controls.hear": "操作方法を聞く",
+  "help.capabilities.hear": "できることを聞く",
   "devtools.label": "開発者ツール",
   "devtools.sub": "送信コンテキストとモーションを確認",
   "devtools.open": "開く",
@@ -175,8 +176,8 @@ const ja: Record<string, string> = {
   "rail.group_character": "このキャラクター",
   "rail.group_app": "すべてのキャラクター",
   "search.placeholder": "設定を検索",
-  "scope.only": "{name}だけ",
-  "scope.every": "すべてのキャラクター",
+  "scope.only": "{name}のみに適用",
+  "scope.every": "すべてのキャラクターに適用",
 
   // Together page: the Characters list and its "On the desktop" switches
   "chars.section": "キャラクター",
@@ -570,7 +571,7 @@ const ja: Record<string, string> = {
 
   // chat API key
   "chatkey.label": "チャット API キー",
-  "chatkey.sub_default": "デフォルトを使用中：空欄にするとビルド時のキーを使います",
+  "chatkey.sub_default": "キーは保存されていません。不要なら空欄のままにしてください",
   "chatkey.sub_override": "この端末に保存済み。空欄にすると元のキーに戻ります",
   "chatkey.show": "キーを表示",
   "chatkey.hide": "キーを隠す",
@@ -614,7 +615,37 @@ const ja: Record<string, string> = {
   // first-run onboarding hint
   "hint.first_run": "右クリックでコントロール · {hotkey}で話しかけてね",
   "hint.first_run_no_hotkey": "右クリックでコントロール",
-  "hint.setup_backend": "考えるためのバックエンドがまだないの · OpenAI 互換サーバーを指定してね",
+  "hint.setup_backend": "まだ接続していないの · いっしょに設定しよう？",
+  "hint.setup_action": "接続する",
+
+  // quick start
+  "start.free_title": "無料ではじめる",
+  "start.free_note": "Google Gemini の無料枠で話します。",
+  "start.send_label": "送信される内容",
+  "start.send_sub":
+    "会話の内容と、手前のアプリの名前とウィンドウタイトルが Google に送られます。Google がサービス改善に使い、人が確認することがあるので、機密情報は話さないでください。",
+  "start.limit_label": "1日の上限",
+  "start.limit_sub": "無料枠には1日の上限があります。超えると翌日にまた話せます。",
+  "start.key_title": "キーの接続",
+  "start.make_label": "キーを作る",
+  "start.make_sub": "ブラウザで Google AI Studio が開きます。Google アカウントが必要です。",
+  "start.make_link": "キーのページを開く",
+  "start.paste_label": "キーを貼り付ける",
+  "start.paste_placeholder": "コピーしたキーを貼り付けてください",
+  "start.connect": "接続する",
+  "start.checking": "キーを確認しています…",
+  "start.need_key": "先にキーを貼り付けてください。",
+  "start.refused":
+    "Google がこのキーを受け付けませんでした。コピーしたキーをもう一度貼り付けてください。",
+  "start.failed":
+    "Google に接続できませんでした。インターネット接続を確認して、もう一度お試しください。",
+  "start.reopen": "キーのページをもう一度開く",
+  "start.done": "接続しました。話しかけてみてください。",
+  "start.own_note": "このキーで接続すると、今のサーバー設定が Google Gemini に変わります。",
+  "start.views_aria": "接続方法",
+  "start.view_quick": "クイックスタート",
+  "start.view_detail": "詳細設定",
+  "start.detail_note": "サーバー、モデル、音声サーバーを自分で設定します。",
 
   // reactions tab
   "reactions.watchers_title": "ウォッチャー",

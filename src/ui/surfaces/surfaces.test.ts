@@ -148,12 +148,12 @@ describe("bubble structure — edge tools outside the scrolling box", () => {
     mount.remove();
   });
 
-  it("marks the bubble scrollable when the box overflows", () => {
+  it("marks the bubble scrollable when the box's scroller overflows", () => {
     const { s, mount } = makeSurfaces();
     const bubble = mount.querySelector<HTMLElement>(".yui-bubble")!;
-    const box = bubble.querySelector<HTMLElement>(".yui-bubble__box")!;
-    Object.defineProperty(box, "scrollHeight", { value: 480, configurable: true });
-    Object.defineProperty(box, "clientHeight", { value: 240, configurable: true });
+    const scroller = bubble.querySelector<HTMLElement>(".yui-bubble__scroll")!;
+    Object.defineProperty(scroller, "scrollHeight", { value: 480, configurable: true });
+    Object.defineProperty(scroller, "clientHeight", { value: 240, configurable: true });
 
     s.beginSpeech();
     s.pushSpeech("A reply longer than the box.");
@@ -217,13 +217,13 @@ describe("reasoning disclosure — only when a reasoning source is given", () =>
     s.dispose();
   });
 
-  it("sits inside the box, under the quoted line, before the text, and stays hidden while the text is empty", () => {
+  it("sits inside the box's scroller, under the quoted line, before the text, and stays hidden while the text is empty", () => {
     const { s } = build();
-    const box = mount.querySelector<HTMLElement>(".yui-bubble__box")!;
+    const scroller = mount.querySelector<HTMLElement>(".yui-bubble__box > .yui-bubble__scroll")!;
 
-    expect(box.firstElementChild).toBe(mount.querySelector(".yui-bubble__quote"));
-    expect(box.children[1]).toBe(think());
-    expect(box.children[2]).toBe(mount.querySelector(".yui-bubble__text"));
+    expect(scroller.firstElementChild).toBe(mount.querySelector(".yui-bubble__quote"));
+    expect(scroller.children[1]).toBe(think());
+    expect(scroller.children[2]).toBe(mount.querySelector(".yui-bubble__text"));
     expect(think().hidden).toBe(true);
     s.dispose();
   });
@@ -375,9 +375,9 @@ describe("reasoning disclosure — only when a reasoning source is given", () =>
 
   it("marks the bubble scrollable when reasoning pushes the box past its cap", () => {
     const { s, reasoning } = build();
-    const box = mount.querySelector<HTMLElement>(".yui-bubble__box")!;
-    Object.defineProperty(box, "scrollHeight", { value: 480, configurable: true });
-    Object.defineProperty(box, "clientHeight", { value: 240, configurable: true });
+    const scroller = mount.querySelector<HTMLElement>(".yui-bubble__scroll")!;
+    Object.defineProperty(scroller, "scrollHeight", { value: 480, configurable: true });
+    Object.defineProperty(scroller, "clientHeight", { value: 240, configurable: true });
 
     reasoning.append("a long chain of thought");
 

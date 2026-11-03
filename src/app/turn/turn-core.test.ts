@@ -26,6 +26,7 @@ vi.mock("./voice/wire-voice", async (importOriginal) => {
           resumeThinking: () => {},
           createSttEngine: createSttEngine as unknown as TurnVoice["voice"]["createSttEngine"],
           dispose: () => {},
+          onUtteranceEnd: () => () => {},
         },
         voiceInput: { setStt: () => {} } as unknown as TurnVoice["voiceInput"],
         voiceErrorDwell: { show: () => {} } as unknown as TurnVoice["voiceErrorDwell"],

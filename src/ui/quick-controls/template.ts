@@ -6,7 +6,7 @@ import type { SettingsPage } from "../../settings/panels/settings-pages";
 import "./sections/session/session-section.css";
 import { LOCALE_DISPLAY_NAMES, t } from "../i18n";
 import {
-  DEFAULT_PAGE,
+  initialPageOf,
   LANG_PICKER_ORDER,
   PLUS_SVG,
   PROACTIVE_CAP_FIELDS,
@@ -52,6 +52,8 @@ function hintDotHtml(textKey: string): string {
 /** Initial flags/states the panel HTML needs — computed by the entry where the stores live. */
 interface PanelHtmlOptions {
   showVoiceInput?: boolean;
+  /** Chat was unconfigured at window open: the panel opens on Connection, Quick start. */
+  openOnQuickStart: boolean;
   /** Whether the context-occupancy readout renders. */
   hasSession: boolean;
   switchRows: readonly SwitchRow[];
@@ -77,6 +79,7 @@ interface PanelHtmlOptions {
 export function buildPanelHtml(o: PanelHtmlOptions): string {
   const {
     showVoiceInput = true,
+    openOnQuickStart,
     hasSession,
     switchRows,
     showScreen,
@@ -247,10 +250,11 @@ ${PROACTIVE_CAP_FIELDS.map(capRowHtml).join("")}
     : "";
 
   // A narrow panel keeps the label; the icon-only rail drops it with the tooltip.
+  const initialPage = initialPageOf(openOnQuickStart);
   const tabHtml = (id: SettingsPage, icon: string, opts?: { tipKey?: string }): string =>
-    tabButtonHtml(id, icon, { selected: id === DEFAULT_PAGE, tipKey: opts?.tipKey });
+    tabButtonHtml(id, icon, { selected: id === initialPage, tipKey: opts?.tipKey });
   const panelOpenHtml = (id: SettingsPage): string =>
-    tabPanelOpenHtml(id, { hidden: id !== DEFAULT_PAGE, scope: showPreset });
+    tabPanelOpenHtml(id, { hidden: id !== initialPage, scope: showPreset });
   // The character group's heading names the edited character once the preset strip fills it.
   const groupHtml = (group: "character" | "app"): string =>
     `<p class="yui-tabs__group" role="presentation" data-rail-group="${group}">${t(`rail.group_${group}`)}</p>`;
@@ -395,7 +399,7 @@ ${panelOpenHtml("motion")}
           </div>
         </div>
       </div>
-${panelOpenHtml("general")}
+${panelOpenHtml("general")}${showHelp ? helpSectionHtml() : ""}
         <div class="yui-sec">
           <div class="yui-group">
             <div class="yui-row">
@@ -432,7 +436,7 @@ ${panelOpenHtml("general")}
                 : ""
             }
           </div>
-        </div>${showHelp ? helpSectionHtml() : ""}
+        </div>
       </div>
       </div>
     </div>

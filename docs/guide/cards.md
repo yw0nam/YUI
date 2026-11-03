@@ -39,7 +39,7 @@ The client replaces these three and leaves any other `{{…}}` text as written.
 ## Tips
 
 - A new preset starts on the default card, Yui in the UI language, and follows a language change. Editing a field gives it its own card, which stays as you wrote it, and only YUI's framing sentence and the `{{user}}` fallback follow the language.
-- After **Start fresh** she speaks one greeting at random and keeps it in the history. She does not greet at app start, on push, or with **Send card** off, and an imported preset greets once from its card when its window first boots.
+- After **Start fresh** she speaks one greeting at random and keeps it in the history. She does not greet at app start, on push, or with **Send card** off, and an imported preset greets once from its card when its window first boots. She also greets once when the First conversation page connects on an empty session.
 - On push the card section keeps only **Import card…** and **Export card**.
 
 :::

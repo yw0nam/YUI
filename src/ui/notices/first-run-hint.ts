@@ -1,6 +1,6 @@
 /**
  * maybeShowFirstRunHint — onboarding hint through the existing speech bubble.
- * Fires right after the character becomes visible.
+ * Fires right after the character becomes visible, and after the First conversation greeting.
  *
  * Configured: the controls hint, once — the seen flag commits on show, not on fade
  * (so a preempting backend speech never resurfaces it).
@@ -21,14 +21,14 @@ export interface FirstRunHintDeps {
     beginSpeech(): void;
     pushSpeech(t: string): void;
     endSpeech(): void;
-    showSpeechAction(action?: SpeechAction): void;
+    showSpeechActions(actions: readonly SpeechAction[]): void;
     hideSpeech(): void;
   };
   hotkey: string;
   isMac: boolean;
   /** Whether a chat backend address is set. False switches the hint to setup guidance. */
   chatConfigured: boolean;
-  /** Opens the settings panel; the setup hint's button lands on the Connection tab. */
+  /** Opens the settings panel; the setup hint's button lands on Connection. */
   openSettings(tab: SettingsPage): void;
   t: TranslateFn;
 }
@@ -56,13 +56,15 @@ export function maybeShowFirstRunHint(deps: FirstRunHintDeps): boolean {
   deps.surfaces.pushSpeech(text);
   deps.surfaces.endSpeech();
   if (!deps.chatConfigured) {
-    deps.surfaces.showSpeechAction({
-      label: deps.t("input.error_open_connection"),
-      onClick: () => {
-        deps.openSettings("conn");
-        deps.surfaces.hideSpeech();
+    deps.surfaces.showSpeechActions([
+      {
+        label: deps.t("hint.setup_action"),
+        onClick: () => {
+          deps.openSettings("conn");
+          deps.surfaces.hideSpeech();
+        },
       },
-    });
+    ]);
   }
   if (deps.chatConfigured) deps.markSeen();
   return true;

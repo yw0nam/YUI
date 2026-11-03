@@ -12,10 +12,11 @@ afterEach(() => {
   setLocale("en");
 });
 
-function build() {
+function build(openOnQuickStart = false) {
   const mount = document.body.appendChild(document.createElement("div"));
   const qc = createQuickControls({
     ...defaultQcArgs(mount),
+    openOnQuickStart,
     gazeSettings: createFlagSettings(true),
     onResetViewpoint: vi.fn(),
     presetRegistry: createPresetRegistry(),
@@ -88,5 +89,17 @@ it.each([
   search(query);
 
   expect(count(page)).toBe("0");
+  qc.dispose();
+});
+
+it("finds Detailed settings rows while Quick start shows, and brings Detailed settings into view", () => {
+  const { qc, search, count } = build(true);
+  const detail = qc.el.querySelector<HTMLElement>('.yui-conn-view[data-view="detail"]')!;
+  expect(detail.hidden).toBe(true);
+
+  search("model");
+
+  expect(count("conn")).toBe("3");
+  expect(detail.hidden).toBe(false);
   qc.dispose();
 });

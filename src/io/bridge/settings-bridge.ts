@@ -25,6 +25,7 @@ const CH_PUSH_STATE_ASK = "yui://push-state-ask";
 const CH_PUSH_RESET = "yui://push-reset";
 const CH_PUSH_RECONNECT = "yui://push-reconnect";
 const CH_SESSION_RESET = "yui://session-reset";
+const CH_FIRST_CONVERSATION_CONNECTED = "yui://first-conversation-connected";
 const CH_DELEGATIONS = "yui://delegations";
 const CH_DELEGATIONS_ASK = "yui://delegations-ask";
 const CH_REASONING = "yui://reasoning";
@@ -261,6 +262,9 @@ export interface SettingsBridge {
   /** A window closed the preset's running conversation; that preset's pet window greets. */
   emitSessionReset(presetId: string): void;
   onSessionReset(cb: (presetId: string) => void): () => void;
+  /** Quick start confirmed its key; this preset's pet window greets. */
+  emitFirstConversationConnected(): void;
+  onFirstConversationConnected(cb: () => void): () => void;
   /** A window with no socket of its own asking the owner to open the socket now. */
   emitPushReconnect(): void;
   onPushReconnect(cb: () => void): () => void;
@@ -458,6 +462,12 @@ export function createSettingsBridge(
       return on<unknown>(CH_SESSION_RESET, (presetId) => {
         if (typeof presetId === "string") cb(presetId);
       });
+    },
+    emitFirstConversationConnected() {
+      safeEmit(CH_FIRST_CONVERSATION_CONNECTED);
+    },
+    onFirstConversationConnected(cb) {
+      return on<unknown>(CH_FIRST_CONVERSATION_CONNECTED, () => cb());
     },
     emitPushReconnect() {
       safeEmit(CH_PUSH_RECONNECT);

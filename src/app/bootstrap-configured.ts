@@ -47,6 +47,7 @@ import { type TurnCorePhase1, wireTurnCore } from "./turn/turn-core";
 import type { wireVocabulary } from "./turn/vocabulary/wire-vocabulary";
 import type { VoicePipeline } from "./turn/voice/wire-voice-pipeline";
 import { wireCard } from "./turn/wire-card";
+import { wireFirstConversation } from "./turn/wire-first-conversation";
 import { wireGreeting } from "./turn/wire-greeting";
 import { wireDispatcherSources } from "./turn/wire-sources";
 import { wireUnifiedWindow } from "./unified/wire-unified-window";
@@ -66,6 +67,8 @@ interface Phase1Handles extends TurnCorePhase1 {
   openSettings(page?: SettingsPage): void;
   /** Subscribes to resets the preset's other windows announce. */
   onSessionReset(cb: (presetId: string) => void): () => void;
+  /** Subscribes to Quick start's confirmed key for this preset. */
+  onFirstConversationConnected(cb: () => void): () => void;
   /** Emits this window's replies that named another open character, once their playback ended. */
   emitCharacterAddressed(event: CharacterAddressed): void;
   /** Subscribes to the replies another character addressed to this preset. */
@@ -218,15 +221,18 @@ const realFactories: ConfiguredBootstrapFactories = {
       ensureActive,
     });
     const { voice, dispatcher, guardrails, pacer } = core;
-    maybeShowFirstRunHint({
+    const firstRunHint = {
       seen: () => hintSettings.get().enabled,
       markSeen: () => hintSettings.setEnabled(true),
       surfaces,
       hotkey: cfg.hotkeys.summon_global,
       isMac: isMacOS(),
-      chatConfigured: isChatConfigured(phase1.getEndpoints()),
       openSettings: phase1.openSettings,
       t,
+    };
+    maybeShowFirstRunHint({
+      ...firstRunHint,
+      chatConfigured: isChatConfigured(phase1.getEndpoints()),
     });
 
     const peekState = await wirePeek({ bus, register, ensureActive });
@@ -362,6 +368,17 @@ const realFactories: ConfiguredBootstrapFactories = {
       speak: voice.turnOutput.speak,
     });
     register(greeting.dispose);
+    register(
+      wireFirstConversation({
+        ...firstRunHint,
+        onFirstConversationConnected: phase1.onFirstConversationConnected,
+        onUtteranceEnd: voice.onUtteranceEnd,
+        greetLocal: greeting.greetLocal,
+        transcript: phase1.conversation.chatHistoryStore,
+        isBusy: dispatcher.isPipelineBusy,
+        submitGuide: phase1.userInput.submitGuide,
+      }).dispose,
+    );
 
     return {
       restoreSignals,

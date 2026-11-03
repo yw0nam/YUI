@@ -55,8 +55,8 @@ export interface Surfaces {
   finishSpeech(): void;
   /** Hide the bubble immediately (ignoring dwell). */
   hideSpeech(): void;
-  /** Offers an in-place fix under the current speech; without an action, drops the one shown. */
-  showSpeechAction(action?: SpeechAction): void;
+  /** Offers in-place buttons under the current speech; an empty list drops the ones shown. */
+  showSpeechActions(actions: readonly SpeechAction[]): void;
   /** A turn the user started was admitted: the bubble opens with the message quoted on its first line and holds through the turn. */
   quoteUser(quote: UserQuote): void;
   /** A turn ran with signal groups and its first utterance opened: the groups show as source lines on the bubble's first lines. */
@@ -165,7 +165,7 @@ export function createSurfaces({
           </button>
         </div>
         <div class="yui-bubble__frame">
-          <div class="yui-bubble__box"><div class="yui-bubble__quote" hidden></div><span class="yui-bubble__text"></span><span class="yui-bubble__caret" aria-hidden="true">|</span><span class="yui-bubble__speech-action" hidden></span></div>
+          <div class="yui-bubble__box"><div class="yui-bubble__scroll"><div class="yui-bubble__quote" hidden></div><span class="yui-bubble__text"></span><span class="yui-bubble__caret" aria-hidden="true">|</span></div><span class="yui-bubble__speech-action" hidden></span></div>
           <span class="yui-bubble__next" aria-hidden="true" hidden>▼</span>
         </div>
       </div>
@@ -209,6 +209,7 @@ export function createSurfaces({
   const bubbleEl = el.querySelector<HTMLDivElement>(".yui-bubble")!;
   const bubbleFrame = el.querySelector<HTMLDivElement>(".yui-bubble__frame")!;
   const bubbleBox = el.querySelector<HTMLDivElement>(".yui-bubble__box")!;
+  const bubbleScroll = el.querySelector<HTMLDivElement>(".yui-bubble__scroll")!;
   const bubbleNext = el.querySelector<HTMLSpanElement>(".yui-bubble__next")!;
   const bubbleQuote = el.querySelector<HTMLDivElement>(".yui-bubble__quote")!;
   const bubbleText = el.querySelector<HTMLSpanElement>(".yui-bubble__text")!;
@@ -230,6 +231,7 @@ export function createSurfaces({
       root: el,
       bubbleEl,
       bubbleBox,
+      bubbleScroll,
       bubbleNext,
       bubbleQuote,
       bubbleText,
@@ -293,7 +295,7 @@ export function createSurfaces({
     endSpeech: bubble.endSpeech,
     finishSpeech: bubble.finishSpeech,
     hideSpeech: bubble.hideSpeech,
-    showSpeechAction: bubble.showSpeechAction,
+    showSpeechActions: bubble.showSpeechActions,
     quoteUser: quote.show,
     quoteSignals: sources.show,
     settleQuote: quote.settle,

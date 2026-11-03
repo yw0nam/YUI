@@ -21,7 +21,7 @@ const en: Record<string, string> = {
   "voice.state.error": "Error",
   // the one voice failure the settings panel resolves — the chip becomes the fix
   "voice.error.not_configured": "Setup needed",
-  "voice.error.not_configured_fix": "backend not configured. Open Connection settings",
+  "voice.error.not_configured_fix": "Not connected yet. Open settings to connect",
   "voice.error.mic_denied": "Mic blocked",
   "voice.error.no_mic": "No mic",
   "voice.error.mic_unavailable": "Mic unavailable",
@@ -57,10 +57,9 @@ const en: Record<string, string> = {
   "input.error_network": "No response · check connection",
   "input.error_http": "{status} {message}",
   "input.error_rate_limit": "Usage limit reached · try again later",
-  "input.error_stall": "Backend stopped responding",
+  "input.error_stall": "The connection stopped responding",
   "input.error_parse": "Response parse failed",
-  "input.error_not_configured": "Backend not configured",
-  "input.error_open_connection": "Open Connection",
+  "input.error_not_configured": "Not connected yet",
   "input.attach_too_many": "Too many images · up to {max} per turn",
   "input.attach_too_large": "Image too large · up to {max}MB each",
   "input.attach_not_ready": "Can't attach yet · loading limits",
@@ -140,6 +139,8 @@ const en: Record<string, string> = {
   "help.capabilities.sub": "She introduces what you can do together through this app.",
   "help.capabilities.request": "What can you do for me through YUI?",
   "help.ask": "Ask",
+  "help.controls.hear": "Hear the controls",
+  "help.capabilities.hear": "Hear what she can do",
   "devtools.label": "Developer Tools",
   "devtools.sub": "Inspect sent context and preview motions",
   "devtools.open": "Open",
@@ -174,8 +175,8 @@ const en: Record<string, string> = {
   "rail.group_character": "This character",
   "rail.group_app": "Every character",
   "search.placeholder": "Search settings",
-  "scope.only": "Only {name}",
-  "scope.every": "Every character",
+  "scope.only": "Applies to {name} only",
+  "scope.every": "Applies to every character",
 
   // Together page: the Characters list and its "On the desktop" switches
   "chars.section": "Characters",
@@ -568,7 +569,7 @@ const en: Record<string, string> = {
 
   // chat API key
   "chatkey.label": "Chat API key",
-  "chatkey.sub_default": "Using the default: leave empty to use the build-time key",
+  "chatkey.sub_default": "No key saved. Leave empty if none is needed",
   "chatkey.sub_override": "Saved on this device. Clear to return to the original key",
   "chatkey.show": "Show key",
   "chatkey.hide": "Hide key",
@@ -612,8 +613,35 @@ const en: Record<string, string> = {
   // first-run onboarding hint
   "hint.first_run": "Right-click me for controls · press {hotkey} to talk",
   "hint.first_run_no_hotkey": "Right-click me for controls",
-  "hint.setup_backend":
-    "I have no backend to think with yet · point me at an OpenAI-compatible server",
+  "hint.setup_backend": "We're not connected yet · shall we set it up?",
+  "hint.setup_action": "Connect",
+
+  // quick start
+  "start.free_title": "Start for free",
+  "start.free_note": "Talk on the Google Gemini free tier.",
+  "start.send_label": "What gets sent",
+  "start.send_sub":
+    "Your conversation and the name and window title of the app in front go to Google. Google may use them to improve its products and people may review them, so keep sensitive details out.",
+  "start.limit_label": "Daily limit",
+  "start.limit_sub": "The free tier has a daily limit. Past it, you can talk again the next day.",
+  "start.key_title": "Connect a key",
+  "start.make_label": "Make a key",
+  "start.make_sub": "Google AI Studio opens in your browser. You need a Google account.",
+  "start.make_link": "Open key page",
+  "start.paste_label": "Paste the key",
+  "start.paste_placeholder": "Paste the key you copied",
+  "start.connect": "Connect",
+  "start.checking": "Checking the key…",
+  "start.need_key": "Paste a key first.",
+  "start.refused": "Google did not accept this key. Paste the key you copied again.",
+  "start.failed": "Could not reach Google. Check your internet connection and try again.",
+  "start.reopen": "Open key page again",
+  "start.done": "Connected. You can start talking now.",
+  "start.own_note": "Connecting with this key replaces your current server with Google Gemini.",
+  "start.views_aria": "How to connect",
+  "start.view_quick": "Quick start",
+  "start.view_detail": "Detailed settings",
+  "start.detail_note": "Choose the server, model, and voice servers yourself.",
 
   // reactions tab
   "reactions.watchers_title": "Watchers",

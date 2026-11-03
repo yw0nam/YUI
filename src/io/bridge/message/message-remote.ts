@@ -48,8 +48,8 @@ export interface RemoteSurfaces {
   /** The character's name the message window's plate and backlog show. */
   setName(name: string): void;
   showInputError(message: string, action?: InputErrorAction): void;
-  /** Offers an in-place fix under the current speech; without an action, drops the one shown. */
-  showSpeechAction(action?: SpeechAction): void;
+  /** Offers in-place buttons under the current speech; an empty list drops the ones shown. */
+  showSpeechActions(actions: readonly SpeechAction[]): void;
   setAttachmentLimits(limits: AttachmentLimits): void;
   /** Puts a sent message back into the message window's composer when it is open and empty. */
   restoreInput(text: string, images: string[]): void;
@@ -73,7 +73,7 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
   let name: string | null = null;
   let limits: AttachmentLimits | null = null;
   let pendingErrorAction: (() => void) | null = null;
-  let pendingSpeechAction: (() => void) | null = null;
+  let speechActionClicks: Array<() => void> = [];
 
   const unlisten = bridge.onControl((op) => {
     switch (op.op) {
@@ -90,7 +90,7 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
         pendingErrorAction?.();
         break;
       case "speech-action":
-        pendingSpeechAction?.();
+        speechActionClicks[op.index]?.();
         break;
       case "open-settings":
         for (const cb of openSettingsHandlers) cb();
@@ -112,7 +112,7 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
 
   return {
     beginSpeech() {
-      pendingSpeechAction = null;
+      speechActionClicks = [];
       bridge.emitSurface({ op: "begin" });
     },
     pushSpeech(delta) {
@@ -125,7 +125,7 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
       bridge.emitSurface({ op: "finish" });
     },
     hideSpeech() {
-      pendingSpeechAction = null;
+      speechActionClicks = [];
       bridge.emitSurface({ op: "hide" });
     },
     quoteUser(quote) {
@@ -166,11 +166,9 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
           : { op: "input-error", message },
       );
     },
-    showSpeechAction(action) {
-      pendingSpeechAction = action?.onClick ?? null;
-      bridge.emitSurface(
-        action ? { op: "speech-action", action: { label: action.label } } : { op: "speech-action" },
-      );
+    showSpeechActions(actions) {
+      speechActionClicks = actions.map((a) => a.onClick);
+      bridge.emitSurface({ op: "speech-actions", labels: actions.map((a) => a.label) });
     },
     setAttachmentLimits(next) {
       limits = next;
@@ -198,7 +196,7 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
       dockHandlers.length = 0;
       openSettingsHandlers.length = 0;
       pendingErrorAction = null;
-      pendingSpeechAction = null;
+      speechActionClicks = [];
     },
   };
 }

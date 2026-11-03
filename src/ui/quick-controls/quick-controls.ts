@@ -73,7 +73,9 @@ import type { VoiceInputStatus } from "../chips/voice-input-status";
 import { t } from "../i18n";
 import { createCharacterTab } from "./character/character-tab";
 import { createConnectionTab, type PushSocketPanelPort } from "./connection/connection-tab";
-import { DEFAULT_PAGE } from "./constants";
+import { createConnectionViews } from "./connection/connection-views";
+import { createQuickStart } from "./connection/quick-start/quick-start";
+import { initialPageOf } from "./constants";
 import { mountCueLists } from "./cue-lists/cue-lists";
 import { createHintTooltip } from "./hint-tooltip";
 import { createHistoryTab } from "./history/history-tab";
@@ -288,6 +290,10 @@ interface QuickControlsOptions {
   /** The preset strip picks the preset the window edits. */
   onEditTarget: (id: string) => void;
   showVoiceInput?: boolean;
+  /** Chat was unconfigured at window open: the panel opens on Connection, Quick start. */
+  openOnQuickStart?: boolean;
+  /** Quick start confirmed its key. */
+  onFirstConversationConnected?: () => void;
 }
 
 /** A part of the panel the shell redraws on open, closes, and disposes. */
@@ -393,6 +399,8 @@ export function createQuickControls({
   boundId,
   onEditTarget,
   showVoiceInput = true,
+  openOnQuickStart = false,
+  onFirstConversationConnected,
 }: QuickControlsOptions): QuickControls {
   // The context-occupancy readout renders when both stores are injected.
   const hasSession = !!sessionDiagnostics && !!sessionStore;
@@ -426,6 +434,7 @@ export function createQuickControls({
     hasSession,
     switchRows: TOGGLE_SPECS,
     showVoiceInput,
+    openOnQuickStart,
     showScreen: !!screenSettings && !!screenKnobSettings,
     showPresence: !!presenceSettings,
     showPacerGap: !!pacerGapSettings,
@@ -455,7 +464,27 @@ export function createQuickControls({
     getFetch,
     log,
   });
-  el.querySelector("#yui-panel-conn")!.append(connectionTab.el);
+  // ── Quick start (data use · daily limit · key confirmation) ──
+  const quickStart = createQuickStart({
+    endpointsSettings,
+    getEndpointDefaults,
+    chatKeySettings,
+    proactiveSettings,
+    scheduleSettings,
+    getFetch: async () => getFetch?.(),
+    onConnected: () => onFirstConversationConnected?.(),
+    showHelp: !!onGuide,
+  });
+
+  // ── Connection page — Quick start or Detailed settings ──
+  const connectionViews = createConnectionViews({
+    panel: el.querySelector("#yui-panel-conn")!,
+    quick: quickStart.el,
+    detail: connectionTab.el,
+    initial: openOnQuickStart ? "quick" : "detail",
+    onQuickShown: quickStart.reflect,
+    onDetailEntered: () => connectionTab.entered(),
+  });
 
   // ── History tab (session accordion + start fresh) — only with a transcript store. ──
   const historyTab = transcript
@@ -570,7 +599,7 @@ export function createQuickControls({
     onOpen: () => {
       for (const section of sections) section.reflect?.();
       // Opening on the Connection page counts as entering it — the model list read follows.
-      if (tabRail.selected() === "conn") connectionTab.entered();
+      if (tabRail.selected() === "conn") connectionViews.entered();
       if (tabRail.selected() === "plugins") pluginsPage?.entered();
       // Server may have come up after the app — refetch its voice list (store subscription re-renders).
       refreshVoiceList?.();
@@ -715,9 +744,9 @@ export function createQuickControls({
     rail: tablistEl,
     buttons: tabButtons,
     panels: Array.from(el.querySelectorAll<HTMLElement>(".yui-tabpanel")),
-    initial: DEFAULT_PAGE,
+    initial: initialPageOf(openOnQuickStart),
     onSelect: (id) => {
-      if (id === "conn") connectionTab.entered();
+      if (id === "conn") connectionViews.entered();
       if (id === "plugins") pluginsPage?.entered();
     },
   });
@@ -754,6 +783,7 @@ export function createQuickControls({
   const unbindHelp = onGuide ? bindHelpSection(el, onGuide) : undefined;
   // Every section the panel redraws on open, closes and disposes, in redraw order.
   const parts: (PanelSection | null | undefined)[] = [
+    quickStart,
     screenshot,
     pluginsPage,
     switchRows,
@@ -776,6 +806,7 @@ export function createQuickControls({
       },
       dispose: connectionTab.dispose,
     },
+    { dispose: connectionViews.dispose },
     session,
     historyTab && { reflect: historyTab.refresh, dispose: historyTab.dispose },
     characters && { reflect: characters.refresh, dispose: characters.dispose },

@@ -40,6 +40,7 @@ function makeSwitchRows(): SwitchRow[] {
 function render(switchRows: readonly SwitchRow[]): HTMLElement {
   const root = document.createElement("div");
   root.innerHTML = buildPanelHtml({
+    openOnQuickStart: false,
     hasSession: false,
     switchRows,
     showScreen: true,

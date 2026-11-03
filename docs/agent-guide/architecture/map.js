@@ -1195,7 +1195,7 @@ globalThis.YUI_MAP =
       "id": "ui/quick-controls",
       "module": "settings",
       "label": "quick controls",
-      "role": "The settings panel that fills the settings window: a search field over a rail of the edited character's pages (Connection, Voice, Persona, Body, History) then every character's pages (Together, Listening and bubble, Permissions, Plugins, Proactive, Motion and desktop, General), each page's scope line naming which; the Plugins page lists the installed plugins with their consent, status and log tail, and the catalog with install and add from folder; it heads with every character and its transport and window state, and a click edits it; a control the push transport cannot use stays, disabled, with its reason and a link to the chat protocol select; the Together page's Characters list turns each character on or off the desktop; the preset manage row's copy button copies a character's ingress URL and the Proactive URL line shows this window's; the preset strip shows this preset's relation line and the reasons card; the Persona page's Card section edits the preset's card, its send switch and the preset's name; the General page holds the device-wide user name, the Appearance row that picks the theme and the Text size row that picks the text size.",
+      "role": "The settings panel that fills the settings window: a search field over a rail of the edited character's pages (Connection, Voice, Persona, Body, History) then every character's pages (Together, Listening and bubble, Permissions, Plugins, Proactive, Motion and desktop, General), each page's scope line naming which characters the setting applies to, hidden on the Connection page while its Quick start view shows; the Plugins page lists the installed plugins with their consent, status and log tail, and the catalog with install and add from folder; it heads with every character and its transport and window state, and a click edits it; a control the push transport cannot use stays, disabled, with its reason and a link to the chat protocol select; the Together page's Characters list turns each character on or off the desktop; the preset manage row's copy button copies a character's ingress URL and the Proactive URL line shows this window's; the preset strip shows this preset's relation line and the reasons card; the Persona page's Card section edits the preset's card, its send switch and the preset's name; the Connection page switches between Quick start and Detailed settings, Quick start confirming a pasted key with the model list read, then writing the preset's URL, model and key and turning idle check-ins and the schedule off, warning that another configured server is replaced, and showing a done line and Help once connected; the General page opens with the Help section, then holds the device-wide user name, the Appearance row that picks the theme and the Text size row that picks the text size.",
       "paths": [
         "src/ui/quick-controls"
       ]
@@ -1295,9 +1295,10 @@ globalThis.YUI_MAP =
       "id": "app/turn/card",
       "module": "wiring",
       "label": "card wiring",
-      "role": "Binds the card module to the window's stores, preset, UI language, and config for the backend caller, and performs the greeting after a session reset and once at the first boot of a preset a card import created.",
+      "role": "Binds the card module to the window's stores, preset, UI language, and config for the backend caller, and performs the greeting after a session reset, once at the first boot of a preset a card import created, and once when Quick start connects, then opens the input and shows the controls hint with Hear the controls and Hear what she can do, each sending its guide's request through submitGuide.",
       "paths": [
         "src/app/turn/wire-card.ts",
+        "src/app/turn/wire-first-conversation.ts",
         "src/app/turn/wire-greeting.ts"
       ]
     },
@@ -1667,6 +1668,42 @@ globalThis.YUI_MAP =
       "wiring": "src/app/turn/wire-greeting.ts"
     },
     {
+      "id": "first-conversation-connected",
+      "from": "ui/quick-controls",
+      "to": "io/bridge/settings",
+      "carries": "Quick start's confirmed key → yui://first-conversation-connected, scoped to the preset",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/settings-window/wire-settings-window.ts"
+    },
+    {
+      "id": "first-conversation-greet",
+      "from": "io/bridge/settings",
+      "to": "app/turn/card",
+      "carries": "yui://first-conversation-connected for this window's preset → greetLocal when the session is empty",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-first-conversation.ts"
+    },
+    {
+      "id": "first-conversation-utterance-end",
+      "from": "io/voice/tts",
+      "to": "app/turn/card",
+      "carries": "onUtteranceEnd(identity) through the voice handle's listeners; event_name greeting ends the wait",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/voice/wire-voice.ts"
+    },
+    {
+      "id": "first-conversation-surfaces",
+      "from": "app/turn/card",
+      "to": "ui/surfaces",
+      "carries": "summonInput() at the greeting's end, or hideSpeech() then summonInput() when no greeting ran; the controls hint once the greeting was readable, skipped while a turn runs, carrying the two speech actions Hear the controls and Hear what she can do, each calling submitGuide with its guide key and help request text",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-first-conversation.ts"
+    },
+    {
       "id": "session-reset-stop",
       "from": "io/bridge/settings",
       "to": "dispatcher/turn",
@@ -1981,7 +2018,7 @@ globalThis.YUI_MAP =
       "id": "speech-previous",
       "from": "io/voice/tts",
       "to": "dispatcher/backend",
-      "carries": "onUtteranceStart(identity), onUtteranceEnd(ended, SpokenSplit, identity) → previous-turn",
+      "carries": "onUtteranceStart(identity), onUtteranceEnd(ended, SpokenSplit, identity) → previous-turn, then the voice handle's listeners",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/voice/wire-voice.ts"
@@ -2777,7 +2814,7 @@ globalThis.YUI_MAP =
       "id": "settings-open-windows",
       "from": "windows",
       "to": "io/window/openers",
-      "carries": "openSettings(page?): the status pill's capture button opens no page, the voice-setup fix and the delegation chip Connection; a new settings window at settings.html with `?preset=<id>` and `&page=<page>`, else the open one is shown, focused and asked for the page",
+      "carries": "openSettings(page?): the status pill's capture button opens no page, the voice-setup fix and the delegation chip open Connection; a new settings window at settings.html with `?preset=<id>` and `&page=<page>`, else the open one is shown, focused and asked for the page",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/windows/main.ts"
@@ -2786,7 +2823,7 @@ globalThis.YUI_MAP =
       "id": "settings-open-bootstrap",
       "from": "app/bootstrap",
       "to": "io/window/openers",
-      "carries": "openSettings(\"conn\"): the turn error's fix button and the first-run hint's action",
+      "carries": "openSettings(\"conn\"): the turn error's fix button and the first-run hint's action, both landing on Connection; a window without that page stays where it was",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/bootstrap-configured.ts"
@@ -3774,7 +3811,7 @@ globalThis.YUI_MAP =
       "id": "surfaces-remote",
       "from": "ui/surfaces",
       "to": "io/bridge/message",
-      "carries": "RemoteSurfaces: MessageSurfaceOp on yui://message-surface, scoped to the sender's preset",
+      "carries": "RemoteSurfaces: MessageSurfaceOp on yui://message-surface, scoped to the sender's preset; speech-actions carries the labels of the buttons the bubble shows under its speech, in order",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/ui/surfaces/wire.ts"
@@ -3783,7 +3820,7 @@ globalThis.YUI_MAP =
       "id": "remote-surfaces",
       "from": "io/bridge/message",
       "to": "ui/surfaces",
-      "carries": "MessageControlOp on yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; scoped to the sender's preset",
+      "carries": "MessageControlOp on yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; speech-action carries the index of the button clicked under the speech; scoped to the sender's preset",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/ui/surfaces/wire.ts"
@@ -5562,6 +5599,20 @@ globalThis.YUI_MAP =
         "from": "settings-<id>",
         "to": "pet-<id>",
         "carries": "yui://session-reset: {presetId}; filtered by preset id",
+        "kind": "bridge"
+      },
+      {
+        "id": "first-conversation",
+        "from": "settings",
+        "to": "pet",
+        "carries": "yui://first-conversation-connected; scoped to the preset",
+        "kind": "bridge"
+      },
+      {
+        "id": "first-conversation-companion",
+        "from": "settings-<id>",
+        "to": "pet-<id>",
+        "carries": "yui://first-conversation-connected; scoped to the preset",
         "kind": "bridge"
       },
       {

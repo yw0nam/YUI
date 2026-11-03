@@ -145,6 +145,10 @@ describe("chat type row", () => {
     const grant = cap.permissions.find(
       (p: { identifier?: string }) => p.identifier === "opener:allow-open-url",
     );
-    expect(grant.allow).toEqual([{ url: HERMES_AGENT.url }, { url: CARD_GUIDE_URL }]);
+    expect(grant.allow).toEqual([
+      { url: HERMES_AGENT.url },
+      { url: CARD_GUIDE_URL },
+      { url: "https://aistudio.google.com/apikey" },
+    ]);
   });
 });

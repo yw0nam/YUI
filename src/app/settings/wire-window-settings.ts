@@ -134,6 +134,7 @@ export async function wireWindowSettings(deps: {
   return {
     ...stores,
     config,
+    getEndpoints,
     vrmSelection,
     swapVrm,
     speaker,

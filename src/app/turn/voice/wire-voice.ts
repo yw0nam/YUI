@@ -1,6 +1,6 @@
 import type { AppConfig } from "../../../config/load";
 import { STT_API_KEY_SECRET, TTS_API_KEY_SECRET } from "../../../config/secrets";
-import type { EndpointsConfig } from "../../../contract";
+import type { EndpointsConfig, UtteranceIdentity } from "../../../contract";
 import {
   createPreviousTurn,
   type PreviousTurnSlot,
@@ -29,6 +29,11 @@ export interface VoiceHost {
   onCaptureStarted(): void;
   /** The engine could not start capture, whatever the cause. */
   onCaptureFailed(): void;
+}
+
+/** The voice pipeline as the bootstrap holds it, with the utterance ends a caller can follow. */
+export interface TurnVoice extends VoicePipeline {
+  onUtteranceEnd(cb: (identity: UtteranceIdentity) => void): () => void;
 }
 
 export function wireTurnVoice(deps: {
@@ -64,7 +69,7 @@ export function wireTurnVoice(deps: {
   onVoiceTurnStart?: () => void;
   register: (teardown: () => void) => void;
 }): {
-  voice: VoicePipeline;
+  voice: TurnVoice;
   voiceInput: ReturnType<typeof wireVoiceInput>;
   voiceErrorDwell: ReturnType<typeof createVoiceErrorDwell>;
   turnLog: TurnLog;
@@ -113,6 +118,7 @@ export function wireTurnVoice(deps: {
   // Voice creation precedes the walker, so the stroll query stays late-bound across that cycle.
   let strollingRef: { isStrolling(): boolean } | null = null;
   const pushTurns = createPushTurns();
+  const utteranceEndListeners = new Set<(identity: UtteranceIdentity) => void>();
   const voice = wireVoicePipeline({
     renderer,
     surfaces,
@@ -138,14 +144,23 @@ export function wireTurnVoice(deps: {
       previousTurn.utteranceStart(identity);
       quotedTurn.utteranceStart();
     },
-    onUtteranceEnd: previousTurn.utteranceEnd,
+    onUtteranceEnd: (ended, split, identity) => {
+      previousTurn.utteranceEnd(ended, split, identity);
+      for (const cb of utteranceEndListeners) cb(identity);
+    },
     onBargeIn: () => pushTurns.cut(),
     onSpeechActive: deps.onVoiceTurnStart,
   });
   register(voice.dispose);
 
   return {
-    voice,
+    voice: {
+      ...voice,
+      onUtteranceEnd(cb) {
+        utteranceEndListeners.add(cb);
+        return () => utteranceEndListeners.delete(cb);
+      },
+    },
     voiceInput,
     voiceErrorDwell,
     turnLog,

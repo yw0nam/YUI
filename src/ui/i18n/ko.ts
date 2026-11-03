@@ -20,7 +20,7 @@ const ko: Record<string, string> = {
   "voice.state.fired": "전달됨",
   "voice.state.error": "오류",
   "voice.error.not_configured": "설정 필요",
-  "voice.error.not_configured_fix": "백엔드 미설정. 연결 설정 열기",
+  "voice.error.not_configured_fix": "아직 연결 안 됨. 설정을 열어 연결하기",
   "voice.error.mic_denied": "마이크 차단됨",
   "voice.error.no_mic": "마이크 없음",
   "voice.error.mic_unavailable": "마이크 사용 불가",
@@ -56,10 +56,9 @@ const ko: Record<string, string> = {
   "input.error_network": "응답 없음 · 연결 확인",
   "input.error_http": "{status} {message}",
   "input.error_rate_limit": "사용 한도 도달 · 나중에 다시 시도",
-  "input.error_stall": "백엔드 응답 없음",
+  "input.error_stall": "연결 응답 없음",
   "input.error_parse": "응답 처리 실패",
-  "input.error_not_configured": "백엔드 미설정",
-  "input.error_open_connection": "연결 열기",
+  "input.error_not_configured": "아직 연결 안 됨",
   "input.attach_too_many": "이미지가 너무 많음 · 한 턴에 {max}장까지",
   "input.attach_too_large": "이미지가 너무 큼 · 장당 {max}MB까지",
   "input.attach_not_ready": "아직 첨부할 수 없음 · 상한을 불러오는 중",
@@ -139,6 +138,8 @@ const ko: Record<string, string> = {
   "help.capabilities.sub": "이 앱으로 유이와 함께 할 수 있는 일을 소개합니다.",
   "help.capabilities.request": "YUI로 뭘 할 수 있는지 알려줘",
   "help.ask": "물어보기",
+  "help.controls.hear": "조작법 듣기",
+  "help.capabilities.hear": "할 수 있는 일 듣기",
   "devtools.label": "개발자 도구",
   "devtools.sub": "전송 컨텍스트와 모션 미리보기",
   "devtools.open": "열기",
@@ -174,8 +175,8 @@ const ko: Record<string, string> = {
   "rail.group_character": "이 캐릭터",
   "rail.group_app": "모든 캐릭터",
   "search.placeholder": "설정 검색",
-  "scope.only": "{name}만",
-  "scope.every": "모든 캐릭터",
+  "scope.only": "{name}에만 적용",
+  "scope.every": "모든 캐릭터에 적용",
 
   // Together page: the Characters list and its "On the desktop" switches
   "chars.section": "캐릭터",
@@ -567,7 +568,7 @@ const ko: Record<string, string> = {
 
   // chat API key
   "chatkey.label": "채팅 API 키",
-  "chatkey.sub_default": "기본값 사용 중: 비워두면 빌드 시 설정한 키를 써요",
+  "chatkey.sub_default": "저장된 키가 없어요. 필요 없으면 비워 두세요",
   "chatkey.sub_override": "이 기기에 저장됨. 비우면 원래 키로 돌아가요",
   "chatkey.show": "키 보기",
   "chatkey.hide": "키 숨기기",
@@ -611,7 +612,36 @@ const ko: Record<string, string> = {
   // first-run onboarding hint
   "hint.first_run": "우클릭하면 컨트롤이 열려요 · {hotkey}로 말 걸 수 있어요",
   "hint.first_run_no_hotkey": "우클릭하면 컨트롤이 열려요",
-  "hint.setup_backend": "아직 생각할 백엔드가 없어요 · OpenAI 호환 서버를 지정해 주세요",
+  "hint.setup_backend": "아직 대화가 연결되지 않았어요 · 함께 연결해 볼까요?",
+  "hint.setup_action": "연결하기",
+
+  // quick start
+  "start.free_title": "무료로 시작하기",
+  "start.free_note": "Google Gemini 무료 등급으로 대화합니다.",
+  "start.send_label": "보내는 내용",
+  "start.send_sub":
+    "대화 내용과 맨 앞 앱의 이름과 창 제목이 Google로 전송됩니다. Google이 서비스 개선에 쓰고 사람이 검토할 수 있으니, 민감한 정보는 말하지 마세요.",
+  "start.limit_label": "하루 한도",
+  "start.limit_sub":
+    "무료 등급에는 하루 사용량 한도가 있습니다. 한도를 넘으면 다음 날 다시 대화할 수 있습니다.",
+  "start.key_title": "키 연결",
+  "start.make_label": "키 만들기",
+  "start.make_sub": "브라우저에서 Google AI Studio가 열립니다. Google 계정이 필요합니다.",
+  "start.make_link": "키 페이지 열기",
+  "start.paste_label": "키 붙여넣기",
+  "start.paste_placeholder": "복사한 키를 붙여 넣으세요",
+  "start.connect": "연결하기",
+  "start.checking": "키를 확인하고 있습니다…",
+  "start.need_key": "먼저 키를 붙여 넣어 주세요.",
+  "start.refused": "Google이 이 키를 받지 않았습니다. 복사한 키를 다시 붙여 넣어 주세요.",
+  "start.failed": "Google에 연결하지 못했습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.",
+  "start.reopen": "키 페이지 다시 열기",
+  "start.done": "연결했습니다. 이제 대화할 수 있습니다.",
+  "start.own_note": "이 키로 연결하면 지금 쓰는 서버 설정이 Google Gemini로 바뀝니다.",
+  "start.views_aria": "연결 방법",
+  "start.view_quick": "빠른 시작",
+  "start.view_detail": "상세 설정",
+  "start.detail_note": "서버, 모델, 음성 서버를 직접 정합니다.",
 
   // reactions tab
   "reactions.watchers_title": "감시",
