@@ -218,10 +218,12 @@ export function createSelectionStore<T extends SelectionOption>(opts: {
 
     select(id: string): void {
       if (!hasId(id)) return; // Unknown id — prevent garbage persist
-      if (resolve().id === id) return; // No-op if already active
+      if (override === id) return;
+      // A pick of the option already resolved still pins it, so a later list change keeps it.
+      const changed = resolve().id !== id;
       override = id;
       storage?.save(id);
-      notify();
+      if (changed) notify();
     },
 
     /** Moves the active owner: its user options are listed and resolvable, every other owner's are
