@@ -53,6 +53,7 @@ vi.mock("./wire-dispatcher", () => ({
 }));
 vi.mock("../settings/wire-avatar", () => ({ applyAvatarConfig: () => {} }));
 vi.mock("./push/playback", () => ({ wirePlayback: () => () => {} }));
+vi.mock("./push/wire-ask-card", () => ({ wireAskCard: () => () => {} }));
 vi.mock("./push/wire-push", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./push/wire-push")>()),
   wirePushTransport: () => () => {},

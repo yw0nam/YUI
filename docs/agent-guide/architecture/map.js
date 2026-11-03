@@ -1863,7 +1863,7 @@ globalThis.YUI_MAP =
       "id": "push-ws",
       "from": "io/chat/push",
       "to": "backend-push",
-      "carries": "frames out: hello, turn, vocabulary, reset, stop, tool_result, playback",
+      "carries": "frames out: hello, turn, vocabulary, reset, stop, tool_result, playback, answer",
       "kind": "websocket",
       "transport": "push"
     },
@@ -1871,7 +1871,7 @@ globalThis.YUI_MAP =
       "id": "push-ws-in",
       "from": "backend-push",
       "to": "io/chat/push",
-      "carries": "frames in: ready, speech, render, turn_end, error, reasoning, tool_status, tool_call, delegations",
+      "carries": "frames in: ready, speech, render, turn_end, error, reasoning, tool_status, tool_call, delegations, ask, ask_end",
       "kind": "websocket",
       "transport": "push"
     },
@@ -1937,6 +1937,15 @@ globalThis.YUI_MAP =
       "kind": "callback",
       "transport": "push",
       "wiring": "src/app/turn/push/wire-push.ts"
+    },
+    {
+      "id": "push-ask",
+      "from": "io/chat/push",
+      "to": "ui/ask",
+      "carries": "ask, ask_end → createAskCard show/end/clear; answer ← sendAnswer",
+      "kind": "callback",
+      "transport": "push",
+      "wiring": "src/app/turn/push/wire-ask-card.ts"
     },
     {
       "id": "previous-playback",

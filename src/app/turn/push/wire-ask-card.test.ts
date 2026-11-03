@@ -29,9 +29,15 @@ function build() {
   document.body.append(mount);
   wireAskCard({
     socket: {
-      onAsk: (cb) => ((onAsk = cb), () => {}),
+      onAsk: (cb) => {
+        onAsk = cb;
+        return () => {};
+      },
       onAskEnd: () => () => {},
-      onState: (cb) => ((onState = cb), () => {}),
+      onState: (cb) => {
+        onState = cb;
+        return () => {};
+      },
       sendAnswer,
     },
     mount,
