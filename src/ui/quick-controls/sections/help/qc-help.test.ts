@@ -41,4 +41,16 @@ describe("createQuickControls — help section", () => {
     press(qc, "capabilities");
     expect(onGuide).toHaveBeenLastCalledWith("capabilities", "YUI로 뭘 할 수 있는지 알려줘");
   });
+
+  it("the General page opens with the Help section first", () => {
+    const qc = createQuickControls({ ...defaultQcArgs(mount), onGuide });
+    qc.open();
+
+    const general = qc.el.querySelector<HTMLElement>("#yui-panel-general")!;
+    const first = general.querySelector<HTMLElement>(".yui-sec")!;
+
+    expect(first.querySelector("[data-guide]")).not.toBeNull();
+
+    qc.dispose();
+  });
 });

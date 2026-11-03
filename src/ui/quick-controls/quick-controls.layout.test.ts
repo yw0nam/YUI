@@ -177,7 +177,7 @@ describe("createQuickControls — settings layout", () => {
         ".yui-idle-throttle-switch",
       ],
     ],
-    ["general", [".yui-lang-seg", ".yui-theme-seg", "#yui-user-name", ".yui-help-btn"]],
+    ["general", [".yui-help-btn", ".yui-lang-seg", ".yui-theme-seg", "#yui-user-name"]],
   ];
 
   it.each(PAGES)("the %s page holds its sections in order", (page, markers) => {
