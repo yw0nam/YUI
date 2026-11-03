@@ -352,12 +352,14 @@ class YuiAdapter(BasePlatformAdapter):
         chat_id = prompt.chat_id
         if "ask" not in self._accepts.get(chat_id, ()):
             return SendResult(success=False, error="client does not accept ask")
+        if prompt.request_id is None:
+            return SendResult(success=False, error="exec approval has no request id")
         ask = self._asks.open(chat_id, prompt, time.time() * 1000 + approval_timeout_seconds() * 1000)
         ask_id = ask.frame["ask"]["ask_id"]
         loop = asyncio.get_running_loop()
 
         def settled() -> None:
-            if self._asks.drop(chat_id, ask_id):
+            if self._asks.drop(chat_id, ask_id) and "ask_end" in self._accepts.get(chat_id, ()):
                 task = asyncio.create_task(self._send_frame(chat_id, {"type": "ask_end", "ask_id": ask_id}))
                 self._sends.add(task)
                 task.add_done_callback(self._sends.discard)
