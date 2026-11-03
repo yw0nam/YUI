@@ -2,6 +2,7 @@
 
 import type { Thread } from "../../../../contract";
 import type { ThreadsClient } from "../../../threads/threads-client";
+import { isWaiting } from "../../../threads/threads-waiting";
 import type { ClientTool } from "../client-tools";
 import { detailText, listText, searchText } from "./thread-text";
 
@@ -67,7 +68,7 @@ export function createThreadsTools(client: Pick<ThreadsClient, "threads">): Clie
       }
       const filtered = all.filter(
         (thread) =>
-          (state === "all" || thread.state === "input-required") &&
+          (state === "all" || isWaiting(thread)) &&
           (source === undefined || thread.source === source),
       );
       filtered.sort((a, b) => b.updated_at - a.updated_at);

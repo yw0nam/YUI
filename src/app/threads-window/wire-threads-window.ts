@@ -54,6 +54,10 @@ export async function wireThreadsWindow(deps: {
       void client
         .seen(id, askId)
         .catch((error) => log.warn("thread_seen_failed", { error: String(error) })),
+    onRead: (id) =>
+      void client
+        .read(id)
+        .catch((error) => log.warn("thread_read_failed", { error: String(error) })),
     onClose: () => presence.close(),
     listCollapsed: settings.get().listCollapsed,
     onListCollapsed: settings.setListCollapsed,

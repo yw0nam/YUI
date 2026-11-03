@@ -6,7 +6,9 @@
 
 import "./thread-pane.css";
 import type { Thread, ThreadEntry } from "../../../contract";
+import { isWaiting } from "../../../io/threads/threads-waiting";
 import { getLocale, t } from "../../i18n";
+import { glyph } from "../glyphs";
 import { threadSource } from "../thread-source";
 import { type AnswerArea, createAnswerArea } from "./answer-area";
 import { type Draft, draftKey, pruneDrafts } from "./drafts";
@@ -33,16 +35,30 @@ function entryEl(entry: ThreadEntry, source: string, now: number): HTMLElement {
   return el;
 }
 
+const CHECK_SVG = glyph('<path d="M5 12.5 9.5 17 19 7"/>');
+
+function readButton(onRead: () => void): HTMLButtonElement {
+  const el = document.createElement("button");
+  el.type = "button";
+  el.className = "yui-threads-pane__read";
+  el.innerHTML = CHECK_SVG;
+  el.append(t("threads.mark_read"));
+  el.addEventListener("click", onRead);
+  return el;
+}
+
 function threadPane(
   thread: Thread,
   now: number,
   back: HTMLElement,
+  onRead: () => void,
 ): { head: HTMLElement; transcript: HTMLElement } {
   const head = document.createElement("header");
   head.className = "yui-threads-pane__head";
   const line = document.createElement("div");
   line.className = "yui-threads-pane__line";
   line.append(back, sourceLine(thread.source), stateWord(thread));
+  if (isWaiting(thread)) line.append(readButton(onRead));
   const title = document.createElement("h2");
   title.tabIndex = -1;
   title.textContent = thread.title;
@@ -90,6 +106,7 @@ export function createThreadPane(deps: {
   now(): number;
   /** Rejects with the store's error string. */
   onAnswer(id: string, askId: string, answer: { choice?: string; text?: string }): Promise<void>;
+  onRead(id: string): void;
 }): ThreadPane {
   const { el } = deps;
   const drafts = new Map<string, Draft>();
@@ -118,6 +135,7 @@ export function createThreadPane(deps: {
       ? JSON.stringify([
           thread.id,
           thread.updated_at,
+          thread.read ?? false,
           errors.get(key) ?? null,
           sending.has(key),
           getLocale(),
@@ -134,7 +152,9 @@ export function createThreadPane(deps: {
       el.replaceChildren();
       return;
     }
-    const { head, transcript } = threadPane(thread, deps.now(), deps.back);
+    const { head, transcript } = threadPane(thread, deps.now(), deps.back, () =>
+      deps.onRead(thread.id),
+    );
     const ask = thread.ask;
     area = ask
       ? createAnswerArea({

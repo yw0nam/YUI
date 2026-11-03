@@ -754,7 +754,7 @@ globalThis.YUI_MAP =
       "id": "io/threads",
       "module": "display",
       "label": "threads client",
-      "role": "Keeps the Thread store's highest-revision snapshot from threads_snapshot and the threads-snapshot event, and sends the user's Answer through thread_answer and the open ask the user picked through thread_seen; inert outside Tauri.",
+      "role": "Keeps the Thread store's highest-revision snapshot from threads_snapshot and the threads-snapshot event, and sends the user's Answer through thread_answer and the open ask the user picked through thread_seen and a Thread the user marked read through thread_read; inert outside Tauri.",
       "paths": [
         "src/io/threads"
       ]
@@ -2983,7 +2983,7 @@ globalThis.YUI_MAP =
       "id": "threads-shell-command",
       "from": "io/threads",
       "to": "shell/threads",
-      "carries": "threads_snapshot once after the listen; thread_answer {id, askId, choice?, text?}; thread_seen {id, askId}",
+      "carries": "threads_snapshot once after the listen; thread_answer {id, askId, choice?, text?}; thread_seen {id, askId}; thread_read {id}",
       "kind": "tauri-command",
       "transport": "shared"
     },

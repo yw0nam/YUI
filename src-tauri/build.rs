@@ -22,6 +22,7 @@ const COMMANDS: &[&str] = &[
     "threads_snapshot",
     "thread_answer",
     "thread_seen",
+    "thread_read",
     "append_turn_record",
     "set_frame_logical",
     "window_dock_attach",

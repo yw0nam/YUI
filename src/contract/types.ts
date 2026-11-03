@@ -281,6 +281,8 @@ export interface Thread {
   answered_ask_ids?: string[];
   /** The open ask the user picked in the Threads window. */
   seen_ask_id?: string;
+  /** The user marked the Thread read since the producer's last update. */
+  read?: boolean;
 }
 
 export interface ThreadsSnapshot {

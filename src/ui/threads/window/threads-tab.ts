@@ -5,7 +5,13 @@
 
 import type { Thread, ThreadsSnapshot } from "../../../contract";
 import { subscribe as subscribeLocale, t } from "../../i18n";
-import { createThreadList, openSelection, type ThreadFilter, threadListView } from "./thread-list";
+import {
+  createThreadList,
+  nextWaiting,
+  openSelection,
+  type ThreadFilter,
+  threadListView,
+} from "./thread-list";
 import { createThreadPane } from "./thread-pane";
 import { createThreadRail } from "./thread-rail";
 import type { TabBody, TabShell } from "./threads-tabs";
@@ -23,6 +29,8 @@ export function createThreadsTab(deps: {
   onAnswer(id: string, askId: string, answer: { choice?: string; text?: string }): Promise<void>;
   /** The user picked a Thread whose open ask has not been reported seen. */
   onSeen(id: string, askId: string): void;
+  /** The user marked the Thread read. */
+  onRead(id: string): void;
 }): ThreadsTabBody {
   const { shell } = deps;
   const el = document.createElement("div");
@@ -34,6 +42,7 @@ export function createThreadsTab(deps: {
     back: shell.back,
     now: deps.now,
     onAnswer: deps.onAnswer,
+    onRead: deps.onRead,
   });
 
   let threads: Thread[] = [];
@@ -80,9 +89,15 @@ export function createThreadsTab(deps: {
     el,
     list: list.el,
     update(snapshot) {
+      const before = threads.find((th) => th.id === selected);
       threads = snapshot.threads;
       pane.prune(threads);
+      const marked = before && !before.read && threads.find((th) => th.id === selected)?.read;
+      const hadFocus = marked && paneEl.contains(document.activeElement);
+      if (marked && selected) selected = nextWaiting(rows, threads, selected);
       render();
+      // The rebuild removed the Mark read button that held focus.
+      if (hadFocus) paneEl.querySelector("h2")?.focus();
     },
     reset() {
       pane.restart();

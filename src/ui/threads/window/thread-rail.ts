@@ -6,6 +6,7 @@
 
 import "./thread-rail.css";
 import type { Thread } from "../../../contract";
+import { isWaiting } from "../../../io/threads/threads-waiting";
 import { t } from "../../i18n";
 import { glyph, THREADS_GLYPH } from "../glyphs";
 import { threadSource } from "../thread-source";
@@ -30,7 +31,7 @@ function item(thread: Thread, selected: boolean): HTMLButtonElement {
   mark.setAttribute("aria-hidden", "true");
   mark.textContent = threadSource(thread.source).mark;
   el.append(mark);
-  if (thread.state === "input-required") {
+  if (isWaiting(thread)) {
     const dot = document.createElement("span");
     dot.className = "yui-threads-rail__dot";
     dot.setAttribute("aria-hidden", "true");
@@ -94,9 +95,9 @@ export function createThreadRail(deps: {
       filter = next;
       el.setAttribute("aria-label", t("threads.rail_aria"));
       for (const tab of tabs) {
-        const isWaiting = tab.dataset.railTab === "waiting";
-        const n = isWaiting ? view.counts.waiting : view.counts.all;
-        const name = t(isWaiting ? "threads.waiting_count" : "threads.all_count", { n });
+        const waitingTab = tab.dataset.railTab === "waiting";
+        const n = waitingTab ? view.counts.waiting : view.counts.all;
+        const name = t(waitingTab ? "threads.waiting_count" : "threads.all_count", { n });
         tab.querySelector(".yui-threads-rail__count")!.textContent = String(n);
         tab.setAttribute("aria-label", name);
         tab.title = name;

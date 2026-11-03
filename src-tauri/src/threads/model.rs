@@ -98,6 +98,8 @@ pub struct Thread {
     pub answered_ask_ids: BTreeSet<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub seen_ask_id: Option<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub read: bool,
 }
 
 #[derive(Clone, Debug, Deserialize)]

@@ -103,6 +103,10 @@ _Avoid_: prompt, request
 The user's reply to one Ask: a choice id, text, both, or `release` to answer at the agent's own terminal.
 _Avoid_: reply, response
 
+**Waiting Thread**:
+A Thread in `input-required` that the user has not marked read since the producer's last update.
+_Avoid_: unread, pending
+
 **Threads window**:
 The window `threads` where the user reads Threads and answers their Asks and works in Terminals; it grows out of the Threads chip, or opens without the grow on the Terminal tab from the tray's Terminal item and on either tab from the Quick card's Threads and Terminal buttons, moves and resizes on its own, and first opens beside the main character; its head switches between the Threads tab and the Terminal tab, and its list collapses to a rail.
 _Avoid_: inbox, panel, dashboard

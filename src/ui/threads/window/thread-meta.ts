@@ -13,7 +13,8 @@ export function stateText(thread: Thread): string {
 /** The state word a row and the pane show. */
 export function stateWord(thread: Thread): HTMLElement {
   const el = document.createElement("span");
-  el.className = `yui-threads-state is-${thread.state}`;
+  const read = thread.state === "input-required" && thread.read === true;
+  el.className = read ? "yui-threads-state" : `yui-threads-state is-${thread.state}`;
   el.textContent = stateText(thread);
   return el;
 }

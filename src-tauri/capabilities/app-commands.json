@@ -40,6 +40,7 @@
     "allow-threads-snapshot",
     "allow-thread-answer",
     "allow-thread-seen",
+    "allow-thread-read",
     "allow-window-dock-attach",
     "allow-window-dock-detach",
     "allow-terminal-snapshot",

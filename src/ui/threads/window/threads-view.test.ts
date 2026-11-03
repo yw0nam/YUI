@@ -100,6 +100,7 @@ function build(
 ) {
   const onClose = vi.fn();
   const onSeen = vi.fn();
+  const onRead = vi.fn();
   const onListCollapsed = vi.fn();
   const terminal = terminalTab();
   const view = createThreadsView({
@@ -108,6 +109,7 @@ function build(
     now: () => now,
     onAnswer,
     onSeen,
+    onRead,
     onClose,
     listCollapsed,
     onListCollapsed,
@@ -135,6 +137,7 @@ function build(
     enter,
     onClose,
     onSeen,
+    onRead,
     onListCollapsed,
     panel,
     terminal,
@@ -294,6 +297,37 @@ it("reports the open ask as seen only when the user picks a Thread, and not an a
 
   $<HTMLButtonElement>('.yui-threads-rail [data-id="t1"]').click();
   expect(onSeen).toHaveBeenCalledExactlyOnceWith("t1", "a1");
+});
+
+it("Mark read asks the store, and the selection moves on once a snapshot shows the Thread read", () => {
+  const { view, $, onRead } = build();
+  const [a, b, c] = [thread("A", "codex", 3), thread("B", "codex", 2), thread("C", "codex", 1)];
+  view.update(snapshot(1, [a, b, c]));
+  expect($(".yui-threads-pane__head h2").textContent).toBe("A");
+
+  $<HTMLButtonElement>(".yui-threads-pane__read").click();
+  expect(onRead).toHaveBeenCalledExactlyOnceWith("A");
+  expect($(".yui-threads-pane__head h2").textContent).toBe("A");
+
+  view.update(snapshot(2, [{ ...a, read: true }, b, c]));
+  expect($(".yui-threads-pane__head h2").textContent).toBe("B");
+  expect(ids(".yui-threads-list [data-id]")).toEqual(["B", "C"]);
+  expect($(".yui-threads__count").textContent).toBe("2 waiting");
+
+  $<HTMLButtonElement>('[data-tab="all"]').click();
+  $<HTMLButtonElement>('.yui-threads-list [data-id="A"]').click();
+  expect($(".yui-threads-pane__head h2").textContent).toBe("A");
+  expect(document.querySelector(".yui-threads-pane__read")).toBeNull();
+});
+
+it("moves to a waiting Thread even when the snapshot also shows the next one read", () => {
+  const { view, $ } = build();
+  const [a, b, c] = [thread("A", "codex", 3), thread("B", "codex", 2), thread("C", "codex", 1)];
+  view.update(snapshot(1, [a, b, c]));
+
+  view.update(snapshot(2, [{ ...a, read: true }, { ...b, read: true }, c]));
+
+  expect($(".yui-threads-pane__head h2").textContent).toBe("C");
 });
 
 it("draws the rail from the list's rows, and a rail click selects like a row", () => {

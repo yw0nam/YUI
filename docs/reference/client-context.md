@@ -525,7 +525,7 @@ against the presets open when it runs
 
 ### `threads`
 
-The line counts the Threads waiting for the user's answer, grouped by producer:
+The line counts the waiting Threads (state `input-required` and not marked read), grouped by producer:
 
 ```text
 threads: 3 waiting (claude-code 2, github-ci 1)

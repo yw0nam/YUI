@@ -40,3 +40,8 @@ pub fn thread_seen(
 ) -> Result<(), String> {
     store.seen(&id, &ask_id).map_err(str::to_owned)
 }
+
+#[tauri::command]
+pub fn thread_read(store: State<'_, Arc<ThreadStore>>, id: String) -> Result<(), String> {
+    store.read(&id).map_err(str::to_owned)
+}

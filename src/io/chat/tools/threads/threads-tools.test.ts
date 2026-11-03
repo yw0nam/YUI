@@ -52,6 +52,12 @@ describe("threads_list", () => {
     expect(await runList([])).toBe("no threads");
   });
 
+  it("skips a Thread marked read by default, and state: all still lists it", async () => {
+    const threads = [thread({ id: "seen", state: "input-required", read: true })];
+    expect(await runList(threads)).toBe("no threads");
+    expect(await runList(threads, { state: "all" })).toContain("seen | claude-code |");
+  });
+
   it("shows the open ask and the last entry under the row", async () => {
     const text = await runList([
       thread({
