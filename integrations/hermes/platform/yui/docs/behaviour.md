@@ -151,3 +151,15 @@
   is a string. The tool-status hook reads the envelope's text for failure classification.
   `look at: screen` needs an image-capable model and provider; Hermes substitutes a text summary
   when the model has no vision or the provider rejects list content.
+
+- States gateway-available built-ins as Backend commands in `ready.commands` only when the client
+  accepts `command_reply`. The list excludes `new`, `stop`, `start`, `topic`, and commands whose
+  output is an agent run. Descriptions and argument hints come from Hermes's registry.
+- Runs a `command` as a gateway command with its id as `message_id`, control enabled, and no
+  `client_context`. Matching gateway sends become one Markdown Command reply, joined with blank
+  lines. Empty output sends empty text; failure adds a failure line. Command replies open no Turn,
+  carry no speech, and are cut with `…` to fit the frame cap.
+- Holds a command's reply while its slash confirmation is an Ask with `once`, `always`, and
+  `cancel`. Its Answer runs the resolver and supplies the reply text. Expiry or reset closes the
+  Ask, clears the confirmation, and replies that the command was not run. Disconnect drops the
+  command without a reply. Only a reset's `/new` confirmation is auto-approved.

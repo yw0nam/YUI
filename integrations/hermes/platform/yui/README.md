@@ -12,6 +12,7 @@ hint and the readiness probes, beside `plugin.yaml` and the uv project files.
 | Path | Holds |
 |---|---|
 | `src/transport/` | `adapter.py`, the WebSocket server and the gateway hooks; `frames.py`, the frame size cap and the trimming that fits a frame under it; `playback.py`, the one-line notices a client's failed `playback` frame starts; `turn_images.py`, a turn's image data URLs decoded into gateway media-cache files |
+| `src/commands/` | The built-in Backend command list, gateway dispatch, output collection, and confirmation lifetime |
 | `src/turns/` | The per-chat turn state and the session lookup that finds its chat |
 | `src/express/` | The client vocabulary, the `generate_express` tool, and cue placement on sentences |
 | `src/speech/` | The streamed answer, cut into the sentences `speech` frames carry |

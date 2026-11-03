@@ -36,6 +36,7 @@ from ..activity import delegations, reasoning, reports, tool_status, usage
 from ..asks.asks import Ask, Asks
 from ..asks.clarify import clarify_ask
 from ..asks.exec_approval import exec_approval_ask
+from ..commands.gateway import Commands
 from ..express import tools
 from ..express.gate import Vocabulary
 from ..express.segments import build_segments, place_matched
@@ -178,6 +179,7 @@ class YuiAdapter(BasePlatformAdapter):
         self._sends: set[asyncio.Task] = set()
         self._playback = PlaybackNotices()
         self._asks = Asks()
+        self._commands = Commands(self)
 
     @property
     def name(self) -> str:
@@ -228,6 +230,8 @@ class YuiAdapter(BasePlatformAdapter):
 
     async def disconnect(self) -> None:
         self._mark_disconnected()
+        for chat_id in list(self._sockets):
+            self._commands.drop(chat_id)
         delegations.set_notifier(None)
         reasoning.set_sink(None)
         speech.set_sink(None)
@@ -312,7 +316,13 @@ class YuiAdapter(BasePlatformAdapter):
         listed = isinstance(accepts, list) and all(isinstance(name, str) for name in accepts)
         self._accepts[chat_id] = frozenset(accepts) if listed else frozenset()
         await self._send_frame(
-            chat_id, {"type": "ready", "chat_id": chat_id, "max_turn_bytes": MAX_TURN_BYTES}
+            chat_id,
+            {
+                "type": "ready",
+                "chat_id": chat_id,
+                "max_turn_bytes": MAX_TURN_BYTES,
+                **self._commands.ready(chat_id),
+            },
         )
         if replaced is not None and replaced is not ws:
             # A peer that is gone takes the whole close timeout, and the frames below cannot wait.
@@ -337,6 +347,8 @@ class YuiAdapter(BasePlatformAdapter):
         kind = frame.get("type")
         if kind == "turn":
             await self._on_turn(chat_id, frame)
+        elif kind == "command":
+            await self._commands.handle(chat_id, frame)
         elif kind == "playback":
             await self._playback.handle(frame, self._source(chat_id), self.handle_message)
         elif kind == "vocabulary":
@@ -433,6 +445,7 @@ class YuiAdapter(BasePlatformAdapter):
 
     def _forget(self, chat_id: str, ws: web.WebSocketResponse) -> None:
         if chat_id and self._sockets.get(chat_id) is ws:
+            self._commands.drop(chat_id)
             del self._sockets[chat_id]
             state.set_connected(chat_id, False)
             self._speaker.stop(chat_id)
@@ -498,6 +511,7 @@ class YuiAdapter(BasePlatformAdapter):
 
     async def _on_reset(self, chat_id: str) -> None:
         """The gateway's own /new: the transcript starts empty under the same chat."""
+        await self._commands.reset(chat_id)
         # The client asked for the reset, so its acknowledgement is not worth speaking.
         state.set_muted(chat_id, True)
         logger.info("yui: reset chat=%s", chat_id)
@@ -558,17 +572,7 @@ class YuiAdapter(BasePlatformAdapter):
         confirm_id: str,
         metadata: dict | None = None,
     ) -> SendResult:
-        """Approve the gateway's confirmation: the client's own confirm button was the approval."""
-        from tools import slash_confirm
-
-        # Resolving runs the command inline, so it waits for this dispatch to unwind first.
-        task = asyncio.create_task(slash_confirm.resolve(session_key, confirm_id, "once"))
-        self._confirmations.add(task)
-        task.add_done_callback(self._confirmations.discard)
-        # The command's own reply comes back to that task instead of through send().
-        state.set_muted(chat_id, False)
-        logger.info("yui: approved %s for chat=%s", title, chat_id)
-        return SendResult(success=True, message_id=_message_id())
+        return await self._commands.confirm(chat_id, title, message, session_key, confirm_id)
 
     async def _send_frame(self, chat_id: str, frame: dict) -> bool:
         ws = self._sockets.get(chat_id)
@@ -816,6 +820,8 @@ class YuiAdapter(BasePlatformAdapter):
     ) -> SendResult:
         """Render a reply, then end the failed turns that were waiting for it. A client that accepts
         `error` gets their failure line as an `error` frame instead of a render."""
+        if self._commands.runs.collect(chat_id, reply_to, content):
+            return SendResult(success=True, message_id=reply_to)
         meta = metadata or {}
         reports_errors = "error" in self._accepts.get(chat_id, ())
         waiting = state.is_closing(chat_id) and not state.is_muted(chat_id)
@@ -977,6 +983,8 @@ class YuiAdapter(BasePlatformAdapter):
 
     async def on_processing_start(self, event: MessageEvent) -> None:
         """The turn opens here: the gateway serialises this per session, admission does not."""
+        if hasattr(event, "_yui_command_id"):
+            return
         chat_id = _chat_of(event)
         await self._close_failed(chat_id)
         stream = self._speaker.stream(chat_id)
@@ -1001,6 +1009,9 @@ class YuiAdapter(BasePlatformAdapter):
 
     async def on_processing_complete(self, event: MessageEvent, outcome: ProcessingOutcome) -> None:
         """Close the turn: a reply already rendered, anything else renders as silence."""
+        if hasattr(event, "_yui_command_id"):
+            await self._commands.complete(event, outcome)
+            return
         chat_id = _chat_of(event)
         turn_id = getattr(event, "_yui_turn_id", "") or getattr(event, "message_id", "") or ""
         if turn_id in state.open_turns(chat_id)[1:]:
@@ -1032,3 +1043,8 @@ class YuiAdapter(BasePlatformAdapter):
             token_usage = usage.take(chat_id)
             for ended_id in ended:
                 await self._send_render(chat_id, _turn_end(ended_id, token_usage))
+
+    async def _notify_turn_error(self, event: MessageEvent, error: BaseException) -> dict | None:
+        if hasattr(event, "_yui_command_id"):
+            return None
+        return await super()._notify_turn_error(event, error)

@@ -27,6 +27,18 @@ def fit_frame(frame: dict) -> str | None:
     body, size = encoded(frame)
     if size <= MAX_FRAME_BYTES:
         return body
+    if frame.get("type") == "command_reply" and isinstance(frame.get("text"), str):
+        text = frame["text"]
+        low, high = 0, len(text)
+        while low < high:
+            middle = (low + high + 1) // 2
+            frame["text"] = text[:middle] + "…"
+            if encoded(frame)[1] <= MAX_FRAME_BYTES:
+                low = middle
+            else:
+                high = middle - 1
+        frame["text"] = text[:low] + "…"
+        body, size = encoded(frame)
     # Reasoning is commentary on the reply, so it goes before any of the speech does.
     if frame.pop("reasoning", None) is not None:
         logger.debug("yui: reasoning dropped from an oversize %s frame", frame.get("type"))
