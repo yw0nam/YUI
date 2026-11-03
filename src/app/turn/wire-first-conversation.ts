@@ -31,15 +31,14 @@ export function wireFirstConversation(
 
   const showHint = (): void => {
     if (!maybeShowFirstRunHint({ ...deps, chatConfigured: true })) return;
+    // A reply bound for the unified window replaces nothing here, so the press drops the hint itself.
+    const guide = (key: GuideKey) => (): void => {
+      deps.surfaces.hideSpeech();
+      deps.submitGuide(key, deps.t(`help.${key}.request`));
+    };
     deps.surfaces.showSpeechActions([
-      {
-        label: deps.t("help.controls.hear"),
-        onClick: () => deps.submitGuide("controls", deps.t("help.controls.request")),
-      },
-      {
-        label: deps.t("help.capabilities.hear"),
-        onClick: () => deps.submitGuide("capabilities", deps.t("help.capabilities.request")),
-      },
+      { label: deps.t("help.controls.hear"), onClick: guide("controls") },
+      { label: deps.t("help.capabilities.hear"), onClick: guide("capabilities") },
     ]);
   };
 
