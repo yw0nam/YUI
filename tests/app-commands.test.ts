@@ -13,9 +13,9 @@ const handler = [...read("src-tauri/src/commands.rs").matchAll(/crate::[\w:]+::(
 
 /** The app manifest's `COMMANDS` list in build.rs. */
 const manifest = [
-  .../const COMMANDS: &\[&str\] = &\[([^\]]*)\]/.exec(read("src-tauri/build.rs"))![1]!.matchAll(
-    /"(\w+)"/g,
-  ),
+  .../const COMMANDS: &\[&str\] = &\[([^\]]*)\]/
+    .exec(read("src-tauri/build.rs"))![1]!
+    .matchAll(/"(\w+)"/g),
 ].map((m) => m[1]!);
 
 /** Every string permission in every capability file. */
