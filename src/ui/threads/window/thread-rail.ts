@@ -95,9 +95,9 @@ export function createThreadRail(deps: {
       filter = next;
       el.setAttribute("aria-label", t("threads.rail_aria"));
       for (const tab of tabs) {
-        const isWaiting = tab.dataset.railTab === "waiting";
-        const n = isWaiting ? view.counts.waiting : view.counts.all;
-        const name = t(isWaiting ? "threads.waiting_count" : "threads.all_count", { n });
+        const waitingTab = tab.dataset.railTab === "waiting";
+        const n = waitingTab ? view.counts.waiting : view.counts.all;
+        const name = t(waitingTab ? "threads.waiting_count" : "threads.all_count", { n });
         tab.querySelector(".yui-threads-rail__count")!.textContent = String(n);
         tab.setAttribute("aria-label", name);
         tab.title = name;

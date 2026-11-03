@@ -147,11 +147,11 @@ export function createThreadList(deps: {
       filter = next;
       el.setAttribute("aria-label", t("threads.list_aria"));
       for (const tab of tabs) {
-        const isWaiting = tab.dataset.tab === "waiting";
+        const waitingTab = tab.dataset.tab === "waiting";
         const count = document.createElement("span");
         count.className = "yui-threads-list__count";
-        count.textContent = String(isWaiting ? view.counts.waiting : view.counts.all);
-        tab.replaceChildren(t(isWaiting ? "threads.tab_waiting" : "threads.tab_all"), count);
+        count.textContent = String(waitingTab ? view.counts.waiting : view.counts.all);
+        tab.replaceChildren(t(waitingTab ? "threads.tab_waiting" : "threads.tab_all"), count);
         tab.setAttribute("aria-pressed", String(tab.dataset.tab === filter.tab));
       }
       kindEl.setAttribute("aria-label", t("threads.kind"));

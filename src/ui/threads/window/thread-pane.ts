@@ -8,6 +8,7 @@ import "./thread-pane.css";
 import type { Thread, ThreadEntry } from "../../../contract";
 import { isWaiting } from "../../../io/threads/threads-waiting";
 import { getLocale, t } from "../../i18n";
+import { glyph } from "../glyphs";
 import { threadSource } from "../thread-source";
 import { type AnswerArea, createAnswerArea } from "./answer-area";
 import { type Draft, draftKey, pruneDrafts } from "./drafts";
@@ -34,7 +35,7 @@ function entryEl(entry: ThreadEntry, source: string, now: number): HTMLElement {
   return el;
 }
 
-const CHECK_SVG = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5"/></svg>`;
+const CHECK_SVG = glyph('<path d="M5 12.5 9.5 17 19 7"/>');
 
 function readButton(onRead: () => void): HTMLButtonElement {
   const el = document.createElement("button");

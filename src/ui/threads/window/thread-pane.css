@@ -53,6 +53,7 @@
   align-items: center;
   gap: 6px;
   min-height: 32px;
+  margin-block: -4px;
   padding: 0 10px;
   border: 1px solid var(--yui-edge-strong);
   border-radius: var(--yui-radius-control);
