@@ -21,7 +21,11 @@ describe("checkFishKey", () => {
   ])("HTTP %s → %s", async (_, status, expected) => {
     const fetchMock = vi.fn<FetchFn>(async () => new Response("{}", { status }));
 
-    const result = await checkFishKey({ baseUrl: BASE_URL, key: "fish-key", fetch: fetchMock as unknown as typeof fetch });
+    const result = await checkFishKey({
+      baseUrl: BASE_URL,
+      key: "fish-key",
+      fetch: fetchMock as unknown as typeof fetch,
+    });
 
     expect(result).toBe(expected);
   });
@@ -29,10 +33,16 @@ describe("checkFishKey", () => {
   it("GETs the model endpoint with the Bearer key", async () => {
     const fetchMock = vi.fn<FetchFn>(async () => new Response("{}", { status: 200 }));
 
-    await checkFishKey({ baseUrl: BASE_URL, key: "fish-key", fetch: fetchMock as unknown as typeof fetch });
+    await checkFishKey({
+      baseUrl: BASE_URL,
+      key: "fish-key",
+      fetch: fetchMock as unknown as typeof fetch,
+    });
 
     expect(fetchMock).toHaveBeenCalledOnce();
-    expect(fetchMock.mock.calls[0]![0]).toBe(`${BASE_URL}/model?self=true&page_size=1&page_number=1`);
+    expect(fetchMock.mock.calls[0]![0]).toBe(
+      `${BASE_URL}/model?self=true&page_size=1&page_number=1`,
+    );
     expect(new Headers(fetchMock.mock.calls[0]![1]?.headers).get("Authorization")).toBe(
       "Bearer fish-key",
     );
@@ -45,10 +55,7 @@ describe("checkFishKey", () => {
         throw new TypeError("network");
       },
     ],
-    [
-      "a deadline timeout",
-      () => new Promise<Response>(() => {}),
-    ],
+    ["a deadline timeout", () => new Promise<Response>(() => {})],
   ])("%s → failed", async (_, fetchImpl) => {
     vi.useFakeTimers();
     try {

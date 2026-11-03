@@ -20,7 +20,9 @@ function defaultVoices(
   }
   for (const key of Object.keys(v)) {
     if (!(VOICE_LOCALES as readonly string[]).includes(key)) {
-      issues.push(`tts_default_voices key must be one of ${VOICE_LOCALES.join(", ")} (got: "${key}")`);
+      issues.push(
+        `tts_default_voices key must be one of ${VOICE_LOCALES.join(", ")} (got: "${key}")`,
+      );
     }
   }
   for (const loc of VOICE_LOCALES) {
@@ -116,7 +118,9 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   const stt_model = optStr("stt_model");
   const stt_language = optStr("stt_language");
   const tts_default_voices =
-    raw.tts_default_voices === undefined ? undefined : defaultVoices(issues, raw.tts_default_voices);
+    raw.tts_default_voices === undefined
+      ? undefined
+      : defaultVoices(issues, raw.tts_default_voices);
   // tts_max_inflight: optional, integer ≥ 1.
   const tts_max_inflight = raw.tts_max_inflight;
   if (

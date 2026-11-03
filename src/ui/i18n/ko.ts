@@ -652,7 +652,8 @@ const ko: Record<string, string> = {
   "start.voice_on": "음성 켜기",
   "start.voice_checking": "키를 확인하는 중…",
   "start.voice_refused": "Fish Audio가 이 키를 받지 않았습니다. 복사한 키를 다시 붙여 넣어 주세요.",
-  "start.voice_failed": "Fish Audio에 연결하지 못했습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.",
+  "start.voice_failed":
+    "Fish Audio에 연결하지 못했습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.",
   "start.voice_later": "나중에 할게요",
   "start.voice_is_on": "음성을 켰습니다. 기본 목소리는 {name}입니다.",
   "start.voice_skipped": "음성은 나중에 음성 탭에서 켤 수 있습니다.",

@@ -4,6 +4,7 @@
  * key writes anything.
  */
 
+import type { createSpeakerSelection } from "../../../../io/voice/voices/speaker-selection";
 import type {
   ApiKeySettingsStore,
   ChatKeySettingsStore,
@@ -15,7 +16,6 @@ import type {
 import type { createProactiveSettings } from "../../../../settings/cues/proactive-settings";
 import type { createScheduleSettings } from "../../../../settings/cues/schedule-settings";
 import type { FlagSettingsStore } from "../../../../settings/persisted-store";
-import type { createSpeakerSelection } from "../../../../io/voice/voices/speaker-selection";
 import { type Locale, t } from "../../../i18n";
 import { CHATKEY_EYE_SVG, GEMINI_KEY_URL, GEMINI_PRESET } from "../../constants";
 import { secHeadHtml } from "../../markup";

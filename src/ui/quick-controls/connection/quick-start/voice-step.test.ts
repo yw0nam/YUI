@@ -10,15 +10,15 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TtsProviderName } from "../../../../contract";
+import { createSpeakerSelection } from "../../../../io/voice/voices/speaker-selection";
 import {
   createVoiceListRefresh,
   wireVoiceListAutoRefresh,
 } from "../../../../io/voice/voices/voice-list-refresh";
-import { createSpeakerSelection } from "../../../../io/voice/voices/speaker-selection";
 import { createTtsKeySettings } from "../../../../settings/backend/api-key-settings";
 import { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
 import { createFlagSettings } from "../../../../settings/persisted-store";
-import { setLocale, type Locale } from "../../../i18n";
+import { type Locale, setLocale } from "../../../i18n";
 import { inMemoryApiKeyStorage } from "../../test-helpers";
 import { createVoiceStep } from "./voice-step";
 
@@ -32,6 +32,7 @@ const REFUSED = "Fish Audio did not accept this key. Paste the key you copied ag
 const FAILED = "Could not reach Fish Audio. Check your internet connection and try again.";
 const IS_ON: Record<Locale, string> = {
   en: "Voice is on. The default voice is Shinobu.",
+  ja: "音声をオンにしました。標準の声は Tokai Teio です。",
   ko: "음성을 켰습니다. 기본 목소리는 Sylvia입니다.",
 };
 
@@ -57,7 +58,6 @@ function setup(
     const o = endpointsSettings.get();
     return {
       tts_base_url: o.tts_base_url,
-      tts_speaker: o.tts_speaker === "" ? undefined : o.tts_speaker,
       tts_provider: (o.tts_provider === "" ? undefined : o.tts_provider) as
         | TtsProviderName
         | undefined,
@@ -166,26 +166,26 @@ describe("createVoiceStep — turning voice on", () => {
     document.body.innerHTML = "";
   });
 
-  it.each<Locale>(["ko", "en"])(
-    "%s: an accepted key writes the Fish provider, URL, model and key, turns TTS on, and makes the language's default voice active",
-    async (locale) => {
-      setLocale(locale);
-      const s = setup();
+  it.each<Locale>([
+    "ko",
+    "en",
+  ])("%s: an accepted key writes the Fish provider, URL, model and key, turns TTS on, and makes the language's default voice active", async (locale) => {
+    setLocale(locale);
+    const s = setup();
 
-      await s.press("fish-key");
+    await s.press("fish-key");
 
-      expect(s.endpointsSettings.get().tts_provider).toBe("fish");
-      expect(s.endpointsSettings.get().tts_base_url).toBe("https://api.fish.audio");
-      expect(s.endpointsSettings.get().tts_model).toBe("s2.1-pro-free");
-      expect(s.ttsKeySettings.get().apiKey).toBe("fish-key");
-      expect(s.ttsSettings.get().enabled).toBe(true);
-      expect(s.speakerSelection.getActiveId()).toBe(VOICES[locale].id);
-      expect(s.speakerSelection.list().some((o) => o.id === VOICES[locale].id)).toBe(true);
-      expect(s.visibleText(".yui-start__voice-is-on")).toEqual([IS_ON[locale]]);
-      expect(s.input.value).toBe("");
-      s.unsubscribe();
-    },
-  );
+    expect(s.endpointsSettings.get().tts_provider).toBe("fish");
+    expect(s.endpointsSettings.get().tts_base_url).toBe("https://api.fish.audio");
+    expect(s.endpointsSettings.get().tts_model).toBe("s2.1-pro-free");
+    expect(s.ttsKeySettings.get().apiKey).toBe("fish-key");
+    expect(s.ttsSettings.get().enabled).toBe(true);
+    expect(s.speakerSelection.getActiveId()).toBe(VOICES[locale].id);
+    expect(s.speakerSelection.list().some((o) => o.id === VOICES[locale].id)).toBe(true);
+    expect(s.visibleText(".yui-start__voice-is-on")).toEqual([IS_ON[locale]]);
+    expect(s.input.value).toBe("");
+    s.unsubscribe();
+  });
 
   it("an empty key shows the need-key line and sends no request", async () => {
     const s = setup();
