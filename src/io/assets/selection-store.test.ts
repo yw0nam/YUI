@@ -383,14 +383,28 @@ describe("createSelectionStore", () => {
     store.subscribe(cb);
 
     store.select("ghost");
-    store.select("a");
     expect(storage._data).toBeNull();
+    store.select("a");
+    expect(storage._data).toBe("a");
     expect(cb).not.toHaveBeenCalled();
 
     store.select("b");
     store.select("b");
     expect(storage._data).toBe("b");
     expect(cb).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a pick that was already the resolved one when a later manifest lists other options first", () => {
+    const storage = makeMemStorage();
+    const userStorage = makeMemUserStorage();
+    const store = makeStore({ available: [], defaultValue: "", storage, userStorage });
+    store.addUserOption({ id: "mine", url: "/mine.res", source: "user" });
+    expect(store.getActiveId()).toBe("mine");
+
+    store.select("mine");
+    store.setManifest({ available: SAMPLE, defaultValue: "" });
+
+    expect(store.getActiveId()).toBe("mine");
   });
 
   it("reloads an external reset and preserves state when override storage throws", () => {
