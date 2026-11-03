@@ -29,9 +29,11 @@ The purpose and assertion principles apply to TypeScript, Rust (`#[test]` under 
 7. For new behaviour, the `test:` commit fails when run on its own, before the `feat:` or `fix:` commit. A bug fix that ships a test shows that test failing without the fix; `CONTRIBUTING.md` § Tests accompany behavior says which fixes ship one.
 8. A test added to behaviour that already works is shown failing: change the production line its path takes in a throwaway worktree, watch the test fail, restore the line. The PR body names that line.
 
+`bash scripts/red-run.sh <test-commit>` runs the files a `test:` commit adds or changes at that commit, in a throwaway worktree, and names every added case that already passes there; each one it names needs rule 8.
+
 ## Existing tests
 
-9. An existing test is never deleted, skipped, or loosened to turn a run green. When behaviour changes on purpose, the PR summary lists each changed assertion and its reason. A test that meets § What a test is for may always be written. A PR that touches a test file repairs or folds its blocks while preserving coverage of every distinct behaviour and contract, and deletes a block that pins neither; a failing assertion is never removed in place of fixing the behaviour or revising its contract on purpose. The PR summary lists each deleted block with its reason.
+9. An existing test is never deleted, skipped, or loosened to turn a run green. A test that pins a repo-wide rule carries a `rule-test:` comment line, and the `rule-tests` CI step fails a PR that edits it unless the PR carries the `rule-change` label. When behaviour changes on purpose, the PR summary lists each changed assertion and its reason. A test that meets § What a test is for may always be written. A PR that touches a test file repairs or folds its blocks while preserving coverage of every distinct behaviour and contract, and deletes a block that pins neither; a failing assertion is never removed in place of fixing the behaviour or revising its contract on purpose. The PR summary lists each deleted block with its reason.
 
 ## Mocks and outside services
 
