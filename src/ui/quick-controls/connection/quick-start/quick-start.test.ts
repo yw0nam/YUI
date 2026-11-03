@@ -247,17 +247,13 @@ describe("createQuickStart — the state it reads from the stores", () => {
     expect(s.el(".yui-start__own").hidden).toBe(true);
   });
 
-  it("falls back to the setup state and the warning when the server changes", () => {
-    const s = setup();
-    s.endpointsSettings.set({ chat_base_url: GEMINI_PRESET.url });
-    s.chatKeySettings.setApiKey("AIza-good");
-    s.page.reflect();
+  it("warns about the bundled config's server when no URL is stored", () => {
+    const s = setup(undefined, { getEndpointDefaults: () => ({ chat_base_url: OWN_SERVER_URL }) });
+    s.endpointsSettings.set({ chat_base_url: "" });
 
-    s.endpointsSettings.set({ chat_base_url: OWN_SERVER_URL });
     s.page.reflect();
 
     expect(s.el(".yui-start__setup").hidden).toBe(false);
-    expect(s.el(".yui-start__connected").hidden).toBe(true);
     expect(s.el(".yui-start__own").hidden).toBe(false);
   });
 
