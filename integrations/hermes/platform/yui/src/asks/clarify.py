@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 
 MAX_CHOICES = 6
 MAX_LABEL_CODE_POINTS = 64
-MAX_PLACEHOLDER_CODE_POINTS = 200
 
 
 def cut(text: str, limit: int) -> str:
@@ -35,9 +34,9 @@ def clarify_ask(question: str, choices: list[str] | None, clarify_id: str) -> tu
             ]
         if len(choices) > MAX_CHOICES or any(len(c) > MAX_LABEL_CODE_POINTS for c in choices):
             body["prompt"] += "\n\n" + "\n".join(f"{i}. {c}" for i, c in enumerate(choices, 1))
-        # The pills say how to answer one pick; only a multi-select question needs Hermes's hint.
+        # The pills say how to answer one pick; a multi-select question carries Hermes's hint as body text, where it wraps.
         if multi:
-            body["placeholder"] = cut(t("gateway.clarify.hint_multi"), MAX_PLACEHOLDER_CODE_POINTS)
+            body["prompt"] += "\n\n" + t("gateway.clarify.hint_multi")
 
     def resolve(choice: str | None, text: str | None) -> None:
         if choice is not None:
