@@ -625,7 +625,7 @@ globalThis.YUI_MAP =
       "id": "asks-clarify",
       "from": "asks/asks",
       "to": "gateway",
-      "carries": "tools.clarify_gateway: resolve_gateway_clarify, mark_awaiting_text, get_pending, _coerce_text_response",
+      "carries": "tools.clarify_gateway: resolve_gateway_clarify, mark_awaiting_text, get_pending, _coerce_text_response; tools.clarify_tool: strip_recommended",
       "kind": "call",
       "transport": "push"
     },
