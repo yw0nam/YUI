@@ -35,6 +35,22 @@
   width: 100%;
 }
 
+/* ── Ask slot ──
+   As wide as the input and above its one-line place (44px tall, then the bubble's 12px gap), open or
+   not; its top at 30% keeps the card off the face, and a taller card scrolls its choices to fit. */
+.yui-ask-slot {
+  position: absolute;
+  top: 30%;
+  bottom: calc(var(--yui-input-bottom, 4%) + 56px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(42ch, 84%);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
 /* prefers-reduced-motion: soften transitions to opacity-only, drop choreography (principle ⑤) */
 @media (prefers-reduced-motion: reduce) {
   .yui-bubble,

@@ -1,0 +1,67 @@
+/* The pet window's Ask card. Tokens in ../tokens.css. */
+
+.yui-ask-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--yui-edge-strong);
+  border-radius: var(--yui-radius-group);
+  background: var(--yui-scrim-strong);
+  box-shadow: var(--yui-float);
+  color: var(--yui-text);
+  pointer-events: auto;
+  animation: yui-ask-card-in var(--yui-dur) var(--yui-ease);
+}
+
+.yui-ask-card[hidden] {
+  display: none;
+}
+
+/* The answer area's container rules, as the thread pane sets them, without the pane's chrome. */
+.yui-ask-card .yui-threads-answer {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  gap: 10px;
+  padding: 0;
+  border-top: 0;
+  background: none;
+}
+
+.yui-ask-card .yui-threads-answer__prompt {
+  flex: 1 1 0;
+}
+
+/* The Enter hint takes its own line under the prompt and the time left. */
+.yui-ask-card .yui-threads-answer__head small {
+  flex-basis: 100%;
+  order: 1;
+}
+
+.yui-ask-card__timer {
+  flex: none;
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-sub);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes yui-ask-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@keyframes yui-ask-card-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-ask-card {
+    animation-name: yui-ask-card-fade;
+  }
+}
