@@ -22,9 +22,9 @@ Once Quick start has connected, the voice step under its done line takes a Fish 
 
 ### When a line cannot be spoken
 
-If a line cannot be spoken (a deleted voice, an expired key, or a quota limit), the speech bubble shows **Can't speak with this voice · Choose another** under the line. It appears once per pet window run, and its action opens the **Voice** page.
+If part of her reply cannot be spoken (a deleted voice, an expired key, or a quota limit), the speech bubble shows **Can't speak with this voice · Choose another** under that reply once it ends. It appears once per pet window run, and its action opens the **Voice** page.
 
-While the unified chat window shows, the pet bubble is hidden, so a failure then does not use up the action: the next failure after the window closes shows it.
+A thinking phrase or the greeting that cannot be spoken shows nothing. A reply that fails while the unified chat window shows, which hides the pet bubble, does not use up the action either: the next failed reply shows it.
 
 ## Listen
 

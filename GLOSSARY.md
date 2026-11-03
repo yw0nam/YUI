@@ -243,7 +243,7 @@ The card's `first_mes` or one of its `alternate_greetings`, performed by the cli
 _Avoid_: first message, opener
 
 **Default voice**:
-The Fish Audio voice that Quick start's voice step adds to the voice list and selects for the app language, from `tts_default_voices` in `configs/endpoints.json`. Picked once, when voice is turned on; a later language change keeps it. Not `tts_speaker`, the voice in use until another is picked.
+The Fish Audio voice that Quick start's voice step adds to the voice list and selects for the app language, from `tts_default_voices` in `configs/endpoints.json`. Picked once, when voice is turned on; a later language change keeps it. Not `tts_speaker`, the configured voice the client starts with until another is picked.
 _Avoid_: starter voice, fallback voice
 
 **Quick start**:

@@ -2036,7 +2036,7 @@ globalThis.YUI_MAP =
       "id": "synth-failure",
       "from": "io/voice/tts",
       "to": "app/turn",
-      "carries": "onSynthFailure() when a sentence's synthesis fails and is not a skip → the filler's onSynthFailure, then each synth failure listener",
+      "carries": "onSynthFailure(tracked) when a sentence's synthesis fails and is not a skip → the filler's onSynthFailure always, the synth failure listeners only for a backend utterance's sentence (tracked)",
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
@@ -2045,7 +2045,7 @@ globalThis.YUI_MAP =
       "id": "synth-failure-notice",
       "from": "app/turn",
       "to": "ui/surfaces",
-      "carries": "showSpeechActions([\"Can't speak with this voice · Choose another\"]) on the first synth failure of a pet window run; skipped while the unified chat window shows, which leaves the notice armed",
+      "carries": "showSpeechActions([\"Can't speak with this voice · Choose another\"]) when a reply with a failed sentence ends (onUtteranceEnd), once per pet window run; a greeting, or a reply while the unified chat window shows, leaves the notice armed",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/turn/voice/wire-synth-failure-notice.ts"
