@@ -29,7 +29,7 @@ function seededFiller(over: Partial<FillerSettings> = {}): FillerSettingsStore {
 function buildRoot(fillerSettings: FillerSettingsStore): HTMLElement {
   const root = document.createElement("div");
   root.innerHTML = buildPanelHtml({
-    showFirstConversation: false,
+    openOnQuickStart: false,
     hasSession: false,
     switchRows: createSwitchRows({
       idleThrottleSettings: createFlagSettings(false),

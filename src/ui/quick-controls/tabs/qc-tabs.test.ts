@@ -98,45 +98,65 @@ describe("createQuickControls — tab rail", () => {
     qc.dispose();
   });
 
-  it("lands on First conversation while chat is unconfigured", () => {
-    const qc = buildQc({ showFirstConversation: true });
+  it("opens on Connection with Quick start shown while chat is unconfigured", () => {
+    const qc = buildQc({ openOnQuickStart: true });
     qc.open();
 
-    const first = tabs(qc)[0]!;
-    expect(first.id).toBe("yui-tab-first");
-    expect(first.getAttribute("aria-selected")).toBe("true");
-    expect(first.tabIndex).toBe(0);
-    expect(qc.selectedTab()).toBe("first");
-    expect(panelFor(qc, first).hidden).toBe(false);
+    const conn = tabs(qc)[0]!;
+    expect(conn.id).toBe("yui-tab-conn");
+    expect(conn.getAttribute("aria-selected")).toBe("true");
+    expect(conn.tabIndex).toBe(0);
+    expect(qc.selectedTab()).toBe("conn");
+    expect(panelFor(qc, conn).hidden).toBe(false);
+    expect(qc.el.querySelector<HTMLElement>('.yui-conn-view[data-view="quick"]')?.hidden).toBe(
+      false,
+    );
+    expect(qc.el.querySelector<HTMLElement>('.yui-conn-view[data-view="detail"]')?.hidden).toBe(
+      true,
+    );
     expect(qc.el.querySelector<HTMLElement>("#yui-panel-persona")?.hidden).toBe(true);
 
     qc.dispose();
   });
 
-  it("leaves the First conversation page out otherwise", () => {
+  it("leaves the rail without a first-conversation page and opens on persona otherwise", () => {
     const qc = buildQc();
     qc.open();
 
     expect(qc.el.querySelector("#yui-tab-first")).toBeNull();
     expect(qc.el.querySelector("#yui-panel-first")).toBeNull();
-
-    // A not_configured fix asks for the page; the panel stays where it was.
-    qc.open({ tab: "first" });
     expect(qc.selectedTab()).toBe("persona");
 
     qc.dispose();
   });
 
-  it("the First conversation page reports a confirmed key", async () => {
+  it("selecting Connection shows Detailed settings", () => {
+    const qc = buildQc();
+    qc.open();
+
+    qc.el.querySelector<HTMLButtonElement>("#yui-tab-conn")!.click();
+
+    expect(qc.selectedTab()).toBe("conn");
+    expect(qc.el.querySelector<HTMLElement>('.yui-conn-view[data-view="detail"]')?.hidden).toBe(
+      false,
+    );
+    expect(qc.el.querySelector<HTMLElement>('.yui-conn-view[data-view="quick"]')?.hidden).toBe(
+      true,
+    );
+
+    qc.dispose();
+  });
+
+  it("Quick start reports a confirmed key", async () => {
     const onFirstConversationConnected = vi.fn();
     const qc = buildQc({
-      showFirstConversation: true,
+      openOnQuickStart: true,
       onFirstConversationConnected,
       getFetch: async () => async () =>
         new Response(JSON.stringify({ data: [{ id: "m" }] }), { status: 200 }),
     });
     qc.open();
-    const panel = qc.el.querySelector<HTMLElement>("#yui-panel-first")!;
+    const panel = qc.el.querySelector<HTMLElement>('.yui-conn-view[data-view="quick"]')!;
     expect(panel).not.toBeNull();
     const button = (name: string) =>
       [...panel.querySelectorAll("button")].find((b) => b.textContent === name)!;
@@ -262,7 +282,6 @@ describe("createQuickControls — tab rail", () => {
   it("open({ tab }) reaches every tab the tablist renders, hist closing the character's pages", () => {
     // The tab union is the panel's public vocabulary — it must not omit a rendered tab.
     const names: SettingsPage[] = [
-      "first",
       "conn",
       "voice",
       "persona",
@@ -281,7 +300,7 @@ describe("createQuickControls — tab rail", () => {
     const qc = buildQc({
       transcript: createChatHistoryStore(),
       plugins: { host, manage },
-      showFirstConversation: true,
+      openOnQuickStart: true,
     });
     expect(tabs(qc).map((tab) => tab.id)).toEqual(names.map((name) => `yui-tab-${name}`));
 
