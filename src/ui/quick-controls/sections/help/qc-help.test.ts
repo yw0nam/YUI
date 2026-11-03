@@ -53,4 +53,16 @@ describe("createQuickControls — help section", () => {
 
     qc.dispose();
   });
+
+  it("the General page's Help group holds no replay row", () => {
+    const qc = createQuickControls({ ...defaultQcArgs(mount), onGuide });
+    qc.open();
+
+    const helpSection = qc.el.querySelector<HTMLElement>("#yui-panel-general .yui-sec")!;
+
+    expect(helpSection.querySelectorAll(".yui-row")).toHaveLength(2);
+    expect(helpSection.querySelector(".yui-start__replay")).toBeNull();
+
+    qc.dispose();
+  });
 });
