@@ -4,6 +4,7 @@
  * preset, the key, TTS on, and the app language's default voice as the active speaker.
  */
 
+import type { EndpointsConfig } from "../../../../contract";
 import { checkFishKey, type FishKeyCheck } from "../../../../io/voice/voices/fish-key-check";
 import type { createSpeakerSelection } from "../../../../io/voice/voices/speaker-selection";
 import type { ApiKeySettingsStore } from "../../../../settings/backend/api-key-settings";
@@ -12,9 +13,9 @@ import type {
   EndpointOverrides,
 } from "../../../../settings/backend/endpoints-settings";
 import type { FlagSettingsStore } from "../../../../settings/persisted-store";
-import { getLocale, type Locale, t } from "../../../i18n";
+import { getLocale, t } from "../../../i18n";
 import { CHATKEY_EYE_SVG, FISH_KEY_URL, FISH_PRESET } from "../../constants";
-import { secHeadHtml } from "../../markup";
+import { keyLinkHtml, secHeadHtml } from "../../markup";
 import { ICON_WARN } from "../../plugins/plugin-parts";
 import { toggleKeyReveal } from "../../sections/key-row/key-row";
 import "./quick-start.css";
@@ -30,13 +31,8 @@ interface VoiceStepDeps {
   ttsSettings: Pick<FlagSettingsStore, "setEnabled">;
   speakerSelection: Pick<SpeakerSelectionStore, "list" | "addUserOption" | "select">;
   /** The Fish voice per app language, from the bundled config; undefined hides the section. */
-  getDefaultVoices: () => Record<Locale, { id: string; name: string }> | undefined;
+  getDefaultVoices: () => NonNullable<EndpointsConfig["tts_default_voices"]> | undefined;
   getFetch: () => Promise<typeof globalThis.fetch | undefined>;
-}
-
-// Tauri's opener plugin opens target=_blank anchors; WebKit's plain Tab skips links without a tabindex.
-function fishLinkHtml(labelKey: string, className: string): string {
-  return `<a class="yui-chat-type__link ${className}" href="${FISH_KEY_URL}" target="_blank" rel="noopener noreferrer" tabindex="0">${t(labelKey)}</a>`;
 }
 
 function pageHtml(): string {
@@ -51,7 +47,7 @@ function pageHtml(): string {
               <span class="yui-row__label">${t("start.voice_make_label")}</span>
               <span class="yui-row__sub">${t("start.voice_make_sub")}</span>
             </div>
-            ${fishLinkHtml("start.voice_make_link", "yui-start__voice-link")}
+            ${keyLinkHtml(FISH_KEY_URL, "start.voice_make_link", "yui-start__voice-link")}
           </div>
           <div class="yui-row yui-chatkey yui-start__voice-paste">
             <div class="yui-row__main">
@@ -64,7 +60,7 @@ function pageHtml(): string {
             </div>
             <button class="yui-pill yui-pill--ok yui-start__voice-turn" type="button">${t("start.voice_on")}</button>
             <p class="yui-start__voice-checking" role="status" hidden><i class="yui-start__dot"></i>${t("start.voice_checking")}</p>
-            <div class="yui-start__err yui-start__voice-err" role="alert" hidden>${ICON_WARN}<div><span class="yui-start__err-text"></span> ${fishLinkHtml("start.reopen", "yui-start__voice-reopen")}</div></div>
+            <div class="yui-start__err yui-start__voice-err" role="alert" hidden>${ICON_WARN}<div><span class="yui-start__err-text"></span> ${keyLinkHtml(FISH_KEY_URL, "start.reopen", "yui-start__voice-reopen")}</div></div>
           </div>
         </div>
         <button class="yui-link-btn yui-start__voice-later" type="button">${t("start.voice_later")}</button>
@@ -97,7 +93,7 @@ export function createVoiceStep(deps: VoiceStepDeps): {
   const skippedLine = el.querySelector<HTMLElement>(".yui-start__voice-skipped")!;
   const configured = el.querySelector<HTMLElement>(".yui-start__voice-configured")!;
 
-  // A completion after dispose or after a newer press writes nothing.
+  // A completion after dispose, a newer press or "Maybe later" writes nothing.
   let seq = 0;
   let disposed = false;
   // The ok path showed voice_is_on in this window; a later reflect keeps it over voice_configured.
@@ -190,6 +186,7 @@ export function createVoiceStep(deps: VoiceStepDeps): {
     else void press();
   };
   const onLater = () => {
+    seq++;
     skipped = true;
     reflect();
   };

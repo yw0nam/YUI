@@ -22,7 +22,8 @@ export interface TtsPipelineOptions {
   // Fires once when each sentence starts playing (or on synth-failure skip). null = no cue for this sentence.
   onCuePlay?: (cue: ExpressArgs | null) => void;
   // Fires when a sentence's synth rejects for real (TTS_SKIP does not count) — the synth request failed.
-  onSynthFailure?: () => void;
+  // `tracked` is the sentence's pushTextDelta flag: backend speech, not a client-side phrase.
+  onSynthFailure?: (tracked: boolean) => void;
   // Concurrent-synth cap. Default 1 = serial. The function form is evaluated per drain, reading config lazily.
   maxInflight?: number | (() => number);
   // Held from an utterance's first played sentence to its completion boundary.
@@ -172,7 +173,7 @@ export function createTtsPipeline(options: TtsPipelineOptions): TtsPipeline {
           } else {
             log.error("synth", { index, error: String(err) });
             // Before pump, so a listener that suppresses rescheduling wins over this index's onPlaybackEnd.
-            options.onSynthFailure?.();
+            options.onSynthFailure?.(entries.get(index)?.tracked === true);
           }
           failed.add(index);
           drainSynth();

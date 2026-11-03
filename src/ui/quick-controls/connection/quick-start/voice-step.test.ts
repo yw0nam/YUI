@@ -5,10 +5,11 @@
  * reflect: an empty effective TTS URL shows the step, a configured one shows the configured line,
  * and a missing default-voice table hides the section. Turning on: an empty key asks for one, an
  * accepted key writes the Fish provider, the key and TTS on, and makes the language's default
- * voice active; a refused or failed check writes nothing. A completion after dispose writes nothing.
+ * voice active; a refused or failed check writes nothing. A completion after dispose or after
+ * Maybe later writes nothing.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TtsProviderName } from "../../../../contract";
 import { createSpeakerSelection } from "../../../../io/voice/voices/speaker-selection";
 import {
@@ -28,6 +29,8 @@ const VOICES = {
   ko: { id: "79a8364e57844ba5a463dbf3d29ce99c", name: "Sylvia" },
 };
 const IRODORI_VOICE_ID = "irodori-tts";
+// The account's one own model, as Fish's /model?self=true lists it.
+const OWN_MODEL = { _id: "5f0c1e7a9b2d4c6e8a1b3d5f7e9c2a4b", title: "My voice" };
 const REFUSED = "Fish Audio did not accept this key. Paste the key you copied again.";
 const FAILED = "Could not reach Fish Audio. Check your internet connection and try again.";
 const IS_ON: Record<Locale, string> = {
@@ -35,6 +38,20 @@ const IS_ON: Record<Locale, string> = {
   ja: "音声をオンにしました。標準の声は Tokai Teio です。",
   ko: "음성을 켰습니다. 기본 목소리는 Sylvia입니다.",
 };
+
+// The voice-list refresh outside Tauri falls back to the global fetch, and may run past its test.
+beforeAll(() => {
+  vi.stubGlobal(
+    "fetch",
+    async () =>
+      new Response(JSON.stringify({ total: 1, has_more: false, items: [OWN_MODEL] }), {
+        status: 200,
+      }),
+  );
+});
+afterAll(() => {
+  vi.unstubAllGlobals();
+});
 
 const settle = () => new Promise<void>((r) => setTimeout(r, 0));
 const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
@@ -174,6 +191,10 @@ describe("createVoiceStep — turning voice on", () => {
     const s = setup();
 
     await s.press("fish-key");
+    // The refresh the provider switch starts has listed the account's model and committed it.
+    await vi.waitFor(() =>
+      expect(s.speakerSelection.list().map((o) => o.id)).toContain(OWN_MODEL._id),
+    );
 
     expect(s.endpointsSettings.get().tts_provider).toBe("fish");
     expect(s.endpointsSettings.get().tts_base_url).toBe("https://api.fish.audio");
@@ -244,7 +265,10 @@ describe("createVoiceStep — turning voice on", () => {
     s.unsubscribe();
   });
 
-  it("an ok resolved after dispose writes nothing", async () => {
+  it.each<[string, (s: ReturnType<typeof setup>) => void]>([
+    ["dispose", (s) => s.step.dispose()],
+    ["Maybe later", (s) => s.el(".yui-start__voice-later").click()],
+  ])("an ok resolved after %s writes nothing", async (_, interrupt) => {
     let respond: (res: Response) => void = () => {};
     const s = setup(
       () =>
@@ -256,7 +280,8 @@ describe("createVoiceStep — turning voice on", () => {
     await settle();
     s.input.value = "fish-key";
     s.on.click();
-    s.step.dispose();
+    await settle();
+    interrupt(s);
     respond(new Response("{}", { status: 200 }));
     await settle();
     await settle();

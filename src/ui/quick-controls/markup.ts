@@ -19,6 +19,11 @@ export function secHeadHtml(title: string, aside = ""): string {
   return `<div class="yui-sec__head"><h2 class="yui-sec__title">${title}</h2>${aside}</div>`;
 }
 
+// Key page link: Tauri's opener opens target=_blank; WebKit's plain Tab skips links without a tabindex.
+export function keyLinkHtml(url: string, labelKey: string, className: string): string {
+  return `<a class="yui-chat-type__link ${className}" href="${url}" target="_blank" rel="noopener noreferrer" tabindex="0">${t(labelKey)}</a>`;
+}
+
 // Select row — label on the left, the control markup (a select, its wrapper, a description line) after it.
 export function selectRowHtml(id: string, labelKey: string, controlHtml: string): string {
   return `

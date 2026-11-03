@@ -386,6 +386,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     register(
       wireSynthFailureNotice({
         onSynthFailure: voice.onSynthFailure,
+        onUtteranceEnd: voice.onUtteranceEnd,
         surfaces,
         openSettings: phase1.openSettings,
         isUnifiedShown: () => phase1.unifiedShown.get(),

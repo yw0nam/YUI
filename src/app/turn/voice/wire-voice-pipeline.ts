@@ -83,7 +83,7 @@ export interface VoicePipeline {
    * unreachable pool); every other reason is a no-op. Sibling to turnOutput so bootstrap's
    * onUserTurnFailed stays a one-liner regardless of the existing inline/voice error routing. */
   speakFailure: (reason: TurnFailure) => void;
-  /** Notifies on a sentence's synth rejection that is not a TTS_SKIP. Returns an unsubscribe. */
+  /** Notifies on a backend utterance sentence's synth rejection that is not a TTS_SKIP. Returns an unsubscribe. */
   onSynthFailure(cb: () => void): () => void;
   /** A stroll ended while a turn is still thinking — the thinking loop takes the body back. */
   resumeThinking: () => void;
@@ -185,7 +185,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
   // the loop's next iteration — mutual reference, break the cycle with a forward let.
   let fillerLoop: FillerLoop | undefined;
   // Listeners registered through the VoicePipeline interface, notified beside the filler loop's
-  // own degradation, only for real synth rejections (TTS_SKIP does not reach them).
+  // own degradation, only for real synth rejections of backend speech (not filler or TTS_SKIP).
   const synthFailureListeners = new Set<() => void>();
   // Id of the turn owning current thinking — late onThinkingEnd of an overtaken turn must not
   // clean up the single fillerLoop/motion, so ignore it when the id differs.
@@ -205,9 +205,9 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
       synth,
       // A dead TTS server would otherwise be retried once per gap for the whole thinking window.
       // Response-speech failures share the signal; the next thinking start clears it either way.
-      onSynthFailure: () => {
+      onSynthFailure: (tracked) => {
         fillerLoop?.onSynthFailure();
-        for (const cb of [...synthFailureListeners]) cb();
+        if (tracked) for (const cb of [...synthFailureListeners]) cb();
       },
     },
   });
