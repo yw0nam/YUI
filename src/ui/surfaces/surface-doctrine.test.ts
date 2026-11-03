@@ -382,10 +382,26 @@ describe("surfaces.css — the box's floor stays under its cap, and its cap over
       /--yui-bubble-max-h:\s*max\(34vh, var\(--yui-bubble-three-lines\)\);/,
     );
     expect(
-      extractBlock(read("surfaces.css"), ".yui-bubble.is-above-input .yui-bubble__box"),
+      extractBlock(read("surfaces.css"), ".yui-bubble.is-above-input .yui-bubble__scroll"),
     ).toMatch(
-      /max-height:\s*max\(min\(var\(--yui-bubble-max-h, 34vh\), 28vh\), var\(--yui-bubble-three-lines\)\);/,
+      /max-height:\s*calc\(\s*max\(min\(var\(--yui-bubble-max-h, 34vh\), 28vh\), var\(--yui-bubble-three-lines\)\)\s*-\s*56px\s*\);/,
     );
+  });
+
+  // The actions sit under the scroller, so a cap on the box would let them squeeze the text to nothing.
+  it("caps the scroller, net of the box's 56px vertical padding, and leaves the box uncapped", () => {
+    const c = read("surfaces.css");
+    expect(extractBlock(c, ".yui-bubble__box")).not.toMatch(/max-height/);
+    expect(extractBlock(c, ".yui-bubble__scroll")).toMatch(
+      /max-height:\s*calc\(var\(--yui-bubble-max-h, 34vh\) - 56px\);/,
+    );
+    expect(extractBlock(c, ".yui-bubble.is-above-input .yui-bubble__box")).not.toMatch(
+      /max-height/,
+    );
+    const message = read("../message/message-window.css");
+    expect(
+      extractBlock(message, ".yui-ui--message .yui-bubble.is-above-input .yui-bubble__scroll"),
+    ).toMatch(/max-height:\s*calc\(var\(--yui-bubble-max-h, 34vh\) - 56px\);/);
   });
 });
 
