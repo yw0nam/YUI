@@ -100,7 +100,10 @@ it("sizes the field to its text, and an empty field to one line whatever its pla
   vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => frames.push(cb));
   // jsdom lays nothing out; an empty field's scrollHeight counts its wrapped placeholder in Chromium.
   vi.spyOn(HTMLTextAreaElement.prototype, "scrollHeight", "get").mockReturnValue(89);
-  const { field, type } = build({ ...ASK, placeholder: "Reply with the number, the option text, or your own answer." });
+  const { field, type } = build({
+    ...ASK,
+    placeholder: "Reply with the number, the option text, or your own answer.",
+  });
   for (const frame of frames) frame(0);
   const empty = field!.style.height;
   type("two\nlines");
