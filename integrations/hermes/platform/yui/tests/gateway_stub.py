@@ -94,6 +94,37 @@ class MessageEvent:
 
 
 @dataclass
+class ExecApprovalPrompt:
+    chat_id: str
+    session_key: str
+    text: str
+    actions: list[tuple[str, str, str]]
+    command: str
+    description: str
+    smart_denied: bool
+    metadata: dict | None = None
+    request_id: str | None = None
+
+    @property
+    def choices(self) -> list[str]:
+        return [choice for _, choice, _ in self.actions]
+
+
+APPROVAL_RESOLVED: list[tuple[str, str, str | None]] = []
+APPROVAL_OBSERVERS: dict[tuple[str, str], object] = {}
+
+
+def resolve_gateway_approval(session_key, choice, *, request_id=None):
+    APPROVAL_RESOLVED.append((session_key, choice, request_id))
+    return 1
+
+
+def observe_gateway_settle(session_key, request_id, observer):
+    APPROVAL_OBSERVERS[session_key, request_id] = observer
+    return True
+
+
+@dataclass
 class SendResult:
     success: bool
     message_id: str | None = None
@@ -122,6 +153,9 @@ class BasePlatformAdapter:
         self._message_handler = object()  # truthy: the real base drops events without one
         # The real base holds an interrupt Event per busy session; tests only ask who is in here.
         self._active_sessions: dict[str, object] = {}
+
+    async def _send_exec_approval_prompt(self, prompt) -> SendResult:
+        return SendResult(success=False, error="Not supported")
 
     @property
     def name(self) -> str:
@@ -296,6 +330,7 @@ def install_stubs() -> None:
     base = types.ModuleType("gateway.platforms.base")
     base.BasePlatformAdapter = BasePlatformAdapter
     base.SendResult = SendResult
+    base.ExecApprovalPrompt = ExecApprovalPrompt
     base.cache_image_from_bytes_async = cache_image_from_bytes_async
     event = types.ModuleType("gateway.platforms.event")
     event.MessageEvent = MessageEvent
@@ -309,6 +344,11 @@ def install_stubs() -> None:
     slash_confirm.register = SLASH_CONFIRM.register
     slash_confirm.get_pending = SLASH_CONFIRM.get_pending
     slash_confirm.resolve = SLASH_CONFIRM.resolve
+    exec_approval = types.ModuleType("gateway.platforms.base_exec_approval")
+    exec_approval.approval_timeout_seconds = lambda: 300
+    approval = types.ModuleType("tools.approval")
+    approval.resolve_gateway_approval = resolve_gateway_approval
+    approval.observe_gateway_settle = observe_gateway_settle
     sys.modules.update(
         {
             "gateway": gateway,
@@ -318,6 +358,8 @@ def install_stubs() -> None:
             "gateway.platforms.event": event,
             "gateway.session_context": session_context,
             "tools": tools,
+            "tools.approval": approval,
+            "gateway.platforms.base_exec_approval": exec_approval,
             "tools.slash_confirm": slash_confirm,
         }
     )
