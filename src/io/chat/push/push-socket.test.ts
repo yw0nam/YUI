@@ -1578,7 +1578,7 @@ describe("push socket asks", () => {
     FakeSocket.last().push({ type: "ask", expires_at: 1793690000000, ...patch });
 
     expect(seen).toEqual([]);
-    expect(logger.warn).toHaveBeenCalledWith("ask_malformed", { field });
+    expect(logger.warn).toHaveBeenCalledWith("frame_malformed", { type: "ask", field });
   });
 
   it("hands an ask_end to onAskEnd, and drops one without a usable ask_id", async () => {
