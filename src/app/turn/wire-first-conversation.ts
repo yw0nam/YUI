@@ -1,5 +1,5 @@
-/** After the First conversation page connects: the greeting, then the input, then the controls hint. */
-import type { UtteranceIdentity } from "../../contract";
+/** After the First conversation page connects: the greeting, then the input, then the controls hint with the guides. */
+import type { GuideKey, UtteranceIdentity } from "../../contract";
 import type { createChatHistoryStore } from "../../io/chat/conversation/chat-history-store";
 import { TYPE_MS_PER_CHAR } from "../../ui/message/typewriter";
 import { type FirstRunHintDeps, maybeShowFirstRunHint } from "../../ui/notices/first-run-hint";
@@ -16,6 +16,7 @@ export function wireFirstConversation(
     transcript: Pick<ReturnType<typeof createChatHistoryStore>, "entriesAfterLastBoundary">;
     /** A turn is running, so the hint would overwrite its reply. */
     isBusy: () => boolean;
+    submitGuide: (guide: GuideKey, text: string) => void;
   },
 ): { dispose: () => void } {
   let stopWaiting: (() => void) | null = null;
@@ -28,7 +29,19 @@ export function wireFirstConversation(
     }, ms);
   };
 
-  const showHint = (): void => void maybeShowFirstRunHint({ ...deps, chatConfigured: true });
+  const showHint = (): void => {
+    if (!maybeShowFirstRunHint({ ...deps, chatConfigured: true })) return;
+    deps.surfaces.showSpeechActions([
+      {
+        label: deps.t("help.controls.hear"),
+        onClick: () => deps.submitGuide("controls", deps.t("help.controls.request")),
+      },
+      {
+        label: deps.t("help.capabilities.hear"),
+        onClick: () => deps.submitGuide("capabilities", deps.t("help.capabilities.request")),
+      },
+    ]);
+  };
 
   const stopWaitingForGreeting = (): void => {
     stopWaiting?.();

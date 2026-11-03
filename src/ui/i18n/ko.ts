@@ -138,6 +138,8 @@ const ko: Record<string, string> = {
   "help.capabilities.sub": "이 앱으로 유이와 함께 할 수 있는 일을 소개합니다.",
   "help.capabilities.request": "YUI로 뭘 할 수 있는지 알려줘",
   "help.ask": "물어보기",
+  "help.controls.hear": "조작법 듣기",
+  "help.capabilities.hear": "할 수 있는 일 듣기",
   "devtools.label": "개발자 도구",
   "devtools.sub": "전송 컨텍스트와 모션 미리보기",
   "devtools.open": "열기",

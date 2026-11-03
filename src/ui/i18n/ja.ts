@@ -139,6 +139,8 @@ const ja: Record<string, string> = {
   "help.capabilities.sub": "このアプリでユイと一緒にできることを紹介します。",
   "help.capabilities.request": "YUIで何ができるか教えて",
   "help.ask": "聞いてみる",
+  "help.controls.hear": "操作方法を聞く",
+  "help.capabilities.hear": "できることを聞く",
   "devtools.label": "開発者ツール",
   "devtools.sub": "送信コンテキストとモーションを確認",
   "devtools.open": "開く",

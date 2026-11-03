@@ -376,6 +376,7 @@ const realFactories: ConfiguredBootstrapFactories = {
         greetLocal: greeting.greetLocal,
         transcript: phase1.conversation.chatHistoryStore,
         isBusy: dispatcher.isPipelineBusy,
+        submitGuide: phase1.userInput.submitGuide,
       }).dispose,
     );
 
