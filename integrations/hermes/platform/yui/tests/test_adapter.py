@@ -2757,7 +2757,9 @@ async def command_confirmation(client, adapter):
     session = adapter._event_session_key(event)
     SLASH_CONFIRM.register(session, "confirm-1", "undo")
     before = time.time() * 1000
-    message = "⚠️ **Confirm /undo**\n\nDiscard turn?\n\n_Text fallback: reply `/approve`, `/always`, or `/cancel`._"
+    message = (
+        "⚠️ **Confirm /undo**\n\nDiscard turn?\n\n_Text fallback: reply `/approve`, `/always`, or `/cancel`._"
+    )
     result = await adapter.send_slash_confirm(CHAT, "/undo", message, session, "confirm-1")
     assert result.success
     ask = await recv(ws)
