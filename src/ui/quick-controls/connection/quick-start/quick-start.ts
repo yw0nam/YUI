@@ -4,23 +4,31 @@
  * key writes anything.
  */
 
-import type { ChatKeySettingsStore } from "../../../../settings/backend/api-key-settings";
+import type {
+  ApiKeySettingsStore,
+  ChatKeySettingsStore,
+} from "../../../../settings/backend/api-key-settings";
 import type {
   createEndpointsSettings,
   EndpointOverrides,
 } from "../../../../settings/backend/endpoints-settings";
 import type { createProactiveSettings } from "../../../../settings/cues/proactive-settings";
 import type { createScheduleSettings } from "../../../../settings/cues/schedule-settings";
-import { t } from "../../../i18n";
+import type { FlagSettingsStore } from "../../../../settings/persisted-store";
+import type { createSpeakerSelection } from "../../../../io/voice/voices/speaker-selection";
+import { type Locale, t } from "../../../i18n";
 import { CHATKEY_EYE_SVG, GEMINI_KEY_URL, GEMINI_PRESET } from "../../constants";
 import { secHeadHtml } from "../../markup";
 import { ICON_WARN } from "../../plugins/plugin-parts";
 import { helpSectionHtml } from "../../sections/help/help-section";
 import { toggleKeyReveal } from "../../sections/key-row/key-row";
 import { createModelRead, type ModelReadPhase } from "../chat/model-read";
+import { createVoiceStep } from "./voice-step";
 import "./quick-start.css";
 
 const ICON_DONE = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+type SpeakerSelectionStore = ReturnType<typeof createSpeakerSelection>;
 
 interface QuickStartDeps {
   endpointsSettings: Pick<ReturnType<typeof createEndpointsSettings>, "get" | "set">;
@@ -34,6 +42,12 @@ interface QuickStartDeps {
   onConnected: () => void;
   /** The connected state carries the Help section. */
   showHelp: boolean;
+  /** The voice step's stores. An absent TTS flag store keeps the voice step out. */
+  ttsKeySettings?: Pick<ApiKeySettingsStore, "setApiKey">;
+  ttsSettings?: Pick<FlagSettingsStore, "setEnabled">;
+  speakerSelection?: Pick<SpeakerSelectionStore, "list" | "addUserOption" | "select">;
+  /** The Fish voice per app language, from the bundled config; undefined hides the section. */
+  getDefaultVoices?: () => Record<Locale, { id: string; name: string }> | undefined;
 }
 
 function factRowHtml(labelKey: string, subKey: string): string {
@@ -104,6 +118,19 @@ export function createQuickStart(deps: QuickStartDeps): {
   el.innerHTML = pageHtml(deps.showHelp);
   const setup = el.querySelector<HTMLElement>(".yui-start__setup")!;
   const connected = el.querySelector<HTMLElement>(".yui-start__connected")!;
+  const voiceStep =
+    deps.ttsSettings && deps.ttsKeySettings && deps.speakerSelection
+      ? createVoiceStep({
+          endpointsSettings: deps.endpointsSettings,
+          getEndpointDefaults: deps.getEndpointDefaults,
+          ttsKeySettings: deps.ttsKeySettings,
+          ttsSettings: deps.ttsSettings,
+          speakerSelection: deps.speakerSelection,
+          getDefaultVoices: deps.getDefaultVoices ?? (() => undefined),
+          getFetch: deps.getFetch,
+        })
+      : undefined;
+  if (voiceStep) connected.insertBefore(voiceStep.el, connected.querySelector(".yui-sec"));
   const own = el.querySelector<HTMLElement>(".yui-start__own")!;
   const input = el.querySelector<HTMLInputElement>("#yui-start-key")!;
   const toggle = el.querySelector<HTMLButtonElement>(".yui-chatkey__toggle")!;
@@ -121,6 +148,7 @@ export function createQuickStart(deps: QuickStartDeps): {
     setup.hidden = isConnected;
     connected.hidden = !isConnected;
     own.hidden = url === "" || url === GEMINI_PRESET.url;
+    voiceStep?.reflect();
   }
 
   function endpointsUrl(): string {
@@ -180,5 +208,12 @@ export function createQuickStart(deps: QuickStartDeps): {
 
   reflect();
 
-  return { el, reflect, dispose: read.dispose };
+  return {
+    el,
+    reflect,
+    dispose: () => {
+      read.dispose();
+      voiceStep?.dispose();
+    },
+  };
 }

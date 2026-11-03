@@ -121,3 +121,61 @@
     animation: none;
   }
 }
+
+/* The voice step mirrors the key section: label line, field + pill, state lines spanning the row. */
+.yui-start__voice-paste .yui-row__main,
+.yui-start__voice-checking,
+.yui-start__voice-err {
+  flex-basis: 100%;
+}
+
+.yui-start__voice-paste > .yui-input-wrap {
+  flex: 1 1 12rem;
+}
+
+.yui-start__voice-paste .yui-chatkey__wrap {
+  box-shadow: inset 0 0 0 1px var(--yui-edge);
+}
+
+.yui-start__voice-turn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.yui-start__voice-checking {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: var(--yui-fs-sub);
+  color: var(--yui-text-mute);
+}
+
+.yui-start__voice-later {
+  margin-top: 0.75rem;
+}
+
+/* Result lines share the done line's look: one calm sentence on the group background. */
+.yui-start__voice-is-on,
+.yui-start__voice-skipped,
+.yui-start__voice-configured {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--yui-radius-group);
+  background: var(--yui-group-bg);
+  font-size: var(--yui-fs-body);
+  font-weight: 500;
+}
+
+.yui-start__voice[hidden],
+.yui-start__voice-form[hidden],
+.yui-start__voice-checking[hidden],
+.yui-start__voice-err[hidden],
+.yui-start__voice-is-on[hidden],
+.yui-start__voice-skipped[hidden],
+.yui-start__voice-configured[hidden] {
+  display: none;
+}

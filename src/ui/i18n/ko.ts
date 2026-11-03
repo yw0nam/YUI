@@ -642,6 +642,21 @@ const ko: Record<string, string> = {
   "start.view_quick": "빠른 시작",
   "start.view_detail": "상세 설정",
   "start.detail_note": "서버, 모델, 음성 서버를 직접 정합니다.",
+  "start.voice_title": "목소리 (선택)",
+  "start.voice_note": "캐릭터가 소리 내어 말합니다. 건너뛰어도 대화할 수 있습니다.",
+  "start.voice_make_label": "Fish Audio 키 만들기",
+  "start.voice_make_sub":
+    "무료 모델은 카드 없이 쓸 수 있습니다. 요청이 모델 개선에 쓰일 수 있고, 무료 제공은 끝날 수 있습니다.",
+  "start.voice_make_link": "키 페이지 열기",
+  "start.voice_paste_label": "키 붙여넣기",
+  "start.voice_on": "음성 켜기",
+  "start.voice_checking": "키를 확인하는 중…",
+  "start.voice_refused": "Fish Audio가 이 키를 받지 않았습니다. 복사한 키를 다시 붙여 넣어 주세요.",
+  "start.voice_failed": "Fish Audio에 연결하지 못했습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.",
+  "start.voice_later": "나중에 할게요",
+  "start.voice_is_on": "음성을 켰습니다. 기본 목소리는 {name}입니다.",
+  "start.voice_skipped": "음성은 나중에 음성 탭에서 켤 수 있습니다.",
+  "start.voice_configured": "음성이 켜져 있습니다. 목소리는 음성 탭에서 바꿀 수 있습니다.",
 
   // reactions tab
   "reactions.watchers_title": "감시",

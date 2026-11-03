@@ -70,7 +70,7 @@ import type { createFillerSettings } from "../../settings/voice/filler-settings"
 import type { createReadingsSettings } from "../../settings/voice/readings-settings";
 import type { createVadSettings } from "../../settings/voice/vad-settings";
 import type { VoiceInputStatus } from "../chips/voice-input-status";
-import { t } from "../i18n";
+import { type Locale, t } from "../i18n";
 import { createCharacterTab } from "./character/character-tab";
 import { createConnectionTab, type PushSocketPanelPort } from "./connection/connection-tab";
 import { createConnectionViews } from "./connection/connection-views";
@@ -206,6 +206,8 @@ interface QuickControlsOptions {
   getEndpointDefaults?: () => EndpointOverrides | undefined;
   /** Default bundled-config value for Chat API dropdown when no override (undefined if not loaded). */
   getDefaultChatApi?: () => string | undefined;
+  /** The Fish voice per app language, for Quick start's voice step (undefined if not loaded). */
+  getDefaultVoices?: () => Record<Locale, { id: string; name: string }> | undefined;
   /** Resolves the chat key the chat turn would send, per request (SecretProvider path). */
   getChatApiKey?: () => Promise<string | undefined>;
   /** Environment fetch for the model list read (selectFetch()), undefined → globalThis.fetch. */
@@ -354,6 +356,7 @@ export function createQuickControls({
   ttsKeySettings,
   getEndpointDefaults,
   getDefaultChatApi,
+  getDefaultVoices,
   getChatApiKey,
   getFetch,
   pushSocket,
@@ -474,6 +477,10 @@ export function createQuickControls({
     getFetch: async () => getFetch?.(),
     onConnected: () => onFirstConversationConnected?.(),
     showHelp: !!onGuide,
+    ttsKeySettings,
+    ttsSettings,
+    speakerSelection,
+    getDefaultVoices,
   });
 
   // ── Connection page — Quick start or Detailed settings ──

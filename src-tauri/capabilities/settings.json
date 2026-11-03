@@ -16,7 +16,8 @@
       "allow": [
         { "url": "https://github.com/NousResearch/hermes-agent" },
         { "url": "https://yw0nam.github.io/YUI/guide/cards" },
-        { "url": "https://aistudio.google.com/apikey" }
+        { "url": "https://aistudio.google.com/apikey" },
+        { "url": "https://fish.audio/app/api-keys/" }
       ]
     }
   ]

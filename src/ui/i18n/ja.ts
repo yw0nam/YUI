@@ -646,6 +646,23 @@ const ja: Record<string, string> = {
   "start.view_quick": "クイックスタート",
   "start.view_detail": "詳細設定",
   "start.detail_note": "サーバー、モデル、音声サーバーを自分で設定します。",
+  "start.voice_title": "声（任意）",
+  "start.voice_note": "キャラクターが声に出して話します。スキップしても会話できます。",
+  "start.voice_make_label": "Fish Audio のキーを作る",
+  "start.voice_make_sub":
+    "無料モデルはカードなしで使えます。リクエストはモデルの改善に使われることがあり、無料提供は終わることがあります。",
+  "start.voice_make_link": "キーのページを開く",
+  "start.voice_paste_label": "キーを貼り付ける",
+  "start.voice_on": "音声をオンにする",
+  "start.voice_checking": "キーを確認しています…",
+  "start.voice_refused":
+    "Fish Audio がこのキーを受け付けませんでした。コピーしたキーをもう一度貼り付けてください。",
+  "start.voice_failed":
+    "Fish Audio に接続できませんでした。インターネット接続を確認して、もう一度お試しください。",
+  "start.voice_later": "あとで",
+  "start.voice_is_on": "音声をオンにしました。標準の声は {name} です。",
+  "start.voice_skipped": "音声はあとで「声」タブからオンにできます。",
+  "start.voice_configured": "音声はオンです。声は「声」タブで変えられます。",
 
   // reactions tab
   "reactions.watchers_title": "ウォッチャー",
