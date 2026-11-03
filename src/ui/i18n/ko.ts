@@ -173,8 +173,8 @@ const ko: Record<string, string> = {
   "rail.group_character": "이 캐릭터",
   "rail.group_app": "모든 캐릭터",
   "search.placeholder": "설정 검색",
-  "scope.only": "{name}만",
-  "scope.every": "모든 캐릭터",
+  "scope.only": "{name}에만 적용",
+  "scope.every": "모든 캐릭터에 적용",
 
   // Together page: the Characters list and its "On the desktop" switches
   "chars.section": "캐릭터",

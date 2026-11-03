@@ -399,7 +399,7 @@ ${panelOpenHtml("motion")}
           </div>
         </div>
       </div>
-${panelOpenHtml("general")}
+${panelOpenHtml("general")}${showHelp ? helpSectionHtml() : ""}
         <div class="yui-sec">
           <div class="yui-group">
             <div class="yui-row">
@@ -436,7 +436,7 @@ ${panelOpenHtml("general")}
                 : ""
             }
           </div>
-        </div>${showHelp ? helpSectionHtml() : ""}
+        </div>
       </div>
       </div>
     </div>

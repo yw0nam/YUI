@@ -173,8 +173,8 @@ const en: Record<string, string> = {
   "rail.group_character": "This character",
   "rail.group_app": "Every character",
   "search.placeholder": "Search settings",
-  "scope.only": "Only {name}",
-  "scope.every": "Every character",
+  "scope.only": "Applies to {name} only",
+  "scope.every": "Applies to every character",
 
   // Together page: the Characters list and its "On the desktop" switches
   "chars.section": "Characters",

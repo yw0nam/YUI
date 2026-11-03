@@ -174,8 +174,8 @@ const ja: Record<string, string> = {
   "rail.group_character": "このキャラクター",
   "rail.group_app": "すべてのキャラクター",
   "search.placeholder": "設定を検索",
-  "scope.only": "{name}だけ",
-  "scope.every": "すべてのキャラクター",
+  "scope.only": "{name}のみに適用",
+  "scope.every": "すべてのキャラクターに適用",
 
   // Together page: the Characters list and its "On the desktop" switches
   "chars.section": "キャラクター",
