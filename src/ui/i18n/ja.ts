@@ -158,7 +158,6 @@ const ja: Record<string, string> = {
   "devtools.advanced.context_window_default": "デフォルト",
 
   // settings pages, rail groups, search, and the scope line above each page title
-  "tabs.first": "はじめての会話",
   "tabs.conn": "接続",
   "tabs.voice": "声",
   "tabs.persona": "ペルソナ",

@@ -73,7 +73,7 @@ export function turnErrorFixAction(
   openSettings?: (tab: SettingsPage) => void,
 ): InputErrorAction | undefined {
   if (!openSettings || !isSettingsFixable(reason)) return undefined;
-  return { label: t("hint.setup_action"), onClick: () => openSettings("first") };
+  return { label: t("hint.setup_action"), onClick: () => openSettings("conn") };
 }
 
 type TurnFailureAction = { kind: "show_input_error" } | { kind: "voice_error" } | { kind: "none" };

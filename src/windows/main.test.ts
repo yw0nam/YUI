@@ -105,7 +105,7 @@ it("hands the preset switch the stop button's stopTurn and the window's settings
   );
 });
 
-it("opens the settings window from the pill's capture button and lands the voice fix on First conversation", async () => {
+it("opens the settings window from the pill's capture button and lands the voice fix on Connection", async () => {
   vi.resetModules();
   document.body.innerHTML = '<div id="app"></div>';
   const { createSettingsWindowOpener } = await import("../io/window/openers/settings-window");
@@ -121,7 +121,7 @@ it("opens the settings window from the pill's capture button and lands the voice
   pill.onOpenSettings?.();
   expect(openSettings).toHaveBeenLastCalledWith();
   pill.onFixVoice?.();
-  expect(openSettings).toHaveBeenLastCalledWith("first");
+  expect(openSettings).toHaveBeenLastCalledWith("conn");
 });
 
 it("hands its native window the stored theme, which the tray's settings window reads", async () => {

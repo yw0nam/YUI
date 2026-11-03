@@ -1,6 +1,6 @@
 // Page identity — the suffix of each rail button's `yui-tab-*` element id.
-// "first" renders only while chat was unconfigured at window open, "hist" only when a transcript is injected, "plugins" only with the MCP host; the rest are always present.
-export const CHARACTER_PAGES = ["first", "conn", "voice", "persona", "body", "hist"] as const;
+// "hist" renders only when a transcript is injected, "plugins" only with the MCP host; the rest are always present.
+export const CHARACTER_PAGES = ["conn", "voice", "persona", "body", "hist"] as const;
 export const APP_PAGES = [
   "together",
   "listening",

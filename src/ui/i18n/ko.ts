@@ -157,7 +157,6 @@ const ko: Record<string, string> = {
   "devtools.advanced.context_window_default": "기본값",
 
   // settings pages, rail groups, search, and the scope line above each page title
-  "tabs.first": "첫 대화",
   "tabs.conn": "연결",
   "tabs.voice": "음성",
   "tabs.persona": "페르소나",

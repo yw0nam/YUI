@@ -119,7 +119,7 @@ describe("createQuickControls — agent section", () => {
     const qc = buildQc();
     qc.open();
 
-    const seg = qc.el.querySelector<HTMLElement>(".yui-seg")!;
+    const seg = qc.el.querySelector<HTMLElement>(".yui-effort-seg")!;
     const btns = Array.from(seg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
     // order: default · none · minimal · low · medium
     expect(btns).toHaveLength(5);
@@ -140,7 +140,7 @@ describe("createQuickControls — agent section", () => {
     const qc = buildQc();
     qc.open();
 
-    const seg = qc.el.querySelector<HTMLElement>(".yui-seg")!;
+    const seg = qc.el.querySelector<HTMLElement>(".yui-effort-seg")!;
     const btns = Array.from(seg.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
     // start at default (index 0)
     expect(btns[0].getAttribute("aria-checked")).toBe("true");
@@ -162,7 +162,9 @@ describe("createQuickControls — agent section", () => {
     const qc = buildQc();
     qc.open();
 
-    const btns = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
+    const btns = Array.from(
+      qc.el.querySelectorAll<HTMLButtonElement>(".yui-effort-seg .yui-seg__btn"),
+    );
     expect(btns[4].getAttribute("aria-checked")).toBe("true"); // medium
     expect(btns[0].getAttribute("aria-checked")).toBe("false");
 
@@ -175,7 +177,9 @@ describe("createQuickControls — agent section", () => {
 
     agentSettings.setReasoningEffort("low");
 
-    const btns = Array.from(qc.el.querySelectorAll<HTMLButtonElement>(".yui-seg__btn"));
+    const btns = Array.from(
+      qc.el.querySelectorAll<HTMLButtonElement>(".yui-effort-seg .yui-seg__btn"),
+    );
     expect(btns[3].getAttribute("aria-checked")).toBe("true"); // low
 
     qc.dispose();

@@ -137,7 +137,7 @@ async function bootstrap(): Promise<BootstrapHandle> {
     voice: voiceInputStatus,
     onOpenSettings: () => openSettings(),
     onFixVoice: createVoiceFix({
-      openSetup: () => openSettings("first"),
+      openConnection: () => openSettings("conn"),
       status: voiceInputStatus,
     }),
   });

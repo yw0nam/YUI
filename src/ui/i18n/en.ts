@@ -157,7 +157,6 @@ const en: Record<string, string> = {
   "devtools.advanced.context_window_default": "Default",
 
   // settings pages, rail groups, search, and the scope line above each page title
-  "tabs.first": "First conversation",
   "tabs.conn": "Connection",
   "tabs.voice": "Voice",
   "tabs.persona": "Persona",

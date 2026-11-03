@@ -1,0 +1,21 @@
+/* The Connection page's view switch — two cells over the view they select. */
+.yui-conn-views {
+  align-self: flex-start;
+  flex-wrap: nowrap;
+  margin-top: -0.5rem;
+}
+
+.yui-conn-views .yui-seg__btn {
+  padding-inline: 0.875rem;
+}
+
+.yui-conn-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  min-width: 0;
+}
+
+.yui-conn-view[hidden] {
+  display: none;
+}

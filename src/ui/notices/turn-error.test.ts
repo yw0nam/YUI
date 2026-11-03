@@ -152,14 +152,14 @@ describe("turnErrorFixAction", () => {
   beforeEach(() => setLocale("en"));
   afterEach(() => setLocale("en"));
 
-  it("gives not_configured the setup action, opening the first conversation page", () => {
+  it("gives not_configured the setup action, opening Connection", () => {
     const openSettings = vi.fn();
 
     const action = turnErrorFixAction("not_configured", openSettings);
 
     expect(action?.label).toBe("Connect");
     action?.onClick();
-    expect(openSettings).toHaveBeenCalledWith("first");
+    expect(openSettings).toHaveBeenCalledWith("conn");
   });
 
   it("offers nothing when the host has no settings opener", () => {
