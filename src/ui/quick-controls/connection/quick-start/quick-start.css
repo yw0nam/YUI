@@ -9,7 +9,25 @@
   flex: 1 1 12rem;
 }
 
+/* The key field carries its own hairline: the group row's edge stops at the field. */
+.yui-start__paste .yui-chatkey__wrap {
+  box-shadow: inset 0 0 0 1px var(--yui-edge);
+}
+
 .yui-start__setup[hidden] {
+  display: none;
+}
+
+.yui-start__own {
+  margin: 0;
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--yui-radius-group);
+  background: var(--yui-accent-faint);
+  font-size: var(--yui-fs-sub);
+  color: var(--yui-text);
+}
+
+.yui-start__own[hidden] {
   display: none;
 }
 
@@ -69,8 +87,14 @@
 
 .yui-start__checking[hidden],
 .yui-start__err[hidden],
-.yui-start__done[hidden] {
+.yui-start__connected[hidden] {
   display: none;
+}
+
+.yui-start__connected {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
 }
 
 .yui-start__done {

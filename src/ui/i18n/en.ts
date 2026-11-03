@@ -635,9 +635,12 @@ const en: Record<string, string> = {
   "start.refused": "Google did not accept this key. Paste the key you copied again.",
   "start.failed": "Could not reach Google. Check your internet connection and try again.",
   "start.reopen": "Open key page again",
-  "start.own_server": "Already have a server?",
-  "start.open_connection": "Open Connection",
   "start.done": "Connected. You can start talking now.",
+  "start.own_note": "Connecting with this key replaces your current server with Google Gemini.",
+  "start.views_aria": "How to connect",
+  "start.view_quick": "Quick start",
+  "start.view_detail": "Detailed settings",
+  "start.detail_note": "Choose the server, model, and voice servers yourself.",
 
   // reactions tab
   "reactions.watchers_title": "Watchers",

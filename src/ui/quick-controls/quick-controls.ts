@@ -469,12 +469,13 @@ export function createQuickControls({
   const firstConversation = showFirstConversation
     ? createQuickStart({
         endpointsSettings,
+        getEndpointDefaults,
         chatKeySettings,
         proactiveSettings,
         scheduleSettings,
         getFetch: async () => getFetch?.(),
         onConnected: () => onFirstConversationConnected?.(),
-        openConnection: () => tabRail.select("conn"),
+        showHelp: !!onGuide,
       })
     : null;
   if (firstConversation) el.querySelector("#yui-panel-first")!.append(firstConversation.el);

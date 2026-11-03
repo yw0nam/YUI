@@ -127,7 +127,7 @@ describe("createQuickControls — tab rail", () => {
     qc.dispose();
   });
 
-  it("the First conversation page reaches Connection and reports a confirmed key", async () => {
+  it("the First conversation page reports a confirmed key", async () => {
     const onFirstConversationConnected = vi.fn();
     const qc = buildQc({
       showFirstConversation: true,
@@ -140,9 +140,6 @@ describe("createQuickControls — tab rail", () => {
     expect(panel).not.toBeNull();
     const button = (name: string) =>
       [...panel.querySelectorAll("button")].find((b) => b.textContent === name)!;
-
-    button("연결 페이지 열기").click();
-    expect(qc.selectedTab()).toBe("conn");
 
     panel.querySelector("input")!.value = "AIza-good";
     button("연결하기").click();

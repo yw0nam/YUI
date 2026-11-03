@@ -635,9 +635,12 @@ const ko: Record<string, string> = {
   "start.refused": "Google이 이 키를 받지 않았습니다. 복사한 키를 다시 붙여 넣어 주세요.",
   "start.failed": "Google에 연결하지 못했습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.",
   "start.reopen": "키 페이지 다시 열기",
-  "start.own_server": "이미 쓰는 서버가 있나요?",
-  "start.open_connection": "연결 페이지 열기",
   "start.done": "연결했습니다. 이제 대화할 수 있습니다.",
+  "start.own_note": "이 키로 연결하면 지금 쓰는 서버 설정이 Google Gemini로 바뀝니다.",
+  "start.views_aria": "연결 방법",
+  "start.view_quick": "빠른 시작",
+  "start.view_detail": "상세 설정",
+  "start.detail_note": "서버, 모델, 음성 서버를 직접 정합니다.",
 
   // reactions tab
   "reactions.watchers_title": "감시",

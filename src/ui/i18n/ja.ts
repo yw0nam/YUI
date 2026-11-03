@@ -639,9 +639,12 @@ const ja: Record<string, string> = {
   "start.failed":
     "Google に接続できませんでした。インターネット接続を確認して、もう一度お試しください。",
   "start.reopen": "キーのページをもう一度開く",
-  "start.own_server": "すでにサーバーをお持ちですか？",
-  "start.open_connection": "接続ページを開く",
   "start.done": "接続しました。話しかけてみてください。",
+  "start.own_note": "このキーで接続すると、今のサーバー設定が Google Gemini に変わります。",
+  "start.views_aria": "接続方法",
+  "start.view_quick": "クイックスタート",
+  "start.view_detail": "詳細設定",
+  "start.detail_note": "サーバー、モデル、音声サーバーを自分で設定します。",
 
   // reactions tab
   "reactions.watchers_title": "ウォッチャー",

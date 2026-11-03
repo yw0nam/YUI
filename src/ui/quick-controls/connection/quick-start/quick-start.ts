@@ -5,13 +5,17 @@
  */
 
 import type { ChatKeySettingsStore } from "../../../../settings/backend/api-key-settings";
-import type { createEndpointsSettings } from "../../../../settings/backend/endpoints-settings";
+import type {
+  createEndpointsSettings,
+  EndpointOverrides,
+} from "../../../../settings/backend/endpoints-settings";
 import type { createProactiveSettings } from "../../../../settings/cues/proactive-settings";
 import type { createScheduleSettings } from "../../../../settings/cues/schedule-settings";
 import { t } from "../../../i18n";
 import { CHATKEY_EYE_SVG, GEMINI_KEY_URL, GEMINI_PRESET } from "../../constants";
 import { secHeadHtml } from "../../markup";
 import { ICON_WARN } from "../../plugins/plugin-parts";
+import { helpSectionHtml } from "../../sections/help/help-section";
 import { toggleKeyReveal } from "../../sections/key-row/key-row";
 import { createModelRead, type ModelReadPhase } from "../chat/model-read";
 import "./quick-start.css";
@@ -19,14 +23,17 @@ import "./quick-start.css";
 const ICON_DONE = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 interface QuickStartDeps {
-  endpointsSettings: Pick<ReturnType<typeof createEndpointsSettings>, "set">;
-  chatKeySettings: Pick<ChatKeySettingsStore, "setApiKey">;
+  endpointsSettings: Pick<ReturnType<typeof createEndpointsSettings>, "get" | "set">;
+  chatKeySettings: Pick<ChatKeySettingsStore, "get" | "setApiKey">;
   proactiveSettings: Pick<ReturnType<typeof createProactiveSettings>, "setEnabled">;
   scheduleSettings: Pick<ReturnType<typeof createScheduleSettings>, "setEnabled">;
+  /** The bundled config's endpoints, the fallback for an unset chat URL. */
+  getEndpointDefaults?: () => EndpointOverrides | undefined;
   getFetch: () => Promise<typeof globalThis.fetch | undefined>;
   /** The key is confirmed and written. */
   onConnected: () => void;
-  openConnection: () => void;
+  /** The connected state carries the Help section. */
+  showHelp: boolean;
 }
 
 function factRowHtml(labelKey: string, subKey: string): string {
@@ -44,9 +51,10 @@ function keyLinkHtml(labelKey: string, className: string): string {
   return `<a class="yui-chat-type__link ${className}" href="${GEMINI_KEY_URL}" target="_blank" rel="noopener noreferrer" tabindex="0">${t(labelKey)}</a>`;
 }
 
-function pageHtml(): string {
+function pageHtml(showHelp: boolean): string {
   return `
     <div class="yui-tab-stack yui-start__setup">
+      <p class="yui-start__own" hidden>${t("start.own_note")}</p>
       <div class="yui-sec">
         ${secHeadHtml(t("start.free_title"))}
         <p class="yui-sec__note">${t("start.free_note")}</p>
@@ -78,20 +86,25 @@ function pageHtml(): string {
           </div>
         </div>
       </div>
-      <p class="yui-sec__foot">${t("start.own_server")} <button class="yui-link-btn yui-chat-type__link yui-start__own" type="button">${t("start.open_connection")}</button></p>
     </div>
-    <p class="yui-start__done" role="status" hidden>${ICON_DONE}<span>${t("start.done")}</span></p>`;
+    <div class="yui-start__connected" hidden>
+      <p class="yui-start__done" role="status">${ICON_DONE}<span>${t("start.done")}</span></p>
+      ${showHelp ? helpSectionHtml() : ""}
+    </div>`;
 }
 
 export function createQuickStart(deps: QuickStartDeps): {
   el: HTMLElement;
+  /** Reads the stores onto the two states: the setup or the connected one. */
+  reflect(): void;
   dispose(): void;
 } {
   const el = document.createElement("div");
   el.className = "yui-tab-stack";
-  el.innerHTML = pageHtml();
+  el.innerHTML = pageHtml(deps.showHelp);
   const setup = el.querySelector<HTMLElement>(".yui-start__setup")!;
-  const done = el.querySelector<HTMLElement>(".yui-start__done")!;
+  const connected = el.querySelector<HTMLElement>(".yui-start__connected")!;
+  const own = el.querySelector<HTMLElement>(".yui-start__own")!;
   const input = el.querySelector<HTMLInputElement>("#yui-start-key")!;
   const toggle = el.querySelector<HTMLButtonElement>(".yui-chatkey__toggle")!;
   const connect = el.querySelector<HTMLButtonElement>(".yui-start__connect")!;
@@ -101,6 +114,22 @@ export function createQuickStart(deps: QuickStartDeps): {
   const reopen = el.querySelector<HTMLElement>(".yui-start__reopen")!;
 
   const typedKey = (): string => input.value.trim();
+
+  function reflect(): void {
+    const url = endpointsUrl();
+    const isConnected = url === GEMINI_PRESET.url && deps.chatKeySettings.get().apiKey !== "";
+    setup.hidden = isConnected;
+    connected.hidden = !isConnected;
+    own.hidden = url === "";
+  }
+
+  function endpointsUrl(): string {
+    return (
+      deps.endpointsSettings.get().chat_base_url ||
+      deps.getEndpointDefaults?.()?.chat_base_url ||
+      ""
+    );
+  }
 
   function showError(textKey: string, keyLink = false): void {
     errorText.textContent = t(textKey);
@@ -127,8 +156,7 @@ export function createQuickStart(deps: QuickStartDeps): {
       deps.scheduleSettings.setEnabled(false);
       deps.onConnected();
       input.value = "";
-      setup.hidden = true;
-      done.hidden = false;
+      reflect();
     } else if (result.kind === "refused" || (result.kind === "http" && result.status === 400)) {
       // Measured: a bad Gemini key answers HTTP 400 "Please pass a valid API key".
       showError("start.refused", true);
@@ -149,7 +177,8 @@ export function createQuickStart(deps: QuickStartDeps): {
     if (typedKey() === "") showError("start.need_key");
     else read.start(GEMINI_PRESET.url);
   });
-  el.querySelector(".yui-start__own")!.addEventListener("click", () => deps.openConnection());
 
-  return { el, dispose: read.dispose };
+  reflect();
+
+  return { el, reflect, dispose: read.dispose };
 }

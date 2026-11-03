@@ -269,9 +269,8 @@ describe("createQuickStart — the state it reads from the stores", () => {
 
     const connected = s.el(".yui-start__connected");
     expect(connected.hidden).toBe(false);
-    expect([...connected.querySelectorAll("[data-guide]")].map((b) => b.dataset.guide)).toEqual([
-      "controls",
-      "capabilities",
-    ]);
+    expect(
+      [...connected.querySelectorAll<HTMLElement>("[data-guide]")].map((b) => b.dataset.guide),
+    ).toEqual(["controls", "capabilities"]);
   });
 });
