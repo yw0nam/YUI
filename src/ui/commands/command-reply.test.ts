@@ -54,3 +54,53 @@ it("marks the reply body while more of it sits below its visible part", () => {
 
   expect([scrollTo(0), scrollTo(200)]).toEqual([true, false]);
 });
+
+it.each([
+  ["drag", 300],
+  ["keyboard", 224],
+])("resizes the reply from its top edge with %s", (action, height) => {
+  reply.show({ kind: "settled", name: "status", text: "Ready" });
+  const card = mount.querySelector<HTMLElement>(".yui-cmd-reply")!;
+  vi.spyOn(card, "getBoundingClientRect").mockImplementation(() => {
+    const current = Number.parseFloat(card.style.height) || 200;
+    return new DOMRect(0, 600 - current, 320, current);
+  });
+  expect(mount.querySelector(".yui-cmd-reply__resize")?.getAttribute("aria-label")).toBe(
+    "Resize reply",
+  );
+  const handle = mount.querySelector<HTMLButtonElement>(".yui-cmd-reply__resize")!;
+  Object.defineProperties(handle, {
+    setPointerCapture: { value: vi.fn() },
+    releasePointerCapture: { value: vi.fn() },
+    hasPointerCapture: { value: () => true },
+  });
+  const stageDown = vi.fn();
+  mount.addEventListener("pointerdown", stageDown);
+  if (action === "drag") {
+    for (const [type, clientY] of [
+      ["pointerdown", 200],
+      ["pointermove", 100],
+      ["pointerup", 100],
+    ] as const) {
+      handle.dispatchEvent(
+        new PointerEvent(type, {
+          pointerId: 1,
+          button: 0,
+          clientY,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    }
+  } else {
+    handle.focus();
+    handle.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true, cancelable: true }),
+    );
+  }
+  expect(card.style.height).toBe(`${height}px`);
+  expect(stageDown).not.toHaveBeenCalled();
+  reply.show({ kind: "clear" });
+  reply.show({ kind: "settled", name: "model", text: "Changed" });
+  expect(card.style.height).toBe(`${height}px`);
+});

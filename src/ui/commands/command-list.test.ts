@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { setLocale } from "../i18n";
 import { createCommandList } from "./command-list";
@@ -68,4 +70,57 @@ it("shows no list without commands", () => {
   list = createCommandList({ field, mount, commands: () => [] });
   type("/");
   expect(field.getAttribute("aria-expanded")).toBe("false");
+});
+
+it("wraps descriptions without ellipsis", () => {
+  const style = document.createElement("style");
+  style.textContent = readFileSync(resolve(__dirname, "command-list.css"), "utf8");
+  document.head.append(style);
+  try {
+    type("/");
+    const description = mount.querySelector<HTMLElement>(".yui-cmd-list__description")!;
+    expect(getComputedStyle(description).textOverflow).not.toBe("ellipsis");
+    expect(getComputedStyle(description).whiteSpace).not.toBe("nowrap");
+  } finally {
+    style.remove();
+  }
+});
+it.each([
+  [0, "/status ", 40],
+  [20, "/", 60],
+])("a %i px press-release picks only without a drag", (distance, text, scrollTop) => {
+  field.focus();
+  type("/");
+  const rows = mount.querySelector<HTMLElement>(".yui-cmd-list__rows")!;
+  Object.defineProperties(rows, {
+    setPointerCapture: { value: vi.fn() },
+    releasePointerCapture: { value: vi.fn() },
+    hasPointerCapture: { value: () => true },
+    scrollHeight: { value: 500 },
+    clientHeight: { value: 100 },
+  });
+  rows.scrollTop = 40;
+  const stageDown = vi.fn();
+  mount.addEventListener("pointerdown", stageDown);
+  const row = rows.firstElementChild!;
+  const pointer = (type: string, clientY: number) =>
+    row.dispatchEvent(
+      new PointerEvent(type, {
+        pointerId: 1,
+        button: 0,
+        buttons: type === "pointerup" ? 0 : 1,
+        clientX: 20,
+        clientY,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+  pointer("pointerdown", 100);
+  expect(field.value).toBe("/");
+  pointer("pointermove", 100 - distance);
+  pointer("pointerup", 100 - distance);
+  expect(field.value).toBe(text);
+  expect(rows.scrollTop).toBe(scrollTop);
+  expect(document.activeElement).toBe(field);
+  expect(stageDown).not.toHaveBeenCalled();
 });
