@@ -379,10 +379,10 @@ class YuiAdapter(BasePlatformAdapter):
             logger.warning("yui: unknown Ask %r chat=%s", ask_id, chat_id)
             return
         choice = frame.get("choice")
-        if not isinstance(choice, str) or choice not in ask.choices:
+        ask = self._asks.take(chat_id, ask_id, choice)
+        if ask is None:
             logger.warning("yui: unoffered choice %r for Ask %s chat=%s", choice, ask_id, chat_id)
             return
-        self._asks.drop(chat_id, ask_id)
         resolve_gateway_approval(ask.session_key, choice, request_id=ask.request_id)
 
     def _forget(self, chat_id: str, ws: web.WebSocketResponse) -> None:
