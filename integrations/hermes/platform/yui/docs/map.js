@@ -393,7 +393,7 @@ globalThis.YUI_MAP =
       "paths": [
         "integrations/hermes/platform/yui/src/commands"
       ],
-      "role": "Lists gateway built-ins, dispatches command events, collects output, and settles confirmations without a Turn."
+      "role": "Lists gateway built-ins, dispatches command events through explicit ports, collects output, discards retired-command sends, and settles confirmations without a Turn."
     }
   ],
   "edges": [
@@ -1153,7 +1153,7 @@ globalThis.YUI_MAP =
       "id": "adapter-commands",
       "from": "transport/adapter",
       "to": "commands",
-      "carries": "Commands.ready, handle, runs.collect, complete, confirm, reset, drop",
+      "carries": "Commands.ready, handle(frame, source, dispatch), collect, complete, confirm, expire, drop",
       "kind": "call",
       "transport": "push",
       "wiring": "integrations/hermes/platform/yui/src/transport/adapter.py"
@@ -1162,7 +1162,7 @@ globalThis.YUI_MAP =
       "id": "commands-send",
       "from": "commands",
       "to": "transport/adapter",
-      "carries": "_send_frame(command_reply, ask, ask_end); handle_message(MessageEvent with _yui_command_id)",
+      "carries": "send_frame, accepts, ask_fits, start_task ports; dispatch(MessageEvent with _yui_command_id)",
       "kind": "call",
       "transport": "push",
       "wiring": "integrations/hermes/platform/yui/src/commands/gateway.py"

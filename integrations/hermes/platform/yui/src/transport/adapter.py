@@ -179,7 +179,13 @@ class YuiAdapter(BasePlatformAdapter):
         self._sends: set[asyncio.Task] = set()
         self._playback = PlaybackNotices()
         self._asks = Asks()
-        self._commands = Commands(self)
+        self._commands = Commands(
+            send_frame=self._send_frame,
+            accepts=lambda chat_id, kind: kind in self._accepts.get(chat_id, ()),
+            asks=self._asks,
+            ask_fits=self._ask_fits,
+            start_task=self._start_confirmation,
+        )
 
     @property
     def name(self) -> str:
@@ -348,7 +354,7 @@ class YuiAdapter(BasePlatformAdapter):
         if kind == "turn":
             await self._on_turn(chat_id, frame)
         elif kind == "command":
-            await self._commands.handle(chat_id, frame)
+            await self._commands.handle(chat_id, frame, self._source(chat_id), self.handle_message)
         elif kind == "playback":
             await self._playback.handle(frame, self._source(chat_id), self.handle_message)
         elif kind == "vocabulary":
@@ -511,7 +517,7 @@ class YuiAdapter(BasePlatformAdapter):
 
     async def _on_reset(self, chat_id: str) -> None:
         """The gateway's own /new: the transcript starts empty under the same chat."""
-        await self._commands.reset(chat_id)
+        await self._commands.expire(chat_id)
         # The client asked for the reset, so its acknowledgement is not worth speaking.
         state.set_muted(chat_id, True)
         logger.info("yui: reset chat=%s", chat_id)
@@ -562,6 +568,12 @@ class YuiAdapter(BasePlatformAdapter):
                 source=self._source(chat_id),
             )
         )
+
+    def _start_confirmation(self, coroutine) -> asyncio.Task:
+        task = asyncio.create_task(coroutine)
+        self._confirmations.add(task)
+        task.add_done_callback(self._confirmations.discard)
+        return task
 
     async def send_slash_confirm(
         self,
@@ -820,7 +832,7 @@ class YuiAdapter(BasePlatformAdapter):
     ) -> SendResult:
         """Render a reply, then end the failed turns that were waiting for it. A client that accepts
         `error` gets their failure line as an `error` frame instead of a render."""
-        if self._commands.runs.collect(chat_id, reply_to, content):
+        if self._commands.collect(chat_id, reply_to, content):
             return SendResult(success=True, message_id=reply_to)
         meta = metadata or {}
         reports_errors = "error" in self._accepts.get(chat_id, ())

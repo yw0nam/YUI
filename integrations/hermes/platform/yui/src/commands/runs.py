@@ -1,5 +1,6 @@
 """Open Backend commands; every call runs on the adapter's event loop."""
 
+from collections import deque
 from dataclasses import dataclass, field
 
 
@@ -14,6 +15,7 @@ class Run:
 class Runs:
     def __init__(self) -> None:
         self._chats: dict[str, Run] = {}
+        self._retired: dict[str, deque[str]] = {}
 
     def open(self, chat_id: str, id: str, name: str) -> bool:
         if chat_id in self._chats:
@@ -24,7 +26,7 @@ class Runs:
     def collect(self, chat_id: str, reply_to: str | None, text: str) -> bool:
         run = self._chats.get(chat_id)
         if run is None or run.id != reply_to:
-            return False
+            return reply_to is not None and reply_to in self._retired.get(chat_id, ())
         run.texts.append(text)
         return True
 
@@ -42,4 +44,6 @@ class Runs:
         return "\n\n".join(run.texts)
 
     def drop(self, chat_id: str) -> None:
-        self._chats.pop(chat_id, None)
+        run = self._chats.pop(chat_id, None)
+        if run is not None:
+            self._retired.setdefault(chat_id, deque(maxlen=32)).append(run.id)
