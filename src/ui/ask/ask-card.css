@@ -44,6 +44,12 @@
   overscroll-behavior: contain;
 }
 
+/* More of the prompt sits below: its bottom edge fades. */
+.yui-ask-card .yui-threads-answer__head.is-clipped {
+  mask-image: linear-gradient(to bottom, oklch(0 0 0) calc(100% - 24px), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, oklch(0 0 0) calc(100% - 24px), transparent);
+}
+
 .yui-ask-card .yui-threads-answer__prompt {
   flex: 1 1 0;
 }

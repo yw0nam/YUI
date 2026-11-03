@@ -80,8 +80,20 @@ export function createAskCard(deps: {
     const s = Math.ceil(left / 1000);
     const time = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
     timer.textContent = t("ask.time_left", { time });
+    cue();
     tick = setTimeout(countDown, left - (s - 1) * 1000);
   }
+
+  // The prompt head, where the timer rides, marks itself while more of it sits below; each tick re-measures a resize.
+  function cue(): void {
+    const head = timer.parentElement;
+    head?.classList.toggle(
+      "is-clipped",
+      head.scrollHeight - head.scrollTop - head.clientHeight > 1,
+    );
+  }
+  // Scroll does not bubble, so the card catches the head's on capture.
+  el.addEventListener("scroll", cue, true);
 
   function close(askId: string): void {
     const i = open.findIndex((f) => f.ask.ask_id === askId);
