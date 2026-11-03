@@ -383,9 +383,8 @@ describe("createSelectionStore", () => {
     store.subscribe(cb);
 
     store.select("ghost");
-    expect(storage._data).toBeNull();
     store.select("a");
-    expect(storage._data).toBe("a");
+    expect(storage._data).toBeNull();
     expect(cb).not.toHaveBeenCalled();
 
     store.select("b");
@@ -394,14 +393,18 @@ describe("createSelectionStore", () => {
     expect(cb).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps a pick that was already the resolved one when a later manifest lists other options first", () => {
+  it("pins an option that is already the resolved one, so a later manifest listing others first keeps it", () => {
     const storage = makeMemStorage();
     const userStorage = makeMemUserStorage();
     const store = makeStore({ available: [], defaultValue: "", storage, userStorage });
     store.addUserOption({ id: "mine", url: "/mine.res", source: "user" });
     expect(store.getActiveId()).toBe("mine");
 
-    store.select("mine");
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.pin("mine");
+    expect(storage._data).toBe("mine");
+    expect(cb).not.toHaveBeenCalled();
     store.setManifest({ available: SAMPLE, defaultValue: "" });
 
     expect(store.getActiveId()).toBe("mine");
