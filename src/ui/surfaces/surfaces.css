@@ -64,8 +64,8 @@
 /* ════════════════════════════════════════════════════════════
    1. Speech bubble — floating caption panel. No tail, no hard border.
       The *only* frost backdrop location permitted by DESIGN.md (for readability).
-      The wrapper positions and fades; the box inside carries the material and scrolls,
-      so the tools on the wrapper's top edge are neither clipped nor masked.
+      The wrapper positions and fades; the box inside carries the material and its scroller scrolls,
+      so the tools on the wrapper's top edge and the actions under the text are neither clipped nor masked.
    ════════════════════════════════════════════════════════════ */
 .yui-bubble {
   position: absolute;
@@ -86,6 +86,8 @@
 
 .yui-bubble__box {
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   min-height: min(132px, var(--yui-bubble-max-h, 34vh));
   padding: 26px 20px 30px;
   border-radius: var(--yui-radius);
@@ -104,6 +106,11 @@
 
   /* Long utterance height cap + internal scroll — does not grow upward over model even when overflowing. */
   max-height: var(--yui-bubble-max-h, 34vh);
+}
+
+.yui-bubble__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--yui-edge-strong) transparent;
@@ -119,20 +126,20 @@
 
 /* Top fade appears only when scrolling due to overflow, suggesting scroll-up.
    Short utterances (common case) show the first line intact without mask. */
-.yui-bubble.is-scrollable .yui-bubble__box {
+.yui-bubble.is-scrollable .yui-bubble__scroll {
   mask-image: linear-gradient(to bottom, transparent 0, oklch(0 0 0) 18px);
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, oklch(0 0 0) 18px);
   pointer-events: auto; /* Capture wheel/scrollbar input only when overflowing — short utterances remain passthrough for drag */
 }
 
 /* Scrollbar minimization — thin, faint thumb so it doesn't look like a SaaS panel */
-.yui-bubble__box::-webkit-scrollbar {
+.yui-bubble__scroll::-webkit-scrollbar {
   width: 6px;
 }
-.yui-bubble__box::-webkit-scrollbar-track {
+.yui-bubble__scroll::-webkit-scrollbar-track {
   background: transparent;
 }
-.yui-bubble__box::-webkit-scrollbar-thumb {
+.yui-bubble__scroll::-webkit-scrollbar-thumb {
   background: var(--yui-edge-strong);
   border-radius: 999px;
 }
@@ -404,14 +411,17 @@
   color: var(--yui-text-mute);
 }
 
-/* ── Speech action — in-place fix under the speech text (e.g. "Open Connection" on an
-   unconfigured backend). Same inline-link treatment as the bubble's links (treatment A);
-   a click target, so it takes pointer events through the display-only bubble. ── */
+/* ── Speech actions — in-place buttons under the speech text, outside its scroller (e.g. "Open Connection"
+   on an unconfigured backend). Same inline-link treatment as the bubble's links (treatment A);
+   click targets, so they take pointer events through the display-only bubble. ── */
 .yui-bubble__speech-action {
-  display: block;
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
   margin-top: 0.45em;
 }
-/* display: block beats the UA's [hidden] rule, so hide it explicitly. */
+/* display: flex beats the UA's [hidden] rule, so hide it explicitly. */
 .yui-bubble__speech-action[hidden] {
   display: none;
 }

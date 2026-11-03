@@ -27,8 +27,8 @@ export interface SpeechBubble {
   finishSpeech(): void;
   /** Hide the bubble immediately (ignoring dwell). */
   hideSpeech(): void;
-  /** Offers an in-place fix under the current speech; without an action, drops the one shown. */
-  showSpeechAction(action?: SpeechAction): void;
+  /** Offers in-place buttons under the current speech; an empty list drops the ones shown. */
+  showSpeechActions(actions: readonly SpeechAction[]): void;
   /** Show the bubble for content other than speech, holding off any pending fade; speech is left as it is unless `clearSpeech` drops it. */
   reveal(opts?: { clearSpeech?: boolean }): void;
   /**
@@ -56,14 +56,16 @@ interface SpeechBubbleElements {
   root: HTMLElement;
   /** Positioning wrapper — carries the state classes and the fade. */
   bubbleEl: HTMLElement;
-  /** The scrolling panel inside the wrapper; a click on it shows the rest of the line. */
+  /** The panel inside the wrapper; a click on it shows the rest of the line. */
   bubbleBox: HTMLElement;
+  /** The box's scrolling part, above the actions slot. */
+  bubbleScroll: HTMLElement;
   /** The ▼ marker at the box's bottom-right; shows once the line ended and all of it shows. */
   bubbleNext: HTMLElement;
   /** The quoted user line, the box's first child; user-quote.ts fills it, the bubble drops it. */
   bubbleQuote: HTMLElement;
   bubbleText: HTMLElement;
-  /** The in-place fix button's slot, under the speech text; empty and hidden unless an action is offered. */
+  /** The in-place buttons' slot, under the scroller; empty and hidden unless actions are offered. */
   bubbleAction: HTMLElement;
   /** Screen-reader-only announce region — the visual bubble is not live; once speech settles, announce once here. */
   bubbleSr: HTMLElement;
@@ -91,6 +93,7 @@ export function createSpeechBubble(
     root,
     bubbleEl,
     bubbleBox,
+    bubbleScroll,
     bubbleNext,
     bubbleQuote,
     bubbleText,
@@ -134,8 +137,8 @@ export function createSpeechBubble(
   };
   let cancelFade: (() => void) | null = null;
   let showFrame: number | null = null;
-  // The current speech action's click — nulled with the slot so a stale button click does nothing.
-  let speechActionClick: (() => void) | null = null;
+  // Whether speech actions show; cleared with the slot.
+  let actionsShown = false;
 
   const typer = createTypewriter((count, { done }) => {
     if (!done) {
@@ -187,19 +190,23 @@ export function createSpeechBubble(
 
   function isPinnedToEnd(): boolean {
     return (
-      bubbleBox.scrollHeight - bubbleBox.scrollTop - bubbleBox.clientHeight <= SCROLL_PIN_SLACK_PX
+      bubbleScroll.scrollHeight - bubbleScroll.scrollTop - bubbleScroll.clientHeight <=
+      SCROLL_PIN_SLACK_PX
     );
   }
 
   // Scroll a height-capped bubble to the end so the latest line stays visible (keeps position if pin=false).
   // Only toggle is-scrollable on overflow so the top fade applies (short speech doesn't clip its first line).
   function scrollBubbleToEnd(pin = true): void {
-    if (pin) bubbleBox.scrollTop = bubbleBox.scrollHeight;
+    if (pin) bubbleScroll.scrollTop = bubbleScroll.scrollHeight;
     measure();
   }
 
   function measure(): void {
-    bubbleEl.classList.toggle("is-scrollable", bubbleBox.scrollHeight > bubbleBox.clientHeight);
+    bubbleEl.classList.toggle(
+      "is-scrollable",
+      bubbleScroll.scrollHeight > bubbleScroll.clientHeight,
+    );
   }
 
   function clearRenderTimer(): void {
@@ -279,7 +286,7 @@ export function createSpeechBubble(
     bubbleText.replaceChildren();
     bubbleSr.textContent = "";
     bubbleNext.hidden = true;
-    clearSpeechAction();
+    clearSpeechActions();
     typer.begin();
     if (globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches) typer.flush();
     if (!turnHeld) bubbleQuote.hidden = true;
@@ -301,7 +308,7 @@ export function createSpeechBubble(
       speechRaw = "";
       parsed = null;
       bubbleText.replaceChildren();
-      clearSpeechAction();
+      clearSpeechActions();
       bubbleEl.classList.remove("is-streaming");
     }
     if (!turnHeld) bubbleQuote.hidden = true;
@@ -356,9 +363,9 @@ export function createSpeechBubble(
   }
 
   // Held speech never fades — mark it so the close button (its only exit) stays visible.
-  // A shown speech action holds the bubble the same way.
+  // Shown speech actions hold the bubble the same way.
   function hold(): boolean {
-    const on = holdOpen() || speechActionClick !== null;
+    const on = holdOpen() || actionsShown;
     bubbleEl.classList.toggle("is-held", on);
     return on;
   }
@@ -391,7 +398,7 @@ export function createSpeechBubble(
     lastRenderAt = Number.NEGATIVE_INFINITY;
     cancelShowFrame();
     bubbleEl.classList.remove("is-visible", "is-streaming", "is-held");
-    clearSpeechAction();
+    clearSpeechActions();
     cancelFade?.();
     cancelFade = afterFadeOut(bubbleEl, () => {
       cancelFade = null;
@@ -420,32 +427,37 @@ export function createSpeechBubble(
     dwellArmed = false;
   }
 
-  function clearSpeechAction(): void {
-    speechActionClick = null;
+  function clearSpeechActions(): void {
+    actionsShown = false;
     bubbleAction.replaceChildren();
     bubbleAction.hidden = true;
     measure();
   }
 
-  function showSpeechAction(action?: SpeechAction): void {
-    const wasShown = speechActionClick !== null;
-    clearSpeechAction();
-    // The action holds the bubble — a pending dwell must not drop it under the button.
+  function showSpeechActions(actions: readonly SpeechAction[]): void {
+    const wasShown = actionsShown;
+    clearSpeechActions();
+    // The actions hold the bubble — a pending dwell must not drop it under the buttons.
     clearDwell();
     dwellArmed = false;
-    if (action) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.textContent = action.label;
-      button.addEventListener("click", () => speechActionClick?.());
-      speechActionClick = action.onClick;
-      bubbleAction.append(button);
+    if (actions.length > 0) {
+      for (const action of actions) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = action.label;
+        // A button dropped with its list does nothing.
+        button.addEventListener("click", () => {
+          if (button.isConnected) action.onClick();
+        });
+        bubbleAction.append(button);
+      }
+      actionsShown = true;
       bubbleAction.hidden = false;
       measure();
       hold();
       return;
     }
-    // The hold leaves with the action — the bubble takes its normal dwell again.
+    // The hold leaves with the actions — the bubble takes its normal dwell again.
     if (wasShown) settleIntoDwell();
   }
 
@@ -512,7 +524,7 @@ export function createSpeechBubble(
     cancelShowFrame();
     cancelFade?.();
     cancelFade = null;
-    clearSpeechAction();
+    clearSpeechActions();
     unsubscribeLocale();
     bubbleEl.removeEventListener("pointerenter", onBubbleEnter);
     bubbleEl.removeEventListener("pointerleave", onBubbleLeave);
@@ -527,7 +539,7 @@ export function createSpeechBubble(
     endSpeech,
     finishSpeech,
     hideSpeech,
-    showSpeechAction,
+    showSpeechActions,
     reveal,
     release,
     measure,
