@@ -23,6 +23,7 @@ function setup(
   opts: {
     showHelp?: boolean;
     getEndpointDefaults?: () => EndpointOverrides | undefined;
+    onReplay?: () => void;
   } = {},
 ) {
   const fetchMock = vi.fn(fetchImpl);
@@ -40,6 +41,7 @@ function setup(
     getFetch: async () => fetchMock,
     onConnected,
     showHelp: opts.showHelp ?? false,
+    onReplay: opts.onReplay,
   });
   document.body.append(page.el);
   const input = page.el.querySelector<HTMLInputElement>('input[type="password"]')!;
@@ -270,5 +272,36 @@ describe("createQuickStart — the state it reads from the stores", () => {
     expect(
       [...connected.querySelectorAll<HTMLElement>("[data-guide]")].map((b) => b.dataset.guide),
     ).toEqual(["controls", "capabilities"]);
+  });
+
+  it("the connected state holds the replay row last in the Help group, and its press replays", () => {
+    const onReplay = vi.fn();
+    const s = setup(undefined, { showHelp: true, onReplay });
+    s.endpointsSettings.set({ chat_base_url: GEMINI_PRESET.url });
+    s.chatKeySettings.setApiKey("AIza-good");
+
+    s.page.reflect();
+
+    const rows = [
+      ...s.el(".yui-start__connected").querySelectorAll<HTMLElement>(".yui-group > .yui-row"),
+    ];
+    expect(rows).toHaveLength(3);
+    expect(rows[2]!.querySelector(".yui-row__label")!.textContent).toBe("First conversation");
+    const replay = rows[2]!.querySelector<HTMLButtonElement>(".yui-start__replay")!;
+    expect(replay.getAttribute("aria-label")).toBe("Replay the first conversation");
+
+    replay.click();
+
+    expect(onReplay).toHaveBeenCalledTimes(1);
+  });
+
+  it("the connected state carries no replay row without a replay handler", () => {
+    const s = setup(undefined, { showHelp: true });
+    s.endpointsSettings.set({ chat_base_url: GEMINI_PRESET.url });
+    s.chatKeySettings.setApiKey("AIza-good");
+
+    s.page.reflect();
+
+    expect(s.el(".yui-start__connected").querySelector(".yui-start__replay")).toBeNull();
   });
 });

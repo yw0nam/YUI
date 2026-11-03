@@ -488,6 +488,8 @@ export interface EndpointsConfig {
   tts_speaker?: string;
   /** Synthesis concurrency limit. Default 1 (serial) — applied by consumer (tts-pipeline), not loader. */
   tts_max_inflight?: number;
+  /** The Fish Audio voice Quick start adds for each app language. */
+  tts_default_voices?: Record<"en" | "ja" | "ko", { id: string; name: string }>;
   /** Maximum context token count for the active chat model. */
   chat_model_context_window?: number;
 }

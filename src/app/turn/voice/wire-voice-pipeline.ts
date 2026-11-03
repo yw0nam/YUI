@@ -83,6 +83,8 @@ export interface VoicePipeline {
    * unreachable pool); every other reason is a no-op. Sibling to turnOutput so bootstrap's
    * onUserTurnFailed stays a one-liner regardless of the existing inline/voice error routing. */
   speakFailure: (reason: TurnFailure) => void;
+  /** Notifies on a backend utterance sentence's synth rejection that is not a TTS_SKIP. Returns an unsubscribe. */
+  onSynthFailure(cb: () => void): () => void;
   /** A stroll ended while a turn is still thinking — the thinking loop takes the body back. */
   resumeThinking: () => void;
   createSttEngine: () => Promise<SttVad>;
@@ -182,6 +184,9 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
   // Filler loop speaks via speechPlayback (speak), playback completion (onPlaybackEnd) triggers
   // the loop's next iteration — mutual reference, break the cycle with a forward let.
   let fillerLoop: FillerLoop | undefined;
+  // Listeners registered through the VoicePipeline interface, notified beside the filler loop's
+  // own degradation, only for real synth rejections of backend speech (not filler or TTS_SKIP).
+  const synthFailureListeners = new Set<() => void>();
   // Id of the turn owning current thinking — late onThinkingEnd of an overtaken turn must not
   // clean up the single fillerLoop/motion, so ignore it when the id differs.
   let thinkingTurnId: number | null = null;
@@ -200,7 +205,10 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
       synth,
       // A dead TTS server would otherwise be retried once per gap for the whole thinking window.
       // Response-speech failures share the signal; the next thinking start clears it either way.
-      onSynthFailure: () => fillerLoop?.onSynthFailure(),
+      onSynthFailure: (tracked) => {
+        fillerLoop?.onSynthFailure();
+        if (tracked) for (const cb of [...synthFailureListeners]) cb();
+      },
     },
   });
 
@@ -327,6 +335,10 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
     speakFailure,
     resumeThinking,
     createSttEngine,
+    onSynthFailure(cb) {
+      synthFailureListeners.add(cb);
+      return () => void synthFailureListeners.delete(cb);
+    },
     dispose() {
       fillerLoop?.stop();
       speechPlayback.dispose();

@@ -239,15 +239,19 @@ The device-wide list of `surface=reading` pairs the client applies to the text i
 _Avoid_: lexicon, pronunciation dictionary, user dictionary
 
 **Greeting**:
-The card's `first_mes` or one of its `alternate_greetings`, performed by the client after a session reset, once at the first boot of a preset a card import created, and once when Quick start connects on an empty session, and recorded as an assistant entry.
+The card's `first_mes` or one of its `alternate_greetings`, performed by the client after a session reset, once at the first boot of a preset a card import created, and once when Quick start connects or its Replay runs, on an empty session, and recorded as an assistant entry.
 _Avoid_: first message, opener
 
+**Default voice**:
+The Fish Audio voice that Quick start's voice step adds to the voice list and selects for the app language, from `tts_default_voices` in `configs/endpoints.json`. Picked once, when voice is turned on; a later language change keeps it. Not `tts_speaker`, the configured voice the client starts with until another is picked.
+_Avoid_: starter voice, fallback voice
+
 **Quick start**:
-The Connection page's free Gemini path, chosen by the Quick start cell of its switch: what is sent and the daily limit, the key page link, and one key field confirmed by the model list read. A confirmed key writes the preset's URL, model and key, turns idle check-ins and the schedule off, and has the pet window greet. With another server configured it warns that connecting replaces it; once connected it shows a done line and Help.
+The Connection page's free Gemini path, chosen by the Quick start cell of its switch: what is sent and the daily limit, the key page link, and one key field confirmed by the model list read. A confirmed key writes the preset's URL, model and key, turns idle check-ins and the schedule off, and has the pet window greet. With another server configured it warns that connecting replaces it. Once connected it shows a done line, the voice step, and Help. The voice step is an optional Fish Audio key, confirmed by a voice list read, that turns on voice with the Default voice; with a TTS server already set, the step shows a voice-is-on line in its place.
 _Avoid_: setup page, First conversation page
 
 **First conversation**:
-The flow after Quick start confirms a key: the pet window greets, opens the input, and shows the controls hint with Hear the controls and Hear what she can do.
+The flow after Quick start confirms a key: the pet window greets, opens the input, and shows the controls hint with Hear the controls and Hear what she can do. Quick start's Replay reruns it: the greeting only on an empty session, then the input and the hint whatever its seen flag says, skipped while a turn runs.
 _Avoid_: onboarding, wizard
 
 **Task space**:

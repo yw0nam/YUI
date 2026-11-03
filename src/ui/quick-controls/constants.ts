@@ -202,6 +202,8 @@ export const HERMES_AGENT = {
 // The cards guide the Card section's ? button opens. The settings window's opener grant names the same URL.
 export const CARD_GUIDE_URL = "https://yw0nam.github.io/YUI/guide/cards";
 export const GEMINI_KEY_URL = "https://aistudio.google.com/apikey";
+// The voice step's key page. The settings window's opener grant names the same URL.
+export const FISH_KEY_URL = "https://fish.audio/app/api-keys/";
 
 // Chat provider presets (Connection tab, chat section) — selecting one autofills chat_base_url with the
 // provider's OpenAI-compatible path, the chat_model, the chat protocol, or a combination. Brand names
@@ -243,10 +245,17 @@ interface TtsProviderPreset {
   url: string;
   model: string;
 }
+/** The TTS provider preset Quick start's voice step turns on. */
+export const FISH_PRESET = {
+  id: "fish",
+  name: "Fish Audio",
+  url: "https://api.fish.audio",
+  model: "s2.1-pro-free",
+} satisfies TtsProviderPreset;
 export const TTS_PROVIDER_PRESETS: readonly TtsProviderPreset[] = [
   { id: "irodori", name: "Irodori", url: "http://localhost:8088", model: "irodori-tts" },
   { id: "openai", name: "OpenAI", url: "https://api.openai.com", model: "gpt-4o-mini-tts" },
-  { id: "fish", name: "Fish Audio", url: "https://api.fish.audio", model: "s2.1-pro-free" },
+  FISH_PRESET,
 ];
 
 // STT language suggestions; "auto" omits `language` from the request, and any other ISO-639-1 code can be typed.

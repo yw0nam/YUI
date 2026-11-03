@@ -4,5 +4,10 @@
   "chat_model_context_window": 200000,
   "tts_provider": "irodori",
   "tts_model": "irodori-tts",
-  "tts_max_inflight": 3
+  "tts_max_inflight": 3,
+  "tts_default_voices": {
+    "en": { "id": "c2536221a1c141ceae2d11fe15503858", "name": "Shinobu" },
+    "ja": { "id": "d1a1a920956c40c0bac4ef6a92c92a20", "name": "Tokai Teio" },
+    "ko": { "id": "79a8364e57844ba5a463dbf3d29ce99c", "name": "Sylvia" }
+  }
 }

@@ -393,6 +393,23 @@ describe("createSelectionStore", () => {
     expect(cb).toHaveBeenCalledTimes(1);
   });
 
+  it("pins an option that is already the resolved one, so a later manifest listing others first keeps it", () => {
+    const storage = makeMemStorage();
+    const userStorage = makeMemUserStorage();
+    const store = makeStore({ available: [], defaultValue: "", storage, userStorage });
+    store.addUserOption({ id: "mine", url: "/mine.res", source: "user" });
+    expect(store.getActiveId()).toBe("mine");
+
+    const cb = vi.fn();
+    store.subscribe(cb);
+    store.pin("mine");
+    expect(storage._data).toBe("mine");
+    expect(cb).not.toHaveBeenCalled();
+    store.setManifest({ available: SAMPLE, defaultValue: "" });
+
+    expect(store.getActiveId()).toBe("mine");
+  });
+
   it("reloads an external reset and preserves state when override storage throws", () => {
     const storage = makeMemStorage();
     storage._data = "b";

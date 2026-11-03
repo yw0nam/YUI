@@ -224,6 +224,15 @@ export function createSelectionStore<T extends SelectionOption>(opts: {
       notify();
     },
 
+    /** Saves `id` as the user's pick even while it is the resolved option, so a later list change keeps it. */
+    pin(id: string): void {
+      if (!hasId(id) || override === id) return;
+      const changed = resolve().id !== id;
+      override = id;
+      storage?.save(id);
+      if (changed) notify();
+    },
+
     /** Moves the active owner: its user options are listed and resolvable, every other owner's are
      *  not — a list change even when the active id stays put, so it always notifies. */
     setOwner(next: string): void {

@@ -188,6 +188,48 @@ describe("validateEndpoints — stt_model / tts_model / tts_speaker", () => {
   });
 });
 
+describe("validateEndpoints — tts_default_voices", () => {
+  it("carries the per-language default voices through", () => {
+    const voices = {
+      en: { id: "c2536221a1c141ceae2d11fe15503858", name: "Shinobu" },
+      ja: { id: "d1a1a920956c40c0bac4ef6a92c92a20", name: "Tokai Teio" },
+      ko: { id: "79a8364e57844ba5a463dbf3d29ce99c", name: "Sylvia" },
+    };
+    const out = validateEndpoints(FILE, baseRaw({ tts_default_voices: voices }));
+    expect(out.tts_default_voices).toEqual(voices);
+  });
+
+  const EN = { id: "c2536221a1c141ceae2d11fe15503858", name: "Shinobu" };
+  const JA = { id: "d1a1a920956c40c0bac4ef6a92c92a20", name: "Tokai Teio" };
+  const KO = { id: "79a8364e57844ba5a463dbf3d29ce99c", name: "Sylvia" };
+
+  it.each<[string, unknown, string]>([
+    ["a missing language", { en: EN, ja: JA }, "tts_default_voices.ko must be an object"],
+    [
+      "an unknown language key",
+      { en: EN, ja: JA, ko: KO, fr: EN },
+      'tts_default_voices key must be one of en, ja, ko (got: "fr")',
+    ],
+    [
+      "a non-object entry",
+      { en: EN, ja: JA, ko: "Sylvia" },
+      'tts_default_voices.ko must be an object (got: "Sylvia")',
+    ],
+    [
+      "a blank id",
+      { en: EN, ja: { ...JA, id: " " }, ko: KO },
+      'tts_default_voices.ja.id must be a non-blank string (got: " ")',
+    ],
+    [
+      "a blank name",
+      { en: { ...EN, name: "" }, ja: JA, ko: KO },
+      'tts_default_voices.en.name must be a non-blank string (got: "")',
+    ],
+  ])("rejects a voices object with %s", (_, voices, fragment) => {
+    expectIssue(baseRaw({ tts_default_voices: voices }), fragment);
+  });
+});
+
 describe("validateEndpoints — tts_max_inflight / context window", () => {
   it("rejects a non-integer tts_max_inflight", () => {
     expectIssue(baseRaw({ tts_max_inflight: 1.5 }), "tts_max_inflight must be an integer >= 1");

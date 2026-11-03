@@ -45,6 +45,7 @@ import { wirePeek, wireSummonHotkey } from "./stage/wire-summon";
 import { wireWindowGeometry } from "./stage/wire-window-geometry";
 import { type TurnCorePhase1, wireTurnCore } from "./turn/turn-core";
 import type { wireVocabulary } from "./turn/vocabulary/wire-vocabulary";
+import { wireSynthFailureNotice } from "./turn/voice/wire-synth-failure-notice";
 import type { VoicePipeline } from "./turn/voice/wire-voice-pipeline";
 import { wireCard } from "./turn/wire-card";
 import { wireFirstConversation } from "./turn/wire-first-conversation";
@@ -69,6 +70,8 @@ interface Phase1Handles extends TurnCorePhase1 {
   onSessionReset(cb: (presetId: string) => void): () => void;
   /** Subscribes to Quick start's confirmed key for this preset. */
   onFirstConversationConnected(cb: () => void): () => void;
+  /** Subscribes to Quick start's request to replay the first conversation for this preset. */
+  onFirstConversationReplay(cb: () => void): () => void;
   /** Emits this window's replies that named another open character, once their playback ended. */
   emitCharacterAddressed(event: CharacterAddressed): void;
   /** Subscribes to the replies another character addressed to this preset. */
@@ -372,11 +375,22 @@ const realFactories: ConfiguredBootstrapFactories = {
       wireFirstConversation({
         ...firstRunHint,
         onFirstConversationConnected: phase1.onFirstConversationConnected,
+        onFirstConversationReplay: phase1.onFirstConversationReplay,
         onUtteranceEnd: voice.onUtteranceEnd,
         greetLocal: greeting.greetLocal,
         transcript: phase1.conversation.chatHistoryStore,
         isBusy: dispatcher.isPipelineBusy,
         submitGuide: phase1.userInput.submitGuide,
+      }).dispose,
+    );
+    register(
+      wireSynthFailureNotice({
+        onSynthFailure: voice.onSynthFailure,
+        onUtteranceEnd: voice.onUtteranceEnd,
+        surfaces,
+        openSettings: phase1.openSettings,
+        isUnifiedShown: () => phase1.unifiedShown.get(),
+        t,
       }).dispose,
     );
 

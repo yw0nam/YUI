@@ -101,8 +101,11 @@ The **Card** section works the same way: its fields stay in place, disabled, wit
 | `tts_provider` | `irodori` | TTS engine at `tts_base_url`: `irodori`, `openai`, or `fish` |
 | `tts_base_url` | unset | TTS server root without `/v1` |
 | `tts_model` | `irodori-tts` | Model sent to the TTS server: the request's `model` field for Irodori and OpenAI (it must match the server's configured name), or a `model` HTTP header for Fish (an S2-family id) |
-| `tts_speaker` | unset | Default voice id, until another is picked in the panel |
+| `tts_speaker` | unset | Voice id the client starts with when the server lists it, until another is picked in the panel |
+| `tts_default_voices` | `en` Shinobu, `ja` Tokai Teio, `ko` Sylvia | One `{ "id", "name" }` per app language, each a Fish Audio voice; when the key is present, all three languages need a non-blank `id` and `name` |
 | `tts_max_inflight` | `3` | Concurrent TTS synthesis requests |
+
+Quick start's voice step reads `tts_default_voices` through `getDefaultVoices` and, when voice is turned on, adds the voice for the app language to the voice list and selects it.
 
 Each provider has its own endpoint shape and decides how the cue's `emotion_text` and `caption` ride in the request and where the voice list comes from.
 

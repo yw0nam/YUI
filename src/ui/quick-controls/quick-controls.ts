@@ -12,7 +12,7 @@ import "./quick-controls.css";
 import "./controls.css";
 import type { AvatarOption } from "../../config/validators/avatar/types";
 import type { Card, PersonaConfig } from "../../config/validators/persona/types";
-import type { GuideKey } from "../../contract";
+import type { EndpointsConfig, GuideKey } from "../../contract";
 import type { ImportedCard } from "../../io/assets/card/card-import";
 import type { createVrmSelection } from "../../io/assets/vrm-selection";
 import type { createChatHistoryStore } from "../../io/chat/conversation/chat-history-store";
@@ -206,6 +206,8 @@ interface QuickControlsOptions {
   getEndpointDefaults?: () => EndpointOverrides | undefined;
   /** Default bundled-config value for Chat API dropdown when no override (undefined if not loaded). */
   getDefaultChatApi?: () => string | undefined;
+  /** The Fish voice per app language, for Quick start's voice step (undefined if not loaded). */
+  getDefaultVoices?: () => NonNullable<EndpointsConfig["tts_default_voices"]> | undefined;
   /** Resolves the chat key the chat turn would send, per request (SecretProvider path). */
   getChatApiKey?: () => Promise<string | undefined>;
   /** Environment fetch for the model list read (selectFetch()), undefined → globalThis.fetch. */
@@ -294,6 +296,8 @@ interface QuickControlsOptions {
   openOnQuickStart?: boolean;
   /** Quick start confirmed its key. */
   onFirstConversationConnected?: () => void;
+  /** Quick start's replay button: the pet window replays the first conversation. */
+  onReplayFirstConversation?: () => void;
 }
 
 /** A part of the panel the shell redraws on open, closes, and disposes. */
@@ -354,6 +358,7 @@ export function createQuickControls({
   ttsKeySettings,
   getEndpointDefaults,
   getDefaultChatApi,
+  getDefaultVoices,
   getChatApiKey,
   getFetch,
   pushSocket,
@@ -401,6 +406,7 @@ export function createQuickControls({
   showVoiceInput = true,
   openOnQuickStart = false,
   onFirstConversationConnected,
+  onReplayFirstConversation,
 }: QuickControlsOptions): QuickControls {
   // The context-occupancy readout renders when both stores are injected.
   const hasSession = !!sessionDiagnostics && !!sessionStore;
@@ -474,6 +480,11 @@ export function createQuickControls({
     getFetch: async () => getFetch?.(),
     onConnected: () => onFirstConversationConnected?.(),
     showHelp: !!onGuide,
+    ttsKeySettings,
+    ttsSettings,
+    speakerSelection,
+    getDefaultVoices,
+    onReplay: onReplayFirstConversation,
   });
 
   // ── Connection page — Quick start or Detailed settings ──
