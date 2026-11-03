@@ -16,6 +16,7 @@ const READ_MS = 2500;
 function setup(over: { seen?: boolean; endsInsideSpeak?: boolean; busy?: boolean } = {}) {
   const calls: string[] = [];
   const signals = new Set<() => void>();
+  const replays = new Set<() => void>();
   const ends = new Set<(identity: UtteranceIdentity) => void>();
   const showSpeechActions = vi.fn<(actions: readonly SpeechAction[]) => void>();
   const submitGuide = vi.fn((guide: string) => calls.push(`guide:${guide}`));
@@ -71,6 +72,10 @@ function setup(over: { seen?: boolean; endsInsideSpeak?: boolean; busy?: boolean
       signals.add(cb);
       return () => signals.delete(cb);
     },
+    onFirstConversationReplay: (cb) => {
+      replays.add(cb);
+      return () => replays.delete(cb);
+    },
     onUtteranceEnd: (cb) => {
       ends.add(cb);
       return () => ends.delete(cb);
@@ -97,6 +102,7 @@ function setup(over: { seen?: boolean; endsInsideSpeak?: boolean; busy?: boolean
   return {
     calls,
     signals,
+    replays,
     ends,
     transcript,
     wired,
@@ -105,6 +111,9 @@ function setup(over: { seen?: boolean; endsInsideSpeak?: boolean; busy?: boolean
     submitGuide,
     connect: () => {
       for (const cb of [...signals]) cb();
+    },
+    replay: () => {
+      for (const cb of [...replays]) cb();
     },
     finishPlayback: () => pipeline?.onPlaybackEnd?.(),
   };
@@ -259,6 +268,59 @@ describe("wireFirstConversation", () => {
     expect(s.calls).toEqual(OPENED);
   });
 
+  it("a replay on an empty session greets, opens the input and shows the hint with the two guides", () => {
+    const s = setup({ seen: true });
+
+    s.replay();
+    expect(s.calls).toEqual(["speak:Hi."]);
+
+    vi.advanceTimersByTime(TYPED_MS);
+    s.finishPlayback();
+    vi.advanceTimersByTime(0);
+    expect(s.calls).toEqual(OPENED);
+
+    vi.advanceTimersByTime(READ_MS);
+    expect(s.calls).toEqual([...OPENED, HINT]);
+    expect(s.showSpeechActions.mock.calls[0]![0].map((a) => a.label)).toEqual([
+      "help.controls.hear",
+      "help.capabilities.hear",
+    ]);
+  });
+
+  it("a replay on a running conversation shows the hint at once with no greeting", () => {
+    const s = setup();
+    s.transcript.append({ role: "user", text: "hello", ts: 1 });
+
+    s.replay();
+
+    expect(s.calls).toEqual(["hide", "input", HINT]);
+    expect(s.showSpeechActions.mock.calls[0]![0]).toHaveLength(2);
+  });
+
+  it("a replay while a turn is running does nothing", () => {
+    const s = setup({ busy: true });
+
+    s.replay();
+
+    expect(s.calls).toEqual([]);
+    expect(s.showSpeechActions).not.toHaveBeenCalled();
+  });
+
+  it("a replay during the first conversation's own sequence does nothing", () => {
+    const s = setup();
+
+    s.connect();
+    expect(s.calls).toEqual(["speak:Hi."]);
+
+    s.replay();
+    expect(s.calls).toEqual(["speak:Hi."]);
+
+    vi.advanceTimersByTime(TYPED_MS);
+    s.finishPlayback();
+    vi.advanceTimersByTime(0);
+    expect(s.calls).toEqual(OPENED);
+  });
+
   it("dispose leaves no subscription, mid-greeting included", () => {
     const s = setup();
 
@@ -267,6 +329,7 @@ describe("wireFirstConversation", () => {
     s.wired.dispose();
 
     expect(s.signals.size).toBe(0);
+    expect(s.replays.size).toBe(0);
     expect(s.ends.size).toBe(0);
   });
 });

@@ -48,6 +48,8 @@ interface QuickStartDeps {
   speakerSelection?: Pick<SpeakerSelectionStore, "list" | "addUserOption" | "select">;
   /** The Fish voice per app language, from the bundled config; undefined hides the section. */
   getDefaultVoices?: () => Record<Locale, { id: string; name: string }> | undefined;
+  /** The pet window replays the first conversation. */
+  onReplay?: () => void;
 }
 
 function factRowHtml(labelKey: string, subKey: string): string {
@@ -65,7 +67,7 @@ function keyLinkHtml(labelKey: string, className: string): string {
   return `<a class="yui-chat-type__link ${className}" href="${GEMINI_KEY_URL}" target="_blank" rel="noopener noreferrer" tabindex="0">${t(labelKey)}</a>`;
 }
 
-function pageHtml(showHelp: boolean): string {
+function pageHtml(showHelp: boolean, replayRow: string): string {
   return `
     <div class="yui-tab-stack yui-start__setup">
       <p class="yui-start__own" hidden>${t("start.own_note")}</p>
@@ -103,8 +105,20 @@ function pageHtml(showHelp: boolean): string {
     </div>
     <div class="yui-start__connected" hidden>
       <p class="yui-start__done" role="status">${ICON_DONE}<span>${t("start.done")}</span></p>
-      ${showHelp ? helpSectionHtml() : ""}
+      ${showHelp ? helpSectionHtml(replayRow) : ""}
     </div>`;
+}
+
+/** The Help row that replays the first conversation. */
+function replayRowHtml(): string {
+  return `
+          <div class="yui-row">
+            <div class="yui-row__main">
+              <span class="yui-row__label">${t("help.replay.label")}</span>
+              <span class="yui-row__sub">${t("help.replay.sub")}</span>
+            </div>
+            <button class="yui-link-btn yui-help-btn yui-start__replay" type="button" aria-label="${t("help.replay.aria")}">${t("help.replay.action")}</button>
+          </div>`;
 }
 
 export function createQuickStart(deps: QuickStartDeps): {
@@ -115,7 +129,7 @@ export function createQuickStart(deps: QuickStartDeps): {
 } {
   const el = document.createElement("div");
   el.className = "yui-tab-stack";
-  el.innerHTML = pageHtml(deps.showHelp);
+  el.innerHTML = pageHtml(deps.showHelp, deps.onReplay ? replayRowHtml() : "");
   const setup = el.querySelector<HTMLElement>(".yui-start__setup")!;
   const connected = el.querySelector<HTMLElement>(".yui-start__connected")!;
   const voiceStep =
@@ -200,6 +214,9 @@ export function createQuickStart(deps: QuickStartDeps): {
   });
 
   toggle.addEventListener("click", () => toggleKeyReveal(input, toggle, "chatkey"));
+  el.querySelector<HTMLButtonElement>(".yui-start__replay")?.addEventListener("click", () =>
+    deps.onReplay?.(),
+  );
   connect.addEventListener("click", () => {
     error.hidden = true;
     if (typedKey() === "") showError("start.need_key");

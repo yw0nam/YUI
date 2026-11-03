@@ -374,6 +374,7 @@ describe("createSettingsBridge", () => {
     ["onPushReset", undefined, true],
     ["onSessionReset", "a", true],
     ["onFirstConversationConnected", undefined, true],
+    ["onFirstConversationReplay", undefined, true],
     ["onPushReconnect", undefined, true],
     ["onDelegations", [], true],
     ["onDelegationsAsk", undefined, true],
@@ -404,6 +405,18 @@ describe("createSettingsBridge", () => {
     expect(cb).toHaveBeenCalledTimes(scoped ? 1 : 3);
     bridge.dispose();
     history.replaceState(null, "", "/");
+  });
+
+  it("delivers a first-conversation replay from the settings window to the pet window", () => {
+    const t = createFakeTransport();
+    const settings = createSettingsBridge(t, { windowKind: "settings" });
+    const pet = createSettingsBridge(t, { windowKind: "pet" });
+    const cb = vi.fn();
+    pet.onFirstConversationReplay(cb);
+
+    settings.emitFirstConversationReplay();
+
+    expect(cb).toHaveBeenCalledTimes(1);
   });
 
   it.each([

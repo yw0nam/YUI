@@ -1,4 +1,4 @@
-/** After Quick start connects: the greeting, then the input, then the controls hint with the guides. */
+/** After Quick start connects, and on a replay of it: the greeting, then the input, then the controls hint with the guides. */
 import type { GuideKey, UtteranceIdentity } from "../../contract";
 import type { createChatHistoryStore } from "../../io/chat/conversation/chat-history-store";
 import { TYPE_MS_PER_CHAR } from "../../ui/message/typewriter";
@@ -12,6 +12,7 @@ export function wireFirstConversation(
   deps: Omit<FirstRunHintDeps, "chatConfigured" | "surfaces"> & {
     surfaces: FirstRunHintDeps["surfaces"] & { summonInput(): void };
     onFirstConversationConnected: (cb: () => void) => () => void;
+    onFirstConversationReplay: (cb: () => void) => () => void;
     onUtteranceEnd: (cb: (identity: UtteranceIdentity) => void) => () => void;
     greetLocal: () => boolean;
     transcript: Pick<ReturnType<typeof createChatHistoryStore>, "entriesAfterLastBoundary">;
@@ -30,8 +31,12 @@ export function wireFirstConversation(
     }, ms);
   };
 
-  const showHint = (): void => {
-    if (!maybeShowFirstRunHint({ ...deps, chatConfigured: true })) return;
+  const showHint = (replay: boolean): void => {
+    // A replay asks for the hint again, whatever the seen flag says.
+    const shown = replay
+      ? maybeShowFirstRunHint({ ...deps, chatConfigured: true, seen: () => false })
+      : maybeShowFirstRunHint({ ...deps, chatConfigured: true });
+    if (!shown) return;
     deps.surfaces.showSpeechActions(
       GUIDES.map((guide) => ({
         label: deps.t(`help.${guide}.hear`),
@@ -49,7 +54,7 @@ export function wireFirstConversation(
     stopWaiting = null;
   };
 
-  const onGreetingEnd = (startedAt: number): void => {
+  const onGreetingEnd = (startedAt: number, replay: boolean): void => {
     stopWaitingForGreeting();
     const line = deps.transcript.entriesAfterLastBoundary().findLast((e) => e.greeting);
     const typeMs = (line?.text.length ?? 0) * TYPE_MS_PER_CHAR;
@@ -57,29 +62,35 @@ export function wireFirstConversation(
     after(Math.max(0, typeMs - (Date.now() - startedAt)), () => {
       deps.surfaces.summonInput();
       after(GREETING_READ_MS, () => {
-        if (!deps.isBusy()) showHint();
+        if (!deps.isBusy()) showHint(replay);
       });
     });
   };
 
-  const stopListening = deps.onFirstConversationConnected(() => {
+  const run = (opts: { replay: boolean }): void => {
     if (stopWaiting || timer !== null) return;
+    // A turn runs, so the replay would overwrite its reply.
+    if (opts.replay && deps.isBusy()) return;
     const startedAt = Date.now();
     // Subscribed first: with nothing to play, the greeting ends inside greetLocal.
     stopWaiting = deps.onUtteranceEnd((identity) => {
-      if (identity.event_name === "greeting") onGreetingEnd(startedAt);
+      if (identity.event_name === "greeting") onGreetingEnd(startedAt, opts.replay);
     });
     if (deps.greetLocal()) return;
     stopWaitingForGreeting();
     // The setup bubble's Connect button has nothing left to do.
     deps.surfaces.hideSpeech();
     deps.surfaces.summonInput();
-    showHint();
-  });
+    showHint(opts.replay);
+  };
+
+  const stopListening = deps.onFirstConversationConnected(() => run({ replay: false }));
+  const stopListeningReplay = deps.onFirstConversationReplay(() => run({ replay: true }));
 
   return {
     dispose() {
       stopListening();
+      stopListeningReplay();
       stopWaitingForGreeting();
       if (timer !== null) clearTimeout(timer);
     },
