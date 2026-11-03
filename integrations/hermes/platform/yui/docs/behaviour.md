@@ -98,7 +98,13 @@
   client is away drops them.
 - Starts a new conversation on `reset` and ends the delegations still running for that chat. The
   gateway asks to confirm `/new`, and the plugin approves it because the client already did.
-- Raises a Hermes exec approval as an `ask` frame to a client whose `accepts` lists `ask`: the prompt is Hermes's approval text, the choices are the actions Hermes offers (`once`, `session`, `always`, `deny`, fewer when Hermes withholds some), and `expires_at` follows `approvals.timeout`. An `answer` with an offered choice resolves that approval and no other; any other choice resolves nothing and leaves the Ask open. When the approval ends without the client's answer the plugin sends `ask_end`. Open Asks wait while the client is away and go out after `ready` on the next connection that accepts them, until they expire. A client that does not accept `ask` gets today's behaviour: the approval times out.
+- Raises a Hermes exec approval with a request id as an `ask` frame when the client's `accepts`
+  lists `ask`. It carries Hermes's approval text, offered actions (`once`, `session`, `always`,
+  `deny`, or fewer), and `expires_at` from `approvals.timeout`. For a client that does not accept
+  `ask`, the approval times out.
+- An `answer` resolves only an offered choice, by `request_id`; an invalid choice leaves the Ask
+  open. Settlement drops it and sends `ask_end` only when accepted. Open Asks wait while the client
+  is away; unexpired ones replay after `ready` on a connection that accepts `ask`.
 - Stops the session's running agent on `stop`, which the client sends when the user presses stop.
   The frame carries the turn ids the client just stopped, and the plugin hands the gateway `/stop`
   only when at least one of them is still open on the chat and every open turn is named. A `stop`

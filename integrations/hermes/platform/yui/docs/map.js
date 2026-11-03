@@ -1071,7 +1071,7 @@ globalThis.YUI_MAP =
       "id": "adapter-asks",
       "from": "transport/adapter",
       "to": "asks/asks",
-      "carries": "open, get, pending, drop",
+      "carries": "open, get, take, pending, drop",
       "kind": "call",
       "transport": "push"
     }

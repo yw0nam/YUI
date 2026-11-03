@@ -45,6 +45,13 @@ class Asks:
     def get(self, chat_id: str, ask_id: str) -> Ask | None:
         return self._chats.get(chat_id, {}).get(ask_id)
 
+    def take(self, chat_id: str, ask_id: str, choice: object) -> Ask | None:
+        ask = self.get(chat_id, ask_id)
+        if ask is None or not isinstance(choice, str) or choice not in ask.choices:
+            return None
+        self.drop(chat_id, ask_id)
+        return ask
+
     def pending(self, chat_id: str, now_ms: float) -> list[Ask]:
         for ask_id, ask in list(self._chats.get(chat_id, {}).items()):
             if ask.expires_at <= now_ms:
