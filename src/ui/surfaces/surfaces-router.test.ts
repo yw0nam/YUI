@@ -778,3 +778,33 @@ it.each([
     messageBridge.dispose();
   }
 });
+
+it.each(["settled", "clear"] as const)("drops the recorded command side on %s", (kind) => {
+  const local = makeLocal();
+  const remote = makeRemote();
+  const stream = makeRemote();
+  const router = createSurfacesRouter({
+    local,
+    remote,
+    stream,
+    getMode: () => "docked",
+    subscribeMode: () => () => {},
+    shown: { get: () => false, subscribe: () => () => {} },
+  });
+  try {
+    router.onCommand(() => true);
+    vi.mocked(stream.onCommand).mock.calls[0]![0]("status", "");
+    router.showCommandReply({ kind: "pending", name: "status" });
+    router.showCommandReply(kind === "clear" ? { kind } : { kind, name: "status", text: "Done" });
+    vi.mocked(stream.showCommandReply).mockClear();
+    router.showCommandReply({ kind: "settled", name: "status", text: "Local" });
+    expect(local.showCommandReply).toHaveBeenLastCalledWith({
+      kind: "settled",
+      name: "status",
+      text: "Local",
+    });
+    expect(stream.showCommandReply).not.toHaveBeenCalled();
+  } finally {
+    router.dispose();
+  }
+});

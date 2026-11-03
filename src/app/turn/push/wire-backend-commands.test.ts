@@ -58,11 +58,16 @@ it("forwards the backend command list", () => {
 it("sends one pending command and settles its matching reply", () => {
   const w = setup();
   w.command();
+  expect(w.surfaces.showCommandReply).toHaveBeenLastCalledWith({ kind: "pending", name: "status" });
   w.command();
+  expect(w.surfaces.showCommandReply).toHaveBeenLastCalledWith({
+    kind: "settled",
+    name: "status",
+    text: "Not run: a reply is still in progress.",
+  });
   expect(w.socket.sendCommand).toHaveBeenCalledTimes(1);
   const frame = w.socket.sendCommand.mock.calls[0]![0];
   expect(frame).toEqual({ type: "command", id: expect.any(String), name: "status", args: "" });
-  expect(w.surfaces.showCommandReply).toHaveBeenLastCalledWith({ kind: "pending", name: "status" });
   w.reply(frame.id);
   expect(w.surfaces.showCommandReply).toHaveBeenLastCalledWith({
     kind: "settled",

@@ -19,6 +19,7 @@ import { setLocale, t } from "../i18n";
 import { createSurfaces } from "../surfaces/surfaces";
 import { noTool } from "../surfaces/test-helpers";
 import { downscaleToJpeg } from "./image-resize";
+import { createTextInput } from "./text-input";
 
 const downscale = vi.mocked(downscaleToJpeg);
 
@@ -1104,4 +1105,60 @@ describe("Backend commands from the real input", () => {
     s.dispose();
     mount.remove();
   });
+});
+
+it.each(["pet", "message"])("keeps a busy %s command draft and shows an inline error", (window) => {
+  const mount = document.createElement("div");
+  document.body.append(mount);
+  const s = createSurfaces({ tool: noTool, mount, namePlate: window === "message" });
+  try {
+    const run = vi.fn(() => true);
+    s.onCommand(run);
+    s.setCommands([{ name: "status", description: "Info", args: "" }]);
+    s.summonInput();
+    s.setBusy(true);
+    const field = mount.querySelector<HTMLTextAreaElement>("textarea")!;
+    field.value = "/status";
+    field.dispatchEvent(new Event("input"));
+    field.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", cancelable: true }));
+    expect(field.value).toBe("/status");
+    expect(mount.querySelector(".yui-input__error")?.textContent).toBe(
+      "Wait for the reply to finish.",
+    );
+    expect(run).not.toHaveBeenCalled();
+    expect(mount.querySelector<HTMLElement>(".yui-cmd-reply")!.hidden).toBe(true);
+  } finally {
+    s.dispose();
+    mount.remove();
+  }
+});
+
+it("clears an inline error when an interceptor accepts a submit", () => {
+  const formEl = document.createElement("form");
+  const field = document.createElement("textarea");
+  const errorEl = document.createElement("span");
+  formEl.append(field, errorEl);
+  const input = createTextInput(
+    {
+      formEl,
+      field,
+      errorEl,
+      trayEl: document.createElement("div"),
+      attachBtn: document.createElement("button"),
+      picker: document.createElement("input"),
+      sendBtn: document.createElement("button"),
+    },
+    { liftAboveInput() {}, resetPosition() {} },
+  );
+  try {
+    input.interceptSubmit(() => "accepted");
+    input.showInputError("Wait for the reply to finish.");
+    field.value = "/status";
+    formEl.dispatchEvent(new Event("submit", { cancelable: true }));
+    expect(errorEl.textContent).toBe("");
+    expect(formEl.classList.contains("is-error")).toBe(false);
+    expect(field.value).toBe("");
+  } finally {
+    input.dispose();
+  }
 });
