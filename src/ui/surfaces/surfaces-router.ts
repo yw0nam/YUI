@@ -47,7 +47,7 @@ export function createSurfacesRouter({
   subscribeMode,
   shown,
 }: SurfacesRouterOptions): Surfaces {
-  const speech = (): SpeechSide & Pick<Surfaces, "showSpeechAction"> =>
+  const speech = (): SpeechSide & Pick<Surfaces, "showSpeechActions"> =>
     getMode() === "popped" ? remote : local;
   const input = (): Pick<
     Surfaces,
@@ -108,7 +108,7 @@ export function createSurfacesRouter({
     endSpeech: (...args) => line().endSpeech(...args),
     finishSpeech: () => line().finishSpeech(),
     hideSpeech: () => line().hideSpeech(),
-    showSpeechAction: (action) => speech().showSpeechAction(action),
+    showSpeechActions: (actions) => speech().showSpeechActions(actions),
     quoteUser: (q) => quote().quoteUser(q),
     quoteSignals: (lines) => quote().quoteSignals(lines),
     settleQuote: () => quote().settleQuote(),

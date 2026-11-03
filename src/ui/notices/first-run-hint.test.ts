@@ -14,7 +14,7 @@ function fakeDeps(overrides: Partial<FirstRunHintDeps> = {}): {
   beginSpeech: ReturnType<typeof vi.fn>;
   pushSpeech: ReturnType<typeof vi.fn>;
   endSpeech: ReturnType<typeof vi.fn>;
-  showSpeechAction: ReturnType<typeof vi.fn>;
+  showSpeechActions: ReturnType<typeof vi.fn>;
   hideSpeech: ReturnType<typeof vi.fn>;
   openSettings: ReturnType<typeof vi.fn>;
 } {
@@ -22,7 +22,7 @@ function fakeDeps(overrides: Partial<FirstRunHintDeps> = {}): {
   const beginSpeech = vi.fn(() => calls.push("begin"));
   const pushSpeech = vi.fn(() => calls.push("push"));
   const endSpeech = vi.fn(() => calls.push("end"));
-  const showSpeechAction = vi.fn();
+  const showSpeechActions = vi.fn();
   const hideSpeech = vi.fn();
   const markSeen = vi.fn(() => calls.push("markSeen"));
   const openSettings = vi.fn();
@@ -33,7 +33,7 @@ function fakeDeps(overrides: Partial<FirstRunHintDeps> = {}): {
   const deps: FirstRunHintDeps = {
     seen: () => false,
     markSeen,
-    surfaces: { beginSpeech, pushSpeech, endSpeech, showSpeechAction, hideSpeech },
+    surfaces: { beginSpeech, pushSpeech, endSpeech, showSpeechActions, hideSpeech },
     hotkey: "CmdOrCtrl+Shift+Y",
     isMac: false,
     chatConfigured: true,
@@ -50,7 +50,7 @@ function fakeDeps(overrides: Partial<FirstRunHintDeps> = {}): {
     beginSpeech,
     pushSpeech,
     endSpeech,
-    showSpeechAction,
+    showSpeechActions,
     hideSpeech,
     openSettings,
   };
@@ -141,33 +141,33 @@ describe("maybeShowFirstRunHint — unconfigured chat backend", () => {
   });
 
   it("sends no speech action on the configured controls hint", () => {
-    const { deps, showSpeechAction } = fakeDeps();
+    const { deps, showSpeechActions } = fakeDeps();
 
     maybeShowFirstRunHint(deps);
 
-    expect(showSpeechAction).not.toHaveBeenCalled();
+    expect(showSpeechActions).not.toHaveBeenCalled();
   });
 
   it("carries the setup action on the setup hint, opening Connection on click", () => {
-    const { deps, showSpeechAction, openSettings } = fakeDeps({ chatConfigured: false });
+    const { deps, showSpeechActions, openSettings } = fakeDeps({ chatConfigured: false });
 
     maybeShowFirstRunHint(deps);
 
-    expect(showSpeechAction).toHaveBeenCalledTimes(1);
-    const action = showSpeechAction.mock.calls[0][0];
-    expect(action.label).toBe("hint.setup_action");
-    action.onClick();
+    expect(showSpeechActions).toHaveBeenCalledTimes(1);
+    const actions = showSpeechActions.mock.calls[0][0];
+    expect(actions.map((a: { label: string }) => a.label)).toEqual(["hint.setup_action"]);
+    actions[0].onClick();
     expect(openSettings).toHaveBeenCalledWith("conn");
   });
 
   it("hides the hint once its action opens the settings", () => {
-    const { deps, showSpeechAction, openSettings, hideSpeech } = fakeDeps({
+    const { deps, showSpeechActions, openSettings, hideSpeech } = fakeDeps({
       chatConfigured: false,
     });
 
     maybeShowFirstRunHint(deps);
 
-    showSpeechAction.mock.calls[0][0].onClick();
+    showSpeechActions.mock.calls[0][0][0].onClick();
     expect(openSettings).toHaveBeenCalledWith("conn");
     expect(hideSpeech).toHaveBeenCalledTimes(1);
     expect(hideSpeech).toHaveBeenCalledAfter(openSettings);

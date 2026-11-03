@@ -21,7 +21,7 @@ export interface FirstRunHintDeps {
     beginSpeech(): void;
     pushSpeech(t: string): void;
     endSpeech(): void;
-    showSpeechAction(action?: SpeechAction): void;
+    showSpeechActions(actions: readonly SpeechAction[]): void;
     hideSpeech(): void;
   };
   hotkey: string;
@@ -56,13 +56,14 @@ export function maybeShowFirstRunHint(deps: FirstRunHintDeps): boolean {
   deps.surfaces.pushSpeech(text);
   deps.surfaces.endSpeech();
   if (!deps.chatConfigured) {
-    deps.surfaces.showSpeechAction({
+    const setup = {
       label: deps.t("hint.setup_action"),
       onClick: () => {
         deps.openSettings("conn");
         deps.surfaces.hideSpeech();
       },
-    });
+    };
+    deps.surfaces.showSpeechActions([setup]);
   }
   if (deps.chatConfigured) deps.markSeen();
   return true;

@@ -42,7 +42,7 @@ describe("user quote — the user's message on the bubble's first line", () => {
   });
 
   const bubble = (): HTMLElement => mount.querySelector<HTMLElement>(".yui-bubble")!;
-  const box = (): HTMLElement => mount.querySelector<HTMLElement>(".yui-bubble__box")!;
+  const scroller = (): HTMLElement => mount.querySelector<HTMLElement>(".yui-bubble__scroll")!;
   const quote = (): HTMLElement => mount.querySelector<HTMLElement>(".yui-bubble__quote")!;
   const who = (): HTMLElement => mount.querySelector<HTMLElement>(".yui-bubble__quote-who")!;
   const quoteText = (): HTMLElement => mount.querySelector<HTMLElement>(".yui-bubble__quote-text")!;
@@ -63,7 +63,7 @@ describe("user quote — the user's message on the bubble's first line", () => {
 
     expect(shown()).toBe(true);
     expect(bubble().classList.contains("is-streaming")).toBe(false);
-    expect(box().firstElementChild).toBe(quote());
+    expect(scroller().firstElementChild).toBe(quote());
     expect(quote().hidden).toBe(false);
     expect(who().textContent).toBe(t("bubble.you"));
     expect(who().querySelector("svg")).toBeNull();

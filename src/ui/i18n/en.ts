@@ -139,6 +139,8 @@ const en: Record<string, string> = {
   "help.capabilities.sub": "She introduces what you can do together through this app.",
   "help.capabilities.request": "What can you do for me through YUI?",
   "help.ask": "Ask",
+  "help.controls.hear": "Hear the controls",
+  "help.capabilities.hear": "Hear what she can do",
   "devtools.label": "Developer Tools",
   "devtools.sub": "Inspect sent context and preview motions",
   "devtools.open": "Open",

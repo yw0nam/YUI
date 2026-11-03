@@ -55,14 +55,12 @@ export function wireMessageSurfaceOps({
             : undefined,
         );
         break;
-      case "speech-action":
-        surfaces.showSpeechAction(
-          op.action
-            ? {
-                label: op.action.label,
-                onClick: () => bridge.emitControl({ op: "speech-action" }),
-              }
-            : undefined,
+      case "speech-actions":
+        surfaces.showSpeechActions(
+          op.labels.map((label, index) => ({
+            label,
+            onClick: () => bridge.emitControl({ op: "speech-action", index }),
+          })),
         );
         break;
       case "attachment-limits":

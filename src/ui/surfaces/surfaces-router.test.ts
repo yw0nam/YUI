@@ -31,7 +31,7 @@ function makeLocal(): Surfaces {
     endSpeech: vi.fn(),
     finishSpeech: vi.fn(),
     hideSpeech: vi.fn(),
-    showSpeechAction: vi.fn(),
+    showSpeechActions: vi.fn(),
     quoteUser: vi.fn(),
     quoteSignals: vi.fn(),
     settleQuote: vi.fn(),
@@ -60,7 +60,7 @@ function makeRemote(): RemoteSurfaces {
     endSpeech: vi.fn(),
     finishSpeech: vi.fn(),
     hideSpeech: vi.fn(),
-    showSpeechAction: vi.fn(),
+    showSpeechActions: vi.fn(),
     quoteUser: vi.fn(),
     quoteSignals: vi.fn(),
     settleQuote: vi.fn(),
@@ -421,16 +421,16 @@ describe("createSurfacesRouter", () => {
 
     it("keeps a notice and its action on the character's own bubble", () => {
       setShown(true);
-      const action = { label: "Open Connection", onClick: () => {} };
+      const actions = [{ label: "Open Connection", onClick: () => {} }];
 
       router.beginSpeech();
       router.pushSpeech("Connect a backend first.");
-      router.showSpeechAction(action);
+      router.showSpeechActions(actions);
       router.endSpeech();
 
       expect(local.beginSpeech).toHaveBeenCalledOnce();
       expect(local.pushSpeech).toHaveBeenCalledWith("Connect a backend first.");
-      expect(local.showSpeechAction).toHaveBeenCalledWith(action);
+      expect(local.showSpeechActions).toHaveBeenCalledWith(actions);
       expect(local.endSpeech).toHaveBeenCalledOnce();
       expect(stream.beginSpeech).not.toHaveBeenCalled();
     });

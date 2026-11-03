@@ -272,16 +272,18 @@ describe("surfaces.css — the bubble's box carries the material", () => {
     expect(block).not.toMatch(/background|backdrop-filter|overflow/);
   });
 
-  it("gives the box the scrim, the frost, the scroll cap and the speech size", () => {
+  it("gives the box the scrim, the frost and the speech size, and its scroller the scroll", () => {
     const block = extractBlock(css(), ".yui-bubble__box");
     expect(block).toMatch(/background:\s*var\(--yui-scrim\)/);
     expect(block).toMatch(/backdrop-filter:\s*blur\(10px\) saturate\(1\.1\)/);
-    expect(block).toMatch(/overflow-y:\s*auto/);
+    expect(extractBlock(css(), ".yui-bubble__scroll")).toMatch(/overflow-y:\s*auto/);
     expect(block).toMatch(/font-size:\s*var\(--yui-fs-speech\)/);
   });
 
-  it("fades the top of the box, not the wrapper, once it overflows", () => {
-    expect(extractBlock(css(), ".yui-bubble.is-scrollable .yui-bubble__box")).toMatch(/mask-image/);
+  it("fades the top of the scroller, not the wrapper, once it overflows", () => {
+    expect(extractBlock(css(), ".yui-bubble.is-scrollable .yui-bubble__scroll")).toMatch(
+      /mask-image/,
+    );
   });
 
   it("drops the frost for a solid strong scrim under reduced transparency", () => {
@@ -380,10 +382,26 @@ describe("surfaces.css — the box's floor stays under its cap, and its cap over
       /--yui-bubble-max-h:\s*max\(34vh, var\(--yui-bubble-three-lines\)\);/,
     );
     expect(
-      extractBlock(read("surfaces.css"), ".yui-bubble.is-above-input .yui-bubble__box"),
+      extractBlock(read("surfaces.css"), ".yui-bubble.is-above-input .yui-bubble__scroll"),
     ).toMatch(
-      /max-height:\s*max\(min\(var\(--yui-bubble-max-h, 34vh\), 28vh\), var\(--yui-bubble-three-lines\)\);/,
+      /max-height:\s*calc\(\s*max\(min\(var\(--yui-bubble-max-h, 34vh\), 28vh\), var\(--yui-bubble-three-lines\)\)\s*-\s*56px\s*\);/,
     );
+  });
+
+  // The actions sit under the scroller, so a cap on the box would let them squeeze the text to nothing.
+  it("caps the scroller, net of the box's 56px vertical padding, and leaves the box uncapped", () => {
+    const c = read("surfaces.css");
+    expect(extractBlock(c, ".yui-bubble__box")).not.toMatch(/max-height/);
+    expect(extractBlock(c, ".yui-bubble__scroll")).toMatch(
+      /max-height:\s*calc\(var\(--yui-bubble-max-h, 34vh\) - 56px\);/,
+    );
+    expect(extractBlock(c, ".yui-bubble.is-above-input .yui-bubble__box")).not.toMatch(
+      /max-height/,
+    );
+    const message = read("../message/message-window.css");
+    expect(
+      extractBlock(message, ".yui-ui--message .yui-bubble.is-above-input .yui-bubble__scroll"),
+    ).toMatch(/max-height:\s*calc\(var\(--yui-bubble-max-h, 34vh\) - 56px\);/);
   });
 });
 
