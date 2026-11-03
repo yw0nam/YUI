@@ -24,6 +24,8 @@ const ja: Record<string, string> = {
   "voice.error.mic_denied": "マイク拒否",
   "voice.error.no_mic": "マイクなし",
   "voice.error.mic_unavailable": "マイク使用不可",
+  // the bubble action after a real synth failure — the voice itself is what to change
+  "voice.synth_failed_action": "この声で話せません · ほかの声を選ぶ",
 
   // aria labels (parameterized)
   "aria.refresh_speaker": "{name} の参照音声を更新",
