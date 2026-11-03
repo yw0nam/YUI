@@ -1,4 +1,5 @@
 import "./command-reply.css";
+import type { CommandReplyState } from "../../io/bridge/message/message-bridge";
 import { subscribe, t } from "../i18n";
 import { entryMarkdown } from "../threads/window/entry-markdown";
 
@@ -28,31 +29,33 @@ export function createCommandReply({ mount }: { mount: HTMLElement }) {
     close.setAttribute("aria-label", t("command.close"));
     if (empty) body.textContent = t("command.empty");
   }
-  function clear(): void {
-    card.hidden = true;
+  const closeHandlers: Array<() => void> = [];
+  function requestClose(): void {
+    for (const cb of closeHandlers) cb();
   }
-  close.addEventListener("click", clear);
+  close.addEventListener("click", requestClose);
   labels();
   const offLocale = subscribe(labels);
   return {
-    pending(name: string): void {
-      title.textContent = `/${name}`;
-      empty = false;
-      body.replaceChildren();
-      running.hidden = false;
+    show(state: CommandReplyState): void {
+      if (state.kind === "clear") {
+        card.hidden = true;
+        return;
+      }
+      title.textContent = `/${state.name}`;
+      empty = state.kind === "settled" && state.text === "";
+      running.hidden = state.kind !== "pending";
+      body.replaceChildren(...(state.kind === "settled" ? entryMarkdown(state.text) : []));
       labels();
       card.hidden = false;
     },
-    settle(text: string): void {
-      empty = text === "";
-      running.hidden = true;
-      body.replaceChildren(...entryMarkdown(text));
-      labels();
+    onClose(cb: () => void): void {
+      closeHandlers.push(cb);
     },
-    clear,
     dispose(): void {
       offLocale();
-      close.removeEventListener("click", clear);
+      close.removeEventListener("click", requestClose);
+      closeHandlers.length = 0;
       card.remove();
     },
   };

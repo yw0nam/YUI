@@ -32,6 +32,7 @@ function setup() {
   const surfaces = {
     setCommands: vi.fn(),
     showCommandReply: vi.fn(),
+    onCommandReplyClose: vi.fn(),
     onCommand: (cb: typeof command) => {
       command = cb;
     },

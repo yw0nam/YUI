@@ -149,6 +149,10 @@ export function createSurfacesRouter({
       local.showCommandReply(reply);
       remote.showCommandReply(reply);
     },
+    onCommandReplyClose(cb) {
+      local.onCommandReplyClose(cb);
+      remote.onCommandReplyClose(cb);
+    },
     onCommand(cb) {
       local.onCommand(cb);
       remote.onCommand(cb);

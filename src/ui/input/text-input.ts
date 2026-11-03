@@ -7,15 +7,12 @@
 
 import type { AttachmentLimits } from "../../config/validators/guardrails";
 import type { InputErrorAction } from "../../io/bridge/message/message-remote";
-import type { BackendCommand } from "../../io/chat/push/push-frames";
-import { createCommandList } from "../commands/command-list";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { type ActionButton, createActionButton } from "./action-button";
 import { downscaleToJpeg } from "./image-resize";
 
 interface TextInput {
-  setCommands(list: BackendCommand[]): void;
-  onCommand(cb: (name: string, args: string) => void): void;
+  interceptSubmit(fn: (text: string, images: string[]) => boolean): void;
   /** Hotkey summon — slide up + focus; a no-op while the input is already open. */
   summonInput(): void;
   /** Close the input. */
@@ -75,9 +72,7 @@ export function createTextInput(
 ): TextInput {
   const submitHandlers: Array<(text: string, images: string[]) => void> = [];
   const stopHandlers: Array<() => void> = [];
-  const commandHandlers: Array<(name: string, args: string) => void> = [];
-  let commands: BackendCommand[] = [];
-  const commandList = createCommandList({ field, mount: formEl, commands: () => commands });
+  let submitInterceptor: ((text: string, images: string[]) => boolean) | undefined;
   const attachments: string[] = [];
   // Accepted but still being read into a data URL — counts against max_count so a
   // single multi-file drop cannot slip past the cap.
@@ -127,7 +122,6 @@ export function createTextInput(
   }
 
   function dismissInput(): void {
-    commandList.close();
     formEl.classList.remove("is-open");
     field.blur();
     const onEnd = (e: TransitionEvent): void => {
@@ -314,15 +308,11 @@ export function createTextInput(
     if (text === "" && attachments.length === 0) return;
     clearInputError();
     const images = attachments.slice();
-    const command = /^\/(\S+)(?:\s+([\s\S]*))?$/.exec(text);
-    if (images.length === 0 && command && commands.some((cmd) => cmd.name === command[1])) {
-      for (const cb of commandHandlers) cb(command[1]!, command[2]?.trim() ?? "");
-    } else {
+    if (!submitInterceptor?.(text, images)) {
       for (const cb of submitHandlers) cb(text, images);
     }
     clearAttachments();
     field.value = "";
-    commandList.close();
     fitField();
   }
 
@@ -406,8 +396,7 @@ export function createTextInput(
 
   function dispose(): void {
     unsubscribeLocale();
-    commandList.dispose();
-    commandHandlers.length = 0;
+    submitInterceptor = undefined;
     formEl.removeEventListener("submit", handleSubmit);
     actionButton.dispose();
     field.removeEventListener("keydown", handleFieldKey);
@@ -428,12 +417,8 @@ export function createTextInput(
     dismissInput,
     isInputOpen,
     onSubmit,
-    setCommands(list) {
-      commands = list;
-      commandList.refresh();
-    },
-    onCommand(cb) {
-      commandHandlers.push(cb);
+    interceptSubmit(fn) {
+      submitInterceptor = fn;
     },
     onStop,
     setBusy,

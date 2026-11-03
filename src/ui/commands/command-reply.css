@@ -28,6 +28,7 @@
   font-size: var(--yui-fs-sub);
   font-weight: 400;
   color: var(--yui-text-mute);
+  animation: yui-cmd-running 1.2s ease-in-out infinite;
 }
 .yui-cmd-reply__close {
   display: grid;
@@ -59,7 +60,6 @@
   overflow: auto;
   overscroll-behavior: contain;
   overflow-wrap: anywhere;
-  white-space: pre-wrap;
   line-height: 1.55;
 }
 .yui-cmd-reply__body > :first-child {
@@ -71,7 +71,7 @@
 .yui-cmd-reply__body code {
   padding: 1px 5px;
   border-radius: 5px;
-  background: var(--yui-selected);
+  background: var(--yui-threads-head);
 }
 .yui-cmd-reply__body pre {
   overflow-x: auto;
@@ -85,4 +85,24 @@
 }
 .yui-cmd-reply__body a:hover {
   color: var(--yui-accent-ink);
+}
+
+.yui-cmd-reply__body :is(p, li) {
+  white-space: pre-wrap;
+}
+
+@keyframes yui-cmd-running {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-cmd-reply__running {
+    animation: none;
+  }
 }

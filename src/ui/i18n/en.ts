@@ -3,12 +3,14 @@
  * All tool.* keys stay English in every locale (not translated).
  */
 const en: Record<string, string> = {
-  // tool labels (English in all locales — AI tool-call status)
   "command.running": "Running",
   "command.empty": "No output",
   "command.close": "Close reply",
   "command.count": "{n} commands",
   "command.list_label": "Backend commands",
+  "command.not_sent": "Not sent — the backend is not connected.",
+
+  // tool labels (English in all locales — AI tool-call status)
   "tool.web_search": "Searching…",
   "tool.browser": "Browsing…",
   "tool.terminal": "Running…",

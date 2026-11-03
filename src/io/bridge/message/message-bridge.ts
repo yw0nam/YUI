@@ -31,7 +31,7 @@ export interface SourceLine {
   text: string;
 }
 
-export type CommandReply =
+export type CommandReplyState =
   | { kind: "pending"; name: string }
   | { kind: "settled"; name: string; text: string }
   | { kind: "clear" };
@@ -39,7 +39,7 @@ export type CommandReply =
 /** Pet → message: one call on the message window's local `Surfaces`. */
 export type MessageSurfaceOp =
   | { op: "commands"; commands: BackendCommand[] }
-  | { op: "command-reply"; reply: CommandReply }
+  | { op: "command-reply"; reply: CommandReplyState }
   | { op: "begin" }
   | { op: "name"; name: string }
   | { op: "push"; delta: string }
@@ -60,6 +60,7 @@ export type MessageSurfaceOp =
 
 /** Message → pet: what the user did, plus the mount handshake. */
 export type MessageControlOp =
+  | { op: "command-reply-close" }
   | { op: "command"; name: string; args: string }
   | { op: "submit"; text: string; images: string[] }
   | { op: "stop" }

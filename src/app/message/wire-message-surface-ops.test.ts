@@ -18,6 +18,7 @@ function setup() {
     setBusy: vi.fn(),
     setCommands: vi.fn(),
     showCommandReply: vi.fn(),
+    onCommandReplyClose: vi.fn(),
     showInputError: vi.fn(),
     showSpeechActions: vi.fn(),
     quoteSignals: vi.fn(),

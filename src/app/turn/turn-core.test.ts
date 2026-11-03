@@ -73,6 +73,7 @@ function wire(over: Partial<TurnCorePhase1> = {}) {
       setCommands: () => {},
       onCommand: () => {},
       showCommandReply: () => {},
+      onCommandReplyClose: () => {},
       askSlot: document.createElement("div"),
     },
     onStopTurns: (cb: () => void) => {

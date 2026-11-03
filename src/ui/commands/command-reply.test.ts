@@ -10,7 +10,8 @@ beforeEach(() => {
   setLocale("en");
   mount = document.createElement("div");
   document.body.append(mount);
-  reply = createCommandReply({ mount, onClose });
+  reply = createCommandReply({ mount });
+  reply.onClose(onClose);
 });
 afterEach(() => {
   reply.dispose();

@@ -47,10 +47,6 @@ function pair() {
 }
 
 const SURFACE_OPS: MessageSurfaceOp[] = [
-  { op: "commands", commands: [{ name: "status", description: "Info", args: "" }] },
-  { op: "command-reply", reply: { kind: "pending", name: "status" } },
-  { op: "command-reply", reply: { kind: "settled", name: "status", text: "OK" } },
-  { op: "command-reply", reply: { kind: "clear" } },
   { op: "begin" },
   { op: "name", name: "Yui" },
   { op: "push", delta: "hello" },

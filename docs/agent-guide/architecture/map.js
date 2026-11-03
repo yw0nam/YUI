@@ -1479,7 +1479,7 @@ globalThis.YUI_MAP =
       "id": "input-submit",
       "from": "ui/input",
       "to": "ui/surfaces",
-      "carries": "submit and stop handlers; onCommand(name, args) for a listed Backend command",
+      "carries": "submit and stop handlers; interceptSubmit(text, images) returns whether handled",
       "kind": "callback",
       "transport": "shared"
     },
@@ -3936,7 +3936,7 @@ globalThis.YUI_MAP =
       "id": "remote-surfaces",
       "from": "io/bridge/message",
       "to": "ui/surfaces",
-      "carries": "MessageControlOp on yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; speech-action carries the index of the button clicked under the speech; scoped to the sender's preset; command {name, args}",
+      "carries": "MessageControlOp on yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; speech-action carries the index of the button clicked under the speech; scoped to the sender's preset; command {name, args}; command-reply-close",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/ui/surfaces/wire.ts"
@@ -4187,34 +4187,34 @@ globalThis.YUI_MAP =
       "id": "surfaces-commands",
       "from": "ui/surfaces",
       "to": "ui/commands",
-      "carries": "showCommandReply pending, settled, clear",
+      "carries": "showCommandReply pending, settled, clear; onCommandReplyClose reports a close",
       "kind": "callback",
       "transport": "push",
       "wiring": "src/ui/surfaces/surfaces.ts"
     },
     {
-      "id": "input-command-list",
-      "from": "ui/input",
+      "id": "surfaces-command-input",
+      "from": "ui/surfaces",
       "to": "ui/commands",
-      "carries": "createCommandList, refresh, close; capture keyboard completion",
+      "carries": "createCommandInput: setCommands, onCommand, interceptSubmit; command list and routing only in pet and message surfaces",
       "kind": "callback",
       "transport": "push",
-      "wiring": "src/ui/input/text-input.ts"
+      "wiring": "src/ui/surfaces/surfaces.ts"
     },
     {
       "id": "command-list-input",
       "from": "ui/commands",
       "to": "ui/input",
-      "carries": "completed /name text and input event",
+      "carries": "completed /name text and input event; interceptSubmit(text, images) handles listed commands",
       "kind": "callback",
       "transport": "push",
-      "wiring": "src/ui/input/text-input.ts"
+      "wiring": "src/ui/surfaces/surfaces.ts"
     },
     {
       "id": "backend-commands",
       "from": "io/chat/push",
       "to": "ui/surfaces",
-      "carries": "getCommands, onCommands → setCommands; onCommandReply → showCommandReply; leaving ready clears",
+      "carries": "getCommands, onCommands → setCommands; onCommandReply → showCommandReply; leaving ready clears; send failure shows command.not_sent",
       "kind": "callback",
       "transport": "push",
       "wiring": "src/app/turn/push/wire-backend-commands.ts"
@@ -4223,7 +4223,7 @@ globalThis.YUI_MAP =
       "id": "backend-command-send",
       "from": "ui/surfaces",
       "to": "io/chat/push",
-      "carries": "onCommand(name, args) → sendCommand; one pending command per chat",
+      "carries": "onCommand(name, args) → sendCommand; one pending command per chat; onCommandReplyClose clears both surfaces and cached reply",
       "kind": "callback",
       "transport": "push",
       "wiring": "src/app/turn/push/wire-backend-commands.ts"
@@ -5864,14 +5864,14 @@ globalThis.YUI_MAP =
         "id": "message-control",
         "from": "message",
         "to": "pet",
-        "carries": "yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; command {name, args}",
+        "carries": "yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; command {name, args}; command-reply-close",
         "kind": "bridge"
       },
       {
         "id": "message-control-companion",
         "from": "message-<id>",
         "to": "pet-<id>",
-        "carries": "yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; command {name, args}",
+        "carries": "yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; command {name, args}; command-reply-close",
         "kind": "bridge"
       },
       {
