@@ -172,6 +172,11 @@
   transform: translate(-50%, 0) scale(1);
 }
 
+/* While an Ask card shows, the bubble steps aside; its line keeps playing and typing underneath. */
+.yui-ui:has(.yui-ask-card:not([hidden])) .yui-bubble {
+  visibility: hidden;
+}
+
 /* The whole bubble floats while it shows; the wrapper's own transform places and fades it. */
 .yui-bubble.is-visible .yui-bubble__float {
   animation: yui-bob 6s ease-in-out infinite;

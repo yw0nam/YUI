@@ -1,3 +1,6 @@
+/** The shown bubble, which steps aside while an Ask card shows. */
+const BUBBLE = ".yui-ui:not(:has(.yui-ask-card:not([hidden]))) .yui-bubble.is-visible";
+
 /**
  * Overlay elements that must take OS pointer events while shown — everything else in the overlay
  * stays click-through. Of the bubble, the box (a click completes the line), the buttons on its edge,
@@ -8,11 +11,11 @@
  */
 export const INTERACTIVE_OVERLAY_SELECTORS = [
   ".yui-input.is-open",
-  ".yui-bubble.is-visible .yui-bubble__tools button",
-  ".yui-bubble.is-visible .yui-bubble__box",
-  ".yui-bubble.is-visible .yui-bubble__speech-action button",
-  ".yui-bubble.is-visible .yui-bubble__backlog-toggle:not([hidden])",
-  ".yui-bubble.is-visible .yui-bubble__backlog:not([hidden])",
+  `${BUBBLE} .yui-bubble__tools button`,
+  `${BUBBLE} .yui-bubble__box`,
+  `${BUBBLE} .yui-bubble__speech-action button`,
+  `${BUBBLE} .yui-bubble__backlog-toggle:not([hidden])`,
+  `${BUBBLE} .yui-bubble__backlog:not([hidden])`,
   ".yui-status.is-visible .yui-status__capture:not([hidden])",
   '.yui-status.is-visible[data-fix="settings"]',
   ".yui-deleg.is-visible .yui-deleg__chip",
