@@ -3,6 +3,8 @@
  * the query, case-folded, is in its shown label and sub-line; a section head is a row of its title,
  * its switch, its button and the note under it. While a query is set each rail
  * item shows its page's match count, a page with none dims, and matching rows carry `.is-match`.
+ * A page's hidden view (`[data-search-view]`) is searched too; when only such a view holds matches,
+ * the first one gets a bubbling `yui-search-reveal` event so the page brings its view forward.
  * Escape on a set query or an empty field restores everything.
  */
 
@@ -25,11 +27,12 @@ export function bindSettingsSearch(root: HTMLElement): () => void {
     tab.insertAdjacentHTML("beforeend", `<span class="yui-tab__count" hidden></span>`);
   }
 
-  // Inside the page: its own panel is hidden while another page shows, so it does not count.
+  // Inside the page: its own panel is hidden while another page shows, and a hidden view can be revealed, so neither counts.
   const shown = (el: Element, panel: Element): boolean => {
-    const hidden = el.closest("[hidden]");
+    const hidden = el.closest("[hidden]:not([data-search-view])");
     return !hidden || hidden === panel;
   };
+  const inHiddenView = (el: Element): boolean => el.closest("[data-search-view][hidden]") !== null;
 
   // Read at query time, so lists that render after the panel opens are found too.
   function rowText(row: Element, panel: Element): string {
@@ -62,6 +65,9 @@ export function bindSettingsSearch(root: HTMLElement): () => void {
         return text !== "" && terms.every((term) => text.includes(term));
       });
       for (const row of matches) row.classList.add("is-match");
+      if (matches.length > 0 && matches.every(inHiddenView)) {
+        matches[0]!.dispatchEvent(new CustomEvent("yui-search-reveal", { bubbles: true }));
+      }
       badge.textContent = String(matches.length);
       badge.hidden = false;
       tab.classList.toggle("is-dim", matches.length === 0);

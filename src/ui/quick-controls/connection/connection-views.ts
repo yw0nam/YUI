@@ -52,11 +52,13 @@ export function createConnectionViews(deps: {
   const quickView = document.createElement("div");
   quickView.className = "yui-conn-view";
   quickView.dataset.view = "quick";
+  quickView.dataset.searchView = "";
   quickView.append(quick);
 
   const detailView = document.createElement("div");
   detailView.className = "yui-conn-view";
   detailView.dataset.view = "detail";
+  detailView.dataset.searchView = "";
   const note = document.createElement("p");
   note.className = "yui-sec__note";
   note.textContent = t("start.detail_note");
@@ -109,8 +111,15 @@ export function createConnectionViews(deps: {
     return Math.min(cells.length - 1, Math.max(0, index));
   }
 
+  // Settings search found matches only in the hidden view.
+  function handleReveal(e: Event): void {
+    const view = (e.target as Element).closest<HTMLElement>("[data-search-view]")?.dataset.view;
+    if (view === "quick" || view === "detail") select(view);
+  }
+
   seg.addEventListener("click", handleClick);
   seg.addEventListener("keydown", handleKeydown);
+  panel.addEventListener("yui-search-reveal", handleReveal);
   reflect();
 
   return {
@@ -120,6 +129,7 @@ export function createConnectionViews(deps: {
     dispose(): void {
       seg.removeEventListener("click", handleClick);
       seg.removeEventListener("keydown", handleKeydown);
+      panel.removeEventListener("yui-search-reveal", handleReveal);
     },
   };
 }
