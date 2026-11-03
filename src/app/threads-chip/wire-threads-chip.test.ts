@@ -42,6 +42,7 @@ function fakeClient(
     },
     answer: async () => {},
     seen: async () => {},
+    read: async () => {},
     dispose: () => {},
     fire(next) {
       latest = next;

@@ -101,17 +101,25 @@ Disk writes are best-effort: a failed append logs `threads_append_failed` and th
 
 Optional `seen_ask_id` is the id of the last ask the user picked in the Threads window while it was open, and is omitted until then; a new ask leaves it unchanged, so the new ask is unseen.
 
+Optional `read` is `true` when the user marked the Thread read in the Threads window since the producer's last PUT, and is omitted otherwise. Every PUT clears it.
+
 Each stored entry contains `role`, `text`, and `at`.
 
 `thread_answer(id, ask_id, choice?, text?, release?)` submits a user answer and returns success or an error string naming the broken rule. Every successful change increases the revision and publishes `threads-snapshot` to every window, with the same shape as `threads_snapshot()`. Revision starts at zero on app start.
 
 `thread_seen(id, ask_id)` records the open ask as seen and returns success or an error string naming the broken rule. It leaves `updated_at` unchanged, and a repeat for the same ask changes nothing.
 
+`thread_read(id)` marks the Thread read and returns success or an error string naming the broken rule. It leaves `updated_at` and the open ask unchanged, and a repeat changes nothing.
+
 ## In the app
 
 Main's pet window and the Threads window each listen to `threads-snapshot` and read `threads_snapshot()` once, keeping the highest revision. Main draws the Threads chip from it; the Threads window draws its list and thread pane. Only the Threads window calls `thread_answer`, with a choice, text, or both. It never sends `release`.
 
-The Threads window also calls `thread_seen` when the user picks a Thread with an open ask in its list or rail. Main's Threads chip counts a waiting Thread unless its open ask is the seen one; inside the Threads window a seen Thread still shows as waiting.
+The Threads window also calls `thread_seen` when the user picks a Thread with an open ask in its list or rail.
+
+A Thread waits while its state is `input-required` and it is not read. Main's Threads chip counts a waiting Thread unless its open ask is the seen one; inside the Threads window a seen Thread still shows as waiting.
+
+The thread pane's Mark read button, shown on a waiting Thread, calls `thread_read` and moves the selection to another waiting Thread; a read Thread leaves the Waiting tab and keeps its open ask for an answer from All.
 
 Main's Threads chip hides while the Threads window is open.
 

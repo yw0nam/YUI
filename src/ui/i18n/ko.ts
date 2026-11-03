@@ -803,6 +803,7 @@ const ko: Record<string, string> = {
   "threads.role_system": "시스템",
   "threads.just_now": "방금",
   "threads.send": "보내기",
+  "threads.mark_read": "읽음",
   "threads.send_hint": "Enter로 보내고 Shift+Enter로 줄을 바꿔요",
   "threads.reply_aria": "답장",
   "threads.send_failed": "보내지 못했어요: {error}",

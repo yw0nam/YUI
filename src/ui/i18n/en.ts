@@ -805,6 +805,7 @@ const en: Record<string, string> = {
   "threads.role_system": "System",
   "threads.just_now": "just now",
   "threads.send": "Send",
+  "threads.mark_read": "Mark read",
   "threads.send_hint": "Enter sends, Shift+Enter starts a new line",
   "threads.reply_aria": "Reply",
   "threads.send_failed": "Couldn't send: {error}",

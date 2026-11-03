@@ -31,6 +31,7 @@ pub fn handler() -> impl Fn(Invoke) -> bool + Send + Sync + 'static {
         crate::threads::commands::threads_snapshot,
         crate::threads::commands::thread_answer,
         crate::threads::commands::thread_seen,
+        crate::threads::commands::thread_read,
         crate::turn_log::append_turn_record,
         crate::window_frame::set_frame_logical,
         #[cfg(desktop)]

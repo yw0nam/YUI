@@ -808,6 +808,7 @@ const ja: Record<string, string> = {
   "threads.role_system": "システム",
   "threads.just_now": "たった今",
   "threads.send": "送信",
+  "threads.mark_read": "既読にする",
   "threads.send_hint": "Enterで送信、Shift+Enterで改行",
   "threads.reply_aria": "返信",
   "threads.send_failed": "送信できませんでした: {error}",

@@ -107,12 +107,14 @@ impl ThreadStore {
                 updated_at: now,
                 answered_ask_ids: Default::default(),
                 seen_ask_id: None,
+                read: false,
             });
             thread.source = body.source;
             thread.title = body.title;
             thread.label = body.label;
             thread.state = body.state;
             thread.updated_at = now;
+            thread.read = false;
             thread
                 .entries
                 .extend(body.entries.into_iter().map(|e| Entry {
@@ -216,6 +218,20 @@ impl ThreadStore {
                 return Ok(());
             }
             thread.seen_ask_id = Some(ask_id.into());
+            state.record(id)
+        };
+        (self.emit)(&snapshot);
+        Ok(())
+    }
+
+    pub fn read(&self, id: &str) -> Result<(), &'static str> {
+        let snapshot = {
+            let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+            let thread = state.threads.get_mut(id).ok_or("unknown thread")?;
+            if thread.read {
+                return Ok(());
+            }
+            thread.read = true;
             state.record(id)
         };
         (self.emit)(&snapshot);

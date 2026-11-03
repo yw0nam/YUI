@@ -2,6 +2,7 @@
 
 import "./thread-list.css";
 import type { Thread } from "../../../contract";
+import { isWaiting } from "../../../io/threads/threads-waiting";
 import { t } from "../../i18n";
 import { threadSource } from "../thread-source";
 import { timeEl } from "./relative-time";
@@ -22,17 +23,16 @@ export interface ThreadListView {
   kind: string | null;
 }
 
-const waits = (thread: Thread): boolean => thread.state === "input-required";
 const waitingFirstThenNewest = (a: Thread, b: Thread): number =>
-  Number(waits(b)) - Number(waits(a)) || b.updated_at - a.updated_at;
+  Number(isWaiting(b)) - Number(isWaiting(a)) || b.updated_at - a.updated_at;
 
 export function threadListView(threads: Thread[], filter: ThreadFilter): ThreadListView {
   const sources = [...new Set(threads.map((th) => th.source))].sort();
   const kind = filter.kind !== null && sources.includes(filter.kind) ? filter.kind : null;
-  const inTab = threads.filter((th) => filter.tab === "all" || waits(th));
+  const inTab = threads.filter((th) => filter.tab === "all" || isWaiting(th));
   return {
     rows: inTab.filter((th) => kind === null || th.source === kind).sort(waitingFirstThenNewest),
-    counts: { waiting: threads.filter(waits).length, all: threads.length },
+    counts: { waiting: threads.filter(isWaiting).length, all: threads.length },
     kinds: sources.map((source) => {
       const count = inTab.filter((th) => th.source === source).length;
       return { source, count, disabled: count === 0 && source !== kind };
@@ -54,6 +54,14 @@ export function renderKinds(select: HTMLSelectElement, view: ThreadListView): vo
   );
   select.selectedIndex =
     view.kind === null ? 0 : view.kinds.findIndex((k) => k.source === view.kind) + 1;
+}
+
+/** The waiting Thread after `id` in `rows`, else the nearest one before it, else `id`. */
+export function nextWaiting(rows: Thread[], threads: Thread[], id: string): string {
+  const at = rows.findIndex((th) => th.id === id);
+  const waiting = new Set(threads.filter(isWaiting).map((th) => th.id));
+  const around = [...rows.slice(at + 1), ...rows.slice(0, at).reverse()];
+  return around.find((th) => waiting.has(th.id))?.id ?? id;
 }
 
 /** The Thread a fresh open shows: the newest waiting one, else the newest. */

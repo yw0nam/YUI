@@ -12,6 +12,8 @@ export interface ThreadsClient extends SnapshotFeed<ThreadsSnapshot> {
   answer(id: string, askId: string, answer: { choice?: string; text?: string }): Promise<void>;
   /** Records the open ask as seen; rejects with the store's error string. */
   seen(id: string, askId: string): Promise<void>;
+  /** Marks the Thread read; rejects with the store's error string. */
+  read(id: string): Promise<void>;
 }
 
 export function createThreadsClient(): ThreadsClient {
@@ -26,6 +28,10 @@ export function createThreadsClient(): ThreadsClient {
     async seen(id, askId) {
       if (!isTauri()) return;
       await invoke<void>("thread_seen", { id, askId });
+    },
+    async read(id) {
+      if (!isTauri()) return;
+      await invoke<void>("thread_read", { id });
     },
   };
 }

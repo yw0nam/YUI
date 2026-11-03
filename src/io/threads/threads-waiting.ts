@@ -3,11 +3,16 @@
 import type { ClientContext, Thread } from "../../contract";
 import type { ThreadsClient } from "./threads-client";
 
+/** A Thread waits for the user while it is input-required and not marked read. */
+export function isWaiting(thread: Thread): boolean {
+  return thread.state === "input-required" && !thread.read;
+}
+
 /** Counts the Threads waiting for the user's answer, grouped by source, count desc then source name. */
 export function threadsWaiting(threads: Thread[]): NonNullable<ClientContext["threads_waiting"]> {
   const counts = new Map<string, number>();
   for (const thread of threads) {
-    if (thread.state !== "input-required") continue;
+    if (!isWaiting(thread)) continue;
     counts.set(thread.source, (counts.get(thread.source) ?? 0) + 1);
   }
   const by_source = [...counts.entries()]

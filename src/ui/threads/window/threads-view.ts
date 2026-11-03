@@ -53,6 +53,7 @@ export function createThreadsView(deps: {
   /** Rejects with the store's error string. */
   onAnswer(id: string, askId: string, answer: { choice?: string; text?: string }): Promise<void>;
   onSeen(id: string, askId: string): void;
+  onRead(id: string): void;
   onClose(): void;
   /** The stored choice of the list collapsed to the rail. */
   listCollapsed: boolean;
@@ -103,6 +104,7 @@ export function createThreadsView(deps: {
     now: deps.now,
     onAnswer: deps.onAnswer,
     onSeen: deps.onSeen,
+    onRead: deps.onRead,
   });
   const terminal = deps.terminal(shell(backs[1]!));
   threads.list.id = LIST_ID;

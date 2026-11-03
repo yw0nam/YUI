@@ -2,6 +2,7 @@
 
 import "./thread-meta.css";
 import type { Thread } from "../../../contract";
+import { isWaiting } from "../../../io/threads/threads-waiting";
 import { t } from "../../i18n";
 import { threadSource } from "../thread-source";
 
@@ -13,7 +14,8 @@ export function stateText(thread: Thread): string {
 /** The state word a row and the pane show. */
 export function stateWord(thread: Thread): HTMLElement {
   const el = document.createElement("span");
-  el.className = `yui-threads-state is-${thread.state}`;
+  const dim = thread.state === "input-required" && !isWaiting(thread);
+  el.className = dim ? "yui-threads-state" : `yui-threads-state is-${thread.state}`;
   el.textContent = stateText(thread);
   return el;
 }
