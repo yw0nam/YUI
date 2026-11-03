@@ -12,8 +12,7 @@ import {
 } from "../../../settings/backend/api-key-settings";
 import { createEndpointsSettings } from "../../../settings/backend/endpoints-settings";
 import { type Locale, setLocale, t } from "../../i18n";
-import en from "../../i18n/en";
-import { CARD_GUIDE_URL, HERMES_AGENT } from "../constants";
+import { CARD_GUIDE_URL } from "../constants";
 import { inMemoryApiKeyStorage } from "../test-helpers";
 import { createConnectionTab } from "./connection-tab";
 
@@ -73,7 +72,7 @@ describe("chat type row", () => {
     const tab = build("en");
     const select = q(tab.el, ".yui-chat-type") as HTMLSelectElement;
     const desc = q(tab.el, ".yui-chat-type__desc");
-    const expected = { chat_completions: "Ollama", responses: "OpenAI", push: "Hermes Agent" };
+    const expected = { chat_completions: "Ollama", responses: "OpenAI", push: "speak first" };
     for (const api of ORDER) {
       select.value = api;
       select.dispatchEvent(new Event("change", { bubbles: true }));
@@ -93,40 +92,20 @@ describe("chat type row", () => {
   });
 
   for (const locale of ["en", "ko", "ja"] as const) {
-    it(`${locale}: only the push description carries the Hermes Agent link`, () => {
+    it(`${locale}: no description names an agent or carries a link`, () => {
       const tab = build(locale);
       const select = q(tab.el, ".yui-chat-type") as HTMLSelectElement;
-      const anchors: Record<string, HTMLAnchorElement[]> = {};
       for (const api of ORDER) {
         select.value = api;
         select.dispatchEvent(new Event("change", { bubbles: true }));
-        anchors[api] = [...q(tab.el, ".yui-chat-type__desc").querySelectorAll("a")];
+        const desc = q(tab.el, ".yui-chat-type__desc");
+        expect(desc.querySelectorAll("a")).toHaveLength(0);
+        expect(desc.textContent).not.toContain("{agent}");
+        expect(desc.textContent).not.toContain("Hermes");
       }
-      expect(anchors.chat_completions).toEqual([]);
-      expect(anchors.responses).toEqual([]);
-      expect(anchors.push).toHaveLength(1);
-      const [a] = anchors.push;
-      expect(a.getAttribute("href")).toBe("https://github.com/NousResearch/hermes-agent");
-      expect(a.target).toBe("_blank");
-      expect(a.rel).toBe("noopener noreferrer");
-      expect(a.textContent).toBe("Hermes Agent");
-      expect(a.hasAttribute("aria-label")).toBe(false);
-      expect(a.getAttribute("tabindex")).toBe("0");
       tab.dispose();
     });
   }
-
-  it("a translation that repeats the placeholder keeps its tail", () => {
-    const original = en["svc.chat_desc_push"];
-    en["svc.chat_desc_push"] = "A {agent} B {agent} C";
-    const tab = build("en");
-    const select = q(tab.el, ".yui-chat-type") as HTMLSelectElement;
-    select.value = "push";
-    select.dispatchEvent(new Event("change", { bubbles: true }));
-    expect(q(tab.el, ".yui-chat-type__desc").textContent).toContain("C");
-    en["svc.chat_desc_push"] = original;
-    tab.dispose();
-  });
 
   it("the fade class leaves when its animation ends, so the next change replays it", () => {
     const tab = build("en");
@@ -146,7 +125,6 @@ describe("chat type row", () => {
       (p: { identifier?: string }) => p.identifier === "opener:allow-open-url",
     );
     expect(grant.allow).toEqual([
-      { url: HERMES_AGENT.url },
       { url: CARD_GUIDE_URL },
       { url: "https://aistudio.google.com/apikey" },
       { url: "https://fish.audio/app/api-keys/" },

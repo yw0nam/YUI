@@ -541,8 +541,7 @@ const ja: Record<string, string> = {
     "YUI が毎ターン会話履歴を一緒に送ります。Ollama、LM Studio、vLLM などのモデルサーバーに向いています。",
   "svc.chat_desc_responses":
     "サーバーが以前の応答を保管し、YUI は新しいメッセージだけを送ります。OpenAI のように応答を保管するサーバーに向いています。",
-  "svc.chat_desc_push":
-    "接続を維持するので、バックエンドから先に話しかけられます。現在対応しているのは {agent} だけです。",
+  "svc.chat_desc_push": "接続を維持するので、バックエンドから先に話しかけられます。",
   "svc.chat_status_connected": "接続済み · {id}",
   "svc.chat_status_connecting": "接続中…",
   "svc.chat_status_reconnecting": "{seconds}秒後に再接続",
