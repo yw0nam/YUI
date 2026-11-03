@@ -236,7 +236,7 @@ describe("createQuickStart — the state it reads from the stores", () => {
     expect(s.el(".yui-start__connected").hidden).toBe(false);
   });
 
-  it("shows the setup state for Gemini without a key", () => {
+  it("shows the setup state with no warning for Gemini without a key", () => {
     const s = setup();
     s.endpointsSettings.set({ chat_base_url: GEMINI_PRESET.url });
 
@@ -244,6 +244,7 @@ describe("createQuickStart — the state it reads from the stores", () => {
 
     expect(s.el(".yui-start__setup").hidden).toBe(false);
     expect(s.el(".yui-start__connected").hidden).toBe(true);
+    expect(s.el(".yui-start__own").hidden).toBe(true);
   });
 
   it("falls back to the setup state and the warning when the server changes", () => {
