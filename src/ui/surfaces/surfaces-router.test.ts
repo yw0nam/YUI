@@ -111,18 +111,30 @@ describe("createSurfacesRouter", () => {
     for (const cb of shownListeners) cb(next);
   };
 
-  it("fans command state to both windows and registers both input sources", () => {
+  it("fans the command list to both windows and registers both input sources", () => {
     const commands = [{ name: "status", description: "Info", args: "" }];
-    const reply = { kind: "pending" as const, name: "status" };
     const cb = vi.fn();
     router.setCommands(commands);
-    router.showCommandReply(reply);
     router.onCommand(cb);
     for (const side of [local, remote]) {
       expect(side.setCommands).toHaveBeenCalledWith(commands);
-      expect(side.showCommandReply).toHaveBeenCalledWith(reply);
       expect(side.onCommand).toHaveBeenCalledWith(cb);
     }
+  });
+
+  it.each([
+    ["docked", "local"],
+    ["popped", "remote"],
+  ] as const)("shows a Command reply only where the input is (%s), and clears it on both", (m, where) => {
+    setMode(m);
+    const reply = { kind: "settled" as const, name: "status", text: "Ready" };
+    router.showCommandReply(reply);
+    router.showCommandReply({ kind: "clear" });
+    const [shownOn, other] = where === "local" ? [local, remote] : [remote, local];
+    expect(shownOn.showCommandReply).toHaveBeenCalledWith(reply);
+    expect(other.showCommandReply).not.toHaveBeenCalledWith(reply);
+    for (const side of [local, remote])
+      expect(side.showCommandReply).toHaveBeenCalledWith({ kind: "clear" });
   });
 
   beforeEach(() => {
