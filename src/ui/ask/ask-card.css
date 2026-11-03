@@ -10,6 +10,8 @@
   background: var(--yui-scrim-strong);
   box-shadow: var(--yui-float);
   color: var(--yui-text);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   pointer-events: auto;
   animation: yui-ask-card-in var(--yui-dur) var(--yui-ease);
 }
@@ -18,19 +20,23 @@
   display: none;
 }
 
-/* The answer area's container rules, as the thread pane sets them, without the pane's chrome. */
+/* The answer area as a column without the pane's chrome; what the prompt cannot give up scrolls the card. */
 .yui-ask-card .yui-threads-answer {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: hidden;
   gap: 10px;
   padding: 0;
   border-top: 0;
   background: none;
 }
 
-/* After the choices give up their room, the prompt scrolls, so Send stays in view in a short window. */
+/* Every choice and Send stay whole; the prompt gives up its room and scrolls instead. */
+.yui-ask-card .yui-threads-answer__choices {
+  flex: none;
+  overflow: visible;
+}
+
 .yui-ask-card .yui-threads-answer__head {
   flex: 0 1 auto;
   min-height: 0;
