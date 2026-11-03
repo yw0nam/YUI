@@ -732,7 +732,6 @@ async def test_a_cancelled_delegations_push_is_not_reported(client, adapter, mon
 
 
 async def test_the_plugin_approves_the_gateway_confirmation_of_its_own_reset(adapter):
-    await adapter._on_reset(CHAT)
     SLASH_CONFIRM.register("agent:main:yui:dm:" + CHAT, "7", "new")
     result = await adapter.send_slash_confirm(
         chat_id=CHAT,
@@ -2830,3 +2829,26 @@ async def test_backend_command_reply_cut(client, adapter, monkeypatch):
     frame = json.loads(raw)
     assert frame["type"] == "command_reply"
     assert frame["text"].endswith("…")
+
+
+@pytest.mark.parametrize("ended", ["dropped", "finished"])
+async def test_backend_command_late_output_is_not_rendered(client, adapter, monkeypatch, ended):
+    from unittest.mock import AsyncMock
+
+    ws = await ready(client, accepts=["command_reply"])
+    await adapter._on_frame(CHAT, COMMAND)
+    event = adapter.dispatched[-1]
+    if ended == "dropped":
+        await ws.close()
+        await wait_for(lambda: not state.is_connected(CHAT))
+        ws = await ready(client, accepts=["command_reply"])
+    else:
+        await adapter.on_processing_complete(event, ProcessingOutcome.SUCCESS)
+        assert await recv(ws) == {"type": "command_reply", "id": "c1", "text": ""}
+    deliver = AsyncMock()
+    monkeypatch.setattr(adapter, "_deliver", deliver)
+    result = await adapter.send(CHAT, "Late command output", reply_to="c1", metadata={"notify": True})
+    assert result.success
+    deliver.assert_not_awaited()
+    with pytest.raises(TimeoutError):
+        await asyncio.wait_for(ws.receive_json(), 0.05)
