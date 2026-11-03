@@ -216,3 +216,46 @@ it("stops following the signals after unload", async () => {
 
   expect(document.querySelector(".yui-bubble__text")?.textContent ?? "").toBe("");
 });
+
+it("wires Backend commands and the reply close to the preset through the stream", async () => {
+  const controls = vi.fn();
+  petBridge.onSpeechStreamControl(controls);
+  await boot();
+  petBridge.emitSpeechStream({
+    preset: "natsume",
+    op: { op: "commands", commands: [{ name: "status", description: "Info", args: "" }] },
+  });
+  await vi.waitFor(() => expect(document.querySelectorAll(".yui-uc__chip")).toHaveLength(3));
+  document.querySelectorAll<HTMLElement>(".yui-uc__chip")[1]!.click();
+  const field = document.querySelector<HTMLTextAreaElement>(".yui-uc__dock textarea")!;
+  field.value = "/status";
+  field.dispatchEvent(new Event("input", { bubbles: true }));
+  await vi.waitFor(() =>
+    expect(document.querySelector(".yui-uc__dock .yui-cmd-list:not([hidden])")).not.toBeNull(),
+  );
+  field.dispatchEvent(
+    new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
+  );
+  await vi.waitFor(() =>
+    expect(controls).toHaveBeenCalledWith({
+      preset: "natsume",
+      op: { op: "command", name: "status", args: "" },
+    }),
+  );
+  petBridge.emitSpeechStream({
+    preset: "natsume",
+    op: { op: "command-reply", reply: { kind: "settled", name: "status", text: "OK" } },
+  });
+  await vi.waitFor(() =>
+    expect(document.querySelector(".yui-cmd-reply__head")?.textContent).toContain(
+      "Natsume · /status",
+    ),
+  );
+  document.querySelector<HTMLButtonElement>(".yui-cmd-reply__close")!.click();
+  await vi.waitFor(() =>
+    expect(controls).toHaveBeenLastCalledWith({
+      preset: "natsume",
+      op: { op: "command-reply-close" },
+    }),
+  );
+});

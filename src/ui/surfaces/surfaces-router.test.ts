@@ -118,7 +118,7 @@ describe("createSurfacesRouter", () => {
     router.onCommand(cb);
     for (const side of [local, remote]) {
       expect(side.setCommands).toHaveBeenCalledWith(commands);
-      expect(side.onCommand).toHaveBeenCalledWith(cb);
+      vi.mocked(side.onCommand).mock.calls[0]![0]("status", "");
     }
   });
 
@@ -135,6 +135,37 @@ describe("createSurfacesRouter", () => {
     expect(other.showCommandReply).not.toHaveBeenCalledWith(reply);
     for (const side of [local, remote])
       expect(side.showCommandReply).toHaveBeenCalledWith({ kind: "clear" });
+  });
+
+  it("fans commands to the stream and keeps replies on their issuing side across a mode change", () => {
+    const commands = [{ name: "status", description: "Info", args: "" }];
+    router.setCommands(commands);
+    expect(stream.setCommands).toHaveBeenCalledWith(commands);
+    const cb = vi.fn();
+    router.onCommand(cb);
+    const issue = vi.mocked(stream.onCommand).mock.calls[0]?.[0];
+    expect(typeof issue).toBe("function");
+    issue!("status", "");
+    expect(cb).toHaveBeenCalledWith("status", "");
+    setShown(false);
+    setMode("popped");
+    for (const reply of [
+      { kind: "pending" as const, name: "status" },
+      { kind: "settled" as const, name: "status", text: "OK" },
+    ]) {
+      router.showCommandReply(reply);
+      expect(stream.showCommandReply).toHaveBeenLastCalledWith(reply);
+      expect(local.showCommandReply).not.toHaveBeenCalledWith(reply);
+      expect(remote.showCommandReply).not.toHaveBeenCalledWith(reply);
+      if (reply.kind === "pending") vi.mocked(local.onCommand).mock.calls[0]![0]("status", "");
+    }
+    router.showCommandReply({ kind: "clear" });
+    const close = vi.fn();
+    router.onCommandReplyClose(close);
+    for (const side of [local, remote, stream]) {
+      expect(side.showCommandReply).toHaveBeenLastCalledWith({ kind: "clear" });
+      expect(side.onCommandReplyClose).toHaveBeenCalledWith(close);
+    }
   });
 
   beforeEach(() => {
@@ -713,6 +744,7 @@ it.each([
   });
   const off = wireBackendCommands({
     surfaces: router,
+    isBusy: () => false,
     socket: {
       getCommands: () => [],
       onCommands: () => () => {},

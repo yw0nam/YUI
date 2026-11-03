@@ -70,3 +70,35 @@ describe("createStreamBridge", () => {
     expect(onClick).toHaveBeenCalledOnce();
   });
 });
+
+it("replays commands and the Command reply on a unified ready ask", () => {
+  const { remote, emitted, ask } = setup();
+  const commands = [{ name: "status", description: "Info", args: "" }];
+  remote.setCommands(commands);
+  remote.showCommandReply({ kind: "settled", name: "status", text: "OK" });
+  emitted.length = 0;
+  ask();
+  expect(emitted).toEqual([
+    { preset: "yui", op: { op: "commands", commands } },
+    {
+      preset: "yui",
+      op: { op: "command-reply", reply: { kind: "settled", name: "status", text: "OK" } },
+    },
+    { preset: "yui", op: { op: "busy", busy: false } },
+  ]);
+  remote.dispose();
+});
+it("delivers command and close only to their named preset", () => {
+  const { remote, control } = setup();
+  const command = vi.fn();
+  const close = vi.fn();
+  remote.onCommand(command);
+  remote.onCommandReplyClose(close);
+  for (const preset of ["other", "yui"]) {
+    control({ preset, op: { op: "command", name: "status", args: "" } });
+    control({ preset, op: { op: "command-reply-close" } });
+  }
+  expect(command).toHaveBeenCalledExactlyOnceWith("status", "");
+  expect(close).toHaveBeenCalledOnce();
+  remote.dispose();
+});

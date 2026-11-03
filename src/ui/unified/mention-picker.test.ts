@@ -129,3 +129,9 @@ describe("createMentionPicker", () => {
     expect(onPick).not.toHaveBeenCalled();
   });
 });
+
+it("leaves Shift+Enter with an active mention unconsumed", () => {
+  type("@na");
+  expect(press("Enter", { shiftKey: true }).defaultPrevented).toBe(false);
+  expect(onPick).not.toHaveBeenCalled();
+});

@@ -8,7 +8,7 @@ import type { PushSocketState } from "../../../io/chat/push/push-socket";
 import { setLocale } from "../../../ui/i18n";
 import { wireBackendCommands } from "./wire-backend-commands";
 
-function setup() {
+function setup(isBusy = () => false) {
   let commands!: (list: BackendCommand[]) => void;
   let command!: (name: string, args: string) => void;
   let reply!: (frame: CommandReplyFrame) => void;
@@ -37,7 +37,7 @@ function setup() {
       command = cb;
     },
   };
-  const dispose = wireBackendCommands({ socket, surfaces });
+  const dispose = wireBackendCommands({ socket, surfaces, isBusy });
   return {
     socket,
     surfaces,
@@ -106,5 +106,17 @@ it.each([
   });
   w.command();
   expect(w.surfaces.showCommandReply).toHaveBeenLastCalledWith({ kind: "pending", name: "status" });
+  w.dispose();
+});
+
+it("refuses a stale idle command when the pet is busy", () => {
+  const w = setup(() => true);
+  w.command();
+  expect(w.socket.sendCommand).not.toHaveBeenCalled();
+  expect(w.surfaces.showCommandReply).toHaveBeenLastCalledWith({
+    kind: "settled",
+    name: "status",
+    text: "Not run: a reply is still in progress.",
+  });
   w.dispose();
 });
