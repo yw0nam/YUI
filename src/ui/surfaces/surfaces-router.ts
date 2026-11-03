@@ -56,6 +56,9 @@ export function createSurfacesRouter({
   // The side the current line began on: the stream, the pet side (local or remote by the mode), or none once dropped.
   let lineSide: "stream" | "pet" | "none" = "pet";
   let chatLine = false;
+  let commandSide: Pick<Surfaces, "showCommandReply"> | undefined;
+  let pendingCommandSide: typeof commandSide;
+  let issuingCommandSide: typeof commandSide;
   const noLine: LineSide = {
     beginSpeech() {},
     pushSpeech() {},
@@ -144,21 +147,35 @@ export function createSurfacesRouter({
     setCommands(list) {
       local.setCommands(list);
       remote.setCommands(list);
+      stream.setCommands(list);
     },
-    // A reply shows beside the input that ran it; a clear reaches both, so neither keeps a stale one.
     showCommandReply(reply) {
-      if (reply.kind !== "clear")
-        return (getMode() === "popped" ? remote : local).showCommandReply(reply);
-      local.showCommandReply(reply);
-      remote.showCommandReply(reply);
+      if (reply.kind !== "clear") {
+        if (reply.kind === "pending") pendingCommandSide = commandSide;
+        const side =
+          issuingCommandSide ??
+          pendingCommandSide ??
+          commandSide ??
+          (shown.get() ? stream : getMode() === "popped" ? remote : local);
+        if (reply.kind === "settled") pendingCommandSide = undefined;
+        return side.showCommandReply(reply);
+      }
+      for (const side of [local, remote, stream]) side.showCommandReply(reply);
     },
     onCommandReplyClose(cb) {
-      local.onCommandReplyClose(cb);
-      remote.onCommandReplyClose(cb);
+      for (const side of [local, remote, stream]) side.onCommandReplyClose(cb);
     },
     onCommand(cb) {
-      local.onCommand(cb);
-      remote.onCommand(cb);
+      for (const side of [local, remote, stream])
+        side.onCommand((name, args) => {
+          commandSide = side;
+          issuingCommandSide = side;
+          try {
+            cb(name, args);
+          } finally {
+            issuingCommandSide = undefined;
+          }
+        });
     },
     onSubmit(cb) {
       local.onSubmit(cb);

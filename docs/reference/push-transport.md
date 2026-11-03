@@ -650,6 +650,8 @@ The Ask closed without this client's answer. It timed out, it was answered elsew
 
 A Backend command is a command the backend states in `ready` and runs when the user types `/name` in the text input. Its output is a Command reply: text the client shows above the input and writes to its log. A Command reply is never speech and never a turn, so no `render`, `speech` or `turn_end` carries it.
 
+The unified chat window runs a Backend command for its one picked recipient through that character's pet window socket.
+
 ### `ready.commands` (backend → client)
 
 ```json

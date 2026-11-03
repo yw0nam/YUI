@@ -80,6 +80,7 @@ async function bootstrap(): Promise<void> {
   });
   view.onRoute((event) => settingsBridge.emitUserTurnRouted(event));
   view.onStop(settingsBridge.emitStopTurns);
+  view.onCommandControl(settingsBridge.emitSpeechStreamControl);
   view.onInputErrorAction((preset) =>
     settingsBridge.emitSpeechStreamControl({ preset, op: { op: "input-error-action" } }),
   );

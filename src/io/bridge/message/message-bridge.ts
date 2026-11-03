@@ -32,8 +32,8 @@ export interface SourceLine {
 }
 
 export type CommandReplyState =
-  | { kind: "pending"; name: string }
-  | { kind: "settled"; name: string; text: string }
+  | { kind: "pending"; name: string; speaker?: string }
+  | { kind: "settled"; name: string; text: string; speaker?: string }
   | { kind: "clear" };
 
 /** Pet → message: one call on the message window's local `Surfaces`. */

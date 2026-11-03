@@ -9,6 +9,8 @@ const ja: Record<string, string> = {
   "command.close": "返答を閉じる",
   "command.count": "{n} 件のコマンド",
   "command.list_label": "バックエンドコマンド",
+  "command.busy": "{name}が返答中です。終わってからもう一度お試しください。",
+  "command.busy_reply": "実行されませんでした。返答がまだ進行中です。",
   "command.not_sent": "送信されませんでした。バックエンドに接続されていません。",
 
   // tool labels (English — not translated)

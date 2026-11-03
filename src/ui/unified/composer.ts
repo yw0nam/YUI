@@ -4,7 +4,9 @@
  * into stop while a reply runs; routing stays with the view.
  */
 
+import type { BackendCommand } from "../../io/chat/push/push-frames";
 import type { PresetEntry } from "../../settings/preset/active-preset";
+import { createCommandInput } from "../commands/command-input";
 import { t } from "../i18n";
 import { createTextInput } from "../input/text-input";
 import "../surfaces/surfaces.css";
@@ -12,6 +14,8 @@ import { createMentionPicker } from "./mention-picker";
 import { countedMention, type Mention, typedMention, typedMentionLength } from "./targets";
 
 export interface Composer {
+  setCommands(commands: BackendCommand[]): void;
+  onCommand(cb: (name: string, args: string) => boolean): void;
   /** The picked recipient, or null. */
   getMention(): Mention | null;
   /** The recipient a send names: the picked chip, else a typed leading @name; null leaves the fallback target to the routing. */
@@ -65,6 +69,7 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
 
   // The picker's capture listener is added first, so it sees Enter and Escape before the text input.
   const picker = createMentionPicker({ field, mount: dock, cast: deps.cast, onPick: setMention });
+  const commandInput = createCommandInput({ field, form, mount: dock });
   // No summon hotkey here: a dismissed field opens again at once.
   const input = createTextInput(
     {
@@ -81,6 +86,7 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
       if (!open) input.summonInput();
     },
   );
+  input.interceptSubmit(commandInput.interceptSubmit);
   input.summonInput();
 
   // The recipient a send names before the fallback: the counted pick, else a typed leading @name.
@@ -101,6 +107,8 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
   field.addEventListener("input", changed);
 
   return {
+    setCommands: commandInput.setCommands,
+    onCommand: commandInput.onCommand,
     getMention: () => mention,
     getExplicitMention: () => named(),
     setMention,
@@ -133,6 +141,7 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
     showError: (message, action) => input.showInputError(message, action),
     focus: () => field.focus(),
     dispose() {
+      commandInput.dispose();
       picker.dispose();
       input.dispose();
       field.removeEventListener("input", changed);

@@ -120,6 +120,10 @@ describe("createSurfacesRouter", () => {
       expect(side.setCommands).toHaveBeenCalledWith(commands);
       vi.mocked(side.onCommand).mock.calls[0]![0]("status", "");
     }
+    expect(cb.mock.calls).toEqual([
+      ["status", ""],
+      ["status", ""],
+    ]);
   });
 
   it.each([

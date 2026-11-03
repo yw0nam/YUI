@@ -333,7 +333,11 @@ export function createSurfaces({
     isInputOpen: input.isInputOpen,
     onSubmit: input.onSubmit,
     setCommands: commandInput.setCommands,
-    onCommand: commandInput.onCommand,
+    onCommand: (cb) =>
+      commandInput.onCommand((name, args) => {
+        cb(name, args);
+        return true;
+      }),
     onCommandReplyClose: commandReply.onClose,
     showCommandReply: commandReply.show,
     onStop: input.onStop,

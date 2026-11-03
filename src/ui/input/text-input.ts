@@ -303,14 +303,16 @@ export function createTextInput(
   }
 
   function submitCurrent(): void {
-    if (busy) return; // While processing, Enter/submit is a no-op — stopping only via a button click
     const text = field.value.trim();
     if (text === "" && attachments.length === 0) return;
-    clearInputError();
     const images = attachments.slice();
-    if (!submitInterceptor?.(text, images)) {
-      for (const cb of submitHandlers) cb(text, images);
+    if (submitInterceptor?.(text, images)) {
+      fitField();
+      return;
     }
+    if (busy) return;
+    clearInputError();
+    for (const cb of submitHandlers) cb(text, images);
     clearAttachments();
     field.value = "";
     fitField();

@@ -8,11 +8,13 @@ const log = createLogger("wire-backend-commands");
 export function wireBackendCommands({
   socket,
   surfaces,
+  isBusy,
 }: {
   socket: Pick<
     PushSocket,
     "onCommands" | "getCommands" | "sendCommand" | "onCommandReply" | "onState"
   >;
+  isBusy(): boolean;
   surfaces: Pick<
     Surfaces,
     "setCommands" | "onCommand" | "onCommandReplyClose" | "showCommandReply"
@@ -26,6 +28,10 @@ export function wireBackendCommands({
   });
   surfaces.onCommand((name, args) => {
     if (disposed || pending) return;
+    if (isBusy()) {
+      surfaces.showCommandReply({ kind: "settled", name, text: t("command.busy_reply") });
+      return;
+    }
     const id = crypto.randomUUID();
     if (!socket.sendCommand({ type: "command", id, name, args })) {
       surfaces.showCommandReply({ kind: "settled", name, text: t("command.not_sent") });

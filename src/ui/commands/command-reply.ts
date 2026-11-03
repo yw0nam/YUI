@@ -49,7 +49,7 @@ export function createCommandReply({ mount }: { mount: HTMLElement }) {
         card.hidden = true;
         return;
       }
-      title.textContent = `/${state.name}`;
+      title.textContent = `${state.speaker ? `${state.speaker} · ` : ""}/${state.name}`;
       empty = state.kind === "settled" && state.text === "";
       running.hidden = state.kind !== "pending";
       body.replaceChildren(...(state.kind === "settled" ? entryMarkdown(state.text) : []));
