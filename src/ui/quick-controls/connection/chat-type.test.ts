@@ -12,7 +12,6 @@ import {
 } from "../../../settings/backend/api-key-settings";
 import { createEndpointsSettings } from "../../../settings/backend/endpoints-settings";
 import { type Locale, setLocale, t } from "../../i18n";
-import en from "../../i18n/en";
 import { CARD_GUIDE_URL } from "../constants";
 import { inMemoryApiKeyStorage } from "../test-helpers";
 import { createConnectionTab } from "./connection-tab";
