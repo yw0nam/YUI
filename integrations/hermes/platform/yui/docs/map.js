@@ -103,12 +103,12 @@ globalThis.YUI_MAP =
     {
       "from": "client",
       "to": "adapter",
-      "label": "hello, turn, stop, reset, tool_result"
+      "label": "hello, turn, stop, reset, tool_result, answer"
     },
     {
       "from": "adapter",
       "to": "client",
-      "label": "ready, speech, render, turn_end, tool_call"
+      "label": "ready, speech, render, turn_end, tool_call, ask, ask_end"
     },
     {
       "from": "adapter",
@@ -352,6 +352,15 @@ globalThis.YUI_MAP =
         "integrations/hermes/platform/yui/src/turns/session.py"
       ],
       "role": "The chat of the turn in flight, or the sole connected chat when the session context is empty."
+    },
+    {
+      "id": "asks/asks",
+      "module": "adapter",
+      "label": "Open Asks",
+      "role": "Per-chat exec approvals, offered choices and expiry, held until answered or settled.",
+      "paths": [
+        "integrations/hermes/platform/yui/src/asks"
+      ]
     }
   ],
   "edges": [
@@ -456,6 +465,14 @@ globalThis.YUI_MAP =
       "from": "transport/adapter",
       "to": "client",
       "carries": "error {turn_id, message}, to a client whose hello accepts error",
+      "kind": "websocket",
+      "transport": "push"
+    },
+    {
+      "id": "frame-ask",
+      "from": "transport/adapter",
+      "to": "client",
+      "carries": "ask {ask, expires_at}, ask_end {ask_id}",
       "kind": "websocket",
       "transport": "push"
     },
@@ -1039,6 +1056,22 @@ globalThis.YUI_MAP =
       "from": "turns/session",
       "to": "turns/state",
       "carries": "connected_chats()",
+      "kind": "call",
+      "transport": "push"
+    },
+    {
+      "id": "frame-answer",
+      "from": "client",
+      "to": "transport/adapter",
+      "carries": "answer {ask_id, choice}",
+      "kind": "websocket",
+      "transport": "push"
+    },
+    {
+      "id": "adapter-asks",
+      "from": "transport/adapter",
+      "to": "asks/asks",
+      "carries": "open, get, pending, drop",
       "kind": "call",
       "transport": "push"
     }
