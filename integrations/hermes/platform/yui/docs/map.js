@@ -357,7 +357,7 @@ globalThis.YUI_MAP =
       "id": "asks/asks",
       "module": "adapter",
       "label": "Open Asks",
-      "role": "Per-chat exec approvals, offered choices and expiry, held until answered or settled.",
+      "role": "Per-chat exec approvals and clarify questions, offered choices, text and optional expiry, held until answered or settled.",
       "paths": [
         "integrations/hermes/platform/yui/src/asks"
       ]
@@ -1063,7 +1063,7 @@ globalThis.YUI_MAP =
       "id": "frame-answer",
       "from": "client",
       "to": "transport/adapter",
-      "carries": "answer {ask_id, choice}",
+      "carries": "answer {ask_id, choice?, text?}",
       "kind": "websocket",
       "transport": "push"
     },
@@ -1071,7 +1071,7 @@ globalThis.YUI_MAP =
       "id": "adapter-asks",
       "from": "transport/adapter",
       "to": "asks/asks",
-      "carries": "open, get, take, pending, drop",
+      "carries": "open, get, take, pending, chat_of, drop",
       "kind": "call",
       "transport": "push"
     }

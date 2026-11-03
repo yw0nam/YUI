@@ -22,16 +22,20 @@ import re
 import sys
 import time
 from typing import Any
+from uuid import uuid4
 
 from aiohttp import WSMsgType, web
 from gateway.config import Platform
 from gateway.platforms.base import BasePlatformAdapter, ExecApprovalPrompt, SendResult
 from gateway.platforms.base_exec_approval import approval_timeout_seconds
 from gateway.platforms.event import MessageEvent, MessageType, ProcessingOutcome
-from tools.approval import observe_gateway_settle, resolve_gateway_approval
+from tools.approval import observe_gateway_settle
+from tools.clarify_gateway import get_clarify_timeout
 
 from ..activity import delegations, reasoning, reports, tool_status, usage
-from ..asks.asks import Asks
+from ..asks.asks import Ask, Asks
+from ..asks.clarify import clarify_ask
+from ..asks.exec_approval import exec_approval_ask
 from ..express import tools
 from ..express.gate import Vocabulary
 from ..express.segments import build_segments, place_matched
@@ -354,7 +358,12 @@ class YuiAdapter(BasePlatformAdapter):
             return SendResult(success=False, error="client does not accept ask")
         if prompt.request_id is None:
             return SendResult(success=False, error="exec approval has no request id")
-        ask = self._asks.open(chat_id, prompt, time.time() * 1000 + approval_timeout_seconds() * 1000)
+        body, resolve = exec_approval_ask(prompt)
+        ask = self._asks.open(
+            chat_id, uuid4().hex, body, time.time() * 1000 + approval_timeout_seconds() * 1000, resolve
+        )
+        if not self._ask_fits(chat_id, ask):
+            return SendResult(success=False, error="ask too large")
         ask_id = ask.frame["ask"]["ask_id"]
         loop = asyncio.get_running_loop()
 
@@ -372,6 +381,42 @@ class YuiAdapter(BasePlatformAdapter):
             await self._send_frame(chat_id, ask.frame)
         return SendResult(success=True, message_id=ask_id)
 
+    def _ask_fits(self, chat_id: str, ask: Ask) -> bool:
+        if encoded(ask.frame)[1] <= MAX_FRAME_BYTES:
+            return True
+        self._asks.drop(chat_id, ask.frame["ask"]["ask_id"])
+        return False
+
+    async def send_clarify(
+        self,
+        chat_id: str,
+        question: str,
+        choices: list[str] | None,
+        clarify_id: str,
+        session_key: str,
+        metadata: dict | None = None,
+    ) -> SendResult:
+        if "ask" not in self._accepts.get(chat_id, ()):
+            return SendResult(success=False, error="client does not accept ask")
+        timeout = get_clarify_timeout()
+        expires_at = time.time() * 1000 + timeout * 1000 if timeout > 0 else None
+        body, resolve = clarify_ask(question, choices, clarify_id)
+        ask = self._asks.open(chat_id, clarify_id, body, expires_at, resolve)
+        if not self._ask_fits(chat_id, ask):
+            return SendResult(success=False, error="ask too large")
+        if state.is_connected(chat_id):
+            await self._send_frame(chat_id, ask.frame)
+        return SendResult(success=True, message_id=clarify_id)
+
+    async def retire_clarify_card(self, clarify_id: str, notice: str) -> None:
+        chat_id = self._asks.chat_of(clarify_id)
+        if (
+            chat_id is not None
+            and self._asks.drop(chat_id, clarify_id)
+            and "ask_end" in self._accepts.get(chat_id, ())
+        ):
+            await self._send_frame(chat_id, {"type": "ask_end", "ask_id": clarify_id})
+
     def _on_answer(self, chat_id: str, frame: dict) -> None:
         ask_id = frame.get("ask_id")
         ask = self._asks.get(chat_id, ask_id) if isinstance(ask_id, str) else None
@@ -379,11 +424,12 @@ class YuiAdapter(BasePlatformAdapter):
             logger.warning("yui: unknown Ask %r chat=%s", ask_id, chat_id)
             return
         choice = frame.get("choice")
-        ask = self._asks.take(chat_id, ask_id, choice)
+        text = frame.get("text")
+        ask = self._asks.take(chat_id, ask_id, choice, text)
         if ask is None:
-            logger.warning("yui: unoffered choice %r for Ask %s chat=%s", choice, ask_id, chat_id)
+            logger.warning("yui: refused answer choice=%r for Ask %s chat=%s", choice, ask_id, chat_id)
             return
-        resolve_gateway_approval(ask.session_key, choice, request_id=ask.request_id)
+        ask.resolve(choice, text)
 
     def _forget(self, chat_id: str, ws: web.WebSocketResponse) -> None:
         if chat_id and self._sockets.get(chat_id) is ws:
