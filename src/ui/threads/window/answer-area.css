@@ -189,6 +189,12 @@
   line-height: 1.6;
 }
 
+/* An empty field is one line, so a long placeholder stays on it rather than showing its next line's top. */
+.yui-threads-answer textarea:placeholder-shown {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
 .yui-threads-answer textarea::placeholder {
   color: var(--yui-text-mute);
 }
