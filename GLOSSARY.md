@@ -96,7 +96,7 @@ One outside conversation a producer posts, with an id, source, state, entries, a
 _Avoid_: session, ticket, inbox
 
 **Ask**:
-One question the backend holds open for the user: in a Thread, or in a character's own chat over the push transport (an `ask` frame), with an `ask_id`, prompt, optional choices, and whether free text is accepted.
+One question held open for the user: the one a Thread holds, or one the backend asks in a character's own chat over the push transport (an `ask` frame). It has an `ask_id`, a prompt, optional choices, and whether free text is accepted.
 _Avoid_: prompt, request
 
 **Answer**:
