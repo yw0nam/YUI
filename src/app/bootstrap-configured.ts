@@ -45,6 +45,7 @@ import { wirePeek, wireSummonHotkey } from "./stage/wire-summon";
 import { wireWindowGeometry } from "./stage/wire-window-geometry";
 import { type TurnCorePhase1, wireTurnCore } from "./turn/turn-core";
 import type { wireVocabulary } from "./turn/vocabulary/wire-vocabulary";
+import { wireSynthFailureNotice } from "./turn/voice/wire-synth-failure-notice";
 import type { VoicePipeline } from "./turn/voice/wire-voice-pipeline";
 import { wireCard } from "./turn/wire-card";
 import { wireFirstConversation } from "./turn/wire-first-conversation";
@@ -377,6 +378,15 @@ const realFactories: ConfiguredBootstrapFactories = {
         transcript: phase1.conversation.chatHistoryStore,
         isBusy: dispatcher.isPipelineBusy,
         submitGuide: phase1.userInput.submitGuide,
+      }).dispose,
+    );
+    register(
+      wireSynthFailureNotice({
+        onSynthFailure: voice.onSynthFailure,
+        surfaces,
+        openSettings: phase1.openSettings,
+        isUnifiedShown: () => phase1.unifiedShown.get(),
+        t,
       }).dispose,
     );
 

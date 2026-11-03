@@ -25,6 +25,8 @@ const en: Record<string, string> = {
   "voice.error.mic_denied": "Mic blocked",
   "voice.error.no_mic": "No mic",
   "voice.error.mic_unavailable": "Mic unavailable",
+  // the bubble action after a real synth failure — the voice itself is what to change
+  "voice.synth_failed_action": "Can't speak with this voice · Choose another",
 
   // aria labels (parameterized)
   "aria.refresh_speaker": "Refresh {name} reference voice",
