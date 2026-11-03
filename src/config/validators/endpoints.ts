@@ -2,6 +2,46 @@ import type { EndpointsConfig, TtsProviderName } from "../../contract";
 import { TTS_PROVIDERS } from "../tts-provider";
 import { assertValid, ConfigError, isObject } from "./shared";
 
+const VOICE_LOCALES = ["en", "ja", "ko"] as const;
+
+/** Collects tts_default_voices — exactly the three app languages, each a non-blank voice id + label. */
+function defaultVoices(
+  issues: string[],
+  v: unknown,
+): NonNullable<EndpointsConfig["tts_default_voices"]> {
+  const out = {
+    en: { id: "", name: "" },
+    ja: { id: "", name: "" },
+    ko: { id: "", name: "" },
+  };
+  if (!isObject(v)) {
+    issues.push(`tts_default_voices must be an object (got: ${JSON.stringify(v)})`);
+    return out;
+  }
+  for (const key of Object.keys(v)) {
+    if (!(VOICE_LOCALES as readonly string[]).includes(key)) {
+      issues.push(`tts_default_voices key must be one of ${VOICE_LOCALES.join(", ")} (got: "${key}")`);
+    }
+  }
+  for (const loc of VOICE_LOCALES) {
+    const entry = v[loc];
+    if (!isObject(entry)) {
+      issues.push(`tts_default_voices.${loc} must be an object (got: ${JSON.stringify(entry)})`);
+      continue;
+    }
+    for (const field of ["id", "name"] as const) {
+      const s = entry[field];
+      if (typeof s === "string" && s.trim()) out[loc][field] = s;
+      else {
+        issues.push(
+          `tts_default_voices.${loc}.${field} must be a non-blank string (got: ${JSON.stringify(s)})`,
+        );
+      }
+    }
+  }
+  return out;
+}
+
 /** A missing or empty key means the feature is off. */
 function unset(v: unknown): boolean {
   return v === undefined || v === "";
@@ -75,6 +115,8 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
   const tts_speaker = optStr("tts_speaker");
   const stt_model = optStr("stt_model");
   const stt_language = optStr("stt_language");
+  const tts_default_voices =
+    raw.tts_default_voices === undefined ? undefined : defaultVoices(issues, raw.tts_default_voices);
   // tts_max_inflight: optional, integer ≥ 1.
   const tts_max_inflight = raw.tts_max_inflight;
   if (
@@ -115,6 +157,7 @@ export function validateEndpoints(file: string, raw: unknown): EndpointsConfig {
     ...(tts_provider !== undefined ? { tts_provider } : {}),
     ...(tts_model !== undefined ? { tts_model } : {}),
     ...(tts_speaker !== undefined ? { tts_speaker } : {}),
+    ...(tts_default_voices !== undefined ? { tts_default_voices } : {}),
     ...(typeof tts_max_inflight === "number" ? { tts_max_inflight } : {}),
     ...(typeof chat_model_context_window === "number" ? { chat_model_context_window } : {}),
   };

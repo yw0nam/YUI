@@ -18,6 +18,7 @@ export function quickControlsConfigDefaults(config: Pick<ConfigStore, "get">) {
     getScreenDefaults: () => read((c) => screenDefaultsFromConfig(c.screen), undefined),
     getPersona: () => read((c) => c.persona, undefined),
     getEndpointDefaults: () => endpointDefaultsOf(config),
+    getDefaultVoices: () => read((c) => c.endpoints.tts_default_voices, undefined),
     getDefaultChatApi: () => read((c) => c.endpoints.chat_api, undefined),
     getIdlePool: () => read((c) => c.motions.idle, undefined),
     getExpressMotions: () => read((c) => agentTriggerableMotionIds(c.motions), [] as string[]),
