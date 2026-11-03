@@ -2584,10 +2584,10 @@ async def test_clarify_text(client, adapter):
 
 async def test_clarify_choice_and_text(client, adapter):
     ws = await ready(client, accepts=["ask"])
-    await clarify(adapter, choices=["A", "B"])
+    await clarify(adapter, choices=["A (Recommended)", "B"])
     await recv(ws)
-    await adapter._on_frame(CHAT, {"type": "answer", "ask_id": "clarify-1", "choice": "2", "text": "why"})
-    assert CLARIFY.calls == [("resolve", "clarify-1", "B\nwhy")]
+    await adapter._on_frame(CHAT, {"type": "answer", "ask_id": "clarify-1", "choice": "1", "text": "why"})
+    assert CLARIFY.calls == [("resolve", "clarify-1", "A\nwhy")]
 
 
 async def test_clarify_refused_answers_stay_open(client, adapter):

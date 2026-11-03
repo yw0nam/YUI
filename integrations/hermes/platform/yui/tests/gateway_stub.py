@@ -381,6 +381,8 @@ def install_stubs() -> None:
     clarify.get_pending = CLARIFY.get_pending
     clarify._coerce_text_response = CLARIFY.coerce
     clarify.get_clarify_timeout = lambda: CLARIFY.timeout
+    clarify_tool = types.ModuleType("tools.clarify_tool")
+    clarify_tool.strip_recommended = lambda text: str(text).strip().removesuffix("(Recommended)").strip()
     agent = types.ModuleType("agent")
     agent.__path__ = []
     i18n = types.ModuleType("agent.i18n")
@@ -388,6 +390,7 @@ def install_stubs() -> None:
     sys.modules.update(
         {
             "tools.clarify_gateway": clarify,
+            "tools.clarify_tool": clarify_tool,
             "agent": agent,
             "agent.i18n": i18n,
             "gateway": gateway,
