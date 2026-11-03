@@ -52,7 +52,7 @@ YUI/
         wire-sources.ts              # The dispatcher's utterance sources, built and started
         wire-card.ts                 # The card module bound to the window's stores, preset, UI language, and config
         wire-greeting.ts             # The greeting after a session reset, and the reset announcement each window's Start fresh makes
-        wire-first-conversation.ts   # After Quick start connects: the greeting, then the input and the controls hint with the two guides
+        wire-first-conversation.ts   # After Quick start connects, and on its Replay: the greeting on an empty session, then the input and the controls hint with the two guides
         session-reset-announcer.ts   # What a window's Start fresh announces: the bridge event, then this pet window's own greeting
         vocabulary/                  # The express vocabulary every consumer declares
           wire-vocabulary.ts         # The emotion_text table load, the derived vocabulary, and its change announcements
@@ -65,6 +65,7 @@ YUI/
           wire-voice.ts              # The voice-input and turn-voice wiring; a bound window builds no capture
           wire-voice-pipeline.ts     # Wires filler, TTS, and speech playback to the turn lifecycle
           unified-voice.ts           # Main's speech while the unified chat window shows, and the user speaking answered like a stop
+          wire-synth-failure-notice.ts # The first synth failure per pet window run: the bubble's Choose another action, opening the Voice page
       stage/                         # What is bound to the pet window's stage and overlay
         stage-renderer.ts            # The renderer on the stage with its persisted camera and idle throttle, plus Tier 1 liveliness, for the pet window
         wire-gestures.ts             # Pointer gestures on the stage: taps, pats, the window drag, and the camera orbit
@@ -458,6 +459,7 @@ YUI/
           tts-voices.ts                # Lists, uploads, and deletes reference voices on Irodori's voices API
           voice-apis.ts                # Voice list, upload, and delete per TTS provider; OpenAI's fixed built-in list
           fish-voices.ts               # Fish Audio's /model API: the account's voice models, import from a clip, and delete
+          fish-key-check.ts            # The Fish key check of Quick start's voice step: a voice list read that is ok, refused on 401 or 403, or failed
           voice-import.ts              # Voice import: OS picker, native copy, speaker registration
           voice-import-flow.ts         # Two-step voice import so a naming row sits between pick and copy
           voice-id-migration.ts        # Moves imported voices whose stored ids the TTS server would reject onto the ids an import of the same label produces
@@ -700,8 +702,9 @@ YUI/
             model-status.ts          # Maps the model-list read's phase and the model text to the status line's view
             push-state-text.ts       # Where the push socket stands, in words, for the status line and the quick card's head
           quick-start/               # The Connection page's Quick start view, for the free Gemini path
-            quick-start.ts           # What is sent, the daily limit, the key page link, the key confirmation, and the connected state with Help
-            quick-start.css          # The key row's layout, the replacement note, and the view's state lines
+            quick-start.ts           # What is sent, the daily limit, the key page link, the key confirmation, and the connected state with the voice step and Help
+            voice-step.ts            # The optional Fish Audio key: the key page link, the key check, the default voice for the app language, and the Maybe later button
+            quick-start.css          # The key row's and the voice step's layout, the replacement note, and the view's state lines
         cue-lists/                   # Schedule and proactive cue lists of the Proactive page
           cue-lists.ts               # Mounts and tears down the two cue lists
         delegations/                 # Delegated-work refresh for the session section

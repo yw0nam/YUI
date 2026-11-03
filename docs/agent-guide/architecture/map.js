@@ -853,7 +853,7 @@ globalThis.YUI_MAP =
       "id": "io/voice/voices",
       "module": "speech",
       "label": "voices",
-      "role": "The speaker catalogue: selection, the voices API per provider, and voice import.",
+      "role": "The speaker catalogue: selection, the voices API per provider, and voice import, and the Fish key check that Quick start's voice step runs.",
       "paths": [
         "src/io/voice/voices"
       ]
@@ -1195,7 +1195,7 @@ globalThis.YUI_MAP =
       "id": "ui/quick-controls",
       "module": "settings",
       "label": "quick controls",
-      "role": "The settings panel that fills the settings window: a search field over a rail of the edited character's pages (Connection, Voice, Persona, Body, History) then every character's pages (Together, Listening and bubble, Permissions, Plugins, Proactive, Motion and desktop, General), each page's scope line naming which characters the setting applies to, hidden on the Connection page while its Quick start view shows; the Plugins page lists the installed plugins with their consent, status and log tail, and the catalog with install and add from folder; it heads with every character and its transport and window state, and a click edits it; a control the push transport cannot use stays, disabled, with its reason and a link to the chat protocol select; the Together page's Characters list turns each character on or off the desktop; the preset manage row's copy button copies a character's ingress URL and the Proactive URL line shows this window's; the preset strip shows this preset's relation line and the reasons card; the Persona page's Card section edits the preset's card, its send switch and the preset's name; the Connection page switches between Quick start and Detailed settings, Quick start confirming a pasted key with the model list read, then writing the preset's URL, model and key and turning idle check-ins and the schedule off, warning that another configured server is replaced, and showing a done line and Help once connected; the General page opens with the Help section, then holds the device-wide user name, the Appearance row that picks the theme and the Text size row that picks the text size.",
+      "role": "The settings panel that fills the settings window: a search field over a rail of the edited character's pages (Connection, Voice, Persona, Body, History) then every character's pages (Together, Listening and bubble, Permissions, Plugins, Proactive, Motion and desktop, General), each page's scope line naming which characters the setting applies to, hidden on the Connection page while its Quick start view shows; the Plugins page lists the installed plugins with their consent, status and log tail, and the catalog with install and add from folder; it heads with every character and its transport and window state, and a click edits it; a control the push transport cannot use stays, disabled, with its reason and a link to the chat protocol select; the Together page's Characters list turns each character on or off the desktop; the preset manage row's copy button copies a character's ingress URL and the Proactive URL line shows this window's; the preset strip shows this preset's relation line and the reasons card; the Persona page's Card section edits the preset's card, its send switch and the preset's name; the Connection page switches between Quick start and Detailed settings, Quick start confirming a pasted key with the model list read, then writing the preset's URL, model and key and turning idle check-ins and the schedule off, warning that another configured server is replaced, and showing a done line, the voice step and Help once connected; the voice step confirms an optional Fish Audio key with a voice list read, and only a confirmed key writes the Fish provider, its URL, model and key with TTS on and selects the app language's default voice, while a TTS server already set shows a voice-is-on line instead; the Help section holds the controls and capabilities guides and a First conversation Replay row; the General page opens with the Help section, then holds the device-wide user name, the Appearance row that picks the theme and the Text size row that picks the text size.",
       "paths": [
         "src/ui/quick-controls"
       ]
@@ -1277,7 +1277,7 @@ globalThis.YUI_MAP =
       "id": "app/turn",
       "module": "wiring",
       "label": "turn wiring",
-      "role": "Connects voice, dispatcher, sources, vocabulary, and the push transport into the chat turn; while the unified chat window shows, main's speech goes to that window and the user starting to speak has it answer like its stop button while a character runs.",
+      "role": "Connects voice, dispatcher, sources, vocabulary, and the push transport into the chat turn; while the unified chat window shows, main's speech goes to that window and the user starting to speak has it answer like its stop button while a character runs; the first synth failure of a pet window run offers the bubble's Choose another action, which opens the Voice page.",
       "paths": [
         "src/app/turn"
       ]
@@ -1295,7 +1295,7 @@ globalThis.YUI_MAP =
       "id": "app/turn/card",
       "module": "wiring",
       "label": "card wiring",
-      "role": "Binds the card module to the window's stores, preset, UI language, and config for the backend caller, and performs the greeting after a session reset, once at the first boot of a preset a card import created, and once when Quick start connects, then opens the input and shows the controls hint with Hear the controls and Hear what she can do, each sending its guide's request through submitGuide.",
+      "role": "Binds the card module to the window's stores, preset, UI language, and config for the backend caller, and performs the greeting after a session reset, once at the first boot of a preset a card import created, and once when Quick start connects or its Replay runs, on an empty session; then opens the input and shows the controls hint with Hear the controls and Hear what she can do, the hint whatever its seen flag says on a replay, each sending its guide's request through submitGuide.",
       "paths": [
         "src/app/turn/wire-card.ts",
         "src/app/turn/wire-first-conversation.ts",
@@ -1677,10 +1677,28 @@ globalThis.YUI_MAP =
       "wiring": "src/app/settings-window/wire-settings-window.ts"
     },
     {
+      "id": "first-conversation-replay",
+      "from": "ui/quick-controls",
+      "to": "io/bridge/settings",
+      "carries": "Quick start's Help row Replay → yui://first-conversation-replay, scoped to the preset",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/settings-window/wire-settings-window.ts"
+    },
+    {
       "id": "first-conversation-greet",
       "from": "io/bridge/settings",
       "to": "app/turn/card",
       "carries": "yui://first-conversation-connected for this window's preset → greetLocal when the session is empty",
+      "kind": "bridge",
+      "transport": "shared",
+      "wiring": "src/app/turn/wire-first-conversation.ts"
+    },
+    {
+      "id": "first-conversation-replay-greet",
+      "from": "io/bridge/settings",
+      "to": "app/turn/card",
+      "carries": "yui://first-conversation-replay for this window's preset → greetLocal when the session is empty, else the hint at once",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/app/turn/wire-first-conversation.ts"
@@ -1698,7 +1716,7 @@ globalThis.YUI_MAP =
       "id": "first-conversation-surfaces",
       "from": "app/turn/card",
       "to": "ui/surfaces",
-      "carries": "summonInput() at the greeting's end, or hideSpeech() then summonInput() when no greeting ran; the controls hint once the greeting was readable, skipped while a turn runs, carrying the two speech actions Hear the controls and Hear what she can do, each calling submitGuide with its guide key and help request text",
+      "carries": "summonInput() at the greeting's end, or hideSpeech() then summonInput() when no greeting ran; the controls hint once the greeting was readable, skipped while a turn runs, on a replay whatever the seen flag says, carrying the two speech actions Hear the controls and Hear what she can do, each calling submitGuide with its guide key and help request text",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/turn/wire-first-conversation.ts"
@@ -2013,6 +2031,42 @@ globalThis.YUI_MAP =
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
+    },
+    {
+      "id": "synth-failure",
+      "from": "io/voice/tts",
+      "to": "app/turn",
+      "carries": "onSynthFailure() when a sentence's synthesis fails and is not a skip → the filler's onSynthFailure, then each synth failure listener",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
+    },
+    {
+      "id": "synth-failure-notice",
+      "from": "app/turn",
+      "to": "ui/surfaces",
+      "carries": "showSpeechActions([\"Can't speak with this voice · Choose another\"]) on the first synth failure of a pet window run; skipped while the unified chat window shows, which leaves the notice armed",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/turn/voice/wire-synth-failure-notice.ts"
+    },
+    {
+      "id": "synth-failure-action",
+      "from": "ui/surfaces",
+      "to": "app/turn",
+      "carries": "the notice's action clicked → hideSpeech(), then openSettings(\"voice\")",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/turn/voice/wire-synth-failure-notice.ts"
+    },
+    {
+      "id": "synth-failure-open",
+      "from": "app/turn",
+      "to": "io/window/openers",
+      "carries": "openSettings(\"voice\"): the Voice page of the settings window",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/app/turn/voice/wire-synth-failure-notice.ts"
     },
     {
       "id": "speech-previous",
@@ -3608,6 +3662,41 @@ globalThis.YUI_MAP =
       "kind": "callback",
       "transport": "shared",
       "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
+    },
+    {
+      "id": "voice-step-key",
+      "from": "ui/quick-controls",
+      "to": "io/voice/voices",
+      "carries": "Turn on voice: checkFishKey(pasted key) → ok, refused or failed; ok → the app language's default voice joins the list unless listed, and is selected",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/connection/quick-start/voice-step.ts"
+    },
+    {
+      "id": "voice-key-check-http",
+      "from": "io/voice/voices",
+      "to": "tts-service",
+      "carries": "GET {Fish URL}/model?self=true&page_size=1&page_number=1 with the key as a Bearer token: 200 ok, 401 or 403 refused, anything else failed",
+      "kind": "http",
+      "transport": "shared"
+    },
+    {
+      "id": "voice-step-settings",
+      "from": "ui/quick-controls",
+      "to": "settings",
+      "carries": "ok only: endpoints tts_provider fish, tts_base_url and tts_model, the TTS key, and TTS on",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/quick-controls/connection/quick-start/voice-step.ts"
+    },
+    {
+      "id": "default-voices-config",
+      "from": "app/settings",
+      "to": "ui/quick-controls",
+      "carries": "getDefaultVoices(): endpoints tts_default_voices, undefined hides the voice step",
+      "kind": "callback",
+      "transport": "shared",
+      "wiring": "src/app/settings/config-defaults.ts"
     },
     {
       "id": "logger-shell",
@@ -5609,10 +5698,24 @@ globalThis.YUI_MAP =
         "kind": "bridge"
       },
       {
+        "id": "first-conversation-replay",
+        "from": "settings",
+        "to": "pet",
+        "carries": "yui://first-conversation-replay; scoped to the preset",
+        "kind": "bridge"
+      },
+      {
         "id": "first-conversation-companion",
         "from": "settings-<id>",
         "to": "pet-<id>",
         "carries": "yui://first-conversation-connected; scoped to the preset",
+        "kind": "bridge"
+      },
+      {
+        "id": "first-conversation-replay-companion",
+        "from": "settings-<id>",
+        "to": "pet-<id>",
+        "carries": "yui://first-conversation-replay; scoped to the preset",
         "kind": "bridge"
       },
       {

@@ -10,6 +10,22 @@ Speech out and speech in are two separate services, and both are optional.
 2. Enter the **TTS API key** if the service needs one.
 3. On **Voice**, turn on **Voice output** and pick a voice from the list. **Preview** plays a sample for a voice with a reference clip.
 
+### Quick start's voice step
+
+Once Quick start has connected, the voice step under its done line takes a Fish Audio key in place of steps 1 and 2.
+
+- **Open key page** opens Fish Audio's API key page in your browser.
+- **Turn on voice** checks the pasted key with a voice list read. Only a key that Fish Audio accepts is written: the Fish Audio provider, its URL and model, the key, and TTS on.
+- The **Default voice** for your app language joins the voice list and is selected. It is picked once, when voice is turned on; a later language change keeps it.
+- **Maybe later** hides the step until the panel is rebuilt. Voice can still be turned on from the **Voice** page.
+- With a TTS server already set, the step shows a line that voice is on instead.
+
+### When a line cannot be spoken
+
+If a line cannot be spoken (a deleted voice, an expired key, or a quota limit), the speech bubble shows **Can't speak with this voice · Choose another** under the line. It appears once per pet window run, and its action opens the **Voice** page.
+
+While the unified chat window shows, the pet bubble is hidden, so a failure then does not use up the action: the next failure after the window closes shows it.
+
 ## Listen
 
 ![Settings window, Listening and bubble page](/shots/settings-listening.png)
