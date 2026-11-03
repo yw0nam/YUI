@@ -25,19 +25,16 @@
 
 ## Quickstart
 
-You need a Mac with Apple Silicon or a Windows x64 PC, and a coding agent (Claude Code, Codex, OpenCode, Cursor). To talk with her, connect a chat model during install or later: an OpenAI or Groq API key, or [Ollama](https://ollama.com) or [LM Studio](https://lmstudio.ai) running locally.
+You need a Mac with Apple Silicon or a Windows x64 PC. You do not need a terminal or a coding agent.
 
-1. Paste this into your coding agent:
+1. Download the installer from the [Releases page](https://github.com/yw0nam/YUI/releases/latest): the `.dmg` for macOS, or the `-setup.exe` or `.msi` for Windows. The macOS build is signed ad hoc, so on first launch choose System Settings → Privacy & Security → Open Anyway.
+2. Open YUI. She appears on your screen and says she is not connected yet. Choose **Connect**.
+3. In **Quick start**, choose **Open key page**, make a free Google Gemini key in Google AI Studio, paste it, and choose **Connect**. She greets you. The free tier has a daily limit, and Google may use what you send to improve its products.
+4. Press `/` (or `Cmd/Ctrl+Shift+Y`) and say hello.
 
-   ```text
-   Install https://github.com/yw0nam/YUI following https://raw.githubusercontent.com/yw0nam/YUI/main/docs/guide/install.md
-   ```
+Prefer to let a coding agent install it, or to build from source? See [Install](docs/guide/installation.md).
 
-   It installs what YUI needs, connects your chat model, and checks that it works, asking you only for what it cannot find, such as an API key.
-2. Ask the agent to start her (`pnpm tauri dev`), or run that yourself in the YUI folder. The first start takes a few minutes, then she appears on your screen.
-3. Press `/` (or `Cmd/Ctrl+Shift+Y`) and say hello.
-
-To talk by voice, set up speech recognition and a voice provider in **Settings → Connection**, then choose her voice in **Settings → Voice** (right-click her and choose **All settings…**). You can change the chat model on Connection too. OpenAI, Ollama, LM Studio, and Groq use the Chat Completions format, which needs a model with tool-calling support: for example `gpt-5-mini` on OpenAI, `qwen3` on Ollama, or `llama-3.3-70b-versatile` on Groq.
+To use another model or server, open **Detailed settings** on the same page (right-click her and choose **All settings…**, then **Connection**). To talk by voice, set up speech recognition and a voice provider there, then choose her voice in **Settings → Voice**. Chat Completions needs a model with tool-calling support: for example `gpt-5-mini` on OpenAI or `llama-3.3-70b-versatile` on Groq.
 
 ## What she does
 
@@ -135,7 +132,7 @@ The [connection guide](docs/guide/connect-a-backend.md) covers each setup. Missi
 ## Known limitations
 
 - Supported on macOS with Apple Silicon and Windows x64. Intel Macs and Linux are not officially supported.
-- [Install](docs/guide/installation.md) covers the coding-agent route and the installers on the Releases page; the macOS build is signed ad hoc, so on first launch choose System Settings → Privacy & Security → Open Anyway.
+- [Install](docs/guide/installation.md) covers the installers, the coding-agent route, and building from source.
 - Climbing up window sides and onto the monitor above is marked as in development in the app.
 - Irodori TTS speaks Japanese only.
 
