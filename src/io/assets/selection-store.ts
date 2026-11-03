@@ -218,8 +218,15 @@ export function createSelectionStore<T extends SelectionOption>(opts: {
 
     select(id: string): void {
       if (!hasId(id)) return; // Unknown id — prevent garbage persist
-      if (override === id) return;
-      // A pick of the option already resolved still pins it, so a later list change keeps it.
+      if (resolve().id === id) return; // No-op if already active
+      override = id;
+      storage?.save(id);
+      notify();
+    },
+
+    /** Saves `id` as the user's pick even while it is the resolved option, so a later list change keeps it. */
+    pin(id: string): void {
+      if (!hasId(id) || override === id) return;
       const changed = resolve().id !== id;
       override = id;
       storage?.save(id);

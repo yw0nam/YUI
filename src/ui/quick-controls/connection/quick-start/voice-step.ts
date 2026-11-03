@@ -29,7 +29,7 @@ interface VoiceStepDeps {
   getEndpointDefaults?: () => EndpointOverrides | undefined;
   ttsKeySettings: Pick<ApiKeySettingsStore, "setApiKey">;
   ttsSettings: Pick<FlagSettingsStore, "setEnabled">;
-  speakerSelection: Pick<SpeakerSelectionStore, "list" | "addUserOption" | "select">;
+  speakerSelection: Pick<SpeakerSelectionStore, "list" | "addUserOption" | "pin">;
   /** The Fish voice per app language, from the bundled config; undefined hides the section. */
   getDefaultVoices: () => NonNullable<EndpointsConfig["tts_default_voices"]> | undefined;
   getFetch: () => Promise<typeof globalThis.fetch | undefined>;
@@ -146,7 +146,7 @@ export function createVoiceStep(deps: VoiceStepDeps): {
         provider: "fish",
       });
     }
-    deps.speakerSelection.select(voice.id);
+    deps.speakerSelection.pin(voice.id);
     turnedOnHere = true;
     form.hidden = true;
     skippedLine.hidden = true;

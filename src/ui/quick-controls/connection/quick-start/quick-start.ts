@@ -46,7 +46,7 @@ interface QuickStartDeps {
   /** The voice step's stores. An absent TTS flag store keeps the voice step out. */
   ttsKeySettings?: Pick<ApiKeySettingsStore, "setApiKey">;
   ttsSettings?: Pick<FlagSettingsStore, "setEnabled">;
-  speakerSelection?: Pick<SpeakerSelectionStore, "list" | "addUserOption" | "select">;
+  speakerSelection?: Pick<SpeakerSelectionStore, "list" | "addUserOption" | "pin">;
   /** The Fish voice per app language, from the bundled config; undefined hides the section. */
   getDefaultVoices?: () => NonNullable<EndpointsConfig["tts_default_voices"]> | undefined;
   /** The pet window replays the first conversation. */
