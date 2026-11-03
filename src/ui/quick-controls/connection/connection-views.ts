@@ -4,7 +4,7 @@
  */
 
 import { t } from "../../i18n";
-import { handleSegmentKeydown } from "../seg-keyboard";
+import { createStoreSegment } from "../store-segment";
 import "./connection-views.css";
 
 export type ConnectionView = "quick" | "detail";
@@ -38,7 +38,7 @@ export function createConnectionViews(deps: {
   seg.className = "yui-seg yui-conn-views";
   seg.setAttribute("role", "radiogroup");
   seg.setAttribute("aria-label", t("start.views_aria"));
-  const cells = VIEWS.map((view) => {
+  for (const view of VIEWS) {
     const cell = document.createElement("button");
     cell.className = "yui-seg__btn";
     cell.type = "button";
@@ -46,8 +46,7 @@ export function createConnectionViews(deps: {
     cell.dataset.view = view;
     cell.textContent = t(VIEW_LABEL_KEYS[view]);
     seg.append(cell);
-    return cell;
-  });
+  }
 
   const quickView = document.createElement("div");
   quickView.className = "yui-conn-view";
@@ -70,11 +69,7 @@ export function createConnectionViews(deps: {
   let current: ConnectionView = initial;
 
   function reflect(): void {
-    for (const [index, view] of VIEWS.entries()) {
-      const on = view === current;
-      cells[index]!.setAttribute("aria-checked", String(on));
-      cells[index]!.tabIndex = on ? 0 : -1;
-    }
+    segment.reflect();
     quickView.hidden = current !== "quick";
     detailView.hidden = current !== "detail";
     if (scope) scope.hidden = current === "quick";
@@ -88,28 +83,14 @@ export function createConnectionViews(deps: {
     else onDetailEntered();
   }
 
-  function handleClick(e: MouseEvent): void {
-    const cell = (e.target as HTMLElement).closest<HTMLButtonElement>(".yui-seg__btn");
-    if (!cell) return;
-    select(cell.dataset.view as ConnectionView);
-  }
-
-  function handleKeydown(e: KeyboardEvent): void {
-    handleSegmentKeydown(e, cells, {
-      length: cells.length,
-      getBaseIndex: () => VIEWS.indexOf(current),
-      onNavigate: (index, focus) => {
-        const view = VIEWS[clamp(index)]!;
-        select(view);
-        if (focus) cells[VIEWS.indexOf(view)]!.focus();
-      },
-      onCommit: (index) => select(VIEWS[clamp(index)]!),
-    });
-  }
-
-  function clamp(index: number): number {
-    return Math.min(cells.length - 1, Math.max(0, index));
-  }
+  const segment = createStoreSegment({
+    segment: seg,
+    values: VIEWS,
+    get: () => current,
+    set: select,
+    subscribe: () => () => {},
+    isOpen: () => true,
+  });
 
   // Settings search found matches only in the hidden view.
   function handleReveal(e: Event): void {
@@ -117,8 +98,6 @@ export function createConnectionViews(deps: {
     if (view === "quick" || view === "detail") select(view);
   }
 
-  seg.addEventListener("click", handleClick);
-  seg.addEventListener("keydown", handleKeydown);
   panel.addEventListener("yui-search-reveal", handleReveal);
   reflect();
 
@@ -127,8 +106,7 @@ export function createConnectionViews(deps: {
       if (current === "detail") onDetailEntered();
     },
     dispose(): void {
-      seg.removeEventListener("click", handleClick);
-      seg.removeEventListener("keydown", handleKeydown);
+      segment.dispose();
       panel.removeEventListener("yui-search-reveal", handleReveal);
     },
   };
