@@ -1,0 +1,71 @@
+// @vitest-environment jsdom
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { setLocale } from "../i18n";
+import { createCommandList } from "./command-list";
+
+const commands = [
+  { name: "status", description: "Session info", args: "" },
+  { name: "model", description: "Switch model", args: "[name]" },
+];
+let field: HTMLTextAreaElement;
+let mount: HTMLElement;
+let list: ReturnType<typeof createCommandList>;
+function type(text: string) {
+  field.value = text;
+  field.dispatchEvent(new Event("input"));
+}
+function key(key: string, extra: KeyboardEventInit = {}) {
+  const e = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...extra });
+  field.dispatchEvent(e);
+  return e;
+}
+beforeEach(() => {
+  setLocale("en");
+  mount = document.createElement("div");
+  field = document.createElement("textarea");
+  mount.append(field);
+  document.body.append(mount);
+  list = createCommandList({ field, mount, commands: () => commands });
+});
+afterEach(() => {
+  list.dispose();
+  mount.remove();
+});
+it("opens on / and filters by name prefix", () => {
+  type("/");
+  expect(field.getAttribute("aria-expanded")).toBe("true");
+  expect(mount.querySelectorAll('[role="option"]')).toHaveLength(2);
+  type("/mo");
+  expect(mount.querySelectorAll('[role="option"]')).toHaveLength(1);
+  expect(mount.textContent).toContain("Switch model");
+  expect(mount.textContent).toContain("/model [name]");
+});
+it("completes a partial name with Tab", () => {
+  type("/sta");
+  expect(key("Tab").defaultPrevented).toBe(true);
+  expect(field.value).toBe("/status ");
+  expect(field.getAttribute("aria-expanded")).toBe("false");
+});
+it("leaves Enter on a full name to submit", () => {
+  type("/status");
+  expect(key("Enter").defaultPrevented).toBe(false);
+});
+it("closes on Escape before the input handles it", () => {
+  const inputKey = vi.fn();
+  field.addEventListener("keydown", inputKey);
+  type("/");
+  expect(key("Escape").defaultPrevented).toBe(true);
+  expect(inputKey).not.toHaveBeenCalled();
+  expect(field.getAttribute("aria-expanded")).toBe("false");
+});
+it("leaves Shift+Enter unconsumed", () => {
+  type("/sta");
+  expect(key("Enter", { shiftKey: true }).defaultPrevented).toBe(false);
+  expect(field.value).toBe("/sta");
+});
+it("shows no list without commands", () => {
+  list.dispose();
+  list = createCommandList({ field, mount, commands: () => [] });
+  type("/");
+  expect(field.getAttribute("aria-expanded")).toBe("false");
+});

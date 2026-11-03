@@ -172,7 +172,7 @@ describe("createPushSocket — handshake", () => {
         type: "hello",
         key: "secret-key",
         chat_id: "yui-3f9a2c1d",
-        accepts: ["error", "ask", "ask_end"],
+        accepts: ["error", "ask", "ask_end", "command_reply"],
         vocabulary: VOCAB,
       },
     ]);
@@ -1686,5 +1686,63 @@ describe("push socket — playback", () => {
     ws.drop();
     expect(socket.sendPlayback(frame)).toBe(false);
     expect(ws.frames().map((f) => f.type)).toEqual(["hello"]);
+  });
+});
+
+describe("Backend commands", () => {
+  const commands = [{ name: "status", description: "Session info", args: "" }];
+  it("keeps commands on ready and drops them when ready ends", async () => {
+    await connected();
+    const seen = vi.fn();
+    socket.onCommands(seen);
+    FakeSocket.last().push({ type: "ready", commands });
+    expect(socket.getCommands()).toEqual(commands);
+    expect(seen).toHaveBeenLastCalledWith(commands);
+    FakeSocket.last().drop();
+    expect(socket.getCommands()).toEqual([]);
+    expect(seen).toHaveBeenLastCalledWith([]);
+  });
+  it.each([
+    ["array", {}, "commands"],
+    [
+      "count",
+      Array.from({ length: 101 }, (_, i) => ({ name: `c${i}`, description: "", args: "" })),
+      "commands",
+    ],
+    ["name type", [{ name: 1, description: "", args: "" }], "name"],
+    ["name syntax", [{ name: "Bad", description: "", args: "" }], "name"],
+    ["name length", [{ name: "a".repeat(33), description: "", args: "" }], "name"],
+    ["unique", [commands[0], commands[0]], "name"],
+    ["description type", [{ name: "status", description: 1, args: "" }], "description"],
+    [
+      "description length",
+      [{ name: "status", description: "😀".repeat(201), args: "" }],
+      "description",
+    ],
+    ["args type", [{ name: "status", description: "", args: 1 }], "args"],
+    ["args length", [{ name: "status", description: "", args: "😀".repeat(201) }], "args"],
+  ])("treats malformed commands as absent: %s", async (_rule, value, field) => {
+    await connected();
+    FakeSocket.last().push({ type: "ready", commands: value });
+    expect(logger.warn).toHaveBeenCalledWith("frame_malformed", { type: "ready", field });
+    expect(socket.getCommands()).toEqual([]);
+  });
+  it("delivers command replies", async () => {
+    await connected();
+    const reply = vi.fn();
+    socket.onCommandReply(reply);
+    FakeSocket.last().push({ type: "command_reply", id: "c1", text: "**ok**" });
+    expect(reply).toHaveBeenCalledWith({ type: "command_reply", id: "c1", text: "**ok**" });
+  });
+  it("sends commands only when ready", async () => {
+    socket = build();
+    const frame = { type: "command" as const, id: "c1", name: "status", args: "" };
+    expect(socket.sendCommand(frame)).toBe(false);
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+    FakeSocket.last().accept();
+    FakeSocket.last().push({ type: "ready", commands });
+    expect(socket.sendCommand(frame)).toBe(true);
+    expect(FakeSocket.last().frames().at(-1)).toEqual(frame);
   });
 });

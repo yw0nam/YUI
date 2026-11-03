@@ -43,6 +43,9 @@ function makeLocal(): Surfaces {
     summonInput: vi.fn(),
     dismissInput: vi.fn(),
     isInputOpen: vi.fn(() => false),
+    setCommands: vi.fn(),
+    showCommandReply: vi.fn(),
+    onCommand: vi.fn(),
     onSubmit: vi.fn(),
     onStop: vi.fn(),
     setBusy: vi.fn(),
@@ -74,6 +77,9 @@ function makeRemote(): RemoteSurfaces {
     showInputError: vi.fn(),
     setAttachmentLimits: vi.fn(),
     restoreInput: vi.fn(),
+    setCommands: vi.fn(),
+    showCommandReply: vi.fn(),
+    onCommand: vi.fn(),
     onSubmit: vi.fn(),
     onStop: vi.fn(),
     onDock: vi.fn(),
@@ -100,6 +106,20 @@ describe("createSurfacesRouter", () => {
     shown = next;
     for (const cb of shownListeners) cb(next);
   };
+
+  it("fans command state to both windows and registers both input sources", () => {
+    const commands = [{ name: "status", description: "Info", args: "" }];
+    const reply = { kind: "pending" as const, name: "status" };
+    const cb = vi.fn();
+    router.setCommands(commands);
+    router.showCommandReply(reply);
+    router.onCommand(cb);
+    for (const side of [local, remote]) {
+      expect(side.setCommands).toHaveBeenCalledWith(commands);
+      expect(side.showCommandReply).toHaveBeenCalledWith(reply);
+      expect(side.onCommand).toHaveBeenCalledWith(cb);
+    }
+  });
 
   beforeEach(() => {
     local = makeLocal();

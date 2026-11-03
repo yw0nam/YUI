@@ -47,6 +47,10 @@ function pair() {
 }
 
 const SURFACE_OPS: MessageSurfaceOp[] = [
+  { op: "commands", commands: [{ name: "status", description: "Info", args: "" }] },
+  { op: "command-reply", reply: { kind: "pending", name: "status" } },
+  { op: "command-reply", reply: { kind: "settled", name: "status", text: "OK" } },
+  { op: "command-reply", reply: { kind: "clear" } },
   { op: "begin" },
   { op: "name", name: "Yui" },
   { op: "push", delta: "hello" },
@@ -67,6 +71,7 @@ const SURFACE_OPS: MessageSurfaceOp[] = [
 ];
 
 const CONTROL_OPS: MessageControlOp[] = [
+  { op: "command", name: "status", args: "" },
   { op: "submit", text: "hi", images: ["data:image/jpeg;base64,x"] },
   { op: "stop" },
   { op: "input-open", open: true },
