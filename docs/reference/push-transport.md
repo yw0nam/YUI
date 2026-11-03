@@ -278,6 +278,8 @@ The backend starts a new conversation under the same `chat_id`, and long-term me
 
 The transcript starts empty, and work the backend delegated in the old conversation ends with it: the next `delegations` frame lists nothing.
 
+Every Ask still open ends with an `ask_end` frame.
+
 ### `stop` (client → backend)
 
 ```json
