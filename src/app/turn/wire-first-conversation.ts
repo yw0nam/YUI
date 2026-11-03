@@ -3,6 +3,7 @@ import type { GuideKey, UtteranceIdentity } from "../../contract";
 import type { createChatHistoryStore } from "../../io/chat/conversation/chat-history-store";
 import { TYPE_MS_PER_CHAR } from "../../ui/message/typewriter";
 import { type FirstRunHintDeps, maybeShowFirstRunHint } from "../../ui/notices/first-run-hint";
+import { GUIDES } from "../../ui/quick-controls/sections/help/help-section";
 
 /** How long a greeting stays up once it typed out, before the controls hint replaces it. */
 const GREETING_READ_MS = 2500;
@@ -31,15 +32,16 @@ export function wireFirstConversation(
 
   const showHint = (): void => {
     if (!maybeShowFirstRunHint({ ...deps, chatConfigured: true })) return;
-    // A reply bound for the unified window replaces nothing here, so the press drops the hint itself.
-    const guide = (key: GuideKey) => (): void => {
-      deps.surfaces.hideSpeech();
-      deps.submitGuide(key, deps.t(`help.${key}.request`));
-    };
-    deps.surfaces.showSpeechActions([
-      { label: deps.t("help.controls.hear"), onClick: guide("controls") },
-      { label: deps.t("help.capabilities.hear"), onClick: guide("capabilities") },
-    ]);
+    deps.surfaces.showSpeechActions(
+      GUIDES.map((guide) => ({
+        label: deps.t(`help.${guide}.hear`),
+        // A reply bound for the unified window replaces nothing here, so the press drops the hint itself.
+        onClick: () => {
+          deps.surfaces.hideSpeech();
+          deps.submitGuide(guide, deps.t(`help.${guide}.request`));
+        },
+      })),
+    );
   };
 
   const stopWaitingForGreeting = (): void => {

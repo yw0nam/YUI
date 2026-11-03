@@ -5,7 +5,7 @@ import { isGuideKey } from "../../../../io/guide/guide-docs";
 import { t } from "../../../i18n";
 import { secHeadHtml } from "../../markup";
 
-const GUIDES: readonly GuideKey[] = ["controls", "capabilities"];
+export const GUIDES: readonly GuideKey[] = ["controls", "capabilities"];
 
 export function helpSectionHtml(): string {
   const rows = GUIDES.map(
