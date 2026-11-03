@@ -25,10 +25,13 @@ from typing import Any
 
 from aiohttp import WSMsgType, web
 from gateway.config import Platform
-from gateway.platforms.base import BasePlatformAdapter, SendResult
+from gateway.platforms.base import BasePlatformAdapter, ExecApprovalPrompt, SendResult
+from gateway.platforms.base_exec_approval import approval_timeout_seconds
 from gateway.platforms.event import MessageEvent, MessageType, ProcessingOutcome
+from tools.approval import observe_gateway_settle, resolve_gateway_approval
 
 from ..activity import delegations, reasoning, reports, tool_status, usage
+from ..asks.asks import Asks
 from ..express import tools
 from ..express.gate import Vocabulary
 from ..express.segments import build_segments, place_matched
@@ -170,6 +173,7 @@ class YuiAdapter(BasePlatformAdapter):
         self._speaker = speech.Speaker(self._send_speech, self._as_sent)
         self._sends: set[asyncio.Task] = set()
         self._playback = PlaybackNotices()
+        self._asks = Asks()
 
     @property
     def name(self) -> str:
@@ -316,6 +320,9 @@ class YuiAdapter(BasePlatformAdapter):
         # The reply it missed comes before the agent starts a new turn on the held reports.
         await self._flush_renders(chat_id)
         await self._flush_reports(chat_id)
+        if "ask" in self._accepts[chat_id]:
+            for ask in self._asks.pending(chat_id, time.time() * 1000):
+                await self._send_frame(chat_id, ask.frame)
         return chat_id
 
     async def _close_replaced(self, ws: web.WebSocketResponse) -> None:
@@ -334,10 +341,49 @@ class YuiAdapter(BasePlatformAdapter):
             await self._on_reset(chat_id)
         elif kind == "stop":
             await self._on_stop(chat_id, frame)
+        elif kind == "answer":
+            self._on_answer(chat_id, frame)
         elif kind == "tool_result":
             self._on_tool_result(chat_id, frame)
         else:
             logger.debug("yui: ignoring frame type %r", kind)
+
+    async def _send_exec_approval_prompt(self, prompt: ExecApprovalPrompt) -> SendResult:
+        chat_id = prompt.chat_id
+        if "ask" not in self._accepts.get(chat_id, ()):
+            return SendResult(success=False, error="client does not accept ask")
+        if prompt.request_id is None:
+            return SendResult(success=False, error="exec approval has no request id")
+        ask = self._asks.open(chat_id, prompt, time.time() * 1000 + approval_timeout_seconds() * 1000)
+        ask_id = ask.frame["ask"]["ask_id"]
+        loop = asyncio.get_running_loop()
+
+        def settled() -> None:
+            if self._asks.drop(chat_id, ask_id) and "ask_end" in self._accepts.get(chat_id, ()):
+                task = asyncio.create_task(self._send_frame(chat_id, {"type": "ask_end", "ask_id": ask_id}))
+                self._sends.add(task)
+                task.add_done_callback(self._sends.discard)
+
+        def observer(_reason: str) -> None:
+            loop.call_soon_threadsafe(settled)
+
+        observe_gateway_settle(prompt.session_key, prompt.request_id, observer)
+        if state.is_connected(chat_id):
+            await self._send_frame(chat_id, ask.frame)
+        return SendResult(success=True, message_id=ask_id)
+
+    def _on_answer(self, chat_id: str, frame: dict) -> None:
+        ask_id = frame.get("ask_id")
+        ask = self._asks.get(chat_id, ask_id) if isinstance(ask_id, str) else None
+        if ask is None:
+            logger.warning("yui: unknown Ask %r chat=%s", ask_id, chat_id)
+            return
+        choice = frame.get("choice")
+        ask = self._asks.take(chat_id, ask_id, choice)
+        if ask is None:
+            logger.warning("yui: unoffered choice %r for Ask %s chat=%s", choice, ask_id, chat_id)
+            return
+        resolve_gateway_approval(ask.session_key, choice, request_id=ask.request_id)
 
     def _forget(self, chat_id: str, ws: web.WebSocketResponse) -> None:
         if chat_id and self._sockets.get(chat_id) is ws:

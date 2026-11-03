@@ -98,6 +98,7 @@ export function createSurfacesRouter({
   return {
     el: local.el,
     chipColumn: local.chipColumn,
+    askSlot: local.askSlot,
 
     beginSpeech(...args) {
       chatLine = args[0] !== undefined || args[1]?.aside === true;

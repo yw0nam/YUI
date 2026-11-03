@@ -32,7 +32,7 @@ Optional `label`, `placeholder`, `tone`, `entries`, and `choices` fields treat J
 | Field | Rule |
 |---|---|
 | `ask_id` | Required non-empty string, at most 128 code points |
-| `prompt` | Required non-empty string, at most 500 code points |
+| `prompt` | Required non-empty string, at most 500 code points. Markdown, rendered as entry text is |
 | `choices` | Optional array of at most 6 choices with unique ids |
 | `text` | Required boolean: whether free text is accepted |
 | `placeholder` | Optional string, at most 200 code points |

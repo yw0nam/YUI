@@ -21,16 +21,16 @@ vi.mock("./markdown", async (importOriginal) => {
   };
 });
 
-import { INTERACTIVE_OVERLAY_SELECTORS } from "../surfaces/interactive-overlay";
+import { BUBBLE, INTERACTIVE_OVERLAY_SELECTORS } from "../surfaces/interactive-overlay";
 import { createSurfaces } from "../surfaces/surfaces";
 import { noTool } from "../surfaces/test-helpers";
 import { renderMarkdownInline } from "./markdown";
 
-const TOOLS_SELECTOR = ".yui-bubble.is-visible .yui-bubble__tools button";
-const BOX_SELECTOR = ".yui-bubble.is-visible .yui-bubble__box";
-const SPEECH_ACTION_SELECTOR = ".yui-bubble.is-visible .yui-bubble__speech-action button";
-const BACKLOG_TOGGLE_SELECTOR = ".yui-bubble.is-visible .yui-bubble__backlog-toggle:not([hidden])";
-const BACKLOG_PANEL_SELECTOR = ".yui-bubble.is-visible .yui-bubble__backlog:not([hidden])";
+const TOOLS_SELECTOR = `${BUBBLE} .yui-bubble__tools button`;
+const BOX_SELECTOR = `${BUBBLE} .yui-bubble__box`;
+const SPEECH_ACTION_SELECTOR = `${BUBBLE} .yui-bubble__speech-action button`;
+const BACKLOG_TOGGLE_SELECTOR = `${BUBBLE} .yui-bubble__backlog-toggle:not([hidden])`;
+const BACKLOG_PANEL_SELECTOR = `${BUBBLE} .yui-bubble__backlog:not([hidden])`;
 
 // The edge buttons, the box, the speech action button and the backlog take OS pointer events; markdown links do not.
 describe("hit-test registration", () => {

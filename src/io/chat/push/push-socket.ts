@@ -10,6 +10,9 @@ import { createLogger, type Logger } from "../../../logger";
 import type { ClientToolDefinition } from "../tools/client-tools";
 import type { ExpressVocabulary } from "../vocabulary/express-vocabulary";
 import {
+  type AnswerFrame,
+  type AskFrame,
+  askFrameFault,
   type DelegationItem,
   type ErrorFrame,
   type PlaybackFrame,
@@ -31,7 +34,7 @@ import {
 const baseLog = createLogger("push-socket");
 
 /** The frame types read beyond the base set, as `hello.accepts` names them. */
-const ACCEPTED_FRAMES: readonly string[] = ["error"];
+const ACCEPTED_FRAMES: readonly string[] = ["error", "ask", "ask_end"];
 
 /** Text frame size cap, either direction. */
 export const PUSH_FRAME_MAX_BYTES = 256 * 1024;
@@ -102,6 +105,11 @@ export interface PushSocket {
   onToolStatus(cb: (frame: ToolStatusFrame) => void): () => void;
   onError(cb: (frame: ErrorFrame) => void): () => void;
   onToolCall(cb: (frame: ToolCallFrame) => void): () => void;
+  /** A question the backend holds open; `ask.choices` is `[]` when the frame had none. */
+  onAsk(cb: (frame: AskFrame) => void): () => void;
+  onAskEnd(cb: (askId: string) => void): () => void;
+  /** True when the frame went out; false when the socket is not ready. */
+  sendAnswer(frame: AnswerFrame): boolean;
   onDelegations(cb: (items: DelegationItem[]) => void): () => void;
   onReasoning(cb: (frame: ReasoningFrame) => void): () => void;
   onState(cb: (state: PushSocketState) => void): () => void;
@@ -138,6 +146,8 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
   const toolStatusSubs = new Set<(frame: ToolStatusFrame) => void>();
   const errorSubs = new Set<(frame: ErrorFrame) => void>();
   const toolCallSubs = new Set<(frame: ToolCallFrame) => void>();
+  const askSubs = new Set<(frame: AskFrame) => void>();
+  const askEndSubs = new Set<(askId: string) => void>();
   const delegationSubs = new Set<(items: DelegationItem[]) => void>();
   const reasoningSubs = new Set<(frame: ReasoningFrame) => void>();
   const stateSubs = new Set<(state: PushSocketState) => void>();
@@ -312,6 +322,27 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
           return;
         }
         dispatch(toolCallSubs, frame as unknown as ToolCallFrame);
+        return;
+      }
+      case "ask": {
+        const fault = askFrameFault(frame);
+        if (fault !== null) {
+          log.warn("frame_malformed", { type: "ask", field: fault });
+          return;
+        }
+        const ask = frame.ask as AskFrame["ask"];
+        dispatch(askSubs, {
+          ...(frame as unknown as AskFrame),
+          ask: { ...ask, choices: ask.choices ?? [] },
+        });
+        return;
+      }
+      case "ask_end": {
+        if (typeof frame.ask_id !== "string" || frame.ask_id === "") {
+          log.warn("frame_malformed", { type: "ask_end", field: "ask_id" });
+          return;
+        }
+        dispatch(askEndSubs, frame.ask_id);
         return;
       }
       case "reasoning": {
@@ -501,6 +532,8 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       clearTimers();
       renderSubs.clear();
       toolCallSubs.clear();
+      askSubs.clear();
+      askEndSubs.clear();
       speechSubs.clear();
       turnEndSubs.clear();
       toolStatusSubs.clear();
@@ -564,6 +597,11 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       );
     },
 
+    sendAnswer(frame): boolean {
+      if (!ready) return false;
+      return sendFrame({ ...frame });
+    },
+
     getMaxTurnBytes: () => maxTurnBytes,
     sendPlayback(frame): boolean {
       if (!ready) return false;
@@ -578,6 +616,8 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
     onToolStatus: (cb) => subscribe(toolStatusSubs, cb),
     onError: (cb) => subscribe(errorSubs, cb),
     onToolCall: (cb) => subscribe(toolCallSubs, cb),
+    onAsk: (cb) => subscribe(askSubs, cb),
+    onAskEnd: (cb) => subscribe(askEndSubs, cb),
     onDelegations: (cb) => subscribe(delegationSubs, cb),
     onReasoning: (cb) => subscribe(reasoningSubs, cb),
     onState: (cb) => subscribe(stateSubs, cb),

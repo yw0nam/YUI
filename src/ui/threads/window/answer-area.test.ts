@@ -83,3 +83,14 @@ it("takes no text when the ask refuses it", () => {
 
   expect(onSend).toHaveBeenCalledExactlyOnceWith({ choice: "allow" });
 });
+
+it("renders the prompt as Markdown under the heading the area is labelled by", () => {
+  const { area } = build({ ...ASK, prompt: "**Dangerous** command\n\n```\nrm -rf build\n```" });
+  const prompt = area.el.querySelector("#yui-threads-answer-prompt")!;
+
+  expect([
+    prompt.getAttribute("role"),
+    prompt.querySelector("strong")?.textContent,
+    prompt.querySelector("pre")?.textContent,
+  ]).toEqual(["heading", "Dangerous", "rm -rf build\n"]);
+});

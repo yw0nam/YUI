@@ -1,0 +1,156 @@
+// @vitest-environment jsdom
+/** ask-card.test.ts — the pet window's Ask card: which Ask shows, what Send does, and when an Ask closes. */
+
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import type { AskFrame } from "../../io/chat/push/push-frames";
+import { setLocale } from "../i18n";
+import { type AskCard, createAskCard } from "./ask-card";
+
+function frame(id: string, prompt = `Run ${id}?`, expires_at = 60_000): AskFrame {
+  return {
+    type: "ask",
+    ask: {
+      ask_id: id,
+      prompt,
+      choices: [
+        { id: "once", label: "Allow Once", tone: "primary" },
+        { id: "deny", label: "Deny", tone: "danger" },
+      ],
+      text: true,
+    },
+    expires_at,
+  };
+}
+
+beforeEach(() => {
+  setLocale("en");
+  document.body.innerHTML = "";
+  vi.useFakeTimers({ now: 0 });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+function build(answered = true) {
+  const mount = document.createElement("div");
+  document.body.append(mount);
+  const onAnswer = vi.fn(() => answered);
+  const card = createAskCard({ mount, onAnswer });
+  const el = mount.querySelector<HTMLElement>(".yui-ask-card")!;
+  const prompt = () => el.querySelector(".yui-threads-answer__prompt")?.textContent ?? null;
+  const choices = () => [
+    ...el.querySelectorAll<HTMLButtonElement>(".yui-threads-answer__choices button"),
+  ];
+  const answer = (index: number) => {
+    choices()[index]!.click();
+    el.querySelector<HTMLButtonElement>(".yui-threads-answer__send")!.click();
+  };
+  return { card, el, onAnswer, prompt, choices, answer };
+}
+
+it("shows the oldest Ask first, and the next once one is answered", () => {
+  const { card, onAnswer, prompt, answer } = build();
+  card.show(frame("a"));
+  card.show(frame("b"));
+  expect(prompt()).toBe("Run a?");
+
+  answer(0);
+
+  expect(onAnswer).toHaveBeenCalledExactlyOnceWith({ ask_id: "a", choice: "once" });
+  expect(prompt()).toBe("Run b?");
+});
+
+it("replaces a held Ask in place when its ask_id comes again", () => {
+  const { card, el, prompt, answer } = build();
+  card.show(frame("a"));
+  card.show(frame("b"));
+  card.show(frame("a", "Run a again?"));
+  expect(prompt()).toBe("Run a again?");
+
+  answer(0);
+  expect(prompt()).toBe("Run b?");
+  answer(0);
+  expect(el.hidden).toBe(true);
+});
+
+it("keeps an Ask whose answer was not sent and says why", () => {
+  const { card, el, prompt, choices, answer } = build(false);
+  card.show(frame("a"));
+
+  answer(1);
+
+  expect([
+    prompt(),
+    el.querySelector(".yui-threads-answer__error")?.textContent,
+    choices()[1]!.getAttribute("aria-pressed"),
+    el.querySelector<HTMLButtonElement>(".yui-threads-answer__send")!.disabled,
+  ]).toEqual(["Run a?", "Couldn't send: the connection is down", "true", false]);
+});
+
+it("closes an Ask at its expires_at and counts down the time left", () => {
+  const { card, el, prompt } = build();
+  card.show(frame("a", "Run a?", 5_000));
+  card.show(frame("b", "Run b?", 9_000));
+
+  vi.advanceTimersByTime(4_999);
+  expect([prompt(), el.querySelector("[role=timer]")?.textContent]).toEqual([
+    "Run a?",
+    "0:01 left",
+  ]);
+  vi.advanceTimersByTime(1);
+  expect(prompt()).toBe("Run b?");
+  vi.advanceTimersByTime(4_000);
+  expect(el.hidden).toBe(true);
+});
+
+it("picks a choice with a number key while focus is inside the card, but not from the text field", () => {
+  const { card, el, choices } = build();
+  card.show(frame("a"));
+  const press = (target: Element, key: string) =>
+    target.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+
+  press(el.querySelector("textarea")!, "1");
+  press(document.body, "1");
+  expect(choices().map((c) => c.getAttribute("aria-pressed"))).toEqual(["false", "false"]);
+
+  press(choices()[0]!, "2");
+  expect(choices().map((c) => c.getAttribute("aria-pressed"))).toEqual(["false", "true"]);
+});
+
+it.each<[string, (card: AskCard) => void]>([
+  [
+    "end",
+    (card) => {
+      card.end("a");
+      card.end("b");
+    },
+  ],
+  ["clear", (card) => card.clear()],
+])("%s hides the card once no Ask is left", (_name, close) => {
+  const { card, el } = build();
+  card.show(frame("a"));
+  card.show(frame("b"));
+  expect(el.hidden).toBe(false);
+
+  close(card);
+
+  expect(el.hidden).toBe(true);
+});
+
+it("marks the prompt while more of it sits below its visible part", () => {
+  const { card, el } = build();
+  card.show(frame("a"));
+  const head = el.querySelector<HTMLElement>(".yui-threads-answer__head")!;
+  Object.defineProperties(head, {
+    scrollHeight: { value: 300 },
+    clientHeight: { value: 100 },
+  });
+  const scrollTo = (top: number) => {
+    head.scrollTop = top;
+    head.dispatchEvent(new Event("scroll"));
+    return head.classList.contains("is-clipped");
+  };
+
+  expect([scrollTo(0), scrollTo(200)]).toEqual([true, false]);
+});

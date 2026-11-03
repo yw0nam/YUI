@@ -172,7 +172,7 @@ describe("createPushSocket — handshake", () => {
         type: "hello",
         key: "secret-key",
         chat_id: "yui-3f9a2c1d",
-        accepts: ["error"],
+        accepts: ["error", "ask", "ask_end"],
         vocabulary: VOCAB,
       },
     ]);
@@ -1478,6 +1478,132 @@ describe("createPushSocket — tool calls", () => {
     FakeSocket.last().accept();
     FakeSocket.last().push({ type: "ready", chat_id: "yui-3f9a2c1d" });
     expect(socket.sendToolResult(frame)).toBe(true);
+    expect(FakeSocket.last().frames().at(-1)).toEqual(frame);
+  });
+});
+
+describe("push socket asks", () => {
+  const VALID_ASK = {
+    ask_id: "a1",
+    prompt: "Run `uptime`?",
+    choices: [
+      { id: "once", label: "Allow Once", tone: "primary" },
+      { id: "deny", label: "Deny", tone: "danger" },
+    ],
+    text: false,
+  };
+
+  it("hands a valid ask to onAsk, with absent choices as []", async () => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onAsk((frame) => seen.push(frame));
+
+    FakeSocket.last().push({ type: "ask", ask: VALID_ASK, expires_at: 1793690000000 });
+    FakeSocket.last().push({
+      type: "ask",
+      ask: { ask_id: "a2", prompt: "Name?", text: true },
+      expires_at: 1793690000000,
+    });
+
+    expect(seen).toEqual([
+      { type: "ask", ask: VALID_ASK, expires_at: 1793690000000 },
+      {
+        type: "ask",
+        ask: { ask_id: "a2", prompt: "Name?", choices: [], text: true },
+        expires_at: 1793690000000,
+      },
+    ]);
+  });
+
+  it.each([
+    ["ask is not an object", { ask: "a1" }, "ask"],
+    ["ask_id is empty", { ask: { ...VALID_ASK, ask_id: "" } }, "ask_id"],
+    [
+      "ask_id is over 128 code points",
+      { ask: { ...VALID_ASK, ask_id: "😀".repeat(129) } },
+      "ask_id",
+    ],
+    ["prompt is empty", { ask: { ...VALID_ASK, prompt: "" } }, "prompt"],
+    ["choices is not an array", { ask: { ...VALID_ASK, choices: "once" } }, "choices"],
+    [
+      "choices holds more than 6",
+      {
+        ask: {
+          ...VALID_ASK,
+          choices: Array.from({ length: 7 }, (_, i) => ({ id: `c${i}`, label: "x" })),
+        },
+      },
+      "choices",
+    ],
+    [
+      "a choice id is empty",
+      { ask: { ...VALID_ASK, choices: [{ id: "", label: "x" }] } },
+      "choices",
+    ],
+    [
+      "a choice label is over 64 code points",
+      { ask: { ...VALID_ASK, choices: [{ id: "a", label: "😀".repeat(65) }] } },
+      "choices",
+    ],
+    [
+      "a choice tone is unknown",
+      { ask: { ...VALID_ASK, choices: [{ id: "a", label: "x", tone: "warn" }] } },
+      "choices",
+    ],
+    [
+      "choice ids repeat",
+      {
+        ask: {
+          ...VALID_ASK,
+          choices: [
+            { id: "a", label: "x" },
+            { id: "a", label: "y" },
+          ],
+        },
+      },
+      "choices",
+    ],
+    ["text is not a boolean", { ask: { ...VALID_ASK, text: "yes" } }, "text"],
+    [
+      "placeholder is over 200 code points",
+      { ask: { ...VALID_ASK, placeholder: "😀".repeat(201) } },
+      "placeholder",
+    ],
+    ["expires_at is not a finite number", { ask: VALID_ASK, expires_at: "soon" }, "expires_at"],
+  ])("drops an ask when %s", async (_rule, patch, field) => {
+    await connected();
+    const seen: unknown[] = [];
+    socket.onAsk((frame) => seen.push(frame));
+
+    FakeSocket.last().push({ type: "ask", expires_at: 1793690000000, ...patch });
+
+    expect(seen).toEqual([]);
+    expect(logger.warn).toHaveBeenCalledWith("frame_malformed", { type: "ask", field });
+  });
+
+  it("hands an ask_end to onAskEnd, and drops one without a usable ask_id", async () => {
+    await connected();
+    const seen: string[] = [];
+    socket.onAskEnd((askId) => seen.push(askId));
+
+    FakeSocket.last().push({ type: "ask_end", ask_id: "a1" });
+    FakeSocket.last().push({ type: "ask_end", ask_id: "" });
+    FakeSocket.last().push({ type: "ask_end", ask_id: 7 });
+
+    expect(seen).toEqual(["a1"]);
+  });
+
+  it("sendAnswer sends only while the socket is ready", async () => {
+    socket = build();
+    const frame = { type: "answer", ask_id: "a1", choice: "once" } as const;
+    socket.connect();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(socket.sendAnswer(frame)).toBe(false);
+
+    FakeSocket.last().accept();
+    FakeSocket.last().push({ type: "ready", chat_id: "yui-3f9a2c1d" });
+    expect(socket.sendAnswer(frame)).toBe(true);
     expect(FakeSocket.last().frames().at(-1)).toEqual(frame);
   });
 });

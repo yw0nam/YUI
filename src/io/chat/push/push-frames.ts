@@ -1,6 +1,6 @@
 /** The wire shape of the frames the push socket carries and the checks that tell an unreadable one. */
 
-import type { ExpressArgs, Usage } from "../../../contract";
+import type { ExpressArgs, ThreadAsk, Usage } from "../../../contract";
 
 /** One ordered piece of a reply: its cues render, then its speech is spoken. */
 export interface RenderSegment {
@@ -75,6 +75,27 @@ export interface ToolResultFrame {
   turn_id: string;
   result: string;
   images?: string[];
+}
+
+/** A question the backend holds open for the user until `expires_at`, epoch ms. */
+export interface AskFrame {
+  type: "ask";
+  ask: ThreadAsk;
+  expires_at: number;
+}
+
+/** The Ask closed without the client's answer. */
+export interface AskEndFrame {
+  type: "ask_end";
+  ask_id: string;
+}
+
+/** The user's reply to one Ask: a choice id, free text, or both. */
+export interface AnswerFrame {
+  type: "answer";
+  ask_id: string;
+  choice?: string;
+  text?: string;
 }
 
 export interface PlaybackFrame {
@@ -162,5 +183,43 @@ export function toolCallFrameFault(v: Record<string, unknown>): string | null {
   if (v.arguments === null || typeof v.arguments !== "object" || Array.isArray(v.arguments)) {
     return "arguments";
   }
+  return null;
+}
+
+/** A non-empty string of at most `max` code points. */
+function textWithin(v: unknown, max: number): boolean {
+  return typeof v === "string" && v !== "" && [...v].length <= max;
+}
+
+/** At most 6 `{ id, label, tone? }` choices with unique ids. */
+function choicesReadable(choices: unknown): boolean {
+  if (!Array.isArray(choices) || choices.length > 6) return false;
+  const ids = new Set<unknown>();
+  for (const choice of choices) {
+    if (choice === null || typeof choice !== "object") return false;
+    const { id, label, tone } = choice as Record<string, unknown>;
+    if (!textWithin(id, 64) || !textWithin(label, 64)) return false;
+    if (tone !== undefined && tone !== "primary" && tone !== "danger") return false;
+    ids.add(id);
+  }
+  return ids.size === choices.length;
+}
+
+/** The field that makes an ask frame unreadable, or null: the Ask fields of threads.md (no prompt cap) and a finite `expires_at`. */
+export function askFrameFault(v: Record<string, unknown>): string | null {
+  const ask = v.ask;
+  if (ask === null || typeof ask !== "object" || Array.isArray(ask)) return "ask";
+  const { ask_id, prompt, choices, text, placeholder } = ask as Record<string, unknown>;
+  if (!textWithin(ask_id, 128)) return "ask_id";
+  if (typeof prompt !== "string" || prompt === "") return "prompt";
+  if (choices !== undefined && !choicesReadable(choices)) return "choices";
+  if (typeof text !== "boolean") return "text";
+  if (
+    placeholder !== undefined &&
+    (typeof placeholder !== "string" || [...placeholder].length > 200)
+  ) {
+    return "placeholder";
+  }
+  if (typeof v.expires_at !== "number" || !Number.isFinite(v.expires_at)) return "expires_at";
   return null;
 }

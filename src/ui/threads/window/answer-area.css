@@ -28,11 +28,47 @@
   gap: 12px;
 }
 
-.yui-threads-answer__head h3 {
-  margin: 0;
+.yui-threads-answer__prompt {
+  min-width: 0;
   font-size: var(--yui-fs-head);
   font-weight: 600;
   overflow-wrap: anywhere;
+}
+
+.yui-threads-answer__prompt > * {
+  margin: 0 0 0.5em;
+}
+
+.yui-threads-answer__prompt > :last-child {
+  margin-bottom: 0;
+}
+
+/* The first block heads the prompt; the blocks after it read as its body. */
+.yui-threads-answer__prompt > * + * {
+  color: var(--yui-text-dim);
+  font-size: var(--yui-fs-body);
+  font-weight: 400;
+}
+
+/* A line's own newlines show; the markup's newlines between blocks stay collapsed. */
+.yui-threads-answer__prompt :is(p, li) {
+  white-space: pre-wrap;
+}
+
+.yui-threads-answer__prompt code {
+  font-family: var(--yui-font-mono);
+  font-size: 0.88em;
+}
+
+/* A command wraps inside the prompt rather than scrolling it sideways. */
+.yui-threads-answer__prompt pre {
+  padding: 8px 10px;
+  border-radius: var(--yui-radius-control);
+  background: var(--yui-selected);
+  color: var(--yui-text);
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: pre-wrap;
 }
 
 .yui-threads-answer__head small {

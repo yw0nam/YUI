@@ -13,10 +13,13 @@ import aiohttp
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
 from gateway_stub import (
+    APPROVAL_OBSERVERS,
+    APPROVAL_RESOLVED,
     CACHED_IMAGES,
     PERSISTED_HOMES,
     SLASH_CONFIRM,
     STUB_ENV,
+    ExecApprovalPrompt,
     MessageEvent,
     MessageType,
     ProcessingOutcome,
@@ -62,6 +65,8 @@ def clean():
     speech.set_sink(None)
     tool_status.set_sink(None)
     PERSISTED_HOMES.clear()
+    APPROVAL_OBSERVERS.clear()
+    APPROVAL_RESOLVED.clear()
     SLASH_CONFIRM.pending.clear()
     SLASH_CONFIRM.resolved.clear()
     STUB_ENV.pop("HERMES_SESSION_CHAT_ID", None)
@@ -2370,3 +2375,135 @@ async def test_malformed_playback_warns_without_an_event(frame, client, adapter,
         await adapter._on_frame(CHAT, frame)
     handle.assert_not_awaited()
     assert "malformed playback frame" in caplog.text
+
+
+APPROVAL_ACTIONS = [
+    ("Allow Once", "once", "primary"),
+    ("Allow Session", "session", ""),
+    ("Always Allow", "always", ""),
+    ("Deny", "deny", "danger"),
+]
+
+
+def approval_prompt(smart_denied=False):
+    return ExecApprovalPrompt(
+        chat_id=CHAT,
+        session_key="agent:main:yui:dm:" + CHAT,
+        request_id="exec-1",
+        text="Run `uptime`?\nReason: inspect host",
+        actions=[APPROVAL_ACTIONS[0], APPROVAL_ACTIONS[-1]] if smart_denied else APPROVAL_ACTIONS,
+        command="uptime",
+        description="inspect host",
+        smart_denied=smart_denied,
+    )
+
+
+@pytest.mark.parametrize("smart_denied", [False, True])
+async def test_exec_ask_shape(client, adapter, smart_denied):
+    ws = await ready(client, accepts=["ask", "ask_end"])
+    prompt = approval_prompt(smart_denied)
+    before = time.time() * 1000
+    result = await adapter._send_exec_approval_prompt(prompt)
+    assert result.success
+    frame = await recv(ws)
+    assert frame["ask"] == {
+        "ask_id": result.message_id,
+        "prompt": prompt.text,
+        "choices": [
+            {"id": choice, "label": label, **({"tone": style} if style else {})}
+            for label, choice, style in prompt.actions
+        ],
+        "text": False,
+    }
+    assert frame["type"] == "ask"
+    assert before + 300000 <= frame["expires_at"] <= time.time() * 1000 + 300000
+
+
+async def test_exec_ask_requires_acceptance(client, adapter):
+    ws = await ready(client)
+    result = await adapter._send_exec_approval_prompt(approval_prompt())
+    assert not result.success
+    assert result.error == "client does not accept ask"
+    with pytest.raises(TimeoutError):
+        await asyncio.wait_for(ws.receive_json(), 0.05)
+
+
+@pytest.mark.parametrize("invalid_first", [False, True])
+async def test_exec_ask_answer_resolves_only_offered_choice(client, adapter, invalid_first, caplog):
+    ws = await ready(client, accepts=["ask"])
+    prompt = approval_prompt(True)
+    result = await adapter._send_exec_approval_prompt(prompt)
+    assert result.success
+    await recv(ws)
+    if invalid_first:
+        await ws.send_json({"type": "answer", "ask_id": "unknown", "choice": "once"})
+        await wait_for(lambda: "unknown" in caplog.text)
+        await ws.send_json({"type": "answer", "ask_id": result.message_id, "choice": "always"})
+        await wait_for(lambda: "always" in caplog.text)
+        assert APPROVAL_RESOLVED == []
+    await ws.send_json({"type": "answer", "ask_id": result.message_id, "choice": "once"})
+    await wait_for(lambda: APPROVAL_RESOLVED)
+    assert APPROVAL_RESOLVED == [(prompt.session_key, "once", prompt.request_id)]
+
+
+@pytest.mark.parametrize("answered", [False, True])
+async def test_exec_ask_settle_ends_only_open_ask(client, adapter, answered):
+    ws = await ready(client, accepts=["ask", "ask_end"])
+    prompt = approval_prompt()
+    result = await adapter._send_exec_approval_prompt(prompt)
+    assert result.success
+    await recv(ws)
+    if answered:
+        await ws.send_json({"type": "answer", "ask_id": result.message_id, "choice": "deny"})
+        await wait_for(lambda: APPROVAL_RESOLVED)
+    await asyncio.to_thread(APPROVAL_OBSERVERS[prompt.session_key, prompt.request_id], "timeout")
+    if answered:
+        with pytest.raises(TimeoutError):
+            await asyncio.wait_for(ws.receive_json(), 0.05)
+    else:
+        assert await recv(ws) == {"type": "ask_end", "ask_id": result.message_id}
+
+
+@pytest.mark.parametrize("reconnect", ["capable", "expired", "incapable"])
+async def test_exec_ask_away_replay(client, adapter, reconnect, monkeypatch):
+    ws = await ready(client, accepts=["ask"])
+    await ws.close()
+    await wait_for(lambda: not state.is_connected(CHAT))
+    result = await adapter._send_exec_approval_prompt(approval_prompt())
+    assert result.success
+    if reconnect == "expired":
+        now = time.time()
+        monkeypatch.setattr("yui.src.transport.adapter.time.time", lambda: now + 301)
+    ws = await ready(client, accepts=[] if reconnect == "incapable" else ["ask"])
+    if reconnect == "capable":
+        assert (await recv(ws))["ask"]["ask_id"] == result.message_id
+    else:
+        with pytest.raises(TimeoutError):
+            await asyncio.wait_for(ws.receive_json(), 0.05)
+        if reconnect == "incapable":
+            ws = await ready(client, accepts=["ask"])
+            assert (await recv(ws))["ask"]["ask_id"] == result.message_id
+
+
+async def test_exec_ask_settle_requires_ask_end_acceptance(client, adapter):
+    ws = await ready(client, accepts=["ask"])
+    prompt = approval_prompt()
+    result = await adapter._send_exec_approval_prompt(prompt)
+    assert result.success
+    await recv(ws)
+    await asyncio.to_thread(APPROVAL_OBSERVERS[prompt.session_key, prompt.request_id], "timeout")
+    with pytest.raises(TimeoutError):
+        await asyncio.wait_for(ws.receive_json(), 0.05)
+    assert adapter._asks.get(CHAT, result.message_id) is None
+
+
+async def test_exec_ask_requires_request_id(client, adapter):
+    ws = await ready(client, accepts=["ask"])
+    prompt = approval_prompt()
+    prompt.request_id = None
+    result = await adapter._send_exec_approval_prompt(prompt)
+    assert not result.success
+    assert result.error == "exec approval has no request id"
+    assert APPROVAL_OBSERVERS == {}
+    with pytest.raises(TimeoutError):
+        await asyncio.wait_for(ws.receive_json(), 0.05)

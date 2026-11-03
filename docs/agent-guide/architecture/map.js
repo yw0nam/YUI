@@ -1213,9 +1213,18 @@ globalThis.YUI_MAP =
       "id": "ui/threads",
       "module": "display",
       "label": "threads ui",
-      "role": "The Threads chip in main's chip column (newest source marks, label, amber count of waiting Threads the user has not picked and access requests; hidden at zero and while the window is open, one nod on arrival, hold-to-fold) and the Threads window's view: the layout its panel's width picks (list and thread, the rail, one pane), the list collapsed to the rail by the head toggle or Control+Command+S, Waiting / All tabs and a kind select over waiting-first rows (a pick of a Thread with an open ask reports it seen), the thread pane's scrolling transcript of Markdown entries, held at its newest entry, the pinned answer area with numbered choices and a growing field, per-ask drafts, and the grow out of the chip.",
+      "role": "The Threads chip in main's chip column (newest source marks, label, amber count of waiting Threads the user has not picked and access requests; hidden at zero and while the window is open, one nod on arrival, hold-to-fold) and the Threads window's view: the layout its panel's width picks (list and thread, the rail, one pane), the list collapsed to the rail by the head toggle or Control+Command+S, Waiting / All tabs and a kind select over waiting-first rows (a pick of a Thread with an open ask reports it seen), the thread pane's scrolling transcript of Markdown entries, held at its newest entry, the pinned answer area with a Markdown prompt, numbered choices and a growing field, per-ask drafts, and the grow out of the chip.",
       "paths": [
         "src/ui/threads"
+      ]
+    },
+    {
+      "id": "ui/ask",
+      "module": "display",
+      "label": "ask card",
+      "role": "The pet window's Ask card above the input: the backend's open Asks oldest first, each in the Threads answer area with its time left; it closes on an answer sent, at its expiry, or when the backend ends it.",
+      "paths": [
+        "src/ui/ask"
       ]
     },
     {
@@ -1854,7 +1863,7 @@ globalThis.YUI_MAP =
       "id": "push-ws",
       "from": "io/chat/push",
       "to": "backend-push",
-      "carries": "frames out: hello, turn, vocabulary, reset, stop, tool_result, playback",
+      "carries": "frames out: hello, turn, vocabulary, reset, stop, tool_result, playback, answer",
       "kind": "websocket",
       "transport": "push"
     },
@@ -1862,7 +1871,7 @@ globalThis.YUI_MAP =
       "id": "push-ws-in",
       "from": "backend-push",
       "to": "io/chat/push",
-      "carries": "frames in: ready, speech, render, turn_end, error, reasoning, tool_status, tool_call, delegations",
+      "carries": "frames in: ready, speech, render, turn_end, error, reasoning, tool_status, tool_call, delegations, ask, ask_end",
       "kind": "websocket",
       "transport": "push"
     },
@@ -1928,6 +1937,15 @@ globalThis.YUI_MAP =
       "kind": "callback",
       "transport": "push",
       "wiring": "src/app/turn/push/wire-push.ts"
+    },
+    {
+      "id": "push-ask",
+      "from": "io/chat/push",
+      "to": "ui/ask",
+      "carries": "ask, ask_end → createAskCard show/end/clear; answer ← sendAnswer",
+      "kind": "callback",
+      "transport": "push",
+      "wiring": "src/app/turn/push/wire-ask-card.ts"
     },
     {
       "id": "previous-playback",

@@ -1,0 +1,146 @@
+/* The pet window's Ask card. Tokens in ../tokens.css. */
+
+.yui-ask-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--yui-edge-strong);
+  border-radius: var(--yui-radius-group);
+  background: var(--yui-scrim-strong);
+  box-shadow: var(--yui-float);
+  color: var(--yui-text);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  pointer-events: auto;
+  animation: yui-ask-card-in var(--yui-dur) var(--yui-ease);
+}
+
+.yui-ask-card[hidden] {
+  display: none;
+}
+
+/* The answer area as a column without the pane's chrome; what the prompt cannot give up scrolls the card. */
+.yui-ask-card .yui-threads-answer {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 10px;
+  padding: 0;
+  border-top: 0;
+  background: none;
+}
+
+/* Every choice and Send stay whole; the prompt gives up its room and scrolls instead. */
+.yui-ask-card .yui-threads-answer__choices {
+  flex: none;
+  min-height: 0;
+  gap: 6px;
+  overflow: visible;
+}
+
+/* Choices are pills with a neutral pick, as the Quick card's are; amber stays out of the card. */
+.yui-ask-card .yui-threads-answer__choices button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 12px 0 10px;
+  border: 1px solid var(--yui-edge);
+  border-radius: var(--yui-radius-pill);
+  background: none;
+  color: var(--yui-text-dim);
+  font-size: var(--yui-fs-body);
+  font-weight: 500;
+}
+
+.yui-ask-card .yui-threads-answer__choices kbd {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-sub);
+  font-variant-numeric: tabular-nums;
+}
+
+.yui-ask-card .yui-threads-answer__choices [aria-pressed="true"] {
+  border-color: var(--yui-edge-strong);
+  background: var(--yui-selected);
+  color: var(--yui-text);
+  font-weight: 600;
+}
+
+.yui-ask-card .yui-threads-answer__choices .is-danger {
+  color: var(--yui-danger);
+}
+
+.yui-ask-card .yui-threads-answer__choices .is-danger[aria-pressed="true"] {
+  border-color: var(--yui-danger-soft);
+  background: var(--yui-danger-faint);
+  color: var(--yui-danger);
+  font-weight: 600;
+}
+
+/* Send is a pill; its fills and disabled state stay the answer area's. */
+.yui-ask-card .yui-threads-answer .yui-threads-answer__send {
+  min-height: 32px;
+  padding: 0 16px;
+  border-radius: var(--yui-radius-pill);
+  font-size: var(--yui-fs-body);
+  font-weight: 600;
+}
+
+/* The composer is as tall as Send or the field, and never shrinks under them. */
+.yui-ask-card .yui-threads-answer__composer {
+  flex: none;
+  min-height: 0;
+}
+
+.yui-ask-card .yui-threads-answer__head {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* More of the prompt sits below: its bottom edge fades. */
+.yui-ask-card .yui-threads-answer__head.is-clipped {
+  mask-image: linear-gradient(to bottom, oklch(0 0 0) calc(100% - 24px), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, oklch(0 0 0) calc(100% - 24px), transparent);
+}
+
+.yui-ask-card .yui-threads-answer__prompt {
+  flex: 1 1 0;
+}
+
+/* The Enter hint takes its own line under the prompt and the time left. */
+.yui-ask-card .yui-threads-answer__head small {
+  flex-basis: 100%;
+  order: 1;
+}
+
+.yui-ask-card__timer {
+  flex: none;
+  color: var(--yui-text-mute);
+  font-size: var(--yui-fs-sub);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes yui-ask-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@keyframes yui-ask-card-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yui-ask-card {
+    animation-name: yui-ask-card-fade;
+  }
+}

@@ -27,6 +27,7 @@ import { createReasoningDisclosure, type ReasoningSource } from "../message/reas
 import { createSignalSourceLines } from "../message/signal-source-lines";
 import { createSpeechBubble } from "../message/speech-bubble";
 import { createUserQuote } from "../message/user-quote";
+import { anchorWithAskSlot, liftWithAskSlot } from "./ask-slot";
 
 // Arrows-out: moves speech into the message window. Stroke width comes from each button's CSS.
 const POP_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"
@@ -37,6 +38,8 @@ export interface Surfaces {
   readonly el: HTMLElement;
   /** Where the chips beside the avatar mount, signal chips first and the delegation chip after. */
   readonly chipColumn: HTMLElement;
+  /** Where the Ask card mounts, above the input's place. */
+  readonly askSlot: HTMLElement;
 
   // ── speech bubble (output) ──
   /**
@@ -172,6 +175,7 @@ export function createSurfaces({
     </div>
     <div class="yui-chip-column"></div>
     <span class="yui-bubble__sr" role="status" aria-live="polite"></span>
+    <div class="yui-ask-slot"></div>
     <form class="yui-input" novalidate hidden>
       <div class="yui-input__tray"></div>
       <div class="yui-input__row">
@@ -206,6 +210,7 @@ export function createSurfaces({
   mount.appendChild(el);
 
   const chipColumn = el.querySelector<HTMLDivElement>(".yui-chip-column")!;
+  const askSlot = el.querySelector<HTMLDivElement>(".yui-ask-slot")!;
   const bubbleEl = el.querySelector<HTMLDivElement>(".yui-bubble")!;
   const bubbleFrame = el.querySelector<HTMLDivElement>(".yui-bubble__frame")!;
   const bubbleBox = el.querySelector<HTMLDivElement>(".yui-bubble__box")!;
@@ -252,7 +257,7 @@ export function createSurfaces({
   const sources = createSignalSourceLines({ el: bubbleQuote, bubble });
   const input = createTextInput(
     { formEl, field, errorEl, trayEl, attachBtn, picker, sendBtn },
-    { liftAboveInput: bubble.liftAboveInput, resetPosition: bubble.resetPosition },
+    liftWithAskSlot(askSlot, bubble),
     onInputOpenChange,
   );
 
@@ -290,6 +295,7 @@ export function createSurfaces({
   const surfaces: Surfaces = {
     el,
     chipColumn,
+    askSlot,
     beginSpeech: bubble.beginSpeech,
     pushSpeech: bubble.pushSpeech,
     endSpeech: bubble.endSpeech,
@@ -312,7 +318,7 @@ export function createSurfaces({
     showInputError: input.showInputError,
     setAttachmentLimits: input.setAttachmentLimits,
     restoreInput: input.restoreInput,
-    setInputAnchor: input.setInputAnchor,
+    setInputAnchor: anchorWithAskSlot(askSlot, input.setInputAnchor),
     dispose,
   };
   return plate ? withPlateState(plate, { ...surfaces, plate }) : surfaces;

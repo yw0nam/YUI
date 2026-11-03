@@ -7,6 +7,7 @@ import "./answer-area.css";
 import type { ThreadAsk } from "../../../contract";
 import { t } from "../../i18n";
 import type { Draft } from "./drafts";
+import { entryMarkdown } from "./entry-markdown";
 
 /** The field grows with its text up to this height, then scrolls. */
 const FIELD_MAX_PX = 200;
@@ -28,6 +29,8 @@ export function createAnswerArea(deps: {
   sending: boolean;
   onDraft(draft: Draft): void;
   onSend(answer: { choice?: string; text?: string }): void;
+  /** Rides the head after the prompt. */
+  head?: Node;
 }): AnswerArea {
   const { ask } = deps;
   const draft: Draft = { ...deps.draft };
@@ -38,14 +41,15 @@ export function createAnswerArea(deps: {
   el.setAttribute("aria-labelledby", "yui-threads-answer-prompt");
   el.innerHTML = `
     <div class="yui-threads-answer__head">
-      <h3 id="yui-threads-answer-prompt"></h3>
+      <div class="yui-threads-answer__prompt" id="yui-threads-answer-prompt" role="heading" aria-level="3"></div>
     </div>
     <div class="yui-threads-answer__choices" role="group" aria-labelledby="yui-threads-answer-prompt"></div>
     <div class="yui-threads-answer__composer">
       <button type="button" class="yui-threads-answer__send"></button>
     </div>
   `;
-  el.querySelector("h3")!.textContent = ask.prompt;
+  el.querySelector(".yui-threads-answer__prompt")!.append(...entryMarkdown(ask.prompt));
+  if (deps.head) el.querySelector(".yui-threads-answer__head")!.append(deps.head);
   const choicesEl = el.querySelector<HTMLElement>(".yui-threads-answer__choices")!;
   const composer = el.querySelector<HTMLElement>(".yui-threads-answer__composer")!;
   const send = el.querySelector<HTMLButtonElement>(".yui-threads-answer__send")!;
