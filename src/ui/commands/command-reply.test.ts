@@ -41,3 +41,16 @@ it("requests a close through the surfaces", () => {
   mount.querySelector<HTMLButtonElement>('button[aria-label="Close reply"]')!.click();
   expect(onClose).toHaveBeenCalledOnce();
 });
+
+it("marks the reply body while more of it sits below its visible part", () => {
+  reply.show({ kind: "settled", name: "status", text: "a\n\nb\n\nc" });
+  const body = mount.querySelector<HTMLElement>(".yui-cmd-reply__body")!;
+  Object.defineProperties(body, { scrollHeight: { value: 300 }, clientHeight: { value: 100 } });
+  const scrollTo = (top: number) => {
+    body.scrollTop = top;
+    body.dispatchEvent(new Event("scroll"));
+    return body.classList.contains("is-clipped");
+  };
+
+  expect([scrollTo(0), scrollTo(200)]).toEqual([true, false]);
+});
