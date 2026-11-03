@@ -642,6 +642,21 @@ const en: Record<string, string> = {
   "start.view_quick": "Quick start",
   "start.view_detail": "Detailed settings",
   "start.detail_note": "Choose the server, model, and voice servers yourself.",
+  "start.voice_title": "Voice (optional)",
+  "start.voice_note": "The character speaks aloud. You can skip this and still talk.",
+  "start.voice_make_label": "Make a Fish Audio key",
+  "start.voice_make_sub":
+    "The free model needs no card. Requests may be used to improve the model, and free access can end.",
+  "start.voice_make_link": "Open key page",
+  "start.voice_paste_label": "Paste the key",
+  "start.voice_on": "Turn on voice",
+  "start.voice_checking": "Checking the key…",
+  "start.voice_refused": "Fish Audio did not accept this key. Paste the key you copied again.",
+  "start.voice_failed": "Could not reach Fish Audio. Check your internet connection and try again.",
+  "start.voice_later": "Maybe later",
+  "start.voice_is_on": "Voice is on. The default voice is {name}.",
+  "start.voice_skipped": "You can turn on voice later in the Voice tab.",
+  "start.voice_configured": "Voice is on. You can change the voice in the Voice tab.",
 
   // reactions tab
   "reactions.watchers_title": "Watchers",

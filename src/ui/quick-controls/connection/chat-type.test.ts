@@ -149,6 +149,7 @@ describe("chat type row", () => {
       { url: HERMES_AGENT.url },
       { url: CARD_GUIDE_URL },
       { url: "https://aistudio.google.com/apikey" },
+      { url: "https://fish.audio/app/api-keys/" },
     ]);
   });
 });

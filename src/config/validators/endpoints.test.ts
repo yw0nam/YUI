@@ -188,6 +188,30 @@ describe("validateEndpoints — stt_model / tts_model / tts_speaker", () => {
   });
 });
 
+describe("validateEndpoints — tts_default_voices", () => {
+  it("carries the per-language default voices through", () => {
+    const voices = {
+      en: { id: "c2536221a1c141ceae2d11fe15503858", name: "Shinobu" },
+      ja: { id: "d1a1a920956c40c0bac4ef6a92c92a20", name: "Tokai Teio" },
+      ko: { id: "79a8364e57844ba5a463dbf3d29ce99c", name: "Sylvia" },
+    };
+    const out = validateEndpoints(FILE, baseRaw({ tts_default_voices: voices }));
+    expect(out.tts_default_voices).toEqual(voices);
+  });
+
+  it("rejects a voices object missing a language", () => {
+    expectIssue(
+      baseRaw({
+        tts_default_voices: {
+          en: { id: "c2536221a1c141ceae2d11fe15503858", name: "Shinobu" },
+          ja: { id: "d1a1a920956c40c0bac4ef6a92c92a20", name: "Tokai Teio" },
+        },
+      }),
+      "tts_default_voices.ko",
+    );
+  });
+});
+
 describe("validateEndpoints — tts_max_inflight / context window", () => {
   it("rejects a non-integer tts_max_inflight", () => {
     expectIssue(baseRaw({ tts_max_inflight: 1.5 }), "tts_max_inflight must be an integer >= 1");
