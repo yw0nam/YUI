@@ -120,7 +120,7 @@ export function createQuickStart(deps: QuickStartDeps): {
     const isConnected = url === GEMINI_PRESET.url && deps.chatKeySettings.get().apiKey !== "";
     setup.hidden = isConnected;
     connected.hidden = !isConnected;
-    own.hidden = url === "";
+    own.hidden = url === "" || url === GEMINI_PRESET.url;
   }
 
   function endpointsUrl(): string {
