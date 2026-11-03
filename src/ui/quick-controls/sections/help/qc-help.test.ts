@@ -28,7 +28,7 @@ describe("createQuickControls — help section", () => {
   });
 
   function press(qc: ReturnType<typeof createQuickControls>, guide: GuideKey): void {
-    qc.el.querySelector<HTMLButtonElement>(`[data-guide="${guide}"]`)!.click();
+    qc.el.querySelector<HTMLButtonElement>(`#yui-panel-general [data-guide="${guide}"]`)!.click();
   }
 
   it("a button submits the current-locale request text with its guide key", () => {
