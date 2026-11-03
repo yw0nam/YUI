@@ -97,7 +97,7 @@ export function createVoiceStep(deps: VoiceStepDeps): {
   const skippedLine = el.querySelector<HTMLElement>(".yui-start__voice-skipped")!;
   const configured = el.querySelector<HTMLElement>(".yui-start__voice-configured")!;
 
-  // A completion after dispose or after a newer press writes nothing.
+  // A completion after dispose, a newer press or "Maybe later" writes nothing.
   let seq = 0;
   let disposed = false;
   // The ok path showed voice_is_on in this window; a later reflect keeps it over voice_configured.
@@ -190,6 +190,7 @@ export function createVoiceStep(deps: VoiceStepDeps): {
     else void press();
   };
   const onLater = () => {
+    seq++;
     skipped = true;
     reflect();
   };
