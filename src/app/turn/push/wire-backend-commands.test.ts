@@ -1,10 +1,11 @@
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import type {
   BackendCommand,
   CommandFrame,
   CommandReplyFrame,
 } from "../../../io/chat/push/push-frames";
 import type { PushSocketState } from "../../../io/chat/push/push-socket";
+import { setLocale } from "../../../ui/i18n";
 import { wireBackendCommands } from "./wire-backend-commands";
 
 function setup() {
@@ -84,5 +85,25 @@ it("clears the pending command when ready ends", () => {
   expect(w.surfaces.showCommandReply).toHaveBeenLastCalledWith({ kind: "clear" });
   w.command();
   expect(w.socket.sendCommand).toHaveBeenCalledTimes(2);
+  w.dispose();
+});
+
+afterEach(() => setLocale("en"));
+it.each([
+  ["en", "Not sent — the backend is not connected."],
+  ["ja", "送信されませんでした。バックエンドに接続されていません。"],
+  ["ko", "전송되지 않았습니다. 백엔드가 연결되어 있지 않습니다."],
+] as const)("shows a settled reply when sending fails: %s", (locale, text) => {
+  setLocale(locale);
+  const w = setup();
+  w.socket.sendCommand.mockReturnValueOnce(false);
+  w.command();
+  expect(w.surfaces.showCommandReply).toHaveBeenLastCalledWith({
+    kind: "settled",
+    name: "status",
+    text,
+  });
+  w.command();
+  expect(w.surfaces.showCommandReply).toHaveBeenLastCalledWith({ kind: "pending", name: "status" });
   w.dispose();
 });
