@@ -783,6 +783,39 @@ mod tests {
     }
 
     #[test]
+    fn read_marks_a_thread_in_place_survives_a_restart_and_clears_on_upsert() {
+        let saved = Arc::new(Mutex::new(vec![]));
+        let sink = saved.clone();
+        let s = ThreadStore::new(
+            vec![],
+            Box::new(move |t| {
+                sink.lock().unwrap().push(t.clone());
+                Ok(())
+            }),
+            |_| {},
+        );
+        s.upsert("t", input(), 1);
+        assert_eq!(s.read("t"), Ok(()));
+        let snap = s.snapshot();
+        assert_eq!(snap.revision, 2);
+        assert!(snap.threads[0].read);
+        assert_eq!(snap.threads[0].updated_at, 1);
+        assert!(saved.lock().unwrap().last().unwrap().read);
+        assert_eq!(s.read("t"), Ok(()));
+        assert_eq!(s.snapshot().revision, 2);
+        assert_eq!(s.read("nope"), Err("unknown thread"));
+
+        let restored = ThreadStore::new(
+            serde_json::from_str(&serde_json::to_string(&s.snapshot().threads).unwrap()).unwrap(),
+            Box::new(|_| Ok(())),
+            |_| {},
+        );
+        assert!(restored.snapshot().threads[0].read);
+        restored.upsert("t", input(), 4);
+        assert!(!restored.snapshot().threads[0].read);
+    }
+
+    #[test]
     fn poisoned_store_still_accepts_changes_and_answers() {
         let s = store();
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {

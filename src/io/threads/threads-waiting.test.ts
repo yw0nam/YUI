@@ -38,6 +38,14 @@ describe("threadsWaiting", () => {
     });
   });
 
+  it("skips a Thread the user marked read", () => {
+    const read = { ...thread("api", "input-required"), read: true };
+    expect(threadsWaiting([read, thread("api", "input-required")])).toEqual({
+      total: 1,
+      by_source: [{ source: "api", count: 1 }],
+    });
+  });
+
   it("reports zero with no waiting Threads", () => {
     expect(threadsWaiting([])).toEqual({ total: 0, by_source: [] });
     expect(threadsWaiting([thread("ci", "working")])).toEqual({ total: 0, by_source: [] });
