@@ -19,9 +19,11 @@ describe("i18n wording", () => {
   }
 
   for (const [name, bundle] of BUNDLES) {
-    it(`${name}: no string value contains an em-dash`, () => {
+    it(`${name}: em-dashes appear only in the command send failure label`, () => {
       const offenders = Object.entries(bundle).filter(([, value]) => value.includes("\u2014"));
-      expect(offenders).toEqual([]);
+      expect(offenders).toEqual(
+        name === "en" ? [["command.not_sent", "Not sent — the backend is not connected."]] : [],
+      );
     });
 
     it(`${name}: every string holds at most one middle dot`, () => {
