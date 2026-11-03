@@ -90,7 +90,7 @@ export function createAskCard(deps: {
     tick = setTimeout(countDown, left - (s - 1) * 1000);
   }
 
-  // The prompt head, where the timer rides, marks itself while more of it sits below; each tick re-measures a resize.
+  // The prompt head, where the timer rides, marks itself while more of it sits below; a render, a scroll and each tick of a deadline re-measure it.
   function cue(): void {
     const head = timer.parentElement;
     head?.classList.toggle(
