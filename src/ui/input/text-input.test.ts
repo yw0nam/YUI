@@ -1082,7 +1082,7 @@ describe("Backend commands from the real input", () => {
   ])("routes %s through its matching input path", (text, command) => {
     const { s, mount } = makeSurfaces();
     const submit = vi.fn();
-    const run = vi.fn();
+    const run = vi.fn(() => true);
     s.setCommands([{ name: "status", description: "Session info", args: "" }]);
     s.onSubmit(submit);
     s.onCommand(run);

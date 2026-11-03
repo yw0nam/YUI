@@ -27,19 +27,20 @@ export function wireBackendCommands({
     if (!disposed) surfaces.showCommandReply({ kind: "clear" });
   });
   surfaces.onCommand((name, args) => {
-    if (disposed || pending) return;
-    if (isBusy()) {
+    if (disposed) return false;
+    if (pending || isBusy()) {
       surfaces.showCommandReply({ kind: "settled", name, text: t("command.busy_reply") });
-      return;
+      return false;
     }
     const id = crypto.randomUUID();
     if (!socket.sendCommand({ type: "command", id, name, args })) {
       surfaces.showCommandReply({ kind: "settled", name, text: t("command.not_sent") });
-      return;
+      return false;
     }
     pending = { id, name };
     surfaces.showCommandReply({ kind: "pending", name });
     log.info("command_sent", { name });
+    return true;
   });
   const offs = [
     socket.onCommands(surfaces.setCommands),

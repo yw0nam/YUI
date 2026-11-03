@@ -100,7 +100,6 @@ export function createMentionPicker(deps: {
     box.pickTarget(e.target);
   }
 
-  // Capture, registered before the text input's own handler, so a consumed Enter or Escape never reaches it.
   field.addEventListener("input", onCaret);
   field.addEventListener("click", onCaret);
   list.addEventListener("mousedown", onListMousedown);

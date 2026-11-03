@@ -57,8 +57,6 @@ export function createSurfacesRouter({
   let lineSide: "stream" | "pet" | "none" = "pet";
   let chatLine = false;
   let commandSide: Pick<Surfaces, "showCommandReply"> | undefined;
-  let pendingCommandSide: typeof commandSide;
-  let issuingCommandSide: typeof commandSide;
   const noLine: LineSide = {
     beginSpeech() {},
     pushSpeech() {},
@@ -150,17 +148,11 @@ export function createSurfacesRouter({
       stream.setCommands(list);
     },
     showCommandReply(reply) {
-      if (reply.kind !== "clear") {
-        if (reply.kind === "pending") pendingCommandSide = commandSide;
-        const side =
-          issuingCommandSide ??
-          pendingCommandSide ??
-          commandSide ??
-          (shown.get() ? stream : getMode() === "popped" ? remote : local);
-        if (reply.kind === "settled") pendingCommandSide = undefined;
-        return side.showCommandReply(reply);
-      }
-      for (const side of [local, remote, stream]) side.showCommandReply(reply);
+      const side = commandSide ?? (shown.get() ? stream : getMode() === "popped" ? remote : local);
+      if (reply.kind !== "pending") commandSide = undefined;
+      if (reply.kind === "clear") {
+        for (const target of [local, remote, stream]) target.showCommandReply(reply);
+      } else side.showCommandReply(reply);
     },
     onCommandReplyClose(cb) {
       for (const side of [local, remote, stream]) side.onCommandReplyClose(cb);
@@ -168,13 +160,11 @@ export function createSurfacesRouter({
     onCommand(cb) {
       for (const side of [local, remote, stream])
         side.onCommand((name, args) => {
+          const previous = commandSide;
           commandSide = side;
-          issuingCommandSide = side;
-          try {
-            cb(name, args);
-          } finally {
-            issuingCommandSide = undefined;
-          }
+          const accepted = cb(name, args);
+          if (!accepted) commandSide = previous;
+          return accepted;
         });
     },
     onSubmit(cb) {

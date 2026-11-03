@@ -11,8 +11,10 @@ import { subscribe as subscribeLocale, t } from "../i18n";
 import { type ActionButton, createActionButton } from "./action-button";
 import { downscaleToJpeg } from "./image-resize";
 
+export type SubmitInterception = false | "accepted" | "refused";
+
 interface TextInput {
-  interceptSubmit(fn: (text: string, images: string[]) => boolean): void;
+  interceptSubmit(fn: (text: string, images: string[]) => SubmitInterception): void;
   /** Hotkey summon — slide up + focus; a no-op while the input is already open. */
   summonInput(): void;
   /** Close the input. */
@@ -72,7 +74,7 @@ export function createTextInput(
 ): TextInput {
   const submitHandlers: Array<(text: string, images: string[]) => void> = [];
   const stopHandlers: Array<() => void> = [];
-  let submitInterceptor: ((text: string, images: string[]) => boolean) | undefined;
+  let submitInterceptor: ((text: string, images: string[]) => SubmitInterception) | undefined;
   const attachments: string[] = [];
   // Accepted but still being read into a data URL — counts against max_count so a
   // single multi-file drop cannot slip past the cap.
@@ -306,13 +308,14 @@ export function createTextInput(
     const text = field.value.trim();
     if (text === "" && attachments.length === 0) return;
     const images = attachments.slice();
-    if (submitInterceptor?.(text, images)) {
+    const intercepted = submitInterceptor?.(text, images);
+    if (intercepted === "refused") {
       fitField();
       return;
     }
-    if (busy) return;
+    if (intercepted !== "accepted" && busy) return;
     clearInputError();
-    for (const cb of submitHandlers) cb(text, images);
+    if (intercepted !== "accepted") for (const cb of submitHandlers) cb(text, images);
     clearAttachments();
     field.value = "";
     fitField();

@@ -114,7 +114,10 @@ async function bootstrap(): Promise<void> {
   });
   surfaces.el.classList.add("yui-ui--message");
   surfaces.onSubmit((text, images) => bridge.emitControl({ op: "submit", text, images }));
-  surfaces.onCommand((name, args) => bridge.emitControl({ op: "command", name, args }));
+  surfaces.onCommand((name, args) => {
+    bridge.emitControl({ op: "command", name, args });
+    return true;
+  });
   surfaces.onStop(() => bridge.emitControl({ op: "stop" }));
 
   // The plate and the chip share the column's first row; the chip sits to the plate's right.

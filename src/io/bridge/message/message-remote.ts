@@ -30,7 +30,7 @@ export interface SpeechAction {
 export interface RemoteSurfaces {
   setCommands(list: BackendCommand[]): void;
   showCommandReply(reply: CommandReplyState): void;
-  onCommand(cb: (name: string, args: string) => void): void;
+  onCommand(cb: (name: string, args: string) => boolean): void;
   onCommandReplyClose(cb: () => void): void;
   beginSpeech(identity?: UtteranceIdentity, opts?: { aside?: boolean }): void;
   pushSpeech(delta: string): void;
@@ -74,7 +74,7 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
   const dockHandlers: Array<() => void> = [];
   const openSettingsHandlers: Array<() => void> = [];
   const commandReplyCloseHandlers: Array<() => void> = [];
-  const commandHandlers: Array<(name: string, args: string) => void> = [];
+  const commandHandlers: Array<(name: string, args: string) => boolean> = [];
   let commands: BackendCommand[] | null = null;
   let reply: CommandReplyState | null = null;
   let inputOpen = false;

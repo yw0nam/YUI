@@ -559,9 +559,9 @@ describe("unified Backend commands", () => {
       false,
     );
     expect(document.querySelector(".yui-cmd-list__row")?.textContent).toBe("/statusSession info");
-    expect(document.querySelector(".yui-uc__dock .yui-cmd-list__rows")?.getAttribute("aria-label")).toBe(
-      "Commands for Perlica",
-    );
+    expect(
+      document.querySelector(".yui-uc__dock .yui-cmd-list__rows")?.getAttribute("aria-label"),
+    ).toBe("Commands for Perlica");
     expect(
       document.getElementById(field().getAttribute("aria-controls")!)?.closest(".yui-uc__dock")
         ?.className,

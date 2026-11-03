@@ -23,8 +23,8 @@ import type {
 import type { InputErrorAction, SpeechAction } from "../../io/bridge/message/message-remote";
 import type { BackendCommand } from "../../io/chat/push/push-frames";
 import type { ToolStatus } from "../chips/status-pill";
-import { createCommandInput } from "../commands/command-input";
 import { createCommandReply } from "../commands/command-reply";
+import { createSurfaceCommands } from "../commands/surface-commands";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { createTextInput } from "../input/text-input";
 import { type BacklogSource, createBacklog } from "../message/backlog";
@@ -42,7 +42,7 @@ const POP_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 
 export interface Surfaces {
   setCommands(list: BackendCommand[]): void;
-  onCommand(cb: (name: string, args: string) => void): void;
+  onCommand(cb: (name: string, args: string) => boolean): void;
   onCommandReplyClose(cb: () => void): void;
   showCommandReply(reply: CommandReplyState): void;
   /** overlay root (.yui-ui) */
@@ -269,13 +269,13 @@ export function createSurfaces({
     : null;
   const quote = createUserQuote({ el: bubbleQuote, bubble, lead: quoteLead });
   const sources = createSignalSourceLines({ el: bubbleQuote, bubble });
-  const commandInput = createCommandInput({ field, form: formEl });
   const input = createTextInput(
     { formEl, field, errorEl, trayEl, attachBtn, picker, sendBtn },
     liftWithInputSlots([askSlot, commandSlot], bubble),
     onInputOpenChange,
   );
 
+  const commandInput = createSurfaceCommands({ field, form: formEl, input });
   input.interceptSubmit(commandInput.interceptSubmit);
 
   const plate = namePlate ? createMessagePlate({ mount: bubbleFrame, startDragging }) : undefined;
@@ -333,15 +333,11 @@ export function createSurfaces({
     isInputOpen: input.isInputOpen,
     onSubmit: input.onSubmit,
     setCommands: commandInput.setCommands,
-    onCommand: (cb) =>
-      commandInput.onCommand((name, args) => {
-        cb(name, args);
-        return true;
-      }),
+    onCommand: commandInput.onCommand,
     onCommandReplyClose: commandReply.onClose,
     showCommandReply: commandReply.show,
     onStop: input.onStop,
-    setBusy: input.setBusy,
+    setBusy: commandInput.setBusy,
     showInputError: input.showInputError,
     setAttachmentLimits: input.setAttachmentLimits,
     restoreInput: input.restoreInput,

@@ -14,6 +14,7 @@ export function createUnifiedCommands(deps: {
   isBusy(preset: string): boolean;
 }) {
   const commands = new Map<string, BackendCommand[]>();
+  const pending = new Map<string, string>();
   const handlers: Array<(event: SpeechStreamControl) => void> = [];
   let replyPreset: string | null = null;
   const emit = (event: SpeechStreamControl): void => {
@@ -21,9 +22,13 @@ export function createUnifiedCommands(deps: {
   };
   function refresh(): void {
     const preset = deps.composer.getMention();
-    deps.composer.setCommands(preset && preset !== EVERYONE ? (commands.get(preset) ?? []) : []);
+    deps.composer.setCommands(
+      preset && preset !== EVERYONE ? (commands.get(preset) ?? []) : [],
+      preset && preset !== EVERYONE ? deps.nameOf(preset) : undefined,
+    );
     const ids = new Set(deps.cast().map((entry) => entry.id));
     for (const id of commands.keys()) if (!ids.has(id)) commands.delete(id);
+    for (const id of pending.keys()) if (!ids.has(id)) pending.delete(id);
   }
   deps.composer.onChange(refresh);
   deps.composer.onCommand((name, args) => {
@@ -31,6 +36,11 @@ export function createUnifiedCommands(deps: {
     if (!preset || preset === EVERYONE) return false;
     if (deps.isBusy(preset)) {
       deps.composer.showError(t("command.busy", { name: deps.nameOf(preset) }));
+      return false;
+    }
+    const command = pending.get(preset);
+    if (command !== undefined) {
+      deps.composer.showError(t("command.pending", { name: deps.nameOf(preset), command }));
       return false;
     }
     emit({ preset, op: { op: "command", name, args } });
@@ -48,6 +58,8 @@ export function createUnifiedCommands(deps: {
           refresh();
           break;
         case "command-reply":
+          if (op.reply.kind === "pending") pending.set(preset, op.reply.name);
+          else pending.delete(preset);
           if (op.reply.kind === "clear") {
             if (replyPreset === preset) {
               replyPreset = null;

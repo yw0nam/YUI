@@ -8,10 +8,12 @@ export function createCommandList({
   field,
   mount,
   commands,
+  label = () => t("command.list_label"),
 }: {
   field: HTMLTextAreaElement;
   mount: HTMLElement;
   commands: () => BackendCommand[];
+  label?: () => string;
 }): { refresh(): void; close(): void; dispose(): void } {
   const root = document.createElement("div");
   root.className = "yui-cmd-list";
@@ -27,7 +29,6 @@ export function createCommandList({
   root.append(rows, footer);
   mount.prepend(root);
   let matches: BackendCommand[] = [];
-  let active = 0;
   const box = createListbox({
     field,
     root: rows,
@@ -35,14 +36,14 @@ export function createCommandList({
     onPick: (id) => pick(Number(id)),
     passEnter: () => commands().some((cmd) => field.value === `/${cmd.name}`),
     onActivate(index) {
-      active = index;
       (rows.children[index] as HTMLElement).scrollIntoView?.({ block: "nearest" });
       const cmd = matches[index]!;
       usage.textContent = `/${cmd.name}${cmd.args ? ` ${cmd.args}` : ""}`;
     },
   });
   const { close } = box;
-  function refresh(): void {
+  function refresh(reset = false): void {
+    const active = reset ? 0 : Math.max(0, box.active());
     const fragment = /^\/([a-z0-9_-]*)$/.exec(field.value);
     matches = fragment ? commands().filter((cmd) => cmd.name.startsWith(fragment[1]!)) : [];
     if (matches.length === 0) {
@@ -62,7 +63,7 @@ export function createCommandList({
       row.append(name, description);
       rows.append(row);
     }
-    rows.setAttribute("aria-label", t("command.list_label"));
+    rows.setAttribute("aria-label", label());
     count.textContent = t("command.count", { n: matches.length });
     box.set([...rows.children].map((el, i) => ({ id: String(i), el: el as HTMLElement })));
     box.open();
@@ -75,8 +76,7 @@ export function createCommandList({
     close();
   }
   function onInput(): void {
-    active = 0;
-    refresh();
+    refresh(true);
   }
   const offDragScroll = attachDragScroll(rows, box.pickTarget);
   field.addEventListener("input", onInput);

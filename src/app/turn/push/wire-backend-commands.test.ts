@@ -10,7 +10,7 @@ import { wireBackendCommands } from "./wire-backend-commands";
 
 function setup(isBusy = () => false) {
   let commands!: (list: BackendCommand[]) => void;
-  let command!: (name: string, args: string) => void;
+  let command!: (name: string, args: string) => boolean;
   let reply!: (frame: CommandReplyFrame) => void;
   let state!: (value: PushSocketState) => void;
   const socket = {

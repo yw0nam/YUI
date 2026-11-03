@@ -14,7 +14,7 @@ import { createMentionPicker } from "./mention-picker";
 import { countedMention, type Mention, typedMention, typedMentionLength } from "./targets";
 
 export interface Composer {
-  setCommands(commands: BackendCommand[]): void;
+  setCommands(commands: BackendCommand[], name?: string): void;
   onCommand(cb: (name: string, args: string) => boolean): void;
   /** The picked recipient, or null. */
   getMention(): Mention | null;
@@ -69,7 +69,16 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
 
   // The picker's capture listener is added first, so it sees Enter and Escape before the text input.
   const picker = createMentionPicker({ field, mount: dock, cast: deps.cast, onPick: setMention });
-  const commandInput = createCommandInput({ field, form, mount: dock });
+  let commandRecipient: string | undefined;
+  const commandInput = createCommandInput({
+    field,
+    form,
+    mount: dock,
+    label: () =>
+      commandRecipient === undefined
+        ? t("command.list_label")
+        : t("command.list_label_for", { name: commandRecipient }),
+  });
   // No summon hotkey here: a dismissed field opens again at once.
   const input = createTextInput(
     {
@@ -107,7 +116,10 @@ export function createComposer(deps: { mount: HTMLElement; cast: () => PresetEnt
   field.addEventListener("input", changed);
 
   return {
-    setCommands: commandInput.setCommands,
+    setCommands(commands, name) {
+      commandRecipient = name;
+      commandInput.setCommands(commands);
+    },
     onCommand: commandInput.onCommand,
     getMention: () => mention,
     getExplicitMention: () => named(),

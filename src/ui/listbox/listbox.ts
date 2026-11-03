@@ -48,9 +48,6 @@ export function createListbox(deps: {
     if (state.open === owner) field.setAttribute("aria-activedescendant", options[active]!.el.id);
     deps.onActivate?.(active);
   }
-  function pick(id: string): void {
-    deps.onPick(id);
-  }
   function onKey(e: KeyboardEvent): void {
     if (
       state.open !== owner ||
@@ -74,7 +71,7 @@ export function createListbox(deps: {
             : -1
           : active + (e.key === "ArrowDown" ? 1 : -1),
       );
-    else pick(options[active]!.id);
+    else deps.onPick(options[active]!.id);
   }
   field.addEventListener("keydown", onKey, true);
   field.addEventListener("blur", close);
@@ -102,7 +99,7 @@ export function createListbox(deps: {
     close,
     pickTarget(target: EventTarget | null): void {
       const hit = options.find((option) => target instanceof Node && option.el.contains(target));
-      if (hit) pick(hit.id);
+      if (hit) deps.onPick(hit.id);
     },
     dispose(): void {
       close();
