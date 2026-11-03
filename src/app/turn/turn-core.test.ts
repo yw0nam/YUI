@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 
 const { dispatcher, pushTurns, speechPlayback } = vi.hoisted(() => ({
@@ -53,7 +54,6 @@ vi.mock("./wire-dispatcher", () => ({
 }));
 vi.mock("../settings/wire-avatar", () => ({ applyAvatarConfig: () => {} }));
 vi.mock("./push/playback", () => ({ wirePlayback: () => () => {} }));
-vi.mock("./push/wire-ask-card", () => ({ wireAskCard: () => () => {} }));
 vi.mock("./push/wire-push", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./push/wire-push")>()),
   wirePushTransport: () => () => {},
@@ -67,7 +67,11 @@ function wire(over: Partial<TurnCorePhase1> = {}) {
   const teardowns: Array<() => void> = [];
   const phase1 = {
     config: { get: () => ({}) },
-    surfaces: { onStop: (cb: () => void) => (onStop = cb), onSubmit: () => {} },
+    surfaces: {
+      onStop: (cb: () => void) => (onStop = cb),
+      onSubmit: () => {},
+      askSlot: document.createElement("div"),
+    },
     onStopTurns: (cb: () => void) => {
       onStopTurns = cb;
       return () => {};
@@ -146,7 +150,16 @@ describe("wireTurnCore", () => {
   it("sends the backend no stop when the unified window's stop reaches a window with nothing running", async () => {
     pushTurns.cut.mockReturnValueOnce([]);
     const sendStop = vi.fn(() => true);
-    const h = wire({ pushSocket: { sendStop, sendVocabulary: () => {} } as never });
+    const off = () => () => {};
+    const h = wire({
+      pushSocket: {
+        sendStop,
+        sendVocabulary: () => {},
+        onAsk: off,
+        onAskEnd: off,
+        onState: off,
+      } as never,
+    });
     const core = await h.core;
     await core.connect({ onSubmit: () => {} });
 
