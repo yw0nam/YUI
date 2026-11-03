@@ -100,7 +100,11 @@
   min-height: min(132px, var(--yui-bubble-max-h, 34vh));
 }
 .yui-ui--message .yui-bubble.is-above-input .yui-bubble__scroll {
-  max-height: calc(var(--yui-bubble-max-h, 34vh) - 56px);
+  max-height: calc(
+    var(--yui-bubble-max-h, 34vh) -
+    var(--yui-bubble-pad-top) -
+    var(--yui-bubble-pad-bottom)
+  );
 }
 
 .yui-ui--message .yui-input {
