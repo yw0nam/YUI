@@ -17,6 +17,7 @@ sequenceDiagram
   C->>B: tool_result
   B-->>C: ask
   C->>B: answer
+  B-->>C: ask_end, when the Ask closed without an answer
   C->>B: stop, while the turn has not ended
   B-->>C: turn_end
   C->>B: vocabulary, reset or playback
