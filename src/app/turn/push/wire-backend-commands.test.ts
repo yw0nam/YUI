@@ -1,5 +1,9 @@
 import { expect, it, vi } from "vitest";
-import type { BackendCommand, CommandReplyFrame } from "../../../io/chat/push/push-frames";
+import type {
+  BackendCommand,
+  CommandFrame,
+  CommandReplyFrame,
+} from "../../../io/chat/push/push-frames";
 import type { PushSocketState } from "../../../io/chat/push/push-socket";
 import { wireBackendCommands } from "./wire-backend-commands";
 
@@ -22,7 +26,7 @@ function setup() {
       state = cb;
       return () => {};
     },
-    sendCommand: vi.fn(() => true),
+    sendCommand: vi.fn((_frame: CommandFrame) => true),
   };
   const surfaces = {
     setCommands: vi.fn(),

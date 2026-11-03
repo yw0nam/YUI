@@ -8,6 +8,7 @@
  */
 
 import type { AttachmentLimits } from "../../../config/validators/guardrails";
+import type { BackendCommand } from "../../chat/push/push-frames";
 import { type BridgeTransport, createBridgeCore, type WindowKind } from "../core/bridge-core";
 
 const CH_MESSAGE_SURFACE = "yui://message-surface";
@@ -30,8 +31,15 @@ export interface SourceLine {
   text: string;
 }
 
+export type CommandReply =
+  | { kind: "pending"; name: string }
+  | { kind: "settled"; name: string; text: string }
+  | { kind: "clear" };
+
 /** Pet → message: one call on the message window's local `Surfaces`. */
 export type MessageSurfaceOp =
+  | { op: "commands"; commands: BackendCommand[] }
+  | { op: "command-reply"; reply: CommandReply }
   | { op: "begin" }
   | { op: "name"; name: string }
   | { op: "push"; delta: string }
@@ -52,6 +60,7 @@ export type MessageSurfaceOp =
 
 /** Message → pet: what the user did, plus the mount handshake. */
 export type MessageControlOp =
+  | { op: "command"; name: string; args: string }
   | { op: "submit"; text: string; images: string[] }
   | { op: "stop" }
   | { op: "input-open"; open: boolean }

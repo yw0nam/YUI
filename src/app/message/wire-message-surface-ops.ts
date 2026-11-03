@@ -40,6 +40,12 @@ export function wireMessageSurfaceOps({
       case "dismiss-input":
         surfaces.dismissInput();
         break;
+      case "commands":
+        surfaces.setCommands(op.commands);
+        break;
+      case "command-reply":
+        surfaces.showCommandReply(op.reply);
+        break;
       case "busy":
         log.info("busy_recv", { busy: op.busy });
         surfaces.setBusy(op.busy);

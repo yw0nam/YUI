@@ -1,0 +1,88 @@
+.yui-cmd-reply {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: min(260px, 100%);
+  box-sizing: border-box;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--yui-edge-strong);
+  border-radius: var(--yui-radius-group);
+  background: var(--yui-scrim-strong);
+  box-shadow: var(--yui-float);
+  color: var(--yui-text);
+  pointer-events: auto;
+  font-size: var(--yui-fs-body);
+}
+.yui-cmd-reply[hidden] {
+  display: none;
+}
+.yui-cmd-reply__head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  color: var(--yui-text-dim);
+  font-weight: 500;
+}
+.yui-cmd-reply__running {
+  font-size: var(--yui-fs-sub);
+  font-weight: 400;
+  color: var(--yui-text-mute);
+}
+.yui-cmd-reply__close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--yui-radius-control);
+  background: none;
+  color: var(--yui-text-mute);
+  cursor: pointer;
+}
+.yui-cmd-reply__close svg {
+  width: 14px;
+  height: 14px;
+}
+.yui-cmd-reply__close:hover {
+  background: var(--yui-hover);
+}
+.yui-cmd-reply__close:focus-visible {
+  outline: 2px solid var(--yui-accent-soft);
+  outline-offset: 2px;
+}
+.yui-cmd-reply__body {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  line-height: 1.55;
+}
+.yui-cmd-reply__body > :first-child {
+  margin-top: 0;
+}
+.yui-cmd-reply__body > :last-child {
+  margin-bottom: 0;
+}
+.yui-cmd-reply__body code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--yui-selected);
+}
+.yui-cmd-reply__body pre {
+  overflow-x: auto;
+}
+.yui-cmd-reply__body img {
+  max-width: 100%;
+}
+.yui-cmd-reply__body a {
+  color: var(--yui-text);
+  text-decoration-color: var(--yui-accent-soft);
+}
+.yui-cmd-reply__body a:hover {
+  color: var(--yui-accent-ink);
+}

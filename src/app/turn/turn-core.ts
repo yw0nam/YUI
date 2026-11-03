@@ -29,6 +29,7 @@ import {
 } from "../settings/wire-avatar";
 import { wirePlayback } from "./push/playback";
 import { wireAskCard } from "./push/wire-ask-card";
+import { wireBackendCommands } from "./push/wire-backend-commands";
 import { wirePushTransport, wireStopButton } from "./push/wire-push";
 import { wireVocabulary } from "./vocabulary/wire-vocabulary";
 import { createUnifiedVoice } from "./voice/unified-voice";
@@ -287,6 +288,7 @@ export async function wireTurnCore(
       if (pushSocket) {
         register(wirePlayback({ socket: pushSocket, previousTurn }));
         register(wireAskCard({ socket: pushSocket, mount: surfaces.askSlot }));
+        register(wireBackendCommands({ socket: pushSocket, surfaces }));
         register(
           wirePushTransport({
             socket: pushSocket,

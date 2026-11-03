@@ -173,7 +173,7 @@
 }
 
 /* While an Ask card shows, the bubble steps aside; its line keeps playing and typing underneath. */
-.yui-ui:has(.yui-ask-card:not([hidden])) .yui-bubble {
+.yui-ui:has(.yui-ask-card:not([hidden]), .yui-cmd-reply:not([hidden])) .yui-bubble {
   visibility: hidden;
 }
 
@@ -1052,4 +1052,8 @@
   .yui-input__error-dismiss {
     transition: none;
   }
+}
+
+.yui-ui:has(.yui-ask-card:not([hidden])) .yui-cmd-reply {
+  display: none;
 }

@@ -13,6 +13,11 @@ import {
   type AnswerFrame,
   type AskFrame,
   askFrameFault,
+  type BackendCommand,
+  type CommandFrame,
+  type CommandReplyFrame,
+  commandReplyFault,
+  commandsFault,
   type DelegationItem,
   type ErrorFrame,
   type PlaybackFrame,
@@ -34,7 +39,7 @@ import {
 const baseLog = createLogger("push-socket");
 
 /** The frame types read beyond the base set, as `hello.accepts` names them. */
-const ACCEPTED_FRAMES: readonly string[] = ["error", "ask", "ask_end"];
+const ACCEPTED_FRAMES: readonly string[] = ["error", "ask", "ask_end", "command_reply"];
 
 /** Text frame size cap, either direction. */
 export const PUSH_FRAME_MAX_BYTES = 256 * 1024;
@@ -114,6 +119,10 @@ export interface PushSocket {
   onReasoning(cb: (frame: ReasoningFrame) => void): () => void;
   onState(cb: (state: PushSocketState) => void): () => void;
   getState(): PushSocketState;
+  getCommands(): BackendCommand[];
+  onCommands(cb: (commands: BackendCommand[]) => void): () => void;
+  sendCommand(frame: CommandFrame): boolean;
+  onCommandReply(cb: (frame: CommandReplyFrame) => void): () => void;
 }
 
 /** `<chat_base_url>/ws` over ws/wss, with any trailing slashes on the base collapsed. */
@@ -153,6 +162,9 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
   const stateSubs = new Set<(state: PushSocketState) => void>();
   const resetSubs = new Set<() => void>();
 
+  const commandSubs = new Set<(commands: BackendCommand[]) => void>();
+  const commandReplySubs = new Set<(frame: CommandReplyFrame) => void>();
+  let commands: BackendCommand[] = [];
   let ws: WebSocket | null = null;
   let ready = false;
   /** The `turn` size the backend last stated, where its `images` yes lives too. */
@@ -173,6 +185,10 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
 
   function setState(next: PushSocketState): void {
     if (JSON.stringify(state) === JSON.stringify(next)) return;
+    if (state.kind === "ready" && next.kind !== "ready") {
+      commands = [];
+      dispatch(commandSubs, commands);
+    }
     state = next;
     log.info("ws_state", next);
     for (const cb of stateSubs) cb(next);
@@ -245,12 +261,25 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
         const stated = (frame as unknown as ReadyFrame).max_turn_bytes;
         maxTurnBytes =
           typeof stated === "number" && Number.isInteger(stated) && stated > 0 ? stated : undefined;
+        const fault = commandsFault(frame.commands);
+        if (fault !== null) log.warn("frame_malformed", { type: "ready", field: fault });
+        commands = fault === null ? ((frame.commands as BackendCommand[] | undefined) ?? []) : [];
+        dispatch(commandSubs, commands);
         delayMs = RECONNECT_MIN_MS;
         const chatId = typeof frame.chat_id === "string" ? frame.chat_id : deps.chatId();
         log.info("ws_ready", { chat_id: chatId });
         setState({ kind: "ready", chat_id: chatId });
         // The vocabulary may have moved while the handshake was in flight; hello carried the old one.
         syncVocabulary();
+        return;
+      }
+      case "command_reply": {
+        const fault = commandReplyFault(frame);
+        if (fault !== null) {
+          log.warn("frame_malformed", { type: "command_reply", field: fault });
+          return;
+        }
+        dispatch(commandReplySubs, frame as unknown as CommandReplyFrame);
         return;
       }
       case "render": {
@@ -546,6 +575,8 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
       maxTurnBytes = undefined;
       setState({ kind: "disconnected" });
       stateSubs.clear();
+      commandSubs.clear();
+      commandReplySubs.clear();
     },
 
     sendTurn(turn): boolean {
@@ -622,5 +653,12 @@ export function createPushSocket(deps: PushSocketDeps): PushSocket {
     onReasoning: (cb) => subscribe(reasoningSubs, cb),
     onState: (cb) => subscribe(stateSubs, cb),
     getState: () => state,
+    getCommands: () => commands,
+    onCommands: (cb) => subscribe(commandSubs, cb),
+    onCommandReply: (cb) => subscribe(commandReplySubs, cb),
+    sendCommand(frame) {
+      if (!ready) return false;
+      return sendFrame({ ...frame });
+    },
   };
 }

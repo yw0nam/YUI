@@ -1,0 +1,67 @@
+.yui-cmd-list {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  right: 0;
+  z-index: 2;
+  padding: 5px;
+  border: 1px solid var(--yui-edge-strong);
+  border-radius: var(--yui-radius-group);
+  background: var(--yui-scrim-strong);
+  box-shadow: var(--yui-float);
+  color: var(--yui-text-dim);
+  pointer-events: auto;
+}
+.yui-cmd-list[hidden] {
+  display: none;
+}
+.yui-cmd-list__rows {
+  max-height: min(204px, 35vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.yui-cmd-list__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 0 8px;
+  border-radius: var(--yui-radius-control);
+  cursor: pointer;
+  font-size: var(--yui-fs-body);
+  font-weight: 500;
+}
+.yui-cmd-list__row:hover {
+  background: var(--yui-hover);
+}
+.yui-cmd-list__row[aria-selected="true"] {
+  background: var(--yui-selected);
+  color: var(--yui-text);
+}
+.yui-cmd-list__description {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--yui-fs-sub);
+  font-weight: 400;
+  color: var(--yui-text-mute);
+}
+.yui-cmd-list__footer {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 8px 2px;
+  border-top: 1px solid var(--yui-edge);
+  font-size: var(--yui-fs-caption);
+  color: var(--yui-text-mute);
+}
+.yui-cmd-list__footer > :first-child {
+  flex: none;
+}
+.yui-cmd-list__footer > :last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

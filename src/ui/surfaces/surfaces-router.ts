@@ -141,6 +141,18 @@ export function createSurfacesRouter({
       remote.setAttachmentLimits(limits);
     },
 
+    setCommands(list) {
+      local.setCommands(list);
+      remote.setCommands(list);
+    },
+    showCommandReply(reply) {
+      local.showCommandReply(reply);
+      remote.showCommandReply(reply);
+    },
+    onCommand(cb) {
+      local.onCommand(cb);
+      remote.onCommand(cb);
+    },
     onSubmit(cb) {
       local.onSubmit(cb);
       remote.onSubmit(cb);

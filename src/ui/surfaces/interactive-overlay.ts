@@ -1,5 +1,6 @@
 /** The shown bubble, which steps aside while an Ask card shows. */
-export const BUBBLE = ".yui-ui:not(:has(.yui-ask-card:not([hidden]))) .yui-bubble.is-visible";
+export const BUBBLE =
+  ".yui-ui:not(:has(.yui-ask-card:not([hidden]), .yui-cmd-reply:not([hidden]))) .yui-bubble.is-visible";
 
 /**
  * Overlay elements that must take OS pointer events while shown — everything else in the overlay
@@ -11,6 +12,8 @@ export const BUBBLE = ".yui-ui:not(:has(.yui-ask-card:not([hidden]))) .yui-bubbl
  */
 export const INTERACTIVE_OVERLAY_SELECTORS = [
   ".yui-input.is-open",
+  ".yui-cmd-list:not([hidden])",
+  ".yui-ui:not(:has(.yui-ask-card:not([hidden]))) .yui-cmd-reply:not([hidden])",
   `${BUBBLE} .yui-bubble__tools button`,
   `${BUBBLE} .yui-bubble__box`,
   `${BUBBLE} .yui-bubble__speech-action button`,

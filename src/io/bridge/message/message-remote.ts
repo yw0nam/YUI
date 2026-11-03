@@ -11,7 +11,8 @@
 import type { AttachmentLimits } from "../../../config/validators/guardrails";
 import type { UtteranceIdentity } from "../../../contract";
 import { createLogger } from "../../../logger";
-import type { MessageBridge, SourceLine, UserQuote } from "./message-bridge";
+import type { BackendCommand } from "../../chat/push/push-frames";
+import type { CommandReply, MessageBridge, SourceLine, UserQuote } from "./message-bridge";
 
 /** In-place fix offered next to an inline error (e.g. "Open Advanced" on an unconfigured backend). */
 export interface InputErrorAction {
@@ -27,6 +28,9 @@ export interface SpeechAction {
 
 /** The half of `Surfaces` the message window owns, plus the dock request it can raise. */
 export interface RemoteSurfaces {
+  setCommands(list: BackendCommand[]): void;
+  showCommandReply(reply: CommandReply): void;
+  onCommand(cb: (name: string, args: string) => void): void;
   beginSpeech(identity?: UtteranceIdentity, opts?: { aside?: boolean }): void;
   pushSpeech(delta: string): void;
   endSpeech(opts?: { defer?: boolean }): void;
@@ -68,6 +72,9 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
   const stopHandlers: Array<() => void> = [];
   const dockHandlers: Array<() => void> = [];
   const openSettingsHandlers: Array<() => void> = [];
+  const commandHandlers: Array<(name: string, args: string) => void> = [];
+  let commands: BackendCommand[] | null = null;
+  let reply: CommandReply | null = null;
   let inputOpen = false;
   let busy = false;
   let name: string | null = null;
@@ -77,6 +84,9 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
 
   const unlisten = bridge.onControl((op) => {
     switch (op.op) {
+      case "command":
+        for (const cb of commandHandlers) cb(op.name, op.args);
+        break;
       case "submit":
         for (const cb of submitHandlers) cb(op.text, op.images);
         break;
@@ -99,6 +109,8 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
         for (const cb of dockHandlers) cb();
         break;
       case "ready":
+        if (commands !== null) bridge.emitSurface({ op: "commands", commands });
+        if (reply !== null) bridge.emitSurface({ op: "command-reply", reply });
         if (limits) bridge.emitSurface({ op: "attachment-limits", limits });
         if (name !== null) bridge.emitSurface({ op: "name", name });
         bridge.emitSurface({ op: "busy", busy });
@@ -111,6 +123,17 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
   });
 
   return {
+    setCommands(list) {
+      commands = list;
+      bridge.emitSurface({ op: "commands", commands });
+    },
+    showCommandReply(value) {
+      reply = value;
+      bridge.emitSurface({ op: "command-reply", reply });
+    },
+    onCommand(cb) {
+      commandHandlers.push(cb);
+    },
     beginSpeech() {
       speechActionClicks = [];
       bridge.emitSurface({ op: "begin" });
@@ -192,6 +215,7 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
     dispose() {
       unlisten();
       submitHandlers.length = 0;
+      commandHandlers.length = 0;
       stopHandlers.length = 0;
       dockHandlers.length = 0;
       openSettingsHandlers.length = 0;

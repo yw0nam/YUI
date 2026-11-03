@@ -1463,6 +1463,15 @@ globalThis.YUI_MAP =
       "paths": [
         "src-tauri/src/terminal"
       ]
+    },
+    {
+      "id": "ui/commands",
+      "module": "display",
+      "label": "backend commands",
+      "role": "The backend-stated command list and the Markdown Command reply above the input.",
+      "paths": [
+        "src/ui/commands"
+      ]
     }
   ],
   "edges": [
@@ -1470,7 +1479,7 @@ globalThis.YUI_MAP =
       "id": "input-submit",
       "from": "ui/input",
       "to": "ui/surfaces",
-      "carries": "submit and stop handlers",
+      "carries": "submit and stop handlers; onCommand(name, args) for a listed Backend command",
       "kind": "callback",
       "transport": "shared"
     },
@@ -1863,7 +1872,7 @@ globalThis.YUI_MAP =
       "id": "push-ws",
       "from": "io/chat/push",
       "to": "backend-push",
-      "carries": "frames out: hello, turn, vocabulary, reset, stop, tool_result, playback, answer",
+      "carries": "frames out: hello, turn, vocabulary, reset, stop, tool_result, playback, answer, command",
       "kind": "websocket",
       "transport": "push"
     },
@@ -1871,7 +1880,7 @@ globalThis.YUI_MAP =
       "id": "push-ws-in",
       "from": "backend-push",
       "to": "io/chat/push",
-      "carries": "frames in: ready, speech, render, turn_end, error, reasoning, tool_status, tool_call, delegations, ask, ask_end",
+      "carries": "frames in: ready, speech, render, turn_end, error, reasoning, tool_status, tool_call, delegations, ask, ask_end, command_reply; ready.commands states the Backend commands",
       "kind": "websocket",
       "transport": "push"
     },
@@ -3918,7 +3927,7 @@ globalThis.YUI_MAP =
       "id": "surfaces-remote",
       "from": "ui/surfaces",
       "to": "io/bridge/message",
-      "carries": "RemoteSurfaces: MessageSurfaceOp on yui://message-surface, scoped to the sender's preset; speech-actions carries the labels of the buttons the bubble shows under its speech, in order",
+      "carries": "RemoteSurfaces: MessageSurfaceOp on yui://message-surface, scoped to the sender's preset; speech-actions carries the labels of the buttons the bubble shows under its speech, in order; commands and command-reply restated on ready",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/ui/surfaces/wire.ts"
@@ -3927,7 +3936,7 @@ globalThis.YUI_MAP =
       "id": "remote-surfaces",
       "from": "io/bridge/message",
       "to": "ui/surfaces",
-      "carries": "MessageControlOp on yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; speech-action carries the index of the button clicked under the speech; scoped to the sender's preset",
+      "carries": "MessageControlOp on yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; speech-action carries the index of the button clicked under the speech; scoped to the sender's preset; command {name, args}",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/ui/surfaces/wire.ts"
@@ -4173,6 +4182,51 @@ globalThis.YUI_MAP =
       "transport": "shared",
       "carries": "upsert, wait_answer, drain_answers",
       "wiring": "src-tauri/src/agent_ingress/threads/requests.rs"
+    },
+    {
+      "id": "surfaces-commands",
+      "from": "ui/surfaces",
+      "to": "ui/commands",
+      "carries": "showCommandReply pending, settled, clear",
+      "kind": "callback",
+      "transport": "push",
+      "wiring": "src/ui/surfaces/surfaces.ts"
+    },
+    {
+      "id": "input-command-list",
+      "from": "ui/input",
+      "to": "ui/commands",
+      "carries": "createCommandList, refresh, close; capture keyboard completion",
+      "kind": "callback",
+      "transport": "push",
+      "wiring": "src/ui/input/text-input.ts"
+    },
+    {
+      "id": "command-list-input",
+      "from": "ui/commands",
+      "to": "ui/input",
+      "carries": "completed /name text and input event",
+      "kind": "callback",
+      "transport": "push",
+      "wiring": "src/ui/input/text-input.ts"
+    },
+    {
+      "id": "backend-commands",
+      "from": "io/chat/push",
+      "to": "ui/surfaces",
+      "carries": "getCommands, onCommands → setCommands; onCommandReply → showCommandReply; leaving ready clears",
+      "kind": "callback",
+      "transport": "push",
+      "wiring": "src/app/turn/push/wire-backend-commands.ts"
+    },
+    {
+      "id": "backend-command-send",
+      "from": "ui/surfaces",
+      "to": "io/chat/push",
+      "carries": "onCommand(name, args) → sendCommand; one pending command per chat",
+      "kind": "callback",
+      "transport": "push",
+      "wiring": "src/app/turn/push/wire-backend-commands.ts"
     }
   ],
   "flows": [
@@ -5796,28 +5850,28 @@ globalThis.YUI_MAP =
         "id": "message-surface",
         "from": "pet",
         "to": "message",
-        "carries": "yui://message-surface: MessageSurfaceOp",
+        "carries": "yui://message-surface: MessageSurfaceOp; commands and command-reply",
         "kind": "bridge"
       },
       {
         "id": "message-surface-companion",
         "from": "pet-<id>",
         "to": "message-<id>",
-        "carries": "yui://message-surface: MessageSurfaceOp",
+        "carries": "yui://message-surface: MessageSurfaceOp; commands and command-reply",
         "kind": "bridge"
       },
       {
         "id": "message-control",
         "from": "message",
         "to": "pet",
-        "carries": "yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready",
+        "carries": "yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; command {name, args}",
         "kind": "bridge"
       },
       {
         "id": "message-control-companion",
         "from": "message-<id>",
         "to": "pet-<id>",
-        "carries": "yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready",
+        "carries": "yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; command {name, args}",
         "kind": "bridge"
       },
       {

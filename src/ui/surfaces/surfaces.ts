@@ -15,9 +15,11 @@
 import "./surfaces.css";
 import type { AttachmentLimits } from "../../config/validators/guardrails";
 import type { UtteranceIdentity } from "../../contract";
-import type { SourceLine, UserQuote } from "../../io/bridge/message/message-bridge";
+import type { CommandReply, SourceLine, UserQuote } from "../../io/bridge/message/message-bridge";
 import type { InputErrorAction, SpeechAction } from "../../io/bridge/message/message-remote";
+import type { BackendCommand } from "../../io/chat/push/push-frames";
 import type { ToolStatus } from "../chips/status-pill";
+import { createCommandReplySurface } from "../commands/command-reply-surface";
 import { subscribe as subscribeLocale, t } from "../i18n";
 import { createTextInput } from "../input/text-input";
 import { type BacklogSource, createBacklog } from "../message/backlog";
@@ -34,6 +36,9 @@ const POP_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
      stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M10 20H4v-6M4 20l8-8"/></svg>`;
 
 export interface Surfaces {
+  setCommands(list: BackendCommand[]): void;
+  onCommand(cb: (name: string, args: string) => void): void;
+  showCommandReply(reply: CommandReply): void;
   /** overlay root (.yui-ui) */
   readonly el: HTMLElement;
   /** Where the chips beside the avatar mount, signal chips first and the delegation chip after. */
@@ -176,6 +181,7 @@ export function createSurfaces({
     <div class="yui-chip-column"></div>
     <span class="yui-bubble__sr" role="status" aria-live="polite"></span>
     <div class="yui-ask-slot"></div>
+    <div class="yui-ask-slot yui-cmd-slot"></div>
     <form class="yui-input" novalidate hidden>
       <div class="yui-input__tray"></div>
       <div class="yui-input__row">
@@ -211,6 +217,8 @@ export function createSurfaces({
 
   const chipColumn = el.querySelector<HTMLDivElement>(".yui-chip-column")!;
   const askSlot = el.querySelector<HTMLDivElement>(".yui-ask-slot")!;
+  const commandSlot = el.querySelector<HTMLDivElement>(".yui-cmd-slot")!;
+  const commandReply = createCommandReplySurface(commandSlot);
   const bubbleEl = el.querySelector<HTMLDivElement>(".yui-bubble")!;
   const bubbleFrame = el.querySelector<HTMLDivElement>(".yui-bubble__frame")!;
   const bubbleBox = el.querySelector<HTMLDivElement>(".yui-bubble__box")!;
@@ -257,7 +265,7 @@ export function createSurfaces({
   const sources = createSignalSourceLines({ el: bubbleQuote, bubble });
   const input = createTextInput(
     { formEl, field, errorEl, trayEl, attachBtn, picker, sendBtn },
-    liftWithAskSlot(askSlot, bubble),
+    liftWithAskSlot(commandSlot, liftWithAskSlot(askSlot, bubble)),
     onInputOpenChange,
   );
 
@@ -289,6 +297,7 @@ export function createSurfaces({
     quote.dispose();
     bubble.dispose();
     input.dispose();
+    commandReply.dispose();
     el.remove();
   }
 
@@ -313,12 +322,18 @@ export function createSurfaces({
     dismissInput: input.dismissInput,
     isInputOpen: input.isInputOpen,
     onSubmit: input.onSubmit,
+    setCommands: input.setCommands,
+    onCommand: input.onCommand,
+    showCommandReply: commandReply.show,
     onStop: input.onStop,
     setBusy: input.setBusy,
     showInputError: input.showInputError,
     setAttachmentLimits: input.setAttachmentLimits,
     restoreInput: input.restoreInput,
-    setInputAnchor: anchorWithAskSlot(askSlot, input.setInputAnchor),
+    setInputAnchor: anchorWithAskSlot(
+      commandSlot,
+      anchorWithAskSlot(askSlot, input.setInputAnchor),
+    ),
     dispose,
   };
   return plate ? withPlateState(plate, { ...surfaces, plate }) : surfaces;

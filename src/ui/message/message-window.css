@@ -184,3 +184,19 @@
     animation: none;
   }
 }
+
+/* The Command reply joins this column above the input and scrolls at its cap; only the pet window keeps the input fixed. */
+.yui-ui--message .yui-cmd-slot {
+  position: static;
+  transform: none;
+  width: 100%;
+  max-height: 260px;
+}
+.yui-ui--message .yui-cmd-slot:not(:has(.yui-cmd-reply:not([hidden]))) {
+  display: none;
+}
+
+.yui-ui--message .yui-cmd-list {
+  position: static;
+  margin-bottom: 8px;
+}

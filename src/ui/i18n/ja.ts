@@ -4,6 +4,11 @@
  */
 const ja: Record<string, string> = {
   // tool labels (English — not translated)
+  "command.running": "実行中",
+  "command.empty": "出力なし",
+  "command.close": "返答を閉じる",
+  "command.count": "{n} 件のコマンド",
+  "command.list_label": "バックエンドコマンド",
   "tool.web_search": "Searching…",
   "tool.browser": "Browsing…",
   "tool.terminal": "Running…",

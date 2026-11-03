@@ -115,6 +115,7 @@ export interface ReasoningFrame {
 export interface ReadyFrame {
   type: "ready";
   chat_id: string;
+  commands?: BackendCommand[];
   /** Largest `turn` frame accepted, in UTF-8 bytes; its presence also says `turn` takes `images`. */
   max_turn_bytes?: number;
 }
@@ -221,5 +222,46 @@ export function askFrameFault(v: Record<string, unknown>): string | null {
     return "placeholder";
   }
   if (v.expires_at !== undefined && !Number.isFinite(v.expires_at)) return "expires_at";
+  return null;
+}
+
+export interface BackendCommand {
+  name: string;
+  description: string;
+  args: string;
+}
+
+export interface CommandFrame {
+  type: "command";
+  id: string;
+  name: string;
+  args: string;
+}
+
+export interface CommandReplyFrame {
+  type: "command_reply";
+  id: string;
+  text: string;
+}
+
+export function commandsFault(v: unknown): string | null {
+  if (v === undefined) return null;
+  if (!Array.isArray(v) || v.length > 100) return "commands";
+  const names = new Set<string>();
+  for (const row of v) {
+    if (row === null || typeof row !== "object" || Array.isArray(row)) return "commands";
+    const { name, description, args } = row as Record<string, unknown>;
+    if (typeof name !== "string" || !/^[a-z0-9][a-z0-9_-]{0,31}$/.test(name) || names.has(name))
+      return "name";
+    names.add(name);
+    if (typeof description !== "string" || [...description].length > 200) return "description";
+    if (typeof args !== "string" || [...args].length > 200) return "args";
+  }
+  return null;
+}
+
+export function commandReplyFault(v: Record<string, unknown>): string | null {
+  if (typeof v.id !== "string") return "id";
+  if (typeof v.text !== "string") return "text";
   return null;
 }

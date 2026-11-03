@@ -4,6 +4,11 @@
  */
 const en: Record<string, string> = {
   // tool labels (English in all locales — AI tool-call status)
+  "command.running": "Running",
+  "command.empty": "No output",
+  "command.close": "Close reply",
+  "command.count": "{n} commands",
+  "command.list_label": "Backend commands",
   "tool.web_search": "Searching…",
   "tool.browser": "Browsing…",
   "tool.terminal": "Running…",
