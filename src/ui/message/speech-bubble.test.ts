@@ -21,12 +21,11 @@ vi.mock("./markdown", async (importOriginal) => {
   };
 });
 
-import { INTERACTIVE_OVERLAY_SELECTORS } from "../surfaces/interactive-overlay";
+import { BUBBLE, INTERACTIVE_OVERLAY_SELECTORS } from "../surfaces/interactive-overlay";
 import { createSurfaces } from "../surfaces/surfaces";
 import { noTool } from "../surfaces/test-helpers";
 import { renderMarkdownInline } from "./markdown";
 
-const BUBBLE = ".yui-ui:not(:has(.yui-ask-card:not([hidden]))) .yui-bubble.is-visible";
 const TOOLS_SELECTOR = `${BUBBLE} .yui-bubble__tools button`;
 const BOX_SELECTOR = `${BUBBLE} .yui-bubble__box`;
 const SPEECH_ACTION_SELECTOR = `${BUBBLE} .yui-bubble__speech-action button`;

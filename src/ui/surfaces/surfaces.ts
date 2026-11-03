@@ -27,6 +27,7 @@ import { createReasoningDisclosure, type ReasoningSource } from "../message/reas
 import { createSignalSourceLines } from "../message/signal-source-lines";
 import { createSpeechBubble } from "../message/speech-bubble";
 import { createUserQuote } from "../message/user-quote";
+import { anchorWithAskSlot, liftWithAskSlot } from "./ask-slot";
 
 // Arrows-out: moves speech into the message window. Stroke width comes from each button's CSS.
 const POP_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"
@@ -256,17 +257,7 @@ export function createSurfaces({
   const sources = createSignalSourceLines({ el: bubbleQuote, bubble });
   const input = createTextInput(
     { formEl, field, errorEl, trayEl, attachBtn, picker, sendBtn },
-    {
-      // The Ask card sits on the same line the bubble lifts to over the open input.
-      liftAboveInput(px) {
-        bubble.liftAboveInput(px);
-        askSlot.style.setProperty("--yui-ask-bottom", `${px}px`);
-      },
-      resetPosition() {
-        bubble.resetPosition();
-        askSlot.style.removeProperty("--yui-ask-bottom");
-      },
-    },
+    liftWithAskSlot(askSlot, bubble),
     onInputOpenChange,
   );
 
@@ -327,11 +318,7 @@ export function createSurfaces({
     showInputError: input.showInputError,
     setAttachmentLimits: input.setAttachmentLimits,
     restoreInput: input.restoreInput,
-    setInputAnchor(bottomPx) {
-      input.setInputAnchor(bottomPx);
-      // The Ask card rides above the input wherever the input is anchored.
-      askSlot.style.setProperty("--yui-input-bottom", bottomPx === null ? "" : `${bottomPx}px`);
-    },
+    setInputAnchor: anchorWithAskSlot(askSlot, input.setInputAnchor),
     dispose,
   };
   return plate ? withPlateState(plate, { ...surfaces, plate }) : surfaces;

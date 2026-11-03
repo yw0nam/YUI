@@ -29,6 +29,8 @@ export function createAnswerArea(deps: {
   sending: boolean;
   onDraft(draft: Draft): void;
   onSend(answer: { choice?: string; text?: string }): void;
+  /** Rides the head after the prompt. */
+  head?: Node;
 }): AnswerArea {
   const { ask } = deps;
   const draft: Draft = { ...deps.draft };
@@ -47,6 +49,7 @@ export function createAnswerArea(deps: {
     </div>
   `;
   el.querySelector(".yui-threads-answer__prompt")!.append(...entryMarkdown(ask.prompt));
+  if (deps.head) el.querySelector(".yui-threads-answer__head")!.append(deps.head);
   const choicesEl = el.querySelector<HTMLElement>(".yui-threads-answer__choices")!;
   const composer = el.querySelector<HTMLElement>(".yui-threads-answer__composer")!;
   const send = el.querySelector<HTMLButtonElement>(".yui-threads-answer__send")!;

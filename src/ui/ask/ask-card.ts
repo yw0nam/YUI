@@ -63,8 +63,8 @@ export function createAskCard(deps: {
         if (deps.onAnswer({ ask_id: frame.ask.ask_id, ...answer })) close(frame.ask.ask_id);
         else render(t("ask.not_sent"));
       },
+      head: timer,
     });
-    area.el.querySelector(".yui-threads-answer__head")!.append(timer);
     el.replaceChildren(area.el);
     countDown();
   }
