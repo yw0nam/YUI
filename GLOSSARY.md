@@ -103,6 +103,14 @@ _Avoid_: prompt, request
 The user's reply to one Ask: a choice id, text, both, or `release` to answer at the agent's own terminal. Over push, it travels as an `answer` frame.
 _Avoid_: reply, response
 
+**Backend command**:
+A command the backend states in `ready.commands` and runs when the user types `/name` in the text input; push transport only. Its output is a Command reply, never a Turn.
+_Avoid_: slash command (for the client side), Trigger
+
+**Command reply**:
+The text a Backend command printed, shown above the input until closed and written to the client log; never spoken and never a Turn. Over push, it travels as a `command_reply` frame.
+_Avoid_: reply panel, Answer
+
 **Waiting Thread**:
 A Thread in `input-required` that the user has not marked read since the producer's last update.
 _Avoid_: unread, pending
