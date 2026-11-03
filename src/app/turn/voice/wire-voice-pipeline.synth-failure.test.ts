@@ -121,6 +121,22 @@ describe("wireVoicePipeline synth-failure listeners", () => {
     expect(cb).toHaveBeenCalledTimes(1);
   });
 
+  it("a filler phrase's real synth rejection never calls the subscribed listener", async () => {
+    const voice = setup();
+    const cb = vi.fn();
+    voice.onSynthFailure(cb);
+
+    mocks.state.serverDown = true;
+    voice.speechPlayback.speakAside("ちょっと待ってね。");
+
+    await vi.waitFor(() => expect(surfaces.finishSpeech).toHaveBeenCalledOnce());
+    expect(mocks.fetchImpl).toHaveBeenCalledWith(
+      "http://tts.test/v1/audio/speech",
+      expect.anything(),
+    );
+    expect(cb).not.toHaveBeenCalled();
+  });
+
   it("a TTS_SKIP rejection never calls the subscribed listener", async () => {
     const voice = setup({ ttsEnabled: () => false });
     const cb = vi.fn();
