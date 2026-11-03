@@ -192,9 +192,6 @@ export const CROSS_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true
 export const CHAT_APIS = ["chat_completions", "responses", "push"] as const;
 export type ChatApi = (typeof CHAT_APIS)[number];
 
-// The preset row's name for the Hermes Agent provider.
-export const HERMES_AGENT = { name: "Hermes Agent" } as const;
-
 // The cards guide the Card section's ? button opens. The settings window's opener grant names the same URL.
 export const CARD_GUIDE_URL = "https://yw0nam.github.io/YUI/guide/cards";
 export const GEMINI_KEY_URL = "https://aistudio.google.com/apikey";
@@ -227,7 +224,7 @@ export const CHAT_PROVIDER_PRESETS: readonly ChatProviderPreset[] = [
   { id: "lmstudio", name: "LM Studio", url: "http://localhost:1234/v1" },
   { id: "groq", name: "Groq", url: "https://api.groq.com/openai/v1" },
   GEMINI_PRESET,
-  { id: "hermes", name: HERMES_AGENT.name, chatApi: "push" },
+  { id: "hermes", name: "Hermes Agent", chatApi: "push" },
 ];
 
 // TTS provider presets (Connection tab, TTS section) — selecting one sets tts_provider and autofills
