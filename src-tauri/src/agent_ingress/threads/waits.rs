@@ -8,6 +8,10 @@ impl WaitSlots {
     pub(super) const fn new() -> Self {
         Self(AtomicUsize::new(0))
     }
+    #[cfg(test)]
+    pub(super) fn count(&self) -> usize {
+        self.0.load(Ordering::Acquire)
+    }
     pub(super) fn acquire(&self) -> Option<WaitSlot<'_>> {
         if self.0.fetch_add(1, Ordering::AcqRel) >= WAIT_LIMIT {
             self.0.fetch_sub(1, Ordering::AcqRel);

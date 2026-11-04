@@ -861,7 +861,8 @@ YUI/
         snapshot.rs                  # Snapshot types, a plugin's entry, and the name conflict rule
         test_support.rs              # Test helpers: the fixture plugin, temp folders, polling
       agent_ingress/
-        mod.rs                       # Loopback HTTP listener for signals and the avatar RPC surface, routed to main or the pet window a /presets/<id>/ path names
+        mod.rs                       # Route wiring for signals, avatar RPC, and Threads, with application callbacks
+        server.rs                    # Bounded HTTP/1 transport: bind, accept, deadlines, and connection cap
         payload.rs                   # Request parsing, size caps, and event payload types
         guard.rs                     # Host and Origin guard: refuses browser requests whose hostname was rebound to loopback
         route.rs                     # Path parsing into a route family and a target window: bare paths to main, /presets/<id>/ to pet-<id>

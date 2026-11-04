@@ -3,13 +3,8 @@
 const LOOPBACK_NAMES: [&str; 3] = ["127.0.0.1", "localhost", "::1"];
 
 /// `Some(421)` for a non-loopback `Host`, `Some(403)` for a non-loopback `Origin`, else `None`.
-pub(super) fn refuse(headers: &[tiny_http::Header]) -> Option<u16> {
-    let value = |name| {
-        headers
-            .iter()
-            .find(|h| h.field.equiv(name))
-            .map(|h| h.value.as_str())
-    };
+pub(super) fn refuse(headers: &hyper::HeaderMap) -> Option<u16> {
+    let value = |name| headers.get(name).and_then(|value| value.to_str().ok());
     if !value("Host").is_some_and(is_loopback_host) {
         return Some(421);
     }
@@ -38,10 +33,15 @@ fn is_loopback_host(hostport: &str) -> bool {
 mod tests {
     use super::*;
 
-    fn headers(pairs: &[(&str, &str)]) -> Vec<tiny_http::Header> {
+    fn headers(pairs: &[(&str, &str)]) -> hyper::HeaderMap {
         pairs
             .iter()
-            .map(|(k, v)| tiny_http::Header::from_bytes(k.as_bytes(), v.as_bytes()).unwrap())
+            .map(|(k, v)| {
+                (
+                    hyper::header::HeaderName::from_bytes(k.as_bytes()).unwrap(),
+                    hyper::header::HeaderValue::from_str(v).unwrap(),
+                )
+            })
             .collect()
     }
 
@@ -62,7 +62,7 @@ mod tests {
 
     #[test]
     fn missing_host_is_refused_with_421() {
-        assert_eq!(refuse(&[]), Some(421));
+        assert_eq!(refuse(&hyper::HeaderMap::new()), Some(421));
     }
 
     #[test]
