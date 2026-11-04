@@ -198,3 +198,17 @@ it("enables retry with the draft and no error when the answered head is sent aga
     [{ ask_id: "a", choice: "once", text: "my draft" }],
   ]);
 });
+
+it.each([
+  { first: true, second: false, error: undefined },
+  { first: false, second: true, error: "Couldn't send: the connection is down" },
+])("appends Answer handlers and takes the first result: $first", ({ first, second, error }) => {
+  const { card, el, onAnswer, answer } = build(first);
+  const next = vi.fn(() => second);
+  card.onAnswer(next);
+  card.set([frame("a")]);
+  answer(0);
+  expect(onAnswer).toHaveBeenCalledExactlyOnceWith({ ask_id: "a", choice: "once" });
+  expect(next).toHaveBeenCalledExactlyOnceWith({ ask_id: "a", choice: "once" });
+  expect(el.querySelector(".yui-threads-answer__error")?.textContent).toBe(error);
+});
