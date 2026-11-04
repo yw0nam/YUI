@@ -3,6 +3,7 @@
  */
 
 import type { ModelListResult } from "../../../../io/chat/models/reader";
+import type { ServerCheck } from "../../../../io/chat/models/server-check";
 import { t } from "../../../i18n";
 
 export interface StatusView {
@@ -11,6 +12,31 @@ export interface StatusView {
   dot: readonly string[];
   /** The action button's label; absent hides the button. */
   action?: string;
+}
+
+/** The failure kinds whose view the chat line and the server lines share. */
+type SharedFailure = Extract<ServerCheck, { kind: "unreachable" | "timeout" | "refused" | "http" }>;
+
+/** The one view for a read with no usable answer — Reconnect on the two states worth retrying. */
+export function failureView(result: SharedFailure, host: string): StatusView {
+  switch (result.kind) {
+    case "unreachable":
+      return {
+        text: t("svc.chat_models_unreachable", { host }),
+        dot: ["is-failed"],
+        action: t("svc.chat_status_reconnect"),
+      };
+    case "timeout":
+      return {
+        text: t("svc.chat_models_timeout", { host }),
+        dot: ["is-failed"],
+        action: t("svc.chat_status_reconnect"),
+      };
+    case "refused":
+      return { text: t("svc.chat_models_refused"), dot: ["is-failed"] };
+    case "http":
+      return { text: t("svc.chat_models_http", { status: result.status }), dot: ["is-failed"] };
+  }
 }
 
 export type ModelStatusPhase = { phase: "reading" } | { phase: "done"; result: ModelListResult };
@@ -41,21 +67,10 @@ export function modelStatusView(input: {
       return { text: t("svc.chat_models_absent"), dot: [] };
     }
     case "unreachable":
-      return {
-        text: t("svc.chat_models_unreachable", { host }),
-        dot: ["is-failed"],
-        action: t("svc.chat_status_reconnect"),
-      };
     case "timeout":
-      return {
-        text: t("svc.chat_models_timeout", { host }),
-        dot: ["is-failed"],
-        action: t("svc.chat_status_reconnect"),
-      };
     case "refused":
-      return { text: t("svc.chat_models_refused"), dot: ["is-failed"] };
     case "http":
-      return { text: t("svc.chat_models_http", { status: result.status }), dot: ["is-failed"] };
+      return failureView(result, host);
     case "no_list":
       return { text: t("svc.chat_models_no_list"), dot: [] };
     case "malformed":
