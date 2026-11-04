@@ -256,6 +256,102 @@ mod tests {
         }
     }
 
+    fn fill(s: &Arc<Store>, count: usize) {
+        for _ in 0..count {
+            spawn(s, TerminalOwner::User, "~".into(), sh("exit 0"), 1).unwrap();
+        }
+        until(|| {
+            s.snapshot()
+                .terminals
+                .iter()
+                .all(|t| t.exit_code == Some(0))
+                .then_some(())
+        });
+    }
+
+    #[test]
+    fn a_seventeenth_terminal_is_refused_until_one_is_closed() {
+        let s = store();
+        fill(&s, 16);
+        let marker = std::env::temp_dir().join(format!(
+            "yui_terminal_{}_{}",
+            std::process::id(),
+            std::thread::current().name().unwrap()
+        ));
+        std::fs::write(&marker, "").unwrap();
+        let script = format!("echo spawned >> '{}'", marker.display());
+        let result = spawn(&s, TerminalOwner::User, "~".into(), sh(&script), 1);
+        if let Ok(terminal) = &result {
+            until(|| {
+                s.snapshot()
+                    .terminals
+                    .iter()
+                    .find(|t| t.id == terminal.id)?
+                    .exit_code
+            });
+        }
+        assert_eq!(std::fs::read_to_string(&marker).unwrap(), "");
+        assert_eq!(
+            result.err(),
+            Some("error: too many terminals (16 open); close one first".into())
+        );
+        std::fs::remove_file(&marker).unwrap();
+        assert_eq!(
+            open(&s, TerminalOwner::User, None, 1).err(),
+            Some("error: too many terminals (16 open); close one first".into())
+        );
+        s.close("t1", None).unwrap().kill();
+        assert_eq!(
+            open(&s, TerminalOwner::User, None, 1).map(|t| t.id),
+            Ok("t17".into())
+        );
+        for pty in s.all() {
+            pty.kill();
+        }
+    }
+
+    #[test]
+    fn concurrent_opens_compete_for_the_last_slot() {
+        let s = store();
+        fill(&s, 15);
+        let marker = std::env::temp_dir().join(format!(
+            "yui_terminal_{}_{}",
+            std::process::id(),
+            std::thread::current().name().unwrap()
+        ));
+        std::fs::write(&marker, "").unwrap();
+        let barrier = Arc::new(std::sync::Barrier::new(2));
+        let calls: Vec<_> = (0..2)
+            .map(|_| {
+                let s = s.clone();
+                let barrier = barrier.clone();
+                let script = format!("echo spawned >> '{}'", marker.display());
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    spawn(&s, TerminalOwner::User, "~".into(), sh(&script), 1)
+                })
+            })
+            .collect();
+        let results: Vec<_> = calls.into_iter().map(|call| call.join().unwrap()).collect();
+        until(|| {
+            s.snapshot()
+                .terminals
+                .iter()
+                .all(|t| t.exit_code == Some(0))
+                .then_some(())
+        });
+        assert_eq!(std::fs::read_to_string(&marker).unwrap(), "spawned\n");
+        std::fs::remove_file(&marker).unwrap();
+        assert_eq!(results.iter().filter(|r| r.is_ok()).count(), 1);
+        assert_eq!(
+            results
+                .into_iter()
+                .filter_map(Result::err)
+                .collect::<Vec<_>>(),
+            vec!["error: too many terminals (16 open); close one first"]
+        );
+    }
+
     #[test]
     fn output_reads_back_and_the_exit_code_is_recorded() {
         let s = store();
