@@ -106,7 +106,7 @@ export async function wireTurnCore(
   cfg: AppConfig,
   phase1: TurnCorePhase1,
   deps: {
-    contextProviders: Parameters<typeof wireDispatcher>[0]["contextProviders"];
+    contextProviders: DispatcherDeps["contextProviders"];
     restoreSignals?: DispatcherDeps["onTurnDropped"];
     screenCapturer: DispatcherDeps["screenCapturer"];
     openSettings?: DispatcherDeps["openSettings"];
