@@ -46,6 +46,7 @@ import { wireWindowGeometry } from "./stage/wire-window-geometry";
 import { type TurnCorePhase1, wireTurnCore } from "./turn/turn-core";
 import type { wireVocabulary } from "./turn/vocabulary/wire-vocabulary";
 import { wireSynthFailureNotice } from "./turn/voice/wire-synth-failure-notice";
+import { wireTtsUnreachableNotice } from "./turn/voice/wire-tts-unreachable-notice";
 import type { VoicePipeline } from "./turn/voice/wire-voice-pipeline";
 import { wireCard } from "./turn/wire-card";
 import { wireFirstConversation } from "./turn/wire-first-conversation";
@@ -389,6 +390,17 @@ const realFactories: ConfiguredBootstrapFactories = {
         onUtteranceEnd: voice.onUtteranceEnd,
         surfaces,
         openSettings: phase1.openSettings,
+        isUnifiedShown: () => phase1.unifiedShown.get(),
+        t,
+      }).dispose,
+    );
+    register(
+      wireTtsUnreachableNotice({
+        onTtsReach: voice.onTtsReach,
+        onUtteranceStart: voice.onUtteranceStart,
+        onUtteranceEnd: voice.onUtteranceEnd,
+        reconnect: voice.reconnectTts,
+        surfaces,
         isUnifiedShown: () => phase1.unifiedShown.get(),
         t,
       }).dispose,

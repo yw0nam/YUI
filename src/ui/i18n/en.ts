@@ -40,6 +40,8 @@ const en: Record<string, string> = {
   "voice.error.mic_unavailable": "Mic unavailable",
   // the bubble action after a real synth failure — the voice itself is what to change
   "voice.synth_failed_action": "Can't speak with this voice · Choose another",
+  // the bubble action after a reply the voice server did not answer — Reconnect checks it again
+  "voice.unreachable_action": "Voice server not connected · Reconnect",
 
   // aria labels (parameterized)
   "aria.refresh_speaker": "Refresh {name} reference voice",

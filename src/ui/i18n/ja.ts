@@ -39,6 +39,8 @@ const ja: Record<string, string> = {
   "voice.error.mic_unavailable": "マイク使用不可",
   // the bubble action after a real synth failure — the voice itself is what to change
   "voice.synth_failed_action": "この声で話せません · ほかの声を選ぶ",
+  // the bubble action after a reply the voice server did not answer — Reconnect checks it again
+  "voice.unreachable_action": "音声サーバーにつながっていません · 再接続",
 
   // aria labels (parameterized)
   "aria.refresh_speaker": "{name} の参照音声を更新",
