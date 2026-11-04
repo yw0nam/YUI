@@ -4,7 +4,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: 12px 14px 0;
+  padding: 8px 14px 0;
   border: 1px solid var(--yui-edge-strong);
   border-radius: var(--yui-radius-group);
   background: var(--yui-scrim-strong);
@@ -31,10 +31,18 @@
   background: none;
 }
 
-/* The card's bottom gap is the area's 10px gap and 4px, not card padding, which would sit after the area's box; the 4px give way before the head scrolls. */
-.yui-ask-card .yui-threads-answer::after {
+/* The card's top gap is 8px of padding and a 4px spacer that gives way before the head shrinks; the area's gap after it is taken back. */
+.yui-ask-card .yui-threads-answer::before {
   content: "";
   flex: 0 1000 4px;
+  margin-bottom: -10px;
+}
+
+/* The card's bottom gap (the area's 10px gap and 4px): card padding sits after the area's box, not after the content that overflows it. */
+.yui-ask-card .yui-threads-answer::after {
+  content: "";
+  flex: none;
+  height: 4px;
 }
 
 /* Every choice and Send stay whole; the prompt gives up its room and scrolls instead. */
