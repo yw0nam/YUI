@@ -294,6 +294,75 @@ mod tests {
         assert!(!app_data.join("plugins/data/yui-test").exists());
     }
 
+    async fn failed_save(previous: Option<&str>) {
+        let (app_data, server) = (temp_dir(), TestServer::start());
+        let (host, _) = host_with(&app_data, server.config());
+        let versions = app_data.join("plugins/installed/yui-test");
+        if let Some(version) = previous {
+            publish_official(&server, version, None, None);
+            host.install("yui-test").await.unwrap();
+            host.lock().live.remove("yui-test");
+        }
+        let state_path = app_data.join("plugins/state.json");
+        let before = std::fs::read(&state_path).ok();
+        std::fs::create_dir_all(app_data.join("plugins/state.json.tmp")).unwrap();
+        publish_official(&server, "0.1.0", None, None);
+
+        let error = host.install("yui-test").await.unwrap_err();
+        assert!(error.starts_with("plugin state write failed: "), "{error}");
+        assert_eq!(std::fs::read(&state_path).ok(), before);
+        let stored = host
+            .lock()
+            .state
+            .as_ref()
+            .unwrap()
+            .plugin("yui-test")
+            .map(|p| p.path.clone());
+        assert_eq!(stored, previous.map(|version| versions.join(version)));
+        if let Some(version) = previous {
+            assert!(versions.join(version).is_dir());
+        }
+        assert_eq!(
+            versions.join("0.1.0").exists(),
+            previous == Some("0.1.0"),
+            "previous={previous:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn failed_new_install_save_removes_the_version() {
+        failed_save(None).await;
+    }
+
+    #[tokio::test]
+    async fn failed_update_save_keeps_old_state_and_removes_the_new_version() {
+        failed_save(Some("0.0.9")).await;
+    }
+
+    #[tokio::test]
+    async fn failed_same_version_save_keeps_the_stored_folder() {
+        failed_save(Some("0.1.0")).await;
+    }
+
+    #[tokio::test]
+    async fn install_sweeps_other_partial_folders_and_keeps_the_stored_version() {
+        let (app_data, server) = (temp_dir(), TestServer::start());
+        let (host, _) = host_with(&app_data, server.config());
+        publish_official(&server, "0.0.8.partial", None, None);
+        host.install("yui-test").await.unwrap();
+        let versions = app_data.join("plugins/installed/yui-test");
+        std::fs::create_dir(versions.join("0.0.9.partial")).unwrap();
+        std::fs::create_dir(app_data.join("plugins/state.json.tmp")).unwrap();
+        publish_official(&server, "0.1.0", None, None);
+
+        host.install("yui-test").await.unwrap_err();
+
+        assert!(versions
+            .join("0.0.8.partial/.claude-plugin/plugin.json")
+            .is_file());
+        assert!(!versions.join("0.0.9.partial").exists());
+    }
+
     #[tokio::test]
     async fn a_checksum_mismatch_installs_nothing() {
         let (app_data, server) = (temp_dir(), TestServer::start());
