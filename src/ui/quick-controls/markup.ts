@@ -21,7 +21,12 @@ export function secHeadHtml(title: string, aside = ""): string {
 
 // Key page link: Tauri's opener opens target=_blank; WebKit's plain Tab skips links without a tabindex.
 // trailingHtml rides inside the anchor after the label — an icon, say.
-export function keyLinkHtml(url: string, labelKey: string, className: string, trailingHtml = ""): string {
+export function keyLinkHtml(
+  url: string,
+  labelKey: string,
+  className: string,
+  trailingHtml = "",
+): string {
   return `<a class="yui-chat-type__link ${className}" href="${url}" target="_blank" rel="noopener noreferrer" tabindex="0">${t(labelKey)}${trailingHtml}</a>`;
 }
 
