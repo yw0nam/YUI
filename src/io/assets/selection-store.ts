@@ -255,18 +255,17 @@ export function createSelectionStore<T extends SelectionOption>(opts: {
     },
 
     // Reload when other window updates storage — re-read both user list and override pointer to
-    // prevent cross-window lost update; notify only if resolution actually changed.
+    // prevent cross-window lost update. An unlisted override is kept, as at construction, and
+    // resolve() ignores it until a manifest lists it; notify only if resolution actually changed.
     reloadFromStorage(): void {
       const before = resolve().id;
       mergeUserOptions();
       if (storage) {
-        let loaded: string | null;
         try {
-          loaded = coerceOverride(storage.load());
+          override = coerceOverride(storage.load());
         } catch {
-          loaded = override;
+          // Keep the current override on storage error.
         }
-        override = loaded !== null && keepsOverride(loaded) ? loaded : null;
       }
       if (resolve().id === before) return;
       notify();
