@@ -4,9 +4,11 @@
  * field persisting and resetting with the service, the model list read, and dispose committing.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ServerCheck } from "../../../io/chat/models/server-check";
 import type { PushSocketState } from "../../../io/chat/push/push-socket";
 import {
   createChatKeySettings,
+  createSttKeySettings,
   createTtsKeySettings,
 } from "../../../settings/backend/api-key-settings";
 import {
@@ -48,6 +50,7 @@ describe("createConnectionTab", () => {
       endpointsSettings,
       chatKeySettings,
       ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
+      sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
       isOpen: () => true,
       ...extra,
       log: {
@@ -540,6 +543,63 @@ describe("createConnectionTab", () => {
       await tick();
 
       expect(calls).toBe(2);
+      tab.dispose();
+    });
+  });
+
+  describe("server lines", () => {
+    const tick = () => new Promise<void>((r) => setTimeout(r, 0));
+
+    function defaultsWith(field: "stt_base_url" | "tts_base_url", url: string) {
+      return endpointDefaultsFromConfig({
+        chat_base_url: "",
+        chat_model: "",
+        stt_base_url: field === "stt_base_url" ? url : "",
+        tts_base_url: field === "tts_base_url" ? url : "",
+      });
+    }
+
+    it("the TTS line shows Could not reach with Reconnect, and clicking it checks the server again", async () => {
+      const checkTtsServer = vi.fn(async (): Promise<ServerCheck | null> => ({
+        kind: "unreachable",
+      }));
+      const tab = build({
+        checkTtsServer,
+        getEndpointDefaults: () => defaultsWith("tts_base_url", "https://tts.test"),
+      });
+
+      tab.entered();
+      await tick();
+      await tick();
+
+      const line = tab.el.querySelector<HTMLElement>('[data-svc="tts"] .yui-chat-status');
+      expect(line?.hidden).toBe(false);
+      expect(line!.textContent).toContain(t("svc.chat_models_unreachable", { host: "tts.test" }));
+      const action = line!.querySelector<HTMLButtonElement>(".yui-chat-status__action")!;
+      expect(action.textContent).toBe(t("svc.chat_status_reconnect"));
+
+      action.click();
+      await tick();
+      await tick();
+
+      expect(checkTtsServer).toHaveBeenCalledTimes(2);
+      tab.dispose();
+    });
+
+    it("the STT line shows the server the check reached", async () => {
+      const checkSttServer = vi.fn(async (): Promise<ServerCheck | null> => ({ kind: "ok" }));
+      const tab = build({
+        checkSttServer,
+        getEndpointDefaults: () => defaultsWith("stt_base_url", "https://stt.test/v1"),
+      });
+
+      tab.entered();
+      await tick();
+      await tick();
+
+      const line = tab.el.querySelector<HTMLElement>('[data-svc="stt"] .yui-chat-status');
+      expect(line?.hidden).toBe(false);
+      expect(line!.textContent).toContain(t("svc.server_connected", { host: "stt.test" }));
       tab.dispose();
     });
   });
