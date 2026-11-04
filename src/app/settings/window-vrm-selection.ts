@@ -20,7 +20,7 @@ export function createWindowVrmSelection(deps: {
   swapVrm: (option: { id: string }) => Promise<void>;
 } {
   const vrmSelection = createVrmSelection({
-    defaultValue: "/vrms/Sendagaya_Shino.vrm",
+    defaultValue: "/vrms/AvatarSample_A.vrm",
     storage: localStorageVrmStorage(),
     userStorage: localStorageUserVrmStorage(),
   });

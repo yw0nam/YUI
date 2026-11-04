@@ -28,7 +28,7 @@ With no chat connected, she says so, and **Connect** opens Quick start. Quick st
 
 ## Load your own VRM model
 
-One VRM model ships with the app, `Sendagaya_Shino.vrm`. To use another VRM 1.0 or 0.x model, open the **Body** page and use **Add from file…** under VRM. **Find models on VRoid Hub** below it opens VRoid's official sample models in your browser; download a `.vrm` there and add it the same way.
+One VRM model ships with the app, `AvatarSample_A.vrm`. To use another VRM 1.0 or 0.x model, open the **Body** page and use **Add from file…** under VRM. **Find models on VRoid Hub** below it opens VRoid's official sample models in your browser; download a `.vrm` there and add it the same way.
 
 ## Next
 

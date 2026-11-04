@@ -1164,7 +1164,7 @@ describe("validateAvatar — characterization", () => {
       readFileSync(resolve(__dirname, "../../../configs/avatar.json"), "utf8"),
     );
     expect(validateAvatar(FILE, shipped)).toEqual({
-      vrm_url: "/vrms/Sendagaya_Shino.vrm",
+      vrm_url: "/vrms/AvatarSample_A.vrm",
       framing: {
         margin: 0.1,
         fov: 30,
@@ -1290,9 +1290,9 @@ describe("validateAvatar — characterization", () => {
       },
       available: [
         {
-          id: "sendagaya_shino",
-          label: "Sendagaya Shino",
-          url: "/vrms/Sendagaya_Shino.vrm",
+          id: "avatar_sample_a",
+          label: "AvatarSample A",
+          url: "/vrms/AvatarSample_A.vrm",
           source: "bundled",
         },
       ],

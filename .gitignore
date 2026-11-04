@@ -14,11 +14,11 @@ dist
 .idea
 .DS_Store
 *.sw?
-# The default VRM (20 MiB) and the VAD wasm are plain git objects: Git LFS would add a client requirement to every clone for files that rarely change.
+# The default VRM (25 MiB) and the VAD wasm are plain git objects: Git LFS would add a client requirement to every clone for files that rarely change.
 resources/vrms/*
 !resources/vrms/.gitkeep
-!resources/vrms/Sendagaya_Shino.vrm
-!resources/vrms/Sendagaya_Shino.PROVENANCE.md
+!resources/vrms/AvatarSample_A.vrm
+!resources/vrms/AvatarSample_A.PROVENANCE.md
 public/purchased_motions/*
 !public/purchased_motions/.gitkeep
 !public/purchased_motions/AGENTS.md

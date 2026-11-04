@@ -6,7 +6,7 @@ Everything YUI does today, grouped by area. [What she can do](capabilities.md) c
 
 | Feature | What it does |
 | --- | --- |
-| Models | VRM 1.0 and 0.x with hot-swap, the bundled Shino, and imports you can rename or delete |
+| Models | VRM 1.0 and 0.x with hot-swap, the bundled AvatarSample A, and imports you can rename or delete |
 | Emotions and motions | 10 emotions and 24 motions, 8 of which the backend can pick, falling back to neutral ([catalog](motions.md)) |
 | Cursor gaze | Her head and eyes follow the cursor on screen |
 | Lipsync | Mouth movement that follows speech amplitude, with a gain slider |

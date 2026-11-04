@@ -36,7 +36,7 @@ git checkout "$(git describe --tags --abbrev=0)"
 pnpm install
 ```
 
-Done when `pnpm install` exits 0 and `resources/vrms/Sendagaya_Shino.vrm` exists. That file is the bundled default character and the only hard requirement.
+Done when `pnpm install` exits 0 and `resources/vrms/AvatarSample_A.vrm` exists. That file is the bundled default character and the only hard requirement.
 
 ### 3. Backend (optional)
 
