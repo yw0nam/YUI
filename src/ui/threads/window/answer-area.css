@@ -71,7 +71,8 @@
   white-space: pre-wrap;
 }
 
-.yui-threads-answer__head small {
+.yui-threads-answer__head small,
+.yui-threads-answer__multiple {
   color: var(--yui-text-mute);
   font-size: var(--yui-fs-sub);
 }
@@ -263,14 +264,13 @@
     padding-block: 8px 10px;
   }
 
-  .yui-threads-answer__head small:not(.yui-threads-answer__multiple) {
+  .yui-threads-answer__head small {
     display: none;
   }
 }
 
 .yui-threads-answer__multiple {
-  flex-basis: 100%;
-  order: 1;
+  flex: none;
 }
 
 .yui-threads-answer__check {

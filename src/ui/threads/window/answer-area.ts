@@ -57,7 +57,7 @@ export function createAnswerArea(deps: {
     hint.id = "yui-threads-answer-multiple";
     hint.className = "yui-threads-answer__multiple";
     hint.textContent = t("threads.choose_multiple");
-    el.querySelector(".yui-threads-answer__prompt")!.after(hint);
+    choicesEl.before(hint);
     choicesEl.setAttribute("aria-describedby", hint.id);
   }
   const composer = el.querySelector<HTMLElement>(".yui-threads-answer__composer")!;
