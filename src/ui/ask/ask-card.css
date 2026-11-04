@@ -31,7 +31,7 @@
   background: none;
 }
 
-/* The card's 14px bottom gap is the area's last flex block (its 10px gap and 4px), so a scrolled card still ends 14px under the field and its focus ring. */
+/* The card's bottom gap (the area's 10px gap and 4px): card padding sits after the area's box, not after the content that overflows it. */
 .yui-ask-card .yui-threads-answer::after {
   content: "";
   flex: none;
