@@ -145,6 +145,7 @@ describe("createDelegationChip", () => {
       t("deleg.chip_running", { n: 2 }),
     );
     expect(chipEl().classList.contains("is-mini")).toBe(false);
+    expect(chipButton().getAttribute("aria-label")).toBe("작업 2개 진행 중");
   });
 
   it("renders the label in the active locale", () => {
@@ -447,6 +448,7 @@ describe("createDelegationChip", () => {
         expect(chipEl().hidden).toBe(false);
         expect(chipEl().classList.contains("is-lost")).toBe(true);
         expect(mount.querySelector<HTMLElement>(".yui-deleg__label")!.textContent).toBe(label);
+        expect(chipButton().getAttribute("aria-label")).toBe(label);
       });
     }
 
