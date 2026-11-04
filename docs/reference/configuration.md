@@ -188,7 +188,7 @@ The key set in the panel wins, and the environment value is the fallback used wh
 
 `configs/avatar.json` holds the model and its framing.
 
-- `vrm_url` is what the app loads at boot, and the bundled default is `/vrms/Sendagaya_Shino.vrm`.
+- `vrm_url` is what the app loads at boot, and the bundled default is `/vrms/AvatarSample_A.vrm`.
 - `framing.margin` and `framing.fov` set the per-model framing.
 - `hit_test.alpha_threshold` sets the hit-test alpha threshold.
 - `tap.touch_cue_cooldown_ms` sets the gap between touch cues to the agent; the shipped value is `60000` ms, one cue a minute, shared by every touch region and the head pat.

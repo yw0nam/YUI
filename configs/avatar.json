@@ -1,5 +1,5 @@
 {
-  "vrm_url": "/vrms/Sendagaya_Shino.vrm",
+  "vrm_url": "/vrms/AvatarSample_A.vrm",
   "framing": { "margin": 0.1, "fov": 30 },
   "hit_test": {
     "hysteresis_margin_px": 8,
@@ -98,9 +98,9 @@
   },
   "available": [
     {
-      "id": "sendagaya_shino",
-      "label": "Sendagaya Shino",
-      "url": "/vrms/Sendagaya_Shino.vrm",
+      "id": "avatar_sample_a",
+      "label": "AvatarSample A",
+      "url": "/vrms/AvatarSample_A.vrm",
       "source": "bundled"
     }
   ]

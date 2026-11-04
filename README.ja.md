@@ -163,7 +163,7 @@ YUI自体はモデルを内蔵していません。何ができるかで頭脳�
 
 ## クレジット
 
-モーションはShiny氏の[Mate Engine](https://github.com/shinyflvre/Mate-Engine)、necocoya氏の[EmoteSet_Free_v130](https://booth.pm/ja/items/1065089)、[Mixamo](https://www.mixamo.com/)、そしてYUIのためにAIで作ったクリップのものを使っています。既定のキャラクターは[ピクシブ株式会社](https://vroid.pixiv.help/hc/en-us/articles/360013482714)の **千駄ヶ谷 篠(Sendagaya Shino)** を、[Coatie](https://hub.vroid.com/en/characters/4593660874193246717)氏がVRM 1.0に変換したものです。
+モーションはShiny氏の[Mate Engine](https://github.com/shinyflvre/Mate-Engine)、necocoya氏の[EmoteSet_Free_v130](https://booth.pm/ja/items/1065089)、[Mixamo](https://www.mixamo.com/)、そしてYUIのためにAIで作ったクリップのものを使っています。既定のキャラクターは、ピクシブ株式会社の[VRoid Studio](https://vroid.com/studio)のサンプルモデル **AvatarSample_A** です。
 
 デモ動画とGIFでは、YUIに含まれていない別のVRMモデルと音声を使っています。自分のVRMを読み込んで使えます。
 
@@ -190,12 +190,11 @@ Shiny氏から別途許可を得る必要があります。
 ロイヤリティフリーです。
 
 同梱している既定のVRMモデル
-(`resources/vrms/Sendagaya_Shino.vrm`)は **千駄ヶ谷 篠(Sendagaya Shino)** です。原作は
-[ピクシブ株式会社](https://vroid.pixiv.help/hc/en-us/articles/360013482714)(VRoid
-プロジェクト、CC0)で、
-[Coatie](https://hub.vroid.com/en/characters/4593660874193246717)氏がVRM 1.0に
-変換しました。どちらのライセンスもクレジット表記を求めていません。表記の全文は
-[`resources/vrms/Sendagaya_Shino.PROVENANCE.md`](resources/vrms/Sendagaya_Shino.PROVENANCE.md)
+(`resources/vrms/AvatarSample_A.vrm`)は **AvatarSample_A** です。ピクシブ株式会社の
+[AvatarSample利用条件](https://vroid.pixiv.help/hc/ja/articles/4402394424089)のもとで
+配布されています。CC0ではなく、著作権はピクシブ株式会社に留まります。クレジット表記は
+不要です。表記の全文は
+[`resources/vrms/AvatarSample_A.PROVENANCE.md`](resources/vrms/AvatarSample_A.PROVENANCE.md)
 をご覧ください。
 
 </details>

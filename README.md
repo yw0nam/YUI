@@ -163,7 +163,7 @@ The [connection guide](docs/guide/connect-a-backend.md) covers each setup. Missi
 
 ## Credits
 
-Motions come from [Mate Engine](https://github.com/shinyflvre/Mate-Engine) by Shiny, necocoya's [EmoteSet_Free_v130](https://booth.pm/ja/items/1065089), [Mixamo](https://www.mixamo.com/), and clips made for YUI by AI. The default character is **Sendagaya Shino** by [pixiv Inc.](https://vroid.pixiv.help/hc/en-us/articles/360013482714), converted to VRM 1.0 by [Coatie](https://hub.vroid.com/en/characters/4593660874193246717).
+Motions come from [Mate Engine](https://github.com/shinyflvre/Mate-Engine) by Shiny, necocoya's [EmoteSet_Free_v130](https://booth.pm/ja/items/1065089), [Mixamo](https://www.mixamo.com/), and clips made for YUI by AI. The default character is **AvatarSample_A**, a sample model of [VRoid Studio](https://vroid.com/en/studio) by pixiv Inc.
 
 The demo videos and GIFs use other VRM models and voices, which YUI does not include. You can load your own VRM.
 
@@ -190,12 +190,12 @@ and `stand_up` are from [Mixamo](https://www.mixamo.com/), royalty-free under
 the Mixamo terms.
 
 The bundled default VRM model
-(`resources/vrms/Sendagaya_Shino.vrm`) is **Sendagaya Shino**, originally by
-[pixiv Inc.](https://vroid.pixiv.help/hc/en-us/articles/360013482714) (VRoid
-Project, CC0), converted to VRM 1.0 by
-[Coatie](https://hub.vroid.com/en/characters/4593660874193246717). Neither
-license requires attribution — see
-[`resources/vrms/Sendagaya_Shino.PROVENANCE.md`](resources/vrms/Sendagaya_Shino.PROVENANCE.md)
+(`resources/vrms/AvatarSample_A.vrm`) is **AvatarSample_A**, a sample model of
+[VRoid Studio](https://vroid.com/en/studio) by pixiv Inc., distributed under
+pixiv's [AvatarSample conditions of use](https://vroid.pixiv.help/hc/ja/articles/4402394424089).
+It is not CC0 and its copyright stays with pixiv Inc.; no credit is required —
+see
+[`resources/vrms/AvatarSample_A.PROVENANCE.md`](resources/vrms/AvatarSample_A.PROVENANCE.md)
 for the full notice.
 
 </details>
