@@ -569,6 +569,7 @@ const ko: Record<string, string> = {
   "svc.chat_models_timeout": "{host}가 제시간에 응답하지 않음",
   "svc.chat_models_refused": "서버가 키를 거절함",
   "svc.chat_models_http": "서버가 오류를 돌려줌 ({status})",
+  "svc.server_connected": "연결됨 · {host}",
   "svc.chat_models_no_list": "이 URL에는 모델 목록이 없음",
   "svc.chat_models_malformed": "서버가 잘못된 형식의 모델 목록을 돌려줌",
   "svc.chat_models_no_match": "일치하는 모델 없음. 입력한 이름을 그대로 씁니다.",

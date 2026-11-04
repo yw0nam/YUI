@@ -570,6 +570,7 @@ const en: Record<string, string> = {
   "svc.chat_models_timeout": "{host} did not answer in time",
   "svc.chat_models_refused": "The server refused the key",
   "svc.chat_models_http": "The server returned an error ({status})",
+  "svc.server_connected": "Connected · {host}",
   "svc.chat_models_no_list": "No model list at this URL",
   "svc.chat_models_malformed": "The server returned an invalid model list",
   "svc.chat_models_no_match": "No match. The typed name is kept.",
