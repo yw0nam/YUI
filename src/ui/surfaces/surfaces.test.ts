@@ -14,7 +14,6 @@ vi.mock("./surfaces.css", () => ({}));
 vi.mock("../tokens.css", () => ({}));
 
 import { createReasoningStore } from "../../io/bridge/reasoning/reasoning-store";
-import { createAskCard } from "../ask/ask-card";
 import { INTERACTIVE_OVERLAY_SELECTORS } from "./interactive-overlay";
 import { createSurfaces } from "./surfaces";
 import { noTool } from "./test-helpers";
@@ -446,7 +445,6 @@ describe("Command list — the bubble steps aside while it is open", () => {
 describe("Ask card — the bubble steps aside while one shows", () => {
   it("takes the bubble out of the pointer targets while the card shows, and gives it back when the card hides", () => {
     const { s, mount } = makeSurfaces();
-    const card = createAskCard({ mount: s.askSlot, onAnswer: () => true });
     const bubbleTargets = () =>
       INTERACTIVE_OVERLAY_SELECTORS.flatMap((sel) => [...mount.querySelectorAll(sel)]).filter(
         (el) => el.closest(".yui-bubble"),
@@ -456,17 +454,40 @@ describe("Ask card — the bubble steps aside while one shows", () => {
     s.endSpeech({ defer: true });
     const shown = bubbleTargets();
 
-    card.show({
-      type: "ask",
-      ask: { ask_id: "a1", prompt: "Run it?", choices: [], text: true },
-      expires_at: Date.now() + 60_000,
-    });
+    s.setAsks([
+      {
+        type: "ask",
+        ask: { ask_id: "a1", prompt: "Run it?", choices: [], text: true },
+        expires_at: Date.now() + 60_000,
+      },
+    ]);
     const withCard = bubbleTargets();
-    card.end("a1");
+    s.setAsks([]);
 
     expect([shown > 0, withCard, bubbleTargets() === shown]).toEqual([true, 0, true]);
-    card.dispose();
     s.dispose();
     mount.remove();
   });
+});
+
+it("sends the mounted Ask card's picked choice to the registered Answer handler", () => {
+  const { s, mount } = makeSurfaces();
+  const answer = vi.fn(() => true);
+  s.onAskAnswer(answer);
+  s.setAsks([
+    {
+      type: "ask",
+      ask: {
+        ask_id: "a1",
+        prompt: "Run it?",
+        choices: [{ id: "once", label: "Allow Once" }],
+        text: false,
+      },
+    },
+  ]);
+  mount.querySelector<HTMLButtonElement>(".yui-threads-answer__choices button")!.click();
+  mount.querySelector<HTMLButtonElement>(".yui-threads-answer__send")!.click();
+  expect(answer).toHaveBeenCalledExactlyOnceWith({ ask_id: "a1", choice: "once" });
+  s.dispose();
+  mount.remove();
 });

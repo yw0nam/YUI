@@ -9,6 +9,7 @@
 import type { RemoteSurfaces } from "../../io/bridge/message/message-remote";
 import type { MessageWindowMode } from "../../settings/panels/message-window-settings";
 import type { UnifiedShown } from "../../settings/unified/unified-shown";
+import { createAskRoute } from "../ask/ask-route";
 import type { Surfaces } from "./surfaces";
 
 interface SurfacesRouterOptions {
@@ -47,6 +48,10 @@ export function createSurfacesRouter({
   subscribeMode,
   shown,
 }: SurfacesRouterOptions): Surfaces {
+  const asks = createAskRoute(
+    () => (shown.get() ? local : getMode() === "popped" ? remote : local),
+    [local, remote],
+  );
   const speech = (): SpeechSide & Pick<Surfaces, "showSpeechActions"> =>
     getMode() === "popped" ? remote : local;
   const input = (): Pick<
@@ -75,6 +80,7 @@ export function createSurfacesRouter({
   const unsubscribeMode = subscribeMode((mode) => {
     if (mode === lastMode) return;
     lastMode = mode;
+    asks.resend();
     // The unified window takes over the input, so nothing is carried across.
     if (shown.get()) return;
     const left: Pick<Surfaces, "hideSpeech" | "isInputOpen" | "dismissInput"> =
@@ -99,7 +105,8 @@ export function createSurfacesRouter({
   return {
     el: local.el,
     chipColumn: local.chipColumn,
-    askSlot: local.askSlot,
+    setAsks: asks.setAsks,
+    onAskAnswer: asks.onAskAnswer,
 
     beginSpeech(...args) {
       chatLine = args[0] !== undefined || args[1]?.aside === true;

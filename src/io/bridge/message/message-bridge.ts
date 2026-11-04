@@ -8,7 +8,7 @@
  */
 
 import type { AttachmentLimits } from "../../../config/validators/guardrails";
-import type { BackendCommand } from "../../chat/push/push-frames";
+import type { AskAnswer, AskFrame, BackendCommand } from "../../chat/push/push-frames";
 import { type BridgeTransport, createBridgeCore, type WindowKind } from "../core/bridge-core";
 
 const CH_MESSAGE_SURFACE = "yui://message-surface";
@@ -38,6 +38,7 @@ export type CommandReplyState =
 
 /** Pet → message: one call on the message window's local `Surfaces`. */
 export type MessageSurfaceOp =
+  | { op: "asks"; frames: AskFrame[] }
   | { op: "commands"; commands: BackendCommand[] }
   | { op: "command-reply"; reply: CommandReplyState }
   | { op: "begin" }
@@ -60,6 +61,7 @@ export type MessageSurfaceOp =
 
 /** Message → pet: what the user did, plus the mount handshake. */
 export type MessageControlOp =
+  | { op: "ask-answer"; answer: AskAnswer }
   | { op: "command-reply-close" }
   | { op: "command"; name: string; args: string }
   | { op: "submit"; text: string; images: string[] }

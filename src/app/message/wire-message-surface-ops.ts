@@ -17,9 +17,16 @@ export function wireMessageSurfaceOps({
   surfaces: Surfaces;
   name: Pick<MirroredName, "set">;
 }): void {
+  surfaces.onAskAnswer((answer) => {
+    bridge.emitControl({ op: "ask-answer", answer });
+    return true;
+  });
   surfaces.onCommandReplyClose(() => bridge.emitControl({ op: "command-reply-close" }));
   bridge.onSurface((op) => {
     switch (op.op) {
+      case "asks":
+        surfaces.setAsks(op.frames);
+        break;
       case "begin":
       case "push":
       case "end":

@@ -1,31 +1,24 @@
-/**
- * The pet window's Ask card: the backend's open Asks in arrival order, the oldest shown in the
- * Threads answer area with the time it has left, when it has a deadline. An Ask closes once
- * answered, at its expiry, or when the backend ends it; with none left the card hides.
- */
+/** Renders the oldest supplied Ask above the input with its countdown, choices and draft; the session owns when it closes. */
 
 import "./ask-card.css";
-import type { AskFrame } from "../../io/chat/push/push-frames";
+import type { AskAnswer, AskFrame } from "../../io/chat/push/push-frames";
 import { t } from "../i18n";
 import { markClipped } from "../scroll-fade/scroll-fade";
 import { type AnswerArea, createAnswerArea } from "../threads/window/answer-area";
 import type { Draft } from "../threads/window/drafts";
 
 export interface AskCard {
-  /** Holds the Ask, replacing the one with the same `ask_id` in place. */
-  show(frame: AskFrame): void;
-  /** The backend closed the Ask without the user's answer. */
-  end(askId: string): void;
-  clear(): void;
+  /** Keeps DOM, focus and draft for an unchanged head; head changes, local failures and post-answer replay re-render it. */
+  set(frames: AskFrame[]): void;
+  /** Appends an Answer handler; the first handler supplies the send result. */
+  onAnswer(cb: (answer: AskAnswer) => boolean): void;
   dispose(): void;
 }
 
-export function createAskCard(deps: {
-  mount: HTMLElement;
-  /** False when the answer could not be sent; the Ask stays open. */
-  onAnswer(answer: { ask_id: string; choice?: string; text?: string }): boolean;
-}): AskCard {
-  const open: AskFrame[] = [];
+export function createAskCard(deps: { mount: HTMLElement }): AskCard {
+  const answerHandlers: Array<(answer: AskAnswer) => boolean> = [];
+  let head: AskFrame | undefined;
+  let answered = false;
   let area: AnswerArea | null = null;
   let shownId: string | null = null;
   let draft: Draft = { text: "" };
@@ -41,7 +34,8 @@ export function createAskCard(deps: {
 
   function render(error: string | null = null): void {
     clearTimeout(tick);
-    const frame = open[0];
+    answered = false;
+    const frame = head;
     el.hidden = !frame;
     if (!frame) {
       el.replaceChildren();
@@ -61,8 +55,9 @@ export function createAskCard(deps: {
         draft = next;
       },
       onSend: (answer) => {
-        if (deps.onAnswer({ ask_id: frame.ask.ask_id, ...answer })) close(frame.ask.ask_id);
-        else render(t("ask.not_sent"));
+        answered = true;
+        const [sent] = answerHandlers.map((cb) => cb({ ask_id: frame.ask.ask_id, ...answer }));
+        if (!sent) render(t("ask.not_sent"));
       },
       head: timer,
     });
@@ -72,7 +67,7 @@ export function createAskCard(deps: {
 
   // Each tick lands where the shown seconds change, so the last one lands on expires_at.
   function countDown(): void {
-    const frame = open[0]!;
+    const frame = head!;
     const { expires_at } = frame;
     timer.hidden = expires_at === undefined;
     if (expires_at === undefined) {
@@ -80,15 +75,11 @@ export function createAskCard(deps: {
       return;
     }
     const left = expires_at - Date.now();
-    if (left <= 0) {
-      close(frame.ask.ask_id);
-      return;
-    }
-    const s = Math.ceil(left / 1000);
+    const s = Math.max(0, Math.ceil(left / 1000));
     const time = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
     timer.textContent = t("ask.time_left", { time });
     cue();
-    tick = setTimeout(countDown, left - (s - 1) * 1000);
+    if (left > 0) tick = setTimeout(countDown, left - (s - 1) * 1000);
   }
 
   // The prompt head, where the timer rides, marks itself while more of it sits below; a render, a scroll and each tick of a deadline re-measure it.
@@ -97,13 +88,6 @@ export function createAskCard(deps: {
   }
   // Scroll does not bubble, so the card catches the head's on capture.
   el.addEventListener("scroll", cue, true);
-
-  function close(askId: string): void {
-    const i = open.findIndex((f) => f.ask.ask_id === askId);
-    if (i < 0) return;
-    open.splice(i, 1);
-    if (i === 0) render();
-  }
 
   // Typing in the field keeps its keys, and a shortcut is not a choice.
   el.addEventListener("keydown", (e) => {
@@ -115,16 +99,14 @@ export function createAskCard(deps: {
   });
 
   return {
-    show(frame) {
-      const i = open.findIndex((f) => f.ask.ask_id === frame.ask.ask_id);
-      if (i < 0) open.push(frame);
-      else open[i] = frame;
-      if (open[0] === frame) render();
-    },
-    end: close,
-    clear() {
-      open.length = 0;
+    set(frames) {
+      const next = frames[0];
+      if (!answered && JSON.stringify(head) === JSON.stringify(next)) return;
+      head = next;
       render();
+    },
+    onAnswer(cb) {
+      answerHandlers.push(cb);
     },
     dispose() {
       clearTimeout(tick);

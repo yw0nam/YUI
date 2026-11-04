@@ -47,3 +47,31 @@ it.each([
   expect(run).toHaveBeenCalledWith("status", "");
   remote.dispose();
 });
+
+it("replays open and cleared Asks on ready and forwards an Answer", () => {
+  let control!: (op: MessageControlOp) => void;
+  const bridge = {
+    emitSurface: vi.fn(),
+    onControl: (cb: typeof control) => {
+      control = cb;
+      return () => {};
+    },
+  } as unknown as MessageBridge;
+  const remote = createRemoteSurfaces(bridge);
+  remote.setAsks([{ type: "ask", ask: { ask_id: "a", prompt: "Run?", choices: [], text: true } }]);
+  vi.mocked(bridge.emitSurface).mockClear();
+  control({ op: "ready" });
+  expect(bridge.emitSurface).toHaveBeenCalledWith({
+    op: "asks",
+    frames: [{ type: "ask", ask: { ask_id: "a", prompt: "Run?", choices: [], text: true } }],
+  });
+  remote.setAsks([]);
+  vi.mocked(bridge.emitSurface).mockClear();
+  control({ op: "ready" });
+  expect(bridge.emitSurface).toHaveBeenCalledWith({ op: "asks", frames: [] });
+  const answer = vi.fn(() => false);
+  remote.onAskAnswer(answer);
+  control({ op: "ask-answer", answer: { ask_id: "a", choice: "once" } });
+  expect(answer).toHaveBeenCalledExactlyOnceWith({ ask_id: "a", choice: "once" });
+  remote.dispose();
+});
