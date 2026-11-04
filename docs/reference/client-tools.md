@@ -551,8 +551,7 @@ character called it.
 
 The Rust shell runs each Terminal in a PTY, and the terminal tools reach those Terminals from every
 pet window under Tauri. Opening a Terminal and closing one the calling preset opened run without
-asking the user. At most 16 Terminals, running or exited, are open at once; an open past that answers
-`error: too many terminals (16 open); close one first` and starts no shell.
+asking the user.
 
 A read or write on a Terminal the calling preset has no access to creates an access request and
 waits. The Threads window's Terminal tab shows the Allow / Deny card with a countdown, and Allow
