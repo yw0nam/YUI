@@ -86,7 +86,12 @@ interface TtsProvider {
 }
 
 /** The TTS request got no answer: the fetch rejected, or the deadline fired before a response. */
-export class TtsUnreachableError extends Error {}
+export class TtsUnreachableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "TtsUnreachableError";
+  }
+}
 
 // 30 s: synths queued behind other windows' requests on a shared TTS server answer within it.
 export const TTS_SYNTH_TIMEOUT_MS = 30_000;
