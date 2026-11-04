@@ -175,3 +175,26 @@ it("marks the prompt while more of it sits below its visible part", () => {
 
   expect([scrollTo(0), scrollTo(200)]).toEqual([true, false]);
 });
+
+it("enables retry with the draft and no error when the answered head is sent again", () => {
+  const { card, el, onAnswer, answer } = build();
+  card.set([frame("a")]);
+  const field = el.querySelector("textarea")!;
+  field.value = "my draft";
+  field.dispatchEvent(new Event("input", { bubbles: true }));
+  answer(0);
+  expect(el.querySelector<HTMLButtonElement>(".yui-threads-answer__send")!.disabled).toBe(true);
+
+  card.set([frame("a")]);
+
+  expect([
+    el.querySelector("textarea")?.value,
+    el.querySelector<HTMLButtonElement>(".yui-threads-answer__send")!.disabled,
+    el.querySelector(".yui-threads-answer__error"),
+  ]).toEqual(["my draft", false, null]);
+  el.querySelector<HTMLButtonElement>(".yui-threads-answer__send")!.click();
+  expect(onAnswer.mock.calls).toEqual([
+    [{ ask_id: "a", choice: "once", text: "my draft" }],
+    [{ ask_id: "a", choice: "once", text: "my draft" }],
+  ]);
+});
