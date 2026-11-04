@@ -16,6 +16,7 @@ import {
   COMPANION_HANDLE_HEIGHT,
   resolveCompanionPosition,
 } from "../geometry/companion-position";
+import { createSerialQueue } from "../serial-queue";
 
 const log = createLogger("message-window");
 
@@ -115,10 +116,7 @@ export function createMessageWindowController(
   open(): void;
   hide(): void;
 } {
-  let chain: Promise<void> = Promise.resolve();
-  const queue = (step: () => Promise<void>): void => {
-    chain = chain.then(step, step);
-  };
+  const queue = createSerialQueue();
 
   return {
     open() {
