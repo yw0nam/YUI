@@ -469,3 +469,25 @@ describe("Ask card — the bubble steps aside while one shows", () => {
     mount.remove();
   });
 });
+
+it("sends the mounted Ask card's picked choice to the registered Answer handler", () => {
+  const { s, mount } = makeSurfaces();
+  const answer = vi.fn(() => true);
+  s.onAskAnswer(answer);
+  s.setAsks([
+    {
+      type: "ask",
+      ask: {
+        ask_id: "a1",
+        prompt: "Run it?",
+        choices: [{ id: "once", label: "Allow Once" }],
+        text: false,
+      },
+    },
+  ]);
+  mount.querySelector<HTMLButtonElement>(".yui-threads-answer__choices button")!.click();
+  mount.querySelector<HTMLButtonElement>(".yui-threads-answer__send")!.click();
+  expect(answer).toHaveBeenCalledExactlyOnceWith({ ask_id: "a1", choice: "once" });
+  s.dispose();
+  mount.remove();
+});

@@ -108,10 +108,11 @@ describe("createSurfacesRouter", () => {
 
   const setMode = (next: MessageWindowMode): void => {
     mode = next;
-    for (const cb of listeners) cb(next);
+    for (const cb of listeners) cb(shown ? "docked" : next);
   };
   const setShown = (next: boolean): void => {
     shown = next;
+    for (const cb of listeners) cb(shown ? "docked" : mode);
     for (const cb of shownListeners) cb(next);
   };
 
@@ -146,7 +147,11 @@ describe("createSurfacesRouter", () => {
     setShown(true);
     setMode("popped");
     expect(local.setAsks).toHaveBeenLastCalledWith(frames);
+    vi.mocked(local.setAsks).mockClear();
+    vi.mocked(remote.setAsks).mockClear();
     setShown(false);
+    expect(local.setAsks).toHaveBeenCalledTimes(1);
+    expect(remote.setAsks).toHaveBeenCalledTimes(1);
     expect(local.setAsks).toHaveBeenLastCalledWith([]);
     expect(remote.setAsks).toHaveBeenLastCalledWith(frames);
     const answer = vi.fn(() => true);
@@ -239,7 +244,7 @@ describe("createSurfacesRouter", () => {
       local,
       remote,
       stream,
-      getMode: () => mode,
+      getMode: () => (shown ? "docked" : mode),
       subscribeMode: (cb) => {
         listeners.push(cb);
         return () => {
