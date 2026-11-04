@@ -182,6 +182,7 @@ export function createDelegationChip({
       closeList();
       chipBtn.removeAttribute("aria-expanded");
       labelEl.textContent = lostLabel(state);
+      chipBtn.setAttribute("aria-label", labelEl.textContent);
       countEl.textContent = "";
       show();
       return;
@@ -197,6 +198,7 @@ export function createDelegationChip({
     }
     labelEl.textContent =
       running === 1 ? t("deleg.chip_running_one") : t("deleg.chip_running", { n: running });
+    chipBtn.setAttribute("aria-label", labelEl.textContent);
     countEl.textContent = String(running);
     if (listOpen) renderDelegationRows(rowsEl, items, now());
     show();
