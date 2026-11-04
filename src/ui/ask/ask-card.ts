@@ -1,3 +1,5 @@
+/** Renders the oldest supplied Ask above the input with its countdown, choices and draft; the session owns when it closes. */
+
 import "./ask-card.css";
 import type { AskAnswer, AskFrame } from "../../io/chat/push/push-frames";
 import { t } from "../i18n";
@@ -6,15 +8,15 @@ import { type AnswerArea, createAnswerArea } from "../threads/window/answer-area
 import type { Draft } from "../threads/window/drafts";
 
 export interface AskCard {
+  /** Keeps DOM, focus and draft for an unchanged head; head changes, local failures and post-answer replay re-render it. */
   set(frames: AskFrame[]): void;
+  /** Appends an Answer handler; the first handler supplies the send result. */
+  onAnswer(cb: (answer: AskAnswer) => boolean): void;
   dispose(): void;
 }
 
-export function createAskCard(deps: {
-  mount: HTMLElement;
-  /** False when the answer could not be sent; the Ask stays open. */
-  onAnswer(answer: AskAnswer): boolean;
-}): AskCard {
+export function createAskCard(deps: { mount: HTMLElement }): AskCard {
+  const answerHandlers: Array<(answer: AskAnswer) => boolean> = [];
   let head: AskFrame | undefined;
   let answered = false;
   let area: AnswerArea | null = null;
@@ -54,7 +56,8 @@ export function createAskCard(deps: {
       },
       onSend: (answer) => {
         answered = true;
-        if (!deps.onAnswer({ ask_id: frame.ask.ask_id, ...answer })) render(t("ask.not_sent"));
+        const [sent] = answerHandlers.map((cb) => cb({ ask_id: frame.ask.ask_id, ...answer }));
+        if (!sent) render(t("ask.not_sent"));
       },
       head: timer,
     });
@@ -98,9 +101,12 @@ export function createAskCard(deps: {
   return {
     set(frames) {
       const next = frames[0];
-      if (!answered && (head === next || JSON.stringify(head) === JSON.stringify(next))) return;
+      if (!answered && JSON.stringify(head) === JSON.stringify(next)) return;
       head = next;
       render();
+    },
+    onAnswer(cb) {
+      answerHandlers.push(cb);
     },
     dispose() {
       clearTimeout(tick);

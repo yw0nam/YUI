@@ -27,7 +27,7 @@ import {
   type wireSpeakerSelection,
   type wireVrmSelection,
 } from "../settings/wire-avatar";
-import { createAskSession } from "./push/ask-session";
+import { wireAskSession } from "./push/ask-session";
 import { wirePlayback } from "./push/playback";
 import { wireBackendCommands } from "./push/wire-backend-commands";
 import { wirePushTransport, wireStopButton } from "./push/wire-push";
@@ -287,7 +287,7 @@ export async function wireTurnCore(
       register(published.subscribe(() => pushSocket?.sendVocabulary()));
       if (pushSocket) {
         register(wirePlayback({ socket: pushSocket, previousTurn }));
-        register(createAskSession({ socket: pushSocket, surfaces }));
+        register(wireAskSession({ socket: pushSocket, surfaces }));
         register(
           wireBackendCommands({
             socket: pushSocket,

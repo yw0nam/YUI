@@ -4,7 +4,7 @@ import type { AskAnswer, AskFrame } from "../../../io/chat/push/push-frames";
 import type { PushSocket } from "../../../io/chat/push/push-socket";
 import { createAskCard } from "../../../ui/ask/ask-card";
 import { setLocale } from "../../../ui/i18n";
-import { createAskSession } from "./ask-session";
+import { wireAskSession } from "./ask-session";
 
 const frame = (id: string, expires_at?: number): AskFrame => ({
   type: "ask",
@@ -21,9 +21,10 @@ function build(card = false) {
   const off = vi.fn();
   const mount = document.createElement("div");
   document.body.append(mount);
-  const view = card ? createAskCard({ mount, onAnswer: (a) => answer(a) }) : undefined;
+  const view = card ? createAskCard({ mount }) : undefined;
+  view?.onAnswer((a) => answer(a));
   const setAsks = vi.fn((frames: AskFrame[]) => view?.set(frames));
-  const dispose = createAskSession({
+  const dispose = wireAskSession({
     socket: {
       onAsk: (cb) => {
         ask = cb;
@@ -96,9 +97,15 @@ it.each(["disconnect", "expiry"])("clears open Asks on %s", (event) => {
 });
 
 it.each([
-  true,
-  false,
-])("answers through the socket and publishes the retained list on sent=%s", (sent) => {
+  { sent: true, expected: [[]] },
+  {
+    sent: false,
+    expected: [[{ type: "ask", ask: { ask_id: "a", prompt: "Run a?", choices: [], text: true } }]],
+  },
+])("answers through the socket and publishes the retained list on sent=$sent", ({
+  sent,
+  expected,
+}) => {
   const w = build();
   w.ask(frame("a"));
   w.sendAnswer.mockReturnValue(sent);
@@ -109,11 +116,7 @@ it.each([
     choice: "once",
     text: "yes",
   });
-  expect(w.setAsks.mock.calls.at(-1)).toEqual(
-    sent
-      ? [[]]
-      : [[{ type: "ask", ask: { ask_id: "a", prompt: "Run a?", choices: [], text: true } }]],
-  );
+  expect(w.setAsks.mock.calls.at(-1)).toEqual(expected);
   w.dispose();
 });
 

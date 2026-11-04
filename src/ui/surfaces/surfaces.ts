@@ -22,7 +22,7 @@ import type {
 } from "../../io/bridge/message/message-bridge";
 import type { InputErrorAction, SpeechAction } from "../../io/bridge/message/message-remote";
 import type { AskAnswer, AskFrame, BackendCommand } from "../../io/chat/push/push-frames";
-import { createSurfaceAsks } from "../ask/surface-asks";
+import { createAskCard } from "../ask/ask-card";
 import type { ToolStatus } from "../chips/status-pill";
 import { createCommandReply } from "../commands/command-reply";
 import { createSurfaceCommands } from "../commands/surface-commands";
@@ -224,7 +224,7 @@ export function createSurfaces({
 
   const chipColumn = el.querySelector<HTMLDivElement>(".yui-chip-column")!;
   const askSlot = el.querySelector<HTMLDivElement>(".yui-ask-slot")!;
-  const asks = createSurfaceAsks(askSlot);
+  const card = createAskCard({ mount: askSlot });
   const commandSlot = el.querySelector<HTMLDivElement>(".yui-cmd-slot")!;
   const commandReply = createCommandReply({ mount: commandSlot });
   const bubbleEl = el.querySelector<HTMLDivElement>(".yui-bubble")!;
@@ -310,15 +310,15 @@ export function createSurfaces({
     commandInput.dispose();
     input.dispose();
     commandReply.dispose();
-    asks.dispose();
+    card.dispose();
     el.remove();
   }
 
   const surfaces: Surfaces = {
     el,
     chipColumn,
-    setAsks: asks.set,
-    onAskAnswer: asks.onAnswer,
+    setAsks: card.set,
+    onAskAnswer: card.onAnswer,
     beginSpeech: bubble.beginSpeech,
     pushSpeech: bubble.pushSpeech,
     endSpeech: bubble.endSpeech,

@@ -617,7 +617,7 @@ An Ask is a question the backend holds open for the user in a character's own ch
 - The client closes the Ask at `expires_at`, when it has one.
 - A second `ask` with an `ask_id` the client holds replaces that Ask in place.
 - Several Asks may be open. The client shows the oldest first.
-- The card shows in the pet window while unified chat is shown or the message window is docked, otherwise in the popped message window; it moves with the input, and an answered or ended Ask closes in both windows.
+- The card shows in the message window while it is popped out and unified chat is hidden, otherwise in the character’s (pet) window. Unified chat shows no card. The card moves when that changes; an answered or ended Ask closes in both windows.
 - The backend sends `ask` only to a client whose `hello` `accepts` lists `ask`.
 - While the client is away, the backend holds open Asks. After `ready` on the next connection whose `accepts` lists `ask`, it sends the unexpired ones.
 - The client drops every Ask when the socket leaves `ready`.

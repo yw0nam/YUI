@@ -2,7 +2,7 @@ import type { AskAnswer, AskFrame } from "../../../io/chat/push/push-frames";
 import type { PushSocket } from "../../../io/chat/push/push-socket";
 import type { Surfaces } from "../../../ui/surfaces/surfaces";
 
-export function createAskSession({
+export function wireAskSession({
   socket,
   surfaces,
   now = Date.now,

@@ -36,7 +36,8 @@ function build(answered = true) {
   const mount = document.createElement("div");
   document.body.append(mount);
   const onAnswer = vi.fn(() => answered);
-  const card = createAskCard({ mount, onAnswer });
+  const card = createAskCard({ mount });
+  card.onAnswer(onAnswer);
   const el = mount.querySelector<HTMLElement>(".yui-ask-card")!;
   const prompt = () => el.querySelector(".yui-threads-answer__prompt")?.textContent ?? null;
   const choices = () => [

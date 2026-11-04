@@ -1968,11 +1968,20 @@ globalThis.YUI_MAP =
     {
       "id": "push-ask",
       "from": "io/chat/push",
-      "to": "ui/ask",
-      "carries": "ask, ask_end, socket state → createAskSession → surfaces.setAsks; surfaces.onAskAnswer → sendAnswer",
+      "to": "ui/surfaces",
+      "carries": "ask, ask_end, socket state → wireAskSession → surfaces.setAsks; surfaces.onAskAnswer → sendAnswer",
       "kind": "callback",
       "transport": "push",
       "wiring": "src/app/turn/push/ask-session.ts"
+    },
+    {
+      "id": "surface-asks",
+      "from": "ui/surfaces",
+      "to": "ui/ask",
+      "carries": "setAsks → AskCard.set; onAskAnswer → AskCard.onAnswer",
+      "kind": "call",
+      "transport": "shared",
+      "wiring": "src/ui/surfaces/surfaces.ts"
     },
     {
       "id": "previous-playback",

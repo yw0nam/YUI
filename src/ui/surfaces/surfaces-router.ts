@@ -93,7 +93,6 @@ export function createSurfacesRouter({
     }
   });
   const unsubscribeShown = shown.subscribe((on) => {
-    asks.resend();
     if (!on) return;
     // A chat line already under way on the character's bubble shows from its next line, in the unified window.
     if (lineSide === "pet" && chatLine) lineSide = "none";
