@@ -2144,7 +2144,7 @@ globalThis.YUI_MAP =
       "id": "tts-reconnect-check",
       "from": "app/turn",
       "to": "io/voice/voices",
-      "carries": "reconnectTts() → checkTtsServer() → ServerCheck or null; false only for unreachable or timeout; clears a failed voice list retry",
+      "carries": "reconnectTts() → the voice list retry in flight, else checkTtsServer() → ServerCheck or null; false only for unreachable or timeout",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/turn/voice/wire-voice-pipeline.ts"
