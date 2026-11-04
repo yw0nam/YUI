@@ -10,6 +10,9 @@ export type ServerCheck =
   | { kind: "http"; status: number }
   | { kind: "malformed" };
 
+/** Why a server did not answer, or answered without a usable result. */
+export type ServerFailure = Exclude<ServerCheck, { kind: "ok" }>;
+
 /** Whether a server answers: GET {baseUrl}/models through readModels, with any listing answer counted as ok. */
 export async function checkServer(input: {
   baseUrl: string;

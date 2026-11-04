@@ -1,16 +1,11 @@
-/**
- * wireTtsUnreachableNotice — a reply that went voiceless because the voice server did not answer
- * offers "Reconnect" under its bubble when that reply ends, once per outage; an "ok" reach ends the
- * outage. Reconnect checks the server again without replaying the reply: the action reads busy
- * while the check runs, leaves when the server answers, and returns when it does not. The greeting
- * and a reply while the unified chat window is shown are skipped, as for the synth-failure notice.
- */
+/** A reply the voice server did not answer offers Reconnect under its bubble, once per outage. */
 
 import type { UtteranceIdentity } from "../../../contract";
 import type { Surfaces } from "../../../ui/surfaces/surfaces";
+import type { TtsReach } from "./tts-reach";
 
 export function wireTtsUnreachableNotice(deps: {
-  onTtsReach: (cb: (reach: "ok" | "unreachable") => void) => () => void;
+  onTtsReach: (cb: (reach: TtsReach) => void) => () => void;
   onUtteranceStart: (cb: () => void) => () => void;
   onUtteranceEnd: (cb: (identity: UtteranceIdentity) => void) => () => void;
   reconnect: () => Promise<boolean>;

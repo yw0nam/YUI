@@ -1,7 +1,7 @@
 /** Irodori's `/v1/audio/voices` API — lists, uploads, and deletes reference voices. */
 
 import { createLogger, type Logger } from "../../../logger";
-import type { ServerCheck } from "../../chat/models/server-check";
+import type { ServerFailure } from "../../chat/models/server-check";
 import { createDeadlineSignal, untilAborted } from "../deadline";
 import { fetchReferenceClip } from "./reference-clip";
 
@@ -30,15 +30,12 @@ export async function authHeaders(
   return key ? { Authorization: `Bearer ${key}` } : {};
 }
 
-/** Why a voice list read failed. */
-export type VoiceListFailure = Exclude<ServerCheck, { kind: "ok" }>;
-
-export function httpFailure(status: number): VoiceListFailure {
+export function httpFailure(status: number): ServerFailure {
   return status === 401 || status === 403 ? { kind: "refused" } : { kind: "http", status };
 }
 
 /** A thrown list read: the deadline fired, a 2xx body failed to read, or no response came. */
-export function thrownFailure(deadline: AbortSignal, responded: boolean): VoiceListFailure {
+export function thrownFailure(deadline: AbortSignal, responded: boolean): ServerFailure {
   if (deadline.aborted) return { kind: "timeout" };
   return responded ? { kind: "malformed" } : { kind: "unreachable" };
 }
@@ -61,7 +58,7 @@ async function errorDetail(res: Response, signal: AbortSignal): Promise<string> 
  */
 export async function listVoices(
   opts: VoicesRequestOptions,
-): Promise<{ kind: "ok"; ids: string[] } | VoiceListFailure> {
+): Promise<{ kind: "ok"; ids: string[] } | ServerFailure> {
   const log = opts.logger ?? createLogger("tts-voices");
   const fetchImpl = opts.fetch ?? globalThis.fetch;
   const deadline = createDeadlineSignal(VOICES_REQUEST_TIMEOUT_MS, "TTS voice list timed out");

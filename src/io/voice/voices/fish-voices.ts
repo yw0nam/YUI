@@ -4,6 +4,7 @@
  */
 
 import { createLogger } from "../../../logger";
+import type { ServerFailure } from "../../chat/models/server-check";
 import { createDeadlineSignal, untilAborted } from "../deadline";
 import { fetchReferenceClip } from "./reference-clip";
 import {
@@ -15,7 +16,6 @@ import {
   VOICE_UPLOAD_TIMEOUT_MS,
   VOICES_REQUEST_TIMEOUT_MS,
   type VoiceEntry,
-  type VoiceListFailure,
   type VoicesRequestOptions,
 } from "./tts-voices";
 
@@ -40,7 +40,7 @@ async function errorDetail(res: Response, signal: AbortSignal): Promise<string> 
  */
 export async function listFishVoices(
   opts: VoicesRequestOptions,
-): Promise<{ kind: "ok"; voices: VoiceEntry[] } | VoiceListFailure> {
+): Promise<{ kind: "ok"; voices: VoiceEntry[] } | ServerFailure> {
   const log = opts.logger ?? createLogger("fish-voices");
   const fetchImpl = opts.fetch ?? globalThis.fetch;
   const deadline = createDeadlineSignal(VOICES_REQUEST_TIMEOUT_MS, "Fish voice list timed out");

@@ -1,6 +1,7 @@
 /** Voice operations per TTS provider — the speaker list, import, delete and re-upload dispatch here. */
 
 import type { TtsProviderName } from "../../../contract";
+import type { ServerFailure } from "../../chat/models/server-check";
 import { deleteFishVoice, listFishVoices, upsertFishVoice } from "./fish-voices";
 import {
   deleteVoice,
@@ -8,7 +9,6 @@ import {
   type UpsertVoiceOptions,
   upsertVoice,
   type VoiceEntry,
-  type VoiceListFailure,
   type VoicesRequestOptions,
 } from "./tts-voices";
 
@@ -19,7 +19,7 @@ import {
 export interface VoiceApi {
   list: (
     opts: VoicesRequestOptions,
-  ) => Promise<{ kind: "ok"; voices: VoiceEntry[] } | VoiceListFailure>;
+  ) => Promise<{ kind: "ok"; voices: VoiceEntry[] } | ServerFailure>;
   /** true: the list is built in; it says nothing about the server. */
   staticList?: true;
   /** Absent: the provider takes no uploaded voices, so import, delete and re-upload are off. */
