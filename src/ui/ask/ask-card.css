@@ -44,12 +44,9 @@
 
 /* Choices are borderless rows, one per line, and the pick shows by fill; amber stays out of the card. */
 .yui-ask-card .yui-threads-answer__choices button {
-  display: flex;
-  align-items: center;
   gap: 6px;
-  padding: 0 12px 0 10px;
+  padding: 6px 12px 6px 10px;
   border: 0;
-  background: none;
   color: var(--yui-text-dim);
   font-size: var(--yui-fs-body);
   font-weight: 500;
@@ -64,7 +61,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-.yui-ask-card .yui-threads-answer__choices [aria-pressed="true"] {
+.yui-ask-card .yui-threads-answer__choices [aria-pressed="true"],
+.yui-ask-card .yui-threads-answer__choices [aria-pressed="true"]:hover {
   background: var(--yui-selected);
   color: var(--yui-text);
   font-weight: 600;
