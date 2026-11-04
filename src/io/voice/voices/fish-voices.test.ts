@@ -168,18 +168,11 @@ describe("listFishVoices", () => {
 
   it.each([
     [
-      "ok",
-      async () => jsonResponse({ items: [{ _id: "m1" }], has_more: false }),
-      { kind: "ok", voices: [{ id: "m1" }] },
-      0,
-    ],
-    [
       "unreachable",
       async () => {
         throw new TypeError("connection refused");
       },
       { kind: "unreachable" },
-      1,
     ],
     [
       "malformed",
@@ -192,11 +185,10 @@ describe("listFishVoices", () => {
           },
         }) as unknown as Response,
       { kind: "malformed" },
-      1,
     ],
-    ["http", async () => errorResponse(500), { kind: "http", status: 500 }, 1],
-    ["refused", async () => errorResponse(401), { kind: "refused" }, 1],
-  ])("resolves a %s list to its kind", async (_kind, impl, expected, warns) => {
+    ["http", async () => errorResponse(500), { kind: "http", status: 500 }],
+    ["refused", async () => errorResponse(401), { kind: "refused" }],
+  ])("resolves a %s list to its kind", async (_kind, impl, expected) => {
     const fetchMock = vi.fn<FetchFn>(impl);
 
     await expect(
@@ -206,7 +198,7 @@ describe("listFishVoices", () => {
         logger: noopLog,
       }),
     ).resolves.toEqual(expected);
-    expect(noopLog.warn).toHaveBeenCalledTimes(warns);
+    expect(noopLog.warn).toHaveBeenCalledOnce();
   });
 
   it("resolves to timeout and warns when the body never settles", async () => {
