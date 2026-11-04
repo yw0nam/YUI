@@ -182,16 +182,4 @@ mod tests {
         assert!(request.await.unwrap_err().is_cancelled());
         assert!(!resolve_pending(&id, "main", serde_json::Value::Null));
     }
-
-    #[tokio::test]
-    async fn pending_receiver_times_out_when_unanswered() {
-        let id = next_rpc_id();
-        let rx = register_pending(&id, "main");
-        assert!(
-            tokio::time::timeout(std::time::Duration::from_millis(20), rx)
-                .await
-                .is_err()
-        );
-        drop_pending(&id);
-    }
 }

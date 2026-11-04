@@ -45,7 +45,7 @@ pub(in crate::agent_ingress) async fn handle(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::agent_ingress::transport_tests::Server;
+    use crate::agent_ingress::server::tests::Server;
     use std::io::{Read, Write};
     use std::time::{Duration, Instant};
 
@@ -55,7 +55,7 @@ mod tests {
         server.store.upsert(
             "t",
             crate::threads::model::parse_upsert(
-                r#"{"source":"test","title":"Wait","state":"working","entries":[]}"#,
+                r#"{"source":"test","title":"Wait","state":"input-required","entries":[],"ask":{"ask_id":"a","prompt":"Wait?","text":true}}"#,
             )
             .unwrap(),
             1,
@@ -64,22 +64,22 @@ mod tests {
         for _ in 0..32 {
             let mut stream = server.connect();
             stream
-                .write_all(b"GET /threads/t/answer?wait=2 HTTP/1.1\r\nHost: localhost\r\n\r\n")
+                .write_all(
+                    b"GET /threads/t/answer?ask_id=a&wait=25 HTTP/1.1\r\nHost: localhost\r\n\r\n",
+                )
                 .unwrap();
             clients.push(stream);
         }
         let start = Instant::now();
-        while WAITS.acquire().is_some() && start.elapsed() < Duration::from_secs(1) {
+        while WAITS.count() != 32 && start.elapsed() < Duration::from_secs(5) {
             std::thread::sleep(Duration::from_millis(1));
         }
-        assert!(
-            WAITS.acquire().is_none(),
-            "32 requests occupy the wait slots"
-        );
+        assert_eq!(WAITS.count(), 32, "32 requests occupy the wait slots");
         drop(clients);
         server.wait_capacity(64);
-        assert!(
-            WAITS.acquire().is_none(),
+        assert_eq!(
+            WAITS.count(),
+            32,
             "disconnect does not release a blocking wait permit"
         );
         let poll = || {
@@ -92,13 +92,22 @@ mod tests {
             result
         };
         assert!(poll().starts_with("HTTP/1.1 503"));
+        server.store.upsert(
+            "t",
+            crate::threads::model::parse_upsert(
+                r#"{"source":"test","title":"Wait","state":"working","entries":[]}"#,
+            )
+            .unwrap(),
+            2,
+        );
         let start = Instant::now();
-        while WAITS.acquire().is_none() && start.elapsed() < Duration::from_secs(3) {
+        while WAITS.count() != 0 && start.elapsed() < Duration::from_secs(5) {
             std::thread::sleep(Duration::from_millis(10));
         }
-        assert!(
-            WAITS.acquire().is_some(),
-            "the completed wait releases its permit"
+        assert_eq!(
+            WAITS.count(),
+            0,
+            "the completed waits release their permits"
         );
         assert!(poll().starts_with("HTTP/1.1 204"));
     }

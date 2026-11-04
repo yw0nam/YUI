@@ -116,7 +116,19 @@ const INGRESS_WINDOW: &str = "main";
 /// Starts the loopback ingress on `port` at boot; a failed bind is non-fatal.
 #[tauri::command]
 pub fn start_agent_ingress(app: tauri::AppHandle, port: u16) {
-    server::start(&app, port);
+    let handler_app = app.clone();
+    server::start(
+        port,
+        move |request| {
+            let app = handler_app.clone();
+            async move { handle_request(&app, request).await }
+        },
+        move |channel, payload| {
+            if let Err(e) = app.emit_to(INGRESS_WINDOW, channel, payload) {
+                log::warn!("agent_ingress_dead_emit_failed error={e}");
+            }
+        },
+    );
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -139,6 +151,3 @@ mod tests {
         );
     }
 }
-
-#[cfg(test)]
-mod transport_tests;

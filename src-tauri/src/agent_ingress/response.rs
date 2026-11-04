@@ -1,7 +1,7 @@
 //! HTTP responses for the ingress.
 
-use bytes::Bytes;
 use http_body_util::Full;
+use hyper::body::Bytes;
 use hyper::Response;
 
 pub(super) type HttpResponse = Response<Full<Bytes>>;

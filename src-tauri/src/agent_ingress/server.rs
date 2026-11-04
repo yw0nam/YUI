@@ -1,10 +1,10 @@
 //! Bounded HTTP/1 transport on the ingress thread.
 
+use super::guard;
 use super::payload::{rejected_level, BODY_CEILING_BYTES, INGRESS_DEAD_CHANNEL};
 use super::response::HttpResponse;
 use super::route::{dispatch, Dispatch};
-use super::{guard, handle_request, INGRESS_WINDOW};
-use http_body_util::BodyExt;
+use http_body_util::{BodyExt, Limited};
 use hyper::{body::Incoming, server::conn::http1, service::service_fn, Request};
 use hyper_util::rt::{TokioIo, TokioTimer};
 use std::convert::Infallible;
@@ -15,7 +15,6 @@ use std::sync::{
 };
 use std::thread;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter};
 use tokio::{net::TcpListener, sync::Semaphore};
 
 const HEADER_READ_TIMEOUT: Duration = Duration::from_secs(5);
@@ -25,23 +24,15 @@ const BIND_ATTEMPTS: u32 = 8;
 const BIND_RETRY_DELAY: Duration = Duration::from_millis(500);
 static LISTENER_CLAIMED: AtomicBool = AtomicBool::new(false);
 
-async fn read_body(mut body: Incoming) -> Option<String> {
-    tokio::time::timeout(BODY_DEADLINE, async {
-        let mut bytes = Vec::new();
-        while let Some(frame) = body.frame().await {
-            let frame = frame.ok()?;
-            if let Ok(data) = frame.into_data() {
-                if bytes.len() + data.len() > BODY_CEILING_BYTES {
-                    return None;
-                }
-                bytes.extend_from_slice(&data);
-            }
-        }
-        String::from_utf8(bytes).ok()
-    })
+async fn read_body(body: Incoming) -> Option<String> {
+    let collected = tokio::time::timeout(
+        BODY_DEADLINE,
+        Limited::new(body, BODY_CEILING_BYTES).collect(),
+    )
     .await
-    .ok()
-    .flatten()
+    .ok()?
+    .ok()?;
+    String::from_utf8(collected.to_bytes().to_vec()).ok()
 }
 
 pub(super) async fn route_request(
@@ -75,11 +66,7 @@ pub(super) async fn route_request(
     result
 }
 
-pub(super) async fn serve<A, Accept, F, Fut>(
-    mut accept: A,
-    connections: Arc<Semaphore>,
-    handler: F,
-) -> std::io::Result<()>
+pub(super) async fn serve<A, Accept, F, Fut>(mut accept: A, connections: Arc<Semaphore>, handler: F)
 where
     A: FnMut() -> Accept,
     Accept: Future<Output = std::io::Result<(tokio::net::TcpStream, std::net::SocketAddr)>>,
@@ -87,8 +74,23 @@ where
     Fut: Future<Output = HttpResponse> + Send,
 {
     loop {
-        let (stream, _) = accept().await?;
+        let (stream, _) = match accept().await {
+            Ok(connection) => connection,
+            Err(e) => {
+                if !matches!(
+                    e.kind(),
+                    std::io::ErrorKind::ConnectionAborted
+                        | std::io::ErrorKind::ConnectionReset
+                        | std::io::ErrorKind::ConnectionRefused
+                ) {
+                    log::error!("agent_ingress_accept_failed error={e}");
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                }
+                continue;
+            }
+        };
         let Ok(permit) = connections.clone().try_acquire_owned() else {
+            log::debug!("agent_ingress_connection_refused");
             drop(stream);
             continue;
         };
@@ -163,8 +165,14 @@ async fn listener_or_notify(
     }
 }
 
-pub(super) fn start(app: &AppHandle, port: u16) {
-    let app = app.clone();
+pub(super) fn start<F, Fut>(
+    port: u16,
+    handler: F,
+    on_dead: impl FnOnce(&str, serde_json::Value) + Send + 'static,
+) where
+    F: Fn(Request<Incoming>) -> Fut + Clone + Send + 'static,
+    Fut: Future<Output = HttpResponse> + Send,
+{
     thread::Builder::new()
         .name("agent_ingress".into())
         .spawn(move || {
@@ -178,24 +186,17 @@ pub(super) fn start(app: &AppHandle, port: u16) {
                         port,
                         BIND_ATTEMPTS,
                         BIND_RETRY_DELAY,
-                        |channel, payload| {
-                            if let Err(e) = app.emit_to(INGRESS_WINDOW, channel, payload) {
-                                log::warn!("agent_ingress_dead_emit_failed error={e}");
-                            }
-                        },
+                        on_dead,
                     )
                     .await
                     else {
                         return;
                     };
                     log::debug!("agent_ingress_listening port={port}");
-                    let _ = serve(
+                    serve(
                         || listener.accept(),
                         Arc::new(Semaphore::new(CONNECTION_LIMIT)),
-                        move |request| {
-                            let app = app.clone();
-                            async move { handle_request(&app, request).await }
-                        },
+                        handler,
                     )
                     .await;
                 });
@@ -204,84 +205,5 @@ pub(super) fn start(app: &AppHandle, port: u16) {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    #[tokio::test]
-    async fn bind_failure_emits_the_dead_channel_and_releases_the_claim() {
-        let holder = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
-        let port = holder.local_addr().unwrap().port();
-        let claim = AtomicBool::new(false);
-        let emitted = std::cell::RefCell::new(Vec::new());
-        let listener = listener_or_notify(&claim, port, 1, Duration::ZERO, |channel, payload| {
-            emitted.borrow_mut().push((channel.to_string(), payload));
-        })
-        .await;
-        assert!(listener.is_none());
-        assert_eq!(
-            *emitted.borrow(),
-            vec![("ingress-dead".into(), serde_json::json!({"port": port}))]
-        );
-        assert!(!claim.load(Ordering::SeqCst));
-    }
-
-    #[tokio::test]
-    async fn bind_with_retry_succeeds_once_the_port_is_released() {
-        let holder = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
-        let port = holder.local_addr().unwrap().port();
-        thread::spawn(move || {
-            thread::sleep(Duration::from_millis(150));
-            drop(holder);
-        });
-        let server = bind_with_retry(port, 20, Duration::from_millis(50))
-            .await
-            .expect("bind must succeed after the holder releases the port");
-        assert_eq!(server.local_addr().unwrap().port(), port);
-    }
-
-    #[tokio::test]
-    async fn bind_with_retry_gives_up_while_the_port_stays_taken() {
-        let holder = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
-        let port = holder.local_addr().unwrap().port();
-        assert!(bind_with_retry(port, 2, Duration::from_millis(10))
-            .await
-            .is_err());
-    }
-
-    #[tokio::test]
-    async fn claim_and_bind_skips_when_already_claimed() {
-        let holder = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
-        let port = holder.local_addr().unwrap().port();
-        drop(holder);
-        let claim = AtomicBool::new(true);
-        assert!(claim_and_bind(&claim, port, 1, Duration::ZERO)
-            .await
-            .is_none());
-        assert!(std::net::TcpListener::bind(("127.0.0.1", port)).is_ok());
-    }
-
-    #[tokio::test]
-    async fn claim_and_bind_releases_the_claim_when_bind_fails() {
-        let holder = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
-        let port = holder.local_addr().unwrap().port();
-        let claim = AtomicBool::new(false);
-        let result = claim_and_bind(&claim, port, 2, Duration::from_millis(10)).await;
-        assert!(matches!(result, Some(Err(_))));
-        assert!(!claim.load(Ordering::SeqCst));
-    }
-
-    #[tokio::test]
-    async fn claim_and_bind_keeps_the_claim_after_a_bind() {
-        let holder = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
-        let port = holder.local_addr().unwrap().port();
-        drop(holder);
-        let claim = AtomicBool::new(false);
-        assert!(matches!(
-            claim_and_bind(&claim, port, 1, Duration::ZERO).await,
-            Some(Ok(_))
-        ));
-        assert!(claim.load(Ordering::SeqCst));
-        assert!(claim_and_bind(&claim, port, 1, Duration::ZERO)
-            .await
-            .is_none());
-    }
-}
+#[path = "server_tests.rs"]
+pub(in crate::agent_ingress) mod tests;
