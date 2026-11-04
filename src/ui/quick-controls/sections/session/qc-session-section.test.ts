@@ -259,7 +259,7 @@ describe("createQuickControls — session section delegated list", () => {
       qc.dispose();
     });
 
-    it("leaves the chat section's status line the only one of its kind", () => {
+    it("leaves no status line outside the service sections, with the chat section holding exactly one", () => {
       const qc = buildPushQc(fakeDelegations(), fakePushSocket({ kind: "failed", code: 4401 }));
       qc.open();
 

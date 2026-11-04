@@ -1,4 +1,4 @@
-/** Asks the STT server whether it answers: its model list, with any listing-less answer as ok. */
+/** Asks the STT server whether it answers: any /models answer other than 401 or 403 counts as reachable. */
 
 import { checkServer, type ServerCheck } from "../chat/models/server-check";
 import { selectFetch } from "../chat/stream/chat-client";
@@ -16,7 +16,7 @@ export function createSttServerCheck(deps: {
       apiKey: await deps.getApiKey(),
       fetch: (await selectFetch()) ?? globalThis.fetch,
     });
-    // A transcription-only server may answer /models with 405 or 501.
+    // A 401/403 is a refused key; any other HTTP answer — a transcription-only server may have no /models — means the server answered.
     return result.kind === "http" ? { kind: "ok" } : result;
   };
 }

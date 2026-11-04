@@ -54,6 +54,7 @@ export function createServerLine(deps: {
     dispose(): void {
       unsubscribe();
       unsubscribeKey();
+      status.dispose();
       seq += 1;
     },
   };

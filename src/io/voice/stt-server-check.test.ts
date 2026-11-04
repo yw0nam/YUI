@@ -21,21 +21,12 @@ describe("createSttServerCheck", () => {
     expect(urls).toEqual(["https://stt.test/v1/models"]);
   });
 
-  it("resolves null with no endpoints", async () => {
-    const check = createSttServerCheck({
-      getEndpoints: () => null,
-      getApiKey: async () => undefined,
-    });
+  it.each([
+    ["no endpoints", () => null],
+    ["no STT URL", () => ({ stt_base_url: "" })],
+  ])("resolves null with %s", (_name, getEndpoints) => {
+    const check = createSttServerCheck({ getEndpoints, getApiKey: async () => undefined });
 
-    await expect(check()).resolves.toBeNull();
-  });
-
-  it("resolves null with no STT URL", async () => {
-    const check = createSttServerCheck({
-      getEndpoints: () => ({ stt_base_url: "" }),
-      getApiKey: async () => undefined,
-    });
-
-    await expect(check()).resolves.toBeNull();
+    return expect(check()).resolves.toBeNull();
   });
 });

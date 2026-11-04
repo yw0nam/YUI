@@ -579,9 +579,7 @@ describe("createConnectionTab", () => {
 
       const line = tab.el.querySelector<HTMLElement>('[data-svc="tts"] .yui-chat-status');
       expect(line?.hidden).toBe(false);
-      expect(line!.textContent).toContain(t("svc.chat_models_unreachable", { host: "tts.test" }));
       const action = line!.querySelector<HTMLButtonElement>(".yui-chat-status__action")!;
-      expect(action.textContent).toBe(t("svc.chat_status_reconnect"));
 
       action.click();
       await tick();

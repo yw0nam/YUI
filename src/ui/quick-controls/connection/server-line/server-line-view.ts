@@ -18,7 +18,7 @@ export function serverLineView(result: ServerCheck | "checking", host: string): 
     case "http":
       return failureView(result, host);
     case "malformed":
-      // checkServer folds a listing-less answer into ok — the server answered.
+      // The check answered with a body it could not read — the server answered.
       return { text: t("svc.server_connected", { host }), dot: ["is-ready"] };
   }
 }
