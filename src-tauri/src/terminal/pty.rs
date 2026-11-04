@@ -71,6 +71,7 @@ fn spawn(
     command: CommandBuilder,
     now: u64,
 ) -> Result<Terminal, String> {
+    let opening = store.begin_open()?;
     let (cols, rows) = store.size();
     let pair = native_pty_system()
         .openpty(PtySize {
@@ -99,6 +100,7 @@ fn spawn(
         output: output.clone(),
     });
     let terminal = store.add(owner, title, pty.clone(), now);
+    drop(opening);
     let size = store.size();
     if size != (cols, rows) {
         pty.resize(size.0, size.1);
