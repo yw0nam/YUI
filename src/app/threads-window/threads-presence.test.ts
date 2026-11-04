@@ -46,3 +46,30 @@ it("opens with no chip rect from no origin on the asked tab, and a later open's 
   expect(view.open).toHaveBeenCalledWith(null, "terminal");
   expect(view.select.mock.calls).toEqual([["threads"]]);
 });
+
+it("runs the next open after a close whose view.close rejects", async () => {
+  const view = {
+    open: vi.fn(async () => {}),
+    close: vi.fn(async () => {
+      throw new Error("close failed");
+    }),
+    select: vi.fn(),
+  };
+  const show = vi.fn(async () => null);
+  const focus = vi.fn(async () => {});
+  const presence = createThreadsPresence({
+    view,
+    show,
+    focus,
+    hide: async () => {},
+    emitClosed: vi.fn(),
+  });
+
+  presence.open(CHIP);
+  presence.close();
+  presence.open(CHIP);
+
+  await vi.waitFor(() => expect(focus).toHaveBeenCalledOnce());
+  expect(show).toHaveBeenCalledOnce();
+  expect(view.open).toHaveBeenCalledOnce();
+});
