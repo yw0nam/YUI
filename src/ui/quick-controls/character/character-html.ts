@@ -1,7 +1,8 @@
 /** Body and Motion page markup — the rows the character tab renders, in page order. */
 
 import { t } from "../../i18n";
-import { secHeadHtml } from "../markup";
+import { VROID_HUB_URL } from "../constants";
+import { keyLinkHtml, secHeadHtml } from "../markup";
 
 /** Which rows the Character tab renders — and binds, and refreshes. */
 export interface CharacterRows {
@@ -21,6 +22,8 @@ const GAIN_EYE_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <path d="M4 10c2.4-2.4 4.9-3.6 8-3.6s5.6 1.2 8 3.6c-2.4 1.1-4.9 1.7-8 1.7s-5.6-.6-8-1.7Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
                     <path d="M4 14c2.4 2.4 4.9 3.6 8 3.6s5.6-1.2 8-3.6c-2.4-1.1-4.9-1.7-8-1.7s-5.6.6-8 1.7Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
                   </svg>`;
+
+const EXTERNAL_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>`;
 
 const vrmsHtml = (): string => `
         <div class="yui-sec">
@@ -43,6 +46,7 @@ const vrmsHtml = (): string => `
               </p>
             </div>
           </div>
+          <p class="yui-sec__foot">${keyLinkHtml(VROID_HUB_URL, "vrm.hub_link", "yui-vrm__hub", EXTERNAL_ICON)}</p>
         </div>`;
 
 const relationsHtml = (): string => `

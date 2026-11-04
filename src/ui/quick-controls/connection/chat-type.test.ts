@@ -128,6 +128,7 @@ describe("chat type row", () => {
       { url: CARD_GUIDE_URL },
       { url: "https://aistudio.google.com/apikey" },
       { url: "https://fish.audio/app/api-keys/" },
+      { url: "https://hub.vroid.com/en/users/36144806" },
     ]);
   });
 });

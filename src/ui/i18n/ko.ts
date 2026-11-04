@@ -375,6 +375,7 @@ const ko: Record<string, string> = {
   "vrm.section": "VRM",
   "vrm.group_aria": "VRM",
   "vrm.add": "파일에서 추가…",
+  "vrm.hub_link": "VRoid Hub에서 모델 찾기",
   "vrm.import_error": "불러올 수 없는 파일이에요. VRM 파일인지 확인해 주세요.",
   "vrm.in_use": "사용 중",
   "vrm.rename": "이름 바꾸기",

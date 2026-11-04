@@ -7,3 +7,22 @@
 .yui-vrm__badge {
   margin-left: auto;
 }
+
+/* The compound selector outweighs .yui-chat-type__link's colour — this secondary link reads dim at rest, amber on hover. */
+.yui-chat-type__link.yui-vrm__hub {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--yui-text-dim);
+}
+
+.yui-chat-type__link.yui-vrm__hub:hover,
+.yui-chat-type__link.yui-vrm__hub:focus-visible {
+  color: var(--yui-accent-ink);
+}
+
+.yui-vrm__hub svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex: none;
+}

@@ -374,6 +374,7 @@ const en: Record<string, string> = {
   "vrm.section": "VRM",
   "vrm.group_aria": "VRM",
   "vrm.add": "Add from file…",
+  "vrm.hub_link": "Find models on VRoid Hub",
   "vrm.import_error": "Could not load this file. Check that it is a VRM file.",
   "vrm.in_use": "In use",
   "vrm.rename": "Rename",
