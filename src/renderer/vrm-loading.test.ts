@@ -31,10 +31,12 @@ function buildVrm({
   metaVersion,
   custom,
   preset,
+  isBinary,
 }: {
   metaVersion: "0" | "1";
   custom: string;
   preset?: string;
+  isBinary?: boolean;
 }) {
   const geometry = new THREE.BoxGeometry();
   geometry.morphAttributes.position = [
@@ -52,10 +54,12 @@ function buildVrm({
     manager.registerExpression(presetExpression);
   }
   const customExpression = new VRMExpression(custom);
+  if (isBinary) customExpression.isBinary = true;
   customExpression.addBind(
     new VRMExpressionMorphTargetBind({ primitives: [mesh], index: 0, weight: 1 }),
   );
   manager.registerExpression(customExpression);
+  scene.add(customExpression);
 
   const vrm = new VRM({
     scene,
@@ -65,7 +69,7 @@ function buildVrm({
     firstPerson: null,
     lookAt: null,
   } as unknown as ConstructorParameters<typeof VRM>[0]);
-  return { gltf: { scene, userData: { vrm } } as unknown as GLTF, mesh, presetExpression };
+  return { gltf: { scene, userData: { vrm } } as unknown as GLTF, mesh, scene, presetExpression };
 }
 
 describe("prepareVrm", () => {
@@ -76,6 +80,10 @@ describe("prepareVrm", () => {
     preset?: string;
     keys: string[];
     driver: string;
+    driverValue: number;
+    influence: number;
+    isBinary?: boolean;
+    sceneName?: string;
   }>([
     {
       caseName: "reads a VRM 0.x custom Surprised as the surprised preset",
@@ -83,6 +91,10 @@ describe("prepareVrm", () => {
       custom: "Surprised",
       keys: ["surprised"],
       driver: "surprised",
+      driverValue: 0.4,
+      influence: 0,
+      isBinary: true,
+      sceneName: "VRMExpression_surprised",
     },
     {
       caseName: "keeps a VRM 0.x custom Joy beside an existing happy preset",
@@ -91,6 +103,8 @@ describe("prepareVrm", () => {
       preset: "happy",
       keys: ["Joy", "happy"],
       driver: "Joy",
+      driverValue: 0.7,
+      influence: 0.7,
     },
     {
       caseName: "leaves a VRM 1.0 custom Surprised alone",
@@ -98,6 +112,8 @@ describe("prepareVrm", () => {
       custom: "Surprised",
       keys: ["Surprised"],
       driver: "Surprised",
+      driverValue: 0.7,
+      influence: 0.7,
     },
     {
       caseName: "keeps a VRM 0.x custom Constructor as a custom expression",
@@ -105,15 +121,34 @@ describe("prepareVrm", () => {
       custom: "Constructor",
       keys: ["Constructor"],
       driver: "Constructor",
+      driverValue: 0.7,
+      influence: 0.7,
     },
-  ])("$caseName", ({ metaVersion, custom, preset, keys, driver }) => {
-    const { gltf, mesh, presetExpression } = buildVrm({ metaVersion, custom, preset });
+  ])("$caseName", ({
+    metaVersion,
+    custom,
+    preset,
+    keys,
+    driver,
+    driverValue,
+    influence,
+    isBinary,
+    sceneName,
+  }) => {
+    const { gltf, mesh, scene, presetExpression } = buildVrm({
+      metaVersion,
+      custom,
+      preset,
+      isBinary,
+    });
     prepareVrm(gltf);
     const manager = (gltf.userData.vrm as VRM).expressionManager!;
     expect(Object.keys(manager.expressionMap).sort()).toEqual([...keys].sort());
     if (presetExpression != null) expect(manager.getExpression(preset!)).toBe(presetExpression);
-    manager.setValue(driver, 0.7);
+    if (sceneName != null)
+      expect(scene.getObjectByName(sceneName)).toBe(manager.getExpression(driver));
+    manager.setValue(driver, driverValue);
     manager.update();
-    expect(mesh.morphTargetInfluences?.[0]).toBe(0.7);
+    expect(mesh.morphTargetInfluences?.[0]).toBe(influence);
   });
 });
