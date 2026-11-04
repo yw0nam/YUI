@@ -44,7 +44,7 @@ export function createTerminalTools(deps: {
       function: {
         name: "terminal_open",
         description:
-          "Open a new terminal (a shell YUI runs) and get its id. Opening runs without asking the user; optional cwd sets its working directory. Reading or writing any terminal still asks the user for Allow. List terminals with terminal_list.",
+          "Open a new terminal and return its id. A terminal is a shell YUI runs. Opening runs without asking the user; optional cwd sets its working directory. Reading or writing any terminal still asks the user for Allow. List terminals with terminal_list.",
         parameters: {
           type: "object" as const,
           properties: {
@@ -66,7 +66,7 @@ export function createTerminalTools(deps: {
       function: {
         name: "terminal_list",
         description:
-          "List every terminal, one per line: id | owner (you or a preset) | title | running or exited <code> | access: <presetId or none>. Runs without asking the user and shows no output — use an id with terminal_read after the user allows.",
+          "List all terminals with their owners, titles, states and access. Each line is: id | owner (you or a preset) | title | running or exited <code> | access: <presetId or none>. Runs without asking the user and shows no output — use an id with terminal_read after the user allows.",
         parameters: {
           type: "object" as const,
           properties: {},
@@ -85,7 +85,7 @@ export function createTerminalTools(deps: {
       function: {
         name: "terminal_read",
         description:
-          "Read a terminal's rendered screen (id from terminal_list; lines defaults to 100, max 500). Reading any terminal asks the user for Allow and may wait up to 60 s. denied means the user said no — do not retry the same request in this turn.",
+          "Read a terminal's rendered screen. Use an id from terminal_list; lines defaults to 100, max 500. Reading any terminal asks the user for Allow and may wait up to 60 s. denied means the user said no — do not retry the same request in this turn.",
         parameters: {
           type: "object" as const,
           properties: {
@@ -111,7 +111,7 @@ export function createTerminalTools(deps: {
       function: {
         name: "terminal_write",
         description:
-          'Write text to a terminal (id from terminal_list); Enter is sent after it unless enter:false, and "\\u0003" sends Ctrl-C. Writing any terminal asks the user for Allow and may wait up to 60 s. denied means the user said no — do not retry in this turn. Read afterwards with terminal_read to see the output.',
+          'Write text to a terminal. Use an id from terminal_list; Enter is sent after it unless enter:false, and "\\u0003" sends Ctrl-C. Writing any terminal asks the user for Allow and may wait up to 60 s. denied means the user said no — do not retry in this turn. Read afterwards with terminal_read to see the output.',
         parameters: {
           type: "object" as const,
           properties: {
@@ -142,7 +142,7 @@ export function createTerminalTools(deps: {
       function: {
         name: "terminal_close",
         description:
-          "Close a terminal you opened (id from terminal_list); closing runs without asking the user. error: not your terminal means you did not open it — only the user or the preset that opened it can close it.",
+          "Close a terminal you opened. Use an id from terminal_list; closing runs without asking the user. error: not your terminal means you did not open it — only the user or the preset that opened it can close it.",
         parameters: {
           type: "object" as const,
           properties: {

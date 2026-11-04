@@ -94,7 +94,7 @@ function contextEntry(name: string, text: string): string {
 
 function renderOnDemandTools(tools: ClientContext["on_demand_tools"]): string | undefined {
   if (!tools || tools.length === 0) return undefined;
-  return `on-demand tools: ${tools.map((tool) => contextEntry(tool.name, tool.summary)).join(" · ")}`;
+  return `on-demand tools (call through yui_tool_call): ${tools.map((tool) => contextEntry(tool.name, tool.summary)).join(" · ")}`;
 }
 
 function renderPluginSkills(skills: ClientContext["plugin_skills"]): string | undefined {

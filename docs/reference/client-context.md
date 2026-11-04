@@ -172,7 +172,7 @@ order:
 10. `overheard`
 11. one or more `trigger:`/`cue note`/`signal`/`recent switches:` lines
     depending on what fired
-12. the `on-demand tools` and `plugin skills` lines when they have entries
+12. the `on-demand tools (call through yui_tool_call)` and `plugin skills` lines when they have entries
 13. the `guide:` block when the turn carries one ([Guide](#guide-in-app-help-button))
 
 A line is omitted outright when its underlying field is absent (e.g. no `screenshot
@@ -766,10 +766,10 @@ Each line is omitted when it has no entries.
 
 ### `on-demand tools`
 
-One line naming the window's built-in On-demand tools, then every enabled Plugin tool, with a summary of each:
+The line starts with `on-demand tools (call through yui_tool_call):`, then names the window's built-in On-demand tools followed by every enabled Plugin tool, with a summary of each:
 
 ```text
-on-demand tools: threads_list — List the user's Threads — outside conversations a producer posted. · threads_search — Search the user's Threads by a case-insensitive substring over title, label and entry text. · terminal_open — Open a new terminal (a shell YUI runs) and get its id. · terminal_list — List every terminal, one per line: id | owner (you or a preset) | title | running or exited <code> | · terminal_read — Read a terminal's rendered screen (id from terminal_list; lines defaults to 100, max 500). · terminal_write — Write text to a terminal (id from terminal_list); Enter is sent after it unless enter:false, and "\u · terminal_close — Close a terminal you opened (id from terminal_list); closing runs without asking the user.
+on-demand tools (call through yui_tool_call): threads_list — List the user's Threads or read one Thread by id. · threads_search — Search the user's Threads by title, label or entry text. · terminal_open — Open a new terminal and return its id. · terminal_list — List all terminals with their owners, titles, states and access. · terminal_read — Read a terminal's rendered screen. · terminal_write — Write text to a terminal. · terminal_close — Close a terminal you opened.
 ```
 
 The `ClientContext` field is `on_demand_tools?: { name, summary }[]`, built-in entries first, followed by plugin entries in

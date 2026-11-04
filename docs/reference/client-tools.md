@@ -428,7 +428,7 @@ Under Tauri, every pet window offers `terminal_open`, `terminal_list`, `terminal
 `terminal_write` and `terminal_close`; main also offers `threads_list` and `threads_search`.
 Enabled Plugin tools are On-demand tools too.
 
-Each turn carries an `on-demand tools:` line with names and summaries, built-ins first and
+Each turn carries an `on-demand tools (call through yui_tool_call):` line with names and summaries, built-ins first and
 plugin tools after them. Read a named tool's schema with `yui_tool_describe`, then run it with
 `yui_tool_call` and an `arguments` object. The built-in name resolves first.
 
@@ -449,7 +449,7 @@ none of them.
 A Plugin tool name resolves against the newest snapshot the window holds. The host publishes one snapshot per
 change, and the client keeps the highest revision it has seen.
 
-The turn's `on-demand tools` and `plugin skills` lines and every `yui_tool_describe` and `yui_tool_call`
+The turn's `on-demand tools (call through yui_tool_call)` and `plugin skills` lines and every `yui_tool_describe` and `yui_tool_call`
 read that one, so a plugin enabled after the request went out answers a later call in the same turn.
 A call's name is looked up again when it runs.
 
@@ -485,7 +485,7 @@ itself and answers `error: unknown plugin skill: <name>`.
 
 `yui_tool_call` checks `arguments` against the tool's input schema before anything is sent.
 The check reports the first violation as its instance location and its message, and the answer
-carries that violation and the tool's input schema, which the turn's `on-demand tools` line does not:
+carries that violation and the tool's input schema, which the turn's `on-demand tools (call through yui_tool_call)` line does not:
 
 ```text
 error: invalid arguments (#/app: Instance type "number" is invalid. Expected "string".)
