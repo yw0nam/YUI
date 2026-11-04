@@ -98,6 +98,8 @@ Files live at `<app_data_dir>/threads/threads_YYYY-MM-DD.jsonl`, beside the witn
 
 At startup files replay in date order; the last valid line for each id wins, and malformed lines are skipped. Only Threads with `updated_at` within the last 14 days load. Open asks survive restart; pending answers do not. Every change also removes Threads older than 14 days from memory, waking their waiters as unknown.
 
+The store targets 200 Threads at startup and after updates, evicting the oldest by `updated_at` (highest id first on ties), except `input-required` Threads and the Thread just changed; protected Threads may exceed the cap. Eviction drops pending answers and wakes waiters as unknown.
+
 Disk writes are best-effort: a failed append logs `threads_append_failed` and the change still succeeds. The state lock orders mutation, revision increase, and disk append; disk order equals revision order. After unlocking, the store emits its snapshot. Event delivery can reorder snapshots; consumers keep the highest revision they have seen.
 
 ## Commands and event
