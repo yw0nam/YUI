@@ -454,7 +454,7 @@ mod tests {
         body.state = ThreadState::Completed;
         seed.upsert("seed", body, 1);
         let template = seed.snapshot().threads.remove(0);
-        let loaded = (0..250)
+        let loaded = (0..251)
             .rev()
             .map(|i| {
                 let mut thread = template.clone();
@@ -466,8 +466,21 @@ mod tests {
         let s = ThreadStore::new(loaded, Box::new(|_| Ok(())), |_| {});
         let snapshot = s.snapshot();
         assert_eq!(snapshot.threads.len(), 200);
-        assert_eq!(snapshot.threads.first().unwrap().id, "t248");
-        assert_eq!(snapshot.threads.last().unwrap().id, "t051");
+        assert_eq!(snapshot.threads.first().unwrap().id, "t250");
+        assert_eq!(snapshot.threads.last().unwrap().id, "t050");
+        let mut ids: Vec<_> = snapshot
+            .threads
+            .iter()
+            .map(|thread| thread.id.clone())
+            .collect();
+        ids.sort();
+        assert_eq!(
+            ids,
+            std::iter::once(50)
+                .chain(52..251)
+                .map(|i| format!("t{i:03}"))
+                .collect::<Vec<_>>()
+        );
     }
 
     #[test]
