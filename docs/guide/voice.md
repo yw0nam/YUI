@@ -32,7 +32,7 @@ When the voice server does not answer at all, the bubble shows **Voice server no
 
 ![Settings window, Listening and bubble page](/shots/settings-listening.png)
 
-1. On **Connection**, enter the **Speech recognition (STT) server URL**. Any OpenAI-compatible transcription server works.
+1. On **Connection**, enter the **Speech recognition (STT) server URL**. Any OpenAI-compatible transcription server works. The line under the section says whether the STT server answers; **Reconnect** checks again.
 2. On **Listening and bubble**, turn on **Voice input**, and enter the **STT API key** if the server needs one.
 3. Speak, and when you stop, the audio goes to STT and arrives as your message.
 

@@ -3841,7 +3841,7 @@ globalThis.YUI_MAP =
       "id": "stt-models-check",
       "from": "app/settings-window",
       "to": "stt-service",
-      "carries": "the Connection page's STT line: GET {stt_base_url}/models, any answer counts as answered",
+      "carries": "the Connection page's STT line: GET {stt_base_url}/models, a 401/403 is a refused key; any other HTTP answer counts as answered",
       "kind": "http",
       "transport": "shared",
       "wiring": "src/app/settings-window/wire-settings-window.ts"
