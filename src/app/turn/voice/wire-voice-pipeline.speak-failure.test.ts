@@ -106,6 +106,8 @@ function setup(
     readingsSettings: { get: () => ({ text: "" }) },
     vadSettings: { get: () => ({ silenceMs: 1_500, bargeIn: false }) },
     speakerSelection: { getActive: () => ({ id: "speaker-a", ref_url: "/speaker-a.wav" }) },
+    refreshVoiceList: async () => ({ kind: "skipped" }),
+    checkTtsServer: async () => null,
     voiceInputStatus: { set: vi.fn() },
     onVoiceSegment: vi.fn(),
     onUtteranceStart: vi.fn(),

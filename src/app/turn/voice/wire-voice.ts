@@ -8,8 +8,10 @@ import {
 import { createPushTurns, type PushTurns } from "../../../dispatcher/turn/push-turn";
 import { createQuotedTurn, type QuotedTurn } from "../../../dispatcher/turn/quoted-turn";
 import { createTurnLog, type TurnLog } from "../../../dispatcher/turn/turn";
+import type { ServerCheck } from "../../../io/chat/models/server-check";
 import type { SttVad } from "../../../io/voice/stt-vad";
 import type { SpeakerOption } from "../../../io/voice/voices/speaker-selection";
+import type { VoiceListOutcome } from "../../../io/voice/voices/voice-list-refresh";
 import type { Renderer } from "../../../renderer";
 import type { SettingsStores } from "../../../settings/settings-stores";
 import { createVoiceErrorDwell } from "../../../ui/chips/voice-error-dwell";
@@ -31,8 +33,9 @@ export interface VoiceHost {
   onCaptureFailed(): void;
 }
 
-/** The voice pipeline as the bootstrap holds it, with the utterance ends a caller can follow. */
+/** The voice pipeline as the bootstrap holds it, with the utterance starts and ends a caller can follow. */
 export interface TurnVoice extends VoicePipeline {
+  onUtteranceStart(cb: () => void): () => void;
   onUtteranceEnd(cb: (identity: UtteranceIdentity) => void): () => void;
 }
 
@@ -61,6 +64,8 @@ export function wireTurnVoice(deps: {
   readingsSettings: SettingsStores["readingsSettings"];
   vadSettings: { get(): { silenceMs: number; bargeIn: boolean } };
   speakerSelection: { getActive(): SpeakerOption };
+  refreshVoiceList: () => Promise<VoiceListOutcome>;
+  checkTtsServer: () => Promise<ServerCheck | null>;
   getEndpoints: () => EndpointsConfig;
   getConfig: () => AppConfig;
   getSecret: (name: string) => Promise<string | undefined>;
@@ -118,6 +123,7 @@ export function wireTurnVoice(deps: {
   // Voice creation precedes the walker, so the stroll query stays late-bound across that cycle.
   let strollingRef: { isStrolling(): boolean } | null = null;
   const pushTurns = createPushTurns();
+  const utteranceStartListeners = new Set<() => void>();
   const utteranceEndListeners = new Set<(identity: UtteranceIdentity) => void>();
   const voice = wireVoicePipeline({
     renderer,
@@ -135,6 +141,8 @@ export function wireTurnVoice(deps: {
     readingsSettings,
     vadSettings,
     speakerSelection,
+    refreshVoiceList: deps.refreshVoiceList,
+    checkTtsServer: deps.checkTtsServer,
     voiceInputStatus,
     onVoiceSegment: (text) => {
       submitVoice(text);
@@ -143,6 +151,7 @@ export function wireTurnVoice(deps: {
     onUtteranceStart: (identity) => {
       previousTurn.utteranceStart(identity);
       quotedTurn.utteranceStart();
+      for (const cb of utteranceStartListeners) cb();
     },
     onUtteranceEnd: (ended, split, identity) => {
       previousTurn.utteranceEnd(ended, split, identity);
@@ -156,6 +165,10 @@ export function wireTurnVoice(deps: {
   return {
     voice: {
       ...voice,
+      onUtteranceStart(cb) {
+        utteranceStartListeners.add(cb);
+        return () => utteranceStartListeners.delete(cb);
+      },
       onUtteranceEnd(cb) {
         utteranceEndListeners.add(cb);
         return () => utteranceEndListeners.delete(cb);
