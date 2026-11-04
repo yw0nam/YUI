@@ -2,7 +2,7 @@
 
 import { t } from "../../i18n";
 import { VROID_HUB_URL } from "../constants";
-import { secHeadHtml } from "../markup";
+import { keyLinkHtml, secHeadHtml } from "../markup";
 
 /** Which rows the Character tab renders — and binds, and refreshes. */
 export interface CharacterRows {
@@ -46,7 +46,7 @@ const vrmsHtml = (): string => `
               </p>
             </div>
           </div>
-          <p class="yui-sec__foot"><a class="yui-chat-type__link yui-vrm__hub" href="${VROID_HUB_URL}" target="_blank" rel="noopener noreferrer" tabindex="0">${t("vrm.hub_link")}${EXTERNAL_ICON}</a></p>
+          <p class="yui-sec__foot">${keyLinkHtml(VROID_HUB_URL, "vrm.hub_link", "yui-vrm__hub", EXTERNAL_ICON)}</p>
         </div>`;
 
 const relationsHtml = (): string => `
