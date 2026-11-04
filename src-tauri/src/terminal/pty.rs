@@ -271,16 +271,29 @@ mod tests {
         });
     }
 
-    #[test]
-    fn a_seventeenth_terminal_is_refused_until_one_is_closed() {
-        let s = store();
-        fill(&s, 16);
+    /// An empty file each test's shells append to, unique per test thread.
+    fn spawn_marker() -> std::path::PathBuf {
         let marker = std::env::temp_dir().join(format!(
             "yui_terminal_{}_{}",
             std::process::id(),
             std::thread::current().name().unwrap()
         ));
         std::fs::write(&marker, "").unwrap();
+        marker
+    }
+
+    /// Reads and removes the marker, so a failing assertion leaves no file behind.
+    fn take_marker(marker: &std::path::Path) -> String {
+        let text = std::fs::read_to_string(marker).unwrap();
+        std::fs::remove_file(marker).unwrap();
+        text
+    }
+
+    #[test]
+    fn a_seventeenth_terminal_is_refused_until_one_is_closed() {
+        let s = store();
+        fill(&s, 16);
+        let marker = spawn_marker();
         let script = format!("echo spawned >> '{}'", marker.display());
         let result = spawn(&s, TerminalOwner::User, "~".into(), sh(&script), 1);
         if let Ok(terminal) = &result {
@@ -292,19 +305,18 @@ mod tests {
                     .exit_code
             });
         }
-        assert_eq!(std::fs::read_to_string(&marker).unwrap(), "");
+        assert_eq!(take_marker(&marker), "");
         assert_eq!(
             result.err(),
             Some("error: too many terminals (16 open); close one first".into())
         );
-        std::fs::remove_file(&marker).unwrap();
         assert_eq!(
             open(&s, TerminalOwner::User, None, 1).err(),
             Some("error: too many terminals (16 open); close one first".into())
         );
         s.close("t1", None).unwrap().kill();
         assert_eq!(
-            open(&s, TerminalOwner::User, None, 1).map(|t| t.id),
+            spawn(&s, TerminalOwner::User, "~".into(), sh("exit 0"), 1).map(|t| t.id),
             Ok("t17".into())
         );
         for pty in s.all() {
@@ -316,12 +328,7 @@ mod tests {
     fn concurrent_opens_compete_for_the_last_slot() {
         let s = store();
         fill(&s, 15);
-        let marker = std::env::temp_dir().join(format!(
-            "yui_terminal_{}_{}",
-            std::process::id(),
-            std::thread::current().name().unwrap()
-        ));
-        std::fs::write(&marker, "").unwrap();
+        let marker = spawn_marker();
         let barrier = Arc::new(std::sync::Barrier::new(2));
         let calls: Vec<_> = (0..2)
             .map(|_| {
@@ -342,8 +349,7 @@ mod tests {
                 .all(|t| t.exit_code == Some(0))
                 .then_some(())
         });
-        assert_eq!(std::fs::read_to_string(&marker).unwrap(), "spawned\n");
-        std::fs::remove_file(&marker).unwrap();
+        assert_eq!(take_marker(&marker), "spawned\n");
         assert_eq!(results.iter().filter(|r| r.is_ok()).count(), 1);
         assert_eq!(
             results
