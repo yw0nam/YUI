@@ -252,10 +252,19 @@ export interface ThreadChoice {
   tone?: "primary" | "danger";
 }
 
+/** Picked choice ids and free text answering an Ask. */
+export interface AskAnswer {
+  choice?: string;
+  choices?: string[];
+  text?: string;
+}
+
 export interface ThreadAsk {
   ask_id: string;
   prompt: string;
   choices: ThreadChoice[];
+  /** Whether several choices may be picked. */
+  multiple?: true;
   /** Whether free text is accepted. */
   text: boolean;
   placeholder?: string;

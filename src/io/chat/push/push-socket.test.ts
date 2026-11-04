@@ -1603,9 +1603,12 @@ describe("push socket asks", () => {
     expect(seen).toEqual(["a1"]);
   });
 
-  it("sendAnswer sends only while the socket is ready", async () => {
+  it.each([
+    { type: "answer" as const, ask_id: "a1", choice: "once" },
+    { type: "answer" as const, ask_id: "a1", choices: ["once", "deny"], text: "why" },
+    { type: "answer" as const, ask_id: "a1", text: "why" },
+  ])("sendAnswer sends only while the socket is ready %j", async (frame) => {
     socket = build();
-    const frame = { type: "answer", ask_id: "a1", choice: "once" } as const;
     socket.connect();
     await vi.advanceTimersByTimeAsync(0);
 

@@ -193,6 +193,10 @@
   width: 100%;
   max-height: 260px;
 }
+/* An Ask stacks its prompt, one row per choice and the field, so it needs more room than a Command reply. */
+.yui-ui--message .yui-ask-slot {
+  max-height: 360px;
+}
 .yui-ui--message .yui-ask-slot:not(:has(.yui-ask-card:not([hidden]))),
 .yui-ui--message .yui-cmd-slot:not(:has(.yui-cmd-reply:not([hidden]))) {
   display: none;

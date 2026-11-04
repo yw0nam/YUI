@@ -21,7 +21,7 @@ export function createAskCard(deps: { mount: HTMLElement }): AskCard {
   let answered = false;
   let area: AnswerArea | null = null;
   let shownId: string | null = null;
-  let draft: Draft = { text: "" };
+  let draft: Draft = { picks: [], text: "" };
   let tick: ReturnType<typeof setTimeout> | undefined;
 
   const el = document.createElement("section");
@@ -43,7 +43,7 @@ export function createAskCard(deps: { mount: HTMLElement }): AskCard {
       shownId = null;
       return;
     }
-    if (frame.ask.ask_id !== shownId) draft = { text: "" };
+    if (frame.ask.ask_id !== shownId) draft = { picks: [], text: "" };
     shownId = frame.ask.ask_id;
     el.setAttribute("aria-label", t("ask.label"));
     area = createAnswerArea({

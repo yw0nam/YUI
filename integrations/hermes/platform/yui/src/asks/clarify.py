@@ -34,18 +34,22 @@ def clarify_ask(question: str, choices: list[str] | None, clarify_id: str) -> tu
             ]
         if len(choices) > MAX_CHOICES or any(len(c) > MAX_LABEL_CODE_POINTS for c in choices):
             body["prompt"] += "\n\n" + "\n".join(f"{i}. {c}" for i, c in enumerate(choices, 1))
-        # The pills say how to answer one pick; a multi-select question carries Hermes's hint as body text, where it wraps.
-        if multi:
+        if multi and "choices" in body:
+            body["multiple"] = True
+        elif multi:
             body["prompt"] += "\n\n" + t("gateway.clarify.hint_multi")
 
-    def resolve(choice: str | None, text: str | None) -> None:
-        if choice is not None:
-            value = choices[int(choice) - 1]
+    def resolve(selection: str | list[str] | None, text: str | None) -> None:
+        if isinstance(selection, list):
+            values = [label for i, label in enumerate(choices, 1) if str(i) in selection]
+            if text is not None:
+                values.append(text)
+            value = json.dumps(values, ensure_ascii=False)
+        elif selection is not None:
+            value = choices[int(selection) - 1]
             if text is not None:
                 # Hermes strips its recommendation label only from an answer that is the label alone.
                 value = f"{strip_recommended(value)}\n{text}"
-            elif multi:
-                value = json.dumps([value], ensure_ascii=False)
         else:
             mark_awaiting_text(clarify_id)
             entry = get_pending(clarify_id)

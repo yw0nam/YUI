@@ -815,6 +815,8 @@ const ko: Record<string, string> = {
   "threads.role_user": "나",
   "threads.role_system": "시스템",
   "threads.just_now": "방금",
+  "threads.choose_multiple": "하나 이상 선택하세요",
+  "threads.send_count": "{n}개 보내기",
   "threads.send": "보내기",
   "threads.mark_read": "읽음",
   "threads.send_hint": "Enter로 보내고 Shift+Enter로 줄을 바꿔요",

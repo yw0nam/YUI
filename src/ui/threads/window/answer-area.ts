@@ -4,8 +4,9 @@
  */
 
 import "./answer-area.css";
-import type { ThreadAsk } from "../../../contract";
+import type { AskAnswer, ThreadAsk } from "../../../contract";
 import { t } from "../../i18n";
+import { CHECK_SVG } from "../glyphs";
 import type { Draft } from "./drafts";
 import { entryMarkdown } from "./entry-markdown";
 
@@ -28,12 +29,12 @@ export function createAnswerArea(deps: {
   /** A send of this ask is in flight; send stays disabled until it settles. */
   sending: boolean;
   onDraft(draft: Draft): void;
-  onSend(answer: { choice?: string; text?: string }): void;
+  onSend(answer: AskAnswer): void;
   /** Rides the head after the prompt. */
   head?: Node;
 }): AnswerArea {
   const { ask } = deps;
-  const draft: Draft = { ...deps.draft };
+  const draft: Draft = { ...deps.draft, picks: [...deps.draft.picks] };
   let sending = deps.sending;
 
   const el = document.createElement("section");
@@ -51,6 +52,14 @@ export function createAnswerArea(deps: {
   el.querySelector(".yui-threads-answer__prompt")!.append(...entryMarkdown(ask.prompt));
   if (deps.head) el.querySelector(".yui-threads-answer__head")!.append(deps.head);
   const choicesEl = el.querySelector<HTMLElement>(".yui-threads-answer__choices")!;
+  if (ask.multiple) {
+    const hint = document.createElement("small");
+    hint.id = "yui-threads-answer-multiple";
+    hint.className = "yui-threads-answer__multiple";
+    hint.textContent = t("threads.choose_multiple");
+    choicesEl.before(hint);
+    choicesEl.setAttribute("aria-describedby", hint.id);
+  }
   const composer = el.querySelector<HTMLElement>(".yui-threads-answer__composer")!;
   const send = el.querySelector<HTMLButtonElement>(".yui-threads-answer__send")!;
 
@@ -61,6 +70,10 @@ export function createAnswerArea(deps: {
     const key = document.createElement("kbd");
     key.textContent = String(i + 1);
     button.append(key, choice.label);
+    if (ask.multiple) {
+      button.insertAdjacentHTML("beforeend", CHECK_SVG);
+      button.lastElementChild!.classList.add("yui-threads-answer__check");
+    }
     button.addEventListener("click", () => pick(i));
     return button;
   });
@@ -113,32 +126,49 @@ export function createAnswerArea(deps: {
   }
 
   const text = (): string => (ask.text ? draft.text.trim() : "");
-  const picked = () => ask.choices.find((c) => c.id === draft.choice);
+  const picked = () => ask.choices.filter((c) => draft.picks.includes(c.id));
 
   function refresh(): void {
     ask.choices.forEach((choice, i) => {
-      choiceButtons[i]!.setAttribute("aria-pressed", String(choice.id === draft.choice));
+      choiceButtons[i]!.setAttribute("aria-pressed", String(draft.picks.includes(choice.id)));
     });
-    const choice = picked();
-    send.textContent = choice ? choice.label : t("threads.send");
-    send.classList.toggle("is-danger", choice?.tone === "danger");
-    send.disabled = sending || !(choice || text());
+    const choices = picked();
+    send.textContent =
+      choices.length > 1
+        ? t("threads.send_count", { n: choices.length })
+        : (choices[0]?.label ?? t("threads.send"));
+    send.classList.toggle(
+      "is-danger",
+      choices.some((choice) => choice.tone === "danger"),
+    );
+    send.disabled = sending || !(choices.length || text());
   }
 
   function pick(index: number): void {
     const choice = ask.choices[index];
     if (!choice) return;
-    draft.choice = draft.choice === choice.id ? undefined : choice.id;
+    draft.picks = draft.picks.includes(choice.id)
+      ? draft.picks.filter((id) => id !== choice.id)
+      : ask.multiple
+        ? [...draft.picks, choice.id]
+        : [choice.id];
     deps.onDraft({ ...draft });
     refresh();
   }
 
   function submit(): void {
-    const choice = picked();
-    if (sending || !(choice || text())) return;
+    const choices = picked();
+    if (sending || !(choices.length || text())) return;
     sending = true;
     refresh();
-    deps.onSend({ ...(choice ? { choice: choice.id } : {}), ...(text() ? { text: text() } : {}) });
+    deps.onSend({
+      ...(choices.length
+        ? ask.multiple
+          ? { choices: choices.map((choice) => choice.id) }
+          : { choice: choices[0]!.id }
+        : {}),
+      ...(text() ? { text: text() } : {}),
+    });
   }
 
   send.addEventListener("click", submit);

@@ -15,6 +15,7 @@ pub fn thread_answer(
     id: String,
     ask_id: String,
     choice: Option<String>,
+    choices: Option<Vec<String>>,
     text: Option<String>,
     release: Option<bool>,
 ) -> Result<(), String> {
@@ -24,6 +25,7 @@ pub fn thread_answer(
             AnswerInput {
                 ask_id,
                 choice,
+                choices,
                 text,
                 release,
             },

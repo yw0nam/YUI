@@ -140,13 +140,40 @@ impl ThreadStore {
         now
     }
 
-    pub fn answer(&self, id: &str, answer: AnswerInput, now: u64) -> Result<(), &'static str> {
+    pub fn answer(&self, id: &str, mut answer: AnswerInput, now: u64) -> Result<(), &'static str> {
         let snapshot = {
             let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
             let thread = state.threads.get_mut(id).ok_or("unknown thread")?;
             let ask = thread.ask.as_ref().ok_or("ask is not open")?;
             if ask.ask_id != answer.ask_id {
                 return Err("ask_id does not match open ask");
+            }
+            if ask.multiple && answer.choice.is_some() {
+                return Err("multi-select Ask does not accept choice");
+            }
+            if let Some(ids) = &answer.choices {
+                if !ask.multiple {
+                    return Err("single-select Ask does not accept choices");
+                }
+                if ids.is_empty() {
+                    return Err("choices must be non-empty");
+                }
+                let mut unique = std::collections::HashSet::new();
+                for id in ids {
+                    if !unique.insert(id) {
+                        return Err("choices must be distinct");
+                    }
+                    if !ask.choices.iter().any(|choice| &choice.id == id) {
+                        return Err("a choice is not among the ask choices");
+                    }
+                }
+                answer.choices = Some(
+                    ask.choices
+                        .iter()
+                        .filter(|choice| ids.contains(&choice.id))
+                        .map(|choice| choice.id.clone())
+                        .collect(),
+                );
             }
             let choice = answer
                 .choice
@@ -155,10 +182,11 @@ impl ThreadStore {
                     ask.choices
                         .iter()
                         .find(|c| &c.id == id)
-                        .ok_or("choice is not among the ask choices")
+                        .ok_or("a choice is not among the ask choices")
                 })
                 .transpose()?;
             if answer.choice.is_none()
+                && answer.choices.is_none()
                 && answer.text.as_ref().is_none_or(|t| t.is_empty())
                 && answer.release != Some(true)
             {
@@ -174,9 +202,17 @@ impl ThreadStore {
             {
                 return Err("answer text exceeds 16384 characters");
             }
-            let text = choice
+            let text = ask
+                .choices
+                .iter()
+                .filter(|c| {
+                    choice == Some(*c)
+                        || answer
+                            .choices
+                            .as_ref()
+                            .is_some_and(|ids| ids.contains(&c.id))
+                })
                 .map(|c| c.label.as_str())
-                .into_iter()
                 .chain(answer.text.as_deref().filter(|s| !s.is_empty()))
                 .collect::<Vec<_>>()
                 .join("\n");
@@ -340,12 +376,83 @@ mod tests {
         AnswerInput {
             ask_id: "a".into(),
             choice: Some("yes".into()),
+            choices: None,
             text: Some("Please".into()),
             release: None,
         }
     }
     fn poll(s: &ThreadStore, ask: &str) -> WaitOutcome {
         s.wait_answer("t", Some(ask), Duration::ZERO)
+    }
+
+    #[test]
+    fn multiple_answers_keep_ids_and_join_labels_in_ask_order() {
+        let s = store();
+        let mut value = body();
+        value["ask"]["multiple"] = serde_json::json!(true);
+        value["ask"]["choices"] = serde_json::json!([
+            {"id":"yes","label":"Allow"}, {"id":"no","label":"Deny"}
+        ]);
+        s.upsert(
+            "t",
+            super::super::model::parse_upsert(&value.to_string()).unwrap(),
+            1,
+        );
+        let a: AnswerInput = serde_json::from_value(serde_json::json!({
+            "ask_id":"a", "choices":["no","yes"], "text":"why"
+        }))
+        .unwrap();
+        assert_eq!(s.answer("t", a, 2), Ok(()));
+        assert_eq!(
+            s.snapshot().threads[0].entries.last().unwrap().text,
+            "Allow\nDeny\nwhy"
+        );
+        let WaitOutcome::Answer(answer) = poll(&s, "a") else {
+            panic!("pending answer");
+        };
+        assert_eq!(
+            serde_json::to_value(answer).unwrap(),
+            serde_json::json!({
+                "ask_id":"a", "choices":["yes","no"], "text":"why", "at":2
+            })
+        );
+    }
+
+    #[test]
+    fn invalid_multiple_answers_leave_the_ask_open() {
+        for (payload, error) in [
+            (
+                serde_json::json!({"choice":"yes"}),
+                "multi-select Ask does not accept choice",
+            ),
+            (
+                serde_json::json!({"choices":[]}),
+                "choices must be non-empty",
+            ),
+            (
+                serde_json::json!({"choices":["yes","yes"]}),
+                "choices must be distinct",
+            ),
+            (
+                serde_json::json!({"choices":["unknown"]}),
+                "a choice is not among the ask choices",
+            ),
+        ] {
+            let s = store();
+            let mut value = body();
+            value["ask"]["multiple"] = serde_json::json!(true);
+            s.upsert(
+                "t",
+                super::super::model::parse_upsert(&value.to_string()).unwrap(),
+                1,
+            );
+            let mut payload = payload;
+            payload["ask_id"] = serde_json::json!("a");
+            payload["text"] = serde_json::json!("why");
+            let result = s.answer("t", serde_json::from_value(payload).unwrap(), 2);
+            assert_eq!(result, Err(error));
+            assert_eq!(s.snapshot().threads[0].ask.as_ref().unwrap().ask_id, "a");
+        }
     }
 
     #[test]
@@ -513,7 +620,8 @@ mod tests {
             ("unknown", "unknown thread"),
             ("closed", "ask is not open"),
             ("mismatch", "ask_id does not match open ask"),
-            ("choice", "choice is not among the ask choices"),
+            ("choice", "a choice is not among the ask choices"),
+            ("choices", "single-select Ask does not accept choices"),
             (
                 "empty",
                 "answer requires a choice, non-empty text, or release",
@@ -541,6 +649,12 @@ mod tests {
             match case {
                 "mismatch" => a.ask_id = "b".into(),
                 "choice" => a.choice = Some("no".into()),
+                "choices" => {
+                    a = serde_json::from_value(serde_json::json!({
+                        "ask_id":"a", "choice":"yes", "choices":["yes"], "text":"Please"
+                    }))
+                    .unwrap()
+                }
                 "empty" => {
                     a.choice = None;
                     a.text = Some("".into());
@@ -583,6 +697,7 @@ mod tests {
         let a = AnswerInput {
             ask_id: "b".into(),
             choice: None,
+            choices: None,
             text: None,
             release: Some(true),
         };

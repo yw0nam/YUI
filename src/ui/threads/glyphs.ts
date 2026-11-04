@@ -13,3 +13,6 @@ export const THREADS_GLYPH = glyph(
 export const TERMINAL_GLYPH = glyph(
   '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="m7 9 3 3-3 3"/><path d="M12.5 15H17"/>',
 );
+
+/** A check mark: a picked choice or a read Thread. */
+export const CHECK_SVG = glyph('<path d="M5 12.5 9.5 17 19 7"/>');

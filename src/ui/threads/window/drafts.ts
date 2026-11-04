@@ -3,7 +3,7 @@
 import type { Thread, ThreadAsk } from "../../../contract";
 
 export interface Draft {
-  choice?: string;
+  picks: string[];
   text: string;
 }
 
@@ -22,7 +22,10 @@ export function pruneDrafts(drafts: Map<string, Draft>, threads: Thread[]): void
       drafts.delete(key);
       continue;
     }
-    const choice = ask.choices.some((c) => c.id === draft.choice) ? draft.choice : undefined;
-    drafts.set(key, { ...(choice ? { choice } : {}), text: ask.text ? draft.text : "" });
+    const picks = draft.picks.filter((id) => ask.choices.some((c) => c.id === id));
+    drafts.set(key, {
+      picks: ask.multiple ? picks : picks.slice(0, 1),
+      text: ask.text ? draft.text : "",
+    });
   }
 }

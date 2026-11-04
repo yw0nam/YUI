@@ -1890,7 +1890,7 @@ globalThis.YUI_MAP =
       "id": "push-ws",
       "from": "io/chat/push",
       "to": "backend-push",
-      "carries": "frames out: hello, turn, vocabulary, reset, stop, tool_result, playback, answer, command",
+      "carries": "frames out: hello, turn, vocabulary, reset, stop, tool_result, playback, answer {ask_id, choice?, choices?, text?}, command",
       "kind": "websocket",
       "transport": "push"
     },
@@ -1898,7 +1898,7 @@ globalThis.YUI_MAP =
       "id": "push-ws-in",
       "from": "backend-push",
       "to": "io/chat/push",
-      "carries": "frames in: ready, speech, render, turn_end, error, reasoning, tool_status, tool_call, delegations, ask, ask_end, command_reply; ready.commands states the Backend commands",
+      "carries": "frames in: ready, speech, render, turn_end, error, reasoning, tool_status, tool_call, delegations, ask {ask with multiple?, expires_at?}, ask_end, command_reply; ready.commands states the Backend commands",
       "kind": "websocket",
       "transport": "push"
     },
@@ -1969,7 +1969,7 @@ globalThis.YUI_MAP =
       "id": "push-ask",
       "from": "io/chat/push",
       "to": "ui/surfaces",
-      "carries": "ask, ask_end, socket state → wireAskSession → surfaces.setAsks; surfaces.onAskAnswer → sendAnswer",
+      "carries": "ask {ask with multiple?, expires_at?}, ask_end, socket state → wireAskSession → surfaces.setAsks; surfaces.onAskAnswer → sendAnswer {ask_id, choice?, choices?, text?}",
       "kind": "callback",
       "transport": "push",
       "wiring": "src/app/turn/push/ask-session.ts"
@@ -1978,7 +1978,7 @@ globalThis.YUI_MAP =
       "id": "surface-asks",
       "from": "ui/surfaces",
       "to": "ui/ask",
-      "carries": "setAsks → AskCard.set; onAskAnswer → AskCard.onAnswer",
+      "carries": "setAsks → AskCard.set with multiple?; onAskAnswer → AskCard.onAnswer {ask_id, choice?, choices?, text?}",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/ui/surfaces/surfaces.ts"
@@ -3037,7 +3037,7 @@ globalThis.YUI_MAP =
       "id": "threads-shell-command",
       "from": "io/threads",
       "to": "shell/threads",
-      "carries": "threads_snapshot once after the listen; thread_answer {id, askId, choice?, text?}; thread_seen {id, askId}; thread_read {id}",
+      "carries": "threads_snapshot once after the listen; thread_answer {id, askId, choice?, choices?, text?}; thread_seen {id, askId}; thread_read {id}",
       "kind": "tauri-command",
       "transport": "shared"
     },
@@ -3153,7 +3153,7 @@ globalThis.YUI_MAP =
       "id": "threads-answer",
       "from": "ui/threads",
       "to": "io/threads",
-      "carries": "an Answer {choice?, text?} for the ask id captured at send; a rejection's error string comes back to the answer area",
+      "carries": "an Answer {choice?, choices?, text?} for the ask id captured at send; a rejection's error string comes back to the answer area",
       "kind": "call",
       "transport": "shared",
       "wiring": "src/app/threads-window/wire-threads-window.ts"
@@ -4198,7 +4198,7 @@ globalThis.YUI_MAP =
       "to": "shell/agent-ingress",
       "kind": "http",
       "transport": "shared",
-      "carries": "PUT /threads/<id> {source, title, label?, state, entries?, ask?}; GET /threads/<id>/answer with optional ask_id and wait (200 oldest pending answer once, 204, 404; 410 only with ask_id); GET /threads/answers?source=<source> sweeps every pending answer of that source, oldest first, delivered once",
+      "carries": "PUT /threads/<id> {source, title, label?, state, entries?, ask? with multiple?}; GET /threads/<id>/answer with optional ask_id and wait (200 oldest pending answer {ask_id, choice?, choices?, text?, release?, at} once, 204, 404; 410 only with ask_id); GET /threads/answers?source=<source> sweeps every pending answer of that source, oldest first, delivered once",
       "wiring": "src-tauri/src/agent_ingress/mod.rs"
     },
     {
