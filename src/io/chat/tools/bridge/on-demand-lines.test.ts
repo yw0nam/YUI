@@ -52,7 +52,11 @@ it("lists built-in On-demand tools before enabled plugin tools and preserves ski
     name,
     definition: {
       type: "function",
-      function: { name, description, parameters: { type: "object", properties: {} } },
+      function: {
+        name,
+        description,
+        parameters: { type: "object", properties: {}, additionalProperties: false },
+      },
     },
     execute: async () => "ok",
     waitMs: 2000,
