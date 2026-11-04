@@ -17,7 +17,7 @@ export interface OnDemandLines {
   skills: Array<{ name: string; description: string }>;
 }
 
-interface ContextProviders {
+export interface ContextProviders {
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
   onScreenshotError?: (error: unknown) => void;
   getBodyState?: () => BodyState | undefined;

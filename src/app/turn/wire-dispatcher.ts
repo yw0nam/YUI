@@ -1,8 +1,9 @@
 /** Wires the turn feed, the backend caller, guardrails, the pacer and the dispatcher. */
 import type { AppConfig } from "../../config/load";
 import { CHAT_API_KEY_SECRET } from "../../config/secrets";
-import type { EndpointsConfig, FrontmostState, ToolStatus, Usage } from "../../contract";
+import type { EndpointsConfig, ToolStatus, Usage } from "../../contract";
 import { createBackendCaller } from "../../dispatcher/backend/backend-caller";
+import type { ContextProviders } from "../../dispatcher/backend/context-builder";
 import type { PreviousTurnSlot } from "../../dispatcher/backend/previous-turn";
 import { createAddressedChain } from "../../dispatcher/core/addressed-chain";
 import type { EventBus } from "../../dispatcher/core/event-bus";
@@ -96,11 +97,8 @@ export function wireDispatcher(deps: {
   oneVoiceSettings: SettingsStores["oneVoiceSettings"];
   screenshotSettings: SettingsStores["screenshotSettings"];
   screenCapturer: ScreenCapturer;
-  getFrontmost: () => FrontmostState | undefined;
-  /** The window's On-demand tools and plugin skills, read once per turn. */
-  getOnDemandLines?: Parameters<typeof createBackendCaller>[0]["getOnDemandLines"];
-  /** The Threads waiting for the user's answer, read once per turn; main's window only. */
-  getThreadsWaiting?: Parameters<typeof createBackendCaller>[0]["getThreadsWaiting"];
+  contextProviders: Required<Pick<ContextProviders, "getFrontmost">> &
+    Pick<ContextProviders, "getOnDemandLines" | "getThreadsWaiting">;
   voice: Pick<VoicePipeline, "turnOutput" | "speakFailure">;
   turnLog: TurnLog;
   previousTurn: PreviousTurnSlot;
@@ -147,7 +145,7 @@ export function wireDispatcher(deps: {
     oneVoiceSettings,
     screenshotSettings,
     screenCapturer,
-    getFrontmost,
+    contextProviders,
     voice,
     turnLog,
     previousTurn,
@@ -203,27 +201,27 @@ export function wireDispatcher(deps: {
     turnOutput: voice.turnOutput,
     reportSpokeText: (turnId, spoke) => turnLog.setSpokeText(turnId, spoke),
     turnFeed,
-    getScreenshot: async () => {
-      const screenshot = screenshotSettings.get();
-      if (!screenshot.enabled) return undefined;
-      const capture = await screenCapturer.capture(screenshot.source);
-      return buildScreenshotBlock(screenshot, capture ?? undefined);
+    contextProviders: {
+      ...contextProviders,
+      getScreenshot: async () => {
+        const screenshot = screenshotSettings.get();
+        if (!screenshot.enabled) return undefined;
+        const capture = await screenCapturer.capture(screenshot.source);
+        return buildScreenshotBlock(screenshot, capture ?? undefined);
+      },
+      getBodyState: () => dispatcher.getBodyState(),
+      getPrevious: previousTurn.get,
+      getToolSwitches: () => turnTools().switches(),
+      getOverheard: overheard.read,
+      getRelations: () =>
+        readRelationLines(
+          relationsStore.all(),
+          presetIdForWindow(),
+          readPresetList(),
+          relationsSwitch.get().enabled,
+        ),
+      getOpenCharacters: () => [...targetLabels(readOpenPresetEntries(presetIdForWindow())).keys()],
     },
-    getBodyState: () => dispatcher.getBodyState(),
-    getFrontmost,
-    getPrevious: previousTurn.get,
-    getToolSwitches: () => turnTools().switches(),
-    getOverheard: overheard.read,
-    getRelations: () =>
-      readRelationLines(
-        relationsStore.all(),
-        presetIdForWindow(),
-        readPresetList(),
-        relationsSwitch.get().enabled,
-      ),
-    getOpenCharacters: () => [...targetLabels(readOpenPresetEntries(presetIdForWindow())).keys()],
-    getOnDemandLines: deps.getOnDemandLines,
-    getThreadsWaiting: deps.getThreadsWaiting,
     commitOverheard: overheard.commit,
     contextHistory,
     appendTurnRecord,

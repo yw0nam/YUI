@@ -98,7 +98,7 @@ function wire(over: Partial<TurnCorePhase1> = {}) {
     ...over,
   } as unknown as TurnCorePhase1;
   const core = wireTurnCore({} as never, phase1, {
-    getFrontmost: () => undefined,
+    contextProviders: { getFrontmost: () => undefined },
     screenCapturer: {} as never,
     openSettings: () => {},
     register: (teardown) => teardowns.push(teardown),

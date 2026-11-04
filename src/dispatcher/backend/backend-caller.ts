@@ -22,14 +22,7 @@
  * Silent drop classification: parse_error(WARN) / network_drop(WARN) / network_stall(WARN, idle timeout).
  */
 
-import type {
-  BodyState,
-  ClientContext,
-  EndpointsConfig,
-  FrontmostState,
-  InputContext,
-  PreviousTurn,
-} from "../../contract";
+import type { EndpointsConfig } from "../../contract";
 import {
   type ChatHistoryEntry,
   selectSendSuffix,
@@ -48,7 +41,12 @@ import { sendIdOf } from "../core/classify";
 import type { Turn } from "../turn/turn";
 import { backgroundMarker } from "./background-marker";
 import { renderClientContext } from "./client-context-text";
-import { buildContext, imageDataUrlsOf, type OnDemandLines, userTextOf } from "./context-builder";
+import {
+  buildContext,
+  type ContextProviders,
+  imageDataUrlsOf,
+  userTextOf,
+} from "./context-builder";
 import { createPushCall, type PushCallDeps } from "./push-call";
 import { composeResponsesInput, encodeInput } from "./request-input";
 import { createReplySettler, type SettleDeps } from "./settle-reply";
@@ -95,26 +93,8 @@ interface BackendCallerDeps extends PushCallDeps, SettleDeps, StreamAttemptDeps 
   getApiKey: () => Promise<string | undefined>;
   /** Transport fetch selection (selectFetch). Tauri=cors-fetch, dev=undefined. */
   getFetch: () => Promise<typeof globalThis.fetch | undefined>;
-  /** When toggle is ON, assembles and returns screenshot block (undefined if OFF/failed). main.ts composes with settings+capturer+buildScreenshotBlock. */
-  getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
-  /** Held posture lookup — called per turn. Optional for callers with no dispatcher wired; the real client always provides one. */
-  getBodyState?: () => BodyState | undefined;
-  /** Latest frontmost sample lookup — called per turn; undefined until a sample exists. */
-  getFrontmost?: () => FrontmostState | undefined;
-  /** Previous-turn slot lookup — read after the pre-turn interrupt, so a superseded turn is already recorded. */
-  getPrevious?: () => PreviousTurn | undefined;
-  /** Switch state of the tools the window declares — read per turn for the client_context line. */
-  getToolSwitches?: () => ClientContext["tool_switches"];
-  /** The other presets' lines this character has not heard yet — read per turn. */
-  getOverheard?: () => OverheardBlock[];
-  /** This character's relation toward each rated target — read per turn. */
-  getRelations?: () => ClientContext["relations"];
-  /** The other open presets' names — read per turn. */
-  getOpenCharacters?: () => string[];
-  /** The Threads waiting for the user's answer, read once per turn; main's window only. */
-  getThreadsWaiting?: () => ClientContext["threads_waiting"];
-  /** The window's On-demand tools and plugin skills, read once per turn. */
-  getOnDemandLines?: () => OnDemandLines;
+  /** The per-turn context reads. */
+  contextProviders?: Omit<ContextProviders, "onScreenshotError">;
   /** Marks a turn's overheard lines heard — called only when that turn ends ok. */
   commitOverheard?: (blocks: OverheardBlock[]) => void;
   /** Previous response id lookup — when present, included in request to continue conversation. Called per turn (reflects reset/rotation). */
@@ -223,16 +203,7 @@ export function createBackendCaller(deps: BackendCallerDeps): BackendCaller {
       }
       // B1
       const { ctx, clientContext, overheard } = await buildContext(env, {
-        getScreenshot: deps.getScreenshot,
-        getBodyState: deps.getBodyState,
-        getFrontmost: deps.getFrontmost,
-        getPrevious: deps.getPrevious,
-        getToolSwitches: deps.getToolSwitches,
-        getOverheard: deps.getOverheard,
-        getRelations: deps.getRelations,
-        getOpenCharacters: deps.getOpenCharacters,
-        getThreadsWaiting: deps.getThreadsWaiting,
-        getOnDemandLines: deps.getOnDemandLines,
+        ...deps.contextProviders,
         onScreenshotError: (error) => log.warn("screenshot.failed", { error: String(error) }),
       });
       // Single "now" snapshot reused for every duration computed into this turn's rendered

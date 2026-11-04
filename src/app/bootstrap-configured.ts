@@ -209,12 +209,14 @@ const realFactories: ConfiguredBootstrapFactories = {
     const core = await wireTurnCore(cfg, phase1, {
       restoreSignals: userTurnDone.onTurnDropped,
       getCardText: card.getCardText,
-      getFrontmost: () => frontmostTracker.get(),
+      contextProviders: {
+        getFrontmost: () => frontmostTracker.get(),
+        getOnDemandLines: onDemandLines(mcpHost, onDemand),
+        getThreadsWaiting: threadsWaitingProvider(phase1.threads),
+      },
       screenCapturer: phase1.screenCapturer,
       openSettings: phase1.openSettings,
       windowTools,
-      getOnDemandLines: onDemandLines(mcpHost, onDemand),
-      getThreadsWaiting: threadsWaitingProvider(phase1.threads),
       onTurnClosed: userTurnDone.onTurnClosed,
       addressedTo: addressed.targetOf,
       voicePersistence: {

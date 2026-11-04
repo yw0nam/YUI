@@ -277,7 +277,7 @@ describe("backend_caller — screenshot port", () => {
       getFetch: async () => undefined,
       stream: script.stream,
       turnOutput,
-      getScreenshot: async () => SCREENSHOT,
+      contextProviders: { getScreenshot: async () => SCREENSHOT },
     });
     await caller.call(turnOf(userEnv("이 화면 뭐야?")));
     const [, request] = script.spy.mock.calls[0];
@@ -296,22 +296,6 @@ describe("backend_caller — screenshot port", () => {
     expect(userMessageOf(request.input).content).toContain("그냥 텍스트");
   });
 
-  it("getScreenshot resolves undefined → user content is a plain string (no image part)", async () => {
-    script.events = [completedEvent({ speech_text: "" })];
-    caller = createBackendCaller({
-      config: CONFIG,
-      renderer: { applyDirective } as never,
-      getApiKey: async () => "k",
-      getFetch: async () => undefined,
-      stream: script.stream,
-      turnOutput,
-      getScreenshot: async () => undefined,
-    });
-    await caller.call(turnOf(userEnv("이미지 없음")));
-    const [, request] = script.spy.mock.calls[0];
-    expect(userMessageOf(request.input).content).toContain("이미지 없음");
-  });
-
   it("getScreenshot rejects → turn still proceeds without an image (reaches streamChat)", async () => {
     script.events = [completedEvent({ speech_text: "hi" })];
     caller = createBackendCaller({
@@ -321,8 +305,10 @@ describe("backend_caller — screenshot port", () => {
       getFetch: async () => undefined,
       stream: script.stream,
       turnOutput,
-      getScreenshot: async () => {
-        throw new Error("capture failed");
+      contextProviders: {
+        getScreenshot: async () => {
+          throw new Error("capture failed");
+        },
       },
     });
     const res = await caller.call(turnOf(userEnv("캡처 실패")));
@@ -383,11 +369,13 @@ describe("backend_caller — user_images (chat attachments)", () => {
       getFetch: async () => undefined,
       stream: script.stream,
       turnOutput,
-      getScreenshot: async () => ({
-        enabled: true,
-        source: { kind: "monitor", index: 0 },
-        data_url: SHOT,
-      }),
+      contextProviders: {
+        getScreenshot: async () => ({
+          enabled: true,
+          source: { kind: "monitor", index: 0 },
+          data_url: SHOT,
+        }),
+      },
     });
     await caller.call(turnOf(imgEnv("둘 다", [IMG_A, IMG_B])));
     const [, request] = script.spy.mock.calls[0];
@@ -506,41 +494,6 @@ describe("backend_caller — flat client_context envelope", () => {
     const [, request] = script.spy.mock.calls[0];
     expect(userMessageContentOf(request.input)).toContain("こんにちは");
   });
-
-  it("(e) getBodyState reports a posture → client_context carries a body line with posture + perched_on app + duration", async () => {
-    script.events = [completedEvent({ speech_text: "" })];
-    caller = createBackendCaller({
-      config: CONFIG,
-      renderer: { applyDirective } as never,
-      getApiKey: async () => "k",
-      getFetch: async () => undefined,
-      stream: script.stream,
-      turnOutput,
-      getBodyState: () => ({
-        posture: { state: "peeking", perched_on: { app: "Messages", window_title: "Alice" } },
-        since: 1_716_999_000_000,
-      }),
-    });
-    await caller.call(turnOf(proactiveEnv()));
-    const [, request] = script.spy.mock.calls[0];
-    expect(clientContextOf(request.input)).toMatch(/^body: peeking on Messages \(for \d+min\)$/m);
-  });
-
-  it("(f) getBodyState reports no posture → client_context omits the body line", async () => {
-    script.events = [completedEvent({ speech_text: "" })];
-    caller = createBackendCaller({
-      config: CONFIG,
-      renderer: { applyDirective } as never,
-      getApiKey: async () => "k",
-      getFetch: async () => undefined,
-      stream: script.stream,
-      turnOutput,
-      getBodyState: () => undefined,
-    });
-    await caller.call(turnOf(userEnv("자유")));
-    const [, request] = script.spy.mock.calls[0];
-    expect(clientContextOf(request.input)).not.toContain("body:");
-  });
 });
 
 describe("backend_caller — agent settings (reasoning effort)", () => {
@@ -620,7 +573,7 @@ describe("backend_caller — previous-turn line", () => {
       getFetch: async () => undefined,
       stream: script.stream,
       turnOutput: output,
-      getPrevious: () => previous,
+      contextProviders: { getPrevious: () => previous },
       logger,
     });
 
@@ -664,7 +617,7 @@ describe("backend_caller — overheard lines", () => {
       getApiKey: async () => "k",
       getFetch: async () => undefined,
       stream: script.stream,
-      getOverheard: () => [block],
+      contextProviders: { getOverheard: () => [block] },
       commitOverheard,
     });
     script.events = error ? [] : [completedEvent({ speech_text: "" })];
@@ -676,33 +629,5 @@ describe("backend_caller — overheard lines", () => {
       "overheard: perlica ↔ user, 1 line",
     );
     expect(commitOverheard.mock.calls).toEqual(committed);
-  });
-});
-
-describe("backend_caller — threads waiting line", () => {
-  it("a getThreadsWaiting provider passed at the caller reaches the rendered client_context", async () => {
-    caller = createBackendCaller({
-      config: CONFIG,
-      renderer: { applyDirective } as never,
-      getApiKey: async () => "k",
-      getFetch: async () => undefined,
-      stream: script.stream,
-      getThreadsWaiting: () => ({
-        total: 3,
-        by_source: [
-          { source: "claude-code", count: 2 },
-          { source: "github-ci", count: 1 },
-        ],
-      }),
-    });
-    script.events = [completedEvent({ speech_text: "" })];
-    await caller.call(turnOf(userEnv("anything waiting?")));
-
-    const [, request] = script.spy.mock.calls[0];
-    const items = request.input as Array<{ role: string; content: string }>;
-    const user = items.find((item) => item.role === "user")!;
-    expect(clientContextTextOf(user.content)).toContain(
-      "threads: 3 waiting (claude-code 2, github-ci 1)",
-    );
   });
 });

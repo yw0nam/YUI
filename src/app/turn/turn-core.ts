@@ -106,7 +106,7 @@ export async function wireTurnCore(
   cfg: AppConfig,
   phase1: TurnCorePhase1,
   deps: {
-    getFrontmost: DispatcherDeps["getFrontmost"];
+    contextProviders: Parameters<typeof wireDispatcher>[0]["contextProviders"];
     restoreSignals?: DispatcherDeps["onTurnDropped"];
     screenCapturer: DispatcherDeps["screenCapturer"];
     openSettings?: DispatcherDeps["openSettings"];
@@ -117,10 +117,6 @@ export async function wireTurnCore(
     voiceHost?: VoiceHost;
     /** The tools beside generate_express, declared on every transport; none outside Tauri. */
     windowTools?: readonly ClientTool[];
-    /** The window's On-demand tools and plugin skills for the per-turn lines; none outside Tauri. */
-    getOnDemandLines?: DispatcherDeps["getOnDemandLines"];
-    /** The Threads waiting for the user's answer for the per-turn line; main's window only. */
-    getThreadsWaiting?: DispatcherDeps["getThreadsWaiting"];
     /** A turn is over — the over edge, or the next begin displacing it. */
     onTurnClosed?: DispatcherDeps["onTurnClosed"];
     /** The preset a turn's reply was addressed to, recorded on its transcript entry. */
@@ -228,9 +224,7 @@ export async function wireTurnCore(
     oneVoiceSettings: settings.oneVoiceSettings,
     screenshotSettings: settings.screenshotSettings,
     screenCapturer: deps.screenCapturer,
-    getFrontmost: deps.getFrontmost,
-    getOnDemandLines: deps.getOnDemandLines,
-    getThreadsWaiting: deps.getThreadsWaiting,
+    contextProviders: deps.contextProviders,
     voice,
     turnLog,
     previousTurn,
