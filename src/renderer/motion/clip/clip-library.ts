@@ -85,8 +85,11 @@ export function createClipLibrary(deps: {
     if (!vrm) return null;
 
     if (mirrored) {
+      const epoch = vrmEpoch;
       const upright = await loadClip(vrmaPath, false, rootLockY, rootKeepXz);
       if (!upright) return null;
+      // If hotswap happened during the upright load, discard.
+      if (epoch !== vrmEpoch || !vrm) return null;
       const clip = mirrorClipTracks(upright, boneNameSwap);
       clipCache.set(cacheKey, clip);
       // Mirroring swaps left/right bones; the vertical travel and its curve are the upright clip's.

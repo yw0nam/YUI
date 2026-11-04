@@ -15,8 +15,17 @@ import { createLogger } from "../../logger";
 
 const log = createLogger("push-turn");
 
-// Keeps event names for the 200 most recent client turns a late render can still name.
+// The 200 most recent client turns a late render can still name; past it, each id set evicts its oldest.
 const RECENT_TURN_IDENTITY_LIMIT = 200;
+
+/** Adds an id to a set or map and evicts the oldest past the identity limit, so a turn whose end never comes cannot grow it further. */
+function addTurnId(store: Set<string> | Map<string, string>, id: string, eventName?: string): void {
+  if (store instanceof Map) store.set(id, eventName ?? "");
+  else store.add(id);
+  if (store.size <= RECENT_TURN_IDENTITY_LIMIT) return;
+  const oldest = store.keys().next().value;
+  if (oldest !== undefined) store.delete(oldest);
+}
 
 /** Hooks a wait on a turn runs as its frames arrive. */
 export interface TurnEndHooks {
@@ -94,18 +103,14 @@ export function createPushTurns(): PushTurns {
 
   return {
     opened(turnId, eventName) {
-      eventNames.set(turnId, eventName);
-      if (eventNames.size > RECENT_TURN_IDENTITY_LIMIT) {
-        const oldest = eventNames.keys().next().value;
-        if (oldest !== undefined) eventNames.delete(oldest);
-      }
-      live.add(turnId);
+      addTurnId(eventNames, turnId, eventName);
+      addTurnId(live, turnId);
     },
     identity(turnId) {
       return { turn_id: turnId, event_name: eventNames.get(turnId) ?? BACKEND_EVENT_NAME };
     },
     rendered(turnId) {
-      live.add(turnId);
+      addTurnId(live, turnId);
       const waiter = waiting.get(turnId);
       if (!waiter) return;
       runHook(turnId, waiter.hooks.onFrame);
@@ -120,7 +125,7 @@ export function createPushTurns(): PushTurns {
       const swept = [...live];
       for (const turnId of swept) {
         live.delete(turnId);
-        stopped.add(turnId);
+        addTurnId(stopped, turnId);
         settle(turnId, "cut");
         for (const listener of cutListeners) runHook(turnId, () => listener(turnId));
       }
