@@ -4,6 +4,7 @@
  * field persisting and resetting with the service, the model list read, and dispose committing.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { EndpointsConfig } from "../../../contract";
 import type { ServerCheck } from "../../../io/chat/models/server-check";
 import type { PushSocketState } from "../../../io/chat/push/push-socket";
 import {
@@ -47,6 +48,7 @@ describe("createConnectionTab", () => {
     getFetch?: () => Promise<typeof globalThis.fetch>;
     checkSttServer?: () => Promise<ServerCheck | null>;
     checkTtsServer?: () => Promise<ServerCheck | null>;
+    getEndpoints?: () => EndpointsConfig | null;
   }) {
     return createConnectionTab({
       endpointsSettings,
@@ -552,13 +554,12 @@ describe("createConnectionTab", () => {
   describe("server lines", () => {
     const tick = () => new Promise<void>((r) => setTimeout(r, 0));
 
-    function defaultsWith(field: "stt_base_url" | "tts_base_url", url: string) {
-      return endpointDefaultsFromConfig({
+    function endpointsWith(field: "stt_base_url" | "tts_base_url", url: string): EndpointsConfig {
+      return {
         chat_base_url: "",
-        chat_model: "",
         stt_base_url: field === "stt_base_url" ? url : "",
         tts_base_url: field === "tts_base_url" ? url : "",
-      });
+      };
     }
 
     it("the TTS line shows Could not reach with Reconnect, and clicking it checks the server again", async () => {
@@ -569,7 +570,7 @@ describe("createConnectionTab", () => {
       );
       const tab = build({
         checkTtsServer,
-        getEndpointDefaults: () => defaultsWith("tts_base_url", "https://tts.test"),
+        getEndpoints: () => endpointsWith("tts_base_url", "https://tts.test"),
       });
 
       tab.entered();
@@ -594,7 +595,7 @@ describe("createConnectionTab", () => {
       const checkSttServer = vi.fn(async (): Promise<ServerCheck | null> => ({ kind: "ok" }));
       const tab = build({
         checkSttServer,
-        getEndpointDefaults: () => defaultsWith("stt_base_url", "https://stt.test/v1"),
+        getEndpoints: () => endpointsWith("stt_base_url", "https://stt.test/v1"),
       });
 
       tab.entered();

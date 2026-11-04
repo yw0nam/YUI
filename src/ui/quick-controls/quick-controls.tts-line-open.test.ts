@@ -6,7 +6,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { TtsProviderName } from "../../contract";
+import type { EndpointsConfig } from "../../contract";
 import { createTtsServerCheck } from "../../io/voice/voices/tts-server-check";
 import { createVoiceListRefresh } from "../../io/voice/voices/voice-list-refresh";
 import type { Logger } from "../../logger";
@@ -44,12 +44,7 @@ describe("createQuickControls — the TTS line on open", () => {
       )) as typeof fetch);
     const args = defaultQcArgs(mount);
     args.endpointsSettings.set({ tts_provider: "irodori", tts_base_url: "http://127.0.0.1:8088" });
-    const getEndpoints = () =>
-      args.endpointsSettings.get() as {
-        tts_base_url?: string;
-        tts_speaker?: string;
-        tts_provider?: TtsProviderName;
-      };
+    const getEndpoints = () => args.endpointsSettings.get() as unknown as EndpointsConfig;
     const refreshVoiceList = createVoiceListRefresh({
       getEndpoints,
       getApiKey: async () => undefined,
@@ -59,6 +54,7 @@ describe("createQuickControls — the TTS line on open", () => {
     const qc = createQuickControls({
       ...args,
       refreshVoiceList,
+      getEndpoints,
       checkTtsServer: createTtsServerCheck({
         getEndpoints,
         getApiKey: async () => undefined,

@@ -1,5 +1,6 @@
 /** Connection tab endpoint sections share markup, handlers and reflection. */
 
+import type { EndpointsConfig } from "../../../contract";
 import type { ServerCheck } from "../../../io/chat/models/server-check";
 import type { PushSocketState } from "../../../io/chat/push/push-socket";
 import type { Logger } from "../../../logger";
@@ -11,7 +12,6 @@ import type {
   createEndpointsSettings,
   EndpointOverrides,
 } from "../../../settings/backend/endpoints-settings";
-import { mergeEndpoints } from "../../../settings/backend/endpoints-settings";
 import { t } from "../../i18n";
 import { ENDPOINT_FIELDS, STT_LANGUAGE_SUGGESTIONS, TTS_PROVIDER_PRESETS } from "../constants";
 import {
@@ -105,6 +105,8 @@ export function createConnectionTab(deps: {
   checkSttServer?: () => Promise<ServerCheck | null>;
   /** Asks the TTS server whether it answers; absent keeps the TTS line hidden. */
   checkTtsServer?: () => Promise<ServerCheck | null>;
+  /** The window's effective endpoints — the host and watch the lines show are the ones the checks read. */
+  getEndpoints?: () => EndpointsConfig | null;
   /** Default bundled-config endpoints to show as placeholder (undefined if not loaded). */
   getEndpointDefaults?: () => EndpointOverrides | undefined;
   /** Default bundled-config value for the chat protocol when no override (undefined if not loaded). */
@@ -126,6 +128,7 @@ export function createConnectionTab(deps: {
     sttKeySettings,
     checkSttServer,
     checkTtsServer,
+    getEndpoints,
     getEndpointDefaults,
     getDefaultChatApi,
     pushSocket,
@@ -165,46 +168,32 @@ export function createConnectionTab(deps: {
     log,
   });
 
-  // Effective endpoint value: the override over the bundled default — what a turn would read.
-  function effectiveOf(field: "stt_base_url" | "tts_base_url"): string {
-    return mergeEndpoints(
-      {
-        chat_base_url: "",
-        stt_base_url: getEndpointDefaults?.()?.stt_base_url ?? "",
-        tts_base_url: getEndpointDefaults?.()?.tts_base_url ?? "",
-      },
-      endpointsSettings.get(),
-    )[field];
-  }
-
-  // The provider next to the TTS URL in the same override-over-default shape the line watches.
-  function effectiveTtsProvider(): string {
-    return endpointsSettings.get().tts_provider || getEndpointDefaults?.()?.tts_provider || "";
-  }
-
-  // A service without its check keeps its line hidden — no line is built for it.
-  const sttLine = checkSttServer
-    ? createServerLine({
-        section: el.querySelector<HTMLElement>('[data-svc="stt"]')!,
-        check: checkSttServer,
-        host: () => hostOf(effectiveOf("stt_base_url")),
-        watch: () => effectiveOf("stt_base_url"),
-        subscribe: endpointsSettings.subscribe,
-        subscribeKey: sttKeySettings.subscribe,
-        isOpen,
-      })
-    : undefined;
-  const ttsLine = checkTtsServer
-    ? createServerLine({
-        section: el.querySelector<HTMLElement>('[data-svc="tts"]')!,
-        check: checkTtsServer,
-        host: () => hostOf(effectiveOf("tts_base_url")),
-        watch: () => `${effectiveOf("tts_base_url")}\u0000${effectiveTtsProvider()}`,
-        subscribe: endpointsSettings.subscribe,
-        subscribeKey: ttsKeySettings.subscribe,
-        isOpen,
-      })
-    : undefined;
+  // A service without its check or the window's endpoints keeps its line hidden — no line is built.
+  const sttLine =
+    checkSttServer && getEndpoints
+      ? createServerLine({
+          section: el.querySelector<HTMLElement>('[data-svc="stt"]')!,
+          check: checkSttServer,
+          host: () => hostOf(getEndpoints()?.stt_base_url ?? ""),
+          watch: () => getEndpoints()?.stt_base_url ?? "",
+          subscribe: endpointsSettings.subscribe,
+          subscribeKey: sttKeySettings.subscribe,
+          isOpen,
+        })
+      : undefined;
+  const ttsLine =
+    checkTtsServer && getEndpoints
+      ? createServerLine({
+          section: el.querySelector<HTMLElement>('[data-svc="tts"]')!,
+          check: checkTtsServer,
+          host: () => hostOf(getEndpoints()?.tts_base_url ?? ""),
+          watch: () =>
+            `${getEndpoints()?.tts_base_url ?? ""}\u0000${getEndpoints()?.tts_provider ?? ""}`,
+          subscribe: endpointsSettings.subscribe,
+          subscribeKey: ttsKeySettings.subscribe,
+          isOpen,
+        })
+      : undefined;
 
   const ttsProviderEl = el.querySelector<HTMLSelectElement>(".yui-tts-provider")!;
 

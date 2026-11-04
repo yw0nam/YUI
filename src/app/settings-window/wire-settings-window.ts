@@ -231,6 +231,7 @@ export async function wireSettingsWindow(deps: {
         getApiKey: () => config.secrets.get(STT_API_KEY_SECRET),
       }),
       checkTtsServer,
+      getEndpoints: shared.getEndpoints,
       onResetViewpoint: () => cameraSettings.resetOrbit(),
       endpointsSettings,
       chatKeySettings,

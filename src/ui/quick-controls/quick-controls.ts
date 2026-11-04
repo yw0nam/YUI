@@ -217,6 +217,8 @@ interface QuickControlsOptions {
   checkSttServer?: () => Promise<ServerCheck | null>;
   /** Asks the TTS server whether it answers, for the Connection page's TTS line; undefined hides the line. */
   checkTtsServer?: () => Promise<ServerCheck | null>;
+  /** The window's effective endpoints, backing the Connection page's STT and TTS lines. */
+  getEndpoints?: () => EndpointsConfig | null;
   /** Push transport — the chat section shows its state, and "Start fresh" resets the conversation on it. */
   pushSocket?: PushSocketPanelPort;
   /** "Start fresh" calls it after the transcript boundary is written. */
@@ -368,6 +370,7 @@ export function createQuickControls({
   getFetch,
   checkSttServer,
   checkTtsServer,
+  getEndpoints,
   pushSocket,
   announceSessionReset,
   delegations,
@@ -472,6 +475,7 @@ export function createQuickControls({
     sttKeySettings,
     checkSttServer,
     checkTtsServer,
+    getEndpoints,
     getEndpointDefaults,
     getDefaultChatApi,
     pushSocket,
