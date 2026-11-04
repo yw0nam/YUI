@@ -10,8 +10,7 @@ import { fetchReferenceClip } from "./reference-clip";
 import {
   authHeaders,
   clipExtensionOf,
-  httpFailure,
-  thrownFailure,
+  runVoiceList,
   type UpsertVoiceOptions,
   VOICE_UPLOAD_TIMEOUT_MS,
   VOICES_REQUEST_TIMEOUT_MS,
@@ -42,25 +41,12 @@ export async function listFishVoices(
   opts: VoicesRequestOptions,
 ): Promise<{ kind: "ok"; voices: VoiceEntry[] } | ServerFailure> {
   const log = opts.logger ?? createLogger("fish-voices");
-  const fetchImpl = opts.fetch ?? globalThis.fetch;
-  const deadline = createDeadlineSignal(VOICES_REQUEST_TIMEOUT_MS, "Fish voice list timed out");
-  let responded = false;
-  try {
+  return runVoiceList(opts, "Fish voice list timed out", log, async (fetchPage) => {
     const voices: VoiceEntry[] = [];
     for (let page = 1; ; page++) {
-      const res = await untilAborted(
-        fetchImpl(`${opts.baseUrl}/model?self=true&page_size=${PAGE_SIZE}&page_number=${page}`, {
-          headers: await authHeaders(opts.getApiKey),
-          signal: deadline.signal,
-        }),
-        deadline.signal,
-      );
-      responded = true;
-      if (!res.ok) {
-        log.warn("voice_list_failed", { status: res.status });
-        return httpFailure(res.status);
-      }
-      const body = (await untilAborted(res.json(), deadline.signal)) as {
+      const body = (await fetchPage(
+        `${opts.baseUrl}/model?self=true&page_size=${PAGE_SIZE}&page_number=${page}`,
+      )) as {
         total?: unknown;
         has_more?: unknown;
         items?: Array<{ _id?: unknown; title?: unknown }>;
@@ -83,12 +69,7 @@ export async function listFishVoices(
       if (items.length === 0 || !more) break;
     }
     return { kind: "ok", voices };
-  } catch (err) {
-    log.warn("voice_list_failed", { error: String(err) });
-    return thrownFailure(deadline.signal, responded);
-  } finally {
-    deadline.clear();
-  }
+  });
 }
 
 /**

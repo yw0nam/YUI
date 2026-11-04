@@ -65,16 +65,17 @@ describe("createSequence", () => {
     expect(emit.mock.calls.at(-1)?.[0]).toMatchObject({ to: "perlica" });
   });
 
-  it("holds a send that arrives while another runs until the first finishes, and reports its start", () => {
-    const onStart = vi.fn();
-    const seq = createSequence({ emit, onStart });
+  it("ignores a run that arrives while another send is current", () => {
+    const onIdle = vi.fn();
+    const seq = createSequence({ emit, onIdle });
     seq.run({ sendId: "s1", targets: ["natsume"], text: "one" });
     seq.run({ sendId: "s2", targets: ["perlica"], text: "two" });
 
-    expect(emit).toHaveBeenCalledTimes(1);
-    expect(onStart.mock.calls).toEqual([["s1"]]);
+    expect(emit.mock.calls).toEqual([[{ sendId: "s1", to: "natsume", text: "one" }]]);
+    expect(seq.current()?.sendId).toBe("s1");
     seq.turnDone({ sendId: "s1", preset: "natsume" });
-    expect(emit.mock.calls.at(-1)).toEqual([{ sendId: "s2", to: "perlica", text: "two" }]);
-    expect(onStart.mock.calls).toEqual([["s1"], ["s2"]]);
+    expect(emit).toHaveBeenCalledTimes(1);
+    expect(seq.current()).toBeNull();
+    expect(onIdle).toHaveBeenCalledOnce();
   });
 });

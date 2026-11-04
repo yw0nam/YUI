@@ -6,6 +6,7 @@
 
 import type { ScreenRect } from "../../contract";
 import type { ThreadsTab } from "../../io/bridge/settings-bridge";
+import { createSerialQueue } from "../../io/window/serial-queue";
 import { createLogger } from "../../logger";
 
 const log = createLogger("threads-presence");
@@ -24,10 +25,7 @@ export function createThreadsPresence(deps: {
   emitClosed(): void;
 }): { open(chip?: ScreenRect, tab?: ThreadsTab): void; close(): void } {
   let shown = false;
-  let chain: Promise<void> = Promise.resolve();
-  const queue = (step: () => Promise<void>): void => {
-    chain = chain.then(step);
-  };
+  const queue = createSerialQueue();
 
   async function hide(): Promise<void> {
     shown = false;

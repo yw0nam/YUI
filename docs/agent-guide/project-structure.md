@@ -474,6 +474,7 @@ YUI/
         frontmost-tracker.ts           # Latest frontmost-window sample off the os_event channel
         own-origin-fetch.ts             # Keeps each webview's own origin on native fetch instead of the CORS proxy
         current-window.ts              # Closes or destroys the current window and listens for its close request
+        serial-queue.ts                # Runs window open and close steps one after another; a failed step is logged and the next one still runs
         capture/                       # Screen enumeration and screenshot capture
           tauri-screen.ts              # Tauri-backed screen enumeration and capture
           screen-source-provider.ts    # Monitor enumeration seam
@@ -599,7 +600,7 @@ YUI/
         backlog-lines.ts             # The backlog's lines: the user's under "You → <recipient>" without the @name it repeats, a character's under its name
         merge.ts                     # Pure: the open presets' transcripts and the pending sends as one time-ordered list, each user row with its recipient
         targets.ts                   # Pure: the fallback target, the targets of a message, and the send built from what the user typed
-        sequence.ts                  # One-at-a-time delivery of a send, target by target, with its queue, 60 s timeout, cancel and log line
+        sequence.ts                  # One-at-a-time delivery of the current send, target by target, with its 60 s timeout, cancel and log line
         composer.ts                  # The message window's field under the text input, with the recipient in its placeholder, send and stop, and the inline error
         mention-picker.ts            # The @ list over the field: a combobox of the open presets and @everyone
         avatar.ts                    # A preset's face, drawn by every window: its photo framed on the stored crop in a circle over the preset's hue, else a dot; the plate and the unified window reuse it
@@ -667,6 +668,7 @@ YUI/
         hint-tooltip.css             # Hint tooltip styles
         keyed-render.ts              # Keyed re-render: focus by data-fk, a fade-in of new data-k blocks, and a switch that slides from its previous state
         keyed-render.css             # The keyed block's fade-in
+        row-actions.css              # The rename and remove ghost buttons, hints and keys the preset strip and the asset lists share
         character/                   # The Body page and the Motion and desktop page's character rows
           character-tab.ts           # Builds both stacks: VRM list, relations rows and view reset; mouth gain and motions
           character-html.ts          # Markup of the two stacks

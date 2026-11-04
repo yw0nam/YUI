@@ -14,6 +14,7 @@ import {
   COMPANION_HANDLE_HEIGHT,
   resolveCompanionPosition,
 } from "../geometry/companion-position";
+import { createSerialQueue } from "../serial-queue";
 
 const log = createLogger("unified-window");
 
@@ -82,10 +83,7 @@ export function createUnifiedWindowController(store: {
   open(): void;
   close(): void;
 } {
-  let chain: Promise<void> = Promise.resolve();
-  const queue = (step: () => Promise<void>): void => {
-    chain = chain.then(step, step);
-  };
+  const queue = createSerialQueue();
 
   return {
     open() {

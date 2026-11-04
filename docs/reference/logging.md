@@ -225,6 +225,7 @@ The card's Voice, Keep bubble and Unified chat tiles log the toggle events of th
 | `threads-presence` | `threads_open_failed` | `error` | Placing, showing or growing the window threw; it hides and main's chip leaves its open state (`error` level). |
 | `threads-presence` | `threads_focus_failed` | `error` | Bringing the shown window forward on a second open threw (`warn` level). |
 | `threads-presence` | `threads_hide_failed` | `error` | Hiding the window threw (`warn` level). |
+| `serial-queue` | `serial_queue_step_failed` | `error` | A window open or close step rejected; the next step still runs (`warn` level). |
 | `threads-placement` | `threads_drag_failed` | `error` | The `drag_window` command for a head drag failed (`warn` level). |
 | `threads-placement` | `threads_move_listen_failed` | `error` | Listening to the window's moves failed; a move is not saved (`warn` level). |
 | `threads-placement` | `threads_move_save_failed` | `error` | Reading the window's position after a move threw; the move is not saved (`warn` level). |

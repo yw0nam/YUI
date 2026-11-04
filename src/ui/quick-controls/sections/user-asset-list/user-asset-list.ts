@@ -7,6 +7,7 @@
  * the caller; this module owns only the state + control flow that is identical across
  * domains.
  */
+import "../../row-actions.css";
 import "./user-asset-list.css";
 
 import type { Logger } from "../../../../logger";
