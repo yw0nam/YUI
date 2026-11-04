@@ -8,13 +8,10 @@ afterEach(() => {
 describe("createSttServerCheck", () => {
   it("counts any HTTP answer as reachable — a transcription-only server answers /models with 405", async () => {
     const urls: string[] = [];
-    vi.stubGlobal(
-      "fetch",
-      ((url: string | URL | Request) => {
-        urls.push(String(url));
-        return Promise.resolve(new Response("", { status: 405 }));
-      }) as typeof fetch,
-    );
+    vi.stubGlobal("fetch", ((url: string | URL | Request) => {
+      urls.push(String(url));
+      return Promise.resolve(new Response("", { status: 405 }));
+    }) as typeof fetch);
     const check = createSttServerCheck({
       getEndpoints: () => ({ stt_base_url: "https://stt.test/v1" }),
       getApiKey: async () => undefined,

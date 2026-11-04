@@ -99,6 +99,11 @@ export function svcResetRowHtml(svc: string): string {
           </div>`;
 }
 
+// One status line under a service's rows — dot, state text, action button; its writer fills them.
+export function statusLineHtml(): string {
+  return `<p class="yui-chat-status" hidden><span class="yui-chat-status__dot" aria-hidden="true"></span><span class="yui-chat-status__text" role="status" aria-live="polite" aria-atomic="true"></span><button class="yui-chat-status__action" type="button" hidden></button></p>`;
+}
+
 // Numeric input row: label+sub(+hint) on the left, number input with its unit on the right.
 export function numRowHtml(opts: {
   id: string;

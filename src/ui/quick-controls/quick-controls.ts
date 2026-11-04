@@ -19,8 +19,8 @@ import type { createChatHistoryStore } from "../../io/chat/conversation/chat-his
 import type { createSessionDiagnosticsStore } from "../../io/chat/conversation/session-diagnostics";
 import type { createSessionStore } from "../../io/chat/conversation/session-store";
 import type { createSignalHistoryStore } from "../../io/chat/conversation/signal-history-store";
-import type { DelegationItem } from "../../io/chat/push/push-frames";
 import type { ServerCheck } from "../../io/chat/models/server-check";
+import type { DelegationItem } from "../../io/chat/push/push-frames";
 import type { McpHost, McpHostManage } from "../../io/mcp-host/mcp-host";
 import type {
   createSpeakerSelection,
@@ -215,6 +215,8 @@ interface QuickControlsOptions {
   getFetch?: () => Promise<typeof globalThis.fetch | undefined>;
   /** Asks the STT server whether it answers, for the Connection page's STT line; undefined hides the line. */
   checkSttServer?: () => Promise<ServerCheck | null>;
+  /** Asks the TTS server whether it answers, for the Connection page's TTS line; undefined hides the line. */
+  checkTtsServer?: () => Promise<ServerCheck | null>;
   /** Push transport — the chat section shows its state, and "Start fresh" resets the conversation on it. */
   pushSocket?: PushSocketPanelPort;
   /** "Start fresh" calls it after the transcript boundary is written. */
@@ -364,6 +366,8 @@ export function createQuickControls({
   getDefaultVoices,
   getChatApiKey,
   getFetch,
+  checkSttServer,
+  checkTtsServer,
   pushSocket,
   announceSessionReset,
   delegations,
@@ -465,6 +469,9 @@ export function createQuickControls({
     endpointsSettings,
     chatKeySettings,
     ttsKeySettings,
+    sttKeySettings,
+    checkSttServer,
+    checkTtsServer,
     getEndpointDefaults,
     getDefaultChatApi,
     pushSocket,
@@ -612,11 +619,13 @@ export function createQuickControls({
     closeWindow: onCloseWindow,
     onOpen: () => {
       for (const section of sections) section.reflect?.();
+      // Server may have come up after the app — refetch its voice list (store subscription re-renders).
+      // Before the page's entry: the TTS line's check must start last, so its answer is not
+      // superseded and the line shows on every open.
+      refreshVoiceList?.();
       // Opening on the Connection page counts as entering it — the model list read follows.
       if (tabRail.selected() === "conn") connectionViews.entered();
       if (tabRail.selected() === "plugins") pluginsPage?.entered();
-      // Server may have come up after the app — refetch its voice list (store subscription re-renders).
-      refreshVoiceList?.();
       // Last, so the list the monitors fill is already redrawn.
       screenshot.loadMonitorsIfEnabled();
     },

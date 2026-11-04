@@ -8,6 +8,7 @@ import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   createChatKeySettings,
+  createSttKeySettings,
   createTtsKeySettings,
 } from "../../../settings/backend/api-key-settings";
 import { createEndpointsSettings } from "../../../settings/backend/endpoints-settings";
@@ -48,6 +49,7 @@ describe("chat type row", () => {
       endpointsSettings,
       chatKeySettings: createChatKeySettings(),
       ttsKeySettings: createTtsKeySettings({ storage: inMemoryApiKeyStorage() }),
+      sttKeySettings: createSttKeySettings({ storage: inMemoryApiKeyStorage() }),
       isOpen: () => true,
       log: { debug() {}, info() {}, warn() {}, error() {} },
     });

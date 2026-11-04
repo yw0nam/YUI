@@ -45,6 +45,8 @@ describe("createConnectionTab", () => {
     getEndpointDefaults?: () => EndpointOverrides | undefined;
     getChatApiKey?: () => Promise<string | undefined>;
     getFetch?: () => Promise<typeof globalThis.fetch>;
+    checkSttServer?: () => Promise<ServerCheck | null>;
+    checkTtsServer?: () => Promise<ServerCheck | null>;
   }) {
     return createConnectionTab({
       endpointsSettings,
@@ -560,9 +562,11 @@ describe("createConnectionTab", () => {
     }
 
     it("the TTS line shows Could not reach with Reconnect, and clicking it checks the server again", async () => {
-      const checkTtsServer = vi.fn(async (): Promise<ServerCheck | null> => ({
-        kind: "unreachable",
-      }));
+      const checkTtsServer = vi.fn(
+        async (): Promise<ServerCheck | null> => ({
+          kind: "unreachable",
+        }),
+      );
       const tab = build({
         checkTtsServer,
         getEndpointDefaults: () => defaultsWith("tts_base_url", "https://tts.test"),

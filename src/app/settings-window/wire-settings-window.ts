@@ -5,9 +5,9 @@ import { createMirroredDelegations } from "../../io/bridge/delegations/delegatio
 import { createSettingsBridge } from "../../io/bridge/settings-bridge";
 import { selectFetch } from "../../io/chat/stream/chat-client";
 import { createMcpHost, mcpHostManage } from "../../io/mcp-host/mcp-host";
+import { createSttServerCheck } from "../../io/voice/stt-server-check";
 import { resolveScreenSourceProvider } from "../../io/window/capture/tauri-screen";
 import { closeSettingsWindow, titleSettingsWindow } from "../../io/window/openers/settings-window";
-import { createSttServerCheck } from "../../io/voice/stt-server-check";
 import { createLogger } from "../../logger";
 import type { SettingsPage } from "../../settings/panels/settings-pages";
 import { presetIdForWindow } from "../../settings/preset/active-preset";
@@ -86,6 +86,7 @@ export async function wireSettingsWindow(deps: {
     canManageVoices,
     canReuploadVoices,
     canPasteVoiceId,
+    checkTtsServer,
   } = shared.speaker;
   const {
     screenshotSettings,
@@ -229,6 +230,7 @@ export async function wireSettingsWindow(deps: {
         getEndpoints: shared.getEndpoints,
         getApiKey: () => config.secrets.get(STT_API_KEY_SECRET),
       }),
+      checkTtsServer,
       onResetViewpoint: () => cameraSettings.resetOrbit(),
       endpointsSettings,
       chatKeySettings,

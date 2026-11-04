@@ -64,13 +64,19 @@ describe("modelStatusView", () => {
     [
       "unreachable",
       "unreachable",
-      { want: t("svc.chat_models_unreachable", { host: HOST }), action: t("svc.chat_status_reconnect") },
+      {
+        want: t("svc.chat_models_unreachable", { host: HOST }),
+        action: t("svc.chat_status_reconnect"),
+      },
       ["is-failed"],
     ],
     [
       "timeout",
       "timeout",
-      { want: t("svc.chat_models_timeout", { host: HOST }), action: t("svc.chat_status_reconnect") },
+      {
+        want: t("svc.chat_models_timeout", { host: HOST }),
+        action: t("svc.chat_status_reconnect"),
+      },
       ["is-failed"],
     ],
     ["refused", "refused", { want: t("svc.chat_models_refused") }, ["is-failed"]],

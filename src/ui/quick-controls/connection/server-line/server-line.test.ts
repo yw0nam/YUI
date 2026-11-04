@@ -26,8 +26,7 @@ describe("createServerLine", () => {
       subscribeKey: () => () => {},
       isOpen: () => true,
     });
-    const text = () =>
-      section.querySelector<HTMLElement>(".yui-chat-status__text")!.textContent;
+    const text = () => section.querySelector<HTMLElement>(".yui-chat-status__text")!.textContent;
 
     line.run();
     line.run();

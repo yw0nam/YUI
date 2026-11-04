@@ -38,13 +38,10 @@ describe("createQuickControls — the TTS line on open", () => {
     vi.restoreAllMocks();
   });
   it("opening on the Connection page leaves the TTS line showing the server the refresh reached", async () => {
-    vi.stubGlobal(
-      "fetch",
-      (() =>
-        Promise.resolve(
-          new Response(JSON.stringify({ data: [{ id: "aoi" }] }), { status: 200 }),
-        )) as typeof fetch,
-    );
+    vi.stubGlobal("fetch", (() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ data: [{ id: "aoi" }] }), { status: 200 }),
+      )) as typeof fetch);
     const args = defaultQcArgs(mount);
     args.endpointsSettings.set({ tts_provider: "irodori", tts_base_url: "http://127.0.0.1:8088" });
     const getEndpoints = () =>
@@ -74,9 +71,7 @@ describe("createQuickControls — the TTS line on open", () => {
 
     const line = qc.el.querySelector<HTMLElement>('[data-svc="tts"] .yui-chat-status');
     expect(line?.hidden).toBe(false);
-    expect(line!.textContent).toContain(
-      t("svc.server_connected", { host: "127.0.0.1:8088" }),
-    );
+    expect(line!.textContent).toContain(t("svc.server_connected", { host: "127.0.0.1:8088" }));
 
     qc.dispose();
   });

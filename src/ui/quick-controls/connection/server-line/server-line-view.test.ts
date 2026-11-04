@@ -31,7 +31,13 @@ describe("serverLineView", () => {
       ["is-failed"],
       undefined,
     ],
-    ["malformed", { kind: "malformed" }, t("svc.server_connected", { host: HOST }), ["is-ready"], undefined],
+    [
+      "malformed",
+      { kind: "malformed" },
+      t("svc.server_connected", { host: HOST }),
+      ["is-ready"],
+      undefined,
+    ],
   ])("maps %s", (_name, result, text, dot, action) => {
     const view = serverLineView(result as ServerCheck | "checking", HOST);
     expect(view.text).toBe(text);
