@@ -59,7 +59,7 @@ export function createVoiceListRefresh(deps: {
       }
       const mine = ++generation;
       const f = await selectFetch();
-      const voices = await api.list({
+      const listed = await api.list({
         baseUrl: eps.tts_base_url,
         fetch: f,
         getApiKey,
@@ -67,7 +67,8 @@ export function createVoiceListRefresh(deps: {
       });
       if (mine !== generation) return; // superseded by a later refresh
       // A failed list is not an empty server — keep the current manifest and user clips as they are.
-      if (voices === null) return;
+      if (listed.kind !== "ok") return;
+      const { voices } = listed;
       const listedIds = voices.map((v) => v.id);
       // A configured default the server doesn't (yet) have must not be conjured into existence.
       const defaultId =

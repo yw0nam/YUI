@@ -8,6 +8,7 @@ import {
   type UpsertVoiceOptions,
   upsertVoice,
   type VoiceEntry,
+  type VoiceListFailure,
   type VoicesRequestOptions,
 } from "./tts-voices";
 
@@ -16,7 +17,11 @@ import {
  * the server names its own (Fish's trained models) and nothing otherwise.
  */
 export interface VoiceApi {
-  list: (opts: VoicesRequestOptions) => Promise<VoiceEntry[] | null>;
+  list: (
+    opts: VoicesRequestOptions,
+  ) => Promise<{ kind: "ok"; voices: VoiceEntry[] } | VoiceListFailure>;
+  /** true: the list is built in; it says nothing about the server. */
+  staticList?: true;
   /** Absent: the provider takes no uploaded voices, so import, delete and re-upload are off. */
   upsert?: (opts: UpsertVoiceOptions) => Promise<string | undefined>;
   remove?: typeof deleteVoice;
@@ -46,11 +51,19 @@ const OPENAI_VOICES = [
 /** A provider absent here has no voice list. */
 export const VOICE_APIS: Partial<Record<TtsProviderName, VoiceApi>> = {
   irodori: {
-    list: async (opts) => (await listVoices(opts))?.map((id) => ({ id })) ?? null,
+    list: async (opts) => {
+      const result = await listVoices(opts);
+      return result.kind === "ok"
+        ? { kind: "ok", voices: result.ids.map((id) => ({ id })) }
+        : result;
+    },
     upsert: upsertVoice,
     remove: deleteVoice,
     keepsId: true,
   },
-  openai: { list: async () => OPENAI_VOICES.map((id) => ({ id })) },
+  openai: {
+    list: async () => ({ kind: "ok", voices: OPENAI_VOICES.map((id) => ({ id })) }),
+    staticList: true,
+  },
   fish: { list: listFishVoices, upsert: upsertFishVoice, remove: deleteFishVoice, manualId: true },
 };

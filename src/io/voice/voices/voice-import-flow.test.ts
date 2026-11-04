@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { listVoices, upsertVoice, listFishVoices, upsertFishVoice } = vi.hoisted(() => ({
-  listVoices: vi.fn<typeof import("./tts-voices").listVoices>(async () => []),
+  listVoices: vi.fn<typeof import("./tts-voices").listVoices>(async () => ({
+    kind: "ok",
+    ids: [],
+  })),
   upsertVoice: vi.fn<typeof import("./tts-voices").upsertVoice>(async () => undefined),
-  listFishVoices: vi.fn(async () => []),
+  listFishVoices: vi.fn(async () => ({ kind: "ok", voices: [] })),
   upsertFishVoice: vi.fn<
     (
       ...args: Parameters<typeof import("./fish-voices").upsertFishVoice>
@@ -88,9 +91,9 @@ function build(
 
 describe("createVoiceImportFlow", () => {
   beforeEach(() => {
-    listVoices.mockReset().mockResolvedValue([]);
+    listVoices.mockReset().mockResolvedValue({ kind: "ok", ids: [] });
     upsertVoice.mockReset().mockResolvedValue(undefined);
-    listFishVoices.mockReset().mockResolvedValue([]);
+    listFishVoices.mockReset().mockResolvedValue({ kind: "ok", voices: [] });
     upsertFishVoice.mockReset().mockResolvedValue(undefined);
     pickVoiceFile
       .mockReset()
@@ -366,7 +369,7 @@ describe("createVoiceImportFlow", () => {
     // upsertVoice is itself create-or-replace, so the flow has nothing to branch on — a flaked
     // list call (it resolves to null rather than throwing) can never skip the upload.
     it("never consults listVoices — a flaked list cannot skip the upload", async () => {
-      listVoices.mockResolvedValue(null); // as if the server list call failed
+      listVoices.mockResolvedValue({ kind: "unreachable" }); // as if the server list call failed
       const { pickVoiceImport, commitVoiceImport } = build("http://localhost:8091");
 
       const staged = (await pickVoiceImport())!.stagedId;
@@ -377,7 +380,7 @@ describe("createVoiceImportFlow", () => {
     });
 
     it("overwriting an existing name still uploads (no id-existence short circuit)", async () => {
-      listVoices.mockResolvedValue(["myvoice"]); // server already has it — an explicit overwrite
+      listVoices.mockResolvedValue({ kind: "ok", ids: ["myvoice"] }); // server already has it — an explicit overwrite
       const { pickVoiceImport, commitVoiceImport, speakerSelection } =
         build("http://localhost:8091");
 

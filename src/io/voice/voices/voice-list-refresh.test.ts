@@ -2,8 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SpeakerOption } from "./speaker-selection";
 
 const { listVoices, listFishVoices, selectFetch } = vi.hoisted(() => ({
-  listVoices: vi.fn<typeof import("./tts-voices").listVoices>(async () => []),
-  listFishVoices: vi.fn<typeof import("./fish-voices").listFishVoices>(async () => []),
+  listVoices: vi.fn<typeof import("./tts-voices").listVoices>(async () => ({
+    kind: "ok",
+    ids: [],
+  })),
+  listFishVoices: vi.fn<typeof import("./fish-voices").listFishVoices>(async () => ({
+    kind: "ok",
+    voices: [],
+  })),
   selectFetch: vi.fn(async () => undefined),
 }));
 vi.mock("./tts-voices", () => ({ listVoices, upsertVoice: vi.fn(), deleteVoice: vi.fn() }));
@@ -31,7 +37,7 @@ function fakeStore(userOptions: SpeakerOption[] = []) {
 
 describe("createVoiceListRefresh", () => {
   beforeEach(() => {
-    listVoices.mockReset().mockResolvedValue([]);
+    listVoices.mockReset().mockResolvedValue({ kind: "ok", ids: [] });
     selectFetch.mockClear();
     noopLog.warn.mockClear();
   });
@@ -51,7 +57,7 @@ describe("createVoiceListRefresh", () => {
   });
 
   it("maps the server ids into the manifest as id/label/empty ref_url", async () => {
-    listVoices.mockResolvedValue(["ナツメ", "あやせ"]);
+    listVoices.mockResolvedValue({ kind: "ok", ids: ["ナツメ", "あやせ"] });
     const store = fakeStore();
     const refresh = createVoiceListRefresh({
       getEndpoints: () => ({
@@ -92,7 +98,7 @@ describe("createVoiceListRefresh", () => {
   });
 
   it("does not conjure a configured speaker the server does not list", async () => {
-    listVoices.mockResolvedValue(["あやせ"]);
+    listVoices.mockResolvedValue({ kind: "ok", ids: ["あやせ"] });
     const store = fakeStore();
     const refresh = createVoiceListRefresh({
       getEndpoints: () => ({
@@ -109,7 +115,7 @@ describe("createVoiceListRefresh", () => {
   });
 
   it("excludes ids already owned by a user option so the richer user record stays authoritative", async () => {
-    listVoices.mockResolvedValue(["ナツメ", "myvoice"]);
+    listVoices.mockResolvedValue({ kind: "ok", ids: ["ナツメ", "myvoice"] });
     const store = fakeStore([
       {
         id: "myvoice",
@@ -133,8 +139,8 @@ describe("createVoiceListRefresh", () => {
   it("discards a stale (out-of-order) resolution instead of clobbering a newer manifest", async () => {
     let resolveSlow: (ids: string[]) => void = () => {};
     listVoices.mockReturnValueOnce(
-      new Promise<string[]>((res) => {
-        resolveSlow = res;
+      new Promise((res) => {
+        resolveSlow = (ids) => res({ kind: "ok", ids });
       }),
     );
     const store = fakeStore();
@@ -145,7 +151,7 @@ describe("createVoiceListRefresh", () => {
     });
 
     const first = refresh();
-    listVoices.mockResolvedValueOnce(["fresh"]);
+    listVoices.mockResolvedValueOnce({ kind: "ok", ids: ["fresh"] });
     await refresh();
     expect(store._manifest().available).toEqual([{ id: "fresh", label: "fresh", ref_url: "" }]);
 
@@ -227,7 +233,7 @@ describe("createVoiceListRefresh — provider-owned user voices", () => {
     let release: (ids: string[]) => void = () => {};
     listVoices.mockReturnValueOnce(
       new Promise((resolve) => {
-        release = resolve;
+        release = (ids) => resolve({ kind: "ok", ids });
       }),
     );
     const store = fakeStore();
@@ -245,7 +251,7 @@ describe("createVoiceListRefresh — provider-owned user voices", () => {
   });
 
   it("re-uploads only the live provider's own lost clips", async () => {
-    listVoices.mockResolvedValue([]);
+    listVoices.mockResolvedValue({ kind: "ok", ids: [] });
     const reuploadUserVoice = vi.fn().mockResolvedValue(undefined);
     const refresh = createVoiceListRefresh({
       getEndpoints: () => ({ tts_base_url: "http://a", tts_provider: "irodori" }),
@@ -260,7 +266,7 @@ describe("createVoiceListRefresh — provider-owned user voices", () => {
   });
 
   it("never re-uploads under a provider whose upload names a new voice", async () => {
-    listFishVoices.mockResolvedValue([]);
+    listFishVoices.mockResolvedValue({ kind: "ok", voices: [] });
     const reuploadUserVoice = vi.fn().mockResolvedValue(undefined);
     const refresh = createVoiceListRefresh({
       getEndpoints: () => ({ tts_base_url: "https://api.fish.audio", tts_provider: "fish" }),
@@ -275,7 +281,7 @@ describe("createVoiceListRefresh — provider-owned user voices", () => {
   });
 
   it("keeps a server voice listed when only another provider's user voice shares its id", async () => {
-    listVoices.mockResolvedValue(["shared"]);
+    listVoices.mockResolvedValue({ kind: "ok", ids: ["shared"] });
     const store = fakeStore([clip("shared", "fish")]);
     const refresh = createVoiceListRefresh({
       getEndpoints: () => ({ tts_base_url: "http://a", tts_provider: "irodori" }),
@@ -301,7 +307,7 @@ describe("createVoiceListRefresh — provider switch", () => {
     await refresh();
 
     provider = "irodori";
-    listVoices.mockResolvedValue(null);
+    listVoices.mockResolvedValue({ kind: "unreachable" });
     await refresh();
 
     expect(store._manifest()).toEqual({ available: [], defaultValue: "" });
@@ -310,7 +316,7 @@ describe("createVoiceListRefresh — provider switch", () => {
 
 describe("createVoiceListRefresh — re-uploading user voices the server lost", () => {
   beforeEach(() => {
-    listVoices.mockReset().mockResolvedValue([]);
+    listVoices.mockReset().mockResolvedValue({ kind: "ok", ids: [] });
     noopLog.warn.mockClear();
   });
 
@@ -323,7 +329,7 @@ describe("createVoiceListRefresh — re-uploading user voices the server lost", 
   };
 
   it("a failed list (null) leaves the manifest untouched and re-uploads nothing", async () => {
-    listVoices.mockResolvedValue(null);
+    listVoices.mockResolvedValue({ kind: "unreachable" });
     const reuploadUserVoice = vi.fn();
     const store = fakeStore([userOpt]);
     const refresh = createVoiceListRefresh({
@@ -341,7 +347,7 @@ describe("createVoiceListRefresh — re-uploading user voices the server lost", 
   });
 
   it("a successful empty list keeps today's behaviour: empty manifest + re-upload of the lost clip", async () => {
-    listVoices.mockResolvedValue([]);
+    listVoices.mockResolvedValue({ kind: "ok", ids: [] });
     const reuploadUserVoice = vi.fn().mockResolvedValue(undefined);
     const store = fakeStore([userOpt]);
     const refresh = createVoiceListRefresh({
@@ -358,7 +364,7 @@ describe("createVoiceListRefresh — re-uploading user voices the server lost", 
   });
 
   it("re-uploads a user option missing from the server list", async () => {
-    listVoices.mockResolvedValue(["ナツメ"]);
+    listVoices.mockResolvedValue({ kind: "ok", ids: ["ナツメ"] });
     const reuploadUserVoice = vi.fn().mockResolvedValue(undefined);
     const refresh = createVoiceListRefresh({
       getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
@@ -373,7 +379,7 @@ describe("createVoiceListRefresh — re-uploading user voices the server lost", 
   });
 
   it("leaves a user option alone when the server still lists it", async () => {
-    listVoices.mockResolvedValue(["myvoice"]);
+    listVoices.mockResolvedValue({ kind: "ok", ids: ["myvoice"] });
     const reuploadUserVoice = vi.fn();
     const refresh = createVoiceListRefresh({
       getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
@@ -388,7 +394,7 @@ describe("createVoiceListRefresh — re-uploading user voices the server lost", 
   });
 
   it("skips a user option with no local clip to re-upload from", async () => {
-    listVoices.mockResolvedValue([]);
+    listVoices.mockResolvedValue({ kind: "ok", ids: [] });
     const reuploadUserVoice = vi.fn();
     const refresh = createVoiceListRefresh({
       getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
@@ -403,7 +409,7 @@ describe("createVoiceListRefresh — re-uploading user voices the server lost", 
   });
 
   it("warns and still completes when a re-upload rejects", async () => {
-    listVoices.mockResolvedValue([]);
+    listVoices.mockResolvedValue({ kind: "ok", ids: [] });
     const reuploadUserVoice = vi.fn().mockRejectedValue(new Error("server sad"));
     const refresh = createVoiceListRefresh({
       getEndpoints: () => ({ tts_base_url: "http://localhost:8091" }),
@@ -422,10 +428,13 @@ describe("createVoiceListRefresh — re-uploading user voices the server lost", 
 
 describe("createVoiceListRefresh — fish", () => {
   it("maps the model list's _id/title entries into the manifest", async () => {
-    listFishVoices.mockResolvedValue([
-      { id: "m1", label: "ナツメ" },
-      { id: "m2", label: "ムラサメ" },
-    ]);
+    listFishVoices.mockResolvedValue({
+      kind: "ok",
+      voices: [
+        { id: "m1", label: "ナツメ" },
+        { id: "m2", label: "ムラサメ" },
+      ],
+    });
     const store = fakeStore();
     const refresh = createVoiceListRefresh({
       getEndpoints: () => ({ tts_base_url: "https://api.fish.audio", tts_provider: "fish" }),
