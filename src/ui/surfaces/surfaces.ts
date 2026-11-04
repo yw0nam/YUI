@@ -13,21 +13,20 @@
  */
 
 import "./surfaces.css";
-import type { AttachmentLimits } from "../../config/validators/guardrails";
 import type { UtteranceIdentity } from "../../contract";
 import type {
   CommandReplyState,
   SourceLine,
   UserQuote,
 } from "../../io/bridge/message/message-bridge";
-import type { InputErrorAction, SpeechAction } from "../../io/bridge/message/message-remote";
+import type { SpeechAction } from "../../io/bridge/message/message-remote";
 import type { AskAnswer, AskFrame, BackendCommand } from "../../io/chat/push/push-frames";
 import { createAskCard } from "../ask/ask-card";
 import type { ToolStatus } from "../chips/status-pill";
 import { createCommandReply } from "../commands/command-reply";
 import { createSurfaceCommands } from "../commands/surface-commands";
 import { subscribe as subscribeLocale, t } from "../i18n";
-import { createTextInput } from "../input/text-input";
+import { createTextInput, type TextInput } from "../input/text-input";
 import { type BacklogSource, createBacklog } from "../message/backlog";
 import { createMessagePlate, type MessagePlate } from "../message/message-plate";
 import { withPlateState } from "../message/plate-state";
@@ -41,7 +40,7 @@ import { anchorWithInputSlots, liftWithInputSlots } from "./input-slots";
 const POP_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"
      stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M10 20H4v-6M4 20l8-8"/></svg>`;
 
-export interface Surfaces {
+export interface Surfaces extends Omit<TextInput, "interceptSubmit"> {
   setAsks(frames: AskFrame[]): void;
   onAskAnswer(cb: (answer: AskAnswer) => boolean): void;
   setCommands(list: BackendCommand[]): void;
@@ -85,35 +84,6 @@ export interface Surfaces {
   showTool(toolId: string): void;
   finishTool(failed?: boolean): void;
   hideTool(): void;
-
-  // ── text input ──
-  /** Hotkey summon — slide up + focus. */
-  summonInput(): void;
-  /** Close the input. */
-  dismissInput(): void;
-  /** Whether the input is open. */
-  isInputOpen(): boolean;
-  /** Register a submit callback. text is trimmed (empty string when sending images only); images is an array of data URLs. */
-  onSubmit(cb: (text: string, images: string[]) => void): void;
-  /** Register a stop callback. Fires only when the send button is explicitly pressed while busy. */
-  onStop(cb: () => void): void;
-  /**
-   * Toggle processing state. When busy, the send button becomes stop (is-running + amber),
-   * and Enter/submit becomes a no-op. Stopping fires only via a button click.
-   */
-  setBusy(busy: boolean): void;
-  /** Show an inline error (e.g. send failure), optionally with a button that fixes it in place. */
-  showInputError(message: string, action?: InputErrorAction): void;
-  /** Apply the configured attach-time caps (configs/guardrails.json → attachments). */
-  setAttachmentLimits(limits: AttachmentLimits): void;
-  /** Puts a sent message back into an open, empty composer, attachments included; a closed composer or one holding a draft is left alone. */
-  restoreInput(text: string, images: string[]): void;
-  /**
-   * Set the input's bottom offset (px) for tracking the character's feet. Overrides
-   * the CSS `bottom: var(--yui-input-bottom, 4%)` in pixels. null clears the var,
-   * returning to the default 4%. Does not touch width or the slide-up reveal.
-   */
-  setInputAnchor(bottomPx: number | null): void;
 
   dispose(): void;
 }

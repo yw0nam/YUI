@@ -277,56 +277,7 @@
   transform: translateY(1px);
 }
 
-/* ── user row's ✎ rename · 🗑 delete — mirror .yui-spk__refresh / __preview.
-   1.5rem ghost, hidden elsewhere, lit on hover (rename=amber, remove=warm-red). ── */
-.yui-vrm__rename,
-.yui-vrm__remove,
-.yui-spk__rename,
-.yui-spk__remove {
-  display: grid;
-  place-items: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  flex: 0 0 auto;
-  padding: 0;
-  border: 0;
-  border-radius: var(--yui-radius-control);
-  background: transparent;
-  color: var(--yui-text-mute);
-  cursor: pointer;
-  opacity: 0;
-  transition:
-    background var(--yui-dur-fast) var(--yui-ease),
-    color var(--yui-dur-fast) var(--yui-ease),
-    opacity var(--yui-dur-fast) var(--yui-ease);
-}
-
-/* Icons emerge on row hover/focus (invisible-by-default) */
-.yui-vrm:hover .yui-vrm__rename,
-.yui-vrm:hover .yui-vrm__remove,
-.yui-vrm:focus-within .yui-vrm__rename,
-.yui-vrm:focus-within .yui-vrm__remove,
-.yui-spk:hover .yui-spk__rename,
-.yui-spk:hover .yui-spk__remove,
-.yui-spk:focus-within .yui-spk__rename,
-.yui-spk:focus-within .yui-spk__remove {
-  opacity: 0.7;
-}
-
-.yui-vrm__rename:hover,
-.yui-spk__rename:hover {
-  opacity: 1;
-  background: var(--yui-accent-faint);
-  color: var(--yui-accent-ink);
-}
-
-/* Delete is destructive — warm-red on hover (not amber) */
-.yui-vrm__remove:hover,
-.yui-spk__remove:hover {
-  opacity: 1;
-  background: var(--yui-danger-faint);
-  color: var(--yui-danger);
-}
+/* ── user row's ✎ rename · 🗑 delete — the 1.5rem ghost base, emerge, hover and focus rules live in ../row-actions.css. ── */
 
 .yui-vrm.is-remove-armed,
 .yui-spk.is-remove-armed {
@@ -356,28 +307,6 @@
 .yui-vrm__remove.is-armed .yui-vrm__remove-confirm,
 .yui-spk__remove.is-armed .yui-spk__remove-confirm {
   display: inline;
-}
-
-.yui-vrm__rename:focus-visible,
-.yui-vrm__remove:focus-visible,
-.yui-spk__rename:focus-visible,
-.yui-spk__remove:focus-visible {
-  outline: none;
-  opacity: 1;
-  box-shadow: 0 0 0 2px var(--yui-accent-soft);
-}
-
-.yui-vrm__remove:focus-visible,
-.yui-spk__remove:focus-visible {
-  box-shadow: 0 0 0 2px var(--yui-danger-soft);
-}
-
-.yui-vrm__rename svg,
-.yui-vrm__remove svg,
-.yui-spk__rename svg,
-.yui-spk__remove svg {
-  width: 0.9rem;
-  height: 0.9rem;
 }
 
 /* ── Import placeholder row — transient, end of list ── */
@@ -460,25 +389,10 @@
   min-width: 0;
 }
 
-.yui-vrm__rename-hint,
-.yui-spk__rename-hint {
-  flex: 0 0 auto;
-  font-size: var(--yui-fs-caption);
-  color: var(--yui-text-mute);
-  white-space: nowrap;
-}
-
 /* Naming row: the typed name already exists, so committing replaces that asset. */
 .yui-spk__overwrite-warn {
   color: var(--yui-danger);
   font-weight: 600;
-}
-
-.yui-vrm__rename-hint kbd,
-.yui-spk__rename-hint kbd {
-  font-family: inherit;
-  font-weight: 600;
-  color: var(--yui-text-dim);
 }
 
 .yui-vrm__remove.is-armed svg,

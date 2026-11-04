@@ -1,0 +1,126 @@
+/* ── Row actions — the VRM, speaker and preset rows' ghost buttons (rename, remove, photo, url)
+   and the rename hint: 1.5rem ghosts, hidden until their row hovers or holds focus, lit on hover
+   (rename accent, remove warm-red), ring on focus. ── */
+
+.yui-preset-row__photo,
+.yui-preset-row__rename,
+.yui-preset-row__remove,
+.yui-preset-row__url,
+.yui-vrm__rename,
+.yui-vrm__remove,
+.yui-spk__rename,
+.yui-spk__remove {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--yui-radius-control);
+  background: transparent;
+  color: var(--yui-text-mute);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    background var(--yui-dur-fast) var(--yui-ease),
+    color var(--yui-dur-fast) var(--yui-ease),
+    opacity var(--yui-dur-fast) var(--yui-ease);
+}
+
+/* The asset buttons sit directly in their flex row; the preset row wraps its buttons in .yui-preset-row__acts. */
+.yui-vrm__rename,
+.yui-vrm__remove,
+.yui-spk__rename,
+.yui-spk__remove {
+  flex: 0 0 auto;
+}
+
+/* Icons emerge on row hover/focus (invisible-by-default) */
+.yui-preset-row:hover .yui-preset-row__acts > *,
+.yui-preset-row:focus-within .yui-preset-row__acts > *,
+.yui-vrm:hover .yui-vrm__rename,
+.yui-vrm:hover .yui-vrm__remove,
+.yui-vrm:focus-within .yui-vrm__rename,
+.yui-vrm:focus-within .yui-vrm__remove,
+.yui-spk:hover .yui-spk__rename,
+.yui-spk:hover .yui-spk__remove,
+.yui-spk:focus-within .yui-spk__rename,
+.yui-spk:focus-within .yui-spk__remove {
+  opacity: 0.7;
+}
+
+.yui-preset-row__photo:hover,
+.yui-preset-row__rename:hover,
+.yui-preset-row__url:hover,
+.yui-vrm__rename:hover,
+.yui-spk__rename:hover {
+  opacity: 1;
+  background: var(--yui-accent-faint);
+  color: var(--yui-accent-ink);
+}
+
+/* Delete is destructive — warm-red on hover (not amber) */
+.yui-preset-row__remove:hover,
+.yui-vrm__remove:hover,
+.yui-spk__remove:hover {
+  opacity: 1;
+  background: var(--yui-danger-faint);
+  color: var(--yui-danger);
+}
+
+.yui-preset-row__photo:focus-visible,
+.yui-preset-row__rename:focus-visible,
+.yui-preset-row__remove:focus-visible,
+.yui-preset-row__url:focus-visible,
+.yui-vrm__rename:focus-visible,
+.yui-vrm__remove:focus-visible,
+.yui-spk__rename:focus-visible,
+.yui-spk__remove:focus-visible {
+  outline: none;
+  opacity: 1;
+  box-shadow: 0 0 0 2px var(--yui-accent-soft);
+}
+
+.yui-preset-row__remove:focus-visible,
+.yui-vrm__remove:focus-visible,
+.yui-spk__remove:focus-visible {
+  box-shadow: 0 0 0 2px var(--yui-danger-soft);
+}
+
+.yui-preset-row__photo svg,
+.yui-preset-row__rename svg,
+.yui-preset-row__remove svg,
+.yui-vrm__rename svg,
+.yui-vrm__remove svg,
+.yui-spk__rename svg,
+.yui-spk__remove svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+/* The rename hint beside a row's editing field. */
+.yui-preset-row__hint,
+.yui-vrm__rename-hint,
+.yui-spk__rename-hint {
+  flex: 0 0 auto;
+  font-size: var(--yui-fs-caption);
+  color: var(--yui-text-mute);
+  white-space: nowrap;
+}
+
+.yui-preset-row__hint kbd,
+.yui-vrm__rename-hint kbd,
+.yui-spk__rename-hint kbd {
+  font-family: inherit;
+  font-weight: 600;
+  color: var(--yui-text-dim);
+}
+
+/* Reduced motion — the ghosts appear without the fade. */
+@media (prefers-reduced-motion: reduce) {
+  .yui-preset-row__photo,
+  .yui-preset-row__rename,
+  .yui-preset-row__remove {
+    transition: none;
+  }
+}

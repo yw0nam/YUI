@@ -40,6 +40,51 @@ export function thrownFailure(deadline: AbortSignal, responded: boolean): Server
   return responded ? { kind: "malformed" } : { kind: "unreachable" };
 }
 
+/** Unwinds a non-ok list page from the fetch shell to its failure result. */
+class VoiceListHttpFailure extends Error {
+  failure: ServerFailure;
+  constructor(failure: ServerFailure) {
+    super("voice list http failure");
+    this.failure = failure;
+  }
+}
+
+/**
+ * One voice-list operation on one deadline: pages are fetched with auth headers and read to JSON
+ * under the signal; a non-ok page resolves to its failure kind, a throw to its thrown failure kind.
+ */
+export async function runVoiceList<R extends { kind: "ok" }>(
+  opts: VoicesRequestOptions,
+  timeoutMessage: string,
+  log: Logger,
+  read: (fetchPage: (url: string) => Promise<unknown>) => Promise<R>,
+): Promise<R | ServerFailure> {
+  const fetchImpl = opts.fetch ?? globalThis.fetch;
+  const deadline = createDeadlineSignal(VOICES_REQUEST_TIMEOUT_MS, timeoutMessage);
+  let responded = false;
+  try {
+    const fetchPage = async (url: string): Promise<unknown> => {
+      const res = await untilAborted(
+        fetchImpl(url, { headers: await authHeaders(opts.getApiKey), signal: deadline.signal }),
+        deadline.signal,
+      );
+      responded = true;
+      if (!res.ok) {
+        log.warn("voice_list_failed", { status: res.status });
+        throw new VoiceListHttpFailure(httpFailure(res.status));
+      }
+      return untilAborted(res.json(), deadline.signal);
+    };
+    return await read(fetchPage);
+  } catch (err) {
+    if (err instanceof VoiceListHttpFailure) return err.failure;
+    log.warn("voice_list_failed", { error: String(err) });
+    return thrownFailure(deadline.signal, responded);
+  } finally {
+    deadline.clear();
+  }
+}
+
 /** Reduces an OpenAI-style `{error:{message}}` body to one appendable line. */
 async function errorDetail(res: Response, signal: AbortSignal): Promise<string> {
   try {
@@ -60,35 +105,15 @@ export async function listVoices(
   opts: VoicesRequestOptions,
 ): Promise<{ kind: "ok"; ids: string[] } | ServerFailure> {
   const log = opts.logger ?? createLogger("tts-voices");
-  const fetchImpl = opts.fetch ?? globalThis.fetch;
-  const deadline = createDeadlineSignal(VOICES_REQUEST_TIMEOUT_MS, "TTS voice list timed out");
-  let responded = false;
-  try {
-    const res = await untilAborted(
-      fetchImpl(`${opts.baseUrl}/v1/audio/voices`, {
-        headers: await authHeaders(opts.getApiKey),
-        signal: deadline.signal,
-      }),
-      deadline.signal,
-    );
-    responded = true;
-    if (!res.ok) {
-      log.warn("voice_list_failed", { status: res.status });
-      return httpFailure(res.status);
-    }
-    const body = (await untilAborted(res.json(), deadline.signal)) as {
+  return runVoiceList(opts, "TTS voice list timed out", log, async (fetchPage) => {
+    const body = (await fetchPage(`${opts.baseUrl}/v1/audio/voices`)) as {
       data?: Array<{ id?: unknown }>;
     };
     const ids = (body.data ?? [])
       .map((v) => v.id)
       .filter((id): id is string => typeof id === "string" && id.length > 0);
     return { kind: "ok", ids };
-  } catch (err) {
-    log.warn("voice_list_failed", { error: String(err) });
-    return thrownFailure(deadline.signal, responded);
-  } finally {
-    deadline.clear();
-  }
+  });
 }
 
 /** The server validates the uploaded filename's extension, so it follows the imported clip. */

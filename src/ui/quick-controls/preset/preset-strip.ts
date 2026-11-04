@@ -5,6 +5,7 @@
  * character group heading.
  */
 
+import "../row-actions.css";
 import "./preset.css";
 import type { Logger } from "../../../logger";
 import {

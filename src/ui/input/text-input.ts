@@ -13,7 +13,7 @@ import { downscaleToJpeg } from "./image-resize";
 
 export type SubmitInterception = false | "accepted" | "refused";
 
-interface TextInput {
+export interface TextInput {
   interceptSubmit(fn: (text: string, images: string[]) => SubmitInterception): void;
   /** Hotkey summon — slide up + focus; a no-op while the input is already open. */
   summonInput(): void;

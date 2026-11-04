@@ -95,66 +95,6 @@
   gap: 0.125rem;
 }
 
-.yui-preset-row__photo,
-.yui-preset-row__rename,
-.yui-preset-row__remove,
-.yui-preset-row__url {
-  display: grid;
-  place-items: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  padding: 0;
-  border: 0;
-  border-radius: var(--yui-radius-control);
-  background: transparent;
-  color: var(--yui-text-mute);
-  cursor: pointer;
-  opacity: 0;
-  transition:
-    background var(--yui-dur-fast) var(--yui-ease),
-    color var(--yui-dur-fast) var(--yui-ease),
-    opacity var(--yui-dur-fast) var(--yui-ease);
-}
-
-.yui-preset-row:hover .yui-preset-row__acts > *,
-.yui-preset-row:focus-within .yui-preset-row__acts > * {
-  opacity: 0.7;
-}
-
-.yui-preset-row__photo:hover,
-.yui-preset-row__rename:hover,
-.yui-preset-row__url:hover {
-  opacity: 1;
-  background: var(--yui-accent-faint);
-  color: var(--yui-accent-ink);
-}
-
-.yui-preset-row__remove:hover {
-  opacity: 1;
-  background: var(--yui-danger-faint);
-  color: var(--yui-danger);
-}
-
-.yui-preset-row__photo:focus-visible,
-.yui-preset-row__rename:focus-visible,
-.yui-preset-row__remove:focus-visible,
-.yui-preset-row__url:focus-visible {
-  outline: none;
-  opacity: 1;
-  box-shadow: 0 0 0 2px var(--yui-accent-soft);
-}
-
-.yui-preset-row__remove:focus-visible {
-  box-shadow: 0 0 0 2px var(--yui-danger-soft);
-}
-
-.yui-preset-row__photo svg,
-.yui-preset-row__rename svg,
-.yui-preset-row__remove svg {
-  width: 0.9rem;
-  height: 0.9rem;
-}
-
 /* Rename — the row becomes its field, the VRM rename hint beside it. */
 .yui-preset-row.is-renaming {
   padding-left: 0.5rem;
@@ -163,19 +103,6 @@
 .yui-preset-row.is-renaming .yui-input-wrap {
   flex: 1 1 auto;
   min-width: 0;
-}
-
-.yui-preset-row__hint {
-  flex: 0 0 auto;
-  font-size: var(--yui-fs-caption);
-  color: var(--yui-text-mute);
-  white-space: nowrap;
-}
-
-.yui-preset-row__hint kbd {
-  font-family: inherit;
-  font-weight: 600;
-  color: var(--yui-text-dim);
 }
 
 /* Delete — the session section's two-step confirm, in the row's place. */
@@ -213,11 +140,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .yui-preset-row__photo,
-  .yui-preset-row__rename,
-  .yui-preset-row__remove {
-    transition: none;
-  }
   .yui-preset-pop {
     animation: none;
   }
