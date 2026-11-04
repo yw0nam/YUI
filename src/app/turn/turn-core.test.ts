@@ -74,7 +74,8 @@ function wire(over: Partial<TurnCorePhase1> = {}) {
       onCommand: () => {},
       showCommandReply: () => {},
       onCommandReplyClose: () => {},
-      askSlot: document.createElement("div"),
+      setAsks: vi.fn(),
+      onAskAnswer: vi.fn(),
     },
     onStopTurns: (cb: () => void) => {
       onStopTurns = cb;

@@ -4,7 +4,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { AskFrame } from "../../io/chat/push/push-frames";
 import { setLocale } from "../i18n";
-import { type AskCard, createAskCard } from "./ask-card";
+import { createAskCard } from "./ask-card";
 
 function frame(id: string, prompt = `Run ${id}?`, expires_at = 60_000): AskFrame {
   return {
@@ -36,7 +36,8 @@ function build(answered = true) {
   const mount = document.createElement("div");
   document.body.append(mount);
   const onAnswer = vi.fn(() => answered);
-  const card = createAskCard({ mount, onAnswer });
+  const card = createAskCard({ mount });
+  card.onAnswer(onAnswer);
   const el = mount.querySelector<HTMLElement>(".yui-ask-card")!;
   const prompt = () => el.querySelector(".yui-threads-answer__prompt")?.textContent ?? null;
   const choices = () => [
@@ -49,34 +50,38 @@ function build(answered = true) {
   return { card, el, onAnswer, prompt, choices, answer };
 }
 
-it("shows the oldest Ask first, and the next once one is answered", () => {
+it("renders the supplied head and waits for set after an answer", () => {
   const { card, onAnswer, prompt, answer } = build();
-  card.show(frame("a"));
-  card.show(frame("b"));
+  card.set([frame("a"), frame("b")]);
   expect(prompt()).toBe("Run a?");
 
   answer(0);
 
   expect(onAnswer).toHaveBeenCalledExactlyOnceWith({ ask_id: "a", choice: "once" });
+  expect(prompt()).toBe("Run a?");
+  card.set([frame("b")]);
   expect(prompt()).toBe("Run b?");
 });
 
-it("replaces a held Ask in place when its ask_id comes again", () => {
+it("renders a changed head and the supplied next Ask", () => {
   const { card, el, prompt, answer } = build();
-  card.show(frame("a"));
-  card.show(frame("b"));
-  card.show(frame("a", "Run a again?"));
+  card.set([frame("a"), frame("b")]);
+  card.set([frame("a", "Run a again?"), frame("b")]);
   expect(prompt()).toBe("Run a again?");
 
   answer(0);
+  expect(prompt()).toBe("Run a again?");
+  card.set([frame("b")]);
   expect(prompt()).toBe("Run b?");
   answer(0);
+  expect(el.hidden).toBe(false);
+  card.set([]);
   expect(el.hidden).toBe(true);
 });
 
 it("keeps an Ask whose answer was not sent and says why", () => {
   const { card, el, prompt, choices, answer } = build(false);
-  card.show(frame("a"));
+  card.set([frame("a")]);
 
   answer(1);
 
@@ -88,10 +93,9 @@ it("keeps an Ask whose answer was not sent and says why", () => {
   ]).toEqual(["Run a?", "Couldn't send: the connection is down", "true", false]);
 });
 
-it("closes an Ask at its expires_at and counts down the time left", () => {
+it("counts down to zero and waits for set at expiry", () => {
   const { card, el, prompt } = build();
-  card.show(frame("a", "Run a?", 5_000));
-  card.show(frame("b", "Run b?", 9_000));
+  card.set([frame("a", "Run a?", 5_000), frame("b", "Run b?", 9_000)]);
 
   vi.advanceTimersByTime(4_999);
   expect([prompt(), el.querySelector("[role=timer]")?.textContent]).toEqual([
@@ -99,15 +103,20 @@ it("closes an Ask at its expires_at and counts down the time left", () => {
     "0:01 left",
   ]);
   vi.advanceTimersByTime(1);
-  expect(prompt()).toBe("Run b?");
+  expect([prompt(), el.querySelector("[role=timer]")?.textContent]).toEqual([
+    "Run a?",
+    "0:00 left",
+  ]);
   vi.advanceTimersByTime(4_000);
+  expect(el.hidden).toBe(false);
+  card.set([]);
   expect(el.hidden).toBe(true);
 });
 
 it("keeps an Ask without expires_at open and shows no time left", () => {
   const { card, el, prompt } = build();
   const { expires_at: _none, ...open } = frame("a");
-  card.show(open);
+  card.set([open]);
 
   vi.advanceTimersByTime(2 * 60 * 60 * 1000);
   expect([prompt(), el.querySelector<HTMLElement>("[role=timer]")?.hidden]).toEqual([
@@ -118,7 +127,7 @@ it("keeps an Ask without expires_at open and shows no time left", () => {
 
 it("picks a choice with a number key while focus is inside the card, but not from the text field", () => {
   const { card, el, choices } = build();
-  card.show(frame("a"));
+  card.set([frame("a")]);
   const press = (target: Element, key: string) =>
     target.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
 
@@ -130,29 +139,30 @@ it("picks a choice with a number key while focus is inside the card, but not fro
   expect(choices().map((c) => c.getAttribute("aria-pressed"))).toEqual(["false", "true"]);
 });
 
-it.each<[string, (card: AskCard) => void]>([
-  [
-    "end",
-    (card) => {
-      card.end("a");
-      card.end("b");
-    },
-  ],
-  ["clear", (card) => card.clear()],
-])("%s hides the card once no Ask is left", (_name, close) => {
+it("an empty set hides the card", () => {
   const { card, el } = build();
-  card.show(frame("a"));
-  card.show(frame("b"));
+  card.set([frame("a"), frame("b")]);
   expect(el.hidden).toBe(false);
-
-  close(card);
-
+  card.set([]);
   expect(el.hidden).toBe(true);
+});
+
+it.each(["same object", "equal content"])("keeps focus and draft for a %s head", (kind) => {
+  const { card, el } = build();
+  const head = frame("a");
+  card.set([head]);
+  const field = el.querySelector("textarea")!;
+  field.focus();
+  field.value = "my draft";
+  field.dispatchEvent(new Event("input", { bubbles: true }));
+  card.set([kind === "same object" ? head : structuredClone(head), frame("b")]);
+  expect(document.activeElement).toBe(field);
+  expect(el.querySelector("textarea")?.value).toBe("my draft");
 });
 
 it("marks the prompt while more of it sits below its visible part", () => {
   const { card, el } = build();
-  card.show(frame("a"));
+  card.set([frame("a")]);
   const head = el.querySelector<HTMLElement>(".yui-threads-answer__head")!;
   Object.defineProperties(head, {
     scrollHeight: { value: 300 },
@@ -165,4 +175,41 @@ it("marks the prompt while more of it sits below its visible part", () => {
   };
 
   expect([scrollTo(0), scrollTo(200)]).toEqual([true, false]);
+});
+
+it("enables retry with the draft and no error when the answered head is sent again", () => {
+  const { card, el, onAnswer, answer } = build();
+  card.set([frame("a")]);
+  const field = el.querySelector("textarea")!;
+  field.value = "my draft";
+  field.dispatchEvent(new Event("input", { bubbles: true }));
+  answer(0);
+  expect(el.querySelector<HTMLButtonElement>(".yui-threads-answer__send")!.disabled).toBe(true);
+
+  card.set([frame("a")]);
+
+  expect([
+    el.querySelector("textarea")?.value,
+    el.querySelector<HTMLButtonElement>(".yui-threads-answer__send")!.disabled,
+    el.querySelector(".yui-threads-answer__error"),
+  ]).toEqual(["my draft", false, null]);
+  el.querySelector<HTMLButtonElement>(".yui-threads-answer__send")!.click();
+  expect(onAnswer.mock.calls).toEqual([
+    [{ ask_id: "a", choice: "once", text: "my draft" }],
+    [{ ask_id: "a", choice: "once", text: "my draft" }],
+  ]);
+});
+
+it.each([
+  { first: true, second: false, error: undefined },
+  { first: false, second: true, error: "Couldn't send: the connection is down" },
+])("appends Answer handlers and takes the first result: $first", ({ first, second, error }) => {
+  const { card, el, onAnswer, answer } = build(first);
+  const next = vi.fn(() => second);
+  card.onAnswer(next);
+  card.set([frame("a")]);
+  answer(0);
+  expect(onAnswer).toHaveBeenCalledExactlyOnceWith({ ask_id: "a", choice: "once" });
+  expect(next).toHaveBeenCalledExactlyOnceWith({ ask_id: "a", choice: "once" });
+  expect(el.querySelector(".yui-threads-answer__error")?.textContent).toBe(error);
 });
