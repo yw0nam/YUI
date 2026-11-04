@@ -46,6 +46,7 @@ vi.mock("../../../io/chat/stream/chat-client", () => ({ selectFetch: mocks.selec
 
 import type { EndpointsConfig } from "../../../contract";
 import { createTurnLog } from "../../../dispatcher/turn/turn";
+import { fillerPool } from "../../../io/voice/filler/filler-test-helpers";
 import { wireSpeakerSelection } from "../../settings/wire-avatar";
 import { type VoicePipeline, wireVoicePipeline } from "./wire-voice-pipeline";
 
@@ -67,8 +68,11 @@ const surfaces = {
   finishSpeech: vi.fn(),
 };
 
-/** Wires the pet's speaker store and voice pipeline, then runs the boot voice list refresh. */
-async function boot() {
+/**
+ * Wires the pet's speaker store and voice pipeline, then runs the boot voice list refresh. With
+ * filler on, the failure-line prewarm's voice list request settles first.
+ */
+async function boot(opts: { filler?: boolean } = {}) {
   const speaker = wireSpeakerSelection({
     getEndpoints: () => EPS,
     log,
@@ -91,14 +95,16 @@ async function boot() {
       max_repeats: 3,
       gap_growth: 1,
       long_wait_ms: 40000,
-      pools: {},
+      pools: opts.filler ? { ja: fillerPool({ unreachable: ["ちょっと待ってね。"] }) } : {},
     }),
     getTtsApiKey: async () => undefined,
     getSttApiKey: async () => undefined,
     ttsSettings: { get: () => ({ enabled: true }) },
     oneVoiceSettings: { get: () => ({ enabled: false }) },
     lipsyncSettings: { get: () => ({ gain: 1 }) },
-    fillerSettings: { get: () => ({ enabled: false, language: "ja" as const, customPools: {} }) },
+    fillerSettings: {
+      get: () => ({ enabled: opts.filler ?? false, language: "ja" as const, customPools: {} }),
+    },
     readingsSettings: { get: () => ({ text: "" }) },
     vadSettings: { get: () => ({ silenceMs: 1_500, bargeIn: false }) },
     speakerSelection: speaker.speakerSelection,
@@ -111,6 +117,7 @@ async function boot() {
     isStrolling: () => false,
   });
   wired.push(voice);
+  if (opts.filler) await new Promise<void>((resolve) => voice.onTtsReach(() => resolve()));
   await speaker.refreshVoiceList();
   mocks.calls.length = 0;
   return voice;
@@ -129,6 +136,16 @@ describe("wireVoicePipeline voice list retry", () => {
 
   it("speaks the next reply once a server that was down at boot comes up", async () => {
     const voice = await boot();
+    mocks.state.serverUp = true;
+
+    voice.turnOutput.speak("こんにちは。", IDENTITY);
+
+    await vi.waitFor(() => expect(surfaces.finishSpeech).toHaveBeenCalledOnce());
+    expect(count("/v1/audio/speech")).toBe(1);
+  });
+
+  it("speaks a reply after a failed failure-line prewarm once the server comes up", async () => {
+    const voice = await boot({ filler: true });
     mocks.state.serverUp = true;
 
     voice.turnOutput.speak("こんにちは。", IDENTITY);
