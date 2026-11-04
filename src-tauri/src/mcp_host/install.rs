@@ -149,7 +149,7 @@ impl Host {
     }
 }
 
-/// Unpacks via `<version>.partial` into `<versions>/<version>/`; checks its plugin id and version.
+/// Unpacks via `<version>.partial` into `<versions>/<version>/`, sweeping other `*.partial` leftovers except the stored path; checks its plugin id and version.
 fn unpack(
     versions: &Path,
     stored_path: Option<&Path>,
@@ -165,8 +165,7 @@ fn unpack(
     if let Ok(entries) = std::fs::read_dir(versions) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path != partial
-                && Some(path.as_path()) != stored_path
+            if Some(path.as_path()) != stored_path
                 && path
                     .extension()
                     .is_some_and(|extension| extension == "partial")
