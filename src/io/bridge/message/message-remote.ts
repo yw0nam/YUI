@@ -11,7 +11,7 @@
 import type { AttachmentLimits } from "../../../config/validators/guardrails";
 import type { UtteranceIdentity } from "../../../contract";
 import { createLogger } from "../../../logger";
-import type { BackendCommand } from "../../chat/push/push-frames";
+import type { AskAnswer, AskFrame, BackendCommand } from "../../chat/push/push-frames";
 import type { CommandReplyState, MessageBridge, SourceLine, UserQuote } from "./message-bridge";
 
 /** In-place fix offered next to an inline error (e.g. "Open Advanced" on an unconfigured backend). */
@@ -28,6 +28,8 @@ export interface SpeechAction {
 
 /** The half of `Surfaces` the message window owns, plus the dock request it can raise. */
 export interface RemoteSurfaces {
+  setAsks(frames: AskFrame[]): void;
+  onAskAnswer(cb: (answer: AskAnswer) => boolean): void;
   setCommands(list: BackendCommand[]): void;
   showCommandReply(reply: CommandReplyState): void;
   onCommand(cb: (name: string, args: string) => boolean): void;
@@ -75,6 +77,8 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
   const openSettingsHandlers: Array<() => void> = [];
   const commandReplyCloseHandlers: Array<() => void> = [];
   const commandHandlers: Array<(name: string, args: string) => boolean> = [];
+  const askAnswerHandlers: Array<(answer: AskAnswer) => boolean> = [];
+  let asks: AskFrame[] | null = null;
   let commands: BackendCommand[] | null = null;
   let reply: CommandReplyState | null = null;
   let inputOpen = false;
@@ -86,6 +90,9 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
 
   const unlisten = bridge.onControl((op) => {
     switch (op.op) {
+      case "ask-answer":
+        for (const cb of askAnswerHandlers) cb(op.answer);
+        break;
       case "command-reply-close":
         for (const cb of commandReplyCloseHandlers) cb();
         break;
@@ -114,6 +121,7 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
         for (const cb of dockHandlers) cb();
         break;
       case "ready":
+        if (asks !== null) bridge.emitSurface({ op: "asks", frames: asks });
         if (commands !== null) bridge.emitSurface({ op: "commands", commands });
         if (reply !== null) bridge.emitSurface({ op: "command-reply", reply });
         if (limits) bridge.emitSurface({ op: "attachment-limits", limits });
@@ -128,6 +136,13 @@ export function createRemoteSurfaces(bridge: MessageBridge): RemoteSurfaces {
   });
 
   return {
+    setAsks(frames) {
+      asks = frames;
+      bridge.emitSurface({ op: "asks", frames });
+    },
+    onAskAnswer(cb) {
+      askAnswerHandlers.push(cb);
+    },
     setCommands(list) {
       commands = list;
       bridge.emitSurface({ op: "commands", commands });

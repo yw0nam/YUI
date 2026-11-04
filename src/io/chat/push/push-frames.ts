@@ -98,6 +98,8 @@ export interface AnswerFrame {
   text?: string;
 }
 
+export type AskAnswer = Omit<AnswerFrame, "type">;
+
 export interface PlaybackFrame {
   type: "playback";
   turn_id: string;

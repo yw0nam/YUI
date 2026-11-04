@@ -21,7 +21,8 @@ import type {
   UserQuote,
 } from "../../io/bridge/message/message-bridge";
 import type { InputErrorAction, SpeechAction } from "../../io/bridge/message/message-remote";
-import type { BackendCommand } from "../../io/chat/push/push-frames";
+import type { AskAnswer, AskFrame, BackendCommand } from "../../io/chat/push/push-frames";
+import { createSurfaceAsks } from "../ask/surface-asks";
 import type { ToolStatus } from "../chips/status-pill";
 import { createCommandReply } from "../commands/command-reply";
 import { createSurfaceCommands } from "../commands/surface-commands";
@@ -41,6 +42,8 @@ const POP_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
      stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M10 20H4v-6M4 20l8-8"/></svg>`;
 
 export interface Surfaces {
+  setAsks(frames: AskFrame[]): void;
+  onAskAnswer(cb: (answer: AskAnswer) => boolean): void;
   setCommands(list: BackendCommand[]): void;
   onCommand(cb: (name: string, args: string) => boolean): void;
   onCommandReplyClose(cb: () => void): void;
@@ -49,8 +52,6 @@ export interface Surfaces {
   readonly el: HTMLElement;
   /** Where the chips beside the avatar mount, signal chips first and the delegation chip after. */
   readonly chipColumn: HTMLElement;
-  /** Where the Ask card mounts, above the input's place. */
-  readonly askSlot: HTMLElement;
 
   // ── speech bubble (output) ──
   /**
@@ -223,6 +224,7 @@ export function createSurfaces({
 
   const chipColumn = el.querySelector<HTMLDivElement>(".yui-chip-column")!;
   const askSlot = el.querySelector<HTMLDivElement>(".yui-ask-slot")!;
+  const asks = createSurfaceAsks(askSlot);
   const commandSlot = el.querySelector<HTMLDivElement>(".yui-cmd-slot")!;
   const commandReply = createCommandReply({ mount: commandSlot });
   const bubbleEl = el.querySelector<HTMLDivElement>(".yui-bubble")!;
@@ -308,13 +310,15 @@ export function createSurfaces({
     commandInput.dispose();
     input.dispose();
     commandReply.dispose();
+    asks.dispose();
     el.remove();
   }
 
   const surfaces: Surfaces = {
     el,
     chipColumn,
-    askSlot,
+    setAsks: asks.set,
+    onAskAnswer: asks.onAnswer,
     beginSpeech: bubble.beginSpeech,
     pushSpeech: bubble.pushSpeech,
     endSpeech: bubble.endSpeech,

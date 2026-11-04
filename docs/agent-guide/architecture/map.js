@@ -925,7 +925,7 @@ globalThis.YUI_MAP =
       "id": "io/bridge/message",
       "module": "bridge",
       "label": "message bridge",
-      "role": "The preset-scoped bus between a pet window and its message window, and the message window's surfaces as a remote half.",
+      "role": "The preset-scoped bus between a pet window and its message window, including asks surface lists with ready replay and ask-answer controls, and the message window's surfaces as a remote half.",
       "paths": [
         "src/io/bridge/message"
       ]
@@ -1132,7 +1132,7 @@ globalThis.YUI_MAP =
       "id": "ui/surfaces",
       "module": "display",
       "label": "surfaces",
-      "role": "The speech bubble and text input as one system, and the router between the pet window, the message window and the speech stream: while the unified chat window shows, the character's lines, asides, quotes and input go to the stream, and only notices stay on its own bubble.",
+      "role": "The speech bubble and text input as one system, and the router between the pet window, the message window and the speech stream: while the unified chat window shows, the character's lines, asides, quotes and input go to the stream, and only notices stay on its own bubble. Open Asks move between the pet and message window with the input; unified chat leaves them on the pet.",
       "paths": [
         "src/ui/surfaces"
       ]
@@ -1222,7 +1222,7 @@ globalThis.YUI_MAP =
       "id": "ui/ask",
       "module": "display",
       "label": "ask card",
-      "role": "The pet window's Ask card above the input: the backend's open Asks oldest first, each in the Threads answer area with its time left; it closes on an answer sent, at its expiry, or when the backend ends it.",
+      "role": "The Ask card renders the pet-owned session above the input in the pet or popped message window, keeping the same head's focus and draft; unified chat leaves the card in the pet window.",
       "paths": [
         "src/ui/ask"
       ]
@@ -1969,10 +1969,10 @@ globalThis.YUI_MAP =
       "id": "push-ask",
       "from": "io/chat/push",
       "to": "ui/ask",
-      "carries": "ask, ask_end → createAskCard show/end/clear; answer ← sendAnswer",
+      "carries": "ask, ask_end, socket state → createAskSession → surfaces.setAsks; surfaces.onAskAnswer → sendAnswer",
       "kind": "callback",
       "transport": "push",
-      "wiring": "src/app/turn/push/wire-ask-card.ts"
+      "wiring": "src/app/turn/push/ask-session.ts"
     },
     {
       "id": "previous-playback",
@@ -3954,7 +3954,7 @@ globalThis.YUI_MAP =
       "id": "remote-surfaces",
       "from": "io/bridge/message",
       "to": "ui/surfaces",
-      "carries": "MessageControlOp on yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; speech-action carries the index of the button clicked under the speech; scoped to the sender's preset; command {name, args}; command-reply-close",
+      "carries": "MessageControlOp on yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; speech-action carries the index of the button clicked under the speech; scoped to the sender's preset; command {name, args}; command-reply-close; ask-answer {answer}",
       "kind": "bridge",
       "transport": "shared",
       "wiring": "src/ui/surfaces/wire.ts"
@@ -5895,28 +5895,28 @@ globalThis.YUI_MAP =
         "id": "message-surface",
         "from": "pet",
         "to": "message",
-        "carries": "yui://message-surface: MessageSurfaceOp; commands and command-reply",
+        "carries": "yui://message-surface: MessageSurfaceOp; commands, command-reply and asks {frames}",
         "kind": "bridge"
       },
       {
         "id": "message-surface-companion",
         "from": "pet-<id>",
         "to": "message-<id>",
-        "carries": "yui://message-surface: MessageSurfaceOp; commands and command-reply",
+        "carries": "yui://message-surface: MessageSurfaceOp; commands, command-reply and asks {frames}",
         "kind": "bridge"
       },
       {
         "id": "message-control",
         "from": "message",
         "to": "pet",
-        "carries": "yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; command {name, args}; command-reply-close",
+        "carries": "yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; command {name, args}; command-reply-close; ask-answer {answer}",
         "kind": "bridge"
       },
       {
         "id": "message-control-companion",
         "from": "message-<id>",
         "to": "pet-<id>",
-        "carries": "yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; command {name, args}; command-reply-close",
+        "carries": "yui://message-control: submit, stop, input-open, input-error-action, speech-action, dock, open-settings, ready; command {name, args}; command-reply-close; ask-answer {answer}",
         "kind": "bridge"
       },
       {
