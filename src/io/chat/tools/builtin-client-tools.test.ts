@@ -10,15 +10,7 @@ vi.mock("../../../tauri-env", async (importOriginal) => ({
   isTauri: () => true,
 }));
 
-const TERMINAL_TOOLS = [
-  "terminal_open",
-  "terminal_list",
-  "terminal_read",
-  "terminal_write",
-  "terminal_close",
-];
-
-function windowTools() {
+function windowTools(relationsEnabled = false) {
   return createPetWindowTools({
     bound: false,
     getExecutor: () => null,
@@ -30,7 +22,7 @@ function windowTools() {
       capturer: noopScreenCapturer,
     },
     relations: createRelationsStore(),
-    relationsEnabled: () => false,
+    relationsEnabled: () => relationsEnabled,
     targets: () => [],
     recordAddressed: vi.fn(),
     mcpHost: {
@@ -53,12 +45,30 @@ describe("builtin-client-tools.json", () => {
       emotionText: { mode: "free", table: null },
     });
 
-    expect([...tools, express].map((tool) => tool.name).sort()).toEqual(builtinNames);
+    expect([...tools.declared, ...tools.onDemand, express].map((tool) => tool.name).sort()).toEqual(
+      builtinNames,
+    );
   });
 
-  it("declares the five terminal tools in every pet window under Tauri", () => {
-    const names = windowTools().map((tool) => tool.name);
-
-    expect(names).toEqual(expect.arrayContaining(TERMINAL_TOOLS));
+  it.each([true, false])("keeps the declared names across Relations state %s", (enabled) => {
+    const tools = windowTools(enabled);
+    expect(tools.declared.map((tool) => tool.name)).toEqual([
+      "rate_relation",
+      "address_character",
+      "body_action",
+      "look",
+      "yui_tool_describe",
+      "yui_tool_call",
+      "plugin_skill",
+    ]);
+    expect(tools.onDemand.map((tool) => tool.name)).toEqual([
+      "threads_list",
+      "threads_search",
+      "terminal_open",
+      "terminal_list",
+      "terminal_read",
+      "terminal_write",
+      "terminal_close",
+    ]);
   });
 });

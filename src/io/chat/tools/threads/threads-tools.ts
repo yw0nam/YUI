@@ -27,7 +27,7 @@ export function createThreadsTools(client: Pick<ThreadsClient, "threads">): Clie
       function: {
         name: "threads_list",
         description:
-          "List the user's Threads — outside conversations a producer posted. Each row names the id, source, title, label, state and last update, with the open ask and the last entry under it.",
+          "List the user's Threads or read one Thread by id. Threads are outside conversations a producer posted. Each row names the id, source, title, label, state and last update, with the open ask and the last entry under it.",
         parameters: {
           type: "object" as const,
           properties: {
@@ -84,7 +84,7 @@ export function createThreadsTools(client: Pick<ThreadsClient, "threads">): Clie
       function: {
         name: "threads_search",
         description:
-          "Search the user's Threads by a case-insensitive substring over title, label and entry text.",
+          "Search the user's Threads by title, label or entry text. Matches a case-insensitive substring over title, label and entry text.",
         parameters: {
           type: "object" as const,
           properties: {

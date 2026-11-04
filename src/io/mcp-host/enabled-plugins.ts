@@ -15,7 +15,11 @@ export interface PluginLines {
 function summaryOf(tool: PluginHostTool): string {
   const meta = tool.meta?.[SUMMARY_META];
   if (typeof meta === "string" && meta.trim() !== "") return meta.trim().slice(0, SUMMARY_MAX);
-  const paragraph = (tool.description ?? "").split(/\n\s*\n/)[0] ?? "";
+  return sentenceSummary(tool.description ?? "");
+}
+
+export function sentenceSummary(description: string): string {
+  const paragraph = description.split(/\n\s*\n/)[0] ?? "";
   const collapsed = paragraph.replace(/\s+/g, " ").trim();
   const sentence = /^.*?[.!?](?=\s|$)/.exec(collapsed)?.[0] ?? collapsed;
   return sentence.slice(0, SUMMARY_MAX);

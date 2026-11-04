@@ -9,9 +9,13 @@ import type {
 } from "../../contract";
 import type { OverheardBlock } from "../../io/chat/conversation/overheard/overheard-reader";
 import { isGuideKey } from "../../io/guide/guide-docs";
-import type { PluginLines } from "../../io/mcp-host/enabled-plugins";
 import { ADDRESSED_EVENT, mentionOf } from "../core/classify";
 import type { BusEnvelope } from "../core/event-bus";
+
+export interface OnDemandLines {
+  tools: Array<{ name: string; summary: string }>;
+  skills: Array<{ name: string; description: string }>;
+}
 
 interface ContextProviders {
   getScreenshot?: () => Promise<InputContext["screenshot"] | undefined>;
@@ -29,8 +33,8 @@ interface ContextProviders {
   getOpenCharacters?: () => string[];
   /** The Threads waiting for the user's answer, read once per turn. */
   getThreadsWaiting?: () => ClientContext["threads_waiting"];
-  /** The enabled plugins' tools and skills, read once per turn. */
-  getPluginLines?: () => PluginLines;
+  /** The window's On-demand tools and plugin skills, read once per turn. */
+  getOnDemandLines?: () => OnDemandLines;
 }
 
 interface BuiltContext {
@@ -263,7 +267,7 @@ export async function buildContext(
   const overheard = providers.getOverheard?.() ?? [];
   const relations = providers.getRelations?.();
   const openCharacters = providers.getOpenCharacters?.();
-  const lines = providers.getPluginLines?.();
+  const lines = providers.getOnDemandLines?.();
   const threadsWaiting = providers.getThreadsWaiting?.();
   const userTurn = triggerKind(env.event_name) === "user";
   const clientContext = {
@@ -283,7 +287,7 @@ export async function buildContext(
     ...(userTurn && threadsWaiting && threadsWaiting.total > 0
       ? { threads_waiting: threadsWaiting }
       : {}),
-    ...(lines?.tools.length ? { plugin_tools: lines.tools } : {}),
+    ...(lines?.tools.length ? { on_demand_tools: lines.tools } : {}),
     ...(lines?.skills.length ? { plugin_skills: lines.skills } : {}),
   };
 

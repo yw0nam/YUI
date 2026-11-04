@@ -355,6 +355,6 @@ async def test_a_non_string_result_reaches_the_model_as_text(monkeypatch, raw, t
     assert result["content"][0] == {"type": "text", "text": text}
 
 
-@pytest.mark.parametrize(("name", "client_wait_s"), [("plugin_call", 121)])
-def test_the_wait_outlasts_the_clients_own_wait(name: str, client_wait_s: int):
+@pytest.mark.parametrize(("name", "client_wait_s"), [("yui_tool_call", 121.0), ("yui_tool_describe", 2.0)])
+def test_the_wait_outlasts_the_clients_own_wait(name: str, client_wait_s: float):
     assert handler.WAITS_S[name] > client_wait_s

@@ -1,29 +1,49 @@
-/** The bridge tools: plugin_describe, plugin_call and plugin_skill over the MCP host. */
+/** The bridge tools reach built-in On-demand tools and enabled plugins. */
 
 import { findPluginTool } from "../../../mcp-host/enabled-plugins";
 import type { McpHost } from "../../../mcp-host/mcp-host";
 import { type ClientTool, TURN_STOPPED } from "../client-tools";
+import { executeClientTool } from "../execute";
+import { terminalFailed } from "../terminal/terminal-tools";
 import { firstViolation } from "./first-violation";
 import { isFailureText, pluginToolResult } from "./plugin-result";
 
-export function createPluginBridgeTools(deps: {
+export function createBridgeTools(deps: {
   host: McpHost;
+  onDemand: readonly ClientTool[];
   /** The preset of the calling window, sent with each call. */
   presetId: () => string;
 }): ClientTool[] {
   const host = deps.host;
+  const resolve = (name: string) => {
+    const builtin = deps.onDemand.find((tool) => tool.name === name);
+    if (builtin)
+      return {
+        description: builtin.definition.function.description,
+        schema: builtin.definition.function.parameters,
+        builtin,
+      };
+    const plugin = findPluginTool(host.snapshot(), name);
+    if (!plugin) return undefined;
+    return {
+      description: plugin.description ?? "",
+      schema: plugin.inputSchema,
+      builtin: undefined,
+    };
+  };
 
   const describe: ClientTool = {
-    name: "plugin_describe",
+    name: "yui_tool_describe",
     definition: {
       type: "function" as const,
       function: {
-        name: "plugin_describe",
-        description: "Describe a plugin tool: returns its full description and JSON input schema.",
+        name: "yui_tool_describe",
+        description:
+          "Describe an on-demand tool listed in the client context: returns its full description and JSON input schema.",
         parameters: {
           type: "object" as const,
           properties: {
-            name: { type: "string", description: "The plugin tool's name." },
+            name: { type: "string", description: "The on-demand tool's name." },
           },
           additionalProperties: false as const,
           required: ["name"],
@@ -32,24 +52,25 @@ export function createPluginBridgeTools(deps: {
     },
     execute: async (args) => {
       const name = String(args.name ?? "");
-      const tool = findPluginTool(host.snapshot(), name);
-      if (!tool) return `error: unknown plugin tool: ${name}`;
-      return `name: ${tool.name}\ndescription: ${tool.description ?? ""}\ninput schema: ${JSON.stringify(tool.inputSchema)}`;
+      const target = resolve(name);
+      if (!target) return `error: unknown tool: ${name}`;
+      return `name: ${name}\ndescription: ${target.description}\ninput schema: ${JSON.stringify(target.schema)}`;
     },
     waitMs: 2000,
   };
 
   const call: ClientTool = {
-    name: "plugin_call",
+    name: "yui_tool_call",
     definition: {
       type: "function" as const,
       function: {
-        name: "plugin_call",
-        description: "Call a plugin tool by name with its arguments.",
+        name: "yui_tool_call",
+        description:
+          "Call an on-demand tool listed in the client context by name with its arguments.",
         parameters: {
           type: "object" as const,
           properties: {
-            name: { type: "string", description: "The plugin tool's name." },
+            name: { type: "string", description: "The on-demand tool's name." },
             arguments: { type: "object", description: "The tool's arguments." },
           },
           additionalProperties: false as const,
@@ -60,12 +81,14 @@ export function createPluginBridgeTools(deps: {
     execute: async (args, signal) => {
       if (signal?.aborted) return TURN_STOPPED;
       const name = String(args.name ?? "");
-      const tool = findPluginTool(host.snapshot(), name);
-      if (!tool) return `error: unknown plugin tool: ${name}`;
+      const target = resolve(name);
+      if (!target) return `error: unknown tool: ${name}`;
+      const schema = target.schema;
       const toolArgs = args.arguments ?? {};
-      const bad = firstViolation(tool.inputSchema, toolArgs);
-      if (bad)
-        return `error: invalid arguments (${bad})\ninput schema: ${JSON.stringify(tool.inputSchema)}`;
+      const bad = firstViolation(schema, toolArgs);
+      if (bad) return `error: invalid arguments (${bad})\ninput schema: ${JSON.stringify(schema)}`;
+      if (target.builtin)
+        return executeClientTool(target.builtin, toolArgs as Record<string, unknown>, signal);
       const callId = crypto.randomUUID();
       const onAbort = (): void => {
         void host.cancel(callId).catch(() => {});
@@ -81,7 +104,7 @@ export function createPluginBridgeTools(deps: {
     waitMs: 121_000,
     localStatus: true,
     statusId: (args) => String(args.name ?? ""),
-    failed: isFailureText,
+    failed: (text) => isFailureText(text) || terminalFailed(text),
   };
 
   const skill: ClientTool = {

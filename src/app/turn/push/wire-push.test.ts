@@ -650,7 +650,7 @@ describe("wirePushTransport — tool calls", () => {
     let finish: ((result: string) => void) | undefined;
     const pluginCall: ClientTool = {
       ...look,
-      name: "plugin_call",
+      name: "yui_tool_call",
       localStatus: true,
       execute: () =>
         new Promise((resolve) => {
@@ -661,21 +661,25 @@ describe("wirePushTransport — tool calls", () => {
     const onFrame = vi.fn();
     void pushTurns.awaitTurnEnd("7", { onFrame });
     wire(turnFeed, [pluginCall]);
-    socket.pushToolCall({ ...frame("c1", "7"), name: "plugin_call", arguments: { name: "look" } });
+    socket.pushToolCall({
+      ...frame("c1", "7"),
+      name: "yui_tool_call",
+      arguments: { name: "look" },
+    });
     await vi.waitFor(() => expect(finish).toBeDefined());
     socket.pushToolStatus({
       type: "tool_status",
       turn_id: "7",
       state: "done",
-      tool_id: "plugin_call",
+      tool_id: "yui_tool_call",
     });
 
-    expect(toolStatusSink.mock.calls).toEqual([[{ state: "running", tool_id: "plugin_call" }]]);
+    expect(toolStatusSink.mock.calls).toEqual([[{ state: "running", tool_id: "yui_tool_call" }]]);
     expect(onFrame).toHaveBeenCalledTimes(1);
 
     finish?.("The tool's result text.\n{}");
     await vi.waitFor(() =>
-      expect(toolStatusSink).toHaveBeenLastCalledWith({ state: "done", tool_id: "plugin_call" }),
+      expect(toolStatusSink).toHaveBeenLastCalledWith({ state: "done", tool_id: "yui_tool_call" }),
     );
   });
 
@@ -683,7 +687,7 @@ describe("wirePushTransport — tool calls", () => {
     let finish: ((result: string) => void) | undefined;
     const pluginCall: ClientTool = {
       ...look,
-      name: "plugin_call",
+      name: "yui_tool_call",
       localStatus: true,
       execute: () =>
         new Promise((resolve) => {
@@ -691,7 +695,11 @@ describe("wirePushTransport — tool calls", () => {
         }),
     };
     wire(turnFeed, [pluginCall]);
-    socket.pushToolCall({ ...frame("c1", "7"), name: "plugin_call", arguments: { name: "look" } });
+    socket.pushToolCall({
+      ...frame("c1", "7"),
+      name: "yui_tool_call",
+      arguments: { name: "look" },
+    });
     await vi.waitFor(() => expect(finish).toBeDefined());
     socket.pushToolStatus({
       type: "tool_status",

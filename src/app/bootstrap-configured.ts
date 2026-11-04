@@ -14,9 +14,9 @@ import type {
   UserTurnDone,
   UserTurnRouted,
 } from "../io/bridge/settings-bridge";
+import { onDemandLines } from "../io/chat/tools/bridge/on-demand-lines";
 import type { ClientTool } from "../io/chat/tools/client-tools";
 import { createPetWindowTools } from "../io/chat/tools/pet-window-tools";
-import { pluginLines } from "../io/mcp-host/enabled-plugins";
 import { createMcpHost } from "../io/mcp-host/mcp-host";
 import type { ThreadsClient } from "../io/threads/threads-client";
 import { threadsWaitingProvider } from "../io/threads/threads-waiting";
@@ -174,7 +174,7 @@ const realFactories: ConfiguredBootstrapFactories = {
     });
     const mcpHost = createMcpHost();
     register(mcpHost.dispose);
-    const windowTools = createPetWindowTools({
+    const { declared: windowTools, onDemand } = createPetWindowTools({
       bound: phase1.bound === true,
       getExecutor: () => locomotion?.getAvatarExecutor() ?? null,
       screen: {
@@ -212,7 +212,7 @@ const realFactories: ConfiguredBootstrapFactories = {
       screenCapturer: phase1.screenCapturer,
       openSettings: phase1.openSettings,
       windowTools,
-      getPluginLines: () => pluginLines(mcpHost.snapshot()),
+      getOnDemandLines: onDemandLines(mcpHost, onDemand),
       getThreadsWaiting: threadsWaitingProvider(phase1.threads),
       onTurnClosed: userTurnDone.onTurnClosed,
       addressedTo: addressed.targetOf,

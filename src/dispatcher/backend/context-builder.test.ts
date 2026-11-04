@@ -229,9 +229,9 @@ describe("context builder — plugin lines", () => {
       sets: false,
     },
   ])("$name", async ({ lines, sets }) => {
-    const built = await buildContext(ENV, { getPluginLines: () => lines });
+    const built = await buildContext(ENV, { getOnDemandLines: () => lines });
 
-    expect(built.clientContext.plugin_tools).toEqual(sets ? lines.tools : undefined);
+    expect(built.clientContext.on_demand_tools).toEqual(sets ? lines.tools : undefined);
     expect(built.clientContext.plugin_skills).toEqual(sets ? lines.skills : undefined);
   });
 });

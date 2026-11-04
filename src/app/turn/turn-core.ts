@@ -117,8 +117,8 @@ export async function wireTurnCore(
     voiceHost?: VoiceHost;
     /** The tools beside generate_express, declared on every transport; none outside Tauri. */
     windowTools?: readonly ClientTool[];
-    /** The enabled plugins' tools and skills for the per-turn lines; none outside Tauri. */
-    getPluginLines?: DispatcherDeps["getPluginLines"];
+    /** The window's On-demand tools and plugin skills for the per-turn lines; none outside Tauri. */
+    getOnDemandLines?: DispatcherDeps["getOnDemandLines"];
     /** The Threads waiting for the user's answer for the per-turn line; main's window only. */
     getThreadsWaiting?: DispatcherDeps["getThreadsWaiting"];
     /** A turn is over — the over edge, or the next begin displacing it. */
@@ -227,7 +227,7 @@ export async function wireTurnCore(
     screenshotSettings: settings.screenshotSettings,
     screenCapturer: deps.screenCapturer,
     getFrontmost: deps.getFrontmost,
-    getPluginLines: deps.getPluginLines,
+    getOnDemandLines: deps.getOnDemandLines,
     getThreadsWaiting: deps.getThreadsWaiting,
     voice,
     turnLog,

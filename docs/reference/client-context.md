@@ -172,7 +172,7 @@ order:
 10. `overheard`
 11. one or more `trigger:`/`cue note`/`signal`/`recent switches:` lines
     depending on what fired
-12. the `plugin tools` and `plugin skills` lines when the host publishes any
+12. the `on-demand tools (call through yui_tool_call)` and `plugin skills` lines when they have entries
 13. the `guide:` block when the turn carries one ([Guide](#guide-in-app-help-button))
 
 A line is omitted outright when its underlying field is absent (e.g. no `screenshot
@@ -758,27 +758,27 @@ an app left running overnight fires again on the first present tick after midnig
 Buffered `/signals` groups drain into the same turn and render as `signal` lines under
 the headline.
 
-## Plugin lines
+## On-demand tools and plugin skills
 
-The two lines report what the enabled plugins offer, read from the MCP host's newest
-snapshot once per turn. They sit after the trigger lines and before the `guide:` block,
-and each is omitted when it would carry no entry, so a turn with no enabled plugin
-carries neither.
+The two lines report the window's On-demand tools and enabled plugin skills. Plugin entries
+come from the MCP host's newest snapshot once per turn. They sit after the trigger lines and before the `guide:` block.
+Each line is omitted when it has no entries.
 
-### `plugin tools`
+### `on-demand tools`
 
-One line naming every tool of every enabled plugin, with a one-line summary of each:
+The line starts with `on-demand tools (call through yui_tool_call):`, then names the window's built-in On-demand tools followed by every enabled Plugin tool, with a summary of each:
 
 ```text
-plugin tools: echo_args — Echo argv. · slow — Waits before answering. · spawn_child
+on-demand tools (call through yui_tool_call): threads_list — List the user's Threads or read one Thread by id. · threads_search — Search the user's Threads by title, label or entry text. · terminal_open — Open a new terminal and return its id. · terminal_list — List all terminals with their owners, titles, states and access. · terminal_read — Read a terminal's rendered screen. · terminal_write — Write text to a terminal. · terminal_close — Close a terminal you opened.
 ```
 
-The `ClientContext` field is `plugin_tools?: { name, summary }[]`, one entry per tool in
+The `ClientContext` field is `on_demand_tools?: { name, summary }[]`, built-in entries first, followed by plugin entries in
 snapshot order: plugin by plugin, each plugin's servers in manifest order. An entry
 reads `<name> — <summary>`, or the name alone when the summary is empty, and entries are
 joined with ` · `.
 
-The summary is the tool's own `io.github.yw0nam.yui/summary` meta when it sets a
+A built-in summary is the first sentence of its description, cut at 100 characters.
+A Plugin tool's summary is its own `io.github.yw0nam.yui/summary` meta when it sets a
 non-empty one, else the first sentence of its description's first paragraph. That
 paragraph is the text up to the first blank line, with every whitespace run collapsed to
 one space.
@@ -786,8 +786,8 @@ one space.
 Either is cut at 100 characters. A name or summary goes through the same sanitization as
 the other sampled fields, so it stays one line.
 
-The line names the tools only. `plugin_describe` returns a tool's full description and
-input schema, and `plugin_call` runs it
+The line names the tools only. `yui_tool_describe` returns a tool's full description and
+input schema, and `yui_tool_call` runs it
 ([client-tools.md](client-tools.md#bridge-tools)).
 
 ### `plugin skills`
