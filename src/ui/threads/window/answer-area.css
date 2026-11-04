@@ -113,7 +113,7 @@
   background: var(--yui-hover);
 }
 
-.yui-threads-answer__choices button:active:not(:disabled) {
+.yui-threads-answer__choices button:active:not(:disabled, [aria-pressed="true"]) {
   background: var(--yui-selected);
 }
 
