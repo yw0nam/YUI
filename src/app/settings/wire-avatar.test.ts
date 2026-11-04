@@ -539,7 +539,7 @@ describe("createEffectiveEndpoints", () => {
         broadcastSettings: () => {},
       });
 
-      await expect(refreshVoiceList()).resolves.toBeUndefined();
+      await expect(refreshVoiceList()).resolves.toEqual({ kind: "skipped" });
       expect(listVoices).not.toHaveBeenCalled();
 
       await expect(

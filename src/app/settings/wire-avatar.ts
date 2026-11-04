@@ -32,6 +32,7 @@ import {
 } from "../../io/voice/voices/voice-import-flow";
 import {
   createVoiceListRefresh,
+  type VoiceListOutcome,
   wireVoiceListAutoRefresh,
 } from "../../io/voice/voices/voice-list-refresh";
 import type { Logger } from "../../logger";
@@ -139,7 +140,7 @@ export function wireSpeakerSelection(deps: {
   /** Commit step: uploads the staged copy under `name` (overwrite-aware) → add option + select. */
   commitVoiceImport: (stagedId: string, name: string) => Promise<void>;
   removeVoice: (id: string) => Promise<void>;
-  refreshVoiceList: () => Promise<void>;
+  refreshVoiceList: () => Promise<VoiceListOutcome>;
   /** Whether the current TTS provider takes imported voices — import and delete. */
   canManageVoices: () => boolean;
   /** Whether the current TTS provider can take a clip again under the voice's own id. */

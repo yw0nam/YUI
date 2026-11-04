@@ -9,6 +9,7 @@
 import { ttsProviderOf } from "../../../config/tts-provider";
 import type { TtsProviderName } from "../../../contract";
 import type { Logger } from "../../../logger";
+import type { ServerCheck } from "../../chat/models/server-check";
 import { selectFetch } from "../../chat/stream/chat-client";
 import type { SpeakerOption } from "./speaker-selection";
 import { VOICE_APIS } from "./voice-apis";
@@ -19,6 +20,9 @@ type VoiceListEndpoints = {
   tts_speaker?: string;
   tts_provider?: TtsProviderName;
 } | null;
+
+/** What one refresh did: the server's answer, or skipped (no TTS URL or list, superseded, threw). */
+export type VoiceListOutcome = ServerCheck | { kind: "skipped" };
 
 /** The slice of the speaker store the refresher touches. */
 interface SpeakerManifestTarget {
@@ -36,7 +40,7 @@ export function createVoiceListRefresh(deps: {
   /** Re-uploads a user voice's local clip to the server (bumping its revision). */
   reuploadUserVoice?: (option: SpeakerOption) => Promise<void>;
   log: Logger;
-}): () => Promise<void> {
+}): () => Promise<VoiceListOutcome> {
   const { getEndpoints, getApiKey, speakerSelection, reuploadUserVoice, log } = deps;
   // Discards a stale (out-of-order) resolution so it can't clobber a newer manifest — the triggers
   // (boot, endpoints hot-reload, panel open) fire with no sequencing between them.
@@ -44,13 +48,13 @@ export function createVoiceListRefresh(deps: {
   // The provider whose voices the manifest holds; its voices must not outlive a switch to another.
   let listedProvider: TtsProviderName | undefined;
 
-  return async function refreshVoiceList(): Promise<void> {
+  return async function refreshVoiceList(): Promise<VoiceListOutcome> {
     try {
       const eps = getEndpoints();
-      if (!eps?.tts_base_url) return;
+      if (!eps?.tts_base_url) return { kind: "skipped" };
       const provider = ttsProviderOf(eps);
       const api = VOICE_APIS[provider];
-      if (!api) return;
+      if (!api) return { kind: "skipped" };
       // User voices belong to the provider that made them; only the live provider's are listed.
       speakerSelection.setOwner(provider);
       if (listedProvider !== undefined && provider !== listedProvider) {
@@ -65,9 +69,9 @@ export function createVoiceListRefresh(deps: {
         getApiKey,
         logger: log,
       });
-      if (mine !== generation) return; // superseded by a later refresh
+      if (mine !== generation) return { kind: "skipped" }; // superseded by a later refresh
       // A failed list is not an empty server — keep the current manifest and user clips as they are.
-      if (listed.kind !== "ok") return;
+      if (listed.kind !== "ok") return listed;
       const { voices } = listed;
       const listedIds = voices.map((v) => v.id);
       // A configured default the server doesn't (yet) have must not be conjured into existence.
@@ -103,8 +107,10 @@ export function createVoiceListRefresh(deps: {
           }
         }
       }
+      return { kind: "ok" };
     } catch (err) {
       log.warn("voice_list_refresh_failed", { error: String(err) });
+      return { kind: "skipped" };
     }
   };
 }
@@ -119,7 +125,7 @@ export function wireVoiceListAutoRefresh(deps: {
   /** The TTS key store's subscription; a server that refused the list may accept the new key. */
   subscribeKey?: (cb: () => void) => () => void;
   getEndpoints: () => VoiceListEndpoints;
-  refresh: () => Promise<void>;
+  refresh: () => Promise<unknown>;
 }): () => void {
   // getEndpoints throws until config loads — the pet window wires this before config.load(),
   // so an unreadable baseline is "unknown" (null), never a boot-killing exception.

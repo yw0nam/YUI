@@ -188,7 +188,7 @@ describe("createVoiceListRefresh", () => {
       log: noopLog,
     });
 
-    await expect(refresh()).resolves.toBeUndefined();
+    await expect(refresh()).resolves.toEqual({ kind: "skipped" });
     expect(noopLog.warn).toHaveBeenCalledOnce();
     expect(store.setManifest).not.toHaveBeenCalled();
   });
@@ -434,7 +434,7 @@ describe("createVoiceListRefresh — re-uploading user voices the server lost", 
       log: noopLog,
     });
 
-    await expect(refresh()).resolves.toBeUndefined();
+    await expect(refresh()).resolves.toEqual({ kind: "ok" });
     expect(noopLog.warn).toHaveBeenCalledWith(
       "voice_reupload_failed",
       expect.objectContaining({ id: "myvoice" }),
