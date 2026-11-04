@@ -272,8 +272,8 @@ wait that passes after the first `render` ends the turn as well and writes a log
 leaving `ready` ends the turn at once, with the same two outcomes.
 
 A `render` that arrives after the turn ended this way still plays like any other frame, as long as
-the turn is still outstanding. A turn whose wait ended stays outstanding, so the next user action
-that stops speech stops it too, and its late `render` is dropped.
+the turn is still outstanding. A turn whose wait ended stays outstanding (the newest 200 are kept), so
+the next user action that stops speech stops it too, and its late `render` is dropped.
 
 ### `reset` (client → backend)
 
@@ -302,7 +302,7 @@ is `ready`.
 
 - A turn that is not named, one the backend started after the client's stop, keeps running.
 - A backend that cannot stop the named turns without also stopping an unnamed one ignores the frame.
-- A backend that ignores `stop` stays correct: the client drops the stopped turns' frames until their `turn_end`, as it does without it.
+- A backend that ignores `stop` stays correct: the client drops the frames of the newest 200 stopped turns until their `turn_end`, as it does without it.
 - Whether stopping a turn also ends work that turn delegated is the backend's decision. A delegation it ends is reported through `delegations`.
 
 ### `playback` (client → backend)
