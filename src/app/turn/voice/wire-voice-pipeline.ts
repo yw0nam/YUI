@@ -22,11 +22,7 @@ import { createWebAudioSink } from "../../../io/voice/tts/audio-player";
 import { createReadings } from "../../../io/voice/tts/readings";
 import { createSpeechPlayback, type SpeechPlayback } from "../../../io/voice/tts/speech-playback";
 import { type SpokenSplit, TTS_SKIP } from "../../../io/voice/tts/tts-pipeline";
-import {
-  createTtsProvider,
-  type TtsSynthCallOptions,
-  TtsUnreachableError,
-} from "../../../io/voice/tts/tts-synth";
+import { createTtsProvider, type TtsSynthCallOptions } from "../../../io/voice/tts/tts-synth";
 import { createVoiceGate } from "../../../io/voice/tts/voice-gate";
 import type { SpeakerOption } from "../../../io/voice/voices/speaker-selection";
 import type { VoiceListOutcome } from "../../../io/voice/voices/voice-list-refresh";
@@ -123,6 +119,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
 
   const readings = createReadings(() => deps.readingsSettings.get().text);
   const reach = createTtsReach(deps);
+  const hasTtsUrl = (): boolean => Boolean(deps.getEndpoints().tts_base_url);
 
   const fillerCache = createFillerAudioCache({
     synth: async (input, signal, opts) => {
@@ -153,12 +150,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
   ): Promise<ArrayBuffer> => {
     // TTS inactive (toggle OFF or server unset) quietly skips — expressions/motions, bubble unchanged.
     if (!deps.ttsSettings.get().enabled) return Promise.reject(TTS_SKIP);
-    if (!provider.isReady()) {
-      if (!deps.getEndpoints().tts_base_url) return Promise.reject(TTS_SKIP);
-      // A voice list that failed at boot leaves no voice; ask the server again before skipping.
-      await reach.listRetry();
-      if (!provider.isReady()) return Promise.reject(TTS_SKIP);
-    }
+    if (!(await reach.ensureSpeaker(provider.isReady, hasTtsUrl))) return Promise.reject(TTS_SKIP);
     return fillerCache.synth(input, signal, opts);
   };
 
@@ -233,9 +225,7 @@ export function wireVoicePipeline(deps: VoicePipelineDeps): VoicePipeline {
       // Response-speech failures share the signal; the next thinking start clears it either way.
       onSynthFailure: (tracked, error) => {
         fillerLoop?.onSynthFailure();
-        // A server that did not answer is not the voice's fault.
-        if (error instanceof TtsUnreachableError) reach.report("unreachable");
-        else if (tracked) for (const cb of [...synthFailureListeners]) cb();
+        if (reach.synthFailed(error) && tracked) for (const cb of [...synthFailureListeners]) cb();
       },
     },
   });
