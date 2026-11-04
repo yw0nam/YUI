@@ -4,7 +4,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: 12px 14px 14px;
+  padding: 12px 14px 0;
   border: 1px solid var(--yui-edge-strong);
   border-radius: var(--yui-radius-group);
   background: var(--yui-scrim-strong);
@@ -29,6 +29,13 @@
   padding: 0;
   border-top: 0;
   background: none;
+}
+
+/* The card's bottom gap (the area's 10px gap and 4px): card padding sits after the area's box, not after the content that overflows it. */
+.yui-ask-card .yui-threads-answer::after {
+  content: "";
+  flex: none;
+  height: 4px;
 }
 
 /* Every choice and Send stay whole; the prompt gives up its room and scrolls instead. */
