@@ -193,7 +193,7 @@ The bundled default VRM model
 (`resources/vrms/AvatarSample_A.vrm`) is **AvatarSample_A**, a sample model of
 [VRoid Studio](https://vroid.com/en/studio) by pixiv Inc., distributed under
 pixiv's [AvatarSample conditions of use](https://vroid.pixiv.help/hc/ja/articles/4402394424089).
-It is not CC0 and its copyright stays with pixiv Inc.; no credit is required —
+It is not CC0; no credit is required —
 see
 [`resources/vrms/AvatarSample_A.PROVENANCE.md`](resources/vrms/AvatarSample_A.PROVENANCE.md)
 for the full notice.

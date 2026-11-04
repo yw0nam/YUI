@@ -192,7 +192,7 @@ Shiny氏から別途許可を得る必要があります。
 同梱している既定のVRMモデル
 (`resources/vrms/AvatarSample_A.vrm`)は **AvatarSample_A** です。ピクシブ株式会社の
 [AvatarSample利用条件](https://vroid.pixiv.help/hc/ja/articles/4402394424089)のもとで
-配布されています。CC0ではなく、著作権はピクシブ株式会社に留まります。クレジット表記は
+配布されています。CC0ではありません。クレジット表記は
 不要です。表記の全文は
 [`resources/vrms/AvatarSample_A.PROVENANCE.md`](resources/vrms/AvatarSample_A.PROVENANCE.md)
 をご覧ください。
