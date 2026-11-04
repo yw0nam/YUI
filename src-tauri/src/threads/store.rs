@@ -8,6 +8,7 @@ use std::sync::{Condvar, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
 const ENTRY_LIMIT: usize = 50;
+const THREAD_LIMIT: usize = 200;
 type DiskSink = Box<dyn FnMut(&Thread) -> std::io::Result<()> + Send>;
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -50,8 +51,29 @@ impl State {
             thread.updated_at
                 >= now.saturating_sub(crate::log_rotation::RETENTION.whole_milliseconds() as u64)
         });
+        self.cap_threads(Some(id));
         self.pending.retain(|(id, _)| self.threads.contains_key(id));
         self.record(id)
+    }
+
+    fn cap_threads(&mut self, recorded_id: Option<&str>) {
+        while self.threads.len() > THREAD_LIMIT {
+            let oldest = self
+                .threads
+                .values()
+                .filter(|thread| {
+                    thread.state != ThreadState::InputRequired
+                        && Some(thread.id.as_str()) != recorded_id
+                })
+                .min_by(|a, b| {
+                    a.updated_at
+                        .cmp(&b.updated_at)
+                        .then_with(|| a.id.cmp(&b.id))
+                })
+                .map(|thread| thread.id.clone());
+            let Some(id) = oldest else { break };
+            self.threads.remove(&id);
+        }
     }
 
     fn record(&mut self, id: &str) -> ThreadsSnapshot {
@@ -78,13 +100,15 @@ impl ThreadStore {
         disk: DiskSink,
         emit: impl Fn(&ThreadsSnapshot) + Send + Sync + 'static,
     ) -> Self {
+        let mut state = State {
+            threads: threads.into_iter().map(|t| (t.id.clone(), t)).collect(),
+            pending: VecDeque::new(),
+            revision: 0,
+            disk,
+        };
+        state.cap_threads(None);
         Self {
-            state: Mutex::new(State {
-                threads: threads.into_iter().map(|t| (t.id.clone(), t)).collect(),
-                pending: VecDeque::new(),
-                revision: 0,
-                disk,
-            }),
+            state: Mutex::new(state),
             changed: Condvar::new(),
             emit: Box::new(emit),
             #[cfg(test)]
