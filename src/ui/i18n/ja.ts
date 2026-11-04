@@ -374,6 +374,7 @@ const ja: Record<string, string> = {
   "vrm.section": "VRM",
   "vrm.group_aria": "VRM",
   "vrm.add": "ファイルから追加…",
+  "vrm.hub_link": "VRoid Hubでモデルを探す",
   "vrm.import_error": "このファイルは読み込めませんでした。VRM ファイルか確認してください。",
   "vrm.in_use": "使用中",
   "vrm.rename": "名前を変更",

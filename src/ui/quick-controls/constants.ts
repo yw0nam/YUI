@@ -197,6 +197,8 @@ export const CARD_GUIDE_URL = "https://yw0nam.github.io/YUI/guide/cards";
 export const GEMINI_KEY_URL = "https://aistudio.google.com/apikey";
 // The voice step's key page. The settings window's opener grant names the same URL.
 export const FISH_KEY_URL = "https://fish.audio/app/api-keys/";
+// The VRM section's VRoid Hub link. The settings window's opener grant names the same URL.
+export const VROID_HUB_URL = "https://hub.vroid.com/en/users/36144806";
 
 // Chat provider presets (Connection tab, chat section) — selecting one autofills chat_base_url with the
 // provider's OpenAI-compatible path, the chat_model, the chat protocol, or a combination. Brand names

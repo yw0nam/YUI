@@ -7,3 +7,17 @@
 .yui-vrm__badge {
   margin-left: auto;
 }
+
+/* The compound selector outweighs .yui-chat-type__link, which the built CSS carries after this file. */
+.yui-chat-type__link.yui-vrm__hub {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--yui-text-dim);
+}
+
+.yui-vrm__hub svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex: none;
+}
