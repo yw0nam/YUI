@@ -28,7 +28,7 @@ function build(ask: ThreadAsk = ASK, text = "") {
   const onSend = vi.fn();
   const area = createAnswerArea({
     ask,
-    draft: { text },
+    draft: { picks: [], text },
     error: null,
     sending: false,
     onDraft: vi.fn(),
@@ -109,4 +109,42 @@ it("sizes the field to its text, and an empty field to one line whatever its pla
   type("two\nlines");
 
   expect([empty, field!.style.height]).toEqual(["", "91px"]);
+});
+
+it("toggles multiple picks with checks, a count and danger feedback", () => {
+  const { area, send } = build({ ...ASK, multiple: true });
+  const group = area.el.querySelector('[role="group"]')!;
+  expect(area.el.querySelector(`#${group.getAttribute("aria-describedby")}`)?.textContent).toBe(
+    "Choose one or more",
+  );
+  expect([send.textContent, send.disabled]).toEqual(["Send", true]);
+  area.pick(1);
+  expect([send.textContent, send.classList.contains("is-danger")]).toEqual(["Deny", true]);
+  area.pick(0);
+  expect(send.textContent).toBe("Send 2");
+  expect(
+    [...group.querySelectorAll("button")].map((b) => [
+      b.getAttribute("aria-pressed"),
+      b.querySelector("svg")?.getAttribute("aria-hidden"),
+    ]),
+  ).toEqual([
+    ["true", "true"],
+    ["true", "true"],
+  ]);
+  area.pick(1);
+  expect([send.textContent, send.classList.contains("is-danger")]).toEqual(["Allow", false]);
+  area.pick(0);
+  expect([send.textContent, send.disabled]).toEqual(["Send", true]);
+});
+
+it.each([
+  [[1, 0], "", { choices: ["allow", "deny"] }],
+  [[1, 0], " why ", { choices: ["allow", "deny"], text: "why" }],
+  [[0], "", { choices: ["allow"] }],
+  [[], " why ", { text: "why" }],
+])("sends multiple picks %j in Ask order with text %j", (indices, text, expected) => {
+  const { area, send, onSend } = build({ ...ASK, multiple: true }, text);
+  for (const index of indices) area.pick(index);
+  send.click();
+  expect(onSend.mock.calls).toEqual([[expected]]);
 });

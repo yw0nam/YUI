@@ -52,16 +52,19 @@ it("keeps the highest revision, ignores an older snapshot event, and reads its T
   expect(mocks.listen).toHaveBeenCalledWith("threads-snapshot", expect.any(Function));
 });
 
-it("answers through thread_answer with the ask id and only the given fields", async () => {
+it.each([
+  [{ choice: "allow" }, { id: "t1", askId: "a1", choice: "allow" }],
+  [
+    { choices: ["allow", "deny"], text: "why" },
+    { id: "t1", askId: "a1", choices: ["allow", "deny"], text: "why" },
+  ],
+  [{ text: "why" }, { id: "t1", askId: "a1", text: "why" }],
+])("answers through thread_answer with only the given fields %j", async (answer, expected) => {
   mocks.listen.mockResolvedValue(() => {});
   mocks.invoke.mockResolvedValue(undefined);
   const client = createThreadsClient();
 
-  await client.answer("t1", "a1", { choice: "allow" });
+  await client.answer("t1", "a1", answer);
 
-  expect(mocks.invoke).toHaveBeenCalledWith("thread_answer", {
-    id: "t1",
-    askId: "a1",
-    choice: "allow",
-  });
+  expect(mocks.invoke).toHaveBeenCalledWith("thread_answer", expected);
 });

@@ -204,6 +204,32 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn multiple_is_true_with_choices_or_absent() {
+        let mut input = body();
+        input["ask"]["multiple"] = json!(true);
+        let parsed = parse_upsert(&input.to_string()).unwrap();
+        let AskUpdate::Set(ask) = parsed.ask else {
+            panic!("open ask");
+        };
+        assert_eq!(serde_json::to_value(ask).unwrap()["multiple"], json!(true));
+        input["ask"]["multiple"] = json!(null);
+        let parsed = parse_upsert(&input.to_string()).unwrap();
+        let AskUpdate::Set(ask) = parsed.ask else {
+            panic!("open ask");
+        };
+        assert_eq!(serde_json::to_value(ask).unwrap().get("multiple"), None);
+        for value in [json!(false), json!("true"), json!(1)] {
+            let mut input = body();
+            input["ask"]["multiple"] = value;
+            assert_eq!(parse_upsert(&input.to_string()).unwrap_err(), 400);
+        }
+        let mut input = body();
+        input["ask"]["multiple"] = json!(true);
+        input["ask"]["choices"] = json!([]);
+        assert_eq!(parse_upsert(&input.to_string()).unwrap_err(), 400);
+    }
+
+    #[test]
     fn valid_body_and_unicode_label() {
         let mut value = body();
         value["label"] = json!("한".repeat(120));

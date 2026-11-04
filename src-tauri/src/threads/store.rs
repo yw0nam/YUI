@@ -349,6 +349,76 @@ mod tests {
     }
 
     #[test]
+    fn multiple_answers_keep_ids_and_join_labels_in_ask_order() {
+        let s = store();
+        let mut value = body();
+        value["ask"]["multiple"] = serde_json::json!(true);
+        value["ask"]["choices"] = serde_json::json!([
+            {"id":"yes","label":"Allow"}, {"id":"no","label":"Deny"}
+        ]);
+        s.upsert(
+            "t",
+            super::super::model::parse_upsert(&value.to_string()).unwrap(),
+            1,
+        );
+        let a: AnswerInput = serde_json::from_value(serde_json::json!({
+            "ask_id":"a", "choices":["no","yes"], "text":"why"
+        }))
+        .unwrap();
+        assert_eq!(s.answer("t", a, 2), Ok(()));
+        assert_eq!(
+            s.snapshot().threads[0].entries.last().unwrap().text,
+            "Allow\nDeny\nwhy"
+        );
+        let WaitOutcome::Answer(answer) = poll(&s, "a") else {
+            panic!("pending answer");
+        };
+        assert_eq!(
+            serde_json::to_value(answer).unwrap(),
+            serde_json::json!({
+                "ask_id":"a", "choices":["no","yes"], "text":"why", "at":2
+            })
+        );
+    }
+
+    #[test]
+    fn invalid_multiple_answers_leave_the_ask_open() {
+        for (payload, error) in [
+            (
+                serde_json::json!({"choice":"yes"}),
+                "multiple ask does not accept choice",
+            ),
+            (
+                serde_json::json!({"choices":[]}),
+                "choices must be non-empty",
+            ),
+            (
+                serde_json::json!({"choices":["yes","yes"]}),
+                "choices must be distinct",
+            ),
+            (
+                serde_json::json!({"choices":["unknown"]}),
+                "choices are not among the ask choices",
+            ),
+        ] {
+            let s = store();
+            let mut value = body();
+            value["ask"]["multiple"] = serde_json::json!(true);
+            s.upsert(
+                "t",
+                super::super::model::parse_upsert(&value.to_string()).unwrap(),
+                1,
+            );
+            let mut payload = payload;
+            payload["ask_id"] = serde_json::json!("a");
+            payload["text"] = serde_json::json!("why");
+            let result = s.answer("t", serde_json::from_value(payload).unwrap(), 2);
+            assert_eq!(result, Err(error));
+            assert_eq!(s.snapshot().threads[0].ask.as_ref().unwrap().ask_id, "a");
+        }
+    }
+
+    #[test]
     fn any_ask_delivers_oldest_pending_once_and_never_gone() {
         let s = store();
         assert_eq!(
@@ -514,6 +584,7 @@ mod tests {
             ("closed", "ask is not open"),
             ("mismatch", "ask_id does not match open ask"),
             ("choice", "choice is not among the ask choices"),
+            ("choices", "single-select ask does not accept choices"),
             (
                 "empty",
                 "answer requires a choice, non-empty text, or release",
@@ -541,6 +612,12 @@ mod tests {
             match case {
                 "mismatch" => a.ask_id = "b".into(),
                 "choice" => a.choice = Some("no".into()),
+                "choices" => {
+                    a = serde_json::from_value(serde_json::json!({
+                        "ask_id":"a", "choice":"yes", "choices":["yes"], "text":"Please"
+                    }))
+                    .unwrap()
+                }
                 "empty" => {
                     a.choice = None;
                     a.text = Some("".into());

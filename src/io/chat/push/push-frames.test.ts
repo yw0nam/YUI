@@ -4,6 +4,7 @@
 
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
+  askFrameFault,
   type PlaybackFrame,
   renderFrameFault,
   speechFrameFault,
@@ -45,4 +46,32 @@ it("playback frame carries only a failed turn id", () => {
     turn_id: string;
     ended: "failed";
   }>();
+});
+
+it.each([false, "true", 1, {}])("refuses an Ask with multiple %j", (multiple) => {
+  expect(
+    askFrameFault({
+      ask: {
+        ask_id: "a",
+        prompt: "Pick?",
+        choices: [{ id: "a", label: "A" }],
+        text: true,
+        multiple,
+      },
+    }),
+  ).toBe("multiple");
+});
+it.each([[undefined], [[]]])("refuses multiple without offered choices %j", (choices) => {
+  expect(
+    askFrameFault({ ask: { ask_id: "a", prompt: "Pick?", choices, text: true, multiple: true } }),
+  ).toBe("multiple");
+});
+
+it.each([
+  [{ multiple: true, choices: [{ id: "a", label: "A" }] }, null],
+  [{ multiple: null }, null],
+])("accepts an Ask with multiple rules %j", (fields, expected) => {
+  expect(askFrameFault({ ask: { ask_id: "a", prompt: "Pick?", text: true, ...fields } })).toBe(
+    expected,
+  );
 });

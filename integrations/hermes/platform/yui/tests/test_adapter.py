@@ -2567,8 +2567,11 @@ async def test_clarify_choice(client, adapter, multi):
     await clarify(adapter, choices=["α", "B"], multi=multi)
     ask = (await recv(ws))["ask"]
     assert "placeholder" not in ask
-    assert ask["prompt"] == ("Pick?\n\ngateway.clarify.hint_multi" if multi else "Pick?")
-    await adapter._on_frame(CHAT, {"type": "answer", "ask_id": "clarify-1", "choice": "1"})
+    assert ask["prompt"] == "Pick?"
+    assert ask.get("multiple") is (True if multi else None)
+    await adapter._on_frame(
+        CHAT, {"type": "answer", "ask_id": "clarify-1", **({"choices": ["1"]} if multi else {"choice": "1"})}
+    )
     assert CLARIFY.calls == [("resolve", "clarify-1", '["α"]' if multi else "α")]
 
 
@@ -2634,12 +2637,14 @@ async def test_clarify_requires_acceptance(client, adapter):
         await asyncio.wait_for(ws.receive_json(), 0.05)
 
 
-async def test_clarify_seven_choices(client, adapter):
+@pytest.mark.parametrize("multi", [False, True])
+async def test_clarify_seven_choices(client, adapter, multi):
     ws = await ready(client, accepts=["ask"])
     choices = list("ABCDEFG")
-    await clarify(adapter, choices=choices)
+    await clarify(adapter, choices=choices, multi=multi)
     ask = (await recv(ws))["ask"]
     assert "choices" not in ask
+    assert "multiple" not in ask
     assert ask["text"] is True
     assert ask["prompt"] == "Pick?\n\n1. A\n2. B\n3. C\n4. D\n5. E\n6. F\n7. G"
 
@@ -2855,3 +2860,37 @@ async def test_backend_command_late_output_is_not_rendered(client, adapter, monk
     deliver.assert_not_awaited()
     with pytest.raises(TimeoutError):
         await asyncio.wait_for(ws.receive_json(), 0.05)
+
+
+@pytest.mark.parametrize(
+    "picks,text,expected",
+    [
+        (["1", "2"], "why", '["α (Recommended)", "B", "why"]'),
+        (["2"], None, '["B"]'),
+        (None, "why", '["why"]'),
+    ],
+)
+async def test_clarify_multiple_answer(client, adapter, picks, text, expected):
+    ws = await ready(client, accepts=["ask"])
+    await clarify(adapter, choices=["α (Recommended)", "B"], multi=True)
+    assert (await recv(ws))["ask"]["prompt"] == "Pick?"
+    await adapter._on_frame(CHAT, {"type": "answer", "ask_id": "clarify-1", "choices": picks, "text": text})
+    assert CLARIFY.calls == [("resolve", "clarify-1", expected)]
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"choice": "1"},
+        {"choices": []},
+        {"choices": ["1", "1"]},
+        {"choices": ["3"]},
+    ],
+)
+async def test_clarify_invalid_multiple_answer(client, adapter, fields):
+    ws = await ready(client, accepts=["ask"])
+    await clarify(adapter, choices=["A", "B"], multi=True)
+    await recv(ws)
+    await adapter._on_frame(CHAT, {"type": "answer", "ask_id": "clarify-1", "text": "why", **fields})
+    assert CLARIFY.calls == []
+    assert adapter._asks.get(CHAT, "clarify-1") is not None
